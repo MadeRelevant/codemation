@@ -1,0 +1,16 @@
+{
+  "name": "@codemation/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "dependencies": {
+    "@eslint/js": "^10.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "eslint-plugin-no-only-tests": "^3.3.0",
+    "globals": "^17.4.0"
+  }
+}
