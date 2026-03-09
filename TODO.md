@@ -5,3 +5,4 @@
 * [ ] split workflow setup into separate service instead of within engine
 * [ ] remove the service locator behaviour from the context factory, either set those at the factory or let classes just inject the required services
 * [ ] add infinite recursion protection
+* [ ] add tests what happens when aggregating items or vice versa (splitting items) and check paired items dont get messed up
