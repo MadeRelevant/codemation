@@ -1,4 +1,4 @@
-import type { MutableRunData, NodeId, NodeOutputs, RunDataFactory } from "../types";
+import type { MutableRunData, NodeId, NodeOutputs, RunDataFactory } from "../../types";
 import { InMemoryRunData } from "./inMemoryRunData";
 
 export class InMemoryRunDataFactory implements RunDataFactory {

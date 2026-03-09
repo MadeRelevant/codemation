@@ -21,8 +21,8 @@ export interface ChatModelConfig {
   options?: OpenAIChatModelOptions;
 }
 
-export namespace ChatModelConfig {
-  export function openai(model: OpenAIChatModelId, options?: OpenAIChatModelOptions): ChatModelConfig {
+export class ChatModelConfigFactory {
+  static openai(model: OpenAIChatModelId, options?: OpenAIChatModelOptions): ChatModelConfig {
     return { provider: "openai", model, options };
   }
 }
@@ -58,7 +58,7 @@ export interface AgentTool<TInputSchema extends ZodSchemaAny = ZodSchemaAny, TOu
 export type AgentToolToken = TypeToken<AgentTool<any, any>>;
 
 export type AgentToolCall = Readonly<{ name: string; input: unknown }>;
-export type AgentToolCallPlanner<TNodeConfig = unknown> = (
+export type AgentToolCallPlanner<_TNodeConfig = unknown> = (
   item: Item,
   index: number,
   items: Items,

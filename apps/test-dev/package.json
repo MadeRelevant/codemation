@@ -3,17 +3,27 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./workflows": "./src/workflows/index.ts"
+  },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "pnpm -C ../.. exec turbo run build --filter=@codemation/application --filter=@codemation/core --filter=@codemation/core-nodes --filter=@codemation/node-example && tsx watch src/index.ts",
+    "start": "pnpm -C ../.. exec turbo run build --filter=@codemation/application --filter=@codemation/core --filter=@codemation/core-nodes --filter=@codemation/node-example && tsx src/index.ts",
+    "worker": "tsx src/worker.ts",
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "echo \"(test placeholder)\""
   },
   "dependencies": {
+    "@codemation/application": "workspace:*",
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
+    "@codemation/eventbus-redis": "workspace:*",
     "@codemation/node-example": "workspace:*",
+    "@codemation/queue-bullmq": "workspace:*",
+    "@codemation/run-store-sqlite": "workspace:*",
+    "reflect-metadata": "^0.2.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {

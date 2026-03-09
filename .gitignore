@@ -7,5 +7,6 @@ out
 .env.*
 *.log
 .cursor/plans
+.codemation
 **/dist
 **/node_modules

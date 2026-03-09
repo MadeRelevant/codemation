@@ -42,6 +42,9 @@ export default [
       ...tsPlugin.configs.recommended.rules,
       // Baseline should be low-noise; tighten later once core is cleaned up.
       "@typescript-eslint/no-explicit-any": "off",
+      // Prefer the TS-aware variant.
+      "no-redeclare": "off",
+      "@typescript-eslint/no-redeclare": "error",
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
@@ -70,6 +73,77 @@ export default [
         { object: "it", property: "only", message: "Do not commit focused tests (it.only)." },
         { object: "Math", property: "random", message: "Avoid nondeterminism in tests (use deterministic factories)." },
         { object: "Date", property: "now", message: "Avoid nondeterminism in tests (inject clock or use deterministic factories)." },
+      ],
+    },
+  },
+
+  // Architecture: no top-level or exported functions in engine code.
+  // Use classes + DI to keep boundaries explicit and testable.
+  {
+    files: ["packages/core/src/engine/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Program > FunctionDeclaration",
+          message: "Root-level functions are not allowed. Use classes + DI (inject collaborators) instead.",
+        },
+        {
+          selector: "Program > VariableDeclaration > VariableDeclarator[init.type='ArrowFunctionExpression']",
+          message: "Root-level functions are not allowed. Use classes + DI (inject collaborators) instead.",
+        },
+        {
+          selector: "Program > VariableDeclaration > VariableDeclarator[init.type='FunctionExpression']",
+          message: "Root-level functions are not allowed. Use classes + DI (inject collaborators) instead.",
+        },
+        {
+          selector: "ExportNamedDeclaration > FunctionDeclaration",
+          message: "Exported functions are not allowed. Export classes/tokens and use DI instead.",
+        },
+        {
+          selector: "ExportDefaultDeclaration > FunctionDeclaration",
+          message: "Exported functions are not allowed. Export classes/tokens and use DI instead.",
+        },
+        {
+          selector:
+            "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[init.type='ArrowFunctionExpression'], ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[init.type='FunctionExpression']",
+          message: "Exported functions are not allowed. Export classes/tokens and use DI instead.",
+        },
+      ],
+    },
+  },
+
+  // Architecture: prefer class-based APIs for queue implementations too.
+  {
+    files: ["packages/queue-bullmq/src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Program > FunctionDeclaration",
+          message: "Root-level functions are not allowed. Use classes + DI (inject collaborators) instead.",
+        },
+        {
+          selector: "Program > VariableDeclaration > VariableDeclarator[init.type='ArrowFunctionExpression']",
+          message: "Root-level functions are not allowed. Use classes + DI (inject collaborators) instead.",
+        },
+        {
+          selector: "Program > VariableDeclaration > VariableDeclarator[init.type='FunctionExpression']",
+          message: "Root-level functions are not allowed. Use classes + DI (inject collaborators) instead.",
+        },
+        {
+          selector: "ExportNamedDeclaration > FunctionDeclaration",
+          message: "Exported functions are not allowed. Export classes/tokens and use DI instead.",
+        },
+        {
+          selector: "ExportDefaultDeclaration > FunctionDeclaration",
+          message: "Exported functions are not allowed. Export classes/tokens and use DI instead.",
+        },
+        {
+          selector:
+            "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[init.type='ArrowFunctionExpression'], ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[init.type='FunctionExpression']",
+          message: "Exported functions are not allowed. Export classes/tokens and use DI instead.",
+        },
       ],
     },
   },

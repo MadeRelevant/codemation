@@ -1,4 +1,4 @@
-import type { InputPortKey, NodeId, OutputPortKey, WorkflowDefinition, WorkflowGraph } from "../types";
+import type { InputPortKey, NodeId, OutputPortKey, WorkflowDefinition, WorkflowGraph } from "../../types";
 
 export class ExecutableGraph implements WorkflowGraph {
   private readonly outgoingByNodeAndPort = new Map<NodeId, Map<OutputPortKey, Array<Readonly<{ nodeId: NodeId; input: InputPortKey }>>>>();

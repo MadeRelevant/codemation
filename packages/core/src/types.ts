@@ -237,6 +237,63 @@ export interface NodeExecutionScheduler {
   cancel?(receiptId: string): Promise<void>;
 }
 
+export type NodeActivationRequestBase = Readonly<{
+  runId: RunId;
+  activationId: NodeActivationId;
+  workflowId: WorkflowId;
+  nodeId: NodeId;
+  parent?: ParentExecutionRef;
+  /**
+   * Batch identifier for fan-in joins.
+   */
+  batchId?: string;
+  /**
+   * Fully constructed execution context for local execution.
+   * Worker/offloaded execution may ignore this.
+   */
+  ctx: NodeExecutionContext;
+}>;
+
+export type NodeActivationRequest =
+  | (NodeActivationRequestBase &
+      Readonly<{
+        kind: "single";
+        input: Items;
+      }>)
+  | (NodeActivationRequestBase &
+      Readonly<{
+        kind: "multi";
+        inputsByPort: NodeInputsByPort;
+      }>);
+
+export interface NodeActivationReceipt {
+  receiptId: string;
+  mode?: ExecutionMode;
+  queue?: string;
+}
+
+/**
+ * A minimal callback surface that allows a scheduler to report execution outcomes back to the engine.
+ * This avoids a direct dependency on the concrete `Engine` class.
+ */
+export interface NodeActivationContinuation {
+  resumeFromNodeResult(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; outputs: NodeOutputs }): Promise<RunResult>;
+  resumeFromNodeError(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; error: Error }): Promise<RunResult>;
+}
+
+/**
+ * Scheduler responsible for invoking activations (inline or offloaded) and reporting results back
+ * via a bound continuation.
+ */
+export interface NodeActivationScheduler {
+  /**
+   * Bind the engine continuation that receives execution results/errors.
+   */
+  setContinuation?(continuation: NodeActivationContinuation): void;
+  enqueue(request: NodeActivationRequest): Promise<NodeActivationReceipt>;
+  cancel?(receiptId: string): Promise<void>;
+}
+
 export interface RunQueueEntry {
   nodeId: NodeId;
   input: Items;
@@ -264,6 +321,14 @@ export interface RunQueueEntry {
 }
 
 export type RunStatus = "running" | "pending" | "completed" | "failed";
+
+export interface RunSummary {
+  runId: RunId;
+  workflowId: WorkflowId;
+  startedAt: string; // ISO string
+  status: RunStatus;
+  parent?: ParentExecutionRef;
+}
 
 export interface PendingNodeExecution {
   runId: RunId;
@@ -298,6 +363,10 @@ export interface RunStateStore {
   save(state: PersistedRunState): Promise<void>;
 }
 
+export interface RunListingStore {
+  listRuns(args?: Readonly<{ workflowId?: WorkflowId; limit?: number }>): Promise<ReadonlyArray<RunSummary>>;
+}
+
 export type RunResult =
   | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "completed"; outputs: Items }
   | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "pending"; pending: PendingNodeExecution }
@@ -310,6 +379,7 @@ export interface EngineDeps {
   makeActivationId: () => NodeActivationId;
   webhookBasePath?: string;
   runStore?: RunStateStore;
+  activationScheduler?: NodeActivationScheduler;
   scheduler?: NodeExecutionScheduler;
   offloadPolicy?: NodeOffloadPolicy;
   graphFactory?: WorkflowGraphFactory;

@@ -3,6 +3,7 @@ import type { Item, Items, Node, NodeConfigBase, NodeExecutionContext, NodeOutpu
 export class If implements NodeConfigBase {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = IfNode;
+  readonly execution = { hint: "local" } as const;
   constructor(
     public readonly name: string,
     public readonly predicate: (item: Item, index: number, items: Items, ctx: NodeExecutionContext<If>) => boolean,

@@ -1,4 +1,4 @@
-import type { ExecutionContext, ExecutionContextFactory, ExecutionServices, ParentExecutionRef, RunDataSnapshot, RunId, WorkflowId } from "../types";
+import type { ExecutionContext, ExecutionContextFactory, ExecutionServices, ParentExecutionRef, RunDataSnapshot, RunId, WorkflowId } from "../../types";
 
 export class DefaultExecutionContextFactory implements ExecutionContextFactory {
   create(args: {

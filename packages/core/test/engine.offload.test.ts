@@ -20,6 +20,7 @@ test("engine can offload a node (pending) and resume later", async () => {
 
   const r1 = await kit.engine.runWorkflow(wf, "n1", items([{ a: 1 }]), undefined);
   assert.equal(r1.status, "pending");
+  await kit.waitForActivations(1);
   assert.equal(events.join(","), "n1");
   assert.equal(kit.activations.length, 1);
   assert.equal(kit.activations[0].nodeId, "n1");
@@ -37,14 +38,17 @@ test("engine can offload a node (pending) and resume later", async () => {
 
   const r2 = await kit.engine.resumeFromStepResult({
     runId: r1.runId,
-    activationId: r1.pending.activationId,
+    activationId: storedPending.pending!.activationId,
     nodeId: "n2",
     outputs: { main: items([{ ok: true }]) },
   });
 
-  assert.equal(r2.status, "completed");
+  assert.equal(r2.status, "pending");
+  await kit.waitForActivations(3);
+  const done = await kit.engine.waitForCompletion(r1.runId);
+  assert.equal(done.status, "completed");
   assert.equal(events.join(","), "n1,n3"); // n2 was offloaded, so its callback never ran locally
-  assert.equal(r2.outputs.length, 1);
+  assert.equal(done.outputs.length, 1);
 
   const storedDone = await kit.runStore.load(r1.runId);
   assert.ok(storedDone);

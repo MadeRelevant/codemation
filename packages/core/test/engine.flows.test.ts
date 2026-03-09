@@ -28,7 +28,7 @@ test("engine runs a simple A -> B -> C flow", async () => {
   const kit = createEngineTestKit();
   await kit.start([wf]);
 
-  const r = await kit.engine.runWorkflow(wf, "A", items([{ x: 1 }]), undefined);
+  const r = await kit.runToCompletion({ wf, startAt: "A", items: items([{ x: 1 }]) });
   assert.equal(r.status, "completed");
   assert.equal(events.join(","), "A,B,C");
   assert.equal(r.outputs.length, 1);
@@ -84,7 +84,7 @@ test("engine runs a diamond DAG A -> B + C -> D (fan-in join, D executes once)",
   const kit = createEngineTestKit();
   await kit.start([wf]);
 
-  const r = await kit.engine.runWorkflow(wf, "A", items([{ x: 1 }]), undefined);
+  const r = await kit.runToCompletion({ wf, startAt: "A", items: items([{ x: 1 }]) });
   assert.equal(r.status, "completed");
 
   assert.equal(events.join(","), "A,B,C,D");
@@ -125,7 +125,7 @@ test("engine can run a subworkflow node", async () => {
   const kit = createEngineTestKit();
   await kit.start([parent, child]);
 
-  const r = await kit.engine.runWorkflow(parent, "parentA", items([{ x: 1 }]), undefined);
+  const r = await kit.runToCompletion({ wf: parent, startAt: "parentA", items: items([{ x: 1 }]) });
   assert.equal(r.status, "completed");
   assert.equal(r.outputs.length, 1);
   assert.deepEqual(r.outputs[0]?.json, { x: 1 });
@@ -177,7 +177,7 @@ test("engine processes multiple items as a batch", async () => {
   await kit.start([wf]);
 
   const input = items([{ n: 1 }, { n: 2 }, { n: 3 }]);
-  const r = await kit.engine.runWorkflow(wf, "A", input, undefined);
+  const r = await kit.runToCompletion({ wf, startAt: "A", items: input });
   assert.equal(r.status, "completed");
   assert.equal(events.join(","), "A,B,C");
 
@@ -203,7 +203,7 @@ test("workflow completes when a node has 2 outputs but only emits 1 output key",
   const kit = createEngineTestKit();
   await kit.start([wf]);
 
-  const r = await kit.engine.runWorkflow(wf, "A", items([{ x: 1 }]), undefined);
+  const r = await kit.runToCompletion({ wf, startAt: "A", items: items([{ x: 1 }]) });
   assert.equal(r.status, "completed");
   assert.equal(events.join(","), "A,T");
 });
@@ -237,7 +237,7 @@ test("when({true,false}) auto-inserts merge and chain can continue", async () =>
   const kit = createEngineTestKit();
   await kit.start([wf]);
 
-  const r = await kit.engine.runWorkflow(wf, "seed", items([{ x: 1 }, { x: 2 }]), undefined);
+  const r = await kit.runToCompletion({ wf, startAt: "seed", items: items([{ x: 1 }, { x: 2 }]) });
   assert.equal(r.status, "completed");
 
   assert.equal(afterItems.length, 2);

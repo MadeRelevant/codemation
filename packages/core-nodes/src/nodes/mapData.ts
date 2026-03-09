@@ -3,6 +3,7 @@ import type { Item, Items, Node, NodeConfigBase, NodeExecutionContext, NodeOutpu
 export class MapData implements NodeConfigBase {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = MapDataNode;
+  readonly execution = { hint: "local" } as const;
   constructor(
     public readonly name: string,
     public readonly map: (item: Item, ctx: NodeExecutionContext<MapData>) => unknown,
