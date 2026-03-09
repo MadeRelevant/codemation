@@ -1,4 +1,4 @@
-import type { NodeConfigBase, NodeDefinition, NodeRef, OutputPortKey, WorkflowDefinition, WorkflowId } from "../../dist/index.js";
+import type { InputPortKey, NodeConfigBase, NodeDefinition, NodeRef, OutputPortKey, WorkflowDefinition, WorkflowId } from "../../dist/index.js";
 import { WorkflowBuilder } from "../../dist/index.js";
 
 type Meta = Readonly<{ id: WorkflowId; name: string }>;
@@ -25,10 +25,10 @@ export function dag(meta: Meta) {
     return { id, kind: config.kind, name: config.name };
   }
 
-  function connect(from: NodeRef | string, to: NodeRef | string, fromOutput: OutputPortKey = "main"): void {
+  function connect(from: NodeRef | string, to: NodeRef | string, fromOutput: OutputPortKey = "main", toInput: InputPortKey = "in"): void {
     const fromId = typeof from === "string" ? from : from.id;
     const toId = typeof to === "string" ? to : to.id;
-    edges.push({ from: { nodeId: fromId, output: fromOutput }, to: { nodeId: toId, input: "in" } });
+    edges.push({ from: { nodeId: fromId, output: fromOutput }, to: { nodeId: toId, input: toInput } });
   }
 
   function build(): WorkflowDefinition {

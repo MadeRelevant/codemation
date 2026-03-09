@@ -20,7 +20,7 @@ export class ExampleUppercaseNode implements Node<ExampleUppercase> {
       const item = items[i]!;
       const json = typeof item.json === "object" && item.json !== null ? (item.json as Record<string, unknown>) : {};
       const value = String(json[ctx.config.cfg.field] ?? "");
-      out.push({ json: { ...json, [ctx.config.cfg.field]: value.toUpperCase() } });
+      out.push({ ...item, json: { ...json, [ctx.config.cfg.field]: value.toUpperCase() } });
     }
     return { main: out };
   }

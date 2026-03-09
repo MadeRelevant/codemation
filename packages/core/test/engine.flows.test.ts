@@ -1,10 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { WorkflowBuilder } from "../dist/index.js";
+
 import {
   CallbackNodeConfig,
   IfNodeConfig,
   MapNodeConfig,
+  MergeNodeConfig,
   SubWorkflowRunnerConfig,
   ThrowNodeConfig,
   chain,
@@ -58,6 +61,7 @@ test("engine runs a diamond DAG A -> B + C -> D (fan-in join, D executes once)",
       { id: "C" },
     ),
   );
+  const M = g.add(new MergeNodeConfig("Merge", { mode: "mergeByPosition", prefer: ["B", "C"] }, { id: "M" }));
   const D = g.add(
     new CallbackNodeConfig(
       "D",
@@ -71,8 +75,9 @@ test("engine runs a diamond DAG A -> B + C -> D (fan-in join, D executes once)",
 
   g.connect(A, B, "main");
   g.connect(A, C, "main");
-  g.connect(B, D, "main");
-  g.connect(C, D, "main");
+  g.connect(B, M, "main", "B");
+  g.connect(C, M, "main", "C");
+  g.connect(M, D, "main", "in");
 
   const wf = g.build();
 
@@ -201,5 +206,44 @@ test("workflow completes when a node has 2 outputs but only emits 1 output key",
   const r = await kit.engine.runWorkflow(wf, "A", items([{ x: 1 }]), undefined);
   assert.equal(r.status, "completed");
   assert.equal(events.join(","), "A,T");
+});
+
+test("when({true,false}) auto-inserts merge and chain can continue", async () => {
+  let afterItems: Array<any> = [];
+
+  const wf = new WorkflowBuilder(
+    { id: "wf.when.merge", name: "when+merge" },
+    {
+      makeMergeNode: (name) => new MergeNodeConfig(name, { mode: "passThrough", prefer: ["true", "false"] }, { id: "merge" }),
+    },
+  )
+    .start(new MapNodeConfig("seed", async (item) => item.json, { id: "seed" }))
+    .then(new IfNodeConfig("if", async (item) => Number((item.json as any).x ?? 0) % 2 === 0, { id: "if", omitUnusedOutputKey: false }))
+    .when({
+      true: [new MapNodeConfig("T", async (item) => ({ ...(item.json as any), branch: "true" }), { id: "T" })],
+      false: [new MapNodeConfig("F", async (item) => ({ ...(item.json as any), branch: "false" }), { id: "F" })],
+    })
+    .then(
+      new CallbackNodeConfig(
+        "after",
+        ({ items }) => {
+          afterItems = items as any;
+        },
+        { id: "after" },
+      ),
+    )
+    .build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const r = await kit.engine.runWorkflow(wf, "seed", items([{ x: 1 }, { x: 2 }]), undefined);
+  assert.equal(r.status, "completed");
+
+  assert.equal(afterItems.length, 2);
+  assert.deepEqual(afterItems.map((i) => i.json), [
+    { x: 1, branch: "false" },
+    { x: 2, branch: "true" },
+  ]);
 });
 

@@ -1,15 +1,19 @@
 import http from "node:http";
-import { Engine, EngineWorkflowRunnerService, createSimpleContainer } from "@codemation/core";
+import { Engine, EngineWorkflowRunnerService, InMemoryCredentialService, createSimpleContainer, credentialId } from "@codemation/core";
 import { workflows } from "./workflows";
 
 const workflowsById = new Map(workflows.map((w) => [w.id, w] as const));
 
-// Minimal credential service placeholder.
-const credentials = {
-  async get<TSecret>(_id: any): Promise<TSecret> {
-    return {} as TSecret;
-  },
-};
+/**
+ * Credentials are configured once at host startup.
+ * You can bind them from anywhere (env, dotenv, secret managers, etc).
+ */
+const OPENAI_API_KEY = credentialId<string>("openai.apiKey");
+const credentials = new InMemoryCredentialService().setFactory(OPENAI_API_KEY, () => {
+  const v = process.env.OPENAI_API_KEY;
+  if (!v) throw new Error("Missing env var: OPENAI_API_KEY");
+  return v;
+});
 
 // Minimal webhook registrar placeholder.
 const webhooks = new Map<string, (req: unknown) => Promise<unknown>>();

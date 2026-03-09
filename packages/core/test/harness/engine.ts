@@ -17,6 +17,7 @@ import {
   Engine,
   EngineWorkflowRunnerService,
   HintOnlyOffloadPolicy,
+  InMemoryCredentialService,
   InMemoryRunStateStore,
   createSimpleContainer,
 } from "../../dist/index.js";
@@ -68,7 +69,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   const host: EngineHost & { workflows?: any } =
     options.host ??
     ({
-      credentials: options.credentials ?? { async get() { return {}; } },
+      credentials: options.credentials ?? new InMemoryCredentialService(),
       workflows: undefined,
       registerWebhook() {
         throw new Error("not used");

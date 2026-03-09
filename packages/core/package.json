@@ -26,5 +26,8 @@
     "tsdown": "^0.15.5",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
   }
 }

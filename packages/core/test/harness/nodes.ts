@@ -1,6 +1,8 @@
 import type {
   Item,
+  InputPortKey,
   Items,
+  MultiInputNode,
   Node,
   NodeConfigBase,
   NodeExecutionContext,
@@ -107,9 +109,18 @@ export class BranchNode implements Node<BranchNodeConfig> {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i]!;
+      const metaBase = (item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}) as Record<string, unknown>;
+      const cmBase =
+        metaBase._cm && typeof metaBase._cm === "object" ? (metaBase._cm as Record<string, unknown>) : ({} as Record<string, unknown>);
+      const originIndex = typeof cmBase.originIndex === "number" ? (cmBase.originIndex as number) : i;
+      const tagged: Item = {
+        ...item,
+        meta: { ...metaBase, _cm: { ...cmBase, originIndex } },
+        paired: [{ nodeId: ctx.nodeId, output: "$in", itemIndex: originIndex }, ...(item.paired ?? [])],
+      };
       const result = await ctx.config.decide(item, ctx, i);
-      if (result) yes.push(item);
-      else no.push(item);
+      if (result) yes.push(tagged);
+      else no.push(tagged);
     }
 
     return { true: yes, false: no } as unknown as NodeOutputs;
@@ -187,9 +198,18 @@ export class IfNode implements Node<IfNodeConfig> {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i]!;
+      const metaBase = (item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}) as Record<string, unknown>;
+      const cmBase =
+        metaBase._cm && typeof metaBase._cm === "object" ? (metaBase._cm as Record<string, unknown>) : ({} as Record<string, unknown>);
+      const originIndex = typeof cmBase.originIndex === "number" ? (cmBase.originIndex as number) : i;
+      const tagged: Item = {
+        ...item,
+        meta: { ...metaBase, _cm: { ...cmBase, originIndex } },
+        paired: [{ nodeId: ctx.nodeId, output: "$in", itemIndex: originIndex }, ...(item.paired ?? [])],
+      };
       const result = await ctx.config.decide(item, ctx, i);
-      if (result) yes.push(item);
-      else no.push(item);
+      if (result) yes.push(tagged);
+      else no.push(tagged);
     }
 
     const omit = ctx.config.omitUnusedOutputKey;
@@ -249,6 +269,83 @@ export class SubWorkflowRunnerNode implements Node<SubWorkflowRunnerConfig> {
       out.push(...result.outputs);
     }
 
+    return { main: out };
+  }
+}
+
+export class MergeNodeConfig implements NodeConfigBase {
+  readonly kind = "node" as const;
+  readonly token: TypeToken<unknown> = MergeNode;
+
+  constructor(
+    public readonly name: string,
+    public readonly cfg: Readonly<{ mode: "passThrough" | "append" | "mergeByPosition"; prefer?: ReadonlyArray<InputPortKey> }> = { mode: "passThrough" },
+    public readonly opts: Readonly<{ id?: string }> = {},
+  ) {}
+
+  get id(): string | undefined {
+    return this.opts.id;
+  }
+}
+
+function orderedInputs(inputsByPort: Readonly<Record<InputPortKey, Items>>, prefer?: ReadonlyArray<InputPortKey>): InputPortKey[] {
+  const keys = Object.keys(inputsByPort);
+  const preferred = (prefer ?? []).filter((k) => keys.includes(k));
+  const rest = keys.filter((k) => !preferred.includes(k)).sort();
+  return [...preferred, ...rest];
+}
+
+export class MergeNode implements MultiInputNode<MergeNodeConfig> {
+  readonly kind = "node" as const;
+  readonly outputPorts = ["main"] as const;
+
+  async executeMulti(inputsByPort: Readonly<Record<InputPortKey, Items>>, ctx: NodeExecutionContext<MergeNodeConfig>): Promise<NodeOutputs> {
+    const order = orderedInputs(inputsByPort, ctx.config.cfg.prefer);
+
+    if (ctx.config.cfg.mode === "append") {
+      const out: Item[] = [];
+      for (const k of order) out.push(...(inputsByPort[k] ?? []));
+      return { main: out };
+    }
+
+    if (ctx.config.cfg.mode === "mergeByPosition") {
+      let maxLen = 0;
+      for (const k of order) maxLen = Math.max(maxLen, (inputsByPort[k] ?? []).length);
+
+      const out: Item[] = [];
+      for (let i = 0; i < maxLen; i++) {
+        const json: Record<string, unknown> = {};
+        for (const k of order) json[k] = (inputsByPort[k] ?? [])[i]?.json;
+        out.push({ json });
+      }
+      return { main: out };
+    }
+
+    // passThrough: deterministic input precedence per originIndex (aligns branch outputs).
+    const chosenByOrigin = new Map<number, Item>();
+    const fallback: Item[] = [];
+
+    const getOriginIndex = (item: Item): number | undefined => {
+      const meta = item.meta as any;
+      const v = meta?._cm?.originIndex;
+      return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+    };
+
+    for (const k of order) {
+      for (const item of inputsByPort[k] ?? []) {
+        const origin = getOriginIndex(item);
+        if (origin === undefined) {
+          fallback.push(item);
+          continue;
+        }
+        if (!chosenByOrigin.has(origin)) chosenByOrigin.set(origin, item);
+      }
+    }
+
+    const out: Item[] = [];
+    const origins = Array.from(chosenByOrigin.keys()).sort((a, b) => a - b);
+    for (const o of origins) out.push(chosenByOrigin.get(o)!);
+    out.push(...fallback);
     return { main: out };
   }
 }

@@ -25,7 +25,7 @@ export interface WorkflowDefinition {
 }
 
 export interface WorkflowGraph {
-  next(nodeId: NodeId, output: OutputPortKey): NodeId[];
+  next(nodeId: NodeId, output: OutputPortKey): ReadonlyArray<Readonly<{ nodeId: NodeId; input: InputPortKey }>>;
 }
 
 export interface WorkflowGraphFactory {
@@ -107,6 +107,11 @@ export interface WorkflowRunnerService {
 export interface ExecutionServices {
   credentials: CredentialService;
   workflows?: WorkflowRunnerService;
+  /**
+   * Optional dependency resolver. In engine-hosted execution this is typically the engine DI container.
+   * Nodes and tools may use this to resolve pluggable implementations by `TypeToken`.
+   */
+  container?: Container;
 }
 
 export interface ExecutionContext {
@@ -185,6 +190,18 @@ export interface Node<TConfig extends NodeConfigBase = NodeConfigBase> {
   execute(items: Items, ctx: NodeExecutionContext<TConfig>): Promise<NodeOutputs>;
 }
 
+export type NodeInputsByPort = Readonly<Record<InputPortKey, Items>>;
+
+/**
+ * Multi-input node API for fan-in style nodes (e.g. Merge).
+ * Most nodes should stay on the simple `execute(items, ctx)` API.
+ */
+export interface MultiInputNode<TConfig extends NodeConfigBase = NodeConfigBase> {
+  kind: "node";
+  outputPorts: ReadonlyArray<OutputPortKey>;
+  executeMulti(inputsByPort: NodeInputsByPort, ctx: NodeExecutionContext<TConfig>): Promise<NodeOutputs>;
+}
+
 export interface TriggerNode<TConfig extends NodeConfigBase = NodeConfigBase> {
   kind: "trigger";
   outputPorts: readonly ["main"];
@@ -224,6 +241,11 @@ export interface RunQueueEntry {
   nodeId: NodeId;
   input: Items;
   /**
+   * Target input port on `nodeId` (used by multi-input nodes).
+   * Defaults to "in" for normal nodes.
+   */
+  toInput?: InputPortKey;
+  /**
    * Batch identifier used to join multiple upstream edges into one downstream activation.
    */
   batchId?: string;
@@ -232,11 +254,12 @@ export interface RunQueueEntry {
    */
   from?: Readonly<{ nodeId: NodeId; output: OutputPortKey }>;
   /**
-   * Fan-in join state: when present, this queue entry represents a pending join for `nodeId`.
+   * Multi-input collection state: when present, this queue entry represents a pending
+   * multi-input activation for `nodeId` (e.g. Merge node waiting for in1+in2).
    */
-  join?: Readonly<{
-    expectedFrom: ReadonlyArray<Readonly<{ nodeId: NodeId; output: OutputPortKey }>>;
-    received: Readonly<Record<NodeId, Items>>;
+  collect?: Readonly<{
+    expectedInputs: ReadonlyArray<InputPortKey>;
+    received: Readonly<Record<InputPortKey, Items>>;
   }>;
 }
 

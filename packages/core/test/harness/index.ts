@@ -12,6 +12,8 @@ export {
   IfNodeConfig,
   MapNode,
   MapNodeConfig,
+  MergeNode,
+  MergeNodeConfig,
   SubWorkflowRunnerConfig,
   SubWorkflowRunnerNode,
   ThrowNode,

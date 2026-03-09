@@ -13,7 +13,8 @@
   "dependencies": {
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
-    "@codemation/node-example": "workspace:*"
+    "@codemation/node-example": "workspace:*",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",

@@ -4,4 +4,6 @@ export * from "./nodes/mapData";
 export * from "./nodes/subWorkflow";
 export * from "./nodes/manualTrigger";
 export * from "./nodes/aiAgent";
+export * from "./nodes/merge";
+export * from "./workflowBuilder";
 

@@ -17,7 +17,8 @@ export class MapDataNode implements Node<MapData> {
   async execute(items: Items, ctx: NodeExecutionContext<MapData>): Promise<NodeOutputs> {
     const out: Item[] = [];
     for (let i = 0; i < items.length; i++) {
-      out.push({ json: ctx.config.map(items[i]!, ctx) });
+      const item = items[i]!;
+      out.push({ ...item, json: ctx.config.map(item, ctx) });
     }
     return { main: out };
   }

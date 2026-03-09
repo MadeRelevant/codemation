@@ -2,12 +2,14 @@ import {
   type EngineDeps,
   type EngineHost,
   type ExecutionContext,
+  type InputPortKey,
   type Items,
   type MutableRunData,
   type NodeActivationId,
   type NodeActivationStats,
   type NodeId,
   type Node,
+  type MultiInputNode,
   type NodeOutputs,
   type OutputPortKey,
   type PendingNodeExecution,
@@ -75,7 +77,7 @@ export class Engine {
             runId: this.makeRunId(),
             workflowId: wf.id,
             parent: undefined,
-            services: { credentials: this.host.credentials, workflows: this.host.workflows },
+            services: { credentials: this.host.credentials, workflows: this.host.workflows, container: this.container },
             data,
           }),
           trigger: { workflowId: wf.id, nodeId: def.id },
@@ -107,7 +109,7 @@ export class Engine {
       runId,
       workflowId: wf.id,
       parent,
-      services: { credentials: this.host.credentials, workflows: this.host.workflows },
+      services: { credentials: this.host.credentials, workflows: this.host.workflows, container: this.container },
       data,
     });
 
@@ -116,7 +118,7 @@ export class Engine {
     for (const n of wf.nodes) defsById.set(n.id, n);
 
     // Cache node instances per nodeId for this run (no per-item construction).
-    const nodeInstances = new Map<NodeId, Node | TriggerNode>();
+    const nodeInstances = new Map<NodeId, Node | TriggerNode | MultiInputNode>();
     for (const def of wf.nodes) nodeInstances.set(def.id, this.container.resolve(def.token as any));
 
     const startDef = defsById.get(startAt);
@@ -137,7 +139,13 @@ export class Engine {
         itemsOutByPort: { main: items.length },
       });
       for (const next of graph.next(startAt, "main")) {
-        queue.push({ nodeId: next, input: items, batchId: rootBatchId, from: { nodeId: startAt, output: "main" } });
+        queue.push({
+          nodeId: next.nodeId,
+          input: items,
+          toInput: next.input,
+          batchId: rootBatchId,
+          from: { nodeId: startAt, output: "main" },
+        });
       }
     } else {
       queue.push({ nodeId: startAt, input: items, batchId: rootBatchId });
@@ -171,7 +179,7 @@ export class Engine {
     const defsById = new Map<NodeId, WorkflowDefinition["nodes"][number]>();
     for (const n of wf.nodes) defsById.set(n.id, n);
 
-    const nodeInstances = new Map<NodeId, Node | TriggerNode>();
+    const nodeInstances = new Map<NodeId, Node | TriggerNode | MultiInputNode>();
     for (const def of wf.nodes) nodeInstances.set(def.id, this.container.resolve(def.token as any));
 
     const data = this.runDataFactory.create(state.outputsByNode);
@@ -179,7 +187,7 @@ export class Engine {
       runId: state.runId,
       workflowId: state.workflowId,
       parent: state.parent,
-      services: { credentials: this.host.credentials, workflows: this.host.workflows },
+      services: { credentials: this.host.credentials, workflows: this.host.workflows, container: this.container },
       data,
     });
 
@@ -199,63 +207,25 @@ export class Engine {
     const queue: RunQueueEntry[] = state.queue.map((q) => ({ ...q, batchId: q.batchId ?? resumeBatchId }));
 
     // Schedule downstream edges from the resumed node result.
-    const outgoingByNode = new Map<NodeId, Array<{ output: OutputPortKey; to: NodeId }>>();
-    const incomingByNode = new Map<NodeId, Array<{ nodeId: NodeId; output: OutputPortKey }>>();
-    for (const e of wf.edges) {
-      const out = outgoingByNode.get(e.from.nodeId) ?? [];
-      out.push({ output: e.from.output, to: e.to.nodeId });
-      outgoingByNode.set(e.from.nodeId, out);
+    const isMultiInput = (n: unknown): n is { executeMulti: (inputsByPort: any, ctx: any) => Promise<any> } =>
+      typeof (n as any)?.executeMulti === "function";
 
-      const inc = incomingByNode.get(e.to.nodeId) ?? [];
-      inc.push({ nodeId: e.from.nodeId, output: e.from.output });
-      incomingByNode.set(e.to.nodeId, inc);
-    }
-
-    const incomingUniqueByNode = new Map<NodeId, Array<{ nodeId: NodeId; output: OutputPortKey }>>();
-    for (const [toNodeId, list] of incomingByNode.entries()) {
-      const seen = new Set<NodeId>();
-      const uniq: Array<{ nodeId: NodeId; output: OutputPortKey }> = [];
-      for (const entry of list) {
-        if (seen.has(entry.nodeId)) continue;
-        seen.add(entry.nodeId);
-        uniq.push(entry);
-      }
-      incomingUniqueByNode.set(toNodeId, uniq);
-    }
-
-    const joinJobsByKey = new Map<string, RunQueueEntry>();
-    for (const q of queue) {
-      if (!q.join) continue;
-      const key = `${q.batchId ?? resumeBatchId}:${q.nodeId}`;
-      joinJobsByKey.set(key, q);
-    }
-
-    const schedule = (toNodeId: NodeId, fromNodeId: NodeId, fromOutput: OutputPortKey, outItems: Items): void => {
-      const expected = incomingUniqueByNode.get(toNodeId) ?? [];
-      if (expected.length <= 1) {
-        if (outItems.length === 0) return;
-        queue.push({ nodeId: toNodeId, input: outItems, batchId: resumeBatchId, from: { nodeId: fromNodeId, output: fromOutput } });
-        return;
-      }
-
-      const key = `${resumeBatchId}:${toNodeId}`;
-      let joinJob = joinJobsByKey.get(key);
-      if (!joinJob) {
-        joinJob = {
-          nodeId: toNodeId,
-          input: [],
-          batchId: resumeBatchId,
-          join: { expectedFrom: expected, received: {} as Record<NodeId, Items> },
-        };
-        joinJobsByKey.set(key, joinJob);
-        queue.push(joinJob);
-      }
-      (joinJob.join as any).received[fromNodeId] = outItems;
+    const schedule = (to: { nodeId: NodeId; input: InputPortKey }, fromOutput: OutputPortKey, outItems: Items): void => {
+      const inst = nodeInstances.get(to.nodeId);
+      const multi = isMultiInput(inst);
+      if (!multi && outItems.length === 0) return;
+      queue.push({
+        nodeId: to.nodeId,
+        input: outItems,
+        toInput: to.input,
+        batchId: resumeBatchId,
+        from: { nodeId: args.nodeId, output: fromOutput },
+      });
     };
 
-    for (const edge of outgoingByNode.get(args.nodeId) ?? []) {
-      const outItems = (args.outputs as any)[edge.output] ?? [];
-      schedule(edge.to, args.nodeId, edge.output, outItems);
+    for (const [fromOutput, produced] of Object.entries(args.outputs)) {
+      const outItems = produced ?? [];
+      for (const next of graph.next(args.nodeId, fromOutput)) schedule(next, fromOutput, outItems);
     }
 
     return await this.runQueue({
@@ -284,7 +254,7 @@ export class Engine {
     parent?: ParentExecutionRef;
     graph: WorkflowGraph;
     defsById: Map<NodeId, WorkflowDefinition["nodes"][number]>;
-    nodeInstances: Map<NodeId, Node | TriggerNode>;
+    nodeInstances: Map<NodeId, Node | TriggerNode | MultiInputNode>;
     base: ExecutionContext;
     data: MutableRunData;
     queue: RunQueueEntry[];
@@ -292,35 +262,61 @@ export class Engine {
   }): Promise<RunResult> {
     const { wf, runId, startedAt, parent, defsById, nodeInstances, base, data, queue } = args;
 
-    const outgoingByNode = new Map<NodeId, Array<{ output: OutputPortKey; to: NodeId }>>();
-    const incomingByNode = new Map<NodeId, Array<{ nodeId: NodeId; output: OutputPortKey }>>();
+    const isMultiInput = (n: unknown): n is { executeMulti: (inputsByPort: any, ctx: any) => Promise<any> } =>
+      typeof (n as any)?.executeMulti === "function";
+
+    const outgoingByNode = new Map<NodeId, Array<{ output: OutputPortKey; to: { nodeId: NodeId; input: InputPortKey } }>>();
+    const incomingByNode = new Map<NodeId, Array<{ fromNodeId: NodeId; fromOutput: OutputPortKey; toInput: InputPortKey }>>();
     for (const e of wf.edges) {
       const out = outgoingByNode.get(e.from.nodeId) ?? [];
-      out.push({ output: e.from.output, to: e.to.nodeId });
+      out.push({ output: e.from.output, to: { nodeId: e.to.nodeId, input: e.to.input } });
       outgoingByNode.set(e.from.nodeId, out);
 
       const inc = incomingByNode.get(e.to.nodeId) ?? [];
-      inc.push({ nodeId: e.from.nodeId, output: e.from.output });
+      inc.push({ fromNodeId: e.from.nodeId, fromOutput: e.from.output, toInput: e.to.input });
       incomingByNode.set(e.to.nodeId, inc);
     }
 
-    const incomingUniqueByNode = new Map<NodeId, Array<{ nodeId: NodeId; output: OutputPortKey }>>();
+    const expectedInputsByNode = new Map<NodeId, InputPortKey[]>();
     for (const [toNodeId, list] of incomingByNode.entries()) {
-      const seen = new Set<NodeId>();
-      const uniq: Array<{ nodeId: NodeId; output: OutputPortKey }> = [];
-      for (const entry of list) {
-        if (seen.has(entry.nodeId)) continue;
-        seen.add(entry.nodeId);
-        uniq.push(entry);
+      const counts = new Map<InputPortKey, number>();
+      for (const e of list) counts.set(e.toInput, (counts.get(e.toInput) ?? 0) + 1);
+      for (const [inputKey, n] of counts.entries()) {
+        if (n > 1) throw new Error(`Node ${toNodeId} has multiple edges into input '${inputKey}'. Use a Merge node upstream.`);
       }
-      incomingUniqueByNode.set(toNodeId, uniq);
+
+      const order: InputPortKey[] = [];
+      const seen = new Set<InputPortKey>();
+      for (const e of list) {
+        if (seen.has(e.toInput)) continue;
+        seen.add(e.toInput);
+        order.push(e.toInput);
+      }
+      expectedInputsByNode.set(toNodeId, order);
     }
 
-    const joinJobsByKey = new Map<string, RunQueueEntry>();
+    // Validate: non-multi-input nodes must have a single inbound edge to input "in".
+    for (const [toNodeId, inputs] of expectedInputsByNode.entries()) {
+      if (inputs.length <= 1) {
+        const only = inputs[0];
+        if (only && only !== "in") {
+          const inst = nodeInstances.get(toNodeId);
+          if (!isMultiInput(inst)) throw new Error(`Node ${toNodeId} only supports input 'in' (got '${only}').`);
+        }
+        continue;
+      }
+
+      const inst = nodeInstances.get(toNodeId);
+      if (!isMultiInput(inst)) {
+        throw new Error(`Node ${toNodeId} has ${inputs.length} inbound edges. Insert a Merge node to combine branches.`);
+      }
+    }
+
+    const collectJobsByKey = new Map<string, RunQueueEntry>();
     for (const q of queue) {
-      if (!q.join) continue;
+      if (!q.collect) continue;
       const key = `${q.batchId ?? "batch_1"}:${q.nodeId}`;
-      joinJobsByKey.set(key, q);
+      collectJobsByKey.set(key, q);
     }
 
     try {
@@ -328,47 +324,102 @@ export class Engine {
         const job = queue.shift()!;
         const batchId = job.batchId ?? "batch_1";
 
-        let jobInput: Items = job.input;
-        if (job.join) {
-          const expected = job.join.expectedFrom;
-          const received = job.join.received as Record<NodeId, Items>;
+        if (job.collect) {
+          const expected = job.collect.expectedInputs;
+          const received = job.collect.received as Record<InputPortKey, Items>;
 
           let done = true;
-          for (const e of expected) {
-            if (!(e.nodeId in received)) {
+          for (const k of expected) {
+            if (!(k in received)) {
               done = false;
               break;
             }
           }
 
           if (!done) {
-            if (queue.length === 0) throw new Error(`Join for node ${job.nodeId} could not be satisfied (batchId=${batchId})`);
+            if (queue.length === 0) throw new Error(`Multi-input collect for node ${job.nodeId} could not be satisfied (batchId=${batchId})`);
             queue.push(job);
             continue;
           }
 
-          let maxLen = 0;
-          for (const e of expected) maxLen = Math.max(maxLen, (received[e.nodeId] ?? []).length);
+          const def = defsById.get(job.nodeId);
+          if (!def || def.kind !== "node") continue;
 
-          const merged: Array<{ json: Record<string, unknown> }> = [];
-          for (let i = 0; i < maxLen; i++) {
-            const json: Record<string, unknown> = {};
-            for (const e of expected) {
-              const item = (received[e.nodeId] ?? [])[i];
-              json[e.nodeId] = item?.json;
-            }
-            merged.push({ json });
+          const node = nodeInstances.get(def.id) as any;
+          if (!node) continue;
+          if (!isMultiInput(node)) throw new Error(`Node ${def.id} is not a multi-input node but has collect state.`);
+
+          const activationId = this.makeActivationId();
+          const ctx: any = {
+            ...base,
+            data,
+            nodeId: def.id,
+            activationId,
+            config: def.config,
+          };
+
+          const decision = this.offloadPolicy.decide({ workflowId: wf.id, nodeId: def.id, config: def.config });
+          if (decision.mode === "worker") throw new Error(`Multi-input node ${def.id} cannot be scheduled to worker (insert local placement)`);
+
+          const nodeOutputs: NodeOutputs = await node.executeMulti(received, ctx);
+          data.setOutputs(def.id, nodeOutputs);
+
+          const itemsOutByPort: Record<OutputPortKey, number> = {};
+          for (const [port, produced] of Object.entries(nodeOutputs)) itemsOutByPort[port] = produced?.length ?? 0;
+
+          this.host.onNodeActivation({
+            activationId,
+            nodeId: def.id,
+            itemsIn: Object.values(received).reduce((n, arr) => n + (arr?.length ?? 0), 0),
+            itemsOutByPort,
+          } satisfies NodeActivationStats);
+
+          collectJobsByKey.delete(`${batchId}:${job.nodeId}`);
+
+          const schedule = (to: { nodeId: NodeId; input: InputPortKey }, fromNodeId: NodeId, fromOutput: OutputPortKey, outItems: Items): void => {
+            const inst = nodeInstances.get(to.nodeId);
+            const multi = isMultiInput(inst);
+            if (!multi && outItems.length === 0) return;
+            queue.push({ nodeId: to.nodeId, input: outItems, toInput: to.input, batchId, from: { nodeId: fromNodeId, output: fromOutput } });
+          };
+
+          for (const edge of outgoingByNode.get(def.id) ?? []) {
+            const outItems = (nodeOutputs as any)[edge.output] ?? [];
+            schedule(edge.to, def.id, edge.output, outItems);
           }
 
-          jobInput = merged as unknown as Items;
-          joinJobsByKey.delete(`${batchId}:${job.nodeId}`);
+          continue;
         }
+
+        const jobInput: Items = job.input;
 
         const def = defsById.get(job.nodeId);
         if (!def || def.kind !== "node") continue;
 
-        const node = nodeInstances.get(def.id) as Node | undefined;
-        if (!node) continue;
+        const inst = nodeInstances.get(def.id) as any;
+        if (!inst) continue;
+
+        const toInput = job.toInput ?? "in";
+        if (isMultiInput(inst)) {
+          const expectedInputs = expectedInputsByNode.get(def.id) ?? [];
+          const key = `${batchId}:${def.id}`;
+          let collectJob = collectJobsByKey.get(key);
+          if (!collectJob) {
+            collectJob = {
+              nodeId: def.id,
+              input: [],
+              batchId,
+              collect: { expectedInputs, received: {} as Record<InputPortKey, Items> },
+            };
+            collectJobsByKey.set(key, collectJob);
+            queue.push(collectJob);
+          }
+          (collectJob.collect as any).received[toInput] = jobInput;
+          continue;
+        }
+
+        if (toInput !== "in") throw new Error(`Node ${def.id} only supports input 'in' (got '${toInput}').`);
+        const node = inst as Node;
 
         const activationId = this.makeActivationId();
         const ctx: any = {
@@ -430,27 +481,11 @@ export class Engine {
           itemsOutByPort,
         } satisfies NodeActivationStats);
 
-        const schedule = (toNodeId: NodeId, fromNodeId: NodeId, fromOutput: OutputPortKey, outItems: Items): void => {
-          const expected = incomingUniqueByNode.get(toNodeId) ?? [];
-          if (expected.length <= 1) {
-            if (outItems.length === 0) return;
-            queue.push({ nodeId: toNodeId, input: outItems, batchId, from: { nodeId: fromNodeId, output: fromOutput } });
-            return;
-          }
-
-          const key = `${batchId}:${toNodeId}`;
-          let joinJob = joinJobsByKey.get(key);
-          if (!joinJob) {
-            joinJob = {
-              nodeId: toNodeId,
-              input: [],
-              batchId,
-              join: { expectedFrom: expected, received: {} as Record<NodeId, Items> },
-            };
-            joinJobsByKey.set(key, joinJob);
-            queue.push(joinJob);
-          }
-          (joinJob.join as any).received[fromNodeId] = outItems;
+        const schedule = (to: { nodeId: NodeId; input: InputPortKey }, fromNodeId: NodeId, fromOutput: OutputPortKey, outItems: Items): void => {
+          const target = nodeInstances.get(to.nodeId);
+          const multi = isMultiInput(target);
+          if (!multi && outItems.length === 0) return;
+          queue.push({ nodeId: to.nodeId, input: outItems, toInput: to.input, batchId, from: { nodeId: fromNodeId, output: fromOutput } });
         };
 
         for (const edge of outgoingByNode.get(def.id) ?? []) {
