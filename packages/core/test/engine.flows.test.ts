@@ -314,3 +314,38 @@ test("when({true,false}) auto-inserts merge and chain can continue", async () =>
   ]);
 });
 
+test("when({true,false}) auto-merge accepts an untaken branch as empty through downstream nodes", async () => {
+  let afterItems: Array<any> = [];
+
+  const wf = new WorkflowBuilder(
+    { id: "wf.when.callback.noop", name: "when+callback+noop" },
+    {
+      makeMergeNode: (name) => new MergeNodeConfig(name, { mode: "passThrough", prefer: ["true", "false"] }, { id: "merge" }),
+    },
+  )
+    .start(new MapNodeConfig("seed", async (item) => item.json, { id: "seed" }))
+    .then(new IfNodeConfig("if", async () => true, { id: "if", omitUnusedOutputKey: false }))
+    .when({
+      true: [new CallbackNodeConfig("callback", () => {}, { id: "callback" })],
+      false: [new CallbackNodeConfig("noop", () => {}, { id: "noop" })],
+    })
+    .then(
+      new CallbackNodeConfig(
+        "after",
+        ({ items }) => {
+          afterItems = items as any;
+        },
+        { id: "after" },
+      ),
+    )
+    .build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const r = await kit.runToCompletion({ wf, startAt: "seed", items: items([{ x: 2 }]) });
+  assert.equal(r.status, "completed");
+  assert.equal(afterItems.length, 1);
+  assert.deepEqual(afterItems[0]?.json, { x: 2 });
+});
+

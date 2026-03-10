@@ -1,26 +1,26 @@
 import type {
+  ChatModelConfig,
   Container,
   CredentialService,
   EngineHost,
   HttpMethod,
   Items,
+  ToolConfig,
   NodeDefinition,
   NodeId,
   ParentExecutionRef,
-  PersistedRunState,
   RunEvent,
   RunEventBus,
   RunListingStore,
-  RunStateStore,
   RunSummary,
   WebhookRegistration,
   WorkflowDefinition,
   WorkflowId,
 } from "@codemation/core";
-import { Engine, EngineWorkflowRunnerService } from "@codemation/core";
+import { AgentAttachmentNodeIdFactory, AgentConfigInspector, Engine, EngineWorkflowRunnerService } from "@codemation/core";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer, type Server as HttpServer } from "node:http";
-import type { AddressInfo } from "node:net";
+import type { Socket } from "node:net";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer } from "ws";
 import type { RealtimeRuntime } from "./realtimeRuntimeFactory";
@@ -301,6 +301,34 @@ class CodemationWorkflowRealtimeHub {
     if (socket.readyState !== WebSocket.OPEN) return;
     socket.send(CodemationWorkflowRealtimeProtocol.stringify(message));
   }
+
+  async stop(): Promise<void> {
+    const subscriptions = [...this.subscriptionsByWorkflowId.values()];
+    this.subscriptionsByWorkflowId.clear();
+    this.subscriptionPromisesByWorkflowId.clear();
+    this.socketsByWorkflowId.clear();
+
+    for (const client of this.clientsBySocket.values()) {
+      client.workflowIds.clear();
+      if (client.socket.readyState === WebSocket.OPEN || client.socket.readyState === WebSocket.CONNECTING) {
+        client.socket.close();
+      }
+    }
+
+    await Promise.all(subscriptions.map(async (subscription) => {
+      await subscription.close();
+    }));
+
+    await new Promise<void>((resolve) => {
+      setTimeout(() => {
+        for (const client of this.clientsBySocket.values()) {
+          if (client.socket.readyState !== WebSocket.CLOSED) client.socket.terminate();
+        }
+        this.clientsBySocket.clear();
+        resolve();
+      }, 100);
+    });
+  }
 }
 
 class CodemationWorkflowDtoMapper {
@@ -311,19 +339,81 @@ class CodemationWorkflowDtoMapper {
   toDetail(workflow: WorkflowDefinition): Readonly<{
     id: string;
     name: string;
-    nodes: ReadonlyArray<Readonly<{ id: string; kind: string; name?: string; type: string }>>;
+    nodes: ReadonlyArray<Readonly<{ id: string; kind: string; name?: string; type: string; role?: string; icon?: string; parentNodeId?: string }>>;
     edges: WorkflowDefinition["edges"];
   }> {
     return {
       id: workflow.id,
       name: workflow.name,
-      nodes: workflow.nodes.map((node) => ({
+      nodes: this.toNodes(workflow),
+      edges: this.toEdges(workflow),
+    };
+  }
+
+  private toNodes(
+    workflow: WorkflowDefinition,
+  ): ReadonlyArray<Readonly<{ id: string; kind: string; name?: string; type: string; role?: string; icon?: string; parentNodeId?: string }>> {
+    const nodes: Array<Readonly<{ id: string; kind: string; name?: string; type: string; role?: string; icon?: string; parentNodeId?: string }>> = [];
+    for (const node of workflow.nodes) {
+      nodes.push({
         id: node.id,
         kind: node.kind,
         name: node.name ?? node.config?.name,
         type: this.nodeTypeName(node),
-      })),
-      edges: workflow.edges,
+        role: AgentConfigInspector.isAgentNodeConfig(node.config) ? "agent" : "workflowNode",
+      });
+      if (!AgentConfigInspector.isAgentNodeConfig(node.config)) continue;
+      nodes.push(this.createLanguageModelNode(node, node.config.chatModel));
+      for (const toolConfig of node.config.tools ?? []) nodes.push(this.createToolNode(node, toolConfig));
+    }
+    return nodes;
+  }
+
+  private toEdges(workflow: WorkflowDefinition): WorkflowDefinition["edges"] {
+    const edges = [...workflow.edges];
+    for (const node of workflow.nodes) {
+      if (!AgentConfigInspector.isAgentNodeConfig(node.config)) continue;
+      edges.push({
+        from: { nodeId: node.id, output: "main" },
+        to: { nodeId: AgentAttachmentNodeIdFactory.createLanguageModelNodeId(node.id), input: "in" },
+      });
+      for (const toolConfig of node.config.tools ?? []) {
+        edges.push({
+          from: { nodeId: node.id, output: "main" },
+          to: { nodeId: AgentAttachmentNodeIdFactory.createToolNodeId(node.id, toolConfig.name), input: "in" },
+        });
+      }
+    }
+    return edges;
+  }
+
+  private createLanguageModelNode(
+    node: NodeDefinition,
+    chatModel: ChatModelConfig,
+  ): Readonly<{ id: string; kind: string; name?: string; type: string; role: string; icon?: string; parentNodeId: string }> {
+    return {
+      id: AgentAttachmentNodeIdFactory.createLanguageModelNodeId(node.id),
+      kind: "node",
+      name: chatModel.presentation?.label ?? chatModel.name,
+      type: chatModel.name,
+      role: "languageModel",
+      icon: chatModel.presentation?.icon,
+      parentNodeId: node.id,
+    };
+  }
+
+  private createToolNode(
+    node: NodeDefinition,
+    toolConfig: ToolConfig,
+  ): Readonly<{ id: string; kind: string; name?: string; type: string; role: string; icon?: string; parentNodeId: string }> {
+    return {
+      id: AgentAttachmentNodeIdFactory.createToolNodeId(node.id, toolConfig.name),
+      kind: "node",
+      name: toolConfig.presentation?.label ?? toolConfig.name,
+      type: toolConfig.name,
+      role: "tool",
+      icon: toolConfig.presentation?.icon,
+      parentNodeId: node.id,
     };
   }
 
@@ -429,6 +519,7 @@ export class CodemationFrontendHostServer {
   private readonly host: CodemationServerEngineHost;
   private readonly engine: Engine;
   private readonly websocketServer = new WebSocketServer({ noServer: true });
+  private readonly sockets = new Set<Socket>();
   private httpServer: HttpServer | undefined;
   private totalConnectionsAccepted = 0;
   private activeConnections = 0;
@@ -467,6 +558,12 @@ export class CodemationFrontendHostServer {
     this.httpServer = createServer((request, response) => {
       void this.handleRequest(request, response);
     });
+    this.httpServer.on("connection", (socket) => {
+      this.sockets.add(socket);
+      socket.on("close", () => {
+        this.sockets.delete(socket);
+      });
+    });
     this.httpServer.on("upgrade", (request, socket, head) => {
       this.handleUpgrade(request, socket, head);
     });
@@ -489,6 +586,20 @@ export class CodemationFrontendHostServer {
   async stop(): Promise<void> {
     if (!this.httpServer) return;
     this.lastCloseAt = new Date().toISOString();
+    await this.realtimeHub.stop();
+    await new Promise<void>((resolve, reject) => {
+      this.websocketServer.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+    for (const socket of this.sockets) {
+      socket.destroy();
+    }
+    this.sockets.clear();
     await new Promise<void>((resolve, reject) => {
       this.httpServer!.close((error) => {
         if (error) {
@@ -498,7 +609,6 @@ export class CodemationFrontendHostServer {
         resolve();
       });
     });
-    this.websocketServer.close();
     this.httpServer = undefined;
     this.started = false;
   }

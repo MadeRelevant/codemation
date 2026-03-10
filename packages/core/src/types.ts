@@ -104,6 +104,13 @@ export interface WorkflowRunnerService {
   runById(args: { workflowId: WorkflowId; startAt?: NodeId; items: Items; parent?: ParentExecutionRef }): Promise<RunResult>;
 }
 
+export interface NodeExecutionStatePublisher {
+  markQueued(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort }): Promise<void>;
+  markRunning(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort }): Promise<void>;
+  markCompleted(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort; outputs?: NodeOutputs }): Promise<void>;
+  markFailed(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort; error: Error }): Promise<void>;
+}
+
 export interface ExecutionServices {
   credentials: CredentialService;
   workflows?: WorkflowRunnerService;
@@ -112,6 +119,11 @@ export interface ExecutionServices {
    * Nodes and tools may use this to resolve pluggable implementations by `TypeToken`.
    */
   container?: Container;
+  /**
+   * Optional runtime state publisher for emitting node-like lifecycle updates from inside a node.
+   * Used by composite nodes that expose internal steps on the canvas.
+   */
+  nodeState?: NodeExecutionStatePublisher;
 }
 
 export interface ExecutionContext {
@@ -357,6 +369,8 @@ export type NodeExecutionStatus = "pending" | "queued" | "running" | "completed"
 
 export interface NodeExecutionError {
   message: string;
+  name?: string;
+  stack?: string;
 }
 
 export interface NodeExecutionSnapshot {

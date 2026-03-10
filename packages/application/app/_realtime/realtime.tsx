@@ -18,7 +18,7 @@ export type WorkflowSummary = Readonly<{ id: string; name: string }>;
 export type WorkflowDto = Readonly<{
   id: string;
   name: string;
-  nodes: ReadonlyArray<Readonly<{ id: string; kind: string; name?: string; type: string }>>;
+  nodes: ReadonlyArray<Readonly<{ id: string; kind: string; name?: string; type: string; role?: string; icon?: string; parentNodeId?: string }>>;
   edges: ReadonlyArray<
     Readonly<{
       from: Readonly<{ nodeId: string; output: string }>;
@@ -50,7 +50,7 @@ export type NodeExecutionSnapshot = Readonly<{
   updatedAt: string;
   inputsByPort?: Readonly<Record<string, Items>>;
   outputs?: Readonly<Record<string, Items>>;
-  error?: Readonly<{ message: string }>;
+  error?: Readonly<{ message: string; name?: string; stack?: string }>;
 }>;
 
 export type PendingNodeExecution = Readonly<{

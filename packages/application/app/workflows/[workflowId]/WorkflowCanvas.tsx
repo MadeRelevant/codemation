@@ -1,7 +1,8 @@
 "use client";
 
 import dagre from "dagre";
-import { Bot, Boxes, CircleAlert, CircleCheckBig, Clock3, GitBranch, LoaderCircle, type LucideIcon, PlaySquare, SquareStack, Workflow } from "lucide-react";
+import { Bot, Boxes, Brain, CircleAlert, CircleCheckBig, Clock3, GitBranch, type LucideIcon, PlaySquare, SquareStack, Workflow, Wrench } from "lucide-react";
+import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 import { Background, Controls, Handle, MarkerType, Position, ReactFlow, type Edge as ReactFlowEdge, type Node as ReactFlowNode } from "@xyflow/react";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import type { NodeExecutionSnapshot } from "../../_realtime/realtime";
@@ -9,7 +10,7 @@ import type { NodeExecutionSnapshot } from "../../_realtime/realtime";
 type WorkflowDto = Readonly<{
   id: string;
   name: string;
-  nodes: ReadonlyArray<Readonly<{ id: string; kind: string; name?: string; type: string }>>;
+  nodes: ReadonlyArray<Readonly<{ id: string; kind: string; name?: string; type: string; role?: string; icon?: string; parentNodeId?: string }>>;
   edges: ReadonlyArray<
     Readonly<{
       from: Readonly<{ nodeId: string; output: string }>;
@@ -22,8 +23,11 @@ type NodeData = Readonly<{
   label: string;
   type: string;
   kind: string;
+  role?: string;
+  icon?: IconName;
   status?: NodeExecutionSnapshot["status"];
   selected: boolean;
+  isAttachment: boolean;
 }>;
 
 const workflowCanvasNodeTypes = { codemation: CodemationNode };
@@ -123,7 +127,17 @@ function useVisibleNodeStatuses(
   return visibleStatusesByNodeId;
 }
 
-function iconForType(type: string): LucideIcon {
+function iconForNode(type: string, role?: string): LucideIcon {
+  if (role === "agent") {
+    return Bot;
+  }
+  if (role === "languageModel") {
+    return Brain;
+  }
+  if (role === "tool") {
+    return Wrench;
+  }
+
   const t = type.toLowerCase();
 
   if (t.includes("if")) {
@@ -159,10 +173,12 @@ function statusIconForNode(status: NodeExecutionSnapshot["status"] | undefined) 
 }
 
 function CodemationNode({ data }: { data: NodeData }) {
-  const TypeIcon = iconForType(data.type);
+  const TypeIcon = iconForNode(data.type, data.role);
   const isQueued = data.status === "queued";
   const isRunning = data.status === "running";
   const isActive = isQueued || isRunning;
+  const isAttachment = data.isAttachment;
+  const isAgent = data.role === "agent";
   const activityColor = isRunning ? "#2563eb" : "#7c3aed";
   const activityRingStyle: CSSProperties = {
     position: "absolute",
@@ -180,7 +196,7 @@ function CodemationNode({ data }: { data: NodeData }) {
   return (
     <div
       style={{
-        width: 196,
+        width: isAttachment ? 144 : 196,
         height: 54,
         borderRadius: 0,
         background: "transparent",
@@ -208,19 +224,45 @@ function CodemationNode({ data }: { data: NodeData }) {
           />
         </>
       ) : null}
-      <Handle type="target" position={Position.Left} style={{ width: 8, height: 8, background: "#111827", border: "1px solid white" }} />
-      <Handle type="source" position={Position.Right} style={{ width: 8, height: 8, background: "#111827", border: "1px solid white" }} />
+      <Handle
+        type="target"
+        position={isAttachment ? Position.Top : Position.Left}
+        id={isAttachment ? "attachment-target" : undefined}
+        style={{ width: 8, height: 8, background: isAttachment ? "#64748b" : "#111827", border: "1px solid white" }}
+      />
+      <Handle
+        type="source"
+        position={isAttachment ? Position.Bottom : Position.Right}
+        style={{ width: 8, height: 8, background: "#111827", border: "1px solid white" }}
+      />
+      {isAgent ? (
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id="attachment-llm-source"
+          style={{ left: "34%", width: 8, height: 8, background: "#2563eb", border: "1px solid white" }}
+        />
+      ) : null}
+      {isAgent ? (
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id="attachment-tools-source"
+          style={{ left: "66%", width: 8, height: 8, background: "#7c3aed", border: "1px solid white" }}
+        />
+      ) : null}
 
       <div
         style={{
           display: "flex",
+          flexDirection: "row",
           alignItems: "center",
-          gap: 10,
+          gap: isAttachment ? 8 : 10,
           height: "100%",
-          padding: "0 10px",
+          padding: isAttachment ? "0 10px" : "0 10px",
           borderRadius: 0,
           border: isActive ? "1px solid transparent" : data.selected ? "1px solid #2563eb" : "1px solid #d1d5db",
-          background: "white",
+          background: isAttachment ? "#fcfcfd" : "white",
           boxShadow: isActive ? "0 2px 6px rgba(15,23,42,0.05)" : data.selected ? "0 0 0 1px #93c5fd inset" : "0 2px 6px rgba(15,23,42,0.05)",
           position: "relative",
           overflow: "hidden",
@@ -228,28 +270,28 @@ function CodemationNode({ data }: { data: NodeData }) {
       >
         <div
           style={{
-            width: 26,
-            height: 26,
+            width: isAttachment ? 24 : 26,
+            height: isAttachment ? 24 : 26,
             borderRadius: 0,
-            background: "#f8fafc",
+            background: isAttachment ? "#f1f5f9" : "#f8fafc",
             display: "grid",
             placeItems: "center",
             color: "#111827",
             flex: "0 0 auto",
           }}
         >
-          <TypeIcon size={15} strokeWidth={1.9} />
+          {data.icon ? <DynamicIcon name={data.icon} size={isAttachment ? 14 : 15} strokeWidth={1.9} /> : <TypeIcon size={isAttachment ? 14 : 15} strokeWidth={1.9} />}
         </div>
-        <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+        <div style={{ minWidth: 0, flex: "1 1 auto", textAlign: "left" }}>
           <div
             style={{
               fontWeight: 800,
-              fontSize: 13,
+              fontSize: isAttachment ? 12 : 13,
               lineHeight: 1.2,
               overflow: "hidden",
               textOverflow: "ellipsis",
               display: "-webkit-box",
-              WebkitLineClamp: 2,
+              WebkitLineClamp: isAttachment ? 2 : 2,
               WebkitBoxOrient: "vertical",
             }}
           >
@@ -257,9 +299,53 @@ function CodemationNode({ data }: { data: NodeData }) {
           </div>
         </div>
         {statusIconForNode(data.status) ? (
-          <div style={{ flex: "0 0 auto", display: "grid", placeItems: "center", color: "#111827" }}>{statusIconForNode(data.status)}</div>
+          <div style={{ flex: "0 0 auto", display: "grid", placeItems: "center", color: "#111827" }}>
+            {statusIconForNode(data.status)}
+          </div>
         ) : null}
       </div>
+      {isAgent ? (
+        <>
+          <div
+            style={{
+              position: "absolute",
+              bottom: -22,
+              left: "34%",
+              transform: "translateX(-50%)",
+              padding: "2px 6px",
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: 0.35,
+              textTransform: "uppercase",
+              color: "#1d4ed8",
+              background: "#eff6ff",
+              border: "1px dotted #93c5fd",
+              whiteSpace: "nowrap",
+            }}
+          >
+            LLM
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              bottom: -22,
+              left: "66%",
+              transform: "translateX(-50%)",
+              padding: "2px 6px",
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: 0.35,
+              textTransform: "uppercase",
+              color: "#6d28d9",
+              background: "#f5f3ff",
+              border: "1px dotted #c4b5fd",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Tools
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -275,22 +361,33 @@ function layoutWorkflow(
 
   const nodeWidth = 196;
   const nodeHeight = 54;
+  const attachmentNodeWidth = 144;
+  const attachmentNodeHeight = 54;
   const branchSpacing = nodeHeight + 28;
+  const attachmentYOffset = 118;
+  const attachmentXSpacing = attachmentNodeWidth + 26;
+  const layoutNodes = workflow.nodes.filter((node) => !node.parentNodeId);
+  const layoutNodeIds = new Set(layoutNodes.map((node) => node.id));
+  const layoutEdges = workflow.edges.filter((edge) => layoutNodeIds.has(edge.from.nodeId) && layoutNodeIds.has(edge.to.nodeId));
 
-  for (const n of workflow.nodes) dagreGraph.setNode(n.id, { width: nodeWidth, height: nodeHeight });
-  for (const [i, e] of workflow.edges.entries()) dagreGraph.setEdge(e.from.nodeId, e.to.nodeId, { i });
+  for (const node of layoutNodes) {
+    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+  }
+  for (const [i, edge] of layoutEdges.entries()) {
+    dagreGraph.setEdge(edge.from.nodeId, edge.to.nodeId, { i });
+  }
 
   dagre.layout(dagreGraph);
 
   const positionsByNodeId = new Map<string, { x: number; y: number }>();
-  for (const node of workflow.nodes) {
+  for (const node of layoutNodes) {
     const position = dagreGraph.node(node.id) as { x: number; y: number } | undefined;
     positionsByNodeId.set(node.id, { x: position?.x ?? 0, y: position?.y ?? 0 });
   }
 
   const outgoingNodeIdsByNodeId = new Map<string, string[]>();
   const incomingNodeIdsByNodeId = new Map<string, string[]>();
-  for (const edge of workflow.edges) {
+  for (const edge of layoutEdges) {
     const outgoing = outgoingNodeIdsByNodeId.get(edge.from.nodeId) ?? [];
     outgoing.push(edge.to.nodeId);
     outgoingNodeIdsByNodeId.set(edge.from.nodeId, outgoing);
@@ -300,7 +397,7 @@ function layoutWorkflow(
     incomingNodeIdsByNodeId.set(edge.to.nodeId, incoming);
   }
 
-  for (const node of workflow.nodes) {
+  for (const node of layoutNodes) {
     const childNodeIds = outgoingNodeIdsByNodeId.get(node.id) ?? [];
     if (childNodeIds.length < 2) continue;
 
@@ -324,7 +421,7 @@ function layoutWorkflow(
     });
   }
 
-  for (const node of workflow.nodes) {
+  for (const node of layoutNodes) {
     const parentNodeIds = incomingNodeIdsByNodeId.get(node.id) ?? [];
     if (parentNodeIds.length < 2) continue;
 
@@ -340,34 +437,86 @@ function layoutWorkflow(
     });
   }
 
+  const attachmentNodesByParentNodeId = new Map<string, WorkflowDto["nodes"]>();
+  for (const node of workflow.nodes) {
+    if (!node.parentNodeId) continue;
+    const siblings = attachmentNodesByParentNodeId.get(node.parentNodeId) ?? [];
+    attachmentNodesByParentNodeId.set(node.parentNodeId, [...siblings, node]);
+  }
+
+  for (const [parentNodeId, attachmentNodes] of attachmentNodesByParentNodeId.entries()) {
+    const parentPosition = positionsByNodeId.get(parentNodeId);
+    if (!parentPosition) continue;
+    const orderedAttachmentNodes = [...attachmentNodes].sort((left, right) => {
+      if (left.role === right.role) return left.name?.localeCompare(right.name ?? "") ?? 0;
+      if (left.role === "languageModel") return -1;
+      if (right.role === "languageModel") return 1;
+      return 0;
+    });
+    orderedAttachmentNodes.forEach((attachmentNode, index) => {
+      positionsByNodeId.set(attachmentNode.id, {
+        x: parentPosition.x + (index - (attachmentNodes.length - 1) / 2) * attachmentXSpacing,
+        y: parentPosition.y + attachmentYOffset,
+      });
+    });
+  }
+
   const nodes: ReactFlowNode<NodeData>[] = workflow.nodes.map((n) => {
     const pos = positionsByNodeId.get(n.id);
     const label = n.name ?? n.type ?? n.id;
     return {
       id: n.id,
       type: "codemation",
-      position: { x: (pos?.x ?? 0) - nodeWidth / 2, y: (pos?.y ?? 0) - nodeHeight / 2 },
-      data: { label, type: n.type, kind: n.kind, status: nodeStatusesByNodeId[n.id], selected: selectedNodeId === n.id },
+      position: {
+        x: (pos?.x ?? 0) - (n.parentNodeId ? attachmentNodeWidth : nodeWidth) / 2,
+        y: (pos?.y ?? 0) - (n.parentNodeId ? attachmentNodeHeight : nodeHeight) / 2,
+      },
+      data: {
+        label,
+        type: n.type,
+        kind: n.kind,
+        role: n.role,
+        icon: n.icon as IconName | undefined,
+        status: nodeStatusesByNodeId[n.id],
+        selected: selectedNodeId === n.id,
+        isAttachment: Boolean(n.parentNodeId),
+      },
       draggable: false,
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
+      sourcePosition: n.parentNodeId ? Position.Bottom : Position.Right,
+      targetPosition: n.parentNodeId ? Position.Top : Position.Left,
     };
   });
 
-  const edges: ReactFlowEdge[] = workflow.edges.map((e, i) => ({
-    id: `${e.from.nodeId}:${e.from.output}->${e.to.nodeId}:${e.to.input}:${i}`,
-    source: e.from.nodeId,
-    target: e.to.nodeId,
-    animated: false,
-    type: "step",
-    style: { stroke: "#111827", strokeWidth: 1.5 },
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      width: 18,
-      height: 18,
-      color: "#111827",
-    },
-  }));
+  const nodesById = new Map(workflow.nodes.map((node) => [node.id, node]));
+  const edges: ReactFlowEdge[] = workflow.edges.map((e, i) => {
+    const targetNode = nodesById.get(e.to.nodeId);
+    const isAttachmentEdge = targetNode?.role === "languageModel" || targetNode?.role === "tool";
+    const attachmentSourceHandle =
+      targetNode?.role === "languageModel" ? "attachment-llm-source" : targetNode?.role === "tool" ? "attachment-tools-source" : undefined;
+    return {
+      id: `${e.from.nodeId}:${e.from.output}->${e.to.nodeId}:${e.to.input}:${i}`,
+      source: e.from.nodeId,
+      target: e.to.nodeId,
+      sourceHandle: isAttachmentEdge ? attachmentSourceHandle : undefined,
+      targetHandle: isAttachmentEdge ? "attachment-target" : undefined,
+      animated: false,
+      type: isAttachmentEdge ? "smoothstep" : "step",
+      style: {
+        stroke: isAttachmentEdge ? "#94a3b8" : "#111827",
+        strokeWidth: isAttachmentEdge ? 1.35 : 1.5,
+        strokeDasharray: isAttachmentEdge ? "2 6" : undefined,
+        strokeLinecap: isAttachmentEdge ? "round" : undefined,
+      },
+      markerEnd: isAttachmentEdge
+        ? undefined
+        : {
+            type: MarkerType.ArrowClosed,
+            width: 18,
+            height: 18,
+            color: "#111827",
+          },
+    };
+  });
 
   return { nodes, edges };
 }

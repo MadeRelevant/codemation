@@ -3,10 +3,11 @@
 import JsonView from "@uiw/react-json-view";
 import { githubLightTheme } from "@uiw/react-json-view/githubLight";
 import { format, isToday, isYesterday } from "date-fns";
-import { CircleAlert, CircleCheckBig, Clock3, LoaderCircle, PanelBottomClose, PanelBottomOpen } from "lucide-react";
+import { Bot, Boxes, Brain, Check, CircleAlert, CircleCheckBig, Clock3, Copy, GitBranch, LoaderCircle, PanelBottomClose, PanelBottomOpen, PlaySquare, SquareStack, Workflow, Wrench, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import Tree, { type FieldDataNode } from "rc-tree";
-import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DynamicIcon, type IconName } from "lucide-react/dynamic";
+import { use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   useRunQuery,
   useWorkflowQuery,
@@ -25,14 +26,31 @@ type CopyState = "idle" | "copied";
 type PortEntries = ReadonlyArray<readonly [string, Items]>;
 type WorkflowNode = WorkflowDto["nodes"][number];
 type ExecutionNode = Readonly<{ node: WorkflowNode; snapshot: NodeExecutionSnapshot }>;
+type NodeExecutionError = NonNullable<NodeExecutionSnapshot["error"]>;
 type ExecutionTreeNode = FieldDataNode<
   Readonly<{
     key: string;
-    title?: string;
+    title?: ReactNode;
     workflowNode?: WorkflowNode;
     snapshot?: NodeExecutionSnapshot;
   }>
 >;
+
+class WorkflowNodeIconResolver {
+  static resolveFallback(type: string, role?: string): LucideIcon {
+    if (role === "agent") return Bot;
+    if (role === "languageModel") return Brain;
+    if (role === "tool") return Wrench;
+
+    const normalizedType = type.toLowerCase();
+    if (normalizedType.includes("if")) return GitBranch;
+    if (normalizedType.includes("subworkflow")) return Workflow;
+    if (normalizedType.includes("map")) return SquareStack;
+    if (normalizedType.includes("trigger")) return PlaySquare;
+    if (normalizedType.includes("agent") || normalizedType.includes("ai")) return Bot;
+    return Boxes;
+  }
+}
 
 class WorkflowDetailPagePresenter {
   static async runWorkflow(workflowId: string): Promise<RunWorkflowResult> {
@@ -78,13 +96,28 @@ class WorkflowDetailPagePresenter {
   static resolveSelectedPort(entries: PortEntries, current: string | null): string | null {
     if (entries.length === 0) return null;
     if (current && entries.some(([portName]) => portName === current)) return current;
-    return entries[0]![0];
+    return entries.find(([, items]) => items.length > 0)?.[0] ?? entries[0]![0];
   }
 
   static toJsonValue(items: Items | undefined): unknown {
     if (!items || items.length === 0) return undefined;
     const jsonValues = items.map((item) => item.json);
     return jsonValues.length === 1 ? jsonValues[0] : jsonValues;
+  }
+
+  static getErrorHeadline(error: NodeExecutionError | undefined): string {
+    if (!error) return "Execution failed";
+    return error.name && error.name !== "Error" ? `${error.name}: ${error.message}` : error.message;
+  }
+
+  static getErrorStack(error: NodeExecutionError | undefined): string | null {
+    if (!error) return null;
+    return error.stack?.trim() || null;
+  }
+
+  static getErrorClipboardText(error: NodeExecutionError | undefined): string {
+    if (!error) return "";
+    return [this.getErrorHeadline(error), this.getErrorStack(error)].filter((value): value is string => Boolean(value)).join("\n\n");
   }
 
   static buildExecutionNodes(workflow: WorkflowDto | undefined, selectedRun: PersistedRunState | undefined): ReadonlyArray<ExecutionNode> {
@@ -103,13 +136,68 @@ class WorkflowDetailPagePresenter {
   }
 
   static buildExecutionTreeData(nodes: ReadonlyArray<ExecutionNode>): ReadonlyArray<ExecutionTreeNode> {
-    return nodes.map(({ node, snapshot }) => ({
-      key: node.id,
-      title: node.name ?? node.type ?? node.id,
-      workflowNode: node,
-      snapshot,
-      isLeaf: true,
-    }));
+    const treeNodesById = new Map<string, ExecutionTreeNode>();
+    const rootNodes: ExecutionTreeNode[] = [];
+
+    for (const { node, snapshot } of nodes) {
+      treeNodesById.set(node.id, {
+        key: node.id,
+        title: node.name ?? node.type ?? node.id,
+        workflowNode: node,
+        snapshot,
+        children: [],
+      });
+    }
+
+    for (const { node } of nodes) {
+      const treeNode = treeNodesById.get(node.id);
+      if (!treeNode) continue;
+      const parentNodeId = node.parentNodeId;
+      if (!parentNodeId) {
+        rootNodes.push(treeNode);
+        continue;
+      }
+      const parentTreeNode = treeNodesById.get(parentNodeId);
+      if (!parentTreeNode) {
+        rootNodes.push(treeNode);
+        continue;
+      }
+      const existingChildren = Array.isArray(parentTreeNode.children) ? [...parentTreeNode.children] : [];
+      existingChildren.push(treeNode);
+      parentTreeNode.children = existingChildren;
+    }
+
+    this.sortExecutionTree(rootNodes);
+    return rootNodes;
+  }
+
+  static collectExecutionTreeKeys(nodes: ReadonlyArray<ExecutionTreeNode>): ReadonlyArray<string> {
+    const keys: string[] = [];
+    this.collectExecutionTreeKeysRecursive(nodes, keys);
+    return keys;
+  }
+
+  private static collectExecutionTreeKeysRecursive(nodes: ReadonlyArray<ExecutionTreeNode>, keys: string[]): void {
+    for (const node of nodes) {
+      keys.push(String(node.key));
+      const children = Array.isArray(node.children) ? (node.children as ExecutionTreeNode[]) : [];
+      this.collectExecutionTreeKeysRecursive(children, keys);
+    }
+  }
+
+  private static sortExecutionTree(nodes: ExecutionTreeNode[]): void {
+    nodes.sort((left, right) => {
+      const leftTimestamp = this.getSnapshotTimestamp(left.snapshot) ?? "";
+      const rightTimestamp = this.getSnapshotTimestamp(right.snapshot) ?? "";
+      return leftTimestamp.localeCompare(rightTimestamp);
+    });
+
+    for (const node of nodes) {
+      const children = Array.isArray(node.children) ? (node.children as ExecutionTreeNode[]) : [];
+      this.sortExecutionTree(children);
+      node.children = children;
+      node.isLeaf = children.length === 0;
+    }
   }
 }
 
@@ -204,6 +292,89 @@ function WorkflowInspectorJsonView(args: Readonly<{ value: unknown; emptyLabel: 
             {JSON.stringify(value, null, 2)}
           </pre>
         )}
+      </div>
+    </div>
+  );
+}
+
+function WorkflowInspectorErrorView(args: Readonly<{ error: NodeExecutionError | undefined; emptyLabel: string }>) {
+  const { error, emptyLabel } = args;
+  const [copyState, setCopyState] = useState<CopyState>("idle");
+
+  if (!error) {
+    return <div style={{ opacity: 0.62, fontSize: 13 }}>{emptyLabel}</div>;
+  }
+
+  const headline = WorkflowDetailPagePresenter.getErrorHeadline(error);
+  const stack = WorkflowDetailPagePresenter.getErrorStack(error);
+
+  return (
+    <div style={{ height: "100%", minHeight: 0, display: "grid", gridTemplateRows: "auto auto 1fr", gap: 10 }}>
+      <div
+        style={{
+          display: "grid",
+          gap: 8,
+          border: "1px solid #fecaca",
+          background: "#fef2f2",
+          padding: 12,
+        }}
+      >
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", color: "#991b1b" }}>Error</div>
+        <div style={{ fontSize: 13, lineHeight: 1.55, color: "#111827", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
+          {headline}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ fontSize: 12, color: "#4b5563" }}>{stack ? "Full stacktrace" : "No stacktrace was captured for this error."}</div>
+        <button
+          onClick={() => {
+            const value = WorkflowDetailPagePresenter.getErrorClipboardText(error);
+            if (!value) return;
+            void navigator.clipboard.writeText(value).then(() => {
+              setCopyState("copied");
+              window.setTimeout(() => setCopyState("idle"), 1500);
+            });
+          }}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            border: "1px solid #d1d5db",
+            borderRadius: 0,
+            background: "white",
+            padding: "6px 10px",
+            cursor: "pointer",
+            fontWeight: 700,
+            fontSize: 12,
+            color: "#111827",
+          }}
+        >
+          {copyState === "copied" ? <Check size={14} strokeWidth={2.2} /> : <Copy size={14} strokeWidth={2.2} />}
+          {copyState === "copied" ? "Copied" : "Copy stacktrace"}
+        </button>
+      </div>
+      <div
+        style={{
+          overflow: "auto",
+          border: "1px solid #d1d5db",
+          borderRadius: 0,
+          background: "#0f172a",
+          color: "#e2e8f0",
+          padding: 12,
+        }}
+      >
+        <pre
+          style={{
+            margin: 0,
+            fontSize: 12,
+            lineHeight: 1.65,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          }}
+        >
+          {stack ?? headline}
+        </pre>
       </div>
     </div>
   );
@@ -332,6 +503,7 @@ export default function WorkflowDetailPage({ params }: { params: Promise<{ workf
   const outputPortEntries = useMemo(() => WorkflowDetailPagePresenter.sortPortEntries(selectedNodeSnapshot?.outputs), [selectedNodeSnapshot]);
   const executionNodes = useMemo(() => WorkflowDetailPagePresenter.buildExecutionNodes(workflow, selectedRun), [selectedRun, workflow]);
   const executionTreeData = useMemo(() => WorkflowDetailPagePresenter.buildExecutionTreeData(executionNodes), [executionNodes]);
+  const executionTreeExpandedKeys = useMemo(() => WorkflowDetailPagePresenter.collectExecutionTreeKeys(executionTreeData), [executionTreeData]);
 
   useEffect(() => {
     setSelectedInputPort((current) => WorkflowDetailPagePresenter.resolveSelectedPort(inputPortEntries, current));
@@ -358,13 +530,14 @@ export default function WorkflowDetailPage({ params }: { params: Promise<{ workf
 
   const selectedInputItems = useMemo(() => inputPortEntries.find(([portName]) => portName === selectedInputPort)?.[1], [inputPortEntries, selectedInputPort]);
   const selectedOutputItems = useMemo(() => outputPortEntries.find(([portName]) => portName === selectedOutputPort)?.[1], [outputPortEntries, selectedOutputPort]);
+  const selectedNodeError = selectedNodeSnapshot?.error;
 
   const inspectorValue =
     selectedTab === "input"
       ? WorkflowDetailPagePresenter.toJsonValue(selectedInputItems)
       : selectedTab === "output"
         ? WorkflowDetailPagePresenter.toJsonValue(selectedOutputItems)
-        : selectedNodeSnapshot?.error;
+        : undefined;
 
   const inspectorEmptyLabel =
     selectedTab === "input"
@@ -431,6 +604,8 @@ export default function WorkflowDetailPage({ params }: { params: Promise<{ workf
                 treeData={executionTreeData as ExecutionTreeNode[]}
                 showLine
                 showIcon={false}
+                defaultExpandAll
+                expandedKeys={[...executionTreeExpandedKeys]}
                 selectable
                 selectedKeys={selectedNodeId ? [selectedNodeId] : []}
                 onSelect={(_keys, info) => {
@@ -442,6 +617,7 @@ export default function WorkflowDetailPage({ params }: { params: Promise<{ workf
                   const snapshot = treeNode.snapshot;
                   const node = treeNode.workflowNode;
                   const status = snapshot?.status ?? "pending";
+                  const FallbackIcon = WorkflowNodeIconResolver.resolveFallback(node?.type ?? "", node?.role);
                   return (
                     <div
                       style={{
@@ -458,6 +634,19 @@ export default function WorkflowDetailPage({ params }: { params: Promise<{ workf
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto" }}>
+                        <div
+                          style={{
+                            width: 20,
+                            height: 20,
+                            display: "grid",
+                            placeItems: "center",
+                            color: "#111827",
+                            background: "#f8fafc",
+                            flex: "0 0 auto",
+                          }}
+                        >
+                          {node?.icon ? <DynamicIcon name={node.icon as IconName} size={14} strokeWidth={1.9} /> : <FallbackIcon size={14} strokeWidth={1.9} />}
+                        </div>
                         <WorkflowStatusIcon status={status} size={15} />
                         <div style={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {WorkflowDetailPagePresenter.getNodeDisplayName(node, snapshot?.nodeId ?? null)}
@@ -541,7 +730,11 @@ export default function WorkflowDetailPage({ params }: { params: Promise<{ workf
           ) : null}
 
           <div style={{ overflow: "auto", padding: 12 }}>
-            <WorkflowInspectorJsonView value={inspectorValue} emptyLabel={inspectorEmptyLabel} />
+            {selectedTab === "error" ? (
+              <WorkflowInspectorErrorView error={selectedNodeError} emptyLabel={inspectorEmptyLabel} />
+            ) : (
+              <WorkflowInspectorJsonView value={inspectorValue} emptyLabel={inspectorEmptyLabel} />
+            )}
           </div>
         </div>
       </div>
@@ -550,10 +743,12 @@ export default function WorkflowDetailPage({ params }: { params: Promise<{ workf
     currentPortEntries,
     currentPortSelection,
     executionNodes.length,
+    executionTreeExpandedKeys,
     executionTreeData,
     inspectorEmptyLabel,
     inspectorValue,
     selectedNodeId,
+    selectedNodeError,
     selectedNodeSnapshot,
     selectedRun,
     selectedRunId,

@@ -18,15 +18,20 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "echo \"(test placeholder)\""
+    "test": "pnpm --filter @codemation/core build && pnpm build && node --import tsx --test test/**/*.test.ts"
   },
   "dependencies": {
-    "@codemation/core": "workspace:*"
+    "@codemation/core": "workspace:*",
+    "@langchain/core": "^1.1.31",
+    "@langchain/openai": "^1.2.12",
+    "lucide-react": "^0.577.0"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",
     "eslint": "^10.0.3",
     "tsdown": "^0.15.5",
-    "typescript": "^5.9.3"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "zod": "^4.3.6"
   }
 }

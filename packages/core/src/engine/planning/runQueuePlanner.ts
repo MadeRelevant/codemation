@@ -5,11 +5,87 @@ export type PlannedActivation =
   | Readonly<{ kind: "single"; nodeId: NodeId; input: Items; batchId: string }>
   | Readonly<{ kind: "multi"; nodeId: NodeId; inputsByPort: Readonly<Record<InputPortKey, Items>>; batchId: string }>;
 
-export class RunQueuePlanner {
+class RunQueuePlannerDiagnostics {
   constructor(
     private readonly topology: WorkflowTopology,
     private readonly nodeInstances: ReadonlyMap<NodeId, unknown>,
   ) {}
+
+  describeUnsatisfiedCollect(queueEntry: RunQueueEntry): string {
+    const batchId = queueEntry.batchId ?? "batch_1";
+    const expectedInputs = queueEntry.collect?.expectedInputs ?? [];
+    const receivedInputs = Object.keys((queueEntry.collect?.received ?? {}) as Record<InputPortKey, Items>) as InputPortKey[];
+    const missingInputs = expectedInputs.filter((input) => !receivedInputs.includes(input));
+    const mergeNodeLabel = this.formatNodeLabel(queueEntry.nodeId);
+    const receivedSummary = this.describeReceivedInputs(queueEntry);
+    const missingSummary = this.describeMissingInputs(queueEntry.nodeId, missingInputs);
+
+    return [
+      `Multi-input collect is stuck at ${mergeNodeLabel} (batchId=${batchId}).`,
+      `Expected inputs: ${this.formatInputList(expectedInputs)}.`,
+      `Received inputs: ${receivedSummary}.`,
+      `Missing inputs: ${missingSummary}.`,
+    ].join(" ");
+  }
+
+  private describeReceivedInputs(queueEntry: RunQueueEntry): string {
+    const received = (queueEntry.collect?.received ?? {}) as Record<InputPortKey, Items>;
+    const receivedEntries = Object.entries(received);
+    if (receivedEntries.length === 0) return "none";
+    return receivedEntries
+      .map(([input, items]) => `${input} (${items.length} item${items.length === 1 ? "" : "s"})`)
+      .join(", ");
+  }
+
+  private describeMissingInputs(nodeId: NodeId, missingInputs: ReadonlyArray<InputPortKey>): string {
+    if (missingInputs.length === 0) return "none";
+    return missingInputs
+      .map((input) => {
+        const sources = this.findSources(nodeId, input);
+        if (sources.length === 0) return input;
+        return `${input} from ${sources.join(" or ")}`;
+      })
+      .join(", ");
+  }
+
+  private findSources(nodeId: NodeId, input: InputPortKey): string[] {
+    const matches: string[] = [];
+    for (const [sourceNodeId, edges] of this.topology.outgoingByNode.entries()) {
+      for (const edge of edges) {
+        if (edge.to.nodeId === nodeId && edge.to.input === input) {
+          matches.push(this.formatNodeLabel(sourceNodeId));
+        }
+      }
+    }
+    return matches;
+  }
+
+  private formatInputList(inputs: ReadonlyArray<InputPortKey>): string {
+    return inputs.length > 0 ? `[${inputs.join(", ")}]` : "[]";
+  }
+
+  private formatNodeLabel(nodeId: NodeId): string {
+    const definition = this.topology.defsById.get(nodeId);
+    const instance = this.nodeInstances.get(nodeId);
+    const typeName =
+      definition?.token && typeof definition.token === "function"
+        ? definition.token.name
+        : instance && typeof instance === "object" && "constructor" in instance
+          ? (instance.constructor as { name?: string }).name ?? "Node"
+          : "Node";
+    return definition?.name ? `"${definition.name}" (${typeName}:${nodeId})` : `${typeName}:${nodeId}`;
+  }
+}
+
+export class RunQueuePlanner {
+  private readonly diagnostics: RunQueuePlannerDiagnostics;
+
+  constructor(
+    private readonly topology: WorkflowTopology,
+    private readonly nodeInstances: ReadonlyMap<NodeId, unknown>,
+  ) {
+    this.diagnostics = new RunQueuePlannerDiagnostics(topology, nodeInstances);
+  }
 
   validateNodeKinds(): void {
     for (const [toNodeId, inputs] of this.topology.expectedInputsByNode.entries()) {
@@ -82,7 +158,7 @@ export class RunQueuePlanner {
     if (jobIdx === -1) {
       if (queue.length === 0) return null;
       const stuck = queue[0]!;
-      throw new Error(`Multi-input collect for node ${stuck.nodeId} could not be satisfied (batchId=${stuck.batchId ?? "batch_1"})`);
+      throw new Error(this.diagnostics.describeUnsatisfiedCollect(stuck));
     }
 
     const job = queue.splice(jobIdx, 1)[0]!;
@@ -110,7 +186,10 @@ export class RunQueuePlanner {
     const isMulti = this.isMultiInputNode(target);
 
     if (!isMulti) {
-      if (args.items.length === 0) return;
+      if (args.items.length === 0) {
+        this.propagateEmptyPath(queue, args.to.nodeId, args.batchId);
+        return;
+      }
       queue.push({
         nodeId: args.to.nodeId,
         input: args.items,
@@ -135,6 +214,17 @@ export class RunQueuePlanner {
 
     const received = (collect.collect as any).received as Record<InputPortKey, Items>;
     received[args.to.input] = args.items;
+  }
+
+  private propagateEmptyPath(queue: RunQueueEntry[], nodeId: NodeId, batchId: string): void {
+    for (const edge of this.topology.outgoingByNode.get(nodeId) ?? []) {
+      this.enqueueEdge(queue, {
+        batchId,
+        to: edge.to,
+        from: { nodeId, output: edge.output },
+        items: [],
+      });
+    }
   }
 
   private isMultiInputNode(n: unknown): boolean {

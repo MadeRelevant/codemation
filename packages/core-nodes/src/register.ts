@@ -1,8 +1,10 @@
 import type { Container } from "@codemation/core";
 import { AIAgentNode } from "./nodes/aiAgent";
+import { CallbackNode } from "./nodes/callback";
 import { IfNode } from "./nodes/if";
 import { ManualTriggerNode } from "./nodes/manualTrigger";
 import { MapDataNode } from "./nodes/mapData";
+import { NoOpNode } from "./nodes/noOp";
 import { SubWorkflowNode } from "./nodes/subWorkflow";
 import { WaitNode } from "./nodes/wait";
 
@@ -20,7 +22,9 @@ export function registerCoreNodes(container: Container): void {
   // tsyringeContainer.registerSingleton(IfNode, IfNode);
   // ...
   void IfNode;
+  void CallbackNode;
   void MapDataNode;
+  void NoOpNode;
   void SubWorkflowNode;
   void ManualTriggerNode;
   void AIAgentNode;

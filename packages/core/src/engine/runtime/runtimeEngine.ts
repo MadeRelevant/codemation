@@ -1,14 +1,13 @@
 import type { Container } from "../../di";
 import type {
-  EngineDeps,
   EngineHost,
-  InputPortKey,
   Items,
   NodeActivationContinuation,
   NodeActivationId,
   NodeActivationRequest,
   NodeActivationScheduler,
   NodeExecutionSnapshot,
+  NodeExecutionStatePublisher,
   NodeActivationStats,
   NodeId,
   NodeExecutionScheduler,
@@ -44,6 +43,19 @@ class OutputStats {
     const out: Record<OutputPortKey, number> = {};
     for (const [port, produced] of Object.entries(outputs)) out[port] = produced?.length ?? 0;
     return out;
+  }
+}
+
+class RuntimeContinuationDiagnostics {
+  static formatNodeLabel(args: { definition?: Readonly<{ id: NodeId; name?: string; token: unknown }>; nodeId: NodeId }): string {
+    const tokenName = typeof args.definition?.token === "function" ? args.definition.token.name : "Node";
+    return args.definition?.name ? `"${args.definition.name}" (${tokenName}:${args.nodeId})` : `${tokenName}:${args.nodeId}`;
+  }
+
+  static formatOutputCounts(outputs: NodeOutputs): string {
+    const entries = Object.entries(outputs ?? {});
+    if (entries.length === 0) return "no outputs";
+    return entries.map(([port, items]) => `${port}=${items?.length ?? 0}`).join(", ");
   }
 }
 
@@ -159,8 +171,127 @@ class NodeSnapshotFactory {
       updatedAt: args.finishedAt,
       inputsByPort: args.inputsByPort,
       outputs: undefined,
-      error: { message: args.error.message },
+      error: {
+        message: args.error.message,
+        name: args.error.name,
+        stack: args.error.stack,
+      },
     };
+  }
+}
+
+class BoundNodeExecutionStatePublisher implements NodeExecutionStatePublisher {
+  private chain: Promise<void> = Promise.resolve();
+
+  constructor(
+    private readonly runStore: RunStateStore,
+    private readonly runId: RunId,
+    private readonly workflowId: WorkflowId,
+    private readonly parent: ParentExecutionRef | undefined,
+    private readonly publishNodeEvent: (kind: "nodeQueued" | "nodeStarted" | "nodeCompleted" | "nodeFailed", snapshot: NodeExecutionSnapshot) => Promise<void>,
+  ) {}
+
+  markQueued(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort }): Promise<void> {
+    return this.enqueue(async () => {
+      const state = await this.loadState();
+      const previous = state.nodeSnapshotsByNodeId?.[args.nodeId];
+      const queuedAt = new Date().toISOString();
+      const snapshot = NodeSnapshotFactory.queued({
+        runId: this.runId,
+        workflowId: this.workflowId,
+        nodeId: args.nodeId,
+        activationId: args.activationId ?? previous?.activationId ?? `synthetic_${args.nodeId}`,
+        parent: this.parent,
+        queuedAt,
+        inputsByPort: args.inputsByPort ?? previous?.inputsByPort ?? InputPortMap.empty(),
+      });
+      await this.saveSnapshot(state, snapshot);
+      await this.publishNodeEvent("nodeQueued", snapshot);
+    });
+  }
+
+  markRunning(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort }): Promise<void> {
+    return this.enqueue(async () => {
+      const state = await this.loadState();
+      const previous = state.nodeSnapshotsByNodeId?.[args.nodeId];
+      const startedAt = new Date().toISOString();
+      const snapshot = NodeSnapshotFactory.running({
+        previous,
+        runId: this.runId,
+        workflowId: this.workflowId,
+        nodeId: args.nodeId,
+        activationId: args.activationId ?? previous?.activationId ?? `synthetic_${args.nodeId}`,
+        parent: this.parent,
+        startedAt,
+        inputsByPort: args.inputsByPort ?? previous?.inputsByPort ?? InputPortMap.empty(),
+      });
+      await this.saveSnapshot(state, snapshot);
+      await this.publishNodeEvent("nodeStarted", snapshot);
+    });
+  }
+
+  markCompleted(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort; outputs?: NodeOutputs }): Promise<void> {
+    return this.enqueue(async () => {
+      const state = await this.loadState();
+      const previous = state.nodeSnapshotsByNodeId?.[args.nodeId];
+      const finishedAt = new Date().toISOString();
+      const snapshot = NodeSnapshotFactory.completed({
+        previous,
+        runId: this.runId,
+        workflowId: this.workflowId,
+        nodeId: args.nodeId,
+        activationId: args.activationId ?? previous?.activationId ?? `synthetic_${args.nodeId}`,
+        parent: this.parent,
+        finishedAt,
+        inputsByPort: args.inputsByPort ?? previous?.inputsByPort ?? InputPortMap.empty(),
+        outputs: args.outputs ?? previous?.outputs ?? {},
+      });
+      await this.saveSnapshot(state, snapshot);
+      await this.publishNodeEvent("nodeCompleted", snapshot);
+    });
+  }
+
+  markFailed(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort; error: Error }): Promise<void> {
+    return this.enqueue(async () => {
+      const state = await this.loadState();
+      const previous = state.nodeSnapshotsByNodeId?.[args.nodeId];
+      const finishedAt = new Date().toISOString();
+      const snapshot = NodeSnapshotFactory.failed({
+        previous,
+        runId: this.runId,
+        workflowId: this.workflowId,
+        nodeId: args.nodeId,
+        activationId: args.activationId ?? previous?.activationId ?? `synthetic_${args.nodeId}`,
+        parent: this.parent,
+        finishedAt,
+        inputsByPort: args.inputsByPort ?? previous?.inputsByPort ?? InputPortMap.empty(),
+        error: args.error,
+      });
+      await this.saveSnapshot(state, snapshot);
+      await this.publishNodeEvent("nodeFailed", snapshot);
+    });
+  }
+
+  private enqueue(work: () => Promise<void>): Promise<void> {
+    const next = this.chain.then(work);
+    this.chain = next.catch(() => undefined);
+    return next;
+  }
+
+  private async loadState(): Promise<NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>> {
+    const state = await this.runStore.load(this.runId);
+    if (!state) throw new Error(`Unknown runId: ${this.runId}`);
+    return state;
+  }
+
+  private async saveSnapshot(state: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>, snapshot: NodeExecutionSnapshot): Promise<void> {
+    await this.runStore.save({
+      ...state,
+      nodeSnapshotsByNodeId: {
+        ...(state.nodeSnapshotsByNodeId ?? {}),
+        [snapshot.nodeId]: snapshot,
+      },
+    });
   }
 }
 
@@ -217,12 +348,13 @@ export class Engine implements NodeActivationContinuation {
         if (def.kind !== "trigger") continue;
         const node = this.container.resolve(def.token as any) as TriggerNode;
         const data = this.runDataFactory.create();
+        const triggerRunId = this.makeRunId();
         await node.setup({
           ...this.executionContextFactory.create({
-            runId: this.makeRunId(),
+            runId: triggerRunId,
             workflowId: wf.id,
             parent: undefined,
-            services: { credentials: this.host.credentials, workflows: this.host.workflows, container: this.container },
+            services: this.createExecutionServices(triggerRunId, wf.id, undefined),
             data,
           }),
           trigger: { workflowId: wf.id, nodeId: def.id },
@@ -259,7 +391,7 @@ export class Engine implements NodeActivationContinuation {
       runId,
       workflowId: wf.id,
       parent,
-      services: { credentials: this.host.credentials, workflows: this.host.workflows, container: this.container },
+      services: this.createExecutionServices(runId, wf.id, parent),
       data,
     });
 
@@ -463,7 +595,7 @@ export class Engine implements NodeActivationContinuation {
       runId: state.runId,
       workflowId: state.workflowId,
       parent: state.parent,
-      services: { credentials: this.host.credentials, workflows: this.host.workflows, container: this.container },
+      services: this.createExecutionServices(state.runId, state.workflowId, state.parent),
       data,
     });
 
@@ -492,7 +624,17 @@ export class Engine implements NodeActivationContinuation {
 
     planner.applyOutputs(queue, { fromNodeId: args.nodeId, outputs: args.outputs as any, batchId });
 
-    const next = planner.nextActivation(queue);
+    let next: ReturnType<RunQueuePlanner["nextActivation"]>;
+    try {
+      next = planner.nextActivation(queue);
+    } catch (cause) {
+      const completedDefinition = topology.defsById.get(args.nodeId);
+      const completedNodeLabel = RuntimeContinuationDiagnostics.formatNodeLabel({ definition: completedDefinition, nodeId: args.nodeId });
+      const reason = cause instanceof Error ? cause.message : String(cause);
+      throw new Error(
+        `After completing ${completedNodeLabel}, the engine could not plan the next activation. ${reason} Outputs: ${RuntimeContinuationDiagnostics.formatOutputCounts(args.outputs)}.`,
+      );
+    }
     if (!next) {
       const lastNodeId =
         wf.nodes.at(-1)?.id ??
@@ -678,6 +820,17 @@ export class Engine implements NodeActivationContinuation {
       at: snapshot.updatedAt,
       snapshot,
     });
+  }
+
+  private createExecutionServices(runId: RunId, workflowId: WorkflowId, parent: ParentExecutionRef | undefined) {
+    return {
+      credentials: this.host.credentials,
+      workflows: this.host.workflows,
+      container: this.container,
+      nodeState: new BoundNodeExecutionStatePublisher(this.runStore, runId, workflowId, parent, async (kind, snapshot) => {
+        await this.publishNodeEvent(kind, snapshot);
+      }),
+    };
   }
 
   private resolveRunCompletion(result: RunResult): void {
