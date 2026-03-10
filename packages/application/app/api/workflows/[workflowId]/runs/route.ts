@@ -1,9 +1,13 @@
 export const runtime = "nodejs";
 
-import { codemationProxyClient } from "../../../_codemation/codemationProxy";
+import type { RunListingStore } from "@codemation/core";
+import { codemationNextRuntimeRegistry } from "../../../../../src/runtime/codemationNextRuntimeRegistry";
 
-export async function GET(request: Request, context: { params: Promise<{ workflowId: string }> }): Promise<Response> {
+export async function GET(_: Request, context: { params: Promise<{ workflowId: string }> }): Promise<Response> {
   const { workflowId } = await context.params;
-  return await codemationProxyClient.forward(request, `/api/workflows/${encodeURIComponent(workflowId)}/runs`);
+  const runtimeRoot = await codemationNextRuntimeRegistry.getRuntime();
+  const listingStore = runtimeRoot.getRunStore() as unknown as Partial<RunListingStore>;
+  const runs = listingStore.listRuns ? await listingStore.listRuns({ workflowId: decodeURIComponent(workflowId), limit: 50 }) : [];
+  return Response.json(runs);
 }
 

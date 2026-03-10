@@ -1,15 +1,34 @@
 import "reflect-metadata";
 
-import type { Container, CredentialService, EngineHost, WorkflowDefinition } from "@codemation/core";
-import { Engine, EngineWorkflowRunnerService, InMemoryCredentialService, SimpleContainerFactory } from "@codemation/core";
+import type { Container, CredentialService, WorkflowDefinition, WorkflowRegistry } from "@codemation/core";
+import {
+  container as tsyringeContainer,
+  ContainerNodeResolver,
+  ContainerWorkflowRunnerResolver,
+  CoreTokens,
+  Engine,
+  EngineWorkflowRunnerService,
+  InMemoryCredentialService,
+  InMemoryWorkflowRegistry,
+  instanceCachingFactory,
+} from "@codemation/core";
+import { BullmqScheduler } from "@codemation/queue-bullmq";
 import { mkdir } from "node:fs/promises";
-import net from "node:net";
 import path from "node:path";
+import { ApplicationTokens } from "./applicationTokens";
 import { CodemationBootstrapDiscovery } from "./bootstrapDiscovery";
-import type { CodemationFrontendHostServerDiagnostics } from "./codemationFrontendHostServer";
-import { CodemationFrontendHostServer } from "./codemationFrontendHostServer";
+import type { CodemationDiscoveredApplicationSetup } from "./bootstrapDiscovery";
+import { CodemationServerEngineHost } from "./host/codemationServerEngineHost";
+import { CodemationWebhookRegistry } from "./host/codemationWebhookRegistry";
+import { CodemationWorkflowDtoMapper } from "./host/codemationWorkflowDtoMapper";
 import { RealtimeRuntimeFactory } from "./realtimeRuntimeFactory";
+import { CodemationFrontendRuntimeRoot } from "./runtime/codemationFrontendRuntimeRoot";
+import { CodemationRealtimeSocketServer } from "./runtime/codemationRealtimeSocketServer";
+import { CodemationWorkerRuntimeRoot } from "./runtime/codemationWorkerRuntimeRoot";
+import type { CodemationApplicationRuntimeConfig } from "./runtime/codemationRuntimeConfig";
+import { CodemationIdFactory } from "./shared/codemationIdFactory";
 import { CodemationStartupSummaryReporter, ConsoleStartupSummaryLogger } from "./startupSummary";
+import { CodemationWorkerHost } from "./worker/codemationWorkerHost";
 
 type StopHandle = Readonly<{ stop: () => Promise<void> }>;
 
@@ -22,110 +41,39 @@ export interface CodemationApplicationConfig {
   readonly runtime?: CodemationApplicationRuntimeConfig;
 }
 
-export interface CodemationApplicationRuntimeConfig {
-  readonly frontendPort?: number;
-  readonly serverPort?: number;
-  readonly realtimeMode?: "memory" | "redis";
-  readonly redisUrl?: string;
-  readonly queuePrefix?: string;
-  readonly dbPath?: string;
-  readonly websocketBindHost?: string;
-  readonly workerQueues?: ReadonlyArray<string>;
-}
-
-type FrontendStartArgs = Readonly<{
-  repoRoot: string;
-  env?: Record<string, string>;
-  bootstrapSource?: string | null;
-  workflowSources?: ReadonlyArray<string>;
-}>;
-
-export interface CodemationFrontendHostHandle extends StopHandle {
-  readonly frontendPort: number;
-  readonly serverPort: number;
-  readonly serverUrl: string;
-  readonly websocketUrl: string;
-  readonly runtimeMode: "memory" | "redis";
-  readonly dbPath: string;
-  readonly diagnostics: CodemationFrontendHostServerDiagnostics;
-}
-
-class IdFactory {
-  static makeRunId(): string {
-    return `run_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-  }
-  static makeActivationId(): string {
-    return `act_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-  }
-}
-
-class WorkerHost implements EngineHost {
-  workflows: any;
-  constructor(public readonly credentials: CredentialService) {}
-
-  registerWebhook(): any {
-    throw new Error("WorkerHost.registerWebhook is not supported in worker mode");
-  }
-
-  onNodeActivation(): void {}
-}
-
-class ConsoleCodemationHostLogger {
-  constructor(private readonly scope: string) {}
-
-  info(message: string, exception?: Error): void {
-    this.log("info", message, exception);
-  }
-
-  warn(message: string, exception?: Error): void {
-    this.log("warn", message, exception);
-  }
-
-  error(message: string, exception?: Error): void {
-    this.log("error", message, exception);
-  }
-
-  debug(message: string, exception?: Error): void {
-    this.log("debug", message, exception);
-  }
-
-  private log(level: "info" | "warn" | "error" | "debug", message: string, exception?: Error): void {
-    const prefix = `[${this.scope}]`;
-    if (exception) {
-      console[level](`${prefix} ${message}`, exception);
-      return;
-    }
-    console[level](`${prefix} ${message}`);
-  }
-}
-
 export class CodemationApplication {
-  private container: Container = SimpleContainerFactory.create();
+  private container: Container = tsyringeContainer.createChildContainer();
   private workflows: WorkflowDefinition[] = [];
   private credentials: CredentialService = new InMemoryCredentialService();
   private runtimeConfig: CodemationApplicationRuntimeConfig = {};
-  private readonly startupSummaryReporter = new CodemationStartupSummaryReporter(new ConsoleStartupSummaryLogger());
+
+  constructor() {
+    this.synchronizeContainerRegistrations();
+  }
 
   useConfig(config: CodemationApplicationConfig): this {
-    if (config.container) this.container = config.container;
-    this.workflows = [...config.workflows];
-    this.credentials = config.credentials;
-    if (config.runtime) this.runtimeConfig = { ...config.runtime };
+    if (config.container) this.useContainer(config.container);
+    this.useWorkflows(config.workflows);
+    this.useCredentials(config.credentials);
+    if (config.runtime) this.useRuntimeConfig(config.runtime);
     return this;
   }
 
   useContainer(container: Container): this {
     this.container = container;
+    this.synchronizeContainerRegistrations();
     return this;
   }
 
-  useWorkflows(workflows: WorkflowDefinition[]): this {
-    this.workflows = workflows;
+  useWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): this {
+    this.workflows = [...workflows];
+    this.synchronizeWorkflowRegistry();
     return this;
   }
 
   useCredentials(credentials: CredentialService): this {
     this.credentials = credentials;
+    this.synchronizeContainerRegistrations();
     return this;
   }
 
@@ -138,61 +86,38 @@ export class CodemationApplication {
     return { ...this.runtimeConfig };
   }
 
+  getContainer(): Container {
+    return this.container;
+  }
+
+  getWorkflows(): ReadonlyArray<WorkflowDefinition> {
+    return [...this.workflows];
+  }
+
+  getCredentials(): CredentialService {
+    return this.credentials;
+  }
+
   resolveRealtimeModeForEnvironment(env?: Readonly<NodeJS.ProcessEnv>): "memory" | "redis" {
     return this.resolveRealtimeMode({ ...process.env, ...(env ?? {}) });
   }
 
-  /**
-   * @deprecated Start the framework UI shell via `@codemation/cli`.
-   * This method now starts only the Codemation host runtime.
-   */
-  static async startDiscoveredFrontendMode(args: Readonly<{
+  static async loadDiscoveredApplication(args: Readonly<{
     repoRoot: string;
     consumerRoot: string;
     env?: Record<string, string>;
     bootstrapPathOverride?: string;
     workflowsDirectoryOverride?: string;
-  }>): Promise<CodemationFrontendHostHandle> {
+  }>): Promise<CodemationDiscoveredApplicationSetup> {
     const discovery = new CodemationBootstrapDiscovery();
     const application = new CodemationApplication();
-    const setup = await discovery.discover({
+    return await discovery.discover({
       application,
       repoRoot: args.repoRoot,
       consumerRoot: args.consumerRoot,
       env: args.env,
       bootstrapPathOverride: args.bootstrapPathOverride,
       workflowsDirectoryOverride: args.workflowsDirectoryOverride,
-    });
-    return await setup.application.startFrontendMode({
-      repoRoot: args.repoRoot,
-      env: args.env,
-      bootstrapSource: setup.bootstrapSource,
-      workflowSources: setup.workflowSources,
-    });
-  }
-
-  static async startDiscoveredFrontendHostMode(args: Readonly<{
-    repoRoot: string;
-    consumerRoot: string;
-    env?: Record<string, string>;
-    bootstrapPathOverride?: string;
-    workflowsDirectoryOverride?: string;
-  }>): Promise<CodemationFrontendHostHandle> {
-    const discovery = new CodemationBootstrapDiscovery();
-    const application = new CodemationApplication();
-    const setup = await discovery.discover({
-      application,
-      repoRoot: args.repoRoot,
-      consumerRoot: args.consumerRoot,
-      env: args.env,
-      bootstrapPathOverride: args.bootstrapPathOverride,
-      workflowsDirectoryOverride: args.workflowsDirectoryOverride,
-    });
-    return await setup.application.startFrontendHostMode({
-      repoRoot: args.repoRoot,
-      env: args.env,
-      bootstrapSource: setup.bootstrapSource,
-      workflowSources: setup.workflowSources,
     });
   }
 
@@ -203,109 +128,62 @@ export class CodemationApplication {
     bootstrapPathOverride?: string;
     workflowsDirectoryOverride?: string;
   }>): Promise<StopHandle> {
-    const discovery = new CodemationBootstrapDiscovery();
-    const application = new CodemationApplication();
-    const setup = await discovery.discover({
-      application,
-      repoRoot: args.repoRoot,
-      consumerRoot: args.consumerRoot,
-      env: args.env,
-      bootstrapPathOverride: args.bootstrapPathOverride,
-      workflowsDirectoryOverride: args.workflowsDirectoryOverride,
-    });
-
+    const setup = await this.loadDiscoveredApplication(args);
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
-    const workerQueues = setup.application.runtimeConfig.workerQueues ?? CodemationApplication.parseQueues(effectiveEnv.WORKER_QUEUES ?? "default");
-    const redisUrl = setup.application.runtimeConfig.redisUrl ?? effectiveEnv.REDIS_URL;
-    if (!redisUrl) throw new Error("Worker mode requires REDIS_URL or a bootstrap runtime redisUrl");
-
-    const dbPath = setup.application.runtimeConfig.dbPath ?? effectiveEnv.CODEMATION_DB_PATH ?? path.join(args.repoRoot, ".codemation", "runs.sqlite");
-    return await setup.application.startWorkerMode({
-      redisUrl,
-      dbPath,
+    const workerQueues = setup.application.runtimeConfig.scheduler?.workerQueues ?? CodemationApplication.parseQueues(effectiveEnv.WORKER_QUEUES ?? "default");
+    const workerRoot = await setup.application.createWorkerRuntimeRoot({
+      repoRoot: args.repoRoot,
+      env: effectiveEnv,
+    });
+    return await workerRoot.start({
       queues: workerQueues,
-      queuePrefix: setup.application.runtimeConfig.queuePrefix ?? effectiveEnv.QUEUE_PREFIX ?? "codemation",
       bootstrapSource: setup.bootstrapSource,
       workflowSources: setup.workflowSources,
     });
   }
 
-  /**
-   * @deprecated Start the framework UI shell via `@codemation/cli`.
-   * This method now starts only the Codemation host runtime.
-   */
-  async startFrontendMode(args: FrontendStartArgs): Promise<CodemationFrontendHostHandle> {
-    const startup = await this.startFrontendHost(args, true, "frontend runtime summary");
-    return this.createFrontendHostHandle(startup);
+  async createFrontendRuntimeRoot(args: Readonly<{ repoRoot: string; env?: Readonly<NodeJS.ProcessEnv> }>): Promise<CodemationFrontendRuntimeRoot> {
+    const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
+    await this.prepareRuntimeRegistrations(args.repoRoot, effectiveEnv);
+    this.container.registerInstance(ApplicationTokens.WebSocketPort, this.resolveWebSocketPort(effectiveEnv));
+    this.container.registerInstance(ApplicationTokens.WebSocketBindHost, effectiveEnv.CODEMATION_WS_BIND_HOST ?? "0.0.0.0");
+    this.container.registerInstance(CoreTokens.WebhookBasePath, "/api/webhooks");
+    this.container.register(CodemationServerEngineHost, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return new CodemationServerEngineHost(
+          dependencyContainer.resolve(CodemationWebhookRegistry),
+          dependencyContainer.resolve(CoreTokens.WebhookBasePath),
+        );
+      }),
+    });
+    this.container.register(CoreTokens.WebhookRegistrar, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationServerEngineHost)),
+    });
+    this.container.register(CoreTokens.NodeActivationObserver, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationServerEngineHost)),
+    });
+    const frontendRoot = this.container.resolve(CodemationFrontendRuntimeRoot);
+    await frontendRoot.start();
+    return frontendRoot;
   }
 
-  async startFrontendHostMode(args: FrontendStartArgs): Promise<CodemationFrontendHostHandle> {
-    const startup = await this.startFrontendHost(args, false, "frontend host summary");
-    return this.createFrontendHostHandle(startup);
-  }
-
-  async startWorkerMode(args: Readonly<{
-    redisUrl: string;
-    queuePrefix?: string;
-    queues: ReadonlyArray<string>;
-    dbPath: string;
-    bootstrapSource?: string | null;
-    workflowSources?: ReadonlyArray<string>;
-  }>): Promise<StopHandle> {
-    const runtime = RealtimeRuntimeFactory.create({
-      dbPath: args.dbPath,
-      redisUrl: args.redisUrl,
-      queuePrefix: args.queuePrefix,
-      mode: "redis",
+  async createWorkerRuntimeRoot(args: Readonly<{ repoRoot: string; env?: Readonly<NodeJS.ProcessEnv> }>): Promise<CodemationWorkerRuntimeRoot> {
+    const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
+    await this.prepareRuntimeRegistrations(args.repoRoot, effectiveEnv);
+    this.container.registerInstance(CoreTokens.WebhookBasePath, "/api/webhooks");
+    this.container.register(CodemationWorkerHost, {
+      useFactory: instanceCachingFactory(() => new CodemationWorkerHost()),
     });
-    if (!runtime.scheduler || runtime.mode !== "redis") throw new Error("Worker mode requires a redis realtime runtime");
-    const scheduler = runtime.scheduler;
-
-    const workflowsById = new Map(this.workflows.map((w) => [w.id, w] as const));
-    const host = new WorkerHost(this.credentials);
-    const engine = new Engine(
-      this.container,
-      host as any,
-      IdFactory.makeRunId as any,
-      IdFactory.makeActivationId as any,
-      "/webhooks",
-      runtime.runStore,
-      undefined,
-      runtime.scheduler,
-      undefined,
-      undefined,
-      undefined,
-      runtime.eventBus,
-    );
-    host.workflows = new EngineWorkflowRunnerService(engine, workflowsById) as any;
-
-    engine.loadWorkflows(this.workflows);
-
-    const worker = scheduler.createWorker({
-      queues: args.queues,
-      workflowsById,
-      container: this.container,
-      credentials: this.credentials,
-      runStore: runtime.runStore,
-      continuation: engine,
-      workflows: host.workflows,
+    this.container.register(CoreTokens.WebhookRegistrar, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationWorkerHost)),
     });
-
-    this.startupSummaryReporter.reportWorker({
-      processLabel: "worker startup summary",
-      runtime: runtime.diagnostics,
-      workflowDefinitions: this.workflows,
-      queues: args.queues,
-      bootstrapSource: args.bootstrapSource ?? null,
-      workflowSources: args.workflowSources ?? [],
+    this.container.register(CoreTokens.NodeActivationObserver, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationWorkerHost)),
     });
-
-    return {
-      stop: async () => {
-        await worker.stop();
-        await scheduler.close();
-      },
-    };
+    if (!this.container.isRegistered(BullmqScheduler, true)) {
+      throw new Error("Worker mode requires a BullMQ scheduler backed by a Redis event bus.");
+    }
+    return this.container.resolve(CodemationWorkerRuntimeRoot);
   }
 
   private static parseQueues(rawQueues: string): ReadonlyArray<string> {
@@ -315,133 +193,135 @@ export class CodemationApplication {
       .filter(Boolean);
   }
 
-  private async startFrontendHost(
-    args: FrontendStartArgs,
-    allowPortFallback: boolean,
-    processLabel: string,
-  ): Promise<
-    Readonly<{
-      hostServer: CodemationFrontendHostServer;
-      effectiveEnv: NodeJS.ProcessEnv;
-      dbPath: string;
-      frontendPort: number;
-      serverPort: number;
-      runtimeMode: "memory" | "redis";
-    }>
-  > {
-    const dbPath = this.runtimeConfig.dbPath ?? path.join(args.repoRoot, ".codemation", "runs.sqlite");
-    await mkdir(path.dirname(dbPath), { recursive: true });
-    const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
-    const preferredFrontendPort = Number(this.runtimeConfig.frontendPort ?? effectiveEnv.CODEMATION_FRONTEND_PORT ?? 3000);
-    const frontendPort = allowPortFallback ? await pickAvailablePort(preferredFrontendPort) : preferredFrontendPort;
-    const preferredServerPort = Number(this.runtimeConfig.serverPort ?? effectiveEnv.CODEMATION_SERVER_PORT ?? effectiveEnv.CODEMATION_WS_PORT ?? frontendPort + 1);
-    const serverPort = allowPortFallback ? await pickAvailablePort(preferredServerPort) : await waitForPortToBeFree(preferredServerPort, 5000);
-    const runtimeMode = this.resolveRealtimeMode(effectiveEnv);
-    const queuePrefix = this.runtimeConfig.queuePrefix ?? effectiveEnv.QUEUE_PREFIX ?? "codemation";
-    const redisUrl = this.runtimeConfig.redisUrl ?? effectiveEnv.REDIS_URL;
-    const runtime = RealtimeRuntimeFactory.create({
-      dbPath,
-      redisUrl,
-      queuePrefix,
-      mode: runtimeMode,
-    });
-    const websocketHost = this.runtimeConfig.websocketBindHost ?? effectiveEnv.CODEMATION_WS_BIND_HOST ?? "0.0.0.0";
-    const hostServer = new CodemationFrontendHostServer({
-      container: this.container,
-      credentials: this.credentials,
-      workflows: this.workflows,
-      runtime,
-      port: serverPort,
-      bindHost: websocketHost,
-      logger: new ConsoleCodemationHostLogger("codemation-host"),
-    });
-    await hostServer.start();
-
-    this.startupSummaryReporter.reportFrontend({
-      processLabel,
-      runtime: runtime.diagnostics,
-      websocketHost,
-      websocketPort: serverPort,
-      workflowDefinitions: this.workflows,
-      triggerStatusLabel: "started in codemation host",
-      bootstrapSource: args.bootstrapSource ?? null,
-      workflowSources: args.workflowSources ?? [],
-    });
-
-    return {
-      hostServer,
-      effectiveEnv,
-      dbPath,
-      frontendPort,
-      serverPort,
-      runtimeMode,
-    };
-  }
-
-  private createFrontendHostHandle(
-    startup: Readonly<{
-      hostServer: CodemationFrontendHostServer;
-      effectiveEnv: NodeJS.ProcessEnv;
-      dbPath: string;
-      frontendPort: number;
-      serverPort: number;
-      runtimeMode: "memory" | "redis";
-    }>,
-  ): CodemationFrontendHostHandle {
-    return {
-      frontendPort: startup.frontendPort,
-      serverPort: startup.serverPort,
-      serverUrl: startup.hostServer.getApiBaseUrl(),
-      websocketUrl: startup.hostServer.getWebSocketUrl(),
-      runtimeMode: startup.runtimeMode,
-      dbPath: startup.dbPath,
-      diagnostics: startup.hostServer.getDiagnostics(),
-      stop: async () => {
-        await startup.hostServer.stop();
-      },
-    };
-  }
-
   private resolveRealtimeMode(effectiveEnv: NodeJS.ProcessEnv): "memory" | "redis" {
-    const configuredMode = this.runtimeConfig.realtimeMode ?? effectiveEnv.CODEMATION_REALTIME_MODE;
-    if (configuredMode === "redis") return "redis";
-    if (configuredMode === "memory") return "memory";
-    return this.runtimeConfig.redisUrl ?? effectiveEnv.REDIS_URL ? "redis" : "memory";
+    return this.resolveRealtimeRuntimeFactory().resolveMode({
+      runtimeConfig: this.runtimeConfig,
+      env: effectiveEnv,
+    });
   }
-}
 
-async function pickAvailablePort(preferredPort: number): Promise<number> {
-  const base = Number.isFinite(preferredPort) && preferredPort > 0 ? Math.floor(preferredPort) : 3000;
-  for (let port = base; port < base + 50; port++) {
-    // eslint-disable-next-line no-await-in-loop
-    if (await isPortFree(port)) return port;
+  private synchronizeContainerRegistrations(): void {
+    this.container.registerInstance(CodemationApplication, this);
+    this.container.registerInstance(CoreTokens.ServiceContainer, this.container);
+    this.container.registerInstance(CoreTokens.CredentialService, this.credentials);
+    this.container.register(CodemationIdFactory, { useClass: CodemationIdFactory });
+    this.container.register(CoreTokens.RunIdFactory, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationIdFactory)),
+    });
+    this.container.register(CoreTokens.ActivationIdFactory, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationIdFactory)),
+    });
+    this.container.register(CoreTokens.WorkflowRegistry, {
+      useFactory: instanceCachingFactory(() => new InMemoryWorkflowRegistry()),
+    });
+    this.container.register(CoreTokens.NodeResolver, {
+      useFactory: instanceCachingFactory((dependencyContainer) => new ContainerNodeResolver(dependencyContainer.resolve(CoreTokens.ServiceContainer))),
+    });
+    this.container.register(CoreTokens.WorkflowRunnerResolver, {
+      useFactory: instanceCachingFactory((dependencyContainer) => new ContainerWorkflowRunnerResolver(dependencyContainer.resolve(CoreTokens.ServiceContainer))),
+    });
+    this.container.register(Engine, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return new Engine({
+          credentials: dependencyContainer.resolve(CoreTokens.CredentialService),
+          workflowRunnerResolver: dependencyContainer.resolve(CoreTokens.WorkflowRunnerResolver),
+          workflowRegistry: dependencyContainer.resolve(CoreTokens.WorkflowRegistry),
+          nodeResolver: dependencyContainer.resolve(CoreTokens.NodeResolver),
+          webhookRegistrar: dependencyContainer.resolve(CoreTokens.WebhookRegistrar),
+          nodeActivationObserver: dependencyContainer.resolve(CoreTokens.NodeActivationObserver),
+          runIdFactory: dependencyContainer.resolve(CoreTokens.RunIdFactory),
+          activationIdFactory: dependencyContainer.resolve(CoreTokens.ActivationIdFactory),
+          webhookBasePath: dependencyContainer.resolve(CoreTokens.WebhookBasePath),
+          runStore: dependencyContainer.resolve(CoreTokens.RunStateStore),
+          activationScheduler: dependencyContainer.resolve(CoreTokens.NodeActivationScheduler),
+          runDataFactory: dependencyContainer.resolve(CoreTokens.RunDataFactory),
+          executionContextFactory: dependencyContainer.resolve(CoreTokens.ExecutionContextFactory),
+          eventBus: dependencyContainer.resolve(CoreTokens.RunEventBus),
+        });
+      }),
+    });
+    this.container.register(CodemationRealtimeSocketServer, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return new CodemationRealtimeSocketServer(
+          dependencyContainer.resolve(CoreTokens.RunEventBus),
+          dependencyContainer.resolve(ApplicationTokens.WebSocketPort),
+          dependencyContainer.resolve(ApplicationTokens.WebSocketBindHost),
+        );
+      }),
+    });
+    this.container.register(CoreTokens.WorkflowRunnerService, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return new EngineWorkflowRunnerService(dependencyContainer.resolve(Engine), dependencyContainer.resolve(CoreTokens.WorkflowRegistry));
+      }),
+    });
+    this.container.register(RealtimeRuntimeFactory, { useClass: RealtimeRuntimeFactory });
+    this.container.register(CodemationWebhookRegistry, { useClass: CodemationWebhookRegistry });
+    this.container.register(CodemationWorkflowDtoMapper, { useClass: CodemationWorkflowDtoMapper });
+    this.container.register(ConsoleStartupSummaryLogger, { useClass: ConsoleStartupSummaryLogger });
+    this.container.register(CodemationStartupSummaryReporter, { useClass: CodemationStartupSummaryReporter });
+    this.container.register(CodemationFrontendRuntimeRoot, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return new CodemationFrontendRuntimeRoot(
+          dependencyContainer.resolve(Engine),
+          dependencyContainer.resolve(CoreTokens.WorkflowRegistry),
+          dependencyContainer.resolve(CoreTokens.WorkflowRunnerService),
+          dependencyContainer.resolve(CoreTokens.RunStateStore),
+          dependencyContainer.resolve(CoreTokens.RunEventBus),
+          dependencyContainer.resolve(CodemationRealtimeSocketServer),
+          dependencyContainer.resolve(CodemationWebhookRegistry),
+          dependencyContainer.resolve(CodemationWorkflowDtoMapper),
+          dependencyContainer.resolve(ApplicationTokens.RealtimeRuntimeDiagnostics),
+        );
+      }),
+    });
+    this.container.register(CodemationWorkerRuntimeRoot, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return new CodemationWorkerRuntimeRoot(
+          dependencyContainer.resolve(Engine),
+          dependencyContainer.resolve(BullmqScheduler),
+          dependencyContainer.resolve(CodemationStartupSummaryReporter),
+          dependencyContainer.resolve(CoreTokens.WorkflowRegistry),
+          dependencyContainer.resolve(CoreTokens.WorkflowRunnerService),
+          dependencyContainer.resolve(CoreTokens.NodeResolver),
+          dependencyContainer.resolve(CoreTokens.CredentialService),
+          dependencyContainer.resolve(CoreTokens.RunStateStore),
+          dependencyContainer.resolve(ApplicationTokens.RealtimeRuntimeDiagnostics),
+        );
+      }),
+    });
+    this.synchronizeWorkflowRegistry();
   }
-  throw new Error(`No available port found in range ${base}-${base + 49}`);
-}
 
-async function waitForPortToBeFree(port: number, timeoutMs: number): Promise<number> {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < timeoutMs) {
-    // eslint-disable-next-line no-await-in-loop
-    if (await isPortFree(port)) return port;
-    // eslint-disable-next-line no-await-in-loop
-    await sleep(100);
+  private synchronizeWorkflowRegistry(): void {
+    const workflowRegistry = this.container.resolve<WorkflowRegistry>(CoreTokens.WorkflowRegistry);
+    workflowRegistry.setWorkflows(this.workflows);
   }
-  throw new Error(`Port ${port} did not become available within ${timeoutMs}ms`);
-}
 
-async function isPortFree(port: number): Promise<boolean> {
-  return await new Promise<boolean>((resolve) => {
-    const server = net
-      .createServer()
-      .once("error", () => resolve(false))
-      .once("listening", () => server.close(() => resolve(true)))
-      .listen({ port, host: "127.0.0.1" });
-    server.unref();
-  });
-}
+  private resolveRealtimeRuntimeFactory(): RealtimeRuntimeFactory {
+    return this.container.resolve(RealtimeRuntimeFactory);
+  }
 
-async function sleep(ms: number): Promise<void> {
-  await new Promise<void>((resolve) => setTimeout(resolve, ms));
+  private async prepareRuntimeRegistrations(repoRoot: string, env: NodeJS.ProcessEnv): Promise<void> {
+    const runtimeDiagnostics = this.resolveRealtimeRuntimeFactory().describe({
+      repoRoot,
+      runtimeConfig: this.runtimeConfig,
+      env,
+    });
+    await mkdir(path.dirname(runtimeDiagnostics.dbPath), { recursive: true });
+    this.resolveRealtimeRuntimeFactory().register({
+      container: this.container,
+      repoRoot,
+      runtimeConfig: this.runtimeConfig,
+      env,
+    });
+    this.synchronizeWorkflowRegistry();
+  }
+
+  private resolveWebSocketPort(env: Readonly<NodeJS.ProcessEnv>): number {
+    const rawPort = env.CODEMATION_WS_PORT ?? env.NEXT_PUBLIC_CODEMATION_WS_PORT;
+    const parsedPort = Number(rawPort);
+    if (Number.isInteger(parsedPort) && parsedPort > 0) return parsedPort;
+    return 3001;
+  }
 }
 

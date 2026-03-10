@@ -1,30 +1,39 @@
 import type {
   Container,
   CredentialService,
-  EngineDeps,
-  EngineHost,
   ExecutionContextFactory,
+  NodeActivationObserver,
   NodeExecutionRequest,
   NodeExecutionScheduler,
   NodeOffloadPolicy,
   RunEventBus,
   RunDataFactory,
+  RunIdFactory,
   RunResult,
   RunStateStore,
+  WebhookRegistrar,
   WorkflowDefinition,
-  WorkflowGraphFactory,
+  WorkflowRunnerService,
 } from "../../dist/index.js";
 
 import {
+  ContainerNodeResolver,
+  ContainerWorkflowRunnerResolver,
+  CoreTokens,
+  DefaultDrivingScheduler,
   DefaultExecutionContextFactory,
   Engine,
   EngineWorkflowRunnerService,
   HintOnlyOffloadPolicy,
   InMemoryCredentialService,
   InMemoryRunDataFactory,
+  InMemoryRunEventBus,
   InMemoryRunStateStore,
-  SimpleContainerFactory,
+  InMemoryWorkflowRegistry,
+  InlineDrivingScheduler,
 } from "../../dist/index.js";
+import { container as tsyringeContainer } from "tsyringe";
+import type { DependencyContainer, InjectionToken } from "tsyringe";
 
 export class CapturingScheduler implements NodeExecutionScheduler {
   lastRequest: NodeExecutionRequest | undefined;
@@ -34,6 +43,40 @@ export class CapturingScheduler implements NodeExecutionScheduler {
     this.lastRequest = request;
     this.requests.push(request);
     return { receiptId: `receipt_${this.requests.length}` };
+  }
+}
+
+class CounterFactory implements RunIdFactory {
+  private runCounter = 0;
+  private activationCounter = 0;
+
+  constructor(
+    private readonly makeRunIdValue: () => string,
+    private readonly makeActivationIdValue: () => string,
+  ) {}
+
+  makeRunId(): string {
+    this.runCounter += 1;
+    return this.makeRunIdValue();
+  }
+
+  makeActivationId(): string {
+    this.activationCounter += 1;
+    return this.makeActivationIdValue();
+  }
+}
+
+class TestWebhookRegistrar implements WebhookRegistrar {
+  registerWebhook(): never {
+    throw new Error("not used");
+  }
+}
+
+class CapturingNodeActivationObserver implements NodeActivationObserver {
+  constructor(private readonly activations: Array<unknown>) {}
+
+  onNodeActivation(stats: unknown): void {
+    this.activations.push(stats);
   }
 }
 
@@ -48,13 +91,11 @@ async function sleep(ms: number): Promise<void> {
 
 export type EngineTestKitOptions = Partial<{
   container: Container;
-  providers: Map<EngineDeps["container"] extends Container ? any : never, unknown>;
-  host: EngineHost & { workflows?: any };
+  providers: Map<InjectionToken<unknown>, unknown>;
   credentials: CredentialService;
   runStore: RunStateStore;
   scheduler: NodeExecutionScheduler;
   offloadPolicy: NodeOffloadPolicy;
-  graphFactory: WorkflowGraphFactory;
   runDataFactory: RunDataFactory;
   executionContextFactory: ExecutionContextFactory;
   eventBus: RunEventBus;
@@ -65,54 +106,62 @@ export type EngineTestKitOptions = Partial<{
 }>;
 
 export function createEngineTestKit(options: EngineTestKitOptions = {}) {
-  const activations: Array<any> = [];
-  const workflowsById = new Map<string, WorkflowDefinition>();
-
+  const activations: Array<unknown> = [];
   const runStore = options.runStore ?? new InMemoryRunStateStore();
   const scheduler = options.scheduler ?? new CapturingScheduler();
   const offloadPolicy = options.offloadPolicy ?? new HintOnlyOffloadPolicy();
-
   const makeRunId = options.makeRunId ?? makeCounter("run_");
   const makeActivationId = options.makeActivationId ?? makeCounter("act_");
-
-  const host: EngineHost & { workflows?: any } =
-    options.host ??
-    ({
-      credentials: options.credentials ?? new InMemoryCredentialService(),
-      workflows: undefined,
-      registerWebhook() {
-        throw new Error("not used");
-      },
-      onNodeActivation(stats: any) {
-        activations.push(stats);
-      },
-    } satisfies EngineHost as any);
-
-  const container = options.container ?? SimpleContainerFactory.create();
-
+  const credentials = options.credentials ?? new InMemoryCredentialService();
+  const eventBus = options.eventBus ?? new InMemoryRunEventBus();
+  const workflowRegistry = new InMemoryWorkflowRegistry();
   const runDataFactory = options.runDataFactory ?? new InMemoryRunDataFactory();
   const executionContextFactory = options.executionContextFactory ?? new DefaultExecutionContextFactory();
+  const activationScheduler = new DefaultDrivingScheduler(offloadPolicy, scheduler, new InlineDrivingScheduler());
+  const container = options.container ?? tsyringeContainer.createChildContainer();
+  const dependencyContainer = container as DependencyContainer;
 
-  const engine = new Engine(
-    container,
-    host as any,
-    makeRunId as any,
-    makeActivationId as any,
-    options.webhookBasePath ?? "/webhooks",
+  for (const [token, value] of options.providers ?? new Map()) {
+    dependencyContainer.registerInstance(token, value);
+  }
+
+  dependencyContainer.registerInstance(CoreTokens.ServiceContainer, container);
+  dependencyContainer.registerInstance(CoreTokens.CredentialService, credentials);
+  dependencyContainer.registerInstance(CoreTokens.WorkflowRegistry, workflowRegistry);
+  dependencyContainer.registerInstance(CoreTokens.NodeResolver, new ContainerNodeResolver(container));
+  dependencyContainer.registerInstance(CoreTokens.WorkflowRunnerResolver, new ContainerWorkflowRunnerResolver(container));
+  dependencyContainer.registerInstance(CoreTokens.RunIdFactory, new CounterFactory(makeRunId, makeActivationId));
+  dependencyContainer.registerInstance(CoreTokens.ActivationIdFactory, new CounterFactory(makeRunId, makeActivationId));
+  dependencyContainer.registerInstance(CoreTokens.WebhookBasePath, options.webhookBasePath ?? "/webhooks");
+  dependencyContainer.registerInstance(CoreTokens.RunStateStore, runStore);
+  dependencyContainer.registerInstance(CoreTokens.NodeActivationScheduler, activationScheduler);
+  dependencyContainer.registerInstance(CoreTokens.RunDataFactory, runDataFactory);
+  dependencyContainer.registerInstance(CoreTokens.ExecutionContextFactory, executionContextFactory);
+  dependencyContainer.registerInstance(CoreTokens.RunEventBus, eventBus);
+  dependencyContainer.registerInstance(CoreTokens.WebhookRegistrar, new TestWebhookRegistrar());
+  dependencyContainer.registerInstance(CoreTokens.NodeActivationObserver, new CapturingNodeActivationObserver(activations));
+
+  const engine = new Engine({
+    credentials,
+    workflowRunnerResolver: new ContainerWorkflowRunnerResolver(container),
+    workflowRegistry,
+    nodeResolver: new ContainerNodeResolver(container),
+    webhookRegistrar: new TestWebhookRegistrar(),
+    nodeActivationObserver: new CapturingNodeActivationObserver(activations),
+    runIdFactory: new CounterFactory(makeRunId, makeActivationId),
+    activationIdFactory: new CounterFactory(makeRunId, makeActivationId),
+    webhookBasePath: options.webhookBasePath ?? "/webhooks",
     runStore,
-    undefined,
-    scheduler,
-    offloadPolicy,
+    activationScheduler,
     runDataFactory,
     executionContextFactory,
-    options.eventBus,
-  );
-
-  const workflowRunner = options.workflowRunner ?? new EngineWorkflowRunnerService(engine, workflowsById as any);
-  host.workflows = workflowRunner;
+    eventBus,
+  });
+  const workflowRunner = options.workflowRunner ?? new EngineWorkflowRunnerService(engine, workflowRegistry);
+  dependencyContainer.registerInstance(CoreTokens.WorkflowRunnerService, workflowRunner as WorkflowRunnerService);
 
   async function start(workflows: WorkflowDefinition[]): Promise<void> {
-    for (const wf of workflows) workflowsById.set(wf.id, wf);
+    workflowRegistry.setWorkflows(workflows);
     await engine.start(workflows);
   }
 
@@ -133,12 +182,10 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
 
   return {
     engine,
-    host,
     runStore,
     scheduler: scheduler as CapturingScheduler | NodeExecutionScheduler,
     offloadPolicy,
     activations,
-    workflowsById,
     workflowRunner,
     start,
     waitForActivations,

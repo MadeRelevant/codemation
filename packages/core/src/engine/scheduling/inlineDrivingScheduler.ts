@@ -50,11 +50,10 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
             inputsByPort: request.kind === "multi" ? request.inputsByPort : { in: request.input },
           });
 
-          const container = request.ctx.services.container;
-          if (!container) throw new Error(`No container available in ctx.services.container for activation ${request.activationId}`);
-
           const token = request.ctx.config.token as any;
-          const inst = container.resolve(token) as unknown;
+          const nodeResolver = request.ctx.services.nodeResolver;
+          if (!nodeResolver) throw new Error(`No nodeResolver available in ctx.services for activation ${request.activationId}`);
+          const inst = nodeResolver.resolve(token) as unknown;
 
           let outputs;
           if (request.kind === "multi") {

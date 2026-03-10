@@ -1,42 +1,40 @@
-import type { Container } from "../../di";
 import type {
-  EngineHost,
+  ActivationIdFactory,
+  CredentialService,
+  EngineDeps,
+  ExecutionContextFactory,
   Items,
   NodeActivationContinuation,
   NodeActivationId,
+  NodeActivationObserver,
   NodeActivationRequest,
   NodeActivationScheduler,
   NodeExecutionSnapshot,
   NodeExecutionStatePublisher,
   NodeActivationStats,
   NodeId,
-  NodeExecutionScheduler,
+  NodeResolver,
   NodeInputsByPort,
-  NodeOffloadPolicy,
   NodeOutputs,
   OutputPortKey,
   ParentExecutionRef,
   PendingNodeExecution,
+  RunDataFactory,
   RunQueueEntry,
   RunId,
-  RunDataFactory,
+  RunIdFactory,
   RunResult,
   RunStateStore,
-  ExecutionContextFactory,
   TriggerNode,
+  WebhookRegistrar,
   WorkflowDefinition,
   WorkflowId,
+  WorkflowRegistry,
+  WorkflowRunnerResolver,
 } from "../../types";
 import type { RunEventBus } from "../../events";
-
-import { DefaultExecutionContextFactory } from "../context/defaultExecutionContextFactory";
 import { RunQueuePlanner } from "../planning/runQueuePlanner";
 import { WorkflowTopology } from "../planning/workflowTopology";
-import { DefaultDrivingScheduler } from "../scheduling/defaultDrivingScheduler";
-import { ConfigDrivenOffloadPolicy } from "../scheduling/configDrivenOffloadPolicy";
-import { LocalOnlyScheduler } from "../scheduling/localOnlyScheduler";
-import { InMemoryRunDataFactory } from "../storage/inMemoryRunDataFactory";
-import { InMemoryRunStateStore } from "../storage/inMemoryRunStateStore";
 
 class OutputStats {
   static toItemsOutByPort(outputs: NodeOutputs): Record<OutputPortKey, number> {
@@ -296,59 +294,51 @@ class BoundNodeExecutionStatePublisher implements NodeExecutionStatePublisher {
 }
 
 export class Engine implements NodeActivationContinuation {
-  private readonly container: Container;
-  private readonly host: EngineHost;
-  private readonly makeRunId: () => RunId;
-  private readonly makeActivationId: () => NodeActivationId;
+  private readonly credentials: CredentialService;
+  private readonly workflowRunnerResolver: WorkflowRunnerResolver;
+  private readonly workflowRegistry: WorkflowRegistry;
+  private readonly nodeResolver: NodeResolver;
+  private readonly webhookRegistrar: WebhookRegistrar;
+  private readonly nodeActivationObserver: NodeActivationObserver;
+  private readonly runIdFactory: RunIdFactory;
+  private readonly activationIdFactory: ActivationIdFactory;
   private readonly webhookBasePath: string;
   private readonly runStore: RunStateStore;
   private readonly activationScheduler: NodeActivationScheduler;
   private readonly runDataFactory: RunDataFactory;
   private readonly executionContextFactory: ExecutionContextFactory;
   private readonly eventBus: RunEventBus | undefined;
-  private readonly workflowsById = new Map<WorkflowId, WorkflowDefinition>();
   private readonly completionWaiters = new Map<RunId, Array<(result: RunResult) => void>>();
 
-  constructor(
-    container: Container,
-    host: EngineHost,
-    makeRunId: () => RunId,
-    makeActivationId: () => NodeActivationId,
-    webhookBasePath: string = "/webhooks",
-    runStore: RunStateStore = new InMemoryRunStateStore(),
-    activationScheduler?: NodeActivationScheduler,
-    scheduler: NodeExecutionScheduler = new LocalOnlyScheduler(),
-    offloadPolicy: NodeOffloadPolicy = new ConfigDrivenOffloadPolicy(),
-    runDataFactory: RunDataFactory = new InMemoryRunDataFactory(),
-    executionContextFactory: ExecutionContextFactory = new DefaultExecutionContextFactory(),
-    eventBus?: RunEventBus,
-  ) {
-    this.container = container;
-    this.host = host;
-    this.makeRunId = makeRunId;
-    this.makeActivationId = makeActivationId;
-    this.webhookBasePath = webhookBasePath;
-    this.runStore = runStore;
-    this.runDataFactory = runDataFactory;
-    this.executionContextFactory = executionContextFactory;
-    this.eventBus = eventBus;
-
-    this.activationScheduler = activationScheduler ?? new DefaultDrivingScheduler(offloadPolicy, scheduler);
-
+  constructor(deps: EngineDeps) {
+    this.credentials = deps.credentials;
+    this.workflowRunnerResolver = deps.workflowRunnerResolver;
+    this.workflowRegistry = deps.workflowRegistry;
+    this.nodeResolver = deps.nodeResolver;
+    this.webhookRegistrar = deps.webhookRegistrar;
+    this.nodeActivationObserver = deps.nodeActivationObserver;
+    this.runIdFactory = deps.runIdFactory;
+    this.activationIdFactory = deps.activationIdFactory;
+    this.webhookBasePath = deps.webhookBasePath ?? "/webhooks";
+    this.runStore = deps.runStore;
+    this.activationScheduler = deps.activationScheduler;
+    this.runDataFactory = deps.runDataFactory;
+    this.executionContextFactory = deps.executionContextFactory;
+    this.eventBus = deps.eventBus;
     this.activationScheduler.setContinuation?.(this);
   }
 
-  loadWorkflows(workflows: WorkflowDefinition[]): void {
-    for (const wf of workflows) this.workflowsById.set(wf.id, wf);
+  loadWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): void {
+    this.workflowRegistry.setWorkflows(workflows);
   }
 
   async startTriggers(): Promise<void> {
-    for (const wf of this.workflowsById.values()) {
+    for (const wf of this.workflowRegistry.list()) {
       for (const def of wf.nodes) {
         if (def.kind !== "trigger") continue;
-        const node = this.container.resolve(def.token as any) as TriggerNode;
+        const node = this.nodeResolver.resolve(def.token) as TriggerNode;
         const data = this.runDataFactory.create();
-        const triggerRunId = this.makeRunId();
+        const triggerRunId = this.runIdFactory.makeRunId();
         await node.setup({
           ...this.executionContextFactory.create({
             runId: triggerRunId,
@@ -360,7 +350,7 @@ export class Engine implements NodeActivationContinuation {
           trigger: { workflowId: wf.id, nodeId: def.id },
           config: def.config,
           registerWebhook: (spec) =>
-            this.host.registerWebhook({
+            this.webhookRegistrar.registerWebhook({
               workflowId: wf.id,
               nodeId: def.id,
               endpointKey: spec.endpointKey,
@@ -382,7 +372,7 @@ export class Engine implements NodeActivationContinuation {
   }
 
   async runWorkflow(wf: WorkflowDefinition, startAt: NodeId, items: Items, parent?: ParentExecutionRef): Promise<RunResult> {
-    const runId = this.makeRunId();
+    const runId = this.runIdFactory.makeRunId();
     const startedAt = new Date().toISOString();
     await this.runStore.createRun({ runId, workflowId: wf.id, startedAt, parent });
 
@@ -398,7 +388,7 @@ export class Engine implements NodeActivationContinuation {
     const topology = WorkflowTopology.fromWorkflow(wf);
 
     const nodeInstances = new Map<NodeId, unknown>();
-    for (const def of wf.nodes) nodeInstances.set(def.id, this.container.resolve(def.token as any));
+    for (const def of wf.nodes) nodeInstances.set(def.id, this.nodeResolver.resolve(def.token));
 
     const planner = new RunQueuePlanner(topology, nodeInstances);
     planner.validateNodeKinds();
@@ -414,8 +404,8 @@ export class Engine implements NodeActivationContinuation {
     if (startDef.kind === "trigger") {
       const triggerCompletedAt = new Date().toISOString();
       data.setOutputs(startAt, { main: items });
-      this.host.onNodeActivation({
-        activationId: this.makeActivationId(),
+      this.nodeActivationObserver.onNodeActivation({
+        activationId: this.activationIdFactory.makeActivationId(),
         nodeId: startAt,
         itemsIn: 0,
         itemsOutByPort: { main: items.length },
@@ -424,7 +414,7 @@ export class Engine implements NodeActivationContinuation {
         runId,
         workflowId: wf.id,
         nodeId: startAt,
-        activationId: this.makeActivationId(),
+        activationId: this.activationIdFactory.makeActivationId(),
         parent,
         finishedAt: triggerCompletedAt,
         inputsByPort: InputPortMap.empty(),
@@ -465,7 +455,7 @@ export class Engine implements NodeActivationContinuation {
     const def = topology.defsById.get(next.nodeId);
     if (!def || def.kind !== "node") throw new Error(`Node ${next.nodeId} is not a runnable node`);
 
-    const activationId = this.makeActivationId();
+    const activationId = this.activationIdFactory.makeActivationId();
     const ctx: any = { ...base, data, nodeId: def.id, activationId, config: def.config };
     const request: NodeActivationRequest =
       next.kind === "multi"
@@ -579,13 +569,13 @@ export class Engine implements NodeActivationContinuation {
     if (state.pending.activationId !== args.activationId) throw new Error(`activationId mismatch for run ${args.runId}`);
     if (state.pending.nodeId !== args.nodeId) throw new Error(`nodeId mismatch for run ${args.runId}`);
 
-    const wf = this.workflowsById.get(state.workflowId);
+    const wf = this.workflowRegistry.get(state.workflowId);
     if (!wf) throw new Error(`Unknown workflowId: ${state.workflowId}`);
 
     const topology = WorkflowTopology.fromWorkflow(wf);
 
     const nodeInstances = new Map<NodeId, unknown>();
-    for (const def of wf.nodes) nodeInstances.set(def.id, this.container.resolve(def.token as any));
+    for (const def of wf.nodes) nodeInstances.set(def.id, this.nodeResolver.resolve(def.token));
 
     const planner = new RunQueuePlanner(topology, nodeInstances);
     planner.validateNodeKinds();
@@ -600,7 +590,7 @@ export class Engine implements NodeActivationContinuation {
     });
 
     data.setOutputs(args.nodeId, args.outputs);
-    this.host.onNodeActivation({
+    this.nodeActivationObserver.onNodeActivation({
       activationId: args.activationId,
       nodeId: args.nodeId,
       itemsIn: state.pending.itemsIn,
@@ -633,6 +623,7 @@ export class Engine implements NodeActivationContinuation {
       const reason = cause instanceof Error ? cause.message : String(cause);
       throw new Error(
         `After completing ${completedNodeLabel}, the engine could not plan the next activation. ${reason} Outputs: ${RuntimeContinuationDiagnostics.formatOutputCounts(args.outputs)}.`,
+        { cause },
       );
     }
     if (!next) {
@@ -667,7 +658,7 @@ export class Engine implements NodeActivationContinuation {
     const def = topology.defsById.get(next.nodeId);
     if (!def || def.kind !== "node") throw new Error(`Node ${next.nodeId} is not a runnable node`);
 
-    const activationId = this.makeActivationId();
+    const activationId = this.activationIdFactory.makeActivationId();
     const ctx: any = { ...base, data, nodeId: def.id, activationId, config: def.config };
     const request: NodeActivationRequest =
       next.kind === "multi"
@@ -793,7 +784,7 @@ export class Engine implements NodeActivationContinuation {
   async waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" }>> {
     const existing = await this.runStore.load(runId);
     if (existing?.status === "completed") {
-      const wf = this.workflowsById.get(existing.workflowId);
+      const wf = this.workflowRegistry.get(existing.workflowId);
       const lastNodeId = wf?.nodes.at(-1)?.id;
       const data = this.runDataFactory.create(existing.outputsByNode);
       const outputs = lastNodeId ? data.getOutputItems(lastNodeId, "main") : [];
@@ -824,9 +815,10 @@ export class Engine implements NodeActivationContinuation {
 
   private createExecutionServices(runId: RunId, workflowId: WorkflowId, parent: ParentExecutionRef | undefined) {
     return {
-      credentials: this.host.credentials,
-      workflows: this.host.workflows,
-      container: this.container,
+      credentials: this.credentials,
+      workflows: this.workflowRunnerResolver.resolve(),
+      nodeResolver: this.nodeResolver,
+      container: this.nodeResolver.getContainer(),
       nodeState: new BoundNodeExecutionStatePublisher(this.runStore, runId, workflowId, parent, async (kind, snapshot) => {
         await this.publishNodeEvent(kind, snapshot);
       }),
@@ -843,14 +835,11 @@ export class Engine implements NodeActivationContinuation {
 }
 
 export class EngineWorkflowRunnerService {
-  constructor(
-    private readonly engine: Engine,
-    private readonly workflowsById: Map<WorkflowId, WorkflowDefinition>,
-  ) {}
+  constructor(private readonly engine: Engine, private readonly workflowRegistry: WorkflowRegistry) {}
 
   async runById(args: { workflowId: WorkflowId; startAt?: NodeId; items: Items; parent?: ParentExecutionRef }): Promise<RunResult> {
     const { workflowId, startAt, items, parent } = args;
-    const wf = this.workflowsById.get(workflowId);
+    const wf = this.workflowRegistry.get(workflowId);
     if (!wf) throw new Error(`Unknown workflowId: ${workflowId}`);
 
     const startNodeId = startAt ?? this.findDefaultStartNodeId(wf);

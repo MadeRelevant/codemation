@@ -1,6 +1,8 @@
 import type { AgentCanvasPresentation, Tool, ToolConfig, ToolExecuteArgs } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import type { CanvasIconName } from "@codemation/core-nodes";
 import { z } from "zod";
+import { TestDevTokens } from "../bootstrap/testDevTokens";
 
 const classifyMailInputSchema = z.object({
   subject: z.string().optional(),
@@ -23,16 +25,19 @@ export class ClassifyMailToolConfig implements ToolConfig {
   ) {}
 }
 
+@injectable()
 export class ClassifyMailTool implements Tool<ClassifyMailToolConfig, typeof classifyMailInputSchema, typeof classifyMailOutputSchema> {
   readonly defaultDescription = "Classify an email as RFQ (request for quotation) or not.";
   readonly inputSchema = classifyMailInputSchema;
   readonly outputSchema = classifyMailOutputSchema;
 
+  constructor(@inject(TestDevTokens.MailKeywords) private readonly bootstrapKeywords: ReadonlyArray<string>) {}
+
   async execute(args: ToolExecuteArgs<ClassifyMailToolConfig, z.input<typeof classifyMailInputSchema>>): Promise<z.output<typeof classifyMailOutputSchema>> {
     const subject = args.input.subject ?? String((args.item.json as any)?.subject ?? "");
     const body = args.input.body ?? String((args.item.json as any)?.body ?? "");
     const haystack = `${subject}\n${body}`.toUpperCase();
-    const keywords = args.config.keywords.map((keyword) => keyword.toUpperCase());
+    const keywords = [...this.bootstrapKeywords, ...args.config.keywords].map((keyword) => keyword.toUpperCase());
     const matchedKeyword = keywords.find((keyword) => haystack.includes(keyword));
     const isRfq = matchedKeyword !== undefined;
 

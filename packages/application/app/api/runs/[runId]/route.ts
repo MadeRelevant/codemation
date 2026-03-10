@@ -1,8 +1,13 @@
 export const runtime = "nodejs";
 
-import { codemationProxyClient } from "../../_codemation/codemationProxy";
+import { codemationNextRuntimeRegistry } from "../../../../src/runtime/codemationNextRuntimeRegistry";
 
-export async function GET(request: Request, context: { params: Promise<{ runId: string }> }): Promise<Response> {
+export async function GET(_: Request, context: { params: Promise<{ runId: string }> }): Promise<Response> {
   const { runId } = await context.params;
-  return await codemationProxyClient.forward(request, `/api/runs/${encodeURIComponent(runId)}`);
+  const runtimeRoot = await codemationNextRuntimeRegistry.getRuntime();
+  const state = await runtimeRoot.getRunStore().load(decodeURIComponent(runId));
+  if (!state) {
+    return Response.json({ error: "Unknown runId" }, { status: 404 });
+  }
+  return Response.json(state);
 }

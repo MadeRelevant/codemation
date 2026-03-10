@@ -1,10 +1,10 @@
 import type {
-  Container,
   CredentialService,
   Items,
   Node,
   NodeActivationContinuation,
   NodeExecutionContext,
+  NodeResolver,
   NodeOutputs,
   RunStateStore,
   WorkflowDefinition,
@@ -35,7 +35,7 @@ export class BullmqWorker {
   private readonly now: () => Date;
 
   private readonly workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>;
-  private readonly container: Container;
+  private readonly nodeResolver: NodeResolver;
   private readonly credentials: CredentialService;
   private readonly runStore: RunStateStore;
   private readonly continuation: NodeActivationContinuation;
@@ -49,7 +49,7 @@ export class BullmqWorker {
     connection: RedisConnectionConfig,
     queues: ReadonlyArray<string>,
     workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>,
-    container: Container,
+    nodeResolver: NodeResolver,
     credentials: CredentialService,
     runStore: RunStateStore,
     continuation: NodeActivationContinuation,
@@ -60,7 +60,7 @@ export class BullmqWorker {
     this.connection = RedisConnectionOptionsFactory.fromConfig(connection);
     this.queuePrefix = queuePrefix;
     this.workflowsById = workflowsById;
-    this.container = container;
+    this.nodeResolver = nodeResolver;
     this.credentials = credentials;
     this.runStore = runStore;
     this.continuation = continuation;
@@ -96,7 +96,7 @@ export class BullmqWorker {
     if (!def) throw new Error(`Unknown nodeId: ${request.nodeId}`);
     if (def.kind !== "node") throw new Error(`Node ${request.nodeId} is not runnable`);
 
-    const node = this.container.resolve(def.token as any) as Node<any>;
+    const node = this.nodeResolver.resolve(def.token) as Node<any>;
     const outputsByNode = (state.outputsByNode ?? {}) as Record<string, any>;
     const dataStore = this.runDataFactory.create(outputsByNode as any);
 
@@ -104,7 +104,12 @@ export class BullmqWorker {
       runId: request.runId,
       workflowId: request.workflowId,
       parent: (request.parent ?? state.parent) as any,
-      services: { credentials: this.credentials, workflows: this.workflows as any, container: this.container },
+      services: {
+        credentials: this.credentials,
+        workflows: this.workflows as any,
+        nodeResolver: this.nodeResolver,
+        container: this.nodeResolver.getContainer(),
+      },
       data: dataStore,
     });
 

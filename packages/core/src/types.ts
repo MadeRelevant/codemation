@@ -1,4 +1,5 @@
 import type { Container, TypeToken } from "./di";
+import type { RunEventBus } from "./events/runEvents";
 
 export type WorkflowId = string;
 export type NodeId = string;
@@ -104,6 +105,44 @@ export interface WorkflowRunnerService {
   runById(args: { workflowId: WorkflowId; startAt?: NodeId; items: Items; parent?: ParentExecutionRef }): Promise<RunResult>;
 }
 
+export interface WorkflowRunnerResolver {
+  resolve(): WorkflowRunnerService | undefined;
+}
+
+export interface WorkflowRegistry {
+  setWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): void;
+  list(): ReadonlyArray<WorkflowDefinition>;
+  get(workflowId: WorkflowId): WorkflowDefinition | undefined;
+}
+
+export interface RunIdFactory {
+  makeRunId(): RunId;
+}
+
+export interface ActivationIdFactory {
+  makeActivationId(): NodeActivationId;
+}
+
+export interface NodeResolver {
+  resolve(token: TypeToken<unknown>): unknown;
+  getContainer(): Container | undefined;
+}
+
+export interface WebhookRegistrar {
+  registerWebhook(spec: {
+    workflowId: WorkflowId;
+    nodeId: NodeId;
+    endpointKey: string;
+    method: HttpMethod;
+    handler: (req: unknown) => Promise<Items>;
+    basePath: string;
+  }): WebhookRegistration;
+}
+
+export interface NodeActivationObserver {
+  onNodeActivation(stats: NodeActivationStats): void;
+}
+
 export interface NodeExecutionStatePublisher {
   markQueued(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort }): Promise<void>;
   markRunning(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort }): Promise<void>;
@@ -114,6 +153,7 @@ export interface NodeExecutionStatePublisher {
 export interface ExecutionServices {
   credentials: CredentialService;
   workflows?: WorkflowRunnerService;
+  nodeResolver?: NodeResolver;
   /**
    * Optional dependency resolver. In engine-hosted execution this is typically the engine DI container.
    * Nodes and tools may use this to resolve pluggable implementations by `TypeToken`.
@@ -417,17 +457,19 @@ export type RunResult =
   | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "failed"; error: { message: string } };
 
 export interface EngineDeps {
-  container: Container;
-  host: EngineHost;
-  makeRunId: () => RunId;
-  makeActivationId: () => NodeActivationId;
+  credentials: CredentialService;
+  workflowRunnerResolver: WorkflowRunnerResolver;
+  workflowRegistry: WorkflowRegistry;
+  nodeResolver: NodeResolver;
+  webhookRegistrar: WebhookRegistrar;
+  nodeActivationObserver: NodeActivationObserver;
+  runIdFactory: RunIdFactory;
+  activationIdFactory: ActivationIdFactory;
   webhookBasePath?: string;
-  runStore?: RunStateStore;
-  activationScheduler?: NodeActivationScheduler;
-  scheduler?: NodeExecutionScheduler;
-  offloadPolicy?: NodeOffloadPolicy;
-  graphFactory?: WorkflowGraphFactory;
-  runDataFactory?: RunDataFactory;
-  executionContextFactory?: ExecutionContextFactory;
+  runStore: RunStateStore;
+  activationScheduler: NodeActivationScheduler;
+  runDataFactory: RunDataFactory;
+  executionContextFactory: ExecutionContextFactory;
+  eventBus?: RunEventBus;
 }
 

@@ -4,6 +4,87 @@ import tsPlugin from "@typescript-eslint/eslint-plugin";
 import globals from "globals";
 import noOnlyTests from "eslint-plugin-no-only-tests";
 
+const allowedConstructorNames = new Set(["Date", "Error", "Map", "Promise", "RegExp", "Set", "URL", "WeakMap", "WeakSet", "WebSocketServer"]);
+const compositionRootFilePattern =
+  /(?:Factory|Builder|Bootstrap|Discovery|Runner|Server|Mapper|Reader|Writer|Finder|Registry|Host|Protocol|Session|Program|Supervisor|Planner|Resolver|Environment|Worker|Scheduler|Connection|Application|Hub|Reporter|Loader|Validator)\.tsx?$/;
+const isCompositionRootFile = (filename) => compositionRootFilePattern.test(filename) || /\/src\/bin\/[^/]+\.tsx?$/.test(filename);
+
+const architecturePlugin = {
+  rules: {
+    "single-class-per-file": {
+      meta: {
+        type: "suggestion",
+        docs: {
+          description: "enforce a single class per source file",
+        },
+        schema: [],
+      },
+      create(context) {
+        const classes = [];
+        return {
+          ClassDeclaration(node) {
+            classes.push(node);
+          },
+          "Program:exit"() {
+            if (classes.length <= 1) return;
+            for (const node of classes.slice(1)) {
+              context.report({
+                node,
+                message: "Each source file should declare a single class. Split additional classes into their own files.",
+              });
+            }
+          },
+        };
+      },
+    },
+    "no-manual-di-new": {
+      meta: {
+        type: "problem",
+        docs: {
+          description: "discourage direct construction outside composition roots",
+        },
+        schema: [],
+      },
+      create(context) {
+        const filename = context.filename ?? context.getFilename();
+        if (isCompositionRootFile(filename)) return {};
+        return {
+          NewExpression(node) {
+            if (node.callee.type !== "Identifier") return;
+            if (!/^[A-Z]/.test(node.callee.name)) return;
+            if (allowedConstructorNames.has(node.callee.name)) return;
+            context.report({
+              node,
+              message: "Avoid direct construction here. Register the dependency with tsyringe and inject or resolve it through the composition root instead.",
+            });
+          },
+        };
+      },
+    },
+    "no-static-methods": {
+      meta: {
+        type: "problem",
+        docs: {
+          description: "discourage static methods outside composition roots",
+        },
+        schema: [],
+      },
+      create(context) {
+        const filename = context.filename ?? context.getFilename();
+        if (isCompositionRootFile(filename)) return {};
+        return {
+          "MethodDefinition[static=true]"(node) {
+            context.report({
+              node,
+              message: "Avoid static methods here. Move the behavior behind an injected class or a composition-root-specific factory.",
+            });
+          },
+        };
+      },
+    },
+  },
+};
+
 const baseLanguageOptions = {
   ecmaVersion: "latest",
   sourceType: "module",
@@ -37,11 +118,13 @@ export default [
     },
     plugins: {
       "@typescript-eslint": tsPlugin,
+      codemation: architecturePlugin,
     },
     rules: {
       ...tsPlugin.configs.recommended.rules,
       // Baseline should be low-noise; tighten later once core is cleaned up.
       "@typescript-eslint/no-explicit-any": "off",
+      "no-undef": "off",
       // Prefer the TS-aware variant.
       "no-redeclare": "off",
       "@typescript-eslint/no-redeclare": "error",
@@ -77,46 +160,14 @@ export default [
     },
   },
 
-  // Architecture: no top-level or exported functions in engine code.
-  // Use classes + DI to keep boundaries explicit and testable.
+  // Architecture: package source should stay class-oriented and DI-friendly.
   {
-    files: ["packages/core/src/engine/**/*.{ts,tsx}"],
+    files: ["packages/application/src/**/*.{ts,tsx}", "packages/cli/src/**/*.{ts,tsx}"],
+    ignores: ["packages/application/app/**/*", "**/index.ts", "**/*.d.ts", "**/*Types.ts", "**/*types.ts"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "Program > FunctionDeclaration",
-          message: "Root-level functions are not allowed. Use classes + DI (inject collaborators) instead.",
-        },
-        {
-          selector: "Program > VariableDeclaration > VariableDeclarator[init.type='ArrowFunctionExpression']",
-          message: "Root-level functions are not allowed. Use classes + DI (inject collaborators) instead.",
-        },
-        {
-          selector: "Program > VariableDeclaration > VariableDeclarator[init.type='FunctionExpression']",
-          message: "Root-level functions are not allowed. Use classes + DI (inject collaborators) instead.",
-        },
-        {
-          selector: "ExportNamedDeclaration > FunctionDeclaration",
-          message: "Exported functions are not allowed. Export classes/tokens and use DI instead.",
-        },
-        {
-          selector: "ExportDefaultDeclaration > FunctionDeclaration",
-          message: "Exported functions are not allowed. Export classes/tokens and use DI instead.",
-        },
-        {
-          selector:
-            "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[init.type='ArrowFunctionExpression'], ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[init.type='FunctionExpression']",
-          message: "Exported functions are not allowed. Export classes/tokens and use DI instead.",
-        },
-      ],
-    },
-  },
-
-  // Architecture: prefer class-based APIs for queue implementations too.
-  {
-    files: ["packages/queue-bullmq/src/**/*.{ts,tsx}"],
-    rules: {
+      "codemation/single-class-per-file": "error",
+      "codemation/no-manual-di-new": "error",
+      "codemation/no-static-methods": "error",
       "no-restricted-syntax": [
         "error",
         {

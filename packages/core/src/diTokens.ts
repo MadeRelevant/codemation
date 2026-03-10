@@ -1,0 +1,18 @@
+export const CoreTokens = {
+  CredentialService: Symbol.for("codemation.core.CredentialService"),
+  WorkflowRunnerService: Symbol.for("codemation.core.WorkflowRunnerService"),
+  WorkflowRunnerResolver: Symbol.for("codemation.core.WorkflowRunnerResolver"),
+  WorkflowRegistry: Symbol.for("codemation.core.WorkflowRegistry"),
+  ServiceContainer: Symbol.for("codemation.core.ServiceContainer"),
+  NodeResolver: Symbol.for("codemation.core.NodeResolver"),
+  WebhookRegistrar: Symbol.for("codemation.core.WebhookRegistrar"),
+  NodeActivationObserver: Symbol.for("codemation.core.NodeActivationObserver"),
+  RunIdFactory: Symbol.for("codemation.core.RunIdFactory"),
+  ActivationIdFactory: Symbol.for("codemation.core.ActivationIdFactory"),
+  RunStateStore: Symbol.for("codemation.core.RunStateStore"),
+  NodeActivationScheduler: Symbol.for("codemation.core.NodeActivationScheduler"),
+  RunDataFactory: Symbol.for("codemation.core.RunDataFactory"),
+  ExecutionContextFactory: Symbol.for("codemation.core.ExecutionContextFactory"),
+  RunEventBus: Symbol.for("codemation.core.RunEventBus"),
+  WebhookBasePath: Symbol.for("codemation.core.WebhookBasePath"),
+} as const;

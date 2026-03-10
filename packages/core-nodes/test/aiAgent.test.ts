@@ -13,7 +13,7 @@ import type {
   ToolConfig,
   ToolExecuteArgs,
 } from "@codemation/core";
-import { InMemoryCredentialService, InMemoryRunDataFactory, SimpleContainerFactory } from "@codemation/core";
+import { container as tsyringeContainer, InMemoryCredentialService, InMemoryRunDataFactory } from "@codemation/core";
 import { AIAgent, AIAgentNode } from "@codemation/core-nodes";
 import { z } from "zod";
 
@@ -128,7 +128,9 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
   DelayTool.reset();
   const data = new InMemoryRunDataFactory().create();
   const nodeState = new CapturingNodeStatePublisher();
-  const container = SimpleContainerFactory.create();
+  const container = tsyringeContainer.createChildContainer();
+  container.register(FakeChatModelFactory, { useClass: FakeChatModelFactory });
+  container.register(DelayTool, { useClass: DelayTool });
   const config = new AIAgent(
     "Classify (agent)",
     "Use tools to classify this mail.",

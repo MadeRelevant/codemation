@@ -249,8 +249,8 @@ function applyWorkflowEvent(queryClient: QueryClient, event: WorkflowEvent): voi
   );
 }
 
-export function WorkflowRealtimeProvider(args: { children: ReactNode; websocketUrl: string; logger: Logger }) {
-  const { children, websocketUrl, logger } = args;
+export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Logger; websocketPort?: string }) {
+  const { children, logger, websocketPort } = args;
   const queryClient = useQueryClient();
   const desiredWorkflowCountsRef = useRef(new Map<string, number>());
   const readyStateRef = useRef(ReadyState.UNINSTANTIATED);
@@ -258,7 +258,14 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; websocketU
     throw new Error("sendJsonMessage is not ready");
   });
   const [activeWorkflowIds, setActiveWorkflowIds] = useState<ReadonlyArray<string>>([]);
-  const shouldConnect = activeWorkflowIds.length > 0;
+  const websocketUrl = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const port = websocketPort ?? window.location.port;
+    const host = `${window.location.hostname}${port ? `:${port}` : ""}`;
+    return `${protocol}://${host}/api/workflows/ws`;
+  }, [websocketPort]);
+  const shouldConnect = activeWorkflowIds.length > 0 && Boolean(websocketUrl);
   const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket<RealtimeServerMessage>(websocketUrl, {
     share: true,
     shouldReconnect: () => true,

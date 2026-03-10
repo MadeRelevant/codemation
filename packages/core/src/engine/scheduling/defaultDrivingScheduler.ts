@@ -11,14 +11,11 @@ import type {
 import { InlineDrivingScheduler } from "./inlineDrivingScheduler";
 
 export class DefaultDrivingScheduler implements NodeActivationScheduler {
-  private readonly inline: InlineDrivingScheduler;
-
   constructor(
     private readonly offloadPolicy: NodeOffloadPolicy,
     private readonly workerScheduler: NodeExecutionScheduler,
-  ) {
-    this.inline = new InlineDrivingScheduler();
-  }
+    private readonly inline: InlineDrivingScheduler = new InlineDrivingScheduler(),
+  ) {}
 
   setContinuation(continuation: NodeActivationContinuation): void {
     this.inline.setContinuation(continuation);

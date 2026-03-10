@@ -1,9 +1,16 @@
 export const runtime = "nodejs";
 
-import { codemationProxyClient } from "../../_codemation/codemationProxy";
+import { codemationNextRuntimeRegistry } from "../../../../src/runtime/codemationNextRuntimeRegistry";
+import { CodemationWorkflowDtoMapper } from "../../../../src/host/codemationWorkflowDtoMapper";
 
-export async function GET(request: Request, context: { params: Promise<{ workflowId: string }> }): Promise<Response> {
+export async function GET(_: Request, context: { params: Promise<{ workflowId: string }> }): Promise<Response> {
   const { workflowId } = await context.params;
-  return await codemationProxyClient.forward(request, `/api/workflows/${encodeURIComponent(workflowId)}`);
+  const setup = await codemationNextRuntimeRegistry.getSetup();
+  const workflow = setup.application.getWorkflows().find((entry) => entry.id === decodeURIComponent(workflowId));
+  if (!workflow) {
+    return Response.json({ error: "Unknown workflowId" }, { status: 404 });
+  }
+  const workflowDtoMapper = setup.application.getContainer().resolve(CodemationWorkflowDtoMapper);
+  return Response.json(workflowDtoMapper.toDetail(workflow));
 }
 

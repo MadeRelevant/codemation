@@ -1,51 +1,9 @@
-import type { WorkflowDefinition } from "@codemation/core";
-import type { RealtimeRuntimeDiagnostics } from "./realtimeRuntimeFactory";
+import { injectable } from "@codemation/core";
+import type { RealtimeRuntimeDiagnostics } from "../realtimeRuntimeFactory";
+import type { FrontendStartupSummaryArgs, StartupSummaryLogger, WorkerStartupSummaryArgs } from "./startupSummaryTypes";
+import { WorkflowTriggerStats } from "./workflowTriggerStats";
 
-export interface StartupSummaryLogger {
-  info(message: string): void;
-}
-
-export interface FrontendStartupSummaryArgs {
-  processLabel: string;
-  runtime: RealtimeRuntimeDiagnostics;
-  websocketHost: string;
-  websocketPort: number;
-  workflowDefinitions: ReadonlyArray<WorkflowDefinition>;
-  triggerStatusLabel: string;
-  bootstrapSource: string | null;
-  workflowSources: ReadonlyArray<string>;
-}
-
-export interface WorkerStartupSummaryArgs {
-  processLabel: string;
-  runtime: RealtimeRuntimeDiagnostics;
-  workflowDefinitions: ReadonlyArray<WorkflowDefinition>;
-  queues: ReadonlyArray<string>;
-  bootstrapSource: string | null;
-  workflowSources: ReadonlyArray<string>;
-}
-
-class WorkflowTriggerStats {
-  readonly workflowCount: number;
-  readonly triggerWorkflowCount: number;
-  readonly triggerNodeCount: number;
-
-  constructor(workflowDefinitions: ReadonlyArray<WorkflowDefinition>) {
-    this.workflowCount = workflowDefinitions.length;
-    this.triggerWorkflowCount = workflowDefinitions.filter((workflow) => workflow.nodes.some((node) => node.kind === "trigger")).length;
-    this.triggerNodeCount = workflowDefinitions.reduce(
-      (count, workflow) => count + workflow.nodes.filter((node) => node.kind === "trigger").length,
-      0,
-    );
-  }
-}
-
-export class ConsoleStartupSummaryLogger implements StartupSummaryLogger {
-  info(message: string): void {
-    console.info(message);
-  }
-}
-
+@injectable()
 export class CodemationStartupSummaryReporter {
   constructor(private readonly logger: StartupSummaryLogger) {}
 
@@ -93,7 +51,7 @@ export class CodemationStartupSummaryReporter {
   }
 
   private formatScheduler(runtime: RealtimeRuntimeDiagnostics): string {
-    if (runtime.schedulerKind === "inline") return "local inline scheduler";
+    if (runtime.schedulerKind === "local") return "local inline scheduler";
     return `bullmq worker scheduler (prefix: ${runtime.queuePrefix ?? "codemation"})`;
   }
 
@@ -114,9 +72,8 @@ export class CodemationStartupSummaryReporter {
   private buildBanner(lines: ReadonlyArray<string>): string {
     const contentWidth = Math.max(...lines.map((line) => line.length), 10);
     const border = `+${"-".repeat(contentWidth + 2)}+`;
-    const renderedLines = lines.map((line, index) => {
+    const renderedLines = lines.map((line) => {
       const padded = line.padEnd(contentWidth, " ");
-      if (index === 0) return `| ${padded} |`;
       return `| ${padded} |`;
     });
     return [border, ...renderedLines, border].join("\n");

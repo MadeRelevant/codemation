@@ -1,9 +1,9 @@
 import type {
-  Container,
   CredentialService,
   NodeActivationContinuation,
   NodeExecutionRequest,
   NodeExecutionScheduler,
+  NodeResolver,
   RunStateStore,
   WorkflowDefinition,
   WorkflowId,
@@ -34,7 +34,7 @@ export class BullmqScheduler implements NodeExecutionScheduler {
   createWorker(args: Readonly<{
     queues: ReadonlyArray<string>;
     workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>;
-    container: Container;
+    nodeResolver: NodeResolver;
     credentials: CredentialService;
     runStore: RunStateStore;
     continuation: NodeActivationContinuation;
@@ -46,7 +46,7 @@ export class BullmqScheduler implements NodeExecutionScheduler {
         this.connection,
         args.queues,
         args.workflowsById,
-        args.container,
+        args.nodeResolver,
         args.credentials,
         args.runStore,
         args.continuation,
@@ -56,7 +56,7 @@ export class BullmqScheduler implements NodeExecutionScheduler {
       );
     }
 
-    return new BullmqWorker(this.connection, args.queues, args.workflowsById, args.container, args.credentials, args.runStore, args.continuation, this.queuePrefix);
+    return new BullmqWorker(this.connection, args.queues, args.workflowsById, args.nodeResolver, args.credentials, args.runStore, args.continuation, this.queuePrefix);
   }
 }
 

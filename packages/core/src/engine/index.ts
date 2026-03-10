@@ -1,4 +1,7 @@
 export { Engine, EngineWorkflowRunnerService } from "./runtime/runtimeEngine";
+export { ContainerNodeResolver } from "./runtime/containerNodeResolver";
+export { ContainerWorkflowRunnerResolver } from "./runtime/containerWorkflowRunnerResolver";
+export { InMemoryWorkflowRegistry } from "./runtime/inMemoryWorkflowRegistry";
 export { DefaultDrivingScheduler } from "./scheduling/defaultDrivingScheduler";
 export { InlineDrivingScheduler } from "./scheduling/inlineDrivingScheduler";
 
