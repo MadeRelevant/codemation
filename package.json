@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.13.1",
   "scripts": {
-    "dev": "turbo run build --filter=@codemation/core --filter=@codemation/core-nodes --filter=@codemation/node-example && turbo run dev --parallel",
+    "dev": "pnpm -C apps/test-dev dev",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",

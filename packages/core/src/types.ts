@@ -277,6 +277,12 @@ export interface NodeActivationReceipt {
  * This avoids a direct dependency on the concrete `Engine` class.
  */
 export interface NodeActivationContinuation {
+  markNodeRunning(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    inputsByPort: NodeInputsByPort;
+  }): Promise<void>;
   resumeFromNodeResult(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; outputs: NodeOutputs }): Promise<RunResult>;
   resumeFromNodeError(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; error: Error }): Promise<RunResult>;
 }
@@ -336,6 +342,7 @@ export interface PendingNodeExecution {
   workflowId: WorkflowId;
   nodeId: NodeId;
   itemsIn: number;
+  inputsByPort: NodeInputsByPort;
   receiptId: string;
   queue?: string;
   /**
@@ -344,6 +351,28 @@ export interface PendingNodeExecution {
    */
   batchId?: string;
   enqueuedAt: string; // ISO string
+}
+
+export type NodeExecutionStatus = "pending" | "queued" | "running" | "completed" | "failed";
+
+export interface NodeExecutionError {
+  message: string;
+}
+
+export interface NodeExecutionSnapshot {
+  runId: RunId;
+  workflowId: WorkflowId;
+  nodeId: NodeId;
+  activationId?: NodeActivationId;
+  parent?: ParentExecutionRef;
+  status: NodeExecutionStatus;
+  queuedAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  updatedAt: string;
+  inputsByPort?: NodeInputsByPort;
+  outputs?: NodeOutputs;
+  error?: NodeExecutionError;
 }
 
 export interface PersistedRunState {
@@ -355,6 +384,7 @@ export interface PersistedRunState {
   pending?: PendingNodeExecution;
   queue: RunQueueEntry[];
   outputsByNode: Record<NodeId, NodeOutputs>;
+  nodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
 }
 
 export interface RunStateStore {

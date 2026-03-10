@@ -7,6 +7,7 @@ import type {
   NodeExecutionRequest,
   NodeExecutionScheduler,
   NodeOffloadPolicy,
+  RunEventBus,
   RunDataFactory,
   RunResult,
   RunStateStore,
@@ -56,6 +57,7 @@ export type EngineTestKitOptions = Partial<{
   graphFactory: WorkflowGraphFactory;
   runDataFactory: RunDataFactory;
   executionContextFactory: ExecutionContextFactory;
+  eventBus: RunEventBus;
   webhookBasePath: string;
   makeRunId: () => string;
   makeActivationId: () => string;
@@ -103,6 +105,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
     offloadPolicy,
     runDataFactory,
     executionContextFactory,
+    options.eventBus,
   );
 
   const workflowRunner = options.workflowRunner ?? new EngineWorkflowRunnerService(engine, workflowsById as any);

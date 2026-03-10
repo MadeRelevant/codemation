@@ -3,13 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": {
-    "./workflows": "./src/workflows/index.ts"
-  },
   "scripts": {
-    "dev": "pnpm -C ../.. exec turbo run build --filter=@codemation/application --filter=@codemation/core --filter=@codemation/core-nodes --filter=@codemation/node-example && tsx watch src/index.ts",
-    "start": "pnpm -C ../.. exec turbo run build --filter=@codemation/application --filter=@codemation/core --filter=@codemation/core-nodes --filter=@codemation/node-example && tsx src/index.ts",
-    "worker": "tsx src/worker.ts",
+    "dev": "codemation dev",
+    "start": "codemation host",
+    "worker": "codemation worker",
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
@@ -17,6 +14,7 @@
   },
   "dependencies": {
     "@codemation/application": "workspace:*",
+    "@codemation/cli": "workspace:*",
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",

@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { WorkflowBuilder } from "../dist/index.js";
+import type { TriggerNode, TriggerSetupContext, TypeToken, WorkflowDefinition } from "../dist/index.js";
+import { InMemoryRunEventBus, InMemoryRunStateStore, PublishingRunStateStore, WorkflowBuilder } from "../dist/index.js";
 
 import {
+  CallbackNode,
   CallbackNodeConfig,
   IfNodeConfig,
   MapNodeConfig,
@@ -15,6 +17,23 @@ import {
   dag,
   items,
 } from "./harness/index.ts";
+
+class ManualTestTriggerConfig {
+  readonly kind = "trigger" as const;
+  readonly token: TypeToken<unknown> = ManualTestTriggerNode;
+
+  constructor(
+    public readonly name: string,
+    public readonly id?: string,
+  ) {}
+}
+
+class ManualTestTriggerNode implements TriggerNode<ManualTestTriggerConfig> {
+  readonly kind = "trigger" as const;
+  readonly outputPorts = ["main"] as const;
+
+  async setup(_ctx: TriggerSetupContext<ManualTestTriggerConfig>): Promise<void> {}
+}
 
 test("engine runs a simple A -> B -> C flow", async () => {
   const events: string[] = [];
@@ -33,6 +52,43 @@ test("engine runs a simple A -> B -> C flow", async () => {
   assert.equal(events.join(","), "A,B,C");
   assert.equal(r.outputs.length, 1);
   assert.deepEqual(r.outputs[0]?.json, { x: 1 });
+});
+
+test("trigger nodes are marked completed and emit completion snapshots", async () => {
+  const bus = new InMemoryRunEventBus();
+  const runStore = new PublishingRunStateStore(new InMemoryRunStateStore(), bus);
+  const seenTriggerStatuses: string[] = [];
+
+  const subscription = await bus.subscribe((event) => {
+    if (event.kind === "nodeCompleted" && event.snapshot.nodeId === "trigger") {
+      seenTriggerStatuses.push(event.snapshot.status);
+    }
+  });
+
+  const trigger = new ManualTestTriggerConfig("Manual trigger", "trigger");
+  const finish = new CallbackNodeConfig("Finish", () => {}, { id: "finish" });
+  const workflow: WorkflowDefinition = {
+    id: "wf.trigger.completed",
+    name: "Trigger completed",
+    nodes: [
+      { id: "trigger", kind: "trigger", token: ManualTestTriggerNode, name: "Manual trigger", config: trigger },
+      { id: "finish", kind: "node", token: CallbackNode, name: "Finish", config: finish },
+    ],
+    edges: [{ from: { nodeId: "trigger", output: "main" }, to: { nodeId: "finish", input: "in" } }],
+  };
+
+  const kit = createEngineTestKit({ runStore, eventBus: bus });
+  await kit.start([workflow]);
+
+  const result = await kit.runToCompletion({ wf: workflow, startAt: "trigger", items: items([{ x: 1 }]) });
+  assert.equal(result.status, "completed");
+
+  const stored = await runStore.load(result.runId);
+  assert.equal(stored?.nodeSnapshotsByNodeId.trigger?.status, "completed");
+  assert.deepEqual(stored?.nodeSnapshotsByNodeId.trigger?.outputs?.main?.[0]?.json, { x: 1 });
+  assert.deepEqual(seenTriggerStatuses, ["completed"]);
+
+  await subscription.close();
 });
 
 test("engine runs a diamond DAG A -> B + C -> D (fan-in join, D executes once)", async () => {
@@ -98,6 +154,13 @@ test("engine runs a diamond DAG A -> B + C -> D (fan-in join, D executes once)",
 test("engine can run a subworkflow node", async () => {
   const events: string[] = [];
   const childParents: Array<any> = [];
+  const bus = new InMemoryRunEventBus();
+  const runStore = new PublishingRunStateStore(new InMemoryRunStateStore(), bus);
+  const childRunCreatedParents: Array<any> = [];
+
+  const busSubscription = await bus.subscribe((event) => {
+    if (event.kind === "runCreated" && event.workflowId === "wf.child") childRunCreatedParents.push(event.parent);
+  });
 
   const childA = new CallbackNodeConfig(
     "childA",
@@ -122,7 +185,7 @@ test("engine can run a subworkflow node", async () => {
   const parentD = new CallbackNodeConfig("parentD", () => events.push("parentD"), { id: "parentD" });
   const parent = chain({ id: "wf.parent", name: "parent" }).start(parentA).then(sub).then(parentD).build();
 
-  const kit = createEngineTestKit();
+  const kit = createEngineTestKit({ runStore, eventBus: bus });
   await kit.start([parent, child]);
 
   const r = await kit.runToCompletion({ wf: parent, startAt: "parentA", items: items([{ x: 1 }]) });
@@ -137,9 +200,13 @@ test("engine can run a subworkflow node", async () => {
     assert.equal(p.workflowId, "wf.parent");
     assert.equal(p.nodeId, "sub");
   }
+  assert.equal(childRunCreatedParents.length, 1);
+  assert.equal(childRunCreatedParents[0]?.workflowId, "wf.parent");
+  assert.equal(childRunCreatedParents[0]?.nodeId, "sub");
 
   // Subworkflow runs inside the sub node execution.
   assert.equal(events.join(","), "parentA,childA,childB,parentD");
+  await busSubscription.close();
 });
 
 test("engine processes multiple items as a batch", async () => {

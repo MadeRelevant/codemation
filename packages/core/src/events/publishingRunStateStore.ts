@@ -10,7 +10,7 @@ export class PublishingRunStateStore implements RunStateStore, RunListingStore {
 
   async createRun(args: { runId: RunId; workflowId: WorkflowId; startedAt: string; parent?: ParentExecutionRef }): Promise<void> {
     await this.inner.createRun(args);
-    await this.eventBus.publish({ kind: "runCreated", runId: args.runId, workflowId: args.workflowId, at: this.now().toISOString() });
+    await this.eventBus.publish({ kind: "runCreated", runId: args.runId, workflowId: args.workflowId, parent: args.parent, at: this.now().toISOString() });
   }
 
   async load(runId: RunId): Promise<PersistedRunState | undefined> {
@@ -19,7 +19,7 @@ export class PublishingRunStateStore implements RunStateStore, RunListingStore {
 
   async save(state: PersistedRunState): Promise<void> {
     await this.inner.save(state);
-    await this.eventBus.publish({ kind: "runSaved", runId: state.runId, workflowId: state.workflowId, at: this.now().toISOString(), state });
+    await this.eventBus.publish({ kind: "runSaved", runId: state.runId, workflowId: state.workflowId, parent: state.parent, at: this.now().toISOString(), state });
   }
 
   async listRuns(args?: Readonly<{ workflowId?: WorkflowId; limit?: number }>): Promise<ReadonlyArray<RunSummary>> {

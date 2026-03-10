@@ -117,6 +117,12 @@ export class BullmqWorker {
     };
 
     try {
+      await this.continuation.markNodeRunning({
+        runId: request.runId as any,
+        activationId: request.activationId as any,
+        nodeId: request.nodeId as any,
+        inputsByPort: { in: request.input },
+      });
       const outputs = (await node.execute(request.input, ctx as any)) as NodeOutputs;
       return await this.continuation.resumeFromNodeResult({
         runId: request.runId as any,

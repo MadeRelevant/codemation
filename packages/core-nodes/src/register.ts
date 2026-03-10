@@ -4,6 +4,7 @@ import { IfNode } from "./nodes/if";
 import { ManualTriggerNode } from "./nodes/manualTrigger";
 import { MapDataNode } from "./nodes/mapData";
 import { SubWorkflowNode } from "./nodes/subWorkflow";
+import { WaitNode } from "./nodes/wait";
 
 /**
  * Registrar for built-in nodes. In a real project, this would use tsyringe's
@@ -23,5 +24,6 @@ export function registerCoreNodes(container: Container): void {
   void SubWorkflowNode;
   void ManualTriggerNode;
   void AIAgentNode;
+  void WaitNode;
 }
 

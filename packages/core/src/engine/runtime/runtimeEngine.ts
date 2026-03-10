@@ -2,14 +2,17 @@ import type { Container } from "../../di";
 import type {
   EngineDeps,
   EngineHost,
+  InputPortKey,
   Items,
   NodeActivationContinuation,
   NodeActivationId,
   NodeActivationRequest,
   NodeActivationScheduler,
+  NodeExecutionSnapshot,
   NodeActivationStats,
   NodeId,
   NodeExecutionScheduler,
+  NodeInputsByPort,
   NodeOffloadPolicy,
   NodeOutputs,
   OutputPortKey,
@@ -25,6 +28,7 @@ import type {
   WorkflowDefinition,
   WorkflowId,
 } from "../../types";
+import type { RunEventBus } from "../../events";
 
 import { DefaultExecutionContextFactory } from "../context/defaultExecutionContextFactory";
 import { RunQueuePlanner } from "../planning/runQueuePlanner";
@@ -43,6 +47,123 @@ class OutputStats {
   }
 }
 
+class InputPortMap {
+  static empty(): NodeInputsByPort {
+    return {};
+  }
+
+  static fromRequest(request: NodeActivationRequest): NodeInputsByPort {
+    if (request.kind === "multi") return request.inputsByPort;
+    return { in: request.input };
+  }
+}
+
+class NodeSnapshotFactory {
+  static queued(args: {
+    runId: RunId;
+    workflowId: WorkflowId;
+    nodeId: NodeId;
+    activationId: NodeActivationId;
+    parent?: ParentExecutionRef;
+    queuedAt: string;
+    inputsByPort: NodeInputsByPort;
+  }): NodeExecutionSnapshot {
+    return {
+      runId: args.runId,
+      workflowId: args.workflowId,
+      nodeId: args.nodeId,
+      activationId: args.activationId,
+      parent: args.parent,
+      status: "queued",
+      queuedAt: args.queuedAt,
+      updatedAt: args.queuedAt,
+      inputsByPort: args.inputsByPort,
+    };
+  }
+
+  static running(args: {
+    previous?: NodeExecutionSnapshot;
+    runId: RunId;
+    workflowId: WorkflowId;
+    nodeId: NodeId;
+    activationId: NodeActivationId;
+    parent?: ParentExecutionRef;
+    startedAt: string;
+    inputsByPort: NodeInputsByPort;
+  }): NodeExecutionSnapshot {
+    return {
+      runId: args.runId,
+      workflowId: args.workflowId,
+      nodeId: args.nodeId,
+      activationId: args.activationId,
+      parent: args.parent,
+      status: "running",
+      queuedAt: args.previous?.queuedAt,
+      startedAt: args.startedAt,
+      updatedAt: args.startedAt,
+      inputsByPort: args.inputsByPort,
+      outputs: args.previous?.outputs,
+      error: undefined,
+    };
+  }
+
+  static completed(args: {
+    previous?: NodeExecutionSnapshot;
+    runId: RunId;
+    workflowId: WorkflowId;
+    nodeId: NodeId;
+    activationId: NodeActivationId;
+    parent?: ParentExecutionRef;
+    finishedAt: string;
+    inputsByPort: NodeInputsByPort;
+    outputs: NodeOutputs;
+  }): NodeExecutionSnapshot {
+    return {
+      runId: args.runId,
+      workflowId: args.workflowId,
+      nodeId: args.nodeId,
+      activationId: args.activationId,
+      parent: args.parent,
+      status: "completed",
+      queuedAt: args.previous?.queuedAt,
+      startedAt: args.previous?.startedAt,
+      finishedAt: args.finishedAt,
+      updatedAt: args.finishedAt,
+      inputsByPort: args.inputsByPort,
+      outputs: args.outputs,
+      error: undefined,
+    };
+  }
+
+  static failed(args: {
+    previous?: NodeExecutionSnapshot;
+    runId: RunId;
+    workflowId: WorkflowId;
+    nodeId: NodeId;
+    activationId: NodeActivationId;
+    parent?: ParentExecutionRef;
+    finishedAt: string;
+    inputsByPort: NodeInputsByPort;
+    error: Error;
+  }): NodeExecutionSnapshot {
+    return {
+      runId: args.runId,
+      workflowId: args.workflowId,
+      nodeId: args.nodeId,
+      activationId: args.activationId,
+      parent: args.parent,
+      status: "failed",
+      queuedAt: args.previous?.queuedAt,
+      startedAt: args.previous?.startedAt,
+      finishedAt: args.finishedAt,
+      updatedAt: args.finishedAt,
+      inputsByPort: args.inputsByPort,
+      outputs: undefined,
+      error: { message: args.error.message },
+    };
+  }
+}
+
 export class Engine implements NodeActivationContinuation {
   private readonly container: Container;
   private readonly host: EngineHost;
@@ -53,6 +174,7 @@ export class Engine implements NodeActivationContinuation {
   private readonly activationScheduler: NodeActivationScheduler;
   private readonly runDataFactory: RunDataFactory;
   private readonly executionContextFactory: ExecutionContextFactory;
+  private readonly eventBus: RunEventBus | undefined;
   private readonly workflowsById = new Map<WorkflowId, WorkflowDefinition>();
   private readonly completionWaiters = new Map<RunId, Array<(result: RunResult) => void>>();
 
@@ -68,6 +190,7 @@ export class Engine implements NodeActivationContinuation {
     offloadPolicy: NodeOffloadPolicy = new ConfigDrivenOffloadPolicy(),
     runDataFactory: RunDataFactory = new InMemoryRunDataFactory(),
     executionContextFactory: ExecutionContextFactory = new DefaultExecutionContextFactory(),
+    eventBus?: RunEventBus,
   ) {
     this.container = container;
     this.host = host;
@@ -77,6 +200,7 @@ export class Engine implements NodeActivationContinuation {
     this.runStore = runStore;
     this.runDataFactory = runDataFactory;
     this.executionContextFactory = executionContextFactory;
+    this.eventBus = eventBus;
 
     this.activationScheduler = activationScheduler ?? new DefaultDrivingScheduler(offloadPolicy, scheduler);
 
@@ -152,8 +276,11 @@ export class Engine implements NodeActivationContinuation {
 
     const batchId = "batch_1";
     let queue: RunQueueEntry[] = [];
+    const initialNodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot> = {};
+    let triggerCompletedSnapshot: NodeExecutionSnapshot | undefined;
 
     if (startDef.kind === "trigger") {
+      const triggerCompletedAt = new Date().toISOString();
       data.setOutputs(startAt, { main: items });
       this.host.onNodeActivation({
         activationId: this.makeActivationId(),
@@ -161,6 +288,17 @@ export class Engine implements NodeActivationContinuation {
         itemsIn: 0,
         itemsOutByPort: { main: items.length },
       });
+      triggerCompletedSnapshot = NodeSnapshotFactory.completed({
+        runId,
+        workflowId: wf.id,
+        nodeId: startAt,
+        activationId: this.makeActivationId(),
+        parent,
+        finishedAt: triggerCompletedAt,
+        inputsByPort: InputPortMap.empty(),
+        outputs: { main: items },
+      });
+      initialNodeSnapshotsByNodeId[startAt] = triggerCompletedSnapshot;
 
       queue = planner.seedFromTrigger({ startNodeId: startAt, items, batchId });
     } else {
@@ -184,7 +322,9 @@ export class Engine implements NodeActivationContinuation {
         pending: undefined,
         queue: [],
         outputsByNode: data.dump(),
+        nodeSnapshotsByNodeId: initialNodeSnapshotsByNodeId,
       });
+      if (triggerCompletedSnapshot) await this.publishNodeEvent("nodeCompleted", triggerCompletedSnapshot);
       const result: RunResult = { runId, workflowId: wf.id, startedAt, status: "completed", outputs };
       this.resolveRunCompletion(result);
       return result;
@@ -222,18 +362,30 @@ export class Engine implements NodeActivationContinuation {
 
     const receipt = await this.activationScheduler.enqueue(request);
 
+    const inputsByPort = InputPortMap.fromRequest(request);
     const itemsIn = next.kind === "multi" ? planner.sumItemsByPort(next.inputsByPort) : next.input.length;
+    const enqueuedAt = new Date().toISOString();
     const pending: PendingNodeExecution = {
       runId,
       activationId,
       workflowId: wf.id,
       nodeId: def.id,
       itemsIn,
+      inputsByPort,
       receiptId: receipt.receiptId,
       queue: receipt.queue,
       batchId: next.batchId,
-      enqueuedAt: new Date().toISOString(),
+      enqueuedAt,
     };
+    const queuedSnapshot = NodeSnapshotFactory.queued({
+      runId,
+      workflowId: wf.id,
+      nodeId: def.id,
+      activationId,
+      parent,
+      queuedAt: enqueuedAt,
+      inputsByPort,
+    });
 
     await this.runStore.save({
       runId,
@@ -244,9 +396,48 @@ export class Engine implements NodeActivationContinuation {
       pending,
       queue: queue.map((q) => ({ ...q })),
       outputsByNode: data.dump(),
+      nodeSnapshotsByNodeId: {
+        ...initialNodeSnapshotsByNodeId,
+        [def.id]: queuedSnapshot,
+      },
     });
+    if (triggerCompletedSnapshot) await this.publishNodeEvent("nodeCompleted", triggerCompletedSnapshot);
+    await this.publishNodeEvent("nodeQueued", queuedSnapshot);
 
     return { runId, workflowId: wf.id, startedAt, status: "pending", pending };
+  }
+
+  async markNodeRunning(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    inputsByPort: NodeInputsByPort;
+  }): Promise<void> {
+    const state = await this.runStore.load(args.runId);
+    if (!state?.pending) return;
+    if (state.pending.activationId !== args.activationId || state.pending.nodeId !== args.nodeId) return;
+
+    const startedAt = new Date().toISOString();
+    const previous = state.nodeSnapshotsByNodeId?.[args.nodeId];
+    const snapshot = NodeSnapshotFactory.running({
+      previous,
+      runId: state.runId,
+      workflowId: state.workflowId,
+      nodeId: args.nodeId,
+      activationId: args.activationId,
+      parent: state.parent,
+      startedAt,
+      inputsByPort: args.inputsByPort,
+    });
+
+    await this.runStore.save({
+      ...state,
+      nodeSnapshotsByNodeId: {
+        ...(state.nodeSnapshotsByNodeId ?? {}),
+        [args.nodeId]: snapshot,
+      },
+    });
+    await this.publishNodeEvent("nodeStarted", snapshot);
   }
 
   async resumeFromNodeResult(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; outputs: NodeOutputs }): Promise<RunResult> {
@@ -283,6 +474,18 @@ export class Engine implements NodeActivationContinuation {
       itemsIn: state.pending.itemsIn,
       itemsOutByPort: OutputStats.toItemsOutByPort(args.outputs),
     } satisfies NodeActivationStats);
+    const completedAt = new Date().toISOString();
+    const completedSnapshot = NodeSnapshotFactory.completed({
+      previous: state.nodeSnapshotsByNodeId?.[args.nodeId],
+      runId: state.runId,
+      workflowId: state.workflowId,
+      nodeId: args.nodeId,
+      activationId: args.activationId,
+      parent: state.parent,
+      finishedAt: completedAt,
+      inputsByPort: state.pending.inputsByPort,
+      outputs: args.outputs,
+    });
 
     const batchId = state.pending.batchId ?? "batch_1";
     const queue: RunQueueEntry[] = (state.queue ?? []).map((q) => ({ ...q, batchId: q.batchId ?? batchId }));
@@ -307,7 +510,12 @@ export class Engine implements NodeActivationContinuation {
         pending: undefined,
         queue: [],
         outputsByNode: data.dump(),
+        nodeSnapshotsByNodeId: {
+          ...(state.nodeSnapshotsByNodeId ?? {}),
+          [args.nodeId]: completedSnapshot,
+        },
       });
+      await this.publishNodeEvent("nodeCompleted", completedSnapshot);
 
       const result: RunResult = { runId: state.runId, workflowId: state.workflowId, startedAt: state.startedAt, status: "completed", outputs };
       this.resolveRunCompletion(result);
@@ -346,18 +554,30 @@ export class Engine implements NodeActivationContinuation {
 
     const receipt = await this.activationScheduler.enqueue(request);
 
+    const inputsByPort = InputPortMap.fromRequest(request);
     const itemsIn = next.kind === "multi" ? planner.sumItemsByPort(next.inputsByPort) : next.input.length;
+    const enqueuedAt = new Date().toISOString();
     const pending: PendingNodeExecution = {
       runId: state.runId,
       activationId,
       workflowId: state.workflowId,
       nodeId: def.id,
       itemsIn,
+      inputsByPort,
       receiptId: receipt.receiptId,
       queue: receipt.queue,
       batchId: next.batchId,
-      enqueuedAt: new Date().toISOString(),
+      enqueuedAt,
     };
+    const queuedSnapshot = NodeSnapshotFactory.queued({
+      runId: state.runId,
+      workflowId: state.workflowId,
+      nodeId: def.id,
+      activationId,
+      parent: state.parent,
+      queuedAt: enqueuedAt,
+      inputsByPort,
+    });
 
     await this.runStore.save({
       runId: state.runId,
@@ -368,7 +588,14 @@ export class Engine implements NodeActivationContinuation {
       pending,
       queue: queue.map((q) => ({ ...q })),
       outputsByNode: data.dump(),
+      nodeSnapshotsByNodeId: {
+        ...(state.nodeSnapshotsByNodeId ?? {}),
+        [args.nodeId]: completedSnapshot,
+        [def.id]: queuedSnapshot,
+      },
     });
+    await this.publishNodeEvent("nodeCompleted", completedSnapshot);
+    await this.publishNodeEvent("nodeQueued", queuedSnapshot);
 
     return { runId: state.runId, workflowId: state.workflowId, startedAt: state.startedAt, status: "pending", pending };
   }
@@ -381,6 +608,17 @@ export class Engine implements NodeActivationContinuation {
     if (state.pending.nodeId !== args.nodeId) throw new Error(`nodeId mismatch for run ${args.runId}`);
 
     const message = args.error?.message ?? String(args.error);
+    const failedSnapshot = NodeSnapshotFactory.failed({
+      previous: state.nodeSnapshotsByNodeId?.[args.nodeId],
+      runId: state.runId,
+      workflowId: state.workflowId,
+      nodeId: args.nodeId,
+      activationId: args.activationId,
+      parent: state.parent,
+      finishedAt: new Date().toISOString(),
+      inputsByPort: state.pending.inputsByPort,
+      error: args.error,
+    });
     await this.runStore.save({
       runId: state.runId,
       workflowId: state.workflowId,
@@ -390,7 +628,12 @@ export class Engine implements NodeActivationContinuation {
       pending: undefined,
       queue: (state.queue ?? []).map((q) => ({ ...q })),
       outputsByNode: state.outputsByNode,
+      nodeSnapshotsByNodeId: {
+        ...(state.nodeSnapshotsByNodeId ?? {}),
+        [args.nodeId]: failedSnapshot,
+      },
     });
+    await this.publishNodeEvent("nodeFailed", failedSnapshot);
 
     const result: RunResult = { runId: state.runId, workflowId: state.workflowId, startedAt: state.startedAt, status: "failed", error: { message } };
     this.resolveRunCompletion(result);
@@ -422,6 +665,18 @@ export class Engine implements NodeActivationContinuation {
       const list = this.completionWaiters.get(runId) ?? [];
       list.push((r) => resolve(r as any));
       this.completionWaiters.set(runId, list);
+    });
+  }
+
+  private async publishNodeEvent(kind: "nodeQueued" | "nodeStarted" | "nodeCompleted" | "nodeFailed", snapshot: NodeExecutionSnapshot): Promise<void> {
+    if (!this.eventBus) return;
+    await this.eventBus.publish({
+      kind,
+      runId: snapshot.runId,
+      workflowId: snapshot.workflowId,
+      parent: snapshot.parent,
+      at: snapshot.updatedAt,
+      snapshot,
     });
   }
 

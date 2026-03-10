@@ -43,6 +43,13 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
         if (!cont) throw new Error("InlineDrivingScheduler is missing a continuation (setContinuation was not called)");
 
         try {
+          await cont.markNodeRunning({
+            runId: request.runId,
+            activationId: request.activationId,
+            nodeId: request.nodeId,
+            inputsByPort: request.kind === "multi" ? request.inputsByPort : { in: request.input },
+          });
+
           const container = request.ctx.services.container;
           if (!container) throw new Error(`No container available in ctx.services.container for activation ${request.activationId}`);
 

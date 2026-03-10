@@ -12,6 +12,7 @@ export class InMemoryRunStateStore implements RunStateStore, RunListingStore {
       status: "running",
       queue: [],
       outputsByNode: {} as Record<NodeId, NodeOutputs>,
+      nodeSnapshotsByNodeId: {},
     });
   }
 

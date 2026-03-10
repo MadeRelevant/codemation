@@ -27,6 +27,7 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
       status: "running",
       queue: [],
       outputsByNode: {} as Record<NodeId, NodeOutputs>,
+      nodeSnapshotsByNodeId: {},
     };
     await this.save(state);
   }
@@ -112,7 +113,11 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
   }
 
   private parseState(json: string): PersistedRunState {
-    return JSON.parse(json) as PersistedRunState;
+    const parsed = JSON.parse(json) as PersistedRunState;
+    return {
+      ...parsed,
+      nodeSnapshotsByNodeId: parsed.nodeSnapshotsByNodeId ?? {},
+    };
   }
 
   private stringifyState(state: PersistedRunState): string {

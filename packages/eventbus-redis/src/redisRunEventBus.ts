@@ -1,36 +1,33 @@
-import type { RunEvent, RunEventBus, RunEventSubscription } from "@codemation/core";
+import type { RunEvent, RunEventBus, RunEventSubscription, WorkflowId } from "@codemation/core";
 import IORedis from "ioredis";
 
 export class RedisRunEventBus implements RunEventBus {
-  private readonly channel: string;
+  private readonly globalChannel: string;
   private publisher: IORedis | undefined;
-  private subscriber: IORedis | undefined;
 
   constructor(
     private readonly redisUrl: string,
     channelPrefix = "codemation",
   ) {
-    this.channel = `${channelPrefix}.run-events`;
+    this.globalChannel = `${channelPrefix}.run-events.all`;
+    this.channelPrefix = `${channelPrefix}.run-events.workflow`;
   }
+
+  private readonly channelPrefix: string;
 
   async publish(event: RunEvent): Promise<void> {
     const pub = this.ensurePublisher();
-    await pub.publish(this.channel, JSON.stringify(event));
+    const serialized = JSON.stringify(event);
+    await pub.publish(this.globalChannel, serialized);
+    await pub.publish(this.getWorkflowChannel(event.workflowId), serialized);
   }
 
   async subscribe(onEvent: (event: RunEvent) => void): Promise<RunEventSubscription> {
-    const sub = this.ensureSubscriber();
+    return await this.createSubscription(this.globalChannel, onEvent);
+  }
 
-    const onMessage = (channel: string, message: string) => {
-      if (channel !== this.channel) return;
-      const event = this.parseEvent(message);
-      onEvent(event);
-    };
-
-    sub.on("message", onMessage);
-    await sub.subscribe(this.channel);
-
-    return new RedisRunEventSubscription(sub, this.channel, onMessage);
+  async subscribeToWorkflow(workflowId: WorkflowId, onEvent: (event: RunEvent) => void): Promise<RunEventSubscription> {
+    return await this.createSubscription(this.getWorkflowChannel(workflowId), onEvent);
   }
 
   private ensurePublisher(): IORedis {
@@ -39,10 +36,20 @@ export class RedisRunEventBus implements RunEventBus {
     return this.publisher;
   }
 
-  private ensureSubscriber(): IORedis {
-    if (this.subscriber) return this.subscriber;
-    this.subscriber = new IORedis(this.redisUrl);
-    return this.subscriber;
+  private async createSubscription(channel: string, onEvent: (event: RunEvent) => void): Promise<RunEventSubscription> {
+    const sub = new IORedis(this.redisUrl);
+    const onMessage = (receivedChannel: string, message: string) => {
+      if (receivedChannel !== channel) return;
+      onEvent(this.parseEvent(message));
+    };
+
+    sub.on("message", onMessage);
+    await sub.subscribe(channel);
+    return new RedisRunEventSubscription(sub, channel, onMessage);
+  }
+
+  private getWorkflowChannel(workflowId: WorkflowId): string {
+    return `${this.channelPrefix}.${workflowId}`;
   }
 
   private parseEvent(raw: string): RunEvent {
@@ -60,6 +67,7 @@ class RedisRunEventSubscription implements RunEventSubscription {
   async close(): Promise<void> {
     this.subscriber.off("message", this.handler);
     await this.subscriber.unsubscribe(this.channel);
+    this.subscriber.disconnect();
   }
 }
 
