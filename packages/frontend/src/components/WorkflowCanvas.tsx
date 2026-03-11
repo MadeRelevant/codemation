@@ -2,8 +2,21 @@
 
 import dagre from "dagre";
 import { Bot, Boxes, Brain, CircleAlert, CircleCheckBig, Clock3, GitBranch, Globe, type LucideIcon, PlaySquare, SquareStack, Workflow, Wrench } from "lucide-react";
-import { Background, BaseEdge, Controls, Handle, MarkerType, Position, ReactFlow, getStraightPath, type Edge as ReactFlowEdge, type EdgeProps as ReactFlowEdgeProps, type Node as ReactFlowNode } from "@xyflow/react";
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Background,
+  BaseEdge,
+  Controls,
+  Handle,
+  MarkerType,
+  Position,
+  ReactFlow,
+  getStraightPath,
+  type Edge as ReactFlowEdge,
+  type EdgeProps as ReactFlowEdgeProps,
+  type Node as ReactFlowNode,
+  type ReactFlowInstance,
+} from "@xyflow/react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NodeExecutionSnapshot } from "../realtime/realtime";
 
 type WorkflowDto = Readonly<{
@@ -519,13 +532,19 @@ function layoutWorkflow(
   const nodes: ReactFlowNode<NodeData>[] = workflow.nodes.map((n) => {
     const pos = positionsByNodeId.get(n.id);
     const label = n.name ?? n.type ?? n.id;
+    const resolvedNodeWidth = n.parentNodeId ? attachmentNodeWidth : nodeWidth;
+    const resolvedNodeHeight = n.parentNodeId ? attachmentNodeHeight : nodeHeight;
     return {
       id: n.id,
       type: "codemation",
       position: {
-        x: (pos?.x ?? 0) - (n.parentNodeId ? attachmentNodeWidth : nodeWidth) / 2,
-        y: (pos?.y ?? 0) - (n.parentNodeId ? attachmentNodeHeight : nodeHeight) / 2,
+        x: (pos?.x ?? 0) - resolvedNodeWidth / 2,
+        y: (pos?.y ?? 0) - resolvedNodeHeight / 2,
       },
+      width: resolvedNodeWidth,
+      height: resolvedNodeHeight,
+      initialWidth: resolvedNodeWidth,
+      initialHeight: resolvedNodeHeight,
       data: {
         nodeId: n.id,
         label,
@@ -605,32 +624,126 @@ export function WorkflowCanvas(args: {
   onSelectNode: (nodeId: string) => void;
 }) {
   const { workflow, nodeSnapshotsByNodeId, selectedNodeId, onSelectNode } = args;
+  const [hasMountedOnClient, setHasMountedOnClient] = useState(false);
+  const [isInitialViewportReady, setIsInitialViewportReady] = useState(false);
   const visibleNodeStatusesByNodeId = useVisibleNodeStatuses(nodeSnapshotsByNodeId);
   const { nodes, edges } = useMemo(
     () => layoutWorkflow(workflow, nodeSnapshotsByNodeId, visibleNodeStatusesByNodeId, selectedNodeId),
     [nodeSnapshotsByNodeId, selectedNodeId, visibleNodeStatusesByNodeId, workflow],
   );
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const reactFlowInstanceRef = useRef<ReactFlowInstance<ReactFlowNode<NodeData>, ReactFlowEdge> | null>(null);
+  const fitViewAnimationFrameIdRef = useRef<number | null>(null);
+  const fitViewTimeoutIdRef = useRef<number | null>(null);
+  const fitViewRequestIdRef = useRef(0);
+  const fitViewOptions = useMemo(
+    () =>
+      ({
+        padding: 0.24,
+        minZoom: 0.2,
+        maxZoom: 1,
+      }) as const,
+    [],
+  );
+  const scheduleFitView = useCallback(() => {
+    const canvasContainer = canvasContainerRef.current;
+    const reactFlowInstance = reactFlowInstanceRef.current;
+    if (!canvasContainer || !reactFlowInstance || nodes.length === 0) {
+      return;
+    }
+    if (canvasContainer.clientWidth === 0 || canvasContainer.clientHeight === 0) {
+      return;
+    }
+    if (fitViewAnimationFrameIdRef.current !== null) {
+      cancelAnimationFrame(fitViewAnimationFrameIdRef.current);
+    }
+    fitViewRequestIdRef.current += 1;
+    const requestId = fitViewRequestIdRef.current;
+    fitViewAnimationFrameIdRef.current = requestAnimationFrame(() => {
+      fitViewAnimationFrameIdRef.current = requestAnimationFrame(() => {
+        fitViewAnimationFrameIdRef.current = null;
+        void reactFlowInstance.fitView(fitViewOptions).then(() => {
+          if (requestId !== fitViewRequestIdRef.current) {
+            return;
+          }
+          setIsInitialViewportReady(true);
+        });
+      });
+    });
+  }, [fitViewOptions, nodes.length]);
+
+  useEffect(() => {
+    setHasMountedOnClient(true);
+  }, []);
+
+  useEffect(() => {
+    setIsInitialViewportReady(false);
+  }, [workflow.edges.length, workflow.id, workflow.nodes.length]);
+
+  useEffect(() => {
+    scheduleFitView();
+    if (fitViewTimeoutIdRef.current !== null) {
+      window.clearTimeout(fitViewTimeoutIdRef.current);
+    }
+    fitViewTimeoutIdRef.current = window.setTimeout(() => {
+      fitViewTimeoutIdRef.current = null;
+      scheduleFitView();
+    }, 120);
+  }, [scheduleFitView, workflow.edges.length, workflow.id, workflow.nodes.length]);
+
+  useEffect(() => {
+    const canvasContainer = canvasContainerRef.current;
+    if (!canvasContainer || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const resizeObserver = new ResizeObserver(() => {
+      scheduleFitView();
+    });
+    resizeObserver.observe(canvasContainer);
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [scheduleFitView]);
+
+  useEffect(() => {
+    return () => {
+      if (fitViewAnimationFrameIdRef.current !== null) {
+        cancelAnimationFrame(fitViewAnimationFrameIdRef.current);
+      }
+      if (fitViewTimeoutIdRef.current !== null) {
+        window.clearTimeout(fitViewTimeoutIdRef.current);
+      }
+    };
+  }, []);
 
   return (
-    <div style={{ width: "100%", height: "100%", background: "#fbfbfc", fontFamily: "ui-sans-serif, system-ui" }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={workflowCanvasNodeTypes}
-        edgeTypes={workflowCanvasEdgeTypes}
-        onNodeClick={(_event, node) => onSelectNode(node.id)}
-        style={{ fontFamily: "inherit" }}
-        fitView
-        fitViewOptions={{ padding: 0.24, minZoom: 0.2, maxZoom: 1 }}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable
-        zoomOnScroll
-        panOnScroll
-      >
-        <Background gap={18} size={1} color="#e5e7eb" />
-        <Controls showInteractive={false} position="top-left" />
-      </ReactFlow>
+    <div ref={canvasContainerRef} style={{ width: "100%", height: "100%", background: "#fbfbfc", fontFamily: "ui-sans-serif, system-ui" }}>
+      {hasMountedOnClient ? (
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={workflowCanvasNodeTypes}
+          edgeTypes={workflowCanvasEdgeTypes}
+          onInit={(instance) => {
+            reactFlowInstanceRef.current = instance;
+            scheduleFitView();
+          }}
+          onNodeClick={(_event, node) => onSelectNode(node.id)}
+          style={{
+            fontFamily: "inherit",
+            opacity: isInitialViewportReady ? 1 : 0,
+            transition: "opacity 120ms ease-out",
+          }}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable
+          zoomOnScroll
+          panOnScroll
+        >
+          <Background gap={18} size={1} color="#e5e7eb" />
+          <Controls showInteractive={false} position="top-left" />
+        </ReactFlow>
+      ) : null}
       <style>{`
         @property --codemation-node-ring-angle {
           syntax: "<angle>";
