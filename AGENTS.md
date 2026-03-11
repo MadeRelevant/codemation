@@ -16,11 +16,11 @@ This document sets the “golden standard” for how we build and review changes
 ### Packages
 
 - `packages/core/`
-  - Engine runtime, execution model, workflow builder DSL, and shared types.
-  - **Must not** depend on any concrete node implementations.
-- `packages/application/`
-  - Framework-owned application layer that is the Next-based Codemation app plus the owning runtime host.
-  - Consumers configure this package; they do not own the UI shell or framework API routes.
+ - Engine runtime, execution model, workflow builder DSL, and shared types.
+ - **Must not** depend on any concrete node implementations.
+- `packages/frontend/`
+ - Framework-owned frontend and runtime host package.
+ - Consumers configure this package; they do not own the UI shell or framework API routes.
 - `packages/core-nodes/`
   - Built-in node configs and implementations.
   - Depends on `@codemation/core`.

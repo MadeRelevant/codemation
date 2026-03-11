@@ -12,10 +12,15 @@ export class CodemationEnvironmentFactory {
       CODEMATION_FRONTEND_PORT: String(ports.frontendPort),
       CODEMATION_WS_PORT: String(ports.websocketPort),
       NEXT_PUBLIC_CODEMATION_WS_PORT: String(ports.websocketPort),
+      VITE_CODEMATION_WS_PORT: String(ports.websocketPort),
       CODEMATION_REALTIME_MODE: runtime.mode,
       CODEMATION_CONSUMER_ROOT: paths.consumerRoot,
+      CODEMATION_CONSUMER_PACKAGE_NAME: paths.consumerPackageName,
       CODEMATION_REPO_ROOT: paths.repoRoot,
     };
+    if (paths.consumerPackageJsonPath) {
+      baseEnv.CODEMATION_CONSUMER_PACKAGE_JSON = paths.consumerPackageJsonPath;
+    }
 
     return {
       baseEnv,

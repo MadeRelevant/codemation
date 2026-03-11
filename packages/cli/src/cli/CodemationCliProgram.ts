@@ -1,8 +1,11 @@
+import process from "node:process";
 import { CodemationCliArgumentParser } from "./CodemationCliArgumentParser";
 import { CodemationCliOptionReader } from "./CodemationCliOptionReader";
 import { CodemationDevSupervisor } from "./CodemationDevSupervisor";
 import { CodemationPathResolver } from "./CodemationPathResolver";
 import { CodemationServiceRunner } from "./CodemationServiceRunner";
+import { CodemationStartRouteWriter } from "./CodemationStartRouteWriter";
+import type { CodemationResolvedPaths } from "./types";
 
 export class CodemationCliProgram {
   constructor(
@@ -10,6 +13,7 @@ export class CodemationCliProgram {
     private readonly pathResolver: CodemationPathResolver = new CodemationPathResolver(),
     private readonly devSupervisor: CodemationDevSupervisor = new CodemationDevSupervisor(),
     private readonly serviceRunner: CodemationServiceRunner = new CodemationServiceRunner(),
+    private readonly startRouteWriter: CodemationStartRouteWriter = new CodemationStartRouteWriter(),
   ) {}
 
   async run(argv: ReadonlyArray<string>): Promise<void> {
@@ -21,6 +25,8 @@ export class CodemationCliProgram {
 
     const options = new CodemationCliOptionReader(parsedCommand.options);
     const paths = await this.pathResolver.resolve(options);
+    this.synchronizeEnvironment(paths);
+    await this.startRouteWriter.sync(paths);
 
     if (parsedCommand.name === "dev") {
       await this.devSupervisor.start(paths);
@@ -31,5 +37,13 @@ export class CodemationCliProgram {
       return;
     }
     await this.serviceRunner.runWorker(paths);
+  }
+
+  private synchronizeEnvironment(paths: CodemationResolvedPaths): void {
+    process.env.CODEMATION_CONSUMER_ROOT = paths.consumerRoot;
+    process.env.CODEMATION_CONSUMER_PACKAGE_NAME = paths.consumerPackageName;
+    if (paths.consumerPackageJsonPath) {
+      process.env.CODEMATION_CONSUMER_PACKAGE_JSON = paths.consumerPackageJsonPath;
+    }
   }
 }

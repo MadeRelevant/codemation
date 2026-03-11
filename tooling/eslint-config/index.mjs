@@ -162,8 +162,8 @@ export default [
 
   // Architecture: package source should stay class-oriented and DI-friendly.
   {
-    files: ["packages/application/src/**/*.{ts,tsx}", "packages/cli/src/**/*.{ts,tsx}"],
-    ignores: ["packages/application/app/**/*", "**/index.ts", "**/*.d.ts", "**/*Types.ts", "**/*types.ts"],
+    files: ["packages/frontend/src/**/*.{ts,tsx}", "packages/cli/src/**/*.{ts,tsx}"],
+    ignores: ["**/index.ts", "**/*.d.ts", "**/*Types.ts", "**/*types.ts"],
     rules: {
       "codemation/single-class-per-file": "error",
       "codemation/no-manual-di-new": "error",

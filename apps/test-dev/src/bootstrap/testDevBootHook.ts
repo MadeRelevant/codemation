@@ -1,4 +1,4 @@
-import type { CodemationBootHook, CodemationBootstrapContext } from "@codemation/application";
+import type { CodemationBootHook, CodemationBootstrapContext } from "@codemation/frontend";
 import { injectable } from "@codemation/core";
 import { TestDevTokens } from "./testDevTokens";
 
@@ -6,5 +6,6 @@ import { TestDevTokens } from "./testDevTokens";
 export class TestDevBootHook implements CodemationBootHook {
   boot(context: CodemationBootstrapContext): void {
     context.container.registerInstance(TestDevTokens.MailKeywords, ["RFQ", "QUOTE", "QUOTATION", "RFP"]);
+    context.container.registerInstance(TestDevTokens.OdooBaseUrl, "https://demo.odoo.test");
   }
 }

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "ui-design-system": {
+      "source": "samhvw8/dot-claude",
+      "sourceType": "github",
+      "computedHash": "da805b478040b37f22d4ca74134bdad1f281f390f605fda2add000fec01df3c7"
+    }
+  }
+}

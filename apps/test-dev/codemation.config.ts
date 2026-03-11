@@ -1,11 +1,27 @@
-import { CodemationConfigFactory } from "@codemation/application";
+import { CodemationConfigFactory, type CodemationAppSlots } from "@codemation/frontend";
 import { InMemoryCredentialService, credentialId } from "@codemation/core";
+import { config as loadDotenv } from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { TestDevBootHook } from "./src/bootstrap/testDevBootHook";
+import demoWorkflow from "./src/workflows/demo";
 import exampleWorkflow from "./src/workflows/example";
+import realtimeWaitWorkflow from "./src/workflows/realtime.wait";
+import multiItemsWorkflow from "./src/workflows/multiItems";
+import { TestDevLogo } from "./src/ui/testDevLogo";
+import { TestDevNavigation } from "./src/ui/testDevNavigation";
+
+loadDotenv({
+  path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env"),
+});
 
 const OPENAI_API_KEY = credentialId<string>("openai.apiKey");
 const configFactory = new CodemationConfigFactory();
 const useRedisRuntime = Boolean(process.env.REDIS_URL);
+const slots: CodemationAppSlots = {
+  Logo: TestDevLogo,
+  Navigation: TestDevNavigation,
+};
 
 const credentials = new InMemoryCredentialService().setFactory(OPENAI_API_KEY, () => {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -13,15 +29,15 @@ const credentials = new InMemoryCredentialService().setFactory(OPENAI_API_KEY, (
   return apiKey;
 });
 
-export default configFactory.define({
+export const codemationHost = configFactory.define({
   bootHook: TestDevBootHook,
   credentials,
-  discovery: {
-    consumerModuleRoots: ["src"],
-    workflowSource: "config-only",
-  },
-  workflows: [exampleWorkflow],
+  workflows: [demoWorkflow, exampleWorkflow, realtimeWaitWorkflow, multiItemsWorkflow],
   workflowMode: "replace",
+  discovery: {
+    workflowSource: "config-only",
+    consumerModuleRoots: ["src/bootstrap", "src/nodes", "src/tools", "src/services"],
+  },
   runtime: {
     database: {
       url: process.env.DATABASE_URL ?? "sqlite:.codemation/runs.sqlite",
@@ -37,4 +53,7 @@ export default configFactory.define({
       queuePrefix: "codemation",
     },
   },
+  slots,
 });
+
+export default codemationHost;

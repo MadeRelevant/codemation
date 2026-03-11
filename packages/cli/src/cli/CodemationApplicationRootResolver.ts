@@ -10,14 +10,14 @@ export class CodemationApplicationRootResolver {
 
   async resolve(workspaceRoot: string | null): Promise<string> {
     if (workspaceRoot) {
-      const workspaceApplicationRoot = path.resolve(workspaceRoot, "packages", "application");
+      const workspaceApplicationRoot = path.resolve(workspaceRoot, "packages", "frontend");
       if (await this.pathExistence.exists(path.resolve(workspaceApplicationRoot, "package.json"))) return workspaceApplicationRoot;
     }
 
-    const siblingApplicationRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "application");
+    const siblingApplicationRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "frontend");
     if (await this.pathExistence.exists(path.resolve(siblingApplicationRoot, "package.json"))) return siblingApplicationRoot;
 
-    const resolvedEntry = this.moduleRequire.resolve("@codemation/application");
+    const resolvedEntry = this.moduleRequire.resolve("@codemation/frontend");
     return path.resolve(resolvedEntry, "..", "..");
   }
 }

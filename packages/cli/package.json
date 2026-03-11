@@ -23,7 +23,7 @@
     "test": "echo \"(test placeholder)\""
   },
   "dependencies": {
-    "@codemation/application": "workspace:*",
+    "@codemation/frontend": "workspace:*",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {

@@ -14,6 +14,8 @@ export class CodemationWatchPathPlanner {
     await this.addIfExists(watchedPaths, path.resolve(paths.consumerRoot, "codemation.config.js"));
     await this.addIfExists(watchedPaths, path.resolve(paths.consumerRoot, "src", "codemation.config.ts"));
     await this.addIfExists(watchedPaths, path.resolve(paths.consumerRoot, "src", "codemation.config.js"));
+    await this.addIfExists(watchedPaths, path.resolve(paths.consumerRoot, ".env"));
+    await this.addIfExists(watchedPaths, path.resolve(paths.consumerRoot, ".env.local"));
 
     if (paths.workspaceRoot) {
       const packagesRoot = path.resolve(paths.workspaceRoot, "packages");

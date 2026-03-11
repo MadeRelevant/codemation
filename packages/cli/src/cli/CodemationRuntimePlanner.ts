@@ -1,5 +1,5 @@
 import process from "node:process";
-import { CodemationApplication, CodemationBootstrapDiscovery } from "@codemation/application";
+import { CodemationApplication, CodemationBootstrapDiscovery } from "@codemation/frontend";
 import type { CodemationPlannedRuntime, CodemationResolvedPaths } from "./types";
 
 export class CodemationRuntimePlanner {

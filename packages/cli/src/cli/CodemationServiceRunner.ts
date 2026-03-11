@@ -1,5 +1,5 @@
 import process from "node:process";
-import { CodemationApplication } from "@codemation/application";
+import { CodemationApplication } from "@codemation/frontend";
 import { CodemationChildProcessFactory } from "./CodemationChildProcessFactory";
 import { CodemationEnvironmentFactory } from "./CodemationEnvironmentFactory";
 import { CodemationPortPlanner } from "./CodemationPortPlanner";

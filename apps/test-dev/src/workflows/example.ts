@@ -1,6 +1,6 @@
 import { credentialId, credentialRef } from "@codemation/core";
 import { ClassifyMailToolConfig } from "../tools/classifyMailTool";
-import { AIAgent, Callback, createWorkflowBuilder, If, ManualTrigger, MapData, OpenAIChatModelConfig } from "@codemation/core-nodes";
+import { AIAgent, Callback, createWorkflowBuilder, If, ManualTrigger, MapData, OpenAIChatModelConfig, Wait } from "@codemation/core-nodes";
 import { ExampleUppercase } from "@codemation/node-example";
 
 export const ORDERS_CREATE_START = "orders.create.start";
@@ -15,7 +15,7 @@ export default createWorkflowBuilder({ id: "wf.example", name: "Example workflow
     "Classify if the message is an RFQ. Use the available tools when needed and return a concise result.",
     (item) => JSON.stringify(item.json ?? {}),
     new OpenAIChatModelConfig("OpenAI", "gpt-4.1", credentialRef(credentialId<string>("openai.apiKey")), { icon: "bot", label: "OpenAI" }),
-    [new ClassifyMailToolConfig("classifyMail", ["RFQ", "QUOTE", "QUOTATION"], undefined, { icon: "mail", label: "Classify mail" })],
+    [new ClassifyMailToolConfig("classifyMail", ["RFQ", "QUOTE", "QUOTATION"], undefined, { icon: "mail", label: "Classify mail!" })],
   ),
 )
 .then(new If("If RFQ?", (item) => Boolean((item.json as { classification?: { isRfq?: boolean } })?.classification?.isRfq)))

@@ -7,6 +7,8 @@ export type CodemationCliParsedCommand = Readonly<{
 
 export type CodemationResolvedPaths = Readonly<{
   consumerRoot: string;
+  consumerPackageJsonPath: string | null;
+  consumerPackageName: string;
   workspaceRoot: string | null;
   repoRoot: string;
   applicationRoot: string;

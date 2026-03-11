@@ -5,30 +5,40 @@
   "type": "module",
   "scripts": {
     "dev": "codemation dev",
-    "start": "codemation host",
+    "start": "vite preview --host 127.0.0.1",
     "worker": "codemation worker",
-    "build": "tsc -p tsconfig.json --noEmit",
+    "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "echo \"(test placeholder)\""
   },
   "dependencies": {
-    "@codemation/application": "workspace:*",
     "@codemation/cli": "workspace:*",
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",
+    "@codemation/frontend": "workspace:*",
     "@codemation/node-example": "workspace:*",
     "@codemation/queue-bullmq": "workspace:*",
     "@codemation/run-store-sqlite": "workspace:*",
+    "@tanstack/react-router": "^1.166.7",
+    "@tanstack/react-start": "^1.166.7",
+    "dotenv": "^17.3.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
     "eslint": "^10.0.3",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-tsconfig-paths": "^6.1.1"
   }
 }
