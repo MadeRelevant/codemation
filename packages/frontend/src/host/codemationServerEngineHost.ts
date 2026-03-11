@@ -1,4 +1,4 @@
-import type { HttpMethod, Items, NodeActivationObserver, NodeActivationStats, NodeId, WebhookRegistrar, WebhookRegistration, WorkflowId } from "@codemation/core";
+import type { NodeActivationObserver, NodeActivationStats, NodeId, WebhookRegistrar, WebhookRegistration, WorkflowId } from "@codemation/core";
 import { injectable } from "@codemation/core";
 import { CodemationWebhookRegistry } from "./codemationWebhookRegistry";
 
@@ -13,14 +13,20 @@ export class CodemationServerEngineHost implements WebhookRegistrar, NodeActivat
     workflowId: WorkflowId;
     nodeId: NodeId;
     endpointKey: string;
-    method: HttpMethod;
-    handler: (req: unknown) => Promise<Items>;
+    methods: ReadonlyArray<"GET" | "POST" | "PUT" | "PATCH" | "DELETE">;
+    parseJsonBody?: (body: unknown) => unknown;
     basePath: string;
   }>): WebhookRegistration {
     const endpointId = `${spec.workflowId}.${spec.nodeId}.${spec.endpointKey}`;
     const path = `${this.webhookBasePath}/${endpointId}`;
-    this.webhookRegistry.register({ endpointId, method: spec.method, handler: spec.handler });
-    return { endpointId, method: spec.method, path };
+    this.webhookRegistry.register({
+      endpointId,
+      workflowId: spec.workflowId,
+      nodeId: spec.nodeId,
+      methods: spec.methods,
+      parseJsonBody: spec.parseJsonBody,
+    });
+    return { endpointId, methods: spec.methods, path };
   }
 
   onNodeActivation(_stats: NodeActivationStats): void {}

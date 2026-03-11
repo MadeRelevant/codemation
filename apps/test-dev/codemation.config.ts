@@ -10,6 +10,7 @@ import realtimeWaitWorkflow from "./src/workflows/realtime.wait";
 import multiItemsWorkflow from "./src/workflows/multiItems";
 import { TestDevLogo } from "./src/ui/testDevLogo";
 import { TestDevNavigation } from "./src/ui/testDevNavigation";
+import webhookNormal from "./src/workflows/webhook.normal";
 
 loadDotenv({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env"),
@@ -32,7 +33,7 @@ const credentials = new InMemoryCredentialService().setFactory(OPENAI_API_KEY, (
 export const codemationHost = configFactory.define({
   bootHook: TestDevBootHook,
   credentials,
-  workflows: [demoWorkflow, exampleWorkflow, realtimeWaitWorkflow, multiItemsWorkflow],
+  workflows: [demoWorkflow, exampleWorkflow, realtimeWaitWorkflow, multiItemsWorkflow, webhookNormal],
   workflowMode: "replace",
   discovery: {
     workflowSource: "config-only",

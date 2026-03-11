@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, type RenderResult } from "@testing-library/react";
 import { AgentAttachmentNodeIdFactory, WorkflowBuilder, type ChatModelConfig, type ToolConfig } from "@codemation/core";
-import { AIAgent, Callback, ManualTrigger } from "@codemation/core-nodes";
+import { AIAgent, Callback, ManualTrigger, WebhookTrigger } from "@codemation/core-nodes";
 import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Providers } from "../src/providers/Providers";
@@ -73,6 +73,24 @@ class WorkflowDetailFixtureFactory {
     return new CodemationWorkflowDtoMapper().toDetail(workflow) as WorkflowDto;
   }
 
+  static createWebhookWorkflowDetail(): WorkflowDto {
+    const workflow = new WorkflowBuilder({ id: this.workflowId, name: "Frontend webhook workflow" })
+      .trigger(
+        new WebhookTrigger(
+          "Webhook trigger",
+          {
+            endpointKey: "incoming",
+            methods: ["POST"],
+          },
+          undefined,
+          this.triggerNodeId,
+        ),
+      )
+      .build();
+
+    return new CodemationWorkflowDtoMapper().toDetail(workflow) as WorkflowDto;
+  }
+
   static createInitialRunState(): PersistedRunState {
     return {
       runId: this.runId,
@@ -125,6 +143,7 @@ class WorkflowDetailFixtureFactory {
 
 class WorkflowFetchMock {
   private static readonly callsByRoute = new Map<string, number>();
+  private static readonly requestBodiesByRoute = new Map<string, unknown[]>();
 
   static install(): void {
     const handler = this.handleRequest.bind(this) as typeof fetch;
@@ -134,10 +153,20 @@ class WorkflowFetchMock {
   static restore(): void {
     vi.unstubAllGlobals();
     this.callsByRoute.clear();
+    this.requestBodiesByRoute.clear();
   }
 
   static expectCallCount(route: string, expectedCount: number): void {
     expect(this.callsByRoute.get(route) ?? 0).toBe(expectedCount);
+  }
+
+  static latestRequestBody<TBody>(route: string): TBody {
+    const bodies = this.requestBodiesByRoute.get(route) ?? [];
+    const latest = bodies.at(-1);
+    if (!latest) {
+      throw new Error(`Expected a recorded request body for ${route}.`);
+    }
+    return latest as TBody;
   }
 
   private static async handleRequest(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -145,6 +174,11 @@ class WorkflowFetchMock {
     const method = (init?.method ?? "GET").toUpperCase();
     const routeKey = `${method} ${url.pathname}`;
     this.callsByRoute.set(routeKey, (this.callsByRoute.get(routeKey) ?? 0) + 1);
+    if (typeof init?.body === "string") {
+      const bodies = this.requestBodiesByRoute.get(routeKey) ?? [];
+      bodies.push(JSON.parse(init.body));
+      this.requestBodiesByRoute.set(routeKey, bodies);
+    }
 
     if (method === "POST" && url.pathname === "/api/realtime/ready") {
       return Response.json({ ok: true, websocketPort: "31337" });
@@ -256,8 +290,7 @@ class WorkflowStatusAssertions {
 }
 
 class WorkflowDetailTestRenderer {
-  static render(): RenderResult {
-    const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
+  static render(workflow: WorkflowDto = WorkflowDetailFixtureFactory.createWorkflowDetail()): RenderResult {
     const rootRoute = createRootRoute({
       component: () => <Outlet />,
     });
@@ -497,6 +530,27 @@ describe("WorkflowDetailScreen", () => {
         [WorkflowDetailFixtureFactory.nodeTwoId]: "completed",
       });
       expect(screen.getByText("completed")).toBeInTheDocument();
+    });
+  });
+
+  it("posts an empty item batch when manually running a webhook-trigger workflow", async () => {
+    WorkflowDetailTestRenderer.render(WorkflowDetailFixtureFactory.createWebhookWorkflowDetail());
+
+    await waitFor(() => {
+      expect(WorkflowRealtimeSocketMock.instances).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Run workflow" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(WorkflowDetailFixtureFactory.runId)).toBeInTheDocument();
+    });
+
+    expect(
+      WorkflowFetchMock.latestRequestBody<Readonly<{ workflowId: string; items: ReadonlyArray<Readonly<{ json: unknown }>> }>>("POST /api/run"),
+    ).toEqual({
+      workflowId: WorkflowDetailFixtureFactory.workflowId,
+      items: [],
     });
   });
 

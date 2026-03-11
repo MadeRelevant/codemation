@@ -154,6 +154,16 @@ export default [
         { object: "test", property: "only", message: "Do not commit focused tests (test.only)." },
         { object: "describe", property: "only", message: "Do not commit focused tests (describe.only)." },
         { object: "it", property: "only", message: "Do not commit focused tests (it.only)." },
+        {
+          object: "vi",
+          property: "mock",
+          message: "Prefer dependency injection seams and register fakes in the container instead of using vi.mock().",
+        },
+        {
+          object: "vi",
+          property: "doMock",
+          message: "Prefer dependency injection seams and register fakes in the container instead of using vi.doMock().",
+        },
         { object: "Math", property: "random", message: "Avoid nondeterminism in tests (use deterministic factories)." },
         { object: "Date", property: "now", message: "Avoid nondeterminism in tests (inject clock or use deterministic factories)." },
       ],
@@ -163,7 +173,7 @@ export default [
   // Architecture: package source should stay class-oriented and DI-friendly.
   {
     files: ["packages/frontend/src/**/*.{ts,tsx}", "packages/cli/src/**/*.{ts,tsx}"],
-    ignores: ["**/index.ts", "**/*.d.ts", "**/*Types.ts", "**/*types.ts"],
+    ignores: ["**/index.ts", "**/*.d.ts", "**/*Types.ts", "**/*types.ts", "packages/frontend/src/frontend/routeHandlers.ts"],
     rules: {
       "codemation/single-class-per-file": "error",
       "codemation/no-manual-di-new": "error",

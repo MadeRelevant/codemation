@@ -44,7 +44,7 @@ export class ApiDispatcher {
       return await getRunRoute(request, this.createContext({ runId: segments[1]! }), { configOverride: this.configOverride });
     }
 
-    if (method === "POST" && segments.length === 2 && segments[0] === "webhooks") {
+    if (segments.length === 2 && segments[0] === "webhooks") {
       return await postWebhookRoute(request, this.createContext({ endpointId: segments[1]! }), { configOverride: this.configOverride });
     }
 

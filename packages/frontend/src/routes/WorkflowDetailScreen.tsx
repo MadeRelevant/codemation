@@ -11,6 +11,7 @@ import {
   Clock3,
   Copy,
   GitBranch,
+  Globe,
   LoaderCircle,
   PanelBottomClose,
   PanelBottomOpen,
@@ -61,19 +62,26 @@ type ExecutionTreeNode = FieldDataNode<
 >;
 
 class WorkflowDetailPresenter {
-  static async runWorkflow(workflowId: string): Promise<RunWorkflowResult> {
+  static async runWorkflow(workflowId: string, workflow?: WorkflowDto): Promise<RunWorkflowResult> {
     const response = await fetch(ApiPaths.run(), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         workflowId,
-        items: [{ json: {} }],
+        items: this.createRunItems(workflow),
       }),
     });
     if (!response.ok) {
       throw new Error(await response.text());
     }
     return (await response.json()) as RunWorkflowResult;
+  }
+
+  static createRunItems(workflow: WorkflowDto | undefined): Items {
+    if (this.isWebhookTriggeredWorkflow(workflow)) {
+      return [];
+    }
+    return [{ json: {} }];
   }
 
   static formatDateTime(value: string | undefined): string {
@@ -161,6 +169,11 @@ class WorkflowDetailPresenter {
   static getErrorClipboardText(error: NodeExecutionError | undefined): string {
     if (!error) return "";
     return [this.getErrorHeadline(error), this.getErrorStack(error)].filter((value): value is string => Boolean(value)).join("\n\n");
+  }
+
+  static isWebhookTriggeredWorkflow(workflow: WorkflowDto | undefined): boolean {
+    const firstTrigger = workflow?.nodes.find((node) => node.kind === "trigger");
+    return firstTrigger?.type === "WebhookTriggerNode";
   }
 
   static buildExecutionNodes(workflow: WorkflowDto | undefined, selectedRun: PersistedRunState | undefined): ReadonlyArray<ExecutionNode> {
@@ -267,7 +280,8 @@ class WorkflowDetailPresenter {
 }
 
 class WorkflowNodeIconResolver {
-  static resolveFallback(type: string, role?: string): LucideIcon {
+  static resolveFallback(type: string, role?: string, icon?: string): LucideIcon {
+    if (icon?.toLowerCase() === "globe") return Globe;
     if (role === "agent") return Bot;
     if (role === "languageModel") return Brain;
     if (role === "tool") return Wrench;
@@ -562,7 +576,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
   const onRun = useCallback(() => {
     setIsRunning(true);
     setError(null);
-    void WorkflowDetailPresenter.runWorkflow(workflowId)
+    void WorkflowDetailPresenter.runWorkflow(workflowId, workflow)
       .then((result) => {
         if (result.state) {
           queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(result.runId), result.state);
@@ -583,7 +597,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
       })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
       .finally(() => setIsRunning(false));
-  }, [queryClient, workflowId]);
+  }, [queryClient, workflow, workflowId]);
 
   const workflowError = workflowQuery.error instanceof Error ? workflowQuery.error.message : null;
   const runsError = runsQuery.error instanceof Error ? runsQuery.error.message : null;
@@ -673,7 +687,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                   const snapshot = treeNode.snapshot;
                   const node = treeNode.workflowNode;
                   const status = snapshot?.status ?? "pending";
-                  const FallbackIcon = WorkflowNodeIconResolver.resolveFallback(node?.type ?? "", node?.role);
+                  const FallbackIcon = WorkflowNodeIconResolver.resolveFallback(node?.type ?? "", node?.role, node?.icon);
                   return (
                     <div
                       style={{

@@ -1,7 +1,8 @@
-import type { Items, NodeId, ParentExecutionRef, PersistedRunState, RunListingStore } from "@codemation/core";
+import type { Items, NodeId, ParentExecutionRef, PersistedRunState, RunListingStore, WorkflowDefinition } from "@codemation/core";
 import type { CodemationBootstrapResult } from "../bootstrapDiscovery";
 import { codemationNextRuntimeRegistry } from "../runtime/codemationNextRuntimeRegistry";
 import { CodemationWorkflowDtoMapper } from "../host/codemationWorkflowDtoMapper";
+import { WebhookRouteHandler } from "./WebhookRouteHandler";
 
 export const codemationNodeRuntime = "nodejs";
 
@@ -20,6 +21,24 @@ type PostRunRouteResponse = Readonly<{
 }>;
 
 type RouteConfigOverride = Readonly<{ configOverride?: CodemationBootstrapResult }>;
+
+class RunRequestItemsResolver {
+  static resolve(workflow: WorkflowDefinition, startAt: string, items?: Items): Items {
+    if (items) {
+      return items;
+    }
+    return this.isWebhookTrigger(workflow, startAt) ? [] : [{ json: {} }];
+  }
+
+  private static isWebhookTrigger(workflow: WorkflowDefinition, startAt: string): boolean {
+    const startNode = workflow.nodes.find((node) => node.id === startAt);
+    if (!startNode || startNode.kind !== "trigger") {
+      return false;
+    }
+    const token = startNode.config?.token as Readonly<{ name?: unknown }> | undefined;
+    return token?.name === "WebhookTriggerNode";
+  }
+}
 
 export async function getWorkflowsRoute(args?: RouteConfigOverride): Promise<Response> {
   const setup = await codemationNextRuntimeRegistry.getSetup(args);
@@ -81,7 +100,7 @@ export async function postRunRoute(req: Request, args?: RouteConfigOverride): Pr
   }
 
   const startAt = body.startAt ?? workflow.nodes.find((node) => node.kind === "trigger")?.id ?? workflow.nodes[0]!.id;
-  const items = body.items ?? [{ json: {} }];
+  const items = RunRequestItemsResolver.resolve(workflow, startAt, body.items);
   const result = await runtime.getEngine().runWorkflow(
     workflow,
     startAt as NodeId,
@@ -107,17 +126,9 @@ export async function postWebhookRoute(
   context: { params: Promise<{ endpointId: string }> },
   args?: RouteConfigOverride,
 ): Promise<Response> {
-  const { endpointId } = await context.params;
-  const runtime = await codemationNextRuntimeRegistry.getRuntime(args);
-  const entry = runtime.getWebhookRegistry().get(decodeURIComponent(endpointId));
-  if (!entry) {
-    return Response.json({ error: "Unknown webhook endpoint" }, { status: 404 });
-  }
-  if (String(entry.method).toUpperCase() !== "POST") {
-    return Response.json({ error: "Method not allowed" }, { status: 405 });
-  }
-  const items = await entry.handler(await req.json());
-  return Response.json({ ok: true, items });
+  const setup = await codemationNextRuntimeRegistry.getSetup(args);
+  const handler = setup.application.getContainer().resolve(WebhookRouteHandler);
+  return await handler.handle(req, context, args);
 }
 
 export const CodemationRealtimeRouteHandlers = {

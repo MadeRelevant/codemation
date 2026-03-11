@@ -22,6 +22,10 @@ import { CodemationServerEngineHost } from "./host/codemationServerEngineHost";
 import { CodemationWebhookRegistry } from "./host/codemationWebhookRegistry";
 import { CodemationWorkflowDtoMapper } from "./host/codemationWorkflowDtoMapper";
 import { RealtimeRuntimeFactory } from "./realtimeRuntimeFactory";
+import { CodemationPreparedExecutionRuntimeProvider } from "./frontend/CodemationPreparedExecutionRuntimeProvider";
+import { FrontendRouteTokens } from "./frontend/frontendRouteTokens";
+import { RequestToWebhookItemMapper } from "./frontend/RequestToWebhookItemMapper";
+import { WebhookRouteHandler } from "./frontend/WebhookRouteHandler";
 import { CodemationFrontendRuntimeRoot } from "./runtime/codemationFrontendRuntimeRoot";
 import { CodemationRuntimeTrackedPaths } from "./runtime/codemationRuntimeTrackedPaths";
 import { CodemationRealtimeSocketServer } from "./runtime/codemationRealtimeSocketServer";
@@ -287,8 +291,23 @@ export class CodemationApplication {
       }),
     });
     this.container.register(RealtimeRuntimeFactory, { useClass: RealtimeRuntimeFactory });
-    this.container.register(CodemationWebhookRegistry, { useClass: CodemationWebhookRegistry });
+    this.container.register(CodemationWebhookRegistry, {
+      useFactory: instanceCachingFactory(() => new CodemationWebhookRegistry()),
+    });
     this.container.register(CodemationWorkflowDtoMapper, { useClass: CodemationWorkflowDtoMapper });
+    this.container.register(CodemationPreparedExecutionRuntimeProvider, { useClass: CodemationPreparedExecutionRuntimeProvider });
+    this.container.register(FrontendRouteTokens.PreparedExecutionRuntimeProvider, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationPreparedExecutionRuntimeProvider)),
+    });
+    this.container.register(RequestToWebhookItemMapper, { useClass: RequestToWebhookItemMapper });
+    this.container.register(WebhookRouteHandler, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return new WebhookRouteHandler(
+          dependencyContainer.resolve(FrontendRouteTokens.PreparedExecutionRuntimeProvider),
+          dependencyContainer.resolve(RequestToWebhookItemMapper),
+        );
+      }),
+    });
     this.container.register(ConsoleStartupSummaryLogger, { useClass: ConsoleStartupSummaryLogger });
     this.container.register(CodemationStartupSummaryReporter, { useClass: CodemationStartupSummaryReporter });
     this.container.register(CodemationFrontendRuntimeRoot, {

@@ -1,7 +1,7 @@
 "use client";
 
 import dagre from "dagre";
-import { Bot, Boxes, Brain, CircleAlert, CircleCheckBig, Clock3, GitBranch, type LucideIcon, PlaySquare, SquareStack, Workflow, Wrench } from "lucide-react";
+import { Bot, Boxes, Brain, CircleAlert, CircleCheckBig, Clock3, GitBranch, Globe, type LucideIcon, PlaySquare, SquareStack, Workflow, Wrench } from "lucide-react";
 import { Background, BaseEdge, Controls, Handle, MarkerType, Position, ReactFlow, getStraightPath, type Edge as ReactFlowEdge, type EdgeProps as ReactFlowEdgeProps, type Node as ReactFlowNode } from "@xyflow/react";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import type { NodeExecutionSnapshot } from "../realtime/realtime";
@@ -155,7 +155,11 @@ function useVisibleNodeStatuses(
   return visibleStatusesByNodeId;
 }
 
-function iconForNode(type: string, role?: string): LucideIcon {
+function iconForNode(type: string, role?: string, icon?: string): LucideIcon {
+  const explicitIcon = icon?.toLowerCase();
+  if (explicitIcon === "globe") {
+    return Globe;
+  }
   if (role === "agent") {
     return Bot;
   }
@@ -201,7 +205,7 @@ function statusIconForNode(status: NodeExecutionSnapshot["status"] | undefined) 
 }
 
 function CodemationNode({ data }: { data: NodeData }) {
-  const TypeIcon = iconForNode(data.type, data.role);
+  const TypeIcon = iconForNode(data.type, data.role, data.icon);
   const isQueued = data.status === "queued";
   const isRunning = data.status === "running";
   const isActive = isQueued || isRunning;

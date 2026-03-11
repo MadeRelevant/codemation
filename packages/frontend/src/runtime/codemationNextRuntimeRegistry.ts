@@ -20,8 +20,9 @@ type CodemationNextRuntimeCache = {
   executionRuntimePromise?: Promise<CodemationPreparedExecutionRuntime>;
 };
 
-type CodemationPreparedExecutionRuntime = Readonly<{
+export type CodemationPreparedExecutionRuntime = Readonly<{
   setup: CodemationDiscoveredApplicationSetup;
+  engine: Engine;
   workflowRegistry: WorkflowRegistry;
   workflowRunner: WorkflowRunnerService;
   webhookRegistry: CodemationWebhookRegistry;
@@ -156,6 +157,7 @@ export class CodemationNextRuntimeRegistry {
     await engine.start([...workflowRegistry.list()]);
     return {
       setup,
+      engine,
       workflowRegistry,
       workflowRunner: container.resolve<WorkflowRunnerService>(CoreTokens.WorkflowRunnerService),
       webhookRegistry: container.resolve(CodemationWebhookRegistry),
@@ -169,6 +171,7 @@ export class CodemationNextRuntimeRegistry {
     const [setup, runtime] = await Promise.all([setupPromise, runtimePromise]);
     return {
       setup,
+      engine: runtime.getEngine(),
       workflowRegistry: runtime.getWorkflowRegistry(),
       workflowRunner: runtime.getWorkflowRunner(),
       webhookRegistry: runtime.getWebhookRegistry(),

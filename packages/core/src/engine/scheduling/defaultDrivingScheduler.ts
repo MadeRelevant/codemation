@@ -22,6 +22,11 @@ export class DefaultDrivingScheduler implements NodeActivationScheduler {
   }
 
   async enqueue(request: NodeActivationRequest): Promise<NodeActivationReceipt> {
+    if (request.executionOptions?.localOnly) {
+      const receipt = await this.inline.enqueue(request);
+      return { ...receipt, mode: "local" };
+    }
+
     const decision = this.offloadPolicy.decide({
       workflowId: request.workflowId,
       nodeId: request.nodeId,
@@ -41,6 +46,7 @@ export class DefaultDrivingScheduler implements NodeActivationScheduler {
         input: request.input,
         parent: request.parent,
         queue: decision.queue,
+        executionOptions: request.executionOptions,
       };
 
       const receipt = await this.workerScheduler.enqueue(workerRequest);

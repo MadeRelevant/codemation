@@ -31,6 +31,7 @@ export class CodemationWorkflowDtoMapper {
         name: node.name ?? node.config?.name,
         type: this.nodeTypeName(node),
         role: AgentConfigInspector.isAgentNodeConfig(node.config) ? "agent" : "workflowNode",
+        icon: node.config?.icon,
       });
       if (!AgentConfigInspector.isAgentNodeConfig(node.config)) continue;
       nodes.push(this.createLanguageModelNode(node, node.config.chatModel));

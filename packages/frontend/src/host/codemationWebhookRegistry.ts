@@ -1,13 +1,40 @@
-import type { Items } from "@codemation/core";
+import type { HttpMethod, NodeId, WorkflowId } from "@codemation/core";
 
 export class CodemationWebhookRegistry {
-  private readonly handlersByEndpointId = new Map<string, Readonly<{ method: string; handler: (req: unknown) => Promise<Items> }>>();
+  private readonly entriesByEndpointId = new Map<
+    string,
+    Readonly<{
+      endpointId: string;
+      workflowId: WorkflowId;
+      nodeId: NodeId;
+      methods: ReadonlyArray<HttpMethod>;
+      parseJsonBody?: (body: unknown) => unknown;
+    }>
+  >();
 
-  register(args: Readonly<{ endpointId: string; method: string; handler: (req: unknown) => Promise<Items> }>): void {
-    this.handlersByEndpointId.set(args.endpointId, { method: args.method, handler: args.handler });
+  register(args: Readonly<{
+    endpointId: string;
+    workflowId: WorkflowId;
+    nodeId: NodeId;
+    methods: ReadonlyArray<HttpMethod>;
+    parseJsonBody?: (body: unknown) => unknown;
+  }>): void {
+    this.entriesByEndpointId.set(args.endpointId, {
+      endpointId: args.endpointId,
+      workflowId: args.workflowId,
+      nodeId: args.nodeId,
+      methods: args.methods,
+      parseJsonBody: args.parseJsonBody,
+    });
   }
 
-  get(endpointId: string): Readonly<{ method: string; handler: (req: unknown) => Promise<Items> }> | undefined {
-    return this.handlersByEndpointId.get(endpointId);
+  get(endpointId: string): Readonly<{
+    endpointId: string;
+    workflowId: WorkflowId;
+    nodeId: NodeId;
+    methods: ReadonlyArray<HttpMethod>;
+    parseJsonBody?: (body: unknown) => unknown;
+  }> | undefined {
+    return this.entriesByEndpointId.get(endpointId);
   }
 }

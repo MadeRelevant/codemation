@@ -3,12 +3,13 @@ import type { NodeId, NodeOutputs, ParentExecutionRef, PersistedRunState, RunId,
 export class InMemoryRunStateStore implements RunStateStore, RunListingStore {
   private readonly runs = new Map<RunId, PersistedRunState>();
 
-  async createRun(args: { runId: RunId; workflowId: WorkflowId; startedAt: string; parent?: ParentExecutionRef }): Promise<void> {
+  async createRun(args: { runId: RunId; workflowId: WorkflowId; startedAt: string; parent?: ParentExecutionRef; executionOptions?: PersistedRunState["executionOptions"] }): Promise<void> {
     this.runs.set(args.runId, {
       runId: args.runId,
       workflowId: args.workflowId,
       startedAt: args.startedAt,
       parent: args.parent,
+      executionOptions: args.executionOptions,
       status: "running",
       queue: [],
       outputsByNode: {} as Record<NodeId, NodeOutputs>,

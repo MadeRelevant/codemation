@@ -38,6 +38,7 @@ export interface NodeConfigBase {
   readonly token: TypeToken<unknown>;
   readonly name?: string;
   readonly id?: NodeId;
+  readonly icon?: string;
   /**
    * Optional execution hint. A global offload policy may override this.
    */
@@ -157,8 +158,8 @@ export interface WebhookRegistrar {
     workflowId: WorkflowId;
     nodeId: NodeId;
     endpointKey: string;
-    method: HttpMethod;
-    handler: (req: unknown) => Promise<Items>;
+    methods: ReadonlyArray<HttpMethod>;
+    parseJsonBody?: (body: unknown) => unknown;
     basePath: string;
   }): WebhookRegistration;
 }
@@ -211,15 +212,27 @@ export interface NodeExecutionContext<TConfig extends NodeConfigBase = NodeConfi
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+export interface RunExecutionOptions {
+  localOnly?: boolean;
+  webhook?: boolean;
+}
+
+export interface WebhookControlSignal {
+  readonly __webhookControl: true;
+  readonly kind: "respondNow" | "respondNowAndContinue";
+  readonly responseItems: Items;
+  readonly continueItems?: Items;
+}
+
 export interface WebhookSpec {
   endpointKey: string;
-  method: HttpMethod;
-  handler: (req: unknown) => Promise<Items>;
+  methods: ReadonlyArray<HttpMethod>;
+  parseJsonBody?: (body: unknown) => unknown;
 }
 
 export interface WebhookRegistration {
   endpointId: string;
-  method: HttpMethod;
+  methods: ReadonlyArray<HttpMethod>;
   path: string;
 }
 
@@ -249,8 +262,8 @@ export interface EngineHost {
     workflowId: WorkflowId;
     nodeId: NodeId;
     endpointKey: string;
-    method: HttpMethod;
-    handler: (req: unknown) => Promise<Items>;
+    methods: ReadonlyArray<HttpMethod>;
+    parseJsonBody?: (body: unknown) => unknown;
     basePath: string;
   }): WebhookRegistration;
   onNodeActivation(stats: NodeActivationStats): void;
@@ -284,6 +297,10 @@ export interface TriggerNode<TConfig extends NodeConfigBase = NodeConfigBase> {
   setup(ctx: TriggerSetupContext<TConfig>): Promise<void>;
 }
 
+export interface ExecutableTriggerNode<TConfig extends NodeConfigBase = NodeConfigBase> extends TriggerNode<TConfig> {
+  execute(items: Items, ctx: NodeExecutionContext<TConfig>): Promise<NodeOutputs>;
+}
+
 export type UpstreamRefPlaceholder = `$${number}`;
 export const branchRef = (index: number) => `$${index}` as UpstreamRefPlaceholder;
 
@@ -306,6 +323,7 @@ export interface NodeExecutionRequest {
   input: Items;
   parent?: ParentExecutionRef;
   queue?: string;
+  executionOptions?: RunExecutionOptions;
 }
 
 export interface NodeExecutionScheduler {
@@ -319,6 +337,7 @@ export type NodeActivationRequestBase = Readonly<{
   workflowId: WorkflowId;
   nodeId: NodeId;
   parent?: ParentExecutionRef;
+  executionOptions?: RunExecutionOptions;
   /**
    * Batch identifier for fan-in joins.
    */
@@ -458,6 +477,7 @@ export interface PersistedRunState {
   workflowId: WorkflowId;
   startedAt: string; // ISO string
   parent?: ParentExecutionRef;
+  executionOptions?: RunExecutionOptions;
   status: RunStatus;
   pending?: PendingNodeExecution;
   queue: RunQueueEntry[];
@@ -466,7 +486,7 @@ export interface PersistedRunState {
 }
 
 export interface RunStateStore {
-  createRun(args: { runId: RunId; workflowId: WorkflowId; startedAt: string; parent?: ParentExecutionRef }): Promise<void>;
+  createRun(args: { runId: RunId; workflowId: WorkflowId; startedAt: string; parent?: ParentExecutionRef; executionOptions?: RunExecutionOptions }): Promise<void>;
   load(runId: RunId): Promise<PersistedRunState | undefined>;
   save(state: PersistedRunState): Promise<void>;
 }
@@ -479,6 +499,14 @@ export type RunResult =
   | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "completed"; outputs: Items }
   | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "pending"; pending: PendingNodeExecution }
   | { runId: RunId; workflowId: WorkflowId; startedAt: string; status: "failed"; error: { message: string } };
+
+export type WebhookRunResult = Readonly<{
+  runId: RunId;
+  workflowId: WorkflowId;
+  startedAt: string;
+  runStatus: "pending" | "completed";
+  response: Items;
+}>;
 
 export interface EngineDeps {
   credentials: CredentialService;

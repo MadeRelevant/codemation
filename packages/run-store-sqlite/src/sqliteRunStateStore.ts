@@ -18,12 +18,13 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
 
   constructor(private readonly dbPath: string) {}
 
-  async createRun(args: { runId: RunId; workflowId: WorkflowId; startedAt: string; parent?: ParentExecutionRef }): Promise<void> {
+  async createRun(args: { runId: RunId; workflowId: WorkflowId; startedAt: string; parent?: ParentExecutionRef; executionOptions?: PersistedRunState["executionOptions"] }): Promise<void> {
     const state: PersistedRunState = {
       runId: args.runId,
       workflowId: args.workflowId,
       startedAt: args.startedAt,
       parent: args.parent,
+      executionOptions: args.executionOptions,
       status: "running",
       queue: [],
       outputsByNode: {} as Record<NodeId, NodeOutputs>,

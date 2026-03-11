@@ -18,7 +18,7 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "node --import tsx --test test/**/*.test.ts"
+    "test": "pnpm build && node --import tsx --test test/**/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",
