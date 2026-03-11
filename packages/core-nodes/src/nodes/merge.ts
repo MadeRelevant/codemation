@@ -1,8 +1,8 @@
-import type { InputPortKey, Item, Items, MultiInputNode, NodeConfigBase, NodeExecutionContext, NodeOutputs, TypeToken } from "@codemation/core";
+import type { InputPortKey, Item, Items, MultiInputNode, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken } from "@codemation/core";
 
 export type MergeMode = "passThrough" | "append" | "mergeByPosition";
 
-export class Merge implements NodeConfigBase {
+export class Merge<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = MergeNode;
 
@@ -33,11 +33,11 @@ function orderedInputs(inputsByPort: Readonly<Record<InputPortKey, Items>>, pref
   return [...preferred, ...rest];
 }
 
-export class MergeNode implements MultiInputNode<Merge> {
+export class MergeNode implements MultiInputNode<Merge<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
 
-  async executeMulti(inputsByPort: Readonly<Record<InputPortKey, Items>>, ctx: NodeExecutionContext<Merge>): Promise<NodeOutputs> {
+  async executeMulti(inputsByPort: Readonly<Record<InputPortKey, Items>>, ctx: NodeExecutionContext<Merge<any, any>>): Promise<NodeOutputs> {
     const order = orderedInputs(inputsByPort, ctx.config.cfg.prefer);
 
     if (ctx.config.cfg.mode === "append") {

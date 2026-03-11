@@ -7,10 +7,10 @@ import type {
   Items,
   LangChainChatModelLike,
   Node,
-  NodeConfigBase,
   NodeExecutionContext,
   NodeInputsByPort,
   NodeOutputs,
+  RunnableNodeConfig,
   Tool,
   ToolConfig,
   TypeToken,
@@ -125,7 +125,9 @@ type ExecutedToolCall = Readonly<{
   serialized: string;
 }>;
 
-export class AIAgent implements NodeConfigBase, AgentNodeConfig {
+export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
+  implements RunnableNodeConfig<TInputJson, TOutputJson>, AgentNodeConfig<TInputJson, TOutputJson>
+{
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = AIAgentNode;
   readonly execution = { hint: "local" } as const;
@@ -133,18 +135,23 @@ export class AIAgent implements NodeConfigBase, AgentNodeConfig {
   constructor(
     public readonly name: string,
     public readonly systemMessage: string,
-    public readonly userMessageFormatter: (item: Item, index: number, items: Items, ctx: NodeExecutionContext<AIAgent>) => string,
+    public readonly userMessageFormatter: (
+      item: Item<TInputJson>,
+      index: number,
+      items: Items<TInputJson>,
+      ctx: NodeExecutionContext<AIAgent<TInputJson, TOutputJson>>,
+    ) => string,
     public readonly chatModel: ChatModelConfig,
     public readonly tools: ReadonlyArray<ToolConfig> = [],
     public readonly id?: string,
   ) {}
 }
 
-export class AIAgentNode implements Node<AIAgent> {
+export class AIAgentNode implements Node<AIAgent<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<AIAgent>): Promise<NodeOutputs> {
+  async execute(items: Items, ctx: NodeExecutionContext<AIAgent<any, any>>): Promise<NodeOutputs> {
     const container = ctx.services.container;
     if (!container) throw new Error(`AIAgent requires ctx.services.container to resolve chat models and tools`);
 
@@ -198,7 +205,10 @@ export class AIAgentNode implements Node<AIAgent> {
     return { main: out };
   }
 
-  private resolveTools(toolConfigs: ReadonlyArray<ToolConfig>, container: NonNullable<NodeExecutionContext<AIAgent>["services"]["container"]>): ReadonlyArray<ResolvedTool> {
+  private resolveTools(
+    toolConfigs: ReadonlyArray<ToolConfig>,
+    container: NonNullable<NodeExecutionContext<AIAgent<any, any>>["services"]["container"]>,
+  ): ReadonlyArray<ResolvedTool> {
     const resolvedTools = toolConfigs.map((config) => ({
       config,
       tool: container.resolve(config.token) as Tool<ToolConfig, ZodSchemaAny, ZodSchemaAny>,
@@ -214,7 +224,7 @@ export class AIAgentNode implements Node<AIAgent> {
 
   private createItemScopedTools(
     tools: ReadonlyArray<ResolvedTool>,
-    ctx: NodeExecutionContext<AIAgent>,
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
     item: Item,
     itemIndex: number,
     items: Items,
@@ -265,7 +275,7 @@ export class AIAgentNode implements Node<AIAgent> {
     model: LangChainChatModelLike,
     nodeId: string,
     messages: ReadonlyArray<BaseMessage>,
-    ctx: NodeExecutionContext<AIAgent>,
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
     inputsByPort: NodeInputsByPort,
   ): Promise<AIMessage> {
     await ctx.services.nodeState?.markQueued({ nodeId, activationId: ctx.activationId, inputsByPort });
@@ -297,7 +307,7 @@ export class AIAgentNode implements Node<AIAgent> {
   private async markQueuedTools(
     bindings: ReadonlyArray<ItemScopedToolBinding>,
     toolCalls: ReadonlyArray<AgentToolCall>,
-    ctx: NodeExecutionContext<AIAgent>,
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
     inputsByPort: NodeInputsByPort,
   ): Promise<void> {
     for (const toolCall of toolCalls) {

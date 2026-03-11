@@ -1,5 +1,5 @@
 import type { TypeToken } from "./di";
-import type { Item, Items, NodeConfigBase, NodeExecutionContext, NodeId } from "./types";
+import type { Item, Items, NodeConfigBase, NodeExecutionContext, NodeId, RunnableNodeConfig } from "./types";
 import type { ZodType, input as ZodInput, output as ZodOutput } from "zod";
 
 export interface AgentCanvasPresentation<TIcon extends string = string> {
@@ -70,17 +70,22 @@ export interface ChatModelFactory<TConfig extends ChatModelConfig = ChatModelCon
   create(args: Readonly<{ config: TConfig; ctx: NodeExecutionContext<any> }>): Promise<LangChainChatModelLike> | LangChainChatModelLike;
 }
 
-export interface AgentNodeConfig extends NodeConfigBase {
+export interface AgentNodeConfig<TInputJson = unknown, TOutputJson = unknown> extends RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly systemMessage: string;
-  readonly userMessageFormatter: (item: Item, index: number, items: Items, ctx: NodeExecutionContext<any>) => string;
+  readonly userMessageFormatter: (
+    item: Item<TInputJson>,
+    index: number,
+    items: Items<TInputJson>,
+    ctx: NodeExecutionContext<any>,
+  ) => string;
   readonly chatModel: ChatModelConfig;
   readonly tools?: ReadonlyArray<ToolConfig>;
 }
 
 export class AgentConfigInspector {
-  static isAgentNodeConfig(config: NodeConfigBase | undefined): config is AgentNodeConfig {
+  static isAgentNodeConfig(config: NodeConfigBase | undefined): config is AgentNodeConfig<any, any> {
     if (!config) return false;
-    const candidate = config as Partial<AgentNodeConfig>;
+    const candidate = config as Partial<AgentNodeConfig<any, any>>;
     return typeof candidate.systemMessage === "string" && typeof candidate.userMessageFormatter === "function" && !!candidate.chatModel;
   }
 }

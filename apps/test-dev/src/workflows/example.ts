@@ -5,12 +5,32 @@ import { ExampleUppercase } from "@codemation/node-example";
 
 export const ORDERS_CREATE_START = "orders.create.start";
 
+type ExampleSeedJson = Readonly<{
+  subject: string;
+  from: string;
+  body: string;
+}>;
+
+type ExampleAgentJson = ExampleSeedJson &
+  Readonly<{
+    agentResult: unknown;
+    classification?: Readonly<{
+      isRfq?: boolean;
+    }>;
+  }>;
+
+type ExampleOutcomeJson = ExampleAgentJson &
+  Readonly<{
+    orderStatus: "created" | "ignored";
+    note?: string;
+  }>;
+
 export default createWorkflowBuilder({ id: "wf.example", name: "Example workflow" })
 .trigger(new ManualTrigger("Manual trigger"))
-.then(new MapData("Seed", () => ({ subject: "RFQ: 1000 widgets", from: "buyer@acme.com", body: "please quote 1000 widgets" })))
-.then(new ExampleUppercase("Uppercase subject", { field: "subject" }))
+.then(new MapData<unknown, ExampleSeedJson>("Seed", () => ({ subject: "RFQ: 1000 widgets", from: "buyer@acme.com", body: "please quote 1000 widgets" })))
+.then(new ExampleUppercase<ExampleSeedJson, "subject">("Uppercase subject", { field: "subject" }))
 .then(
-  new AIAgent(
+  new AIAgent<ExampleSeedJson, ExampleAgentJson>(
     "Classify (agent)",
     "Classify if the message is an RFQ. Use the available tools when needed and return a concise result.",
     (item) => JSON.stringify(item.json ?? {}),
@@ -18,16 +38,25 @@ export default createWorkflowBuilder({ id: "wf.example", name: "Example workflow
     [new ClassifyMailToolConfig("classifyMail", ["RFQ", "QUOTE", "QUOTATION"], undefined, { icon: "mail", label: "Classify mail!" })],
   ),
 )
-.then(new If("If RFQ?", (item) => Boolean((item.json as { classification?: { isRfq?: boolean } })?.classification?.isRfq)))
+.then(new If<ExampleAgentJson>("If RFQ?", (item) => Boolean(item.json.classification?.isRfq)))
 .when({
-  true: [new Callback("Create order (callback)", () => {
-    return [{ json: { order: "created" } }];
-  })],
+  true: [
+    new Callback<ExampleAgentJson, ExampleOutcomeJson>("Create order (callback)", (items) =>
+      items.map((item) => ({
+        ...item,
+        json: {
+          ...item.json,
+          orderStatus: "created",
+        },
+      })),
+    ),
+  ],
   false: [
-    new MapData("Not RFQ", (item) => {
-      const base = typeof item.json === "object" && item.json !== null ? (item.json as Record<string, unknown>) : {};
-      return { ...base, note: "Not an RFQ" };
-    }),
+    new MapData<ExampleAgentJson, ExampleOutcomeJson>("Not RFQ", (item) => ({
+      ...item.json,
+      orderStatus: "ignored",
+      note: "Not an RFQ",
+    })),
   ],
 })
 .build()

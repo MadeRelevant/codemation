@@ -1,25 +1,30 @@
-import type { Item, Items, Node, NodeConfigBase, NodeExecutionContext, NodeOutputs, TypeToken } from "@codemation/core";
+import type { Item, Items, Node, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken } from "@codemation/core";
 
-export class If implements NodeConfigBase {
+export class If<TInputJson = unknown> implements RunnableNodeConfig<TInputJson, TInputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = IfNode;
   readonly execution = { hint: "local" } as const;
   constructor(
     public readonly name: string,
-    public readonly predicate: (item: Item, index: number, items: Items, ctx: NodeExecutionContext<If>) => boolean,
+    public readonly predicate: (
+      item: Item<TInputJson>,
+      index: number,
+      items: Items<TInputJson>,
+      ctx: NodeExecutionContext<If<TInputJson>>,
+    ) => boolean,
     public readonly id?: string,
   ) {}
 }
 
-export class IfNode implements Node<If> {
+export class IfNode implements Node<If<any>> {
   kind = "node" as const;
   outputPorts = ["true", "false"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<If>): Promise<NodeOutputs> {
+  async execute(items: Items, ctx: NodeExecutionContext<If<any>>): Promise<NodeOutputs> {
     const t: Item[] = [];
     const f: Item[] = [];
     for (let i = 0; i < items.length; i++) {
-      const item = items[i]!;
+      const item = items[i] as Item<unknown>;
       const metaBase = (item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}) as Record<string, unknown>;
       const cmBase =
         metaBase._cm && typeof metaBase._cm === "object" ? (metaBase._cm as Record<string, unknown>) : ({} as Record<string, unknown>);

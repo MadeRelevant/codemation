@@ -1,16 +1,16 @@
 import type {
   Items,
   Node,
-  NodeConfigBase,
   NodeExecutionContext,
   NodeId,
   NodeOutputs,
   Item,
+  RunnableNodeConfig,
   TypeToken,
   UpstreamRefPlaceholder,
 } from "@codemation/core";
 
-export class SubWorkflow implements NodeConfigBase {
+export class SubWorkflow<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = SubWorkflowNode;
   constructor(
@@ -22,11 +22,11 @@ export class SubWorkflow implements NodeConfigBase {
   ) {}
 }
 
-export class SubWorkflowNode implements Node<SubWorkflow> {
+export class SubWorkflowNode implements Node<SubWorkflow<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<SubWorkflow>): Promise<NodeOutputs> {
+  async execute(items: Items, ctx: NodeExecutionContext<SubWorkflow<any, any>>): Promise<NodeOutputs> {
   
     const workflows = ctx.services.workflows;
     if (!workflows) throw new Error("WorkflowRunnerService is not available in ctx.services.workflows");

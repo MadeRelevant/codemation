@@ -2,7 +2,7 @@ import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import net from "node:net";
 
-import type { Items, Node, NodeActivationObserver, NodeConfigBase, NodeExecutionContext, NodeOutputs, TypeToken, WebhookRegistrar, WorkflowDefinition, WorkflowId } from "@codemation/core";
+import type { Items, Node, NodeActivationObserver, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken, WebhookRegistrar, WorkflowDefinition, WorkflowId } from "@codemation/core";
 import {
   container as tsyringeContainer,
   ConfigDrivenOffloadPolicy,
@@ -38,18 +38,18 @@ class IdFactory {
   }
 }
 
-class UppercaseSubject implements NodeConfigBase {
+class UppercaseSubject<TItemJson extends Record<string, unknown> = Record<string, unknown>> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = UppercaseSubjectNode;
   readonly execution = { hint: "worker" as const, queue: "default" as const };
   constructor(public readonly name: string, public readonly id: string) {}
 }
 
-class UppercaseSubjectNode implements Node<UppercaseSubject> {
+class UppercaseSubjectNode implements Node<UppercaseSubject<Record<string, unknown>>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
 
-  async execute(items: Items, _ctx: NodeExecutionContext<UppercaseSubject>): Promise<NodeOutputs> {
+  async execute(items: Items, _ctx: NodeExecutionContext<UppercaseSubject<Record<string, unknown>>>): Promise<NodeOutputs> {
     return {
       main: items.map((it) => {
         const json = (it.json && typeof it.json === "object" ? (it.json as Record<string, unknown>) : {}) as Record<string, unknown>;

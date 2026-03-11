@@ -5,13 +5,50 @@ import type {
   NodeId,
   NodeRef,
   OutputPortKey,
+  RunnableNodeConfig,
+  RunnableNodeOutputJson,
+  TriggerNodeConfig,
+  TriggerNodeOutputJson,
   UpstreamRefPlaceholder,
   WorkflowDefinition,
   WorkflowId,
 } from "./types";
 
-type RunnableNodeConfig = NodeConfigBase & { kind: "node" };
-type TriggerConfig = NodeConfigBase & { kind: "trigger" };
+type AnyRunnableNodeConfig = RunnableNodeConfig<any, any>;
+type AnyTriggerNodeConfig = TriggerNodeConfig<any>;
+
+type ValidStepSequence<TCurrentJson, TSteps extends ReadonlyArray<AnyRunnableNodeConfig>> =
+  TSteps extends readonly []
+    ? readonly []
+    : TSteps extends readonly [infer TFirst, ...infer TRest]
+      ? TFirst extends RunnableNodeConfig<TCurrentJson, infer TNextJson>
+        ? TRest extends ReadonlyArray<AnyRunnableNodeConfig>
+          ? readonly [TFirst, ...ValidStepSequence<TNextJson, TRest>]
+          : never
+        : never
+      : TSteps;
+
+type StepSequenceOutput<TCurrentJson, TSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined> =
+  TSteps extends ReadonlyArray<AnyRunnableNodeConfig>
+    ? TSteps extends readonly []
+      ? TCurrentJson
+      : TSteps extends readonly [infer TFirst, ...infer TRest]
+        ? TFirst extends RunnableNodeConfig<TCurrentJson, infer TNextJson>
+          ? TRest extends ReadonlyArray<AnyRunnableNodeConfig>
+            ? StepSequenceOutput<TNextJson, TRest>
+            : never
+          : never
+        : TCurrentJson
+    : TCurrentJson;
+
+type TypesMatch<TLeft, TRight> = [TLeft] extends [TRight] ? ([TRight] extends [TLeft] ? true : false) : false;
+
+type BranchOutputGuard<
+  TCurrentJson,
+  TTrueSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined,
+  TFalseSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined,
+> =
+  TypesMatch<StepSequenceOutput<TCurrentJson, TTrueSteps>, StepSequenceOutput<TCurrentJson, TFalseSteps>> extends true ? unknown : never;
 
 export class WorkflowBuilder {
   private readonly nodes: NodeDefinition[] = [];
@@ -21,7 +58,7 @@ export class WorkflowBuilder {
   constructor(
     private readonly meta: { id: WorkflowId; name: string },
     private readonly options?: Readonly<{
-      makeMergeNode?: (name: string) => RunnableNodeConfig;
+      makeMergeNode?: (name: string) => AnyRunnableNodeConfig;
     }>,
   ) {}
 
@@ -36,14 +73,14 @@ export class WorkflowBuilder {
     this.edges.push({ from: { nodeId: from.id, output: fromOutput }, to: { nodeId: to.id, input: toInput } });
   }
 
-  trigger(config: TriggerConfig): ChainCursor {
+  trigger<TConfig extends AnyTriggerNodeConfig>(config: TConfig): ChainCursor<TriggerNodeOutputJson<TConfig>> {
     const ref = this.add(config);
-    return new ChainCursor(this, ref, "main");
+    return new ChainCursor<TriggerNodeOutputJson<TConfig>>(this, ref, "main");
   }
 
-  start(config: RunnableNodeConfig): ChainCursor {
+  start<TConfig extends AnyRunnableNodeConfig>(config: TConfig): ChainCursor<RunnableNodeOutputJson<TConfig>> {
     const ref = this.add(config);
-    return new ChainCursor(this, ref, "main");
+    return new ChainCursor<RunnableNodeOutputJson<TConfig>>(this, ref, "main");
   }
 
   build(): WorkflowDefinition {
@@ -51,32 +88,49 @@ export class WorkflowBuilder {
   }
 }
 
-export class ChainCursor {
+export class ChainCursor<TCurrentJson> {
   constructor(private readonly wf: WorkflowBuilder, private readonly cursor: NodeRef, private readonly cursorOutput: OutputPortKey) {}
 
-  then(config: RunnableNodeConfig): ChainCursor {
+  then<TConfig extends RunnableNodeConfig<TCurrentJson, any>>(config: TConfig): ChainCursor<RunnableNodeOutputJson<TConfig>> {
     const next = (this.wf as any).add(config) as NodeRef;
     (this.wf as any).connect(this.cursor, next, this.cursorOutput);
-    return new ChainCursor(this.wf, next, "main");
+    return new ChainCursor<RunnableNodeOutputJson<TConfig>>(this.wf, next, "main");
   }
 
-  when(branch: boolean, steps: RunnableNodeConfig[] | RunnableNodeConfig, ...more: RunnableNodeConfig[]): WhenBuilder;
-  when(branches: Readonly<{ true?: ReadonlyArray<RunnableNodeConfig>; false?: ReadonlyArray<RunnableNodeConfig> }>): ChainCursor;
+  when<TSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
+    branch: boolean,
+    steps: TSteps & ValidStepSequence<TCurrentJson, TSteps>,
+  ): WhenBuilder<TCurrentJson>;
+  when<TFirstStep extends RunnableNodeConfig<TCurrentJson, any>, TRestSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
+    branch: boolean,
+    step: TFirstStep,
+    ...more: TRestSteps & ValidStepSequence<RunnableNodeOutputJson<TFirstStep>, TRestSteps>
+  ): WhenBuilder<TCurrentJson>;
+  when<
+    TTrueSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined,
+    TFalseSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined,
+  >(
+    branches: Readonly<{
+      true?: TTrueSteps extends ReadonlyArray<AnyRunnableNodeConfig> ? TTrueSteps & ValidStepSequence<TCurrentJson, TTrueSteps> : never;
+      false?: TFalseSteps extends ReadonlyArray<AnyRunnableNodeConfig> ? TFalseSteps & ValidStepSequence<TCurrentJson, TFalseSteps> : never;
+    }> &
+      BranchOutputGuard<TCurrentJson, TTrueSteps, TFalseSteps>,
+  ): ChainCursor<StepSequenceOutput<TCurrentJson, TTrueSteps>>;
   when(
-    arg1: boolean | Readonly<{ true?: ReadonlyArray<RunnableNodeConfig>; false?: ReadonlyArray<RunnableNodeConfig> }>,
-    steps?: RunnableNodeConfig[] | RunnableNodeConfig,
-    ...more: RunnableNodeConfig[]
-  ): WhenBuilder | ChainCursor {
+    arg1: boolean | Readonly<{ true?: ReadonlyArray<AnyRunnableNodeConfig>; false?: ReadonlyArray<AnyRunnableNodeConfig> }>,
+    steps?: ReadonlyArray<AnyRunnableNodeConfig> | AnyRunnableNodeConfig,
+    ...more: AnyRunnableNodeConfig[]
+  ): WhenBuilder<TCurrentJson> | ChainCursor<TCurrentJson> {
     if (typeof arg1 === "boolean") {
       const list = Array.isArray(steps) ? steps : steps ? [steps, ...more] : more;
       const port: OutputPortKey = arg1 ? "true" : "false";
-      const b = new WhenBuilder(this.wf, this.cursor, port);
+      const b = new WhenBuilder<TCurrentJson>(this.wf, this.cursor, port);
       b.addBranch(list);
       return b;
     }
 
     const branches = arg1;
-    const makeMerge = (this.wf as any).options?.makeMergeNode as ((name: string) => RunnableNodeConfig) | undefined;
+    const makeMerge = (this.wf as any).options?.makeMergeNode as ((name: string) => AnyRunnableNodeConfig) | undefined;
     if (!makeMerge) {
       throw new Error(
         'WorkflowBuilder is missing options.makeMergeNode (required for when({true,false}). Use createWorkflowBuilder from "@codemation/core-nodes".',
@@ -87,7 +141,7 @@ export class ChainCursor {
 
     const buildBranch = (
       port: OutputPortKey,
-      branchSteps: ReadonlyArray<RunnableNodeConfig> | undefined,
+      branchSteps: ReadonlyArray<AnyRunnableNodeConfig> | undefined,
     ): Readonly<{ end: NodeRef; endOutput: OutputPortKey }> => {
       const list = branchSteps ?? [];
       let prev: NodeRef | null = null;
@@ -109,7 +163,7 @@ export class ChainCursor {
     wfAny.connect(t.end, merge, t.endOutput, "true");
     wfAny.connect(f.end, merge, f.endOutput, "false");
 
-    return new ChainCursor(this.wf, merge, "main");
+    return new ChainCursor<TCurrentJson>(this.wf, merge, "main");
   }
 
   build(): WorkflowDefinition {
@@ -117,10 +171,10 @@ export class ChainCursor {
   }
 }
 
-export class WhenBuilder {
+export class WhenBuilder<TCurrentJson> {
   constructor(private readonly wf: WorkflowBuilder, private readonly from: NodeRef, private readonly branchPort: OutputPortKey) {}
 
-  addBranch(steps: RunnableNodeConfig[]): this {
+  addBranch<TSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(steps: TSteps & ValidStepSequence<TCurrentJson, TSteps>): this {
     const created: NodeRef[] = [];
 
     let prev: NodeRef | null = null;
@@ -148,10 +202,23 @@ export class WhenBuilder {
     return this;
   }
 
-  when(branch: boolean, steps: RunnableNodeConfig[] | RunnableNodeConfig, ...more: RunnableNodeConfig[]): WhenBuilder {
+  when<TSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
+    branch: boolean,
+    steps: TSteps & ValidStepSequence<TCurrentJson, TSteps>,
+  ): WhenBuilder<TCurrentJson>;
+  when<TFirstStep extends RunnableNodeConfig<TCurrentJson, any>, TRestSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
+    branch: boolean,
+    step: TFirstStep,
+    ...more: TRestSteps & ValidStepSequence<RunnableNodeOutputJson<TFirstStep>, TRestSteps>
+  ): WhenBuilder<TCurrentJson>;
+  when(
+    branch: boolean,
+    steps: ReadonlyArray<AnyRunnableNodeConfig> | AnyRunnableNodeConfig,
+    ...more: AnyRunnableNodeConfig[]
+  ): WhenBuilder<TCurrentJson> {
     const list = Array.isArray(steps) ? steps : [steps, ...more];
     const port: OutputPortKey = branch ? "true" : "false";
-    const b = new WhenBuilder(this.wf, this.from, port);
+    const b = new WhenBuilder<TCurrentJson>(this.wf, this.from, port);
     b.addBranch(list);
     return b;
   }

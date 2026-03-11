@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import type { TriggerNode, TriggerSetupContext, TypeToken, WorkflowDefinition } from "../dist/index.js";
+import type { TriggerNode, TriggerNodeConfig, TriggerSetupContext, TypeToken, WorkflowDefinition } from "../dist/index.js";
 import { InMemoryRunEventBus, InMemoryRunStateStore, PublishingRunStateStore, WorkflowBuilder } from "../dist/index.js";
 
 import {
@@ -18,7 +18,7 @@ import {
   items,
 } from "./harness/index.ts";
 
-class ManualTestTriggerConfig {
+class ManualTestTriggerConfig<TOutputJson = unknown> implements TriggerNodeConfig<TOutputJson> {
   readonly kind = "trigger" as const;
   readonly token: TypeToken<unknown> = ManualTestTriggerNode;
 

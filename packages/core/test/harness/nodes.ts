@@ -7,6 +7,8 @@ import type {
   NodeConfigBase,
   NodeExecutionContext,
   NodeOutputs,
+  RunnableNodeConfig,
+  TriggerNodeConfig,
   TypeToken,
   WorkflowId,
   NodeId,
@@ -17,13 +19,13 @@ export type CallbackExecuteArgs<TConfig extends NodeConfigBase> = Readonly<{
   ctx: NodeExecutionContext<TConfig>;
 }>;
 
-export class CallbackNodeConfig implements NodeConfigBase {
+export class CallbackNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = CallbackNode;
 
   constructor(
     public readonly name: string,
-    public readonly onExecute: (args: CallbackExecuteArgs<CallbackNodeConfig>) => void,
+    public readonly onExecute: (args: CallbackExecuteArgs<CallbackNodeConfig<TItemJson>>) => void,
     public readonly opts: Readonly<{ id?: string; execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }> }> = {},
   ) {}
 
@@ -36,17 +38,17 @@ export class CallbackNodeConfig implements NodeConfigBase {
   }
 }
 
-export class CallbackNode implements Node<CallbackNodeConfig> {
+export class CallbackNode implements Node<CallbackNodeConfig<any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<CallbackNodeConfig>): Promise<NodeOutputs> {
+  async execute(items: Items, ctx: NodeExecutionContext<CallbackNodeConfig<any>>): Promise<NodeOutputs> {
     ctx.config.onExecute({ items, ctx });
     return { main: items };
   }
 }
 
-export class ThrowNodeConfig implements NodeConfigBase {
+export class ThrowNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = ThrowNode;
 
@@ -55,7 +57,7 @@ export class ThrowNodeConfig implements NodeConfigBase {
     public readonly errorOrFactory:
       | Error
       | string
-      | ((args: CallbackExecuteArgs<ThrowNodeConfig>) => Error),
+      | ((args: CallbackExecuteArgs<ThrowNodeConfig<TItemJson>>) => Error),
     public readonly opts: Readonly<{ id?: string; execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }> }> = {},
   ) {}
 
@@ -68,11 +70,11 @@ export class ThrowNodeConfig implements NodeConfigBase {
   }
 }
 
-export class ThrowNode implements Node<ThrowNodeConfig> {
+export class ThrowNode implements Node<ThrowNodeConfig<any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<ThrowNodeConfig>): Promise<NodeOutputs> {
+  async execute(items: Items, ctx: NodeExecutionContext<ThrowNodeConfig<any>>): Promise<NodeOutputs> {
     const v = ctx.config.errorOrFactory;
     if (typeof v === "function") throw v({ items, ctx });
     if (v instanceof Error) throw v;
@@ -80,13 +82,13 @@ export class ThrowNode implements Node<ThrowNodeConfig> {
   }
 }
 
-export class BranchNodeConfig implements NodeConfigBase {
+export class BranchNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = BranchNode;
 
   constructor(
     public readonly name: string,
-    public readonly decide: (item: Item, ctx: NodeExecutionContext<BranchNodeConfig>, index: number) => boolean | Promise<boolean>,
+    public readonly decide: (item: Item<TItemJson>, ctx: NodeExecutionContext<BranchNodeConfig<TItemJson>>, index: number) => boolean | Promise<boolean>,
     public readonly opts: Readonly<{ id?: string; execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }> }> = {},
   ) {}
 
@@ -99,11 +101,11 @@ export class BranchNodeConfig implements NodeConfigBase {
   }
 }
 
-export class BranchNode implements Node<BranchNodeConfig> {
+export class BranchNode implements Node<BranchNodeConfig<any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["true", "false"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<BranchNodeConfig>): Promise<NodeOutputs> {
+  async execute(items: Items, ctx: NodeExecutionContext<BranchNodeConfig<any>>): Promise<NodeOutputs> {
     const yes: Item[] = [];
     const no: Item[] = [];
 
@@ -127,7 +129,7 @@ export class BranchNode implements Node<BranchNodeConfig> {
   }
 }
 
-export class MapNodeConfig<TIn = unknown, TOut = unknown> implements NodeConfigBase {
+export class MapNodeConfig<TIn = unknown, TOut = unknown> implements RunnableNodeConfig<TIn, TOut> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = MapNode;
 
@@ -161,13 +163,13 @@ export class MapNode implements Node<MapNodeConfig> {
   }
 }
 
-export class IfNodeConfig implements NodeConfigBase {
+export class IfNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = IfNode;
 
   constructor(
     public readonly name: string,
-    public readonly decide: (item: Item, ctx: NodeExecutionContext<IfNodeConfig>, index: number) => boolean | Promise<boolean>,
+    public readonly decide: (item: Item<TItemJson>, ctx: NodeExecutionContext<IfNodeConfig<TItemJson>>, index: number) => boolean | Promise<boolean>,
     public readonly opts: Readonly<{
       id?: string;
       omitUnusedOutputKey?: boolean;
@@ -188,11 +190,11 @@ export class IfNodeConfig implements NodeConfigBase {
   }
 }
 
-export class IfNode implements Node<IfNodeConfig> {
+export class IfNode implements Node<IfNodeConfig<any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["true", "false"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<IfNodeConfig>): Promise<NodeOutputs> {
+  async execute(items: Items, ctx: NodeExecutionContext<IfNodeConfig<any>>): Promise<NodeOutputs> {
     const yes: Item[] = [];
     const no: Item[] = [];
 
@@ -220,7 +222,7 @@ export class IfNode implements Node<IfNodeConfig> {
   }
 }
 
-export class SubWorkflowRunnerConfig implements NodeConfigBase {
+export class SubWorkflowRunnerConfig<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = SubWorkflowRunnerNode;
 
@@ -246,11 +248,11 @@ export class SubWorkflowRunnerConfig implements NodeConfigBase {
   }
 }
 
-export class SubWorkflowRunnerNode implements Node<SubWorkflowRunnerConfig> {
+export class SubWorkflowRunnerNode implements Node<SubWorkflowRunnerConfig<any, any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<SubWorkflowRunnerConfig>): Promise<NodeOutputs> {
+  async execute(items: Items, ctx: NodeExecutionContext<SubWorkflowRunnerConfig<any, any>>): Promise<NodeOutputs> {
     const workflows = ctx.services.workflows;
     if (!workflows) throw new Error("WorkflowRunnerService is not available in ctx.services.workflows");
 
@@ -273,7 +275,7 @@ export class SubWorkflowRunnerNode implements Node<SubWorkflowRunnerConfig> {
   }
 }
 
-export class MergeNodeConfig implements NodeConfigBase {
+export class MergeNodeConfig<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = MergeNode;
 
@@ -295,11 +297,11 @@ function orderedInputs(inputsByPort: Readonly<Record<InputPortKey, Items>>, pref
   return [...preferred, ...rest];
 }
 
-export class MergeNode implements MultiInputNode<MergeNodeConfig> {
+export class MergeNode implements MultiInputNode<MergeNodeConfig<any, any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async executeMulti(inputsByPort: Readonly<Record<InputPortKey, Items>>, ctx: NodeExecutionContext<MergeNodeConfig>): Promise<NodeOutputs> {
+  async executeMulti(inputsByPort: Readonly<Record<InputPortKey, Items>>, ctx: NodeExecutionContext<MergeNodeConfig<any, any>>): Promise<NodeOutputs> {
     const order = orderedInputs(inputsByPort, ctx.config.cfg.prefer);
 
     if (ctx.config.cfg.mode === "append") {

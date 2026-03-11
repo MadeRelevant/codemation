@@ -44,6 +44,30 @@ export interface NodeConfigBase {
   readonly execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }>;
 }
 
+export declare const runnableNodeInputType: unique symbol;
+export declare const runnableNodeOutputType: unique symbol;
+export declare const triggerNodeOutputType: unique symbol;
+
+export interface RunnableNodeConfig<TInputJson = unknown, TOutputJson = unknown> extends NodeConfigBase {
+  readonly kind: "node";
+  readonly [runnableNodeInputType]?: TInputJson;
+  readonly [runnableNodeOutputType]?: TOutputJson;
+}
+
+export interface TriggerNodeConfig<TOutputJson = unknown> extends NodeConfigBase {
+  readonly kind: "trigger";
+  readonly [triggerNodeOutputType]?: TOutputJson;
+}
+
+export type RunnableNodeInputJson<TConfig extends RunnableNodeConfig<any, any>> =
+  TConfig extends RunnableNodeConfig<infer TInputJson, any> ? TInputJson : never;
+
+export type RunnableNodeOutputJson<TConfig extends RunnableNodeConfig<any, any>> =
+  TConfig extends RunnableNodeConfig<any, infer TOutputJson> ? TOutputJson : never;
+
+export type TriggerNodeOutputJson<TConfig extends TriggerNodeConfig<any>> =
+  TConfig extends TriggerNodeConfig<infer TOutputJson> ? TOutputJson : never;
+
 export interface NodeDefinition {
   id: NodeId;
   kind: NodeKind;
