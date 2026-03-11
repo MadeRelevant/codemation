@@ -6,12 +6,12 @@ import { createServerFn } from "@tanstack/react-start";
 const loadWorkflowSummaries = createServerFn({ method: "GET" }).handler(async () => {
   const [{ WorkflowLoader }, { codemationHost }] = await Promise.all([
     import("@codemation/frontend/server"),
-    import("../../codemation.config"),
+    import("../../../codemation.config"),
   ]);
   return await WorkflowLoader.loadSummaries(codemationHost);
 });
 
-export const Route = createFileRoute("/workflows/")({
+export const Route = createFileRoute("/(codemation)/workflows/")({
   loader: async () => await loadWorkflowSummaries(),
   component: WorkflowsIndexRouteComponent,
 });

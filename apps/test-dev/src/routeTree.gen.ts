@@ -9,64 +9,66 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WorkflowsRouteImport } from './routes/workflows'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as WorkflowsIndexRouteImport } from './routes/workflows.index'
-import { Route as WorkflowsWorkflowIdRouteImport } from './routes/workflows.$workflowId'
-import { Route as ApiSplatRouteImport } from './routes/api.$'
+import { Route as codemationIndexRouteImport } from './routes/(codemation)/index'
+import { Route as codemationWorkflowsRouteImport } from './routes/(codemation)/workflows'
+import { Route as codemationWorkflowsIndexRouteImport } from './routes/(codemation)/workflows.index'
+import { Route as codemationWorkflowsWorkflowIdRouteImport } from './routes/(codemation)/workflows.$workflowId'
+import { Route as codemationApiSplatRouteImport } from './routes/(codemation)/api.$'
 
-const WorkflowsRoute = WorkflowsRouteImport.update({
-  id: '/workflows',
+const codemationIndexRoute = codemationIndexRouteImport.update({
+  id: '/(codemation)/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const codemationWorkflowsRoute = codemationWorkflowsRouteImport.update({
+  id: '/(codemation)/workflows',
   path: '/workflows',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const WorkflowsIndexRoute = WorkflowsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => WorkflowsRoute,
-} as any)
-const WorkflowsWorkflowIdRoute = WorkflowsWorkflowIdRouteImport.update({
-  id: '/$workflowId',
-  path: '/$workflowId',
-  getParentRoute: () => WorkflowsRoute,
-} as any)
-const ApiSplatRoute = ApiSplatRouteImport.update({
-  id: '/api/$',
+const codemationWorkflowsIndexRoute =
+  codemationWorkflowsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => codemationWorkflowsRoute,
+  } as any)
+const codemationWorkflowsWorkflowIdRoute =
+  codemationWorkflowsWorkflowIdRouteImport.update({
+    id: '/$workflowId',
+    path: '/$workflowId',
+    getParentRoute: () => codemationWorkflowsRoute,
+  } as any)
+const codemationApiSplatRoute = codemationApiSplatRouteImport.update({
+  id: '/(codemation)/api/$',
   path: '/api/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/workflows': typeof WorkflowsRouteWithChildren
-  '/api/$': typeof ApiSplatRoute
-  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRoute
-  '/workflows/': typeof WorkflowsIndexRoute
+  '/workflows': typeof codemationWorkflowsRouteWithChildren
+  '/': typeof codemationIndexRoute
+  '/api/$': typeof codemationApiSplatRoute
+  '/workflows/$workflowId': typeof codemationWorkflowsWorkflowIdRoute
+  '/workflows/': typeof codemationWorkflowsIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/api/$': typeof ApiSplatRoute
-  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRoute
-  '/workflows': typeof WorkflowsIndexRoute
+  '/': typeof codemationIndexRoute
+  '/api/$': typeof codemationApiSplatRoute
+  '/workflows/$workflowId': typeof codemationWorkflowsWorkflowIdRoute
+  '/workflows': typeof codemationWorkflowsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/workflows': typeof WorkflowsRouteWithChildren
-  '/api/$': typeof ApiSplatRoute
-  '/workflows/$workflowId': typeof WorkflowsWorkflowIdRoute
-  '/workflows/': typeof WorkflowsIndexRoute
+  '/(codemation)/workflows': typeof codemationWorkflowsRouteWithChildren
+  '/(codemation)/': typeof codemationIndexRoute
+  '/(codemation)/api/$': typeof codemationApiSplatRoute
+  '/(codemation)/workflows/$workflowId': typeof codemationWorkflowsWorkflowIdRoute
+  '/(codemation)/workflows/': typeof codemationWorkflowsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | '/workflows'
+    | '/'
     | '/api/$'
     | '/workflows/$workflowId'
     | '/workflows/'
@@ -74,77 +76,76 @@ export interface FileRouteTypes {
   to: '/' | '/api/$' | '/workflows/$workflowId' | '/workflows'
   id:
     | '__root__'
-    | '/'
-    | '/workflows'
-    | '/api/$'
-    | '/workflows/$workflowId'
-    | '/workflows/'
+    | '/(codemation)/workflows'
+    | '/(codemation)/'
+    | '/(codemation)/api/$'
+    | '/(codemation)/workflows/$workflowId'
+    | '/(codemation)/workflows/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  WorkflowsRoute: typeof WorkflowsRouteWithChildren
-  ApiSplatRoute: typeof ApiSplatRoute
+  codemationWorkflowsRoute: typeof codemationWorkflowsRouteWithChildren
+  codemationIndexRoute: typeof codemationIndexRoute
+  codemationApiSplatRoute: typeof codemationApiSplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/workflows': {
-      id: '/workflows'
-      path: '/workflows'
-      fullPath: '/workflows'
-      preLoaderRoute: typeof WorkflowsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/(codemation)/': {
+      id: '/(codemation)/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof codemationIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/workflows/': {
-      id: '/workflows/'
+    '/(codemation)/workflows': {
+      id: '/(codemation)/workflows'
+      path: '/workflows'
+      fullPath: '/workflows'
+      preLoaderRoute: typeof codemationWorkflowsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(codemation)/workflows/': {
+      id: '/(codemation)/workflows/'
       path: '/'
       fullPath: '/workflows/'
-      preLoaderRoute: typeof WorkflowsIndexRouteImport
-      parentRoute: typeof WorkflowsRoute
+      preLoaderRoute: typeof codemationWorkflowsIndexRouteImport
+      parentRoute: typeof codemationWorkflowsRoute
     }
-    '/workflows/$workflowId': {
-      id: '/workflows/$workflowId'
+    '/(codemation)/workflows/$workflowId': {
+      id: '/(codemation)/workflows/$workflowId'
       path: '/$workflowId'
       fullPath: '/workflows/$workflowId'
-      preLoaderRoute: typeof WorkflowsWorkflowIdRouteImport
-      parentRoute: typeof WorkflowsRoute
+      preLoaderRoute: typeof codemationWorkflowsWorkflowIdRouteImport
+      parentRoute: typeof codemationWorkflowsRoute
     }
-    '/api/$': {
-      id: '/api/$'
+    '/(codemation)/api/$': {
+      id: '/(codemation)/api/$'
       path: '/api/$'
       fullPath: '/api/$'
-      preLoaderRoute: typeof ApiSplatRouteImport
+      preLoaderRoute: typeof codemationApiSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface WorkflowsRouteChildren {
-  WorkflowsWorkflowIdRoute: typeof WorkflowsWorkflowIdRoute
-  WorkflowsIndexRoute: typeof WorkflowsIndexRoute
+interface codemationWorkflowsRouteChildren {
+  codemationWorkflowsWorkflowIdRoute: typeof codemationWorkflowsWorkflowIdRoute
+  codemationWorkflowsIndexRoute: typeof codemationWorkflowsIndexRoute
 }
 
-const WorkflowsRouteChildren: WorkflowsRouteChildren = {
-  WorkflowsWorkflowIdRoute: WorkflowsWorkflowIdRoute,
-  WorkflowsIndexRoute: WorkflowsIndexRoute,
+const codemationWorkflowsRouteChildren: codemationWorkflowsRouteChildren = {
+  codemationWorkflowsWorkflowIdRoute: codemationWorkflowsWorkflowIdRoute,
+  codemationWorkflowsIndexRoute: codemationWorkflowsIndexRoute,
 }
 
-const WorkflowsRouteWithChildren = WorkflowsRoute._addFileChildren(
-  WorkflowsRouteChildren,
-)
+const codemationWorkflowsRouteWithChildren =
+  codemationWorkflowsRoute._addFileChildren(codemationWorkflowsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  WorkflowsRoute: WorkflowsRouteWithChildren,
-  ApiSplatRoute: ApiSplatRoute,
+  codemationWorkflowsRoute: codemationWorkflowsRouteWithChildren,
+  codemationIndexRoute: codemationIndexRoute,
+  codemationApiSplatRoute: codemationApiSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
