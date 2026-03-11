@@ -325,7 +325,7 @@ export class CodemationApplication {
         );
       }),
     });
-    this.container.register(RealtimeRouteHandler, {
+    this.container.register(FrontendRouteTokens.RealtimeRouteHandler, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         return new RealtimeRouteHandler(dependencyContainer.resolve(FrontendRouteTokens.FrontendRuntimeProvider));
       }),

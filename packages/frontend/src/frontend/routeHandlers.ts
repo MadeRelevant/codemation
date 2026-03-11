@@ -1,5 +1,6 @@
 import { CodemationApp } from "../CodemationApp";
 import type { CodemationBootstrapResult } from "../bootstrapDiscovery";
+import { FrontendRouteTokens } from "./frontendRouteTokens";
 import { RealtimeRouteHandler } from "./RealtimeRouteHandler";
 import { RunRouteHandler } from "./RunRouteHandler";
 import { WebhookRouteHandler } from "./WebhookRouteHandler";
@@ -54,6 +55,6 @@ export async function postWebhookRoute(
 
 export const CodemationRealtimeRouteHandlers = {
   async postReady(args?: RouteConfigOverride): Promise<Response> {
-    return await (await CodemationApp.resolve(RealtimeRouteHandler, args)).postReady(args);
+    return await (await CodemationApp.resolve<RealtimeRouteHandler>(FrontendRouteTokens.RealtimeRouteHandler, args)).postReady(args);
   },
 } as const;

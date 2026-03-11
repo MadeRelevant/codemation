@@ -17,4 +17,5 @@ export interface FrontendRuntimeProvider {
 export const FrontendRouteTokens = {
   PreparedExecutionRuntimeProvider: Symbol("PreparedExecutionRuntimeProvider"),
   FrontendRuntimeProvider: Symbol("FrontendRuntimeProvider"),
+  RealtimeRouteHandler: Symbol("RealtimeRouteHandler"),
 } as const;

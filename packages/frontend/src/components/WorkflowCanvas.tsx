@@ -45,6 +45,7 @@ type NodeData = Readonly<{
 
 const workflowCanvasNodeTypes = { codemation: CodemationNode };
 const workflowCanvasEdgeTypes = { straightCount: StraightCountEdge };
+/** Minimum time (ms) to show running/queued before showing completed. Ensures fast nodes stay visibly "active" before terminal state. */
 const minimumActiveStatusVisibilityMs = 300;
 
 function StraightCountEdge(props: ReactFlowEdgeProps<ReactFlowEdge>) {
@@ -112,14 +113,42 @@ function useVisibleNodeStatuses(
           continue;
         }
 
-        if (!isCurrentVisibleStatusActive || rawStatus === undefined) {
+        if (rawStatus === undefined) {
           if (pendingTimeoutId) {
             clearTimeout(pendingTimeoutId);
             timeoutIdByNodeIdRef.current.delete(nodeId);
           }
-
           activeStartedAtByNodeIdRef.current.delete(nodeId);
           nextStatusesByNodeId[nodeId] = rawStatus;
+          continue;
+        }
+
+        if (!isCurrentVisibleStatusActive) {
+          const isRawStatusTerminal = rawStatus === "completed" || rawStatus === "failed";
+          const hasAlreadyShownTerminalStatus =
+            currentVisibleStatus === rawStatus || currentVisibleStatus === "completed" || currentVisibleStatus === "failed";
+          if (isRawStatusTerminal && !hasAlreadyShownTerminalStatus) {
+            activeStartedAtByNodeIdRef.current.set(nodeId, now);
+            if (!pendingTimeoutId) {
+              const timeoutId = setTimeout(() => {
+                activeStartedAtByNodeIdRef.current.delete(nodeId);
+                timeoutIdByNodeIdRef.current.delete(nodeId);
+                setVisibleStatusesByNodeId((latestStatusesByNodeId) => ({
+                  ...latestStatusesByNodeId,
+                  [nodeId]: latestRawStatusesByNodeIdRef.current[nodeId],
+                }));
+              }, minimumActiveStatusVisibilityMs);
+              timeoutIdByNodeIdRef.current.set(nodeId, timeoutId);
+            }
+            nextStatusesByNodeId[nodeId] = "running";
+          } else {
+            if (pendingTimeoutId) {
+              clearTimeout(pendingTimeoutId);
+              timeoutIdByNodeIdRef.current.delete(nodeId);
+            }
+            activeStartedAtByNodeIdRef.current.delete(nodeId);
+            nextStatusesByNodeId[nodeId] = rawStatus;
+          }
           continue;
         }
 
@@ -792,7 +821,7 @@ export function WorkflowCanvas(args: {
               Workflow diagram
             </div>
           </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Centering nodes...</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Loading...</div>
           <div style={{ display: "grid", gap: 6 }}>
             <div style={{ height: 8, width: 176, background: "linear-gradient(90deg, #e5e7eb, #f8fafc, #e5e7eb)", backgroundSize: "200% 100%", animation: "codemationCanvasLoaderShimmer 1.4s linear infinite" }} />
             <div style={{ height: 8, width: 132, background: "linear-gradient(90deg, #e5e7eb, #f8fafc, #e5e7eb)", backgroundSize: "200% 100%", animation: "codemationCanvasLoaderShimmer 1.4s linear infinite" }} />
