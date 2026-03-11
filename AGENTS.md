@@ -10,17 +10,17 @@ This document sets the “golden standard” for how we build and review changes
 ### Apps
 
 - `apps/test-dev/`
-  - Engine host used for local development and smoke testing.
-  - Loads workflows (consumer-style), registers node packages, starts the engine host API.
-- `apps/frontend/`
-  - Next.js (Turbopack) UI that talks to the engine host API.
-  - Read-only UX by default (actions like manual run/retry are explicit API calls).
+  - Consumer-style example app used for local development and smoke testing.
+  - Provides a discovered `codemation.config.ts` plus convention-based `src/workflows` definitions, then starts Codemation with minimal manual wiring.
 
 ### Packages
 
 - `packages/core/`
   - Engine runtime, execution model, workflow builder DSL, and shared types.
   - **Must not** depend on any concrete node implementations.
+- `packages/application/`
+  - Framework-owned application layer that is the Next-based Codemation app plus the owning runtime host.
+  - Consumers configure this package; they do not own the UI shell or framework API routes.
 - `packages/core-nodes/`
   - Built-in node configs and implementations.
   - Depends on `@codemation/core`.
@@ -44,8 +44,8 @@ This document sets the “golden standard” for how we build and review changes
   - A node package exports config classes + node implementations.
   - Adding a node package should not require editing core code.
 - **Apps compose packages**:
-  - `apps/test-dev` wires everything together (DI container, node packages, workflows, host API).
-  - `apps/frontend` only consumes the host API (never imports engine internals).
+  - `apps/test-dev` configures Codemation through discovered bootstrap/workflow conventions and stays thin.
+  - Framework-owned UI and host infrastructure live in packages, not consumer apps.
 
 ### Public API discipline
 

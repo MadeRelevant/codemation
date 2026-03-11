@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "typescript-unit-testing": {
+      "source": "bmad-labs/skills",
+      "sourceType": "github",
+      "computedHash": "eb04d32803de05e351393ffe97bd655c154c310f16bb275203a80dee2b8ae83e"
+    }
+  }
+}
