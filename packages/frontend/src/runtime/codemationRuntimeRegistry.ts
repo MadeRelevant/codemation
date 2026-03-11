@@ -3,16 +3,17 @@ import path from "node:path";
 import { CoreTokens, Engine, instanceCachingFactory, type RunStateStore, type WorkflowRegistry, type WorkflowRunnerService } from "@codemation/core";
 import type { CodemationBootstrapResult, CodemationDiscoveredApplicationSetup } from "../bootstrapDiscovery";
 import { CodemationApplication } from "../codemationApplication";
+import type { CodemationPreparedExecutionRuntime } from "../codemationRuntimeContracts";
 import { CodemationServerEngineHost } from "../host/codemationServerEngineHost";
 import { CodemationWebhookRegistry } from "../host/codemationWebhookRegistry";
 import { CodemationFrontendRuntimeRoot } from "./codemationFrontendRuntimeRoot";
 import { CodemationRuntimeTrackedPaths } from "./codemationRuntimeTrackedPaths";
 
 type CodemationGlobalState = typeof globalThis & {
-  __codemationNextRuntimeCache__?: CodemationNextRuntimeCache;
+  __codemationRuntimeCache__?: CodemationRuntimeCache;
 };
 
-type CodemationNextRuntimeCache = {
+type CodemationRuntimeCache = {
   cacheKey: string;
   fingerprint: string;
   setupPromise: Promise<CodemationDiscoveredApplicationSetup>;
@@ -20,15 +21,7 @@ type CodemationNextRuntimeCache = {
   executionRuntimePromise?: Promise<CodemationPreparedExecutionRuntime>;
 };
 
-export type CodemationPreparedExecutionRuntime = Readonly<{
-  setup: CodemationDiscoveredApplicationSetup;
-  engine: Engine;
-  workflowRegistry: WorkflowRegistry;
-  workflowRunner: WorkflowRunnerService;
-  webhookRegistry: CodemationWebhookRegistry;
-}>;
-
-export class CodemationNextRuntimeRegistry {
+export class CodemationRuntimeRegistry {
   async getSetup(args?: Readonly<{ configOverride?: CodemationBootstrapResult }>): Promise<CodemationDiscoveredApplicationSetup> {
     return await (await this.ensureCache(args)).setupPromise;
   }
@@ -69,14 +62,14 @@ export class CodemationNextRuntimeRegistry {
     return await cache.executionRuntimePromise;
   }
 
-  private async ensureCache(args?: Readonly<{ configOverride?: CodemationBootstrapResult }>): Promise<CodemationNextRuntimeCache> {
+  private async ensureCache(args?: Readonly<{ configOverride?: CodemationBootstrapResult }>): Promise<CodemationRuntimeCache> {
     const env = this.createStringEnvironment();
     const consumerRoot = this.resolveConsumerRoot(env);
     const repoRoot = await this.resolveRepoRoot(consumerRoot, env);
     const cacheKey = this.createCacheKey(repoRoot, consumerRoot, env);
     const fingerprint = await this.createConsumerFingerprint(consumerRoot, repoRoot);
     const globalState = globalThis as CodemationGlobalState;
-    const existingCache = globalState.__codemationNextRuntimeCache__;
+    const existingCache = globalState.__codemationRuntimeCache__;
     if (existingCache && existingCache.cacheKey === cacheKey && existingCache.fingerprint === fingerprint) {
       return existingCache;
     }
@@ -84,13 +77,13 @@ export class CodemationNextRuntimeRegistry {
       await this.stopRuntime(existingCache.runtimePromise);
     }
     const setupPromise = this.loadSetup(repoRoot, consumerRoot, env, args?.configOverride);
-    const nextCache: CodemationNextRuntimeCache = {
+    const runtimeCache: CodemationRuntimeCache = {
       cacheKey,
       fingerprint,
       setupPromise,
     };
-    globalState.__codemationNextRuntimeCache__ = nextCache;
-    return nextCache;
+    globalState.__codemationRuntimeCache__ = runtimeCache;
+    return runtimeCache;
   }
 
   private async loadSetup(
@@ -154,6 +147,7 @@ export class CodemationNextRuntimeRegistry {
     const container = setup.application.getContainer();
     const workflowRegistry = container.resolve<WorkflowRegistry>(CoreTokens.WorkflowRegistry);
     const engine = container.resolve(Engine);
+    const runStore = container.resolve<RunStateStore>(CoreTokens.RunStateStore);
     await engine.start([...workflowRegistry.list()]);
     return {
       setup,
@@ -161,6 +155,7 @@ export class CodemationNextRuntimeRegistry {
       workflowRegistry,
       workflowRunner: container.resolve<WorkflowRunnerService>(CoreTokens.WorkflowRunnerService),
       webhookRegistry: container.resolve(CodemationWebhookRegistry),
+      runStore,
     };
   }
 
@@ -175,6 +170,7 @@ export class CodemationNextRuntimeRegistry {
       workflowRegistry: runtime.getWorkflowRegistry(),
       workflowRunner: runtime.getWorkflowRunner(),
       webhookRegistry: runtime.getWebhookRegistry(),
+      runStore: runtime.getRunStore(),
     };
   }
 
@@ -268,10 +264,7 @@ export class CodemationNextRuntimeRegistry {
       const runtime = await runtimePromise;
       await runtime.stop();
     } catch {
-      // Ignore teardown failures so the next runtime can still boot.
+      // Ignore teardown failures so the replacement runtime can still boot.
     }
   }
-
 }
-
-export const codemationNextRuntimeRegistry = new CodemationNextRuntimeRegistry();

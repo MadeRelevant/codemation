@@ -27,8 +27,8 @@ export class CodemationDevSupervisor {
     const env = this.environmentFactory.create(paths, ports, runtime);
     const watchPaths = await this.watchPathPlanner.plan(paths);
 
-    const nextProcess = await this.childProcessFactory.createHostProcess(paths, ports, env);
-    this.processes.push(nextProcess);
+    const hostProcess = await this.childProcessFactory.createHostProcess(paths, ports, env);
+    this.processes.push(hostProcess);
 
     if (runtime.shouldStartWorker) {
       const workerProcess = await this.childProcessFactory.createWatchedWorkerProcess(paths, env, watchPaths);
@@ -38,7 +38,7 @@ export class CodemationDevSupervisor {
       });
     }
 
-    nextProcess.onExit(async (exitCode) => {
+    hostProcess.onExit(async (exitCode) => {
       await this.stop(exitCode);
     });
 

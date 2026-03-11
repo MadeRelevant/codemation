@@ -1,0 +1,11 @@
+id: no-placeholder-throw
+message: Do not commit placeholder error messages. Replace with a descriptive message or proper implementation.
+severity: error
+language: TypeScript
+rule:
+  any:
+    - pattern: throw new Error("TODO")
+    - pattern: throw new Error("FIXME")
+    - pattern: throw new Error("not implemented")
+    - pattern: throw new Error("TBD")
+note: Placeholder throws are a common agentic antipattern. Use descriptive error messages or complete the implementation.

@@ -21,21 +21,21 @@ export const Route = createFileRoute("/(codemation)/api/$")({
       PUT: async ({ params, request }) => {
         const [{ ApiDispatcher }, { codemationHost }] = await Promise.all([
           import("@codemation/frontend/server"),
-          import("../../codemation.config"),
+          import("../../../codemation.config"),
         ]);
         return await new ApiDispatcher(codemationHost).dispatch(request, params._splat);
       },
       PATCH: async ({ params, request }) => {
         const [{ ApiDispatcher }, { codemationHost }] = await Promise.all([
           import("@codemation/frontend/server"),
-          import("../../codemation.config"),
+          import("../../../codemation.config"),
         ]);
         return await new ApiDispatcher(codemationHost).dispatch(request, params._splat);
       },
       DELETE: async ({ params, request }) => {
         const [{ ApiDispatcher }, { codemationHost }] = await Promise.all([
           import("@codemation/frontend/server"),
-          import("../../codemation.config"),
+          import("../../../codemation.config"),
         ]);
         return await new ApiDispatcher(codemationHost).dispatch(request, params._splat);
       },

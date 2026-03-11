@@ -6,11 +6,15 @@
     "dev": "pnpm -C apps/test-dev dev",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint",
+    "lint": "turbo run lint && pnpm run dupcheck && pnpm run antipatterns",
+    "dupcheck": "jscpd packages apps/test-dev",
+    "antipatterns": "ast-grep scan",
     "test": "turbo run test"
   },
   "devDependencies": {
+    "@ast-grep/cli": "^0.41.1",
     "@types/node": "^25.3.5",
+    "jscpd": "^4.0.8",
     "tsx": "^4.21.0",
     "turbo": "^2.8.14",
     "typescript": "^5.9.3"

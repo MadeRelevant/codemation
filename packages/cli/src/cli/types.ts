@@ -27,6 +27,6 @@ export type CodemationPlannedRuntime = Readonly<{
 
 export type CodemationSharedEnvironment = Readonly<{
   baseEnv: NodeJS.ProcessEnv;
-  nextEnv: NodeJS.ProcessEnv;
+  hostEnv: NodeJS.ProcessEnv;
   workerEnv: NodeJS.ProcessEnv;
 }>;

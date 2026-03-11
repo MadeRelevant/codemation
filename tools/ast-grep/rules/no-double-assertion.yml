@@ -1,0 +1,7 @@
+id: no-double-assertion
+message: Avoid double type assertions (as unknown as). Prefer proper typing or type guards.
+severity: warning
+language: TypeScript
+rule:
+  pattern: $EXPR as unknown as $TYPE
+note: Double assertions bypass type safety and are a common agentic antipattern. Use type guards or fix the type definitions instead.

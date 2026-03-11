@@ -1,6 +1,6 @@
 import { credentialId, credentialRef } from "@codemation/core";
 import { ClassifyMailToolConfig } from "../tools/classifyMailTool";
-import { AIAgent, Callback, createWorkflowBuilder, If, ManualTrigger, MapData, OpenAIChatModelConfig, Wait } from "@codemation/core-nodes";
+import { AIAgent, Callback, createWorkflowBuilder, If, ManualTrigger, MapData, OpenAIChatModelConfig } from "@codemation/core-nodes";
 import { ExampleUppercase } from "@codemation/node-example";
 
 export const ORDERS_CREATE_START = "orders.create.start";

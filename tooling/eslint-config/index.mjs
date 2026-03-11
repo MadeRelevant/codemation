@@ -7,7 +7,58 @@ import noOnlyTests from "eslint-plugin-no-only-tests";
 const allowedConstructorNames = new Set(["Date", "Error", "Map", "Promise", "RegExp", "Set", "URL", "WeakMap", "WeakSet", "WebSocketServer"]);
 const compositionRootFilePattern =
   /(?:Factory|Builder|Bootstrap|Discovery|Runner|Server|Mapper|Reader|Writer|Finder|Registry|Host|Protocol|Session|Program|Supervisor|Planner|Resolver|Environment|Worker|Scheduler|Connection|Application|Hub|Reporter|Loader|Validator)\.tsx?$/;
+const normalizedFilePath = (filename) => filename.replace(/\\/g, "/");
+const hasAllowedSuffix = (filename, suffixes) => suffixes.some((suffix) => filename.endsWith(suffix));
+const staticMethodAllowedFileSuffixes = [
+  "/packages/frontend/src/CodemationApp.ts",
+  "/packages/frontend/src/api/ApiPaths.ts",
+  "/packages/frontend/src/server/WorkflowLoader.ts",
+  "/packages/frontend/src/templates/StartRouteTemplateCatalog.ts",
+];
+const runtimeRegistryAllowedFileSuffixes = [
+  "/packages/frontend/src/CodemationApp.ts",
+  "/packages/frontend/src/runtime/codemationRuntimeRegistry.ts",
+];
+const codemationAppStaticBoundaryFileSuffix = "/packages/frontend/src/CodemationApp.ts";
 const isCompositionRootFile = (filename) => compositionRootFilePattern.test(filename) || /\/src\/bin\/[^/]+\.tsx?$/.test(filename);
+const allowsStaticMethods = (filename) => isCompositionRootFile(filename) || hasAllowedSuffix(filename, staticMethodAllowedFileSuffixes);
+const allowsManualConstruction = (filename) => isCompositionRootFile(filename) || filename.endsWith(codemationAppStaticBoundaryFileSuffix);
+const allowsRuntimeRegistryImport = (filename) => hasAllowedSuffix(filename, runtimeRegistryAllowedFileSuffixes);
+const isRuntimeRegistryImport = (source) =>
+  typeof source === "string" &&
+  (source === "./runtime/codemationRuntimeRegistry" ||
+    source === "../runtime/codemationRuntimeRegistry" ||
+    source.endsWith("/runtime/codemationRuntimeRegistry"));
+const isModuleScopeVariableDeclarator = (node) => {
+  const declaration = node.parent;
+  const container = declaration?.parent;
+  return declaration?.type === "VariableDeclaration" && (container?.type === "Program" || container?.type === "ExportNamedDeclaration");
+};
+const containsCodemationAppAccess = (node) => {
+  if (!node || typeof node !== "object") return false;
+  if (
+    node.type === "CallExpression" &&
+    node.callee?.type === "MemberExpression" &&
+    !node.callee.computed &&
+    node.callee.object?.type === "Identifier" &&
+    node.callee.object.name === "CodemationApp"
+  ) {
+    return true;
+  }
+  for (const [key, value] of Object.entries(node)) {
+    if (key === "parent") continue;
+    if (Array.isArray(value)) {
+      if (value.some((entry) => containsCodemationAppAccess(entry))) {
+        return true;
+      }
+      continue;
+    }
+    if (value && typeof value === "object" && containsCodemationAppAccess(value)) {
+      return true;
+    }
+  }
+  return false;
+};
 
 const architecturePlugin = {
   rules: {
@@ -46,8 +97,8 @@ const architecturePlugin = {
         schema: [],
       },
       create(context) {
-        const filename = context.filename ?? context.getFilename();
-        if (isCompositionRootFile(filename)) return {};
+        const filename = normalizedFilePath(context.filename ?? context.getFilename());
+        if (allowsManualConstruction(filename)) return {};
         return {
           NewExpression(node) {
             if (node.callee.type !== "Identifier") return;
@@ -70,13 +121,80 @@ const architecturePlugin = {
         schema: [],
       },
       create(context) {
-        const filename = context.filename ?? context.getFilename();
-        if (isCompositionRootFile(filename)) return {};
+        const filename = normalizedFilePath(context.filename ?? context.getFilename());
+        if (allowsStaticMethods(filename)) return {};
         return {
           "MethodDefinition[static=true]"(node) {
             context.report({
               node,
               message: "Avoid static methods here. Move the behavior behind an injected class or a composition-root-specific factory.",
+            });
+          },
+        };
+      },
+    },
+    "no-runtime-registry-imports": {
+      meta: {
+        type: "problem",
+        docs: {
+          description: "disallow direct runtime registry imports outside the sanctioned facade",
+        },
+        schema: [],
+      },
+      create(context) {
+        const filename = normalizedFilePath(context.filename ?? context.getFilename());
+        if (allowsRuntimeRegistryImport(filename)) return {};
+        return {
+          ImportDeclaration(node) {
+            if (!isRuntimeRegistryImport(node.source.value)) return;
+            context.report({
+              node,
+              message: "Import the static runtime boundary from CodemationApp instead of reaching into CodemationRuntimeRegistry directly.",
+            });
+          },
+        };
+      },
+    },
+    "no-exported-singletons": {
+      meta: {
+        type: "problem",
+        docs: {
+          description: "disallow exported singleton instances outside composition roots",
+        },
+        schema: [],
+      },
+      create(context) {
+        const filename = normalizedFilePath(context.filename ?? context.getFilename());
+        if (isCompositionRootFile(filename)) return {};
+        return {
+          "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator"(node) {
+            if (node.init?.type !== "NewExpression") return;
+            context.report({
+              node,
+              message: "Do not export singleton instances here. Keep singleton wiring inside the composition root or the sanctioned static boundary.",
+            });
+          },
+        };
+      },
+    },
+    "no-static-app-capture": {
+      meta: {
+        type: "problem",
+        docs: {
+          description: "disallow module-scope capture from the static app boundary",
+        },
+        schema: [],
+      },
+      create(context) {
+        const filename = normalizedFilePath(context.filename ?? context.getFilename());
+        if (filename.endsWith(codemationAppStaticBoundaryFileSuffix)) return {};
+        return {
+          VariableDeclarator(node) {
+            if (!isModuleScopeVariableDeclarator(node)) return;
+            if (!containsCodemationAppAccess(node.init)) return;
+            context.report({
+              node,
+              message: "Do not capture CodemationApp values at module scope. Resolve them inside request-time handlers so HMR always sees the latest runtime.",
             });
           },
         };
@@ -96,7 +214,7 @@ const baseLanguageOptions = {
 /** @type {import("eslint").Linter.FlatConfig[]} */
 export default [
   {
-    ignores: ["**/dist/**", "**/.next/**", "**/node_modules/**"],
+    ignores: ["**/dist/**", "**/node_modules/**"],
   },
 
   js.configs.recommended,
@@ -178,6 +296,9 @@ export default [
       "codemation/single-class-per-file": "error",
       "codemation/no-manual-di-new": "error",
       "codemation/no-static-methods": "error",
+      "codemation/no-runtime-registry-imports": "error",
+      "codemation/no-exported-singletons": "error",
+      "codemation/no-static-app-capture": "error",
       "no-restricted-syntax": [
         "error",
         {

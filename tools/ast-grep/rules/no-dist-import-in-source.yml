@@ -1,0 +1,16 @@
+id: no-dist-import-in-source
+message: Do not import from built dist/ artifacts in source files. Import from package entry points or source.
+severity: error
+language: TypeScript
+rule:
+  kind: string_fragment
+  regex: "^\\.\\.?/.*dist"
+  inside:
+    kind: import_statement
+    stopBy: end
+ignores:
+  - "**/test/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/harness/**"
+note: Importing from dist/ couples source to build output and is fragile. Tests may import from dist to verify built bundles.

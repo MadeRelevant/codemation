@@ -8,7 +8,6 @@ import type {
   NodeExecutionContext,
   NodeOutputs,
   RunnableNodeConfig,
-  TriggerNodeConfig,
   TypeToken,
   WorkflowId,
   NodeId,

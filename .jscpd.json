@@ -1,0 +1,18 @@
+{
+  "threshold": 2,
+  "reporters": ["console"],
+  "ignore": [
+    "**/dist/**",
+    "**/.next/**",
+    "**/node_modules/**",
+    "**/*.d.ts",
+    "**/routeTree.gen.ts",
+    "**/test/**",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ],
+  "absolute": true,
+  "minLines": 5,
+  "minTokens": 50,
+  "format": ["typescript", "tsx"]
+}

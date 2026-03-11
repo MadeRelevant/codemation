@@ -18,14 +18,18 @@ import path from "node:path";
 import { ApplicationTokens } from "./applicationTokens";
 import { CodemationBootstrapDiscovery } from "./bootstrapDiscovery";
 import type { CodemationBootstrapResult, CodemationDiscoveredApplicationSetup, CodemationGeneratedConsumerModule } from "./bootstrapDiscovery";
+import { CodemationFrontendRuntimeProvider } from "./frontend/CodemationFrontendRuntimeProvider";
 import { CodemationServerEngineHost } from "./host/codemationServerEngineHost";
 import { CodemationWebhookRegistry } from "./host/codemationWebhookRegistry";
 import { CodemationWorkflowDtoMapper } from "./host/codemationWorkflowDtoMapper";
 import { RealtimeRuntimeFactory } from "./realtimeRuntimeFactory";
 import { CodemationPreparedExecutionRuntimeProvider } from "./frontend/CodemationPreparedExecutionRuntimeProvider";
+import { RealtimeRouteHandler } from "./frontend/RealtimeRouteHandler";
 import { FrontendRouteTokens } from "./frontend/frontendRouteTokens";
 import { RequestToWebhookItemMapper } from "./frontend/RequestToWebhookItemMapper";
+import { RunRouteHandler } from "./frontend/RunRouteHandler";
 import { WebhookRouteHandler } from "./frontend/WebhookRouteHandler";
+import { WorkflowRouteHandler } from "./frontend/WorkflowRouteHandler";
 import { CodemationFrontendRuntimeRoot } from "./runtime/codemationFrontendRuntimeRoot";
 import { CodemationRuntimeTrackedPaths } from "./runtime/codemationRuntimeTrackedPaths";
 import { CodemationRealtimeSocketServer } from "./runtime/codemationRealtimeSocketServer";
@@ -299,7 +303,33 @@ export class CodemationApplication {
     this.container.register(FrontendRouteTokens.PreparedExecutionRuntimeProvider, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationPreparedExecutionRuntimeProvider)),
     });
+    this.container.register(CodemationFrontendRuntimeProvider, { useClass: CodemationFrontendRuntimeProvider });
+    this.container.register(FrontendRouteTokens.FrontendRuntimeProvider, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationFrontendRuntimeProvider)),
+    });
     this.container.register(RequestToWebhookItemMapper, { useClass: RequestToWebhookItemMapper });
+    this.container.register(WorkflowRouteHandler, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return new WorkflowRouteHandler(
+          dependencyContainer.resolve(CodemationApplication),
+          dependencyContainer.resolve(CodemationWorkflowDtoMapper),
+          dependencyContainer.resolve(FrontendRouteTokens.PreparedExecutionRuntimeProvider),
+        );
+      }),
+    });
+    this.container.register(RunRouteHandler, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return new RunRouteHandler(
+          dependencyContainer.resolve(FrontendRouteTokens.FrontendRuntimeProvider),
+          dependencyContainer.resolve(FrontendRouteTokens.PreparedExecutionRuntimeProvider),
+        );
+      }),
+    });
+    this.container.register(RealtimeRouteHandler, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return new RealtimeRouteHandler(dependencyContainer.resolve(FrontendRouteTokens.FrontendRuntimeProvider));
+      }),
+    });
     this.container.register(WebhookRouteHandler, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         return new WebhookRouteHandler(
@@ -369,7 +399,7 @@ export class CodemationApplication {
   }
 
   private resolveWebSocketPort(env: Readonly<NodeJS.ProcessEnv>): number {
-    const rawPort = env.CODEMATION_WS_PORT ?? env.NEXT_PUBLIC_CODEMATION_WS_PORT;
+    const rawPort = env.CODEMATION_WS_PORT ?? env.VITE_CODEMATION_WS_PORT;
     const parsedPort = Number(rawPort);
     if (Number.isInteger(parsedPort) && parsedPort > 0) return parsedPort;
     return 3001;

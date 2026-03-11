@@ -11,7 +11,6 @@ export class CodemationEnvironmentFactory {
       ...process.env,
       CODEMATION_FRONTEND_PORT: String(ports.frontendPort),
       CODEMATION_WS_PORT: String(ports.websocketPort),
-      NEXT_PUBLIC_CODEMATION_WS_PORT: String(ports.websocketPort),
       VITE_CODEMATION_WS_PORT: String(ports.websocketPort),
       CODEMATION_REALTIME_MODE: runtime.mode,
       CODEMATION_CONSUMER_ROOT: paths.consumerRoot,
@@ -25,7 +24,7 @@ export class CodemationEnvironmentFactory {
     return {
       baseEnv,
       workerEnv: { ...baseEnv },
-      nextEnv: {
+      hostEnv: {
         ...baseEnv,
         PORT: String(ports.frontendPort),
       },

@@ -1,0 +1,15 @@
+id: no-infra-import-in-core
+message: packages/core must not import concrete infrastructure. Keep core pure; infrastructure lives in adapter packages.
+severity: error
+files:
+  - "packages/core/src/**/*.ts"
+language: TypeScript
+rule:
+  any:
+    - pattern: import $$$ from "better-sqlite3"
+    - pattern: import $$$ from "ioredis"
+    - pattern: import $$$ from "bullmq"
+    - pattern: import $$$ from "@codemation/run-store-sqlite"
+    - pattern: import $$$ from "@codemation/eventbus-redis"
+    - pattern: import $$$ from "@codemation/queue-bullmq"
+note: Core must stay pure per AGENTS.md. No HTTP server, no UI, no vendor SDKs. Infrastructure adapters live in packages like run-store-sqlite, eventbus-redis, queue-bullmq.
