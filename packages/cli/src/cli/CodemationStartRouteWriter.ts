@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { StartRouteTemplateCatalog } from "@codemation/frontend/templates";
 import type { CodemationResolvedPaths } from "./types";
@@ -10,17 +10,31 @@ export class CodemationStartRouteWriter {
     }
 
     const routesDirectory = path.resolve(paths.consumerRoot, "src", "routes");
-    await mkdir(routesDirectory, { recursive: true });
+    const generatedRoutesDirectory = path.resolve(
+      routesDirectory,
+      StartRouteTemplateCatalog.getGeneratedRoutesDirectoryName(),
+    );
+    await mkdir(generatedRoutesDirectory, { recursive: true });
+    await this.removeLegacyGeneratedRoutes(routesDirectory);
 
-    await this.writeIfChanged(path.resolve(routesDirectory, "index.tsx"), StartRouteTemplateCatalog.createIndexRoute());
-    await this.writeIfChanged(path.resolve(routesDirectory, "workflows.tsx"), StartRouteTemplateCatalog.createWorkflowsLayoutRoute());
-    await this.writeIfChanged(path.resolve(routesDirectory, "workflows.index.tsx"), StartRouteTemplateCatalog.createWorkflowsIndexRoute());
-    await this.writeIfChanged(path.resolve(routesDirectory, "workflows.$workflowId.tsx"), StartRouteTemplateCatalog.createWorkflowDetailRoute());
-    await this.writeIfChanged(path.resolve(routesDirectory, "api.$.ts"), StartRouteTemplateCatalog.createApiRoute());
+    for (const template of StartRouteTemplateCatalog.getTemplates()) {
+      await this.writeIfChanged(path.resolve(generatedRoutesDirectory, template.fileName), template.source);
+    }
   }
 
   private async shouldGenerate(consumerRoot: string): Promise<boolean> {
     return (await this.exists(path.resolve(consumerRoot, "vite.config.ts"))) || (await this.exists(path.resolve(consumerRoot, "vite.config.mts")));
+  }
+
+  private async removeLegacyGeneratedRoutes(routesDirectory: string): Promise<void> {
+    for (const fileName of StartRouteTemplateCatalog.getLegacyRootRouteFileNames()) {
+      const targetPath = path.resolve(routesDirectory, fileName);
+      const currentContent = await this.readExisting(targetPath);
+      if (currentContent === null || !StartRouteTemplateCatalog.isGeneratedRouteContent(currentContent)) {
+        continue;
+      }
+      await unlink(targetPath);
+    }
   }
 
   private async writeIfChanged(targetPath: string, nextContent: string): Promise<void> {
