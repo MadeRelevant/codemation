@@ -1,30 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { InMemoryWorkflowRegistry, PersistedWorkflowResolver, PersistedWorkflowSnapshotFactory } from "../dist/index.js";
+import { InMemoryWorkflowRegistry, PersistedWorkflowResolver, PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, node, tool } from "../dist/index.js";
 import type { Items, Node, NodeOutputs, RunnableNodeConfig, TypeToken } from "../dist/index.js";
 import { CallbackNodeConfig, CapturingScheduler, chain, createEngineTestKit, items } from "./harness/index.ts";
 
+@tool({ packageName: "@codemation/test" })
 class NestedTokenDependency {}
 
 class NestedToolConfig {
-  readonly token: TypeToken<unknown> = NestedTokenDependency;
-  readonly tokenId = "codemation.test.nested-tool";
+  readonly type: TypeToken<unknown> = NestedTokenDependency;
 
   constructor(public readonly name: string) {}
 }
 
 class NestedChatModelConfig {
-  readonly token: TypeToken<unknown> = NestedTokenDependency;
-  readonly tokenId = "codemation.test.nested-chat-model";
+  readonly type: TypeToken<unknown> = NestedTokenDependency;
 
   constructor(public readonly name: string) {}
 }
 
 class SnapshotTokenNodeConfig implements RunnableNodeConfig {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = SnapshotTokenNode;
-  readonly tokenId = "codemation.test.snapshot-token-node";
+  readonly type: TypeToken<unknown> = SnapshotTokenNode;
 
   constructor(
     public readonly name: string,
@@ -34,6 +32,7 @@ class SnapshotTokenNodeConfig implements RunnableNodeConfig {
   ) {}
 }
 
+@node({ packageName: "@codemation/test" })
 class SnapshotTokenNode implements Node<SnapshotTokenNodeConfig> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
@@ -188,21 +187,23 @@ test("persisted workflow resolver preserves nested dependency tokens from live c
   const workflow = chain({ id: "wf.snapshot.tokens", name: "Snapshot tokens" })
     .start(new SnapshotTokenNodeConfig("agent", new NestedChatModelConfig("chat"), [new NestedToolConfig("tool")], "agent"))
     .build();
-  const snapshot = new PersistedWorkflowSnapshotFactory().create(workflow);
+  const tokenRegistry = new PersistedWorkflowTokenRegistry();
+  tokenRegistry.registerFromWorkflows([workflow]);
+  const snapshot = new PersistedWorkflowSnapshotFactory(tokenRegistry).create(workflow);
   const registry = new InMemoryWorkflowRegistry();
   registry.setWorkflows([workflow]);
 
-  assert.equal((snapshot.nodes[0]?.config as { chatModel?: { token?: unknown } } | undefined)?.chatModel?.token, undefined);
-  assert.equal((snapshot.nodes[0]?.config as { tools?: ReadonlyArray<{ token?: unknown }> } | undefined)?.tools?.[0]?.token, undefined);
+  assert.equal((snapshot.nodes[0]?.config as { chatModel?: { type?: unknown } } | undefined)?.chatModel?.type, undefined);
+  assert.equal((snapshot.nodes[0]?.config as { tools?: ReadonlyArray<{ type?: unknown }> } | undefined)?.tools?.[0]?.type, undefined);
 
-  const resolved = new PersistedWorkflowResolver(registry).resolve({
+  const resolved = new PersistedWorkflowResolver(registry, tokenRegistry).resolve({
     workflowId: workflow.id,
     workflowSnapshot: snapshot,
   });
   const config = resolved?.nodes[0]?.config as SnapshotTokenNodeConfig | undefined;
 
   assert.ok(config);
-  assert.equal(config.chatModel.token, NestedTokenDependency);
-  assert.equal(config.tools[0]?.token, NestedTokenDependency);
+  assert.equal(config.chatModel.type, NestedTokenDependency);
+  assert.equal(config.tools[0]?.type, NestedTokenDependency);
 });
 

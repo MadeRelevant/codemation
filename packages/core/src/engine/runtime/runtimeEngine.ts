@@ -47,6 +47,7 @@ import {
   MissingRuntimeTriggerToken,
   PersistedWorkflowResolver,
   PersistedWorkflowSnapshotFactory,
+  PersistedWorkflowTokenRegistry,
 } from "./persistedWorkflowResolver";
 
 class OutputStats {
@@ -58,8 +59,8 @@ class OutputStats {
 }
 
 class RuntimeContinuationDiagnostics {
-  static formatNodeLabel(args: { definition?: Readonly<{ id: NodeId; name?: string; token: unknown }>; nodeId: NodeId }): string {
-    const tokenName = typeof args.definition?.token === "function" ? args.definition.token.name : "Node";
+  static formatNodeLabel(args: { definition?: Readonly<{ id: NodeId; name?: string; type: unknown }>; nodeId: NodeId }): string {
+    const tokenName = typeof args.definition?.type === "function" ? args.definition.type.name : "Node";
     return args.definition?.name ? `"${args.definition.name}" (${tokenName}:${args.nodeId})` : `${tokenName}:${args.nodeId}`;
   }
 
@@ -369,12 +370,19 @@ export class Engine implements NodeActivationContinuation {
     this.runDataFactory = deps.runDataFactory;
     this.executionContextFactory = deps.executionContextFactory;
     this.eventBus = deps.eventBus;
-    this.workflowSnapshotFactory = new PersistedWorkflowSnapshotFactory();
-    this.persistedWorkflowResolver = new PersistedWorkflowResolver(this.workflowRegistry);
+    const tokenRegistry = deps.tokenRegistry ?? new PersistedWorkflowTokenRegistry();
+    this.workflowSnapshotFactory = new PersistedWorkflowSnapshotFactory(tokenRegistry);
+    this.persistedWorkflowResolver = new PersistedWorkflowResolver(this.workflowRegistry, tokenRegistry);
+    this.tokenRegistry = tokenRegistry;
     this.activationScheduler.setContinuation?.(this);
   }
 
+  private readonly tokenRegistry: PersistedWorkflowTokenRegistry;
+
   loadWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): void {
+    if (this.tokenRegistry.registerFromWorkflows) {
+      this.tokenRegistry.registerFromWorkflows(workflows);
+    }
     this.workflowRegistry.setWorkflows(workflows);
   }
 
@@ -382,7 +390,7 @@ export class Engine implements NodeActivationContinuation {
     for (const wf of this.workflowRegistry.list()) {
       for (const def of wf.nodes) {
         if (def.kind !== "trigger") continue;
-        const node = this.nodeResolver.resolve(def.token) as TriggerNode;
+        const node = this.nodeResolver.resolve(def.type) as TriggerNode;
         const data = this.runDataFactory.create();
         const triggerRunId = this.runIdFactory.makeRunId();
         await node.setup({
@@ -1213,13 +1221,13 @@ export class Engine implements NodeActivationContinuation {
   }
 
   private createNodeInstance(definition: WorkflowDefinition["nodes"][number]): unknown {
-    if (definition.token === MissingRuntimeNodeToken) {
+    if (definition.type === MissingRuntimeNodeToken) {
       return new MissingRuntimeNode();
     }
-    if (definition.token === MissingRuntimeTriggerToken) {
+    if (definition.type === MissingRuntimeTriggerToken) {
       return new MissingRuntimeTrigger();
     }
-    return this.nodeResolver.resolve(definition.token);
+    return this.nodeResolver.resolve(definition.type);
   }
 
   private createFinishedSnapshot(args: {

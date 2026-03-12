@@ -18,8 +18,7 @@ type EnrichedJson = SeedJson &
 
 class RequiresExplicitInputNode<TItemJson> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = RequiresExplicitInputNodeRunner;
-  readonly tokenId = "codemation.test.requires-explicit-input";
+  readonly type: TypeToken<unknown> = RequiresExplicitInputNodeRunner;
 
   constructor(
     public readonly name: string,

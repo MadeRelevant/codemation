@@ -31,6 +31,7 @@ import {
   InMemoryRunStateStore,
   InMemoryWorkflowRegistry,
   InlineDrivingScheduler,
+  PersistedWorkflowTokenRegistry,
 } from "../../dist/index.js";
 import { container as tsyringeContainer } from "tsyringe";
 import type { DependencyContainer, InjectionToken } from "tsyringe";
@@ -141,6 +142,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   dependencyContainer.registerInstance(CoreTokens.WebhookRegistrar, new TestWebhookRegistrar());
   dependencyContainer.registerInstance(CoreTokens.NodeActivationObserver, new CapturingNodeActivationObserver(activations));
 
+  const tokenRegistry = new PersistedWorkflowTokenRegistry();
   const engine = new Engine({
     credentials,
     workflowRunnerResolver: new ContainerWorkflowRunnerResolver(container),
@@ -156,6 +158,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
     runDataFactory,
     executionContextFactory,
     eventBus,
+    tokenRegistry,
   });
   const workflowRunner = options.workflowRunner ?? new EngineWorkflowRunnerService(engine, workflowRegistry);
   dependencyContainer.registerInstance(CoreTokens.WorkflowRunnerService, workflowRunner as WorkflowRunnerService);

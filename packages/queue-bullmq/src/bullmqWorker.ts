@@ -96,7 +96,7 @@ export class BullmqWorker {
     if (!def) throw new Error(`Unknown nodeId: ${request.nodeId}`);
     if (def.kind !== "node") throw new Error(`Node ${request.nodeId} is not runnable`);
 
-    const node = this.nodeResolver.resolve(def.token) as Node<any>;
+    const node = this.nodeResolver.resolve(def.type) as Node<any>;
     const outputsByNode = (state.outputsByNode ?? {}) as Record<string, any>;
     const dataStore = this.runDataFactory.create(outputsByNode as any);
 

@@ -1,9 +1,9 @@
 import type { Item, Items, Node, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import { node } from "@codemation/core";
 
 export class MapData<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = MapDataNode;
-  readonly tokenId = "codemation.core-nodes.map-data";
+  readonly type: TypeToken<unknown> = MapDataNode;
   readonly execution = { hint: "local" } as const;
   constructor(
     public readonly name: string,
@@ -12,6 +12,7 @@ export class MapData<TInputJson = unknown, TOutputJson = unknown> implements Run
   ) {}
 }
 
+@node({ packageName: "@codemation/core-nodes" })
 export class MapDataNode implements Node<MapData<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;

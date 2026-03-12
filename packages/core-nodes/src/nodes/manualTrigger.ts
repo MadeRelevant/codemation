@@ -1,9 +1,9 @@
 import type { TriggerNode, TriggerNodeConfig, TriggerSetupContext, TypeToken } from "@codemation/core";
+import { node } from "@codemation/core";
 
 export class ManualTrigger<TOutputJson = unknown> implements TriggerNodeConfig<TOutputJson> {
   readonly kind = "trigger" as const;
-  readonly token: TypeToken<unknown> = ManualTriggerNode;
-  readonly tokenId = "codemation.core-nodes.manual-trigger";
+  readonly type: TypeToken<unknown> = ManualTriggerNode;
   constructor(public readonly name: string = "Manual trigger", public readonly id?: string) {}
 }
 
@@ -11,6 +11,7 @@ export class ManualTrigger<TOutputJson = unknown> implements TriggerNodeConfig<T
  * Setup is intentionally a no-op: the engine host can run workflows manually
  * by calling `engine.runWorkflow(workflow, triggerNodeId, items)`.
  */
+@node({ packageName: "@codemation/core-nodes" })
 export class ManualTriggerNode implements TriggerNode<ManualTrigger<any>> {
   kind = "trigger" as const;
   outputPorts = ["main"] as const;

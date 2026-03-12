@@ -1,11 +1,10 @@
 import type { AgentCanvasPresentation, ChatModelConfig, ChatModelFactory, LangChainChatModelLike, NodeExecutionContext } from "@codemation/core";
-import { resolveCredential, type CredentialInput } from "@codemation/core";
+import { chatModel, resolveCredential, type CredentialInput } from "@codemation/core";
 import { ChatOpenAI } from "@langchain/openai";
 import type { CanvasIconName } from "../canvasIconName";
 
 export class OpenAIChatModelConfig implements ChatModelConfig {
-  readonly token = OpenAIChatModelFactory;
-  readonly tokenId = "codemation.core-nodes.openai-chat-model";
+  readonly type = OpenAIChatModelFactory;
 
   constructor(
     public readonly name: string,
@@ -20,6 +19,7 @@ export class OpenAIChatModelConfig implements ChatModelConfig {
   ) {}
 }
 
+@chatModel({ packageName: "@codemation/core-nodes" })
 export class OpenAIChatModelFactory implements ChatModelFactory<OpenAIChatModelConfig> {
   async create(args: Readonly<{ config: OpenAIChatModelConfig; ctx: NodeExecutionContext<any> }>): Promise<LangChainChatModelLike> {
     const apiKey = await resolveCredential(args.config.apiKey, args.ctx.services.credentials);

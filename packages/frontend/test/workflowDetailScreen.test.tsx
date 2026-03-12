@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, type RenderResult } from "@testing-library/react";
-import { AgentAttachmentNodeIdFactory, PersistedWorkflowSnapshotFactory, WorkflowBuilder, type ChatModelConfig, type ToolConfig } from "@codemation/core";
+import { AgentAttachmentNodeIdFactory, PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, WorkflowBuilder, type ChatModelConfig, type ToolConfig } from "@codemation/core";
 import { AIAgent, Callback, ManualTrigger, WebhookTrigger } from "@codemation/core-nodes";
 import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +24,6 @@ class FrontendWorkflowDetailTool {}
 
 class FrontendWorkflowDetailChatModelConfig implements ChatModelConfig {
   readonly token = FrontendWorkflowDetailChatModelFactory as ChatModelConfig["token"];
-  readonly tokenId = "codemation.frontend-test.chat-model";
 
   constructor(
     public readonly name: string,
@@ -34,7 +33,6 @@ class FrontendWorkflowDetailChatModelConfig implements ChatModelConfig {
 
 class FrontendWorkflowDetailToolConfig implements ToolConfig {
   readonly token = FrontendWorkflowDetailTool as ToolConfig["token"];
-  readonly tokenId = "codemation.frontend-test.tool";
 
   constructor(
     public readonly name: string,
@@ -153,7 +151,10 @@ class WorkflowDetailFixtureFactory {
   }
 
   static createWorkflowSnapshot(): NonNullable<PersistedRunState["workflowSnapshot"]> {
-    return new PersistedWorkflowSnapshotFactory().create(this.createWorkflowDefinition());
+    const workflow = this.createWorkflowDefinition();
+    const tokenRegistry = new PersistedWorkflowTokenRegistry();
+    tokenRegistry.registerFromWorkflows([workflow], "@codemation/frontend-test");
+    return new PersistedWorkflowSnapshotFactory(tokenRegistry).create(workflow);
   }
 
   static createSnapshot(nodeId: string, status: WorkflowSnapshot["status"], step: number, runId = this.runId): WorkflowSnapshot {

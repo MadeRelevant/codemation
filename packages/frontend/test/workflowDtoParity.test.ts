@@ -1,16 +1,17 @@
-import { PersistedWorkflowSnapshotFactory, WorkflowBuilder, type ChatModelConfig, type ToolConfig } from "@codemation/core";
+import { PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, WorkflowBuilder, chatModel, tool, type ChatModelConfig, type ToolConfig } from "@codemation/core";
 import { AIAgent, Callback, ManualTrigger } from "@codemation/core-nodes";
 import { describe, expect, it } from "vitest";
 import { CodemationPersistedWorkflowDtoMapper } from "../src/host/codemationPersistedWorkflowDtoMapper";
 import { CodemationWorkflowDtoMapper } from "../src/host/codemationWorkflowDtoMapper";
 
+@chatModel({ packageName: "@codemation/frontend-parity" })
 class FrontendParityChatModelFactory {}
 
+@tool({ packageName: "@codemation/frontend-parity" })
 class FrontendParityTool {}
 
 class FrontendParityChatModelConfig implements ChatModelConfig {
-  readonly token = FrontendParityChatModelFactory as ChatModelConfig["token"];
-  readonly tokenId = "codemation.frontend-parity.chat-model";
+  readonly type = FrontendParityChatModelFactory as ChatModelConfig["type"];
 
   constructor(
     public readonly name: string,
@@ -19,8 +20,7 @@ class FrontendParityChatModelConfig implements ChatModelConfig {
 }
 
 class FrontendParityToolConfig implements ToolConfig {
-  readonly token = FrontendParityTool as ToolConfig["token"];
-  readonly tokenId = "codemation.frontend-parity.tool";
+  readonly type = FrontendParityTool as ToolConfig["type"];
 
   constructor(
     public readonly name: string,
@@ -53,7 +53,9 @@ describe("workflow dto parity", () => {
   it("maps persisted snapshots to the same workflow dto shape as the live workflow mapper", () => {
     const workflow = FrontendParityFixtureFactory.createWorkflow();
     const liveDto = new CodemationWorkflowDtoMapper().toDetail(workflow);
-    const snapshot = new PersistedWorkflowSnapshotFactory().create(workflow);
+    const tokenRegistry = new PersistedWorkflowTokenRegistry();
+    tokenRegistry.registerFromWorkflows([workflow]);
+    const snapshot = new PersistedWorkflowSnapshotFactory(tokenRegistry).create(workflow);
     const snapshotDto = new CodemationPersistedWorkflowDtoMapper().toDetail(snapshot);
 
     expect(snapshotDto).toEqual(liveDto);

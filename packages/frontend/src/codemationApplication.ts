@@ -11,6 +11,7 @@ import {
   InMemoryCredentialService,
   InMemoryWorkflowRegistry,
   instanceCachingFactory,
+  PersistedWorkflowTokenRegistry,
 } from "@codemation/core";
 import { BullmqScheduler } from "@codemation/queue-bullmq";
 import { mkdir } from "node:fs/promises";
@@ -231,6 +232,7 @@ export class CodemationApplication {
   private synchronizeContainerRegistrations(): void {
     this.container.registerInstance(CodemationApplication, this);
     this.container.registerInstance(CoreTokens.ServiceContainer, this.container);
+    this.container.registerInstance(CoreTokens.PersistedWorkflowTokenRegistry, new PersistedWorkflowTokenRegistry());
     this.container.registerInstance(CoreTokens.CredentialService, this.credentials);
     this.container.register(CodemationIdFactory, { useClass: CodemationIdFactory });
     this.container.register(CoreTokens.RunIdFactory, {
@@ -265,6 +267,7 @@ export class CodemationApplication {
           runDataFactory: dependencyContainer.resolve(CoreTokens.RunDataFactory),
           executionContextFactory: dependencyContainer.resolve(CoreTokens.ExecutionContextFactory),
           eventBus: dependencyContainer.resolve(CoreTokens.RunEventBus),
+          tokenRegistry: dependencyContainer.resolve(CoreTokens.PersistedWorkflowTokenRegistry),
         });
       }),
     });
@@ -363,7 +366,7 @@ export class CodemationApplication {
   }
 
   private synchronizeWorkflowRegistry(): void {
-    const workflowRegistry = this.container.resolve<WorkflowRegistry>(CoreTokens.WorkflowRegistry);
+    const workflowRegistry = this.container.resolve(CoreTokens.WorkflowRegistry);
     workflowRegistry.setWorkflows(this.workflows);
   }
 

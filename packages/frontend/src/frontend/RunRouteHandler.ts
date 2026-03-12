@@ -66,8 +66,8 @@ class RunRequestItemsResolver {
     if (!startNode || startNode.kind !== "trigger") {
       return false;
     }
-    const token = startNode.config?.token as Readonly<{ name?: unknown }> | undefined;
-    return token?.name === "WebhookTriggerNode";
+    const type = startNode.config?.type as Readonly<{ name?: unknown }> | undefined;
+    return type?.name === "WebhookTriggerNode";
   }
 }
 

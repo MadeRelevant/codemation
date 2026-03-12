@@ -1,11 +1,11 @@
 import type { InputPortKey, Item, Items, MultiInputNode, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import { node } from "@codemation/core";
 
 export type MergeMode = "passThrough" | "append" | "mergeByPosition";
 
 export class Merge<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = MergeNode;
-  readonly tokenId = "codemation.core-nodes.merge";
+  readonly type: TypeToken<unknown> = MergeNode;
 
   constructor(
     public readonly name: string,
@@ -34,6 +34,7 @@ function orderedInputs(inputsByPort: Readonly<Record<InputPortKey, Items>>, pref
   return [...preferred, ...rest];
 }
 
+@node({ packageName: "@codemation/core-nodes" })
 export class MergeNode implements MultiInputNode<Merge<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;

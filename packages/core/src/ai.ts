@@ -10,8 +10,7 @@ export interface AgentCanvasPresentation<TIcon extends string = string> {
 export type ZodSchemaAny = ZodType<any, any, any>;
 
 export interface ToolConfig {
-  readonly token: TypeToken<Tool<ToolConfig, ZodSchemaAny, ZodSchemaAny>>;
-  readonly tokenId: NodeConfigBase["tokenId"];
+  readonly type: TypeToken<Tool<ToolConfig, ZodSchemaAny, ZodSchemaAny>>;
   readonly name: string;
   readonly description?: string;
   readonly presentation?: AgentCanvasPresentation;
@@ -57,8 +56,7 @@ export type AgentToolCallPlanner<_TNodeConfig = unknown> = (
 ) => ReadonlyArray<AgentToolCall>;
 
 export interface ChatModelConfig {
-  readonly token: TypeToken<ChatModelFactory<ChatModelConfig>>;
-  readonly tokenId: NodeConfigBase["tokenId"];
+  readonly type: TypeToken<ChatModelFactory<ChatModelConfig>>;
   readonly name: string;
   readonly presentation?: AgentCanvasPresentation;
 }

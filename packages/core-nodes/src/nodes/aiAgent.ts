@@ -16,7 +16,7 @@ import type {
   TypeToken,
   ZodSchemaAny,
 } from "@codemation/core";
-import { AgentAttachmentNodeIdFactory } from "@codemation/core";
+import { AgentAttachmentNodeIdFactory, node } from "@codemation/core";
 import { AIMessage, HumanMessage, SystemMessage, ToolMessage, type BaseMessage } from "@langchain/core/messages";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 
@@ -129,8 +129,7 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
   implements RunnableNodeConfig<TInputJson, TOutputJson>, AgentNodeConfig<TInputJson, TOutputJson>
 {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = AIAgentNode;
-  readonly tokenId = "codemation.core-nodes.ai-agent";
+  readonly type: TypeToken<unknown> = AIAgentNode;
   readonly execution = { hint: "local" } as const;
 
   constructor(
@@ -148,6 +147,7 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
   ) {}
 }
 
+@node({ packageName: "@codemation/core-nodes" })
 export class AIAgentNode implements Node<AIAgent<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
@@ -156,7 +156,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     const container = ctx.services.container;
     if (!container) throw new Error(`AIAgent requires ctx.services.container to resolve chat models and tools`);
 
-    const chatModelFactory = container.resolve(ctx.config.chatModel.token) as ChatModelFactory<ChatModelConfig>;
+    const chatModelFactory = container.resolve(ctx.config.chatModel.type) as ChatModelFactory<ChatModelConfig>;
     const model = await Promise.resolve(chatModelFactory.create({ config: ctx.config.chatModel, ctx }));
     const resolvedTools = this.resolveTools(ctx.config.tools ?? [], container);
 
@@ -212,7 +212,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
   ): ReadonlyArray<ResolvedTool> {
     const resolvedTools = toolConfigs.map((config) => ({
       config,
-      tool: container.resolve(config.token) as Tool<ToolConfig, ZodSchemaAny, ZodSchemaAny>,
+      tool: container.resolve(config.type) as Tool<ToolConfig, ZodSchemaAny, ZodSchemaAny>,
     }));
 
     const names = new Set<string>();

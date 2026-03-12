@@ -1,12 +1,15 @@
 import type { NodeDefinition, WorkflowDefinition, WorkflowId, WorkflowRegistry, PersistedWorkflowSnapshot } from "../../../types";
 import { MissingRuntimeNodeDefinitionFactory } from "./MissingRuntimeNodeDefinitionFactory";
 import { PersistedWorkflowConfigHydrator } from "./PersistedWorkflowConfigHydrator";
-import { PersistedWorkflowTokenRegistry } from "./PersistedWorkflowTokenRegistry";
+import type { PersistedWorkflowTokenRegistry } from "./PersistedWorkflowTokenRegistry";
 
 export class PersistedWorkflowResolver {
   private readonly missingNodeDefinitionFactory = new MissingRuntimeNodeDefinitionFactory();
 
-  constructor(private readonly workflowRegistry: WorkflowRegistry) {}
+  constructor(
+    private readonly workflowRegistry: WorkflowRegistry,
+    private readonly tokenRegistry: PersistedWorkflowTokenRegistry,
+  ) {}
 
   resolve(args: { workflowId: WorkflowId; workflowSnapshot?: PersistedWorkflowSnapshot }): WorkflowDefinition | undefined {
     const liveWorkflow = this.workflowRegistry.get(args.workflowId);
@@ -21,14 +24,13 @@ export class PersistedWorkflowResolver {
 
   private rebuildWorkflow(snapshot: PersistedWorkflowSnapshot, liveWorkflow: WorkflowDefinition | undefined): WorkflowDefinition {
     const liveNodesById = new Map((liveWorkflow?.nodes ?? []).map((node) => [node.id, node] as const));
-    const tokenRegistry = new PersistedWorkflowTokenRegistry(liveWorkflow ? [liveWorkflow] : []);
-    const configHydrator = new PersistedWorkflowConfigHydrator(tokenRegistry);
+    const configHydrator = new PersistedWorkflowConfigHydrator(this.tokenRegistry);
     const nodes = snapshot.nodes.map((snapshotNode) => {
       const liveNode = liveNodesById.get(snapshotNode.id);
       if (!this.isCompatibleLiveNode(liveNode, snapshotNode)) {
         return this.missingNodeDefinitionFactory.create(snapshotNode);
       }
-      const runtimeToken = tokenRegistry.resolve(snapshotNode.nodeTokenId);
+      const runtimeToken = this.tokenRegistry.resolve(snapshotNode.nodeTokenId);
       if (!runtimeToken) {
         return this.missingNodeDefinitionFactory.create(snapshotNode);
       }
@@ -36,8 +38,7 @@ export class PersistedWorkflowResolver {
         id: snapshotNode.id,
         kind: snapshotNode.kind,
         name: snapshotNode.name ?? liveNode.name,
-        token: runtimeToken,
-        tokenId: snapshotNode.nodeTokenId,
+        type: runtimeToken,
         config: configHydrator.hydrate(snapshotNode, liveNode.config),
       } satisfies NodeDefinition;
     });
@@ -60,6 +61,8 @@ export class PersistedWorkflowResolver {
     if (!snapshotNode.nodeTokenId || !snapshotNode.configTokenId) {
       throw new Error(`Persisted workflow snapshot node "${snapshotNode.id}" is missing stable token ids.`);
     }
-    return liveNode.tokenId === snapshotNode.nodeTokenId && liveNode.config.tokenId === snapshotNode.configTokenId;
+    const liveNodeTokenId = this.tokenRegistry.getTokenId(liveNode.type);
+    const liveConfigTokenId = this.tokenRegistry.getTokenId(liveNode.config.type);
+    return liveNodeTokenId === snapshotNode.nodeTokenId && liveConfigTokenId === snapshotNode.configTokenId;
   }
 }

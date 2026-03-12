@@ -3,7 +3,7 @@ import { KitchenSinkExampleNode } from "./kitchenSinkExampleNode";
 
 export class KitchenSinkExample implements NodeConfigBase {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = KitchenSinkExampleNode;
+  readonly type: TypeToken<unknown> = KitchenSinkExampleNode;
 
   constructor(
     public readonly name: string,

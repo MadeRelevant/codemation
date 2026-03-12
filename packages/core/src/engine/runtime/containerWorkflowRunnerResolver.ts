@@ -9,6 +9,6 @@ export class ContainerWorkflowRunnerResolver implements WorkflowRunnerResolver {
     if (!this.container.isRegistered(CoreTokens.WorkflowRunnerService, true)) {
       return undefined;
     }
-    return this.container.resolve<WorkflowRunnerService>(CoreTokens.WorkflowRunnerService);
+    return this.container.resolve(CoreTokens.WorkflowRunnerService);
   }
 }

@@ -3,8 +3,7 @@ import { MissingRuntimeNodeToken } from "./MissingRuntimeNodeToken";
 
 export class MissingRuntimeNodeConfig implements NodeConfigBase {
   readonly kind = "node" as const;
-  readonly token = MissingRuntimeNodeToken;
-  readonly tokenId = "codemation.core.missingRuntime.node";
+  readonly type = MissingRuntimeNodeToken;
 
   constructor(
     public readonly name: string,

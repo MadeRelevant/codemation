@@ -23,7 +23,7 @@ export class CodemationApp {
   }
 
   static async resolve<T>(token: InjectionToken<T>, args?: RuntimeAccessArgs): Promise<T> {
-    return (await this.getContainer(args)).resolve<T>(token) as T;
+    return (await this.getContainer(args)).resolve(token);
   }
 
   static async getRuntime(args?: RuntimeAccessArgs): Promise<CodemationFrontendRuntimeRoot> {

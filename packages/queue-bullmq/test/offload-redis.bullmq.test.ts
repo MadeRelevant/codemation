@@ -40,8 +40,7 @@ class IdFactory {
 
 class UppercaseSubject<TItemJson extends Record<string, unknown> = Record<string, unknown>> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = UppercaseSubjectNode;
-  readonly tokenId = "codemation.test.uppercase-subject";
+  readonly type: TypeToken<unknown> = UppercaseSubjectNode;
   readonly execution = { hint: "worker" as const, queue: "default" as const };
   constructor(public readonly name: string, public readonly id: string) {}
 }
@@ -92,7 +91,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
       {
         id: "uppercase" as any,
         kind: "node",
-        token: UppercaseSubjectNode,
+        type: UppercaseSubjectNode,
         name: "Uppercase",
         config: new UppercaseSubject("Uppercase", "uppercase"),
       },

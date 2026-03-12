@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { container as tsyringeContainer } from "tsyringe";
-import { InMemoryWorkflowRegistry, PersistedWorkflowResolver, PersistedWorkflowSnapshotFactory, WorkflowBuilder } from "../dist/index.js";
+import { InMemoryWorkflowRegistry, PersistedWorkflowResolver, PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, WorkflowBuilder, chatModel, node, tool } from "../dist/index.js";
 import type {
   ChatModelConfig,
   ChatModelFactory,
@@ -20,19 +20,13 @@ import type {
 } from "../dist/index.js";
 import { createEngineTestKit, items } from "./harness/index.ts";
 
-class StableTokenIds {
-  static readonly chatModel = "codemation.test.roundtrip.chat-model";
-  static readonly tool = "codemation.test.roundtrip.tool";
-  static readonly node = "codemation.test.roundtrip.node";
-}
-
 class StableChatModelConfig implements ChatModelConfig {
-  readonly token: TypeToken<unknown> = StableChatModelFactory;
-  readonly tokenId = StableTokenIds.chatModel;
+  readonly type: TypeToken<unknown> = StableChatModelFactory;
 
   constructor(public readonly name: string) {}
 }
 
+@chatModel({ packageName: "@codemation/test" })
 class StableChatModelFactory implements ChatModelFactory<StableChatModelConfig> {
   create(): LangChainChatModelLike {
     return new StableLangChainChatModel();
@@ -46,8 +40,7 @@ class StableLangChainChatModel implements LangChainChatModelLike {
 }
 
 class StableToolConfig implements ToolConfig {
-  readonly token: TypeToken<unknown> = StableTool;
-  readonly tokenId = StableTokenIds.tool;
+  readonly type: TypeToken<unknown> = StableTool;
 
   constructor(
     public readonly name: string,
@@ -55,6 +48,7 @@ class StableToolConfig implements ToolConfig {
   ) {}
 }
 
+@tool({ packageName: "@codemation/test" })
 class StableTool implements Tool<StableToolConfig> {
   readonly defaultDescription = "stable tool";
   readonly inputSchema = {
@@ -75,8 +69,7 @@ class StableTool implements Tool<StableToolConfig> {
 
 class StableResolvableNodeConfig implements RunnableNodeConfig<Record<string, unknown>, Record<string, unknown>> {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = StableResolvableNode;
-  readonly tokenId = StableTokenIds.node;
+  readonly type: TypeToken<unknown> = StableResolvableNode;
 
   constructor(
     public readonly name: string,
@@ -86,6 +79,7 @@ class StableResolvableNodeConfig implements RunnableNodeConfig<Record<string, un
   ) {}
 }
 
+@node({ packageName: "@codemation/test" })
 class StableResolvableNode implements Node<StableResolvableNodeConfig> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
@@ -94,9 +88,9 @@ class StableResolvableNode implements Node<StableResolvableNodeConfig> {
     const container = ctx.services.container;
     assert.ok(container);
 
-    const chatModelFactory = container.resolve(ctx.config.chatModel.token) as StableChatModelFactory;
+    const chatModelFactory = container.resolve(ctx.config.chatModel.type) as StableChatModelFactory;
     const resolvedToolNames = ctx.config.tools.map((toolConfig) => {
-      const tool = container.resolve(toolConfig.token) as StableTool;
+      const tool = container.resolve(toolConfig.type) as StableTool;
       assert.ok(tool instanceof StableTool);
       return toolConfig.name;
     });
@@ -153,13 +147,11 @@ test("workflow builder produces a compiled workflow whose node and nested depend
 
   const compiledNode = workflow.nodes[0];
   assert.ok(compiledNode);
-  assert.equal(compiledNode.tokenId, StableTokenIds.node);
-  assert.equal(compiledNode.config.tokenId, StableTokenIds.node);
-  assert.ok(container.resolve(compiledNode.token) instanceof StableResolvableNode);
+  assert.ok(container.resolve(compiledNode.type) instanceof StableResolvableNode);
 
   const config = compiledNode.config as StableResolvableNodeConfig;
-  assert.ok(container.resolve(config.chatModel.token) instanceof StableChatModelFactory);
-  assert.ok(container.resolve(config.tools[0]!.token) instanceof StableTool);
+  assert.ok(container.resolve(config.chatModel.type) instanceof StableChatModelFactory);
+  assert.ok(container.resolve(config.tools[0]!.type) instanceof StableTool);
 
   const result = await kit.runToCompletion({
     wf: workflow,
@@ -179,13 +171,15 @@ test("workflow builder produces a compiled workflow whose node and nested depend
 
 test("builder snapshot roundtrip preserves persisted workflow identity without drift", () => {
   const workflow = StableWorkflowFixtureFactory.createWorkflow();
-  const snapshotFactory = new PersistedWorkflowSnapshotFactory();
+  const tokenRegistry = new PersistedWorkflowTokenRegistry();
+  tokenRegistry.registerFromWorkflows([workflow]);
+  const snapshotFactory = new PersistedWorkflowSnapshotFactory(tokenRegistry);
   const originalSnapshot = snapshotFactory.create(workflow);
   const registry = new InMemoryWorkflowRegistry();
 
   registry.setWorkflows([workflow]);
 
-  const resolvedWorkflow = new PersistedWorkflowResolver(registry).resolve({
+  const resolvedWorkflow = new PersistedWorkflowResolver(registry, tokenRegistry).resolve({
     workflowId: workflow.id,
     workflowSnapshot: originalSnapshot,
   });
@@ -196,11 +190,11 @@ test("builder snapshot roundtrip preserves persisted workflow identity without d
 
   const nodeSnapshot = originalSnapshot.nodes[0];
   assert.ok(nodeSnapshot);
-  assert.equal(nodeSnapshot.nodeTokenId, StableTokenIds.node);
-  assert.equal(nodeSnapshot.configTokenId, StableTokenIds.node);
+  assert.equal(nodeSnapshot.nodeTokenId, "@codemation/test::StableResolvableNode");
+  assert.equal(nodeSnapshot.configTokenId, "@codemation/test::StableResolvableNode");
   const configRecord = SnapshotConfigReader.asRecord(nodeSnapshot.config);
   const chatModelRecord = SnapshotConfigReader.asRecord(configRecord.chatModel);
   const toolRecord = SnapshotConfigReader.asRecord((configRecord.tools as ReadonlyArray<unknown> | undefined)?.[0]);
-  assert.equal(chatModelRecord.tokenId, StableTokenIds.chatModel);
-  assert.equal(toolRecord.tokenId, StableTokenIds.tool);
+  assert.equal(chatModelRecord.tokenId, "@codemation/test::StableChatModelFactory");
+  assert.equal(toolRecord.tokenId, "@codemation/test::StableTool");
 });

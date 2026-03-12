@@ -68,8 +68,8 @@ class RunQueuePlannerDiagnostics {
     const definition = this.topology.defsById.get(nodeId);
     const instance = this.nodeInstances.get(nodeId);
     const typeName =
-      definition?.token && typeof definition.token === "function"
-        ? definition.token.name
+      definition?.type && typeof definition.type === "function"
+        ? definition.type.name
         : instance && typeof instance === "object" && "constructor" in instance
           ? (instance.constructor as { name?: string }).name ?? "Node"
           : "Node";

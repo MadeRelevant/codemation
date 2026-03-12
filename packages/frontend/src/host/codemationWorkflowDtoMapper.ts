@@ -83,9 +83,9 @@ export class CodemationWorkflowDtoMapper {
   }
 
   private nodeTypeName(node: NodeDefinition): string {
-    const configToken = node.config?.token as unknown as Readonly<{ name?: unknown }> | undefined;
+    const configToken = node.config?.type as unknown as Readonly<{ name?: unknown }> | undefined;
     if (typeof configToken?.name === "string" && configToken.name) return configToken.name;
-    const nodeToken = node.token as unknown as Readonly<{ name?: unknown }> | undefined;
+    const nodeToken = node.type as unknown as Readonly<{ name?: unknown }> | undefined;
     if (typeof nodeToken?.name === "string" && nodeToken.name) return nodeToken.name;
     return "Node";
   }

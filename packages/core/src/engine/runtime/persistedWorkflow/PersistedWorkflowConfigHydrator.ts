@@ -8,8 +8,7 @@ export class PersistedWorkflowConfigHydrator {
     const hydrated = this.mergeValue(liveConfig, snapshotNode.config);
     const configToken = this.tokenRegistry.resolve(snapshotNode.configTokenId);
     Object.assign(hydrated, {
-      token: configToken ?? liveConfig.token,
-      tokenId: snapshotNode.configTokenId,
+      type: configToken ?? liveConfig.type,
       kind: snapshotNode.kind,
     });
     if (snapshotNode.name && !("name" in hydrated && hydrated.name)) {
@@ -30,7 +29,7 @@ export class PersistedWorkflowConfigHydrator {
     }
 
     this.restoreNonSerializableProperties(liveRecord, hydrated);
-    this.restoreTokenProperty(hydrated);
+    this.restoreTypeProperty(hydrated);
     return hydrated;
   }
 
@@ -53,14 +52,14 @@ export class PersistedWorkflowConfigHydrator {
     }
   }
 
-  private restoreTokenProperty(record: Record<string, unknown>): void {
+  private restoreTypeProperty(record: Record<string, unknown>): void {
     const tokenId = typeof record.tokenId === "string" ? record.tokenId : undefined;
     if (!tokenId) {
       return;
     }
-    const token = this.tokenRegistry.resolve(tokenId);
-    if (token) {
-      record.token = token;
+    const type = this.tokenRegistry.resolve(tokenId);
+    if (type) {
+      record.type = type;
     }
   }
 

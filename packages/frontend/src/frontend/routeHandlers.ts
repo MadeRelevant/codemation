@@ -78,6 +78,6 @@ export class CodemationRouteHandlers {
   }
 
   static async postRealtimeReady(args?: RouteConfigOverride): Promise<Response> {
-    return await (await CodemationApp.resolve<RealtimeRouteHandler>(FrontendRouteTokens.RealtimeRouteHandler, args)).postReady(args);
+    return await (await CodemationApp.resolve(FrontendRouteTokens.RealtimeRouteHandler, args)).postReady(args);
   }
 }

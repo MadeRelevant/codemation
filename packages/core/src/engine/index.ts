@@ -12,6 +12,7 @@ export {
   MissingRuntimeTriggerToken,
   PersistedWorkflowResolver,
   PersistedWorkflowSnapshotFactory,
+  PersistedWorkflowTokenRegistry,
 } from "./runtime/persistedWorkflowResolver";
 export { DefaultDrivingScheduler } from "./scheduling/defaultDrivingScheduler";
 export { InlineDrivingScheduler } from "./scheduling/inlineDrivingScheduler";

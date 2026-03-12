@@ -12,8 +12,7 @@ export class MissingRuntimeNodeDefinitionFactory {
         id: snapshotNode.id,
         kind: "trigger",
         name: snapshotNode.name,
-        token: MissingRuntimeTriggerToken,
-        tokenId: config.tokenId,
+        type: MissingRuntimeTriggerToken,
         config,
       };
     }
@@ -22,8 +21,7 @@ export class MissingRuntimeNodeDefinitionFactory {
       id: snapshotNode.id,
       kind: "node",
       name: snapshotNode.name,
-      token: MissingRuntimeNodeToken,
-      tokenId: config.tokenId,
+      type: MissingRuntimeNodeToken,
       config,
     };
   }

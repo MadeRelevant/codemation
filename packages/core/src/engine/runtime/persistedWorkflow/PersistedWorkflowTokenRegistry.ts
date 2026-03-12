@@ -1,54 +1,77 @@
 import type { TypeToken } from "../../../di";
+import { getPersistedRuntimeTypeMetadata } from "../../../runtimeTypeDecorators";
 import type { NodeConfigBase, PersistedTokenId, WorkflowDefinition } from "../../../types";
+
+function getTokenName(token: TypeToken<unknown>): string {
+  if (typeof token === "function" && token.name) return token.name;
+  if (typeof token === "string") return token;
+  return "";
+}
+
+class PersistedRuntimeTypeIdFactory {
+  static fromMetadata(args: Readonly<{ type: TypeToken<unknown> }>): PersistedTokenId | undefined {
+    const metadata = getPersistedRuntimeTypeMetadata(args.type);
+    if (!metadata) {
+      return undefined;
+    }
+    const packageName = metadata.packageName;
+    if (!packageName) {
+      return undefined;
+    }
+    return `${packageName}::${metadata.persistedName}` as PersistedTokenId;
+  }
+}
 
 export class PersistedWorkflowTokenRegistry {
   private readonly tokensById = new Map<PersistedTokenId, TypeToken<unknown>>();
+  private readonly tokenIdsByToken = new Map<TypeToken<unknown>, PersistedTokenId>();
 
-  constructor(workflows: ReadonlyArray<WorkflowDefinition>) {
+  /**
+   * Register a token with its package ID. Token ID is inferred as `packageId::tokenName`.
+   */
+  register(type: TypeToken<unknown>, packageId: string, persistedNameOverride?: string): PersistedTokenId {
+    const tokenName = persistedNameOverride ?? getTokenName(type);
+    const tokenId = `${packageId}::${tokenName}` as PersistedTokenId;
+    this.tokensById.set(tokenId, type);
+    this.tokenIdsByToken.set(type, tokenId);
+    return tokenId;
+  }
+
+  /**
+   * Register all decorated runtime types discovered in workflows.
+   */
+  registerFromWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): void {
     for (const workflow of workflows) {
-      this.registerWorkflow(workflow);
-    }
-  }
-
-  resolve(tokenId: PersistedTokenId): TypeToken<unknown> | undefined {
-    return this.tokensById.get(tokenId);
-  }
-
-  private registerWorkflow(workflow: WorkflowDefinition): void {
-    for (const node of workflow.nodes) {
-      this.registerToken(node.tokenId, node.token);
-      this.registerConfig(node.config);
-    }
-  }
-
-  private registerConfig(config: NodeConfigBase): void {
-    this.registerToken(config.tokenId, config.token);
-    this.registerNestedValue(config);
-  }
-
-  private registerNestedValue(value: unknown): void {
-    if (Array.isArray(value)) {
-      for (const entry of value) {
-        this.registerNestedValue(entry);
+      for (const node of workflow.nodes) {
+        this.registerDecoratedType(node.type);
+        this.registerDecoratedType(node.config.type);
+        this.registerNestedTypes(node.config);
       }
-      return;
-    }
-    if (!value || typeof value !== "object") {
-      return;
-    }
-    const record = value as Record<string, unknown>;
-    const tokenId = typeof record.tokenId === "string" ? record.tokenId : undefined;
-    const token = this.asTypeToken(record.token);
-    if (tokenId && token) {
-      this.registerToken(tokenId, token);
-    }
-    for (const nestedValue of Object.values(record)) {
-      this.registerNestedValue(nestedValue);
     }
   }
 
-  private registerToken(tokenId: PersistedTokenId, token: TypeToken<unknown>): void {
-    this.tokensById.set(tokenId, token);
+  private registerDecoratedType(type: TypeToken<unknown>): void {
+    if (this.tokenIdsByToken.has(type)) {
+      return;
+    }
+    const tokenId = PersistedRuntimeTypeIdFactory.fromMetadata({ type });
+    if (!tokenId) {
+      return;
+    }
+    this.tokensById.set(tokenId, type);
+    this.tokenIdsByToken.set(type, tokenId);
+  }
+
+  private registerNestedTypes(value: unknown): void {
+    if (Array.isArray(value)) {
+      for (const entry of value) this.registerNestedTypes(entry);
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    const record = value as Record<string, unknown>;
+    const type = this.asTypeToken(record.type);
+    if (type) this.registerDecoratedType(type);
+    for (const v of Object.values(record)) this.registerNestedTypes(v);
   }
 
   private asTypeToken(value: unknown): TypeToken<unknown> | undefined {
@@ -56,5 +79,23 @@ export class PersistedWorkflowTokenRegistry {
       return value as TypeToken<unknown>;
     }
     return undefined;
+  }
+
+  getTokenId(token: TypeToken<unknown>): PersistedTokenId | undefined {
+    const existing = this.tokenIdsByToken.get(token);
+    if (existing) {
+      return existing;
+    }
+    const tokenId = PersistedRuntimeTypeIdFactory.fromMetadata({ type: token });
+    if (!tokenId) {
+      return undefined;
+    }
+    this.tokensById.set(tokenId, token);
+    this.tokenIdsByToken.set(token, tokenId);
+    return tokenId;
+  }
+
+  resolve(tokenId: PersistedTokenId): TypeToken<unknown> | undefined {
+    return this.tokensById.get(tokenId);
   }
 }

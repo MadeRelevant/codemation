@@ -1,9 +1,9 @@
 import type { Item, Items, Node, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import { node } from "@codemation/core";
 
 export class If<TInputJson = unknown> implements RunnableNodeConfig<TInputJson, TInputJson> {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = IfNode;
-  readonly tokenId = "codemation.core-nodes.if";
+  readonly type: TypeToken<unknown> = IfNode;
   readonly execution = { hint: "local" } as const;
   constructor(
     public readonly name: string,
@@ -17,6 +17,7 @@ export class If<TInputJson = unknown> implements RunnableNodeConfig<TInputJson, 
   ) {}
 }
 
+@node({ packageName: "@codemation/core-nodes" })
 export class IfNode implements Node<If<any>> {
   kind = "node" as const;
   outputPorts = ["true", "false"] as const;

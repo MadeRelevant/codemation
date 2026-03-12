@@ -90,8 +90,9 @@ export class WorkflowBuilder {
   ) {}
 
   private add(config: NodeConfigBase): NodeRef {
-    const id = config.id ?? `${config.tokenId}:${++this.seq}`;
-    this.nodes.push({ id, kind: config.kind, token: config.token, tokenId: config.tokenId, name: config.name, config });
+    const tokenName = typeof config.type === "function" ? config.type.name : String(config.type);
+    const id = config.id ?? `${tokenName}:${++this.seq}`;
+    this.nodes.push({ id, kind: config.kind, type: config.type, name: config.name, config });
     return { id, kind: config.kind, name: config.name };
   }
 

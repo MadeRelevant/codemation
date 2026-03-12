@@ -38,8 +38,7 @@ class CapturingNodeStatePublisher implements NodeExecutionStatePublisher {
 }
 
 class FakeChatModelConfig implements ChatModelConfig {
-  readonly token = FakeChatModelFactory;
-  readonly tokenId = "codemation.test.fake-chat-model";
+  readonly type = FakeChatModelFactory;
 
   constructor(public readonly name: string) {}
 }
@@ -76,8 +75,7 @@ class FakeChatModelFactory implements ChatModelFactory<FakeChatModelConfig> {
 }
 
 class DelayToolConfig implements ToolConfig {
-  readonly token = DelayTool;
-  readonly tokenId = "codemation.test.delay-tool";
+  readonly type = DelayTool;
 
   constructor(
     public readonly name: string,

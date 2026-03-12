@@ -48,7 +48,7 @@ export class CodemationRuntimeRegistry {
 
   async getPreparedRunStore(args?: Readonly<{ configOverride?: CodemationBootstrapResult }>): Promise<RunStateStore> {
     const setup = await this.getPreparedSetup(args);
-    return setup.application.getContainer().resolve<RunStateStore>(CoreTokens.RunStateStore);
+    return setup.application.getContainer().resolve(CoreTokens.RunStateStore);
   }
 
   async getPreparedExecutionRuntime(args?: Readonly<{ configOverride?: CodemationBootstrapResult }>): Promise<CodemationPreparedExecutionRuntime> {
@@ -145,15 +145,15 @@ export class CodemationRuntimeRegistry {
       });
     }
     const container = setup.application.getContainer();
-    const workflowRegistry = container.resolve<WorkflowRegistry>(CoreTokens.WorkflowRegistry);
+    const workflowRegistry = container.resolve(CoreTokens.WorkflowRegistry);
     const engine = container.resolve(Engine);
-    const runStore = container.resolve<RunStateStore>(CoreTokens.RunStateStore);
+    const runStore = container.resolve(CoreTokens.RunStateStore);
     await engine.start([...workflowRegistry.list()]);
     return {
       setup,
       engine,
       workflowRegistry,
-      workflowRunner: container.resolve<WorkflowRunnerService>(CoreTokens.WorkflowRunnerService),
+      workflowRunner: container.resolve(CoreTokens.WorkflowRunnerService),
       webhookRegistry: container.resolve(CodemationWebhookRegistry),
       runStore,
     };

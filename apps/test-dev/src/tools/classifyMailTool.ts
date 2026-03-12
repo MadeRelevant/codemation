@@ -1,5 +1,5 @@
 import type { AgentCanvasPresentation, Tool, ToolConfig, ToolExecuteArgs } from "@codemation/core";
-import { inject, injectable } from "@codemation/core";
+import { inject, tool } from "@codemation/core";
 import type { CanvasIconName } from "@codemation/core-nodes";
 import { z } from "zod";
 import { TestDevTokens } from "../bootstrap/testDevTokens";
@@ -15,8 +15,7 @@ const classifyMailOutputSchema = z.object({
 });
 
 export class ClassifyMailToolConfig implements ToolConfig {
-  readonly token = ClassifyMailTool;
-  readonly tokenId = "codemation.test-dev.classify-mail-tool";
+  readonly type = ClassifyMailTool;
 
   constructor(
     public readonly name: string,
@@ -26,7 +25,7 @@ export class ClassifyMailToolConfig implements ToolConfig {
   ) {}
 }
 
-@injectable()
+@tool()
 export class ClassifyMailTool implements Tool<ClassifyMailToolConfig, typeof classifyMailInputSchema, typeof classifyMailOutputSchema> {
   readonly defaultDescription = "Classify an email as RFQ (request for quotation) or not.";
   readonly inputSchema = classifyMailInputSchema;

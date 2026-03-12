@@ -1,8 +1,8 @@
 import { injectable } from "@codemation/core";
 import type { CodemationBootstrapResult } from "../bootstrapDiscovery";
 import { RequestToWebhookItemMapper } from "./RequestToWebhookItemMapper";
-import { PreparedExecutionRuntimeProvider } from "./frontendRouteTokens";
 import type { WebhookRunResult } from "@codemation/core";
+import type { PreparedExecutionRuntimeProvider } from "./frontendRouteTokens";
 
 @injectable()
 export class WebhookRouteHandler {

@@ -36,8 +36,7 @@ export interface WorkflowGraphFactory {
 
 export interface NodeConfigBase {
   readonly kind: NodeKind;
-  readonly token: TypeToken<unknown>;
-  readonly tokenId: PersistedTokenId;
+  readonly type: TypeToken<unknown>;
   readonly name?: string;
   readonly id?: NodeId;
   readonly icon?: string;
@@ -74,8 +73,7 @@ export type TriggerNodeOutputJson<TConfig extends TriggerNodeConfig<any>> =
 export interface NodeDefinition {
   id: NodeId;
   kind: NodeKind;
-  token: TypeToken<unknown>;
-  tokenId: PersistedTokenId;
+  type: TypeToken<unknown>;
   name?: string;
   config: NodeConfigBase;
 }
@@ -152,7 +150,7 @@ export interface ActivationIdFactory {
 }
 
 export interface NodeResolver {
-  resolve(token: TypeToken<unknown>): unknown;
+  resolve<T>(token: TypeToken<T>): T;
   getContainer(): Container | undefined;
 }
 
@@ -569,5 +567,14 @@ export interface EngineDeps {
   runDataFactory: RunDataFactory;
   executionContextFactory: ExecutionContextFactory;
   eventBus?: RunEventBus;
+  /** Token registry for persisted workflow snapshot/resolve. If not provided, creates one. */
+  tokenRegistry?: PersistedWorkflowTokenRegistryLike;
+}
+
+export interface PersistedWorkflowTokenRegistryLike {
+  register(type: TypeToken<unknown>, packageId: string, persistedNameOverride?: string): string;
+  getTokenId(type: TypeToken<unknown>): string | undefined;
+  resolve(tokenId: string): TypeToken<unknown> | undefined;
+  registerFromWorkflows?(workflows: ReadonlyArray<WorkflowDefinition>): void;
 }
 

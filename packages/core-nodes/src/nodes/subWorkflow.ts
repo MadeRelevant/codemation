@@ -9,11 +9,11 @@ import type {
   TypeToken,
   UpstreamRefPlaceholder,
 } from "@codemation/core";
+import { node } from "@codemation/core";
 
 export class SubWorkflow<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = SubWorkflowNode;
-  readonly tokenId = "codemation.core-nodes.sub-workflow";
+  readonly type: TypeToken<unknown> = SubWorkflowNode;
   constructor(
     public readonly name: string,
     public readonly workflowId: string,
@@ -23,6 +23,7 @@ export class SubWorkflow<TInputJson = unknown, TOutputJson = unknown> implements
   ) {}
 }
 
+@node({ packageName: "@codemation/core-nodes" })
 export class SubWorkflowNode implements Node<SubWorkflow<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;

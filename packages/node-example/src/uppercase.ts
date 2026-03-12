@@ -1,12 +1,12 @@
 import type { Item, Items, Node, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import { node } from "@codemation/core";
 
 export class ExampleUppercase<
   TInputJson extends Record<string, unknown> = Record<string, unknown>,
   TField extends keyof TInputJson & string = keyof TInputJson & string,
 > implements RunnableNodeConfig<TInputJson, TInputJson> {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = ExampleUppercaseNode;
-  readonly tokenId = "codemation.node-example.uppercase";
+  readonly type: TypeToken<unknown> = ExampleUppercaseNode;
   constructor(
     public readonly name: string,
     public readonly cfg: { field: TField },
@@ -14,6 +14,7 @@ export class ExampleUppercase<
   ) {}
 }
 
+@node({ packageName: "@codemation/node-example" })
 export class ExampleUppercaseNode implements Node<ExampleUppercase<Record<string, unknown>, string>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;

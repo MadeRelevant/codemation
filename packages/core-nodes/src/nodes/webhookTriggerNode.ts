@@ -1,6 +1,8 @@
 import type { ExecutableTriggerNode, Items, NodeExecutionContext, NodeOutputs, TriggerSetupContext } from "@codemation/core";
+import { node } from "@codemation/core";
 import { WebhookTrigger } from "./webhookTrigger";
 
+@node({ packageName: "@codemation/core-nodes" })
 export class WebhookTriggerNode implements ExecutableTriggerNode<WebhookTrigger<any>> {
   readonly kind = "trigger" as const;
   readonly outputPorts = ["main"] as const;

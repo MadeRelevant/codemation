@@ -3,8 +3,7 @@ import { MissingRuntimeTriggerToken } from "./MissingRuntimeTriggerToken";
 
 export class MissingRuntimeTriggerConfig implements NodeConfigBase {
   readonly kind = "trigger" as const;
-  readonly token = MissingRuntimeTriggerToken;
-  readonly tokenId = "codemation.core.missingRuntime.trigger";
+  readonly type = MissingRuntimeTriggerToken;
 
   constructor(
     public readonly name: string,

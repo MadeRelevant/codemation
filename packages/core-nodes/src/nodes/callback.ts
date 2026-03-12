@@ -1,4 +1,5 @@
 import type { Items, Node, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import { node } from "@codemation/core";
 
 export type CallbackHandler<TInputJson = unknown, TOutputJson = TInputJson, TConfig extends Callback<TInputJson, TOutputJson> = Callback<TInputJson, TOutputJson>> = (
   items: Items<TInputJson>,
@@ -13,8 +14,7 @@ class CallbackResultNormalizer {
 
 export class Callback<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
-  readonly token: TypeToken<unknown> = CallbackNode;
-  readonly tokenId = "codemation.core-nodes.callback";
+  readonly type: TypeToken<unknown> = CallbackNode;
   readonly execution = { hint: "local" } as const;
 
   constructor(
@@ -28,6 +28,7 @@ export class Callback<TInputJson = unknown, TOutputJson = TInputJson> implements
   }
 }
 
+@node({ packageName: "@codemation/core-nodes" })
 export class CallbackNode implements Node<Callback<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
