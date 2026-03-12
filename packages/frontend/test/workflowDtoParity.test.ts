@@ -1,8 +1,8 @@
-import { PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, WorkflowBuilder, chatModel, tool, type ChatModelConfig, type ToolConfig } from "@codemation/core";
-import { AIAgent, Callback, ManualTrigger } from "@codemation/core-nodes";
+import { PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, chatModel, tool, type ChatModelConfig, type ToolConfig } from "@codemation/core";
 import { describe, expect, it } from "vitest";
 import { CodemationPersistedWorkflowDtoMapper } from "../src/host/codemationPersistedWorkflowDtoMapper";
 import { CodemationWorkflowDtoMapper } from "../src/host/codemationWorkflowDtoMapper";
+import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit";
 
 @chatModel({ packageName: "@codemation/frontend-parity" })
 class FrontendParityChatModelFactory {}
@@ -29,29 +29,14 @@ class FrontendParityToolConfig implements ToolConfig {
   ) {}
 }
 
-class FrontendParityFixtureFactory {
-  static createWorkflow() {
-    return new WorkflowBuilder({ id: "wf.frontend.parity", name: "Frontend parity workflow" })
-      .trigger(new ManualTrigger("Manual trigger", "trigger"))
-      .then(new Callback("Node 1", undefined, "node_1"))
-      .then(
-        new AIAgent(
-          "Agent",
-          "Inspect the item and use the tool when needed.",
-          (item) => JSON.stringify(item.json ?? {}),
-          new FrontendParityChatModelConfig("Mock LLM", { label: "Mock LLM" }),
-          [new FrontendParityToolConfig("lookup_tool", "Lookup tool", { label: "Lookup tool" })],
-          "agent",
-        ),
-      )
-      .then(new Callback("Node 2", undefined, "node_2"))
-      .build();
-  }
-}
-
 describe("workflow dto parity", () => {
   it("maps persisted snapshots to the same workflow dto shape as the live workflow mapper", () => {
-    const workflow = FrontendParityFixtureFactory.createWorkflow();
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDefinition({
+      workflowId: "wf.frontend.parity",
+      workflowName: "Frontend parity workflow",
+      chatModelConfig: new FrontendParityChatModelConfig("Mock LLM", { label: "Mock LLM" }),
+      toolConfigs: [new FrontendParityToolConfig("lookup_tool", "Lookup tool", { label: "Lookup tool" })],
+    });
     const liveDto = new CodemationWorkflowDtoMapper().toDetail(workflow);
     const tokenRegistry = new PersistedWorkflowTokenRegistry();
     tokenRegistry.registerFromWorkflows([workflow]);

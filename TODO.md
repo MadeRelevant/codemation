@@ -10,4 +10,8 @@
 * [ ] build webhook node
     * [ ] add oauth flows for credentials
 * [ ] allow array of nodes in then() for parallelism
-* [ ] store a snapshot of the config at each run and build the canvas from that snapshot for historical views
+* [x] store a snapshot of the config at each run and build the canvas from that snapshot for historical views
+* [ ] split RunRouteHandler
+* [ ] Fix naming for PersistedWorkflow*
+* [ ] Fix icon resolver, currently its using hardcoded map/if
+* [ ] Fix datetime formatting, use battle tested library instead
