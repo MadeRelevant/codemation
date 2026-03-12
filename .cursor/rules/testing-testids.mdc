@@ -1,0 +1,11 @@
+---
+description: Use data-testid for test selectors and avoid text queries
+alwaysApply: true
+---
+
+# Testing Selectors
+
+- Never use Testing Library text queries such as `getByText`, `findByText`, or `queryByText`.
+- When adding or updating UI tests, add stable `data-testid` attributes to the rendered markup and query with `getByTestId`, `findByTestId`, or `queryByTestId`.
+- If a test needs to verify rendered copy, select the element by `data-testid` first and then assert on `textContent`.
+- Do not introduce brittle selectors based on incidental text, formatting, or translated strings.

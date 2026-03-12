@@ -370,7 +370,7 @@ export class Engine implements NodeActivationContinuation {
     this.runDataFactory = deps.runDataFactory;
     this.executionContextFactory = deps.executionContextFactory;
     this.eventBus = deps.eventBus;
-    const tokenRegistry = deps.tokenRegistry ?? new PersistedWorkflowTokenRegistry();
+    const tokenRegistry = deps.tokenRegistry ? PersistedWorkflowTokenRegistry.fromLike(deps.tokenRegistry) : new PersistedWorkflowTokenRegistry();
     this.workflowSnapshotFactory = new PersistedWorkflowSnapshotFactory(tokenRegistry);
     this.persistedWorkflowResolver = new PersistedWorkflowResolver(this.workflowRegistry, tokenRegistry);
     this.tokenRegistry = tokenRegistry;
@@ -380,10 +380,19 @@ export class Engine implements NodeActivationContinuation {
   private readonly tokenRegistry: PersistedWorkflowTokenRegistry;
 
   loadWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): void {
-    if (this.tokenRegistry.registerFromWorkflows) {
-      this.tokenRegistry.registerFromWorkflows(workflows);
-    }
+    this.tokenRegistry.registerFromWorkflows(workflows);
     this.workflowRegistry.setWorkflows(workflows);
+  }
+
+  getTokenRegistry(): PersistedWorkflowTokenRegistry {
+    return this.tokenRegistry;
+  }
+
+  resolveWorkflowSnapshot(args: {
+    workflowId: WorkflowId;
+    workflowSnapshot?: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["workflowSnapshot"];
+  }): WorkflowDefinition | undefined {
+    return this.persistedWorkflowResolver.resolve(args);
   }
 
   async startTriggers(): Promise<void> {

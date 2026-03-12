@@ -1,0 +1,271 @@
+import Tree from "rc-tree";
+import { WorkflowNodeIconResolver, WorkflowStatusIcon } from "./WorkflowDetailIcons";
+import { WorkflowInspectorErrorView, WorkflowInspectorJsonView, WorkflowInspectorPrettyView } from "./WorkflowInspectorViews";
+import type { ExecutionTreeNode, WorkflowExecutionInspectorActions, WorkflowExecutionInspectorFormatting, WorkflowExecutionInspectorModel } from "./workflowDetailTypes";
+
+export function WorkflowExecutionInspector(args: Readonly<{
+  model: WorkflowExecutionInspectorModel;
+  actions: WorkflowExecutionInspectorActions;
+  formatting: WorkflowExecutionInspectorFormatting;
+}>) {
+  const { actions, formatting, model } = args;
+  const {
+    executionTreeData,
+    executionTreeExpandedKeys,
+    isLoading,
+    loadError,
+    inputPane,
+    outputPane,
+    selectedMode,
+    selectedNodeError,
+    selectedNodeId,
+    selectedNodeSnapshot,
+    selectedPinnedInput,
+    selectedRun,
+    selectedRunId,
+    selectedWorkflowNode,
+  } = model;
+  const { formatDateTime, getErrorClipboardText, getErrorHeadline, getErrorStack, getNodeDisplayName, getSnapshotTimestamp } = formatting;
+  const { onSelectFormat, onSelectInputPort, onSelectMode, onSelectNode, onSelectOutputPort } = actions;
+
+  if (!selectedRunId) return <div style={{ opacity: 0.7 }}>Select an execution to inspect node inputs and outputs.</div>;
+  if (isLoading && !selectedRun) return <div style={{ opacity: 0.7 }}>Loading execution details…</div>;
+  if (loadError) return <div style={{ color: "#b91c1c" }}>{loadError}</div>;
+  if (!selectedRun || !selectedNodeId) return <div style={{ opacity: 0.7 }}>Select a node to inspect.</div>;
+  const panes = selectedMode === "split" ? [inputPane, outputPane] : [selectedMode === "input" ? inputPane : outputPane];
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 32%) 1fr", height: "100%", minHeight: 0 }}>
+      <div style={{ borderRight: "1px solid #d1d5db", overflow: "auto", padding: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, opacity: 0.64, textTransform: "uppercase" }}>Execution tree</div>
+        <div style={{ marginTop: 10 }}>
+          {executionTreeData.length === 0 ? (
+            <div style={{ fontSize: 12, opacity: 0.7 }}>No node events yet for this execution.</div>
+          ) : (
+            <Tree<ExecutionTreeNode>
+              className="codemation-execution-tree"
+              treeData={executionTreeData as ExecutionTreeNode[]}
+              showLine
+              showIcon={false}
+              defaultExpandAll
+              expandedKeys={[...executionTreeExpandedKeys]}
+              selectable
+              selectedKeys={selectedNodeId ? [selectedNodeId] : []}
+              onSelect={(_keys, info) => {
+                onSelectNode(String(info.node.key));
+              }}
+              titleRender={(treeNode) => {
+                const isSelected = treeNode.key === selectedNodeId;
+                const snapshot = treeNode.snapshot;
+                const node = treeNode.workflowNode;
+                const status = snapshot?.status ?? "pending";
+                const FallbackIcon = WorkflowNodeIconResolver.resolveFallback(node?.type ?? "", node?.role, node?.icon);
+                return (
+                  <div
+                    data-testid={`execution-tree-node-${String(treeNode.key)}`}
+                    style={{
+                      background: isSelected ? "#eff6ff" : "transparent",
+                      padding: "6px 10px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      minWidth: 0,
+                      boxShadow: isSelected ? "inset 2px 0 0 #2563eb" : "none",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto" }}>
+                      <div style={{ width: 20, height: 20, display: "grid", placeItems: "center", color: "#111827", background: "#f8fafc", flex: "0 0 auto" }}>
+                        <FallbackIcon size={14} strokeWidth={1.9} />
+                      </div>
+                      <WorkflowStatusIcon status={status} size={15} />
+                      <div style={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {getNodeDisplayName(node, snapshot?.nodeId ?? null)}
+                      </div>
+                    </div>
+                    <div style={{ flex: "0 0 auto", fontSize: 12, color: "#6b7280", whiteSpace: "nowrap", textAlign: "right" }}>
+                      {formatDateTime(getSnapshotTimestamp(snapshot))}
+                    </div>
+                  </div>
+                );
+              }}
+            />
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateRows: "auto 1fr", minHeight: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: 12, borderBottom: "1px solid #d1d5db" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <WorkflowStatusIcon status={selectedNodeSnapshot?.status ?? "pending"} />
+              <div data-testid="selected-node-name" style={{ fontWeight: 800, fontSize: 14, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {getNodeDisplayName(selectedWorkflowNode, selectedNodeId)}
+              </div>
+              {selectedPinnedInput ? (
+                <span data-testid="selected-node-pinned-badge" style={{ border: "1px solid #c4b5fd", background: "#f5f3ff", color: "#6d28d9", fontSize: 11, fontWeight: 800, letterSpacing: 0.3, textTransform: "uppercase", padding: "2px 6px" }}>
+                  Pinned
+                </span>
+              ) : null}
+            </div>
+            <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{formatDateTime(getSnapshotTimestamp(selectedNodeSnapshot))}</div>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              {(["input", "output", "split"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  data-testid={`inspector-tab-${mode}`}
+                  onClick={() => onSelectMode(mode)}
+                  aria-pressed={selectedMode === mode}
+                  style={{
+                    border: selectedMode === mode ? "1px solid #111827" : "1px solid #d1d5db",
+                    background: selectedMode === mode ? "#111827" : "white",
+                    color: selectedMode === mode ? "white" : mode !== "input" && selectedNodeError ? "#991b1b" : "#111827",
+                    padding: "7px 11px",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    cursor: "pointer",
+                  }}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span>{mode[0]!.toUpperCase()}{mode.slice(1)}</span>
+                    {mode !== "input" && selectedNodeError ? (
+                      <span
+                        style={{
+                          border: selectedMode === mode ? "1px solid rgba(255,255,255,0.28)" : "1px solid #fecaca",
+                          background: selectedMode === mode ? "rgba(255,255,255,0.16)" : "#fef2f2",
+                          color: selectedMode === mode ? "#ffffff" : "#991b1b",
+                          fontSize: 10,
+                          fontWeight: 800,
+                          letterSpacing: 0.3,
+                          textTransform: "uppercase",
+                          padding: "1px 5px",
+                        }}
+                      >
+                        Error
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: panes.length === 2 ? "minmax(0, 1fr) minmax(0, 1fr)" : "minmax(0, 1fr)",
+            minHeight: 0,
+          }}
+        >
+          {panes.map((pane, index) => {
+            const isOutputPane = pane.tab === "output";
+            return (
+              <section
+                key={pane.tab}
+                data-testid={`workflow-inspector-pane-${pane.tab}`}
+                style={{
+                  display: "grid",
+                  gridTemplateRows: "auto auto 1fr",
+                  minWidth: 0,
+                  minHeight: 0,
+                  borderLeft: index > 0 ? "1px solid #e5e7eb" : "none",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    padding: "10px 12px",
+                    borderBottom: "1px solid #e5e7eb",
+                    background: "#f8fafc",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", opacity: 0.72 }}>
+                      {pane.tab}
+                    </div>
+                    {isOutputPane && pane.showsError ? (
+                      <span style={{ border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 10, fontWeight: 800, letterSpacing: 0.3, textTransform: "uppercase", padding: "1px 5px" }}>
+                        Error
+                      </span>
+                    ) : null}
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {(["json", "pretty"] as const).map((format) => (
+                      <button
+                        key={format}
+                        data-testid={`inspector-format-${pane.tab}-${format}`}
+                        onClick={() => onSelectFormat(pane.tab, format)}
+                        aria-pressed={pane.format === format}
+                        style={{
+                          border: pane.format === format ? "1px solid #111827" : "1px solid #d1d5db",
+                          background: pane.format === format ? "#111827" : "white",
+                          color: pane.format === format ? "white" : "#111827",
+                          padding: "6px 10px",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {format[0]!.toUpperCase()}
+                        {format.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {pane.portEntries.length > 1 ? (
+                  <div style={{ display: "flex", gap: 8, padding: "10px 12px", borderBottom: "1px solid #e5e7eb", background: "#ffffff", overflow: "auto" }}>
+                    {pane.portEntries.map(([portName]) => {
+                      const isSelected = pane.selectedPort === portName;
+                      return (
+                        <button
+                          key={portName}
+                          data-testid={`inspector-port-${pane.tab}-${portName}`}
+                          onClick={() => {
+                            if (pane.tab === "input") onSelectInputPort(portName);
+                            if (pane.tab === "output") onSelectOutputPort(portName);
+                          }}
+                          style={{ whiteSpace: "nowrap", border: isSelected ? "1px solid #111827" : "1px solid #d1d5db", background: isSelected ? "#111827" : "white", color: isSelected ? "white" : "#111827", padding: "6px 10px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                        >
+                          {portName}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ borderBottom: "1px solid #e5e7eb" }} />
+                )}
+
+                <div style={{ overflow: "auto", padding: 12 }}>
+                  {pane.showsError ? (
+                    pane.format === "pretty" ? (
+                      <WorkflowInspectorErrorView
+                        error={selectedNodeError}
+                        emptyLabel={pane.emptyLabel}
+                        getErrorClipboardText={getErrorClipboardText}
+                        getErrorHeadline={getErrorHeadline}
+                        getErrorStack={getErrorStack}
+                      />
+                    ) : (
+                      <WorkflowInspectorJsonView value={selectedNodeError} emptyLabel={pane.emptyLabel} />
+                    )
+                  ) : pane.format === "pretty" ? (
+                    <WorkflowInspectorPrettyView value={pane.value} emptyLabel={pane.emptyLabel} />
+                  ) : (
+                    <WorkflowInspectorJsonView value={pane.value} emptyLabel={pane.emptyLabel} />
+                  )}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

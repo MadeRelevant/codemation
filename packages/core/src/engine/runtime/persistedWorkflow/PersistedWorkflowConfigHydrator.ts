@@ -1,5 +1,5 @@
 import type { NodeConfigBase, PersistedWorkflowSnapshotNode } from "../../../types";
-import { PersistedWorkflowTokenRegistry } from "./PersistedWorkflowTokenRegistry";
+import type { PersistedWorkflowTokenRegistry } from "./PersistedWorkflowTokenRegistry";
 
 export class PersistedWorkflowConfigHydrator {
   constructor(private readonly tokenRegistry: PersistedWorkflowTokenRegistry) {}

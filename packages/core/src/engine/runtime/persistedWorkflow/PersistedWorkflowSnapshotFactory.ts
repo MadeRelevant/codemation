@@ -1,7 +1,7 @@
 import type { PersistedTokenId, PersistedWorkflowSnapshot, WorkflowDefinition } from "../../../types";
 import type { TypeToken } from "../../../di";
-import type { PersistedWorkflowTokenRegistry } from "./PersistedWorkflowTokenRegistry";
 import { PersistedWorkflowConfigSerializer } from "./PersistedWorkflowConfigSerializer";
+import type { PersistedWorkflowTokenRegistry } from "./PersistedWorkflowTokenRegistry";
 
 export class PersistedWorkflowSnapshotFactory {
   private readonly configSerializer: PersistedWorkflowConfigSerializer;

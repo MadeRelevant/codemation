@@ -1,6 +1,6 @@
 import "reflect-metadata";
 
-import type { Container, CredentialService, WorkflowDefinition, WorkflowRegistry } from "@codemation/core";
+import type { Container, CredentialService, WorkflowDefinition } from "@codemation/core";
 import {
   container as tsyringeContainer,
   ContainerNodeResolver,
@@ -300,7 +300,7 @@ export class CodemationApplication {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationFrontendRuntimeProvider)),
     });
     this.container.register(RequestToWebhookItemMapper, { useClass: RequestToWebhookItemMapper });
-    this.container.register(WorkflowRouteHandler, {
+    this.container.register(FrontendRouteTokens.WorkflowRouteHandler, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         return new WorkflowRouteHandler(
           dependencyContainer.resolve(CodemationApplication),
@@ -309,7 +309,7 @@ export class CodemationApplication {
         );
       }),
     });
-    this.container.register(RunRouteHandler, {
+    this.container.register(FrontendRouteTokens.RunRouteHandler, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         return new RunRouteHandler(
           dependencyContainer.resolve(FrontendRouteTokens.FrontendRuntimeProvider),
@@ -322,7 +322,7 @@ export class CodemationApplication {
         return new RealtimeRouteHandler(dependencyContainer.resolve(FrontendRouteTokens.FrontendRuntimeProvider));
       }),
     });
-    this.container.register(WebhookRouteHandler, {
+    this.container.register(FrontendRouteTokens.WebhookRouteHandler, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         return new WebhookRouteHandler(
           dependencyContainer.resolve(FrontendRouteTokens.PreparedExecutionRuntimeProvider),

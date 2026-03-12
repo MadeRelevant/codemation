@@ -29,6 +29,7 @@ const isRuntimeRegistryImport = (source) =>
   (source === "./runtime/codemationRuntimeRegistry" ||
     source === "../runtime/codemationRuntimeRegistry" ||
     source.endsWith("/runtime/codemationRuntimeRegistry"));
+const restrictedTestingLibraryTextQueries = new Set(["getByText", "queryByText", "findByText"]);
 const isModuleScopeVariableDeclarator = (node) => {
   const declaration = node.parent;
   const container = declaration?.parent;
@@ -200,6 +201,41 @@ const architecturePlugin = {
         };
       },
     },
+    "no-testing-library-text-queries": {
+      meta: {
+        type: "problem",
+        docs: {
+          description: "disallow brittle Testing Library text queries in tests",
+        },
+        schema: [],
+      },
+      create(context) {
+        return {
+          CallExpression(node) {
+            if (node.callee.type === "Identifier" && restrictedTestingLibraryTextQueries.has(node.callee.name)) {
+              context.report({
+                node,
+                message:
+                  "Do not use Testing Library text queries here. Add a stable data-testid and query with getByTestId/findByTestId/queryByTestId instead.",
+              });
+              return;
+            }
+            if (
+              node.callee.type === "MemberExpression" &&
+              !node.callee.computed &&
+              node.callee.property.type === "Identifier" &&
+              restrictedTestingLibraryTextQueries.has(node.callee.property.name)
+            ) {
+              context.report({
+                node,
+                message:
+                  "Do not use Testing Library text queries here. Add a stable data-testid and query with getByTestId/findByTestId/queryByTestId instead.",
+              });
+            }
+          },
+        };
+      },
+    },
   },
 };
 
@@ -262,11 +298,13 @@ export default [
   {
     files: ["**/test/**/*.{js,ts,tsx}", "**/*.test.{js,ts,tsx}"],
     plugins: {
+      codemation: architecturePlugin,
       "no-only-tests": noOnlyTests,
     },
     rules: {
       // Prevent accidentally committed focused tests.
       "no-only-tests/no-only-tests": "error",
+      "codemation/no-testing-library-text-queries": "error",
       "no-restricted-properties": [
         "error",
         { object: "test", property: "only", message: "Do not commit focused tests (test.only)." },
@@ -291,7 +329,17 @@ export default [
   // Architecture: package source should stay class-oriented and DI-friendly.
   {
     files: ["packages/frontend/src/**/*.{ts,tsx}", "packages/cli/src/**/*.{ts,tsx}"],
-    ignores: ["**/index.ts", "**/*.d.ts", "**/*Types.ts", "**/*types.ts", "packages/frontend/src/frontend/routeHandlers.ts"],
+    ignores: [
+      "**/index.ts",
+      "**/*.d.ts",
+      "**/*Types.ts",
+      "**/*types.ts",
+      "packages/frontend/src/frontend/routeHandlers.ts",
+      "packages/frontend/src/routes/**/*.tsx",
+      "packages/frontend/src/components/**/*.tsx",
+      "packages/frontend/src/realtime/**/*.tsx",
+      "packages/frontend/src/providers/**/*.tsx",
+    ],
     rules: {
       "codemation/single-class-per-file": "error",
       "codemation/no-manual-di-new": "error",

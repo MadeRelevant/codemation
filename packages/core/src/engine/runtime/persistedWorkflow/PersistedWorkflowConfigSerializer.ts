@@ -8,7 +8,7 @@ export class PersistedWorkflowConfigSerializer {
   create(config: NodeConfigBase): unknown {
     try {
       const cloned = JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
-      this.injectTokenIds(cloned, config as Record<string, unknown>);
+      this.injectTokenIds(cloned, config as unknown as Record<string, unknown>);
       return cloned;
     } catch {
       const fallback: Record<string, unknown> = {
@@ -18,7 +18,7 @@ export class PersistedWorkflowConfigSerializer {
         icon: config.icon,
         execution: config.execution,
       };
-      this.injectTokenIds(fallback, config as Record<string, unknown>);
+      this.injectTokenIds(fallback, config as unknown as Record<string, unknown>);
       return fallback;
     }
   }

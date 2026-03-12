@@ -8,7 +8,6 @@ import type {
   WorkflowRegistry,
 } from "@codemation/core";
 import { injectable } from "@codemation/core";
-import { PersistedWorkflowResolver } from "@codemation/core";
 import type { CodemationBootstrapResult } from "../bootstrapDiscovery";
 import type { FrontendRuntimeProvider, PreparedExecutionRuntimeProvider } from "./frontendRouteTokens";
 
@@ -109,7 +108,7 @@ class WorkflowSliceBuilder {
 class WorkflowExecutionRequestResolver {
   static async resolve(args: {
     body: RunRequestBody;
-    workflowRegistry: WorkflowRegistry;
+    runtime: Awaited<ReturnType<FrontendRuntimeProvider["getRuntime"]>>;
     runStore: PersistedRunStateStoreView;
   }): Promise<WorkflowDefinition | undefined> {
     if (args.body.sourceRunId) {
@@ -117,7 +116,7 @@ class WorkflowExecutionRequestResolver {
       if (!sourceState) {
         return undefined;
       }
-      return new PersistedWorkflowResolver(args.workflowRegistry).resolve({
+      return args.runtime.getEngine().resolveWorkflowSnapshot({
         workflowId: sourceState.workflowId,
         workflowSnapshot: sourceState.workflowSnapshot,
       });
@@ -125,7 +124,7 @@ class WorkflowExecutionRequestResolver {
     if (!args.body.workflowId) {
       return undefined;
     }
-    return args.workflowRegistry.get(args.body.workflowId);
+    return args.runtime.getWorkflowRegistry().get(args.body.workflowId);
   }
 }
 
@@ -197,8 +196,8 @@ class MutableExecutionStatePruner {
 }
 
 class MutableExecutionResolver {
-  static resolveWorkflow(args: { state: PersistedRunState; workflowRegistry: WorkflowRegistry }): WorkflowDefinition | undefined {
-    return new PersistedWorkflowResolver(args.workflowRegistry).resolve({
+  static resolveWorkflow(args: { state: PersistedRunState; runtime: Awaited<ReturnType<FrontendRuntimeProvider["getRuntime"]>> }): WorkflowDefinition | undefined {
+    return args.runtime.getEngine().resolveWorkflowSnapshot({
       workflowId: args.state.workflowId,
       workflowSnapshot: args.state.workflowSnapshot,
     });
@@ -247,7 +246,7 @@ export class RunRouteHandler {
     const sourceState = body.sourceRunId ? await runtime.getRunStore().load(body.sourceRunId) : undefined;
     const workflow = await WorkflowExecutionRequestResolver.resolve({
       body,
-      workflowRegistry: runtime.getWorkflowRegistry(),
+      runtime,
       runStore: runtime.getRunStore(),
     });
     if (!workflow) {
@@ -428,7 +427,10 @@ export class RunRouteHandler {
     } catch (error) {
       return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 403 });
     }
-    const workflow = MutableExecutionResolver.resolveWorkflow({ state, workflowRegistry: runtime.getWorkflowRegistry() });
+    const workflow = MutableExecutionResolver.resolveWorkflow({
+      state,
+      runtime,
+    });
     if (!workflow) {
       return Response.json({ error: "Unknown workflow for run" }, { status: 404 });
     }

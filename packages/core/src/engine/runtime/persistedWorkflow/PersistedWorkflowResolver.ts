@@ -1,4 +1,4 @@
-import type { NodeDefinition, WorkflowDefinition, WorkflowId, WorkflowRegistry, PersistedWorkflowSnapshot } from "../../../types";
+import type { NodeDefinition, PersistedWorkflowSnapshot, WorkflowDefinition, WorkflowId, WorkflowRegistry } from "../../../types";
 import type { TypeToken } from "../../../di";
 import { MissingRuntimeNodeDefinitionFactory } from "./MissingRuntimeNodeDefinitionFactory";
 import { PersistedWorkflowConfigHydrator } from "./PersistedWorkflowConfigHydrator";

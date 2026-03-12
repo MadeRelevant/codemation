@@ -1,6 +1,6 @@
 import type { TypeToken } from "../../../di";
 import { getPersistedRuntimeTypeMetadata } from "../../../runtimeTypeDecorators";
-import type { NodeConfigBase, PersistedTokenId, WorkflowDefinition } from "../../../types";
+import type { PersistedTokenId, PersistedWorkflowTokenRegistryLike, WorkflowDefinition } from "../../../types";
 
 function getTokenName(token: TypeToken<unknown>): string {
   if (typeof token === "function" && token.name) return token.name;
@@ -25,6 +25,14 @@ class PersistedRuntimeTypeIdFactory {
 export class PersistedWorkflowTokenRegistry {
   private readonly tokensById = new Map<PersistedTokenId, TypeToken<unknown>>();
   private readonly tokenIdsByToken = new Map<TypeToken<unknown>, PersistedTokenId>();
+
+  static fromLike(registry: PersistedWorkflowTokenRegistryLike): PersistedWorkflowTokenRegistry {
+    if (registry instanceof PersistedWorkflowTokenRegistry) {
+      return registry;
+    }
+    const concreteRegistry = new PersistedWorkflowTokenRegistry();
+    return new PersistedWorkflowTokenRegistryProxyAdapter(concreteRegistry, registry);
+  }
 
   /**
    * Register a token with its package ID. Token ID is inferred as `packageId::tokenName`.
@@ -97,5 +105,33 @@ export class PersistedWorkflowTokenRegistry {
 
   resolve(tokenId: PersistedTokenId): TypeToken<unknown> | undefined {
     return this.tokensById.get(tokenId);
+  }
+}
+
+class PersistedWorkflowTokenRegistryProxyAdapter extends PersistedWorkflowTokenRegistry {
+  constructor(
+    private readonly concreteRegistry: PersistedWorkflowTokenRegistry,
+    private readonly delegateRegistry: PersistedWorkflowTokenRegistryLike,
+  ) {
+    super();
+  }
+
+  override register(type: TypeToken<unknown>, packageId: string, persistedNameOverride?: string): PersistedTokenId {
+    const tokenId = this.delegateRegistry.register(type, packageId, persistedNameOverride);
+    this.concreteRegistry.register(type, packageId, persistedNameOverride);
+    return tokenId;
+  }
+
+  override registerFromWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): void {
+    this.delegateRegistry.registerFromWorkflows?.(workflows);
+    this.concreteRegistry.registerFromWorkflows(workflows);
+  }
+
+  override getTokenId(token: TypeToken<unknown>): PersistedTokenId | undefined {
+    return this.delegateRegistry.getTokenId(token) ?? this.concreteRegistry.getTokenId(token);
+  }
+
+  override resolve(tokenId: PersistedTokenId): TypeToken<unknown> | undefined {
+    return this.delegateRegistry.resolve(tokenId) ?? this.concreteRegistry.resolve(tokenId);
   }
 }

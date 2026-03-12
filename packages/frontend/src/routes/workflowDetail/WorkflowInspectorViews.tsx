@@ -1,0 +1,342 @@
+import JsonView from "@uiw/react-json-view";
+import { githubLightTheme } from "@uiw/react-json-view/githubLight";
+import { Check, Copy } from "lucide-react";
+import Tree, { type FieldDataNode } from "rc-tree";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import type { CopyState, NodeExecutionError } from "./workflowDetailTypes";
+
+type PrettyJsonTreeNode = FieldDataNode<
+  Readonly<{
+    key: string;
+    title?: ReactNode;
+  }>
+>;
+
+class WorkflowInspectorPrettyTreePresenter {
+  static buildTreeData(value: unknown): ReadonlyArray<PrettyJsonTreeNode> {
+    if (value === undefined) {
+      return [];
+    }
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return [this.createEmptyCollectionNode("value", "Array(0)", "pretty-root")];
+      }
+      return value.map((entry, index) => this.createNode(`[${index}]`, entry, `pretty-root.${index}`));
+    }
+    if (this.isRecord(value)) {
+      const entries = Object.entries(value);
+      if (entries.length === 0) {
+        return [this.createEmptyCollectionNode("value", "Object(0)", "pretty-root")];
+      }
+      return entries.map(([key, entry]) => this.createNode(key, entry, `pretty-root.${key}`));
+    }
+    return [this.createNode("value", value, "pretty-root.value")];
+  }
+
+  static collectKeys(nodes: ReadonlyArray<PrettyJsonTreeNode>): ReadonlyArray<string> {
+    const keys: string[] = [];
+    this.collectKeysRecursive(nodes, keys);
+    return keys;
+  }
+
+  private static collectKeysRecursive(nodes: ReadonlyArray<PrettyJsonTreeNode>, keys: string[]): void {
+    for (const node of nodes) {
+      keys.push(String(node.key));
+      const children = Array.isArray(node.children) ? (node.children as PrettyJsonTreeNode[]) : [];
+      this.collectKeysRecursive(children, keys);
+    }
+  }
+
+  private static createNode(label: string, value: unknown, key: string): PrettyJsonTreeNode {
+    if (Array.isArray(value)) {
+      const children = value.map((entry, index) => this.createNode(`[${index}]`, entry, `${key}.${index}`));
+      return {
+        key,
+        title: this.renderBranchTitle(label, `Array(${value.length})`, key),
+        children,
+        isLeaf: children.length === 0,
+      };
+    }
+    if (this.isRecord(value)) {
+      const children = Object.entries(value).map(([childKey, childValue]) => this.createNode(childKey, childValue, `${key}.${childKey}`));
+      return {
+        key,
+        title: this.renderBranchTitle(label, `Object(${Object.keys(value).length})`, key),
+        children,
+        isLeaf: children.length === 0,
+      };
+    }
+    return {
+      key,
+      title: this.renderLeafTitle(label, value, key),
+      isLeaf: true,
+    };
+  }
+
+  private static createEmptyCollectionNode(label: string, summary: string, key: string): PrettyJsonTreeNode {
+    return {
+      key,
+      title: this.renderBranchTitle(label, summary, key),
+      isLeaf: true,
+    };
+  }
+
+  private static renderBranchTitle(label: string, summary: string, key: string): ReactNode {
+    return (
+      <div data-testid={`pretty-json-branch-${key}`} style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, padding: "4px 0" }}>
+        <span style={{ fontSize: 12, fontWeight: 800, color: "#0f172a" }}>{label}</span>
+        <span
+          style={{
+            border: "1px solid #d1d5db",
+            background: "#f8fafc",
+            color: "#475569",
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "1px 6px",
+          }}
+        >
+          {summary}
+        </span>
+      </div>
+    );
+  }
+
+  private static renderLeafTitle(label: string, value: unknown, key: string): ReactNode {
+    const multilineStringValue = typeof value === "string" && value.includes("\n");
+    return (
+      <div data-testid={`pretty-json-leaf-${key}`} style={{ display: "grid", gap: multilineStringValue ? 6 : 0, padding: "4px 0" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12, fontWeight: 800, color: "#0f172a" }}>{label}</span>
+          {multilineStringValue ? (
+            <span
+              style={{
+                border: "1px solid #bfdbfe",
+                background: "#eff6ff",
+                color: "#1d4ed8",
+                fontSize: 11,
+                fontWeight: 700,
+                padding: "1px 6px",
+              }}
+            >
+              multiline string
+            </span>
+          ) : (
+            this.renderInlineValue(value)
+          )}
+        </div>
+        {multilineStringValue ? (
+          <div
+            data-testid={`pretty-json-multiline-${key}`}
+            style={{
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              border: "1px solid #dbeafe",
+              background: "#ffffff",
+              color: "#0f172a",
+              padding: "8px 10px",
+              lineHeight: 1.6,
+            }}
+          >
+            {value}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  private static renderInlineValue(value: unknown): ReactNode {
+    if (typeof value === "string") {
+      return (
+        <span style={{ color: "#0f766e", fontSize: 12, lineHeight: 1.5, wordBreak: "break-word" }}>
+          {value === "" ? '""' : value}
+        </span>
+      );
+    }
+    if (typeof value === "number" || typeof value === "boolean" || value === null) {
+      return (
+        <span
+          style={{
+            border: "1px solid #d1d5db",
+            background: "#ffffff",
+            color: "#334155",
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "1px 6px",
+          }}
+        >
+          {String(value)}
+        </span>
+      );
+    }
+    return <span style={{ color: "#64748b", fontSize: 12, lineHeight: 1.5 }}>{value === undefined ? "undefined" : JSON.stringify(value)}</span>;
+  }
+
+  private static isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+  }
+}
+
+export function WorkflowInspectorJsonView(args: Readonly<{ value: unknown; emptyLabel: string }>) {
+  const { value, emptyLabel } = args;
+  const [collapsedLevel, setCollapsedLevel] = useState<boolean | number>(1);
+  const [copyState, setCopyState] = useState<CopyState>("idle");
+  const isRenderableJson = value !== null && typeof value === "object";
+
+  if (value === undefined) {
+    return <div style={{ opacity: 0.62, fontSize: 13 }}>{emptyLabel}</div>;
+  }
+
+  return (
+    <div style={{ height: "100%", minHeight: 0, display: "grid", gridTemplateRows: "auto 1fr", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setCollapsedLevel(true)} style={{ border: "1px solid #d1d5db", background: "white", padding: "6px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
+            Collapse all
+          </button>
+          <button onClick={() => setCollapsedLevel(false)} style={{ border: "1px solid #d1d5db", background: "white", padding: "6px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
+            Expand all
+          </button>
+        </div>
+        <div data-testid="workflow-inspector-json-copy-hint" style={{ fontSize: 12, opacity: 0.65 }}>
+          {copyState === "copied" ? "Copied to clipboard" : "Use the copy icon in the viewer"}
+        </div>
+      </div>
+      <div data-testid="workflow-inspector-json-panel" style={{ overflow: "auto", border: "1px solid #d1d5db", background: "#f8fafc", padding: 12 }}>
+        {isRenderableJson ? (
+          <JsonView
+            value={value as object}
+            collapsed={collapsedLevel}
+            enableClipboard
+            displayDataTypes={false}
+            displayObjectSize
+            shortenTextAfterLength={80}
+            style={{
+              ...githubLightTheme,
+              backgroundColor: "transparent",
+              padding: 0,
+              fontSize: 12,
+              lineHeight: 1.6,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            }}
+            onCopied={() => {
+              setCopyState("copied");
+              window.setTimeout(() => setCopyState("idle"), 1500);
+            }}
+            onExpand={() => {
+              if (copyState === "copied") setCopyState("idle");
+            }}
+          />
+        ) : (
+          <pre style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: "#111827", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
+            {JSON.stringify(value, null, 2)}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function WorkflowInspectorPrettyView(args: Readonly<{ value: unknown; emptyLabel: string }>) {
+  const { value, emptyLabel } = args;
+  const treeData = useMemo(() => WorkflowInspectorPrettyTreePresenter.buildTreeData(value), [value]);
+  const allExpandedKeys = useMemo(() => WorkflowInspectorPrettyTreePresenter.collectKeys(treeData), [treeData]);
+  const [expandedKeys, setExpandedKeys] = useState<ReadonlyArray<string>>([]);
+
+  useEffect(() => {
+    setExpandedKeys(allExpandedKeys);
+  }, [allExpandedKeys]);
+
+  if (value === undefined) {
+    return <div style={{ opacity: 0.62, fontSize: 13 }}>{emptyLabel}</div>;
+  }
+
+  return (
+    <div style={{ height: "100%", minHeight: 0, display: "grid", gridTemplateRows: "auto 1fr", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setExpandedKeys([])} style={{ border: "1px solid #d1d5db", background: "white", padding: "6px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
+            Collapse all
+          </button>
+          <button onClick={() => setExpandedKeys(allExpandedKeys)} style={{ border: "1px solid #d1d5db", background: "white", padding: "6px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
+            Expand all
+          </button>
+        </div>
+        <div data-testid="workflow-inspector-pretty-hint" style={{ fontSize: 12, opacity: 0.65 }}>
+          Readable tree view with preserved line breaks
+        </div>
+      </div>
+      <div style={{ overflow: "auto", border: "1px solid #d1d5db", background: "#f8fafc", padding: 12 }}>
+        <Tree<PrettyJsonTreeNode>
+          className="codemation-json-tree"
+          treeData={treeData as PrettyJsonTreeNode[]}
+          showLine
+          showIcon={false}
+          selectable={false}
+          expandedKeys={[...expandedKeys]}
+          onExpand={(keys) => {
+            setExpandedKeys(keys.map((key) => String(key)));
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export function WorkflowInspectorErrorView(args: Readonly<{ error: NodeExecutionError | undefined; emptyLabel: string; getErrorHeadline: (error: NodeExecutionError | undefined) => string; getErrorStack: (error: NodeExecutionError | undefined) => string | null; getErrorClipboardText: (error: NodeExecutionError | undefined) => string }>) {
+  const { error, emptyLabel, getErrorClipboardText, getErrorHeadline, getErrorStack } = args;
+  const [copyState, setCopyState] = useState<CopyState>("idle");
+
+  if (!error) {
+    return <div style={{ opacity: 0.62, fontSize: 13 }}>{emptyLabel}</div>;
+  }
+
+  const headline = getErrorHeadline(error);
+  const stack = getErrorStack(error);
+
+  return (
+    <div style={{ height: "100%", minHeight: 0, display: "grid", gridTemplateRows: "auto auto 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gap: 8, border: "1px solid #fecaca", background: "#fef2f2", padding: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", color: "#991b1b" }}>Error</div>
+        <div
+          data-testid="workflow-inspector-error-headline"
+          style={{ fontSize: 13, lineHeight: 1.55, color: "#111827", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}
+        >
+          {headline}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ fontSize: 12, color: "#4b5563" }}>{stack ? "Full stacktrace" : "No stacktrace was captured for this error."}</div>
+        <button
+          onClick={() => {
+            const value = getErrorClipboardText(error);
+            if (!value) return;
+            void navigator.clipboard.writeText(value).then(() => {
+              setCopyState("copied");
+              window.setTimeout(() => setCopyState("idle"), 1500);
+            });
+          }}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            border: "1px solid #d1d5db",
+            background: "white",
+            padding: "6px 10px",
+            cursor: "pointer",
+            fontWeight: 700,
+            fontSize: 12,
+            color: "#111827",
+          }}
+        >
+          {copyState === "copied" ? <Check size={14} strokeWidth={2.2} /> : <Copy size={14} strokeWidth={2.2} />}
+          {copyState === "copied" ? "Copied" : "Copy stacktrace"}
+        </button>
+      </div>
+      <div style={{ overflow: "auto", border: "1px solid #d1d5db", background: "#0f172a", color: "#e2e8f0", padding: 12 }}>
+        <pre style={{ margin: 0, fontSize: 12, lineHeight: 1.65, whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
+          {stack ?? headline}
+        </pre>
+      </div>
+    </div>
+  );
+}
