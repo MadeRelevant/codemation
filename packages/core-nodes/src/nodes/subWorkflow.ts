@@ -13,6 +13,7 @@ import type {
 export class SubWorkflow<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = SubWorkflowNode;
+  readonly tokenId = "codemation.core-nodes.sub-workflow";
   constructor(
     public readonly name: string,
     public readonly workflowId: string,

@@ -5,6 +5,7 @@ export type MergeMode = "passThrough" | "append" | "mergeByPosition";
 export class Merge<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = MergeNode;
+  readonly tokenId = "codemation.core-nodes.merge";
 
   constructor(
     public readonly name: string,

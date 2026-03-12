@@ -29,6 +29,7 @@ import {
   useWorkflowRunsQuery,
   type Items,
   type NodeExecutionSnapshot,
+  type PersistedWorkflowSnapshot,
   type PersistedRunState,
   type RunSummary,
   type WorkflowDto,
@@ -38,6 +39,7 @@ import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ApiPaths } from "../api/ApiPaths";
 import { WorkflowCanvas } from "../components/WorkflowCanvas";
+import { CodemationPersistedWorkflowDtoMapper } from "../host/codemationPersistedWorkflowDtoMapper";
 
 type RunWorkflowResult = Readonly<{
   runId: string;
@@ -46,12 +48,25 @@ type RunWorkflowResult = Readonly<{
   startedAt?: string;
   state: PersistedRunState | null;
 }>;
+type RunWorkflowMode = "manual" | "debug";
+type RunWorkflowRequest = Readonly<{
+  startAt?: string;
+  stopAt?: string;
+  mode?: RunWorkflowMode;
+  sourceRunId?: string;
+}>;
+type JsonEditorMode = "pin-input" | "debug-input" | "workflow-snapshot";
 type InspectorTab = "input" | "output" | "error";
 type CopyState = "idle" | "copied";
 type PortEntries = ReadonlyArray<readonly [string, Items]>;
 type WorkflowNode = WorkflowDto["nodes"][number];
 type ExecutionNode = Readonly<{ node: WorkflowNode; snapshot?: NodeExecutionSnapshot }>;
 type NodeExecutionError = NonNullable<NodeExecutionSnapshot["error"]>;
+type JsonEditorState = Readonly<{
+  mode: JsonEditorMode;
+  title: string;
+  value: string;
+}>;
 type ExecutionTreeNode = FieldDataNode<
   Readonly<{
     key: string;
@@ -62,19 +77,64 @@ type ExecutionTreeNode = FieldDataNode<
 >;
 
 class WorkflowDetailPresenter {
-  static async runWorkflow(workflowId: string, workflow?: WorkflowDto): Promise<RunWorkflowResult> {
+  private static readonly persistedWorkflowDtoMapper = new CodemationPersistedWorkflowDtoMapper();
+
+  static async runWorkflow(workflowId: string, workflow: WorkflowDto | undefined, request: RunWorkflowRequest = {}): Promise<RunWorkflowResult> {
     const response = await fetch(ApiPaths.run(), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         workflowId,
         items: this.createRunItems(workflow),
+        startAt: request.startAt,
+        stopAt: request.stopAt,
+        mode: request.mode,
+        sourceRunId: request.sourceRunId,
       }),
     });
     if (!response.ok) {
       throw new Error(await response.text());
     }
     return (await response.json()) as RunWorkflowResult;
+  }
+
+  static async runNode(runId: string, nodeId: string, items: Items | undefined, mode?: RunWorkflowMode): Promise<RunWorkflowResult> {
+    const response = await fetch(ApiPaths.runNode(runId, nodeId), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        items,
+        mode,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    return (await response.json()) as RunWorkflowResult;
+  }
+
+  static async updatePinnedInput(runId: string, nodeId: string, items: Items | undefined): Promise<PersistedRunState> {
+    const response = await fetch(ApiPaths.runNodePin(runId, nodeId), {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ items }),
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    return (await response.json()) as PersistedRunState;
+  }
+
+  static async updateWorkflowSnapshot(runId: string, workflowSnapshot: PersistedWorkflowSnapshot): Promise<PersistedRunState> {
+    const response = await fetch(ApiPaths.runWorkflowSnapshot(runId), {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ workflowSnapshot }),
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    return (await response.json()) as PersistedRunState;
   }
 
   static createRunItems(workflow: WorkflowDto | undefined): Items {
@@ -141,6 +201,7 @@ class WorkflowDetailPresenter {
       startedAt: state.startedAt,
       status: state.status,
       parent: state.parent,
+      executionOptions: state.executionOptions,
     };
   }
 
@@ -174,6 +235,48 @@ class WorkflowDetailPresenter {
   static isWebhookTriggeredWorkflow(workflow: WorkflowDto | undefined): boolean {
     const firstTrigger = workflow?.nodes.find((node) => node.kind === "trigger");
     return firstTrigger?.type === "WebhookTriggerNode";
+  }
+
+  static getExecutionModeLabel(run: Pick<RunSummary, "executionOptions"> | Pick<PersistedRunState, "executionOptions"> | undefined): string | null {
+    const mode = run?.executionOptions?.mode;
+    if (mode === "manual") return "Manual";
+    if (mode === "debug") return "Debug";
+    return null;
+  }
+
+  static isMutableExecution(run: Pick<PersistedRunState, "executionOptions"> | undefined): boolean {
+    return Boolean(run?.executionOptions?.isMutable);
+  }
+
+  static workflowFromSnapshot(snapshot: PersistedWorkflowSnapshot | undefined, fallback: WorkflowDto | undefined): WorkflowDto | undefined {
+    if (!snapshot) {
+      return fallback;
+    }
+    return this.persistedWorkflowDtoMapper.toDetail(snapshot);
+  }
+
+  static getPinnedInput(run: PersistedRunState | undefined, nodeId: string | null): Items | undefined {
+    if (!run || !nodeId) {
+      return undefined;
+    }
+    return run.mutableState?.nodesById?.[nodeId]?.pinnedInput;
+  }
+
+  static toEditableJson(items: Items | undefined): string {
+    const value = this.toJsonValue(items);
+    return JSON.stringify(value ?? {}, null, 2);
+  }
+
+  static parseEditableItems(text: string): Items {
+    const parsed = JSON.parse(text) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed.map((value) => ({ json: value }));
+    }
+    return [{ json: parsed }];
+  }
+
+  static parseWorkflowSnapshot(text: string): PersistedWorkflowSnapshot {
+    return JSON.parse(text) as PersistedWorkflowSnapshot;
   }
 
   static buildExecutionNodes(workflow: WorkflowDto | undefined, selectedRun: PersistedRunState | undefined): ReadonlyArray<ExecutionNode> {
@@ -277,6 +380,7 @@ class WorkflowDetailPresenter {
       node.isLeaf = children.length === 0;
     }
   }
+
 }
 
 class WorkflowNodeIconResolver {
@@ -421,6 +525,86 @@ function WorkflowInspectorErrorView(args: Readonly<{ error: NodeExecutionError |
   );
 }
 
+function WorkflowJsonEditorDialog(args: Readonly<{
+  state: JsonEditorState;
+  onClose: () => void;
+  onSave: (value: string) => void;
+}>) {
+  const { state, onClose, onSave } = args;
+  const [value, setValue] = useState(state.value);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setValue(state.value);
+    setError(null);
+  }, [state]);
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(15,23,42,0.48)",
+        display: "grid",
+        placeItems: "center",
+        zIndex: 1000,
+        padding: 24,
+      }}
+    >
+      <div style={{ width: "min(960px, 100%)", height: "min(80vh, 760px)", background: "white", border: "1px solid #cbd5e1", display: "grid", gridTemplateRows: "auto 1fr auto", boxShadow: "0 25px 50px rgba(15,23,42,0.2)" }}>
+        <div style={{ padding: 16, borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800 }}>{state.title}</div>
+            <div style={{ marginTop: 4, fontSize: 12, color: "#64748b" }}>Provide valid JSON. Objects become one item; arrays become multiple items.</div>
+          </div>
+          <button onClick={onClose} style={{ border: "1px solid #d1d5db", background: "white", padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
+            Close
+          </button>
+        </div>
+        <div style={{ padding: 16, minHeight: 0 }}>
+          <textarea
+            value={value}
+            onChange={(event) => {
+              setValue(event.target.value);
+              if (error) setError(null);
+            }}
+            spellCheck={false}
+            style={{
+              width: "100%",
+              height: "100%",
+              resize: "none",
+              border: "1px solid #d1d5db",
+              padding: 12,
+              fontSize: 12,
+              lineHeight: 1.6,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            }}
+          />
+          {error ? <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>{error}</div> : null}
+        </div>
+        <div style={{ padding: 16, borderTop: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{ border: "1px solid #d1d5db", background: "white", padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              try {
+                JSON.parse(value);
+                onSave(value);
+              } catch (cause) {
+                setError(cause instanceof Error ? cause.message : String(cause));
+              }
+            }}
+            style={{ border: "1px solid #111827", background: "#111827", color: "white", padding: "8px 12px", cursor: "pointer", fontWeight: 800, fontSize: 12 }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initialWorkflow: WorkflowDto }>) {
   const MIN_INSPECTOR_HEIGHT = 240;
   const MAX_INSPECTOR_HEIGHT = 640;
@@ -442,6 +626,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const [inspectorHeight, setInspectorHeight] = useState(320);
   const [isInspectorResizing, setIsInspectorResizing] = useState(false);
+  const [jsonEditorState, setJsonEditorState] = useState<JsonEditorState | null>(null);
   const resizeStartYRef = useRef<number | null>(null);
   const resizeStartHeightRef = useRef(320);
   const previousInspectorSelectionRef = useRef("");
@@ -451,6 +636,9 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
   const runs = runsQuery.data;
   const selectedRunQuery = useRunQuery(selectedRunId);
   const selectedRun = selectedRunQuery.data;
+  const displayedWorkflow = useMemo(() => WorkflowDetailPresenter.workflowFromSnapshot(selectedRun?.workflowSnapshot, workflow), [selectedRun, workflow]);
+  const selectedPinnedInput = useMemo(() => WorkflowDetailPresenter.getPinnedInput(selectedRun, selectedNodeId), [selectedNodeId, selectedRun]);
+  const pinnedNodeIds = useMemo(() => new Set(Object.keys(selectedRun?.mutableState?.nodesById ?? {}).filter((nodeId) => Boolean(selectedRun?.mutableState?.nodesById?.[nodeId]?.pinnedInput))), [selectedRun]);
   const displayedRuns = useMemo(() => {
     if (!pendingSelectedRun) {
       return runs;
@@ -498,6 +686,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
     setIsPanelCollapsed(false);
     setInspectorHeight(320);
     setIsInspectorResizing(false);
+    setJsonEditorState(null);
     resizeStartYRef.current = null;
     resizeStartHeightRef.current = 320;
     previousInspectorSelectionRef.current = "";
@@ -524,8 +713,8 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
   }, [isInspectorResizing]);
 
   useEffect(() => {
-    if (!workflow?.nodes.length) return;
-    if (hasManuallySelectedNode && selectedNodeId && workflow.nodes.some((node) => node.id === selectedNodeId)) return;
+    if (!displayedWorkflow?.nodes.length) return;
+    if (hasManuallySelectedNode && selectedNodeId && displayedWorkflow.nodes.some((node) => node.id === selectedNodeId)) return;
     const orderedSnapshots = Object.values(selectedRun?.nodeSnapshotsByNodeId ?? {}).sort((left, right) => {
       const leftTimestamp = WorkflowDetailPresenter.getSnapshotTimestamp(left) ?? "";
       const rightTimestamp = WorkflowDetailPresenter.getSnapshotTimestamp(right) ?? "";
@@ -535,21 +724,21 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
       orderedSnapshots.find((snapshot) => snapshot.status === "running")?.nodeId ??
       orderedSnapshots.find((snapshot) => snapshot.status === "queued")?.nodeId ??
       orderedSnapshots[0]?.nodeId ??
-      workflow.nodes[0]!.id;
+      displayedWorkflow.nodes[0]!.id;
     if (nextFocusedNodeId !== selectedNodeId) {
       setSelectedNodeId(nextFocusedNodeId);
     }
-  }, [hasManuallySelectedNode, selectedNodeId, selectedRun, workflow]);
+  }, [displayedWorkflow, hasManuallySelectedNode, selectedNodeId, selectedRun]);
 
   const selectedNodeSnapshot = useMemo<NodeExecutionSnapshot | undefined>(() => {
     if (!selectedRun || !selectedNodeId) return undefined;
     return selectedRun.nodeSnapshotsByNodeId[selectedNodeId];
   }, [selectedNodeId, selectedRun]);
 
-  const selectedWorkflowNode = useMemo(() => workflow?.nodes.find((node) => node.id === selectedNodeId), [selectedNodeId, workflow]);
+  const selectedWorkflowNode = useMemo(() => displayedWorkflow?.nodes.find((node) => node.id === selectedNodeId), [displayedWorkflow, selectedNodeId]);
   const inputPortEntries = useMemo(() => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.inputsByPort), [selectedNodeSnapshot]);
   const outputPortEntries = useMemo(() => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.outputs), [selectedNodeSnapshot]);
-  const executionNodes = useMemo(() => WorkflowDetailPresenter.buildExecutionNodes(workflow, selectedRun), [selectedRun, workflow]);
+  const executionNodes = useMemo(() => WorkflowDetailPresenter.buildExecutionNodes(displayedWorkflow, selectedRun), [displayedWorkflow, selectedRun]);
   const executionTreeData = useMemo(() => WorkflowDetailPresenter.buildExecutionTreeData(executionNodes), [executionNodes]);
   const executionTreeExpandedKeys = useMemo(() => WorkflowDetailPresenter.collectExecutionTreeKeys(executionTreeData), [executionTreeData]);
 
@@ -573,10 +762,10 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
     previousInspectorHasErrorRef.current = nextHasError;
   }, [selectedNodeId, selectedNodeSnapshot, selectedRunId]);
 
-  const onRun = useCallback(() => {
+  const runExecution = useCallback((request: RunWorkflowRequest = {}) => {
     setIsRunning(true);
     setError(null);
-    void WorkflowDetailPresenter.runWorkflow(workflowId, workflow)
+    void WorkflowDetailPresenter.runWorkflow(workflowId, workflow, request)
       .then((result) => {
         if (result.state) {
           queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(result.runId), result.state);
@@ -599,8 +788,172 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
       .finally(() => setIsRunning(false));
   }, [queryClient, workflow, workflowId]);
 
+  const onRun = useCallback(() => {
+    runExecution();
+  }, [runExecution]);
+
+  const onRunToHere = useCallback(() => {
+    if (!selectedNodeId) {
+      return;
+    }
+    runExecution({
+      stopAt: selectedNodeId,
+      mode: "manual",
+      sourceRunId: selectedRunId ?? undefined,
+    });
+  }, [runExecution, selectedNodeId, selectedRunId]);
+
+  const onDebugHere = useCallback(() => {
+    if (!selectedNodeId) {
+      return;
+    }
+    runExecution({
+      stopAt: selectedNodeId,
+      mode: "debug",
+      sourceRunId: selectedRunId ?? undefined,
+    });
+  }, [runExecution, selectedNodeId, selectedRunId]);
+
+  const onRunFromMutableExecution = useCallback(() => {
+    if (!selectedRunId || !selectedNodeId) {
+      return;
+    }
+    setIsRunning(true);
+    setError(null);
+    void WorkflowDetailPresenter.runNode(selectedRunId, selectedNodeId, undefined, "manual")
+      .then((result) => {
+        if (result.state) {
+          queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(result.runId), result.state);
+          queryClient.setQueryData(
+            WorkflowDetailPresenter.getWorkflowRunsQueryKey(result.workflowId),
+            (existing: ReadonlyArray<RunSummary> | undefined) =>
+              WorkflowDetailPresenter.mergeRunSummaryList(existing, WorkflowDetailPresenter.toRunSummary(result.state!)),
+          );
+        }
+        setSelectedRunId(result.runId);
+        setPendingSelectedRun(
+          result.state
+            ? WorkflowDetailPresenter.toRunSummary(result.state)
+            : {
+                runId: result.runId,
+                workflowId: result.workflowId,
+                status: result.status,
+                startedAt: result.startedAt ?? new Date().toISOString(),
+              },
+        );
+      })
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .finally(() => setIsRunning(false));
+  }, [queryClient, selectedNodeId, selectedRunId]);
+
+  const onPinInput = useCallback(() => {
+    if (!selectedRunId || !selectedNodeId) {
+      return;
+    }
+    setJsonEditorState({
+      mode: "pin-input",
+      title: `Pin input for ${WorkflowDetailPresenter.getNodeDisplayName(selectedWorkflowNode, selectedNodeId)}`,
+      value: WorkflowDetailPresenter.toEditableJson(selectedPinnedInput ?? selectedNodeSnapshot?.inputsByPort?.in),
+    });
+  }, [selectedNodeId, selectedNodeSnapshot, selectedPinnedInput, selectedRunId, selectedWorkflowNode]);
+
+  const onDebugMutableExecution = useCallback(() => {
+    if (!selectedRunId || !selectedNodeId) {
+      return;
+    }
+    setJsonEditorState({
+      mode: "debug-input",
+      title: `Debug input for ${WorkflowDetailPresenter.getNodeDisplayName(selectedWorkflowNode, selectedNodeId)}`,
+      value: WorkflowDetailPresenter.toEditableJson(
+        selectedRun?.mutableState?.nodesById?.[selectedNodeId]?.lastDebugInput ?? selectedPinnedInput ?? selectedNodeSnapshot?.inputsByPort?.in,
+      ),
+    });
+  }, [selectedNodeId, selectedNodeSnapshot, selectedPinnedInput, selectedRun, selectedRunId, selectedWorkflowNode]);
+
+  const onEditWorkflowSnapshot = useCallback(() => {
+    if (!selectedRun?.workflowSnapshot) {
+      return;
+    }
+    setJsonEditorState({
+      mode: "workflow-snapshot",
+      title: "Edit workflow snapshot JSON",
+      value: JSON.stringify(selectedRun.workflowSnapshot, null, 2),
+    });
+  }, [selectedRun]);
+
+  const onClearPin = useCallback(() => {
+    if (!selectedRunId || !selectedNodeId) {
+      return;
+    }
+    setError(null);
+    void WorkflowDetailPresenter.updatePinnedInput(selectedRunId, selectedNodeId, undefined)
+      .then((state) => {
+        queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(state.runId), state);
+      })
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
+  }, [queryClient, selectedNodeId, selectedRunId]);
+
+  const onSaveJsonEditor = useCallback(
+    (value: string) => {
+      if (!jsonEditorState) {
+        return;
+      }
+      if (jsonEditorState.mode === "workflow-snapshot") {
+        if (!selectedRunId) return;
+        void WorkflowDetailPresenter.updateWorkflowSnapshot(selectedRunId, WorkflowDetailPresenter.parseWorkflowSnapshot(value))
+          .then((state) => {
+            queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(state.runId), state);
+            setJsonEditorState(null);
+          })
+          .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
+        return;
+      }
+      if (!selectedRunId || !selectedNodeId) {
+        return;
+      }
+      if (jsonEditorState.mode === "pin-input") {
+        void WorkflowDetailPresenter.updatePinnedInput(selectedRunId, selectedNodeId, WorkflowDetailPresenter.parseEditableItems(value))
+          .then((state) => {
+            queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(state.runId), state);
+            setJsonEditorState(null);
+          })
+          .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
+        return;
+      }
+      if (jsonEditorState.mode === "debug-input") {
+        setIsRunning(true);
+        setError(null);
+        void WorkflowDetailPresenter.runNode(selectedRunId, selectedNodeId, WorkflowDetailPresenter.parseEditableItems(value), "debug")
+          .then((result) => {
+            if (result.state) {
+              queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(result.runId), result.state);
+              queryClient.setQueryData(
+                WorkflowDetailPresenter.getWorkflowRunsQueryKey(result.workflowId),
+                (existing: ReadonlyArray<RunSummary> | undefined) =>
+                  WorkflowDetailPresenter.mergeRunSummaryList(existing, WorkflowDetailPresenter.toRunSummary(result.state!)),
+              );
+            }
+            setSelectedRunId(result.runId);
+            setPendingSelectedRun(result.state ? WorkflowDetailPresenter.toRunSummary(result.state) : null);
+            setJsonEditorState(null);
+          })
+          .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+          .finally(() => setIsRunning(false));
+        return;
+      }
+      void WorkflowDetailPresenter.updateWorkflowSnapshot(selectedRunId, WorkflowDetailPresenter.parseWorkflowSnapshot(value))
+        .then((state) => {
+          queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(state.runId), state);
+          setJsonEditorState(null);
+        })
+        .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
+    },
+    [jsonEditorState, queryClient, selectedNodeId, selectedRunId],
+  );
+
   const workflowError = workflowQuery.error instanceof Error ? workflowQuery.error.message : null;
   const runsError = runsQuery.error instanceof Error ? runsQuery.error.message : null;
+  const isMutableSelectedRun = WorkflowDetailPresenter.isMutableExecution(selectedRun);
   const selectedInputItems = useMemo(() => inputPortEntries.find(([portName]) => portName === selectedInputPort)?.[1], [inputPortEntries, selectedInputPort]);
   const selectedOutputItems = useMemo(() => outputPortEntries.find(([portName]) => portName === selectedOutputPort)?.[1], [outputPortEntries, selectedOutputPort]);
   const selectedNodeError = selectedNodeSnapshot?.error;
@@ -644,6 +997,22 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                   <WorkflowStatusIcon status={run.status} />
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{run.status}</div>
+                  {WorkflowDetailPresenter.getExecutionModeLabel(run) ? (
+                    <span
+                      style={{
+                        border: "1px solid #d1d5db",
+                        background: "#f8fafc",
+                        color: "#334155",
+                        fontSize: 11,
+                        fontWeight: 800,
+                        letterSpacing: 0.3,
+                        textTransform: "uppercase",
+                        padding: "2px 6px",
+                      }}
+                    >
+                      {WorkflowDetailPresenter.getExecutionModeLabel(run)}
+                    </span>
+                  ) : null}
                 </div>
                 <div style={{ fontSize: 12, color: "#4b5563", whiteSpace: "nowrap" }}>{WorkflowDetailPresenter.formatDateTime(run.startedAt)}</div>
               </div>
@@ -729,6 +1098,11 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                 <div style={{ fontWeight: 800, fontSize: 14, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {WorkflowDetailPresenter.getNodeDisplayName(selectedWorkflowNode, selectedNodeId)}
                 </div>
+                {selectedPinnedInput ? (
+                  <span style={{ border: "1px solid #c4b5fd", background: "#f5f3ff", color: "#6d28d9", fontSize: 11, fontWeight: 800, letterSpacing: 0.3, textTransform: "uppercase", padding: "2px 6px" }}>
+                    Pinned
+                  </span>
+                ) : null}
               </div>
               <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
                 {WorkflowDetailPresenter.formatDateTime(WorkflowDetailPresenter.getSnapshotTimestamp(selectedNodeSnapshot))}
@@ -805,6 +1179,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
     inspectorValue,
     selectedNodeError,
     selectedNodeId,
+    selectedPinnedInput,
     selectedNodeSnapshot,
     selectedRun,
     selectedRunId,
@@ -822,27 +1197,114 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
             <Link to="/workflows" style={{ opacity: 0.8, fontSize: 13, color: "#2563eb", textDecoration: "none" }}>
               ← Workflows
             </Link>
-            <div style={{ marginTop: 10, fontSize: 16, fontWeight: 800, lineHeight: 1.2, wordBreak: "break-word" }}>{workflow?.name ?? "Workflow"}</div>
+            <div style={{ marginTop: 10, fontSize: 16, fontWeight: 800, lineHeight: 1.2, wordBreak: "break-word" }}>{displayedWorkflow?.name ?? workflow?.name ?? "Workflow"}</div>
             <div style={{ marginTop: 4, fontSize: 12, opacity: 0.68, wordBreak: "break-all" }}>{workflowId}</div>
             <div style={{ marginTop: 12 }}>
-              <button
-                onClick={onRun}
-                disabled={isRunning}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  border: "1px solid #111827",
-                  background: "#111827",
-                  color: "white",
-                  fontWeight: 800,
-                  fontSize: 13,
-                  opacity: isRunning ? 0.8 : 1,
-                  cursor: isRunning ? "not-allowed" : "pointer",
-                }}
-              >
-                {isRunning ? "Running…" : "Run workflow"}
-              </button>
+              <div style={{ display: "grid", gap: 8 }}>
+                <button
+                  onClick={onRun}
+                  disabled={isRunning}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    border: "1px solid #111827",
+                    background: "#111827",
+                    color: "white",
+                    fontWeight: 800,
+                    fontSize: 13,
+                    opacity: isRunning ? 0.8 : 1,
+                    cursor: isRunning ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {isRunning ? "Running…" : "Run workflow"}
+                </button>
+                <button
+                  onClick={onRunToHere}
+                  disabled={isRunning || !selectedNodeId}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    border: "1px solid #d1d5db",
+                    background: "white",
+                    color: "#111827",
+                    fontWeight: 800,
+                    fontSize: 13,
+                    opacity: isRunning || !selectedNodeId ? 0.6 : 1,
+                    cursor: isRunning || !selectedNodeId ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Run to here
+                </button>
+                <button
+                  onClick={onDebugHere}
+                  disabled={isRunning || !selectedNodeId}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    border: "1px solid #d1d5db",
+                    background: "#f8fafc",
+                    color: "#111827",
+                    fontWeight: 800,
+                    fontSize: 13,
+                    opacity: isRunning || !selectedNodeId ? 0.6 : 1,
+                    cursor: isRunning || !selectedNodeId ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Debug here
+                </button>
+              </div>
             </div>
+            {selectedRun ? (
+              <div style={{ marginTop: 12, padding: 10, border: "1px solid #e5e7eb", background: isMutableSelectedRun ? "#faf5ff" : "#f8fafc", display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", color: "#475569" }}>
+                  {isMutableSelectedRun ? `${WorkflowDetailPresenter.getExecutionModeLabel(selectedRun) ?? "Mutable"} execution` : "Immutable execution"}
+                </div>
+                <div style={{ fontSize: 12, color: "#334155", lineHeight: 1.5 }}>
+                  {isMutableSelectedRun
+                    ? "Pins and workflow edits are saved on this execution. Running from a node creates a new derived execution."
+                    : "This execution is read-only. Use Run to here or Debug here to create a mutable execution from it."}
+                </div>
+                {isMutableSelectedRun ? (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <button
+                      onClick={onRunFromMutableExecution}
+                      disabled={isRunning || !selectedNodeId}
+                      style={{ width: "100%", padding: "9px 11px", border: "1px solid #111827", background: "#111827", color: "white", fontWeight: 800, fontSize: 12, opacity: isRunning || !selectedNodeId ? 0.6 : 1, cursor: isRunning || !selectedNodeId ? "not-allowed" : "pointer" }}
+                    >
+                      Run from selected node
+                    </button>
+                    <button
+                      onClick={onDebugMutableExecution}
+                      disabled={isRunning || !selectedNodeId}
+                      style={{ width: "100%", padding: "9px 11px", border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, fontSize: 12, opacity: isRunning || !selectedNodeId ? 0.6 : 1, cursor: isRunning || !selectedNodeId ? "not-allowed" : "pointer" }}
+                    >
+                      Debug selected node
+                    </button>
+                    <button
+                      onClick={onPinInput}
+                      disabled={!selectedNodeId}
+                      style={{ width: "100%", padding: "9px 11px", border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, fontSize: 12, opacity: !selectedNodeId ? 0.6 : 1, cursor: !selectedNodeId ? "not-allowed" : "pointer" }}
+                    >
+                      Pin selected node input
+                    </button>
+                    <button
+                      onClick={onClearPin}
+                      disabled={!selectedNodeId || !selectedPinnedInput}
+                      style={{ width: "100%", padding: "9px 11px", border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, fontSize: 12, opacity: !selectedNodeId || !selectedPinnedInput ? 0.6 : 1, cursor: !selectedNodeId || !selectedPinnedInput ? "not-allowed" : "pointer" }}
+                    >
+                      Clear pinned input
+                    </button>
+                    <button
+                      onClick={onEditWorkflowSnapshot}
+                      disabled={!selectedRun.workflowSnapshot}
+                      style={{ width: "100%", padding: "9px 11px", border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, fontSize: 12, opacity: !selectedRun.workflowSnapshot ? 0.6 : 1, cursor: !selectedRun.workflowSnapshot ? "not-allowed" : "pointer" }}
+                    >
+                      Edit workflow JSON
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {error || workflowError ? <div style={{ marginTop: 10, fontSize: 13, color: "#b91c1c" }}>Error: {error ?? workflowError}</div> : null}
           </div>
 
@@ -856,10 +1318,11 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
 
         <div style={{ height: "100%", minWidth: 0, minHeight: 0, background: "#f8fafc", display: "grid", gridTemplateRows: isPanelCollapsed ? "minmax(0, 1fr) 36px" : `minmax(0, 1fr) ${inspectorHeight}px` }}>
           <div style={{ height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden", background: "#f8fafc" }}>
-            {workflow ? (
+            {displayedWorkflow ? (
               <WorkflowCanvas
-                workflow={workflow}
+                workflow={displayedWorkflow}
                 nodeSnapshotsByNodeId={selectedRun?.nodeSnapshotsByNodeId ?? {}}
+                pinnedNodeIds={pinnedNodeIds}
                 selectedNodeId={selectedNodeId}
                 onSelectNode={(nodeId) => {
                   setHasManuallySelectedNode(true);
@@ -918,6 +1381,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
           </div>
         </div>
       </section>
+      {jsonEditorState ? <WorkflowJsonEditorDialog state={jsonEditorState} onClose={() => setJsonEditorState(null)} onSave={onSaveJsonEditor} /> : null}
       <style>{`
         @keyframes codemationSpin {
           from { transform: rotate(0deg); }

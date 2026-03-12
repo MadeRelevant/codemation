@@ -1,5 +1,5 @@
 import type { CodemationBootstrapResult } from "../bootstrapDiscovery";
-import { getWorkflowRoute, getWorkflowsRoute } from "../routeExports";
+import { CodemationRouteHandlers } from "../routeExports";
 import type { WorkflowDto, WorkflowSummary } from "../realtime/realtime";
 
 class ResponseReader {
@@ -13,12 +13,12 @@ class ResponseReader {
 
 export class WorkflowLoader {
   static async loadSummaries(configOverride: CodemationBootstrapResult): Promise<ReadonlyArray<WorkflowSummary>> {
-    return await ResponseReader.readJson<ReadonlyArray<WorkflowSummary>>(await getWorkflowsRoute({ configOverride }));
+    return await ResponseReader.readJson<ReadonlyArray<WorkflowSummary>>(await CodemationRouteHandlers.getWorkflows({ configOverride }));
   }
 
   static async loadDetail(configOverride: CodemationBootstrapResult, workflowId: string): Promise<WorkflowDto> {
     return await ResponseReader.readJson<WorkflowDto>(
-      await getWorkflowRoute(
+      await CodemationRouteHandlers.getWorkflow(
         new Request("http://codemation.local/workflow-detail"),
         { params: Promise.resolve({ workflowId }) },
         { configOverride },

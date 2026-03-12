@@ -9,6 +9,7 @@ type MetaRow = Readonly<{
   started_at: string;
   status: string;
   parent_json: string | null;
+  execution_options_json: string | null;
   updated_at: string;
 }>;
 
@@ -18,13 +19,23 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
 
   constructor(private readonly dbPath: string) {}
 
-  async createRun(args: { runId: RunId; workflowId: WorkflowId; startedAt: string; parent?: ParentExecutionRef; executionOptions?: PersistedRunState["executionOptions"] }): Promise<void> {
+  async createRun(args: {
+    runId: RunId;
+    workflowId: WorkflowId;
+    startedAt: string;
+    parent?: ParentExecutionRef;
+    executionOptions?: PersistedRunState["executionOptions"];
+    workflowSnapshot?: PersistedRunState["workflowSnapshot"];
+    mutableState?: PersistedRunState["mutableState"];
+  }): Promise<void> {
     const state: PersistedRunState = {
       runId: args.runId,
       workflowId: args.workflowId,
       startedAt: args.startedAt,
       parent: args.parent,
       executionOptions: args.executionOptions,
+      workflowSnapshot: args.workflowSnapshot,
+      mutableState: args.mutableState,
       status: "running",
       queue: [],
       outputsByNode: {} as Record<NodeId, NodeOutputs>,
@@ -53,8 +64,9 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
 
     const now = new Date().toISOString();
     const parentJson = state.parent ? JSON.stringify(state.parent) : null;
+    const executionOptionsJson = state.executionOptions ? JSON.stringify(state.executionOptions) : null;
     const metaStmt = db.prepare(
-      "INSERT INTO runs_meta (run_id, workflow_id, started_at, status, parent_json, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(run_id) DO UPDATE SET workflow_id = excluded.workflow_id, started_at = excluded.started_at, status = excluded.status, parent_json = excluded.parent_json, updated_at = excluded.updated_at",
+      "INSERT INTO runs_meta (run_id, workflow_id, started_at, status, parent_json, execution_options_json, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(run_id) DO UPDATE SET workflow_id = excluded.workflow_id, started_at = excluded.started_at, status = excluded.status, parent_json = excluded.parent_json, execution_options_json = excluded.execution_options_json, updated_at = excluded.updated_at",
     );
     metaStmt.run(
       state.runId as unknown as string,
@@ -62,6 +74,7 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
       state.startedAt,
       state.status,
       parentJson,
+      executionOptionsJson,
       now,
     );
   }
@@ -76,21 +89,23 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
     const rows = workflowId
       ? (db
           .prepare(
-            "SELECT run_id, workflow_id, started_at, status, parent_json, updated_at FROM runs_meta WHERE workflow_id = ? ORDER BY started_at DESC LIMIT ?",
+            "SELECT run_id, workflow_id, started_at, status, parent_json, execution_options_json, updated_at FROM runs_meta WHERE workflow_id = ? ORDER BY started_at DESC LIMIT ?",
           )
           .all(workflowId as unknown as string, limit) as MetaRow[])
       : (db
-          .prepare("SELECT run_id, workflow_id, started_at, status, parent_json, updated_at FROM runs_meta ORDER BY started_at DESC LIMIT ?")
+          .prepare("SELECT run_id, workflow_id, started_at, status, parent_json, execution_options_json, updated_at FROM runs_meta ORDER BY started_at DESC LIMIT ?")
           .all(limit) as MetaRow[]);
 
     return rows.map((r): RunSummary => {
       const parent = r.parent_json ? (JSON.parse(r.parent_json) as ParentExecutionRef) : undefined;
+      const executionOptions = r.execution_options_json ? (JSON.parse(r.execution_options_json) as PersistedRunState["executionOptions"]) : undefined;
       return {
         runId: r.run_id as unknown as RunId,
         workflowId: r.workflow_id as unknown as WorkflowId,
         startedAt: r.started_at,
         status: r.status as RunStatus,
         parent,
+        executionOptions,
       };
     });
   }
@@ -107,8 +122,12 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
     db.pragma("journal_mode = WAL");
     db.exec("CREATE TABLE IF NOT EXISTS runs (run_id TEXT PRIMARY KEY, state_json TEXT NOT NULL)");
     db.exec(
-      "CREATE TABLE IF NOT EXISTS runs_meta (run_id TEXT PRIMARY KEY, workflow_id TEXT NOT NULL, started_at TEXT NOT NULL, status TEXT NOT NULL, parent_json TEXT NULL, updated_at TEXT NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS runs_meta (run_id TEXT PRIMARY KEY, workflow_id TEXT NOT NULL, started_at TEXT NOT NULL, status TEXT NOT NULL, parent_json TEXT NULL, execution_options_json TEXT NULL, updated_at TEXT NOT NULL)",
     );
+    const columns = db.prepare("PRAGMA table_info(runs_meta)").all() as ReadonlyArray<Readonly<{ name: string }>>;
+    if (!columns.some((column) => column.name === "execution_options_json")) {
+      db.exec("ALTER TABLE runs_meta ADD COLUMN execution_options_json TEXT NULL");
+    }
     db.exec("CREATE INDEX IF NOT EXISTS idx_runs_meta_workflow_started_at ON runs_meta (workflow_id, started_at DESC)");
     this.isInitialized = true;
   }

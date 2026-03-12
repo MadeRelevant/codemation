@@ -3,6 +3,7 @@ import type { Items, Node, NodeExecutionContext, NodeOutputs, RunnableNodeConfig
 export class NoOp<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = NoOpNode;
+  readonly tokenId = "codemation.core-nodes.no-op";
   readonly execution = { hint: "local" } as const;
 
   constructor(

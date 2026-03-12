@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, type RenderResult } from "@testing-library/react";
-import { AgentAttachmentNodeIdFactory, WorkflowBuilder, type ChatModelConfig, type ToolConfig } from "@codemation/core";
+import { AgentAttachmentNodeIdFactory, PersistedWorkflowSnapshotFactory, WorkflowBuilder, type ChatModelConfig, type ToolConfig } from "@codemation/core";
 import { AIAgent, Callback, ManualTrigger, WebhookTrigger } from "@codemation/core-nodes";
 import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,6 +24,7 @@ class FrontendWorkflowDetailTool {}
 
 class FrontendWorkflowDetailChatModelConfig implements ChatModelConfig {
   readonly token = FrontendWorkflowDetailChatModelFactory as ChatModelConfig["token"];
+  readonly tokenId = "codemation.frontend-test.chat-model";
 
   constructor(
     public readonly name: string,
@@ -33,6 +34,7 @@ class FrontendWorkflowDetailChatModelConfig implements ChatModelConfig {
 
 class FrontendWorkflowDetailToolConfig implements ToolConfig {
   readonly token = FrontendWorkflowDetailTool as ToolConfig["token"];
+  readonly tokenId = "codemation.frontend-test.tool";
 
   constructor(
     public readonly name: string,
@@ -53,8 +55,8 @@ class WorkflowDetailFixtureFactory {
   static readonly llmNodeId = AgentAttachmentNodeIdFactory.createLanguageModelNodeId(this.agentNodeId);
   static readonly toolNodeId = AgentAttachmentNodeIdFactory.createToolNodeId(this.agentNodeId, "lookup_tool");
 
-  static createWorkflowDetail(): WorkflowDto {
-    const workflow = new WorkflowBuilder({ id: this.workflowId, name: "Frontend realtime workflow" })
+  static createWorkflowDefinition() {
+    return new WorkflowBuilder({ id: this.workflowId, name: "Frontend realtime workflow" })
       .trigger(new ManualTrigger("Manual trigger", this.triggerNodeId))
       .then(new Callback("Node 1", undefined, this.nodeOneId))
       .then(
@@ -69,8 +71,10 @@ class WorkflowDetailFixtureFactory {
       )
       .then(new Callback("Node 2", undefined, this.nodeTwoId))
       .build();
+  }
 
-    return new CodemationWorkflowDtoMapper().toDetail(workflow) as WorkflowDto;
+  static createWorkflowDetail(): WorkflowDto {
+    return new CodemationWorkflowDtoMapper().toDetail(this.createWorkflowDefinition()) as WorkflowDto;
   }
 
   static createWebhookWorkflowDetail(): WorkflowDto {
@@ -91,11 +95,14 @@ class WorkflowDetailFixtureFactory {
     return new CodemationWorkflowDtoMapper().toDetail(workflow) as WorkflowDto;
   }
 
-  static createInitialRunState(): PersistedRunState {
+  static createInitialRunState(mode?: "manual" | "debug", runId = this.runId): PersistedRunState {
     return {
-      runId: this.runId,
+      runId,
       workflowId: this.workflowId,
       startedAt: this.startedAt,
+      executionOptions: mode ? { mode, isMutable: true, sourceWorkflowId: this.workflowId } : undefined,
+      workflowSnapshot: this.createWorkflowSnapshot(),
+      mutableState: mode ? { nodesById: {} } : undefined,
       status: "pending",
       pending: undefined,
       queue: [],
@@ -104,25 +111,55 @@ class WorkflowDetailFixtureFactory {
     };
   }
 
-  static createCompletedRunState(): PersistedRunState {
+  static createCompletedRunState(mode?: "manual" | "debug", runId = this.runId): PersistedRunState {
     return {
-      ...this.createInitialRunState(),
+      ...this.createInitialRunState(mode, runId),
       status: "completed",
       nodeSnapshotsByNodeId: {
-        [this.triggerNodeId]: this.createSnapshot(this.triggerNodeId, "completed", 0),
-        [this.nodeOneId]: this.createSnapshot(this.nodeOneId, "completed", 1),
-        [this.agentNodeId]: this.createSnapshot(this.agentNodeId, "completed", 2),
-        [this.llmNodeId]: this.createSnapshot(this.llmNodeId, "completed", 3),
-        [this.toolNodeId]: this.createSnapshot(this.toolNodeId, "completed", 4),
-        [this.nodeTwoId]: this.createSnapshot(this.nodeTwoId, "completed", 5),
+        [this.triggerNodeId]: this.createSnapshot(this.triggerNodeId, "completed", 0, runId),
+        [this.nodeOneId]: this.createSnapshot(this.nodeOneId, "completed", 1, runId),
+        [this.agentNodeId]: this.createSnapshot(this.agentNodeId, "completed", 2, runId),
+        [this.llmNodeId]: this.createSnapshot(this.llmNodeId, "completed", 3, runId),
+        [this.toolNodeId]: this.createSnapshot(this.toolNodeId, "completed", 4, runId),
+        [this.nodeTwoId]: this.createSnapshot(this.nodeTwoId, "completed", 5, runId),
       },
     };
   }
 
-  static createSnapshot(nodeId: string, status: WorkflowSnapshot["status"], step: number): WorkflowSnapshot {
+  static createPinnedMutableRunState(): PersistedRunState {
+    return {
+      ...this.createCompletedRunState("manual"),
+      mutableState: {
+        nodesById: {
+          [this.triggerNodeId]: {
+            pinnedInput: [{ json: { pinned: true } }],
+          },
+        },
+      },
+    };
+  }
+
+  static createPinnedMutableRunStateForNode(nodeId: string): PersistedRunState {
+    return {
+      ...this.createCompletedRunState("manual"),
+      mutableState: {
+        nodesById: {
+          [nodeId]: {
+            pinnedInput: [{ json: { pinned: true } }],
+          },
+        },
+      },
+    };
+  }
+
+  static createWorkflowSnapshot(): NonNullable<PersistedRunState["workflowSnapshot"]> {
+    return new PersistedWorkflowSnapshotFactory().create(this.createWorkflowDefinition());
+  }
+
+  static createSnapshot(nodeId: string, status: WorkflowSnapshot["status"], step: number, runId = this.runId): WorkflowSnapshot {
     const timestamp = this.timestamp(step);
     return {
-      runId: this.runId,
+      runId,
       workflowId: this.workflowId,
       nodeId,
       status,
@@ -169,6 +206,14 @@ class WorkflowFetchMock {
     return latest as TBody;
   }
 
+  static latestRequestBodyMatching<TBody>(pattern: RegExp): TBody {
+    const matchingRoute = [...this.requestBodiesByRoute.keys()].reverse().find((route) => pattern.test(route));
+    if (!matchingRoute) {
+      throw new Error(`Expected a recorded request body matching ${String(pattern)}.`);
+    }
+    return this.latestRequestBody<TBody>(matchingRoute);
+  }
+
   private static async handleRequest(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, window.location.origin);
     const method = (init?.method ?? "GET").toUpperCase();
@@ -187,12 +232,42 @@ class WorkflowFetchMock {
       return Response.json([]);
     }
     if (method === "POST" && url.pathname === "/api/run") {
+      const requestBody = this.latestRequestBody<
+        Readonly<{
+          workflowId: string;
+          items: ReadonlyArray<Readonly<{ json: unknown }>>;
+          stopAt?: string;
+          mode?: "manual" | "debug";
+          sourceRunId?: string;
+        }>
+      >("POST /api/run");
       return Response.json({
         runId: WorkflowDetailFixtureFactory.runId,
         workflowId: WorkflowDetailFixtureFactory.workflowId,
         status: "pending",
         startedAt: WorkflowDetailFixtureFactory.startedAt,
-        state: WorkflowDetailFixtureFactory.createInitialRunState(),
+        state: WorkflowDetailFixtureFactory.createInitialRunState(requestBody.mode),
+      });
+    }
+    if (method === "POST" && url.pathname.startsWith(`/api/runs/${encodeURIComponent(WorkflowDetailFixtureFactory.runId)}/nodes/`) && url.pathname.endsWith("/run")) {
+      const requestBody = this.latestRequestBody<Readonly<{ items?: ReadonlyArray<Readonly<{ json: unknown }>>; mode?: "manual" | "debug" }>>(routeKey);
+      const derivedRunId = `${WorkflowDetailFixtureFactory.runId}_derived`;
+      return Response.json({
+        runId: derivedRunId,
+        workflowId: WorkflowDetailFixtureFactory.workflowId,
+        status: "pending",
+        startedAt: WorkflowDetailFixtureFactory.startedAt,
+        state: WorkflowDetailFixtureFactory.createInitialRunState(requestBody.mode ?? "manual", derivedRunId),
+      });
+    }
+    if (method === "PATCH" && url.pathname.startsWith(`/api/runs/${encodeURIComponent(WorkflowDetailFixtureFactory.runId)}/nodes/`) && url.pathname.endsWith("/pin")) {
+      const nodeId = decodeURIComponent(url.pathname.split("/")[5]!);
+      return Response.json(WorkflowDetailFixtureFactory.createPinnedMutableRunStateForNode(nodeId));
+    }
+    if (method === "PATCH" && url.pathname === `/api/runs/${encodeURIComponent(WorkflowDetailFixtureFactory.runId)}/workflow-snapshot`) {
+      return Response.json({
+        ...WorkflowDetailFixtureFactory.createInitialRunState("manual"),
+        workflowSnapshot: this.latestRequestBody<Readonly<{ workflowSnapshot: PersistedRunState["workflowSnapshot"] }>>(routeKey).workflowSnapshot,
       });
     }
 
@@ -276,7 +351,38 @@ class WorkflowRealtimeSocketMock {
   }
 }
 
+class WorkflowCanvasDomMatrixMock {
+  static install(): void {
+    Object.defineProperty(window, "DOMMatrixReadOnly", {
+      configurable: true,
+      writable: true,
+      value: class {
+        constructor() {}
+        inverse(): this {
+          return this;
+        }
+        multiply(): this {
+          return this;
+        }
+        translate(): this {
+          return this;
+        }
+        scale(): this {
+          return this;
+        }
+      },
+    });
+  }
+}
+
 class WorkflowStatusAssertions {
+  static expectNodePresence(container: HTMLElement, nodeIds: ReadonlyArray<string>): void {
+    for (const nodeId of nodeIds) {
+      const element = container.querySelector<HTMLElement>(`[data-codemation-node-id="${nodeId}"]`);
+      expect(element).not.toBeNull();
+    }
+  }
+
   static expectStatuses(
     container: HTMLElement,
     expectedByNodeId: Readonly<Record<string, "pending" | "running" | "completed">>,
@@ -376,6 +482,7 @@ describe("WorkflowDetailScreen", () => {
   beforeEach(() => {
     WorkflowFetchMock.install();
     WorkflowRealtimeSocketMock.install();
+    WorkflowCanvasDomMatrixMock.install();
   });
 
   afterEach(() => {
@@ -551,6 +658,179 @@ describe("WorkflowDetailScreen", () => {
     ).toEqual({
       workflowId: WorkflowDetailFixtureFactory.workflowId,
       items: [],
+    });
+  });
+
+  it("creates a debug execution when using debug here", async () => {
+    WorkflowDetailTestRenderer.render();
+
+    await waitFor(() => {
+      expect(WorkflowRealtimeSocketMock.instances).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Debug here" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Debug")).toBeInTheDocument();
+      expect(screen.getByText(WorkflowDetailFixtureFactory.runId)).toBeInTheDocument();
+    });
+
+    expect(
+      WorkflowFetchMock.latestRequestBody<
+        Readonly<{ workflowId: string; mode?: "manual" | "debug"; stopAt?: string; sourceRunId?: string; items: ReadonlyArray<Readonly<{ json: unknown }>> }>
+      >("POST /api/run"),
+    ).toEqual({
+      workflowId: WorkflowDetailFixtureFactory.workflowId,
+      items: [{ json: {} }],
+      stopAt: WorkflowDetailFixtureFactory.triggerNodeId,
+      mode: "debug",
+    });
+  });
+
+  it("keeps agent attachment nodes visible when rendering from a persisted workflow snapshot", async () => {
+    const renderResult = WorkflowDetailTestRenderer.render();
+
+    await waitFor(() => {
+      expect(WorkflowRealtimeSocketMock.instances).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Run workflow" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(WorkflowDetailFixtureFactory.runId)).toBeInTheDocument();
+      WorkflowStatusAssertions.expectNodePresence(renderResult.container, [
+        WorkflowDetailFixtureFactory.agentNodeId,
+        WorkflowDetailFixtureFactory.llmNodeId,
+        WorkflowDetailFixtureFactory.toolNodeId,
+      ]);
+    });
+  });
+
+  it("creates a manual execution for run to here", async () => {
+    WorkflowDetailTestRenderer.render();
+
+    await waitFor(() => {
+      expect(WorkflowRealtimeSocketMock.instances).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Run to here" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Manual")).toBeInTheDocument();
+      expect(screen.getByText(WorkflowDetailFixtureFactory.runId)).toBeInTheDocument();
+    });
+
+    expect(
+      WorkflowFetchMock.latestRequestBody<
+        Readonly<{ workflowId: string; mode?: "manual" | "debug"; stopAt?: string; sourceRunId?: string; items: ReadonlyArray<Readonly<{ json: unknown }>> }>
+      >("POST /api/run"),
+    ).toEqual({
+      workflowId: WorkflowDetailFixtureFactory.workflowId,
+      items: [{ json: {} }],
+      stopAt: WorkflowDetailFixtureFactory.triggerNodeId,
+      mode: "manual",
+    });
+  });
+
+  it("pins input and reruns from a mutable execution", async () => {
+    WorkflowDetailTestRenderer.render();
+
+    await waitFor(() => {
+      expect(WorkflowRealtimeSocketMock.instances).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Run to here" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Manual execution")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Pin selected node input" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: JSON.stringify({ pinned: true }, null, 2) } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Pinned")).toBeInTheDocument();
+    });
+
+    expect(
+      WorkflowFetchMock.latestRequestBodyMatching<Readonly<{ items?: ReadonlyArray<Readonly<{ json: unknown }>> }>>(
+        new RegExp(`^PATCH /api/runs/${WorkflowDetailFixtureFactory.runId}/nodes/.+/pin$`),
+      ),
+    ).toEqual({
+      items: [{ json: { pinned: true } }],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Run from selected node" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(`${WorkflowDetailFixtureFactory.runId}_derived`)).toBeInTheDocument();
+    });
+
+    expect(
+      WorkflowFetchMock.latestRequestBodyMatching<Readonly<{ mode?: "manual" | "debug" }>>(
+        new RegExp(`^POST /api/runs/${WorkflowDetailFixtureFactory.runId}/nodes/.+/run$`),
+      ),
+    ).toEqual({
+      mode: "manual",
+    });
+  });
+
+  it("edits workflow snapshot json for a mutable execution", async () => {
+    WorkflowDetailTestRenderer.render();
+
+    await waitFor(() => {
+      expect(WorkflowRealtimeSocketMock.instances).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Run to here" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Edit workflow JSON")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit workflow JSON" }));
+    const snapshot = WorkflowDetailFixtureFactory.createWorkflowSnapshot();
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: {
+        value: JSON.stringify({ ...snapshot, name: "Edited snapshot" }, null, 2),
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Edited snapshot")).toBeInTheDocument();
+    });
+  });
+
+  it("debugs from a mutable execution with edited input", async () => {
+    WorkflowDetailTestRenderer.render();
+
+    await waitFor(() => {
+      expect(WorkflowRealtimeSocketMock.instances).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Run to here" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Debug selected node")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Debug selected node" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: JSON.stringify({ changed: true }, null, 2) } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(`${WorkflowDetailFixtureFactory.runId}_derived`)).toBeInTheDocument();
+    });
+
+    expect(
+      WorkflowFetchMock.latestRequestBodyMatching<Readonly<{ mode?: "manual" | "debug"; items?: ReadonlyArray<Readonly<{ json: unknown }>> }>>(
+        new RegExp(`^POST /api/runs/${WorkflowDetailFixtureFactory.runId}/nodes/.+/run$`),
+      ),
+    ).toEqual({
+      mode: "debug",
+      items: [{ json: { changed: true } }],
     });
   });
 

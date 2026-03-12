@@ -1,101 +1,53 @@
-import path from "node:path";
 import { container as tsyringeContainer } from "@codemation/core";
 import type { WorkflowDefinition } from "@codemation/core";
 import { CodemationBootstrapFileResolver } from "./codemationBootstrapFileResolver";
 import { CodemationBootHookRunner } from "./codemationBootHookRunner";
-import { CodemationConsumerModuleFileCollector } from "./codemationConsumerModuleFileCollector";
-import { CodemationConsumerRegistry } from "./codemationConsumerRegistry";
-import { CodemationFileExistenceChecker } from "./codemationFileExistenceChecker";
-import type { CodemationBootstrapDiscoveryArgs, CodemationBootstrapResult, CodemationDiscoveredApplicationSetup, CodemationGeneratedConsumerModule } from "./codemationBootstrapTypes";
+import type { CodemationBootstrapDiscoveryArgs, CodemationBootstrapResult, CodemationDiscoveredApplicationSetup } from "./codemationBootstrapTypes";
 import { CodemationConfigObjectResolver } from "./codemationConfigObjectResolver";
 import { CodemationConfigValidator } from "./codemationConfigValidator";
-import { CodemationConsumerBridgeRunner } from "./codemationConsumerBridgeRunner";
 import { CodemationModuleImporter } from "./codemationModuleImporter";
-import { CodemationWorkflowDirectoryResolver } from "./codemationWorkflowDirectoryResolver";
-import { CodemationWorkflowExportCollector } from "./codemationWorkflowExportCollector";
-import { CodemationWorkflowFileCollector } from "./codemationWorkflowFileCollector";
 
 export class CodemationBootstrapDiscovery {
   private readonly bootstrapFileResolver = new CodemationBootstrapFileResolver();
-  private readonly workflowDirectoryResolver = new CodemationWorkflowDirectoryResolver();
-  private readonly workflowFileCollector = new CodemationWorkflowFileCollector();
   private readonly moduleImporter = new CodemationModuleImporter();
-  private readonly workflowExportCollector = new CodemationWorkflowExportCollector();
-  private readonly consumerModuleFileCollector = new CodemationConsumerModuleFileCollector();
   private readonly configObjectResolver = new CodemationConfigObjectResolver();
   private readonly configValidator = new CodemationConfigValidator();
-  private readonly consumerBridgeRunner = new CodemationConsumerBridgeRunner();
-  private readonly fileExistenceChecker = new CodemationFileExistenceChecker();
   private readonly bootHookRunner = new CodemationBootHookRunner();
 
   async discover(args: CodemationBootstrapDiscoveryArgs): Promise<CodemationDiscoveredApplicationSetup> {
     const container = tsyringeContainer.createChildContainer();
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
     args.application.useContainer(container);
-    const generatedConsumerModule = await this.resolveGeneratedConsumerModule(args.generatedConsumerModule, effectiveEnv);
     const bootstrapSource = await this.bootstrapFileResolver.resolve({
       consumerRoot: args.consumerRoot,
       env: effectiveEnv,
       bootstrapPathOverride: args.bootstrapPathOverride,
     });
-    const config = args.configOverride ?? (bootstrapSource ? await this.loadConfig(bootstrapSource) : null);
-    const workflowDiscovery = await this.discoverWorkflows({
-      consumerRoot: args.consumerRoot,
+    const config = await this.resolveConfig(args.configOverride, bootstrapSource);
+    const workflows = this.resolveConfiguredWorkflows(config);
+    const workflowSources = this.resolveWorkflowSources(bootstrapSource, args.configOverride, workflows);
+    this.applyResult({
+      application: args.application,
+      result: config,
       env: effectiveEnv,
-      workflowsDirectoryOverride: args.workflowsDirectoryOverride,
-      config,
-      generatedConsumerModule,
     });
-    args.application.useWorkflows([...workflowDiscovery.workflows]);
-    if (bootstrapSource) {
-      if (!config) throw new Error(`Bootstrap file does not export a Codemation config object: ${bootstrapSource}`);
-      const registry = new CodemationConsumerRegistry(container);
-      this.applyResult({
+    await this.bootHookRunner.run({
+      bootHookToken: config.bootHook,
+      container,
+      context: {
         application: args.application,
-        result: config,
-        discoveredWorkflows: workflowDiscovery.workflows,
-        env: effectiveEnv,
-      });
-      await this.registerConsumerModules({
-        consumerRoot: args.consumerRoot,
-        config,
-        registry,
-      });
-      if (generatedConsumerModule?.codemationGeneratedConsumerModules) {
-        for (const consumerModuleExports of generatedConsumerModule.codemationGeneratedConsumerModules) {
-          registry.registerModuleExports(consumerModuleExports);
-        }
-      }
-      await this.consumerBridgeRunner.run({
-        bridgeType: config.bridge,
-        context: {
-          application: args.application,
-          container,
-          consumerRoot: args.consumerRoot,
-          repoRoot: args.repoRoot,
-          env: effectiveEnv,
-          discoveredWorkflows: workflowDiscovery.workflows,
-          workflowSources: workflowDiscovery.sources,
-        },
-      });
-      await this.bootHookRunner.run({
-        bootHookToken: config.bootHook,
         container,
-        context: {
-          application: args.application,
-          container,
-          consumerRoot: args.consumerRoot,
-          repoRoot: args.repoRoot,
-          env: effectiveEnv,
-          discoveredWorkflows: workflowDiscovery.workflows,
-          workflowSources: workflowDiscovery.sources,
-        },
-      });
-    }
+        consumerRoot: args.consumerRoot,
+        repoRoot: args.repoRoot,
+        env: effectiveEnv,
+        discoveredWorkflows: workflows,
+        workflowSources,
+      },
+    });
     return {
       application: args.application,
       bootstrapSource,
-      workflowSources: workflowDiscovery.sources,
+      workflowSources,
     };
   }
 
@@ -104,86 +56,51 @@ export class CodemationBootstrapDiscovery {
     return this.configObjectResolver.resolve(bootstrapModule);
   }
 
-  private async discoverWorkflows(args: Readonly<{
-    consumerRoot: string;
-    env: Readonly<Record<string, string | undefined>>;
-    workflowsDirectoryOverride?: string;
-    config: CodemationBootstrapResult | null;
-    generatedConsumerModule?: CodemationGeneratedConsumerModule;
-  }>): Promise<
-    Readonly<{ workflows: ReadonlyArray<WorkflowDefinition>; sources: ReadonlyArray<string> }>
-  > {
-    if (args.generatedConsumerModule?.codemationGeneratedWorkflowModules) {
-      const workflows: WorkflowDefinition[] = [];
-      for (const workflowModule of args.generatedConsumerModule.codemationGeneratedWorkflowModules) {
-        workflows.push(...this.workflowExportCollector.collect(workflowModule));
-      }
-      return {
-        workflows,
-        sources: [args.env.CODEMATION_CONSUMER_GENERATED_ENTRY ?? "<generated-consumer-entry>"],
-      };
+  private async resolveConfig(
+    configOverride: CodemationBootstrapResult | undefined,
+    bootstrapSource: string | null,
+  ): Promise<CodemationBootstrapResult> {
+    if (configOverride) {
+      return configOverride;
     }
-    if (args.config?.discovery?.workflowSource === "config-only") {
-      return { workflows: [], sources: [] };
+    if (!bootstrapSource) {
+      throw new Error('Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".');
     }
-    const workflowsDirectory = await this.workflowDirectoryResolver.resolve(args);
-    if (!workflowsDirectory) return { workflows: [], sources: [] };
-    const workflowFiles = await this.workflowFileCollector.collect(workflowsDirectory);
-    const workflows: WorkflowDefinition[] = [];
-    for (const workflowFile of workflowFiles) {
-      const moduleExports = await this.moduleImporter.importModule(workflowFile);
-      workflows.push(...this.workflowExportCollector.collect(moduleExports));
+    const resolvedConfig = await this.loadConfig(bootstrapSource);
+    if (!resolvedConfig) {
+      throw new Error(`Bootstrap file does not export a Codemation config object: ${bootstrapSource}`);
     }
-    return {
-      workflows,
-      sources: workflowFiles,
-    };
+    return resolvedConfig;
   }
 
   private applyResult(args: Readonly<{
     application: CodemationBootstrapDiscoveryArgs["application"];
     result: CodemationBootstrapResult;
-    discoveredWorkflows: ReadonlyArray<WorkflowDefinition>;
     env: Readonly<Record<string, string | undefined>>;
   }>): void {
     this.configValidator.validate(args.result, args.env);
     if (args.result.credentials) args.application.useCredentials(args.result.credentials);
     if (args.result.runtime) args.application.useRuntimeConfig(args.result.runtime);
     if (args.result.workflows) {
-      args.application.useWorkflows(
-        args.result.workflowMode === "replace" ? [...args.result.workflows] : [...args.discoveredWorkflows, ...args.result.workflows],
-      );
+      args.application.useWorkflows([...args.result.workflows]);
     }
   }
 
-  private async resolveGeneratedConsumerModule(
-    generatedConsumerModule: CodemationGeneratedConsumerModule | undefined,
-    env: Readonly<Record<string, string | undefined>>,
-  ): Promise<CodemationGeneratedConsumerModule | undefined> {
-    if (generatedConsumerModule) return generatedConsumerModule;
-    const generatedEntryPath = env.CODEMATION_CONSUMER_GENERATED_ENTRY;
-    if (!generatedEntryPath) return undefined;
-    if (!(await this.fileExistenceChecker.exists(generatedEntryPath))) return undefined;
-    return (await this.moduleImporter.importModule(generatedEntryPath)) as unknown as CodemationGeneratedConsumerModule;
+  private resolveConfiguredWorkflows(config: CodemationBootstrapResult): ReadonlyArray<WorkflowDefinition> {
+    return [...(config.workflows ?? [])];
   }
 
-  private async registerConsumerModules(args: Readonly<{
-    consumerRoot: string;
-    config: CodemationBootstrapResult;
-    registry: CodemationConsumerRegistry;
-  }>): Promise<void> {
-    for (const consumerModuleRoot of this.getConsumerModuleRoots(args.consumerRoot, args.config)) {
-      if (!(await this.fileExistenceChecker.exists(consumerModuleRoot))) continue;
-      const consumerModuleFiles = await this.consumerModuleFileCollector.collect(consumerModuleRoot);
-      for (const consumerModuleFile of consumerModuleFiles) {
-        const moduleExports = await this.moduleImporter.importModule(consumerModuleFile);
-        args.registry.registerModuleExports(moduleExports);
-      }
+  private resolveWorkflowSources(
+    bootstrapSource: string | null,
+    configOverride: CodemationBootstrapResult | undefined,
+    workflows: ReadonlyArray<WorkflowDefinition>,
+  ): ReadonlyArray<string> {
+    if (bootstrapSource) {
+      return [bootstrapSource];
     }
-  }
-
-  private getConsumerModuleRoots(consumerRoot: string, config: CodemationBootstrapResult): ReadonlyArray<string> {
-    const configuredRoots = config.discovery?.consumerModuleRoots ?? ["src/bootstrap", "src/nodes", "src/tools", "src/services"];
-    return configuredRoots.map((relativeRoot) => path.isAbsolute(relativeRoot) ? relativeRoot : path.resolve(consumerRoot, relativeRoot));
+    if (configOverride && workflows.length > 0) {
+      return ["<config-override>"];
+    }
+    return [];
   }
 }

@@ -3,6 +3,7 @@ import type { Item, Items, Node, NodeExecutionContext, NodeOutputs, RunnableNode
 export class If<TInputJson = unknown> implements RunnableNodeConfig<TInputJson, TInputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = IfNode;
+  readonly tokenId = "codemation.core-nodes.if";
   readonly execution = { hint: "local" } as const;
   constructor(
     public readonly name: string,

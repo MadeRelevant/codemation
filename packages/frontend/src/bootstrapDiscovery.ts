@@ -6,11 +6,5 @@ export type {
   CodemationBootstrapDiscoveryArgs,
   CodemationBootstrapResult,
   CodemationConfig,
-  CodemationConsumerBridge,
-  CodemationConsumerBridgeContext,
-  CodemationConsumerBridgeType,
-  CodemationDiscoveryOptions,
-  CodemationGeneratedConsumerModule,
   CodemationDiscoveredApplicationSetup,
 } from "./bootstrap/codemationBootstrapTypes";
-export { CodemationConsumerRegistry } from "./bootstrap/codemationConsumerRegistry";

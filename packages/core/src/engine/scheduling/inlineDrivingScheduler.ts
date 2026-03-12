@@ -7,6 +7,7 @@ import type {
   NodeActivationScheduler,
   RunId,
 } from "../../types";
+import { MissingRuntimeNode, MissingRuntimeNodeToken, MissingRuntimeTrigger, MissingRuntimeTriggerToken } from "../runtime/persistedWorkflowResolver";
 
 export class InlineDrivingScheduler implements NodeActivationScheduler {
   private continuation: NodeActivationContinuation | undefined;
@@ -53,7 +54,7 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
           const token = request.ctx.config.token as any;
           const nodeResolver = request.ctx.services.nodeResolver;
           if (!nodeResolver) throw new Error(`No nodeResolver available in ctx.services for activation ${request.activationId}`);
-          const inst = nodeResolver.resolve(token) as unknown;
+          const inst = this.resolveNodeInstance(token, nodeResolver) as unknown;
 
           let outputs;
           if (request.kind === "multi") {
@@ -93,6 +94,16 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
 
   private asError(e: unknown): Error {
     return e instanceof Error ? e : new Error(String(e));
+  }
+
+  private resolveNodeInstance(token: unknown, nodeResolver: Readonly<{ resolve(token: unknown): unknown }>): unknown {
+    if (token === MissingRuntimeNodeToken) {
+      return new MissingRuntimeNode();
+    }
+    if (token === MissingRuntimeTriggerToken) {
+      return new MissingRuntimeTrigger();
+    }
+    return nodeResolver.resolve(token);
   }
 }
 

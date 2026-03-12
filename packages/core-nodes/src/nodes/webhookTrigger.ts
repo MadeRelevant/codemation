@@ -9,6 +9,7 @@ type WebhookTriggerHandler<TConfig extends WebhookTrigger<any> = WebhookTrigger<
 export class WebhookTrigger<TSchema extends WebhookInputSchema | undefined = undefined> implements TriggerNodeConfig<unknown> {
   readonly kind = "trigger" as const;
   readonly token: TypeToken<unknown> = WebhookTriggerNode;
+  readonly tokenId = "codemation.core-nodes.webhook-trigger";
   readonly icon = "globe";
 
   constructor(

@@ -21,6 +21,7 @@ export type CallbackExecuteArgs<TConfig extends NodeConfigBase> = Readonly<{
 export class CallbackNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = CallbackNode;
+  readonly tokenId = "codemation.test.callback-node";
 
   constructor(
     public readonly name: string,
@@ -50,6 +51,7 @@ export class CallbackNode implements Node<CallbackNodeConfig<any>> {
 export class ThrowNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = ThrowNode;
+  readonly tokenId = "codemation.test.throw-node";
 
   constructor(
     public readonly name: string,
@@ -84,6 +86,7 @@ export class ThrowNode implements Node<ThrowNodeConfig<any>> {
 export class BranchNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = BranchNode;
+  readonly tokenId = "codemation.test.branch-node";
 
   constructor(
     public readonly name: string,
@@ -131,6 +134,7 @@ export class BranchNode implements Node<BranchNodeConfig<any>> {
 export class MapNodeConfig<TIn = unknown, TOut = unknown> implements RunnableNodeConfig<TIn, TOut> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = MapNode;
+  readonly tokenId = "codemation.test.map-node";
 
   constructor(
     public readonly name: string,
@@ -165,6 +169,7 @@ export class MapNode implements Node<MapNodeConfig> {
 export class IfNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = IfNode;
+  readonly tokenId = "codemation.test.if-node";
 
   constructor(
     public readonly name: string,
@@ -224,6 +229,7 @@ export class IfNode implements Node<IfNodeConfig<any>> {
 export class SubWorkflowRunnerConfig<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = SubWorkflowRunnerNode;
+  readonly tokenId = "codemation.test.subworkflow-runner";
 
   constructor(
     public readonly name: string,
@@ -277,6 +283,7 @@ export class SubWorkflowRunnerNode implements Node<SubWorkflowRunnerConfig<any, 
 export class MergeNodeConfig<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = MergeNode;
+  readonly tokenId = "codemation.test.merge-node";
 
   constructor(
     public readonly name: string,

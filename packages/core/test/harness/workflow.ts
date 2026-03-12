@@ -4,10 +4,7 @@ import { WorkflowBuilder } from "../../dist/index.js";
 type Meta = Readonly<{ id: WorkflowId; name: string }>;
 
 function tokenName(config: NodeConfigBase): string {
-  const token: any = (config as any).token;
-  if (typeof token === "function") return token.name || "Node";
-  if (typeof token === "string") return token;
-  return "Node";
+  return config.tokenId;
 }
 
 export function chain(meta: Meta): WorkflowBuilder {
@@ -21,7 +18,7 @@ export function dag(meta: Meta) {
 
   function add(config: NodeConfigBase): NodeRef {
     const id = config.id ?? `${tokenName(config)}:${++seq}`;
-    nodes.push({ id, kind: config.kind, token: config.token, name: config.name, config });
+    nodes.push({ id, kind: config.kind, token: config.token, tokenId: config.tokenId, name: config.name, config });
     return { id, kind: config.kind, name: config.name };
   }
 

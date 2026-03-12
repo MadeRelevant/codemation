@@ -6,6 +6,7 @@ export class ExampleUppercase<
 > implements RunnableNodeConfig<TInputJson, TInputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = ExampleUppercaseNode;
+  readonly tokenId = "codemation.node-example.uppercase";
   constructor(
     public readonly name: string,
     public readonly cfg: { field: TField },

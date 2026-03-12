@@ -1,7 +1,6 @@
 export { CodemationBootstrapDiscovery } from "./bootstrapDiscovery";
 export { CodemationConfigFactory } from "./bootstrap/codemationConfigFactory";
 export { CodemationApplication } from "./codemationApplication";
-export { CodemationConsumerRegistry } from "./bootstrap/codemationConsumerRegistry";
 export { ApiDispatcher, ApiPaths, WorkflowLoader } from "./server";
 export { StartRouteTemplateCatalog } from "./templates";
 export { RealtimeRuntimeFactory } from "./realtimeRuntimeFactory";
@@ -12,11 +11,6 @@ export type {
   CodemationBootstrapContext,
   CodemationBootstrapResult,
   CodemationConfig,
-  CodemationConsumerBridge,
-  CodemationConsumerBridgeContext,
-  CodemationConsumerBridgeType,
-  CodemationDiscoveryOptions,
-  CodemationGeneratedConsumerModule,
 } from "./bootstrapDiscovery";
 export type { CodemationApplicationConfig, CodemationStopHandle } from "./codemationApplication";
 export type {

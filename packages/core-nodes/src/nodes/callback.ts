@@ -14,6 +14,7 @@ class CallbackResultNormalizer {
 export class Callback<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = CallbackNode;
+  readonly tokenId = "codemation.core-nodes.callback";
   readonly execution = { hint: "local" } as const;
 
   constructor(

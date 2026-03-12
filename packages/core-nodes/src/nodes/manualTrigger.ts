@@ -3,6 +3,7 @@ import type { TriggerNode, TriggerNodeConfig, TriggerSetupContext, TypeToken } f
 export class ManualTrigger<TOutputJson = unknown> implements TriggerNodeConfig<TOutputJson> {
   readonly kind = "trigger" as const;
   readonly token: TypeToken<unknown> = ManualTriggerNode;
+  readonly tokenId = "codemation.core-nodes.manual-trigger";
   constructor(public readonly name: string = "Manual trigger", public readonly id?: string) {}
 }
 

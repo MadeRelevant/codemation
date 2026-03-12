@@ -5,6 +5,7 @@ import type { CanvasIconName } from "../canvasIconName";
 
 export class OpenAIChatModelConfig implements ChatModelConfig {
   readonly token = OpenAIChatModelFactory;
+  readonly tokenId = "codemation.core-nodes.openai-chat-model";
 
   constructor(
     public readonly name: string,

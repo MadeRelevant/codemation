@@ -41,6 +41,7 @@ class IdFactory {
 class UppercaseSubject<TItemJson extends Record<string, unknown> = Record<string, unknown>> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = UppercaseSubjectNode;
+  readonly tokenId = "codemation.test.uppercase-subject";
   readonly execution = { hint: "worker" as const, queue: "default" as const };
   constructor(public readonly name: string, public readonly id: string) {}
 }

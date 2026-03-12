@@ -10,3 +10,4 @@ out
 .codemation
 **/dist
 **/node_modules
+.jscpd-report

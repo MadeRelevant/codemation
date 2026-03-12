@@ -5,6 +5,7 @@ export type WorkflowId = string;
 export type NodeId = string;
 export type OutputPortKey = string; // e.g. "main", "true", "false"
 export type InputPortKey = string; // usually "in"
+export type PersistedTokenId = string;
 
 /**
  * Terminology:
@@ -36,6 +37,7 @@ export interface WorkflowGraphFactory {
 export interface NodeConfigBase {
   readonly kind: NodeKind;
   readonly token: TypeToken<unknown>;
+  readonly tokenId: PersistedTokenId;
   readonly name?: string;
   readonly id?: NodeId;
   readonly icon?: string;
@@ -73,6 +75,7 @@ export interface NodeDefinition {
   id: NodeId;
   kind: NodeKind;
   token: TypeToken<unknown>;
+  tokenId: PersistedTokenId;
   name?: string;
   config: NodeConfigBase;
 }
@@ -215,6 +218,38 @@ export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export interface RunExecutionOptions {
   localOnly?: boolean;
   webhook?: boolean;
+  mode?: "manual" | "debug";
+  sourceWorkflowId?: WorkflowId;
+  sourceRunId?: RunId;
+  derivedFromRunId?: RunId;
+  isMutable?: boolean;
+}
+
+export interface PersistedWorkflowSnapshotNode {
+  id: NodeId;
+  kind: NodeKind;
+  name?: string;
+  nodeTokenId: PersistedTokenId;
+  configTokenId: PersistedTokenId;
+  tokenName?: string;
+  configTokenName?: string;
+  config: unknown;
+}
+
+export interface PersistedWorkflowSnapshot {
+  id: WorkflowId;
+  name: string;
+  nodes: ReadonlyArray<PersistedWorkflowSnapshotNode>;
+  edges: ReadonlyArray<Edge>;
+}
+
+export interface PersistedMutableNodeState {
+  pinnedInput?: Items;
+  lastDebugInput?: Items;
+}
+
+export interface PersistedMutableRunState {
+  nodesById: Readonly<Record<NodeId, PersistedMutableNodeState>>;
 }
 
 export interface WebhookControlSignal {
@@ -429,6 +464,7 @@ export interface RunSummary {
   startedAt: string; // ISO string
   status: RunStatus;
   parent?: ParentExecutionRef;
+  executionOptions?: RunExecutionOptions;
 }
 
 export interface PendingNodeExecution {
@@ -448,7 +484,7 @@ export interface PendingNodeExecution {
   enqueuedAt: string; // ISO string
 }
 
-export type NodeExecutionStatus = "pending" | "queued" | "running" | "completed" | "failed";
+export type NodeExecutionStatus = "pending" | "queued" | "running" | "completed" | "failed" | "skipped";
 
 export interface NodeExecutionError {
   message: string;
@@ -478,6 +514,8 @@ export interface PersistedRunState {
   startedAt: string; // ISO string
   parent?: ParentExecutionRef;
   executionOptions?: RunExecutionOptions;
+  workflowSnapshot?: PersistedWorkflowSnapshot;
+  mutableState?: PersistedMutableRunState;
   status: RunStatus;
   pending?: PendingNodeExecution;
   queue: RunQueueEntry[];
@@ -486,7 +524,15 @@ export interface PersistedRunState {
 }
 
 export interface RunStateStore {
-  createRun(args: { runId: RunId; workflowId: WorkflowId; startedAt: string; parent?: ParentExecutionRef; executionOptions?: RunExecutionOptions }): Promise<void>;
+  createRun(args: {
+    runId: RunId;
+    workflowId: WorkflowId;
+    startedAt: string;
+    parent?: ParentExecutionRef;
+    executionOptions?: RunExecutionOptions;
+    workflowSnapshot?: PersistedWorkflowSnapshot;
+    mutableState?: PersistedMutableRunState;
+  }): Promise<void>;
   load(runId: RunId): Promise<PersistedRunState | undefined>;
   save(state: PersistedRunState): Promise<void>;
 }

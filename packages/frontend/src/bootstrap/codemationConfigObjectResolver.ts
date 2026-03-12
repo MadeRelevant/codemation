@@ -11,6 +11,6 @@ export class CodemationConfigObjectResolver {
 
   private isConfigObject(value: unknown): value is CodemationConfig {
     if (!value || typeof value !== "object") return false;
-    return "credentials" in value || "runtime" in value || "workflows" in value || "workflowMode" in value || "bridge" in value || "bootHook" in value || "discovery" in value;
+    return "credentials" in value || "runtime" in value || "workflows" in value || "bootHook" in value;
   }
 }

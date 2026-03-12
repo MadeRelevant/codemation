@@ -1,60 +1,83 @@
-import { CodemationApp } from "../CodemationApp";
 import type { CodemationBootstrapResult } from "../bootstrapDiscovery";
 import { FrontendRouteTokens } from "./frontendRouteTokens";
 import { RealtimeRouteHandler } from "./RealtimeRouteHandler";
 import { RunRouteHandler } from "./RunRouteHandler";
 import { WebhookRouteHandler } from "./WebhookRouteHandler";
 import { WorkflowRouteHandler } from "./WorkflowRouteHandler";
+import { CodemationApp } from "../CodemationApp";
 
 export const codemationNodeRuntime = "nodejs";
 
 type RouteConfigOverride = Readonly<{ configOverride?: CodemationBootstrapResult }>;
 
-export async function getWorkflowsRoute(args?: RouteConfigOverride): Promise<Response> {
-  return await (await CodemationApp.resolve(WorkflowRouteHandler, args)).getWorkflows();
-}
+export class CodemationRouteHandlers {
+  static async getWorkflows(args?: RouteConfigOverride): Promise<Response> {
+    return await (await CodemationApp.resolve(WorkflowRouteHandler, args)).getWorkflows();
+  }
 
-export async function getWorkflowRoute(
-  _: Request,
-  context: { params: Promise<{ workflowId: string }> },
-  args?: RouteConfigOverride,
-): Promise<Response> {
-  const { workflowId } = await context.params;
-  return await (await CodemationApp.resolve(WorkflowRouteHandler, args)).getWorkflow(workflowId);
-}
+  static async getWorkflow(
+    _: Request,
+    context: { params: Promise<{ workflowId: string }> },
+    args?: RouteConfigOverride,
+  ): Promise<Response> {
+    return await (await CodemationApp.resolve(WorkflowRouteHandler, args)).getWorkflow((await context.params).workflowId);
+  }
 
-export async function getWorkflowRunsRoute(
-  _: Request,
-  context: { params: Promise<{ workflowId: string }> },
-  args?: RouteConfigOverride,
-): Promise<Response> {
-  const { workflowId } = await context.params;
-  return await (await CodemationApp.resolve(WorkflowRouteHandler, args)).getWorkflowRuns(workflowId, args);
-}
+  static async getWorkflowRuns(
+    _: Request,
+    context: { params: Promise<{ workflowId: string }> },
+    args?: RouteConfigOverride,
+  ): Promise<Response> {
+    return await (await CodemationApp.resolve(WorkflowRouteHandler, args)).getWorkflowRuns((await context.params).workflowId, args);
+  }
 
-export async function getRunRoute(
-  _: Request,
-  context: { params: Promise<{ runId: string }> },
-  args?: RouteConfigOverride,
-): Promise<Response> {
-  const { runId } = await context.params;
-  return await (await CodemationApp.resolve(RunRouteHandler, args)).getRun(runId, args);
-}
+  static async getRun(
+    _: Request,
+    context: { params: Promise<{ runId: string }> },
+    args?: RouteConfigOverride,
+  ): Promise<Response> {
+    return await (await CodemationApp.resolve(RunRouteHandler, args)).getRun((await context.params).runId, args);
+  }
 
-export async function postRunRoute(req: Request, args?: RouteConfigOverride): Promise<Response> {
-  return await (await CodemationApp.resolve(RunRouteHandler, args)).postRun(req, args);
-}
+  static async postRun(req: Request, args?: RouteConfigOverride): Promise<Response> {
+    return await (await CodemationApp.resolve(RunRouteHandler, args)).postRun(req, args);
+  }
 
-export async function postWebhookRoute(
-  req: Request,
-  context: { params: Promise<{ endpointId: string }> },
-  args?: RouteConfigOverride,
-): Promise<Response> {
-  return await (await CodemationApp.resolve(WebhookRouteHandler, args)).handle(req, context, args);
-}
+  static async patchRunWorkflowSnapshot(
+    req: Request,
+    context: { params: Promise<{ runId: string }> },
+    args?: RouteConfigOverride,
+  ): Promise<Response> {
+    return await (await CodemationApp.resolve(RunRouteHandler, args)).patchRunWorkflowSnapshot(req, (await context.params).runId, args);
+  }
 
-export const CodemationRealtimeRouteHandlers = {
-  async postReady(args?: RouteConfigOverride): Promise<Response> {
+  static async patchRunNodePin(
+    req: Request,
+    context: { params: Promise<{ runId: string; nodeId: string }> },
+    args?: RouteConfigOverride,
+  ): Promise<Response> {
+    const params = await context.params;
+    return await (await CodemationApp.resolve(RunRouteHandler, args)).patchRunNodePin(req, params.runId, params.nodeId, args);
+  }
+
+  static async postRunNode(
+    req: Request,
+    context: { params: Promise<{ runId: string; nodeId: string }> },
+    args?: RouteConfigOverride,
+  ): Promise<Response> {
+    const params = await context.params;
+    return await (await CodemationApp.resolve(RunRouteHandler, args)).postRunNode(req, params.runId, params.nodeId, args);
+  }
+
+  static async postWebhook(
+    req: Request,
+    context: { params: Promise<{ endpointId: string }> },
+    args?: RouteConfigOverride,
+  ): Promise<Response> {
+    return await (await CodemationApp.resolve(WebhookRouteHandler, args)).handle(req, context, args);
+  }
+
+  static async postRealtimeReady(args?: RouteConfigOverride): Promise<Response> {
     return await (await CodemationApp.resolve<RealtimeRouteHandler>(FrontendRouteTokens.RealtimeRouteHandler, args)).postReady(args);
-  },
-} as const;
+  }
+}

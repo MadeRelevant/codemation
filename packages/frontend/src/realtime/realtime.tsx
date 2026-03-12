@@ -3,6 +3,8 @@
 import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Logger } from "../logging/LoggerFactory";
+import type { WorkflowDto } from "./workflowTypes";
+export type { WorkflowDto } from "./workflowTypes";
 
 export type JsonItem = Readonly<{
   json: unknown;
@@ -14,16 +16,41 @@ export type Items = ReadonlyArray<JsonItem>;
 
 export type WorkflowSummary = Readonly<{ id: string; name: string }>;
 
-export type WorkflowDto = Readonly<{
+export type RunExecutionOptions = Readonly<{
+  localOnly?: boolean;
+  webhook?: boolean;
+  mode?: "manual" | "debug";
+  sourceWorkflowId?: string;
+  sourceRunId?: string;
+  derivedFromRunId?: string;
+  isMutable?: boolean;
+}>;
+
+export type PersistedWorkflowSnapshot = Readonly<{
   id: string;
   name: string;
-  nodes: ReadonlyArray<Readonly<{ id: string; kind: string; name?: string; type: string; role?: string; icon?: string; parentNodeId?: string }>>;
-  edges: ReadonlyArray<
+  nodes: ReadonlyArray<
     Readonly<{
-      from: Readonly<{ nodeId: string; output: string }>;
-      to: Readonly<{ nodeId: string; input: string }>;
+      id: string;
+      kind: string;
+      name?: string;
+      nodeTokenId: string;
+      configTokenId: string;
+      tokenName?: string;
+      configTokenName?: string;
+      config: unknown;
     }>
   >;
+  edges: WorkflowDto["edges"];
+}>;
+
+export type PersistedMutableNodeState = Readonly<{
+  pinnedInput?: Items;
+  lastDebugInput?: Items;
+}>;
+
+export type PersistedMutableRunState = Readonly<{
+  nodesById: Readonly<Record<string, PersistedMutableNodeState>>;
 }>;
 
 export type ParentExecutionRef = Readonly<{ runId: string; workflowId: string; nodeId: string }>;
@@ -34,6 +61,7 @@ export type RunSummary = Readonly<{
   startedAt: string;
   status: string;
   parent?: ParentExecutionRef;
+  executionOptions?: RunExecutionOptions;
 }>;
 
 export type NodeExecutionSnapshot = Readonly<{
@@ -42,7 +70,7 @@ export type NodeExecutionSnapshot = Readonly<{
   nodeId: string;
   activationId?: string;
   parent?: ParentExecutionRef;
-  status: "pending" | "queued" | "running" | "completed" | "failed";
+  status: "pending" | "queued" | "running" | "completed" | "failed" | "skipped";
   queuedAt?: string;
   startedAt?: string;
   finishedAt?: string;
@@ -70,6 +98,9 @@ export type PersistedRunState = Readonly<{
   workflowId: string;
   startedAt: string;
   parent?: ParentExecutionRef;
+  executionOptions?: RunExecutionOptions;
+  workflowSnapshot?: PersistedWorkflowSnapshot;
+  mutableState?: PersistedMutableRunState;
   status: "running" | "pending" | "completed" | "failed";
   pending?: PendingNodeExecution;
   queue: ReadonlyArray<unknown>;
@@ -96,6 +127,8 @@ type RealtimeServerMessage =
 type RealtimeClientMessage =
   | Readonly<{ kind: "subscribeWorkflow"; workflowId: string }>
   | Readonly<{ kind: "unsubscribeWorkflow"; workflowId: string }>;
+
+const minimumRealtimeActiveVisibilityMs = 300;
 
 type RealtimeContextValue = Readonly<{
   retainWorkflowSubscription: (workflowId: string) => () => void;
@@ -173,6 +206,9 @@ function createInitialRunState(event: Extract<WorkflowEvent, { kind: "runCreated
     workflowId: event.workflowId,
     startedAt: event.at,
     parent: event.parent,
+    executionOptions: undefined,
+    workflowSnapshot: undefined,
+    mutableState: undefined,
     status: "running",
     pending: undefined,
     queue: [],
@@ -188,6 +224,7 @@ function toRunSummary(state: PersistedRunState): RunSummary {
     startedAt: state.startedAt,
     status: state.status,
     parent: state.parent,
+    executionOptions: state.executionOptions,
   };
 }
 
@@ -211,6 +248,9 @@ function mergeSnapshotIntoRunState(
       workflowId: event.workflowId,
       startedAt: event.at,
       parent: event.parent,
+      executionOptions: undefined,
+      workflowSnapshot: undefined,
+      mutableState: undefined,
       status: event.kind === "nodeFailed" ? "failed" : "pending",
       pending: undefined,
       queue: [],
@@ -286,6 +326,8 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
   const queryClient = useQueryClient();
   const desiredWorkflowCountsRef = useRef(new Map<string, number>());
   const pendingJsonMessagesRef = useRef<RealtimeServerMessage[]>([]);
+  const activeStatusShownAtByNodeKeyRef = useRef(new Map<string, number>());
+  const terminalEventTimeoutIdByNodeKeyRef = useRef(new Map<string, number>());
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
   const readyStateRef = useRef<RealtimeReadyState>(RealtimeReadyState.UNINSTANTIATED);
@@ -310,6 +352,23 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
   const shouldConnect = isTransportReady && Boolean(websocketUrl);
 
   readyStateRef.current = readyState;
+  const clearPendingTerminalEventDelay = useCallback((nodeKey: string): void => {
+    const timeoutId = terminalEventTimeoutIdByNodeKeyRef.current.get(nodeKey);
+    if (timeoutId === undefined) return;
+    window.clearTimeout(timeoutId);
+    terminalEventTimeoutIdByNodeKeyRef.current.delete(nodeKey);
+  }, []);
+  const clearRunRealtimeDelays = useCallback((runId: string): void => {
+    const runPrefix = `${runId}:`;
+    for (const nodeKey of terminalEventTimeoutIdByNodeKeyRef.current.keys()) {
+      if (!nodeKey.startsWith(runPrefix)) continue;
+      clearPendingTerminalEventDelay(nodeKey);
+    }
+    for (const nodeKey of activeStatusShownAtByNodeKeyRef.current.keys()) {
+      if (!nodeKey.startsWith(runPrefix)) continue;
+      activeStatusShownAtByNodeKeyRef.current.delete(nodeKey);
+    }
+  }, [clearPendingTerminalEventDelay]);
   const handleRealtimeServerMessage = useCallback(
     (message: RealtimeServerMessage) => {
       if (message.kind === "event") {
@@ -318,6 +377,45 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
           logger.info(`realtime snapshot event node=${message.event.snapshot.nodeId} kind=${message.event.kind}`);
         }
         logger.debug(`received websocket event ${message.event.kind}:${message.event.workflowId}${eventDetails}`);
+        if (message.event.kind === "runSaved") {
+          clearRunRealtimeDelays(message.event.runId);
+          applyWorkflowEvent(queryClient, message.event);
+          return;
+        }
+        if (
+          message.event.kind === "nodeQueued" ||
+          message.event.kind === "nodeStarted" ||
+          message.event.kind === "nodeCompleted" ||
+          message.event.kind === "nodeFailed"
+        ) {
+          const nodeKey = `${message.event.runId}:${message.event.snapshot.nodeId}`;
+          if (message.event.kind === "nodeQueued" || message.event.kind === "nodeStarted") {
+            clearPendingTerminalEventDelay(nodeKey);
+            activeStatusShownAtByNodeKeyRef.current.set(nodeKey, Date.now());
+            applyWorkflowEvent(queryClient, message.event);
+            return;
+          }
+
+          const activeStatusShownAt = activeStatusShownAtByNodeKeyRef.current.get(nodeKey);
+          if (activeStatusShownAt !== undefined) {
+            const remainingVisibilityMs = minimumRealtimeActiveVisibilityMs - (Date.now() - activeStatusShownAt);
+            if (remainingVisibilityMs > 0) {
+              clearPendingTerminalEventDelay(nodeKey);
+              const timeoutId = window.setTimeout(() => {
+                activeStatusShownAtByNodeKeyRef.current.delete(nodeKey);
+                terminalEventTimeoutIdByNodeKeyRef.current.delete(nodeKey);
+                applyWorkflowEvent(queryClient, message.event);
+              }, remainingVisibilityMs);
+              terminalEventTimeoutIdByNodeKeyRef.current.set(nodeKey, timeoutId);
+              return;
+            }
+          }
+
+          clearPendingTerminalEventDelay(nodeKey);
+          activeStatusShownAtByNodeKeyRef.current.delete(nodeKey);
+          applyWorkflowEvent(queryClient, message.event);
+          return;
+        }
         applyWorkflowEvent(queryClient, message.event);
         return;
       }
@@ -347,7 +445,7 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
 
       logger.debug(`websocket control message ${message.kind}`);
     },
-    [logger, queryClient],
+    [clearPendingTerminalEventDelay, clearRunRealtimeDelays, logger, queryClient],
   );
   const sendJsonMessage = useCallback((message: RealtimeClientMessage) => {
     if (socketRef.current?.readyState !== WebSocket.OPEN) {
@@ -498,6 +596,16 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
       handleRealtimeServerMessage(message);
     }
   }, [handleRealtimeServerMessage, messageQueueVersion]);
+
+  useEffect(() => {
+    return () => {
+      for (const timeoutId of terminalEventTimeoutIdByNodeKeyRef.current.values()) {
+        window.clearTimeout(timeoutId);
+      }
+      terminalEventTimeoutIdByNodeKeyRef.current.clear();
+      activeStatusShownAtByNodeKeyRef.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (readyState === RealtimeReadyState.OPEN) {

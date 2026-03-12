@@ -18,7 +18,7 @@ export class CodemationStartupSummaryReporter {
         `scheduler info         ${this.formatScheduler(args.runtime)}`,
         `workflow trigger status ${args.triggerStatusLabel} (${triggerStats.triggerWorkflowCount} workflows, ${triggerStats.triggerNodeCount} trigger nodes)`,
         `workflows loaded       ${triggerStats.workflowCount}`,
-        `bootstrap source      ${args.bootstrapSource ?? "none discovered"}`,
+        `bootstrap source      ${args.bootstrapSource ?? "none configured"}`,
         `workflow sources      ${this.formatWorkflowSources(args.workflowSources)}`,
       ]),
     );
@@ -35,14 +35,14 @@ export class CodemationStartupSummaryReporter {
         `scheduler info         ${this.formatScheduler(args.runtime)} (queues: ${args.queues.join(", ") || "none"})`,
         `workflow trigger status disabled in worker mode (${triggerStats.triggerWorkflowCount} workflows, ${triggerStats.triggerNodeCount} trigger nodes configured)`,
         `workflows loaded       ${triggerStats.workflowCount}`,
-        `bootstrap source      ${args.bootstrapSource ?? "none discovered"}`,
+        `bootstrap source      ${args.bootstrapSource ?? "none configured"}`,
         `workflow sources      ${this.formatWorkflowSources(args.workflowSources)}`,
       ]),
     );
   }
 
   private formatWorkflowSources(workflowSources: ReadonlyArray<string>): string {
-    return workflowSources.length > 0 ? workflowSources.join(", ") : "none discovered";
+    return workflowSources.length > 0 ? workflowSources.join(", ") : "none configured";
   }
 
   private formatPubSub(runtime: RealtimeRuntimeDiagnostics): string {

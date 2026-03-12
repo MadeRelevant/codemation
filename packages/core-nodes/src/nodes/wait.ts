@@ -3,6 +3,7 @@ import type { Items, Node, NodeExecutionContext, NodeOutputs, RunnableNodeConfig
 export class Wait<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = WaitNode;
+  readonly tokenId = "codemation.core-nodes.wait";
   readonly execution = { hint: "local" } as const;
 
   constructor(

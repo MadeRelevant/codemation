@@ -16,6 +16,7 @@ const classifyMailOutputSchema = z.object({
 
 export class ClassifyMailToolConfig implements ToolConfig {
   readonly token = ClassifyMailTool;
+  readonly tokenId = "codemation.test-dev.classify-mail-tool";
 
   constructor(
     public readonly name: string,

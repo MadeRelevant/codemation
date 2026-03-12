@@ -21,6 +21,7 @@ import {
 class ManualTestTriggerConfig<TOutputJson = unknown> implements TriggerNodeConfig<TOutputJson> {
   readonly kind = "trigger" as const;
   readonly token: TypeToken<unknown> = ManualTestTriggerNode;
+  readonly tokenId = "codemation.test.manual-trigger";
 
   constructor(
     public readonly name: string,
@@ -71,8 +72,8 @@ test("trigger nodes are marked completed and emit completion snapshots", async (
     id: "wf.trigger.completed",
     name: "Trigger completed",
     nodes: [
-      { id: "trigger", kind: "trigger", token: ManualTestTriggerNode, name: "Manual trigger", config: trigger },
-      { id: "finish", kind: "node", token: CallbackNode, name: "Finish", config: finish },
+      { id: "trigger", kind: "trigger", token: ManualTestTriggerNode, tokenId: trigger.tokenId, name: "Manual trigger", config: trigger },
+      { id: "finish", kind: "node", token: CallbackNode, tokenId: finish.tokenId, name: "Finish", config: finish },
     ],
     edges: [{ from: { nodeId: "trigger", output: "main" }, to: { nodeId: "finish", input: "in" } }],
   };

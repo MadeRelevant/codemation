@@ -8,7 +8,15 @@ export class PublishingRunStateStore implements RunStateStore, RunListingStore {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async createRun(args: { runId: RunId; workflowId: WorkflowId; startedAt: string; parent?: ParentExecutionRef; executionOptions?: PersistedRunState["executionOptions"] }): Promise<void> {
+  async createRun(args: {
+    runId: RunId;
+    workflowId: WorkflowId;
+    startedAt: string;
+    parent?: ParentExecutionRef;
+    executionOptions?: PersistedRunState["executionOptions"];
+    workflowSnapshot?: PersistedRunState["workflowSnapshot"];
+    mutableState?: PersistedRunState["mutableState"];
+  }): Promise<void> {
     await this.inner.createRun(args);
     await this.eventBus.publish({ kind: "runCreated", runId: args.runId, workflowId: args.workflowId, parent: args.parent, at: this.now().toISOString() });
   }

@@ -18,18 +18,7 @@ import {
 } from "@xyflow/react";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NodeExecutionSnapshot } from "../realtime/realtime";
-
-type WorkflowDto = Readonly<{
-  id: string;
-  name: string;
-  nodes: ReadonlyArray<Readonly<{ id: string; kind: string; name?: string; type: string; role?: string; icon?: string; parentNodeId?: string }>>;
-  edges: ReadonlyArray<
-    Readonly<{
-      from: Readonly<{ nodeId: string; output: string }>;
-      to: Readonly<{ nodeId: string; input: string }>;
-    }>
-  >;
-}>;
+import type { WorkflowDto } from "../realtime/workflowTypes";
 
 type NodeData = Readonly<{
   nodeId: string;
@@ -41,12 +30,11 @@ type NodeData = Readonly<{
   status?: NodeExecutionSnapshot["status"];
   selected: boolean;
   isAttachment: boolean;
+  isPinned: boolean;
 }>;
 
 const workflowCanvasNodeTypes = { codemation: CodemationNode };
 const workflowCanvasEdgeTypes = { straightCount: StraightCountEdge };
-/** Minimum time (ms) to show running/queued before showing completed. Ensures fast nodes stay visibly "active" before terminal state. */
-const minimumActiveStatusVisibilityMs = 300;
 
 function StraightCountEdge(props: ReactFlowEdgeProps<ReactFlowEdge>) {
   const [edgePath, labelX, labelY] = getStraightPath({
@@ -78,123 +66,10 @@ function StraightCountEdge(props: ReactFlowEdgeProps<ReactFlowEdge>) {
 function useVisibleNodeStatuses(
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,
 ): Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>> {
-  const [visibleStatusesByNodeId, setVisibleStatusesByNodeId] = useState<Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>>(
+  return useMemo(
     () => Object.fromEntries(Object.entries(nodeSnapshotsByNodeId).map(([nodeId, snapshot]) => [nodeId, snapshot.status])),
+    [nodeSnapshotsByNodeId],
   );
-  const activeStartedAtByNodeIdRef = useRef(new Map<string, number>());
-  const timeoutIdByNodeIdRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const latestRawStatusesByNodeIdRef = useRef<Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>>({});
-
-  useEffect(() => {
-    const now = Date.now();
-    latestRawStatusesByNodeIdRef.current = Object.fromEntries(Object.entries(nodeSnapshotsByNodeId).map(([nodeId, snapshot]) => [nodeId, snapshot.status]));
-    setVisibleStatusesByNodeId((currentStatusesByNodeId) => {
-      const nextStatusesByNodeId: Record<string, NodeExecutionSnapshot["status"] | undefined> = {};
-      const rawStatusesByNodeId = latestRawStatusesByNodeIdRef.current;
-
-      for (const nodeId of new Set([...Object.keys(currentStatusesByNodeId), ...Object.keys(rawStatusesByNodeId)])) {
-        const rawStatus = rawStatusesByNodeId[nodeId];
-        const currentVisibleStatus = currentStatusesByNodeId[nodeId];
-        const pendingTimeoutId = timeoutIdByNodeIdRef.current.get(nodeId);
-        const isRawStatusActive = rawStatus === "running" || rawStatus === "queued";
-        const isCurrentVisibleStatusActive = currentVisibleStatus === "running" || currentVisibleStatus === "queued";
-
-        if (isRawStatusActive) {
-          if (pendingTimeoutId) {
-            clearTimeout(pendingTimeoutId);
-            timeoutIdByNodeIdRef.current.delete(nodeId);
-          }
-
-          if (!isCurrentVisibleStatusActive) {
-            activeStartedAtByNodeIdRef.current.set(nodeId, now);
-          }
-
-          nextStatusesByNodeId[nodeId] = rawStatus;
-          continue;
-        }
-
-        if (rawStatus === undefined) {
-          if (pendingTimeoutId) {
-            clearTimeout(pendingTimeoutId);
-            timeoutIdByNodeIdRef.current.delete(nodeId);
-          }
-          activeStartedAtByNodeIdRef.current.delete(nodeId);
-          nextStatusesByNodeId[nodeId] = rawStatus;
-          continue;
-        }
-
-        if (!isCurrentVisibleStatusActive) {
-          const isRawStatusTerminal = rawStatus === "completed" || rawStatus === "failed";
-          const hasAlreadyShownTerminalStatus =
-            currentVisibleStatus === rawStatus || currentVisibleStatus === "completed" || currentVisibleStatus === "failed";
-          if (isRawStatusTerminal && !hasAlreadyShownTerminalStatus) {
-            activeStartedAtByNodeIdRef.current.set(nodeId, now);
-            if (!pendingTimeoutId) {
-              const timeoutId = setTimeout(() => {
-                activeStartedAtByNodeIdRef.current.delete(nodeId);
-                timeoutIdByNodeIdRef.current.delete(nodeId);
-                setVisibleStatusesByNodeId((latestStatusesByNodeId) => ({
-                  ...latestStatusesByNodeId,
-                  [nodeId]: latestRawStatusesByNodeIdRef.current[nodeId],
-                }));
-              }, minimumActiveStatusVisibilityMs);
-              timeoutIdByNodeIdRef.current.set(nodeId, timeoutId);
-            }
-            nextStatusesByNodeId[nodeId] = "running";
-          } else {
-            if (pendingTimeoutId) {
-              clearTimeout(pendingTimeoutId);
-              timeoutIdByNodeIdRef.current.delete(nodeId);
-            }
-            activeStartedAtByNodeIdRef.current.delete(nodeId);
-            nextStatusesByNodeId[nodeId] = rawStatus;
-          }
-          continue;
-        }
-
-        const activeStartedAt = activeStartedAtByNodeIdRef.current.get(nodeId) ?? now;
-        const remainingVisibilityMs = minimumActiveStatusVisibilityMs - (now - activeStartedAt);
-        if (remainingVisibilityMs <= 0) {
-          if (pendingTimeoutId) {
-            clearTimeout(pendingTimeoutId);
-            timeoutIdByNodeIdRef.current.delete(nodeId);
-          }
-
-          activeStartedAtByNodeIdRef.current.delete(nodeId);
-          nextStatusesByNodeId[nodeId] = rawStatus;
-          continue;
-        }
-
-        if (!pendingTimeoutId) {
-          const timeoutId = setTimeout(() => {
-            activeStartedAtByNodeIdRef.current.delete(nodeId);
-            timeoutIdByNodeIdRef.current.delete(nodeId);
-            setVisibleStatusesByNodeId((latestStatusesByNodeId) => ({
-              ...latestStatusesByNodeId,
-              [nodeId]: latestRawStatusesByNodeIdRef.current[nodeId],
-            }));
-          }, remainingVisibilityMs);
-          timeoutIdByNodeIdRef.current.set(nodeId, timeoutId);
-        }
-
-        nextStatusesByNodeId[nodeId] = currentVisibleStatus;
-      }
-
-      return nextStatusesByNodeId;
-    });
-
-  }, [nodeSnapshotsByNodeId]);
-
-  useEffect(() => {
-    return () => {
-      for (const timeoutId of timeoutIdByNodeIdRef.current.values()) {
-        clearTimeout(timeoutId);
-      }
-      timeoutIdByNodeIdRef.current.clear();
-    };
-  }, []);
-
-  return visibleStatusesByNodeId;
 }
 
 function iconForNode(type: string, role?: string, icon?: string): LucideIcon {
@@ -237,6 +112,9 @@ function statusIconForNode(status: NodeExecutionSnapshot["status"] | undefined) 
   if (status === "completed") {
     return <CircleCheckBig size={15} style={{ color: "#15803d" }} strokeWidth={2.1} />;
   }
+  if (status === "skipped") {
+    return <Clock3 size={15} style={{ color: "#d97706" }} strokeWidth={2.1} />;
+  }
   if (status === "failed") {
     return <CircleAlert size={15} style={{ color: "#b91c1c" }} strokeWidth={2.1} />;
   }
@@ -254,6 +132,7 @@ function CodemationNode({ data }: { data: NodeData }) {
   const isSelected = data.selected;
   const isAttachment = data.isAttachment;
   const isAgent = data.role === "agent";
+  const isPinned = data.isPinned;
   const activityColor = isRunning ? "#2563eb" : "#7c3aed";
   const activityRingStyle: CSSProperties = {
     position: "absolute",
@@ -349,13 +228,15 @@ function CodemationNode({ data }: { data: NodeData }) {
           height: "100%",
           padding: isAttachment ? "0 10px" : "0 10px",
           borderRadius: 0,
-          border: isActive ? "1px solid transparent" : isSelected ? "1px solid #111827" : "1px solid #d1d5db",
-          background: isSelected ? (isAttachment ? "#fffaf0" : "#fffdf5") : isAttachment ? "#fcfcfd" : "white",
+          border: isActive ? "1px solid transparent" : isPinned ? "1px solid #7c3aed" : isSelected ? "1px solid #111827" : "1px solid #d1d5db",
+          background: isSelected ? (isAttachment ? "#fffaf0" : "#fffdf5") : isPinned ? "#faf5ff" : isAttachment ? "#fcfcfd" : "white",
           boxShadow: isActive
             ? "0 2px 6px rgba(15,23,42,0.05)"
             : isSelected
               ? "0 0 0 1px rgba(245,158,11,0.45) inset, 0 2px 10px rgba(15,23,42,0.08)"
-              : "0 2px 6px rgba(15,23,42,0.05)",
+              : isPinned
+                ? "0 0 0 1px rgba(124,58,237,0.22) inset, 0 2px 10px rgba(124,58,237,0.08)"
+                : "0 2px 6px rgba(15,23,42,0.05)",
           position: "relative",
           overflow: "hidden",
         }}
@@ -451,6 +332,7 @@ function layoutWorkflow(
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,
   nodeStatusesByNodeId: Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>,
   selectedNodeId: string | null,
+  pinnedNodeIds: ReadonlySet<string>,
 ): Readonly<{ nodes: ReactFlowNode<NodeData>[]; edges: ReactFlowEdge[] }> {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -584,6 +466,7 @@ function layoutWorkflow(
         status: nodeStatusesByNodeId[n.id],
         selected: selectedNodeId === n.id,
         isAttachment: Boolean(n.parentNodeId),
+        isPinned: pinnedNodeIds.has(n.id),
       },
       draggable: false,
       sourcePosition: n.parentNodeId ? Position.Bottom : Position.Right,
@@ -650,15 +533,16 @@ export function WorkflowCanvas(args: {
   workflow: WorkflowDto;
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
   selectedNodeId: string | null;
+  pinnedNodeIds?: ReadonlySet<string>;
   onSelectNode: (nodeId: string) => void;
 }) {
-  const { workflow, nodeSnapshotsByNodeId, selectedNodeId, onSelectNode } = args;
+  const { workflow, nodeSnapshotsByNodeId, selectedNodeId, pinnedNodeIds = new Set<string>(), onSelectNode } = args;
   const [hasMountedOnClient, setHasMountedOnClient] = useState(false);
   const [isInitialViewportReady, setIsInitialViewportReady] = useState(false);
   const visibleNodeStatusesByNodeId = useVisibleNodeStatuses(nodeSnapshotsByNodeId);
   const { nodes, edges } = useMemo(
-    () => layoutWorkflow(workflow, nodeSnapshotsByNodeId, visibleNodeStatusesByNodeId, selectedNodeId),
-    [nodeSnapshotsByNodeId, selectedNodeId, visibleNodeStatusesByNodeId, workflow],
+    () => layoutWorkflow(workflow, nodeSnapshotsByNodeId, visibleNodeStatusesByNodeId, selectedNodeId, pinnedNodeIds),
+    [nodeSnapshotsByNodeId, pinnedNodeIds, selectedNodeId, visibleNodeStatusesByNodeId, workflow],
   );
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const reactFlowInstanceRef = useRef<ReactFlowInstance<ReactFlowNode<NodeData>, ReactFlowEdge> | null>(null);

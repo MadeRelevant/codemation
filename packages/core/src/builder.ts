@@ -50,6 +50,33 @@ type BranchOutputGuard<
 > =
   TypesMatch<StepSequenceOutput<TCurrentJson, TTrueSteps>, StepSequenceOutput<TCurrentJson, TFalseSteps>> extends true ? unknown : never;
 
+type BranchStepsArg<TCurrentJson, TSteps extends ReadonlyArray<AnyRunnableNodeConfig>> = TSteps & ValidStepSequence<TCurrentJson, TSteps>;
+
+type BranchMoreArgs<
+  TCurrentJson,
+  TFirstStep extends RunnableNodeConfig<TCurrentJson, any>,
+  TRestSteps extends ReadonlyArray<AnyRunnableNodeConfig>,
+> = TRestSteps & ValidStepSequence<RunnableNodeOutputJson<TFirstStep>, TRestSteps>;
+
+type BooleanWhenOverloads<TCurrentJson, TReturn> = {
+  <TSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(branch: boolean, steps: BranchStepsArg<TCurrentJson, TSteps>): TReturn;
+  <TFirstStep extends RunnableNodeConfig<TCurrentJson, any>, TRestSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
+    branch: boolean,
+    step: TFirstStep,
+    ...more: BranchMoreArgs<TCurrentJson, TFirstStep, TRestSteps>
+  ): TReturn;
+};
+
+type ChainCursorWhenOverloads<TCurrentJson> = BooleanWhenOverloads<TCurrentJson, WhenBuilder<TCurrentJson>> & {
+  <TTrueSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined, TFalseSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined>(
+    branches: Readonly<{
+      true?: TTrueSteps extends ReadonlyArray<AnyRunnableNodeConfig> ? BranchStepsArg<TCurrentJson, TTrueSteps> : never;
+      false?: TFalseSteps extends ReadonlyArray<AnyRunnableNodeConfig> ? BranchStepsArg<TCurrentJson, TFalseSteps> : never;
+    }> &
+      BranchOutputGuard<TCurrentJson, TTrueSteps, TFalseSteps>,
+  ): ChainCursor<StepSequenceOutput<TCurrentJson, TTrueSteps>>;
+};
+
 export class WorkflowBuilder {
   private readonly nodes: NodeDefinition[] = [];
   private readonly edges: WorkflowDefinition["edges"] = [];
@@ -63,9 +90,8 @@ export class WorkflowBuilder {
   ) {}
 
   private add(config: NodeConfigBase): NodeRef {
-    const tokenName = typeof config.token === "function" ? (config.token as any).name : typeof config.token === "string" ? config.token : "Node";
-    const id = config.id ?? `${tokenName}:${++this.seq}`;
-    this.nodes.push({ id, kind: config.kind, token: config.token, name: config.name, config });
+    const id = config.id ?? `${config.tokenId}:${++this.seq}`;
+    this.nodes.push({ id, kind: config.kind, token: config.token, tokenId: config.tokenId, name: config.name, config });
     return { id, kind: config.kind, name: config.name };
   }
 
@@ -97,30 +123,11 @@ export class ChainCursor<TCurrentJson> {
     return new ChainCursor<RunnableNodeOutputJson<TConfig>>(this.wf, next, "main");
   }
 
-  when<TSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
-    branch: boolean,
-    steps: TSteps & ValidStepSequence<TCurrentJson, TSteps>,
-  ): WhenBuilder<TCurrentJson>;
-  when<TFirstStep extends RunnableNodeConfig<TCurrentJson, any>, TRestSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
-    branch: boolean,
-    step: TFirstStep,
-    ...more: TRestSteps & ValidStepSequence<RunnableNodeOutputJson<TFirstStep>, TRestSteps>
-  ): WhenBuilder<TCurrentJson>;
-  when<
-    TTrueSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined,
-    TFalseSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined,
-  >(
-    branches: Readonly<{
-      true?: TTrueSteps extends ReadonlyArray<AnyRunnableNodeConfig> ? TTrueSteps & ValidStepSequence<TCurrentJson, TTrueSteps> : never;
-      false?: TFalseSteps extends ReadonlyArray<AnyRunnableNodeConfig> ? TFalseSteps & ValidStepSequence<TCurrentJson, TFalseSteps> : never;
-    }> &
-      BranchOutputGuard<TCurrentJson, TTrueSteps, TFalseSteps>,
-  ): ChainCursor<StepSequenceOutput<TCurrentJson, TTrueSteps>>;
-  when(
+  readonly when: ChainCursorWhenOverloads<TCurrentJson> = ((
     arg1: boolean | Readonly<{ true?: ReadonlyArray<AnyRunnableNodeConfig>; false?: ReadonlyArray<AnyRunnableNodeConfig> }>,
     steps?: ReadonlyArray<AnyRunnableNodeConfig> | AnyRunnableNodeConfig,
     ...more: AnyRunnableNodeConfig[]
-  ): WhenBuilder<TCurrentJson> | ChainCursor<TCurrentJson> {
+  ): WhenBuilder<TCurrentJson> | ChainCursor<TCurrentJson> => {
     if (typeof arg1 === "boolean") {
       const list = Array.isArray(steps) ? steps : steps ? [steps, ...more] : more;
       const port: OutputPortKey = arg1 ? "true" : "false";
@@ -164,7 +171,7 @@ export class ChainCursor<TCurrentJson> {
     wfAny.connect(f.end, merge, f.endOutput, "false");
 
     return new ChainCursor<TCurrentJson>(this.wf, merge, "main");
-  }
+  }) as ChainCursorWhenOverloads<TCurrentJson>;
 
   build(): WorkflowDefinition {
     return this.wf.build();
@@ -202,26 +209,17 @@ export class WhenBuilder<TCurrentJson> {
     return this;
   }
 
-  when<TSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
-    branch: boolean,
-    steps: TSteps & ValidStepSequence<TCurrentJson, TSteps>,
-  ): WhenBuilder<TCurrentJson>;
-  when<TFirstStep extends RunnableNodeConfig<TCurrentJson, any>, TRestSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
-    branch: boolean,
-    step: TFirstStep,
-    ...more: TRestSteps & ValidStepSequence<RunnableNodeOutputJson<TFirstStep>, TRestSteps>
-  ): WhenBuilder<TCurrentJson>;
-  when(
+  readonly when: BooleanWhenOverloads<TCurrentJson, WhenBuilder<TCurrentJson>> = (
     branch: boolean,
     steps: ReadonlyArray<AnyRunnableNodeConfig> | AnyRunnableNodeConfig,
     ...more: AnyRunnableNodeConfig[]
-  ): WhenBuilder<TCurrentJson> {
+  ): WhenBuilder<TCurrentJson> => {
     const list = Array.isArray(steps) ? steps : [steps, ...more];
     const port: OutputPortKey = branch ? "true" : "false";
     const b = new WhenBuilder<TCurrentJson>(this.wf, this.from, port);
     b.addBranch(list);
     return b;
-  }
+  };
 
   build(): WorkflowDefinition {
     return this.wf.build();

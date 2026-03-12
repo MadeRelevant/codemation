@@ -1,10 +1,4 @@
 export {
-  CodemationRealtimeRouteHandlers,
+  CodemationRouteHandlers,
   codemationNodeRuntime,
-  getRunRoute,
-  getWorkflowRoute,
-  getWorkflowRunsRoute,
-  getWorkflowsRoute,
-  postRunRoute,
-  postWebhookRoute,
 } from "./frontend/routeHandlers";

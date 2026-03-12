@@ -34,11 +34,6 @@ export const codemationHost = configFactory.define({
   bootHook: TestDevBootHook,
   credentials,
   workflows: [demoWorkflow, exampleWorkflow, realtimeWaitWorkflow, multiItemsWorkflow, webhookNormal],
-  workflowMode: "replace",
-  discovery: {
-    workflowSource: "config-only",
-    consumerModuleRoots: ["src/bootstrap", "src/nodes", "src/tools", "src/services"],
-  },
   runtime: {
     database: {
       url: process.env.DATABASE_URL ?? "sqlite:.codemation/runs.sqlite",

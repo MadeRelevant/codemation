@@ -63,6 +63,7 @@ class WebhookRunResultFactory {
 class WebhookTestTriggerConfig implements TriggerNodeConfig<unknown> {
   readonly kind = "trigger" as const;
   readonly token: TypeToken<unknown> = WebhookTestTriggerNode;
+  readonly tokenId = "codemation.test.webhook-trigger";
 
   constructor(
     public readonly name: string,

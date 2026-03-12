@@ -1,17 +1,13 @@
 import type { ChatModelConfig, NodeDefinition, ToolConfig, WorkflowDefinition } from "@codemation/core";
 import { AgentAttachmentNodeIdFactory, AgentConfigInspector } from "@codemation/core";
+import type { WorkflowDto, WorkflowNodeDto } from "../realtime/workflowTypes";
 
 export class CodemationWorkflowDtoMapper {
   toSummary(workflow: WorkflowDefinition): Readonly<{ id: string; name: string }> {
     return { id: workflow.id, name: workflow.name };
   }
 
-  toDetail(workflow: WorkflowDefinition): Readonly<{
-    id: string;
-    name: string;
-    nodes: ReadonlyArray<Readonly<{ id: string; kind: string; name?: string; type: string; role?: string; icon?: string; parentNodeId?: string }>>;
-    edges: WorkflowDefinition["edges"];
-  }> {
+  toDetail(workflow: WorkflowDefinition): WorkflowDto {
     return {
       id: workflow.id,
       name: workflow.name,
@@ -20,10 +16,8 @@ export class CodemationWorkflowDtoMapper {
     };
   }
 
-  private toNodes(
-    workflow: WorkflowDefinition,
-  ): ReadonlyArray<Readonly<{ id: string; kind: string; name?: string; type: string; role?: string; icon?: string; parentNodeId?: string }>> {
-    const nodes: Array<Readonly<{ id: string; kind: string; name?: string; type: string; role?: string; icon?: string; parentNodeId?: string }>> = [];
+  private toNodes(workflow: WorkflowDefinition): ReadonlyArray<WorkflowNodeDto> {
+    const nodes: WorkflowNodeDto[] = [];
     for (const node of workflow.nodes) {
       nodes.push({
         id: node.id,
@@ -61,7 +55,7 @@ export class CodemationWorkflowDtoMapper {
   private createLanguageModelNode(
     node: NodeDefinition,
     chatModel: ChatModelConfig,
-  ): Readonly<{ id: string; kind: string; name?: string; type: string; role: string; icon?: string; parentNodeId: string }> {
+  ): WorkflowNodeDto {
     return {
       id: AgentAttachmentNodeIdFactory.createLanguageModelNodeId(node.id),
       kind: "node",
@@ -76,7 +70,7 @@ export class CodemationWorkflowDtoMapper {
   private createToolNode(
     node: NodeDefinition,
     toolConfig: ToolConfig,
-  ): Readonly<{ id: string; kind: string; name?: string; type: string; role: string; icon?: string; parentNodeId: string }> {
+  ): WorkflowNodeDto {
     return {
       id: AgentAttachmentNodeIdFactory.createToolNodeId(node.id, toolConfig.name),
       kind: "node",

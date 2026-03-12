@@ -130,6 +130,7 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
 {
   readonly kind = "node" as const;
   readonly token: TypeToken<unknown> = AIAgentNode;
+  readonly tokenId = "codemation.core-nodes.ai-agent";
   readonly execution = { hint: "local" } as const;
 
   constructor(
@@ -255,14 +256,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
             });
             return JSON.stringify(result);
           } catch (error) {
-            const effectiveError = error instanceof Error ? error : new Error(String(error));
-            await ctx.services.nodeState?.markFailed({
-              nodeId,
-              activationId: ctx.activationId,
-              inputsByPort,
-              error: effectiveError,
-            });
-            throw effectiveError;
+            throw await this.failTrackedNodeInvocation(error, nodeId, ctx, inputsByPort);
           }
         },
       });
@@ -293,14 +287,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
       });
       return response;
     } catch (error) {
-      const effectiveError = error instanceof Error ? error : new Error(String(error));
-      await ctx.services.nodeState?.markFailed({
-        nodeId,
-        activationId: ctx.activationId,
-        inputsByPort,
-        error: effectiveError,
-      });
-      throw effectiveError;
+      throw await this.failTrackedNodeInvocation(error, nodeId, ctx, inputsByPort);
     }
   }
 
@@ -352,6 +339,22 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     } catch {
       return serialized;
     }
+  }
+
+  private async failTrackedNodeInvocation(
+    error: unknown,
+    nodeId: string,
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
+    inputsByPort: NodeInputsByPort,
+  ): Promise<Error> {
+    const effectiveError = error instanceof Error ? error : new Error(String(error));
+    await ctx.services.nodeState?.markFailed({
+      nodeId,
+      activationId: ctx.activationId,
+      inputsByPort,
+      error: effectiveError,
+    });
+    return effectiveError;
   }
 }
 

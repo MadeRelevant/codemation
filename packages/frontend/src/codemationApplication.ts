@@ -17,7 +17,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { ApplicationTokens } from "./applicationTokens";
 import { CodemationBootstrapDiscovery } from "./bootstrapDiscovery";
-import type { CodemationBootstrapResult, CodemationDiscoveredApplicationSetup, CodemationGeneratedConsumerModule } from "./bootstrapDiscovery";
+import type { CodemationBootstrapResult, CodemationDiscoveredApplicationSetup } from "./bootstrapDiscovery";
 import { CodemationFrontendRuntimeProvider } from "./frontend/CodemationFrontendRuntimeProvider";
 import { CodemationServerEngineHost } from "./host/codemationServerEngineHost";
 import { CodemationWebhookRegistry } from "./host/codemationWebhookRegistry";
@@ -116,9 +116,7 @@ export class CodemationApplication {
     consumerRoot: string;
     env?: Record<string, string>;
     configOverride?: CodemationBootstrapResult;
-    generatedConsumerModule?: CodemationGeneratedConsumerModule;
     bootstrapPathOverride?: string;
-    workflowsDirectoryOverride?: string;
   }>): Promise<CodemationDiscoveredApplicationSetup> {
     const discovery = new CodemationBootstrapDiscovery();
     const application = new CodemationApplication();
@@ -128,9 +126,7 @@ export class CodemationApplication {
       consumerRoot: args.consumerRoot,
       env: args.env,
       configOverride: args.configOverride,
-      generatedConsumerModule: args.generatedConsumerModule,
       bootstrapPathOverride: args.bootstrapPathOverride,
-      workflowsDirectoryOverride: args.workflowsDirectoryOverride,
     });
   }
 
@@ -139,7 +135,6 @@ export class CodemationApplication {
     consumerRoot: string;
     env?: Record<string, string>;
     bootstrapPathOverride?: string;
-    workflowsDirectoryOverride?: string;
   }>): Promise<StopHandle> {
     const setup = await this.loadDiscoveredApplication(args);
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
@@ -161,21 +156,7 @@ export class CodemationApplication {
     this.container.registerInstance(ApplicationTokens.WebSocketPort, this.resolveWebSocketPort(effectiveEnv));
     this.container.registerInstance(ApplicationTokens.WebSocketBindHost, effectiveEnv.CODEMATION_WS_BIND_HOST ?? "0.0.0.0");
     this.container.registerInstance(ApplicationTokens.RealtimeWatchRoots, this.resolveRealtimeWatchRoots(args.repoRoot, effectiveEnv));
-    this.container.registerInstance(CoreTokens.WebhookBasePath, "/api/webhooks");
-    this.container.register(CodemationServerEngineHost, {
-      useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new CodemationServerEngineHost(
-          dependencyContainer.resolve(CodemationWebhookRegistry),
-          dependencyContainer.resolve(CoreTokens.WebhookBasePath),
-        );
-      }),
-    });
-    this.container.register(CoreTokens.WebhookRegistrar, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationServerEngineHost)),
-    });
-    this.container.register(CoreTokens.NodeActivationObserver, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationServerEngineHost)),
-    });
+    this.registerServerWebhookRuntimeHost();
     const frontendRoot = this.container.resolve(CodemationFrontendRuntimeRoot);
     await frontendRoot.start();
     return frontendRoot;
@@ -189,6 +170,20 @@ export class CodemationApplication {
   async prepareExecutionRuntimeContainer(args: Readonly<{ repoRoot: string; env?: Readonly<NodeJS.ProcessEnv> }>): Promise<void> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
     await this.prepareRuntimeRegistrations(args.repoRoot, effectiveEnv);
+    this.registerServerWebhookRuntimeHost();
+  }
+
+  async createWorkerRuntimeRoot(args: Readonly<{ repoRoot: string; env?: Readonly<NodeJS.ProcessEnv> }>): Promise<CodemationWorkerRuntimeRoot> {
+    const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
+    await this.prepareRuntimeRegistrations(args.repoRoot, effectiveEnv);
+    this.registerWorkerWebhookRuntimeHost();
+    if (!this.container.isRegistered(BullmqScheduler, true)) {
+      throw new Error("Worker mode requires a BullMQ scheduler backed by a Redis event bus.");
+    }
+    return this.container.resolve(CodemationWorkerRuntimeRoot);
+  }
+
+  private registerServerWebhookRuntimeHost(): void {
     this.container.registerInstance(CoreTokens.WebhookBasePath, "/api/webhooks");
     this.container.register(CodemationServerEngineHost, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
@@ -206,9 +201,7 @@ export class CodemationApplication {
     });
   }
 
-  async createWorkerRuntimeRoot(args: Readonly<{ repoRoot: string; env?: Readonly<NodeJS.ProcessEnv> }>): Promise<CodemationWorkerRuntimeRoot> {
-    const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
-    await this.prepareRuntimeRegistrations(args.repoRoot, effectiveEnv);
+  private registerWorkerWebhookRuntimeHost(): void {
     this.container.registerInstance(CoreTokens.WebhookBasePath, "/api/webhooks");
     this.container.register(CodemationWorkerHost, {
       useFactory: instanceCachingFactory(() => new CodemationWorkerHost()),
@@ -219,10 +212,6 @@ export class CodemationApplication {
     this.container.register(CoreTokens.NodeActivationObserver, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationWorkerHost)),
     });
-    if (!this.container.isRegistered(BullmqScheduler, true)) {
-      throw new Error("Worker mode requires a BullMQ scheduler backed by a Redis event bus.");
-    }
-    return this.container.resolve(CodemationWorkerRuntimeRoot);
   }
 
   private static parseQueues(rawQueues: string): ReadonlyArray<string> {
