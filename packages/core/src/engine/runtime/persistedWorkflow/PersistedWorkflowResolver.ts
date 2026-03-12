@@ -1,4 +1,5 @@
 import type { NodeDefinition, WorkflowDefinition, WorkflowId, WorkflowRegistry, PersistedWorkflowSnapshot } from "../../../types";
+import type { TypeToken } from "../../../di";
 import { MissingRuntimeNodeDefinitionFactory } from "./MissingRuntimeNodeDefinitionFactory";
 import { PersistedWorkflowConfigHydrator } from "./PersistedWorkflowConfigHydrator";
 import type { PersistedWorkflowTokenRegistry } from "./PersistedWorkflowTokenRegistry";
@@ -30,15 +31,11 @@ export class PersistedWorkflowResolver {
       if (!this.isCompatibleLiveNode(liveNode, snapshotNode)) {
         return this.missingNodeDefinitionFactory.create(snapshotNode);
       }
-      const runtimeToken = this.tokenRegistry.resolve(snapshotNode.nodeTokenId);
-      if (!runtimeToken) {
-        return this.missingNodeDefinitionFactory.create(snapshotNode);
-      }
       return {
         id: snapshotNode.id,
         kind: snapshotNode.kind,
         name: snapshotNode.name ?? liveNode.name,
-        type: runtimeToken,
+        type: liveNode.type,
         config: configHydrator.hydrate(snapshotNode, liveNode.config),
       } satisfies NodeDefinition;
     });
@@ -61,8 +58,22 @@ export class PersistedWorkflowResolver {
     if (!snapshotNode.nodeTokenId || !snapshotNode.configTokenId) {
       throw new Error(`Persisted workflow snapshot node "${snapshotNode.id}" is missing stable token ids.`);
     }
-    const liveNodeTokenId = this.tokenRegistry.getTokenId(liveNode.type);
-    const liveConfigTokenId = this.tokenRegistry.getTokenId(liveNode.config.type);
+    const liveNodeTokenId = this.resolveLiveTokenId(liveNode.type);
+    const liveConfigTokenId = this.resolveLiveTokenId(liveNode.config.type);
     return liveNodeTokenId === snapshotNode.nodeTokenId && liveConfigTokenId === snapshotNode.configTokenId;
+  }
+
+  private resolveLiveTokenId(type: TypeToken<unknown>): string | undefined {
+    const registeredTokenId = this.tokenRegistry.getTokenId(type);
+    if (registeredTokenId) {
+      return registeredTokenId;
+    }
+    if (typeof type === "function" && type.name) {
+      return type.name;
+    }
+    if (typeof type === "string") {
+      return type;
+    }
+    return undefined;
   }
 }
