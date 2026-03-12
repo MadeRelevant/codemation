@@ -19,17 +19,25 @@ import { z } from "zod";
 
 class CapturingNodeStatePublisher implements NodeExecutionStatePublisher {
   readonly events: string[] = [];
+  readonly queuedInputsByNodeId = new Map<string, NodeInputsByPort | undefined>();
+  readonly runningInputsByNodeId = new Map<string, NodeInputsByPort | undefined>();
+  readonly completedInputsByNodeId = new Map<string, NodeInputsByPort | undefined>();
+  readonly completedOutputsByNodeId = new Map<string, NodeOutputs | undefined>();
 
   async markQueued(args: { nodeId: string; activationId?: string; inputsByPort?: NodeInputsByPort }): Promise<void> {
     this.events.push(`queued:${args.nodeId}`);
+    this.queuedInputsByNodeId.set(args.nodeId, args.inputsByPort);
   }
 
   async markRunning(args: { nodeId: string; activationId?: string; inputsByPort?: NodeInputsByPort }): Promise<void> {
     this.events.push(`running:${args.nodeId}`);
+    this.runningInputsByNodeId.set(args.nodeId, args.inputsByPort);
   }
 
   async markCompleted(args: { nodeId: string; activationId?: string; inputsByPort?: NodeInputsByPort; outputs?: NodeOutputs }): Promise<void> {
     this.events.push(`completed:${args.nodeId}`);
+    this.completedInputsByNodeId.set(args.nodeId, args.inputsByPort);
+    this.completedOutputsByNodeId.set(args.nodeId, args.outputs);
   }
 
   async markFailed(args: { nodeId: string; activationId?: string; inputsByPort?: NodeInputsByPort; error: Error }): Promise<void> {
@@ -91,17 +99,25 @@ class DelayTool implements Tool<DelayToolConfig, typeof delayToolInputSchema, ty
   readonly inputSchema = delayToolInputSchema;
   readonly outputSchema = delayToolOutputSchema;
   private static readonly startedAt: number[] = [];
+  private static readonly inputsByToolName = new Map<string, ReadonlyArray<z.input<typeof delayToolInputSchema>>>();
 
   static reset(): void {
     this.startedAt.length = 0;
+    this.inputsByToolName.clear();
   }
 
   static snapshot(): ReadonlyArray<number> {
     return [...this.startedAt];
   }
 
+  static inputsFor(toolName: string): ReadonlyArray<z.input<typeof delayToolInputSchema>> {
+    return [...(this.inputsByToolName.get(toolName) ?? [])];
+  }
+
   async execute(args: ToolExecuteArgs<DelayToolConfig, z.input<typeof delayToolInputSchema>>): Promise<z.output<typeof delayToolOutputSchema>> {
     DelayTool.startedAt.push(performance.now());
+    const inputs = DelayTool.inputsByToolName.get(args.config.name) ?? [];
+    DelayTool.inputsByToolName.set(args.config.name, [...inputs, args.input]);
     await new Promise((resolve) => setTimeout(resolve, args.config.delayMs));
     const subject = args.input.subject ?? String((args.item.json as { subject?: unknown }).subject ?? "");
     const body = args.input.body ?? String((args.item.json as { body?: unknown }).body ?? "");
@@ -181,11 +197,23 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
   assert.equal(resultJson.agentResult?.content, "final answer");
   assert.equal(resultJson.classification?.isRfq, true);
   assert.equal(resultJson.agentResult?.toolResults?.length, 2);
+  assert.deepEqual(nodeState.completedOutputsByNodeId.get("agent_1::llm::1")?.main?.[0]?.json, { content: "planning" });
+  assert.deepEqual(nodeState.completedOutputsByNodeId.get("agent_1::llm::2")?.main?.[0]?.json, { content: "final answer" });
+  assert.deepEqual(DelayTool.inputsFor("subject_tool"), [{ subject: "RFQ" }]);
+  assert.deepEqual(DelayTool.inputsFor("body_tool"), [{ body: "quote" }]);
+  assert.deepEqual(nodeState.queuedInputsByNodeId.get("agent_1::tool::subject_tool::1")?.in?.[0]?.json, { subject: "RFQ" });
+  assert.deepEqual(nodeState.runningInputsByNodeId.get("agent_1::tool::subject_tool::1")?.in?.[0]?.json, { subject: "RFQ" });
+  assert.deepEqual(nodeState.completedInputsByNodeId.get("agent_1::tool::subject_tool::1")?.in?.[0]?.json, { subject: "RFQ" });
+  assert.deepEqual(nodeState.queuedInputsByNodeId.get("agent_1::tool::body_tool::1")?.in?.[0]?.json, { body: "quote" });
+  assert.deepEqual(nodeState.runningInputsByNodeId.get("agent_1::tool::body_tool::1")?.in?.[0]?.json, { body: "quote" });
+  assert.deepEqual(nodeState.completedInputsByNodeId.get("agent_1::tool::body_tool::1")?.in?.[0]?.json, { body: "quote" });
 
-  assert.ok(nodeState.events.includes("queued:agent_1::llm"));
-  assert.ok(nodeState.events.includes("completed:agent_1::llm"));
-  assert.ok(nodeState.events.includes("queued:agent_1::tool::subject_tool"));
-  assert.ok(nodeState.events.includes("completed:agent_1::tool::subject_tool"));
-  assert.ok(nodeState.events.includes("queued:agent_1::tool::body_tool"));
-  assert.ok(nodeState.events.includes("completed:agent_1::tool::body_tool"));
+  assert.ok(nodeState.events.includes("queued:agent_1::llm::1"));
+  assert.ok(nodeState.events.includes("completed:agent_1::llm::1"));
+  assert.ok(nodeState.events.includes("queued:agent_1::llm::2"));
+  assert.ok(nodeState.events.includes("completed:agent_1::llm::2"));
+  assert.ok(nodeState.events.includes("queued:agent_1::tool::subject_tool::1"));
+  assert.ok(nodeState.events.includes("completed:agent_1::tool::subject_tool::1"));
+  assert.ok(nodeState.events.includes("queued:agent_1::tool::body_tool::1"));
+  assert.ok(nodeState.events.includes("completed:agent_1::tool::body_tool::1"));
 });

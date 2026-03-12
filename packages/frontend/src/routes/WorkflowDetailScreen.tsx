@@ -1,5 +1,6 @@
 import JsonView from "@uiw/react-json-view";
 import { githubLightTheme } from "@uiw/react-json-view/githubLight";
+import { AgentAttachmentNodeIdFactory } from "@codemation/core";
 import { format, isToday, isYesterday } from "date-fns";
 import {
   Bot,
@@ -282,12 +283,22 @@ class WorkflowDetailPresenter {
   static buildExecutionNodes(workflow: WorkflowDto | undefined, selectedRun: PersistedRunState | undefined): ReadonlyArray<ExecutionNode> {
     if (!workflow) return [];
     const nodeSnapshotsByNodeId = selectedRun?.nodeSnapshotsByNodeId ?? {};
-    return workflow.nodes
-      .flatMap((node) => {
-        const snapshot = nodeSnapshotsByNodeId[node.id];
-        return snapshot && snapshot.status !== "pending" ? [{ node, snapshot } satisfies ExecutionNode] : [];
-      })
-      .sort((left, right) => this.compareExecutionNodes(left, right));
+    const workflowNodesById = new Map(workflow.nodes.map((node) => [node.id, node] as const));
+    const executionNodes = workflow.nodes.flatMap((node) => {
+      const snapshot = nodeSnapshotsByNodeId[node.id];
+      if (!snapshot || snapshot.status === "pending") return [];
+      if (this.shouldHideBaseAttachmentNode(node.id, nodeSnapshotsByNodeId)) return [];
+      return [{ node, snapshot } satisfies ExecutionNode];
+    });
+
+    for (const [nodeId, snapshot] of Object.entries(nodeSnapshotsByNodeId)) {
+      if (snapshot.status === "pending" || workflowNodesById.has(nodeId)) continue;
+      const syntheticNode = this.createSyntheticExecutionNode(nodeId, workflowNodesById);
+      if (!syntheticNode) continue;
+      executionNodes.push({ node: syntheticNode, snapshot });
+    }
+
+    return executionNodes.sort((left, right) => this.compareExecutionNodes(left, right));
   }
 
   static buildExecutionTreeData(nodes: ReadonlyArray<ExecutionNode>): ReadonlyArray<ExecutionTreeNode> {
@@ -358,6 +369,37 @@ class WorkflowDetailPresenter {
     if (role === "languageModel") return 1;
     if (role === "tool") return 2;
     return 3;
+  }
+
+  private static shouldHideBaseAttachmentNode(
+    nodeId: string,
+    nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,
+  ): boolean {
+    return Object.keys(nodeSnapshotsByNodeId).some((snapshotNodeId) => {
+      return (
+        AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(snapshotNodeId) === nodeId ||
+        AgentAttachmentNodeIdFactory.getBaseToolNodeId(snapshotNodeId) === nodeId
+      ) && snapshotNodeId !== nodeId;
+    });
+  }
+
+  private static createSyntheticExecutionNode(
+    nodeId: string,
+    workflowNodesById: ReadonlyMap<string, WorkflowNode>,
+  ): WorkflowNode | null {
+    const languageModelTemplateNodeId = AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(nodeId);
+    if (languageModelTemplateNodeId !== nodeId) {
+      const templateNode = workflowNodesById.get(languageModelTemplateNodeId);
+      return templateNode ? { ...templateNode, id: nodeId } : null;
+    }
+
+    const toolTemplateNodeId = AgentAttachmentNodeIdFactory.getBaseToolNodeId(nodeId);
+    if (toolTemplateNodeId !== nodeId) {
+      const templateNode = workflowNodesById.get(toolTemplateNodeId);
+      return templateNode ? { ...templateNode, id: nodeId } : null;
+    }
+
+    return null;
   }
 
   private static sortExecutionTree(nodes: ExecutionTreeNode[]): void {
@@ -712,9 +754,11 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
     };
   }, [isInspectorResizing]);
 
+  const executionNodes = useMemo(() => WorkflowDetailPresenter.buildExecutionNodes(displayedWorkflow, selectedRun), [displayedWorkflow, selectedRun]);
+
   useEffect(() => {
     if (!displayedWorkflow?.nodes.length) return;
-    if (hasManuallySelectedNode && selectedNodeId && displayedWorkflow.nodes.some((node) => node.id === selectedNodeId)) return;
+    if (hasManuallySelectedNode && selectedNodeId && executionNodes.some((entry) => entry.node.id === selectedNodeId)) return;
     const orderedSnapshots = Object.values(selectedRun?.nodeSnapshotsByNodeId ?? {}).sort((left, right) => {
       const leftTimestamp = WorkflowDetailPresenter.getSnapshotTimestamp(left) ?? "";
       const rightTimestamp = WorkflowDetailPresenter.getSnapshotTimestamp(right) ?? "";
@@ -728,17 +772,19 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
     if (nextFocusedNodeId !== selectedNodeId) {
       setSelectedNodeId(nextFocusedNodeId);
     }
-  }, [displayedWorkflow, hasManuallySelectedNode, selectedNodeId, selectedRun]);
+  }, [displayedWorkflow, executionNodes, hasManuallySelectedNode, selectedNodeId, selectedRun]);
 
   const selectedNodeSnapshot = useMemo<NodeExecutionSnapshot | undefined>(() => {
     if (!selectedRun || !selectedNodeId) return undefined;
     return selectedRun.nodeSnapshotsByNodeId[selectedNodeId];
   }, [selectedNodeId, selectedRun]);
 
-  const selectedWorkflowNode = useMemo(() => displayedWorkflow?.nodes.find((node) => node.id === selectedNodeId), [displayedWorkflow, selectedNodeId]);
+  const selectedWorkflowNode = useMemo(
+    () => executionNodes.find((entry) => entry.node.id === selectedNodeId)?.node ?? displayedWorkflow?.nodes.find((node) => node.id === selectedNodeId),
+    [displayedWorkflow, executionNodes, selectedNodeId],
+  );
   const inputPortEntries = useMemo(() => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.inputsByPort), [selectedNodeSnapshot]);
   const outputPortEntries = useMemo(() => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.outputs), [selectedNodeSnapshot]);
-  const executionNodes = useMemo(() => WorkflowDetailPresenter.buildExecutionNodes(displayedWorkflow, selectedRun), [displayedWorkflow, selectedRun]);
   const executionTreeData = useMemo(() => WorkflowDetailPresenter.buildExecutionTreeData(executionNodes), [executionNodes]);
   const executionTreeExpandedKeys = useMemo(() => WorkflowDetailPresenter.collectExecutionTreeKeys(executionTreeData), [executionTreeData]);
 
@@ -1059,6 +1105,9 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                   const FallbackIcon = WorkflowNodeIconResolver.resolveFallback(node?.type ?? "", node?.role, node?.icon);
                   return (
                     <div
+                      data-codemation-execution-node-id={node?.id ?? snapshot?.nodeId ?? String(treeNode.key)}
+                      data-codemation-execution-node-role={node?.role ?? "workflowNode"}
+                      data-codemation-execution-node-selected={isSelected ? "true" : "false"}
                       style={{
                         background: isSelected ? "#eff6ff" : "transparent",
                         padding: "6px 10px",

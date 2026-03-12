@@ -3,6 +3,7 @@ import { AgentAttachmentNodeIdFactory, PersistedWorkflowSnapshotFactory, Persist
 import { AIAgent, Callback, ManualTrigger, WebhookTrigger } from "@codemation/core-nodes";
 import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { WorkflowCanvasEdgeCountResolver } from "../src/components/WorkflowCanvas";
 import { Providers } from "../src/providers/Providers";
 import { WorkflowDetailScreen } from "../src/routes/WorkflowDetailScreen";
 import type { PersistedRunState, WorkflowDto } from "../src/client";
@@ -52,6 +53,10 @@ class WorkflowDetailFixtureFactory {
 
   static readonly llmNodeId = AgentAttachmentNodeIdFactory.createLanguageModelNodeId(this.agentNodeId);
   static readonly toolNodeId = AgentAttachmentNodeIdFactory.createToolNodeId(this.agentNodeId, "lookup_tool");
+  static readonly llmInvocationNodeId1 = AgentAttachmentNodeIdFactory.createLanguageModelNodeId(this.agentNodeId, 1);
+  static readonly llmInvocationNodeId2 = AgentAttachmentNodeIdFactory.createLanguageModelNodeId(this.agentNodeId, 2);
+  static readonly toolInvocationNodeId1 = AgentAttachmentNodeIdFactory.createToolNodeId(this.agentNodeId, "lookup_tool", 1);
+  static readonly toolInvocationNodeId2 = AgentAttachmentNodeIdFactory.createToolNodeId(this.agentNodeId, "lookup_tool", 2);
 
   static createWorkflowDefinition() {
     return new WorkflowBuilder({ id: this.workflowId, name: "Frontend realtime workflow" })
@@ -116,11 +121,24 @@ class WorkflowDetailFixtureFactory {
       nodeSnapshotsByNodeId: {
         [this.triggerNodeId]: this.createSnapshot(this.triggerNodeId, "completed", 0, runId),
         [this.nodeOneId]: this.createSnapshot(this.nodeOneId, "completed", 1, runId),
-        [this.agentNodeId]: this.createSnapshot(this.agentNodeId, "completed", 2, runId),
-        [this.llmNodeId]: this.createSnapshot(this.llmNodeId, "completed", 3, runId),
-        [this.toolNodeId]: this.createSnapshot(this.toolNodeId, "completed", 4, runId),
-        [this.nodeTwoId]: this.createSnapshot(this.nodeTwoId, "completed", 5, runId),
+        [this.agentNodeId]: this.createSnapshot(this.agentNodeId, "completed", 6, runId),
+        [this.llmInvocationNodeId1]: this.createSnapshot(this.llmInvocationNodeId1, "completed", 3, runId),
+        [this.toolInvocationNodeId1]: this.createSnapshot(this.toolInvocationNodeId1, "completed", 4, runId),
+        [this.llmInvocationNodeId2]: this.createSnapshot(this.llmInvocationNodeId2, "completed", 5, runId),
+        [this.nodeTwoId]: this.createSnapshot(this.nodeTwoId, "completed", 7, runId),
       },
+    };
+  }
+
+  static createRunStateWithSnapshots(
+    nodeSnapshotsByNodeId: PersistedRunState["nodeSnapshotsByNodeId"],
+    mode?: "manual" | "debug",
+    runId = this.runId,
+  ): PersistedRunState {
+    return {
+      ...this.createInitialRunState(mode, runId),
+      status: "completed",
+      nodeSnapshotsByNodeId,
     };
   }
 
@@ -396,6 +414,22 @@ class WorkflowStatusAssertions {
   }
 }
 
+class ExecutionTreeAssertions {
+  static expectNodeOrder(container: HTMLElement, nodeIds: ReadonlyArray<string>): void {
+    const renderedNodeIds = Array.from(container.querySelectorAll<HTMLElement>("[data-codemation-execution-node-id]"))
+      .map((element) => element.getAttribute("data-codemation-execution-node-id"))
+      .filter((nodeId): nodeId is string => Boolean(nodeId));
+
+    expect(renderedNodeIds.filter((nodeId) => nodeIds.includes(nodeId))).toEqual([...nodeIds]);
+  }
+
+  static expectSelectedNode(container: HTMLElement, nodeId: string): void {
+    const element = container.querySelector<HTMLElement>(`[data-codemation-execution-node-id="${nodeId}"]`);
+    expect(element).not.toBeNull();
+    expect(element).toHaveAttribute("data-codemation-execution-node-selected", "true");
+  }
+}
+
 class WorkflowDetailTestRenderer {
   static render(workflow: WorkflowDto = WorkflowDetailFixtureFactory.createWorkflowDetail()): RenderResult {
     const rootRoute = createRootRoute({
@@ -457,7 +491,7 @@ class WorkflowRealtimeEventFactory {
     };
   }
 
-  static runSaved(): WorkflowEventMessage {
+  static runSaved(state: PersistedRunState = WorkflowDetailFixtureFactory.createCompletedRunState()): WorkflowEventMessage {
     return {
       kind: "event",
       event: {
@@ -465,7 +499,7 @@ class WorkflowRealtimeEventFactory {
         runId: WorkflowDetailFixtureFactory.runId,
         workflowId: WorkflowDetailFixtureFactory.workflowId,
         at: "2026-03-11T12:00:59.000Z",
-        state: WorkflowDetailFixtureFactory.createCompletedRunState(),
+        state,
       },
     };
   }
@@ -568,7 +602,7 @@ describe("WorkflowDetailScreen", () => {
       });
     });
 
-    socket.emitJson(WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.llmNodeId, 3));
+    socket.emitJson(WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.llmInvocationNodeId1, 3));
     await waitFor(() => {
       WorkflowStatusAssertions.expectStatuses(renderResult.container, {
         [WorkflowDetailFixtureFactory.agentNodeId]: "running",
@@ -577,7 +611,7 @@ describe("WorkflowDetailScreen", () => {
       });
     });
 
-    socket.emitJson(WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.llmNodeId, 3));
+    socket.emitJson(WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.llmInvocationNodeId1, 3));
     await WorkflowStatusClock.waitForStatusVisibilityWindow();
     await waitFor(() => {
       WorkflowStatusAssertions.expectStatuses(renderResult.container, {
@@ -587,7 +621,7 @@ describe("WorkflowDetailScreen", () => {
       });
     });
 
-    socket.emitJson(WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.toolNodeId, 4));
+    socket.emitJson(WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.toolInvocationNodeId1, 4));
     await waitFor(() => {
       WorkflowStatusAssertions.expectStatuses(renderResult.container, {
         [WorkflowDetailFixtureFactory.agentNodeId]: "running",
@@ -596,7 +630,7 @@ describe("WorkflowDetailScreen", () => {
       });
     });
 
-    socket.emitJson(WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.toolNodeId, 4));
+    socket.emitJson(WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.toolInvocationNodeId1, 4));
     await WorkflowStatusClock.waitForStatusVisibilityWindow();
     await waitFor(() => {
       WorkflowStatusAssertions.expectStatuses(renderResult.container, {
@@ -606,7 +640,27 @@ describe("WorkflowDetailScreen", () => {
       });
     });
 
-    socket.emitJson(WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.agentNodeId, 5));
+    socket.emitJson(WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.llmInvocationNodeId2, 5));
+    await waitFor(() => {
+      WorkflowStatusAssertions.expectStatuses(renderResult.container, {
+        [WorkflowDetailFixtureFactory.agentNodeId]: "running",
+        [WorkflowDetailFixtureFactory.llmNodeId]: "running",
+        [WorkflowDetailFixtureFactory.toolNodeId]: "completed",
+      });
+    });
+
+    socket.emitJson(WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.llmInvocationNodeId2, 5));
+    await WorkflowStatusClock.waitForStatusVisibilityWindow();
+    await waitFor(() => {
+      WorkflowStatusAssertions.expectStatuses(renderResult.container, {
+        [WorkflowDetailFixtureFactory.agentNodeId]: "running",
+        [WorkflowDetailFixtureFactory.llmNodeId]: "completed",
+        [WorkflowDetailFixtureFactory.toolNodeId]: "completed",
+        [WorkflowDetailFixtureFactory.nodeTwoId]: "pending",
+      });
+    });
+
+    socket.emitJson(WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.agentNodeId, 6));
     await WorkflowStatusClock.waitForStatusVisibilityWindow();
     await waitFor(() => {
       WorkflowStatusAssertions.expectStatuses(renderResult.container, {
@@ -617,14 +671,14 @@ describe("WorkflowDetailScreen", () => {
       });
     });
 
-    socket.emitJson(WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.nodeTwoId, 6));
+    socket.emitJson(WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.nodeTwoId, 7));
     await waitFor(() => {
       WorkflowStatusAssertions.expectStatuses(renderResult.container, {
         [WorkflowDetailFixtureFactory.nodeTwoId]: "running",
       });
     });
 
-    socket.emitJson(WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.nodeTwoId, 6));
+    socket.emitJson(WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.nodeTwoId, 7));
     socket.emitJson(WorkflowRealtimeEventFactory.runSaved());
     await WorkflowStatusClock.waitForStatusVisibilityWindow();
 
@@ -639,6 +693,149 @@ describe("WorkflowDetailScreen", () => {
       });
       expect(screen.getByText("completed")).toBeInTheDocument();
     });
+  });
+
+  it("renders synthetic execution-tree nodes for LLM, tool, and LLM invocations in chronological order", async () => {
+    const renderResult = WorkflowDetailTestRenderer.render();
+
+    await waitFor(() => {
+      expect(WorkflowRealtimeSocketMock.instances).toHaveLength(1);
+    });
+
+    const socket = WorkflowRealtimeSocketMock.latest();
+
+    fireEvent.click(screen.getByRole("button", { name: "Run workflow" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(WorkflowDetailFixtureFactory.runId)).toBeInTheDocument();
+    });
+
+    socket.emitJson(
+      WorkflowRealtimeEventFactory.runSaved(
+        WorkflowDetailFixtureFactory.createRunStateWithSnapshots({
+          [WorkflowDetailFixtureFactory.triggerNodeId]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.triggerNodeId, "completed", 0),
+          [WorkflowDetailFixtureFactory.nodeOneId]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.nodeOneId, "completed", 1),
+          [WorkflowDetailFixtureFactory.agentNodeId]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.agentNodeId, "completed", 6),
+          [WorkflowDetailFixtureFactory.llmInvocationNodeId1]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.llmInvocationNodeId1, "completed", 3),
+          [WorkflowDetailFixtureFactory.toolInvocationNodeId1]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.toolInvocationNodeId1, "completed", 4),
+          [WorkflowDetailFixtureFactory.llmInvocationNodeId2]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.llmInvocationNodeId2, "completed", 5),
+        }),
+      ),
+    );
+
+    await waitFor(() => {
+      ExecutionTreeAssertions.expectNodeOrder(renderResult.container, [
+        WorkflowDetailFixtureFactory.llmInvocationNodeId1,
+        WorkflowDetailFixtureFactory.toolInvocationNodeId1,
+        WorkflowDetailFixtureFactory.llmInvocationNodeId2,
+      ]);
+    });
+  });
+
+  it("renders repeated tool invocations as separate execution-tree entries", async () => {
+    const renderResult = WorkflowDetailTestRenderer.render();
+
+    await waitFor(() => {
+      expect(WorkflowRealtimeSocketMock.instances).toHaveLength(1);
+    });
+
+    const socket = WorkflowRealtimeSocketMock.latest();
+
+    fireEvent.click(screen.getByRole("button", { name: "Run workflow" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(WorkflowDetailFixtureFactory.runId)).toBeInTheDocument();
+    });
+
+    socket.emitJson(
+      WorkflowRealtimeEventFactory.runSaved(
+        WorkflowDetailFixtureFactory.createRunStateWithSnapshots({
+          [WorkflowDetailFixtureFactory.triggerNodeId]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.triggerNodeId, "completed", 0),
+          [WorkflowDetailFixtureFactory.nodeOneId]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.nodeOneId, "completed", 1),
+          [WorkflowDetailFixtureFactory.agentNodeId]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.agentNodeId, "completed", 7),
+          [WorkflowDetailFixtureFactory.llmInvocationNodeId1]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.llmInvocationNodeId1, "completed", 3),
+          [WorkflowDetailFixtureFactory.toolInvocationNodeId1]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.toolInvocationNodeId1, "completed", 4),
+          [WorkflowDetailFixtureFactory.toolInvocationNodeId2]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.toolInvocationNodeId2, "completed", 5),
+          [WorkflowDetailFixtureFactory.llmInvocationNodeId2]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.llmInvocationNodeId2, "completed", 6),
+        }),
+      ),
+    );
+
+    await waitFor(() => {
+      ExecutionTreeAssertions.expectNodeOrder(renderResult.container, [
+        WorkflowDetailFixtureFactory.llmInvocationNodeId1,
+        WorkflowDetailFixtureFactory.toolInvocationNodeId1,
+        WorkflowDetailFixtureFactory.toolInvocationNodeId2,
+        WorkflowDetailFixtureFactory.llmInvocationNodeId2,
+      ]);
+    });
+  });
+
+  it("keeps synthetic child execution nodes selected when clicked", async () => {
+    const renderResult = WorkflowDetailTestRenderer.render();
+
+    await waitFor(() => {
+      expect(WorkflowRealtimeSocketMock.instances).toHaveLength(1);
+    });
+
+    const socket = WorkflowRealtimeSocketMock.latest();
+
+    fireEvent.click(screen.getByRole("button", { name: "Run workflow" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(WorkflowDetailFixtureFactory.runId)).toBeInTheDocument();
+    });
+
+    socket.emitJson(
+      WorkflowRealtimeEventFactory.runSaved(
+        WorkflowDetailFixtureFactory.createRunStateWithSnapshots({
+          [WorkflowDetailFixtureFactory.triggerNodeId]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.triggerNodeId, "completed", 0),
+          [WorkflowDetailFixtureFactory.nodeOneId]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.nodeOneId, "completed", 1),
+          [WorkflowDetailFixtureFactory.agentNodeId]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.agentNodeId, "completed", 6),
+          [WorkflowDetailFixtureFactory.llmInvocationNodeId1]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.llmInvocationNodeId1, "completed", 3),
+          [WorkflowDetailFixtureFactory.toolInvocationNodeId1]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.toolInvocationNodeId1, "completed", 4),
+          [WorkflowDetailFixtureFactory.llmInvocationNodeId2]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.llmInvocationNodeId2, "completed", 5),
+        }),
+      ),
+    );
+
+    await waitFor(() => {
+      ExecutionTreeAssertions.expectNodeOrder(renderResult.container, [
+        WorkflowDetailFixtureFactory.llmInvocationNodeId1,
+        WorkflowDetailFixtureFactory.toolInvocationNodeId1,
+        WorkflowDetailFixtureFactory.llmInvocationNodeId2,
+      ]);
+    });
+
+    const targetNode = renderResult.container.querySelector<HTMLElement>(
+      `[data-codemation-execution-node-id="${WorkflowDetailFixtureFactory.llmInvocationNodeId2}"]`,
+    );
+    expect(targetNode).not.toBeNull();
+    fireEvent.click(targetNode!);
+
+    await waitFor(() => {
+      ExecutionTreeAssertions.expectSelectedNode(renderResult.container, WorkflowDetailFixtureFactory.llmInvocationNodeId2);
+    });
+  });
+
+  it("aggregates canvas item counts for multiple LLM invocations", () => {
+    const nodeSnapshotsByNodeId = {
+      [WorkflowDetailFixtureFactory.agentNodeId]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.agentNodeId, "completed", 6),
+      [WorkflowDetailFixtureFactory.llmInvocationNodeId1]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.llmInvocationNodeId1, "completed", 3),
+      [WorkflowDetailFixtureFactory.llmInvocationNodeId2]: WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.llmInvocationNodeId2, "completed", 5),
+    } satisfies PersistedRunState["nodeSnapshotsByNodeId"];
+
+    expect(
+      WorkflowCanvasEdgeCountResolver.resolveCount({
+        targetNodeId: WorkflowDetailFixtureFactory.llmNodeId,
+        targetNodeRole: "languageModel",
+        targetInput: "in",
+        sourceOutput: "main",
+        sourceSnapshot: nodeSnapshotsByNodeId[WorkflowDetailFixtureFactory.agentNodeId],
+        targetSnapshot: undefined,
+        nodeSnapshotsByNodeId,
+      }),
+    ).toBe(2);
   });
 
   it("posts an empty item batch when manually running a webhook-trigger workflow", async () => {
@@ -862,13 +1059,15 @@ describe("WorkflowDetailScreen", () => {
       WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.nodeOneId, 1),
       WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.nodeOneId, 1),
       WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.agentNodeId, 2),
-      WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.llmNodeId, 3),
-      WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.llmNodeId, 3),
-      WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.toolNodeId, 4),
-      WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.toolNodeId, 4),
-      WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.agentNodeId, 5),
-      WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.nodeTwoId, 6),
-      WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.nodeTwoId, 6),
+      WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.llmInvocationNodeId1, 3),
+      WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.llmInvocationNodeId1, 3),
+      WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.toolInvocationNodeId1, 4),
+      WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.toolInvocationNodeId1, 4),
+      WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.llmInvocationNodeId2, 5),
+      WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.llmInvocationNodeId2, 5),
+      WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.agentNodeId, 6),
+      WorkflowRealtimeEventFactory.nodeStarted(WorkflowDetailFixtureFactory.nodeTwoId, 7),
+      WorkflowRealtimeEventFactory.nodeCompleted(WorkflowDetailFixtureFactory.nodeTwoId, 7),
     ]);
 
     await WorkflowStatusClock.waitForStatusVisibilityWindow();

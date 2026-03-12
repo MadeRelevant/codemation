@@ -2,6 +2,7 @@
 
 import dagre from "dagre";
 import { Bot, Boxes, Brain, CircleAlert, CircleCheckBig, Clock3, GitBranch, Globe, type LucideIcon, PlaySquare, SquareStack, Workflow, Wrench } from "lucide-react";
+import { AgentAttachmentNodeIdFactory } from "@codemation/core";
 import {
   Background,
   BaseEdge,
@@ -36,6 +37,91 @@ type NodeData = Readonly<{
 const workflowCanvasNodeTypes = { codemation: CodemationNode };
 const workflowCanvasEdgeTypes = { straightCount: StraightCountEdge };
 
+class VisibleNodeStatusResolver {
+  private static readonly statusPriorityByStatus = new Map<NodeExecutionSnapshot["status"], number>([
+    ["running", 0],
+    ["queued", 1],
+    ["completed", 2],
+    ["failed", 3],
+    ["skipped", 4],
+    ["pending", 5],
+  ]);
+
+  static resolveStatuses(
+    nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,
+  ): Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>> {
+    const snapshotsByVisibleNodeId = new Map<string, NodeExecutionSnapshot[]>();
+    for (const [nodeId, snapshot] of Object.entries(nodeSnapshotsByNodeId)) {
+      const visibleNodeId = this.resolveVisibleNodeId(nodeId);
+      const snapshots = snapshotsByVisibleNodeId.get(visibleNodeId) ?? [];
+      snapshots.push(snapshot);
+      snapshotsByVisibleNodeId.set(visibleNodeId, snapshots);
+    }
+
+    const statusEntries: Array<readonly [string, NodeExecutionSnapshot["status"]]> = [];
+    for (const [visibleNodeId, snapshots] of snapshotsByVisibleNodeId.entries()) {
+      const resolvedSnapshot = [...snapshots].sort((left, right) => this.compareSnapshots(left, right))[0];
+      if (resolvedSnapshot) {
+        statusEntries.push([visibleNodeId, resolvedSnapshot.status] as const);
+      }
+    }
+    return Object.fromEntries(statusEntries);
+  }
+
+  private static resolveVisibleNodeId(nodeId: string): string {
+    const languageModelNodeId = AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(nodeId);
+    if (languageModelNodeId !== nodeId) return languageModelNodeId;
+    return AgentAttachmentNodeIdFactory.getBaseToolNodeId(nodeId);
+  }
+
+  private static compareSnapshots(left: NodeExecutionSnapshot, right: NodeExecutionSnapshot): number {
+    const statusPriorityComparison = this.getStatusPriority(left.status) - this.getStatusPriority(right.status);
+    if (statusPriorityComparison !== 0) return statusPriorityComparison;
+    return (right.updatedAt ?? "").localeCompare(left.updatedAt ?? "");
+  }
+
+  private static getStatusPriority(status: NodeExecutionSnapshot["status"]): number {
+    return this.statusPriorityByStatus.get(status) ?? Number.MAX_SAFE_INTEGER;
+  }
+}
+
+export class WorkflowCanvasEdgeCountResolver {
+  static resolveCount(args: Readonly<{
+    targetNodeId: string;
+    targetNodeRole: string | undefined;
+    targetInput: string;
+    sourceOutput: string;
+    sourceSnapshot: NodeExecutionSnapshot | undefined;
+    targetSnapshot: NodeExecutionSnapshot | undefined;
+    nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
+  }>): number {
+    if (args.targetNodeRole === "languageModel" || args.targetNodeRole === "tool") {
+      const attachmentInvocationCount = this.resolveAttachmentInvocationCount(args.targetNodeId, args.targetNodeRole, args.nodeSnapshotsByNodeId);
+      if (attachmentInvocationCount > 0) return attachmentInvocationCount;
+    }
+
+    const targetInputItems = args.targetSnapshot?.inputsByPort?.[args.targetInput];
+    const sourceOutputItems = args.sourceSnapshot?.outputs?.[args.sourceOutput];
+    return targetInputItems?.length ?? sourceOutputItems?.length ?? 0;
+  }
+
+  private static resolveAttachmentInvocationCount(
+    targetNodeId: string,
+    targetNodeRole: string,
+    nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,
+  ): number {
+    return Object.values(nodeSnapshotsByNodeId).filter((snapshot) => {
+      if (targetNodeRole === "languageModel") {
+        return AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(snapshot.nodeId) === targetNodeId;
+      }
+      if (targetNodeRole === "tool") {
+        return AgentAttachmentNodeIdFactory.getBaseToolNodeId(snapshot.nodeId) === targetNodeId;
+      }
+      return false;
+    }).length;
+  }
+}
+
 function StraightCountEdge(props: ReactFlowEdgeProps<ReactFlowEdge>) {
   const [edgePath, labelX, labelY] = getStraightPath({
     sourceX: props.sourceX,
@@ -66,10 +152,7 @@ function StraightCountEdge(props: ReactFlowEdgeProps<ReactFlowEdge>) {
 function useVisibleNodeStatuses(
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,
 ): Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>> {
-  return useMemo(
-    () => Object.fromEntries(Object.entries(nodeSnapshotsByNodeId).map(([nodeId, snapshot]) => [nodeId, snapshot.status])),
-    [nodeSnapshotsByNodeId],
-  );
+  return useMemo(() => VisibleNodeStatusResolver.resolveStatuses(nodeSnapshotsByNodeId), [nodeSnapshotsByNodeId]);
 }
 
 function iconForNode(type: string, role?: string, icon?: string): LucideIcon {
@@ -485,9 +568,15 @@ function layoutWorkflow(
     const isStraightMainEdge = !isAttachmentEdge && Math.abs((sourcePosition?.y ?? 0) - (targetPosition?.y ?? 0)) < 1;
     const targetSnapshot = nodeSnapshotsByNodeId[e.to.nodeId];
     const sourceSnapshot = nodeSnapshotsByNodeId[e.from.nodeId];
-    const targetInputItems = targetSnapshot?.inputsByPort?.[e.to.input];
-    const sourceOutputItems = sourceSnapshot?.outputs?.[e.from.output];
-    const edgeItemCount = targetInputItems?.length ?? sourceOutputItems?.length ?? 0;
+    const edgeItemCount = WorkflowCanvasEdgeCountResolver.resolveCount({
+      targetNodeId: e.to.nodeId,
+      targetNodeRole: targetNode?.role,
+      targetInput: e.to.input,
+      sourceOutput: e.from.output,
+      sourceSnapshot,
+      targetSnapshot,
+      nodeSnapshotsByNodeId,
+    });
     const edgeLabel = edgeItemCount > 0 ? `${edgeItemCount} item${edgeItemCount === 1 ? "" : "s"}` : undefined;
     return {
       id: `${e.from.nodeId}:${e.from.output}->${e.to.nodeId}:${e.to.input}:${i}`,

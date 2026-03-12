@@ -26,6 +26,18 @@ class AgentItemPortMap {
   }
 }
 
+class AgentToolCallPortMap {
+  static fromInput(input: unknown): NodeInputsByPort {
+    return {
+      in: [
+        {
+          json: input,
+        },
+      ],
+    };
+  }
+}
+
 class AgentOutputFactory {
   static fromUnknown(value: unknown): NodeOutputs {
     return { main: [{ json: value }] };
@@ -114,8 +126,14 @@ type ResolvedTool = Readonly<{
 
 type ItemScopedToolBinding = Readonly<{
   config: ToolConfig;
-  nodeId: string;
   langChainTool: DynamicStructuredTool;
+}>;
+
+type PlannedToolCall = Readonly<{
+  binding: ItemScopedToolBinding;
+  toolCall: AgentToolCall;
+  invocationIndex: number;
+  nodeId: string;
 }>;
 
 type ExecutedToolCall = Readonly<{
@@ -168,7 +186,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
       const itemScopedTools = this.createItemScopedTools(resolvedTools, ctx, item, i, items);
       const firstResponse = await this.invokeModel(
         itemScopedTools.length > 0 && model.bindTools ? model.bindTools(itemScopedTools.map((entry) => entry.langChainTool)) : model,
-        AgentAttachmentNodeIdFactory.createLanguageModelNodeId(ctx.nodeId),
+        AgentAttachmentNodeIdFactory.createLanguageModelNodeId(ctx.nodeId, 1),
         [AgentMessageFactory.createSystemPrompt(ctx.config.systemMessage), AgentMessageFactory.createUserPrompt(prompt)],
         ctx,
         itemInputsByPort,
@@ -180,11 +198,12 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
         continue;
       }
 
-      await this.markQueuedTools(itemScopedTools, toolCalls, ctx, itemInputsByPort);
-      const executedToolCalls = await this.executeToolCalls(itemScopedTools, toolCalls);
+      const plannedToolCalls = this.planToolCalls(itemScopedTools, toolCalls, ctx.nodeId);
+      await this.markQueuedTools(plannedToolCalls, ctx);
+      const executedToolCalls = await this.executeToolCalls(plannedToolCalls, ctx);
       const finalResponse = await this.invokeModel(
         itemScopedTools.length > 0 && model.bindTools ? model.bindTools(itemScopedTools.map((entry) => entry.langChainTool)) : model,
-        AgentAttachmentNodeIdFactory.createLanguageModelNodeId(ctx.nodeId),
+        AgentAttachmentNodeIdFactory.createLanguageModelNodeId(ctx.nodeId, 2),
         [
           AgentMessageFactory.createSystemPrompt(ctx.config.systemMessage),
           AgentMessageFactory.createUserPrompt(prompt),
@@ -231,37 +250,24 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     items: Items,
   ): ReadonlyArray<ItemScopedToolBinding> {
     return tools.map((entry) => {
-      const nodeId = AgentAttachmentNodeIdFactory.createToolNodeId(ctx.nodeId, entry.config.name);
       const langChainTool = new DynamicStructuredTool({
         name: entry.config.name,
         description: entry.config.description ?? entry.tool.defaultDescription,
         schema: entry.tool.inputSchema,
         func: async (input) => {
-          const inputsByPort = AgentItemPortMap.fromItem(item);
-          await ctx.services.nodeState?.markRunning({ nodeId, activationId: ctx.activationId, inputsByPort });
-          try {
-            const result = await entry.tool.execute({
-              config: entry.config,
-              input,
-              ctx,
-              item,
-              itemIndex,
-              items,
-            });
-            await ctx.services.nodeState?.markCompleted({
-              nodeId,
-              activationId: ctx.activationId,
-              inputsByPort,
-              outputs: AgentOutputFactory.fromUnknown(result),
-            });
-            return JSON.stringify(result);
-          } catch (error) {
-            throw await this.failTrackedNodeInvocation(error, nodeId, ctx, inputsByPort);
-          }
+          const result = await entry.tool.execute({
+            config: entry.config,
+            input,
+            ctx,
+            item,
+            itemIndex,
+            items,
+          });
+          return JSON.stringify(result);
         },
       });
 
-      return { config: entry.config, nodeId, langChainTool };
+      return { config: entry.config, langChainTool };
     });
   }
 
@@ -282,7 +288,6 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
         inputsByPort,
         outputs: AgentOutputFactory.fromUnknown({
           content: AgentMessageFactory.extractContent(response),
-          toolCalls: AgentMessageFactory.extractToolCalls(response),
         }),
       });
       return response;
@@ -292,33 +297,44 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
   }
 
   private async markQueuedTools(
-    bindings: ReadonlyArray<ItemScopedToolBinding>,
-    toolCalls: ReadonlyArray<AgentToolCall>,
+    plannedToolCalls: ReadonlyArray<PlannedToolCall>,
     ctx: NodeExecutionContext<AIAgent<any, any>>,
-    inputsByPort: NodeInputsByPort,
   ): Promise<void> {
-    for (const toolCall of toolCalls) {
-      const binding = bindings.find((entry) => entry.config.name === toolCall.name);
-      if (!binding) throw new Error(`Unknown tool requested by model: ${toolCall.name}`);
-      await ctx.services.nodeState?.markQueued({ nodeId: binding.nodeId, activationId: ctx.activationId, inputsByPort });
+    for (const plannedToolCall of plannedToolCalls) {
+      await ctx.services.nodeState?.markQueued({
+        nodeId: plannedToolCall.nodeId,
+        activationId: ctx.activationId,
+        inputsByPort: AgentToolCallPortMap.fromInput(plannedToolCall.toolCall.input ?? {}),
+      });
     }
   }
 
   private async executeToolCalls(
-    bindings: ReadonlyArray<ItemScopedToolBinding>,
-    toolCalls: ReadonlyArray<AgentToolCall>,
+    plannedToolCalls: ReadonlyArray<PlannedToolCall>,
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
   ): Promise<ReadonlyArray<ExecutedToolCall>> {
     const results = await Promise.allSettled(
-      toolCalls.map(async (toolCall) => {
-        const binding = bindings.find((entry) => entry.config.name === toolCall.name);
-        if (!binding) throw new Error(`Unknown tool requested by model: ${toolCall.name}`);
-        const serialized = await binding.langChainTool.invoke(toolCall.input ?? {});
-        return {
-          toolName: binding.config.name,
-          toolCallId: toolCall.id ?? binding.config.name,
-          serialized,
-          result: this.parseToolOutput(serialized),
-        } satisfies ExecutedToolCall;
+      plannedToolCalls.map(async (plannedToolCall) => {
+        const toolCallInputsByPort = AgentToolCallPortMap.fromInput(plannedToolCall.toolCall.input ?? {});
+        await ctx.services.nodeState?.markRunning({ nodeId: plannedToolCall.nodeId, activationId: ctx.activationId, inputsByPort: toolCallInputsByPort });
+        try {
+          const serialized = await plannedToolCall.binding.langChainTool.invoke(plannedToolCall.toolCall.input ?? {});
+          const result = this.parseToolOutput(serialized);
+          await ctx.services.nodeState?.markCompleted({
+            nodeId: plannedToolCall.nodeId,
+            activationId: ctx.activationId,
+            inputsByPort: toolCallInputsByPort,
+            outputs: AgentOutputFactory.fromUnknown(result),
+          });
+          return {
+            toolName: plannedToolCall.binding.config.name,
+            toolCallId: plannedToolCall.toolCall.id ?? plannedToolCall.binding.config.name,
+            serialized,
+            result,
+          } satisfies ExecutedToolCall;
+        } catch (error) {
+          throw await this.failTrackedNodeInvocation(error, plannedToolCall.nodeId, ctx, toolCallInputsByPort);
+        }
       }),
     );
 
@@ -330,6 +346,26 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     return results
       .filter((result): result is PromiseFulfilledResult<ExecutedToolCall> => result.status === "fulfilled")
       .map((result) => result.value);
+  }
+
+  private planToolCalls(
+    bindings: ReadonlyArray<ItemScopedToolBinding>,
+    toolCalls: ReadonlyArray<AgentToolCall>,
+    parentNodeId: string,
+  ): ReadonlyArray<PlannedToolCall> {
+    const invocationCountByToolName = new Map<string, number>();
+    return toolCalls.map((toolCall) => {
+      const binding = bindings.find((entry) => entry.config.name === toolCall.name);
+      if (!binding) throw new Error(`Unknown tool requested by model: ${toolCall.name}`);
+      const invocationIndex = (invocationCountByToolName.get(binding.config.name) ?? 0) + 1;
+      invocationCountByToolName.set(binding.config.name, invocationIndex);
+      return {
+        binding,
+        toolCall,
+        invocationIndex,
+        nodeId: AgentAttachmentNodeIdFactory.createToolNodeId(parentNodeId, binding.config.name, invocationIndex),
+      } satisfies PlannedToolCall;
+    });
   }
 
   private parseToolOutput(serialized: unknown): unknown {
