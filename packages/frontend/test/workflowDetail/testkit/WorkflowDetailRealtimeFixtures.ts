@@ -1,9 +1,9 @@
-import type { WorkflowEvent } from "../../../src/realtime/realtime";
+import type { WorkflowEvent } from "../../../src/ui/realtime/realtime";
 import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
 
 export type WorkflowDetailRealtimeServerMessage =
-  | Readonly<{ kind: "subscribed"; workflowId: string }>
-  | Readonly<{ kind: "unsubscribed"; workflowId: string }>
+  | Readonly<{ kind: "subscribed"; roomId: string }>
+  | Readonly<{ kind: "unsubscribed"; roomId: string }>
   | Readonly<{ kind: "ready" }>
   | Readonly<{ kind: "event"; event: WorkflowEvent }>;
 
@@ -11,7 +11,7 @@ export class WorkflowDetailRealtimeFixtureFactory {
   static subscribed(workflowId = WorkflowDetailFixtureFactory.workflowId): WorkflowDetailRealtimeServerMessage {
     return {
       kind: "subscribed",
-      workflowId,
+      roomId: workflowId,
     };
   }
 

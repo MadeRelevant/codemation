@@ -10,6 +10,9 @@ class FrontendTestResizeObserver {
 
 class FrontendTestEnvironment {
   static install(): void {
+    if (typeof window === "undefined" || typeof HTMLElement === "undefined") {
+      return;
+    }
     this.installResizeObserver();
     this.installMatchMedia();
     this.installLayoutMetrics();

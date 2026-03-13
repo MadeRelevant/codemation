@@ -3,17 +3,18 @@ import tsParser from "@typescript-eslint/parser";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 import globals from "globals";
 import noOnlyTests from "eslint-plugin-no-only-tests";
+import path from "node:path";
 
-const allowedConstructorNames = new Set(["Date", "Error", "Map", "Promise", "RegExp", "Set", "URL", "WeakMap", "WeakSet", "WebSocketServer"]);
+const allowedConstructorNames = new Set(["ApplicationRequestError", "Date", "Error", "Map", "Promise", "RegExp", "Set", "URL", "WeakMap", "WeakSet", "WebSocketServer"]);
 const compositionRootFilePattern =
-  /(?:Factory|Builder|Bootstrap|Discovery|Runner|Server|Mapper|Reader|Writer|Finder|Registry|Host|Protocol|Session|Program|Supervisor|Planner|Resolver|Environment|Worker|Scheduler|Connection|Application|Hub|Reporter|Loader|Validator)\.tsx?$/;
+  /(?:Factory|Builder|Bootstrap|Discovery|Runner|Server|Gateway|Mapper|Reader|Writer|Finder|Registry|Host|Protocol|Session|Program|Supervisor|Planner|Resolver|Environment|Worker|Scheduler|Connection|Application|Hub|Reporter|Loader|Validator)\.tsx?$/;
 const normalizedFilePath = (filename) => filename.replace(/\\/g, "/");
 const hasAllowedSuffix = (filename, suffixes) => suffixes.some((suffix) => filename.endsWith(suffix));
 const staticMethodAllowedFileSuffixes = [
-  "/packages/frontend/src/CodemationApp.ts",
-  "/packages/frontend/src/api/ApiPaths.ts",
-  "/packages/frontend/src/server/WorkflowLoader.ts",
-  "/packages/frontend/src/templates/StartRouteTemplateCatalog.ts",
+  "/packages/frontend/src/infrastructure/server/http/ApiPaths.ts",
+  "/packages/frontend/src/presentation/http/ApiPaths.ts",
+  "/packages/frontend/src/presentation/http/HandlesHttpRoute.ts",
+  "/packages/frontend/src/presentation/http/Route.ts",
 ];
 const runtimeRegistryAllowedFileSuffixes = [
   "/packages/frontend/src/CodemationApp.ts",
@@ -30,6 +31,49 @@ const isRuntimeRegistryImport = (source) =>
     source === "../runtime/codemationRuntimeRegistry" ||
     source.endsWith("/runtime/codemationRuntimeRegistry"));
 const restrictedTestingLibraryTextQueries = new Set(["getByText", "queryByText", "findByText"]);
+const frontendLayerNames = new Set(["application", "domain", "infrastructure", "ui"]);
+const frontendLayerRegex = /\/packages\/frontend\/src\/(application|domain|infrastructure|ui)\//;
+const frontendLayerImportRules = {
+  domain: {
+    allowedLocalTargets: new Set(["domain"]),
+    allowedPackagePrefixes: ["@codemation/core"],
+  },
+  application: {
+    allowedLocalTargets: new Set(["application", "domain"]),
+    allowedPackagePrefixes: ["@codemation/core"],
+  },
+  infrastructure: {
+    allowedLocalTargets: new Set(["infrastructure", "application", "domain"]),
+    allowedPackagePrefixes: null,
+  },
+  ui: {
+    allowedLocalTargets: new Set(["ui", "application", "domain"]),
+    allowedPackagePrefixes: null,
+  },
+};
+const frontendLayerRuleIgnoredFileSuffixes = [
+  "/packages/frontend/src/codemationApplication.ts",
+  "/packages/frontend/src/applicationTokens.ts",
+  "/packages/frontend/src/realtimeRuntimeFactory.ts",
+  "/packages/frontend/src/client.ts",
+  "/packages/frontend/src/server.ts",
+  "/packages/frontend/src/application/RealtimeReadyService.ts",
+  "/packages/frontend/src/application/WebhookCommandService.ts",
+];
+const getFrontendLayerForFile = (filename) => {
+  const match = normalizedFilePath(filename).match(frontendLayerRegex);
+  return match?.[1] ?? null;
+};
+const isFrontendLayerRuleIgnored = (filename) => hasAllowedSuffix(normalizedFilePath(filename), frontendLayerRuleIgnoredFileSuffixes);
+const resolveImportPath = (filename, source) => {
+  if (!source.startsWith(".")) return null;
+  const extensionlessPath = normalizedFilePath(path.resolve(path.dirname(filename), source));
+  if (frontendLayerNames.has(path.basename(extensionlessPath))) {
+    return `${extensionlessPath}/index`;
+  }
+  return extensionlessPath;
+};
+const hasAllowedPackagePrefix = (source, prefixes) => prefixes?.some((prefix) => source === prefix || source.startsWith(`${prefix}/`)) ?? true;
 const isModuleScopeVariableDeclarator = (node) => {
   const declaration = node.parent;
   const container = declaration?.parent;
@@ -104,6 +148,7 @@ const architecturePlugin = {
           NewExpression(node) {
             if (node.callee.type !== "Identifier") return;
             if (!/^[A-Z]/.test(node.callee.name)) return;
+            if (/(Command|Query|RouteDefinition|RoutePattern|RouteSegment)$/.test(node.callee.name)) return;
             if (allowedConstructorNames.has(node.callee.name)) return;
             context.report({
               node,
@@ -236,6 +281,79 @@ const architecturePlugin = {
         };
       },
     },
+    "no-container-injection": {
+      meta: {
+        type: "problem",
+        docs: {
+          description: "disallow injecting the DI container into application classes",
+        },
+        schema: [],
+      },
+      create(context) {
+        return {
+          Decorator(node) {
+            if (node.expression?.type !== "CallExpression") return;
+            if (node.expression.callee.type !== "Identifier" || node.expression.callee.name !== "inject") return;
+            const [firstArgument] = node.expression.arguments;
+            if (
+              firstArgument?.type === "MemberExpression" &&
+              !firstArgument.computed &&
+              firstArgument.object.type === "Identifier" &&
+              firstArgument.object.name === "CoreTokens" &&
+              firstArgument.property.type === "Identifier" &&
+              firstArgument.property.name === "ServiceContainer"
+            ) {
+              context.report({
+                node,
+                message: "Do not inject the DI container. Resolve dependencies in the composition root and inject typed collaborators instead.",
+              });
+            }
+          },
+        };
+      },
+    },
+    "frontend-layer-imports": {
+      meta: {
+        type: "problem",
+        docs: {
+          description: "enforce frontend DDD layer import boundaries",
+        },
+        schema: [],
+      },
+      create(context) {
+        const filename = normalizedFilePath(context.filename ?? context.getFilename());
+        if (isFrontendLayerRuleIgnored(filename)) return {};
+        const sourceLayer = getFrontendLayerForFile(filename);
+        if (!sourceLayer) return {};
+        const layerRule = frontendLayerImportRules[sourceLayer];
+        if (!layerRule) return {};
+        return {
+          ImportDeclaration(node) {
+            if (typeof node.source.value !== "string") return;
+            const source = node.source.value;
+            if (source.startsWith(".")) {
+              const resolvedImportPath = resolveImportPath(filename, source);
+              if (!resolvedImportPath) return;
+              if (sourceLayer === "application" && resolvedImportPath.includes("/packages/frontend/src/infrastructure/di/")) return;
+              const targetLayer = getFrontendLayerForFile(resolvedImportPath);
+              if (!targetLayer) return;
+              if (layerRule.allowedLocalTargets.has(targetLayer)) return;
+              context.report({
+                node,
+                message: `\`${sourceLayer}\` code may not import from the \`${targetLayer}\` layer.`,
+              });
+              return;
+            }
+            if (source.startsWith("node:")) return;
+            if (hasAllowedPackagePrefix(source, layerRule.allowedPackagePrefixes)) return;
+            context.report({
+              node,
+              message: `\`${sourceLayer}\` code may not import package \`${source}\`.`,
+            });
+          },
+        };
+      },
+    },
   },
 };
 
@@ -334,11 +452,12 @@ export default [
       "**/*.d.ts",
       "**/*Types.ts",
       "**/*types.ts",
-      "packages/frontend/src/frontend/routeHandlers.ts",
-      "packages/frontend/src/routes/**/*.tsx",
-      "packages/frontend/src/components/**/*.tsx",
-      "packages/frontend/src/realtime/**/*.tsx",
-      "packages/frontend/src/providers/**/*.tsx",
+      "packages/frontend/src/ui/**/*.tsx",
+      "packages/frontend/src/application/RunCommandService.ts",
+      "packages/frontend/src/infrastructure/di/**/*.ts",
+      "packages/frontend/src/infrastructure/server/http/**/*.ts",
+      "packages/frontend/src/infrastructure/server/CodemationServerGateway.ts",
+      "packages/frontend/src/infrastructure/logging/BrowserLoggerFactory.ts",
     ],
     rules: {
       "codemation/single-class-per-file": "error",
@@ -347,6 +466,8 @@ export default [
       "codemation/no-runtime-registry-imports": "error",
       "codemation/no-exported-singletons": "error",
       "codemation/no-static-app-capture": "error",
+      "codemation/no-container-injection": "error",
+      "codemation/frontend-layer-imports": "error",
       "no-restricted-syntax": [
         "error",
         {

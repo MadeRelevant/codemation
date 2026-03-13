@@ -23,7 +23,7 @@ describe("workflow detail execution actions", () => {
     await kit.startRun();
 
     expect(
-      kit.latestRequestBody<Readonly<{ workflowId: string; items: ReadonlyArray<Readonly<{ json: unknown }>> }>>("POST /api/run"),
+      kit.latestRequestBody<Readonly<{ workflowId: string; items: ReadonlyArray<Readonly<{ json: unknown }>> }>>("POST /api/runs"),
     ).toEqual({
       workflowId: WorkflowDetailFixtureFactory.workflowId,
       items: [],
@@ -44,7 +44,7 @@ describe("workflow detail execution actions", () => {
     expect(
       kit.latestRequestBody<
         Readonly<{ workflowId: string; mode?: "manual" | "debug"; stopAt?: string; sourceRunId?: string; items: ReadonlyArray<Readonly<{ json: unknown }>> }>
-      >("POST /api/run"),
+      >("POST /api/runs"),
     ).toEqual({
       workflowId: WorkflowDetailFixtureFactory.workflowId,
       items: [{ json: {} }],
@@ -67,7 +67,7 @@ describe("workflow detail execution actions", () => {
     expect(
       kit.latestRequestBody<
         Readonly<{ workflowId: string; mode?: "manual" | "debug"; stopAt?: string; sourceRunId?: string; items: ReadonlyArray<Readonly<{ json: unknown }>> }>
-      >("POST /api/run"),
+      >("POST /api/runs"),
     ).toEqual({
       workflowId: WorkflowDetailFixtureFactory.workflowId,
       items: [{ json: {} }],

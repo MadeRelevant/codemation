@@ -1,0 +1,16 @@
+import { HandlesQuery } from "../../infrastructure/di/HandlesQuery";
+import type { WorkflowDefinition } from "@codemation/core";
+import { QueryHandler } from "../bus/QueryHandler";
+import type { WorkflowDefinitionRepository } from "../../domain/workflows/WorkflowDefinitionRepository";
+import { GetWorkflowDetailQuery } from "./GetWorkflowDetailQuery";
+
+@HandlesQuery.for(GetWorkflowDetailQuery)
+export class GetWorkflowDetailQueryHandler extends QueryHandler<GetWorkflowDetailQuery, WorkflowDefinition | undefined> {
+  constructor(private readonly workflowDefinitionRepository: WorkflowDefinitionRepository) {
+    super();
+  }
+
+  async execute(query: GetWorkflowDetailQuery): Promise<WorkflowDefinition | undefined> {
+    return await this.workflowDefinitionRepository.getDefinition(query.workflowId);
+  }
+}

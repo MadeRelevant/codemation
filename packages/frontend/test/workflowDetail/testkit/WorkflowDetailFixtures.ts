@@ -9,7 +9,7 @@ import {
 } from "@codemation/core";
 import { AIAgent, Callback, ManualTrigger, WebhookTrigger } from "@codemation/core-nodes";
 import type { PersistedRunState, WorkflowDto } from "../../../src/client";
-import { CodemationWorkflowDtoMapper } from "../../../src/host/codemationWorkflowDtoMapper";
+import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
 
 export type WorkflowDetailTriggerKind = "manual" | "webhook";
 
@@ -110,7 +110,7 @@ export class WorkflowDetailFixtureFactory {
   }
 
   static createWorkflowDetail(options: WorkflowDetailDefinitionOptions = {}): WorkflowDto {
-    return new CodemationWorkflowDtoMapper().toDetail(this.createWorkflowDefinition(options)) as WorkflowDto;
+    return new WorkflowDefinitionMapper().mapSync(this.createWorkflowDefinition(options)) as WorkflowDto;
   }
 
   static createWorkflowSnapshot(options: Readonly<{ workflow?: WorkflowDto } & WorkflowDetailDefinitionOptions> = {}): NonNullable<PersistedRunState["workflowSnapshot"]> {

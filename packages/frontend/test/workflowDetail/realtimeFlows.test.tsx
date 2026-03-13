@@ -35,9 +35,8 @@ describe("workflow detail realtime flows", () => {
 
     await kit.startRun();
 
-    kit.expectCallCount("POST /api/realtime/ready", 1);
     kit.expectCallCount("GET /api/workflows/wf.frontend.realtime/runs", 1);
-    kit.expectCallCount("POST /api/run", 1);
+    kit.expectCallCount("POST /api/runs", 1);
 
     kit.emitJson(WorkflowDetailRealtimeFixtureFactory.runCreated());
     kit.emitJson(WorkflowDetailRealtimeFixtureFactory.nodeCompleted(WorkflowDetailFixtureFactory.triggerNodeId, 0));

@@ -1,8 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, type RenderResult } from "@testing-library/react";
 import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { expect } from "vitest";
-import { Providers } from "../../../src/providers/Providers";
-import { WorkflowDetailScreen } from "../../../src/routes/WorkflowDetailScreen";
+import { Providers } from "../../../src/ui/providers/Providers";
+import { WorkflowDetailScreen } from "../../../src/ui/screens/WorkflowDetailScreen";
 import type { WorkflowDto } from "../../../src/client";
 import type { WorkflowDetailRealtimeServerMessage } from "./WorkflowDetailRealtimeFixtures";
 import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
@@ -93,7 +93,7 @@ export class WorkflowDetailScreenTestKit {
   async waitForWorkflowSubscription(workflowId = this.workflow.id): Promise<void> {
     const socket = this.latestSocket();
     await waitFor(() => {
-      expect(socket.sentMessages).toContain(JSON.stringify({ kind: "subscribeWorkflow", workflowId }));
+      expect(socket.sentMessages).toContain(JSON.stringify({ kind: "subscribe", roomId: workflowId }));
     });
   }
 

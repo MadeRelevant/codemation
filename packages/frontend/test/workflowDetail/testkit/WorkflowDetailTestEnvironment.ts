@@ -1,4 +1,5 @@
 import { vi, expect } from "vitest";
+import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
 import type { PersistedRunState, RunSummary, WorkflowDto } from "../../../src/client";
 import type { WorkflowDetailRealtimeServerMessage } from "./WorkflowDetailRealtimeFixtures";
 import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
@@ -79,7 +80,7 @@ export class WorkflowDetailTestEnvironment {
   constructor(public readonly workflow: WorkflowDto) {}
 
   install(): void {
-    const environment = this;
+    const socketConnections = this.socketConnections;
 
     vi.stubGlobal("fetch", this.handleRequest.bind(this) as typeof fetch);
 
@@ -100,7 +101,7 @@ export class WorkflowDetailTestEnvironment {
           this.connection = new WorkflowDetailSocketConnection(url);
           this.url = this.connection.url;
           this.readyState = this.connection.readyState;
-          environment.socketConnections.push(this.connection);
+          socketConnections.push(this.connection);
         }
 
         addEventListener(type: string, listener: (event: unknown) => void): void {
@@ -187,11 +188,7 @@ export class WorkflowDetailTestEnvironment {
     this.callsByRoute.set(routeKey, (this.callsByRoute.get(routeKey) ?? 0) + 1);
     this.recordRequestBody(routeKey, init?.body);
 
-    if (method === "POST" && url.pathname === "/api/realtime/ready") {
-      return Response.json({ ok: true, websocketPort: this.websocketPort });
-    }
-
-    if (method === "GET" && url.pathname === `/api/workflows/${encodeURIComponent(this.workflow.id)}/runs`) {
+    if (method === "GET" && url.pathname === ApiPaths.workflowRuns(this.workflow.id)) {
       return Response.json(this.workflowRuns);
     }
 
@@ -204,7 +201,7 @@ export class WorkflowDetailTestEnvironment {
       return Response.json(runState);
     }
 
-    if (method === "POST" && url.pathname === "/api/run") {
+    if (method === "POST" && url.pathname === ApiPaths.runs()) {
       return this.handleRunWorkflowRequest(routeKey);
     }
 

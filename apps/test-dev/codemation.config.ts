@@ -1,4 +1,4 @@
-import { CodemationConfigFactory, type CodemationAppSlots } from "@codemation/frontend";
+import type { CodemationAppSlots, CodemationConfig } from "@codemation/frontend";
 import { InMemoryCredentialService, credentialId } from "@codemation/core";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
@@ -17,7 +17,6 @@ loadDotenv({
 });
 
 const OPENAI_API_KEY = credentialId<string>("openai.apiKey");
-const configFactory = new CodemationConfigFactory();
 const useRedisRuntime = Boolean(process.env.REDIS_URL);
 const slots: CodemationAppSlots = {
   Logo: TestDevLogo,
@@ -30,7 +29,7 @@ const credentials = new InMemoryCredentialService().setFactory(OPENAI_API_KEY, (
   return apiKey;
 });
 
-export const codemationHost = configFactory.define({
+export const codemationHost = {
   bootHook: TestDevBootHook,
   credentials,
   workflows: [demoWorkflow, exampleWorkflow, realtimeWaitWorkflow, multiItemsWorkflow, webhookNormal],
@@ -50,6 +49,6 @@ export const codemationHost = configFactory.define({
     },
   },
   slots,
-});
+} satisfies CodemationConfig;
 
 export default codemationHost;

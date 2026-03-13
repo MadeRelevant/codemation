@@ -5,7 +5,8 @@ import { BullmqScheduler } from "@codemation/queue-bullmq";
 import { SqliteRunStateStore } from "@codemation/run-store-sqlite";
 import path from "node:path";
 import { ApplicationTokens } from "./applicationTokens";
-import type { CodemationApplicationRuntimeConfig, CodemationEventBusKind, CodemationSchedulerKind } from "./runtime/codemationRuntimeConfig";
+import type { CodemationApplicationRuntimeConfig, CodemationEventBusKind, CodemationSchedulerKind } from "./infrastructure/runtime/CodemationRuntimeConfig";
+import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
 
 export type RealtimeRuntimeMode = "memory" | "redis";
 
@@ -23,7 +24,7 @@ export interface RealtimeRuntime {
   eventBus: RunEventBus;
   runStore: RunStateStore;
   activationScheduler?: InlineDrivingScheduler;
-  scheduler?: BullmqScheduler;
+  scheduler?: WorkerRuntimeScheduler;
   diagnostics: RealtimeRuntimeDiagnostics;
 }
 
@@ -42,7 +43,7 @@ export class RealtimeRuntimeFactory {
     args.container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
     args.container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory());
     if (runtime.scheduler) {
-      args.container.registerInstance(BullmqScheduler, runtime.scheduler);
+      args.container.registerInstance(ApplicationTokens.WorkerRuntimeScheduler, runtime.scheduler);
     }
     return runtime.diagnostics;
   }

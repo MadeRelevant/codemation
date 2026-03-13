@@ -13,45 +13,58 @@ import {
   instanceCachingFactory,
   PersistedWorkflowTokenRegistry,
 } from "@codemation/core";
-import { BullmqScheduler } from "@codemation/queue-bullmq";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { ApiPaths } from "./presentation/http/ApiPaths";
+import type { CommandBus } from "./application/bus/CommandBus";
+import type { DomainEventBus } from "./application/bus/DomainEventBus";
+import type { QueryBus } from "./application/bus/QueryBus";
+import "./application/commands/HandleWebhookInvocationCommandHandler";
+import "./application/commands/ReplayWorkflowNodeCommandHandler";
+import "./application/commands/ReplaceMutableRunWorkflowSnapshotCommandHandler";
+import "./application/commands/SetPinnedNodeInputCommandHandler";
+import "./application/commands/StartWorkflowRunCommandHandler";
+import "./application/queries/GetRunStateQueryHandler";
+import "./application/queries/GetWorkflowDetailQueryHandler";
+import "./application/queries/GetWorkflowSummariesQueryHandler";
+import "./application/queries/ListWorkflowRunsQueryHandler";
+import { WorkflowRunEventWebsocketRelay } from "./application/websocket/WorkflowRunEventWebsocketRelay";
+import "./presentation/http/routeHandlers/RunHttpRouteHandler";
+import "./presentation/http/routeHandlers/WebhookHttpRouteHandler";
+import "./presentation/http/routeHandlers/WorkflowHttpRouteHandler";
 import { ApplicationTokens } from "./applicationTokens";
-import { CodemationBootstrapDiscovery } from "./bootstrapDiscovery";
-import type { CodemationBootstrapResult, CodemationDiscoveredApplicationSetup } from "./bootstrapDiscovery";
-import { CodemationFrontendRuntimeProvider } from "./frontend/CodemationFrontendRuntimeProvider";
-import { CodemationServerEngineHost } from "./host/codemationServerEngineHost";
-import { CodemationWebhookRegistry } from "./host/codemationWebhookRegistry";
-import { CodemationWorkflowDtoMapper } from "./host/codemationWorkflowDtoMapper";
+import type { CodemationConfig } from "./presentation/config/CodemationConfig";
+import { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
+import { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
+import { WebhookEndpointRepository } from "./domain/webhooks/WebhookEndpointRepository";
+import { RequestToWebhookItemMapper } from "./infrastructure/webhooks/RequestToWebhookItemMapper";
+import { InMemoryCommandBus } from "./infrastructure/di/InMemoryCommandBus";
+import { InMemoryDomainEventBus } from "./infrastructure/di/InMemoryDomainEventBus";
+import { InMemoryQueryBus } from "./infrastructure/di/InMemoryQueryBus";
+import { CodemationIdFactory } from "./infrastructure/ids/CodemationIdFactory";
+import { DependencyInjectionHookRunner } from "./infrastructure/config/DependencyInjectionHookRunner";
+import { WorkflowDefinitionRepositoryAdapter } from "./infrastructure/persistence/WorkflowDefinitionRepositoryAdapter";
+import { WorkflowRunRepository as SqlWorkflowRunRepository } from "./infrastructure/persistence/WorkflowRunRepository";
+import { CodemationWorkerRuntimeRoot } from "./infrastructure/runtime/CodemationWorkerRuntimeRoot";
+import type { CodemationApplicationRuntimeConfig } from "./infrastructure/runtime/CodemationRuntimeConfig";
 import { RealtimeRuntimeFactory } from "./realtimeRuntimeFactory";
-import { CodemationPreparedExecutionRuntimeProvider } from "./frontend/CodemationPreparedExecutionRuntimeProvider";
-import { RealtimeRouteHandler } from "./frontend/RealtimeRouteHandler";
-import { FrontendRouteTokens } from "./frontend/frontendRouteTokens";
-import { RequestToWebhookItemMapper } from "./frontend/RequestToWebhookItemMapper";
-import { RunRouteHandler } from "./frontend/RunRouteHandler";
-import { WebhookRouteHandler } from "./frontend/WebhookRouteHandler";
-import { WorkflowRouteHandler } from "./frontend/WorkflowRouteHandler";
-import { CodemationFrontendRuntimeRoot } from "./runtime/codemationFrontendRuntimeRoot";
-import { CodemationRuntimeTrackedPaths } from "./runtime/codemationRuntimeTrackedPaths";
-import { CodemationRealtimeSocketServer } from "./runtime/codemationRealtimeSocketServer";
-import { CodemationWorkerRuntimeRoot } from "./runtime/codemationWorkerRuntimeRoot";
-import type { CodemationApplicationRuntimeConfig } from "./runtime/codemationRuntimeConfig";
-import { CodemationIdFactory } from "./shared/codemationIdFactory";
-import { CodemationStartupSummaryReporter, ConsoleStartupSummaryLogger } from "./startupSummary";
-import { CodemationWorkerHost } from "./worker/codemationWorkerHost";
+import { ServerHttpRouter } from "./presentation/http/ServerHttpRouter";
+import { WorkflowWebsocketServer } from "./presentation/websocket/WorkflowWebsocketServer";
+import { CodemationServerEngineHost } from "./infrastructure/webhooks/CodemationServerEngineHost";
+import { CodemationWebhookRegistry } from "./infrastructure/webhooks/CodemationWebhookRegistry";
+import { WebhookEndpointRepositoryAdapter } from "./infrastructure/webhooks/WebhookEndpointRepositoryAdapter";
+import { CodemationWorkerHost } from "./infrastructure/worker/CodemationWorkerHost";
+import { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
 
 type StopHandle = Readonly<{ stop: () => Promise<void> }>;
 
 export type CodemationStopHandle = StopHandle;
 
-export interface CodemationApplicationConfig {
-  readonly container?: Container;
-  readonly workflows: ReadonlyArray<WorkflowDefinition>;
-  readonly credentials: CredentialService;
-  readonly runtime?: CodemationApplicationRuntimeConfig;
-}
+export type CodemationApplicationConfig = CodemationConfig;
 
 export class CodemationApplication {
+  private readonly dependencyInjectionHookRunner = new DependencyInjectionHookRunner();
+
   private container: Container = tsyringeContainer.createChildContainer();
   private workflows: WorkflowDefinition[] = [];
   private credentials: CredentialService = new InMemoryCredentialService();
@@ -62,10 +75,15 @@ export class CodemationApplication {
   }
 
   useConfig(config: CodemationApplicationConfig): this {
-    if (config.container) this.useContainer(config.container);
-    this.useWorkflows(config.workflows);
-    this.useCredentials(config.credentials);
-    if (config.runtime) this.useRuntimeConfig(config.runtime);
+    if (config.workflows) {
+      this.useWorkflows(config.workflows);
+    }
+    if (config.credentials) {
+      this.useCredentials(config.credentials);
+    }
+    if (config.runtime) {
+      this.useRuntimeConfig(config.runtime);
+    }
     return this;
   }
 
@@ -108,84 +126,56 @@ export class CodemationApplication {
     return this.credentials;
   }
 
+  async applyBootHook(args: Readonly<{
+    bootHookToken: CodemationConfig["bootHook"];
+    consumerRoot: string;
+    repoRoot: string;
+    env?: Readonly<Record<string, string | undefined>>;
+    workflowSources?: ReadonlyArray<string>;
+  }>): Promise<void> {
+    await this.dependencyInjectionHookRunner.run({
+      bootHookToken: args.bootHookToken,
+      container: this.container,
+      context: {
+        application: this,
+        container: this.container,
+        consumerRoot: args.consumerRoot,
+        repoRoot: args.repoRoot,
+        env: args.env ?? process.env,
+        discoveredWorkflows: this.getWorkflows(),
+        workflowSources: args.workflowSources ?? [],
+      },
+    });
+  }
+
   resolveRealtimeModeForEnvironment(env?: Readonly<NodeJS.ProcessEnv>): "memory" | "redis" {
     return this.resolveRealtimeMode({ ...process.env, ...(env ?? {}) });
   }
 
-  static async loadDiscoveredApplication(args: Readonly<{
+  async prepareFrontendServerContainer(args: Readonly<{
     repoRoot: string;
-    consumerRoot: string;
-    env?: Record<string, string>;
-    configOverride?: CodemationBootstrapResult;
-    bootstrapPathOverride?: string;
-  }>): Promise<CodemationDiscoveredApplicationSetup> {
-    const discovery = new CodemationBootstrapDiscovery();
-    const application = new CodemationApplication();
-    return await discovery.discover({
-      application,
-      repoRoot: args.repoRoot,
-      consumerRoot: args.consumerRoot,
-      env: args.env,
-      configOverride: args.configOverride,
-      bootstrapPathOverride: args.bootstrapPathOverride,
-    });
-  }
-
-  static async startDiscoveredWorkerMode(args: Readonly<{
-    repoRoot: string;
-    consumerRoot: string;
-    env?: Record<string, string>;
-    bootstrapPathOverride?: string;
-  }>): Promise<StopHandle> {
-    const setup = await this.loadDiscoveredApplication(args);
-    const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
-    const workerQueues = setup.application.runtimeConfig.scheduler?.workerQueues ?? CodemationApplication.parseQueues(effectiveEnv.WORKER_QUEUES ?? "default");
-    const workerRoot = await setup.application.createWorkerRuntimeRoot({
-      repoRoot: args.repoRoot,
-      env: effectiveEnv,
-    });
-    return await workerRoot.start({
-      queues: workerQueues,
-      bootstrapSource: setup.bootstrapSource,
-      workflowSources: setup.workflowSources,
-    });
-  }
-
-  async createFrontendRuntimeRoot(args: Readonly<{ repoRoot: string; env?: Readonly<NodeJS.ProcessEnv> }>): Promise<CodemationFrontendRuntimeRoot> {
+    env?: Readonly<NodeJS.ProcessEnv>;
+  }>): Promise<void> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
     await this.prepareRuntimeRegistrations(args.repoRoot, effectiveEnv);
     this.container.registerInstance(ApplicationTokens.WebSocketPort, this.resolveWebSocketPort(effectiveEnv));
     this.container.registerInstance(ApplicationTokens.WebSocketBindHost, effectiveEnv.CODEMATION_WS_BIND_HOST ?? "0.0.0.0");
-    this.container.registerInstance(ApplicationTokens.RealtimeWatchRoots, this.resolveRealtimeWatchRoots(args.repoRoot, effectiveEnv));
     this.registerServerWebhookRuntimeHost();
-    const frontendRoot = this.container.resolve(CodemationFrontendRuntimeRoot);
-    await frontendRoot.start();
-    return frontendRoot;
-  }
-
-  async prepareRuntimeContainer(args: Readonly<{ repoRoot: string; env?: Readonly<NodeJS.ProcessEnv> }>): Promise<void> {
-    const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
-    await this.prepareRuntimeRegistrations(args.repoRoot, effectiveEnv);
-  }
-
-  async prepareExecutionRuntimeContainer(args: Readonly<{ repoRoot: string; env?: Readonly<NodeJS.ProcessEnv> }>): Promise<void> {
-    const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
-    await this.prepareRuntimeRegistrations(args.repoRoot, effectiveEnv);
-    this.registerServerWebhookRuntimeHost();
+    await this.startPresentationServers();
   }
 
   async createWorkerRuntimeRoot(args: Readonly<{ repoRoot: string; env?: Readonly<NodeJS.ProcessEnv> }>): Promise<CodemationWorkerRuntimeRoot> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
     await this.prepareRuntimeRegistrations(args.repoRoot, effectiveEnv);
     this.registerWorkerWebhookRuntimeHost();
-    if (!this.container.isRegistered(BullmqScheduler, true)) {
+    if (!this.container.isRegistered(ApplicationTokens.WorkerRuntimeScheduler, true)) {
       throw new Error("Worker mode requires a BullMQ scheduler backed by a Redis event bus.");
     }
     return this.container.resolve(CodemationWorkerRuntimeRoot);
   }
 
   private registerServerWebhookRuntimeHost(): void {
-    this.container.registerInstance(CoreTokens.WebhookBasePath, "/api/webhooks");
+    this.container.registerInstance(CoreTokens.WebhookBasePath, ApiPaths.webhooks());
     this.container.register(CodemationServerEngineHost, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         return new CodemationServerEngineHost(
@@ -203,7 +193,7 @@ export class CodemationApplication {
   }
 
   private registerWorkerWebhookRuntimeHost(): void {
-    this.container.registerInstance(CoreTokens.WebhookBasePath, "/api/webhooks");
+    this.container.registerInstance(CoreTokens.WebhookBasePath, ApiPaths.webhooks());
     this.container.register(CodemationWorkerHost, {
       useFactory: instanceCachingFactory(() => new CodemationWorkerHost()),
     });
@@ -230,6 +220,14 @@ export class CodemationApplication {
   }
 
   private synchronizeContainerRegistrations(): void {
+    this.registerCoreInfrastructure();
+    this.registerRepositoriesAndBuses();
+    this.registerApplicationServicesAndRoutes();
+    this.registerOperationalInfrastructure();
+    this.synchronizeWorkflowRegistry();
+  }
+
+  private registerCoreInfrastructure(): void {
     this.container.registerInstance(CodemationApplication, this);
     this.container.registerInstance(CoreTokens.ServiceContainer, this.container);
     this.container.registerInstance(CoreTokens.PersistedWorkflowTokenRegistry, new PersistedWorkflowTokenRegistry());
@@ -271,13 +269,11 @@ export class CodemationApplication {
         });
       }),
     });
-    this.container.register(CodemationRealtimeSocketServer, {
+    this.container.register(WorkflowWebsocketServer, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new CodemationRealtimeSocketServer(
-          dependencyContainer.resolve(CoreTokens.RunEventBus),
+        return new WorkflowWebsocketServer(
           dependencyContainer.resolve(ApplicationTokens.WebSocketPort),
           dependencyContainer.resolve(ApplicationTokens.WebSocketBindHost),
-          dependencyContainer.resolve(ApplicationTokens.RealtimeWatchRoots),
         );
       }),
     });
@@ -290,69 +286,59 @@ export class CodemationApplication {
     this.container.register(CodemationWebhookRegistry, {
       useFactory: instanceCachingFactory(() => new CodemationWebhookRegistry()),
     });
-    this.container.register(CodemationWorkflowDtoMapper, { useClass: CodemationWorkflowDtoMapper });
-    this.container.register(CodemationPreparedExecutionRuntimeProvider, { useClass: CodemationPreparedExecutionRuntimeProvider });
-    this.container.register(FrontendRouteTokens.PreparedExecutionRuntimeProvider, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationPreparedExecutionRuntimeProvider)),
-    });
-    this.container.register(CodemationFrontendRuntimeProvider, { useClass: CodemationFrontendRuntimeProvider });
-    this.container.register(FrontendRouteTokens.FrontendRuntimeProvider, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationFrontendRuntimeProvider)),
-    });
+    this.container.register(WorkflowDefinitionMapper, { useClass: WorkflowDefinitionMapper });
     this.container.register(RequestToWebhookItemMapper, { useClass: RequestToWebhookItemMapper });
-    this.container.register(FrontendRouteTokens.WorkflowRouteHandler, {
-      useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new WorkflowRouteHandler(
-          dependencyContainer.resolve(CodemationApplication),
-          dependencyContainer.resolve(CodemationWorkflowDtoMapper),
-          dependencyContainer.resolve(FrontendRouteTokens.PreparedExecutionRuntimeProvider),
-        );
-      }),
+  }
+
+  private registerRepositoriesAndBuses(): void {
+    this.container.register(WorkflowDefinitionRepositoryAdapter, { useClass: WorkflowDefinitionRepositoryAdapter });
+    this.container.register(SqlWorkflowRunRepository, { useClass: SqlWorkflowRunRepository });
+    this.container.register(WebhookEndpointRepositoryAdapter, { useClass: WebhookEndpointRepositoryAdapter });
+    this.container.register(ApplicationTokens.WorkflowDefinitionRepository, {
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) => dependencyContainer.resolve(WorkflowDefinitionRepositoryAdapter) as unknown as WorkflowDefinitionRepository,
+      ),
     });
-    this.container.register(FrontendRouteTokens.RunRouteHandler, {
-      useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new RunRouteHandler(
-          dependencyContainer.resolve(FrontendRouteTokens.FrontendRuntimeProvider),
-          dependencyContainer.resolve(FrontendRouteTokens.PreparedExecutionRuntimeProvider),
-        );
-      }),
+    this.container.register(ApplicationTokens.WorkflowRunRepository, {
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) => dependencyContainer.resolve(SqlWorkflowRunRepository) as unknown as WorkflowRunRepository,
+      ),
     });
-    this.container.register(FrontendRouteTokens.RealtimeRouteHandler, {
-      useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new RealtimeRouteHandler(dependencyContainer.resolve(FrontendRouteTokens.FrontendRuntimeProvider));
-      }),
+    this.container.register(ApplicationTokens.WebhookEndpointRepository, {
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) => dependencyContainer.resolve(WebhookEndpointRepositoryAdapter) as unknown as WebhookEndpointRepository,
+      ),
     });
-    this.container.register(FrontendRouteTokens.WebhookRouteHandler, {
-      useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new WebhookRouteHandler(
-          dependencyContainer.resolve(FrontendRouteTokens.PreparedExecutionRuntimeProvider),
-          dependencyContainer.resolve(RequestToWebhookItemMapper),
-        );
-      }),
+    this.container.register(InMemoryQueryBus, { useClass: InMemoryQueryBus });
+    this.container.register(InMemoryCommandBus, { useClass: InMemoryCommandBus });
+    this.container.register(InMemoryDomainEventBus, { useClass: InMemoryDomainEventBus });
+    this.container.register(ApplicationTokens.QueryBus, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(InMemoryQueryBus) as unknown as QueryBus),
     });
-    this.container.register(ConsoleStartupSummaryLogger, { useClass: ConsoleStartupSummaryLogger });
-    this.container.register(CodemationStartupSummaryReporter, { useClass: CodemationStartupSummaryReporter });
-    this.container.register(CodemationFrontendRuntimeRoot, {
-      useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new CodemationFrontendRuntimeRoot(
-          dependencyContainer.resolve(Engine),
-          dependencyContainer.resolve(CoreTokens.WorkflowRegistry),
-          dependencyContainer.resolve(CoreTokens.WorkflowRunnerService),
-          dependencyContainer.resolve(CoreTokens.RunStateStore),
-          dependencyContainer.resolve(CoreTokens.RunEventBus),
-          dependencyContainer.resolve(CodemationRealtimeSocketServer),
-          dependencyContainer.resolve(CodemationWebhookRegistry),
-          dependencyContainer.resolve(CodemationWorkflowDtoMapper),
-          dependencyContainer.resolve(ApplicationTokens.RealtimeRuntimeDiagnostics),
-        );
-      }),
+    this.container.register(ApplicationTokens.CommandBus, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(InMemoryCommandBus) as unknown as CommandBus),
     });
+    this.container.register(ApplicationTokens.DomainEventBus, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(InMemoryDomainEventBus) as unknown as DomainEventBus),
+    });
+  }
+
+  private registerApplicationServicesAndRoutes(): void {
+    this.container.register(ServerHttpRouter, {
+      useClass: ServerHttpRouter,
+    });
+  }
+
+  private registerOperationalInfrastructure(): void {
+    this.container.register(ApplicationTokens.WorkflowWebsocketPublisher, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(WorkflowWebsocketServer)),
+    });
+    this.container.register(WorkflowRunEventWebsocketRelay, { useClass: WorkflowRunEventWebsocketRelay });
     this.container.register(CodemationWorkerRuntimeRoot, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         return new CodemationWorkerRuntimeRoot(
           dependencyContainer.resolve(Engine),
-          dependencyContainer.resolve(BullmqScheduler),
-          dependencyContainer.resolve(CodemationStartupSummaryReporter),
+          dependencyContainer.resolve(ApplicationTokens.WorkerRuntimeScheduler),
           dependencyContainer.resolve(CoreTokens.WorkflowRegistry),
           dependencyContainer.resolve(CoreTokens.WorkflowRunnerService),
           dependencyContainer.resolve(CoreTokens.NodeResolver),
@@ -362,7 +348,6 @@ export class CodemationApplication {
         );
       }),
     });
-    this.synchronizeWorkflowRegistry();
   }
 
   private synchronizeWorkflowRegistry(): void {
@@ -397,9 +382,9 @@ export class CodemationApplication {
     return 3001;
   }
 
-  private resolveRealtimeWatchRoots(repoRoot: string, env: Readonly<NodeJS.ProcessEnv>): ReadonlyArray<string> {
-    const consumerRoot = env.CODEMATION_CONSUMER_ROOT ?? process.cwd();
-    return CodemationRuntimeTrackedPaths.getAll({ consumerRoot, repoRoot });
+  private async startPresentationServers(): Promise<void> {
+    await this.container.resolve(WorkflowWebsocketServer).start();
+    await this.container.resolve(WorkflowRunEventWebsocketRelay).start();
   }
 }
 

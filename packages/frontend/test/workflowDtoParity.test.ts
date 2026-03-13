@@ -1,7 +1,7 @@
 import { PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, chatModel, tool, type ChatModelConfig, type ToolConfig } from "@codemation/core";
 import { describe, expect, it } from "vitest";
-import { CodemationPersistedWorkflowDtoMapper } from "../src/host/codemationPersistedWorkflowDtoMapper";
-import { CodemationWorkflowDtoMapper } from "../src/host/codemationWorkflowDtoMapper";
+import { WorkflowDefinitionMapper } from "../src/application/mapping/WorkflowDefinitionMapper";
+import { PersistedWorkflowSnapshotMapper } from "../src/ui/workflowDetail/PersistedWorkflowSnapshotMapper";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit";
 
 @chatModel({ packageName: "@codemation/frontend-parity" })
@@ -37,11 +37,11 @@ describe("workflow dto parity", () => {
       chatModelConfig: new FrontendParityChatModelConfig("Mock LLM", { label: "Mock LLM" }),
       toolConfigs: [new FrontendParityToolConfig("lookup_tool", "Lookup tool", { label: "Lookup tool" })],
     });
-    const liveDto = new CodemationWorkflowDtoMapper().toDetail(workflow);
+    const liveDto = new WorkflowDefinitionMapper().mapSync(workflow);
     const tokenRegistry = new PersistedWorkflowTokenRegistry();
     tokenRegistry.registerFromWorkflows([workflow]);
     const snapshot = new PersistedWorkflowSnapshotFactory(tokenRegistry).create(workflow);
-    const snapshotDto = new CodemationPersistedWorkflowDtoMapper().toDetail(snapshot);
+    const snapshotDto = new PersistedWorkflowSnapshotMapper().map(snapshot);
 
     expect(snapshotDto).toEqual(liveDto);
   });

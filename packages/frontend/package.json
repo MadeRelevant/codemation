@@ -18,10 +18,6 @@
     "./server": {
       "types": "./src/server.ts",
       "import": "./src/server.ts"
-    },
-    "./templates": {
-      "types": "./src/templates.ts",
-      "import": "./src/templates.ts"
     }
   },
   "scripts": {

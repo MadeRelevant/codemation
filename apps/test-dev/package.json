@@ -4,16 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "codemation dev",
+    "dev": "vite dev",
     "start": "vite preview --host 127.0.0.1",
-    "worker": "codemation worker",
+    "worker": "codemation-worker",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "echo \"(test placeholder)\""
   },
   "dependencies": {
-    "@codemation/cli": "workspace:*",
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",
@@ -21,6 +20,8 @@
     "@codemation/node-example": "workspace:*",
     "@codemation/queue-bullmq": "workspace:*",
     "@codemation/run-store-sqlite": "workspace:*",
+    "@codemation/start-plugin": "workspace:*",
+    "@codemation/worker-cli": "workspace:*",
     "@tanstack/react-router": "^1.166.7",
     "@tanstack/react-start": "^1.166.7",
     "dotenv": "^17.3.1",

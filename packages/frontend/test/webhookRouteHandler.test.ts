@@ -1,8 +1,12 @@
-import { container as tsyringeContainer, type Container, type WorkflowDefinition } from "@codemation/core";
+// @vitest-environment node
+
+import type { WorkflowDefinition } from "@codemation/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { RequestToWebhookItemMapper } from "../src/frontend/RequestToWebhookItemMapper";
-import { WebhookRouteHandler } from "../src/frontend/WebhookRouteHandler";
-import { FrontendRouteTokens, type PreparedExecutionRuntimeProvider } from "../src/frontend/frontendRouteTokens";
+import type { CommandBus } from "../src/application/bus/CommandBus";
+import type { Command } from "../src/application/bus/Command";
+import { HandleWebhookInvocationCommandHandler } from "../src/application/commands/HandleWebhookInvocationCommandHandler";
+import { RequestToWebhookItemMapper } from "../src/infrastructure/webhooks/RequestToWebhookItemMapper";
+import { WebhookHttpRouteHandler } from "../src/presentation/http/routeHandlers/WebhookHttpRouteHandler";
 
 class FrontendWebhookWorkflowFixture {
   static createWorkflow(): WorkflowDefinition {
@@ -55,26 +59,34 @@ class FrontendWebhookRuntimeFixture {
 }
 
 class FrontendWebhookRouteHandlerFixture {
-  static createHandler(preparedExecutionRuntime: object): WebhookRouteHandler {
-    const container = tsyringeContainer.createChildContainer() as Container;
-    container.registerInstance(
-      FrontendRouteTokens.PreparedExecutionRuntimeProvider,
+  static createHandler(preparedExecutionRuntime: object): WebhookHttpRouteHandler {
+    const runtime = preparedExecutionRuntime as Readonly<{
+      engine: object;
+      workflowRegistry: object;
+      webhookRegistry: object;
+    }>;
+    const commandHandler = new HandleWebhookInvocationCommandHandler(
+      runtime.engine as never,
       {
-        async getPreparedExecutionRuntime(): Promise<object> {
-          return preparedExecutionRuntime;
-        },
-      } as PreparedExecutionRuntimeProvider,
+        getDefinition: async (workflowId: string) => (runtime.workflowRegistry as { get: (id: string) => WorkflowDefinition | undefined }).get(workflowId),
+      } as never,
+      {
+        get: async (endpointId: string) =>
+          (runtime.webhookRegistry as { get: (id: string) => unknown }).get(endpointId),
+      } as never,
     );
-    container.register(RequestToWebhookItemMapper, { useClass: RequestToWebhookItemMapper });
-    container.register(WebhookRouteHandler, {
-      useFactory(dependencyContainer) {
-        return new WebhookRouteHandler(
-          dependencyContainer.resolve(FrontendRouteTokens.PreparedExecutionRuntimeProvider),
-          dependencyContainer.resolve(RequestToWebhookItemMapper),
-        );
-      },
-    });
-    return container.resolve(WebhookRouteHandler);
+    const commandBus: CommandBus = {
+      execute: async <TResult>(command: Command<TResult>) =>
+        (await commandHandler.execute(command as never)) as TResult,
+    };
+    return new WebhookHttpRouteHandler(
+      commandBus,
+      new RequestToWebhookItemMapper(),
+      {
+        get: async (endpointId: string) =>
+          (runtime.webhookRegistry as { get: (id: string) => unknown }).get(endpointId),
+      } as never,
+    );
   }
 }
 
@@ -87,9 +99,9 @@ describe("postWebhookRoute", () => {
     const runtime = FrontendWebhookRuntimeFixture.create();
     const handler = FrontendWebhookRouteHandlerFixture.createHandler(runtime.preparedExecutionRuntime);
 
-    const response = await handler.handle(
+    const response = await handler.postWebhook(
       new Request("http://localhost/api/webhooks/missing", { method: "POST" }),
-      { params: Promise.resolve({ endpointId: "missing" }) },
+      { endpointId: "missing" },
     );
 
     expect(response.status).toBe(404);
@@ -107,9 +119,9 @@ describe("postWebhookRoute", () => {
     });
     const handler = FrontendWebhookRouteHandlerFixture.createHandler(runtime.preparedExecutionRuntime);
 
-    const response = await handler.handle(
+    const response = await handler.postWebhook(
       new Request("http://localhost/api/webhooks/incoming", { method: "GET" }),
-      { params: Promise.resolve({ endpointId: "incoming" }) },
+      { endpointId: "incoming" },
     );
 
     expect(response.status).toBe(405);
@@ -135,7 +147,7 @@ describe("postWebhookRoute", () => {
     });
     const handler = FrontendWebhookRouteHandlerFixture.createHandler(runtime.preparedExecutionRuntime);
 
-    const response = await handler.handle(
+    const response = await handler.postWebhook(
       new Request("http://localhost/api/webhooks/incoming?mode=sync", {
         method: "PATCH",
         headers: {
@@ -144,7 +156,7 @@ describe("postWebhookRoute", () => {
         },
         body: JSON.stringify({ count: "2", name: "  Ada  " }),
       }),
-      { params: Promise.resolve({ endpointId: "incoming" }) },
+      { endpointId: "incoming" },
     );
 
     expect(runtime.runWorkflow).toHaveBeenCalledWith(
@@ -195,7 +207,7 @@ describe("postWebhookRoute", () => {
     });
     const handler = FrontendWebhookRouteHandlerFixture.createHandler(runtime.preparedExecutionRuntime);
 
-    const response = await handler.handle(
+    const response = await handler.postWebhook(
       new Request("http://localhost/api/webhooks/plain-text?topic=notes", {
         method: "PUT",
         headers: {
@@ -203,7 +215,7 @@ describe("postWebhookRoute", () => {
         },
         body: "hello from webhook",
       }),
-      { params: Promise.resolve({ endpointId: "plain-text" }) },
+      { endpointId: "plain-text" },
     );
 
     expect(runtime.runWorkflow).toHaveBeenCalledWith(

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { WorkflowDetailPresenter } from "../src/routes/workflowDetail/WorkflowDetailPresenter";
-import { WorkflowInspectorErrorView, WorkflowInspectorJsonView, WorkflowInspectorPrettyView } from "../src/routes/workflowDetail/WorkflowInspectorViews";
+import { WorkflowDetailPresenter } from "../src/ui/workflowDetail/WorkflowDetailPresenter";
+import { WorkflowInspectorErrorView, WorkflowInspectorJsonView, WorkflowInspectorPrettyView } from "../src/ui/workflowDetail/WorkflowInspectorViews";
 
 describe("workflow inspector views", () => {
   beforeEach(() => {
@@ -25,6 +25,19 @@ describe("workflow inspector views", () => {
     const multilineBody = await screen.findByTestId("pretty-json-multiline-pretty-root.body");
     expect(multilineBody).toHaveStyle({ whiteSpace: "pre-wrap" });
     expect(multilineBody).toHaveTextContent("Body line 1");
+  });
+
+  it("indents nested entries and toggles branches from the object key", () => {
+    render(<WorkflowInspectorPrettyView value={{ payload: { nested: "value" } }} emptyLabel="No value" />);
+
+    expect(screen.getByTestId("pretty-json-row-pretty-root.payload")).toHaveStyle({ paddingLeft: "0px" });
+    expect(screen.getByTestId("pretty-json-row-pretty-root.payload.nested")).toHaveStyle({ paddingLeft: "18px" });
+
+    fireEvent.click(screen.getByTestId("pretty-json-toggle-pretty-root.payload"));
+    expect(screen.queryByTestId("pretty-json-leaf-pretty-root.payload.nested")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("pretty-json-toggle-pretty-root.payload"));
+    expect(screen.getByTestId("pretty-json-leaf-pretty-root.payload.nested")).toBeInTheDocument();
   });
 
   it("renders structured values in the json inspector", () => {

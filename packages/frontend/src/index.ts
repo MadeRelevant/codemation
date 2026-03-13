@@ -1,17 +1,12 @@
-export { CodemationBootstrapDiscovery } from "./bootstrapDiscovery";
-export { CodemationConfigFactory } from "./bootstrap/codemationConfigFactory";
 export { CodemationApplication } from "./codemationApplication";
-export { ApiDispatcher, ApiPaths, WorkflowLoader } from "./server";
-export { StartRouteTemplateCatalog } from "./templates";
+export { ApiPaths, CodemationServerGateway } from "./server";
 export { RealtimeRuntimeFactory } from "./realtimeRuntimeFactory";
-export { CodemationStartupSummaryReporter, ConsoleStartupSummaryLogger } from "./startupSummary";
-export type { CodemationAppSlots } from "./frontend/codemationAppSlots";
+export type { CodemationAppSlots } from "./presentation/config/CodemationAppSlots";
 export type {
   CodemationBootHook,
-  CodemationBootstrapContext,
-  CodemationBootstrapResult,
+  CodemationBootContext,
   CodemationConfig,
-} from "./bootstrapDiscovery";
+} from "./presentation/config/CodemationConfig";
 export type { CodemationApplicationConfig, CodemationStopHandle } from "./codemationApplication";
 export type {
   CodemationApplicationRuntimeConfig,
@@ -21,6 +16,5 @@ export type {
   CodemationEventBusKind,
   CodemationSchedulerConfig,
   CodemationSchedulerKind,
-} from "./runtime/codemationRuntimeConfig";
+} from "./infrastructure/runtime/CodemationRuntimeConfig";
 export type { RealtimeRuntime, RealtimeRuntimeDiagnostics, RealtimeRuntimeMode } from "./realtimeRuntimeFactory";
-export type { FrontendStartupSummaryArgs, StartupSummaryLogger, WorkerStartupSummaryArgs } from "./startupSummary";

@@ -1,14 +1,14 @@
 import "@xyflow/react/dist/style.css";
 import "rc-tree/assets/index.css";
 
-export { Codemation } from "./components/Codemation";
-export { BrowserLoggerFactory } from "./logging/BrowserLoggerFactory";
-export type { Logger, LoggerFactory } from "./logging/LoggerFactory";
-export { Providers } from "./providers/Providers";
-export { WorkflowCanvas } from "./components/WorkflowCanvas";
-export { WorkflowDetailScreen } from "./routes/WorkflowDetailScreen";
-export { WorkflowsScreen } from "./routes/WorkflowsScreen";
-export type { CodemationAppSlots as Slots } from "./frontend/codemationAppSlots";
+export { Codemation } from "./ui/components/Codemation";
+export { BrowserLoggerFactory } from "./infrastructure/logging/BrowserLoggerFactory";
+export type { Logger, LoggerFactory } from "./application/logging/Logger";
+export { Providers } from "./ui/providers/Providers";
+export { WorkflowCanvas } from "./ui/components/WorkflowCanvas";
+export { WorkflowDetailScreen } from "./ui/screens/WorkflowDetailScreen";
+export { WorkflowsScreen } from "./ui/screens/WorkflowsScreen";
+export type { CodemationAppSlots as Slots } from "./presentation/config/CodemationAppSlots";
 export {
   useRunQuery,
   useRunStateFromCache,
@@ -25,4 +25,4 @@ export {
   type RunSummary,
   type WorkflowDto,
   type WorkflowSummary,
-} from "./realtime/realtime";
+} from "./ui/realtime/realtime";

@@ -11,3 +11,8 @@ out
 **/dist
 **/node_modules
 .jscpd-report
+apps/test-dev/.tanstack/tmp/2aee8401-d56df4cb72d0a936b566b7f18a74c221
+apps/test-dev/.tanstack/tmp/3ec2debd-d56df4cb72d0a936b566b7f18a74c221
+apps/test-dev/.tanstack/tmp/b3266ce4-d56df4cb72d0a936b566b7f18a74c221
+apps/test-dev/.tanstack/tmp/df4083a4-d56df4cb72d0a936b566b7f18a74c221
+apps/test-dev/.tanstack/tmp/ee09eae6-a06a8e9e6250b5dd7c5590868ad100a3

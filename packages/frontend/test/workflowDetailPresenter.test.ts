@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WorkflowDetailPresenter } from "../src/routes/workflowDetail/WorkflowDetailPresenter";
+import { WorkflowDetailPresenter } from "../src/ui/workflowDetail/WorkflowDetailPresenter";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit";
 
 describe("WorkflowDetailPresenter", () => {
@@ -56,5 +56,26 @@ describe("WorkflowDetailPresenter", () => {
     expect(executionKeys).toContain(WorkflowDetailFixtureFactory.llmFirstInvocationNodeId);
     expect(executionKeys).toContain(WorkflowDetailFixtureFactory.toolFirstInvocationNodeId);
     expect(executionKeys).toContain(WorkflowDetailFixtureFactory.llmSecondInvocationNodeId);
+  });
+
+  it("prefers workflow snapshot over live workflow when rendering historical runs", () => {
+    const snapshotWorkflow = WorkflowDetailFixtureFactory.createWorkflowDetail({ workflowName: "Historical workflow" });
+    const snapshot = WorkflowDetailFixtureFactory.createWorkflowSnapshot({ workflow: snapshotWorkflow });
+    const currentWorkflow = WorkflowDetailFixtureFactory.createWorkflowDetail({ workflowName: "Current workflow" });
+
+    const result = WorkflowDetailPresenter.workflowFromSnapshot(snapshot, currentWorkflow);
+
+    expect(result).toBeDefined();
+    expect(result?.name).toBe("Historical workflow");
+    expect(result?.id).toBe(snapshot.id);
+  });
+
+  it("falls back to live workflow when run has no workflow snapshot", () => {
+    const currentWorkflow = WorkflowDetailFixtureFactory.createWorkflowDetail({ workflowName: "Current workflow" });
+
+    const result = WorkflowDetailPresenter.workflowFromSnapshot(undefined, currentWorkflow);
+
+    expect(result).toBe(currentWorkflow);
+    expect(result?.name).toBe("Current workflow");
   });
 });
