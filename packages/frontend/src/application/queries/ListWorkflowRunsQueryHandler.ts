@@ -1,12 +1,17 @@
 import { HandlesQuery } from "../../infrastructure/di/HandlesQuery";
 import type { RunSummary } from "@codemation/core";
+import { inject } from "@codemation/core";
 import { QueryHandler } from "../bus/QueryHandler";
+import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { ListWorkflowRunsQuery } from "./ListWorkflowRunsQuery";
 
 @HandlesQuery.for(ListWorkflowRunsQuery)
 export class ListWorkflowRunsQueryHandler extends QueryHandler<ListWorkflowRunsQuery, ReadonlyArray<RunSummary>> {
-  constructor(private readonly workflowRunRepository: WorkflowRunRepository) {
+  constructor(
+    @inject(ApplicationTokens.WorkflowRunRepository)
+    private readonly workflowRunRepository: WorkflowRunRepository,
+  ) {
     super();
   }
 

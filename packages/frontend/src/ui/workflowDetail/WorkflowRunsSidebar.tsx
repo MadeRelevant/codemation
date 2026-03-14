@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import type { RunSummary } from "../realtime/realtime";
 import { WorkflowStatusIcon } from "./WorkflowDetailIcons";
 import type { WorkflowRunsSidebarActions, WorkflowRunsSidebarFormatting, WorkflowRunsSidebarModel } from "./workflowDetailTypes";
@@ -16,9 +15,9 @@ export function WorkflowRunsSidebar(args: Readonly<{
   return (
     <aside style={{ height: "100%", minHeight: 0, overflow: "hidden", borderRight: "1px solid #d1d5db", background: "#fff", display: "flex", flexDirection: "column", minWidth: 0 }}>
       <div style={{ padding: 14, borderBottom: "1px solid #d1d5db" }}>
-        <Link to="/workflows" style={{ opacity: 0.8, fontSize: 13, color: "#2563eb", textDecoration: "none" }}>
+        <a href="/workflows" style={{ opacity: 0.8, fontSize: 13, color: "#2563eb", textDecoration: "none" }}>
           ← Workflows
-        </Link>
+        </a>
         <div data-testid="workflow-title" style={{ marginTop: 10, fontSize: 16, fontWeight: 800, lineHeight: 1.2, wordBreak: "break-word" }}>
           {displayedWorkflow?.name ?? workflow?.name ?? "Workflow"}
         </div>

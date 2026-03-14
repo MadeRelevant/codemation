@@ -32,7 +32,6 @@
     "@codemation/queue-bullmq": "workspace:*",
     "@codemation/run-store-sqlite": "workspace:*",
     "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-router": "^1.166.7",
     "@tanstack/react-start": "^1.166.7",
     "@uiw/react-json-view": "2.0.0-alpha.41",
     "@xyflow/react": "^12.10.1",

@@ -45,7 +45,7 @@ type WorkflowDetailControllerResult = Readonly<{
   saveJsonEditor: (value: string) => void;
 }>;
 
-export function useWorkflowDetailController(args: Readonly<{ workflowId: string; initialWorkflow: WorkflowDto }>): WorkflowDetailControllerResult {
+export function useWorkflowDetailController(args: Readonly<{ workflowId: string; initialWorkflow?: WorkflowDto }>): WorkflowDetailControllerResult {
   const MIN_INSPECTOR_HEIGHT = 240;
   const MAX_INSPECTOR_HEIGHT = 640;
   const { workflowId, initialWorkflow } = args;

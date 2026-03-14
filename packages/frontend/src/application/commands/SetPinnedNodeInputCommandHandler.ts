@@ -2,13 +2,14 @@ import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { ApplicationTokens } from "../../applicationTokens";
 import { CommandHandler } from "../bus/CommandHandler";
-import { inject, type Engine, type NodeId, type PersistedRunState, type WorkflowDefinition } from "@codemation/core";
+import { Engine, inject, type NodeId, type PersistedRunState, type WorkflowDefinition } from "@codemation/core";
 import { ApplicationRequestError } from "../ApplicationRequestError";
 import { SetPinnedNodeInputCommand } from "./SetPinnedNodeInputCommand";
 
 @HandlesCommand.for(SetPinnedNodeInputCommand)
 export class SetPinnedNodeInputCommandHandler extends CommandHandler<SetPinnedNodeInputCommand, PersistedRunState> {
   constructor(
+    @inject(Engine)
     private readonly engine: Engine,
     @inject(ApplicationTokens.WorkflowRunRepository)
     private readonly workflowRunRepository: WorkflowRunRepository,

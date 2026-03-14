@@ -12,7 +12,9 @@ import type { ServerHttpRouteParams } from "../ServerHttpRouteParams";
 @HandlesHttpRoute.for()
 export class WebhookHttpRouteHandler {
   constructor(
+    @inject(ApplicationTokens.CommandBus)
     private readonly commandBus: CommandBus,
+    @inject(RequestToWebhookItemMapper)
     private readonly requestToWebhookItemMapper: RequestToWebhookItemMapper,
     @inject(ApplicationTokens.WebhookEndpointRepository)
     private readonly webhookEndpointRepository: WebhookEndpointRepository,

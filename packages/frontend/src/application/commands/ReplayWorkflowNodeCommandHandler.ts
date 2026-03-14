@@ -1,5 +1,4 @@
 import type {
-  Engine,
   Items,
   NodeId,
   ParentExecutionRef,
@@ -7,7 +6,7 @@ import type {
   PersistedRunState,
   WorkflowDefinition,
 } from "@codemation/core";
-import { inject } from "@codemation/core";
+import { Engine, inject } from "@codemation/core";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
@@ -19,6 +18,7 @@ import { ReplayWorkflowNodeCommand } from "./ReplayWorkflowNodeCommand";
 @HandlesCommand.for(ReplayWorkflowNodeCommand)
 export class ReplayWorkflowNodeCommandHandler extends CommandHandler<ReplayWorkflowNodeCommand, RunCommandResult> {
   constructor(
+    @inject(Engine)
     private readonly engine: Engine,
     @inject(ApplicationTokens.WorkflowRunRepository)
     private readonly workflowRunRepository: WorkflowRunRepository,

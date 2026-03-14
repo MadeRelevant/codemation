@@ -71,7 +71,7 @@ const WORKFLOW_DETAIL_TREE_STYLES = `
   }
 `;
 
-export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initialWorkflow: WorkflowDto }>) {
+export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initialWorkflow?: WorkflowDto }>) {
   const controller = useWorkflowDetailController(args);
 
   return (

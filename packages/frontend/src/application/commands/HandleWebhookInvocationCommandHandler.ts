@@ -1,5 +1,5 @@
-import type { Engine, WebhookRunResult } from "@codemation/core";
-import { inject } from "@codemation/core";
+import type { WebhookRunResult } from "@codemation/core";
+import { Engine, inject } from "@codemation/core";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WebhookEndpointRepository } from "../../domain/webhooks/WebhookEndpointRepository";
 import type { WorkflowDefinitionRepository } from "../../domain/workflows/WorkflowDefinitionRepository";
@@ -11,6 +11,7 @@ import { HandleWebhookInvocationCommand } from "./HandleWebhookInvocationCommand
 @HandlesCommand.for(HandleWebhookInvocationCommand)
 export class HandleWebhookInvocationCommandHandler extends CommandHandler<HandleWebhookInvocationCommand, unknown> {
   constructor(
+    @inject(Engine)
     private readonly engine: Engine,
     @inject(ApplicationTokens.WorkflowDefinitionRepository)
     private readonly workflowDefinitionRepository: WorkflowDefinitionRepository,

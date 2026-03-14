@@ -3,6 +3,8 @@ import { WorkflowDefinitionMapper } from "../../../application/mapping/WorkflowD
 import { GetWorkflowDetailQuery } from "../../../application/queries/GetWorkflowDetailQuery";
 import { GetWorkflowSummariesQuery } from "../../../application/queries/GetWorkflowSummariesQuery";
 import { ListWorkflowRunsQuery } from "../../../application/queries/ListWorkflowRunsQuery";
+import { ApplicationTokens } from "../../../applicationTokens";
+import { inject } from "@codemation/core";
 import { HandlesHttpRoute } from "../HandlesHttpRoute";
 import { Route } from "../Route";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
@@ -11,7 +13,9 @@ import type { ServerHttpRouteParams } from "../ServerHttpRouteParams";
 @HandlesHttpRoute.for()
 export class WorkflowHttpRouteHandler {
   constructor(
+    @inject(ApplicationTokens.QueryBus)
     private readonly queryBus: QueryBus,
+    @inject(WorkflowDefinitionMapper)
     private readonly workflowDefinitionMapper: WorkflowDefinitionMapper,
   ) {}
 

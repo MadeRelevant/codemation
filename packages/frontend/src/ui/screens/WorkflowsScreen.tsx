@@ -1,8 +1,7 @@
-import { Link } from "@tanstack/react-router";
 import type { WorkflowSummary } from "../realtime/realtime";
 import { useWorkflowsQueryWithInitialData } from "../realtime/realtime";
 
-export function WorkflowsScreen(args: Readonly<{ initialWorkflows: ReadonlyArray<WorkflowSummary> }>) {
+export function WorkflowsScreen(args: Readonly<{ initialWorkflows?: ReadonlyArray<WorkflowSummary> }>) {
   const { initialWorkflows } = args;
   const workflowsQuery = useWorkflowsQueryWithInitialData(initialWorkflows);
   const workflows = workflowsQuery.data;
@@ -48,13 +47,12 @@ function WorkflowsList(args: Readonly<{ workflows: ReadonlyArray<WorkflowSummary
               <div style={{ fontSize: 13, opacity: 0.66 }}>{workflow.id}</div>
               <div style={{ marginTop: 6, fontSize: 18, fontWeight: 700 }}>{workflow.name}</div>
             </div>
-            <Link
-              to="/workflows/$workflowId"
-              params={{ workflowId: workflow.id }}
+            <a
+              href={`/workflows/${encodeURIComponent(workflow.id)}`}
               style={{ fontWeight: 700, color: "#2563eb", textDecoration: "none" }}
             >
               Open
-            </Link>
+            </a>
           </div>
         </li>
       ))}

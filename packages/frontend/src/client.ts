@@ -5,6 +5,8 @@ export { Codemation } from "./ui/components/Codemation";
 export { BrowserLoggerFactory } from "./infrastructure/logging/BrowserLoggerFactory";
 export type { Logger, LoggerFactory } from "./application/logging/Logger";
 export { Providers } from "./ui/providers/Providers";
+export { HostedWorkflowDetailScreen } from "./ui/screens/HostedWorkflowDetailScreen";
+export { HostedWorkflowsScreen } from "./ui/screens/HostedWorkflowsScreen";
 export { WorkflowCanvas } from "./ui/components/WorkflowCanvas";
 export { WorkflowDetailScreen } from "./ui/screens/WorkflowDetailScreen";
 export { WorkflowsScreen } from "./ui/screens/WorkflowsScreen";

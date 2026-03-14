@@ -1,5 +1,5 @@
 import type { RunEventBus, RunEventSubscription } from "@codemation/core";
-import { inject, injectable } from "@codemation/core";
+import { CoreTokens, inject, injectable } from "@codemation/core";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowWebsocketPublisher } from "./WorkflowWebsocketPublisher";
 
@@ -10,6 +10,7 @@ export class WorkflowRunEventWebsocketRelay {
   constructor(
     @inject(ApplicationTokens.WorkflowWebsocketPublisher)
     private readonly workflowWebsocketPublisher: WorkflowWebsocketPublisher,
+    @inject(CoreTokens.RunEventBus)
     private readonly runEventBus: RunEventBus,
   ) {}
 

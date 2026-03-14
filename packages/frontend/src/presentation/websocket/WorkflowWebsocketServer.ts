@@ -30,18 +30,22 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
     if (this.started) {
       return;
     }
-    this.websocketServer = new WebSocketServer({
+    const websocketServer = new WebSocketServer({
       host: this.bindHost,
       port: this.port,
       path: ApiPaths.workflowWebsocket(),
     });
-    this.websocketServer.on("connection", (socket) => {
+    this.websocketServer = websocketServer;
+    websocketServer.on("connection", (socket) => {
       void this.connect(socket);
     });
-    await new Promise<void>((resolve, reject) => {
-      this.websocketServer!.once("listening", () => resolve());
-      this.websocketServer!.once("error", reject);
-    });
+    try {
+      await this.awaitListening(websocketServer);
+    } catch (error) {
+      this.websocketServer = null;
+      await this.closeAfterFailedStart(websocketServer);
+      throw error;
+    }
     this.logInfo(`listening on ws://${this.bindHost}:${this.port}${ApiPaths.workflowWebsocket()}`);
     this.started = true;
   }
@@ -116,6 +120,19 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
       this.logWarn(`failed to handle client message: ${exception.message}`);
       socket.send(JSON.stringify({ kind: "error", message: exception.message } satisfies WorkflowWebsocketServerMessage));
     }
+  }
+
+  private async awaitListening(websocketServer: WebSocketServer): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      websocketServer.once("listening", () => resolve());
+      websocketServer.once("error", reject);
+    });
+  }
+
+  private async closeAfterFailedStart(websocketServer: WebSocketServer): Promise<void> {
+    await new Promise<void>((resolve) => {
+      websocketServer.close(() => resolve());
+    });
   }
 
   private parseClientMessage(rawData: unknown): WorkflowWebsocketClientMessage {

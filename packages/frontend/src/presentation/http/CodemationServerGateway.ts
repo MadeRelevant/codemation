@@ -31,6 +31,10 @@ export class CodemationServerGateway {
     return await (await this.getContext()).router.dispatch(request, routePath);
   }
 
+  async prepare(): Promise<void> {
+    await this.getContext();
+  }
+
   async loadWorkflowSummaries(): Promise<ReadonlyArray<WorkflowSummary>> {
     const context = await this.getContext();
     const workflows = await context.queryBus.execute(new GetWorkflowSummariesQuery());

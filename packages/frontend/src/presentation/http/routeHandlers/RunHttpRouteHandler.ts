@@ -12,6 +12,8 @@ import type {
   UpdateRunWorkflowSnapshotRequest,
 } from "../../../application/contracts/RunContracts";
 import { GetRunStateQuery } from "../../../application/queries/GetRunStateQuery";
+import { ApplicationTokens } from "../../../applicationTokens";
+import { inject } from "@codemation/core";
 import { HandlesHttpRoute } from "../HandlesHttpRoute";
 import { Route } from "../Route";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
@@ -20,7 +22,9 @@ import type { ServerHttpRouteParams } from "../ServerHttpRouteParams";
 @HandlesHttpRoute.for()
 export class RunHttpRouteHandler {
   constructor(
+    @inject(ApplicationTokens.QueryBus)
     private readonly queryBus: QueryBus,
+    @inject(ApplicationTokens.CommandBus)
     private readonly commandBus: CommandBus,
   ) {}
 
