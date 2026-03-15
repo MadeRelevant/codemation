@@ -14,6 +14,10 @@ loadDotenv({
 
 const OPENAI_API_KEY = credentialId<string>("openai.apiKey");
 const useRedisRuntime = Boolean(process.env.REDIS_URL);
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required for the test-dev app. Configure a PostgreSQL connection string in apps/test-dev/.env.");
+}
 const slots: CodemationAppSlots = {
   Logo: TestDevLogo,
   Navigation: TestDevNavigation,
@@ -42,7 +46,7 @@ export const codemationHost = {
   },
   runtime: {
     database: {
-      url: process.env.DATABASE_URL ?? "sqlite:.codemation/runs.sqlite",
+      url: databaseUrl,
     },
     scheduler: {
       kind: useRedisRuntime ? "bullmq" : "local",

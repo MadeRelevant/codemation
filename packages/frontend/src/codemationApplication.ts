@@ -1,20 +1,28 @@
 import "reflect-metadata";
 
-import type { Container, CredentialService, WorkflowDefinition } from "@codemation/core";
+import type { Container, CredentialService, RunEventBus, RunStateStore, WorkflowDefinition } from "@codemation/core";
 import {
+  ConfigDrivenOffloadPolicy,
   container as tsyringeContainer,
   ContainerNodeResolver,
   ContainerWorkflowRunnerResolver,
   CoreTokens,
+  DefaultDrivingScheduler,
+  DefaultExecutionContextFactory,
   Engine,
   EngineWorkflowRunnerService,
   InMemoryCredentialService,
+  InMemoryRunDataFactory,
+  InMemoryRunEventBus,
+  InMemoryRunStateStore,
   InMemoryWorkflowRegistry,
+  InlineDrivingScheduler,
   instanceCachingFactory,
   PersistedWorkflowTokenRegistry,
+  PublishingRunStateStore,
 } from "@codemation/core";
-import { mkdir } from "node:fs/promises";
-import path from "node:path";
+import { RedisRunEventBus } from "@codemation/eventbus-redis";
+import { BullmqScheduler } from "@codemation/queue-bullmq";
 import { ApiPaths } from "./presentation/http/ApiPaths";
 import type { CommandBus } from "./application/bus/CommandBus";
 import type { DomainEventBus } from "./application/bus/DomainEventBus";
@@ -45,11 +53,18 @@ import { InMemoryQueryBus } from "./infrastructure/di/InMemoryQueryBus";
 import { CodemationIdFactory } from "./infrastructure/ids/CodemationIdFactory";
 import { DependencyInjectionHookRunner } from "./infrastructure/config/DependencyInjectionHookRunner";
 import { CodemationConfigBindingRegistrar } from "./infrastructure/config/CodemationConfigBindingRegistrar";
+import { PrismaClientFactory } from "./infrastructure/persistence/PrismaClientFactory";
+import { PrismaMigrationDeployer } from "./infrastructure/persistence/PrismaMigrationDeployer";
+import { PrismaWorkflowRunRepository } from "./infrastructure/persistence/PrismaWorkflowRunRepository";
 import { WorkflowDefinitionRepositoryAdapter } from "./infrastructure/persistence/WorkflowDefinitionRepositoryAdapter";
 import { WorkflowRunRepository as SqlWorkflowRunRepository } from "./infrastructure/persistence/WorkflowRunRepository";
-import { CodemationWorkerRuntimeRoot } from "./infrastructure/runtime/CodemationWorkerRuntimeRoot";
-import type { CodemationApplicationRuntimeConfig } from "./infrastructure/runtime/CodemationRuntimeConfig";
-import { RealtimeRuntimeFactory } from "./realtimeRuntimeFactory";
+import type {
+  CodemationApplicationRuntimeConfig,
+  CodemationDatabaseKind,
+  CodemationEventBusKind,
+  CodemationSchedulerKind,
+} from "./presentation/config/CodemationConfig";
+import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
 import { ServerHttpRouter } from "./presentation/http/ServerHttpRouter";
 import { WorkflowWebsocketServer } from "./presentation/websocket/WorkflowWebsocketServer";
 import { CodemationServerEngineHost } from "./infrastructure/webhooks/CodemationServerEngineHost";
@@ -57,6 +72,7 @@ import { CodemationWebhookRegistry } from "./infrastructure/webhooks/CodemationW
 import { WebhookEndpointRepositoryAdapter } from "./infrastructure/webhooks/WebhookEndpointRepositoryAdapter";
 import { CodemationWorkerHost } from "./infrastructure/worker/CodemationWorkerHost";
 import { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
+import { PrismaClient } from "./infrastructure/persistence/generated/prisma/client.js";
 
 type StopHandle = Readonly<{ stop: () => Promise<void> }>;
 
@@ -71,6 +87,7 @@ export class CodemationApplication {
   private container: Container = tsyringeContainer.createChildContainer();
   private workflows: WorkflowDefinition[] = [];
   private credentials: CredentialService = new InMemoryCredentialService();
+  private ownedPrismaClient: PrismaClient | null = null;
   private runtimeConfig: CodemationApplicationRuntimeConfig = {};
   private bindings: ReadonlyArray<CodemationBinding<unknown>> = [];
 
@@ -161,30 +178,55 @@ export class CodemationApplication {
     });
   }
 
-  resolveRealtimeModeForEnvironment(env?: Readonly<NodeJS.ProcessEnv>): "memory" | "redis" {
-    return this.resolveRealtimeMode({ ...process.env, ...(env ?? {}) });
-  }
-
   async prepareFrontendServerContainer(args: Readonly<{
     repoRoot: string;
     env?: Readonly<NodeJS.ProcessEnv>;
   }>): Promise<void> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
-    await this.prepareRuntimeRegistrations(args.repoRoot, effectiveEnv);
+    await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
     this.container.registerInstance(ApplicationTokens.WebSocketPort, this.resolveWebSocketPort(effectiveEnv));
     this.container.registerInstance(ApplicationTokens.WebSocketBindHost, effectiveEnv.CODEMATION_WS_BIND_HOST ?? "0.0.0.0");
     this.registerServerWebhookRuntimeHost();
     await this.startPresentationServers();
   }
 
-  async createWorkerRuntimeRoot(args: Readonly<{ repoRoot: string; env?: Readonly<NodeJS.ProcessEnv> }>): Promise<CodemationWorkerRuntimeRoot> {
+  async startWorkerRuntime(args: Readonly<{
+    repoRoot: string;
+    env?: Readonly<NodeJS.ProcessEnv>;
+    queues: ReadonlyArray<string>;
+    bootstrapSource?: string | null;
+    workflowSources?: ReadonlyArray<string>;
+  }>): Promise<CodemationStopHandle> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
-    await this.prepareRuntimeRegistrations(args.repoRoot, effectiveEnv);
+    await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
     this.registerWorkerWebhookRuntimeHost();
     if (!this.container.isRegistered(ApplicationTokens.WorkerRuntimeScheduler, true)) {
       throw new Error("Worker mode requires a BullMQ scheduler backed by a Redis event bus.");
     }
-    return this.container.resolve(CodemationWorkerRuntimeRoot);
+    const workflows = this.container.resolve(CoreTokens.WorkflowRegistry).list();
+    const engine = this.container.resolve(Engine);
+    await engine.start([...workflows]);
+    const workflowsById = new Map(workflows.map((workflow) => [workflow.id, workflow] as const));
+    const scheduler = this.container.resolve(ApplicationTokens.WorkerRuntimeScheduler);
+    const worker = scheduler.createWorker({
+      queues: args.queues,
+      workflowsById,
+      nodeResolver: this.container.resolve(CoreTokens.NodeResolver),
+      credentials: this.container.resolve(CoreTokens.CredentialService),
+      runStore: this.container.resolve(CoreTokens.RunStateStore),
+      continuation: engine,
+      workflows: this.container.resolve(CoreTokens.WorkflowRunnerService),
+    });
+
+    void args.bootstrapSource;
+    void args.workflowSources;
+
+    return {
+      stop: async () => {
+        await worker.stop();
+        await scheduler.close();
+      },
+    };
   }
 
   async stopFrontendServerContainer(): Promise<void> {
@@ -193,6 +235,10 @@ export class CodemationApplication {
     }
     if (this.container.isRegistered(WorkflowWebsocketServer, true)) {
       await this.container.resolve(WorkflowWebsocketServer).stop();
+    }
+    if (this.ownedPrismaClient) {
+      await this.ownedPrismaClient.$disconnect();
+      this.ownedPrismaClient = null;
     }
   }
 
@@ -224,20 +270,6 @@ export class CodemationApplication {
     });
     this.container.register(CoreTokens.NodeActivationObserver, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationWorkerHost)),
-    });
-  }
-
-  private static parseQueues(rawQueues: string): ReadonlyArray<string> {
-    return rawQueues
-      .split(",")
-      .map((queue) => queue.trim())
-      .filter(Boolean);
-  }
-
-  private resolveRealtimeMode(effectiveEnv: NodeJS.ProcessEnv): "memory" | "redis" {
-    return this.resolveRealtimeRuntimeFactory().resolveMode({
-      runtimeConfig: this.runtimeConfig,
-      env: effectiveEnv,
     });
   }
 
@@ -312,7 +344,8 @@ export class CodemationApplication {
         return new EngineWorkflowRunnerService(dependencyContainer.resolve(Engine), dependencyContainer.resolve(CoreTokens.WorkflowRegistry));
       }),
     });
-    this.container.register(RealtimeRuntimeFactory, { useClass: RealtimeRuntimeFactory });
+    this.container.register(PrismaClientFactory, { useClass: PrismaClientFactory });
+    this.container.register(PrismaMigrationDeployer, { useClass: PrismaMigrationDeployer });
     this.container.register(CodemationWebhookRegistry, {
       useFactory: instanceCachingFactory(() => new CodemationWebhookRegistry()),
     });
@@ -364,20 +397,6 @@ export class CodemationApplication {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(WorkflowWebsocketServer)),
     });
     this.container.register(WorkflowRunEventWebsocketRelay, { useClass: WorkflowRunEventWebsocketRelay });
-    this.container.register(CodemationWorkerRuntimeRoot, {
-      useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new CodemationWorkerRuntimeRoot(
-          dependencyContainer.resolve(Engine),
-          dependencyContainer.resolve(ApplicationTokens.WorkerRuntimeScheduler),
-          dependencyContainer.resolve(CoreTokens.WorkflowRegistry),
-          dependencyContainer.resolve(CoreTokens.WorkflowRunnerService),
-          dependencyContainer.resolve(CoreTokens.NodeResolver),
-          dependencyContainer.resolve(CoreTokens.CredentialService),
-          dependencyContainer.resolve(CoreTokens.RunStateStore),
-          dependencyContainer.resolve(ApplicationTokens.RealtimeRuntimeDiagnostics),
-        );
-      }),
-    });
   }
 
   private synchronizeWorkflowRegistry(): void {
@@ -385,24 +404,191 @@ export class CodemationApplication {
     workflowRegistry.setWorkflows(this.workflows);
   }
 
-  private resolveRealtimeRuntimeFactory(): RealtimeRuntimeFactory {
-    return this.container.resolve(RealtimeRuntimeFactory);
+  private async prepareImplementationRegistrations(repoRoot: string, env: NodeJS.ProcessEnv): Promise<void> {
+    const resolved = this.resolveImplementationSelection({
+      repoRoot,
+      env,
+      runtimeConfig: this.runtimeConfig,
+    });
+    await this.applyDatabaseMigrations(resolved, env);
+    const eventBus = this.createRunEventBus(resolved);
+    const persistence = this.createRunPersistence(resolved, eventBus);
+    const activationScheduler = this.createNodeActivationScheduler(resolved);
+
+    this.container.registerInstance(CoreTokens.RunEventBus, eventBus);
+    this.container.registerInstance(CoreTokens.RunStateStore, persistence.runStore);
+    this.container.registerInstance(CoreTokens.NodeActivationScheduler, activationScheduler);
+    this.container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
+    this.container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory());
+    if (persistence.workflowRunRepository) {
+      this.container.registerInstance(ApplicationTokens.WorkflowRunRepository, persistence.workflowRunRepository);
+    }
+    if (persistence.prismaClient) {
+      this.container.registerInstance(PrismaClient, persistence.prismaClient);
+    }
+    if (resolved.workerRuntimeScheduler) {
+      this.container.registerInstance(ApplicationTokens.WorkerRuntimeScheduler, resolved.workerRuntimeScheduler);
+    }
+    this.synchronizeWorkflowRegistry();
   }
 
-  private async prepareRuntimeRegistrations(repoRoot: string, env: NodeJS.ProcessEnv): Promise<void> {
-    const runtimeDiagnostics = this.resolveRealtimeRuntimeFactory().describe({
-      repoRoot,
-      runtimeConfig: this.runtimeConfig,
+  private async applyDatabaseMigrations(resolved: ResolvedImplementationSelection, env: NodeJS.ProcessEnv): Promise<void> {
+    if (!resolved.databaseUrl || this.hasProvidedPrismaClientOverride()) {
+      return;
+    }
+    await this.container.resolve(PrismaMigrationDeployer).deploy({
+      databaseUrl: resolved.databaseUrl,
       env,
     });
-    await mkdir(path.dirname(runtimeDiagnostics.dbPath), { recursive: true });
-    this.resolveRealtimeRuntimeFactory().register({
-      container: this.container,
-      repoRoot,
-      runtimeConfig: this.runtimeConfig,
-      env,
-    });
-    this.synchronizeWorkflowRegistry();
+  }
+
+  private createRunEventBus(resolved: ResolvedImplementationSelection): RunEventBus {
+    if (resolved.eventBusKind === "redis") {
+      return new RedisRunEventBus(this.requireRedisUrl(resolved.redisUrl), resolved.queuePrefix);
+    }
+    return new InMemoryRunEventBus();
+  }
+
+  private createRunPersistence(
+    resolved: ResolvedImplementationSelection,
+    eventBus: RunEventBus,
+  ): Readonly<{ runStore: RunStateStore; workflowRunRepository?: WorkflowRunRepository; prismaClient?: PrismaClient }> {
+    if (!resolved.databaseUrl) {
+      return {
+        runStore: new PublishingRunStateStore(new InMemoryRunStateStore(), eventBus),
+      };
+    }
+    const prismaClientResolution = this.resolveInjectedOrOwnedPrismaClient(resolved.databaseUrl);
+    const childContainer = this.container.createChildContainer();
+    childContainer.registerInstance(PrismaClient, prismaClientResolution.prismaClient);
+    const workflowRunRepository = childContainer.resolve(PrismaWorkflowRunRepository);
+    return {
+      prismaClient: prismaClientResolution.ownedPrismaClient,
+      workflowRunRepository,
+      runStore: new PublishingRunStateStore(workflowRunRepository, eventBus),
+    };
+  }
+
+  private hasProvidedPrismaClientOverride(): boolean {
+    return this.container.isRegistered(PrismaClient, true);
+  }
+
+  private resolveInjectedOrOwnedPrismaClient(databaseUrl: string): Readonly<{
+    prismaClient: PrismaClient;
+    ownedPrismaClient?: PrismaClient;
+  }> {
+    if (this.hasProvidedPrismaClientOverride()) {
+      return {
+        prismaClient: this.container.resolve(PrismaClient),
+      };
+    }
+    const prismaClient = this.container.resolve(PrismaClientFactory).create(databaseUrl);
+    this.ownedPrismaClient = prismaClient;
+    return {
+      prismaClient,
+      ownedPrismaClient: prismaClient,
+    };
+  }
+
+  private createNodeActivationScheduler(resolved: ResolvedImplementationSelection) {
+    if (resolved.workerRuntimeScheduler) {
+      return new DefaultDrivingScheduler(new ConfigDrivenOffloadPolicy(), resolved.workerRuntimeScheduler, new InlineDrivingScheduler());
+    }
+    return new InlineDrivingScheduler();
+  }
+
+  private resolveImplementationSelection(args: Readonly<{
+    repoRoot: string;
+    runtimeConfig: CodemationApplicationRuntimeConfig;
+    env: Readonly<NodeJS.ProcessEnv>;
+  }>): ResolvedImplementationSelection {
+    void args.repoRoot;
+    const databaseUrl = this.resolveDatabaseUrl(args.runtimeConfig, args.env);
+    const databaseKind = databaseUrl ? this.resolveDatabaseKind(args.runtimeConfig) : undefined;
+    const redisUrl = args.runtimeConfig.eventBus?.redisUrl ?? args.env.REDIS_URL;
+    const schedulerKind = this.resolveSchedulerKind(args.runtimeConfig, args.env, redisUrl);
+    const eventBusKind = this.resolveEventBusKind(args.runtimeConfig, args.env, schedulerKind, redisUrl);
+    const queuePrefix =
+      args.runtimeConfig.scheduler?.queuePrefix ?? args.runtimeConfig.eventBus?.queuePrefix ?? args.env.QUEUE_PREFIX ?? "codemation";
+    if (schedulerKind === "bullmq" && eventBusKind !== "redis") {
+      throw new Error("BullMQ scheduling requires a Redis event bus so worker events can be forwarded to connected clients.");
+    }
+    if (eventBusKind === "redis" && !redisUrl) {
+      throw new Error("Redis event bus requires runtime.eventBus.redisUrl or REDIS_URL.");
+    }
+    const workerRuntimeScheduler =
+      schedulerKind === "bullmq" ? new BullmqScheduler({ url: this.requireRedisUrl(redisUrl) }, queuePrefix) : undefined;
+    return {
+      databaseUrl,
+      databaseKind,
+      eventBusKind,
+      queuePrefix,
+      redisUrl,
+      schedulerKind,
+      workerRuntimeScheduler,
+    };
+  }
+
+  private resolveSchedulerKind(
+    runtimeConfig: CodemationApplicationRuntimeConfig,
+    env: Readonly<NodeJS.ProcessEnv>,
+    redisUrl: string | undefined,
+  ): CodemationSchedulerKind {
+    const configuredKind = runtimeConfig.scheduler?.kind ?? this.readSchedulerKind(env.CODEMATION_SCHEDULER);
+    if (configuredKind) return configuredKind;
+    return redisUrl ? "bullmq" : "local";
+  }
+
+  private resolveEventBusKind(
+    runtimeConfig: CodemationApplicationRuntimeConfig,
+    env: Readonly<NodeJS.ProcessEnv>,
+    schedulerKind: CodemationSchedulerKind,
+    redisUrl: string | undefined,
+  ): CodemationEventBusKind {
+    const configuredKind = runtimeConfig.eventBus?.kind ?? this.readEventBusKind(env.CODEMATION_EVENT_BUS);
+    if (configuredKind) return configuredKind;
+    if (schedulerKind === "bullmq") return "redis";
+    return redisUrl ? "redis" : "memory";
+  }
+
+  private resolveDatabaseKind(runtimeConfig: CodemationApplicationRuntimeConfig): CodemationDatabaseKind {
+    return runtimeConfig.database?.kind ?? "postgresql";
+  }
+
+  private resolveDatabaseUrl(
+    runtimeConfig: CodemationApplicationRuntimeConfig,
+    env: Readonly<NodeJS.ProcessEnv>,
+  ): string | undefined {
+    const configuredUrl = runtimeConfig.database?.url ?? env.DATABASE_URL;
+    if (!configuredUrl) {
+      if (runtimeConfig.database) {
+        throw new Error("Database configuration requires runtime.database.url or DATABASE_URL.");
+      }
+      return undefined;
+    }
+    if (!this.isPostgresUrl(configuredUrl)) {
+      throw new Error(`Unsupported DATABASE_URL protocol for PostgreSQL runtime persistence: ${configuredUrl}`);
+    }
+    return configuredUrl;
+  }
+
+  private readSchedulerKind(value: string | undefined): CodemationSchedulerKind | undefined {
+    if (value === "local" || value === "bullmq") return value;
+    return undefined;
+  }
+
+  private readEventBusKind(value: string | undefined): CodemationEventBusKind | undefined {
+    if (value === "memory" || value === "redis") return value;
+    return undefined;
+  }
+
+  private requireRedisUrl(redisUrl: string | undefined): string {
+    if (!redisUrl) throw new Error("Redis-backed runtime requires runtime.eventBus.redisUrl or REDIS_URL.");
+    return redisUrl;
+  }
+
+  private isPostgresUrl(databaseUrl: string): boolean {
+    return databaseUrl.startsWith("postgresql://") || databaseUrl.startsWith("postgres://");
   }
 
   private resolveWebSocketPort(env: Readonly<NodeJS.ProcessEnv>): number {
@@ -417,4 +603,14 @@ export class CodemationApplication {
     await this.container.resolve(WorkflowRunEventWebsocketRelay).start();
   }
 }
+
+type ResolvedImplementationSelection = Readonly<{
+  databaseUrl?: string;
+  databaseKind?: CodemationDatabaseKind;
+  eventBusKind: CodemationEventBusKind;
+  queuePrefix: string;
+  redisUrl?: string;
+  schedulerKind: CodemationSchedulerKind;
+  workerRuntimeScheduler?: WorkerRuntimeScheduler;
+}>;
 

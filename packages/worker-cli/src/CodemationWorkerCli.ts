@@ -35,11 +35,9 @@ export class CodemationWorkerCli {
     const workerQueues =
       configResolution.config.runtime?.scheduler?.workerQueues ??
       this.parseQueues(effectiveEnv.WORKER_QUEUES ?? "default");
-    const workerRoot = await application.createWorkerRuntimeRoot({
+    const handle = await application.startWorkerRuntime({
       repoRoot: paths.repoRoot,
       env: effectiveEnv,
-    });
-    const handle = await workerRoot.start({
       queues: workerQueues,
       bootstrapSource: configResolution.bootstrapSource,
       workflowSources: configResolution.workflowSources,

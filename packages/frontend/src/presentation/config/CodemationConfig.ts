@@ -1,9 +1,36 @@
 import type { Container, CredentialService, TypeToken, WorkflowDefinition } from "@codemation/core";
 import type { CodemationApplication } from "../../codemationApplication";
-import type { CodemationApplicationRuntimeConfig } from "../../infrastructure/runtime/CodemationRuntimeConfig";
 import type { CodemationAppSlots } from "./CodemationAppSlots";
 import type { CodemationBinding } from "./CodemationBinding";
 import type { CodemationWorkflowDiscovery } from "./CodemationWorkflowDiscovery";
+
+export type CodemationEventBusKind = "memory" | "redis";
+export type CodemationSchedulerKind = "local" | "bullmq";
+export type CodemationDatabaseKind = "postgresql";
+
+export interface CodemationDatabaseConfig {
+  readonly kind?: CodemationDatabaseKind;
+  readonly url?: string;
+}
+
+export interface CodemationEventBusConfig {
+  readonly kind?: CodemationEventBusKind;
+  readonly redisUrl?: string;
+  readonly queuePrefix?: string;
+}
+
+export interface CodemationSchedulerConfig {
+  readonly kind?: CodemationSchedulerKind;
+  readonly queuePrefix?: string;
+  readonly workerQueues?: ReadonlyArray<string>;
+}
+
+export interface CodemationApplicationRuntimeConfig {
+  readonly frontendPort?: number;
+  readonly database?: CodemationDatabaseConfig;
+  readonly eventBus?: CodemationEventBusConfig;
+  readonly scheduler?: CodemationSchedulerConfig;
+}
 
 export interface CodemationBootContext {
   readonly application: CodemationApplication;

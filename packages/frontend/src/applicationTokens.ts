@@ -1,5 +1,4 @@
 import type { TypeToken } from "@codemation/core";
-import type { RealtimeRuntimeDiagnostics } from "./realtimeRuntimeFactory";
 import type { Command } from "./application/bus/Command";
 import type { CommandBus } from "./application/bus/CommandBus";
 import type { CommandHandler } from "./application/bus/CommandHandler";
@@ -17,7 +16,6 @@ import type { HttpRouteHandler } from "./presentation/http/HttpRouteHandler";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
 
 export const ApplicationTokens = {
-  RealtimeRuntimeDiagnostics: Symbol.for("codemation.application.RealtimeRuntimeDiagnostics") as TypeToken<RealtimeRuntimeDiagnostics>,
   WebSocketPort: Symbol.for("codemation.application.WebSocketPort") as TypeToken<number>,
   WebSocketBindHost: Symbol.for("codemation.application.WebSocketBindHost") as TypeToken<string>,
   QueryBus: Symbol.for("codemation.application.QueryBus") as TypeToken<QueryBus>,

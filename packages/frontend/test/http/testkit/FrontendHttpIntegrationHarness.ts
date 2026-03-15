@@ -1,5 +1,6 @@
 import net from "node:net";
 import Fastify, { type FastifyInstance } from "fastify";
+import type { CodemationBinding } from "../../../src/presentation/config/CodemationBinding";
 import type { CodemationConfig } from "../../../src/presentation/config/CodemationConfig";
 import { CodemationServerGateway } from "../../../src/presentation/http/CodemationServerGateway";
 import { FastifyApiRouteRegistrar } from "../../../src/presentation/server/FastifyApiRouteRegistrar";
@@ -10,6 +11,7 @@ export interface FrontendHttpIntegrationHarnessOptions {
   readonly configSource?: string;
   readonly workflowSources?: ReadonlyArray<string>;
   readonly env?: Readonly<NodeJS.ProcessEnv>;
+  readonly bindings?: ReadonlyArray<CodemationBinding<unknown>>;
 }
 
 export interface FrontendHttpIntegrationRequest {
@@ -56,7 +58,7 @@ export class FrontendHttpIntegrationHarness {
   async start(): Promise<void> {
     const websocketPort = await new FrontendIntegrationPortAllocator().allocate();
     this.gateway = new CodemationServerGateway(
-      this.options.config,
+      this.createEffectiveConfig(),
       this.options.consumerRoot,
       this.options.configSource,
       this.options.workflowSources ?? [],
@@ -101,6 +103,16 @@ export class FrontendHttpIntegrationHarness {
       payload: args.payload === undefined ? undefined : JSON.stringify(args.payload),
     });
     return response.json<TValue>();
+  }
+
+  private createEffectiveConfig(): CodemationConfig {
+    if (!this.options.bindings || this.options.bindings.length === 0) {
+      return this.options.config;
+    }
+    return {
+      ...this.options.config,
+      bindings: [...(this.options.config.bindings ?? []), ...this.options.bindings],
+    };
   }
 
   private requireApplication(): FastifyInstance {

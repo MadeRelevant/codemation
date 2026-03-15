@@ -1,0 +1,19 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/infrastructure/persistence/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Run {
+  runId                 String  @id @map("run_id")
+  workflowId            String  @map("workflow_id")
+  startedAt             String  @map("started_at")
+  status                String
+  parentJson            String? @map("parent_json")
+  executionOptionsJson  String? @map("execution_options_json")
+  updatedAt             String  @map("updated_at")
+  stateJson             String  @map("state_json")
+}
