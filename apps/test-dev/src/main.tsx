@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { FrontendHostApp } from "./app/FrontendHostApp";
+import { HostedCodemationApp } from "@codemation/frontend/client";
 
 const rootElement = document.getElementById("root");
 
@@ -11,6 +11,6 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <FrontendHostApp />
+    <HostedCodemationApp />
   </StrictMode>,
 );

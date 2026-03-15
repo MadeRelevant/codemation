@@ -1,5 +1,5 @@
 import { inject, injectable } from "@codemation/core";
-import { TestDevTokens } from "../bootstrap/testDevTokens";
+import { TestDevOdooEnvironment } from "../bootstrap/TestDevOdooEnvironment";
 
 export interface OdooQuotationDraft {
   readonly baseUrl: string;
@@ -10,8 +10,8 @@ export interface OdooQuotationDraft {
 @injectable()
 export class OdooService {
   constructor(
-    @inject(TestDevTokens.OdooBaseUrl)
-    private readonly baseUrl: string,
+    @inject(TestDevOdooEnvironment)
+    private readonly environment: TestDevOdooEnvironment,
   ) {}
 
   createQuotationDraft(partnerName: string): OdooQuotationDraft {
@@ -22,7 +22,7 @@ export class OdooService {
       .replace(/^-+|-+$/g, "");
 
     return {
-      baseUrl: this.baseUrl,
+      baseUrl: this.environment.baseUrl,
       partnerName: normalizedPartnerName,
       quotationReference: `ODOO-${sanitizedPartnerName || "UNKNOWN"}-DRAFT`,
     };

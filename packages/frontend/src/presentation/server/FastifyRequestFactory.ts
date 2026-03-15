@@ -21,7 +21,13 @@ export class FastifyRequestFactory {
       if (value === undefined) {
         continue;
       }
-      headers.set(key, Array.isArray(value) ? value.join(", ") : value);
+      if (typeof value === "string") {
+        headers.set(key, value);
+        continue;
+      }
+      if (Array.isArray(value)) {
+        headers.set(key, value.join(", "));
+      }
     }
     return headers;
   }

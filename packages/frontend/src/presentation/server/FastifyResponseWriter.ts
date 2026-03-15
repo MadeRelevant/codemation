@@ -6,8 +6,7 @@ export class FastifyResponseWriter {
     response.headers.forEach((value, key) => {
       reply.header(key, value);
     });
-    const body = await this.resolveBody(response);
-    reply.send(body);
+    reply.send(await this.resolveBody(response));
   }
 
   private async resolveBody(response: Response): Promise<Buffer | undefined> {

@@ -25,6 +25,8 @@ export class CodemationServerGateway {
     private readonly config: CodemationConfig,
     private readonly consumerRoot: string,
     private readonly configSource?: string,
+    private readonly workflowSources: ReadonlyArray<string> = [],
+    private readonly env?: Readonly<NodeJS.ProcessEnv>,
   ) {}
 
   async dispatch(request: Request, routePath: string | undefined): Promise<Response> {
@@ -33,6 +35,15 @@ export class CodemationServerGateway {
 
   async prepare(): Promise<void> {
     await this.getContext();
+  }
+
+  async close(): Promise<void> {
+    const cachedContext = CodemationServerGateway.contextsByConfig.get(this.config as object);
+    if (!cachedContext) {
+      return;
+    }
+    CodemationServerGateway.contextsByConfig.delete(this.config as object);
+    await (await cachedContext).application.stopFrontendServerContainer();
   }
 
   async loadWorkflowSummaries(): Promise<ReadonlyArray<WorkflowSummary>> {
@@ -62,18 +73,19 @@ export class CodemationServerGateway {
 
   private async createContext(): Promise<ServerGatewayContext> {
     const repoRoot = this.detectWorkspaceRoot(this.consumerRoot);
+    const env = { ...process.env, ...(this.env ?? {}) };
     const application = new CodemationApplication();
     application.useConfig(this.config);
     await application.applyBootHook({
       bootHookToken: this.config.bootHook,
       consumerRoot: this.consumerRoot,
       repoRoot,
-      env: process.env,
+      env,
       workflowSources: this.resolveWorkflowSources(),
     });
     await application.prepareFrontendServerContainer({
       repoRoot,
-      env: process.env,
+      env,
     });
     await this.startEngine(application);
     return {
@@ -85,6 +97,9 @@ export class CodemationServerGateway {
   }
 
   private resolveWorkflowSources(): ReadonlyArray<string> {
+    if (this.workflowSources.length > 0) {
+      return [...this.workflowSources];
+    }
     if (!this.configSource || !this.config.workflows || this.config.workflows.length === 0) {
       return [];
     }

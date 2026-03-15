@@ -33,6 +33,7 @@ import "./presentation/http/routeHandlers/RunHttpRouteHandler";
 import "./presentation/http/routeHandlers/WebhookHttpRouteHandler";
 import "./presentation/http/routeHandlers/WorkflowHttpRouteHandler";
 import { ApplicationTokens } from "./applicationTokens";
+import type { CodemationBinding } from "./presentation/config/CodemationBinding";
 import type { CodemationConfig } from "./presentation/config/CodemationConfig";
 import { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
 import { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
@@ -43,6 +44,7 @@ import { InMemoryDomainEventBus } from "./infrastructure/di/InMemoryDomainEventB
 import { InMemoryQueryBus } from "./infrastructure/di/InMemoryQueryBus";
 import { CodemationIdFactory } from "./infrastructure/ids/CodemationIdFactory";
 import { DependencyInjectionHookRunner } from "./infrastructure/config/DependencyInjectionHookRunner";
+import { CodemationConfigBindingRegistrar } from "./infrastructure/config/CodemationConfigBindingRegistrar";
 import { WorkflowDefinitionRepositoryAdapter } from "./infrastructure/persistence/WorkflowDefinitionRepositoryAdapter";
 import { WorkflowRunRepository as SqlWorkflowRunRepository } from "./infrastructure/persistence/WorkflowRunRepository";
 import { CodemationWorkerRuntimeRoot } from "./infrastructure/runtime/CodemationWorkerRuntimeRoot";
@@ -64,11 +66,13 @@ export type CodemationApplicationConfig = CodemationConfig;
 
 export class CodemationApplication {
   private readonly dependencyInjectionHookRunner = new DependencyInjectionHookRunner();
+  private readonly configBindingRegistrar = new CodemationConfigBindingRegistrar();
 
   private container: Container = tsyringeContainer.createChildContainer();
   private workflows: WorkflowDefinition[] = [];
   private credentials: CredentialService = new InMemoryCredentialService();
   private runtimeConfig: CodemationApplicationRuntimeConfig = {};
+  private bindings: ReadonlyArray<CodemationBinding<unknown>> = [];
 
   constructor() {
     this.synchronizeContainerRegistrations();
@@ -77,6 +81,9 @@ export class CodemationApplication {
   useConfig(config: CodemationApplicationConfig): this {
     if (config.workflows) {
       this.useWorkflows(config.workflows);
+    }
+    if (config.bindings) {
+      this.useBindings(config.bindings);
     }
     if (config.credentials) {
       this.useCredentials(config.credentials);
@@ -107,6 +114,12 @@ export class CodemationApplication {
 
   useRuntimeConfig(runtimeConfig: CodemationApplicationRuntimeConfig): this {
     this.runtimeConfig = { ...this.runtimeConfig, ...runtimeConfig };
+    return this;
+  }
+
+  useBindings(bindings: NonNullable<CodemationConfig["bindings"]>): this {
+    this.bindings = [...bindings];
+    this.synchronizeContainerRegistrations();
     return this;
   }
 
@@ -174,6 +187,15 @@ export class CodemationApplication {
     return this.container.resolve(CodemationWorkerRuntimeRoot);
   }
 
+  async stopFrontendServerContainer(): Promise<void> {
+    if (this.container.isRegistered(WorkflowRunEventWebsocketRelay, true)) {
+      await this.container.resolve(WorkflowRunEventWebsocketRelay).stop();
+    }
+    if (this.container.isRegistered(WorkflowWebsocketServer, true)) {
+      await this.container.resolve(WorkflowWebsocketServer).stop();
+    }
+  }
+
   private registerServerWebhookRuntimeHost(): void {
     this.container.registerInstance(CoreTokens.WebhookBasePath, ApiPaths.webhooks());
     this.container.register(CodemationServerEngineHost, {
@@ -224,7 +246,15 @@ export class CodemationApplication {
     this.registerRepositoriesAndBuses();
     this.registerApplicationServicesAndRoutes();
     this.registerOperationalInfrastructure();
+    this.registerConfiguredBindings();
     this.synchronizeWorkflowRegistry();
+  }
+
+  private registerConfiguredBindings(): void {
+    if (this.bindings.length === 0) {
+      return;
+    }
+    this.configBindingRegistrar.apply(this.container, this.bindings);
   }
 
   private registerCoreInfrastructure(): void {

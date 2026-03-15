@@ -1,5 +1,16 @@
 import type { Container, RunEventBus, RunStateStore } from "@codemation/core";
-import { ConfigDrivenOffloadPolicy, CoreTokens, DefaultDrivingScheduler, DefaultExecutionContextFactory, InMemoryRunDataFactory, InMemoryRunEventBus, InlineDrivingScheduler, PublishingRunStateStore, injectable } from "@codemation/core";
+import {
+  ConfigDrivenOffloadPolicy,
+  CoreTokens,
+  DefaultDrivingScheduler,
+  DefaultExecutionContextFactory,
+  InMemoryRunDataFactory,
+  InMemoryRunEventBus,
+  InMemoryRunStateStore,
+  InlineDrivingScheduler,
+  PublishingRunStateStore,
+  injectable,
+} from "@codemation/core";
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
 import { BullmqScheduler } from "@codemation/queue-bullmq";
 import { SqliteRunStateStore } from "@codemation/run-store-sqlite";
@@ -51,7 +62,7 @@ export class RealtimeRuntimeFactory {
   create(args: Readonly<{ repoRoot: string; runtimeConfig: CodemationApplicationRuntimeConfig; env?: Readonly<NodeJS.ProcessEnv> }>): RealtimeRuntime {
     const resolved = this.resolve(args);
     const eventBus = this.createEventBus(resolved);
-    const runStore = new PublishingRunStateStore(new SqliteRunStateStore(resolved.dbPath), eventBus);
+    const runStore = this.createRunStore(resolved, args.runtimeConfig, args.env, eventBus);
     if (resolved.schedulerKind === "bullmq") {
       const redisUrl = this.requireRedisUrl(resolved.redisUrl);
       return {
@@ -86,6 +97,18 @@ export class RealtimeRuntimeFactory {
   private createEventBus(resolved: ResolvedRealtimeRuntime): RunEventBus {
     if (resolved.eventBusKind === "redis") return new RedisRunEventBus(this.requireRedisUrl(resolved.redisUrl), resolved.queuePrefix);
     return new InMemoryRunEventBus();
+  }
+
+  private createRunStore(
+    resolved: ResolvedRealtimeRuntime,
+    runtimeConfig: CodemationApplicationRuntimeConfig,
+    env: Readonly<NodeJS.ProcessEnv> | undefined,
+    eventBus: RunEventBus,
+  ): RunStateStore {
+    if (!this.hasConfiguredDatabase(runtimeConfig, env)) {
+      return new PublishingRunStateStore(new InMemoryRunStateStore(), eventBus);
+    }
+    return new PublishingRunStateStore(new SqliteRunStateStore(resolved.dbPath), eventBus);
   }
 
   private toDiagnostics(resolved: ResolvedRealtimeRuntime): RealtimeRuntimeDiagnostics {
@@ -183,6 +206,10 @@ export class RealtimeRuntimeFactory {
   private requireRedisUrl(redisUrl: string | undefined): string {
     if (!redisUrl) throw new Error("Redis-backed runtime requires runtime.eventBus.redisUrl or REDIS_URL.");
     return redisUrl;
+  }
+
+  private hasConfiguredDatabase(runtimeConfig: CodemationApplicationRuntimeConfig, env: Readonly<NodeJS.ProcessEnv> | undefined): boolean {
+    return Boolean(runtimeConfig.database?.path ?? runtimeConfig.database?.url ?? env?.DATABASE_URL ?? env?.CODEMATION_DB_PATH);
   }
 
   private resolveActivationScheduler(runtime: RealtimeRuntime) {

@@ -32,8 +32,8 @@ The reason is straightforward:
 - `packages/frontend/src/presentation/http/*`
 - `packages/frontend/src/presentation/websocket/WorkflowWebsocketServer.ts`
 - `packages/frontend/src/ui/*`
-- `packages/start-plugin/src/CodemationStartPlugin.ts`
-- `packages/start-plugin/src/CodemationRouteGenerator.ts`
+- `packages/frontend/src/server.ts`
+- `packages/frontend/src/vite.ts`
 
 ## What The Spike Proves
 
@@ -172,10 +172,10 @@ apps/test-dev/
 - most of `packages/frontend/src/ui/*`
 - `apps/test-dev/codemation.config.ts`
 
-### Files that are the first rewrite targets
+### Files that were the first rewrite targets
 
-- `packages/start-plugin/src/CodemationStartPlugin.ts`
-- `packages/start-plugin/src/CodemationRouteGenerator.ts`
+- framework-owned host adapter glue
+- framework-owned Vite plugin glue
 - `apps/test-dev/src/routes/__root.tsx`
 - `apps/test-dev/src/router.tsx`
 - generated route files under `apps/test-dev/src/routes/(codemation)/`
@@ -205,8 +205,8 @@ These files should survive, but the host migration should decide:
 
 ### Replace
 
-- `packages/start-plugin/src/CodemationStartPlugin.ts`
-- `packages/start-plugin/src/CodemationRouteGenerator.ts`
+- framework-owned host adapter glue
+- framework-owned Vite plugin glue
 - `apps/test-dev/vite.config.ts`
 - `apps/test-dev/src/routes/__root.tsx`
 - `apps/test-dev/src/router.tsx`

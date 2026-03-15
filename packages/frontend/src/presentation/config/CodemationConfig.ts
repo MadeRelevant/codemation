@@ -2,6 +2,8 @@ import type { Container, CredentialService, TypeToken, WorkflowDefinition } from
 import type { CodemationApplication } from "../../codemationApplication";
 import type { CodemationApplicationRuntimeConfig } from "../../infrastructure/runtime/CodemationRuntimeConfig";
 import type { CodemationAppSlots } from "./CodemationAppSlots";
+import type { CodemationBinding } from "./CodemationBinding";
+import type { CodemationWorkflowDiscovery } from "./CodemationWorkflowDiscovery";
 
 export interface CodemationBootContext {
   readonly application: CodemationApplication;
@@ -21,6 +23,8 @@ export interface CodemationConfig {
   readonly credentials?: CredentialService;
   readonly runtime?: CodemationApplicationRuntimeConfig;
   readonly workflows?: ReadonlyArray<WorkflowDefinition>;
+  readonly workflowDiscovery?: CodemationWorkflowDiscovery;
+  readonly bindings?: ReadonlyArray<CodemationBinding<unknown>>;
   readonly bootHook?: TypeToken<CodemationBootHook>;
   readonly slots?: CodemationAppSlots;
 }

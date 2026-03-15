@@ -2,6 +2,7 @@ import "@xyflow/react/dist/style.css";
 import "rc-tree/assets/index.css";
 
 export { Codemation } from "./ui/components/Codemation";
+export { HostedCodemationApp } from "./ui/app/HostedCodemationApp";
 export { BrowserLoggerFactory } from "./infrastructure/logging/BrowserLoggerFactory";
 export type { Logger, LoggerFactory } from "./application/logging/Logger";
 export { Providers } from "./ui/providers/Providers";

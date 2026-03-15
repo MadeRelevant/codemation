@@ -3,14 +3,10 @@ import { InMemoryCredentialService, credentialId } from "@codemation/core";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { TestDevBootHook } from "./src/bootstrap/testDevBootHook";
-import demoWorkflow from "./src/workflows/demo";
-import exampleWorkflow from "./src/workflows/example";
-import realtimeWaitWorkflow from "./src/workflows/realtime.wait";
-import multiItemsWorkflow from "./src/workflows/multiItems";
+import { TestDevMailKeywordCatalog } from "./src/bootstrap/TestDevMailKeywordCatalog";
+import { TestDevOdooEnvironment } from "./src/bootstrap/TestDevOdooEnvironment";
 import { TestDevLogo } from "./src/ui/testDevLogo";
 import { TestDevNavigation } from "./src/ui/testDevNavigation";
-import webhookNormal from "./src/workflows/webhook.normal";
 
 loadDotenv({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env"),
@@ -30,9 +26,20 @@ const credentials = new InMemoryCredentialService().setFactory(OPENAI_API_KEY, (
 });
 
 export const codemationHost = {
-  bootHook: TestDevBootHook,
   credentials,
-  workflows: [demoWorkflow, exampleWorkflow, realtimeWaitWorkflow, multiItemsWorkflow, webhookNormal],
+  bindings: [
+    {
+      token: TestDevMailKeywordCatalog,
+      useValue: new TestDevMailKeywordCatalog(["RFQ", "QUOTE", "QUOTATION", "RFP"]),
+    },
+    {
+      token: TestDevOdooEnvironment,
+      useValue: new TestDevOdooEnvironment("https://demo.odoo.test"),
+    },
+  ],
+  workflowDiscovery: {
+    directories: ["src/workflows"],
+  },
   runtime: {
     database: {
       url: process.env.DATABASE_URL ?? "sqlite:.codemation/runs.sqlite",
