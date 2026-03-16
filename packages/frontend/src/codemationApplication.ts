@@ -20,6 +20,7 @@ import {
   instanceCachingFactory,
   PersistedWorkflowTokenRegistry,
   PublishingRunStateStore,
+  RunIntentService,
 } from "@codemation/core";
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
 import { BullmqScheduler } from "@codemation/queue-bullmq";
@@ -331,6 +332,11 @@ export class CodemationApplication {
         });
       }),
     });
+    this.container.register(RunIntentService, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return new RunIntentService(dependencyContainer.resolve(Engine), dependencyContainer.resolve(CoreTokens.WorkflowRegistry));
+      }),
+    });
     this.container.register(WorkflowWebsocketServer, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         return new WorkflowWebsocketServer(
@@ -491,10 +497,11 @@ export class CodemationApplication {
   }
 
   private createNodeActivationScheduler(resolved: ResolvedImplementationSelection) {
+    const nodeResolver = this.container.resolve(CoreTokens.NodeResolver);
     if (resolved.workerRuntimeScheduler) {
-      return new DefaultDrivingScheduler(new ConfigDrivenOffloadPolicy(), resolved.workerRuntimeScheduler, new InlineDrivingScheduler());
+      return new DefaultDrivingScheduler(new ConfigDrivenOffloadPolicy(), resolved.workerRuntimeScheduler, new InlineDrivingScheduler(nodeResolver));
     }
-    return new InlineDrivingScheduler();
+    return new InlineDrivingScheduler(nodeResolver);
   }
 
   private resolveImplementationSelection(args: Readonly<{

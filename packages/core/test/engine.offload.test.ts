@@ -123,7 +123,7 @@ test("engine persists workflow snapshots and execution mode metadata", async () 
       mutableState: {
         nodesById: {
           n1: {
-            pinnedInput: items([{ pinned: true }]),
+            pinnedOutputsByPort: { main: items([{ pinned: true }]) },
           },
         },
       },
@@ -136,7 +136,7 @@ test("engine persists workflow snapshots and execution mode metadata", async () 
   assert.equal(stored.executionOptions?.mode, "debug");
   assert.equal(stored.executionOptions?.sourceWorkflowId, wf.id);
   assert.equal(stored.workflowSnapshot?.id, wf.id);
-  assert.deepEqual(stored.mutableState?.nodesById.n1?.pinnedInput?.map((item) => item.json), [{ pinned: true }]);
+  assert.deepEqual(stored.mutableState?.nodesById.n1?.pinnedOutputsByPort?.main?.map((item) => item.json), [{ pinned: true }]);
   assert.deepEqual(
     stored.workflowSnapshot?.nodes.map((node) => node.id),
     ["n1", "n2"],

@@ -1,4 +1,5 @@
-import Tree from "rc-tree";
+import { useEffect, useRef, useState } from "react";
+ import Tree from "rc-tree";
 import { WorkflowNodeIconResolver, WorkflowStatusIcon } from "./WorkflowDetailIcons";
 import { WorkflowInspectorErrorView, WorkflowInspectorJsonView, WorkflowInspectorPrettyView } from "./WorkflowInspectorViews";
 import type { ExecutionTreeNode, WorkflowExecutionInspectorActions, WorkflowExecutionInspectorFormatting, WorkflowExecutionInspectorModel } from "./workflowDetailTypes";
@@ -20,7 +21,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
     selectedNodeError,
     selectedNodeId,
     selectedNodeSnapshot,
-    selectedPinnedInput,
+    selectedPinnedOutput,
     selectedRun,
     selectedRunId,
     selectedWorkflowNode,
@@ -33,10 +34,63 @@ export function WorkflowExecutionInspector(args: Readonly<{
   if (loadError) return <div style={{ color: "#b91c1c" }}>{loadError}</div>;
   if (!selectedRun || !selectedNodeId) return <div style={{ opacity: 0.7 }}>Select a node to inspect.</div>;
   const panes = selectedMode === "split" ? [inputPane, outputPane] : [selectedMode === "input" ? inputPane : outputPane];
+  const TREE_PANEL_MIN_WIDTH_PX = 220;
+  const TREE_PANEL_DEFAULT_WIDTH_PX = 320;
+  const DETAIL_PANEL_MIN_WIDTH_PX = 320;
+  const TREE_RESIZE_HANDLE_WIDTH_PX = 8;
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const resizeStartXRef = useRef<number | null>(null);
+  const resizeStartWidthRef = useRef(TREE_PANEL_DEFAULT_WIDTH_PX);
+  const [treePanelWidth, setTreePanelWidth] = useState(TREE_PANEL_DEFAULT_WIDTH_PX);
+  const [isTreePanelResizing, setIsTreePanelResizing] = useState(false);
+
+  useEffect(() => {
+    if (!isTreePanelResizing) return;
+    const handleMouseMove = (event: MouseEvent) => {
+      if (resizeStartXRef.current === null) return;
+      const inspectorWidth = containerRef.current?.clientWidth ?? 0;
+      const maxTreePanelWidth = Math.max(
+        TREE_PANEL_MIN_WIDTH_PX,
+        inspectorWidth - DETAIL_PANEL_MIN_WIDTH_PX - TREE_RESIZE_HANDLE_WIDTH_PX,
+      );
+      const nextWidth = resizeStartWidthRef.current + (event.clientX - resizeStartXRef.current);
+      setTreePanelWidth(Math.max(TREE_PANEL_MIN_WIDTH_PX, Math.min(maxTreePanelWidth, nextWidth)));
+    };
+    const handleMouseUp = () => {
+      setIsTreePanelResizing(false);
+      resizeStartXRef.current = null;
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isTreePanelResizing]);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 32%) 1fr", height: "100%", minHeight: 0 }}>
-      <div style={{ borderRight: "1px solid #d1d5db", overflow: "auto", padding: 12 }}>
+    <div
+      data-testid="workflow-execution-inspector"
+      ref={containerRef}
+      style={{
+        display: "grid",
+        gridTemplateColumns: `${treePanelWidth}px ${TREE_RESIZE_HANDLE_WIDTH_PX}px minmax(0, 1fr)`,
+        height: "100%",
+        minWidth: 0,
+        minHeight: 0,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        data-testid="workflow-execution-tree-panel"
+        style={{
+          borderRight: "1px solid #d1d5db",
+          minWidth: 0,
+          overflowX: "hidden",
+          overflowY: "auto",
+          padding: 12,
+        }}
+      >
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, opacity: 0.64, textTransform: "uppercase" }}>Execution tree</div>
         <div style={{ marginTop: 10 }}>
           {executionTreeData.length === 0 ? (
@@ -94,15 +148,37 @@ export function WorkflowExecutionInspector(args: Readonly<{
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateRows: "auto 1fr", minHeight: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: 12, borderBottom: "1px solid #d1d5db" }}>
+      <div
+        data-testid="workflow-execution-tree-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize execution tree"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          resizeStartXRef.current = event.clientX;
+          resizeStartWidthRef.current = treePanelWidth;
+          setIsTreePanelResizing(true);
+        }}
+        style={{
+          position: "relative",
+          zIndex: 10,
+          width: TREE_RESIZE_HANDLE_WIDTH_PX,
+          cursor: "col-resize",
+          background: isTreePanelResizing ? "#bfdbfe" : "#e5e7eb",
+          borderLeft: "1px solid #d1d5db",
+          borderRight: "1px solid #d1d5db",
+        }}
+      />
+
+      <div style={{ display: "grid", gridTemplateRows: "auto 1fr", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: 12, borderBottom: "1px solid #d1d5db" }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <WorkflowStatusIcon status={selectedNodeSnapshot?.status ?? "pending"} />
               <div data-testid="selected-node-name" style={{ fontWeight: 800, fontSize: 14, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {getNodeDisplayName(selectedWorkflowNode, selectedNodeId)}
               </div>
-              {selectedPinnedInput ? (
+              {selectedPinnedOutput ? (
                 <span data-testid="selected-node-pinned-badge" style={{ border: "1px solid #c4b5fd", background: "#f5f3ff", color: "#6d28d9", fontSize: 11, fontWeight: 800, letterSpacing: 0.3, textTransform: "uppercase", padding: "2px 6px" }}>
                   Pinned
                 </span>
@@ -110,7 +186,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
             </div>
             <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{formatDateTime(getSnapshotTimestamp(selectedNodeSnapshot))}</div>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 8 }}>
+          <div style={{ display: "flex", minWidth: 0, flexWrap: "wrap", justifyContent: "flex-end", gap: 8 }}>
             <div style={{ display: "flex", gap: 8 }}>
               {(["input", "output", "split"] as const).map((mode) => (
                 <button
@@ -179,6 +255,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
+                    flexWrap: "wrap",
                     gap: 12,
                     padding: "10px 12px",
                     borderBottom: "1px solid #e5e7eb",
@@ -195,7 +272,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
                       </span>
                     ) : null}
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     {(["json", "pretty"] as const).map((format) => (
                       <button
                         key={format}
@@ -220,7 +297,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
                 </div>
 
                 {pane.portEntries.length > 1 ? (
-                  <div style={{ display: "flex", gap: 8, padding: "10px 12px", borderBottom: "1px solid #e5e7eb", background: "#ffffff", overflow: "auto" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "10px 12px", borderBottom: "1px solid #e5e7eb", background: "#ffffff", overflowX: "hidden", overflowY: "auto" }}>
                     {pane.portEntries.map(([portName]) => {
                       const isSelected = pane.selectedPort === portName;
                       return (
@@ -242,7 +319,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
                   <div style={{ borderBottom: "1px solid #e5e7eb" }} />
                 )}
 
-                <div style={{ overflow: "auto", padding: 12 }}>
+                <div style={{ minWidth: 0, overflowX: "hidden", overflowY: "auto", padding: 12 }}>
                   {pane.showsError ? (
                     pane.format === "pretty" ? (
                       <WorkflowInspectorErrorView

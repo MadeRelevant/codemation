@@ -39,7 +39,7 @@ export type WorkflowRunsSidebarModel = Readonly<{
   isMutableSelectedRun: boolean;
   isRunning: boolean;
   selectedNodeId: string | null;
-  selectedPinnedInput: unknown;
+  selectedPinnedOutput: unknown;
 }>;
 export type WorkflowRunsSidebarFormatting = Readonly<{
   formatDateTime: (value: string | undefined) => string;
@@ -73,7 +73,7 @@ export type WorkflowExecutionInspectorModel = Readonly<{
   selectedNodeId: string | null;
   selectedNodeSnapshot: NodeExecutionSnapshot | undefined;
   selectedWorkflowNode: WorkflowNode | undefined;
-  selectedPinnedInput: Items | undefined;
+  selectedPinnedOutput: Items | undefined;
   selectedNodeError: NodeExecutionError | undefined;
   selectedMode: InspectorMode;
   inputPane: WorkflowExecutionInspectorPaneModel;

@@ -30,28 +30,44 @@ class FrontendWebhookRuntimeFixture {
     }>;
     responseItems?: ReadonlyArray<Readonly<{ json: unknown }>>;
   }>) {
-    const runWorkflow = vi.fn().mockResolvedValue({
+    const runMatchedWebhook = vi.fn().mockResolvedValue({
       runId: "run_webhook_route",
       workflowId: "wf.webhook.route",
       startedAt: "2026-03-11T12:00:00.000Z",
-      status: "completed",
-      outputs: args?.responseItems ?? [{ json: { ok: true } }],
+      runStatus: "completed",
+      response: args?.responseItems ?? [{ json: { ok: true } }],
     });
     const workflow = FrontendWebhookWorkflowFixture.createWorkflow();
     return {
       workflow,
-      runWorkflow,
+      runMatchedWebhook,
       preparedExecutionRuntime: {
-        engine: {
-          runWorkflow,
-          waitForWebhookResponse: vi.fn(),
-          waitForCompletion: vi.fn(),
-        },
-        workflowRegistry: {
-          get: vi.fn().mockReturnValue(workflow),
-        },
-        webhookRegistry: {
-          get: vi.fn().mockReturnValue(args?.entry),
+        runIntentService: {
+          findWebhookTrigger: vi.fn().mockImplementation((endpointId: string) => {
+            const entry = args?.entry;
+            return entry?.endpointId === endpointId ? entry : undefined;
+          }),
+          matchWebhookTrigger: vi.fn().mockImplementation(({ endpointId, method }: { endpointId: string; method: string }) => {
+            const entry = args?.entry;
+            if (!entry || entry.endpointId !== endpointId) {
+              return undefined;
+            }
+            return entry.methods.includes(method as never) ? entry : undefined;
+          }),
+          runWebhookMatch: vi.fn().mockImplementation(async ({ match, requestItem }) => {
+            const entry = args?.entry;
+            if (!entry || entry.endpointId !== match.endpointId) {
+              throw new Error("Unknown webhook endpoint");
+            }
+            await runMatchedWebhook({ match, requestItem });
+            return {
+              runId: "run_webhook_route",
+              workflowId: workflow.id,
+              startedAt: "2026-03-11T12:00:00.000Z",
+              runStatus: "completed" as const,
+              response: [{ json: requestItem.json }, ...(args?.responseItems ?? [{ json: { ok: true } }])],
+            };
+          }),
         },
       },
     };
@@ -61,32 +77,14 @@ class FrontendWebhookRuntimeFixture {
 class FrontendWebhookRouteHandlerFixture {
   static createHandler(preparedExecutionRuntime: object): WebhookHttpRouteHandler {
     const runtime = preparedExecutionRuntime as Readonly<{
-      engine: object;
-      workflowRegistry: object;
-      webhookRegistry: object;
+      runIntentService: object;
     }>;
-    const commandHandler = new HandleWebhookInvocationCommandHandler(
-      runtime.engine as never,
-      {
-        getDefinition: async (workflowId: string) => (runtime.workflowRegistry as { get: (id: string) => WorkflowDefinition | undefined }).get(workflowId),
-      } as never,
-      {
-        get: async (endpointId: string) =>
-          (runtime.webhookRegistry as { get: (id: string) => unknown }).get(endpointId),
-      } as never,
-    );
+    const commandHandler = new HandleWebhookInvocationCommandHandler(runtime.runIntentService as never);
     const commandBus: CommandBus = {
       execute: async <TResult>(command: Command<TResult>) =>
         (await commandHandler.execute(command as never)) as TResult,
     };
-    return new WebhookHttpRouteHandler(
-      commandBus,
-      new RequestToWebhookItemMapper(),
-      {
-        get: async (endpointId: string) =>
-          (runtime.webhookRegistry as { get: (id: string) => unknown }).get(endpointId),
-      } as never,
-    );
+    return new WebhookHttpRouteHandler(commandBus, runtime.runIntentService as never, new RequestToWebhookItemMapper());
   }
 }
 
@@ -159,38 +157,30 @@ describe("postWebhookRoute", () => {
       { endpointId: "incoming" },
     );
 
-    expect(runtime.runWorkflow).toHaveBeenCalledWith(
-      runtime.workflow,
-      "trigger",
-      [
-        {
+    expect(runtime.runMatchedWebhook).toHaveBeenCalledWith({
+      match: runtime.preparedExecutionRuntime.runIntentService.findWebhookTrigger("incoming"),
+      requestItem: {
+        json: {
+          headers: {
+            "content-type": "application/json",
+            "x-webhook-token": "secret",
+          },
+          body: {
+            count: "2",
+            name: "  Ada  ",
+          },
           json: {
-            headers: {
-              "content-type": "application/json",
-              "x-webhook-token": "secret",
-            },
-            body: {
-              count: "2",
-              name: "  Ada  ",
-            },
-            json: {
-              count: 2,
-              name: "Ada",
-            },
-            method: "PATCH",
-            url: "http://localhost/api/webhooks/incoming?mode=sync",
-            query: {
-              mode: "sync",
-            },
+            count: 2,
+            name: "Ada",
+          },
+          method: "PATCH",
+          url: "http://localhost/api/webhooks/incoming?mode=sync",
+          query: {
+            mode: "sync",
           },
         },
-      ],
-      undefined,
-      {
-        localOnly: true,
-        webhook: true,
       },
-    );
+    });
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
   });
@@ -218,30 +208,22 @@ describe("postWebhookRoute", () => {
       { endpointId: "plain-text" },
     );
 
-    expect(runtime.runWorkflow).toHaveBeenCalledWith(
-      runtime.workflow,
-      "trigger",
-      [
-        {
-          json: {
-            headers: {
-              "content-type": "text/plain",
-            },
-            body: "hello from webhook",
-            method: "PUT",
-            url: "http://localhost/api/webhooks/plain-text?topic=notes",
-            query: {
-              topic: "notes",
-            },
+    expect(runtime.runMatchedWebhook).toHaveBeenCalledWith({
+      match: runtime.preparedExecutionRuntime.runIntentService.findWebhookTrigger("plain-text"),
+      requestItem: {
+        json: {
+          headers: {
+            "content-type": "text/plain",
+          },
+          body: "hello from webhook",
+          method: "PUT",
+          url: "http://localhost/api/webhooks/plain-text?topic=notes",
+          query: {
+            topic: "notes",
           },
         },
-      ],
-      undefined,
-      {
-        localOnly: true,
-        webhook: true,
       },
-    );
+    });
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ accepted: true });
   });

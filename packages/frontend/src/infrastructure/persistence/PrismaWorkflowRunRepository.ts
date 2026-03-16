@@ -14,6 +14,7 @@ import { PrismaClient } from "./generated/prisma/client.js";
 
 /** JSON blob stored in stateJson: workflowSnapshot, mutableState, pending, queue, outputsByNode, nodeSnapshotsByNodeId */
 interface StateJsonBlob {
+  control?: PersistedRunState["control"];
   workflowSnapshot?: PersistedRunState["workflowSnapshot"];
   mutableState?: PersistedRunState["mutableState"];
   pending?: PersistedRunState["pending"];
@@ -32,6 +33,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
     startedAt: string;
     parent?: ParentExecutionRef;
     executionOptions?: PersistedRunState["executionOptions"];
+    control?: PersistedRunState["control"];
     workflowSnapshot?: PersistedRunState["workflowSnapshot"];
     mutableState?: PersistedRunState["mutableState"];
   }): Promise<void> {
@@ -42,6 +44,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
       startedAt: args.startedAt,
       parent: args.parent,
       executionOptions: args.executionOptions,
+      control: args.control,
       workflowSnapshot: args.workflowSnapshot,
       mutableState: args.mutableState,
       status: "running",
@@ -109,6 +112,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
 
   private serializeStateBlob(state: PersistedRunState): string {
     const blob: StateJsonBlob = {
+      control: state.control,
       workflowSnapshot: state.workflowSnapshot,
       mutableState: state.mutableState,
       pending: state.pending,
@@ -122,6 +126,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
   private parseStateBlob(json: string): StateJsonBlob {
     const parsed = JSON.parse(json) as StateJsonBlob;
     return {
+      control: parsed.control,
       workflowSnapshot: parsed.workflowSnapshot,
       mutableState: parsed.mutableState,
       pending: parsed.pending,
@@ -150,6 +155,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
       executionOptions: row.executionOptionsJson
         ? (JSON.parse(row.executionOptionsJson) as PersistedRunState["executionOptions"])
         : undefined,
+      control: blob.control,
       workflowSnapshot: blob.workflowSnapshot,
       mutableState: blob.mutableState,
       pending: blob.pending,

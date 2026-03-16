@@ -5,6 +5,7 @@ import type {
   NodeActivationReceipt,
   NodeActivationRequest,
   NodeActivationScheduler,
+  NodeResolver,
   RunId,
 } from "../../types";
 import { MissingRuntimeNode, MissingRuntimeNodeToken, MissingRuntimeTrigger, MissingRuntimeTriggerToken } from "../runtime/persistedWorkflowResolver";
@@ -14,6 +15,8 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
   private readonly drainingRuns = new Set<RunId>();
   private readonly queuesByRunId = new Map<RunId, Array<Readonly<{ request: NodeActivationRequest; receipt: NodeActivationReceipt }>>>();
   private seq = 0;
+
+  constructor(private readonly nodeResolver: NodeResolver) {}
 
   setContinuation(continuation: NodeActivationContinuation): void {
     this.continuation = continuation;
@@ -52,9 +55,7 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
           });
 
           const type = request.ctx.config.type as any;
-          const nodeResolver = request.ctx.services.nodeResolver;
-          if (!nodeResolver) throw new Error(`No nodeResolver available in ctx.services for activation ${request.activationId}`);
-          const inst = this.resolveNodeInstance(type, nodeResolver) as unknown;
+          const inst = this.resolveNodeInstance(type, this.nodeResolver) as unknown;
 
           let outputs;
           if (request.kind === "multi") {

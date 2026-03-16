@@ -1,4 +1,5 @@
 import type {
+  WorkflowRunnerService,
   Items,
   Node,
   NodeExecutionContext,
@@ -9,7 +10,7 @@ import type {
   TypeToken,
   UpstreamRefPlaceholder,
 } from "@codemation/core";
-import { node } from "@codemation/core";
+import { CoreTokens, inject, node } from "@codemation/core";
 
 export class SubWorkflow<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
@@ -28,11 +29,12 @@ export class SubWorkflowNode implements Node<SubWorkflow<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<SubWorkflow<any, any>>): Promise<NodeOutputs> {
-  
-    const workflows = ctx.services.workflows;
-    if (!workflows) throw new Error("WorkflowRunnerService is not available in ctx.services.workflows");
+  constructor(
+    @inject(CoreTokens.WorkflowRunnerService)
+    private readonly workflows: WorkflowRunnerService,
+  ) {}
 
+  async execute(items: Items, ctx: NodeExecutionContext<SubWorkflow<any, any>>): Promise<NodeOutputs> {
     const out: Item[] = [];
     for (let i = 0; i < items.length; i++) {
       const current = items[i]!;
@@ -41,7 +43,7 @@ export class SubWorkflowNode implements Node<SubWorkflow<any, any>> {
         metaBase._cm && typeof metaBase._cm === "object" ? (metaBase._cm as Record<string, unknown>) : ({} as Record<string, unknown>);
       const originIndex = typeof cmBase.originIndex === "number" ? (cmBase.originIndex as number) : undefined;
 
-      const result = await workflows.runById({
+      const result = await this.workflows.runById({
         workflowId: ctx.config.workflowId,
         startAt: ctx.config.startAt,
         items: [current],

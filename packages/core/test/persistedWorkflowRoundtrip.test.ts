@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { container as tsyringeContainer } from "tsyringe";
-import { InMemoryWorkflowRegistry, PersistedWorkflowResolver, PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, WorkflowBuilder, chatModel, node, tool } from "../dist/index.js";
+import { ContainerNodeResolver, InMemoryWorkflowRegistry, PersistedWorkflowResolver, PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, WorkflowBuilder, chatModel, node, tool } from "../dist/index.js";
 import type {
   ChatModelConfig,
   ChatModelFactory,
@@ -11,6 +11,7 @@ import type {
   LangChainChatModelLike,
   Node,
   NodeExecutionContext,
+  NodeResolver,
   NodeOutputs,
   RunnableNodeConfig,
   Tool,
@@ -84,13 +85,12 @@ class StableResolvableNode implements Node<StableResolvableNodeConfig> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(itemsIn: Items, ctx: NodeExecutionContext<StableResolvableNodeConfig>): Promise<NodeOutputs> {
-    const container = ctx.services.container;
-    assert.ok(container);
+  constructor(private readonly nodeResolver: NodeResolver) {}
 
-    const chatModelFactory = container.resolve(ctx.config.chatModel.type) as StableChatModelFactory;
+  async execute(itemsIn: Items, ctx: NodeExecutionContext<StableResolvableNodeConfig>): Promise<NodeOutputs> {
+    const chatModelFactory = this.nodeResolver.resolve(ctx.config.chatModel.type) as StableChatModelFactory;
     const resolvedToolNames = ctx.config.tools.map((toolConfig) => {
-      const tool = container.resolve(toolConfig.type) as StableTool;
+      const tool = this.nodeResolver.resolve(toolConfig.type) as StableTool;
       assert.ok(tool instanceof StableTool);
       return toolConfig.name;
     });
@@ -137,7 +137,7 @@ test("workflow builder produces a compiled workflow whose node and nested depend
   const container = tsyringeContainer.createChildContainer();
   const workflow = StableWorkflowFixtureFactory.createWorkflow();
   const providers = new Map<TypeToken<unknown>, unknown>([
-    [StableResolvableNode, new StableResolvableNode()],
+    [StableResolvableNode, new StableResolvableNode(new ContainerNodeResolver(container))],
     [StableChatModelFactory, new StableChatModelFactory()],
     [StableTool, new StableTool()],
   ]);

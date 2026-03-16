@@ -14,7 +14,7 @@ export class DefaultDrivingScheduler implements NodeActivationScheduler {
   constructor(
     private readonly offloadPolicy: NodeOffloadPolicy,
     private readonly workerScheduler: NodeExecutionScheduler,
-    private readonly inline: InlineDrivingScheduler = new InlineDrivingScheduler(),
+    private readonly inline: InlineDrivingScheduler,
   ) {}
 
   setContinuation(continuation: NodeActivationContinuation): void {

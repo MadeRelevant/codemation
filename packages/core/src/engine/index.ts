@@ -1,4 +1,6 @@
 export { Engine, EngineWorkflowRunnerService } from "./runtime/runtimeEngine";
+export { InMemoryWebhookTriggerMatcher } from "./runtime/InMemoryWebhookTriggerMatcher";
+export { RunIntentService } from "./runtime/RunIntentService";
 export { ContainerNodeResolver } from "./runtime/containerNodeResolver";
 export { ContainerWorkflowRunnerResolver } from "./runtime/containerWorkflowRunnerResolver";
 export { InMemoryWorkflowRegistry } from "./runtime/inMemoryWorkflowRegistry";

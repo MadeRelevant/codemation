@@ -12,6 +12,7 @@ import type {
   WorkflowId,
   NodeId,
 } from "../../dist/index.js";
+import type { WorkflowRunnerService } from "../../dist/index.js";
 
 export type CallbackExecuteArgs<TConfig extends NodeConfigBase> = Readonly<{
   items: Items;
@@ -251,14 +252,13 @@ export class SubWorkflowRunnerNode implements Node<SubWorkflowRunnerConfig<any, 
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<SubWorkflowRunnerConfig<any, any>>): Promise<NodeOutputs> {
-    const workflows = ctx.services.workflows;
-    if (!workflows) throw new Error("WorkflowRunnerService is not available in ctx.services.workflows");
+  constructor(private readonly workflows: WorkflowRunnerService) {}
 
+  async execute(items: Items, ctx: NodeExecutionContext<SubWorkflowRunnerConfig<any, any>>): Promise<NodeOutputs> {
     const out: Item[] = [];
     for (let i = 0; i < items.length; i++) {
       const current = items[i]!;
-      const result = await workflows.runById({
+      const result = await this.workflows.runById({
         workflowId: ctx.config.workflowId,
         startAt: ctx.config.startAt,
         items: [current],

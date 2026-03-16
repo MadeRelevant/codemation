@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Item, NodeExecutionContext } from "@codemation/core";
-import { InMemoryCredentialService, InMemoryRunDataFactory } from "@codemation/core";
+import { InMemoryRunDataFactory } from "@codemation/core";
 import { Callback, CallbackNode } from "@codemation/core-nodes";
 
 class CallbackNodeTestContextFactory {
@@ -11,9 +11,6 @@ class CallbackNodeTestContextFactory {
       workflowId: "wf_callback",
       parent: undefined,
       now: () => new Date(),
-      services: {
-        credentials: new InMemoryCredentialService(),
-      },
       data: new InMemoryRunDataFactory().create(),
       nodeId: "node_callback",
       activationId: "act_callback",

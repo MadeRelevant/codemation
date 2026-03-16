@@ -186,7 +186,7 @@ export class WorkflowDetailFixtureFactory {
       mutableState: {
         nodesById: {
           [nodeId]: {
-            pinnedInput: [{ json: { pinned: true } }],
+            pinnedOutputsByPort: { main: [{ json: { pinned: true } }] },
           },
         },
       },

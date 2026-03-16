@@ -21,7 +21,7 @@ describe("workflow detail mutable execution flows", () => {
       expect(screen.getByTestId("execution-mode-label")).toHaveTextContent("Manual execution");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Pin selected node input" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pin selected node output" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: JSON.stringify({ pinned: true }, null, 2) } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 

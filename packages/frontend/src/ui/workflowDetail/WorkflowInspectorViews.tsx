@@ -288,8 +288,8 @@ export function WorkflowInspectorJsonView(args: Readonly<{ value: unknown; empty
 
   return (
     <div style={{ height: "100%", minHeight: 0, display: "grid", gridTemplateRows: "auto 1fr", gap: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <button onClick={() => setCollapsedLevel(true)} style={{ border: "1px solid #d1d5db", background: "white", padding: "6px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
             Collapse all
           </button>
@@ -301,33 +301,35 @@ export function WorkflowInspectorJsonView(args: Readonly<{ value: unknown; empty
           {copyState === "copied" ? "Copied to clipboard" : "Use the copy icon in the viewer"}
         </div>
       </div>
-      <div data-testid="workflow-inspector-json-panel" style={{ overflow: "auto", border: "1px solid #d1d5db", background: "#f8fafc", padding: 12 }}>
+      <div data-testid="workflow-inspector-json-panel" style={{ minWidth: 0, overflowX: "hidden", overflowY: "auto", border: "1px solid #d1d5db", background: "#f8fafc", padding: 12 }}>
         {isRenderableJson ? (
-          <JsonView
-            value={value as object}
-            collapsed={collapsedLevel}
-            enableClipboard
-            displayDataTypes={false}
-            displayObjectSize
-            shortenTextAfterLength={80}
-            style={{
-              ...githubLightTheme,
-              backgroundColor: "transparent",
-              padding: 0,
-              fontSize: 12,
-              lineHeight: 1.6,
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            }}
-            onCopied={() => {
-              setCopyState("copied");
-              window.setTimeout(() => setCopyState("idle"), 1500);
-            }}
-            onExpand={() => {
-              if (copyState === "copied") setCopyState("idle");
-            }}
-          />
+          <div style={{ minWidth: 0, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+            <JsonView
+              value={value as object}
+              collapsed={collapsedLevel}
+              enableClipboard
+              displayDataTypes={false}
+              displayObjectSize
+              shortenTextAfterLength={80}
+              style={{
+                ...githubLightTheme,
+                backgroundColor: "transparent",
+                padding: 0,
+                fontSize: 12,
+                lineHeight: 1.6,
+                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              }}
+              onCopied={() => {
+                setCopyState("copied");
+                window.setTimeout(() => setCopyState("idle"), 1500);
+              }}
+              onExpand={() => {
+                if (copyState === "copied") setCopyState("idle");
+              }}
+            />
+          </div>
         ) : (
-          <pre style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: "#111827", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
+          <pre style={{ margin: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", wordBreak: "break-word", fontSize: 12, lineHeight: 1.6, color: "#111827", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
             {JSON.stringify(value, null, 2)}
           </pre>
         )}
@@ -353,8 +355,8 @@ export function WorkflowInspectorPrettyView(args: Readonly<{ value: unknown; emp
 
   return (
     <div style={{ height: "100%", minHeight: 0, display: "grid", gridTemplateRows: "auto 1fr", gap: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <button onClick={() => setExpandedKeys([])} style={{ border: "1px solid #d1d5db", background: "white", padding: "6px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
             Collapse all
           </button>
@@ -366,7 +368,7 @@ export function WorkflowInspectorPrettyView(args: Readonly<{ value: unknown; emp
           Readable tree view with preserved line breaks
         </div>
       </div>
-      <div style={{ overflow: "auto", border: "1px solid #d1d5db", background: "#f8fafc", padding: 12 }}>
+      <div style={{ minWidth: 0, overflowX: "hidden", overflowY: "auto", border: "1px solid #d1d5db", background: "#f8fafc", padding: 12 }}>
         <div data-testid="workflow-inspector-pretty-tree">
           {WorkflowInspectorPrettyTreeViewRenderer.renderNodes(treeData, expandedKeySet, (key) => {
             setExpandedKeys((current) => (current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key]));
@@ -399,7 +401,7 @@ export function WorkflowInspectorErrorView(args: Readonly<{ error: NodeExecution
           {headline}
         </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <div style={{ fontSize: 12, color: "#4b5563" }}>{stack ? "Full stacktrace" : "No stacktrace was captured for this error."}</div>
         <button
           onClick={() => {
@@ -427,7 +429,7 @@ export function WorkflowInspectorErrorView(args: Readonly<{ error: NodeExecution
           {copyState === "copied" ? "Copied" : "Copy stacktrace"}
         </button>
       </div>
-      <div style={{ overflow: "auto", border: "1px solid #d1d5db", background: "#0f172a", color: "#e2e8f0", padding: 12 }}>
+      <div style={{ minWidth: 0, overflowX: "hidden", overflowY: "auto", border: "1px solid #d1d5db", background: "#0f172a", color: "#e2e8f0", padding: 12 }}>
         <pre style={{ margin: 0, fontSize: 12, lineHeight: 1.65, whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
           {stack ?? headline}
         </pre>

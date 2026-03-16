@@ -275,14 +275,14 @@ describe("workflow runs http integration", () => {
         items: pinnedItems,
       },
     });
-    expect(updatedState.mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]?.pinnedInput).toEqual(pinnedItems);
+    expect(updatedState.mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]?.pinnedOutputsByPort?.main).toEqual(pinnedItems);
 
     const persistedStateResponse = await harness.request({
       method: "GET",
       url: ApiPaths.runState(createRunResponse.runId),
     });
     expect(persistedStateResponse.statusCode).toBe(200);
-    expect(persistedStateResponse.json<PersistedRunState>().mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]?.pinnedInput).toEqual(
+    expect(persistedStateResponse.json<PersistedRunState>().mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]?.pinnedOutputsByPort?.main).toEqual(
       pinnedItems,
     );
   });

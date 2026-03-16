@@ -10,7 +10,7 @@ export function WorkflowRunsSidebar(args: Readonly<{
   const { actions, formatting, model } = args;
   const { formatDateTime, getExecutionModeLabel } = formatting;
   const { onClearPin, onDebugHere, onDebugMutableExecution, onEditWorkflowSnapshot, onPinInput, onRun, onRunFromMutableExecution, onRunToHere, onSelectRun } = actions;
-  const { displayedRuns, displayedWorkflow, error, isMutableSelectedRun, isRunning, runsError, selectedNodeId, selectedPinnedInput, selectedRun, selectedRunId, workflow, workflowError, workflowId } = model;
+  const { displayedRuns, displayedWorkflow, error, isMutableSelectedRun, isRunning, runsError, selectedNodeId, selectedPinnedOutput, selectedRun, selectedRunId, workflow, workflowError, workflowId } = model;
 
   return (
     <aside style={{ height: "100%", minHeight: 0, overflow: "hidden", borderRight: "1px solid #d1d5db", background: "#fff", display: "flex", flexDirection: "column", minWidth: 0 }}>
@@ -79,14 +79,14 @@ export function WorkflowRunsSidebar(args: Readonly<{
                   disabled={!selectedNodeId}
                   style={{ width: "100%", padding: "9px 11px", border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, fontSize: 12, opacity: !selectedNodeId ? 0.6 : 1, cursor: !selectedNodeId ? "not-allowed" : "pointer" }}
                 >
-                  Pin selected node input
+                  Pin selected node output
                 </button>
                 <button
                   onClick={onClearPin}
-                  disabled={!selectedNodeId || !selectedPinnedInput}
-                  style={{ width: "100%", padding: "9px 11px", border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, fontSize: 12, opacity: !selectedNodeId || !selectedPinnedInput ? 0.6 : 1, cursor: !selectedNodeId || !selectedPinnedInput ? "not-allowed" : "pointer" }}
+                  disabled={!selectedNodeId || !selectedPinnedOutput}
+                  style={{ width: "100%", padding: "9px 11px", border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, fontSize: 12, opacity: !selectedNodeId || !selectedPinnedOutput ? 0.6 : 1, cursor: !selectedNodeId || !selectedPinnedOutput ? "not-allowed" : "pointer" }}
                 >
-                  Clear pinned input
+                  Clear pinned output
                 </button>
                 <button
                   data-testid="edit-workflow-json-button"

@@ -1,9 +1,8 @@
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import { HandleWebhookInvocationCommand } from "../../../application/commands/HandleWebhookInvocationCommand";
 import { ApplicationTokens } from "../../../applicationTokens";
-import type { WebhookEndpointRepository } from "../../../domain/webhooks/WebhookEndpointRepository";
 import { RequestToWebhookItemMapper } from "../../../infrastructure/webhooks/RequestToWebhookItemMapper";
-import { inject } from "@codemation/core";
+import { RunIntentService, inject } from "@codemation/core";
 import { HandlesHttpRoute } from "../HandlesHttpRoute";
 import { Route } from "../Route";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
@@ -14,10 +13,10 @@ export class WebhookHttpRouteHandler {
   constructor(
     @inject(ApplicationTokens.CommandBus)
     private readonly commandBus: CommandBus,
+    @inject(RunIntentService)
+    private readonly runIntentService: RunIntentService,
     @inject(RequestToWebhookItemMapper)
     private readonly requestToWebhookItemMapper: RequestToWebhookItemMapper,
-    @inject(ApplicationTokens.WebhookEndpointRepository)
-    private readonly webhookEndpointRepository: WebhookEndpointRepository,
   ) {}
 
   @Route.for("GET", "webhooks/:endpointId")
@@ -27,8 +26,11 @@ export class WebhookHttpRouteHandler {
   @Route.for("DELETE", "webhooks/:endpointId")
   async postWebhook(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      const entry = await this.webhookEndpointRepository.get(decodeURIComponent(params.endpointId!));
-      const requestItem = await this.requestToWebhookItemMapper.map(request, entry?.parseJsonBody);
+      const match = this.runIntentService.matchWebhookTrigger({
+        endpointId: decodeURIComponent(params.endpointId!),
+        method: request.method.toUpperCase() as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+      });
+      const requestItem = await this.requestToWebhookItemMapper.map(request, match?.parseJsonBody);
       return Response.json(
         await this.commandBus.execute(
           new HandleWebhookInvocationCommand(params.endpointId!, request.method.toUpperCase(), requestItem),

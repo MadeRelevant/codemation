@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
 import type { NodeExecutionContext, TriggerSetupContext, WebhookSpec } from "@codemation/core";
-import { InMemoryCredentialService, InMemoryRunDataFactory } from "@codemation/core";
+import { InMemoryRunDataFactory } from "@codemation/core";
 import { WebhookTrigger, WebhookTriggerNode } from "../dist/index.js";
 
 class CapturedWebhookSpecStore {
@@ -26,9 +26,6 @@ class WebhookTriggerContextFactory {
       runId: "run_webhook_setup",
       workflowId: "wf.webhook.setup",
       now: () => new Date("2026-03-11T12:00:00.000Z"),
-      services: {
-        credentials: new InMemoryCredentialService(),
-      },
       data: new InMemoryRunDataFactory().create(),
       trigger: { workflowId: "wf.webhook.setup", nodeId: "trigger" },
       config: new WebhookTrigger(
@@ -66,9 +63,6 @@ class WebhookTriggerExecutionContextFactory {
       nodeId: "trigger",
       activationId: "act_webhook_execute",
       now: () => new Date("2026-03-11T12:00:00.000Z"),
-      services: {
-        credentials: new InMemoryCredentialService(),
-      },
       data: new InMemoryRunDataFactory().create(),
       parent: undefined,
       config:

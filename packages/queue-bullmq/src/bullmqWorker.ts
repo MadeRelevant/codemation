@@ -104,12 +104,6 @@ export class BullmqWorker {
       runId: request.runId,
       workflowId: request.workflowId,
       parent: (request.parent ?? state.parent) as any,
-      services: {
-        credentials: this.credentials,
-        workflows: this.workflows as any,
-        nodeResolver: this.nodeResolver,
-        container: this.nodeResolver.getContainer(),
-      },
       data: dataStore,
     });
 

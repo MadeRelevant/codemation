@@ -14,6 +14,7 @@ export class PublishingRunStateStore implements RunStateStore, RunListingStore {
     startedAt: string;
     parent?: ParentExecutionRef;
     executionOptions?: PersistedRunState["executionOptions"];
+    control?: PersistedRunState["control"];
     workflowSnapshot?: PersistedRunState["workflowSnapshot"];
     mutableState?: PersistedRunState["mutableState"];
   }): Promise<void> {

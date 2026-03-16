@@ -13,7 +13,7 @@ import type {
   ToolConfig,
   ToolExecuteArgs,
 } from "@codemation/core";
-import { container as tsyringeContainer, InMemoryCredentialService, InMemoryRunDataFactory } from "@codemation/core";
+import { ContainerNodeResolver, container as tsyringeContainer, InMemoryRunDataFactory } from "@codemation/core";
 import { AIAgent, AIAgentNode } from "@codemation/core-nodes";
 import { z } from "zod";
 
@@ -162,19 +162,15 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
     workflowId: "wf_1",
     parent: undefined,
     now: () => new Date(),
-    services: {
-      credentials: new InMemoryCredentialService(),
-      container,
-      nodeState,
-    },
     data,
+    nodeState,
     nodeId: "agent_1",
     activationId: "act_1",
     config,
   };
 
   const startedAt = performance.now();
-  const outputs = await new AIAgentNode().execute(
+  const outputs = await new AIAgentNode(new ContainerNodeResolver(container)).execute(
     [
       {
         json: {

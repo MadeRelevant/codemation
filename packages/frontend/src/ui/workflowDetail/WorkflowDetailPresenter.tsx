@@ -213,11 +213,11 @@ export class WorkflowDetailPresenter {
     return this.persistedWorkflowDtoMapper.map(snapshot);
   }
 
-  static getPinnedInput(run: PersistedRunState | undefined, nodeId: string | null): Items | undefined {
+  static getPinnedOutput(run: PersistedRunState | undefined, nodeId: string | null): Items | undefined {
     if (!run || !nodeId) {
       return undefined;
     }
-    return run.mutableState?.nodesById?.[nodeId]?.pinnedInput;
+    return run.mutableState?.nodesById?.[nodeId]?.pinnedOutputsByPort?.main;
   }
 
   static toEditableJson(items: Items | undefined): string {

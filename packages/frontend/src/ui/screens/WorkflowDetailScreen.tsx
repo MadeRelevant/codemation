@@ -75,7 +75,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
   const controller = useWorkflowDetailController(args);
 
   return (
-    <main style={{ fontFamily: "ui-sans-serif, system-ui", height: "100vh", width: "100vw", minHeight: 0, overflow: "hidden", background: "#f8fafc" }}>
+    <main style={{ fontFamily: "ui-sans-serif, system-ui", height: "100vh", width: "100%", minHeight: 0, overflow: "hidden", background: "#f8fafc" }}>
       <section style={{ height: "100%", width: "100%", minHeight: 0, overflow: "hidden", display: "grid", gridTemplateColumns: "320px 1fr" }}>
         <WorkflowRunsSidebar model={controller.sidebarModel} formatting={controller.sidebarFormatting} actions={controller.sidebarActions} />
 
@@ -94,7 +94,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
             )}
           </div>
 
-          <div style={{ minHeight: 0, background: "white", display: "grid", gridTemplateRows: controller.isPanelCollapsed ? "36px" : "36px minmax(0, 1fr)", borderTop: "1px solid #d1d5db" }}>
+          <div style={{ minWidth: 0, minHeight: 0, background: "white", display: "grid", gridTemplateRows: controller.isPanelCollapsed ? "36px" : "36px minmax(0, 1fr)", borderTop: "1px solid #d1d5db" }}>
             <div
               style={{
                 display: "flex",
@@ -133,7 +133,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
               </button>
             </div>
             {!controller.isPanelCollapsed ? (
-              <div style={{ minHeight: 0, overflow: "hidden" }}>
+              <div style={{ minWidth: 0, minHeight: 0, overflow: "hidden" }}>
                 <WorkflowExecutionInspector model={controller.inspectorModel} formatting={controller.inspectorFormatting} actions={controller.inspectorActions} />
               </div>
             ) : null}

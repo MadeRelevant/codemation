@@ -81,9 +81,9 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const selectedRunQuery = useRunQuery(selectedRunId);
   const selectedRun = selectedRunQuery.data;
   const displayedWorkflow = useMemo(() => WorkflowDetailPresenter.workflowFromSnapshot(selectedRun?.workflowSnapshot, workflow), [selectedRun, workflow]);
-  const selectedPinnedInput = useMemo(() => WorkflowDetailPresenter.getPinnedInput(selectedRun, selectedNodeId), [selectedNodeId, selectedRun]);
+  const selectedPinnedOutput = useMemo(() => WorkflowDetailPresenter.getPinnedOutput(selectedRun, selectedNodeId), [selectedNodeId, selectedRun]);
   const pinnedNodeIds = useMemo(
-    () => new Set(Object.keys(selectedRun?.mutableState?.nodesById ?? {}).filter((nodeId) => Boolean(selectedRun?.mutableState?.nodesById?.[nodeId]?.pinnedInput))),
+    () => new Set(Object.keys(selectedRun?.mutableState?.nodesById ?? {}).filter((nodeId) => Boolean(selectedRun?.mutableState?.nodesById?.[nodeId]?.pinnedOutputsByPort?.main))),
     [selectedRun],
   );
   const displayedRuns = useMemo(() => {
@@ -305,10 +305,10 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     }
     setJsonEditorState({
       mode: "pin-input",
-      title: `Pin input for ${WorkflowDetailPresenter.getNodeDisplayName(selectedWorkflowNode, selectedNodeId)}`,
-      value: WorkflowDetailPresenter.toEditableJson(selectedPinnedInput ?? selectedNodeSnapshot?.inputsByPort?.in),
+      title: `Pin output for ${WorkflowDetailPresenter.getNodeDisplayName(selectedWorkflowNode, selectedNodeId)}`,
+      value: WorkflowDetailPresenter.toEditableJson(selectedPinnedOutput ?? selectedNodeSnapshot?.inputsByPort?.in),
     });
-  }, [selectedNodeId, selectedNodeSnapshot, selectedPinnedInput, selectedRunId, selectedWorkflowNode]);
+  }, [selectedNodeId, selectedNodeSnapshot, selectedPinnedOutput, selectedRunId, selectedWorkflowNode]);
 
   const onDebugMutableExecution = useCallback(() => {
     if (!selectedRunId || !selectedNodeId) {
@@ -318,10 +318,10 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       mode: "debug-input",
       title: `Debug input for ${WorkflowDetailPresenter.getNodeDisplayName(selectedWorkflowNode, selectedNodeId)}`,
       value: WorkflowDetailPresenter.toEditableJson(
-        selectedRun?.mutableState?.nodesById?.[selectedNodeId]?.lastDebugInput ?? selectedPinnedInput ?? selectedNodeSnapshot?.inputsByPort?.in,
+        selectedRun?.mutableState?.nodesById?.[selectedNodeId]?.lastDebugInput ?? selectedPinnedOutput ?? selectedNodeSnapshot?.inputsByPort?.in,
       ),
     });
-  }, [selectedNodeId, selectedNodeSnapshot, selectedPinnedInput, selectedRun, selectedRunId, selectedWorkflowNode]);
+  }, [selectedNodeId, selectedNodeSnapshot, selectedPinnedOutput, selectedRun, selectedRunId, selectedWorkflowNode]);
 
   const onEditWorkflowSnapshot = useCallback(() => {
     if (!selectedRun?.workflowSnapshot) {
@@ -442,7 +442,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       isMutableSelectedRun,
       isRunning,
       selectedNodeId,
-      selectedPinnedInput,
+      selectedPinnedOutput,
     },
     sidebarFormatting: {
       formatDateTime: WorkflowDetailPresenter.formatDateTime,
@@ -467,7 +467,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       selectedNodeId,
       selectedNodeSnapshot,
       selectedWorkflowNode,
-      selectedPinnedInput,
+      selectedPinnedOutput,
       selectedNodeError,
       selectedMode,
       inputPane,

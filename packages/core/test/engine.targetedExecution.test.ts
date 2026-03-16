@@ -1,0 +1,179 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import type { PersistedRunState } from "../dist/index.js";
+import { CallbackNodeConfig, chain, createEngineTestKit, items } from "./harness/index.ts";
+
+class TargetedExecutionStateFactory {
+  static fromRunState(state: PersistedRunState): {
+    outputsByNode: PersistedRunState["outputsByNode"];
+    nodeSnapshotsByNodeId: PersistedRunState["nodeSnapshotsByNodeId"];
+    mutableState: PersistedRunState["mutableState"];
+  } {
+    return {
+      outputsByNode: JSON.parse(JSON.stringify(state.outputsByNode)) as PersistedRunState["outputsByNode"],
+      nodeSnapshotsByNodeId: JSON.parse(JSON.stringify(state.nodeSnapshotsByNodeId)) as PersistedRunState["nodeSnapshotsByNodeId"],
+      mutableState: JSON.parse(JSON.stringify(state.mutableState ?? { nodesById: {} })) as PersistedRunState["mutableState"],
+    };
+  }
+}
+
+test("current-state execution stops when the requested node completes", async () => {
+  const events: string[] = [];
+  const A = new CallbackNodeConfig("A", () => events.push("A"), { id: "A" });
+  const B = new CallbackNodeConfig("B", () => events.push("B"), { id: "B" });
+  const C = new CallbackNodeConfig("C", () => events.push("C"), { id: "C" });
+  const D = new CallbackNodeConfig("D", () => events.push("D"), { id: "D" });
+  const wf = chain({ id: "wf.stop.node", name: "Stop at node" }).start(A).then(B).then(C).then(D).build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow: wf,
+    items: items([{ id: 1 }]),
+    stopCondition: { kind: "nodeCompleted", nodeId: "C" },
+  });
+  const done = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(done.status, "completed");
+  assert.equal(events.join(","), "A,B,C");
+  const stored = await kit.runStore.load(done.runId);
+  assert.equal(stored?.control?.stopCondition?.kind, "nodeCompleted");
+  assert.equal(stored?.nodeSnapshotsByNodeId.D, undefined);
+});
+
+test("current-state execution clears from a node and reruns only unresolved descendants", async () => {
+  const events: string[] = [];
+  const A = new CallbackNodeConfig("A", () => events.push("A"), { id: "A" });
+  const B = new CallbackNodeConfig("B", () => events.push("B"), { id: "B" });
+  const C = new CallbackNodeConfig("C", () => events.push("C"), { id: "C" });
+  const D = new CallbackNodeConfig("D", () => events.push("D"), { id: "D" });
+  const wf = chain({ id: "wf.clear.from", name: "Clear from node" }).start(A).then(B).then(C).then(D).build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const firstRun = await kit.runToCompletion({ wf, startAt: "A", items: items([{ id: 1 }]) });
+  assert.equal(firstRun.status, "completed");
+  const firstState = await kit.runStore.load(firstRun.runId);
+  assert.ok(firstState);
+
+  events.length = 0;
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow: wf,
+    currentState: TargetedExecutionStateFactory.fromRunState(firstState),
+    reset: { clearFromNodeId: "C" },
+    stopCondition: { kind: "workflowCompleted" },
+  });
+  const done = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(done.status, "completed");
+  assert.equal(events.join(","), "C,D");
+});
+
+test("pinned outputs survive clear-from-node and allow the engine to skip execution", async () => {
+  const events: string[] = [];
+  const A = new CallbackNodeConfig("A", () => events.push("A"), { id: "A" });
+  const B = new CallbackNodeConfig("B", () => events.push("B"), { id: "B" });
+  const C = new CallbackNodeConfig("C", () => events.push("C"), { id: "C" });
+  const D = new CallbackNodeConfig("D", () => events.push("D"), { id: "D" });
+  const wf = chain({ id: "wf.pinned.skip", name: "Pinned skip" }).start(A).then(B).then(C).then(D).build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const firstRun = await kit.runToCompletion({ wf, startAt: "A", items: items([{ id: 1 }]) });
+  assert.equal(firstRun.status, "completed");
+  const firstState = await kit.runStore.load(firstRun.runId);
+  assert.ok(firstState);
+
+  const currentState = TargetedExecutionStateFactory.fromRunState(firstState);
+  currentState.mutableState = {
+    nodesById: {
+      C: {
+        pinnedOutputsByPort: firstState.outputsByNode.C,
+      },
+    },
+  };
+
+  events.length = 0;
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow: wf,
+    currentState,
+    reset: { clearFromNodeId: "C" },
+    stopCondition: { kind: "workflowCompleted" },
+  });
+  const done = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(done.status, "completed");
+  assert.equal(events.join(","), "D");
+  const stored = await kit.runStore.load(done.runId);
+  assert.equal(stored?.nodeSnapshotsByNodeId.C?.status, "skipped");
+});
+
+test("current-state execution throws when multiple root nodes require input", async () => {
+  const A = new CallbackNodeConfig("A", () => {}, { id: "A" });
+  const B = new CallbackNodeConfig("B", () => {}, { id: "B" });
+  const wf = {
+    id: "wf.ambiguous.roots",
+    name: "Ambiguous roots",
+    nodes: [
+      { id: "A", kind: "node" as const, type: A.type, name: "A", config: A },
+      { id: "B", kind: "node" as const, type: B.type, name: "B", config: B },
+    ],
+    edges: [],
+  };
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  await assert.rejects(
+    () =>
+      kit.engine.runWorkflowFromState({
+        workflow: wf,
+        stopCondition: { kind: "workflowCompleted" },
+      }),
+    /Ambiguous execution frontier/,
+  );
+});
+
+test("serialized stop conditions survive worker scheduling and stop before downstream nodes", async () => {
+  const events: string[] = [];
+  const n1 = new CallbackNodeConfig("n1", () => events.push("n1"), { id: "n1" });
+  const n2 = new CallbackNodeConfig("n2", () => events.push("n2"), {
+    id: "n2",
+    execution: { hint: "worker", queue: "q.default" },
+  });
+  const n3 = new CallbackNodeConfig("n3", () => events.push("n3"), { id: "n3" });
+  const wf = chain({ id: "wf.stop.worker", name: "Stop worker" }).start(n1).then(n2).then(n3).build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow: wf,
+    items: items([{ id: 1 }]),
+    stopCondition: { kind: "nodeCompleted", nodeId: "n2" },
+  });
+
+  assert.equal(scheduled.status, "pending");
+  await kit.waitForActivations(1);
+  const storedPending = await kit.runStore.load(scheduled.runId);
+  assert.equal(storedPending?.control?.stopCondition?.kind, "nodeCompleted");
+  assert.equal(storedPending?.control?.stopCondition && "nodeId" in storedPending.control.stopCondition ? storedPending.control.stopCondition.nodeId : undefined, "n2");
+  assert.equal(storedPending?.pending?.nodeId, "n2");
+
+  const resumed = await kit.engine.resumeFromStepResult({
+    runId: scheduled.runId,
+    activationId: storedPending!.pending!.activationId,
+    nodeId: "n2",
+    outputs: { main: items([{ ok: true }]) },
+  });
+  const done = resumed.status === "pending" ? await kit.engine.waitForCompletion(resumed.runId) : resumed;
+
+  assert.equal(done.status, "completed");
+  assert.equal(events.join(","), "n1");
+  const storedDone = await kit.runStore.load(scheduled.runId);
+  assert.equal(storedDone?.nodeSnapshotsByNodeId.n3, undefined);
+});

@@ -109,7 +109,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   workflowRegistry.setWorkflows([wf]);
   const nodeResolver = new ContainerNodeResolver(container);
   const workflowRunnerResolver = new ContainerWorkflowRunnerResolver(container);
-  const activationScheduler = new DefaultDrivingScheduler(new ConfigDrivenOffloadPolicy("worker"), scheduler, new InlineDrivingScheduler());
+  const activationScheduler = new DefaultDrivingScheduler(new ConfigDrivenOffloadPolicy("worker"), scheduler, new InlineDrivingScheduler(nodeResolver));
   const eventBus = new InMemoryRunEventBus();
   container.registerInstance(CoreTokens.ServiceContainer, container);
   container.registerInstance(CoreTokens.CredentialService, credentials);

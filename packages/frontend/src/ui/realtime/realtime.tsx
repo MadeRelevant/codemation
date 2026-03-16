@@ -44,7 +44,7 @@ export type PersistedWorkflowSnapshot = Readonly<{
 }>;
 
 export type PersistedMutableNodeState = Readonly<{
-  pinnedInput?: Items;
+  pinnedOutputsByPort?: Readonly<Record<string, Items>>;
   lastDebugInput?: Items;
 }>;
 

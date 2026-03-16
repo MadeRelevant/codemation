@@ -9,6 +9,7 @@ export class InMemoryRunStateStore implements RunStateStore, RunListingStore {
     startedAt: string;
     parent?: ParentExecutionRef;
     executionOptions?: PersistedRunState["executionOptions"];
+    control?: PersistedRunState["control"];
     workflowSnapshot?: PersistedRunState["workflowSnapshot"];
     mutableState?: PersistedRunState["mutableState"];
   }): Promise<void> {
@@ -18,6 +19,7 @@ export class InMemoryRunStateStore implements RunStateStore, RunListingStore {
       startedAt: args.startedAt,
       parent: args.parent,
       executionOptions: args.executionOptions,
+      control: args.control,
       workflowSnapshot: args.workflowSnapshot,
       mutableState: args.mutableState,
       status: "running",
