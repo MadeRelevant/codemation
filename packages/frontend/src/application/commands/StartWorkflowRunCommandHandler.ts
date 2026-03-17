@@ -127,16 +127,13 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
     if (items) {
       return items;
     }
-    return startAt && this.isWebhookTrigger(workflow, startAt) ? [] : [{ json: {} }];
+    return this.isTriggerStart(workflow, startAt) ? [] : [{ json: {} }];
   }
 
-  private isWebhookTrigger(workflow: WorkflowDefinition, startAt: string): boolean {
-    const startNode = workflow.nodes.find((node) => node.id === startAt);
-    if (!startNode || startNode.kind !== "trigger") {
-      return false;
-    }
-    const type = startNode.config?.type as Readonly<{ name?: unknown }> | undefined;
-    return type?.name === "WebhookTriggerNode";
+  private isTriggerStart(workflow: WorkflowDefinition, startAt: string | undefined): boolean {
+    const resolvedStartAt = startAt ?? workflow.nodes.find((node) => node.kind === "trigger")?.id ?? workflow.nodes[0]?.id;
+    const startNode = resolvedStartAt ? workflow.nodes.find((node) => node.id === resolvedStartAt) : undefined;
+    return startNode?.kind === "trigger";
   }
 
   private cloneMutableState(mutableState: PersistedRunState["mutableState"]): PersistedMutableRunState | undefined {

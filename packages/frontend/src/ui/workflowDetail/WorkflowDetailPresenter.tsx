@@ -116,7 +116,7 @@ export class WorkflowDetailPresenter {
   }
 
   static createRunItems(workflow: WorkflowDto | undefined): Items {
-    if (this.isWebhookTriggeredWorkflow(workflow)) {
+    if (this.isTriggerStartedWorkflow(workflow)) {
       return [];
     }
     return [{ json: {} }];
@@ -261,9 +261,8 @@ export class WorkflowDetailPresenter {
     return [this.getErrorHeadline(error), this.getErrorStack(error)].filter((value): value is string => Boolean(value)).join("\n\n");
   }
 
-  static isWebhookTriggeredWorkflow(workflow: WorkflowDto | undefined): boolean {
-    const firstTrigger = workflow?.nodes.find((node) => node.kind === "trigger");
-    return firstTrigger?.type === "WebhookTriggerNode";
+  static isTriggerStartedWorkflow(workflow: WorkflowDto | undefined): boolean {
+    return workflow?.nodes.some((node) => node.kind === "trigger") ?? false;
   }
 
   static getExecutionModeLabel(run: Pick<RunSummary, "executionOptions"> | Pick<PersistedRunState, "executionOptions"> | undefined): string | null {

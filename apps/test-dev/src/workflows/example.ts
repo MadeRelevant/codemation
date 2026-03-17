@@ -23,8 +23,17 @@ type ExampleOutcomeJson = ExampleAgentJson &
   }>;
 
 export default createWorkflowBuilder({ id: "wf.example", name: "Example workflow" })
-.trigger(new ManualTrigger("Manual trigger"))
-.then(new MapData<unknown, ExampleSeedJson>("Seed", () => ({ subject: "RFQ: 1000 widgets", from: "buyer@acme.com", body: "please quote 1000 widgets" })))
+.trigger(
+  new ManualTrigger<ExampleSeedJson>("Manual trigger", [
+    {
+      json: {
+        subject: "RFQ: 1000 widgets",
+        from: "buyer@acme.com",
+        body: "please quote 1000 widgets",
+      },
+    },
+  ]),
+)
 .then(new ExampleUppercase<ExampleSeedJson, "subject">("Uppercase subject", { field: "subject" }))
 .then(
   new AIAgent<ExampleSeedJson, ExampleAgentJson>(

@@ -196,11 +196,10 @@ export interface TriggerNode<TConfig extends NodeConfigBase = NodeConfigBase> {
   kind: "trigger";
   outputPorts: readonly ["main"];
   setup(ctx: TriggerSetupContext<TConfig>): Promise<void>;
-}
-
-export interface ExecutableTriggerNode<TConfig extends NodeConfigBase = NodeConfigBase> extends TriggerNode<TConfig> {
   execute(items: Items, ctx: NodeExecutionContext<TConfig>): Promise<NodeOutputs>;
 }
+
+export interface ExecutableTriggerNode<TConfig extends NodeConfigBase = NodeConfigBase> extends TriggerNode<TConfig> {}
 
 export interface NodeExecutionRequest {
   runId: RunId;

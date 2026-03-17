@@ -1,9 +1,8 @@
 import { Callback, createWorkflowBuilder, If, ManualTrigger, MapData, Wait } from "@codemation/core-nodes";
 
 export default createWorkflowBuilder({ id: "wf.multi-item-race", name: "Multi-item race demo" })
-  .trigger(new ManualTrigger("Manual trigger"))
-  .then(
-    new Callback("Emit racers", () => [
+  .trigger(
+    new ManualTrigger("Manual trigger", [
       {
         json: {
           name: "Blaze",

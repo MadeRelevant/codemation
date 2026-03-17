@@ -1,7 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import type { TriggerNode, TriggerNodeConfig, TriggerSetupContext, TypeToken, WorkflowDefinition } from "../src/index.ts";
+import type {
+  Items,
+  NodeExecutionContext,
+  NodeOutputs,
+  TriggerNode,
+  TriggerNodeConfig,
+  TriggerSetupContext,
+  TypeToken,
+  WorkflowDefinition,
+} from "../src/index.ts";
 import { InMemoryRunEventBus, InMemoryRunStateStore, PublishingRunStateStore, WorkflowBuilder } from "../src/index.ts";
 
 import {
@@ -33,6 +42,10 @@ class ManualTestTriggerNode implements TriggerNode<ManualTestTriggerConfig> {
   readonly outputPorts = ["main"] as const;
 
   async setup(_ctx: TriggerSetupContext<ManualTestTriggerConfig>): Promise<void> {}
+
+  async execute(items: Items, _ctx: NodeExecutionContext<ManualTestTriggerConfig>): Promise<NodeOutputs> {
+    return { main: items };
+  }
 }
 
 test("engine runs a simple A -> B -> C flow", async () => {
@@ -84,6 +97,7 @@ test("trigger nodes are marked completed and emit completion snapshots", async (
   assert.equal(result.status, "completed");
 
   const stored = await runStore.load(result.runId);
+  assert.equal(kit.activations[0]?.nodeId, "trigger");
   assert.equal(stored?.nodeSnapshotsByNodeId.trigger?.status, "completed");
   assert.deepEqual(stored?.nodeSnapshotsByNodeId.trigger?.outputs?.main?.[0]?.json, { x: 1 });
   assert.deepEqual(seenTriggerStatuses, ["completed"]);

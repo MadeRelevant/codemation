@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import type { TriggerNodeConfig, TriggerSetupContext, TypeToken } from "../src/index.ts";
+import type { Items, NodeExecutionContext, NodeOutputs, TriggerNodeConfig, TriggerSetupContext, TypeToken } from "../src/index.ts";
 import { WorkflowBuilder } from "../src/index.ts";
 import { createEngineTestKit } from "./harness/index.ts";
 
@@ -27,6 +27,10 @@ class MatchingWebhookTriggerNode {
       methods: ctx.config.methods,
       parseJsonBody: (body) => body,
     });
+  }
+
+  async execute(items: Items, _ctx: NodeExecutionContext<MatchingWebhookTriggerConfig>): Promise<NodeOutputs> {
+    return { main: items };
   }
 }
 

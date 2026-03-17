@@ -14,7 +14,7 @@ export class DefaultDrivingScheduler implements NodeActivationScheduler {
   constructor(
     private readonly offloadPolicy: NodeOffloadPolicy,
     private readonly workerScheduler: NodeExecutionScheduler,
-    private readonly inline: InlineDrivingScheduler = new InlineDrivingScheduler(),
+    private readonly inline: InlineDrivingScheduler,
   ) {}
 
   setContinuation(continuation: NodeActivationContinuation): void {
@@ -55,6 +55,10 @@ export class DefaultDrivingScheduler implements NodeActivationScheduler {
 
     const receipt = await this.inline.enqueue(request);
     return { ...receipt, mode: "local" };
+  }
+
+  notifyPendingStatePersisted(runId: string): void {
+    this.inline.notifyPendingStatePersisted(runId);
   }
 }
 

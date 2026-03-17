@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   AgentAttachmentNodeIdFactory,
+  type Items,
+  type NodeExecutionContext,
+  type NodeOutputs,
   type PersistedRunState,
   type RunStateStore,
   type TriggerNode,
@@ -43,6 +46,10 @@ class TargetedManualTriggerNode implements TriggerNode<TargetedManualTriggerConf
   readonly outputPorts = ["main"] as const;
 
   async setup(_ctx: TriggerSetupContext<TargetedManualTriggerConfig<any>>): Promise<void> {}
+
+  async execute(items: Items, _ctx: NodeExecutionContext<TargetedManualTriggerConfig<any>>): Promise<NodeOutputs> {
+    return { main: items };
+  }
 }
 
 class DelayedPendingSaveRunStateStore implements RunStateStore {

@@ -49,9 +49,8 @@ class MediaPreviewGeneratedNoteFactory {
 }
 
 export default createWorkflowBuilder({ id: "wf.media.preview", name: "Media preview demo" })
-  .trigger(new ManualTrigger("Manual trigger"))
-  .then(
-    new Callback<unknown, MediaSeedJson>("Seed media URLs", () => [
+  .trigger(
+    new ManualTrigger<MediaSeedJson>("Manual trigger", [
       {
         json: {
           label: "Image sample",

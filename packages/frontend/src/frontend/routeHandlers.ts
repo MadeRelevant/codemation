@@ -82,7 +82,8 @@ export async function postRunRoute(req: Request, args?: RouteConfigOverride): Pr
   }
 
   const startAt = body.startAt ?? workflow.nodes.find((node) => node.kind === "trigger")?.id ?? workflow.nodes[0]!.id;
-  const items = body.items ?? [{ json: {} }];
+  const startNode = workflow.nodes.find((node) => node.id === startAt);
+  const items = body.items ?? (startNode?.kind === "trigger" ? [] : [{ json: {} }]);
   const result = await runtime.getEngine().runWorkflow(
     workflow,
     startAt as NodeId,

@@ -13,8 +13,16 @@ type DemoOutcomeJson = Readonly<{
 }>;
 
 export default createWorkflowBuilder({ id: "wf.consumer.demo", name: "Consumer demo (no OpenAI)" })
-.trigger(new ManualTrigger("Manual trigger"))
-.then(new MapData<unknown, DemoSeedJson>("Seed", () => ({ subject: "RFQ: 1000 widgets", from: "buyer@acme.com" })))
+.trigger(
+  new ManualTrigger<DemoSeedJson>("Manual trigger", [
+    {
+      json: {
+        subject: "RFQ: 1000 widgets",
+        from: "buyer@acme.com",
+      },
+    },
+  ]),
+)
 .then(new If<DemoSeedJson>("If RFQ?", (item) => item.json.subject.toUpperCase().includes("RFQ")))
 .when({
   true: [new SubWorkflow<DemoSeedJson, DemoOutcomeJson>("Create order (subworkflow)", "orders.create", [branchRef(0)], ORDERS_CREATE_START)],

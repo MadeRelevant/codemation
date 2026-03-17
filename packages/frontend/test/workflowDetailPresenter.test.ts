@@ -3,14 +3,14 @@ import { WorkflowDetailPresenter } from "../src/ui/workflowDetail/WorkflowDetail
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit";
 
 describe("WorkflowDetailPresenter", () => {
-  it("creates default run items for manual workflows and no items for webhook workflows", () => {
+  it("creates no default run items for trigger-started workflows", () => {
     const manualWorkflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
     const webhookWorkflow = WorkflowDetailFixtureFactory.createWorkflowDetail({
       triggerKind: "webhook",
       workflowName: "Frontend webhook workflow",
     });
 
-    expect(WorkflowDetailPresenter.createRunItems(manualWorkflow)).toEqual([{ json: {} }]);
+    expect(WorkflowDetailPresenter.createRunItems(manualWorkflow)).toEqual([]);
     expect(WorkflowDetailPresenter.createRunItems(webhookWorkflow)).toEqual([]);
   });
 
