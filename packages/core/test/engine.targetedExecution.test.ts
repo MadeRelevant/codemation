@@ -1,8 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { AgentAttachmentNodeIdFactory, type PersistedRunState } from "../dist/index.js";
-import { CallbackNodeConfig, chain, createEngineTestKit, items } from "./harness/index.ts";
+import {
+  AgentAttachmentNodeIdFactory,
+  type PersistedRunState,
+  type TriggerNode,
+  type TriggerNodeConfig,
+  type TriggerSetupContext,
+  type TypeToken,
+  type WorkflowDefinition,
+} from "../src/index.ts";
+import { CallbackNode, CallbackNodeConfig, chain, createEngineTestKit, items } from "./harness/index.ts";
 
 class TargetedExecutionStateFactory {
   static fromRunState(state: PersistedRunState): {
@@ -16,6 +24,23 @@ class TargetedExecutionStateFactory {
       mutableState: JSON.parse(JSON.stringify(state.mutableState ?? { nodesById: {} })) as PersistedRunState["mutableState"],
     };
   }
+}
+
+class TargetedManualTriggerConfig<TOutputJson = unknown> implements TriggerNodeConfig<TOutputJson> {
+  readonly kind = "trigger" as const;
+  readonly type: TypeToken<unknown> = TargetedManualTriggerNode;
+
+  constructor(
+    public readonly name: string,
+    public readonly id?: string,
+  ) {}
+}
+
+class TargetedManualTriggerNode implements TriggerNode<TargetedManualTriggerConfig<any>> {
+  readonly kind = "trigger" as const;
+  readonly outputPorts = ["main"] as const;
+
+  async setup(_ctx: TriggerSetupContext<TargetedManualTriggerConfig<any>>): Promise<void> {}
 }
 
 test("current-state execution stops when the requested node completes", async () => {
@@ -72,7 +97,7 @@ test("current-state execution clears from a node and reruns only unresolved desc
   assert.equal(events.join(","), "C,D");
 });
 
-test("pinned outputs survive clear-from-node and allow the engine to skip execution", async () => {
+test("pinned outputs survive clear-from-node and complete immediately without execution", async () => {
   const events: string[] = [];
   const A = new CallbackNodeConfig("A", () => events.push("A"), { id: "A" });
   const B = new CallbackNodeConfig("B", () => events.push("B"), { id: "B" });
@@ -109,7 +134,183 @@ test("pinned outputs survive clear-from-node and allow the engine to skip execut
   assert.equal(done.status, "completed");
   assert.equal(events.join(","), "D");
   const stored = await kit.runStore.load(done.runId);
-  assert.equal(stored?.nodeSnapshotsByNodeId.C?.status, "skipped");
+  assert.equal(stored?.nodeSnapshotsByNodeId.C?.status, "completed");
+  assert.equal(stored?.nodeSnapshotsByNodeId.C?.usedPinnedOutput, true);
+});
+
+test("running to C with only B pinned completes A and C while completing B from pinned output", async () => {
+  const events: string[] = [];
+  const A = new CallbackNodeConfig("A", () => events.push("A"), { id: "A" });
+  const B = new CallbackNodeConfig("B", () => events.push("B"), { id: "B" });
+  const C = new CallbackNodeConfig("C", () => events.push("C"), { id: "C" });
+  const wf = chain({ id: "wf.pinned.run-to-c", name: "Pinned run to C" }).start(A).then(B).then(C).build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const pinnedItems = items([{ pinned: true }]);
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow: wf,
+    currentState: {
+      outputsByNode: {},
+      nodeSnapshotsByNodeId: {},
+      mutableState: {
+        nodesById: {
+          B: {
+            pinnedOutputsByPort: {
+              main: pinnedItems,
+            },
+          },
+        },
+      },
+    },
+    reset: { clearFromNodeId: "C" },
+    stopCondition: { kind: "nodeCompleted", nodeId: "C" },
+  });
+  const done = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(done.status, "completed");
+  assert.equal(events.join(","), "A,C");
+
+  const stored = await kit.runStore.load(done.runId);
+  assert.equal(stored?.nodeSnapshotsByNodeId.A?.status, "completed");
+  assert.equal(stored?.nodeSnapshotsByNodeId.B?.status, "completed");
+  assert.equal(stored?.nodeSnapshotsByNodeId.B?.usedPinnedOutput, true);
+  assert.equal(stored?.nodeSnapshotsByNodeId.C?.status, "completed");
+  assert.deepEqual(stored?.outputsByNode.B?.main?.map((item) => item.json), [{ pinned: true }]);
+});
+
+test("stopping at a trigger does not materialize downstream pinned snapshots in the execution state", async () => {
+  const workflow: WorkflowDefinition = {
+    id: "wf.stop.at.trigger",
+    name: "Stop at trigger",
+    nodes: [
+      {
+        id: "A",
+        kind: "trigger",
+        type: TargetedManualTriggerNode,
+        name: "A",
+        config: new TargetedManualTriggerConfig("A", "A"),
+      },
+      { id: "B", kind: "node", type: CallbackNode, name: "B", config: new CallbackNodeConfig("B", () => {}, { id: "B" }) },
+      { id: "C", kind: "node", type: CallbackNode, name: "C", config: new CallbackNodeConfig("C", () => {}, { id: "C" }) },
+      { id: "D", kind: "node", type: CallbackNode, name: "D", config: new CallbackNodeConfig("D", () => {}, { id: "D" }) },
+    ],
+    edges: [
+      { from: { nodeId: "A", output: "main" }, to: { nodeId: "B", input: "in" } },
+      { from: { nodeId: "B", output: "main" }, to: { nodeId: "C", input: "in" } },
+      { from: { nodeId: "C", output: "main" }, to: { nodeId: "D", input: "in" } },
+    ],
+  };
+
+  const kit = createEngineTestKit();
+  await kit.start([workflow]);
+
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow,
+    items: items([{ id: 1 }]),
+    currentState: {
+      outputsByNode: {
+        B: { main: items([{ pinned: "B" }]) },
+        D: { main: items([{ pinned: "D" }]) },
+      },
+      nodeSnapshotsByNodeId: {},
+      mutableState: {
+        nodesById: {
+          B: {
+            pinnedOutputsByPort: {
+              main: items([{ pinned: "B" }]),
+            },
+          },
+          D: {
+            pinnedOutputsByPort: {
+              main: items([{ pinned: "D" }]),
+            },
+          },
+        },
+      },
+    },
+    reset: { clearFromNodeId: "A" },
+    stopCondition: { kind: "nodeCompleted", nodeId: "A" },
+  });
+  const done = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(done.status, "completed");
+
+  const stored = await kit.runStore.load(done.runId);
+  assert.equal(stored?.nodeSnapshotsByNodeId.A?.status, "completed");
+  assert.equal(stored?.nodeSnapshotsByNodeId.B, undefined);
+  assert.equal(stored?.nodeSnapshotsByNodeId.C, undefined);
+  assert.equal(stored?.nodeSnapshotsByNodeId.D, undefined);
+  assert.deepEqual(stored?.outputsByNode.B?.main?.map((item) => item.json), [{ pinned: "B" }]);
+  assert.deepEqual(stored?.outputsByNode.D?.main?.map((item) => item.json), [{ pinned: "D" }]);
+});
+
+test("running to a downstream node rematerializes required pinned nodes into execution snapshots", async () => {
+  const workflow: WorkflowDefinition = {
+    id: "wf.rematerialize.pinned",
+    name: "Rematerialize pinned",
+    nodes: [
+      {
+        id: "A",
+        kind: "trigger",
+        type: TargetedManualTriggerNode,
+        name: "A",
+        config: new TargetedManualTriggerConfig("A", "A"),
+      },
+      { id: "B", kind: "node", type: CallbackNode, name: "B", config: new CallbackNodeConfig("B", () => {}, { id: "B" }) },
+      { id: "C", kind: "node", type: CallbackNode, name: "C", config: new CallbackNodeConfig("C", () => {}, { id: "C" }) },
+    ],
+    edges: [
+      { from: { nodeId: "A", output: "main" }, to: { nodeId: "B", input: "in" } },
+      { from: { nodeId: "B", output: "main" }, to: { nodeId: "C", input: "in" } },
+    ],
+  };
+
+  const kit = createEngineTestKit();
+  await kit.start([workflow]);
+
+  const runToTrigger = await kit.engine.runWorkflowFromState({
+    workflow,
+    items: items([{ id: 1 }]),
+    currentState: {
+      outputsByNode: {
+        B: { main: items([{ pinned: "B" }]) },
+      },
+      nodeSnapshotsByNodeId: {},
+      mutableState: {
+        nodesById: {
+          B: {
+            pinnedOutputsByPort: {
+              main: items([{ pinned: "B" }]),
+            },
+          },
+        },
+      },
+    },
+    reset: { clearFromNodeId: "A" },
+    stopCondition: { kind: "nodeCompleted", nodeId: "A" },
+  });
+  const triggerState = (runToTrigger.status === "pending" ? await kit.engine.waitForCompletion(runToTrigger.runId) : runToTrigger);
+  const persistedTriggerState = await kit.runStore.load(triggerState.runId);
+  assert.ok(persistedTriggerState);
+  assert.equal(persistedTriggerState.nodeSnapshotsByNodeId.B, undefined);
+
+  const runToC = await kit.engine.runWorkflowFromState({
+    workflow,
+    items: items([{ id: 1 }]),
+    currentState: TargetedExecutionStateFactory.fromRunState(persistedTriggerState),
+    reset: { clearFromNodeId: "C" },
+    stopCondition: { kind: "nodeCompleted", nodeId: "C" },
+  });
+  const completedRunToC = runToC.status === "pending" ? await kit.engine.waitForCompletion(runToC.runId) : runToC;
+
+  assert.equal(completedRunToC.status, "completed");
+  const stored = await kit.runStore.load(completedRunToC.runId);
+  assert.equal(stored?.nodeSnapshotsByNodeId.A?.status, "completed");
+  assert.equal(stored?.nodeSnapshotsByNodeId.B?.status, "completed");
+  assert.equal(stored?.nodeSnapshotsByNodeId.B?.usedPinnedOutput, true);
+  assert.equal(stored?.nodeSnapshotsByNodeId.C?.status, "completed");
 });
 
 test("current-state execution can clear from a node and stop after that node, leaving downstream nodes reset", async () => {

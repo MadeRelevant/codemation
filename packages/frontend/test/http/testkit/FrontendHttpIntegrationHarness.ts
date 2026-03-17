@@ -52,11 +52,13 @@ export class FrontendHttpIntegrationHarness {
 
   private application: FastifyInstance | null = null;
   private gateway: CodemationServerGateway | null = null;
+  private websocketPort: number | null = null;
 
   constructor(private readonly options: FrontendHttpIntegrationHarnessOptions) {}
 
   async start(): Promise<void> {
     const websocketPort = await new FrontendIntegrationPortAllocator().allocate();
+    this.websocketPort = websocketPort;
     this.gateway = new CodemationServerGateway(
       this.createEffectiveConfig(),
       this.options.consumerRoot,
@@ -84,6 +86,7 @@ export class FrontendHttpIntegrationHarness {
       await this.gateway.close();
       this.gateway = null;
     }
+    this.websocketPort = null;
   }
 
   async request(args: FrontendHttpIntegrationRequest): Promise<FrontendHttpIntegrationResponse> {
@@ -103,6 +106,13 @@ export class FrontendHttpIntegrationHarness {
       payload: args.payload === undefined ? undefined : JSON.stringify(args.payload),
     });
     return response.json<TValue>();
+  }
+
+  getWorkflowWebsocketPort(): number {
+    if (this.websocketPort === null) {
+      throw new Error("FrontendHttpIntegrationHarness.start() must be called before reading the websocket port.");
+    }
+    return this.websocketPort;
   }
 
   private createEffectiveConfig(): CodemationConfig {

@@ -42,6 +42,20 @@ describe("WorkflowDetailPresenter", () => {
     expect(WorkflowDetailPresenter.toEditableJson([{ json: { pinned: true } }])).toContain('"pinned": true');
   });
 
+  it("formats snapshot durations with readable units", () => {
+    expect(
+      WorkflowDetailPresenter.formatDurationLabel({
+        runId: "run-1",
+        workflowId: "wf-1",
+        nodeId: "node-1",
+        status: "completed",
+        startedAt: "2026-03-17T09:00:00.000Z",
+        finishedAt: "2026-03-17T09:01:30.002Z",
+        updatedAt: "2026-03-17T09:01:30.002Z",
+      }),
+    ).toBe("Took 1m 30s 2ms");
+  });
+
   it("builds execution nodes and tree data for agent attachment invocations", () => {
     const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
     const run = WorkflowDetailFixtureFactory.createCompletedRunState();
@@ -126,5 +140,22 @@ describe("WorkflowDetailPresenter", () => {
     const result = WorkflowDetailPresenter.buildExecutionNodes(workflow, run);
 
     expect(result.map((entry) => entry.node.id)).toEqual([queuedNodeId, runningNodeId, completedNodeId, failedNodeId]);
+  });
+
+  it("includes pinned-output completions in the execution tree", () => {
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
+    const run = {
+      ...WorkflowDetailFixtureFactory.createInitialRunState({ workflow }),
+      nodeSnapshotsByNodeId: {
+        [WorkflowDetailFixtureFactory.toolNodeId]: {
+          ...WorkflowDetailFixtureFactory.createSnapshot(WorkflowDetailFixtureFactory.toolNodeId, "completed", 5),
+          usedPinnedOutput: true,
+        },
+      },
+    };
+
+    const result = WorkflowDetailPresenter.buildExecutionNodes(workflow, run);
+
+    expect(result.map((entry) => entry.node.id)).toEqual([WorkflowDetailFixtureFactory.toolNodeId]);
   });
 });

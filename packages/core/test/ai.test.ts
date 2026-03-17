@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AgentAttachmentNodeIdFactory } from "../dist/index.js";
+import { AgentAttachmentNodeIdFactory } from "../src/index.ts";
 
 test("AgentAttachmentNodeIdFactory creates and parses language model invocation node ids", () => {
   const nodeId = AgentAttachmentNodeIdFactory.createLanguageModelNodeId("agent_1", 1);

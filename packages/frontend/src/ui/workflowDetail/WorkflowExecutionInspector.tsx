@@ -28,7 +28,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
     selectedWorkflowNode,
     viewContext,
   } = model;
-  const { formatDateTime, getErrorClipboardText, getErrorHeadline, getErrorStack, getNodeDisplayName, getSnapshotTimestamp } = formatting;
+  const { formatDateTime, formatDurationLabel, getErrorClipboardText, getErrorHeadline, getErrorStack, getNodeDisplayName, getSnapshotTimestamp } = formatting;
   const { onClearPinnedOutput, onEditSelectedOutput, onSelectFormat, onSelectInputPort, onSelectMode, onSelectNode, onSelectOutputPort } = actions;
   const TREE_PANEL_MIN_WIDTH_PX = 220;
   const TREE_PANEL_DEFAULT_WIDTH_PX = 320;
@@ -42,6 +42,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
   const isInputVisible = selectedMode === "input" || selectedMode === "split";
   const isOutputVisible = selectedMode === "output" || selectedMode === "split";
   const panes = isInputVisible && isOutputVisible ? [inputPane, outputPane] : [isInputVisible ? inputPane : outputPane];
+  const selectedNodeDurationLabel = formatDurationLabel(selectedNodeSnapshot);
 
   const toggleInspectorPane = (tab: "input" | "output") => {
     if (tab === "input") {
@@ -129,6 +130,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
                 const snapshot = treeNode.snapshot;
                 const node = treeNode.workflowNode;
                 const status = snapshot?.status ?? "pending";
+                const durationLabel = formatDurationLabel(snapshot);
                 const FallbackIcon = WorkflowNodeIconResolver.resolveFallback(node?.type ?? "", node?.role, node?.icon);
                 return (
                   <div
@@ -157,7 +159,12 @@ export function WorkflowExecutionInspector(args: Readonly<{
                       </div>
                     </div>
                     <div style={{ flex: "0 0 auto", fontSize: 12, color: "#6b7280", whiteSpace: "nowrap", textAlign: "right" }}>
-                      {formatDateTime(getSnapshotTimestamp(snapshot))}
+                      <div>{formatDateTime(getSnapshotTimestamp(snapshot))}</div>
+                      {durationLabel ? (
+                        <div data-testid={`execution-tree-node-duration-${String(treeNode.key)}`} style={{ marginTop: 2 }}>
+                          {durationLabel}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -204,7 +211,14 @@ export function WorkflowExecutionInspector(args: Readonly<{
               ) : null}
             </div>
             <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
-              {selectedNodeSnapshot ? formatDateTime(getSnapshotTimestamp(selectedNodeSnapshot)) : viewContext === "live-workflow" ? "Live workflow node" : "No execution snapshot yet"}
+              {selectedNodeSnapshot ? (
+                <>
+                  <span>{formatDateTime(getSnapshotTimestamp(selectedNodeSnapshot))}</span>
+                  {selectedNodeDurationLabel ? (
+                    <span data-testid="selected-node-duration">{` · ${selectedNodeDurationLabel}`}</span>
+                  ) : null}
+                </>
+              ) : viewContext === "live-workflow" ? "Live workflow node" : "No execution snapshot yet"}
             </div>
           </div>
           <div style={{ display: "flex", minWidth: 0, flexWrap: "wrap", justifyContent: "flex-end", gap: 8 }}>

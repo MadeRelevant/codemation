@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { Items, NodeActivationStats, RunResult } from "../../dist/index.js";
+import type { Items, NodeActivationStats, RunResult } from "../../src/index.ts";
 
 export function assertCompleted(result: RunResult): Extract<RunResult, { status: "completed" }> {
   assert.equal(result?.status, "completed", `Expected status=completed, got ${String((result as any)?.status)}`);

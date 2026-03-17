@@ -360,7 +360,8 @@ describe("workflow runs http integration", () => {
     });
 
     expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.triggerNodeId]?.status).toBe("completed");
-    expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.status).toBe("skipped");
+    expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.status).toBe("completed");
+    expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.usedPinnedOutput).toBe(true);
     expect(secondRunResponse.state?.outputsByNode[WorkflowRunsIntegrationFixture.mapNodeId]?.main).toEqual(pinnedItems);
   });
 });

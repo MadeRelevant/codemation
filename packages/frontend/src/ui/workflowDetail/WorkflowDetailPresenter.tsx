@@ -1,5 +1,6 @@
-import { format, isToday, isYesterday } from "date-fns";
 import { AgentAttachmentNodeIdFactory } from "@codemation/core";
+import { format, isToday, isYesterday } from "date-fns";
+import prettyMilliseconds from "pretty-ms";
 import type {
   Items,
   NodeExecutionSnapshot,
@@ -137,6 +138,14 @@ export class WorkflowDetailPresenter {
     return snapshot?.finishedAt ?? snapshot?.updatedAt ?? snapshot?.startedAt ?? snapshot?.queuedAt;
   }
 
+  static formatDurationLabel(snapshot: NodeExecutionSnapshot | undefined): string | null {
+    const durationMs = WorkflowDetailPresenter.getSnapshotDurationMs(snapshot);
+    if (durationMs === null) {
+      return null;
+    }
+    return `Took ${prettyMilliseconds(durationMs, { unitCount: 3, separateMilliseconds: true })}`;
+  }
+
   static getDefaultInspectorMode(_snapshot: NodeExecutionSnapshot | undefined): InspectorMode {
     return "output";
   }
@@ -245,6 +254,18 @@ export class WorkflowDetailPresenter {
 
   static isMutableExecution(run: Pick<PersistedRunState, "executionOptions"> | undefined): boolean {
     return Boolean(run?.executionOptions?.isMutable);
+  }
+
+  private static getSnapshotDurationMs(snapshot: NodeExecutionSnapshot | undefined): number | null {
+    if (!snapshot?.startedAt || !snapshot.finishedAt) {
+      return null;
+    }
+    const startedAt = Date.parse(snapshot.startedAt);
+    const finishedAt = Date.parse(snapshot.finishedAt);
+    if (!Number.isFinite(startedAt) || !Number.isFinite(finishedAt) || finishedAt < startedAt) {
+      return null;
+    }
+    return finishedAt - startedAt;
   }
 
   static async replaceWorkflowDebuggerOverlay(
@@ -438,6 +459,7 @@ export class WorkflowDetailPresenter {
         snapshot,
       }));
   }
+
 
   private static resolveMatchingSnapshots(
     node: WorkflowNode,

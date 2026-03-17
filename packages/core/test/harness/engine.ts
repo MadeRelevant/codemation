@@ -14,7 +14,7 @@ import type {
   WebhookRegistrar,
   WorkflowDefinition,
   WorkflowRunnerService,
-} from "../../dist/index.js";
+} from "../../src/index.ts";
 
 import {
   ContainerNodeResolver,
@@ -32,7 +32,7 @@ import {
   InMemoryWorkflowRegistry,
   InlineDrivingScheduler,
   PersistedWorkflowTokenRegistry,
-} from "../../dist/index.js";
+} from "../../src/index.ts";
 import { container as tsyringeContainer } from "tsyringe";
 import type { DependencyContainer, InjectionToken } from "tsyringe";
 import { SubWorkflowRunnerNode } from "./nodes.js";

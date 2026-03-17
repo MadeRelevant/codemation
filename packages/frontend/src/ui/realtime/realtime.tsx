@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { WorkflowDto, WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
 export type { WorkflowDto, WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
 import { ApiPaths } from "../../presentation/http/ApiPaths";
@@ -70,6 +70,7 @@ export type NodeExecutionSnapshot = Readonly<{
   activationId?: string;
   parent?: ParentExecutionRef;
   status: "pending" | "queued" | "running" | "completed" | "failed" | "skipped";
+  usedPinnedOutput?: boolean;
   queuedAt?: string;
   startedAt?: string;
   finishedAt?: string;
@@ -302,11 +303,20 @@ function mergeSnapshotIntoRunState(
       : base.pending?.nodeId === event.snapshot.nodeId
         ? undefined
         : base.pending;
+  const hasActiveSnapshots = Object.values(nextNodeSnapshots).some((snapshot) => snapshot.status === "queued" || snapshot.status === "running");
+  const nextStatus =
+    event.kind === "nodeFailed"
+      ? "failed"
+      : event.kind === "nodeCompleted" && !nextPending && !hasActiveSnapshots
+        ? "completed"
+        : event.kind === "nodeCompleted"
+          ? base.status
+          : "pending";
 
   return {
     ...base,
     parent: base.parent ?? event.parent,
-    status: event.kind === "nodeFailed" ? "failed" : event.kind === "nodeCompleted" ? base.status : "pending",
+    status: nextStatus,
     pending: nextPending,
     outputsByNode: nextOutputsByNode,
     nodeSnapshotsByNodeId: nextNodeSnapshots,
@@ -394,6 +404,14 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
         if (message.event.kind === "runSaved") {
           clearRunRealtimeDelays(message.event.runId);
           applyWorkflowEvent(queryClient, message.event);
+          const currentRunState = queryClient.getQueryData<PersistedRunState>(runQueryKey(message.event.runId));
+          logger.info(
+            `cache after runSaved run=${message.event.runId} status=${currentRunState?.status ?? "missing"} pending=${currentRunState?.pending?.nodeId ?? "no"} snapshots=${Object.entries(
+              currentRunState?.nodeSnapshotsByNodeId ?? {},
+            )
+              .map(([nodeId, snapshot]) => `${nodeId}:${snapshot.status}`)
+              .join(",")}`,
+          );
           return;
         }
         if (
@@ -428,6 +446,10 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
           clearPendingTerminalEventDelay(nodeKey);
           activeStatusShownAtByNodeKeyRef.current.delete(nodeKey);
           applyWorkflowEvent(queryClient, message.event);
+          const currentRunState = queryClient.getQueryData<PersistedRunState>(runQueryKey(message.event.runId));
+          logger.info(
+            `cache after ${message.event.kind} run=${message.event.runId} node=${message.event.snapshot.nodeId} status=${currentRunState?.status ?? "missing"} pending=${currentRunState?.pending?.nodeId ?? "no"} nodeStatus=${currentRunState?.nodeSnapshotsByNodeId?.[message.event.snapshot.nodeId]?.status ?? "missing"}`,
+          );
           return;
         }
         applyWorkflowEvent(queryClient, message.event);
@@ -510,7 +532,17 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
           return;
         }
         try {
-          pendingJsonMessagesRef.current.push(JSON.parse(event.data) as RealtimeServerMessage);
+          const parsedMessage = JSON.parse(event.data) as RealtimeServerMessage;
+          if (parsedMessage.kind === "event") {
+            const eventDetails =
+              "snapshot" in parsedMessage.event && parsedMessage.event.snapshot
+                ? ` node=${parsedMessage.event.snapshot.nodeId} status=${parsedMessage.event.snapshot.status}`
+                : "";
+            logger.info(`raw websocket event kind=${parsedMessage.event.kind}${eventDetails}`);
+          } else {
+            logger.info(`raw websocket control kind=${parsedMessage.kind}`);
+          }
+          pendingJsonMessagesRef.current.push(parsedMessage);
           setMessageQueueVersion((current) => current + 1);
         } catch (error) {
           const exception = error instanceof Error ? error : new Error(String(error));
@@ -532,6 +564,7 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
           socketRef.current = null;
         }
         setReadyState(RealtimeReadyState.CLOSED);
+        logger.warn(`websocket close event code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`);
         if (!hasOpenedConnectionRef.current && !hasLoggedUnavailableTransportRef.current) {
           hasLoggedUnavailableTransportRef.current = true;
           logger.debug(`websocket transport is not available yet at ${websocketUrl}`);
@@ -747,15 +780,24 @@ export function useRunQuery(runId: string | null | undefined, options: Readonly<
   return useQuery({
     queryKey: runId ? runQueryKey(runId) : ["run", "disabled"],
     queryFn: async () => await fetchRun(runId!),
-    enabled: Boolean(runId) && !cachedState && !options.disableFetch,
+    enabled: Boolean(runId) && !options.disableFetch,
     initialData: cachedState,
   });
 }
 
 export function useRunStateFromCache(runId: string | null | undefined): PersistedRunState | undefined {
   const queryClient = useQueryClient();
-  return useMemo(() => {
-    if (!runId) return undefined;
-    return queryClient.getQueryData<PersistedRunState>(runQueryKey(runId));
-  }, [queryClient, runId]);
+  return useSyncExternalStore(
+    (onStoreChange) =>
+      queryClient.getQueryCache().subscribe((event) => {
+        const queryKey = event.query.queryKey;
+        if (!runId || queryKey[0] !== "run" || queryKey[1] !== runId) return;
+        onStoreChange();
+      }),
+    () => {
+      if (!runId) return undefined;
+      return queryClient.getQueryData<PersistedRunState>(runQueryKey(runId));
+    },
+    () => undefined,
+  );
 }

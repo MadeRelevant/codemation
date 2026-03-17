@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import type { TriggerNodeConfig, TriggerSetupContext, TypeToken } from "../dist/index.js";
-import { WorkflowBuilder } from "../dist/index.js";
+import type { TriggerNodeConfig, TriggerSetupContext, TypeToken } from "../src/index.ts";
+import { WorkflowBuilder } from "../src/index.ts";
 import { createEngineTestKit } from "./harness/index.ts";
 
 class MatchingWebhookTriggerConfig implements TriggerNodeConfig<unknown> {

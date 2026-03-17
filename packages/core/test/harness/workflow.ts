@@ -1,5 +1,5 @@
-import type { InputPortKey, NodeConfigBase, NodeDefinition, NodeRef, OutputPortKey, WorkflowDefinition, WorkflowId } from "../../dist/index.js";
-import { WorkflowBuilder } from "../../dist/index.js";
+import type { InputPortKey, NodeConfigBase, NodeDefinition, NodeRef, OutputPortKey, WorkflowDefinition, WorkflowId } from "../../src/index.ts";
+import { WorkflowBuilder } from "../../src/index.ts";
 
 type Meta = Readonly<{ id: WorkflowId; name: string }>;
 

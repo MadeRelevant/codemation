@@ -4,8 +4,10 @@ import path from "node:path";
 import { createWorkflowBuilder, ManualTrigger, MapData } from "@codemation/core-nodes";
 import type { PersistedRunState, WorkflowDefinition } from "@codemation/core";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { WebSocket } from "ws";
 import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
+import type { WorkflowWebsocketMessage } from "../../src/application/contracts/WorkflowWebsocketMessage";
 import type { CodemationBinding } from "../../src/presentation/config/CodemationBinding";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
@@ -131,6 +133,83 @@ class WorkflowDebugSessionIntegrationContext {
       throw new Error("WorkflowDebugSessionIntegrationContext.start() must be called before resolving the Prisma client binding.");
     }
     return this.transaction.getPrismaClient();
+  }
+}
+
+type CapturedWorkflowWebsocketMessage =
+  | Readonly<{ kind: "ready" }>
+  | Readonly<{ kind: "subscribed"; roomId: string }>
+  | Readonly<{ kind: "unsubscribed"; roomId: string }>
+  | Readonly<{ kind: "error"; message: string }>
+  | WorkflowWebsocketMessage;
+type CapturedWorkflowEventMessage = Extract<CapturedWorkflowWebsocketMessage, Readonly<{ kind: "event" }>>;
+
+class WorkflowWebsocketCaptureClient {
+  private readonly messages: CapturedWorkflowWebsocketMessage[] = [];
+  private readonly socket: WebSocket;
+
+  constructor(port: number) {
+    this.socket = new WebSocket(`ws://127.0.0.1:${String(port)}${ApiPaths.workflowWebsocket()}`);
+    this.socket.on("message", (rawData) => {
+      this.messages.push(JSON.parse(rawData.toString("utf8")) as CapturedWorkflowWebsocketMessage);
+    });
+  }
+
+  async open(): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      this.socket.once("open", () => resolve());
+      this.socket.once("error", reject);
+    });
+  }
+
+  subscribe(workflowId: string): void {
+    this.socket.send(JSON.stringify({ kind: "subscribe", roomId: workflowId }));
+  }
+
+  async waitForSubscription(workflowId: string): Promise<void> {
+    await this.waitForMessage((message) => WorkflowWebsocketCaptureClient.isSubscribedMessage(message, workflowId));
+  }
+
+  async waitForRunEventCount(runId: string, expectedCount: number): Promise<void> {
+    await this.waitForMessage(() => this.getRunEvents(runId).length >= expectedCount);
+  }
+
+  getRunEvents(runId: string): ReadonlyArray<CapturedWorkflowEventMessage> {
+    return this.messages.filter(
+      (message): message is CapturedWorkflowEventMessage => message.kind === "event" && message.event.runId === runId,
+    );
+  }
+
+  getLastCompletedRunSavedState(runId: string): PersistedRunState | undefined {
+    const runEvents = [...this.getRunEvents(runId)].reverse();
+    const completedRunSaved = runEvents.find((message) => message.event.kind === "runSaved" && message.event.state.status === "completed");
+    return completedRunSaved?.event.kind === "runSaved" ? completedRunSaved.event.state : undefined;
+  }
+
+  async close(): Promise<void> {
+    await new Promise<void>((resolve) => {
+      this.socket.once("close", () => resolve());
+      this.socket.close();
+    });
+  }
+
+  private async waitForMessage(predicate: (message: CapturedWorkflowWebsocketMessage | undefined) => boolean): Promise<void> {
+    const deadline = Date.now() + 5_000;
+    while (Date.now() < deadline) {
+      const latestMessage = this.messages.at(-1);
+      if (predicate(latestMessage)) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    throw new Error("Expected websocket message was not observed before timeout.");
+  }
+
+  private static isSubscribedMessage(
+    message: CapturedWorkflowWebsocketMessage | undefined,
+    workflowId: string,
+  ): message is Extract<CapturedWorkflowWebsocketMessage, Readonly<{ kind: "subscribed"; roomId: string }>> {
+    return message?.kind === "subscribed" && message.roomId === workflowId;
   }
 }
 
@@ -270,5 +349,149 @@ describe("workflow debug session http integration", () => {
     expect(runToNode2State.nodeSnapshotsByNodeId.node_2?.status).toBe("completed");
     expect(runToNode2State.nodeSnapshotsByNodeId.node_3).toBeUndefined();
     expect(runToNode2State.nodeSnapshotsByNodeId.node_4).toBeUndefined();
+  });
+
+  it("stopping at the manual trigger keeps downstream pins but excludes them from execution snapshots", async () => {
+    const harness = await context.start();
+
+    const historicalRunResponse = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
+      },
+    });
+    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, historicalRunResponse.runId);
+    expect(historicalRun.nodeSnapshotsByNodeId.node_6?.status).toBe("completed");
+
+    const updatedOverlay = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
+      method: "PUT",
+      url: ApiPaths.workflowDebuggerOverlay(WorkflowDebugSessionIntegrationFixture.workflowId),
+      payload: {
+        currentState: {
+          outputsByNode: historicalRun.outputsByNode,
+          nodeSnapshotsByNodeId: historicalRun.nodeSnapshotsByNodeId,
+          mutableState: {
+            nodesById: {
+              node_2: {
+                pinnedOutputsByPort: historicalRun.outputsByNode.node_2,
+              },
+              node_4: {
+                pinnedOutputsByPort: historicalRun.outputsByNode.node_4,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const runToTrigger = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
+        currentState: updatedOverlay.currentState,
+        clearFromNodeId: "node_1",
+        stopAt: "node_1",
+        mode: "manual",
+      },
+    });
+
+    expect(runToTrigger.state?.status).toBe("completed");
+    expect(runToTrigger.state?.nodeSnapshotsByNodeId.node_1?.status).toBe("completed");
+    expect(runToTrigger.state?.nodeSnapshotsByNodeId.node_2).toBeUndefined();
+    expect(runToTrigger.state?.nodeSnapshotsByNodeId.node_3).toBeUndefined();
+    expect(runToTrigger.state?.nodeSnapshotsByNodeId.node_4).toBeUndefined();
+    expect(runToTrigger.state?.nodeSnapshotsByNodeId.node_5).toBeUndefined();
+    expect(runToTrigger.state?.nodeSnapshotsByNodeId.node_6).toBeUndefined();
+    expect(runToTrigger.state?.mutableState?.nodesById?.node_2?.pinnedOutputsByPort?.main).toEqual(historicalRun.outputsByNode.node_2?.main);
+    expect(runToTrigger.state?.mutableState?.nodesById?.node_4?.pinnedOutputsByPort?.main).toEqual(historicalRun.outputsByNode.node_4?.main);
+    expect(runToTrigger.state?.outputsByNode.node_2?.main).toEqual(historicalRun.outputsByNode.node_2?.main);
+    expect(runToTrigger.state?.outputsByNode.node_4?.main).toEqual(historicalRun.outputsByNode.node_4?.main);
+  });
+
+  it("emits the full websocket lifecycle when rerunning from A and then to C with B pinned", async () => {
+    const harness = await context.start();
+    const websocket = new WorkflowWebsocketCaptureClient(harness.getWorkflowWebsocketPort());
+    await websocket.open();
+    websocket.subscribe(WorkflowDebugSessionIntegrationFixture.workflowId);
+    await websocket.waitForSubscription(WorkflowDebugSessionIntegrationFixture.workflowId);
+
+    const historicalRunResponse = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
+      },
+    });
+    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, historicalRunResponse.runId);
+
+    const overlay = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
+      method: "PUT",
+      url: ApiPaths.workflowDebuggerOverlay(WorkflowDebugSessionIntegrationFixture.workflowId),
+      payload: {
+        currentState: {
+          outputsByNode: historicalRun.outputsByNode,
+          nodeSnapshotsByNodeId: historicalRun.nodeSnapshotsByNodeId,
+          mutableState: {
+            nodesById: {
+              node_2: {
+                pinnedOutputsByPort: historicalRun.outputsByNode.node_2,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const runToA = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
+        currentState: overlay.currentState,
+        clearFromNodeId: "node_1",
+        stopAt: "node_1",
+        mode: "manual",
+      },
+    });
+    await websocket.waitForRunEventCount(runToA.runId, 3);
+
+    const runToC = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
+        currentState: runToA.state,
+        clearFromNodeId: "node_3",
+        stopAt: "node_3",
+        mode: "manual",
+      },
+    });
+    const runToCState = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, runToC.runId);
+    await websocket.waitForRunEventCount(runToC.runId, 7);
+
+    const runToAEvents = websocket.getRunEvents(runToA.runId);
+    expect(runToAEvents.map((message) => message.event.kind)).toEqual(["runCreated", "nodeCompleted", "runSaved"]);
+
+    const runToCEvents = websocket.getRunEvents(runToC.runId);
+    expect(runToCEvents.map((message) => message.event.kind)).toEqual([
+      "runCreated",
+      "runSaved",
+      "nodeQueued",
+      "runSaved",
+      "nodeStarted",
+      "runSaved",
+      "nodeCompleted",
+    ]);
+
+    const completedRunSavedState = websocket.getLastCompletedRunSavedState(runToC.runId);
+    expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_1?.status).toBe("completed");
+    expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_2?.status).toBe("completed");
+    expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_2?.usedPinnedOutput).toBe(true);
+    expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_3?.status).toBe("completed");
+    expect(runToCState.nodeSnapshotsByNodeId.node_2?.usedPinnedOutput).toBe(true);
+
+    await websocket.close();
   });
 });

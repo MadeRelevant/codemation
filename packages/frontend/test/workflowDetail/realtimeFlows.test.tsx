@@ -222,4 +222,54 @@ describe("workflow detail realtime flows", () => {
       ]);
     });
   });
+
+  it("does not leave the live workflow running when a completed runSaved arrives before the trailing nodeCompleted event", async () => {
+    kit = WorkflowDetailScreenTestKit.create().install();
+    kit.render();
+
+    await kit.waitForSocketConnection();
+    await kit.waitForWorkflowSubscription();
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.subscribed());
+    await kit.startRun();
+
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.runCreated());
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.nodeStarted(WorkflowDetailFixtureFactory.nodeOneId, 1));
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.runSaved());
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.nodeCompleted(WorkflowDetailFixtureFactory.nodeOneId, 1));
+    await kit.waitForStatusVisibilityWindow();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("canvas-run-workflow-button")).toBeEnabled();
+      WorkflowStatusAssertions.expectStatuses(kit!.container, {
+        [WorkflowDetailFixtureFactory.triggerNodeId]: "completed",
+        [WorkflowDetailFixtureFactory.nodeOneId]: "completed",
+        [WorkflowDetailFixtureFactory.agentNodeId]: "completed",
+        [WorkflowDetailFixtureFactory.llmNodeId]: "completed",
+        [WorkflowDetailFixtureFactory.toolNodeId]: "completed",
+        [WorkflowDetailFixtureFactory.nodeTwoId]: "completed",
+      });
+    });
+  });
+
+  it("treats a terminal nodeCompleted event as finished when the final runSaved message is missing", async () => {
+    kit = WorkflowDetailScreenTestKit.create().install();
+    kit.render();
+
+    await kit.waitForSocketConnection();
+    await kit.waitForWorkflowSubscription();
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.subscribed());
+    await kit.startRun();
+
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.runCreated());
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.nodeStarted(WorkflowDetailFixtureFactory.nodeTwoId, 6));
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.nodeCompleted(WorkflowDetailFixtureFactory.nodeTwoId, 6));
+    await kit.waitForStatusVisibilityWindow();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("canvas-run-workflow-button")).toBeEnabled();
+      WorkflowStatusAssertions.expectStatuses(kit!.container, {
+        [WorkflowDetailFixtureFactory.nodeTwoId]: "completed",
+      });
+    });
+  });
 });

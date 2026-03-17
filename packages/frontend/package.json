@@ -31,7 +31,9 @@
     "test": "pnpm run test:unit && pnpm run test:integration && pnpm run test:e2e",
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "coverage": "pnpm run coverage:integration",
+    "coverage:integration": "vitest run --config vitest.integration.coverage.config.ts"
   },
   "dependencies": {
     "@codemation/core": "workspace:*",
@@ -52,6 +54,7 @@
     "lucide-react": "^0.577.0",
     "monaco-editor": "^0.55.1",
     "pg": "^8.16.3",
+    "pretty-ms": "^9.3.0",
     "prisma": "^7.0.0",
     "rc-tree": "^5.13.1",
     "react": "^19.2.4",
@@ -75,6 +78,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
+    "@vitest/coverage-v8": "^4.0.18",
     "dotenv": "^17.3.1",
     "eslint": "^10.0.3",
     "jsdom": "^28.1.0",

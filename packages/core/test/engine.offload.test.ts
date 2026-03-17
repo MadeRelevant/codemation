@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { InMemoryWorkflowRegistry, PersistedWorkflowResolver, PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, node, tool } from "../dist/index.js";
-import type { Items, Node, NodeOutputs, RunnableNodeConfig, TypeToken } from "../dist/index.js";
+import { InMemoryWorkflowRegistry, PersistedWorkflowResolver, PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, node, tool } from "../src/index.ts";
+import type { Items, Node, NodeOutputs, RunnableNodeConfig, TypeToken } from "../src/index.ts";
 import { CallbackNodeConfig, CapturingScheduler, chain, createEngineTestKit, items } from "./harness/index.ts";
 
 @tool({ packageName: "@codemation/test" })

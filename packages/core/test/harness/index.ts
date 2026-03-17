@@ -1,4 +1,4 @@
-export { branchRef } from "../../dist/index.js";
+export { branchRef } from "../../src/index.ts";
 
 export { CapturingScheduler, createEngineTestKit } from "./engine.js";
 export { chain, dag } from "./workflow.js";

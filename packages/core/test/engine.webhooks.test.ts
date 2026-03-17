@@ -11,8 +11,8 @@ import type {
   TypeToken,
   WebhookControlSignal,
   WorkflowDefinition,
-} from "../dist/index.js";
-import { WorkflowBuilder } from "../dist/index.js";
+} from "../src/index.ts";
+import { WorkflowBuilder } from "../src/index.ts";
 import { CallbackNodeConfig } from "./harness/index.ts";
 import { createEngineTestKit, items } from "./harness/index.ts";
 

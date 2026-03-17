@@ -591,8 +591,23 @@ export class Engine implements NodeActivationContinuation {
 
     const batchId = state.pending.batchId ?? "batch_1";
     const queue: RunQueueEntry[] = (state.queue ?? []).map((q) => ({ ...q, batchId: q.batchId ?? batchId }));
+    const nextNodeSnapshotsByNodeId = {
+      ...(state.nodeSnapshotsByNodeId ?? {}),
+      [args.nodeId]: completedSnapshot,
+    };
 
     planner.applyOutputs(queue, { fromNodeId: args.nodeId, outputs: args.outputs as any, batchId });
+    this.applyPinnedQueueSkips({
+      runId: state.runId,
+      workflowId: state.workflowId,
+      parent: state.parent,
+      mutableState: state.mutableState,
+      planner,
+      queue,
+      data,
+      nodeSnapshotsByNodeId: nextNodeSnapshotsByNodeId,
+      finishedAt: completedAt,
+    });
 
     let next: ReturnType<RunQueuePlanner["nextActivation"]>;
     try {
@@ -627,10 +642,7 @@ export class Engine implements NodeActivationContinuation {
         pending: undefined,
         queue: [],
         outputsByNode: data.dump(),
-        nodeSnapshotsByNodeId: {
-          ...(state.nodeSnapshotsByNodeId ?? {}),
-          [args.nodeId]: completedSnapshot,
-        },
+        nodeSnapshotsByNodeId: nextNodeSnapshotsByNodeId,
       });
       await this.publishNodeEvent("nodeCompleted", completedSnapshot);
 
@@ -712,8 +724,7 @@ export class Engine implements NodeActivationContinuation {
       queue: queue.map((q) => ({ ...q })),
       outputsByNode: data.dump(),
       nodeSnapshotsByNodeId: {
-        ...(state.nodeSnapshotsByNodeId ?? {}),
-        [args.nodeId]: completedSnapshot,
+        ...nextNodeSnapshotsByNodeId,
         [def.id]: queuedSnapshot,
       },
     });
@@ -1264,6 +1275,17 @@ export class Engine implements NodeActivationContinuation {
     data: ReturnType<RunDataFactory["create"]>;
     nodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
   }): Promise<RunResult> {
+    this.applyPinnedQueueSkips({
+      runId: args.runId,
+      workflowId: args.workflowId,
+      parent: args.parent,
+      mutableState: args.mutableState,
+      planner: args.planner,
+      queue: args.queue,
+      data: args.data,
+      nodeSnapshotsByNodeId: args.nodeSnapshotsByNodeId,
+      finishedAt: args.startedAt,
+    });
     const next = args.planner.nextActivation(args.queue);
     if (!next) {
       return await this.completeRun({
@@ -1458,10 +1480,15 @@ export class Engine implements NodeActivationContinuation {
     finishedAt: string;
   }): Record<NodeId, NodeExecutionSnapshot> {
     const snapshots = { ...args.currentState.nodeSnapshotsByNodeId };
-    const skippedPinnedNodeIds = new Set(args.preservedPinnedNodeIds.filter((nodeId) => args.skippedNodeIds.includes(nodeId)));
+    const skippedPinnedNodeIds = new Set<NodeId>(args.preservedPinnedNodeIds.filter((nodeId) => args.skippedNodeIds.includes(nodeId)));
+    for (const nodeId of args.skippedNodeIds) {
+      if (args.currentState.mutableState?.nodesById?.[nodeId]?.pinnedOutputsByPort) {
+        skippedPinnedNodeIds.add(nodeId);
+      }
+    }
     for (const nodeId of skippedPinnedNodeIds) {
       const previous = snapshots[nodeId];
-      snapshots[nodeId] = NodeSnapshotFactory.skipped({
+      snapshots[nodeId] = NodeSnapshotFactory.completedFromPinnedOutput({
         previous,
         runId: args.runId,
         workflowId: args.workflowId,
@@ -1474,6 +1501,60 @@ export class Engine implements NodeActivationContinuation {
       });
     }
     return snapshots;
+  }
+
+  private applyPinnedQueueSkips(args: {
+    runId: RunId;
+    workflowId: WorkflowId;
+    parent?: ParentExecutionRef;
+    mutableState: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["mutableState"];
+    planner: RunQueuePlanner;
+    queue: RunQueueEntry[];
+    data: ReturnType<RunDataFactory["create"]>;
+    nodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
+    finishedAt: string;
+  }): void {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let index = 0; index < args.queue.length; index += 1) {
+        const queueEntry = args.queue[index]!;
+        const pinnedOutputs = args.mutableState?.nodesById?.[queueEntry.nodeId]?.pinnedOutputsByPort;
+        if (!pinnedOutputs) {
+          continue;
+        }
+        args.queue.splice(index, 1);
+        const previous = args.nodeSnapshotsByNodeId[queueEntry.nodeId];
+        args.nodeSnapshotsByNodeId[queueEntry.nodeId] = NodeSnapshotFactory.completedFromPinnedOutput({
+          previous,
+          runId: args.runId,
+          workflowId: args.workflowId,
+          nodeId: queueEntry.nodeId,
+          activationId: previous?.activationId ?? `synthetic_${queueEntry.nodeId}`,
+          parent: args.parent,
+          finishedAt: args.finishedAt,
+          inputsByPort: this.resolveQueueEntryInputsByPort(queueEntry),
+          outputs: pinnedOutputs,
+        });
+        args.data.setOutputs(queueEntry.nodeId, pinnedOutputs);
+        args.planner.applyOutputs(args.queue, {
+          fromNodeId: queueEntry.nodeId,
+          outputs: pinnedOutputs as any,
+          batchId: queueEntry.batchId ?? "batch_1",
+        });
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  private resolveQueueEntryInputsByPort(queueEntry: RunQueueEntry): NodeInputsByPort {
+    if (queueEntry.collect) {
+      return queueEntry.collect.received;
+    }
+    return {
+      [queueEntry.toInput ?? "in"]: queueEntry.input,
+    };
   }
 
   private isStopConditionSatisfied(

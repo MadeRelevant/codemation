@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { container as tsyringeContainer } from "tsyringe";
-import { ContainerNodeResolver, InMemoryWorkflowRegistry, PersistedWorkflowResolver, PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, WorkflowBuilder, chatModel, node, tool } from "../dist/index.js";
+import { ContainerNodeResolver, InMemoryWorkflowRegistry, PersistedWorkflowResolver, PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, WorkflowBuilder, chatModel, node, tool } from "../src/index.ts";
 import type {
   ChatModelConfig,
   ChatModelFactory,
@@ -18,7 +18,7 @@ import type {
   ToolConfig,
   ToolExecuteArgs,
   TypeToken,
-} from "../dist/index.js";
+} from "../src/index.ts";
 import { createEngineTestKit, items } from "./harness/index.ts";
 
 class StableChatModelConfig implements ChatModelConfig {

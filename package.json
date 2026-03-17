@@ -7,6 +7,8 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint && pnpm run dupcheck && pnpm run antipatterns",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "coverage": "pnpm --filter @codemation/core coverage && pnpm --filter @codemation/frontend coverage",
     "dupcheck": "jscpd packages apps/test-dev",
     "antipatterns": "ast-grep scan --hint",
     "test": "turbo run test"

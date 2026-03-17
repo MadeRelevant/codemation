@@ -80,6 +80,7 @@ export type WorkflowExecutionInspectorModel = Readonly<{
 }>;
 export type WorkflowExecutionInspectorFormatting = Readonly<{
   formatDateTime: (value: string | undefined) => string;
+  formatDurationLabel: (snapshot: NodeExecutionSnapshot | undefined) => string | null;
   getNodeDisplayName: (node: WorkflowNode | undefined, fallback: string | null) => string;
   getSnapshotTimestamp: (snapshot: NodeExecutionSnapshot | undefined) => string | undefined;
   getErrorHeadline: (error: NodeExecutionError | undefined) => string;

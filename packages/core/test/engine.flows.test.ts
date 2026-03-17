@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import type { TriggerNode, TriggerNodeConfig, TriggerSetupContext, TypeToken, WorkflowDefinition } from "../dist/index.js";
-import { InMemoryRunEventBus, InMemoryRunStateStore, PublishingRunStateStore, WorkflowBuilder } from "../dist/index.js";
+import type { TriggerNode, TriggerNodeConfig, TriggerSetupContext, TypeToken, WorkflowDefinition } from "../src/index.ts";
+import { InMemoryRunEventBus, InMemoryRunStateStore, PublishingRunStateStore, WorkflowBuilder } from "../src/index.ts";
 
 import {
   CallbackNode,

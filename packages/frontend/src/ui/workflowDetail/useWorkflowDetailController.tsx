@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type Items,
   useRunQuery,
+  useRunStateFromCache,
   useWorkflowDebuggerOverlayQuery,
   useWorkflowQuery,
   useWorkflowRealtimeSubscription,
@@ -98,9 +99,8 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const workflow = workflowQuery.data;
   const runs = runsQuery.data;
   const selectedRunQuery = useRunQuery(selectedRunId);
-  const activeLiveRunQuery = useRunQuery(activeLiveRunId, { disableFetch: true });
   const selectedRun = selectedRunQuery.data;
-  const activeLiveRun = activeLiveRunQuery.data;
+  const activeLiveRun = useRunStateFromCache(activeLiveRunId);
   const debuggerOverlay = debuggerOverlayQuery.data;
   const viewContext = selectedRunId ? "historical-run" : "live-workflow";
   const liveExecutionState = useMemo(() => {
@@ -143,6 +143,16 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     [activeLiveRun, activeLiveRunId],
   );
   const isRunning = isRunRequestPending || (viewContext === "live-workflow" && isActiveLiveRunPending);
+
+  useEffect(() => {
+    console.info(
+      `[workflow-detail.controller] activeLiveRunId=${activeLiveRunId ?? "none"} activeStatus=${activeLiveRun?.status ?? "missing"} activePending=${activeLiveRun?.pending?.nodeId ?? "no"} currentSnapshots=${Object.entries(
+        activeLiveRun?.nodeSnapshotsByNodeId ?? {},
+      )
+        .map(([nodeId, snapshot]) => `${nodeId}:${snapshot.status}`)
+        .join(",")} isRunning=${String(isRunning)}`,
+    );
+  }, [activeLiveRun, activeLiveRunId, isRunning]);
   const selectedPinnedOutput = useMemo(
     () => WorkflowDetailPresenter.getPinnedOutput(currentExecutionState, selectedNodeId),
     [currentExecutionState, selectedNodeId],
@@ -315,9 +325,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
           (existing: ReadonlyArray<RunSummary> | undefined) =>
             WorkflowDetailPresenter.mergeRunSummaryList(existing, WorkflowDetailPresenter.toRunSummary(result.state!)),
         );
-        if (!options.keepLiveWorkflow) {
-          queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(result.runId), result.state);
-        }
+        queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(result.runId), result.state);
       }
       if (options.keepLiveWorkflow) {
         setActiveLiveRunId(result.runId);
@@ -698,6 +706,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     },
     inspectorFormatting: {
       formatDateTime: WorkflowDetailPresenter.formatDateTime,
+      formatDurationLabel: WorkflowDetailPresenter.formatDurationLabel,
       getNodeDisplayName: WorkflowDetailPresenter.getNodeDisplayName,
       getSnapshotTimestamp: WorkflowDetailPresenter.getSnapshotTimestamp,
       getErrorHeadline: WorkflowDetailPresenter.getErrorHeadline,

@@ -101,6 +101,7 @@ export interface NodeExecutionSnapshot {
   activationId?: NodeActivationId;
   parent?: ParentExecutionRef;
   status: NodeExecutionStatus;
+  usedPinnedOutput?: boolean;
   queuedAt?: string;
   startedAt?: string;
   finishedAt?: string;

@@ -82,6 +82,36 @@ export class NodeSnapshotFactory {
       updatedAt: args.finishedAt,
       inputsByPort: args.inputsByPort,
       outputs: args.outputs,
+      usedPinnedOutput: false,
+      error: undefined,
+    };
+  }
+
+  static completedFromPinnedOutput(args: {
+    previous?: NodeExecutionSnapshot;
+    runId: RunId;
+    workflowId: WorkflowId;
+    nodeId: NodeId;
+    activationId: NodeActivationId;
+    parent?: ParentExecutionRef;
+    finishedAt: string;
+    inputsByPort: NodeInputsByPort;
+    outputs: NodeOutputs;
+  }): NodeExecutionSnapshot {
+    return {
+      runId: args.runId,
+      workflowId: args.workflowId,
+      nodeId: args.nodeId,
+      activationId: args.activationId,
+      parent: args.parent,
+      status: "completed",
+      queuedAt: args.previous?.queuedAt,
+      startedAt: args.previous?.startedAt ?? args.finishedAt,
+      finishedAt: args.finishedAt,
+      updatedAt: args.finishedAt,
+      inputsByPort: args.inputsByPort,
+      outputs: args.outputs,
+      usedPinnedOutput: true,
       error: undefined,
     };
   }

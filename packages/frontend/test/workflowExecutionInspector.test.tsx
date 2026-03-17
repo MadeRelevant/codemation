@@ -72,6 +72,21 @@ describe("workflow execution inspector", () => {
       gridTemplateColumns: "420px 8px minmax(0, 1fr)",
     });
   });
+
+  it("shows formatted node durations in the tree and selected node header", () => {
+    render(
+      <div style={{ width: 900, height: 320 }}>
+        <WorkflowExecutionInspector
+          model={WorkflowExecutionInspectorFixture.createModel()}
+          formatting={WorkflowExecutionInspectorFixture.createFormatting()}
+          actions={WorkflowExecutionInspectorFixture.createActions()}
+        />
+      </div>,
+    );
+
+    expect(screen.getByTestId("execution-tree-node-duration-node-1")).toHaveTextContent("Took 500ms");
+    expect(screen.getByTestId("selected-node-duration")).toHaveTextContent("Took 500ms");
+  });
 });
 
 class WorkflowExecutionInspectorFixture {
@@ -81,6 +96,7 @@ class WorkflowExecutionInspectorFixture {
       workflowId: "wf-1",
       nodeId: "node-1",
       status: "completed",
+      startedAt: "2026-03-15T09:50:59.500Z",
       finishedAt: "2026-03-15T09:51:00.000Z",
       updatedAt: "2026-03-15T09:51:00.000Z",
     } as WorkflowExecutionInspectorModel["selectedNodeSnapshot"];
@@ -140,6 +156,7 @@ class WorkflowExecutionInspectorFixture {
   static createFormatting(): WorkflowExecutionInspectorFormatting {
     return {
       formatDateTime: (value) => value ?? "Unknown time",
+      formatDurationLabel: (snapshot) => (snapshot?.startedAt && snapshot.finishedAt ? "Took 500ms" : null),
       getNodeDisplayName: (_node, fallback) => fallback ?? "Unnamed node",
       getSnapshotTimestamp: (snapshot) => snapshot?.finishedAt,
       getErrorHeadline: () => "No error",

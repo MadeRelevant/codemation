@@ -106,6 +106,7 @@ class RunStateResetter {
         if (pinnedOutputs) {
           outputsByNode[nodeId] = pinnedOutputs;
         }
+        delete nodeSnapshotsByNodeId[nodeId];
         preservedPinnedNodeIds.push(nodeId);
         continue;
       }
@@ -185,6 +186,10 @@ class DependencySatisfactionResolver {
     return this.hasOutputs(nodeId) || this.hasCompletedSnapshot(nodeId);
   }
 
+  isNodeSatisfiedByOutputsOnly(nodeId: NodeId): boolean {
+    return this.hasOutputs(nodeId) && !this.hasCompletedSnapshot(nodeId);
+  }
+
   isEdgeSatisfied(args: { nodeId: NodeId; input: InputPortKey }): boolean {
     const incomingEdges = this.topology.incomingByNode.get(args.nodeId) ?? [];
     const incomingEdge = incomingEdges.find((edge) => edge.input === args.input);
@@ -252,12 +257,18 @@ class RequiredNodeCollector {
   }
 
   private collectNode(nodeId: NodeId): void {
-    if (this.requiredNodeIds.has(nodeId) || this.satisfactionResolver.isNodeSatisfied(nodeId)) {
+    if (this.requiredNodeIds.has(nodeId)) {
+      return;
+    }
+    if (this.satisfactionResolver.isNodeSatisfied(nodeId) && !this.satisfactionResolver.isNodeSatisfiedByOutputsOnly(nodeId)) {
       return;
     }
     this.requiredNodeIds.add(nodeId);
     for (const edge of this.topology.incomingByNode.get(nodeId) ?? []) {
-      if (!this.satisfactionResolver.isEdgeSatisfied({ nodeId, input: edge.input })) {
+      if (
+        !this.satisfactionResolver.isEdgeSatisfied({ nodeId, input: edge.input }) ||
+        this.satisfactionResolver.isNodeSatisfiedByOutputsOnly(edge.from.nodeId)
+      ) {
         this.collectNode(edge.from.nodeId);
       }
     }
@@ -338,7 +349,7 @@ export class CurrentStateFrontierPlanner {
     const skippedNodeIds = [
       ...new Set([
         ...[...requiredNodeIds].filter((nodeId) => satisfactionResolver.isNodeSatisfied(nodeId)),
-        ...resetResult.preservedPinnedNodeIds,
+        ...resetResult.preservedPinnedNodeIds.filter((nodeId) => requiredNodeIds.has(nodeId)),
       ]),
     ];
     const frontierNodeIds = this.collectFrontierNodeIds(requiredNodeIds, satisfactionResolver);

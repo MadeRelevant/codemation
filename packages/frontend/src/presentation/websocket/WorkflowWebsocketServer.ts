@@ -75,11 +75,21 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
   }
 
   async publishToRoom(roomId: string, message: WorkflowWebsocketMessage): Promise<void> {
+    let deliveredSocketCount = 0;
     for (const [socket, roomIds] of this.roomIdsBySocket) {
       if (socket.readyState !== WebSocket.OPEN || !roomIds.has(roomId)) {
         continue;
       }
       socket.send(JSON.stringify(message satisfies WorkflowWebsocketServerMessage));
+      deliveredSocketCount += 1;
+    }
+    if (message.kind === "event") {
+      const event = message.event;
+      const eventLabel =
+        "snapshot" in event && event.snapshot
+          ? `${event.kind}:${event.runId}:${event.snapshot.nodeId}:${event.snapshot.status}`
+          : `${event.kind}:${event.runId}`;
+      this.logInfo(`published room=${roomId} sockets=${deliveredSocketCount} event=${eventLabel}`);
     }
   }
 

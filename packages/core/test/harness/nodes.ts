@@ -11,8 +11,8 @@ import type {
   TypeToken,
   WorkflowId,
   NodeId,
-} from "../../dist/index.js";
-import type { WorkflowRunnerService } from "../../dist/index.js";
+} from "../../src/index.ts";
+import type { WorkflowRunnerService } from "../../src/index.ts";
 
 export type CallbackExecuteArgs<TConfig extends NodeConfigBase> = Readonly<{
   items: Items;
