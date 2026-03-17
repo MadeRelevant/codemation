@@ -45,6 +45,42 @@ type NodeData = Readonly<{
 const workflowCanvasNodeTypes = { codemation: CodemationNode };
 const workflowCanvasEdgeTypes = { straightCount: StraightCountEdge };
 
+class WorkflowCanvasEdgeStyleResolver {
+  private static readonly activeMainStroke = "#111827";
+  private static readonly activeAttachmentStroke = "#94a3b8";
+  private static readonly inactiveMainStroke = "#9ca3af";
+  private static readonly inactiveAttachmentStroke = "#cbd5e1";
+  private static readonly activeMainLabelFill = "#111827";
+  private static readonly activeAttachmentLabelFill = "#475569";
+  private static readonly inactiveMainLabelFill = "#6b7280";
+  private static readonly inactiveAttachmentLabelFill = "#94a3b8";
+  private static readonly activeMainLabelBackground = "rgba(255,253,245,0.96)";
+  private static readonly activeAttachmentLabelBackground = "rgba(248,250,252,0.92)";
+  private static readonly inactiveMainLabelBackground = "rgba(249,250,251,0.96)";
+  private static readonly inactiveAttachmentLabelBackground = "rgba(248,250,252,0.72)";
+
+  static resolveStrokeColor(args: Readonly<{ edgeItemCount: number; isAttachmentEdge: boolean }>): string {
+    if (args.edgeItemCount > 0) {
+      return args.isAttachmentEdge ? this.activeAttachmentStroke : this.activeMainStroke;
+    }
+    return args.isAttachmentEdge ? this.inactiveAttachmentStroke : this.inactiveMainStroke;
+  }
+
+  static resolveLabelFill(args: Readonly<{ edgeItemCount: number; isAttachmentEdge: boolean }>): string {
+    if (args.edgeItemCount > 0) {
+      return args.isAttachmentEdge ? this.activeAttachmentLabelFill : this.activeMainLabelFill;
+    }
+    return args.isAttachmentEdge ? this.inactiveAttachmentLabelFill : this.inactiveMainLabelFill;
+  }
+
+  static resolveLabelBackground(args: Readonly<{ edgeItemCount: number; isAttachmentEdge: boolean }>): string {
+    if (args.edgeItemCount > 0) {
+      return args.isAttachmentEdge ? this.activeAttachmentLabelBackground : this.activeMainLabelBackground;
+    }
+    return args.isAttachmentEdge ? this.inactiveAttachmentLabelBackground : this.inactiveMainLabelBackground;
+  }
+}
+
 class VisibleNodeStatusResolver {
   private static readonly statusPriorityByStatus = new Map<NodeExecutionSnapshot["status"], number>([
     ["running", 0],
@@ -826,6 +862,10 @@ function layoutWorkflow(
       nodeSnapshotsByNodeId,
     });
     const edgeLabel = edgeItemCount > 0 ? `${edgeItemCount} item${edgeItemCount === 1 ? "" : "s"}` : undefined;
+    const edgeStroke = WorkflowCanvasEdgeStyleResolver.resolveStrokeColor({
+      edgeItemCount,
+      isAttachmentEdge,
+    });
     return {
       id: `${e.from.nodeId}:${e.from.output}->${e.to.nodeId}:${e.to.input}:${i}`,
       source: e.from.nodeId,
@@ -835,19 +875,25 @@ function layoutWorkflow(
       animated: false,
       type: isAttachmentEdge ? "smoothstep" : isStraightMainEdge ? "straightCount" : "step",
       style: {
-        stroke: isAttachmentEdge ? "#94a3b8" : "#111827",
+        stroke: edgeStroke,
         strokeWidth: isAttachmentEdge ? 1.35 : 1.5,
         strokeDasharray: isAttachmentEdge ? "2 6" : undefined,
         strokeLinecap: isAttachmentEdge ? "round" : undefined,
       },
       label: edgeLabel,
       labelStyle: {
-        fill: isAttachmentEdge ? "#475569" : "#111827",
+        fill: WorkflowCanvasEdgeStyleResolver.resolveLabelFill({
+          edgeItemCount,
+          isAttachmentEdge,
+        }),
         fontSize: isAttachmentEdge ? 10 : 11,
         fontWeight: 800,
       },
       labelBgStyle: {
-        fill: isAttachmentEdge ? "rgba(248,250,252,0.92)" : "rgba(255,253,245,0.96)",
+        fill: WorkflowCanvasEdgeStyleResolver.resolveLabelBackground({
+          edgeItemCount,
+          isAttachmentEdge,
+        }),
         fillOpacity: 1,
       },
       labelBgPadding: isAttachmentEdge ? [4, 2] : [6, 3],
@@ -858,7 +904,7 @@ function layoutWorkflow(
             type: MarkerType.ArrowClosed,
             width: 18,
             height: 18,
-            color: "#111827",
+            color: edgeStroke,
           },
     };
   });

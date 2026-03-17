@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type Items,
   useRunQuery,
-  useRunStateFromCache,
   useWorkflowDebuggerOverlayQuery,
   useWorkflowQuery,
   useWorkflowRealtimeSubscription,
@@ -100,7 +99,8 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const runs = runsQuery.data;
   const selectedRunQuery = useRunQuery(selectedRunId);
   const selectedRun = selectedRunQuery.data;
-  const activeLiveRun = useRunStateFromCache(activeLiveRunId);
+  const activeLiveRunQuery = useRunQuery(activeLiveRunId);
+  const activeLiveRun = activeLiveRunQuery.data;
   const debuggerOverlay = debuggerOverlayQuery.data;
   const viewContext = selectedRunId ? "historical-run" : "live-workflow";
   const liveExecutionState = useMemo(() => {

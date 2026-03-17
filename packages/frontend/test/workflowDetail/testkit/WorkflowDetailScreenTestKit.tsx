@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, type RenderResult } from "@testing-library/react";
 import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
+import { StrictMode, type ReactElement } from "react";
 import { expect } from "vitest";
 import { Providers } from "../../../src/ui/providers/Providers";
 import { WorkflowDetailScreen } from "../../../src/ui/screens/WorkflowDetailScreen";
@@ -56,7 +57,7 @@ export class WorkflowDetailScreenTestKit {
     await this.environment.restore();
   }
 
-  render(): RenderResult {
+  render(options: Readonly<{ strictMode?: boolean }> = {}): RenderResult {
     const workflow = this.workflow;
     const rootRoute = createRootRoute({
       component: () => <Outlet />,
@@ -69,11 +70,14 @@ export class WorkflowDetailScreenTestKit {
     const router = createRouter({
       routeTree: rootRoute.addChildren([detailRoute]),
     });
-
-    this.renderResult = render(
+    const content = (
       <Providers websocketPort={this.environment.websocketPort}>
         <RouterProvider router={router} />
-      </Providers>,
+      </Providers>
+    );
+
+    this.renderResult = render(
+      options.strictMode ? this.wrapInStrictMode(content) : content,
     );
     return this.renderResult;
   }
@@ -230,5 +234,9 @@ export class WorkflowDetailScreenTestKit {
     await act(async () => {
       await new Promise<void>((resolve) => window.setTimeout(resolve, 350));
     });
+  }
+
+  private wrapInStrictMode(content: ReactElement): ReactElement {
+    return <StrictMode>{content}</StrictMode>;
   }
 }

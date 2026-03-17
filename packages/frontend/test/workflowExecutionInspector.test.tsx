@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WorkflowExecutionInspector } from "../src/ui/workflowDetail/WorkflowExecutionInspector";
 import type {
@@ -73,7 +73,7 @@ describe("workflow execution inspector", () => {
     });
   });
 
-  it("shows formatted node durations in the tree and selected node header", () => {
+  it("shows only the duration in the tree and keeps full timing details in the header", () => {
     render(
       <div style={{ width: 900, height: 320 }}>
         <WorkflowExecutionInspector
@@ -85,6 +85,8 @@ describe("workflow execution inspector", () => {
     );
 
     expect(screen.getByTestId("execution-tree-node-duration-node-1")).toHaveTextContent("Took 500ms");
+    expect(within(screen.getByTestId("execution-tree-node-node-1")).queryByText("Today 09:51:00")).not.toBeInTheDocument();
+    expect(screen.getByText("Today 09:51:00")).toBeInTheDocument();
     expect(screen.getByTestId("selected-node-duration")).toHaveTextContent("Took 500ms");
   });
 });
@@ -155,7 +157,7 @@ class WorkflowExecutionInspectorFixture {
 
   static createFormatting(): WorkflowExecutionInspectorFormatting {
     return {
-      formatDateTime: (value) => value ?? "Unknown time",
+      formatDateTime: () => "Today 09:51:00",
       formatDurationLabel: (snapshot) => (snapshot?.startedAt && snapshot.finishedAt ? "Took 500ms" : null),
       getNodeDisplayName: (_node, fallback) => fallback ?? "Unnamed node",
       getSnapshotTimestamp: (snapshot) => snapshot?.finishedAt,

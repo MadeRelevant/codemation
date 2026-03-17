@@ -4,11 +4,13 @@ import assert from "node:assert/strict";
 import {
   AgentAttachmentNodeIdFactory,
   type PersistedRunState,
+  type RunStateStore,
   type TriggerNode,
   type TriggerNodeConfig,
   type TriggerSetupContext,
   type TypeToken,
   type WorkflowDefinition,
+  InMemoryRunStateStore,
 } from "../src/index.ts";
 import { CallbackNode, CallbackNodeConfig, chain, createEngineTestKit, items } from "./harness/index.ts";
 
@@ -43,6 +45,41 @@ class TargetedManualTriggerNode implements TriggerNode<TargetedManualTriggerConf
   async setup(_ctx: TriggerSetupContext<TargetedManualTriggerConfig<any>>): Promise<void> {}
 }
 
+class DelayedPendingSaveRunStateStore implements RunStateStore {
+  constructor(
+    private readonly inner: RunStateStore,
+    private readonly delayMs: number,
+  ) {}
+
+  async createRun(args: {
+    runId: string;
+    workflowId: string;
+    startedAt: string;
+    parent?: PersistedRunState["parent"];
+    executionOptions?: PersistedRunState["executionOptions"];
+    control?: PersistedRunState["control"];
+    workflowSnapshot?: PersistedRunState["workflowSnapshot"];
+    mutableState?: PersistedRunState["mutableState"];
+  }): Promise<void> {
+    await this.inner.createRun(args);
+  }
+
+  async load(runId: string): Promise<PersistedRunState | undefined> {
+    return await this.inner.load(runId);
+  }
+
+  async save(state: PersistedRunState): Promise<void> {
+    if (state.status === "pending" && state.pending) {
+      await this.delay();
+    }
+    await this.inner.save(state);
+  }
+
+  private async delay(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+  }
+}
+
 test("current-state execution stops when the requested node completes", async () => {
   const events: string[] = [];
   const A = new CallbackNodeConfig("A", () => events.push("A"), { id: "A" });
@@ -66,6 +103,31 @@ test("current-state execution stops when the requested node completes", async ()
   const stored = await kit.runStore.load(done.runId);
   assert.equal(stored?.control?.stopCondition?.kind, "nodeCompleted");
   assert.equal(stored?.nodeSnapshotsByNodeId.D, undefined);
+});
+
+test("current-state execution still drains inline activations when pending state persistence is slow", async () => {
+  const events: string[] = [];
+  const A = new CallbackNodeConfig("A", () => events.push("A"), { id: "A" });
+  const B = new CallbackNodeConfig("B", () => events.push("B"), { id: "B" });
+  const wf = chain({ id: "wf.pending.persistence.race", name: "Pending persistence race" }).start(A).then(B).build();
+
+  const kit = createEngineTestKit({
+    runStore: new DelayedPendingSaveRunStateStore(new InMemoryRunStateStore(), 20),
+  });
+  await kit.start([wf]);
+
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow: wf,
+    items: items([{ id: 1 }]),
+    stopCondition: { kind: "workflowCompleted" },
+  });
+  const done = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(done.status, "completed");
+  assert.equal(events.join(","), "A,B");
+  const stored = await kit.runStore.load(done.runId);
+  assert.equal(stored?.status, "completed");
+  assert.equal(stored?.pending, undefined);
 });
 
 test("current-state execution clears from a node and reruns only unresolved descendants", async () => {
@@ -112,12 +174,17 @@ test("pinned outputs survive clear-from-node and complete immediately without ex
   assert.equal(firstRun.status, "completed");
   const firstState = await kit.runStore.load(firstRun.runId);
   assert.ok(firstState);
+  const pinnedOutputsByPort = firstState.outputsByNode.C;
+  assert.ok(pinnedOutputsByPort);
 
   const currentState = TargetedExecutionStateFactory.fromRunState(firstState);
   currentState.mutableState = {
     nodesById: {
       C: {
-        pinnedOutputsByPort: firstState.outputsByNode.C,
+        pinnedOutputsByPort:
+          pinnedOutputsByPort as NonNullable<
+            NonNullable<NonNullable<PersistedRunState["mutableState"]>["nodesById"][string]["pinnedOutputsByPort"]>
+          >,
       },
     },
   };

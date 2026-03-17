@@ -207,6 +207,7 @@ export interface NodeActivationContinuation {
 export interface NodeActivationScheduler {
   setContinuation?(continuation: NodeActivationContinuation): void;
   enqueue(request: NodeActivationRequest): Promise<NodeActivationReceipt>;
+  notifyPendingStatePersisted?(runId: RunId): void;
   cancel?(receiptId: string): Promise<void>;
 }
 

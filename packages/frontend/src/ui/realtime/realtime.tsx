@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { WorkflowDto, WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
 export type { WorkflowDto, WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
 import { ApiPaths } from "../../presentation/http/ApiPaths";
@@ -783,21 +783,4 @@ export function useRunQuery(runId: string | null | undefined, options: Readonly<
     enabled: Boolean(runId) && !options.disableFetch,
     initialData: cachedState,
   });
-}
-
-export function useRunStateFromCache(runId: string | null | undefined): PersistedRunState | undefined {
-  const queryClient = useQueryClient();
-  return useSyncExternalStore(
-    (onStoreChange) =>
-      queryClient.getQueryCache().subscribe((event) => {
-        const queryKey = event.query.queryKey;
-        if (!runId || queryKey[0] !== "run" || queryKey[1] !== runId) return;
-        onStoreChange();
-      }),
-    () => {
-      if (!runId) return undefined;
-      return queryClient.getQueryData<PersistedRunState>(runQueryKey(runId));
-    },
-    () => undefined,
-  );
 }

@@ -14,7 +14,6 @@ export { WorkflowsScreen } from "./ui/screens/WorkflowsScreen";
 export type { CodemationAppSlots as Slots } from "./presentation/config/CodemationAppSlots";
 export {
   useRunQuery,
-  useRunStateFromCache,
   useWorkflowDebuggerOverlayQuery,
   useWorkflowQuery,
   useWorkflowRealtimeSubscription,

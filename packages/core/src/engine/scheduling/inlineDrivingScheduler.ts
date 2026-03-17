@@ -14,6 +14,7 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
   private continuation: NodeActivationContinuation | undefined;
   private readonly drainingRuns = new Set<RunId>();
   private readonly queuesByRunId = new Map<RunId, Array<Readonly<{ request: NodeActivationRequest; receipt: NodeActivationReceipt }>>>();
+  private readonly scheduledRuns = new Set<RunId>();
   private seq = 0;
 
   constructor(private readonly nodeResolver: NodeResolver) {}
@@ -28,15 +29,20 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
     q.push({ request, receipt });
     this.queuesByRunId.set(request.runId, q);
 
-    // Important: run activation on a later tick so the engine can persist pending state first.
-    if (!this.drainingRuns.has(request.runId)) setTimeout(() => void this.drainRun(request.runId), 0);
-
     return receipt;
+  }
+
+  notifyPendingStatePersisted(runId: RunId): void {
+    if ((this.queuesByRunId.get(runId)?.length ?? 0) === 0) {
+      return;
+    }
+    this.scheduleDrain(runId);
   }
 
   private async drainRun(runId: RunId): Promise<void> {
     if (this.drainingRuns.has(runId)) return;
     this.drainingRuns.add(runId);
+    this.scheduledRuns.delete(runId);
     try {
       const q = this.queuesByRunId.get(runId) ?? [];
       while (q.length > 0) {
@@ -69,7 +75,21 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
     } finally {
       if ((this.queuesByRunId.get(runId)?.length ?? 0) === 0) this.queuesByRunId.delete(runId);
       this.drainingRuns.delete(runId);
+      if ((this.queuesByRunId.get(runId)?.length ?? 0) > 0) {
+        this.scheduleDrain(runId);
+      }
     }
+  }
+
+  private scheduleDrain(runId: RunId): void {
+    if (this.drainingRuns.has(runId) || this.scheduledRuns.has(runId)) {
+      return;
+    }
+    this.scheduledRuns.add(runId);
+    setTimeout(() => {
+      this.scheduledRuns.delete(runId);
+      void this.drainRun(runId);
+    }, 0);
   }
 
   private async executeRequest(request: NodeActivationRequest, inst: unknown): Promise<unknown> {

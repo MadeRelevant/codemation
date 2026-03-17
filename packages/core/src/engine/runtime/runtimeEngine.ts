@@ -281,6 +281,7 @@ export class Engine implements NodeActivationContinuation {
           [startDef.id]: queuedSnapshot,
         },
       });
+      this.notifyPendingStatePersisted(runId);
       await this.publishNodeEvent("nodeQueued", queuedSnapshot);
 
       return { runId, workflowId: wf.id, startedAt, status: "pending", pending };
@@ -414,6 +415,7 @@ export class Engine implements NodeActivationContinuation {
         [def.id]: queuedSnapshot,
       },
     });
+    this.notifyPendingStatePersisted(runId);
     if (triggerCompletedSnapshot) await this.publishNodeEvent("nodeCompleted", triggerCompletedSnapshot);
     await this.publishNodeEvent("nodeQueued", queuedSnapshot);
 
@@ -728,6 +730,7 @@ export class Engine implements NodeActivationContinuation {
         [def.id]: queuedSnapshot,
       },
     });
+    this.notifyPendingStatePersisted(state.runId);
     await this.publishNodeEvent("nodeCompleted", completedSnapshot);
     await this.publishNodeEvent("nodeQueued", queuedSnapshot);
 
@@ -1068,6 +1071,7 @@ export class Engine implements NodeActivationContinuation {
         [nextDefinition.id]: queuedSnapshot,
       },
     });
+    this.notifyPendingStatePersisted(args.state.runId);
     await this.publishNodeEvent("nodeCompleted", completedSnapshot);
     await this.publishNodeEvent("nodeQueued", queuedSnapshot);
     this.resolveWebhookResponse({
@@ -1411,8 +1415,13 @@ export class Engine implements NodeActivationContinuation {
         [args.request.nodeId]: queuedSnapshot,
       },
     });
+    this.notifyPendingStatePersisted(args.runId);
     await this.publishNodeEvent("nodeQueued", queuedSnapshot);
     return { runId: args.runId, workflowId: args.workflowId, startedAt: args.startedAt, status: "pending", pending };
+  }
+
+  private notifyPendingStatePersisted(runId: RunId): void {
+    this.activationScheduler.notifyPendingStatePersisted?.(runId);
   }
 
   private async completeRun(args: {

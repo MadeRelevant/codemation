@@ -90,6 +90,17 @@ describe("workflow canvas toolbar", () => {
 
     expect(trailingIcon).toHaveAttribute("data-icon-kind", "pin");
   });
+
+  it("keeps data-carrying edges strong and fades empty edges", async () => {
+    render(<WorkflowCanvasHarness initialPinned={false} />);
+
+    const canvas = await screen.findByTestId("rf__wrapper");
+    const strongArrowMarker = canvas.querySelector('marker[id*="#111827"]');
+    const fadedArrowMarker = canvas.querySelector('marker[id*="#9ca3af"]');
+
+    expect(strongArrowMarker).not.toBeNull();
+    expect(fadedArrowMarker).not.toBeNull();
+  });
 });
 
 function WorkflowCanvasHarness(args: Readonly<{ initialPinned: boolean }>) {

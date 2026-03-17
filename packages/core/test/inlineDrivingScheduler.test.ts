@@ -64,6 +64,7 @@ test("inline scheduler ignores stale continuation races after a node already fin
   };
 
   await scheduler.enqueue(request);
+  scheduler.notifyPendingStatePersisted("run_1");
   await new Promise((resolve) => setTimeout(resolve, 20));
 
   assert.equal(continuation.resumeFromNodeResultCalls, 1);

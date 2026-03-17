@@ -64,7 +64,7 @@ class WorkflowDetailRealIntegrationFixture {
 
   static async createRenderedKit(fixture: WorkflowDetailRuntimeFixture): Promise<WorkflowDetailScreenTestKit> {
     const kit = await WorkflowDetailScreenTestKit.createInMemory(fixture);
-    kit.render();
+    kit.render({ strictMode: true });
     await waitFor(() => {
       expect(screen.getByTestId("workflow-canvas-tab-live")).toBeInTheDocument();
     });

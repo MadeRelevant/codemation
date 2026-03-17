@@ -158,14 +158,21 @@ export function WorkflowExecutionInspector(args: Readonly<{
                         {getNodeDisplayName(node, snapshot?.nodeId ?? null)}
                       </div>
                     </div>
-                    <div style={{ flex: "0 0 auto", fontSize: 12, color: "#6b7280", whiteSpace: "nowrap", textAlign: "right" }}>
-                      <div>{formatDateTime(getSnapshotTimestamp(snapshot))}</div>
-                      {durationLabel ? (
-                        <div data-testid={`execution-tree-node-duration-${String(treeNode.key)}`} style={{ marginTop: 2 }}>
-                          {durationLabel}
-                        </div>
-                      ) : null}
-                    </div>
+                    {durationLabel ? (
+                      <div
+                        data-testid={`execution-tree-node-duration-${String(treeNode.key)}`}
+                        style={{
+                          flex: "0 0 auto",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: "#6b7280",
+                          whiteSpace: "nowrap",
+                          textAlign: "right",
+                        }}
+                      >
+                        {durationLabel}
+                      </div>
+                    ) : null}
                   </div>
                 );
               }}

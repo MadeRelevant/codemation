@@ -21,6 +21,10 @@ export class DefaultDrivingScheduler implements NodeActivationScheduler {
     this.inline.setContinuation(continuation);
   }
 
+  notifyPendingStatePersisted(runId: string): void {
+    this.inline.notifyPendingStatePersisted(runId);
+  }
+
   async enqueue(request: NodeActivationRequest): Promise<NodeActivationReceipt> {
     if (request.executionOptions?.localOnly) {
       const receipt = await this.inline.enqueue(request);
