@@ -5,7 +5,7 @@ import type { Items, NodeExecutionSnapshot, PersistedRunState, RunSummary, Workf
 
 export type InspectorTab = "input" | "output";
 export type InspectorMode = InspectorTab | "split";
-export type InspectorFormat = "json" | "pretty";
+export type InspectorFormat = "json" | "pretty" | "binary";
 export type CopyState = "idle" | "copied";
 export type ViewedWorkflowContext = "live-workflow" | "historical-run";
 export type PortEntries = ReadonlyArray<readonly [string, Items]>;

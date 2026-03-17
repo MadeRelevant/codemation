@@ -34,6 +34,31 @@ class CallbackNodeJson {
   }
 }
 
+class CallbackNodeBinaryFixture {
+  static async attachGeneratedNote(item: Item, ctx: NodeExecutionContext<Callback>): Promise<Item> {
+    const attachment = await ctx.binary.attach({
+      name: "note",
+      body: new TextEncoder().encode("Generated callback attachment"),
+      mimeType: "text/plain",
+      filename: "callback-note.txt",
+    });
+    return ctx.binary.withAttachment(
+      {
+        ...CallbackNodeJson.withNote(item, "processed"),
+        json: {
+          ...(CallbackNodeJson.withNote(item, "processed").json as Record<string, unknown>),
+          generated: {
+            attachmentName: "note",
+            hasBinary: true,
+          },
+        },
+      },
+      "note",
+      attachment,
+    );
+  }
+}
+
 test("CallbackNode passes items through by default", async () => {
   const config = new Callback();
   const items = [{ json: { ok: true } }];
@@ -51,5 +76,25 @@ test("CallbackNode lets inline callbacks transform items", async () => {
 
   assert.deepEqual(outputs, {
     main: [{ json: { subject: "RFQ", note: "processed" } }],
+  });
+});
+
+test("CallbackNode can return items that include both json and binary", async () => {
+  const config = new Callback("Annotate with attachment", async (items, ctx) => {
+    return await Promise.all(items.map(async (item) => await CallbackNodeBinaryFixture.attachGeneratedNote(item, ctx)));
+  });
+  const items = [{ json: { subject: "RFQ" } }];
+
+  const outputs = await new CallbackNode().execute(items, CallbackNodeTestContextFactory.create(config));
+
+  assert.equal(outputs.main?.[0]?.binary?.note?.mimeType, "text/plain");
+  assert.equal(outputs.main?.[0]?.binary?.note?.previewKind, "download");
+  assert.deepEqual(outputs.main?.[0]?.json, {
+    subject: "RFQ",
+    note: "processed",
+    generated: {
+      attachmentName: "note",
+      hasBinary: true,
+    },
   });
 });

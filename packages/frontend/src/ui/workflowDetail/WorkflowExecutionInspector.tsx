@@ -2,7 +2,7 @@ import { Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
  import Tree from "rc-tree";
 import { WorkflowNodeIconResolver, WorkflowStatusIcon } from "./WorkflowDetailIcons";
-import { WorkflowInspectorAttachmentList, WorkflowInspectorErrorView, WorkflowInspectorJsonView, WorkflowInspectorPrettyView } from "./WorkflowInspectorViews";
+import { WorkflowInspectorBinaryView, WorkflowInspectorErrorView, WorkflowInspectorJsonView, WorkflowInspectorPrettyView } from "./WorkflowInspectorViews";
 import type { ExecutionTreeNode, WorkflowExecutionInspectorActions, WorkflowExecutionInspectorFormatting, WorkflowExecutionInspectorModel } from "./workflowDetailTypes";
 
 export function WorkflowExecutionInspector(args: Readonly<{
@@ -285,6 +285,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
         >
           {panes.map((pane, index) => {
             const isOutputPane = pane.tab === "output";
+            const availableFormats = pane.attachments.length > 0 ? (["json", "pretty", "binary"] as const) : (["json", "pretty"] as const);
             return (
               <section
                 key={pane.tab}
@@ -363,7 +364,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
                     ) : null}
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {(["json", "pretty"] as const).map((format) => (
+                    {availableFormats.map((format) => (
                       <button
                         key={format}
                         data-testid={`inspector-format-${pane.tab}-${format}`}
@@ -410,7 +411,6 @@ export function WorkflowExecutionInspector(args: Readonly<{
                 )}
 
                 <div style={{ minWidth: 0, overflowX: "hidden", overflowY: "auto", padding: 12 }}>
-                  <WorkflowInspectorAttachmentList attachments={pane.attachments} />
                   {pane.showsError ? (
                     pane.format === "pretty" ? (
                       <WorkflowInspectorErrorView
@@ -423,6 +423,8 @@ export function WorkflowExecutionInspector(args: Readonly<{
                     ) : (
                       <WorkflowInspectorJsonView value={selectedNodeError} emptyLabel={pane.emptyLabel} />
                     )
+                  ) : pane.format === "binary" ? (
+                    <WorkflowInspectorBinaryView attachments={pane.attachments} emptyLabel="No binary attachments captured yet." />
                   ) : pane.format === "pretty" ? (
                     <WorkflowInspectorPrettyView value={pane.value} emptyLabel={pane.emptyLabel} />
                   ) : (

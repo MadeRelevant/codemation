@@ -635,6 +635,21 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     () => WorkflowDetailPresenter.toAttachmentModels(selectedNodeError ? undefined : selectedOutputItems),
     [selectedNodeError, selectedOutputItems],
   );
+
+  useEffect(() => {
+    setInspectorFormatByTab((current) => {
+      const nextInputFormat = current.input === "binary" && inputAttachments.length === 0 ? "json" : current.input;
+      const nextOutputFormat = current.output === "binary" && outputAttachments.length === 0 ? "json" : current.output;
+      if (nextInputFormat === current.input && nextOutputFormat === current.output) {
+        return current;
+      }
+      return {
+        input: nextInputFormat,
+        output: nextOutputFormat,
+      };
+    });
+  }, [inputAttachments.length, outputAttachments.length]);
+
   const inputPane = {
     tab: "input" as const,
     format: inspectorFormatByTab.input,

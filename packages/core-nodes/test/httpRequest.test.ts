@@ -63,3 +63,40 @@ test("HttpRequestNode keeps text responses JSON-only in auto mode", async () => 
   assert.equal(json.http.mimeType, "text/plain");
   assert.equal(json.http.bodyBinaryName, undefined);
 });
+
+test("HttpRequestNode stores pdf and text bodies as download attachments in always mode", async () => {
+  const config = new HttpRequest("Fetch documents", { downloadMode: "always" });
+  const outputs = await new HttpRequestNode().execute(
+    [
+      {
+        json: {
+          url: "data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrp/Og0MTGCjEgMCBvYmoKPDw+PgplbmRvYmoKdHJhaWxlcgo8PD4+CiUlRU9G",
+        },
+      },
+      {
+        json: {
+          url: "data:text/plain;charset=utf-8,Codemation%20binary%20attachment%20demo",
+        },
+      },
+    ],
+    HttpRequestNodeTestContextFactory.create(config),
+  );
+
+  const pdfItem = outputs.main?.[0];
+  const textItem = outputs.main?.[1];
+  assert.ok(pdfItem);
+  assert.ok(textItem);
+
+  const pdfJson = pdfItem.json as { http: { mimeType: string; bodyBinaryName?: string } };
+  const textJson = textItem.json as { http: { mimeType: string; bodyBinaryName?: string } };
+
+  assert.equal(pdfItem.binary?.body?.mimeType, "application/pdf");
+  assert.equal(pdfItem.binary?.body?.previewKind, "download");
+  assert.equal(pdfJson.http.mimeType, "application/pdf");
+  assert.equal(pdfJson.http.bodyBinaryName, "body");
+
+  assert.equal(textItem.binary?.body?.mimeType, "text/plain");
+  assert.equal(textItem.binary?.body?.previewKind, "download");
+  assert.equal(textJson.http.mimeType, "text/plain");
+  assert.equal(textJson.http.bodyBinaryName, "body");
+});

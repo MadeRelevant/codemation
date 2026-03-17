@@ -91,13 +91,40 @@ describe("workflow execution inspector", () => {
     expect(screen.getByTestId("selected-node-duration")).toHaveTextContent("Took 500ms");
   });
 
-  it("renders attachment previews and links beside the JSON panes", () => {
+  it("shows a binary tab only when attachments exist and renders attachments in that tab", () => {
     const model = WorkflowExecutionInspectorFixture.createModelWithOutputAttachments();
+    const actions = WorkflowExecutionInspectorFixture.createActions();
 
     render(
       <div style={{ width: 900, height: 320 }}>
         <WorkflowExecutionInspector
           model={model}
+          formatting={WorkflowExecutionInspectorFixture.createFormatting()}
+          actions={actions}
+        />
+      </div>,
+    );
+
+    expect(screen.queryByTestId("workflow-inspector-attachments")).not.toBeInTheDocument();
+    expect(screen.getByTestId("inspector-format-output-binary")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("inspector-format-output-binary"));
+
+    expect(actions.onSelectFormat).toHaveBeenCalledWith("output", "binary");
+  });
+
+  it("renders binary attachments in a dedicated pane", () => {
+    const model = WorkflowExecutionInspectorFixture.createModelWithOutputAttachments();
+    render(
+      <div style={{ width: 900, height: 320 }}>
+        <WorkflowExecutionInspector
+          model={{
+            ...model,
+            outputPane: {
+              ...model.outputPane,
+              format: "binary",
+            },
+          }}
           formatting={WorkflowExecutionInspectorFixture.createFormatting()}
           actions={WorkflowExecutionInspectorFixture.createActions()}
         />
@@ -105,6 +132,9 @@ describe("workflow execution inspector", () => {
     );
 
     expect(screen.getByTestId("workflow-inspector-attachments")).toBeInTheDocument();
+    expect(screen.getByTestId("workflow-inspector-attachment-group-label-item-1")).toBeInTheDocument();
+    expect(screen.getByTestId("workflow-inspector-attachment-group-label-item-2")).toBeInTheDocument();
+    expect(screen.getByTestId("workflow-inspector-attachment-group-label-item-3")).toBeInTheDocument();
     expect(screen.getByTestId("workflow-inspector-image-preview-bin-image")).toBeInTheDocument();
     expect(screen.getByTestId("workflow-inspector-audio-preview-bin-audio")).toBeInTheDocument();
     expect(screen.getByTestId("workflow-inspector-video-preview-bin-video")).toBeInTheDocument();
@@ -112,6 +142,50 @@ describe("workflow execution inspector", () => {
       "href",
       "/api/runs/run-1/binary/bin-image/content",
     );
+  });
+
+  it("hides item grouping when all binaries belong to one item", () => {
+    const model = WorkflowExecutionInspectorFixture.createModelWithOutputAttachments();
+    render(
+      <div style={{ width: 900, height: 320 }}>
+        <WorkflowExecutionInspector
+          model={{
+            ...model,
+            outputPane: {
+              ...model.outputPane,
+              format: "binary",
+              attachments: model.outputPane.attachments.map((attachment) => ({
+                ...attachment,
+                itemIndex: 0,
+              })),
+            },
+          }}
+          formatting={WorkflowExecutionInspectorFixture.createFormatting()}
+          actions={WorkflowExecutionInspectorFixture.createActions()}
+        />
+      </div>,
+    );
+
+    expect(screen.queryByTestId("workflow-inspector-attachment-group-label-item-1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("workflow-inspector-attachment-group-label-item-2")).not.toBeInTheDocument();
+    expect(screen.getByTestId("workflow-inspector-attachment-bin-image")).toBeInTheDocument();
+    expect(screen.getByTestId("workflow-inspector-attachment-bin-audio")).toBeInTheDocument();
+    expect(screen.getByTestId("workflow-inspector-attachment-bin-video")).toBeInTheDocument();
+  });
+
+  it("hides the binary format button when a pane has no attachments", () => {
+    render(
+      <div style={{ width: 900, height: 320 }}>
+        <WorkflowExecutionInspector
+          model={WorkflowExecutionInspectorFixture.createModel()}
+          formatting={WorkflowExecutionInspectorFixture.createFormatting()}
+          actions={WorkflowExecutionInspectorFixture.createActions()}
+        />
+      </div>,
+    );
+
+    expect(screen.queryByTestId("inspector-format-input-binary")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("inspector-format-output-binary")).not.toBeInTheDocument();
   });
 });
 
