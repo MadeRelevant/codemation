@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
 import type { NodeExecutionContext, TriggerSetupContext, WebhookSpec } from "@codemation/core";
-import { InMemoryRunDataFactory } from "@codemation/core";
+import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
 import { WebhookTrigger, WebhookTriggerNode } from "../dist/index.js";
 
 class CapturedWebhookSpecStore {
@@ -22,11 +22,13 @@ class CapturedWebhookSpecStore {
 
 class WebhookTriggerContextFactory {
   static create(store: CapturedWebhookSpecStore): TriggerSetupContext<WebhookTrigger<any>> {
+    const binary = new DefaultExecutionBinaryService(new InMemoryBinaryStorage(), "wf.webhook.setup", "run_webhook_setup", () => new Date("2026-03-11T12:00:00.000Z"));
     return {
       runId: "run_webhook_setup",
       workflowId: "wf.webhook.setup",
       now: () => new Date("2026-03-11T12:00:00.000Z"),
       data: new InMemoryRunDataFactory().create(),
+      binary,
       trigger: { workflowId: "wf.webhook.setup", nodeId: "trigger" },
       config: new WebhookTrigger(
         "Webhook trigger",
@@ -57,6 +59,7 @@ class WebhookTriggerContextFactory {
 
 class WebhookTriggerExecutionContextFactory {
   static create(config?: WebhookTrigger<any>): NodeExecutionContext<WebhookTrigger<any>> {
+    const binary = new DefaultExecutionBinaryService(new InMemoryBinaryStorage(), "wf.webhook.execute", "run_webhook_execute", () => new Date("2026-03-11T12:00:00.000Z"));
     return {
       runId: "run_webhook_execute",
       workflowId: "wf.webhook.execute",
@@ -65,6 +68,7 @@ class WebhookTriggerExecutionContextFactory {
       now: () => new Date("2026-03-11T12:00:00.000Z"),
       data: new InMemoryRunDataFactory().create(),
       parent: undefined,
+      binary: binary.forNode({ nodeId: "trigger", activationId: "act_webhook_execute" }),
       config:
         config ??
         new WebhookTrigger(

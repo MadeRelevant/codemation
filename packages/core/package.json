@@ -4,13 +4,17 @@
   "private": true,
   "type": "module",
   "main": "./dist/index.cjs",
-  "module": "./src/index.ts",
-  "types": "./src/index.ts",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./browser": {
+      "types": "./src/browser.ts",
+      "import": "./src/browser.ts"
     }
   },
   "scripts": {
@@ -18,12 +22,10 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "pnpm build && node --import tsx --test \"test/**/*.test.ts\"",
-    "coverage": "pnpm build && c8 --clean --all --src src --exclude \"test/**\" --reporter=text-summary --reporter=json-summary --reports-dir coverage -- node --import tsx --test \"test/**/*.test.ts\""
+    "test": "pnpm build && node --import tsx --test test/**/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",
-    "c8": "^11.0.0",
     "eslint": "^10.0.3",
     "tsdown": "^0.15.5",
     "tsx": "^4.21.0",

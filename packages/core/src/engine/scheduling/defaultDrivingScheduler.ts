@@ -14,15 +14,11 @@ export class DefaultDrivingScheduler implements NodeActivationScheduler {
   constructor(
     private readonly offloadPolicy: NodeOffloadPolicy,
     private readonly workerScheduler: NodeExecutionScheduler,
-    private readonly inline: InlineDrivingScheduler,
+    private readonly inline: InlineDrivingScheduler = new InlineDrivingScheduler(),
   ) {}
 
   setContinuation(continuation: NodeActivationContinuation): void {
     this.inline.setContinuation(continuation);
-  }
-
-  notifyPendingStatePersisted(runId: string): void {
-    this.inline.notifyPendingStatePersisted(runId);
   }
 
   async enqueue(request: NodeActivationRequest): Promise<NodeActivationReceipt> {

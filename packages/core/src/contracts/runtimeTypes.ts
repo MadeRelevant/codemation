@@ -1,8 +1,11 @@
+import type { ReadableStream as BinaryReadableStream } from "node:stream/web";
 import type { Container, TypeToken } from "../di";
 import type { RunEventBus } from "../events/runEvents";
 import type {
   ActivationIdFactory,
+  BinaryAttachment,
   CredentialService,
+  Item,
   Items,
   NodeActivationId,
   NodeConfigBase,
@@ -73,6 +76,55 @@ export interface NodeExecutionStatePublisher {
   markFailed(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort; error: Error }): Promise<void>;
 }
 
+export type BinaryBody = BinaryReadableStream<Uint8Array> | AsyncIterable<Uint8Array> | Uint8Array | ArrayBuffer;
+
+export interface BinaryStorageWriteRequest {
+  storageKey: string;
+  body: BinaryBody;
+}
+
+export interface BinaryStorageWriteResult {
+  storageKey: string;
+  size: number;
+  sha256?: string;
+}
+
+export interface BinaryStorageReadResult {
+  body: BinaryReadableStream<Uint8Array>;
+  size?: number;
+}
+
+export interface BinaryStorageStatResult {
+  exists: boolean;
+  size?: number;
+}
+
+export interface BinaryStorage {
+  readonly driverName: string;
+  write(args: BinaryStorageWriteRequest): Promise<BinaryStorageWriteResult>;
+  openReadStream(storageKey: string): Promise<BinaryStorageReadResult | undefined>;
+  stat(storageKey: string): Promise<BinaryStorageStatResult>;
+  delete(storageKey: string): Promise<void>;
+}
+
+export interface BinaryAttachmentCreateRequest {
+  name: string;
+  body: BinaryBody;
+  mimeType: string;
+  filename?: string;
+  previewKind?: BinaryAttachment["previewKind"];
+}
+
+export interface NodeBinaryAttachmentService extends ExecutionBinaryService {
+  attach(args: BinaryAttachmentCreateRequest): Promise<BinaryAttachment>;
+  withAttachment<TJson>(item: Item<TJson>, name: string, attachment: BinaryAttachment): Item<TJson>;
+}
+
+export interface ExecutionBinaryService {
+  forNode(args: { nodeId: NodeId; activationId: NodeActivationId }): NodeBinaryAttachmentService;
+  openReadStream(attachment: BinaryAttachment): Promise<BinaryStorageReadResult | undefined>;
+}
+
 export interface ExecutionContext {
   runId: RunId;
   workflowId: WorkflowId;
@@ -80,6 +132,7 @@ export interface ExecutionContext {
   now: () => Date;
   data: RunDataSnapshot;
   nodeState?: NodeExecutionStatePublisher;
+  binary: ExecutionBinaryService;
 }
 
 export interface ExecutionContextFactory {
@@ -96,6 +149,7 @@ export interface NodeExecutionContext<TConfig extends NodeConfigBase = NodeConfi
   nodeId: NodeId;
   activationId: NodeActivationId;
   config: TConfig;
+  binary: NodeBinaryAttachmentService;
 }
 
 export interface TriggerSetupContext<TConfig extends NodeConfigBase = NodeConfigBase> extends ExecutionContext {

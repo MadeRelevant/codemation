@@ -58,4 +58,8 @@ export class ApiPaths {
   static runNode(runId: string, nodeId: string): string {
     return `${this.runState(runId)}/nodes/${encodeURIComponent(nodeId)}/run`;
   }
+
+  static runBinaryContent(runId: string, binaryId: string): string {
+    return `${this.runState(runId)}/binary/${encodeURIComponent(binaryId)}/content`;
+  }
 }

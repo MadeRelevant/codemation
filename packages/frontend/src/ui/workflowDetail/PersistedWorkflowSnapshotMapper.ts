@@ -1,4 +1,4 @@
-import { AgentAttachmentNodeIdFactory } from "@codemation/core";
+import { AgentAttachmentNodeIdFactory } from "@codemation/core/browser";
 import type { PersistedWorkflowSnapshot, WorkflowDto } from "../realtime/realtime";
 import type { WorkflowNodeDto } from "../realtime/workflowTypes";
 

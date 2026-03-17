@@ -1,19 +1,15 @@
 "use client";
 
 import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { Item as WorkflowItem } from "@codemation/core/browser";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { WorkflowDto, WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
 export type { WorkflowDto, WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
 import { ApiPaths } from "../../presentation/http/ApiPaths";
 import type { Logger } from "../../application/logging/Logger";
 
-export type JsonItem = Readonly<{
-  json: unknown;
-  meta?: Readonly<Record<string, unknown>>;
-  paired?: ReadonlyArray<Readonly<{ nodeId: string; output: string; itemIndex: number }>>;
-}>;
-
-export type Items = ReadonlyArray<JsonItem>;
+export type Item = WorkflowItem;
+export type Items = ReadonlyArray<Item>;
 
 export type RunExecutionOptions = Readonly<{
   localOnly?: boolean;

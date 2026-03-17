@@ -1,4 +1,5 @@
 import type {
+  BinaryStorage,
   CredentialService,
   NodeActivationContinuation,
   NodeExecutionRequest,
@@ -38,6 +39,7 @@ export class BullmqScheduler implements NodeExecutionScheduler {
     credentials: CredentialService;
     runStore: RunStateStore;
     continuation: NodeActivationContinuation;
+    binaryStorage?: BinaryStorage;
     workflows?: unknown;
     now?: () => Date;
   }>): BullmqWorker {
@@ -53,10 +55,23 @@ export class BullmqScheduler implements NodeExecutionScheduler {
         this.queuePrefix,
         args.workflows,
         args.now ?? (() => new Date()),
+        args.binaryStorage,
       );
     }
 
-    return new BullmqWorker(this.connection, args.queues, args.workflowsById, args.nodeResolver, args.credentials, args.runStore, args.continuation, this.queuePrefix);
+    return new BullmqWorker(
+      this.connection,
+      args.queues,
+      args.workflowsById,
+      args.nodeResolver,
+      args.credentials,
+      args.runStore,
+      args.continuation,
+      this.queuePrefix,
+      undefined,
+      () => new Date(),
+      args.binaryStorage,
+    );
   }
 }
 

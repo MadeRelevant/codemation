@@ -77,8 +77,29 @@ export interface NodeRef {
 
 export type PairedItemRef = Readonly<{ nodeId: NodeId; output: OutputPortKey; itemIndex: number }>;
 
+export type BinaryPreviewKind = "image" | "audio" | "video" | "download";
+
+export type BinaryAttachment = Readonly<{
+  id: string;
+  storageKey: string;
+  mimeType: string;
+  size: number;
+  storageDriver: string;
+  previewKind: BinaryPreviewKind;
+  createdAt: string;
+  runId: RunId;
+  workflowId: WorkflowId;
+  nodeId: NodeId;
+  activationId: NodeActivationId;
+  filename?: string;
+  sha256?: string;
+}>;
+
+export type ItemBinary = Readonly<Record<string, BinaryAttachment>>;
+
 export type Item<TJson = unknown> = Readonly<{
   json: TJson;
+  binary?: ItemBinary;
   meta?: Readonly<Record<string, unknown>>;
   paired?: ReadonlyArray<PairedItemRef>;
 }>;

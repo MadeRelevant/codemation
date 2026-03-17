@@ -2,6 +2,7 @@ import type { Container } from "@codemation/core";
 import { AIAgentNode } from "./nodes/aiAgent";
 import { CallbackNode } from "./nodes/callback";
 import { IfNode } from "./nodes/if";
+import { HttpRequestNode } from "./nodes/httpRequest";
 import { ManualTriggerNode } from "./nodes/manualTrigger";
 import { MapDataNode } from "./nodes/mapData";
 import { NoOpNode } from "./nodes/noOp";
@@ -22,6 +23,7 @@ export function registerCoreNodes(container: Container): void {
   // tsyringeContainer.registerSingleton(IfNode, IfNode);
   // ...
   void IfNode;
+  void HttpRequestNode;
   void CallbackNode;
   void MapDataNode;
   void NoOpNode;

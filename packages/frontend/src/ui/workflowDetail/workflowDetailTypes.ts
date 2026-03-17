@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { FieldDataNode } from "rc-tree";
+import type { BinaryAttachment } from "@codemation/core/browser";
 import type { Items, NodeExecutionSnapshot, PersistedRunState, RunSummary, WorkflowDto } from "../realtime/realtime";
 
 export type InspectorTab = "input" | "output";
@@ -57,8 +58,16 @@ export type WorkflowExecutionInspectorPaneModel = Readonly<{
   selectedPort: string | null;
   portEntries: PortEntries;
   value: unknown;
+  attachments: ReadonlyArray<WorkflowExecutionInspectorAttachmentModel>;
   emptyLabel: string;
   showsError: boolean;
+}>;
+export type WorkflowExecutionInspectorAttachmentModel = Readonly<{
+  key: string;
+  itemIndex: number;
+  name: string;
+  contentUrl: string;
+  attachment: BinaryAttachment;
 }>;
 export type WorkflowExecutionInspectorModel = Readonly<{
   viewContext: ViewedWorkflowContext;

@@ -1,6 +1,7 @@
 import type { TypeToken } from "./di";
 import type {
   ActivationIdFactory,
+  BinaryStorage,
   CredentialService,
   ExecutionContextFactory,
   NodeActivationObserver,
@@ -34,5 +35,6 @@ export const CoreTokens = {
   RunDataFactory: Symbol.for("codemation.core.RunDataFactory") as TypeToken<RunDataFactory>,
   ExecutionContextFactory: Symbol.for("codemation.core.ExecutionContextFactory") as TypeToken<ExecutionContextFactory>,
   RunEventBus: Symbol.for("codemation.core.RunEventBus") as TypeToken<RunEventBus>,
+  BinaryStorage: Symbol.for("codemation.core.BinaryStorage") as TypeToken<BinaryStorage>,
   WebhookBasePath: Symbol.for("codemation.core.WebhookBasePath") as TypeToken<string>,
 } as const;

@@ -227,7 +227,14 @@ export class Engine implements NodeActivationContinuation {
 
     if (startDef.kind === "trigger" && this.isExecutableTriggerNode(nodeInstances.get(startAt))) {
       const activationId = this.activationIdFactory.makeActivationId();
-      const ctx: any = { ...base, data, nodeId: startDef.id, activationId, config: startDef.config };
+      const ctx: any = {
+        ...base,
+        data,
+        nodeId: startDef.id,
+        activationId,
+        config: startDef.config,
+        binary: base.binary.forNode({ nodeId: startDef.id, activationId }),
+      };
       const request: NodeActivationRequest = {
         kind: "single",
         runId,
@@ -343,7 +350,14 @@ export class Engine implements NodeActivationContinuation {
     if (!def || def.kind !== "node") throw new Error(`Node ${next.nodeId} is not a runnable node`);
 
     const activationId = this.activationIdFactory.makeActivationId();
-    const ctx: any = { ...base, data, nodeId: def.id, activationId, config: def.config };
+    const ctx: any = {
+      ...base,
+      data,
+      nodeId: def.id,
+      activationId,
+      config: def.config,
+      binary: base.binary.forNode({ nodeId: def.id, activationId }),
+    };
     const request: NodeActivationRequest =
       next.kind === "multi"
         ? {
@@ -657,7 +671,14 @@ export class Engine implements NodeActivationContinuation {
     if (!def || def.kind !== "node") throw new Error(`Node ${next.nodeId} is not a runnable node`);
 
     const activationId = this.activationIdFactory.makeActivationId();
-    const ctx: any = { ...base, data, nodeId: def.id, activationId, config: def.config };
+    const ctx: any = {
+      ...base,
+      data,
+      nodeId: def.id,
+      activationId,
+      config: def.config,
+      binary: base.binary.forNode({ nodeId: def.id, activationId }),
+    };
     const request: NodeActivationRequest =
       next.kind === "multi"
         ? {
@@ -999,7 +1020,14 @@ export class Engine implements NodeActivationContinuation {
       nodeState: this.createNodeStatePublisher(args.state.runId, args.state.workflowId, args.state.parent),
     });
     const activationId = this.activationIdFactory.makeActivationId();
-    const ctx: any = { ...base, data, nodeId: nextDefinition.id, activationId, config: nextDefinition.config };
+    const ctx: any = {
+      ...base,
+      data,
+      nodeId: nextDefinition.id,
+      activationId,
+      config: nextDefinition.config,
+      binary: base.binary.forNode({ nodeId: nextDefinition.id, activationId }),
+    };
     const request: NodeActivationRequest =
       next.kind === "multi"
         ? {
@@ -1137,7 +1165,14 @@ export class Engine implements NodeActivationContinuation {
       const startItems = args.plan.rootNodeInput ?? [];
       if (startDef.kind === "trigger" && this.isExecutableTriggerNode(args.nodeInstances.get(args.plan.rootNodeId))) {
         const activationId = this.activationIdFactory.makeActivationId();
-        const ctx: NodeExecutionContext = { ...args.base, data: args.data, nodeId: startDef.id, activationId, config: startDef.config };
+        const ctx: NodeExecutionContext = {
+          ...args.base,
+          data: args.data,
+          nodeId: startDef.id,
+          activationId,
+          config: startDef.config,
+          binary: args.base.binary.forNode({ nodeId: startDef.id, activationId }),
+        };
         const request: NodeActivationRequest = {
           kind: "single",
           runId: args.runId,
@@ -1216,7 +1251,14 @@ export class Engine implements NodeActivationContinuation {
       }
 
       const activationId = this.activationIdFactory.makeActivationId();
-      const ctx: NodeExecutionContext = { ...args.base, data: args.data, nodeId: startDef.id, activationId, config: startDef.config };
+      const ctx: NodeExecutionContext = {
+        ...args.base,
+        data: args.data,
+        nodeId: startDef.id,
+        activationId,
+        config: startDef.config,
+        binary: args.base.binary.forNode({ nodeId: startDef.id, activationId }),
+      };
       const request: NodeActivationRequest = {
         kind: "single",
         runId: args.runId,
@@ -1313,7 +1355,14 @@ export class Engine implements NodeActivationContinuation {
     }
 
     const activationId = this.activationIdFactory.makeActivationId();
-    const ctx: NodeExecutionContext = { ...args.base, data: args.data, nodeId: definition.id, activationId, config: definition.config };
+    const ctx: NodeExecutionContext = {
+      ...args.base,
+      data: args.data,
+      nodeId: definition.id,
+      activationId,
+      config: definition.config,
+      binary: args.base.binary.forNode({ nodeId: definition.id, activationId }),
+    };
     const request: NodeActivationRequest =
       next.kind === "multi"
         ? {

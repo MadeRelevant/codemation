@@ -1,4 +1,4 @@
-import { AgentAttachmentNodeIdFactory } from "@codemation/core";
+import { AgentAttachmentNodeIdFactory } from "@codemation/core/browser";
 import { format, isToday, isYesterday } from "date-fns";
 import prettyMilliseconds from "pretty-ms";
 import type {
@@ -19,6 +19,7 @@ import type {
   InspectorMode,
   NodeExecutionError,
   PortEntries,
+  WorkflowExecutionInspectorAttachmentModel,
   WorkflowNode,
 } from "./workflowDetailTypes";
 
@@ -188,6 +189,26 @@ export class WorkflowDetailPresenter {
     if (!items || items.length === 0) return undefined;
     const jsonValues = items.map((item) => item.json);
     return jsonValues.length === 1 ? jsonValues[0] : jsonValues;
+  }
+
+  static toAttachmentModels(items: Items | undefined): ReadonlyArray<WorkflowExecutionInspectorAttachmentModel> {
+    if (!items) {
+      return [];
+    }
+    const attachments: WorkflowExecutionInspectorAttachmentModel[] = [];
+    for (let itemIndex = 0; itemIndex < items.length; itemIndex += 1) {
+      const item = items[itemIndex]!;
+      for (const [name, attachment] of Object.entries(item.binary ?? {})) {
+        attachments.push({
+          key: `${itemIndex}:${name}:${attachment.id}`,
+          itemIndex,
+          name,
+          contentUrl: ApiPaths.runBinaryContent(attachment.runId, attachment.id),
+          attachment,
+        });
+      }
+    }
+    return attachments;
   }
 
   static getRunQueryKey(runId: string): readonly ["run", string] {

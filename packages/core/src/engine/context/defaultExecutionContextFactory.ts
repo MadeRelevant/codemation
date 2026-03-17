@@ -1,6 +1,21 @@
-import type { ExecutionContext, ExecutionContextFactory, NodeExecutionStatePublisher, ParentExecutionRef, RunDataSnapshot, RunId, WorkflowId } from "../../types";
+import type {
+  BinaryStorage,
+  ExecutionContext,
+  ExecutionContextFactory,
+  NodeExecutionStatePublisher,
+  ParentExecutionRef,
+  RunDataSnapshot,
+  RunId,
+  WorkflowId,
+} from "../../types";
+import { DefaultExecutionBinaryService, UnavailableBinaryStorage } from "./defaultExecutionBinaryService";
 
 export class DefaultExecutionContextFactory implements ExecutionContextFactory {
+  constructor(
+    private readonly binaryStorage: BinaryStorage = new UnavailableBinaryStorage(),
+    private readonly currentDate: () => Date = () => new Date(),
+  ) {}
+
   create(args: {
     runId: RunId;
     workflowId: WorkflowId;
@@ -12,9 +27,10 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
       runId: args.runId,
       workflowId: args.workflowId,
       parent: args.parent,
-      now: () => new Date(),
+      now: this.currentDate,
       data: args.data,
       nodeState: args.nodeState,
+      binary: new DefaultExecutionBinaryService(this.binaryStorage, args.workflowId, args.runId, this.currentDate),
     };
   }
 }

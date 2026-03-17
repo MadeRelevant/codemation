@@ -2,7 +2,7 @@
 
 import dagre from "dagre";
 import { Bot, Boxes, Brain, CircleAlert, CircleCheckBig, Clock3, GitBranch, Globe, type LucideIcon, Pencil, Pin, PinOff, Play, PlaySquare, SquareStack, Workflow, Wrench } from "lucide-react";
-import { AgentAttachmentNodeIdFactory } from "@codemation/core";
+import { AgentAttachmentNodeIdFactory } from "@codemation/core/browser";
 import {
   Background,
   BaseEdge,

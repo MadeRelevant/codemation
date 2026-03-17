@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import path from "node:path";
 
 import type { Container, CredentialService, RunEventBus, RunStateStore, WorkflowDefinition } from "@codemation/core";
 import {
@@ -11,6 +12,7 @@ import {
   DefaultExecutionContextFactory,
   Engine,
   EngineWorkflowRunnerService,
+  InMemoryBinaryStorage,
   InMemoryCredentialService,
   InMemoryRunDataFactory,
   InMemoryRunEventBus,
@@ -42,6 +44,7 @@ import "./application/queries/GetWorkflowSummariesQueryHandler";
 import "./application/queries/ListWorkflowRunsQueryHandler";
 import { WorkflowRunEventWebsocketRelay } from "./application/websocket/WorkflowRunEventWebsocketRelay";
 import "./presentation/http/routeHandlers/RunHttpRouteHandler";
+import "./presentation/http/routeHandlers/BinaryHttpRouteHandler";
 import "./presentation/http/routeHandlers/WebhookHttpRouteHandler";
 import "./presentation/http/routeHandlers/WorkflowHttpRouteHandler";
 import { ApplicationTokens } from "./applicationTokens";
@@ -81,6 +84,7 @@ import { WebhookEndpointRepositoryAdapter } from "./infrastructure/webhooks/Webh
 import { CodemationWorkerHost } from "./infrastructure/worker/CodemationWorkerHost";
 import { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
 import { PrismaClient } from "./infrastructure/persistence/generated/prisma/client.js";
+import { LocalFilesystemBinaryStorage } from "./infrastructure/binary/LocalFilesystemBinaryStorage";
 
 type StopHandle = Readonly<{ stop: () => Promise<void> }>;
 
@@ -223,6 +227,7 @@ export class CodemationApplication {
       credentials: this.container.resolve(CoreTokens.CredentialService),
       runStore: this.container.resolve(CoreTokens.RunStateStore),
       continuation: engine,
+      binaryStorage: this.container.resolve(CoreTokens.BinaryStorage),
       workflows: this.container.resolve(CoreTokens.WorkflowRunnerService),
     });
 
@@ -435,12 +440,14 @@ export class CodemationApplication {
     const eventBus = this.createRunEventBus(resolved);
     const persistence = this.createRunPersistence(resolved, eventBus);
     const activationScheduler = this.createNodeActivationScheduler(resolved);
+    const binaryStorage = this.createBinaryStorage(repoRoot);
 
     this.container.registerInstance(CoreTokens.RunEventBus, eventBus);
     this.container.registerInstance(CoreTokens.RunStateStore, persistence.runStore);
     this.container.registerInstance(CoreTokens.NodeActivationScheduler, activationScheduler);
     this.container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
-    this.container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory());
+    this.container.registerInstance(CoreTokens.BinaryStorage, binaryStorage);
+    this.container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory(binaryStorage));
     this.container.registerInstance(ApplicationTokens.WorkflowDebuggerOverlayRepository, persistence.workflowDebuggerOverlayRepository);
     if (persistence.workflowRunRepository) {
       this.container.registerInstance(ApplicationTokens.WorkflowRunRepository, persistence.workflowRunRepository);
@@ -528,6 +535,13 @@ export class CodemationApplication {
       return new DefaultDrivingScheduler(new ConfigDrivenOffloadPolicy(), resolved.workerRuntimeScheduler, new InlineDrivingScheduler(nodeResolver));
     }
     return new InlineDrivingScheduler(nodeResolver);
+  }
+
+  private createBinaryStorage(repoRoot: string) {
+    if (!repoRoot) {
+      return new InMemoryBinaryStorage();
+    }
+    return new LocalFilesystemBinaryStorage(path.join(repoRoot, ".codemation", "binary"));
   }
 
   private resolveImplementationSelection(args: Readonly<{

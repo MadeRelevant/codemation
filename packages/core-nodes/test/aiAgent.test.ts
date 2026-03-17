@@ -13,7 +13,7 @@ import type {
   ToolConfig,
   ToolExecuteArgs,
 } from "@codemation/core";
-import { ContainerNodeResolver, container as tsyringeContainer, InMemoryRunDataFactory } from "@codemation/core";
+import { ContainerNodeResolver, container as tsyringeContainer, DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
 import { AIAgent, AIAgentNode } from "@codemation/core-nodes";
 import { z } from "zod";
 
@@ -174,6 +174,7 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
       new DelayToolConfig("body_tool", 40, "body", "quote"),
     ],
   );
+  const binary = new DefaultExecutionBinaryService(new InMemoryBinaryStorage(), "wf_1", "run_1", () => new Date());
   const ctx: NodeExecutionContext<AIAgent> = {
     runId: "run_1",
     workflowId: "wf_1",
@@ -184,6 +185,7 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
     nodeId: "agent_1",
     activationId: "act_1",
     config,
+    binary: binary.forNode({ nodeId: "agent_1", activationId: "act_1" }),
   };
 
   const startedAt = performance.now();
@@ -238,6 +240,7 @@ test("AIAgentNode parses JSON model responses into structured output", async () 
     (item) => JSON.stringify(item.json ?? {}),
     new FakeChatModelConfig("Fake JSON Chat Model"),
   );
+  const binary = new DefaultExecutionBinaryService(new InMemoryBinaryStorage(), "wf_1", "run_2", () => new Date());
   const ctx: NodeExecutionContext<AIAgent> = {
     runId: "run_2",
     workflowId: "wf_1",
@@ -254,6 +257,7 @@ test("AIAgentNode parses JSON model responses into structured output", async () 
         type: FakeJsonChatModelFactory,
       },
     },
+    binary: binary.forNode({ nodeId: "agent_json", activationId: "act_2" }),
   };
 
   const outputs = await new AIAgentNode(new ContainerNodeResolver(container)).execute(

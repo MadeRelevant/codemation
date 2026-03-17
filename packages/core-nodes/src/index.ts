@@ -13,6 +13,7 @@ export * from "./chatModels/openAiChatModel";
 export * from "./nodes/merge";
 export * from "./nodes/noOp";
 export * from "./nodes/wait";
+export * from "./nodes/httpRequest";
 export * from "./canvasIconName";
 export * from "./workflowBuilder";
 

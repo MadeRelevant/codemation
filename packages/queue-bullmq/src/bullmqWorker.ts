@@ -1,4 +1,5 @@
 import type {
+  BinaryStorage,
   CredentialService,
   Items,
   Node,
@@ -10,7 +11,7 @@ import type {
   WorkflowDefinition,
   WorkflowId,
 } from "@codemation/core";
-import { DefaultExecutionContextFactory, InMemoryRunDataFactory } from "@codemation/core";
+import { DefaultExecutionContextFactory, InMemoryRunDataFactory, UnavailableBinaryStorage } from "@codemation/core";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 
@@ -40,9 +41,9 @@ export class BullmqWorker {
   private readonly runStore: RunStateStore;
   private readonly continuation: NodeActivationContinuation;
   private readonly workflows: unknown;
+  private readonly binaryStorage: BinaryStorage;
 
   private readonly runDataFactory = new InMemoryRunDataFactory();
-  private readonly executionContextFactory = new DefaultExecutionContextFactory();
   private readonly workers: Worker[] = [];
 
   constructor(
@@ -56,6 +57,7 @@ export class BullmqWorker {
     queuePrefix: string = "codemation",
     workflows: unknown = undefined,
     now: () => Date = () => new Date(),
+    binaryStorage: BinaryStorage = new UnavailableBinaryStorage(),
   ) {
     this.connection = RedisConnectionOptionsFactory.fromConfig(connection);
     this.queuePrefix = queuePrefix;
@@ -66,6 +68,7 @@ export class BullmqWorker {
     this.continuation = continuation;
     this.workflows = workflows;
     this.now = now;
+    this.binaryStorage = binaryStorage;
 
     for (const q of queues) {
       const queueName = `${this.queuePrefix}.${q}`;
@@ -100,7 +103,7 @@ export class BullmqWorker {
     const outputsByNode = (state.outputsByNode ?? {}) as Record<string, any>;
     const dataStore = this.runDataFactory.create(outputsByNode as any);
 
-    const base = this.executionContextFactory.create({
+    const base = new DefaultExecutionContextFactory(this.binaryStorage, this.now).create({
       runId: request.runId,
       workflowId: request.workflowId,
       parent: (request.parent ?? state.parent) as any,
@@ -113,6 +116,7 @@ export class BullmqWorker {
       activationId: request.activationId,
       config: def.config as any,
       now: this.now,
+      binary: base.binary.forNode({ nodeId: request.nodeId, activationId: request.activationId as any }),
     };
 
     try {

@@ -2,7 +2,7 @@ import { Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
  import Tree from "rc-tree";
 import { WorkflowNodeIconResolver, WorkflowStatusIcon } from "./WorkflowDetailIcons";
-import { WorkflowInspectorErrorView, WorkflowInspectorJsonView, WorkflowInspectorPrettyView } from "./WorkflowInspectorViews";
+import { WorkflowInspectorAttachmentList, WorkflowInspectorErrorView, WorkflowInspectorJsonView, WorkflowInspectorPrettyView } from "./WorkflowInspectorViews";
 import type { ExecutionTreeNode, WorkflowExecutionInspectorActions, WorkflowExecutionInspectorFormatting, WorkflowExecutionInspectorModel } from "./workflowDetailTypes";
 
 export function WorkflowExecutionInspector(args: Readonly<{
@@ -410,6 +410,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
                 )}
 
                 <div style={{ minWidth: 0, overflowX: "hidden", overflowY: "auto", padding: 12 }}>
+                  <WorkflowInspectorAttachmentList attachments={pane.attachments} />
                   {pane.showsError ? (
                     pane.format === "pretty" ? (
                       <WorkflowInspectorErrorView

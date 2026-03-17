@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import type { BinaryAttachment } from "@codemation/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WorkflowExecutionInspector } from "../src/ui/workflowDetail/WorkflowExecutionInspector";
 import type {
@@ -89,6 +90,29 @@ describe("workflow execution inspector", () => {
     expect(screen.getByText("Today 09:51:00")).toBeInTheDocument();
     expect(screen.getByTestId("selected-node-duration")).toHaveTextContent("Took 500ms");
   });
+
+  it("renders attachment previews and links beside the JSON panes", () => {
+    const model = WorkflowExecutionInspectorFixture.createModelWithOutputAttachments();
+
+    render(
+      <div style={{ width: 900, height: 320 }}>
+        <WorkflowExecutionInspector
+          model={model}
+          formatting={WorkflowExecutionInspectorFixture.createFormatting()}
+          actions={WorkflowExecutionInspectorFixture.createActions()}
+        />
+      </div>,
+    );
+
+    expect(screen.getByTestId("workflow-inspector-attachments")).toBeInTheDocument();
+    expect(screen.getByTestId("workflow-inspector-image-preview-bin-image")).toBeInTheDocument();
+    expect(screen.getByTestId("workflow-inspector-audio-preview-bin-audio")).toBeInTheDocument();
+    expect(screen.getByTestId("workflow-inspector-video-preview-bin-video")).toBeInTheDocument();
+    expect(screen.getByTestId("workflow-inspector-attachment-link-bin-image")).toHaveAttribute(
+      "href",
+      "/api/runs/run-1/binary/bin-image/content",
+    );
+  });
 });
 
 class WorkflowExecutionInspectorFixture {
@@ -120,6 +144,7 @@ class WorkflowExecutionInspectorFixture {
         format: "json",
         selectedPort: "main",
         portEntries: [["main", []]],
+        attachments: [],
         value: {
           body:
             "This payload stays readable even when the inspector is narrow because the pane should wrap and clip instead of widening the layout.".repeat(4),
@@ -132,6 +157,7 @@ class WorkflowExecutionInspectorFixture {
         format: "json",
         selectedPort: "main",
         portEntries: [["main", []]],
+        attachments: [],
         value: {
           result:
             "This output is intentionally long to mimic large execution payloads without letting the inspector grow wider than the viewport.".repeat(4),
@@ -151,6 +177,51 @@ class WorkflowExecutionInspectorFixture {
         isRunning: false,
         canEditOutput: false,
         canClearPinnedOutput: false,
+      },
+    };
+  }
+
+  static createModelWithOutputAttachments(): WorkflowExecutionInspectorModel {
+    const model = this.createModel();
+    return {
+      ...model,
+      outputPane: {
+        ...model.outputPane,
+        attachments: [
+          {
+            key: "attachment-image",
+            itemIndex: 0,
+            name: "body",
+            contentUrl: "/api/runs/run-1/binary/bin-image/content",
+            attachment: WorkflowExecutionInspectorFixture.createAttachment({
+              id: "bin-image",
+              previewKind: "image",
+              mimeType: "image/png",
+            }),
+          },
+          {
+            key: "attachment-audio",
+            itemIndex: 1,
+            name: "audio",
+            contentUrl: "/api/runs/run-1/binary/bin-audio/content",
+            attachment: WorkflowExecutionInspectorFixture.createAttachment({
+              id: "bin-audio",
+              previewKind: "audio",
+              mimeType: "audio/mpeg",
+            }),
+          },
+          {
+            key: "attachment-video",
+            itemIndex: 2,
+            name: "video",
+            contentUrl: "/api/runs/run-1/binary/bin-video/content",
+            attachment: WorkflowExecutionInspectorFixture.createAttachment({
+              id: "bin-video",
+              previewKind: "video",
+              mimeType: "video/mp4",
+            }),
+          },
+        ],
       },
     };
   }
@@ -176,6 +247,24 @@ class WorkflowExecutionInspectorFixture {
       onSelectFormat: vi.fn(),
       onSelectInputPort: vi.fn(),
       onSelectOutputPort: vi.fn(),
+    };
+  }
+
+  static createAttachment(overrides: Readonly<Partial<BinaryAttachment>> = {}): BinaryAttachment {
+    return {
+      id: overrides.id ?? "bin-1",
+      storageKey: overrides.storageKey ?? "wf-1/run-1/node-1/act-1/bin-1",
+      mimeType: overrides.mimeType ?? "application/octet-stream",
+      size: overrides.size ?? 128,
+      storageDriver: overrides.storageDriver ?? "filesystem",
+      previewKind: overrides.previewKind ?? "download",
+      createdAt: overrides.createdAt ?? "2026-03-15T09:51:00.000Z",
+      runId: overrides.runId ?? "run-1",
+      workflowId: overrides.workflowId ?? "wf-1",
+      nodeId: overrides.nodeId ?? "node-1",
+      activationId: overrides.activationId ?? "act-1",
+      filename: overrides.filename ?? "file.bin",
+      sha256: overrides.sha256 ?? "abc123",
     };
   }
 }

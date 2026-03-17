@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Item, NodeExecutionContext } from "@codemation/core";
-import { InMemoryRunDataFactory } from "@codemation/core";
+import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
 import { Callback, CallbackNode } from "@codemation/core-nodes";
 
 class CallbackNodeTestContextFactory {
   static create(config: Callback): NodeExecutionContext<Callback> {
+    const binary = new DefaultExecutionBinaryService(new InMemoryBinaryStorage(), "wf_callback", "run_callback", () => new Date());
     return {
       runId: "run_callback",
       workflowId: "wf_callback",
@@ -15,6 +16,7 @@ class CallbackNodeTestContextFactory {
       nodeId: "node_callback",
       activationId: "act_callback",
       config,
+      binary: binary.forNode({ nodeId: "node_callback", activationId: "act_callback" }),
     };
   }
 }

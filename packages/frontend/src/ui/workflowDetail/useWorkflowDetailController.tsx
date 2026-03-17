@@ -630,12 +630,18 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     [selectedOutputPort, visibleOutputPortEntries],
   );
   const selectedNodeError = selectedNodeSnapshot?.error;
+  const inputAttachments = useMemo(() => WorkflowDetailPresenter.toAttachmentModels(selectedInputItems), [selectedInputItems]);
+  const outputAttachments = useMemo(
+    () => WorkflowDetailPresenter.toAttachmentModels(selectedNodeError ? undefined : selectedOutputItems),
+    [selectedNodeError, selectedOutputItems],
+  );
   const inputPane = {
     tab: "input" as const,
     format: inspectorFormatByTab.input,
     selectedPort: selectedInputPort,
     portEntries: inputPortEntries,
     value: WorkflowDetailPresenter.toJsonValue(selectedInputItems),
+    attachments: inputAttachments,
     emptyLabel: "No input captured yet.",
     showsError: false,
   };
@@ -645,6 +651,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     selectedPort: selectedOutputPort,
     portEntries: selectedNodeError ? [] : visibleOutputPortEntries,
     value: selectedNodeError ?? WorkflowDetailPresenter.toJsonValue(selectedOutputItems),
+    attachments: outputAttachments,
     emptyLabel: selectedNodeError ? "No error for this node." : "No output captured yet.",
     showsError: Boolean(selectedNodeError),
   };
