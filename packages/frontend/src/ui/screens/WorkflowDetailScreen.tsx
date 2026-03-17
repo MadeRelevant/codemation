@@ -73,25 +73,129 @@ const WORKFLOW_DETAIL_TREE_STYLES = `
 
 export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initialWorkflow?: WorkflowDto }>) {
   const controller = useWorkflowDetailController(args);
+  const activeCanvasTab = controller.isRunsPaneVisible ? "executions" : "live";
 
   return (
     <main style={{ fontFamily: "ui-sans-serif, system-ui", height: "100vh", width: "100%", minHeight: 0, overflow: "hidden", background: "#f8fafc" }}>
-      <section style={{ height: "100%", width: "100%", minHeight: 0, overflow: "hidden", display: "grid", gridTemplateColumns: "320px 1fr" }}>
-        <WorkflowRunsSidebar model={controller.sidebarModel} formatting={controller.sidebarFormatting} actions={controller.sidebarActions} />
+      <section
+        style={{
+          height: "100%",
+          width: "100%",
+          minHeight: 0,
+          overflow: "hidden",
+          display: "grid",
+          gridTemplateColumns: controller.isRunsPaneVisible ? "320px 1fr" : "1fr",
+        }}
+      >
+        {controller.isRunsPaneVisible ? (
+          <WorkflowRunsSidebar model={controller.sidebarModel} formatting={controller.sidebarFormatting} actions={controller.sidebarActions} />
+        ) : null}
 
         <div style={{ height: "100%", minWidth: 0, minHeight: 0, background: "#f8fafc", display: "grid", gridTemplateRows: controller.isPanelCollapsed ? "minmax(0, 1fr) 36px" : `minmax(0, 1fr) ${controller.inspectorHeight}px` }}>
-          <div style={{ height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden", background: "#f8fafc" }}>
+          <div style={{ height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden", background: "#f8fafc", position: "relative" }}>
             {controller.displayedWorkflow ? (
               <WorkflowCanvas
                 workflow={controller.displayedWorkflow}
-                nodeSnapshotsByNodeId={controller.selectedRun?.nodeSnapshotsByNodeId ?? {}}
+                nodeSnapshotsByNodeId={controller.displayedNodeSnapshotsByNodeId}
                 pinnedNodeIds={controller.pinnedNodeIds}
                 selectedNodeId={controller.selectedNodeId}
+                isLiveWorkflowView={controller.isLiveWorkflowView}
+                isRunning={controller.isRunning}
                 onSelectNode={controller.selectCanvasNode}
+                onRunNode={controller.runCanvasNode}
+                onTogglePinnedOutput={controller.toggleCanvasNodePin}
+                onEditNodeOutput={controller.editCanvasNodeOutput}
+                onClearPinnedOutput={controller.clearCanvasNodePin}
               />
             ) : (
               <div style={{ padding: 16, opacity: 0.8 }}>Loading diagram…</div>
             )}
+            <div
+              style={{
+                position: "absolute",
+                top: 12,
+                left: 12,
+                zIndex: 6,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                pointerEvents: "none",
+              }}
+            >
+              <div style={{ display: "flex", border: "1px solid #cbd5e1", background: "rgba(255,255,255,0.96)", boxShadow: "0 8px 20px rgba(15,23,42,0.08)", pointerEvents: "auto" }}>
+                <button
+                  data-testid="workflow-canvas-tab-live"
+                  onClick={controller.openLiveWorkflow}
+                  aria-pressed={activeCanvasTab === "live"}
+                  style={{
+                    padding: "8px 12px",
+                    border: "none",
+                    borderRight: "1px solid #cbd5e1",
+                    background: activeCanvasTab === "live" ? "#111827" : "transparent",
+                    color: activeCanvasTab === "live" ? "#fff" : "#111827",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  Live workflow
+                </button>
+                <button
+                  data-testid="workflow-canvas-tab-executions"
+                  onClick={controller.openExecutionsPane}
+                  aria-pressed={activeCanvasTab === "executions"}
+                  style={{
+                    padding: "8px 12px",
+                    border: "none",
+                    background: activeCanvasTab === "executions" ? "#111827" : "transparent",
+                    color: activeCanvasTab === "executions" ? "#fff" : "#111827",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  Executions
+                </button>
+              </div>
+              {controller.isLiveWorkflowView && !controller.isRunsPaneVisible ? (
+                <button
+                  data-testid="canvas-run-workflow-button"
+                  onClick={controller.runWorkflowFromCanvas}
+                  disabled={controller.isRunning}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #111827",
+                    background: "#111827",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: controller.isRunning ? "not-allowed" : "pointer",
+                    opacity: controller.isRunning ? 0.8 : 1,
+                    pointerEvents: "auto",
+                  }}
+                >
+                  {controller.isRunning ? "Running..." : "Run workflow"}
+                </button>
+              ) : null}
+              {controller.canCopySelectedRunToLive ? (
+                <button
+                  data-testid="canvas-copy-to-live-button"
+                  onClick={controller.copySelectedRunToLive}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #111827",
+                    background: "#111827",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    pointerEvents: "auto",
+                  }}
+                >
+                  Copy to live
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div style={{ minWidth: 0, minHeight: 0, background: "white", display: "grid", gridTemplateRows: controller.isPanelCollapsed ? "36px" : "36px minmax(0, 1fr)", borderTop: "1px solid #d1d5db" }}>

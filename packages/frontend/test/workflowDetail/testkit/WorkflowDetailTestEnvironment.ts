@@ -1,6 +1,6 @@
 import { vi, expect } from "vitest";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
-import type { PersistedRunState, RunSummary, WorkflowDto } from "../../../src/client";
+import type { PersistedRunState, RunSummary, WorkflowDebuggerOverlayState, WorkflowDto } from "../../../src/client";
 import type { WorkflowDetailRealtimeServerMessage } from "./WorkflowDetailRealtimeFixtures";
 import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
 
@@ -8,6 +8,7 @@ type WorkflowRunRequestBody = Readonly<{
   workflowId: string;
   items: ReadonlyArray<Readonly<{ json: unknown }>>;
   stopAt?: string;
+  clearFromNodeId?: string;
   mode?: "manual" | "debug";
   sourceRunId?: string;
 }>;
@@ -19,6 +20,14 @@ type WorkflowNodeRunRequestBody = Readonly<{
 
 type WorkflowSnapshotRequestBody = Readonly<{
   workflowSnapshot: PersistedRunState["workflowSnapshot"];
+}>;
+
+type WorkflowDebuggerOverlayRequestBody = Readonly<{
+  currentState?: WorkflowDebuggerOverlayState["currentState"];
+}>;
+
+type WorkflowDebuggerOverlayCopyRequestBody = Readonly<{
+  sourceRunId?: string;
 }>;
 
 export class WorkflowDetailSocketConnection {
@@ -75,9 +84,13 @@ export class WorkflowDetailTestEnvironment {
   readonly socketConnections: WorkflowDetailSocketConnection[] = [];
   readonly workflowRuns: RunSummary[] = [];
   readonly runsById = new Map<string, PersistedRunState>();
+  readonly queuedRunResponses: PersistedRunState[] = [];
+  debuggerOverlay: WorkflowDebuggerOverlayState;
   readonly websocketPort = "31337";
 
-  constructor(public readonly workflow: WorkflowDto) {}
+  constructor(public readonly workflow: WorkflowDto) {
+    this.debuggerOverlay = WorkflowDetailFixtureFactory.createDebuggerOverlayState(workflow.id);
+  }
 
   install(): void {
     const socketConnections = this.socketConnections;
@@ -150,6 +163,17 @@ export class WorkflowDetailTestEnvironment {
     this.socketConnections.length = 0;
     this.workflowRuns.length = 0;
     this.runsById.clear();
+    this.queuedRunResponses.length = 0;
+    this.debuggerOverlay = WorkflowDetailFixtureFactory.createDebuggerOverlayState(this.workflow.id);
+  }
+
+  queueRunResponse(state: PersistedRunState): void {
+    this.queuedRunResponses.push(state);
+  }
+
+  seedRun(state: PersistedRunState): void {
+    this.runsById.set(state.runId, state);
+    this.prependWorkflowRun(state);
   }
 
   latestSocket(): WorkflowDetailSocketConnection {
@@ -192,6 +216,10 @@ export class WorkflowDetailTestEnvironment {
       return Response.json(this.workflowRuns);
     }
 
+    if (method === "GET" && url.pathname === ApiPaths.workflowDebuggerOverlay(this.workflow.id)) {
+      return Response.json(this.debuggerOverlay);
+    }
+
     if (method === "GET" && url.pathname.startsWith("/api/runs/")) {
       const runId = decodeURIComponent(url.pathname.split("/")[3] ?? "");
       const runState = this.runsById.get(runId);
@@ -203,6 +231,14 @@ export class WorkflowDetailTestEnvironment {
 
     if (method === "POST" && url.pathname === ApiPaths.runs()) {
       return this.handleRunWorkflowRequest(routeKey);
+    }
+
+    if (method === "PUT" && url.pathname === ApiPaths.workflowDebuggerOverlay(this.workflow.id)) {
+      return this.handleDebuggerOverlayRequest(routeKey);
+    }
+
+    if (method === "POST" && url.pathname === ApiPaths.workflowDebuggerOverlayCopyRun(this.workflow.id)) {
+      return this.handleDebuggerOverlayCopyRequest(routeKey);
     }
 
     if (method === "POST" && url.pathname.includes("/nodes/") && url.pathname.endsWith("/run")) {
@@ -222,11 +258,13 @@ export class WorkflowDetailTestEnvironment {
 
   private handleRunWorkflowRequest(routeKey: string): Response {
     const requestBody = this.latestRequestBody<WorkflowRunRequestBody>(routeKey);
-    const runState = WorkflowDetailFixtureFactory.createInitialRunState({
-      mode: requestBody.mode,
-      runId: WorkflowDetailFixtureFactory.runId,
-      workflow: this.workflow,
-    });
+    const runState =
+      this.queuedRunResponses.shift() ??
+      WorkflowDetailFixtureFactory.createInitialRunState({
+        mode: requestBody.mode,
+        runId: WorkflowDetailFixtureFactory.runId,
+        workflow: this.workflow,
+      });
     this.runsById.set(runState.runId, runState);
     this.prependWorkflowRun(runState);
     return Response.json({
@@ -283,6 +321,47 @@ export class WorkflowDetailTestEnvironment {
     this.runsById.set(runId, runState);
     this.prependWorkflowRun(runState);
     return Response.json(runState);
+  }
+
+  private handleDebuggerOverlayRequest(routeKey: string): Response {
+    const requestBody = this.latestRequestBody<WorkflowDebuggerOverlayRequestBody>(routeKey);
+    this.debuggerOverlay = {
+      workflowId: this.workflow.id,
+      updatedAt: WorkflowDetailFixtureFactory.startedAt,
+      copiedFromRunId: this.debuggerOverlay.copiedFromRunId,
+      currentState:
+        requestBody.currentState ??
+        WorkflowDetailFixtureFactory.createDebuggerOverlayState(this.workflow.id).currentState,
+    };
+    return Response.json(this.debuggerOverlay);
+  }
+
+  private handleDebuggerOverlayCopyRequest(routeKey: string): Response {
+    const requestBody = this.latestRequestBody<WorkflowDebuggerOverlayCopyRequestBody>(routeKey);
+    const sourceRunId = requestBody.sourceRunId ?? WorkflowDetailFixtureFactory.runId;
+    const sourceRun = this.runsById.get(sourceRunId) ?? WorkflowDetailFixtureFactory.createCompletedRunState({ runId: sourceRunId, workflow: this.workflow });
+    this.runsById.set(sourceRun.runId, sourceRun);
+    this.prependWorkflowRun(sourceRun);
+    this.debuggerOverlay = {
+      workflowId: this.workflow.id,
+      updatedAt: WorkflowDetailFixtureFactory.startedAt,
+      copiedFromRunId: sourceRun.runId,
+      currentState: {
+        outputsByNode: sourceRun.outputsByNode,
+        nodeSnapshotsByNodeId: sourceRun.nodeSnapshotsByNodeId,
+        mutableState: {
+          nodesById: Object.fromEntries(
+            Object.keys(sourceRun.outputsByNode).map((nodeId) => [
+              nodeId,
+              {
+                pinnedOutputsByPort: undefined,
+              },
+            ]),
+          ),
+        },
+      },
+    };
+    return Response.json(this.debuggerOverlay);
   }
 
   private prependWorkflowRun(runState: PersistedRunState): void {

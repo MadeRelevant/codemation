@@ -168,8 +168,16 @@ export class CodemationConsumerConfigLoader {
   }
 
   private async importModule(modulePath: string): Promise<Record<string, unknown>> {
+    if (this.shouldUseNativeRuntimeImport()) {
+      return await this.importModuleWithNativeRuntime(modulePath);
+    }
     const tsconfigPath = await this.resolveTsconfigPath(modulePath);
     const importedModule = await this.getOrCreateImporter(tsconfigPath).import(await this.createImportSpecifier(modulePath), import.meta.url);
+    return importedModule as Record<string, unknown>;
+  }
+
+  private async importModuleWithNativeRuntime(modulePath: string): Promise<Record<string, unknown>> {
+    const importedModule = await import(await this.createImportSpecifier(modulePath));
     return importedModule as Record<string, unknown>;
   }
 
@@ -216,6 +224,10 @@ export class CodemationConsumerConfigLoader {
     const moduleStats = await stat(modulePath);
     moduleUrl.searchParams.set("t", String(moduleStats.mtimeMs));
     return moduleUrl.href;
+  }
+
+  private shouldUseNativeRuntimeImport(): boolean {
+    return process.env.CODEMATION_TS_RUNTIME === "ts-node";
   }
 
   private async exists(filePath: string): Promise<boolean> {

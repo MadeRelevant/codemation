@@ -15,6 +15,7 @@ export type { CodemationAppSlots as Slots } from "./presentation/config/Codemati
 export {
   useRunQuery,
   useRunStateFromCache,
+  useWorkflowDebuggerOverlayQuery,
   useWorkflowQuery,
   useWorkflowRealtimeSubscription,
   useWorkflowRunsQuery,
@@ -25,7 +26,9 @@ export {
   type NodeExecutionSnapshot,
   type PendingNodeExecution,
   type PersistedRunState,
+  type RunCurrentState,
   type RunSummary,
+  type WorkflowDebuggerOverlayState,
   type WorkflowDto,
   type WorkflowSummary,
 } from "./ui/realtime/realtime";

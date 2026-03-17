@@ -29,11 +29,14 @@ import type { CommandBus } from "./application/bus/CommandBus";
 import type { DomainEventBus } from "./application/bus/DomainEventBus";
 import type { QueryBus } from "./application/bus/QueryBus";
 import "./application/commands/HandleWebhookInvocationCommandHandler";
+import "./application/commands/CopyRunToWorkflowDebuggerCommandHandler";
 import "./application/commands/ReplayWorkflowNodeCommandHandler";
+import "./application/commands/ReplaceWorkflowDebuggerOverlayCommandHandler";
 import "./application/commands/ReplaceMutableRunWorkflowSnapshotCommandHandler";
 import "./application/commands/SetPinnedNodeInputCommandHandler";
 import "./application/commands/StartWorkflowRunCommandHandler";
 import "./application/queries/GetRunStateQueryHandler";
+import "./application/queries/GetWorkflowDebuggerOverlayQueryHandler";
 import "./application/queries/GetWorkflowDetailQueryHandler";
 import "./application/queries/GetWorkflowSummariesQueryHandler";
 import "./application/queries/ListWorkflowRunsQueryHandler";
@@ -45,6 +48,7 @@ import { ApplicationTokens } from "./applicationTokens";
 import type { CodemationBinding } from "./presentation/config/CodemationBinding";
 import type { CodemationConfig } from "./presentation/config/CodemationConfig";
 import { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
+import { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
 import { WebhookEndpointRepository } from "./domain/webhooks/WebhookEndpointRepository";
 import { RequestToWebhookItemMapper } from "./infrastructure/webhooks/RequestToWebhookItemMapper";
@@ -55,7 +59,9 @@ import { CodemationIdFactory } from "./infrastructure/ids/CodemationIdFactory";
 import { DependencyInjectionHookRunner } from "./infrastructure/config/DependencyInjectionHookRunner";
 import { CodemationConfigBindingRegistrar } from "./infrastructure/config/CodemationConfigBindingRegistrar";
 import { PrismaClientFactory } from "./infrastructure/persistence/PrismaClientFactory";
+import { InMemoryWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/InMemoryWorkflowDebuggerOverlayRepository";
 import { PrismaMigrationDeployer } from "./infrastructure/persistence/PrismaMigrationDeployer";
+import { PrismaWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/PrismaWorkflowDebuggerOverlayRepository";
 import { PrismaWorkflowRunRepository } from "./infrastructure/persistence/PrismaWorkflowRunRepository";
 import { WorkflowDefinitionRepositoryAdapter } from "./infrastructure/persistence/WorkflowDefinitionRepositoryAdapter";
 import { WorkflowRunRepository as SqlWorkflowRunRepository } from "./infrastructure/persistence/WorkflowRunRepository";
@@ -362,6 +368,8 @@ export class CodemationApplication {
   private registerRepositoriesAndBuses(): void {
     this.container.register(WorkflowDefinitionRepositoryAdapter, { useClass: WorkflowDefinitionRepositoryAdapter });
     this.container.register(SqlWorkflowRunRepository, { useClass: SqlWorkflowRunRepository });
+    this.container.register(InMemoryWorkflowDebuggerOverlayRepository, { useClass: InMemoryWorkflowDebuggerOverlayRepository });
+    this.container.register(PrismaWorkflowDebuggerOverlayRepository, { useClass: PrismaWorkflowDebuggerOverlayRepository });
     this.container.register(WebhookEndpointRepositoryAdapter, { useClass: WebhookEndpointRepositoryAdapter });
     this.container.register(ApplicationTokens.WorkflowDefinitionRepository, {
       useFactory: instanceCachingFactory(
@@ -371,6 +379,11 @@ export class CodemationApplication {
     this.container.register(ApplicationTokens.WorkflowRunRepository, {
       useFactory: instanceCachingFactory(
         (dependencyContainer) => dependencyContainer.resolve(SqlWorkflowRunRepository) as unknown as WorkflowRunRepository,
+      ),
+    });
+    this.container.register(ApplicationTokens.WorkflowDebuggerOverlayRepository, {
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) => dependencyContainer.resolve(InMemoryWorkflowDebuggerOverlayRepository) as unknown as WorkflowDebuggerOverlayRepository,
       ),
     });
     this.container.register(ApplicationTokens.WebhookEndpointRepository, {
@@ -426,6 +439,7 @@ export class CodemationApplication {
     this.container.registerInstance(CoreTokens.NodeActivationScheduler, activationScheduler);
     this.container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
     this.container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory());
+    this.container.registerInstance(ApplicationTokens.WorkflowDebuggerOverlayRepository, persistence.workflowDebuggerOverlayRepository);
     if (persistence.workflowRunRepository) {
       this.container.registerInstance(ApplicationTokens.WorkflowRunRepository, persistence.workflowRunRepository);
     }
@@ -458,9 +472,15 @@ export class CodemationApplication {
   private createRunPersistence(
     resolved: ResolvedImplementationSelection,
     eventBus: RunEventBus,
-  ): Readonly<{ runStore: RunStateStore; workflowRunRepository?: WorkflowRunRepository; prismaClient?: PrismaClient }> {
+  ): Readonly<{
+    runStore: RunStateStore;
+    workflowRunRepository?: WorkflowRunRepository;
+    workflowDebuggerOverlayRepository: WorkflowDebuggerOverlayRepository;
+    prismaClient?: PrismaClient;
+  }> {
     if (!resolved.databaseUrl) {
       return {
+        workflowDebuggerOverlayRepository: this.container.resolve(InMemoryWorkflowDebuggerOverlayRepository),
         runStore: new PublishingRunStateStore(new InMemoryRunStateStore(), eventBus),
       };
     }
@@ -468,9 +488,11 @@ export class CodemationApplication {
     const childContainer = this.container.createChildContainer();
     childContainer.registerInstance(PrismaClient, prismaClientResolution.prismaClient);
     const workflowRunRepository = childContainer.resolve(PrismaWorkflowRunRepository);
+    const workflowDebuggerOverlayRepository = childContainer.resolve(PrismaWorkflowDebuggerOverlayRepository);
     return {
       prismaClient: prismaClientResolution.ownedPrismaClient,
       workflowRunRepository,
+      workflowDebuggerOverlayRepository,
       runStore: new PublishingRunStateStore(workflowRunRepository, eventBus),
     };
   }

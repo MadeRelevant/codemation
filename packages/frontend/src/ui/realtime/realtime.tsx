@@ -107,6 +107,19 @@ export type PersistedRunState = Readonly<{
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
 }>;
 
+export type RunCurrentState = Readonly<{
+  outputsByNode: PersistedRunState["outputsByNode"];
+  nodeSnapshotsByNodeId: PersistedRunState["nodeSnapshotsByNodeId"];
+  mutableState?: PersistedMutableRunState;
+}>;
+
+export type WorkflowDebuggerOverlayState = Readonly<{
+  workflowId: string;
+  updatedAt: string;
+  copiedFromRunId?: string;
+  currentState: RunCurrentState;
+}>;
+
 export type WorkflowEvent =
   | Readonly<{ kind: "runCreated"; runId: string; workflowId: string; parent?: ParentExecutionRef; at: string }>
   | Readonly<{ kind: "runSaved"; runId: string; workflowId: string; parent?: ParentExecutionRef; at: string; state: PersistedRunState }>
@@ -160,6 +173,7 @@ type RealtimeReadyValue = (typeof RealtimeReadyState)[keyof typeof RealtimeReady
 const workflowsQueryKey = ["workflows"] as const;
 const workflowQueryKey = (workflowId: string) => ["workflow", workflowId] as const;
 const workflowRunsQueryKey = (workflowId: string) => ["workflow-runs", workflowId] as const;
+const workflowDebuggerOverlayQueryKey = (workflowId: string) => ["workflow-debugger-overlay", workflowId] as const;
 const runQueryKey = (runId: string) => ["run", runId] as const;
 
 function getRealtimeBridge(): RealtimeBridgeState {
@@ -189,6 +203,10 @@ async function fetchWorkflow(workflowId: string): Promise<WorkflowDto> {
 
 async function fetchWorkflowRuns(workflowId: string): Promise<ReadonlyArray<RunSummary>> {
   return await fetchJson<ReadonlyArray<RunSummary>>(ApiPaths.workflowRuns(workflowId));
+}
+
+async function fetchWorkflowDebuggerOverlay(workflowId: string): Promise<WorkflowDebuggerOverlayState> {
+  return await fetchJson<WorkflowDebuggerOverlayState>(ApiPaths.workflowDebuggerOverlay(workflowId));
 }
 
 async function fetchRun(runId: string): Promise<PersistedRunState> {
@@ -711,7 +729,15 @@ export function useWorkflowRunsQuery(workflowId: string) {
   });
 }
 
-export function useRunQuery(runId: string | null | undefined) {
+export function useWorkflowDebuggerOverlayQuery(workflowId: string) {
+  return useQuery({
+    queryKey: workflowDebuggerOverlayQueryKey(workflowId),
+    queryFn: async () => await fetchWorkflowDebuggerOverlay(workflowId),
+    enabled: Boolean(workflowId),
+  });
+}
+
+export function useRunQuery(runId: string | null | undefined, options: Readonly<{ disableFetch?: boolean }> = {}) {
   const queryClient = useQueryClient();
   const cachedState = useMemo(() => {
     if (!runId) return undefined;
@@ -721,7 +747,7 @@ export function useRunQuery(runId: string | null | undefined) {
   return useQuery({
     queryKey: runId ? runQueryKey(runId) : ["run", "disabled"],
     queryFn: async () => await fetchRun(runId!),
-    enabled: Boolean(runId) && !cachedState,
+    enabled: Boolean(runId) && !cachedState && !options.disableFetch,
     initialData: cachedState,
   });
 }

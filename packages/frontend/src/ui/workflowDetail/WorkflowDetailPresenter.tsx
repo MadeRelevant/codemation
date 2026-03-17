@@ -5,7 +5,9 @@ import type {
   NodeExecutionSnapshot,
   PersistedWorkflowSnapshot,
   PersistedRunState,
+  RunCurrentState,
   RunSummary,
+  WorkflowDebuggerOverlayState,
   WorkflowDto,
 } from "../realtime/realtime";
 import { PersistedWorkflowSnapshotMapper } from "./PersistedWorkflowSnapshotMapper";
@@ -28,14 +30,28 @@ export type RunWorkflowResult = Readonly<{
 }>;
 export type RunWorkflowMode = "manual" | "debug";
 export type RunWorkflowRequest = Readonly<{
+  items?: Items;
+  currentState?: RunCurrentState;
   startAt?: string;
   stopAt?: string;
+  clearFromNodeId?: string;
   mode?: RunWorkflowMode;
   sourceRunId?: string;
 }>;
 
+type InspectableExecutionState = Readonly<{
+  mutableState?: PersistedRunState["mutableState"];
+  nodeSnapshotsByNodeId: PersistedRunState["nodeSnapshotsByNodeId"];
+}>;
+
 export class WorkflowDetailPresenter {
   private static readonly persistedWorkflowDtoMapper = new PersistedWorkflowSnapshotMapper();
+  private static readonly visibleExecutionStatuses = new Set<NodeExecutionSnapshot["status"]>([
+    "queued",
+    "running",
+    "completed",
+    "failed",
+  ]);
 
   static async runWorkflow(workflowId: string, workflow: WorkflowDto | undefined, request: RunWorkflowRequest = {}): Promise<RunWorkflowResult> {
     const response = await fetch(ApiPaths.runs(), {
@@ -43,9 +59,11 @@ export class WorkflowDetailPresenter {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         workflowId,
-        items: this.createRunItems(workflow),
+        items: request.items ?? this.createRunItems(workflow),
+        currentState: request.currentState,
         startAt: request.startAt,
         stopAt: request.stopAt,
+        clearFromNodeId: request.clearFromNodeId,
         mode: request.mode,
         sourceRunId: request.sourceRunId,
       }),
@@ -123,6 +141,18 @@ export class WorkflowDetailPresenter {
     return "output";
   }
 
+  static getPreferredWorkflowNodeId(workflow: WorkflowDto | undefined): string | null {
+    if (!workflow) {
+      return null;
+    }
+    return (
+      workflow.nodes.find((node) => node.role === "agent")?.id ??
+      workflow.nodes.find((node) => node.kind !== "trigger")?.id ??
+      workflow.nodes[0]?.id ??
+      null
+    );
+  }
+
   static sortPortEntries(value: Readonly<Record<string, Items>> | undefined): PortEntries {
     return Object.entries(value ?? {}).sort(([left], [right]) => {
       if (left === right) return 0;
@@ -138,6 +168,13 @@ export class WorkflowDetailPresenter {
     return entries.find(([, items]) => items.length > 0)?.[0] ?? entries[0]![0];
   }
 
+  static applyPinnedOutputToPortEntries(entries: PortEntries, pinnedOutput: Items | undefined): PortEntries {
+    if (typeof pinnedOutput === "undefined") {
+      return entries;
+    }
+    return [["main", pinnedOutput], ...entries.filter(([portName]) => portName !== "main")];
+  }
+
   static toJsonValue(items: Items | undefined): unknown {
     if (!items || items.length === 0) return undefined;
     const jsonValues = items.map((item) => item.json);
@@ -150,6 +187,10 @@ export class WorkflowDetailPresenter {
 
   static getWorkflowRunsQueryKey(workflowId: string): readonly ["workflow-runs", string] {
     return ["workflow-runs", workflowId];
+  }
+
+  static getWorkflowDebuggerOverlayQueryKey(workflowId: string): readonly ["workflow-debugger-overlay", string] {
+    return ["workflow-debugger-overlay", workflowId];
   }
 
   static toRunSummary(state: PersistedRunState): RunSummary {
@@ -206,6 +247,37 @@ export class WorkflowDetailPresenter {
     return Boolean(run?.executionOptions?.isMutable);
   }
 
+  static async replaceWorkflowDebuggerOverlay(
+    workflowId: string,
+    currentState: WorkflowDebuggerOverlayState["currentState"],
+  ): Promise<WorkflowDebuggerOverlayState> {
+    const response = await fetch(ApiPaths.workflowDebuggerOverlay(workflowId), {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        currentState,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    return (await response.json()) as WorkflowDebuggerOverlayState;
+  }
+
+  static async copyRunToDebuggerOverlay(workflowId: string, sourceRunId: string): Promise<WorkflowDebuggerOverlayState> {
+    const response = await fetch(ApiPaths.workflowDebuggerOverlayCopyRun(workflowId), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        sourceRunId,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    return (await response.json()) as WorkflowDebuggerOverlayState;
+  }
+
   static workflowFromSnapshot(snapshot: PersistedWorkflowSnapshot | undefined, fallback: WorkflowDto | undefined): WorkflowDto | undefined {
     if (!snapshot) {
       return fallback;
@@ -213,11 +285,15 @@ export class WorkflowDetailPresenter {
     return this.persistedWorkflowDtoMapper.map(snapshot);
   }
 
-  static getPinnedOutput(run: PersistedRunState | undefined, nodeId: string | null): Items | undefined {
-    if (!run || !nodeId) {
+  static resolveViewedWorkflow(args: Readonly<{ selectedRun?: PersistedRunState; liveWorkflow?: WorkflowDto }>): WorkflowDto | undefined {
+    return this.workflowFromSnapshot(args.selectedRun?.workflowSnapshot, args.liveWorkflow);
+  }
+
+  static getPinnedOutput(currentState: InspectableExecutionState | undefined, nodeId: string | null): Items | undefined {
+    if (!currentState || !nodeId) {
       return undefined;
     }
-    return run.mutableState?.nodesById?.[nodeId]?.pinnedOutputsByPort?.main;
+    return currentState.mutableState?.nodesById?.[nodeId]?.pinnedOutputsByPort?.main;
   }
 
   static toEditableJson(items: Items | undefined): string {
@@ -237,10 +313,17 @@ export class WorkflowDetailPresenter {
     return JSON.parse(text) as PersistedWorkflowSnapshot;
   }
 
-  static buildExecutionNodes(workflow: WorkflowDto | undefined, selectedRun: PersistedRunState | undefined): ReadonlyArray<ExecutionNode> {
+  static buildExecutionNodes(
+    workflow: WorkflowDto | undefined,
+    executionState: InspectableExecutionState | undefined,
+  ): ReadonlyArray<ExecutionNode> {
     if (!workflow) return [];
-    const snapshots = Object.values(selectedRun?.nodeSnapshotsByNodeId ?? {}).filter((snapshot) => snapshot.status !== "pending");
-    return workflow.nodes.flatMap((node) => this.createExecutionNodesForWorkflowNode(node, snapshots)).sort((left, right) => this.compareExecutionNodes(left, right));
+    const snapshots = Object.values(executionState?.nodeSnapshotsByNodeId ?? {}).filter((snapshot) =>
+      this.visibleExecutionStatuses.has(snapshot.status),
+    );
+    return workflow.nodes
+      .flatMap((node) => this.createExecutionNodesForWorkflowNode(node, snapshots))
+      .sort((left, right) => this.compareExecutionNodes(left, right));
   }
 
   static buildExecutionTreeData(nodes: ReadonlyArray<ExecutionNode>): ReadonlyArray<ExecutionTreeNode> {

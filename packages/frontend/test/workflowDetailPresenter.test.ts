@@ -34,11 +34,10 @@ describe("WorkflowDetailPresenter", () => {
     ]);
   });
 
-  it("exposes mutable execution helpers and editable json", () => {
+  it("exposes pinned output helpers and editable json", () => {
     const run = WorkflowDetailFixtureFactory.createPinnedMutableRunStateForNode(WorkflowDetailFixtureFactory.triggerNodeId);
 
     expect(WorkflowDetailPresenter.getExecutionModeLabel(run)).toBe("Manual");
-    expect(WorkflowDetailPresenter.isMutableExecution(run)).toBe(true);
     expect(WorkflowDetailPresenter.getPinnedOutput(run, WorkflowDetailFixtureFactory.triggerNodeId)).toEqual([{ json: { pinned: true } }]);
     expect(WorkflowDetailPresenter.toEditableJson([{ json: { pinned: true } }])).toContain('"pinned": true');
   });
@@ -77,5 +76,55 @@ describe("WorkflowDetailPresenter", () => {
 
     expect(result).toBe(currentWorkflow);
     expect(result?.name).toBe("Current workflow");
+  });
+
+  it("only includes queued, running, completed, and failed nodes in the execution tree", () => {
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
+    const run = {
+      ...WorkflowDetailFixtureFactory.createInitialRunState({
+        workflow,
+        workflowSnapshot: WorkflowDetailFixtureFactory.createWorkflowSnapshot({ workflow }),
+      }),
+      nodeSnapshotsByNodeId: {
+        [WorkflowDetailFixtureFactory.triggerNodeId]: WorkflowDetailFixtureFactory.createSnapshot(
+          WorkflowDetailFixtureFactory.triggerNodeId,
+          "queued",
+          0,
+        ),
+        [WorkflowDetailFixtureFactory.nodeOneId]: WorkflowDetailFixtureFactory.createSnapshot(
+          WorkflowDetailFixtureFactory.nodeOneId,
+          "running",
+          1,
+        ),
+        [WorkflowDetailFixtureFactory.agentNodeId]: WorkflowDetailFixtureFactory.createSnapshot(
+          WorkflowDetailFixtureFactory.agentNodeId,
+          "completed",
+          2,
+        ),
+        [WorkflowDetailFixtureFactory.nodeTwoId]: WorkflowDetailFixtureFactory.createSnapshot(
+          WorkflowDetailFixtureFactory.nodeTwoId,
+          "failed",
+          3,
+        ),
+        [WorkflowDetailFixtureFactory.llmNodeId]: WorkflowDetailFixtureFactory.createSnapshot(
+          WorkflowDetailFixtureFactory.llmNodeId,
+          "pending",
+          4,
+        ),
+        [WorkflowDetailFixtureFactory.toolNodeId]: WorkflowDetailFixtureFactory.createSnapshot(
+          WorkflowDetailFixtureFactory.toolNodeId,
+          "skipped",
+          5,
+        ),
+      },
+    };
+    const queuedNodeId = WorkflowDetailFixtureFactory.triggerNodeId;
+    const runningNodeId = WorkflowDetailFixtureFactory.nodeOneId;
+    const completedNodeId = WorkflowDetailFixtureFactory.agentNodeId;
+    const failedNodeId = WorkflowDetailFixtureFactory.nodeTwoId;
+
+    const result = WorkflowDetailPresenter.buildExecutionNodes(workflow, run);
+
+    expect(result.map((entry) => entry.node.id)).toEqual([queuedNodeId, runningNodeId, completedNodeId, failedNodeId]);
   });
 });

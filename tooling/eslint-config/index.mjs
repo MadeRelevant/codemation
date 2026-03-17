@@ -368,7 +368,7 @@ const baseLanguageOptions = {
 /** @type {import("eslint").Linter.FlatConfig[]} */
 export default [
   {
-    ignores: ["**/dist/**", "**/node_modules/**"],
+    ignores: ["**/dist/**", "**/node_modules/**", "**/src/infrastructure/persistence/generated/prisma/**"],
   },
 
   js.configs.recommended,
@@ -444,6 +444,16 @@ export default [
     },
   },
 
+  {
+    files: [
+      "packages/frontend/test/http/**/*.ts",
+      "packages/frontend/test/http/**/*.tsx",
+    ],
+    rules: {
+      "no-restricted-properties": "off",
+    },
+  },
+
   // Architecture: package source should stay class-oriented and DI-friendly.
   {
     files: ["packages/frontend/src/**/*.{ts,tsx}", "packages/cli/src/**/*.{ts,tsx}"],
@@ -458,6 +468,7 @@ export default [
       "packages/frontend/src/infrastructure/server/http/**/*.ts",
       "packages/frontend/src/infrastructure/server/CodemationServerGateway.ts",
       "packages/frontend/src/infrastructure/logging/BrowserLoggerFactory.ts",
+      "packages/frontend/src/presentation/server/FastifyApiRouteRegistrar.ts",
     ],
     rules: {
       "codemation/single-class-per-file": "error",

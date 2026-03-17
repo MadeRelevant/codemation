@@ -5,6 +5,7 @@ import { createWorkflowBuilder, ManualTrigger, MapData } from "@codemation/core-
 import type { PersistedRunState, RunSummary, WorkflowDefinition } from "@codemation/core";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
+import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
 import type { CodemationBinding } from "../../src/presentation/config/CodemationBinding";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
@@ -253,7 +254,7 @@ describe("workflow runs http integration", () => {
     );
   });
 
-  it("persists mutable debug state updates through the http api", async () => {
+  it("persists workflow debugger overlay updates and copy-to-debugger through the http api", async () => {
     const harness = await context.start();
 
     const createRunResponse = await harness.requestJson<RunCommandResult>({
@@ -265,25 +266,101 @@ describe("workflow runs http integration", () => {
       },
     });
     const completedState = await WorkflowRunsIntegrationFixture.waitForRunToComplete(harness, createRunResponse.runId);
-    expect(completedState.executionOptions?.isMutable).toBe(true);
+    expect(completedState.executionOptions?.mode).toBe("debug");
 
     const pinnedItems = [{ json: { message: "pinned input" } }];
-    const updatedState = await harness.requestJson<PersistedRunState>({
-      method: "PATCH",
-      url: ApiPaths.runNodePin(createRunResponse.runId, WorkflowRunsIntegrationFixture.mapNodeId),
+    const updatedOverlay = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
+      method: "PUT",
+      url: ApiPaths.workflowDebuggerOverlay(WorkflowRunsIntegrationFixture.workflowId),
       payload: {
-        items: pinnedItems,
+        currentState: {
+          outputsByNode: {},
+          nodeSnapshotsByNodeId: {},
+          mutableState: {
+            nodesById: {
+              [WorkflowRunsIntegrationFixture.mapNodeId]: {
+                pinnedOutputsByPort: {
+                  main: pinnedItems,
+                },
+              },
+            },
+          },
+        },
       },
     });
-    expect(updatedState.mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]?.pinnedOutputsByPort?.main).toEqual(pinnedItems);
+    expect(updatedOverlay.currentState.mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]?.pinnedOutputsByPort?.main).toEqual(pinnedItems);
 
-    const persistedStateResponse = await harness.request({
+    const persistedOverlayResponse = await harness.request({
       method: "GET",
-      url: ApiPaths.runState(createRunResponse.runId),
+      url: ApiPaths.workflowDebuggerOverlay(WorkflowRunsIntegrationFixture.workflowId),
     });
-    expect(persistedStateResponse.statusCode).toBe(200);
-    expect(persistedStateResponse.json<PersistedRunState>().mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]?.pinnedOutputsByPort?.main).toEqual(
-      pinnedItems,
-    );
+    expect(persistedOverlayResponse.statusCode).toBe(200);
+    expect(
+      persistedOverlayResponse.json<WorkflowDebuggerOverlayResponse>().currentState.mutableState?.nodesById?.[
+        WorkflowRunsIntegrationFixture.mapNodeId
+      ]?.pinnedOutputsByPort?.main,
+    ).toEqual(pinnedItems);
+
+    const copiedOverlay = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
+      method: "POST",
+      url: ApiPaths.workflowDebuggerOverlayCopyRun(WorkflowRunsIntegrationFixture.workflowId),
+      payload: {
+        sourceRunId: createRunResponse.runId,
+      },
+    });
+    expect(copiedOverlay.copiedFromRunId).toBe(createRunResponse.runId);
+    expect(copiedOverlay.currentState.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]).toBeDefined();
+  });
+
+  it("reuses a persisted source run while overlay pins remain backend-owned", async () => {
+    const harness = await context.start();
+
+    const firstRunResponse = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowRunsIntegrationFixture.workflowId,
+      },
+    });
+    const firstCompletedState = await WorkflowRunsIntegrationFixture.waitForRunToComplete(harness, firstRunResponse.runId);
+    expect(firstCompletedState.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.triggerNodeId]?.status).toBe("completed");
+    expect(firstCompletedState.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.status).toBe("completed");
+
+    const pinnedItems = [{ json: { reused: true } }];
+    await harness.requestJson<WorkflowDebuggerOverlayResponse>({
+      method: "PUT",
+      url: ApiPaths.workflowDebuggerOverlay(WorkflowRunsIntegrationFixture.workflowId),
+      payload: {
+        currentState: {
+          outputsByNode: {},
+          nodeSnapshotsByNodeId: {},
+          mutableState: {
+            nodesById: {
+              [WorkflowRunsIntegrationFixture.mapNodeId]: {
+                pinnedOutputsByPort: {
+                  main: pinnedItems,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const secondRunResponse = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowRunsIntegrationFixture.workflowId,
+        sourceRunId: firstRunResponse.runId,
+        clearFromNodeId: WorkflowRunsIntegrationFixture.mapNodeId,
+        stopAt: WorkflowRunsIntegrationFixture.mapNodeId,
+        mode: "manual",
+      },
+    });
+
+    expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.triggerNodeId]?.status).toBe("completed");
+    expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.status).toBe("skipped");
+    expect(secondRunResponse.state?.outputsByNode[WorkflowRunsIntegrationFixture.mapNodeId]?.main).toEqual(pinnedItems);
   });
 });

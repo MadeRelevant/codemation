@@ -10,6 +10,7 @@ import type { QueryBus } from "./application/bus/QueryBus";
 import type { QueryHandler } from "./application/bus/QueryHandler";
 import type { WorkflowWebsocketPublisher } from "./application/websocket/WorkflowWebsocketPublisher";
 import type { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
+import type { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
 import type { WebhookEndpointRepository } from "./domain/webhooks/WebhookEndpointRepository";
 import type { HttpRouteHandler } from "./presentation/http/HttpRouteHandler";
@@ -28,6 +29,7 @@ export const ApplicationTokens = {
   WorkflowWebsocketPublisher: Symbol.for("codemation.application.WorkflowWebsocketPublisher") as TypeToken<WorkflowWebsocketPublisher>,
   WorkerRuntimeScheduler: Symbol.for("codemation.application.WorkerRuntimeScheduler") as TypeToken<WorkerRuntimeScheduler>,
   WorkflowDefinitionRepository: Symbol.for("codemation.application.WorkflowDefinitionRepository") as TypeToken<WorkflowDefinitionRepository>,
+  WorkflowDebuggerOverlayRepository: Symbol.for("codemation.application.WorkflowDebuggerOverlayRepository") as TypeToken<WorkflowDebuggerOverlayRepository>,
   WorkflowRunRepository: Symbol.for("codemation.application.WorkflowRunRepository") as TypeToken<WorkflowRunRepository>,
   WebhookEndpointRepository: Symbol.for("codemation.application.WebhookEndpointRepository") as TypeToken<WebhookEndpointRepository>,
 } as const;

@@ -6,11 +6,12 @@ export type InspectorTab = "input" | "output";
 export type InspectorMode = InspectorTab | "split";
 export type InspectorFormat = "json" | "pretty";
 export type CopyState = "idle" | "copied";
+export type ViewedWorkflowContext = "live-workflow" | "historical-run";
 export type PortEntries = ReadonlyArray<readonly [string, Items]>;
 export type WorkflowNode = WorkflowDto["nodes"][number];
 export type ExecutionNode = Readonly<{ node: WorkflowNode; snapshot?: NodeExecutionSnapshot }>;
 export type NodeExecutionError = NonNullable<NodeExecutionSnapshot["error"]>;
-export type JsonEditorMode = "pin-input" | "debug-input" | "workflow-snapshot";
+export type JsonEditorMode = "pin-output" | "workflow-snapshot";
 export type JsonEditorState = Readonly<{
   mode: JsonEditorMode;
   title: string;
@@ -36,10 +37,6 @@ export type WorkflowRunsSidebarModel = Readonly<{
   runsError: string | null;
   selectedRunId: string | null;
   selectedRun: PersistedRunState | undefined;
-  isMutableSelectedRun: boolean;
-  isRunning: boolean;
-  selectedNodeId: string | null;
-  selectedPinnedOutput: unknown;
 }>;
 export type WorkflowRunsSidebarFormatting = Readonly<{
   formatDateTime: (value: string | undefined) => string;
@@ -47,14 +44,12 @@ export type WorkflowRunsSidebarFormatting = Readonly<{
 }>;
 export type WorkflowRunsSidebarActions = Readonly<{
   onSelectRun: (runId: string) => void;
-  onRun: () => void;
-  onRunToHere: () => void;
-  onDebugHere: () => void;
-  onRunFromMutableExecution: () => void;
-  onDebugMutableExecution: () => void;
-  onPinInput: () => void;
-  onClearPin: () => void;
-  onEditWorkflowSnapshot: () => void;
+}>;
+export type WorkflowExecutionInspectorNodeActionsModel = Readonly<{
+  viewContext: ViewedWorkflowContext;
+  isRunning: boolean;
+  canEditOutput: boolean;
+  canClearPinnedOutput: boolean;
 }>;
 export type WorkflowExecutionInspectorPaneModel = Readonly<{
   tab: InspectorTab;
@@ -66,6 +61,7 @@ export type WorkflowExecutionInspectorPaneModel = Readonly<{
   showsError: boolean;
 }>;
 export type WorkflowExecutionInspectorModel = Readonly<{
+  viewContext: ViewedWorkflowContext;
   selectedRunId: string | null;
   isLoading: boolean;
   loadError: string | null;
@@ -80,6 +76,7 @@ export type WorkflowExecutionInspectorModel = Readonly<{
   outputPane: WorkflowExecutionInspectorPaneModel;
   executionTreeData: ReadonlyArray<ExecutionTreeNode>;
   executionTreeExpandedKeys: ReadonlyArray<string>;
+  nodeActions: WorkflowExecutionInspectorNodeActionsModel;
 }>;
 export type WorkflowExecutionInspectorFormatting = Readonly<{
   formatDateTime: (value: string | undefined) => string;
@@ -91,6 +88,8 @@ export type WorkflowExecutionInspectorFormatting = Readonly<{
 }>;
 export type WorkflowExecutionInspectorActions = Readonly<{
   onSelectNode: (nodeId: string) => void;
+  onEditSelectedOutput: () => void;
+  onClearPinnedOutput: () => void;
   onSelectMode: (mode: InspectorMode) => void;
   onSelectFormat: (tab: InspectorTab, format: InspectorFormat) => void;
   onSelectInputPort: (portName: string) => void;

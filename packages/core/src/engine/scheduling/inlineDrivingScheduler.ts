@@ -46,46 +46,25 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
         const cont = this.continuation;
         if (!cont) throw new Error("InlineDrivingScheduler is missing a continuation (setContinuation was not called)");
 
+        await cont.markNodeRunning({
+          runId: request.runId,
+          activationId: request.activationId,
+          nodeId: request.nodeId,
+          inputsByPort: request.kind === "multi" ? request.inputsByPort : { in: request.input },
+        });
+
+        const type = request.ctx.config.type as any;
+        const inst = this.resolveNodeInstance(type, this.nodeResolver) as unknown;
+
+        let outputs;
         try {
-          await cont.markNodeRunning({
-            runId: request.runId,
-            activationId: request.activationId,
-            nodeId: request.nodeId,
-            inputsByPort: request.kind === "multi" ? request.inputsByPort : { in: request.input },
-          });
-
-          const type = request.ctx.config.type as any;
-          const inst = this.resolveNodeInstance(type, this.nodeResolver) as unknown;
-
-          let outputs;
-          if (request.kind === "multi") {
-            const node = inst as MultiInputNode;
-            if (typeof (node as any)?.executeMulti !== "function") {
-              throw new Error(`Node ${request.nodeId} does not support executeMulti but received multi-input activation`);
-            }
-            outputs = await node.executeMulti(request.inputsByPort, request.ctx as any);
-          } else {
-            const node = inst as Node;
-            if (typeof (node as any)?.execute !== "function") {
-              throw new Error(`Node ${request.nodeId} does not support execute but received single-input activation`);
-            }
-            outputs = await node.execute(request.input, request.ctx as any);
-          }
-
-          await cont.resumeFromNodeResult({
-            runId: request.runId,
-            activationId: request.activationId,
-            nodeId: request.nodeId,
-            outputs: outputs ?? {},
-          });
+          outputs = await this.executeRequest(request, inst);
         } catch (e) {
-          await cont.resumeFromNodeError({
-            runId: request.runId,
-            activationId: request.activationId,
-            nodeId: request.nodeId,
-            error: this.asError(e),
-          });
+          await this.resumeAfterExecutionError(cont, request, this.asError(e));
+          continue;
         }
+
+        await this.resumeAfterExecutionResult(cont, request, outputs ?? {});
       }
     } finally {
       if ((this.queuesByRunId.get(runId)?.length ?? 0) === 0) this.queuesByRunId.delete(runId);
@@ -93,8 +72,70 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
     }
   }
 
+  private async executeRequest(request: NodeActivationRequest, inst: unknown): Promise<unknown> {
+    if (request.kind === "multi") {
+      const node = inst as MultiInputNode;
+      if (typeof (node as any)?.executeMulti !== "function") {
+        throw new Error(`Node ${request.nodeId} does not support executeMulti but received multi-input activation`);
+      }
+      return await node.executeMulti(request.inputsByPort, request.ctx as any);
+    }
+
+    const node = inst as Node;
+    if (typeof (node as any)?.execute !== "function") {
+      throw new Error(`Node ${request.nodeId} does not support execute but received single-input activation`);
+    }
+    return await node.execute(request.input, request.ctx as any);
+  }
+
+  private async resumeAfterExecutionResult(
+    continuation: NodeActivationContinuation,
+    request: NodeActivationRequest,
+    outputs: unknown,
+  ): Promise<void> {
+    try {
+      await continuation.resumeFromNodeResult({
+        runId: request.runId,
+        activationId: request.activationId,
+        nodeId: request.nodeId,
+        outputs: outputs as any,
+      });
+    } catch (e) {
+      this.rethrowUnlessIgnorableContinuationError(e);
+    }
+  }
+
+  private async resumeAfterExecutionError(
+    continuation: NodeActivationContinuation,
+    request: NodeActivationRequest,
+    error: Error,
+  ): Promise<void> {
+    try {
+      await continuation.resumeFromNodeError({
+        runId: request.runId,
+        activationId: request.activationId,
+        nodeId: request.nodeId,
+        error,
+      });
+    } catch (e) {
+      this.rethrowUnlessIgnorableContinuationError(e);
+    }
+  }
+
   private asError(e: unknown): Error {
     return e instanceof Error ? e : new Error(String(e));
+  }
+
+  private rethrowUnlessIgnorableContinuationError(e: unknown): void {
+    if (this.isIgnorableContinuationError(e)) {
+      return;
+    }
+    throw this.asError(e);
+  }
+
+  private isIgnorableContinuationError(e: unknown): boolean {
+    const message = this.asError(e).message;
+    return message.includes(" is not pending") || message.includes("activationId mismatch") || message.includes("nodeId mismatch");
   }
 
   private resolveNodeInstance(token: unknown, nodeResolver: Readonly<{ resolve(token: unknown): unknown }>): unknown {

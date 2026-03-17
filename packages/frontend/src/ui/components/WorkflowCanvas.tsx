@@ -1,7 +1,7 @@
 "use client";
 
 import dagre from "dagre";
-import { Bot, Boxes, Brain, CircleAlert, CircleCheckBig, Clock3, GitBranch, Globe, type LucideIcon, PlaySquare, SquareStack, Workflow, Wrench } from "lucide-react";
+import { Bot, Boxes, Brain, CircleAlert, CircleCheckBig, Clock3, GitBranch, Globe, type LucideIcon, Pencil, Pin, PinOff, Play, PlaySquare, SquareStack, Workflow, Wrench } from "lucide-react";
 import { AgentAttachmentNodeIdFactory } from "@codemation/core";
 import {
   Background,
@@ -17,7 +17,7 @@ import {
   type Node as ReactFlowNode,
   type ReactFlowInstance,
 } from "@xyflow/react";
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type MouseEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NodeExecutionSnapshot } from "../realtime/realtime";
 import type { WorkflowDto } from "../realtime/workflowTypes";
 
@@ -32,6 +32,14 @@ type NodeData = Readonly<{
   selected: boolean;
   isAttachment: boolean;
   isPinned: boolean;
+  hasOutputData: boolean;
+  isLiveWorkflowView: boolean;
+  isRunning: boolean;
+  onSelectNode: (nodeId: string) => void;
+  onRunNode: (nodeId: string) => void;
+  onTogglePinnedOutput: (nodeId: string) => void;
+  onEditNodeOutput: (nodeId: string) => void;
+  onClearPinnedOutput: (nodeId: string) => void;
 }>;
 
 const workflowCanvasNodeTypes = { codemation: CodemationNode };
@@ -201,10 +209,116 @@ function statusIconForNode(status: NodeExecutionSnapshot["status"] | undefined) 
   if (status === "failed") {
     return <CircleAlert size={15} style={{ color: "#b91c1c" }} strokeWidth={2.1} />;
   }
-  if (status === "running" || status === "queued") {
+  if (status === "running" || status === "queued" || status === "pending" || typeof status === "undefined") {
     return null;
   }
-  return <Clock3 size={15} style={{ color: "#6b7280" }} strokeWidth={2.1} />;
+  return null;
+}
+
+function trailingIconForNode(args: Readonly<{ status: NodeExecutionSnapshot["status"] | undefined; isPinned: boolean }>) {
+  if (args.isPinned) {
+    return <Pin size={14} style={{ color: "#6d28d9" }} strokeWidth={2.4} fill="currentColor" />;
+  }
+  return statusIconForNode(args.status);
+}
+
+function trailingIconKindForNode(args: Readonly<{ status: NodeExecutionSnapshot["status"] | undefined; isPinned: boolean }>): string {
+  if (args.isPinned) {
+    return "pin";
+  }
+  if (args.status === "completed") {
+    return "completed";
+  }
+  if (args.status === "skipped") {
+    return "skipped";
+  }
+  if (args.status === "failed") {
+    return "failed";
+  }
+  return "none";
+}
+
+function ToolbarIconButton(args: Readonly<{
+  testId: string;
+  ariaLabel: string;
+  tooltip: string;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+  onAfterClick?: () => void;
+  disabled?: boolean;
+  children: ReactNode;
+  accentColor?: string;
+}>) {
+  const { accentColor = "#111827", ariaLabel, children, disabled = false, onAfterClick, onClick, testId, tooltip } = args;
+  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    onClick(event);
+    event.currentTarget.blur();
+    onAfterClick?.();
+  };
+  return (
+    <div
+      style={{ position: "relative", display: "grid", placeItems: "center" }}
+      onPointerEnter={() => setIsTooltipVisible(true)}
+      onPointerLeave={() => setIsTooltipVisible(false)}
+      onFocusCapture={() => setIsTooltipVisible(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setIsTooltipVisible(false);
+        }
+      }}
+    >
+      <button
+        type="button"
+        data-testid={testId}
+        aria-label={ariaLabel}
+        onMouseDown={(event) => {
+          if (!disabled) {
+            event.preventDefault();
+          }
+        }}
+        onClick={handleClick}
+        disabled={disabled}
+        style={{
+          width: 24,
+          height: 24,
+          border: "1px solid #d1d5db",
+          background: "white",
+          color: accentColor,
+          display: "grid",
+          placeItems: "center",
+          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.45 : 1,
+          padding: 0,
+          boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
+        }}
+      >
+        {children}
+      </button>
+      <div
+        role="tooltip"
+        aria-hidden={!isTooltipVisible}
+        style={{
+          position: "absolute",
+          bottom: "calc(100% + 8px)",
+          left: "50%",
+          transform: isTooltipVisible ? "translateX(-50%) translateY(0)" : "translateX(-50%) translateY(3px)",
+          opacity: isTooltipVisible ? 1 : 0,
+          transition: "opacity 110ms ease-out, transform 110ms ease-out",
+          pointerEvents: "none",
+          padding: "6px 8px",
+          background: "rgba(15,23,42,0.94)",
+          color: "white",
+          fontSize: 11,
+          fontWeight: 700,
+          whiteSpace: "nowrap",
+          boxShadow: "0 10px 24px rgba(15,23,42,0.2)",
+          zIndex: 40,
+        }}
+      >
+        {tooltip}
+      </div>
+    </div>
+  );
 }
 
 function CodemationNode({ data }: { data: NodeData }) {
@@ -216,6 +330,11 @@ function CodemationNode({ data }: { data: NodeData }) {
   const isAttachment = data.isAttachment;
   const isAgent = data.role === "agent";
   const isPinned = data.isPinned;
+  const [isHovered, setIsHovered] = useState(false);
+  const [hasToolbarFocus, setHasToolbarFocus] = useState(false);
+  const hideToolbarTimeoutRef = useRef<number | null>(null);
+  const showsCanvasControls = data.isLiveWorkflowView && !isAttachment;
+  const isToolbarVisible = showsCanvasControls && (isHovered || hasToolbarFocus);
   const activityColor = isRunning ? "#2563eb" : "#7c3aed";
   const activityRingStyle: CSSProperties = {
     position: "absolute",
@@ -230,8 +349,49 @@ function CodemationNode({ data }: { data: NodeData }) {
     maskComposite: "exclude",
     ["--codemation-node-ring-angle" as string]: "0deg",
   };
+  useEffect(() => {
+    return () => {
+      if (hideToolbarTimeoutRef.current !== null) {
+        window.clearTimeout(hideToolbarTimeoutRef.current);
+      }
+    };
+  }, []);
   return (
     <div
+      onPointerEnter={() => {
+        if (hideToolbarTimeoutRef.current !== null) {
+          window.clearTimeout(hideToolbarTimeoutRef.current);
+          hideToolbarTimeoutRef.current = null;
+        }
+        setIsHovered(true);
+      }}
+      onPointerLeave={() => {
+        if (hideToolbarTimeoutRef.current !== null) {
+          window.clearTimeout(hideToolbarTimeoutRef.current);
+        }
+        hideToolbarTimeoutRef.current = window.setTimeout(() => {
+          setIsHovered(false);
+          hideToolbarTimeoutRef.current = null;
+        }, 140);
+      }}
+      onFocusCapture={() => {
+        if (hideToolbarTimeoutRef.current !== null) {
+          window.clearTimeout(hideToolbarTimeoutRef.current);
+          hideToolbarTimeoutRef.current = null;
+        }
+        setHasToolbarFocus(true);
+      }}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          if (hideToolbarTimeoutRef.current !== null) {
+            window.clearTimeout(hideToolbarTimeoutRef.current);
+          }
+          hideToolbarTimeoutRef.current = window.setTimeout(() => {
+            setHasToolbarFocus(false);
+            hideToolbarTimeoutRef.current = null;
+          }, 140);
+        }
+      }}
       style={{
         width: isAttachment ? 144 : 196,
         height: 54,
@@ -241,6 +401,7 @@ function CodemationNode({ data }: { data: NodeData }) {
         position: "relative",
         overflow: "visible",
       }}
+      data-testid={`canvas-node-shell-${data.nodeId}`}
     >
       {isActive ? (
         <>
@@ -303,6 +464,7 @@ function CodemationNode({ data }: { data: NodeData }) {
       ) : null}
 
       <div
+        onClick={() => data.onSelectNode(data.nodeId)}
         style={{
           display: "flex",
           flexDirection: "row",
@@ -323,6 +485,7 @@ function CodemationNode({ data }: { data: NodeData }) {
           position: "relative",
           overflow: "hidden",
         }}
+        data-testid={`canvas-node-card-${data.nodeId}`}
         data-codemation-node-id={data.nodeId}
         data-codemation-node-status={data.status ?? "pending"}
         data-codemation-node-role={data.role ?? "workflowNode"}
@@ -358,12 +521,82 @@ function CodemationNode({ data }: { data: NodeData }) {
             {data.label}
           </div>
         </div>
-        {statusIconForNode(data.status) ? (
-          <div style={{ flex: "0 0 auto", display: "grid", placeItems: "center", color: "#111827" }}>
-            {statusIconForNode(data.status)}
+        {trailingIconForNode({ status: data.status, isPinned }) ? (
+          <div
+            data-testid={`canvas-node-trailing-icon-${data.nodeId}`}
+            data-icon-kind={trailingIconKindForNode({ status: data.status, isPinned })}
+            style={{ flex: "0 0 auto", display: "grid", placeItems: "center", color: "#111827" }}
+          >
+            {trailingIconForNode({ status: data.status, isPinned })}
           </div>
         ) : null}
       </div>
+      {showsCanvasControls ? (
+        <div
+          data-testid={`canvas-node-toolbar-${data.nodeId}`}
+          style={{
+            position: "absolute",
+            top: -34,
+            right: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            opacity: isToolbarVisible ? 1 : 0,
+            transform: isToolbarVisible ? "translateY(0)" : "translateY(3px)",
+            transition: "opacity 90ms ease-out, transform 90ms ease-out",
+            pointerEvents: isToolbarVisible ? "auto" : "none",
+            padding: 4,
+            background: "rgba(255,255,255,0.96)",
+            boxShadow: "0 8px 18px rgba(15,23,42,0.12)",
+            zIndex: 30,
+          }}
+        >
+          <ToolbarIconButton
+            testId={`canvas-node-run-button-${data.nodeId}`}
+            ariaLabel={`Run to ${data.label}`}
+            tooltip={data.isRunning ? "Run disabled while workflow is running" : "Run from here"}
+            onAfterClick={() => setHasToolbarFocus(false)}
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onSelectNode(data.nodeId);
+              data.onRunNode(data.nodeId);
+            }}
+            disabled={data.isRunning}
+          >
+            <Play size={12} strokeWidth={2.1} />
+          </ToolbarIconButton>
+          <ToolbarIconButton
+            testId={`${isPinned ? "canvas-node-unpin-button" : "canvas-node-pin-button"}-${data.nodeId}`}
+            ariaLabel={`${isPinned ? "Unpin" : "Pin"} ${data.label}`}
+            tooltip={
+              !data.hasOutputData ? "No output to pin yet" : isPinned ? "Unpin output" : "Pin current output"
+            }
+            onAfterClick={() => setHasToolbarFocus(false)}
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onSelectNode(data.nodeId);
+              data.onTogglePinnedOutput(data.nodeId);
+            }}
+            disabled={!data.hasOutputData}
+            accentColor="#6d28d9"
+          >
+            {isPinned ? <PinOff size={12} strokeWidth={2.3} fill="currentColor" /> : <Pin size={12} strokeWidth={2} />}
+          </ToolbarIconButton>
+          <ToolbarIconButton
+            testId={`canvas-node-edit-button-${data.nodeId}`}
+            ariaLabel={`Edit ${data.label}`}
+            tooltip="Edit output"
+            onAfterClick={() => setHasToolbarFocus(false)}
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onSelectNode(data.nodeId);
+              data.onEditNodeOutput(data.nodeId);
+            }}
+          >
+            <Pencil size={12} strokeWidth={2} />
+          </ToolbarIconButton>
+        </div>
+      ) : null}
       {isAgent ? (
         <>
           <div
@@ -416,6 +649,13 @@ function layoutWorkflow(
   nodeStatusesByNodeId: Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>,
   selectedNodeId: string | null,
   pinnedNodeIds: ReadonlySet<string>,
+  isLiveWorkflowView: boolean,
+  isRunning: boolean,
+  onSelectNode: (nodeId: string) => void,
+  onRunNode: (nodeId: string) => void,
+  onTogglePinnedOutput: (nodeId: string) => void,
+  onEditNodeOutput: (nodeId: string) => void,
+  onClearPinnedOutput: (nodeId: string) => void,
 ): Readonly<{ nodes: ReactFlowNode<NodeData>[]; edges: ReactFlowEdge[] }> {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -550,6 +790,14 @@ function layoutWorkflow(
         selected: selectedNodeId === n.id,
         isAttachment: Boolean(n.parentNodeId),
         isPinned: pinnedNodeIds.has(n.id),
+        hasOutputData: Boolean(pinnedNodeIds.has(n.id) || nodeSnapshotsByNodeId[n.id]?.outputs?.main),
+        isLiveWorkflowView,
+        isRunning,
+        onSelectNode,
+        onRunNode,
+        onTogglePinnedOutput,
+        onEditNodeOutput,
+        onClearPinnedOutput,
       },
       draggable: false,
       sourcePosition: n.parentNodeId ? Position.Bottom : Position.Right,
@@ -623,15 +871,35 @@ export function WorkflowCanvas(args: {
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
   selectedNodeId: string | null;
   pinnedNodeIds?: ReadonlySet<string>;
+  isLiveWorkflowView: boolean;
+  isRunning: boolean;
   onSelectNode: (nodeId: string) => void;
+  onRunNode: (nodeId: string) => void;
+  onTogglePinnedOutput: (nodeId: string) => void;
+  onEditNodeOutput: (nodeId: string) => void;
+  onClearPinnedOutput: (nodeId: string) => void;
 }) {
-  const { workflow, nodeSnapshotsByNodeId, selectedNodeId, pinnedNodeIds = new Set<string>(), onSelectNode } = args;
+  const { workflow, nodeSnapshotsByNodeId, selectedNodeId, pinnedNodeIds = new Set<string>(), isLiveWorkflowView, isRunning, onSelectNode, onRunNode, onTogglePinnedOutput, onEditNodeOutput, onClearPinnedOutput } = args;
   const [hasMountedOnClient, setHasMountedOnClient] = useState(false);
   const [isInitialViewportReady, setIsInitialViewportReady] = useState(false);
   const visibleNodeStatusesByNodeId = useVisibleNodeStatuses(nodeSnapshotsByNodeId);
   const { nodes, edges } = useMemo(
-    () => layoutWorkflow(workflow, nodeSnapshotsByNodeId, visibleNodeStatusesByNodeId, selectedNodeId, pinnedNodeIds),
-    [nodeSnapshotsByNodeId, pinnedNodeIds, selectedNodeId, visibleNodeStatusesByNodeId, workflow],
+    () =>
+      layoutWorkflow(
+        workflow,
+        nodeSnapshotsByNodeId,
+        visibleNodeStatusesByNodeId,
+        selectedNodeId,
+        pinnedNodeIds,
+        isLiveWorkflowView,
+        isRunning,
+        onSelectNode,
+        onRunNode,
+        onTogglePinnedOutput,
+        onEditNodeOutput,
+        onClearPinnedOutput,
+      ),
+    [isLiveWorkflowView, isRunning, nodeSnapshotsByNodeId, onClearPinnedOutput, onEditNodeOutput, onRunNode, onSelectNode, onTogglePinnedOutput, pinnedNodeIds, selectedNodeId, visibleNodeStatusesByNodeId, workflow],
   );
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const reactFlowInstanceRef = useRef<ReactFlowInstance<ReactFlowNode<NodeData>, ReactFlowEdge> | null>(null);
@@ -752,7 +1020,7 @@ export function WorkflowCanvas(args: {
           panOnScroll
         >
           <Background gap={18} size={1} color="#e5e7eb" />
-          <Controls showInteractive={false} position="top-left" />
+          <Controls showInteractive={false} position="bottom-left" />
         </ReactFlow>
       ) : null}
       <div

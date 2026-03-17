@@ -1,3 +1,4 @@
+import { Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
  import Tree from "rc-tree";
 import { WorkflowNodeIconResolver, WorkflowStatusIcon } from "./WorkflowDetailIcons";
@@ -20,20 +21,15 @@ export function WorkflowExecutionInspector(args: Readonly<{
     selectedMode,
     selectedNodeError,
     selectedNodeId,
+    nodeActions,
     selectedNodeSnapshot,
     selectedPinnedOutput,
     selectedRun,
-    selectedRunId,
     selectedWorkflowNode,
+    viewContext,
   } = model;
   const { formatDateTime, getErrorClipboardText, getErrorHeadline, getErrorStack, getNodeDisplayName, getSnapshotTimestamp } = formatting;
-  const { onSelectFormat, onSelectInputPort, onSelectMode, onSelectNode, onSelectOutputPort } = actions;
-
-  if (!selectedRunId) return <div style={{ opacity: 0.7 }}>Select an execution to inspect node inputs and outputs.</div>;
-  if (isLoading && !selectedRun) return <div style={{ opacity: 0.7 }}>Loading execution details…</div>;
-  if (loadError) return <div style={{ color: "#b91c1c" }}>{loadError}</div>;
-  if (!selectedRun || !selectedNodeId) return <div style={{ opacity: 0.7 }}>Select a node to inspect.</div>;
-  const panes = selectedMode === "split" ? [inputPane, outputPane] : [selectedMode === "input" ? inputPane : outputPane];
+  const { onClearPinnedOutput, onEditSelectedOutput, onSelectFormat, onSelectInputPort, onSelectMode, onSelectNode, onSelectOutputPort } = actions;
   const TREE_PANEL_MIN_WIDTH_PX = 220;
   const TREE_PANEL_DEFAULT_WIDTH_PX = 320;
   const DETAIL_PANEL_MIN_WIDTH_PX = 320;
@@ -43,6 +39,17 @@ export function WorkflowExecutionInspector(args: Readonly<{
   const resizeStartWidthRef = useRef(TREE_PANEL_DEFAULT_WIDTH_PX);
   const [treePanelWidth, setTreePanelWidth] = useState(TREE_PANEL_DEFAULT_WIDTH_PX);
   const [isTreePanelResizing, setIsTreePanelResizing] = useState(false);
+  const isInputVisible = selectedMode === "input" || selectedMode === "split";
+  const isOutputVisible = selectedMode === "output" || selectedMode === "split";
+  const panes = isInputVisible && isOutputVisible ? [inputPane, outputPane] : [isInputVisible ? inputPane : outputPane];
+
+  const toggleInspectorPane = (tab: "input" | "output") => {
+    if (tab === "input") {
+      onSelectMode(isInputVisible ? "output" : isOutputVisible ? "split" : "input");
+      return;
+    }
+    onSelectMode(isOutputVisible ? "input" : isInputVisible ? "split" : "output");
+  };
 
   useEffect(() => {
     if (!isTreePanelResizing) return;
@@ -68,6 +75,11 @@ export function WorkflowExecutionInspector(args: Readonly<{
     };
   }, [isTreePanelResizing]);
 
+  if (isLoading && viewContext === "historical-run" && !selectedRun) return <div style={{ opacity: 0.7 }}>Loading execution details…</div>;
+  if (isLoading && viewContext === "live-workflow" && !selectedWorkflowNode) return <div style={{ opacity: 0.7 }}>Loading live workflow state…</div>;
+  if (loadError) return <div style={{ color: "#b91c1c" }}>{loadError}</div>;
+  if (!selectedNodeId) return <div style={{ opacity: 0.7 }}>Select a node to inspect.</div>;
+
   return (
     <div
       data-testid="workflow-execution-inspector"
@@ -91,10 +103,14 @@ export function WorkflowExecutionInspector(args: Readonly<{
           padding: 12,
         }}
       >
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, opacity: 0.64, textTransform: "uppercase" }}>Execution tree</div>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, opacity: 0.64, textTransform: "uppercase" }}>
+          {viewContext === "live-workflow" ? "Workflow nodes" : "Execution tree"}
+        </div>
         <div style={{ marginTop: 10 }}>
           {executionTreeData.length === 0 ? (
-            <div style={{ fontSize: 12, opacity: 0.7 }}>No node events yet for this execution.</div>
+            <div style={{ fontSize: 12, opacity: 0.7 }}>
+              {viewContext === "live-workflow" ? "No workflow nodes available yet." : "No node events yet for this execution."}
+            </div>
           ) : (
             <Tree<ExecutionTreeNode>
               className="codemation-execution-tree"
@@ -117,6 +133,9 @@ export function WorkflowExecutionInspector(args: Readonly<{
                 return (
                   <div
                     data-testid={`execution-tree-node-${String(treeNode.key)}`}
+                    onClick={() => {
+                      onSelectNode(String(treeNode.key));
+                    }}
                     style={{
                       background: isSelected ? "#eff6ff" : "transparent",
                       padding: "6px 10px",
@@ -184,20 +203,27 @@ export function WorkflowExecutionInspector(args: Readonly<{
                 </span>
               ) : null}
             </div>
-            <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{formatDateTime(getSnapshotTimestamp(selectedNodeSnapshot))}</div>
+            <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+              {selectedNodeSnapshot ? formatDateTime(getSnapshotTimestamp(selectedNodeSnapshot)) : viewContext === "live-workflow" ? "Live workflow node" : "No execution snapshot yet"}
+            </div>
           </div>
           <div style={{ display: "flex", minWidth: 0, flexWrap: "wrap", justifyContent: "flex-end", gap: 8 }}>
             <div style={{ display: "flex", gap: 8 }}>
-              {(["input", "output", "split"] as const).map((mode) => (
+              {([
+                { tab: "input" as const, isSelected: isInputVisible, hasError: false },
+                { tab: "output" as const, isSelected: isOutputVisible, hasError: Boolean(selectedNodeError) },
+              ]).map(({ tab, isSelected, hasError }) => (
                 <button
-                  key={mode}
-                  data-testid={`inspector-tab-${mode}`}
-                  onClick={() => onSelectMode(mode)}
-                  aria-pressed={selectedMode === mode}
+                  key={tab}
+                  type="button"
+                  role="checkbox"
+                  data-testid={`inspector-tab-${tab}`}
+                  onClick={() => toggleInspectorPane(tab)}
+                  aria-checked={isSelected}
                   style={{
-                    border: selectedMode === mode ? "1px solid #111827" : "1px solid #d1d5db",
-                    background: selectedMode === mode ? "#111827" : "white",
-                    color: selectedMode === mode ? "white" : mode !== "input" && selectedNodeError ? "#991b1b" : "#111827",
+                    border: isSelected ? "1px solid #111827" : "1px solid #d1d5db",
+                    background: isSelected ? "#111827" : "white",
+                    color: isSelected ? "white" : hasError ? "#991b1b" : "#111827",
                     padding: "7px 11px",
                     fontWeight: 700,
                     fontSize: 12,
@@ -205,13 +231,13 @@ export function WorkflowExecutionInspector(args: Readonly<{
                   }}
                 >
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span>{mode[0]!.toUpperCase()}{mode.slice(1)}</span>
-                    {mode !== "input" && selectedNodeError ? (
+                    <span>{tab[0]!.toUpperCase()}{tab.slice(1)}</span>
+                    {hasError ? (
                       <span
                         style={{
-                          border: selectedMode === mode ? "1px solid rgba(255,255,255,0.28)" : "1px solid #fecaca",
-                          background: selectedMode === mode ? "rgba(255,255,255,0.16)" : "#fef2f2",
-                          color: selectedMode === mode ? "#ffffff" : "#991b1b",
+                          border: isSelected ? "1px solid rgba(255,255,255,0.28)" : "1px solid #fecaca",
+                          background: isSelected ? "rgba(255,255,255,0.16)" : "#fef2f2",
+                          color: isSelected ? "#ffffff" : "#991b1b",
                           fontSize: 10,
                           fontWeight: 800,
                           letterSpacing: 0.3,
@@ -266,6 +292,49 @@ export function WorkflowExecutionInspector(args: Readonly<{
                     <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", opacity: 0.72 }}>
                       {pane.tab}
                     </div>
+                    {isOutputPane && nodeActions.viewContext === "live-workflow" ? (
+                      <button
+                        type="button"
+                        data-testid="edit-output-button"
+                        onClick={onEditSelectedOutput}
+                        disabled={!nodeActions.canEditOutput}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          border: "1px solid #d1d5db",
+                          background: "white",
+                          color: "#111827",
+                          padding: "5px 8px",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: !nodeActions.canEditOutput ? "not-allowed" : "pointer",
+                          opacity: !nodeActions.canEditOutput ? 0.6 : 1,
+                        }}
+                      >
+                        <Pencil size={12} strokeWidth={2} />
+                        Edit
+                      </button>
+                    ) : null}
+                    {isOutputPane && nodeActions.viewContext === "live-workflow" && selectedPinnedOutput ? (
+                      <button
+                        type="button"
+                        onClick={onClearPinnedOutput}
+                        disabled={!nodeActions.canClearPinnedOutput}
+                        style={{
+                          border: "1px solid #d1d5db",
+                          background: "white",
+                          color: "#111827",
+                          padding: "5px 8px",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: !nodeActions.canClearPinnedOutput ? "not-allowed" : "pointer",
+                          opacity: !nodeActions.canClearPinnedOutput ? 0.6 : 1,
+                        }}
+                      >
+                        Clear pin
+                      </button>
+                    ) : null}
                     {isOutputPane && pane.showsError ? (
                       <span style={{ border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 10, fontWeight: 800, letterSpacing: 0.3, textTransform: "uppercase", padding: "1px 5px" }}>
                         Error

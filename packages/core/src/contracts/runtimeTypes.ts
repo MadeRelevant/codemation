@@ -19,7 +19,6 @@ import type {
 } from "./workflowTypes";
 import type {
   NodeInputsByPort,
-  PendingNodeExecution,
   PersistedWorkflowTokenRegistryLike,
   RunExecutionOptions,
   RunResult,

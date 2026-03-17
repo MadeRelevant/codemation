@@ -43,31 +43,19 @@ class AgentOutputFactory {
     return { main: [{ json: value }] };
   }
 
-  static extendItem(item: Item, value: unknown): Item {
-    const base = typeof item.json === "object" && item.json !== null ? (item.json as Record<string, unknown>) : {};
-    const toolResults = this.extractToolResults(value);
-    const primaryClassification = toolResults.length === 1 && this.isRecord(toolResults[0])
-      ? toolResults[0]
-      : toolResults.find((candidate) => this.isRecord(candidate) && typeof candidate.isRfq === "boolean");
-
+  static replaceJson(item: Item, value: unknown): Item {
     return {
       ...item,
-      json: {
-        ...base,
-        agentResult: value,
-        classification: primaryClassification,
-      },
+      json: value,
     };
   }
 
-  private static extractToolResults(value: unknown): ReadonlyArray<unknown> {
-    if (!this.isRecord(value)) return [];
-    const toolResults = value.toolResults;
-    return Array.isArray(toolResults) ? toolResults : [];
-  }
-
-  private static isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
+  static fromAgentContent(content: string): unknown {
+    try {
+      return JSON.parse(content) as unknown;
+    } catch {
+      return { output: content };
+    }
   }
 }
 
@@ -196,7 +184,12 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
 
       const toolCalls = AgentMessageFactory.extractToolCalls(firstResponse);
       if (toolCalls.length === 0) {
-        out.push(AgentOutputFactory.extendItem(item, { content: AgentMessageFactory.extractContent(firstResponse), toolResults: [] }));
+        out.push(
+          AgentOutputFactory.replaceJson(
+            item,
+            AgentOutputFactory.fromAgentContent(AgentMessageFactory.extractContent(firstResponse)),
+          ),
+        );
         continue;
       }
 
@@ -217,10 +210,10 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
       );
 
       out.push(
-        AgentOutputFactory.extendItem(item, {
-          content: AgentMessageFactory.extractContent(finalResponse),
-          toolResults: executedToolCalls.map((toolCall) => toolCall.result),
-        }),
+        AgentOutputFactory.replaceJson(
+          item,
+          AgentOutputFactory.fromAgentContent(AgentMessageFactory.extractContent(finalResponse)),
+        ),
       );
     }
 

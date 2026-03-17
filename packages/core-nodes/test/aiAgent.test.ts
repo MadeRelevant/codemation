@@ -76,9 +76,26 @@ class FakeLangChainChatModel implements LangChainChatModelLike {
   }
 }
 
+class FakeJsonLangChainChatModel implements LangChainChatModelLike {
+  async invoke(_: unknown): Promise<unknown> {
+    return {
+      content: JSON.stringify({
+        isRfq: true,
+        summary: "The message is an RFQ.",
+      }),
+    };
+  }
+}
+
 class FakeChatModelFactory implements ChatModelFactory<FakeChatModelConfig> {
   create(_: Readonly<{ config: FakeChatModelConfig; ctx: NodeExecutionContext<any> }>): LangChainChatModelLike {
     return new FakeLangChainChatModel();
+  }
+}
+
+class FakeJsonChatModelFactory implements ChatModelFactory<FakeChatModelConfig> {
+  create(_: Readonly<{ config: FakeChatModelConfig; ctx: NodeExecutionContext<any> }>): LangChainChatModelLike {
+    return new FakeJsonLangChainChatModel();
   }
 }
 
@@ -189,10 +206,7 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
 
   const main = outputs.main ?? [];
   assert.equal(main.length, 1);
-  const resultJson = main[0]?.json as { agentResult?: { content?: string; toolResults?: ReadonlyArray<{ isRfq: boolean }> }; classification?: { isRfq?: boolean } };
-  assert.equal(resultJson.agentResult?.content, "final answer");
-  assert.equal(resultJson.classification?.isRfq, true);
-  assert.equal(resultJson.agentResult?.toolResults?.length, 2);
+  assert.deepEqual(main[0]?.json, { output: "final answer" });
   assert.deepEqual(nodeState.completedOutputsByNodeId.get("agent_1::llm::1")?.main?.[0]?.json, { content: "planning" });
   assert.deepEqual(nodeState.completedOutputsByNodeId.get("agent_1::llm::2")?.main?.[0]?.json, { content: "final answer" });
   assert.deepEqual(DelayTool.inputsFor("subject_tool"), [{ subject: "RFQ" }]);
@@ -212,4 +226,49 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
   assert.ok(nodeState.events.includes("completed:agent_1::tool::subject_tool::1"));
   assert.ok(nodeState.events.includes("queued:agent_1::tool::body_tool::1"));
   assert.ok(nodeState.events.includes("completed:agent_1::tool::body_tool::1"));
+});
+
+test("AIAgentNode parses JSON model responses into structured output", async () => {
+  const data = new InMemoryRunDataFactory().create();
+  const container = tsyringeContainer.createChildContainer();
+  container.register(FakeJsonChatModelFactory, { useClass: FakeJsonChatModelFactory });
+  const config = new AIAgent(
+    "Classify (agent)",
+    "Return strict JSON.",
+    (item) => JSON.stringify(item.json ?? {}),
+    new FakeChatModelConfig("Fake JSON Chat Model"),
+  );
+  const ctx: NodeExecutionContext<AIAgent> = {
+    runId: "run_2",
+    workflowId: "wf_1",
+    parent: undefined,
+    now: () => new Date(),
+    data,
+    nodeState: undefined,
+    nodeId: "agent_json",
+    activationId: "act_2",
+    config: {
+      ...config,
+      chatModel: {
+        ...config.chatModel,
+        type: FakeJsonChatModelFactory,
+      },
+    },
+  };
+
+  const outputs = await new AIAgentNode(new ContainerNodeResolver(container)).execute(
+    [
+      {
+        json: {
+          subject: "RFQ: 1000 widgets",
+        },
+      },
+    ],
+    ctx,
+  );
+
+  assert.deepEqual(outputs.main?.[0]?.json, {
+    isRfq: true,
+    summary: "The message is an RFQ.",
+  });
 });

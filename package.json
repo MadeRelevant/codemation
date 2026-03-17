@@ -8,7 +8,7 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint && pnpm run dupcheck && pnpm run antipatterns",
     "dupcheck": "jscpd packages apps/test-dev",
-    "antipatterns": "ast-grep scan",
+    "antipatterns": "ast-grep scan --hint",
     "test": "turbo run test"
   },
   "devDependencies": {

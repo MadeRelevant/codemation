@@ -283,7 +283,7 @@ export function WorkflowInspectorJsonView(args: Readonly<{ value: unknown; empty
   const isRenderableJson = value !== null && typeof value === "object";
 
   if (value === undefined) {
-    return <div style={{ opacity: 0.62, fontSize: 13 }}>{emptyLabel}</div>;
+    return <div data-testid="workflow-inspector-empty-state" style={{ opacity: 0.62, fontSize: 13 }}>{emptyLabel}</div>;
   }
 
   return (
@@ -350,7 +350,7 @@ export function WorkflowInspectorPrettyView(args: Readonly<{ value: unknown; emp
   }, [allExpandedKeys]);
 
   if (value === undefined) {
-    return <div style={{ opacity: 0.62, fontSize: 13 }}>{emptyLabel}</div>;
+    return <div data-testid="workflow-inspector-empty-state" style={{ opacity: 0.62, fontSize: 13 }}>{emptyLabel}</div>;
   }
 
   return (
@@ -384,7 +384,7 @@ export function WorkflowInspectorErrorView(args: Readonly<{ error: NodeExecution
   const [copyState, setCopyState] = useState<CopyState>("idle");
 
   if (!error) {
-    return <div style={{ opacity: 0.62, fontSize: 13 }}>{emptyLabel}</div>;
+    return <div data-testid="workflow-inspector-empty-state" style={{ opacity: 0.62, fontSize: 13 }}>{emptyLabel}</div>;
   }
 
   const headline = getErrorHeadline(error);

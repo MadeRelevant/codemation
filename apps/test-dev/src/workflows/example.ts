@@ -11,13 +11,10 @@ type ExampleSeedJson = Readonly<{
   body: string;
 }>;
 
-type ExampleAgentJson = ExampleSeedJson &
-  Readonly<{
-    agentResult: unknown;
-    classification?: Readonly<{
-      isRfq?: boolean;
-    }>;
-  }>;
+type ExampleAgentJson = Readonly<{
+  isRfq: boolean;
+  summary: string;
+}>;
 
 type ExampleOutcomeJson = ExampleAgentJson &
   Readonly<{
@@ -32,13 +29,13 @@ export default createWorkflowBuilder({ id: "wf.example", name: "Example workflow
 .then(
   new AIAgent<ExampleSeedJson, ExampleAgentJson>(
     "Classify (agent)",
-    "Classify if the message is an RFQ. Use the available tools when needed and return a concise result.",
+    "Classify if the message is an RFQ. Use the available tools when needed and return strict JSON with keys isRfq and summary only.",
     (item) => JSON.stringify(item.json ?? {}),
     new OpenAIChatModelConfig("OpenAI", "gpt-4.1", credentialRef(credentialId<string>("openai.apiKey")), { icon: "bot", label: "OpenAI" }),
     [new ClassifyMailToolConfig("classifyMail", ["RFQ", "QUOTE", "QUOTATION"], undefined, { icon: "mail", label: "Classify mail!" })],
   ),
 )
-.then(new If<ExampleAgentJson>("If RFQ?", (item) => Boolean(item.json.classification?.isRfq)))
+.then(new If<ExampleAgentJson>("If RFQ?", (item) => item.json.isRfq))
 .when({
   true: [
     new Callback<ExampleAgentJson, ExampleOutcomeJson>("Create order (callback)", (items) =>
@@ -55,7 +52,7 @@ export default createWorkflowBuilder({ id: "wf.example", name: "Example workflow
     new MapData<ExampleAgentJson, ExampleOutcomeJson>("Not RFQ", (item) => ({
       ...item.json,
       orderStatus: "ignored",
-      note: "Not an RFQ",
+      note: item.json.summary,
     })),
   ],
 })

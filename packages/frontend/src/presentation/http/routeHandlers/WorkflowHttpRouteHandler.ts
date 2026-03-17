@@ -1,4 +1,13 @@
+import { ApplicationRequestError } from "../../../application/ApplicationRequestError";
+import type { CommandBus } from "../../../application/bus/CommandBus";
 import type { QueryBus } from "../../../application/bus/QueryBus";
+import { CopyRunToWorkflowDebuggerCommand } from "../../../application/commands/CopyRunToWorkflowDebuggerCommand";
+import { ReplaceWorkflowDebuggerOverlayCommand } from "../../../application/commands/ReplaceWorkflowDebuggerOverlayCommand";
+import type {
+  CopyRunToWorkflowDebuggerRequest,
+  UpdateWorkflowDebuggerOverlayRequest,
+} from "../../../application/contracts/WorkflowDebuggerContracts";
+import { GetWorkflowDebuggerOverlayQuery } from "../../../application/queries/GetWorkflowDebuggerOverlayQuery";
 import { WorkflowDefinitionMapper } from "../../../application/mapping/WorkflowDefinitionMapper";
 import { GetWorkflowDetailQuery } from "../../../application/queries/GetWorkflowDetailQuery";
 import { GetWorkflowSummariesQuery } from "../../../application/queries/GetWorkflowSummariesQuery";
@@ -15,6 +24,8 @@ export class WorkflowHttpRouteHandler {
   constructor(
     @inject(ApplicationTokens.QueryBus)
     private readonly queryBus: QueryBus,
+    @inject(ApplicationTokens.CommandBus)
+    private readonly commandBus: CommandBus,
     @inject(WorkflowDefinitionMapper)
     private readonly workflowDefinitionMapper: WorkflowDefinitionMapper,
   ) {}
@@ -48,6 +59,44 @@ export class WorkflowHttpRouteHandler {
       return Response.json(await this.queryBus.execute(new ListWorkflowRunsQuery(params.workflowId!)));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  @Route.for("GET", "workflows/:workflowId/debugger-overlay")
+  async getWorkflowDebuggerOverlay(_: Request, params: ServerHttpRouteParams): Promise<Response> {
+    try {
+      return Response.json(await this.queryBus.execute(new GetWorkflowDebuggerOverlayQuery(params.workflowId!)));
+    } catch (error) {
+      return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  @Route.for("PUT", "workflows/:workflowId/debugger-overlay")
+  async putWorkflowDebuggerOverlay(request: Request, params: ServerHttpRouteParams): Promise<Response> {
+    try {
+      const body = await this.readJsonBody<UpdateWorkflowDebuggerOverlayRequest>(request);
+      return Response.json(await this.commandBus.execute(new ReplaceWorkflowDebuggerOverlayCommand(params.workflowId!, body)));
+    } catch (error) {
+      return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  @Route.for("POST", "workflows/:workflowId/debugger-overlay/copy-run")
+  async postCopyWorkflowDebuggerOverlay(request: Request, params: ServerHttpRouteParams): Promise<Response> {
+    try {
+      const body = await this.readJsonBody<CopyRunToWorkflowDebuggerRequest>(request);
+      return Response.json(await this.commandBus.execute(new CopyRunToWorkflowDebuggerCommand(params.workflowId!, body)));
+    } catch (error) {
+      return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  private async readJsonBody<TBody>(request: Request): Promise<TBody> {
+    try {
+      return (await request.json()) as TBody;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new ApplicationRequestError(400, `Invalid JSON body: ${message}`);
     }
   }
 }

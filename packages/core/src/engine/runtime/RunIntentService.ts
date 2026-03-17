@@ -29,8 +29,9 @@ export class RunIntentService {
     mutableState?: CurrentStateExecutionRequest["mutableState"];
     currentState?: RunCurrentState;
     stopCondition?: RunStopCondition;
+    reset?: CurrentStateExecutionRequest["reset"];
   }): Promise<RunResult> {
-    if (args.startAt && !args.currentState && !args.stopCondition) {
+    if (args.startAt && !args.currentState && !args.stopCondition && !args.reset) {
       return await this.engine.runWorkflow(args.workflow, args.startAt, args.items, args.parent, args.executionOptions, {
         workflowSnapshot: args.workflowSnapshot,
         mutableState: args.mutableState,
@@ -45,6 +46,7 @@ export class RunIntentService {
       mutableState: args.mutableState,
       currentState: args.currentState,
       stopCondition: args.stopCondition ?? { kind: "workflowCompleted" },
+      reset: args.reset,
     });
   }
 

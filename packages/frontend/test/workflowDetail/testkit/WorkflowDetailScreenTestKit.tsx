@@ -104,18 +104,72 @@ export class WorkflowDetailScreenTestKit {
   }
 
   async startRun(): Promise<void> {
-    fireEvent.click(screen.getByRole("button", { name: "Run workflow" }));
-    await this.waitForRunSummary();
+    fireEvent.click(screen.getByTestId("canvas-run-workflow-button"));
+    await waitFor(() => {
+      expect(this.environment.workflowRuns).toHaveLength(1);
+    });
   }
 
   async runToHere(): Promise<void> {
-    fireEvent.click(screen.getByRole("button", { name: "Run to here" }));
-    await this.waitForRunSummary();
+    fireEvent.click(screen.getByTestId(`canvas-node-run-button-${WorkflowDetailFixtureFactory.agentNodeId}`));
+    await waitFor(() => {
+      expect(this.environment.workflowRuns).toHaveLength(1);
+    });
   }
 
-  async debugHere(): Promise<void> {
-    fireEvent.click(screen.getByRole("button", { name: "Debug here" }));
-    await this.waitForRunSummary();
+  async copyToDebugger(): Promise<void> {
+    fireEvent.click(screen.getByTestId("canvas-copy-to-live-button"));
+    await waitFor(() => {
+      expect(screen.getByTestId("workflow-canvas-tab-live")).toHaveAttribute("aria-pressed", "true");
+    });
+  }
+
+  openExecutionsPane(): void {
+    fireEvent.click(screen.getByTestId("workflow-canvas-tab-executions"));
+  }
+
+  openLiveWorkflow(): void {
+    fireEvent.click(screen.getByTestId("workflow-canvas-tab-live"));
+  }
+
+  latestWorkflowRunId(): string {
+    const latestRun = this.environment.workflowRuns[0];
+    if (!latestRun) {
+      throw new Error("Expected at least one workflow run.");
+    }
+    return latestRun.runId;
+  }
+
+  currentNodeStatus(nodeId: string): string | null {
+    return this.container.querySelector<HTMLElement>(`[data-codemation-node-id="${nodeId}"]`)?.getAttribute("data-codemation-node-status") ?? null;
+  }
+
+  selectCanvasNode(nodeId: string): void {
+    let clicked = false;
+    const inspectorTreeNode = this.container.querySelector<HTMLElement>(`[data-testid="execution-tree-node-${nodeId}"]`);
+    if (inspectorTreeNode) {
+      fireEvent.click(inspectorTreeNode);
+      clicked = true;
+    }
+    const wrapper =
+      this.container.querySelector<HTMLElement>(`[data-testid="rf__node-${nodeId}"]`) ??
+      this.container.querySelector<HTMLElement>(`[data-codemation-node-id="${nodeId}"]`);
+    if (wrapper) {
+      const clickableElement = wrapper.querySelector<HTMLElement>(`[data-codemation-node-id="${nodeId}"]`) ?? wrapper;
+      fireEvent.click(clickableElement);
+      clicked = true;
+    }
+    if (!clicked) {
+      throw new Error(`Expected canvas node ${nodeId} to exist.`);
+    }
+  }
+
+  queueRunResponse(state: import("../../../src/client").PersistedRunState): void {
+    this.environment.queueRunResponse(state);
+  }
+
+  seedRun(state: import("../../../src/client").PersistedRunState): void {
+    this.environment.seedRun(state);
   }
 
   async waitForStatusVisibilityWindow(): Promise<void> {

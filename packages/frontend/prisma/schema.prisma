@@ -17,3 +17,10 @@ model Run {
   updatedAt             String  @map("updated_at")
   stateJson             String  @map("state_json")
 }
+
+model WorkflowDebuggerOverlay {
+  workflowId       String  @id @map("workflow_id")
+  updatedAt        String  @map("updated_at")
+  copiedFromRunId  String? @map("copied_from_run_id")
+  stateJson        String  @map("state_json")
+}

@@ -19,6 +19,14 @@ export class ApiPaths {
     return `${this.workflow(workflowId)}/runs`;
   }
 
+  static workflowDebuggerOverlay(workflowId: string): string {
+    return `${this.workflow(workflowId)}/debugger-overlay`;
+  }
+
+  static workflowDebuggerOverlayCopyRun(workflowId: string): string {
+    return `${this.workflowDebuggerOverlay(workflowId)}/copy-run`;
+  }
+
   static runs(): string {
     return this.runsBasePath;
   }

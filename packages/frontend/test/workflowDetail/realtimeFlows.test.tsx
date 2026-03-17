@@ -149,12 +149,16 @@ describe("workflow detail realtime flows", () => {
         [WorkflowDetailFixtureFactory.toolNodeId]: "completed",
         [WorkflowDetailFixtureFactory.nodeTwoId]: "completed",
       });
-      expect(screen.getByTestId(`run-status-${WorkflowDetailFixtureFactory.runId}`)).toHaveTextContent("completed");
       WorkflowExecutionTreeAssertions.expectNodePresence([
         WorkflowDetailFixtureFactory.llmFirstInvocationNodeId,
         WorkflowDetailFixtureFactory.toolFirstInvocationNodeId,
         WorkflowDetailFixtureFactory.llmSecondInvocationNodeId,
       ]);
+    });
+
+    kit.openExecutionsPane();
+    await waitFor(() => {
+      expect(screen.getByTestId(`run-status-${WorkflowDetailFixtureFactory.runId}`)).toHaveTextContent("completed");
     });
   });
 

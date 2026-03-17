@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import type { PersistedRunState } from "../dist/index.js";
+import { AgentAttachmentNodeIdFactory, type PersistedRunState } from "../dist/index.js";
 import { CallbackNodeConfig, chain, createEngineTestKit, items } from "./harness/index.ts";
 
 class TargetedExecutionStateFactory {
@@ -110,6 +110,121 @@ test("pinned outputs survive clear-from-node and allow the engine to skip execut
   assert.equal(events.join(","), "D");
   const stored = await kit.runStore.load(done.runId);
   assert.equal(stored?.nodeSnapshotsByNodeId.C?.status, "skipped");
+});
+
+test("current-state execution can clear from a node and stop after that node, leaving downstream nodes reset", async () => {
+  const events: string[] = [];
+  const A = new CallbackNodeConfig("A", () => events.push("A"), { id: "A" });
+  const B = new CallbackNodeConfig("B", () => events.push("B"), { id: "B" });
+  const C = new CallbackNodeConfig("C", () => events.push("C"), { id: "C" });
+  const D = new CallbackNodeConfig("D", () => events.push("D"), { id: "D" });
+  const wf = chain({ id: "wf.clear.and.stop", name: "Clear and stop" }).start(A).then(B).then(C).then(D).build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const firstRun = await kit.runToCompletion({ wf, startAt: "A", items: items([{ id: 1 }]) });
+  assert.equal(firstRun.status, "completed");
+  const firstState = await kit.runStore.load(firstRun.runId);
+  assert.ok(firstState);
+
+  events.length = 0;
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow: wf,
+    currentState: TargetedExecutionStateFactory.fromRunState(firstState),
+    reset: { clearFromNodeId: "C" },
+    stopCondition: { kind: "nodeCompleted", nodeId: "C" },
+  });
+  const done = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(done.status, "completed");
+  assert.equal(events.join(","), "C");
+  const stored = await kit.runStore.load(done.runId);
+  assert.equal(stored?.nodeSnapshotsByNodeId.A?.status, "completed");
+  assert.equal(stored?.nodeSnapshotsByNodeId.B?.status, "completed");
+  assert.equal(stored?.nodeSnapshotsByNodeId.C?.status, "completed");
+  assert.equal(stored?.nodeSnapshotsByNodeId.D, undefined);
+});
+
+test("current-state execution stops at B and leaves only A and B completed", async () => {
+  const events: string[] = [];
+  const A = new CallbackNodeConfig("A", () => events.push("A"), { id: "A" });
+  const B = new CallbackNodeConfig("B", () => events.push("B"), { id: "B" });
+  const C = new CallbackNodeConfig("C", () => events.push("C"), { id: "C" });
+  const D = new CallbackNodeConfig("D", () => events.push("D"), { id: "D" });
+  const wf = chain({ id: "wf.stop.at.b", name: "Stop at B" }).start(A).then(B).then(C).then(D).build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const firstRun = await kit.runToCompletion({ wf, startAt: "A", items: items([{ id: 1 }]) });
+  assert.equal(firstRun.status, "completed");
+  const firstState = await kit.runStore.load(firstRun.runId);
+  assert.ok(firstState);
+
+  events.length = 0;
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow: wf,
+    currentState: TargetedExecutionStateFactory.fromRunState(firstState),
+    reset: { clearFromNodeId: "B" },
+    stopCondition: { kind: "nodeCompleted", nodeId: "B" },
+  });
+  const done = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(done.status, "completed");
+  assert.equal(events.join(","), "B");
+  const stored = await kit.runStore.load(done.runId);
+  assert.equal(stored?.nodeSnapshotsByNodeId.A?.status, "completed");
+  assert.equal(stored?.nodeSnapshotsByNodeId.B?.status, "completed");
+  assert.equal(stored?.nodeSnapshotsByNodeId.C, undefined);
+  assert.equal(stored?.nodeSnapshotsByNodeId.D, undefined);
+});
+
+test("current-state execution clears runtime attachment snapshots for reset descendants", async () => {
+  const events: string[] = [];
+  const A = new CallbackNodeConfig("A", () => events.push("A"), { id: "A" });
+  const B = new CallbackNodeConfig("B", () => events.push("B"), { id: "B" });
+  const C = new CallbackNodeConfig("C", () => events.push("C"), { id: "C" });
+  const D = new CallbackNodeConfig("D", () => events.push("D"), { id: "D" });
+  const wf = chain({ id: "wf.clear.runtime", name: "Clear runtime descendants" }).start(A).then(B).then(C).then(D).build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const firstRun = await kit.runToCompletion({ wf, startAt: "A", items: items([{ id: 1 }]) });
+  assert.equal(firstRun.status, "completed");
+  const firstState = await kit.runStore.load(firstRun.runId);
+  assert.ok(firstState);
+
+  const llmInvocationNodeId = AgentAttachmentNodeIdFactory.createLanguageModelNodeId("C", 1);
+  const toolInvocationNodeId = AgentAttachmentNodeIdFactory.createToolNodeId("C", "lookup_tool", 1);
+  const currentState = TargetedExecutionStateFactory.fromRunState(firstState);
+  currentState.outputsByNode[llmInvocationNodeId] = { main: items([{ llm: true }]) };
+  currentState.outputsByNode[toolInvocationNodeId] = { main: items([{ tool: true }]) };
+  currentState.nodeSnapshotsByNodeId[llmInvocationNodeId] = {
+    ...firstState.nodeSnapshotsByNodeId.C!,
+    nodeId: llmInvocationNodeId,
+  };
+  currentState.nodeSnapshotsByNodeId[toolInvocationNodeId] = {
+    ...firstState.nodeSnapshotsByNodeId.C!,
+    nodeId: toolInvocationNodeId,
+  };
+
+  events.length = 0;
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow: wf,
+    currentState,
+    reset: { clearFromNodeId: "C" },
+    stopCondition: { kind: "nodeCompleted", nodeId: "C" },
+  });
+  const done = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(done.status, "completed");
+  const stored = await kit.runStore.load(done.runId);
+  assert.equal(stored?.nodeSnapshotsByNodeId[llmInvocationNodeId], undefined);
+  assert.equal(stored?.nodeSnapshotsByNodeId[toolInvocationNodeId], undefined);
+  assert.equal(stored?.outputsByNode[llmInvocationNodeId], undefined);
+  assert.equal(stored?.outputsByNode[toolInvocationNodeId], undefined);
 });
 
 test("current-state execution throws when multiple root nodes require input", async () => {

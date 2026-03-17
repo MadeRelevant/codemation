@@ -86,6 +86,7 @@ class WorkflowExecutionInspectorFixture {
     } as WorkflowExecutionInspectorModel["selectedNodeSnapshot"];
 
     return {
+      viewContext: "historical-run",
       selectedRunId: "run-1",
       isLoading: false,
       loadError: null,
@@ -127,6 +128,12 @@ class WorkflowExecutionInspectorFixture {
         },
       ],
       executionTreeExpandedKeys: ["node-1"],
+      nodeActions: {
+        viewContext: "historical-run",
+        isRunning: false,
+        canEditOutput: false,
+        canClearPinnedOutput: false,
+      },
     };
   }
 
@@ -144,6 +151,8 @@ class WorkflowExecutionInspectorFixture {
   static createActions(): WorkflowExecutionInspectorActions {
     return {
       onSelectNode: vi.fn(),
+      onEditSelectedOutput: vi.fn(),
+      onClearPinnedOutput: vi.fn(),
       onSelectMode: vi.fn(),
       onSelectFormat: vi.fn(),
       onSelectInputPort: vi.fn(),

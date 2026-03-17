@@ -8,7 +8,7 @@ import {
   type WorkflowDefinition,
 } from "@codemation/core";
 import { AIAgent, Callback, ManualTrigger, WebhookTrigger } from "@codemation/core-nodes";
-import type { PersistedRunState, WorkflowDto } from "../../../src/client";
+import type { PersistedRunState, WorkflowDebuggerOverlayState, WorkflowDto } from "../../../src/client";
 import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
 
 export type WorkflowDetailTriggerKind = "manual" | "webhook";
@@ -134,9 +134,9 @@ export class WorkflowDetailFixtureFactory {
       runId: options.runId ?? this.runId,
       workflowId,
       startedAt: options.startedAt ?? this.startedAt,
-      executionOptions: mode ? { mode, isMutable: true, sourceWorkflowId: workflowId } : undefined,
+      executionOptions: mode ? { mode, sourceWorkflowId: workflowId } : undefined,
       workflowSnapshot: options.workflowSnapshot ?? this.createWorkflowSnapshot({ workflow }),
-      mutableState: mode ? { nodesById: {} } : undefined,
+      mutableState: undefined,
       status: "pending",
       pending: undefined,
       queue: [],
@@ -216,6 +216,23 @@ export class WorkflowDetailFixtureFactory {
 
   static createDerivedRunId(runId = this.runId): string {
     return `${runId}_derived`;
+  }
+
+  static createDebuggerOverlayState(
+    workflowId = this.workflowId,
+    currentState: WorkflowDebuggerOverlayState["currentState"] = {
+      outputsByNode: {},
+      nodeSnapshotsByNodeId: {},
+      mutableState: {
+        nodesById: {},
+      },
+    },
+  ): WorkflowDebuggerOverlayState {
+    return {
+      workflowId,
+      updatedAt: this.startedAt,
+      currentState,
+    };
   }
 
   private static createStructuredValue(step: number, phase: "input" | "output"): Readonly<Record<string, unknown>> {

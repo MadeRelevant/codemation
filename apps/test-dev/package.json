@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,client \"pnpm run dev:server\" \"pnpm run dev:client\"",
-    "dev:server": "tsx watch --tsconfig ../../tsconfig.base.json src/server.ts",
+    "dev:server": "CODEMATION_TS_RUNTIME=ts-node node --watch --loader ts-node/esm --experimental-specifier-resolution=node src/server.ts",
     "dev:client": "vite dev",
-    "start": "tsx --tsconfig ../../tsconfig.base.json src/server.ts",
+    "start": "CODEMATION_TS_RUNTIME=ts-node node --loader ts-node/esm --experimental-specifier-resolution=node src/server.ts",
     "worker": "codemation-worker",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -35,6 +35,7 @@
     "@types/react-dom": "^19.2.3",
     "concurrently": "^9.2.1",
     "eslint": "^10.0.3",
+    "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1"

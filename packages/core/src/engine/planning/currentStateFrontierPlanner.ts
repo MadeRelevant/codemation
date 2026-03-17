@@ -10,6 +10,7 @@ import type {
   RunStateResetRequest,
   RunStopCondition,
 } from "../../types";
+import { AgentAttachmentNodeIdFactory } from "../../ai";
 import { WorkflowTopology } from "./workflowTopology";
 
 class PinnedOutputResolver {
@@ -97,8 +98,9 @@ class RunStateResetter {
     const clearedNodeIds: NodeId[] = [];
     const preservedPinnedNodeIds: NodeId[] = [];
     const descendants = this.collectDescendants(args.reset.clearFromNodeId);
+    const runtimeDescendants = this.collectRuntimeDescendants(args.currentState, descendants);
 
-    for (const nodeId of descendants) {
+    for (const nodeId of [...descendants, ...runtimeDescendants]) {
       if (this.pinnedOutputResolver.hasPinnedOutputs(nodeId)) {
         const pinnedOutputs = this.pinnedOutputResolver.getPinnedOutputs(nodeId);
         if (pinnedOutputs) {
@@ -137,6 +139,39 @@ class RunStateResetter {
       }
     }
     return [...descendants];
+  }
+
+  private collectRuntimeDescendants(currentState: RunCurrentState, descendantNodeIds: ReadonlyArray<NodeId>): ReadonlyArray<NodeId> {
+    const descendantSet = new Set(descendantNodeIds);
+    const runtimeNodeIds = new Set<NodeId>();
+    for (const nodeId of [
+      ...Object.keys(currentState.outputsByNode),
+      ...Object.keys(currentState.nodeSnapshotsByNodeId),
+      ...Object.keys(currentState.mutableState?.nodesById ?? {}),
+    ] as NodeId[]) {
+      if (!this.isRuntimeDescendant(nodeId, descendantSet)) {
+        continue;
+      }
+      runtimeNodeIds.add(nodeId);
+    }
+    return [...runtimeNodeIds];
+  }
+
+  private isRuntimeDescendant(nodeId: NodeId, descendantNodeIds: ReadonlySet<NodeId>): boolean {
+    for (const descendantNodeId of descendantNodeIds) {
+      if (nodeId === descendantNodeId) {
+        return false;
+      }
+      if (nodeId.startsWith(`${descendantNodeId}::llm`) || nodeId.startsWith(`${descendantNodeId}::tool::`)) {
+        return true;
+      }
+    }
+    const parsedLanguageModelNodeId = AgentAttachmentNodeIdFactory.parseLanguageModelNodeId(nodeId);
+    if (parsedLanguageModelNodeId && descendantNodeIds.has(parsedLanguageModelNodeId.parentNodeId)) {
+      return true;
+    }
+    const parsedToolNodeId = AgentAttachmentNodeIdFactory.parseToolNodeId(nodeId);
+    return Boolean(parsedToolNodeId && descendantNodeIds.has(parsedToolNodeId.parentNodeId));
   }
 }
 
