@@ -6,28 +6,54 @@ import { WorkflowDetailScreen } from "../../../src/ui/screens/WorkflowDetailScre
 import type { WorkflowDto } from "../../../src/client";
 import type { WorkflowDetailRealtimeServerMessage } from "./WorkflowDetailRealtimeFixtures";
 import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
+import { InMemoryWorkflowDetailTestEnvironment } from "./InMemoryWorkflowDetailTestEnvironment";
+import type { WorkflowDetailRuntimeFixture } from "./WorkflowDetailRuntimeFixtures";
 import { WorkflowDetailSocketConnection, WorkflowDetailTestEnvironment } from "./WorkflowDetailTestEnvironment";
+
+type WorkflowDetailEnvironment = WorkflowDetailTestEnvironment | InMemoryWorkflowDetailTestEnvironment;
 
 export class WorkflowDetailScreenTestKit {
   private renderResult: RenderResult | null = null;
 
   constructor(
     public readonly workflow: WorkflowDto = WorkflowDetailFixtureFactory.createWorkflowDetail(),
-    public readonly environment: WorkflowDetailTestEnvironment = new WorkflowDetailTestEnvironment(workflow),
+    public readonly environment: WorkflowDetailEnvironment = new WorkflowDetailTestEnvironment(workflow),
   ) {}
 
   static create(workflow: WorkflowDto = WorkflowDetailFixtureFactory.createWorkflowDetail()): WorkflowDetailScreenTestKit {
     return new WorkflowDetailScreenTestKit(workflow);
   }
 
+  static async createInMemory(fixture: WorkflowDetailRuntimeFixture): Promise<WorkflowDetailScreenTestKit> {
+    const environment = new InMemoryWorkflowDetailTestEnvironment(fixture);
+    await environment.install();
+    return new WorkflowDetailScreenTestKit(fixture.workflow, environment);
+  }
+
   install(): this {
-    this.environment.install();
+    const installResult = this.environment.install();
+    if (installResult instanceof Promise) {
+      throw new Error("WorkflowDetailScreenTestKit.installAsync() must be used with async workflow detail environments.");
+    }
+    return this;
+  }
+
+  async installAsync(): Promise<this> {
+    await this.environment.install();
     return this;
   }
 
   dispose(): void {
     cleanup();
-    this.environment.restore();
+    const restoreResult = this.environment.restore();
+    if (restoreResult instanceof Promise) {
+      throw new Error("WorkflowDetailScreenTestKit.disposeAsync() must be used with async workflow detail environments.");
+    }
+  }
+
+  async disposeAsync(): Promise<void> {
+    cleanup();
+    await this.environment.restore();
   }
 
   render(): RenderResult {
@@ -60,6 +86,9 @@ export class WorkflowDetailScreenTestKit {
   }
 
   latestSocket(): WorkflowDetailSocketConnection {
+    if (!(this.environment instanceof WorkflowDetailTestEnvironment)) {
+      throw new Error("The current workflow detail environment does not expose synthetic websocket connections.");
+    }
     return this.environment.latestSocket();
   }
 
@@ -84,6 +113,9 @@ export class WorkflowDetailScreenTestKit {
   }
 
   async waitForSocketConnection(expectedCount = 1): Promise<WorkflowDetailSocketConnection> {
+    if (!(this.environment instanceof WorkflowDetailTestEnvironment)) {
+      throw new Error("The current workflow detail environment does not expose synthetic websocket connections.");
+    }
     await waitFor(() => {
       expect(this.environment.socketConnections).toHaveLength(expectedCount);
     });
@@ -151,6 +183,11 @@ export class WorkflowDetailScreenTestKit {
       fireEvent.click(inspectorTreeNode);
       clicked = true;
     }
+    const canvasCard = this.container.querySelector<HTMLElement>(`[data-testid="canvas-node-card-${nodeId}"]`);
+    if (canvasCard) {
+      fireEvent.click(canvasCard);
+      clicked = true;
+    }
     const wrapper =
       this.container.querySelector<HTMLElement>(`[data-testid="rf__node-${nodeId}"]`) ??
       this.container.querySelector<HTMLElement>(`[data-codemation-node-id="${nodeId}"]`);
@@ -165,11 +202,28 @@ export class WorkflowDetailScreenTestKit {
   }
 
   queueRunResponse(state: import("../../../src/client").PersistedRunState): void {
+    if (!(this.environment instanceof WorkflowDetailTestEnvironment)) {
+      throw new Error("The current workflow detail environment does not support queued synthetic run responses.");
+    }
     this.environment.queueRunResponse(state);
   }
 
   seedRun(state: import("../../../src/client").PersistedRunState): void {
+    if (!(this.environment instanceof WorkflowDetailTestEnvironment)) {
+      throw new Error("The current workflow detail environment does not support seeding synthetic runs.");
+    }
     this.environment.seedRun(state);
+  }
+
+  async waitForLatestRunToComplete(): Promise<import("../../../src/client").PersistedRunState> {
+    const runId = this.latestWorkflowRunId();
+    if (this.environment instanceof InMemoryWorkflowDetailTestEnvironment) {
+      return await this.environment.waitForRunToComplete(runId);
+    }
+    await waitFor(() => {
+      expect(this.environment.runsById.get(runId)?.status).toBe("completed");
+    });
+    return this.environment.runsById.get(runId) as import("../../../src/client").PersistedRunState;
   }
 
   async waitForStatusVisibilityWindow(): Promise<void> {

@@ -1,7 +1,10 @@
 export { WorkflowExecutionTreeAssertions, WorkflowStatusAssertions } from "./WorkflowDetailAssertions";
 export { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
 export type { WorkflowDetailDefinitionOptions, WorkflowDetailRunStateOptions, WorkflowDetailTriggerKind } from "./WorkflowDetailFixtures";
+export { InMemoryWorkflowDetailTestEnvironment } from "./InMemoryWorkflowDetailTestEnvironment";
 export { WorkflowDetailRealtimeFixtureFactory } from "./WorkflowDetailRealtimeFixtures";
 export type { WorkflowDetailRealtimeServerMessage } from "./WorkflowDetailRealtimeFixtures";
+export { WorkflowDetailRuntimeFixtureFactory } from "./WorkflowDetailRuntimeFixtures";
+export type { WorkflowDetailRuntimeFixture } from "./WorkflowDetailRuntimeFixtures";
 export { WorkflowDetailScreenTestKit } from "./WorkflowDetailScreenTestKit";
 export { WorkflowDetailSocketConnection, WorkflowDetailTestEnvironment } from "./WorkflowDetailTestEnvironment";

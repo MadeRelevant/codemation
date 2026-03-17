@@ -60,6 +60,7 @@ import { DependencyInjectionHookRunner } from "./infrastructure/config/Dependenc
 import { CodemationConfigBindingRegistrar } from "./infrastructure/config/CodemationConfigBindingRegistrar";
 import { PrismaClientFactory } from "./infrastructure/persistence/PrismaClientFactory";
 import { InMemoryWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/InMemoryWorkflowDebuggerOverlayRepository";
+import { InMemoryWorkflowRunRepository } from "./infrastructure/persistence/InMemoryWorkflowRunRepository";
 import { PrismaMigrationDeployer } from "./infrastructure/persistence/PrismaMigrationDeployer";
 import { PrismaWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/PrismaWorkflowDebuggerOverlayRepository";
 import { PrismaWorkflowRunRepository } from "./infrastructure/persistence/PrismaWorkflowRunRepository";
@@ -367,6 +368,7 @@ export class CodemationApplication {
 
   private registerRepositoriesAndBuses(): void {
     this.container.register(WorkflowDefinitionRepositoryAdapter, { useClass: WorkflowDefinitionRepositoryAdapter });
+    this.container.register(InMemoryWorkflowRunRepository, { useClass: InMemoryWorkflowRunRepository });
     this.container.register(SqlWorkflowRunRepository, { useClass: SqlWorkflowRunRepository });
     this.container.register(InMemoryWorkflowDebuggerOverlayRepository, { useClass: InMemoryWorkflowDebuggerOverlayRepository });
     this.container.register(PrismaWorkflowDebuggerOverlayRepository, { useClass: PrismaWorkflowDebuggerOverlayRepository });
@@ -479,9 +481,11 @@ export class CodemationApplication {
     prismaClient?: PrismaClient;
   }> {
     if (!resolved.databaseUrl) {
+      const workflowRunRepository = this.container.resolve(InMemoryWorkflowRunRepository);
       return {
+        workflowRunRepository,
         workflowDebuggerOverlayRepository: this.container.resolve(InMemoryWorkflowDebuggerOverlayRepository),
-        runStore: new PublishingRunStateStore(new InMemoryRunStateStore(), eventBus),
+        runStore: new PublishingRunStateStore(workflowRunRepository, eventBus),
       };
     }
     const prismaClientResolution = this.resolveInjectedOrOwnedPrismaClient(resolved.databaseUrl);

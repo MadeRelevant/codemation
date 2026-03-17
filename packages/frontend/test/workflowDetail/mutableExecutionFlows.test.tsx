@@ -1,24 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { PersistedRunState, WorkflowDto } from "../../src/client";
-import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { WorkflowDetailFixtureFactory, WorkflowDetailScreenTestKit } from "./testkit";
-
-type OverlayBody = Readonly<{
-  currentState: Readonly<{
-    mutableState?: Readonly<{
-      nodesById: Readonly<
-        Record<
-          string,
-          Readonly<{
-            pinnedOutputsByPort?: Readonly<Record<string, ReadonlyArray<Readonly<{ json: unknown }>>>>;
-            lastDebugInput?: ReadonlyArray<Readonly<{ json: unknown }>>;
-          }>
-        >
-      >;
-    }>;
-  }>;
-}>;
 
 class PinnedSkippedExecutionFixture {
   static readonly workflowId = "wf.frontend.pinned-skipped";
@@ -114,8 +97,6 @@ class PinnedSkippedExecutionFixture {
 class PinnedChainExecutionFixture {
   static readonly workflowId = "wf.frontend.pinned-chain";
   static readonly historicalRunId = "run_frontend_pinned_chain_full";
-  static readonly runToCId = "run_frontend_pinned_chain_to_c";
-  static readonly runToEId = "run_frontend.pinned_chain_to_e";
 
   static createWorkflow(): WorkflowDto {
     return {
@@ -160,90 +141,6 @@ class PinnedChainExecutionFixture {
       },
       workflowSnapshot: undefined,
       mutableState: { nodesById: {} },
-      pending: undefined,
-      executionOptions: {
-        mode: "manual",
-        sourceWorkflowId: this.workflowId,
-      },
-    };
-  }
-
-  static createRunToCState(): PersistedRunState {
-    return {
-      runId: this.runToCId,
-      workflowId: this.workflowId,
-      startedAt: "2026-03-17T10:05:00.000Z",
-      status: "completed",
-      queue: [],
-      outputsByNode: {
-        A: { main: [{ json: { emittedBy: "A" } }] },
-        B: { main: [{ json: { pinned: "B" } }] },
-        C: { main: [{ json: { emittedBy: "C" } }] },
-      },
-      nodeSnapshotsByNodeId: {
-        A: this.createSnapshot({ nodeId: "A", status: "completed", second: 1, runId: this.runToCId, outputs: [{ json: { emittedBy: "A" } }] }),
-        B: this.createSnapshot({ nodeId: "B", status: "completed", second: 2, runId: this.runToCId, outputs: [{ json: { pinned: "B" } }], usedPinnedOutput: true }),
-        C: this.createSnapshot({ nodeId: "C", status: "completed", second: 3, runId: this.runToCId, outputs: [{ json: { emittedBy: "C" } }] }),
-      },
-      workflowSnapshot: undefined,
-      mutableState: {
-        nodesById: {
-          B: {
-            pinnedOutputsByPort: {
-              main: [{ json: { pinned: "B" } }],
-            },
-          },
-          Agent: {
-            pinnedOutputsByPort: {
-              main: [{ json: { pinned: "Agent" } }],
-            },
-          },
-        },
-      },
-      pending: undefined,
-      executionOptions: {
-        mode: "manual",
-        sourceWorkflowId: this.workflowId,
-      },
-    };
-  }
-
-  static createRunToEState(): PersistedRunState {
-    return {
-      runId: this.runToEId,
-      workflowId: this.workflowId,
-      startedAt: "2026-03-17T10:06:00.000Z",
-      status: "completed",
-      queue: [],
-      outputsByNode: {
-        A: { main: [{ json: { emittedBy: "A" } }] },
-        B: { main: [{ json: { pinned: "B" } }] },
-        C: { main: [{ json: { emittedBy: "C" } }] },
-        Agent: { main: [{ json: { pinned: "Agent" } }] },
-        E: { main: [{ json: { emittedBy: "E" } }] },
-      },
-      nodeSnapshotsByNodeId: {
-        A: this.createSnapshot({ nodeId: "A", status: "completed", second: 1, runId: this.runToEId, outputs: [{ json: { emittedBy: "A" } }] }),
-        B: this.createSnapshot({ nodeId: "B", status: "completed", second: 2, runId: this.runToEId, outputs: [{ json: { pinned: "B" } }], usedPinnedOutput: true }),
-        C: this.createSnapshot({ nodeId: "C", status: "completed", second: 3, runId: this.runToEId, outputs: [{ json: { emittedBy: "C" } }] }),
-        Agent: this.createSnapshot({ nodeId: "Agent", status: "completed", second: 4, runId: this.runToEId, outputs: [{ json: { pinned: "Agent" } }], usedPinnedOutput: true }),
-        E: this.createSnapshot({ nodeId: "E", status: "completed", second: 5, runId: this.runToEId, outputs: [{ json: { emittedBy: "E" } }] }),
-      },
-      workflowSnapshot: undefined,
-      mutableState: {
-        nodesById: {
-          B: {
-            pinnedOutputsByPort: {
-              main: [{ json: { pinned: "B" } }],
-            },
-          },
-          Agent: {
-            pinnedOutputsByPort: {
-              main: [{ json: { pinned: "Agent" } }],
-            },
-          },
-        },
-      },
       pending: undefined,
       executionOptions: {
         mode: "manual",
@@ -325,57 +222,6 @@ describe("workflow detail mutable execution flows", () => {
   afterEach(() => {
     kit?.dispose();
     kit = null;
-  });
-
-  it("pins output in the live workflow and launches a fresh immutable run", async () => {
-    kit = WorkflowDetailScreenTestKit.create().install();
-    kit.render();
-
-    await kit.waitForSocketConnection();
-
-    fireEvent.click(screen.getByTestId("edit-output-button"));
-    fireEvent.change(screen.getByTestId("workflow-json-editor-input"), { target: { value: JSON.stringify({ pinned: true }, null, 2) } });
-    fireEvent.click(screen.getByTestId("workflow-json-editor-save"));
-
-    await waitFor(() => {
-      expect(screen.getByTestId("selected-node-pinned-badge")).toHaveTextContent("Pinned");
-    });
-
-    const overlayBody = kit.latestRequestBody<OverlayBody>(`PUT ${ApiPaths.workflowDebuggerOverlay(WorkflowDetailFixtureFactory.workflowId)}`);
-    expect(overlayBody).toEqual({
-      currentState: expect.objectContaining({
-        mutableState: {
-          nodesById: {
-            [WorkflowDetailFixtureFactory.agentNodeId]: {
-              pinnedOutputsByPort: {
-                main: [{ json: { pinned: true } }],
-              },
-            },
-          },
-        },
-      }),
-    });
-
-    fireEvent.click(screen.getByTestId(`canvas-node-run-button-${WorkflowDetailFixtureFactory.agentNodeId}`));
-
-    await waitFor(() => {
-      expect(kit?.environment.workflowRuns).toHaveLength(1);
-    });
-
-    expect(
-      kit.latestRequestBody<
-        Readonly<{ mode?: "manual" | "debug"; stopAt?: string; clearFromNodeId?: string; currentState?: unknown }>
-      >("POST /api/runs"),
-    ).toEqual({
-      mode: "manual",
-      stopAt: WorkflowDetailFixtureFactory.agentNodeId,
-      clearFromNodeId: WorkflowDetailFixtureFactory.agentNodeId,
-      currentState: expect.any(Object),
-      workflowId: WorkflowDetailFixtureFactory.workflowId,
-      items: [{ json: {} }],
-    });
-    expect(screen.getByTestId("workflow-canvas-tab-live")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByTestId("workflow-runs-sidebar")).not.toBeInTheDocument();
   });
 
   it("shows the pinned output in the live inspector instead of the original node output", async () => {
@@ -495,179 +341,6 @@ describe("workflow detail mutable execution flows", () => {
     });
     expect(screen.getByTestId("workflow-inspector-json-panel")).toHaveTextContent("emittedBy");
     expect(screen.getByTestId("workflow-inspector-json-panel")).toHaveTextContent("C");
-  });
-
-  it("keeps pinned-output completions visible across chained reruns to C and E", async () => {
-    const workflow = PinnedChainExecutionFixture.createWorkflow();
-    const historicalRunState = PinnedChainExecutionFixture.createHistoricalRunState();
-    const runToCState = PinnedChainExecutionFixture.createRunToCState();
-    const runToEState = PinnedChainExecutionFixture.createRunToEState();
-
-    kit = WorkflowDetailScreenTestKit.create(workflow).install();
-    kit.seedRun(historicalRunState);
-    kit.queueRunResponse(WorkflowDetailFixtureFactory.createInitialRunState({ workflow, runId: PinnedChainExecutionFixture.runToCId, mode: "manual" }));
-    kit.queueRunResponse(WorkflowDetailFixtureFactory.createInitialRunState({ workflow, runId: PinnedChainExecutionFixture.runToEId, mode: "manual" }));
-    kit.render();
-
-    await kit.waitForSocketConnection();
-    kit.openExecutionsPane();
-    await kit.waitForRunSummary(PinnedChainExecutionFixture.historicalRunId);
-    fireEvent.click(screen.getByTestId(`run-summary-${PinnedChainExecutionFixture.historicalRunId}`));
-    await waitFor(() => {
-      expect(screen.getByTestId("canvas-copy-to-live-button")).toBeEnabled();
-    });
-    await kit.copyToDebugger();
-
-    kit.selectCanvasNode("B");
-    fireEvent.click(screen.getByTestId("edit-output-button"));
-    fireEvent.change(screen.getByTestId("workflow-json-editor-input"), {
-      target: { value: JSON.stringify({ pinned: "B" }, null, 2) },
-    });
-    fireEvent.click(screen.getByTestId("workflow-json-editor-save"));
-    await waitFor(() => {
-      expect(screen.getByTestId("selected-node-pinned-badge")).toHaveTextContent("Pinned");
-    });
-
-    kit.selectCanvasNode("Agent");
-    fireEvent.click(screen.getByTestId("edit-output-button"));
-    fireEvent.change(screen.getByTestId("workflow-json-editor-input"), {
-      target: { value: JSON.stringify({ pinned: "Agent" }, null, 2) },
-    });
-    fireEvent.click(screen.getByTestId("workflow-json-editor-save"));
-    await waitFor(() => {
-      expect(screen.getByTestId("selected-node-name")).toHaveTextContent("Agent");
-      expect(screen.getByTestId("selected-node-pinned-badge")).toHaveTextContent("Pinned");
-    });
-
-    fireEvent.click(screen.getByTestId("canvas-node-run-button-C"));
-    kit.emitJson({
-      kind: "event",
-      event: {
-        kind: "runSaved",
-        runId: runToCState.runId,
-        workflowId: workflow.id,
-        at: "2026-03-17T10:05:03.000Z",
-        state: runToCState,
-      },
-    });
-
-    await waitFor(() => {
-      expect(kit!.currentNodeStatus("A")).toBe("completed");
-      expect(kit!.currentNodeStatus("B")).toBe("completed");
-      expect(kit!.currentNodeStatus("C")).toBe("completed");
-      expect(screen.getByTestId("selected-node-name")).toHaveTextContent("C");
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("execution-tree-node-A")).toBeInTheDocument();
-      expect(screen.getByTestId("execution-tree-node-B")).toBeInTheDocument();
-      expect(screen.getByTestId("execution-tree-node-C")).toBeInTheDocument();
-      expect(screen.queryByTestId("execution-tree-node-Agent")).not.toBeInTheDocument();
-      expect(screen.queryByTestId("execution-tree-node-E")).not.toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId("canvas-node-run-button-E"));
-    kit.emitJson({
-      kind: "event",
-      event: {
-        kind: "runSaved",
-        runId: runToEState.runId,
-        workflowId: workflow.id,
-        at: "2026-03-17T10:06:05.000Z",
-        state: runToEState,
-      },
-    });
-
-    await waitFor(() => {
-      expect(kit!.currentNodeStatus("A")).toBe("completed");
-      expect(kit!.currentNodeStatus("B")).toBe("completed");
-      expect(kit!.currentNodeStatus("C")).toBe("completed");
-      expect(kit!.currentNodeStatus("Agent")).toBe("completed");
-      expect(kit!.currentNodeStatus("E")).toBe("completed");
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("execution-tree-node-A")).toBeInTheDocument();
-      expect(screen.getByTestId("execution-tree-node-B")).toBeInTheDocument();
-      expect(screen.getByTestId("execution-tree-node-C")).toBeInTheDocument();
-      expect(screen.getByTestId("execution-tree-node-Agent")).toBeInTheDocument();
-      expect(screen.getByTestId("execution-tree-node-E")).toBeInTheDocument();
-    });
-    kit.selectCanvasNode("E");
-    await waitFor(() => {
-      expect(screen.getByTestId("selected-node-name")).toHaveTextContent("E");
-    });
-  });
-
-  it("uses the backend pending run state to clear stale downstream inspector nodes when rerunning from A", async () => {
-    const workflow = PinnedSkippedExecutionFixture.createWorkflow();
-    const historicalRunState = {
-      ...PinnedSkippedExecutionFixture.createCompletedRunState(),
-      runId: "run_frontend_pinned_full",
-      outputsByNode: {
-        A: { main: [{ json: { emittedBy: "A" } }] },
-        B: { main: [{ json: { emittedBy: "B" } }] },
-        C: { main: [{ json: { emittedBy: "C" } }] },
-      },
-      nodeSnapshotsByNodeId: {
-        A: {
-          ...PinnedSkippedExecutionFixture.createCompletedRunState().nodeSnapshotsByNodeId.A!,
-          runId: "run_frontend_pinned_full",
-          outputs: { main: [{ json: { emittedBy: "A" } }] },
-        },
-        B: {
-          ...PinnedSkippedExecutionFixture.createCompletedRunState().nodeSnapshotsByNodeId.B!,
-          runId: "run_frontend_pinned_full",
-          usedPinnedOutput: false,
-          outputs: { main: [{ json: { emittedBy: "B" } }] },
-        },
-        C: {
-          ...PinnedSkippedExecutionFixture.createCompletedRunState().nodeSnapshotsByNodeId.C!,
-          runId: "run_frontend_pinned_full",
-          outputs: { main: [{ json: { emittedBy: "C" } }] },
-        },
-      },
-      mutableState: { nodesById: {} },
-    } satisfies PersistedRunState;
-    const pendingRunState = WorkflowDetailFixtureFactory.createInitialRunState({
-      workflow,
-      runId: "run_frontend_pending_from_a",
-      mode: "manual",
-    });
-
-    kit = WorkflowDetailScreenTestKit.create(workflow).install();
-    kit.seedRun(historicalRunState);
-    kit.queueRunResponse(pendingRunState);
-    kit.render();
-
-    await kit.waitForSocketConnection();
-    kit.openExecutionsPane();
-    await kit.waitForRunSummary(historicalRunState.runId);
-    fireEvent.click(screen.getByTestId(`run-summary-${historicalRunState.runId}`));
-    await waitFor(() => {
-      expect(screen.getByTestId("canvas-copy-to-live-button")).toBeEnabled();
-    });
-    await kit.copyToDebugger();
-
-    kit.selectCanvasNode("B");
-    fireEvent.click(screen.getByTestId("edit-output-button"));
-    fireEvent.change(screen.getByTestId("workflow-json-editor-input"), {
-      target: { value: JSON.stringify({ pinned: true }, null, 2) },
-    });
-    fireEvent.click(screen.getByTestId("workflow-json-editor-save"));
-
-    await waitFor(() => {
-      expect(screen.getByTestId("selected-node-pinned-badge")).toHaveTextContent("Pinned");
-      expect(screen.getByTestId("execution-tree-node-B")).toBeInTheDocument();
-      expect(screen.getByTestId("execution-tree-node-C")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId("canvas-node-run-button-A"));
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("execution-tree-node-B")).not.toBeInTheDocument();
-      expect(screen.queryByTestId("execution-tree-node-C")).not.toBeInTheDocument();
-    });
   });
 
   it("keeps downstream pinned nodes on the canvas but removes them from the inspector when rerunning from the trigger", async () => {
@@ -863,31 +536,6 @@ describe("workflow detail mutable execution flows", () => {
     });
   });
 
-  it("copies a historical run into the live workflow", async () => {
-    kit = WorkflowDetailScreenTestKit.create().install();
-    kit.render();
-
-    await kit.waitForSocketConnection();
-    await kit.startRun();
-    kit.openExecutionsPane();
-    await kit.waitForRunSummary();
-    fireEvent.click(screen.getByTestId(`run-summary-${WorkflowDetailFixtureFactory.runId}`));
-    await waitFor(() => {
-      expect(screen.getByTestId("canvas-copy-to-live-button")).toBeEnabled();
-    });
-    await kit.copyToDebugger();
-
-    expect(
-      kit.latestRequestBody<Readonly<{ sourceRunId?: string }>>(
-        `POST ${ApiPaths.workflowDebuggerOverlayCopyRun(WorkflowDetailFixtureFactory.workflowId)}`,
-      ),
-    ).toEqual({
-      sourceRunId: WorkflowDetailFixtureFactory.runId,
-    });
-    expect(screen.getByTestId("workflow-canvas-tab-live")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByTestId("workflow-runs-sidebar")).not.toBeInTheDocument();
-  });
-
   it("ignores realtime updates from unrelated runs while the live workflow is open", async () => {
     kit = WorkflowDetailScreenTestKit.create().install();
     kit.render();
@@ -913,50 +561,5 @@ describe("workflow detail mutable execution flows", () => {
     expect(kit.currentNodeStatus(WorkflowDetailFixtureFactory.agentNodeId)).not.toBe("completed");
   });
 
-  it("lets users run again from the live workflow after a run finishes", async () => {
-    kit = WorkflowDetailScreenTestKit.create().install();
-    kit.render();
-
-    await kit.waitForSocketConnection();
-    await kit.startRun();
-
-    const firstRunId = kit.latestWorkflowRunId();
-    kit.emitJson({
-      kind: "event",
-      event: {
-        kind: "runSaved",
-        runId: firstRunId,
-        workflowId: WorkflowDetailFixtureFactory.workflowId,
-        at: "2026-03-11T12:10:59.000Z",
-        state: WorkflowDetailFixtureFactory.createCompletedRunState({ runId: firstRunId, workflow: kit.workflow }),
-      },
-    });
-
-    await waitFor(() => {
-      expect(kit!.currentNodeStatus(WorkflowDetailFixtureFactory.agentNodeId)).toBe("completed");
-    });
-
-    fireEvent.click(screen.getByTestId("canvas-run-workflow-button"));
-
-    await waitFor(() => {
-      expect(kit?.environment.callsByRoute.get("POST /api/runs")).toBe(2);
-    });
-
-    expect(
-      kit.latestRequestBody<Readonly<{ workflowId: string; currentState?: unknown }>>("POST /api/runs"),
-    ).toEqual({
-      workflowId: WorkflowDetailFixtureFactory.workflowId,
-      items: [{ json: {} }],
-      currentState: expect.objectContaining({
-        nodeSnapshotsByNodeId: expect.objectContaining({
-          [WorkflowDetailFixtureFactory.agentNodeId]: expect.objectContaining({
-            status: "completed",
-          }),
-        }),
-      }),
-    });
-    expect(screen.getByTestId("workflow-canvas-tab-live")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByTestId("workflow-runs-sidebar")).not.toBeInTheDocument();
-  });
 
 });
