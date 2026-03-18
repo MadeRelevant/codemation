@@ -3,6 +3,7 @@ import type { Items, PersistedMutableRunState, PersistedRunState, RunCurrentStat
 export type CreateRunRequest = Readonly<{
   workflowId?: string;
   items?: Items;
+  synthesizeTriggerItems?: boolean;
   currentState?: RunCurrentState;
   startAt?: string;
   stopAt?: string;
@@ -21,6 +22,7 @@ export type UpdateRunNodePinRequest = Readonly<{
 
 export type RunNodeRequest = Readonly<{
   items?: Items;
+  synthesizeTriggerItems?: boolean;
   mode?: "manual" | "debug";
 }>;
 

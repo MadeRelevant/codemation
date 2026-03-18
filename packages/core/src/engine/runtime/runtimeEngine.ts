@@ -29,6 +29,7 @@ import type {
   RunIdFactory,
   RunResult,
   RunStateStore,
+  TestableTriggerNode,
   TriggerNode,
   TriggerNodeConfig,
   TriggerSetupStateStore,
@@ -191,6 +192,36 @@ export class Engine implements NodeActivationContinuation {
 
   findWebhookTrigger(endpointId: string) {
     return this.webhookTriggerMatcher.lookup(endpointId);
+  }
+
+  async createTriggerTestItems(args: { workflow: WorkflowDefinition; nodeId: NodeId }): Promise<Items | undefined> {
+    const definition = args.workflow.nodes.find((node) => node.id === args.nodeId);
+    if (!definition) {
+      throw new Error(`Unknown trigger nodeId: ${args.nodeId}`);
+    }
+    if (definition.kind !== "trigger") {
+      throw new Error(`Node ${args.nodeId} is not a trigger`);
+    }
+    const node = this.nodeResolver.resolve(definition.type) as TriggerNode;
+    if (!this.isTestableTriggerNode(node)) {
+      return undefined;
+    }
+    const data = this.runDataFactory.create();
+    const runId = this.runIdFactory.makeRunId();
+    const trigger = { workflowId: args.workflow.id, nodeId: definition.id } as const;
+    const previousState = await this.triggerSetupStateStore.load(trigger);
+    return await node.getTestItems({
+      ...this.executionContextFactory.create({
+        runId,
+        workflowId: args.workflow.id,
+        parent: undefined,
+        data,
+      }),
+      trigger,
+      nodeId: definition.id,
+      config: definition.config as TriggerNodeConfig,
+      previousState: previousState?.state as never,
+    });
   }
 
   async runWorkflow(
@@ -1589,6 +1620,10 @@ export class Engine implements NodeActivationContinuation {
     return new BoundNodeExecutionStatePublisher(this.runStore, runId, workflowId, parent, async (kind, snapshot) => {
       await this.publishNodeEvent(kind, snapshot);
     });
+  }
+
+  private isTestableTriggerNode(node: TriggerNode): node is TestableTriggerNode<TriggerNodeConfig> {
+    return typeof (node as Partial<TestableTriggerNode<TriggerNodeConfig>>).getTestItems === "function";
   }
 
   private resolveRunCompletion(result: RunResult): void {

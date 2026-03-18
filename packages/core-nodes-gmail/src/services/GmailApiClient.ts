@@ -9,6 +9,29 @@ export type GmailMessageRecord = Readonly<{
   internalDate?: string;
   labelIds: ReadonlyArray<string>;
   headers: Readonly<Record<string, string>>;
+  attachments: ReadonlyArray<GmailMessageAttachmentRecord>;
+}>;
+
+export type GmailLabelRecord = Readonly<{
+  id: string;
+  name: string;
+  type?: string;
+}>;
+
+export type GmailMessageAttachmentRecord = Readonly<{
+  attachmentId: string;
+  filename?: string;
+  mimeType: string;
+  size?: number;
+  binaryName: string;
+}>;
+
+export type GmailMessageAttachmentContent = Readonly<{
+  attachmentId: string;
+  body: Uint8Array;
+  mimeType: string;
+  filename?: string;
+  size?: number;
 }>;
 
 export type GmailHistoryDelta = Readonly<{
@@ -26,6 +49,17 @@ export interface GmailApiClient {
     credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
   }>): Promise<string>;
+  listMessageIds(args: Readonly<{
+    credential: CredentialInput<GmailServiceAccountCredential>;
+    mailbox: string;
+    labelIds?: ReadonlyArray<string>;
+    query?: string;
+    maxResults?: number;
+  }>): Promise<ReadonlyArray<string>>;
+  listLabels(args: Readonly<{
+    credential: CredentialInput<GmailServiceAccountCredential>;
+    mailbox: string;
+  }>): Promise<ReadonlyArray<GmailLabelRecord>>;
   watchMailbox(args: Readonly<{
     credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
@@ -42,6 +76,12 @@ export interface GmailApiClient {
     mailbox: string;
     messageId: string;
   }>): Promise<GmailMessageRecord>;
+  getAttachmentContent(args: Readonly<{
+    credential: CredentialInput<GmailServiceAccountCredential>;
+    mailbox: string;
+    messageId: string;
+    attachment: GmailMessageAttachmentRecord;
+  }>): Promise<GmailMessageAttachmentContent>;
 }
 
 export class GmailHistoryGapError extends Error {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { NodeExecutionContext } from "@codemation/core";
+import type { NodeExecutionContext, TriggerTestItemsContext } from "@codemation/core";
 import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
 import { ManualTrigger, ManualTriggerNode } from "../dist/index.js";
 
@@ -19,6 +19,25 @@ class ManualTriggerExecutionContextFactory {
       parent: undefined,
       binary: binary.forNode({ nodeId: "trigger", activationId: "act_manual_execute" }),
       config,
+    };
+  }
+
+  static createTestItems(config: ManualTrigger<any>): TriggerTestItemsContext<ManualTrigger<any>> {
+    const executionContext = this.create(config);
+    return {
+      runId: executionContext.runId,
+      workflowId: executionContext.workflowId,
+      now: executionContext.now,
+      data: executionContext.data,
+      parent: executionContext.parent,
+      binary: executionContext.binary,
+      trigger: {
+        workflowId: executionContext.workflowId,
+        nodeId: executionContext.nodeId,
+      },
+      nodeId: executionContext.nodeId,
+      config,
+      previousState: undefined,
     };
   }
 }
@@ -80,4 +99,21 @@ test("manual trigger prefers provided execution items over configured defaults",
   );
 
   assert.deepEqual(outputs.main?.map((item) => item.json), [{ manual: true }]);
+});
+
+test("manual trigger exposes configured default items through getTestItems", async () => {
+  const node = new ManualTriggerNode();
+  const outputs = await node.getTestItems(
+    ManualTriggerExecutionContextFactory.createTestItems(
+      new ManualTrigger("Manual trigger", [
+        {
+          json: {
+            seeded: true,
+          },
+        },
+      ]),
+    ),
+  );
+
+  assert.deepEqual(outputs.map((item) => item.json), [{ seeded: true }]);
 });

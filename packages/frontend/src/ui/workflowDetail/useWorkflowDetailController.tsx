@@ -72,6 +72,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
 
   const [error, setError] = useState<string | null>(null);
   const [isRunRequestPending, setIsRunRequestPending] = useState(false);
+  const [pendingTriggerFetchSnapshot, setPendingTriggerFetchSnapshot] = useState<NodeExecutionSnapshot | null>(null);
   const [isRunsPaneVisible, setIsRunsPaneVisible] = useState(false);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [activeLiveRunId, setActiveLiveRunId] = useState<string | null>(null);
@@ -105,22 +106,35 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const viewContext = selectedRunId ? "historical-run" : "live-workflow";
   const liveExecutionState = useMemo(() => {
     const overlayCurrentState = debuggerOverlay?.currentState;
-    if (!activeLiveRunId) {
-      return overlayCurrentState;
+    const baseLiveExecutionState =
+      !activeLiveRunId
+        ? overlayCurrentState
+        : !activeLiveRun
+          ? ({
+              outputsByNode: {},
+              nodeSnapshotsByNodeId: {},
+              mutableState: overlayCurrentState?.mutableState,
+            } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>)
+          : ({
+              outputsByNode: activeLiveRun.outputsByNode,
+              nodeSnapshotsByNodeId: activeLiveRun.nodeSnapshotsByNodeId,
+              mutableState: overlayCurrentState?.mutableState ?? activeLiveRun.mutableState,
+            } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>);
+    if (!pendingTriggerFetchSnapshot || activeLiveRunId) {
+      return baseLiveExecutionState;
     }
-    if (!activeLiveRun) {
-      return {
+    return {
+      ...(baseLiveExecutionState ?? {
         outputsByNode: {},
         nodeSnapshotsByNodeId: {},
         mutableState: overlayCurrentState?.mutableState,
-      } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>;
-    }
-    return {
-      outputsByNode: activeLiveRun.outputsByNode,
-      nodeSnapshotsByNodeId: activeLiveRun.nodeSnapshotsByNodeId,
-      mutableState: overlayCurrentState?.mutableState ?? activeLiveRun.mutableState,
+      }),
+      nodeSnapshotsByNodeId: {
+        ...(baseLiveExecutionState?.nodeSnapshotsByNodeId ?? {}),
+        [pendingTriggerFetchSnapshot.nodeId]: pendingTriggerFetchSnapshot,
+      },
     } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>;
-  }, [activeLiveRun, activeLiveRunId, debuggerOverlay]);
+  }, [activeLiveRun, activeLiveRunId, debuggerOverlay, pendingTriggerFetchSnapshot]);
   const displayedWorkflow = useMemo(
     () => WorkflowDetailPresenter.resolveViewedWorkflow({ selectedRun, liveWorkflow: workflow }),
     [selectedRun, workflow],
@@ -223,6 +237,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     setIsPanelCollapsed(false);
     setInspectorHeight(320);
     setIsInspectorResizing(false);
+    setPendingTriggerFetchSnapshot(null);
     setJsonEditorState(null);
     resizeStartYRef.current = null;
     resizeStartHeightRef.current = 320;
@@ -365,11 +380,20 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
               : undefined,
           }
         : request;
+      setPendingTriggerFetchSnapshot(
+        options.keepLiveWorkflow
+          ? (WorkflowDetailPresenter.createOptimisticTriggerFetchSnapshot(workflowId, workflow, nextRequest) ?? null)
+          : null,
+      );
       void WorkflowDetailPresenter.runWorkflow(workflowId, workflow, nextRequest)
         .then((result) => {
+          setPendingTriggerFetchSnapshot(null);
           applyPendingRunResult(result, options);
         })
-        .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+        .catch((cause: unknown) => {
+          setPendingTriggerFetchSnapshot(null);
+          setError(cause instanceof Error ? cause.message : String(cause));
+        })
         .finally(() => {
           runRequestInFlightRef.current = false;
           setIsRunRequestPending(false);

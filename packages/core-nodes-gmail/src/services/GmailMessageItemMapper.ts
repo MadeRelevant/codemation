@@ -36,6 +36,7 @@ export class GmailMessageItemMapper {
         to: args.message.headers.To,
         subject: args.message.headers.Subject,
         deliveredTo: args.message.headers["Delivered-To"],
+        attachments: args.message.attachments,
       },
     };
   }

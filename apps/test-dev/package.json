@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,client \"pnpm run dev:server\" \"pnpm run dev:client\"",
-    "dev:server": "nodemon --watch src --watch ../../packages --ext ts,tsx,mts,cts,js,mjs,json --exec \"CODEMATION_TS_RUNTIME=ts-node node --loader ts-node/esm --experimental-specifier-resolution=node src/server.ts\"",
+    "dev:server": "nodemon --watch src --watch ../../packages --ext ts,tsx,mts,cts,js,mjs,json --exec \"CODEMATION_TS_RUNTIME=ts-node node --enable-source-maps --conditions=development --loader ts-node/esm --experimental-specifier-resolution=node src/server.ts\"",
     "dev:client": "vite dev",
-    "start": "CODEMATION_TS_RUNTIME=ts-node node --loader ts-node/esm --experimental-specifier-resolution=node src/server.ts",
+    "start": "CODEMATION_TS_RUNTIME=ts-node node --enable-source-maps --conditions=development --loader ts-node/esm --experimental-specifier-resolution=node src/server.ts",
     "worker": "codemation-worker",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",

@@ -36,7 +36,7 @@ export class CodemationFastifyHost {
       configResolution.workflowSources,
     );
     const application = Fastify({
-      logger: true,
+      logger: { level: "error" },
     });
     const gatewayPreparation = gateway.prepare();
     try {

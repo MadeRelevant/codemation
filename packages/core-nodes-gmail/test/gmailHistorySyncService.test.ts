@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryCredentialService } from "@codemation/core";
-import { GmailHistoryGapError, type GmailApiClient, type GmailHistoryDelta, type GmailMessageRecord, type GmailWatchRegistration } from "../src/services/GmailApiClient";
+import {
+  GmailHistoryGapError,
+  type GmailApiClient,
+  type GmailHistoryDelta,
+  type GmailMessageAttachmentContent,
+  type GmailMessageRecord,
+  type GmailWatchRegistration,
+} from "../src/services/GmailApiClient";
+import { GmailConfiguredLabelService } from "../src/services/GmailConfiguredLabelService";
 import { GmailHistorySyncService } from "../src/services/GmailHistorySyncService";
 import { GmailMessageItemMapper } from "../src/services/GmailMessageItemMapper";
 import { GmailQueryMatcher } from "../src/services/GmailQueryMatcher";
@@ -26,10 +34,16 @@ class InMemoryTriggerSetupStateStore {
 }
 
 class FakeGmailApiClient implements GmailApiClient {
+  labels = [
+    { id: "IMPORTANT", name: "IMPORTANT" },
+    { id: "Label_demo", name: "Demo" },
+    { id: "OTHER", name: "Other" },
+  ] as const;
   historyDelta: GmailHistoryDelta = {
     historyId: "history_2",
     messageIds: ["msg_1", "msg_2", "msg_1"],
   };
+  messageIds: ReadonlyArray<string> = ["msg_1"];
   messagesById = new Map<string, GmailMessageRecord>();
   baselineHistoryId = "history_1";
   watchRegistration: GmailWatchRegistration = {
@@ -40,6 +54,14 @@ class FakeGmailApiClient implements GmailApiClient {
 
   async getCurrentHistoryId(): Promise<string> {
     return this.baselineHistoryId;
+  }
+
+  async listMessageIds(): Promise<ReadonlyArray<string>> {
+    return this.messageIds;
+  }
+
+  async listLabels() {
+    return this.labels;
   }
 
   async watchMailbox(): Promise<GmailWatchRegistration> {
@@ -60,6 +82,16 @@ class FakeGmailApiClient implements GmailApiClient {
     }
     return message;
   }
+
+  async getAttachmentContent(): Promise<GmailMessageAttachmentContent> {
+    return {
+      attachmentId: "attachment_1",
+      body: new TextEncoder().encode("attachment body"),
+      mimeType: "text/plain",
+      filename: "note.txt",
+      size: 15,
+    };
+  }
 }
 
 class GmailHistorySyncFixture {
@@ -67,6 +99,7 @@ class GmailHistorySyncFixture {
     clientEmail: "gmail@test.dev",
     privateKey: "private-key",
     projectId: "project-id",
+    delegatedUser: "sales@example.com",
   };
   static readonly trigger = {
     workflowId: "wf.gmail",
@@ -95,6 +128,7 @@ test("GmailHistorySyncService filters, deduplicates, and persists the next histo
       From: "buyer@example.com",
     },
     snippet: "Need a new quote",
+    attachments: [],
   });
   gmailApiClient.messagesById.set("msg_2", {
     messageId: "msg_2",
@@ -104,6 +138,7 @@ test("GmailHistorySyncService filters, deduplicates, and persists the next histo
       From: "sender@example.com",
     },
     snippet: "not relevant",
+    attachments: [],
   });
   const store = new InMemoryTriggerSetupStateStore();
   await store.save({
@@ -117,11 +152,13 @@ test("GmailHistorySyncService filters, deduplicates, and persists the next histo
       watchExpiration: "2026-03-18T12:00:00.000Z",
     },
   });
-  const watchService = new GmailWatchService(gmailApiClient, store as never);
+  const configuredLabelService = new GmailConfiguredLabelService(gmailApiClient);
+  const watchService = new GmailWatchService(gmailApiClient, configuredLabelService, store as never);
   const service = new GmailHistorySyncService(
     gmailApiClient,
     store as never,
     watchService,
+    configuredLabelService,
     new GmailMessageItemMapper(),
     new GmailQueryMatcher(),
   );
@@ -146,11 +183,13 @@ test("GmailHistorySyncService re-baselines after a Gmail history gap", async () 
   gmailApiClient.throwHistoryGap = true;
   gmailApiClient.baselineHistoryId = "history_99";
   const store = new InMemoryTriggerSetupStateStore();
-  const watchService = new GmailWatchService(gmailApiClient, store as never);
+  const configuredLabelService = new GmailConfiguredLabelService(gmailApiClient);
+  const watchService = new GmailWatchService(gmailApiClient, configuredLabelService, store as never);
   const service = new GmailHistorySyncService(
     gmailApiClient,
     store as never,
     watchService,
+    configuredLabelService,
     new GmailMessageItemMapper(),
     new GmailQueryMatcher(),
   );
@@ -166,4 +205,64 @@ test("GmailHistorySyncService re-baselines after a Gmail history gap", async () 
 
   assert.deepEqual(items, []);
   assert.deepEqual((await store.load(GmailHistorySyncFixture.trigger))?.state.historyId, "history_99");
+});
+
+test("GmailHistorySyncService resolves configured label names to Gmail label ids", async () => {
+  const gmailApiClient = new FakeGmailApiClient();
+  gmailApiClient.messagesById.set("msg_1", {
+    messageId: "msg_1",
+    labelIds: ["Label_demo"],
+    headers: {
+      Subject: "Quote request",
+      From: "buyer@example.com",
+    },
+    snippet: "Need a new quote",
+    attachments: [],
+  });
+  gmailApiClient.historyDelta = {
+    historyId: "history_2",
+    messageIds: ["msg_1"],
+  };
+  const store = new InMemoryTriggerSetupStateStore();
+  await store.save({
+    trigger: GmailHistorySyncFixture.trigger,
+    updatedAt: "2026-03-17T12:00:00.000Z",
+    state: {
+      mailbox: "sales@example.com",
+      topicName: "projects/project-id/topics/gmail",
+      subscriptionName: "projects/project-id/subscriptions/gmail",
+      historyId: "history_1",
+      watchExpiration: "2026-03-18T12:00:00.000Z",
+    },
+  });
+  const configuredLabelService = new GmailConfiguredLabelService(gmailApiClient);
+  const watchService = new GmailWatchService(gmailApiClient, configuredLabelService, store as never);
+  const service = new GmailHistorySyncService(
+    gmailApiClient,
+    store as never,
+    watchService,
+    configuredLabelService,
+    new GmailMessageItemMapper(),
+    new GmailQueryMatcher(),
+  );
+
+  const items = await service.sync({
+    trigger: GmailHistorySyncFixture.trigger,
+    config: new OnNewGmailTrigger("On Gmail", {
+      credential: GmailHistorySyncFixture.credential,
+      mailbox: "sales@example.com",
+      topicName: "projects/project-id/topics/gmail",
+      subscriptionName: "projects/project-id/subscriptions/gmail",
+      labelIds: ["Demo"],
+      query: "quote",
+    }),
+    notification: {
+      emailAddress: "sales@example.com",
+      historyId: "history_2",
+      publishTime: "2026-03-17T12:05:00.000Z",
+    },
+  });
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0]?.json.messageId, "msg_1");
 });

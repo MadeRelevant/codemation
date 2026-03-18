@@ -41,7 +41,12 @@ export class ReplayWorkflowNodeCommandHandler extends CommandHandler<ReplayWorkf
     }
     const decodedNodeId = decodeURIComponent(command.nodeId);
     const mode = command.body.mode ?? state.executionOptions?.mode ?? "manual";
-    const requestedItems = this.resolveRequestedItems(command.body.items);
+    const requestedItems = await this.resolveRequestedItems({
+      workflow,
+      nodeId: decodedNodeId,
+      items: command.body.items,
+      synthesizeTriggerItems: command.body.synthesizeTriggerItems,
+    });
     const mutableStateBase = this.cloneMutableState(state.mutableState) ?? { nodesById: {} };
     const mutableState =
       requestedItems
@@ -119,10 +124,34 @@ export class ReplayWorkflowNodeCommandHandler extends CommandHandler<ReplayWorkf
     };
   }
 
-  private resolveRequestedItems(items: Items | undefined | null): Items | undefined {
-    if (items == null) {
-      return undefined;
+  private async resolveRequestedItems(args: Readonly<{
+    workflow: WorkflowDefinition;
+    nodeId: string;
+    items: Items | undefined | null;
+    synthesizeTriggerItems: boolean | undefined;
+  }>): Promise<Items | undefined> {
+    const normalizedItems = args.items == null ? undefined : this.itemsInputNormalizer.normalize(args.items);
+    if (!this.shouldSynthesizeTriggerItems(args.workflow, args.nodeId, args.synthesizeTriggerItems, normalizedItems)) {
+      return normalizedItems;
     }
-    return this.itemsInputNormalizer.normalize(items);
+    return await this.engine.createTriggerTestItems({
+      workflow: args.workflow,
+      nodeId: args.nodeId,
+    });
+  }
+
+  private shouldSynthesizeTriggerItems(
+    workflow: WorkflowDefinition,
+    nodeId: string,
+    synthesizeTriggerItems: boolean | undefined,
+    normalizedItems: Items | undefined,
+  ): boolean {
+    if (synthesizeTriggerItems) {
+      return true;
+    }
+    if (normalizedItems && normalizedItems.length > 0) {
+      return false;
+    }
+    return workflow.nodes.find((node) => node.id === nodeId)?.kind === "trigger";
   }
 }

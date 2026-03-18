@@ -2,8 +2,11 @@ import { credentialId, credentialRef } from "@codemation/core";
 import type { GmailServiceAccountCredential } from "@codemation/core-nodes-gmail";
 import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "@codemation/core-nodes-gmail";
 import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
+import { TestDevGmailEnvironment } from "../bootstrap/TestDevGmailEnvironment";
 
 const GMAIL_SERVICE_ACCOUNT = credentialId<GmailServiceAccountCredential>("gmail.serviceAccount");
+const gmailEnvironment = new TestDevGmailEnvironment();
+const gmailTriggerConfiguration = gmailEnvironment.resolveTriggerConfiguration();
 
 type GmailWorkflowResultJson = Readonly<{
   mailbox: string;
@@ -13,33 +16,18 @@ type GmailWorkflowResultJson = Readonly<{
   labelIds: ReadonlyArray<string>;
 }>;
 
-class TestDevGmailEnvironment {
-  private resolveLabelIds(): ReadonlyArray<string> | undefined {
-    const rawValue = process.env.GMAIL_TRIGGER_LABEL_IDS;
-    if (!rawValue) {
-      return undefined;
-    }
-    const labelIds = rawValue
-      .split(",")
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0);
-    return labelIds.length > 0 ? labelIds : undefined;
-  }
-
-  static readonly labelIds = new TestDevGmailEnvironment().resolveLabelIds();
-}
-
 export default createWorkflowBuilder({ id: "wf.gmail.pull", name: "Gmail pull trigger demo" })
   .trigger(
     new OnNewGmailTrigger(
       "On new Gmail message",
       {
-        mailbox: process.env.GMAIL_TRIGGER_MAILBOX ?? "",
+        mailbox: gmailTriggerConfiguration.mailbox,
         credential: credentialRef(GMAIL_SERVICE_ACCOUNT),
-        topicName: process.env.GMAIL_TRIGGER_TOPIC_NAME ?? "",
-        subscriptionName: process.env.GMAIL_TRIGGER_SUBSCRIPTION_NAME ?? "",
-        labelIds: TestDevGmailEnvironment.labelIds,
-        query: process.env.GMAIL_TRIGGER_QUERY,
+        topicName: gmailTriggerConfiguration.topicName,
+        subscriptionName: gmailTriggerConfiguration.subscriptionName,
+        labelIds: gmailTriggerConfiguration.labelIds,
+        query: gmailTriggerConfiguration.query,
+        downloadAttachments: true,
       },
       "gmail_trigger",
     ),

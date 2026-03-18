@@ -149,6 +149,13 @@ export default [
     rules: {
       // Prevent accidentally committed focused tests.
       "no-only-tests/no-only-tests": "error",
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector: "VariableDeclarator[init.type='ObjectExpression'][id.typeAnnotation.typeAnnotation.typeName.name='WorkflowDefinition']",
+          message: "Prefer WorkflowBuilder helpers such as chain(), dag(), or createWorkflowBuilder() in tests instead of manually wiring WorkflowDefinition objects.",
+        },
+      ],
       "no-restricted-properties": [
         "error",
         { object: "test", property: "only", message: "Do not commit focused tests (test.only)." },

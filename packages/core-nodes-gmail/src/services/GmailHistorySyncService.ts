@@ -5,6 +5,7 @@ import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState
 import type { OnNewGmailTrigger, OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import { GmailHistoryGapError, type GmailApiClient, type GmailMessageRecord } from "./GmailApiClient";
+import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "./GmailMessageItemMapper";
 import { GmailQueryMatcher } from "./GmailQueryMatcher";
 import type { GmailPubSubNotification } from "./GmailPubSubPullClient";
@@ -16,6 +17,7 @@ export class GmailHistorySyncService {
     @inject(GmailNodeTokens.GmailApiClient) private readonly gmailApiClient: GmailApiClient,
     @inject(CoreTokens.TriggerSetupStateStore) private readonly triggerSetupStateStore: TriggerSetupStateStore,
     @inject(GmailWatchService) private readonly gmailWatchService: GmailWatchService,
+    @inject(GmailConfiguredLabelService) private readonly gmailConfiguredLabelService: GmailConfiguredLabelService,
     @inject(GmailMessageItemMapper) private readonly gmailMessageItemMapper: GmailMessageItemMapper,
     @inject(GmailQueryMatcher) private readonly gmailQueryMatcher: GmailQueryMatcher,
   ) {}
@@ -83,6 +85,11 @@ export class GmailHistorySyncService {
     config: OnNewGmailTrigger,
     messageIds: ReadonlyArray<string>,
   ): Promise<ReadonlyArray<GmailMessageRecord>> {
+    const resolvedLabelIds = await this.gmailConfiguredLabelService.resolveLabelIds({
+      credential: config.cfg.credential,
+      mailbox: config.cfg.mailbox,
+      configuredLabels: config.cfg.labelIds,
+    });
     const uniqueMessageIds = [...new Set(messageIds)];
     const messages = await Promise.all(
       uniqueMessageIds.map(async (messageId) => {
@@ -93,12 +100,16 @@ export class GmailHistorySyncService {
         });
       }),
     );
-    return messages.filter((message) => this.matchesConfig(message, config));
+    return messages.filter((message) => this.matchesConfig(message, config, resolvedLabelIds));
   }
 
-  private matchesConfig(message: GmailMessageRecord, config: OnNewGmailTrigger): boolean {
-    if (config.cfg.labelIds && config.cfg.labelIds.length > 0) {
-      const hasEveryLabel = config.cfg.labelIds.every((labelId) => message.labelIds.includes(labelId));
+  private matchesConfig(
+    message: GmailMessageRecord,
+    config: OnNewGmailTrigger,
+    resolvedLabelIds: ReadonlyArray<string> | undefined,
+  ): boolean {
+    if (resolvedLabelIds && resolvedLabelIds.length > 0) {
+      const hasEveryLabel = resolvedLabelIds.every((labelId) => message.labelIds.includes(labelId));
       if (!hasEveryLabel) {
         return false;
       }

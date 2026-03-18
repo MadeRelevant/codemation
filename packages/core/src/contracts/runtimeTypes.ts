@@ -166,6 +166,16 @@ export interface TriggerSetupContext<
   emit(items: Items): Promise<void>;
 }
 
+export interface TriggerTestItemsContext<
+  TConfig extends TriggerNodeConfig<any, any> = TriggerNodeConfig<any, any>,
+  TSetupState extends JsonValue | undefined = TriggerNodeSetupState<TConfig>,
+> extends ExecutionContext {
+  trigger: TriggerInstanceId;
+  nodeId: NodeId;
+  config: TConfig;
+  previousState: TSetupState;
+}
+
 /**
  * Trigger setup state is intentionally engine-owned so future ownership and
  * leader-election metadata can be coordinated centrally rather than pushed into
@@ -224,6 +234,11 @@ export interface TriggerNode<TConfig extends TriggerNodeConfig<any, any> = Trigg
   outputPorts: readonly ["main"];
   setup(ctx: TriggerSetupContext<TConfig>): Promise<TriggerSetupStateFor<TConfig>>;
   execute(items: Items, ctx: NodeExecutionContext<TConfig>): Promise<NodeOutputs>;
+}
+
+export interface TestableTriggerNode<TConfig extends TriggerNodeConfig<any, any> = TriggerNodeConfig<any, any>>
+  extends TriggerNode<TConfig> {
+  getTestItems(ctx: TriggerTestItemsContext<TConfig>): Promise<Items>;
 }
 
 export interface ExecutableTriggerNode<TConfig extends TriggerNodeConfig<any, any> = TriggerNodeConfig<any, any>>

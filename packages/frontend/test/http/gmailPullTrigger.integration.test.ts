@@ -2,6 +2,9 @@
 
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { PersistedRunState } from "@codemation/core";
+import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
+import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
 import type { CodemationBinding } from "../../src/presentation/config/CodemationBinding";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
@@ -12,16 +15,19 @@ import {
   OnNewGmailTrigger,
   type GmailApiClient,
   type GmailHistoryDelta,
+  type GmailMessageAttachmentContent,
   type GmailMessageRecord,
   type GmailPubSubPullClient,
   type GmailPulledNotification,
   type GmailServiceAccountCredential,
   type GmailWatchRegistration,
   type OnNewGmailTriggerItemJson,
-} from "../../../core-nodes-gmail/src/index.ts";
+} from "../../../core-nodes-gmail/src/index";
 import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
 
 class FakeGmailApiClient implements GmailApiClient {
+  labels = [{ id: "IMPORTANT", name: "IMPORTANT" }] as const;
+  messageIds: ReadonlyArray<string> = ["message_1"];
   watchRegistration: GmailWatchRegistration = {
     historyId: "history_1",
     expirationAt: "2026-03-18T12:00:00.000Z",
@@ -33,6 +39,14 @@ class FakeGmailApiClient implements GmailApiClient {
 
   async getCurrentHistoryId(): Promise<string> {
     return "history_1";
+  }
+
+  async listMessageIds(): Promise<ReadonlyArray<string>> {
+    return this.messageIds;
+  }
+
+  async listLabels() {
+    return this.labels;
   }
 
   async watchMailbox(): Promise<GmailWatchRegistration> {
@@ -52,6 +66,17 @@ class FakeGmailApiClient implements GmailApiClient {
         From: "buyer@example.com",
       },
       snippet: "Need a quote",
+      attachments: [],
+    };
+  }
+
+  async getAttachmentContent(): Promise<GmailMessageAttachmentContent> {
+    return {
+      attachmentId: "attachment_1",
+      body: new TextEncoder().encode("attachment body"),
+      mimeType: "text/plain",
+      filename: "note.txt",
+      size: 15,
     };
   }
 }
@@ -86,10 +111,13 @@ class FakeGmailPubSubPullClient implements GmailPubSubPullClient {
 
 class GmailPullTriggerIntegrationFixture {
   static readonly workflowId = "wf.gmail.integration";
+  static readonly triggerNodeId = "on_gmail";
+  static readonly callbackNodeId = "capture_gmail_payload";
   static readonly credential: GmailServiceAccountCredential = {
     clientEmail: "gmail@test.dev",
     privateKey: "private-key",
     projectId: "project-id",
+    delegatedUser: "sales@example.com",
   };
 
   static createWorkflow() {
@@ -98,23 +126,30 @@ class GmailPullTriggerIntegrationFixture {
       name: "Gmail pull integration workflow",
     })
       .trigger(
-        new OnNewGmailTrigger("On Gmail", {
-          credential: this.credential,
-          mailbox: "sales@example.com",
-          topicName: "projects/project-id/topics/gmail",
-          subscriptionName: "projects/project-id/subscriptions/gmail",
-          labelIds: ["IMPORTANT"],
-          query: "quote",
-        }),
+        new OnNewGmailTrigger(
+          "On Gmail",
+          {
+            credential: this.credential,
+            mailbox: "sales@example.com",
+            topicName: "projects/project-id/topics/gmail",
+            subscriptionName: "projects/project-id/subscriptions/gmail",
+            labelIds: ["IMPORTANT"],
+            query: "quote",
+          },
+          this.triggerNodeId,
+        ),
       )
       .then(
-        new Callback<OnNewGmailTriggerItemJson, Readonly<{ messageId: string; subject?: string }>>("Capture Gmail payload", (items) =>
-          items.map((item) => ({
-            json: {
-              messageId: item.json.messageId,
-              subject: item.json.subject,
-            },
-          })),
+        new Callback<OnNewGmailTriggerItemJson, Readonly<{ messageId: string; subject?: string }>>(
+          "Capture Gmail payload",
+          (items) =>
+            items.map((item) => ({
+              json: {
+                messageId: item.json.messageId,
+                subject: item.json.subject,
+              },
+            })),
+          this.callbackNodeId,
         ),
       )
       .build();
@@ -163,7 +198,7 @@ class GmailPullTriggerIntegrationFixture {
   static async waitForCompletedRunState(
     harness: FrontendHttpIntegrationHarness,
     runId: string,
-  ): Promise<Readonly<{ status: string; outputsByNode: Record<string, unknown> }>> {
+  ): Promise<PersistedRunState> {
     const deadline = Date.now() + 5_000;
     while (Date.now() < deadline) {
       const response = await harness.request({
@@ -171,7 +206,7 @@ class GmailPullTriggerIntegrationFixture {
         url: ApiPaths.runState(runId),
       });
       if (response.statusCode === 200) {
-        const runState = response.json<{ status: string; outputsByNode: Record<string, unknown> }>();
+        const runState = response.json<PersistedRunState>();
         if (runState.status === "completed") {
           return runState;
         }
@@ -213,5 +248,102 @@ describe("Gmail pull trigger integration", () => {
 
     expect(runState.status).toBe("completed");
     expect(notification.acked).toBe(true);
+  });
+
+  it("synthesizes a Gmail test item through the runs api and allows pinning the trigger output", async () => {
+    const apiClient = new FakeGmailApiClient();
+    const pullClient = new FakeGmailPubSubPullClient();
+    const harness = new FrontendHttpIntegrationHarness({
+      config: GmailPullTriggerIntegrationFixture.createConfig(),
+      consumerRoot: path.resolve(import.meta.dirname, "../../.."),
+      bindings: GmailPullTriggerIntegrationFixture.createBindings(apiClient, pullClient),
+    });
+    harnesses.push(harness);
+    await harness.start();
+
+    const runResponse = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: GmailPullTriggerIntegrationFixture.workflowId,
+        stopAt: GmailPullTriggerIntegrationFixture.triggerNodeId,
+        mode: "manual",
+        synthesizeTriggerItems: true,
+      },
+    });
+    const runState = await GmailPullTriggerIntegrationFixture.waitForCompletedRunState(harness, runResponse.runId);
+    const triggerOutputs = runState.outputsByNode[GmailPullTriggerIntegrationFixture.triggerNodeId]?.main;
+
+    expect(runState.status).toBe("completed");
+    expect(triggerOutputs).toEqual([
+      {
+        json: expect.objectContaining({
+          mailbox: "sales@example.com",
+          historyId: "history_1",
+          messageId: "message_1",
+          subject: "Quote request",
+        }),
+      },
+    ]);
+    expect(runState.nodeSnapshotsByNodeId[GmailPullTriggerIntegrationFixture.triggerNodeId]?.status).toBe("completed");
+    expect(runState.nodeSnapshotsByNodeId[GmailPullTriggerIntegrationFixture.callbackNodeId]).toBeUndefined();
+
+    const overlayState = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
+      method: "PUT",
+      url: ApiPaths.workflowDebuggerOverlay(GmailPullTriggerIntegrationFixture.workflowId),
+      payload: {
+        currentState: {
+          outputsByNode: {},
+          nodeSnapshotsByNodeId: {},
+          mutableState: {
+            nodesById: {
+              [GmailPullTriggerIntegrationFixture.triggerNodeId]: {
+                pinnedOutputsByPort: {
+                  main: triggerOutputs,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(
+      overlayState.currentState.mutableState?.nodesById?.[GmailPullTriggerIntegrationFixture.triggerNodeId]?.pinnedOutputsByPort?.main,
+    ).toEqual(triggerOutputs);
+  });
+
+  it("auto-synthesizes trigger test items when stopping at a trigger with an empty trigger payload", async () => {
+    const apiClient = new FakeGmailApiClient();
+    const pullClient = new FakeGmailPubSubPullClient();
+    const harness = new FrontendHttpIntegrationHarness({
+      config: GmailPullTriggerIntegrationFixture.createConfig(),
+      consumerRoot: path.resolve(import.meta.dirname, "../../.."),
+      bindings: GmailPullTriggerIntegrationFixture.createBindings(apiClient, pullClient),
+    });
+    harnesses.push(harness);
+    await harness.start();
+
+    const runResponse = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: GmailPullTriggerIntegrationFixture.workflowId,
+        items: [],
+        stopAt: GmailPullTriggerIntegrationFixture.triggerNodeId,
+        mode: "manual",
+      },
+    });
+    const runState = await GmailPullTriggerIntegrationFixture.waitForCompletedRunState(harness, runResponse.runId);
+
+    expect(runState.status).toBe("completed");
+    expect(runState.outputsByNode[GmailPullTriggerIntegrationFixture.triggerNodeId]?.main).toEqual([
+      {
+        json: expect.objectContaining({
+          mailbox: "sales@example.com",
+          messageId: "message_1",
+          subject: "Quote request",
+        }),
+      },
+    ]);
   });
 });

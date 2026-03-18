@@ -1,15 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryCredentialService } from "@codemation/core";
+import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryCredentialService, InMemoryRunDataFactory } from "@codemation/core";
 import { GmailHistorySyncService } from "../src/services/GmailHistorySyncService";
+import { GmailConfiguredLabelService } from "../src/services/GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "../src/services/GmailMessageItemMapper";
 import { GmailQueryMatcher } from "../src/services/GmailQueryMatcher";
 import { GmailWatchService } from "../src/services/GmailWatchService";
 import { GmailPullTriggerRuntime } from "../src/runtime/GmailPullTriggerRuntime";
-import type { GmailApiClient, GmailHistoryDelta, GmailMessageRecord, GmailWatchRegistration } from "../src/services/GmailApiClient";
+import type {
+  GmailApiClient,
+  GmailHistoryDelta,
+  GmailMessageAttachmentContent,
+  GmailMessageRecord,
+  GmailWatchRegistration,
+} from "../src/services/GmailApiClient";
 import type { GmailPubSubPullClient, GmailPulledNotification } from "../src/services/GmailPubSubPullClient";
 import { OnNewGmailTrigger } from "../src/nodes/OnNewGmailTrigger";
 import type { GmailServiceAccountCredential } from "../src/contracts/GmailServiceAccountCredential";
+import { OnNewGmailTriggerNode } from "../src/nodes/OnNewGmailTriggerNode";
+import { GmailTriggerAttachmentService } from "../src/services/GmailTriggerAttachmentService";
 
 class InMemoryTriggerSetupStateStore {
   private readonly statesByKey = new Map<string, any>();
@@ -28,6 +37,11 @@ class InMemoryTriggerSetupStateStore {
 }
 
 class FakeGmailApiClient implements GmailApiClient {
+  labels = [
+    { id: "IMPORTANT", name: "IMPORTANT" },
+    { id: "Label_demo", name: "Demo" },
+  ] as const;
+  messageIds: ReadonlyArray<string> = ["message_1"];
   watchRegistration: GmailWatchRegistration = {
     historyId: "history_1",
     expirationAt: "2026-03-18T12:00:00.000Z",
@@ -44,10 +58,19 @@ class FakeGmailApiClient implements GmailApiClient {
       From: "buyer@example.com",
     },
     snippet: "Need a quote",
+    attachments: [],
   };
 
   async getCurrentHistoryId(): Promise<string> {
     return "history_1";
+  }
+
+  async listMessageIds(): Promise<ReadonlyArray<string>> {
+    return this.messageIds;
+  }
+
+  async listLabels() {
+    return this.labels;
   }
 
   async watchMailbox(): Promise<GmailWatchRegistration> {
@@ -60,6 +83,16 @@ class FakeGmailApiClient implements GmailApiClient {
 
   async getMessage(): Promise<GmailMessageRecord> {
     return this.message;
+  }
+
+  async getAttachmentContent(): Promise<GmailMessageAttachmentContent> {
+    return {
+      attachmentId: "attachment_1",
+      body: new TextEncoder().encode("attachment body"),
+      mimeType: "application/pdf",
+      filename: "quote.pdf",
+      size: 15,
+    };
   }
 }
 
@@ -101,11 +134,20 @@ class NoopGmailLogger {
   debug(): void {}
 }
 
+class RecordingGmailLogger extends NoopGmailLogger {
+  readonly warnings: string[] = [];
+
+  override warn(message: string): void {
+    this.warnings.push(message);
+  }
+}
+
 class GmailPullTriggerRuntimeFixture {
   static readonly credential: GmailServiceAccountCredential = {
     clientEmail: "gmail@test.dev",
     privateKey: "private-key",
     projectId: "project-id",
+    delegatedUser: "sales@example.com",
   };
 
   static createConfig(): OnNewGmailTrigger {
@@ -143,11 +185,13 @@ test("GmailPullTriggerRuntime renews the watch, pulls notifications, emits items
   });
   pullClient.notifications = [notification];
   const store = new InMemoryTriggerSetupStateStore();
-  const watchService = new GmailWatchService(gmailApiClient, store as never);
+  const configuredLabelService = new GmailConfiguredLabelService(gmailApiClient);
+  const watchService = new GmailWatchService(gmailApiClient, configuredLabelService, store as never);
   const historySyncService = new GmailHistorySyncService(
     gmailApiClient,
     store as never,
     watchService,
+    configuredLabelService,
     new GmailMessageItemMapper(),
     new GmailQueryMatcher(),
   );
@@ -185,4 +229,117 @@ test("GmailPullTriggerRuntime renews the watch, pulls notifications, emits items
 
   assert.equal(initialState?.historyId, "history_1");
   assert.equal(emittedPayloads[0]?.[0] && typeof emittedPayloads[0][0], "object");
+});
+
+test("GmailPullTriggerRuntime logs the specific missing trigger configuration fields", async () => {
+  const pullClient = new FakeGmailPubSubPullClient();
+  const store = new InMemoryTriggerSetupStateStore();
+  const logger = new RecordingGmailLogger();
+  const gmailApiClient = new FakeGmailApiClient();
+  const configuredLabelService = new GmailConfiguredLabelService(gmailApiClient);
+  const watchService = new GmailWatchService(gmailApiClient, configuredLabelService, store as never);
+  const historySyncService = new GmailHistorySyncService(
+    gmailApiClient,
+    store as never,
+    watchService,
+    configuredLabelService,
+    new GmailMessageItemMapper(),
+    new GmailQueryMatcher(),
+  );
+  const runtime = new GmailPullTriggerRuntime(
+    pullClient,
+    {
+      pullIntervalMs: 25,
+      maxMessagesPerPull: 5,
+    },
+    new InMemoryCredentialService(),
+    store as never,
+    logger,
+    watchService,
+    historySyncService,
+  );
+
+  const state = await runtime.ensureStarted({
+    trigger: {
+      workflowId: "wf.gmail",
+      nodeId: "trigger",
+    },
+    config: new OnNewGmailTrigger("On Gmail", {
+      credential: GmailPullTriggerRuntimeFixture.credential,
+      mailbox: "sales@example.com",
+      topicName: "",
+      subscriptionName: "",
+    }),
+    previousState: undefined,
+    emit: async () => {},
+  });
+
+  assert.equal(state, undefined);
+  assert.equal(pullClient.ensured, false);
+  assert.deepEqual(logger.warnings, [
+    "skipping trigger wf.gmail.trigger because required Gmail trigger config is missing: topicName, subscriptionName",
+  ]);
+});
+
+test("OnNewGmailTriggerNode downloads Gmail attachments into item binaries when enabled", async () => {
+  const gmailApiClient = new FakeGmailApiClient();
+  gmailApiClient.message = {
+    ...gmailApiClient.message,
+    attachments: [
+      {
+        attachmentId: "attachment_1",
+        binaryName: "quote_pdf",
+        filename: "quote.pdf",
+        mimeType: "application/pdf",
+        size: 128,
+      },
+    ],
+  };
+  const binary = new DefaultExecutionBinaryService(new InMemoryBinaryStorage(), "wf.gmail", "run.gmail", () => new Date());
+  const node = new OnNewGmailTriggerNode(
+    {} as GmailPullTriggerRuntime,
+    new GmailTriggerAttachmentService(gmailApiClient),
+    {} as never,
+    new NoopGmailLogger(),
+  );
+
+  const outputs = await node.execute(
+    [
+      {
+        json: {
+          mailbox: "sales@example.com",
+          historyId: "history_2",
+          messageId: "message_1",
+          labelIds: ["IMPORTANT"],
+          headers: {
+            Subject: "Quote request",
+            From: "buyer@example.com",
+          },
+          from: "buyer@example.com",
+          subject: "Quote request",
+          attachments: gmailApiClient.message.attachments,
+        },
+      },
+    ],
+    {
+      runId: "run.gmail",
+      workflowId: "wf.gmail",
+      parent: undefined,
+      now: () => new Date(),
+      data: new InMemoryRunDataFactory().create(),
+      nodeId: "trigger",
+      activationId: "act.gmail",
+      config: new OnNewGmailTrigger("On Gmail", {
+        credential: GmailPullTriggerRuntimeFixture.credential,
+        mailbox: "sales@example.com",
+        topicName: "projects/project-id/topics/gmail",
+        subscriptionName: "projects/project-id/subscriptions/gmail",
+        downloadAttachments: true,
+      }),
+      binary: binary.forNode({ nodeId: "trigger", activationId: "act.gmail" }),
+    },
+  );
+
+  assert.equal(outputs.main?.[0]?.binary?.quote_pdf?.mimeType, "application/pdf");
+  assert.equal(outputs.main?.[0]?.binary?.quote_pdf?.filename, "quote.pdf");
 });

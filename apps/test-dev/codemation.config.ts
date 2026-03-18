@@ -5,6 +5,7 @@ import { GmailNodes } from "@codemation/core-nodes-gmail";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { TestDevGmailEnvironment } from "./src/bootstrap/TestDevGmailEnvironment";
 import { TestDevMailKeywordCatalog } from "./src/bootstrap/TestDevMailKeywordCatalog";
 import { TestDevOdooEnvironment } from "./src/bootstrap/TestDevOdooEnvironment";
 import { TestDevLogo } from "./src/ui/testDevLogo";
@@ -18,6 +19,7 @@ const OPENAI_API_KEY = credentialId<string>("openai.apiKey");
 const GMAIL_SERVICE_ACCOUNT = credentialId<GmailServiceAccountCredential>("gmail.serviceAccount");
 const useRedisRuntime = Boolean(process.env.REDIS_URL);
 const databaseUrl = process.env.DATABASE_URL;
+const gmailEnvironment = new TestDevGmailEnvironment();
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required for the test-dev app. Configure a PostgreSQL connection string in apps/test-dev/.env.");
 }
@@ -26,36 +28,13 @@ const slots: CodemationAppSlots = {
   Navigation: TestDevNavigation,
 };
 
-class TestDevGmailCredentialParser {
-  static parse(rawCredential: string | undefined): GmailServiceAccountCredential {
-    if (!rawCredential) {
-      throw new Error("GMAIL_SERVICE_ACCOUNT_JSON is required for the Gmail demo workflow.");
-    }
-    const parsed = JSON.parse(rawCredential) as Readonly<{
-      client_email?: string;
-      private_key?: string;
-      project_id?: string;
-    }>;
-    if (!parsed.client_email || !parsed.private_key || !parsed.project_id) {
-      throw new Error("GMAIL_SERVICE_ACCOUNT_JSON must include client_email, private_key, and project_id.");
-    }
-    return {
-      clientEmail: parsed.client_email,
-      privateKey: parsed.private_key,
-      projectId: parsed.project_id,
-    };
-  }
-}
-
 const credentials = new InMemoryCredentialService()
   .setFactory(OPENAI_API_KEY, () => {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error("OPENAI_API_KEY is required for the OpenAI demo workflow.");
     return apiKey;
   })
-  .setFactory(GMAIL_SERVICE_ACCOUNT, () => {
-    return TestDevGmailCredentialParser.parse(process.env.GMAIL_SERVICE_ACCOUNT_JSON);
-  });
+  .setFactory(GMAIL_SERVICE_ACCOUNT, () => gmailEnvironment.resolveCredential());
 
 export const codemationHost = {
   credentials,

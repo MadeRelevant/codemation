@@ -1,4 +1,13 @@
-import type { Items, NodeExecutionContext, NodeOutputs, TriggerNode, TriggerNodeConfig, TriggerSetupContext, TypeToken } from "@codemation/core";
+import type {
+  Items,
+  NodeExecutionContext,
+  NodeOutputs,
+  TestableTriggerNode,
+  TriggerNodeConfig,
+  TriggerSetupContext,
+  TriggerTestItemsContext,
+  TypeToken,
+} from "@codemation/core";
 import { ItemsInputNormalizer, node } from "@codemation/core";
 
 type ManualTriggerDefaultValue<TOutputJson> = Items<TOutputJson> | ReadonlyArray<TOutputJson> | TOutputJson;
@@ -43,15 +52,23 @@ export class ManualTrigger<TOutputJson = unknown> implements TriggerNodeConfig<T
  * by calling `engine.runWorkflow(workflow, triggerNodeId, items)`.
  */
 @node({ packageName: "@codemation/core-nodes" })
-export class ManualTriggerNode implements TriggerNode<ManualTrigger<any>> {
+export class ManualTriggerNode implements TestableTriggerNode<ManualTrigger<any>> {
   kind = "trigger" as const;
   outputPorts = ["main"] as const;
   async setup(_ctx: TriggerSetupContext<ManualTrigger<any>>): Promise<undefined> {
     return undefined;
   }
 
+  async getTestItems(ctx: TriggerTestItemsContext<ManualTrigger<any>>): Promise<Items> {
+    return this.resolveManualItems([], ctx.config);
+  }
+
   async execute(items: Items, ctx: NodeExecutionContext<ManualTrigger<any>>): Promise<NodeOutputs> {
-    return { main: items.length > 0 ? items : (ctx.config.defaultItems ?? []) };
+    return { main: this.resolveManualItems(items, ctx.config) };
+  }
+
+  private resolveManualItems(items: Items, config: ManualTrigger<any>): Items {
+    return items.length > 0 ? items : (config.defaultItems ?? []);
   }
 }
 

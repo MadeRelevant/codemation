@@ -2,6 +2,7 @@ import type { CredentialInput, TriggerInstanceId, TriggerSetupStateStore } from 
 import { CoreTokens, inject, injectable } from "@codemation/core";
 import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
+import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailApiClient } from "./GmailApiClient";
 
@@ -9,6 +10,7 @@ import type { GmailApiClient } from "./GmailApiClient";
 export class GmailWatchService {
   constructor(
     @inject(GmailNodeTokens.GmailApiClient) private readonly gmailApiClient: GmailApiClient,
+    @inject(GmailConfiguredLabelService) private readonly gmailConfiguredLabelService: GmailConfiguredLabelService,
     @inject(CoreTokens.TriggerSetupStateStore) private readonly triggerSetupStateStore: TriggerSetupStateStore,
   ) {}
 
@@ -26,11 +28,16 @@ export class GmailWatchService {
     if (currentState && !this.isExpiringSoon(currentState.watchExpiration)) {
       return currentState;
     }
+    const resolvedLabelIds = await this.gmailConfiguredLabelService.resolveLabelIds({
+      credential: args.credential,
+      mailbox: args.mailbox,
+      configuredLabels: args.labelIds,
+    });
     const watchRegistration = await this.gmailApiClient.watchMailbox({
       credential: args.credential,
       mailbox: args.mailbox,
       topicName: args.topicName,
-      labelIds: args.labelIds,
+      labelIds: resolvedLabelIds,
     });
     const nextState = {
       mailbox: args.mailbox,

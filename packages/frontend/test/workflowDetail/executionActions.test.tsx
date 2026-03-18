@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { WorkflowDetailFixtureFactory, WorkflowDetailRealtimeFixtureFactory, WorkflowDetailScreenTestKit } from "./testkit";
+import { WorkflowDetailTestEnvironment } from "./testkit/WorkflowDetailTestEnvironment";
 
 describe("workflow detail execution actions", () => {
   let kit: WorkflowDetailScreenTestKit | null = null;
@@ -80,6 +81,29 @@ describe("workflow detail execution actions", () => {
     });
 
     expect(kit?.environment.callsByRoute.get("POST /api/runs")).toBe(1);
+  });
+
+  it("marks the trigger as running while the live workflow is fetching test items", async () => {
+    kit = WorkflowDetailScreenTestKit.create().install();
+    if (!(kit.environment instanceof WorkflowDetailTestEnvironment)) {
+      throw new Error("Expected a synthetic workflow detail test environment.");
+    }
+    kit.environment.deferNextRunResponse();
+    kit.render();
+
+    await kit.waitForSocketConnection();
+
+    fireEvent.click(screen.getByTestId("canvas-run-workflow-button"));
+
+    await waitFor(() => {
+      expect(kit!.currentNodeStatus(WorkflowDetailFixtureFactory.triggerNodeId)).toBe("running");
+    });
+
+    kit.environment.releaseDeferredRunResponse();
+
+    await waitFor(() => {
+      expect(kit!.environment.workflowRuns).toHaveLength(1);
+    });
   });
 
   it("keeps the live workflow inspectable before any executions exist", async () => {

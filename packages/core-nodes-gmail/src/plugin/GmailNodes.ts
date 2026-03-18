@@ -4,8 +4,11 @@ import { GooglePubSubPullClient } from "../adapters/google/GooglePubSubPullClien
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailHistorySyncService } from "../services/GmailHistorySyncService";
+import { GmailConfiguredLabelService } from "../services/GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "../services/GmailMessageItemMapper";
 import { GmailQueryMatcher } from "../services/GmailQueryMatcher";
+import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
+import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
 import { GmailWatchService } from "../services/GmailWatchService";
 import { GmailPullTriggerRuntime } from "../runtime/GmailPullTriggerRuntime";
 
@@ -47,8 +50,11 @@ export class GmailNodes {
     container.registerInstance(GmailNodeTokens.TriggerLogger, context.loggerFactory.create("codemation-gmail.trigger"));
     container.registerInstance(GmailNodeTokens.RuntimeLogger, context.loggerFactory.create("codemation-gmail.runtime"));
     container.register(GmailHistorySyncService, { useClass: GmailHistorySyncService });
+    container.register(GmailConfiguredLabelService, { useClass: GmailConfiguredLabelService });
     container.register(GmailMessageItemMapper, { useClass: GmailMessageItemMapper });
     container.register(GmailQueryMatcher, { useClass: GmailQueryMatcher });
+    container.register(GmailTriggerAttachmentService, { useClass: GmailTriggerAttachmentService });
+    container.register(GmailTriggerTestItemService, { useClass: GmailTriggerTestItemService });
     container.register(GmailWatchService, { useClass: GmailWatchService });
     container.register(GmailPullTriggerRuntime, { useClass: GmailPullTriggerRuntime });
     container.register(GmailNodeTokens.GmailApiClient, {

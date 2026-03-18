@@ -1,3 +1,4 @@
+import type { GmailMessageAttachmentRecord } from "../services/GmailApiClient";
 import type { CredentialInput, TriggerNodeConfig, TypeToken } from "@codemation/core";
 import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
@@ -16,6 +17,7 @@ export type OnNewGmailTriggerItemJson = Readonly<{
   to?: string;
   subject?: string;
   deliveredTo?: string;
+  attachments: ReadonlyArray<GmailMessageAttachmentRecord>;
 }>;
 
 export type OnNewGmailTriggerOptions = Readonly<{
@@ -25,6 +27,7 @@ export type OnNewGmailTriggerOptions = Readonly<{
   subscriptionName: string;
   labelIds?: ReadonlyArray<string>;
   query?: string;
+  downloadAttachments?: boolean;
 }>;
 
 export class OnNewGmailTrigger

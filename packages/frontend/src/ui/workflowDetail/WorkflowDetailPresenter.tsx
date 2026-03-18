@@ -57,12 +57,15 @@ export class WorkflowDetailPresenter {
   ]);
 
   static async runWorkflow(workflowId: string, workflow: WorkflowDto | undefined, request: RunWorkflowRequest = {}): Promise<RunWorkflowResult> {
+    const shouldSynthesizeTriggerItems = this.shouldSynthesizeTriggerItems(workflow, request);
+    const items = request.items ?? (shouldSynthesizeTriggerItems ? undefined : this.createRunItems(workflow));
     const response = await fetch(ApiPaths.runs(), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         workflowId,
-        items: request.items ?? this.createRunItems(workflow),
+        items,
+        synthesizeTriggerItems: shouldSynthesizeTriggerItems,
         currentState: request.currentState,
         startAt: request.startAt,
         stopAt: request.stopAt,
@@ -77,13 +80,41 @@ export class WorkflowDetailPresenter {
     return (await response.json()) as RunWorkflowResult;
   }
 
-  static async runNode(runId: string, nodeId: string, items: Items | undefined, mode?: RunWorkflowMode): Promise<RunWorkflowResult> {
+  static createOptimisticTriggerFetchSnapshot(
+    workflowId: string,
+    workflow: WorkflowDto | undefined,
+    request: RunWorkflowRequest,
+  ): NodeExecutionSnapshot | undefined {
+    const triggerNodeId = this.resolveTriggerTestNodeId(workflow, request);
+    if (!triggerNodeId) {
+      return undefined;
+    }
+    const updatedAt = new Date().toISOString();
+    return {
+      runId: `optimistic_trigger_fetch:${workflowId}:${triggerNodeId}`,
+      workflowId,
+      nodeId: triggerNodeId,
+      status: "running",
+      startedAt: updatedAt,
+      updatedAt,
+      inputsByPort: {},
+    };
+  }
+
+  static async runNode(
+    runId: string,
+    nodeId: string,
+    items: Items | undefined,
+    mode?: RunWorkflowMode,
+    synthesizeTriggerItems?: boolean,
+  ): Promise<RunWorkflowResult> {
     const response = await fetch(ApiPaths.runNode(runId, nodeId), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         items,
         mode,
+        synthesizeTriggerItems,
       }),
     });
     if (!response.ok) {
@@ -264,6 +295,30 @@ export class WorkflowDetailPresenter {
 
   static isTriggerStartedWorkflow(workflow: WorkflowDto | undefined): boolean {
     return workflow?.nodes.some((node) => node.kind === "trigger") ?? false;
+  }
+
+  private static shouldSynthesizeTriggerItems(workflow: WorkflowDto | undefined, request: RunWorkflowRequest): boolean {
+    return Boolean(this.resolveTriggerTestNodeId(workflow, request));
+  }
+
+  private static resolveTriggerTestNodeId(workflow: WorkflowDto | undefined, request: RunWorkflowRequest): string | undefined {
+    if (request.items !== undefined) {
+      return undefined;
+    }
+    if (request.stopAt && this.isTriggerNode(workflow, request.stopAt)) {
+      return request.stopAt;
+    }
+    if (request.startAt && this.isTriggerNode(workflow, request.startAt)) {
+      return request.startAt;
+    }
+    if (!request.stopAt && this.isTriggerStartedWorkflow(workflow)) {
+      return workflow?.nodes.find((node) => node.kind === "trigger")?.id;
+    }
+    return undefined;
+  }
+
+  private static isTriggerNode(workflow: WorkflowDto | undefined, nodeId: string): boolean {
+    return workflow?.nodes.find((node) => node.id === nodeId)?.kind === "trigger";
   }
 
   static getExecutionModeLabel(run: Pick<RunSummary, "executionOptions"> | Pick<PersistedRunState, "executionOptions"> | undefined): string | null {

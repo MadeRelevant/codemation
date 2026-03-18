@@ -85,6 +85,8 @@ export class WorkflowDetailTestEnvironment {
   readonly workflowRuns: RunSummary[] = [];
   readonly runsById = new Map<string, PersistedRunState>();
   readonly queuedRunResponses: PersistedRunState[] = [];
+  private deferredRunResponseResolver: (() => void) | null = null;
+  private deferredRunResponsePromise: Promise<void> | null = null;
   debuggerOverlay: WorkflowDebuggerOverlayState;
   readonly websocketPort = "31337";
 
@@ -164,6 +166,8 @@ export class WorkflowDetailTestEnvironment {
     this.workflowRuns.length = 0;
     this.runsById.clear();
     this.queuedRunResponses.length = 0;
+    this.deferredRunResponseResolver = null;
+    this.deferredRunResponsePromise = null;
     this.debuggerOverlay = WorkflowDetailFixtureFactory.createDebuggerOverlayState(this.workflow.id);
   }
 
@@ -174,6 +178,21 @@ export class WorkflowDetailTestEnvironment {
   seedRun(state: PersistedRunState): void {
     this.runsById.set(state.runId, state);
     this.prependWorkflowRun(state);
+  }
+
+  deferNextRunResponse(): void {
+    if (this.deferredRunResponsePromise) {
+      throw new Error("Expected no deferred run response to already be active.");
+    }
+    this.deferredRunResponsePromise = new Promise<void>((resolve) => {
+      this.deferredRunResponseResolver = resolve;
+    });
+  }
+
+  releaseDeferredRunResponse(): void {
+    this.deferredRunResponseResolver?.();
+    this.deferredRunResponseResolver = null;
+    this.deferredRunResponsePromise = null;
   }
 
   latestSocket(): WorkflowDetailSocketConnection {
@@ -256,8 +275,9 @@ export class WorkflowDetailTestEnvironment {
     throw new Error(`Unhandled fetch request: ${routeKey}`);
   }
 
-  private handleRunWorkflowRequest(routeKey: string): Response {
+  private async handleRunWorkflowRequest(routeKey: string): Promise<Response> {
     const requestBody = this.latestRequestBody<WorkflowRunRequestBody>(routeKey);
+    await this.waitForDeferredRunResponse();
     const runState =
       this.queuedRunResponses.shift() ??
       WorkflowDetailFixtureFactory.createInitialRunState({
@@ -388,5 +408,13 @@ export class WorkflowDetailTestEnvironment {
     const bodies = this.requestBodiesByRoute.get(routeKey) ?? [];
     bodies.push(JSON.parse(body));
     this.requestBodiesByRoute.set(routeKey, bodies);
+  }
+
+  private async waitForDeferredRunResponse(): Promise<void> {
+    const deferredRunResponsePromise = this.deferredRunResponsePromise;
+    if (!deferredRunResponsePromise) {
+      return;
+    }
+    await deferredRunResponsePromise;
   }
 }

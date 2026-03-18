@@ -1,18 +1,29 @@
-import type { ExecutableTriggerNode, Items, NodeExecutionContext, NodeOutputs, TriggerSetupContext } from "@codemation/core";
+import type {
+  Items,
+  NodeExecutionContext,
+  NodeOutputs,
+  TestableTriggerNode,
+  TriggerSetupContext,
+  TriggerTestItemsContext,
+} from "@codemation/core";
 import { inject, node } from "@codemation/core";
 import type { GmailLogger } from "../contracts/GmailLogger";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import { GmailPullTriggerRuntime } from "../runtime/GmailPullTriggerRuntime";
-import { OnNewGmailTrigger } from "./OnNewGmailTrigger";
+import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
+import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
+import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "./OnNewGmailTrigger";
 
 @node({ packageName: "@codemation/core-nodes-gmail" })
-export class OnNewGmailTriggerNode implements ExecutableTriggerNode<OnNewGmailTrigger> {
+export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrigger> {
   readonly kind = "trigger" as const;
   readonly outputPorts = ["main"] as const;
 
   constructor(
     @inject(GmailPullTriggerRuntime) private readonly gmailPullTriggerRuntime: GmailPullTriggerRuntime,
+    @inject(GmailTriggerAttachmentService) private readonly gmailTriggerAttachmentService: GmailTriggerAttachmentService,
+    @inject(GmailTriggerTestItemService) private readonly gmailTriggerTestItemService: GmailTriggerTestItemService,
     @inject(GmailNodeTokens.TriggerLogger) private readonly logger: GmailLogger,
   ) {}
 
@@ -36,7 +47,21 @@ export class OnNewGmailTriggerNode implements ExecutableTriggerNode<OnNewGmailTr
     return setupState;
   }
 
-  async execute(items: Items, _ctx: NodeExecutionContext<OnNewGmailTrigger>): Promise<NodeOutputs> {
+  async getTestItems(
+    ctx: TriggerTestItemsContext<OnNewGmailTrigger, GmailTriggerSetupState | undefined>,
+  ): Promise<Items> {
+    const items = await this.gmailTriggerTestItemService.createItems({
+      trigger: ctx.trigger,
+      config: ctx.config,
+      previousState: ctx.previousState,
+    });
+    this.logger.info(
+      `created ${items.length} Gmail test item(s) for trigger ${ctx.workflowId}.${ctx.nodeId}`,
+    );
+    return items;
+  }
+
+  async execute(items: Items<OnNewGmailTriggerItemJson>, _ctx: NodeExecutionContext<OnNewGmailTrigger>): Promise<NodeOutputs> {
     if (items.length === 0) {
       this.logger.warn(
         `manual execution attempted for trigger ${_ctx.workflowId}.${_ctx.nodeId} without Gmail items`,
@@ -45,8 +70,9 @@ export class OnNewGmailTriggerNode implements ExecutableTriggerNode<OnNewGmailTr
         `Gmail trigger "${_ctx.config.name}" cannot be run manually without a pulled Gmail event. Check the boot logs for setup errors, credential problems, or missing Gmail configuration.`,
       );
     }
+    const outputItems = await this.gmailTriggerAttachmentService.attachForItems(items, _ctx);
     return {
-      main: items,
+      main: outputItems,
     };
   }
 }
