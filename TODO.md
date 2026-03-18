@@ -16,3 +16,5 @@
 * [ ] Fix icon resolver, currently its using hardcoded map/if
 * [ ] Fix datetime formatting, use battle tested library instead
 * [ ] Allow binary uploads to webhook nodes
+* [ ] (LLM) Observability
+* [ ] 

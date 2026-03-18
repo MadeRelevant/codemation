@@ -7,7 +7,7 @@ import type {
   RunStopCondition,
   WorkflowDefinition,
 } from "@codemation/core";
-import { Engine, RunIntentService, inject } from "@codemation/core";
+import { Engine, ItemsInputNormalizer, RunIntentService, inject } from "@codemation/core";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import type { WorkflowDebuggerOverlayRepository } from "../../domain/workflows/WorkflowDebuggerOverlayRepository";
@@ -24,6 +24,8 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
   constructor(
     @inject(Engine)
     private readonly engine: Engine,
+    @inject(ItemsInputNormalizer)
+    private readonly itemsInputNormalizer: ItemsInputNormalizer,
     @inject(RunIntentService)
     private readonly runIntentService: RunIntentService,
     @inject(ApplicationTokens.WorkflowDefinitionRepository)
@@ -58,7 +60,8 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
         : undefined;
     const legacyStartNodeId = body.startAt as NodeId | undefined;
     const clearFromNodeId = body.clearFromNodeId as NodeId | undefined;
-    const items = this.resolveRunRequestItems(workflow, legacyStartNodeId, body.items);
+    const requestedItems = body.items == null ? undefined : this.itemsInputNormalizer.normalize(body.items);
+    const items = this.resolveRunRequestItems(workflow, legacyStartNodeId, requestedItems);
     const currentState = this.createCurrentState({
       workflowId: body.workflowId,
       requestedCurrentState: body.currentState,
@@ -71,7 +74,7 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
             workflow,
             nodeId: legacyStartNodeId,
             currentState,
-            items: body.items,
+            items: requestedItems,
             executionOptions,
             workflowSnapshot: sourceState?.workflowSnapshot,
             mutableState: this.cloneMutableState(currentState.mutableState),

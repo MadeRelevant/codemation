@@ -28,9 +28,15 @@ describe("WorkflowDetailPresenter", () => {
 
   it("serializes editable items from objects and arrays", () => {
     expect(WorkflowDetailPresenter.parseEditableItems(JSON.stringify({ changed: true }))).toEqual([{ json: { changed: true } }]);
+    expect(WorkflowDetailPresenter.parseEditableItems(JSON.stringify({ json: { alreadyWrappedSingle: true } }))).toEqual([
+      { json: { alreadyWrappedSingle: true } },
+    ]);
     expect(WorkflowDetailPresenter.parseEditableItems(JSON.stringify([{ first: true }, { second: true }]))).toEqual([
       { json: { first: true } },
       { json: { second: true } },
+    ]);
+    expect(WorkflowDetailPresenter.parseEditableItems(JSON.stringify([{ json: { alreadyWrapped: true } }]))).toEqual([
+      { json: { alreadyWrapped: true } },
     ]);
   });
 

@@ -26,11 +26,9 @@ export default createWorkflowBuilder({ id: "wf.example", name: "Example workflow
 .trigger(
   new ManualTrigger<ExampleSeedJson>("Manual trigger", [
     {
-      json: {
-        subject: "RFQ: 1000 widgets",
-        from: "buyer@acme.com",
-        body: "please quote 1000 widgets",
-      },
+      subject: "RFQ: 1000 widgets",
+      from: "buyer@acme.com",
+      body: "please quote 1000 widgets",
     },
   ]),
 )

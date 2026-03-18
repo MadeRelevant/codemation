@@ -1,4 +1,4 @@
-import { AgentAttachmentNodeIdFactory } from "@codemation/core/browser";
+import { AgentAttachmentNodeIdFactory, ItemsInputNormalizer } from "@codemation/core/browser";
 import { format, isToday, isYesterday } from "date-fns";
 import prettyMilliseconds from "pretty-ms";
 import type {
@@ -48,6 +48,7 @@ type InspectableExecutionState = Readonly<{
 
 export class WorkflowDetailPresenter {
   private static readonly persistedWorkflowDtoMapper = new PersistedWorkflowSnapshotMapper();
+  private static readonly itemsInputNormalizer = new ItemsInputNormalizer();
   private static readonly visibleExecutionStatuses = new Set<NodeExecutionSnapshot["status"]>([
     "queued",
     "running",
@@ -344,10 +345,7 @@ export class WorkflowDetailPresenter {
 
   static parseEditableItems(text: string): Items {
     const parsed = JSON.parse(text) as unknown;
-    if (Array.isArray(parsed)) {
-      return parsed.map((value) => ({ json: value }));
-    }
-    return [{ json: parsed }];
+    return this.itemsInputNormalizer.normalize(parsed);
   }
 
   static parseWorkflowSnapshot(text: string): PersistedWorkflowSnapshot {

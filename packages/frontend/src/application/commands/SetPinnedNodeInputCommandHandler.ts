@@ -2,7 +2,7 @@ import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { ApplicationTokens } from "../../applicationTokens";
 import { CommandHandler } from "../bus/CommandHandler";
-import { inject, type PersistedRunState } from "@codemation/core";
+import { ItemsInputNormalizer, inject, type PersistedRunState } from "@codemation/core";
 import { ApplicationRequestError } from "../ApplicationRequestError";
 import { SetPinnedNodeInputCommand } from "./SetPinnedNodeInputCommand";
 
@@ -11,6 +11,8 @@ export class SetPinnedNodeInputCommandHandler extends CommandHandler<SetPinnedNo
   constructor(
     @inject(ApplicationTokens.WorkflowRunRepository)
     private readonly workflowRunRepository: WorkflowRunRepository,
+    @inject(ItemsInputNormalizer)
+    private readonly itemsInputNormalizer: ItemsInputNormalizer,
   ) {
     super();
   }
@@ -24,11 +26,12 @@ export class SetPinnedNodeInputCommandHandler extends CommandHandler<SetPinnedNo
       throw new ApplicationRequestError(403, `Run ${state.runId} is immutable`);
     }
     const decodedNodeId = decodeURIComponent(command.nodeId);
+    const pinnedItems = command.body.items == null ? undefined : this.itemsInputNormalizer.normalize(command.body.items);
     const nextNodesById = {
       ...(state.mutableState?.nodesById ?? {}),
       [decodedNodeId]: {
         ...(state.mutableState?.nodesById?.[decodedNodeId] ?? {}),
-        pinnedOutputsByPort: command.body.items ? { main: command.body.items } : undefined,
+        pinnedOutputsByPort: pinnedItems ? { main: pinnedItems } : undefined,
       },
     };
     await this.workflowRunRepository.save({

@@ -3,3 +3,4 @@ export * from "./contracts/webhookTypes";
 export * from "./contracts/runTypes";
 export * from "./contracts/runtimeTypes";
 export { AgentAttachmentNodeIdFactory } from "./ai";
+export { ItemsInputNormalizer } from "./ItemsInputNormalizer";

@@ -254,6 +254,30 @@ describe("workflow runs http integration", () => {
     );
   });
 
+  it("accepts a single json object as run items", async () => {
+    const harness = await context.start();
+
+    const createRunResponse = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowRunsIntegrationFixture.workflowId,
+        items: {
+          orderId: "ord_1",
+        },
+      } as object,
+    });
+    const completedState = await WorkflowRunsIntegrationFixture.waitForRunToComplete(harness, createRunResponse.runId);
+
+    expect(completedState.outputsByNode[WorkflowRunsIntegrationFixture.mapNodeId]?.main).toEqual([
+      {
+        json: {
+          orderId: "ord_1",
+        },
+      },
+    ]);
+  });
+
   it("persists workflow debugger overlay updates and copy-to-debugger through the http api", async () => {
     const harness = await context.start();
 

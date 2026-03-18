@@ -41,6 +41,23 @@ test("manual trigger falls back to configured default items when invoked without
   assert.deepEqual(outputs.main?.map((item) => item.json), [{ seeded: true }]);
 });
 
+test("manual trigger normalizes a single json object as default input", async () => {
+  const node = new ManualTriggerNode();
+  const outputs = await node.execute([], ManualTriggerExecutionContextFactory.create(new ManualTrigger("Manual trigger", { seeded: true })));
+
+  assert.deepEqual(outputs.main?.map((item) => item.json), [{ seeded: true }]);
+});
+
+test("manual trigger normalizes an array of json objects as default input", async () => {
+  const node = new ManualTriggerNode();
+  const outputs = await node.execute(
+    [],
+    ManualTriggerExecutionContextFactory.create(new ManualTrigger("Manual trigger", [{ seeded: 1 }, { seeded: 2 }])),
+  );
+
+  assert.deepEqual(outputs.main?.map((item) => item.json), [{ seeded: 1 }, { seeded: 2 }]);
+});
+
 test("manual trigger prefers provided execution items over configured defaults", async () => {
   const node = new ManualTriggerNode();
   const outputs = await node.execute(

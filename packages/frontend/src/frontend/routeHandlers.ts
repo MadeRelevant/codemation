@@ -1,4 +1,5 @@
 import type { Items, NodeId, ParentExecutionRef, PersistedRunState, RunListingStore } from "@codemation/core";
+import { ItemsInputNormalizer } from "@codemation/core";
 import type { CodemationBootstrapResult } from "../bootstrapDiscovery";
 import { codemationNextRuntimeRegistry } from "../runtime/codemationNextRuntimeRegistry";
 import { CodemationWorkflowDtoMapper } from "../host/codemationWorkflowDtoMapper";
@@ -83,7 +84,8 @@ export async function postRunRoute(req: Request, args?: RouteConfigOverride): Pr
 
   const startAt = body.startAt ?? workflow.nodes.find((node) => node.kind === "trigger")?.id ?? workflow.nodes[0]!.id;
   const startNode = workflow.nodes.find((node) => node.id === startAt);
-  const items = body.items ?? (startNode?.kind === "trigger" ? [] : [{ json: {} }]);
+  const requestedItems = body.items == null ? undefined : new ItemsInputNormalizer().normalize(body.items);
+  const items = requestedItems ?? (startNode?.kind === "trigger" ? [] : [{ json: {} }]);
   const result = await runtime.getEngine().runWorkflow(
     workflow,
     startAt as NodeId,

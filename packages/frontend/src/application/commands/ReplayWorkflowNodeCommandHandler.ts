@@ -1,10 +1,11 @@
 import type {
+  Items,
   PersistedMutableRunState,
   PersistedRunState,
   RunCurrentState,
   WorkflowDefinition,
 } from "@codemation/core";
-import { Engine, RunIntentService, inject } from "@codemation/core";
+import { Engine, ItemsInputNormalizer, RunIntentService, inject } from "@codemation/core";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
@@ -18,6 +19,8 @@ export class ReplayWorkflowNodeCommandHandler extends CommandHandler<ReplayWorkf
   constructor(
     @inject(Engine)
     private readonly engine: Engine,
+    @inject(ItemsInputNormalizer)
+    private readonly itemsInputNormalizer: ItemsInputNormalizer,
     @inject(RunIntentService)
     private readonly runIntentService: RunIntentService,
     @inject(ApplicationTokens.WorkflowRunRepository)
@@ -38,15 +41,16 @@ export class ReplayWorkflowNodeCommandHandler extends CommandHandler<ReplayWorkf
     }
     const decodedNodeId = decodeURIComponent(command.nodeId);
     const mode = command.body.mode ?? state.executionOptions?.mode ?? "manual";
+    const requestedItems = this.resolveRequestedItems(command.body.items);
     const mutableStateBase = this.cloneMutableState(state.mutableState) ?? { nodesById: {} };
     const mutableState =
-      command.body.items
+      requestedItems
         ? ({
             nodesById: {
               ...mutableStateBase.nodesById,
               [decodedNodeId]: {
                 ...(mutableStateBase.nodesById[decodedNodeId] ?? {}),
-                lastDebugInput: command.body.items,
+                lastDebugInput: requestedItems,
               },
             },
           } satisfies PersistedMutableRunState)
@@ -62,7 +66,7 @@ export class ReplayWorkflowNodeCommandHandler extends CommandHandler<ReplayWorkf
       workflow,
       nodeId: decodedNodeId,
       currentState: this.cloneRunCurrentState(state, mutableState),
-      items: command.body.items,
+      items: requestedItems,
       executionOptions,
       workflowSnapshot: this.cloneWorkflowSnapshot(state.workflowSnapshot),
       mutableState,
@@ -113,5 +117,12 @@ export class ReplayWorkflowNodeCommandHandler extends CommandHandler<ReplayWorkf
       nodeSnapshotsByNodeId: JSON.parse(JSON.stringify(state.nodeSnapshotsByNodeId)) as RunCurrentState["nodeSnapshotsByNodeId"],
       mutableState,
     };
+  }
+
+  private resolveRequestedItems(items: Items | undefined | null): Items | undefined {
+    if (items == null) {
+      return undefined;
+    }
+    return this.itemsInputNormalizer.normalize(items);
   }
 }
