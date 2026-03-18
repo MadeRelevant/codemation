@@ -344,7 +344,7 @@ export function WorkflowInspectorJsonView(args: Readonly<{ value: unknown; empty
               enableClipboard
               displayDataTypes={false}
               displayObjectSize
-              shortenTextAfterLength={80}
+              shortenTextAfterLength={0}
               style={{
                 ...githubLightTheme,
                 backgroundColor: "transparent",
