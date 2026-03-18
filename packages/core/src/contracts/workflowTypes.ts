@@ -7,6 +7,12 @@ export type InputPortKey = string;
 export type PersistedTokenId = string;
 
 export type NodeKind = "trigger" | "node";
+export type JsonPrimitive = string | number | boolean | null;
+export interface JsonObject {
+  readonly [key: string]: JsonValue;
+}
+export interface JsonArray extends ReadonlyArray<JsonValue> {}
+export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
 
 export interface Edge {
   from: { nodeId: NodeId; output: OutputPortKey };
@@ -47,9 +53,12 @@ export interface RunnableNodeConfig<TInputJson = unknown, TOutputJson = unknown>
   readonly [runnableNodeOutputType]?: TOutputJson;
 }
 
-export interface TriggerNodeConfig<TOutputJson = unknown> extends NodeConfigBase {
+export declare const triggerNodeSetupStateType: unique symbol;
+
+export interface TriggerNodeConfig<TOutputJson = unknown, TSetupState extends JsonValue | undefined = undefined> extends NodeConfigBase {
   readonly kind: "trigger";
   readonly [triggerNodeOutputType]?: TOutputJson;
+  readonly [triggerNodeSetupStateType]?: TSetupState;
 }
 
 export type RunnableNodeInputJson<TConfig extends RunnableNodeConfig<any, any>> =
@@ -58,8 +67,11 @@ export type RunnableNodeInputJson<TConfig extends RunnableNodeConfig<any, any>> 
 export type RunnableNodeOutputJson<TConfig extends RunnableNodeConfig<any, any>> =
   TConfig extends RunnableNodeConfig<any, infer TOutputJson> ? TOutputJson : never;
 
-export type TriggerNodeOutputJson<TConfig extends TriggerNodeConfig<any>> =
-  TConfig extends TriggerNodeConfig<infer TOutputJson> ? TOutputJson : never;
+export type TriggerNodeOutputJson<TConfig extends TriggerNodeConfig<any, any>> =
+  TConfig extends TriggerNodeConfig<infer TOutputJson, any> ? TOutputJson : never;
+
+export type TriggerNodeSetupState<TConfig extends TriggerNodeConfig<any, any>> =
+  TConfig extends TriggerNodeConfig<any, infer TSetupState> ? TSetupState : never;
 
 export interface NodeDefinition {
   id: NodeId;

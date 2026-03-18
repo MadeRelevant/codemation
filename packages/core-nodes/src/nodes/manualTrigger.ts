@@ -46,7 +46,9 @@ export class ManualTrigger<TOutputJson = unknown> implements TriggerNodeConfig<T
 export class ManualTriggerNode implements TriggerNode<ManualTrigger<any>> {
   kind = "trigger" as const;
   outputPorts = ["main"] as const;
-  async setup(_ctx: TriggerSetupContext<ManualTrigger<any>>): Promise<void> {}
+  async setup(_ctx: TriggerSetupContext<ManualTrigger<any>>): Promise<undefined> {
+    return undefined;
+  }
 
   async execute(items: Items, ctx: NodeExecutionContext<ManualTrigger<any>>): Promise<NodeOutputs> {
     return { main: items.length > 0 ? items : (ctx.config.defaultItems ?? []) };

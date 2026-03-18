@@ -5,7 +5,9 @@ export class MissingRuntimeTrigger implements ExecutableTriggerNode<MissingRunti
   readonly kind = "trigger" as const;
   readonly outputPorts = ["main"] as const;
 
-  async setup(_ctx: TriggerSetupContext<MissingRuntimeTriggerConfig>): Promise<void> {}
+  async setup(_ctx: TriggerSetupContext<MissingRuntimeTriggerConfig>): Promise<undefined> {
+    return undefined;
+  }
 
   async execute(items: Items): Promise<NodeOutputs> {
     return { main: items };

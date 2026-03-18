@@ -1,0 +1,3 @@
+-- Superseded by 20260317153000_trigger_setup_state.
+-- This migration folder is kept intentionally as a no-op so Prisma migrate
+-- deploy can traverse the historical migration chain without failing.

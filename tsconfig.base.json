@@ -8,6 +8,7 @@
     "paths": {
       "@codemation/core": ["packages/core/src/index.ts"],
       "@codemation/core-nodes": ["packages/core-nodes/src/index.ts"],
+      "@codemation/core-nodes-gmail": ["packages/core-nodes-gmail/src/index.ts"],
       "@codemation/eventbus-redis": ["packages/eventbus-redis/src/index.ts"],
       "@codemation/frontend": ["packages/frontend/src/index.ts"],
       "@codemation/frontend/client": ["packages/frontend/src/client.ts"],

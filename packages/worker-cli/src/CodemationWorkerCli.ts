@@ -21,6 +21,12 @@ export class CodemationWorkerCli {
     const effectiveEnv = this.createStringEnvironment();
     const application = new CodemationApplication();
     application.useConfig(configResolution.config);
+    await application.applyPlugins({
+      consumerRoot: paths.consumerRoot,
+      repoRoot: paths.repoRoot,
+      env: effectiveEnv,
+      workflowSources: configResolution.workflowSources,
+    });
     await application.applyBootHook({
       bootHookToken: configResolution.config.bootHook,
       consumerRoot: paths.consumerRoot,

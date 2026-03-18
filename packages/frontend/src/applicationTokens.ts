@@ -15,6 +15,7 @@ import type { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDe
 import type { WebhookEndpointRepository } from "./domain/webhooks/WebhookEndpointRepository";
 import type { HttpRouteHandler } from "./presentation/http/HttpRouteHandler";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
+import type { LoggerFactory } from "./application/logging/Logger";
 
 export const ApplicationTokens = {
   WebSocketPort: Symbol.for("codemation.application.WebSocketPort") as TypeToken<number>,
@@ -32,4 +33,5 @@ export const ApplicationTokens = {
   WorkflowDebuggerOverlayRepository: Symbol.for("codemation.application.WorkflowDebuggerOverlayRepository") as TypeToken<WorkflowDebuggerOverlayRepository>,
   WorkflowRunRepository: Symbol.for("codemation.application.WorkflowRunRepository") as TypeToken<WorkflowRunRepository>,
   WebhookEndpointRepository: Symbol.for("codemation.application.WebhookEndpointRepository") as TypeToken<WebhookEndpointRepository>,
+  LoggerFactory: Symbol.for("codemation.application.LoggerFactory") as TypeToken<LoggerFactory>,
 } as const;

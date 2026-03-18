@@ -1,0 +1,52 @@
+import type { ExecutableTriggerNode, Items, NodeExecutionContext, NodeOutputs, TriggerSetupContext } from "@codemation/core";
+import { inject, node } from "@codemation/core";
+import type { GmailLogger } from "../contracts/GmailLogger";
+import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
+import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
+import { GmailPullTriggerRuntime } from "../runtime/GmailPullTriggerRuntime";
+import { OnNewGmailTrigger } from "./OnNewGmailTrigger";
+
+@node({ packageName: "@codemation/core-nodes-gmail" })
+export class OnNewGmailTriggerNode implements ExecutableTriggerNode<OnNewGmailTrigger> {
+  readonly kind = "trigger" as const;
+  readonly outputPorts = ["main"] as const;
+
+  constructor(
+    @inject(GmailPullTriggerRuntime) private readonly gmailPullTriggerRuntime: GmailPullTriggerRuntime,
+    @inject(GmailNodeTokens.TriggerLogger) private readonly logger: GmailLogger,
+  ) {}
+
+  async setup(
+    ctx: TriggerSetupContext<OnNewGmailTrigger, GmailTriggerSetupState | undefined>,
+  ): Promise<GmailTriggerSetupState | undefined> {
+    this.logger.info(
+      `setup starting for trigger ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} on mailbox "${ctx.config.cfg.mailbox || "<unset>"}"`,
+    );
+    const setupState = await this.gmailPullTriggerRuntime.ensureStarted({
+      trigger: ctx.trigger,
+      config: ctx.config,
+      previousState: ctx.previousState,
+      emit: async (items) => {
+        await ctx.emit(items);
+      },
+    });
+    this.logger.info(
+      `setup finished for trigger ${ctx.trigger.workflowId}.${ctx.trigger.nodeId}${setupState ? ` with history ${setupState.historyId}` : " without active runtime state"}`,
+    );
+    return setupState;
+  }
+
+  async execute(items: Items, _ctx: NodeExecutionContext<OnNewGmailTrigger>): Promise<NodeOutputs> {
+    if (items.length === 0) {
+      this.logger.warn(
+        `manual execution attempted for trigger ${_ctx.workflowId}.${_ctx.nodeId} without Gmail items`,
+      );
+      throw new Error(
+        `Gmail trigger "${_ctx.config.name}" cannot be run manually without a pulled Gmail event. Check the boot logs for setup errors, credential problems, or missing Gmail configuration.`,
+      );
+    }
+    return {
+      main: items,
+    };
+  }
+}

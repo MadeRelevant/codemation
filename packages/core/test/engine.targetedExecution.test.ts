@@ -45,7 +45,9 @@ class TargetedManualTriggerNode implements TriggerNode<TargetedManualTriggerConf
   readonly kind = "trigger" as const;
   readonly outputPorts = ["main"] as const;
 
-  async setup(_ctx: TriggerSetupContext<TargetedManualTriggerConfig<any>>): Promise<void> {}
+  async setup(_ctx: TriggerSetupContext<TargetedManualTriggerConfig<any>>): Promise<undefined> {
+    return undefined;
+  }
 
   async execute(items: Items, _ctx: NodeExecutionContext<TargetedManualTriggerConfig<any>>): Promise<NodeOutputs> {
     return { main: items };

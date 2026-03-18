@@ -24,3 +24,12 @@ model WorkflowDebuggerOverlay {
   copiedFromRunId  String? @map("copied_from_run_id")
   stateJson        String  @map("state_json")
 }
+
+model TriggerSetupState {
+  workflowId       String  @map("workflow_id")
+  nodeId           String  @map("node_id")
+  updatedAt        String  @map("updated_at")
+  stateJson        String  @map("state_json")
+
+  @@id([workflowId, nodeId])
+}

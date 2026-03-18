@@ -11,6 +11,8 @@ import type {
   RunIdFactory,
   RunResult,
   RunStateStore,
+  TriggerSetupStateStore,
+  PersistedTriggerSetupState,
   WebhookRegistrar,
   WorkflowDefinition,
   WorkflowRunnerService,
@@ -94,6 +96,26 @@ class CapturingNodeActivationObserver implements NodeActivationObserver {
   }
 }
 
+class InMemoryTriggerSetupStateStore implements TriggerSetupStateStore {
+  private readonly statesByKey = new Map<string, PersistedTriggerSetupState>();
+
+  async load(trigger: { workflowId: string; nodeId: string }): Promise<PersistedTriggerSetupState | undefined> {
+    return this.statesByKey.get(this.toKey(trigger));
+  }
+
+  async save(state: PersistedTriggerSetupState): Promise<void> {
+    this.statesByKey.set(this.toKey(state.trigger), state);
+  }
+
+  async delete(trigger: { workflowId: string; nodeId: string }): Promise<void> {
+    this.statesByKey.delete(this.toKey(trigger));
+  }
+
+  private toKey(trigger: { workflowId: string; nodeId: string }): string {
+    return `${trigger.workflowId}:${trigger.nodeId}`;
+  }
+}
+
 function makeCounter(prefix: string): () => string {
   let i = 0;
   return () => `${prefix}${++i}`;
@@ -113,6 +135,7 @@ export type EngineTestKitOptions = Partial<{
   runDataFactory: RunDataFactory;
   executionContextFactory: ExecutionContextFactory;
   eventBus: RunEventBus;
+  triggerSetupStateStore: TriggerSetupStateStore;
   webhookBasePath: string;
   makeRunId: () => string;
   makeActivationId: () => string;
@@ -128,6 +151,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   const makeActivationId = options.makeActivationId ?? makeCounter("act_");
   const credentials = options.credentials ?? new InMemoryCredentialService();
   const eventBus = options.eventBus ?? new InMemoryRunEventBus();
+  const triggerSetupStateStore = options.triggerSetupStateStore ?? new InMemoryTriggerSetupStateStore();
   const workflowRegistry = new InMemoryWorkflowRegistry();
   const runDataFactory = options.runDataFactory ?? new InMemoryRunDataFactory();
   const executionContextFactory = options.executionContextFactory ?? new DefaultExecutionContextFactory();
@@ -150,6 +174,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   dependencyContainer.registerInstance(CoreTokens.ActivationIdFactory, new CounterFactory(makeRunId, makeActivationId));
   dependencyContainer.registerInstance(CoreTokens.WebhookBasePath, options.webhookBasePath ?? "/webhooks");
   dependencyContainer.registerInstance(CoreTokens.RunStateStore, runStore);
+  dependencyContainer.registerInstance(CoreTokens.TriggerSetupStateStore, triggerSetupStateStore);
   dependencyContainer.registerInstance(CoreTokens.NodeActivationScheduler, activationScheduler);
   dependencyContainer.registerInstance(CoreTokens.RunDataFactory, runDataFactory);
   dependencyContainer.registerInstance(CoreTokens.ExecutionContextFactory, executionContextFactory);
@@ -169,6 +194,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
     activationIdFactory: new CounterFactory(makeRunId, makeActivationId),
     webhookBasePath: options.webhookBasePath ?? "/webhooks",
     runStore,
+    triggerSetupStateStore,
     activationScheduler,
     runDataFactory,
     executionContextFactory,
@@ -202,6 +228,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   return {
     engine,
     runStore,
+    triggerSetupStateStore,
     scheduler: scheduler as CapturingScheduler | NodeExecutionScheduler,
     offloadPolicy,
     activations,

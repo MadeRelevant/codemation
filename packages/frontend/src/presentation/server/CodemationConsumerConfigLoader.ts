@@ -86,6 +86,7 @@ export class CodemationConsumerConfigLoader {
       "workflows" in value ||
       "workflowDiscovery" in value ||
       "bindings" in value ||
+      "plugins" in value ||
       "bootHook" in value ||
       "slots" in value
     );

@@ -7,12 +7,13 @@ export class WebhookTriggerNode implements ExecutableTriggerNode<WebhookTrigger<
   readonly kind = "trigger" as const;
   readonly outputPorts = ["main"] as const;
 
-  async setup(ctx: TriggerSetupContext<WebhookTrigger<any>>): Promise<void> {
+  async setup(ctx: TriggerSetupContext<WebhookTrigger<any>>): Promise<undefined> {
     ctx.registerWebhook({
       endpointKey: ctx.config.endpointKey,
       methods: ctx.config.methods,
       parseJsonBody: ctx.config.inputSchema ? (body) => ctx.config.parseJsonBody(body) : undefined,
     });
+    return undefined;
   }
 
   async execute(items: Items, _ctx: NodeExecutionContext<WebhookTrigger<any>>): Promise<NodeOutputs> {

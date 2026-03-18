@@ -6,6 +6,7 @@ import type {
   BinaryAttachment,
   CredentialService,
   Item,
+  JsonValue,
   Items,
   NodeActivationId,
   NodeConfigBase,
@@ -17,6 +18,8 @@ import type {
   RunDataFactory,
   RunId,
   RunIdFactory,
+  TriggerNodeConfig,
+  TriggerNodeSetupState,
   WorkflowDefinition,
   WorkflowId,
 } from "./workflowTypes";
@@ -152,11 +155,33 @@ export interface NodeExecutionContext<TConfig extends NodeConfigBase = NodeConfi
   binary: NodeBinaryAttachmentService;
 }
 
-export interface TriggerSetupContext<TConfig extends NodeConfigBase = NodeConfigBase> extends ExecutionContext {
+export interface TriggerSetupContext<
+  TConfig extends TriggerNodeConfig<any, any> = TriggerNodeConfig<any, any>,
+  TSetupState extends JsonValue | undefined = TriggerNodeSetupState<TConfig>,
+> extends ExecutionContext {
   trigger: TriggerInstanceId;
   config: TConfig;
+  previousState: TSetupState;
   registerWebhook(spec: WebhookSpec): WebhookRegistration;
   emit(items: Items): Promise<void>;
+}
+
+/**
+ * Trigger setup state is intentionally engine-owned so future ownership and
+ * leader-election metadata can be coordinated centrally rather than pushed into
+ * package-level setup code.
+ */
+
+export interface PersistedTriggerSetupState<TState extends JsonValue | undefined = JsonValue | undefined> {
+  trigger: TriggerInstanceId;
+  updatedAt: string;
+  state: TState;
+}
+
+export interface TriggerSetupStateStore {
+  load(trigger: TriggerInstanceId): Promise<PersistedTriggerSetupState | undefined>;
+  save(state: PersistedTriggerSetupState): Promise<void>;
+  delete(trigger: TriggerInstanceId): Promise<void>;
 }
 
 export interface NodeActivationStats {
@@ -192,14 +217,17 @@ export interface MultiInputNode<TConfig extends NodeConfigBase = NodeConfigBase>
   executeMulti(inputsByPort: NodeInputsByPort, ctx: NodeExecutionContext<TConfig>): Promise<NodeOutputs>;
 }
 
-export interface TriggerNode<TConfig extends NodeConfigBase = NodeConfigBase> {
+export type TriggerSetupStateFor<TConfig extends TriggerNodeConfig<any, any>> = TriggerNodeSetupState<TConfig>;
+
+export interface TriggerNode<TConfig extends TriggerNodeConfig<any, any> = TriggerNodeConfig<any, any>> {
   kind: "trigger";
   outputPorts: readonly ["main"];
-  setup(ctx: TriggerSetupContext<TConfig>): Promise<void>;
+  setup(ctx: TriggerSetupContext<TConfig>): Promise<TriggerSetupStateFor<TConfig>>;
   execute(items: Items, ctx: NodeExecutionContext<TConfig>): Promise<NodeOutputs>;
 }
 
-export interface ExecutableTriggerNode<TConfig extends NodeConfigBase = NodeConfigBase> extends TriggerNode<TConfig> {}
+export interface ExecutableTriggerNode<TConfig extends TriggerNodeConfig<any, any> = TriggerNodeConfig<any, any>>
+  extends TriggerNode<TConfig> {}
 
 export interface NodeExecutionRequest {
   runId: RunId;
@@ -270,6 +298,7 @@ export interface EngineDeps {
   workflowRegistry: WorkflowRegistry;
   nodeResolver: NodeResolver;
   webhookRegistrar: WebhookRegistrar;
+  triggerSetupStateStore: TriggerSetupStateStore;
   webhookTriggerMatcher?: WebhookTriggerMatcher;
   nodeActivationObserver: NodeActivationObserver;
   runIdFactory: RunIdFactory;

@@ -2,7 +2,20 @@ import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import net from "node:net";
 
-import type { Items, Node, NodeActivationObserver, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken, WebhookRegistrar, WorkflowDefinition, WorkflowId } from "@codemation/core";
+import type {
+  Items,
+  Node,
+  NodeActivationObserver,
+  NodeExecutionContext,
+  NodeOutputs,
+  PersistedTriggerSetupState,
+  RunnableNodeConfig,
+  TriggerSetupStateStore,
+  TypeToken,
+  WebhookRegistrar,
+  WorkflowDefinition,
+  WorkflowId,
+} from "@codemation/core";
 import {
   container as tsyringeContainer,
   ConfigDrivenOffloadPolicy,
@@ -70,6 +83,22 @@ class NoopNodeActivationObserver implements NodeActivationObserver {
   onNodeActivation(): void {}
 }
 
+class InMemoryTriggerSetupStateStore implements TriggerSetupStateStore {
+  private readonly statesByKey = new Map<string, PersistedTriggerSetupState>();
+
+  async load(trigger: { workflowId: string; nodeId: string }): Promise<PersistedTriggerSetupState | undefined> {
+    return this.statesByKey.get(`${trigger.workflowId}:${trigger.nodeId}`);
+  }
+
+  async save(state: PersistedTriggerSetupState): Promise<void> {
+    this.statesByKey.set(`${state.trigger.workflowId}:${state.trigger.nodeId}`, state);
+  }
+
+  async delete(trigger: { workflowId: string; nodeId: string }): Promise<void> {
+    this.statesByKey.delete(`${trigger.workflowId}:${trigger.nodeId}`);
+  }
+}
+
 test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   const queuePrefix = "codemation";
   const startedRedisContainer = process.env.REDIS_URL ? undefined : await maybeStartRedisContainer(t);
@@ -106,6 +135,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   const runStore = new InMemoryRunStateStore();
   const scheduler = new BullmqScheduler({ url: redisUrl }, queuePrefix);
   const workflowRegistry = new InMemoryWorkflowRegistry();
+  const triggerSetupStateStore = new InMemoryTriggerSetupStateStore();
   workflowRegistry.setWorkflows([wf]);
   const nodeResolver = new ContainerNodeResolver(container);
   const workflowRunnerResolver = new ContainerWorkflowRunnerResolver(container);
@@ -120,6 +150,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   container.registerInstance(CoreTokens.ActivationIdFactory, IdFactory);
   container.registerInstance(CoreTokens.WebhookBasePath, "/webhooks");
   container.registerInstance(CoreTokens.RunStateStore, runStore);
+  container.registerInstance(CoreTokens.TriggerSetupStateStore, triggerSetupStateStore);
   container.registerInstance(CoreTokens.NodeActivationScheduler, activationScheduler);
   container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
   container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory());
@@ -137,6 +168,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
     activationIdFactory: IdFactory,
     webhookBasePath: "/webhooks",
     runStore,
+    triggerSetupStateStore,
     activationScheduler,
     runDataFactory: new InMemoryRunDataFactory(),
     executionContextFactory: new DefaultExecutionContextFactory(),

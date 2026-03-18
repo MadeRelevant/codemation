@@ -41,7 +41,9 @@ class ManualTestTriggerNode implements TriggerNode<ManualTestTriggerConfig> {
   readonly kind = "trigger" as const;
   readonly outputPorts = ["main"] as const;
 
-  async setup(_ctx: TriggerSetupContext<ManualTestTriggerConfig>): Promise<void> {}
+  async setup(_ctx: TriggerSetupContext<ManualTestTriggerConfig>): Promise<undefined> {
+    return undefined;
+  }
 
   async execute(items: Items, _ctx: NodeExecutionContext<ManualTestTriggerConfig>): Promise<NodeOutputs> {
     return { main: items };

@@ -2,6 +2,7 @@ import type { Container, CredentialService, TypeToken, WorkflowDefinition } from
 import type { CodemationApplication } from "../../codemationApplication";
 import type { CodemationAppSlots } from "./CodemationAppSlots";
 import type { CodemationBinding } from "./CodemationBinding";
+import type { CodemationPlugin } from "./CodemationPlugin";
 import type { CodemationWorkflowDiscovery } from "./CodemationWorkflowDiscovery";
 
 export type CodemationEventBusKind = "memory" | "redis";
@@ -52,6 +53,7 @@ export interface CodemationConfig {
   readonly workflows?: ReadonlyArray<WorkflowDefinition>;
   readonly workflowDiscovery?: CodemationWorkflowDiscovery;
   readonly bindings?: ReadonlyArray<CodemationBinding<unknown>>;
+  readonly plugins?: ReadonlyArray<CodemationPlugin>;
   readonly bootHook?: TypeToken<CodemationBootHook>;
   readonly slots?: CodemationAppSlots;
 }

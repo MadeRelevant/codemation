@@ -30,6 +30,8 @@ import type {
   RunResult,
   RunStateStore,
   TriggerNode,
+  TriggerNodeConfig,
+  TriggerSetupStateStore,
   WebhookControlSignal,
   WebhookRegistrar,
   WebhookRunResult,
@@ -63,6 +65,7 @@ export class Engine implements NodeActivationContinuation {
   private readonly workflowRegistry: WorkflowRegistry;
   private readonly nodeResolver: NodeResolver;
   private readonly webhookRegistrar: WebhookRegistrar;
+  private readonly triggerSetupStateStore: TriggerSetupStateStore;
   private readonly nodeActivationObserver: NodeActivationObserver;
   private readonly runIdFactory: RunIdFactory;
   private readonly activationIdFactory: ActivationIdFactory;
@@ -85,6 +88,7 @@ export class Engine implements NodeActivationContinuation {
     this.workflowRegistry = deps.workflowRegistry;
     this.nodeResolver = deps.nodeResolver;
     this.webhookRegistrar = deps.webhookRegistrar;
+    this.triggerSetupStateStore = deps.triggerSetupStateStore;
     this.nodeActivationObserver = deps.nodeActivationObserver;
     this.runIdFactory = deps.runIdFactory;
     this.activationIdFactory = deps.activationIdFactory;
@@ -128,7 +132,9 @@ export class Engine implements NodeActivationContinuation {
         const node = this.nodeResolver.resolve(def.type) as TriggerNode;
         const data = this.runDataFactory.create();
         const triggerRunId = this.runIdFactory.makeRunId();
-        await node.setup({
+        const trigger = { workflowId: wf.id, nodeId: def.id } as const;
+        const previousState = await this.triggerSetupStateStore.load(trigger);
+        const nextState = await node.setup({
           ...this.executionContextFactory.create({
             runId: triggerRunId,
             workflowId: wf.id,
@@ -136,8 +142,9 @@ export class Engine implements NodeActivationContinuation {
             data,
             nodeState: this.createNodeStatePublisher(triggerRunId, wf.id, undefined),
           }),
-          trigger: { workflowId: wf.id, nodeId: def.id },
-          config: def.config,
+          trigger,
+          config: def.config as TriggerNodeConfig,
+          previousState: previousState?.state as never,
           registerWebhook: (spec) => {
             const registration = this.webhookRegistrar.registerWebhook({
               workflowId: wf.id,
@@ -160,6 +167,15 @@ export class Engine implements NodeActivationContinuation {
             await this.runWorkflow(wf, def.id, items, undefined);
           },
         });
+        if (nextState === undefined) {
+          await this.triggerSetupStateStore.delete(trigger);
+        } else {
+          await this.triggerSetupStateStore.save({
+            trigger,
+            updatedAt: new Date().toISOString(),
+            state: nextState,
+          });
+        }
       }
     }
   }

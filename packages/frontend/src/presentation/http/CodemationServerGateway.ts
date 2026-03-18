@@ -76,6 +76,12 @@ export class CodemationServerGateway {
     const env = { ...process.env, ...(this.env ?? {}) };
     const application = new CodemationApplication();
     application.useConfig(this.config);
+    await application.applyPlugins({
+      consumerRoot: this.consumerRoot,
+      repoRoot,
+      env,
+      workflowSources: this.resolveWorkflowSources(),
+    });
     await application.applyBootHook({
       bootHookToken: this.config.bootHook,
       consumerRoot: this.consumerRoot,

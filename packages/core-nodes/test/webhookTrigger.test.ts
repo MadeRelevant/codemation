@@ -30,6 +30,7 @@ class WebhookTriggerContextFactory {
       data: new InMemoryRunDataFactory().create(),
       binary,
       trigger: { workflowId: "wf.webhook.setup", nodeId: "trigger" },
+      previousState: undefined,
       config: new WebhookTrigger(
         "Webhook trigger",
         {

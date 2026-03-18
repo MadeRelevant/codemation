@@ -21,12 +21,13 @@ class MatchingWebhookTriggerNode {
   readonly kind = "trigger" as const;
   readonly outputPorts = ["main"] as const;
 
-  async setup(ctx: TriggerSetupContext<MatchingWebhookTriggerConfig>): Promise<void> {
+  async setup(ctx: TriggerSetupContext<MatchingWebhookTriggerConfig>): Promise<undefined> {
     ctx.registerWebhook({
       endpointKey: ctx.config.endpointKey,
       methods: ctx.config.methods,
       parseJsonBody: (body) => body,
     });
+    return undefined;
   }
 
   async execute(items: Items, _ctx: NodeExecutionContext<MatchingWebhookTriggerConfig>): Promise<NodeOutputs> {

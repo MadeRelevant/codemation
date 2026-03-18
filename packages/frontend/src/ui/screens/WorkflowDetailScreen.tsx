@@ -114,7 +114,8 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
               style={{
                 position: "absolute",
                 top: 12,
-                left: 12,
+                left: "50%",
+                transform: "translateX(-50%)",
                 zIndex: 6,
                 display: "flex",
                 alignItems: "center",
@@ -157,26 +158,6 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                   Executions
                 </button>
               </div>
-              {controller.isLiveWorkflowView && !controller.isRunsPaneVisible ? (
-                <button
-                  data-testid="canvas-run-workflow-button"
-                  onClick={controller.runWorkflowFromCanvas}
-                  disabled={controller.isRunning}
-                  style={{
-                    padding: "8px 12px",
-                    border: "1px solid #111827",
-                    background: "#111827",
-                    color: "#fff",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    cursor: controller.isRunning ? "not-allowed" : "pointer",
-                    opacity: controller.isRunning ? 0.8 : 1,
-                    pointerEvents: "auto",
-                  }}
-                >
-                  {controller.isRunning ? "Running..." : "Run workflow"}
-                </button>
-              ) : null}
               {controller.canCopySelectedRunToLive ? (
                 <button
                   data-testid="canvas-copy-to-live-button"
@@ -196,6 +177,36 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                 </button>
               ) : null}
             </div>
+            {controller.isLiveWorkflowView && !controller.isRunsPaneVisible ? (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 12,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  zIndex: 6,
+                  pointerEvents: "auto",
+                }}
+              >
+                <button
+                  data-testid="canvas-run-workflow-button"
+                  onClick={controller.runWorkflowFromCanvas}
+                  disabled={controller.isRunning}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #111827",
+                    background: "#111827",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: controller.isRunning ? "not-allowed" : "pointer",
+                    opacity: controller.isRunning ? 0.8 : 1,
+                  }}
+                >
+                  {controller.isRunning ? "Running..." : "Run workflow"}
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <div style={{ minWidth: 0, minHeight: 0, background: "white", display: "grid", gridTemplateRows: controller.isPanelCollapsed ? "36px" : "36px minmax(0, 1fr)", borderTop: "1px solid #d1d5db" }}>

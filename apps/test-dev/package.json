@@ -17,6 +17,7 @@
   "dependencies": {
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
+    "@codemation/core-nodes-gmail": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",
     "@codemation/frontend": "workspace:*",
     "@codemation/node-example": "workspace:*",

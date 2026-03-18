@@ -35,17 +35,25 @@ export class CodemationFastifyHost {
       configResolution.bootstrapSource ?? undefined,
       configResolution.workflowSources,
     );
-    await gateway.prepare();
     const application = Fastify({
       logger: true,
     });
-    await this.apiRouteRegistrar.register(application, gateway);
-    await this.registerStaticHost(application, consumerRoot);
-    await this.registerPlugins(application);
-    await application.listen({
-      host: this.options.host ?? "127.0.0.1",
-      port: this.options.port ?? Number(process.env.CODEMATION_HTTP_PORT ?? "3000"),
-    });
+    const gatewayPreparation = gateway.prepare();
+    try {
+      await this.apiRouteRegistrar.register(application, gateway);
+      await this.registerStaticHost(application, consumerRoot);
+      await this.registerPlugins(application);
+      await application.listen({
+        host: this.options.host ?? "127.0.0.1",
+        port: this.options.port ?? Number(process.env.CODEMATION_HTTP_PORT ?? "3000"),
+      });
+      await gatewayPreparation;
+    } catch (error) {
+      await this.safelyStopGatewayPreparation(gatewayPreparation);
+      await this.safelyCloseGateway(gateway);
+      await this.safelyCloseApplication(application);
+      throw error;
+    }
   }
 
   private async resolveConsumerRoot(): Promise<string> {
@@ -84,6 +92,30 @@ export class CodemationFastifyHost {
       return;
     }
     await this.options.registerPlugins(application);
+  }
+
+  private async safelyStopGatewayPreparation(gatewayPreparation: Promise<void>): Promise<void> {
+    try {
+      await gatewayPreparation;
+    } catch {
+      return;
+    }
+  }
+
+  private async safelyCloseGateway(gateway: CodemationServerGateway): Promise<void> {
+    try {
+      await gateway.close();
+    } catch {
+      return;
+    }
+  }
+
+  private async safelyCloseApplication(application: FastifyInstance): Promise<void> {
+    try {
+      await application.close();
+    } catch {
+      return;
+    }
   }
 
   private async exists(filePath: string): Promise<boolean> {

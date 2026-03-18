@@ -75,7 +75,9 @@ class WebhookTestTriggerNode implements ExecutableTriggerNode<WebhookTestTrigger
   readonly kind = "trigger" as const;
   readonly outputPorts = ["main"] as const;
 
-  async setup(_ctx: TriggerSetupContext<WebhookTestTriggerConfig>): Promise<void> {}
+  async setup(_ctx: TriggerSetupContext<WebhookTestTriggerConfig>): Promise<undefined> {
+    return undefined;
+  }
 
   async execute(items: Items, ctx: NodeExecutionContext<WebhookTestTriggerConfig>): Promise<NodeOutputs> {
     return await ctx.config.onExecute(items);
