@@ -20,6 +20,7 @@ import { ApplicationRequestError } from "../../application/ApplicationRequestErr
 import type {
   CreateCredentialInstanceRequest,
   CredentialInstanceDto,
+  CredentialInstanceWithSecretsDto,
   UpdateCredentialInstanceRequest,
   WorkflowCredentialHealthDto,
   WorkflowCredentialHealthSlotDto,
@@ -243,6 +244,8 @@ export class CredentialInstanceService {
     private readonly credentialTypeRegistry: CredentialTypeRegistryImpl,
     @inject(CredentialSecretCipher)
     private readonly credentialSecretCipher: CredentialSecretCipher,
+    @inject(CredentialMaterialResolver)
+    private readonly credentialMaterialResolver: CredentialMaterialResolver,
     @inject(CoreTokens.CredentialSessionService)
     private readonly credentialSessionService: MutableCredentialSessionService,
   ) {}
@@ -260,6 +263,28 @@ export class CredentialInstanceService {
     }
     const latestTestResult = await this.credentialStore.getLatestTestResult(instanceId);
     return this.toDto(instance, latestTestResult);
+  }
+
+  async getInstanceWithSecrets(instanceId: CredentialInstanceId): Promise<CredentialInstanceWithSecretsDto | undefined> {
+    const instance = await this.credentialStore.getInstance(instanceId);
+    if (!instance) {
+      return undefined;
+    }
+    const latestTestResult = await this.credentialStore.getLatestTestResult(instanceId);
+    const base = this.toDto(instance, latestTestResult);
+    try {
+      const material = await this.credentialMaterialResolver.resolveMaterial(instance);
+      const secretConfig = Object.fromEntries(
+        Object.entries(material).map(([k, v]) => [k, String(v ?? "")]),
+      ) as Record<string, string>;
+      const envSecretRefs =
+        instance.secretRef.kind === "env"
+          ? (instance.secretRef.envByField as Record<string, string>)
+          : undefined;
+      return { ...base, secretConfig, envSecretRefs };
+    } catch {
+      return base;
+    }
   }
 
   async create(request: CreateCredentialInstanceRequest): Promise<CredentialInstanceDto> {

@@ -183,6 +183,10 @@ export class CodemationConsumerConfigLoader {
   }
 
   private async resolveTsconfigPath(modulePath: string): Promise<string | false> {
+    const overridePath = process.env.CODEMATION_TSCONFIG_PATH;
+    if (overridePath && (await this.exists(overridePath))) {
+      return overridePath;
+    }
     const discoveredPath = await this.findNearestTsconfig(modulePath);
     return discoveredPath ?? false;
   }

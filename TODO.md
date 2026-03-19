@@ -17,4 +17,4 @@
 * [ ] Fix datetime formatting, use battle tested library instead
 * [ ] Allow binary uploads to webhook nodes
 * [ ] (LLM) Observability
-* [ ] 
+* [ ] Add signature token to sign credential values

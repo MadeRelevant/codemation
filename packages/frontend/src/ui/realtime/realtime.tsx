@@ -6,8 +6,16 @@ import type { Item as WorkflowItem } from "@codemation/core/browser";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { WorkflowDto, WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
 export type { WorkflowDto, WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
-import type { CredentialInstanceDto, WorkflowCredentialHealthDto } from "../../application/contracts/CredentialContracts";
-export type { CredentialInstanceDto, WorkflowCredentialHealthDto } from "../../application/contracts/CredentialContracts";
+import type {
+  CredentialInstanceDto,
+  CredentialInstanceWithSecretsDto,
+  WorkflowCredentialHealthDto,
+} from "../../application/contracts/CredentialContracts";
+export type {
+  CredentialInstanceDto,
+  CredentialInstanceWithSecretsDto,
+  WorkflowCredentialHealthDto,
+} from "../../application/contracts/CredentialContracts";
 import { ApiPaths } from "../../presentation/http/ApiPaths";
 import type { Logger } from "../../application/logging/Logger";
 
@@ -177,6 +185,8 @@ const workflowDebuggerOverlayQueryKey = (workflowId: string) => ["workflow-debug
 const runQueryKey = (runId: string) => ["run", runId] as const;
 const credentialTypesQueryKey = ["credential-types"] as const;
 const credentialInstancesQueryKey = ["credential-instances"] as const;
+const credentialInstanceWithSecretsQueryKey = (instanceId: string) =>
+  ["credential-instance-with-secrets", instanceId] as const;
 const workflowCredentialHealthQueryKey = (workflowId: string) => ["workflow-credential-health", workflowId] as const;
 
 function getRealtimeBridge(): RealtimeBridgeState {
@@ -222,6 +232,10 @@ async function fetchCredentialTypes(): Promise<ReadonlyArray<CredentialTypeDefin
 
 async function fetchCredentialInstances(): Promise<ReadonlyArray<CredentialInstanceDto>> {
   return await fetchJson<ReadonlyArray<CredentialInstanceDto>>(ApiPaths.credentialInstances());
+}
+
+async function fetchCredentialInstanceWithSecrets(instanceId: string): Promise<CredentialInstanceWithSecretsDto> {
+  return await fetchJson<CredentialInstanceWithSecretsDto>(ApiPaths.credentialInstance(instanceId, true));
 }
 
 async function fetchWorkflowCredentialHealth(workflowId: string): Promise<WorkflowCredentialHealthDto> {
@@ -578,13 +592,14 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
           socketRef.current = null;
         }
         setReadyState(RealtimeReadyState.CLOSED);
-        logger.warn(`websocket close event code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`);
         if (!hasOpenedConnectionRef.current && !hasLoggedUnavailableTransportRef.current) {
           hasLoggedUnavailableTransportRef.current = true;
           logger.debug(`websocket transport is not available yet at ${websocketUrl}`);
-          return;
         }
-        logger.warn(`websocket transport closed code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`);
+        if (hasOpenedConnectionRef.current) {
+          logger.warn(`websocket close event code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`);
+          logger.warn(`websocket transport closed code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`);
+        }
         if (disposed) {
           return;
         }
@@ -810,6 +825,14 @@ export function useCredentialInstancesQuery() {
   return useQuery({
     queryKey: credentialInstancesQueryKey,
     queryFn: fetchCredentialInstances,
+  });
+}
+
+export function useCredentialInstanceWithSecretsQuery(instanceId: string | null | undefined) {
+  return useQuery({
+    queryKey: instanceId ? credentialInstanceWithSecretsQueryKey(instanceId) : ["credential-instance-with-secrets", "disabled"],
+    queryFn: async () => await fetchCredentialInstanceWithSecrets(instanceId!),
+    enabled: Boolean(instanceId),
   });
 }
 

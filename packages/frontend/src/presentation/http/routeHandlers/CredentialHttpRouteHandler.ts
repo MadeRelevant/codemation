@@ -15,6 +15,7 @@ import type {
 } from "../../../application/contracts/CredentialContracts";
 import {
   GetCredentialInstanceQuery,
+  GetCredentialInstanceWithSecretsQuery,
   GetWorkflowCredentialHealthQuery,
   ListCredentialInstancesQuery,
   ListCredentialTypesQuery,
@@ -54,9 +55,12 @@ export class CredentialHttpRouteHandler {
   }
 
   @Route.for("GET", "credentials/instances/:instanceId")
-  async getCredentialInstance(_: Request, params: ServerHttpRouteParams): Promise<Response> {
+  async getCredentialInstance(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      const instance = await this.queryBus.execute(new GetCredentialInstanceQuery(params.instanceId!));
+      const withSecrets = new URL(request.url).searchParams.get("withSecrets") === "1";
+      const instance = withSecrets
+        ? await this.queryBus.execute(new GetCredentialInstanceWithSecretsQuery(params.instanceId!))
+        : await this.queryBus.execute(new GetCredentialInstanceQuery(params.instanceId!));
       if (!instance) {
         return Response.json({ error: "Unknown credential instance" }, { status: 404 });
       }

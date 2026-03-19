@@ -21,6 +21,12 @@ export type CredentialInstanceDto = Readonly<{
   latestHealth?: CredentialHealth;
 }>;
 
+export type CredentialInstanceWithSecretsDto = CredentialInstanceDto &
+  Readonly<{
+    secretConfig?: Readonly<Record<string, string>>;
+    envSecretRefs?: Readonly<Record<string, string>>;
+  }>;
+
 export type WorkflowCredentialHealthSlotDto = Readonly<{
   workflowId: string;
   nodeId: string;

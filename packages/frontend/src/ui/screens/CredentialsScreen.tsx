@@ -5,12 +5,19 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useCredentialInstancesQuery,
+  useCredentialInstanceWithSecretsQuery,
   useCredentialTypesQuery,
   type CredentialInstanceDto,
 } from "../realtime/realtime";
 import { ApiPaths } from "../../presentation/http/ApiPaths";
 
 type FormSourceKind = "db" | "env";
+
+type DialogMode = "create" | "edit" | null;
+
+function maskedDisplayValue(): string {
+  return "••••••••••••";
+}
 
 function buildEmptySecretFieldValues(fields: ReadonlyArray<CredentialFieldSchema>): Record<string, string> {
   const out: Record<string, string> = {};
@@ -20,10 +27,30 @@ function buildEmptySecretFieldValues(fields: ReadonlyArray<CredentialFieldSchema
   return out;
 }
 
+function HealthBadge({ status }: { status: string }) {
+  const statusLower = status.toLowerCase();
+  const variant =
+    statusLower === "healthy"
+      ? "healthy"
+      : statusLower === "failing"
+        ? "failing"
+        : "unknown";
+  return (
+    <span className={`credentials-table__badge credentials-table__badge--${variant}`}>
+      {status}
+    </span>
+  );
+}
+
 export function CredentialsScreen() {
   const queryClient = useQueryClient();
+  const [dialogMode, setDialogMode] = useState<DialogMode>(null);
+  const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
   const credentialTypesQuery = useCredentialTypesQuery();
   const credentialInstancesQuery = useCredentialInstancesQuery();
+  const credentialWithSecretsQuery = useCredentialInstanceWithSecretsQuery(
+    dialogMode === "edit" ? editingInstanceId : null,
+  );
   const credentialTypes = credentialTypesQuery.data ?? [];
   const credentialInstances = credentialInstancesQuery.data ?? [];
   const [selectedTypeId, setSelectedTypeId] = useState<string>("");
@@ -34,11 +61,12 @@ export function CredentialsScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTestInstanceId, setActiveTestInstanceId] = useState<string | null>(null);
-  const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{ instanceId: string; status: string; message?: string } | null>(null);
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editSecretFieldValues, setEditSecretFieldValues] = useState<Record<string, string>>({});
   const [editEnvRefValues, setEditEnvRefValues] = useState<Record<string, string>>({});
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [showSecrets, setShowSecrets] = useState(false);
 
   const selectedType = useMemo(
     () => credentialTypes.find((type) => type.typeId === selectedTypeId),
@@ -69,6 +97,23 @@ export function CredentialsScreen() {
       queryClient.invalidateQueries({ queryKey: ["credential-types"] }),
     ]);
   }, [queryClient]);
+
+  const openCreateDialog = useCallback(() => {
+    setDialogMode("create");
+    setSelectedTypeId("");
+    setDisplayName("");
+    setSourceKind("db");
+    setSecretFieldValues({});
+    setEnvRefValues({});
+    setErrorMessage(null);
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogMode(null);
+    setEditingInstanceId(null);
+    setShowSecrets(false);
+    setErrorMessage(null);
+  }, []);
 
   const createCredentialInstance = async (): Promise<void> => {
     if (!selectedType) return;
@@ -105,6 +150,7 @@ export function CredentialsScreen() {
       }
       setDisplayName("");
       resetCreateForm();
+      closeDialog();
       await refreshQueries();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -115,6 +161,7 @@ export function CredentialsScreen() {
 
   const updateCredentialInstance = async (): Promise<void> => {
     if (!editingInstanceId || !editingType || !editingInstance) return;
+    const fetchedWithSecrets = credentialWithSecretsQuery.data;
     try {
       setIsEditSubmitting(true);
       setErrorMessage(null);
@@ -122,15 +169,23 @@ export function CredentialsScreen() {
       const isDb = editingInstance.sourceKind === "db";
       const secretConfig = isDb
         ? (Object.fromEntries(
-            secretFieldsEdit.map((f) => [f.key, editSecretFieldValues[f.key] ?? ""]),
+            secretFieldsEdit.map((f) => {
+              const edited = (editSecretFieldValues[f.key] ?? "").trim();
+              const existing = fetchedWithSecrets?.secretConfig?.[f.key] ?? "";
+              return [f.key, edited.length > 0 ? edited : existing];
+            }),
           ) as Record<string, unknown>)
         : undefined;
       const envSecretRefs =
         !isDb && editingInstance.sourceKind === "env"
           ? (Object.fromEntries(
               secretFieldsEdit
-                .map((f) => [f.key, editEnvRefValues[f.key] ?? ""])
-                .filter(([, v]) => String(v).length > 0) as [string, string][],
+                .map((f) => {
+                  const edited = (editEnvRefValues[f.key] ?? "").trim();
+                  const existing = fetchedWithSecrets?.envSecretRefs?.[f.key] ?? "";
+                  return [f.key, edited.length > 0 ? edited : existing] as const;
+                })
+                .filter(([, v]) => v.length > 0),
             ) as Record<string, string>)
           : undefined;
       const hasSecretUpdates =
@@ -151,7 +206,7 @@ export function CredentialsScreen() {
       if (!response.ok) {
         throw new Error(await response.text());
       }
-      setEditingInstanceId(null);
+      closeDialog();
       await refreshQueries();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -163,32 +218,78 @@ export function CredentialsScreen() {
   const testCredentialInstance = async (instance: CredentialInstanceDto): Promise<void> => {
     try {
       setActiveTestInstanceId(instance.instanceId);
+      setTestResult(null);
       setErrorMessage(null);
       const response = await fetch(ApiPaths.credentialInstanceTest(instance.instanceId), {
         method: "POST",
       });
-      if (!response.ok) {
-        throw new Error(await response.text());
+      const text = await response.text();
+      let data: { status?: string; message?: string } = {};
+      try {
+        data = text ? (JSON.parse(text) as { status?: string; message?: string }) : {};
+      } catch {
+        data = { message: text || "Test failed" };
       }
+      if (!response.ok) {
+        setTestResult({
+          instanceId: instance.instanceId,
+          status: "failing",
+          message: data?.message ?? "Test failed",
+        });
+        return;
+      }
+      setTestResult({
+        instanceId: instance.instanceId,
+        status: data?.status ?? "healthy",
+        message: data?.message,
+      });
       await refreshQueries();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      setTestResult({
+        instanceId: instance.instanceId,
+        status: "failing",
+        message: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setActiveTestInstanceId(null);
     }
   };
 
-  const startEdit = (instance: CredentialInstanceDto): void => {
-    const type = credentialTypes.find((t) => t.typeId === instance.typeId);
+  const openEditDialog = (instance: CredentialInstanceDto): void => {
+    setDialogMode("edit");
     setEditingInstanceId(instance.instanceId);
+    setSelectedTypeId(instance.typeId);
     setEditDisplayName(instance.displayName);
-    setEditSecretFieldValues(type ? buildEmptySecretFieldValues(type.secretFields ?? []) : {});
-    setEditEnvRefValues(type ? buildEmptySecretFieldValues(type.secretFields ?? []) : {});
+    setEditSecretFieldValues({});
+    setEditEnvRefValues({});
+    setShowSecrets(false);
+    setErrorMessage(null);
   };
 
-  const cancelEdit = (): void => {
-    setEditingInstanceId(null);
-  };
+  useEffect(() => {
+    const data = credentialWithSecretsQuery.data;
+    if (!data || editingInstanceId !== data.instanceId || dialogMode !== "edit") return;
+    const type = credentialTypes.find((t) => t.typeId === data.typeId);
+    const fields = type?.secretFields ?? [];
+    if (data.sourceKind === "db" && data.secretConfig) {
+      const values = Object.fromEntries(
+        fields.map((f) => [f.key, data.secretConfig![f.key] ?? ""]),
+      );
+      setEditSecretFieldValues(values);
+      setEditEnvRefValues(Object.fromEntries(fields.map((f) => [f.key, ""])));
+    } else if (data.sourceKind === "env" && data.envSecretRefs) {
+      setEditSecretFieldValues(Object.fromEntries(fields.map((f) => [f.key, ""])));
+      const envValues = Object.fromEntries(
+        fields.map((f) => [f.key, data.envSecretRefs![f.key] ?? ""]),
+      );
+      setEditEnvRefValues(envValues);
+    }
+  }, [
+    credentialWithSecretsQuery.data,
+    credentialTypes,
+    dialogMode,
+    editingInstanceId,
+  ]);
 
   const deleteCredentialInstance = async (instanceId: string): Promise<void> => {
     if (!confirm("Delete this credential instance? This cannot be undone.")) return;
@@ -198,7 +299,7 @@ export function CredentialsScreen() {
       if (!response.ok) {
         throw new Error(await response.text());
       }
-      if (editingInstanceId === instanceId) setEditingInstanceId(null);
+      if (editingInstanceId === instanceId) closeDialog();
       await refreshQueries();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -209,308 +310,477 @@ export function CredentialsScreen() {
   const typesError = credentialTypesQuery.isError;
   const typesEmpty = credentialTypes.length === 0;
 
+  const isDialogOpen = dialogMode !== null;
+  const showTestFailureAlert = testResult?.status === "failing";
+
   return (
-    <div data-testid="credentials-screen" style={{ padding: 24, display: "grid", gap: 24 }}>
-      <div>
-        <a href="/workflows" style={{ color: "#2563eb", textDecoration: "none", fontWeight: 700 }}>
-          Workflows
-        </a>
-        <h1 style={{ margin: "12px 0 4px" }}>Credentials</h1>
-        <p style={{ margin: 0, opacity: 0.72 }}>
+    <div data-testid="credentials-screen" className="credentials-screen">
+      {showTestFailureAlert && (
+        <div
+          className="credentials-test-failure-alert"
+          role="alert"
+          data-testid="credential-test-failure-alert"
+        >
+          <div className="credentials-test-failure-alert__content">
+            <strong className="credentials-test-failure-alert__title">Credential test failed</strong>
+            <p className="credentials-test-failure-alert__message">{testResult.message || "Test failed"}</p>
+          </div>
+          <button
+            type="button"
+            className="credentials-test-failure-alert__dismiss"
+            onClick={() => setTestResult(null)}
+            aria-label="Dismiss"
+            data-testid="credential-test-failure-alert-dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      <div className="credentials-screen__header">
+        <p className="credentials-screen__description">
           Create credential instances, store secrets safely, and verify health before binding them to workflow slots.
         </p>
-      </div>
-
-      <section
-        data-testid="credentials-create-panel"
-        style={{ border: "1px solid #d1d5db", background: "#fff", padding: 16, display: "grid", gap: 12 }}
-      >
-        <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", opacity: 0.7 }}>
-          Create instance
-        </div>
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Credential type</span>
-          <select
-            data-testid="credential-type-select"
-            value={selectedTypeId}
-            onChange={(e) => setSelectedTypeId(e.target.value)}
-            disabled={typesLoading}
-          >
-            <option value="">Select a credential type</option>
-            {credentialTypes.map((type) => (
-              <option key={type.typeId} value={type.typeId}>
-                {type.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
-        {typesLoading && <div style={{ fontSize: 13, opacity: 0.8 }}>Loading credential types…</div>}
-        {typesError && (
-          <div style={{ color: "#b91c1c", fontSize: 13 }}>
-            Failed to load credential types. Check the server and try again.
-          </div>
-        )}
-        {!typesLoading && !typesError && typesEmpty && (
-          <div style={{ fontSize: 13, opacity: 0.8 }}>
-            No credential types available. Ensure the app has loaded plugins (e.g. Gmail, OpenAI) that register
-            credential types.
-          </div>
-        )}
-
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Display name</span>
-          <input
-            data-testid="credential-display-name-input"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-          />
-        </label>
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Secret source</span>
-          <select
-            data-testid="credential-source-kind-select"
-            value={sourceKind}
-            onChange={(e) => setSourceKind(e.target.value as FormSourceKind)}
-          >
-            <option value="db">Store secret in database</option>
-            <option value="env">Load secret from environment variables</option>
-          </select>
-        </label>
-
-        {selectedType && secretFields.length > 0 && (
-          <>
-            {sourceKind === "db" ? (
-              <div style={{ display: "grid", gap: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>Secret values</span>
-                {secretFields.map((field) => (
-                  <label key={field.key} style={{ display: "grid", gap: 4 }}>
-                    <span>
-                      {field.label}
-                      {field.required ? " *" : ""}
-                    </span>
-                    {field.type === "textarea" ? (
-                      <textarea
-                        data-testid={`credential-secret-${field.key}`}
-                        rows={4}
-                        value={secretFieldValues[field.key] ?? ""}
-                        onChange={(e) =>
-                          setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                        }
-                        placeholder={field.placeholder}
-                      />
-                    ) : (
-                      <input
-                        data-testid={`credential-secret-${field.key}`}
-                        type={field.type === "password" ? "password" : "text"}
-                        value={secretFieldValues[field.key] ?? ""}
-                        onChange={(e) =>
-                          setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                        }
-                        placeholder={field.placeholder}
-                      />
-                    )}
-                    {field.helpText ? (
-                      <span style={{ fontSize: 12, opacity: 0.72 }}>{field.helpText}</span>
-                    ) : null}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <div style={{ display: "grid", gap: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>
-                  Environment variable names (one per secret field)
-                </span>
-                {secretFields.map((field) => (
-                  <label key={field.key} style={{ display: "grid", gap: 4 }}>
-                    <span>
-                      Env var for {field.label}
-                      {field.required ? " *" : ""}
-                    </span>
-                    <input
-                      data-testid={`credential-env-${field.key}`}
-                      type="text"
-                      value={envRefValues[field.key] ?? ""}
-                      onChange={(e) =>
-                        setEnvRefValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                      }
-                      placeholder={field.placeholder ?? `e.g. GMAIL_${field.key.toUpperCase()}`}
-                    />
-                    {field.helpText ? (
-                      <span style={{ fontSize: 12, opacity: 0.72 }}>{field.helpText}</span>
-                    ) : null}
-                  </label>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
         <button
           type="button"
-          data-testid="credential-create-button"
-          disabled={
-            isSubmitting ||
-            !selectedTypeId ||
-            displayName.trim().length === 0 ||
-            (sourceKind === "db" &&
-              secretFields.some((f) => f.required && !(secretFieldValues[f.key] ?? "").trim())) ||
-            (sourceKind === "env" &&
-              secretFields.some((f) => f.required && !(envRefValues[f.key] ?? "").trim()))
-          }
-          onClick={() => void createCredentialInstance()}
-          style={{ width: "fit-content", padding: "8px 12px", fontWeight: 700 }}
+          className="credentials-screen__add-btn"
+          onClick={openCreateDialog}
+          disabled={typesLoading || typesEmpty}
+          data-testid="credential-add-button"
         >
-          {isSubmitting ? "Creating…" : "Create credential"}
+          Add credential
         </button>
-        {errorMessage ? (
-          <div data-testid="credentials-error" style={{ color: "#b91c1c" }}>
-            {errorMessage}
-          </div>
-        ) : null}
-      </section>
+      </div>
 
-      <section data-testid="credentials-list-panel" style={{ display: "grid", gap: 12 }}>
-        <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", opacity: 0.7 }}>
-          Saved instances
+      {credentialInstances.length === 0 ? (
+        <div className="credentials-empty" data-testid="credentials-empty">
+          No credential instances yet. Click &quot;Add credential&quot; to create one.
         </div>
-        {credentialInstances.length === 0 ? (
-          <div style={{ opacity: 0.72 }}>No credential instances created yet.</div>
-        ) : (
-          credentialInstances.map((instance) => (
-            <article
-              key={instance.instanceId}
-              data-testid={`credential-instance-card-${instance.instanceId}`}
-              style={{
-                border: "1px solid #d1d5db",
-                background: "#fff",
-                padding: 16,
-                display: "grid",
-                gap: 8,
-              }}
-            >
-              {editingInstanceId === instance.instanceId && editingType ? (
-                <div style={{ display: "grid", gap: 12 }}>
-                  <div style={{ fontWeight: 800 }}>Edit credential</div>
-                  <label style={{ display: "grid", gap: 4 }}>
-                    <span>Display name</span>
-                    <input
-                      value={editDisplayName}
-                      onChange={(e) => setEditDisplayName(e.target.value)}
-                      data-testid="credential-edit-display-name"
-                    />
-                  </label>
-                  <div style={{ display: "grid", gap: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>Update secrets (optional, leave blank to keep)</span>
-                    {instance.sourceKind === "db"
-                      ? (editingType.secretFields ?? []).map((field) => (
-                          <label key={field.key} style={{ display: "grid", gap: 4 }}>
-                            <span>{field.label}</span>
-                            {field.type === "textarea" ? (
-                              <textarea
-                                rows={3}
-                                value={editSecretFieldValues[field.key] ?? ""}
-                                onChange={(e) =>
-                                  setEditSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                                }
-                                placeholder="Leave blank to keep existing"
-                              />
-                            ) : (
-                              <input
-                                type={field.type === "password" ? "password" : "text"}
-                                value={editSecretFieldValues[field.key] ?? ""}
-                                onChange={(e) =>
-                                  setEditSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                                }
-                                placeholder="Leave blank to keep existing"
-                              />
-                            )}
-                          </label>
-                        ))
-                      : (editingType.secretFields ?? []).map((field) => (
-                          <label key={field.key} style={{ display: "grid", gap: 4 }}>
-                            <span>Env var for {field.label}</span>
-                            <input
-                              type="text"
-                              value={editEnvRefValues[field.key] ?? ""}
-                              onChange={(e) =>
-                                setEditEnvRefValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                              }
-                              placeholder="Leave blank to keep existing"
-                            />
-                          </label>
-                        ))}
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
+      ) : (
+        <table className="credentials-table" data-testid="credentials-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Health</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {credentialInstances.map((instance) => (
+                <tr key={instance.instanceId} data-testid={`credential-instance-row-${instance.instanceId}`}>
+                  <td>
                     <button
                       type="button"
-                      onClick={() => void updateCredentialInstance()}
-                      disabled={isEditSubmitting}
-                      style={{ padding: "6px 10px", fontWeight: 700 }}
+                      className="credentials-table__name-btn"
+                      onClick={() => openEditDialog(instance)}
+                      data-testid={`credential-instance-name-${instance.instanceId}`}
                     >
-                      {isEditSubmitting ? "Saving…" : "Save"}
+                      {instance.displayName}
                     </button>
-                    <button type="button" onClick={cancelEdit} style={{ padding: "6px 10px" }}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontWeight: 800 }}>{instance.displayName}</div>
-                      <div style={{ fontSize: 12, opacity: 0.72 }}>{instance.typeId}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  </td>
+                  <td>
+                    <span className="credentials-table__type">{instance.typeId}</span>
+                  </td>
+                  <td>
+                    <span className="credentials-table__badge credentials-table__badge--unknown">
+                      {instance.sourceKind}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="credentials-table__badge credentials-table__badge--unknown">
+                      {instance.setupStatus}
+                    </span>
+                  </td>
+                  <td>
+                    <HealthBadge status={instance.latestHealth?.status ?? "unknown"} />
+                  </td>
+                  <td>
+                    <div className="credentials-table__actions">
+                      {testResult?.instanceId === instance.instanceId && (
+                        <span
+                          className={`credentials-table__test-result credentials-table__test-result--${testResult.status}`}
+                          data-testid={`credential-test-result-${instance.instanceId}`}
+                        >
+                          {testResult.status === "healthy" ? "Healthy" : "Failing"}
+                        </span>
+                      )}
                       <button
                         type="button"
-                        data-testid={`credential-instance-edit-button-${instance.instanceId}`}
-                        onClick={() => startEdit(instance)}
-                        style={{ padding: "6px 10px" }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
+                        className="credentials-table__btn credentials-table__btn--primary"
                         data-testid={`credential-instance-test-button-${instance.instanceId}`}
                         onClick={() => void testCredentialInstance(instance)}
                         disabled={activeTestInstanceId === instance.instanceId}
-                        style={{ padding: "6px 10px", fontWeight: 700 }}
                       >
                         {activeTestInstanceId === instance.instanceId ? "Testing…" : "Test"}
                       </button>
                       <button
                         type="button"
+                        className="credentials-table__btn credentials-table__btn--danger"
                         data-testid={`credential-instance-delete-button-${instance.instanceId}`}
                         onClick={() => void deleteCredentialInstance(instance.instanceId)}
-                        style={{ padding: "6px 10px", color: "#b91c1c" }}
                       >
                         Delete
                       </button>
                     </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+      )}
+
+      {isDialogOpen && (
+        <CredentialDialog
+          key={editingInstanceId ?? "create"}
+          mode={dialogMode!}
+          credentialTypes={credentialTypes}
+          typesLoading={typesLoading}
+          typesError={typesError}
+          typesEmpty={typesEmpty}
+          selectedTypeId={selectedTypeId}
+          setSelectedTypeId={setSelectedTypeId}
+          displayName={dialogMode === "create" ? displayName : editDisplayName}
+          setDisplayName={dialogMode === "create" ? setDisplayName : setEditDisplayName}
+          sourceKind={sourceKind}
+          setSourceKind={setSourceKind}
+          secretFieldValues={dialogMode === "create" ? secretFieldValues : editSecretFieldValues}
+          setSecretFieldValues={dialogMode === "create" ? setSecretFieldValues : setEditSecretFieldValues}
+          envRefValues={dialogMode === "create" ? envRefValues : editEnvRefValues}
+          setEnvRefValues={dialogMode === "create" ? setEnvRefValues : setEditEnvRefValues}
+          showSecrets={showSecrets}
+          setShowSecrets={setShowSecrets}
+          secretsLoading={credentialWithSecretsQuery.isLoading}
+          editingInstance={editingInstance}
+          errorMessage={errorMessage}
+          isSubmitting={dialogMode === "create" ? isSubmitting : isEditSubmitting}
+          onCreate={createCredentialInstance}
+          onUpdate={updateCredentialInstance}
+          onClose={closeDialog}
+          buildEmptySecretFieldValues={buildEmptySecretFieldValues}
+        />
+      )}
+    </div>
+  );
+}
+
+interface CredentialDialogProps {
+  mode: "create" | "edit";
+  credentialTypes: ReadonlyArray<{ typeId: string; displayName: string; secretFields?: ReadonlyArray<CredentialFieldSchema> }>;
+  typesLoading: boolean;
+  typesError: boolean;
+  typesEmpty: boolean;
+  selectedTypeId: string;
+  setSelectedTypeId: (v: string) => void;
+  displayName: string;
+  setDisplayName: (v: string) => void;
+  sourceKind: FormSourceKind;
+  setSourceKind: (v: FormSourceKind) => void;
+  secretFieldValues: Record<string, string>;
+  setSecretFieldValues: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  envRefValues: Record<string, string>;
+  setEnvRefValues: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  showSecrets: boolean;
+  setShowSecrets: React.Dispatch<React.SetStateAction<boolean>>;
+  secretsLoading?: boolean;
+  editingInstance: CredentialInstanceDto | null | undefined;
+  errorMessage: string | null;
+  isSubmitting: boolean;
+  onCreate: () => Promise<void>;
+  onUpdate: () => Promise<void>;
+  onClose: () => void;
+  buildEmptySecretFieldValues: (fields: ReadonlyArray<CredentialFieldSchema>) => Record<string, string>;
+}
+
+function CredentialDialog({
+  mode,
+  credentialTypes,
+  typesLoading,
+  typesError,
+  typesEmpty,
+  selectedTypeId,
+  setSelectedTypeId,
+  displayName,
+  setDisplayName,
+  sourceKind,
+  setSourceKind,
+  secretFieldValues,
+  setSecretFieldValues,
+  envRefValues,
+  setEnvRefValues,
+  showSecrets,
+  setShowSecrets,
+  secretsLoading = false,
+  editingInstance,
+  errorMessage,
+  isSubmitting,
+  onCreate,
+  onUpdate,
+  onClose,
+  buildEmptySecretFieldValues,
+}: CredentialDialogProps) {
+  const selectedType = credentialTypes.find((t) => t.typeId === selectedTypeId);
+  const secretFields = (mode === "edit" && editingInstance
+    ? credentialTypes.find((t) => t.typeId === editingInstance.typeId)?.secretFields ?? []
+    : selectedType?.secretFields ?? []) as ReadonlyArray<CredentialFieldSchema>;
+
+  const isEdit = mode === "edit";
+  const isTypeLocked = isEdit && editingInstance != null;
+
+  useEffect(() => {
+    if (isEdit && editingInstance) {
+      setDisplayName(editingInstance.displayName);
+    }
+  }, [isEdit, editingInstance?.instanceId, editingInstance?.displayName, setDisplayName]);
+
+  const canSubmit =
+    !isSubmitting &&
+    displayName.trim().length > 0 &&
+    (isEdit
+      ? true
+      : Boolean(selectedTypeId) &&
+        (sourceKind === "db"
+          ? !secretFields.some((f) => f.required && !(secretFieldValues[f.key] ?? "").trim())
+          : !secretFields.some((f) => f.required && !(envRefValues[f.key] ?? "").trim())));
+
+  const handleSubmit = () => {
+    if (isEdit) void onUpdate();
+    else void onCreate();
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
+
+  return (
+    <div
+      className="credential-dialog-overlay"
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="credential-dialog-title"
+      data-testid="credential-dialog"
+    >
+      <div className="credential-dialog">
+        <div className="credential-dialog__header">
+          <h2 id="credential-dialog-title" className="credential-dialog__title">
+            {isEdit ? "Edit credential" : "Add credential"}
+          </h2>
+        </div>
+        <div className="credential-dialog__body">
+          <div className="credential-dialog__field">
+            <label htmlFor="credential-type-select" className="credential-dialog__label">
+              Credential type
+            </label>
+            <select
+              id="credential-type-select"
+              className={`credential-dialog__select ${isTypeLocked ? "credential-dialog__select--disabled" : ""}`}
+              data-testid="credential-type-select"
+              value={selectedTypeId}
+              onChange={(e) => setSelectedTypeId(e.target.value)}
+              disabled={typesLoading || isTypeLocked}
+              aria-disabled={isTypeLocked}
+            >
+              <option value="">Select a credential type</option>
+              {credentialTypes.map((type) => (
+                <option key={type.typeId} value={type.typeId}>
+                  {type.displayName}
+                </option>
+              ))}
+            </select>
+            {typesLoading && <span className="credential-dialog__help">Loading…</span>}
+            {typesError && (
+              <span className="credential-dialog__error">Failed to load credential types.</span>
+            )}
+            {!typesLoading && !typesError && typesEmpty && (
+              <span className="credential-dialog__help">No credential types available.</span>
+            )}
+          </div>
+
+          <div className="credential-dialog__field">
+            <label htmlFor="credential-display-name" className="credential-dialog__label">
+              Display name
+            </label>
+            <input
+              id="credential-display-name"
+              type="text"
+              className="credential-dialog__input"
+              data-testid="credential-display-name-input"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="e.g. My Gmail account"
+            />
+          </div>
+
+          {!isEdit && (
+            <div className="credential-dialog__field">
+              <label htmlFor="credential-source-kind" className="credential-dialog__label">
+                Secret source
+              </label>
+              <select
+                id="credential-source-kind"
+                className="credential-dialog__select"
+                data-testid="credential-source-kind-select"
+                value={sourceKind}
+                onChange={(e) => setSourceKind(e.target.value as FormSourceKind)}
+              >
+                <option value="db">Store secret in database</option>
+                <option value="env">Load from environment variables</option>
+              </select>
+            </div>
+          )}
+
+          {secretFields.length > 0 && (
+            <>
+              {(isEdit ? editingInstance?.sourceKind === "db" : sourceKind === "db") ? (
+                <div className="credential-dialog__field">
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-md)", flexWrap: "wrap" }}>
+                    <span className="credential-dialog__label">
+                      {isEdit ? "Update secrets (optional, leave blank to keep)" : "Secret values"}
+                    </span>
+                    {isEdit && (
+                      <button
+                        type="button"
+                        className="credential-dialog__btn credential-dialog__btn--secondary"
+                        style={{ padding: "var(--spacing-xs) var(--spacing-sm)", fontSize: "0.875rem" }}
+                        onClick={() => setShowSecrets((s) => !s)}
+                        data-testid="credential-show-secrets-toggle"
+                        disabled={secretsLoading}
+                      >
+                        {showSecrets ? "Hide" : "Show"} values
+                      </button>
+                    )}
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 12,
-                      flexWrap: "wrap",
-                      fontSize: 12,
-                      opacity: 0.78,
-                    }}
-                  >
-                    <span>{instance.sourceKind}</span>
-                    <span>{instance.setupStatus}</span>
-                    <span>{instance.latestHealth?.status ?? "unknown"}</span>
+                  {isEdit && secretsLoading && (
+                    <span className="credential-dialog__help">Loading credential…</span>
+                  )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
+                    {secretFields.map((field) => {
+                      const raw = secretFieldValues[field.key] ?? "";
+                      const isMasked = isEdit && !showSecrets && raw.length > 0;
+                      const displayValue = isMasked ? maskedDisplayValue() : raw;
+                      return (
+                        <label key={field.key} className="credential-dialog__field">
+                          <span className="credential-dialog__label">
+                            {field.label}
+                            {field.required ? " *" : ""}
+                          </span>
+                          {field.type === "textarea" ? (
+                            <textarea
+                              className="credential-dialog__textarea"
+                              data-testid={`credential-secret-${field.key}`}
+                              rows={4}
+                              value={displayValue}
+                              onChange={(e) =>
+                                setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                              }
+                              readOnly={isMasked}
+                              placeholder={isEdit ? undefined : field.placeholder}
+                            />
+                          ) : (
+                            <input
+                              className="credential-dialog__input"
+                              data-testid={`credential-secret-${field.key}`}
+                              type={showSecrets && field.type === "password" ? "text" : field.type === "password" ? "password" : "text"}
+                              value={displayValue}
+                              onChange={(e) =>
+                                setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                              }
+                              readOnly={isMasked}
+                              placeholder={isEdit ? undefined : field.placeholder}
+                            />
+                          )}
+                          {field.helpText && (
+                            <span className="credential-dialog__help">{field.helpText}</span>
+                          )}
+                          {isEdit && (
+                            <span className="credential-dialog__help">
+                              Leave blank to keep existing value
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
                   </div>
-                  {instance.latestHealth?.message ? (
-                    <div style={{ fontSize: 13 }}>{instance.latestHealth.message}</div>
-                  ) : null}
-                </>
+                </div>
+              ) : (
+                <div className="credential-dialog__field">
+                  <span className="credential-dialog__label">Environment variable names</span>
+                  {isEdit && secretsLoading && (
+                    <span className="credential-dialog__help">Loading credential…</span>
+                  )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-md)" }}>
+                    {secretFields.map((field) => {
+                      const displayEnv = envRefValues[field.key] ?? "";
+                      return (
+                        <label key={field.key} className="credential-dialog__field">
+                          <span className="credential-dialog__label">
+                            Env var for {field.label}
+                            {field.required ? " *" : ""}
+                          </span>
+                          <input
+                            className="credential-dialog__input"
+                            data-testid={`credential-env-${field.key}`}
+                            type="text"
+                            value={displayEnv}
+                            onChange={(e) =>
+                              setEnvRefValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                            }
+                            placeholder={
+                              isEdit ? undefined : field.placeholder ?? `e.g. GMAIL_${field.key.toUpperCase()}`
+                            }
+                          />
+                          {field.helpText && (
+                            <span className="credential-dialog__help">{field.helpText}</span>
+                          )}
+                          {isEdit && (
+                            <span className="credential-dialog__help">
+                              Leave blank to keep existing value
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
-            </article>
-          ))
-        )}
-      </section>
+            </>
+          )}
+
+          {errorMessage && (
+            <div className="credential-dialog__error" data-testid="credentials-error">
+              {errorMessage}
+            </div>
+          )}
+        </div>
+        <div className="credential-dialog__footer">
+          <button
+            type="button"
+            className="credential-dialog__btn credential-dialog__btn--secondary"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="credential-dialog__btn credential-dialog__btn--primary"
+            data-testid={isEdit ? "credential-save-button" : "credential-create-button"}
+            disabled={!canSubmit}
+            onClick={handleSubmit}
+          >
+            {isSubmitting ? (isEdit ? "Saving…" : "Creating…") : isEdit ? "Save" : "Create"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

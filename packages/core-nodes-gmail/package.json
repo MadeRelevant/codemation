@@ -6,6 +6,13 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "codemation": {
+    "plugin": {
+      "kind": "plugin",
+      "entry": "./dist/index.js",
+      "exportName": "GmailNodes"
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,6 +22,10 @@
       },
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./codemation-plugin": {
+      "types": "./src/codemationPlugin.ts",
+      "import": "./src/codemationPlugin.ts"
     }
   },
   "scripts": {

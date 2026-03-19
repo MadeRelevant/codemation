@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -48,18 +50,41 @@ export class PrismaMigrationDeployer {
   }
 
   private resolvePrismaCliPath(): string {
+    const configuredPath = process.env.CODEMATION_PRISMA_CLI_PATH;
+    if (configuredPath && existsSync(configuredPath)) {
+      return configuredPath;
+    }
+    const packageManagerCandidates = [
+      path.resolve(process.cwd(), "node_modules", "prisma", "build", "index.js"),
+      path.resolve(this.resolvePackageRoot(), "node_modules", "prisma", "build", "index.js"),
+    ];
+    for (const candidate of packageManagerCandidates) {
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    }
     try {
-      return this.require.resolve("prisma/build/index.js");
+      return this.require.resolve("prisma/build/index.js", {
+        paths: [process.cwd(), this.resolvePackageRoot()],
+      });
     } catch {
       throw new Error("Unable to resolve the Prisma CLI required for startup migrations. Ensure `prisma` is installed.");
     }
   }
 
   private resolvePrismaConfigPath(): string {
+    const configuredPath = process.env.CODEMATION_PRISMA_CONFIG_PATH;
+    if (configuredPath) {
+      return configuredPath;
+    }
     return fileURLToPath(new URL("../../../prisma.config.ts", import.meta.url));
   }
 
   private resolvePackageRoot(): string {
+    const configuredRoot = process.env.CODEMATION_FRONTEND_PACKAGE_ROOT;
+    if (configuredRoot) {
+      return configuredRoot;
+    }
     return fileURLToPath(new URL("../../..", import.meta.url));
   }
 

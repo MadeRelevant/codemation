@@ -76,7 +76,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
   const activeCanvasTab = controller.isRunsPaneVisible ? "executions" : "live";
 
   return (
-    <main style={{ fontFamily: "ui-sans-serif, system-ui", height: "100vh", width: "100%", minHeight: 0, overflow: "hidden", background: "#f8fafc" }}>
+    <main style={{ height: "100%", width: "100%", minHeight: 0, overflow: "hidden", background: "#f8fafc" }}>
       <section
         style={{
           height: "100%",

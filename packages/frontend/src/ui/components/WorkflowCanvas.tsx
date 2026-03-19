@@ -1039,7 +1039,7 @@ export function WorkflowCanvas(args: {
         width: "100%",
         height: "100%",
         background: "#fbfbfc",
-        fontFamily: "ui-sans-serif, system-ui",
+        fontFamily: "inherit",
         position: "relative",
       }}
     >

@@ -2,6 +2,7 @@ import type { CredentialTypeDefinition } from "@codemation/core";
 import { inject } from "@codemation/core";
 import type {
   CredentialInstanceDto,
+  CredentialInstanceWithSecretsDto,
   WorkflowCredentialHealthDto,
 } from "../contracts/CredentialContracts";
 import { Query } from "../bus/Query";
@@ -14,6 +15,12 @@ export class ListCredentialTypesQuery extends Query<ReadonlyArray<CredentialType
 export class ListCredentialInstancesQuery extends Query<ReadonlyArray<CredentialInstanceDto>> {}
 
 export class GetCredentialInstanceQuery extends Query<CredentialInstanceDto | undefined> {
+  constructor(public readonly instanceId: string) {
+    super();
+  }
+}
+
+export class GetCredentialInstanceWithSecretsQuery extends Query<CredentialInstanceWithSecretsDto | undefined> {
   constructor(public readonly instanceId: string) {
     super();
   }
@@ -64,6 +71,23 @@ export class GetCredentialInstanceQueryHandler extends QueryHandler<GetCredentia
 
   async execute(query: GetCredentialInstanceQuery): Promise<CredentialInstanceDto | undefined> {
     return await this.credentialInstanceService.getInstance(query.instanceId);
+  }
+}
+
+@HandlesQuery.for(GetCredentialInstanceWithSecretsQuery)
+export class GetCredentialInstanceWithSecretsQueryHandler extends QueryHandler<
+  GetCredentialInstanceWithSecretsQuery,
+  CredentialInstanceWithSecretsDto | undefined
+> {
+  constructor(
+    @inject(CredentialInstanceService)
+    private readonly credentialInstanceService: CredentialInstanceService,
+  ) {
+    super();
+  }
+
+  async execute(query: GetCredentialInstanceWithSecretsQuery): Promise<CredentialInstanceWithSecretsDto | undefined> {
+    return await this.credentialInstanceService.getInstanceWithSecrets(query.instanceId);
   }
 }
 
