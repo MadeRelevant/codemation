@@ -120,8 +120,9 @@ export class WorkflowDetailScreenTestKit {
     if (!(this.environment instanceof WorkflowDetailTestEnvironment)) {
       throw new Error("The current workflow detail environment does not expose synthetic websocket connections.");
     }
+    const environment = this.environment as WorkflowDetailTestEnvironment;
     await waitFor(() => {
-      expect(this.environment.socketConnections).toHaveLength(expectedCount);
+      expect(environment.socketConnections).toHaveLength(expectedCount);
     });
     return this.latestSocket();
   }

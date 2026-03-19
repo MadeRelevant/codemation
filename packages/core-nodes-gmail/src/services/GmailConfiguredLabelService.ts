@@ -1,24 +1,19 @@
-import type { CredentialInput } from "@codemation/core";
-import { inject, injectable } from "@codemation/core";
-import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
-import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
+import { injectable } from "@codemation/core";
 import type { GmailApiClient, GmailLabelRecord } from "./GmailApiClient";
 
 @injectable()
 export class GmailConfiguredLabelService {
   private readonly labelsByMailbox = new Map<string, ReadonlyArray<GmailLabelRecord>>();
 
-  constructor(@inject(GmailNodeTokens.GmailApiClient) private readonly gmailApiClient: GmailApiClient) {}
-
   async resolveLabelIds(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
+    client: GmailApiClient;
     mailbox: string;
     configuredLabels?: ReadonlyArray<string>;
   }>): Promise<ReadonlyArray<string> | undefined> {
     if (!args.configuredLabels || args.configuredLabels.length === 0) {
       return undefined;
     }
-    const labels = await this.loadLabels(args.credential, args.mailbox);
+    const labels = await this.loadLabels(args.client, args.mailbox);
     const labelsById = new Set(labels.map((label) => label.id));
     const labelIdByName = new Map<string, string>();
     for (const label of labels) {
@@ -50,16 +45,12 @@ export class GmailConfiguredLabelService {
     return resolvedLabelIds;
   }
 
-  private async loadLabels(
-    credential: CredentialInput<GmailServiceAccountCredential>,
-    mailbox: string,
-  ): Promise<ReadonlyArray<GmailLabelRecord>> {
+  private async loadLabels(client: GmailApiClient, mailbox: string): Promise<ReadonlyArray<GmailLabelRecord>> {
     const cachedLabels = this.labelsByMailbox.get(mailbox);
     if (cachedLabels) {
       return cachedLabels;
     }
-    const labels = await this.gmailApiClient.listLabels({
-      credential,
+    const labels = await client.listLabels({
       mailbox,
     });
     this.labelsByMailbox.set(mailbox, labels);

@@ -1,13 +1,12 @@
-import type { CredentialInput, CredentialService, Items, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
-import { CoreTokens, inject, injectable, resolveCredential } from "@codemation/core";
+import type { Items, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
+import { CoreTokens, inject, injectable } from "@codemation/core";
 import type { GmailLogger } from "../contracts/GmailLogger";
-import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import type { OnNewGmailTrigger } from "../nodes/OnNewGmailTrigger";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
+import type { GmailApiClient } from "../services/GmailApiClient";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailHistorySyncService } from "../services/GmailHistorySyncService";
-import type { GmailPubSubPullClient, GmailPulledNotification } from "../services/GmailPubSubPullClient";
 import { GmailWatchService } from "../services/GmailWatchService";
 
 @injectable()
@@ -17,9 +16,7 @@ export class GmailPullTriggerRuntime {
   private readonly busyTriggers = new Set<string>();
 
   constructor(
-    @inject(GmailNodeTokens.GmailPubSubPullClient) private readonly gmailPubSubPullClient: GmailPubSubPullClient,
     @inject(GmailNodeTokens.GmailNodesOptions) private readonly options: GmailNodesOptions,
-    @inject(CoreTokens.CredentialService) private readonly credentialService: CredentialService,
     @inject(CoreTokens.TriggerSetupStateStore) private readonly triggerSetupStateStore: TriggerSetupStateStore,
     @inject(GmailNodeTokens.RuntimeLogger) private readonly logger: GmailLogger,
     @inject(GmailWatchService) private readonly gmailWatchService: GmailWatchService,
@@ -28,6 +25,7 @@ export class GmailPullTriggerRuntime {
 
   async ensureStarted(args: Readonly<{
     trigger: TriggerInstanceId;
+    client: GmailApiClient;
     config: OnNewGmailTrigger;
     previousState: GmailTriggerSetupState | undefined;
     emit(items: Items): Promise<void>;
@@ -42,15 +40,9 @@ export class GmailPullTriggerRuntime {
     this.logger.info(
       `starting pull runtime for ${this.describeTrigger(args.trigger)} on mailbox "${args.config.cfg.mailbox}"`,
     );
-    const credential = await this.resolveCredential(args.config.cfg.credential, args.trigger, args.config);
-    await this.gmailPubSubPullClient.ensureSubscription({
-      credential,
-      topicName: args.config.cfg.topicName,
-      subscriptionName: args.config.cfg.subscriptionName,
-    });
     const nextState = await this.gmailWatchService.ensureSetupState({
       trigger: args.trigger,
-      credential: args.config.cfg.credential,
+      client: args.client,
       mailbox: args.config.cfg.mailbox,
       topicName: args.config.cfg.topicName,
       subscriptionName: args.config.cfg.subscriptionName,
@@ -60,6 +52,7 @@ export class GmailPullTriggerRuntime {
     });
     this.ensurePullLoop({
       trigger: args.trigger,
+      client: args.client,
       config: args.config,
       emit: args.emit,
     });
@@ -71,6 +64,7 @@ export class GmailPullTriggerRuntime {
 
   private ensurePullLoop(args: Readonly<{
     trigger: TriggerInstanceId;
+    client: GmailApiClient;
     config: OnNewGmailTrigger;
     emit(items: Items): Promise<void>;
   }>): void {
@@ -92,6 +86,7 @@ export class GmailPullTriggerRuntime {
 
   private async pollOnce(args: Readonly<{
     trigger: TriggerInstanceId;
+    client: GmailApiClient;
     config: OnNewGmailTrigger;
     emit(items: Items): Promise<void>;
   }>): Promise<void> {
@@ -104,7 +99,7 @@ export class GmailPullTriggerRuntime {
     try {
       await this.gmailWatchService.ensureSetupState({
         trigger: args.trigger,
-        credential: args.config.cfg.credential,
+        client: args.client,
         mailbox: args.config.cfg.mailbox,
         topicName: args.config.cfg.topicName,
         subscriptionName: args.config.cfg.subscriptionName,
@@ -112,8 +107,7 @@ export class GmailPullTriggerRuntime {
         previousState: (await this.triggerSetupStateStore.load(args.trigger))?.state as GmailTriggerSetupState | undefined,
         persist: true,
       });
-      const notifications = await this.gmailPubSubPullClient.pull({
-        credential: await this.resolveCredential(args.config.cfg.credential),
+      const notifications = await args.client.pull({
         subscriptionName: args.config.cfg.subscriptionName,
         maxMessages: this.resolveMaxMessagesPerPull(),
       });
@@ -123,6 +117,7 @@ export class GmailPullTriggerRuntime {
       for (const notification of notifications) {
         await this.processNotification({
           trigger: args.trigger,
+          client: args.client,
           config: args.config,
           emit: args.emit,
           notification,
@@ -135,12 +130,14 @@ export class GmailPullTriggerRuntime {
 
   private async processNotification(args: Readonly<{
     trigger: TriggerInstanceId;
+    client: GmailApiClient;
     config: OnNewGmailTrigger;
     emit(items: Items): Promise<void>;
-    notification: GmailPulledNotification;
+    notification: Awaited<ReturnType<GmailApiClient["pull"]>>[number];
   }>): Promise<void> {
     const items = await this.gmailHistorySyncService.sync({
       trigger: args.trigger,
+      client: args.client,
       config: args.config,
       notification: args.notification.notification,
     });
@@ -151,22 +148,6 @@ export class GmailPullTriggerRuntime {
       this.logger.debug(`notification for ${this.describeTrigger(args.trigger)} produced no matching Gmail items`);
     }
     await args.notification.ack();
-  }
-
-  private async resolveCredential(
-    credential: CredentialInput<GmailServiceAccountCredential>,
-    trigger?: TriggerInstanceId,
-    config?: OnNewGmailTrigger,
-  ): Promise<GmailServiceAccountCredential> {
-    try {
-      return await resolveCredential(credential, this.credentialService);
-    } catch (error) {
-      this.logError(
-        `failed to resolve Gmail credentials${trigger && config ? ` for ${this.describeTrigger(trigger)} on mailbox "${config.cfg.mailbox}"` : ""}`,
-        error,
-      );
-      throw error;
-    }
   }
 
   private resolvePullIntervalMs(): number {

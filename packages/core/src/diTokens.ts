@@ -2,7 +2,8 @@ import type { TypeToken } from "./di";
 import type {
   ActivationIdFactory,
   BinaryStorage,
-  CredentialService,
+  CredentialSessionService,
+  CredentialTypeRegistry,
   ExecutionContextFactory,
   NodeActivationObserver,
   NodeActivationScheduler,
@@ -21,7 +22,8 @@ import type { RunEventBus } from "./events/runEvents";
 
 export const CoreTokens = {
   PersistedWorkflowTokenRegistry: Symbol.for("codemation.core.PersistedWorkflowTokenRegistry") as TypeToken<PersistedWorkflowTokenRegistryLike>,
-  CredentialService: Symbol.for("codemation.core.CredentialService") as TypeToken<CredentialService>,
+  CredentialSessionService: Symbol.for("codemation.core.CredentialSessionService") as TypeToken<CredentialSessionService>,
+  CredentialTypeRegistry: Symbol.for("codemation.core.CredentialTypeRegistry") as TypeToken<CredentialTypeRegistry>,
   WorkflowRunnerService: Symbol.for("codemation.core.WorkflowRunnerService") as TypeToken<WorkflowRunnerService>,
   WorkflowRunnerResolver: Symbol.for("codemation.core.WorkflowRunnerResolver") as TypeToken<WorkflowRunnerResolver>,
   WorkflowRegistry: Symbol.for("codemation.core.WorkflowRegistry") as TypeToken<WorkflowRegistry>,

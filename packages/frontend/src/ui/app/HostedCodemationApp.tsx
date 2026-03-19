@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { Providers } from "../providers/Providers";
+import { CredentialsScreen } from "../screens/CredentialsScreen";
 import { HostedWorkflowDetailScreen } from "../screens/HostedWorkflowDetailScreen";
 import { HostedWorkflowsScreen } from "../screens/HostedWorkflowsScreen";
 
@@ -15,6 +16,7 @@ export function HostedCodemationApp(args: HostedCodemationAppProps) {
       <BrowserRouter basename={basename}>
         <Routes>
           <Route path="/" element={<Navigate to="/workflows" replace />} />
+          <Route path="/credentials" element={<CredentialsScreen />} />
           <Route path="/workflows" element={<HostedWorkflowsScreen />} />
           <Route path="/workflows/:workflowId" element={<HostedWorkflowDetailRoute />} />
           <Route path="*" element={<Navigate to="/workflows" replace />} />

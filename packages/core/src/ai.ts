@@ -1,4 +1,5 @@
 import type { TypeToken } from "./di";
+import type { CredentialRequirement } from "./contracts/credentialTypes";
 import type { Item, Items, NodeConfigBase, NodeExecutionContext, NodeId, RunnableNodeConfig } from "./types";
 import type { ZodType, input as ZodInput, output as ZodOutput } from "zod";
 
@@ -59,6 +60,7 @@ export interface ChatModelConfig {
   readonly type: TypeToken<ChatModelFactory<ChatModelConfig>>;
   readonly name: string;
   readonly presentation?: AgentCanvasPresentation;
+  getCredentialRequirements?(): ReadonlyArray<CredentialRequirement>;
 }
 
 export interface LangChainChatModelLike {

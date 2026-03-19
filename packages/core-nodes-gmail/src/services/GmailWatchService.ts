@@ -1,22 +1,19 @@
-import type { CredentialInput, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
+import type { TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
 import { CoreTokens, inject, injectable } from "@codemation/core";
-import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
-import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailApiClient } from "./GmailApiClient";
 
 @injectable()
 export class GmailWatchService {
   constructor(
-    @inject(GmailNodeTokens.GmailApiClient) private readonly gmailApiClient: GmailApiClient,
     @inject(GmailConfiguredLabelService) private readonly gmailConfiguredLabelService: GmailConfiguredLabelService,
     @inject(CoreTokens.TriggerSetupStateStore) private readonly triggerSetupStateStore: TriggerSetupStateStore,
   ) {}
 
   async ensureSetupState(args: Readonly<{
     trigger: TriggerInstanceId;
-    credential: CredentialInput<GmailServiceAccountCredential>;
+    client: GmailApiClient;
     mailbox: string;
     topicName: string;
     subscriptionName: string;
@@ -29,12 +26,15 @@ export class GmailWatchService {
       return currentState;
     }
     const resolvedLabelIds = await this.gmailConfiguredLabelService.resolveLabelIds({
-      credential: args.credential,
+      client: args.client,
       mailbox: args.mailbox,
       configuredLabels: args.labelIds,
     });
-    const watchRegistration = await this.gmailApiClient.watchMailbox({
-      credential: args.credential,
+    await args.client.ensureSubscription({
+      topicName: args.topicName,
+      subscriptionName: args.subscriptionName,
+    });
+    const watchRegistration = await args.client.watchMailbox({
       mailbox: args.mailbox,
       topicName: args.topicName,
       labelIds: resolvedLabelIds,
@@ -60,13 +60,12 @@ export class GmailWatchService {
 
   async baselineState(args: Readonly<{
     trigger: TriggerInstanceId;
-    credential: CredentialInput<GmailServiceAccountCredential>;
+    client: GmailApiClient;
     mailbox: string;
     topicName: string;
     subscriptionName: string;
   }>): Promise<GmailTriggerSetupState> {
-    const historyId = await this.gmailApiClient.getCurrentHistoryId({
-      credential: args.credential,
+    const historyId = await args.client.getCurrentHistoryId({
       mailbox: args.mailbox,
     });
     const state = {

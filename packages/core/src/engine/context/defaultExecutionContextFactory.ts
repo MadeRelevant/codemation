@@ -22,6 +22,7 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
     parent?: ParentExecutionRef;
     data: RunDataSnapshot;
     nodeState?: NodeExecutionStatePublisher;
+    getCredential<TSession = unknown>(slotKey: string): Promise<TSession>;
   }): ExecutionContext {
     return {
       runId: args.runId,
@@ -31,6 +32,7 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
       data: args.data,
       nodeState: args.nodeState,
       binary: new DefaultExecutionBinaryService(this.binaryStorage, args.workflowId, args.runId, this.currentDate),
+      getCredential: args.getCredential,
     };
   }
 }

@@ -15,7 +15,6 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text-summary", "json-summary"],
       reportsDirectory: "./coverage/integration",
-      all: true,
       include: ["src/**/*.ts", "src/**/*.tsx"],
       exclude: ["src/infrastructure/persistence/generated/**"],
     },

@@ -1,13 +1,10 @@
 import type { Item, Items, NodeExecutionContext } from "@codemation/core";
-import { inject, injectable } from "@codemation/core";
-import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
+import { injectable } from "@codemation/core";
 import type { OnNewGmailTrigger, OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
 import type { GmailApiClient, GmailMessageAttachmentRecord } from "./GmailApiClient";
 
 @injectable()
 export class GmailTriggerAttachmentService {
-  constructor(@inject(GmailNodeTokens.GmailApiClient) private readonly gmailApiClient: GmailApiClient) {}
-
   async attachForItems(
     items: Items<OnNewGmailTriggerItemJson>,
     ctx: NodeExecutionContext<OnNewGmailTrigger>,
@@ -34,8 +31,8 @@ export class GmailTriggerAttachmentService {
     attachment: GmailMessageAttachmentRecord,
     ctx: NodeExecutionContext<OnNewGmailTrigger>,
   ): Promise<Item<OnNewGmailTriggerItemJson>> {
-    const content = await this.gmailApiClient.getAttachmentContent({
-      credential: ctx.config.cfg.credential,
+    const client = await ctx.getCredential<GmailApiClient>("auth");
+    const content = await client.getAttachmentContent({
       mailbox: ctx.config.cfg.mailbox,
       messageId: item.json.messageId,
       attachment,

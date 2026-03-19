@@ -82,16 +82,16 @@ export class CodemationServerGateway {
       env,
       workflowSources: this.resolveWorkflowSources(),
     });
+    await application.prepareFrontendServerContainer({
+      repoRoot,
+      env,
+    });
     await application.applyBootHook({
       bootHookToken: this.config.bootHook,
       consumerRoot: this.consumerRoot,
       repoRoot,
       env,
       workflowSources: this.resolveWorkflowSources(),
-    });
-    await application.prepareFrontendServerContainer({
-      repoRoot,
-      env,
     });
     await this.startEngine(application);
     return {

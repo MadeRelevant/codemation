@@ -11,6 +11,7 @@ import type { GmailLogger } from "../contracts/GmailLogger";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import { GmailPullTriggerRuntime } from "../runtime/GmailPullTriggerRuntime";
+import type { GmailApiClient } from "../services/GmailApiClient";
 import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
 import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
 import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "./OnNewGmailTrigger";
@@ -33,8 +34,10 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
     this.logger.info(
       `setup starting for trigger ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} on mailbox "${ctx.config.cfg.mailbox || "<unset>"}"`,
     );
+    const client = await ctx.getCredential<GmailApiClient>("auth");
     const setupState = await this.gmailPullTriggerRuntime.ensureStarted({
       trigger: ctx.trigger,
+      client,
       config: ctx.config,
       previousState: ctx.previousState,
       emit: async (items) => {
@@ -50,8 +53,10 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
   async getTestItems(
     ctx: TriggerTestItemsContext<OnNewGmailTrigger, GmailTriggerSetupState | undefined>,
   ): Promise<Items> {
+    const client = await ctx.getCredential<GmailApiClient>("auth");
     const items = await this.gmailTriggerTestItemService.createItems({
       trigger: ctx.trigger,
+      client,
       config: ctx.config,
       previousState: ctx.previousState,
     });

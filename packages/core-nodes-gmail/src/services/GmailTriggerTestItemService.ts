@@ -1,7 +1,6 @@
 import type { Items, TriggerInstanceId } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
-import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { OnNewGmailTrigger, OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
 import type { GmailApiClient, GmailMessageRecord } from "./GmailApiClient";
 import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
@@ -11,7 +10,6 @@ import { GmailQueryMatcher } from "./GmailQueryMatcher";
 @injectable()
 export class GmailTriggerTestItemService {
   constructor(
-    @inject(GmailNodeTokens.GmailApiClient) private readonly gmailApiClient: GmailApiClient,
     @inject(GmailConfiguredLabelService) private readonly gmailConfiguredLabelService: GmailConfiguredLabelService,
     @inject(GmailMessageItemMapper) private readonly gmailMessageItemMapper: GmailMessageItemMapper,
     @inject(GmailQueryMatcher) private readonly gmailQueryMatcher: GmailQueryMatcher,
@@ -19,17 +17,17 @@ export class GmailTriggerTestItemService {
 
   async createItems(args: Readonly<{
     trigger: TriggerInstanceId;
+    client: GmailApiClient;
     config: OnNewGmailTrigger;
     previousState: GmailTriggerSetupState | undefined;
   }>): Promise<Items<OnNewGmailTriggerItemJson>> {
     void args.trigger;
     const resolvedLabelIds = await this.gmailConfiguredLabelService.resolveLabelIds({
-      credential: args.config.cfg.credential,
+      client: args.client,
       mailbox: args.config.cfg.mailbox,
       configuredLabels: args.config.cfg.labelIds,
     });
-    const messageIds = await this.gmailApiClient.listMessageIds({
-      credential: args.config.cfg.credential,
+    const messageIds = await args.client.listMessageIds({
       mailbox: args.config.cfg.mailbox,
       labelIds: resolvedLabelIds,
       query: args.config.cfg.query,
@@ -38,18 +36,14 @@ export class GmailTriggerTestItemService {
     if (messageIds.length === 0) {
       return [];
     }
-    const message = await this.gmailApiClient.getMessage({
-      credential: args.config.cfg.credential,
+    const message = await args.client.getMessage({
       mailbox: args.config.cfg.mailbox,
       messageId: messageIds[0]!,
     });
     if (!this.matchesConfig(message, args.config, resolvedLabelIds)) {
       return [];
     }
-    const historyId = message.historyId ?? args.previousState?.historyId ?? (await this.gmailApiClient.getCurrentHistoryId({
-      credential: args.config.cfg.credential,
-      mailbox: args.config.cfg.mailbox,
-    }));
+    const historyId = message.historyId ?? args.previousState?.historyId ?? (await args.client.getCurrentHistoryId({ mailbox: args.config.cfg.mailbox }));
     return this.gmailMessageItemMapper.mapMany({
       mailbox: args.config.cfg.mailbox,
       historyId,

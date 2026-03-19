@@ -1,5 +1,4 @@
-import type { CredentialInput, CredentialService } from "@codemation/core";
-import { CoreTokens, inject, injectable, resolveCredential } from "@codemation/core";
+import { PubSub, v1 } from "@google-cloud/pubsub";
 import { google } from "googleapis";
 import type { GmailServiceAccountCredential } from "../../contracts/GmailServiceAccountCredential";
 import {
@@ -11,16 +10,50 @@ import {
   type GmailMessageRecord,
   type GmailWatchRegistration,
 } from "../../services/GmailApiClient";
+import type { GmailPubSubNotification, GmailPulledNotification } from "../../services/GmailPubSubPullClient";
 
-@injectable()
 export class GoogleGmailApiClient implements GmailApiClient {
-  constructor(@inject(CoreTokens.CredentialService) private readonly credentialService: CredentialService) {}
+  constructor(private readonly credential: GmailServiceAccountCredential) {}
 
-  async getCurrentHistoryId(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
-    mailbox: string;
-  }>): Promise<string> {
-    const session = await this.createSession(args.credential);
+  async ensureSubscription(args: Readonly<{ topicName: string; subscriptionName: string }>): Promise<void> {
+    const client = this.createAdminClient();
+    const topic = client.topic(this.normalizeTopicName(args.topicName));
+    const subscription = topic.subscription(this.normalizeSubscriptionName(args.subscriptionName));
+    const [exists] = await subscription.exists();
+    if (!exists) {
+      await topic.createSubscription(this.normalizeSubscriptionName(args.subscriptionName));
+    }
+  }
+
+  async pull(args: Readonly<{ subscriptionName: string; maxMessages?: number }>): Promise<ReadonlyArray<GmailPulledNotification>> {
+    const subscriberClient = this.createSubscriberClient();
+    const subscriptionPath = subscriberClient.subscriptionPath(this.credential.projectId, this.normalizeSubscriptionName(args.subscriptionName));
+    const [response] = await subscriberClient.pull({
+      subscription: subscriptionPath,
+      maxMessages: args.maxMessages ?? 10,
+      returnImmediately: true,
+    });
+    return (response.receivedMessages ?? []).flatMap((receivedMessage) => {
+      const notification = this.parseNotification(receivedMessage.message?.data ?? undefined);
+      if (!notification || !receivedMessage.ackId) {
+        return [];
+      }
+      return [
+        {
+          notification,
+          ack: async () => {
+            await subscriberClient.acknowledge({
+              subscription: subscriptionPath,
+              ackIds: [receivedMessage.ackId!],
+            });
+          },
+        },
+      ];
+    });
+  }
+
+  async getCurrentHistoryId(args: Readonly<{ mailbox: string }>): Promise<string> {
+    const session = await this.createSession();
     const response = await session.gmailClient.users.getProfile({
       userId: session.userId,
     });
@@ -31,13 +64,12 @@ export class GoogleGmailApiClient implements GmailApiClient {
   }
 
   async listMessageIds(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
     labelIds?: ReadonlyArray<string>;
     query?: string;
     maxResults?: number;
   }>): Promise<ReadonlyArray<string>> {
-    const session = await this.createSession(args.credential);
+    const session = await this.createSession();
     const response = await session.gmailClient.users.messages.list({
       userId: session.userId,
       maxResults: Math.max(args.maxResults ?? 1, 1),
@@ -49,16 +81,13 @@ export class GoogleGmailApiClient implements GmailApiClient {
       .filter((messageId): messageId is string => typeof messageId === "string");
   }
 
-  async listLabels(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
-    mailbox: string;
-  }>): Promise<ReadonlyArray<{
+  async listLabels(args: Readonly<{ mailbox: string }>): Promise<ReadonlyArray<{
     id: string;
     name: string;
     type?: string;
   }>> {
     void args.mailbox;
-    const session = await this.createSession(args.credential);
+    const session = await this.createSession();
     const response = await session.gmailClient.users.labels.list({
       userId: session.userId,
     });
@@ -74,12 +103,11 @@ export class GoogleGmailApiClient implements GmailApiClient {
   }
 
   async watchMailbox(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
     topicName: string;
     labelIds?: ReadonlyArray<string>;
   }>): Promise<GmailWatchRegistration> {
-    const session = await this.createSession(args.credential);
+    const session = await this.createSession();
     const response = await session.gmailClient.users.watch({
       userId: session.userId,
       requestBody: {
@@ -98,11 +126,10 @@ export class GoogleGmailApiClient implements GmailApiClient {
   }
 
   async listAddedMessageIds(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
     startHistoryId: string;
   }>): Promise<GmailHistoryDelta> {
-    const session = await this.createSession(args.credential);
+    const session = await this.createSession();
     try {
       const response = await session.gmailClient.users.history.list({
         userId: session.userId,
@@ -122,11 +149,10 @@ export class GoogleGmailApiClient implements GmailApiClient {
   }
 
   async getMessage(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
     messageId: string;
   }>): Promise<GmailMessageRecord> {
-    const session = await this.createSession(args.credential);
+    const session = await this.createSession();
     const response = await session.gmailClient.users.messages.get({
       userId: session.userId,
       id: args.messageId,
@@ -148,13 +174,12 @@ export class GoogleGmailApiClient implements GmailApiClient {
   }
 
   async getAttachmentContent(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
     messageId: string;
     attachment: GmailMessageAttachmentRecord;
   }>): Promise<GmailMessageAttachmentContent> {
     void args.mailbox;
-    const session = await this.createSession(args.credential);
+    const session = await this.createSession();
     const response = await session.gmailClient.users.messages.attachments.get({
       userId: session.userId,
       messageId: args.messageId,
@@ -173,16 +198,15 @@ export class GoogleGmailApiClient implements GmailApiClient {
     };
   }
 
-  private async createSession(credential: CredentialInput<GmailServiceAccountCredential>): Promise<Readonly<{
+  private async createSession(): Promise<Readonly<{
     gmailClient: ReturnType<typeof google.gmail>;
     userId: string;
   }>> {
-    const resolvedCredential = await resolveCredential(credential, this.credentialService);
     const auth = new google.auth.JWT({
-      email: resolvedCredential.clientEmail,
-      key: resolvedCredential.privateKey,
+      email: this.credential.clientEmail,
+      key: this.credential.privateKey,
       scopes: [GoogleGmailApiClientScopeCatalog.gmailReadonly],
-      subject: resolvedCredential.delegatedUser,
+      subject: this.credential.delegatedUser,
     });
     await auth.authorize();
     return {
@@ -190,7 +214,7 @@ export class GoogleGmailApiClient implements GmailApiClient {
         version: "v1",
         auth,
       }),
-      userId: resolvedCredential.delegatedUser,
+      userId: this.credential.delegatedUser,
     };
   }
 
@@ -313,6 +337,58 @@ export class GoogleGmailApiClient implements GmailApiClient {
       message?: string;
     }>;
     return candidate.code === 404 || candidate.response?.status === 404 || candidate.message?.includes("startHistoryId") === true;
+  }
+
+  private parseNotification(data: string | Uint8Array | Buffer | undefined): GmailPubSubNotification | undefined {
+    if (!data) {
+      return undefined;
+    }
+    const decodedPayload = typeof data === "string" ? data : Buffer.from(data).toString("utf8");
+    const parsed = JSON.parse(decodedPayload) as Readonly<{
+      emailAddress?: string;
+      historyId?: string;
+      messageId?: string;
+      publishTime?: string;
+    }>;
+    if (!parsed.emailAddress || !parsed.historyId) {
+      return undefined;
+    }
+    return {
+      emailAddress: parsed.emailAddress,
+      historyId: parsed.historyId,
+      messageId: parsed.messageId,
+      publishTime: parsed.publishTime,
+    };
+  }
+
+  private createAdminClient(): PubSub {
+    return new PubSub({
+      projectId: this.credential.projectId,
+      credentials: {
+        client_email: this.credential.clientEmail,
+        private_key: this.credential.privateKey,
+      },
+    });
+  }
+
+  private createSubscriberClient(): v1.SubscriberClient {
+    return new v1.SubscriberClient({
+      projectId: this.credential.projectId,
+      credentials: {
+        client_email: this.credential.clientEmail,
+        private_key: this.credential.privateKey,
+      },
+    });
+  }
+
+  private normalizeTopicName(topicName: string): string {
+    const match = topicName.match(/projects\/[^/]+\/topics\/([^/]+)$/);
+    return match?.[1] ?? topicName;
+  }
+
+  private normalizeSubscriptionName(subscriptionName: string): string {
+    const match = subscriptionName.match(/projects\/[^/]+\/subscriptions\/([^/]+)$/);
+    return match?.[1] ?? subscriptionName;
   }
 }
 

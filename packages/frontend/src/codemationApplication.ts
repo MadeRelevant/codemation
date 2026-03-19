@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import path from "node:path";
 
-import type { Container, CredentialService, RunEventBus, RunStateStore, TriggerSetupStateStore, WorkflowDefinition } from "@codemation/core";
+import type { Container, RunEventBus, RunStateStore, TriggerSetupStateStore, WorkflowDefinition } from "@codemation/core";
 import {
   ConfigDrivenOffloadPolicy,
   container as tsyringeContainer,
@@ -13,7 +13,6 @@ import {
   Engine,
   EngineWorkflowRunnerService,
   InMemoryBinaryStorage,
-  InMemoryCredentialService,
   InMemoryRunDataFactory,
   InMemoryRunEventBus,
   InMemoryRunStateStore,
@@ -23,6 +22,7 @@ import {
   PersistedWorkflowTokenRegistry,
   PublishingRunStateStore,
   RunIntentService,
+  UnavailableCredentialSessionService,
 } from "@codemation/core";
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
 import { BullmqScheduler } from "@codemation/queue-bullmq";
@@ -88,8 +88,22 @@ import { CodemationWebhookRegistry } from "./infrastructure/webhooks/CodemationW
 import { WebhookEndpointRepositoryAdapter } from "./infrastructure/webhooks/WebhookEndpointRepositoryAdapter";
 import { CodemationWorkerHost } from "./infrastructure/worker/CodemationWorkerHost";
 import { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
-import { PrismaClient } from "./infrastructure/persistence/generated/prisma/client.js";
+import "./application/commands/CredentialCommandHandlers";
+import { PrismaClient } from "./infrastructure/persistence/generated/prisma-client/client.js";
+import "./application/queries/CredentialQueryHandlers";
 import { LocalFilesystemBinaryStorage } from "./infrastructure/binary/LocalFilesystemBinaryStorage";
+import {
+  CredentialBindingService,
+  CredentialInstanceService,
+  CredentialMaterialResolver,
+  type RegisteredCredentialType,
+  CredentialSecretCipher,
+  CredentialSessionServiceImpl,
+  CredentialTestService,
+  CredentialTypeRegistryImpl,
+} from "./domain/credentials/CredentialServices";
+import { InMemoryCredentialStore, PrismaCredentialStore } from "./infrastructure/persistence/CredentialPersistenceStore";
+import "./presentation/http/routeHandlers/CredentialHttpRouteHandler";
 
 type StopHandle = Readonly<{ stop: () => Promise<void> }>;
 
@@ -104,7 +118,6 @@ export class CodemationApplication {
 
   private container: Container = tsyringeContainer.createChildContainer();
   private workflows: WorkflowDefinition[] = [];
-  private credentials: CredentialService = new InMemoryCredentialService();
   private ownedPrismaClient: PrismaClient | null = null;
   private runtimeConfig: CodemationApplicationRuntimeConfig = {};
   private bindings: ReadonlyArray<CodemationBinding<unknown>> = [];
@@ -124,9 +137,6 @@ export class CodemationApplication {
     if (config.plugins) {
       this.usePlugins(config.plugins);
     }
-    if (config.credentials) {
-      this.useCredentials(config.credentials);
-    }
     if (config.runtime) {
       this.useRuntimeConfig(config.runtime);
     }
@@ -142,12 +152,6 @@ export class CodemationApplication {
   useWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): this {
     this.workflows = [...workflows];
     this.synchronizeWorkflowRegistry();
-    return this;
-  }
-
-  useCredentials(credentials: CredentialService): this {
-    this.credentials = credentials;
-    this.synchronizeContainerRegistrations();
     return this;
   }
 
@@ -179,8 +183,8 @@ export class CodemationApplication {
     return [...this.workflows];
   }
 
-  getCredentials(): CredentialService {
-    return this.credentials;
+  registerCredentialType(type: RegisteredCredentialType): void {
+    this.container.resolve(CredentialTypeRegistryImpl).register(type);
   }
 
   async applyPlugins(args: Readonly<{
@@ -199,7 +203,6 @@ export class CodemationApplication {
       env: args.env ?? process.env,
       workflowSources: args.workflowSources ?? [],
     });
-    this.synchronizeContainerRegistrations();
   }
 
   async applyBootHook(args: Readonly<{
@@ -258,7 +261,7 @@ export class CodemationApplication {
       queues: args.queues,
       workflowsById,
       nodeResolver: this.container.resolve(CoreTokens.NodeResolver),
-      credentials: this.container.resolve(CoreTokens.CredentialService),
+      credentialSessions: this.container.resolve(CoreTokens.CredentialSessionService),
       runStore: this.container.resolve(CoreTokens.RunStateStore),
       continuation: engine,
       binaryStorage: this.container.resolve(CoreTokens.BinaryStorage),
@@ -340,7 +343,13 @@ export class CodemationApplication {
     this.container.registerInstance(CodemationApplication, this);
     this.container.registerInstance(CoreTokens.ServiceContainer, this.container);
     this.container.registerInstance(CoreTokens.PersistedWorkflowTokenRegistry, new PersistedWorkflowTokenRegistry());
-    this.container.registerInstance(CoreTokens.CredentialService, this.credentials);
+    this.container.register(CredentialTypeRegistryImpl, {
+      useFactory: instanceCachingFactory(() => new CredentialTypeRegistryImpl()),
+    });
+    this.container.register(CoreTokens.CredentialTypeRegistry, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CredentialTypeRegistryImpl)),
+    });
+    this.container.registerInstance(CoreTokens.CredentialSessionService, new UnavailableCredentialSessionService());
     this.container.register(CodemationIdFactory, { useClass: CodemationIdFactory });
     this.container.register(CoreTokens.RunIdFactory, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationIdFactory)),
@@ -360,7 +369,7 @@ export class CodemationApplication {
     this.container.register(Engine, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         return new Engine({
-          credentials: dependencyContainer.resolve(CoreTokens.CredentialService),
+          credentialSessions: dependencyContainer.resolve(CoreTokens.CredentialSessionService),
           workflowRunnerResolver: dependencyContainer.resolve(CoreTokens.WorkflowRunnerResolver),
           workflowRegistry: dependencyContainer.resolve(CoreTokens.WorkflowRegistry),
           nodeResolver: dependencyContainer.resolve(CoreTokens.NodeResolver),
@@ -408,16 +417,24 @@ export class CodemationApplication {
     });
     this.container.register(WorkflowDefinitionMapper, { useClass: WorkflowDefinitionMapper });
     this.container.register(RequestToWebhookItemMapper, { useClass: RequestToWebhookItemMapper });
+    this.container.register(CredentialSecretCipher, { useClass: CredentialSecretCipher });
+    this.container.register(CredentialMaterialResolver, { useClass: CredentialMaterialResolver });
+    this.container.register(CredentialInstanceService, { useClass: CredentialInstanceService });
+    this.container.register(CredentialBindingService, { useClass: CredentialBindingService });
+    this.container.register(CredentialTestService, { useClass: CredentialTestService });
+    this.container.register(CredentialSessionServiceImpl, { useClass: CredentialSessionServiceImpl });
   }
 
   private registerRepositoriesAndBuses(): void {
     this.container.register(WorkflowDefinitionRepositoryAdapter, { useClass: WorkflowDefinitionRepositoryAdapter });
     this.container.register(InMemoryWorkflowRunRepository, { useClass: InMemoryWorkflowRunRepository });
     this.container.register(InMemoryTriggerSetupStateStore, { useClass: InMemoryTriggerSetupStateStore });
+    this.container.register(InMemoryCredentialStore, { useClass: InMemoryCredentialStore });
     this.container.register(SqlWorkflowRunRepository, { useClass: SqlWorkflowRunRepository });
     this.container.register(InMemoryWorkflowDebuggerOverlayRepository, { useClass: InMemoryWorkflowDebuggerOverlayRepository });
     this.container.register(PrismaTriggerSetupStateStore, { useClass: PrismaTriggerSetupStateStore });
     this.container.register(PrismaWorkflowDebuggerOverlayRepository, { useClass: PrismaWorkflowDebuggerOverlayRepository });
+    this.container.register(PrismaCredentialStore, { useClass: PrismaCredentialStore });
     this.container.register(WebhookEndpointRepositoryAdapter, { useClass: WebhookEndpointRepositoryAdapter });
     this.container.register(ApplicationTokens.WorkflowDefinitionRepository, {
       useFactory: instanceCachingFactory(
@@ -438,6 +455,9 @@ export class CodemationApplication {
       useFactory: instanceCachingFactory(
         (dependencyContainer) => dependencyContainer.resolve(WebhookEndpointRepositoryAdapter) as unknown as WebhookEndpointRepository,
       ),
+    });
+    this.container.register(ApplicationTokens.CredentialStore, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(InMemoryCredentialStore)),
     });
     this.container.register(InMemoryQueryBus, { useClass: InMemoryQueryBus });
     this.container.register(InMemoryCommandBus, { useClass: InMemoryCommandBus });
@@ -490,13 +510,20 @@ export class CodemationApplication {
     this.container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
     this.container.registerInstance(CoreTokens.BinaryStorage, binaryStorage);
     this.container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory(binaryStorage));
+    this.container.registerInstance(ApplicationTokens.ProcessEnv, env);
     this.container.registerInstance(ApplicationTokens.WorkflowDebuggerOverlayRepository, persistence.workflowDebuggerOverlayRepository);
     if (persistence.workflowRunRepository) {
       this.container.registerInstance(ApplicationTokens.WorkflowRunRepository, persistence.workflowRunRepository);
     }
     if (persistence.prismaClient) {
       this.container.registerInstance(PrismaClient, persistence.prismaClient);
+      this.container.registerInstance(ApplicationTokens.CredentialStore, this.container.resolve(PrismaCredentialStore));
+    } else {
+      this.container.registerInstance(ApplicationTokens.CredentialStore, this.container.resolve(InMemoryCredentialStore));
     }
+    this.container.register(CoreTokens.CredentialSessionService, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CredentialSessionServiceImpl)),
+    });
     if (resolved.workerRuntimeScheduler) {
       this.container.registerInstance(ApplicationTokens.WorkerRuntimeScheduler, resolved.workerRuntimeScheduler);
     }

@@ -1,4 +1,5 @@
 import type { TypeToken } from "../di";
+import type { CredentialRequirement } from "./credentialTypes";
 
 export type WorkflowId = string;
 export type NodeId = string;
@@ -41,6 +42,7 @@ export interface NodeConfigBase {
   readonly id?: NodeId;
   readonly icon?: string;
   readonly execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }>;
+  getCredentialRequirements?(): ReadonlyArray<CredentialRequirement>;
 }
 
 export declare const runnableNodeInputType: unique symbol;
@@ -119,13 +121,6 @@ export type Item<TJson = unknown> = Readonly<{
 export type Items<TJson = unknown> = ReadonlyArray<Item<TJson>>;
 
 export type NodeOutputs = Partial<Record<OutputPortKey, Items>>;
-
-export type CredentialId<TSecret = unknown> = string & { __secret?: TSecret };
-export const credentialId = <TSecret,>(value: string) => value as CredentialId<TSecret>;
-
-export interface CredentialService {
-  get<TSecret>(id: CredentialId<TSecret>): Promise<TSecret>;
-}
 
 export type RunId = string;
 export type NodeActivationId = string;

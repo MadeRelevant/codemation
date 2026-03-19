@@ -151,6 +151,10 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
     public readonly tools: ReadonlyArray<ToolConfig> = [],
     public readonly id?: string,
   ) {}
+
+  getCredentialRequirements() {
+    return this.chatModel.getCredentialRequirements?.() ?? [];
+  }
 }
 
 @node({ packageName: "@codemation/core-nodes" })

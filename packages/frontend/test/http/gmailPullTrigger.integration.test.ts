@@ -17,9 +17,7 @@ import {
   type GmailHistoryDelta,
   type GmailMessageAttachmentContent,
   type GmailMessageRecord,
-  type GmailPubSubPullClient,
   type GmailPulledNotification,
-  type GmailServiceAccountCredential,
   type GmailWatchRegistration,
   type OnNewGmailTriggerItemJson,
 } from "../../../core-nodes-gmail/src/index";
@@ -36,6 +34,15 @@ class FakeGmailApiClient implements GmailApiClient {
     historyId: "history_2",
     messageIds: ["message_1"],
   };
+  notifications: GmailPulledNotification[] = [];
+
+  async ensureSubscription(): Promise<void> {}
+
+  async pull(): Promise<ReadonlyArray<GmailPulledNotification>> {
+    const notifications = [...this.notifications];
+    this.notifications = [];
+    return notifications;
+  }
 
   async getCurrentHistoryId(): Promise<string> {
     return "history_1";
@@ -97,28 +104,10 @@ class FakePulledNotification implements GmailPulledNotification {
   }
 }
 
-class FakeGmailPubSubPullClient implements GmailPubSubPullClient {
-  notifications: GmailPulledNotification[] = [];
-
-  async ensureSubscription(): Promise<void> {}
-
-  async pull(): Promise<ReadonlyArray<GmailPulledNotification>> {
-    const notifications = [...this.notifications];
-    this.notifications = [];
-    return notifications;
-  }
-}
-
 class GmailPullTriggerIntegrationFixture {
   static readonly workflowId = "wf.gmail.integration";
   static readonly triggerNodeId = "on_gmail";
   static readonly callbackNodeId = "capture_gmail_payload";
-  static readonly credential: GmailServiceAccountCredential = {
-    clientEmail: "gmail@test.dev",
-    privateKey: "private-key",
-    projectId: "project-id",
-    delegatedUser: "sales@example.com",
-  };
 
   static createWorkflow() {
     return createWorkflowBuilder({
@@ -129,7 +118,6 @@ class GmailPullTriggerIntegrationFixture {
         new OnNewGmailTrigger(
           "On Gmail",
           {
-            credential: this.credential,
             mailbox: "sales@example.com",
             topicName: "projects/project-id/topics/gmail",
             subscriptionName: "projects/project-id/subscriptions/gmail",
@@ -166,15 +154,11 @@ class GmailPullTriggerIntegrationFixture {
     };
   }
 
-  static createBindings(apiClient: GmailApiClient, pullClient: GmailPubSubPullClient): ReadonlyArray<CodemationBinding<unknown>> {
+  static createBindings(apiClient: GmailApiClient): ReadonlyArray<CodemationBinding<unknown>> {
     return [
       {
         token: GmailNodeTokens.GmailApiClient,
         useValue: apiClient,
-      },
-      {
-        token: GmailNodeTokens.GmailPubSubPullClient,
-        useValue: pullClient,
       },
     ];
   }
@@ -233,12 +217,11 @@ describe("Gmail pull trigger integration", () => {
       historyId: "history_2",
       publishTime: "2026-03-17T12:05:00.000Z",
     });
-    const pullClient = new FakeGmailPubSubPullClient();
-    pullClient.notifications = [notification];
+    apiClient.notifications = [notification];
     const harness = new FrontendHttpIntegrationHarness({
       config: GmailPullTriggerIntegrationFixture.createConfig(),
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      bindings: GmailPullTriggerIntegrationFixture.createBindings(apiClient, pullClient),
+      bindings: GmailPullTriggerIntegrationFixture.createBindings(apiClient),
     });
     harnesses.push(harness);
     await harness.start();
@@ -252,11 +235,10 @@ describe("Gmail pull trigger integration", () => {
 
   it("synthesizes a Gmail test item through the runs api and allows pinning the trigger output", async () => {
     const apiClient = new FakeGmailApiClient();
-    const pullClient = new FakeGmailPubSubPullClient();
     const harness = new FrontendHttpIntegrationHarness({
       config: GmailPullTriggerIntegrationFixture.createConfig(),
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      bindings: GmailPullTriggerIntegrationFixture.createBindings(apiClient, pullClient),
+      bindings: GmailPullTriggerIntegrationFixture.createBindings(apiClient),
     });
     harnesses.push(harness);
     await harness.start();
@@ -314,11 +296,10 @@ describe("Gmail pull trigger integration", () => {
 
   it("auto-synthesizes trigger test items when stopping at a trigger with an empty trigger payload", async () => {
     const apiClient = new FakeGmailApiClient();
-    const pullClient = new FakeGmailPubSubPullClient();
     const harness = new FrontendHttpIntegrationHarness({
       config: GmailPullTriggerIntegrationFixture.createConfig(),
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      bindings: GmailPullTriggerIntegrationFixture.createBindings(apiClient, pullClient),
+      bindings: GmailPullTriggerIntegrationFixture.createBindings(apiClient),
     });
     harnesses.push(harness);
     await harness.start();

@@ -5,6 +5,8 @@ export class ApiPaths {
 
   private static readonly runsBasePath = `${this.apiBasePath}/runs`;
 
+  private static readonly credentialsBasePath = `${this.apiBasePath}/credentials`;
+
   private static readonly webhooksBasePath = `${this.apiBasePath}/webhooks`;
 
   static workflows(): string {
@@ -17,6 +19,10 @@ export class ApiPaths {
 
   static workflowRuns(workflowId: string): string {
     return `${this.workflow(workflowId)}/runs`;
+  }
+
+  static workflowCredentialHealth(workflowId: string): string {
+    return `${this.workflow(workflowId)}/credential-health`;
   }
 
   static workflowDebuggerOverlay(workflowId: string): string {
@@ -33,6 +39,26 @@ export class ApiPaths {
 
   static run(): string {
     return this.runs();
+  }
+
+  static credentialTypes(): string {
+    return `${this.credentialsBasePath}/types`;
+  }
+
+  static credentialInstances(): string {
+    return `${this.credentialsBasePath}/instances`;
+  }
+
+  static credentialInstance(instanceId: string): string {
+    return `${this.credentialInstances()}/${encodeURIComponent(instanceId)}`;
+  }
+
+  static credentialInstanceTest(instanceId: string): string {
+    return `${this.credentialInstance(instanceId)}/test`;
+  }
+
+  static credentialBindings(): string {
+    return `${this.apiBasePath}/credential-bindings`;
   }
 
   static workflowWebsocket(): string {

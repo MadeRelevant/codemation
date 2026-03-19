@@ -1,7 +1,8 @@
 import type { Container } from "@codemation/core";
 import { GoogleGmailApiClient } from "../adapters/google/GoogleGmailApiClient";
-import { GooglePubSubPullClient } from "../adapters/google/GooglePubSubPullClient";
+import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
+import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailHistorySyncService } from "../services/GmailHistorySyncService";
 import { GmailConfiguredLabelService } from "../services/GmailConfiguredLabelService";
@@ -29,6 +30,21 @@ type PluginContext = Readonly<{
   workflowSources: ReadonlyArray<string>;
 }>;
 
+type CredentialTypeRegistrar = Readonly<{
+  registerCredentialType(type: Readonly<{
+    definition: Readonly<{
+      typeId: string;
+      displayName: string;
+      description?: string;
+      publicFields?: ReadonlyArray<Readonly<{ key: string; label: string; type: string; required?: true; placeholder?: string; helpText?: string }>>;
+      secretFields?: ReadonlyArray<Readonly<{ key: string; label: string; type: string; required?: true; placeholder?: string; helpText?: string }>>;
+      supportedSourceKinds?: ReadonlyArray<"db" | "env" | "code">;
+    }>;
+    createSession(args: Readonly<{ material: Readonly<Record<string, unknown>>; instance: unknown; publicConfig: Readonly<Record<string, unknown>> }>): Promise<unknown>;
+    test(args: Readonly<{ material: Readonly<Record<string, unknown>>; instance: unknown; publicConfig: Readonly<Record<string, unknown>> }>): Promise<Readonly<{ status: "unknown" | "healthy" | "failing"; message?: string; testedAt?: string; expiresAt?: string; details?: Readonly<Record<string, unknown>> }>>;
+  }>): void;
+}>;
+
 export class GmailNodes {
   private readonly options: GmailNodesOptions;
 
@@ -39,7 +55,7 @@ export class GmailNodes {
   async register(context: PluginContext): Promise<void> {
     this.registerOptions(context.container);
     this.registerServices(context.container, context);
-    void context.application;
+    this.registerCredentialTypes(context.application);
   }
 
   private registerOptions(container: Container): void {
@@ -57,15 +73,80 @@ export class GmailNodes {
     container.register(GmailTriggerTestItemService, { useClass: GmailTriggerTestItemService });
     container.register(GmailWatchService, { useClass: GmailWatchService });
     container.register(GmailPullTriggerRuntime, { useClass: GmailPullTriggerRuntime });
-    container.register(GmailNodeTokens.GmailApiClient, {
-      useClass: GoogleGmailApiClient,
-    });
-    container.register(GmailNodeTokens.GmailPubSubPullClient, {
-      useClass: GooglePubSubPullClient,
-    });
     void context.consumerRoot;
     void context.repoRoot;
     void context.env;
     void context.workflowSources;
+  }
+
+  private registerCredentialTypes(application: unknown): void {
+    const registrar = this.asCredentialTypeRegistrar(application);
+    if (!registrar) {
+      return;
+    }
+    registrar.registerCredentialType({
+      definition: {
+        typeId: GmailCredentialTypes.serviceAccount,
+        displayName: "Gmail service account",
+        description: "Google service account credentials that resolve to a Gmail trigger client.",
+        secretFields: [
+          { key: "clientEmail", label: "Client email", type: "string", required: true },
+          { key: "privateKey", label: "Private key", type: "textarea", required: true },
+          { key: "projectId", label: "Project id", type: "string", required: true },
+          { key: "delegatedUser", label: "Delegated user", type: "string", required: true },
+        ],
+        supportedSourceKinds: ["db", "env", "code"],
+      },
+      createSession: async (args) => {
+        return new GoogleGmailApiClient(this.toServiceAccountCredential(args.material));
+      },
+      test: async (args) => {
+        const client = new GoogleGmailApiClient(this.toServiceAccountCredential(args.material));
+        try {
+          const historyId = await client.getCurrentHistoryId({
+            mailbox: this.toServiceAccountCredential(args.material).delegatedUser,
+          });
+          return {
+            status: "healthy",
+            message: "Connected to Gmail successfully.",
+            testedAt: new Date().toISOString(),
+            details: {
+              historyId,
+            },
+          };
+        } catch (error) {
+          return {
+            status: "failing",
+            message: error instanceof Error ? error.message : String(error),
+            testedAt: new Date().toISOString(),
+          };
+        }
+      },
+    });
+  }
+
+  private asCredentialTypeRegistrar(application: unknown): CredentialTypeRegistrar | undefined {
+    if (!application || typeof application !== "object") {
+      return undefined;
+    }
+    return typeof (application as { registerCredentialType?: unknown }).registerCredentialType === "function"
+      ? (application as CredentialTypeRegistrar)
+      : undefined;
+  }
+
+  private toServiceAccountCredential(material: Readonly<Record<string, unknown>>): GmailServiceAccountCredential {
+    const clientEmail = String(material.clientEmail ?? "");
+    const privateKey = String(material.privateKey ?? "");
+    const projectId = String(material.projectId ?? "");
+    const delegatedUser = String(material.delegatedUser ?? "");
+    if (!clientEmail || !privateKey || !projectId || !delegatedUser) {
+      throw new Error("Gmail service account material is incomplete.");
+    }
+    return {
+      clientEmail,
+      privateKey,
+      projectId,
+      delegatedUser,
+    };
   }
 }

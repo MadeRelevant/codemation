@@ -1,5 +1,4 @@
-import type { CredentialInput } from "@codemation/core";
-import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
+import type { GmailPulledNotification } from "./GmailPubSubPullClient";
 
 export type GmailMessageRecord = Readonly<{
   messageId: string;
@@ -45,39 +44,36 @@ export type GmailWatchRegistration = Readonly<{
 }>;
 
 export interface GmailApiClient {
-  getCurrentHistoryId(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
-    mailbox: string;
-  }>): Promise<string>;
+  ensureSubscription(args: Readonly<{
+    topicName: string;
+    subscriptionName: string;
+  }>): Promise<void>;
+  pull(args: Readonly<{
+    subscriptionName: string;
+    maxMessages?: number;
+  }>): Promise<ReadonlyArray<GmailPulledNotification>>;
+  getCurrentHistoryId(args: Readonly<{ mailbox: string }>): Promise<string>;
   listMessageIds(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
     labelIds?: ReadonlyArray<string>;
     query?: string;
     maxResults?: number;
   }>): Promise<ReadonlyArray<string>>;
-  listLabels(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
-    mailbox: string;
-  }>): Promise<ReadonlyArray<GmailLabelRecord>>;
+  listLabels(args: Readonly<{ mailbox: string }>): Promise<ReadonlyArray<GmailLabelRecord>>;
   watchMailbox(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
     topicName: string;
     labelIds?: ReadonlyArray<string>;
   }>): Promise<GmailWatchRegistration>;
   listAddedMessageIds(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
     startHistoryId: string;
   }>): Promise<GmailHistoryDelta>;
   getMessage(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
     messageId: string;
   }>): Promise<GmailMessageRecord>;
   getAttachmentContent(args: Readonly<{
-    credential: CredentialInput<GmailServiceAccountCredential>;
     mailbox: string;
     messageId: string;
     attachment: GmailMessageAttachmentRecord;

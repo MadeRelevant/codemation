@@ -1,6 +1,6 @@
 import type {
   BinaryStorage,
-  CredentialService,
+  CredentialSessionService,
   NodeActivationContinuation,
   NodeExecutionRequest,
   NodeExecutionScheduler,
@@ -36,7 +36,7 @@ export class BullmqScheduler implements NodeExecutionScheduler {
     queues: ReadonlyArray<string>;
     workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>;
     nodeResolver: NodeResolver;
-    credentials: CredentialService;
+    credentialSessions: CredentialSessionService;
     runStore: RunStateStore;
     continuation: NodeActivationContinuation;
     binaryStorage?: BinaryStorage;
@@ -49,7 +49,7 @@ export class BullmqScheduler implements NodeExecutionScheduler {
         args.queues,
         args.workflowsById,
         args.nodeResolver,
-        args.credentials,
+        args.credentialSessions,
         args.runStore,
         args.continuation,
         this.queuePrefix,
@@ -64,7 +64,7 @@ export class BullmqScheduler implements NodeExecutionScheduler {
       args.queues,
       args.workflowsById,
       args.nodeResolver,
-      args.credentials,
+      args.credentialSessions,
       args.runStore,
       args.continuation,
       this.queuePrefix,

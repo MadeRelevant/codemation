@@ -1,7 +1,7 @@
 import type { GmailMessageAttachmentRecord } from "../services/GmailApiClient";
-import type { CredentialInput, TriggerNodeConfig, TypeToken } from "@codemation/core";
-import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
+import type { CredentialRequirement, TriggerNodeConfig, TypeToken } from "@codemation/core";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
+import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import { OnNewGmailTriggerNode } from "./OnNewGmailTriggerNode";
 
 export type OnNewGmailTriggerItemJson = Readonly<{
@@ -22,7 +22,6 @@ export type OnNewGmailTriggerItemJson = Readonly<{
 
 export type OnNewGmailTriggerOptions = Readonly<{
   mailbox: string;
-  credential: CredentialInput<GmailServiceAccountCredential>;
   topicName: string;
   subscriptionName: string;
   labelIds?: ReadonlyArray<string>;
@@ -41,4 +40,15 @@ export class OnNewGmailTrigger
     public readonly cfg: OnNewGmailTriggerOptions,
     public readonly id?: string,
   ) {}
+
+  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
+    return [
+      {
+        slotKey: "auth",
+        label: "Gmail account",
+        acceptedTypes: [GmailCredentialTypes.serviceAccount],
+        helpText: "Bind a Gmail credential that resolves to an authenticated Gmail trigger client.",
+      },
+    ];
+  }
 }

@@ -1,4 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import type { BinaryAttachment } from "@codemation/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WorkflowExecutionInspector } from "../src/ui/workflowDetail/WorkflowExecutionInspector";
@@ -15,7 +17,7 @@ describe("workflow execution inspector", () => {
   });
 
   it("keeps the inspector constrained to the available width", () => {
-    render(
+    WorkflowExecutionInspectorFixture.render(
       <div style={{ width: 480, height: 320 }}>
         <WorkflowExecutionInspector
           model={WorkflowExecutionInspectorFixture.createModel()}
@@ -47,7 +49,7 @@ describe("workflow execution inspector", () => {
   });
 
   it("resizes the execution tree panel when the splitter is dragged", () => {
-    render(
+    WorkflowExecutionInspectorFixture.render(
       <div style={{ width: 900, height: 320 }}>
         <WorkflowExecutionInspector
           model={WorkflowExecutionInspectorFixture.createModel()}
@@ -75,7 +77,7 @@ describe("workflow execution inspector", () => {
   });
 
   it("shows only the duration in the tree and keeps full timing details in the header", () => {
-    render(
+    WorkflowExecutionInspectorFixture.render(
       <div style={{ width: 900, height: 320 }}>
         <WorkflowExecutionInspector
           model={WorkflowExecutionInspectorFixture.createModel()}
@@ -95,7 +97,7 @@ describe("workflow execution inspector", () => {
     const model = WorkflowExecutionInspectorFixture.createModelWithOutputAttachments();
     const actions = WorkflowExecutionInspectorFixture.createActions();
 
-    render(
+    WorkflowExecutionInspectorFixture.render(
       <div style={{ width: 900, height: 320 }}>
         <WorkflowExecutionInspector
           model={model}
@@ -115,7 +117,7 @@ describe("workflow execution inspector", () => {
 
   it("renders binary attachments in a dedicated pane", () => {
     const model = WorkflowExecutionInspectorFixture.createModelWithOutputAttachments();
-    render(
+    WorkflowExecutionInspectorFixture.render(
       <div style={{ width: 900, height: 320 }}>
         <WorkflowExecutionInspector
           model={{
@@ -146,7 +148,7 @@ describe("workflow execution inspector", () => {
 
   it("hides item grouping when all binaries belong to one item", () => {
     const model = WorkflowExecutionInspectorFixture.createModelWithOutputAttachments();
-    render(
+    WorkflowExecutionInspectorFixture.render(
       <div style={{ width: 900, height: 320 }}>
         <WorkflowExecutionInspector
           model={{
@@ -174,7 +176,7 @@ describe("workflow execution inspector", () => {
   });
 
   it("hides the binary format button when a pane has no attachments", () => {
-    render(
+    WorkflowExecutionInspectorFixture.render(
       <div style={{ width: 900, height: 320 }}>
         <WorkflowExecutionInspector
           model={WorkflowExecutionInspectorFixture.createModel()}
@@ -190,6 +192,17 @@ describe("workflow execution inspector", () => {
 });
 
 class WorkflowExecutionInspectorFixture {
+  static render(node: ReactNode) {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+    return render(<QueryClientProvider client={queryClient}>{node}</QueryClientProvider>);
+  }
+
   static createModel(): WorkflowExecutionInspectorModel {
     const selectedNodeSnapshot = {
       runId: "run-1",
@@ -202,6 +215,7 @@ class WorkflowExecutionInspectorFixture {
     } as WorkflowExecutionInspectorModel["selectedNodeSnapshot"];
 
     return {
+      workflowId: "wf-1",
       viewContext: "historical-run",
       selectedRunId: "run-1",
       isLoading: false,

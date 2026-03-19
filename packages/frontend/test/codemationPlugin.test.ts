@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CodemationApplication } from "../src/codemationApplication";
 import type { CodemationPlugin, CodemationPluginContext } from "../src/presentation/config/CodemationPlugin";
-import { GmailNodes, GmailNodeTokens } from "../../core-nodes-gmail/src/index.ts";
+import { GmailNodes, GmailNodeTokens } from "../../core-nodes-gmail/src/index";
 
 class TestPluginTokenCatalog {
   static readonly value = Symbol.for("codemation.frontend.test.plugin-value");

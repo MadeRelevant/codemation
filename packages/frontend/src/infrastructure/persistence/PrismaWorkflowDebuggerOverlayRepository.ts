@@ -2,7 +2,7 @@ import type { RunCurrentState } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
 import type { WorkflowDebuggerOverlayRepository } from "../../domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDebuggerOverlayState } from "../../domain/workflows/WorkflowDebuggerOverlayState";
-import { PrismaClient } from "./generated/prisma/client.js";
+import { PrismaClient } from "./generated/prisma-client/client.js";
 
 type DebuggerOverlayStateJson = Readonly<{
   currentState: RunCurrentState;

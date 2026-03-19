@@ -1,6 +1,6 @@
 import type {
   BinaryStorage,
-  CredentialService,
+  CredentialSessionService,
   NodeActivationContinuation,
   NodeExecutionScheduler,
   NodeResolver,
@@ -18,7 +18,7 @@ export interface WorkerRuntimeScheduler extends NodeExecutionScheduler {
     queues: ReadonlyArray<string>;
     workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>;
     nodeResolver: NodeResolver;
-    credentials: CredentialService;
+    credentialSessions: CredentialSessionService;
     runStore: RunStateStore;
     continuation: NodeActivationContinuation;
     binaryStorage?: BinaryStorage;

@@ -1,6 +1,6 @@
 import { injectable } from "@codemation/core";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "./generated/prisma/client.js";
+import { PrismaClient } from "./generated/prisma-client/client.js";
 
 @injectable()
 export class PrismaClientFactory {

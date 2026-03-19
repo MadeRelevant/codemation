@@ -1,10 +1,7 @@
-import { credentialId, credentialRef } from "@codemation/core";
-import type { GmailServiceAccountCredential } from "@codemation/core-nodes-gmail";
 import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "@codemation/core-nodes-gmail";
 import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
 import { TestDevGmailEnvironment } from "../bootstrap/TestDevGmailEnvironment";
 
-const GMAIL_SERVICE_ACCOUNT = credentialId<GmailServiceAccountCredential>("gmail.serviceAccount");
 const gmailEnvironment = new TestDevGmailEnvironment();
 const gmailTriggerConfiguration = gmailEnvironment.resolveTriggerConfiguration();
 
@@ -22,7 +19,6 @@ export default createWorkflowBuilder({ id: "wf.gmail.pull", name: "Gmail pull tr
       "On new Gmail message",
       {
         mailbox: gmailTriggerConfiguration.mailbox,
-        credential: credentialRef(GMAIL_SERVICE_ACCOUNT),
         topicName: gmailTriggerConfiguration.topicName,
         subscriptionName: gmailTriggerConfiguration.subscriptionName,
         labelIds: gmailTriggerConfiguration.labelIds,

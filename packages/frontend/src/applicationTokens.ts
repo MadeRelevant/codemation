@@ -16,6 +16,7 @@ import type { WebhookEndpointRepository } from "./domain/webhooks/WebhookEndpoin
 import type { HttpRouteHandler } from "./presentation/http/HttpRouteHandler";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
 import type { LoggerFactory } from "./application/logging/Logger";
+import type { CredentialStore } from "./domain/credentials/CredentialServices";
 
 export const ApplicationTokens = {
   WebSocketPort: Symbol.for("codemation.application.WebSocketPort") as TypeToken<number>,
@@ -34,4 +35,6 @@ export const ApplicationTokens = {
   WorkflowRunRepository: Symbol.for("codemation.application.WorkflowRunRepository") as TypeToken<WorkflowRunRepository>,
   WebhookEndpointRepository: Symbol.for("codemation.application.WebhookEndpointRepository") as TypeToken<WebhookEndpointRepository>,
   LoggerFactory: Symbol.for("codemation.application.LoggerFactory") as TypeToken<LoggerFactory>,
+  CredentialStore: Symbol.for("codemation.application.CredentialStore") as TypeToken<CredentialStore>,
+  ProcessEnv: Symbol.for("codemation.application.ProcessEnv") as TypeToken<Readonly<NodeJS.ProcessEnv>>,
 } as const;

@@ -1,5 +1,6 @@
 export { Engine, EngineWorkflowRunnerService } from "./runtime/runtimeEngine";
 export { InMemoryWebhookTriggerMatcher } from "./runtime/InMemoryWebhookTriggerMatcher";
+export { UnavailableCredentialSessionService } from "./runtime/UnavailableCredentialSessionService";
 export { RunIntentService } from "./runtime/RunIntentService";
 export { ContainerNodeResolver } from "./runtime/containerNodeResolver";
 export { ContainerWorkflowRunnerResolver } from "./runtime/containerWorkflowRunnerResolver";

@@ -1,5 +1,5 @@
-import type { AgentCanvasPresentation, ChatModelConfig, ChatModelFactory, CredentialService, LangChainChatModelLike, NodeExecutionContext } from "@codemation/core";
-import { CoreTokens, chatModel, inject, resolveCredential, type CredentialInput } from "@codemation/core";
+import type { AgentCanvasPresentation, ChatModelConfig, ChatModelFactory, CredentialRequirement, LangChainChatModelLike, NodeExecutionContext } from "@codemation/core";
+import { chatModel } from "@codemation/core";
 import { ChatOpenAI } from "@langchain/openai";
 import type { CanvasIconName } from "../canvasIconName";
 
@@ -9,7 +9,7 @@ export class OpenAIChatModelConfig implements ChatModelConfig {
   constructor(
     public readonly name: string,
     public readonly model: string,
-    public readonly apiKey: CredentialInput<string>,
+    public readonly credentialSlotKey: string = "openai",
     public readonly presentation?: AgentCanvasPresentation<CanvasIconName>,
     public readonly options?: Readonly<{
       baseUrl?: string;
@@ -17,17 +17,22 @@ export class OpenAIChatModelConfig implements ChatModelConfig {
       maxTokens?: number;
     }>,
   ) {}
+
+  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
+    return [
+      {
+        slotKey: this.credentialSlotKey,
+        label: "OpenAI API key",
+        acceptedTypes: ["openai.apiKey"],
+      },
+    ];
+  }
 }
 
 @chatModel({ packageName: "@codemation/core-nodes" })
 export class OpenAIChatModelFactory implements ChatModelFactory<OpenAIChatModelConfig> {
-  constructor(
-    @inject(CoreTokens.CredentialService)
-    private readonly credentials: CredentialService,
-  ) {}
-
   async create(args: Readonly<{ config: OpenAIChatModelConfig; ctx: NodeExecutionContext<any> }>): Promise<LangChainChatModelLike> {
-    const apiKey = await resolveCredential(args.config.apiKey, this.credentials);
+    const apiKey = await args.ctx.getCredential<string>(args.config.credentialSlotKey);
     return new ChatOpenAI({
       apiKey,
       model: args.config.model,

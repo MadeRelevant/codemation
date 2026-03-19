@@ -1,6 +1,6 @@
 import type {
   BinaryStorage,
-  CredentialService,
+  CredentialSessionService,
   Items,
   Node,
   NodeActivationContinuation,
@@ -37,7 +37,7 @@ export class BullmqWorker {
 
   private readonly workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>;
   private readonly nodeResolver: NodeResolver;
-  private readonly credentials: CredentialService;
+  private readonly credentialSessions: CredentialSessionService;
   private readonly runStore: RunStateStore;
   private readonly continuation: NodeActivationContinuation;
   private readonly workflows: unknown;
@@ -51,7 +51,7 @@ export class BullmqWorker {
     queues: ReadonlyArray<string>,
     workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>,
     nodeResolver: NodeResolver,
-    credentials: CredentialService,
+    credentialSessions: CredentialSessionService,
     runStore: RunStateStore,
     continuation: NodeActivationContinuation,
     queuePrefix: string = "codemation",
@@ -63,7 +63,7 @@ export class BullmqWorker {
     this.queuePrefix = queuePrefix;
     this.workflowsById = workflowsById;
     this.nodeResolver = nodeResolver;
-    this.credentials = credentials;
+    this.credentialSessions = credentialSessions;
     this.runStore = runStore;
     this.continuation = continuation;
     this.workflows = workflows;
@@ -108,6 +108,13 @@ export class BullmqWorker {
       workflowId: request.workflowId,
       parent: (request.parent ?? state.parent) as any,
       data: dataStore,
+      getCredential: async <TSession = unknown>(slotKey: string): Promise<TSession> => {
+        return await this.credentialSessions.getSession<TSession>({
+          workflowId: request.workflowId,
+          nodeId: request.nodeId as any,
+          slotKey,
+        });
+      },
     });
 
     const ctx: NodeExecutionContext<any> = {
@@ -117,6 +124,13 @@ export class BullmqWorker {
       config: def.config as any,
       now: this.now,
       binary: base.binary.forNode({ nodeId: request.nodeId, activationId: request.activationId as any }),
+      getCredential: async <TSession = unknown>(slotKey: string): Promise<TSession> => {
+        return await this.credentialSessions.getSession<TSession>({
+          workflowId: request.workflowId,
+          nodeId: request.nodeId as any,
+          slotKey,
+        });
+      },
     };
 
     try {

@@ -728,6 +728,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       onSelectRun,
     },
     inspectorModel: {
+      workflowId,
       viewContext,
       selectedRunId,
       isLoading: viewContext === "historical-run" ? selectedRunQuery.isLoading : debuggerOverlayQuery.isLoading,

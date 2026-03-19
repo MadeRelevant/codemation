@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { PrismaClient } from "../src/infrastructure/persistence/generated/prisma/client.js";
+import { PrismaClient } from "../src/infrastructure/persistence/generated/prisma-client/client.js";
 import { PrismaTriggerSetupStateStore } from "../src/infrastructure/persistence/PrismaTriggerSetupStateStore";
 import { PostgresIntegrationDatabase } from "./http/testkit/PostgresIntegrationDatabase";
 import { PostgresRollbackTransaction } from "./http/testkit/PostgresRollbackTransaction";

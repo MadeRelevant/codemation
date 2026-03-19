@@ -1,10 +1,13 @@
 "use client";
 
 import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { CredentialTypeDefinition } from "@codemation/core/browser";
 import type { Item as WorkflowItem } from "@codemation/core/browser";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { WorkflowDto, WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
 export type { WorkflowDto, WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
+import type { CredentialInstanceDto, WorkflowCredentialHealthDto } from "../../application/contracts/CredentialContracts";
+export type { CredentialInstanceDto, WorkflowCredentialHealthDto } from "../../application/contracts/CredentialContracts";
 import { ApiPaths } from "../../presentation/http/ApiPaths";
 import type { Logger } from "../../application/logging/Logger";
 
@@ -172,6 +175,9 @@ const workflowQueryKey = (workflowId: string) => ["workflow", workflowId] as con
 const workflowRunsQueryKey = (workflowId: string) => ["workflow-runs", workflowId] as const;
 const workflowDebuggerOverlayQueryKey = (workflowId: string) => ["workflow-debugger-overlay", workflowId] as const;
 const runQueryKey = (runId: string) => ["run", runId] as const;
+const credentialTypesQueryKey = ["credential-types"] as const;
+const credentialInstancesQueryKey = ["credential-instances"] as const;
+const workflowCredentialHealthQueryKey = (workflowId: string) => ["workflow-credential-health", workflowId] as const;
 
 function getRealtimeBridge(): RealtimeBridgeState {
   const realtimeGlobal = globalThis as RealtimeBridgeGlobal;
@@ -208,6 +214,18 @@ async function fetchWorkflowDebuggerOverlay(workflowId: string): Promise<Workflo
 
 async function fetchRun(runId: string): Promise<PersistedRunState> {
   return await fetchJson<PersistedRunState>(ApiPaths.runState(runId));
+}
+
+async function fetchCredentialTypes(): Promise<ReadonlyArray<CredentialTypeDefinition>> {
+  return await fetchJson<ReadonlyArray<CredentialTypeDefinition>>(ApiPaths.credentialTypes());
+}
+
+async function fetchCredentialInstances(): Promise<ReadonlyArray<CredentialInstanceDto>> {
+  return await fetchJson<ReadonlyArray<CredentialInstanceDto>>(ApiPaths.credentialInstances());
+}
+
+async function fetchWorkflowCredentialHealth(workflowId: string): Promise<WorkflowCredentialHealthDto> {
+  return await fetchJson<WorkflowCredentialHealthDto>(ApiPaths.workflowCredentialHealth(workflowId));
 }
 
 function countItems(inputsByPort: Readonly<Record<string, Items>> | undefined): number {
@@ -778,5 +796,27 @@ export function useRunQuery(runId: string | null | undefined, options: Readonly<
     queryFn: async () => await fetchRun(runId!),
     enabled: Boolean(runId) && !options.disableFetch,
     initialData: cachedState,
+  });
+}
+
+export function useCredentialTypesQuery() {
+  return useQuery({
+    queryKey: credentialTypesQueryKey,
+    queryFn: fetchCredentialTypes,
+  });
+}
+
+export function useCredentialInstancesQuery() {
+  return useQuery({
+    queryKey: credentialInstancesQueryKey,
+    queryFn: fetchCredentialInstances,
+  });
+}
+
+export function useWorkflowCredentialHealthQuery(workflowId: string) {
+  return useQuery({
+    queryKey: workflowCredentialHealthQueryKey(workflowId),
+    queryFn: async () => await fetchWorkflowCredentialHealth(workflowId),
+    enabled: Boolean(workflowId),
   });
 }

@@ -1,4 +1,4 @@
-import type { Container, CredentialService, TypeToken, WorkflowDefinition } from "@codemation/core";
+import type { Container, TypeToken, WorkflowDefinition } from "@codemation/core";
 import type { CodemationApplication } from "../../codemationApplication";
 import type { CodemationAppSlots } from "./CodemationAppSlots";
 import type { CodemationBinding } from "./CodemationBinding";
@@ -48,7 +48,6 @@ export interface CodemationBootHook {
 }
 
 export interface CodemationConfig {
-  readonly credentials?: CredentialService;
   readonly runtime?: CodemationApplicationRuntimeConfig;
   readonly workflows?: ReadonlyArray<WorkflowDefinition>;
   readonly workflowDiscovery?: CodemationWorkflowDiscovery;

@@ -1,10 +1,9 @@
 import type { CodemationAppSlots, CodemationConfig } from "@codemation/frontend";
-import { InMemoryCredentialService, credentialId } from "@codemation/core";
-import type { GmailServiceAccountCredential } from "@codemation/core-nodes-gmail";
 import { GmailNodes } from "@codemation/core-nodes-gmail";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { TestDevCredentialBootstrap } from "./src/bootstrap/TestDevCredentialBootstrap";
 import { TestDevGmailEnvironment } from "./src/bootstrap/TestDevGmailEnvironment";
 import { TestDevMailKeywordCatalog } from "./src/bootstrap/TestDevMailKeywordCatalog";
 import { TestDevOdooEnvironment } from "./src/bootstrap/TestDevOdooEnvironment";
@@ -15,8 +14,6 @@ loadDotenv({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env"),
 });
 
-const OPENAI_API_KEY = credentialId<string>("openai.apiKey");
-const GMAIL_SERVICE_ACCOUNT = credentialId<GmailServiceAccountCredential>("gmail.serviceAccount");
 const useRedisRuntime = Boolean(process.env.REDIS_URL);
 const databaseUrl = process.env.DATABASE_URL;
 const gmailEnvironment = new TestDevGmailEnvironment();
@@ -28,17 +25,12 @@ const slots: CodemationAppSlots = {
   Navigation: TestDevNavigation,
 };
 
-const credentials = new InMemoryCredentialService()
-  .setFactory(OPENAI_API_KEY, () => {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("OPENAI_API_KEY is required for the OpenAI demo workflow.");
-    return apiKey;
-  })
-  .setFactory(GMAIL_SERVICE_ACCOUNT, () => gmailEnvironment.resolveCredential());
-
 export const codemationHost = {
-  credentials,
   bindings: [
+    {
+      token: TestDevGmailEnvironment,
+      useValue: gmailEnvironment,
+    },
     {
       token: TestDevMailKeywordCatalog,
       useValue: new TestDevMailKeywordCatalog(["RFQ", "QUOTE", "QUOTATION", "RFP"]),
@@ -54,6 +46,7 @@ export const codemationHost = {
   plugins: [
     new GmailNodes(),
   ],
+  bootHook: TestDevCredentialBootstrap,
   runtime: {
     database: {
       url: databaseUrl,

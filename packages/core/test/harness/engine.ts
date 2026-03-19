@@ -1,6 +1,6 @@
 import type {
   Container,
-  CredentialService,
+  CredentialSessionService,
   ExecutionContextFactory,
   NodeActivationObserver,
   NodeExecutionRequest,
@@ -27,13 +27,13 @@ import {
   Engine,
   EngineWorkflowRunnerService,
   HintOnlyOffloadPolicy,
-  InMemoryCredentialService,
   InMemoryRunDataFactory,
   InMemoryRunEventBus,
   InMemoryRunStateStore,
   InMemoryWorkflowRegistry,
   InlineDrivingScheduler,
   PersistedWorkflowTokenRegistry,
+  UnavailableCredentialSessionService,
 } from "../../src/index.ts";
 import { container as tsyringeContainer } from "tsyringe";
 import type { DependencyContainer, InjectionToken } from "tsyringe";
@@ -128,7 +128,7 @@ async function sleep(ms: number): Promise<void> {
 export type EngineTestKitOptions = Partial<{
   container: Container;
   providers: Map<InjectionToken<unknown>, unknown>;
-  credentials: CredentialService;
+  credentialSessions: CredentialSessionService;
   runStore: RunStateStore;
   scheduler: NodeExecutionScheduler;
   offloadPolicy: NodeOffloadPolicy;
@@ -149,7 +149,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   const offloadPolicy = options.offloadPolicy ?? new HintOnlyOffloadPolicy();
   const makeRunId = options.makeRunId ?? makeCounter("run_");
   const makeActivationId = options.makeActivationId ?? makeCounter("act_");
-  const credentials = options.credentials ?? new InMemoryCredentialService();
+  const credentialSessions = options.credentialSessions ?? new UnavailableCredentialSessionService();
   const eventBus = options.eventBus ?? new InMemoryRunEventBus();
   const triggerSetupStateStore = options.triggerSetupStateStore ?? new InMemoryTriggerSetupStateStore();
   const workflowRegistry = new InMemoryWorkflowRegistry();
@@ -166,7 +166,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   }
 
   dependencyContainer.registerInstance(CoreTokens.ServiceContainer, container);
-  dependencyContainer.registerInstance(CoreTokens.CredentialService, credentials);
+  dependencyContainer.registerInstance(CoreTokens.CredentialSessionService, credentialSessions);
   dependencyContainer.registerInstance(CoreTokens.WorkflowRegistry, workflowRegistry);
   dependencyContainer.registerInstance(CoreTokens.NodeResolver, nodeResolver);
   dependencyContainer.registerInstance(CoreTokens.WorkflowRunnerResolver, workflowRunnerResolver);
@@ -184,7 +184,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
 
   const tokenRegistry = new PersistedWorkflowTokenRegistry();
   const engine = new Engine({
-    credentials,
+    credentialSessions,
     workflowRunnerResolver,
     workflowRegistry,
     nodeResolver,

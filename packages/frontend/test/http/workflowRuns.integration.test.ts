@@ -9,7 +9,7 @@ import type { WorkflowDebuggerOverlayResponse } from "../../src/application/cont
 import type { CodemationBinding } from "../../src/presentation/config/CodemationBinding";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
-import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma/client.js";
+import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
 import { PostgresIntegrationDatabase } from "./testkit/PostgresIntegrationDatabase";
 import { PostgresRollbackTransaction } from "./testkit/PostgresRollbackTransaction";

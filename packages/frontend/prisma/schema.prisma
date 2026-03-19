@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/infrastructure/persistence/generated/prisma"
+  output   = "../src/infrastructure/persistence/generated/prisma-client"
 }
 
 datasource db {
@@ -32,4 +32,48 @@ model TriggerSetupState {
   stateJson        String  @map("state_json")
 
   @@id([workflowId, nodeId])
+}
+
+model CredentialInstance {
+  instanceId       String  @id @map("instance_id")
+  typeId           String  @map("type_id")
+  displayName      String  @map("display_name")
+  sourceKind       String  @map("source_kind")
+  publicConfigJson String  @map("public_config_json")
+  secretRefJson    String  @map("secret_ref_json")
+  tagsJson         String  @map("tags_json")
+  setupStatus      String  @map("setup_status")
+  createdAt        String  @map("created_at")
+  updatedAt        String  @map("updated_at")
+}
+
+model CredentialSecretMaterial {
+  instanceId       String  @id @map("instance_id")
+  encryptedJson    String  @map("encrypted_json")
+  encryptionKeyId  String  @map("encryption_key_id")
+  schemaVersion    Int     @map("schema_version")
+  updatedAt        String  @map("updated_at")
+}
+
+model CredentialBinding {
+  workflowId       String  @map("workflow_id")
+  nodeId           String  @map("node_id")
+  slotKey          String  @map("slot_key")
+  instanceId       String  @map("instance_id")
+  updatedAt        String  @map("updated_at")
+
+  @@id([workflowId, nodeId, slotKey])
+  @@index([instanceId])
+}
+
+model CredentialTestResult {
+  testId           String  @id @map("test_id")
+  instanceId       String  @map("instance_id")
+  status           String
+  message          String?
+  detailsJson      String  @map("details_json")
+  testedAt         String  @map("tested_at")
+  expiresAt        String? @map("expires_at")
+
+  @@index([instanceId, testedAt])
 }

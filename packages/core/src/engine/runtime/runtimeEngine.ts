@@ -1,17 +1,19 @@
 import type {
   ActivationIdFactory,
   CurrentStateExecutionRequest,
-  CredentialService,
+  CredentialSessionService,
   EngineDeps,
   ExecutionFrontierPlan,
   ExecutionContextFactory,
   Items,
+  JsonValue,
   NodeActivationContinuation,
   NodeActivationId,
   NodeActivationObserver,
   NodeActivationRequest,
   NodeActivationScheduler,
   NodeExecutionContext,
+  NodeExecutionStatePublisher,
   NodeExecutionSnapshot,
   NodeActivationStats,
   NodeId,
@@ -61,7 +63,7 @@ import {
 import { RuntimeContinuationDiagnostics } from "./RuntimeContinuationDiagnostics";
 
 export class Engine implements NodeActivationContinuation {
-  private readonly credentials: CredentialService;
+  private readonly credentialSessions: CredentialSessionService;
   private readonly workflowRunnerResolver: WorkflowRunnerResolver;
   private readonly workflowRegistry: WorkflowRegistry;
   private readonly nodeResolver: NodeResolver;
@@ -84,7 +86,7 @@ export class Engine implements NodeActivationContinuation {
   private readonly webhookResponseWaiters = new Map<RunId, Array<(result: WebhookRunResult) => void>>();
 
   constructor(deps: EngineDeps) {
-    this.credentials = deps.credentials;
+    this.credentialSessions = deps.credentialSessions;
     this.workflowRunnerResolver = deps.workflowRunnerResolver;
     this.workflowRegistry = deps.workflowRegistry;
     this.nodeResolver = deps.nodeResolver;
@@ -135,46 +137,57 @@ export class Engine implements NodeActivationContinuation {
         const triggerRunId = this.runIdFactory.makeRunId();
         const trigger = { workflowId: wf.id, nodeId: def.id } as const;
         const previousState = await this.triggerSetupStateStore.load(trigger);
-        const nextState = await node.setup({
-          ...this.executionContextFactory.create({
-            runId: triggerRunId,
-            workflowId: wf.id,
-            parent: undefined,
-            data,
-            nodeState: this.createNodeStatePublisher(triggerRunId, wf.id, undefined),
-          }),
-          trigger,
-          config: def.config as TriggerNodeConfig,
-          previousState: previousState?.state as never,
-          registerWebhook: (spec) => {
-            const registration = this.webhookRegistrar.registerWebhook({
+        let nextState: unknown;
+        try {
+          nextState = await node.setup({
+            ...this.createExecutionContext({
+              runId: triggerRunId,
               workflowId: wf.id,
               nodeId: def.id,
-              endpointKey: spec.endpointKey,
-              methods: spec.methods,
-              parseJsonBody: spec.parseJsonBody,
-              basePath: this.webhookBasePath,
-            });
-            this.webhookTriggerMatcher.register({
-              workflowId: wf.id,
-              nodeId: def.id,
-              endpointId: registration.endpointId,
-              methods: registration.methods,
-              parseJsonBody: spec.parseJsonBody,
-            });
-            return registration;
-          },
-          emit: async (items) => {
-            await this.runWorkflow(wf, def.id, items, undefined);
-          },
-        });
+              parent: undefined,
+              data,
+              nodeState: this.createNodeStatePublisher(triggerRunId, wf.id, undefined),
+            }),
+            trigger,
+            config: def.config as TriggerNodeConfig,
+            previousState: previousState?.state as never,
+            registerWebhook: (spec) => {
+              const registration = this.webhookRegistrar.registerWebhook({
+                workflowId: wf.id,
+                nodeId: def.id,
+                endpointKey: spec.endpointKey,
+                methods: spec.methods,
+                parseJsonBody: spec.parseJsonBody,
+                basePath: this.webhookBasePath,
+              });
+              this.webhookTriggerMatcher.register({
+                workflowId: wf.id,
+                nodeId: def.id,
+                endpointId: registration.endpointId,
+                methods: registration.methods,
+                parseJsonBody: spec.parseJsonBody,
+              });
+              return registration;
+            },
+            emit: async (items) => {
+              await this.runWorkflow(wf, def.id, items, undefined);
+            },
+          });
+        } catch (triggerError: unknown) {
+          const message =
+            triggerError instanceof Error ? triggerError.message : String(triggerError);
+          console.warn(
+            `[engine] Skipping trigger setup for workflow ${wf.id} node ${def.id}: ${message}`,
+          );
+          continue;
+        }
         if (nextState === undefined) {
           await this.triggerSetupStateStore.delete(trigger);
         } else {
           await this.triggerSetupStateStore.save({
             trigger,
             updatedAt: new Date().toISOString(),
-            state: nextState,
+            state: nextState as JsonValue | undefined,
           });
         }
       }
@@ -211,9 +224,10 @@ export class Engine implements NodeActivationContinuation {
     const trigger = { workflowId: args.workflow.id, nodeId: definition.id } as const;
     const previousState = await this.triggerSetupStateStore.load(trigger);
     return await node.getTestItems({
-      ...this.executionContextFactory.create({
+      ...this.createExecutionContext({
         runId,
         workflowId: args.workflow.id,
+        nodeId: definition.id,
         parent: undefined,
         data,
       }),
@@ -248,9 +262,10 @@ export class Engine implements NodeActivationContinuation {
     });
 
     const data = this.runDataFactory.create();
-    const base = this.executionContextFactory.create({
+    const base = this.createExecutionContext({
       runId,
       workflowId: wf.id,
+      nodeId: startAt,
       parent,
       data,
       nodeState: this.createNodeStatePublisher(runId, wf.id, parent),
@@ -338,6 +353,7 @@ export class Engine implements NodeActivationContinuation {
       activationId,
       config: def.config,
       binary: base.binary.forNode({ nodeId: def.id, activationId }),
+      getCredential: this.createCredentialResolver(wf.id, def.id, def.config),
     };
     const request: NodeActivationRequest =
       next.kind === "multi"
@@ -449,9 +465,10 @@ export class Engine implements NodeActivationContinuation {
     });
 
     const data = this.runDataFactory.create(plan.currentState.outputsByNode);
-    const base = this.executionContextFactory.create({
+    const base = this.createExecutionContext({
       runId,
       workflowId: request.workflow.id,
+      nodeId: request.workflow.nodes[0]?.id ?? "unknown_node",
       parent: request.parent,
       data,
       nodeState: this.createNodeStatePublisher(runId, request.workflow.id, request.parent),
@@ -524,9 +541,10 @@ export class Engine implements NodeActivationContinuation {
     planner.validateNodeKinds();
 
     const data = this.runDataFactory.create(state.outputsByNode);
-    const base = this.executionContextFactory.create({
+    const base = this.createExecutionContext({
       runId: state.runId,
       workflowId: state.workflowId,
+      nodeId: args.nodeId,
       parent: state.parent,
       data,
       nodeState: this.createNodeStatePublisher(state.runId, state.workflowId, state.parent),
@@ -657,6 +675,7 @@ export class Engine implements NodeActivationContinuation {
       activationId,
       config: def.config,
       binary: base.binary.forNode({ nodeId: def.id, activationId }),
+      getCredential: this.createCredentialResolver(state.workflowId, def.id, def.config),
     };
     const request: NodeActivationRequest =
       next.kind === "multi"
@@ -991,9 +1010,10 @@ export class Engine implements NodeActivationContinuation {
       throw new Error(`Node ${next.nodeId} is not a runnable node`);
     }
 
-    const base = this.executionContextFactory.create({
+    const base = this.createExecutionContext({
       runId: args.state.runId,
       workflowId: args.state.workflowId,
+      nodeId: nextDefinition.id,
       parent: args.state.parent,
       data,
       nodeState: this.createNodeStatePublisher(args.state.runId, args.state.workflowId, args.state.parent),
@@ -1006,6 +1026,7 @@ export class Engine implements NodeActivationContinuation {
       activationId,
       config: nextDefinition.config,
       binary: base.binary.forNode({ nodeId: nextDefinition.id, activationId }),
+      getCredential: this.createCredentialResolver(args.state.workflowId, nextDefinition.id, nextDefinition.config),
     };
     const request: NodeActivationRequest =
       next.kind === "multi"
@@ -1177,6 +1198,7 @@ export class Engine implements NodeActivationContinuation {
         activationId,
         config: startDef.config,
         binary: args.base.binary.forNode({ nodeId: startDef.id, activationId }),
+        getCredential: this.createCredentialResolver(args.workflow.id, startDef.id, startDef.config),
       };
       const request: NodeActivationRequest = {
         kind: "single",
@@ -1281,6 +1303,7 @@ export class Engine implements NodeActivationContinuation {
       activationId,
       config: definition.config,
       binary: args.base.binary.forNode({ nodeId: definition.id, activationId }),
+      getCredential: this.createCredentialResolver(args.workflowId, definition.id, definition.config),
     };
     const request: NodeActivationRequest =
       next.kind === "multi"
@@ -1407,6 +1430,7 @@ export class Engine implements NodeActivationContinuation {
       activationId,
       config: args.definition.config,
       binary: args.base.binary.forNode({ nodeId: args.definition.id, activationId }),
+      getCredential: this.createCredentialResolver(args.workflowId, args.definition.id, args.definition.config),
     };
     return {
       kind: "single",
@@ -1419,6 +1443,52 @@ export class Engine implements NodeActivationContinuation {
       batchId: args.batchId,
       input: args.input,
       ctx,
+    };
+  }
+
+  private createExecutionContext(args: {
+    runId: RunId;
+    workflowId: WorkflowId;
+    nodeId: NodeId;
+    parent?: ParentExecutionRef;
+    data: ReturnType<RunDataFactory["create"]>;
+    nodeState?: NodeExecutionStatePublisher;
+  }) {
+    return this.executionContextFactory.create({
+      runId: args.runId,
+      workflowId: args.workflowId,
+      parent: args.parent,
+      data: args.data,
+      nodeState: args.nodeState,
+      getCredential: this.createCredentialResolver(args.workflowId, args.nodeId),
+    });
+  }
+
+  private createCredentialResolver(
+    workflowId: WorkflowId,
+    nodeId: NodeId,
+    config?: NodeExecutionContext["config"],
+  ): NodeExecutionContext["getCredential"] {
+    const acceptedTypesBySlot = new Map<string, ReadonlyArray<string>>();
+    for (const requirement of config?.getCredentialRequirements?.() ?? []) {
+      acceptedTypesBySlot.set(requirement.slotKey, requirement.acceptedTypes);
+    }
+    return async <TSession = unknown>(slotKey: string): Promise<TSession> => {
+      try {
+        return await this.credentialSessions.getSession<TSession>({
+          workflowId,
+          nodeId,
+          slotKey,
+        });
+      } catch (error) {
+        const acceptedTypes = acceptedTypesBySlot.get(slotKey) ?? [];
+        const message = error instanceof Error ? error.message : String(error);
+        const acceptedTypesSuffix = acceptedTypes.length > 0 ? ` Accepted types: ${acceptedTypes.join(", ")}.` : "";
+        throw new Error(
+          `Failed to resolve credential for workflow ${workflowId} node ${nodeId} slot "${slotKey}". ${message}${acceptedTypesSuffix}`,
+          { cause: error instanceof Error ? error : undefined },
+        );
+      }
     };
   }
 

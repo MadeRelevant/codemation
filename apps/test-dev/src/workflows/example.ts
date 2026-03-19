@@ -1,4 +1,3 @@
-import { credentialId, credentialRef } from "@codemation/core";
 import { ClassifyMailToolConfig } from "../tools/classifyMailTool";
 import { AIAgent, Callback, createWorkflowBuilder, If, ManualTrigger, MapData, OpenAIChatModelConfig } from "@codemation/core-nodes";
 import { ExampleUppercase } from "@codemation/node-example";
@@ -38,7 +37,7 @@ export default createWorkflowBuilder({ id: "wf.example", name: "Example workflow
     "Classify (agent)",
     "Classify if the message is an RFQ. Use the available tools when needed and return strict JSON with keys isRfq and summary only.",
     (item) => JSON.stringify(item.json ?? {}),
-    new OpenAIChatModelConfig("OpenAI", "gpt-4.1", credentialRef(credentialId<string>("openai.apiKey")), { icon: "bot", label: "OpenAI" }),
+    new OpenAIChatModelConfig("OpenAI", "gpt-4.1", "openai", { icon: "bot", label: "OpenAI" }),
     [new ClassifyMailToolConfig("classifyMail", ["RFQ", "QUOTE", "QUOTATION"], undefined, { icon: "mail", label: "Classify mail!" })],
   ),
 )

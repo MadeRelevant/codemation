@@ -335,10 +335,13 @@ export class InMemoryWorkflowDetailTestEnvironment {
   private resolveHeaders(input: RequestInfo | URL, init?: RequestInit): Readonly<Record<string, string>> | undefined {
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
     const initHeaders = new Headers(init?.headers);
-    for (const [key, value] of initHeaders.entries()) {
+    initHeaders.forEach((value, key) => {
       headers.set(key, value);
-    }
-    const entries = [...headers.entries()];
+    });
+    const entries: Array<readonly [string, string]> = [];
+    headers.forEach((value, key) => {
+      entries.push([key, value] as const);
+    });
     if (entries.length === 0) {
       return undefined;
     }
@@ -512,7 +515,7 @@ export class InMemoryWorkflowDetailTestEnvironment {
       close(code?: number, reason?: string): void {
         this.connection.close(code, reason);
       }
-    } as typeof WebSocket;
+    } as unknown as typeof WebSocket;
   }
 
   private requireRealtimeBridgeClient(): WorkflowRealtimeBridgeClient {

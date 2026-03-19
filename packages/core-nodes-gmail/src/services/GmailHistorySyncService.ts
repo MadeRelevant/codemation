@@ -1,9 +1,7 @@
-import type { CredentialInput, Items, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
+import type { Items, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
 import { CoreTokens, inject, injectable } from "@codemation/core";
-import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import type { OnNewGmailTrigger, OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
-import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import { GmailHistoryGapError, type GmailApiClient, type GmailMessageRecord } from "./GmailApiClient";
 import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "./GmailMessageItemMapper";
@@ -14,7 +12,6 @@ import { GmailWatchService } from "./GmailWatchService";
 @injectable()
 export class GmailHistorySyncService {
   constructor(
-    @inject(GmailNodeTokens.GmailApiClient) private readonly gmailApiClient: GmailApiClient,
     @inject(CoreTokens.TriggerSetupStateStore) private readonly triggerSetupStateStore: TriggerSetupStateStore,
     @inject(GmailWatchService) private readonly gmailWatchService: GmailWatchService,
     @inject(GmailConfiguredLabelService) private readonly gmailConfiguredLabelService: GmailConfiguredLabelService,
@@ -24,17 +21,17 @@ export class GmailHistorySyncService {
 
   async sync(args: Readonly<{
     trigger: TriggerInstanceId;
+    client: GmailApiClient;
     config: OnNewGmailTrigger;
     notification: GmailPubSubNotification;
   }>): Promise<Items<OnNewGmailTriggerItemJson>> {
-    const currentState = await this.requireCurrentState(args.trigger, args.config);
+    const currentState = await this.requireCurrentState(args.trigger, args.client, args.config);
     try {
-      const historyDelta = await this.gmailApiClient.listAddedMessageIds({
-        credential: args.config.cfg.credential,
+      const historyDelta = await args.client.listAddedMessageIds({
         mailbox: args.config.cfg.mailbox,
         startHistoryId: currentState.historyId,
       });
-      const messages = await this.loadMatchingMessages(args.config, historyDelta.messageIds);
+      const messages = await this.loadMatchingMessages(args.client, args.config, historyDelta.messageIds);
       const nextState = {
         ...currentState,
         historyId: historyDelta.historyId,
@@ -57,7 +54,7 @@ export class GmailHistorySyncService {
       }
       await this.gmailWatchService.baselineState({
         trigger: args.trigger,
-        credential: args.config.cfg.credential,
+        client: args.client,
         mailbox: args.config.cfg.mailbox,
         topicName: args.config.cfg.topicName,
         subscriptionName: args.config.cfg.subscriptionName,
@@ -66,7 +63,11 @@ export class GmailHistorySyncService {
     }
   }
 
-  private async requireCurrentState(trigger: TriggerInstanceId, config: OnNewGmailTrigger): Promise<GmailTriggerSetupState> {
+  private async requireCurrentState(
+    trigger: TriggerInstanceId,
+    client: GmailApiClient,
+    config: OnNewGmailTrigger,
+  ): Promise<GmailTriggerSetupState> {
     const persistedState = await this.triggerSetupStateStore.load(trigger);
     const currentState = persistedState?.state as GmailTriggerSetupState | undefined;
     if (currentState) {
@@ -74,7 +75,7 @@ export class GmailHistorySyncService {
     }
     return await this.gmailWatchService.baselineState({
       trigger,
-      credential: config.cfg.credential,
+      client,
       mailbox: config.cfg.mailbox,
       topicName: config.cfg.topicName,
       subscriptionName: config.cfg.subscriptionName,
@@ -82,19 +83,19 @@ export class GmailHistorySyncService {
   }
 
   private async loadMatchingMessages(
+    client: GmailApiClient,
     config: OnNewGmailTrigger,
     messageIds: ReadonlyArray<string>,
   ): Promise<ReadonlyArray<GmailMessageRecord>> {
     const resolvedLabelIds = await this.gmailConfiguredLabelService.resolveLabelIds({
-      credential: config.cfg.credential,
+      client,
       mailbox: config.cfg.mailbox,
       configuredLabels: config.cfg.labelIds,
     });
     const uniqueMessageIds = [...new Set(messageIds)];
     const messages = await Promise.all(
       uniqueMessageIds.map(async (messageId) => {
-        return await this.gmailApiClient.getMessage({
-          credential: config.cfg.credential,
+        return await client.getMessage({
           mailbox: config.cfg.mailbox,
           messageId,
         });

@@ -2,6 +2,7 @@ export * from "./plugin/GmailNodes";
 export * from "./contracts/GmailLogger";
 export * from "./contracts/GmailNodeTokens";
 export * from "./contracts/GmailNodesOptions";
+export * from "./contracts/GmailCredentialTypes";
 export * from "./contracts/GmailServiceAccountCredential";
 export * from "./contracts/GmailTriggerSetupState";
 export * from "./services/GmailApiClient";

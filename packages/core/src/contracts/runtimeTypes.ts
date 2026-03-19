@@ -4,7 +4,6 @@ import type { RunEventBus } from "../events/runEvents";
 import type {
   ActivationIdFactory,
   BinaryAttachment,
-  CredentialService,
   Item,
   JsonValue,
   Items,
@@ -23,6 +22,7 @@ import type {
   WorkflowDefinition,
   WorkflowId,
 } from "./workflowTypes";
+import type { CredentialSessionService } from "./credentialTypes";
 import type {
   NodeInputsByPort,
   PersistedWorkflowTokenRegistryLike,
@@ -136,6 +136,7 @@ export interface ExecutionContext {
   data: RunDataSnapshot;
   nodeState?: NodeExecutionStatePublisher;
   binary: ExecutionBinaryService;
+  getCredential<TSession = unknown>(slotKey: string): Promise<TSession>;
 }
 
 export interface ExecutionContextFactory {
@@ -145,6 +146,7 @@ export interface ExecutionContextFactory {
     parent?: ParentExecutionRef;
     data: RunDataSnapshot;
     nodeState?: NodeExecutionStatePublisher;
+    getCredential<TSession = unknown>(slotKey: string): Promise<TSession>;
   }): ExecutionContext;
 }
 
@@ -202,7 +204,7 @@ export interface NodeActivationStats {
 }
 
 export interface EngineHost {
-  credentials: CredentialService;
+  credentialSessions: CredentialSessionService;
   workflows?: WorkflowRunnerService;
   registerWebhook(spec: {
     workflowId: WorkflowId;
@@ -308,7 +310,7 @@ export interface NodeActivationScheduler {
 }
 
 export interface EngineDeps {
-  credentials: CredentialService;
+  credentialSessions: CredentialSessionService;
   workflowRunnerResolver: WorkflowRunnerResolver;
   workflowRegistry: WorkflowRegistry;
   nodeResolver: NodeResolver;

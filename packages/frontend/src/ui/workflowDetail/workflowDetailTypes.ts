@@ -70,6 +70,7 @@ export type WorkflowExecutionInspectorAttachmentModel = Readonly<{
   attachment: BinaryAttachment;
 }>;
 export type WorkflowExecutionInspectorModel = Readonly<{
+  workflowId: string;
   viewContext: ViewedWorkflowContext;
   selectedRunId: string | null;
   isLoading: boolean;

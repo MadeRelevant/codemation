@@ -14,7 +14,10 @@ export { WorkflowsScreen } from "./ui/screens/WorkflowsScreen";
 export type { CodemationAppSlots as Slots } from "./presentation/config/CodemationAppSlots";
 export {
   useRunQuery,
+  useCredentialInstancesQuery,
+  useCredentialTypesQuery,
   useWorkflowDebuggerOverlayQuery,
+  useWorkflowCredentialHealthQuery,
   useWorkflowQuery,
   useWorkflowRealtimeSubscription,
   useWorkflowRunsQuery,
@@ -28,6 +31,8 @@ export {
   type RunCurrentState,
   type RunSummary,
   type WorkflowDebuggerOverlayState,
+  type CredentialInstanceDto,
+  type WorkflowCredentialHealthDto,
   type WorkflowDto,
   type WorkflowSummary,
 } from "./ui/realtime/realtime";

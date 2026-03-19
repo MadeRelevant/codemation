@@ -4,6 +4,9 @@ export function TestDevNavigation() {
       <a href="/workflows" style={{ fontWeight: 700 }}>
         Workflows
       </a>
+      <a href="/credentials" style={{ fontWeight: 700 }}>
+        Credentials
+      </a>
     </nav>
   );
 }
