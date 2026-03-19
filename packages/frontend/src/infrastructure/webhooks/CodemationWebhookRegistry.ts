@@ -37,4 +37,8 @@ export class CodemationWebhookRegistry {
   }> | undefined {
     return this.entriesByEndpointId.get(endpointId);
   }
+
+  clear(): void {
+    this.entriesByEndpointId.clear();
+  }
 }

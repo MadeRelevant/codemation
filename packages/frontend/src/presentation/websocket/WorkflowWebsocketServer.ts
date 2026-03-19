@@ -90,7 +90,9 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
           ? `${event.kind}:${event.runId}:${event.snapshot.nodeId}:${event.snapshot.status}`
           : `${event.kind}:${event.runId}`;
       this.logInfo(`published room=${roomId} sockets=${deliveredSocketCount} event=${eventLabel}`);
+      return;
     }
+    this.logInfo(`published room=${roomId} sockets=${deliveredSocketCount} kind=${message.kind}`);
   }
 
   private async connect(socket: WebSocket): Promise<void> {

@@ -15,7 +15,7 @@
     }
   },
   "scripts": {
-    "build": "tsdown src/index.ts --out-dir dist",
+    "build": "tsdown src/index.ts src/bin.ts --out-dir dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint ."
   },

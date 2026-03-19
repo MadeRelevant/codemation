@@ -4,6 +4,7 @@ import { WorkflowCanvas } from "../components/WorkflowCanvas";
 import { WorkflowExecutionInspector } from "../workflowDetail/WorkflowExecutionInspector";
 import { WorkflowJsonEditorDialog } from "../workflowDetail/WorkflowJsonEditorDialog";
 import { WorkflowRunsSidebar } from "../workflowDetail/WorkflowRunsSidebar";
+import { NodePropertiesSlidePanel } from "../workflowDetail/NodePropertiesSlidePanel";
 import { useWorkflowDetailController } from "../workflowDetail/useWorkflowDetailController";
 
 const WORKFLOW_DETAIL_TREE_STYLES = `
@@ -74,6 +75,33 @@ const WORKFLOW_DETAIL_TREE_STYLES = `
 export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initialWorkflow?: WorkflowDto }>) {
   const controller = useWorkflowDetailController(args);
   const activeCanvasTab = controller.isRunsPaneVisible ? "executions" : "live";
+  const shouldShowRealtimeBadge = controller.isLiveWorkflowView && !controller.isRunsPaneVisible;
+  const realtimeBadge =
+    controller.workflowDevBuildState.state === "failed"
+      ? {
+          background: "#fee2e2",
+          border: "#fecaca",
+          color: "#991b1b",
+          label: "Rebuild failed. Latest code is not live yet.",
+          testId: "workflow-dev-build-failed-indicator",
+        }
+      : !controller.isRealtimeConnected
+        ? {
+            background: "#fef3c7",
+            border: "#fde68a",
+            color: "#92400e",
+            label: "Realtime disconnected. Workflow edits won't auto-refresh.",
+            testId: "workflow-realtime-disconnected-indicator",
+          }
+        : controller.workflowDevBuildState.state === "building"
+          ? {
+              background: "#dbeafe",
+              border: "#bfdbfe",
+              color: "#1d4ed8",
+              label: "Rebuilding workflow...",
+              testId: "workflow-dev-build-started-indicator",
+            }
+          : null;
 
   return (
     <main style={{ height: "100%", width: "100%", minHeight: 0, overflow: "hidden", background: "#f8fafc" }}>
@@ -92,21 +120,33 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
         ) : null}
 
         <div style={{ height: "100%", minWidth: 0, minHeight: 0, background: "#f8fafc", display: "grid", gridTemplateRows: controller.isPanelCollapsed ? "minmax(0, 1fr) 36px" : `minmax(0, 1fr) ${controller.inspectorHeight}px` }}>
-          <div style={{ height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden", background: "#f8fafc", position: "relative" }}>
+          <div style={{ height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden", background: "#f8fafc", position: "relative", display: "flex", flexDirection: "row" }}>
             {controller.displayedWorkflow ? (
-              <WorkflowCanvas
-                workflow={controller.displayedWorkflow}
-                nodeSnapshotsByNodeId={controller.displayedNodeSnapshotsByNodeId}
-                pinnedNodeIds={controller.pinnedNodeIds}
-                selectedNodeId={controller.selectedNodeId}
-                isLiveWorkflowView={controller.isLiveWorkflowView}
-                isRunning={controller.isRunning}
-                onSelectNode={controller.selectCanvasNode}
-                onRunNode={controller.runCanvasNode}
-                onTogglePinnedOutput={controller.toggleCanvasNodePin}
-                onEditNodeOutput={controller.editCanvasNodeOutput}
-                onClearPinnedOutput={controller.clearCanvasNodePin}
-              />
+              <>
+                <div style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: "hidden", position: "relative" }}>
+                  <WorkflowCanvas
+                    workflow={controller.displayedWorkflow}
+                    nodeSnapshotsByNodeId={controller.displayedNodeSnapshotsByNodeId}
+                    pinnedNodeIds={controller.pinnedNodeIds}
+                    selectedNodeId={controller.selectedNodeId}
+                    propertiesTargetNodeId={controller.propertiesPanelNodeId}
+                    isLiveWorkflowView={controller.isLiveWorkflowView}
+                    isRunning={controller.isRunning}
+                    onSelectNode={controller.selectCanvasNode}
+                    onOpenPropertiesNode={controller.openPropertiesPanelForNode}
+                    onRunNode={controller.runCanvasNode}
+                    onTogglePinnedOutput={controller.toggleCanvasNodePin}
+                    onEditNodeOutput={controller.editCanvasNodeOutput}
+                    onClearPinnedOutput={controller.clearCanvasNodePin}
+                  />
+                </div>
+                <NodePropertiesSlidePanel
+                  workflowId={args.workflowId}
+                  isOpen={controller.isPropertiesPanelOpen}
+                  node={controller.selectedPropertiesWorkflowNode}
+                  onClose={controller.closePropertiesPanel}
+                />
+              </>
             ) : (
               <div style={{ padding: 16, opacity: 0.8 }}>Loading diagram…</div>
             )}
@@ -205,6 +245,26 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                 >
                   {controller.isRunning ? "Running..." : "Run workflow"}
                 </button>
+              </div>
+            ) : null}
+            {shouldShowRealtimeBadge && realtimeBadge ? (
+              <div
+                data-testid={realtimeBadge.testId}
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 12,
+                  zIndex: 6,
+                  padding: "8px 10px",
+                  border: `1px solid ${realtimeBadge.border}`,
+                  background: realtimeBadge.background,
+                  color: realtimeBadge.color,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
+                }}
+              >
+                {realtimeBadge.label}
               </div>
             ) : null}
           </div>

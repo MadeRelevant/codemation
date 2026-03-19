@@ -66,6 +66,7 @@ export interface WebhookRegistrar {
     parseJsonBody?: (body: unknown) => unknown;
     basePath: string;
   }): WebhookRegistration;
+  clear?(): Promise<void> | void;
 }
 
 export interface NodeActivationObserver {
@@ -165,6 +166,7 @@ export interface TriggerSetupContext<
   config: TConfig;
   previousState: TSetupState;
   registerWebhook(spec: WebhookSpec): WebhookRegistration;
+  registerCleanup(cleanup: TriggerCleanupHandle): void;
   emit(items: Items): Promise<void>;
 }
 
@@ -194,6 +196,10 @@ export interface TriggerSetupStateStore {
   load(trigger: TriggerInstanceId): Promise<PersistedTriggerSetupState | undefined>;
   save(state: PersistedTriggerSetupState): Promise<void>;
   delete(trigger: TriggerInstanceId): Promise<void>;
+}
+
+export interface TriggerCleanupHandle {
+  stop(): Promise<void> | void;
 }
 
 export interface NodeActivationStats {

@@ -30,4 +30,8 @@ export class InMemoryWebhookTriggerMatcher implements WebhookTriggerMatcher {
     }
     return entry.methods.includes(args.method) ? entry : undefined;
   }
+
+  clear(): void {
+    this.entriesByEndpointId.clear();
+  }
 }

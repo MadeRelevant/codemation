@@ -10,6 +10,7 @@ export type CopyState = "idle" | "copied";
 export type ViewedWorkflowContext = "live-workflow" | "historical-run";
 export type PortEntries = ReadonlyArray<readonly [string, Items]>;
 export type WorkflowNode = WorkflowDto["nodes"][number];
+export type WorkflowDiagramNode = WorkflowDto["nodes"][number];
 export type ExecutionNode = Readonly<{ node: WorkflowNode; snapshot?: NodeExecutionSnapshot }>;
 export type NodeExecutionError = NonNullable<NodeExecutionSnapshot["error"]>;
 export type JsonEditorMode = "pin-output" | "workflow-snapshot";

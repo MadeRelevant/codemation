@@ -7,6 +7,7 @@ export const frontendVitestSharedConfig = {
   },
   resolve: {
     alias: [
+      { find: "@codemation/core/browser", replacement: path.resolve(import.meta.dirname, "../core/src/browser.ts") },
       { find: "@codemation/frontend/client", replacement: path.resolve(import.meta.dirname, "./src/client.ts") },
       { find: "@codemation/frontend/server", replacement: path.resolve(import.meta.dirname, "./src/server.ts") },
       { find: "@codemation/frontend", replacement: path.resolve(import.meta.dirname, "./src/index.ts") },

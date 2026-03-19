@@ -16,12 +16,12 @@ type GmailWorkflowResultJson = Readonly<{
 export default createWorkflowBuilder({ id: "wf.gmail.pull", name: "Gmail pull trigger demo" })
   .trigger(
     new OnNewGmailTrigger(
-      "On new Gmail message",
+      "On new Gmail message!",
       {
         mailbox: gmailTriggerConfiguration.mailbox,
         topicName: gmailTriggerConfiguration.topicName,
         subscriptionName: gmailTriggerConfiguration.subscriptionName,
-        labelIds: gmailTriggerConfiguration.labelIds,
+        labelIds: ["Inbox"],
         query: gmailTriggerConfiguration.query,
         downloadAttachments: true,
       },

@@ -116,6 +116,13 @@ export class WorkflowDetailScreenTestKit {
     return this.environment.latestRequestBodyMatching<TBody>(pattern);
   }
 
+  setWorkflowResponse(workflow: WorkflowDto): void {
+    if (!(this.environment instanceof WorkflowDetailTestEnvironment)) {
+      throw new Error("The current workflow detail environment does not support swapping workflow responses.");
+    }
+    this.environment.setWorkflowResponse(workflow);
+  }
+
   async waitForSocketConnection(expectedCount = 1): Promise<WorkflowDetailSocketConnection> {
     if (!(this.environment instanceof WorkflowDetailTestEnvironment)) {
       throw new Error("The current workflow detail environment does not expose synthetic websocket connections.");

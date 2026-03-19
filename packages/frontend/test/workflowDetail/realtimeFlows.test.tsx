@@ -162,6 +162,142 @@ describe("workflow detail realtime flows", () => {
     });
   });
 
+  it("refetches and rerenders the live workflow when workflowChanged arrives", async () => {
+    kit = WorkflowDetailScreenTestKit.create().install();
+    kit.render();
+
+    await kit.waitForSocketConnection();
+    await kit.waitForWorkflowSubscription();
+
+    const updatedWorkflow = {
+      ...kit.workflow,
+      nodes: [
+        ...kit.workflow.nodes,
+        {
+          id: "node_3",
+          kind: "node",
+          type: "CallbackNode",
+          name: "Node 3",
+        },
+      ],
+      edges: [
+        ...kit.workflow.edges,
+        {
+          from: { nodeId: WorkflowDetailFixtureFactory.nodeTwoId, output: "main" },
+          to: { nodeId: "node_3", input: "in" },
+        },
+      ],
+    };
+
+    kit.setWorkflowResponse(updatedWorkflow);
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.workflowChanged());
+
+    await waitFor(() => {
+      expect(screen.getByTestId("canvas-node-card-node_3")).toBeInTheDocument();
+    });
+  });
+
+  it("keeps the rebuild indicator visible until the refreshed workflow is rendered", async () => {
+    kit = WorkflowDetailScreenTestKit.create().install();
+    kit.render();
+
+    await kit.waitForSocketConnection();
+    await kit.waitForWorkflowSubscription();
+
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.devBuildStarted());
+    await waitFor(() => {
+      expect(screen.getByTestId("workflow-dev-build-started-indicator")).toHaveTextContent("Rebuilding workflow...");
+    });
+
+    const updatedWorkflow = {
+      ...kit.workflow,
+      nodes: [
+        ...kit.workflow.nodes,
+        {
+          id: "node_3",
+          kind: "node",
+          type: "CallbackNode",
+          name: "Node 3",
+        },
+      ],
+      edges: [
+        ...kit.workflow.edges,
+        {
+          from: { nodeId: WorkflowDetailFixtureFactory.nodeTwoId, output: "main" },
+          to: { nodeId: "node_3", input: "in" },
+        },
+      ],
+    };
+
+    kit.setWorkflowResponse(updatedWorkflow);
+
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.devBuildCompleted());
+    expect(screen.getByTestId("workflow-dev-build-started-indicator")).toBeInTheDocument();
+
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.workflowChanged());
+    expect(screen.getByTestId("workflow-dev-build-started-indicator")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("workflow-dev-build-started-indicator")).not.toBeInTheDocument();
+      expect(screen.getByTestId("canvas-node-card-node_3")).toBeInTheDocument();
+    });
+  });
+
+  it("clears the rebuild indicator after a code-only rebuild when the workflow definition does not change", async () => {
+    kit = WorkflowDetailScreenTestKit.create().install();
+    kit.render();
+
+    await kit.waitForSocketConnection();
+    await kit.waitForWorkflowSubscription();
+
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.devBuildStarted());
+    await waitFor(() => {
+      expect(screen.getByTestId("workflow-dev-build-started-indicator")).toBeInTheDocument();
+    });
+
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.devBuildCompleted());
+    await waitFor(() => {
+      expect(screen.queryByTestId("workflow-dev-build-started-indicator")).not.toBeInTheDocument();
+    });
+  });
+
+  it("keeps a historical run pinned to its persisted snapshot when the live workflow changes", async () => {
+    kit = WorkflowDetailScreenTestKit.create().install();
+    kit.seedRun(WorkflowDetailFixtureFactory.createCompletedRunState({ workflow: kit.workflow }));
+    kit.render();
+
+    await kit.waitForSocketConnection();
+    kit.openExecutionsPane();
+    await kit.waitForRunSummary();
+    screen.getByTestId(`run-summary-${WorkflowDetailFixtureFactory.runId}`).click();
+
+    const updatedWorkflow = {
+      ...kit.workflow,
+      nodes: [
+        ...kit.workflow.nodes,
+        {
+          id: "node_3",
+          kind: "node",
+          type: "CallbackNode",
+          name: "Node 3",
+        },
+      ],
+      edges: [
+        ...kit.workflow.edges,
+        {
+          from: { nodeId: WorkflowDetailFixtureFactory.nodeTwoId, output: "main" },
+          to: { nodeId: "node_3", input: "in" },
+        },
+      ],
+    };
+
+    kit.setWorkflowResponse(updatedWorkflow);
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.workflowChanged());
+
+    expect(screen.queryByTestId("canvas-node-card-node_3")).not.toBeInTheDocument();
+    expect(screen.getByTestId(`run-summary-${WorkflowDetailFixtureFactory.runId}`)).toBeInTheDocument();
+  });
+
   it("keeps agent attachment nodes visible when rendering from a persisted workflow snapshot", async () => {
     kit = WorkflowDetailScreenTestKit.create().install();
     kit.render();

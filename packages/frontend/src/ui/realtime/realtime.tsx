@@ -128,6 +128,14 @@ export type WorkflowDebuggerOverlayState = Readonly<{
   currentState: RunCurrentState;
 }>;
 
+export type WorkflowDevBuildState = Readonly<{
+  state: "idle" | "building" | "failed";
+  updatedAt: string;
+  buildVersion?: string;
+  message?: string;
+  awaitingWorkflowRefreshAt?: string;
+}>;
+
 export type WorkflowEvent =
   | Readonly<{ kind: "runCreated"; runId: string; workflowId: string; parent?: ParentExecutionRef; at: string }>
   | Readonly<{ kind: "runSaved"; runId: string; workflowId: string; parent?: ParentExecutionRef; at: string; state: PersistedRunState }>
@@ -141,6 +149,9 @@ type RealtimeServerMessage =
   | Readonly<{ kind: "subscribed"; roomId: string }>
   | Readonly<{ kind: "unsubscribed"; roomId: string }>
   | Readonly<{ kind: "workflowChanged"; workflowId: string }>
+  | Readonly<{ kind: "devBuildStarted"; workflowId: string; buildVersion?: string }>
+  | Readonly<{ kind: "devBuildCompleted"; workflowId: string; buildVersion: string }>
+  | Readonly<{ kind: "devBuildFailed"; workflowId: string; message: string }>
   | Readonly<{ kind: "event"; event: WorkflowEvent }>
   | Readonly<{ kind: "error"; message: string }>;
 
@@ -149,6 +160,7 @@ type RealtimeClientMessage =
   | Readonly<{ kind: "unsubscribe"; roomId: string }>;
 
 const minimumRealtimeActiveVisibilityMs = 300;
+const persistentRealtimeDisconnectWarningDelayMs = 5000;
 
 type RealtimeContextValue = Readonly<{
   retainWorkflowSubscription: (workflowId: string) => () => void;
@@ -182,6 +194,7 @@ const workflowsQueryKey = ["workflows"] as const;
 const workflowQueryKey = (workflowId: string) => ["workflow", workflowId] as const;
 const workflowRunsQueryKey = (workflowId: string) => ["workflow-runs", workflowId] as const;
 const workflowDebuggerOverlayQueryKey = (workflowId: string) => ["workflow-debugger-overlay", workflowId] as const;
+const workflowDevBuildStateQueryKey = (workflowId: string) => ["workflow-dev-build-state", workflowId] as const;
 const runQueryKey = (runId: string) => ["run", runId] as const;
 const credentialTypesQueryKey = ["credential-types"] as const;
 const credentialInstancesQueryKey = ["credential-instances"] as const;
@@ -385,9 +398,11 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
   const terminalEventTimeoutIdByNodeKeyRef = useRef(new Map<string, number>());
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const disconnectWarningTimeoutRef = useRef<number | null>(null);
   const readyStateRef = useRef<RealtimeReadyValue>(RealtimeReadyState.UNINSTANTIATED);
   const hasOpenedConnectionRef = useRef(false);
   const hasLoggedUnavailableTransportRef = useRef(false);
+  const pendingDisconnectReasonRef = useRef<string | null>(null);
   const [readyState, setReadyState] = useState<RealtimeReadyValue>(RealtimeReadyState.UNINSTANTIATED);
   const [messageQueueVersion, setMessageQueueVersion] = useState(0);
   const sendJsonMessageRef = useRef<(message: RealtimeClientMessage) => void>(() => {
@@ -404,6 +419,29 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
   const shouldConnect = Boolean(websocketUrl);
 
   readyStateRef.current = readyState;
+  const clearPendingDisconnectWarning = useCallback((): void => {
+    if (disconnectWarningTimeoutRef.current === null) {
+      return;
+    }
+    window.clearTimeout(disconnectWarningTimeoutRef.current);
+    disconnectWarningTimeoutRef.current = null;
+  }, []);
+  const schedulePersistentDisconnectWarning = useCallback((reason: string): void => {
+    pendingDisconnectReasonRef.current = reason;
+    if (disconnectWarningTimeoutRef.current !== null) {
+      return;
+    }
+    disconnectWarningTimeoutRef.current = window.setTimeout(() => {
+      disconnectWarningTimeoutRef.current = null;
+      if (readyStateRef.current === RealtimeReadyState.OPEN) {
+        pendingDisconnectReasonRef.current = null;
+        return;
+      }
+      logger.warn(
+        `websocket transport is still unavailable after ${persistentRealtimeDisconnectWarningDelayMs}ms at ${websocketUrl}: ${pendingDisconnectReasonRef.current ?? reason}`,
+      );
+    }, persistentRealtimeDisconnectWarningDelayMs);
+  }, [logger, websocketUrl]);
   const clearPendingTerminalEventDelay = useCallback((nodeKey: string): void => {
     const timeoutId = terminalEventTimeoutIdByNodeKeyRef.current.get(nodeKey);
     if (timeoutId === undefined) return;
@@ -496,9 +534,57 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
 
       if (message.kind === "workflowChanged") {
         logger.info(`workflow changed ${message.workflowId}`);
+        queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey(message.workflowId), (existing) => ({
+          state: "building",
+          updatedAt: existing?.updatedAt ?? new Date().toISOString(),
+          buildVersion: existing?.buildVersion,
+          awaitingWorkflowRefreshAt: new Date().toISOString(),
+        }));
         void queryClient.invalidateQueries({ queryKey: workflowQueryKey(message.workflowId) });
         void queryClient.invalidateQueries({ queryKey: workflowsQueryKey });
         void queryClient.refetchQueries({ queryKey: workflowQueryKey(message.workflowId), type: "active" });
+        return;
+      }
+
+      if (message.kind === "devBuildStarted") {
+        logger.info(`workflow rebuild started ${message.workflowId}`);
+        queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey(message.workflowId), {
+          state: "building",
+          updatedAt: new Date().toISOString(),
+          buildVersion: message.buildVersion,
+          awaitingWorkflowRefreshAt: undefined,
+        });
+        return;
+      }
+
+      if (message.kind === "devBuildCompleted") {
+        logger.info(`workflow rebuild completed ${message.workflowId} revision=${message.buildVersion}`);
+        queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey(message.workflowId), (existing) => {
+          if (existing?.awaitingWorkflowRefreshAt) {
+            return {
+              state: "building",
+              updatedAt: new Date().toISOString(),
+              buildVersion: message.buildVersion,
+              awaitingWorkflowRefreshAt: existing.awaitingWorkflowRefreshAt,
+            };
+          }
+          return {
+            state: "idle",
+            updatedAt: new Date().toISOString(),
+            buildVersion: message.buildVersion,
+          };
+        });
+        return;
+      }
+
+      if (message.kind === "devBuildFailed") {
+        logger.error(`workflow rebuild failed ${message.workflowId}: ${message.message}`);
+        queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey(message.workflowId), {
+          state: "failed",
+          updatedAt: new Date().toISOString(),
+          message: message.message,
+          awaitingWorkflowRefreshAt: undefined,
+        });
         return;
       }
 
@@ -526,6 +612,8 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
         window.clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
+      pendingDisconnectReasonRef.current = null;
+      clearPendingDisconnectWarning();
       socketRef.current?.close();
       socketRef.current = null;
       setReadyState(RealtimeReadyState.UNINSTANTIATED);
@@ -551,6 +639,8 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
         }
         hasOpenedConnectionRef.current = true;
         hasLoggedUnavailableTransportRef.current = false;
+        pendingDisconnectReasonRef.current = null;
+        clearPendingDisconnectWarning();
         setReadyState(RealtimeReadyState.OPEN);
         logger.info(`websocket transport opened to ${websocketUrl}`);
       });
@@ -584,7 +674,7 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
           logger.debug(`websocket transport is not available yet at ${websocketUrl}`);
           return;
         }
-        logger.error(`websocket transport error for ${websocketUrl}`);
+        schedulePersistentDisconnectWarning("transport error while reconnecting");
       });
 
       socket.addEventListener("close", (event) => {
@@ -597,8 +687,7 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
           logger.debug(`websocket transport is not available yet at ${websocketUrl}`);
         }
         if (hasOpenedConnectionRef.current) {
-          logger.warn(`websocket close event code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`);
-          logger.warn(`websocket transport closed code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`);
+          schedulePersistentDisconnectWarning(`closed code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`);
         }
         if (disposed) {
           return;
@@ -618,13 +707,14 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
         window.clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
+      clearPendingDisconnectWarning();
       if (socketRef.current) {
         setReadyState(RealtimeReadyState.CLOSING);
         socketRef.current.close();
         socketRef.current = null;
       }
     };
-  }, [logger, shouldConnect, websocketUrl]);
+  }, [clearPendingDisconnectWarning, logger, schedulePersistentDisconnectWarning, shouldConnect, websocketUrl]);
 
   useEffect(() => {
     if (pendingJsonMessagesRef.current.length === 0) {
@@ -638,20 +728,26 @@ export function WorkflowRealtimeProvider(args: { children: ReactNode; logger: Lo
 
   useEffect(() => {
     return () => {
+      clearPendingDisconnectWarning();
       for (const timeoutId of terminalEventTimeoutIdByNodeKeyRef.current.values()) {
         window.clearTimeout(timeoutId);
       }
       terminalEventTimeoutIdByNodeKeyRef.current.clear();
       activeStatusShownAtByNodeKeyRef.current.clear();
     };
-  }, []);
+  }, [clearPendingDisconnectWarning]);
 
   useEffect(() => {
     if (readyState === RealtimeReadyState.OPEN) {
       logger.info("websocket readyState changed to OPEN");
       return;
     }
-    if (readyState === RealtimeReadyState.CLOSED && hasOpenedConnectionRef.current) {
+    if (
+      readyState === RealtimeReadyState.CLOSED &&
+      hasOpenedConnectionRef.current &&
+      disconnectWarningTimeoutRef.current === null &&
+      pendingDisconnectReasonRef.current !== null
+    ) {
       logger.warn("websocket readyState changed to CLOSED");
     }
   }, [logger, readyState]);
@@ -750,6 +846,10 @@ export function useWorkflowRealtimeSubscription(workflowId: string | null | unde
   }, [bridgeVersion, retainWorkflowSubscription, workflowId]);
 }
 
+export function useWorkflowRealtimeConnectionState(): boolean {
+  return useContext(RealtimeContext)?.isConnected ?? false;
+}
+
 export function useWorkflowsQuery() {
   return useWorkflowsQueryWithInitialData();
 }
@@ -796,6 +896,21 @@ export function useWorkflowDebuggerOverlayQuery(workflowId: string) {
     queryKey: workflowDebuggerOverlayQueryKey(workflowId),
     queryFn: async () => await fetchWorkflowDebuggerOverlay(workflowId),
     enabled: Boolean(workflowId),
+  });
+}
+
+export function useWorkflowDevBuildStateQuery(workflowId: string) {
+  return useQuery({
+    queryKey: workflowDevBuildStateQueryKey(workflowId),
+    queryFn: async (): Promise<WorkflowDevBuildState> => ({
+      state: "idle",
+      updatedAt: new Date(0).toISOString(),
+    }),
+    enabled: false,
+    initialData: {
+      state: "idle",
+      updatedAt: new Date(0).toISOString(),
+    } satisfies WorkflowDevBuildState,
   });
 }
 

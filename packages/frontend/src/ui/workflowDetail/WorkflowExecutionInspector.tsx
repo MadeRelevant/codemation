@@ -1,9 +1,6 @@
 import { Pencil } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
- import Tree from "rc-tree";
-import { ApiPaths } from "../../presentation/http/ApiPaths";
-import { useCredentialInstancesQuery, useWorkflowCredentialHealthQuery } from "../realtime/realtime";
+import Tree from "rc-tree";
 import { WorkflowNodeIconResolver, WorkflowStatusIcon } from "./WorkflowDetailIcons";
 import { WorkflowInspectorBinaryView, WorkflowInspectorErrorView, WorkflowInspectorJsonView, WorkflowInspectorPrettyView } from "./WorkflowInspectorViews";
 import type { ExecutionTreeNode, WorkflowExecutionInspectorActions, WorkflowExecutionInspectorFormatting, WorkflowExecutionInspectorModel } from "./workflowDetailTypes";
@@ -30,11 +27,9 @@ export function WorkflowExecutionInspector(args: Readonly<{
     selectedRun,
     selectedWorkflowNode,
     viewContext,
-    workflowId,
   } = model;
   const { formatDateTime, formatDurationLabel, getErrorClipboardText, getErrorHeadline, getErrorStack, getNodeDisplayName, getSnapshotTimestamp } = formatting;
   const { onClearPinnedOutput, onEditSelectedOutput, onSelectFormat, onSelectInputPort, onSelectMode, onSelectNode, onSelectOutputPort } = actions;
-  const queryClient = useQueryClient();
   const TREE_PANEL_MIN_WIDTH_PX = 220;
   const TREE_PANEL_DEFAULT_WIDTH_PX = 320;
   const DETAIL_PANEL_MIN_WIDTH_PX = 320;
@@ -44,16 +39,10 @@ export function WorkflowExecutionInspector(args: Readonly<{
   const resizeStartWidthRef = useRef(TREE_PANEL_DEFAULT_WIDTH_PX);
   const [treePanelWidth, setTreePanelWidth] = useState(TREE_PANEL_DEFAULT_WIDTH_PX);
   const [isTreePanelResizing, setIsTreePanelResizing] = useState(false);
-  const [credentialError, setCredentialError] = useState<string | null>(null);
-  const [bindingInstanceIdBySlotKey, setBindingInstanceIdBySlotKey] = useState<Readonly<Record<string, string>>>({});
-  const [activeBindingSlotKey, setActiveBindingSlotKey] = useState<string | null>(null);
   const isInputVisible = selectedMode === "input" || selectedMode === "split";
   const isOutputVisible = selectedMode === "output" || selectedMode === "split";
   const panes = isInputVisible && isOutputVisible ? [inputPane, outputPane] : [isInputVisible ? inputPane : outputPane];
   const selectedNodeDurationLabel = formatDurationLabel(selectedNodeSnapshot);
-  const credentialInstancesQuery = useCredentialInstancesQuery();
-  const workflowCredentialHealthQuery = useWorkflowCredentialHealthQuery(workflowId);
-  const nodeCredentialSlots = workflowCredentialHealthQuery.data?.slots.filter((slot) => slot.nodeId === selectedNodeId) ?? [];
 
   const toggleInspectorPane = (tab: "input" | "output") => {
     if (tab === "input") {
@@ -87,10 +76,6 @@ export function WorkflowExecutionInspector(args: Readonly<{
     };
   }, [isTreePanelResizing]);
 
-  useEffect(() => {
-    setBindingInstanceIdBySlotKey({});
-    setCredentialError(null);
-  }, [selectedNodeId]);
 
   if (isLoading && viewContext === "historical-run" && !selectedRun) return <div style={{ opacity: 0.7 }}>Loading execution details…</div>;
   if (isLoading && viewContext === "live-workflow" && !selectedWorkflowNode) return <div style={{ opacity: 0.7 }}>Loading live workflow state…</div>;
@@ -220,7 +205,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
       />
 
       <div style={{ display: "grid", gridTemplateRows: "auto 1fr", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
-        <div style={{ display: "grid", gap: 12, padding: 12, borderBottom: "1px solid #d1d5db" }}>
+        <div style={{ display: "grid", gap: 8, padding: "10px 12px", borderBottom: "1px solid #d1d5db" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -292,87 +277,6 @@ export function WorkflowExecutionInspector(args: Readonly<{
               </div>
             </div>
           </div>
-          {viewContext === "live-workflow" && nodeCredentialSlots.length > 0 ? (
-            <div data-testid="selected-node-credentials" style={{ display: "grid", gap: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", opacity: 0.72 }}>
-                Credential slots
-              </div>
-              {nodeCredentialSlots.map((slot) => {
-                const compatibleInstances =
-                  credentialInstancesQuery.data?.filter((instance) => slot.requirement.acceptedTypes.includes(instance.typeId)) ?? [];
-                const selectedInstanceId = bindingInstanceIdBySlotKey[slot.requirement.slotKey] ?? slot.instance?.instanceId ?? "";
-                return (
-                  <div key={slot.requirement.slotKey} style={{ border: "1px solid #e5e7eb", background: "#f8fafc", padding: 12, display: "grid", gap: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{slot.requirement.label}</div>
-                        <div style={{ fontSize: 12, opacity: 0.72 }}>{slot.requirement.acceptedTypes.join(", ")}</div>
-                      </div>
-                      <div style={{ fontSize: 12, fontWeight: 700 }}>{slot.health.status}</div>
-                    </div>
-                    {slot.health.message ? <div style={{ fontSize: 12 }}>{slot.health.message}</div> : null}
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                      <select
-                        data-testid={`selected-node-credential-slot-select-${slot.requirement.slotKey}`}
-                        value={selectedInstanceId}
-                        onChange={(event) =>
-                          setBindingInstanceIdBySlotKey((current) => ({
-                            ...current,
-                            [slot.requirement.slotKey]: event.target.value,
-                          }))
-                        }
-                      >
-                        <option value="">Select credential instance</option>
-                        {compatibleInstances.map((instance) => (
-                          <option key={instance.instanceId} value={instance.instanceId}>
-                            {instance.displayName}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        data-testid={`selected-node-credential-slot-bind-${slot.requirement.slotKey}`}
-                        disabled={!selectedInstanceId || activeBindingSlotKey === slot.requirement.slotKey}
-                        onClick={() => {
-                          void (async () => {
-                            try {
-                              setActiveBindingSlotKey(slot.requirement.slotKey);
-                              setCredentialError(null);
-                              const response = await fetch(ApiPaths.credentialBindings(), {
-                                method: "PUT",
-                                headers: { "content-type": "application/json" },
-                                body: JSON.stringify({
-                                  workflowId,
-                                  nodeId: selectedNodeId,
-                                  slotKey: slot.requirement.slotKey,
-                                  instanceId: selectedInstanceId,
-                                }),
-                              });
-                              if (!response.ok) {
-                                throw new Error(await response.text());
-                              }
-                              await Promise.all([
-                                queryClient.invalidateQueries({ queryKey: ["workflow-credential-health", workflowId] }),
-                                queryClient.invalidateQueries({ queryKey: ["credential-instances"] }),
-                              ]);
-                            } catch (error) {
-                              setCredentialError(error instanceof Error ? error.message : String(error));
-                            } finally {
-                              setActiveBindingSlotKey(null);
-                            }
-                          })();
-                        }}
-                        style={{ padding: "6px 10px", fontWeight: 700 }}
-                      >
-                        {activeBindingSlotKey === slot.requirement.slotKey ? "Binding..." : "Bind"}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-              {credentialError ? <div style={{ color: "#b91c1c" }}>{credentialError}</div> : null}
-            </div>
-          ) : null}
         </div>
 
         <div

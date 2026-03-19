@@ -5,6 +5,10 @@ export type WorkflowDetailRealtimeServerMessage =
   | Readonly<{ kind: "subscribed"; roomId: string }>
   | Readonly<{ kind: "unsubscribed"; roomId: string }>
   | Readonly<{ kind: "ready" }>
+  | Readonly<{ kind: "workflowChanged"; workflowId: string }>
+  | Readonly<{ kind: "devBuildStarted"; workflowId: string; buildVersion?: string }>
+  | Readonly<{ kind: "devBuildCompleted"; workflowId: string; buildVersion: string }>
+  | Readonly<{ kind: "devBuildFailed"; workflowId: string; message: string }>
   | Readonly<{ kind: "event"; event: WorkflowEvent }>;
 
 export class WorkflowDetailRealtimeFixtureFactory {
@@ -24,6 +28,46 @@ export class WorkflowDetailRealtimeFixtureFactory {
         workflowId: WorkflowDetailFixtureFactory.workflowId,
         at: WorkflowDetailFixtureFactory.startedAt,
       },
+    };
+  }
+
+  static workflowChanged(workflowId = WorkflowDetailFixtureFactory.workflowId): WorkflowDetailRealtimeServerMessage {
+    return {
+      kind: "workflowChanged",
+      workflowId,
+    };
+  }
+
+  static devBuildStarted(
+    workflowId = WorkflowDetailFixtureFactory.workflowId,
+    buildVersion = "20260318130000",
+  ): WorkflowDetailRealtimeServerMessage {
+    return {
+      kind: "devBuildStarted",
+      workflowId,
+      buildVersion,
+    };
+  }
+
+  static devBuildCompleted(
+    workflowId = WorkflowDetailFixtureFactory.workflowId,
+    buildVersion = "20260318130001",
+  ): WorkflowDetailRealtimeServerMessage {
+    return {
+      kind: "devBuildCompleted",
+      workflowId,
+      buildVersion,
+    };
+  }
+
+  static devBuildFailed(
+    workflowId = WorkflowDetailFixtureFactory.workflowId,
+    message = "The service is no longer running",
+  ): WorkflowDetailRealtimeServerMessage {
+    return {
+      kind: "devBuildFailed",
+      workflowId,
+      message,
     };
   }
 

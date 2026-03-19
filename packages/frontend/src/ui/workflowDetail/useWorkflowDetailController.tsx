@@ -3,13 +3,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type Items,
   useRunQuery,
+  useWorkflowDevBuildStateQuery,
   useWorkflowDebuggerOverlayQuery,
+  useWorkflowRealtimeConnectionState,
   useWorkflowQuery,
   useWorkflowRealtimeSubscription,
   useWorkflowRunsQuery,
   type NodeExecutionSnapshot,
   type PersistedRunState,
   type RunSummary,
+  type WorkflowDevBuildState,
   type WorkflowDto,
 } from "../realtime/realtime";
 import type {
@@ -33,6 +36,8 @@ type WorkflowDetailControllerResult = Readonly<{
   isLiveWorkflowView: boolean;
   isRunsPaneVisible: boolean;
   isRunning: boolean;
+  workflowDevBuildState: WorkflowDevBuildState;
+  isRealtimeConnected: boolean;
   canCopySelectedRunToLive: boolean;
   selectedRun: PersistedRunState | undefined;
   sidebarModel: WorkflowRunsSidebarModel;
@@ -42,7 +47,12 @@ type WorkflowDetailControllerResult = Readonly<{
   inspectorFormatting: WorkflowExecutionInspectorFormatting;
   inspectorActions: WorkflowExecutionInspectorActions;
   selectedNodeId: string | null;
+  propertiesPanelNodeId: string | null;
+  isPropertiesPanelOpen: boolean;
+  selectedPropertiesWorkflowNode: WorkflowDto["nodes"][number] | undefined;
   selectCanvasNode: (nodeId: string) => void;
+  openPropertiesPanelForNode: (nodeId: string) => void;
+  closePropertiesPanel: () => void;
   runCanvasNode: (nodeId: string) => void;
   toggleCanvasNodePin: (nodeId: string) => void;
   editCanvasNodeOutput: (nodeId: string) => void;
@@ -68,6 +78,8 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const workflowQuery = useWorkflowQuery(workflowId, initialWorkflow);
   const runsQuery = useWorkflowRunsQuery(workflowId);
   const debuggerOverlayQuery = useWorkflowDebuggerOverlayQuery(workflowId);
+  const workflowDevBuildStateQuery = useWorkflowDevBuildStateQuery(workflowId);
+  const isRealtimeConnected = useWorkflowRealtimeConnectionState();
   useWorkflowRealtimeSubscription(workflowId);
 
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +91,8 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const [pendingSelectedRun, setPendingSelectedRun] = useState<RunSummary | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hasManuallySelectedNode, setHasManuallySelectedNode] = useState(false);
+  const [propertiesPanelNodeId, setPropertiesPanelNodeId] = useState<string | null>(null);
+  const [isPropertiesPanelOpen, setIsPropertiesPanelOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState<InspectorMode>("output");
   const [inspectorFormatByTab, setInspectorFormatByTab] = useState<Readonly<Record<InspectorTab, InspectorFormat>>>({
     input: "json",
@@ -95,8 +109,15 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const previousInspectorSelectionRef = useRef("");
   const previousInspectorHasErrorRef = useRef(false);
   const runRequestInFlightRef = useRef(false);
+  const previousLiveWorkflowSignatureRef = useRef<string | null>(null);
 
   const workflow = workflowQuery.data;
+  const workflowDevBuildState = workflowDevBuildStateQuery.data ?? {
+    state: "idle",
+    updatedAt: new Date(0).toISOString(),
+  };
+  const workflowDevBuildStateQueryKey = useMemo(() => ["workflow-dev-build-state", workflowId] as const, [workflowId]);
+  const liveWorkflowSignature = useMemo(() => WorkflowDetailPresenter.createWorkflowStructureSignature(workflow), [workflow]);
   const runs = runsQuery.data;
   const selectedRunQuery = useRunQuery(selectedRunId);
   const selectedRun = selectedRunQuery.data;
@@ -120,21 +141,25 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
               nodeSnapshotsByNodeId: activeLiveRun.nodeSnapshotsByNodeId,
               mutableState: overlayCurrentState?.mutableState ?? activeLiveRun.mutableState,
             } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>);
+    const reconciledBaseLiveExecutionState = WorkflowDetailPresenter.reconcileCurrentStateWithWorkflow(baseLiveExecutionState, workflow);
     if (!pendingTriggerFetchSnapshot || activeLiveRunId) {
-      return baseLiveExecutionState;
+      return reconciledBaseLiveExecutionState;
+    }
+    if (!workflow?.nodes.some((node) => node.id === pendingTriggerFetchSnapshot.nodeId)) {
+      return reconciledBaseLiveExecutionState;
     }
     return {
-      ...(baseLiveExecutionState ?? {
+      ...(reconciledBaseLiveExecutionState ?? {
         outputsByNode: {},
         nodeSnapshotsByNodeId: {},
         mutableState: overlayCurrentState?.mutableState,
       }),
       nodeSnapshotsByNodeId: {
-        ...(baseLiveExecutionState?.nodeSnapshotsByNodeId ?? {}),
+        ...(reconciledBaseLiveExecutionState?.nodeSnapshotsByNodeId ?? {}),
         [pendingTriggerFetchSnapshot.nodeId]: pendingTriggerFetchSnapshot,
       },
     } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>;
-  }, [activeLiveRun, activeLiveRunId, debuggerOverlay, pendingTriggerFetchSnapshot]);
+  }, [activeLiveRun, activeLiveRunId, debuggerOverlay, pendingTriggerFetchSnapshot, workflow]);
   const displayedWorkflow = useMemo(
     () => WorkflowDetailPresenter.resolveViewedWorkflow({ selectedRun, liveWorkflow: workflow }),
     [selectedRun, workflow],
@@ -227,6 +252,8 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     setPendingSelectedRun(null);
     setSelectedNodeId(null);
     setHasManuallySelectedNode(false);
+    setPropertiesPanelNodeId(null);
+    setIsPropertiesPanelOpen(false);
     setSelectedMode("output");
     setInspectorFormatByTab({
       input: "json",
@@ -244,6 +271,71 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     previousInspectorSelectionRef.current = "";
     previousInspectorHasErrorRef.current = false;
   }, [workflowId]);
+
+  useEffect(() => {
+    if (!workflow) {
+      return;
+    }
+    const previousSignature = previousLiveWorkflowSignatureRef.current;
+    previousLiveWorkflowSignatureRef.current = liveWorkflowSignature;
+    if (previousSignature === null || previousSignature === liveWorkflowSignature || selectedRunId) {
+      return;
+    }
+    queryClient.setQueryData(
+      WorkflowDetailPresenter.getWorkflowDebuggerOverlayQueryKey(workflowId),
+      (existing: typeof debuggerOverlay | undefined) => {
+        if (!existing) {
+          return existing;
+        }
+        return {
+          ...existing,
+          currentState: WorkflowDetailPresenter.reconcileCurrentStateWithWorkflow(existing.currentState, workflow) ?? existing.currentState,
+        };
+      },
+    );
+    setActiveLiveRunId(null);
+    setPendingSelectedRun(null);
+    setPendingTriggerFetchSnapshot(null);
+    setJsonEditorState(null);
+    if (selectedNodeId && !workflow.nodes.some((node) => node.id === selectedNodeId)) {
+      setSelectedNodeId(null);
+      setHasManuallySelectedNode(false);
+    }
+    if (propertiesPanelNodeId && !workflow.nodes.some((node) => node.id === propertiesPanelNodeId)) {
+      setPropertiesPanelNodeId(null);
+      setIsPropertiesPanelOpen(false);
+    }
+  }, [debuggerOverlay, liveWorkflowSignature, propertiesPanelNodeId, queryClient, selectedNodeId, selectedRunId, workflow, workflowId]);
+
+  useEffect(() => {
+    if (workflowDevBuildState.state !== "building" || !workflowDevBuildState.awaitingWorkflowRefreshAt) {
+      return;
+    }
+    if (workflowQuery.isFetching) {
+      return;
+    }
+    const workflowRefreshRequestedAt = Date.parse(workflowDevBuildState.awaitingWorkflowRefreshAt);
+    if (!Number.isFinite(workflowRefreshRequestedAt) || workflowQuery.dataUpdatedAt < workflowRefreshRequestedAt) {
+      return;
+    }
+    queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey, (existing) => {
+      if (!existing || existing.state !== "building") {
+        return existing;
+      }
+      return {
+        state: "idle",
+        updatedAt: new Date().toISOString(),
+        buildVersion: existing.buildVersion,
+      };
+    });
+  }, [
+    queryClient,
+    workflowDevBuildState.awaitingWorkflowRefreshAt,
+    workflowDevBuildStateQueryKey,
+    workflowDevBuildState.state,
+    workflowQuery.dataUpdatedAt,
+    workflowQuery.isFetching,
+  ]);
 
   useEffect(() => {
     if (!isInspectorResizing) return;
@@ -301,6 +393,10 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const selectedWorkflowNode = useMemo(
     () => selectedExecutionNode?.node ?? displayedWorkflow?.nodes.find((node) => node.id === selectedNodeId),
     [displayedWorkflow, selectedExecutionNode, selectedNodeId],
+  );
+  const selectedPropertiesWorkflowNode = useMemo(
+    () => (propertiesPanelNodeId ? displayedWorkflow?.nodes.find((node) => node.id === propertiesPanelNodeId) : undefined),
+    [displayedWorkflow, propertiesPanelNodeId],
   );
   const inputPortEntries = useMemo(() => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.inputsByPort), [selectedNodeSnapshot]);
   const outputPortEntries = useMemo(() => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.outputs), [selectedNodeSnapshot]);
@@ -700,6 +796,16 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     setSelectedNodeId(nodeId);
   }, []);
 
+  const openPropertiesPanelForNode = useCallback((nodeId: string) => {
+    setPropertiesPanelNodeId(nodeId);
+    setIsPropertiesPanelOpen(true);
+  }, []);
+
+  const closePropertiesPanel = useCallback(() => {
+    setIsPropertiesPanelOpen(false);
+    setPropertiesPanelNodeId(null);
+  }, []);
+
   return {
     displayedWorkflow,
     displayedNodeSnapshotsByNodeId: currentExecutionState?.nodeSnapshotsByNodeId ?? {},
@@ -707,6 +813,8 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     isLiveWorkflowView: viewContext === "live-workflow",
     isRunsPaneVisible,
     isRunning,
+    workflowDevBuildState,
+    isRealtimeConnected,
     canCopySelectedRunToLive: viewContext === "historical-run" && Boolean(selectedRun),
     selectedRun,
     sidebarModel: {
@@ -774,7 +882,12 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       onSelectOutputPort: setSelectedOutputPort,
     },
     selectedNodeId,
+    propertiesPanelNodeId,
+    isPropertiesPanelOpen,
+    selectedPropertiesWorkflowNode,
     selectCanvasNode: selectNode,
+    openPropertiesPanelForNode,
+    closePropertiesPanel,
     runCanvasNode: runNode,
     toggleCanvasNodePin: togglePinnedOutputForNode,
     editCanvasNodeOutput: openPinOutputEditor,

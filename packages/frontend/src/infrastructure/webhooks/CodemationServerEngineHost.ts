@@ -29,5 +29,9 @@ export class CodemationServerEngineHost implements WebhookRegistrar, NodeActivat
     return { endpointId, methods: spec.methods, path };
   }
 
+  clear(): void {
+    this.webhookRegistry.clear();
+  }
+
   onNodeActivation(_stats: NodeActivationStats): void {}
 }

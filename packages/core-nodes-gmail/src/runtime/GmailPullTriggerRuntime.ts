@@ -62,6 +62,18 @@ export class GmailPullTriggerRuntime {
     return nextState;
   }
 
+  async stop(trigger: TriggerInstanceId): Promise<void> {
+    const key = this.toKey(trigger);
+    const interval = this.pullIntervalsByTrigger.get(key);
+    if (interval) {
+      clearInterval(interval);
+      this.pullIntervalsByTrigger.delete(key);
+    }
+    this.busyTriggers.delete(key);
+    this.activeTriggers.delete(key);
+    this.logger.info(`pull loop stopped for ${this.describeTrigger(trigger)}`);
+  }
+
   private ensurePullLoop(args: Readonly<{
     trigger: TriggerInstanceId;
     client: GmailApiClient;

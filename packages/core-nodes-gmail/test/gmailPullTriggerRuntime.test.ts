@@ -214,6 +214,63 @@ test("GmailPullTriggerRuntime renews the watch, pulls notifications, emits items
 
   assert.equal(initialState?.historyId, "history_1");
   assert.equal(emittedPayloads[0]?.[0] && typeof emittedPayloads[0][0], "object");
+  await runtime.stop({
+    workflowId: "wf.gmail",
+    nodeId: "trigger",
+  });
+});
+
+test("GmailPullTriggerRuntime stops polling after the trigger runtime is torn down", async () => {
+  const gmailApiClient = new FakeGmailApiClient();
+  const store = new InMemoryTriggerSetupStateStore();
+  const configuredLabelService = new GmailConfiguredLabelService();
+  const watchService = new GmailWatchService(configuredLabelService, store as never);
+  const historySyncService = new GmailHistorySyncService(
+    store as never,
+    watchService,
+    configuredLabelService,
+    new GmailMessageItemMapper(),
+    new GmailQueryMatcher(),
+  );
+  const emittedPayloads: Array<ReadonlyArray<unknown>> = [];
+  const runtime = new GmailPullTriggerRuntime(
+    {
+      pullIntervalMs: 25,
+      maxMessagesPerPull: 5,
+    },
+    store as never,
+    new NoopGmailLogger(),
+    watchService,
+    historySyncService,
+  );
+  const trigger = {
+    workflowId: "wf.gmail",
+    nodeId: "trigger",
+  } as const;
+
+  await runtime.ensureStarted({
+    trigger,
+    client: gmailApiClient,
+    config: GmailPullTriggerRuntimeFixture.createConfig(),
+    previousState: undefined,
+    emit: async (items) => {
+      emittedPayloads.push(items);
+    },
+  });
+
+  await runtime.stop(trigger);
+
+  gmailApiClient.notifications = [
+    new FakePulledNotification({
+      emailAddress: "sales@example.com",
+      historyId: "history_3",
+      publishTime: "2026-03-17T12:06:00.000Z",
+    }),
+  ];
+
+  await new Promise((resolve) => setTimeout(resolve, 80));
+
+  assert.equal(emittedPayloads.length, 0);
 });
 
 test("GmailPullTriggerRuntime logs the specific missing trigger configuration fields", async () => {

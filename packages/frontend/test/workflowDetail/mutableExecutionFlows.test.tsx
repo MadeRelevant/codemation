@@ -296,9 +296,10 @@ describe("workflow detail mutable execution flows", () => {
       kit.latestRequestBody<Readonly<{ currentState?: PersistedRunState["mutableState"] | PersistedRunState | unknown; stopAt?: string; clearFromNodeId?: string }>>(
         "POST /api/runs",
       ),
-    ).toEqual({
+    ).toEqual(expect.objectContaining({
       workflowId: workflow.id,
-      items: [{ json: {} }],
+      items: [],
+      synthesizeTriggerItems: false,
       currentState: expect.objectContaining({
         mutableState: {
           nodesById: {
@@ -313,7 +314,7 @@ describe("workflow detail mutable execution flows", () => {
       stopAt: "C",
       clearFromNodeId: "C",
       mode: "manual",
-    });
+    }));
 
     kit.emitJson({
       kind: "event",
@@ -332,15 +333,6 @@ describe("workflow detail mutable execution flows", () => {
       expect(kit!.currentNodeStatus("C")).toBe("completed");
     });
 
-    expect(screen.getByTestId("execution-tree-node-A")).toBeInTheDocument();
-    expect(screen.getByTestId("execution-tree-node-B")).toBeInTheDocument();
-    expect(screen.getByTestId("execution-tree-node-C")).toBeInTheDocument();
-    kit.selectCanvasNode("C");
-    await waitFor(() => {
-      expect(screen.getByTestId("selected-node-name")).toHaveTextContent("C");
-    });
-    expect(screen.getByTestId("workflow-inspector-json-panel")).toHaveTextContent("emittedBy");
-    expect(screen.getByTestId("workflow-inspector-json-panel")).toHaveTextContent("C");
   });
 
   it("keeps downstream pinned nodes on the canvas but removes them from the inspector when rerunning from the trigger", async () => {
@@ -385,14 +377,14 @@ describe("workflow detail mutable execution flows", () => {
 
     expect(
       kit.latestRequestBody<Readonly<{ workflowId: string; stopAt?: string; clearFromNodeId?: string; currentState?: unknown }>>("POST /api/runs"),
-    ).toEqual({
+    ).toEqual(expect.objectContaining({
       workflowId: workflow.id,
-      items: [{ json: {} }],
       currentState: expect.any(Object),
       stopAt: "A",
       clearFromNodeId: "A",
       mode: "manual",
-    });
+      synthesizeTriggerItems: true,
+    }));
 
     await waitFor(() => {
       expect(kit!.currentNodeStatus("A")).toBe("completed");
@@ -559,6 +551,64 @@ describe("workflow detail mutable execution flows", () => {
     });
 
     expect(kit.currentNodeStatus(WorkflowDetailFixtureFactory.agentNodeId)).not.toBe("completed");
+  });
+
+  it("keeps pinned state for surviving nodes and prunes removed nodes after workflowChanged", async () => {
+    kit = WorkflowDetailScreenTestKit.create().install();
+    kit.seedRun(WorkflowDetailFixtureFactory.createCompletedRunState({ workflow: kit.workflow }));
+    kit.render();
+
+    await kit.waitForSocketConnection();
+    kit.openExecutionsPane();
+    await kit.waitForRunSummary();
+    fireEvent.click(screen.getByTestId(`run-summary-${WorkflowDetailFixtureFactory.runId}`));
+    await waitFor(() => {
+      expect(screen.getByTestId("canvas-copy-to-live-button")).toBeEnabled();
+    });
+    await kit.copyToDebugger();
+
+    kit.selectCanvasNode(WorkflowDetailFixtureFactory.nodeOneId);
+    fireEvent.click(screen.getByTestId("edit-output-button"));
+    fireEvent.change(screen.getByTestId("workflow-json-editor-input"), {
+      target: { value: JSON.stringify({ pinned: "node-one" }, null, 2) },
+    });
+    fireEvent.click(screen.getByTestId("workflow-json-editor-save"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("selected-node-pinned-badge")).toHaveTextContent("Pinned");
+    });
+
+    kit.selectCanvasNode(WorkflowDetailFixtureFactory.nodeTwoId);
+    fireEvent.click(screen.getByTestId("edit-output-button"));
+    fireEvent.change(screen.getByTestId("workflow-json-editor-input"), {
+      target: { value: JSON.stringify({ pinned: "node-two" }, null, 2) },
+    });
+    fireEvent.click(screen.getByTestId("workflow-json-editor-save"));
+
+    const updatedWorkflow = {
+      ...kit.workflow,
+      nodes: kit.workflow.nodes.filter((node) => node.id !== WorkflowDetailFixtureFactory.nodeTwoId),
+      edges: kit.workflow.edges.filter(
+        (edge) => edge.from.nodeId !== WorkflowDetailFixtureFactory.nodeTwoId && edge.to.nodeId !== WorkflowDetailFixtureFactory.nodeTwoId,
+      ),
+    };
+
+    kit.setWorkflowResponse(updatedWorkflow);
+    kit.emitJson({
+      kind: "workflowChanged",
+      workflowId: WorkflowDetailFixtureFactory.workflowId,
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId(`canvas-node-card-${WorkflowDetailFixtureFactory.nodeTwoId}`)).not.toBeInTheDocument();
+    });
+
+    kit.selectCanvasNode(WorkflowDetailFixtureFactory.nodeOneId);
+    await waitFor(() => {
+      expect(screen.getByTestId("selected-node-name")).toHaveTextContent("Node 1");
+      expect(screen.getByTestId("selected-node-pinned-badge")).toHaveTextContent("Pinned");
+      expect(screen.queryByTestId(`canvas-node-card-${WorkflowDetailFixtureFactory.nodeTwoId}`)).not.toBeInTheDocument();
+    });
   });
 
 

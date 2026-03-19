@@ -122,6 +122,7 @@ export class CodemationApplication {
   private runtimeConfig: CodemationApplicationRuntimeConfig = {};
   private bindings: ReadonlyArray<CodemationBinding<unknown>> = [];
   private plugins: ReadonlyArray<CodemationPlugin> = [];
+  private sharedWorkflowWebsocketServer: WorkflowWebsocketServer | null = null;
 
   constructor() {
     this.synchronizeContainerRegistrations();
@@ -181,6 +182,13 @@ export class CodemationApplication {
 
   getWorkflows(): ReadonlyArray<WorkflowDefinition> {
     return [...this.workflows];
+  }
+
+  useSharedWorkflowWebsocketServer(workflowWebsocketServer: WorkflowWebsocketServer): this {
+    this.sharedWorkflowWebsocketServer = workflowWebsocketServer;
+    this.container.registerInstance(WorkflowWebsocketServer, workflowWebsocketServer);
+    this.container.registerInstance(ApplicationTokens.WorkflowWebsocketPublisher, workflowWebsocketServer);
+    return this;
   }
 
   registerCredentialType(type: RegisteredCredentialType): void {
@@ -279,11 +287,14 @@ export class CodemationApplication {
     };
   }
 
-  async stopFrontendServerContainer(): Promise<void> {
+  async stopFrontendServerContainer(args?: Readonly<{ stopWebsocketServer?: boolean }>): Promise<void> {
+    if (this.container.isRegistered(Engine, true)) {
+      await this.container.resolve(Engine).stop();
+    }
     if (this.container.isRegistered(WorkflowRunEventWebsocketRelay, true)) {
       await this.container.resolve(WorkflowRunEventWebsocketRelay).stop();
     }
-    if (this.container.isRegistered(WorkflowWebsocketServer, true)) {
+    if (args?.stopWebsocketServer !== false && this.container.isRegistered(WorkflowWebsocketServer, true)) {
       await this.container.resolve(WorkflowWebsocketServer).stop();
     }
     if (this.ownedPrismaClient) {
@@ -395,6 +406,9 @@ export class CodemationApplication {
     });
     this.container.register(WorkflowWebsocketServer, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
+        if (this.sharedWorkflowWebsocketServer) {
+          return this.sharedWorkflowWebsocketServer;
+        }
         return new WorkflowWebsocketServer(
           dependencyContainer.resolve(ApplicationTokens.WebSocketPort),
           dependencyContainer.resolve(ApplicationTokens.WebSocketBindHost),

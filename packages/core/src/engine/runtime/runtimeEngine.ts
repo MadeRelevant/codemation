@@ -33,6 +33,8 @@ import type {
   RunStateStore,
   TestableTriggerNode,
   TriggerNode,
+  TriggerCleanupHandle,
+  TriggerInstanceId,
   TriggerNodeConfig,
   TriggerSetupStateStore,
   WebhookControlSignal,
@@ -84,6 +86,7 @@ export class Engine implements NodeActivationContinuation {
   private readonly nodeInstanceFactory: NodeInstanceFactory;
   private readonly completionWaiters = new Map<RunId, Array<(result: RunResult) => void>>();
   private readonly webhookResponseWaiters = new Map<RunId, Array<(result: WebhookRunResult) => void>>();
+  private readonly triggerCleanupHandlesByKey = new Map<string, TriggerCleanupHandle[]>();
 
   constructor(deps: EngineDeps) {
     this.credentialSessions = deps.credentialSessions;
@@ -136,6 +139,7 @@ export class Engine implements NodeActivationContinuation {
         const data = this.runDataFactory.create();
         const triggerRunId = this.runIdFactory.makeRunId();
         const trigger = { workflowId: wf.id, nodeId: def.id } as const;
+        await this.stopTrigger(trigger);
         const previousState = await this.triggerSetupStateStore.load(trigger);
         let nextState: unknown;
         try {
@@ -151,6 +155,9 @@ export class Engine implements NodeActivationContinuation {
             trigger,
             config: def.config as TriggerNodeConfig,
             previousState: previousState?.state as never,
+            registerCleanup: (cleanup) => {
+              this.registerTriggerCleanupHandle(trigger, cleanup);
+            },
             registerWebhook: (spec) => {
               const registration = this.webhookRegistrar.registerWebhook({
                 workflowId: wf.id,
@@ -174,6 +181,7 @@ export class Engine implements NodeActivationContinuation {
             },
           });
         } catch (triggerError: unknown) {
+          await this.stopTrigger(trigger);
           const message =
             triggerError instanceof Error ? triggerError.message : String(triggerError);
           console.warn(
@@ -195,8 +203,25 @@ export class Engine implements NodeActivationContinuation {
   }
 
   async start(workflows: WorkflowDefinition[]): Promise<void> {
+    await this.stop();
     this.loadWorkflows(workflows);
     await this.startTriggers();
+  }
+
+  async stop(): Promise<void> {
+    for (const workflow of this.workflowRegistry.list()) {
+      for (const node of workflow.nodes) {
+        if (node.kind !== "trigger") {
+          continue;
+        }
+        await this.stopTrigger({
+          workflowId: workflow.id,
+          nodeId: node.id,
+        });
+      }
+    }
+    await this.webhookRegistrar.clear?.();
+    this.webhookTriggerMatcher.clear?.();
   }
 
   matchWebhookTrigger(args: { endpointId: string; method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" }) {
@@ -205,6 +230,26 @@ export class Engine implements NodeActivationContinuation {
 
   findWebhookTrigger(endpointId: string) {
     return this.webhookTriggerMatcher.lookup(endpointId);
+  }
+
+  private registerTriggerCleanupHandle(trigger: TriggerInstanceId, cleanup: TriggerCleanupHandle): void {
+    const key = this.toTriggerKey(trigger);
+    const cleanups = this.triggerCleanupHandlesByKey.get(key) ?? [];
+    cleanups.push(cleanup);
+    this.triggerCleanupHandlesByKey.set(key, cleanups);
+  }
+
+  private async stopTrigger(trigger: TriggerInstanceId): Promise<void> {
+    const key = this.toTriggerKey(trigger);
+    const cleanups = this.triggerCleanupHandlesByKey.get(key) ?? [];
+    this.triggerCleanupHandlesByKey.delete(key);
+    for (const cleanup of [...cleanups].reverse()) {
+      await cleanup.stop();
+    }
+  }
+
+  private toTriggerKey(trigger: TriggerInstanceId): string {
+    return `${trigger.workflowId}:${trigger.nodeId}`;
   }
 
   async createTriggerTestItems(args: { workflow: WorkflowDefinition; nodeId: NodeId }): Promise<Items | undefined> {

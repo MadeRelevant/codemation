@@ -101,6 +101,20 @@ describe("workflow canvas toolbar", () => {
     expect(strongArrowMarker).not.toBeNull();
     expect(fadedArrowMarker).not.toBeNull();
   });
+
+  it("refreshes the canvas when the workflow structure changes without changing node or edge counts", async () => {
+    render(<WorkflowCanvasStructureHarness />);
+
+    const canvasRoot = await screen.findByTestId("workflow-canvas-root");
+    const initialSignature = canvasRoot.getAttribute("data-workflow-structure-signature");
+
+    fireEvent.click(screen.getByTestId("swap-workflow-structure-button"));
+
+    await waitFor(() => {
+      expect(canvasRoot.getAttribute("data-workflow-structure-signature")).not.toBe(initialSignature);
+      expect(screen.getByTestId(`canvas-node-card-${WorkflowDetailFixtureFactory.nodeOneId}`)).toHaveTextContent("Node 1 renamed");
+    });
+  });
 });
 
 function WorkflowCanvasHarness(args: Readonly<{ initialPinned: boolean }>) {
@@ -119,10 +133,12 @@ function WorkflowCanvasHarness(args: Readonly<{ initialPinned: boolean }>) {
         workflow={workflow}
         nodeSnapshotsByNodeId={nodeSnapshotsByNodeId}
         selectedNodeId={nodeId}
+        propertiesTargetNodeId={null}
         pinnedNodeIds={pinnedNodeIds}
         isLiveWorkflowView
         isRunning={false}
         onSelectNode={() => {}}
+        onOpenPropertiesNode={() => {}}
         onRunNode={() => {}}
         onTogglePinnedOutput={() => {
           setPinnedNodeIds((current) => {
@@ -132,6 +148,55 @@ function WorkflowCanvasHarness(args: Readonly<{ initialPinned: boolean }>) {
             return new Set([nodeId]);
           });
         }}
+        onEditNodeOutput={() => {}}
+        onClearPinnedOutput={() => {}}
+      />
+    </div>
+  );
+}
+
+function WorkflowCanvasStructureHarness() {
+  const [workflow, setWorkflow] = useState(() => WorkflowDetailFixtureFactory.createWorkflowDetail());
+
+  return (
+    <div style={{ width: 1200, height: 640 }}>
+      <button
+        type="button"
+        data-testid="swap-workflow-structure-button"
+        onClick={() => {
+          setWorkflow((current) => ({
+            ...current,
+            nodes: current.nodes.map((node) =>
+              node.id === WorkflowDetailFixtureFactory.nodeOneId
+                ? {
+                    ...node,
+                    name: "Node 1 renamed",
+                  }
+                : node,
+            ),
+          }));
+        }}
+      >
+        Swap workflow structure
+      </button>
+      <WorkflowCanvas
+        workflow={workflow}
+        nodeSnapshotsByNodeId={{
+          [WorkflowDetailFixtureFactory.agentNodeId]: WorkflowDetailFixtureFactory.createSnapshot(
+            WorkflowDetailFixtureFactory.agentNodeId,
+            "completed",
+            2,
+          ),
+        }}
+        selectedNodeId={WorkflowDetailFixtureFactory.nodeOneId}
+        propertiesTargetNodeId={null}
+        pinnedNodeIds={new Set<string>()}
+        isLiveWorkflowView
+        isRunning={false}
+        onSelectNode={() => {}}
+        onOpenPropertiesNode={() => {}}
+        onRunNode={() => {}}
+        onTogglePinnedOutput={() => {}}
         onEditNodeOutput={() => {}}
         onClearPinnedOutput={() => {}}
       />

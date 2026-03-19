@@ -386,11 +386,40 @@ export class WorkflowDetailPresenter {
     return this.workflowFromSnapshot(args.selectedRun?.workflowSnapshot, args.liveWorkflow);
   }
 
+  static createWorkflowStructureSignature(workflow: WorkflowDto | undefined): string {
+    return JSON.stringify(workflow ?? null);
+  }
+
   static getPinnedOutput(currentState: InspectableExecutionState | undefined, nodeId: string | null): Items | undefined {
     if (!currentState || !nodeId) {
       return undefined;
     }
     return currentState.mutableState?.nodesById?.[nodeId]?.pinnedOutputsByPort?.main;
+  }
+
+  static reconcileCurrentStateWithWorkflow(
+    currentState: WorkflowDebuggerOverlayState["currentState"] | undefined,
+    workflow: WorkflowDto | undefined,
+  ): WorkflowDebuggerOverlayState["currentState"] | undefined {
+    if (!currentState || !workflow) {
+      return currentState;
+    }
+    const workflowNodeIds = new Set(workflow.nodes.map((node) => node.id));
+    return {
+      outputsByNode: Object.fromEntries(
+        Object.entries(currentState.outputsByNode).filter(([nodeId]) => this.isCompatibleWorkflowNodeId(workflowNodeIds, nodeId)),
+      ),
+      nodeSnapshotsByNodeId: Object.fromEntries(
+        Object.entries(currentState.nodeSnapshotsByNodeId).filter(([nodeId]) => this.isCompatibleWorkflowNodeId(workflowNodeIds, nodeId)),
+      ),
+      mutableState: currentState.mutableState
+        ? {
+            nodesById: Object.fromEntries(
+              Object.entries(currentState.mutableState.nodesById).filter(([nodeId]) => this.isCompatibleWorkflowNodeId(workflowNodeIds, nodeId)),
+            ),
+          }
+        : undefined,
+    };
   }
 
   static toEditableJson(items: Items | undefined): string {
@@ -488,6 +517,14 @@ export class WorkflowDetailPresenter {
     if (role === "languageModel") return 1;
     if (role === "tool") return 2;
     return 3;
+  }
+
+  private static isCompatibleWorkflowNodeId(workflowNodeIds: ReadonlySet<string>, nodeId: string): boolean {
+    return (
+      workflowNodeIds.has(nodeId)
+      || workflowNodeIds.has(AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(nodeId))
+      || workflowNodeIds.has(AgentAttachmentNodeIdFactory.getBaseToolNodeId(nodeId))
+    );
   }
 
   private static sortExecutionTree(nodes: ExecutionTreeNode[]): void {

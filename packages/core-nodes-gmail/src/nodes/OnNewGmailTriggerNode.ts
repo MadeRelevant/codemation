@@ -34,6 +34,11 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
     this.logger.info(
       `setup starting for trigger ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} on mailbox "${ctx.config.cfg.mailbox || "<unset>"}"`,
     );
+    ctx.registerCleanup({
+      stop: async () => {
+        await this.gmailPullTriggerRuntime.stop(ctx.trigger);
+      },
+    });
     const client = await ctx.getCredential<GmailApiClient>("auth");
     const setupState = await this.gmailPullTriggerRuntime.ensureStarted({
       trigger: ctx.trigger,

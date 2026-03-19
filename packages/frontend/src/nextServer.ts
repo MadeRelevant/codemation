@@ -9,3 +9,4 @@ export { RunHttpRouteHandler } from "./presentation/http/routeHandlers/RunHttpRo
 export { CredentialHttpRouteHandler } from "./presentation/http/routeHandlers/CredentialHttpRouteHandler";
 export { BinaryHttpRouteHandler } from "./presentation/http/routeHandlers/BinaryHttpRouteHandler";
 export { WebhookHttpRouteHandler } from "./presentation/http/routeHandlers/WebhookHttpRouteHandler";
+export { WorkflowWebsocketServer } from "./presentation/websocket/WorkflowWebsocketServer";

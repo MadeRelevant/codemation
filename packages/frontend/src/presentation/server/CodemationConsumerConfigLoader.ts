@@ -173,8 +173,19 @@ export class CodemationConsumerConfigLoader {
       return await this.importModuleWithNativeRuntime(modulePath);
     }
     const tsconfigPath = await this.resolveTsconfigPath(modulePath);
-    const importedModule = await this.getOrCreateImporter(tsconfigPath).import(await this.createImportSpecifier(modulePath), import.meta.url);
-    return importedModule as Record<string, unknown>;
+    const importSpecifier = await this.createImportSpecifier(modulePath);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const importedModule = await this.getOrCreateImporter(tsconfigPath).import(importSpecifier, import.meta.url);
+        return importedModule as Record<string, unknown>;
+      } catch (error) {
+        if (!this.isStoppedTransformServiceError(error) || attempt === 2) {
+          throw error;
+        }
+        await this.resetImporter(tsconfigPath);
+      }
+    }
+    throw new Error(`Failed to import consumer module after retries: ${modulePath}`);
   }
 
   private async importModuleWithNativeRuntime(modulePath: string): Promise<Record<string, unknown>> {
@@ -205,6 +216,16 @@ export class CodemationConsumerConfigLoader {
     return nextImporter;
   }
 
+  private async resetImporter(tsconfigPath: string | false): Promise<void> {
+    const cacheKey = tsconfigPath || "default";
+    const existingImporter = CodemationConsumerConfigLoader.importerRegistrationsByTsconfig.get(cacheKey);
+    if (!existingImporter) {
+      return;
+    }
+    CodemationConsumerConfigLoader.importerRegistrationsByTsconfig.delete(cacheKey);
+    await existingImporter.unregister().catch(() => null);
+  }
+
   private toNamespace(cacheKey: string): string {
     return `codemation_consumer_${cacheKey.replace(/[^a-zA-Z0-9_-]+/g, "_")}`;
   }
@@ -233,6 +254,10 @@ export class CodemationConsumerConfigLoader {
 
   private shouldUseNativeRuntimeImport(): boolean {
     return process.env.CODEMATION_TS_RUNTIME === "ts-node";
+  }
+
+  private isStoppedTransformServiceError(error: unknown): boolean {
+    return error instanceof Error && error.message.includes("The service is no longer running");
   }
 
   private async exists(filePath: string): Promise<boolean> {

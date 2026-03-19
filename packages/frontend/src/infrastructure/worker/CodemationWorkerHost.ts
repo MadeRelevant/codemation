@@ -7,5 +7,7 @@ export class CodemationWorkerHost implements WebhookRegistrar, NodeActivationObs
     throw new Error("WorkerHost.registerWebhook is not supported in worker mode");
   }
 
+  clear(): void {}
+
   onNodeActivation(_stats: NodeActivationStats): void {}
 }

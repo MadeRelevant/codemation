@@ -71,10 +71,17 @@ function loadSidebarCollapsed(): boolean {
 
 export class AppLayout extends Component<AppLayoutProps, AppLayoutState> {
   override state: AppLayoutState = {
-    sidebarWidth: loadSidebarWidth(),
-    sidebarCollapsed: loadSidebarCollapsed(),
+    sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
+    sidebarCollapsed: false,
     isResizing: false,
   };
+
+  override componentDidMount(): void {
+    this.setState({
+      sidebarWidth: loadSidebarWidth(),
+      sidebarCollapsed: loadSidebarCollapsed(),
+    });
+  }
 
   private handleResizeStart = (e: React.MouseEvent): void => {
     e.preventDefault();

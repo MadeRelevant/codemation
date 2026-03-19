@@ -30,12 +30,14 @@ type NodeData = Readonly<{
   icon?: string;
   status?: NodeExecutionSnapshot["status"];
   selected: boolean;
+  propertiesTarget: boolean;
   isAttachment: boolean;
   isPinned: boolean;
   hasOutputData: boolean;
   isLiveWorkflowView: boolean;
   isRunning: boolean;
   onSelectNode: (nodeId: string) => void;
+  onOpenPropertiesNode: (nodeId: string) => void;
   onRunNode: (nodeId: string) => void;
   onTogglePinnedOutput: (nodeId: string) => void;
   onEditNodeOutput: (nodeId: string) => void;
@@ -126,6 +128,12 @@ class VisibleNodeStatusResolver {
 
   private static getStatusPriority(status: NodeExecutionSnapshot["status"]): number {
     return this.statusPriorityByStatus.get(status) ?? Number.MAX_SAFE_INTEGER;
+  }
+}
+
+class WorkflowCanvasStructureSignature {
+  static create(workflow: WorkflowDto): string {
+    return JSON.stringify(workflow);
   }
 }
 
@@ -363,6 +371,7 @@ function CodemationNode({ data }: { data: NodeData }) {
   const isRunning = data.status === "running";
   const isActive = isQueued || isRunning;
   const isSelected = data.selected;
+  const isPropertiesTarget = data.propertiesTarget;
   const isAttachment = data.isAttachment;
   const isAgent = data.role === "agent";
   const isPinned = data.isPinned;
@@ -458,6 +467,19 @@ function CodemationNode({ data }: { data: NodeData }) {
           />
         </>
       ) : null}
+      {isPropertiesTarget ? (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 2,
+            pointerEvents: "none",
+            border: "2px solid #7c3aed",
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.78)",
+            opacity: isActive ? 0.92 : 1,
+          }}
+        />
+      ) : null}
       {isSelected ? (
         <div
           aria-hidden
@@ -500,7 +522,7 @@ function CodemationNode({ data }: { data: NodeData }) {
       ) : null}
 
       <div
-        onClick={() => data.onSelectNode(data.nodeId)}
+        onClick={() => data.onOpenPropertiesNode(data.nodeId)}
         style={{
           display: "flex",
           flexDirection: "row",
@@ -509,13 +531,13 @@ function CodemationNode({ data }: { data: NodeData }) {
           height: "100%",
           padding: isAttachment ? "0 10px" : "0 10px",
           borderRadius: 0,
-          border: isActive ? "1px solid transparent" : isPinned ? "1px solid #7c3aed" : isSelected ? "1px solid #111827" : "1px solid #d1d5db",
-          background: isSelected ? (isAttachment ? "#fffaf0" : "#fffdf5") : isPinned ? "#faf5ff" : isAttachment ? "#fcfcfd" : "white",
+          border: isActive ? "1px solid transparent" : isPinned ? "1px solid #7c3aed" : isSelected ? "1px solid #111827" : isPropertiesTarget ? "1px solid #7c3aed" : "1px solid #d1d5db",
+          background: isSelected ? (isAttachment ? "#fffaf0" : "#fffdf5") : isPropertiesTarget ? "#faf5ff" : isPinned ? "#faf5ff" : isAttachment ? "#fcfcfd" : "white",
           boxShadow: isActive
             ? "0 2px 6px rgba(15,23,42,0.05)"
             : isSelected
               ? "0 0 0 1px rgba(245,158,11,0.45) inset, 0 2px 10px rgba(15,23,42,0.08)"
-              : isPinned
+              : isPropertiesTarget || isPinned
                 ? "0 0 0 1px rgba(124,58,237,0.22) inset, 0 2px 10px rgba(124,58,237,0.08)"
                 : "0 2px 6px rgba(15,23,42,0.05)",
           position: "relative",
@@ -523,6 +545,7 @@ function CodemationNode({ data }: { data: NodeData }) {
         }}
         data-testid={`canvas-node-card-${data.nodeId}`}
         data-codemation-node-id={data.nodeId}
+        data-codemation-properties-target={isPropertiesTarget ? "true" : "false"}
         data-codemation-node-status={data.status ?? "pending"}
         data-codemation-node-role={data.role ?? "workflowNode"}
         aria-label={`${data.label} (${data.status ?? "pending"})`}
@@ -684,10 +707,12 @@ function layoutWorkflow(
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,
   nodeStatusesByNodeId: Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>,
   selectedNodeId: string | null,
+  propertiesTargetNodeId: string | null,
   pinnedNodeIds: ReadonlySet<string>,
   isLiveWorkflowView: boolean,
   isRunning: boolean,
   onSelectNode: (nodeId: string) => void,
+  onOpenPropertiesNode: (nodeId: string) => void,
   onRunNode: (nodeId: string) => void,
   onTogglePinnedOutput: (nodeId: string) => void,
   onEditNodeOutput: (nodeId: string) => void,
@@ -824,12 +849,14 @@ function layoutWorkflow(
         icon: n.icon,
         status: nodeStatusesByNodeId[n.id],
         selected: selectedNodeId === n.id,
+        propertiesTarget: propertiesTargetNodeId === n.id,
         isAttachment: Boolean(n.parentNodeId),
         isPinned: pinnedNodeIds.has(n.id),
         hasOutputData: Boolean(pinnedNodeIds.has(n.id) || nodeSnapshotsByNodeId[n.id]?.outputs?.main),
         isLiveWorkflowView,
         isRunning,
         onSelectNode,
+        onOpenPropertiesNode,
         onRunNode,
         onTogglePinnedOutput,
         onEditNodeOutput,
@@ -916,18 +943,21 @@ export function WorkflowCanvas(args: {
   workflow: WorkflowDto;
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
   selectedNodeId: string | null;
+  propertiesTargetNodeId: string | null;
   pinnedNodeIds?: ReadonlySet<string>;
   isLiveWorkflowView: boolean;
   isRunning: boolean;
   onSelectNode: (nodeId: string) => void;
+  onOpenPropertiesNode: (nodeId: string) => void;
   onRunNode: (nodeId: string) => void;
   onTogglePinnedOutput: (nodeId: string) => void;
   onEditNodeOutput: (nodeId: string) => void;
   onClearPinnedOutput: (nodeId: string) => void;
 }) {
-  const { workflow, nodeSnapshotsByNodeId, selectedNodeId, pinnedNodeIds = new Set<string>(), isLiveWorkflowView, isRunning, onSelectNode, onRunNode, onTogglePinnedOutput, onEditNodeOutput, onClearPinnedOutput } = args;
+  const { workflow, nodeSnapshotsByNodeId, selectedNodeId, propertiesTargetNodeId, pinnedNodeIds = new Set<string>(), isLiveWorkflowView, isRunning, onSelectNode, onOpenPropertiesNode, onRunNode, onTogglePinnedOutput, onEditNodeOutput, onClearPinnedOutput } = args;
   const [hasMountedOnClient, setHasMountedOnClient] = useState(false);
   const [isInitialViewportReady, setIsInitialViewportReady] = useState(false);
+  const workflowStructureSignature = useMemo(() => WorkflowCanvasStructureSignature.create(workflow), [workflow]);
   const visibleNodeStatusesByNodeId = useVisibleNodeStatuses(nodeSnapshotsByNodeId);
   const { nodes, edges } = useMemo(
     () =>
@@ -936,16 +966,18 @@ export function WorkflowCanvas(args: {
         nodeSnapshotsByNodeId,
         visibleNodeStatusesByNodeId,
         selectedNodeId,
+        propertiesTargetNodeId,
         pinnedNodeIds,
         isLiveWorkflowView,
         isRunning,
         onSelectNode,
+        onOpenPropertiesNode,
         onRunNode,
         onTogglePinnedOutput,
         onEditNodeOutput,
         onClearPinnedOutput,
       ),
-    [isLiveWorkflowView, isRunning, nodeSnapshotsByNodeId, onClearPinnedOutput, onEditNodeOutput, onRunNode, onSelectNode, onTogglePinnedOutput, pinnedNodeIds, selectedNodeId, visibleNodeStatusesByNodeId, workflow],
+    [isLiveWorkflowView, isRunning, nodeSnapshotsByNodeId, onClearPinnedOutput, onEditNodeOutput, onOpenPropertiesNode, onRunNode, onSelectNode, onTogglePinnedOutput, pinnedNodeIds, propertiesTargetNodeId, selectedNodeId, visibleNodeStatusesByNodeId, workflow],
   );
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const reactFlowInstanceRef = useRef<ReactFlowInstance<ReactFlowNode<NodeData>, ReactFlowEdge> | null>(null);
@@ -994,7 +1026,7 @@ export function WorkflowCanvas(args: {
 
   useEffect(() => {
     setIsInitialViewportReady(false);
-  }, [workflow.edges.length, workflow.id, workflow.nodes.length]);
+  }, [workflow.id, workflowStructureSignature]);
 
   useEffect(() => {
     scheduleFitView();
@@ -1005,7 +1037,7 @@ export function WorkflowCanvas(args: {
       fitViewTimeoutIdRef.current = null;
       scheduleFitView();
     }, 120);
-  }, [scheduleFitView, workflow.edges.length, workflow.id, workflow.nodes.length]);
+  }, [scheduleFitView, workflow.id, workflowStructureSignature]);
 
   useEffect(() => {
     const canvasContainer = canvasContainerRef.current;
@@ -1035,6 +1067,8 @@ export function WorkflowCanvas(args: {
   return (
     <div
       ref={canvasContainerRef}
+      data-testid="workflow-canvas-root"
+      data-workflow-structure-signature={workflowStructureSignature}
       style={{
         width: "100%",
         height: "100%",
@@ -1053,7 +1087,7 @@ export function WorkflowCanvas(args: {
             reactFlowInstanceRef.current = instance;
             scheduleFitView();
           }}
-          onNodeClick={(_event, node) => onSelectNode(node.id)}
+          onNodeClick={(_event, node) => onOpenPropertiesNode(node.id)}
           style={{
             fontFamily: "inherit",
             opacity: isInitialViewportReady ? 1 : 0,

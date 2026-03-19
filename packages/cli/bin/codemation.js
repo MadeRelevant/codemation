@@ -5,8 +5,8 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const thisDirectory = path.dirname(fileURLToPath(import.meta.url));
-const entrypointPath = path.resolve(thisDirectory, "codemation.ts");
-const childProcess = spawn(process.execPath, ["--import", "tsx", entrypointPath, ...process.argv.slice(2)], {
+const entrypointPath = path.resolve(thisDirectory, "..", "dist", "bin.js");
+const childProcess = spawn(process.execPath, [entrypointPath, ...process.argv.slice(2)], {
   stdio: "inherit",
   env: process.env,
 });

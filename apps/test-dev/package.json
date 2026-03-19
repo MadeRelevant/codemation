@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm exec tsx ../../packages/cli/bin/codemation.ts dev",
+    "dev": "pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js dev",
     "worker": "codemation-worker",
-    "build": "pnpm exec tsx ../../packages/cli/bin/codemation.ts build",
+    "build": "pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "echo \"(test placeholder)\""

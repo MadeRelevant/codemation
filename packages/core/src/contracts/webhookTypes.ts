@@ -42,6 +42,7 @@ export interface WebhookTriggerMatcher {
     methods: ReadonlyArray<HttpMethod>;
     parseJsonBody?: (body: unknown) => unknown;
   }): void;
+  clear?(): void;
   lookup(endpointId: string): WebhookInvocationMatch | undefined;
   match(args: { endpointId: string; method: HttpMethod }): WebhookInvocationMatch | undefined;
 }

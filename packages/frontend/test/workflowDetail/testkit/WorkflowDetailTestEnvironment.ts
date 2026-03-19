@@ -89,8 +89,10 @@ export class WorkflowDetailTestEnvironment {
   private deferredRunResponsePromise: Promise<void> | null = null;
   debuggerOverlay: WorkflowDebuggerOverlayState;
   readonly websocketPort = "31337";
+  private workflowResponse: WorkflowDto;
 
   constructor(public readonly workflow: WorkflowDto) {
+    this.workflowResponse = workflow;
     this.debuggerOverlay = WorkflowDetailFixtureFactory.createDebuggerOverlayState(workflow.id);
   }
 
@@ -168,7 +170,12 @@ export class WorkflowDetailTestEnvironment {
     this.queuedRunResponses.length = 0;
     this.deferredRunResponseResolver = null;
     this.deferredRunResponsePromise = null;
+    this.workflowResponse = this.workflow;
     this.debuggerOverlay = WorkflowDetailFixtureFactory.createDebuggerOverlayState(this.workflow.id);
+  }
+
+  setWorkflowResponse(workflow: WorkflowDto): void {
+    this.workflowResponse = workflow;
   }
 
   queueRunResponse(state: PersistedRunState): void {
@@ -231,6 +238,10 @@ export class WorkflowDetailTestEnvironment {
     this.callsByRoute.set(routeKey, (this.callsByRoute.get(routeKey) ?? 0) + 1);
     this.recordRequestBody(routeKey, init?.body);
 
+    if (method === "GET" && url.pathname === ApiPaths.workflow(this.workflow.id)) {
+      return Response.json(this.workflowResponse);
+    }
+
     if (method === "GET" && url.pathname === ApiPaths.workflowRuns(this.workflow.id)) {
       return Response.json(this.workflowRuns);
     }
@@ -272,6 +283,22 @@ export class WorkflowDetailTestEnvironment {
       return this.handleWorkflowSnapshotRequest(routeKey, url);
     }
 
+
+    if (method === "GET" && url.pathname === ApiPaths.credentialInstances()) {
+      return Response.json([]);
+    }
+
+    if (method === "GET" && url.pathname === ApiPaths.workflowCredentialHealth(this.workflow.id)) {
+      return Response.json({
+        workflowId: this.workflow.id,
+        slots: [],
+      });
+    }
+
+    if (method === "PUT" && url.pathname === ApiPaths.credentialBindings()) {
+      return Response.json({ ok: true });
+    }
+
     throw new Error(`Unhandled fetch request: ${routeKey}`);
   }
 
@@ -283,7 +310,7 @@ export class WorkflowDetailTestEnvironment {
       WorkflowDetailFixtureFactory.createInitialRunState({
         mode: requestBody.mode,
         runId: WorkflowDetailFixtureFactory.runId,
-        workflow: this.workflow,
+        workflow: this.workflowResponse,
       });
     this.runsById.set(runState.runId, runState);
     this.prependWorkflowRun(runState);
@@ -302,7 +329,7 @@ export class WorkflowDetailTestEnvironment {
     const runState = WorkflowDetailFixtureFactory.createInitialRunState({
       mode: requestBody.mode ?? "manual",
       runId,
-      workflow: this.workflow,
+      workflow: this.workflowResponse,
     });
     this.runsById.set(runId, runState);
     this.prependWorkflowRun(runState);
@@ -320,7 +347,7 @@ export class WorkflowDetailTestEnvironment {
     const nodeId = decodeURIComponent(url.pathname.split("/")[5] ?? WorkflowDetailFixtureFactory.triggerNodeId);
     const runState = WorkflowDetailFixtureFactory.createPinnedMutableRunStateForNode(nodeId, {
       runId,
-      workflow: this.workflow,
+      workflow: this.workflowResponse,
     });
     this.runsById.set(runId, runState);
     this.prependWorkflowRun(runState);
@@ -334,7 +361,7 @@ export class WorkflowDetailTestEnvironment {
       ...WorkflowDetailFixtureFactory.createInitialRunState({
         mode: "manual",
         runId,
-        workflow: this.workflow,
+        workflow: this.workflowResponse,
       }),
       workflowSnapshot: requestBody.workflowSnapshot,
     };
@@ -351,7 +378,7 @@ export class WorkflowDetailTestEnvironment {
       copiedFromRunId: this.debuggerOverlay.copiedFromRunId,
       currentState:
         requestBody.currentState ??
-        WorkflowDetailFixtureFactory.createDebuggerOverlayState(this.workflow.id).currentState,
+        WorkflowDetailFixtureFactory.createDebuggerOverlayState(this.workflowResponse.id).currentState,
     };
     return Response.json(this.debuggerOverlay);
   }
@@ -359,7 +386,8 @@ export class WorkflowDetailTestEnvironment {
   private handleDebuggerOverlayCopyRequest(routeKey: string): Response {
     const requestBody = this.latestRequestBody<WorkflowDebuggerOverlayCopyRequestBody>(routeKey);
     const sourceRunId = requestBody.sourceRunId ?? WorkflowDetailFixtureFactory.runId;
-    const sourceRun = this.runsById.get(sourceRunId) ?? WorkflowDetailFixtureFactory.createCompletedRunState({ runId: sourceRunId, workflow: this.workflow });
+    const sourceRun =
+      this.runsById.get(sourceRunId) ?? WorkflowDetailFixtureFactory.createCompletedRunState({ runId: sourceRunId, workflow: this.workflowResponse });
     this.runsById.set(sourceRun.runId, sourceRun);
     this.prependWorkflowRun(sourceRun);
     this.debuggerOverlay = {
