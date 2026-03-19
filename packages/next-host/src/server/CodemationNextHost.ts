@@ -9,6 +9,7 @@ import {
   BinaryHttpRouteHandler,
   CodemationApplication,
   CredentialHttpRouteHandler,
+  OAuth2HttpRouteHandler,
   RequestToWebhookItemMapper,
   RunBinaryAttachmentLookupService,
   RunHttpRouteHandler,
@@ -144,6 +145,11 @@ export class CodemationNextHost {
       container.resolve(ApplicationTokens.QueryBus),
       container.resolve(ApplicationTokens.CommandBus),
     );
+  }
+
+  async getOAuth2Handler(): Promise<OAuth2HttpRouteHandler> {
+    const container = await this.getContainer();
+    return container.resolve(OAuth2HttpRouteHandler);
   }
 
   async getBinaryHandler(): Promise<BinaryHttpRouteHandler> {

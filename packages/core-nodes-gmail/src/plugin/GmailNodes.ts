@@ -2,6 +2,7 @@ import type { Container } from "@codemation/core";
 import { GoogleGmailApiClient } from "../adapters/google/GoogleGmailApiClient";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
+import type { GmailOAuthCredential } from "../contracts/GmailOAuthCredential";
 import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailHistorySyncService } from "../services/GmailHistorySyncService";
@@ -39,6 +40,26 @@ type CredentialTypeRegistrar = Readonly<{
       publicFields?: ReadonlyArray<Readonly<{ key: string; label: string; type: string; required?: true; placeholder?: string; helpText?: string }>>;
       secretFields?: ReadonlyArray<Readonly<{ key: string; label: string; type: string; required?: true; placeholder?: string; helpText?: string }>>;
       supportedSourceKinds?: ReadonlyArray<"db" | "env" | "code">;
+        auth?: Readonly<
+          | {
+              kind: "oauth2";
+              providerId: string;
+              scopes: ReadonlyArray<string>;
+              clientIdFieldKey?: string;
+              clientSecretFieldKey?: string;
+            }
+          | {
+              kind: "oauth2";
+              providerFromPublicConfig: Readonly<{
+                authorizeUrlFieldKey: string;
+                tokenUrlFieldKey: string;
+                userInfoUrlFieldKey?: string;
+              }>;
+              scopes: ReadonlyArray<string>;
+              clientIdFieldKey?: string;
+              clientSecretFieldKey?: string;
+            }
+        >;
     }>;
     createSession(args: Readonly<{ material: Readonly<Record<string, unknown>>; instance: unknown; publicConfig: Readonly<Record<string, unknown>> }>): Promise<unknown>;
     test(args: Readonly<{ material: Readonly<Record<string, unknown>>; instance: unknown; publicConfig: Readonly<Record<string, unknown>> }>): Promise<Readonly<{ status: "unknown" | "healthy" | "failing"; message?: string; testedAt?: string; expiresAt?: string; details?: Readonly<Record<string, unknown>> }>>;
@@ -65,6 +86,16 @@ export class GmailNodes {
   private registerServices(container: Container, context: PluginContext): void {
     container.registerInstance(GmailNodeTokens.TriggerLogger, context.loggerFactory.create("codemation-gmail.trigger"));
     container.registerInstance(GmailNodeTokens.RuntimeLogger, context.loggerFactory.create("codemation-gmail.runtime"));
+    container.register(GmailNodeTokens.GmailApiClient, {
+      useFactory: () => {
+        throw new Error("GmailApiClient must be supplied by the active Gmail runtime binding.");
+      },
+    });
+    container.register(GmailNodeTokens.GmailPubSubPullClient, {
+      useFactory: () => {
+        throw new Error("GmailPubSubPullClient must be supplied by the active Gmail runtime binding.");
+      },
+    });
     container.register(GmailHistorySyncService, { useClass: GmailHistorySyncService });
     container.register(GmailConfiguredLabelService, { useClass: GmailConfiguredLabelService });
     container.register(GmailMessageItemMapper, { useClass: GmailMessageItemMapper });
@@ -123,6 +154,46 @@ export class GmailNodes {
         }
       },
     });
+    registrar.registerCredentialType({
+      definition: {
+        typeId: GmailCredentialTypes.oauth,
+        displayName: "Gmail OAuth",
+        description: "OAuth2 credentials for a Gmail account connection managed by the framework.",
+        publicFields: [{ key: "clientId", label: "Client ID", type: "string", required: true }],
+        secretFields: [{ key: "clientSecret", label: "Client secret", type: "password", required: true }],
+        supportedSourceKinds: ["db", "env", "code"],
+        auth: {
+          kind: "oauth2",
+          providerId: "google",
+          scopes: ["https://www.googleapis.com/auth/gmail.readonly"],
+        },
+      },
+      createSession: async (args) => {
+        return new GoogleGmailApiClient(this.toOAuthCredential(args.material, args.publicConfig));
+      },
+      test: async (args) => {
+        const client = new GoogleGmailApiClient(this.toOAuthCredential(args.material, args.publicConfig));
+        try {
+          const historyId = await client.getCurrentHistoryId({
+            mailbox: "me",
+          });
+          return {
+            status: "healthy",
+            message: "Connected to Gmail successfully.",
+            testedAt: new Date().toISOString(),
+            details: {
+              historyId,
+            },
+          };
+        } catch (error) {
+          return {
+            status: "failing",
+            message: error instanceof Error ? error.message : String(error),
+            testedAt: new Date().toISOString(),
+          };
+        }
+      },
+    });
   }
 
   private asCredentialTypeRegistrar(application: unknown): CredentialTypeRegistrar | undefined {
@@ -147,6 +218,27 @@ export class GmailNodes {
       privateKey,
       projectId,
       delegatedUser,
+    };
+  }
+
+  private toOAuthCredential(
+    material: Readonly<Record<string, unknown>>,
+    publicConfig: Readonly<Record<string, unknown>>,
+  ): GmailOAuthCredential {
+    const clientId = String(publicConfig.clientId ?? "");
+    const clientSecret = String(material.clientSecret ?? "");
+    const accessToken = String(material.access_token ?? "");
+    const refreshToken = String(material.refresh_token ?? "");
+    const expiry = String(material.expiry ?? "");
+    if (!clientId || !clientSecret || !accessToken) {
+      throw new Error("Gmail OAuth material is incomplete.");
+    }
+    return {
+      clientId,
+      clientSecret,
+      accessToken,
+      refreshToken: refreshToken || undefined,
+      expiry: expiry || undefined,
     };
   }
 }

@@ -20,6 +20,7 @@ import { ApplicationRequestError } from "../../application/ApplicationRequestErr
 import type {
   CreateCredentialInstanceRequest,
   CredentialInstanceDto,
+  CredentialOAuth2ConnectionDto,
   CredentialInstanceWithSecretsDto,
   UpdateCredentialInstanceRequest,
   WorkflowCredentialHealthDto,
@@ -62,6 +63,31 @@ export type CredentialSecretMaterialRecord = Readonly<{
   updatedAt: string;
 }>;
 
+export type CredentialOAuth2MaterialMetadata = Readonly<{
+  providerId: string;
+  connectedEmail?: string;
+  connectedAt?: string;
+  scopes: ReadonlyArray<string>;
+  updatedAt: string;
+}>;
+
+export type CredentialOAuth2MaterialRecord = Readonly<
+  {
+    instanceId: CredentialInstanceId;
+  } & CredentialSecretMaterialRecord &
+    CredentialOAuth2MaterialMetadata
+>;
+
+export type CredentialOAuth2StateRecord = Readonly<{
+  state: string;
+  instanceId: CredentialInstanceId;
+  codeVerifier?: string;
+  providerId?: string;
+  requestedScopes: ReadonlyArray<string>;
+  createdAt: string;
+  expiresAt: string;
+}>;
+
 export type CredentialTestRecord = Readonly<{
   testId: string;
   instanceId: CredentialInstanceId;
@@ -79,6 +105,17 @@ export interface CredentialStore {
   }>): Promise<void>;
   deleteInstance(instanceId: CredentialInstanceId): Promise<void>;
   getSecretMaterial(instanceId: CredentialInstanceId): Promise<CredentialSecretMaterialRecord | undefined>;
+  createOAuth2State(record: CredentialOAuth2StateRecord): Promise<void>;
+  consumeOAuth2State(state: string): Promise<CredentialOAuth2StateRecord | undefined>;
+  getOAuth2Material(instanceId: CredentialInstanceId): Promise<CredentialOAuth2MaterialRecord | undefined>;
+  saveOAuth2Material(args: Readonly<{
+    instanceId: CredentialInstanceId;
+    encryptedJson: string;
+    encryptionKeyId: string;
+    schemaVersion: number;
+    metadata: CredentialOAuth2MaterialMetadata;
+  }>): Promise<void>;
+  deleteOAuth2Material(instanceId: CredentialInstanceId): Promise<void>;
   upsertBinding(binding: CredentialBinding): Promise<void>;
   getBinding(key: CredentialBindingKey): Promise<CredentialBinding | undefined>;
   listBindingsByWorkflowId(workflowId: string): Promise<ReadonlyArray<CredentialBinding>>;
@@ -162,7 +199,13 @@ export class CredentialSecretCipher {
     };
   }
 
-  decrypt(record: CredentialSecretMaterialRecord): JsonRecord {
+  decrypt(
+    record: Readonly<{
+      encryptedJson: string;
+      encryptionKeyId: string;
+      schemaVersion: number;
+    }>,
+  ): JsonRecord {
     const packed = Buffer.from(record.encryptedJson, "base64");
     const iv = packed.subarray(0, CredentialSecretCipher.ivLength);
     const authTag = packed.subarray(CredentialSecretCipher.ivLength, CredentialSecretCipher.ivLength + 16);
@@ -236,6 +279,37 @@ export class CredentialMaterialResolver {
 }
 
 @injectable()
+export class CredentialRuntimeMaterialService {
+  constructor(
+    @inject(ApplicationTokens.CredentialStore)
+    private readonly credentialStore: CredentialStore,
+    @inject(CredentialMaterialResolver)
+    private readonly credentialMaterialResolver: CredentialMaterialResolver,
+    @inject(CredentialSecretCipher)
+    private readonly credentialSecretCipher: CredentialSecretCipher,
+    @inject(CredentialTypeRegistryImpl)
+    private readonly credentialTypeRegistry: CredentialTypeRegistryImpl,
+  ) {}
+
+  async compose(instance: CredentialInstanceRecord): Promise<JsonRecord> {
+    const baseMaterial = await this.credentialMaterialResolver.resolveMaterial(instance);
+    const auth = this.credentialTypeRegistry.getRegisteredType(instance.typeId)?.definition.auth;
+    if (auth?.kind !== "oauth2") {
+      return baseMaterial;
+    }
+    const oauth2Material = await this.credentialStore.getOAuth2Material(instance.instanceId);
+    if (!oauth2Material) {
+      return baseMaterial;
+    }
+    const decryptedOauth2Material = this.credentialSecretCipher.decrypt(oauth2Material);
+    return Object.freeze({
+      ...baseMaterial,
+      ...decryptedOauth2Material,
+    });
+  }
+}
+
+@injectable()
 export class CredentialInstanceService {
   constructor(
     @inject(ApplicationTokens.CredentialStore)
@@ -253,7 +327,9 @@ export class CredentialInstanceService {
   async listInstances(): Promise<ReadonlyArray<CredentialInstanceDto>> {
     const instances = await this.credentialStore.listInstances();
     const latestTestResults = await this.credentialStore.getLatestTestResults(instances.map((instance) => instance.instanceId));
-    return instances.map((instance) => this.toDto(instance, latestTestResults.get(instance.instanceId)));
+    return await Promise.all(
+      instances.map(async (instance) => await this.toDto(instance, latestTestResults.get(instance.instanceId))),
+    );
   }
 
   async getInstance(instanceId: CredentialInstanceId): Promise<CredentialInstanceDto | undefined> {
@@ -262,7 +338,7 @@ export class CredentialInstanceService {
       return undefined;
     }
     const latestTestResult = await this.credentialStore.getLatestTestResult(instanceId);
-    return this.toDto(instance, latestTestResult);
+    return await this.toDto(instance, latestTestResult);
   }
 
   async getInstanceWithSecrets(instanceId: CredentialInstanceId): Promise<CredentialInstanceWithSecretsDto | undefined> {
@@ -271,7 +347,7 @@ export class CredentialInstanceService {
       return undefined;
     }
     const latestTestResult = await this.credentialStore.getLatestTestResult(instanceId);
-    const base = this.toDto(instance, latestTestResult);
+    const base = await this.toDto(instance, latestTestResult);
     try {
       const material = await this.credentialMaterialResolver.resolveMaterial(instance);
       const secretConfig = Object.fromEntries(
@@ -307,7 +383,7 @@ export class CredentialInstanceService {
       publicConfig: Object.freeze({ ...(request.publicConfig ?? {}) }),
       secretRef: this.createSecretRef(request.sourceKind, request.secretConfig ?? {}, request.envSecretRefs ?? {}),
       tags: Object.freeze([...(request.tags ?? [])]),
-      setupStatus: "ready",
+      setupStatus: registeredType.definition.auth?.kind === "oauth2" ? "draft" : "ready",
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -359,6 +435,25 @@ export class CredentialInstanceService {
   async delete(instanceId: CredentialInstanceId): Promise<void> {
     await this.credentialStore.deleteInstance(instanceId);
     this.credentialSessionService.evictInstance(instanceId);
+  }
+
+  async disconnectOAuth2(instanceId: CredentialInstanceId): Promise<CredentialInstanceDto> {
+    const instance = await this.requireInstance(instanceId);
+    const registeredType = this.requireRegisteredType(instance.typeId);
+    if (registeredType.definition.auth?.kind !== "oauth2") {
+      throw new ApplicationRequestError(400, `Credential instance ${instanceId} does not use OAuth2.`);
+    }
+    const updatedInstance: CredentialInstanceRecord = {
+      ...instance,
+      setupStatus: "draft",
+      updatedAt: new Date().toISOString(),
+    };
+    await this.credentialStore.saveInstance({
+      instance: updatedInstance,
+    });
+    await this.credentialStore.deleteOAuth2Material(instanceId);
+    this.credentialSessionService.evictInstance(instanceId);
+    return await this.toDto(updatedInstance, await this.credentialStore.getLatestTestResult(instanceId));
   }
 
   async requireInstance(instanceId: CredentialInstanceId): Promise<CredentialInstanceRecord> {
@@ -473,7 +568,26 @@ export class CredentialInstanceService {
     return registeredType;
   }
 
-  private toDto(instance: CredentialInstanceRecord, latestTestResult: CredentialTestRecord | undefined): CredentialInstanceDto {
+  async markOAuth2Connected(
+    instanceId: CredentialInstanceId,
+    connectedAt: string,
+  ): Promise<void> {
+    const instance = await this.requireInstance(instanceId);
+    await this.credentialStore.saveInstance({
+      instance: {
+        ...instance,
+        setupStatus: "ready",
+        updatedAt: connectedAt,
+      },
+    });
+    this.credentialSessionService.evictInstance(instanceId);
+  }
+
+  private async toDto(
+    instance: CredentialInstanceRecord,
+    latestTestResult: CredentialTestRecord | undefined,
+  ): Promise<CredentialInstanceDto> {
+    const oauth2Connection = await this.toOAuth2ConnectionDto(instance);
     return {
       instanceId: instance.instanceId,
       typeId: instance.typeId,
@@ -485,6 +599,36 @@ export class CredentialInstanceService {
       createdAt: instance.createdAt,
       updatedAt: instance.updatedAt,
       latestHealth: latestTestResult?.health,
+      oauth2Connection,
+    };
+  }
+
+  private async toOAuth2ConnectionDto(
+    instance: CredentialInstanceRecord,
+  ): Promise<CredentialOAuth2ConnectionDto | undefined> {
+    const registeredType = this.credentialTypeRegistry.getRegisteredType(instance.typeId);
+    if (registeredType?.definition.auth?.kind !== "oauth2") {
+      return undefined;
+    }
+    const providerId =
+      "providerId" in registeredType.definition.auth
+        ? registeredType.definition.auth.providerId
+        : "custom";
+    const material = await this.credentialStore.getOAuth2Material(instance.instanceId);
+    if (!material) {
+      return {
+        status: "disconnected",
+        providerId,
+        scopes: [...registeredType.definition.auth.scopes],
+      };
+    }
+    return {
+      status: "connected",
+      providerId: material.providerId,
+      connectedEmail: material.connectedEmail,
+      connectedAt: material.connectedAt,
+      scopes: material.scopes,
+      updatedAt: material.updatedAt,
     };
   }
 }
@@ -609,8 +753,8 @@ export class CredentialTestService {
   constructor(
     @inject(CredentialInstanceService)
     private readonly credentialInstanceService: CredentialInstanceService,
-    @inject(CredentialMaterialResolver)
-    private readonly credentialMaterialResolver: CredentialMaterialResolver,
+    @inject(CredentialRuntimeMaterialService)
+    private readonly credentialRuntimeMaterialService: CredentialRuntimeMaterialService,
     @inject(CredentialTypeRegistryImpl)
     private readonly credentialTypeRegistry: CredentialTypeRegistryImpl,
     @inject(ApplicationTokens.CredentialStore)
@@ -622,7 +766,7 @@ export class CredentialTestService {
   async test(instanceId: CredentialInstanceId): Promise<CredentialHealth> {
     const instance = await this.credentialInstanceService.requireInstance(instanceId);
     const registeredType = this.requireRegisteredType(instance.typeId);
-    const material = await this.credentialMaterialResolver.resolveMaterial(instance);
+    const material = await this.credentialRuntimeMaterialService.compose(instance);
     const health = await registeredType.test({
       instance,
       material,
@@ -663,8 +807,8 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
   constructor(
     @inject(ApplicationTokens.CredentialStore)
     private readonly credentialStore: CredentialStore,
-    @inject(CredentialMaterialResolver)
-    private readonly credentialMaterialResolver: CredentialMaterialResolver,
+    @inject(CredentialRuntimeMaterialService)
+    private readonly credentialRuntimeMaterialService: CredentialRuntimeMaterialService,
     @inject(CredentialTypeRegistryImpl)
     private readonly credentialTypeRegistry: CredentialTypeRegistryImpl,
     @inject(CoreTokens.WorkflowRegistry)
@@ -722,7 +866,7 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
     if (!registeredType) {
       throw new ApplicationRequestError(400, `Unknown credential type: ${instance.typeId}`);
     }
-    const material = await this.credentialMaterialResolver.resolveMaterial(instance);
+    const material = await this.credentialRuntimeMaterialService.compose(instance);
     return await registeredType.createSession({
       instance,
       material,

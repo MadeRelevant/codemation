@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js dev",
+    "dev": "pnpm --filter @codemation/core-nodes-gmail build && pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js dev",
     "worker": "codemation-worker",
-    "build": "pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js build",
+    "build": "pnpm --filter @codemation/core-nodes-gmail build && pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "echo \"(test placeholder)\""

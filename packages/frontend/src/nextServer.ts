@@ -7,6 +7,7 @@ export { RequestToWebhookItemMapper } from "./infrastructure/webhooks/RequestToW
 export { WorkflowHttpRouteHandler } from "./presentation/http/routeHandlers/WorkflowHttpRouteHandler";
 export { RunHttpRouteHandler } from "./presentation/http/routeHandlers/RunHttpRouteHandler";
 export { CredentialHttpRouteHandler } from "./presentation/http/routeHandlers/CredentialHttpRouteHandler";
+export { OAuth2HttpRouteHandler } from "./presentation/http/routeHandlers/OAuth2HttpRouteHandler";
 export { BinaryHttpRouteHandler } from "./presentation/http/routeHandlers/BinaryHttpRouteHandler";
 export { WebhookHttpRouteHandler } from "./presentation/http/routeHandlers/WebhookHttpRouteHandler";
 export { WorkflowWebsocketServer } from "./presentation/websocket/WorkflowWebsocketServer";

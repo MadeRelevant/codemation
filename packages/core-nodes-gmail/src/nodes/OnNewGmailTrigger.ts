@@ -46,7 +46,7 @@ export class OnNewGmailTrigger
       {
         slotKey: "auth",
         label: "Gmail account",
-        acceptedTypes: [GmailCredentialTypes.serviceAccount],
+        acceptedTypes: [GmailCredentialTypes.serviceAccount, GmailCredentialTypes.oauth],
         helpText: "Bind a Gmail credential that resolves to an authenticated Gmail trigger client.",
       },
     ];

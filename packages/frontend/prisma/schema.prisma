@@ -55,6 +55,31 @@ model CredentialSecretMaterial {
   updatedAt        String  @map("updated_at")
 }
 
+model CredentialOAuth2Material {
+  instanceId       String  @id @map("instance_id")
+  encryptedJson    String  @map("encrypted_json")
+  encryptionKeyId  String  @map("encryption_key_id")
+  schemaVersion    Int     @map("schema_version")
+  providerId       String  @map("provider_id")
+  connectedEmail   String? @map("connected_email")
+  connectedAt      String? @map("connected_at")
+  scopesJson       String  @map("scopes_json")
+  updatedAt        String  @map("updated_at")
+}
+
+model CredentialOAuth2State {
+  state               String  @id
+  instanceId          String  @map("instance_id")
+  codeVerifier        String? @map("code_verifier")
+  providerId          String? @map("provider_id")
+  requestedScopesJson String  @map("requested_scopes_json")
+  createdAt           String  @map("created_at")
+  expiresAt           String  @map("expires_at")
+
+  @@index([instanceId])
+  @@index([expiresAt])
+}
+
 model CredentialBinding {
   workflowId       String  @map("workflow_id")
   nodeId           String  @map("node_id")

@@ -1,7 +1,9 @@
 import { inject, injectable } from "@codemation/core";
-import { ApplicationTokens } from "../../applicationTokens";
 import type {
   CredentialInstanceRecord,
+  CredentialOAuth2MaterialMetadata,
+  CredentialOAuth2MaterialRecord,
+  CredentialOAuth2StateRecord,
   CredentialSecretMaterialRecord,
   CredentialStore,
   CredentialTestRecord,
@@ -12,6 +14,8 @@ import { PrismaClient } from "./generated/prisma-client/client.js";
 export class InMemoryCredentialStore implements CredentialStore {
   private readonly instancesById = new Map<string, CredentialInstanceRecord>();
   private readonly secretsByInstanceId = new Map<string, CredentialSecretMaterialRecord>();
+  private readonly oauth2MaterialsByInstanceId = new Map<string, CredentialOAuth2MaterialRecord>();
+  private readonly oauth2StatesByState = new Map<string, CredentialOAuth2StateRecord>();
   private readonly bindingsByKey = new Map<string, import("@codemation/core").CredentialBinding>();
   private readonly testRecordsByInstanceId = new Map<string, CredentialTestRecord>();
 
@@ -33,7 +37,13 @@ export class InMemoryCredentialStore implements CredentialStore {
   async deleteInstance(instanceId: string): Promise<void> {
     this.instancesById.delete(instanceId);
     this.secretsByInstanceId.delete(instanceId);
+    this.oauth2MaterialsByInstanceId.delete(instanceId);
     this.testRecordsByInstanceId.delete(instanceId);
+    for (const [state, record] of this.oauth2StatesByState.entries()) {
+      if (record.instanceId === instanceId) {
+        this.oauth2StatesByState.delete(state);
+      }
+    }
     for (const [key, binding] of this.bindingsByKey.entries()) {
       if (binding.instanceId === instanceId) {
         this.bindingsByKey.delete(key);
@@ -43,6 +53,47 @@ export class InMemoryCredentialStore implements CredentialStore {
 
   async getSecretMaterial(instanceId: string): Promise<CredentialSecretMaterialRecord | undefined> {
     return this.secretsByInstanceId.get(instanceId);
+  }
+
+  async createOAuth2State(record: CredentialOAuth2StateRecord): Promise<void> {
+    this.oauth2StatesByState.set(record.state, record);
+  }
+
+  async consumeOAuth2State(state: string): Promise<CredentialOAuth2StateRecord | undefined> {
+    const record = this.oauth2StatesByState.get(state);
+    if (!record) {
+      return undefined;
+    }
+    this.oauth2StatesByState.delete(state);
+    return record;
+  }
+
+  async getOAuth2Material(instanceId: string): Promise<CredentialOAuth2MaterialRecord | undefined> {
+    return this.oauth2MaterialsByInstanceId.get(instanceId);
+  }
+
+  async saveOAuth2Material(args: Readonly<{
+    instanceId: string;
+    encryptedJson: string;
+    encryptionKeyId: string;
+    schemaVersion: number;
+    metadata: CredentialOAuth2MaterialMetadata;
+  }>): Promise<void> {
+    this.oauth2MaterialsByInstanceId.set(args.instanceId, {
+      instanceId: args.instanceId,
+      encryptedJson: args.encryptedJson,
+      encryptionKeyId: args.encryptionKeyId,
+      schemaVersion: args.schemaVersion,
+      providerId: args.metadata.providerId,
+      connectedEmail: args.metadata.connectedEmail,
+      connectedAt: args.metadata.connectedAt,
+      scopes: args.metadata.scopes,
+      updatedAt: args.metadata.updatedAt,
+    });
+  }
+
+  async deleteOAuth2Material(instanceId: string): Promise<void> {
+    this.oauth2MaterialsByInstanceId.delete(instanceId);
   }
 
   async upsertBinding(binding: import("@codemation/core").CredentialBinding): Promise<void> {
@@ -145,6 +196,8 @@ export class PrismaCredentialStore implements CredentialStore {
 
   async deleteInstance(instanceId: string): Promise<void> {
     await this.prisma.$transaction(async (transaction) => {
+      await transaction.credentialOAuth2State.deleteMany({ where: { instanceId } });
+      await transaction.credentialOAuth2Material.deleteMany({ where: { instanceId } });
       await transaction.credentialTestResult.deleteMany({ where: { instanceId } });
       await transaction.credentialBinding.deleteMany({ where: { instanceId } });
       await transaction.credentialSecretMaterial.deleteMany({ where: { instanceId } });
@@ -165,6 +218,101 @@ export class PrismaCredentialStore implements CredentialStore {
           updatedAt: row.updatedAt,
         }
       : undefined;
+  }
+
+  async createOAuth2State(record: CredentialOAuth2StateRecord): Promise<void> {
+    await this.prisma.credentialOAuth2State.create({
+      data: {
+        state: record.state,
+        instanceId: record.instanceId,
+        codeVerifier: record.codeVerifier ?? null,
+        providerId: record.providerId ?? null,
+        requestedScopesJson: JSON.stringify(record.requestedScopes),
+        createdAt: record.createdAt,
+        expiresAt: record.expiresAt,
+      },
+    });
+  }
+
+  async consumeOAuth2State(state: string): Promise<CredentialOAuth2StateRecord | undefined> {
+    return await this.prisma.$transaction(async (transaction) => {
+      const row = await transaction.credentialOAuth2State.findUnique({
+        where: { state },
+      });
+      if (!row) {
+        return undefined;
+      }
+      await transaction.credentialOAuth2State.delete({
+        where: { state },
+      });
+      return {
+        state: row.state,
+        instanceId: row.instanceId,
+        codeVerifier: row.codeVerifier ?? undefined,
+        providerId: row.providerId ?? undefined,
+        requestedScopes: JSON.parse(row.requestedScopesJson) as ReadonlyArray<string>,
+        createdAt: row.createdAt,
+        expiresAt: row.expiresAt,
+      };
+    });
+  }
+
+  async getOAuth2Material(instanceId: string): Promise<CredentialOAuth2MaterialRecord | undefined> {
+    const row = await this.prisma.credentialOAuth2Material.findUnique({
+      where: { instanceId },
+    });
+    return row
+      ? {
+          instanceId: row.instanceId,
+          encryptedJson: row.encryptedJson,
+          encryptionKeyId: row.encryptionKeyId,
+          schemaVersion: row.schemaVersion,
+          providerId: row.providerId,
+          connectedEmail: row.connectedEmail ?? undefined,
+          connectedAt: row.connectedAt ?? undefined,
+          scopes: JSON.parse(row.scopesJson) as ReadonlyArray<string>,
+          updatedAt: row.updatedAt,
+        }
+      : undefined;
+  }
+
+  async saveOAuth2Material(args: Readonly<{
+    instanceId: string;
+    encryptedJson: string;
+    encryptionKeyId: string;
+    schemaVersion: number;
+    metadata: CredentialOAuth2MaterialMetadata;
+  }>): Promise<void> {
+    await this.prisma.credentialOAuth2Material.upsert({
+      where: { instanceId: args.instanceId },
+      create: {
+        instanceId: args.instanceId,
+        encryptedJson: args.encryptedJson,
+        encryptionKeyId: args.encryptionKeyId,
+        schemaVersion: args.schemaVersion,
+        providerId: args.metadata.providerId,
+        connectedEmail: args.metadata.connectedEmail ?? null,
+        connectedAt: args.metadata.connectedAt ?? null,
+        scopesJson: JSON.stringify(args.metadata.scopes),
+        updatedAt: args.metadata.updatedAt,
+      },
+      update: {
+        encryptedJson: args.encryptedJson,
+        encryptionKeyId: args.encryptionKeyId,
+        schemaVersion: args.schemaVersion,
+        providerId: args.metadata.providerId,
+        connectedEmail: args.metadata.connectedEmail ?? null,
+        connectedAt: args.metadata.connectedAt ?? null,
+        scopesJson: JSON.stringify(args.metadata.scopes),
+        updatedAt: args.metadata.updatedAt,
+      },
+    });
+  }
+
+  async deleteOAuth2Material(instanceId: string): Promise<void> {
+    await this.prisma.credentialOAuth2Material.deleteMany({
+      where: { instanceId },
+    });
   }
 
   async upsertBinding(binding: import("@codemation/core").CredentialBinding): Promise<void> {

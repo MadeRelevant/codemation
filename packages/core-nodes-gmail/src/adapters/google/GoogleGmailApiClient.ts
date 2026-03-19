@@ -1,5 +1,6 @@
 import { PubSub, v1 } from "@google-cloud/pubsub";
 import { google } from "googleapis";
+import type { GmailOAuthCredential } from "../../contracts/GmailOAuthCredential";
 import type { GmailServiceAccountCredential } from "../../contracts/GmailServiceAccountCredential";
 import {
   GmailHistoryGapError,
@@ -12,22 +13,27 @@ import {
 } from "../../services/GmailApiClient";
 import type { GmailPubSubNotification, GmailPulledNotification } from "../../services/GmailPubSubPullClient";
 
+type GmailGoogleCredential = GmailServiceAccountCredential | GmailOAuthCredential;
+
 export class GoogleGmailApiClient implements GmailApiClient {
-  constructor(private readonly credential: GmailServiceAccountCredential) {}
+  constructor(private readonly credential: GmailGoogleCredential) {}
 
   async ensureSubscription(args: Readonly<{ topicName: string; subscriptionName: string }>): Promise<void> {
-    const client = this.createAdminClient();
-    const topic = client.topic(this.normalizeTopicName(args.topicName));
-    const subscription = topic.subscription(this.normalizeSubscriptionName(args.subscriptionName));
+    const topicResource = this.resolvePubSubResource(args.topicName, "topics");
+    const subscriptionResource = this.resolvePubSubResource(args.subscriptionName, "subscriptions");
+    const client = this.createAdminClient(topicResource.projectId);
+    const topic = client.topic(topicResource.resourceId);
+    const subscription = topic.subscription(subscriptionResource.resourceId);
     const [exists] = await subscription.exists();
     if (!exists) {
-      await topic.createSubscription(this.normalizeSubscriptionName(args.subscriptionName));
+      await topic.createSubscription(subscriptionResource.resourceId);
     }
   }
 
   async pull(args: Readonly<{ subscriptionName: string; maxMessages?: number }>): Promise<ReadonlyArray<GmailPulledNotification>> {
-    const subscriberClient = this.createSubscriberClient();
-    const subscriptionPath = subscriberClient.subscriptionPath(this.credential.projectId, this.normalizeSubscriptionName(args.subscriptionName));
+    const subscriptionResource = this.resolvePubSubResource(args.subscriptionName, "subscriptions");
+    const subscriberClient = this.createSubscriberClient(subscriptionResource.projectId);
+    const subscriptionPath = subscriberClient.subscriptionPath(subscriptionResource.projectId, subscriptionResource.resourceId);
     const [response] = await subscriberClient.pull({
       subscription: subscriptionPath,
       maxMessages: args.maxMessages ?? 10,
@@ -202,19 +208,34 @@ export class GoogleGmailApiClient implements GmailApiClient {
     gmailClient: ReturnType<typeof google.gmail>;
     userId: string;
   }>> {
-    const auth = new google.auth.JWT({
-      email: this.credential.clientEmail,
-      key: this.credential.privateKey,
-      scopes: [GoogleGmailApiClientScopeCatalog.gmailReadonly],
-      subject: this.credential.delegatedUser,
+    if (this.isServiceAccountCredential(this.credential)) {
+      const auth = new google.auth.JWT({
+        email: this.credential.clientEmail,
+        key: this.credential.privateKey,
+        scopes: [GoogleGmailApiClientScopeCatalog.gmailReadonly],
+        subject: this.credential.delegatedUser,
+      });
+      await auth.authorize();
+      return {
+        gmailClient: google.gmail({
+          version: "v1",
+          auth,
+        }),
+        userId: this.credential.delegatedUser,
+      };
+    }
+    const auth = new google.auth.OAuth2(this.credential.clientId, this.credential.clientSecret);
+    auth.setCredentials({
+      access_token: this.credential.accessToken,
+      refresh_token: this.credential.refreshToken,
+      expiry_date: this.credential.expiry ? new Date(this.credential.expiry).getTime() : undefined,
     });
-    await auth.authorize();
     return {
       gmailClient: google.gmail({
         version: "v1",
         auth,
       }),
-      userId: this.credential.delegatedUser,
+      userId: "me",
     };
   }
 
@@ -361,34 +382,58 @@ export class GoogleGmailApiClient implements GmailApiClient {
     };
   }
 
-  private createAdminClient(): PubSub {
+  private createAdminClient(projectId: string): PubSub {
+    if (this.isServiceAccountCredential(this.credential)) {
+      return new PubSub({
+        projectId,
+        credentials: {
+          client_email: this.credential.clientEmail,
+          private_key: this.credential.privateKey,
+        },
+      });
+    }
     return new PubSub({
-      projectId: this.credential.projectId,
-      credentials: {
-        client_email: this.credential.clientEmail,
-        private_key: this.credential.privateKey,
-      },
+      projectId,
     });
   }
 
-  private createSubscriberClient(): v1.SubscriberClient {
+  private createSubscriberClient(projectId: string): v1.SubscriberClient {
+    if (this.isServiceAccountCredential(this.credential)) {
+      return new v1.SubscriberClient({
+        projectId,
+        credentials: {
+          client_email: this.credential.clientEmail,
+          private_key: this.credential.privateKey,
+        },
+      });
+    }
     return new v1.SubscriberClient({
-      projectId: this.credential.projectId,
-      credentials: {
-        client_email: this.credential.clientEmail,
-        private_key: this.credential.privateKey,
-      },
+      projectId,
     });
   }
 
-  private normalizeTopicName(topicName: string): string {
-    const match = topicName.match(/projects\/[^/]+\/topics\/([^/]+)$/);
-    return match?.[1] ?? topicName;
+  private resolvePubSubResource(
+    value: string,
+    resourceKind: "topics" | "subscriptions",
+  ): Readonly<{ projectId: string; resourceId: string }> {
+    const qualifiedMatch = value.match(new RegExp(`projects/([^/]+)/${resourceKind}/([^/]+)$`));
+    if (qualifiedMatch) {
+      return {
+        projectId: qualifiedMatch[1]!,
+        resourceId: qualifiedMatch[2]!,
+      };
+    }
+    if (this.isServiceAccountCredential(this.credential)) {
+      return {
+        projectId: this.credential.projectId,
+        resourceId: value,
+      };
+    }
+    throw new Error(`OAuth-backed Gmail credentials require fully qualified Pub/Sub ${resourceKind} resource names.`);
   }
 
-  private normalizeSubscriptionName(subscriptionName: string): string {
-    const match = subscriptionName.match(/projects\/[^/]+\/subscriptions\/([^/]+)$/);
-    return match?.[1] ?? subscriptionName;
+  private isServiceAccountCredential(credential: GmailGoogleCredential): credential is GmailServiceAccountCredential {
+    return "clientEmail" in credential;
   }
 }
 

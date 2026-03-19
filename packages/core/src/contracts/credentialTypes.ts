@@ -12,6 +12,7 @@ export type CredentialFieldSchema = Readonly<{
   label: string;
   type: "string" | "password" | "textarea" | "json" | "boolean";
   required?: true;
+  order?: number;
   placeholder?: string;
   helpText?: string;
 }>;
@@ -45,6 +46,31 @@ export type CredentialHealth = Readonly<{
   details?: Readonly<Record<string, unknown>>;
 }>;
 
+export type OAuth2ProviderFromPublicConfig = Readonly<{
+  authorizeUrlFieldKey: string;
+  tokenUrlFieldKey: string;
+  userInfoUrlFieldKey?: string;
+}>;
+
+export type CredentialOAuth2AuthDefinition = Readonly<
+  | {
+      kind: "oauth2";
+      providerId: string;
+      scopes: ReadonlyArray<string>;
+      clientIdFieldKey?: string;
+      clientSecretFieldKey?: string;
+    }
+  | {
+      kind: "oauth2";
+      providerFromPublicConfig: OAuth2ProviderFromPublicConfig;
+      scopes: ReadonlyArray<string>;
+      clientIdFieldKey?: string;
+      clientSecretFieldKey?: string;
+    }
+>;
+
+export type CredentialAuthDefinition = CredentialOAuth2AuthDefinition;
+
 export type CredentialTypeDefinition = Readonly<{
   typeId: CredentialTypeId;
   displayName: string;
@@ -52,6 +78,7 @@ export type CredentialTypeDefinition = Readonly<{
   publicFields?: ReadonlyArray<CredentialFieldSchema>;
   secretFields?: ReadonlyArray<CredentialFieldSchema>;
   supportedSourceKinds?: ReadonlyArray<CredentialMaterialSourceKind>;
+  auth?: CredentialAuthDefinition;
 }>;
 
 export interface CredentialSessionService {

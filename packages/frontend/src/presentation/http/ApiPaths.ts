@@ -7,6 +7,8 @@ export class ApiPaths {
 
   private static readonly credentialsBasePath = `${this.apiBasePath}/credentials`;
 
+  private static readonly oauth2BasePath = `${this.apiBasePath}/oauth2`;
+
   private static readonly webhooksBasePath = `${this.apiBasePath}/webhooks`;
 
   static workflows(): string {
@@ -60,6 +62,18 @@ export class ApiPaths {
 
   static credentialBindings(): string {
     return `${this.apiBasePath}/credential-bindings`;
+  }
+
+  static oauth2Auth(instanceId: string): string {
+    return `${this.oauth2BasePath}/auth?instanceId=${encodeURIComponent(instanceId)}`;
+  }
+
+  static oauth2RedirectUri(): string {
+    return `${this.oauth2BasePath}/redirect-uri`;
+  }
+
+  static oauth2Disconnect(instanceId: string): string {
+    return `${this.oauth2BasePath}/disconnect?instanceId=${encodeURIComponent(instanceId)}`;
   }
 
   static workflowWebsocket(): string {

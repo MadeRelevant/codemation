@@ -96,6 +96,7 @@ import {
   CredentialBindingService,
   CredentialInstanceService,
   CredentialMaterialResolver,
+  CredentialRuntimeMaterialService,
   type RegisteredCredentialType,
   CredentialSecretCipher,
   CredentialSessionServiceImpl,
@@ -103,7 +104,10 @@ import {
   CredentialTypeRegistryImpl,
 } from "./domain/credentials/CredentialServices";
 import { InMemoryCredentialStore, PrismaCredentialStore } from "./infrastructure/persistence/CredentialPersistenceStore";
+import { OAuth2ConnectService } from "./domain/credentials/OAuth2ConnectService";
+import { OAuth2ProviderRegistry } from "./domain/credentials/OAuth2ProviderRegistry";
 import "./presentation/http/routeHandlers/CredentialHttpRouteHandler";
+import "./presentation/http/routeHandlers/OAuth2HttpRouteHandler";
 
 type StopHandle = Readonly<{ stop: () => Promise<void> }>;
 
@@ -433,10 +437,13 @@ export class CodemationApplication {
     this.container.register(RequestToWebhookItemMapper, { useClass: RequestToWebhookItemMapper });
     this.container.register(CredentialSecretCipher, { useClass: CredentialSecretCipher });
     this.container.register(CredentialMaterialResolver, { useClass: CredentialMaterialResolver });
+    this.container.register(CredentialRuntimeMaterialService, { useClass: CredentialRuntimeMaterialService });
     this.container.register(CredentialInstanceService, { useClass: CredentialInstanceService });
     this.container.register(CredentialBindingService, { useClass: CredentialBindingService });
     this.container.register(CredentialTestService, { useClass: CredentialTestService });
     this.container.register(CredentialSessionServiceImpl, { useClass: CredentialSessionServiceImpl });
+    this.container.register(OAuth2ProviderRegistry, { useClass: OAuth2ProviderRegistry });
+    this.container.register(OAuth2ConnectService, { useClass: OAuth2ConnectService });
   }
 
   private registerRepositoriesAndBuses(): void {
@@ -531,6 +538,8 @@ export class CodemationApplication {
     }
     if (persistence.prismaClient) {
       this.container.registerInstance(PrismaClient, persistence.prismaClient);
+    }
+    if (resolved.databaseUrl) {
       this.container.registerInstance(ApplicationTokens.CredentialStore, this.container.resolve(PrismaCredentialStore));
     } else {
       this.container.registerInstance(ApplicationTokens.CredentialStore, this.container.resolve(InMemoryCredentialStore));

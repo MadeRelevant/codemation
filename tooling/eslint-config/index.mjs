@@ -101,6 +101,14 @@ export default [
 
   js.configs.recommended,
 
+  // Block browser blocking dialogs (use in-app UI instead).
+  {
+    files: ["**/*.{ts,tsx,js,mjs,cjs}"],
+    rules: {
+      "no-alert": "error",
+    },
+  },
+
   {
     files: ["**/*.{js,mjs,cjs}"],
     languageOptions: baseLanguageOptions,

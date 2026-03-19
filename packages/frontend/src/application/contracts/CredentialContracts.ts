@@ -19,6 +19,16 @@ export type CredentialInstanceDto = Readonly<{
   createdAt: string;
   updatedAt: string;
   latestHealth?: CredentialHealth;
+  oauth2Connection?: CredentialOAuth2ConnectionDto;
+}>;
+
+export type CredentialOAuth2ConnectionDto = Readonly<{
+  status: "connected" | "disconnected";
+  providerId: string;
+  connectedEmail?: string;
+  connectedAt?: string;
+  scopes: ReadonlyArray<string>;
+  updatedAt?: string;
 }>;
 
 export type CredentialInstanceWithSecretsDto = CredentialInstanceDto &

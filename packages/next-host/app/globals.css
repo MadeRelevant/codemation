@@ -776,6 +776,22 @@ a {
   box-shadow: var(--btn-shadow);
 }
 
+.credential-dialog__btn--danger {
+  border: none;
+  background: hsl(0 72% 45%);
+  color: white;
+}
+
+.credential-dialog__btn--danger:hover:not(:disabled) {
+  background: hsl(0 72% 40%);
+  box-shadow: 0 2px 6px hsl(0 72% 45% / 0.35);
+}
+
+.credential-dialog__btn--danger:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: var(--btn-shadow);
+}
+
 .credential-dialog__btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
