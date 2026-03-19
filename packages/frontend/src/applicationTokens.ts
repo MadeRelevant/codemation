@@ -13,7 +13,7 @@ import type { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository"
 import type { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
 import type { WebhookEndpointRepository } from "./domain/webhooks/WebhookEndpointRepository";
-import type { HttpRouteHandler } from "./presentation/http/HttpRouteHandler";
+import type { HonoApiRouteRegistrar } from "./presentation/http/hono/HonoApiRouteRegistrar";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
 import type { LoggerFactory } from "./application/logging/Logger";
 import type { CredentialStore } from "./domain/credentials/CredentialServices";
@@ -27,7 +27,7 @@ export const ApplicationTokens = {
   QueryHandler: Symbol.for("codemation.application.QueryHandler") as TypeToken<QueryHandler<Query<unknown>, unknown>>,
   CommandHandler: Symbol.for("codemation.application.CommandHandler") as TypeToken<CommandHandler<Command<unknown>, unknown>>,
   DomainEventHandler: Symbol.for("codemation.application.DomainEventHandler") as TypeToken<DomainEventHandler<DomainEvent>>,
-  HttpRouteHandler: Symbol.for("codemation.application.HttpRouteHandler") as TypeToken<HttpRouteHandler>,
+  HonoApiRouteRegistrar: Symbol.for("codemation.application.HonoApiRouteRegistrar") as TypeToken<HonoApiRouteRegistrar>,
   WorkflowWebsocketPublisher: Symbol.for("codemation.application.WorkflowWebsocketPublisher") as TypeToken<WorkflowWebsocketPublisher>,
   WorkerRuntimeScheduler: Symbol.for("codemation.application.WorkerRuntimeScheduler") as TypeToken<WorkerRuntimeScheduler>,
   WorkflowDefinitionRepository: Symbol.for("codemation.application.WorkflowDefinitionRepository") as TypeToken<WorkflowDefinitionRepository>,

@@ -81,7 +81,7 @@ import type {
 } from "./presentation/config/CodemationConfig";
 import type { CodemationPlugin } from "./presentation/config/CodemationPlugin";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
-import { ServerHttpRouter } from "./presentation/http/ServerHttpRouter";
+import { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiApp";
 import { WorkflowWebsocketServer } from "./presentation/websocket/WorkflowWebsocketServer";
 import { CodemationServerEngineHost } from "./infrastructure/webhooks/CodemationServerEngineHost";
 import { CodemationWebhookRegistry } from "./infrastructure/webhooks/CodemationWebhookRegistry";
@@ -108,6 +108,12 @@ import { OAuth2ConnectService } from "./domain/credentials/OAuth2ConnectService"
 import { OAuth2ProviderRegistry } from "./domain/credentials/OAuth2ProviderRegistry";
 import "./presentation/http/routeHandlers/CredentialHttpRouteHandler";
 import "./presentation/http/routeHandlers/OAuth2HttpRouteHandler";
+import "./presentation/http/hono/registrars/WorkflowHonoApiRouteRegistrar";
+import "./presentation/http/hono/registrars/RunHonoApiRouteRegistrar";
+import "./presentation/http/hono/registrars/CredentialHonoApiRouteRegistrar";
+import "./presentation/http/hono/registrars/OAuth2HonoApiRouteRegistrar";
+import "./presentation/http/hono/registrars/BinaryHonoApiRouteRegistrar";
+import "./presentation/http/hono/registrars/WebhookHonoApiRouteRegistrar";
 
 type StopHandle = Readonly<{ stop: () => Promise<void> }>;
 
@@ -495,8 +501,8 @@ export class CodemationApplication {
   }
 
   private registerApplicationServicesAndRoutes(): void {
-    this.container.register(ServerHttpRouter, {
-      useClass: ServerHttpRouter,
+    this.container.register(CodemationHonoApiApp, {
+      useClass: CodemationHonoApiApp,
     });
   }
 

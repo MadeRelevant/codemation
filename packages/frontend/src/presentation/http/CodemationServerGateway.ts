@@ -9,11 +9,11 @@ import { WorkflowDefinitionMapper } from "../../application/mapping/WorkflowDefi
 import { ApplicationTokens } from "../../applicationTokens";
 import { CodemationApplication } from "../../codemationApplication";
 import type { CodemationConfig } from "../config/CodemationConfig";
-import { ServerHttpRouter } from "./ServerHttpRouter";
+import { CodemationHonoApiApp } from "./hono/CodemationHonoApiApp";
 
 type ServerGatewayContext = Readonly<{
   application: CodemationApplication;
-  router: ServerHttpRouter;
+  httpApi: CodemationHonoApiApp;
   queryBus: QueryBus;
   workflowDefinitionMapper: WorkflowDefinitionMapper;
 }>;
@@ -29,8 +29,8 @@ export class CodemationServerGateway {
     private readonly env?: Readonly<NodeJS.ProcessEnv>,
   ) {}
 
-  async dispatch(request: Request, routePath: string | undefined): Promise<Response> {
-    return await (await this.getContext()).router.dispatch(request, routePath);
+  async dispatch(request: Request): Promise<Response> {
+    return await (await this.getContext()).httpApi.fetch(request);
   }
 
   async prepare(): Promise<void> {
@@ -96,7 +96,7 @@ export class CodemationServerGateway {
     await this.startEngine(application);
     return {
       application,
-      router: application.getContainer().resolve(ServerHttpRouter),
+      httpApi: application.getContainer().resolve(CodemationHonoApiApp),
       queryBus: application.getContainer().resolve(ApplicationTokens.QueryBus),
       workflowDefinitionMapper: application.getContainer().resolve(WorkflowDefinitionMapper),
     };

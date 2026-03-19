@@ -21,13 +21,11 @@ import {
   ListCredentialTypesQuery,
 } from "../../../application/queries/CredentialQueryHandlers";
 import { ApplicationTokens } from "../../../applicationTokens";
-import { inject } from "@codemation/core";
-import { HandlesHttpRoute } from "../HandlesHttpRoute";
-import { Route } from "../Route";
+import { inject, injectable } from "@codemation/core";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 import type { ServerHttpRouteParams } from "../ServerHttpRouteParams";
 
-@HandlesHttpRoute.for()
+@injectable()
 export class CredentialHttpRouteHandler {
   constructor(
     @inject(ApplicationTokens.QueryBus)
@@ -36,7 +34,6 @@ export class CredentialHttpRouteHandler {
     private readonly commandBus: CommandBus,
   ) {}
 
-  @Route.for("GET", "credentials/types")
   async getCredentialTypes(): Promise<Response> {
     try {
       return Response.json(await this.queryBus.execute(new ListCredentialTypesQuery()));
@@ -45,7 +42,6 @@ export class CredentialHttpRouteHandler {
     }
   }
 
-  @Route.for("GET", "credentials/instances")
   async getCredentialInstances(): Promise<Response> {
     try {
       return Response.json(await this.queryBus.execute(new ListCredentialInstancesQuery()));
@@ -54,7 +50,6 @@ export class CredentialHttpRouteHandler {
     }
   }
 
-  @Route.for("GET", "credentials/instances/:instanceId")
   async getCredentialInstance(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const withSecrets = new URL(request.url).searchParams.get("withSecrets") === "1";
@@ -70,7 +65,6 @@ export class CredentialHttpRouteHandler {
     }
   }
 
-  @Route.for("POST", "credentials/instances")
   async postCredentialInstance(request: Request): Promise<Response> {
     try {
       const body = await this.readJsonBody<CreateCredentialInstanceRequest>(request);
@@ -80,7 +74,6 @@ export class CredentialHttpRouteHandler {
     }
   }
 
-  @Route.for("PUT", "credentials/instances/:instanceId")
   async putCredentialInstance(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const body = await this.readJsonBody<UpdateCredentialInstanceRequest>(request);
@@ -90,7 +83,6 @@ export class CredentialHttpRouteHandler {
     }
   }
 
-  @Route.for("DELETE", "credentials/instances/:instanceId")
   async deleteCredentialInstance(_: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       return Response.json(await this.commandBus.execute(new DeleteCredentialInstanceCommand(params.instanceId!)));
@@ -99,7 +91,6 @@ export class CredentialHttpRouteHandler {
     }
   }
 
-  @Route.for("PUT", "credential-bindings")
   async putCredentialBinding(request: Request): Promise<Response> {
     try {
       const body = await this.readJsonBody<UpsertCredentialBindingRequest>(request);
@@ -109,7 +100,6 @@ export class CredentialHttpRouteHandler {
     }
   }
 
-  @Route.for("POST", "credentials/instances/:instanceId/test")
   async postCredentialInstanceTest(_: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       return Response.json(await this.commandBus.execute(new TestCredentialInstanceCommand(params.instanceId!)));
@@ -118,7 +108,6 @@ export class CredentialHttpRouteHandler {
     }
   }
 
-  @Route.for("GET", "workflows/:workflowId/credential-health")
   async getWorkflowCredentialHealth(_: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       return Response.json(await this.queryBus.execute(new GetWorkflowCredentialHealthQuery(params.workflowId!)));

@@ -1,7 +1,5 @@
-import { CodemationNextHost } from "../../../../src/server/CodemationNextHost";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+import type { Hono } from "hono";
+import type { CodemationNextHost } from "./CodemationNextHost";
 
 type DevelopmentRuntimeSignal =
   | Readonly<{ kind: "buildStarted"; buildVersion?: string }>
@@ -53,25 +51,31 @@ class DevelopmentRuntimeRouteGuard {
   }
 }
 
-export async function POST(request: Request): Promise<Response> {
-  if (!DevelopmentRuntimeRouteGuard.isAuthorized(request)) {
-    return new Response("Unauthorized", { status: 401 });
+export class DevelopmentRuntimeApi {
+  static attach(api: Hono, host: CodemationNextHost): void {
+    api.post("/dev/runtime", async (c) => await this.handlePost(c.req.raw, host));
   }
-  const signal = await DevelopmentRuntimeRouteGuard.parseSignal(request);
-  if (signal.kind === "buildStarted") {
-    await CodemationNextHost.shared.notifyBuildStarted({
-      buildVersion: signal.buildVersion,
+
+  static async handlePost(request: Request, host: CodemationNextHost): Promise<Response> {
+    if (!DevelopmentRuntimeRouteGuard.isAuthorized(request)) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    const signal = await DevelopmentRuntimeRouteGuard.parseSignal(request);
+    if (signal.kind === "buildStarted") {
+      await host.notifyBuildStarted({
+        buildVersion: signal.buildVersion,
+      });
+      return new Response(null, { status: 204 });
+    }
+    if (signal.kind === "buildCompleted") {
+      await host.notifyBuildCompleted({
+        buildVersion: signal.buildVersion,
+      });
+      return new Response(null, { status: 204 });
+    }
+    await host.notifyBuildFailed({
+      message: signal.message,
     });
     return new Response(null, { status: 204 });
   }
-  if (signal.kind === "buildCompleted") {
-    await CodemationNextHost.shared.notifyBuildCompleted({
-      buildVersion: signal.buildVersion,
-    });
-    return new Response(null, { status: 204 });
-  }
-  await CodemationNextHost.shared.notifyBuildFailed({
-    message: signal.message,
-  });
-  return new Response(null, { status: 204 });
 }

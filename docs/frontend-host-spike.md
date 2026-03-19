@@ -197,7 +197,7 @@ These files should survive, but the host migration should decide:
 
 - `packages/frontend/src/presentation/config/CodemationConfig.ts`
 - `packages/frontend/src/presentation/http/CodemationServerGateway.ts`
-- `packages/frontend/src/presentation/http/ServerHttpRouter.ts`
+- `packages/frontend/src/presentation/http/hono/CodemationHonoApiApp.ts`
 - `packages/frontend/src/presentation/http/routeHandlers/*`
 - `packages/frontend/src/presentation/websocket/WorkflowWebsocketServer.ts`
 - `packages/frontend/src/ui/providers/Providers.tsx`

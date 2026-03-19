@@ -13,13 +13,11 @@ import type {
 } from "../../../application/contracts/RunContracts";
 import { GetRunStateQuery } from "../../../application/queries/GetRunStateQuery";
 import { ApplicationTokens } from "../../../applicationTokens";
-import { inject } from "@codemation/core";
-import { HandlesHttpRoute } from "../HandlesHttpRoute";
-import { Route } from "../Route";
+import { inject, injectable } from "@codemation/core";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 import type { ServerHttpRouteParams } from "../ServerHttpRouteParams";
 
-@HandlesHttpRoute.for()
+@injectable()
 export class RunHttpRouteHandler {
   constructor(
     @inject(ApplicationTokens.QueryBus)
@@ -28,7 +26,6 @@ export class RunHttpRouteHandler {
     private readonly commandBus: CommandBus,
   ) {}
 
-  @Route.for("GET", "runs/:runId")
   async getRun(_: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const state = await this.queryBus.execute(new GetRunStateQuery(params.runId!));
@@ -41,7 +38,6 @@ export class RunHttpRouteHandler {
     }
   }
 
-  @Route.for("POST", "runs")
   async postRuns(request: Request, _: ServerHttpRouteParams): Promise<Response> {
     try {
       const body = await this.readJsonBody<CreateRunRequest>(request);
@@ -51,7 +47,6 @@ export class RunHttpRouteHandler {
     }
   }
 
-  @Route.for("PATCH", "runs/:runId/workflow-snapshot")
   async patchRunWorkflowSnapshot(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const body = await this.readJsonBody<UpdateRunWorkflowSnapshotRequest>(request);
@@ -61,7 +56,6 @@ export class RunHttpRouteHandler {
     }
   }
 
-  @Route.for("PATCH", "runs/:runId/nodes/:nodeId/pin")
   async patchRunNodePin(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const body = await this.readJsonBody<UpdateRunNodePinRequest>(request);
@@ -71,7 +65,6 @@ export class RunHttpRouteHandler {
     }
   }
 
-  @Route.for("POST", "runs/:runId/nodes/:nodeId/run")
   async postRunNode(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const body = await this.readJsonBody<RunNodeRequest>(request);

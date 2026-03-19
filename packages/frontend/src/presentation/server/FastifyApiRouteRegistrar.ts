@@ -17,7 +17,7 @@ export class FastifyApiRouteRegistrar {
         url: "/api/*",
         handler: async (request: FastifyRequest<{ Params: ApiRouteParams }>, reply: FastifyReply) => {
           const fetchRequest = this.requestFactory.create(request);
-          const response = await gateway.dispatch(fetchRequest, request.params["*"]);
+          const response = await gateway.dispatch(fetchRequest);
           await this.responseWriter.write(reply, response);
         },
       });

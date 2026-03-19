@@ -1,12 +1,10 @@
 import type { BinaryAttachment, BinaryStorage } from "@codemation/core";
-import { CoreTokens, inject } from "@codemation/core";
+import { CoreTokens, inject, injectable } from "@codemation/core";
 import { RunBinaryAttachmentLookupService } from "../../../application/binary/RunBinaryAttachmentLookupService";
-import { HandlesHttpRoute } from "../HandlesHttpRoute";
-import { Route } from "../Route";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 import type { ServerHttpRouteParams } from "../ServerHttpRouteParams";
 
-@HandlesHttpRoute.for()
+@injectable()
 export class BinaryHttpRouteHandler {
   constructor(
     @inject(RunBinaryAttachmentLookupService)
@@ -15,7 +13,6 @@ export class BinaryHttpRouteHandler {
     private readonly binaryStorage: BinaryStorage,
   ) {}
 
-  @Route.for("GET", "runs/:runId/binary/:binaryId/content")
   async getRunBinaryContent(_: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const attachment = await this.lookupService.findForRun(params.runId!, params.binaryId!);
@@ -25,7 +22,6 @@ export class BinaryHttpRouteHandler {
     }
   }
 
-  @Route.for("GET", "workflows/:workflowId/debugger-overlay/binary/:binaryId/content")
   async getWorkflowOverlayBinaryContent(_: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const attachment = await this.lookupService.findForWorkflowOverlay(params.workflowId!, params.binaryId!);

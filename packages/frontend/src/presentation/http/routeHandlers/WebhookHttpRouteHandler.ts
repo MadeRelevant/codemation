@@ -2,13 +2,11 @@ import type { CommandBus } from "../../../application/bus/CommandBus";
 import { HandleWebhookInvocationCommand } from "../../../application/commands/HandleWebhookInvocationCommand";
 import { ApplicationTokens } from "../../../applicationTokens";
 import { RequestToWebhookItemMapper } from "../../../infrastructure/webhooks/RequestToWebhookItemMapper";
-import { RunIntentService, inject } from "@codemation/core";
-import { HandlesHttpRoute } from "../HandlesHttpRoute";
-import { Route } from "../Route";
+import { RunIntentService, inject, injectable } from "@codemation/core";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 import type { ServerHttpRouteParams } from "../ServerHttpRouteParams";
 
-@HandlesHttpRoute.for()
+@injectable()
 export class WebhookHttpRouteHandler {
   constructor(
     @inject(ApplicationTokens.CommandBus)
@@ -19,11 +17,6 @@ export class WebhookHttpRouteHandler {
     private readonly requestToWebhookItemMapper: RequestToWebhookItemMapper,
   ) {}
 
-  @Route.for("GET", "webhooks/:endpointId")
-  @Route.for("POST", "webhooks/:endpointId")
-  @Route.for("PUT", "webhooks/:endpointId")
-  @Route.for("PATCH", "webhooks/:endpointId")
-  @Route.for("DELETE", "webhooks/:endpointId")
   async postWebhook(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const match = this.runIntentService.matchWebhookTrigger({

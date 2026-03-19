@@ -287,6 +287,9 @@ importers:
       fastify:
         specifier: ^5.8.2
         version: 5.8.2
+      hono:
+        specifier: ^4.12.8
+        version: 4.12.8
       lucide-react:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.4)
@@ -408,6 +411,9 @@ importers:
       '@xyflow/react':
         specifier: ^12.10.1
         version: 12.10.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      hono:
+        specifier: ^4.12.8
+        version: 4.12.8
       next:
         specifier: ^16.2.0
         version: 16.2.0(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -2980,6 +2986,10 @@ packages:
 
   hono@4.11.4:
     resolution: {integrity: sha512-U7tt8JsyrxSRKspfhtLET79pU8K+tInj5QZXs1jSugO1Vq5dFj3kmZsRldo29mTBfcjDRVRXrEZ6LS63Cog9ZA==}
+    engines: {node: '>=16.9.0'}
+
+  hono@4.12.8:
+    resolution: {integrity: sha512-VJCEvtrezO1IAR+kqEYnxUOoStaQPGrCmX3j4wDTNOcD1uRPFpGlwQUIW8niPuvHXaTUxeOUl5MMDGrl+tmO9A==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -7103,6 +7113,8 @@ snapshots:
   heap-js@2.7.1: {}
 
   hono@4.11.4: {}
+
+  hono@4.12.8: {}
 
   hookable@5.5.3: {}
 

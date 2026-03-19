@@ -1,12 +1,10 @@
-import { inject } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import serialize from "serialize-javascript";
 import { CredentialInstanceService } from "../../../domain/credentials/CredentialServices";
 import { OAuth2ConnectService } from "../../../domain/credentials/OAuth2ConnectService";
-import { HandlesHttpRoute } from "../HandlesHttpRoute";
-import { Route } from "../Route";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 
-@HandlesHttpRoute.for()
+@injectable()
 export class OAuth2HttpRouteHandler {
   constructor(
     @inject(OAuth2ConnectService)
@@ -15,7 +13,6 @@ export class OAuth2HttpRouteHandler {
     private readonly credentialInstanceService: CredentialInstanceService,
   ) {}
 
-  @Route.for("GET", "oauth2/auth")
   async getAuthRedirect(request: Request): Promise<Response> {
     try {
       const url = new URL(request.url);
@@ -30,7 +27,6 @@ export class OAuth2HttpRouteHandler {
     }
   }
 
-  @Route.for("GET", "oauth2/callback")
   async getCallback(request: Request): Promise<Response> {
     try {
       const url = new URL(request.url);
@@ -55,7 +51,6 @@ export class OAuth2HttpRouteHandler {
     }
   }
 
-  @Route.for("GET", "oauth2/redirect-uri")
   async getRedirectUri(request: Request): Promise<Response> {
     try {
       return Response.json({
@@ -66,7 +61,6 @@ export class OAuth2HttpRouteHandler {
     }
   }
 
-  @Route.for("POST", "oauth2/disconnect")
   async postDisconnect(request: Request): Promise<Response> {
     try {
       const url = new URL(request.url);

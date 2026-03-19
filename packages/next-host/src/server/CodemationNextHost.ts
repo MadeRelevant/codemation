@@ -1,25 +1,19 @@
 import { access, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import type { Container } from "@codemation/core";
-import { CoreTokens, Engine, RunIntentService } from "@codemation/core";
+import { CoreTokens, Engine } from "@codemation/core";
 import type { CodemationPlugin } from "@codemation/frontend";
 import type { CodemationConsumerApp } from "@codemation/frontend/server";
 import {
-  ApplicationTokens,
-  BinaryHttpRouteHandler,
   CodemationApplication,
-  CredentialHttpRouteHandler,
-  OAuth2HttpRouteHandler,
-  RequestToWebhookItemMapper,
-  RunBinaryAttachmentLookupService,
-  RunHttpRouteHandler,
-  WebhookHttpRouteHandler,
+  CodemationHonoApiApp,
   WorkflowDefinitionMapper,
-  WorkflowHttpRouteHandler,
   WorkflowWebsocketServer,
 } from "@codemation/frontend/next/server";
+import type { Hono } from "hono";
 import { pathToFileURL } from "node:url";
 import { CodemationTsyringeTypeInfoRegistrar } from "./CodemationTsyringeTypeInfoRegistrar";
+import { DevelopmentRuntimeApi } from "./DevelopmentRuntimeApi";
 
 export type CodemationNextHostContext = Readonly<{
   application: CodemationApplication;
@@ -47,6 +41,9 @@ type CodemationActiveRuntime = Readonly<{
 }>;
 
 export class CodemationNextHost {
+  private nextApiApp: Hono | null = null;
+  private nextApiAppBuildVersion: string | null = null;
+
   static get shared(): CodemationNextHost {
     const globalState = globalThis as CodemationNextHostGlobal;
     if (!globalState.__codemationNextHost__) {
@@ -122,51 +119,29 @@ export class CodemationNextHost {
     return (await this.prepare()).application.getContainer();
   }
 
-  async getWorkflowHandler(): Promise<WorkflowHttpRouteHandler> {
-    const container = await this.getContainer();
-    return new WorkflowHttpRouteHandler(
-      container.resolve(ApplicationTokens.QueryBus),
-      container.resolve(ApplicationTokens.CommandBus),
-      container.resolve(WorkflowDefinitionMapper),
-    );
+  /**
+   * Handles all `/api/**` traffic. Next.js forwards the incoming Request; Hono does not listen on a port.
+   */
+  async fetchApi(request: Request): Promise<Response> {
+    const context = await this.prepare();
+    const app = this.resolveNextApiApp(context);
+    return app.fetch(request);
   }
 
-  async getRunHandler(): Promise<RunHttpRouteHandler> {
-    const container = await this.getContainer();
-    return new RunHttpRouteHandler(
-      container.resolve(ApplicationTokens.QueryBus),
-      container.resolve(ApplicationTokens.CommandBus),
-    );
+  private resolveNextApiApp(context: CodemationNextHostContext): Hono {
+    if (this.nextApiApp && this.nextApiAppBuildVersion === context.buildVersion) {
+      return this.nextApiApp;
+    }
+    const coreApp = context.application.getContainer().resolve(CodemationHonoApiApp).getHono();
+    DevelopmentRuntimeApi.attach(coreApp, this);
+    this.nextApiApp = coreApp;
+    this.nextApiAppBuildVersion = context.buildVersion;
+    return coreApp;
   }
 
-  async getCredentialHandler(): Promise<CredentialHttpRouteHandler> {
-    const container = await this.getContainer();
-    return new CredentialHttpRouteHandler(
-      container.resolve(ApplicationTokens.QueryBus),
-      container.resolve(ApplicationTokens.CommandBus),
-    );
-  }
-
-  async getOAuth2Handler(): Promise<OAuth2HttpRouteHandler> {
-    const container = await this.getContainer();
-    return container.resolve(OAuth2HttpRouteHandler);
-  }
-
-  async getBinaryHandler(): Promise<BinaryHttpRouteHandler> {
-    const container = await this.getContainer();
-    return new BinaryHttpRouteHandler(
-      container.resolve(RunBinaryAttachmentLookupService),
-      container.resolve(CoreTokens.BinaryStorage),
-    );
-  }
-
-  async getWebhookHandler(): Promise<WebhookHttpRouteHandler> {
-    const container = await this.getContainer();
-    return new WebhookHttpRouteHandler(
-      container.resolve(ApplicationTokens.CommandBus),
-      container.resolve(RunIntentService),
-      container.resolve(RequestToWebhookItemMapper),
-    );
+  private resetNextApiApp(): void {
+    this.nextApiApp = null;
+    this.nextApiAppBuildVersion = null;
   }
 
   private async createContext(buildManifest: CodemationConsumerBuildManifest): Promise<CodemationNextHostContext> {
@@ -249,6 +224,7 @@ export class CodemationNextHost {
     const activeRuntime = this.activeRuntime;
     this.activeRuntime = null;
     this.refreshPromise = null;
+    this.resetNextApiApp();
     if (activeRuntime) {
       const activeContext = await activeRuntime.contextPromise.catch(() => null);
       if (activeContext) {
@@ -376,6 +352,7 @@ export class CodemationNextHost {
   }
 
   private async swapRuntime(buildManifest: CodemationConsumerBuildManifest): Promise<CodemationNextHostContext> {
+    this.resetNextApiApp();
     const previousRuntime = this.activeRuntime;
     const previousContext = previousRuntime ? await previousRuntime.contextPromise.catch(() => null) : null;
     const nextContext = await this.createContext(buildManifest);

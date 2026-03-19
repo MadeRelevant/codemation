@@ -1,5 +1,6 @@
 export { CodemationApplication } from "./codemationApplication";
 export { ApplicationTokens } from "./applicationTokens";
+export { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiApp";
 export { CredentialBindingService, CredentialInstanceService } from "./domain/credentials/CredentialServices";
 export { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
 export { RunBinaryAttachmentLookupService } from "./application/binary/RunBinaryAttachmentLookupService";
