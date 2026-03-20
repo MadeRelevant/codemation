@@ -424,5 +424,19 @@ export default [
       ],
     },
   },
+
+  // Documented exceptions: path catalog + hot runtime construction are intentional.
+  {
+    files: ["packages/core/src/engine/runtime/runtimeEngine.ts"],
+    rules: {
+      "codemation/no-manual-di-new": "off",
+    },
+  },
+  {
+    files: ["packages/frontend/src/presentation/http/ApiPaths.ts"],
+    rules: {
+      "codemation/no-static-methods": "off",
+    },
+  },
 ];
 

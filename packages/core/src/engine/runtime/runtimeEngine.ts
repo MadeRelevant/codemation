@@ -1557,7 +1557,7 @@ export class Engine implements NodeActivationContinuation {
         const acceptedTypesSuffix = acceptedTypes.length > 0 ? ` Accepted types: ${acceptedTypes.join(", ")}.` : "";
         throw new Error(
           `Failed to resolve credential for workflow ${workflowId} node ${nodeId} slot "${slotKey}". ${message}${acceptedTypesSuffix}`,
-          { cause: error instanceof Error ? error : undefined },
+          { cause: error },
         );
       }
     };
