@@ -1,15 +1,15 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, type RenderResult } from "@testing-library/react";
-import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
-import { StrictMode, type ReactElement } from "react";
+import { Providers } from "@codemation/next-host/src/ui/providers/Providers";
+import type { PersistedRunState,WorkflowDto } from "@codemation/next-host/src/ui/realtime/realtime";
+import { WorkflowDetailScreen } from "@codemation/next-host/src/ui/screens/WorkflowDetailScreen";
+import { createRootRoute,createRoute,createRouter,Outlet,RouterProvider } from "@tanstack/react-router";
+import { act,cleanup,fireEvent,render,screen,waitFor,type RenderResult } from "@testing-library/react";
+import { StrictMode,type ReactElement } from "react";
 import { expect } from "vitest";
-import { Providers } from "../../../src/ui/providers/Providers";
-import { WorkflowDetailScreen } from "../../../src/ui/screens/WorkflowDetailScreen";
-import type { WorkflowDto } from "../../../src/client";
-import type { WorkflowDetailRealtimeServerMessage } from "./WorkflowDetailRealtimeFixtures";
-import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
 import { InMemoryWorkflowDetailTestEnvironment } from "./InMemoryWorkflowDetailTestEnvironment";
+import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
+import type { WorkflowDetailRealtimeServerMessage } from "./WorkflowDetailRealtimeFixtures";
 import type { WorkflowDetailRuntimeFixture } from "./WorkflowDetailRuntimeFixtures";
-import { WorkflowDetailSocketConnection, WorkflowDetailTestEnvironment } from "./WorkflowDetailTestEnvironment";
+import { WorkflowDetailSocketConnection,WorkflowDetailTestEnvironment } from "./WorkflowDetailTestEnvironment";
 
 type WorkflowDetailEnvironment = WorkflowDetailTestEnvironment | InMemoryWorkflowDetailTestEnvironment;
 
@@ -213,21 +213,21 @@ export class WorkflowDetailScreenTestKit {
     }
   }
 
-  queueRunResponse(state: import("../../../src/client").PersistedRunState): void {
+  queueRunResponse(state: PersistedRunState): void {
     if (!(this.environment instanceof WorkflowDetailTestEnvironment)) {
       throw new Error("The current workflow detail environment does not support queued synthetic run responses.");
     }
     this.environment.queueRunResponse(state);
   }
 
-  seedRun(state: import("../../../src/client").PersistedRunState): void {
+  seedRun(state: PersistedRunState): void {
     if (!(this.environment instanceof WorkflowDetailTestEnvironment)) {
       throw new Error("The current workflow detail environment does not support seeding synthetic runs.");
     }
     this.environment.seedRun(state);
   }
 
-  async waitForLatestRunToComplete(): Promise<import("../../../src/client").PersistedRunState> {
+  async waitForLatestRunToComplete(): Promise<PersistedRunState> {
     const runId = this.latestWorkflowRunId();
     if (this.environment instanceof InMemoryWorkflowDetailTestEnvironment) {
       return await this.environment.waitForRunToComplete(runId);
@@ -235,7 +235,7 @@ export class WorkflowDetailScreenTestKit {
     await waitFor(() => {
       expect(this.environment.runsById.get(runId)?.status).toBe("completed");
     });
-    return this.environment.runsById.get(runId) as import("../../../src/client").PersistedRunState;
+    return this.environment.runsById.get(runId) as PersistedRunState;
   }
 
   async waitForStatusVisibilityWindow(): Promise<void> {

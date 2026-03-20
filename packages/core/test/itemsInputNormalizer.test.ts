@@ -1,5 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 import { ItemsInputNormalizer } from "../src/index.ts";
 
 test("items input normalizer wraps a single json object as one item", () => {

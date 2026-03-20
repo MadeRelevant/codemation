@@ -1,8 +1,8 @@
-import type { Items, TriggerInstanceId } from "@codemation/core";
-import { inject, injectable } from "@codemation/core";
+import type { Items,TriggerInstanceId } from "@codemation/core";
+import { inject,injectable } from "@codemation/core";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
-import type { OnNewGmailTrigger, OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
-import type { GmailApiClient, GmailMessageRecord } from "./GmailApiClient";
+import type { OnNewGmailTrigger,OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
+import type { GmailApiClient,GmailMessageRecord } from "./GmailApiClient";
 import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "./GmailMessageItemMapper";
 import { GmailQueryMatcher } from "./GmailQueryMatcher";

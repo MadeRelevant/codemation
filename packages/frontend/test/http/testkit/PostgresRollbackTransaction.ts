@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from "../../../src/infrastructure/persistence/generated/prisma-client/client.js";
+import type { Prisma,PrismaClient } from "../../../src/infrastructure/persistence/generated/prisma-client/client.js";
 
 export class PostgresRollbackTransaction {
   private static readonly rollbackMessage = "codemation.test.rollback";

@@ -1,5 +1,5 @@
-import type { NodeConfigBase, PersistedTokenId } from "../../../types";
 import type { TypeToken } from "../../../di";
+import type { NodeConfigBase,PersistedTokenId } from "../../../types";
 import type { PersistedWorkflowTokenRegistry } from "./PersistedWorkflowTokenRegistry";
 
 export class PersistedWorkflowConfigSerializer {

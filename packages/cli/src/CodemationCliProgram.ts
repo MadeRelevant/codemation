@@ -1,21 +1,21 @@
+import { Command } from "commander";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { mkdir,rename,writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { Command } from "commander";
+import { fileURLToPath,pathToFileURL } from "node:url";
 import { CodemationCliPathResolver } from "./CodemationCliPathResolver";
-import {
-  CodemationConsumerOutputBuilder,
-  type CodemationConsumerOutputBuildSnapshot,
-} from "./CodemationConsumerOutputBuilder";
-import { CodemationPluginDiscovery, type CodemationDiscoveredPluginPackage } from "./CodemationPluginDiscovery";
-import { CodemationLocalUserCreator } from "./CodemationLocalUserCreator";
 import { CodemationConsumerEnvLoader } from "./CodemationConsumerEnvLoader";
+import {
+CodemationConsumerOutputBuilder,
+type CodemationConsumerOutputBuildSnapshot,
+} from "./CodemationConsumerOutputBuilder";
 import { CodemationDevLock } from "./CodemationDevLock";
+import { CodemationLocalUserCreator } from "./CodemationLocalUserCreator";
+import { CodemationPluginDiscovery,type CodemationDiscoveredPluginPackage } from "./CodemationPluginDiscovery";
 
 type CodemationConsumerBuildManifest = Readonly<{
   buildVersion: string;

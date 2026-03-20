@@ -1,8 +1,13 @@
-import { vi, expect } from "vitest";
+import type {
+PersistedRunState,
+RunSummary,
+WorkflowDebuggerOverlayState,
+WorkflowDto,
+} from "@codemation/next-host/src/ui/realtime/realtime";
+import { expect,vi } from "vitest";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
-import type { PersistedRunState, RunSummary, WorkflowDebuggerOverlayState, WorkflowDto } from "../../../src/client";
-import type { WorkflowDetailRealtimeServerMessage } from "./WorkflowDetailRealtimeFixtures";
 import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
+import type { WorkflowDetailRealtimeServerMessage } from "./WorkflowDetailRealtimeFixtures";
 
 type WorkflowRunRequestBody = Readonly<{
   workflowId: string;

@@ -1,8 +1,8 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { WorkflowCanvas } from "@codemation/next-host/src/ui/components/WorkflowCanvas";
+import type { NodeExecutionSnapshot,WorkflowDto } from "@codemation/next-host/src/ui/realtime/realtime";
+import { cleanup,fireEvent,render,screen,waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { WorkflowCanvas } from "../src/ui/components/WorkflowCanvas";
-import type { NodeExecutionSnapshot } from "../src/ui/realtime/realtime";
+import { afterAll,afterEach,beforeAll,describe,expect,it,vi } from "vitest";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit/WorkflowDetailFixtures";
 
 describe("workflow canvas toolbar", () => {
@@ -164,9 +164,9 @@ function WorkflowCanvasStructureHarness() {
         type="button"
         data-testid="swap-workflow-structure-button"
         onClick={() => {
-          setWorkflow((current) => ({
+          setWorkflow((current: WorkflowDto) => ({
             ...current,
-            nodes: current.nodes.map((node) =>
+            nodes: current.nodes.map((node: WorkflowDto["nodes"][number]) =>
               node.id === WorkflowDetailFixtureFactory.nodeOneId
                 ? {
                     ...node,

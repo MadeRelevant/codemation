@@ -1,6 +1,6 @@
-import { injectAll, injectable } from "@codemation/core";
-import type { DomainEventBus } from "../../application/bus/DomainEventBus";
+import { injectAll,injectable } from "@codemation/core";
 import type { DomainEvent } from "../../application/bus/DomainEvent";
+import type { DomainEventBus } from "../../application/bus/DomainEventBus";
 import type { DomainEventHandler } from "../../application/bus/DomainEventHandler";
 import { ApplicationTokens } from "../../applicationTokens";
 import { domainEventHandlerMetadataKey } from "./HandlesDomainEvent";

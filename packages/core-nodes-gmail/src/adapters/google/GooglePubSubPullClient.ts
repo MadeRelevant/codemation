@@ -1,7 +1,7 @@
-import { PubSub, v1 } from "@google-cloud/pubsub";
 import { injectable } from "@codemation/core";
+import { PubSub,v1 } from "@google-cloud/pubsub";
 import type { GmailServiceAccountCredential } from "../../contracts/GmailServiceAccountCredential";
-import type { GmailPubSubNotification, GmailPubSubPullClient, GmailPulledNotification } from "../../services/GmailPubSubPullClient";
+import type { GmailPubSubNotification,GmailPubSubPullClient,GmailPulledNotification } from "../../services/GmailPubSubPullClient";
 
 @injectable()
 export class GooglePubSubPullClient implements GmailPubSubPullClient {

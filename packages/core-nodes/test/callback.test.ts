@@ -1,8 +1,8 @@
+import type { Item,NodeExecutionContext } from "@codemation/core";
+import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
+import { Callback,CallbackNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { Item, NodeExecutionContext } from "@codemation/core";
-import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
-import { Callback, CallbackNode } from "@codemation/core-nodes";
 
 class CallbackNodeTestContextFactory {
   static create(config: Callback): NodeExecutionContext<Callback> {

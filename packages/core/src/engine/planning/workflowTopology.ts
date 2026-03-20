@@ -1,4 +1,4 @@
-import type { InputPortKey, NodeId, OutputPortKey, WorkflowDefinition } from "../../types";
+import type { InputPortKey,NodeId,OutputPortKey,WorkflowDefinition } from "../../types";
 
 type NodeDef = WorkflowDefinition["nodes"][number];
 

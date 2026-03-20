@@ -1,4 +1,4 @@
-import type { PersistedRunState, RunCurrentState } from "@codemation/core";
+import type { PersistedRunState,RunCurrentState } from "@codemation/core";
 import type { WorkflowDebuggerOverlayState } from "../../domain/workflows/WorkflowDebuggerOverlayState";
 
 export class WorkflowDebuggerOverlayStateFactory {

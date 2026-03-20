@@ -1,7 +1,7 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 
-import type { Items, NodeExecutionContext, NodeOutputs, TriggerNodeConfig, TriggerSetupContext, TypeToken } from "../src/index.ts";
+import type { Items,NodeExecutionContext,NodeOutputs,TriggerNodeConfig,TriggerSetupContext,TypeToken } from "../src/index.ts";
 import { WorkflowBuilder } from "../src/index.ts";
 import { createEngineTestKit } from "./harness/index.ts";
 

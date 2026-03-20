@@ -1,7 +1,7 @@
 "use client";
 
-import { Component, type ReactNode } from "react";
-import { WorkflowDetailScreen } from "@codemation/frontend/next/client";
+import { Component,type ReactNode } from "react";
+import { WorkflowDetailScreen } from "./screens/WorkflowDetailScreen";
 
 export interface HostedWorkflowDetailPageProps {
   readonly workflowId: string;

@@ -1,8 +1,8 @@
-import type { Container, TypeToken, WorkflowDefinition } from "@codemation/core";
+import type { Container,TypeToken,WorkflowDefinition } from "@codemation/core";
 import type { CodemationApplication } from "../../codemationApplication";
 import type { CodemationAppSlots } from "./CodemationAppSlots";
-import type { CodemationBinding } from "./CodemationBinding";
 import type { CodemationAuthConfig } from "./CodemationAuthConfig";
+import type { CodemationBinding } from "./CodemationBinding";
 import type { CodemationPlugin } from "./CodemationPlugin";
 import type { CodemationWorkflowDiscovery } from "./CodemationWorkflowDiscovery";
 

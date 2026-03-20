@@ -1,6 +1,6 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
-import type { NodeExecutionSnapshot, PersistedRunState, WorkflowDto } from "../../src/client";
+import type { NodeExecutionSnapshot,PersistedRunState,WorkflowDto } from "@codemation/next-host/src/ui/realtime/realtime";
+import { fireEvent,screen,waitFor } from "@testing-library/react";
+import { afterEach,describe,expect,it } from "vitest";
 import { WorkflowDetailScreenTestKit } from "./testkit";
 
 class DebugSessionSequenceFixture {

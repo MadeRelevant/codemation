@@ -1,20 +1,20 @@
+import type {
+ChatModelConfig,
+ChatModelFactory,
+LangChainChatModelLike,
+NodeExecutionContext,
+NodeExecutionStatePublisher,
+NodeInputsByPort,
+NodeOutputs,
+Tool,
+ToolConfig,
+ToolExecuteArgs,
+} from "@codemation/core";
+import { ContainerNodeResolver,DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory,container as tsyringeContainer } from "@codemation/core";
+import { AIAgent,AIAgentNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import test from "node:test";
-import type {
-  ChatModelConfig,
-  ChatModelFactory,
-  LangChainChatModelLike,
-  NodeExecutionContext,
-  NodeExecutionStatePublisher,
-  NodeInputsByPort,
-  NodeOutputs,
-  Tool,
-  ToolConfig,
-  ToolExecuteArgs,
-} from "@codemation/core";
-import { ContainerNodeResolver, container as tsyringeContainer, DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
-import { AIAgent, AIAgentNode } from "@codemation/core-nodes";
 import { z } from "zod";
 
 class CapturingNodeStatePublisher implements NodeExecutionStatePublisher {

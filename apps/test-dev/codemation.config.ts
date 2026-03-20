@@ -1,5 +1,5 @@
-import type { CodemationAppSlots, CodemationConfig } from "@codemation/frontend";
 import { GmailNodes } from "@codemation/core-nodes-gmail";
+import type { CodemationAppSlots,CodemationConfig } from "@codemation/frontend";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

@@ -1,9 +1,9 @@
 import { type WorkflowDefinition } from "@codemation/core";
-import { createWorkflowBuilder, ManualTrigger, MapData } from "@codemation/core-nodes";
-import type { WorkflowDto } from "../../../src/client";
+import { createWorkflowBuilder,ManualTrigger,MapData } from "@codemation/core-nodes";
+import type { WorkflowDto } from "@codemation/next-host/src/ui/realtime/realtime";
+import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
 import type { CodemationConfig } from "../../../src/presentation/config/CodemationConfig";
 import { IntegrationTestAuth } from "../../http/testkit/IntegrationTestAuth";
-import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
 
 export interface WorkflowDetailRuntimeFixture {
   readonly workflow: WorkflowDto;

@@ -1,9 +1,9 @@
-import test from "node:test";
+import type { NodeExecutionContext,TriggerSetupContext,WebhookSpec } from "@codemation/core";
+import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
 import assert from "node:assert/strict";
+import test from "node:test";
 import { z } from "zod";
-import type { NodeExecutionContext, TriggerSetupContext, WebhookSpec } from "@codemation/core";
-import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
-import { WebhookTrigger, WebhookTriggerNode } from "../dist/index.js";
+import { WebhookTrigger,WebhookTriggerNode } from "../dist/index.js";
 
 class CapturedWebhookSpecStore {
   private spec: WebhookSpec | undefined;

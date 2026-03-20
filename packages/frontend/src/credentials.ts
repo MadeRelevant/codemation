@@ -1,1 +1,1 @@
-export { CredentialBindingService, CredentialInstanceService } from "./domain/credentials/CredentialServices";
+export { CredentialBindingService,CredentialInstanceService } from "./domain/credentials/CredentialServices";

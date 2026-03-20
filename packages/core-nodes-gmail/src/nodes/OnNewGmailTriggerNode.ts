@@ -1,12 +1,12 @@
 import type {
-  Items,
-  NodeExecutionContext,
-  NodeOutputs,
-  TestableTriggerNode,
-  TriggerSetupContext,
-  TriggerTestItemsContext,
+Items,
+NodeExecutionContext,
+NodeOutputs,
+TestableTriggerNode,
+TriggerSetupContext,
+TriggerTestItemsContext,
 } from "@codemation/core";
-import { inject, node } from "@codemation/core";
+import { inject,node } from "@codemation/core";
 import type { GmailLogger } from "../contracts/GmailLogger";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
@@ -14,7 +14,7 @@ import { GmailPullTriggerRuntime } from "../runtime/GmailPullTriggerRuntime";
 import type { GmailApiClient } from "../services/GmailApiClient";
 import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
 import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
-import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "./OnNewGmailTrigger";
+import { OnNewGmailTrigger,type OnNewGmailTriggerItemJson } from "./OnNewGmailTrigger";
 
 @node({ packageName: "@codemation/core-nodes-gmail" })
 export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrigger> {

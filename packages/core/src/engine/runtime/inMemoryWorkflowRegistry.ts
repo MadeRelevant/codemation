@@ -1,4 +1,4 @@
-import type { WorkflowDefinition, WorkflowId, WorkflowRegistry } from "../../types";
+import type { WorkflowDefinition,WorkflowId,WorkflowRegistry } from "../../types";
 
 export class InMemoryWorkflowRegistry implements WorkflowRegistry {
   private readonly workflowsById = new Map<WorkflowId, WorkflowDefinition>();

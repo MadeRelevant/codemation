@@ -1,11 +1,11 @@
-import { League_Spartan } from "next/font/google";
 import "@xyflow/react/dist/style.css";
+import { League_Spartan } from "next/font/google";
 import "rc-tree/assets/index.css";
-import "./globals.css";
 import type { ReactNode } from "react";
 import { auth } from "../src/auth/codemationNextAuth";
 import { CodemationNextClientShell } from "../src/ui/CodemationNextClientShell";
 import { CodemationSessionRoot } from "../src/ui/CodemationSessionProvider";
+import "./globals.css";
 
 const leagueSpartan = League_Spartan({
   subsets: ["latin"],

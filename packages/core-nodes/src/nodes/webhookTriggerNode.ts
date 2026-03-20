@@ -1,4 +1,4 @@
-import type { ExecutableTriggerNode, Items, NodeExecutionContext, NodeOutputs, TriggerSetupContext } from "@codemation/core";
+import type { ExecutableTriggerNode,Items,NodeExecutionContext,NodeOutputs,TriggerSetupContext } from "@codemation/core";
 import { node } from "@codemation/core";
 import { WebhookTrigger } from "./webhookTrigger";
 

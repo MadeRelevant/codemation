@@ -1,7 +1,7 @@
-import type { Item, Items, Node, NodeExecutionContext, NodeOutputs, RunStateStore } from "@codemation/core";
-import { CoreTokens, inject, node } from "@codemation/core";
-import type { KitchenSinkExample } from "./kitchenSinkExample";
+import type { Item,Items,Node,NodeExecutionContext,NodeOutputs,RunStateStore } from "@codemation/core";
+import { CoreTokens,inject,node } from "@codemation/core";
 import { OdooService } from "../services/odooService";
+import type { KitchenSinkExample } from "./kitchenSinkExample";
 
 @node()
 export class KitchenSinkExampleNode implements Node<KitchenSinkExample> {

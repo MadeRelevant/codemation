@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { Items, NodeExecutionContext, NodeOutputs, PersistedTriggerSetupState, TriggerNode, TriggerNodeConfig, TriggerSetupContext, TypeToken } from "../src/index.ts";
+import type { Items,NodeExecutionContext,NodeOutputs,PersistedTriggerSetupState,TriggerNode,TriggerNodeConfig,TriggerSetupContext,TypeToken } from "../src/index.ts";
 import { WorkflowBuilder } from "../src/index.ts";
-import { CallbackNodeConfig } from "./harness/index.ts";
-import { createEngineTestKit } from "./harness/index.ts";
+import { CallbackNodeConfig,createEngineTestKit } from "./harness/index.ts";
 
 type SetupStatePayload = Readonly<{
   cursor: string;

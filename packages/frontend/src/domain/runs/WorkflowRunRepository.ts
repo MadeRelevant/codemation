@@ -1,4 +1,4 @@
-import type { PersistedRunState, RunSummary } from "@codemation/core";
+import type { PersistedRunState,RunSummary } from "@codemation/core";
 
 export interface WorkflowRunRepository {
   load(runId: string): Promise<PersistedRunState | undefined>;

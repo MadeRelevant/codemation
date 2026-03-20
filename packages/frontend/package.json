@@ -35,13 +35,6 @@
       },
       "import": "./dist/consumer.js"
     },
-    "./next/client": {
-      "types": "./dist/nextClient.d.ts",
-      "development": {
-        "import": "./src/nextClient.ts"
-      },
-      "import": "./dist/nextClient.js"
-    },
     "./next/server": {
       "types": "./dist/nextServer.d.ts",
       "development": {
@@ -65,8 +58,8 @@
     }
   },
   "scripts": {
-    "build": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextClient.ts src/nextServer.ts src/server.ts src/persistenceServer.ts --out-dir dist --sourcemap",
-    "dev": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextClient.ts src/nextServer.ts src/server.ts src/persistenceServer.ts --out-dir dist --sourcemap --watch",
+    "build": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextServer.ts src/server.ts src/persistenceServer.ts --out-dir dist --sourcemap",
+    "dev": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextServer.ts src/server.ts src/persistenceServer.ts --out-dir dist --sourcemap --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "pnpm run test:unit && pnpm run test:integration && pnpm run test:e2e",
@@ -75,7 +68,7 @@
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "coverage": "pnpm run coverage:integration",
     "coverage:integration": "vitest run --config vitest.integration.coverage.config.ts",
-    "coverage:credentials": "vitest run --config vitest.unit.config.ts test/credentialsScreen.test.tsx --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=text --coverage.reportsDirectory=./coverage/credentials-unit --coverage.include=src/ui/screens/CredentialsScreen.tsx && vitest run --config vitest.integration.config.ts test/http/credentialInstances.integration.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=text --coverage.reportsDirectory=./coverage/credentials-integration --coverage.include=src/presentation/http/routeHandlers/CredentialHttpRouteHandler.ts --coverage.include=src/presentation/http/routeHandlers/OAuth2HttpRouteHandler.ts --coverage.include=src/application/commands/CredentialCommandHandlers.ts --coverage.include=src/application/queries/CredentialQueryHandlers.ts --coverage.include=src/domain/credentials/**/*.ts --coverage.include=src/infrastructure/persistence/CredentialPersistenceStore.ts"
+    "coverage:credentials": "vitest run --config vitest.unit.config.ts test/credentialsScreen.test.tsx --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=text --coverage.reportsDirectory=./coverage/credentials-unit --coverage.include=../next-host/src/ui/screens/CredentialsScreen.tsx && vitest run --config vitest.integration.config.ts test/http/credentialInstances.integration.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=text --coverage.reportsDirectory=./coverage/credentials-integration --coverage.include=src/presentation/http/routeHandlers/CredentialHttpRouteHandler.ts --coverage.include=src/presentation/http/routeHandlers/OAuth2HttpRouteHandler.ts --coverage.include=src/application/commands/CredentialCommandHandlers.ts --coverage.include=src/application/queries/CredentialQueryHandlers.ts --coverage.include=src/domain/credentials/**/*.ts --coverage.include=src/infrastructure/persistence/CredentialPersistenceStore.ts"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",

@@ -1,8 +1,8 @@
-import test from "node:test";
+import type { NodeExecutionContext,TriggerTestItemsContext } from "@codemation/core";
+import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
 import assert from "node:assert/strict";
-import type { NodeExecutionContext, TriggerTestItemsContext } from "@codemation/core";
-import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
-import { ManualTrigger, ManualTriggerNode } from "../dist/index.js";
+import test from "node:test";
+import { ManualTrigger,ManualTriggerNode } from "../dist/index.js";
 
 class ManualTriggerExecutionContextFactory {
   static create(config: ManualTrigger<any>): NodeExecutionContext<ManualTrigger<any>> {

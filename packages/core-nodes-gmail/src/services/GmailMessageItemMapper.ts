@@ -1,7 +1,7 @@
-import type { Item, Items } from "@codemation/core";
+import type { Item,Items } from "@codemation/core";
 import { injectable } from "@codemation/core";
-import type { GmailMessageRecord } from "./GmailApiClient";
 import type { OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
+import type { GmailMessageRecord } from "./GmailApiClient";
 
 @injectable()
 export class GmailMessageItemMapper {

@@ -1,4 +1,4 @@
-import type { NodeOutputs, OutputPortKey } from "../../types";
+import type { NodeOutputs,OutputPortKey } from "../../types";
 
 export class OutputStats {
   static toItemsOutByPort(outputs: NodeOutputs): Record<OutputPortKey, number> {

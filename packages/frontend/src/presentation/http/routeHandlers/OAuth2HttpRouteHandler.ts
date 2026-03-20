@@ -1,4 +1,4 @@
-import { inject, injectable } from "@codemation/core";
+import { inject,injectable } from "@codemation/core";
 import serialize from "serialize-javascript";
 import { CredentialInstanceService } from "../../../domain/credentials/CredentialServices";
 import { OAuth2ConnectService } from "../../../domain/credentials/OAuth2ConnectService";

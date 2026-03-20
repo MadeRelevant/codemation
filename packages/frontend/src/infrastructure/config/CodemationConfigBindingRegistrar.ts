@@ -1,8 +1,8 @@
-import { instanceCachingFactory, type Container } from "@codemation/core";
+import { instanceCachingFactory,type Container } from "@codemation/core";
 import type {
-  CodemationBinding,
-  CodemationClassBinding,
-  CodemationValueBinding,
+CodemationBinding,
+CodemationClassBinding,
+CodemationValueBinding,
 } from "../../presentation/config/CodemationBinding";
 
 export class CodemationConfigBindingRegistrar {

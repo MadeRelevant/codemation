@@ -1,4 +1,4 @@
-import type { NodeDefinition, PersistedWorkflowSnapshotNode } from "../../../types";
+import type { NodeDefinition,PersistedWorkflowSnapshotNode } from "../../../types";
 import { MissingRuntimeNodeConfig } from "./MissingRuntimeNodeConfig";
 import { MissingRuntimeNodeToken } from "./MissingRuntimeNodeToken";
 import { MissingRuntimeTriggerConfig } from "./MissingRuntimeTriggerConfig";

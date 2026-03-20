@@ -1,14 +1,14 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
 import type { BinaryAttachment } from "@codemation/core";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { WorkflowExecutionInspector } from "../src/ui/workflowDetail/WorkflowExecutionInspector";
+import { WorkflowExecutionInspector } from "@codemation/next-host/src/ui/workflowDetail/WorkflowExecutionInspector";
 import type {
-  WorkflowExecutionInspectorActions,
-  WorkflowExecutionInspectorFormatting,
-  WorkflowExecutionInspectorModel,
-} from "../src/ui/workflowDetail/workflowDetailTypes";
+WorkflowExecutionInspectorActions,
+WorkflowExecutionInspectorFormatting,
+WorkflowExecutionInspectorModel,
+} from "@codemation/next-host/src/ui/workflowDetail/workflowDetailTypes";
+import { QueryClient,QueryClientProvider } from "@tanstack/react-query";
+import { cleanup,fireEvent,render,screen,within } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { afterEach,describe,expect,it,vi } from "vitest";
 
 describe("workflow execution inspector", () => {
   afterEach(() => {

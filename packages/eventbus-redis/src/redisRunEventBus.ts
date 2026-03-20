@@ -1,5 +1,9 @@
-import type { RunEvent, RunEventBus, RunEventSubscription, WorkflowId } from "@codemation/core";
+import type { RunEvent,RunEventBus,RunEventSubscription,WorkflowId } from "@codemation/core";
+
+
 import IORedis from "ioredis";
+
+import { RedisRunEventSubscription } from "./RedisRunEventSubscription";
 
 export class RedisRunEventBus implements RunEventBus {
   private readonly globalChannel: string;
@@ -57,17 +61,4 @@ export class RedisRunEventBus implements RunEventBus {
   }
 }
 
-class RedisRunEventSubscription implements RunEventSubscription {
-  constructor(
-    private readonly subscriber: IORedis,
-    private readonly channel: string,
-    private readonly handler: (channel: string, message: string) => void,
-  ) {}
-
-  async close(): Promise<void> {
-    this.subscriber.off("message", this.handler);
-    await this.subscriber.unsubscribe(this.channel);
-    this.subscriber.disconnect();
-  }
-}
-
+export { RedisRunEventSubscription } from "./RedisRunEventSubscription";

@@ -1,4 +1,4 @@
-import type { NodeActivationRequest, NodeInputsByPort } from "../../types";
+import type { NodeActivationRequest,NodeInputsByPort } from "../../types";
 
 export class InputPortMap {
   static empty(): NodeInputsByPort {

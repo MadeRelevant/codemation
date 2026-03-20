@@ -1,7 +1,7 @@
 "use client";
 
-import { InviteAcceptScreen } from "@codemation/frontend/next/client";
-import { Component, type ReactNode } from "react";
+import { Component,type ReactNode } from "react";
+import { InviteAcceptScreen } from "./screens/InviteAcceptScreen";
 
 export interface HostedInviteAcceptPageProps {
   readonly inviteToken: string;

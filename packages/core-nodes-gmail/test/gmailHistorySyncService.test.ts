@@ -1,20 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { OnNewGmailTrigger } from "../src/nodes/OnNewGmailTrigger";
 import {
-  GmailHistoryGapError,
-  type GmailApiClient,
-  type GmailHistoryDelta,
-  type GmailMessageAttachmentContent,
-  type GmailMessageRecord,
-  type GmailWatchRegistration,
+GmailHistoryGapError,
+type GmailApiClient,
+type GmailHistoryDelta,
+type GmailMessageAttachmentContent,
+type GmailMessageRecord,
+type GmailWatchRegistration,
 } from "../src/services/GmailApiClient";
-import type { GmailPulledNotification } from "../src/services/GmailPubSubPullClient";
 import { GmailConfiguredLabelService } from "../src/services/GmailConfiguredLabelService";
 import { GmailHistorySyncService } from "../src/services/GmailHistorySyncService";
 import { GmailMessageItemMapper } from "../src/services/GmailMessageItemMapper";
+import type { GmailPulledNotification } from "../src/services/GmailPubSubPullClient";
 import { GmailQueryMatcher } from "../src/services/GmailQueryMatcher";
 import { GmailWatchService } from "../src/services/GmailWatchService";
-import { OnNewGmailTrigger } from "../src/nodes/OnNewGmailTrigger";
 
 class InMemoryTriggerSetupStateStore {
   private readonly statesByKey = new Map<string, any>();

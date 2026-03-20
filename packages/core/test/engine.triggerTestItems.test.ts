@@ -1,16 +1,16 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 import type {
-  Items,
-  NodeExecutionContext,
-  NodeOutputs,
-  TestableTriggerNode,
-  TriggerNodeConfig,
-  TriggerSetupContext,
-  TriggerTestItemsContext,
-  TypeToken,
+Items,
+NodeExecutionContext,
+NodeOutputs,
+TestableTriggerNode,
+TriggerNodeConfig,
+TriggerSetupContext,
+TriggerTestItemsContext,
+TypeToken,
 } from "../src/index.ts";
-import { CallbackNodeConfig, chain, createEngineTestKit, items } from "./harness/index.ts";
+import { CallbackNodeConfig,chain,createEngineTestKit,items } from "./harness/index.ts";
 
 type PreviewSetupState = Readonly<{
   previewValue: string;

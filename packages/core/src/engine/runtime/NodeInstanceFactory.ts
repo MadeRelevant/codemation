@@ -1,5 +1,5 @@
-import type { NodeId, NodeResolver, WorkflowDefinition } from "../../types";
-import { MissingRuntimeNode, MissingRuntimeNodeToken, MissingRuntimeTrigger, MissingRuntimeTriggerToken } from "./persistedWorkflowResolver";
+import type { NodeId,NodeResolver,WorkflowDefinition } from "../../types";
+import { MissingRuntimeNode,MissingRuntimeNodeToken,MissingRuntimeTrigger,MissingRuntimeTriggerToken } from "./persistedWorkflowResolver";
 
 export class NodeInstanceFactory {
   constructor(private readonly nodeResolver: NodeResolver) {}

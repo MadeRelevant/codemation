@@ -1,4 +1,4 @@
-import { createWorkflowBuilder, MapData, WebhookTrigger } from "@codemation/core-nodes";
+import { createWorkflowBuilder,MapData,WebhookTrigger } from "@codemation/core-nodes";
 import { z } from "zod";
 
 export default createWorkflowBuilder({ id: "wf.webhook.normal", name: "Webhook normal completion" })

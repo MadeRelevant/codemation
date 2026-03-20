@@ -1,4 +1,4 @@
-import type { NodeId, NodeOutputs } from "../../types";
+import type { NodeId,NodeOutputs } from "../../types";
 
 export class RuntimeContinuationDiagnostics {
   static formatNodeLabel(args: { definition?: Readonly<{ id: NodeId; name?: string; type: unknown }>; nodeId: NodeId }): string {

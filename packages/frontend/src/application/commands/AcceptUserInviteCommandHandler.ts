@@ -1,0 +1,23 @@
+import { inject } from "@codemation/core";
+
+
+
+import { CommandHandler } from "../bus/CommandHandler";
+
+import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
+
+import { UserAccountService } from "../../domain/users/UserAccountService";
+import { AcceptUserInviteCommand } from "./AcceptUserInviteCommand";
+
+
+
+@HandlesCommand.for(AcceptUserInviteCommand)
+export class AcceptUserInviteCommandHandler extends CommandHandler<AcceptUserInviteCommand, void> {
+  constructor(@inject(UserAccountService) private readonly userAccounts: UserAccountService) {
+    super();
+  }
+
+  async execute(command: AcceptUserInviteCommand): Promise<void> {
+    await this.userAccounts.acceptInvite(command.token, command.password);
+  }
+}

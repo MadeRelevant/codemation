@@ -1,6 +1,6 @@
-import { ClassifyMailToolConfig } from "../tools/classifyMailTool";
-import { AIAgent, Callback, createWorkflowBuilder, If, ManualTrigger, MapData, OpenAIChatModelConfig } from "@codemation/core-nodes";
+import { AIAgent,Callback,createWorkflowBuilder,If,ManualTrigger,MapData,OpenAIChatModelConfig } from "@codemation/core-nodes";
 import { ExampleUppercase } from "@codemation/node-example";
+import { ClassifyMailToolConfig } from "../tools/classifyMailTool";
 
 export const ORDERS_CREATE_START = "orders.create.start";
 

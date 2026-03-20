@@ -1,23 +1,23 @@
+import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
-import { GmailHistorySyncService } from "../src/services/GmailHistorySyncService";
-import { GmailConfiguredLabelService } from "../src/services/GmailConfiguredLabelService";
-import { GmailMessageItemMapper } from "../src/services/GmailMessageItemMapper";
-import { GmailQueryMatcher } from "../src/services/GmailQueryMatcher";
-import { GmailWatchService } from "../src/services/GmailWatchService";
-import { GmailPullTriggerRuntime } from "../src/runtime/GmailPullTriggerRuntime";
-import type {
-  GmailApiClient,
-  GmailHistoryDelta,
-  GmailMessageAttachmentContent,
-  GmailMessageRecord,
-  GmailWatchRegistration,
-} from "../src/services/GmailApiClient";
-import type { GmailPulledNotification } from "../src/services/GmailPubSubPullClient";
 import { OnNewGmailTrigger } from "../src/nodes/OnNewGmailTrigger";
 import { OnNewGmailTriggerNode } from "../src/nodes/OnNewGmailTriggerNode";
+import { GmailPullTriggerRuntime } from "../src/runtime/GmailPullTriggerRuntime";
+import type {
+GmailApiClient,
+GmailHistoryDelta,
+GmailMessageAttachmentContent,
+GmailMessageRecord,
+GmailWatchRegistration,
+} from "../src/services/GmailApiClient";
+import { GmailConfiguredLabelService } from "../src/services/GmailConfiguredLabelService";
+import { GmailHistorySyncService } from "../src/services/GmailHistorySyncService";
+import { GmailMessageItemMapper } from "../src/services/GmailMessageItemMapper";
+import type { GmailPulledNotification } from "../src/services/GmailPubSubPullClient";
+import { GmailQueryMatcher } from "../src/services/GmailQueryMatcher";
 import { GmailTriggerAttachmentService } from "../src/services/GmailTriggerAttachmentService";
+import { GmailWatchService } from "../src/services/GmailWatchService";
 
 class InMemoryTriggerSetupStateStore {
   private readonly statesByKey = new Map<string, any>();

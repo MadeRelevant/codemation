@@ -1,4 +1,4 @@
-import type { Container, TypeToken } from "../../di";
+import type { Container,TypeToken } from "../../di";
 import type { NodeResolver } from "../../types";
 
 export class ContainerNodeResolver implements NodeResolver {

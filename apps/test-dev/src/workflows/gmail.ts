@@ -1,5 +1,5 @@
-import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "@codemation/core-nodes-gmail";
-import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
+import { Callback,createWorkflowBuilder } from "@codemation/core-nodes";
+import { OnNewGmailTrigger,type OnNewGmailTriggerItemJson } from "@codemation/core-nodes-gmail";
 import { TestDevGmailEnvironment } from "../bootstrap/TestDevGmailEnvironment";
 
 const gmailEnvironment = new TestDevGmailEnvironment();
@@ -16,7 +16,7 @@ type GmailWorkflowResultJson = Readonly<{
 export default createWorkflowBuilder({ id: "wf.gmail.pull", name: "Gmail pull trigger demo" })
   .trigger(
     new OnNewGmailTrigger(
-      "On new Gmail message",
+      "On Demo Mail",
       {
         mailbox: gmailTriggerConfiguration.mailbox,
         topicName: gmailTriggerConfiguration.topicName,

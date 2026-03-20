@@ -1,5 +1,5 @@
+import type { Item,Items } from "./contracts/workflowTypes";
 import { injectable } from "./di";
-import type { Item, Items } from "./contracts/workflowTypes";
 
 @injectable()
 export class ItemsInputNormalizer {

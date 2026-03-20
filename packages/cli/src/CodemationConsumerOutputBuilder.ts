@@ -1,8 +1,8 @@
-import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
 import type { FSWatcher } from "chokidar";
 import { watch } from "chokidar";
+import { copyFile,mkdir,readdir,readFile,rm,stat,writeFile } from "node:fs/promises";
+import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import ts from "typescript";
 
 export type CodemationConsumerOutputBuildSnapshot = Readonly<{

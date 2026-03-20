@@ -1,5 +1,8 @@
 import path from "node:path";
 
+const frontendSrc = path.resolve(import.meta.dirname, "./src");
+const nextHostSrc = path.resolve(import.meta.dirname, "../next-host/src");
+
 export const frontendVitestSharedConfig = {
   esbuild: {
     jsx: "automatic" as const,
@@ -8,6 +11,8 @@ export const frontendVitestSharedConfig = {
   resolve: {
     alias: [
       { find: "@codemation/core/browser", replacement: path.resolve(import.meta.dirname, "../core/src/browser.ts") },
+      { find: /^@codemation\/frontend-src\/(.+)$/, replacement: `${frontendSrc}/$1` },
+      { find: /^@codemation\/next-host\/src\/(.+)$/, replacement: `${nextHostSrc}/$1` },
       { find: "@codemation/frontend/client", replacement: path.resolve(import.meta.dirname, "./src/client.ts") },
       { find: "@codemation/frontend/server", replacement: path.resolve(import.meta.dirname, "./src/server.ts") },
       { find: "@codemation/frontend/persistence", replacement: path.resolve(import.meta.dirname, "./src/persistenceServer.ts") },

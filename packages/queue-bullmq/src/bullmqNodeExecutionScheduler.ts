@@ -1,4 +1,4 @@
-import type { NodeExecutionRequest, NodeExecutionScheduler } from "@codemation/core";
+import type { NodeExecutionRequest,NodeExecutionScheduler } from "@codemation/core";
 import { Queue } from "bullmq";
 
 import type { RedisConnectionConfig } from "./redisConnection";

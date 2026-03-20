@@ -1,4 +1,4 @@
-import { createWorkflowBuilder, ManualTrigger, Wait, MapData } from "@codemation/core-nodes"
+import { createWorkflowBuilder,ManualTrigger,MapData,Wait } from "@codemation/core-nodes"
 
 type RealtimeWaitJson = Readonly<Record<string, unknown>>
 

@@ -1,7 +1,7 @@
-import { inject, injectable } from "@codemation/core";
-import { CodemationWebhookRegistry } from "./CodemationWebhookRegistry";
+import { inject,injectable } from "@codemation/core";
 import type { WebhookEndpointDefinition } from "../../domain/webhooks/WebhookEndpointRepository";
 import { WebhookEndpointRepository } from "../../domain/webhooks/WebhookEndpointRepository";
+import { CodemationWebhookRegistry } from "./CodemationWebhookRegistry";
 
 @injectable()
 export class WebhookEndpointRepositoryAdapter implements WebhookEndpointRepository {

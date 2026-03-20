@@ -1,7 +1,7 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
-import type { PersistedRunState, WorkflowDto } from "../../src/client";
-import { WorkflowDetailFixtureFactory, WorkflowDetailScreenTestKit } from "./testkit";
+import type { PersistedRunState,WorkflowDto } from "@codemation/next-host/src/ui/realtime/realtime";
+import { fireEvent,screen,waitFor } from "@testing-library/react";
+import { afterEach,describe,expect,it } from "vitest";
+import { WorkflowDetailFixtureFactory,WorkflowDetailScreenTestKit } from "./testkit";
 
 class PinnedSkippedExecutionFixture {
   static readonly workflowId = "wf.frontend.pinned-skipped";

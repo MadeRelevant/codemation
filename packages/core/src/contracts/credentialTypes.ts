@@ -1,4 +1,4 @@
-import type { NodeId, WorkflowId } from "./workflowTypes";
+import type { NodeId,WorkflowId } from "./workflowTypes";
 
 export type CredentialTypeId = string;
 export type CredentialInstanceId = string;

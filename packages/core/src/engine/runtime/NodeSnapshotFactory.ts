@@ -1,12 +1,12 @@
 import type {
-  NodeActivationId,
-  NodeExecutionSnapshot,
-  NodeId,
-  NodeInputsByPort,
-  NodeOutputs,
-  ParentExecutionRef,
-  RunId,
-  WorkflowId,
+NodeActivationId,
+NodeExecutionSnapshot,
+NodeId,
+NodeInputsByPort,
+NodeOutputs,
+ParentExecutionRef,
+RunId,
+WorkflowId,
 } from "../../types";
 
 export class NodeSnapshotFactory {

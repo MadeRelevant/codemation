@@ -1,11 +1,27 @@
-import { createHash } from "node:crypto";
-import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, rm, stat } from "node:fs/promises";
+
+
+import { createReadStream,createWriteStream } from "node:fs";
+
+
+import { mkdir,rm,stat } from "node:fs/promises";
+
+
 import path from "node:path";
-import { Readable, Transform } from "node:stream";
+
+
+import { Readable } from "node:stream";
+
+
 import { ReadableStream } from "node:stream/web";
+
+
 import { pipeline } from "node:stream/promises";
-import type { BinaryBody, BinaryStorage, BinaryStorageReadResult, BinaryStorageStatResult, BinaryStorageWriteResult } from "@codemation/core";
+
+
+import type { BinaryBody,BinaryStorage,BinaryStorageReadResult,BinaryStorageStatResult,BinaryStorageWriteResult } from "@codemation/core";
+
+import { BinaryBodyNodeReadableFactory } from "./BinaryBodyNodeReadableFactory";
+import { CountingSha256Transform } from "./CountingSha256Transform";
 
 export class LocalFilesystemBinaryStorage implements BinaryStorage {
   readonly driverName = "filesystem";
@@ -68,42 +84,5 @@ export class LocalFilesystemBinaryStorage implements BinaryStorage {
   }
 }
 
-class BinaryBodyNodeReadableFactory {
-  constructor(private readonly body: BinaryBody) {}
-
-  create(): Readable {
-    if (this.body instanceof Uint8Array) {
-      return Readable.from([this.body]);
-    }
-    if (this.body instanceof ArrayBuffer) {
-      return Readable.from([new Uint8Array(this.body)]);
-    }
-    if (this.body instanceof ReadableStream) {
-      return Readable.fromWeb(this.body);
-    }
-    return Readable.from(this.body);
-  }
-}
-
-class CountingSha256Transform extends Transform {
-  private readonly hash = createHash("sha256");
-  private byteCount = 0;
-
-  get size(): number {
-    return this.byteCount;
-  }
-
-  get sha256(): string {
-    return this.hash.digest("hex");
-  }
-
-  override _transform(
-    chunk: Buffer,
-    _encoding: BufferEncoding,
-    callback: (error?: Error | null, data?: Buffer) => void,
-  ): void {
-    this.byteCount += chunk.byteLength;
-    this.hash.update(chunk);
-    callback(null, chunk);
-  }
-}
+export { BinaryBodyNodeReadableFactory } from "./BinaryBodyNodeReadableFactory";
+export { CountingSha256Transform } from "./CountingSha256Transform";

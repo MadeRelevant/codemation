@@ -1,4 +1,4 @@
-import { createWorkflowBuilder, MapData, WebhookRespondNowAndContinueError, WebhookTrigger } from "@codemation/core-nodes";
+import { createWorkflowBuilder,MapData,WebhookRespondNowAndContinueError,WebhookTrigger } from "@codemation/core-nodes";
 
 export default createWorkflowBuilder({ id: "wf.webhook.respond-continue", name: "Webhook respond now and continue" })
   .trigger(

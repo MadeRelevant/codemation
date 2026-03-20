@@ -1,4 +1,4 @@
-import type { HttpMethod, NodeId, WorkflowId } from "@codemation/core";
+import type { HttpMethod,NodeId,WorkflowId } from "@codemation/core";
 
 export class CodemationWebhookRegistry {
   private readonly entriesByEndpointId = new Map<

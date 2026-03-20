@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import type { PersistedRunState } from "@codemation/next-host/src/ui/realtime/realtime";
+import { fireEvent,screen,waitFor } from "@testing-library/react";
+import { afterEach,describe,expect,it } from "vitest";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
-import type { PersistedRunState } from "../../src/client";
-import { WorkflowDetailRuntimeFixtureFactory, WorkflowDetailScreenTestKit, type WorkflowDetailRuntimeFixture } from "./testkit";
+import { WorkflowDetailRuntimeFixtureFactory,WorkflowDetailScreenTestKit,type WorkflowDetailRuntimeFixture } from "./testkit";
 
 type OverlayBody = Readonly<{
   currentState: Readonly<{

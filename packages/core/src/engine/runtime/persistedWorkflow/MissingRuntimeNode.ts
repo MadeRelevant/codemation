@@ -1,4 +1,4 @@
-import type { Items, Node, NodeOutputs } from "../../../types";
+import type { Items,Node,NodeOutputs } from "../../../types";
 import { MissingRuntimeNodeConfig } from "./MissingRuntimeNodeConfig";
 
 export class MissingRuntimeNode implements Node<MissingRuntimeNodeConfig> {

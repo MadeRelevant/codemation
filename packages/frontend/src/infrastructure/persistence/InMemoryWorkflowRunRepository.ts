@@ -1,12 +1,12 @@
 import type {
-  NodeId,
-  NodeOutputs,
-  ParentExecutionRef,
-  PersistedRunState,
-  RunId,
-  RunStateStore,
-  RunSummary,
-  WorkflowId,
+NodeId,
+NodeOutputs,
+ParentExecutionRef,
+PersistedRunState,
+RunId,
+RunStateStore,
+RunSummary,
+WorkflowId,
 } from "@codemation/core";
 import { injectable } from "@codemation/core";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";

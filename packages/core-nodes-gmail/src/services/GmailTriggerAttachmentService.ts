@@ -1,7 +1,7 @@
-import type { Item, Items, NodeExecutionContext } from "@codemation/core";
+import type { Item,Items,NodeExecutionContext } from "@codemation/core";
 import { injectable } from "@codemation/core";
-import type { OnNewGmailTrigger, OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
-import type { GmailApiClient, GmailMessageAttachmentRecord } from "./GmailApiClient";
+import type { OnNewGmailTrigger,OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
+import type { GmailApiClient,GmailMessageAttachmentRecord } from "./GmailApiClient";
 
 @injectable()
 export class GmailTriggerAttachmentService {

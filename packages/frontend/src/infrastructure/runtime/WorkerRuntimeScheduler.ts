@@ -1,12 +1,12 @@
 import type {
-  BinaryStorage,
-  CredentialSessionService,
-  NodeActivationContinuation,
-  NodeExecutionScheduler,
-  NodeResolver,
-  RunStateStore,
-  WorkflowDefinition,
-  WorkflowId,
+BinaryStorage,
+CredentialSessionService,
+NodeActivationContinuation,
+NodeExecutionScheduler,
+NodeResolver,
+RunStateStore,
+WorkflowDefinition,
+WorkflowId,
 } from "@codemation/core";
 
 export type WorkerRuntimeHandle = Readonly<{

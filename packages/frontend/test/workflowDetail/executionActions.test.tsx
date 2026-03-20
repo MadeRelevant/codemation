@@ -1,6 +1,6 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
-import { WorkflowDetailFixtureFactory, WorkflowDetailRealtimeFixtureFactory, WorkflowDetailScreenTestKit } from "./testkit";
+import { fireEvent,screen,waitFor } from "@testing-library/react";
+import { afterEach,describe,expect,it } from "vitest";
+import { WorkflowDetailFixtureFactory,WorkflowDetailRealtimeFixtureFactory,WorkflowDetailScreenTestKit } from "./testkit";
 import { WorkflowDetailTestEnvironment } from "./testkit/WorkflowDetailTestEnvironment";
 
 describe("workflow detail execution actions", () => {

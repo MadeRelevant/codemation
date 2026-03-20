@@ -1,8 +1,8 @@
+import type { NodeExecutionContext } from "@codemation/core";
+import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
+import { HttpRequest,HttpRequestNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { NodeExecutionContext } from "@codemation/core";
-import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
-import { HttpRequest, HttpRequestNode } from "@codemation/core-nodes";
 
 class HttpRequestNodeTestContextFactory {
   static create(config: HttpRequest<any>): NodeExecutionContext<HttpRequest<any>> {

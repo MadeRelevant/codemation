@@ -1,10 +1,10 @@
-import { access, readdir, stat } from "node:fs/promises";
+import type { WorkflowDefinition } from "@codemation/core";
+import { access,readdir,stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { WorkflowDefinition } from "@codemation/core";
-import type { CodemationConfig } from "../config/CodemationConfig";
 import type { NamespacedUnregister } from "tsx/esm/api";
 import { register } from "tsx/esm/api";
+import type { CodemationConfig } from "../config/CodemationConfig";
 
 export type CodemationConsumerConfigResolution = Readonly<{
   config: CodemationConfig;

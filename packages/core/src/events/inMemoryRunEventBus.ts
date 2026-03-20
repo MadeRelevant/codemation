@@ -1,13 +1,9 @@
 import type { WorkflowId } from "../types";
-import type { RunEvent, RunEventBus, RunEventSubscription } from "./runEvents";
 
-class InMemoryRunEventSubscription implements RunEventSubscription {
-  constructor(private readonly onClose: () => void) {}
 
-  async close(): Promise<void> {
-    this.onClose();
-  }
-}
+import type { RunEvent,RunEventBus,RunEventSubscription } from "./runEvents";
+
+import { InMemoryRunEventSubscription } from "./InMemoryRunEventSubscription";
 
 export class InMemoryRunEventBus implements RunEventBus {
   private readonly globalListeners = new Set<(event: RunEvent) => void>();
@@ -38,3 +34,5 @@ export class InMemoryRunEventBus implements RunEventBus {
     });
   }
 }
+
+export { InMemoryRunEventSubscription } from "./InMemoryRunEventSubscription";

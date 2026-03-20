@@ -1,4 +1,4 @@
-import { Callback, createWorkflowBuilder, If, ManualTrigger, MapData, Wait } from "@codemation/core-nodes";
+import { Callback,createWorkflowBuilder,If,ManualTrigger,MapData,Wait } from "@codemation/core-nodes";
 
 export default createWorkflowBuilder({ id: "wf.multi-item-race", name: "Multi-item race demo" })
   .trigger(

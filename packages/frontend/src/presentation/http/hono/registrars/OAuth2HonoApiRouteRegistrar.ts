@@ -1,4 +1,4 @@
-import { inject, injectable, registry } from "@codemation/core";
+import { inject,injectable,registry } from "@codemation/core";
 import { Hono } from "hono";
 import { ApplicationTokens } from "../../../../applicationTokens";
 import { OAuth2HttpRouteHandler } from "../../routeHandlers/OAuth2HttpRouteHandler";

@@ -1,18 +1,18 @@
 import type { Container } from "@codemation/core";
 import { GoogleGmailApiClient } from "../adapters/google/GoogleGmailApiClient";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
+import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailOAuthCredential } from "../contracts/GmailOAuthCredential";
 import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
-import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
-import { GmailHistorySyncService } from "../services/GmailHistorySyncService";
+import { GmailPullTriggerRuntime } from "../runtime/GmailPullTriggerRuntime";
 import { GmailConfiguredLabelService } from "../services/GmailConfiguredLabelService";
+import { GmailHistorySyncService } from "../services/GmailHistorySyncService";
 import { GmailMessageItemMapper } from "../services/GmailMessageItemMapper";
 import { GmailQueryMatcher } from "../services/GmailQueryMatcher";
 import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
 import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
 import { GmailWatchService } from "../services/GmailWatchService";
-import { GmailPullTriggerRuntime } from "../runtime/GmailPullTriggerRuntime";
 
 type PluginContext = Readonly<{
   container: Container;

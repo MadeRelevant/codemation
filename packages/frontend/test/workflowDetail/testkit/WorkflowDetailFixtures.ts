@@ -1,14 +1,14 @@
 import {
-  AgentAttachmentNodeIdFactory,
-  PersistedWorkflowSnapshotFactory,
-  PersistedWorkflowTokenRegistry,
-  WorkflowBuilder,
-  type ChatModelConfig,
-  type ToolConfig,
-  type WorkflowDefinition,
+AgentAttachmentNodeIdFactory,
+PersistedWorkflowSnapshotFactory,
+PersistedWorkflowTokenRegistry,
+WorkflowBuilder,
+type ChatModelConfig,
+type ToolConfig,
+type WorkflowDefinition,
 } from "@codemation/core";
-import { AIAgent, Callback, ManualTrigger, WebhookTrigger } from "@codemation/core-nodes";
-import type { PersistedRunState, WorkflowDebuggerOverlayState, WorkflowDto } from "../../../src/client";
+import { AIAgent,Callback,ManualTrigger,WebhookTrigger } from "@codemation/core-nodes";
+import type { PersistedRunState,WorkflowDebuggerOverlayState,WorkflowDto } from "@codemation/next-host/src/ui/realtime/realtime";
 import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
 
 export type WorkflowDetailTriggerKind = "manual" | "webhook";

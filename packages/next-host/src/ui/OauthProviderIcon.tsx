@@ -1,8 +1,8 @@
 "use client";
 
-import { Component, type ReactNode } from "react";
+import { Component,type ReactNode } from "react";
 import type { SimpleIcon } from "simple-icons";
-import { siDotnet, siGithub, siOpenid } from "simple-icons";
+import { siDotnet,siGithub,siOpenid } from "simple-icons";
 
 /**
  * Standard color Google "G" (multicolor). Simple Icons only ships a monochrome mark;

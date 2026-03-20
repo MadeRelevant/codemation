@@ -1,7 +1,7 @@
-import { PersistedWorkflowSnapshotFactory, PersistedWorkflowTokenRegistry, chatModel, tool, type ChatModelConfig, type ToolConfig } from "@codemation/core";
-import { describe, expect, it } from "vitest";
+import { PersistedWorkflowSnapshotFactory,PersistedWorkflowTokenRegistry,chatModel,tool,type ChatModelConfig,type ToolConfig } from "@codemation/core";
+import { PersistedWorkflowSnapshotMapper } from "@codemation/next-host/src/ui/workflowDetail/PersistedWorkflowSnapshotMapper";
+import { describe,expect,it } from "vitest";
 import { WorkflowDefinitionMapper } from "../src/application/mapping/WorkflowDefinitionMapper";
-import { PersistedWorkflowSnapshotMapper } from "../src/ui/workflowDetail/PersistedWorkflowSnapshotMapper";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit";
 
 @chatModel({ packageName: "@codemation/frontend-parity" })

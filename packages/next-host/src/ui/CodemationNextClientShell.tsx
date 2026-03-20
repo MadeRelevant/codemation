@@ -1,7 +1,10 @@
 "use client";
 
-import { Component, type ReactNode } from "react";
-import { Providers } from "@codemation/frontend/next/client";
+import "@xyflow/react/dist/style.css";
+import "rc-tree/assets/index.css";
+
+import { Component,type ReactNode } from "react";
+import { Providers } from "./providers/Providers";
 
 export interface CodemationNextClientShellProps {
   readonly children: ReactNode;

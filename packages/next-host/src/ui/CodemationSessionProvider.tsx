@@ -2,7 +2,7 @@
 
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
-import { Component, type ReactNode } from "react";
+import { Component,type ReactNode } from "react";
 
 type CodemationSessionRootProps = Readonly<{
   children: ReactNode;

@@ -1,4 +1,4 @@
-import type { HttpMethod, WebhookInvocationMatch, WebhookTriggerMatcher } from "../../types";
+import type { HttpMethod,WebhookInvocationMatch,WebhookTriggerMatcher } from "../../types";
 
 export class InMemoryWebhookTriggerMatcher implements WebhookTriggerMatcher {
   private readonly entriesByEndpointId = new Map<string, WebhookInvocationMatch>();

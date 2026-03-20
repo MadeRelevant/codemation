@@ -1,7 +1,6 @@
+import type { WorkflowDefinition,WorkflowRegistry } from "@codemation/core";
+import { CoreTokens,inject } from "@codemation/core";
 import { HandlesQuery } from "../../infrastructure/di/HandlesQuery";
-import type { WorkflowDefinition } from "@codemation/core";
-import { CoreTokens, inject } from "@codemation/core";
-import type { WorkflowRegistry } from "@codemation/core";
 import { QueryHandler } from "../bus/QueryHandler";
 import { GetWorkflowSummariesQuery } from "./GetWorkflowSummariesQuery";
 

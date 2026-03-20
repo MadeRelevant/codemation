@@ -1,11 +1,11 @@
-import { screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { screen,waitFor } from "@testing-library/react";
+import { afterEach,describe,expect,it } from "vitest";
 import {
-  WorkflowDetailFixtureFactory,
-  WorkflowDetailRealtimeFixtureFactory,
-  WorkflowDetailScreenTestKit,
-  WorkflowExecutionTreeAssertions,
-  WorkflowStatusAssertions,
+WorkflowDetailFixtureFactory,
+WorkflowDetailRealtimeFixtureFactory,
+WorkflowDetailScreenTestKit,
+WorkflowExecutionTreeAssertions,
+WorkflowStatusAssertions,
 } from "./testkit";
 
 describe("workflow detail realtime flows", () => {

@@ -1,8 +1,8 @@
-import type { TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
-import { CoreTokens, inject, injectable } from "@codemation/core";
+import type { TriggerInstanceId,TriggerSetupStateStore } from "@codemation/core";
+import { CoreTokens,inject,injectable } from "@codemation/core";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
-import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
 import type { GmailApiClient } from "./GmailApiClient";
+import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
 
 @injectable()
 export class GmailWatchService {

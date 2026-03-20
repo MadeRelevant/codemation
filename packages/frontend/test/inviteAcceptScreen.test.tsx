@@ -1,7 +1,7 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { InviteAcceptScreen } from "@codemation/next-host/src/ui/screens/InviteAcceptScreen";
+import { cleanup,fireEvent,render,screen,waitFor } from "@testing-library/react";
+import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import { ApiPaths } from "../src/presentation/http/ApiPaths";
-import { InviteAcceptScreen } from "../src/ui/screens/InviteAcceptScreen";
 
 describe("InviteAcceptScreen", () => {
   let fetchMock: ReturnType<typeof vi.fn>;

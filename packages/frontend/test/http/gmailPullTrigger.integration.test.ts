@@ -1,28 +1,28 @@
 // @vitest-environment node
 
-import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
 import type { PersistedRunState } from "@codemation/core";
+import { Callback,createWorkflowBuilder } from "@codemation/core-nodes";
+import path from "node:path";
+import { afterEach,describe,expect,it } from "vitest";
+import {
+GmailNodes,
+GmailNodeTokens,
+OnNewGmailTrigger,
+type GmailApiClient,
+type GmailHistoryDelta,
+type GmailMessageAttachmentContent,
+type GmailMessageRecord,
+type GmailPulledNotification,
+type GmailWatchRegistration,
+type OnNewGmailTriggerItemJson,
+} from "../../../core-nodes-gmail/src/index";
 import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
 import type { CodemationBinding } from "../../src/presentation/config/CodemationBinding";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
-import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
-import {
-  GmailNodes,
-  GmailNodeTokens,
-  OnNewGmailTrigger,
-  type GmailApiClient,
-  type GmailHistoryDelta,
-  type GmailMessageAttachmentContent,
-  type GmailMessageRecord,
-  type GmailPulledNotification,
-  type GmailWatchRegistration,
-  type OnNewGmailTriggerItemJson,
-} from "../../../core-nodes-gmail/src/index";
-import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
+import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
 
 class FakeGmailApiClient implements GmailApiClient {
   labels = [{ id: "IMPORTANT", name: "IMPORTANT" }] as const;

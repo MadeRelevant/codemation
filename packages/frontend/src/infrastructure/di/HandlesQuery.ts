@@ -1,6 +1,6 @@
-import { injectable, registry } from "@codemation/core";
-import type { QueryHandler } from "../../application/bus/QueryHandler";
+import { injectable,registry } from "@codemation/core";
 import type { Query } from "../../application/bus/Query";
+import type { QueryHandler } from "../../application/bus/QueryHandler";
 import { ApplicationTokens } from "../../applicationTokens";
 
 type AbstractType<TInstance> = abstract new (...args: any[]) => TInstance;

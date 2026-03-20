@@ -1,29 +1,31 @@
-import type { AgentCanvasPresentation, Tool, ToolConfig, ToolExecuteArgs } from "@codemation/core";
-import { inject, tool } from "@codemation/core";
-import type { CanvasIconName } from "@codemation/core-nodes";
+import type { Tool,ToolExecuteArgs } from "@codemation/core";
+
+
+import { inject,tool } from "@codemation/core";
+
+
+
+
 import { z } from "zod";
+
+
 import { TestDevMailKeywordCatalog } from "../bootstrap/TestDevMailKeywordCatalog";
+
+import type { ClassifyMailToolConfig } from "./ClassifyMailToolConfig";
 
 const classifyMailInputSchema = z.object({
   subject: z.string().optional(),
   body: z.string().optional(),
 });
 
+
+
 const classifyMailOutputSchema = z.object({
   isRfq: z.boolean(),
   reason: z.string(),
 });
 
-export class ClassifyMailToolConfig implements ToolConfig {
-  readonly type = ClassifyMailTool;
 
-  constructor(
-    public readonly name: string,
-    public readonly keywords: ReadonlyArray<string>,
-    public readonly description = "Classify an email as RFQ (request for quotation) or not.",
-    public readonly presentation?: AgentCanvasPresentation<CanvasIconName>,
-  ) {}
-}
 
 @tool()
 export class ClassifyMailTool implements Tool<ClassifyMailToolConfig, typeof classifyMailInputSchema, typeof classifyMailOutputSchema> {
@@ -54,3 +56,4 @@ export class ClassifyMailTool implements Tool<ClassifyMailToolConfig, typeof cla
   }
 }
 
+export { ClassifyMailToolConfig } from "./ClassifyMailToolConfig";

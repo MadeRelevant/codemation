@@ -1,9 +1,9 @@
+import { CodemationPostgresPrismaClientFactory,type PrismaClient } from "@codemation/frontend/persistence";
+import { CodemationConsumerConfigLoader } from "@codemation/frontend/server";
 import { hash } from "bcryptjs";
 import { config as loadDotenv } from "dotenv";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { CodemationConsumerConfigLoader } from "@codemation/frontend/server";
-import { CodemationPostgresPrismaClientFactory, type PrismaClient } from "@codemation/frontend/persistence";
 
 export type CodemationLocalUserCreateOptions = Readonly<{
   consumerRoot?: string;

@@ -1,4 +1,4 @@
-import type { HttpMethod, Items, NodeExecutionContext, TriggerNodeConfig, TypeToken } from "@codemation/core";
+import type { HttpMethod,Items,NodeExecutionContext,TriggerNodeConfig,TypeToken } from "@codemation/core";
 import type { ZodType } from "zod";
 import { WebhookTriggerNode } from "./webhookTriggerNode";
 

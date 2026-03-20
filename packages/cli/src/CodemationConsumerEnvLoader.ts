@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
 import { parse } from "dotenv";
+import { existsSync,readFileSync } from "node:fs";
+import path from "node:path";
 
 /**
  * Loads the consumer project's dotenv files so `codemation dev` can forward them to the Next host.

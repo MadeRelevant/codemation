@@ -1,18 +1,18 @@
 import type {
-  BinaryStorage,
-  CredentialSessionService,
-  NodeActivationContinuation,
-  NodeExecutionRequest,
-  NodeExecutionScheduler,
-  NodeResolver,
-  RunStateStore,
-  WorkflowDefinition,
-  WorkflowId,
+BinaryStorage,
+CredentialSessionService,
+NodeActivationContinuation,
+NodeExecutionRequest,
+NodeExecutionScheduler,
+NodeResolver,
+RunStateStore,
+WorkflowDefinition,
+WorkflowId,
 } from "@codemation/core";
 
-import type { RedisConnectionConfig } from "./redisConnection";
 import { BullmqNodeExecutionScheduler } from "./bullmqNodeExecutionScheduler";
 import { BullmqWorker } from "./bullmqWorker";
+import type { RedisConnectionConfig } from "./redisConnection";
 
 export class BullmqScheduler implements NodeExecutionScheduler {
   private readonly scheduler: BullmqNodeExecutionScheduler;

@@ -1,5 +1,5 @@
 import { injectable } from "@codemation/core";
-import type { GmailApiClient, GmailLabelRecord } from "./GmailApiClient";
+import type { GmailApiClient,GmailLabelRecord } from "./GmailApiClient";
 
 @injectable()
 export class GmailConfiguredLabelService {

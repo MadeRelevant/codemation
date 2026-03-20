@@ -1,14 +1,14 @@
 import type {
-  MultiInputNode,
-  Node,
-  NodeActivationContinuation,
-  NodeActivationReceipt,
-  NodeActivationRequest,
-  NodeActivationScheduler,
-  NodeResolver,
-  RunId,
+MultiInputNode,
+Node,
+NodeActivationContinuation,
+NodeActivationReceipt,
+NodeActivationRequest,
+NodeActivationScheduler,
+NodeResolver,
+RunId,
 } from "../../types";
-import { MissingRuntimeNode, MissingRuntimeNodeToken, MissingRuntimeTrigger, MissingRuntimeTriggerToken } from "../runtime/persistedWorkflowResolver";
+import { MissingRuntimeNode,MissingRuntimeNodeToken,MissingRuntimeTrigger,MissingRuntimeTriggerToken } from "../runtime/persistedWorkflowResolver";
 
 export class InlineDrivingScheduler implements NodeActivationScheduler {
   private continuation: NodeActivationContinuation | undefined;

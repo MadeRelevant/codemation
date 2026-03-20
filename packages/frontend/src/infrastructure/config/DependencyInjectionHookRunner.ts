@@ -1,5 +1,5 @@
-import type { Container, TypeToken } from "@codemation/core";
-import type { CodemationBootContext, CodemationBootHook } from "../../presentation/config/CodemationConfig";
+import type { Container,TypeToken } from "@codemation/core";
+import type { CodemationBootContext,CodemationBootHook } from "../../presentation/config/CodemationConfig";
 
 export class DependencyInjectionHookRunner {
   async run(args: Readonly<{ bootHookToken: TypeToken<CodemationBootHook> | undefined; container: Container; context: CodemationBootContext }>): Promise<void> {

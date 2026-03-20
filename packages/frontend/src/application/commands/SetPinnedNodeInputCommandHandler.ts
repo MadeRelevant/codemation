@@ -1,9 +1,9 @@
-import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
-import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
+import { ItemsInputNormalizer,inject,type PersistedRunState } from "@codemation/core";
 import { ApplicationTokens } from "../../applicationTokens";
-import { CommandHandler } from "../bus/CommandHandler";
-import { ItemsInputNormalizer, inject, type PersistedRunState } from "@codemation/core";
+import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
+import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
 import { ApplicationRequestError } from "../ApplicationRequestError";
+import { CommandHandler } from "../bus/CommandHandler";
 import { SetPinnedNodeInputCommand } from "./SetPinnedNodeInputCommand";
 
 @HandlesCommand.for(SetPinnedNodeInputCommand)

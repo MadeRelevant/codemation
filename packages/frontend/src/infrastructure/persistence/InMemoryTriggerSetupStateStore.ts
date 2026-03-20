@@ -1,4 +1,4 @@
-import type { PersistedTriggerSetupState, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
+import type { PersistedTriggerSetupState,TriggerInstanceId,TriggerSetupStateStore } from "@codemation/core";
 import { injectable } from "@codemation/core";
 
 @injectable()

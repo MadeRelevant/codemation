@@ -1,4 +1,4 @@
-import type { NodeId, NodeOutputs, ParentExecutionRef, PersistedRunState, RunId, RunListingStore, RunStateStore, RunSummary, WorkflowId } from "../../types";
+import type { NodeId,NodeOutputs,ParentExecutionRef,PersistedRunState,RunId,RunListingStore,RunStateStore,RunSummary,WorkflowId } from "../../types";
 
 export class InMemoryRunStateStore implements RunStateStore, RunListingStore {
   private readonly runs = new Map<RunId, PersistedRunState>();

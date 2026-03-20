@@ -1,68 +1,94 @@
 import type {
-  ActivationIdFactory,
-  CurrentStateExecutionRequest,
-  CredentialSessionService,
-  EngineDeps,
-  ExecutionFrontierPlan,
-  ExecutionContextFactory,
-  Items,
-  JsonValue,
-  NodeActivationContinuation,
-  NodeActivationId,
-  NodeActivationObserver,
-  NodeActivationRequest,
-  NodeActivationScheduler,
-  NodeExecutionContext,
-  NodeExecutionStatePublisher,
-  NodeExecutionSnapshot,
-  NodeActivationStats,
-  NodeId,
-  NodeResolver,
-  NodeInputsByPort,
-  NodeOutputs,
-  ParentExecutionRef,
-  PendingNodeExecution,
-  PersistedRunControlState,
-  RunExecutionOptions,
-  RunCurrentState,
-  RunDataFactory,
-  RunQueueEntry,
-  RunId,
-  RunIdFactory,
-  RunResult,
-  RunStateStore,
-  TestableTriggerNode,
-  TriggerNode,
-  TriggerCleanupHandle,
-  TriggerInstanceId,
-  TriggerNodeConfig,
-  TriggerSetupStateStore,
-  WebhookControlSignal,
-  WebhookRegistrar,
-  WebhookRunResult,
-  WorkflowDefinition,
-  WorkflowId,
-  WorkflowRegistry,
-  WorkflowRunnerResolver,
-  WebhookTriggerMatcher,
+ActivationIdFactory,
+CredentialSessionService,
+CurrentStateExecutionRequest,
+EngineDeps,
+ExecutionContextFactory,
+ExecutionFrontierPlan,
+Items,
+JsonValue,
+NodeActivationContinuation,
+NodeActivationId,
+NodeActivationObserver,
+NodeActivationRequest,
+NodeActivationScheduler,
+NodeActivationStats,
+NodeExecutionContext,
+NodeExecutionSnapshot,
+NodeExecutionStatePublisher,
+NodeId,
+NodeInputsByPort,
+NodeOutputs,
+NodeResolver,
+ParentExecutionRef,
+PendingNodeExecution,
+PersistedRunControlState,
+RunCurrentState,
+RunDataFactory,
+RunExecutionOptions,
+RunId,
+RunIdFactory,
+RunQueueEntry,
+RunResult,
+RunStateStore,
+TestableTriggerNode,
+TriggerCleanupHandle,
+TriggerInstanceId,
+TriggerNode,
+TriggerNodeConfig,
+TriggerSetupStateStore,
+WebhookControlSignal,
+WebhookRegistrar,
+WebhookRunResult,
+WebhookTriggerMatcher,
+WorkflowDefinition,
+WorkflowId,
+WorkflowRegistry,
+WorkflowRunnerResolver,
 } from "../../types";
+
+
 import type { RunEventBus } from "../../events";
+
+
 import { CurrentStateFrontierPlanner } from "../planning/currentStateFrontierPlanner";
+
+
 import { RunQueuePlanner } from "../planning/runQueuePlanner";
+
+
 import { WorkflowTopology } from "../planning/workflowTopology";
+
+
 import { BoundNodeExecutionStatePublisher } from "./BoundNodeExecutionStatePublisher";
+
+
 import { InMemoryWebhookTriggerMatcher } from "./InMemoryWebhookTriggerMatcher";
+
+
 import { InputPortMap } from "./InputPortMap";
+
+
 import { NodeInstanceFactory } from "./NodeInstanceFactory";
+
+
 import { NodeSnapshotFactory } from "./NodeSnapshotFactory";
+
+
 import { OutputStats } from "./OutputStats";
+
+
 import {
-  MissingRuntimeExecutionMarker,
-  PersistedWorkflowResolver,
-  PersistedWorkflowSnapshotFactory,
-  PersistedWorkflowTokenRegistry,
+MissingRuntimeExecutionMarker,
+PersistedWorkflowResolver,
+PersistedWorkflowSnapshotFactory,
+PersistedWorkflowTokenRegistry,
 } from "./persistedWorkflowResolver";
+
+
 import { RuntimeContinuationDiagnostics } from "./RuntimeContinuationDiagnostics";
+
+
 
 export class Engine implements NodeActivationContinuation {
   private readonly credentialSessions: CredentialSessionService;
@@ -1757,36 +1783,4 @@ export class Engine implements NodeActivationContinuation {
   }
 }
 
-export class EngineWorkflowRunnerService {
-  constructor(private readonly engine: Engine, private readonly workflowRegistry: WorkflowRegistry) {}
-
-  async runById(args: { workflowId: WorkflowId; startAt?: NodeId; items: Items; parent?: ParentExecutionRef }): Promise<RunResult> {
-    const { workflowId, startAt, items, parent } = args;
-    const wf = this.workflowRegistry.get(workflowId);
-    if (!wf) throw new Error(`Unknown workflowId: ${workflowId}`);
-
-    const startNodeId = startAt ?? this.findDefaultStartNodeId(wf);
-    const scheduled = await this.engine.runWorkflow(wf, startNodeId, items, parent);
-    if (scheduled.status !== "pending") return scheduled;
-    return await this.engine.waitForCompletion(scheduled.runId);
-  }
-
-  private findDefaultStartNodeId(wf: WorkflowDefinition): NodeId {
-    const firstTrigger = wf.nodes.find((n) => n.kind === "trigger")?.id;
-    if (firstTrigger) return firstTrigger;
-
-    const incoming = new Map<NodeId, number>();
-    for (const n of wf.nodes) incoming.set(n.id, 0);
-    for (const e of wf.edges) incoming.set(e.to.nodeId, (incoming.get(e.to.nodeId) ?? 0) + 1);
-
-    const start = wf.nodes.find((n) => (incoming.get(n.id) ?? 0) === 0)?.id;
-    return (
-      start ??
-      wf.nodes[0]?.id ??
-      (() => {
-        throw new Error(`Workflow ${wf.id} has no nodes`);
-      })()
-    );
-  }
-}
-
+export { EngineWorkflowRunnerService } from "./EngineWorkflowRunnerService";

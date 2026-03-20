@@ -1,4 +1,4 @@
-import type { NodeExecutionRequest, NodeExecutionScheduler } from "../../types";
+import type { NodeExecutionRequest,NodeExecutionScheduler } from "../../types";
 
 export class LocalOnlyScheduler implements NodeExecutionScheduler {
   async enqueue(_request: NodeExecutionRequest): Promise<{ receiptId: string }> {

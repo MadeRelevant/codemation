@@ -1,9 +1,9 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
-import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 import { injectable } from "@codemation/core";
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 @injectable()
 export class PrismaMigrationDeployer {

@@ -1,11 +1,11 @@
-import type { Items, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
-import { CoreTokens, inject, injectable } from "@codemation/core";
+import type { Items,TriggerInstanceId,TriggerSetupStateStore } from "@codemation/core";
+import { CoreTokens,inject,injectable } from "@codemation/core";
 import type { GmailLogger } from "../contracts/GmailLogger";
+import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
+import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import type { OnNewGmailTrigger } from "../nodes/OnNewGmailTrigger";
-import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailApiClient } from "../services/GmailApiClient";
-import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailHistorySyncService } from "../services/GmailHistorySyncService";
 import { GmailWatchService } from "../services/GmailWatchService";
 

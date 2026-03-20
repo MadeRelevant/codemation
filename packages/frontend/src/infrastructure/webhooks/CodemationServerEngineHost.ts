@@ -1,4 +1,4 @@
-import type { NodeActivationObserver, NodeActivationStats, NodeId, WebhookRegistrar, WebhookRegistration, WorkflowId } from "@codemation/core";
+import type { NodeActivationObserver,NodeActivationStats,NodeId,WebhookRegistrar,WebhookRegistration,WorkflowId } from "@codemation/core";
 import { injectable } from "@codemation/core";
 import { CodemationWebhookRegistry } from "./CodemationWebhookRegistry";
 

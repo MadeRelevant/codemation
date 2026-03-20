@@ -1,6 +1,6 @@
+import { CodemationApplication } from "@codemation/frontend";
 import path from "node:path";
 import process from "node:process";
-import { CodemationApplication } from "@codemation/frontend";
 import { CodemationWorkerConfigLoader } from "./CodemationWorkerConfigLoader";
 import { CodemationWorkerPathResolver } from "./CodemationWorkerPathResolver";
 

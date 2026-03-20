@@ -1,4 +1,4 @@
-import { inject, injectable } from "@codemation/core";
+import { inject,injectable } from "@codemation/core";
 import { TestDevOdooEnvironment } from "../bootstrap/TestDevOdooEnvironment";
 
 export interface OdooQuotationDraft {

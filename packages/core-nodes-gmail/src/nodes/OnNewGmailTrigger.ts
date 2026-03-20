@@ -1,7 +1,7 @@
-import type { GmailMessageAttachmentRecord } from "../services/GmailApiClient";
-import type { CredentialRequirement, TriggerNodeConfig, TypeToken } from "@codemation/core";
-import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
+import type { CredentialRequirement,TriggerNodeConfig,TypeToken } from "@codemation/core";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
+import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
+import type { GmailMessageAttachmentRecord } from "../services/GmailApiClient";
 import { OnNewGmailTriggerNode } from "./OnNewGmailTriggerNode";
 
 export type OnNewGmailTriggerItemJson = Readonly<{

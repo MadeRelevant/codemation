@@ -1,9 +1,9 @@
-import { HandlesQuery } from "../../infrastructure/di/HandlesQuery";
 import type { RunSummary } from "@codemation/core";
 import { inject } from "@codemation/core";
-import { QueryHandler } from "../bus/QueryHandler";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
+import { HandlesQuery } from "../../infrastructure/di/HandlesQuery";
+import { QueryHandler } from "../bus/QueryHandler";
 import { ListWorkflowRunsQuery } from "./ListWorkflowRunsQuery";
 
 @HandlesQuery.for(ListWorkflowRunsQuery)

@@ -1,6 +1,6 @@
-import type { ChatModelConfig, NodeDefinition, ToolConfig, WorkflowDefinition } from "@codemation/core";
-import { AgentAttachmentNodeIdFactory, AgentConfigInspector } from "@codemation/core";
-import type { WorkflowDto, WorkflowNodeDto, WorkflowSummary } from "../contracts/WorkflowViewContracts";
+import type { ChatModelConfig,NodeDefinition,ToolConfig,WorkflowDefinition } from "@codemation/core";
+import { AgentAttachmentNodeIdFactory,AgentConfigInspector } from "@codemation/core";
+import type { WorkflowDto,WorkflowNodeDto,WorkflowSummary } from "../contracts/WorkflowViewContracts";
 import type { DataMapper } from "./DataMapper";
 
 export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, WorkflowDto> {

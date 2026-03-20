@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe,expect,it } from "vitest";
 import { WorkflowDebuggerOverlayStateFactory } from "../src/application/workflows/WorkflowDebuggerOverlayStateFactory";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit/WorkflowDetailFixtures";
 

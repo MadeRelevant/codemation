@@ -1,6 +1,6 @@
 import type { Container } from "../../di";
 import { CoreTokens } from "../../diTokens";
-import type { WorkflowRunnerResolver, WorkflowRunnerService } from "../../types";
+import type { WorkflowRunnerResolver,WorkflowRunnerService } from "../../types";
 
 export class ContainerWorkflowRunnerResolver implements WorkflowRunnerResolver {
   constructor(private readonly container: Container) {}

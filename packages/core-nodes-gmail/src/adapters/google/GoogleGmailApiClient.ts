@@ -1,19 +1,33 @@
-import { PubSub, v1 } from "@google-cloud/pubsub";
+import { PubSub,v1 } from "@google-cloud/pubsub";
+
+
 import { google } from "googleapis";
+
+
 import type { GmailOAuthCredential } from "../../contracts/GmailOAuthCredential";
+
+
 import type { GmailServiceAccountCredential } from "../../contracts/GmailServiceAccountCredential";
+
+
 import {
-  GmailHistoryGapError,
-  type GmailApiClient,
-  type GmailHistoryDelta,
-  type GmailMessageAttachmentContent,
-  type GmailMessageAttachmentRecord,
-  type GmailMessageRecord,
-  type GmailWatchRegistration,
+GmailHistoryGapError,
+type GmailApiClient,
+type GmailHistoryDelta,
+type GmailMessageAttachmentContent,
+type GmailMessageAttachmentRecord,
+type GmailMessageRecord,
+type GmailWatchRegistration,
 } from "../../services/GmailApiClient";
-import type { GmailPubSubNotification, GmailPulledNotification } from "../../services/GmailPubSubPullClient";
+
+
+import type { GmailPubSubNotification,GmailPulledNotification } from "../../services/GmailPubSubPullClient";
+
+import { GoogleGmailApiClientScopeCatalog } from "./GoogleGmailApiClientScopeCatalog";
 
 type GmailGoogleCredential = GmailServiceAccountCredential | GmailOAuthCredential;
+
+
 
 export class GoogleGmailApiClient implements GmailApiClient {
   constructor(private readonly credential: GmailGoogleCredential) {}
@@ -437,6 +451,4 @@ export class GoogleGmailApiClient implements GmailApiClient {
   }
 }
 
-class GoogleGmailApiClientScopeCatalog {
-  static readonly gmailReadonly = "https://www.googleapis.com/auth/gmail.readonly";
-}
+export { GoogleGmailApiClientScopeCatalog } from "./GoogleGmailApiClientScopeCatalog";

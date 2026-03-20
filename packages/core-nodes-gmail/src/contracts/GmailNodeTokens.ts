@@ -1,8 +1,8 @@
 import type { TypeToken } from "@codemation/core";
 import type { GmailApiClient } from "../services/GmailApiClient";
+import type { GmailPubSubPullClient } from "../services/GmailPubSubPullClient";
 import type { GmailLogger } from "./GmailLogger";
 import type { GmailNodesOptions } from "./GmailNodesOptions";
-import type { GmailPubSubPullClient } from "../services/GmailPubSubPullClient";
 
 export const GmailNodeTokens = {
   GmailApiClient: Symbol.for("codemation.core-nodes-gmail.GmailApiClient") as TypeToken<GmailApiClient>,

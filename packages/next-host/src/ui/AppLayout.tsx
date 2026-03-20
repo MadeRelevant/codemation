@@ -1,10 +1,10 @@
 "use client";
 
-import { useWorkflowsQuery } from "@codemation/frontend/next/client";
+import { signOut,useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
-import { Component, type ReactNode, useState } from "react";
+import { Component,type ReactNode,useState } from "react";
+import { useWorkflowsQuery } from "./realtime/realtime";
 
 const SIDEBAR_WIDTH_KEY = "codemation-sidebar-width";
 const SIDEBAR_COLLAPSED_KEY = "codemation-sidebar-collapsed";

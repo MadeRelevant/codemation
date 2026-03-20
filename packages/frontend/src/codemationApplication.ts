@@ -1,127 +1,124 @@
-import "reflect-metadata";
 import path from "node:path";
+import "reflect-metadata";
 
-import type { Container, RunEventBus, RunStateStore, TriggerSetupStateStore, WorkflowDefinition } from "@codemation/core";
+import type { Container,RunEventBus,RunStateStore,TriggerSetupStateStore,WorkflowDefinition } from "@codemation/core";
 import {
-  ConfigDrivenOffloadPolicy,
-  container as tsyringeContainer,
-  ContainerNodeResolver,
-  ContainerWorkflowRunnerResolver,
-  CoreTokens,
-  DefaultDrivingScheduler,
-  DefaultExecutionContextFactory,
-  Engine,
-  EngineWorkflowRunnerService,
-  InMemoryBinaryStorage,
-  InMemoryRunDataFactory,
-  InMemoryRunEventBus,
-  InMemoryRunStateStore,
-  InMemoryWorkflowRegistry,
-  InlineDrivingScheduler,
-  instanceCachingFactory,
-  PersistedWorkflowTokenRegistry,
-  PublishingRunStateStore,
-  RunIntentService,
-  UnavailableCredentialSessionService,
+ConfigDrivenOffloadPolicy,
+ContainerNodeResolver,
+ContainerWorkflowRunnerResolver,
+CoreTokens,
+DefaultDrivingScheduler,
+DefaultExecutionContextFactory,
+Engine,
+EngineWorkflowRunnerService,
+InlineDrivingScheduler,
+InMemoryBinaryStorage,
+InMemoryRunDataFactory,
+InMemoryRunEventBus,
+InMemoryWorkflowRegistry,
+instanceCachingFactory,
+PersistedWorkflowTokenRegistry,
+PublishingRunStateStore,
+RunIntentService,
+container as tsyringeContainer,
+UnavailableCredentialSessionService
 } from "@codemation/core";
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
 import { BullmqScheduler } from "@codemation/queue-bullmq";
-import { ApiPaths } from "./presentation/http/ApiPaths";
 import type { CommandBus } from "./application/bus/CommandBus";
 import type { DomainEventBus } from "./application/bus/DomainEventBus";
 import type { QueryBus } from "./application/bus/QueryBus";
-import "./application/commands/HandleWebhookInvocationCommandHandler";
 import "./application/commands/CopyRunToWorkflowDebuggerCommandHandler";
-import "./application/commands/ReplayWorkflowNodeCommandHandler";
-import "./application/commands/ReplaceWorkflowDebuggerOverlayCommandHandler";
+import "./application/commands/CredentialCommandHandlers";
+import "./application/commands/HandleWebhookInvocationCommandHandler";
 import "./application/commands/ReplaceMutableRunWorkflowSnapshotCommandHandler";
+import "./application/commands/ReplaceWorkflowDebuggerOverlayCommandHandler";
+import "./application/commands/ReplayWorkflowNodeCommandHandler";
 import "./application/commands/SetPinnedNodeInputCommandHandler";
 import "./application/commands/StartWorkflowRunCommandHandler";
+import "./application/commands/UserAccountCommandHandlers";
+import { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
+import "./application/queries/CredentialQueryHandlers";
 import "./application/queries/GetRunStateQueryHandler";
 import "./application/queries/GetWorkflowDebuggerOverlayQueryHandler";
 import "./application/queries/GetWorkflowDetailQueryHandler";
 import "./application/queries/GetWorkflowSummariesQueryHandler";
 import "./application/queries/ListWorkflowRunsQueryHandler";
+import "./application/queries/UserAccountQueryHandlers";
 import { WorkflowRunEventWebsocketRelay } from "./application/websocket/WorkflowRunEventWebsocketRelay";
-import "./presentation/http/routeHandlers/RunHttpRouteHandler";
-import "./presentation/http/routeHandlers/BinaryHttpRouteHandler";
-import "./presentation/http/routeHandlers/WebhookHttpRouteHandler";
-import "./presentation/http/routeHandlers/WorkflowHttpRouteHandler";
 import { ApplicationTokens } from "./applicationTokens";
-import type { CodemationBinding } from "./presentation/config/CodemationBinding";
-import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";
-import type { CodemationConfig } from "./presentation/config/CodemationConfig";
+import {
+CredentialBindingService,
+CredentialInstanceService,
+CredentialMaterialResolver,
+CredentialRuntimeMaterialService,
+CredentialSecretCipher,
+CredentialSessionServiceImpl,
+CredentialTestService,
+CredentialTypeRegistryImpl,
+type RegisteredCredentialType,
+} from "./domain/credentials/CredentialServices";
+import { OAuth2ConnectService } from "./domain/credentials/OAuth2ConnectService";
+import { OAuth2ProviderRegistry } from "./domain/credentials/OAuth2ProviderRegistry";
 import { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
+import { UserAccountService } from "./domain/users/UserAccountService";
+import { WebhookEndpointRepository } from "./domain/webhooks/WebhookEndpointRepository";
 import { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
-import { WebhookEndpointRepository } from "./domain/webhooks/WebhookEndpointRepository";
-import { RequestToWebhookItemMapper } from "./infrastructure/webhooks/RequestToWebhookItemMapper";
+import { AuthJsSessionVerifier } from "./infrastructure/auth/AuthJsSessionVerifier";
+import { DevelopmentSessionBypassVerifier } from "./infrastructure/auth/DevelopmentSessionBypassVerifier";
+import { LocalFilesystemBinaryStorage } from "./infrastructure/binary/LocalFilesystemBinaryStorage";
+import { CodemationConfigBindingRegistrar } from "./infrastructure/config/CodemationConfigBindingRegistrar";
+import { CodemationPluginRegistrar } from "./infrastructure/config/CodemationPluginRegistrar";
+import { DependencyInjectionHookRunner } from "./infrastructure/config/DependencyInjectionHookRunner";
 import { InMemoryCommandBus } from "./infrastructure/di/InMemoryCommandBus";
 import { InMemoryDomainEventBus } from "./infrastructure/di/InMemoryDomainEventBus";
 import { InMemoryQueryBus } from "./infrastructure/di/InMemoryQueryBus";
 import { CodemationIdFactory } from "./infrastructure/ids/CodemationIdFactory";
-import { DependencyInjectionHookRunner } from "./infrastructure/config/DependencyInjectionHookRunner";
-import { CodemationConfigBindingRegistrar } from "./infrastructure/config/CodemationConfigBindingRegistrar";
-import { CodemationPluginRegistrar } from "./infrastructure/config/CodemationPluginRegistrar";
 import { ServerLoggerFactory } from "./infrastructure/logging/ServerLoggerFactory";
-import { PrismaClientFactory } from "./infrastructure/persistence/PrismaClientFactory";
-import { InMemoryWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/InMemoryWorkflowDebuggerOverlayRepository";
+import { InMemoryCredentialStore,PrismaCredentialStore } from "./infrastructure/persistence/CredentialPersistenceStore";
+import { PrismaClient } from "./infrastructure/persistence/generated/prisma-client/client.js";
 import { InMemoryTriggerSetupStateStore } from "./infrastructure/persistence/InMemoryTriggerSetupStateStore";
+import { InMemoryWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/InMemoryWorkflowDebuggerOverlayRepository";
 import { InMemoryWorkflowRunRepository } from "./infrastructure/persistence/InMemoryWorkflowRunRepository";
+import { PrismaClientFactory } from "./infrastructure/persistence/PrismaClientFactory";
 import { PrismaMigrationDeployer } from "./infrastructure/persistence/PrismaMigrationDeployer";
 import { PrismaTriggerSetupStateStore } from "./infrastructure/persistence/PrismaTriggerSetupStateStore";
 import { PrismaWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/PrismaWorkflowDebuggerOverlayRepository";
 import { PrismaWorkflowRunRepository } from "./infrastructure/persistence/PrismaWorkflowRunRepository";
 import { WorkflowDefinitionRepositoryAdapter } from "./infrastructure/persistence/WorkflowDefinitionRepositoryAdapter";
 import { WorkflowRunRepository as SqlWorkflowRunRepository } from "./infrastructure/persistence/WorkflowRunRepository";
-import type {
-  CodemationApplicationRuntimeConfig,
-  CodemationDatabaseKind,
-  CodemationEventBusKind,
-  CodemationSchedulerKind,
-} from "./presentation/config/CodemationConfig";
-import type { CodemationPlugin } from "./presentation/config/CodemationPlugin";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
-import { AuthJsSessionVerifier } from "./infrastructure/auth/AuthJsSessionVerifier";
-import { DevelopmentSessionBypassVerifier } from "./infrastructure/auth/DevelopmentSessionBypassVerifier";
-import { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiApp";
-import { WorkflowWebsocketServer } from "./presentation/websocket/WorkflowWebsocketServer";
 import { CodemationServerEngineHost } from "./infrastructure/webhooks/CodemationServerEngineHost";
 import { CodemationWebhookRegistry } from "./infrastructure/webhooks/CodemationWebhookRegistry";
+import { RequestToWebhookItemMapper } from "./infrastructure/webhooks/RequestToWebhookItemMapper";
 import { WebhookEndpointRepositoryAdapter } from "./infrastructure/webhooks/WebhookEndpointRepositoryAdapter";
 import { CodemationWorkerHost } from "./infrastructure/worker/CodemationWorkerHost";
-import { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
-import "./application/commands/CredentialCommandHandlers";
-import "./application/commands/UserAccountCommandHandlers";
-import { PrismaClient } from "./infrastructure/persistence/generated/prisma-client/client.js";
-import "./application/queries/CredentialQueryHandlers";
-import "./application/queries/UserAccountQueryHandlers";
-import { LocalFilesystemBinaryStorage } from "./infrastructure/binary/LocalFilesystemBinaryStorage";
-import {
-  CredentialBindingService,
-  CredentialInstanceService,
-  CredentialMaterialResolver,
-  CredentialRuntimeMaterialService,
-  type RegisteredCredentialType,
-  CredentialSecretCipher,
-  CredentialSessionServiceImpl,
-  CredentialTestService,
-  CredentialTypeRegistryImpl,
-} from "./domain/credentials/CredentialServices";
-import { InMemoryCredentialStore, PrismaCredentialStore } from "./infrastructure/persistence/CredentialPersistenceStore";
-import { OAuth2ConnectService } from "./domain/credentials/OAuth2ConnectService";
-import { OAuth2ProviderRegistry } from "./domain/credentials/OAuth2ProviderRegistry";
-import { UserAccountService } from "./domain/users/UserAccountService";
-import "./presentation/http/routeHandlers/CredentialHttpRouteHandler";
-import "./presentation/http/routeHandlers/OAuth2HttpRouteHandler";
-import "./presentation/http/routeHandlers/UserHttpRouteHandler";
-import "./presentation/http/hono/registrars/WorkflowHonoApiRouteRegistrar";
-import "./presentation/http/hono/registrars/RunHonoApiRouteRegistrar";
+import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";
+import type { CodemationBinding } from "./presentation/config/CodemationBinding";
+import type {
+CodemationApplicationRuntimeConfig,CodemationConfig,CodemationDatabaseKind,
+CodemationEventBusKind,
+CodemationSchedulerKind
+} from "./presentation/config/CodemationConfig";
+import type { CodemationPlugin } from "./presentation/config/CodemationPlugin";
+import { ApiPaths } from "./presentation/http/ApiPaths";
+import { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiApp";
+import "./presentation/http/hono/registrars/BinaryHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/CredentialHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/OAuth2HonoApiRouteRegistrar";
-import "./presentation/http/hono/registrars/BinaryHonoApiRouteRegistrar";
-import "./presentation/http/hono/registrars/WebhookHonoApiRouteRegistrar";
+import "./presentation/http/hono/registrars/RunHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/UserHonoApiRouteRegistrar";
+import "./presentation/http/hono/registrars/WebhookHonoApiRouteRegistrar";
+import "./presentation/http/hono/registrars/WorkflowHonoApiRouteRegistrar";
+import "./presentation/http/routeHandlers/BinaryHttpRouteHandler";
+import "./presentation/http/routeHandlers/CredentialHttpRouteHandler";
+import "./presentation/http/routeHandlers/OAuth2HttpRouteHandler";
+import "./presentation/http/routeHandlers/RunHttpRouteHandler";
+import "./presentation/http/routeHandlers/UserHttpRouteHandler";
+import "./presentation/http/routeHandlers/WebhookHttpRouteHandler";
+import "./presentation/http/routeHandlers/WorkflowHttpRouteHandler";
+import { WorkflowWebsocketServer } from "./presentation/websocket/WorkflowWebsocketServer";
 
 type StopHandle = Readonly<{ stop: () => Promise<void> }>;
 

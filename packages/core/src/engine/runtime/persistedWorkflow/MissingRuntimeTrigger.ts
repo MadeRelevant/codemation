@@ -1,4 +1,4 @@
-import type { ExecutableTriggerNode, Items, NodeOutputs, TriggerSetupContext } from "../../../types";
+import type { ExecutableTriggerNode,Items,NodeOutputs,TriggerSetupContext } from "../../../types";
 import { MissingRuntimeTriggerConfig } from "./MissingRuntimeTriggerConfig";
 
 export class MissingRuntimeTrigger implements ExecutableTriggerNode<MissingRuntimeTriggerConfig> {

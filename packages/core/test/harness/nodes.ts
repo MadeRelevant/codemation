@@ -1,18 +1,18 @@
 import type {
-  Item,
-  InputPortKey,
-  Items,
-  MultiInputNode,
-  Node,
-  NodeConfigBase,
-  NodeExecutionContext,
-  NodeOutputs,
-  RunnableNodeConfig,
-  TypeToken,
-  WorkflowId,
-  NodeId,
+InputPortKey,
+Item,
+Items,
+MultiInputNode,
+Node,
+NodeConfigBase,
+NodeExecutionContext,
+NodeId,
+NodeOutputs,
+RunnableNodeConfig,
+TypeToken,
+WorkflowId,
+WorkflowRunnerService,
 } from "../../src/index.ts";
-import type { WorkflowRunnerService } from "../../src/index.ts";
 
 export type CallbackExecuteArgs<TConfig extends NodeConfigBase> = Readonly<{
   items: Items;

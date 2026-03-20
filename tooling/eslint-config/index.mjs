@@ -9,8 +9,152 @@ const compositionRootFilePattern =
   /(?:Factory|Builder|Bootstrap|Discovery|Runner|Server|Mapper|Reader|Writer|Finder|Registry|Host|Protocol|Session|Program|Supervisor|Planner|Resolver|Environment|Worker|Scheduler|Connection|Application|Hub|Reporter|Loader|Validator|CliBin|LocalUserCreator|DevLock)\.tsx?$/;
 const isCompositionRootFile = (filename) => compositionRootFilePattern.test(filename) || /\/src\/bin\/[^/]+\.tsx?$/.test(filename);
 
+/**
+ * Types that are routinely constructed at call sites (messages, errors, DTOs)
+ * rather than resolved from a DI container.
+ */
+const isManualNewAllowedTypeName = (name) =>
+  typeof name === "string" &&
+  (name.endsWith("Command") ||
+    name.endsWith("Query") ||
+    name.endsWith("Exception") ||
+    name.endsWith("Error") ||
+    name.endsWith("Dto"));
+
+function isPascalCaseComponentName(name) {
+  return typeof name === "string" && name.length > 0 && /^[A-Z]/.test(name);
+}
+
+function extendsReactComponentClass(superClass) {
+  if (!superClass) return false;
+  if (superClass.type === "Identifier") {
+    return superClass.name === "Component" || superClass.name === "PureComponent";
+  }
+  if (superClass.type === "MemberExpression" && superClass.property.type === "Identifier" && !superClass.computed) {
+    const prop = superClass.property.name;
+    return prop === "Component" || prop === "PureComponent";
+  }
+  return false;
+}
+
+function isMemoOrForwardRefCall(node) {
+  if (node.type !== "CallExpression") return false;
+  const callee = node.callee;
+  if (callee.type === "Identifier") {
+    return callee.name === "memo" || callee.name === "forwardRef";
+  }
+  if (callee.type === "MemberExpression" && callee.property.type === "Identifier" && !callee.computed) {
+    const prop = callee.property.name;
+    return prop === "memo" || prop === "forwardRef";
+  }
+  return false;
+}
+
+/** `const`-based components must use `memo` / `forwardRef` so tiny SVG/icon helpers (`const IconX = () => …`) are not counted as components. */
+function isComponentVariableInit(init) {
+  return Boolean(init && init.type === "CallExpression" && isMemoOrForwardRefCall(init));
+}
+
+function collectTopLevelReactComponents(program) {
+  /** @type {import("estree").Node[]} */
+  const components = [];
+
+  function considerStatement(stmt) {
+    if (!stmt) return;
+
+    if (stmt.type === "ExportNamedDeclaration") {
+      considerStatement(stmt.declaration);
+      return;
+    }
+
+    if (stmt.type === "ExportDefaultDeclaration") {
+      const d = stmt.declaration;
+      if (d.type === "FunctionDeclaration" && d.id && isPascalCaseComponentName(d.id.name)) {
+        components.push(d);
+        return;
+      }
+      if (d.type === "ClassDeclaration" && d.id && extendsReactComponentClass(d.superClass)) {
+        components.push(d);
+        return;
+      }
+      if (d.type === "VariableDeclaration") {
+        considerVariableDeclaration(d);
+        return;
+      }
+      if (d.type === "ArrowFunctionExpression" || d.type === "FunctionExpression") {
+        components.push(stmt);
+        return;
+      }
+      if (d.type === "CallExpression" && isMemoOrForwardRefCall(d)) {
+        components.push(stmt);
+      }
+      return;
+    }
+
+    if (stmt.type === "FunctionDeclaration") {
+      if (stmt.id && isPascalCaseComponentName(stmt.id.name)) {
+        components.push(stmt);
+      }
+      return;
+    }
+
+    if (stmt.type === "ClassDeclaration") {
+      if (stmt.id && extendsReactComponentClass(stmt.superClass)) {
+        components.push(stmt);
+      }
+      return;
+    }
+
+    if (stmt.type === "VariableDeclaration") {
+      considerVariableDeclaration(stmt);
+    }
+  }
+
+  function considerVariableDeclaration(decl) {
+    for (const d of decl.declarations) {
+      if (d.id.type !== "Identifier" || !isPascalCaseComponentName(d.id.name)) continue;
+      if (isComponentVariableInit(d.init)) {
+        components.push(d);
+      }
+    }
+  }
+
+  for (const stmt of program.body) {
+    considerStatement(stmt);
+  }
+
+  return components;
+}
+
 const architecturePlugin = {
   rules: {
+    "single-react-component-per-file": {
+      meta: {
+        type: "suggestion",
+        docs: {
+          description: "allow at most one React component per .tsx file (split helpers into separate files)",
+        },
+        schema: [],
+      },
+      create(context) {
+        const filename = context.filename ?? context.getFilename();
+        if (!filename.endsWith(".tsx")) return {};
+
+        return {
+          Program(node) {
+            const components = collectTopLevelReactComponents(node);
+            if (components.length <= 1) return;
+            for (const decl of components.slice(1)) {
+              context.report({
+                node: decl,
+                message:
+                  "Each .tsx file should define a single React component at module scope. Move additional components (including private helpers) into their own files.",
+              });
+            }
+          },
+        };
+      },
+    },
     "single-class-per-file": {
       meta: {
         type: "suggestion",
@@ -53,6 +197,7 @@ const architecturePlugin = {
             if (node.callee.type !== "Identifier") return;
             if (!/^[A-Z]/.test(node.callee.name)) return;
             if (allowedConstructorNames.has(node.callee.name)) return;
+            if (isManualNewAllowedTypeName(node.callee.name)) return;
             context.report({
               node,
               message: "Avoid direct construction here. Register the dependency with tsyringe and inject or resolve it through the composition root instead.",
@@ -96,7 +241,14 @@ const baseLanguageOptions = {
 /** @type {import("eslint").Linter.FlatConfig[]} */
 export default [
   {
-    ignores: ["**/dist/**", "**/.next/**", "**/node_modules/**"],
+    ignores: [
+      "**/dist/**",
+      "**/.next/**",
+      "**/node_modules/**",
+      // Generated Prisma client ships .js artifacts; do not lint with TS-oriented rules.
+      "**/infrastructure/persistence/generated/**",
+      "**/.codemation/**",
+    ],
   },
 
   js.configs.recommended,
@@ -148,6 +300,50 @@ export default [
     },
   },
 
+  // One class per file (all source; tests are excluded — kits often use multiple helper classes).
+  {
+    files: ["**/*.{ts,tsx}"],
+    ignores: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.next/**",
+      "**/*.d.ts",
+      "**/test/**/*.{ts,tsx}",
+      "**/*.test.{ts,tsx}",
+    ],
+    plugins: {
+      codemation: architecturePlugin,
+    },
+    rules: {
+      "codemation/single-class-per-file": "error",
+    },
+  },
+
+  // React: one module-scope component per file, bounded file size (layout/logic belong in separate modules).
+  {
+    files: ["**/*.tsx"],
+    ignores: [
+      "**/*.test.tsx",
+      "**/test/**/*.tsx",
+      // Hook modules kept as .tsx for workspace tooling; they are not "component" files.
+      "**/use*.tsx",
+    ],
+    plugins: {
+      codemation: architecturePlugin,
+    },
+    rules: {
+      "max-lines": [
+        "error",
+        {
+          max: 250,
+          skipBlankLines: true,
+          skipComments: true,
+        },
+      ],
+      "codemation/single-react-component-per-file": "error",
+    },
+  },
+
   // Test stability + ergonomics
   {
     files: ["**/test/**/*.{js,ts,tsx}", "**/*.test.{js,ts,tsx}"],
@@ -185,12 +381,17 @@ export default [
     },
   },
 
-  // Architecture: package source should stay class-oriented and DI-friendly.
+  // DI + no root/exported functions: all workspace packages except next-host and apps/ (apps live outside packages/**).
   {
-    files: ["packages/frontend/src/**/*.{ts,tsx}", "packages/cli/src/**/*.{ts,tsx}"],
-    ignores: ["**/index.ts", "**/*.d.ts", "**/*Types.ts", "**/*types.ts"],
+    files: ["packages/**/src/**/*.{ts,tsx}"],
+    ignores: [
+      "packages/next-host/**",
+      "**/index.ts",
+      "**/*.d.ts",
+      "**/*Types.ts",
+      "**/*types.ts",
+    ],
     rules: {
-      "codemation/single-class-per-file": "error",
       "codemation/no-manual-di-new": "error",
       "codemation/no-static-methods": "error",
       "no-restricted-syntax": [

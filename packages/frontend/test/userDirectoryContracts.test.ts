@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe,expect,it } from "vitest";
 import {
-  withInviteUserResponseLoginMethodsDefaults,
-  withUserAccountLoginMethodsDefaults,
+withInviteUserResponseLoginMethodsDefaults,
+withUserAccountLoginMethodsDefaults,
 } from "../src/application/contracts/UserDirectoryContracts";
 
 describe("withUserAccountLoginMethodsDefaults", () => {

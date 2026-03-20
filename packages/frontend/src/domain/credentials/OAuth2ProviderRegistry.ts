@@ -1,4 +1,4 @@
-import type { CredentialOAuth2AuthDefinition, CredentialTypeDefinition } from "@codemation/core";
+import type { CredentialOAuth2AuthDefinition,CredentialTypeDefinition } from "@codemation/core";
 import { injectable } from "@codemation/core";
 
 type JsonRecord = Readonly<Record<string, unknown>>;

@@ -1,6 +1,6 @@
-import { injectable, registry } from "@codemation/core";
-import type { CommandHandler } from "../../application/bus/CommandHandler";
+import { injectable,registry } from "@codemation/core";
 import type { Command } from "../../application/bus/Command";
+import type { CommandHandler } from "../../application/bus/CommandHandler";
 import { ApplicationTokens } from "../../applicationTokens";
 
 type AbstractType<TInstance> = abstract new (...args: any[]) => TInstance;

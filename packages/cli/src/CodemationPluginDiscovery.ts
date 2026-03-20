@@ -1,7 +1,7 @@
-import { readFile, readdir } from "node:fs/promises";
+import type { CodemationPackageManifest,CodemationPlugin } from "@codemation/frontend";
+import { readFile,readdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { CodemationPackageManifest, CodemationPlugin } from "@codemation/frontend";
 
 export type CodemationDiscoveredPluginPackage = Readonly<{
   packageName: string;

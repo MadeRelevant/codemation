@@ -1,9 +1,9 @@
+import type { PersistedRunState,RunSummary,WorkflowDebuggerOverlayState } from "@codemation/next-host/src/ui/realtime/realtime";
 import path from "node:path";
-import { expect, vi } from "vitest";
-import { WebSocket as NodeWebSocket, type RawData } from "ws";
-import type { PersistedRunState, RunSummary, WorkflowDebuggerOverlayState } from "../../../src/client";
+import { expect,vi } from "vitest";
+import { WebSocket as NodeWebSocket,type RawData } from "ws";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
-import { FrontendHttpIntegrationHarness, type FrontendHttpIntegrationRequest } from "../../http/testkit/FrontendHttpIntegrationHarness";
+import { FrontendHttpIntegrationHarness,type FrontendHttpIntegrationRequest } from "../../http/testkit/FrontendHttpIntegrationHarness";
 import type { WorkflowDetailRuntimeFixture } from "./WorkflowDetailRuntimeFixtures";
 
 type WorkflowRunRequestBody = Readonly<{
