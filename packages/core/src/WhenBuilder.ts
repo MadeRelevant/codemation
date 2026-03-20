@@ -1,6 +1,6 @@
 import type { NodeId,NodeRef,OutputPortKey,UpstreamRefPlaceholder,WorkflowDefinition } from "./types";
 
-import { WorkflowBuilder } from "./builder";
+import { WorkflowBuilder } from "./WorkflowBuilder";
 import type { AnyRunnableNodeConfig,BooleanWhenOverloads,ValidStepSequence } from "./workflowBuilderTypes";
 
 export class WhenBuilder<TCurrentJson> {

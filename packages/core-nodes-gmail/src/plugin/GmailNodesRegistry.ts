@@ -1,5 +1,5 @@
 import type { Container } from "@codemation/core";
-import { GoogleGmailApiClient } from "../adapters/google/GoogleGmailApiClient";
+import { GoogleGmailApiClient } from "../adapters/google/GoogleGmailApiClientFactory";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";

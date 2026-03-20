@@ -65,8 +65,8 @@ class WorkflowRunsIntegrationFixture {
   }
 
   static async waitForRunToComplete(harness: FrontendHttpIntegrationHarness, runId: string): Promise<PersistedRunState> {
-    const deadline = Date.now() + 5_000;
-    while (Date.now() < deadline) {
+    const deadline = performance.now() + 5_000;
+    while (performance.now() < deadline) {
       const response = await harness.request({
         method: "GET",
         url: ApiPaths.runState(runId),

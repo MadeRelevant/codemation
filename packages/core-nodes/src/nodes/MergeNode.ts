@@ -3,7 +3,7 @@ import type { InputPortKey,Item,Items,MultiInputNode,NodeExecutionContext,NodeOu
 import { node } from "@codemation/core";
 
 import type { Merge } from "./merge";
-import { getOriginIndex,orderedInputs } from "./mergeExecutionUtils";
+import { getOriginIndex, orderedInputs } from "./mergeExecutionUtils.types";
 
 @node({ packageName: "@codemation/core-nodes" })
 export class MergeNode implements MultiInputNode<Merge<any, any>> {

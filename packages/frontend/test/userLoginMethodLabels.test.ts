@@ -1,5 +1,5 @@
 import { describe,expect,it } from "vitest";
-import { labelForLinkedAuthAccount } from "../src/domain/users/userLoginMethodLabels";
+import { labelForLinkedAuthAccount } from "../src/domain/users/userLoginMethodLabels.types";
 
 describe("labelForLinkedAuthAccount", () => {
   it("maps known OAuth providers", () => {

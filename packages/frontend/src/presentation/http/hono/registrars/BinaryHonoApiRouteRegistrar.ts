@@ -1,7 +1,7 @@
 import { inject,injectable,registry } from "@codemation/core";
 import { Hono } from "hono";
 import { ApplicationTokens } from "../../../../applicationTokens";
-import { BinaryHttpRouteHandler } from "../../routeHandlers/BinaryHttpRouteHandler";
+import { BinaryHttpRouteHandler } from "../../routeHandlers/BinaryHttpRouteHandlerFactory";
 import type { HonoApiRouteRegistrar } from "../HonoApiRouteRegistrar";
 
 @injectable()

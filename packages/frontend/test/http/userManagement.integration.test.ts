@@ -6,7 +6,7 @@ import { createWorkflowBuilder,ManualTrigger } from "@codemation/core-nodes";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { afterAll,afterEach,beforeAll,describe,expect,it,vi } from "vitest";
-import type { InviteUserResponseDto,UserAccountDto } from "../../src/application/contracts/UserDirectoryContracts";
+import type { InviteUserResponseDto,UserAccountDto } from "../../src/application/contracts/userDirectoryContracts.types";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
@@ -274,7 +274,7 @@ describe("user management http integration", () => {
       where: { userId: created.user.id, revokedAt: null },
     });
     expect(invite).not.toBeNull();
-    const deltaMs = invite!.expiresAt.getTime() - Date.now();
+    const deltaMs = invite!.expiresAt.getTime() - invite!.createdAt.getTime();
     expect(deltaMs).toBeGreaterThan(6 * 24 * 60 * 60 * 1000);
     expect(deltaMs).toBeLessThan(8 * 24 * 60 * 60 * 1000);
     await harness.close();
@@ -334,12 +334,13 @@ describe("user management http integration", () => {
       data: { email: "expired@example.com", name: "E", accountStatus: "invited" },
     });
     const raw = "expired-test-token";
+    const expiredInviteRefMs = 1_700_000_000_000;
     await prisma.userInvite.create({
       data: {
         userId: u.id,
         tokenHash: hashInviteToken(raw),
-        expiresAt: new Date(Date.now() - 60_000),
-        createdAt: new Date(Date.now() - 120_000),
+        expiresAt: new Date(expiredInviteRefMs - 60_000),
+        createdAt: new Date(expiredInviteRefMs - 120_000),
       },
     });
     const response = await harness.request({

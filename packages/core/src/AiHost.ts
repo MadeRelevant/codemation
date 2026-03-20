@@ -4,7 +4,7 @@ import type { TypeToken } from "./di";
 import type { CredentialRequirement } from "./contracts/credentialTypes";
 
 
-import type { Item,Items,NodeConfigBase,NodeExecutionContext,RunnableNodeConfig } from "./types";
+import type { Item, Items, NodeConfigBase, NodeExecutionContext, RunnableNodeConfig } from "./types";
 
 
 import type { input as ZodInput,output as ZodOutput,ZodType } from "zod";
@@ -129,8 +129,6 @@ export class AgentConfigInspector {
     return typeof candidate.systemMessage === "string" && typeof candidate.userMessageFormatter === "function" && !!candidate.chatModel;
   }
 }
-
-
 
 export type AgentAttachmentRole = "languageModel" | "tool";
 

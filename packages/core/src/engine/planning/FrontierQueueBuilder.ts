@@ -7,7 +7,7 @@ RunQueueEntry
 
 
 import { DependencySatisfactionResolver } from "./DependencySatisfactionResolver";
-import { WorkflowTopology } from "./workflowTopology";
+import { WorkflowTopology } from "./WorkflowTopologyPlanner";
 
 export class FrontierQueueBuilder {
   constructor(

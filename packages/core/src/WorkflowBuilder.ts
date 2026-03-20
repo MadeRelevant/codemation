@@ -10,7 +10,7 @@ WorkflowDefinition,
 WorkflowId
 } from "./types";
 
-import { ChainCursor } from "./ChainCursor";
+import { ChainCursor } from "./ChainCursorResolver";
 import type { AnyRunnableNodeConfig,AnyTriggerNodeConfig } from "./workflowBuilderTypes";
 
 export class WorkflowBuilder {
@@ -51,5 +51,5 @@ export class WorkflowBuilder {
   }
 }
 
-export { ChainCursor } from "./ChainCursor";
+export { ChainCursor } from "./ChainCursorResolver";
 export { WhenBuilder } from "./WhenBuilder";

@@ -15,7 +15,7 @@ import { ApplicationRequestError } from "../../application/ApplicationRequestErr
 import type {
 WorkflowCredentialHealthDto,
 WorkflowCredentialHealthSlotDto
-} from "../../application/contracts/CredentialContracts";
+} from "../../application/contracts/CredentialContractsRegistry";
 
 import { ApplicationTokens } from "../../applicationTokens";
 

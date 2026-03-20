@@ -5,10 +5,10 @@ RunCurrentState,
 RunStateResetRequest
 } from "../../types";
 
-import { AgentAttachmentNodeIdFactory } from "../../ai";
+import { AgentAttachmentNodeIdFactory } from "../../AiHost";
 
 import { PinnedOutputResolver } from "./PinnedOutputResolver";
-import { WorkflowTopology } from "./workflowTopology";
+import { WorkflowTopology } from "./WorkflowTopologyPlanner";
 
 export class RunStateResetter {
   constructor(

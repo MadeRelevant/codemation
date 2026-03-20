@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { Client } from "pg";
 import { GenericContainer } from "testcontainers";
 import { PrismaClientFactory } from "../../../src/infrastructure/persistence/PrismaClientFactory";
@@ -79,7 +80,7 @@ export class PostgresIntegrationDatabase {
   }
 
   private static createDatabaseName(): string {
-    const suffix = `${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`;
+    const suffix = randomBytes(12).toString("hex");
     return `codemation_frontend_${suffix}`;
   }
 

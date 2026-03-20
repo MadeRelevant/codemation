@@ -1,6 +1,6 @@
 import type { NodeRef,OutputPortKey,RunnableNodeConfig,RunnableNodeOutputJson,WorkflowDefinition } from "./types";
 
-import { WorkflowBuilder } from "./builder";
+import { WorkflowBuilder } from "./WorkflowBuilder";
 import { WhenBuilder } from "./WhenBuilder";
 import type {
 AnyRunnableNodeConfig,

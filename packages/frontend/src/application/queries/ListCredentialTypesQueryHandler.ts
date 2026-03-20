@@ -6,7 +6,7 @@ import { inject } from "@codemation/core";
 
 import { QueryHandler } from "../bus/QueryHandler";
 
-import { HandlesQuery } from "../../infrastructure/di/HandlesQuery";
+import { HandlesQuery } from "../../infrastructure/di/HandlesQueryRegistry";
 
 import { CredentialTypeRegistryImpl } from "../../domain/credentials/CredentialServices";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { VerifyUserInviteResponseDto } from "@codemation/frontend-src/application/contracts/UserDirectoryContracts";
+import type { VerifyUserInviteResponseDto } from "@codemation/frontend-src/application/contracts/userDirectoryContracts.types";
 import { ApiPaths } from "@codemation/frontend-src/presentation/http/ApiPaths";
 import { useEffect,useState,type FormEvent } from "react";
 import { PasswordStrengthMeter } from "../components/PasswordStrengthMeter";

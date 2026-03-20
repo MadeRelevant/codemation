@@ -1,6 +1,6 @@
 import type { InputPortKey,Items,NodeId,RunQueueEntry } from "../../types";
 
-import { WorkflowTopology } from "./workflowTopology";
+import { WorkflowTopology } from "./WorkflowTopologyPlanner";
 
 
 

@@ -9,7 +9,7 @@ ToolConfig,
 TypeToken,
 } from "@codemation/core";
 
-import { AIAgentNode } from "./AIAgentNode";
+import { AIAgentNode } from "./AIAgentNodeFactory";
 
 export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
   implements RunnableNodeConfig<TInputJson, TOutputJson>, AgentNodeConfig<TInputJson, TOutputJson>

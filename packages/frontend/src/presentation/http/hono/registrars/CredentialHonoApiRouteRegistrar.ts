@@ -10,8 +10,8 @@ export class CredentialHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
   constructor(@inject(CredentialHttpRouteHandler) private readonly handler: CredentialHttpRouteHandler) {}
 
   register(app: Hono): void {
-    app.get("/credentials/types", (c) => this.handler.getCredentialTypes());
-    app.get("/credentials/instances", (c) => this.handler.getCredentialInstances());
+    app.get("/credentials/types", (_c) => this.handler.getCredentialTypes());
+    app.get("/credentials/instances", (_c) => this.handler.getCredentialInstances());
     app.get("/workflows/:workflowId/credential-health", (c) =>
       this.handler.getWorkflowCredentialHealth(c.req.raw, { workflowId: c.req.param("workflowId") }),
     );

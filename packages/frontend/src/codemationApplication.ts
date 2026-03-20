@@ -58,16 +58,16 @@ CredentialTestService,
 CredentialTypeRegistryImpl,
 type RegisteredCredentialType,
 } from "./domain/credentials/CredentialServices";
-import { OAuth2ConnectService } from "./domain/credentials/OAuth2ConnectService";
+import { OAuth2ConnectService } from "./domain/credentials/OAuth2ConnectServiceFactory";
 import { OAuth2ProviderRegistry } from "./domain/credentials/OAuth2ProviderRegistry";
 import { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
-import { UserAccountService } from "./domain/users/UserAccountService";
+import { UserAccountService } from "./domain/users/UserAccountServiceRegistry";
 import { WebhookEndpointRepository } from "./domain/webhooks/WebhookEndpointRepository";
 import { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
 import { AuthJsSessionVerifier } from "./infrastructure/auth/AuthJsSessionVerifier";
 import { DevelopmentSessionBypassVerifier } from "./infrastructure/auth/DevelopmentSessionBypassVerifier";
-import { LocalFilesystemBinaryStorage } from "./infrastructure/binary/LocalFilesystemBinaryStorage";
+import { LocalFilesystemBinaryStorage } from "./infrastructure/binary/LocalFilesystemBinaryStorageRegistry";
 import { CodemationConfigBindingRegistrar } from "./infrastructure/config/CodemationConfigBindingRegistrar";
 import { CodemationPluginRegistrar } from "./infrastructure/config/CodemationPluginRegistrar";
 import { DependencyInjectionHookRunner } from "./infrastructure/config/DependencyInjectionHookRunner";
@@ -103,7 +103,7 @@ CodemationSchedulerKind
 } from "./presentation/config/CodemationConfig";
 import type { CodemationPlugin } from "./presentation/config/CodemationPlugin";
 import { ApiPaths } from "./presentation/http/ApiPaths";
-import { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiApp";
+import { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiAppFactory";
 import "./presentation/http/hono/registrars/BinaryHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/CredentialHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/OAuth2HonoApiRouteRegistrar";
@@ -111,11 +111,11 @@ import "./presentation/http/hono/registrars/RunHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/UserHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/WebhookHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/WorkflowHonoApiRouteRegistrar";
-import "./presentation/http/routeHandlers/BinaryHttpRouteHandler";
+import "./presentation/http/routeHandlers/BinaryHttpRouteHandlerFactory";
 import "./presentation/http/routeHandlers/CredentialHttpRouteHandler";
-import "./presentation/http/routeHandlers/OAuth2HttpRouteHandler";
+import "./presentation/http/routeHandlers/OAuth2HttpRouteHandlerFactory";
 import "./presentation/http/routeHandlers/RunHttpRouteHandler";
-import "./presentation/http/routeHandlers/UserHttpRouteHandler";
+import "./presentation/http/routeHandlers/UserHttpRouteHandlerFactory";
 import "./presentation/http/routeHandlers/WebhookHttpRouteHandler";
 import "./presentation/http/routeHandlers/WorkflowHttpRouteHandler";
 import { WorkflowWebsocketServer } from "./presentation/websocket/WorkflowWebsocketServer";

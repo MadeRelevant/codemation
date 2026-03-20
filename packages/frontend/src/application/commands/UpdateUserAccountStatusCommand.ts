@@ -2,7 +2,7 @@
 import type {
 UserAccountDto,
 UserAccountStatus
-} from "../contracts/UserDirectoryContracts";
+} from "../contracts/userDirectoryContracts.types";
 
 import { Command } from "../bus/Command";
 

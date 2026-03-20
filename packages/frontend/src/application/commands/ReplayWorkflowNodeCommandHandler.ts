@@ -8,7 +8,7 @@ WorkflowDefinition,
 import { Engine,ItemsInputNormalizer,RunIntentService,inject } from "@codemation/core";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
-import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
+import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";
 import { ApplicationRequestError } from "../ApplicationRequestError";
 import { CommandHandler } from "../bus/CommandHandler";
 import type { RunCommandResult } from "../contracts/RunContracts";

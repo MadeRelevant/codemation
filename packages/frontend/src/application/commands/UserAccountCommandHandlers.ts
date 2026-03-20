@@ -2,7 +2,7 @@
 
 import type {
 InviteUserResponseDto
-} from "../contracts/UserDirectoryContracts";
+} from "../contracts/userDirectoryContracts.types";
 
 
 import { Command } from "../bus/Command";

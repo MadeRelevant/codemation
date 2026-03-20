@@ -1,4 +1,4 @@
-import type { DecoratedRuntimeType } from "./persistedRuntimeTypeModel";
+import type { DecoratedRuntimeType } from "./persistedRuntimeTypeModelRegistry";
 
 export class PersistedRuntimeTypeNameResolver {
   static resolve(target: DecoratedRuntimeType, override: string | undefined): string {

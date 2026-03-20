@@ -3,7 +3,7 @@ import { CredentialsScreen } from "@codemation/next-host/src/ui/screens/Credenti
 import { QueryClient,QueryClientProvider } from "@tanstack/react-query";
 import { cleanup,fireEvent,render,screen,waitFor } from "@testing-library/react";
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
-import type { CredentialInstanceDto } from "../src/application/contracts/CredentialContracts";
+import type { CredentialInstanceDto } from "../src/application/contracts/CredentialContractsRegistry";
 import { ApiPaths } from "../src/presentation/http/ApiPaths";
 
 describe("CredentialsScreen", () => {

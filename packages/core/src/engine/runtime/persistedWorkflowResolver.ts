@@ -1,4 +1,4 @@
-export { MissingRuntimeExecutionMarker } from "./persistedWorkflow/MissingRuntimeExecutionMarker";
+export { MissingRuntimeExecutionMarker } from "./persistedWorkflow/MissingRuntimeExecutionMarkerFactory";
 export { MissingRuntimeNode } from "./persistedWorkflow/MissingRuntimeNode";
 export { MissingRuntimeNodeConfig } from "./persistedWorkflow/MissingRuntimeNodeConfig";
 export { MissingRuntimeNodeToken } from "./persistedWorkflow/MissingRuntimeNodeToken";
@@ -7,4 +7,4 @@ export { MissingRuntimeTriggerConfig } from "./persistedWorkflow/MissingRuntimeT
 export { MissingRuntimeTriggerToken } from "./persistedWorkflow/MissingRuntimeTriggerToken";
 export { PersistedWorkflowResolver } from "./persistedWorkflow/PersistedWorkflowResolver";
 export { PersistedWorkflowSnapshotFactory } from "./persistedWorkflow/PersistedWorkflowSnapshotFactory";
-export { PersistedWorkflowTokenRegistry } from "./persistedWorkflow/PersistedWorkflowTokenRegistry";
+export { PersistedWorkflowTokenRegistry } from "./persistedWorkflow/PersistedWorkflowTokenRegistryFactory";

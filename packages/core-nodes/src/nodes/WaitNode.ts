@@ -3,7 +3,7 @@ import type { Items,Node,NodeExecutionContext,NodeOutputs } from "@codemation/co
 import { node } from "@codemation/core";
 
 import { Wait } from "./wait";
-import { WaitDuration } from "./WaitDuration";
+import { WaitDuration } from "./WaitDurationFactory";
 
 @node({ packageName: "@codemation/core-nodes" })
 export class WaitNode implements Node<Wait<any>> {

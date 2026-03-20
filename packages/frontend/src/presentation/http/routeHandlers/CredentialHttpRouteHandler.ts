@@ -13,7 +13,7 @@ import type {
 CreateCredentialInstanceRequest,
 UpdateCredentialInstanceRequest,
 UpsertCredentialBindingRequest,
-} from "../../../application/contracts/CredentialContracts";
+} from "../../../application/contracts/CredentialContractsRegistry";
 import {
 GetCredentialInstanceQuery,
 GetCredentialInstanceWithSecretsQuery,

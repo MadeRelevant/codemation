@@ -150,8 +150,8 @@ class GmailPullTriggerRuntimeFixture {
   }
 
   static async waitFor(assertion: () => void): Promise<void> {
-    const deadline = Date.now() + 2_000;
-    while (Date.now() < deadline) {
+    const deadline = performance.now() + 2_000;
+    while (performance.now() < deadline) {
       try {
         assertion();
         return;

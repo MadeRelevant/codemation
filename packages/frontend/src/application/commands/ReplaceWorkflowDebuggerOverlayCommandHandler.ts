@@ -2,7 +2,7 @@ import { inject } from "@codemation/core";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowDebuggerOverlayRepository } from "../../domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDebuggerOverlayState } from "../../domain/workflows/WorkflowDebuggerOverlayState";
-import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
+import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";
 import { ApplicationRequestError } from "../ApplicationRequestError";
 import { CommandHandler } from "../bus/CommandHandler";
 import type { WorkflowDebuggerOverlayResponse } from "../contracts/WorkflowDebuggerContracts";

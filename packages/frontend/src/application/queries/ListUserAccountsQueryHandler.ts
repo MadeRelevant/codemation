@@ -2,14 +2,14 @@ import { inject } from "@codemation/core";
 
 import type {
 UserAccountDto
-} from "../contracts/UserDirectoryContracts";
+} from "../contracts/userDirectoryContracts.types";
 
 
 import { QueryHandler } from "../bus/QueryHandler";
 
-import { HandlesQuery } from "../../infrastructure/di/HandlesQuery";
+import { HandlesQuery } from "../../infrastructure/di/HandlesQueryRegistry";
 
-import { UserAccountService } from "../../domain/users/UserAccountService";
+import { UserAccountService } from "../../domain/users/UserAccountServiceRegistry";
 
 import { ListUserAccountsQuery } from "./UserAccountQueryHandlers";
 

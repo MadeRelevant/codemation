@@ -2,14 +2,14 @@ import { inject } from "@codemation/core";
 
 import type {
 InviteUserResponseDto
-} from "../contracts/UserDirectoryContracts";
+} from "../contracts/userDirectoryContracts.types";
 
 
 import { CommandHandler } from "../bus/CommandHandler";
 
-import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
+import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";
 
-import { UserAccountService } from "../../domain/users/UserAccountService";
+import { UserAccountService } from "../../domain/users/UserAccountServiceRegistry";
 
 import { InviteUserCommand } from "./UserAccountCommandHandlers";
 

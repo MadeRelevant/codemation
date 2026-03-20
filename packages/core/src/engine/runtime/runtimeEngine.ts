@@ -57,7 +57,7 @@ import { CurrentStateFrontierPlanner } from "../planning/currentStateFrontierPla
 import { RunQueuePlanner } from "../planning/runQueuePlanner";
 
 
-import { WorkflowTopology } from "../planning/workflowTopology";
+import { WorkflowTopology } from "../planning/WorkflowTopologyPlanner";
 
 
 import { BoundNodeExecutionStatePublisher } from "./BoundNodeExecutionStatePublisher";
@@ -66,7 +66,7 @@ import { BoundNodeExecutionStatePublisher } from "./BoundNodeExecutionStatePubli
 import { InMemoryWebhookTriggerMatcher } from "./InMemoryWebhookTriggerMatcher";
 
 
-import { InputPortMap } from "./InputPortMap";
+import { InputPortMap } from "./InputPortMapFactory";
 
 
 import { NodeInstanceFactory } from "./NodeInstanceFactory";
@@ -75,7 +75,7 @@ import { NodeInstanceFactory } from "./NodeInstanceFactory";
 import { NodeSnapshotFactory } from "./NodeSnapshotFactory";
 
 
-import { OutputStats } from "./OutputStats";
+import { OutputStats } from "./OutputStatsReporter";
 
 
 import {
@@ -86,7 +86,7 @@ PersistedWorkflowTokenRegistry,
 } from "./persistedWorkflowResolver";
 
 
-import { RuntimeContinuationDiagnostics } from "./RuntimeContinuationDiagnostics";
+import { RuntimeContinuationDiagnostics } from "./RuntimeContinuationDiagnosticsReporter";
 
 
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { UserAccountDto,UserAccountStatus } from "@codemation/frontend-src/application/contracts/UserDirectoryContracts";
+import type { UserAccountDto,UserAccountStatus } from "@codemation/frontend-src/application/contracts/userDirectoryContracts.types";
 import { useCallback,useEffect,useState } from "react";
 import { CodemationDataTable } from "../components/CodemationDataTable";
 import { CodemationFormattedDateTime } from "../components/CodemationFormattedDateTime";

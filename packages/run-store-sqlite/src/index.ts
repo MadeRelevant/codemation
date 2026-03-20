@@ -1,2 +1,2 @@
-export { SqliteRunStateStore } from "./sqliteRunStateStore";
+export { SqliteRunStateStore } from "./SqliteRunStateStoreFactory";
 

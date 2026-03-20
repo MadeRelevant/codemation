@@ -2,8 +2,8 @@ import type { Items,Node,NodeExecutionContext,NodeOutputs } from "@codemation/co
 
 import { node } from "@codemation/core";
 
-import { Callback } from "./callback";
-import { CallbackResultNormalizer } from "./CallbackResultNormalizer";
+import { Callback } from "./CallbackNodeFactory";
+import { CallbackResultNormalizer } from "./CallbackResultNormalizerFactory";
 
 
 

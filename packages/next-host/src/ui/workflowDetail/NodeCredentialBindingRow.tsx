@@ -1,4 +1,4 @@
-import type { UpsertCredentialBindingRequest,WorkflowCredentialHealthSlotDto } from "@codemation/frontend-src/application/contracts/CredentialContracts";
+import type { UpsertCredentialBindingRequest,WorkflowCredentialHealthSlotDto } from "@codemation/frontend-src/application/contracts/CredentialContractsRegistry";
 import type { CredentialInstanceDto } from "../realtime/realtime";
 
 export function NodeCredentialBindingRow(args: Readonly<{

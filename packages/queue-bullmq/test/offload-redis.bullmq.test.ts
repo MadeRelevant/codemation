@@ -13,7 +13,6 @@ RunnableNodeConfig,
 TriggerSetupStateStore,
 TypeToken,
 WebhookRegistrar,
-WorkflowDefinition,
 WorkflowId,
 } from "@codemation/core";
 import {
@@ -31,6 +30,7 @@ InMemoryRunEventBus,
 InMemoryRunStateStore,
 InMemoryWorkflowRegistry,
 InlineDrivingScheduler,
+WorkflowBuilder,
 container as tsyringeContainer,
 } from "@codemation/core";
 import { GenericContainer } from "testcontainers";
@@ -113,20 +113,12 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
     return;
   }
 
-  const wf: WorkflowDefinition = {
+  const wf = new WorkflowBuilder({
     id: "wf.e2e.offload" as WorkflowId,
     name: "E2E offload (in-process)",
-    nodes: [
-      {
-        id: "uppercase" as any,
-        kind: "node",
-        type: UppercaseSubjectNode,
-        name: "Uppercase",
-        config: new UppercaseSubject("Uppercase", "uppercase"),
-      },
-    ],
-    edges: [],
-  };
+  })
+    .start(new UppercaseSubject("Uppercase", "uppercase"))
+    .build();
 
   const workflowsById = new Map([[wf.id, wf] as const]);
   const container = tsyringeContainer.createChildContainer();

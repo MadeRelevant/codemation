@@ -8,7 +8,7 @@ RunDataSnapshot,
 RunId,
 WorkflowId,
 } from "../../types";
-import { DefaultExecutionBinaryService,UnavailableBinaryStorage } from "./defaultExecutionBinaryService";
+import { DefaultExecutionBinaryService, UnavailableBinaryStorage } from "./DefaultExecutionBinaryServiceFactory";
 
 export class DefaultExecutionContextFactory implements ExecutionContextFactory {
   constructor(

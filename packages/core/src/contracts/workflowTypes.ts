@@ -12,8 +12,8 @@ export type JsonPrimitive = string | number | boolean | null;
 export interface JsonObject {
   readonly [key: string]: JsonValue;
 }
-export interface JsonArray extends ReadonlyArray<JsonValue> {}
 export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+export type JsonArray = ReadonlyArray<JsonValue>;
 
 export interface Edge {
   from: { nodeId: NodeId; output: OutputPortKey };

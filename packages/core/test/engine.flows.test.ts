@@ -2,19 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type {
-Items,
-NodeExecutionContext,
-NodeOutputs,
-TriggerNode,
-TriggerNodeConfig,
-TriggerSetupContext,
-TypeToken,
-WorkflowDefinition,
+  Items,
+  NodeExecutionContext,
+  NodeOutputs,
+  TriggerNode,
+  TriggerNodeConfig,
+  TriggerSetupContext,
+  TypeToken,
 } from "../src/index.ts";
 import { InMemoryRunEventBus,InMemoryRunStateStore,PublishingRunStateStore,WorkflowBuilder } from "../src/index.ts";
 
 import {
-CallbackNode,
 CallbackNodeConfig,
 IfNodeConfig,
 MapNodeConfig,
@@ -82,15 +80,7 @@ test("trigger nodes are marked completed and emit completion snapshots", async (
 
   const trigger = new ManualTestTriggerConfig("Manual trigger", "trigger");
   const finish = new CallbackNodeConfig("Finish", () => {}, { id: "finish" });
-  const workflow: WorkflowDefinition = {
-    id: "wf.trigger.completed",
-    name: "Trigger completed",
-    nodes: [
-      { id: "trigger", kind: "trigger", type: ManualTestTriggerNode, name: "Manual trigger", config: trigger },
-      { id: "finish", kind: "node", type: CallbackNode, name: "Finish", config: finish },
-    ],
-    edges: [{ from: { nodeId: "trigger", output: "main" }, to: { nodeId: "finish", input: "in" } }],
-  };
+  const workflow = new WorkflowBuilder({ id: "wf.trigger.completed", name: "Trigger completed" }).trigger(trigger).then(finish).build();
 
   const kit = createEngineTestKit({ runStore, eventBus: bus });
   await kit.start([workflow]);

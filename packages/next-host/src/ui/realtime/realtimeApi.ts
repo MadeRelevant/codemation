@@ -3,8 +3,8 @@ import type {
 CredentialInstanceDto,
 CredentialInstanceWithSecretsDto,
 WorkflowCredentialHealthDto,
-} from "@codemation/frontend-src/application/contracts/CredentialContracts";
-import { withUserAccountLoginMethodsDefaults,type UserAccountDto } from "@codemation/frontend-src/application/contracts/UserDirectoryContracts";
+} from "@codemation/frontend-src/application/contracts/CredentialContractsRegistry";
+import { withUserAccountLoginMethodsDefaults, type UserAccountDto } from "@codemation/frontend-src/application/contracts/userDirectoryContracts.types";
 import type { WorkflowDto,WorkflowSummary } from "@codemation/frontend-src/application/contracts/WorkflowViewContracts";
 import { ApiPaths } from "@codemation/frontend-src/presentation/http/ApiPaths";
 

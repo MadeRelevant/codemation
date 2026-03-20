@@ -1,6 +1,6 @@
 import type { ExecutableTriggerNode,Items,NodeExecutionContext,NodeOutputs,TriggerSetupContext } from "@codemation/core";
 import { node } from "@codemation/core";
-import { WebhookTrigger } from "./webhookTrigger";
+import { WebhookTrigger } from "./WebhookTriggerFactory";
 
 @node({ packageName: "@codemation/core-nodes" })
 export class WebhookTriggerNode implements ExecutableTriggerNode<WebhookTrigger<any>> {

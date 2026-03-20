@@ -2,20 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-AgentAttachmentNodeIdFactory,
-InMemoryRunStateStore,
-type Items,
-type NodeExecutionContext,
-type NodeOutputs,
-type PersistedRunState,
-type RunStateStore,
-type TriggerNode,
-type TriggerNodeConfig,
-type TriggerSetupContext,
-type TypeToken,
-type WorkflowDefinition,
+  AgentAttachmentNodeIdFactory,
+  InMemoryRunStateStore,
+  type Items,
+  type NodeExecutionContext,
+  type NodeOutputs,
+  type PersistedRunState,
+  type RunStateStore,
+  type TriggerNode,
+  type TriggerNodeConfig,
+  type TriggerSetupContext,
+  type TypeToken,
+  WorkflowBuilder,
 } from "../src/index.ts";
-import { CallbackNode,CallbackNodeConfig,chain,createEngineTestKit,items } from "./harness/index.ts";
+import { CallbackNodeConfig, chain, createEngineTestKit, items } from "./harness/index.ts";
 
 class TargetedExecutionStateFactory {
   static fromRunState(state: PersistedRunState): {
@@ -257,27 +257,12 @@ test("running to C with only B pinned completes A and C while completing B from 
 });
 
 test("stopping at a trigger does not materialize downstream pinned snapshots in the execution state", async () => {
-  const workflow: WorkflowDefinition = {
-    id: "wf.stop.at.trigger",
-    name: "Stop at trigger",
-    nodes: [
-      {
-        id: "A",
-        kind: "trigger",
-        type: TargetedManualTriggerNode,
-        name: "A",
-        config: new TargetedManualTriggerConfig("A", "A"),
-      },
-      { id: "B", kind: "node", type: CallbackNode, name: "B", config: new CallbackNodeConfig("B", () => {}, { id: "B" }) },
-      { id: "C", kind: "node", type: CallbackNode, name: "C", config: new CallbackNodeConfig("C", () => {}, { id: "C" }) },
-      { id: "D", kind: "node", type: CallbackNode, name: "D", config: new CallbackNodeConfig("D", () => {}, { id: "D" }) },
-    ],
-    edges: [
-      { from: { nodeId: "A", output: "main" }, to: { nodeId: "B", input: "in" } },
-      { from: { nodeId: "B", output: "main" }, to: { nodeId: "C", input: "in" } },
-      { from: { nodeId: "C", output: "main" }, to: { nodeId: "D", input: "in" } },
-    ],
-  };
+  const workflow = new WorkflowBuilder({ id: "wf.stop.at.trigger", name: "Stop at trigger" })
+    .trigger(new TargetedManualTriggerConfig("A", "A"))
+    .then(new CallbackNodeConfig("B", () => {}, { id: "B" }))
+    .then(new CallbackNodeConfig("C", () => {}, { id: "C" }))
+    .then(new CallbackNodeConfig("D", () => {}, { id: "D" }))
+    .build();
 
   const kit = createEngineTestKit();
   await kit.start([workflow]);
@@ -323,25 +308,11 @@ test("stopping at a trigger does not materialize downstream pinned snapshots in 
 });
 
 test("running to a downstream node rematerializes required pinned nodes into execution snapshots", async () => {
-  const workflow: WorkflowDefinition = {
-    id: "wf.rematerialize.pinned",
-    name: "Rematerialize pinned",
-    nodes: [
-      {
-        id: "A",
-        kind: "trigger",
-        type: TargetedManualTriggerNode,
-        name: "A",
-        config: new TargetedManualTriggerConfig("A", "A"),
-      },
-      { id: "B", kind: "node", type: CallbackNode, name: "B", config: new CallbackNodeConfig("B", () => {}, { id: "B" }) },
-      { id: "C", kind: "node", type: CallbackNode, name: "C", config: new CallbackNodeConfig("C", () => {}, { id: "C" }) },
-    ],
-    edges: [
-      { from: { nodeId: "A", output: "main" }, to: { nodeId: "B", input: "in" } },
-      { from: { nodeId: "B", output: "main" }, to: { nodeId: "C", input: "in" } },
-    ],
-  };
+  const workflow = new WorkflowBuilder({ id: "wf.rematerialize.pinned", name: "Rematerialize pinned" })
+    .trigger(new TargetedManualTriggerConfig("A", "A"))
+    .then(new CallbackNodeConfig("B", () => {}, { id: "B" }))
+    .then(new CallbackNodeConfig("C", () => {}, { id: "C" }))
+    .build();
 
   const kit = createEngineTestKit();
   await kit.start([workflow]);

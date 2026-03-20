@@ -1,7 +1,7 @@
 import { injectable } from "./di";
 
-import { PersistedRuntimeTypeMetadataStore } from "./PersistedRuntimeTypeMetadataStore";
-import type { DecoratedRuntimeType,PersistedRuntimeTypeDecoratorOptions,PersistedRuntimeTypeKind } from "./persistedRuntimeTypeModel";
+import { PersistedRuntimeTypeMetadataStore } from "./PersistedRuntimeTypeMetadataStoreRegistry";
+import type { DecoratedRuntimeType, PersistedRuntimeTypeDecoratorOptions, PersistedRuntimeTypeKind } from "./persistedRuntimeTypeModelRegistry";
 
 export class InjectableRuntimeDecoratorComposer {
   static compose(kind: PersistedRuntimeTypeKind, options: PersistedRuntimeTypeDecoratorOptions, decoratorFileUrl: string): ClassDecorator {

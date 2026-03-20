@@ -1,10 +1,11 @@
 export * from "./canvasIconName";
-export * from "./chatModels/openAiChatModel";
+export * from "./chatModels/OpenAIChatModelFactory";
+export * from "./chatModels/openAiChatModelConfig";
 export * from "./nodes/aiAgent";
-export * from "./nodes/callback";
+export * from "./nodes/CallbackNodeFactory";
 export * from "./nodes/httpRequest";
 export * from "./nodes/if";
-export * from "./nodes/manualTrigger";
+export * from "./nodes/ManualTriggerFactory";
 export * from "./nodes/mapData";
 export * from "./nodes/merge";
 export * from "./nodes/noOp";
@@ -12,8 +13,8 @@ export * from "./nodes/subWorkflow";
 export * from "./nodes/wait";
 export * from "./nodes/webhookRespondNowAndContinueError";
 export * from "./nodes/webhookRespondNowError";
-export * from "./nodes/webhookTrigger";
+export * from "./nodes/WebhookTriggerFactory";
 export * from "./nodes/webhookTriggerNode";
-export * from "./register";
-export * from "./workflowBuilder";
+export * from "./register.types";
+export * from "./workflowBuilder.types";
 

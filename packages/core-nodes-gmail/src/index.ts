@@ -7,7 +7,7 @@ export * from "./contracts/GmailServiceAccountCredential";
 export * from "./contracts/GmailTriggerSetupState";
 export * from "./nodes/OnNewGmailTrigger";
 export * from "./nodes/OnNewGmailTriggerNode";
-export * from "./plugin/GmailNodes";
+export * from "./plugin/GmailNodesRegistry";
 export * from "./runtime/GmailPullTriggerRuntime";
 export * from "./services/GmailApiClient";
 export * from "./services/GmailConfiguredLabelService";

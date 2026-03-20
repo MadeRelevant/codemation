@@ -2,7 +2,7 @@ import { describe,expect,it } from "vitest";
 import {
 withInviteUserResponseLoginMethodsDefaults,
 withUserAccountLoginMethodsDefaults,
-} from "../src/application/contracts/UserDirectoryContracts";
+} from "../src/application/contracts/userDirectoryContracts.types";
 
 describe("withUserAccountLoginMethodsDefaults", () => {
   it("preserves a valid loginMethods array", () => {

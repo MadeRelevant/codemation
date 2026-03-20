@@ -8,14 +8,6 @@ import type { PersistedTokenId,PersistedWorkflowTokenRegistryLike,WorkflowDefini
 import { PersistedRuntimeTypeIdFactory } from "./PersistedRuntimeTypeIdFactory";
 import { PersistedWorkflowTokenRegistryProxyAdapter } from "./PersistedWorkflowTokenRegistryProxyAdapter";
 
-function getTokenName(token: TypeToken<unknown>): string {
-  if (typeof token === "function" && token.name) return token.name;
-  if (typeof token === "string") return token;
-  return "";
-}
-
-
-
 export class PersistedWorkflowTokenRegistry {
   private readonly tokensById = new Map<PersistedTokenId, TypeToken<unknown>>();
   private readonly tokenIdsByToken = new Map<TypeToken<unknown>, PersistedTokenId>();
@@ -32,7 +24,7 @@ export class PersistedWorkflowTokenRegistry {
    * Register a token with its package ID. Token ID is inferred as `packageId::tokenName`.
    */
   register(type: TypeToken<unknown>, packageId: string, persistedNameOverride?: string): PersistedTokenId {
-    const tokenName = persistedNameOverride ?? getTokenName(type);
+    const tokenName = persistedNameOverride ?? this.displayNameForTypeToken(type);
     const tokenId = `${packageId}::${tokenName}` as PersistedTokenId;
     this.tokensById.set(tokenId, type);
     this.tokenIdsByToken.set(type, tokenId);
@@ -74,6 +66,12 @@ export class PersistedWorkflowTokenRegistry {
     const type = this.asTypeToken(record.type);
     if (type) this.registerDecoratedType(type);
     for (const v of Object.values(record)) this.registerNestedTypes(v);
+  }
+
+  private displayNameForTypeToken(token: TypeToken<unknown>): string {
+    if (typeof token === "function" && token.name) return token.name;
+    if (typeof token === "string") return token;
+    return "";
   }
 
   private asTypeToken(value: unknown): TypeToken<unknown> | undefined {

@@ -5,7 +5,7 @@ import { inject } from "@codemation/core";
 
 import { CommandHandler } from "../bus/CommandHandler";
 
-import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
+import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";
 
 import { DeleteCredentialInstanceCommand } from "./DeleteCredentialInstanceCommand";
 

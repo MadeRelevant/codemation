@@ -178,6 +178,10 @@ The package exposes **multiple subpath entry points** on purpose:
 
 Tests use **Vitest**, which uses **Vite internally** as the test runner only; there is no Vite-based app or consumer `vite.config` in this repo. The UI shell is **Next.js** only.
 
+### ESLint architecture rules (`packages/**/src`)
+
+Workspace ESLint enforces DI-friendly patterns: no arbitrary `new PascalCase` outside “composition root” filenames, no `static` methods in the same scope, and no exported free functions—except where the config explicitly ignores `**/index.ts`, `**/*Types.ts`, or `**/*types.ts`. Prefer renaming a module so its basename ends with an allowed suffix from [`tooling/eslint-config/index.mjs`](tooling/eslint-config/index.mjs) (`Factory`, `Builder`, `Registry`, `Planner`, …), or place small contract helpers in a `*.types.ts` file when that matches the module’s role.
+
 ## Build & dev conventions
 
 - Monorepo uses **pnpm workspaces** and **Turborepo**.

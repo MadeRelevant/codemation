@@ -10,7 +10,7 @@ RunId,
 RunStateStore,
 WorkflowId,
 } from "../../types";
-import { InputPortMap } from "./InputPortMap";
+import { InputPortMap } from "./InputPortMapFactory";
 import { NodeSnapshotFactory } from "./NodeSnapshotFactory";
 
 export class BoundNodeExecutionStatePublisher implements NodeExecutionStatePublisher {

@@ -2,7 +2,7 @@ import type { InputPortKey,Items,NodeId,OutputPortKey,RunQueueEntry } from "../.
 
 
 import { RunQueuePlannerDiagnostics } from "./RunQueuePlannerDiagnostics";
-import { WorkflowTopology } from "./workflowTopology";
+import { WorkflowTopology } from "./WorkflowTopologyPlanner";
 
 export type PlannedActivation =
   | Readonly<{ kind: "single"; nodeId: NodeId; input: Items; batchId: string }>

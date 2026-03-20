@@ -3,7 +3,7 @@ import type { Query } from "../../application/bus/Query";
 import type { QueryBus } from "../../application/bus/QueryBus";
 import type { QueryHandler } from "../../application/bus/QueryHandler";
 import { ApplicationTokens } from "../../applicationTokens";
-import { queryHandlerMetadataKey } from "./HandlesQuery";
+import { queryHandlerMetadataKey } from "./HandlesQueryRegistry";
 
 type QueryType = abstract new (...args: any[]) => Query<unknown>;
 

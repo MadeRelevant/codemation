@@ -1,4 +1,4 @@
-import type { UserAccountStatus } from "@codemation/frontend-src/application/contracts/UserDirectoryContracts";
+import type { UserAccountStatus } from "@codemation/frontend-src/application/contracts/userDirectoryContracts.types";
 
 export function UsersScreenUserStatusBadge(props: Readonly<{ userId: string; status: UserAccountStatus }>) {
   const { status, userId } = props;

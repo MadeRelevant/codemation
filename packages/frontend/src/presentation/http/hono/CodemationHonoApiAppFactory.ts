@@ -4,7 +4,7 @@ import type { SessionVerifier } from "../../../application/auth/SessionVerifier"
 import { ApplicationTokens } from "../../../applicationTokens";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 import type { HonoApiRouteRegistrar } from "./HonoApiRouteRegistrar";
-import { HonoHttpAnonymousRoutePolicy } from "./HonoHttpAnonymousRoutePolicy";
+import { HonoHttpAnonymousRoutePolicy } from "./HonoHttpAnonymousRoutePolicyRegistry";
 
 @injectable()
 export class CodemationHonoApiApp {

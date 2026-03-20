@@ -12,7 +12,7 @@ import type {
 AcceptUserInviteRequestDto,
 InviteUserRequestDto,
 UpdateUserAccountStatusRequestDto,
-} from "../../../application/contracts/UserDirectoryContracts";
+} from "../../../application/contracts/userDirectoryContracts.types";
 import { ListUserAccountsQuery,VerifyUserInviteQuery } from "../../../application/queries/UserAccountQueryHandlers";
 import { ApplicationTokens } from "../../../applicationTokens";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";

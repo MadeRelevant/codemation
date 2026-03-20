@@ -17,7 +17,7 @@ CredentialInstanceDto,
 CredentialInstanceWithSecretsDto,
 CredentialOAuth2ConnectionDto,
 UpdateCredentialInstanceRequest
-} from "../../application/contracts/CredentialContracts";
+} from "../../application/contracts/CredentialContractsRegistry";
 
 import { ApplicationTokens } from "../../applicationTokens";
 

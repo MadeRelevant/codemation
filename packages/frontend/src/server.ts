@@ -1,6 +1,6 @@
 export { CodemationPostgresPrismaClientFactory,PrismaClient } from "./persistenceServer";
 export { ApiPaths } from "./presentation/http/ApiPaths";
-export { CodemationServerGateway } from "./presentation/http/CodemationServerGateway";
+export { CodemationServerGateway } from "./presentation/http/CodemationServerGatewayFactory";
 export { CodemationConsumerAppResolver } from "./presentation/server/CodemationConsumerAppResolver";
 export type { CodemationConsumerApp } from "./presentation/server/CodemationConsumerAppResolver";
 export { CodemationConsumerConfigLoader } from "./presentation/server/CodemationConsumerConfigLoader";

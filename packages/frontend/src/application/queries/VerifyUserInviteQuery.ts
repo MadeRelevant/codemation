@@ -1,7 +1,7 @@
 
 import type {
 VerifyUserInviteResponseDto
-} from "../contracts/UserDirectoryContracts";
+} from "../contracts/userDirectoryContracts.types";
 
 import { Query } from "../bus/Query";
 

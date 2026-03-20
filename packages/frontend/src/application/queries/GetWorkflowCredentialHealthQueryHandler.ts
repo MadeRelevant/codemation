@@ -3,12 +3,12 @@ import { inject } from "@codemation/core";
 
 import type {
 WorkflowCredentialHealthDto
-} from "../contracts/CredentialContracts";
+} from "../contracts/CredentialContractsRegistry";
 
 
 import { QueryHandler } from "../bus/QueryHandler";
 
-import { HandlesQuery } from "../../infrastructure/di/HandlesQuery";
+import { HandlesQuery } from "../../infrastructure/di/HandlesQueryRegistry";
 
 import { CredentialBindingService } from "../../domain/credentials/CredentialServices";
 import { GetWorkflowCredentialHealthQuery } from "./GetWorkflowCredentialHealthQuery";

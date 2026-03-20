@@ -5,7 +5,7 @@ type DecoratedRuntimeType,
 type PersistedRuntimeTypeDecoratorOptions,
 type PersistedRuntimeTypeKind,
 type PersistedRuntimeTypeMetadata,
-} from "./persistedRuntimeTypeModel";
+} from "./persistedRuntimeTypeModelRegistry";
 import { PersistedRuntimeTypeNameResolver } from "./PersistedRuntimeTypeNameResolver";
 import { StackTraceCallSitePathResolver } from "./StackTraceCallSitePathResolver";
 

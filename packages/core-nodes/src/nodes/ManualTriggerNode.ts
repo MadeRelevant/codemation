@@ -9,7 +9,7 @@ TriggerTestItemsContext
 
 import { node } from "@codemation/core";
 
-import { ManualTrigger } from "./manualTrigger";
+import { ManualTrigger } from "./ManualTriggerFactory";
 
 
 

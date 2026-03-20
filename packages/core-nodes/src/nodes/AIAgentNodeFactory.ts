@@ -23,14 +23,14 @@ import { DynamicStructuredTool } from "@langchain/core/tools";
 import type { AIAgent } from "./AIAgentConfig";
 import { AgentMessageFactory } from "./AgentMessageFactory";
 import { AgentOutputFactory } from "./AgentOutputFactory";
-import { AgentToolCallPortMap } from "./AgentToolCallPortMap";
+import { AgentToolCallPortMap } from "./AgentToolCallPortMapFactory";
 import {
 AgentItemPortMap,
 type ExecutedToolCall,
 type ItemScopedToolBinding,
 type PlannedToolCall,
 type ResolvedTool,
-} from "./aiAgentSupport";
+} from "./aiAgentSupport.types";
 
 @node({ packageName: "@codemation/core-nodes" })
 export class AIAgentNode implements Node<AIAgent<any, any>> {

@@ -3,12 +3,12 @@ import { inject } from "@codemation/core";
 
 import type {
 CredentialInstanceDto
-} from "../contracts/CredentialContracts";
+} from "../contracts/CredentialContractsRegistry";
 
 
 import { CommandHandler } from "../bus/CommandHandler";
 
-import { HandlesCommand } from "../../infrastructure/di/HandlesCommand";
+import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";
 
 import { UpdateCredentialInstanceCommand } from "./UpdateCredentialInstanceCommand";
 

@@ -2,7 +2,7 @@ import type { RunnableNodeConfig,TypeToken } from "@codemation/core";
 
 
 
-import { HttpRequestNode } from "./HttpRequestNode";
+import { HttpRequestNode } from "./HttpRequestNodeFactory";
 
 export type HttpRequestDownloadMode = "auto" | "always" | "never";
 
@@ -62,4 +62,4 @@ export class HttpRequest<TInputJson = Readonly<{ url?: string }>, TOutputJson = 
   }
 }
 
-export { HttpRequestNode } from "./HttpRequestNode";
+export { HttpRequestNode } from "./HttpRequestNodeFactory";

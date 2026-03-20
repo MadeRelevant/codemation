@@ -28,4 +28,4 @@ export class Callback<TInputJson = unknown, TOutputJson = TInputJson> implements
 }
 
 export { CallbackNode } from "./CallbackNode";
-export { CallbackResultNormalizer } from "./CallbackResultNormalizer";
+export { CallbackResultNormalizer } from "./CallbackResultNormalizerFactory";

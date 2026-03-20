@@ -24,8 +24,8 @@
       "require": "./dist/index.cjs"
     },
     "./codemation-plugin": {
-      "types": "./src/codemationPlugin.ts",
-      "import": "./src/codemationPlugin.ts"
+      "types": "./src/codemationPluginRegistry.ts",
+      "import": "./src/codemationPluginRegistry.ts"
     }
   },
   "scripts": {

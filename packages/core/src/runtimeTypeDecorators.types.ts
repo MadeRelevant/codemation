@@ -1,11 +1,11 @@
-import type { PersistedRuntimeTypeDecoratorOptions,PersistedRuntimeTypeMetadata } from "./persistedRuntimeTypeModel";
+import type { PersistedRuntimeTypeDecoratorOptions, PersistedRuntimeTypeMetadata } from "./persistedRuntimeTypeModelRegistry";
 
-import { InjectableRuntimeDecoratorComposer } from "./InjectableRuntimeDecoratorComposer";
-import { PersistedRuntimeTypeMetadataStore } from "./PersistedRuntimeTypeMetadataStore";
+import { InjectableRuntimeDecoratorComposer } from "./InjectableRuntimeDecoratorComposerRegistry";
+import { PersistedRuntimeTypeMetadataStore } from "./PersistedRuntimeTypeMetadataStoreRegistry";
 
 export type {
 PersistedRuntimeTypeDecoratorOptions,PersistedRuntimeTypeKind,PersistedRuntimeTypeMetadata
-} from "./persistedRuntimeTypeModel";
+} from "./persistedRuntimeTypeModelRegistry";
 
 export function getPersistedRuntimeTypeMetadata(target: unknown): PersistedRuntimeTypeMetadata | undefined {
   return PersistedRuntimeTypeMetadataStore.get(target);
@@ -23,7 +23,7 @@ export function chatModel(options: PersistedRuntimeTypeDecoratorOptions = {}): C
   return InjectableRuntimeDecoratorComposer.compose("chatModel", options, import.meta.url);
 }
 
-export { InjectableRuntimeDecoratorComposer } from "./InjectableRuntimeDecoratorComposer";
-export { PersistedRuntimeTypeMetadataStore } from "./PersistedRuntimeTypeMetadataStore";
+export { InjectableRuntimeDecoratorComposer } from "./InjectableRuntimeDecoratorComposerRegistry";
+export { PersistedRuntimeTypeMetadataStore } from "./PersistedRuntimeTypeMetadataStoreRegistry";
 export { PersistedRuntimeTypeNameResolver } from "./PersistedRuntimeTypeNameResolver";
 export { StackTraceCallSitePathResolver } from "./StackTraceCallSitePathResolver";

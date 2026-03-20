@@ -3,7 +3,7 @@
 import type {
 CredentialInstanceDto,
 UpdateCredentialInstanceRequest
-} from "../contracts/CredentialContracts";
+} from "../contracts/CredentialContractsRegistry";
 
 import { Command } from "../bus/Command";
 

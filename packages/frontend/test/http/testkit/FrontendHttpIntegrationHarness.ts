@@ -1,7 +1,7 @@
 import net from "node:net";
 import type { CodemationBinding } from "../../../src/presentation/config/CodemationBinding";
 import type { CodemationConfig } from "../../../src/presentation/config/CodemationConfig";
-import { CodemationServerGateway } from "../../../src/presentation/http/CodemationServerGateway";
+import { CodemationServerGateway } from "../../../src/presentation/http/CodemationServerGatewayFactory";
 
 export interface FrontendHttpIntegrationHarnessOptions {
   readonly config: CodemationConfig;

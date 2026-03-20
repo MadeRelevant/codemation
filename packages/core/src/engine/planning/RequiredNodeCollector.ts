@@ -5,7 +5,7 @@ RunStopCondition
 
 
 import { DependencySatisfactionResolver } from "./DependencySatisfactionResolver";
-import { WorkflowTopology } from "./workflowTopology";
+import { WorkflowTopology } from "./WorkflowTopologyPlanner";
 
 export class RequiredNodeCollector {
   private readonly requiredNodeIds = new Set<NodeId>();

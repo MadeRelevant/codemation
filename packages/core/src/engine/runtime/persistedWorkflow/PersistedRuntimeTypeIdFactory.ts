@@ -1,6 +1,6 @@
 import type { TypeToken } from "../../../di";
 
-import { getPersistedRuntimeTypeMetadata } from "../../../runtimeTypeDecorators";
+import { getPersistedRuntimeTypeMetadata } from "../../../runtimeTypeDecorators.types";
 
 import type { PersistedTokenId } from "../../../types";
 

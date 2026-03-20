@@ -7,7 +7,7 @@ RunCurrentState
 } from "../../types";
 
 
-import { WorkflowTopology } from "./workflowTopology";
+import { WorkflowTopology } from "./WorkflowTopologyPlanner";
 
 
 

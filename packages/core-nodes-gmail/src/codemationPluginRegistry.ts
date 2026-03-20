@@ -1,4 +1,4 @@
-import { GmailNodes } from "./plugin/GmailNodes";
+import { GmailNodes } from "./plugin/GmailNodesRegistry";
 
 export const codemationPlugin = new GmailNodes();
 

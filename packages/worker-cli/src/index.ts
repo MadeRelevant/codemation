@@ -1,1 +1,1 @@
-export { CodemationWorkerCli } from "./CodemationWorkerCli";
+export { CodemationWorkerCli } from "./CodemationWorkerCliProgram";

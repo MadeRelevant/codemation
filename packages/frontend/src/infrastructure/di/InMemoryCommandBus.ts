@@ -3,7 +3,7 @@ import type { Command } from "../../application/bus/Command";
 import type { CommandBus } from "../../application/bus/CommandBus";
 import type { CommandHandler } from "../../application/bus/CommandHandler";
 import { ApplicationTokens } from "../../applicationTokens";
-import { commandHandlerMetadataKey } from "./HandlesCommand";
+import { commandHandlerMetadataKey } from "./HandlesCommandRegistry";
 
 type CommandType = abstract new (...args: any[]) => Command<unknown>;
 

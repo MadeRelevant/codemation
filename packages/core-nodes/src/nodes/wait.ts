@@ -16,5 +16,5 @@ export class Wait<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, 
   ) {}
 }
 
-export { WaitDuration } from "./WaitDuration";
+export { WaitDuration } from "./WaitDurationFactory";
 export { WaitNode } from "./WaitNode";

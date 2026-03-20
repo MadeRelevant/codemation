@@ -249,8 +249,8 @@ export interface TestableTriggerNode<TConfig extends TriggerNodeConfig<any, any>
   getTestItems(ctx: TriggerTestItemsContext<TConfig>): Promise<Items>;
 }
 
-export interface ExecutableTriggerNode<TConfig extends TriggerNodeConfig<any, any> = TriggerNodeConfig<any, any>>
-  extends TriggerNode<TConfig> {}
+export type ExecutableTriggerNode<TConfig extends TriggerNodeConfig<any, any> = TriggerNodeConfig<any, any>> =
+  TriggerNode<TConfig>;
 
 export interface NodeExecutionRequest {
   runId: RunId;

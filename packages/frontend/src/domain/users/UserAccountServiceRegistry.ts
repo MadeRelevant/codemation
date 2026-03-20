@@ -6,10 +6,10 @@ InviteUserResponseDto,
 UserAccountDto,
 UserAccountStatus,
 VerifyUserInviteResponseDto,
-} from "../../application/contracts/UserDirectoryContracts";
+} from "../../application/contracts/userDirectoryContracts.types";
 import { PrismaClient } from "../../infrastructure/persistence/generated/prisma-client/client.js";
 import type { CodemationAuthConfig } from "../../presentation/config/CodemationAuthConfig";
-import { labelForLinkedAuthAccount } from "./userLoginMethodLabels";
+import { labelForLinkedAuthAccount } from "./userLoginMethodLabels.types";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 

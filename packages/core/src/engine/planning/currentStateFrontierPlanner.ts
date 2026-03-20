@@ -18,7 +18,7 @@ import { RequiredNodeCollector } from "./RequiredNodeCollector";
 import { RootNodeInputResolver } from "./RootNodeInputResolver";
 import { RunCurrentStateFactory } from "./RunCurrentStateFactory";
 import { RunStateResetter } from "./RunStateResetter";
-import { WorkflowTopology } from "./workflowTopology";
+import { WorkflowTopology } from "./WorkflowTopologyPlanner";
 
 export class CurrentStateFrontierPlanner {
   private readonly rootNodeInputResolver = new RootNodeInputResolver();

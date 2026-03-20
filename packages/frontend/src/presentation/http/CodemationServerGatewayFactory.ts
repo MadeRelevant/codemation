@@ -9,7 +9,7 @@ import { GetWorkflowSummariesQuery } from "../../application/queries/GetWorkflow
 import { ApplicationTokens } from "../../applicationTokens";
 import { CodemationApplication } from "../../codemationApplication";
 import type { CodemationConfig } from "../config/CodemationConfig";
-import { CodemationHonoApiApp } from "./hono/CodemationHonoApiApp";
+import { CodemationHonoApiApp } from "./hono/CodemationHonoApiAppFactory";
 
 type ServerGatewayContext = Readonly<{
   application: CodemationApplication;

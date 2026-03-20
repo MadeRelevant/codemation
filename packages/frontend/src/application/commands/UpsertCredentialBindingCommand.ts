@@ -3,7 +3,7 @@ import type { CredentialBinding } from "@codemation/core";
 
 import type {
 UpsertCredentialBindingRequest
-} from "../contracts/CredentialContracts";
+} from "../contracts/CredentialContractsRegistry";
 
 import { Command } from "../bus/Command";
 

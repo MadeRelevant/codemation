@@ -2,7 +2,7 @@
 
 import type {
 CredentialInstanceWithSecretsDto
-} from "../contracts/CredentialContracts";
+} from "../contracts/CredentialContractsRegistry";
 
 import { Query } from "../bus/Query";
 

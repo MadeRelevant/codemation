@@ -5,7 +5,7 @@
 import type {
 CreateCredentialInstanceRequest,
 CredentialInstanceDto
-} from "../contracts/CredentialContracts";
+} from "../contracts/CredentialContractsRegistry";
 
 
 import { Command } from "../bus/Command";

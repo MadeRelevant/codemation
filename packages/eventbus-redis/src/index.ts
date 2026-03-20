@@ -1,2 +1,2 @@
-export { RedisRunEventBus } from "./redisRunEventBus";
+export { RedisRunEventBus } from "./RedisRunEventBusRegistry";
 

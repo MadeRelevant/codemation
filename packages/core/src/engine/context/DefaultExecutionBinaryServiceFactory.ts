@@ -14,7 +14,7 @@ ExecutionBinaryService,
 NodeBinaryAttachmentService
 } from "../../types";
 
-import { DefaultNodeBinaryAttachmentService } from "./DefaultNodeBinaryAttachmentService";
+import { DefaultNodeBinaryAttachmentService } from "./DefaultNodeBinaryAttachmentServiceFactory";
 
 export class DefaultExecutionBinaryService implements ExecutionBinaryService {
   constructor(
@@ -41,5 +41,5 @@ export class DefaultExecutionBinaryService implements ExecutionBinaryService {
 }
 
 export { AttachmentIdFactory } from "./AttachmentIdFactory";
-export { DefaultNodeBinaryAttachmentService } from "./DefaultNodeBinaryAttachmentService";
+export { DefaultNodeBinaryAttachmentService } from "./DefaultNodeBinaryAttachmentServiceFactory";
 export { UnavailableBinaryStorage } from "./UnavailableBinaryStorage";

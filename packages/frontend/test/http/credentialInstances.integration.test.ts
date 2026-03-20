@@ -7,7 +7,7 @@ import type {
 CredentialInstanceDto,
 CredentialInstanceWithSecretsDto,
 WorkflowCredentialHealthDto,
-} from "../../src/application/contracts/CredentialContracts";
+} from "../../src/application/contracts/CredentialContractsRegistry";
 import { CredentialSecretCipher } from "../../src/domain/credentials/CredentialServices";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
 import type { CodemationBootContext,CodemationBootHook } from "../../src/presentation/config/CodemationConfig";

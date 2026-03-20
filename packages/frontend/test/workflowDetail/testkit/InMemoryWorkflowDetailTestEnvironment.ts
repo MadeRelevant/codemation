@@ -6,15 +6,6 @@ import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness,type FrontendHttpIntegrationRequest } from "../../http/testkit/FrontendHttpIntegrationHarness";
 import type { WorkflowDetailRuntimeFixture } from "./WorkflowDetailRuntimeFixtures";
 
-type WorkflowRunRequestBody = Readonly<{
-  workflowId: string;
-  items?: ReadonlyArray<Readonly<{ json: unknown }>>;
-  stopAt?: string;
-  clearFromNodeId?: string;
-  mode?: "manual" | "debug";
-  sourceRunId?: string;
-}>;
-
 type RunCommandResponse = Readonly<{
   runId: string;
   workflowId: string;
@@ -247,8 +238,8 @@ export class InMemoryWorkflowDetailTestEnvironment {
   }
 
   async waitForRunToComplete(runId: string): Promise<PersistedRunState> {
-    const deadline = Date.now() + 5_000;
-    while (Date.now() < deadline) {
+    const deadline = performance.now() + 5_000;
+    while (performance.now() < deadline) {
       const state = await this.loadRunState(runId);
       if (state.status === "completed" || state.status === "failed") {
         return state;

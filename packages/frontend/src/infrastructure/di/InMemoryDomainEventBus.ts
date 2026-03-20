@@ -3,7 +3,7 @@ import type { DomainEvent } from "../../application/bus/DomainEvent";
 import type { DomainEventBus } from "../../application/bus/DomainEventBus";
 import type { DomainEventHandler } from "../../application/bus/DomainEventHandler";
 import { ApplicationTokens } from "../../applicationTokens";
-import { domainEventHandlerMetadataKey } from "./HandlesDomainEvent";
+import { domainEventHandlerMetadataKey } from "./HandlesDomainEventRegistry";
 
 type DomainEventType = abstract new (...args: any[]) => DomainEvent;
 
