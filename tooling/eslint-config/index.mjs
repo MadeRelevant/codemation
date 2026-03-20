@@ -375,6 +375,23 @@ export default [
           property: "doMock",
           message: "Prefer dependency injection seams and register fakes in the container instead of using vi.doMock().",
         },
+        {
+          object: "vi",
+          property: "stubGlobal",
+          message:
+            "Do not use vi.stubGlobal: save the prior globalThis value, assign the test double, and restore in afterEach/finally so parallel and non-isolated Vitest runs stay deterministic.",
+        },
+        {
+          object: "vi",
+          property: "unstubAllGlobals",
+          message:
+            "Do not use vi.unstubAllGlobals: pair each global override with an explicit restore of the saved value (afterEach or try/finally).",
+        },
+        {
+          object: "vi",
+          property: "stubEnv",
+          message: "Do not stub process.env via vi.stubEnv; pass env through harness constructors or copy/restore process.env keys explicitly.",
+        },
         { object: "Math", property: "random", message: "Avoid nondeterminism in tests (use deterministic factories)." },
         { object: "Date", property: "now", message: "Avoid nondeterminism in tests (inject clock or use deterministic factories)." },
       ],
@@ -426,6 +443,33 @@ export default [
   },
 
   // Documented exceptions: path catalog + hot runtime construction are intentional.
+  // Backend / server libraries: use DI loggers (LoggerFactory, domain log tokens), not raw console.log.
+  // next-host (React/UI) and cli (user-facing stdout) are out of scope; browser logging uses BrowserLoggerFactory when wired.
+  {
+    files: [
+      "packages/core/src/**/*.ts",
+      "packages/core-nodes/src/**/*.ts",
+      "packages/core-nodes-gmail/src/**/*.ts",
+      "packages/queue-bullmq/src/**/*.ts",
+      "packages/eventbus-redis/src/**/*.ts",
+      "packages/run-store-sqlite/src/**/*.ts",
+      "packages/node-example/src/**/*.ts",
+      "packages/frontend/src/**/*.ts",
+    ],
+    ignores: ["**/test/**", "**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "console",
+          property: "log",
+          message:
+            "Avoid console.log. Inject LoggerFactory (see packages/frontend application/logging/Logger.ts) or a domain Logger token and call logger.info/warn/error/debug; server code should resolve ServerLoggerFactory from the container.",
+        },
+      ],
+    },
+  },
+
   {
     files: ["packages/core/src/engine/runtime/runtimeEngine.ts"],
     rules: {

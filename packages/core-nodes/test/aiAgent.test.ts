@@ -14,7 +14,7 @@ import { ContainerNodeResolver,DefaultExecutionBinaryService,InMemoryBinaryStora
 import { AIAgent,AIAgentNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
-import test from "node:test";
+import { test } from "vitest";
 import { z } from "zod";
 
 class CapturingNodeStatePublisher implements NodeExecutionStatePublisher {

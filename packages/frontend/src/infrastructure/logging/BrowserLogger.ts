@@ -1,9 +1,11 @@
 import type { Logger } from "../../application/logging/Logger";
-
-
+import type { LogLevelPolicy } from "./LogLevelPolicy";
 
 export class BrowserLogger implements Logger {
-  constructor(private readonly scope: string) {}
+  constructor(
+    private readonly scope: string,
+    private readonly logLevelPolicy: LogLevelPolicy,
+  ) {}
 
   info(message: string, exception?: Error): void {
     this.log("info", message, exception);
@@ -22,6 +24,9 @@ export class BrowserLogger implements Logger {
   }
 
   private log(level: "info" | "warn" | "error" | "debug", message: string, exception?: Error): void {
+    if (!this.logLevelPolicy.shouldEmit(level)) {
+      return;
+    }
     const prefix = `[${this.scope}]`;
     if (exception) {
       console[level](`${prefix} ${message}`, exception);

@@ -12,7 +12,8 @@ MissingRuntimeTriggerConfig,
 MissingRuntimeTriggerToken,
 PersistedWorkflowResolver,
 PersistedWorkflowSnapshotFactory,
-PersistedWorkflowTokenRegistry
+PersistedWorkflowTokenRegistry,
+PersistedWorkflowTokenRegistryFromLikeFactory,
 } from "./runtime/persistedWorkflowResolver";
 export { RunIntentService } from "./runtime/RunIntentService";
 export { Engine,EngineWorkflowRunnerService } from "./runtime/runtimeEngine";

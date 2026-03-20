@@ -1,10 +1,11 @@
+import { RunFinishedAtFactory } from "@codemation/core";
 import type {
 PersistedRunState,
 RunSummary,
 WorkflowDebuggerOverlayState,
 WorkflowDto,
 } from "@codemation/next-host/src/ui/realtime/realtime";
-import { expect,vi } from "vitest";
+import { expect } from "vitest";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
 import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
 import type { WorkflowDetailRealtimeServerMessage } from "./WorkflowDetailRealtimeFixtures";
@@ -95,6 +96,9 @@ export class WorkflowDetailTestEnvironment {
   debuggerOverlay: WorkflowDebuggerOverlayState;
   readonly websocketPort = "31337";
   private workflowResponse: WorkflowDto;
+  private priorFetch: typeof globalThis.fetch | undefined;
+  private priorWebSocket: typeof WebSocket | undefined;
+  private priorDomMatrixReadOnly: typeof window.DOMMatrixReadOnly | undefined;
 
   constructor(public readonly workflow: WorkflowDto) {
     this.workflowResponse = workflow;
@@ -104,12 +108,11 @@ export class WorkflowDetailTestEnvironment {
   install(): void {
     const socketConnections = this.socketConnections;
 
-    vi.stubGlobal("fetch", this.handleRequest.bind(this) as typeof fetch);
+    this.priorFetch = globalThis.fetch;
+    globalThis.fetch = this.handleRequest.bind(this) as typeof fetch;
 
-    Object.defineProperty(globalThis, "WebSocket", {
-      configurable: true,
-      writable: true,
-      value: class WorkflowRealtimeSocketMock {
+    this.priorWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = class WorkflowRealtimeSocketMock {
         static readonly CONNECTING = 0;
         static readonly OPEN = 1;
         static readonly CLOSING = 2;
@@ -141,9 +144,9 @@ export class WorkflowDetailTestEnvironment {
         close(): void {
           this.connection.close();
         }
-      },
-    });
+      } as unknown as typeof WebSocket;
 
+    this.priorDomMatrixReadOnly = window.DOMMatrixReadOnly;
     Object.defineProperty(window, "DOMMatrixReadOnly", {
       configurable: true,
       writable: true,
@@ -166,7 +169,24 @@ export class WorkflowDetailTestEnvironment {
   }
 
   restore(): void {
-    vi.unstubAllGlobals();
+    if (this.priorFetch !== undefined) {
+      globalThis.fetch = this.priorFetch;
+    }
+    if (this.priorWebSocket !== undefined) {
+      globalThis.WebSocket = this.priorWebSocket;
+    }
+    if (this.priorDomMatrixReadOnly !== undefined) {
+      Object.defineProperty(window, "DOMMatrixReadOnly", {
+        configurable: true,
+        writable: true,
+        value: this.priorDomMatrixReadOnly,
+      });
+    } else {
+      Reflect.deleteProperty(window, "DOMMatrixReadOnly");
+    }
+    this.priorFetch = undefined;
+    this.priorWebSocket = undefined;
+    this.priorDomMatrixReadOnly = undefined;
     this.callsByRoute.clear();
     this.requestBodiesByRoute.clear();
     this.socketConnections.length = 0;
@@ -423,6 +443,7 @@ export class WorkflowDetailTestEnvironment {
       workflowId: runState.workflowId,
       startedAt: runState.startedAt,
       status: runState.status,
+      finishedAt: RunFinishedAtFactory.resolveIso(runState),
       executionOptions: runState.executionOptions,
       parent: runState.parent,
     };

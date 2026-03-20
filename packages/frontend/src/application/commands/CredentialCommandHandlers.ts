@@ -1,29 +1,4 @@
-
-
-
-
-import type {
-CreateCredentialInstanceRequest,
-CredentialInstanceDto
-} from "../contracts/CredentialContractsRegistry";
-
-
-import { Command } from "../bus/Command";
-
-
-
-
-
-
-
-
-
-export class CreateCredentialInstanceCommand extends Command<CredentialInstanceDto> {
-  constructor(public readonly body: CreateCredentialInstanceRequest) {
-    super();
-  }
-}
-
+export { CreateCredentialInstanceCommand } from "./CreateCredentialInstanceCommand";
 export { CreateCredentialInstanceCommandHandler } from "./CreateCredentialInstanceCommandHandler";
 export { DeleteCredentialInstanceCommand } from "./DeleteCredentialInstanceCommand";
 export { DeleteCredentialInstanceCommandHandler } from "./DeleteCredentialInstanceCommandHandler";

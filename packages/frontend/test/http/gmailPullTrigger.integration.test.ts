@@ -1,6 +1,7 @@
 // @vitest-environment node
 
-import type { PersistedRunState } from "@codemation/core";
+import type { CredentialSessionService,PersistedRunState } from "@codemation/core";
+import { CoreTokens } from "@codemation/core";
 import { Callback,createWorkflowBuilder } from "@codemation/core-nodes";
 import path from "node:path";
 import { afterEach,describe,expect,it } from "vitest";
@@ -89,6 +90,14 @@ class FakeGmailApiClient implements GmailApiClient {
   }
 }
 
+class GmailIntegrationCredentialSessionService implements CredentialSessionService {
+  constructor(private readonly apiClient: GmailApiClient) {}
+
+  async getSession<TSession = unknown>(_: Readonly<{ workflowId: string; nodeId: string; slotKey: string }>): Promise<TSession> {
+    return this.apiClient as TSession;
+  }
+}
+
 class FakePulledNotification implements GmailPulledNotification {
   acked = false;
 
@@ -158,6 +167,10 @@ class GmailPullTriggerIntegrationFixture {
 
   static createBindings(apiClient: GmailApiClient): ReadonlyArray<CodemationBinding<unknown>> {
     return [
+      {
+        token: CoreTokens.CredentialSessionService,
+        useValue: new GmailIntegrationCredentialSessionService(apiClient),
+      },
       {
         token: GmailNodeTokens.GmailApiClient,
         useValue: apiClient,

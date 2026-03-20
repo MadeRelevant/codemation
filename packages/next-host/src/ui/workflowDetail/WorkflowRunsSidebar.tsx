@@ -8,7 +8,7 @@ export function WorkflowRunsSidebar(args: Readonly<{
   formatting: WorkflowRunsSidebarFormatting;
 }>) {
   const { actions, formatting, model } = args;
-  const { formatDateTime, getExecutionModeLabel } = formatting;
+  const { formatRunListDurationLine, formatRunListWhen, getExecutionModeLabel } = formatting;
   const { onSelectRun } = actions;
   const { displayedRuns, displayedWorkflow, error, runsError, selectedRunId, workflow, workflowError, workflowId } = model;
 
@@ -48,7 +48,8 @@ export function WorkflowRunsSidebar(args: Readonly<{
       <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 14 }}>
         <WorkflowRunsList
           displayedRuns={displayedRuns}
-          formatDateTime={formatDateTime}
+          formatRunListDurationLine={formatRunListDurationLine}
+          formatRunListWhen={formatRunListWhen}
           getExecutionModeLabel={getExecutionModeLabel}
           onSelectRun={onSelectRun}
           runsError={runsError}

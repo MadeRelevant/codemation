@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 
 import type { Items,Node,NodeOutputs,RunnableNodeConfig,TypeToken } from "../src/index.ts";
 import { InMemoryWorkflowRegistry,PersistedWorkflowResolver,PersistedWorkflowSnapshotFactory,PersistedWorkflowTokenRegistry,node,tool } from "../src/index.ts";

@@ -148,6 +148,8 @@ export interface RunSummary {
   workflowId: WorkflowId;
   startedAt: string;
   status: RunStatus;
+  /** ISO timestamp when the run finished (derived from node snapshots or store `updatedAt`); omit while running/pending. */
+  finishedAt?: string;
   parent?: ParentExecutionRef;
   executionOptions?: RunExecutionOptions;
 }

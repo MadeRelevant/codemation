@@ -1,4 +1,4 @@
-import { AgentAttachmentNodeIdFactory,ItemsInputNormalizer } from "@codemation/core/browser";
+import { AgentAttachmentNodeIdFactory,ItemsInputNormalizer,RunFinishedAtFactory } from "@codemation/core/browser";
 import { ApiPaths } from "@codemation/frontend-src/presentation/http/ApiPaths";
 import { format,isToday,isYesterday } from "date-fns";
 import prettyMilliseconds from "pretty-ms";
@@ -163,6 +163,32 @@ export class WorkflowDetailPresenter {
     return format(date, "d MMM yyyy HH:mm:ss");
   }
 
+  /** Primary label for run list rows: clearer date + time than {@link formatDateTime}. */
+  static formatRunListWhen(value: string | undefined): string {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    const time = format(date, "HH:mm");
+    if (isToday(date)) return `Today · ${time}`;
+    if (isYesterday(date)) return `Yesterday · ${time}`;
+    return format(date, "EEE d MMM yyyy · HH:mm");
+  }
+
+  static formatRunListDurationLine(run: Pick<RunSummary, "startedAt" | "finishedAt" | "status">): string {
+    if (run.status === "running") return "Still running…";
+    if (run.status === "pending") return "Waiting…";
+    if (!run.startedAt) return "";
+    const startMs = new Date(run.startedAt).getTime();
+    if (Number.isNaN(startMs)) return "";
+    if (run.finishedAt) {
+      const endMs = new Date(run.finishedAt).getTime();
+      if (!Number.isNaN(endMs)) {
+        return prettyMilliseconds(Math.max(0, endMs - startMs), { compact: true });
+      }
+    }
+    return "—";
+  }
+
   static getNodeDisplayName(node: WorkflowNode | undefined, fallback: string | null): string {
     return node?.name ?? node?.type ?? fallback ?? "Unknown node";
   }
@@ -261,6 +287,7 @@ export class WorkflowDetailPresenter {
       workflowId: state.workflowId,
       startedAt: state.startedAt,
       status: state.status,
+      finishedAt: RunFinishedAtFactory.resolveIso(state),
       parent: state.parent,
       executionOptions: state.executionOptions,
     };

@@ -1,31 +1,6 @@
-
-
-import type {
-InviteUserResponseDto
-} from "../contracts/userDirectoryContracts.types";
-
-
-import { Command } from "../bus/Command";
-
-
-
-
-
-
-
-
-
-export class InviteUserCommand extends Command<InviteUserResponseDto> {
-  constructor(
-    public readonly email: string,
-    public readonly requestOrigin: string,
-  ) {
-    super();
-  }
-}
-
 export { AcceptUserInviteCommand } from "./AcceptUserInviteCommand";
 export { AcceptUserInviteCommandHandler } from "./AcceptUserInviteCommandHandler";
+export { InviteUserCommand } from "./InviteUserCommand";
 export { InviteUserCommandHandler } from "./InviteUserCommandHandler";
 export { RegenerateUserInviteCommand } from "./RegenerateUserInviteCommand";
 export { RegenerateUserInviteCommandHandler } from "./RegenerateUserInviteCommandHandler";

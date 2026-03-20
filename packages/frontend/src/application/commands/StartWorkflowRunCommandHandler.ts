@@ -8,6 +8,7 @@ RunStopCondition,
 WorkflowDefinition,
 } from "@codemation/core";
 import { Engine,ItemsInputNormalizer,RunIntentService,inject } from "@codemation/core";
+import type { Logger,LoggerFactory } from "../logging/Logger";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import type { WorkflowDebuggerOverlayRepository } from "../../domain/workflows/WorkflowDebuggerOverlayRepository";
@@ -21,6 +22,8 @@ import { StartWorkflowRunCommand } from "./StartWorkflowRunCommand";
 
 @HandlesCommand.for(StartWorkflowRunCommand)
 export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflowRunCommand, RunCommandResult> {
+  private readonly routesLog: Logger;
+
   constructor(
     @inject(Engine)
     private readonly engine: Engine,
@@ -34,8 +37,11 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
     private readonly workflowRunRepository: WorkflowRunRepository,
     @inject(ApplicationTokens.WorkflowDebuggerOverlayRepository)
     private readonly workflowDebuggerOverlayRepository: WorkflowDebuggerOverlayRepository,
+    @inject(ApplicationTokens.LoggerFactory)
+    loggerFactory: LoggerFactory,
   ) {
     super();
+    this.routesLog = loggerFactory.create("codemation-routes.server");
   }
 
   async execute(command: StartWorkflowRunCommand): Promise<RunCommandResult> {
@@ -95,8 +101,8 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
             stopCondition: legacyStartNodeId && !body.sourceRunId && !body.currentState && !body.stopAt ? undefined : this.createStopCondition(body.stopAt),
           });
     const state = (await this.workflowRunRepository.load(result.runId)) ?? null;
-    console.info(
-      `[codemation-routes.server] postRun workflow=${workflow.id} runId=${result.runId} status=${result.status} persistedStatus=${state?.status ?? "missing"}`,
+    this.routesLog.info(
+      `postRun workflow=${workflow.id} runId=${result.runId} status=${result.status} persistedStatus=${state?.status ?? "missing"}`,
     );
     return {
       runId: result.runId,
@@ -131,7 +137,7 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
   }
 
   private resolveRunRequestItems(workflow: WorkflowDefinition, startAt: string | undefined, items?: Items): Items {
-    if (items) {
+    if (items !== undefined) {
       return items;
     }
     return this.isTriggerStart(workflow, startAt) ? [] : [{ json: {} }];

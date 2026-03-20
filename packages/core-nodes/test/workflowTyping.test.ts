@@ -1,7 +1,7 @@
 import type { Items,Node,NodeExecutionContext,NodeOutputs,RunnableNodeConfig,TypeToken } from "@codemation/core";
 import { Callback,If,ManualTrigger,MapData,Wait,createWorkflowBuilder } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 
 type AssertTrue<T extends true> = T;
 type IsExact<TLeft, TRight> = [TLeft] extends [TRight] ? ([TRight] extends [TLeft] ? true : false) : false;

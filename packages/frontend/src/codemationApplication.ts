@@ -75,6 +75,7 @@ import { InMemoryCommandBus } from "./infrastructure/di/InMemoryCommandBus";
 import { InMemoryDomainEventBus } from "./infrastructure/di/InMemoryDomainEventBus";
 import { InMemoryQueryBus } from "./infrastructure/di/InMemoryQueryBus";
 import { CodemationIdFactory } from "./infrastructure/ids/CodemationIdFactory";
+import { LogLevelPolicyFactory, logLevelPolicyFactory } from "./infrastructure/logging/LogLevelPolicyFactory";
 import { ServerLoggerFactory } from "./infrastructure/logging/ServerLoggerFactory";
 import { InMemoryCredentialStore,PrismaCredentialStore } from "./infrastructure/persistence/CredentialPersistenceStore";
 import { PrismaClient } from "./infrastructure/persistence/generated/prisma-client/client.js";
@@ -136,6 +137,7 @@ export class CodemationApplication {
   private ownedPrismaClient: PrismaClient | null = null;
   private runtimeConfig: CodemationApplicationRuntimeConfig = {};
   private bindings: ReadonlyArray<CodemationBinding<unknown>> = [];
+  private hasConfigCredentialSessionServiceBinding = false;
   private plugins: ReadonlyArray<CodemationPlugin> = [];
   private sharedWorkflowWebsocketServer: WorkflowWebsocketServer | null = null;
   private applicationAuthConfig: CodemationAuthConfig | undefined;
@@ -182,6 +184,7 @@ export class CodemationApplication {
 
   useBindings(bindings: NonNullable<CodemationConfig["bindings"]>): this {
     this.bindings = [...bindings];
+    this.hasConfigCredentialSessionServiceBinding = bindings.some((entry) => entry.token === CoreTokens.CredentialSessionService);
     this.synchronizeContainerRegistrations();
     return this;
   }
@@ -451,6 +454,11 @@ export class CodemationApplication {
         return new RunIntentService(dependencyContainer.resolve(Engine), dependencyContainer.resolve(CoreTokens.WorkflowRegistry));
       }),
     });
+    this.container.registerInstance(LogLevelPolicyFactory, logLevelPolicyFactory);
+    this.container.register(ServerLoggerFactory, { useClass: ServerLoggerFactory });
+    this.container.register(ApplicationTokens.LoggerFactory, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(ServerLoggerFactory)),
+    });
     this.container.register(WorkflowWebsocketServer, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         if (this.sharedWorkflowWebsocketServer) {
@@ -459,12 +467,9 @@ export class CodemationApplication {
         return new WorkflowWebsocketServer(
           dependencyContainer.resolve(ApplicationTokens.WebSocketPort),
           dependencyContainer.resolve(ApplicationTokens.WebSocketBindHost),
+          dependencyContainer.resolve(ServerLoggerFactory).create("codemation-websocket.server"),
         );
       }),
-    });
-    this.container.register(ServerLoggerFactory, { useClass: ServerLoggerFactory });
-    this.container.register(ApplicationTokens.LoggerFactory, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(ServerLoggerFactory)),
     });
     this.container.register(CoreTokens.WorkflowRunnerService, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
@@ -596,9 +601,11 @@ export class CodemationApplication {
     } else {
       this.container.registerInstance(ApplicationTokens.CredentialStore, this.container.resolve(InMemoryCredentialStore));
     }
-    this.container.register(CoreTokens.CredentialSessionService, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CredentialSessionServiceImpl)),
-    });
+    if (!this.hasConfigCredentialSessionServiceBinding) {
+      this.container.register(CoreTokens.CredentialSessionService, {
+        useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CredentialSessionServiceImpl)),
+      });
+    }
     if (resolved.workerRuntimeScheduler) {
       this.container.registerInstance(ApplicationTokens.WorkerRuntimeScheduler, resolved.workerRuntimeScheduler);
     }

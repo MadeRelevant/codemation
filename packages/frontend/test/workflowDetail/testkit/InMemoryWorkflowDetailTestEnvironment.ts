@@ -1,6 +1,8 @@
+import { RunFinishedAtFactory } from "@codemation/core";
+
 import type { PersistedRunState,RunSummary,WorkflowDebuggerOverlayState } from "@codemation/next-host/src/ui/realtime/realtime";
 import path from "node:path";
-import { expect,vi } from "vitest";
+import { expect } from "vitest";
 import { WebSocket as NodeWebSocket,type RawData } from "ws";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness,type FrontendHttpIntegrationRequest } from "../../http/testkit/FrontendHttpIntegrationHarness";
@@ -171,6 +173,9 @@ export class InMemoryWorkflowDetailTestEnvironment {
   private debuggerOverlay: WorkflowDebuggerOverlayState;
   private websocketPortValue: string | null = null;
   private realtimeBridgeClient: WorkflowRealtimeBridgeClient | null = null;
+  private priorFetch: typeof globalThis.fetch | undefined;
+  private priorWebSocket: typeof WebSocket | undefined;
+  private priorDomMatrixReadOnly: typeof window.DOMMatrixReadOnly | undefined;
 
   constructor(public readonly fixture: WorkflowDetailRuntimeFixture) {
     this.harness = new FrontendHttpIntegrationHarness({
@@ -196,13 +201,33 @@ export class InMemoryWorkflowDetailTestEnvironment {
     this.websocketPortValue = String(this.harness.getWorkflowWebsocketPort());
     this.realtimeBridgeClient = new WorkflowRealtimeBridgeClient(this.harness.getWorkflowWebsocketPort());
     await this.realtimeBridgeClient.open();
-    vi.stubGlobal("fetch", this.handleRequest.bind(this) as typeof fetch);
-    vi.stubGlobal("WebSocket", this.createWebSocketMockConstructor() as typeof WebSocket);
+    this.priorFetch = globalThis.fetch;
+    globalThis.fetch = this.handleRequest.bind(this) as typeof fetch;
+    this.priorWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = this.createWebSocketMockConstructor();
+    this.priorDomMatrixReadOnly = window.DOMMatrixReadOnly;
     this.installDomMatrixReadOnly();
   }
 
   async restore(): Promise<void> {
-    vi.unstubAllGlobals();
+    if (this.priorFetch !== undefined) {
+      globalThis.fetch = this.priorFetch;
+    }
+    if (this.priorWebSocket !== undefined) {
+      globalThis.WebSocket = this.priorWebSocket;
+    }
+    if (this.priorDomMatrixReadOnly !== undefined) {
+      Object.defineProperty(window, "DOMMatrixReadOnly", {
+        configurable: true,
+        writable: true,
+        value: this.priorDomMatrixReadOnly,
+      });
+    } else {
+      Reflect.deleteProperty(window, "DOMMatrixReadOnly");
+    }
+    this.priorFetch = undefined;
+    this.priorWebSocket = undefined;
+    this.priorDomMatrixReadOnly = undefined;
     if (this.realtimeBridgeClient) {
       await this.realtimeBridgeClient.close();
       this.realtimeBridgeClient = null;
@@ -402,6 +427,7 @@ export class InMemoryWorkflowDetailTestEnvironment {
       workflowId: state.workflowId,
       startedAt: state.startedAt,
       status: state.status,
+      finishedAt: RunFinishedAtFactory.resolveIso(state),
       parent: state.parent,
       executionOptions: state.executionOptions,
     });

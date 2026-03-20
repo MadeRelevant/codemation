@@ -4,11 +4,22 @@ import { frontendVitestSharedConfig } from "./vitest.shared";
 export default defineConfig({
   ...frontendVitestSharedConfig,
   test: {
-    environment: "jsdom",
+    name: "@codemation/frontend-unit",
+    root: import.meta.dirname,
+    environment: "node",
     setupFiles: ["./test/setup.ts"],
     clearMocks: true,
     restoreMocks: true,
-    include: ["./test/**/*.test.ts", "./test/**/*.test.tsx"],
-    exclude: ["./test/**/*.integration.test.ts", "./test/**/*.integration.test.tsx", "./test/**/*.e2e.test.ts", "./test/**/*.e2e.test.tsx"],
+    include: ["./test/**/*.test.ts"],
+    exclude: [
+      "./test/**/*.integration.test.ts",
+      "./test/http/**",
+      "./test/**/*.e2e.test.ts",
+    ],
+    passWithNoTests: true,
+    pool: "threads",
+    isolate: true,
+    maxWorkers: 2,
+    fileParallelism: true,
   },
 });

@@ -1,6 +1,6 @@
 import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { OnNewGmailTrigger } from "../src/nodes/OnNewGmailTrigger";
 import { OnNewGmailTriggerNode } from "../src/nodes/OnNewGmailTriggerNode";
 import { GmailPullTriggerRuntime } from "../src/runtime/GmailPullTriggerRuntime";

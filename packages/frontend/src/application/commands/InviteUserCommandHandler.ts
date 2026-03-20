@@ -11,7 +11,7 @@ import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";
 
 import { UserAccountService } from "../../domain/users/UserAccountServiceRegistry";
 
-import { InviteUserCommand } from "./UserAccountCommandHandlers";
+import { InviteUserCommand } from "./InviteUserCommand";
 
 
 

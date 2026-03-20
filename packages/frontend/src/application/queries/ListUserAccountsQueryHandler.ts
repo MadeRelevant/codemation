@@ -11,7 +11,7 @@ import { HandlesQuery } from "../../infrastructure/di/HandlesQueryRegistry";
 
 import { UserAccountService } from "../../domain/users/UserAccountServiceRegistry";
 
-import { ListUserAccountsQuery } from "./UserAccountQueryHandlers";
+import { ListUserAccountsQuery } from "./ListUserAccountsQuery";
 
 
 

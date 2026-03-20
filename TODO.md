@@ -28,5 +28,6 @@
 * [ ] Support white-label (logo + company name)
 * [ ] Migrate RouteHandlers from frontend to nextjs layer and call commands/queries directly and remove custom annotation driven router
 * [ ] Add "clear data" to the live workflow so you can run it cleanly instead of manually clicking play on first node -> then last node play button or "Run workflow"
+* [ ] Audit ESLint intentional relaxations so we are not quietly bypassing architecture rules: inventory `files` / `ignores` overrides in `tooling/eslint-config/index.mjs` (e.g. `codemation/no-manual-di-new` / `no-static-methods` off for specific paths), plus any `eslint-disable` in source; decide keep vs refactor vs narrow scope, and document rationale next to each override.
 * [ ] Test credentials using Azure Keyvault instead of database
 * [ ] Support retry policy (default X times with fixed delay and exponential as alternative)

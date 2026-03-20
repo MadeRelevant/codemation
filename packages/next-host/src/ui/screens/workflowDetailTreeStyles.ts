@@ -8,6 +8,7 @@ export const WORKFLOW_DETAIL_TREE_STYLES = `
   .codemation-json-tree {
     background: transparent;
     border: none;
+    font-family: inherit;
   }
 
   .codemation-execution-tree .rc-tree-node-content-wrapper,

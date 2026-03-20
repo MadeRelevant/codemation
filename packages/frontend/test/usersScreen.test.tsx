@@ -7,16 +7,31 @@ import { ApiPaths } from "../src/presentation/http/ApiPaths";
 
 describe("UsersScreen", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
+  let priorFetch: typeof globalThis.fetch;
+  let priorClipboard: Clipboard | undefined;
 
   beforeEach(() => {
     fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("navigator.clipboard", { writeText: vi.fn().mockResolvedValue(undefined) });
+    priorFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    priorClipboard = navigator.clipboard;
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
   });
 
   afterEach(() => {
     cleanup();
-    vi.unstubAllGlobals();
+    globalThis.fetch = priorFetch;
+    if (priorClipboard !== undefined) {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: priorClipboard,
+      });
+    } else {
+      Reflect.deleteProperty(navigator, "clipboard");
+    }
   });
 
   function renderUsersScreen() {

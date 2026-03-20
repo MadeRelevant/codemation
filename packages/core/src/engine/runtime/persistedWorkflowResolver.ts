@@ -7,4 +7,7 @@ export { MissingRuntimeTriggerConfig } from "./persistedWorkflow/MissingRuntimeT
 export { MissingRuntimeTriggerToken } from "./persistedWorkflow/MissingRuntimeTriggerToken";
 export { PersistedWorkflowResolver } from "./persistedWorkflow/PersistedWorkflowResolver";
 export { PersistedWorkflowSnapshotFactory } from "./persistedWorkflow/PersistedWorkflowSnapshotFactory";
-export { PersistedWorkflowTokenRegistry } from "./persistedWorkflow/PersistedWorkflowTokenRegistryFactory";
+export {
+  PersistedWorkflowTokenRegistry,
+  PersistedWorkflowTokenRegistryFromLikeFactory,
+} from "./persistedWorkflow/PersistedWorkflowTokenRegistryFactory";

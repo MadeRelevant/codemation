@@ -79,6 +79,13 @@ This document sets the “golden standard” for how we build and review changes
 - Avoid over-abstracting; introduce abstractions only when they pay off in tests or reuse.
 - Prefer composition over inheritance.
 
+### Logging (server / package `src`)
+
+- **Do not use `console.log`** under `packages/*/src` for core, nodes, queue, eventbus, run-store, `node-example`, and `@codemation/frontend` TypeScript sources (ESLint enforces this). Inject **`LoggerFactory`** / **`Logger`** (`packages/frontend/src/application/logging/Logger.ts`) and use **`logger.info` / `warn` / `error` / `debug`**; server wiring uses **`ServerLoggerFactory`**.
+- **Log noise in tests:** `ServerLogger` / `BrowserLogger` use an injected **`LogLevelPolicy`** (process-wide singleton from **`LogLevelPolicyFactory`** / `logLevelPolicyFactory`): under **Vitest** (`VITEST=true`), the default minimum level is **`warn`**, so routine **`info`/`debug`** lines are suppressed while **`warn`/`error`** still print. Set **`CODEMATION_LOG_LEVEL`** to `debug|info|warn|error|silent` to override (e.g. verbose integration debugging).
+- **`ServerHttpErrorResponseFactory`** still uses **`console.error`** for uncaught route failures so real handler bugs stay visible regardless of log level.
+- **`packages/next-host`** and **`packages/cli`** are excluded from the `console.log` ESLint rule (UI / user-facing stdout). Client-side logging may use **`BrowserLoggerFactory`** when the app provides it.
+
 ## Dependency injection (DI) standards
 
 ### Principles
@@ -109,6 +116,10 @@ Use mocks only for:
 - timing edge cases that require deterministic clocks.
 
 Otherwise prefer interfaces + real implementations.
+
+### Vitest ergonomics (ESLint)
+
+In **`**/test/**`** and **`*.test.*`**, ESLint forbids **`vi.mock`**, **`vi.doMock`**, **`vi.stubGlobal`**, **`vi.unstubAllGlobals`**, and **`vi.stubEnv`**. Prefer DI fakes for modules; for globals (e.g. `fetch`), **save the prior value, assign, and restore** in **`afterEach`** or **`try`/`finally`** so **`isolate: false`** UI runs stay stable.
 
 ### Use interfaces + in-memory variants
 
@@ -176,7 +187,31 @@ The package exposes **multiple subpath entry points** on purpose:
 - **Bundle boundaries** — Server-only code (Hono gateway, Prisma, DI container wiring) must not be pulled into browser or edge bundles. Splitting `@codemation/frontend/server`, `…/next/server`, `…/persistence`, etc. keeps those graphs separate from `…/client` and `…/next/client` (React UI for the Next host).
 - **`development` condition** — Resolvers that support it can load TypeScript sources directly during local work; default `import` targets `dist` after `tsdown` (and matches production). TypeScript still maps subpaths to `src` via root `tsconfig` `paths` for editor and `tsx` runs.
 
-Tests use **Vitest**, which uses **Vite internally** as the test runner only; there is no Vite-based app or consumer `vite.config` in this repo. The UI shell is **Next.js** only.
+Tests use **Vitest** (Vite is the test runner only; there is no Vite-based app). The UI shell is **Next.js** only.
+
+### Test suites (repository root)
+
+From the repo root, suites are grouped for **parallel** runs and a single merged coverage artifact:
+
+| Script | Config | Scope |
+|--------|--------|--------|
+| `pnpm run test:unit` | `tooling/vitest/unit.config.ts` | `packages/core`, `core-nodes`, `core-nodes-gmail`, `next-host`, frontend `*.test.ts` (Node) |
+| `pnpm run test:integration` | `tooling/vitest/integration.config.ts` | `queue-bullmq`, frontend HTTP/integration tests |
+| `pnpm run test:ui` | `tooling/vitest/ui.config.ts` | Frontend `*.test.tsx` (jsdom) |
+| `pnpm run test:e2e` | `tooling/vitest/e2e.config.ts` | Frontend e2e placeholders (`passWithNoTests` until cases exist) |
+| `pnpm test` | — | `turbo run build` then **all four** suites in parallel (`test:suites`) |
+| `pnpm run coverage` | — | Runs each suite with **lcov** under `coverage/raw/{unit,integration,ui,e2e}/`, then merges to **`coverage/lcov.info`** |
+
+Per-package `pnpm test` remains useful for iterating on one package; the canonical full run is **`pnpm test`** from the root.
+
+### Prisma client + Vitest
+
+- Generated Prisma `runtime/*.js` files reference `*.map` files that Prisma does not emit; Vite would otherwise log **ENOENT** on every load. After **`prisma generate`**, run **`pnpm --filter @codemation/frontend prisma:generate`** (or **`node packages/frontend/scripts/ensure-prisma-runtime-sourcemaps.mjs`**) so stub maps exist. Frontend **integration** Vitest config also runs this via **`globalSetup`** before tests.
+
+### Parallel, non-interfering tests
+
+- Tooling Vitest configs use **`maxWorkers: 2`** and **`fileParallelism: true`**. **Integration** (and **unit** / **e2e**) use **`isolate: true`** so parallel files do not share a polluted module graph. **UI** (`*.test.tsx`, jsdom) uses **`isolate: false`** to reuse the module graph—keep tests **clean**: save/restore any overridden globals in **`afterEach`** or **`try`/`finally`**; ESLint forbids **`vi.stubGlobal`**, **`vi.unstubAllGlobals`**, and **`vi.stubEnv`** in tests. Integration harnesses must still bring **their own** Postgres DB (**`PostgresIntegrationDatabase`**), **ephemeral HTTP/WS ports** (**`FrontendHttpIntegrationHarness`**), and **unique external resource keys** (e.g. BullMQ **Redis** queue prefix per run).
+- Root **`pnpm test`** / **`pnpm run coverage`** run the four suite processes with **`concurrently -m 2`** so machine load stays bounded while unit + integration + UI + e2e still overlap.
 
 ### ESLint architecture rules (`packages/**/src`)
 

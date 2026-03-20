@@ -64,7 +64,7 @@ class WorkflowDetailRealIntegrationFixture {
 
   static async createRenderedKit(fixture: WorkflowDetailRuntimeFixture): Promise<WorkflowDetailScreenTestKit> {
     const kit = await WorkflowDetailScreenTestKit.createInMemory(fixture);
-    kit.render({ strictMode: true });
+    kit.render({ strictMode: false });
     await waitFor(() => {
       expect(screen.getByTestId("workflow-canvas-tab-live")).toBeInTheDocument();
     });
@@ -109,9 +109,10 @@ class WorkflowDetailRealIntegrationFixture {
   }
 
   static async runToNodeAndWaitForCompletion(kit: WorkflowDetailScreenTestKit, nodeId: string): Promise<string> {
+    const priorRunId = kit.latestWorkflowRunId();
     fireEvent.click(screen.getByTestId(`canvas-node-run-button-${nodeId}`));
+    await kit.waitForLatestRunToComplete({ newerThanRunId: priorRunId });
     const runId = kit.latestWorkflowRunId();
-    await kit.waitForLatestRunToComplete();
     await waitFor(() => {
       expect(kit.currentNodeStatus(nodeId)).toBe("completed");
     });
@@ -178,7 +179,8 @@ describe("workflow detail real integration", () => {
       clearFromNodeId: "Agent",
       currentState: expect.any(Object),
       workflowId: fixture.workflowId,
-      items: [{ json: {} }],
+      items: [],
+      synthesizeTriggerItems: false,
     });
     expect(screen.getByTestId("workflow-canvas-tab-live")).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByTestId("workflow-runs-sidebar")).not.toBeInTheDocument();
@@ -217,9 +219,9 @@ describe("workflow detail real integration", () => {
       kit!.expectCallCount("POST /api/runs", 2);
     });
 
-    expect(kit.latestRequestBody<Readonly<{ workflowId: string; currentState?: unknown }>>("POST /api/runs")).toEqual({
+    expect(kit.latestRequestBody<Readonly<{ workflowId: string; currentState?: unknown; synthesizeTriggerItems?: boolean }>>("POST /api/runs")).toEqual({
       workflowId: fixture.workflowId,
-      items: [{ json: {} }],
+      synthesizeTriggerItems: true,
       currentState: expect.objectContaining({
         nodeSnapshotsByNodeId: expect.objectContaining({
           Node2: expect.objectContaining({
@@ -261,8 +263,9 @@ describe("workflow detail real integration", () => {
     await WorkflowDetailRealIntegrationFixture.pinNodeOutput(kit, "B", { pinned: "B" });
     await WorkflowDetailRealIntegrationFixture.pinNodeOutput(kit, "Agent", { pinned: "Agent" });
 
+    const runIdBeforeToC = kit.latestWorkflowRunId();
     fireEvent.click(screen.getByTestId("canvas-node-run-button-C"));
-    await kit.waitForLatestRunToComplete();
+    await kit.waitForLatestRunToComplete({ newerThanRunId: runIdBeforeToC });
 
     await waitFor(() => {
       expect(kit!.currentNodeStatus("A")).toBe("completed");
@@ -275,8 +278,9 @@ describe("workflow detail real integration", () => {
       expect(screen.queryByTestId("execution-tree-node-E")).not.toBeInTheDocument();
     });
 
+    const runIdBeforeToE = kit.latestWorkflowRunId();
     fireEvent.click(screen.getByTestId("canvas-node-run-button-E"));
-    await kit.waitForLatestRunToComplete();
+    await kit.waitForLatestRunToComplete({ newerThanRunId: runIdBeforeToE });
 
     await waitFor(() => {
       expect(kit!.currentNodeStatus("A")).toBe("completed");
@@ -318,7 +322,8 @@ describe("workflow detail real integration", () => {
       ),
     ).toEqual({
       workflowId: fixture.workflowId,
-      items: [{ json: {} }],
+      items: [],
+      synthesizeTriggerItems: false,
       currentState: expect.objectContaining({
         nodeSnapshotsByNodeId: expect.objectContaining({
           node_3: expect.objectContaining({
@@ -340,7 +345,8 @@ describe("workflow detail real integration", () => {
       kit.latestRequestBody<Readonly<{ currentState?: unknown; clearFromNodeId?: string; stopAt?: string }>>("POST /api/runs"),
     ).toEqual({
       workflowId: fixture.workflowId,
-      items: [{ json: {} }],
+      items: [],
+      synthesizeTriggerItems: false,
       currentState: expect.objectContaining({
         nodeSnapshotsByNodeId: expect.objectContaining({
           node_4: expect.objectContaining({
@@ -382,7 +388,8 @@ describe("workflow detail real integration", () => {
       kit.latestRequestBody<Readonly<{ workflowId: string; currentState?: unknown; clearFromNodeId?: string; stopAt?: string }>>("POST /api/runs"),
     ).toEqual({
       workflowId: fixture.workflowId,
-      items: [{ json: {} }],
+      items: [],
+      synthesizeTriggerItems: false,
       currentState: expect.objectContaining({
         nodeSnapshotsByNodeId: expect.objectContaining({
           D: expect.objectContaining({

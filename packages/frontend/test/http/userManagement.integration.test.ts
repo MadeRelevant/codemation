@@ -5,7 +5,7 @@ import type { WorkflowDefinition } from "@codemation/core";
 import { createWorkflowBuilder,ManualTrigger } from "@codemation/core-nodes";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { afterAll,afterEach,beforeAll,describe,expect,it,vi } from "vitest";
+import { afterAll,afterEach,beforeAll,describe,expect,it } from "vitest";
 import type { InviteUserResponseDto,UserAccountDto } from "../../src/application/contracts/userDirectoryContracts.types";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
@@ -98,7 +98,6 @@ describe("user management http integration", () => {
   });
 
   afterEach(async () => {
-    vi.unstubAllGlobals();
     if (transaction) {
       await transaction.rollback();
       transaction = await sharedDatabase!.beginRollbackTransaction();

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import type { CodemationNextHostContext } from "../src/server/CodemationNextHost";
 import { CodemationNextHost } from "../src/server/CodemationNextHost";
 

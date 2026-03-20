@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 
 import type { Items,NodeExecutionContext,NodeOutputs,TriggerNodeConfig,TriggerSetupContext,TypeToken } from "../src/index.ts";
 import { WorkflowBuilder } from "../src/index.ts";

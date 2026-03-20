@@ -1,12 +1,13 @@
-import type {
-NodeId,
-NodeOutputs,
-ParentExecutionRef,
-PersistedRunState,
-RunId,
-RunStateStore,
-RunSummary,
-WorkflowId,
+import {
+RunFinishedAtFactory,
+type NodeId,
+type NodeOutputs,
+type ParentExecutionRef,
+type PersistedRunState,
+type RunId,
+type RunStateStore,
+type RunSummary,
+type WorkflowId,
 } from "@codemation/core";
 import { injectable } from "@codemation/core";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
@@ -62,6 +63,7 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Run
           workflowId: s.workflowId,
           startedAt: s.startedAt,
           status: s.status,
+          finishedAt: RunFinishedAtFactory.resolveIso(s),
           parent: s.parent,
           executionOptions: s.executionOptions,
         }),

@@ -172,12 +172,16 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
     status: string;
     parentJson: string | null;
     executionOptionsJson: string | null;
+    updatedAt: string;
   }): RunSummary {
+    const status = row.status as RunSummary["status"];
+    const finishedAt = status === "completed" || status === "failed" ? row.updatedAt : undefined;
     return {
       runId: row.runId as RunId,
       workflowId: row.workflowId as WorkflowId,
       startedAt: row.startedAt,
-      status: row.status as RunSummary["status"],
+      status,
+      finishedAt,
       parent: row.parentJson ? (JSON.parse(row.parentJson) as ParentExecutionRef) : undefined,
       executionOptions: row.executionOptionsJson
         ? (JSON.parse(row.executionOptionsJson) as RunSummary["executionOptions"])

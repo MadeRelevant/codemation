@@ -183,15 +183,6 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   );
   const isRunning = isRunRequestPending || (viewContext === "live-workflow" && isActiveLiveRunPending);
 
-  useEffect(() => {
-    console.info(
-      `[workflow-detail.controller] activeLiveRunId=${activeLiveRunId ?? "none"} activeStatus=${activeLiveRun?.status ?? "missing"} activePending=${activeLiveRun?.pending?.nodeId ?? "no"} currentSnapshots=${Object.entries(
-        activeLiveRun?.nodeSnapshotsByNodeId ?? {},
-      )
-        .map(([nodeId, snapshot]) => `${nodeId}:${snapshot.status}`)
-        .join(",")} isRunning=${String(isRunning)}`,
-    );
-  }, [activeLiveRun, activeLiveRunId, isRunning]);
   const selectedPinnedOutput = useMemo(
     () => WorkflowDetailPresenter.getPinnedOutput(currentExecutionState, selectedNodeId),
     [currentExecutionState, selectedNodeId],
@@ -830,6 +821,8 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     },
     sidebarFormatting: {
       formatDateTime: WorkflowDetailPresenter.formatDateTime,
+      formatRunListWhen: WorkflowDetailPresenter.formatRunListWhen,
+      formatRunListDurationLine: WorkflowDetailPresenter.formatRunListDurationLine,
       getExecutionModeLabel: WorkflowDetailPresenter.getExecutionModeLabel,
     },
     sidebarActions: {

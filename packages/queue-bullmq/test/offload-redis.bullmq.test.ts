@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import net from "node:net";
-import test,{ type TestContext } from "node:test";
+import { type TestContext, onTestFinished, test } from "vitest";
 
 import type {
 Items,
@@ -24,12 +25,12 @@ DefaultDrivingScheduler,
 DefaultExecutionContextFactory,
 Engine,
 EngineWorkflowRunnerService,
-InMemoryCredentialService,
 InMemoryRunDataFactory,
 InMemoryRunEventBus,
 InMemoryRunStateStore,
 InMemoryWorkflowRegistry,
 InlineDrivingScheduler,
+UnavailableCredentialSessionService,
 WorkflowBuilder,
 container as tsyringeContainer,
 } from "@codemation/core";
@@ -100,7 +101,7 @@ class InMemoryTriggerSetupStateStore implements TriggerSetupStateStore {
 }
 
 test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
-  const queuePrefix = "codemation";
+  const queuePrefix = `codemation_${randomBytes(8).toString("hex")}`;
   const startedRedisContainer = process.env.REDIS_URL ? undefined : await maybeStartRedisContainer(t);
   const redisUrl = process.env.REDIS_URL ?? startedRedisContainer?.redisUrl;
   if (!redisUrl) return;
@@ -123,7 +124,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   const workflowsById = new Map([[wf.id, wf] as const]);
   const container = tsyringeContainer.createChildContainer();
   container.register(UppercaseSubjectNode, { useClass: UppercaseSubjectNode });
-  const credentials = new InMemoryCredentialService();
+  const credentialSessions = new UnavailableCredentialSessionService();
   const runStore = new InMemoryRunStateStore();
   const scheduler = new BullmqScheduler({ url: redisUrl }, queuePrefix);
   const workflowRegistry = new InMemoryWorkflowRegistry();
@@ -134,7 +135,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   const activationScheduler = new DefaultDrivingScheduler(new ConfigDrivenOffloadPolicy("worker"), scheduler, new InlineDrivingScheduler(nodeResolver));
   const eventBus = new InMemoryRunEventBus();
   container.registerInstance(CoreTokens.ServiceContainer, container);
-  container.registerInstance(CoreTokens.CredentialService, credentials);
+  container.registerInstance(CoreTokens.CredentialSessionService, credentialSessions);
   container.registerInstance(CoreTokens.WorkflowRegistry, workflowRegistry);
   container.registerInstance(CoreTokens.NodeResolver, nodeResolver);
   container.registerInstance(CoreTokens.WorkflowRunnerResolver, workflowRunnerResolver);
@@ -150,7 +151,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   container.registerInstance(CoreTokens.WebhookRegistrar, new TestWebhookRegistrar());
   container.registerInstance(CoreTokens.NodeActivationObserver, new NoopNodeActivationObserver());
   const engine = new Engine({
-    credentials,
+    credentialSessions,
     workflowRunnerResolver,
     workflowRegistry,
     nodeResolver,
@@ -174,12 +175,12 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
     queues: ["default"],
     workflowsById,
     nodeResolver,
-    credentials,
+    credentialSessions,
     runStore,
     continuation: engine,
     workflows: workflowRunner,
   });
-  t.after(async () => {
+  onTestFinished(async () => {
     await worker.stop();
     await scheduler.close();
     await startedRedisContainer?.stop();

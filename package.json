@@ -11,17 +11,33 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint && pnpm run dupcheck && pnpm run antipatterns",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
-    "coverage": "pnpm --filter @codemation/core coverage && pnpm --filter @codemation/frontend coverage",
+    "test": "turbo run build && pnpm run test:suites",
+    "test:suites": "concurrently -m 2 -c auto -n unit,integration,ui,e2e \"pnpm run test:unit\" \"pnpm run test:integration\" \"pnpm run test:ui\" \"pnpm run test:e2e\"",
+    "test:unit": "vitest run --config tooling/vitest/unit.config.ts",
+    "test:integration": "vitest run --config tooling/vitest/integration.config.ts",
+    "test:ui": "vitest run --config tooling/vitest/ui.config.ts",
+    "test:e2e": "vitest run --config tooling/vitest/e2e.config.ts",
+    "coverage": "pnpm run coverage:clean && concurrently -m 2 -c auto -n unit,integration,ui,e2e \"pnpm run coverage:unit\" \"pnpm run coverage:integration\" \"pnpm run coverage:ui\" \"pnpm run coverage:e2e\" && pnpm run coverage:merge",
+    "coverage:clean": "pnpm exec rimraf coverage",
+    "coverage:unit": "vitest run --config tooling/vitest/unit.config.ts --coverage --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportsDirectory=coverage/raw/unit",
+    "coverage:integration": "vitest run --config tooling/vitest/integration.config.ts --coverage --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportsDirectory=coverage/raw/integration",
+    "coverage:ui": "vitest run --config tooling/vitest/ui.config.ts --coverage --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportsDirectory=coverage/raw/ui",
+    "coverage:e2e": "vitest run --config tooling/vitest/e2e.config.ts --coverage --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportsDirectory=coverage/raw/e2e",
+    "coverage:merge": "lcov-result-merger 'coverage/raw/**/lcov.info' coverage/lcov.info",
     "dupcheck": "jscpd packages apps/test-dev",
-    "antipatterns": "ast-grep scan --hint",
-    "test": "turbo run test"
+    "antipatterns": "ast-grep scan --hint"
   },
   "devDependencies": {
     "@ast-grep/cli": "^0.41.1",
     "@types/node": "^25.3.5",
+    "@vitest/coverage-v8": "4.0.18",
+    "concurrently": "^9.2.1",
     "jscpd": "^4.0.8",
+    "lcov-result-merger": "^5.0.1",
+    "rimraf": "^6.1.3",
     "tsx": "^4.21.0",
     "turbo": "^2.8.14",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
   }
 }

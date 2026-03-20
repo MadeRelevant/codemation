@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 
 import { InMemoryRunEventBus,InMemoryRunStateStore,PublishingRunStateStore } from "../src/index.ts";
 import { CallbackNodeConfig,chain,createEngineTestKit,items } from "./harness/index.ts";

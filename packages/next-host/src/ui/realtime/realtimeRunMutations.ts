@@ -1,5 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
+import { RunFinishedAtFactory } from "@codemation/core/browser";
+
 import type { Items,PersistedRunState,RunSummary,WorkflowEvent } from "./realtimeDomainTypes";
 import {
 runQueryKey,
@@ -33,6 +35,7 @@ function toRunSummary(state: PersistedRunState): RunSummary {
     workflowId: state.workflowId,
     startedAt: state.startedAt,
     status: state.status,
+    finishedAt: RunFinishedAtFactory.resolveIso(state),
     parent: state.parent,
     executionOptions: state.executionOptions,
   };

@@ -1,5 +1,6 @@
 import { WebSocket,WebSocketServer } from "ws";
 import type { WorkflowWebsocketMessage } from "../../application/contracts/WorkflowWebsocketMessage";
+import type { Logger } from "../../application/logging/Logger";
 import type { WorkflowWebsocketPublisher } from "../../application/websocket/WorkflowWebsocketPublisher";
 import { ApiPaths } from "../http/ApiPaths";
 
@@ -24,6 +25,7 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
   constructor(
     private readonly port: number,
     private readonly bindHost: string,
+    private readonly logger: Logger,
   ) {}
 
   async start(): Promise<void> {
@@ -46,7 +48,7 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
       await this.closeAfterFailedStart(websocketServer);
       throw error;
     }
-    this.logInfo(`listening on ws://${this.bindHost}:${this.port}${ApiPaths.workflowWebsocket()}`);
+    this.logger.info(`listening on ws://${this.bindHost}:${this.port}${ApiPaths.workflowWebsocket()}`);
     this.started = true;
   }
 
@@ -89,16 +91,16 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
         "snapshot" in event && event.snapshot
           ? `${event.kind}:${event.runId}:${event.snapshot.nodeId}:${event.snapshot.status}`
           : `${event.kind}:${event.runId}`;
-      this.logInfo(`published room=${roomId} sockets=${deliveredSocketCount} event=${eventLabel}`);
+      this.logger.info(`published room=${roomId} sockets=${deliveredSocketCount} event=${eventLabel}`);
       return;
     }
-    this.logInfo(`published room=${roomId} sockets=${deliveredSocketCount} kind=${message.kind}`);
+    this.logger.info(`published room=${roomId} sockets=${deliveredSocketCount} kind=${message.kind}`);
   }
 
   private async connect(socket: WebSocket): Promise<void> {
     this.sockets.add(socket);
     this.roomIdsBySocket.set(socket, new Set());
-    this.logInfo(`client connected activeSockets=${this.sockets.size}`);
+    this.logger.info(`client connected activeSockets=${this.sockets.size}`);
     socket.send(JSON.stringify({ kind: "ready" } satisfies WorkflowWebsocketServerMessage));
     socket.on("message", (rawData) => {
       void this.handleMessage(socket, rawData);
@@ -106,12 +108,12 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
     socket.on("close", () => {
       this.sockets.delete(socket);
       this.roomIdsBySocket.delete(socket);
-      this.logInfo(`client disconnected activeSockets=${this.sockets.size}`);
+      this.logger.info(`client disconnected activeSockets=${this.sockets.size}`);
     });
     socket.on("error", () => {
       this.sockets.delete(socket);
       this.roomIdsBySocket.delete(socket);
-      this.logWarn(`client socket error activeSockets=${this.sockets.size}`);
+      this.logger.warn(`client socket error activeSockets=${this.sockets.size}`);
     });
   }
 
@@ -120,16 +122,16 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
       const message = this.parseClientMessage(rawData);
       if (message.kind === "subscribe") {
         this.roomIdsBySocket.get(socket)?.add(message.roomId);
-        this.logInfo(`subscribed room=${message.roomId}`);
+        this.logger.info(`subscribed room=${message.roomId}`);
         socket.send(JSON.stringify({ kind: "subscribed", roomId: message.roomId } satisfies WorkflowWebsocketServerMessage));
         return;
       }
       this.roomIdsBySocket.get(socket)?.delete(message.roomId);
-      this.logInfo(`unsubscribed room=${message.roomId}`);
+      this.logger.info(`unsubscribed room=${message.roomId}`);
       socket.send(JSON.stringify({ kind: "unsubscribed", roomId: message.roomId } satisfies WorkflowWebsocketServerMessage));
     } catch (error) {
       const exception = error instanceof Error ? error : new Error(String(error));
-      this.logWarn(`failed to handle client message: ${exception.message}`);
+      this.logger.warn(`failed to handle client message: ${exception.message}`);
       socket.send(JSON.stringify({ kind: "error", message: exception.message } satisfies WorkflowWebsocketServerMessage));
     }
   }
@@ -159,11 +161,4 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
     throw new Error("Unsupported websocket client message.");
   }
 
-  private logInfo(message: string): void {
-    console.info(`[codemation-websocket.server] ${message}`);
-  }
-
-  private logWarn(message: string): void {
-    console.warn(`[codemation-websocket.server] ${message}`);
-  }
 }

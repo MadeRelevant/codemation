@@ -42,6 +42,8 @@ export type WorkflowRunsSidebarModel = Readonly<{
 }>;
 export type WorkflowRunsSidebarFormatting = Readonly<{
   formatDateTime: (value: string | undefined) => string;
+  formatRunListWhen: (value: string | undefined) => string;
+  formatRunListDurationLine: (run: Pick<RunSummary, "startedAt" | "finishedAt" | "status">) => string;
   getExecutionModeLabel: (run: Pick<RunSummary, "executionOptions"> | Pick<PersistedRunState, "executionOptions"> | undefined) => string | null;
 }>;
 export type WorkflowRunsSidebarActions = Readonly<{

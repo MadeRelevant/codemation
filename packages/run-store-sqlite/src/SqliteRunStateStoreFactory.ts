@@ -85,11 +85,14 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
 
     return rows.map((r): RunSummary => {
       const parent = r.parent_json ? (JSON.parse(r.parent_json) as ParentExecutionRef) : undefined;
+      const status = r.status as RunStatus;
+      const finishedAt = status === "completed" || status === "failed" ? r.updated_at : undefined;
       return {
         runId: r.run_id as unknown as RunId,
         workflowId: r.workflow_id as unknown as WorkflowId,
         startedAt: r.started_at,
-        status: r.status as RunStatus,
+        status,
+        finishedAt,
         parent,
       };
     });

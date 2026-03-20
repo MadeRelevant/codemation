@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 
 import { CurrentStateFrontierPlanner } from "../src/engine/planning/currentStateFrontierPlanner.ts";
 import { WorkflowTopology } from "../src/engine/planning/WorkflowTopologyPlanner.ts";

@@ -8,9 +8,9 @@ import { QueryHandler } from "../bus/QueryHandler";
 
 import { HandlesQuery } from "../../infrastructure/di/HandlesQueryRegistry";
 
-import { CredentialTypeRegistryImpl } from "../../domain/credentials/CredentialServices";
+import { CredentialTypeRegistryImpl } from "../../domain/credentials/CredentialTypeRegistryImpl";
 
-import { ListCredentialTypesQuery } from "./CredentialQueryHandlers";
+import { ListCredentialTypesQuery } from "./ListCredentialTypesQuery";
 
 
 

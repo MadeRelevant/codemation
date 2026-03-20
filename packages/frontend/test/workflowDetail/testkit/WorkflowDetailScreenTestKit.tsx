@@ -227,7 +227,14 @@ export class WorkflowDetailScreenTestKit {
     this.environment.seedRun(state);
   }
 
-  async waitForLatestRunToComplete(): Promise<PersistedRunState> {
+  async waitForLatestRunToComplete(options?: Readonly<{ newerThanRunId?: string }>): Promise<PersistedRunState> {
+    if (this.environment instanceof InMemoryWorkflowDetailTestEnvironment && options?.newerThanRunId) {
+      await waitFor(() => {
+        const latest = this.environment.workflowRuns[0]?.runId;
+        expect(latest).toBeDefined();
+        expect(latest).not.toBe(options.newerThanRunId);
+      });
+    }
     const runId = this.latestWorkflowRunId();
     if (this.environment instanceof InMemoryWorkflowDetailTestEnvironment) {
       return await this.environment.waitForRunToComplete(runId);

@@ -4,6 +4,8 @@ import type { CodemationAuthConfig,CodemationPlugin } from "@codemation/frontend
 import {
 CodemationApplication,
 CodemationHonoApiApp,
+logLevelPolicyFactory,
+ServerLoggerFactory,
 WorkflowDefinitionMapper,
 WorkflowWebsocketServer,
 } from "@codemation/frontend/next/server";
@@ -335,6 +337,7 @@ export class CodemationNextHost {
       this.sharedWorkflowWebsocketServer = new WorkflowWebsocketServer(
         this.resolveWebSocketPort(),
         this.resolveWebSocketBindHost(),
+        new ServerLoggerFactory(logLevelPolicyFactory).create("codemation-websocket.server"),
       );
     }
     return this.sharedWorkflowWebsocketServer;

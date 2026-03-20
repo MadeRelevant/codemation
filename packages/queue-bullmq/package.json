@@ -22,7 +22,7 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "pnpm -w turbo run build --filter=@codemation/core --filter=@codemation/core-nodes --filter=@codemation/node-example --filter=@codemation/queue-bullmq && node --import tsx --test test/**/*.test.ts"
+    "test": "pnpm -w turbo run build --filter=@codemation/core --filter=@codemation/core-nodes --filter=@codemation/node-example --filter=@codemation/queue-bullmq && vitest run"
   },
   "dependencies": {
     "@codemation/core": "workspace:*",
@@ -34,6 +34,7 @@
     "testcontainers": "^10.28.0",
     "tsdown": "^0.15.5",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
   }
 }

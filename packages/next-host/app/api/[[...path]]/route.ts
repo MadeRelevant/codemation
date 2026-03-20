@@ -1,9 +1,8 @@
-import { CodemationNextHost } from "../../../src/server/CodemationNextHost";
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function handle(request: Request): Promise<Response> {
+async function handle(request: Request): Promise<Response> {
+  const { CodemationNextHost } = await import("../../../src/server/CodemationNextHost");
   return CodemationNextHost.shared.fetchApi(request);
 }
 

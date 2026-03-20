@@ -22,7 +22,7 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "pnpm --filter @codemation/core build && pnpm build && node --import tsx --test test/**/*.test.ts"
+    "test": "pnpm --filter @codemation/core build && pnpm build && vitest run"
   },
   "dependencies": {
     "@codemation/core": "workspace:*",
@@ -36,6 +36,7 @@
     "tsdown": "^0.15.5",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
+    "vitest": "4.0.18",
     "zod": "^4.3.6"
   }
 }

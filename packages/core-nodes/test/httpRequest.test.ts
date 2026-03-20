@@ -2,7 +2,7 @@ import type { NodeExecutionContext } from "@codemation/core";
 import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
 import { HttpRequest,HttpRequestNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 
 class HttpRequestNodeTestContextFactory {
   static create(config: HttpRequest<any>): NodeExecutionContext<HttpRequest<any>> {

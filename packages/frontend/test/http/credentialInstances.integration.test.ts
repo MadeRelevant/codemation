@@ -116,7 +116,6 @@ describe("credential instances http integration", () => {
   });
 
   afterEach(async () => {
-    vi.unstubAllGlobals();
     if (transaction) {
       await transaction.rollback();
       transaction = await sharedDatabase!.beginRollbackTransaction();
@@ -249,8 +248,9 @@ describe("credential instances http integration", () => {
   it("stores OAuth2 token material and preserves the refresh token on reconnect", async () => {
     const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
+    const priorFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    try {
     const createResponse = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
       url: ApiPaths.credentialInstances(),
@@ -346,6 +346,9 @@ describe("credential instances http integration", () => {
     });
     expect(decrypted.refresh_token).toBe("refresh-token-1");
     expect(decrypted.access_token).toBe("access-token-2");
+    } finally {
+      globalThis.fetch = priorFetch;
+    }
   });
 
   it("rejects OAuth2 auth when instanceId is missing", async () => {
@@ -363,8 +366,9 @@ describe("credential instances http integration", () => {
   it("returns OAuth2 callback error HTML without raw script-breaking markup in inline script", async () => {
     const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
+    const priorFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    try {
     const createResponse = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
       url: ApiPaths.credentialInstances(),
@@ -402,13 +406,17 @@ describe("credential instances http integration", () => {
     expect(body).toContain("oauth2.error");
     expect(body).toMatch(/\\u003[Cc]\\u002[Ff]script/);
     expect(body).not.toContain("</script><script>alert(1)</script>");
+    } finally {
+      globalThis.fetch = priorFetch;
+    }
   });
 
   it("disconnects OAuth2 for a credential instance", async () => {
     const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
+    const priorFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    try {
     const createResponse = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
       url: ApiPaths.credentialInstances(),
@@ -466,6 +474,9 @@ describe("credential instances http integration", () => {
     });
     const dto = after.json<CredentialInstanceDto>();
     expect(dto.oauth2Connection?.status).toBe("disconnected");
+    } finally {
+      globalThis.fetch = priorFetch;
+    }
   });
 
   it("rejects OAuth2 disconnect when instanceId is missing", async () => {

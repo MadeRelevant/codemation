@@ -1,4 +1,15 @@
-import type { NodeId,NodeOutputs,ParentExecutionRef,PersistedRunState,RunId,RunListingStore,RunStateStore,RunSummary,WorkflowId } from "../../types";
+import {
+  RunFinishedAtFactory,
+  type NodeId,
+  type NodeOutputs,
+  type ParentExecutionRef,
+  type PersistedRunState,
+  type RunId,
+  type RunListingStore,
+  type RunStateStore,
+  type RunSummary,
+  type WorkflowId,
+} from "../../types";
 
 export class InMemoryRunStateStore implements RunStateStore, RunListingStore {
   private readonly runs = new Map<RunId, PersistedRunState>();
@@ -37,6 +48,7 @@ export class InMemoryRunStateStore implements RunStateStore, RunListingStore {
           workflowId: s.workflowId,
           startedAt: s.startedAt,
           status: s.status,
+          finishedAt: RunFinishedAtFactory.resolveIso(s),
           parent: s.parent,
         }),
       );

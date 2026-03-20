@@ -1,10 +1,10 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth from "next-auth";
 import { CodemationAuthPrismaClient } from "../server/CodemationAuthPrismaClient";
-import { CodemationNextHost } from "../server/CodemationNextHost";
 import { CodemationNextAuthProviderCatalog } from "./CodemationNextAuthProviderCatalog";
 
 export const { handlers, auth, signIn, signOut } = NextAuth(async () => {
+  const { CodemationNextHost } = await import("../server/CodemationNextHost");
   const context = await CodemationNextHost.shared.prepare();
   const env = process.env;
   const secret = env.AUTH_SECRET ?? env.NEXTAUTH_SECRET;

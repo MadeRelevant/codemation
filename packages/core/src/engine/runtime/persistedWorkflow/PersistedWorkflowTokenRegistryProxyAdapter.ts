@@ -3,7 +3,7 @@ import type { TypeToken } from "../../../di";
 
 import type { PersistedTokenId,PersistedWorkflowTokenRegistryLike,WorkflowDefinition } from "../../../types";
 
-import { PersistedWorkflowTokenRegistry } from "./PersistedWorkflowTokenRegistryFactory";
+import { PersistedWorkflowTokenRegistry } from "./PersistedWorkflowTokenRegistry";
 
 
 

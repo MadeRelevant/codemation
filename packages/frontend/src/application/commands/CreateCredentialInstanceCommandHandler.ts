@@ -14,7 +14,7 @@ import {
 CredentialInstanceService
 } from "../../domain/credentials/CredentialServices";
 
-import { CreateCredentialInstanceCommand } from "./CredentialCommandHandlers";
+import { CreateCredentialInstanceCommand } from "./CreateCredentialInstanceCommand";
 
 
 

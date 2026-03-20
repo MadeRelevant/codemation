@@ -24,12 +24,17 @@ describe("workflow detail execution actions", () => {
     await kit.startRun();
 
     expect(
-      kit.latestRequestBody<Readonly<{ workflowId: string; items: ReadonlyArray<Readonly<{ json: unknown }>>; currentState?: unknown }>>(
-        "POST /api/runs",
-      ),
+      kit.latestRequestBody<
+        Readonly<{
+          workflowId: string;
+          items?: ReadonlyArray<Readonly<{ json: unknown }>>;
+          synthesizeTriggerItems?: boolean;
+          currentState?: unknown;
+        }>
+      >("POST /api/runs"),
     ).toEqual({
       workflowId: WorkflowDetailFixtureFactory.workflowId,
-      items: [],
+      synthesizeTriggerItems: true,
       currentState: expect.any(Object),
     });
   });
@@ -54,11 +59,13 @@ describe("workflow detail execution actions", () => {
           currentState?: unknown;
           sourceRunId?: string;
           items: ReadonlyArray<Readonly<{ json: unknown }>>;
+          synthesizeTriggerItems?: boolean;
         }>
       >("POST /api/runs"),
     ).toEqual({
       workflowId: WorkflowDetailFixtureFactory.workflowId,
-      items: [{ json: {} }],
+      items: [],
+      synthesizeTriggerItems: false,
       stopAt: WorkflowDetailFixtureFactory.agentNodeId,
       clearFromNodeId: WorkflowDetailFixtureFactory.agentNodeId,
       currentState: expect.any(Object),

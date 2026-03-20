@@ -5,15 +5,17 @@ import { ApiPaths } from "../src/presentation/http/ApiPaths";
 
 describe("InviteAcceptScreen", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
+  let priorFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
     fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    priorFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
   });
 
   afterEach(() => {
     cleanup();
-    vi.unstubAllGlobals();
+    globalThis.fetch = priorFetch;
   });
 
   it("shows invalid state when verify returns not valid", async () => {

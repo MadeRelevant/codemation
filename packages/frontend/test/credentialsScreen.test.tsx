@@ -93,16 +93,21 @@ describe("CredentialsScreen", () => {
   };
 
   let fetchMock: ReturnType<typeof vi.fn>;
+  let priorFetch: typeof globalThis.fetch;
+  let priorOpen: typeof window.open;
 
   beforeEach(() => {
     fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("open", vi.fn());
+    priorFetch = globalThis.fetch;
+    priorOpen = window.open;
+    globalThis.fetch = fetchMock as typeof fetch;
+    window.open = vi.fn() as typeof window.open;
   });
 
   afterEach(() => {
     cleanup();
-    vi.unstubAllGlobals();
+    globalThis.fetch = priorFetch;
+    window.open = priorOpen;
   });
 
   function renderCredentialsScreen(initialData?: {

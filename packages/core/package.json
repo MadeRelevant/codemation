@@ -26,14 +26,15 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "pnpm build && node --import tsx --test test/**/*.test.ts"
+    "test": "pnpm build && vitest run"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",
     "eslint": "^10.0.3",
     "tsdown": "^0.15.5",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
   },
   "dependencies": {
     "reflect-metadata": "^0.2.2",

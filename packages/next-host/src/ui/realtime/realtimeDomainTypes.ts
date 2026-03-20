@@ -48,6 +48,7 @@ export type RunSummary = Readonly<{
   workflowId: string;
   startedAt: string;
   status: string;
+  finishedAt?: string;
   parent?: ParentExecutionRef;
   executionOptions?: RunExecutionOptions;
 }>;

@@ -83,6 +83,7 @@ MissingRuntimeExecutionMarker,
 PersistedWorkflowResolver,
 PersistedWorkflowSnapshotFactory,
 PersistedWorkflowTokenRegistry,
+PersistedWorkflowTokenRegistryFromLikeFactory,
 } from "./persistedWorkflowResolver";
 
 
@@ -132,7 +133,9 @@ export class Engine implements NodeActivationContinuation {
     this.eventBus = deps.eventBus;
     this.webhookTriggerMatcher = deps.webhookTriggerMatcher ?? new InMemoryWebhookTriggerMatcher();
     this.nodeInstanceFactory = new NodeInstanceFactory(this.nodeResolver);
-    const tokenRegistry = deps.tokenRegistry ? PersistedWorkflowTokenRegistry.fromLike(deps.tokenRegistry) : new PersistedWorkflowTokenRegistry();
+    const tokenRegistry = deps.tokenRegistry
+      ? PersistedWorkflowTokenRegistryFromLikeFactory.fromLike(deps.tokenRegistry)
+      : new PersistedWorkflowTokenRegistry();
     this.workflowSnapshotFactory = new PersistedWorkflowSnapshotFactory(tokenRegistry);
     this.persistedWorkflowResolver = new PersistedWorkflowResolver(this.workflowRegistry, tokenRegistry);
     this.tokenRegistry = tokenRegistry;
