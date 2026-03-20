@@ -35,7 +35,7 @@ export class CodemationTsyringeTypeInfoRegistrar {
     for (const dependency of paramInfo) {
       this.registerDependency(dependency);
     }
-    this.registerFactoryProvider(token, paramInfo);
+    this.registerFactoryProvider(token as new (...args: ReadonlyArray<unknown>) => unknown, paramInfo);
   }
 
   registerBootHookToken(token: TypeToken<unknown> | undefined): void {
@@ -71,7 +71,7 @@ export class CodemationTsyringeTypeInfoRegistrar {
     Object.values(value).forEach((entry: unknown) => this.registerConfigTokens(entry));
   }
 
-  private registerFactoryProvider(token: Function, paramInfo: ReadonlyArray<unknown>): void {
+  private registerFactoryProvider(token: new (...args: ReadonlyArray<unknown>) => unknown, paramInfo: ReadonlyArray<unknown>): void {
     if (this.container.isRegistered(token as TypeToken<unknown>, true)) {
       return;
     }

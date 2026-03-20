@@ -1,7 +1,8 @@
-import { BrowserRouter,Navigate,Route,Routes,useParams } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+
 import { Providers } from "../providers/Providers";
 import { CredentialsScreen } from "../screens/CredentialsScreen";
-import { HostedWorkflowDetailScreen } from "../screens/HostedWorkflowDetailScreen";
+import { HostedWorkflowDetailRoute } from "./HostedWorkflowDetailRoute";
 import { HostedWorkflowsScreen } from "../screens/HostedWorkflowsScreen";
 import { UsersScreen } from "../screens/UsersScreen";
 
@@ -26,12 +27,4 @@ export function HostedCodemationApp(args: HostedCodemationAppProps) {
       </BrowserRouter>
     </Providers>
   );
-}
-
-function HostedWorkflowDetailRoute() {
-  const params = useParams();
-  if (!params.workflowId) {
-    return <Navigate to="/workflows" replace />;
-  }
-  return <HostedWorkflowDetailScreen workflowId={params.workflowId} />;
 }
