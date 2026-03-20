@@ -1,13 +1,6 @@
 import "reflect-metadata";
 import process from "node:process";
-import { CodemationCli } from "./CodemationCli";
-
-export class CodemationCliBin {
-  static async run(argv: ReadonlyArray<string>): Promise<void> {
-    const cli = new CodemationCli();
-    await cli.run([...argv]);
-  }
-}
+import { CodemationCliBin } from "./CodemationCliBin";
 
 void CodemationCliBin.run(process.argv.slice(2));
 

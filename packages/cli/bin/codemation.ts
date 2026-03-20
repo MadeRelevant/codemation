@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 import "reflect-metadata";
-import { CodemationCli } from "../src/CodemationCli";
+import { CodemationCliBin } from "../src/CodemationCliBin";
 
-const cli = new CodemationCli();
-
-void cli.run(process.argv.slice(2));
+void CodemationCliBin.run(process.argv.slice(2));

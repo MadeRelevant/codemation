@@ -1,16 +1,21 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { mkdir, rename, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
-import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { Command } from "commander";
 import { CodemationCliPathResolver } from "./CodemationCliPathResolver";
 import {
   CodemationConsumerOutputBuilder,
   type CodemationConsumerOutputBuildSnapshot,
 } from "./CodemationConsumerOutputBuilder";
 import { CodemationPluginDiscovery, type CodemationDiscoveredPluginPackage } from "./CodemationPluginDiscovery";
+import { CodemationLocalUserCreator } from "./CodemationLocalUserCreator";
+import { CodemationConsumerEnvLoader } from "./CodemationConsumerEnvLoader";
+import { CodemationDevLock } from "./CodemationDevLock";
 
 type CodemationConsumerBuildManifest = Readonly<{
   buildVersion: string;
@@ -19,101 +24,6 @@ type CodemationConsumerBuildManifest = Readonly<{
   pluginEntryPath: string;
   workflowSourcePaths: ReadonlyArray<string>;
 }>;
-
-type CodemationDevLockRecord = Readonly<{
-  pid: number;
-  startedAt: string;
-  consumerRoot: string;
-  nextPort: number;
-}>;
-
-class CodemationDevLock {
-  private lockPath: string | null = null;
-
-  async acquire(args: Readonly<{ consumerRoot: string; nextPort: number }>): Promise<void> {
-    const lockPath = this.resolveLockPath(args.consumerRoot);
-    await mkdir(path.dirname(lockPath), { recursive: true });
-    const record: CodemationDevLockRecord = {
-      pid: process.pid,
-      startedAt: new Date().toISOString(),
-      consumerRoot: args.consumerRoot,
-      nextPort: args.nextPort,
-    };
-    try {
-      await this.writeExclusive(lockPath, JSON.stringify(record, null, 2));
-      this.lockPath = lockPath;
-      return;
-    } catch (error) {
-      const errorWithCode = error as Error & Readonly<{ code?: unknown }>;
-      if (errorWithCode.code !== "EEXIST") {
-        throw error;
-      }
-    }
-
-    const existingRecord = await this.readExistingRecord(lockPath);
-    if (existingRecord && this.isProcessAlive(existingRecord.pid)) {
-      throw new Error(
-        `codemation dev is already running for ${args.consumerRoot} (pid=${existingRecord.pid}, port=${existingRecord.nextPort}). Stop it before starting a new dev server.`,
-      );
-    }
-
-    await rm(lockPath, { force: true }).catch(() => null);
-    await this.writeExclusive(lockPath, JSON.stringify(record, null, 2));
-    this.lockPath = lockPath;
-  }
-
-  async release(): Promise<void> {
-    if (!this.lockPath) {
-      return;
-    }
-    const lockPath = this.lockPath;
-    this.lockPath = null;
-    await rm(lockPath, { force: true }).catch(() => null);
-  }
-
-  private resolveLockPath(consumerRoot: string): string {
-    return path.resolve(consumerRoot, ".codemation", "dev.lock");
-  }
-
-  private async writeExclusive(filePath: string, contents: string): Promise<void> {
-    const handle = await open(filePath, "wx");
-    try {
-      await handle.writeFile(contents, "utf8");
-    } finally {
-      await handle.close().catch(() => null);
-    }
-  }
-
-  private async readExistingRecord(lockPath: string): Promise<CodemationDevLockRecord | null> {
-    try {
-      const raw = await readFile(lockPath, "utf8");
-      const parsed = JSON.parse(raw) as Partial<CodemationDevLockRecord>;
-      if (
-        typeof parsed.pid !== "number" ||
-        typeof parsed.startedAt !== "string" ||
-        typeof parsed.consumerRoot !== "string" ||
-        typeof parsed.nextPort !== "number"
-      ) {
-        return null;
-      }
-      return parsed as CodemationDevLockRecord;
-    } catch {
-      return null;
-    }
-  }
-
-  private isProcessAlive(pid: number): boolean {
-    if (!Number.isInteger(pid) || pid <= 0) {
-      return false;
-    }
-    try {
-      process.kill(pid, 0);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-}
 
 export class CodemationCli {
   private readonly require = createRequire(import.meta.url);
@@ -124,21 +34,80 @@ export class CodemationCli {
     private readonly pluginDiscovery: CodemationPluginDiscovery = new CodemationPluginDiscovery(),
   ) {}
 
-  async run(args: ReadonlyArray<string>): Promise<void> {
-    const command = args[0] ?? "dev";
-    if (command === "build") {
-      await this.runBuild(args.slice(1));
-      return;
-    }
-    if (command === "dev") {
-      await this.runDev(args.slice(1));
-      return;
-    }
-    throw new Error(`Unknown codemation command: ${command}`);
+  async run(argv: ReadonlyArray<string>): Promise<void> {
+    const program = new Command();
+    program
+      .name("codemation")
+      .description("Build and run the Codemation Next host against a consumer project.")
+      .version(this.readCliPackageVersion(), "-V, --version", "Output CLI version")
+      .showHelpAfterError("(add --help for usage)")
+      .configureHelp({ sortSubcommands: true });
+
+    const resolveConsumerRoot = (raw: string | undefined): string =>
+      raw !== undefined && raw.trim().length > 0 ? path.resolve(process.cwd(), raw.trim()) : process.cwd();
+
+    program
+      .command("build")
+      .description("Build consumer workflows/plugins output and write the manifest.")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .action(async (opts: Readonly<{ consumerRoot?: string }>) => {
+        await this.runBuild(resolveConsumerRoot(opts.consumerRoot));
+      });
+
+    program
+      .command("dev", { isDefault: true })
+      .description("Start the Next.js dev server with file watching and live rebuilds.")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .action(async (opts: Readonly<{ consumerRoot?: string }>) => {
+        await this.runDev(resolveConsumerRoot(opts.consumerRoot));
+      });
+
+    const user = program.command("user").description("User administration (local auth)");
+
+    user
+      .command("create")
+      .description(
+        'Create or update a user in the database when CodemationConfig.auth.kind is "local". Uses DATABASE_URL or configured database URL.',
+      )
+      .requiredOption("--email <email>", "Login email")
+      .requiredOption("--password <password>", "Plain password (stored as a bcrypt hash)")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .action(
+        async (
+          opts: Readonly<{
+            email: string;
+            password: string;
+            consumerRoot?: string;
+            config?: string;
+          }>,
+        ) => {
+          await new CodemationLocalUserCreator().run({
+            consumerRoot:
+              opts.consumerRoot !== undefined && opts.consumerRoot.trim().length > 0
+                ? path.resolve(process.cwd(), opts.consumerRoot.trim())
+                : undefined,
+            configPath: opts.config && opts.config.trim().length > 0 ? opts.config.trim() : undefined,
+            email: opts.email,
+            password: opts.password,
+          });
+        },
+      );
+
+    await program.parseAsync(argv as string[], { from: "user" });
   }
 
-  private async runBuild(args: ReadonlyArray<string>): Promise<void> {
-    const consumerRoot = this.parseConsumerRoot(args) ?? process.cwd();
+  private readCliPackageVersion(): string {
+    try {
+      const packageJsonPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+      const parsed = JSON.parse(readFileSync(packageJsonPath, "utf8")) as { version?: unknown };
+      return typeof parsed.version === "string" ? parsed.version : "0.0.0";
+    } catch {
+      return "0.0.0";
+    }
+  }
+
+  private async runBuild(consumerRoot: string): Promise<void> {
     const paths = await this.pathResolver.resolve(consumerRoot);
     this.configureTypeScriptRuntime(paths.repoRoot);
     const builder = new CodemationConsumerOutputBuilder(paths.consumerRoot);
@@ -150,14 +119,13 @@ export class CodemationCli {
     console.log(`Published revision: ${manifest.buildVersion}`);
   }
 
-  private async runDev(args: ReadonlyArray<string>): Promise<void> {
-    const consumerRoot = this.parseConsumerRoot(args) ?? process.cwd();
+  private async runDev(consumerRoot: string): Promise<void> {
     const paths = await this.pathResolver.resolve(consumerRoot);
     this.configureTypeScriptRuntime(paths.repoRoot);
     const builder = new CodemationConsumerOutputBuilder(paths.consumerRoot);
     const snapshot = await builder.ensureBuilt();
     const discoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
-    const manifest = await this.publishBuildArtifacts(snapshot, discoveredPlugins);
+    await this.publishBuildArtifacts(snapshot, discoveredPlugins);
     const nextPort = this.resolveNextPort(process.env.PORT);
     const websocketPort = this.resolveWebsocketPort({
       nextPort,
@@ -235,14 +203,6 @@ export class CodemationCli {
     }
   }
 
-  private parseConsumerRoot(args: ReadonlyArray<string>): string | undefined {
-    const consumerRootIndex = args.indexOf("--consumer-root");
-    if (consumerRootIndex >= 0 && consumerRootIndex + 1 < args.length) {
-      return path.resolve(process.cwd(), args[consumerRootIndex + 1]!);
-    }
-    return undefined;
-  }
-
   private bindSignals(childProcess: ReturnType<typeof spawn>): void {
     for (const signal of ["SIGINT", "SIGTERM", "SIGQUIT"] as const) {
       process.on(signal, () => {
@@ -264,8 +224,10 @@ export class CodemationCli {
     nextPort: number;
     websocketPort: number;
   }>): NodeJS.ProcessEnv {
+    const consumerEnv = CodemationConsumerEnvLoader.load(args.consumerRoot);
     return {
       ...process.env,
+      ...consumerEnv,
       PORT: String(args.nextPort),
       CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH: args.consumerOutputManifestPath,
       CODEMATION_CONSUMER_ROOT: args.consumerRoot,
