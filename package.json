@@ -3,7 +3,10 @@
   "private": true,
   "packageManager": "pnpm@10.13.1",
   "scripts": {
-    "dev": "pnpm -C apps/test-dev dev",
+    "codemation": "tsx --tsconfig tsconfig.codemation-tsx.json packages/cli/src/bin.ts",
+    "dev": "pnpm run dev:repo",
+    "dev:repo": "pnpm exec turbo run build --filter=@codemation/test-dev... --filter=!@codemation/next-host --filter=!@codemation/eslint-config && pnpm exec turbo run dev --filter=@codemation/test-dev... --filter=!@codemation/next-host --filter=!@codemation/eslint-config",
+    "dev:consumer": "pnpm --filter @codemation/test-dev dev",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint && pnpm run dupcheck && pnpm run antipatterns",

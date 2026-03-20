@@ -169,9 +169,22 @@ This gives high-signal coverage without fragile mocks.
 - Node must be deterministic and testable (injected deps; no hidden globals).
 - Provide at least one unit test for the node behavior (prefer in-memory deps).
 
+## `@codemation/frontend` package exports
+
+The package exposes **multiple subpath entry points** on purpose:
+
+- **Bundle boundaries** — Server-only code (Hono gateway, Prisma, DI container wiring) must not be pulled into browser or edge bundles. Splitting `@codemation/frontend/server`, `…/next/server`, `…/persistence`, etc. keeps those graphs separate from `…/client` and `…/next/client` (React UI for the Next host).
+- **`development` condition** — Resolvers that support it can load TypeScript sources directly during local work; default `import` targets `dist` after `tsdown` (and matches production). TypeScript still maps subpaths to `src` via root `tsconfig` `paths` for editor and `tsx` runs.
+
+Tests use **Vitest**, which uses **Vite internally** as the test runner only; there is no Vite-based app or consumer `vite.config` in this repo. The UI shell is **Next.js** only.
+
 ## Build & dev conventions
 
 - Monorepo uses **pnpm workspaces** and **Turborepo**.
 - Library bundling uses **tsdown**.
-- Root `pnpm dev` should start the engine host and the UI together.
+- Root **`pnpm dev`** is framework-author mode and delegates to **`pnpm run dev:repo`**. It warms the workspace build graph for **`@codemation/test-dev`** and then runs **`turbo run dev --filter=@codemation/test-dev... --filter=!@codemation/next-host --filter=!@codemation/eslint-config`** so the framework packages stay rebuilt automatically while `apps/test-dev` runs **`pnpm exec codemation dev`**. Next is still started by the CLI, not by Turbo.
+- Root **`pnpm run dev:consumer`** is a convenience alias for running **consumer mode** against `apps/test-dev` from the repo root.
+- Consumer **`pnpm dev`** is intentionally different: it runs **`codemation dev`**, which starts the Next host from `@codemation/next-host`, watches consumer files, rebuilds `.codemation/output`, and hot-swaps the consumer manifest. It does not watch Codemation workspace packages.
+- See **`docs/development-modes.md`** for the distinction between framework-author mode and consumer mode.
+- Root **`pnpm codemation …`** runs the CLI from source via `tsx` with `tsconfig.codemation-tsx.json` so decorator-heavy workspace imports work from any cwd. From **`apps/test-dev`**, the same script is available as **`pnpm codemation …`** (consumer root defaults to `.`, so you can omit `--consumer-root`). If your shell or pnpm version swallows arguments, insert `--` after `codemation`.
 

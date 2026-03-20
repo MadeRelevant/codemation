@@ -13,6 +13,7 @@ import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
+import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
 import { PostgresIntegrationDatabase } from "./testkit/PostgresIntegrationDatabase";
 import { PostgresRollbackTransaction } from "./testkit/PostgresRollbackTransaction";
 
@@ -31,6 +32,7 @@ class WorkflowDebugSessionIntegrationFixture {
           kind: "local",
         },
       },
+      auth: IntegrationTestAuth.developmentBypass,
     };
   }
 

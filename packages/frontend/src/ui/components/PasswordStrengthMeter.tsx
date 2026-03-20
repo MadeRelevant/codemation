@@ -1,0 +1,58 @@
+"use client";
+
+import zxcvbn from "zxcvbn";
+import { useMemo, type ReactNode } from "react";
+
+export type PasswordStrengthMeterProps = Readonly<{
+  password: string;
+  /** Skips scoring (and layout) when false. */
+  enabled?: boolean;
+  dataTestId?: string;
+}>;
+
+const scoreLabels = ["Too weak", "Weak", "Fair", "Good", "Strong"] as const;
+
+/**
+ * Password strength using **zxcvbn** (Dropbox). Not a policy gate — server still enforces min length.
+ */
+export function PasswordStrengthMeter(props: PasswordStrengthMeterProps): ReactNode {
+  const { password, enabled = true, dataTestId = "password-strength-meter" } = props;
+  const result = useMemo(() => {
+    if (!enabled || password.length === 0) return null;
+    return zxcvbn(password);
+  }, [enabled, password]);
+
+  if (!enabled || password.length === 0 || !result) {
+    return null;
+  }
+
+  const { score, feedback } = result;
+  const hint = feedback.warning || (feedback.suggestions[0] ?? "");
+  const label = scoreLabels[Math.min(score, 4)] ?? scoreLabels[0];
+
+  return (
+    <div
+      className={`password-strength-meter password-strength-meter--score-${score}`}
+      data-testid={dataTestId}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="password-strength-meter__bars" aria-hidden>
+        {([0, 1, 2, 3, 4] as const).map((i) => (
+          <span
+            key={i}
+            className={i <= score ? "password-strength-meter__bar password-strength-meter__bar--filled" : "password-strength-meter__bar"}
+          />
+        ))}
+      </div>
+      <span className="password-strength-meter__label" data-testid={`${dataTestId}-label`}>
+        {label}
+      </span>
+      {hint ? (
+        <span className="password-strength-meter__hint" data-testid={`${dataTestId}-hint`}>
+          {hint}
+        </span>
+      ) : null}
+    </div>
+  );
+}

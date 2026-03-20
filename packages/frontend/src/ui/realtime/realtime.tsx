@@ -1,6 +1,6 @@
 "use client";
 
-import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CredentialTypeDefinition } from "@codemation/core/browser";
 import type { Item as WorkflowItem } from "@codemation/core/browser";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -16,6 +16,14 @@ export type {
   CredentialInstanceWithSecretsDto,
   WorkflowCredentialHealthDto,
 } from "../../application/contracts/CredentialContracts";
+import {
+  type InviteUserResponseDto,
+  type UserAccountDto,
+  type UserAccountStatus,
+  withInviteUserResponseLoginMethodsDefaults,
+  withUserAccountLoginMethodsDefaults,
+} from "../../application/contracts/UserDirectoryContracts";
+export type { InviteUserResponseDto, UserAccountDto, UserAccountStatus };
 import { ApiPaths } from "../../presentation/http/ApiPaths";
 import type { Logger } from "../../application/logging/Logger";
 
@@ -201,6 +209,7 @@ const credentialInstancesQueryKey = ["credential-instances"] as const;
 const credentialInstanceWithSecretsQueryKey = (instanceId: string) =>
   ["credential-instance-with-secrets", instanceId] as const;
 const workflowCredentialHealthQueryKey = (workflowId: string) => ["workflow-credential-health", workflowId] as const;
+const userAccountsQueryKey = ["user-accounts"] as const;
 
 function getRealtimeBridge(): RealtimeBridgeState {
   const realtimeGlobal = globalThis as RealtimeBridgeGlobal;
@@ -253,6 +262,11 @@ async function fetchCredentialInstanceWithSecrets(instanceId: string): Promise<C
 
 async function fetchWorkflowCredentialHealth(workflowId: string): Promise<WorkflowCredentialHealthDto> {
   return await fetchJson<WorkflowCredentialHealthDto>(ApiPaths.workflowCredentialHealth(workflowId));
+}
+
+async function fetchUserAccounts(): Promise<ReadonlyArray<UserAccountDto>> {
+  const rows = await fetchJson<ReadonlyArray<UserAccountDto>>(ApiPaths.users());
+  return rows.map((u) => withUserAccountLoginMethodsDefaults(u));
 }
 
 function countItems(inputsByPort: Readonly<Record<string, Items>> | undefined): number {
@@ -956,5 +970,71 @@ export function useWorkflowCredentialHealthQuery(workflowId: string) {
     queryKey: workflowCredentialHealthQueryKey(workflowId),
     queryFn: async () => await fetchWorkflowCredentialHealth(workflowId),
     enabled: Boolean(workflowId),
+  });
+}
+
+export function useUserAccountsQuery() {
+  return useQuery({
+    queryKey: userAccountsQueryKey,
+    queryFn: fetchUserAccounts,
+  });
+}
+
+export function useInviteUserMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (email: string): Promise<InviteUserResponseDto> => {
+      const response = await fetch(ApiPaths.userInvites(), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const body = (await response.json()) as InviteUserResponseDto;
+      return withInviteUserResponseLoginMethodsDefaults(body);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: userAccountsQueryKey });
+    },
+  });
+}
+
+export function useRegenerateUserInviteMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string): Promise<InviteUserResponseDto> => {
+      const response = await fetch(ApiPaths.userInviteRegenerate(userId), { method: "POST" });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const body = (await response.json()) as InviteUserResponseDto;
+      return withInviteUserResponseLoginMethodsDefaults(body);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: userAccountsQueryKey });
+    },
+  });
+}
+
+export function useUpdateUserAccountStatusMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: Readonly<{ userId: string; status: UserAccountStatus }>): Promise<UserAccountDto> => {
+      const response = await fetch(ApiPaths.userStatus(args.userId), {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: args.status }),
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const body = (await response.json()) as UserAccountDto;
+      return withUserAccountLoginMethodsDefaults(body);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: userAccountsQueryKey });
+    },
   });
 }

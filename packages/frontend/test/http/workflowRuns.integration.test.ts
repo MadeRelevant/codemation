@@ -11,6 +11,7 @@ import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
+import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
 import { PostgresIntegrationDatabase } from "./testkit/PostgresIntegrationDatabase";
 import { PostgresRollbackTransaction } from "./testkit/PostgresRollbackTransaction";
 
@@ -49,6 +50,7 @@ class WorkflowRunsIntegrationFixture {
           kind: "local",
         },
       },
+      auth: IntegrationTestAuth.developmentBypass,
     };
   }
 
@@ -287,6 +289,7 @@ describe("workflow runs http integration", () => {
       payload: {
         workflowId: WorkflowRunsIntegrationFixture.workflowId,
         mode: "debug",
+        items: [{}],
       },
     });
     const completedState = await WorkflowRunsIntegrationFixture.waitForRunToComplete(harness, createRunResponse.runId);
@@ -344,6 +347,7 @@ describe("workflow runs http integration", () => {
       url: ApiPaths.runs(),
       payload: {
         workflowId: WorkflowRunsIntegrationFixture.workflowId,
+        items: [{}],
       },
     });
     const firstCompletedState = await WorkflowRunsIntegrationFixture.waitForRunToComplete(harness, firstRunResponse.runId);

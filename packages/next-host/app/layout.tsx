@@ -3,8 +3,9 @@ import "@xyflow/react/dist/style.css";
 import "rc-tree/assets/index.css";
 import "./globals.css";
 import type { ReactNode } from "react";
+import { auth } from "../src/auth/codemationNextAuth";
 import { CodemationNextClientShell } from "../src/ui/CodemationNextClientShell";
-import { AppLayout } from "../src/ui/AppLayout";
+import { CodemationSessionRoot } from "../src/ui/CodemationSessionProvider";
 
 const leagueSpartan = League_Spartan({
   subsets: ["latin"],
@@ -18,11 +19,12 @@ export const metadata = {
 };
 
 export default async function RootLayout(args: Readonly<{ children: ReactNode }>) {
+  const session = await auth();
   return (
     <html lang="en" className={leagueSpartan.variable} suppressHydrationWarning>
       <body className={leagueSpartan.className} suppressHydrationWarning>
         <CodemationNextClientShell>
-          <AppLayout>{args.children}</AppLayout>
+          <CodemationSessionRoot session={session}>{args.children}</CodemationSessionRoot>
         </CodemationNextClientShell>
       </body>
     </html>

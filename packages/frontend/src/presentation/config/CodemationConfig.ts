@@ -2,6 +2,7 @@ import type { Container, TypeToken, WorkflowDefinition } from "@codemation/core"
 import type { CodemationApplication } from "../../codemationApplication";
 import type { CodemationAppSlots } from "./CodemationAppSlots";
 import type { CodemationBinding } from "./CodemationBinding";
+import type { CodemationAuthConfig } from "./CodemationAuthConfig";
 import type { CodemationPlugin } from "./CodemationPlugin";
 import type { CodemationWorkflowDiscovery } from "./CodemationWorkflowDiscovery";
 
@@ -55,4 +56,6 @@ export interface CodemationConfig {
   readonly plugins?: ReadonlyArray<CodemationPlugin>;
   readonly bootHook?: TypeToken<CodemationBootHook>;
   readonly slots?: CodemationAppSlots;
+  /** Required for production hosts; optional only when using development bypass (never in production). */
+  readonly auth?: CodemationAuthConfig;
 }

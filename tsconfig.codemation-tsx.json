@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "paths": {
+      "@codemation/core": ["packages/core/src/index.ts"],
+      "@codemation/cli": ["packages/cli/src/index.ts"],
+      "@codemation/core-nodes": ["packages/core-nodes/src/index.ts"],
+      "@codemation/core-nodes-gmail": ["packages/core-nodes-gmail/src/index.ts"],
+      "@codemation/eventbus-redis": ["packages/eventbus-redis/src/index.ts"],
+      "@codemation/frontend": ["packages/frontend/src/index.ts"],
+      "@codemation/frontend/client": ["packages/frontend/src/client.ts"],
+      "@codemation/frontend/credentials": ["packages/frontend/src/credentials.ts"],
+      "@codemation/frontend/consumer": ["packages/frontend/src/consumer.ts"],
+      "@codemation/frontend/next/client": ["packages/frontend/src/nextClient.ts"],
+      "@codemation/frontend/next/server": ["packages/frontend/src/nextServer.ts"],
+      "@codemation/frontend/server": ["packages/frontend/src/server.ts"],
+      "@codemation/frontend/persistence": ["packages/frontend/src/persistenceServer.ts"],
+      "@codemation/next-host": ["packages/next-host/src/index.ts"],
+      "@codemation/node-example": ["packages/node-example/src/index.ts"],
+      "@codemation/queue-bullmq": ["packages/queue-bullmq/src/index.ts"],
+      "@codemation/run-store-sqlite": ["packages/run-store-sqlite/src/index.ts"]
+    }
+  },
+  "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx"],
+  "exclude": ["**/node_modules", "**/dist", "**/.next", "**/coverage"]
+}

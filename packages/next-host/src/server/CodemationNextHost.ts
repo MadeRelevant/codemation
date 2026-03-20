@@ -2,7 +2,7 @@ import { access, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import type { Container } from "@codemation/core";
 import { CoreTokens, Engine } from "@codemation/core";
-import type { CodemationPlugin } from "@codemation/frontend";
+import type { CodemationAuthConfig, CodemationPlugin } from "@codemation/frontend";
 import type { CodemationConsumerApp } from "@codemation/frontend/server";
 import {
   CodemationApplication,
@@ -17,6 +17,7 @@ import { DevelopmentRuntimeApi } from "./DevelopmentRuntimeApi";
 
 export type CodemationNextHostContext = Readonly<{
   application: CodemationApplication;
+  authConfig: CodemationAuthConfig | undefined;
   buildVersion: string;
   consumerRoot: string;
   repoRoot: string;
@@ -199,6 +200,7 @@ export class CodemationNextHost {
 
     return {
       application,
+      authConfig: resolvedConsumerApp.config.auth,
       buildVersion: buildManifest.buildVersion,
       consumerRoot,
       repoRoot,

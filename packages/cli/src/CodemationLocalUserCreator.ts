@@ -42,9 +42,11 @@ export class CodemationLocalUserCreator {
           email,
           passwordHash,
           name: email.split("@")[0] ?? email,
+          accountStatus: "active",
         },
         update: {
           passwordHash,
+          accountStatus: "active",
         },
       });
     } finally {

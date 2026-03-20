@@ -13,6 +13,7 @@ import type { CodemationBootContext, CodemationBootHook } from "../../src/presen
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
+import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
 import { PostgresIntegrationDatabase } from "./testkit/PostgresIntegrationDatabase";
 import { PostgresRollbackTransaction } from "./testkit/PostgresRollbackTransaction";
 
@@ -83,6 +84,7 @@ class CredentialIntegrationFixture {
         eventBus: { kind: "memory" as const },
         scheduler: { kind: "local" as const },
       },
+      auth: IntegrationTestAuth.developmentBypass,
     };
     const harness = new FrontendHttpIntegrationHarness({
       config,

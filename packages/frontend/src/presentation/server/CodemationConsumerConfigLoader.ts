@@ -88,7 +88,8 @@ export class CodemationConsumerConfigLoader {
       "bindings" in value ||
       "plugins" in value ||
       "bootHook" in value ||
-      "slots" in value
+      "slots" in value ||
+      "auth" in value
     );
   }
 

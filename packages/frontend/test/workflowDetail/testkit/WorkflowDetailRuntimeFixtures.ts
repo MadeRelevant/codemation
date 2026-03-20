@@ -2,6 +2,7 @@ import { type WorkflowDefinition } from "@codemation/core";
 import { createWorkflowBuilder, ManualTrigger, MapData } from "@codemation/core-nodes";
 import type { WorkflowDto } from "../../../src/client";
 import type { CodemationConfig } from "../../../src/presentation/config/CodemationConfig";
+import { IntegrationTestAuth } from "../../http/testkit/IntegrationTestAuth";
 import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
 
 export interface WorkflowDetailRuntimeFixture {
@@ -51,6 +52,7 @@ export class WorkflowDetailRuntimeFixtureFactory {
           kind: "local",
         },
       },
+      auth: IntegrationTestAuth.developmentBypass,
     };
   }
 

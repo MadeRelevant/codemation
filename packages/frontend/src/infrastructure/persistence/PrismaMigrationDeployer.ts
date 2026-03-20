@@ -77,7 +77,7 @@ export class PrismaMigrationDeployer {
     if (configuredPath) {
       return configuredPath;
     }
-    return fileURLToPath(new URL("../../../prisma.config.ts", import.meta.url));
+    return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "prisma.config.ts");
   }
 
   private resolvePackageRoot(): string {
@@ -85,7 +85,9 @@ export class PrismaMigrationDeployer {
     if (configuredRoot) {
       return configuredRoot;
     }
-    return fileURLToPath(new URL("../../..", import.meta.url));
+    // Use path.resolve instead of `new URL("../../..", import.meta.url)` so bundlers (e.g. Turbopack)
+    // do not treat the segment as a module specifier.
+    return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
   }
 
   private createDeployError(exitCode: number | null, stdout: string, stderr: string): Error {

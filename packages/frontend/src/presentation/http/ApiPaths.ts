@@ -11,6 +11,8 @@ export class ApiPaths {
 
   private static readonly webhooksBasePath = `${this.apiBasePath}/webhooks`;
 
+  private static readonly usersBasePath = `${this.apiBasePath}/users`;
+
   static workflows(): string {
     return this.workflowsBasePath;
   }
@@ -82,6 +84,30 @@ export class ApiPaths {
 
   static webhooks(): string {
     return this.webhooksBasePath;
+  }
+
+  static users(): string {
+    return this.usersBasePath;
+  }
+
+  static userInviteVerify(): string {
+    return `${this.usersBasePath}/invites/verify`;
+  }
+
+  static userInviteAccept(): string {
+    return `${this.usersBasePath}/invites/accept`;
+  }
+
+  static userInvites(): string {
+    return `${this.usersBasePath}/invites`;
+  }
+
+  static userInviteRegenerate(userId: string): string {
+    return `${this.usersBasePath}/${encodeURIComponent(userId)}/invites/regenerate`;
+  }
+
+  static userStatus(userId: string): string {
+    return `${this.usersBasePath}/${encodeURIComponent(userId)}/status`;
   }
 
   static runState(runId: string): string {

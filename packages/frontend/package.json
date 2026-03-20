@@ -56,13 +56,17 @@
       },
       "import": "./dist/server.js"
     },
-    "./vite": {
-      "types": "./src/vite.ts",
-      "import": "./vite.js"
+    "./persistence": {
+      "types": "./dist/persistenceServer.d.ts",
+      "development": {
+        "import": "./src/persistenceServer.ts"
+      },
+      "import": "./dist/persistenceServer.js"
     }
   },
   "scripts": {
-    "build": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextClient.ts src/nextServer.ts src/server.ts --out-dir dist --sourcemap",
+    "build": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextClient.ts src/nextServer.ts src/server.ts src/persistenceServer.ts --out-dir dist --sourcemap",
+    "dev": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextClient.ts src/nextServer.ts src/server.ts src/persistenceServer.ts --out-dir dist --sourcemap --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "pnpm run test:unit && pnpm run test:integration && pnpm run test:e2e",
@@ -74,24 +78,26 @@
     "coverage:credentials": "vitest run --config vitest.unit.config.ts test/credentialsScreen.test.tsx --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=text --coverage.reportsDirectory=./coverage/credentials-unit --coverage.include=src/ui/screens/CredentialsScreen.tsx && vitest run --config vitest.integration.config.ts test/http/credentialInstances.integration.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=text --coverage.reportsDirectory=./coverage/credentials-integration --coverage.include=src/presentation/http/routeHandlers/CredentialHttpRouteHandler.ts --coverage.include=src/presentation/http/routeHandlers/OAuth2HttpRouteHandler.ts --coverage.include=src/application/commands/CredentialCommandHandlers.ts --coverage.include=src/application/queries/CredentialQueryHandlers.ts --coverage.include=src/domain/credentials/**/*.ts --coverage.include=src/infrastructure/persistence/CredentialPersistenceStore.ts"
   },
   "dependencies": {
+    "@auth/core": "^0.34.3",
     "@codemation/core": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",
     "@codemation/queue-bullmq": "workspace:*",
-    "@fastify/static": "^9.0.0",
     "@monaco-editor/react": "^4.7.0",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "@prisma/client-runtime-utils": "^7.5.0",
     "@tanstack/react-query": "^5.90.21",
+    "@types/bcryptjs": "^3.0.0",
     "@uiw/react-json-view": "2.0.0-alpha.41",
-    "@vitejs/plugin-react": "^5.1.4",
     "@xyflow/react": "^12.10.1",
+    "bcryptjs": "^3.0.3",
     "dagre": "^0.8.5",
     "date-fns": "^4.1.0",
-    "fastify": "^5.8.2",
     "hono": "^4.12.8",
+    "jose": "^6.2.2",
     "lucide-react": "^0.577.0",
     "monaco-editor": "^0.55.1",
+    "next-auth": "^4.24.13",
     "pg": "^8.16.3",
     "pretty-ms": "^9.3.0",
     "prisma": "^7.0.0",
@@ -103,9 +109,8 @@
     "reflect-metadata": "^0.2.2",
     "serialize-javascript": "^7.0.4",
     "tsx": "^4.21.0",
-    "vite": "^7.3.1",
-    "vite-tsconfig-paths": "^6.1.1",
-    "ws": "^8.19.0"
+    "ws": "^8.19.0",
+    "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
     "@codemation/core-nodes": "workspace:*",
@@ -120,6 +125,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/serialize-javascript": "^5.0.4",
     "@types/ws": "^8.18.1",
+    "@types/zxcvbn": "^4.4.5",
     "@vitest/coverage-v8": "^4.0.18",
     "dotenv": "^17.3.1",
     "eslint": "^10.0.3",

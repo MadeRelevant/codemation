@@ -3,7 +3,8 @@
 import { useWorkflowsQuery } from "@codemation/frontend/next/client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Component, type ReactNode } from "react";
+import { signOut, useSession } from "next-auth/react";
+import { Component, type ReactNode, useState } from "react";
 
 const SIDEBAR_WIDTH_KEY = "codemation-sidebar-width";
 const SIDEBAR_COLLAPSED_KEY = "codemation-sidebar-collapsed";
@@ -44,6 +45,14 @@ const IconWorkflow = () => (
     <path d="M15 7h4a2 2 0 0 1 2 2v4" />
     <path d="M3 11h4" />
     <path d="M11 3h4" />
+  </svg>
+);
+const IconUsers = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
 
@@ -184,14 +193,61 @@ function AppLayoutPageHeader(): ReactNode {
   const title = getPageTitle(pathname, workflows);
   return (
     <header className="app-main__header">
-      <h1 className="app-main__title">{title}</h1>
+      <div className="app-main__header-lead">
+        <h1 className="app-main__title">{title}</h1>
+      </div>
+      <AppShellHeaderActions />
     </header>
+  );
+}
+
+function AppShellHeaderActions(): ReactNode {
+  const { data: session, status } = useSession();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  if (status === "loading") {
+    return (
+      <div
+        className="app-shell-header-actions"
+        data-testid="header-session-loading"
+        aria-busy="true"
+        aria-label="Loading session"
+      />
+    );
+  }
+
+  const email = session?.user?.email;
+  if (!email) {
+    return null;
+  }
+
+  const handleSignOut = (): void => {
+    setIsSigningOut(true);
+    void signOut({ callbackUrl: "/login" });
+  };
+
+  return (
+    <div className="app-shell-header-actions">
+      <span className="app-shell-header-actions__email" data-testid="header-user-email" title={email}>
+        {email}
+      </span>
+      <button
+        type="button"
+        className="app-shell-header-actions__logout"
+        data-testid="header-logout"
+        disabled={isSigningOut}
+        onClick={handleSignOut}
+      >
+        {isSigningOut ? "Signing out…" : "Log out"}
+      </button>
+    </div>
   );
 }
 
 function getPageTitle(pathname: string, workflows: ReadonlyArray<{ id: string; name: string }>): string {
   if (pathname === "/dashboard") return "Dashboard";
   if (pathname === "/credentials") return "Credentials";
+  if (pathname === "/users") return "Users";
   if (pathname === "/workflows") return "Workflows";
   const workflowMatch = pathname.match(/^\/workflows\/([^/]+)/);
   if (workflowMatch) {
@@ -233,6 +289,7 @@ function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactNode {
     <>
       {navItem("/dashboard", "Dashboard", <IconDashboard />, true)}
       {navItem("/credentials", "Credentials", <IconCredentials />)}
+      {navItem("/users", "Users", <IconUsers />)}
       {collapsed ? (
         <div className="app-sidebar__workflows app-sidebar__workflows--icons-only">
           <span className="app-sidebar__tooltip-wrap" data-tooltip="All workflows">

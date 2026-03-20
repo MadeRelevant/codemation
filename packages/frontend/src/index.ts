@@ -1,5 +1,11 @@
 export { CodemationApplication } from "./codemationApplication";
-export { ApiPaths, CodemationConsumerConfigLoader, CodemationFastifyHost, CodemationServerGateway } from "./server";
+export {
+  ApiPaths,
+  CodemationConsumerConfigLoader,
+  CodemationPostgresPrismaClientFactory,
+  CodemationServerGateway,
+  PrismaClient,
+} from "./server";
 export type { CodemationAppSlots } from "./presentation/config/CodemationAppSlots";
 export type {
   CodemationBinding,
@@ -8,6 +14,12 @@ export type {
   CodemationFactoryBinding,
   CodemationValueBinding,
 } from "./presentation/config/CodemationBinding";
+export type {
+  CodemationAuthConfig,
+  CodemationAuthKind,
+  CodemationAuthOAuthProviderConfig,
+  CodemationAuthOidcProviderConfig,
+} from "./presentation/config/CodemationAuthConfig";
 export type {
   CodemationBootHook,
   CodemationBootContext,

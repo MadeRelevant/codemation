@@ -18,6 +18,7 @@
       "@codemation/frontend/next/client": ["packages/frontend/src/nextClient.ts"],
       "@codemation/frontend/next/server": ["packages/frontend/src/nextServer.ts"],
       "@codemation/frontend/server": ["packages/frontend/src/server.ts"],
+      "@codemation/frontend/persistence": ["packages/frontend/src/persistenceServer.ts"],
       "@codemation/next-host": ["packages/next-host/src/index.ts"],
       "@codemation/node-example": ["packages/node-example/src/index.ts"],
       "@codemation/queue-bullmq": ["packages/queue-bullmq/src/index.ts"],

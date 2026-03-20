@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @codemation/core-nodes-gmail build && pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js dev",
+    "codemation": "tsx --tsconfig ../../tsconfig.codemation-tsx.json ../../packages/cli/src/bin.ts",
+    "dev": "pnpm exec codemation dev",
     "worker": "codemation-worker",
     "build": "pnpm --filter @codemation/core-nodes-gmail build && pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -12,6 +13,7 @@
     "test": "echo \"(test placeholder)\""
   },
   "dependencies": {
+    "@codemation/cli": "workspace:*",
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
     "@codemation/core-nodes-gmail": "workspace:*",

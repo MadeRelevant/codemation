@@ -1,0 +1,21 @@
+---
+description: Next host — SSR/client parity and hydration pitfalls
+globs: packages/next-host/**/*.tsx, packages/next-host/app/**/*.tsx
+alwaysApply: false
+---
+
+# Next host hydration
+
+## Auth session
+
+- Wrap the app with `SessionProvider` **and pass `session` from the server** (`await auth()` in `app/layout.tsx`). Otherwise `useSession()` starts in different states on SSR vs the client and the header (or any consumer) can mismatch on hydrate.
+- Prefer fixing the data source; avoid `suppressHydrationWarning` except for known third-party DOM (e.g. password manager injectors on `<form>` / inputs).
+
+## Client-only state
+
+- Do not branch **render output** on `typeof window` in shared client trees; use `useEffect` to flip a `mounted` flag if something must only appear after hydrate, and keep the **first** server and client paints identical (placeholders with the same DOM shape).
+- Avoid `Date.now()`, `Math.random()`, and locale-only formatting in the initial render of Client Components.
+
+## Tooling
+
+- ESLint does not reliably catch hydration mismatches today. **React Compiler** (when adopted) reduces a class of bugs; for Auth.js + App Router, the main lever is **server-driven initial session** and stable first paint.

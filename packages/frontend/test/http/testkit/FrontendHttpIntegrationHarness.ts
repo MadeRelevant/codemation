@@ -1,9 +1,7 @@
 import net from "node:net";
-import Fastify, { type FastifyInstance } from "fastify";
 import type { CodemationBinding } from "../../../src/presentation/config/CodemationBinding";
 import type { CodemationConfig } from "../../../src/presentation/config/CodemationConfig";
 import { CodemationServerGateway } from "../../../src/presentation/http/CodemationServerGateway";
-import { FastifyApiRouteRegistrar } from "../../../src/presentation/server/FastifyApiRouteRegistrar";
 
 export interface FrontendHttpIntegrationHarnessOptions {
   readonly config: CodemationConfig;
@@ -48,9 +46,8 @@ export class FrontendHttpIntegrationResponse {
 }
 
 export class FrontendHttpIntegrationHarness {
-  private readonly apiRouteRegistrar = new FastifyApiRouteRegistrar();
+  private static readonly requestHost = "http://127.0.0.1";
 
-  private application: FastifyInstance | null = null;
   private gateway: CodemationServerGateway | null = null;
   private websocketPort: number | null = null;
 
@@ -70,18 +67,9 @@ export class FrontendHttpIntegrationHarness {
       },
     );
     await this.gateway.prepare();
-    const application = Fastify({
-      logger: false,
-    });
-    await this.apiRouteRegistrar.register(application, this.gateway);
-    this.application = application;
   }
 
   async close(): Promise<void> {
-    if (this.application) {
-      await this.application.close();
-      this.application = null;
-    }
     if (this.gateway) {
       await this.gateway.close();
       this.gateway = null;
@@ -90,8 +78,17 @@ export class FrontendHttpIntegrationHarness {
   }
 
   async request(args: FrontendHttpIntegrationRequest): Promise<FrontendHttpIntegrationResponse> {
-    const application = this.requireApplication();
-    return new FrontendHttpIntegrationResponse((await application.inject(args as never)) as FrontendHttpInjectedResponse);
+    const gateway = this.requireGateway();
+    const target = new URL(args.url, FrontendHttpIntegrationHarness.requestHost);
+    const init: RequestInit = {
+      method: args.method,
+      headers: args.headers,
+    };
+    if (args.payload !== undefined) {
+      init.body = args.payload;
+    }
+    const fetchResponse = await gateway.dispatch(new Request(target, init));
+    return new FrontendHttpIntegrationResponse(await FrontendHttpIntegrationHarness.toInjectedResponse(fetchResponse));
   }
 
   async requestJson<TValue>(
@@ -115,6 +112,19 @@ export class FrontendHttpIntegrationHarness {
     return this.websocketPort;
   }
 
+  private static async toInjectedResponse(response: Response): Promise<FrontendHttpInjectedResponse> {
+    const body = await response.text();
+    const headers: Record<string, string | string[] | number | undefined> = {};
+    response.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+    return {
+      statusCode: response.status,
+      body,
+      headers,
+    };
+  }
+
   private createEffectiveConfig(): CodemationConfig {
     if (!this.options.bindings || this.options.bindings.length === 0) {
       return this.options.config;
@@ -125,11 +135,11 @@ export class FrontendHttpIntegrationHarness {
     };
   }
 
-  private requireApplication(): FastifyInstance {
-    if (!this.application) {
+  private requireGateway(): CodemationServerGateway {
+    if (!this.gateway) {
       throw new Error("FrontendHttpIntegrationHarness.start() must be called before issuing requests.");
     }
-    return this.application;
+    return this.gateway;
   }
 }
 

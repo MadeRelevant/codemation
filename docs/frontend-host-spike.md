@@ -1,5 +1,7 @@
 # Frontend Host Spike
 
+**Status (repo today):** The production app shell is **`packages/next-host` (Next.js)** via `codemation dev`. There is no consumer `vite.config` and no `@codemation/frontend/vite` entry; sections below that mention Vite routes/plugins describe earlier spike options, not the current layout.
+
 ## Recommendation
 
 The spike points to `React Router + Fastify` as the primary replacement for the current TanStack Start host layer, with `Vike + Fastify` as the comparison fallback.
@@ -21,9 +23,8 @@ The reason is straightforward:
 - `apps/test-dev/src/bootstrap/testDevBootHook.ts`
 - `apps/test-dev/src/ui/testDevLogo.tsx`
 - `apps/test-dev/src/ui/testDevNavigation.tsx`
-- `apps/test-dev/vite.config.ts`
-- `apps/test-dev/src/routes/__root.tsx`
-- `apps/test-dev/src/router.tsx`
+
+_(Legacy TanStack/Vite route files are not part of the current Next host.)_
 
 ### Framework-owned today
 
@@ -33,7 +34,6 @@ The reason is straightforward:
 - `packages/frontend/src/presentation/websocket/WorkflowWebsocketServer.ts`
 - `packages/frontend/src/ui/*`
 - `packages/frontend/src/server.ts`
-- `packages/frontend/src/vite.ts`
 
 ## What The Spike Proves
 
@@ -138,7 +138,6 @@ The target contract should be:
 ```text
 apps/test-dev/
   codemation.config.ts
-  vite.config.ts
   src/
     workflows/
       example.ts
@@ -174,11 +173,8 @@ apps/test-dev/
 
 ### Files that were the first rewrite targets
 
-- framework-owned host adapter glue
-- framework-owned Vite plugin glue
-- `apps/test-dev/src/routes/__root.tsx`
-- `apps/test-dev/src/router.tsx`
-- generated route files under `apps/test-dev/src/routes/(codemation)/`
+- framework-owned host adapter glue _(historical; current host is Next in `packages/next-host`)_
+- generated route files under consumer `src/routes` _(not used with Next host)_
 
 ### Files that need lifecycle review
 
@@ -203,13 +199,9 @@ These files should survive, but the host migration should decide:
 - `packages/frontend/src/ui/providers/Providers.tsx`
 - `apps/test-dev/codemation.config.ts`
 
-### Replace
+### Replace _(largely done: Next host)_
 
-- framework-owned host adapter glue
-- framework-owned Vite plugin glue
-- `apps/test-dev/vite.config.ts`
-- `apps/test-dev/src/routes/__root.tsx`
-- `apps/test-dev/src/router.tsx`
+- earlier Vite / TanStack Start adapter glue _(removed from consumer; see `packages/next-host`)_
 
 ### Simplify before migration
 

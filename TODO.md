@@ -8,7 +8,7 @@
 * [ ] add tests what happens when aggregating items or vice versa (splitting items) and check paired items dont get messed up
 * [x] support binary data
 * [x] build webhook node
-* [ ] add oauth flows for credentials
+* [x] add oauth flows for credentials
 * [ ] allow array of nodes in then() for parallelism
 * [ ] support human-in-the-loop node
 * [x] store a snapshot of the config at each run and build the canvas from that snapshot for historical views
@@ -18,6 +18,7 @@
 * [ ] Fix datetime formatting, use battle tested library instead
 * [ ] Allow binary uploads to webhook nodes
 * [ ] (LLM) Observability
+* [ ] Rehome packages/frontend/ui -> packages/next-host
 * [x] Add signature token to sign credential values
 * [ ] Split up UI components into smaller components
 * [ ] Setup dashboard
@@ -26,3 +27,6 @@
     * [ ] Show recent workflow runs
 * [ ] Support white-label (logo + company name)
 * [ ] Migrate RouteHandlers from frontend to nextjs layer and call commands/queries directly and remove custom annotation driven router
+* [ ] Add "clear data" to the live workflow so you can run it cleanly instead of manually clicking play on first node -> then last node play button or "Run workflow"
+* [ ] Test credentials using Azure Keyvault instead of database
+* [ ] Support retry policy (default X times with fixed delay and exponential as alternative)

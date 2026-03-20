@@ -26,6 +26,17 @@ const slots: CodemationAppSlots = {
 };
 
 export const codemationHost = {
+  auth: {
+    kind: "local" as const,
+    allowUnauthenticatedInDevelopment: true,
+    oauth: [
+      {
+        provider: "google",
+        clientIdEnv: "GOOGLE_CLIENT_ID",
+        clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+      },
+    ],
+  },
   bindings: [
     {
       token: TestDevGmailEnvironment,

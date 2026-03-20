@@ -17,8 +17,13 @@ import type { HonoApiRouteRegistrar } from "./presentation/http/hono/HonoApiRout
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
 import type { LoggerFactory } from "./application/logging/Logger";
 import type { CredentialStore } from "./domain/credentials/CredentialServices";
+import type { SessionVerifier } from "./application/auth/SessionVerifier";
+import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";
 
 export const ApplicationTokens = {
+  CodemationAuthConfig: Symbol.for("codemation.application.CodemationAuthConfig") as TypeToken<
+    CodemationAuthConfig | undefined
+  >,
   WebSocketPort: Symbol.for("codemation.application.WebSocketPort") as TypeToken<number>,
   WebSocketBindHost: Symbol.for("codemation.application.WebSocketBindHost") as TypeToken<string>,
   QueryBus: Symbol.for("codemation.application.QueryBus") as TypeToken<QueryBus>,
@@ -37,4 +42,5 @@ export const ApplicationTokens = {
   LoggerFactory: Symbol.for("codemation.application.LoggerFactory") as TypeToken<LoggerFactory>,
   CredentialStore: Symbol.for("codemation.application.CredentialStore") as TypeToken<CredentialStore>,
   ProcessEnv: Symbol.for("codemation.application.ProcessEnv") as TypeToken<Readonly<NodeJS.ProcessEnv>>,
+  SessionVerifier: Symbol.for("codemation.application.SessionVerifier") as TypeToken<SessionVerifier>,
 } as const;

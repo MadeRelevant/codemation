@@ -1,4 +1,4 @@
-import { HostedWorkflowDetailPage } from "../../../src/ui/HostedWorkflowDetailPage";
+import { HostedWorkflowDetailPage } from "../../../../src/ui/HostedWorkflowDetailPage";
 
 export default async function WorkflowDetailPage(args: Readonly<{ params: Promise<{ workflowId: string }> }>) {
   const params = await args.params;

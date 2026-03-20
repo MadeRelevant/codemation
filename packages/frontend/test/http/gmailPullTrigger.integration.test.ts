@@ -7,6 +7,7 @@ import type { RunCommandResult } from "../../src/application/contracts/RunContra
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
 import type { CodemationBinding } from "../../src/presentation/config/CodemationBinding";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
+import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
 import {
@@ -151,6 +152,7 @@ class GmailPullTriggerIntegrationFixture {
         eventBus: { kind: "memory" },
         scheduler: { kind: "local" },
       },
+      auth: IntegrationTestAuth.developmentBypass,
     };
   }
 

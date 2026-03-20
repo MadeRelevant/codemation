@@ -49,6 +49,7 @@ import "./presentation/http/routeHandlers/WebhookHttpRouteHandler";
 import "./presentation/http/routeHandlers/WorkflowHttpRouteHandler";
 import { ApplicationTokens } from "./applicationTokens";
 import type { CodemationBinding } from "./presentation/config/CodemationBinding";
+import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";
 import type { CodemationConfig } from "./presentation/config/CodemationConfig";
 import { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
 import { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
@@ -81,6 +82,8 @@ import type {
 } from "./presentation/config/CodemationConfig";
 import type { CodemationPlugin } from "./presentation/config/CodemationPlugin";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
+import { AuthJsSessionVerifier } from "./infrastructure/auth/AuthJsSessionVerifier";
+import { DevelopmentSessionBypassVerifier } from "./infrastructure/auth/DevelopmentSessionBypassVerifier";
 import { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiApp";
 import { WorkflowWebsocketServer } from "./presentation/websocket/WorkflowWebsocketServer";
 import { CodemationServerEngineHost } from "./infrastructure/webhooks/CodemationServerEngineHost";
@@ -89,8 +92,10 @@ import { WebhookEndpointRepositoryAdapter } from "./infrastructure/webhooks/Webh
 import { CodemationWorkerHost } from "./infrastructure/worker/CodemationWorkerHost";
 import { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
 import "./application/commands/CredentialCommandHandlers";
+import "./application/commands/UserAccountCommandHandlers";
 import { PrismaClient } from "./infrastructure/persistence/generated/prisma-client/client.js";
 import "./application/queries/CredentialQueryHandlers";
+import "./application/queries/UserAccountQueryHandlers";
 import { LocalFilesystemBinaryStorage } from "./infrastructure/binary/LocalFilesystemBinaryStorage";
 import {
   CredentialBindingService,
@@ -106,14 +111,17 @@ import {
 import { InMemoryCredentialStore, PrismaCredentialStore } from "./infrastructure/persistence/CredentialPersistenceStore";
 import { OAuth2ConnectService } from "./domain/credentials/OAuth2ConnectService";
 import { OAuth2ProviderRegistry } from "./domain/credentials/OAuth2ProviderRegistry";
+import { UserAccountService } from "./domain/users/UserAccountService";
 import "./presentation/http/routeHandlers/CredentialHttpRouteHandler";
 import "./presentation/http/routeHandlers/OAuth2HttpRouteHandler";
+import "./presentation/http/routeHandlers/UserHttpRouteHandler";
 import "./presentation/http/hono/registrars/WorkflowHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/RunHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/CredentialHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/OAuth2HonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/BinaryHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/WebhookHonoApiRouteRegistrar";
+import "./presentation/http/hono/registrars/UserHonoApiRouteRegistrar";
 
 type StopHandle = Readonly<{ stop: () => Promise<void> }>;
 
@@ -133,6 +141,7 @@ export class CodemationApplication {
   private bindings: ReadonlyArray<CodemationBinding<unknown>> = [];
   private plugins: ReadonlyArray<CodemationPlugin> = [];
   private sharedWorkflowWebsocketServer: WorkflowWebsocketServer | null = null;
+  private applicationAuthConfig: CodemationAuthConfig | undefined;
 
   constructor() {
     this.synchronizeContainerRegistrations();
@@ -150,6 +159,9 @@ export class CodemationApplication {
     }
     if (config.runtime) {
       this.useRuntimeConfig(config.runtime);
+    }
+    if (config.auth !== undefined) {
+      this.applicationAuthConfig = config.auth;
     }
     return this;
   }
@@ -253,8 +265,36 @@ export class CodemationApplication {
     await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
     this.container.registerInstance(ApplicationTokens.WebSocketPort, this.resolveWebSocketPort(effectiveEnv));
     this.container.registerInstance(ApplicationTokens.WebSocketBindHost, effectiveEnv.CODEMATION_WS_BIND_HOST ?? "0.0.0.0");
+    this.registerSessionVerification(effectiveEnv);
     this.registerServerWebhookRuntimeHost();
     await this.startPresentationServers();
+  }
+
+  private registerSessionVerification(effectiveEnv: Readonly<NodeJS.ProcessEnv>): void {
+    const isProduction = effectiveEnv.NODE_ENV === "production";
+    if (isProduction && !this.applicationAuthConfig) {
+      throw new Error("CodemationConfig.auth is required when NODE_ENV is production.");
+    }
+    if (isProduction && this.applicationAuthConfig?.allowUnauthenticatedInDevelopment === true) {
+      throw new Error("CodemationAuthConfig.allowUnauthenticatedInDevelopment is not allowed when NODE_ENV is production.");
+    }
+    const bypassAllowed =
+      !isProduction && this.applicationAuthConfig?.allowUnauthenticatedInDevelopment === true;
+    if (bypassAllowed) {
+      this.container.register(ApplicationTokens.SessionVerifier, {
+        useValue: new DevelopmentSessionBypassVerifier(),
+      });
+      return;
+    }
+    const secret = effectiveEnv.AUTH_SECRET ?? "";
+    if (!secret) {
+      throw new Error(
+        "AUTH_SECRET is required unless CodemationAuthConfig.allowUnauthenticatedInDevelopment is enabled in a non-production environment.",
+      );
+    }
+    this.container.register(ApplicationTokens.SessionVerifier, {
+      useValue: new AuthJsSessionVerifier(secret),
+    });
   }
 
   async startWorkerRuntime(args: Readonly<{
@@ -538,6 +578,15 @@ export class CodemationApplication {
     this.container.registerInstance(CoreTokens.BinaryStorage, binaryStorage);
     this.container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory(binaryStorage));
     this.container.registerInstance(ApplicationTokens.ProcessEnv, env);
+    this.container.registerInstance(ApplicationTokens.CodemationAuthConfig, this.applicationAuthConfig);
+    this.container.register(UserAccountService, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        const prismaClient = dependencyContainer.isRegistered(PrismaClient, true)
+          ? dependencyContainer.resolve(PrismaClient)
+          : undefined;
+        return new UserAccountService(dependencyContainer.resolve(ApplicationTokens.CodemationAuthConfig), prismaClient);
+      }),
+    });
     this.container.registerInstance(ApplicationTokens.WorkflowDebuggerOverlayRepository, persistence.workflowDebuggerOverlayRepository);
     if (persistence.workflowRunRepository) {
       this.container.registerInstance(ApplicationTokens.WorkflowRunRepository, persistence.workflowRunRepository);
