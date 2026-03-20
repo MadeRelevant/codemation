@@ -438,14 +438,5 @@ export default [
       "codemation/no-static-methods": "off",
     },
   },
-
-  // Oversized screen: split into dialog + table modules (tracked cleanup).
-  {
-    files: ["**/CredentialsScreen.tsx"],
-    rules: {
-      "max-lines": "off",
-      "codemation/single-react-component-per-file": "off",
-    },
-  },
 ];
 
