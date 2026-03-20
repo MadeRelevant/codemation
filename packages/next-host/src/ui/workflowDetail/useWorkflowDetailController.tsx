@@ -29,7 +29,7 @@ WorkflowRunsSidebarFormatting,
 WorkflowRunsSidebarModel,
 } from "./workflowDetailTypes";
 
-type WorkflowDetailControllerResult = Readonly<{
+export type WorkflowDetailControllerResult = Readonly<{
   displayedWorkflow: WorkflowDto | undefined;
   displayedNodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
   pinnedNodeIds: ReadonlySet<string>;
