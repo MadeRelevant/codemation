@@ -1,5 +1,9 @@
+"use client";
+
 import Editor from "@monaco-editor/react";
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
+
+import { Button } from "@/components/ui/button";
 import type { JsonEditorState } from "../../lib/workflowDetail/workflowDetailTypes";
 
 export function WorkflowJsonEditorDialog(args: Readonly<{
@@ -19,39 +23,24 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
   return (
     <div
       data-testid="workflow-json-editor-dialog"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.48)",
-        display: "grid",
-        placeItems: "center",
-        zIndex: 1000,
-        padding: 24,
-      }}
+      className="fixed inset-0 z-[1000] grid place-items-center bg-black/50 p-6"
     >
-      <div style={{ width: "min(960px, 100%)", height: "min(80vh, 760px)", background: "white", border: "1px solid #cbd5e1", display: "grid", gridTemplateRows: "auto 1fr auto", boxShadow: "0 25px 50px rgba(15,23,42,0.2)" }}>
-        <div style={{ padding: 16, borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div className="grid h-[min(80vh,760px)] w-[min(960px,100%)] grid-rows-[auto_1fr_auto] border border-border bg-card shadow-2xl ring-1 ring-foreground/10">
+        <div className="flex items-center justify-between gap-3 border-b border-border p-4">
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800 }}>{state.title}</div>
-            <div style={{ marginTop: 4, fontSize: 12, color: "#64748b" }}>
+            <div className="text-[15px] font-extrabold">{state.title}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
               {state.mode === "pin-output"
                 ? "Provide valid JSON. Saving here pins this node output. Then use Run on the canvas to continue."
                 : "Provide valid JSON. Objects become one item; arrays become multiple items."}
             </div>
           </div>
-          <button onClick={onClose} style={{ border: "1px solid #d1d5db", background: "white", padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
+          <Button type="button" variant="outline" size="sm" className="text-xs font-bold" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
-        <div style={{ padding: 16, minHeight: 0, position: "relative" }}>
-          <div
-            style={{
-              height: "100%",
-              border: "1px solid #d1d5db",
-              background: "#ffffff",
-              overflow: "hidden",
-            }}
-          >
+        <div className="relative min-h-0 p-4">
+          <div className="h-full overflow-hidden border border-border bg-background">
             <Editor
               height="100%"
               language="json"
@@ -61,7 +50,9 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
                 setValue(nextValue ?? "");
                 if (error) setError(null);
               }}
-              loading={<div style={{ display: "grid", placeItems: "center", height: "100%", fontSize: 12, color: "#64748b" }}>Loading editor…</div>}
+              loading={
+                <div className="grid h-full place-items-center text-xs text-muted-foreground">Loading editor…</div>
+              }
               options={{
                 automaticLayout: true,
                 formatOnPaste: true,
@@ -94,25 +85,21 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
               if (error) setError(null);
             }}
             spellCheck={false}
-            style={{
-              position: "absolute",
-              opacity: 0,
-              pointerEvents: "none",
-              width: 1,
-              height: 1,
-              inset: 0,
-            }}
+            className="pointer-events-none absolute inset-0 h-px w-px opacity-0"
             aria-hidden="true"
             tabIndex={-1}
           />
-          {error ? <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>{error}</div> : null}
+          {error ? <div className="mt-2.5 text-xs text-destructive">{error}</div> : null}
         </div>
-        <div style={{ padding: 16, borderTop: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
-          <button onClick={onClose} style={{ border: "1px solid #d1d5db", background: "white", padding: "8px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
+        <div className="flex items-center justify-end gap-2 border-t border-border p-4">
+          <Button type="button" variant="outline" size="sm" className="text-xs font-bold" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
             data-testid="workflow-json-editor-save"
+            size="sm"
+            className="text-xs font-extrabold"
             onClick={() => {
               try {
                 JSON.parse(value);
@@ -121,10 +108,9 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
                 setError(cause instanceof Error ? cause.message : String(cause));
               }
             }}
-            style={{ border: "1px solid #111827", background: "#111827", color: "white", padding: "8px 12px", cursor: "pointer", fontWeight: 800, fontSize: 12 }}
           >
             Save
-          </button>
+          </Button>
         </div>
       </div>
     </div>

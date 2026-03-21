@@ -2,8 +2,21 @@
 
 import type { CredentialTypeDefinition } from "@codemation/core/browser";
 import type { Dispatch, SetStateAction } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";
 import type { FormSourceKind } from "../lib/credentialFormTypes";
+
+const TYPE_PLACEHOLDER = "__none__";
 
 export type CredentialDialogFormSectionsProps = {
   credentialTypes: ReadonlyArray<CredentialTypeDefinition>;
@@ -58,41 +71,39 @@ export function CredentialDialogFormSections({
 }: CredentialDialogFormSectionsProps) {
   return (
     <>
-      <div className="credential-dialog__field">
-        <label htmlFor="credential-type-select" className="credential-dialog__label">
-          Credential type
-        </label>
-        <select
-          id="credential-type-select"
-          className={`credential-dialog__select ${isTypeLocked ? "credential-dialog__select--disabled" : ""}`}
-          data-testid="credential-type-select"
-          value={selectedTypeId}
-          onChange={(e) => setSelectedTypeId(e.target.value)}
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="credential-type-select">Credential type</Label>
+        <Select
+          value={selectedTypeId || TYPE_PLACEHOLDER}
+          onValueChange={(v) => setSelectedTypeId(v === TYPE_PLACEHOLDER ? "" : v)}
           disabled={typesLoading || isTypeLocked}
-          aria-disabled={isTypeLocked}
         >
-          <option value="">Select a credential type</option>
-          {credentialTypes.map((type) => (
-            <option key={type.typeId} value={type.typeId}>
-              {type.displayName}
-            </option>
-          ))}
-        </select>
-        {typesLoading && <span className="credential-dialog__help">Loading…</span>}
-        {typesError && <span className="credential-dialog__error">Failed to load credential types.</span>}
+          <SelectTrigger id="credential-type-select" className="w-full" data-testid="credential-type-select">
+            <SelectValue placeholder="Select a credential type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={TYPE_PLACEHOLDER}>Select a credential type</SelectItem>
+            {credentialTypes.map((type) => (
+              <SelectItem key={type.typeId} value={type.typeId}>
+                {type.displayName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {typesLoading && <span className="text-xs text-muted-foreground">Loading…</span>}
+        {typesError && (
+          <span className="text-sm text-destructive">Failed to load credential types.</span>
+        )}
         {!typesLoading && !typesError && typesEmpty && (
-          <span className="credential-dialog__help">No credential types available.</span>
+          <span className="text-xs text-muted-foreground">No credential types available.</span>
         )}
       </div>
 
-      <div className="credential-dialog__field">
-        <label htmlFor="credential-display-name" className="credential-dialog__label">
-          Display name
-        </label>
-        <input
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="credential-display-name">Display name</Label>
+        <Input
           id="credential-display-name"
           type="text"
-          className="credential-dialog__input"
           data-testid="credential-display-name-input"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
@@ -101,70 +112,73 @@ export function CredentialDialogFormSections({
       </div>
 
       {!isEdit && (
-        <div className="credential-dialog__field">
-          <label htmlFor="credential-source-kind" className="credential-dialog__label">
-            Secret source
-          </label>
-          <select
-            id="credential-source-kind"
-            className="credential-dialog__select"
-            data-testid="credential-source-kind-select"
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="credential-source-kind">Secret source</Label>
+          <Select
             value={sourceKind}
-            onChange={(e) => setSourceKind(e.target.value as FormSourceKind)}
+            onValueChange={(v) => setSourceKind(v as FormSourceKind)}
           >
-            <option value="db">Store secret in database</option>
-            <option value="env">Load from environment variables</option>
-          </select>
+            <SelectTrigger id="credential-source-kind" className="w-full" data-testid="credential-source-kind-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="db">Store secret in database</SelectItem>
+              <SelectItem value="env">Load from environment variables</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
 
       {canToggleSecrets && (
-        <div className="credential-dialog__field">
-          <button
+        <div className="flex flex-col gap-2">
+          <Button
             type="button"
-            className="credential-dialog__btn credential-dialog__btn--secondary"
-            style={{ width: "fit-content", padding: "var(--spacing-xs) var(--spacing-sm)", fontSize: "0.875rem" }}
+            variant="outline"
+            size="sm"
+            className="w-fit"
             onClick={() => setShowSecrets((s) => !s)}
             data-testid="credential-show-secrets-toggle"
             disabled={isEdit && secretsLoading}
           >
             {showSecrets ? "Hide" : "Show"} values
-          </button>
-          {isEdit && secretsLoading && <span className="credential-dialog__help">Loading credential…</span>}
+          </Button>
+          {isEdit && secretsLoading && (
+            <span className="text-xs text-muted-foreground">Loading credential…</span>
+          )}
         </div>
       )}
 
       {isOAuth2Type && (
-        <div className="credential-dialog__field">
-          <span className="credential-dialog__label">OAuth2 connection</span>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium leading-none">OAuth2 connection</span>
           {isLoadingOauth2RedirectUri ? (
-            <span className="credential-dialog__help">Loading redirect URI…</span>
+            <span className="text-xs text-muted-foreground">Loading redirect URI…</span>
           ) : (
             <>
-              <input
-                className="credential-dialog__input"
+              <Input
                 data-testid="credential-oauth2-redirect-uri"
                 type="text"
                 readOnly
                 value={oauth2RedirectUri}
               />
-              <span className="credential-dialog__help">
+              <span className="text-xs text-muted-foreground">
                 Configure this redirect URI in your OAuth client before connecting.
               </span>
             </>
           )}
           {isEdit && editingInstance?.oauth2Connection?.status === "connected" && (
-            <span className="credential-dialog__help" data-testid="credential-oauth2-connected-status">
+            <span className="text-xs text-muted-foreground" data-testid="credential-oauth2-connected-status">
               Connected
               {editingInstance.oauth2Connection.connectedEmail
                 ? ` as ${editingInstance.oauth2Connection.connectedEmail}`
                 : ""}
             </span>
           )}
-          <div style={{ display: "flex", gap: "var(--spacing-sm)", flexWrap: "wrap", marginTop: "var(--spacing-sm)" }}>
-            <button
+          <div className="mt-1 flex flex-wrap gap-2">
+            <Button
               type="button"
-              className="credential-dialog__btn credential-dialog__btn--secondary"
+              variant="outline"
+              size="sm"
               data-testid="credential-oauth2-connect-button"
               onClick={() => void onConnectOAuth2()}
               disabled={!isEdit && !canSubmit}
@@ -174,17 +188,18 @@ export function CredentialDialogFormSections({
                   ? "Reconnect"
                   : "Connect"
                 : "Create and connect"}
-            </button>
+            </Button>
             {isEdit && (
-              <button
+              <Button
                 type="button"
-                className="credential-dialog__btn credential-dialog__btn--secondary"
+                variant="outline"
+                size="sm"
                 data-testid="credential-oauth2-disconnect-button"
                 onClick={() => void onDisconnectOAuth2()}
                 disabled={editingInstance?.oauth2Connection?.status !== "connected"}
               >
                 Disconnect
-              </button>
+              </Button>
             )}
           </div>
         </div>

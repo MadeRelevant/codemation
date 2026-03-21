@@ -48,6 +48,17 @@ Replace ad-hoc global CSS with **Tailwind CSS v4**, **design tokens** (CSS varia
 - Prefer **semantic utilities** (`bg-background`, `text-muted-foreground`) over raw palette classes in new code.
 - Optionally add **lint for raw `gray-*`** in a follow-up (team decision).
 
+## Verification (avoid heavy full-repo gates)
+
+Iterating on UI only:
+
+1. `pnpm --filter @codemation/next-host run lint`
+2. `pnpm run test:ui` (from repo root; host UI tests import next-host with `@/` alias)
+
+Use **`pnpm --filter @codemation/next-host run build`** when you need a Next production compile without building all workspace packages.
+
+Reserve **root `pnpm test`** / **`pnpm check`** / wide **`turbo run build`** for **CI or pre-merge** — they rebuild many packages and run all suites (high CPU/time).
+
 ## References
 
 - [Tailwind + Next.js](https://tailwindcss.com/docs/installation/framework-guides/nextjs)

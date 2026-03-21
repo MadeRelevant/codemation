@@ -21,6 +21,12 @@
 * [x] Rehome packages/host/ui -> packages/next-host (UI lives under `packages/next-host/src/features`, `src/components`, `src/shell`, `src/providers`)
 * [x] Add signature token to sign credential values
 * [ ] Split up UI components into smaller components
+* [ ] **Design system (next-host)** — detailed checklist in Cursor plan `design_system_migration_8f27a4f3`; verification + inventory in [packages/next-host/docs/TAILWIND_SHADCN_MIGRATION.md](packages/next-host/docs/TAILWIND_SHADCN_MIGRATION.md)
+    * [ ] Credentials internals: `credential-dialog__*` / `credentials-table__*` → shadcn Input/Table/Badge + tokens (`CredentialDialogFormSections`, `FieldRows`, `CredentialsScreenInstancesTable`, …)
+    * [ ] Workflow detail: layout → inspector → canvas → realtime (`src/features/workflows/screens`, `components/workflowDetail`, `components/canvas`, `hooks/realtime`)
+    * [ ] Shared widgets: `CodemationDataTable`, `PasswordStrengthMeter`, … + `cn()`
+    * [ ] Purge `app/globals.css` legacy + bridge when unused; optional dark toggle
+    * [ ] Light verify: `pnpm --filter @codemation/next-host lint` + `pnpm run test:ui`; full `pnpm test` for CI/pre-merge only
 * [ ] Setup dashboard
     * [ ] Show LLM analytics
     * [ ] Show workflow analytics (succeeded, failed, avg duration, avg token usage)

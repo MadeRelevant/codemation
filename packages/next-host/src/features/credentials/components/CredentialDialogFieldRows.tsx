@@ -2,6 +2,10 @@
 
 import type { CredentialFieldSchema } from "@codemation/core/browser";
 import type { Dispatch, SetStateAction } from "react";
+
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { maskedDisplayValue } from "../lib/credentialFieldHelpers";
 
 export type CredentialDialogOrderedField =
@@ -37,15 +41,16 @@ export function CredentialDialogFieldRows({
     <>
       {orderedFields.map(({ kind, field }) => {
         if (kind === "public") {
+          const id = `credential-public-${field.key}`;
           return (
-            <label key={`public-${field.key}`} className="credential-dialog__field">
-              <span className="credential-dialog__label">
+            <div key={`public-${field.key}`} className="flex flex-col gap-2">
+              <Label htmlFor={id}>
                 {field.label}
                 {field.required ? " *" : ""}
-              </span>
+              </Label>
               {field.type === "textarea" ? (
-                <textarea
-                  className="credential-dialog__textarea"
+                <Textarea
+                  id={id}
                   data-testid={`credential-public-${field.key}`}
                   rows={4}
                   value={publicFieldValues[field.key] ?? ""}
@@ -55,8 +60,8 @@ export function CredentialDialogFieldRows({
                   placeholder={field.placeholder}
                 />
               ) : (
-                <input
-                  className="credential-dialog__input"
+                <Input
+                  id={id}
                   data-testid={`credential-public-${field.key}`}
                   type={field.type === "password" ? "password" : "text"}
                   value={publicFieldValues[field.key] ?? ""}
@@ -66,23 +71,26 @@ export function CredentialDialogFieldRows({
                   placeholder={field.placeholder}
                 />
               )}
-              {field.helpText && <span className="credential-dialog__help">{field.helpText}</span>}
-            </label>
+              {field.helpText && (
+                <span className="text-xs text-muted-foreground">{field.helpText}</span>
+              )}
+            </div>
           );
         }
         if (isDbSecretSource) {
           const raw = secretFieldValues[field.key] ?? "";
           const isMasked = isEdit && field.type === "password" && !showSecrets && raw.length > 0;
           const displayValue = isMasked ? maskedDisplayValue() : raw;
+          const id = `credential-secret-${field.key}`;
           return (
-            <label key={`secret-${field.key}`} className="credential-dialog__field">
-              <span className="credential-dialog__label">
+            <div key={`secret-${field.key}`} className="flex flex-col gap-2">
+              <Label htmlFor={id}>
                 {field.label}
                 {field.required ? " *" : ""}
-              </span>
+              </Label>
               {field.type === "textarea" ? (
-                <textarea
-                  className="credential-dialog__textarea"
+                <Textarea
+                  id={id}
                   data-testid={`credential-secret-${field.key}`}
                   rows={4}
                   value={displayValue}
@@ -93,8 +101,8 @@ export function CredentialDialogFieldRows({
                   placeholder={isEdit ? undefined : field.placeholder}
                 />
               ) : (
-                <input
-                  className="credential-dialog__input"
+                <Input
+                  id={id}
                   data-testid={`credential-secret-${field.key}`}
                   type={showSecrets && field.type === "password" ? "text" : field.type === "password" ? "password" : "text"}
                   value={displayValue}
@@ -105,20 +113,25 @@ export function CredentialDialogFieldRows({
                   placeholder={isEdit ? undefined : field.placeholder}
                 />
               )}
-              {field.helpText && <span className="credential-dialog__help">{field.helpText}</span>}
-              {isEdit && <span className="credential-dialog__help">Leave blank to keep existing value</span>}
-            </label>
+              {field.helpText && (
+                <span className="text-xs text-muted-foreground">{field.helpText}</span>
+              )}
+              {isEdit && (
+                <span className="text-xs text-muted-foreground">Leave blank to keep existing value</span>
+              )}
+            </div>
           );
         }
         const displayEnv = envRefValues[field.key] ?? "";
+        const id = `credential-env-${field.key}`;
         return (
-          <label key={`env-${field.key}`} className="credential-dialog__field">
-            <span className="credential-dialog__label">
+          <div key={`env-${field.key}`} className="flex flex-col gap-2">
+            <Label htmlFor={id}>
               Env var for {field.label}
               {field.required ? " *" : ""}
-            </span>
-            <input
-              className="credential-dialog__input"
+            </Label>
+            <Input
+              id={id}
               data-testid={`credential-env-${field.key}`}
               type="text"
               value={displayEnv}
@@ -127,9 +140,13 @@ export function CredentialDialogFieldRows({
               }
               placeholder={isEdit ? undefined : field.placeholder ?? `e.g. GMAIL_${field.key.toUpperCase()}`}
             />
-            {field.helpText && <span className="credential-dialog__help">{field.helpText}</span>}
-            {isEdit && <span className="credential-dialog__help">Leave blank to keep existing value</span>}
-          </label>
+            {field.helpText && (
+              <span className="text-xs text-muted-foreground">{field.helpText}</span>
+            )}
+            {isEdit && (
+              <span className="text-xs text-muted-foreground">Leave blank to keep existing value</span>
+            )}
+          </div>
         );
       })}
     </>

@@ -110,6 +110,12 @@ describe("CredentialsScreen", () => {
     window.open = priorOpen;
   });
 
+  /** Radix Select trigger + option (replaces native `<select>` change events). */
+  function selectCredentialTypeOption(displayName: string) {
+    fireEvent.click(screen.getByTestId("credential-type-select"));
+    fireEvent.click(screen.getByRole("option", { name: displayName }));
+  }
+
   function renderCredentialsScreen(initialData?: {
     credentialTypes?: ReadonlyArray<CredentialTypeDefinition>;
     credentialInstances?: ReadonlyArray<CredentialInstanceDto>;
@@ -299,9 +305,7 @@ describe("CredentialsScreen", () => {
     });
 
     fireEvent.click(screen.getByTestId("credential-add-button"));
-    fireEvent.change(screen.getByTestId("credential-type-select"), {
-      target: { value: "test.ordered" },
-    });
+    selectCredentialTypeOption("Test ordered");
 
     const accountIdInput = await screen.findByTestId("credential-public-accountId");
     const apiKeyInput = await screen.findByTestId("credential-secret-apiKey");
@@ -318,9 +322,7 @@ describe("CredentialsScreen", () => {
     });
 
     fireEvent.click(screen.getByTestId("credential-add-button"));
-    fireEvent.change(screen.getByTestId("credential-type-select"), {
-      target: { value: "test.apiKey" },
-    });
+    selectCredentialTypeOption("Test API key");
 
     const secretInput = await screen.findByTestId("credential-secret-apiKey");
     expect(secretInput).toHaveAttribute("type", "password");
@@ -359,9 +361,7 @@ describe("CredentialsScreen", () => {
     });
 
     fireEvent.click(screen.getByTestId("credential-add-button"));
-    fireEvent.change(screen.getByTestId("credential-type-select"), {
-      target: { value: "test.apiKey" },
-    });
+    selectCredentialTypeOption("Test API key");
     fireEvent.change(screen.getByTestId("credential-display-name-input"), {
       target: { value: "Draft credential" },
     });
@@ -420,9 +420,7 @@ describe("CredentialsScreen", () => {
     });
 
     fireEvent.click(screen.getByTestId("credential-add-button"));
-    fireEvent.change(screen.getByTestId("credential-type-select"), {
-      target: { value: "test.oauth" },
-    });
+    selectCredentialTypeOption("Test OAuth");
     fireEvent.change(screen.getByTestId("credential-display-name-input"), {
       target: { value: "OAuth draft" },
     });
@@ -483,9 +481,7 @@ describe("CredentialsScreen", () => {
     });
 
     fireEvent.click(screen.getByTestId("credential-add-button"));
-    fireEvent.change(screen.getByTestId("credential-type-select"), {
-      target: { value: "test.oauth" },
-    });
+    selectCredentialTypeOption("Test OAuth");
     fireEvent.change(screen.getByTestId("credential-display-name-input"), {
       target: { value: "OAuth draft" },
     });

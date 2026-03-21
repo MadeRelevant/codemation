@@ -158,7 +158,7 @@ export function CredentialDialog({
             {isEdit ? "Edit credential" : "Add credential"}
           </h2>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto px-4 py-3 text-sm">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3 text-sm">
           <CredentialDialogFormSections
             credentialTypes={credentialTypes}
             typesLoading={typesLoading}

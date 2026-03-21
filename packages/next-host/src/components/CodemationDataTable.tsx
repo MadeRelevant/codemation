@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 export type CodemationDataTableColumn = Readonly<{
   key: string;
   header: string;
@@ -15,21 +17,21 @@ export type CodemationDataTableProps = Readonly<{
 }>;
 
 /**
- * Shared table shell aligned with app data-table styles ({@link codemation-data-table} in host CSS).
+ * Shared data table using shadcn/ui Table primitives and design tokens.
  */
 export function CodemationDataTable(props: CodemationDataTableProps) {
   return (
-    <table className="codemation-data-table" data-testid={props.tableTestId}>
-      <thead>
-        <tr>
+    <Table data-testid={props.tableTestId}>
+      <TableHeader>
+        <TableRow>
           {props.columns.map((column) => (
-            <th key={column.key} data-testid={column.headerTestId ?? `codemation-table-header-${column.key}`}>
+            <TableHead key={column.key} data-testid={column.headerTestId ?? `codemation-table-header-${column.key}`}>
               {column.header}
-            </th>
+            </TableHead>
           ))}
-        </tr>
-      </thead>
-      <tbody>{props.children}</tbody>
-    </table>
+        </TableRow>
+      </TableHeader>
+      <TableBody>{props.children}</TableBody>
+    </Table>
   );
 }

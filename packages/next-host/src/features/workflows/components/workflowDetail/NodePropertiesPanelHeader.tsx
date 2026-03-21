@@ -1,5 +1,7 @@
 import { X } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+
 export function NodePropertiesPanelHeader(args: Readonly<{
   title: string;
   subtitle?: string;
@@ -9,55 +11,38 @@ export function NodePropertiesPanelHeader(args: Readonly<{
   return (
     <div
       data-testid="node-properties-panel-header"
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 10,
-        padding: "12px 12px 10px",
-        borderBottom: "1px solid #e5e7eb",
-        background: "#fafafa",
-        flexShrink: 0,
-      }}
+      className="flex shrink-0 items-start justify-between gap-2.5 border-b border-border bg-muted/40 px-3 pt-3 pb-2.5"
     >
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", opacity: 0.64 }}>
+      <div className="min-w-0">
+        <div className="text-[11px] font-extrabold tracking-wide text-muted-foreground uppercase opacity-90">
           Node properties
         </div>
         <div
           data-testid="node-properties-panel-title"
-          style={{ marginTop: 4, fontSize: 14, fontWeight: 800, color: "#111827", lineHeight: 1.25, wordBreak: "break-word" }}
+          className="mt-1 text-sm leading-tight font-extrabold break-words text-foreground"
         >
           {title}
         </div>
         {subtitle ? (
           <div
             data-testid="node-properties-panel-subtitle"
-            style={{ marginTop: 4, fontSize: 11, color: "#64748b", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", wordBreak: "break-all" }}
+            className="mt-1 break-all font-mono text-[11px] text-muted-foreground"
           >
             {subtitle}
           </div>
         ) : null}
       </div>
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="icon-sm"
         data-testid="node-properties-panel-close"
         aria-label="Close node properties"
         onClick={onClose}
-        style={{
-          flex: "0 0 auto",
-          width: 32,
-          height: 32,
-          display: "grid",
-          placeItems: "center",
-          border: "1px solid #d1d5db",
-          background: "#fff",
-          color: "#111827",
-          cursor: "pointer",
-        }}
+        className="shrink-0"
       >
         <X size={16} strokeWidth={2} />
-      </button>
+      </Button>
     </div>
   );
 }

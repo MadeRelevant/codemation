@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { WorkflowRunsSidebarActions, WorkflowRunsSidebarFormatting, WorkflowRunsSidebarModel } from "../../lib/workflowDetail/workflowDetailTypes";
 
 import { WorkflowRunsList } from "./WorkflowRunsList";
@@ -15,37 +17,27 @@ export function WorkflowRunsSidebar(args: Readonly<{
   return (
     <aside
       data-testid="workflow-runs-sidebar"
-      style={{
-        height: "100%",
-        minHeight: 0,
-        overflow: "hidden",
-        borderRight: "1px solid #d1d5db",
-        background: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        minWidth: 0,
-      }}
+      className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-border bg-card"
     >
-      <div style={{ padding: 14, borderBottom: "1px solid #d1d5db" }}>
-        <a href="/workflows" style={{ opacity: 0.8, fontSize: 13, color: "#2563eb", textDecoration: "none" }}>
+      <div className="border-b border-border p-3.5">
+        <Link href="/workflows" className="text-sm text-primary no-underline opacity-90 hover:underline">
           ← Workflows
-        </a>
-        <div
-          data-testid="workflow-title"
-          style={{ marginTop: 10, fontSize: 16, fontWeight: 800, lineHeight: 1.2, wordBreak: "break-word" }}
-        >
+        </Link>
+        <div data-testid="workflow-title" className="mt-2.5 text-base leading-tight font-extrabold break-words">
           {displayedWorkflow?.name ?? workflow?.name ?? "Workflow"}
         </div>
-        <div style={{ marginTop: 4, fontSize: 12, opacity: 0.68, wordBreak: "break-all" }}>{workflowId}</div>
-        {error || workflowError ? <div style={{ marginTop: 10, fontSize: 13, color: "#b91c1c" }}>Error: {error ?? workflowError}</div> : null}
+        <div className="mt-1 break-all text-xs text-muted-foreground">{workflowId}</div>
+        {error || workflowError ? (
+          <div className="mt-2.5 text-sm text-destructive">Error: {error ?? workflowError}</div>
+        ) : null}
       </div>
 
-      <div style={{ padding: 14, borderBottom: "1px solid #d1d5db", display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", opacity: 0.72 }}>Executions</div>
-        <span style={{ fontSize: 12, opacity: 0.7 }}>{displayedRuns?.length ?? "…"}</span>
+      <div className="flex items-baseline justify-between border-b border-border p-3.5">
+        <div className="text-xs font-extrabold tracking-wide text-muted-foreground uppercase">Executions</div>
+        <span className="text-xs text-muted-foreground">{displayedRuns?.length ?? "…"}</span>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 14 }}>
+      <div className="min-h-0 flex-1 overflow-auto p-3.5">
         <WorkflowRunsList
           displayedRuns={displayedRuns}
           formatRunListDurationLine={formatRunListDurationLine}

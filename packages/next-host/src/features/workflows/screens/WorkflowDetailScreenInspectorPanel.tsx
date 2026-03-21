@@ -1,4 +1,7 @@
-import { PanelBottomClose,PanelBottomOpen } from "lucide-react";
+import { PanelBottomClose, PanelBottomOpen } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 import { WorkflowExecutionInspector } from "../components/workflowDetail/WorkflowExecutionInspector";
 import type { WorkflowDetailControllerResult } from "../hooks/workflowDetail/useWorkflowDetailController";
@@ -6,46 +9,36 @@ import type { WorkflowDetailControllerResult } from "../hooks/workflowDetail/use
 export function WorkflowDetailScreenInspectorPanel(props: Readonly<{ controller: WorkflowDetailControllerResult }>) {
   const { controller } = props;
   return (
-    <div style={{ minWidth: 0, minHeight: 0, background: "white", display: "grid", gridTemplateRows: controller.isPanelCollapsed ? "36px" : "36px minmax(0, 1fr)", borderTop: "1px solid #d1d5db" }}>
+    <div
+      className={cn(
+        "grid min-h-0 min-w-0 border-t border-border bg-card",
+        controller.isPanelCollapsed ? "grid-rows-[36px]" : "grid-rows-[36px_minmax(0,1fr)]",
+      )}
+    >
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          padding: "0 10px 0 12px",
-          cursor: "ns-resize",
-          userSelect: "none",
-          borderBottom: controller.isPanelCollapsed ? "none" : "1px solid #e5e7eb",
-          background: "#fff",
-        }}
+        className={cn(
+          "flex cursor-ns-resize select-none items-center justify-between gap-3 bg-card px-3 py-0",
+          !controller.isPanelCollapsed && "border-b border-border",
+        )}
         onMouseDown={(event) => controller.startInspectorResize(event.clientY)}
       >
-        <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", opacity: 0.72 }}>Execution inspector</div>
-        <button
+        <div className="text-xs font-extrabold tracking-wide text-muted-foreground uppercase">Execution inspector</div>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          className="size-7 shrink-0"
           onClick={(event) => {
             event.stopPropagation();
             controller.toggleInspectorPanel();
           }}
           aria-label={controller.isPanelCollapsed ? "Open execution inspector" : "Collapse execution inspector"}
-          style={{
-            width: 28,
-            height: 28,
-            border: "1px solid #9ca3af",
-            outline: "1px solid #e5e7eb",
-            outlineOffset: "-2px",
-            background: "white",
-            color: "#111827",
-            display: "grid",
-            placeItems: "center",
-            cursor: "pointer",
-          }}
         >
           {controller.isPanelCollapsed ? <PanelBottomOpen size={15} strokeWidth={1.9} /> : <PanelBottomClose size={15} strokeWidth={1.9} />}
-        </button>
+        </Button>
       </div>
       {!controller.isPanelCollapsed ? (
-        <div style={{ minWidth: 0, minHeight: 0, overflow: "hidden" }}>
+        <div className="min-h-0 min-w-0 overflow-hidden">
           <WorkflowExecutionInspector model={controller.inspectorModel} formatting={controller.inspectorFormatting} actions={controller.inspectorActions} />
         </div>
       ) : null}

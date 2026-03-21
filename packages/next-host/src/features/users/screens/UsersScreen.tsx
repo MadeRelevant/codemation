@@ -4,6 +4,7 @@ import type { UserAccountDto, UserAccountStatus } from "@codemation/host-src/app
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { CodemationDataTable } from "../../../components/CodemationDataTable";
 import { CodemationFormattedDateTime } from "../../../components/CodemationFormattedDateTime";
 import {
@@ -137,25 +138,25 @@ export function UsersScreen() {
           {users.map((user) => {
             const loginMethods = user.loginMethods ?? [];
             return (
-            <tr key={user.id} data-testid={`user-row-${user.id}`}>
-              <td>
+            <TableRow key={user.id} data-testid={`user-row-${user.id}`}>
+              <TableCell>
                 <span data-testid={`user-email-${user.id}`}>{user.email}</span>
-              </td>
-              <td>
+              </TableCell>
+              <TableCell>
                 <span data-testid={`user-login-methods-${user.id}`}>
                   {loginMethods.length > 0 ? loginMethods.join(", ") : "—"}
                 </span>
-              </td>
-              <td>
+              </TableCell>
+              <TableCell>
                 <UsersScreenUserStatusBadge userId={user.id} status={user.status} />
-              </td>
-              <td>
+              </TableCell>
+              <TableCell>
                 <CodemationFormattedDateTime
                   isoUtc={user.inviteExpiresAt}
                   dataTestId={`user-invite-expires-${user.id}`}
                 />
-              </td>
-              <td>
+              </TableCell>
+              <TableCell>
                 <div className="flex flex-wrap items-center gap-2">
                   {user.status === "invited" && (
                     <Button
@@ -190,8 +191,8 @@ export function UsersScreen() {
                     </label>
                   )}
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
             );
           })}
         </CodemationDataTable>

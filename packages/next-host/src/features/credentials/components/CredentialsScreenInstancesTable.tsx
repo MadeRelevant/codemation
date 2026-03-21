@@ -1,6 +1,10 @@
 "use client";
 
-import { CodemationDataTable } from "../../../components/CodemationDataTable";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+
 import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";
 import { CredentialsScreenHealthBadge } from "./CredentialsScreenHealthBadge";
 
@@ -22,72 +26,83 @@ export function CredentialsScreenInstancesTable({
   onOpenDelete,
 }: CredentialsScreenInstancesTableProps) {
   return (
-    <CodemationDataTable
-      tableTestId="credentials-table"
-      columns={[
-        { key: "name", header: "Name" },
-        { key: "type", header: "Type" },
-        { key: "source", header: "Source" },
-        { key: "status", header: "Status" },
-        { key: "health", header: "Health" },
-        { key: "actions", header: "Actions" },
-      ]}
-    >
-      {credentialInstances.map((instance) => (
-        <tr key={instance.instanceId} data-testid={`credential-instance-row-${instance.instanceId}`}>
-          <td>
-            <button
-              type="button"
-              className="credentials-table__name-btn"
-              onClick={() => onOpenEdit(instance)}
-              data-testid={`credential-instance-name-${instance.instanceId}`}
-            >
-              {instance.displayName}
-            </button>
-          </td>
-          <td>
-            <span className="credentials-table__type">{instance.typeId}</span>
-          </td>
-          <td>
-            <span className="credentials-table__badge credentials-table__badge--unknown">{instance.sourceKind}</span>
-          </td>
-          <td>
-            <span className="credentials-table__badge credentials-table__badge--unknown">{instance.setupStatus}</span>
-          </td>
-          <td>
-            <CredentialsScreenHealthBadge status={instance.latestHealth?.status ?? "unknown"} />
-          </td>
-          <td>
-            <div className="credentials-table__actions">
-              {testResult?.instanceId === instance.instanceId && (
-                <span
-                  className={`credentials-table__test-result credentials-table__test-result--${testResult.status}`}
-                  data-testid={`credential-test-result-${instance.instanceId}`}
+    <Table data-testid="credentials-table">
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>Type</TableHead>
+          <TableHead>Source</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Health</TableHead>
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {credentialInstances.map((instance) => (
+          <TableRow key={instance.instanceId} data-testid={`credential-instance-row-${instance.instanceId}`}>
+            <TableCell>
+              <button
+                type="button"
+                className="cursor-pointer border-none bg-transparent p-0 text-left font-medium text-primary underline-offset-4 hover:underline"
+                onClick={() => onOpenEdit(instance)}
+                data-testid={`credential-instance-name-${instance.instanceId}`}
+              >
+                {instance.displayName}
+              </button>
+            </TableCell>
+            <TableCell>
+              <span className="text-sm text-muted-foreground">{instance.typeId}</span>
+            </TableCell>
+            <TableCell>
+              <Badge variant="outline" className="text-muted-foreground">
+                {instance.sourceKind}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <Badge variant="outline" className="text-muted-foreground">
+                {instance.setupStatus}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <CredentialsScreenHealthBadge status={instance.latestHealth?.status ?? "unknown"} />
+            </TableCell>
+            <TableCell>
+              <div className="flex flex-wrap items-center gap-2">
+                {testResult?.instanceId === instance.instanceId && (
+                  <span
+                    className={cn(
+                      "text-sm font-medium",
+                      testResult.status === "healthy" && "text-emerald-700 dark:text-emerald-400",
+                      testResult.status !== "healthy" && "text-destructive",
+                    )}
+                    data-testid={`credential-test-result-${instance.instanceId}`}
+                  >
+                    {testResult.status === "healthy" ? "Healthy" : "Failing"}
+                  </span>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  data-testid={`credential-instance-test-button-${instance.instanceId}`}
+                  onClick={() => void onTest(instance)}
+                  disabled={activeTestInstanceId === instance.instanceId}
                 >
-                  {testResult.status === "healthy" ? "Healthy" : "Failing"}
-                </span>
-              )}
-              <button
-                type="button"
-                className="credentials-table__btn credentials-table__btn--primary"
-                data-testid={`credential-instance-test-button-${instance.instanceId}`}
-                onClick={() => void onTest(instance)}
-                disabled={activeTestInstanceId === instance.instanceId}
-              >
-                {activeTestInstanceId === instance.instanceId ? "Testing…" : "Test"}
-              </button>
-              <button
-                type="button"
-                className="credentials-table__btn credentials-table__btn--danger"
-                data-testid={`credential-instance-delete-button-${instance.instanceId}`}
-                onClick={() => onOpenDelete(instance)}
-              >
-                Delete
-              </button>
-            </div>
-          </td>
-        </tr>
-      ))}
-    </CodemationDataTable>
+                  {activeTestInstanceId === instance.instanceId ? "Testing…" : "Test"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  data-testid={`credential-instance-delete-button-${instance.instanceId}`}
+                  onClick={() => onOpenDelete(instance)}
+                >
+                  Delete
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

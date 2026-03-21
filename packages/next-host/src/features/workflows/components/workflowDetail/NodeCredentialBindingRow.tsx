@@ -1,4 +1,8 @@
-import type { UpsertCredentialBindingRequest,WorkflowCredentialHealthSlotDto } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+import type { UpsertCredentialBindingRequest, WorkflowCredentialHealthSlotDto } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { CredentialInstanceDto } from "../../hooks/realtime/realtime";
 
 export function NodeCredentialBindingRow(args: Readonly<{
@@ -12,61 +16,48 @@ export function NodeCredentialBindingRow(args: Readonly<{
   const { compatibleInstances, isBinding, onBind, onSelectInstance, selectedInstanceId, slot } = args;
   const typesLine = slot.requirement.acceptedTypes.join(" · ");
   const status = slot.health.status;
-  const statusTone =
+  const statusBadgeClass =
     status === "healthy"
-      ? { background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#15803d", label: "OK" }
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
       : status === "failing"
-        ? { background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", label: "Fail" }
+        ? "border-destructive/40 bg-destructive/10 text-destructive"
         : status === "unbound"
-          ? { background: "#fffbeb", border: "1px solid #fde68a", color: "#b45309", label: "Unbound" }
+          ? "border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
           : status === "optional-unbound"
-            ? { background: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", label: "Optional" }
-            : { background: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", label: "Unknown" };
+            ? "border-border bg-muted text-muted-foreground"
+            : "border-border bg-muted text-muted-foreground";
+  const statusLabel =
+    status === "healthy"
+      ? "OK"
+      : status === "failing"
+        ? "Fail"
+        : status === "unbound"
+          ? "Unbound"
+          : status === "optional-unbound"
+            ? "Optional"
+            : "Unknown";
+  const disabledBind = !selectedInstanceId || isBinding;
   return (
     <div
       data-testid={`node-properties-credential-slot-${slot.requirement.slotKey}`}
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 0",
-      }}
+      className="flex flex-wrap items-center gap-2 py-2"
     >
-      <div style={{ flex: "1 1 160px", minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, minWidth: 0 }}>
-          <span style={{ fontWeight: 700, fontSize: 12, color: "#111827" }}>{slot.requirement.label}</span>
-          <span style={{ fontSize: 11, color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={typesLine}>
+      <div className="flex min-w-[160px] flex-1 flex-col gap-0.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className="text-xs font-bold text-foreground">{slot.requirement.label}</span>
+          <span className="max-w-[min(100%,12rem)] truncate text-[11px] text-muted-foreground" title={typesLine}>
             {typesLine}
           </span>
-          <span
-            style={{
-              flex: "0 0 auto",
-              fontSize: 10,
-              fontWeight: 800,
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              padding: "2px 6px",
-              background: statusTone.background,
-              border: statusTone.border,
-              color: statusTone.color,
-            }}
-          >
-            {statusTone.label}
-          </span>
+          <Badge variant="outline" className={cn("shrink-0 px-1.5 py-0 text-[10px] font-extrabold tracking-wide uppercase", statusBadgeClass)}>
+            {statusLabel}
+          </Badge>
         </div>
         {slot.health.message ? (
           <div
-            style={{
-              fontSize: 11,
-              lineHeight: 1.35,
-              color: status === "failing" ? "#991b1b" : "#64748b",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-            }}
+            className={cn(
+              "line-clamp-2 text-[11px] leading-snug",
+              status === "failing" ? "text-destructive" : "text-muted-foreground",
+            )}
             title={slot.health.message}
           >
             {slot.health.message}
@@ -77,16 +68,7 @@ export function NodeCredentialBindingRow(args: Readonly<{
         data-testid={`node-properties-credential-slot-select-${slot.requirement.slotKey}`}
         value={selectedInstanceId}
         onChange={(event) => onSelectInstance(event.target.value)}
-        style={{
-          flex: "1 1 140px",
-          minWidth: 120,
-          maxWidth: 240,
-          fontSize: 12,
-          padding: "4px 8px",
-          border: "1px solid #d1d5db",
-          background: "#fff",
-          color: "#111827",
-        }}
+        className="h-8 min-w-[120px] max-w-[240px] flex-[1_1_140px] rounded-lg border border-input bg-transparent px-2 text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
       >
         <option value="">Select instance...</option>
         {compatibleInstances.map((instance) => (
@@ -95,10 +77,12 @@ export function NodeCredentialBindingRow(args: Readonly<{
           </option>
         ))}
       </select>
-      <button
+      <Button
         type="button"
+        size="sm"
         data-testid={`node-properties-credential-slot-bind-${slot.requirement.slotKey}`}
-        disabled={!selectedInstanceId || isBinding}
+        disabled={disabledBind}
+        className="shrink-0 text-xs font-bold"
         onClick={() =>
           onBind({
             workflowId: slot.workflowId,
@@ -107,20 +91,9 @@ export function NodeCredentialBindingRow(args: Readonly<{
             instanceId: selectedInstanceId,
           })
         }
-        style={{
-          flex: "0 0 auto",
-          padding: "5px 10px",
-          fontWeight: 700,
-          fontSize: 12,
-          cursor: !selectedInstanceId || isBinding ? "not-allowed" : "pointer",
-          opacity: !selectedInstanceId || isBinding ? 0.55 : 1,
-          border: "1px solid #111827",
-          background: "#111827",
-          color: "#fff",
-        }}
       >
         {isBinding ? "Binding..." : "Bind"}
-      </button>
+      </Button>
     </div>
   );
 }

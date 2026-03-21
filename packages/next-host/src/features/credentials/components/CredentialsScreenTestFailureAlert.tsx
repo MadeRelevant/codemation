@@ -1,5 +1,8 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 export type CredentialsScreenTestFailureAlertProps = {
   message?: string;
   onDismiss: () => void;
@@ -7,20 +10,29 @@ export type CredentialsScreenTestFailureAlertProps = {
 
 export function CredentialsScreenTestFailureAlert({ message, onDismiss }: CredentialsScreenTestFailureAlertProps) {
   return (
-    <div className="credentials-test-failure-alert" role="alert" data-testid="credential-test-failure-alert">
-      <div className="credentials-test-failure-alert__content">
-        <strong className="credentials-test-failure-alert__title">Credential test failed</strong>
-        <p className="credentials-test-failure-alert__message">{message || "Test failed"}</p>
+    <Alert
+      variant="destructive"
+      role="alert"
+      data-testid="credential-test-failure-alert"
+      className="mb-6 items-start"
+    >
+      <div className="min-w-0 flex-1">
+        <AlertTitle>Credential test failed</AlertTitle>
+        <AlertDescription className="text-destructive/90">{message || "Test failed"}</AlertDescription>
       </div>
-      <button
-        type="button"
-        className="credentials-test-failure-alert__dismiss"
-        onClick={onDismiss}
-        aria-label="Dismiss"
-        data-testid="credential-test-failure-alert-dismiss"
-      >
-        ×
-      </button>
-    </div>
+      <AlertAction>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          data-testid="credential-test-failure-alert-dismiss"
+        >
+          ×
+        </Button>
+      </AlertAction>
+    </Alert>
   );
 }
