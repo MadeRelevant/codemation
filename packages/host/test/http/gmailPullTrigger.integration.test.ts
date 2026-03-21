@@ -309,6 +309,44 @@ describe("Gmail pull trigger integration", () => {
     ).toEqual(triggerOutputs);
   });
 
+  it("synthesizes Gmail test items when Run workflow sends a cleared debugger currentState with synthesizeTriggerItems", async () => {
+    const apiClient = new FakeGmailApiClient();
+    const harness = new FrontendHttpIntegrationHarness({
+      config: GmailPullTriggerIntegrationFixture.createConfig(),
+      consumerRoot: path.resolve(import.meta.dirname, "../../.."),
+      bindings: GmailPullTriggerIntegrationFixture.createBindings(apiClient),
+    });
+    harnesses.push(harness);
+    await harness.start();
+
+    const runResponse = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: GmailPullTriggerIntegrationFixture.workflowId,
+        mode: "manual",
+        synthesizeTriggerItems: true,
+        currentState: {
+          outputsByNode: {},
+          nodeSnapshotsByNodeId: {},
+          mutableState: { nodesById: {} },
+        },
+      },
+    });
+    const runState = await GmailPullTriggerIntegrationFixture.waitForCompletedRunState(harness, runResponse.runId);
+
+    expect(runState.status).toBe("completed");
+    expect(runState.outputsByNode[GmailPullTriggerIntegrationFixture.triggerNodeId]?.main).toEqual([
+      {
+        json: expect.objectContaining({
+          mailbox: "sales@example.com",
+          messageId: "message_1",
+          subject: "Quote request",
+        }),
+      },
+    ]);
+  });
+
   it("auto-synthesizes trigger test items when stopping at a trigger with an empty trigger payload", async () => {
     const apiClient = new FakeGmailApiClient();
     const harness = new FrontendHttpIntegrationHarness({

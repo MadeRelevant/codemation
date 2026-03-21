@@ -174,7 +174,10 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
     if (stopAtNodeId && this.isTriggerNode(args.workflow, stopAtNodeId)) {
       return stopAtNodeId;
     }
-    if (!args.body.sourceRunId && !args.body.currentState && !args.clearFromNodeId && !stopAtNodeId) {
+    if (!args.body.sourceRunId && !args.clearFromNodeId && !stopAtNodeId) {
+      if (args.body.currentState && !args.body.synthesizeTriggerItems) {
+        return undefined;
+      }
       return args.workflow.nodes.find((node) => node.kind === "trigger")?.id;
     }
     return undefined;
