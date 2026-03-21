@@ -9,7 +9,29 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@codemation/core": ["../../packages/core/src/index.ts"],
+      "@codemation/cli": ["../../packages/cli/src/index.ts"],
+      "@codemation/core-nodes": ["../../packages/core-nodes/src/index.ts"],
+      "@codemation/core-nodes-gmail": ["../../packages/core-nodes-gmail/src/index.ts"],
+      "@codemation/eventbus-redis": ["../../packages/eventbus-redis/src/index.ts"],
+      "@codemation/host": ["../../packages/host/src/index.ts"],
+      "@codemation/host/client": ["../../packages/host/src/client.ts"],
+      "@codemation/host/credentials": ["../../packages/host/src/credentials.ts"],
+      "@codemation/host/consumer": ["../../packages/host/src/consumer.ts"],
+      "@codemation/host/next/server": ["../../packages/host/src/nextServer.ts"],
+      "@codemation/host/server": ["../../packages/host/src/server.ts"],
+      "@codemation/host/persistence": ["../../packages/host/src/persistenceServer.ts"],
+      "@codemation/host-src/*": ["../../packages/host/src/*"],
+      "@codemation/next-host": ["./src/index.ts"],
+      "@codemation/next-host/src/*": ["./src/*"],
+      "@codemation/node-example": ["../../packages/node-example/src/index.ts"],
+      "@codemation/queue-bullmq": ["../../packages/queue-bullmq/src/index.ts"],
+      "@codemation/run-store-sqlite": ["../../packages/run-store-sqlite/src/index.ts"]
+    }
   },
   "include": ["next-env.d.ts", "app/**/*.ts", "app/**/*.tsx", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
