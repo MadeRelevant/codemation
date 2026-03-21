@@ -19,6 +19,15 @@
     "./browser": {
       "types": "./src/browser.ts",
       "import": "./src/browser.ts"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "development": {
+        "import": "./src/testing.ts",
+        "require": "./dist/testing.cjs"
+      },
+      "import": "./dist/testing.js",
+      "require": "./dist/testing.cjs"
     }
   },
   "scripts": {

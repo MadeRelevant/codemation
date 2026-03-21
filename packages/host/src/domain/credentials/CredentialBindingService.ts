@@ -5,7 +5,7 @@ CredentialBindingKey,
 CredentialInstanceId,
 CredentialRequirement,
 WorkflowDefinition,
-WorkflowRegistry
+WorkflowRepository
 } from "@codemation/core";
 
 import { CoreTokens,inject,injectable } from "@codemation/core";
@@ -29,8 +29,8 @@ export class CredentialBindingService {
     private readonly credentialStore: CredentialStore,
     @inject(CredentialInstanceService)
     private readonly credentialInstanceService: CredentialInstanceService,
-    @inject(CoreTokens.WorkflowRegistry)
-    private readonly workflowRegistry: WorkflowRegistry,
+    @inject(CoreTokens.WorkflowRepository)
+    private readonly workflowRepository: WorkflowRepository,
     @inject(CoreTokens.CredentialSessionService)
     private readonly credentialSessionService: MutableCredentialSessionService,
   ) {}
@@ -113,7 +113,7 @@ export class CredentialBindingService {
   }
 
   private requireWorkflow(workflowId: string): WorkflowDefinition {
-    const workflow = this.workflowRegistry.get(decodeURIComponent(workflowId));
+    const workflow = this.workflowRepository.get(decodeURIComponent(workflowId));
     if (!workflow) {
       throw new ApplicationRequestError(404, `Unknown workflowId: ${workflowId}`);
     }

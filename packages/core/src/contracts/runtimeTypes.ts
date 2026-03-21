@@ -4,6 +4,7 @@ import type { RunEventBus } from "../events/runEvents";
 import type { CredentialSessionService } from "./credentialTypes";
 import type {
 NodeInputsByPort,
+PersistedWorkflowSnapshot,
 PersistedWorkflowTokenRegistryLike,
 RunExecutionOptions,
 RunResult,
@@ -46,11 +47,16 @@ export interface WorkflowRunnerResolver {
   resolve(): WorkflowRunnerService | undefined;
 }
 
-export interface WorkflowRegistry {
-  setWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): void;
+export interface WorkflowRepository {
   list(): ReadonlyArray<WorkflowDefinition>;
   get(workflowId: WorkflowId): WorkflowDefinition | undefined;
 }
+
+export interface WorkflowCatalog extends WorkflowRepository {
+  setWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): void;
+}
+
+export type WorkflowRegistry = WorkflowCatalog;
 
 export interface NodeResolver {
   resolve<T>(token: TypeToken<T>): T;
@@ -315,14 +321,27 @@ export interface NodeActivationScheduler {
   cancel?(receiptId: string): Promise<void>;
 }
 
+export interface WorkflowNodeInstanceFactory {
+  createNodes(workflow: WorkflowDefinition): ReadonlyMap<NodeId, unknown>;
+}
+
+export interface WorkflowSnapshotFactory {
+  create(workflow: WorkflowDefinition): PersistedWorkflowSnapshot;
+}
+
+export interface WorkflowSnapshotResolver {
+  resolve(args: { workflowId: WorkflowId; workflowSnapshot?: PersistedWorkflowSnapshot }): WorkflowDefinition | undefined;
+}
+
 export interface EngineDeps {
   credentialSessions: CredentialSessionService;
   workflowRunnerResolver: WorkflowRunnerResolver;
-  workflowRegistry: WorkflowRegistry;
+  workflowCatalog: WorkflowCatalog;
+  workflowRepository: WorkflowRepository;
   nodeResolver: NodeResolver;
   webhookRegistrar: WebhookRegistrar;
   triggerSetupStateStore: TriggerSetupStateStore;
-  webhookTriggerMatcher?: WebhookTriggerMatcher;
+  webhookTriggerMatcher: WebhookTriggerMatcher;
   nodeActivationObserver: NodeActivationObserver;
   runIdFactory: RunIdFactory;
   activationIdFactory: ActivationIdFactory;
@@ -332,5 +351,6 @@ export interface EngineDeps {
   runDataFactory: RunDataFactory;
   executionContextFactory: ExecutionContextFactory;
   eventBus?: RunEventBus;
-  tokenRegistry?: PersistedWorkflowTokenRegistryLike;
+  tokenRegistry: PersistedWorkflowTokenRegistryLike;
+  workflowNodeInstanceFactory: WorkflowNodeInstanceFactory;
 }

@@ -1,23 +1,13 @@
-export { ContainerNodeResolver } from "./runtime/containerNodeResolver";
-export { ContainerWorkflowRunnerResolver } from "./runtime/containerWorkflowRunnerResolver";
-export { InMemoryWebhookTriggerMatcher } from "./runtime/InMemoryWebhookTriggerMatcher";
-export { InMemoryWorkflowRegistry } from "./runtime/inMemoryWorkflowRegistry";
-export {
-MissingRuntimeExecutionMarker,
-MissingRuntimeNode,
-MissingRuntimeNodeConfig,
-MissingRuntimeNodeToken,
-MissingRuntimeTrigger,
-MissingRuntimeTriggerConfig,
-MissingRuntimeTriggerToken,
-PersistedWorkflowResolver,
-PersistedWorkflowSnapshotFactory,
-PersistedWorkflowTokenRegistry,
-PersistedWorkflowTokenRegistryFromLikeFactory,
-} from "./runtime/persistedWorkflowResolver";
-export { RunIntentService } from "./runtime/RunIntentService";
-export { Engine,EngineWorkflowRunnerService } from "./runtime/runtimeEngine";
-export { UnavailableCredentialSessionService } from "./runtime/UnavailableCredentialSessionService";
+export { ContainerNodeResolver } from "./adapters/di/ContainerNodeResolver";
+export { ContainerWorkflowRunnerResolver } from "./adapters/di/ContainerWorkflowRunnerResolver";
+export { InMemoryWebhookTriggerMatcher } from "./adapters/webhooks/InMemoryWebhookTriggerMatcher";
+export { NodeInstanceFactory } from "./adapters/nodes/NodeInstanceFactory";
+export { PersistedWorkflowTokenRegistry } from "./adapters/persisted-workflow/PersistedWorkflowTokenRegistryFactory";
+export { RunIntentService } from "./application/intents/RunIntentService";
+export { Engine } from "./api/Engine";
+export { EngineFactory, type EngineCompositionDeps } from "./api/EngineFactory";
+export { EngineWorkflowRunnerService } from "./application/workflows/EngineWorkflowRunnerService";
+export { UnavailableCredentialSessionService } from "./adapters/credentials/UnavailableCredentialSessionService";
 export { DefaultDrivingScheduler } from "./scheduling/defaultDrivingScheduler";
 export { InlineDrivingScheduler } from "./scheduling/inlineDrivingScheduler";
 

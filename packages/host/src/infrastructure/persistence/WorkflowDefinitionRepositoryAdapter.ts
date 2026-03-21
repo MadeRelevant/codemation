@@ -1,4 +1,4 @@
-import type { RunStateStore,WorkflowDefinition,WorkflowRegistry } from "@codemation/core";
+import type { RunStateStore,WorkflowDefinition,WorkflowRepository } from "@codemation/core";
 import { CoreTokens,Engine,inject,injectable } from "@codemation/core";
 import { WorkflowDefinitionRepository } from "../../domain/workflows/WorkflowDefinitionRepository";
 
@@ -6,15 +6,15 @@ import { WorkflowDefinitionRepository } from "../../domain/workflows/WorkflowDef
 export class WorkflowDefinitionRepositoryAdapter implements WorkflowDefinitionRepository {
   constructor(
     @inject(Engine) private readonly engine: Engine,
-    @inject(CoreTokens.WorkflowRegistry) private readonly workflowRegistry: WorkflowRegistry,
+    @inject(CoreTokens.WorkflowRepository) private readonly workflowRepository: WorkflowRepository,
   ) {}
 
   async listDefinitions(): Promise<ReadonlyArray<WorkflowDefinition>> {
-    return [...this.workflowRegistry.list()];
+    return [...this.workflowRepository.list()];
   }
 
   async getDefinition(workflowId: string): Promise<WorkflowDefinition | undefined> {
-    return this.workflowRegistry.get(decodeURIComponent(workflowId));
+    return this.workflowRepository.get(decodeURIComponent(workflowId));
   }
 
   async resolveSnapshot(args: Readonly<{ workflowId: string; workflowSnapshot?: unknown }>): Promise<WorkflowDefinition | undefined> {

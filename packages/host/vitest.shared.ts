@@ -20,6 +20,7 @@ export const hostVitestSharedConfig = {
       { find: "@codemation/core-nodes", replacement: path.resolve(import.meta.dirname, "../core-nodes/src/index.ts") },
       { find: "@codemation/queue-bullmq", replacement: path.resolve(import.meta.dirname, "../queue-bullmq/src/index.ts") },
       { find: "@codemation/eventbus-redis", replacement: path.resolve(import.meta.dirname, "../eventbus-redis/src/index.ts") },
+      { find: "@codemation/core/testing", replacement: path.resolve(import.meta.dirname, "../core/src/testing.ts") },
       { find: "@codemation/core", replacement: path.resolve(import.meta.dirname, "../core/src/index.ts") },
       { find: /^@\//, replacement: `${nextHostSrc}/` },
     ],

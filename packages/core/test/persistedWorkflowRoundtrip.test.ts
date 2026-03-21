@@ -18,7 +18,11 @@ ToolConfig,
 ToolExecuteArgs,
 TypeToken,
 } from "../src/index.ts";
-import { ContainerNodeResolver,InMemoryWorkflowRegistry,PersistedWorkflowResolver,PersistedWorkflowSnapshotFactory,PersistedWorkflowTokenRegistry,WorkflowBuilder,chatModel,node,tool } from "../src/index.ts";
+import { ContainerNodeResolver,PersistedWorkflowTokenRegistry,WorkflowBuilder,chatModel,node,tool } from "../src/index.ts";
+import { InMemoryWorkflowRegistry,PersistedWorkflowSnapshotFactory } from "../src/testing.ts";
+import { MissingRuntimeNodeDefinitionFactory } from "../src/engine/adapters/persisted-workflow/MissingRuntimeNodeDefinitionFactory";
+import { PersistedWorkflowConfigHydrator } from "../src/engine/adapters/persisted-workflow/PersistedWorkflowConfigHydrator";
+import { PersistedWorkflowResolver } from "../src/engine/adapters/persisted-workflow/PersistedWorkflowResolver";
 import { createEngineTestKit,items } from "./harness/index.ts";
 
 class StableChatModelConfig implements ChatModelConfig {
@@ -179,7 +183,12 @@ test("builder snapshot roundtrip preserves persisted workflow identity without d
 
   registry.setWorkflows([workflow]);
 
-  const resolvedWorkflow = new PersistedWorkflowResolver(registry, tokenRegistry).resolve({
+  const resolvedWorkflow = new PersistedWorkflowResolver(
+    registry,
+    tokenRegistry,
+    new PersistedWorkflowConfigHydrator(tokenRegistry),
+    new MissingRuntimeNodeDefinitionFactory(),
+  ).resolve({
     workflowId: workflow.id,
     workflowSnapshot: originalSnapshot,
   });

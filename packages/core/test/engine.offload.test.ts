@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import type { Items,Node,NodeOutputs,RunnableNodeConfig,TypeToken } from "../src/index.ts";
-import { InMemoryWorkflowRegistry,PersistedWorkflowResolver,PersistedWorkflowSnapshotFactory,PersistedWorkflowTokenRegistry,node,tool } from "../src/index.ts";
+import { PersistedWorkflowTokenRegistry,node,tool } from "../src/index.ts";
+import { InMemoryWorkflowRegistry,PersistedWorkflowSnapshotFactory } from "../src/testing.ts";
+import { MissingRuntimeNodeDefinitionFactory } from "../src/engine/adapters/persisted-workflow/MissingRuntimeNodeDefinitionFactory";
+import { PersistedWorkflowConfigHydrator } from "../src/engine/adapters/persisted-workflow/PersistedWorkflowConfigHydrator";
+import { PersistedWorkflowResolver } from "../src/engine/adapters/persisted-workflow/PersistedWorkflowResolver";
 import { CallbackNodeConfig,CapturingScheduler,chain,createEngineTestKit,items } from "./harness/index.ts";
 
 @tool({ packageName: "@codemation/test" })
@@ -196,7 +200,12 @@ test("persisted workflow resolver preserves nested dependency tokens from live c
   assert.equal((snapshot.nodes[0]?.config as { chatModel?: { type?: unknown } } | undefined)?.chatModel?.type, undefined);
   assert.equal((snapshot.nodes[0]?.config as { tools?: ReadonlyArray<{ type?: unknown }> } | undefined)?.tools?.[0]?.type, undefined);
 
-  const resolved = new PersistedWorkflowResolver(registry, tokenRegistry).resolve({
+  const resolved = new PersistedWorkflowResolver(
+    registry,
+    tokenRegistry,
+    new PersistedWorkflowConfigHydrator(tokenRegistry),
+    new MissingRuntimeNodeDefinitionFactory(),
+  ).resolve({
     workflowId: workflow.id,
     workflowSnapshot: snapshot,
   });

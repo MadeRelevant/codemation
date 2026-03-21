@@ -26,17 +26,19 @@ ContainerWorkflowRunnerResolver,
 CoreTokens,
 DefaultDrivingScheduler,
 DefaultExecutionContextFactory,
-Engine,
+  EngineFactory,
 EngineWorkflowRunnerService,
 HintOnlyOffloadPolicy,
+InMemoryWebhookTriggerMatcher,
 InMemoryRunDataFactory,
 InMemoryRunEventBus,
 InMemoryRunStateStore,
-InMemoryWorkflowRegistry,
 InlineDrivingScheduler,
+NodeInstanceFactory,
 PersistedWorkflowTokenRegistry,
 UnavailableCredentialSessionService,
 } from "../../src/index.ts";
+import { InMemoryWorkflowRegistry } from "../../src/testing.ts";
 import { SubWorkflowRunnerNode } from "./nodes.js";
 
 export class CapturingScheduler implements NodeExecutionScheduler {
@@ -152,7 +154,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   const credentialSessions = options.credentialSessions ?? new UnavailableCredentialSessionService();
   const eventBus = options.eventBus ?? new InMemoryRunEventBus();
   const triggerSetupStateStore = options.triggerSetupStateStore ?? new InMemoryTriggerSetupStateStore();
-  const workflowRegistry = new InMemoryWorkflowRegistry();
+  const workflowCatalog = new InMemoryWorkflowRegistry();
   const runDataFactory = options.runDataFactory ?? new InMemoryRunDataFactory();
   const executionContextFactory = options.executionContextFactory ?? new DefaultExecutionContextFactory();
   const container = options.container ?? tsyringeContainer.createChildContainer();
@@ -167,7 +169,9 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
 
   dependencyContainer.registerInstance(CoreTokens.ServiceContainer, container);
   dependencyContainer.registerInstance(CoreTokens.CredentialSessionService, credentialSessions);
-  dependencyContainer.registerInstance(CoreTokens.WorkflowRegistry, workflowRegistry);
+  dependencyContainer.registerInstance(CoreTokens.WorkflowCatalog, workflowCatalog);
+  dependencyContainer.registerInstance(CoreTokens.WorkflowRegistry, workflowCatalog);
+  dependencyContainer.registerInstance(CoreTokens.WorkflowRepository, workflowCatalog);
   dependencyContainer.registerInstance(CoreTokens.NodeResolver, nodeResolver);
   dependencyContainer.registerInstance(CoreTokens.WorkflowRunnerResolver, workflowRunnerResolver);
   dependencyContainer.registerInstance(CoreTokens.RunIdFactory, new CounterFactory(makeRunId, makeActivationId));
@@ -181,14 +185,19 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   dependencyContainer.registerInstance(CoreTokens.RunEventBus, eventBus);
   dependencyContainer.registerInstance(CoreTokens.WebhookRegistrar, new TestWebhookRegistrar());
   dependencyContainer.registerInstance(CoreTokens.NodeActivationObserver, new CapturingNodeActivationObserver(activations));
+  dependencyContainer.register(EngineFactory, { useClass: EngineFactory });
 
   const tokenRegistry = new PersistedWorkflowTokenRegistry();
-  const engine = new Engine({
+  const webhookTriggerMatcher = new InMemoryWebhookTriggerMatcher();
+  const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
+  const engine = dependencyContainer.resolve(EngineFactory).create({
     credentialSessions,
     workflowRunnerResolver,
-    workflowRegistry,
+    workflowCatalog,
+    workflowRepository: workflowCatalog,
     nodeResolver,
     webhookRegistrar: new TestWebhookRegistrar(),
+    webhookTriggerMatcher,
     nodeActivationObserver: new CapturingNodeActivationObserver(activations),
     runIdFactory: new CounterFactory(makeRunId, makeActivationId),
     activationIdFactory: new CounterFactory(makeRunId, makeActivationId),
@@ -200,13 +209,14 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
     executionContextFactory,
     eventBus,
     tokenRegistry,
+    workflowNodeInstanceFactory,
   });
-  const workflowRunner = options.workflowRunner ?? new EngineWorkflowRunnerService(engine, workflowRegistry);
+  const workflowRunner = options.workflowRunner ?? new EngineWorkflowRunnerService(engine, workflowCatalog);
   dependencyContainer.registerInstance(CoreTokens.WorkflowRunnerService, workflowRunner as WorkflowRunnerService);
   dependencyContainer.registerInstance(SubWorkflowRunnerNode, new SubWorkflowRunnerNode(workflowRunner as WorkflowRunnerService));
 
   async function start(workflows: WorkflowDefinition[]): Promise<void> {
-    workflowRegistry.setWorkflows(workflows);
+    workflowCatalog.setWorkflows(workflows);
     await engine.start(workflows);
   }
 

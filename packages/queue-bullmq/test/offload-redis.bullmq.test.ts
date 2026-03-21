@@ -23,17 +23,20 @@ ContainerWorkflowRunnerResolver,
 CoreTokens,
 DefaultDrivingScheduler,
 DefaultExecutionContextFactory,
-Engine,
+  EngineFactory,
 EngineWorkflowRunnerService,
 InMemoryRunDataFactory,
 InMemoryRunEventBus,
 InMemoryRunStateStore,
-InMemoryWorkflowRegistry,
+InMemoryWebhookTriggerMatcher,
 InlineDrivingScheduler,
+NodeInstanceFactory,
+PersistedWorkflowTokenRegistry,
 UnavailableCredentialSessionService,
 WorkflowBuilder,
 container as tsyringeContainer,
 } from "@codemation/core";
+import { InMemoryWorkflowRegistry } from "@codemation/core/testing";
 import { GenericContainer } from "testcontainers";
 
 import { BullmqScheduler } from "../src/bullmqScheduler";
@@ -124,19 +127,25 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   const workflowsById = new Map([[wf.id, wf] as const]);
   const container = tsyringeContainer.createChildContainer();
   container.register(UppercaseSubjectNode, { useClass: UppercaseSubjectNode });
+  container.register(EngineFactory, { useClass: EngineFactory });
   const credentialSessions = new UnavailableCredentialSessionService();
   const runStore = new InMemoryRunStateStore();
   const scheduler = new BullmqScheduler({ url: redisUrl }, queuePrefix);
-  const workflowRegistry = new InMemoryWorkflowRegistry();
+  const workflowCatalog = new InMemoryWorkflowRegistry();
   const triggerSetupStateStore = new InMemoryTriggerSetupStateStore();
-  workflowRegistry.setWorkflows([wf]);
+  workflowCatalog.setWorkflows([wf]);
   const nodeResolver = new ContainerNodeResolver(container);
   const workflowRunnerResolver = new ContainerWorkflowRunnerResolver(container);
   const activationScheduler = new DefaultDrivingScheduler(new ConfigDrivenOffloadPolicy("worker"), scheduler, new InlineDrivingScheduler(nodeResolver));
   const eventBus = new InMemoryRunEventBus();
+  const tokenRegistry = new PersistedWorkflowTokenRegistry();
+  const webhookTriggerMatcher = new InMemoryWebhookTriggerMatcher();
+  const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
   container.registerInstance(CoreTokens.ServiceContainer, container);
   container.registerInstance(CoreTokens.CredentialSessionService, credentialSessions);
-  container.registerInstance(CoreTokens.WorkflowRegistry, workflowRegistry);
+  container.registerInstance(CoreTokens.WorkflowCatalog, workflowCatalog);
+  container.registerInstance(CoreTokens.WorkflowRegistry, workflowCatalog);
+  container.registerInstance(CoreTokens.WorkflowRepository, workflowCatalog);
   container.registerInstance(CoreTokens.NodeResolver, nodeResolver);
   container.registerInstance(CoreTokens.WorkflowRunnerResolver, workflowRunnerResolver);
   container.registerInstance(CoreTokens.RunIdFactory, IdFactory);
@@ -150,12 +159,15 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   container.registerInstance(CoreTokens.RunEventBus, eventBus);
   container.registerInstance(CoreTokens.WebhookRegistrar, new TestWebhookRegistrar());
   container.registerInstance(CoreTokens.NodeActivationObserver, new NoopNodeActivationObserver());
-  const engine = new Engine({
+  container.registerInstance(CoreTokens.PersistedWorkflowTokenRegistry, tokenRegistry);
+  const engine = container.resolve(EngineFactory).create({
     credentialSessions,
     workflowRunnerResolver,
-    workflowRegistry,
+    workflowCatalog,
+    workflowRepository: workflowCatalog,
     nodeResolver,
     webhookRegistrar: new TestWebhookRegistrar(),
+    webhookTriggerMatcher,
     nodeActivationObserver: new NoopNodeActivationObserver(),
     runIdFactory: IdFactory,
     activationIdFactory: IdFactory,
@@ -166,8 +178,10 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
     runDataFactory: new InMemoryRunDataFactory(),
     executionContextFactory: new DefaultExecutionContextFactory(),
     eventBus,
+    tokenRegistry,
+    workflowNodeInstanceFactory,
   });
-  const workflowRunner = new EngineWorkflowRunnerService(engine, workflowRegistry);
+  const workflowRunner = new EngineWorkflowRunnerService(engine, workflowCatalog);
   container.registerInstance(CoreTokens.WorkflowRunnerService, workflowRunner);
   await engine.start([wf]);
 
@@ -191,7 +205,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
 
   const done = await engine.waitForCompletion(started.runId);
   assert.equal(done.status, "completed");
-  assert.equal(done.outputs[0]?.json?.subject, "HELLO");
+  assert.equal((done.outputs[0]?.json as any)?.subject, "HELLO");
 });
 
 class TcpHealthCheck {

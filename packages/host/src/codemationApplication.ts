@@ -10,13 +10,15 @@ CoreTokens,
 DefaultDrivingScheduler,
 DefaultExecutionContextFactory,
 Engine,
+EngineFactory,
 EngineWorkflowRunnerService,
 InlineDrivingScheduler,
 InMemoryBinaryStorage,
 InMemoryRunDataFactory,
 InMemoryRunEventBus,
-InMemoryWorkflowRegistry,
+InMemoryWebhookTriggerMatcher,
 instanceCachingFactory,
+NodeInstanceFactory,
 PersistedWorkflowTokenRegistry,
 PublishingRunStateStore,
 RunIntentService,
@@ -88,6 +90,7 @@ import { PrismaTriggerSetupStateStore } from "./infrastructure/persistence/Prism
 import { PrismaWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/PrismaWorkflowDebuggerOverlayRepository";
 import { PrismaWorkflowRunRepository } from "./infrastructure/persistence/PrismaWorkflowRunRepository";
 import { WorkflowDefinitionRepositoryAdapter } from "./infrastructure/persistence/WorkflowDefinitionRepositoryAdapter";
+import { LiveWorkflowCatalog } from "./infrastructure/runtime/LiveWorkflowCatalog";
 import { WorkflowRunRepository as SqlWorkflowRunRepository } from "./infrastructure/persistence/WorkflowRunRepository";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
 import { CodemationServerEngineHost } from "./infrastructure/webhooks/CodemationServerEngineHost";
@@ -310,7 +313,7 @@ export class CodemationApplication {
     if (!this.container.isRegistered(ApplicationTokens.WorkerRuntimeScheduler, true)) {
       throw new Error("Worker mode requires a BullMQ scheduler backed by a Redis event bus.");
     }
-    const workflows = this.container.resolve(CoreTokens.WorkflowRegistry).list();
+    const workflows = this.container.resolve(CoreTokens.WorkflowRepository).list();
     const engine = this.container.resolve(Engine);
     await engine.start([...workflows]);
     const workflowsById = new Map(workflows.map((workflow) => [workflow.id, workflow] as const));
@@ -418,8 +421,14 @@ export class CodemationApplication {
     this.container.register(CoreTokens.ActivationIdFactory, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationIdFactory)),
     });
+    this.container.register(CoreTokens.WorkflowCatalog, {
+      useFactory: instanceCachingFactory(() => new LiveWorkflowCatalog()),
+    });
     this.container.register(CoreTokens.WorkflowRegistry, {
-      useFactory: instanceCachingFactory(() => new InMemoryWorkflowRegistry()),
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CoreTokens.WorkflowCatalog)),
+    });
+    this.container.register(CoreTokens.WorkflowRepository, {
+      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CoreTokens.WorkflowCatalog)),
     });
     this.container.register(CoreTokens.NodeResolver, {
       useFactory: instanceCachingFactory((dependencyContainer) => new ContainerNodeResolver(dependencyContainer.resolve(CoreTokens.ServiceContainer))),
@@ -427,15 +436,23 @@ export class CodemationApplication {
     this.container.register(CoreTokens.WorkflowRunnerResolver, {
       useFactory: instanceCachingFactory((dependencyContainer) => new ContainerWorkflowRunnerResolver(dependencyContainer.resolve(CoreTokens.ServiceContainer))),
     });
+    this.container.register(EngineFactory, { useClass: EngineFactory });
     this.container.register(Engine, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new Engine({
+        const workflowCatalog = dependencyContainer.resolve(CoreTokens.WorkflowCatalog);
+        const nodeResolver = dependencyContainer.resolve(CoreTokens.NodeResolver);
+        const tokenRegistryLike = dependencyContainer.resolve(CoreTokens.PersistedWorkflowTokenRegistry);
+        const webhookTriggerMatcher = new InMemoryWebhookTriggerMatcher();
+        const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
+        return dependencyContainer.resolve(EngineFactory).create({
           credentialSessions: dependencyContainer.resolve(CoreTokens.CredentialSessionService),
           workflowRunnerResolver: dependencyContainer.resolve(CoreTokens.WorkflowRunnerResolver),
-          workflowRegistry: dependencyContainer.resolve(CoreTokens.WorkflowRegistry),
-          nodeResolver: dependencyContainer.resolve(CoreTokens.NodeResolver),
+          workflowCatalog,
+          workflowRepository: dependencyContainer.resolve(CoreTokens.WorkflowRepository),
+          nodeResolver,
           webhookRegistrar: dependencyContainer.resolve(CoreTokens.WebhookRegistrar),
           triggerSetupStateStore: dependencyContainer.resolve(CoreTokens.TriggerSetupStateStore),
+          webhookTriggerMatcher,
           nodeActivationObserver: dependencyContainer.resolve(CoreTokens.NodeActivationObserver),
           runIdFactory: dependencyContainer.resolve(CoreTokens.RunIdFactory),
           activationIdFactory: dependencyContainer.resolve(CoreTokens.ActivationIdFactory),
@@ -445,13 +462,14 @@ export class CodemationApplication {
           runDataFactory: dependencyContainer.resolve(CoreTokens.RunDataFactory),
           executionContextFactory: dependencyContainer.resolve(CoreTokens.ExecutionContextFactory),
           eventBus: dependencyContainer.resolve(CoreTokens.RunEventBus),
-          tokenRegistry: dependencyContainer.resolve(CoreTokens.PersistedWorkflowTokenRegistry),
+          tokenRegistry: tokenRegistryLike,
+          workflowNodeInstanceFactory,
         });
       }),
     });
     this.container.register(RunIntentService, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new RunIntentService(dependencyContainer.resolve(Engine), dependencyContainer.resolve(CoreTokens.WorkflowRegistry));
+        return new RunIntentService(dependencyContainer.resolve(Engine), dependencyContainer.resolve(CoreTokens.WorkflowRepository));
       }),
     });
     this.container.registerInstance(LogLevelPolicyFactory, logLevelPolicyFactory);
@@ -473,7 +491,7 @@ export class CodemationApplication {
     });
     this.container.register(CoreTokens.WorkflowRunnerService, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new EngineWorkflowRunnerService(dependencyContainer.resolve(Engine), dependencyContainer.resolve(CoreTokens.WorkflowRegistry));
+        return new EngineWorkflowRunnerService(dependencyContainer.resolve(Engine), dependencyContainer.resolve(CoreTokens.WorkflowRepository));
       }),
     });
     this.container.register(PrismaClientFactory, { useClass: PrismaClientFactory });
@@ -556,8 +574,8 @@ export class CodemationApplication {
   }
 
   private synchronizeWorkflowRegistry(): void {
-    const workflowRegistry = this.container.resolve(CoreTokens.WorkflowRegistry);
-    workflowRegistry.setWorkflows(this.workflows);
+    const workflowCatalog = this.container.resolve(CoreTokens.WorkflowCatalog);
+    workflowCatalog.setWorkflows(this.workflows);
   }
 
   private async prepareImplementationRegistrations(repoRoot: string, env: NodeJS.ProcessEnv): Promise<void> {

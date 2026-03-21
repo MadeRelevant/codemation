@@ -200,9 +200,9 @@ export class CodemationNextHost {
     }
 
     const container = application.getContainer();
-    const workflowRegistry = container.resolve(CoreTokens.WorkflowRegistry);
+    const workflowRepository = container.resolve(CoreTokens.WorkflowRepository);
     const engine = container.resolve(Engine);
-    await engine.start([...workflowRegistry.list()]);
+    await engine.start([...workflowRepository.list()]);
 
     return {
       application,

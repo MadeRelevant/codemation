@@ -8,7 +8,10 @@ NodeActivationScheduler,
 NodeResolver,
 RunId,
 } from "../../types";
-import { MissingRuntimeNode,MissingRuntimeNodeToken,MissingRuntimeTrigger,MissingRuntimeTriggerToken } from "../runtime/persistedWorkflowResolver";
+import { MissingRuntimeNode } from "../adapters/persisted-workflow/MissingRuntimeNode";
+import { MissingRuntimeNodeToken } from "../adapters/persisted-workflow/MissingRuntimeNodeToken";
+import { MissingRuntimeTrigger } from "../adapters/persisted-workflow/MissingRuntimeTrigger";
+import { MissingRuntimeTriggerToken } from "../adapters/persisted-workflow/MissingRuntimeTriggerToken";
 
 export class InlineDrivingScheduler implements NodeActivationScheduler {
   private continuation: NodeActivationContinuation | undefined;

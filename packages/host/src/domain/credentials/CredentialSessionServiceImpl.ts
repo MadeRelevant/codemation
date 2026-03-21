@@ -3,7 +3,7 @@ import type {
 CredentialBindingKey,
 CredentialInstanceId,
 CredentialSessionService,
-WorkflowRegistry
+WorkflowRepository
 } from "@codemation/core";
 
 import { CoreTokens,CredentialUnboundError,inject,injectable } from "@codemation/core";
@@ -29,12 +29,12 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
     private readonly credentialRuntimeMaterialService: CredentialRuntimeMaterialService,
     @inject(CredentialTypeRegistryImpl)
     private readonly credentialTypeRegistry: CredentialTypeRegistryImpl,
-    @inject(CoreTokens.WorkflowRegistry)
-    private readonly workflowRegistry: WorkflowRegistry,
+    @inject(CoreTokens.WorkflowRepository)
+    private readonly workflowRepository: WorkflowRepository,
   ) {}
 
   async getSession<TSession = unknown>(args: Readonly<{ workflowId: string; nodeId: string; slotKey: string }>): Promise<TSession> {
-    const workflow = this.workflowRegistry.get(decodeURIComponent(args.workflowId));
+    const workflow = this.workflowRepository.get(decodeURIComponent(args.workflowId));
     const requirement = workflow?.nodes
       .find((node) => node.id === args.nodeId)
       ?.config.getCredentialRequirements?.()

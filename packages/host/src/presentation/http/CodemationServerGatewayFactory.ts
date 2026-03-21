@@ -114,9 +114,9 @@ export class CodemationServerGateway {
 
   private async startEngine(application: CodemationApplication): Promise<void> {
     const container = application.getContainer();
-    const workflowRegistry = container.resolve(CoreTokens.WorkflowRegistry);
+    const workflowRepository = container.resolve(CoreTokens.WorkflowRepository);
     const engine = container.resolve(Engine);
-    await engine.start([...workflowRegistry.list()]);
+    await engine.start([...workflowRepository.list()]);
   }
 
   private detectWorkspaceRoot(startDirectory: string): string {

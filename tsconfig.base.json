@@ -8,6 +8,7 @@
     "paths": {
       "@/*": ["packages/next-host/src/*"],
       "@codemation/core": ["packages/core/src/index.ts"],
+      "@codemation/core/testing": ["packages/core/src/testing.ts"],
       "@codemation/cli": ["packages/cli/src/index.ts"],
       "@codemation/core-nodes": ["packages/core-nodes/src/index.ts"],
       "@codemation/core-nodes-gmail": ["packages/core-nodes-gmail/src/index.ts"],
