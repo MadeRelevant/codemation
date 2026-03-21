@@ -18,8 +18,8 @@ This document sets the “golden standard” for how we build and review changes
 - `packages/core/`
  - Engine runtime, execution model, workflow builder DSL, and shared types.
  - **Must not** depend on any concrete node implementations.
-- `packages/frontend/`
- - Framework-owned frontend and runtime host package.
+- `packages/host/`
+ - Framework-owned host package (UI shell, HTTP/WebSocket gateway, persistence wiring).
  - Consumers configure this package; they do not own the UI shell or framework API routes.
 - `packages/core-nodes/`
   - Built-in node configs and implementations.
@@ -81,7 +81,7 @@ This document sets the “golden standard” for how we build and review changes
 
 ### Logging (server / package `src`)
 
-- **Do not use `console.log`** under `packages/*/src` for core, nodes, queue, eventbus, run-store, `node-example`, and `@codemation/frontend` TypeScript sources (ESLint enforces this). Inject **`LoggerFactory`** / **`Logger`** (`packages/frontend/src/application/logging/Logger.ts`) and use **`logger.info` / `warn` / `error` / `debug`**; server wiring uses **`ServerLoggerFactory`**.
+- **Do not use `console.log`** under `packages/*/src` for core, nodes, queue, eventbus, run-store, `node-example`, and `@codemation/host` TypeScript sources (ESLint enforces this). Inject **`LoggerFactory`** / **`Logger`** (`packages/host/src/application/logging/Logger.ts`) and use **`logger.info` / `warn` / `error` / `debug`**; server wiring uses **`ServerLoggerFactory`**.
 - **Log noise in tests:** `ServerLogger` / `BrowserLogger` use an injected **`LogLevelPolicy`** (process-wide singleton from **`LogLevelPolicyFactory`** / `logLevelPolicyFactory`): under **Vitest** (`VITEST=true`), the default minimum level is **`warn`**, so routine **`info`/`debug`** lines are suppressed while **`warn`/`error`** still print. Set **`CODEMATION_LOG_LEVEL`** to `debug|info|warn|error|silent` to override (e.g. verbose integration debugging).
 - **`ServerHttpErrorResponseFactory`** still uses **`console.error`** for uncaught route failures so real handler bugs stay visible regardless of log level.
 - **`packages/next-host`** and **`packages/cli`** are excluded from the `console.log` ESLint rule (UI / user-facing stdout). Client-side logging may use **`BrowserLoggerFactory`** when the app provides it.
@@ -180,11 +180,11 @@ This gives high-signal coverage without fragile mocks.
 - Node must be deterministic and testable (injected deps; no hidden globals).
 - Provide at least one unit test for the node behavior (prefer in-memory deps).
 
-## `@codemation/frontend` package exports
+## `@codemation/host` package exports
 
 The package exposes **multiple subpath entry points** on purpose:
 
-- **Bundle boundaries** — Server-only code (Hono gateway, Prisma, DI container wiring) must not be pulled into browser or edge bundles. Splitting `@codemation/frontend/server`, `…/next/server`, `…/persistence`, etc. keeps those graphs separate from `…/client` and `…/next/client` (React UI for the Next host).
+- **Bundle boundaries** — Server-only code (Hono gateway, Prisma, DI container wiring) must not be pulled into browser or edge bundles. Splitting `@codemation/host/server`, `…/next/server`, `…/persistence`, etc. keeps those graphs separate from `…/client` and `…/next/client` (React UI for the Next host).
 - **`development` condition** — Resolvers that support it can load TypeScript sources directly during local work; default `import` targets `dist` after `tsdown` (and matches production). TypeScript still maps subpaths to `src` via root `tsconfig` `paths` for editor and `tsx` runs.
 
 Tests use **Vitest** (Vite is the test runner only; there is no Vite-based app). The UI shell is **Next.js** only.
@@ -195,10 +195,10 @@ From the repo root, suites are grouped for **parallel** runs and a single merged
 
 | Script | Config | Scope |
 |--------|--------|--------|
-| `pnpm run test:unit` | `tooling/vitest/unit.config.ts` | `packages/core`, `core-nodes`, `core-nodes-gmail`, `next-host`, frontend `*.test.ts` (Node) |
-| `pnpm run test:integration` | `tooling/vitest/integration.config.ts` | `queue-bullmq`, frontend HTTP/integration tests |
-| `pnpm run test:ui` | `tooling/vitest/ui.config.ts` | Frontend `*.test.tsx` (jsdom) |
-| `pnpm run test:e2e` | `tooling/vitest/e2e.config.ts` | Frontend e2e placeholders (`passWithNoTests` until cases exist) |
+| `pnpm run test:unit` | `tooling/vitest/unit.config.ts` | `packages/core`, `core-nodes`, `core-nodes-gmail`, `next-host`, `@codemation/host` `*.test.ts` (Node) |
+| `pnpm run test:integration` | `tooling/vitest/integration.config.ts` | `queue-bullmq`, `@codemation/host` HTTP/integration tests |
+| `pnpm run test:ui` | `tooling/vitest/ui.config.ts` | `@codemation/host` `*.test.tsx` (jsdom) |
+| `pnpm run test:e2e` | `tooling/vitest/e2e.config.ts` | `@codemation/host` e2e placeholders (`passWithNoTests` until cases exist) |
 | `pnpm test` | — | `turbo run build` then **all four** suites in parallel (`test:suites`) |
 | `pnpm run coverage` | — | Runs each suite with **lcov** under `coverage/raw/{unit,integration,ui,e2e}/`, then merges to **`coverage/lcov.info`** |
 
@@ -206,7 +206,7 @@ Per-package `pnpm test` remains useful for iterating on one package; the canonic
 
 ### Prisma client + Vitest
 
-- Generated Prisma `runtime/*.js` files reference `*.map` files that Prisma does not emit; Vite would otherwise log **ENOENT** on every load. After **`prisma generate`**, run **`pnpm --filter @codemation/frontend prisma:generate`** (or **`node packages/frontend/scripts/ensure-prisma-runtime-sourcemaps.mjs`**) so stub maps exist. Frontend **integration** Vitest config also runs this via **`globalSetup`** before tests.
+- Generated Prisma `runtime/*.js` files reference `*.map` files that Prisma does not emit; Vite would otherwise log **ENOENT** on every load. After **`prisma generate`**, run **`pnpm --filter @codemation/host prisma:generate`** (or **`node packages/host/scripts/ensure-prisma-runtime-sourcemaps.mjs`**) so stub maps exist. Host **integration** Vitest config also runs this via **`globalSetup`** before tests.
 
 ### Parallel, non-interfering tests
 

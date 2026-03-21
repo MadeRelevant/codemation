@@ -1,6 +1,6 @@
 # Frontend Host Spike
 
-**Status (repo today):** The production app shell is **`packages/next-host` (Next.js)** via `codemation dev`. There is no consumer `vite.config` and no `@codemation/frontend/vite` entry; sections below that mention Vite routes/plugins describe earlier spike options, not the current layout.
+**Status (repo today):** The production app shell is **`packages/next-host` (Next.js)** via `codemation dev`. There is no consumer `vite.config` and no `@codemation/host/vite` entry; sections below that mention Vite routes/plugins describe earlier spike options, not the current layout.
 
 ## Recommendation
 
@@ -8,7 +8,7 @@ The spike points to `React Router + Fastify` as the primary replacement for the 
 
 The reason is straightforward:
 
-- `@codemation/frontend` is already mostly host-agnostic.
+- `@codemation/host` is already mostly host-agnostic.
 - The consumer contract is already centered on `codemation.config.ts`, workflow files, optional boot hooks, and optional UI slots.
 - The unstable part is the current Start adapter surface, not the frontend package itself.
 - React Router route config is easier to compose from a package than a compiler-heavy fullstack framework.
@@ -28,21 +28,21 @@ _(Legacy TanStack/Vite route files are not part of the current Next host.)_
 
 ### Framework-owned today
 
-- `packages/frontend/src/presentation/config/CodemationConfig.ts`
-- `packages/frontend/src/presentation/http/CodemationServerGateway.ts`
-- `packages/frontend/src/presentation/http/*`
-- `packages/frontend/src/presentation/websocket/WorkflowWebsocketServer.ts`
-- `packages/frontend/src/ui/*`
-- `packages/frontend/src/server.ts`
+- `packages/host/src/presentation/config/CodemationConfig.ts`
+- `packages/host/src/presentation/http/CodemationServerGateway.ts`
+- `packages/host/src/presentation/http/*`
+- `packages/host/src/presentation/websocket/WorkflowWebsocketServer.ts`
+- `packages/host/src/ui/*`
+- `packages/host/src/server.ts`
 
 ## What The Spike Proves
 
 This spike implements the first host-neutral proof point inside the frontend package:
 
-- `packages/frontend/src/ui/screens/WorkflowsScreen.tsx` no longer imports `@tanstack/react-router`.
-- `packages/frontend/src/ui/workflowDetail/WorkflowRunsSidebar.tsx` no longer imports `@tanstack/react-router`.
-- `packages/frontend/src/ui/screens/WorkflowDetailScreen.tsx` and `packages/frontend/src/ui/workflowDetail/useWorkflowDetailController.tsx` now support client-only mounting without SSR loader data.
-- `packages/frontend/src/ui/screens/HostedWorkflowsScreen.tsx` and `packages/frontend/src/ui/screens/HostedWorkflowDetailScreen.tsx` expose no-SSR host wrappers for alternative hosts.
+- `packages/host/src/ui/screens/WorkflowsScreen.tsx` no longer imports `@tanstack/react-router`.
+- `packages/host/src/ui/workflowDetail/WorkflowRunsSidebar.tsx` no longer imports `@tanstack/react-router`.
+- `packages/host/src/ui/screens/WorkflowDetailScreen.tsx` and `packages/host/src/ui/workflowDetail/useWorkflowDetailController.tsx` now support client-only mounting without SSR loader data.
+- `packages/host/src/ui/screens/HostedWorkflowsScreen.tsx` and `packages/host/src/ui/screens/HostedWorkflowDetailScreen.tsx` expose no-SSR host wrappers for alternative hosts.
 
 This means the frontend package is now less tied to TanStack Start even before any host migration begins.
 
@@ -163,12 +163,12 @@ apps/test-dev/
 
 ### Files that can remain in place
 
-- `packages/frontend/src/application/*`
-- `packages/frontend/src/domain/*`
-- `packages/frontend/src/presentation/http/*`
-- `packages/frontend/src/presentation/websocket/WorkflowWebsocketServer.ts`
-- `packages/frontend/src/ui/providers/Providers.tsx`
-- most of `packages/frontend/src/ui/*`
+- `packages/host/src/application/*`
+- `packages/host/src/domain/*`
+- `packages/host/src/presentation/http/*`
+- `packages/host/src/presentation/websocket/WorkflowWebsocketServer.ts`
+- `packages/host/src/ui/providers/Providers.tsx`
+- most of `packages/host/src/ui/*`
 - `apps/test-dev/codemation.config.ts`
 
 ### Files that were the first rewrite targets
@@ -178,8 +178,8 @@ apps/test-dev/
 
 ### Files that need lifecycle review
 
-- `packages/frontend/src/codemationApplication.ts`
-- `packages/frontend/src/presentation/http/CodemationServerGateway.ts`
+- `packages/host/src/codemationApplication.ts`
+- `packages/host/src/presentation/http/CodemationServerGateway.ts`
 
 These files should survive, but the host migration should decide:
 
@@ -191,12 +191,12 @@ These files should survive, but the host migration should decide:
 
 ### Retain
 
-- `packages/frontend/src/presentation/config/CodemationConfig.ts`
-- `packages/frontend/src/presentation/http/CodemationServerGateway.ts`
-- `packages/frontend/src/presentation/http/hono/CodemationHonoApiApp.ts`
-- `packages/frontend/src/presentation/http/routeHandlers/*`
-- `packages/frontend/src/presentation/websocket/WorkflowWebsocketServer.ts`
-- `packages/frontend/src/ui/providers/Providers.tsx`
+- `packages/host/src/presentation/config/CodemationConfig.ts`
+- `packages/host/src/presentation/http/CodemationServerGateway.ts`
+- `packages/host/src/presentation/http/hono/CodemationHonoApiApp.ts`
+- `packages/host/src/presentation/http/routeHandlers/*`
+- `packages/host/src/presentation/websocket/WorkflowWebsocketServer.ts`
+- `packages/host/src/ui/providers/Providers.tsx`
 - `apps/test-dev/codemation.config.ts`
 
 ### Replace _(largely done: Next host)_
@@ -205,10 +205,10 @@ These files should survive, but the host migration should decide:
 
 ### Simplify before migration
 
-- `packages/frontend/src/ui/screens/WorkflowsScreen.tsx`
-- `packages/frontend/src/ui/workflowDetail/WorkflowRunsSidebar.tsx`
-- `packages/frontend/src/ui/screens/WorkflowDetailScreen.tsx`
-- `packages/frontend/src/ui/workflowDetail/useWorkflowDetailController.tsx`
+- `packages/host/src/ui/screens/WorkflowsScreen.tsx`
+- `packages/host/src/ui/workflowDetail/WorkflowRunsSidebar.tsx`
+- `packages/host/src/ui/screens/WorkflowDetailScreen.tsx`
+- `packages/host/src/ui/workflowDetail/useWorkflowDetailController.tsx`
 
 ## Conclusion
 
@@ -216,7 +216,7 @@ The current frontend package is already close to being host-neutral. The migrati
 
 The most promising path is:
 
-1. keep `@codemation/frontend` as the product surface
+1. keep `@codemation/host` as the product surface
 2. replace the TanStack Start adapter with a thinner `React Router + Fastify` host
 3. preserve the consumer contract around `codemation.config.ts`, workflows, slots, and boot hooks
 4. keep SSR optional and avoid letting it shape the consumer model

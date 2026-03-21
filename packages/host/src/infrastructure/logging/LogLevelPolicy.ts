@@ -8,7 +8,7 @@ const levelRank: Record<Exclude<LogLevel, "silent">, number> = {
 };
 
 /**
- * Minimum log level for @codemation/frontend loggers.
+ * Minimum log level for @codemation/host loggers.
  * - `CODEMATION_LOG_LEVEL` overrides when set to a known level.
  * - Under Vitest, defaults to **warn** so routine `info`/`debug` noise stays off the terminal; `warn`/`error` still print.
  * - Otherwise defaults to **info**.

@@ -1,4 +1,4 @@
-import { CodemationApplication } from "@codemation/frontend";
+import { CodemationApplication } from "@codemation/host";
 import path from "node:path";
 import process from "node:process";
 import { CodemationWorkerConfigLoader } from "./CodemationWorkerConfigLoader";

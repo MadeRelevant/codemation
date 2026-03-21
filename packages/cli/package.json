@@ -21,7 +21,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@codemation/frontend": "workspace:*",
+    "@codemation/host": "workspace:*",
     "@codemation/next-host": "workspace:*",
     "bcryptjs": "^3.0.3",
     "chokidar": "^5.0.0",

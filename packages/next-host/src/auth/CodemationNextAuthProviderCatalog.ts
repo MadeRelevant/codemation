@@ -1,5 +1,5 @@
-import type { CodemationAuthConfig,CodemationAuthOAuthProviderConfig,CodemationAuthOidcProviderConfig } from "@codemation/frontend";
-import type { PrismaClient } from "@codemation/frontend/persistence";
+import type { CodemationAuthConfig,CodemationAuthOAuthProviderConfig,CodemationAuthOidcProviderConfig } from "@codemation/host";
+import type { PrismaClient } from "@codemation/host/persistence";
 import { compare } from "bcryptjs";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";

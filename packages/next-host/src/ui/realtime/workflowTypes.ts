@@ -1,1 +1,1 @@
-export type { WorkflowDto,WorkflowEdgeDto,WorkflowNodeDto } from "@codemation/frontend-src/application/contracts/WorkflowViewContracts";
+export type { WorkflowDto,WorkflowEdgeDto,WorkflowNodeDto } from "@codemation/host-src/application/contracts/WorkflowViewContracts";

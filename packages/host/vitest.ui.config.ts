@@ -1,10 +1,10 @@
 import { defineConfig } from "vitest/config";
-import { frontendVitestSharedConfig } from "./vitest.shared";
+import { hostVitestSharedConfig } from "./vitest.shared";
 
 export default defineConfig({
-  ...frontendVitestSharedConfig,
+  ...hostVitestSharedConfig,
   test: {
-    name: "@codemation/frontend-ui",
+    name: "@codemation/host-ui",
     root: import.meta.dirname,
     environment: "jsdom",
     setupFiles: ["./test/setup.ts"],

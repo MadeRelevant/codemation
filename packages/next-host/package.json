@@ -21,7 +21,7 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
     "@codemation/core": "workspace:*",
-    "@codemation/frontend": "workspace:*",
+    "@codemation/host": "workspace:*",
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.90.21",
     "@uiw/react-json-view": "2.0.0-alpha.41",

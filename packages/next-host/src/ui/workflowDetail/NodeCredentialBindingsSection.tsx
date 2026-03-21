@@ -1,5 +1,5 @@
-import type { UpsertCredentialBindingRequest } from "@codemation/frontend-src/application/contracts/CredentialContractsRegistry";
-import { ApiPaths } from "@codemation/frontend-src/presentation/http/ApiPaths";
+import type { UpsertCredentialBindingRequest } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect,useMemo,useState } from "react";
 import { useCredentialInstancesQuery,useWorkflowCredentialHealthQuery } from "../realtime/realtime";

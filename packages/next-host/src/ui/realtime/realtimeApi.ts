@@ -3,10 +3,10 @@ import type {
 CredentialInstanceDto,
 CredentialInstanceWithSecretsDto,
 WorkflowCredentialHealthDto,
-} from "@codemation/frontend-src/application/contracts/CredentialContractsRegistry";
-import { withUserAccountLoginMethodsDefaults, type UserAccountDto } from "@codemation/frontend-src/application/contracts/userDirectoryContracts.types";
-import type { WorkflowDto,WorkflowSummary } from "@codemation/frontend-src/application/contracts/WorkflowViewContracts";
-import { ApiPaths } from "@codemation/frontend-src/presentation/http/ApiPaths";
+} from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+import { withUserAccountLoginMethodsDefaults, type UserAccountDto } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
+import type { WorkflowDto,WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
+import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 
 import type {
 PersistedRunState,

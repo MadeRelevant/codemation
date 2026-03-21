@@ -1,7 +1,7 @@
 import type { CredentialRequirement } from "@codemation/core";
 import { inject,injectable } from "@codemation/core";
-import type { CodemationBootContext,CodemationBootHook } from "@codemation/frontend";
-import { CredentialBindingService,CredentialInstanceService } from "@codemation/frontend/credentials";
+import type { CodemationBootContext,CodemationBootHook } from "@codemation/host";
+import { CredentialBindingService,CredentialInstanceService } from "@codemation/host/credentials";
 
 type WorkflowCredentialSlot = Readonly<{
   workflowId: string;

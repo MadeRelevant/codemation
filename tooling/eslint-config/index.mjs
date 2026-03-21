@@ -454,7 +454,7 @@ export default [
       "packages/eventbus-redis/src/**/*.ts",
       "packages/run-store-sqlite/src/**/*.ts",
       "packages/node-example/src/**/*.ts",
-      "packages/frontend/src/**/*.ts",
+      "packages/host/src/**/*.ts",
     ],
     ignores: ["**/test/**", "**/*.test.ts", "**/*.test.tsx"],
     rules: {
@@ -464,7 +464,7 @@ export default [
           object: "console",
           property: "log",
           message:
-            "Avoid console.log. Inject LoggerFactory (see packages/frontend application/logging/Logger.ts) or a domain Logger token and call logger.info/warn/error/debug; server code should resolve ServerLoggerFactory from the container.",
+            "Avoid console.log. Inject LoggerFactory (see packages/host/src/application/logging/Logger.ts) or a domain Logger token and call logger.info/warn/error/debug; server code should resolve ServerLoggerFactory from the container.",
         },
       ],
     },
@@ -477,7 +477,7 @@ export default [
     },
   },
   {
-    files: ["packages/frontend/src/presentation/http/ApiPaths.ts"],
+    files: ["packages/host/src/presentation/http/ApiPaths.ts"],
     rules: {
       "codemation/no-static-methods": "off",
     },

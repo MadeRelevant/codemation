@@ -1,6 +1,6 @@
 import type { Container } from "@codemation/core";
 import { CoreTokens,Engine } from "@codemation/core";
-import type { CodemationAuthConfig,CodemationPlugin } from "@codemation/frontend";
+import type { CodemationAuthConfig,CodemationPlugin } from "@codemation/host";
 import {
 CodemationApplication,
 CodemationHonoApiApp,
@@ -8,8 +8,8 @@ logLevelPolicyFactory,
 ServerLoggerFactory,
 WorkflowDefinitionMapper,
 WorkflowWebsocketServer,
-} from "@codemation/frontend/next/server";
-import type { CodemationConsumerApp } from "@codemation/frontend/server";
+} from "@codemation/host/next/server";
+import type { CodemationConsumerApp } from "@codemation/host/server";
 import type { Hono } from "hono";
 import { access,readFile,stat } from "node:fs/promises";
 import path from "node:path";
@@ -151,19 +151,19 @@ export class CodemationNextHost {
     const consumerRoot = path.resolve(buildManifest.consumerRoot);
     const repoRoot = await this.detectWorkspaceRoot(consumerRoot);
     const prismaCliOverride = await this.resolvePrismaCliOverride();
-    const frontendPackageRoot = path.resolve(repoRoot, "packages", "frontend");
+    const hostPackageRoot = path.resolve(repoRoot, "packages", "host");
     if (prismaCliOverride) {
       process.env.CODEMATION_PRISMA_CLI_PATH = prismaCliOverride;
     }
-    process.env.CODEMATION_FRONTEND_PACKAGE_ROOT = frontendPackageRoot;
-    process.env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(frontendPackageRoot, "prisma.config.ts");
+    process.env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
+    process.env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
     const resolvedConsumerApp = await this.loadBuiltConsumerApp(buildManifest.entryPath);
     const env = { ...process.env };
     if (prismaCliOverride) {
       env.CODEMATION_PRISMA_CLI_PATH = prismaCliOverride;
     }
-    env.CODEMATION_FRONTEND_PACKAGE_ROOT = frontendPackageRoot;
-    env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(frontendPackageRoot, "prisma.config.ts");
+    env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
+    env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
     const application = new CodemationApplication();
     application.useSharedWorkflowWebsocketServer(this.resolveSharedWorkflowWebsocketServer());
     const discoveredPlugins = await this.loadDiscoveredPlugins(buildManifest);

@@ -1,7 +1,7 @@
-import type { Logger } from "@codemation/frontend-src/application/logging/Logger";
+import type { Logger } from "@codemation/host-src/application/logging/Logger";
 
-import { BrowserLoggerFactory } from "@codemation/frontend-src/infrastructure/logging/BrowserLoggerFactory";
-import { logLevelPolicyFactory } from "@codemation/frontend-src/infrastructure/logging/LogLevelPolicyFactory";
+import { BrowserLoggerFactory } from "@codemation/host-src/infrastructure/logging/BrowserLoggerFactory";
+import { logLevelPolicyFactory } from "@codemation/host-src/infrastructure/logging/LogLevelPolicyFactory";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 

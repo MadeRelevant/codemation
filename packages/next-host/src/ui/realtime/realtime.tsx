@@ -4,9 +4,9 @@ export type {
 CredentialInstanceDto,
 CredentialInstanceWithSecretsDto,
 WorkflowCredentialHealthDto,
-} from "@codemation/frontend-src/application/contracts/CredentialContractsRegistry";
-export type { WorkflowDto,WorkflowSummary } from "@codemation/frontend-src/application/contracts/WorkflowViewContracts";
-export type { InviteUserResponseDto,UserAccountDto,UserAccountStatus } from "@codemation/frontend-src/application/contracts/userDirectoryContracts.types";
+} from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+export type { WorkflowDto,WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
+export type { InviteUserResponseDto,UserAccountDto,UserAccountStatus } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
 
 export * from "./realtimeDomainTypes";
 
@@ -18,9 +18,9 @@ withUserAccountLoginMethodsDefaults,
 type InviteUserResponseDto,
 type UserAccountDto,
 type UserAccountStatus,
-} from "@codemation/frontend-src/application/contracts/userDirectoryContracts.types";
-import type { WorkflowDto,WorkflowSummary } from "@codemation/frontend-src/application/contracts/WorkflowViewContracts";
-import { ApiPaths } from "@codemation/frontend-src/presentation/http/ApiPaths";
+} from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
+import type { WorkflowDto,WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
+import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
 import { useContext,useEffect,useMemo,useState } from "react";
 

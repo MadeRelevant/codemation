@@ -18,7 +18,7 @@
     "@codemation/core-nodes": "workspace:*",
     "@codemation/core-nodes-gmail": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",
-    "@codemation/frontend": "workspace:*",
+    "@codemation/host": "workspace:*",
     "@codemation/node-example": "workspace:*",
     "@codemation/queue-bullmq": "workspace:*",
     "@codemation/worker-cli": "workspace:*",

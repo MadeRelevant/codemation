@@ -1,10 +1,10 @@
 import { defineConfig } from "vitest/config";
-import { frontendVitestSharedConfig } from "./vitest.shared";
+import { hostVitestSharedConfig } from "./vitest.shared";
 
 export default defineConfig({
-  ...frontendVitestSharedConfig,
+  ...hostVitestSharedConfig,
   test: {
-    name: "@codemation/frontend-unit",
+    name: "@codemation/host-unit",
     root: import.meta.dirname,
     environment: "node",
     setupFiles: ["./test/setup.ts"],

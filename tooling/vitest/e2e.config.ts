@@ -8,6 +8,6 @@ export default defineConfig({
     passWithNoTests: true,
     maxWorkers: 2,
     fileParallelism: true,
-    projects: [p("../../packages/frontend/vitest.e2e.config.ts")],
+    projects: [p("../../packages/host/vitest.e2e.config.ts")],
   },
 });

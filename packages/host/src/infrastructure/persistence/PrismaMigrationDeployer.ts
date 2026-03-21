@@ -81,7 +81,7 @@ export class PrismaMigrationDeployer {
   }
 
   private resolvePackageRoot(): string {
-    const configuredRoot = process.env.CODEMATION_FRONTEND_PACKAGE_ROOT;
+    const configuredRoot = process.env.CODEMATION_HOST_PACKAGE_ROOT;
     if (configuredRoot) {
       return configuredRoot;
     }

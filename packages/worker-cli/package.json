@@ -21,7 +21,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@codemation/frontend": "workspace:*",
+    "@codemation/host": "workspace:*",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 import { AgentAttachmentNodeIdFactory,ItemsInputNormalizer,RunFinishedAtFactory } from "@codemation/core/browser";
-import { ApiPaths } from "@codemation/frontend-src/presentation/http/ApiPaths";
+import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { format,isToday,isYesterday } from "date-fns";
 import prettyMilliseconds from "pretty-ms";
 import type {

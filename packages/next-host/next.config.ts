@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
     "@codemation/core-nodes",
     "@codemation/core-nodes-gmail",
     "@codemation/eventbus-redis",
-    "@codemation/frontend",
+    "@codemation/host",
     "@codemation/node-example",
     "@codemation/queue-bullmq",
     "@codemation/run-store-sqlite",

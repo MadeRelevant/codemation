@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 const p = (rel: string) => path.resolve(import.meta.dirname, rel);
 
 /**
- * Unit suite: core packages + next-host + frontend Node-side *.test.ts.
+ * Unit suite: core packages + next-host + @codemation/host Node-side *.test.ts.
  */
 export default defineConfig({
   test: {
@@ -15,7 +15,7 @@ export default defineConfig({
       p("../../packages/core-nodes/vitest.config.ts"),
       p("../../packages/core-nodes-gmail/vitest.config.ts"),
       p("../../packages/next-host/vitest.config.ts"),
-      p("../../packages/frontend/vitest.unit.config.ts"),
+      p("../../packages/host/vitest.unit.config.ts"),
     ],
   },
 });

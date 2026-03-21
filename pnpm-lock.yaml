@@ -59,9 +59,9 @@ importers:
       '@codemation/eventbus-redis':
         specifier: workspace:*
         version: link:../../packages/eventbus-redis
-      '@codemation/frontend':
+      '@codemation/host':
         specifier: workspace:*
-        version: link:../../packages/frontend
+        version: link:../../packages/host
       '@codemation/node-example':
         specifier: workspace:*
         version: link:../../packages/node-example
@@ -111,9 +111,9 @@ importers:
 
   packages/cli:
     dependencies:
-      '@codemation/frontend':
+      '@codemation/host':
         specifier: workspace:*
-        version: link:../frontend
+        version: link:../host
       '@codemation/next-host':
         specifier: workspace:*
         version: link:../next-host
@@ -276,7 +276,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/frontend:
+  packages/host:
     dependencies:
       '@auth/core':
         specifier: ^0.34.3
@@ -450,9 +450,9 @@ importers:
       '@codemation/core':
         specifier: workspace:*
         version: link:../core
-      '@codemation/frontend':
+      '@codemation/host':
         specifier: workspace:*
-        version: link:../frontend
+        version: link:../host
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -625,9 +625,9 @@ importers:
 
   packages/worker-cli:
     dependencies:
-      '@codemation/frontend':
+      '@codemation/host':
         specifier: workspace:*
-        version: link:../frontend
+        version: link:../host
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2

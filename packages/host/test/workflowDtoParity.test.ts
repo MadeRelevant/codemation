@@ -4,10 +4,10 @@ import { describe,expect,it } from "vitest";
 import { WorkflowDefinitionMapper } from "../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit";
 
-@chatModel({ packageName: "@codemation/frontend-parity" })
+@chatModel({ packageName: "@codemation/host-parity" })
 class FrontendParityChatModelFactory {}
 
-@tool({ packageName: "@codemation/frontend-parity" })
+@tool({ packageName: "@codemation/host-parity" })
 class FrontendParityTool {}
 
 class FrontendParityChatModelConfig implements ChatModelConfig {

@@ -1,8 +1,8 @@
 import { defineConfig } from "vitest/config";
-import { frontendVitestSharedConfig } from "./vitest.shared";
+import { hostVitestSharedConfig } from "./vitest.shared";
 
 export default defineConfig({
-  ...frontendVitestSharedConfig,
+  ...hostVitestSharedConfig,
   test: {
     environment: "jsdom",
     setupFiles: ["./test/setup.ts"],

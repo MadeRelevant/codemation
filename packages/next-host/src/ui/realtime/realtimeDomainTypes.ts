@@ -1,5 +1,5 @@
 import type { Item as WorkflowItem } from "@codemation/core/browser";
-import type { WorkflowDto } from "@codemation/frontend-src/application/contracts/WorkflowViewContracts";
+import type { WorkflowDto } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
 
 export type Item = WorkflowItem;
 export type Items = ReadonlyArray<Item>;

@@ -1,4 +1,4 @@
-import type { CodemationPackageManifest,CodemationPlugin } from "@codemation/frontend";
+import type { CodemationPackageManifest,CodemationPlugin } from "@codemation/host";
 import { readFile,readdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";

@@ -1,5 +1,5 @@
-import { CodemationConsumerConfigLoader } from "@codemation/frontend";
-import type { CodemationConsumerConfigResolution } from "@codemation/frontend/server";
+import { CodemationConsumerConfigLoader } from "@codemation/host";
+import type { CodemationConsumerConfigResolution } from "@codemation/host/server";
 
 export type WorkerConfigResolution = CodemationConsumerConfigResolution;
 

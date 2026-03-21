@@ -1,4 +1,4 @@
-import { ApiPaths } from "@codemation/frontend-src/presentation/http/ApiPaths";
+import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {

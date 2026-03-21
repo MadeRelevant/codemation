@@ -1,5 +1,5 @@
-import { ApiPaths } from "@codemation/frontend-src/presentation/http/ApiPaths";
-import type { Logger } from "@codemation/frontend-src/application/logging/Logger";
+import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import type { Logger } from "@codemation/host-src/application/logging/Logger";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 

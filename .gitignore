@@ -12,5 +12,5 @@ out
 **/node_modules
 .jscpd-report
 apps/test-dev/.tanstack
-packages/frontend/src/infrastructure/persistence/generated
+packages/host/src/infrastructure/persistence/generated
 **/coverage

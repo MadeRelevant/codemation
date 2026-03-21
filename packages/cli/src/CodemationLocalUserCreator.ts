@@ -1,5 +1,5 @@
-import { CodemationPostgresPrismaClientFactory,type PrismaClient } from "@codemation/frontend/persistence";
-import { CodemationConsumerConfigLoader } from "@codemation/frontend/server";
+import { CodemationPostgresPrismaClientFactory,type PrismaClient } from "@codemation/host/persistence";
+import { CodemationConsumerConfigLoader } from "@codemation/host/server";
 import { hash } from "bcryptjs";
 import { config as loadDotenv } from "dotenv";
 import { existsSync } from "node:fs";

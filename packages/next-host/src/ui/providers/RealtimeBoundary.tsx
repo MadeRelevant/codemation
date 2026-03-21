@@ -1,4 +1,4 @@
-import type { Logger } from "@codemation/frontend-src/application/logging/Logger";
+import type { Logger } from "@codemation/host-src/application/logging/Logger";
 
 import type { ReactNode } from "react";
 
