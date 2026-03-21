@@ -6,12 +6,28 @@ import { usePathname } from "next/navigation";
 
 import type { ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 import { IconCredentials, IconDashboard, IconUsers, IconWorkflow } from "./appLayoutSidebarIcons";
 import { useWorkflowsQuery } from "../features/workflows/hooks/realtime/realtime";
 
 export interface AppLayoutNavItemsProps {
   readonly collapsed: boolean;
 }
+
+const navLinkClass = (isActive: boolean) =>
+  cn(
+    "flex items-center gap-3 rounded-sm px-4 py-3 text-sm no-underline transition-colors",
+    "text-sidebar-foreground hover:bg-sidebar-accent/80",
+    isActive && "bg-sidebar-accent font-medium text-sidebar-primary",
+  );
+
+const workflowLinkClass = (isActive: boolean) =>
+  cn(
+    "flex items-center gap-3 rounded-sm px-4 py-2 text-sm no-underline transition-colors",
+    "text-sidebar-foreground hover:bg-sidebar-accent/80",
+    isActive && "bg-sidebar-accent font-medium text-sidebar-primary",
+  );
 
 export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactNode {
   const pathname = usePathname();
@@ -22,18 +38,20 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
     const isActive = exact ? pathname === href : pathname.startsWith(href);
     const content = (
       <Link
+        key={href}
         href={href}
-        className={`app-sidebar__item ${isActive ? "app-sidebar__item--active" : ""}`}
+        className={navLinkClass(isActive)}
         data-testid={`nav-${label.toLowerCase().replace(/\s+/g, "-")}`}
+        title={collapsed ? label : undefined}
       >
-        <span className="app-sidebar__item-icon" aria-hidden>
+        <span className="flex shrink-0 items-center justify-center" aria-hidden>
           {icon}
         </span>
-        {!collapsed && <span className="app-sidebar__item-label">{label}</span>}
+        {!collapsed && <span className="truncate">{label}</span>}
       </Link>
     );
     return collapsed ? (
-      <span className="app-sidebar__tooltip-wrap" data-tooltip={label}>
+      <span key={href} className="relative flex overflow-visible" title={label}>
         {content}
       </span>
     ) : (
@@ -47,31 +65,37 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
       {navItem("/credentials", "Credentials", <IconCredentials />)}
       {navItem("/users", "Users", <IconUsers />)}
       {collapsed ? (
-        <div className="app-sidebar__workflows app-sidebar__workflows--icons-only">
-          <span className="app-sidebar__tooltip-wrap" data-tooltip="All workflows">
+        <div className="mt-3 flex flex-col gap-1">
+          <span className="relative flex overflow-visible" title="All workflows">
             <Link
               href="/workflows"
-              className={`app-sidebar__workflow app-sidebar__workflow--icon-only ${pathname === "/workflows" ? "app-sidebar__item--active" : ""}`}
+              className={cn(
+                "flex items-center justify-center rounded-sm p-3 text-sidebar-foreground no-underline transition-colors hover:bg-sidebar-accent/80",
+                pathname === "/workflows" && "bg-sidebar-accent font-medium text-sidebar-primary",
+              )}
               data-testid="nav-workflows"
             >
-              <span className="app-sidebar__workflow-icon">
+              <span className="flex shrink-0 opacity-70" aria-hidden>
                 <IconWorkflow />
               </span>
             </Link>
           </span>
-          {workflowsQuery.isLoading && <span className="app-sidebar__workflow-placeholder">…</span>}
+          {workflowsQuery.isLoading && <span className="px-4 py-2 text-xs text-muted-foreground">…</span>}
           {!workflowsQuery.isLoading &&
             workflows.map((w) => {
               const href = `/workflows/${encodeURIComponent(w.id)}`;
               const isActive = pathname === href;
               return (
-                <span key={w.id} className="app-sidebar__tooltip-wrap" data-tooltip={w.name}>
+                <span key={w.id} className="relative flex overflow-visible" title={w.name}>
                   <Link
                     href={href}
-                    className={`app-sidebar__workflow app-sidebar__workflow--icon-only ${isActive ? "app-sidebar__item--active" : ""}`}
+                    className={cn(
+                      "flex items-center justify-center rounded-sm p-3 text-sidebar-foreground no-underline transition-colors hover:bg-sidebar-accent/80",
+                      isActive && "bg-sidebar-accent font-medium text-sidebar-primary",
+                    )}
                     data-testid={`nav-workflow-${w.id}`}
                   >
-                    <span className="app-sidebar__workflow-icon">
+                    <span className="flex shrink-0 opacity-70" aria-hidden>
                       <IconWorkflow />
                     </span>
                   </Link>
@@ -80,22 +104,24 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
             })}
         </div>
       ) : (
-        <div className="app-sidebar__section">
-          <span className="app-sidebar__section-label">Workflows</span>
-          <div className="app-sidebar__workflows">
+        <div className="mt-4 flex flex-col gap-1">
+          <span className="px-4 py-2 text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
+            Workflows
+          </span>
+          <div className="flex flex-col gap-1">
             <Link
               href="/workflows"
-              className={`app-sidebar__workflow ${pathname === "/workflows" ? "app-sidebar__item--active" : ""}`}
+              className={workflowLinkClass(pathname === "/workflows")}
               data-testid="nav-workflows"
             >
-              <span className="app-sidebar__workflow-icon">
+              <span className="flex shrink-0 opacity-70" aria-hidden>
                 <IconWorkflow />
               </span>
-              <span className="app-sidebar__workflow-label">All workflows</span>
+              <span className="truncate text-sm">All workflows</span>
             </Link>
-            {workflowsQuery.isLoading && <span className="app-sidebar__workflow-placeholder">Loading…</span>}
+            {workflowsQuery.isLoading && <span className="px-4 py-2 text-xs text-muted-foreground">Loading…</span>}
             {!workflowsQuery.isLoading && workflows.length === 0 && (
-              <span className="app-sidebar__workflow-placeholder">No workflows</span>
+              <span className="px-4 py-2 text-xs text-muted-foreground">No workflows</span>
             )}
             {workflows.map((w) => {
               const href = `/workflows/${encodeURIComponent(w.id)}`;
@@ -104,13 +130,13 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
                 <Link
                   key={w.id}
                   href={href}
-                  className={`app-sidebar__workflow ${isActive ? "app-sidebar__item--active" : ""}`}
+                  className={workflowLinkClass(isActive)}
                   data-testid={`nav-workflow-${w.id}`}
                 >
-                  <span className="app-sidebar__workflow-icon">
+                  <span className="flex shrink-0 opacity-70" aria-hidden>
                     <IconWorkflow />
                   </span>
-                  <span className="app-sidebar__workflow-label">{w.name}</span>
+                  <span className="truncate text-sm">{w.name}</span>
                 </Link>
               );
             })}

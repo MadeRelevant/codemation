@@ -13,15 +13,15 @@ export function WorkflowsScreen(args: Readonly<{ initialWorkflows?: ReadonlyArra
   const error = workflowsQuery.error instanceof Error ? workflowsQuery.error.message : null;
 
   return (
-    <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24 }}>
-      <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+    <main className="mx-auto max-w-[1100px] px-6 py-6">
+      <header className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.4, opacity: 0.66 }}>Codemation</div>
-          <h1 style={{ margin: "8px 0 0", fontSize: 30 }}>Workflows</h1>
-          <p style={{ margin: "8px 0 0", opacity: 0.78 }}>Framework-managed workflows using the shared Codemation runtime.</p>
+          <div className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Codemation</div>
+          <h1 className="mb-0 mt-2 text-3xl font-semibold tracking-tight">Workflows</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Framework-managed workflows using the shared Codemation runtime.</p>
         </div>
       </header>
-      <section style={{ marginTop: 24 }}>
+      <section className="mt-6">
         <WorkflowsList workflows={workflows} error={error} />
       </section>
     </main>

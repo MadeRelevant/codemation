@@ -4,6 +4,13 @@ import base from "@codemation/eslint-config";
 export default [
   ...base,
   {
+    files: ["src/components/ui/**/*.tsx"],
+    rules: {
+      "max-lines": "off",
+      "codemation/single-react-component-per-file": "off",
+    },
+  },
+  {
     files: ["src/**/*.{ts,tsx}"],
     ignores: ["src/api/CodemationApiClient.ts"],
     rules: {

@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect,type FormEvent,type MouseEvent } from "react";
+import { useEffect, type FormEvent, type MouseEvent } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type UsersInviteDialogProps = Readonly<{
   email: string;
@@ -44,92 +48,66 @@ export function UsersInviteDialog({
 
   return (
     <div
-      className="credential-dialog-overlay users-dialog-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={backdrop}
       role="dialog"
       aria-modal="true"
       aria-labelledby="users-invite-title"
       data-testid="users-invite-dialog"
     >
-      <div className="credential-dialog users-dialog">
-        <div className="credential-dialog__header">
-          <h2 id="users-invite-title" className="credential-dialog__title">
+      <div className="flex max-h-[min(90vh,640px)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-lg ring-1 ring-foreground/10">
+        <div className="border-b border-border px-4 py-3">
+          <h2 id="users-invite-title" className="m-0 text-base font-semibold">
             Invite user
           </h2>
         </div>
         {successUrl ? (
           <>
-            <div className="credential-dialog__body">
-              <p className="credential-dialog__help" data-testid="users-invite-success-message">
+            <div className="space-y-3 px-4 py-3 text-sm">
+              <p className="m-0 text-muted-foreground" data-testid="users-invite-success-message">
                 Share this link; it expires in seven days.
               </p>
-              <input
-                type="text"
-                readOnly
-                className="credential-dialog__input"
-                value={successUrl}
-                data-testid="users-invite-link-field"
-              />
-              <div className="users-dialog__row">
-                <button
-                  type="button"
-                  className="credential-dialog__btn credential-dialog__btn--secondary"
-                  data-testid="users-invite-copy-link"
-                  onClick={onCopy}
-                >
+              <Input type="text" readOnly value={successUrl} data-testid="users-invite-link-field" className="font-mono text-xs" />
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="secondary" data-testid="users-invite-copy-link" onClick={onCopy}>
                   {copyFeedback ? "Copied" : "Copy link"}
-                </button>
+                </Button>
               </div>
             </div>
-            <div className="credential-dialog__footer">
-              <button
-                type="button"
-                className="credential-dialog__btn credential-dialog__btn--secondary"
-                data-testid="users-invite-cancel"
-                onClick={onClose}
-              >
+            <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-4 py-3">
+              <Button type="button" variant="outline" data-testid="users-invite-cancel" onClick={onClose}>
                 Done
-              </button>
+              </Button>
             </div>
           </>
         ) : (
-          <form data-testid="users-invite-form" onSubmit={inviteFormSubmit}>
-            <div className="credential-dialog__body">
-              <label className="credential-dialog__field">
-                <span className="credential-dialog__label">Email</span>
-                <input
+          <form data-testid="users-invite-form" onSubmit={inviteFormSubmit} className="flex flex-col">
+            <div className="space-y-3 px-4 py-3 text-sm">
+              <div className="space-y-2">
+                <Label htmlFor="users-invite-email">Email</Label>
+                <Input
+                  id="users-invite-email"
                   type="email"
-                  className="credential-dialog__input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   data-testid="users-invite-email-input"
                   placeholder="colleague@company.com"
                   autoComplete="off"
                 />
-              </label>
-              {errorMessage && (
-                <div className="credential-dialog__error" data-testid="users-invite-error">
+              </div>
+              {errorMessage ? (
+                <div className="text-sm text-destructive" data-testid="users-invite-error">
                   {errorMessage}
                 </div>
-              )}
+              ) : null}
             </div>
-            <div className="credential-dialog__footer">
-              <button
-                type="button"
-                className="credential-dialog__btn credential-dialog__btn--secondary"
-                data-testid="users-invite-cancel"
-                onClick={onClose}
-              >
+            <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-4 py-3">
+              <Button type="button" variant="outline" data-testid="users-invite-cancel" onClick={onClose}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className="credential-dialog__btn credential-dialog__btn--primary"
-                data-testid="users-invite-submit"
-                disabled={isSubmitting || !email.trim().includes("@")}
-              >
+              </Button>
+              <Button type="submit" data-testid="users-invite-submit" disabled={isSubmitting || !email.trim().includes("@")}>
                 {isSubmitting ? "Sending…" : "Create invite"}
-              </button>
+              </Button>
             </div>
           </form>
         )}

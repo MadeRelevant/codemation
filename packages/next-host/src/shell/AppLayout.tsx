@@ -4,6 +4,9 @@ import Link from "next/link";
 
 import { Component, type ReactNode } from "react";
 
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
 import { AppLayoutNavItems } from "./AppLayoutNavItems";
 import { AppLayoutPageHeader } from "./AppLayoutPageHeader";
 import { AppMainContent } from "./AppMainContent";
@@ -86,32 +89,41 @@ export class AppLayout extends Component<AppLayoutProps, AppLayoutState> {
     const { sidebarWidth, sidebarCollapsed, isResizing } = this.state;
     const widthRem = sidebarCollapsed ? 3.5 : sidebarWidth;
     return (
-      <div className={`app-layout ${isResizing ? "app-layout--resizing" : ""}`}>
+      <div className={cn("flex h-screen min-h-0 overflow-hidden", isResizing && "select-none")}>
         <aside
-          className={`app-sidebar ${sidebarCollapsed ? "app-sidebar--collapsed" : ""}`}
+          className="relative flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width,min-width] duration-200 ease-in-out"
           style={{ width: `${widthRem}rem`, minWidth: `${widthRem}rem` }}
           data-testid="app-sidebar"
         >
-          <div className="app-sidebar__header">
-            <Link href="/" className="app-sidebar__brand" data-testid="sidebar-brand">
+          <div className="flex h-14 shrink-0 items-center justify-between border-b border-sidebar-border px-4">
+            <Link
+              href="/"
+              className="text-lg font-semibold text-sidebar-foreground no-underline hover:text-primary"
+              data-testid="sidebar-brand"
+            >
               {!sidebarCollapsed && <span>Codemation</span>}
             </Link>
-            <button
+            <Button
               type="button"
-              className="app-sidebar__toggle"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
               onClick={this.handleToggleCollapse}
               aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               data-testid="sidebar-toggle"
             >
               {sidebarCollapsed ? <IconChevronRight /> : <IconChevronLeft />}
-            </button>
+            </Button>
           </div>
-          <nav className="app-sidebar__nav" aria-label="Main navigation">
+          <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3" aria-label="Main navigation">
             <AppLayoutNavItems collapsed={sidebarCollapsed} />
           </nav>
           {!sidebarCollapsed && (
             <div
-              className="app-sidebar__resize-handle"
+              className={cn(
+                "absolute top-0 right-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-primary/30",
+                isResizing && "bg-primary/30",
+              )}
               onMouseDown={this.handleResizeStart}
               role="separator"
               aria-orientation="vertical"
@@ -120,7 +132,7 @@ export class AppLayout extends Component<AppLayoutProps, AppLayoutState> {
             />
           )}
         </aside>
-        <main className="app-main">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
           <AppLayoutPageHeader />
           <AppMainContent>{children}</AppMainContent>
         </main>

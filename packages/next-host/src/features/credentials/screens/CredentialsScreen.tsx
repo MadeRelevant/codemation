@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 import { CredentialConfirmDialog } from "../components/CredentialConfirmDialog";
 import { CredentialDialog } from "../components/CredentialDialog";
 import { CredentialsScreenInstancesTable } from "../components/CredentialsScreenInstancesTable";
@@ -70,27 +72,29 @@ export function CredentialsScreen() {
   } = useCredentialsScreen();
 
   return (
-    <div data-testid="credentials-screen" className="credentials-screen">
+    <div data-testid="credentials-screen" className="flex flex-col gap-6">
       {showTestFailureAlert && (
         <CredentialsScreenTestFailureAlert message={testResult?.message} onDismiss={() => setTestResult(null)} />
       )}
-      <div className="credentials-screen__header">
-        <p className="credentials-screen__description">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <p className="m-0 max-w-2xl text-sm text-muted-foreground">
           Create credential instances, store secrets safely, and verify health before binding them to workflow slots.
         </p>
-        <button
+        <Button
           type="button"
-          className="credentials-screen__add-btn"
           onClick={openCreateDialog}
           disabled={typesLoading || typesEmpty}
           data-testid="credential-add-button"
         >
           Add credential
-        </button>
+        </Button>
       </div>
 
       {credentialInstances.length === 0 ? (
-        <div className="credentials-empty" data-testid="credentials-empty">
+        <div
+          className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground"
+          data-testid="credentials-empty"
+        >
           No credential instances yet. Click &quot;Add credential&quot; to create one.
         </div>
       ) : (
@@ -116,7 +120,7 @@ export function CredentialsScreen() {
           onCancel={closeDeleteCredentialConfirm}
           onConfirm={() => void executeConfirmedDeleteCredential()}
         >
-          <p className="credential-dialog__help" style={{ margin: 0 }}>
+          <p className="m-0 text-sm text-muted-foreground">
             This will permanently remove <strong>{deleteConfirmTarget.displayName}</strong>. This cannot be undone.
           </p>
         </CredentialConfirmDialog>
@@ -134,7 +138,7 @@ export function CredentialsScreen() {
           onCancel={() => setOauthDisconnectConfirmOpen(false)}
           onConfirm={() => void executeOAuthDisconnect()}
         >
-          <p className="credential-dialog__help" style={{ margin: 0 }}>
+          <p className="m-0 text-sm text-muted-foreground">
             This will remove the OAuth connection for this credential. You can reconnect later.
           </p>
         </CredentialConfirmDialog>

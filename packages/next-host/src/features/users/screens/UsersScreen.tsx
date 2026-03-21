@@ -1,7 +1,9 @@
 "use client";
 
-import type { UserAccountDto,UserAccountStatus } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
-import { useCallback,useEffect,useState } from "react";
+import type { UserAccountDto, UserAccountStatus } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
+import { useCallback, useEffect, useState } from "react";
+
+import { Button } from "@/components/ui/button";
 import { CodemationDataTable } from "../../../components/CodemationDataTable";
 import { CodemationFormattedDateTime } from "../../../components/CodemationFormattedDateTime";
 import {
@@ -94,28 +96,31 @@ export function UsersScreen() {
   const loadError = usersQuery.isError;
 
   return (
-    <div data-testid="users-screen" className="users-screen">
-      <div className="users-screen__header">
-        <p className="users-screen__description">
+    <div data-testid="users-screen" className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <p className="m-0 max-w-2xl text-sm text-muted-foreground">
           Invite teammates with a secure link. Invites expire after seven days; you can regenerate a link for any invited account.
         </p>
-        <button type="button" className="users-screen__primary-btn" onClick={openInvite} data-testid="users-invite-open">
+        <Button type="button" onClick={openInvite} data-testid="users-invite-open">
           Invite user
-        </button>
+        </Button>
       </div>
 
       {loadError && (
-        <div className="users-screen__alert" role="alert" data-testid="users-load-error">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert" data-testid="users-load-error">
           Failed to load users.
         </div>
       )}
 
       {loading ? (
-        <div className="users-screen__loading" data-testid="users-loading">
+        <div className="text-sm text-muted-foreground" data-testid="users-loading">
           Loading…
         </div>
       ) : users.length === 0 ? (
-        <div className="users-screen__empty" data-testid="users-empty">
+        <div
+          className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground"
+          data-testid="users-empty"
+        >
           No users yet. Invite someone to get started.
         </div>
       ) : (
@@ -151,11 +156,11 @@ export function UsersScreen() {
                 />
               </td>
               <td>
-                <div className="credentials-table__actions">
+                <div className="flex flex-wrap items-center gap-2">
                   {user.status === "invited" && (
-                    <button
+                    <Button
                       type="button"
-                      className="credentials-table__btn credentials-table__btn--primary"
+                      size="sm"
                       data-testid={`user-regenerate-invite-${user.id}`}
                       onClick={() => {
                         setInviteError(null);
@@ -165,15 +170,15 @@ export function UsersScreen() {
                       disabled={regenerateMutation.isPending}
                     >
                       Regenerate link
-                    </button>
+                    </Button>
                   )}
                   {user.status !== "invited" && (
-                    <label className="users-screen__status-edit">
-                      <span className="visually-hidden" data-testid={`user-status-label-${user.id}`}>
+                    <label className="inline-flex items-center gap-2">
+                      <span className="sr-only" data-testid={`user-status-label-${user.id}`}>
                         Account status
                       </span>
                       <select
-                        className="users-screen__status-select"
+                        className="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
                         value={user.status}
                         onChange={(e) => void onStatusChange(user, e.target.value as UserAccountStatus)}
                         data-testid={`user-account-status-${user.id}`}

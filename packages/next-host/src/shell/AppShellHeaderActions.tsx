@@ -4,6 +4,8 @@ import { signOut, useSession } from "next-auth/react";
 
 import { useState, type ReactNode } from "react";
 
+import { Button } from "@/components/ui/button";
+
 export function AppShellHeaderActions(): ReactNode {
   const { data: session, status } = useSession();
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -11,7 +13,7 @@ export function AppShellHeaderActions(): ReactNode {
   if (status === "loading") {
     return (
       <div
-        className="app-shell-header-actions"
+        className="flex shrink-0 items-center gap-4"
         data-testid="header-session-loading"
         aria-busy="true"
         aria-label="Loading session"
@@ -30,19 +32,24 @@ export function AppShellHeaderActions(): ReactNode {
   };
 
   return (
-    <div className="app-shell-header-actions">
-      <span className="app-shell-header-actions__email" data-testid="header-user-email" title={email}>
+    <div className="flex shrink-0 items-center gap-4">
+      <span
+        className="max-w-56 truncate text-xs text-muted-foreground"
+        data-testid="header-user-email"
+        title={email}
+      >
         {email}
       </span>
-      <button
+      <Button
         type="button"
-        className="app-shell-header-actions__logout"
+        variant="outline"
+        size="sm"
         data-testid="header-logout"
         disabled={isSigningOut}
         onClick={handleSignOut}
       >
         {isSigningOut ? "Signing out…" : "Log out"}
-      </button>
+      </Button>
     </div>
   );
 }

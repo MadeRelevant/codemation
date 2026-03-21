@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect,type MouseEvent } from "react";
+import { useEffect, type MouseEvent } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type UsersRegenerateDialogProps = Readonly<{
   email: string;
@@ -37,70 +40,54 @@ export function UsersRegenerateDialog({
 
   return (
     <div
-      className="credential-dialog-overlay users-dialog-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={backdrop}
       role="dialog"
       aria-modal="true"
       aria-labelledby="users-regenerate-title"
       data-testid="users-regenerate-dialog"
     >
-      <div className="credential-dialog users-dialog">
-        <div className="credential-dialog__header">
-          <h2 id="users-regenerate-title" className="credential-dialog__title">
+      <div className="flex max-h-[min(90vh,640px)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-lg ring-1 ring-foreground/10">
+        <div className="border-b border-border px-4 py-3">
+          <h2 id="users-regenerate-title" className="m-0 text-base font-semibold">
             Regenerate invite link
           </h2>
         </div>
-        <div className="credential-dialog__body">
+        <div className="space-y-3 px-4 py-3 text-sm">
           {newUrl ? (
             <>
-              <p className="credential-dialog__help" data-testid="users-regenerate-success-message">
+              <p className="m-0 text-muted-foreground" data-testid="users-regenerate-success-message">
                 New link for {email}. Previous links stop working.
               </p>
-              <input type="text" readOnly className="credential-dialog__input" value={newUrl} data-testid="users-regenerate-link-field" />
-              <div className="users-dialog__row">
-                <button
-                  type="button"
-                  className="credential-dialog__btn credential-dialog__btn--secondary"
-                  data-testid="users-regenerate-copy-link"
-                  onClick={onCopy}
-                >
+              <Input type="text" readOnly value={newUrl} data-testid="users-regenerate-link-field" className="font-mono text-xs" />
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="secondary" data-testid="users-regenerate-copy-link" onClick={onCopy}>
                   {copyFeedback ? "Copied" : "Copy link"}
-                </button>
+                </Button>
               </div>
             </>
           ) : (
             <>
-              <p className="credential-dialog__help" data-testid="users-regenerate-confirm-text">
+              <p className="m-0 text-muted-foreground" data-testid="users-regenerate-confirm-text">
                 Generate a new seven-day link for <strong data-testid="users-regenerate-email">{email}</strong>? The current invite link will no longer work.
               </p>
-              {errorMessage && (
-                <div className="credential-dialog__error" data-testid="users-regenerate-error">
+              {errorMessage ? (
+                <div className="text-sm text-destructive" data-testid="users-regenerate-error">
                   {errorMessage}
                 </div>
-              )}
+              ) : null}
             </>
           )}
         </div>
-        <div className="credential-dialog__footer">
-          <button
-            type="button"
-            className="credential-dialog__btn credential-dialog__btn--secondary"
-            data-testid="users-regenerate-cancel"
-            onClick={onClose}
-          >
+        <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-4 py-3">
+          <Button type="button" variant="outline" data-testid="users-regenerate-cancel" onClick={onClose}>
             {newUrl ? "Close" : "Cancel"}
-          </button>
-          {!newUrl && (
-            <button
-              type="button"
-              className="credential-dialog__btn credential-dialog__btn--primary"
-              data-testid="users-regenerate-confirm"
-              disabled={isSubmitting}
-              onClick={onConfirm}
-            >
+          </Button>
+          {!newUrl ? (
+            <Button type="button" data-testid="users-regenerate-confirm" disabled={isSubmitting} onClick={onConfirm}>
               {isSubmitting ? "Working…" : "Regenerate"}
-            </button>
-          )}
+            </Button>
+          ) : null}
         </div>
       </div>
     </div>

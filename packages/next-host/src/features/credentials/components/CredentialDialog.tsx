@@ -3,6 +3,8 @@
 import type { CredentialFieldSchema, CredentialTypeDefinition } from "@codemation/core/browser";
 import { useEffect } from "react";
 import type { Dispatch, MouseEvent as ReactMouseEvent, SetStateAction } from "react";
+
+import { Button } from "@/components/ui/button";
 import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";
 import type { FormSourceKind } from "../lib/credentialFormTypes";
 import { CredentialDialogFeedback } from "./CredentialDialogFeedback";
@@ -143,20 +145,20 @@ export function CredentialDialog({
 
   return (
     <div
-      className="credential-dialog-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby="credential-dialog-title"
       data-testid="credential-dialog"
     >
-      <div className="credential-dialog">
-        <div className="credential-dialog__header">
-          <h2 id="credential-dialog-title" className="credential-dialog__title">
+      <div className="flex max-h-[min(92vh,900px)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-lg ring-1 ring-foreground/10">
+        <div className="border-b border-border px-4 py-3">
+          <h2 id="credential-dialog-title" className="m-0 text-base font-semibold">
             {isEdit ? "Edit credential" : "Add credential"}
           </h2>
         </div>
-        <div className="credential-dialog__body">
+        <div className="min-h-0 flex-1 overflow-auto px-4 py-3 text-sm">
           <CredentialDialogFormSections
             credentialTypes={credentialTypes}
             typesLoading={typesLoading}
@@ -196,28 +198,27 @@ export function CredentialDialog({
           />
           <CredentialDialogFeedback errorMessage={errorMessage} dialogTestResult={dialogTestResult} />
         </div>
-        <div className="credential-dialog__footer">
-          <button type="button" className="credential-dialog__btn credential-dialog__btn--secondary" onClick={onClose}>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border bg-muted/30 px-4 py-3">
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="credential-dialog__btn credential-dialog__btn--secondary"
+            variant="secondary"
             data-testid="credential-test-button"
             disabled={!canTest}
             onClick={() => void onTest()}
           >
             {isDialogTesting ? "Testing…" : "Test"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="credential-dialog__btn credential-dialog__btn--primary"
             data-testid={isEdit ? "credential-save-button" : "credential-create-button"}
             disabled={!canSubmit}
             onClick={handleSubmit}
           >
             {isSubmitting ? (isEdit ? "Saving…" : "Creating…") : isEdit ? "Save" : "Create"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -14,9 +14,9 @@ export function AppLayoutPageHeader(): ReactNode {
   const workflows = workflowsQuery.data ?? [];
   const title = getPageTitle(pathname, workflows);
   return (
-    <header className="app-main__header">
-      <div className="app-main__header-lead">
-        <h1 className="app-main__title">{title}</h1>
+    <header className="flex h-14 shrink-0 items-center justify-between gap-6 border-b border-border bg-card px-8">
+      <div className="min-w-0 flex-1">
+        <h1 className="m-0 truncate text-xl font-semibold leading-none text-foreground">{title}</h1>
       </div>
       <AppShellHeaderActions />
     </header>

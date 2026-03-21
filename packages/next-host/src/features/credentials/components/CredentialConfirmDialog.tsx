@@ -3,6 +3,8 @@
 import { useEffect, type ReactNode } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 
+import { Button } from "@/components/ui/button";
+
 export type CredentialConfirmVariant = "danger" | "primary";
 
 export type CredentialConfirmDialogProps = {
@@ -42,39 +44,34 @@ export function CredentialConfirmDialog({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [onCancel]);
 
-  const confirmClass =
-    confirmVariant === "danger"
-      ? "credential-dialog__btn credential-dialog__btn--danger"
-      : "credential-dialog__btn credential-dialog__btn--primary";
-
   return (
     <div
-      className="credential-dialog-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={handleBackdropClick}
       role="alertdialog"
       aria-modal="true"
       aria-labelledby={titleElementId}
       data-testid={testId}
     >
-      <div className="credential-dialog">
-        <div className="credential-dialog__header">
-          <h2 id={titleElementId} className="credential-dialog__title">
+      <div className="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-lg ring-1 ring-foreground/10">
+        <div className="border-b border-border px-4 py-3">
+          <h2 id={titleElementId} className="m-0 text-base font-semibold">
             {title}
           </h2>
         </div>
-        <div className="credential-dialog__body">{children}</div>
-        <div className="credential-dialog__footer">
-          <button
-            type="button"
-            className="credential-dialog__btn credential-dialog__btn--secondary"
-            data-testid={cancelTestId}
-            onClick={onCancel}
-          >
+        <div className="max-h-[min(70vh,480px)] overflow-auto px-4 py-3 text-sm">{children}</div>
+        <div className="flex justify-end gap-2 border-t border-border bg-muted/30 px-4 py-3">
+          <Button type="button" variant="outline" data-testid={cancelTestId} onClick={onCancel}>
             Cancel
-          </button>
-          <button type="button" className={confirmClass} data-testid={confirmTestId} onClick={onConfirm}>
+          </Button>
+          <Button
+            type="button"
+            variant={confirmVariant === "danger" ? "destructive" : "default"}
+            data-testid={confirmTestId}
+            onClick={onConfirm}
+          >
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

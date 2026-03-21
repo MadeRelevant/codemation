@@ -2,7 +2,13 @@
 
 import type { VerifyUserInviteResponseDto } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
-import { useEffect,useState,type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 import { codemationApiClient } from "../../../api/CodemationApiClient";
 import { CodemationApiHttpError } from "../../../api/CodemationApiHttpError";
 import { PasswordStrengthMeter } from "../../../components/PasswordStrengthMeter";
@@ -76,98 +82,109 @@ export function InviteAcceptScreen(props: InviteAcceptScreenProps) {
     void submit();
   };
 
+  const shell = (children: ReactNode) => (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center p-4">{children}</div>
+  );
+
   if (verifyState === "pending") {
-    return (
-      <div className="invite-accept-screen" data-testid="invite-accept-loading">
-        <p data-testid="invite-accept-loading-message">Checking your invite…</p>
-      </div>
+    return shell(
+      <Card className="w-full max-w-md" data-testid="invite-accept-loading">
+        <CardContent className="pt-6">
+          <p className="text-center text-muted-foreground" data-testid="invite-accept-loading-message">
+            Checking your invite…
+          </p>
+        </CardContent>
+      </Card>,
     );
   }
 
   if (verifyState === "invalid") {
-    return (
-      <div className="invite-accept-screen" data-testid="invite-accept-invalid">
-        <h1 className="invite-accept-screen__title" data-testid="invite-accept-invalid-title">
-          Invite invalid or expired
-        </h1>
-        <p className="invite-accept-screen__help" data-testid="invite-accept-invalid-message">
-          Ask your administrator to send a new invite.
-        </p>
-        <a className="invite-accept-screen__secondary-link" href={loginHref} data-testid="invite-accept-back-to-login">
-          Log in
-        </a>
-      </div>
+    return shell(
+      <Card className="w-full max-w-md" data-testid="invite-accept-invalid">
+        <CardHeader>
+          <CardTitle data-testid="invite-accept-invalid-title">Invite invalid or expired</CardTitle>
+          <CardDescription data-testid="invite-accept-invalid-message">
+            Ask your administrator to send a new invite.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Button variant="outline" asChild>
+            <a href={loginHref} data-testid="invite-accept-back-to-login">
+              Log in
+            </a>
+          </Button>
+        </CardFooter>
+      </Card>,
     );
   }
 
   if (done) {
-    return (
-      <div className="invite-accept-screen" data-testid="invite-accept-done">
-        <h1 className="invite-accept-screen__title" data-testid="invite-accept-done-title">
-          You&apos;re all set
-        </h1>
-        <p className="invite-accept-screen__help" data-testid="invite-accept-done-message">
-          Your account is active. Sign in with your email and new password.
-        </p>
-        <a className="invite-accept-screen__submit" href={loginHref} data-testid="invite-accept-login">
-          Log in
-        </a>
-      </div>
+    return shell(
+      <Card className="w-full max-w-md" data-testid="invite-accept-done">
+        <CardHeader>
+          <CardTitle data-testid="invite-accept-done-title">You&apos;re all set</CardTitle>
+          <CardDescription data-testid="invite-accept-done-message">
+            Your account is active. Sign in with your email and new password.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Button asChild>
+            <a href={loginHref} data-testid="invite-accept-login">
+              Log in
+            </a>
+          </Button>
+        </CardFooter>
+      </Card>,
     );
   }
 
-  return (
-    <div className="invite-accept-screen" data-testid="invite-accept-form">
-      <h1 className="invite-accept-screen__title" data-testid="invite-accept-form-title">
-        Set your password
-      </h1>
-      <p className="invite-accept-screen__help" data-testid="invite-accept-email">
-        {email}
-      </p>
-      <form data-testid="invite-accept-password-form" onSubmit={onFormSubmit}>
-        <label className="invite-accept-screen__field">
-          <span className="invite-accept-screen__label">Password</span>
-          <input
-            type="password"
-            className="invite-accept-screen__input"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setError(null);
-            }}
-            data-testid="invite-accept-password"
-            autoComplete="new-password"
-          />
-          <PasswordStrengthMeter password={password} dataTestId="invite-accept-password-strength" />
-        </label>
-        <label className="invite-accept-screen__field">
-          <span className="invite-accept-screen__label">Confirm password</span>
-          <input
-            type="password"
-            className="invite-accept-screen__input"
-            value={confirmPassword}
-            onChange={(e) => {
-              setConfirmPassword(e.target.value);
-              setError(null);
-            }}
-            data-testid="invite-accept-confirm-password"
-            autoComplete="new-password"
-          />
-        </label>
-        {error && (
-          <div className="invite-accept-screen__error" data-testid="invite-accept-error" role="alert">
-            {error}
+  return shell(
+    <Card className="w-full max-w-lg" data-testid="invite-accept-form">
+      <CardHeader>
+        <CardTitle data-testid="invite-accept-form-title">Set your password</CardTitle>
+        <CardDescription data-testid="invite-accept-email">{email}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form className="flex flex-col gap-4" data-testid="invite-accept-password-form" onSubmit={onFormSubmit}>
+          <div className="space-y-2">
+            <Label htmlFor="invite-password">Password</Label>
+            <Input
+              id="invite-password"
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(null);
+              }}
+              data-testid="invite-accept-password"
+              autoComplete="new-password"
+            />
+            <PasswordStrengthMeter password={password} dataTestId="invite-accept-password-strength" />
           </div>
-        )}
-        <button
-          type="submit"
-          className="invite-accept-screen__submit"
-          data-testid="invite-accept-submit"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Saving…" : "Activate account"}
-        </button>
-      </form>
-    </div>
+          <div className="space-y-2">
+            <Label htmlFor="invite-confirm">Confirm password</Label>
+            <Input
+              id="invite-confirm"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setError(null);
+              }}
+              data-testid="invite-accept-confirm-password"
+              autoComplete="new-password"
+            />
+          </div>
+          {error ? (
+            <p className="text-sm text-destructive" data-testid="invite-accept-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <Button type="submit" className="w-full" data-testid="invite-accept-submit" disabled={isSubmitting}>
+            {isSubmitting ? "Saving…" : "Activate account"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>,
   );
 }
