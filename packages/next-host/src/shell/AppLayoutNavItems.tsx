@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { IconCredentials, IconDashboard, IconUsers, IconWorkflow } from "./appLayoutSidebarIcons";
-import { useWorkflowsQuery } from "../features/workflows/realtime/realtime";
+import { useWorkflowsQuery } from "../features/workflows/hooks/realtime/realtime";
 
 export interface AppLayoutNavItemsProps {
   readonly collapsed: boolean;

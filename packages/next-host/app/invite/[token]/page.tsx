@@ -1,4 +1,4 @@
-import { InviteAcceptScreen } from "../../../src/features/invite/InviteAcceptScreen";
+import { InviteAcceptScreen } from "../../../src/features/invite/screens/InviteAcceptScreen";
 
 export default async function InviteTokenPage(args: Readonly<{ params: Promise<{ token: string }> }>) {
   const params = await args.params;

@@ -11,10 +11,10 @@ Replace ad-hoc global CSS with **Tailwind CSS v4**, **design tokens** (CSS varia
 | **`app/globals.css`** | ~1.5k lines after bootstrap: Tailwind imports + shadcn theme + **legacy** BEM-style rules (to delete incrementally). |
 | **`app/`** | `layout.tsx`, `(shell)/layout.tsx`, `login/layout.tsx`, route `page.tsx` files — shell chrome and page wrappers. |
 | **`src/shell/`** | App layout, sidebar, header, login client — high-value for first Tailwind passes. |
-| **`src/features/credentials/`** | Tables, dialogs, forms — migrate to `Button`, `Input`, `Dialog`, etc. |
-| **`src/features/users/`**, **`invite/`** | Same. |
-| **`src/features/workflows/`** | Largest surface: list, detail, **canvas** (XYFlow), inspector, realtime — many **inline `style={{}}`** (~200+ in package). |
-| **CSS-in-TS** | `workflowCanvasEmbeddedStyles.ts`, `workflowDetailTreeStyles.ts` — keep minimal (keyframes, third-party overrides); rest → utilities/tokens. |
+| **`src/features/credentials/`** (`screens/`, `components/`, `hooks/`, `lib/`) | Tables, dialogs, forms — migrate to `Button`, `Input`, `Dialog`, etc. |
+| **`src/features/users/`**, **`invite/`** | Same layout (`screens/` + `components/` where needed). |
+| **`src/features/workflows/`** | Largest surface: `screens/`, `components/{workflowDetail,canvas,realtime}/`, `hooks/`, `lib/{workflowDetail,realtime}/` — canvas helpers live under **`components/canvas/lib/`** (layout, edge resolvers, embedded styles). Many **inline `style={{}}`** (~200+ in package). |
+| **CSS-in-TS** | `components/canvas/lib/workflowCanvasEmbeddedStyles.ts`, `lib/workflowDetailTreeStyles.ts` — keep minimal (keyframes, third-party overrides); rest → utilities/tokens. |
 | **Vendor CSS** | `@xyflow/react/dist/style.css`, `rc-tree/assets/index.css` — keep; override with scoped classes or tokens. |
 | **`src/components/`** | Shared widgets (`CodemationDataTable`, etc.) — adopt primitives + `cn()`. |
 

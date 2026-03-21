@@ -1,5 +1,5 @@
 import type { CredentialTypeDefinition } from "@codemation/core/browser";
-import { CredentialsScreen } from "@codemation/next-host/src/features/credentials/CredentialsScreen";
+import { CredentialsScreen } from "@codemation/next-host/src/features/credentials/screens/CredentialsScreen";
 import { QueryClient,QueryClientProvider } from "@tanstack/react-query";
 import { cleanup,fireEvent,render,screen,waitFor } from "@testing-library/react";
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";

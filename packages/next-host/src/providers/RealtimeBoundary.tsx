@@ -2,7 +2,7 @@ import type { Logger } from "@codemation/host-src/application/logging/Logger";
 
 import type { ReactNode } from "react";
 
-import { WorkflowRealtimeProvider } from "../features/workflows/realtime/realtime";
+import { WorkflowRealtimeProvider } from "../features/workflows/hooks/realtime/realtime";
 
 export function RealtimeBoundary(args: Readonly<{ children: ReactNode; logger: Logger; websocketPort?: string }>) {
   const { children, logger, websocketPort } = args;

@@ -4,7 +4,7 @@ PersistedRunState,
 RunSummary,
 WorkflowDebuggerOverlayState,
 WorkflowDto,
-} from "@codemation/next-host/src/features/workflows/realtime/realtime";
+} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
 import { expect } from "vitest";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
 import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";

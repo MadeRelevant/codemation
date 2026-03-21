@@ -1,4 +1,4 @@
-import type { WorkflowEvent } from "@codemation/next-host/src/features/workflows/realtime/realtime";
+import type { WorkflowEvent } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
 import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
 
 export type WorkflowDetailRealtimeServerMessage =

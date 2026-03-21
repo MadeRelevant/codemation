@@ -1,5 +1,5 @@
 import { PersistedWorkflowSnapshotFactory,PersistedWorkflowTokenRegistry,chatModel,tool,type ChatModelConfig,type ToolConfig } from "@codemation/core";
-import { PersistedWorkflowSnapshotMapper } from "@codemation/next-host/src/features/workflows/workflowDetail/PersistedWorkflowSnapshotMapper";
+import { PersistedWorkflowSnapshotMapper } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/PersistedWorkflowSnapshotMapper";
 import { describe,expect,it } from "vitest";
 import { WorkflowDefinitionMapper } from "../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit";
