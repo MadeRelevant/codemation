@@ -219,16 +219,17 @@ describe("workflow detail real integration", () => {
       kit!.expectCallCount("POST /api/runs", 2);
     });
 
-    expect(kit.latestRequestBody<Readonly<{ workflowId: string; currentState?: unknown; synthesizeTriggerItems?: boolean }>>("POST /api/runs")).toEqual({
+    expect(kit.latestRequestBody<Readonly<{ workflowId: string; currentState?: unknown; synthesizeTriggerItems?: boolean; mode?: string }>>("POST /api/runs")).toEqual({
       workflowId: fixture.workflowId,
       synthesizeTriggerItems: true,
-      currentState: expect.objectContaining({
-        nodeSnapshotsByNodeId: expect.objectContaining({
-          Node2: expect.objectContaining({
-            status: "completed",
-          }),
-        }),
-      }),
+      mode: "manual",
+      currentState: {
+        outputsByNode: {},
+        nodeSnapshotsByNodeId: {},
+        mutableState: {
+          nodesById: {},
+        },
+      },
     });
     expect(screen.getByTestId("workflow-canvas-tab-live")).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByTestId("workflow-runs-sidebar")).not.toBeInTheDocument();

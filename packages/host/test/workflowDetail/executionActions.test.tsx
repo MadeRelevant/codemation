@@ -36,6 +36,7 @@ describe("workflow detail execution actions", () => {
       workflowId: WorkflowDetailFixtureFactory.workflowId,
       synthesizeTriggerItems: true,
       currentState: expect.any(Object),
+      mode: "manual",
     });
   });
 

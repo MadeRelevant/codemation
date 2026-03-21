@@ -65,31 +65,18 @@ export class RunQueuePlanner {
   }
 
   nextActivation(queue: RunQueueEntry[]): PlannedActivation | null {
-    // Prefer ready collect jobs.
-    for (let i = 0; i < queue.length; i++) {
-      const q = queue[i]!;
-      if (!q.collect) continue;
-
-      const batchId = q.batchId ?? "batch_1";
-      const expected = q.collect.expectedInputs ?? [];
-      const received = q.collect.received as Record<InputPortKey, Items>;
-
-      let done = true;
-      for (const k of expected) {
-        if (!(k in received)) {
-          done = false;
-          break;
-        }
-      }
-      if (!done) continue;
-
-      queue.splice(i, 1);
-      return { kind: "multi", nodeId: q.nodeId, inputsByPort: received, batchId };
+    const readyCollect = this.resolveReadyCollect(queue);
+    if (readyCollect) {
+      return readyCollect;
     }
 
     const jobIdx = queue.findIndex((q) => !q.collect);
     if (jobIdx === -1) {
       if (queue.length === 0) return null;
+      const sealedCollect = this.resolveSealedCollect(queue);
+      if (sealedCollect) {
+        return sealedCollect;
+      }
       const stuck = queue[0]!;
       throw new Error(this.diagnostics.describeUnsatisfiedCollect(stuck));
     }
@@ -104,6 +91,64 @@ export class RunQueuePlanner {
     let n = 0;
     for (const v of Object.values(inputsByPort)) n += v?.length ?? 0;
     return n;
+  }
+
+  private resolveReadyCollect(queue: RunQueueEntry[]): PlannedActivation | null {
+    for (let i = 0; i < queue.length; i++) {
+      const ready = this.tryDequeueCollect(queue, i);
+      if (ready) {
+        return ready;
+      }
+    }
+    return null;
+  }
+
+  private resolveSealedCollect(queue: RunQueueEntry[]): PlannedActivation | null {
+    for (let i = 0; i < queue.length; i++) {
+      const queueEntry = queue[i]!;
+      if (!queueEntry.collect) {
+        continue;
+      }
+      const received = queueEntry.collect.received as Record<InputPortKey, Items>;
+      if (Object.keys(received).length === 0) {
+        continue;
+      }
+      this.fillMissingCollectInputs(queueEntry);
+      const ready = this.tryDequeueCollect(queue, i);
+      if (ready) {
+        return ready;
+      }
+    }
+    return null;
+  }
+
+  private tryDequeueCollect(queue: RunQueueEntry[], index: number): PlannedActivation | null {
+    const queueEntry = queue[index]!;
+    if (!queueEntry.collect) {
+      return null;
+    }
+    const batchId = queueEntry.batchId ?? "batch_1";
+    const expected = queueEntry.collect.expectedInputs ?? [];
+    const received = queueEntry.collect.received as Record<InputPortKey, Items>;
+    for (const input of expected) {
+      if (!(input in received)) {
+        return null;
+      }
+    }
+    queue.splice(index, 1);
+    return { kind: "multi", nodeId: queueEntry.nodeId, inputsByPort: received, batchId };
+  }
+
+  private fillMissingCollectInputs(queueEntry: RunQueueEntry): void {
+    if (!queueEntry.collect) {
+      return;
+    }
+    const received = queueEntry.collect.received as Record<InputPortKey, Items>;
+    for (const input of queueEntry.collect.expectedInputs ?? []) {
+      if (!(input in received)) {
+        received[input] = [];
+      }
+    }
   }
 
   private enqueueEdge(

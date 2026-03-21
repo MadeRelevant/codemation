@@ -452,6 +452,16 @@ export class WorkflowDetailPresenter {
     };
   }
 
+  static createLiveRunCurrentState(
+    request: RunWorkflowRequest,
+    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState"> | undefined,
+  ): RunCurrentState {
+    if (this.shouldStartWorkflowFromCleanState(request)) {
+      return this.createCleanRunCurrentState(currentState);
+    }
+    return this.cloneRunCurrentState(currentState);
+  }
+
   static toEditableJson(items: Items | undefined): string {
     const value = this.toJsonValue(items);
     return JSON.stringify(value ?? {}, null, 2);
@@ -631,5 +641,43 @@ export class WorkflowDetailPresenter {
       ...node,
       id: snapshot.nodeId,
     };
+  }
+
+  private static shouldStartWorkflowFromCleanState(request: RunWorkflowRequest): boolean {
+    return !request.startAt && !request.stopAt && !request.clearFromNodeId && !request.sourceRunId;
+  }
+
+  private static createCleanRunCurrentState(
+    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState"> | undefined,
+  ): RunCurrentState {
+    return {
+      outputsByNode: {},
+      nodeSnapshotsByNodeId: {},
+      mutableState: this.cloneMutableState(currentState?.mutableState),
+    };
+  }
+
+  private static cloneRunCurrentState(
+    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState"> | undefined,
+  ): RunCurrentState {
+    return {
+      outputsByNode: JSON.parse(JSON.stringify(currentState?.outputsByNode ?? {})) as RunCurrentState["outputsByNode"],
+      nodeSnapshotsByNodeId: JSON.parse(
+        JSON.stringify(currentState?.nodeSnapshotsByNodeId ?? {}),
+      ) as RunCurrentState["nodeSnapshotsByNodeId"],
+      mutableState: this.cloneMutableState(currentState?.mutableState),
+    };
+  }
+
+  private static cloneMutableState(
+    mutableState: RunCurrentState["mutableState"] | undefined,
+  ): NonNullable<RunCurrentState["mutableState"]> {
+    return JSON.parse(
+      JSON.stringify(
+        mutableState ?? {
+          nodesById: {},
+        },
+      ),
+    ) as NonNullable<RunCurrentState["mutableState"]>;
   }
 }

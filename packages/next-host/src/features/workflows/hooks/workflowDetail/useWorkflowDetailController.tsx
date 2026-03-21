@@ -468,9 +468,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       const nextRequest: RunWorkflowRequest = options.keepLiveWorkflow
         ? {
             ...request,
-            currentState: currentExecutionState
-              ? (JSON.parse(JSON.stringify(currentExecutionState)) as NonNullable<RunWorkflowRequest["currentState"]>)
-              : undefined,
+            currentState: WorkflowDetailPresenter.createLiveRunCurrentState(request, currentExecutionState),
           }
         : request;
       setPendingTriggerFetchSnapshot(
@@ -496,7 +494,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   );
 
   const onRun = useCallback(() => {
-    runExecution({}, { keepLiveWorkflow: true });
+    runExecution({ mode: "manual" }, { keepLiveWorkflow: true });
   }, [runExecution]);
 
   const replaceDebuggerOverlay = useCallback(
