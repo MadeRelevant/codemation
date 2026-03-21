@@ -1,6 +1,6 @@
-import { Providers } from "@codemation/next-host/src/ui/providers/Providers";
-import type { PersistedRunState,WorkflowDto } from "@codemation/next-host/src/ui/realtime/realtime";
-import { WorkflowDetailScreen } from "@codemation/next-host/src/ui/screens/WorkflowDetailScreen";
+import { Providers } from "@codemation/next-host/src/providers/Providers";
+import type { PersistedRunState,WorkflowDto } from "@codemation/next-host/src/features/workflows/realtime/realtime";
+import { WorkflowDetailScreen } from "@codemation/next-host/src/features/workflows/WorkflowDetailScreen";
 import { createRootRoute,createRoute,createRouter,Outlet,RouterProvider } from "@tanstack/react-router";
 import { act,cleanup,fireEvent,render,screen,waitFor,type RenderResult } from "@testing-library/react";
 import { StrictMode,type ReactElement } from "react";

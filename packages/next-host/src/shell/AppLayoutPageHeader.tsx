@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 
 import { getPageTitle } from "./appLayoutPageTitle";
 import { AppShellHeaderActions } from "./AppShellHeaderActions";
-import { useWorkflowsQuery } from "./realtime/realtime";
+import { useWorkflowsQuery } from "../features/workflows/realtime/realtime";
 
 export function AppLayoutPageHeader(): ReactNode {
   const pathname = usePathname();

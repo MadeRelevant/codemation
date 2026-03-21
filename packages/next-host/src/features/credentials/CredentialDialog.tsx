@@ -3,7 +3,7 @@
 import type { CredentialFieldSchema, CredentialTypeDefinition } from "@codemation/core/browser";
 import { useEffect } from "react";
 import type { Dispatch, MouseEvent as ReactMouseEvent, SetStateAction } from "react";
-import type { CredentialInstanceDto } from "../realtime/realtime";
+import type { CredentialInstanceDto } from "../workflows/realtime/realtime";
 import type { FormSourceKind } from "./credentialFormTypes";
 import { CredentialDialogFeedback } from "./CredentialDialogFeedback";
 import { CredentialDialogFieldRows } from "./CredentialDialogFieldRows";

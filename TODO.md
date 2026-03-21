@@ -18,7 +18,7 @@
 * [ ] Fix datetime formatting, use battle tested library instead
 * [ ] Allow binary uploads to webhook nodes
 * [ ] (LLM) Observability
-* [ ] Rehome packages/host/ui -> packages/next-host
+* [x] Rehome packages/host/ui -> packages/next-host (UI lives under `packages/next-host/src/features`, `src/components`, `src/shell`, `src/providers`)
 * [x] Add signature token to sign credential values
 * [ ] Split up UI components into smaller components
 * [ ] Setup dashboard

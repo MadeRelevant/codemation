@@ -1,9 +1,11 @@
-import { WorkflowCanvas } from "../components/WorkflowCanvas";
-import type { WorkflowDto } from "../realtime/realtime";
-import { NodePropertiesSlidePanel } from "../workflowDetail/NodePropertiesSlidePanel";
-import { useWorkflowDetailController } from "../workflowDetail/useWorkflowDetailController";
-import { WorkflowJsonEditorDialog } from "../workflowDetail/WorkflowJsonEditorDialog";
-import { WorkflowRunsSidebar } from "../workflowDetail/WorkflowRunsSidebar";
+"use client";
+
+import { WorkflowCanvas } from "./canvas/WorkflowCanvas";
+import type { WorkflowDto } from "./realtime/realtime";
+import { NodePropertiesSlidePanel } from "./workflowDetail/NodePropertiesSlidePanel";
+import { useWorkflowDetailController } from "./workflowDetail/useWorkflowDetailController";
+import { WorkflowJsonEditorDialog } from "./workflowDetail/WorkflowJsonEditorDialog";
+import { WorkflowRunsSidebar } from "./workflowDetail/WorkflowRunsSidebar";
 import { WORKFLOW_DETAIL_TREE_STYLES } from "./workflowDetailTreeStyles";
 import { WorkflowDetailScreenInspectorPanel } from "./WorkflowDetailScreenInspectorPanel";
 

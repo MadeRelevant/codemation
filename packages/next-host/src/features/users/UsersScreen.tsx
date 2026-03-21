@@ -2,14 +2,14 @@
 
 import type { UserAccountDto,UserAccountStatus } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
 import { useCallback,useEffect,useState } from "react";
-import { CodemationDataTable } from "../components/CodemationDataTable";
-import { CodemationFormattedDateTime } from "../components/CodemationFormattedDateTime";
+import { CodemationDataTable } from "../../components/CodemationDataTable";
+import { CodemationFormattedDateTime } from "../../components/CodemationFormattedDateTime";
 import {
 useInviteUserMutation,
 useRegenerateUserInviteMutation,
 useUpdateUserAccountStatusMutation,
 useUserAccountsQuery,
-} from "../realtime/realtime";
+} from "../workflows/realtime/realtime";
 import { UsersInviteDialog } from "./UsersInviteDialog";
 import { UsersRegenerateDialog } from "./UsersRegenerateDialog";
 import { UsersScreenUserStatusBadge } from "./UsersScreenUserStatusBadge";

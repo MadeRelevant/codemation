@@ -3,7 +3,7 @@
 import type { VerifyUserInviteResponseDto } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useEffect,useState,type FormEvent } from "react";
-import { PasswordStrengthMeter } from "../components/PasswordStrengthMeter";
+import { PasswordStrengthMeter } from "../../components/PasswordStrengthMeter";
 
 export type InviteAcceptScreenProps = Readonly<{
   inviteToken: string;

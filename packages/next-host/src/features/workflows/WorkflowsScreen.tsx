@@ -1,6 +1,8 @@
-import type { WorkflowSummary } from "../realtime/realtime";
+"use client";
 
-import { useWorkflowsQueryWithInitialData } from "../realtime/realtime";
+import type { WorkflowSummary } from "./realtime/realtime";
+
+import { useWorkflowsQueryWithInitialData } from "./realtime/realtime";
 
 import { WorkflowsList } from "./WorkflowsList";
 

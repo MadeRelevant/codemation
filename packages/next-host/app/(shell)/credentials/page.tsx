@@ -1,5 +1,5 @@
-import { HostedCredentialsPage } from "../../../src/ui/HostedCredentialsPage";
+import { CredentialsScreen } from "../../../src/features/credentials/CredentialsScreen";
 
 export default function CredentialsPage() {
-  return <HostedCredentialsPage />;
+  return <CredentialsScreen />;
 }

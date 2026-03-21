@@ -1,4 +1,4 @@
-import { InviteAcceptScreen } from "@codemation/next-host/src/ui/screens/InviteAcceptScreen";
+import { InviteAcceptScreen } from "@codemation/next-host/src/features/invite/InviteAcceptScreen";
 import { cleanup,fireEvent,render,screen,waitFor } from "@testing-library/react";
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 import { ApiPaths } from "../src/presentation/http/ApiPaths";

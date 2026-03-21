@@ -123,7 +123,10 @@ export class CodemationNextHost {
   }
 
   /**
-   * Handles all `/api/**` traffic. Next.js forwards the incoming Request; Hono does not listen on a port.
+   * Entry point for all `/api/**` traffic: the App Router handler forwards the {@link Request} here.
+   * The UI talks to the backend only through this HTTP surface (Hono → CQRS → DTOs), not Server Actions.
+   * {@link resolveNextApiApp} memoizes the Hono app per consumer build; {@link resetNextApiApp} drops
+   * that memo when the runtime is invalidated or swapped (e.g. after a consumer rebuild).
    */
   async fetchApi(request: Request): Promise<Response> {
     const context = await this.prepare();
@@ -142,6 +145,7 @@ export class CodemationNextHost {
     return coreApp;
   }
 
+  /** Clears the cached Hono app so the next {@link fetchApi} attaches to the new container after a swap. */
   private resetNextApiApp(): void {
     this.nextApiApp = null;
     this.nextApiAppBuildVersion = null;

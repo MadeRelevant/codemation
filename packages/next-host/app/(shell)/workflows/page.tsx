@@ -1,5 +1,5 @@
-import { HostedWorkflowsPage } from "../../../src/ui/HostedWorkflowsPage";
+import { WorkflowsScreen } from "../../../src/features/workflows/WorkflowsScreen";
 
 export default function WorkflowsPage() {
-  return <HostedWorkflowsPage />;
+  return <WorkflowsScreen />;
 }

@@ -1,4 +1,4 @@
-import type { PersistedRunState,WorkflowDto } from "@codemation/next-host/src/ui/realtime/realtime";
+import type { PersistedRunState,WorkflowDto } from "@codemation/next-host/src/features/workflows/realtime/realtime";
 import { fireEvent,screen,waitFor } from "@testing-library/react";
 import { afterEach,describe,expect,it } from "vitest";
 import { WorkflowDetailFixtureFactory,WorkflowDetailScreenTestKit } from "./testkit";

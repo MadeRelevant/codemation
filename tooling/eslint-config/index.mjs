@@ -482,5 +482,20 @@ export default [
       "codemation/no-static-methods": "off",
     },
   },
+
+  // next-host: UI uses the HTTP API only (App Router → /api → Hono/CQRS), not Server Actions.
+  {
+    files: ["packages/next-host/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ExpressionStatement[expression.type='Literal'][expression.value='use server']",
+          message:
+            'Use the HTTP API (/api/*) and @codemation/host handlers only; do not add Server Actions ("use server").',
+        },
+      ],
+    },
+  },
 ];
 

@@ -1,5 +1,5 @@
-import { HostedUsersPage } from "../../../src/ui/HostedUsersPage";
+import { UsersScreen } from "../../../src/features/users/UsersScreen";
 
 export default function UsersPage() {
-  return <HostedUsersPage />;
+  return <UsersScreen />;
 }

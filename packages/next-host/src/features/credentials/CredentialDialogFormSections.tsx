@@ -2,7 +2,7 @@
 
 import type { CredentialTypeDefinition } from "@codemation/core/browser";
 import type { Dispatch, SetStateAction } from "react";
-import type { CredentialInstanceDto } from "../realtime/realtime";
+import type { CredentialInstanceDto } from "../workflows/realtime/realtime";
 import type { FormSourceKind } from "./credentialFormTypes";
 
 export type CredentialDialogFormSectionsProps = {

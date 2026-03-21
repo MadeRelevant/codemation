@@ -1,5 +1,5 @@
-import { WorkflowDetailPresenter } from "@codemation/next-host/src/ui/workflowDetail/WorkflowDetailPresenter";
-import { WorkflowInspectorErrorView,WorkflowInspectorJsonView,WorkflowInspectorPrettyView } from "@codemation/next-host/src/ui/workflowDetail/WorkflowInspectorViews";
+import { WorkflowDetailPresenter } from "@codemation/next-host/src/features/workflows/workflowDetail/WorkflowDetailPresenter";
+import { WorkflowInspectorErrorView,WorkflowInspectorJsonView,WorkflowInspectorPrettyView } from "@codemation/next-host/src/features/workflows/workflowDetail/WorkflowInspectorViews";
 import { cleanup,fireEvent,render,screen } from "@testing-library/react";
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
 

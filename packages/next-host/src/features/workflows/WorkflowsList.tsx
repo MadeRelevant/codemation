@@ -1,4 +1,4 @@
-import type { WorkflowSummary } from "../realtime/realtime";
+import type { WorkflowSummary } from "./realtime/realtime";
 
 export function WorkflowsList(args: Readonly<{ workflows: ReadonlyArray<WorkflowSummary> | undefined; error: string | null }>) {
   const { workflows, error } = args;

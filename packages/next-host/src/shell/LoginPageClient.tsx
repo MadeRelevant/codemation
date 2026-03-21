@@ -2,7 +2,7 @@
 
 import { getProviders,signIn } from "next-auth/react";
 import { Component,type FormEvent,type ReactNode } from "react";
-import { OauthProviderIcon } from "./OauthProviderIcon";
+import { OauthProviderIcon } from "../components/OauthProviderIcon";
 
 type LoginPageClientProps = Readonly<{
   callbackUrl: string;

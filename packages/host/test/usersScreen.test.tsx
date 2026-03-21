@@ -1,4 +1,4 @@
-import { UsersScreen } from "@codemation/next-host/src/ui/screens/UsersScreen";
+import { UsersScreen } from "@codemation/next-host/src/features/users/UsersScreen";
 import { QueryClient,QueryClientProvider } from "@tanstack/react-query";
 import { cleanup,fireEvent,render,screen,waitFor } from "@testing-library/react";
 import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";

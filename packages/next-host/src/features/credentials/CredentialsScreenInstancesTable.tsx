@@ -1,7 +1,7 @@
 "use client";
 
-import { CodemationDataTable } from "../components/CodemationDataTable";
-import type { CredentialInstanceDto } from "../realtime/realtime";
+import { CodemationDataTable } from "../../components/CodemationDataTable";
+import type { CredentialInstanceDto } from "../workflows/realtime/realtime";
 import { CredentialsScreenHealthBadge } from "./CredentialsScreenHealthBadge";
 
 export type CredentialsScreenInstancesTableProps = {

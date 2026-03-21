@@ -3,8 +3,8 @@ import { League_Spartan } from "next/font/google";
 import "rc-tree/assets/index.css";
 import type { ReactNode } from "react";
 import { auth } from "../src/auth/codemationNextAuth";
-import { CodemationNextClientShell } from "../src/ui/CodemationNextClientShell";
-import { CodemationSessionRoot } from "../src/ui/CodemationSessionProvider";
+import { CodemationNextClientShell } from "../src/shell/CodemationNextClientShell";
+import { CodemationSessionRoot } from "../src/providers/CodemationSessionProvider";
 import "./globals.css";
 
 const leagueSpartan = League_Spartan({

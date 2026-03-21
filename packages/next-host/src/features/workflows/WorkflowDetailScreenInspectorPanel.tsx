@@ -1,7 +1,7 @@
 import { PanelBottomClose,PanelBottomOpen } from "lucide-react";
 
-import { WorkflowExecutionInspector } from "../workflowDetail/WorkflowExecutionInspector";
-import type { WorkflowDetailControllerResult } from "../workflowDetail/useWorkflowDetailController";
+import { WorkflowExecutionInspector } from "./workflowDetail/WorkflowExecutionInspector";
+import type { WorkflowDetailControllerResult } from "./workflowDetail/useWorkflowDetailController";
 
 export function WorkflowDetailScreenInspectorPanel(props: Readonly<{ controller: WorkflowDetailControllerResult }>) {
   const { controller } = props;

@@ -6,7 +6,7 @@ import {
   useCredentialInstanceWithSecretsQuery,
   useCredentialTypesQuery,
   type CredentialInstanceDto,
-} from "../realtime/realtime";
+} from "../workflows/realtime/realtime";
 import {
   buildEmptySecretFieldValues,
   buildFieldStringValues,

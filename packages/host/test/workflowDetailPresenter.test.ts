@@ -1,4 +1,4 @@
-import { WorkflowDetailPresenter } from "@codemation/next-host/src/ui/workflowDetail/WorkflowDetailPresenter";
+import { WorkflowDetailPresenter } from "@codemation/next-host/src/features/workflows/workflowDetail/WorkflowDetailPresenter";
 import { describe,expect,it } from "vitest";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit";
 
