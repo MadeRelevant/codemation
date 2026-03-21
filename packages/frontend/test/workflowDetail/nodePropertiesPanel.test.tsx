@@ -10,7 +10,7 @@ describe("workflow detail node properties panel", () => {
     kit = null;
   });
 
-  it("opens from canvas clicks and stays independent from inspector focus", async () => {
+  it("opens from canvas clicks and selects the same node in the execution inspector", async () => {
     kit = WorkflowDetailScreenTestKit.create().install();
     kit.render();
 
@@ -35,7 +35,7 @@ describe("workflow detail node properties panel", () => {
     expect(targetCard).toHaveAttribute("data-codemation-properties-target", "true");
 
     await waitFor(() => {
-      expect(screen.getByTestId("selected-node-name")).toHaveTextContent(initialInspectorName);
+      expect(screen.getByTestId("selected-node-name")).toHaveTextContent(target.displayName);
       expect(screen.getByTestId("node-properties-panel-title")).toHaveTextContent(target.displayName);
     });
 

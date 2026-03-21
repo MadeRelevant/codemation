@@ -31,3 +31,5 @@
 * [ ] Audit ESLint intentional relaxations so we are not quietly bypassing architecture rules: inventory `files` / `ignores` overrides in `tooling/eslint-config/index.mjs` (e.g. `codemation/no-manual-di-new` / `no-static-methods` off for specific paths), plus any `eslint-disable` in source; decide keep vs refactor vs narrow scope, and document rationale next to each override.
 * [ ] Test credentials using Azure Keyvault instead of database
 * [ ] Support retry policy (default X times with fixed delay and exponential as alternative)
+* [ ] Support copy/paste between different live workflow instances (easy debugging prod inside dev)
+* [ ] Organize workflows by folder based on src

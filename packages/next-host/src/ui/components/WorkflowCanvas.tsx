@@ -160,7 +160,10 @@ export function WorkflowCanvas(args: {
             reactFlowInstanceRef.current = instance;
             scheduleFitView();
           }}
-          onNodeClick={(_event, node) => onOpenPropertiesNode(node.id)}
+          onNodeClick={(_event, node) => {
+            onSelectNode(node.id);
+            onOpenPropertiesNode(node.id);
+          }}
           style={{
             fontFamily: "inherit",
             opacity: isInitialViewportReady ? 1 : 0,

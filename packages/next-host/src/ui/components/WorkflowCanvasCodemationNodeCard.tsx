@@ -12,7 +12,11 @@ export function WorkflowCanvasCodemationNodeCard(props: Readonly<{ data: Workflo
   const isPinned = data.isPinned;
   return (
     <div
-      onClick={() => data.onOpenPropertiesNode(data.nodeId)}
+      onClick={(event) => {
+        event.stopPropagation();
+        data.onSelectNode(data.nodeId);
+        data.onOpenPropertiesNode(data.nodeId);
+      }}
       style={{
         display: "flex",
         flexDirection: "row",

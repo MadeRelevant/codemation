@@ -288,7 +288,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     setPendingSelectedRun(null);
     setPendingTriggerFetchSnapshot(null);
     setJsonEditorState(null);
-    if (selectedNodeId && !workflow.nodes.some((node) => node.id === selectedNodeId)) {
+    if (selectedNodeId && !WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow(selectedNodeId, workflow)) {
       setSelectedNodeId(null);
       setHasManuallySelectedNode(false);
     }
@@ -356,7 +356,13 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
 
   useEffect(() => {
     if (!displayedWorkflow?.nodes.length) return;
-    if (hasManuallySelectedNode && selectedNodeId && executionNodes.some((executionNode) => executionNode.node.id === selectedNodeId)) return;
+    if (
+      hasManuallySelectedNode &&
+      selectedNodeId &&
+      WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow(selectedNodeId, displayedWorkflow)
+    ) {
+      return;
+    }
     const orderedSnapshots = Object.values(currentExecutionState?.nodeSnapshotsByNodeId ?? {}).sort((left, right) => {
       const leftTimestamp = WorkflowDetailPresenter.getSnapshotTimestamp(left) ?? "";
       const rightTimestamp = WorkflowDetailPresenter.getSnapshotTimestamp(right) ?? "";
@@ -787,6 +793,20 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     setSelectedNodeId(nodeId);
   }, []);
 
+  const selectCanvasNode = useCallback(
+    (nodeId: string) => {
+      setHasManuallySelectedNode(true);
+      setSelectedNodeId(
+        WorkflowDetailPresenter.resolveInspectorNodeIdForCanvasPick(
+          nodeId,
+          displayedWorkflow,
+          currentExecutionState?.nodeSnapshotsByNodeId,
+        ),
+      );
+    },
+    [currentExecutionState?.nodeSnapshotsByNodeId, displayedWorkflow],
+  );
+
   const openPropertiesPanelForNode = useCallback((nodeId: string) => {
     setPropertiesPanelNodeId(nodeId);
     setIsPropertiesPanelOpen(true);
@@ -878,7 +898,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     propertiesPanelNodeId,
     isPropertiesPanelOpen,
     selectedPropertiesWorkflowNode,
-    selectCanvasNode: selectNode,
+    selectCanvasNode,
     openPropertiesPanelForNode,
     closePropertiesPanel,
     runCanvasNode: runNode,

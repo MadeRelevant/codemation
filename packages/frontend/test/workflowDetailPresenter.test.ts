@@ -164,4 +164,30 @@ describe("WorkflowDetailPresenter", () => {
 
     expect(result.map((entry) => entry.node.id)).toEqual([WorkflowDetailFixtureFactory.toolNodeId]);
   });
+
+  it("maps canvas LLM node id to the newest invocation snapshot for inspector selection", () => {
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
+    const run = WorkflowDetailFixtureFactory.createCompletedRunState({ workflow });
+
+    const resolved = WorkflowDetailPresenter.resolveInspectorNodeIdForCanvasPick(
+      WorkflowDetailFixtureFactory.llmNodeId,
+      workflow,
+      run.nodeSnapshotsByNodeId,
+    );
+
+    expect(resolved).toBe(WorkflowDetailFixtureFactory.llmSecondInvocationNodeId);
+  });
+
+  it("treats synthetic invocation ids as anchored to attachment workflow nodes for manual selection", () => {
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
+
+    expect(
+      WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow(
+        WorkflowDetailFixtureFactory.llmFirstInvocationNodeId,
+        workflow,
+      ),
+    ).toBe(true);
+
+    expect(WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow("unknown::nope", workflow)).toBe(false);
+  });
 });

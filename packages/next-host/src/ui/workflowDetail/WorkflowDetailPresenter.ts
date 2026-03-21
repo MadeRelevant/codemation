@@ -221,6 +221,56 @@ export class WorkflowDetailPresenter {
     );
   }
 
+  static inspectorSelectionAnchorsDisplayedWorkflow(nodeId: string | null, workflow: WorkflowDto | undefined): boolean {
+    if (!nodeId || !workflow?.nodes.length) {
+      return false;
+    }
+    if (workflow.nodes.some((n) => n.id === nodeId)) {
+      return true;
+    }
+    const baseLlm = AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(nodeId);
+    if (baseLlm !== nodeId && workflow.nodes.some((n) => n.id === baseLlm)) {
+      return true;
+    }
+    const baseTool = AgentAttachmentNodeIdFactory.getBaseToolNodeId(nodeId);
+    if (baseTool !== nodeId && workflow.nodes.some((n) => n.id === baseTool)) {
+      return true;
+    }
+    return false;
+  }
+
+  static resolveInspectorNodeIdForCanvasPick(
+    canvasWorkflowNodeId: string,
+    workflow: WorkflowDto | undefined,
+    nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>> | undefined,
+  ): string {
+    const wfNode = workflow?.nodes.find((n) => n.id === canvasWorkflowNodeId);
+    if (!wfNode) {
+      return canvasWorkflowNodeId;
+    }
+    const snapshots = Object.values(nodeSnapshotsByNodeId ?? {}).filter((snapshot) =>
+      this.visibleExecutionStatuses.has(snapshot.status),
+    );
+    const matching = snapshots.filter((snapshot) => {
+      if (wfNode.role === "languageModel") {
+        return AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(snapshot.nodeId) === canvasWorkflowNodeId;
+      }
+      if (wfNode.role === "tool") {
+        return AgentAttachmentNodeIdFactory.getBaseToolNodeId(snapshot.nodeId) === canvasWorkflowNodeId;
+      }
+      return snapshot.nodeId === canvasWorkflowNodeId;
+    });
+    if (matching.length === 0) {
+      return canvasWorkflowNodeId;
+    }
+    matching.sort((left, right) => {
+      const leftTs = this.getSnapshotTimestamp(left) ?? "";
+      const rightTs = this.getSnapshotTimestamp(right) ?? "";
+      return rightTs.localeCompare(leftTs);
+    });
+    return matching[0]!.nodeId;
+  }
+
   static sortPortEntries(value: Readonly<Record<string, Items>> | undefined): PortEntries {
     return Object.entries(value ?? {}).sort(([left], [right]) => {
       if (left === right) return 0;
