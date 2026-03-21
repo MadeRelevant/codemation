@@ -10,6 +10,11 @@
       "source": "bmad-labs/skills",
       "sourceType": "github",
       "computedHash": "eb04d32803de05e351393ffe97bd655c154c310f16bb275203a80dee2b8ae83e"
+    },
+    "ui-design-system": {
+      "source": "samhvw8/dot-claude",
+      "sourceType": "github",
+      "computedHash": "da805b478040b37f22d4ca74134bdad1f281f390f605fda2add000fec01df3c7"
     }
   }
 }

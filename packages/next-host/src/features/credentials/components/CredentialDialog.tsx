@@ -2,9 +2,10 @@
 
 import type { CredentialFieldSchema, CredentialTypeDefinition } from "@codemation/core/browser";
 import { useEffect } from "react";
-import type { Dispatch, MouseEvent as ReactMouseEvent, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 
 import { Button } from "@/components/ui/button";
+import { CodemationDialog } from "@/components/CodemationDialog";
 import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";
 import type { FormSourceKind } from "../lib/credentialFormTypes";
 import { CredentialDialogFeedback } from "./CredentialDialogFeedback";
@@ -131,96 +132,71 @@ export function CredentialDialog({
     else void onCreate();
   };
 
-  const handleBackdropClick = (e: ReactMouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [onClose]);
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={handleBackdropClick}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="credential-dialog-title"
-      data-testid="credential-dialog"
-    >
-      <div className="flex max-h-[min(92vh,900px)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-lg ring-1 ring-foreground/10">
-        <div className="border-b border-border px-4 py-3">
-          <h2 id="credential-dialog-title" className="m-0 text-base font-semibold">
-            {isEdit ? "Edit credential" : "Add credential"}
-          </h2>
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3 text-sm">
-          <CredentialDialogFormSections
-            credentialTypes={credentialTypes}
-            typesLoading={typesLoading}
-            typesError={typesError}
-            typesEmpty={typesEmpty}
-            selectedTypeId={selectedTypeId}
-            setSelectedTypeId={setSelectedTypeId}
-            displayName={displayName}
-            setDisplayName={setDisplayName}
-            sourceKind={sourceKind}
-            setSourceKind={setSourceKind}
-            isEdit={isEdit}
-            isTypeLocked={isTypeLocked}
-            canToggleSecrets={canToggleSecrets}
-            showSecrets={showSecrets}
-            setShowSecrets={setShowSecrets}
-            secretsLoading={secretsLoading}
-            isOAuth2Type={isOAuth2Type}
-            oauth2RedirectUri={oauth2RedirectUri}
-            isLoadingOauth2RedirectUri={isLoadingOauth2RedirectUri}
-            editingInstance={editingInstance}
-            canSubmit={canSubmit}
-            onConnectOAuth2={onConnectOAuth2}
-            onDisconnectOAuth2={onDisconnectOAuth2}
-          />
-          <CredentialDialogFieldRows
-            orderedFields={orderedFields}
-            publicFieldValues={publicFieldValues}
-            setPublicFieldValues={setPublicFieldValues}
-            secretFieldValues={secretFieldValues}
-            setSecretFieldValues={setSecretFieldValues}
-            envRefValues={envRefValues}
-            setEnvRefValues={setEnvRefValues}
-            isEdit={isEdit}
-            isDbSecretSource={isDbSecretSource}
-            showSecrets={showSecrets}
-          />
-          <CredentialDialogFeedback errorMessage={errorMessage} dialogTestResult={dialogTestResult} />
-        </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border bg-muted/30 px-4 py-3">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            data-testid="credential-test-button"
-            disabled={!canTest}
-            onClick={() => void onTest()}
-          >
-            {isDialogTesting ? "Testing…" : "Test"}
-          </Button>
-          <Button
-            type="button"
-            data-testid={isEdit ? "credential-save-button" : "credential-create-button"}
-            disabled={!canSubmit}
-            onClick={handleSubmit}
-          >
-            {isSubmitting ? (isEdit ? "Saving…" : "Creating…") : isEdit ? "Save" : "Create"}
-          </Button>
-        </div>
-      </div>
-    </div>
+    <CodemationDialog onClose={onClose} testId="credential-dialog" size="wide">
+      <CodemationDialog.Title>{isEdit ? "Edit credential" : "Add credential"}</CodemationDialog.Title>
+      <CodemationDialog.Content>
+        <CredentialDialogFormSections
+          credentialTypes={credentialTypes}
+          typesLoading={typesLoading}
+          typesError={typesError}
+          typesEmpty={typesEmpty}
+          selectedTypeId={selectedTypeId}
+          setSelectedTypeId={setSelectedTypeId}
+          displayName={displayName}
+          setDisplayName={setDisplayName}
+          sourceKind={sourceKind}
+          setSourceKind={setSourceKind}
+          isEdit={isEdit}
+          isTypeLocked={isTypeLocked}
+          canToggleSecrets={canToggleSecrets}
+          showSecrets={showSecrets}
+          setShowSecrets={setShowSecrets}
+          secretsLoading={secretsLoading}
+          isOAuth2Type={isOAuth2Type}
+          oauth2RedirectUri={oauth2RedirectUri}
+          isLoadingOauth2RedirectUri={isLoadingOauth2RedirectUri}
+          editingInstance={editingInstance}
+          canSubmit={canSubmit}
+          onConnectOAuth2={onConnectOAuth2}
+          onDisconnectOAuth2={onDisconnectOAuth2}
+        />
+        <CredentialDialogFieldRows
+          orderedFields={orderedFields}
+          publicFieldValues={publicFieldValues}
+          setPublicFieldValues={setPublicFieldValues}
+          secretFieldValues={secretFieldValues}
+          setSecretFieldValues={setSecretFieldValues}
+          envRefValues={envRefValues}
+          setEnvRefValues={setEnvRefValues}
+          isEdit={isEdit}
+          isDbSecretSource={isDbSecretSource}
+          showSecrets={showSecrets}
+        />
+        <CredentialDialogFeedback errorMessage={errorMessage} dialogTestResult={dialogTestResult} />
+      </CodemationDialog.Content>
+      <CodemationDialog.Actions>
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          data-testid="credential-test-button"
+          disabled={!canTest}
+          onClick={() => void onTest()}
+        >
+          {isDialogTesting ? "Testing…" : "Test"}
+        </Button>
+        <Button
+          type="button"
+          data-testid={isEdit ? "credential-save-button" : "credential-create-button"}
+          disabled={!canSubmit}
+          onClick={handleSubmit}
+        >
+          {isSubmitting ? (isEdit ? "Saving…" : "Creating…") : isEdit ? "Save" : "Create"}
+        </Button>
+      </CodemationDialog.Actions>
+    </CodemationDialog>
   );
 }

@@ -45,8 +45,31 @@ Replace ad-hoc global CSS with **Tailwind CSS v4**, **design tokens** (CSS varia
 ## ESLint / consistency
 
 - Keep **no Server Actions** rule in `packages/next-host`.
+- Root config enables **`no-alert`** (blocks `alert()`, `confirm()`, `prompt()` — use in-app UI). In **next-host** we extend the same idea for markup: **`no-restricted-syntax`** flags native **`<select>`** so agents use **`@/components/ui/select`** (Radix) instead of inconsistent browser styling and `change`-event tests.
 - Prefer **semantic utilities** (`bg-background`, `text-muted-foreground`) over raw palette classes in new code.
 - Optionally add **lint for raw `gray-*`** in a follow-up (team decision).
+
+## Buttons vs badges
+
+- **`Button`** (`src/components/ui/button.tsx`): **squarer corners** (`rounded-md`, smaller sizes `rounded-sm`), light **`shadow-sm`** on filled variants — reads as an actionable control.
+- **`Badge`** (`src/components/ui/badge.tsx`): **pill** shape (`rounded-full`), **`shadow-none`** — reads as status/metadata, not a primary action.
+
+## Composed dialogs (`CodemationDialog`)
+
+Use [`src/components/CodemationDialog.tsx`](src/components/CodemationDialog.tsx) for modal shells instead of hand-rolled `fixed inset-0` overlays. It wraps Radix **`Dialog`** + **`DialogContent`** (focus trap, escape, overlay) with a consistent layout:
+
+```tsx
+<CodemationDialog onClose={...} testId="..." size="wide" role="dialog">
+  <CodemationDialog.Title>Title</CodemationDialog.Title>
+  <CodemationDialog.Content>{/* scrollable body */}</CodemationDialog.Content>
+  <CodemationDialog.Actions position="bottom">{/* buttons */}</CodemationDialog.Actions>
+</CodemationDialog>
+```
+
+- **`CodemationDialog.Actions`** — `position="top" | "bottom"` (default `bottom`), `align="start" | "end" | "between"`.
+- **`size`** — `narrow` (~`lg`), `wide` (~`2xl`), `full`.
+- **Do not pass `id` to `CodemationDialog.Title`** — Radix assigns `titleId` in context; overriding `id` on `DialogTitle` breaks `aria-labelledby` and triggers dev warnings.
+- Optional **`role="alertdialog"`** for confirmations (e.g. delete confirm).
 
 ## Verification (avoid heavy full-repo gates)
 

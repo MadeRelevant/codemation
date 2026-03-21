@@ -211,7 +211,8 @@ describe("UsersScreen", () => {
       json: async () => ({ ...users[0], status: "inactive" as const, loginMethods: ["Password"] }),
     });
 
-    fireEvent.change(screen.getByTestId("user-account-status-u1"), { target: { value: "inactive" } });
+    fireEvent.click(screen.getByTestId("user-account-status-u1"));
+    fireEvent.click(screen.getByRole("option", { name: "inactive" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(

@@ -253,7 +253,7 @@ export default [
 
   js.configs.recommended,
 
-  // Block browser blocking dialogs (use in-app UI instead).
+  // Block browser blocking dialogs (use in-app UI instead). next-host additionally forbids native <select> via no-restricted-syntax (use @/components/ui/select).
   {
     files: ["**/*.{ts,tsx,js,mjs,cjs}"],
     rules: {

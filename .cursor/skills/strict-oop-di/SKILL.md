@@ -8,7 +8,7 @@ description: Enforces strict OOP TypeScript standards with class-only modules, d
 ## When to apply
 
 Apply these rules whenever:
-- new code is written
+- new "host" / server code is written (next-host (ui) is more relaxed)
 - new files/modules are created
 - code is refactored
 - changes are reviewed for quality/compliance

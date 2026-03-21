@@ -2,8 +2,17 @@ import type { UpsertCredentialBindingRequest, WorkflowCredentialHealthSlotDto } 
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { CredentialInstanceDto } from "../../hooks/realtime/realtime";
+
+const INSTANCE_PLACEHOLDER = "__none__";
 
 export function NodeCredentialBindingRow(args: Readonly<{
   slot: WorkflowCredentialHealthSlotDto;
@@ -64,19 +73,25 @@ export function NodeCredentialBindingRow(args: Readonly<{
           </div>
         ) : null}
       </div>
-      <select
-        data-testid={`node-properties-credential-slot-select-${slot.requirement.slotKey}`}
-        value={selectedInstanceId}
-        onChange={(event) => onSelectInstance(event.target.value)}
-        className="h-8 min-w-[120px] max-w-[240px] flex-[1_1_140px] rounded-lg border border-input bg-transparent px-2 text-xs text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+      <Select
+        value={selectedInstanceId || INSTANCE_PLACEHOLDER}
+        onValueChange={(value) => onSelectInstance(value === INSTANCE_PLACEHOLDER ? "" : value)}
       >
-        <option value="">Select instance...</option>
-        {compatibleInstances.map((instance) => (
-          <option key={instance.instanceId} value={instance.instanceId}>
-            {instance.displayName}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger
+          className="h-8 min-w-[120px] max-w-[240px] flex-[1_1_140px]"
+          data-testid={`node-properties-credential-slot-select-${slot.requirement.slotKey}`}
+        >
+          <SelectValue placeholder="Select instance..." />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={INSTANCE_PLACEHOLDER}>Select instance...</SelectItem>
+          {compatibleInstances.map((instance) => (
+            <SelectItem key={instance.instanceId} value={instance.instanceId}>
+              {instance.displayName}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Button
         type="button"
         size="sm"

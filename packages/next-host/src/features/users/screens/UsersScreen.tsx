@@ -4,14 +4,21 @@ import type { UserAccountDto, UserAccountStatus } from "@codemation/host-src/app
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { CodemationDataTable } from "../../../components/CodemationDataTable";
 import { CodemationFormattedDateTime } from "../../../components/CodemationFormattedDateTime";
 import {
-useInviteUserMutation,
-useRegenerateUserInviteMutation,
-useUpdateUserAccountStatusMutation,
-useUserAccountsQuery,
+  useInviteUserMutation,
+  useRegenerateUserInviteMutation,
+  useUpdateUserAccountStatusMutation,
+  useUserAccountsQuery,
 } from "../../workflows/hooks/realtime/realtime";
 import { UsersInviteDialog } from "../components/UsersInviteDialog";
 import { UsersRegenerateDialog } from "../components/UsersRegenerateDialog";
@@ -174,21 +181,24 @@ export function UsersScreen() {
                     </Button>
                   )}
                   {user.status !== "invited" && (
-                    <label className="inline-flex items-center gap-2">
+                    <div className="inline-flex items-center gap-2">
                       <span className="sr-only" data-testid={`user-status-label-${user.id}`}>
                         Account status
                       </span>
-                      <select
-                        className="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
+                      <Select
                         value={user.status}
-                        onChange={(e) => void onStatusChange(user, e.target.value as UserAccountStatus)}
-                        data-testid={`user-account-status-${user.id}`}
+                        onValueChange={(value) => void onStatusChange(user, value as UserAccountStatus)}
                         disabled={statusMutation.isPending}
                       >
-                        <option value="active">active</option>
-                        <option value="inactive">inactive</option>
-                      </select>
-                    </label>
+                        <SelectTrigger className="h-8 w-[140px]" data-testid={`user-account-status-${user.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">active</SelectItem>
+                          <SelectItem value="inactive">inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   )}
                 </div>
               </TableCell>

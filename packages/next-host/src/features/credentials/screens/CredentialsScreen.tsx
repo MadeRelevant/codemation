@@ -111,7 +111,6 @@ export function CredentialsScreen() {
       {deleteConfirmTarget && (
         <CredentialConfirmDialog
           title="Delete credential?"
-          titleElementId="credential-delete-confirm-title"
           testId="credential-delete-confirm-dialog"
           cancelTestId="credential-delete-confirm-cancel"
           confirmTestId="credential-delete-confirm-delete"
@@ -129,7 +128,6 @@ export function CredentialsScreen() {
       {oauthDisconnectConfirmOpen && (
         <CredentialConfirmDialog
           title="Disconnect OAuth2?"
-          titleElementId="credential-oauth-disconnect-confirm-title"
           testId="credential-oauth-disconnect-confirm-dialog"
           cancelTestId="credential-oauth-disconnect-confirm-cancel"
           confirmTestId="credential-oauth-disconnect-confirm-confirm"
