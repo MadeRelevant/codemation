@@ -1,5 +1,5 @@
 {
-  "threshold": 2,
+  "threshold": 1,
   "reporters": ["console"],
   "ignore": [
     "**/dist/**",
@@ -9,10 +9,13 @@
     "**/routeTree.gen.ts",
     "**/test/**",
     "**/*.test.ts",
-    "**/*.test.tsx"
+    "**/*.test.tsx",
+    "**/.codemation/**",
+    "**/generated/**"
   ],
   "absolute": true,
-  "minLines": 5,
-  "minTokens": 50,
+  "minLines": 10,
+  "minTokens": 80,
+  "mode": "mild",
   "format": ["typescript", "tsx"]
 }

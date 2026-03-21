@@ -1,27 +1,31 @@
 "use client";
 
-import type { FormEvent } from "react";
-
 import { Button } from "@/components/ui/button";
 import { CodemationDialog } from "@/components/CodemationDialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  useForm,
+  zodResolver,
+} from "@/components/forms";
+import { usersInviteFormSchema, type UsersInviteFormValues } from "../schemas/usersInviteFormSchema";
 
 type UsersInviteDialogProps = Readonly<{
-  email: string;
-  setEmail: (v: string) => void;
   errorMessage: string | null;
   successUrl: string | null;
   isSubmitting: boolean;
   copyFeedback: boolean;
-  onSubmit: () => void;
+  onSubmit: (email: string) => void | Promise<void>;
   onCopy: () => void;
   onClose: () => void;
 }>;
 
 export function UsersInviteDialog({
-  email,
-  setEmail,
   errorMessage,
   successUrl,
   isSubmitting,
@@ -30,10 +34,10 @@ export function UsersInviteDialog({
   onCopy,
   onClose,
 }: UsersInviteDialogProps) {
-  const inviteFormSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    onSubmit();
-  };
+  const form = useForm<UsersInviteFormValues>({
+    resolver: zodResolver(usersInviteFormSchema),
+    defaultValues: { email: "" },
+  });
 
   return (
     <CodemationDialog onClose={onClose} testId="users-invite-dialog" size="narrow" contentClassName="max-h-[min(90vh,640px)]">
@@ -58,35 +62,48 @@ export function UsersInviteDialog({
           </CodemationDialog.Actions>
         </>
       ) : (
-        <form data-testid="users-invite-form" onSubmit={inviteFormSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <CodemationDialog.Content className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="users-invite-email">Email</Label>
-              <Input
-                id="users-invite-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                data-testid="users-invite-email-input"
-                placeholder="colleague@company.com"
-                autoComplete="off"
+        <Form {...form}>
+          <form
+            data-testid="users-invite-form"
+            onSubmit={form.handleSubmit((values) => void onSubmit(values.email))}
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <CodemationDialog.Content className="space-y-3">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        data-testid="users-invite-email-input"
+                        placeholder="colleague@company.com"
+                        autoComplete="off"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            {errorMessage ? (
-              <div className="text-sm text-destructive" data-testid="users-invite-error">
-                {errorMessage}
-              </div>
-            ) : null}
-          </CodemationDialog.Content>
-          <CodemationDialog.Actions>
-            <Button type="button" variant="outline" data-testid="users-invite-cancel" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" data-testid="users-invite-submit" disabled={isSubmitting || !email.trim().includes("@")}>
-              {isSubmitting ? "Sending…" : "Create invite"}
-            </Button>
-          </CodemationDialog.Actions>
-        </form>
+              {errorMessage ? (
+                <div className="text-sm text-destructive" data-testid="users-invite-error" role="alert">
+                  {errorMessage}
+                </div>
+              ) : null}
+            </CodemationDialog.Content>
+            <CodemationDialog.Actions>
+              <Button type="button" variant="outline" data-testid="users-invite-cancel" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" data-testid="users-invite-submit" disabled={isSubmitting}>
+                {isSubmitting ? "Sending…" : "Create invite"}
+              </Button>
+            </CodemationDialog.Actions>
+          </form>
+        </Form>
       )}
     </CodemationDialog>
   );

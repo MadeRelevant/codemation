@@ -1,5 +1,5 @@
 import { inject,injectable } from "@codemation/core";
-import { ApplicationRequestError } from "../../../application/ApplicationRequestError";
+import { HttpRequestJsonBodyReader } from "../HttpRequestJsonBodyReader";
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import type { QueryBus } from "../../../application/bus/QueryBus";
 import { CopyRunToWorkflowDebuggerCommand } from "../../../application/commands/CopyRunToWorkflowDebuggerCommand";
@@ -67,7 +67,7 @@ export class WorkflowHttpRouteHandler {
 
   async putWorkflowDebuggerOverlay(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      const body = await this.readJsonBody<UpdateWorkflowDebuggerOverlayRequest>(request);
+      const body = await HttpRequestJsonBodyReader.readJsonBody<UpdateWorkflowDebuggerOverlayRequest>(request);
       return Response.json(await this.commandBus.execute(new ReplaceWorkflowDebuggerOverlayCommand(params.workflowId!, body)));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
@@ -76,19 +76,11 @@ export class WorkflowHttpRouteHandler {
 
   async postCopyWorkflowDebuggerOverlay(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      const body = await this.readJsonBody<CopyRunToWorkflowDebuggerRequest>(request);
+      const body = await HttpRequestJsonBodyReader.readJsonBody<CopyRunToWorkflowDebuggerRequest>(request);
       return Response.json(await this.commandBus.execute(new CopyRunToWorkflowDebuggerCommand(params.workflowId!, body)));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
   }
 
-  private async readJsonBody<TBody>(request: Request): Promise<TBody> {
-    try {
-      return (await request.json()) as TBody;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new ApplicationRequestError(400, `Invalid JSON body: ${message}`);
-    }
-  }
 }

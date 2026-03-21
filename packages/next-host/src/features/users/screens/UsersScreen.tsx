@@ -32,7 +32,6 @@ export function UsersScreen() {
   const users = usersQuery.data ?? [];
 
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccessUrl, setInviteSuccessUrl] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
@@ -42,7 +41,6 @@ export function UsersScreen() {
 
   const closeInvite = useCallback(() => {
     setInviteOpen(false);
-    setInviteEmail("");
     setInviteError(null);
     setInviteSuccessUrl(null);
     setCopyFeedback(false);
@@ -50,7 +48,6 @@ export function UsersScreen() {
 
   const openInvite = useCallback(() => {
     setInviteOpen(true);
-    setInviteEmail("");
     setInviteError(null);
     setInviteSuccessUrl(null);
     setCopyFeedback(false);
@@ -62,10 +59,10 @@ export function UsersScreen() {
     return () => window.clearTimeout(t);
   }, [copyFeedback]);
 
-  const submitInvite = async (): Promise<void> => {
+  const submitInvite = async (email: string): Promise<void> => {
     setInviteError(null);
     try {
-      const result = await inviteMutation.mutateAsync(inviteEmail.trim());
+      const result = await inviteMutation.mutateAsync(email.trim());
       setInviteSuccessUrl(result.inviteUrl);
     } catch (e) {
       setInviteError(e instanceof Error ? e.message : String(e));
@@ -210,13 +207,11 @@ export function UsersScreen() {
 
       {inviteOpen && (
         <UsersInviteDialog
-          email={inviteEmail}
-          setEmail={setInviteEmail}
           errorMessage={inviteError}
           successUrl={inviteSuccessUrl}
           isSubmitting={inviteMutation.isPending}
           copyFeedback={copyFeedback}
-          onSubmit={() => void submitInvite()}
+          onSubmit={(email) => void submitInvite(email)}
           onCopy={() => inviteSuccessUrl && void copyInviteUrl(inviteSuccessUrl)}
           onClose={closeInvite}
         />

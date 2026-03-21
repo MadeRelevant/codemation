@@ -1,15 +1,15 @@
-import {
-  RunFinishedAtFactory,
-  type NodeId,
-  type NodeOutputs,
-  type ParentExecutionRef,
-  type PersistedRunState,
-  type RunId,
-  type RunListingStore,
-  type RunStateStore,
-  type RunSummary,
-  type WorkflowId,
+import type {
+  NodeId,
+  NodeOutputs,
+  ParentExecutionRef,
+  PersistedRunState,
+  RunId,
+  RunListingStore,
+  RunStateStore,
+  RunSummary,
+  WorkflowId,
 } from "../../types";
+import { RunSummaryMapper } from "./RunSummaryMapper";
 
 export class InMemoryRunStateStore implements RunStateStore, RunListingStore {
   private readonly runs = new Map<RunId, PersistedRunState>();
@@ -42,16 +42,7 @@ export class InMemoryRunStateStore implements RunStateStore, RunListingStore {
       .filter((s) => (args?.workflowId ? s.workflowId === args.workflowId : true))
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
       .slice(0, limit)
-      .map(
-        (s): RunSummary => ({
-          runId: s.runId,
-          workflowId: s.workflowId,
-          startedAt: s.startedAt,
-          status: s.status,
-          finishedAt: RunFinishedAtFactory.resolveIso(s),
-          parent: s.parent,
-        }),
-      );
+      .map((s) => RunSummaryMapper.fromPersistedState(s));
     return summaries;
   }
 }

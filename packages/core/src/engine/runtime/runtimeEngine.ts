@@ -1643,7 +1643,7 @@ export class Engine implements NodeActivationContinuation {
     }
     for (const nodeId of skippedPinnedNodeIds) {
       const previous = snapshots[nodeId];
-      snapshots[nodeId] = NodeSnapshotFactory.completedFromPinnedOutput({
+      snapshots[nodeId] = NodeSnapshotFactory.completed({
         previous,
         runId: args.runId,
         workflowId: args.workflowId,
@@ -1653,6 +1653,7 @@ export class Engine implements NodeActivationContinuation {
         finishedAt: args.finishedAt,
         inputsByPort: previous?.inputsByPort ?? InputPortMap.empty(),
         outputs: args.currentState.outputsByNode[nodeId] ?? {},
+        fromPinnedOutput: true,
       });
     }
     return snapshots;
@@ -1680,7 +1681,7 @@ export class Engine implements NodeActivationContinuation {
         }
         args.queue.splice(index, 1);
         const previous = args.nodeSnapshotsByNodeId[queueEntry.nodeId];
-        args.nodeSnapshotsByNodeId[queueEntry.nodeId] = NodeSnapshotFactory.completedFromPinnedOutput({
+        args.nodeSnapshotsByNodeId[queueEntry.nodeId] = NodeSnapshotFactory.completed({
           previous,
           runId: args.runId,
           workflowId: args.workflowId,
@@ -1690,6 +1691,7 @@ export class Engine implements NodeActivationContinuation {
           finishedAt: args.finishedAt,
           inputsByPort: this.resolveQueueEntryInputsByPort(queueEntry),
           outputs: pinnedOutputs,
+          fromPinnedOutput: true,
         });
         args.data.setOutputs(queueEntry.nodeId, pinnedOutputs);
         args.planner.applyOutputs(args.queue, {

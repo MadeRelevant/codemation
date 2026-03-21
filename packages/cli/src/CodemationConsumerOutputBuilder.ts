@@ -1,3 +1,4 @@
+import { WorkflowModulePathFinder } from "@codemation/host/server";
 import type { FSWatcher } from "chokidar";
 import { watch } from "chokidar";
 import { copyFile,mkdir,readdir,readFile,rm,stat,writeFile } from "node:fs/promises";
@@ -25,8 +26,8 @@ export class CodemationConsumerOutputBuilder {
   private static readonly ignoredDirectoryNames = new Set([".codemation", ".git", "dist", "node_modules"]);
   private static readonly maxRetainedRevisions = 5;
   private static readonly supportedSourceExtensions = new Set([".ts", ".tsx", ".mts", ".cts"]);
-  private static readonly defaultWorkflowDirectories = ["src/workflows", "workflows"] as const;
   private static readonly watchBuildDebounceMs = 75;
+  private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
 
   private activeBuildPromise: Promise<CodemationConsumerOutputBuildSnapshot> | null = null;
   private watcher: FSWatcher | null = null;
@@ -490,7 +491,7 @@ export class CodemationConsumerOutputBuilder {
     if (!configObjectLiteral) {
       return {
         hasInlineWorkflows: false,
-        workflowDiscoveryDirectories: [...CodemationConsumerOutputBuilder.defaultWorkflowDirectories],
+        workflowDiscoveryDirectories: [...WorkflowModulePathFinder.defaultWorkflowDirectories],
       };
     }
     const workflowDiscovery = this.readObjectLiteralProperty(configObjectLiteral, "workflowDiscovery");
@@ -499,7 +500,7 @@ export class CodemationConsumerOutputBuilder {
       hasInlineWorkflows: this.hasProperty(configObjectLiteral, "workflows"),
       workflowDiscoveryDirectories: workflowDiscoveryDirectories.length > 0
         ? workflowDiscoveryDirectories
-        : [...CodemationConsumerOutputBuilder.defaultWorkflowDirectories],
+        : [...WorkflowModulePathFinder.defaultWorkflowDirectories],
     };
   }
 
@@ -627,45 +628,12 @@ export class CodemationConsumerOutputBuilder {
     if (configMetadata.hasInlineWorkflows) {
       return [];
     }
-    const discoveredPaths = await this.discoverWorkflowModulePaths(consumerRoot, configMetadata.workflowDiscoveryDirectories);
+    const discoveredPaths = await this.workflowModulePathFinder.discoverModulePaths({
+      consumerRoot,
+      workflowDirectories: configMetadata.workflowDiscoveryDirectories,
+      exists: (absolutePath) => this.fileExists(absolutePath),
+    });
     return [...discoveredPaths].sort((left: string, right: string) => left.localeCompare(right));
-  }
-
-  private async discoverWorkflowModulePaths(
-    consumerRoot: string,
-    workflowDirectories: ReadonlyArray<string> | undefined,
-  ): Promise<ReadonlyArray<string>> {
-    const directories = workflowDirectories ?? ["src/workflows", "workflows"];
-    const workflowModulePaths: string[] = [];
-    for (const directory of directories) {
-      const absoluteDirectory = path.resolve(consumerRoot, directory);
-      if (!(await this.fileExists(absoluteDirectory))) {
-        continue;
-      }
-      workflowModulePaths.push(...(await this.collectWorkflowModulePaths(absoluteDirectory)));
-    }
-    return workflowModulePaths;
-  }
-
-  private async collectWorkflowModulePaths(directoryPath: string): Promise<ReadonlyArray<string>> {
-    const entries = await readdir(directoryPath, { withFileTypes: true });
-    const workflowModulePaths: string[] = [];
-    for (const entry of entries) {
-      const entryPath = path.resolve(directoryPath, entry.name);
-      if (entry.isDirectory()) {
-        workflowModulePaths.push(...(await this.collectWorkflowModulePaths(entryPath)));
-        continue;
-      }
-      if (this.isWorkflowModulePath(entryPath)) {
-        workflowModulePaths.push(entryPath);
-      }
-    }
-    return workflowModulePaths;
-  }
-
-  private isWorkflowModulePath(modulePath: string): boolean {
-    const extension = path.extname(modulePath);
-    return extension === ".ts" || extension === ".js" || extension === ".mts" || extension === ".mjs";
   }
 
   private async resolveProtectedBuildVersions(currentBuildVersion: string): Promise<ReadonlySet<string>> {

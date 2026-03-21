@@ -1,5 +1,5 @@
 import {
-RunFinishedAtFactory,
+RunSummaryMapper,
 type NodeId,
 type NodeOutputs,
 type ParentExecutionRef,
@@ -57,17 +57,7 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Run
       .filter((s) => (workflowId ? s.workflowId === workflowId : true))
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
       .slice(0, limit)
-      .map(
-        (s): RunSummary => ({
-          runId: s.runId,
-          workflowId: s.workflowId,
-          startedAt: s.startedAt,
-          status: s.status,
-          finishedAt: RunFinishedAtFactory.resolveIso(s),
-          parent: s.parent,
-          executionOptions: s.executionOptions,
-        }),
-      );
+      .map((s) => RunSummaryMapper.fromPersistedState(s));
     return summaries;
   }
 }

@@ -1,8 +1,26 @@
 import { injectable } from "@codemation/core";
+import type { OnNewGmailTrigger } from "../nodes/OnNewGmailTrigger";
 import type { GmailMessageRecord } from "./GmailApiClient";
 
 @injectable()
 export class GmailQueryMatcher {
+  matchesOnNewTrigger(
+    message: GmailMessageRecord,
+    config: OnNewGmailTrigger,
+    resolvedLabelIds: ReadonlyArray<string> | undefined,
+  ): boolean {
+    if (resolvedLabelIds && resolvedLabelIds.length > 0) {
+      const hasEveryLabel = resolvedLabelIds.every((labelId) => message.labelIds.includes(labelId));
+      if (!hasEveryLabel) {
+        return false;
+      }
+    }
+    return this.matches({
+      query: config.cfg.query,
+      message,
+    });
+  }
+
   matches(args: Readonly<{
     query: string | undefined;
     message: GmailMessageRecord;

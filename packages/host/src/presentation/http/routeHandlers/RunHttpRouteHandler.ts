@@ -1,5 +1,5 @@
 import { inject,injectable } from "@codemation/core";
-import { ApplicationRequestError } from "../../../application/ApplicationRequestError";
+import { HttpRequestJsonBodyReader } from "../HttpRequestJsonBodyReader";
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import type { QueryBus } from "../../../application/bus/QueryBus";
 import { ReplaceMutableRunWorkflowSnapshotCommand } from "../../../application/commands/ReplaceMutableRunWorkflowSnapshotCommand";
@@ -40,7 +40,7 @@ export class RunHttpRouteHandler {
 
   async postRuns(request: Request, _: ServerHttpRouteParams): Promise<Response> {
     try {
-      const body = await this.readJsonBody<CreateRunRequest>(request);
+      const body = await HttpRequestJsonBodyReader.readJsonBody<CreateRunRequest>(request);
       return Response.json(await this.commandBus.execute(new StartWorkflowRunCommand(body)));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
@@ -49,7 +49,7 @@ export class RunHttpRouteHandler {
 
   async patchRunWorkflowSnapshot(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      const body = await this.readJsonBody<UpdateRunWorkflowSnapshotRequest>(request);
+      const body = await HttpRequestJsonBodyReader.readJsonBody<UpdateRunWorkflowSnapshotRequest>(request);
       return Response.json(await this.commandBus.execute(new ReplaceMutableRunWorkflowSnapshotCommand(params.runId!, body)));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
@@ -58,7 +58,7 @@ export class RunHttpRouteHandler {
 
   async patchRunNodePin(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      const body = await this.readJsonBody<UpdateRunNodePinRequest>(request);
+      const body = await HttpRequestJsonBodyReader.readJsonBody<UpdateRunNodePinRequest>(request);
       return Response.json(await this.commandBus.execute(new SetPinnedNodeInputCommand(params.runId!, params.nodeId!, body)));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
@@ -67,19 +67,11 @@ export class RunHttpRouteHandler {
 
   async postRunNode(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      const body = await this.readJsonBody<RunNodeRequest>(request);
+      const body = await HttpRequestJsonBodyReader.readJsonBody<RunNodeRequest>(request);
       return Response.json(await this.commandBus.execute(new ReplayWorkflowNodeCommand(params.runId!, params.nodeId!, body)));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
   }
 
-  private async readJsonBody<TBody>(request: Request): Promise<TBody> {
-    try {
-      return (await request.json()) as TBody;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new ApplicationRequestError(400, `Invalid JSON body: ${message}`);
-    }
-  }
 }

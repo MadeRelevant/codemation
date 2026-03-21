@@ -39,3 +39,4 @@
 * [ ] Support retry policy (default X times with fixed delay and exponential as alternative)
 * [ ] Support copy/paste between different live workflow instances (easy debugging prod inside dev)
 * [ ] Organize workflows by folder based on src
+* [ ] Use actual urls for different canvas states so runs can be shared

@@ -1,5 +1,6 @@
 import type { WorkflowDefinition } from "@codemation/core";
 import type { CodemationConfig } from "../config/CodemationConfig";
+import { CodemationConsumerConfigExportsResolver } from "./CodemationConsumerConfigExportsResolver";
 
 export type CodemationConsumerApp = Readonly<{
   config: CodemationConfig;
@@ -7,6 +8,8 @@ export type CodemationConsumerApp = Readonly<{
 }>;
 
 export class CodemationConsumerAppResolver {
+  private readonly configExportsResolver = new CodemationConsumerConfigExportsResolver();
+
   resolve(
     args: Readonly<{
       configModule: Readonly<Record<string, unknown>>;
@@ -14,7 +17,7 @@ export class CodemationConsumerAppResolver {
       workflowSourcePaths: ReadonlyArray<string>;
     }>,
   ): CodemationConsumerApp {
-    const config = this.resolveConfig(args.configModule);
+    const config = this.configExportsResolver.resolveConfig(args.configModule);
     if (!config) {
       throw new Error("Consumer app module does not export a Codemation config object.");
     }
@@ -31,34 +34,6 @@ export class CodemationConsumerAppResolver {
       },
       workflowSources: args.workflowSourcePaths,
     };
-  }
-
-  private resolveConfig(moduleExports: Readonly<Record<string, unknown>>): CodemationConfig | null {
-    const defaultExport = moduleExports.default;
-    if (this.isConfig(defaultExport)) {
-      return defaultExport;
-    }
-    const namedConfig = moduleExports.codemationHost ?? moduleExports.config;
-    if (this.isConfig(namedConfig)) {
-      return namedConfig;
-    }
-    return null;
-  }
-
-  private isConfig(value: unknown): value is CodemationConfig {
-    if (!value || typeof value !== "object") {
-      return false;
-    }
-    return (
-      "runtime" in value ||
-      "workflows" in value ||
-      "workflowDiscovery" in value ||
-      "bindings" in value ||
-      "plugins" in value ||
-      "bootHook" in value ||
-      "slots" in value ||
-      "auth" in value
-    );
   }
 
   private resolveWorkflows(

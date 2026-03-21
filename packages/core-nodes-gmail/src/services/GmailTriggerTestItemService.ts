@@ -2,7 +2,7 @@ import type { Items,TriggerInstanceId } from "@codemation/core";
 import { inject,injectable } from "@codemation/core";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import type { OnNewGmailTrigger,OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
-import type { GmailApiClient,GmailMessageRecord } from "./GmailApiClient";
+import type { GmailApiClient } from "./GmailApiClient";
 import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "./GmailMessageItemMapper";
 import { GmailQueryMatcher } from "./GmailQueryMatcher";
@@ -40,7 +40,7 @@ export class GmailTriggerTestItemService {
       mailbox: args.config.cfg.mailbox,
       messageId: messageIds[0]!,
     });
-    if (!this.matchesConfig(message, args.config, resolvedLabelIds)) {
+    if (!this.gmailQueryMatcher.matchesOnNewTrigger(message, args.config, resolvedLabelIds)) {
       return [];
     }
     const historyId = message.historyId ?? args.previousState?.historyId ?? (await args.client.getCurrentHistoryId({ mailbox: args.config.cfg.mailbox }));
@@ -48,23 +48,6 @@ export class GmailTriggerTestItemService {
       mailbox: args.config.cfg.mailbox,
       historyId,
       messages: [message],
-    });
-  }
-
-  private matchesConfig(
-    message: GmailMessageRecord,
-    config: OnNewGmailTrigger,
-    resolvedLabelIds: ReadonlyArray<string> | undefined,
-  ): boolean {
-    if (resolvedLabelIds && resolvedLabelIds.length > 0) {
-      const hasEveryLabel = resolvedLabelIds.every((labelId) => message.labelIds.includes(labelId));
-      if (!hasEveryLabel) {
-        return false;
-      }
-    }
-    return this.gmailQueryMatcher.matches({
-      query: config.cfg.query,
-      message,
     });
   }
 }

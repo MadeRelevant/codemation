@@ -21,8 +21,9 @@ type GmailWatchRegistration,
 } from "../../services/GmailApiClient";
 
 
-import type { GmailPubSubNotification,GmailPulledNotification } from "../../services/GmailPubSubPullClient";
+import type { GmailPulledNotification } from "../../services/GmailPubSubPullClient";
 
+import { GmailPubSubJsonNotificationReader } from "./GmailPubSubJsonNotificationReader";
 import { GoogleGmailApiClientScopeCatalog } from "./GoogleGmailApiClientScopeCatalog";
 
 type GmailGoogleCredential = GmailServiceAccountCredential | GmailOAuthCredential;
@@ -54,7 +55,7 @@ export class GoogleGmailApiClient implements GmailApiClient {
       returnImmediately: true,
     });
     return (response.receivedMessages ?? []).flatMap((receivedMessage) => {
-      const notification = this.parseNotification(receivedMessage.message?.data ?? undefined);
+      const notification = GmailPubSubJsonNotificationReader.parse(receivedMessage.message?.data ?? undefined);
       if (!notification || !receivedMessage.ackId) {
         return [];
       }
@@ -372,28 +373,6 @@ export class GoogleGmailApiClient implements GmailApiClient {
       message?: string;
     }>;
     return candidate.code === 404 || candidate.response?.status === 404 || candidate.message?.includes("startHistoryId") === true;
-  }
-
-  private parseNotification(data: string | Uint8Array | Buffer | undefined): GmailPubSubNotification | undefined {
-    if (!data) {
-      return undefined;
-    }
-    const decodedPayload = typeof data === "string" ? data : Buffer.from(data).toString("utf8");
-    const parsed = JSON.parse(decodedPayload) as Readonly<{
-      emailAddress?: string;
-      historyId?: string;
-      messageId?: string;
-      publishTime?: string;
-    }>;
-    if (!parsed.emailAddress || !parsed.historyId) {
-      return undefined;
-    }
-    return {
-      emailAddress: parsed.emailAddress,
-      historyId: parsed.historyId,
-      messageId: parsed.messageId,
-      publishTime: parsed.publishTime,
-    };
   }
 
   private createAdminClient(projectId: string): PubSub {

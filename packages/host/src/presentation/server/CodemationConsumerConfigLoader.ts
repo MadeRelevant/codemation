@@ -1,10 +1,12 @@
 import type { WorkflowDefinition } from "@codemation/core";
-import { access,readdir,stat } from "node:fs/promises";
+import { access,stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { NamespacedUnregister } from "tsx/esm/api";
 import { register } from "tsx/esm/api";
 import type { CodemationConfig } from "../config/CodemationConfig";
+import { CodemationConsumerConfigExportsResolver } from "./CodemationConsumerConfigExportsResolver";
+import { WorkflowModulePathFinder } from "./WorkflowModulePathFinder";
 
 export type CodemationConsumerConfigResolution = Readonly<{
   config: CodemationConfig;
@@ -14,8 +16,8 @@ export type CodemationConsumerConfigResolution = Readonly<{
 
 export class CodemationConsumerConfigLoader {
   private static readonly importerRegistrationsByTsconfig = new Map<string, NamespacedUnregister>();
-  private static readonly defaultWorkflowDirectories = ["src/workflows", "workflows"] as const;
-  private readonly workflowExtensions = new Set([".ts", ".js", ".mts", ".mjs"]);
+  private readonly configExportsResolver = new CodemationConsumerConfigExportsResolver();
+  private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
 
   async load(args: Readonly<{ consumerRoot: string; configPathOverride?: string }>): Promise<CodemationConsumerConfigResolution> {
     const bootstrapSource = await this.resolveConfigPath(args.consumerRoot, args.configPathOverride);
@@ -23,7 +25,7 @@ export class CodemationConsumerConfigLoader {
       throw new Error('Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".');
     }
     const moduleExports = await this.importModule(bootstrapSource);
-    const config = this.resolveConfig(moduleExports);
+    const config = this.configExportsResolver.resolveConfig(moduleExports);
     if (!config) {
       throw new Error(`Config file does not export a Codemation config object: ${bootstrapSource}`);
     }
@@ -64,78 +66,16 @@ export class CodemationConsumerConfigLoader {
     ];
   }
 
-  private resolveConfig(moduleExports: Readonly<Record<string, unknown>>): CodemationConfig | null {
-    const defaultExport = moduleExports.default;
-    if (this.isConfig(defaultExport)) {
-      return defaultExport;
-    }
-    const namedConfig = moduleExports.codemationHost ?? moduleExports.config;
-    if (this.isConfig(namedConfig)) {
-      return namedConfig;
-    }
-    return null;
-  }
-
-  private isConfig(value: unknown): value is CodemationConfig {
-    if (!value || typeof value !== "object") {
-      return false;
-    }
-    return (
-      "credentials" in value ||
-      "runtime" in value ||
-      "workflows" in value ||
-      "workflowDiscovery" in value ||
-      "bindings" in value ||
-      "plugins" in value ||
-      "bootHook" in value ||
-      "slots" in value ||
-      "auth" in value
-    );
-  }
-
   private async resolveWorkflowSources(consumerRoot: string, config: CodemationConfig): Promise<ReadonlyArray<string>> {
     if (config.workflows !== undefined) {
       return [];
     }
-    const discoveredPaths = await this.discoverWorkflowModulePaths(consumerRoot, config.workflowDiscovery?.directories);
+    const discoveredPaths = await this.workflowModulePathFinder.discoverModulePaths({
+      consumerRoot,
+      workflowDirectories: config.workflowDiscovery?.directories,
+      exists: (absolutePath) => this.exists(absolutePath),
+    });
     return [...discoveredPaths].sort((left: string, right: string) => left.localeCompare(right));
-  }
-
-  private async discoverWorkflowModulePaths(
-    consumerRoot: string,
-    workflowDirectories: ReadonlyArray<string> | undefined,
-  ): Promise<ReadonlyArray<string>> {
-    const directories = workflowDirectories ?? CodemationConsumerConfigLoader.defaultWorkflowDirectories;
-    const workflowModulePaths: string[] = [];
-    for (const directory of directories) {
-      const absoluteDirectory = path.resolve(consumerRoot, directory);
-      if (!(await this.exists(absoluteDirectory))) {
-        continue;
-      }
-      workflowModulePaths.push(...(await this.collectWorkflowModulePaths(absoluteDirectory)));
-    }
-    return workflowModulePaths;
-  }
-
-  private async collectWorkflowModulePaths(directoryPath: string): Promise<ReadonlyArray<string>> {
-    const entries = await readdir(directoryPath, { withFileTypes: true });
-    const workflowModulePaths: string[] = [];
-    for (const entry of entries) {
-      const entryPath = path.resolve(directoryPath, entry.name);
-      if (entry.isDirectory()) {
-        workflowModulePaths.push(...(await this.collectWorkflowModulePaths(entryPath)));
-        continue;
-      }
-      if (this.isWorkflowModulePath(entryPath)) {
-        workflowModulePaths.push(entryPath);
-      }
-    }
-    return workflowModulePaths;
-  }
-
-  private isWorkflowModulePath(modulePath: string): boolean {
-    const extension = path.extname(modulePath);
-    return this.workflowExtensions.has(extension) && !modulePath.endsWith(".d.ts");
   }
 
   private async loadDiscoveredWorkflows(workflowSources: ReadonlyArray<string>): Promise<ReadonlyArray<WorkflowDefinition>> {

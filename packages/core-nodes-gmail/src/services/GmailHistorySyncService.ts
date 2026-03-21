@@ -101,23 +101,6 @@ export class GmailHistorySyncService {
         });
       }),
     );
-    return messages.filter((message) => this.matchesConfig(message, config, resolvedLabelIds));
-  }
-
-  private matchesConfig(
-    message: GmailMessageRecord,
-    config: OnNewGmailTrigger,
-    resolvedLabelIds: ReadonlyArray<string> | undefined,
-  ): boolean {
-    if (resolvedLabelIds && resolvedLabelIds.length > 0) {
-      const hasEveryLabel = resolvedLabelIds.every((labelId) => message.labelIds.includes(labelId));
-      if (!hasEveryLabel) {
-        return false;
-      }
-    }
-    return this.gmailQueryMatcher.matches({
-      query: config.cfg.query,
-      message,
-    });
+    return messages.filter((message) => this.gmailQueryMatcher.matchesOnNewTrigger(message, config, resolvedLabelIds));
   }
 }

@@ -3,7 +3,9 @@
 import Editor from "@monaco-editor/react";
 import { useEffect, useState } from "react";
 
+import { CodemationDialog } from "@/components/CodemationDialog";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import type { JsonEditorState } from "../../lib/workflowDetail/workflowDetailTypes";
 
 export function WorkflowJsonEditorDialog(args: Readonly<{
@@ -21,12 +23,15 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
   }, [state]);
 
   return (
-    <div
-      data-testid="workflow-json-editor-dialog"
-      className="fixed inset-0 z-[1000] grid place-items-center bg-black/50 p-6"
+    <CodemationDialog
+      onClose={onClose}
+      testId="workflow-json-editor-dialog"
+      size="full"
+      showCloseButton={false}
+      contentClassName="max-h-[min(90vh,800px)] w-[min(960px,100%)]"
     >
-      <div className="grid h-[min(80vh,760px)] w-[min(960px,100%)] grid-rows-[auto_1fr_auto] border border-border bg-card shadow-2xl ring-1 ring-foreground/10">
-        <div className="flex items-center justify-between gap-3 border-b border-border p-4">
+      <CodemationDialog.Title className="font-normal">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[15px] font-extrabold">{state.title}</div>
             <div className="mt-1 text-xs text-muted-foreground">
@@ -35,12 +40,14 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
                 : "Provide valid JSON. Objects become one item; arrays become multiple items."}
             </div>
           </div>
-          <Button type="button" variant="outline" size="sm" className="text-xs font-bold" onClick={onClose}>
+          <Button type="button" variant="outline" size="sm" className="shrink-0 text-xs font-bold" onClick={onClose}>
             Close
           </Button>
         </div>
-        <div className="relative min-h-0 p-4">
-          <div className="h-full overflow-hidden border border-border bg-background">
+      </CodemationDialog.Title>
+      <CodemationDialog.Content className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-3">
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div className="h-[min(60vh,560px)] min-h-[200px] shrink-0 overflow-hidden rounded-md border border-border bg-background">
             <Editor
               height="100%"
               language="json"
@@ -77,7 +84,7 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
               }}
             />
           </div>
-          <textarea
+          <Textarea
             data-testid="workflow-json-editor-input"
             value={value}
             onChange={(event) => {
@@ -85,34 +92,34 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
               if (error) setError(null);
             }}
             spellCheck={false}
-            className="pointer-events-none absolute inset-0 h-px w-px opacity-0"
+            className="pointer-events-none absolute inset-0 h-px w-px min-h-0 resize-none border-0 p-0 opacity-0"
             aria-hidden="true"
             tabIndex={-1}
           />
-          {error ? <div className="mt-2.5 text-xs text-destructive">{error}</div> : null}
+          {error ? <div className="mt-1 text-xs text-destructive">{error}</div> : null}
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-border p-4">
-          <Button type="button" variant="outline" size="sm" className="text-xs font-bold" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            data-testid="workflow-json-editor-save"
-            size="sm"
-            className="text-xs font-extrabold"
-            onClick={() => {
-              try {
-                JSON.parse(value);
-                onSave(value);
-              } catch (cause) {
-                setError(cause instanceof Error ? cause.message : String(cause));
-              }
-            }}
-          >
-            Save
-          </Button>
-        </div>
-      </div>
-    </div>
+      </CodemationDialog.Content>
+      <CodemationDialog.Actions>
+        <Button type="button" variant="outline" size="sm" className="text-xs font-bold" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          data-testid="workflow-json-editor-save"
+          size="sm"
+          className="text-xs font-extrabold"
+          onClick={() => {
+            try {
+              JSON.parse(value);
+              onSave(value);
+            } catch (cause) {
+              setError(cause instanceof Error ? cause.message : String(cause));
+            }
+          }}
+        >
+          Save
+        </Button>
+      </CodemationDialog.Actions>
+    </CodemationDialog>
   );
 }

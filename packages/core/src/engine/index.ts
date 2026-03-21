@@ -29,5 +29,6 @@ export { HintOnlyOffloadPolicy } from "./scheduling/hintOnlyOffloadPolicy";
 export { LocalOnlyScheduler } from "./scheduling/localOnlyScheduler";
 export { InMemoryBinaryStorage } from "./storage/InMemoryBinaryStorageRegistry";
 export { InMemoryRunDataFactory } from "./storage/inMemoryRunDataFactory";
+export { RunSummaryMapper } from "./storage/RunSummaryMapper";
 export { InMemoryRunStateStore } from "./storage/inMemoryRunStateStore";
 

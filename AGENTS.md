@@ -79,6 +79,10 @@ This document sets the “golden standard” for how we build and review changes
 - Avoid over-abstracting; introduce abstractions only when they pay off in tests or reuse.
 - Prefer composition over inheritance.
 
+### Forms (`packages/next-host`)
+
+- Use **React Hook Form + Zod** and the barrel **`@/components/forms`** with **`@/components/ui/form`** (not ad-hoc controlled fields). See **`packages/next-host/docs/FORMS.md`**. ESLint blocks raw **`<input>`** / **`<textarea>`** outside **`src/components/ui/**`** (primitives only).
+
 ### Logging (server / package `src`)
 
 - **Do not use `console.log`** under `packages/*/src` for core, nodes, queue, eventbus, run-store, `node-example`, and `@codemation/host` TypeScript sources (ESLint enforces this). Inject **`LoggerFactory`** / **`Logger`** (`packages/host/src/application/logging/Logger.ts`) and use **`logger.info` / `warn` / `error` / `debug`**; server wiring uses **`ServerLoggerFactory`**.

@@ -1,7 +1,8 @@
 import { injectable } from "@codemation/core";
 import { PubSub,v1 } from "@google-cloud/pubsub";
 import type { GmailServiceAccountCredential } from "../../contracts/GmailServiceAccountCredential";
-import type { GmailPubSubNotification,GmailPubSubPullClient,GmailPulledNotification } from "../../services/GmailPubSubPullClient";
+import type { GmailPubSubPullClient,GmailPulledNotification } from "../../services/GmailPubSubPullClient";
+import { GmailPubSubJsonNotificationReader } from "./GmailPubSubJsonNotificationReader";
 
 @injectable()
 export class GooglePubSubPullClient implements GmailPubSubPullClient {
@@ -34,7 +35,7 @@ export class GooglePubSubPullClient implements GmailPubSubPullClient {
     });
     return (response.receivedMessages ?? []).flatMap((receivedMessage) => {
       const messageData = receivedMessage.message?.data ?? undefined;
-      const parsedNotification = this.parseNotification(messageData);
+      const parsedNotification = GmailPubSubJsonNotificationReader.parse(messageData);
       if (!parsedNotification || !receivedMessage.ackId) {
         return [];
       }
@@ -50,28 +51,6 @@ export class GooglePubSubPullClient implements GmailPubSubPullClient {
         },
       ];
     });
-  }
-
-  private parseNotification(data: string | Uint8Array | Buffer | undefined): GmailPubSubNotification | undefined {
-    if (!data) {
-      return undefined;
-    }
-    const decodedPayload = typeof data === "string" ? data : Buffer.from(data).toString("utf8");
-    const parsed = JSON.parse(decodedPayload) as Readonly<{
-      emailAddress?: string;
-      historyId?: string;
-      messageId?: string;
-      publishTime?: string;
-    }>;
-    if (!parsed.emailAddress || !parsed.historyId) {
-      return undefined;
-    }
-    return {
-      emailAddress: parsed.emailAddress,
-      historyId: parsed.historyId,
-      messageId: parsed.messageId,
-      publishTime: parsed.publishTime,
-    };
   }
 
   private createAdminClient(credential: GmailServiceAccountCredential): PubSub {

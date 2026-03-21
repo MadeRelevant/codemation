@@ -1,5 +1,5 @@
 import { inject,injectable } from "@codemation/core";
-import { ApplicationRequestError } from "../../../application/ApplicationRequestError";
+import { HttpRequestJsonBodyReader } from "../HttpRequestJsonBodyReader";
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import type { QueryBus } from "../../../application/bus/QueryBus";
 import {
@@ -67,7 +67,7 @@ export class CredentialHttpRouteHandler {
 
   async postCredentialInstance(request: Request): Promise<Response> {
     try {
-      const body = await this.readJsonBody<CreateCredentialInstanceRequest>(request);
+      const body = await HttpRequestJsonBodyReader.readJsonBody<CreateCredentialInstanceRequest>(request);
       return Response.json(await this.commandBus.execute(new CreateCredentialInstanceCommand(body)));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
@@ -76,7 +76,7 @@ export class CredentialHttpRouteHandler {
 
   async putCredentialInstance(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      const body = await this.readJsonBody<UpdateCredentialInstanceRequest>(request);
+      const body = await HttpRequestJsonBodyReader.readJsonBody<UpdateCredentialInstanceRequest>(request);
       return Response.json(await this.commandBus.execute(new UpdateCredentialInstanceCommand(params.instanceId!, body)));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
@@ -93,7 +93,7 @@ export class CredentialHttpRouteHandler {
 
   async putCredentialBinding(request: Request): Promise<Response> {
     try {
-      const body = await this.readJsonBody<UpsertCredentialBindingRequest>(request);
+      const body = await HttpRequestJsonBodyReader.readJsonBody<UpsertCredentialBindingRequest>(request);
       return Response.json(await this.commandBus.execute(new UpsertCredentialBindingCommand(body)));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
@@ -116,12 +116,4 @@ export class CredentialHttpRouteHandler {
     }
   }
 
-  private async readJsonBody<TBody>(request: Request): Promise<TBody> {
-    try {
-      return (await request.json()) as TBody;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new ApplicationRequestError(400, `Invalid JSON body: ${message}`);
-    }
-  }
 }

@@ -132,26 +132,8 @@ export class GmailNodes {
         return new GoogleGmailApiClient(this.toServiceAccountCredential(args.material));
       },
       test: async (args) => {
-        const client = new GoogleGmailApiClient(this.toServiceAccountCredential(args.material));
-        try {
-          const historyId = await client.getCurrentHistoryId({
-            mailbox: this.toServiceAccountCredential(args.material).delegatedUser,
-          });
-          return {
-            status: "healthy",
-            message: "Connected to Gmail successfully.",
-            testedAt: new Date().toISOString(),
-            details: {
-              historyId,
-            },
-          };
-        } catch (error) {
-          return {
-            status: "failing",
-            message: error instanceof Error ? error.message : String(error),
-            testedAt: new Date().toISOString(),
-          };
-        }
+        const credential = this.toServiceAccountCredential(args.material);
+        return this.testGmailApiClient(new GoogleGmailApiClient(credential), credential.delegatedUser);
       },
     });
     registrar.registerCredentialType({
@@ -172,28 +154,40 @@ export class GmailNodes {
         return new GoogleGmailApiClient(this.toOAuthCredential(args.material, args.publicConfig));
       },
       test: async (args) => {
-        const client = new GoogleGmailApiClient(this.toOAuthCredential(args.material, args.publicConfig));
-        try {
-          const historyId = await client.getCurrentHistoryId({
-            mailbox: "me",
-          });
-          return {
-            status: "healthy",
-            message: "Connected to Gmail successfully.",
-            testedAt: new Date().toISOString(),
-            details: {
-              historyId,
-            },
-          };
-        } catch (error) {
-          return {
-            status: "failing",
-            message: error instanceof Error ? error.message : String(error),
-            testedAt: new Date().toISOString(),
-          };
-        }
+        return this.testGmailApiClient(
+          new GoogleGmailApiClient(this.toOAuthCredential(args.material, args.publicConfig)),
+          "me",
+        );
       },
     });
+  }
+
+  private async testGmailApiClient(
+    client: GoogleGmailApiClient,
+    mailbox: string,
+  ): Promise<
+    Readonly<{
+      status: "healthy" | "failing";
+      message?: string;
+      testedAt: string;
+      details?: Readonly<Record<string, unknown>>;
+    }>
+  > {
+    try {
+      const historyId = await client.getCurrentHistoryId({ mailbox });
+      return {
+        status: "healthy",
+        message: "Connected to Gmail successfully.",
+        testedAt: new Date().toISOString(),
+        details: { historyId },
+      };
+    } catch (error) {
+      return {
+        status: "failing",
+        message: error instanceof Error ? error.message : String(error),
+        testedAt: new Date().toISOString(),
+      };
+    }
   }
 
   private asCredentialTypeRegistrar(application: unknown): CredentialTypeRegistrar | undefined {
