@@ -1,5 +1,6 @@
 import { AgentAttachmentNodeIdFactory,ItemsInputNormalizer,RunFinishedAtFactory } from "@codemation/core/browser";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { format,isToday,isYesterday } from "date-fns";
 import prettyMilliseconds from "pretty-ms";
 import type {
@@ -59,25 +60,17 @@ export class WorkflowDetailPresenter {
   static async runWorkflow(workflowId: string, workflow: WorkflowDto | undefined, request: RunWorkflowRequest = {}): Promise<RunWorkflowResult> {
     const shouldSynthesizeTriggerItems = this.shouldSynthesizeTriggerItems(workflow, request);
     const items = request.items ?? (shouldSynthesizeTriggerItems ? undefined : this.createRunItems(workflow));
-    const response = await fetch(ApiPaths.runs(), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        workflowId,
-        items,
-        synthesizeTriggerItems: shouldSynthesizeTriggerItems,
-        currentState: request.currentState,
-        startAt: request.startAt,
-        stopAt: request.stopAt,
-        clearFromNodeId: request.clearFromNodeId,
-        mode: request.mode,
-        sourceRunId: request.sourceRunId,
-      }),
+    return await codemationApiClient.postJson<RunWorkflowResult>(ApiPaths.runs(), {
+      workflowId,
+      items,
+      synthesizeTriggerItems: shouldSynthesizeTriggerItems,
+      currentState: request.currentState,
+      startAt: request.startAt,
+      stopAt: request.stopAt,
+      clearFromNodeId: request.clearFromNodeId,
+      mode: request.mode,
+      sourceRunId: request.sourceRunId,
     });
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-    return (await response.json()) as RunWorkflowResult;
   }
 
   static createOptimisticTriggerFetchSnapshot(
@@ -108,43 +101,19 @@ export class WorkflowDetailPresenter {
     mode?: RunWorkflowMode,
     synthesizeTriggerItems?: boolean,
   ): Promise<RunWorkflowResult> {
-    const response = await fetch(ApiPaths.runNode(runId, nodeId), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        items,
-        mode,
-        synthesizeTriggerItems,
-      }),
+    return await codemationApiClient.postJson<RunWorkflowResult>(ApiPaths.runNode(runId, nodeId), {
+      items,
+      mode,
+      synthesizeTriggerItems,
     });
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-    return (await response.json()) as RunWorkflowResult;
   }
 
   static async updatePinnedInput(runId: string, nodeId: string, items: Items | undefined): Promise<PersistedRunState> {
-    const response = await fetch(ApiPaths.runNodePin(runId, nodeId), {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ items }),
-    });
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-    return (await response.json()) as PersistedRunState;
+    return await codemationApiClient.patchJson<PersistedRunState>(ApiPaths.runNodePin(runId, nodeId), { items });
   }
 
   static async updateWorkflowSnapshot(runId: string, workflowSnapshot: PersistedWorkflowSnapshot): Promise<PersistedRunState> {
-    const response = await fetch(ApiPaths.runWorkflowSnapshot(runId), {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ workflowSnapshot }),
-    });
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-    return (await response.json()) as PersistedRunState;
+    return await codemationApiClient.patchJson<PersistedRunState>(ApiPaths.runWorkflowSnapshot(runId), { workflowSnapshot });
   }
 
   static createRunItems(workflow: WorkflowDto | undefined): Items {
@@ -425,31 +394,15 @@ export class WorkflowDetailPresenter {
     workflowId: string,
     currentState: WorkflowDebuggerOverlayState["currentState"],
   ): Promise<WorkflowDebuggerOverlayState> {
-    const response = await fetch(ApiPaths.workflowDebuggerOverlay(workflowId), {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        currentState,
-      }),
+    return await codemationApiClient.putJson<WorkflowDebuggerOverlayState>(ApiPaths.workflowDebuggerOverlay(workflowId), {
+      currentState,
     });
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-    return (await response.json()) as WorkflowDebuggerOverlayState;
   }
 
   static async copyRunToDebuggerOverlay(workflowId: string, sourceRunId: string): Promise<WorkflowDebuggerOverlayState> {
-    const response = await fetch(ApiPaths.workflowDebuggerOverlayCopyRun(workflowId), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        sourceRunId,
-      }),
+    return await codemationApiClient.postJson<WorkflowDebuggerOverlayState>(ApiPaths.workflowDebuggerOverlayCopyRun(workflowId), {
+      sourceRunId,
     });
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-    return (await response.json()) as WorkflowDebuggerOverlayState;
   }
 
   static workflowFromSnapshot(snapshot: PersistedWorkflowSnapshot | undefined, fallback: WorkflowDto | undefined): WorkflowDto | undefined {

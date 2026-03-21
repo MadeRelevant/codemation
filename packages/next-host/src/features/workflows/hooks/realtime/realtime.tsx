@@ -24,6 +24,7 @@ import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
 import { useContext,useEffect,useMemo,useState } from "react";
 
+import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { RealtimeContext } from "../../components/realtime/RealtimeContext";
 import {
 fetchCredentialInstanceWithSecrets,
@@ -199,15 +200,7 @@ export function useInviteUserMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (email: string): Promise<InviteUserResponseDto> => {
-      const response = await fetch(ApiPaths.userInvites(), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const body = (await response.json()) as InviteUserResponseDto;
+      const body = await codemationApiClient.postJson<InviteUserResponseDto>(ApiPaths.userInvites(), { email });
       return withInviteUserResponseLoginMethodsDefaults(body);
     },
     onSuccess: async () => {
@@ -220,11 +213,7 @@ export function useRegenerateUserInviteMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (userId: string): Promise<InviteUserResponseDto> => {
-      const response = await fetch(ApiPaths.userInviteRegenerate(userId), { method: "POST" });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const body = (await response.json()) as InviteUserResponseDto;
+      const body = await codemationApiClient.postJson<InviteUserResponseDto>(ApiPaths.userInviteRegenerate(userId));
       return withInviteUserResponseLoginMethodsDefaults(body);
     },
     onSuccess: async () => {
@@ -237,15 +226,9 @@ export function useUpdateUserAccountStatusMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (args: Readonly<{ userId: string; status: UserAccountStatus }>): Promise<UserAccountDto> => {
-      const response = await fetch(ApiPaths.userStatus(args.userId), {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status: args.status }),
+      const body = await codemationApiClient.patchJson<UserAccountDto>(ApiPaths.userStatus(args.userId), {
+        status: args.status,
       });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const body = (await response.json()) as UserAccountDto;
       return withUserAccountLoginMethodsDefaults(body);
     },
     onSuccess: async () => {

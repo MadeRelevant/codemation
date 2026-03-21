@@ -3,6 +3,8 @@
 import type { VerifyUserInviteResponseDto } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useEffect,useState,type FormEvent } from "react";
+import { codemationApiClient } from "../../../api/CodemationApiClient";
+import { CodemationApiHttpError } from "../../../api/CodemationApiHttpError";
 import { PasswordStrengthMeter } from "../../../components/PasswordStrengthMeter";
 
 export type InviteAcceptScreenProps = Readonly<{
@@ -26,12 +28,7 @@ export function InviteAcceptScreen(props: InviteAcceptScreenProps) {
     const run = async (): Promise<void> => {
       const url = `${ApiPaths.userInviteVerify()}?token=${encodeURIComponent(props.inviteToken)}`;
       try {
-        const response = await fetch(url, { cache: "no-store" });
-        if (!response.ok) {
-          if (!cancelled) setVerifyState("invalid");
-          return;
-        }
-        const data = (await response.json()) as VerifyUserInviteResponseDto;
+        const data = await codemationApiClient.getJson<VerifyUserInviteResponseDto>(url);
         if (cancelled) return;
         if (data.valid && data.email) {
           setVerifyState("valid");
@@ -61,18 +58,14 @@ export function InviteAcceptScreen(props: InviteAcceptScreenProps) {
     }
     try {
       setIsSubmitting(true);
-      const response = await fetch(ApiPaths.userInviteAccept(), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token: props.inviteToken, password }),
-      });
-      if (!response.ok) {
-        setError(await response.text());
-        return;
-      }
+      await codemationApiClient.postJson(ApiPaths.userInviteAccept(), { token: props.inviteToken, password });
       setDone(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (e instanceof CodemationApiHttpError) {
+        setError(e.bodyText.trim() || e.message);
+      } else {
+        setError(e instanceof Error ? e.message : String(e));
+      }
     } finally {
       setIsSubmitting(false);
     }

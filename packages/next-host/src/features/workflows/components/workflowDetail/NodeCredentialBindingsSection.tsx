@@ -2,6 +2,7 @@ import type { UpsertCredentialBindingRequest } from "@codemation/host-src/applic
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect,useMemo,useState } from "react";
+import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { useCredentialInstancesQuery,useWorkflowCredentialHealthQuery } from "../../hooks/realtime/realtime";
 import { NodeCredentialBindingRow } from "./NodeCredentialBindingRow";
 import type { WorkflowDiagramNode } from "../../lib/workflowDetail/workflowDetailTypes";
@@ -30,14 +31,7 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
       try {
         setActiveBindingSlotKey(request.slotKey);
         setCredentialError(null);
-        const response = await fetch(ApiPaths.credentialBindings(), {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(request),
-        });
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
+        await codemationApiClient.putJson<void>(ApiPaths.credentialBindings(), request);
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["workflow-credential-health", workflowId] }),
           queryClient.invalidateQueries({ queryKey: ["credential-instances"] }),

@@ -1,6 +1,8 @@
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { codemationApiClient } from "../../../api/CodemationApiClient";
+import { CodemationApiHttpError } from "../../../api/CodemationApiHttpError";
 import {
   useCredentialInstancesQuery,
   useCredentialInstanceWithSecretsQuery,
@@ -14,6 +16,17 @@ import {
 import type { FormSourceKind } from "../lib/credentialFormTypes";
 
 type DialogMode = "create" | "edit" | null;
+
+function parseCredentialInstanceTestPayload(text: string): { status?: string; message?: string } {
+  if (!text.trim()) {
+    return {};
+  }
+  try {
+    return JSON.parse(text) as { status?: string; message?: string };
+  } catch {
+    return { message: text || "Test failed" };
+  }
+}
 
 export function useCredentialsScreen() {
   const queryClient = useQueryClient();
@@ -114,11 +127,7 @@ export function useCredentialsScreen() {
     const loadRedirectUri = async (): Promise<void> => {
       try {
         setIsLoadingOauth2RedirectUri(true);
-        const response = await fetch(ApiPaths.oauth2RedirectUri(), { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
-        const data = (await response.json()) as { redirectUri?: string };
+        const data = await codemationApiClient.getJson<{ redirectUri?: string }>(ApiPaths.oauth2RedirectUri());
         if (!cancelled) {
           setOauth2RedirectUri(data.redirectUri ?? "");
         }
@@ -192,22 +201,14 @@ export function useCredentialsScreen() {
       const publicConfig = Object.fromEntries(
         (selectedType.publicFields ?? []).map((field) => [field.key, (publicFieldValues[field.key] ?? "").trim()]),
       ) as Record<string, unknown>;
-      const response = await fetch(ApiPaths.credentialInstances(), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          typeId: selectedTypeId,
-          displayName: displayName.trim(),
-          sourceKind,
-          publicConfig,
-          secretConfig,
-          envSecretRefs,
-        }),
+      const created = await codemationApiClient.postJson<CredentialInstanceDto>(ApiPaths.credentialInstances(), {
+        typeId: selectedTypeId,
+        displayName: displayName.trim(),
+        sourceKind,
+        publicConfig,
+        secretConfig,
+        envSecretRefs,
       });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      const created = (await response.json()) as CredentialInstanceDto;
       const createdType = credentialTypes.find((type) => type.typeId === created.typeId);
       setDialogMode("edit");
       setEditingInstanceId(created.instanceId);
@@ -298,14 +299,7 @@ export function useCredentialsScreen() {
         if (isDb && secretConfig) updateBody.secretConfig = secretConfig;
         if (envSecretRefs) updateBody.envSecretRefs = envSecretRefs;
       }
-      const response = await fetch(ApiPaths.credentialInstance(editingInstanceId), {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(updateBody),
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
+      await codemationApiClient.putJson(ApiPaths.credentialInstance(editingInstanceId), updateBody);
       closeDialog();
       await refreshQueries();
     } catch (error) {
@@ -347,12 +341,7 @@ export function useCredentialsScreen() {
     try {
       setOauthDisconnectConfirmOpen(false);
       setErrorMessage(null);
-      const response = await fetch(ApiPaths.oauth2Disconnect(instanceId), {
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
+      await codemationApiClient.postJson(ApiPaths.oauth2Disconnect(instanceId));
       await refreshQueries();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -368,29 +357,23 @@ export function useCredentialsScreen() {
       setIsDialogTesting(true);
       setDialogTestResult(null);
       setErrorMessage(null);
-      const response = await fetch(ApiPaths.credentialInstanceTest(targetInstance.instanceId), {
-        method: "POST",
-      });
-      const text = await response.text();
-      let data: { status?: string; message?: string } = {};
-      try {
-        data = text ? (JSON.parse(text) as { status?: string; message?: string }) : {};
-      } catch {
-        data = { message: text || "Test failed" };
-      }
-      if (!response.ok) {
-        setDialogTestResult({
-          status: "failing",
-          message: data?.message ?? "Test failed",
-        });
-        return;
-      }
+      const data = await codemationApiClient.postJson<{ status?: string; message?: string }>(
+        ApiPaths.credentialInstanceTest(targetInstance.instanceId),
+      );
       setDialogTestResult({
         status: data?.status ?? "healthy",
         message: data?.message,
       });
       await refreshQueries();
     } catch (error) {
+      if (error instanceof CodemationApiHttpError) {
+        const parsed = parseCredentialInstanceTestPayload(error.bodyText);
+        setDialogTestResult({
+          status: "failing",
+          message: parsed.message ?? "Test failed",
+        });
+        return;
+      }
       setDialogTestResult({
         status: "failing",
         message: error instanceof Error ? error.message : String(error),
@@ -405,24 +388,9 @@ export function useCredentialsScreen() {
       setActiveTestInstanceId(instance.instanceId);
       setTestResult(null);
       setErrorMessage(null);
-      const response = await fetch(ApiPaths.credentialInstanceTest(instance.instanceId), {
-        method: "POST",
-      });
-      const text = await response.text();
-      let data: { status?: string; message?: string } = {};
-      try {
-        data = text ? (JSON.parse(text) as { status?: string; message?: string }) : {};
-      } catch {
-        data = { message: text || "Test failed" };
-      }
-      if (!response.ok) {
-        setTestResult({
-          instanceId: instance.instanceId,
-          status: "failing",
-          message: data?.message ?? "Test failed",
-        });
-        return;
-      }
+      const data = await codemationApiClient.postJson<{ status?: string; message?: string }>(
+        ApiPaths.credentialInstanceTest(instance.instanceId),
+      );
       setTestResult({
         instanceId: instance.instanceId,
         status: data?.status ?? "healthy",
@@ -430,6 +398,15 @@ export function useCredentialsScreen() {
       });
       await refreshQueries();
     } catch (error) {
+      if (error instanceof CodemationApiHttpError) {
+        const parsed = parseCredentialInstanceTestPayload(error.bodyText);
+        setTestResult({
+          instanceId: instance.instanceId,
+          status: "failing",
+          message: parsed.message ?? "Test failed",
+        });
+        return;
+      }
       setTestResult({
         instanceId: instance.instanceId,
         status: "failing",
@@ -490,10 +467,7 @@ export function useCredentialsScreen() {
     const instanceId = deleteConfirmTarget.instanceId;
     try {
       setErrorMessage(null);
-      const response = await fetch(ApiPaths.credentialInstance(instanceId), { method: "DELETE" });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
+      await codemationApiClient.delete(ApiPaths.credentialInstance(instanceId));
       closeDeleteCredentialConfirm();
       if (editingInstanceId === instanceId) closeDialog();
       await refreshQueries();
