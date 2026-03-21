@@ -1,8 +1,10 @@
 import { WorkflowModulePathFinder } from "@codemation/host/server";
 import type { FSWatcher } from "chokidar";
 import { watch } from "chokidar";
-import { copyFile,mkdir,readdir,readFile,rm,stat,writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { copyFile,mkdir,readdir,readFile,rename,rm,stat,writeFile } from "node:fs/promises";
 import path from "node:path";
+import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 import ts from "typescript";
 
@@ -63,6 +65,13 @@ export class CodemationConsumerOutputBuilder {
     });
   }
 
+  async pruneRetiredRevisions(currentBuildVersion: string): Promise<void> {
+    const protectedBuildVersions = await this.resolveProtectedBuildVersions(currentBuildVersion);
+    await this.pruneStaleRevisions({
+      protectedBuildVersions,
+    });
+  }
+
   private async flushWatchBuilds(args: Readonly<{
     onBuildStarted?: () => Promise<void>;
     onBuildCompleted: (snapshot: CodemationConsumerOutputBuildSnapshot) => Promise<void>;
@@ -102,43 +111,55 @@ export class CodemationConsumerOutputBuilder {
     const buildVersion = this.createBuildVersion();
     const outputRoot = this.resolveOutputRoot();
     const revisionOutputRoot = this.resolveRevisionOutputRoot(buildVersion);
-    const outputAppRoot = path.resolve(revisionOutputRoot, "app");
-    for (const sourcePath of runtimeSourcePaths) {
-      if (this.shouldCopyAssetPath(sourcePath)) {
-        await this.copyAssetFile({
-          outputAppRoot,
-          sourcePath,
-        });
-        continue;
-      }
-      await this.emitSourceFile({
-        outputAppRoot,
-        sourcePath,
-      });
-    }
-    const outputEntryPath = path.resolve(revisionOutputRoot, "index.js");
+    const stagedRevisionOutputRoot = this.resolveStagedRevisionOutputRoot(buildVersion);
+    const outputAppRoot = path.resolve(stagedRevisionOutputRoot, "app");
     const configMetadata = await this.loadConfigMetadata(configSourcePath);
     const workflowSourcePaths = await this.resolveWorkflowSources(this.consumerRoot, configMetadata);
-    const snapshot: CodemationConsumerOutputBuildSnapshot = {
+    const stagedSnapshot: CodemationConsumerOutputBuildSnapshot = {
       buildVersion,
       configSourcePath,
       consumerRoot: this.consumerRoot,
       manifestPath: this.resolveCurrentManifestPath(),
-      outputEntryPath,
+      outputEntryPath: path.resolve(stagedRevisionOutputRoot, "index.js"),
       outputRoot,
-      revisionOutputRoot,
+      revisionOutputRoot: stagedRevisionOutputRoot,
       workflowSourcePaths,
     };
-    await this.writeEntryFile({
-      configSourcePath,
-      outputAppRoot,
-      snapshot,
-    });
-    const protectedBuildVersions = await this.resolveProtectedBuildVersions(buildVersion);
-    await this.pruneStaleRevisions({
-      protectedBuildVersions,
-    });
-    return snapshot;
+    let promotedRevision = false;
+    try {
+      for (const sourcePath of runtimeSourcePaths) {
+        if (this.shouldCopyAssetPath(sourcePath)) {
+          await this.copyAssetFile({
+            outputAppRoot,
+            sourcePath,
+          });
+          continue;
+        }
+        await this.emitSourceFile({
+          outputAppRoot,
+          sourcePath,
+        });
+      }
+      await this.writeEntryFile({
+        configSourcePath,
+        outputAppRoot,
+        snapshot: stagedSnapshot,
+      });
+      await this.promoteStagedRevision({
+        revisionOutputRoot,
+        stagedRevisionOutputRoot,
+      });
+      promotedRevision = true;
+      return {
+        ...stagedSnapshot,
+        outputEntryPath: path.resolve(revisionOutputRoot, "index.js"),
+        revisionOutputRoot,
+      };
+    } finally {
+      if (!promotedRevision) {
+        await rm(stagedRevisionOutputRoot, { force: true, recursive: true }).catch(() => null);
+      }
+    }
   }
 
   private scheduleWatchBuild(args: Readonly<{
@@ -411,12 +432,22 @@ export class CodemationConsumerOutputBuilder {
     return path.resolve(this.resolveOutputRoot(), "revisions", buildVersion);
   }
 
+  private resolveStagedRevisionOutputRoot(buildVersion: string): string {
+    return path.resolve(this.resolveOutputRoot(), "staging", `${buildVersion}-${randomUUID()}`);
+  }
+
   private resolveCurrentManifestPath(): string {
     return path.resolve(this.resolveOutputRoot(), "current.json");
   }
 
   private resolveRevisionsRoot(): string {
     return path.resolve(this.resolveOutputRoot(), "revisions");
+  }
+
+  private async promoteStagedRevision(args: Readonly<{ revisionOutputRoot: string; stagedRevisionOutputRoot: string }>): Promise<void> {
+    await mkdir(path.dirname(args.revisionOutputRoot), { recursive: true });
+    await rm(args.revisionOutputRoot, { force: true, recursive: true }).catch(() => null);
+    await rename(args.stagedRevisionOutputRoot, args.revisionOutputRoot);
   }
 
   private isRuntimeExtension(extension: string): boolean {
@@ -457,7 +488,7 @@ export class CodemationConsumerOutputBuilder {
   private createBuildVersion(): string {
     const nextBuildVersion = Math.max(Date.now(), this.lastIssuedBuildVersion + 1);
     this.lastIssuedBuildVersion = nextBuildVersion;
-    return String(nextBuildVersion);
+    return `${nextBuildVersion}-${process.pid}`;
   }
 
   private async resolveConfigPath(consumerRoot: string): Promise<string | null> {
@@ -689,10 +720,13 @@ export class CodemationConsumerOutputBuilder {
   }
 
   private compareRevisionNamesDescending(left: string, right: string): number {
-    const leftRevision = Number(left);
-    const rightRevision = Number(right);
+    const leftRevision = Number(left.split("-", 1)[0] ?? "");
+    const rightRevision = Number(right.split("-", 1)[0] ?? "");
     if (Number.isFinite(leftRevision) && Number.isFinite(rightRevision)) {
-      return rightRevision - leftRevision;
+      if (rightRevision !== leftRevision) {
+        return rightRevision - leftRevision;
+      }
+      return right.localeCompare(left);
     }
     return right.localeCompare(left);
   }

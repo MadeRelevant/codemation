@@ -114,6 +114,7 @@ export class CodemationCli {
     const snapshot = await builder.ensureBuilt();
     const discoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
     const manifest = await this.publishBuildArtifacts(snapshot, discoveredPlugins);
+    await builder.pruneRetiredRevisions(manifest.buildVersion);
     console.log(`Built consumer output: ${snapshot.outputEntryPath}`);
     console.log(`Discovered plugins: ${discoveredPlugins.length}`);
     console.log(`Published revision: ${manifest.buildVersion}`);
@@ -122,72 +123,74 @@ export class CodemationCli {
   private async runDev(consumerRoot: string): Promise<void> {
     const paths = await this.pathResolver.resolve(consumerRoot);
     this.configureTypeScriptRuntime(paths.repoRoot);
-    const builder = new CodemationConsumerOutputBuilder(paths.consumerRoot);
-    const snapshot = await builder.ensureBuilt();
-    const discoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
-    await this.publishBuildArtifacts(snapshot, discoveredPlugins);
-    const nextPort = this.resolveNextPort(process.env.PORT);
-    const websocketPort = this.resolveWebsocketPort({
-      nextPort,
-      publicWebsocketPort: process.env.NEXT_PUBLIC_CODEMATION_WS_PORT,
-      websocketPort: process.env.CODEMATION_WS_PORT,
-    });
-    const developmentServerToken = this.resolveDevelopmentServerToken(process.env.CODEMATION_DEV_SERVER_TOKEN);
     const devLock = new CodemationDevLock();
+    const nextPort = this.resolveNextPort(process.env.PORT);
     await devLock.acquire({
       consumerRoot: paths.consumerRoot,
       nextPort,
     });
-    await builder.ensureWatching({
-      onBuildStarted: async () => {
-        await this.notifyNextHostDevelopmentRuntime({
-          nextPort,
-          developmentServerToken,
-          payload: {
-            kind: "buildStarted",
-          },
-        });
-      },
-      onBuildCompleted: async (nextSnapshot) => {
-        const nextDiscoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
-        const nextManifest = await this.publishBuildArtifacts(nextSnapshot, nextDiscoveredPlugins);
-        await this.notifyNextHostDevelopmentRuntime({
-          nextPort,
-          developmentServerToken,
-          payload: {
-            kind: "buildCompleted",
-            buildVersion: nextManifest.buildVersion,
-          },
-        });
-        console.log(`[codemation] rebuilt consumer output revision=${nextManifest.buildVersion}`);
-      },
-      onBuildFailed: async (error: Error) => {
-        await this.notifyNextHostDevelopmentRuntime({
-          nextPort,
-          developmentServerToken,
-          payload: {
-            kind: "buildFailed",
-            message: error.message,
-          },
-        });
-      },
-    });
-    const nextHostPackageJsonPath = this.require.resolve("@codemation/next-host/package.json");
-    const nextHostRoot = path.dirname(nextHostPackageJsonPath);
-    const nextHostEnvironment = this.createNextHostEnvironment({
-      consumerOutputManifestPath: snapshot.manifestPath,
-      consumerRoot: paths.consumerRoot,
-      developmentServerToken,
-      nextPort,
-      websocketPort,
-    });
-    const childProcess = spawn("pnpm", ["exec", "next", "dev"], {
-      cwd: nextHostRoot,
-      stdio: "inherit",
-      env: nextHostEnvironment,
-    });
-    this.bindSignals(childProcess);
+    const builder = new CodemationConsumerOutputBuilder(paths.consumerRoot);
     try {
+      const snapshot = await builder.ensureBuilt();
+      const discoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
+      const manifest = await this.publishBuildArtifacts(snapshot, discoveredPlugins);
+      await builder.pruneRetiredRevisions(manifest.buildVersion);
+      const websocketPort = this.resolveWebsocketPort({
+        nextPort,
+        publicWebsocketPort: process.env.NEXT_PUBLIC_CODEMATION_WS_PORT,
+        websocketPort: process.env.CODEMATION_WS_PORT,
+      });
+      const developmentServerToken = this.resolveDevelopmentServerToken(process.env.CODEMATION_DEV_SERVER_TOKEN);
+      await builder.ensureWatching({
+        onBuildStarted: async () => {
+          await this.notifyNextHostDevelopmentRuntime({
+            nextPort,
+            developmentServerToken,
+            payload: {
+              kind: "buildStarted",
+            },
+          });
+        },
+        onBuildCompleted: async (nextSnapshot) => {
+          const nextDiscoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
+          const nextManifest = await this.publishBuildArtifacts(nextSnapshot, nextDiscoveredPlugins);
+          await builder.pruneRetiredRevisions(nextManifest.buildVersion);
+          await this.notifyNextHostDevelopmentRuntime({
+            nextPort,
+            developmentServerToken,
+            payload: {
+              kind: "buildCompleted",
+              buildVersion: nextManifest.buildVersion,
+            },
+          });
+          console.log(`[codemation] rebuilt consumer output revision=${nextManifest.buildVersion}`);
+        },
+        onBuildFailed: async (error: Error) => {
+          await this.notifyNextHostDevelopmentRuntime({
+            nextPort,
+            developmentServerToken,
+            payload: {
+              kind: "buildFailed",
+              message: error.message,
+            },
+          });
+        },
+      });
+      const nextHostPackageJsonPath = this.require.resolve("@codemation/next-host/package.json");
+      const nextHostRoot = path.dirname(nextHostPackageJsonPath);
+      const nextHostEnvironment = this.createNextHostEnvironment({
+        consumerOutputManifestPath: snapshot.manifestPath,
+        consumerRoot: paths.consumerRoot,
+        developmentServerToken,
+        nextPort,
+        websocketPort,
+      });
+      const childProcess = spawn("pnpm", ["exec", "next", "dev"], {
+        cwd: nextHostRoot,
+        stdio: "inherit",
+        env: nextHostEnvironment,
+      });
+      this.bindSignals(childProcess);
       await new Promise<void>((resolve, reject) => {
         childProcess.on("exit", (code) => {
           if ((code ?? 0) === 0) {
