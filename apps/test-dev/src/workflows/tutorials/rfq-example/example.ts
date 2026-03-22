@@ -1,6 +1,6 @@
 import { AIAgent,Callback,createWorkflowBuilder,If,ManualTrigger,MapData,OpenAIChatModelConfig } from "@codemation/core-nodes";
 import { ExampleUppercase } from "@codemation/node-example";
-import { ClassifyMailToolConfig } from "../tools/classifyMailTool";
+import { ClassifyMailToolConfig } from "../../../tools/classifyMailTool";
 
 export const ORDERS_CREATE_START = "orders.create.start";
 
@@ -52,14 +52,14 @@ export default createWorkflowBuilder({ id: "wf.example", name: "Example workflow
           orderStatus: "created",
         },
       })),
-    ),
+    )
   ],
   false: [
     new MapData<ExampleAgentJson, ExampleOutcomeJson>("Not RFQ", (item) => ({
       ...item.json,
       orderStatus: "ignored",
       note: item.json.summary,
-    })),
+    }))
   ],
 })
 .build()

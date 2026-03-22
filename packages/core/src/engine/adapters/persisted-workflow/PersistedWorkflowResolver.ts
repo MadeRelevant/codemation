@@ -51,6 +51,9 @@ export class PersistedWorkflowResolver {
       name: snapshot.name,
       nodes,
       edges: snapshot.edges.filter((edge) => nodeIds.has(edge.from.nodeId) && nodeIds.has(edge.to.nodeId)),
+      ...(liveWorkflow?.discoveryPathSegments !== undefined
+        ? { discoveryPathSegments: liveWorkflow.discoveryPathSegments }
+        : {}),
     };
   }
 

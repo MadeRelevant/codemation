@@ -25,6 +25,8 @@ export interface WorkflowDefinition {
   name: string;
   nodes: NodeDefinition[];
   edges: Edge[];
+  /** Directory + file-stem path under a workflow discovery root (for UI grouping only). */
+  discoveryPathSegments?: readonly string[];
 }
 
 export interface WorkflowGraph {

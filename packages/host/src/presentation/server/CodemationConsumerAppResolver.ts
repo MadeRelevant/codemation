@@ -15,6 +15,7 @@ export class CodemationConsumerAppResolver {
       configModule: Readonly<Record<string, unknown>>;
       workflowModules: ReadonlyArray<Readonly<Record<string, unknown>>>;
       workflowSourcePaths: ReadonlyArray<string>;
+      workflowDiscoveryPathSegmentsList?: ReadonlyArray<readonly string[]>;
     }>,
   ): CodemationConsumerApp {
     const config = this.configExportsResolver.resolveConfig(args.configModule);
@@ -30,7 +31,7 @@ export class CodemationConsumerAppResolver {
     return {
       config: {
         ...config,
-        workflows: this.resolveWorkflows(args.workflowModules, args.workflowSourcePaths),
+        workflows: this.resolveWorkflows(args.workflowModules, args.workflowSourcePaths, args.workflowDiscoveryPathSegmentsList),
       },
       workflowSources: args.workflowSourcePaths,
     };
@@ -39,13 +40,19 @@ export class CodemationConsumerAppResolver {
   private resolveWorkflows(
     workflowModules: ReadonlyArray<Readonly<Record<string, unknown>>>,
     workflowSourcePaths: ReadonlyArray<string>,
+    workflowDiscoveryPathSegmentsList: ReadonlyArray<readonly string[]> | undefined,
   ): ReadonlyArray<WorkflowDefinition> {
     const workflowsById = new Map<string, WorkflowDefinition>();
     workflowModules.forEach((workflowModule: Readonly<Record<string, unknown>>, index: number) => {
       const workflowSourcePath = workflowSourcePaths[index] ?? `workflow-module-${index}`;
+      const pathSegments = workflowDiscoveryPathSegmentsList?.[index];
       const workflows = this.resolveWorkflowModuleExports(workflowModule, workflowSourcePath);
       workflows.forEach((workflow: WorkflowDefinition) => {
-        workflowsById.set(workflow.id, workflow);
+        const enriched =
+          pathSegments && pathSegments.length > 0
+            ? ({ ...workflow, discoveryPathSegments: pathSegments } satisfies WorkflowDefinition)
+            : workflow;
+        workflowsById.set(workflow.id, enriched);
       });
     });
     return [...workflowsById.values()];

@@ -1,6 +1,6 @@
 import { Callback,createWorkflowBuilder } from "@codemation/core-nodes";
 import { OnNewGmailTrigger,type OnNewGmailTriggerItemJson } from "@codemation/core-nodes-gmail";
-import { TestDevGmailEnvironment } from "../bootstrap/TestDevGmailEnvironment";
+import { TestDevGmailEnvironment } from "../../../bootstrap/TestDevGmailEnvironment";
 
 const gmailEnvironment = new TestDevGmailEnvironment();
 const gmailTriggerConfiguration = gmailEnvironment.resolveTriggerConfiguration();

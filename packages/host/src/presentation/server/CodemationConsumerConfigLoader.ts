@@ -6,6 +6,7 @@ import type { NamespacedUnregister } from "tsx/esm/api";
 import { register } from "tsx/esm/api";
 import type { CodemationConfig } from "../config/CodemationConfig";
 import { CodemationConsumerConfigExportsResolver } from "./CodemationConsumerConfigExportsResolver";
+import { WorkflowDiscoveryPathSegmentsComputer } from "./WorkflowDiscoveryPathSegmentsComputer";
 import { WorkflowModulePathFinder } from "./WorkflowModulePathFinder";
 
 export type CodemationConsumerConfigResolution = Readonly<{
@@ -18,6 +19,7 @@ export class CodemationConsumerConfigLoader {
   private static readonly importerRegistrationsByTsconfig = new Map<string, NamespacedUnregister>();
   private readonly configExportsResolver = new CodemationConsumerConfigExportsResolver();
   private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
+  private readonly pathSegmentsComputer = new WorkflowDiscoveryPathSegmentsComputer();
 
   async load(args: Readonly<{ consumerRoot: string; configPathOverride?: string }>): Promise<CodemationConsumerConfigResolution> {
     const bootstrapSource = await this.resolveConfigPath(args.consumerRoot, args.configPathOverride);
@@ -30,7 +32,7 @@ export class CodemationConsumerConfigLoader {
       throw new Error(`Config file does not export a Codemation config object: ${bootstrapSource}`);
     }
     const workflowSources = await this.resolveWorkflowSources(args.consumerRoot, config);
-    const workflows = config.workflows ?? (await this.loadDiscoveredWorkflows(workflowSources));
+    const workflows = config.workflows ?? (await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources));
     return {
       config: {
         ...config,
@@ -78,12 +80,24 @@ export class CodemationConsumerConfigLoader {
     return [...discoveredPaths].sort((left: string, right: string) => left.localeCompare(right));
   }
 
-  private async loadDiscoveredWorkflows(workflowSources: ReadonlyArray<string>): Promise<ReadonlyArray<WorkflowDefinition>> {
+  private async loadDiscoveredWorkflows(
+    consumerRoot: string,
+    config: CodemationConfig,
+    workflowSources: ReadonlyArray<string>,
+  ): Promise<ReadonlyArray<WorkflowDefinition>> {
+    const workflowDiscoveryDirectories = config.workflowDiscovery?.directories ?? [];
     const workflowsById = new Map<string, WorkflowDefinition>();
     for (const workflowSource of workflowSources) {
+      const segments = this.pathSegmentsComputer.compute({
+        consumerRoot,
+        workflowDiscoveryDirectories,
+        absoluteWorkflowModulePath: workflowSource,
+      });
       const moduleExports = await this.importModule(workflowSource);
       for (const workflow of this.resolveWorkflows(moduleExports, workflowSource)) {
-        workflowsById.set(workflow.id, workflow);
+        const enriched =
+          segments && segments.length > 0 ? ({ ...workflow, discoveryPathSegments: segments } satisfies WorkflowDefinition) : workflow;
+        workflowsById.set(workflow.id, enriched);
       }
     }
     return [...workflowsById.values()];

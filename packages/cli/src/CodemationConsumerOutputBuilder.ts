@@ -1,4 +1,4 @@
-import { WorkflowModulePathFinder } from "@codemation/host/server";
+import { WorkflowDiscoveryPathSegmentsComputer,WorkflowModulePathFinder } from "@codemation/host/server";
 import type { FSWatcher } from "chokidar";
 import { watch } from "chokidar";
 import { randomUUID } from "node:crypto";
@@ -17,6 +17,7 @@ export type CodemationConsumerOutputBuildSnapshot = Readonly<{
   outputRoot: string;
   revisionOutputRoot: string;
   workflowSourcePaths: ReadonlyArray<string>;
+  workflowDiscoveryPathSegmentsList: ReadonlyArray<readonly string[]>;
 }>;
 
 type CodemationBuildConfigMetadata = Readonly<{
@@ -115,6 +116,15 @@ export class CodemationConsumerOutputBuilder {
     const outputAppRoot = path.resolve(stagedRevisionOutputRoot, "app");
     const configMetadata = await this.loadConfigMetadata(configSourcePath);
     const workflowSourcePaths = await this.resolveWorkflowSources(this.consumerRoot, configMetadata);
+    const pathSegmentsComputer = new WorkflowDiscoveryPathSegmentsComputer();
+    const workflowDiscoveryPathSegmentsList = workflowSourcePaths.map((sourcePath) => {
+      const segments = pathSegmentsComputer.compute({
+        consumerRoot: this.consumerRoot,
+        workflowDiscoveryDirectories: configMetadata.workflowDiscoveryDirectories,
+        absoluteWorkflowModulePath: sourcePath,
+      });
+      return segments ?? [];
+    });
     const stagedSnapshot: CodemationConsumerOutputBuildSnapshot = {
       buildVersion,
       configSourcePath,
@@ -124,6 +134,7 @@ export class CodemationConsumerOutputBuilder {
       outputRoot,
       revisionOutputRoot: stagedRevisionOutputRoot,
       workflowSourcePaths,
+      workflowDiscoveryPathSegmentsList,
     };
     let promotedRevision = false;
     try {
@@ -286,18 +297,19 @@ export class CodemationConsumerOutputBuilder {
       args.snapshot.workflowSourcePaths.length > 0
         ? `[${args.snapshot.workflowSourcePaths.map((workflowSourcePath: string) => JSON.stringify(workflowSourcePath)).join(", ")}]`
         : "[]";
+    const workflowDiscoveryPathSegmentsListExpression = JSON.stringify(args.snapshot.workflowDiscoveryPathSegmentsList);
     const outputText = [
       `import * as configModule from "${configImportPath}";`,
       workflowImportBlocks,
       "const resolver = {",
-      "  resolve({ configModule, workflowModules, workflowSourcePaths }) {",
+      "  resolve({ configModule, workflowModules, workflowSourcePaths, workflowDiscoveryPathSegmentsList }) {",
       "    const config = this.resolveConfig(configModule);",
       '    if (!config) throw new Error("Consumer app module does not export a Codemation config object.");',
       "    if (config.workflows !== undefined) {",
       "      return { config, workflowSources: [] };",
       "    }",
       "    return {",
-      "      config: { ...config, workflows: this.resolveWorkflows(workflowModules, workflowSourcePaths) },",
+      "      config: { ...config, workflows: this.resolveWorkflows(workflowModules, workflowSourcePaths, workflowDiscoveryPathSegmentsList) },",
       "      workflowSources: workflowSourcePaths,",
       "    };",
       "  },",
@@ -312,12 +324,16 @@ export class CodemationConsumerOutputBuilder {
       "    if (!value || typeof value !== 'object') return false;",
       "    return 'runtime' in value || 'workflows' in value || 'workflowDiscovery' in value || 'bindings' in value || 'plugins' in value || 'bootHook' in value || 'slots' in value;",
       "  },",
-      "  resolveWorkflows(workflowModules, workflowSourcePaths) {",
+      "  resolveWorkflows(workflowModules, workflowSourcePaths, workflowDiscoveryPathSegmentsList) {",
       "    const workflowsById = new Map();",
       "    workflowModules.forEach((workflowModule, index) => {",
       "      const workflowSourcePath = workflowSourcePaths[index] ?? `workflow-module-${index}`;",
+      "      const pathSegments = workflowDiscoveryPathSegmentsList?.[index];",
       "      const workflows = this.resolveWorkflowModuleExports(workflowModule, workflowSourcePath);",
-      "      workflows.forEach((workflow) => workflowsById.set(workflow.id, workflow));",
+      "      workflows.forEach((workflow) => {",
+      "        const enriched = pathSegments && pathSegments.length > 0 ? { ...workflow, discoveryPathSegments: pathSegments } : workflow;",
+      "        workflowsById.set(workflow.id, enriched);",
+      "      });",
       "    });",
       "    return [...workflowsById.values()];",
       "  },",
@@ -338,6 +354,7 @@ export class CodemationConsumerOutputBuilder {
       "  configModule,",
       `  workflowModules: ${workflowModulesExpression},`,
       `  workflowSourcePaths: ${workflowSourcePathsExpression},`,
+      `  workflowDiscoveryPathSegmentsList: ${workflowDiscoveryPathSegmentsListExpression},`,
       "});",
       "export default codemationConsumerApp;",
       "",

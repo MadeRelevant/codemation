@@ -18,7 +18,11 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
   }
 
   toSummary(workflow: WorkflowDefinition): WorkflowSummary {
-    return { id: workflow.id, name: workflow.name };
+    return {
+      id: workflow.id,
+      name: workflow.name,
+      discoveryPathSegments: workflow.discoveryPathSegments ?? [],
+    };
   }
 
   private toNodes(workflow: WorkflowDefinition): ReadonlyArray<WorkflowNodeDto> {

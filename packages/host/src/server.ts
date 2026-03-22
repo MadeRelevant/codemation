@@ -6,3 +6,4 @@ export type { CodemationConsumerApp } from "./presentation/server/CodemationCons
 export { CodemationConsumerConfigLoader } from "./presentation/server/CodemationConsumerConfigLoader";
 export type { CodemationConsumerConfigResolution } from "./presentation/server/CodemationConsumerConfigLoader";
 export { WorkflowModulePathFinder } from "./presentation/server/WorkflowModulePathFinder";
+export { WorkflowDiscoveryPathSegmentsComputer } from "./presentation/server/WorkflowDiscoveryPathSegmentsComputer";

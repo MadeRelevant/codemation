@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "codemation": "tsx --tsconfig ../../tsconfig.codemation-tsx.json ../../packages/cli/src/bin.ts",
-    "dev": "pnpm exec codemation dev",
+    "dev": "pnpm codemation dev",
     "worker": "codemation-worker",
     "build": "pnpm --filter @codemation/core-nodes-gmail build && pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js build",
     "typecheck": "tsc -p tsconfig.json --noEmit",

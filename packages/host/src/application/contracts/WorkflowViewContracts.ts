@@ -20,4 +20,9 @@ export type WorkflowDto = Readonly<{
   edges: ReadonlyArray<WorkflowEdgeDto>;
 }>;
 
-export type WorkflowSummary = Readonly<{ id: string; name: string }>;
+export type WorkflowSummary = Readonly<{
+  id: string;
+  name: string;
+  /** Path under workflow discovery root: folders + workflow file stem. */
+  discoveryPathSegments: readonly string[];
+}>;

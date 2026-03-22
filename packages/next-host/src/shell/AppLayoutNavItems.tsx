@@ -4,11 +4,13 @@ import Link from "next/link";
 
 import { usePathname } from "next/navigation";
 
+import { useMemo } from "react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
 import { IconCredentials, IconDashboard, IconUsers, IconWorkflow } from "./appLayoutSidebarIcons";
+import { WorkflowSidebarNavTree } from "./WorkflowSidebarNavTree";
 import { useWorkflowsQuery } from "../features/workflows/hooks/realtime/realtime";
 
 export interface AppLayoutNavItemsProps {
@@ -33,6 +35,19 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
   const pathname = usePathname();
   const workflowsQuery = useWorkflowsQuery();
   const workflows = workflowsQuery.data ?? [];
+  const sortedWorkflows = useMemo(() => {
+    const list = [...workflows];
+    list.sort((left, right) => {
+      const leftKey = left.discoveryPathSegments.join("/");
+      const rightKey = right.discoveryPathSegments.join("/");
+      const keyCompare = leftKey.localeCompare(rightKey);
+      if (keyCompare !== 0) {
+        return keyCompare;
+      }
+      return left.name.localeCompare(right.name);
+    });
+    return list;
+  }, [workflows]);
 
   const navItem = (href: string, label: string, icon: ReactNode, exact?: boolean) => {
     const isActive = exact ? pathname === href : pathname.startsWith(href);
@@ -82,11 +97,13 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
           </span>
           {workflowsQuery.isLoading && <span className="px-4 py-2 text-xs text-muted-foreground">…</span>}
           {!workflowsQuery.isLoading &&
-            workflows.map((w) => {
+            sortedWorkflows.map((w) => {
               const href = `/workflows/${encodeURIComponent(w.id)}`;
               const isActive = pathname === href;
+              const title =
+                w.discoveryPathSegments.length > 0 ? `${w.discoveryPathSegments.join(" / ")} — ${w.name}` : w.name;
               return (
-                <span key={w.id} className="relative flex overflow-visible" title={w.name}>
+                <span key={w.id} className="relative flex overflow-visible" title={title}>
                   <Link
                     href={href}
                     className={cn(
@@ -123,23 +140,13 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
             {!workflowsQuery.isLoading && workflows.length === 0 && (
               <span className="px-4 py-2 text-xs text-muted-foreground">No workflows</span>
             )}
-            {workflows.map((w) => {
-              const href = `/workflows/${encodeURIComponent(w.id)}`;
-              const isActive = pathname === href;
-              return (
-                <Link
-                  key={w.id}
-                  href={href}
-                  className={workflowLinkClass(isActive)}
-                  data-testid={`nav-workflow-${w.id}`}
-                >
-                  <span className="flex shrink-0 opacity-70" aria-hidden>
-                    <IconWorkflow />
-                  </span>
-                  <span className="truncate text-sm">{w.name}</span>
-                </Link>
-              );
-            })}
+            {!workflowsQuery.isLoading && workflows.length > 0 && (
+              <WorkflowSidebarNavTree
+                workflows={workflows}
+                pathname={pathname}
+                workflowLinkClass={workflowLinkClass}
+              />
+            )}
           </div>
         </div>
       )}

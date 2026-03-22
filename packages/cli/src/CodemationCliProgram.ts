@@ -141,6 +141,94 @@ export class CodemationCli {
         websocketPort: process.env.CODEMATION_WS_PORT,
       });
       const developmentServerToken = this.resolveDevelopmentServerToken(process.env.CODEMATION_DEV_SERVER_TOKEN);
+      const nextRestartAfterBuilds = this.parsePositiveInt(process.env.CODEMATION_DEV_NEXT_RESTART_AFTER_BUILDS) ?? 75;
+      const nextMaxAutomaticRestarts = this.parsePositiveInt(process.env.CODEMATION_DEV_NEXT_MAX_RESTARTS) ?? 10;
+      let buildsSinceNextStart = 0;
+      let currentNextHost: ReturnType<typeof spawn> | null = null;
+      let stopRequested = false;
+      let restartRequested = false;
+      let automaticRestartCount = 0;
+      let stopResolve: (() => void) | null = null;
+      let stopReject: ((error: Error) => void) | null = null;
+
+      const stopPromise = new Promise<void>((resolve, reject) => {
+        stopResolve = resolve;
+        stopReject = reject;
+      });
+
+      const requestNextHostRestart = (): void => {
+        if (stopRequested || restartRequested) {
+          return;
+        }
+        if (!currentNextHost || currentNextHost.exitCode !== null) {
+          return;
+        }
+        console.warn(`[codemation-cli] restarting next host after ${buildsSinceNextStart} rebuilds to avoid dev-server memory growth`);
+        restartRequested = true;
+        currentNextHost.kill("SIGINT");
+      };
+
+      const nextHostPackageJsonPath = this.require.resolve("@codemation/next-host/package.json");
+      const nextHostRoot = path.dirname(nextHostPackageJsonPath);
+      const nextHostEnvironment = this.createNextHostEnvironment({
+        consumerOutputManifestPath: snapshot.manifestPath,
+        consumerRoot: paths.consumerRoot,
+        developmentServerToken,
+        nextPort,
+        websocketPort,
+      });
+
+      const spawnNextHost = (): void => {
+        buildsSinceNextStart = 0;
+        currentNextHost = spawn("pnpm", ["exec", "next", "dev"], {
+          cwd: nextHostRoot,
+          stdio: "inherit",
+          env: nextHostEnvironment,
+        });
+        currentNextHost.on("exit", (code) => {
+          const normalizedCode = code ?? 0;
+          if (stopRequested) {
+            return;
+          }
+          if (restartRequested) {
+            restartRequested = false;
+            automaticRestartCount = 0;
+            spawnNextHost();
+            return;
+          }
+          if (normalizedCode === 0) {
+            stopRequested = true;
+            stopResolve?.();
+            return;
+          }
+          automaticRestartCount += 1;
+          if (automaticRestartCount > nextMaxAutomaticRestarts) {
+            stopRequested = true;
+            stopReject?.(new Error(`Next host exited with code ${normalizedCode} too many times. Restart limit=${nextMaxAutomaticRestarts}.`));
+            return;
+          }
+          console.warn(`[codemation-cli] next host exited with code ${normalizedCode}; restarting (${automaticRestartCount}/${nextMaxAutomaticRestarts})`);
+          spawnNextHost();
+        });
+        currentNextHost.on("error", (error) => {
+          if (stopRequested) {
+            return;
+          }
+          console.warn(`[codemation-cli] next host process error; restarting: ${error instanceof Error ? error.message : String(error)}`);
+          spawnNextHost();
+        });
+      };
+
+      for (const signal of ["SIGINT", "SIGTERM", "SIGQUIT"] as const) {
+        process.on(signal, () => {
+          stopRequested = true;
+          if (currentNextHost?.exitCode === null) {
+            currentNextHost.kill(signal);
+          }
+          stopResolve?.();
+        });
+      }
+
       await builder.ensureWatching({
         onBuildStarted: async () => {
           await this.notifyNextHostDevelopmentRuntime({
@@ -164,6 +252,10 @@ export class CodemationCli {
             },
           });
           console.log(`[codemation] rebuilt consumer output revision=${nextManifest.buildVersion}`);
+          buildsSinceNextStart += 1;
+          if (buildsSinceNextStart >= nextRestartAfterBuilds) {
+            requestNextHostRestart();
+          }
         },
         onBuildFailed: async (error: Error) => {
           await this.notifyNextHostDevelopmentRuntime({
@@ -176,34 +268,19 @@ export class CodemationCli {
           });
         },
       });
-      const nextHostPackageJsonPath = this.require.resolve("@codemation/next-host/package.json");
-      const nextHostRoot = path.dirname(nextHostPackageJsonPath);
-      const nextHostEnvironment = this.createNextHostEnvironment({
-        consumerOutputManifestPath: snapshot.manifestPath,
-        consumerRoot: paths.consumerRoot,
-        developmentServerToken,
-        nextPort,
-        websocketPort,
-      });
-      const childProcess = spawn("pnpm", ["exec", "next", "dev"], {
-        cwd: nextHostRoot,
-        stdio: "inherit",
-        env: nextHostEnvironment,
-      });
-      this.bindSignals(childProcess);
-      await new Promise<void>((resolve, reject) => {
-        childProcess.on("exit", (code) => {
-          if ((code ?? 0) === 0) {
-            resolve();
-            return;
-          }
-          reject(new Error(`Next host exited with code ${code ?? 0}.`));
-        });
-        childProcess.on("error", reject);
-      });
+      spawnNextHost();
+      await stopPromise;
     } finally {
       await devLock.release();
     }
+  }
+
+  private parsePositiveInt(raw: string | undefined): number | null {
+    const parsed = Number(raw);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
+    return null;
   }
 
   private bindSignals(childProcess: ReturnType<typeof spawn>): void {
