@@ -482,6 +482,12 @@ export default [
       "codemation/no-static-methods": "off",
     },
   },
+  {
+    files: ["packages/host/src/presentation/server/DevelopmentRuntimeRouteGuard.ts"],
+    rules: {
+      "codemation/no-static-methods": "off",
+    },
+  },
 
   // next-host: UI uses the HTTP API only (App Router → /api → Hono/CQRS), not Server Actions.
   {

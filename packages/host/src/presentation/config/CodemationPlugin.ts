@@ -13,5 +13,11 @@ export interface CodemationPluginContext {
 }
 
 export interface CodemationPlugin {
+  /**
+   * Optional npm package name for this plugin (e.g. `"@codemation/core-nodes-gmail"`).
+   * When set, the host merges configured and discovered plugin lists by this id so the same package is not
+   * registered twice when separate module graphs load duplicate class instances (different `constructor` values).
+   */
+  readonly pluginPackageId?: string;
   register(context: CodemationPluginContext): void | Promise<void>;
 }

@@ -1,8 +1,10 @@
+import type { Logger } from "@codemation/host/next/server";
+import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 import { WorkflowDiscoveryPathSegmentsComputer,WorkflowModulePathFinder } from "@codemation/host/server";
 import type { FSWatcher } from "chokidar";
 import { watch } from "chokidar";
 import { randomUUID } from "node:crypto";
-import { copyFile,mkdir,readdir,readFile,rename,rm,stat,writeFile } from "node:fs/promises";
+import { access,copyFile,cp,mkdir,readdir,readFile,rename,rm,stat,writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
@@ -25,12 +27,18 @@ type CodemationBuildConfigMetadata = Readonly<{
   workflowDiscoveryDirectories: ReadonlyArray<string>;
 }>;
 
+const defaultConsumerOutputLogger = new ServerLoggerFactory(logLevelPolicyFactory).create("codemation-cli.consumer-output");
+
 export class CodemationConsumerOutputBuilder {
   private static readonly ignoredDirectoryNames = new Set([".codemation", ".git", "dist", "node_modules"]);
   private static readonly maxRetainedRevisions = 5;
   private static readonly supportedSourceExtensions = new Set([".ts", ".tsx", ".mts", ".cts"]);
   private static readonly watchBuildDebounceMs = 75;
   private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
+
+  /** Last promoted revision used to copy-forward unchanged emitted files on incremental watch builds. */
+  private lastPromotedSnapshot: CodemationConsumerOutputBuildSnapshot | null = null;
+  private pendingWatchEvents: Array<{ event: string; path: string }> = [];
 
   private activeBuildPromise: Promise<CodemationConsumerOutputBuildSnapshot> | null = null;
   private watcher: FSWatcher | null = null;
@@ -40,13 +48,32 @@ export class CodemationConsumerOutputBuilder {
   private hasPendingWatchBuild = false;
   private lastIssuedBuildVersion = 0;
 
-  constructor(private readonly consumerRoot: string) {}
+  constructor(
+    private readonly consumerRoot: string,
+    private readonly log: Logger = defaultConsumerOutputLogger,
+  ) {}
 
   async ensureBuilt(): Promise<CodemationConsumerOutputBuildSnapshot> {
     if (!this.activeBuildPromise) {
       this.activeBuildPromise = this.buildInternal();
     }
     return await this.activeBuildPromise;
+  }
+
+  /**
+   * Stops the chokidar watcher and clears debounce timers. Safe to call when not watching.
+   * Used by tests and for clean shutdown when tearing down a dev session.
+   */
+  async disposeWatching(): Promise<void> {
+    if (this.watchBuildDebounceTimeout) {
+      clearTimeout(this.watchBuildDebounceTimeout);
+      this.watchBuildDebounceTimeout = null;
+    }
+    if (this.watcher) {
+      await this.watcher.close();
+      this.watcher = null;
+    }
+    this.watchBuildLoopPromise = null;
   }
 
   async ensureWatching(args: Readonly<{
@@ -61,7 +88,13 @@ export class CodemationConsumerOutputBuilder {
       ignoreInitial: true,
       ignored: this.createIgnoredMatcher(),
     });
-    this.watcher.on("all", () => {
+    this.watcher.on("all", (eventName, rawPath) => {
+      if (typeof rawPath === "string" && rawPath.length > 0) {
+        this.pendingWatchEvents.push({
+          event: eventName,
+          path: path.resolve(rawPath),
+        });
+      }
       this.scheduleWatchBuild(args);
     });
   }
@@ -85,14 +118,15 @@ export class CodemationConsumerOutputBuilder {
           await args.onBuildStarted();
         }
         try {
-          this.activeBuildPromise = this.buildInternal();
+          const watchEvents = this.takePendingWatchEvents();
+          this.activeBuildPromise = this.buildInternal({ watchEvents });
           await args.onBuildCompleted(await this.activeBuildPromise);
         } catch (error) {
           const exception = error instanceof Error ? error : new Error(String(error));
           if (args.onBuildFailed && !this.hasPendingWatchBuild && !this.hasQueuedWatchEvent) {
             await args.onBuildFailed(exception);
           }
-          console.error("[codemation-cli] consumer output rebuild failed", exception);
+          this.log.error("consumer output rebuild failed", exception);
         }
       }
     } finally {
@@ -103,18 +137,90 @@ export class CodemationConsumerOutputBuilder {
     }
   }
 
-  private async buildInternal(): Promise<CodemationConsumerOutputBuildSnapshot> {
+  private takePendingWatchEvents(): ReadonlyArray<{ event: string; path: string }> {
+    const events = [...this.pendingWatchEvents];
+    this.pendingWatchEvents = [];
+    return events;
+  }
+
+  private async buildInternal(
+    options?: Readonly<{ watchEvents: ReadonlyArray<{ event: string; path: string }> }>,
+  ): Promise<CodemationConsumerOutputBuildSnapshot> {
+    const watchEvents = options?.watchEvents ?? [];
     const configSourcePath = await this.resolveConfigPath(this.consumerRoot);
-    if (!configSourcePath) {
-      throw new Error('Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".');
+    if (
+      watchEvents.length > 0
+      && this.lastPromotedSnapshot !== null
+      && configSourcePath !== null
+      && !this.requiresFullConsumerRebuild(watchEvents, configSourcePath)
+    ) {
+      const changedSourcePaths = this.resolveIncrementalEmitSourcePaths(watchEvents);
+      if (changedSourcePaths.length > 0) {
+        try {
+          await access(this.lastPromotedSnapshot.revisionOutputRoot);
+          const snapshot = await this.buildInternalIncremental(changedSourcePaths);
+          this.lastPromotedSnapshot = snapshot;
+          return snapshot;
+        } catch {
+          // Fall back to a full rebuild (missing revision, emit failure, etc.).
+        }
+      }
     }
-    const runtimeSourcePaths = await this.collectRuntimeSourcePaths();
-    const buildVersion = this.createBuildVersion();
+    const snapshot = await this.buildInternalFull();
+    this.lastPromotedSnapshot = snapshot;
+    return snapshot;
+  }
+
+  private requiresFullConsumerRebuild(
+    events: ReadonlyArray<{ event: string; path: string }>,
+    configSourcePath: string,
+  ): boolean {
+    const resolvedConfig = path.resolve(configSourcePath);
+    for (const entry of events) {
+      if (entry.event !== "change") {
+        return true;
+      }
+      if (path.resolve(entry.path) === resolvedConfig) {
+        return true;
+      }
+      if (this.shouldCopyAssetPath(entry.path)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private resolveIncrementalEmitSourcePaths(events: ReadonlyArray<{ event: string; path: string }>): ReadonlyArray<string> {
+    const uniquePaths = new Set<string>();
+    for (const entry of events) {
+      if (entry.event !== "change") {
+        return [];
+      }
+      if (this.shouldCopyAssetPath(entry.path)) {
+        return [];
+      }
+      if (!this.shouldEmitSourcePath(entry.path)) {
+        continue;
+      }
+      uniquePaths.add(path.resolve(entry.path));
+    }
+    return [...uniquePaths];
+  }
+
+  private async prepareStagedConsumerBuildSnapshot(args: Readonly<{
+    configSourcePath: string;
+    buildVersion: string;
+  }>): Promise<Readonly<{
+    stagedSnapshot: CodemationConsumerOutputBuildSnapshot;
+    outputAppRoot: string;
+    revisionOutputRoot: string;
+    stagedRevisionOutputRoot: string;
+  }>> {
     const outputRoot = this.resolveOutputRoot();
-    const revisionOutputRoot = this.resolveRevisionOutputRoot(buildVersion);
-    const stagedRevisionOutputRoot = this.resolveStagedRevisionOutputRoot(buildVersion);
+    const revisionOutputRoot = this.resolveRevisionOutputRoot(args.buildVersion);
+    const stagedRevisionOutputRoot = this.resolveStagedRevisionOutputRoot(args.buildVersion);
     const outputAppRoot = path.resolve(stagedRevisionOutputRoot, "app");
-    const configMetadata = await this.loadConfigMetadata(configSourcePath);
+    const configMetadata = await this.loadConfigMetadata(args.configSourcePath);
     const workflowSourcePaths = await this.resolveWorkflowSources(this.consumerRoot, configMetadata);
     const pathSegmentsComputer = new WorkflowDiscoveryPathSegmentsComputer();
     const workflowDiscoveryPathSegmentsList = workflowSourcePaths.map((sourcePath) => {
@@ -126,8 +232,8 @@ export class CodemationConsumerOutputBuilder {
       return segments ?? [];
     });
     const stagedSnapshot: CodemationConsumerOutputBuildSnapshot = {
-      buildVersion,
-      configSourcePath,
+      buildVersion: args.buildVersion,
+      configSourcePath: args.configSourcePath,
       consumerRoot: this.consumerRoot,
       manifestPath: this.resolveCurrentManifestPath(),
       outputEntryPath: path.resolve(stagedRevisionOutputRoot, "index.js"),
@@ -136,41 +242,114 @@ export class CodemationConsumerOutputBuilder {
       workflowSourcePaths,
       workflowDiscoveryPathSegmentsList,
     };
+    return { stagedSnapshot, outputAppRoot, revisionOutputRoot, stagedRevisionOutputRoot };
+  }
+
+  private async emitStagedRevisionAndPromote(args: Readonly<{
+    configSourcePath: string;
+    stagedSnapshot: CodemationConsumerOutputBuildSnapshot;
+    outputAppRoot: string;
+    revisionOutputRoot: string;
+    stagedRevisionOutputRoot: string;
+    emitOutputFiles: () => Promise<void>;
+  }>): Promise<CodemationConsumerOutputBuildSnapshot> {
     let promotedRevision = false;
     try {
-      for (const sourcePath of runtimeSourcePaths) {
-        if (this.shouldCopyAssetPath(sourcePath)) {
-          await this.copyAssetFile({
-            outputAppRoot,
-            sourcePath,
-          });
-          continue;
-        }
-        await this.emitSourceFile({
-          outputAppRoot,
-          sourcePath,
-        });
-      }
+      await args.emitOutputFiles();
       await this.writeEntryFile({
-        configSourcePath,
-        outputAppRoot,
-        snapshot: stagedSnapshot,
+        configSourcePath: args.configSourcePath,
+        outputAppRoot: args.outputAppRoot,
+        snapshot: args.stagedSnapshot,
       });
       await this.promoteStagedRevision({
-        revisionOutputRoot,
-        stagedRevisionOutputRoot,
+        revisionOutputRoot: args.revisionOutputRoot,
+        stagedRevisionOutputRoot: args.stagedRevisionOutputRoot,
       });
       promotedRevision = true;
       return {
-        ...stagedSnapshot,
-        outputEntryPath: path.resolve(revisionOutputRoot, "index.js"),
-        revisionOutputRoot,
+        ...args.stagedSnapshot,
+        outputEntryPath: path.resolve(args.revisionOutputRoot, "index.js"),
+        revisionOutputRoot: args.revisionOutputRoot,
       };
     } finally {
       if (!promotedRevision) {
-        await rm(stagedRevisionOutputRoot, { force: true, recursive: true }).catch(() => null);
+        await rm(args.stagedRevisionOutputRoot, { force: true, recursive: true }).catch(() => null);
       }
     }
+  }
+
+  private async buildInternalIncremental(changedSourcePaths: ReadonlyArray<string>): Promise<CodemationConsumerOutputBuildSnapshot> {
+    const previous = this.lastPromotedSnapshot;
+    if (!previous) {
+      throw new Error("Incremental consumer build requires a previous revision.");
+    }
+    const configSourcePath = await this.resolveConfigPath(this.consumerRoot);
+    if (!configSourcePath) {
+      throw new Error('Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".');
+    }
+    const runtimeSourcePaths = await this.collectRuntimeSourcePaths();
+    const runtimeSourceSet = new Set(runtimeSourcePaths.map((sourcePath) => path.resolve(sourcePath)));
+    for (const changedPath of changedSourcePaths) {
+      if (!runtimeSourceSet.has(path.resolve(changedPath))) {
+        throw new Error("Incremental build saw a changed path outside the current runtime source set; rebuild full.");
+      }
+    }
+    const buildVersion = this.createBuildVersion();
+    const { stagedSnapshot, outputAppRoot, revisionOutputRoot, stagedRevisionOutputRoot } = await this.prepareStagedConsumerBuildSnapshot({
+      configSourcePath,
+      buildVersion,
+    });
+    return await this.emitStagedRevisionAndPromote({
+      configSourcePath,
+      stagedSnapshot,
+      outputAppRoot,
+      revisionOutputRoot,
+      stagedRevisionOutputRoot,
+      emitOutputFiles: async () => {
+        await cp(previous.revisionOutputRoot, stagedRevisionOutputRoot, { recursive: true });
+        for (const sourcePath of changedSourcePaths) {
+          await this.emitSourceFile({
+            outputAppRoot,
+            sourcePath,
+          });
+        }
+      },
+    });
+  }
+
+  private async buildInternalFull(): Promise<CodemationConsumerOutputBuildSnapshot> {
+    const configSourcePath = await this.resolveConfigPath(this.consumerRoot);
+    if (!configSourcePath) {
+      throw new Error('Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".');
+    }
+    const runtimeSourcePaths = await this.collectRuntimeSourcePaths();
+    const buildVersion = this.createBuildVersion();
+    const { stagedSnapshot, outputAppRoot, revisionOutputRoot, stagedRevisionOutputRoot } = await this.prepareStagedConsumerBuildSnapshot({
+      configSourcePath,
+      buildVersion,
+    });
+    return await this.emitStagedRevisionAndPromote({
+      configSourcePath,
+      stagedSnapshot,
+      outputAppRoot,
+      revisionOutputRoot,
+      stagedRevisionOutputRoot,
+      emitOutputFiles: async () => {
+        for (const sourcePath of runtimeSourcePaths) {
+          if (this.shouldCopyAssetPath(sourcePath)) {
+            await this.copyAssetFile({
+              outputAppRoot,
+              sourcePath,
+            });
+            continue;
+          }
+          await this.emitSourceFile({
+            outputAppRoot,
+            sourcePath,
+          });
+        }
+      },
+    });
   }
 
   private scheduleWatchBuild(args: Readonly<{

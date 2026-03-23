@@ -263,6 +263,12 @@ export class CodemationApplication {
   async prepareFrontendServerContainer(args: Readonly<{
     repoRoot: string;
     env?: Readonly<NodeJS.ProcessEnv>;
+    /**
+     * When true, skips starting the workflow WebSocket server and run-event relay.
+     * Used when API execution lives in another process (e.g. `runtime-dev`) and this container
+     * only needs session verification and persistence wiring (e.g. Next.js auth shell).
+     */
+    skipPresentationServers?: boolean;
   }>): Promise<void> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
     await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
@@ -270,7 +276,9 @@ export class CodemationApplication {
     this.container.registerInstance(ApplicationTokens.WebSocketBindHost, effectiveEnv.CODEMATION_WS_BIND_HOST ?? "0.0.0.0");
     this.registerSessionVerification(effectiveEnv);
     this.registerServerWebhookRuntimeHost();
-    await this.startPresentationServers();
+    if (args.skipPresentationServers !== true) {
+      await this.startPresentationServers();
+    }
   }
 
   private registerSessionVerification(effectiveEnv: Readonly<NodeJS.ProcessEnv>): void {
@@ -476,6 +484,11 @@ export class CodemationApplication {
     this.container.register(ServerLoggerFactory, { useClass: ServerLoggerFactory });
     this.container.register(ApplicationTokens.LoggerFactory, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(ServerLoggerFactory)),
+    });
+    this.container.register(ApplicationTokens.PerformanceDiagnosticsLogger, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        return dependencyContainer.resolve(ServerLoggerFactory).createPerformanceDiagnostics("codemation.performance");
+      }),
     });
     this.container.register(WorkflowWebsocketServer, {
       useFactory: instanceCachingFactory((dependencyContainer) => {

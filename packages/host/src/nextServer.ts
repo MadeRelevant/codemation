@@ -1,9 +1,15 @@
+export type { LogFilter } from "./application/logging/LogFilter";
+export type { Logger, LoggerFactory } from "./application/logging/Logger";
+export { FilteringLogger } from "./infrastructure/logging/FilteringLogger";
 export { logLevelPolicyFactory, LogLevelPolicyFactory } from "./infrastructure/logging/LogLevelPolicyFactory";
+export { PerformanceLogPolicy } from "./infrastructure/logging/PerformanceLogPolicy";
+export { performanceLogPolicyFactory, PerformanceLogPolicyFactory } from "./infrastructure/logging/PerformanceLogPolicyFactory";
 export { ServerLoggerFactory } from "./infrastructure/logging/ServerLoggerFactory";
 export { RunBinaryAttachmentLookupService } from "./application/binary/RunBinaryAttachmentLookupService";
 export { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
 export { ApplicationTokens } from "./applicationTokens";
 export { CodemationApplication } from "./codemationApplication";
+export { CodemationPluginListMerger } from "./presentation/config/CodemationPluginListMerger";
 export { CredentialBindingService,CredentialInstanceService } from "./domain/credentials/CredentialServices";
 export { RequestToWebhookItemMapper } from "./infrastructure/webhooks/RequestToWebhookItemMapper";
 export { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiAppFactory";

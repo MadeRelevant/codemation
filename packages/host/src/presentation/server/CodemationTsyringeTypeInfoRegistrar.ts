@@ -1,15 +1,10 @@
-import type { WorkflowDefinition } from "@codemation/core";
-
-
-import type { Container,TypeToken } from "@codemation/core";
+import type { Container, TypeToken, WorkflowDefinition } from "@codemation/core";
 
 import { CodemationTsyringeParamInfoReader } from "./CodemationTsyringeParamInfoReader";
 
 type InjectionDescriptor = Readonly<{
   token?: unknown;
 }>;
-
-
 
 export class CodemationTsyringeTypeInfoRegistrar {
   private readonly visitedTokens = new Set<unknown>();
@@ -124,5 +119,3 @@ export class CodemationTsyringeTypeInfoRegistrar {
     return error instanceof Error && error.message.includes("TypeInfo not known for");
   }
 }
-
-export { CodemationTsyringeParamInfoReader } from "./CodemationTsyringeParamInfoReader";

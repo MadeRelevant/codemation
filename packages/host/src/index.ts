@@ -24,6 +24,7 @@ CodemationSchedulerKind
 } from "./presentation/config/CodemationConfig";
 export type { CodemationPackageManifest,CodemationPluginPackageManifest } from "./presentation/config/CodemationPackageManifest";
 export type { CodemationPlugin,CodemationPluginContext } from "./presentation/config/CodemationPlugin";
+export { CodemationPluginListMerger } from "./presentation/config/CodemationPluginListMerger";
 export type { CodemationWorkflowDiscovery } from "./presentation/config/CodemationWorkflowDiscovery";
 export {
 ApiPaths,

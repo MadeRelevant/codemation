@@ -4,17 +4,18 @@ import type { CodemationAuthConfig,CodemationPlugin } from "@codemation/host";
 import {
 CodemationApplication,
 CodemationHonoApiApp,
+CodemationPluginListMerger,
 logLevelPolicyFactory,
 ServerLoggerFactory,
 WorkflowDefinitionMapper,
 WorkflowWebsocketServer,
 } from "@codemation/host/next/server";
+import { CodemationTsyringeTypeInfoRegistrar } from "@codemation/host/dev-server-sidecar";
 import type { CodemationConsumerApp } from "@codemation/host/server";
 import type { Hono } from "hono";
 import { access,readFile,stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { CodemationTsyringeTypeInfoRegistrar } from "./CodemationTsyringeTypeInfoRegistrar";
 import { DevelopmentRuntimeApi } from "./DevelopmentRuntimeApi";
 
 export type CodemationNextHostContext = Readonly<{
@@ -44,6 +45,7 @@ type CodemationActiveRuntime = Readonly<{
 }>;
 
 export class CodemationNextHost {
+  private readonly pluginListMerger = new CodemationPluginListMerger();
   private nextApiApp: Hono | null = null;
   private nextApiAppBuildVersion: string | null = null;
 
@@ -168,13 +170,14 @@ export class CodemationNextHost {
     }
     env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
     env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
+    const isRuntimeDevProxy = Boolean(process.env.CODEMATION_RUNTIME_DEV_URL?.trim());
     const application = new CodemationApplication();
     application.useSharedWorkflowWebsocketServer(this.resolveSharedWorkflowWebsocketServer());
     const discoveredPlugins = await this.loadDiscoveredPlugins(buildManifest);
 
     application.useConfig(resolvedConsumerApp.config);
     if (discoveredPlugins.length > 0) {
-      application.usePlugins(this.mergePlugins(resolvedConsumerApp.config.plugins ?? [], discoveredPlugins));
+      application.usePlugins(this.pluginListMerger.merge(resolvedConsumerApp.config.plugins ?? [], discoveredPlugins));
     }
     await application.applyPlugins({
       consumerRoot,
@@ -185,11 +188,12 @@ export class CodemationNextHost {
     await application.prepareFrontendServerContainer({
       repoRoot,
       env,
+      skipPresentationServers: isRuntimeDevProxy,
     });
     const typeInfoRegistrar = new CodemationTsyringeTypeInfoRegistrar(application.getContainer());
     typeInfoRegistrar.registerWorkflowDefinitions(resolvedConsumerApp.config.workflows ?? []);
     typeInfoRegistrar.registerBootHookToken(resolvedConsumerApp.config.bootHook);
-    if (process.env.CODEMATION_SKIP_BOOT_HOOK !== "true") {
+    if (process.env.CODEMATION_SKIP_BOOT_HOOK !== "true" && !isRuntimeDevProxy) {
       await application.applyBootHook({
         bootHookToken: resolvedConsumerApp.config.bootHook,
         consumerRoot,
@@ -199,10 +203,12 @@ export class CodemationNextHost {
       });
     }
 
-    const container = application.getContainer();
-    const workflowRepository = container.resolve(CoreTokens.WorkflowRepository);
-    const engine = container.resolve(Engine);
-    await engine.start([...workflowRepository.list()]);
+    if (!isRuntimeDevProxy) {
+      const container = application.getContainer();
+      const workflowRepository = container.resolve(CoreTokens.WorkflowRepository);
+      const engine = container.resolve(Engine);
+      await engine.start([...workflowRepository.list()]);
+    }
 
     return {
       application,
@@ -313,20 +319,6 @@ export class CodemationNextHost {
       default?: ReadonlyArray<CodemationPlugin>;
     };
     return importedModule.codemationDiscoveredPlugins ?? importedModule.default ?? [];
-  }
-
-  private mergePlugins(
-    configuredPlugins: ReadonlyArray<CodemationPlugin>,
-    discoveredPlugins: ReadonlyArray<CodemationPlugin>,
-  ): ReadonlyArray<CodemationPlugin> {
-    const pluginsByConstructor = new Map<unknown, CodemationPlugin>();
-    [...configuredPlugins, ...discoveredPlugins].forEach((plugin: CodemationPlugin) => {
-      const constructorKey = Object.getPrototypeOf(plugin)?.constructor ?? plugin;
-      if (!pluginsByConstructor.has(constructorKey)) {
-        pluginsByConstructor.set(constructorKey, plugin);
-      }
-    });
-    return [...pluginsByConstructor.values()];
   }
 
   private async createRuntimeImportSpecifier(filePath: string): Promise<string> {

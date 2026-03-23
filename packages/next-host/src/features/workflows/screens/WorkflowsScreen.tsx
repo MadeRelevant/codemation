@@ -21,7 +21,7 @@ export function WorkflowsScreen(args: Readonly<{ initialWorkflows?: ReadonlyArra
           <p className="mt-2 text-sm text-muted-foreground">Framework-managed workflows using the shared Codemation runtime.</p>
         </div>
       </header>
-      <section className="mt-6">
+      <section className="mt-8">
         <WorkflowsList workflows={workflows} error={error} />
       </section>
     </main>

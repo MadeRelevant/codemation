@@ -14,6 +14,8 @@ export default defineConfig({
       p("../../packages/core/vitest.config.ts"),
       p("../../packages/core-nodes/vitest.config.ts"),
       p("../../packages/core-nodes-gmail/vitest.config.ts"),
+      p("../../packages/cli/vitest.config.ts"),
+      p("../../packages/runtime-dev/vitest.config.ts"),
       p("../../packages/next-host/vitest.config.ts"),
       p("../../packages/host/vitest.unit.config.ts"),
     ],

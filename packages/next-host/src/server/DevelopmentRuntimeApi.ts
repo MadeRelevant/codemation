@@ -1,8 +1,8 @@
 import type { Hono } from "hono";
 
-import type { CodemationNextHost } from "./CodemationNextHost";
+import { DevelopmentRuntimeRouteGuard } from "@codemation/host/dev-server-sidecar";
 
-import { DevelopmentRuntimeRouteGuard } from "./DevelopmentRuntimeRouteGuard";
+import type { CodemationNextHost } from "./CodemationNextHost";
 
 export class DevelopmentRuntimeApi {
   static attach(api: Hono, host: CodemationNextHost): void {
@@ -33,4 +33,4 @@ export class DevelopmentRuntimeApi {
   }
 }
 
-export { DevelopmentRuntimeRouteGuard,type DevelopmentRuntimeSignal } from "./DevelopmentRuntimeRouteGuard";
+export { DevelopmentRuntimeRouteGuard,type DevelopmentRuntimeSignal } from "@codemation/host/dev-server-sidecar";

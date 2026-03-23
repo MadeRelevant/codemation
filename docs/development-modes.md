@@ -71,3 +71,7 @@ This mode is intentionally different from monorepo framework authoring:
 
 - use root `pnpm dev` when changing Codemation itself
 - use consumer `pnpm dev` / `codemation dev` when changing workflows, config, or plugins in a consuming app
+
+## Tests for the CLI and dev runtime
+
+Automated coverage for the consumer output builder and runtime-dev helpers is documented in [dev-tooling-tests.md](./dev-tooling-tests.md).

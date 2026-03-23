@@ -4,7 +4,6 @@ import Link from "next/link";
 
 import { usePathname } from "next/navigation";
 
-import { useMemo } from "react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -31,23 +30,16 @@ const workflowLinkClass = (isActive: boolean) =>
     isActive && "bg-sidebar-accent font-medium text-sidebar-primary",
   );
 
+const workflowLinkClassCollapsed = (isActive: boolean) =>
+  cn(
+    "flex items-center justify-center rounded-sm p-3 text-sidebar-foreground no-underline transition-colors hover:bg-sidebar-accent/80",
+    isActive && "bg-sidebar-accent font-medium text-sidebar-primary",
+  );
+
 export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactNode {
   const pathname = usePathname();
   const workflowsQuery = useWorkflowsQuery();
   const workflows = workflowsQuery.data ?? [];
-  const sortedWorkflows = useMemo(() => {
-    const list = [...workflows];
-    list.sort((left, right) => {
-      const leftKey = left.discoveryPathSegments.join("/");
-      const rightKey = right.discoveryPathSegments.join("/");
-      const keyCompare = leftKey.localeCompare(rightKey);
-      if (keyCompare !== 0) {
-        return keyCompare;
-      }
-      return left.name.localeCompare(right.name);
-    });
-    return list;
-  }, [workflows]);
 
   const navItem = (href: string, label: string, icon: ReactNode, exact?: boolean) => {
     const isActive = exact ? pathname === href : pathname.startsWith(href);
@@ -96,29 +88,14 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
             </Link>
           </span>
           {workflowsQuery.isLoading && <span className="px-4 py-2 text-xs text-muted-foreground">…</span>}
-          {!workflowsQuery.isLoading &&
-            sortedWorkflows.map((w) => {
-              const href = `/workflows/${encodeURIComponent(w.id)}`;
-              const isActive = pathname === href;
-              const title =
-                w.discoveryPathSegments.length > 0 ? `${w.discoveryPathSegments.join(" / ")} — ${w.name}` : w.name;
-              return (
-                <span key={w.id} className="relative flex overflow-visible" title={title}>
-                  <Link
-                    href={href}
-                    className={cn(
-                      "flex items-center justify-center rounded-sm p-3 text-sidebar-foreground no-underline transition-colors hover:bg-sidebar-accent/80",
-                      isActive && "bg-sidebar-accent font-medium text-sidebar-primary",
-                    )}
-                    data-testid={`nav-workflow-${w.id}`}
-                  >
-                    <span className="flex shrink-0 opacity-70" aria-hidden>
-                      <IconWorkflow />
-                    </span>
-                  </Link>
-                </span>
-              );
-            })}
+          {!workflowsQuery.isLoading && workflows.length > 0 && (
+            <WorkflowSidebarNavTree
+              workflows={workflows}
+              pathname={pathname}
+              workflowLinkClass={workflowLinkClassCollapsed}
+              collapsed
+            />
+          )}
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-1">

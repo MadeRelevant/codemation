@@ -167,6 +167,12 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
 
       if (message.kind === "workflowChanged") {
         logger.info(`workflow changed ${message.workflowId}`);
+        const workflowRefreshStarted = performance.now();
+        if (process.env.NEXT_PUBLIC_CODEMATION_PERFORMANCE_LOGGING === "true") {
+          logger.info(
+            `[codemation-dev-timing] workflowChanged received workflowId=${message.workflowId} t=${workflowRefreshStarted.toFixed(1)}`,
+          );
+        }
         queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey(message.workflowId), (existing) => ({
           state: "building",
           updatedAt: existing?.updatedAt ?? new Date().toISOString(),
@@ -175,7 +181,18 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
         }));
         void queryClient.invalidateQueries({ queryKey: workflowQueryKey(message.workflowId) });
         void queryClient.invalidateQueries({ queryKey: workflowsQueryKey });
-        void queryClient.refetchQueries({ queryKey: workflowQueryKey(message.workflowId), type: "active" });
+        void queryClient
+          .refetchQueries({ queryKey: workflowQueryKey(message.workflowId), type: "active" })
+          .then(() => {
+            if (process.env.NEXT_PUBLIC_CODEMATION_PERFORMANCE_LOGGING === "true") {
+              logger.info(
+                `[codemation-dev-timing] workflow refetch finished workflowId=${message.workflowId} +${(performance.now() - workflowRefreshStarted).toFixed(1)}ms from workflowChanged`,
+              );
+            }
+          })
+          .catch(() => {
+            // Refetch errors are surfaced via query state; timing log only on success path.
+          });
         return;
       }
 

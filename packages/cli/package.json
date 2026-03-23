@@ -18,11 +18,13 @@
     "dev": "tsdown src/index.ts src/bin.ts --out-dir dist --watch",
     "build": "tsdown src/index.ts src/bin.ts --out-dir dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@codemation/host": "workspace:*",
     "@codemation/next-host": "workspace:*",
+    "@codemation/runtime-dev": "workspace:*",
     "bcryptjs": "^3.0.3",
     "chokidar": "^5.0.0",
     "commander": "^14.0.3",
@@ -36,7 +38,8 @@
     "eslint": "^10.0.3",
     "tsdown": "^0.15.5",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
   },
   "peerDependencies": {
     "tsx": ">=4.0.0"

@@ -4,9 +4,12 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { mkdir,rename,writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { createServer } from "node:net";
 import path from "node:path";
 import process from "node:process";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath,pathToFileURL } from "node:url";
+import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 import { CodemationCliPathResolver } from "./CodemationCliPathResolver";
 import { CodemationConsumerEnvLoader } from "./CodemationConsumerEnvLoader";
 import {
@@ -28,6 +31,9 @@ type CodemationConsumerBuildManifest = Readonly<{
 export class CodemationCli {
   private readonly require = createRequire(import.meta.url);
   private static readonly developmentRuntimeRoutePath = "/api/dev/runtime";
+  private readonly loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
+  private readonly cliLogger = this.loggerFactory.create("codemation-cli");
+  private readonly performanceDiagnosticsLogger = this.loggerFactory.createPerformanceDiagnostics("codemation-cli.performance");
 
   constructor(
     private readonly pathResolver: CodemationCliPathResolver = new CodemationCliPathResolver(),
@@ -115,9 +121,9 @@ export class CodemationCli {
     const discoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
     const manifest = await this.publishBuildArtifacts(snapshot, discoveredPlugins);
     await builder.pruneRetiredRevisions(manifest.buildVersion);
-    console.log(`Built consumer output: ${snapshot.outputEntryPath}`);
-    console.log(`Discovered plugins: ${discoveredPlugins.length}`);
-    console.log(`Published revision: ${manifest.buildVersion}`);
+    this.cliLogger.info(`Built consumer output: ${snapshot.outputEntryPath}`);
+    this.cliLogger.info(`Discovered plugins: ${discoveredPlugins.length}`);
+    this.cliLogger.info(`Published revision: ${manifest.buildVersion}`);
   }
 
   private async runDev(consumerRoot: string): Promise<void> {
@@ -141,10 +147,14 @@ export class CodemationCli {
         websocketPort: process.env.CODEMATION_WS_PORT,
       });
       const developmentServerToken = this.resolveDevelopmentServerToken(process.env.CODEMATION_DEV_SERVER_TOKEN);
-      const nextRestartAfterBuilds = this.parsePositiveInt(process.env.CODEMATION_DEV_NEXT_RESTART_AFTER_BUILDS) ?? 75;
+      const useRuntimeWorker = process.env.CODEMATION_DEV_DISABLE_RUNTIME_WORKER !== "true";
+      const nextRestartAfterBuilds =
+        this.parsePositiveInt(process.env.CODEMATION_DEV_NEXT_RESTART_AFTER_BUILDS)
+        ?? (useRuntimeWorker ? 100_000 : 75);
       const nextMaxAutomaticRestarts = this.parsePositiveInt(process.env.CODEMATION_DEV_NEXT_MAX_RESTARTS) ?? 10;
       let buildsSinceNextStart = 0;
       let currentNextHost: ReturnType<typeof spawn> | null = null;
+      let currentRuntimeWorker: ReturnType<typeof spawn> | null = null;
       let stopRequested = false;
       let restartRequested = false;
       let automaticRestartCount = 0;
@@ -157,16 +167,22 @@ export class CodemationCli {
       });
 
       const requestNextHostRestart = (): void => {
+        if (useRuntimeWorker) {
+          return;
+        }
         if (stopRequested || restartRequested) {
           return;
         }
         if (!currentNextHost || currentNextHost.exitCode !== null) {
           return;
         }
-        console.warn(`[codemation-cli] restarting next host after ${buildsSinceNextStart} rebuilds to avoid dev-server memory growth`);
+        this.cliLogger.warn(`restarting next host after ${buildsSinceNextStart} rebuilds to avoid dev-server memory growth`);
         restartRequested = true;
         currentNextHost.kill("SIGINT");
       };
+
+      const runtimeHttpPort = useRuntimeWorker ? await this.resolveFreePortOnLoopback() : 0;
+      const runtimeDevBaseUrl = useRuntimeWorker ? `http://127.0.0.1:${runtimeHttpPort}` : "";
 
       const nextHostPackageJsonPath = this.require.resolve("@codemation/next-host/package.json");
       const nextHostRoot = path.dirname(nextHostPackageJsonPath);
@@ -176,6 +192,7 @@ export class CodemationCli {
         developmentServerToken,
         nextPort,
         websocketPort,
+        runtimeDevUrl: useRuntimeWorker ? runtimeDevBaseUrl : undefined,
       });
 
       const spawnNextHost = (): void => {
@@ -198,6 +215,9 @@ export class CodemationCli {
           }
           if (normalizedCode === 0) {
             stopRequested = true;
+            if (currentRuntimeWorker?.exitCode === null) {
+              currentRuntimeWorker.kill("SIGTERM");
+            }
             stopResolve?.();
             return;
           }
@@ -207,14 +227,14 @@ export class CodemationCli {
             stopReject?.(new Error(`Next host exited with code ${normalizedCode} too many times. Restart limit=${nextMaxAutomaticRestarts}.`));
             return;
           }
-          console.warn(`[codemation-cli] next host exited with code ${normalizedCode}; restarting (${automaticRestartCount}/${nextMaxAutomaticRestarts})`);
+          this.cliLogger.warn(`next host exited with code ${normalizedCode}; restarting (${automaticRestartCount}/${nextMaxAutomaticRestarts})`);
           spawnNextHost();
         });
         currentNextHost.on("error", (error) => {
           if (stopRequested) {
             return;
           }
-          console.warn(`[codemation-cli] next host process error; restarting: ${error instanceof Error ? error.message : String(error)}`);
+          this.cliLogger.warn(`next host process error; restarting: ${error instanceof Error ? error.message : String(error)}`);
           spawnNextHost();
         });
       };
@@ -222,6 +242,9 @@ export class CodemationCli {
       for (const signal of ["SIGINT", "SIGTERM", "SIGQUIT"] as const) {
         process.on(signal, () => {
           stopRequested = true;
+          if (currentRuntimeWorker?.exitCode === null) {
+            currentRuntimeWorker.kill(signal);
+          }
           if (currentNextHost?.exitCode === null) {
             currentNextHost.kill(signal);
           }
@@ -229,10 +252,49 @@ export class CodemationCli {
         });
       }
 
+      if (useRuntimeWorker) {
+        const consumerEnv = CodemationConsumerEnvLoader.load(paths.consumerRoot);
+        const runtimePackageRoot = path.dirname(this.require.resolve("@codemation/runtime-dev/package.json"));
+        const runtimeBinJs = path.join(runtimePackageRoot, "dist", "bin.js");
+        const runtimeWorkingDirectory = paths.repoRoot ?? paths.consumerRoot;
+        currentRuntimeWorker = spawn(process.execPath, [runtimeBinJs], {
+          cwd: runtimeWorkingDirectory,
+          stdio: "inherit",
+          env: {
+            ...process.env,
+            ...consumerEnv,
+            CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH: snapshot.manifestPath,
+            CODEMATION_CONSUMER_ROOT: paths.consumerRoot,
+            CODEMATION_RUNTIME_HTTP_PORT: String(runtimeHttpPort),
+            CODEMATION_WS_PORT: String(websocketPort),
+            CODEMATION_DEV_SERVER_TOKEN: developmentServerToken,
+            NODE_OPTIONS: this.createNodeOptionsForSourceMaps(process.env.NODE_OPTIONS),
+            WS_NO_BUFFER_UTIL: "1",
+            WS_NO_UTF_8_VALIDATE: "1",
+          },
+        });
+        currentRuntimeWorker.on("error", (error) => {
+          if (!stopRequested) {
+            stopRequested = true;
+            stopReject?.(error instanceof Error ? error : new Error(String(error)));
+          }
+        });
+        currentRuntimeWorker.on("exit", (code) => {
+          if (stopRequested) {
+            return;
+          }
+          stopRequested = true;
+          stopReject?.(new Error(`runtime-dev exited unexpectedly with code ${code ?? 0}.`));
+        });
+        await this.waitForRuntimeWorkerReadiness(runtimeDevBaseUrl);
+      }
+
       await builder.ensureWatching({
         onBuildStarted: async () => {
-          await this.notifyNextHostDevelopmentRuntime({
+          await this.notifyDevelopmentRuntime({
+            useRuntimeWorker,
             nextPort,
+            runtimeDevBaseUrl,
             developmentServerToken,
             payload: {
               kind: "buildStarted",
@@ -240,26 +302,42 @@ export class CodemationCli {
           });
         },
         onBuildCompleted: async (nextSnapshot) => {
+          const buildCompletedStarted = performance.now();
+          const discoveredStarted = performance.now();
           const nextDiscoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
+          const discoveredMs = performance.now() - discoveredStarted;
+          const publishStarted = performance.now();
           const nextManifest = await this.publishBuildArtifacts(nextSnapshot, nextDiscoveredPlugins);
+          const publishMs = performance.now() - publishStarted;
+          const pruneStarted = performance.now();
           await builder.pruneRetiredRevisions(nextManifest.buildVersion);
-          await this.notifyNextHostDevelopmentRuntime({
+          const pruneMs = performance.now() - pruneStarted;
+          const notifyStarted = performance.now();
+          await this.notifyDevelopmentRuntime({
+            useRuntimeWorker,
             nextPort,
+            runtimeDevBaseUrl,
             developmentServerToken,
             payload: {
               kind: "buildCompleted",
               buildVersion: nextManifest.buildVersion,
             },
           });
-          console.log(`[codemation] rebuilt consumer output revision=${nextManifest.buildVersion}`);
+          const notifyMs = performance.now() - notifyStarted;
+          const totalMs = performance.now() - buildCompletedStarted;
+          this.performanceDiagnosticsLogger.info(
+            `rebuilt consumer output revision=${nextManifest.buildVersion} timingMs={discover:${discoveredMs.toFixed(1)} publish:${publishMs.toFixed(1)} prune:${pruneMs.toFixed(1)} notifyRuntime:${notifyMs.toFixed(1)} total:${totalMs.toFixed(1)}}`,
+          );
           buildsSinceNextStart += 1;
           if (buildsSinceNextStart >= nextRestartAfterBuilds) {
             requestNextHostRestart();
           }
         },
         onBuildFailed: async (error: Error) => {
-          await this.notifyNextHostDevelopmentRuntime({
+          await this.notifyDevelopmentRuntime({
+            useRuntimeWorker,
             nextPort,
+            runtimeDevBaseUrl,
             developmentServerToken,
             payload: {
               kind: "buildFailed",
@@ -283,16 +361,6 @@ export class CodemationCli {
     return null;
   }
 
-  private bindSignals(childProcess: ReturnType<typeof spawn>): void {
-    for (const signal of ["SIGINT", "SIGTERM", "SIGQUIT"] as const) {
-      process.on(signal, () => {
-        if (childProcess.exitCode === null) {
-          childProcess.kill(signal);
-        }
-      });
-    }
-  }
-
   private configureTypeScriptRuntime(repoRoot: string): void {
     process.env.CODEMATION_TSCONFIG_PATH = path.resolve(repoRoot, "tsconfig.base.json");
   }
@@ -303,6 +371,7 @@ export class CodemationCli {
     developmentServerToken: string;
     nextPort: number;
     websocketPort: number;
+    runtimeDevUrl?: string;
   }>): NodeJS.ProcessEnv {
     const consumerEnv = CodemationConsumerEnvLoader.load(args.consumerRoot);
     return {
@@ -317,6 +386,9 @@ export class CodemationCli {
       NODE_OPTIONS: this.createNodeOptionsForSourceMaps(process.env.NODE_OPTIONS),
       WS_NO_BUFFER_UTIL: "1",
       WS_NO_UTF_8_VALIDATE: "1",
+      ...(args.runtimeDevUrl !== undefined && args.runtimeDevUrl.trim().length > 0
+        ? { CODEMATION_RUNTIME_DEV_URL: args.runtimeDevUrl.trim() }
+        : {}),
     };
   }
 
@@ -327,13 +399,55 @@ export class CodemationCli {
     return randomUUID();
   }
 
-  private async notifyNextHostDevelopmentRuntime(args: Readonly<{
+  private async resolveFreePortOnLoopback(): Promise<number> {
+    return await new Promise<number>((resolve, reject) => {
+      const server = createServer();
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => {
+        const address = server.address();
+        server.close(() => {
+          if (address && typeof address === "object") {
+            resolve(address.port);
+            return;
+          }
+          reject(new Error("Failed to resolve a free TCP port."));
+        });
+      });
+    });
+  }
+
+  private async waitForRuntimeWorkerReadiness(runtimeDevBaseUrl: string): Promise<void> {
+    const normalizedBase = runtimeDevBaseUrl.replace(/\/$/, "");
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      try {
+        const response = await fetch(`${normalizedBase}/dev/health`);
+        if (response.ok) {
+          return;
+        }
+      } catch {
+        // Server not listening yet.
+      }
+      await delay(50);
+    }
+    throw new Error("Timed out waiting for runtime-dev HTTP health check.");
+  }
+
+  private async notifyDevelopmentRuntime(args: Readonly<{
+    useRuntimeWorker: boolean;
     nextPort: number;
+    runtimeDevBaseUrl: string;
     developmentServerToken: string;
-    payload: Readonly<Record<string, string>>;
+    payload: Readonly<{
+      kind: "buildStarted" | "buildCompleted" | "buildFailed";
+      buildVersion?: string;
+      message?: string;
+    }>;
   }>): Promise<void> {
+    const targetUrl = args.useRuntimeWorker
+      ? `${args.runtimeDevBaseUrl.replace(/\/$/, "")}/dev/runtime`
+      : `http://127.0.0.1:${args.nextPort}${CodemationCli.developmentRuntimeRoutePath}`;
     try {
-      const response = await fetch(`http://127.0.0.1:${args.nextPort}${CodemationCli.developmentRuntimeRoutePath}`, {
+      const response = await fetch(targetUrl, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -344,9 +458,9 @@ export class CodemationCli {
       if (response.ok || response.status === 404 || response.status === 503) {
         return;
       }
-      console.warn(`[codemation-cli] failed to notify next host about dev runtime event status=${response.status}`);
+      this.cliLogger.warn(`failed to notify dev runtime status=${response.status}`);
     } catch {
-      // Ignore cases where Next has not started yet or is currently reloading.
+      // Ignore cases where the target has not started yet or is currently reloading.
     }
   }
 

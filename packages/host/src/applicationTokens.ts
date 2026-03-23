@@ -9,7 +9,7 @@ import type { DomainEventHandler } from "./application/bus/DomainEventHandler";
 import type { Query } from "./application/bus/Query";
 import type { QueryBus } from "./application/bus/QueryBus";
 import type { QueryHandler } from "./application/bus/QueryHandler";
-import type { LoggerFactory } from "./application/logging/Logger";
+import type { Logger, LoggerFactory } from "./application/logging/Logger";
 import type { WorkflowWebsocketPublisher } from "./application/websocket/WorkflowWebsocketPublisher";
 import type { CredentialStore } from "./domain/credentials/CredentialServices";
 import type { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
@@ -40,6 +40,10 @@ export const ApplicationTokens = {
   WorkflowRunRepository: Symbol.for("codemation.application.WorkflowRunRepository") as TypeToken<WorkflowRunRepository>,
   WebhookEndpointRepository: Symbol.for("codemation.application.WebhookEndpointRepository") as TypeToken<WebhookEndpointRepository>,
   LoggerFactory: Symbol.for("codemation.application.LoggerFactory") as TypeToken<LoggerFactory>,
+  /**
+   * Opt-in timing/diagnostics logger (`CODEMATION_PERFORMANCE_LOGGING` + normal minimum log level).
+   */
+  PerformanceDiagnosticsLogger: Symbol.for("codemation.application.PerformanceDiagnosticsLogger") as TypeToken<Logger>,
   CredentialStore: Symbol.for("codemation.application.CredentialStore") as TypeToken<CredentialStore>,
   ProcessEnv: Symbol.for("codemation.application.ProcessEnv") as TypeToken<Readonly<NodeJS.ProcessEnv>>,
   SessionVerifier: Symbol.for("codemation.application.SessionVerifier") as TypeToken<SessionVerifier>,

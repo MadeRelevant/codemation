@@ -18,10 +18,13 @@ export function WorkflowSidebarNavTree(args: Readonly<{
   workflows: ReadonlyArray<WorkflowSummary>;
   pathname: string;
   workflowLinkClass: (isActive: boolean) => string;
+  /** Icon-only / compact layout (collapsed shell sidebar). */
+  collapsed?: boolean;
 }>): ReactNode {
   const tree = treeBuilder.build(args.workflows);
+  const collapsed = args.collapsed === true;
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-0.5" data-testid="workflow-sidebar-nav-tree">
       {tree.workflows.map((w) => {
         const href = `/workflows/${encodeURIComponent(w.id)}`;
         const isActive = args.pathname === href;
@@ -36,7 +39,7 @@ export function WorkflowSidebarNavTree(args: Readonly<{
             <span className="flex shrink-0 opacity-70" aria-hidden>
               <IconWorkflow />
             </span>
-            <span className="truncate text-sm">{w.name}</span>
+            {!collapsed && <span className="truncate text-sm">{w.name}</span>}
           </Link>
         );
       })}
@@ -49,6 +52,7 @@ export function WorkflowSidebarNavTree(args: Readonly<{
           workflows={args.workflows}
           workflowLinkClass={args.workflowLinkClass}
           depth={0}
+          collapsed={collapsed}
         />
       ))}
     </div>

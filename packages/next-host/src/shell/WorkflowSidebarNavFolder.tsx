@@ -26,8 +26,10 @@ export function WorkflowSidebarNavFolder(args: Readonly<{
   workflows: ReadonlyArray<WorkflowSummary>;
   workflowLinkClass: (isActive: boolean) => string;
   depth: number;
+  collapsed?: boolean;
 }>): ReactNode {
   const { node, pathPrefix, pathname, workflows, workflowLinkClass, depth } = args;
+  const collapsed = args.collapsed === true;
   const folderPath = [...pathPrefix, node.segment];
   const defaultOpen = WorkflowFolderUi.computeDefaultFolderOpen(folderPath, pathname, workflows);
   const totalInTree = WorkflowFolderUi.countWorkflowsInSubtree(node);
@@ -35,13 +37,15 @@ export function WorkflowSidebarNavFolder(args: Readonly<{
   return (
     <Collapsible
       defaultOpen={defaultOpen}
-      className={cn("rounded-lg", depth > 0 && "ml-0.5 border-l border-sidebar-border/60 pl-2")}
+      className={cn("rounded-lg", !collapsed && depth > 0 && "ml-0.5 border-l border-sidebar-border/60 pl-2")}
     >
       <CollapsibleTrigger
         type="button"
         data-testid={folderTestId(folderPath)}
+        title={folderPath.join(" / ")}
         className={cn(
           "group/trigger flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none transition-colors",
+          collapsed && "justify-center px-1 py-2",
           "text-sidebar-foreground/90 hover:bg-sidebar-accent/70",
           "focus-visible:ring-2 focus-visible:ring-sidebar-ring/40",
           "[&[data-state=open]>svg:first-child]:rotate-90",
@@ -52,13 +56,17 @@ export function WorkflowSidebarNavFolder(args: Readonly<{
           aria-hidden
         />
         <Folder className="size-3.5 shrink-0 text-primary/70" aria-hidden />
-        <span className="min-w-0 flex-1 truncate font-medium">{node.segment}</span>
-        <span className="shrink-0 rounded-md bg-sidebar-accent/80 px-1.5 py-0.5 text-[0.65rem] font-semibold tabular-nums text-muted-foreground">
-          {totalInTree}
-        </span>
+        {!collapsed && (
+          <>
+            <span className="min-w-0 flex-1 truncate font-medium">{node.segment}</span>
+            <span className="shrink-0 rounded-md bg-sidebar-accent/80 px-1.5 py-0.5 text-[0.65rem] font-semibold tabular-nums text-muted-foreground">
+              {totalInTree}
+            </span>
+          </>
+        )}
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="space-y-0.5 pb-1 pl-1 pt-0.5">
+        <div className={cn("space-y-0.5 pb-1 pt-0.5", collapsed ? "pl-0" : "pl-1")}>
           {node.workflows.map((w) => {
             const href = `/workflows/${encodeURIComponent(w.id)}`;
             const isActive = pathname === href;
@@ -73,7 +81,7 @@ export function WorkflowSidebarNavFolder(args: Readonly<{
                 <span className="flex shrink-0 opacity-70" aria-hidden>
                   <IconWorkflow />
                 </span>
-                <span className="truncate text-sm">{w.name}</span>
+                {!collapsed && <span className="truncate text-sm">{w.name}</span>}
               </Link>
             );
           })}
@@ -86,6 +94,7 @@ export function WorkflowSidebarNavFolder(args: Readonly<{
               workflows={workflows}
               workflowLinkClass={workflowLinkClass}
               depth={depth + 1}
+              collapsed={collapsed}
             />
           ))}
         </div>

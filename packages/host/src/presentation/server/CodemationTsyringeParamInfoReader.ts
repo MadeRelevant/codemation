@@ -1,7 +1,3 @@
-
-
-
-
 export class CodemationTsyringeParamInfoReader {
   private static readonly injectionTokenMetadataKey = "injectionTokens";
   private static readonly designParamTypesMetadataKey = "design:paramtypes";

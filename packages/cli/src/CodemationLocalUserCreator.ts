@@ -1,3 +1,4 @@
+import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 import { CodemationPostgresPrismaClientFactory,type PrismaClient } from "@codemation/host/persistence";
 import { CodemationConsumerConfigLoader } from "@codemation/host/server";
 import { hash } from "bcryptjs";
@@ -13,6 +14,8 @@ export type CodemationLocalUserCreateOptions = Readonly<{
 }>;
 
 export class CodemationLocalUserCreator {
+  private readonly log = new ServerLoggerFactory(logLevelPolicyFactory).create("codemation-cli.user");
+
   constructor(private readonly configLoader: CodemationConsumerConfigLoader = new CodemationConsumerConfigLoader()) {}
 
   async run(options: CodemationLocalUserCreateOptions): Promise<void> {
@@ -52,7 +55,7 @@ export class CodemationLocalUserCreator {
     } finally {
       await prisma.$disconnect().catch(() => null);
     }
-    console.log(`Created or updated local user: ${email}`);
+    this.log.info(`Created or updated local user: ${email}`);
   }
 
   private loadConsumerDotenv(consumerRoot: string): void {

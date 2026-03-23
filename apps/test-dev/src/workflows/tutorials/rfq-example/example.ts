@@ -23,7 +23,7 @@ type ExampleOutcomeJson = ExampleAgentJson &
 
 export default createWorkflowBuilder({ id: "wf.example", name: "Example workflow" })
 .trigger(
-  new ManualTrigger<ExampleSeedJson>("Manual trigger", [
+  new ManualTrigger<ExampleSeedJson>("Manual trigger testertt!", [
     {
       subject: "RFQ: 1000 widgets",
       from: "buyer@acme.com",

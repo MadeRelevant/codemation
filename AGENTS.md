@@ -199,7 +199,7 @@ From the repo root, suites are grouped for **parallel** runs and a single merged
 
 | Script | Config | Scope |
 |--------|--------|--------|
-| `pnpm run test:unit` | `tooling/vitest/unit.config.ts` | `packages/core`, `core-nodes`, `core-nodes-gmail`, `next-host`, `@codemation/host` `*.test.ts` (Node) |
+| `pnpm run test:unit` | `tooling/vitest/unit.config.ts` | `packages/core`, `core-nodes`, `core-nodes-gmail`, `@codemation/cli`, `@codemation/runtime-dev`, `next-host`, `@codemation/host` `*.test.ts` (Node) |
 | `pnpm run test:integration` | `tooling/vitest/integration.config.ts` | `queue-bullmq`, `@codemation/host` HTTP/integration tests |
 | `pnpm run test:ui` | `tooling/vitest/ui.config.ts` | `@codemation/host` `*.test.tsx` (jsdom) |
 | `pnpm run test:e2e` | `tooling/vitest/e2e.config.ts` | `@codemation/host` e2e placeholders (`passWithNoTests` until cases exist) |
