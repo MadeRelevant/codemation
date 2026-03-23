@@ -57,6 +57,10 @@ export class ApiPaths {
     return `${this.credentialsBasePath}/types`;
   }
 
+  static credentialsEnvStatus(): string {
+    return `${this.credentialsBasePath}/env-status`;
+  }
+
   static credentialInstances(): string {
     return `${this.credentialsBasePath}/instances`;
   }

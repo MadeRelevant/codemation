@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { CodemationDialog } from "@/components/CodemationDialog";
 import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";
 import type { FormSourceKind } from "../lib/credentialFormTypes";
+import { isCredentialFieldLockedByEnv } from "../lib/credentialFieldHelpers";
 import { CredentialDialogFeedback } from "./CredentialDialogFeedback";
 import { CredentialDialogFieldRows } from "./CredentialDialogFieldRows";
 import { CredentialDialogFormSections } from "./CredentialDialogFormSections";
@@ -46,6 +47,7 @@ export type CredentialDialogProps = {
   onConnectOAuth2: () => Promise<void>;
   onDisconnectOAuth2: () => void;
   onClose: () => void;
+  credentialFieldEnvStatus?: Readonly<Record<string, boolean>>;
 };
 
 export function CredentialDialog({
@@ -82,6 +84,7 @@ export function CredentialDialog({
   onConnectOAuth2,
   onDisconnectOAuth2,
   onClose,
+  credentialFieldEnvStatus = {},
 }: CredentialDialogProps) {
   const selectedType = credentialTypes.find((t) => t.typeId === selectedTypeId);
   const activeType =
@@ -118,13 +121,28 @@ export function CredentialDialog({
   const canSubmit =
     !isSubmitting &&
     displayName.trim().length > 0 &&
-    !publicFields.some((field) => field.required && !(publicFieldValues[field.key] ?? "").trim()) &&
+    !publicFields.some(
+      (field) =>
+        field.required &&
+        !isCredentialFieldLockedByEnv(field, credentialFieldEnvStatus) &&
+        !(publicFieldValues[field.key] ?? "").trim(),
+    ) &&
     (isEdit
       ? true
       : Boolean(selectedTypeId) &&
         (sourceKind === "db"
-          ? !secretFields.some((f) => f.required && !(secretFieldValues[f.key] ?? "").trim())
-          : !secretFields.some((f) => f.required && !(envRefValues[f.key] ?? "").trim())));
+          ? !secretFields.some(
+              (f) =>
+                f.required &&
+                !isCredentialFieldLockedByEnv(f, credentialFieldEnvStatus) &&
+                !(secretFieldValues[f.key] ?? "").trim(),
+            )
+          : !secretFields.some(
+              (f) =>
+                f.required &&
+                !isCredentialFieldLockedByEnv(f, credentialFieldEnvStatus) &&
+                !(envRefValues[f.key] ?? "").trim(),
+            )));
   const canTest = !isSubmitting && !isDialogTesting && (isEdit || canSubmit);
 
   const handleSubmit = () => {
@@ -172,6 +190,7 @@ export function CredentialDialog({
           isEdit={isEdit}
           isDbSecretSource={isDbSecretSource}
           showSecrets={showSecrets}
+          credentialFieldEnvStatus={credentialFieldEnvStatus}
         />
         <CredentialDialogFeedback errorMessage={errorMessage} dialogTestResult={dialogTestResult} />
       </CodemationDialog.Content>

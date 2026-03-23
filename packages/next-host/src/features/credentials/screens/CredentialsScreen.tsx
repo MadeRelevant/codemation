@@ -12,6 +12,7 @@ export function CredentialsScreen() {
   const {
     credentialInstances,
     credentialTypes,
+    credentialFieldEnvStatus,
     typesLoading,
     typesError,
     typesEmpty,
@@ -178,6 +179,7 @@ export function CredentialsScreen() {
           onConnectOAuth2={connectOAuth2Credential}
           onDisconnectOAuth2={openOAuthDisconnectConfirm}
           onClose={closeDialog}
+          credentialFieldEnvStatus={credentialFieldEnvStatus}
         />
       )}
     </div>

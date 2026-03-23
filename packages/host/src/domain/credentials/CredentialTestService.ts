@@ -13,6 +13,7 @@ import { ApplicationRequestError } from "../../application/ApplicationRequestErr
 
 import { ApplicationTokens } from "../../applicationTokens";
 
+import { CredentialFieldEnvOverlayService } from "./CredentialFieldEnvOverlayService";
 import { CredentialInstanceService } from "./CredentialInstanceService";
 import { CredentialRuntimeMaterialService } from "./CredentialRuntimeMaterialService";
 import type { CredentialStore,MutableCredentialSessionService,RegisteredCredentialType } from "./CredentialServices";
@@ -25,6 +26,8 @@ export class CredentialTestService {
     private readonly credentialInstanceService: CredentialInstanceService,
     @inject(CredentialRuntimeMaterialService)
     private readonly credentialRuntimeMaterialService: CredentialRuntimeMaterialService,
+    @inject(CredentialFieldEnvOverlayService)
+    private readonly credentialFieldEnvOverlayService: CredentialFieldEnvOverlayService,
     @inject(CredentialTypeRegistryImpl)
     private readonly credentialTypeRegistry: CredentialTypeRegistryImpl,
     @inject(ApplicationTokens.CredentialStore)
@@ -37,10 +40,15 @@ export class CredentialTestService {
     const instance = await this.credentialInstanceService.requireInstance(instanceId);
     const registeredType = this.requireRegisteredType(instance.typeId);
     const material = await this.credentialRuntimeMaterialService.compose(instance);
+    const { resolvedPublicConfig, resolvedMaterial } = this.credentialFieldEnvOverlayService.apply({
+      definition: registeredType.definition,
+      publicConfig: instance.publicConfig,
+      material,
+    });
     const health = await registeredType.test({
       instance,
-      material,
-      publicConfig: instance.publicConfig,
+      material: resolvedMaterial,
+      publicConfig: resolvedPublicConfig,
     });
     const testedAt = health.testedAt ?? new Date().toISOString();
     await this.credentialStore.saveTestResult({

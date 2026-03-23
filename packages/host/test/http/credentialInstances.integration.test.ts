@@ -43,8 +43,24 @@ class TestCredentialBootHook implements CodemationBootHook {
       definition: {
         typeId: testOAuthCredentialTypeId,
         displayName: "Test OAuth",
-        publicFields: [{ key: "clientId", label: "Client ID", type: "string", required: true }],
-        secretFields: [{ key: "clientSecret", label: "Client Secret", type: "password", required: true }],
+        publicFields: [
+          {
+            key: "clientId",
+            label: "Client ID",
+            type: "string",
+            required: true,
+            envVarName: "TEST_OAUTH_INTEGRATION_CLIENT_ID",
+          },
+        ],
+        secretFields: [
+          {
+            key: "clientSecret",
+            label: "Client Secret",
+            type: "password",
+            required: true,
+            envVarName: "TEST_OAUTH_INTEGRATION_CLIENT_SECRET",
+          },
+        ],
         supportedSourceKinds: ["db"],
         auth: {
           kind: "oauth2",
@@ -76,6 +92,7 @@ class CredentialIntegrationFixture {
   static async createHarness(
     database: PostgresIntegrationDatabase,
     transaction: PostgresRollbackTransaction,
+    envOverrides?: Readonly<NodeJS.ProcessEnv>,
   ): Promise<FrontendHttpIntegrationHarness> {
     const config = {
       workflows: [this.createWorkflow()],
@@ -93,6 +110,9 @@ class CredentialIntegrationFixture {
         DATABASE_URL: database.databaseUrl,
         CODEMATION_CREDENTIALS_MASTER_KEY: testMasterKey,
         TEST_CREDENTIAL_API_KEY: "env-resolved-secret-value",
+        TEST_OAUTH_INTEGRATION_CLIENT_ID: "oauth-client-from-env",
+        TEST_OAUTH_INTEGRATION_CLIENT_SECRET: "oauth-secret-from-env",
+        ...envOverrides,
       },
       bindings: [
         {
@@ -212,6 +232,74 @@ describe("credential instances http integration", () => {
     expect(instance.envSecretRefs).toEqual({ apiKey: "TEST_CREDENTIAL_API_KEY" });
     expect(instance.secretConfig).toBeDefined();
     expect(typeof instance.secretConfig?.apiKey).toBe("string");
+  });
+
+  it("returns credential field env status for registered types", async () => {
+    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+
+    const response = await harness.request({
+      method: "GET",
+      url: ApiPaths.credentialsEnvStatus(),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<Readonly<Record<string, boolean>>>();
+    expect(body.TEST_OAUTH_INTEGRATION_CLIENT_ID).toBe(true);
+    expect(body.TEST_OAUTH_INTEGRATION_CLIENT_SECRET).toBe(true);
+  });
+
+  it("creates OAuth credential without stored client id and secret when env provides values", async () => {
+    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+
+    const createResponse = await harness.requestJson<CredentialInstanceDto>({
+      method: "POST",
+      url: ApiPaths.credentialInstances(),
+      payload: {
+        typeId: testOAuthCredentialTypeId,
+        displayName: "OAuth env-backed",
+        sourceKind: "db",
+        publicConfig: {},
+        secretConfig: {},
+      },
+    });
+
+    expect(createResponse.typeId).toBe(testOAuthCredentialTypeId);
+
+    const getResponse = await harness.request({
+      method: "GET",
+      url: ApiPaths.credentialInstance(createResponse.instanceId, true),
+    });
+
+    expect(getResponse.statusCode).toBe(200);
+    const instance = getResponse.json<CredentialInstanceWithSecretsDto>();
+    expect(instance.publicConfig.clientId).toBeUndefined();
+    expect(instance.secretConfig?.clientSecret).toBeUndefined();
+  });
+
+  it("uses env-resolved client_id in OAuth2 auth redirect when instance omits stored client id", async () => {
+    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+
+    const createResponse = await harness.requestJson<CredentialInstanceDto>({
+      method: "POST",
+      url: ApiPaths.credentialInstances(),
+      payload: {
+        typeId: testOAuthCredentialTypeId,
+        displayName: "OAuth redirect env",
+        sourceKind: "db",
+        publicConfig: {},
+        secretConfig: {},
+      },
+    });
+
+    const authResponse = await harness.request({
+      method: "GET",
+      url: ApiPaths.oauth2Auth(createResponse.instanceId),
+    });
+
+    expect(authResponse.statusCode).toBe(302);
+    const locationHeader = String(authResponse.header("location"));
+    const url = new URL(locationHeader);
+    expect(url.searchParams.get("client_id")).toBe("oauth-client-from-env");
   });
 
   it("creates an OAuth2 auth redirect and persists state", async () => {
@@ -655,6 +743,21 @@ describe("credential instances http integration", () => {
     expect(response.statusCode).toBe(200);
     const body = response.json<{ redirectUri: string }>();
     expect(body.redirectUri).toMatch(/\/api\/oauth2\/callback$/);
+  });
+
+  it("returns OAuth2 redirect URI when CODEMATION_PUBLIC_BASE_URL omits http scheme", async () => {
+    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!, {
+      CODEMATION_PUBLIC_BASE_URL: "127.0.0.1:5555",
+    });
+
+    const response = await harness.request({
+      method: "GET",
+      url: ApiPaths.oauth2RedirectUri(),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{ redirectUri: string }>();
+    expect(body.redirectUri).toBe("http://127.0.0.1:5555/api/oauth2/callback");
   });
 
   it("returns OAuth2 callback error HTML when code and state are missing (no fetch)", async () => {

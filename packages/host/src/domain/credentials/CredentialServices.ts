@@ -170,6 +170,7 @@ export { CredentialBindingService } from "./CredentialBindingService";
 export { CredentialInstanceService } from "./CredentialInstanceService";
 export { CredentialMaterialResolver } from "./CredentialMaterialResolver";
 export { CredentialRuntimeMaterialService } from "./CredentialRuntimeMaterialService";
+export { CredentialFieldEnvOverlayService } from "./CredentialFieldEnvOverlayService";
 export { CredentialSecretCipher } from "./CredentialSecretCipher";
 export { CredentialSessionServiceImpl } from "./CredentialSessionServiceImpl";
 export { CredentialTestService } from "./CredentialTestService";

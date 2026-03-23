@@ -75,16 +75,29 @@ export class OAuth2HttpRouteHandler {
   }
 
   private resolveRequestOrigin(request: Request): string {
-    const forwardedProto = request.headers.get("x-forwarded-proto")?.trim();
-    const forwardedHost = request.headers.get("x-forwarded-host")?.trim();
+    const forwardedProto = OAuth2HttpRouteHandler.firstCommaSeparatedValue(
+      request.headers.get("x-forwarded-proto"),
+    );
+    const forwardedHost = OAuth2HttpRouteHandler.firstCommaSeparatedValue(
+      request.headers.get("x-forwarded-host"),
+    );
     if (forwardedProto && forwardedHost) {
       return `${forwardedProto}://${forwardedHost}`;
     }
-    const host = request.headers.get("host")?.trim();
+    const host = OAuth2HttpRouteHandler.firstCommaSeparatedValue(request.headers.get("host"));
     if (host) {
       return `${new URL(request.url).protocol}//${host}`;
     }
     return new URL(request.url).origin;
+  }
+
+  /** Proxies may send comma-separated lists (chain); use the first host/proto only. */
+  private static firstCommaSeparatedValue(value: string | null | undefined): string | undefined {
+    const trimmed = value?.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    return trimmed.split(",")[0]?.trim();
   }
 
   /**

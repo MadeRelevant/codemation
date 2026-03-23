@@ -40,6 +40,10 @@ export async function fetchCredentialTypes(): Promise<ReadonlyArray<CredentialTy
   return await codemationApiClient.getJson<ReadonlyArray<CredentialTypeDefinition>>(ApiPaths.credentialTypes());
 }
 
+export async function fetchCredentialFieldEnvStatus(): Promise<Readonly<Record<string, boolean>>> {
+  return await codemationApiClient.getJson<Readonly<Record<string, boolean>>>(ApiPaths.credentialsEnvStatus());
+}
+
 export async function fetchCredentialInstances(): Promise<ReadonlyArray<CredentialInstanceDto>> {
   return await codemationApiClient.getJson<ReadonlyArray<CredentialInstanceDto>>(ApiPaths.credentialInstances());
 }

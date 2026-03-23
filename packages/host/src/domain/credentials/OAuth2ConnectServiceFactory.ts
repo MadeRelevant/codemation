@@ -5,8 +5,10 @@ import { ApplicationRequestError } from "../../application/ApplicationRequestErr
 import { ApplicationTokens } from "../../applicationTokens";
 import type { CredentialStore } from "./CredentialServices";
 import {
+CredentialFieldEnvOverlayService,
 CredentialInstanceService,
 CredentialMaterialResolver,
+CredentialRuntimeMaterialService,
 CredentialSecretCipher,
 CredentialTypeRegistryImpl,
 } from "./CredentialServices";
@@ -36,6 +38,10 @@ export class OAuth2ConnectService {
     private readonly credentialInstanceService: CredentialInstanceService,
     @inject(CredentialTypeRegistryImpl)
     private readonly credentialTypeRegistry: CredentialTypeRegistryImpl,
+    @inject(CredentialRuntimeMaterialService)
+    private readonly credentialRuntimeMaterialService: CredentialRuntimeMaterialService,
+    @inject(CredentialFieldEnvOverlayService)
+    private readonly credentialFieldEnvOverlayService: CredentialFieldEnvOverlayService,
     @inject(CredentialMaterialResolver)
     private readonly credentialMaterialResolver: CredentialMaterialResolver,
     @inject(CredentialSecretCipher)
@@ -49,7 +55,13 @@ export class OAuth2ConnectService {
   async createAuthRedirect(instanceId: string, requestOrigin: string): Promise<OAuth2AuthRedirectResult> {
     const instance = await this.credentialInstanceService.requireInstance(instanceId);
     const registeredType = this.requireOAuth2Type(instance.typeId);
-    const provider = this.oauth2ProviderRegistry.resolve(registeredType.definition, instance.publicConfig);
+    const emptyMaterial = await this.credentialMaterialResolver.resolveMaterial(instance);
+    const { resolvedPublicConfig } = this.credentialFieldEnvOverlayService.apply({
+      definition: registeredType.definition,
+      publicConfig: instance.publicConfig,
+      material: emptyMaterial,
+    });
+    const provider = this.oauth2ProviderRegistry.resolve(registeredType.definition, resolvedPublicConfig);
     const redirectUri = this.getRedirectUri(requestOrigin);
     const state = this.createOpaqueValue();
     const codeVerifier = this.createOpaqueValue();
@@ -69,7 +81,7 @@ export class OAuth2ConnectService {
     authorizeUrl.searchParams.set("response_type", "code");
     authorizeUrl.searchParams.set(
       "client_id",
-      this.oauth2ProviderRegistry.resolveClientId(registeredType.definition.auth!, instance.publicConfig),
+      this.oauth2ProviderRegistry.resolveClientId(registeredType.definition.auth!, resolvedPublicConfig),
     );
     authorizeUrl.searchParams.set("redirect_uri", redirectUri);
     authorizeUrl.searchParams.set("scope", registeredType.definition.auth!.scopes.join(" "));
@@ -109,17 +121,22 @@ export class OAuth2ConnectService {
     const instance = await this.credentialInstanceService.requireInstance(storedState.instanceId);
     const registeredType = this.requireOAuth2Type(instance.typeId);
     const auth = registeredType.definition.auth!;
-    const provider = this.oauth2ProviderRegistry.resolve(registeredType.definition, instance.publicConfig);
+    const composedMaterial = await this.credentialRuntimeMaterialService.compose(instance);
+    const { resolvedPublicConfig, resolvedMaterial } = this.credentialFieldEnvOverlayService.apply({
+      definition: registeredType.definition,
+      publicConfig: instance.publicConfig,
+      material: composedMaterial,
+    });
+    const provider = this.oauth2ProviderRegistry.resolve(registeredType.definition, resolvedPublicConfig);
     const redirectUri = this.getRedirectUri(args.requestOrigin);
-    const secretMaterial = await this.credentialMaterialResolver.resolveMaterial(instance);
     const tokenResponse = await this.exchangeAuthorizationCode({
       auth,
       code,
       codeVerifier: storedState.codeVerifier,
       provider,
-      publicConfig: instance.publicConfig,
+      publicConfig: resolvedPublicConfig,
       redirectUri,
-      secretMaterial,
+      secretMaterial: resolvedMaterial,
     });
     const nowIso = new Date().toISOString();
     const existingMaterial = await this.credentialStore.getOAuth2Material(instance.instanceId);
@@ -152,11 +169,57 @@ export class OAuth2ConnectService {
   }
 
   getRedirectUri(requestOrigin: string): string {
-    const baseUrl = this.env.CODEMATION_PUBLIC_BASE_URL?.trim() || requestOrigin.trim();
-    if (!baseUrl) {
+    const rawBase = this.env.CODEMATION_PUBLIC_BASE_URL?.trim() || requestOrigin.trim();
+    if (!rawBase) {
       throw new Error("Unable to resolve the public base URL for OAuth2 redirect URI generation.");
     }
-    return new URL("/api/oauth2/callback", this.normalizeBaseUrl(baseUrl)).toString();
+    const baseUrl = this.ensureAbsoluteUrlForOAuth2Base(rawBase);
+    try {
+      return new URL("/api/oauth2/callback", this.normalizeBaseUrl(baseUrl)).toString();
+    } catch {
+      throw new ApplicationRequestError(
+        500,
+        `Invalid public base URL for OAuth2 redirect URI generation: "${rawBase}". Use a full URL (e.g. http://localhost:3000) for CODEMATION_PUBLIC_BASE_URL or ensure the request has a valid Host / forwarded headers.`,
+      );
+    }
+  }
+
+  /**
+   * `new URL(path, base)` requires `base` to be an absolute URL with a scheme.
+   * Misconfigured CODEMATION_PUBLIC_BASE_URL (e.g. `localhost:3000` without http://) or odd
+   * forwarded headers otherwise throw TypeError: Invalid URL.
+   *
+   * Comma-separated values (proxy chains or copy-paste mistakes like `http,http`) use the
+   * first segment only; obviously invalid hostnames are rejected.
+   */
+  private ensureAbsoluteUrlForOAuth2Base(raw: string): string {
+    const segments = raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    let candidate = segments[0] ?? raw.trim();
+    if (!candidate) {
+      throw new Error("Unable to resolve the public base URL for OAuth2 redirect URI generation.");
+    }
+    if (!/^https?:\/\//i.test(candidate)) {
+      candidate = `http://${candidate}`;
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(candidate);
+    } catch {
+      throw new ApplicationRequestError(
+        500,
+        `Invalid public base URL for OAuth2 redirect URI generation: "${raw}". Use a single full URL (e.g. http://localhost:3000) for CODEMATION_PUBLIC_BASE_URL.`,
+      );
+    }
+    if (parsed.hostname === "http" || parsed.hostname === "https") {
+      throw new ApplicationRequestError(
+        500,
+        `Invalid OAuth2 public base URL (hostname "${parsed.hostname}"). Set CODEMATION_PUBLIC_BASE_URL to one full URL with a real host, e.g. http://localhost:3000 — not "http,http" or other typos.`,
+      );
+    }
+    return candidate;
   }
 
   private requireOAuth2Type(typeId: string) {

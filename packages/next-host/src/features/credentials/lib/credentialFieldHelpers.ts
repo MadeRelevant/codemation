@@ -22,3 +22,14 @@ export function buildFieldStringValues(
   }
   return out;
 }
+
+export function isCredentialFieldLockedByEnv(
+  field: CredentialFieldSchema,
+  envStatus: Readonly<Record<string, boolean>>,
+): boolean {
+  const name = field.envVarName?.trim();
+  if (!name) {
+    return false;
+  }
+  return envStatus[name] === true;
+}

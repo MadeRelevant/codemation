@@ -21,6 +21,7 @@ UpdateCredentialInstanceRequest
 
 import { ApplicationTokens } from "../../applicationTokens";
 
+import { CredentialFieldEnvOverlayService } from "./CredentialFieldEnvOverlayService";
 import { CredentialMaterialResolver } from "./CredentialMaterialResolver";
 import { CredentialSecretCipher } from "./CredentialSecretCipher";
 import type {
@@ -46,6 +47,8 @@ export class CredentialInstanceService {
     private readonly credentialTypeRegistry: CredentialTypeRegistryImpl,
     @inject(CredentialSecretCipher)
     private readonly credentialSecretCipher: CredentialSecretCipher,
+    @inject(CredentialFieldEnvOverlayService)
+    private readonly credentialFieldEnvOverlayService: CredentialFieldEnvOverlayService,
     @inject(CredentialMaterialResolver)
     private readonly credentialMaterialResolver: CredentialMaterialResolver,
     @inject(CoreTokens.CredentialSessionService)
@@ -93,23 +96,27 @@ export class CredentialInstanceService {
 
   async create(request: CreateCredentialInstanceRequest): Promise<CredentialInstanceDto> {
     const registeredType = this.requireRegisteredType(request.typeId);
+    const publicFields = registeredType.definition.publicFields ?? [];
+    const secretFields = registeredType.definition.secretFields ?? [];
     this.validateRequestFields({
       displayName: request.displayName,
-      publicFields: registeredType.definition.publicFields ?? [],
+      publicFields,
       publicConfig: request.publicConfig ?? {},
-      secretFields: registeredType.definition.secretFields ?? [],
+      secretFields,
       sourceKind: request.sourceKind,
       secretConfig: request.secretConfig ?? {},
       envSecretRefs: request.envSecretRefs ?? {},
     });
     const timestamp = new Date().toISOString();
+    const strippedPublic = this.stripEnvManagedFieldValues(publicFields, request.publicConfig ?? {});
+    const strippedSecretForRef = this.stripEnvManagedFieldValues(secretFields, request.secretConfig ?? {});
     const instance: CredentialInstanceRecord = {
       instanceId: randomUUID(),
       typeId: request.typeId,
       displayName: request.displayName.trim(),
       sourceKind: request.sourceKind,
-      publicConfig: Object.freeze({ ...(request.publicConfig ?? {}) }),
-      secretRef: this.createSecretRef(request.sourceKind, request.secretConfig ?? {}, request.envSecretRefs ?? {}),
+      publicConfig: Object.freeze({ ...strippedPublic }),
+      secretRef: this.createSecretRef(request.sourceKind, strippedSecretForRef, request.envSecretRefs ?? {}),
       tags: Object.freeze([...(request.tags ?? [])]),
       setupStatus: registeredType.definition.auth?.kind === "oauth2" ? "draft" : "ready",
       createdAt: timestamp,
@@ -117,7 +124,7 @@ export class CredentialInstanceService {
     };
     await this.credentialStore.saveInstance({
       instance,
-      secretMaterial: this.createSecretMaterial(instance, request.secretConfig ?? {}, timestamp),
+      secretMaterial: this.createSecretMaterial(instance, strippedSecretForRef, timestamp),
     });
     this.credentialSessionService.evictInstance(instance.instanceId);
     return this.toDto(instance, undefined);
@@ -126,20 +133,28 @@ export class CredentialInstanceService {
   async update(instanceId: CredentialInstanceId, request: UpdateCredentialInstanceRequest): Promise<CredentialInstanceDto> {
     const existing = await this.requireInstance(instanceId);
     const registeredType = this.requireRegisteredType(existing.typeId);
-    const publicConfig = Object.freeze({ ...(request.publicConfig ?? existing.publicConfig) });
+    const mergedPublicRaw = { ...(request.publicConfig ?? existing.publicConfig) };
     const updatedAt = new Date().toISOString();
     const nextSecretConfig = request.secretConfig;
     const nextEnvSecretRefs = request.envSecretRefs;
+    const secretFields = registeredType.definition.secretFields ?? [];
     this.validateRequestFields({
       displayName: request.displayName ?? existing.displayName,
       publicFields: registeredType.definition.publicFields ?? [],
-      publicConfig,
-      secretFields: registeredType.definition.secretFields ?? [],
+      publicConfig: mergedPublicRaw,
+      secretFields,
       sourceKind: existing.sourceKind,
       secretConfig: nextSecretConfig ?? {},
       envSecretRefs: nextEnvSecretRefs ?? {},
       allowSecretOmission: true,
     });
+    const publicConfig = Object.freeze({
+      ...this.stripEnvManagedFieldValues(registeredType.definition.publicFields ?? [], mergedPublicRaw),
+    });
+    const mergedSecretForRef =
+      nextSecretConfig !== undefined
+        ? this.stripEnvManagedFieldValues(secretFields, nextSecretConfig)
+        : undefined;
     const instance: CredentialInstanceRecord = {
       ...existing,
       displayName: request.displayName?.trim() || existing.displayName,
@@ -148,13 +163,16 @@ export class CredentialInstanceService {
       setupStatus: request.setupStatus ?? existing.setupStatus,
       secretRef:
         nextSecretConfig || nextEnvSecretRefs
-          ? this.createSecretRef(existing.sourceKind, nextSecretConfig ?? {}, nextEnvSecretRefs ?? {})
+          ? this.createSecretRef(existing.sourceKind, mergedSecretForRef ?? {}, nextEnvSecretRefs ?? {})
           : existing.secretRef,
       updatedAt,
     };
     await this.credentialStore.saveInstance({
       instance,
-      secretMaterial: nextSecretConfig ? this.createSecretMaterial(instance, nextSecretConfig, updatedAt) : undefined,
+      secretMaterial:
+        nextSecretConfig !== undefined && mergedSecretForRef !== undefined
+          ? this.createSecretMaterial(instance, mergedSecretForRef, updatedAt)
+          : undefined,
     });
     this.credentialSessionService.evictInstance(instance.instanceId);
     return this.toDto(instance, await this.credentialStore.getLatestTestResult(instance.instanceId));
@@ -261,6 +279,19 @@ export class CredentialInstanceService {
     }
   }
 
+  private stripEnvManagedFieldValues(
+    fields: ReadonlyArray<CredentialFieldSchema>,
+    value: JsonRecord,
+  ): JsonRecord {
+    const out: Record<string, unknown> = { ...value };
+    for (const field of fields) {
+      if (this.credentialFieldEnvOverlayService.isFieldResolvedFromEnv(field)) {
+        delete out[field.key];
+      }
+    }
+    return Object.freeze(out);
+  }
+
   private assertRequiredFields(
     fieldName: string,
     schema: ReadonlyArray<CredentialFieldSchema>,
@@ -268,6 +299,7 @@ export class CredentialInstanceService {
   ): void {
     const missing = schema
       .filter((field) => field.required === true)
+      .filter((field) => !this.credentialFieldEnvOverlayService.isFieldResolvedFromEnv(field))
       .filter((field) => value[field.key] === undefined || value[field.key] === null || value[field.key] === "")
       .map((field) => field.key);
     if (missing.length > 0) {
@@ -281,6 +313,7 @@ export class CredentialInstanceService {
   ): void {
     const missing = schema
       .filter((field) => field.required === true)
+      .filter((field) => !this.credentialFieldEnvOverlayService.isFieldResolvedFromEnv(field))
       .filter((field) => !envSecretRefs[field.key] || envSecretRefs[field.key]!.trim().length === 0)
       .map((field) => field.key);
     if (missing.length > 0) {

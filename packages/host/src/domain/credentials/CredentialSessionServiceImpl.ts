@@ -13,6 +13,7 @@ import { ApplicationRequestError } from "../../application/ApplicationRequestErr
 
 import { ApplicationTokens } from "../../applicationTokens";
 
+import { CredentialFieldEnvOverlayService } from "./CredentialFieldEnvOverlayService";
 import { CredentialRuntimeMaterialService } from "./CredentialRuntimeMaterialService";
 import type { CredentialStore } from "./CredentialServices";
 import { CredentialTypeRegistryImpl } from "./CredentialServices";
@@ -27,6 +28,8 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
     private readonly credentialStore: CredentialStore,
     @inject(CredentialRuntimeMaterialService)
     private readonly credentialRuntimeMaterialService: CredentialRuntimeMaterialService,
+    @inject(CredentialFieldEnvOverlayService)
+    private readonly credentialFieldEnvOverlayService: CredentialFieldEnvOverlayService,
     @inject(CredentialTypeRegistryImpl)
     private readonly credentialTypeRegistry: CredentialTypeRegistryImpl,
     @inject(CoreTokens.WorkflowRepository)
@@ -85,10 +88,15 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
       throw new ApplicationRequestError(400, `Unknown credential type: ${instance.typeId}`);
     }
     const material = await this.credentialRuntimeMaterialService.compose(instance);
+    const { resolvedPublicConfig, resolvedMaterial } = this.credentialFieldEnvOverlayService.apply({
+      definition: registeredType.definition,
+      publicConfig: instance.publicConfig,
+      material,
+    });
     return await registeredType.createSession({
       instance,
-      material,
-      publicConfig: instance.publicConfig,
+      material: resolvedMaterial,
+      publicConfig: resolvedPublicConfig,
     });
   }
 

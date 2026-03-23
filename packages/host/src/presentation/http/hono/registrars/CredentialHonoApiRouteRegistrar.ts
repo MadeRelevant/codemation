@@ -11,6 +11,7 @@ export class CredentialHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
 
   register(app: Hono): void {
     app.get("/credentials/types", (_c) => this.handler.getCredentialTypes());
+    app.get("/credentials/env-status", (_c) => this.handler.getCredentialFieldEnvStatus());
     app.get("/credentials/instances", (_c) => this.handler.getCredentialInstances());
     app.get("/workflows/:workflowId/credential-health", (c) =>
       this.handler.getWorkflowCredentialHealth(c.req.raw, { workflowId: c.req.param("workflowId") }),

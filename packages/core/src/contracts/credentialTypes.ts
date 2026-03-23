@@ -15,6 +15,8 @@ export type CredentialFieldSchema = Readonly<{
   order?: number;
   placeholder?: string;
   helpText?: string;
+  /** When set, host resolves this field from process.env at runtime; env wins over stored values. */
+  envVarName?: string;
 }>;
 
 export type CredentialRequirement = Readonly<{

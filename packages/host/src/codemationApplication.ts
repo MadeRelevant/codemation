@@ -55,6 +55,7 @@ import { ApplicationTokens } from "./applicationTokens";
 import {
 CredentialBindingService,
 CredentialInstanceService,
+CredentialFieldEnvOverlayService,
 CredentialMaterialResolver,
 CredentialRuntimeMaterialService,
 CredentialSecretCipher,
@@ -520,6 +521,7 @@ export class CodemationApplication {
     this.container.register(RequestToWebhookItemMapper, { useClass: RequestToWebhookItemMapper });
     this.container.register(CredentialSecretCipher, { useClass: CredentialSecretCipher });
     this.container.register(CredentialMaterialResolver, { useClass: CredentialMaterialResolver });
+    this.container.register(CredentialFieldEnvOverlayService, { useClass: CredentialFieldEnvOverlayService });
     this.container.register(CredentialRuntimeMaterialService, { useClass: CredentialRuntimeMaterialService });
     this.container.register(CredentialInstanceService, { useClass: CredentialInstanceService });
     this.container.register(CredentialBindingService, { useClass: CredentialBindingService });

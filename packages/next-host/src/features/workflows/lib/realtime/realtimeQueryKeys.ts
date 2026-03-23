@@ -5,6 +5,7 @@ export const workflowDebuggerOverlayQueryKey = (workflowId: string) => ["workflo
 export const workflowDevBuildStateQueryKey = (workflowId: string) => ["workflow-dev-build-state", workflowId] as const;
 export const runQueryKey = (runId: string) => ["run", runId] as const;
 export const credentialTypesQueryKey = ["credential-types"] as const;
+export const credentialFieldEnvStatusQueryKey = ["credential-field-env-status"] as const;
 export const credentialInstancesQueryKey = ["credential-instances"] as const;
 export const credentialInstanceWithSecretsQueryKey = (instanceId: string) =>
   ["credential-instance-with-secrets", instanceId] as const;

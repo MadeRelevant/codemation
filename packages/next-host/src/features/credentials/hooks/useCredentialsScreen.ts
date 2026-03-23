@@ -4,11 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { codemationApiClient } from "../../../api/CodemationApiClient";
 import { CodemationApiHttpError } from "../../../api/CodemationApiHttpError";
 import {
+  useCredentialFieldEnvStatusQuery,
   useCredentialInstancesQuery,
   useCredentialInstanceWithSecretsQuery,
   useCredentialTypesQuery,
   type CredentialInstanceDto,
 } from "../../workflows/hooks/realtime/realtime";
+import { credentialFieldEnvStatusQueryKey } from "../../workflows/lib/realtime/realtimeQueryKeys";
 import {
   buildEmptySecretFieldValues,
   buildFieldStringValues,
@@ -33,11 +35,13 @@ export function useCredentialsScreen() {
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
   const credentialTypesQuery = useCredentialTypesQuery();
+  const credentialFieldEnvStatusQuery = useCredentialFieldEnvStatusQuery();
   const credentialInstancesQuery = useCredentialInstancesQuery();
   const credentialWithSecretsQuery = useCredentialInstanceWithSecretsQuery(
     dialogMode === "edit" ? editingInstanceId : null,
   );
   const credentialTypes = credentialTypesQuery.data ?? [];
+  const credentialFieldEnvStatus = credentialFieldEnvStatusQuery.data ?? {};
   const credentialInstances = credentialInstancesQuery.data ?? [];
   const [selectedTypeId, setSelectedTypeId] = useState<string>("");
   const [displayName, setDisplayName] = useState("");
@@ -91,6 +95,7 @@ export function useCredentialsScreen() {
       queryClient.invalidateQueries({ queryKey: ["credential-instances"] }),
       queryClient.invalidateQueries({ queryKey: ["credential-types"] }),
       queryClient.invalidateQueries({ queryKey: ["credential-instance-with-secrets"] }),
+      queryClient.invalidateQueries({ queryKey: credentialFieldEnvStatusQueryKey }),
     ]);
   }, [queryClient]);
 
@@ -486,6 +491,7 @@ export function useCredentialsScreen() {
   return {
     credentialInstances,
     credentialTypes,
+    credentialFieldEnvStatus,
     typesLoading,
     typesError,
     typesEmpty,

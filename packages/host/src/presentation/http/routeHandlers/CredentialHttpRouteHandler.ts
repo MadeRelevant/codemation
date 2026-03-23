@@ -15,6 +15,7 @@ UpdateCredentialInstanceRequest,
 UpsertCredentialBindingRequest,
 } from "../../../application/contracts/CredentialContractsRegistry";
 import {
+GetCredentialFieldEnvStatusQuery,
 GetCredentialInstanceQuery,
 GetCredentialInstanceWithSecretsQuery,
 GetWorkflowCredentialHealthQuery,
@@ -37,6 +38,14 @@ export class CredentialHttpRouteHandler {
   async getCredentialTypes(): Promise<Response> {
     try {
       return Response.json(await this.queryBus.execute(new ListCredentialTypesQuery()));
+    } catch (error) {
+      return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  async getCredentialFieldEnvStatus(): Promise<Response> {
+    try {
+      return Response.json(await this.queryBus.execute(new GetCredentialFieldEnvStatusQuery()));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }

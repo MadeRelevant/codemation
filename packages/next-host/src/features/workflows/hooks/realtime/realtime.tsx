@@ -27,6 +27,7 @@ import { useContext,useEffect,useMemo,useState } from "react";
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { RealtimeContext } from "../../components/realtime/RealtimeContext";
 import {
+fetchCredentialFieldEnvStatus,
 fetchCredentialInstanceWithSecrets,
 fetchCredentialInstances,
 fetchCredentialTypes,
@@ -40,6 +41,7 @@ fetchWorkflows,
 } from "../../lib/realtime/realtimeApi";
 import { getRealtimeBridge } from "../../lib/realtime/realtimeClientBridge";
 import {
+credentialFieldEnvStatusQueryKey,
 credentialInstanceWithSecretsQueryKey,
 credentialInstancesQueryKey,
 credentialTypesQueryKey,
@@ -163,6 +165,13 @@ export function useCredentialTypesQuery() {
   return useQuery({
     queryKey: credentialTypesQueryKey,
     queryFn: fetchCredentialTypes,
+  });
+}
+
+export function useCredentialFieldEnvStatusQuery() {
+  return useQuery({
+    queryKey: credentialFieldEnvStatusQueryKey,
+    queryFn: fetchCredentialFieldEnvStatus,
   });
 }
 

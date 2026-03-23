@@ -37,8 +37,28 @@ type CredentialTypeRegistrar = Readonly<{
       typeId: string;
       displayName: string;
       description?: string;
-      publicFields?: ReadonlyArray<Readonly<{ key: string; label: string; type: string; required?: true; placeholder?: string; helpText?: string }>>;
-      secretFields?: ReadonlyArray<Readonly<{ key: string; label: string; type: string; required?: true; placeholder?: string; helpText?: string }>>;
+      publicFields?: ReadonlyArray<
+        Readonly<{
+          key: string;
+          label: string;
+          type: string;
+          required?: true;
+          placeholder?: string;
+          helpText?: string;
+          envVarName?: string;
+        }>
+      >;
+      secretFields?: ReadonlyArray<
+        Readonly<{
+          key: string;
+          label: string;
+          type: string;
+          required?: true;
+          placeholder?: string;
+          helpText?: string;
+          envVarName?: string;
+        }>
+      >;
       supportedSourceKinds?: ReadonlyArray<"db" | "env" | "code">;
         auth?: Readonly<
           | {
@@ -143,8 +163,26 @@ export class GmailNodes {
         typeId: GmailCredentialTypes.oauth,
         displayName: "Gmail OAuth",
         description: "OAuth2 credentials for a Gmail account connection managed by the framework.",
-        publicFields: [{ key: "clientId", label: "Client ID", type: "string", required: true }],
-        secretFields: [{ key: "clientSecret", label: "Client secret", type: "password", required: true }],
+        publicFields: [
+          {
+            key: "clientId",
+            label: "Client ID",
+            type: "string",
+            required: true,
+            envVarName: "CODEMATION_GOOGLE_CLIENT_ID",
+            helpText: "Optional when CODEMATION_GOOGLE_CLIENT_ID is set in the host environment.",
+          },
+        ],
+        secretFields: [
+          {
+            key: "clientSecret",
+            label: "Client secret",
+            type: "password",
+            required: true,
+            envVarName: "CODEMATION_GOOGLE_CLIENT_SECRET",
+            helpText: "Optional when CODEMATION_GOOGLE_CLIENT_SECRET is set in the host environment.",
+          },
+        ],
         supportedSourceKinds: ["db", "env", "code"],
         auth: {
           kind: "oauth2",

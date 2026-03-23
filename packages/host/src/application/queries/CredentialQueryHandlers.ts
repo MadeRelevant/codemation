@@ -8,3 +8,5 @@ export { ListCredentialInstancesQuery } from "./ListCredentialInstancesQuery";
 export { ListCredentialInstancesQueryHandler } from "./ListCredentialInstancesQueryHandler";
 export { ListCredentialTypesQuery } from "./ListCredentialTypesQuery";
 export { ListCredentialTypesQueryHandler } from "./ListCredentialTypesQueryHandler";
+export { GetCredentialFieldEnvStatusQuery } from "./GetCredentialFieldEnvStatusQuery";
+export { GetCredentialFieldEnvStatusQueryHandler } from "./GetCredentialFieldEnvStatusQueryHandler";

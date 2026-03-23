@@ -31,6 +31,33 @@ describe("CredentialsScreen", () => {
       scopes: ["scope.one"],
     },
   };
+  const oauthCredentialTypeWithEnv = {
+    typeId: "test.oauth.env",
+    displayName: "Test OAuth env",
+    publicFields: [
+      {
+        key: "clientId",
+        label: "Client ID",
+        type: "string" as const,
+        required: true as const,
+        envVarName: "TEST_OAUTH_UI_CLIENT_ID",
+      },
+    ],
+    secretFields: [
+      {
+        key: "clientSecret",
+        label: "Client secret",
+        type: "password" as const,
+        required: true as const,
+        envVarName: "TEST_OAUTH_UI_CLIENT_SECRET",
+      },
+    ],
+    auth: {
+      kind: "oauth2" as const,
+      providerId: "google",
+      scopes: ["scope.one"],
+    },
+  };
   const orderedCredentialType = {
     typeId: "test.ordered",
     displayName: "Test ordered",
@@ -119,6 +146,7 @@ describe("CredentialsScreen", () => {
   function renderCredentialsScreen(initialData?: {
     credentialTypes?: ReadonlyArray<CredentialTypeDefinition>;
     credentialInstances?: ReadonlyArray<CredentialInstanceDto>;
+    credentialFieldEnvStatus?: Readonly<Record<string, boolean>>;
   }) {
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -131,6 +159,7 @@ describe("CredentialsScreen", () => {
     if (initialData?.credentialInstances) {
       queryClient.setQueryData(["credential-instances"], initialData.credentialInstances);
     }
+    queryClient.setQueryData(["credential-field-env-status"], initialData?.credentialFieldEnvStatus ?? {});
     return render(
       <QueryClientProvider client={queryClient}>
         <CredentialsScreen />
@@ -146,6 +175,30 @@ describe("CredentialsScreen", () => {
 
     expect(screen.getByTestId("credentials-screen")).toBeInTheDocument();
     expect(screen.getByTestId("credential-add-button")).toBeInTheDocument();
+  });
+
+  it("disables oauth client fields when env status marks them as set", async () => {
+    renderCredentialsScreen({
+      credentialTypes: [oauthCredentialTypeWithEnv],
+      credentialInstances: [],
+      credentialFieldEnvStatus: {
+        TEST_OAUTH_UI_CLIENT_ID: true,
+        TEST_OAUTH_UI_CLIENT_SECRET: true,
+      },
+    });
+
+    fireEvent.click(screen.getByTestId("credential-add-button"));
+    await screen.findByTestId("credential-dialog");
+
+    selectCredentialTypeOption("Test OAuth env");
+
+    const clientId = await screen.findByTestId("credential-public-clientId");
+    expect(clientId).toBeDisabled();
+    expect(screen.getByTestId("credential-field-env-managed-clientId")).toBeInTheDocument();
+
+    const clientSecret = await screen.findByTestId("credential-secret-clientSecret");
+    expect(clientSecret).toBeDisabled();
+    expect(screen.getByTestId("credential-field-env-managed-clientSecret")).toBeInTheDocument();
   });
 
   it("shows credential instance and opens edit dialog when name is clicked", async () => {

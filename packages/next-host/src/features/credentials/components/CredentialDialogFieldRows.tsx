@@ -6,7 +6,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { maskedDisplayValue } from "../lib/credentialFieldHelpers";
+import { isCredentialFieldLockedByEnv, maskedDisplayValue } from "../lib/credentialFieldHelpers";
 
 export type CredentialDialogOrderedField =
   | { kind: "public"; field: CredentialFieldSchema; order: number }
@@ -23,6 +23,7 @@ export type CredentialDialogFieldRowsProps = {
   isEdit: boolean;
   isDbSecretSource: boolean;
   showSecrets: boolean;
+  credentialFieldEnvStatus: Readonly<Record<string, boolean>>;
 };
 
 export function CredentialDialogFieldRows({
@@ -36,10 +37,12 @@ export function CredentialDialogFieldRows({
   isEdit,
   isDbSecretSource,
   showSecrets,
+  credentialFieldEnvStatus,
 }: CredentialDialogFieldRowsProps) {
   return (
     <>
       {orderedFields.map(({ kind, field }) => {
+        const lockedByEnv = isCredentialFieldLockedByEnv(field, credentialFieldEnvStatus);
         if (kind === "public") {
           const id = `credential-public-${field.key}`;
           return (
@@ -58,6 +61,8 @@ export function CredentialDialogFieldRows({
                     setPublicFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
                   }
                   placeholder={field.placeholder}
+                  readOnly={lockedByEnv}
+                  disabled={lockedByEnv}
                 />
               ) : (
                 <Input
@@ -69,7 +74,17 @@ export function CredentialDialogFieldRows({
                     setPublicFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
                   }
                   placeholder={field.placeholder}
+                  readOnly={lockedByEnv}
+                  disabled={lockedByEnv}
                 />
+              )}
+              {lockedByEnv && field.envVarName && (
+                <span
+                  className="text-xs text-muted-foreground"
+                  data-testid={`credential-field-env-managed-${field.key}`}
+                >
+                  Managed by environment variable {field.envVarName}
+                </span>
               )}
               {field.helpText && (
                 <span className="text-xs text-muted-foreground">{field.helpText}</span>
@@ -97,7 +112,8 @@ export function CredentialDialogFieldRows({
                   onChange={(e) =>
                     setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
                   }
-                  readOnly={isMasked}
+                  readOnly={isMasked || lockedByEnv}
+                  disabled={lockedByEnv}
                   placeholder={isEdit ? undefined : field.placeholder}
                 />
               ) : (
@@ -109,14 +125,23 @@ export function CredentialDialogFieldRows({
                   onChange={(e) =>
                     setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
                   }
-                  readOnly={isMasked}
+                  readOnly={isMasked || lockedByEnv}
+                  disabled={lockedByEnv}
                   placeholder={isEdit ? undefined : field.placeholder}
                 />
+              )}
+              {lockedByEnv && field.envVarName && (
+                <span
+                  className="text-xs text-muted-foreground"
+                  data-testid={`credential-field-env-managed-${field.key}`}
+                >
+                  Managed by environment variable {field.envVarName}
+                </span>
               )}
               {field.helpText && (
                 <span className="text-xs text-muted-foreground">{field.helpText}</span>
               )}
-              {isEdit && (
+              {isEdit && !lockedByEnv && (
                 <span className="text-xs text-muted-foreground">Leave blank to keep existing value</span>
               )}
             </div>
@@ -139,11 +164,21 @@ export function CredentialDialogFieldRows({
                 setEnvRefValues((prev) => ({ ...prev, [field.key]: e.target.value }))
               }
               placeholder={isEdit ? undefined : field.placeholder ?? `e.g. GMAIL_${field.key.toUpperCase()}`}
+              readOnly={lockedByEnv}
+              disabled={lockedByEnv}
             />
+            {lockedByEnv && field.envVarName && (
+              <span
+                className="text-xs text-muted-foreground"
+                data-testid={`credential-field-env-managed-${field.key}`}
+              >
+                Managed by environment variable {field.envVarName}
+              </span>
+            )}
             {field.helpText && (
               <span className="text-xs text-muted-foreground">{field.helpText}</span>
             )}
-            {isEdit && (
+            {isEdit && !lockedByEnv && (
               <span className="text-xs text-muted-foreground">Leave blank to keep existing value</span>
             )}
           </div>
