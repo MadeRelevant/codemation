@@ -243,6 +243,38 @@ describe("workflow debug session http integration", () => {
     await context.closeSharedDatabase();
   });
 
+  it("copy-to-live preserves outputs and snapshots for multiple linear nodes (workflow definition ids)", async () => {
+    const harness = await context.start();
+
+    const historicalRunResponse = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
+      },
+    });
+    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, historicalRunResponse.runId, {
+      terminalNodeId: "node_6",
+    });
+    expect(historicalRun.outputsByNode.node_2?.main?.length).toBeGreaterThan(0);
+    expect(historicalRun.outputsByNode.node_3?.main?.length).toBeGreaterThan(0);
+    expect(historicalRun.nodeSnapshotsByNodeId.node_2?.status).toBe("completed");
+    expect(historicalRun.nodeSnapshotsByNodeId.node_3?.status).toBe("completed");
+
+    const copiedOverlay = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
+      method: "POST",
+      url: ApiPaths.workflowDebuggerOverlayCopyRun(WorkflowDebugSessionIntegrationFixture.workflowId),
+      payload: {
+        sourceRunId: historicalRun.runId,
+      },
+    });
+
+    expect(copiedOverlay.currentState.outputsByNode.node_2?.main).toEqual(historicalRun.outputsByNode.node_2?.main);
+    expect(copiedOverlay.currentState.outputsByNode.node_3?.main).toEqual(historicalRun.outputsByNode.node_3?.main);
+    expect(copiedOverlay.currentState.nodeSnapshotsByNodeId.node_2?.status).toBe("completed");
+    expect(copiedOverlay.currentState.nodeSnapshotsByNodeId.node_3?.status).toBe("completed");
+  });
+
   it("supports copy-to-live followed by stepwise reruns through node 3, 4, and 5", async () => {
     const harness = await context.start();
 

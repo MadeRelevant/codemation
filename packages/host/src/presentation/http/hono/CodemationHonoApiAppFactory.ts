@@ -2,6 +2,7 @@ import { inject,injectAll,injectable } from "@codemation/core";
 import { Hono } from "hono";
 import type { SessionVerifier } from "../../../application/auth/SessionVerifier";
 import { ApplicationTokens } from "../../../applicationTokens";
+import { BinaryHttpRouteHandler } from "../routeHandlers/BinaryHttpRouteHandlerFactory";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 import type { HonoApiRouteRegistrar } from "./HonoApiRouteRegistrar";
 import { HonoHttpAnonymousRoutePolicy } from "./HonoHttpAnonymousRoutePolicyRegistry";
@@ -15,6 +16,8 @@ export class CodemationHonoApiApp {
     sessionVerifier: SessionVerifier,
     @injectAll(ApplicationTokens.HonoApiRouteRegistrar)
     registrars: ReadonlyArray<HonoApiRouteRegistrar>,
+    @inject(BinaryHttpRouteHandler)
+    binaryHttpRouteHandler: BinaryHttpRouteHandler,
   ) {
     const app = new Hono().basePath("/api");
     app.onError((error, _c) => ServerHttpErrorResponseFactory.fromUnknown(error));
@@ -29,14 +32,25 @@ export class CodemationHonoApiApp {
       }
       await next();
     });
+    for (const registrar of registrars) {
+      registrar.register(app);
+    }
+    app.get("/workflows/:workflowId/debugger-overlay/binary/:binaryId/content", (c) =>
+      binaryHttpRouteHandler.getWorkflowOverlayBinaryContent(c.req.raw, {
+        workflowId: c.req.param("workflowId"),
+        binaryId: c.req.param("binaryId"),
+      }),
+    );
+    app.post("/workflows/:workflowId/debugger-overlay/binary/upload", (c) =>
+      binaryHttpRouteHandler.postWorkflowDebuggerOverlayBinaryUpload(c.req.raw, {
+        workflowId: c.req.param("workflowId"),
+      }),
+    );
     app.notFound((c) => {
       const method = c.req.method.toUpperCase();
       const url = new URL(c.req.url);
       return c.json({ error: `Unknown API route: ${method} ${url.pathname}` }, 404);
     });
-    for (const registrar of registrars) {
-      registrar.register(app);
-    }
     this.app = app;
   }
 

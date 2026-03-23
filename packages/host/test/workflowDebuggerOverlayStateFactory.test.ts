@@ -3,6 +3,38 @@ import { WorkflowDebuggerOverlayStateFactory } from "../src/application/workflow
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit/WorkflowDetailFixtures";
 
 describe("WorkflowDebuggerOverlayStateFactory", () => {
+  it("copies outputs and snapshots for every top-level workflow node in a linear chain", () => {
+    const baseState =
+      WorkflowDetailFixtureFactory.createCompletedRunState() as Parameters<
+        typeof WorkflowDebuggerOverlayStateFactory.copyRunStateToOverlay
+      >[0]["sourceState"];
+    const sourceState = {
+      ...baseState,
+      outputsByNode: {
+        [WorkflowDetailFixtureFactory.triggerNodeId]: { main: [{ json: { chain: "trigger" } }] },
+        [WorkflowDetailFixtureFactory.nodeOneId]: { main: [{ json: { chain: "node_1" } }] },
+        [WorkflowDetailFixtureFactory.agentNodeId]: { main: [{ json: { chain: "agent" } }] },
+        [WorkflowDetailFixtureFactory.nodeTwoId]: { main: [{ json: { chain: "node_2" } }] },
+      },
+    } as Parameters<typeof WorkflowDebuggerOverlayStateFactory.copyRunStateToOverlay>[0]["sourceState"];
+
+    const overlay = WorkflowDebuggerOverlayStateFactory.copyRunStateToOverlay({
+      workflowId: WorkflowDetailFixtureFactory.workflowId,
+      sourceState,
+      liveWorkflowNodeIds: new Set([
+        WorkflowDetailFixtureFactory.triggerNodeId,
+        WorkflowDetailFixtureFactory.nodeOneId,
+        WorkflowDetailFixtureFactory.agentNodeId,
+        WorkflowDetailFixtureFactory.nodeTwoId,
+      ]),
+    });
+
+    expect(overlay.currentState.outputsByNode[WorkflowDetailFixtureFactory.nodeOneId]?.main?.[0]?.json).toEqual({ chain: "node_1" });
+    expect(overlay.currentState.outputsByNode[WorkflowDetailFixtureFactory.nodeTwoId]?.main?.[0]?.json).toEqual({ chain: "node_2" });
+    expect(overlay.currentState.nodeSnapshotsByNodeId[WorkflowDetailFixtureFactory.nodeOneId]?.status).toBe("completed");
+    expect(overlay.currentState.nodeSnapshotsByNodeId[WorkflowDetailFixtureFactory.nodeTwoId]?.status).toBe("completed");
+  });
+
   it("copies run state into the live workflow without marking copied outputs as pinned", () => {
     const baseState =
       WorkflowDetailFixtureFactory.createCompletedRunState() as Parameters<
@@ -59,5 +91,100 @@ describe("WorkflowDebuggerOverlayStateFactory", () => {
     });
     expect(overlay.currentState.mutableState?.nodesById?.[WorkflowDetailFixtureFactory.nodeOneId]?.pinnedOutputsByPort).toBeUndefined();
     expect(overlay.currentState.mutableState?.nodesById?.[WorkflowDetailFixtureFactory.agentNodeId]?.pinnedOutputsByPort).toBeUndefined();
+  });
+
+  /**
+   * Regression: `copyRunStateToOverlay` merges only ids from `workflow.nodes` (see `CopyRunToWorkflowDebuggerCommandHandler`).
+   * AI agent LLM/tool invocations persist under separate node ids (`agent::llm::n`, `agent::tool::…`) so items,
+   * snapshots, and binary attachments for those steps are dropped from the overlay until copy includes them.
+   */
+  it("omits agent attachment invocation outputs and snapshots from the debugger overlay (regression)", () => {
+    const baseState =
+      WorkflowDetailFixtureFactory.createCompletedRunState() as Parameters<
+        typeof WorkflowDebuggerOverlayStateFactory.copyRunStateToOverlay
+      >[0]["sourceState"];
+    const binaryId = "bin_second_llm";
+    const sourceState = {
+      ...baseState,
+      outputsByNode: {
+        ...baseState.outputsByNode,
+        [WorkflowDetailFixtureFactory.llmFirstInvocationNodeId]: {
+          main: [{ json: { invocation: 1 } }],
+        },
+        [WorkflowDetailFixtureFactory.llmSecondInvocationNodeId]: {
+          main: [
+            {
+              json: { invocation: 2 },
+              binary: {
+                preview: {
+                  id: binaryId,
+                  storageKey: `runs/${baseState.runId}/nodes/${WorkflowDetailFixtureFactory.llmSecondInvocationNodeId}/${binaryId}`,
+                  mimeType: "application/octet-stream",
+                  size: 4,
+                  previewKind: "download" as const,
+                  filename: "second.bin",
+                },
+              },
+            },
+          ],
+        },
+      },
+    } as Parameters<typeof WorkflowDebuggerOverlayStateFactory.copyRunStateToOverlay>[0]["sourceState"];
+
+    const overlay = WorkflowDebuggerOverlayStateFactory.copyRunStateToOverlay({
+      workflowId: WorkflowDetailFixtureFactory.workflowId,
+      sourceState,
+      liveWorkflowNodeIds: new Set([
+        WorkflowDetailFixtureFactory.triggerNodeId,
+        WorkflowDetailFixtureFactory.nodeOneId,
+        WorkflowDetailFixtureFactory.agentNodeId,
+        WorkflowDetailFixtureFactory.nodeTwoId,
+      ]),
+    });
+
+    expect(sourceState.outputsByNode[WorkflowDetailFixtureFactory.llmFirstInvocationNodeId]).toBeDefined();
+    expect(sourceState.nodeSnapshotsByNodeId[WorkflowDetailFixtureFactory.llmSecondInvocationNodeId]?.status).toBe("completed");
+    expect(overlay.currentState.outputsByNode[WorkflowDetailFixtureFactory.llmFirstInvocationNodeId]).toBeUndefined();
+    expect(overlay.currentState.outputsByNode[WorkflowDetailFixtureFactory.llmSecondInvocationNodeId]).toBeUndefined();
+    expect(overlay.currentState.nodeSnapshotsByNodeId[WorkflowDetailFixtureFactory.llmSecondInvocationNodeId]).toBeUndefined();
+  });
+
+  /**
+   * `WorkflowBuilder` only advances `seq` for auto-generated ids. A trigger with an explicit id does not
+   * consume a sequence slot, so the first Callback becomes `Callback:1`. If an older run was created when
+   * the trigger had no explicit id, that run stores outputs under `Callback:2` while the current definition
+   * lists `Callback:1` — copy-to-live merges by current definition ids only, so the summarize step is lost.
+   */
+  it("omits runnable outputs when persisted outputs use a different auto-generated Callback id than the current definition", () => {
+    const baseState =
+      WorkflowDetailFixtureFactory.createCompletedRunState() as Parameters<
+        typeof WorkflowDebuggerOverlayStateFactory.copyRunStateToOverlay
+      >[0]["sourceState"];
+    const triggerId = "gmail_trigger";
+    const historicalCallbackId = "Callback:2";
+    const currentCallbackId = "Callback:1";
+    const sourceState = {
+      ...baseState,
+      workflowId: "wf.gmail.pull",
+      outputsByNode: {
+        [triggerId]: { main: [{ json: { trigger: true } }] },
+        [historicalCallbackId]: { main: [{ json: { summarize: true } }] },
+      },
+      nodeSnapshotsByNodeId: {
+        [triggerId]: WorkflowDetailFixtureFactory.createSnapshot(triggerId, "completed", 0, baseState.runId),
+        [historicalCallbackId]: WorkflowDetailFixtureFactory.createSnapshot(historicalCallbackId, "completed", 1, baseState.runId),
+      },
+    } as Parameters<typeof WorkflowDebuggerOverlayStateFactory.copyRunStateToOverlay>[0]["sourceState"];
+
+    const overlay = WorkflowDebuggerOverlayStateFactory.copyRunStateToOverlay({
+      workflowId: "wf.gmail.pull",
+      sourceState,
+      liveWorkflowNodeIds: new Set([triggerId, currentCallbackId]),
+    });
+
+    expect(overlay.currentState.outputsByNode[triggerId]?.main?.[0]?.json).toEqual({ trigger: true });
+    expect(overlay.currentState.outputsByNode[historicalCallbackId]).toBeUndefined();
+    expect(overlay.currentState.outputsByNode[currentCallbackId]).toBeUndefined();
+    expect(overlay.currentState.nodeSnapshotsByNodeId[historicalCallbackId]).toBeUndefined();
   });
 });

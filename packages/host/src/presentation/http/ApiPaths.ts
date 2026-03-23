@@ -37,6 +37,14 @@ export class ApiPaths {
     return `${this.workflowDebuggerOverlay(workflowId)}/copy-run`;
   }
 
+  static workflowDebuggerOverlayBinaryUpload(workflowId: string): string {
+    return `${this.workflowDebuggerOverlay(workflowId)}/binary/upload`;
+  }
+
+  static workflowOverlayBinaryContent(workflowId: string, binaryId: string): string {
+    return `${this.workflow(workflowId)}/debugger-overlay/binary/${encodeURIComponent(binaryId)}/content`;
+  }
+
   static runs(): string {
     return this.runsBasePath;
   }

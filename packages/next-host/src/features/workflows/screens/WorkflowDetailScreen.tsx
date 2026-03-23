@@ -157,7 +157,13 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
         </div>
       </section>
       {controller.jsonEditorState ? (
-        <WorkflowJsonEditorDialog state={controller.jsonEditorState} onClose={controller.closeJsonEditor} onSave={controller.saveJsonEditor} />
+        <WorkflowJsonEditorDialog
+          state={controller.jsonEditorState}
+          onClose={controller.closeJsonEditor}
+          onSave={(value, binaryMaps) => {
+            controller.saveJsonEditor(value, binaryMaps);
+          }}
+        />
       ) : null}
       <style>{WORKFLOW_DETAIL_TREE_STYLES}</style>
     </main>

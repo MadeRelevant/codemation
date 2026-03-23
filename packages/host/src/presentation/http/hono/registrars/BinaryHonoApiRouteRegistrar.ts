@@ -4,6 +4,7 @@ import { ApplicationTokens } from "../../../../applicationTokens";
 import { BinaryHttpRouteHandler } from "../../routeHandlers/BinaryHttpRouteHandlerFactory";
 import type { HonoApiRouteRegistrar } from "../HonoApiRouteRegistrar";
 
+/** Run-scoped binary content. Workflow overlay binary GET/POST are registered on {@link CodemationHonoApiApp} after route registrars. */
 @injectable()
 @registry([{ token: ApplicationTokens.HonoApiRouteRegistrar, useClass: BinaryHonoApiRouteRegistrar }])
 export class BinaryHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
@@ -13,12 +14,6 @@ export class BinaryHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
     app.get("/runs/:runId/binary/:binaryId/content", (c) =>
       this.handler.getRunBinaryContent(c.req.raw, {
         runId: c.req.param("runId"),
-        binaryId: c.req.param("binaryId"),
-      }),
-    );
-    app.get("/workflows/:workflowId/debugger-overlay/binary/:binaryId/content", (c) =>
-      this.handler.getWorkflowOverlayBinaryContent(c.req.raw, {
-        workflowId: c.req.param("workflowId"),
         binaryId: c.req.param("binaryId"),
       }),
     );

@@ -14,11 +14,23 @@ export type WorkflowDiagramNode = WorkflowDto["nodes"][number];
 export type ExecutionNode = Readonly<{ node: WorkflowNode; snapshot?: NodeExecutionSnapshot }>;
 export type NodeExecutionError = NonNullable<NodeExecutionSnapshot["error"]>;
 export type JsonEditorMode = "pin-output" | "workflow-snapshot";
-export type JsonEditorState = Readonly<{
-  mode: JsonEditorMode;
-  title: string;
-  value: string;
-}>;
+/** Per-output-item binary maps for the pin-output dialog (parallel to parsed JSON items). */
+export type PinBinaryMapsByItemIndex = ReadonlyArray<Readonly<Record<string, BinaryAttachment>>>;
+export type JsonEditorState = Readonly<
+  | {
+      mode: "workflow-snapshot";
+      title: string;
+      value: string;
+    }
+  | {
+      mode: "pin-output";
+      title: string;
+      value: string;
+      workflowId: string;
+      nodeId: string;
+      binaryMapsByItemIndex: PinBinaryMapsByItemIndex;
+    }
+>;
 export type ExecutionTreeNode = FieldDataNode<
   Readonly<{
     key: string;

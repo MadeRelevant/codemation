@@ -91,6 +91,17 @@ export class CodemationApiClient {
   async delete(url: string, init?: RequestInit): Promise<void> {
     await this.requestOrThrow(url, { method: "DELETE", ...init });
   }
+
+  /** Multipart upload (browser sets Content-Type with boundary). */
+  async postFormData<T>(url: string, formData: FormData, init?: RequestInit): Promise<T> {
+    const response = await this.requestOrThrow(url, {
+      ...init,
+      method: "POST",
+      body: formData,
+      headers: init?.headers,
+    });
+    return this.parseJsonBody<T>(response);
+  }
 }
 
 /** Shared client for next-host UI modules (same-origin `/api/*`). */

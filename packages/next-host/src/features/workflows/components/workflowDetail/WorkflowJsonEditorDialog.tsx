@@ -1,26 +1,138 @@
 "use client";
 
-import Editor from "@monaco-editor/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CodemationDialog } from "@/components/CodemationDialog";
+import { JsonMonacoEditor } from "@/components/json/JsonMonacoEditor";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import type { JsonEditorState } from "../../lib/workflowDetail/workflowDetailTypes";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { BinaryAttachment } from "@codemation/core/browser";
+import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import { WorkflowDetailPresenter } from "../../lib/workflowDetail/WorkflowDetailPresenter";
+import type { JsonEditorState, PinBinaryMapsByItemIndex } from "../../lib/workflowDetail/workflowDetailTypes";
 
 export function WorkflowJsonEditorDialog(args: Readonly<{
   state: JsonEditorState;
   onClose: () => void;
-  onSave: (value: string) => void;
+  onSave: (value: string, binaryMaps?: PinBinaryMapsByItemIndex) => void;
+  /** Initial tab when `state.mode === "pin-output"` (defaults to `json`). */
+  initialEditorTab?: "json" | "binaries";
 }>) {
-  const { state, onClose, onSave } = args;
+  const { state, onClose, onSave, initialEditorTab } = args;
   const [value, setValue] = useState(state.value);
   const [error, setError] = useState<string | null>(null);
+  const [binaryMaps, setBinaryMaps] = useState<PinBinaryMapsByItemIndex>(
+    () => (state.mode === "pin-output" ? state.binaryMapsByItemIndex : []),
+  );
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadBusyKey, setUploadBusyKey] = useState<string | null>(null);
 
   useEffect(() => {
     setValue(state.value);
     setError(null);
+    setUploadError(null);
+    if (state.mode === "pin-output") {
+      setBinaryMaps(state.binaryMapsByItemIndex);
+    }
   }, [state]);
+
+  const itemCount = useMemo(() => {
+    try {
+      return WorkflowDetailPresenter.parseEditableItems(value).length;
+    } catch {
+      return 0;
+    }
+  }, [value]);
+
+  const handleJsonChange = useCallback(
+    (nextValue: string | undefined) => {
+      const next = nextValue ?? "";
+      setValue(next);
+      if (error) setError(null);
+      if (state.mode !== "pin-output") {
+        return;
+      }
+      try {
+        const parsed = WorkflowDetailPresenter.parseEditableItems(next);
+        setBinaryMaps((prev) => WorkflowDetailPresenter.reindexBinaryMapsForItemCount(prev, parsed.length));
+      } catch {
+        // Invalid JSON: keep binary maps until the JSON becomes valid again.
+      }
+    },
+    [error, state.mode],
+  );
+
+  const suggestAttachmentName = useCallback((existing: Readonly<Record<string, unknown>>): string => {
+    if (!existing.file) return "file";
+    let n = 1;
+    while (existing[`file_${n}`]) {
+      n += 1;
+    }
+    return `file_${n}`;
+  }, []);
+
+  const handleUploadOrReplace = useCallback(
+    async (itemIndex: number, file: File, attachmentName: string) => {
+      if (state.mode !== "pin-output") {
+        return;
+      }
+      const key = `${itemIndex}:${attachmentName}`;
+      setUploadError(null);
+      setUploadBusyKey(key);
+      try {
+        const attachment = await WorkflowDetailPresenter.uploadOverlayPinnedBinary({
+          workflowId: state.workflowId,
+          nodeId: state.nodeId,
+          itemIndex,
+          attachmentName,
+          file,
+        });
+        setBinaryMaps((prev) => {
+          const next = prev.map((row) => ({ ...row }));
+          while (next.length <= itemIndex) {
+            next.push({});
+          }
+          next[itemIndex] = { ...next[itemIndex], [attachmentName]: attachment };
+          return next;
+        });
+      } catch (cause: unknown) {
+        setUploadError(cause instanceof Error ? cause.message : String(cause));
+      } finally {
+        setUploadBusyKey(null);
+      }
+    },
+    [state],
+  );
+
+  const handleRemove = useCallback((itemIndex: number, attachmentName: string) => {
+    setBinaryMaps((prev) => {
+      const next = prev.map((row, i) => {
+        if (i !== itemIndex) {
+          return { ...row };
+        }
+        const copy = { ...row };
+        delete copy[attachmentName];
+        return copy;
+      });
+      return next;
+    });
+  }, []);
+
+  const runSave = useCallback(() => {
+    try {
+      if (state.mode === "pin-output") {
+        const normalized = WorkflowDetailPresenter.formatPinOutputJsonForSubmit(value);
+        onSave(normalized, binaryMaps);
+        return;
+      }
+      JSON.parse(value);
+      onSave(value);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }, [binaryMaps, onSave, state.mode, value]);
 
   return (
     <CodemationDialog
@@ -36,7 +148,7 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
             <div className="text-[15px] font-extrabold">{state.title}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               {state.mode === "pin-output"
-                ? "Provide valid JSON. Saving here pins this node output. Then use Run on the canvas to continue."
+                ? "Edit a top-level JSON array of output items (one element per item; Binaries uses the same indices). The engine always uses this shape. Save to pin the node output, then use Run on the canvas to continue."
                 : "Provide valid JSON. Objects become one item; arrays become multiple items."}
             </div>
           </div>
@@ -46,58 +158,76 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
         </div>
       </CodemationDialog.Title>
       <CodemationDialog.Content className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-3">
-        <div className="relative flex min-h-0 flex-1 flex-col">
-          <div className="h-[min(60vh,560px)] min-h-[200px] shrink-0 overflow-hidden rounded-md border border-border bg-background">
-            <Editor
-              height="100%"
-              language="json"
-              path={`${state.mode}.json`}
-              value={value}
-              onChange={(nextValue) => {
-                setValue(nextValue ?? "");
-                if (error) setError(null);
-              }}
-              loading={
-                <div className="grid h-full place-items-center text-xs text-muted-foreground">Loading editor…</div>
-              }
-              options={{
-                automaticLayout: true,
-                formatOnPaste: true,
-                formatOnType: true,
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                lineNumbersMinChars: 3,
-                tabSize: 2,
-                insertSpaces: true,
-                wordWrap: "on",
-                bracketPairColorization: {
-                  enabled: true,
-                },
-                guides: {
-                  indentation: true,
-                  bracketPairs: true,
-                },
-                padding: {
-                  top: 12,
-                  bottom: 12,
-                },
-              }}
-            />
-          </div>
-          <Textarea
-            data-testid="workflow-json-editor-input"
-            value={value}
-            onChange={(event) => {
-              setValue(event.target.value);
-              if (error) setError(null);
-            }}
-            spellCheck={false}
-            className="pointer-events-none absolute inset-0 h-px w-px min-h-0 resize-none border-0 p-0 opacity-0"
-            aria-hidden="true"
-            tabIndex={-1}
-          />
-          {error ? <div className="mt-1 text-xs text-destructive">{error}</div> : null}
-        </div>
+        {state.mode === "pin-output" ? (
+          <Tabs defaultValue={initialEditorTab ?? "json"} className="flex min-h-0 flex-1 flex-col gap-2">
+            <TabsList variant="line" className="w-full shrink-0 justify-start">
+              <TabsTrigger value="json" className="text-xs font-bold">
+                JSON
+              </TabsTrigger>
+              <TabsTrigger value="binaries" className="text-xs font-bold" data-testid="workflow-json-editor-binaries-tab">
+                Binaries
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="json" className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden">
+              <JsonMonacoEditor path={`${state.mode}.json`} value={value} onChange={handleJsonChange} error={error} />
+            </TabsContent>
+            <TabsContent value="binaries" className="mt-0 min-h-0 flex-1 overflow-y-auto data-[state=inactive]:hidden">
+              <div className="flex flex-col gap-4 pb-2">
+                {itemCount === 0 ? (
+                  <div className="text-xs text-muted-foreground">Fix JSON on the JSON tab so at least one item exists.</div>
+                ) : null}
+                {state.mode === "pin-output"
+                  ? Array.from({ length: itemCount }, (_, itemIndex) => {
+                      const row = binaryMaps[itemIndex] ?? {};
+                      const entries = Object.entries(row);
+                      const workflowId = state.workflowId;
+                      return (
+                        <div
+                          key={itemIndex}
+                          className="rounded-md border border-border bg-muted/30 p-3"
+                          data-testid={`workflow-json-editor-binaries-item-${itemIndex}`}
+                        >
+                          <div className="text-xs font-extrabold">Item {itemIndex}</div>
+                          <div className="mt-2 flex flex-col gap-2">
+                            {entries.length === 0 ? (
+                              <div className="text-xs text-muted-foreground">No attachments for this item.</div>
+                            ) : null}
+                            {entries.map(([name, attachment]) => (
+                              <BinaryAttachmentRow
+                                key={`${itemIndex}:${name}:${attachment.id}`}
+                                workflowId={workflowId}
+                                itemIndex={itemIndex}
+                                name={name}
+                                attachment={attachment}
+                                uploadBusyKey={uploadBusyKey}
+                                onReplace={(file) => {
+                                  void handleUploadOrReplace(itemIndex, file, name);
+                                }}
+                                onRemove={() => {
+                                  handleRemove(itemIndex, name);
+                                }}
+                              />
+                            ))}
+                            <BinaryUploadRow
+                              itemIndex={itemIndex}
+                              suggestName={suggestAttachmentName(row)}
+                              busyKey={uploadBusyKey}
+                              onUpload={(file, attachmentName) => {
+                                void handleUploadOrReplace(itemIndex, file, attachmentName);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  : null}
+                {uploadError ? <div className="text-xs text-destructive">{uploadError}</div> : null}
+              </div>
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <JsonMonacoEditor path={`${state.mode}.json`} value={value} onChange={handleJsonChange} error={error} />
+        )}
       </CodemationDialog.Content>
       <CodemationDialog.Actions>
         <Button type="button" variant="outline" size="sm" className="text-xs font-bold" onClick={onClose}>
@@ -108,18 +238,135 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
           data-testid="workflow-json-editor-save"
           size="sm"
           className="text-xs font-extrabold"
-          onClick={() => {
-            try {
-              JSON.parse(value);
-              onSave(value);
-            } catch (cause) {
-              setError(cause instanceof Error ? cause.message : String(cause));
-            }
-          }}
+          onClick={runSave}
         >
           Save
         </Button>
       </CodemationDialog.Actions>
     </CodemationDialog>
+  );
+}
+
+function BinaryAttachmentRow(args: Readonly<{
+  workflowId: string;
+  itemIndex: number;
+  name: string;
+  attachment: BinaryAttachment;
+  uploadBusyKey: string | null;
+  onReplace: (file: File) => void;
+  onRemove: () => void;
+}>) {
+  const { workflowId, itemIndex, name, attachment, uploadBusyKey, onReplace, onRemove } = args;
+  const replaceInputRef = useRef<HTMLInputElement | null>(null);
+  return (
+    <div
+      className="flex flex-wrap items-center gap-2 rounded border border-border/60 bg-background px-2 py-1.5"
+      data-testid={`workflow-json-editor-binary-row-${itemIndex}-${name}`}
+    >
+      <span className="text-xs font-bold">{name}</span>
+      <a
+        className="text-xs font-medium text-primary underline"
+        href={ApiPaths.workflowOverlayBinaryContent(workflowId, attachment.id)}
+        target="_blank"
+        rel="noreferrer"
+      >
+        Open
+      </a>
+      <input
+        ref={replaceInputRef}
+        type="file"
+        className="hidden"
+        data-testid={`workflow-json-editor-binary-replace-${itemIndex}-${name}`}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) {
+            onReplace(file);
+          }
+        }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-7 text-[11px] font-bold"
+        disabled={uploadBusyKey !== null}
+        onClick={() => {
+          replaceInputRef.current?.click();
+        }}
+      >
+        Replace
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-7 text-[11px] font-bold text-destructive"
+        data-testid={`workflow-json-editor-binary-remove-${itemIndex}-${name}`}
+        onClick={onRemove}
+      >
+        Remove
+      </Button>
+    </div>
+  );
+}
+
+function BinaryUploadRow(args: Readonly<{
+  itemIndex: number;
+  suggestName: string;
+  busyKey: string | null;
+  onUpload: (file: File, attachmentName: string) => void;
+}>) {
+  const { itemIndex, suggestName, busyKey, onUpload } = args;
+  const [name, setName] = useState(suggestName);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const nameFieldId = `workflow-json-editor-binary-name-${itemIndex}`;
+  useEffect(() => {
+    setName(suggestName);
+  }, [suggestName]);
+  const disabled = busyKey !== null || !name.trim();
+  return (
+    <div className="flex flex-wrap items-end gap-2 border-t border-border/60 pt-2">
+      <div className="flex min-w-[120px] flex-1 flex-col gap-1.5">
+        <Label htmlFor={nameFieldId} className="text-[11px] font-bold text-muted-foreground">
+          Attachment name
+        </Label>
+        <Input
+          id={nameFieldId}
+          className="h-8 text-xs"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+          }}
+          data-testid={`workflow-json-editor-binary-name-${itemIndex}`}
+        />
+      </div>
+      <input
+        ref={uploadInputRef}
+        type="file"
+        className="hidden"
+        data-testid={`workflow-json-editor-binary-upload-${itemIndex}`}
+        disabled={disabled}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file && name.trim()) {
+            onUpload(file, name.trim());
+          }
+        }}
+      />
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        className="h-8 text-[11px] font-bold"
+        disabled={disabled}
+        onClick={() => {
+          uploadInputRef.current?.click();
+        }}
+      >
+        Upload
+      </Button>
+    </div>
   );
 }

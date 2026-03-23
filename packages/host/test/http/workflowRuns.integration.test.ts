@@ -1,9 +1,10 @@
 // @vitest-environment node
 
-import type { PersistedRunState,RunSummary,WorkflowDefinition } from "@codemation/core";
+import type { BinaryAttachment,PersistedRunState,RunSummary,WorkflowDefinition } from "@codemation/core";
 import { createWorkflowBuilder,ManualTrigger,MapData } from "@codemation/core-nodes";
 import path from "node:path";
 import { afterAll,afterEach,beforeAll,describe,expect,it } from "vitest";
+import { OVERLAY_PIN_BINARY_RUN_ID } from "../../src/application/binary/OverlayPinnedBinaryUploadService";
 import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
@@ -391,5 +392,92 @@ describe("workflow runs http integration", () => {
     expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.status).toBe("completed");
     expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.usedPinnedOutput).toBe(true);
     expect(secondRunResponse.state?.outputsByNode[WorkflowRunsIntegrationFixture.mapNodeId]?.main).toEqual(pinnedItems);
+  });
+
+  it("uploads an overlay pinned binary via multipart and serves bytes from the overlay content route", async () => {
+    const harness = await context.start();
+
+    const payload = "pin-doc-bytes";
+    const form = new FormData();
+    form.set("file", new File([new TextEncoder().encode(payload)], "doc.bin", { type: "application/octet-stream" }));
+    form.set("nodeId", WorkflowRunsIntegrationFixture.mapNodeId);
+    form.set("itemIndex", "0");
+    form.set("attachmentName", "doc");
+
+    const uploadResponse = await harness.postFormData(
+      ApiPaths.workflowDebuggerOverlayBinaryUpload(WorkflowRunsIntegrationFixture.workflowId),
+      form,
+    );
+    expect(uploadResponse.statusCode).toBe(201);
+    const { attachment } = uploadResponse.json<{ attachment: BinaryAttachment }>();
+    expect(attachment.id.length).toBeGreaterThan(0);
+    expect(attachment.workflowId).toBe(WorkflowRunsIntegrationFixture.workflowId);
+    expect(attachment.nodeId).toBe(WorkflowRunsIntegrationFixture.mapNodeId);
+    expect(attachment.runId).toBe(OVERLAY_PIN_BINARY_RUN_ID);
+
+    const pinnedItems = [{ json: { pinned: true }, binary: { doc: attachment } }];
+    await harness.requestJson<WorkflowDebuggerOverlayResponse>({
+      method: "PUT",
+      url: ApiPaths.workflowDebuggerOverlay(WorkflowRunsIntegrationFixture.workflowId),
+      payload: {
+        currentState: {
+          outputsByNode: {},
+          nodeSnapshotsByNodeId: {},
+          mutableState: {
+            nodesById: {
+              [WorkflowRunsIntegrationFixture.mapNodeId]: {
+                pinnedOutputsByPort: {
+                  main: pinnedItems,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const overlayAfterPut = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
+      method: "GET",
+      url: ApiPaths.workflowDebuggerOverlay(WorkflowRunsIntegrationFixture.workflowId),
+    });
+    const pinnedMain =
+      overlayAfterPut.currentState.mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]?.pinnedOutputsByPort?.main;
+    expect(pinnedMain).toBeDefined();
+    expect(pinnedMain?.[0]?.json).toEqual({ pinned: true });
+    expect(pinnedMain?.[0]?.binary?.doc?.id).toBe(attachment.id);
+    expect(pinnedMain?.[0]?.binary?.doc?.mimeType).toBe("application/octet-stream");
+
+    const contentResponse = await harness.request({
+      method: "GET",
+      url: ApiPaths.workflowOverlayBinaryContent(WorkflowRunsIntegrationFixture.workflowId, attachment.id),
+    });
+    expect(contentResponse.statusCode).toBe(200);
+    expect(contentResponse.body).toBe(payload);
+  });
+
+  it("rejects overlay binary uploads without a file or node id", async () => {
+    const harness = await context.start();
+
+    const missingFile = new FormData();
+    missingFile.set("nodeId", WorkflowRunsIntegrationFixture.mapNodeId);
+    missingFile.set("itemIndex", "0");
+    missingFile.set("attachmentName", "doc");
+    const missingFileResponse = await harness.postFormData(
+      ApiPaths.workflowDebuggerOverlayBinaryUpload(WorkflowRunsIntegrationFixture.workflowId),
+      missingFile,
+    );
+    expect(missingFileResponse.statusCode).toBe(400);
+    expect(missingFileResponse.json<{ error: string }>().error).toBe("file is required");
+
+    const missingNode = new FormData();
+    missingNode.set("file", new File([new Uint8Array([7])], "a.bin"));
+    missingNode.set("itemIndex", "0");
+    missingNode.set("attachmentName", "doc");
+    const missingNodeResponse = await harness.postFormData(
+      ApiPaths.workflowDebuggerOverlayBinaryUpload(WorkflowRunsIntegrationFixture.workflowId),
+      missingNode,
+    );
+    expect(missingNodeResponse.statusCode).toBe(400);
+    expect(missingNodeResponse.json<{ error: string }>().error).toBe("nodeId is required");
   });
 });

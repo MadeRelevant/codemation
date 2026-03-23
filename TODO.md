@@ -43,3 +43,4 @@
 * [ ] Use actual urls for different canvas states so runs can be shared
 * [ ] Organize CLI commands into their own file and let @injectAll() discover commands abd test consumers can add CLI commands too this way
 * [ ] Refactor ConsumerOutputBuilder, try and find a battle tested solution
+* [ ] Uyse better algorithm to visualize nodes as an agent within an if branch overlaps other nodes

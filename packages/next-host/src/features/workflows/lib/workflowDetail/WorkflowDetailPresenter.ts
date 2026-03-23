@@ -14,12 +14,15 @@ WorkflowDebuggerOverlayState,
 WorkflowDto,
 } from "../../hooks/realtime/realtime";
 import { PersistedWorkflowSnapshotMapper } from "./PersistedWorkflowSnapshotMapper";
+import type { BinaryAttachment } from "@codemation/core/browser";
 import type {
 ExecutionNode,
 ExecutionTreeNode,
 InspectorMode,
 NodeExecutionError,
+PinBinaryMapsByItemIndex,
 PortEntries,
+ViewedWorkflowContext,
 WorkflowExecutionInspectorAttachmentModel,
 WorkflowNode,
 } from "./workflowDetailTypes";
@@ -268,7 +271,22 @@ export class WorkflowDetailPresenter {
     return jsonValues.length === 1 ? jsonValues[0] : jsonValues;
   }
 
-  static toAttachmentModels(items: Items | undefined): ReadonlyArray<WorkflowExecutionInspectorAttachmentModel> {
+  static resolveBinaryContentUrl(
+    workflowId: string,
+    viewContext: ViewedWorkflowContext,
+    attachment: BinaryAttachment,
+  ): string {
+    if (viewContext === "live-workflow") {
+      return ApiPaths.workflowOverlayBinaryContent(workflowId, attachment.id);
+    }
+    return ApiPaths.runBinaryContent(attachment.runId, attachment.id);
+  }
+
+  static toAttachmentModels(
+    items: Items | undefined,
+    workflowId: string,
+    viewContext: ViewedWorkflowContext,
+  ): ReadonlyArray<WorkflowExecutionInspectorAttachmentModel> {
     if (!items) {
       return [];
     }
@@ -280,12 +298,51 @@ export class WorkflowDetailPresenter {
           key: `${itemIndex}:${name}:${attachment.id}`,
           itemIndex,
           name,
-          contentUrl: ApiPaths.runBinaryContent(attachment.runId, attachment.id),
+          contentUrl: this.resolveBinaryContentUrl(workflowId, viewContext, attachment),
           attachment,
         });
       }
     }
     return attachments;
+  }
+
+  static extractBinaryMapsFromItems(items: Items | undefined): PinBinaryMapsByItemIndex {
+    return (items ?? []).map((item) => ({ ...(item.binary ?? {}) }));
+  }
+
+  static reindexBinaryMapsForItemCount(maps: PinBinaryMapsByItemIndex, itemCount: number): PinBinaryMapsByItemIndex {
+    const next: Array<Readonly<Record<string, BinaryAttachment>>> = [];
+    for (let i = 0; i < itemCount; i += 1) {
+      next.push(i < maps.length ? { ...maps[i] } : {});
+    }
+    return next;
+  }
+
+  static mergePinOutputJsonWithBinaryMaps(jsonText: string, binaryMapsByItemIndex: PinBinaryMapsByItemIndex): Items {
+    const parsed = this.parseEditableItems(jsonText);
+    return parsed.map((item, index) => ({
+      json: item.json,
+      binary: { ...(binaryMapsByItemIndex[index] ?? {}) },
+    }));
+  }
+
+  static async uploadOverlayPinnedBinary(args: Readonly<{
+    workflowId: string;
+    nodeId: string;
+    itemIndex: number;
+    attachmentName: string;
+    file: File;
+  }>): Promise<BinaryAttachment> {
+    const form = new FormData();
+    form.set("file", args.file);
+    form.set("nodeId", args.nodeId);
+    form.set("itemIndex", String(args.itemIndex));
+    form.set("attachmentName", args.attachmentName);
+    const body = await codemationApiClient.postFormData<{ attachment: BinaryAttachment }>(
+      ApiPaths.workflowDebuggerOverlayBinaryUpload(args.workflowId),
+      form,
+    );
+    return body.attachment;
   }
 
   static getRunQueryKey(runId: string): readonly ["run", string] {
@@ -465,6 +522,38 @@ export class WorkflowDetailPresenter {
   static toEditableJson(items: Items | undefined): string {
     const value = this.toJsonValue(items);
     return JSON.stringify(value ?? {}, null, 2);
+  }
+
+  /**
+   * Initial JSON for the pin-output editor only: always a top-level JSON array of per-item payloads.
+   * Matches engine `Items` semantics and the Binaries tab (item indices). Display code elsewhere may still
+   * use {@link toEditableJson} to reduce noise for single items.
+   */
+  static toPinOutputEditorJson(items: Items | undefined): string {
+    if (items === undefined) {
+      return JSON.stringify([{}], null, 2);
+    }
+    if (items.length === 0) {
+      return JSON.stringify([], null, 2);
+    }
+    return JSON.stringify(
+      items.map((item) => item.json),
+      null,
+      2,
+    );
+  }
+
+  /**
+   * Ensures pin-output editor submissions are a JSON array at the top level (`{}` → `[{}]`, `[{}]` unchanged).
+   * API / {@link parseEditableItems} already accept both; this keeps the saved text aligned with the engine model.
+   */
+  static formatPinOutputJsonForSubmit(text: string): string {
+    const parsed = JSON.parse(text) as unknown;
+    if (parsed === null || parsed === undefined) {
+      return JSON.stringify([], null, 2);
+    }
+    const array = Array.isArray(parsed) ? parsed : [parsed];
+    return JSON.stringify(array, null, 2);
   }
 
   static parseEditableItems(text: string): Items {

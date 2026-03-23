@@ -91,6 +91,18 @@ export class FrontendHttpIntegrationHarness {
     return new FrontendHttpIntegrationResponse(await FrontendHttpIntegrationHarness.toInjectedResponse(fetchResponse));
   }
 
+  /** Multipart or other non-JSON bodies (Fetch sets multipart boundary for FormData). */
+  async requestWithBody(url: string, init: RequestInit): Promise<FrontendHttpIntegrationResponse> {
+    const gateway = this.requireGateway();
+    const target = new URL(url, FrontendHttpIntegrationHarness.requestHost);
+    const fetchResponse = await gateway.dispatch(new Request(target, init));
+    return new FrontendHttpIntegrationResponse(await FrontendHttpIntegrationHarness.toInjectedResponse(fetchResponse));
+  }
+
+  async postFormData(url: string, formData: FormData): Promise<FrontendHttpIntegrationResponse> {
+    return this.requestWithBody(url, { method: "POST", body: formData });
+  }
+
   async requestJson<TValue>(
     args: Readonly<Omit<FrontendHttpIntegrationRequest, "payload" | "headers"> & { headers?: Readonly<Record<string, string>>; payload?: unknown }>,
   ): Promise<TValue> {

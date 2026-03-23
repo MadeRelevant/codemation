@@ -108,6 +108,7 @@
     "react-router-dom": "^7.13.1",
     "react-use-websocket": "^4.13.0",
     "reflect-metadata": "^0.2.2",
+    "sanitize-filename": "^1.6.4",
     "serialize-javascript": "^7.0.4",
     "tsx": "^4.21.0",
     "ws": "^8.19.0",

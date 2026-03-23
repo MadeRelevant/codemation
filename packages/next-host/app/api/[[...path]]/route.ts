@@ -1,12 +1,19 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function resolveRuntimeDevProxyPath(pathname: string): string {
+  if (pathname === "/api/dev" || pathname.startsWith("/api/dev/")) {
+    return pathname.slice(4);
+  }
+  return pathname;
+}
+
 async function handle(request: Request): Promise<Response> {
   const runtimeDevUrl = process.env.CODEMATION_RUNTIME_DEV_URL;
   if (runtimeDevUrl !== undefined && runtimeDevUrl.trim().length > 0) {
     const base = runtimeDevUrl.replace(/\/$/, "");
     const incoming = new URL(request.url);
-    const proxyUrl = `${base}${incoming.pathname}${incoming.search}`;
+    const proxyUrl = `${base}${resolveRuntimeDevProxyPath(incoming.pathname)}${incoming.search}`;
     const headers = new Headers(request.headers);
     const init: RequestInit & { duplex?: "half" } = {
       method: request.method,

@@ -21,6 +21,7 @@ InspectorFormat,
 InspectorMode,
 InspectorTab,
 JsonEditorState,
+PinBinaryMapsByItemIndex,
 WorkflowExecutionInspectorActions,
 WorkflowExecutionInspectorFormatting,
 WorkflowExecutionInspectorModel,
@@ -67,7 +68,7 @@ export type WorkflowDetailControllerResult = Readonly<{
   toggleInspectorPanel: () => void;
   jsonEditorState: JsonEditorState | null;
   closeJsonEditor: () => void;
-  saveJsonEditor: (value: string) => void;
+  saveJsonEditor: (value: string, binaryMaps?: PinBinaryMapsByItemIndex) => void;
 }>;
 
 export function useWorkflowDetailController(args: Readonly<{ workflowId: string; initialWorkflow?: WorkflowDto }>): WorkflowDetailControllerResult {
@@ -554,12 +555,16 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     if (!selectedNodeId || viewContext !== "live-workflow") {
       return;
     }
+    const baseItems = selectedPinnedOutput ?? selectedNodeSnapshot?.outputs?.main;
     setJsonEditorState({
       mode: "pin-output",
       title: `Pin output for ${WorkflowDetailPresenter.getNodeDisplayName(selectedWorkflowNode, selectedNodeId)}`,
-      value: WorkflowDetailPresenter.toEditableJson(selectedPinnedOutput ?? selectedNodeSnapshot?.outputs?.main),
+      value: WorkflowDetailPresenter.toPinOutputEditorJson(baseItems),
+      workflowId,
+      nodeId: selectedNodeId,
+      binaryMapsByItemIndex: WorkflowDetailPresenter.extractBinaryMapsFromItems(baseItems),
     });
-  }, [selectedNodeId, selectedNodeSnapshot, selectedPinnedOutput, selectedWorkflowNode, viewContext]);
+  }, [selectedNodeId, selectedNodeSnapshot, selectedPinnedOutput, selectedWorkflowNode, viewContext, workflowId]);
 
   const openPinOutputEditor = useCallback(
     (nodeId: string) => {
@@ -569,15 +574,19 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       const workflowNode = displayedWorkflow?.nodes.find((node) => node.id === nodeId);
       const snapshot = currentExecutionState?.nodeSnapshotsByNodeId?.[nodeId];
       const pinnedOutput = WorkflowDetailPresenter.getPinnedOutput(currentExecutionState, nodeId);
+      const baseItems = pinnedOutput ?? snapshot?.outputs?.main;
       setHasManuallySelectedNode(true);
       setSelectedNodeId(nodeId);
       setJsonEditorState({
         mode: "pin-output",
         title: `Edit output for ${WorkflowDetailPresenter.getNodeDisplayName(workflowNode, nodeId)}`,
-        value: WorkflowDetailPresenter.toEditableJson(pinnedOutput ?? snapshot?.outputs?.main),
+        value: WorkflowDetailPresenter.toPinOutputEditorJson(baseItems),
+        workflowId,
+        nodeId,
+        binaryMapsByItemIndex: WorkflowDetailPresenter.extractBinaryMapsFromItems(baseItems),
       });
     },
-    [currentExecutionState, displayedWorkflow, viewContext],
+    [currentExecutionState, displayedWorkflow, viewContext, workflowId],
   );
 
   const onClearPin = useCallback(() => {
@@ -683,7 +692,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   );
 
   const saveJsonEditor = useCallback(
-    (value: string) => {
+    (value: string, binaryMaps?: PinBinaryMapsByItemIndex) => {
       if (!jsonEditorState) {
         return;
       }
@@ -698,8 +707,12 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
         }
       }
       if (jsonEditorState.mode === "pin-output") {
-        const pinnedItems = WorkflowDetailPresenter.parseEditableItems(value);
-        const nextCurrentState = createOverlayCurrentStateWithNodeState(selectedNodeId, {
+        const nodeIdForPin = jsonEditorState.nodeId;
+        const pinnedItems =
+          binaryMaps !== undefined
+            ? WorkflowDetailPresenter.mergePinOutputJsonWithBinaryMaps(value, binaryMaps)
+            : WorkflowDetailPresenter.parseEditableItems(value);
+        const nextCurrentState = createOverlayCurrentStateWithNodeState(nodeIdForPin, {
           pinnedOutputsByPort: { main: pinnedItems },
         });
         void replaceDebuggerOverlay(nextCurrentState)
@@ -745,10 +758,13 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     [selectedOutputPort, visibleOutputPortEntries],
   );
   const selectedNodeError = selectedNodeSnapshot?.error;
-  const inputAttachments = useMemo(() => WorkflowDetailPresenter.toAttachmentModels(selectedInputItems), [selectedInputItems]);
+  const inputAttachments = useMemo(
+    () => WorkflowDetailPresenter.toAttachmentModels(selectedInputItems, workflowId, viewContext),
+    [selectedInputItems, viewContext, workflowId],
+  );
   const outputAttachments = useMemo(
-    () => WorkflowDetailPresenter.toAttachmentModels(selectedNodeError ? undefined : selectedOutputItems),
-    [selectedNodeError, selectedOutputItems],
+    () => WorkflowDetailPresenter.toAttachmentModels(selectedNodeError ? undefined : selectedOutputItems, workflowId, viewContext),
+    [selectedNodeError, selectedOutputItems, viewContext, workflowId],
   );
 
   useEffect(() => {
