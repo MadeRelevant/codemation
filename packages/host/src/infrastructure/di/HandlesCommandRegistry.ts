@@ -9,7 +9,7 @@ type ConcreteType<TInstance> = new (...args: any[]) => TInstance;
 export const commandHandlerMetadataKey = Symbol.for("codemation.infrastructure.di.CommandHandler");
 
 export class HandlesCommand {
-  static for<TCommand extends Command<TResult>, TResult>(commandType: AbstractType<TCommand>): ClassDecorator {
+  static forCommand<TCommand extends Command<TResult>, TResult>(commandType: AbstractType<TCommand>): ClassDecorator {
     return (target) => {
       Reflect.defineMetadata(commandHandlerMetadataKey, commandType, target);
       injectable()(target as never);

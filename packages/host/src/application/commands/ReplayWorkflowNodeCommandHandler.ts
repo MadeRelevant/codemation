@@ -14,7 +14,7 @@ import { CommandHandler } from "../bus/CommandHandler";
 import type { RunCommandResult } from "../contracts/RunContracts";
 import { ReplayWorkflowNodeCommand } from "./ReplayWorkflowNodeCommand";
 
-@HandlesCommand.for(ReplayWorkflowNodeCommand)
+@HandlesCommand.forCommand(ReplayWorkflowNodeCommand)
 export class ReplayWorkflowNodeCommandHandler extends CommandHandler<ReplayWorkflowNodeCommand, RunCommandResult> {
   constructor(
     @inject(Engine)

@@ -1,77 +1,47 @@
 # Development Modes
 
-Codemation has two distinct development modes. Keeping them separate avoids the confusion where monorepo authoring concerns leak into consumer workflows.
+Codemation separates **framework author** dev (Next HMR + gateway + runtime child) from **consumer** dev (gateway + runtime child only, no Next required). See [dev-gateway-architecture.md](./dev-gateway-architecture.md) for process boundaries.
 
-## 1. Framework author mode
+## 1. Framework author mode (monorepo)
 
-Use this when working inside the Codemation monorepo itself.
+Use this when working inside the Codemation monorepo (e.g. `apps/test-dev`).
 
-```bash
-pnpm dev
-```
-
-This is the same as:
-
-```bash
-pnpm run dev:repo
-```
-
-What it does:
-
-- warms the build graph for `@codemation/test-dev` and its workspace dependencies so `dist` output exists before anything imports it
-- starts `dev` tasks for the framework packages that `@codemation/test-dev` depends on
-- starts `@codemation/test-dev`, which in turn runs `codemation dev`
-- does **not** start `@codemation/next-host` through Turbo, because the Next.js dev server is owned by the CLI process
-
-Why this still builds `dist` during repo dev:
-
-- parts of the stack still resolve workspace packages through their published entrypoints
-- not every runtime in this repo consistently uses the `development` export condition
-- keeping `dist` warm is currently the reliable way to make repo-wide edits reflect immediately
-
-The important point is that the package set is derived from the workspace graph:
-
-```bash
-pnpm exec turbo run dev --filter=@codemation/test-dev... --filter=!@codemation/next-host --filter=!@codemation/eslint-config
-```
-
-That means no hand-maintained shell list of packages is required.
-
-## 2. Consumer mode
-
-Use this when developing a consumer project that uses Codemation, including `apps/test-dev`.
-
-From the consumer root:
+From `apps/test-dev`:
 
 ```bash
 pnpm dev
 ```
 
-In this repo, `apps/test-dev/package.json` maps that to:
+This runs `codemation dev` with **`CODEMATION_DEV_MODE=framework`** (set in `apps/test-dev/package.json`). Under the hood:
+
+- The **dev gateway** (`@codemation/dev-gateway`) listens on a dedicated port and proxies `/api/*` and workflow WebSocket traffic to a **runtime child** process (`@codemation/runtime-dev`).
+- **`next dev`** runs in `@codemation/next-host` for UI HMR. The App Router proxies `/api/*` to the gateway via `CODEMATION_RUNTIME_DEV_URL`.
+- The CLI **watches** consumer output, republishes the manifest on change, and **`POST`s** `/api/dev/notify` on the gateway so it can broadcast dev events and **restart** the runtime child after a successful build.
+
+Root `pnpm dev` may still use Turbo to warm workspace packages; the Next dev server is **not** started by Turbo for `next-host`—the CLI owns `next dev` in framework mode.
+
+## 2. Consumer mode (default `codemation dev`)
+
+Use this for a standalone consumer project (no framework source checkout).
 
 ```bash
-pnpm exec codemation dev
+codemation dev
 ```
 
-What `codemation dev` does:
+Default **`CODEMATION_DEV_MODE=consumer`**. The CLI starts:
 
-- builds the consumer output into `.codemation/output`
-- watches consumer files such as `codemation.config.ts`, `src/workflows`, and related source files
-- republishes the consumer manifest on rebuild
-- notifies the running Next host about successful or failed rebuilds
-- starts the Next.js host from `@codemation/next-host`
+- `next start` for the packaged `@codemation/next-host` UI on a loopback port (requires **`pnpm --filter @codemation/next-host build`** or equivalent so `.next` exists).
+- The **dev gateway** on `PORT` / `CODEMATION_DEV_GATEWAY_HTTP_PORT` (default **3000**), which proxies non-`/api` traffic to that Next process and `/api/*` + workflow WebSocket upgrades to the runtime child.
 
-This mode is intentionally different from monorepo framework authoring:
+There is **no** `next dev` in consumer mode (no framework HMR).
 
-- it assumes Codemation packages are already built and distributed
-- it watches **consumer code**, not the Codemation monorepo packages
-- it is the mode external users will run after installing Codemation
+**Framework mode** is opt-in via `CODEMATION_DEV_MODE=framework` (as in `apps/test-dev`).
 
 ## Rule of thumb
 
-- use root `pnpm dev` when changing Codemation itself
-- use consumer `pnpm dev` / `codemation dev` when changing workflows, config, or plugins in a consuming app
+- Monorepo framework work: `CODEMATION_DEV_MODE=framework` + Next dev + gateway + child.
+- External consumer: `codemation dev` (consumer mode) — one command, gateway + child.
 
-## Tests for the CLI and dev runtime
+## Tests
 
-Automated coverage for the consumer output builder and runtime-dev helpers is documented in [dev-tooling-tests.md](./dev-tooling-tests.md).
+See [dev-tooling-tests.md](./dev-tooling-tests.md) for CLI and runtime tests.

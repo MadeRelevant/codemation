@@ -18,7 +18,7 @@ CredentialInstanceService
 
 
 
-@HandlesCommand.for(UpdateCredentialInstanceCommand)
+@HandlesCommand.forCommand(UpdateCredentialInstanceCommand)
 export class UpdateCredentialInstanceCommandHandler extends CommandHandler<UpdateCredentialInstanceCommand, CredentialInstanceDto> {
   constructor(
     @inject(CredentialInstanceService)

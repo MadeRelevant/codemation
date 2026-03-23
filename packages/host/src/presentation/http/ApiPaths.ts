@@ -90,6 +90,16 @@ export class ApiPaths {
     return `${this.workflowsBasePath}/ws`;
   }
 
+  /** Dev gateway: stable browser WebSocket for build lifecycle (CLI → gateway → browser). */
+  static devGatewaySocket(): string {
+    return `${this.apiBasePath}/dev/socket`;
+  }
+
+  /** Dev gateway: HTTP notify endpoint used by the Codemation CLI during consumer rebuilds. */
+  static devGatewayNotify(): string {
+    return `${this.apiBasePath}/dev/notify`;
+  }
+
   static webhooks(): string {
     return this.webhooksBasePath;
   }

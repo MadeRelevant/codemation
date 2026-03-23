@@ -648,7 +648,11 @@ export class CodemationApplication {
   }
 
   private async applyDatabaseMigrations(resolved: ResolvedImplementationSelection, env: NodeJS.ProcessEnv): Promise<void> {
-    if (!resolved.databaseUrl || this.hasProvidedPrismaClientOverride()) {
+    if (
+      !resolved.databaseUrl
+      || this.hasProvidedPrismaClientOverride()
+      || env.CODEMATION_SKIP_STARTUP_MIGRATIONS === "true"
+    ) {
       return;
     }
     await this.container.resolve(PrismaMigrationDeployer).deploy({

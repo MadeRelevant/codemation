@@ -15,7 +15,7 @@ CredentialInstanceService
 
 
 
-@HandlesCommand.for(DeleteCredentialInstanceCommand)
+@HandlesCommand.forCommand(DeleteCredentialInstanceCommand)
 export class DeleteCredentialInstanceCommandHandler extends CommandHandler<DeleteCredentialInstanceCommand, Readonly<{ ok: true }>> {
   constructor(
     @inject(CredentialInstanceService)

@@ -1,4 +1,3 @@
-import { GmailNodes } from "@codemation/core-nodes-gmail";
 import type { CodemationAppSlots,CodemationConfig } from "@codemation/host";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
@@ -12,6 +11,7 @@ import { TestDevNavigation } from "./src/ui/testDevNavigation";
 
 loadDotenv({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env"),
+  quiet: true,
 });
 
 const useRedisRuntime = Boolean(process.env.REDIS_URL);
@@ -54,9 +54,6 @@ export const codemationHost = {
   workflowDiscovery: {
     directories: ["src/workflows"],
   },
-  plugins: [
-    new GmailNodes(),
-  ],
   bootHook: TestDevCredentialBootstrap,
   runtime: {
     database: {

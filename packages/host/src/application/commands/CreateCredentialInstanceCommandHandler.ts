@@ -18,7 +18,7 @@ import { CreateCredentialInstanceCommand } from "./CreateCredentialInstanceComma
 
 
 
-@HandlesCommand.for(CreateCredentialInstanceCommand)
+@HandlesCommand.forCommand(CreateCredentialInstanceCommand)
 export class CreateCredentialInstanceCommandHandler extends CommandHandler<CreateCredentialInstanceCommand, CredentialInstanceDto> {
   constructor(
     @inject(CredentialInstanceService)

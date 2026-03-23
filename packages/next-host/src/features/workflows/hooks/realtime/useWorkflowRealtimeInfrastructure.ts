@@ -27,6 +27,7 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
   const queryClient = useQueryClient();
   const desiredWorkflowCountsRef = useRef(new Map<string, number>());
   const pendingJsonMessagesRef = useRef<RealtimeServerMessage[]>([]);
+  const pendingOutgoingMessagesRef = useRef<RealtimeClientMessage[]>([]);
   const activeStatusShownAtByNodeKeyRef = useRef(new Map<string, number>());
   const terminalEventTimeoutIdByNodeKeyRef = useRef(new Map<string, number>());
   const socketRef = useRef<WebSocket | null>(null);
@@ -38,9 +39,7 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
   const pendingDisconnectReasonRef = useRef<string | null>(null);
   const [readyState, setReadyState] = useState<RealtimeReadyValue>(RealtimeReadyState.UNINSTANTIATED);
   const [messageQueueVersion, setMessageQueueVersion] = useState(0);
-  const sendJsonMessageRef = useRef<(message: RealtimeClientMessage) => void>(() => {
-    throw new Error("sendJsonMessage is not ready");
-  });
+  const sendJsonMessageRef = useRef<(message: RealtimeClientMessage) => boolean>(() => false);
   const [, setActiveWorkflowIds] = useState<ReadonlyArray<string>>([]);
   const websocketUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -48,6 +47,13 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
     const port = websocketPort ?? window.location.port;
     const host = `${window.location.hostname}${port !== undefined && port !== "" ? `:${port}` : ""}`;
     return `${protocol}://${host}${ApiPaths.workflowWebsocket()}`;
+  }, [websocketPort]);
+  const devGatewayWebsocketUrl = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const port = websocketPort ?? window.location.port;
+    const host = `${window.location.hostname}${port !== undefined && port !== "" ? `:${port}` : ""}`;
+    return `${protocol}://${host}${ApiPaths.devGatewaySocket()}`;
   }, [websocketPort]);
   const shouldConnect = Boolean(websocketUrl);
 
@@ -202,7 +208,7 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
           state: "building",
           updatedAt: new Date().toISOString(),
           buildVersion: message.buildVersion,
-          awaitingWorkflowRefreshAt: undefined,
+          awaitingWorkflowRefreshAt: new Date().toISOString(),
         });
         return;
       }
@@ -224,6 +230,8 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
             buildVersion: message.buildVersion,
           };
         });
+        void queryClient.invalidateQueries({ queryKey: workflowQueryKey(message.workflowId) });
+        void queryClient.refetchQueries({ queryKey: workflowQueryKey(message.workflowId), type: "active" });
         return;
       }
 
@@ -247,11 +255,13 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
     },
     [clearPendingTerminalEventDelay, clearRunRealtimeDelays, logger, queryClient],
   );
-  const sendJsonMessage = useCallback((message: RealtimeClientMessage) => {
+  const sendJsonMessage = useCallback((message: RealtimeClientMessage): boolean => {
     if (socketRef.current?.readyState !== WebSocket.OPEN) {
-      throw new Error("sendJsonMessage is not ready");
+      pendingOutgoingMessagesRef.current.push(message);
+      return false;
     }
     socketRef.current.send(JSON.stringify(message));
+    return true;
   }, []);
   const canSendJsonMessage = useCallback((): boolean => socketRef.current?.readyState === WebSocket.OPEN, []);
   sendJsonMessageRef.current = sendJsonMessage;
@@ -293,6 +303,10 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
         clearPendingDisconnectWarning();
         setReadyState(RealtimeReadyState.OPEN);
         logger.info(`websocket transport opened to ${websocketUrl}`);
+        const queuedMessages = pendingOutgoingMessagesRef.current.splice(0, pendingOutgoingMessagesRef.current.length);
+        for (const queuedMessage of queuedMessages) {
+          socket.send(JSON.stringify(queuedMessage));
+        }
       });
 
       socket.addEventListener("message", (event) => {
@@ -367,6 +381,32 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
   }, [clearPendingDisconnectWarning, logger, schedulePersistentDisconnectWarning, shouldConnect, websocketUrl]);
 
   useEffect(() => {
+    if (!shouldConnect || !devGatewayWebsocketUrl) {
+      return;
+    }
+    const socket = new WebSocket(devGatewayWebsocketUrl);
+    socket.addEventListener("message", (event) => {
+      if (typeof event.data !== "string") {
+        return;
+      }
+      try {
+        const parsed = JSON.parse(event.data) as { kind?: string; message?: string };
+        if (parsed.kind === "devBuildCompleted") {
+          void queryClient.invalidateQueries({ queryKey: workflowsQueryKey });
+        }
+        if (parsed.kind === "devBuildFailed" && typeof parsed.message === "string") {
+          logger.error(`consumer rebuild failed: ${parsed.message}`);
+        }
+      } catch {
+        // ignore malformed gateway dev messages
+      }
+    });
+    return () => {
+      socket.close();
+    };
+  }, [devGatewayWebsocketUrl, logger, queryClient, shouldConnect]);
+
+  useEffect(() => {
     if (pendingJsonMessagesRef.current.length === 0) {
       return;
     }
@@ -405,8 +445,8 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
   useEffect(() => {
     if (readyState !== RealtimeReadyState.OPEN) return;
     for (const workflowId of desiredWorkflowCountsRef.current.keys()) {
-      sendJsonMessage({ kind: "subscribe", roomId: workflowId } satisfies RealtimeClientMessage);
-      logger.debug(`sent subscribe for workflow ${workflowId}`);
+      const sent = sendJsonMessage({ kind: "subscribe", roomId: workflowId } satisfies RealtimeClientMessage);
+      logger.debug(`${sent ? "sent" : "queued"} subscribe for workflow ${workflowId}`);
     }
   }, [logger, readyState, sendJsonMessage]);
 
@@ -419,8 +459,8 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
         return current.length === next.length && current.every((value, index) => value === next[index]) ? current : next;
       });
       if (nextCount === 1 && readyStateRef.current === RealtimeReadyState.OPEN && canSendJsonMessage()) {
-        sendJsonMessageRef.current({ kind: "subscribe", roomId: workflowId } satisfies RealtimeClientMessage);
-        logger.debug(`retain subscription sent immediately for workflow ${workflowId}`);
+        const sent = sendJsonMessageRef.current({ kind: "subscribe", roomId: workflowId } satisfies RealtimeClientMessage);
+        logger.debug(`${sent ? "sent" : "queued"} retain subscription for workflow ${workflowId}`);
       }
 
       return () => {
@@ -432,8 +472,8 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
             return current.length === next.length && current.every((value, index) => value === next[index]) ? current : next;
           });
           if (readyStateRef.current === RealtimeReadyState.OPEN && canSendJsonMessage()) {
-            sendJsonMessageRef.current({ kind: "unsubscribe", roomId: workflowId } satisfies RealtimeClientMessage);
-            logger.debug(`sent unsubscribe for workflow ${workflowId}`);
+            const sent = sendJsonMessageRef.current({ kind: "unsubscribe", roomId: workflowId } satisfies RealtimeClientMessage);
+            logger.debug(`${sent ? "sent" : "queued"} unsubscribe for workflow ${workflowId}`);
           }
           return;
         }

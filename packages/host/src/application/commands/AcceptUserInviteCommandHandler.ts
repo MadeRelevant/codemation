@@ -11,7 +11,7 @@ import { AcceptUserInviteCommand } from "./AcceptUserInviteCommand";
 
 
 
-@HandlesCommand.for(AcceptUserInviteCommand)
+@HandlesCommand.forCommand(AcceptUserInviteCommand)
 export class AcceptUserInviteCommandHandler extends CommandHandler<AcceptUserInviteCommand, void> {
   constructor(@inject(UserAccountService) private readonly userAccounts: UserAccountService) {
     super();

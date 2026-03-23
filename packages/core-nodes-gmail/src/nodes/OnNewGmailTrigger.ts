@@ -51,4 +51,22 @@ export class OnNewGmailTrigger
       },
     ];
   }
+
+  hasRequiredConfiguration(): boolean {
+    return this.resolveMissingConfigurationFields().length === 0;
+  }
+
+  resolveMissingConfigurationFields(): ReadonlyArray<string> {
+    const missingFields: string[] = [];
+    if (this.cfg.mailbox.trim().length === 0) {
+      missingFields.push("mailbox");
+    }
+    if (this.cfg.topicName.trim().length === 0) {
+      missingFields.push("topicName");
+    }
+    if (this.cfg.subscriptionName.trim().length === 0) {
+      missingFields.push("subscriptionName");
+    }
+    return missingFields;
+  }
 }

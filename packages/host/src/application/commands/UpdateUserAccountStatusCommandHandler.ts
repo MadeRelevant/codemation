@@ -14,7 +14,7 @@ import { UpdateUserAccountStatusCommand } from "./UpdateUserAccountStatusCommand
 
 
 
-@HandlesCommand.for(UpdateUserAccountStatusCommand)
+@HandlesCommand.forCommand(UpdateUserAccountStatusCommand)
 export class UpdateUserAccountStatusCommandHandler extends CommandHandler<UpdateUserAccountStatusCommand, UserAccountDto> {
   constructor(@inject(UserAccountService) private readonly userAccounts: UserAccountService) {
     super();

@@ -11,6 +11,7 @@ import { RealtimeBoundary } from "./RealtimeBoundary";
 
 export function Providers(args: Readonly<{ children: ReactNode; websocketPort?: string }>) {
   const { children, websocketPort } = args;
+  const defaultQueryStaleTimeMs = process.env.NODE_ENV === "development" ? 30_000 : 0;
   const [loggerFactory] = useState(() => new BrowserLoggerFactory(logLevelPolicyFactory.create()));
   const [realtimeLogger] = useState<Logger>(() => loggerFactory.create("workflow-realtime.frontend"));
   const [queryClient] = useState(
@@ -18,7 +19,7 @@ export function Providers(args: Readonly<{ children: ReactNode; websocketPort?: 
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 0,
+            staleTime: defaultQueryStaleTimeMs,
             refetchOnWindowFocus: false,
           },
         },

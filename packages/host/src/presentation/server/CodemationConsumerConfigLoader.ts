@@ -5,6 +5,8 @@ import { pathToFileURL } from "node:url";
 import type { NamespacedUnregister } from "tsx/esm/api";
 import { register } from "tsx/esm/api";
 import type { CodemationConfig } from "../config/CodemationConfig";
+import { logLevelPolicyFactory } from "../../infrastructure/logging/LogLevelPolicyFactory";
+import { ServerLoggerFactory } from "../../infrastructure/logging/ServerLoggerFactory";
 import { CodemationConsumerConfigExportsResolver } from "./CodemationConsumerConfigExportsResolver";
 import { WorkflowDiscoveryPathSegmentsComputer } from "./WorkflowDiscoveryPathSegmentsComputer";
 import { WorkflowModulePathFinder } from "./WorkflowModulePathFinder";
@@ -20,19 +22,36 @@ export class CodemationConsumerConfigLoader {
   private readonly configExportsResolver = new CodemationConsumerConfigExportsResolver();
   private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
   private readonly pathSegmentsComputer = new WorkflowDiscoveryPathSegmentsComputer();
+  private readonly performanceDiagnosticsLogger = new ServerLoggerFactory(logLevelPolicyFactory).createPerformanceDiagnostics(
+    "codemation-config-loader.timing",
+  );
 
   async load(args: Readonly<{ consumerRoot: string; configPathOverride?: string }>): Promise<CodemationConsumerConfigResolution> {
+    const loadStarted = performance.now();
+    let mark = loadStarted;
+    const phaseMs = (label: string): void => {
+      const now = performance.now();
+      const delta = now - mark;
+      mark = now;
+      this.performanceDiagnosticsLogger.info(
+        `load.${label} +${delta.toFixed(1)}ms (cumulative ${(now - loadStarted).toFixed(1)}ms)`,
+      );
+    };
     const bootstrapSource = await this.resolveConfigPath(args.consumerRoot, args.configPathOverride);
+    phaseMs("resolveConfigPath");
     if (!bootstrapSource) {
       throw new Error('Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".');
     }
     const moduleExports = await this.importModule(bootstrapSource);
+    phaseMs("importConfigModule");
     const config = this.configExportsResolver.resolveConfig(moduleExports);
     if (!config) {
       throw new Error(`Config file does not export a Codemation config object: ${bootstrapSource}`);
     }
     const workflowSources = await this.resolveWorkflowSources(args.consumerRoot, config);
+    phaseMs("resolveWorkflowSources");
     const workflows = config.workflows ?? (await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources));
+    phaseMs("loadDiscoveredWorkflows");
     return {
       config: {
         ...config,
@@ -87,16 +106,23 @@ export class CodemationConsumerConfigLoader {
   ): Promise<ReadonlyArray<WorkflowDefinition>> {
     const workflowDiscoveryDirectories = config.workflowDiscovery?.directories ?? [];
     const workflowsById = new Map<string, WorkflowDefinition>();
-    for (const workflowSource of workflowSources) {
-      const segments = this.pathSegmentsComputer.compute({
-        consumerRoot,
-        workflowDiscoveryDirectories,
-        absoluteWorkflowModulePath: workflowSource,
-      });
-      const moduleExports = await this.importModule(workflowSource);
-      for (const workflow of this.resolveWorkflows(moduleExports, workflowSource)) {
+    const loadedWorkflowModules = await Promise.all(
+      workflowSources.map(async (workflowSource: string) => ({
+        workflowSource,
+        segments: this.pathSegmentsComputer.compute({
+          consumerRoot,
+          workflowDiscoveryDirectories,
+          absoluteWorkflowModulePath: workflowSource,
+        }),
+        moduleExports: await this.importModule(workflowSource),
+      })),
+    );
+    for (const loadedWorkflowModule of loadedWorkflowModules) {
+      for (const workflow of this.resolveWorkflows(loadedWorkflowModule.moduleExports, loadedWorkflowModule.workflowSource)) {
         const enriched =
-          segments && segments.length > 0 ? ({ ...workflow, discoveryPathSegments: segments } satisfies WorkflowDefinition) : workflow;
+          loadedWorkflowModule.segments && loadedWorkflowModule.segments.length > 0
+            ? ({ ...workflow, discoveryPathSegments: loadedWorkflowModule.segments } satisfies WorkflowDefinition)
+            : workflow;
         workflowsById.set(workflow.id, enriched);
       }
     }

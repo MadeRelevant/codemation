@@ -9,7 +9,7 @@ import type { WorkflowDebuggerOverlayResponse } from "../contracts/WorkflowDebug
 import { WorkflowDebuggerOverlayStateFactory } from "../workflows/WorkflowDebuggerOverlayStateFactory";
 import { ReplaceWorkflowDebuggerOverlayCommand } from "./ReplaceWorkflowDebuggerOverlayCommand";
 
-@HandlesCommand.for(ReplaceWorkflowDebuggerOverlayCommand)
+@HandlesCommand.forCommand(ReplaceWorkflowDebuggerOverlayCommand)
 export class ReplaceWorkflowDebuggerOverlayCommandHandler extends CommandHandler<
   ReplaceWorkflowDebuggerOverlayCommand,
   WorkflowDebuggerOverlayResponse

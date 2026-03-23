@@ -26,6 +26,15 @@
     "./codemation-plugin": {
       "types": "./src/codemationPluginRegistry.ts",
       "import": "./src/codemationPluginRegistry.ts"
+    },
+    "./nodes/OnNewGmailTrigger": {
+      "types": "./src/nodes/OnNewGmailTrigger.ts",
+      "development": {
+        "import": "./src/nodes/OnNewGmailTrigger.ts",
+        "require": "./dist/index.cjs"
+      },
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
   "scripts": {

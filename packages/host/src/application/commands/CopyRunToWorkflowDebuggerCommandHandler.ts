@@ -11,7 +11,7 @@ import type { WorkflowDebuggerOverlayResponse } from "../contracts/WorkflowDebug
 import { WorkflowDebuggerOverlayStateFactory } from "../workflows/WorkflowDebuggerOverlayStateFactory";
 import { CopyRunToWorkflowDebuggerCommand } from "./CopyRunToWorkflowDebuggerCommand";
 
-@HandlesCommand.for(CopyRunToWorkflowDebuggerCommand)
+@HandlesCommand.forCommand(CopyRunToWorkflowDebuggerCommand)
 export class CopyRunToWorkflowDebuggerCommandHandler extends CommandHandler<
   CopyRunToWorkflowDebuggerCommand,
   WorkflowDebuggerOverlayResponse

@@ -6,7 +6,7 @@ import { ApplicationRequestError } from "../ApplicationRequestError";
 import { CommandHandler } from "../bus/CommandHandler";
 import { ReplaceMutableRunWorkflowSnapshotCommand } from "./ReplaceMutableRunWorkflowSnapshotCommand";
 
-@HandlesCommand.for(ReplaceMutableRunWorkflowSnapshotCommand)
+@HandlesCommand.forCommand(ReplaceMutableRunWorkflowSnapshotCommand)
 export class ReplaceMutableRunWorkflowSnapshotCommandHandler extends CommandHandler<
   ReplaceMutableRunWorkflowSnapshotCommand,
   PersistedRunState

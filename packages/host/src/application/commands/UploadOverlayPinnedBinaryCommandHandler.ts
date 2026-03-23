@@ -5,7 +5,7 @@ import { OverlayPinnedBinaryUploadService } from "../binary/OverlayPinnedBinaryU
 import { CommandHandler } from "../bus/CommandHandler";
 import { UploadOverlayPinnedBinaryCommand } from "./UploadOverlayPinnedBinaryCommand";
 
-@HandlesCommand.for(UploadOverlayPinnedBinaryCommand)
+@HandlesCommand.forCommand(UploadOverlayPinnedBinaryCommand)
 export class UploadOverlayPinnedBinaryCommandHandler extends CommandHandler<UploadOverlayPinnedBinaryCommand, BinaryAttachment> {
   constructor(
     @inject(OverlayPinnedBinaryUploadService)

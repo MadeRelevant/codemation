@@ -91,16 +91,16 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
         "snapshot" in event && event.snapshot
           ? `${event.kind}:${event.runId}:${event.snapshot.nodeId}:${event.snapshot.status}`
           : `${event.kind}:${event.runId}`;
-      this.logger.info(`published room=${roomId} sockets=${deliveredSocketCount} event=${eventLabel}`);
+      this.logger.debug(`published room=${roomId} sockets=${deliveredSocketCount} event=${eventLabel}`);
       return;
     }
-    this.logger.info(`published room=${roomId} sockets=${deliveredSocketCount} kind=${message.kind}`);
+    this.logger.debug(`published room=${roomId} sockets=${deliveredSocketCount} kind=${message.kind}`);
   }
 
   private async connect(socket: WebSocket): Promise<void> {
     this.sockets.add(socket);
     this.roomIdsBySocket.set(socket, new Set());
-    this.logger.info(`client connected activeSockets=${this.sockets.size}`);
+    this.logger.debug(`client connected activeSockets=${this.sockets.size}`);
     socket.send(JSON.stringify({ kind: "ready" } satisfies WorkflowWebsocketServerMessage));
     socket.on("message", (rawData) => {
       void this.handleMessage(socket, rawData);
@@ -108,7 +108,7 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
     socket.on("close", () => {
       this.sockets.delete(socket);
       this.roomIdsBySocket.delete(socket);
-      this.logger.info(`client disconnected activeSockets=${this.sockets.size}`);
+      this.logger.debug(`client disconnected activeSockets=${this.sockets.size}`);
     });
     socket.on("error", () => {
       this.sockets.delete(socket);
@@ -122,12 +122,12 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
       const message = this.parseClientMessage(rawData);
       if (message.kind === "subscribe") {
         this.roomIdsBySocket.get(socket)?.add(message.roomId);
-        this.logger.info(`subscribed room=${message.roomId}`);
+        this.logger.debug(`subscribed room=${message.roomId}`);
         socket.send(JSON.stringify({ kind: "subscribed", roomId: message.roomId } satisfies WorkflowWebsocketServerMessage));
         return;
       }
       this.roomIdsBySocket.get(socket)?.delete(message.roomId);
-      this.logger.info(`unsubscribed room=${message.roomId}`);
+      this.logger.debug(`unsubscribed room=${message.roomId}`);
       socket.send(JSON.stringify({ kind: "unsubscribed", roomId: message.roomId } satisfies WorkflowWebsocketServerMessage));
     } catch (error) {
       const exception = error instanceof Error ? error : new Error(String(error));

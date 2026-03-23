@@ -6,6 +6,8 @@ import { WorkflowDetailPresenter } from "../src/features/workflows/lib/workflowD
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// Monaco is heavy and ESM-oriented; the dialog test only needs a textarea stand-in for JsonMonacoEditor.
+// eslint-disable-next-line no-restricted-properties -- test-only stub for @monaco-editor/react
 vi.mock("@monaco-editor/react", () => ({
   default: function MockMonacoEditor(props: Readonly<{ value?: string }>) {
     return <textarea data-testid="mock-monaco-editor" value={props.value ?? ""} readOnly />;

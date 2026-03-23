@@ -16,7 +16,7 @@ CredentialBindingService
 
 
 
-@HandlesCommand.for(UpsertCredentialBindingCommand)
+@HandlesCommand.forCommand(UpsertCredentialBindingCommand)
 export class UpsertCredentialBindingCommandHandler extends CommandHandler<UpsertCredentialBindingCommand, CredentialBinding> {
   constructor(
     @inject(CredentialBindingService)

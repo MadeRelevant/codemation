@@ -30,8 +30,8 @@ export class GmailPullTriggerRuntime {
     previousState: GmailTriggerSetupState | undefined;
     emit(items: Items): Promise<void>;
   }>): Promise<GmailTriggerSetupState | undefined> {
-    if (!this.hasRequiredConfiguration(args.config)) {
-      const missingFields = this.resolveMissingConfigurationFields(args.config);
+    if (!args.config.hasRequiredConfiguration()) {
+      const missingFields = args.config.resolveMissingConfigurationFields();
       this.logger.warn(
         `skipping trigger ${this.describeTrigger(args.trigger)} because required Gmail trigger config is missing: ${missingFields.join(", ")}`,
       );
@@ -168,24 +168,6 @@ export class GmailPullTriggerRuntime {
 
   private resolveMaxMessagesPerPull(): number {
     return Math.max(this.options.maxMessagesPerPull ?? 10, 1);
-  }
-
-  private hasRequiredConfiguration(config: OnNewGmailTrigger): boolean {
-    return this.resolveMissingConfigurationFields(config).length === 0;
-  }
-
-  private resolveMissingConfigurationFields(config: OnNewGmailTrigger): ReadonlyArray<string> {
-    const missingFields: string[] = [];
-    if (config.cfg.mailbox.trim().length === 0) {
-      missingFields.push("mailbox");
-    }
-    if (config.cfg.topicName.trim().length === 0) {
-      missingFields.push("topicName");
-    }
-    if (config.cfg.subscriptionName.trim().length === 0) {
-      missingFields.push("subscriptionName");
-    }
-    return missingFields;
   }
 
   private toKey(trigger: TriggerInstanceId): string {

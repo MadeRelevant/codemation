@@ -6,7 +6,7 @@ import { ApplicationRequestError } from "../ApplicationRequestError";
 import { CommandHandler } from "../bus/CommandHandler";
 import { SetPinnedNodeInputCommand } from "./SetPinnedNodeInputCommand";
 
-@HandlesCommand.for(SetPinnedNodeInputCommand)
+@HandlesCommand.forCommand(SetPinnedNodeInputCommand)
 export class SetPinnedNodeInputCommandHandler extends CommandHandler<SetPinnedNodeInputCommand, PersistedRunState> {
   constructor(
     @inject(ApplicationTokens.WorkflowRunRepository)

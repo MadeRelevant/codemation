@@ -1,17 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { CodemationDialog } from "@/components/CodemationDialog";
 import { JsonMonacoEditor } from "@/components/json/JsonMonacoEditor";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { BinaryAttachment } from "@codemation/core/browser";
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { WorkflowDetailPresenter } from "../../lib/workflowDetail/WorkflowDetailPresenter";
 import type { JsonEditorState, PinBinaryMapsByItemIndex } from "../../lib/workflowDetail/workflowDetailTypes";
+import { WorkflowJsonEditorBinaryAttachmentRow } from "./WorkflowJsonEditorBinaryAttachmentRow";
+import { WorkflowJsonEditorBinaryUploadRow } from "./WorkflowJsonEditorBinaryUploadRow";
 
 export function WorkflowJsonEditorDialog(args: Readonly<{
   state: JsonEditorState;
@@ -193,7 +191,7 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
                               <div className="text-xs text-muted-foreground">No attachments for this item.</div>
                             ) : null}
                             {entries.map(([name, attachment]) => (
-                              <BinaryAttachmentRow
+                              <WorkflowJsonEditorBinaryAttachmentRow
                                 key={`${itemIndex}:${name}:${attachment.id}`}
                                 workflowId={workflowId}
                                 itemIndex={itemIndex}
@@ -208,7 +206,7 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
                                 }}
                               />
                             ))}
-                            <BinaryUploadRow
+                            <WorkflowJsonEditorBinaryUploadRow
                               itemIndex={itemIndex}
                               suggestName={suggestAttachmentName(row)}
                               busyKey={uploadBusyKey}
@@ -244,129 +242,5 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
         </Button>
       </CodemationDialog.Actions>
     </CodemationDialog>
-  );
-}
-
-function BinaryAttachmentRow(args: Readonly<{
-  workflowId: string;
-  itemIndex: number;
-  name: string;
-  attachment: BinaryAttachment;
-  uploadBusyKey: string | null;
-  onReplace: (file: File) => void;
-  onRemove: () => void;
-}>) {
-  const { workflowId, itemIndex, name, attachment, uploadBusyKey, onReplace, onRemove } = args;
-  const replaceInputRef = useRef<HTMLInputElement | null>(null);
-  return (
-    <div
-      className="flex flex-wrap items-center gap-2 rounded border border-border/60 bg-background px-2 py-1.5"
-      data-testid={`workflow-json-editor-binary-row-${itemIndex}-${name}`}
-    >
-      <span className="text-xs font-bold">{name}</span>
-      <a
-        className="text-xs font-medium text-primary underline"
-        href={ApiPaths.workflowOverlayBinaryContent(workflowId, attachment.id)}
-        target="_blank"
-        rel="noreferrer"
-      >
-        Open
-      </a>
-      <input
-        ref={replaceInputRef}
-        type="file"
-        className="hidden"
-        data-testid={`workflow-json-editor-binary-replace-${itemIndex}-${name}`}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) {
-            onReplace(file);
-          }
-        }}
-      />
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-7 text-[11px] font-bold"
-        disabled={uploadBusyKey !== null}
-        onClick={() => {
-          replaceInputRef.current?.click();
-        }}
-      >
-        Replace
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-7 text-[11px] font-bold text-destructive"
-        data-testid={`workflow-json-editor-binary-remove-${itemIndex}-${name}`}
-        onClick={onRemove}
-      >
-        Remove
-      </Button>
-    </div>
-  );
-}
-
-function BinaryUploadRow(args: Readonly<{
-  itemIndex: number;
-  suggestName: string;
-  busyKey: string | null;
-  onUpload: (file: File, attachmentName: string) => void;
-}>) {
-  const { itemIndex, suggestName, busyKey, onUpload } = args;
-  const [name, setName] = useState(suggestName);
-  const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const nameFieldId = `workflow-json-editor-binary-name-${itemIndex}`;
-  useEffect(() => {
-    setName(suggestName);
-  }, [suggestName]);
-  const disabled = busyKey !== null || !name.trim();
-  return (
-    <div className="flex flex-wrap items-end gap-2 border-t border-border/60 pt-2">
-      <div className="flex min-w-[120px] flex-1 flex-col gap-1.5">
-        <Label htmlFor={nameFieldId} className="text-[11px] font-bold text-muted-foreground">
-          Attachment name
-        </Label>
-        <Input
-          id={nameFieldId}
-          className="h-8 text-xs"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-          }}
-          data-testid={`workflow-json-editor-binary-name-${itemIndex}`}
-        />
-      </div>
-      <input
-        ref={uploadInputRef}
-        type="file"
-        className="hidden"
-        data-testid={`workflow-json-editor-binary-upload-${itemIndex}`}
-        disabled={disabled}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file && name.trim()) {
-            onUpload(file, name.trim());
-          }
-        }}
-      />
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        className="h-8 text-[11px] font-bold"
-        disabled={disabled}
-        onClick={() => {
-          uploadInputRef.current?.click();
-        }}
-      >
-        Upload
-      </Button>
-    </div>
   );
 }

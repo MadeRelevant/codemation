@@ -19,12 +19,15 @@ export const metadata = {
 };
 
 export default async function RootLayout(args: Readonly<{ children: ReactNode }>) {
-  const session = await auth();
+  const skipUiAuth = process.env.CODEMATION_SKIP_UI_AUTH === "true";
+  const session = skipUiAuth ? null : await auth();
   return (
     <html lang="en" className={leagueSpartan.variable} suppressHydrationWarning>
       <body className={leagueSpartan.className} suppressHydrationWarning>
         <CodemationNextClientShell>
-          <CodemationSessionRoot session={session}>{args.children}</CodemationSessionRoot>
+          <CodemationSessionRoot enabled={!skipUiAuth} session={session}>
+            {args.children}
+          </CodemationSessionRoot>
         </CodemationNextClientShell>
       </body>
     </html>

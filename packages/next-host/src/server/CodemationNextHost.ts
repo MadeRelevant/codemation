@@ -1,22 +1,20 @@
 import type { Container } from "@codemation/core";
-import { CoreTokens,Engine } from "@codemation/core";
-import type { CodemationAuthConfig,CodemationPlugin } from "@codemation/host";
+import { CoreTokens, Engine } from "@codemation/core";
+import type { CodemationAuthConfig, CodemationPlugin } from "@codemation/host";
 import {
-CodemationApplication,
-CodemationHonoApiApp,
-CodemationPluginListMerger,
-logLevelPolicyFactory,
-ServerLoggerFactory,
-WorkflowDefinitionMapper,
-WorkflowWebsocketServer,
+  CodemationApplication,
+  CodemationHonoApiApp,
+  CodemationPluginListMerger,
+  logLevelPolicyFactory,
+  ServerLoggerFactory,
+  WorkflowWebsocketServer,
 } from "@codemation/host/next/server";
 import { CodemationTsyringeTypeInfoRegistrar } from "@codemation/host/dev-server-sidecar";
 import type { CodemationConsumerApp } from "@codemation/host/server";
 import type { Hono } from "hono";
-import { access,readFile,stat } from "node:fs/promises";
+import { access, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { DevelopmentRuntimeApi } from "./DevelopmentRuntimeApi";
 
 export type CodemationNextHostContext = Readonly<{
   application: CodemationApplication;
@@ -39,15 +37,15 @@ type CodemationConsumerBuildManifest = Readonly<{
   workflowSourcePaths: ReadonlyArray<string>;
 }>;
 
-type CodemationActiveRuntime = Readonly<{
-  buildVersion: string;
-  contextPromise: Promise<CodemationNextHostContext>;
-}>;
-
+/**
+ * Next-hosted consumer runtime: one loaded context per process. Dev reloads use the dev gateway + runtime child instead of in-process swapping.
+ */
 export class CodemationNextHost {
   private readonly pluginListMerger = new CodemationPluginListMerger();
   private nextApiApp: Hono | null = null;
   private nextApiAppBuildVersion: string | null = null;
+  private contextPromise: Promise<CodemationNextHostContext> | null = null;
+  private sharedWorkflowWebsocketServer: WorkflowWebsocketServer | null = null;
 
   static get shared(): CodemationNextHost {
     const globalState = globalThis as CodemationNextHostGlobal;
@@ -57,67 +55,11 @@ export class CodemationNextHost {
     return globalState.__codemationNextHost__;
   }
 
-  private activeRuntime: CodemationActiveRuntime | null = null;
-  private refreshPromise: Promise<CodemationNextHostContext> | null = null;
-  private sharedWorkflowWebsocketServer: WorkflowWebsocketServer | null = null;
-
   async prepare(): Promise<CodemationNextHostContext> {
-    const manifest = await this.resolveBuildManifest();
-    return await this.ensureRuntimeForManifest(manifest);
-  }
-
-  async notifyBuildStarted(args: Readonly<{ buildVersion?: string }> = {}): Promise<void> {
-    const activeContext = await this.resolveActiveContext();
-    if (!activeContext) {
-      return;
+    if (!this.contextPromise) {
+      this.contextPromise = this.loadContextOnce();
     }
-    await this.publishBuildLifecycleMessage(activeContext, (workflowId: string) => ({
-      kind: "devBuildStarted",
-      workflowId,
-      buildVersion: args.buildVersion,
-    }));
-  }
-
-  async notifyBuildCompleted(args: Readonly<{ buildVersion?: string }> = {}): Promise<void> {
-    const activeContext = await this.resolveActiveContext();
-    if (!activeContext) {
-      return;
-    }
-    const manifest = await this.resolveBuildManifest();
-    const nextContext = await this.ensureRuntimeForManifest(manifest);
-    await this.publishBuildLifecycleMessage(nextContext, (workflowId: string) => ({
-      kind: "devBuildCompleted",
-      workflowId,
-      buildVersion: args.buildVersion ?? manifest.buildVersion,
-    }));
-  }
-
-  async notifyBuildFailed(args: Readonly<{ message: string }>): Promise<void> {
-    const activeContext = await this.resolveActiveContext();
-    if (!activeContext) {
-      return;
-    }
-    await this.publishBuildLifecycleMessage(activeContext, (workflowId: string) => ({
-      kind: "devBuildFailed",
-      workflowId,
-      message: args.message,
-    }));
-  }
-
-  private async ensureRuntimeForManifest(manifest: CodemationConsumerBuildManifest): Promise<CodemationNextHostContext> {
-    if (this.activeRuntime?.buildVersion === manifest.buildVersion) {
-      return await this.activeRuntime.contextPromise;
-    }
-    if (this.refreshPromise) {
-      await this.refreshPromise.catch(() => null);
-      return await this.ensureRuntimeForManifest(manifest);
-    }
-    this.refreshPromise = this.swapRuntime(manifest);
-    try {
-      return await this.refreshPromise;
-    } finally {
-      this.refreshPromise = null;
-    }
+    return this.contextPromise;
   }
 
   async getContainer(): Promise<Container> {
@@ -125,10 +67,7 @@ export class CodemationNextHost {
   }
 
   /**
-   * Entry point for all `/api/**` traffic: the App Router handler forwards the {@link Request} here.
-   * The UI talks to the backend only through this HTTP surface (Hono → CQRS → DTOs), not Server Actions.
-   * {@link resolveNextApiApp} memoizes the Hono app per consumer build; {@link resetNextApiApp} drops
-   * that memo when the runtime is invalidated or swapped (e.g. after a consumer rebuild).
+   * Entry point for all `/api/**` traffic when the App Router route is not proxying to the dev gateway.
    */
   async fetchApi(request: Request): Promise<Response> {
     const context = await this.prepare();
@@ -141,16 +80,14 @@ export class CodemationNextHost {
       return this.nextApiApp;
     }
     const coreApp = context.application.getContainer().resolve(CodemationHonoApiApp).getHono();
-    DevelopmentRuntimeApi.attach(coreApp, this);
     this.nextApiApp = coreApp;
     this.nextApiAppBuildVersion = context.buildVersion;
     return coreApp;
   }
 
-  /** Clears the cached Hono app so the next {@link fetchApi} attaches to the new container after a swap. */
-  private resetNextApiApp(): void {
-    this.nextApiApp = null;
-    this.nextApiAppBuildVersion = null;
+  private async loadContextOnce(): Promise<CodemationNextHostContext> {
+    const manifest = await this.resolveBuildManifest();
+    return await this.createContext(manifest);
   }
 
   private async createContext(buildManifest: CodemationConsumerBuildManifest): Promise<CodemationNextHostContext> {
@@ -231,19 +168,6 @@ export class CodemationNextHost {
         return startDirectory;
       }
       currentDirectory = parentDirectory;
-    }
-  }
-
-  private async invalidateContext(): Promise<void> {
-    const activeRuntime = this.activeRuntime;
-    this.activeRuntime = null;
-    this.refreshPromise = null;
-    this.resetNextApiApp();
-    if (activeRuntime) {
-      const activeContext = await activeRuntime.contextPromise.catch(() => null);
-      if (activeContext) {
-        await activeContext.application.stopFrontendServerContainer();
-      }
     }
   }
 
@@ -350,91 +274,6 @@ export class CodemationNextHost {
 
   private resolveWebSocketBindHost(): string {
     return process.env.CODEMATION_WS_BIND_HOST ?? "0.0.0.0";
-  }
-
-  private async swapRuntime(buildManifest: CodemationConsumerBuildManifest): Promise<CodemationNextHostContext> {
-    this.resetNextApiApp();
-    const previousRuntime = this.activeRuntime;
-    const previousContext = previousRuntime ? await previousRuntime.contextPromise.catch(() => null) : null;
-    const nextContext = await this.createContext(buildManifest);
-    this.activeRuntime = {
-      buildVersion: nextContext.buildVersion,
-      contextPromise: Promise.resolve(nextContext),
-    };
-    if (previousContext) {
-      await this.emitWorkflowChangedEvents({
-        previousContext,
-        nextContext,
-      });
-      await previousContext.application.stopFrontendServerContainer({
-        stopWebsocketServer: false,
-      });
-    }
-    return nextContext;
-  }
-
-  private async emitWorkflowChangedEvents(args: Readonly<{
-    previousContext: CodemationNextHostContext;
-    nextContext: CodemationNextHostContext;
-  }>): Promise<void> {
-    const changedWorkflowIds = this.resolveChangedWorkflowIds(args);
-    if (changedWorkflowIds.length === 0) {
-      return;
-    }
-    const workflowWebsocketServer = this.resolveSharedWorkflowWebsocketServer();
-    for (const workflowId of changedWorkflowIds) {
-      await workflowWebsocketServer.publishToRoom(workflowId, {
-        kind: "workflowChanged",
-        workflowId,
-      });
-    }
-  }
-
-  private async resolveActiveContext(): Promise<CodemationNextHostContext | null> {
-    const activeRuntime = this.activeRuntime;
-    if (!activeRuntime) {
-      return null;
-    }
-    return await activeRuntime.contextPromise.catch(() => null);
-  }
-
-  private async publishBuildLifecycleMessage(
-    context: CodemationNextHostContext,
-    createMessage: (workflowId: string) => Parameters<WorkflowWebsocketServer["publishToRoom"]>[1],
-  ): Promise<void> {
-    const workflowIds = this.resolveWorkflowIds(context);
-    if (workflowIds.length === 0) {
-      return;
-    }
-    const workflowWebsocketServer = this.resolveSharedWorkflowWebsocketServer();
-    for (const workflowId of workflowIds) {
-      await workflowWebsocketServer.publishToRoom(workflowId, createMessage(workflowId));
-    }
-  }
-
-  private resolveChangedWorkflowIds(args: Readonly<{
-    previousContext: CodemationNextHostContext;
-    nextContext: CodemationNextHostContext;
-  }>): ReadonlyArray<string> {
-    const previousWorkflowsById = this.mapWorkflowsById(args.previousContext);
-    const nextWorkflowsById = this.mapWorkflowsById(args.nextContext);
-    const workflowIds = new Set<string>([
-      ...previousWorkflowsById.keys(),
-      ...nextWorkflowsById.keys(),
-    ]);
-    return [...workflowIds].filter((workflowId) => previousWorkflowsById.get(workflowId) !== nextWorkflowsById.get(workflowId));
-  }
-
-  private mapWorkflowsById(context: CodemationNextHostContext): ReadonlyMap<string, string> {
-    const mapper = context.application.getContainer().resolve(WorkflowDefinitionMapper);
-    const entries = context.application.getWorkflows().map((workflow) => {
-      return [workflow.id, JSON.stringify(mapper.mapSync(workflow))] as const;
-    });
-    return new Map(entries);
-  }
-
-  private resolveWorkflowIds(context: CodemationNextHostContext): ReadonlyArray<string> {
-    return context.application.getWorkflows().map((workflow) => workflow.id);
   }
 
   private async exists(filePath: string): Promise<boolean> {

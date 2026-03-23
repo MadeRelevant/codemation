@@ -16,7 +16,7 @@ CredentialTestService
 
 
 
-@HandlesCommand.for(TestCredentialInstanceCommand)
+@HandlesCommand.forCommand(TestCredentialInstanceCommand)
 export class TestCredentialInstanceCommandHandler extends CommandHandler<TestCredentialInstanceCommand, CredentialHealth> {
   constructor(
     @inject(CredentialTestService)

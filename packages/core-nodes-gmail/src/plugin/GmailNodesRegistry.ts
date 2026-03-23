@@ -1,11 +1,11 @@
 import type { Container } from "@codemation/core";
-import { GoogleGmailApiClient } from "../adapters/google/GoogleGmailApiClientFactory";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailOAuthCredential } from "../contracts/GmailOAuthCredential";
 import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
 import { GmailPullTriggerRuntime } from "../runtime/GmailPullTriggerRuntime";
+import type { GmailApiClient } from "../services/GmailApiClient";
 import { GmailConfiguredLabelService } from "../services/GmailConfiguredLabelService";
 import { GmailHistorySyncService } from "../services/GmailHistorySyncService";
 import { GmailMessageItemMapper } from "../services/GmailMessageItemMapper";
@@ -131,11 +131,11 @@ export class GmailNodes {
         supportedSourceKinds: ["db", "env", "code"],
       },
       createSession: async (args) => {
-        return new GoogleGmailApiClient(this.toServiceAccountCredential(args.material));
+        return await this.createGoogleGmailApiClient(this.toServiceAccountCredential(args.material));
       },
       test: async (args) => {
         const credential = this.toServiceAccountCredential(args.material);
-        return this.testGmailApiClient(new GoogleGmailApiClient(credential), credential.delegatedUser);
+        return this.testGmailApiClient(await this.createGoogleGmailApiClient(credential), credential.delegatedUser);
       },
     });
     registrar.registerCredentialType({
@@ -153,19 +153,26 @@ export class GmailNodes {
         },
       },
       createSession: async (args) => {
-        return new GoogleGmailApiClient(this.toOAuthCredential(args.material, args.publicConfig));
+        return await this.createGoogleGmailApiClient(this.toOAuthCredential(args.material, args.publicConfig));
       },
       test: async (args) => {
         return this.testGmailApiClient(
-          new GoogleGmailApiClient(this.toOAuthCredential(args.material, args.publicConfig)),
+          await this.createGoogleGmailApiClient(this.toOAuthCredential(args.material, args.publicConfig)),
           "me",
         );
       },
     });
   }
 
+  private async createGoogleGmailApiClient(
+    credential: GmailServiceAccountCredential | GmailOAuthCredential,
+  ): Promise<GmailApiClient> {
+    const { GoogleGmailApiClient } = await import("../adapters/google/GoogleGmailApiClientFactory");
+    return new GoogleGmailApiClient(credential);
+  }
+
   private async testGmailApiClient(
-    client: GoogleGmailApiClient,
+    client: GmailApiClient,
     mailbox: string,
   ): Promise<
     Readonly<{

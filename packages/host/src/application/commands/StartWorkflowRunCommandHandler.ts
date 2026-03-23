@@ -20,7 +20,7 @@ import type { CreateRunRequest,RunCommandResult } from "../contracts/RunContract
 import { WorkflowDebuggerOverlayStateFactory } from "../workflows/WorkflowDebuggerOverlayStateFactory";
 import { StartWorkflowRunCommand } from "./StartWorkflowRunCommand";
 
-@HandlesCommand.for(StartWorkflowRunCommand)
+@HandlesCommand.forCommand(StartWorkflowRunCommand)
 export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflowRunCommand, RunCommandResult> {
   private readonly routesLog: Logger;
 

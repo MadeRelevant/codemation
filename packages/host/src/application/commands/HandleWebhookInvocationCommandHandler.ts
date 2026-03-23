@@ -5,7 +5,7 @@ import { ApplicationRequestError } from "../ApplicationRequestError";
 import { CommandHandler } from "../bus/CommandHandler";
 import { HandleWebhookInvocationCommand } from "./HandleWebhookInvocationCommand";
 
-@HandlesCommand.for(HandleWebhookInvocationCommand)
+@HandlesCommand.forCommand(HandleWebhookInvocationCommand)
 export class HandleWebhookInvocationCommandHandler extends CommandHandler<HandleWebhookInvocationCommand, unknown> {
   constructor(
     @inject(RunIntentService)

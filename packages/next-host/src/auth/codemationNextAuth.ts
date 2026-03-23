@@ -1,18 +1,23 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth from "next-auth";
 import { CodemationAuthPrismaClient } from "../server/CodemationAuthPrismaClient";
+import { CodemationNextAuthConfigResolver } from "./CodemationNextAuthConfigResolver";
 import { CodemationNextAuthProviderCatalog } from "./CodemationNextAuthProviderCatalog";
 
 export const { handlers, auth, signIn, signOut } = NextAuth(async () => {
-  const { CodemationNextHost } = await import("../server/CodemationNextHost");
-  const context = await CodemationNextHost.shared.prepare();
   const env = process.env;
-  const secret = env.AUTH_SECRET ?? env.NEXTAUTH_SECRET;
+  const authConfig = await new CodemationNextAuthConfigResolver().resolve();
+  const secretFromEnv = env.AUTH_SECRET ?? env.NEXTAUTH_SECRET;
+  const secret =
+    secretFromEnv?.trim() ||
+    (env.NODE_ENV === "development"
+      ? "codemation-dev-auth-secret-not-for-production"
+      : undefined);
   if (!secret || secret.trim().length === 0) {
     throw new Error("AUTH_SECRET (or NEXTAUTH_SECRET) is required for Codemation authentication.");
   }
   const providers = await CodemationNextAuthProviderCatalog.build(
-    context.authConfig,
+    authConfig,
     CodemationAuthPrismaClient.shared,
     env,
   );

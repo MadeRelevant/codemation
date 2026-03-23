@@ -14,7 +14,7 @@ import { RegenerateUserInviteCommand } from "./RegenerateUserInviteCommand";
 
 
 
-@HandlesCommand.for(RegenerateUserInviteCommand)
+@HandlesCommand.forCommand(RegenerateUserInviteCommand)
 export class RegenerateUserInviteCommandHandler extends CommandHandler<RegenerateUserInviteCommand, InviteUserResponseDto> {
   constructor(@inject(UserAccountService) private readonly userAccounts: UserAccountService) {
     super();

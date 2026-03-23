@@ -1,5 +1,6 @@
-import type { CodemationPackageManifest,CodemationPlugin } from "@codemation/host";
-import { readFile,readdir } from "node:fs/promises";
+import type { CodemationPackageManifest } from "../config/CodemationPackageManifest";
+import type { CodemationPlugin } from "../config/CodemationPlugin";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -45,6 +46,12 @@ export class CodemationPluginDiscovery {
 
   async resolvePlugins(consumerRoot: string): Promise<ReadonlyArray<CodemationResolvedPluginPackage>> {
     const discoveredPackages = await this.discover(consumerRoot);
+    return await this.resolveDiscoveredPackages(discoveredPackages);
+  }
+
+  async resolveDiscoveredPackages(
+    discoveredPackages: ReadonlyArray<CodemationDiscoveredPluginPackage>,
+  ): Promise<ReadonlyArray<CodemationResolvedPluginPackage>> {
     const resolvedPackages: CodemationResolvedPluginPackage[] = [];
     for (const discoveredPackage of discoveredPackages) {
       resolvedPackages.push({
@@ -90,7 +97,10 @@ export class CodemationPluginDiscovery {
   }
 
   private async loadPlugin(discoveredPackage: CodemationDiscoveredPluginPackage): Promise<CodemationPlugin> {
-    const pluginModulePath = path.resolve(discoveredPackage.packageRoot, discoveredPackage.manifest.entry);
+    const pluginModulePath = path.resolve(
+      discoveredPackage.packageRoot,
+      this.resolvePluginEntry(discoveredPackage),
+    );
     const importedModule = (await import(pathToFileURL(pluginModulePath).href)) as Record<string, unknown>;
     const pluginExportName = discoveredPackage.manifest.exportName;
     const explicitExport = pluginExportName ? importedModule[pluginExportName] : undefined;
@@ -118,6 +128,17 @@ export class CodemationPluginDiscovery {
 
   private isPluginConstructor(value: unknown): value is new () => CodemationPlugin {
     return typeof value === "function" && this.isPlugin(value.prototype);
+  }
+
+  private resolvePluginEntry(discoveredPackage: CodemationDiscoveredPluginPackage): string {
+    if (
+      process.env.CODEMATION_PREFER_PLUGIN_SOURCE_ENTRY === "true"
+      && typeof discoveredPackage.developmentEntry === "string"
+      && discoveredPackage.developmentEntry.trim().length > 0
+    ) {
+      return discoveredPackage.developmentEntry;
+    }
+    return discoveredPackage.manifest.entry;
   }
 
   private resolveDevelopmentPluginEntry(packageJson: PackageJsonShape): string | undefined {

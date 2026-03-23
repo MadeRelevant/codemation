@@ -34,6 +34,13 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
     this.logger.info(
       `setup starting for trigger ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} on mailbox "${ctx.config.cfg.mailbox || "<unset>"}"`,
     );
+    if (!ctx.config.hasRequiredConfiguration()) {
+      const missingFields = ctx.config.resolveMissingConfigurationFields();
+      this.logger.warn(
+        `skipping trigger ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} because required Gmail trigger config is missing: ${missingFields.join(", ")}`,
+      );
+      return ctx.previousState;
+    }
     ctx.registerCleanup({
       stop: async () => {
         await this.gmailPullTriggerRuntime.stop(ctx.trigger);

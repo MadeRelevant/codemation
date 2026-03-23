@@ -9,10 +9,13 @@ function resolveRuntimeDevProxyPath(pathname: string): string {
 }
 
 async function handle(request: Request): Promise<Response> {
+  const incoming = new URL(request.url);
+  if (incoming.pathname === "/api/dev/runtime") {
+    return new Response(null, { status: 204 });
+  }
   const runtimeDevUrl = process.env.CODEMATION_RUNTIME_DEV_URL;
   if (runtimeDevUrl !== undefined && runtimeDevUrl.trim().length > 0) {
     const base = runtimeDevUrl.replace(/\/$/, "");
-    const incoming = new URL(request.url);
     const proxyUrl = `${base}${resolveRuntimeDevProxyPath(incoming.pathname)}${incoming.search}`;
     const headers = new Headers(request.headers);
     const init: RequestInit & { duplex?: "half" } = {

@@ -1,5 +1,5 @@
 import { Callback,createWorkflowBuilder } from "@codemation/core-nodes";
-import { OnNewGmailTrigger,type OnNewGmailTriggerItemJson } from "@codemation/core-nodes-gmail";
+import { OnNewGmailTrigger,type OnNewGmailTriggerItemJson } from "@codemation/core-nodes-gmail/nodes/OnNewGmailTrigger";
 import { TestDevGmailEnvironment } from "../../../bootstrap/TestDevGmailEnvironment";
 
 const gmailEnvironment = new TestDevGmailEnvironment();
@@ -28,6 +28,7 @@ export default createWorkflowBuilder({ id: "wf.gmail.pull", name: "Gmail pull tr
       "gmail_trigger",
     ),
   )
+
   .then(
     new Callback<OnNewGmailTriggerItemJson, GmailWorkflowResultJson>("Summarize Gmail event", (items) =>
       items.map((item) => ({

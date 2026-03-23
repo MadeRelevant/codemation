@@ -7,14 +7,18 @@ import {
   CodemationPluginListMerger,
   logLevelPolicyFactory,
   ServerLoggerFactory,
-  WorkflowDefinitionMapper,
   WorkflowWebsocketServer,
 } from "@codemation/host/next/server";
-import { access, readFile } from "node:fs/promises";
+import {
+  CodemationConsumerConfigLoader,
+  CodemationPluginDiscovery,
+  type CodemationDiscoveredPluginPackage,
+  type CodemationResolvedPluginPackage,
+} from "@codemation/host/server";
+import { access } from "node:fs/promises";
 import path from "node:path";
 import { CodemationTsyringeTypeInfoRegistrar } from "@codemation/host/dev-server-sidecar";
 import { RuntimeDevMetrics } from "./RuntimeDevMetrics";
-import { RuntimeDevModuleRunner } from "./RuntimeDevModuleRunner";
 
 export type RuntimeDevHostContext = Readonly<{
   application: CodemationApplication;
@@ -25,29 +29,22 @@ export type RuntimeDevHostContext = Readonly<{
   workflowSources: ReadonlyArray<string>;
 }>;
 
-type CodemationConsumerBuildManifest = Readonly<{
-  buildVersion: string;
-  consumerRoot: string;
-  entryPath: string;
-  pluginEntryPath: string;
-  workflowSourcePaths: ReadonlyArray<string>;
-}>;
-
+/**
+ * Single-process runtime host for dev: one source load per process. Restarts are handled by the dev gateway.
+ */
 export class RuntimeDevHost {
   private readonly pluginListMerger = new CodemationPluginListMerger();
-  private activeRuntime: { buildVersion: string; contextPromise: Promise<RuntimeDevHostContext> } | null = null;
-  private refreshPromise: Promise<RuntimeDevHostContext> | null = null;
+  private contextPromise: Promise<RuntimeDevHostContext> | null = null;
   private readonly sharedWorkflowWebsocketServer: WorkflowWebsocketServer;
-  private readonly moduleRunner: RuntimeDevModuleRunner;
   private readonly metrics: RuntimeDevMetrics;
   private readonly performanceDiagnosticsLogger: Logger;
 
   constructor(
-    moduleRunner: RuntimeDevModuleRunner,
+    private readonly configLoader: CodemationConsumerConfigLoader,
+    private readonly pluginDiscovery: CodemationPluginDiscovery,
     metrics: RuntimeDevMetrics,
   ) {
     this.metrics = metrics;
-    this.moduleRunner = moduleRunner;
     const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
     this.performanceDiagnosticsLogger = loggerFactory.createPerformanceDiagnostics("codemation-runtime-dev.timing");
     this.sharedWorkflowWebsocketServer = new WorkflowWebsocketServer(
@@ -61,113 +58,32 @@ export class RuntimeDevHost {
     return this.metrics;
   }
 
-  getModuleRunner(): RuntimeDevModuleRunner {
-    return this.moduleRunner;
-  }
-
   async prepare(): Promise<RuntimeDevHostContext> {
-    const manifest = await this.resolveBuildManifest();
-    return await this.ensureRuntimeForManifest(manifest);
+    if (!this.contextPromise) {
+      this.contextPromise = this.createInitialContext();
+    }
+    return this.contextPromise;
   }
 
   async getContainer(): Promise<Container> {
     return (await this.prepare()).application.getContainer();
   }
 
-  async notifyBuildStarted(args: Readonly<{ buildVersion?: string }> = {}): Promise<void> {
-    const activeContext = await this.resolveActiveContext();
-    if (!activeContext) {
-      return;
-    }
-    await this.publishBuildLifecycleMessage(activeContext, (workflowId: string) => ({
-      kind: "devBuildStarted",
-      workflowId,
-      buildVersion: args.buildVersion,
-    }));
+  private async createInitialContext(): Promise<RuntimeDevHostContext> {
+    const context = await this.createContext();
+    await this.emitInitialDevBootMessages(context);
+    return context;
   }
 
-  async notifyBuildCompleted(args: Readonly<{ buildVersion?: string }> = {}): Promise<void> {
-    const notifyStarted = performance.now();
-    const manifest = await this.resolveBuildManifest();
-    const resolveManifestMs = performance.now() - notifyStarted;
-    const ensureStarted = performance.now();
-    const nextContext = await this.ensureRuntimeForManifest(manifest);
-    const ensureRuntimeMs = performance.now() - ensureStarted;
-    const publishStarted = performance.now();
-    await this.publishBuildLifecycleMessage(nextContext, (workflowId: string) => ({
+  private async emitInitialDevBootMessages(context: RuntimeDevHostContext): Promise<void> {
+    await this.publishBuildLifecycleMessage(context, (workflowId: string) => ({
       kind: "devBuildCompleted",
       workflowId,
-      buildVersion: args.buildVersion ?? manifest.buildVersion,
-    }));
-    const publishLifecycleMs = performance.now() - publishStarted;
-    this.performanceDiagnosticsLogger.info(
-      `notifyBuildCompleted resolveManifest:${resolveManifestMs.toFixed(1)}ms ensureRuntime:${ensureRuntimeMs.toFixed(1)}ms publishDevBuildCompleted:${publishLifecycleMs.toFixed(1)}ms total:${(performance.now() - notifyStarted).toFixed(1)}ms`,
-    );
-  }
-
-  async notifyBuildFailed(args: Readonly<{ message: string }>): Promise<void> {
-    const activeContext = await this.resolveActiveContext();
-    if (!activeContext) {
-      return;
-    }
-    await this.publishBuildLifecycleMessage(activeContext, (workflowId: string) => ({
-      kind: "devBuildFailed",
-      workflowId,
-      message: args.message,
+      buildVersion: context.buildVersion,
     }));
   }
 
-  private async ensureRuntimeForManifest(manifest: CodemationConsumerBuildManifest): Promise<RuntimeDevHostContext> {
-    if (this.activeRuntime?.buildVersion === manifest.buildVersion) {
-      return await this.activeRuntime.contextPromise;
-    }
-    if (this.refreshPromise) {
-      await this.refreshPromise.catch(() => null);
-      return await this.ensureRuntimeForManifest(manifest);
-    }
-    this.refreshPromise = this.swapRuntime(manifest);
-    try {
-      return await this.refreshPromise;
-    } finally {
-      this.refreshPromise = null;
-    }
-  }
-
-  private async swapRuntime(buildManifest: CodemationConsumerBuildManifest): Promise<RuntimeDevHostContext> {
-    const swapStarted = performance.now();
-    const previousRuntime = this.activeRuntime;
-    const previousContext = previousRuntime ? await previousRuntime.contextPromise.catch(() => null) : null;
-    const createContextStarted = performance.now();
-    const nextContext = await this.createContext(buildManifest);
-    const createContextMs = performance.now() - createContextStarted;
-    this.activeRuntime = {
-      buildVersion: nextContext.buildVersion,
-      contextPromise: Promise.resolve(nextContext),
-    };
-    let emitWorkflowChangedMs = 0;
-    let stopPreviousMs = 0;
-    if (previousContext) {
-      const emitStarted = performance.now();
-      await this.emitWorkflowChangedEvents({
-        previousContext,
-        nextContext,
-      });
-      emitWorkflowChangedMs = performance.now() - emitStarted;
-      const stopStarted = performance.now();
-      await previousContext.application.stopFrontendServerContainer({
-        stopWebsocketServer: false,
-      });
-      stopPreviousMs = performance.now() - stopStarted;
-    }
-    const swapTotalMs = performance.now() - swapStarted;
-    this.metrics.recordEngineSwap(swapTotalMs);
-    this.performanceDiagnosticsLogger.info(
-      `swapRuntime revision=${buildManifest.buildVersion} createContext:${createContextMs.toFixed(1)}ms emitWorkflowChanged:${emitWorkflowChangedMs.toFixed(1)}ms stopPreviousFrontend:${stopPreviousMs.toFixed(1)}ms total:${swapTotalMs.toFixed(1)}ms`,
-    );
-    return nextContext;
-  }
-
-  private async createContext(buildManifest: CodemationConsumerBuildManifest): Promise<RuntimeDevHostContext> {
+  private async createContext(): Promise<RuntimeDevHostContext> {
     const createContextStarted = performance.now();
     let mark = createContextStarted;
     const phaseMs = (label: string): void => {
@@ -178,7 +94,7 @@ export class RuntimeDevHost {
         `createContext.${label} +${delta.toFixed(1)}ms (cumulative ${(now - createContextStarted).toFixed(1)}ms)`,
       );
     };
-    const consumerRoot = path.resolve(buildManifest.consumerRoot);
+    const consumerRoot = this.resolveConsumerRoot();
     const repoRoot = await this.detectWorkspaceRoot(consumerRoot);
     phaseMs("detectWorkspaceRoot");
     const prismaCliOverride = await this.resolvePrismaCliOverride();
@@ -188,9 +104,8 @@ export class RuntimeDevHost {
     }
     process.env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
     process.env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
-    const revisionRoot = path.dirname(path.resolve(buildManifest.entryPath));
-    const resolvedConsumerApp = await this.moduleRunner.loadConsumerApp(revisionRoot);
-    phaseMs("loadConsumerApp(includesViteIfNewRevision)");
+    const configResolution = await this.configLoader.load({ consumerRoot });
+    phaseMs("loadConsumerAppFromSource");
     const env = { ...process.env };
     if (prismaCliOverride) {
       env.CODEMATION_PRISMA_CLI_PATH = prismaCliOverride;
@@ -199,18 +114,18 @@ export class RuntimeDevHost {
     env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
     const application = new CodemationApplication();
     application.useSharedWorkflowWebsocketServer(this.sharedWorkflowWebsocketServer);
-    const discoveredPlugins = await this.loadDiscoveredPlugins(buildManifest);
-    phaseMs("loadDiscoveredPlugins");
+    const discoveredPlugins = await this.loadDiscoveredPlugins(consumerRoot);
+    phaseMs("discoverPlugins");
 
-    application.useConfig(resolvedConsumerApp.config);
+    application.useConfig(configResolution.config);
     if (discoveredPlugins.length > 0) {
-      application.usePlugins(this.pluginListMerger.merge(resolvedConsumerApp.config.plugins ?? [], discoveredPlugins));
+      application.usePlugins(this.pluginListMerger.merge(configResolution.config.plugins ?? [], discoveredPlugins));
     }
     await application.applyPlugins({
       consumerRoot,
       repoRoot,
       env,
-      workflowSources: resolvedConsumerApp.workflowSources,
+      workflowSources: configResolution.workflowSources,
     });
     phaseMs("applyPlugins");
     await application.prepareFrontendServerContainer({
@@ -219,15 +134,15 @@ export class RuntimeDevHost {
     });
     phaseMs("prepareFrontendServerContainer");
     const typeInfoRegistrar = new CodemationTsyringeTypeInfoRegistrar(application.getContainer());
-    typeInfoRegistrar.registerWorkflowDefinitions(resolvedConsumerApp.config.workflows ?? []);
-    typeInfoRegistrar.registerBootHookToken(resolvedConsumerApp.config.bootHook);
+    typeInfoRegistrar.registerWorkflowDefinitions(configResolution.config.workflows ?? []);
+    typeInfoRegistrar.registerBootHookToken(configResolution.config.bootHook);
     if (process.env.CODEMATION_SKIP_BOOT_HOOK !== "true") {
       await application.applyBootHook({
-        bootHookToken: resolvedConsumerApp.config.bootHook,
+        bootHookToken: configResolution.config.bootHook,
         consumerRoot,
         repoRoot,
         env,
-        workflowSources: resolvedConsumerApp.workflowSources,
+        workflowSources: configResolution.workflowSources,
       });
     }
     phaseMs("registerTypesAndBootHook");
@@ -240,20 +155,46 @@ export class RuntimeDevHost {
 
     return {
       application,
-      authConfig: resolvedConsumerApp.config.auth,
-      buildVersion: buildManifest.buildVersion,
+      authConfig: configResolution.config.auth,
+      buildVersion: this.createBuildVersion(),
       consumerRoot,
       repoRoot,
-      workflowSources: resolvedConsumerApp.workflowSources,
+      workflowSources: configResolution.workflowSources,
     };
   }
 
-  private async loadDiscoveredPlugins(buildManifest: CodemationConsumerBuildManifest): Promise<ReadonlyArray<CodemationPlugin>> {
-    const resolvedPath = path.resolve(buildManifest.pluginEntryPath);
-    if (!(await this.exists(resolvedPath))) {
-      return [];
+  private async loadDiscoveredPlugins(consumerRoot: string): Promise<ReadonlyArray<CodemationPlugin>> {
+    const discoveredPackages = this.resolvePrecomputedPluginPackages();
+    const resolvedPackages = discoveredPackages
+      ? await this.pluginDiscovery.resolveDiscoveredPackages(discoveredPackages)
+      : await this.pluginDiscovery.resolvePlugins(consumerRoot);
+    return resolvedPackages.map((resolvedPackage: CodemationResolvedPluginPackage) => resolvedPackage.plugin);
+  }
+
+  private resolvePrecomputedPluginPackages(): ReadonlyArray<CodemationDiscoveredPluginPackage> | null {
+    const raw = process.env.CODEMATION_DISCOVERED_PLUGIN_PACKAGES_JSON;
+    if (!raw || raw.trim().length === 0) {
+      return null;
     }
-    return await this.moduleRunner.loadDiscoveredPlugins(resolvedPath);
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) {
+        return null;
+      }
+      return parsed.filter((candidate): candidate is CodemationDiscoveredPluginPackage => {
+        if (!candidate || typeof candidate !== "object") {
+          return false;
+        }
+        const packageRecord = candidate as Partial<CodemationDiscoveredPluginPackage>;
+        return typeof packageRecord.packageName === "string"
+          && typeof packageRecord.packageRoot === "string"
+          && Boolean(packageRecord.manifest)
+          && packageRecord.manifest?.kind === "plugin"
+          && typeof packageRecord.manifest.entry === "string";
+      });
+    } catch {
+      return null;
+    }
   }
 
   private async detectWorkspaceRoot(startDirectory: string): Promise<string> {
@@ -275,69 +216,16 @@ export class RuntimeDevHost {
     return (await this.exists(candidate)) ? candidate : null;
   }
 
-  private async resolveBuildManifest(): Promise<CodemationConsumerBuildManifest> {
-    const manifestPath = await this.resolveBuildManifestPath();
-    const manifestText = await readFile(manifestPath, "utf8");
-    const parsedManifest = JSON.parse(manifestText) as Partial<CodemationConsumerBuildManifest>;
-    if (
-      typeof parsedManifest.buildVersion !== "string"
-      || typeof parsedManifest.consumerRoot !== "string"
-      || typeof parsedManifest.entryPath !== "string"
-      || typeof parsedManifest.pluginEntryPath !== "string"
-      || !Array.isArray(parsedManifest.workflowSourcePaths)
-    ) {
-      throw new Error(`Invalid Codemation consumer build manifest at ${manifestPath}.`);
-    }
-    const buildManifest: CodemationConsumerBuildManifest = {
-      buildVersion: parsedManifest.buildVersion,
-      consumerRoot: path.resolve(parsedManifest.consumerRoot),
-      entryPath: path.resolve(parsedManifest.entryPath),
-      pluginEntryPath: path.resolve(parsedManifest.pluginEntryPath),
-      workflowSourcePaths: parsedManifest.workflowSourcePaths.filter((workflowSourcePath): workflowSourcePath is string => typeof workflowSourcePath === "string"),
-    };
-    if (!(await this.exists(buildManifest.entryPath))) {
-      throw new Error(`Built consumer output not found at ${buildManifest.entryPath}. Run \`codemation build\` before starting the runtime.`);
-    }
-    if (!(await this.exists(buildManifest.pluginEntryPath))) {
-      throw new Error(`Discovered plugins output not found at ${buildManifest.pluginEntryPath}. Run \`codemation build\` before starting the runtime.`);
-    }
-    return buildManifest;
-  }
-
-  private async resolveBuildManifestPath(): Promise<string> {
-    const configuredPath = process.env.CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH;
+  private resolveConsumerRoot(): string {
+    const configuredPath = process.env.CODEMATION_CONSUMER_ROOT;
     if (!configuredPath || configuredPath.trim().length === 0) {
-      throw new Error("Missing CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH.");
+      throw new Error("Missing CODEMATION_CONSUMER_ROOT.");
     }
-    const resolvedPath = path.resolve(configuredPath);
-    if (!(await this.exists(resolvedPath))) {
-      throw new Error(`Build manifest not found at ${resolvedPath}.`);
-    }
-    return resolvedPath;
+    return path.resolve(configuredPath);
   }
 
-  private async emitWorkflowChangedEvents(args: Readonly<{
-    previousContext: RuntimeDevHostContext;
-    nextContext: RuntimeDevHostContext;
-  }>): Promise<void> {
-    const changedWorkflowIds = this.resolveChangedWorkflowIds(args);
-    if (changedWorkflowIds.length === 0) {
-      return;
-    }
-    for (const workflowId of changedWorkflowIds) {
-      await this.sharedWorkflowWebsocketServer.publishToRoom(workflowId, {
-        kind: "workflowChanged",
-        workflowId,
-      });
-    }
-  }
-
-  private async resolveActiveContext(): Promise<RuntimeDevHostContext | null> {
-    const activeRuntime = this.activeRuntime;
-    if (!activeRuntime) {
-      return null;
-    }
-    return await activeRuntime.contextPromise.catch(() => null);
+  private createBuildVersion(): string {
+    return `${Date.now()}-${process.pid}`;
   }
 
   private async publishBuildLifecycleMessage(
@@ -351,27 +239,6 @@ export class RuntimeDevHost {
     for (const workflowId of workflowIds) {
       await this.sharedWorkflowWebsocketServer.publishToRoom(workflowId, createMessage(workflowId));
     }
-  }
-
-  private resolveChangedWorkflowIds(args: Readonly<{
-    previousContext: RuntimeDevHostContext;
-    nextContext: RuntimeDevHostContext;
-  }>): ReadonlyArray<string> {
-    const previousWorkflowsById = this.mapWorkflowsById(args.previousContext);
-    const nextWorkflowsById = this.mapWorkflowsById(args.nextContext);
-    const workflowIds = new Set<string>([
-      ...previousWorkflowsById.keys(),
-      ...nextWorkflowsById.keys(),
-    ]);
-    return [...workflowIds].filter((workflowId) => previousWorkflowsById.get(workflowId) !== nextWorkflowsById.get(workflowId));
-  }
-
-  private mapWorkflowsById(context: RuntimeDevHostContext): ReadonlyMap<string, string> {
-    const mapper = context.application.getContainer().resolve(WorkflowDefinitionMapper);
-    const entries = context.application.getWorkflows().map((workflow) => {
-      return [workflow.id, JSON.stringify(mapper.mapSync(workflow))] as const;
-    });
-    return new Map(entries);
   }
 
   private resolveWorkflowIds(context: RuntimeDevHostContext): ReadonlyArray<string> {
