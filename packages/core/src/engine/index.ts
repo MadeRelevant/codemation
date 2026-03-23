@@ -22,3 +22,7 @@ export { InMemoryRunDataFactory } from "./storage/inMemoryRunDataFactory";
 export { RunSummaryMapper } from "./storage/RunSummaryMapper";
 export { InMemoryRunStateStore } from "./storage/inMemoryRunStateStore";
 
+export { DefaultAsyncSleeper } from "./execution/DefaultAsyncSleeper";
+export { InProcessRetryRunner } from "./execution/InProcessRetryRunner";
+export type { AsyncSleeper } from "./execution/asyncSleeper.types";
+

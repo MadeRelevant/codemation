@@ -1,4 +1,4 @@
-import type { RunnableNodeConfig,TypeToken } from "@codemation/core";
+import { RetryPolicy, type RetryPolicySpec, type RunnableNodeConfig, type TypeToken } from "@codemation/core";
 
 
 
@@ -39,6 +39,7 @@ export class HttpRequest<TInputJson = Readonly<{ url?: string }>, TOutputJson = 
       downloadMode?: HttpRequestDownloadMode;
       id?: string;
     }> = {},
+    public readonly retryPolicy: RetryPolicySpec = RetryPolicy.defaultForHttp,
   ) {}
 
   get id(): string | undefined {

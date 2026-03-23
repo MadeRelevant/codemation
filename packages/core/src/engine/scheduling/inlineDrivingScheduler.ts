@@ -8,6 +8,8 @@ NodeActivationScheduler,
 NodeResolver,
 RunId,
 } from "../../types";
+import { DefaultAsyncSleeper } from "../execution/DefaultAsyncSleeper";
+import { InProcessRetryRunner } from "../execution/InProcessRetryRunner";
 import { MissingRuntimeNode } from "../adapters/persisted-workflow/MissingRuntimeNode";
 import { MissingRuntimeNodeToken } from "../adapters/persisted-workflow/MissingRuntimeNodeToken";
 import { MissingRuntimeTrigger } from "../adapters/persisted-workflow/MissingRuntimeTrigger";
@@ -20,7 +22,10 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
   private readonly scheduledRuns = new Set<RunId>();
   private seq = 0;
 
-  constructor(private readonly nodeResolver: NodeResolver) {}
+  constructor(
+    private readonly nodeResolver: NodeResolver,
+    private readonly retryRunner: InProcessRetryRunner = new InProcessRetryRunner(new DefaultAsyncSleeper()),
+  ) {}
 
   setContinuation(continuation: NodeActivationContinuation): void {
     this.continuation = continuation;
@@ -96,19 +101,22 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
   }
 
   private async executeRequest(request: NodeActivationRequest, inst: unknown): Promise<unknown> {
-    if (request.kind === "multi") {
-      const node = inst as MultiInputNode;
-      if (typeof (node as any)?.executeMulti !== "function") {
-        throw new Error(`Node ${request.nodeId} does not support executeMulti but received multi-input activation`);
+    const policy = request.ctx.config.retryPolicy;
+    return await this.retryRunner.run(policy, async () => {
+      if (request.kind === "multi") {
+        const node = inst as MultiInputNode;
+        if (typeof (node as any)?.executeMulti !== "function") {
+          throw new Error(`Node ${request.nodeId} does not support executeMulti but received multi-input activation`);
+        }
+        return await node.executeMulti(request.inputsByPort, request.ctx as any);
       }
-      return await node.executeMulti(request.inputsByPort, request.ctx as any);
-    }
 
-    const node = inst as Node;
-    if (typeof (node as any)?.execute !== "function") {
-      throw new Error(`Node ${request.nodeId} does not support execute but received single-input activation`);
-    }
-    return await node.execute(request.input, request.ctx as any);
+      const node = inst as Node;
+      if (typeof (node as any)?.execute !== "function") {
+        throw new Error(`Node ${request.nodeId} does not support execute but received single-input activation`);
+      }
+      return await node.execute(request.input, request.ctx as any);
+    });
   }
 
   private async resumeAfterExecutionResult(

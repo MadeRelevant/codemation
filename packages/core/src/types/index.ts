@@ -1,3 +1,7 @@
+export * from "../contracts/retryPolicySpec.types";
+export * from "../contracts/NoRetryPolicy";
+export * from "../contracts/RetryPolicy";
+export * from "../contracts/ExpRetryPolicy";
 export * from "../contracts/credentialTypes";
 export * from "../contracts/runtimeTypes";
 export * from "../contracts/runFinishedAtFactory";

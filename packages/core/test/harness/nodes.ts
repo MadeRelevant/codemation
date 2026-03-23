@@ -8,6 +8,7 @@ NodeConfigBase,
 NodeExecutionContext,
 NodeId,
 NodeOutputs,
+RetryPolicySpec,
 RunnableNodeConfig,
 TypeToken,
 WorkflowId,
@@ -26,7 +27,11 @@ export class CallbackNodeConfig<TItemJson = unknown> implements RunnableNodeConf
   constructor(
     public readonly name: string,
     public readonly onExecute: (args: CallbackExecuteArgs<CallbackNodeConfig<TItemJson>>) => void,
-    public readonly opts: Readonly<{ id?: string; execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }> }> = {},
+    public readonly opts: Readonly<{
+      id?: string;
+      execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }>;
+      retryPolicy?: RetryPolicySpec;
+    }> = {},
   ) {}
 
   get id(): string | undefined {
@@ -35,6 +40,10 @@ export class CallbackNodeConfig<TItemJson = unknown> implements RunnableNodeConf
 
   get execution(): Readonly<{ hint?: "local" | "worker"; queue?: string }> | undefined {
     return this.opts.execution;
+  }
+
+  get retryPolicy(): RetryPolicySpec | undefined {
+    return this.opts.retryPolicy;
   }
 }
 

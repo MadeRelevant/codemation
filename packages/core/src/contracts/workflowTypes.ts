@@ -1,5 +1,6 @@
 import type { TypeToken } from "../di";
 import type { CredentialRequirement } from "./credentialTypes";
+import type { RetryPolicySpec } from "./retryPolicySpec.types";
 
 export type WorkflowId = string;
 export type NodeId = string;
@@ -44,6 +45,8 @@ export interface NodeConfigBase {
   readonly id?: NodeId;
   readonly icon?: string;
   readonly execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }>;
+  /** In-process execute retries (runnable nodes). Triggers typically omit this. */
+  readonly retryPolicy?: RetryPolicySpec;
   getCredentialRequirements?(): ReadonlyArray<CredentialRequirement>;
 }
 

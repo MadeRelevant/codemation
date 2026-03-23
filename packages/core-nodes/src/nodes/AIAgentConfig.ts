@@ -1,12 +1,14 @@
-import type {
-AgentNodeConfig,
-ChatModelConfig,
-Item,
-Items,
-NodeExecutionContext,
-RunnableNodeConfig,
-ToolConfig,
-TypeToken,
+import {
+  RetryPolicy,
+  type AgentNodeConfig,
+  type ChatModelConfig,
+  type Item,
+  type Items,
+  type NodeExecutionContext,
+  type RetryPolicySpec,
+  type RunnableNodeConfig,
+  type ToolConfig,
+  type TypeToken,
 } from "@codemation/core";
 
 import { AIAgentNode } from "./AIAgentNodeFactory";
@@ -30,6 +32,7 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
     public readonly chatModel: ChatModelConfig,
     public readonly tools: ReadonlyArray<ToolConfig> = [],
     public readonly id?: string,
+    public readonly retryPolicy: RetryPolicySpec = RetryPolicy.defaultForAiAgent,
   ) {}
 
   getCredentialRequirements() {

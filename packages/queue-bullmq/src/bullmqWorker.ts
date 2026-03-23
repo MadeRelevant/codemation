@@ -4,6 +4,7 @@ CredentialSessionService,
 Items,
 Node,
 NodeActivationContinuation,
+NodeConfigBase,
 NodeExecutionContext,
 NodeOutputs,
 NodeResolver,
@@ -11,7 +12,13 @@ RunStateStore,
 WorkflowDefinition,
 WorkflowId,
 } from "@codemation/core";
-import { DefaultExecutionContextFactory,InMemoryRunDataFactory,UnavailableBinaryStorage } from "@codemation/core";
+import {
+  DefaultAsyncSleeper,
+  DefaultExecutionContextFactory,
+  InMemoryRunDataFactory,
+  InProcessRetryRunner,
+  UnavailableBinaryStorage,
+} from "@codemation/core";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 
@@ -44,6 +51,7 @@ export class BullmqWorker {
   private readonly binaryStorage: BinaryStorage;
 
   private readonly runDataFactory = new InMemoryRunDataFactory();
+  private readonly retryRunner: InProcessRetryRunner;
   private readonly workers: Worker[] = [];
 
   constructor(
@@ -58,6 +66,7 @@ export class BullmqWorker {
     workflows: unknown = undefined,
     now: () => Date = () => new Date(),
     binaryStorage: BinaryStorage = new UnavailableBinaryStorage(),
+    retryRunner: InProcessRetryRunner = new InProcessRetryRunner(new DefaultAsyncSleeper()),
   ) {
     this.connection = RedisConnectionOptionsFactory.fromConfig(connection);
     this.queuePrefix = queuePrefix;
@@ -69,6 +78,7 @@ export class BullmqWorker {
     this.workflows = workflows;
     this.now = now;
     this.binaryStorage = binaryStorage;
+    this.retryRunner = retryRunner;
 
     for (const q of queues) {
       const queueName = `${this.queuePrefix}.${q}`;
@@ -140,7 +150,10 @@ export class BullmqWorker {
         nodeId: request.nodeId as any,
         inputsByPort: { in: request.input },
       });
-      const outputs = (await node.execute(request.input, ctx as any)) as NodeOutputs;
+      const policy = (def.config as NodeConfigBase).retryPolicy;
+      const outputs = (await this.retryRunner.run(policy, async () =>
+        node.execute(request.input, ctx as any),
+      )) as NodeOutputs;
       return await this.continuation.resumeFromNodeResult({
         runId: request.runId as any,
         activationId: request.activationId as any,
