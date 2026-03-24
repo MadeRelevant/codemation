@@ -1,9 +1,9 @@
 import { EngineExecutionLimitsPolicy, ENGINE_EXECUTION_LIMITS_DEFAULTS, type EngineExecutionLimitsPolicyConfig } from "./EngineExecutionLimitsPolicy";
 
 /**
- * Composition-root helper: builds {@link EngineExecutionLimitsPolicy} from defaults plus optional host overrides.
+ * Builds {@link EngineExecutionLimitsPolicy} by merging {@link ENGINE_EXECUTION_LIMITS_DEFAULTS} with optional `overrides` (e.g. host `runtime.engineExecutionLimits`).
  */
-export class EngineExecutionLimitsPolicyMergeFactory {
+export class EngineExecutionLimitsPolicyFactory {
   create(overrides?: Partial<EngineExecutionLimitsPolicyConfig>): EngineExecutionLimitsPolicy {
     return new EngineExecutionLimitsPolicy({ ...ENGINE_EXECUTION_LIMITS_DEFAULTS, ...overrides });
   }

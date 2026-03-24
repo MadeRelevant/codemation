@@ -10,7 +10,7 @@ CoreTokens,
 DefaultDrivingScheduler,
 DefaultExecutionContextFactory,
 Engine,
-EngineExecutionLimitsPolicyMergeFactory,
+EngineExecutionLimitsPolicyFactory,
 EngineFactory,
 EngineWorkflowRunnerService,
 InlineDrivingScheduler,
@@ -468,7 +468,7 @@ export class CodemationApplication {
     this.container.register(EngineFactory, { useClass: EngineFactory });
     this.container.register(CoreTokens.EngineExecutionLimitsPolicy, {
       useFactory: instanceCachingFactory(
-        () => new EngineExecutionLimitsPolicyMergeFactory().create(this.runtimeConfig.engineExecutionLimits),
+        () => new EngineExecutionLimitsPolicyFactory().create(this.runtimeConfig.engineExecutionLimits),
       ),
     });
     this.container.register(Engine, {

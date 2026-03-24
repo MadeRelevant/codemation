@@ -27,7 +27,7 @@ export { InProcessRetryRunner } from "./execution/InProcessRetryRunner";
 export type { AsyncSleeper } from "./execution/asyncSleeper.types";
 
 export { ENGINE_EXECUTION_LIMITS_DEFAULTS, EngineExecutionLimitsPolicy, type EngineExecutionLimitsPolicyConfig } from "./application/policies/EngineExecutionLimitsPolicy";
-export { EngineExecutionLimitsPolicyMergeFactory } from "./application/policies/EngineExecutionLimitsPolicyMergeFactory";
+export { EngineExecutionLimitsPolicyFactory } from "./application/policies/EngineExecutionLimitsPolicyFactory";
 export { RootExecutionOptionsFactory } from "./application/policies/RootExecutionOptionsFactory";
 export { RunPolicySnapshotFactory } from "./application/policies/RunPolicySnapshotFactory";
 export { DirectedCycleDetector } from "./domain/planning/DirectedCycleDetector";

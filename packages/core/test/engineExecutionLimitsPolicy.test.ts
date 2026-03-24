@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import { EngineExecutionLimitsPolicy } from "../src/engine/application/policies/EngineExecutionLimitsPolicy.ts";
-import { EngineExecutionLimitsPolicyMergeFactory } from "../src/engine/application/policies/EngineExecutionLimitsPolicyMergeFactory.ts";
+import { EngineExecutionLimitsPolicyFactory } from "../src/engine/application/policies/EngineExecutionLimitsPolicyFactory.ts";
 
-test("EngineExecutionLimitsPolicyMergeFactory applies partial overrides", () => {
-  const p = new EngineExecutionLimitsPolicyMergeFactory().create({ hardMaxNodeActivations: 42, defaultMaxNodeActivations: 42 });
+test("EngineExecutionLimitsPolicyFactory merges overrides from args", () => {
+  const p = new EngineExecutionLimitsPolicyFactory().create({ hardMaxNodeActivations: 42, defaultMaxNodeActivations: 42 });
   const o = p.mergeExecutionOptionsForNewRun(undefined, undefined);
   assert.equal(o.maxNodeActivations, 42);
   assert.equal(o.maxSubworkflowDepth, 32);
