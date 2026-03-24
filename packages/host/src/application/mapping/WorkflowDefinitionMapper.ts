@@ -1,13 +1,16 @@
 import type { ChatModelConfig,NodeDefinition,ToolConfig,WorkflowDefinition } from "@codemation/core";
 import { AgentAttachmentNodeIdFactory,AgentConfigInspector } from "@codemation/core";
-import { injectable } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import type { WorkflowDto,WorkflowNodeDto,WorkflowSummary } from "../contracts/WorkflowViewContracts";
 import type { DataMapper } from "./DataMapper";
 import { WorkflowPolicyUiPresentationFactory } from "./WorkflowPolicyUiPresentationFactory";
 
 @injectable()
 export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, WorkflowDto> {
-  constructor(private readonly policyUi: WorkflowPolicyUiPresentationFactory) {}
+  constructor(
+    @inject(WorkflowPolicyUiPresentationFactory)
+    private readonly policyUi: WorkflowPolicyUiPresentationFactory,
+  ) {}
 
   async map(workflow: WorkflowDefinition): Promise<WorkflowDto> {
     return this.mapSync(workflow);

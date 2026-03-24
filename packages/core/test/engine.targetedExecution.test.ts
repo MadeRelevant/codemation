@@ -15,7 +15,7 @@ import {
   type TypeToken,
   WorkflowBuilder,
 } from "../src/index.ts";
-import { CallbackNodeConfig, chain, createEngineTestKit, items } from "./harness/index.ts";
+import { CallbackNodeConfig, chain, createEngineTestKit, items, pollRunStoreUntilPendingNode } from "./harness/index.ts";
 
 class TargetedExecutionStateFactory {
   static fromRunState(state: PersistedRunState): {
@@ -521,7 +521,7 @@ test("serialized stop conditions survive worker scheduling and stop before downs
   });
 
   assert.equal(scheduled.status, "pending");
-  await kit.waitForActivations(1);
+  await pollRunStoreUntilPendingNode(kit.runStore, scheduled.runId, "n2");
   const storedPending = await kit.runStore.load(scheduled.runId);
   assert.equal(storedPending?.control?.stopCondition?.kind, "nodeCompleted");
   assert.equal(storedPending?.control?.stopCondition && "nodeId" in storedPending.control.stopCondition ? storedPending.control.stopCondition.nodeId : undefined, "n2");

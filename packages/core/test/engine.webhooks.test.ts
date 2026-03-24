@@ -137,7 +137,8 @@ test("webhook runs execute the matched trigger first and keep worker-hinted down
   assert.equal(result.runStatus, "completed");
   assert.deepEqual(result.response.map((item) => item.json), [{ orderId: "ord_1" }]);
   assert.equal(events.join(","), "trigger,downstream");
-  assert.equal(kit.activations[0]?.nodeId, "trigger");
+  const stored = await kit.runStore.load(result.runId);
+  assert.equal(stored?.nodeSnapshotsByNodeId.trigger?.status, "completed");
   assert.equal((kit.scheduler as { requests?: ReadonlyArray<unknown> }).requests?.length ?? 0, 0);
 });
 

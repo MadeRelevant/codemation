@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import type { Items,NodeExecutionContext,NodeOutputs,TriggerNodeConfig,TriggerSetupContext,TypeToken } from "../src/index.ts";
+import type { Items, NodeExecutionContext, NodeOutputs, TriggerNodeConfig, TriggerSetupContext, TypeToken } from "../src/index.ts";
 import { WorkflowBuilder } from "../src/index.ts";
 import { createEngineTestKit } from "./harness/index.ts";
 
@@ -21,12 +21,7 @@ class MatchingWebhookTriggerNode {
   readonly kind = "trigger" as const;
   readonly outputPorts = ["main"] as const;
 
-  async setup(ctx: TriggerSetupContext<MatchingWebhookTriggerConfig>): Promise<undefined> {
-    ctx.registerWebhook({
-      endpointKey: ctx.config.endpointKey,
-      methods: ctx.config.methods,
-      parseJsonBody: (body) => body,
-    });
+  async setup(_ctx: TriggerSetupContext<MatchingWebhookTriggerConfig>): Promise<undefined> {
     return undefined;
   }
 
@@ -35,23 +30,28 @@ class MatchingWebhookTriggerNode {
   }
 }
 
-test("engine matches registered webhook endpoints back to workflow triggers", async () => {
+test("engine matches webhook endpoints from workflow catalog to trigger nodes", async () => {
   const trigger = new MatchingWebhookTriggerConfig("Webhook trigger", "incoming", ["POST"], "trigger");
   const workflow = new WorkflowBuilder({ id: "wf.webhook.match", name: "Webhook match" }).trigger(trigger).build();
   const kit = createEngineTestKit();
 
   await kit.start([workflow]);
 
-  const match = kit.engine.matchWebhookTrigger({
-    endpointId: "wf.webhook.match.trigger.incoming",
+  const resolution = kit.engine.resolveWebhookTrigger({
+    endpointPath: "incoming",
     method: "POST",
   });
 
-  assert.deepEqual(match && { workflowId: match.workflowId, nodeId: match.nodeId, endpointId: match.endpointId }, {
-    workflowId: "wf.webhook.match",
-    nodeId: "trigger",
-    endpointId: "wf.webhook.match.trigger.incoming",
-  });
+  assert.equal(resolution.status, "ok");
+  if (resolution.status !== "ok") throw new Error("expected ok");
+  assert.deepEqual(
+    { workflowId: resolution.match.workflowId, nodeId: resolution.match.nodeId, endpointPath: resolution.match.endpointPath },
+    {
+      workflowId: "wf.webhook.match",
+      nodeId: "trigger",
+      endpointPath: "incoming",
+    },
+  );
 });
 
 test("engine webhook matcher rejects methods that were not registered", async () => {
@@ -61,10 +61,10 @@ test("engine webhook matcher rejects methods that were not registered", async ()
 
   await kit.start([workflow]);
 
-  const match = kit.engine.matchWebhookTrigger({
-    endpointId: "wf.webhook.methods.trigger.incoming",
+  const resolution = kit.engine.resolveWebhookTrigger({
+    endpointPath: "incoming",
     method: "GET",
   });
 
-  assert.equal(match, undefined);
+  assert.equal(resolution.status, "methodNotAllowed");
 });

@@ -109,7 +109,6 @@ export class EngineFactory {
       nodeStatePublisherFactory,
       credentialResolverFactory,
       activationEnqueueService,
-      deps.nodeActivationObserver,
       nodeEventPublisher,
       semantics,
       waiters,
@@ -118,7 +117,6 @@ export class EngineFactory {
       rootExecutionOptionsFactory,
     );
 
-    const webhookBasePath = deps.webhookBasePath ?? "/webhooks";
     const triggerRuntime = new TriggerRuntimeService(
       deps.workflowRepository,
       deps.runIdFactory,
@@ -128,9 +126,6 @@ export class EngineFactory {
       nodeStatePublisherFactory,
       deps.nodeResolver,
       deps.triggerSetupStateStore,
-      deps.webhookRegistrar,
-      deps.webhookTriggerMatcher,
-      webhookBasePath,
       {
         emit: async (workflow, triggerNodeId, items) => {
           await workflowRunStarter.runWorkflow(workflow, triggerNodeId, items, undefined);

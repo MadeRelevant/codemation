@@ -7,7 +7,14 @@ import { InMemoryWorkflowRegistry,PersistedWorkflowSnapshotFactory } from "../sr
 import { MissingRuntimeNodeDefinitionFactory } from "../src/engine/adapters/persisted-workflow/MissingRuntimeNodeDefinitionFactory";
 import { PersistedWorkflowConfigHydrator } from "../src/engine/adapters/persisted-workflow/PersistedWorkflowConfigHydrator";
 import { PersistedWorkflowResolver } from "../src/engine/adapters/persisted-workflow/PersistedWorkflowResolver";
-import { CallbackNodeConfig,CapturingScheduler,chain,createEngineTestKit,items } from "./harness/index.ts";
+import {
+  CallbackNodeConfig,
+  CapturingScheduler,
+  chain,
+  createEngineTestKit,
+  items,
+  pollRunStoreUntilPendingNode,
+} from "./harness/index.ts";
 
 @tool({ packageName: "@codemation/test" })
 class NestedTokenDependency {}
@@ -63,11 +70,8 @@ test("engine can offload a node (pending) and resume later", async () => {
 
   const r1 = await kit.engine.runWorkflow(wf, "n1", items([{ a: 1 }]), undefined);
   assert.equal(r1.status, "pending");
-  await kit.waitForActivations(1);
+  await pollRunStoreUntilPendingNode(kit.runStore, r1.runId, "n2");
   assert.equal(events.join(","), "n1");
-  assert.equal(kit.activations.length, 1);
-  const firstActivation = kit.activations[0] as { nodeId?: string } | undefined;
-  assert.equal(firstActivation?.nodeId, "n1");
 
   const storedPending = await kit.runStore.load(r1.runId);
   assert.ok(storedPending);
@@ -88,7 +92,6 @@ test("engine can offload a node (pending) and resume later", async () => {
   });
 
   assert.equal(r2.status, "pending");
-  await kit.waitForActivations(3);
   const done = await kit.engine.waitForCompletion(r1.runId);
   assert.equal(done.status, "completed");
   assert.equal(events.join(","), "n1,n3"); // n2 was offloaded, so its callback never ran locally
@@ -97,12 +100,9 @@ test("engine can offload a node (pending) and resume later", async () => {
   const storedDone = await kit.runStore.load(r1.runId);
   assert.ok(storedDone);
   assert.equal(storedDone.status, "completed");
-
-  // Activation order: n1 (local), n2 (resume result), n3 (local)
-  assert.deepEqual(
-    kit.activations.map((a: any) => a.nodeId),
-    ["n1", "n2", "n3"],
-  );
+  assert.equal(storedDone.nodeSnapshotsByNodeId.n1?.status, "completed");
+  assert.equal(storedDone.nodeSnapshotsByNodeId.n2?.status, "completed");
+  assert.equal(storedDone.nodeSnapshotsByNodeId.n3?.status, "completed");
 });
 
 test("engine persists workflow snapshots and execution mode metadata", async () => {

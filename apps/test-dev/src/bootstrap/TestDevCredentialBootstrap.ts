@@ -61,48 +61,46 @@ export class TestDevCredentialBootstrap implements CodemationBootHook {
   }
 
   private async ensureOpenAiCredentialBinding(context: CodemationBootContext): Promise<void> {
-    const slot = this.findWorkflowCredentialSlot(context, "wf.example", TestDevCredentialBootstrap.openAiCredentialTypeId);
-    if (!slot) {
-      return;
-    }
-    try {
-      const instanceId = await this.ensureEnvCredentialInstance({
-        displayName: TestDevCredentialBootstrap.openAiCredentialDisplayName,
-        typeId: TestDevCredentialBootstrap.openAiCredentialTypeId,
-        envSecretRefs: {
-          apiKey: "OPENAI_API_KEY",
-        },
-      });
-      await this.credentialBindingService.upsertBinding({
-        workflowId: slot.workflowId,
-        nodeId: slot.nodeId,
-        slotKey: slot.requirement.slotKey,
-        instanceId,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("Unknown credential type")) {
-        return;
-      }
-      throw error;
-    }
+    await this.ensureEnvCredentialBindingForSlot(context, {
+      workflowId: "wf.example",
+      typeId: TestDevCredentialBootstrap.openAiCredentialTypeId,
+      displayName: TestDevCredentialBootstrap.openAiCredentialDisplayName,
+      envSecretRefs: { apiKey: "OPENAI_API_KEY" },
+    });
   }
 
   private async ensureGmailCredentialBinding(context: CodemationBootContext): Promise<void> {
-    const slot = this.findWorkflowCredentialSlot(context, "wf.gmail.pull", TestDevCredentialBootstrap.gmailCredentialTypeId);
+    await this.ensureEnvCredentialBindingForSlot(context, {
+      workflowId: "wf.gmail.pull",
+      typeId: TestDevCredentialBootstrap.gmailCredentialTypeId,
+      displayName: TestDevCredentialBootstrap.gmailCredentialDisplayName,
+      envSecretRefs: {
+        clientEmail: "GMAIL_SERVICE_ACCOUNT_CLIENT_EMAIL",
+        privateKey: "GMAIL_SERVICE_ACCOUNT_PRIVATE_KEY",
+        projectId: "GMAIL_SERVICE_ACCOUNT_PROJECT_ID",
+        delegatedUser: this.resolveGmailDelegatedUserVariable(context),
+      },
+    });
+  }
+
+  private async ensureEnvCredentialBindingForSlot(
+    context: CodemationBootContext,
+    args: Readonly<{
+      workflowId: string;
+      typeId: string;
+      displayName: string;
+      envSecretRefs: Readonly<Record<string, string>>;
+    }>,
+  ): Promise<void> {
+    const slot = this.findWorkflowCredentialSlot(context, args.workflowId, args.typeId);
     if (!slot) {
       return;
     }
     try {
       const instanceId = await this.ensureEnvCredentialInstance({
-        displayName: TestDevCredentialBootstrap.gmailCredentialDisplayName,
-        typeId: TestDevCredentialBootstrap.gmailCredentialTypeId,
-        envSecretRefs: {
-          clientEmail: "GMAIL_SERVICE_ACCOUNT_CLIENT_EMAIL",
-          privateKey: "GMAIL_SERVICE_ACCOUNT_PRIVATE_KEY",
-          projectId: "GMAIL_SERVICE_ACCOUNT_PROJECT_ID",
-          delegatedUser: this.resolveGmailDelegatedUserVariable(context),
-        },
+        displayName: args.displayName,
+        typeId: args.typeId,
+        envSecretRefs: args.envSecretRefs,
       });
       await this.credentialBindingService.upsertBinding({
         workflowId: slot.workflowId,

@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { CodemationConsumerConfigLoader } from "@codemation/host/server";
+import { CodemationConsumerConfigLoader,CodemationPluginDiscovery,type CodemationDiscoveredPluginPackage } from "@codemation/host/server";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -21,8 +21,6 @@ type CodemationConsumerOutputBuildSnapshot,
 import { CodemationDevSourceWatcher } from "./CodemationDevSourceWatcher";
 import { CodemationDevLock } from "./CodemationDevLock";
 import { CodemationLocalUserCreator } from "./CodemationLocalUserCreator";
-import { CodemationPluginDiscovery,type CodemationDiscoveredPluginPackage } from "./CodemationPluginDiscovery";
-
 type CodemationConsumerBuildManifest = Readonly<{
   buildVersion: string;
   consumerRoot: string;

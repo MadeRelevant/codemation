@@ -1,5 +1,6 @@
 import type {
   CurrentStateExecutionRequest,
+  HttpMethod,
   Items,
   NodeActivationContinuation,
   NodeActivationId,
@@ -14,6 +15,7 @@ import type {
   RunStateStore,
   WebhookRunResult,
   WebhookTriggerMatcher,
+  WebhookTriggerResolution,
   WorkflowDefinition,
   WorkflowId,
   WorkflowCatalog,
@@ -71,6 +73,7 @@ export class Engine implements NodeActivationContinuation {
   loadWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): void {
     this.deps.tokenRegistry.registerFromWorkflows?.(workflows);
     this.deps.workflowCatalog.setWorkflows(workflows);
+    this.deps.webhookTriggerMatcher.onEngineWorkflowsLoaded?.();
   }
 
   getTokenRegistry(): EngineFacadeDeps["tokenRegistry"] {
@@ -95,15 +98,19 @@ export class Engine implements NodeActivationContinuation {
   }
 
   async stop(): Promise<void> {
-    return await this.deps.triggerRuntime.stop();
+    await this.deps.triggerRuntime.stop();
+    this.deps.webhookTriggerMatcher.onEngineStopped?.();
   }
 
-  matchWebhookTrigger(args: { endpointId: string; method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" }) {
-    return this.deps.webhookTriggerMatcher.match(args);
-  }
-
-  findWebhookTrigger(endpointId: string) {
-    return this.deps.webhookTriggerMatcher.lookup(endpointId);
+  resolveWebhookTrigger(args: { endpointPath: string; method: HttpMethod }): WebhookTriggerResolution {
+    const entry = this.deps.webhookTriggerMatcher.lookup(args.endpointPath);
+    if (!entry) {
+      return { status: "notFound" };
+    }
+    if (!entry.methods.includes(args.method)) {
+      return { status: "methodNotAllowed", match: entry };
+    }
+    return { status: "ok", match: entry };
   }
 
   async createTriggerTestItems(args: { workflow: WorkflowDefinition; nodeId: NodeId }): Promise<Items | undefined> {

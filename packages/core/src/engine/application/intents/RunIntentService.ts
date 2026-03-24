@@ -8,6 +8,7 @@ import type {
   RunStopCondition,
   WebhookInvocationMatch,
   WebhookRunResult,
+  WebhookTriggerResolution,
   WorkflowDefinition,
   WorkflowRepository,
 } from "../../../types";
@@ -79,21 +80,20 @@ export class RunIntentService {
     });
   }
 
-  matchWebhookTrigger(args: { endpointId: string; method: HttpMethod }): WebhookInvocationMatch | undefined {
-    return this.engine.matchWebhookTrigger(args);
+  resolveWebhookTrigger(args: { endpointPath: string; method: HttpMethod }): WebhookTriggerResolution {
+    return this.engine.resolveWebhookTrigger(args);
   }
 
-  findWebhookTrigger(endpointId: string): WebhookInvocationMatch | undefined {
-    return this.engine.findWebhookTrigger(endpointId);
-  }
-
-  async runMatchedWebhook(args: { endpointId: string; method: HttpMethod; requestItem: Items[number] }): Promise<WebhookRunResult> {
-    const match = this.matchWebhookTrigger(args);
-    if (!match) {
+  async runMatchedWebhook(args: { endpointPath: string; method: HttpMethod; requestItem: Items[number] }): Promise<WebhookRunResult> {
+    const resolution = this.resolveWebhookTrigger(args);
+    if (resolution.status === "notFound") {
       throw new Error("Unknown webhook endpoint");
     }
+    if (resolution.status === "methodNotAllowed") {
+      throw new Error("Method not allowed");
+    }
     return await this.runWebhookMatch({
-      match,
+      match: resolution.match,
       requestItem: args.requestItem,
     });
   }

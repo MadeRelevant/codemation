@@ -2,7 +2,6 @@ import type {
 Container,
 CredentialSessionService,
 ExecutionContextFactory,
-NodeActivationObserver,
 NodeExecutionRequest,
 NodeExecutionScheduler,
 NodeOffloadPolicy,
@@ -12,9 +11,8 @@ RunEventBus,
 RunIdFactory,
 RunResult,
 RunStateStore,
-TriggerSetupStateStore,
-WebhookRegistrar,
-WorkflowDefinition,
+  TriggerSetupStateStore,
+  WorkflowDefinition,
 WorkflowRunnerService,
 } from "../../src/index.ts";
 
@@ -30,7 +28,7 @@ DefaultExecutionContextFactory,
 EngineExecutionLimitsPolicy,
 EngineWorkflowRunnerService,
 HintOnlyOffloadPolicy,
-InMemoryWebhookTriggerMatcher,
+WorkflowCatalogWebhookTriggerMatcher,
 InMemoryRunDataFactory,
 InMemoryRunEventBus,
 InMemoryRunStateStore,
@@ -73,32 +71,6 @@ class CounterFactory implements RunIdFactory {
   }
 }
 
-class TestWebhookRegistrar implements WebhookRegistrar {
-  registerWebhook(spec: Readonly<{
-    workflowId: string;
-    nodeId: string;
-    endpointKey: string;
-    methods: ReadonlyArray<"GET" | "POST" | "PUT" | "PATCH" | "DELETE">;
-    parseJsonBody?: (body: unknown) => unknown;
-    basePath: string;
-  }>) {
-    const endpointId = `${spec.workflowId}.${spec.nodeId}.${spec.endpointKey}`;
-    return {
-      endpointId,
-      methods: [...spec.methods],
-      path: `${spec.basePath}/${endpointId}`,
-    };
-  }
-}
-
-class CapturingNodeActivationObserver implements NodeActivationObserver {
-  constructor(private readonly activations: Array<unknown>) {}
-
-  onNodeActivation(stats: unknown): void {
-    this.activations.push(stats);
-  }
-}
-
 class InMemoryTriggerSetupStateStore implements TriggerSetupStateStore {
   private readonly statesByKey = new Map<string, PersistedTriggerSetupState>();
 
@@ -124,10 +96,6 @@ function makeCounter(prefix: string): () => string {
   return () => `${prefix}${++i}`;
 }
 
-async function sleep(ms: number): Promise<void> {
-  await new Promise((r) => setTimeout(r, ms));
-}
-
 export type EngineTestKitOptions = Partial<{
   container: Container;
   providers: Map<InjectionToken<unknown>, unknown>;
@@ -148,7 +116,6 @@ export type EngineTestKitOptions = Partial<{
 }>;
 
 export function createEngineTestKit(options: EngineTestKitOptions = {}) {
-  const activations: Array<unknown> = [];
   const runStore = options.runStore ?? new InMemoryRunStateStore();
   const scheduler = options.scheduler ?? new CapturingScheduler();
   const offloadPolicy = options.offloadPolicy ?? new HintOnlyOffloadPolicy();
@@ -186,12 +153,10 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   dependencyContainer.registerInstance(CoreTokens.RunDataFactory, runDataFactory);
   dependencyContainer.registerInstance(CoreTokens.ExecutionContextFactory, executionContextFactory);
   dependencyContainer.registerInstance(CoreTokens.RunEventBus, eventBus);
-  dependencyContainer.registerInstance(CoreTokens.WebhookRegistrar, new TestWebhookRegistrar());
-  dependencyContainer.registerInstance(CoreTokens.NodeActivationObserver, new CapturingNodeActivationObserver(activations));
   dependencyContainer.register(EngineFactory, { useClass: EngineFactory });
 
   const tokenRegistry = new PersistedWorkflowTokenRegistry();
-  const webhookTriggerMatcher = new InMemoryWebhookTriggerMatcher();
+  const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(workflowCatalog);
   const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
   const engine = dependencyContainer.resolve(EngineFactory).create({
     credentialSessions,
@@ -199,12 +164,9 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
     workflowCatalog,
     workflowRepository: workflowCatalog,
     nodeResolver,
-    webhookRegistrar: new TestWebhookRegistrar(),
     webhookTriggerMatcher,
-    nodeActivationObserver: new CapturingNodeActivationObserver(activations),
     runIdFactory: new CounterFactory(makeRunId, makeActivationId),
     activationIdFactory: new CounterFactory(makeRunId, makeActivationId),
-    webhookBasePath: options.webhookBasePath ?? "/webhooks",
     runStore,
     triggerSetupStateStore,
     activationScheduler,
@@ -220,17 +182,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   dependencyContainer.registerInstance(SubWorkflowRunnerNode, new SubWorkflowRunnerNode(workflowRunner as WorkflowRunnerService));
 
   async function start(workflows: WorkflowDefinition[]): Promise<void> {
-    workflowCatalog.setWorkflows(workflows);
     await engine.start(workflows);
-  }
-
-  async function waitForActivations(count: number, timeoutMs = 1000): Promise<void> {
-    const startAtNs = process.hrtime.bigint();
-    while (activations.length < count) {
-      const elapsedMs = Number(process.hrtime.bigint() - startAtNs) / 1_000_000;
-      if (elapsedMs > timeoutMs) throw new Error(`Timed out waiting for activations: expected ${count}, got ${activations.length}`);
-      await sleep(0);
-    }
   }
 
   async function runToCompletion(args: { wf: WorkflowDefinition; startAt: string; items: any; parent?: any }): Promise<RunResult> {
@@ -245,13 +197,10 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
     triggerSetupStateStore,
     scheduler: scheduler as CapturingScheduler | NodeExecutionScheduler,
     offloadPolicy,
-    activations,
     workflowRunner,
     start,
-    waitForActivations,
     runToCompletion,
     makeRunId,
     makeActivationId,
   };
 }
-

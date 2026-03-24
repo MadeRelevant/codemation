@@ -1,4 +1,4 @@
-import { RunIntentService,inject,injectable } from "@codemation/core";
+import { RunIntentService, inject, injectable } from "@codemation/core";
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import { HandleWebhookInvocationCommand } from "../../../application/commands/HandleWebhookInvocationCommand";
 import { ApplicationTokens } from "../../../applicationTokens";
@@ -19,15 +19,18 @@ export class WebhookHttpRouteHandler {
 
   async postWebhook(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      const match = this.runIntentService.matchWebhookTrigger({
-        endpointId: decodeURIComponent(params.endpointId!),
-        method: request.method.toUpperCase() as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
-      });
-      const requestItem = await this.requestToWebhookItemMapper.map(request, match?.parseJsonBody);
+      const endpointPath = decodeURIComponent(params.endpointPath ?? "");
+      const method = request.method.toUpperCase() as "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+      const resolution = this.runIntentService.resolveWebhookTrigger({ endpointPath, method });
+      if (resolution.status === "notFound") {
+        return Response.json({ error: "Unknown webhook endpoint" }, { status: 404 });
+      }
+      if (resolution.status === "methodNotAllowed") {
+        return Response.json({ error: "Method not allowed" }, { status: 405 });
+      }
+      const requestItem = await this.requestToWebhookItemMapper.map(request, resolution.match);
       return Response.json(
-        await this.commandBus.execute(
-          new HandleWebhookInvocationCommand(params.endpointId!, request.method.toUpperCase(), requestItem),
-        ),
+        await this.commandBus.execute(new HandleWebhookInvocationCommand(endpointPath, request.method.toUpperCase(), requestItem)),
       );
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);

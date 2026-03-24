@@ -1,4 +1,4 @@
-import type { Items,NodeId,WorkflowId } from "./workflowTypes";
+import type { Items, NodeId, WorkflowId } from "./workflowTypes";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -9,16 +9,8 @@ export interface WebhookControlSignal {
   readonly continueItems?: Items;
 }
 
-export interface WebhookSpec {
-  endpointKey: string;
-  methods: ReadonlyArray<HttpMethod>;
-  parseJsonBody?: (body: unknown) => unknown;
-}
-
-export interface WebhookRegistration {
-  endpointId: string;
-  methods: ReadonlyArray<HttpMethod>;
-  path: string;
+export interface WebhookTriggerRoutingDiagnostics {
+  warn(message: string): void;
 }
 
 export interface TriggerInstanceId {
@@ -26,23 +18,28 @@ export interface TriggerInstanceId {
   nodeId: NodeId;
 }
 
+/** Match for an incoming HTTP request: user-defined URL segment + workflow trigger node. */
 export interface WebhookInvocationMatch {
-  endpointId: string;
+  /** Same value as the webhook trigger's configured endpoint key (URL segment under the webhook base path). */
+  endpointPath: string;
   workflowId: WorkflowId;
   nodeId: NodeId;
   methods: ReadonlyArray<HttpMethod>;
   parseJsonBody?: (body: unknown) => unknown;
 }
 
+/** Result of resolving an HTTP method + endpoint path against the catalog webhook index (404 vs 405 vs match). */
+export type WebhookTriggerResolution =
+  | { status: "notFound" }
+  | { status: "methodNotAllowed"; match: WebhookInvocationMatch }
+  | { status: "ok"; match: WebhookInvocationMatch };
+
+/**
+ * Resolves webhook routes from workflow definitions (catalog-backed index, no registration at trigger setup).
+ */
 export interface WebhookTriggerMatcher {
-  register(args: {
-    workflowId: WorkflowId;
-    nodeId: NodeId;
-    endpointId: string;
-    methods: ReadonlyArray<HttpMethod>;
-    parseJsonBody?: (body: unknown) => unknown;
-  }): void;
-  clear?(): void;
-  lookup(endpointId: string): WebhookInvocationMatch | undefined;
-  match(args: { endpointId: string; method: HttpMethod }): WebhookInvocationMatch | undefined;
+  match(args: { endpointPath: string; method: HttpMethod }): WebhookInvocationMatch | undefined;
+  lookup(endpointPath: string): WebhookInvocationMatch | undefined;
+  onEngineWorkflowsLoaded?(): void;
+  onEngineStopped?(): void;
 }

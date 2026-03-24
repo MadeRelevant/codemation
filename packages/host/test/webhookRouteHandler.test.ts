@@ -1,12 +1,23 @@
 // @vitest-environment node
 
-import type { WorkflowDefinition } from "@codemation/core";
-import { beforeEach,describe,expect,it,vi } from "vitest";
+import type { WebhookInvocationMatch, WebhookTriggerResolution, WorkflowDefinition } from "@codemation/core";
+import { InMemoryBinaryStorage } from "@codemation/core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Command } from "../src/application/bus/Command";
 import type { CommandBus } from "../src/application/bus/CommandBus";
 import { HandleWebhookInvocationCommandHandler } from "../src/application/commands/HandleWebhookInvocationCommandHandler";
 import { RequestToWebhookItemMapper } from "../src/infrastructure/webhooks/RequestToWebhookItemMapper";
 import { WebhookHttpRouteHandler } from "../src/presentation/http/routeHandlers/WebhookHttpRouteHandler";
+
+class WebhookRouteHandlerTestIdFactory {
+  makeRunId(): string {
+    return "run_webhook_test";
+  }
+
+  makeActivationId(): string {
+    return "act_webhook_test";
+  }
+}
 
 class FrontendWebhookWorkflowFixture {
   static createWorkflow(): WorkflowDefinition {
@@ -19,10 +30,37 @@ class FrontendWebhookWorkflowFixture {
   }
 }
 
+function resolveWebhookFromEntry(
+  entry: Readonly<{
+    endpointPath: string;
+    workflowId: string;
+    nodeId: string;
+    methods: ReadonlyArray<"GET" | "POST" | "PUT" | "PATCH" | "DELETE">;
+    parseJsonBody?: (body: unknown) => unknown;
+  }> | undefined,
+  endpointPath: string,
+  method: string,
+): WebhookTriggerResolution {
+  if (!entry || entry.endpointPath !== endpointPath) {
+    return { status: "notFound" };
+  }
+  const match: WebhookInvocationMatch = {
+    endpointPath: entry.endpointPath,
+    workflowId: entry.workflowId,
+    nodeId: entry.nodeId,
+    methods: [...entry.methods],
+    parseJsonBody: entry.parseJsonBody,
+  };
+  if (!entry.methods.includes(method as never)) {
+    return { status: "methodNotAllowed", match };
+  }
+  return { status: "ok", match };
+}
+
 class FrontendWebhookRuntimeFixture {
   static create(args?: Readonly<{
     entry?: Readonly<{
-      endpointId: string;
+      endpointPath: string;
       workflowId: string;
       nodeId: string;
       methods: ReadonlyArray<"GET" | "POST" | "PUT" | "PATCH" | "DELETE">;
@@ -30,44 +68,31 @@ class FrontendWebhookRuntimeFixture {
     }>;
     responseItems?: ReadonlyArray<Readonly<{ json: unknown }>>;
   }>) {
-    const runMatchedWebhook = vi.fn().mockResolvedValue({
-      runId: "run_webhook_route",
-      workflowId: "wf.webhook.route",
-      startedAt: "2026-03-11T12:00:00.000Z",
-      runStatus: "completed",
-      response: args?.responseItems ?? [{ json: { ok: true } }],
-    });
+    const runWebhookMatch = vi.fn().mockImplementation(
+      async ({ match, requestItem }: { match: WebhookInvocationMatch; requestItem: { json?: unknown } }) => {
+        const entry = args?.entry;
+        if (!entry || entry.endpointPath !== match.endpointPath) {
+          throw new Error("Unknown webhook endpoint");
+        }
+        return {
+          runId: "run_webhook_route",
+          workflowId: FrontendWebhookWorkflowFixture.createWorkflow().id,
+          startedAt: "2026-03-11T12:00:00.000Z",
+          runStatus: "completed" as const,
+          response: [{ json: requestItem.json }, ...(args?.responseItems ?? [{ json: { ok: true } }])],
+        };
+      },
+    );
     const workflow = FrontendWebhookWorkflowFixture.createWorkflow();
     return {
       workflow,
-      runMatchedWebhook,
+      runWebhookMatch,
       preparedExecutionRuntime: {
         runIntentService: {
-          findWebhookTrigger: vi.fn().mockImplementation((endpointId: string) => {
-            const entry = args?.entry;
-            return entry?.endpointId === endpointId ? entry : undefined;
-          }),
-          matchWebhookTrigger: vi.fn().mockImplementation(({ endpointId, method }: { endpointId: string; method: string }) => {
-            const entry = args?.entry;
-            if (!entry || entry.endpointId !== endpointId) {
-              return undefined;
-            }
-            return entry.methods.includes(method as never) ? entry : undefined;
-          }),
-          runWebhookMatch: vi.fn().mockImplementation(async ({ match, requestItem }) => {
-            const entry = args?.entry;
-            if (!entry || entry.endpointId !== match.endpointId) {
-              throw new Error("Unknown webhook endpoint");
-            }
-            await runMatchedWebhook({ match, requestItem });
-            return {
-              runId: "run_webhook_route",
-              workflowId: workflow.id,
-              startedAt: "2026-03-11T12:00:00.000Z",
-              runStatus: "completed" as const,
-              response: [{ json: requestItem.json }, ...(args?.responseItems ?? [{ json: { ok: true } }])],
-            };
-          }),
+          resolveWebhookTrigger: vi.fn().mockImplementation(({ endpointPath, method }: { endpointPath: string; method: string }) =>
+            resolveWebhookFromEntry(args?.entry, endpointPath, method),
+          ),
+          runWebhookMatch,
         },
       },
     };
@@ -84,7 +109,12 @@ class FrontendWebhookRouteHandlerFixture {
       execute: async <TResult>(command: Command<TResult>) =>
         (await commandHandler.execute(command as never)) as TResult,
     };
-    return new WebhookHttpRouteHandler(commandBus, runtime.runIntentService as never, new RequestToWebhookItemMapper());
+    const ids = new WebhookRouteHandlerTestIdFactory();
+    return new WebhookHttpRouteHandler(
+      commandBus,
+      runtime.runIntentService as never,
+      new RequestToWebhookItemMapper(new InMemoryBinaryStorage(), ids, ids),
+    );
   }
 }
 
@@ -99,7 +129,7 @@ describe("postWebhookRoute", () => {
 
     const response = await handler.postWebhook(
       new Request("http://localhost/api/webhooks/missing", { method: "POST" }),
-      { endpointId: "missing" },
+      { endpointPath: "missing" },
     );
 
     expect(response.status).toBe(404);
@@ -109,7 +139,7 @@ describe("postWebhookRoute", () => {
   it("returns 405 when the request method is not supported by the registered webhook", async () => {
     const runtime = FrontendWebhookRuntimeFixture.create({
       entry: {
-        endpointId: "incoming",
+        endpointPath: "incoming",
         workflowId: "wf.webhook.route",
         nodeId: "trigger",
         methods: ["POST"],
@@ -119,7 +149,7 @@ describe("postWebhookRoute", () => {
 
     const response = await handler.postWebhook(
       new Request("http://localhost/api/webhooks/incoming", { method: "GET" }),
-      { endpointId: "incoming" },
+      { endpointPath: "incoming" },
     );
 
     expect(response.status).toBe(405);
@@ -127,20 +157,21 @@ describe("postWebhookRoute", () => {
   });
 
   it("maps JSON request data, applies the registered parser, and returns the last output item json", async () => {
-    const runtime = FrontendWebhookRuntimeFixture.create({
-      entry: {
-        endpointId: "incoming",
-        workflowId: "wf.webhook.route",
-        nodeId: "trigger",
-        methods: ["PATCH", "POST"],
-        parseJsonBody(body: unknown): unknown {
-          const source = body as Readonly<{ count: string; name: string }>;
-          return {
-            name: source.name.trim(),
-            count: Number(source.count),
-          };
-        },
+    const entry = {
+      endpointPath: "incoming",
+      workflowId: "wf.webhook.route",
+      nodeId: "trigger",
+      methods: ["PATCH", "POST"] as const,
+      parseJsonBody(body: unknown): unknown {
+        const source = body as Readonly<{ count: string; name: string }>;
+        return {
+          name: source.name.trim(),
+          count: Number(source.count),
+        };
       },
+    };
+    const runtime = FrontendWebhookRuntimeFixture.create({
+      entry,
       responseItems: [{ json: { ok: true } }],
     });
     const handler = FrontendWebhookRouteHandlerFixture.createHandler(runtime.preparedExecutionRuntime);
@@ -154,11 +185,16 @@ describe("postWebhookRoute", () => {
         },
         body: JSON.stringify({ count: "2", name: "  Ada  " }),
       }),
-      { endpointId: "incoming" },
+      { endpointPath: "incoming" },
     );
 
-    expect(runtime.runMatchedWebhook).toHaveBeenCalledWith({
-      match: runtime.preparedExecutionRuntime.runIntentService.findWebhookTrigger("incoming"),
+    const expectedMatch = resolveWebhookFromEntry(entry, "incoming", "PATCH");
+    expect(expectedMatch.status).toBe("ok");
+    if (expectedMatch.status !== "ok") {
+      throw new Error("expected ok match");
+    }
+    expect(runtime.runWebhookMatch).toHaveBeenCalledWith({
+      match: expectedMatch.match,
       requestItem: {
         json: {
           headers: {
@@ -186,13 +222,14 @@ describe("postWebhookRoute", () => {
   });
 
   it("maps non-json request bodies without attempting json parsing", async () => {
+    const entry = {
+      endpointPath: "plain-text",
+      workflowId: "wf.webhook.route",
+      nodeId: "trigger",
+      methods: ["PUT"] as const,
+    };
     const runtime = FrontendWebhookRuntimeFixture.create({
-      entry: {
-        endpointId: "plain-text",
-        workflowId: "wf.webhook.route",
-        nodeId: "trigger",
-        methods: ["PUT"],
-      },
+      entry,
       responseItems: [{ json: { accepted: true } }],
     });
     const handler = FrontendWebhookRouteHandlerFixture.createHandler(runtime.preparedExecutionRuntime);
@@ -205,11 +242,16 @@ describe("postWebhookRoute", () => {
         },
         body: "hello from webhook",
       }),
-      { endpointId: "plain-text" },
+      { endpointPath: "plain-text" },
     );
 
-    expect(runtime.runMatchedWebhook).toHaveBeenCalledWith({
-      match: runtime.preparedExecutionRuntime.runIntentService.findWebhookTrigger("plain-text"),
+    const expectedMatch = resolveWebhookFromEntry(entry, "plain-text", "PUT");
+    expect(expectedMatch.status).toBe("ok");
+    if (expectedMatch.status !== "ok") {
+      throw new Error("expected ok match");
+    }
+    expect(runtime.runWebhookMatch).toHaveBeenCalledWith({
+      match: expectedMatch.match,
       requestItem: {
         json: {
           headers: {

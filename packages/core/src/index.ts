@@ -1,3 +1,4 @@
+export { SystemClock, type Clock } from "./contracts/Clock";
 export * from "./ai/AiHost";
 export * from "./workflow-builder/WorkflowBuilder";
 export * from "./di";

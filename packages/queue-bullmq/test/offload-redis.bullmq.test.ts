@@ -6,14 +6,12 @@ import { type TestContext, onTestFinished, test } from "vitest";
 import type {
 Items,
 Node,
-NodeActivationObserver,
 NodeExecutionContext,
 NodeOutputs,
 PersistedTriggerSetupState,
 RunnableNodeConfig,
 TriggerSetupStateStore,
 TypeToken,
-WebhookRegistrar,
 WorkflowId,
 } from "@codemation/core";
 import {
@@ -28,7 +26,7 @@ EngineWorkflowRunnerService,
 InMemoryRunDataFactory,
 InMemoryRunEventBus,
 InMemoryRunStateStore,
-InMemoryWebhookTriggerMatcher,
+WorkflowCatalogWebhookTriggerMatcher,
 InlineDrivingScheduler,
 NodeInstanceFactory,
 PersistedWorkflowTokenRegistry,
@@ -75,16 +73,6 @@ class UppercaseSubjectNode implements Node<UppercaseSubject<Record<string, unkno
       }),
     };
   }
-}
-
-class TestWebhookRegistrar implements WebhookRegistrar {
-  registerWebhook(): never {
-    throw new Error("not used");
-  }
-}
-
-class NoopNodeActivationObserver implements NodeActivationObserver {
-  onNodeActivation(): void {}
 }
 
 class InMemoryTriggerSetupStateStore implements TriggerSetupStateStore {
@@ -139,7 +127,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   const activationScheduler = new DefaultDrivingScheduler(new ConfigDrivenOffloadPolicy("worker"), scheduler, new InlineDrivingScheduler(nodeResolver));
   const eventBus = new InMemoryRunEventBus();
   const tokenRegistry = new PersistedWorkflowTokenRegistry();
-  const webhookTriggerMatcher = new InMemoryWebhookTriggerMatcher();
+  const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(workflowCatalog);
   const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
   container.registerInstance(CoreTokens.ServiceContainer, container);
   container.registerInstance(CoreTokens.CredentialSessionService, credentialSessions);
@@ -157,8 +145,6 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
   container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory());
   container.registerInstance(CoreTokens.RunEventBus, eventBus);
-  container.registerInstance(CoreTokens.WebhookRegistrar, new TestWebhookRegistrar());
-  container.registerInstance(CoreTokens.NodeActivationObserver, new NoopNodeActivationObserver());
   container.registerInstance(CoreTokens.PersistedWorkflowTokenRegistry, tokenRegistry);
   const engine = container.resolve(EngineFactory).create({
     credentialSessions,
@@ -166,12 +152,9 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
     workflowCatalog,
     workflowRepository: workflowCatalog,
     nodeResolver,
-    webhookRegistrar: new TestWebhookRegistrar(),
     webhookTriggerMatcher,
-    nodeActivationObserver: new NoopNodeActivationObserver(),
     runIdFactory: IdFactory,
     activationIdFactory: IdFactory,
-    webhookBasePath: "/webhooks",
     runStore,
     triggerSetupStateStore,
     activationScheduler,

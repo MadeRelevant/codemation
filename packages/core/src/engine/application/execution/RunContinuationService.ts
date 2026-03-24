@@ -2,9 +2,7 @@ import type {
   ActivationIdFactory,
   ExecutionContextFactory,
   NodeActivationId,
-  NodeActivationObserver,
   NodeActivationRequest,
-  NodeActivationStats,
   NodeExecutionContext,
   NodeExecutionStatePublisher,
   NodeId,
@@ -36,7 +34,6 @@ import { InputPortMap } from "../../domain/execution/InputPortMapFactory";
 import { NodeEventPublisher } from "../events/NodeEventPublisher";
 import { NodeSnapshotFactory } from "../../domain/execution/NodeSnapshotFactory";
 import { NodeExecutionStatePublisherFactory } from "../state/NodeExecutionStatePublisherFactory";
-import { OutputStats } from "../../domain/execution/OutputStatsReporter";
 import { RuntimeContinuationDiagnostics } from "../../domain/execution/RuntimeContinuationDiagnosticsReporter";
 
 import { ActivationEnqueueService } from "./ActivationEnqueueService";
@@ -53,7 +50,6 @@ export class RunContinuationService {
     private readonly nodeStatePublisherFactory: NodeExecutionStatePublisherFactory,
     private readonly credentialResolverFactory: CredentialResolverFactory,
     private readonly activationEnqueueService: ActivationEnqueueService,
-    private readonly nodeActivationObserver: NodeActivationObserver,
     private readonly nodeEventPublisher: NodeEventPublisher,
     private readonly semantics: RunStateSemantics,
     private readonly waiters: EngineWaiters,
@@ -127,12 +123,6 @@ export class RunContinuationService {
     });
 
     data.setOutputs(args.nodeId, args.outputs);
-    this.nodeActivationObserver.onNodeActivation({
-      activationId: args.activationId,
-      nodeId: args.nodeId,
-      itemsIn: state.pending.itemsIn,
-      itemsOutByPort: OutputStats.toItemsOutByPort(args.outputs),
-    } satisfies NodeActivationStats);
     const completedAt = new Date().toISOString();
     const completedSnapshot = this.semantics.createFinishedSnapshot({
       workflow: wf,
@@ -510,12 +500,6 @@ export class RunContinuationService {
     const continuedItems = args.signal.kind === "respondNowAndContinue" ? (args.signal.continueItems ?? []) : args.signal.responseItems;
     const triggerOutputs: NodeOutputs = { main: continuedItems };
     data.setOutputs(args.args.nodeId, triggerOutputs);
-    this.nodeActivationObserver.onNodeActivation({
-      activationId: args.args.activationId,
-      nodeId: args.args.nodeId,
-      itemsIn: args.state.pending?.itemsIn ?? 0,
-      itemsOutByPort: OutputStats.toItemsOutByPort(triggerOutputs),
-    });
 
     const completedSnapshot = this.semantics.createFinishedSnapshot({
       workflow: args.workflow,

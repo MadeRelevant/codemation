@@ -89,7 +89,6 @@ test("trigger nodes are marked completed and emit completion snapshots", async (
   assert.equal(result.status, "completed");
 
   const stored = await runStore.load(result.runId);
-  assert.equal(kit.activations[0]?.nodeId, "trigger");
   assert.equal(stored?.nodeSnapshotsByNodeId.trigger?.status, "completed");
   assert.deepEqual(stored?.nodeSnapshotsByNodeId.trigger?.outputs?.main?.[0]?.json, { x: 1 });
   assert.deepEqual(seenTriggerStatuses, ["completed"]);

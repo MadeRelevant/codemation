@@ -1,4 +1,4 @@
-import type { PersistedRunState,RunListingStore,RunStateStore,RunSummary } from "@codemation/core";
+import type { PersistedRunState,RunId,RunListingStore,RunStateStore,RunSummary } from "@codemation/core";
 import { CoreTokens,inject,injectable } from "@codemation/core";
 import type { WorkflowRunRepository as WorkflowRunRepositoryContract } from "../../domain/runs/WorkflowRunRepository";
 
@@ -23,5 +23,13 @@ export class WorkflowRunRepository implements WorkflowRunRepositoryContract {
       workflowId: args.workflowId ? decodeURIComponent(args.workflowId) : undefined,
       limit: args.limit,
     })) as ReadonlyArray<RunSummary>;
+  }
+
+  async deleteRun(runId: RunId): Promise<void> {
+    const id = decodeURIComponent(runId) as RunId;
+    const deletable = this.runStateStore as RunStateStore & { deleteRun?: (rid: RunId) => Promise<void> };
+    if (deletable.deleteRun) {
+      await deletable.deleteRun(id);
+    }
   }
 }

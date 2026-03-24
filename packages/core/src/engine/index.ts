@@ -1,6 +1,7 @@
+export { InMemoryWorkflowRegistry } from "./adapters/registry/InMemoryWorkflowRegistry";
 export { ContainerNodeResolver } from "./adapters/di/ContainerNodeResolver";
 export { ContainerWorkflowRunnerResolver } from "./adapters/di/ContainerWorkflowRunnerResolver";
-export { InMemoryWebhookTriggerMatcher } from "./adapters/webhooks/InMemoryWebhookTriggerMatcher";
+export { WorkflowCatalogWebhookTriggerMatcher } from "./adapters/webhooks/WorkflowCatalogWebhookTriggerMatcher";
 export { NodeInstanceFactory } from "./adapters/nodes/NodeInstanceFactory";
 export { PersistedWorkflowTokenRegistry } from "./adapters/persisted-workflow/PersistedWorkflowTokenRegistryFactory";
 export { RunIntentService } from "./application/intents/RunIntentService";

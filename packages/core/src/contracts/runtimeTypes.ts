@@ -10,13 +10,7 @@ RunExecutionOptions,
 RunResult,
 RunStateStore,
 } from "./runTypes";
-import type {
-HttpMethod,
-TriggerInstanceId,
-WebhookRegistration,
-WebhookSpec,
-WebhookTriggerMatcher,
-} from "./webhookTypes";
+import type { TriggerInstanceId, WebhookTriggerMatcher } from "./webhookTypes";
 import type {
 ActivationIdFactory,
 BinaryAttachment,
@@ -62,22 +56,6 @@ export type WorkflowRegistry = WorkflowCatalog;
 export interface NodeResolver {
   resolve<T>(token: TypeToken<T>): T;
   getContainer(): Container | undefined;
-}
-
-export interface WebhookRegistrar {
-  registerWebhook(spec: {
-    workflowId: WorkflowId;
-    nodeId: NodeId;
-    endpointKey: string;
-    methods: ReadonlyArray<HttpMethod>;
-    parseJsonBody?: (body: unknown) => unknown;
-    basePath: string;
-  }): WebhookRegistration;
-  clear?(): Promise<void> | void;
-}
-
-export interface NodeActivationObserver {
-  onNodeActivation(stats: NodeActivationStats): void;
 }
 
 export interface NodeExecutionStatePublisher {
@@ -181,7 +159,6 @@ export interface TriggerSetupContext<
   trigger: TriggerInstanceId;
   config: TConfig;
   previousState: TSetupState;
-  registerWebhook(spec: WebhookSpec): WebhookRegistration;
   registerCleanup(cleanup: TriggerCleanupHandle): void;
   emit(items: Items): Promise<void>;
 }
@@ -218,25 +195,9 @@ export interface TriggerCleanupHandle {
   stop(): Promise<void> | void;
 }
 
-export interface NodeActivationStats {
-  activationId: NodeActivationId;
-  nodeId: NodeId;
-  itemsIn: number;
-  itemsOutByPort: Readonly<Record<OutputPortKey, number>>;
-}
-
 export interface EngineHost {
   credentialSessions: CredentialSessionService;
   workflows?: WorkflowRunnerService;
-  registerWebhook(spec: {
-    workflowId: WorkflowId;
-    nodeId: NodeId;
-    endpointKey: string;
-    methods: ReadonlyArray<HttpMethod>;
-    parseJsonBody?: (body: unknown) => unknown;
-    basePath: string;
-  }): WebhookRegistration;
-  onNodeActivation(stats: NodeActivationStats): void;
 }
 
 export interface Node<TConfig extends NodeConfigBase = NodeConfigBase> {
@@ -349,13 +310,10 @@ export interface EngineDeps {
   workflowCatalog: WorkflowCatalog;
   workflowRepository: WorkflowRepository;
   nodeResolver: NodeResolver;
-  webhookRegistrar: WebhookRegistrar;
   triggerSetupStateStore: TriggerSetupStateStore;
   webhookTriggerMatcher: WebhookTriggerMatcher;
-  nodeActivationObserver: NodeActivationObserver;
   runIdFactory: RunIdFactory;
   activationIdFactory: ActivationIdFactory;
-  webhookBasePath?: string;
   runStore: RunStateStore;
   activationScheduler: NodeActivationScheduler;
   runDataFactory: RunDataFactory;

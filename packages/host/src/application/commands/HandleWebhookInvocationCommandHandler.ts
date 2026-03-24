@@ -17,16 +17,16 @@ export class HandleWebhookInvocationCommandHandler extends CommandHandler<Handle
   async execute(command: HandleWebhookInvocationCommand): Promise<unknown> {
     try {
       const requestMethod = command.requestMethod.toUpperCase() as "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-      const endpointId = decodeURIComponent(command.endpointId);
-      const match = this.runIntentService.findWebhookTrigger(endpointId);
-      if (!match) {
+      const endpointPath = decodeURIComponent(command.endpointPath);
+      const resolution = this.runIntentService.resolveWebhookTrigger({ endpointPath, method: requestMethod });
+      if (resolution.status === "notFound") {
         throw new ApplicationRequestError(404, "Unknown webhook endpoint");
       }
-      if (!match.methods.includes(requestMethod)) {
+      if (resolution.status === "methodNotAllowed") {
         throw new ApplicationRequestError(405, "Method not allowed");
       }
       const result = (await this.runIntentService.runWebhookMatch({
-        match,
+        match: resolution.match,
         requestItem: command.requestItem,
       })) satisfies WebhookRunResult;
       return result.response.at(-1)?.json ?? null;

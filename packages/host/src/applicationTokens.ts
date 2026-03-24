@@ -1,4 +1,4 @@
-import type { TypeToken } from "@codemation/core";
+import type { Clock, TypeToken } from "@codemation/core";
 import type { SessionVerifier } from "./application/auth/SessionVerifier";
 import type { Command } from "./application/bus/Command";
 import type { CommandBus } from "./application/bus/CommandBus";
@@ -13,7 +13,6 @@ import type { Logger, LoggerFactory } from "./application/logging/Logger";
 import type { WorkflowWebsocketPublisher } from "./application/websocket/WorkflowWebsocketPublisher";
 import type { CredentialStore } from "./domain/credentials/CredentialServices";
 import type { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
-import type { WebhookEndpointRepository } from "./domain/webhooks/WebhookEndpointRepository";
 import type { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
@@ -38,7 +37,6 @@ export const ApplicationTokens = {
   WorkflowDefinitionRepository: Symbol.for("codemation.application.WorkflowDefinitionRepository") as TypeToken<WorkflowDefinitionRepository>,
   WorkflowDebuggerOverlayRepository: Symbol.for("codemation.application.WorkflowDebuggerOverlayRepository") as TypeToken<WorkflowDebuggerOverlayRepository>,
   WorkflowRunRepository: Symbol.for("codemation.application.WorkflowRunRepository") as TypeToken<WorkflowRunRepository>,
-  WebhookEndpointRepository: Symbol.for("codemation.application.WebhookEndpointRepository") as TypeToken<WebhookEndpointRepository>,
   LoggerFactory: Symbol.for("codemation.application.LoggerFactory") as TypeToken<LoggerFactory>,
   /**
    * Opt-in timing/diagnostics logger (`CODEMATION_PERFORMANCE_LOGGING` + normal minimum log level).
@@ -47,4 +45,5 @@ export const ApplicationTokens = {
   CredentialStore: Symbol.for("codemation.application.CredentialStore") as TypeToken<CredentialStore>,
   ProcessEnv: Symbol.for("codemation.application.ProcessEnv") as TypeToken<Readonly<NodeJS.ProcessEnv>>,
   SessionVerifier: Symbol.for("codemation.application.SessionVerifier") as TypeToken<SessionVerifier>,
+  Clock: Symbol.for("codemation.application.Clock") as TypeToken<Clock>,
 } as const;

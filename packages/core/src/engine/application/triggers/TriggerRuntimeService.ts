@@ -13,8 +13,6 @@ import type {
   TriggerNodeConfig,
   TriggerSetupContext,
   TriggerSetupStateStore,
-  WebhookRegistrar,
-  WebhookTriggerMatcher,
   WorkflowDefinition,
   WorkflowRepository,
 } from "../../../types";
@@ -41,9 +39,6 @@ export class TriggerRuntimeService {
     private readonly nodeExecutionStatePublisherFactory: NodeExecutionStatePublisherFactory,
     private readonly nodeResolver: NodeResolver,
     private readonly triggerSetupStateStore: TriggerSetupStateStore,
-    private readonly webhookRegistrar: WebhookRegistrar,
-    private readonly webhookTriggerMatcher: WebhookTriggerMatcher,
-    private readonly webhookBasePath: string,
     private readonly emitHandler: TriggerEmitHandler,
     private readonly rootExecutionOptionsFactory: RootExecutionOptionsFactory,
   ) {
@@ -74,24 +69,6 @@ export class TriggerRuntimeService {
             previousState: previousState?.state as never,
             registerCleanup: (cleanup) => {
               this.registerTriggerCleanupHandle(trigger, cleanup);
-            },
-            registerWebhook: (spec) => {
-              const registration = this.webhookRegistrar.registerWebhook({
-                workflowId: wf.id,
-                nodeId: def.id,
-                endpointKey: spec.endpointKey,
-                methods: spec.methods,
-                parseJsonBody: spec.parseJsonBody,
-                basePath: this.webhookBasePath,
-              });
-              this.webhookTriggerMatcher.register({
-                workflowId: wf.id,
-                nodeId: def.id,
-                endpointId: registration.endpointId,
-                methods: registration.methods,
-                parseJsonBody: spec.parseJsonBody,
-              });
-              return registration;
             },
             emit: async (items) => {
               await this.emitHandler.emit(wf, def.id, items);
@@ -128,8 +105,6 @@ export class TriggerRuntimeService {
         });
       }
     }
-    await this.webhookRegistrar.clear?.();
-    this.webhookTriggerMatcher.clear?.();
   }
 
   async createTriggerTestItems(args: { workflow: WorkflowDefinition; nodeId: NodeId }): Promise<Items | undefined> {
@@ -207,4 +182,3 @@ export class TriggerRuntimeService {
     return typeof (node as Partial<TestableTriggerNode<TriggerNodeConfig>>).getTestItems === "function";
   }
 }
-

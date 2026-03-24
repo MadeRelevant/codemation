@@ -17,13 +17,14 @@ InlineDrivingScheduler,
 InMemoryBinaryStorage,
 InMemoryRunDataFactory,
 InMemoryRunEventBus,
-InMemoryWebhookTriggerMatcher,
+WorkflowCatalogWebhookTriggerMatcher,
 instanceCachingFactory,
 NodeInstanceFactory,
 PersistedWorkflowTokenRegistry,
 PublishingRunStateStore,
 RootExecutionOptionsFactory,
 RunIntentService,
+SystemClock,
 container as tsyringeContainer,
 UnavailableCredentialSessionService
 } from "@codemation/core";
@@ -43,6 +44,7 @@ import "./application/commands/SetPinnedNodeInputCommandHandler";
 import "./application/commands/StartWorkflowRunCommandHandler";
 import "./application/commands/UserAccountCommandHandlers";
 import { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
+import { WebhookEndpointPathValidator } from "./application/workflows/WebhookEndpointPathValidator";
 import { WorkflowPolicyUiPresentationFactory } from "./application/mapping/WorkflowPolicyUiPresentationFactory";
 import "./application/queries/CredentialQueryHandlers";
 import "./application/queries/GetRunBinaryAttachmentQueryHandler";
@@ -71,7 +73,6 @@ import { OAuth2ConnectService } from "./domain/credentials/OAuth2ConnectServiceF
 import { OAuth2ProviderRegistry } from "./domain/credentials/OAuth2ProviderRegistry";
 import { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
 import { UserAccountService } from "./domain/users/UserAccountServiceRegistry";
-import { WebhookEndpointRepository } from "./domain/webhooks/WebhookEndpointRepository";
 import { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
 import { AuthJsSessionVerifier } from "./infrastructure/auth/AuthJsSessionVerifier";
@@ -100,11 +101,7 @@ import { WorkflowDefinitionRepositoryAdapter } from "./infrastructure/persistenc
 import { LiveWorkflowCatalog } from "./infrastructure/runtime/LiveWorkflowCatalog";
 import { WorkflowRunRepository as SqlWorkflowRunRepository } from "./infrastructure/persistence/WorkflowRunRepository";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
-import { CodemationServerEngineHost } from "./infrastructure/webhooks/CodemationServerEngineHost";
-import { CodemationWebhookRegistry } from "./infrastructure/webhooks/CodemationWebhookRegistry";
 import { RequestToWebhookItemMapper } from "./infrastructure/webhooks/RequestToWebhookItemMapper";
-import { WebhookEndpointRepositoryAdapter } from "./infrastructure/webhooks/WebhookEndpointRepositoryAdapter";
-import { CodemationWorkerHost } from "./infrastructure/worker/CodemationWorkerHost";
 import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";
 import type { CodemationBinding } from "./presentation/config/CodemationBinding";
 import type {
@@ -294,7 +291,7 @@ export class CodemationApplication {
     this.container.registerInstance(ApplicationTokens.WebSocketPort, this.resolveWebSocketPort(effectiveEnv));
     this.container.registerInstance(ApplicationTokens.WebSocketBindHost, effectiveEnv.CODEMATION_WS_BIND_HOST ?? "0.0.0.0");
     this.registerSessionVerification(effectiveEnv);
-    this.registerServerWebhookRuntimeHost();
+    this.registerWebhookRuntimeHost();
     if (args.skipPresentationServers !== true) {
       await this.startPresentationServers();
     }
@@ -336,7 +333,7 @@ export class CodemationApplication {
   }>): Promise<CodemationStopHandle> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
     await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
-    this.registerWorkerWebhookRuntimeHost();
+    this.registerWebhookRuntimeHost();
     if (!this.container.isRegistered(ApplicationTokens.WorkerRuntimeScheduler, true)) {
       throw new Error("Worker mode requires a BullMQ scheduler backed by a Redis event bus.");
     }
@@ -385,35 +382,8 @@ export class CodemationApplication {
     }
   }
 
-  private registerServerWebhookRuntimeHost(): void {
+  private registerWebhookRuntimeHost(): void {
     this.container.registerInstance(CoreTokens.WebhookBasePath, ApiPaths.webhooks());
-    this.container.register(CodemationServerEngineHost, {
-      useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new CodemationServerEngineHost(
-          dependencyContainer.resolve(CodemationWebhookRegistry),
-          dependencyContainer.resolve(CoreTokens.WebhookBasePath),
-        );
-      }),
-    });
-    this.container.register(CoreTokens.WebhookRegistrar, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationServerEngineHost)),
-    });
-    this.container.register(CoreTokens.NodeActivationObserver, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationServerEngineHost)),
-    });
-  }
-
-  private registerWorkerWebhookRuntimeHost(): void {
-    this.container.registerInstance(CoreTokens.WebhookBasePath, ApiPaths.webhooks());
-    this.container.register(CodemationWorkerHost, {
-      useFactory: instanceCachingFactory(() => new CodemationWorkerHost()),
-    });
-    this.container.register(CoreTokens.WebhookRegistrar, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationWorkerHost)),
-    });
-    this.container.register(CoreTokens.NodeActivationObserver, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationWorkerHost)),
-    });
   }
 
   private synchronizeContainerRegistrations(): void {
@@ -476,7 +446,9 @@ export class CodemationApplication {
         const workflowCatalog = dependencyContainer.resolve(CoreTokens.WorkflowCatalog);
         const nodeResolver = dependencyContainer.resolve(CoreTokens.NodeResolver);
         const tokenRegistryLike = dependencyContainer.resolve(CoreTokens.PersistedWorkflowTokenRegistry);
-        const webhookTriggerMatcher = new InMemoryWebhookTriggerMatcher();
+        const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(dependencyContainer.resolve(CoreTokens.WorkflowRepository), {
+          warn: (message) => dependencyContainer.resolve(ServerLoggerFactory).create("codemation.webhooks.routing").warn(message),
+        });
         const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
         return dependencyContainer.resolve(EngineFactory).create({
           credentialSessions: dependencyContainer.resolve(CoreTokens.CredentialSessionService),
@@ -484,13 +456,10 @@ export class CodemationApplication {
           workflowCatalog,
           workflowRepository: dependencyContainer.resolve(CoreTokens.WorkflowRepository),
           nodeResolver,
-          webhookRegistrar: dependencyContainer.resolve(CoreTokens.WebhookRegistrar),
           triggerSetupStateStore: dependencyContainer.resolve(CoreTokens.TriggerSetupStateStore),
           webhookTriggerMatcher,
-          nodeActivationObserver: dependencyContainer.resolve(CoreTokens.NodeActivationObserver),
           runIdFactory: dependencyContainer.resolve(CoreTokens.RunIdFactory),
           activationIdFactory: dependencyContainer.resolve(CoreTokens.ActivationIdFactory),
-          webhookBasePath: dependencyContainer.resolve(CoreTokens.WebhookBasePath),
           runStore: dependencyContainer.resolve(CoreTokens.RunStateStore),
           activationScheduler: dependencyContainer.resolve(CoreTokens.NodeActivationScheduler),
           runDataFactory: dependencyContainer.resolve(CoreTokens.RunDataFactory),
@@ -536,12 +505,10 @@ export class CodemationApplication {
     });
     this.container.register(PrismaClientFactory, { useClass: PrismaClientFactory });
     this.container.register(PrismaMigrationDeployer, { useClass: PrismaMigrationDeployer });
-    this.container.register(CodemationWebhookRegistry, {
-      useFactory: instanceCachingFactory(() => new CodemationWebhookRegistry()),
-    });
     this.container.register(WorkflowPolicyUiPresentationFactory, { useClass: WorkflowPolicyUiPresentationFactory });
     this.container.register(WorkflowDefinitionMapper, { useClass: WorkflowDefinitionMapper });
     this.container.register(RequestToWebhookItemMapper, { useClass: RequestToWebhookItemMapper });
+    this.container.register(WebhookEndpointPathValidator, { useClass: WebhookEndpointPathValidator });
     this.container.register(CredentialSecretCipher, { useClass: CredentialSecretCipher });
     this.container.register(CredentialMaterialResolver, { useClass: CredentialMaterialResolver });
     this.container.register(CredentialFieldEnvOverlayService, { useClass: CredentialFieldEnvOverlayService });
@@ -564,7 +531,6 @@ export class CodemationApplication {
     this.container.register(PrismaTriggerSetupStateStore, { useClass: PrismaTriggerSetupStateStore });
     this.container.register(PrismaWorkflowDebuggerOverlayRepository, { useClass: PrismaWorkflowDebuggerOverlayRepository });
     this.container.register(PrismaCredentialStore, { useClass: PrismaCredentialStore });
-    this.container.register(WebhookEndpointRepositoryAdapter, { useClass: WebhookEndpointRepositoryAdapter });
     this.container.register(ApplicationTokens.WorkflowDefinitionRepository, {
       useFactory: instanceCachingFactory(
         (dependencyContainer) => dependencyContainer.resolve(WorkflowDefinitionRepositoryAdapter) as unknown as WorkflowDefinitionRepository,
@@ -578,11 +544,6 @@ export class CodemationApplication {
     this.container.register(ApplicationTokens.WorkflowDebuggerOverlayRepository, {
       useFactory: instanceCachingFactory(
         (dependencyContainer) => dependencyContainer.resolve(InMemoryWorkflowDebuggerOverlayRepository) as unknown as WorkflowDebuggerOverlayRepository,
-      ),
-    });
-    this.container.register(ApplicationTokens.WebhookEndpointRepository, {
-      useFactory: instanceCachingFactory(
-        (dependencyContainer) => dependencyContainer.resolve(WebhookEndpointRepositoryAdapter) as unknown as WebhookEndpointRepository,
       ),
     });
     this.container.register(ApplicationTokens.CredentialStore, {
@@ -618,6 +579,9 @@ export class CodemationApplication {
   private synchronizeWorkflowRegistry(): void {
     const workflowCatalog = this.container.resolve(CoreTokens.WorkflowCatalog);
     workflowCatalog.setWorkflows(this.workflows);
+    if (this.container.isRegistered(WebhookEndpointPathValidator, true)) {
+      this.container.resolve(WebhookEndpointPathValidator).validateAndWarn(this.workflows);
+    }
   }
 
   private async prepareImplementationRegistrations(repoRoot: string, env: NodeJS.ProcessEnv): Promise<void> {
@@ -640,6 +604,7 @@ export class CodemationApplication {
     this.container.registerInstance(CoreTokens.BinaryStorage, binaryStorage);
     this.container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory(binaryStorage));
     this.container.registerInstance(ApplicationTokens.ProcessEnv, env);
+    this.container.registerInstance(ApplicationTokens.Clock, new SystemClock());
     this.container.registerInstance(ApplicationTokens.CodemationAuthConfig, this.applicationAuthConfig);
     this.container.register(UserAccountService, {
       useFactory: instanceCachingFactory((dependencyContainer) => {

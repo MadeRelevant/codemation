@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { Items,NodeActivationStats,RunResult } from "../../src/index.ts";
+import type { Items,RunResult } from "../../src/index.ts";
 
 export function assertCompleted(result: RunResult): Extract<RunResult, { status: "completed" }> {
   assert.equal(result?.status, "completed", `Expected status=completed, got ${String((result as any)?.status)}`);
@@ -25,9 +25,5 @@ export function jsonItem<TJson>(json: TJson, meta?: Readonly<Record<string, unkn
 
 export function items<TJson>(list: Array<{ json: TJson } | TJson>): Items<TJson> {
   return list.map((v) => (v && typeof v === "object" && "json" in (v as any) ? (v as any) : ({ json: v } as any)));
-}
-
-export function activationOrder(activations: ReadonlyArray<NodeActivationStats>): string[] {
-  return (activations ?? []).map((a) => a.nodeId);
 }
 

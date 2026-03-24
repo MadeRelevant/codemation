@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import type {
-Items,
-NodeExecutionContext,
-NodeOutputs,
-TriggerNode,
-TriggerNodeConfig,
-TriggerSetupContext,
-TypeToken,
+  Items,
+  NodeExecutionContext,
+  NodeOutputs,
+  TriggerNode,
+  TriggerNodeConfig,
+  TriggerSetupContext,
+  TypeToken,
 } from "../src/index.ts";
 import { WorkflowBuilder } from "../src/index.ts";
 import { createEngineTestKit } from "./harness/index.ts";
@@ -22,6 +22,10 @@ class CleanupAwareTriggerConfig implements TriggerNodeConfig<unknown> {
     public readonly cleanupCalls: string[],
     public readonly id?: string,
   ) {}
+
+  get methods(): ReadonlyArray<"POST"> {
+    return ["POST"];
+  }
 }
 
 class CleanupAwareTriggerNode implements TriggerNode<CleanupAwareTriggerConfig> {
@@ -29,10 +33,6 @@ class CleanupAwareTriggerNode implements TriggerNode<CleanupAwareTriggerConfig> 
   readonly outputPorts = ["main"] as const;
 
   async setup(ctx: TriggerSetupContext<CleanupAwareTriggerConfig>): Promise<undefined> {
-    ctx.registerWebhook({
-      endpointKey: ctx.config.endpointKey,
-      methods: ["POST"],
-    });
     ctx.registerCleanup({
       stop: () => {
         ctx.config.cleanupCalls.push(`${ctx.trigger.workflowId}:${ctx.trigger.nodeId}`);
@@ -57,7 +57,7 @@ class RuntimeRevisionSwapFixture {
   }
 }
 
-test("engine stop tears down registered trigger cleanups and clears webhook matches", async () => {
+test("engine stop tears down registered trigger cleanups and clears webhook route index", async () => {
   const cleanupCalls: string[] = [];
   const workflow = RuntimeRevisionSwapFixture.createWorkflow(
     new CleanupAwareTriggerConfig("Trigger", "incoming", cleanupCalls, "trigger_a"),
@@ -68,26 +68,27 @@ test("engine stop tears down registered trigger cleanups and clears webhook matc
 
   await kit.start([workflow]);
 
-  assert.ok(
-    kit.engine.matchWebhookTrigger({
-      endpointId: "wf.runtime.swap.trigger_a.incoming",
+  assert.equal(
+    kit.engine.resolveWebhookTrigger({
+      endpointPath: "incoming",
       method: "POST",
-    }),
+    }).status,
+    "ok",
   );
 
   await kit.engine.stop();
 
   assert.deepEqual(cleanupCalls, ["wf.runtime.swap:trigger_a"]);
   assert.equal(
-    kit.engine.matchWebhookTrigger({
-      endpointId: "wf.runtime.swap.trigger_a.incoming",
+    kit.engine.resolveWebhookTrigger({
+      endpointPath: "incoming",
       method: "POST",
-    }),
-    undefined,
+    }).status,
+    "notFound",
   );
 });
 
-test("engine start replaces the live trigger runtime and webhook registrations on the same engine instance", async () => {
+test("engine start replaces the live trigger runtime and webhook route index on the same engine instance", async () => {
   const cleanupCalls: string[] = [];
   const kit = createEngineTestKit({
     providers: new Map([[CleanupAwareTriggerNode, new CleanupAwareTriggerNode()]]),
@@ -99,11 +100,12 @@ test("engine start replaces the live trigger runtime and webhook registrations o
     ),
   ]);
 
-  assert.ok(
-    kit.engine.matchWebhookTrigger({
-      endpointId: "wf.runtime.swap.trigger_a.incoming_a",
+  assert.equal(
+    kit.engine.resolveWebhookTrigger({
+      endpointPath: "incoming_a",
       method: "POST",
-    }),
+    }).status,
+    "ok",
   );
 
   await kit.engine.start([
@@ -114,16 +116,17 @@ test("engine start replaces the live trigger runtime and webhook registrations o
 
   assert.deepEqual(cleanupCalls, ["wf.runtime.swap:trigger_a"]);
   assert.equal(
-    kit.engine.matchWebhookTrigger({
-      endpointId: "wf.runtime.swap.trigger_a.incoming_a",
+    kit.engine.resolveWebhookTrigger({
+      endpointPath: "incoming_a",
       method: "POST",
-    }),
-    undefined,
+    }).status,
+    "notFound",
   );
-  assert.ok(
-    kit.engine.matchWebhookTrigger({
-      endpointId: "wf.runtime.swap.trigger_b.incoming_b",
+  assert.equal(
+    kit.engine.resolveWebhookTrigger({
+      endpointPath: "incoming_b",
       method: "POST",
-    }),
+    }).status,
+    "ok",
   );
 });
