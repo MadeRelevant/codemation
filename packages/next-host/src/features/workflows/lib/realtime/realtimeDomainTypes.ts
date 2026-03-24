@@ -17,6 +17,7 @@ export type RunExecutionOptions = Readonly<{
 export type PersistedWorkflowSnapshot = Readonly<{
   id: string;
   name: string;
+  workflowErrorHandlerConfigured?: boolean;
   nodes: ReadonlyArray<
     Readonly<{
       id: string;

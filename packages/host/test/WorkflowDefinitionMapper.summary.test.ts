@@ -3,8 +3,9 @@ import { test } from "vitest";
 import type { WorkflowDefinition } from "@codemation/core";
 
 import { WorkflowDefinitionMapper } from "../src/application/mapping/WorkflowDefinitionMapper";
+import { WorkflowPolicyUiPresentationFactory } from "../src/application/mapping/WorkflowPolicyUiPresentationFactory";
 
-const mapper = new WorkflowDefinitionMapper();
+const mapper = new WorkflowDefinitionMapper(new WorkflowPolicyUiPresentationFactory());
 
 function minimalWorkflow(
   args: Readonly<{ id: string; name: string; discoveryPathSegments?: readonly string[] }>,

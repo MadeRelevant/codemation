@@ -22,6 +22,7 @@ import type {
 import type { NodeExecutionStatePublisherFactory } from "../state/NodeExecutionStatePublisherFactory";
 
 import { CredentialResolverFactory } from "../credentials/CredentialResolverFactory";
+import type { RootExecutionOptionsFactory } from "../policies/RootExecutionOptionsFactory";
 
 export interface TriggerEmitHandler {
   emit(workflow: WorkflowDefinition, triggerNodeId: NodeId, items: Items): Promise<void>;
@@ -44,6 +45,7 @@ export class TriggerRuntimeService {
     private readonly webhookTriggerMatcher: WebhookTriggerMatcher,
     private readonly webhookBasePath: string,
     private readonly emitHandler: TriggerEmitHandler,
+    private readonly rootExecutionOptionsFactory: RootExecutionOptionsFactory,
   ) {
     this.credentialResolverFactory = credentialResolverFactory;
   }
@@ -167,10 +169,14 @@ export class TriggerRuntimeService {
     data: ReturnType<RunDataFactory["create"]>;
   }) {
     const nodeState = this.nodeExecutionStatePublisherFactory.create(args.runId, args.workflowId, undefined);
+    const rootLimits = this.rootExecutionOptionsFactory.create();
     return this.executionContextFactory.create({
       runId: args.runId,
       workflowId: args.workflowId,
       parent: undefined,
+      subworkflowDepth: rootLimits.subworkflowDepth ?? 0,
+      engineMaxNodeActivations: rootLimits.maxNodeActivations!,
+      engineMaxSubworkflowDepth: rootLimits.maxSubworkflowDepth!,
       data: args.data,
       nodeState,
       getCredential: this.credentialResolverFactory.create(args.workflowId, args.nodeId),

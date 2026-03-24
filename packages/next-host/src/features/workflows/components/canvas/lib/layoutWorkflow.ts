@@ -160,6 +160,8 @@ export function layoutWorkflow(
         hasOutputData: Boolean(pinnedNodeIds.has(n.id) || nodeSnapshotsByNodeId[n.id]?.outputs?.main),
         isLiveWorkflowView,
         isRunning,
+        retryPolicySummary: n.retryPolicySummary,
+        hasNodeErrorHandler: n.hasNodeErrorHandler,
         onSelectNode,
         onOpenPropertiesNode,
         onRunNode,

@@ -11,6 +11,7 @@ import type {
   NodeInputsByPort,
   NodeOutputs,
   ParentExecutionRef,
+  PersistedRunState,
   RunDataFactory,
   RunId,
   RunQueueEntry,
@@ -26,6 +27,9 @@ import type {
 import { WorkflowTopology } from "../../domain/planning/WorkflowTopologyPlanner";
 
 import { CredentialResolverFactory } from "../credentials/CredentialResolverFactory";
+import type { RootExecutionOptionsFactory } from "../policies/RootExecutionOptionsFactory";
+import { RunTerminalPersistenceCoordinator } from "../policies/RunTerminalPersistenceCoordinator";
+import { WorkflowPolicyErrorServices } from "../policies/WorkflowPolicyErrorServices";
 import { EngineWorkflowPlanningFactory } from "../planning/EngineWorkflowPlanningFactory";
 import type { EngineWaiters } from "../waiters/EngineWaiters";
 import { InputPortMap } from "../../domain/execution/InputPortMapFactory";
@@ -53,6 +57,9 @@ export class RunContinuationService {
     private readonly nodeEventPublisher: NodeEventPublisher,
     private readonly semantics: RunStateSemantics,
     private readonly waiters: EngineWaiters,
+    private readonly policyErrorServices: WorkflowPolicyErrorServices,
+    private readonly terminalPersistence: RunTerminalPersistenceCoordinator,
+    private readonly rootExecutionOptionsFactory: RootExecutionOptionsFactory,
   ) {}
 
   async markNodeRunning(args: {
@@ -106,11 +113,15 @@ export class RunContinuationService {
     const { topology, planner } = this.planningFactory.create(wf);
 
     const data = this.runDataFactory.create(state.outputsByNode);
+    const limits = this.resolveEngineLimitsFromState(state);
     const base = this.createExecutionContext({
       runId: state.runId,
       workflowId: state.workflowId,
       nodeId: args.nodeId,
       parent: state.parent,
+      subworkflowDepth: state.executionOptions?.subworkflowDepth ?? 0,
+      engineMaxNodeActivations: limits.engineMaxNodeActivations,
+      engineMaxSubworkflowDepth: limits.engineMaxSubworkflowDepth,
       data,
       nodeState: this.nodeStatePublisherFactory.create(state.runId, state.workflowId, state.parent),
     });
@@ -136,8 +147,12 @@ export class RunContinuationService {
       outputs: args.outputs,
     });
 
+    const completedActivations = (state.engineCounters?.completedNodeActivations ?? 0) + 1;
+    const engineCounters = { completedNodeActivations: completedActivations };
+    const maxNodeActivations = state.executionOptions?.maxNodeActivations ?? Number.MAX_SAFE_INTEGER;
+
     if (this.semantics.isStopConditionSatisfied(state.control?.stopCondition, args.nodeId)) {
-      await this.runStore.save({
+      const completedState: PersistedRunState = {
         runId: state.runId,
         workflowId: state.workflowId,
         startedAt: state.startedAt,
@@ -146,6 +161,8 @@ export class RunContinuationService {
         control: state.control,
         workflowSnapshot: state.workflowSnapshot,
         mutableState: state.mutableState,
+        policySnapshot: state.policySnapshot,
+        engineCounters,
         status: "completed",
         pending: undefined,
         queue: [],
@@ -154,8 +171,15 @@ export class RunContinuationService {
           ...(state.nodeSnapshotsByNodeId ?? {}),
           [args.nodeId]: completedSnapshot,
         },
-      });
+      };
+      await this.runStore.save(completedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
+      await this.terminalPersistence.maybeDeleteAfterTerminalState({
+        workflow: wf,
+        state: completedState,
+        finalStatus: "completed",
+        finishedAt: completedAt,
+      });
       const result: RunResult = {
         runId: state.runId,
         workflowId: state.workflowId,
@@ -207,7 +231,7 @@ export class RunContinuationService {
         })();
       const outputs = data.getOutputItems(lastNodeId, "main");
 
-      await this.runStore.save({
+      const completedState: PersistedRunState = {
         runId: state.runId,
         workflowId: state.workflowId,
         startedAt: state.startedAt,
@@ -216,15 +240,62 @@ export class RunContinuationService {
         control: state.control,
         workflowSnapshot: state.workflowSnapshot,
         mutableState: state.mutableState,
+        policySnapshot: state.policySnapshot,
+        engineCounters,
         status: "completed",
         pending: undefined,
         queue: [],
         outputsByNode: data.dump(),
         nodeSnapshotsByNodeId: nextNodeSnapshotsByNodeId,
-      });
+      };
+      await this.runStore.save(completedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
+      await this.terminalPersistence.maybeDeleteAfterTerminalState({
+        workflow: wf,
+        state: completedState,
+        finalStatus: "completed",
+        finishedAt: completedAt,
+      });
 
       const result: RunResult = { runId: state.runId, workflowId: state.workflowId, startedAt: state.startedAt, status: "completed", outputs };
+      this.waiters.resolveRunCompletion(result);
+      return result;
+    }
+
+    if (completedActivations >= maxNodeActivations) {
+      const message = `Run exceeded maxNodeActivations (${maxNodeActivations}) after ${completedActivations} completed node activations (next would be ${next.nodeId}).`;
+      const failedState: PersistedRunState = {
+        runId: state.runId,
+        workflowId: state.workflowId,
+        startedAt: state.startedAt,
+        parent: state.parent,
+        executionOptions: state.executionOptions,
+        control: state.control,
+        workflowSnapshot: state.workflowSnapshot,
+        mutableState: state.mutableState,
+        policySnapshot: state.policySnapshot,
+        engineCounters,
+        status: "failed",
+        pending: undefined,
+        queue: queue.map((q) => ({ ...q })),
+        outputsByNode: data.dump(),
+        nodeSnapshotsByNodeId: nextNodeSnapshotsByNodeId,
+      };
+      await this.runStore.save(failedState);
+      await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
+      await this.terminalPersistence.maybeDeleteAfterTerminalState({
+        workflow: wf,
+        state: failedState,
+        finalStatus: "failed",
+        finishedAt: completedAt,
+      });
+      const result: RunResult = {
+        runId: state.runId,
+        workflowId: state.workflowId,
+        startedAt: state.startedAt,
+        status: "failed",
+        error: { message },
+      };
       this.waiters.resolveRunCompletion(result);
       return result;
     }
@@ -278,10 +349,12 @@ export class RunContinuationService {
       control: state.control,
       workflowSnapshot: state.workflowSnapshot,
       mutableState: state.mutableState,
+      policySnapshot: state.policySnapshot,
       pendingQueue: queue,
       request,
       previousNodeSnapshotsByNodeId: nextNodeSnapshotsByNodeId,
       planner,
+      engineCounters,
     });
     await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
     await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);
@@ -304,6 +377,35 @@ export class RunContinuationService {
       return await this.resumeFromWebhookControl({ state, workflow: wf, args, signal: webhookControlSignal });
     }
 
+    if (failedDefinition && failedDefinition.kind === "node") {
+      const nodeHandler = this.policyErrorServices.resolveNodeErrorHandler(failedDefinition.config.nodeErrorHandler);
+      if (nodeHandler) {
+        try {
+          const ctx = this.buildNodeExecutionContextForPending(state, wf, failedDefinition, args.nodeId);
+          const inputsByPort = state.pending.inputsByPort;
+          const portKeys = Object.keys(inputsByPort);
+          const kind = portKeys.length === 1 && portKeys[0] === "in" ? ("single" as const) : ("multi" as const);
+          const items = inputsByPort.in ?? [];
+          const recovered = await nodeHandler.handle({
+            kind,
+            items,
+            inputsByPort: kind === "multi" ? inputsByPort : undefined,
+            ctx,
+            error: args.error,
+          });
+          return await this.resumeFromNodeResult({
+            runId: args.runId,
+            activationId: args.activationId,
+            nodeId: args.nodeId,
+            outputs: recovered,
+          });
+        } catch {
+          // fall through to workflow-level failure
+        }
+      }
+    }
+
+    const finishedAt = new Date().toISOString();
     const message = args.error?.message ?? String(args.error);
     const failedSnapshot = NodeSnapshotFactory.failed({
       previous: state.nodeSnapshotsByNodeId?.[args.nodeId],
@@ -312,11 +414,11 @@ export class RunContinuationService {
       nodeId: args.nodeId,
       activationId: args.activationId,
       parent: state.parent,
-      finishedAt: new Date().toISOString(),
+      finishedAt,
       inputsByPort: state.pending.inputsByPort,
       error: args.error,
     });
-    await this.runStore.save({
+    const failedState: PersistedRunState = {
       runId: state.runId,
       workflowId: state.workflowId,
       startedAt: state.startedAt,
@@ -325,6 +427,8 @@ export class RunContinuationService {
       control: state.control,
       workflowSnapshot: state.workflowSnapshot,
       mutableState: state.mutableState,
+      policySnapshot: state.policySnapshot,
+      engineCounters: state.engineCounters,
       status: "failed",
       pending: undefined,
       queue: (state.queue ?? []).map((q) => ({ ...q })),
@@ -333,8 +437,31 @@ export class RunContinuationService {
         ...(state.nodeSnapshotsByNodeId ?? {}),
         [args.nodeId]: failedSnapshot,
       },
-    });
+    };
+    await this.runStore.save(failedState);
     await this.nodeEventPublisher.publish("nodeFailed", failedSnapshot);
+
+    const wfErr = this.policyErrorServices.resolveWorkflowErrorHandler(wf.workflowErrorHandler);
+    if (wfErr) {
+      await Promise.resolve(
+        wfErr.onError({
+          runId: state.runId,
+          workflowId: state.workflowId,
+          workflow: wf,
+          failedNodeId: args.nodeId,
+          error: args.error,
+          startedAt: state.startedAt,
+          finishedAt,
+        }),
+      );
+    }
+
+    await this.terminalPersistence.maybeDeleteAfterTerminalState({
+      workflow: wf,
+      state: failedState,
+      finalStatus: "failed",
+      finishedAt,
+    });
 
     const result: RunResult = { runId: state.runId, workflowId: state.workflowId, startedAt: state.startedAt, status: "failed", error: { message } };
     this.waiters.resolveRunCompletion(result);
@@ -403,8 +530,12 @@ export class RunContinuationService {
       outputs: triggerOutputs,
     });
 
+    const completedActivations = (args.state.engineCounters?.completedNodeActivations ?? 0) + 1;
+    const engineCounters = { completedNodeActivations: completedActivations };
+    const maxNodeActivations = args.state.executionOptions?.maxNodeActivations ?? Number.MAX_SAFE_INTEGER;
+
     if (this.semantics.isStopConditionSatisfied(args.state.control?.stopCondition, args.args.nodeId)) {
-      await this.runStore.save({
+      const completedState: PersistedRunState = {
         runId: args.state.runId,
         workflowId: args.state.workflowId,
         startedAt: args.state.startedAt,
@@ -413,6 +544,8 @@ export class RunContinuationService {
         control: args.state.control,
         workflowSnapshot: args.state.workflowSnapshot,
         mutableState: args.state.mutableState,
+        policySnapshot: args.state.policySnapshot,
+        engineCounters,
         status: "completed",
         pending: undefined,
         queue: [],
@@ -421,8 +554,15 @@ export class RunContinuationService {
           ...(args.state.nodeSnapshotsByNodeId ?? {}),
           [args.args.nodeId]: completedSnapshot,
         },
-      });
+      };
+      await this.runStore.save(completedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
+      await this.terminalPersistence.maybeDeleteAfterTerminalState({
+        workflow: args.workflow,
+        state: completedState,
+        finalStatus: "completed",
+        finishedAt: completedSnapshot.finishedAt ?? completedSnapshot.updatedAt,
+      });
       this.waiters.resolveWebhookResponse({
         runId: args.state.runId,
         workflowId: args.state.workflowId,
@@ -442,7 +582,7 @@ export class RunContinuationService {
     }
 
     if (args.signal.kind === "respondNow") {
-      await this.runStore.save({
+      const completedState: PersistedRunState = {
         runId: args.state.runId,
         workflowId: args.state.workflowId,
         startedAt: args.state.startedAt,
@@ -451,6 +591,8 @@ export class RunContinuationService {
         control: args.state.control,
         workflowSnapshot: args.state.workflowSnapshot,
         mutableState: args.state.mutableState,
+        policySnapshot: args.state.policySnapshot,
+        engineCounters,
         status: "completed",
         pending: undefined,
         queue: [],
@@ -459,8 +601,15 @@ export class RunContinuationService {
           ...(args.state.nodeSnapshotsByNodeId ?? {}),
           [args.args.nodeId]: completedSnapshot,
         },
-      });
+      };
+      await this.runStore.save(completedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
+      await this.terminalPersistence.maybeDeleteAfterTerminalState({
+        workflow: args.workflow,
+        state: completedState,
+        finalStatus: "completed",
+        finishedAt: completedSnapshot.finishedAt ?? completedSnapshot.updatedAt,
+      });
 
       const result: RunResult = {
         runId: args.state.runId,
@@ -492,7 +641,7 @@ export class RunContinuationService {
           throw new Error(`Workflow ${args.workflow.id} has no nodes`);
         })();
       const outputs = data.getOutputItems(lastNodeId, "main");
-      await this.runStore.save({
+      const completedState: PersistedRunState = {
         runId: args.state.runId,
         workflowId: args.state.workflowId,
         startedAt: args.state.startedAt,
@@ -501,6 +650,8 @@ export class RunContinuationService {
         control: args.state.control,
         workflowSnapshot: args.state.workflowSnapshot,
         mutableState: args.state.mutableState,
+        policySnapshot: args.state.policySnapshot,
+        engineCounters,
         status: "completed",
         pending: undefined,
         queue: [],
@@ -509,8 +660,15 @@ export class RunContinuationService {
           ...(args.state.nodeSnapshotsByNodeId ?? {}),
           [args.args.nodeId]: completedSnapshot,
         },
-      });
+      };
+      await this.runStore.save(completedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
+      await this.terminalPersistence.maybeDeleteAfterTerminalState({
+        workflow: args.workflow,
+        state: completedState,
+        finalStatus: "completed",
+        finishedAt: completedSnapshot.finishedAt ?? completedSnapshot.updatedAt,
+      });
 
       const result: RunResult = {
         runId: args.state.runId,
@@ -530,16 +688,68 @@ export class RunContinuationService {
       return result;
     }
 
+    if (completedActivations >= maxNodeActivations) {
+      const message = `Run exceeded maxNodeActivations (${maxNodeActivations}) after ${completedActivations} completed node activations (next would be ${next.nodeId}).`;
+      const failedState: PersistedRunState = {
+        runId: args.state.runId,
+        workflowId: args.state.workflowId,
+        startedAt: args.state.startedAt,
+        parent: args.state.parent,
+        executionOptions: args.state.executionOptions,
+        control: args.state.control,
+        workflowSnapshot: args.state.workflowSnapshot,
+        mutableState: args.state.mutableState,
+        policySnapshot: args.state.policySnapshot,
+        engineCounters,
+        status: "failed",
+        pending: undefined,
+        queue: queue.map((q) => ({ ...q })),
+        outputsByNode: data.dump(),
+        nodeSnapshotsByNodeId: {
+          ...(args.state.nodeSnapshotsByNodeId ?? {}),
+          [args.args.nodeId]: completedSnapshot,
+        },
+      };
+      await this.runStore.save(failedState);
+      await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
+      await this.terminalPersistence.maybeDeleteAfterTerminalState({
+        workflow: args.workflow,
+        state: failedState,
+        finalStatus: "failed",
+        finishedAt: completedSnapshot.finishedAt ?? completedSnapshot.updatedAt,
+      });
+      const result: RunResult = {
+        runId: args.state.runId,
+        workflowId: args.state.workflowId,
+        startedAt: args.state.startedAt,
+        status: "failed",
+        error: { message },
+      };
+      this.waiters.resolveWebhookResponse({
+        runId: args.state.runId,
+        workflowId: args.state.workflowId,
+        startedAt: args.state.startedAt,
+        runStatus: "pending",
+        response: args.signal.responseItems,
+      });
+      this.waiters.resolveRunCompletion(result);
+      return result;
+    }
+
     const nextDefinition = topology.defsById.get(next.nodeId);
     if (!nextDefinition || nextDefinition.kind !== "node") {
       throw new Error(`Node ${next.nodeId} is not a runnable node`);
     }
 
+    const webhookLimits = this.resolveEngineLimitsFromState(args.state);
     const base = this.createExecutionContext({
       runId: args.state.runId,
       workflowId: args.state.workflowId,
       nodeId: nextDefinition.id,
       parent: args.state.parent,
+      subworkflowDepth: args.state.executionOptions?.subworkflowDepth ?? 0,
+      engineMaxNodeActivations: webhookLimits.engineMaxNodeActivations,
+      engineMaxSubworkflowDepth: webhookLimits.engineMaxSubworkflowDepth,
       data,
       nodeState: this.nodeStatePublisherFactory.create(args.state.runId, args.state.workflowId, args.state.parent),
     });
@@ -589,6 +799,7 @@ export class RunContinuationService {
       control: args.state.control,
       workflowSnapshot: args.state.workflowSnapshot,
       mutableState: args.state.mutableState,
+      policySnapshot: args.state.policySnapshot,
       pendingQueue: queue,
       request,
       previousNodeSnapshotsByNodeId: {
@@ -596,6 +807,7 @@ export class RunContinuationService {
         [args.args.nodeId]: completedSnapshot,
       },
       planner,
+      engineCounters,
     });
     await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
     await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);
@@ -627,11 +839,45 @@ export class RunContinuationService {
     });
   }
 
+  private buildNodeExecutionContextForPending(
+    state: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>,
+    wf: WorkflowDefinition,
+    def: Readonly<{ id: NodeId; config: NodeExecutionContext["config"] }>,
+    nodeId: NodeId,
+  ): NodeExecutionContext {
+    const data = this.runDataFactory.create(state.outputsByNode);
+    const limits = this.resolveEngineLimitsFromState(state);
+    const base = this.createExecutionContext({
+      runId: state.runId,
+      workflowId: state.workflowId,
+      nodeId,
+      parent: state.parent,
+      subworkflowDepth: state.executionOptions?.subworkflowDepth ?? 0,
+      engineMaxNodeActivations: limits.engineMaxNodeActivations,
+      engineMaxSubworkflowDepth: limits.engineMaxSubworkflowDepth,
+      data,
+      nodeState: this.nodeStatePublisherFactory.create(state.runId, state.workflowId, state.parent),
+    });
+    const activationId = state.pending!.activationId;
+    return {
+      ...base,
+      data,
+      nodeId,
+      activationId,
+      config: def.config,
+      binary: base.binary.forNode({ nodeId, activationId }),
+      getCredential: this.credentialResolverFactory.create(wf.id, nodeId, def.config),
+    };
+  }
+
   private createExecutionContext(args: {
     runId: RunId;
     workflowId: WorkflowId;
     nodeId: NodeId;
     parent?: ParentExecutionRef;
+    subworkflowDepth: number;
+    engineMaxNodeActivations: number;
+    engineMaxSubworkflowDepth: number;
     data: ReturnType<RunDataFactory["create"]>;
     nodeState?: NodeExecutionStatePublisher;
   }) {
@@ -639,10 +885,24 @@ export class RunContinuationService {
       runId: args.runId,
       workflowId: args.workflowId,
       parent: args.parent,
+      subworkflowDepth: args.subworkflowDepth,
+      engineMaxNodeActivations: args.engineMaxNodeActivations,
+      engineMaxSubworkflowDepth: args.engineMaxSubworkflowDepth,
       data: args.data,
       nodeState: args.nodeState,
       getCredential: this.credentialResolverFactory.create(args.workflowId, args.nodeId),
     });
+  }
+
+  private resolveEngineLimitsFromState(state: PersistedRunState): {
+    engineMaxNodeActivations: number;
+    engineMaxSubworkflowDepth: number;
+  } {
+    const fb = this.rootExecutionOptionsFactory.create();
+    return {
+      engineMaxNodeActivations: state.executionOptions?.maxNodeActivations ?? fb.maxNodeActivations!,
+      engineMaxSubworkflowDepth: state.executionOptions?.maxSubworkflowDepth ?? fb.maxSubworkflowDepth!,
+    };
   }
 }
 

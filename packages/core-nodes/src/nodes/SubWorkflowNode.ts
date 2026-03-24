@@ -36,7 +36,14 @@ export class SubWorkflowNode implements Node<SubWorkflow<any, any>> {
         workflowId: ctx.config.workflowId,
         startAt: ctx.config.startAt,
         items: [current],
-        parent: { runId: ctx.runId, workflowId: ctx.workflowId, nodeId: ctx.nodeId },
+        parent: {
+          runId: ctx.runId,
+          workflowId: ctx.workflowId,
+          nodeId: ctx.nodeId,
+          subworkflowDepth: ctx.subworkflowDepth,
+          engineMaxNodeActivations: ctx.engineMaxNodeActivations,
+          engineMaxSubworkflowDepth: ctx.engineMaxSubworkflowDepth,
+        },
       });
       if (result.status !== "completed") throw new Error(`Subworkflow ${ctx.config.workflowId} did not complete (status=${result.status})`);
       for (const produced of result.outputs) {

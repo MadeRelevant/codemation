@@ -28,6 +28,12 @@ export interface WorkflowDefinition {
   edges: Edge[];
   /** Directory + file-stem path under a workflow discovery root (for UI grouping only). */
   discoveryPathSegments?: readonly string[];
+  /** Retention for run JSON and binaries (seconds). Host/env may supply defaults when omitted. */
+  readonly prunePolicy?: WorkflowPrunePolicySpec;
+  /** Whether to keep run data after completion. Host/env may supply defaults when omitted. */
+  readonly storagePolicy?: WorkflowStoragePolicySpec;
+  /** Invoked after a node fails permanently (retries exhausted) and node error handler did not recover. */
+  readonly workflowErrorHandler?: WorkflowErrorHandlerSpec;
 }
 
 export interface WorkflowGraph {
@@ -47,6 +53,8 @@ export interface NodeConfigBase {
   readonly execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }>;
   /** In-process execute retries (runnable nodes). Triggers typically omit this. */
   readonly retryPolicy?: RetryPolicySpec;
+  /** Recover from execute failures; return outputs to continue, or rethrow to fail the node. */
+  readonly nodeErrorHandler?: NodeErrorHandlerSpec;
   getCredentialRequirements?(): ReadonlyArray<CredentialRequirement>;
 }
 
@@ -134,6 +142,12 @@ export interface ParentExecutionRef {
   runId: RunId;
   workflowId: WorkflowId;
   nodeId: NodeId;
+  /** Subworkflow depth of the **spawning** run (0 = root). Passed when starting a child run. */
+  subworkflowDepth?: number;
+  /** Effective max node activations from the parent run (propagated to child policy merge). */
+  engineMaxNodeActivations?: number;
+  /** Effective max subworkflow depth from the parent run (propagated to child policy merge). */
+  engineMaxSubworkflowDepth?: number;
 }
 
 export interface RunDataSnapshot {
@@ -171,4 +185,70 @@ export interface NodeSchedulerDecision {
 
 export interface NodeOffloadPolicy {
   decide(args: { workflowId: WorkflowId; nodeId: NodeId; config: NodeConfigBase }): NodeSchedulerDecision;
+}
+
+/** Whether to persist run execution data after the workflow finishes. */
+export type WorkflowStoragePolicyMode = "ALL" | "SUCCESS" | "ERROR" | "NEVER";
+
+export type WorkflowStoragePolicySpec = WorkflowStoragePolicyMode | TypeToken<WorkflowStoragePolicyResolver>;
+
+export interface WorkflowStoragePolicyResolver {
+  shouldPersist(args: WorkflowStoragePolicyDecisionArgs): boolean | Promise<boolean>;
+}
+
+export interface WorkflowStoragePolicyDecisionArgs {
+  readonly runId: RunId;
+  readonly workflowId: WorkflowId;
+  readonly workflow: WorkflowDefinition;
+  readonly finalStatus: "completed" | "failed";
+  readonly startedAt: string;
+  readonly finishedAt: string;
+}
+
+export interface WorkflowPrunePolicySpec {
+  readonly runDataRetentionSeconds?: number;
+  readonly binaryRetentionSeconds?: number;
+}
+
+export interface PersistedRunPolicySnapshot {
+  readonly retentionSeconds?: number;
+  readonly binaryRetentionSeconds?: number;
+  readonly storagePolicy: WorkflowStoragePolicyMode;
+}
+
+export interface WorkflowErrorHandler {
+  onError(ctx: WorkflowErrorContext): void | Promise<void>;
+}
+
+export interface WorkflowErrorContext {
+  readonly runId: RunId;
+  readonly workflowId: WorkflowId;
+  readonly workflow: WorkflowDefinition;
+  readonly failedNodeId: NodeId;
+  readonly error: Error;
+  readonly startedAt: string;
+  readonly finishedAt: string;
+}
+
+export type WorkflowErrorHandlerSpec = TypeToken<WorkflowErrorHandler> | WorkflowErrorHandler;
+
+export interface NodeErrorHandlerArgs<TConfig extends NodeConfigBase = NodeConfigBase> {
+  readonly kind: "single" | "multi";
+  readonly items: Items;
+  readonly inputsByPort: Readonly<Record<InputPortKey, Items>> | undefined;
+  readonly ctx: import("./runtimeTypes").NodeExecutionContext<TConfig>;
+  readonly error: Error;
+}
+
+export interface NodeErrorHandler {
+  handle<TConfig extends NodeConfigBase>(args: NodeErrorHandlerArgs<TConfig>): Promise<NodeOutputs>;
+}
+
+export type NodeErrorHandlerSpec = TypeToken<NodeErrorHandler> | NodeErrorHandler;
+
+/** Runtime defaults when workflow omits prune/storage fields (typically from host env). */
+export interface WorkflowPolicyRuntimeDefaults {
+  readonly retentionSeconds?: number;
+  readonly binaryRetentionSeconds?: number;
+  readonly storagePolicy?: WorkflowStoragePolicyMode;
 }

@@ -3,6 +3,7 @@ import { PersistedWorkflowSnapshotFactory } from "@codemation/core/testing";
 import { PersistedWorkflowSnapshotMapper } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/PersistedWorkflowSnapshotMapper";
 import { describe,expect,it } from "vitest";
 import { WorkflowDefinitionMapper } from "../src/application/mapping/WorkflowDefinitionMapper";
+import { WorkflowPolicyUiPresentationFactory } from "../src/application/mapping/WorkflowPolicyUiPresentationFactory";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit";
 
 @chatModel({ packageName: "@codemation/host-parity" })
@@ -38,7 +39,7 @@ describe("workflow dto parity", () => {
       chatModelConfig: new FrontendParityChatModelConfig("Mock LLM", { label: "Mock LLM" }),
       toolConfigs: [new FrontendParityToolConfig("lookup_tool", "Lookup tool", { label: "Lookup tool" })],
     });
-    const liveDto = new WorkflowDefinitionMapper().mapSync(workflow);
+    const liveDto = new WorkflowDefinitionMapper(new WorkflowPolicyUiPresentationFactory()).mapSync(workflow);
     const tokenRegistry = new PersistedWorkflowTokenRegistry();
     tokenRegistry.registerFromWorkflows([workflow]);
     const snapshot = new PersistedWorkflowSnapshotFactory(tokenRegistry).create(workflow);

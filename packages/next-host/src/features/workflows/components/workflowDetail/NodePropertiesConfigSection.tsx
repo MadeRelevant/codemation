@@ -8,6 +8,19 @@ export function NodePropertiesConfigSection(args: Readonly<{ node: WorkflowDiagr
       <p style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.5, color: "#475569" }}>
         TODO: surface real node configuration here later, such as model parameters, tool wiring, trigger settings, and execution hints.
       </p>
+      <div data-testid="node-properties-policy-section" style={{ marginTop: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, opacity: 0.72 }}>Execution policies</div>
+        <div style={{ marginTop: 6, fontSize: 12, color: "#334155", display: "grid", gap: 6 }}>
+          <div data-testid="node-properties-retry-policy-line">
+            <span style={{ fontWeight: 700 }}>Retry: </span>
+            <span data-testid="node-properties-retry-policy-value">{node.retryPolicySummary ?? "—"}</span>
+          </div>
+          <div data-testid="node-properties-node-error-handler-line">
+            <span style={{ fontWeight: 700 }}>Node error handler: </span>
+            <span data-testid="node-properties-node-error-handler-value">{node.hasNodeErrorHandler ? "yes" : "no"}</span>
+          </div>
+        </div>
+      </div>
       <div
         style={{
           marginTop: 10,

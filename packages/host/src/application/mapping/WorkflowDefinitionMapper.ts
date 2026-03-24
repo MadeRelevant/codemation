@@ -1,9 +1,14 @@
 import type { ChatModelConfig,NodeDefinition,ToolConfig,WorkflowDefinition } from "@codemation/core";
 import { AgentAttachmentNodeIdFactory,AgentConfigInspector } from "@codemation/core";
+import { injectable } from "@codemation/core";
 import type { WorkflowDto,WorkflowNodeDto,WorkflowSummary } from "../contracts/WorkflowViewContracts";
 import type { DataMapper } from "./DataMapper";
+import { WorkflowPolicyUiPresentationFactory } from "./WorkflowPolicyUiPresentationFactory";
 
+@injectable()
 export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, WorkflowDto> {
+  constructor(private readonly policyUi: WorkflowPolicyUiPresentationFactory) {}
+
   async map(workflow: WorkflowDefinition): Promise<WorkflowDto> {
     return this.mapSync(workflow);
   }
@@ -12,6 +17,7 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
     return {
       id: workflow.id,
       name: workflow.name,
+      hasWorkflowErrorHandler: this.policyUi.workflowHasErrorHandler(workflow),
       nodes: this.toNodes(workflow),
       edges: this.toEdges(workflow),
     };
@@ -35,6 +41,8 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
         type: this.nodeTypeName(node),
         role: AgentConfigInspector.isAgentNodeConfig(node.config) ? "agent" : "workflowNode",
         icon: node.config?.icon,
+        retryPolicySummary: this.policyUi.nodeRetrySummary(node.config),
+        hasNodeErrorHandler: this.policyUi.nodeHasErrorHandler(node.config),
       });
       if (!AgentConfigInspector.isAgentNodeConfig(node.config)) {
         continue;

@@ -10,9 +10,16 @@ import { CurrentStateRunStarter } from "../application/execution/CurrentStateRun
 import { RunContinuationService } from "../application/execution/RunContinuationService";
 import { RunStateSemantics } from "../application/execution/RunStateSemantics";
 import { WorkflowRunStarter } from "../application/execution/WorkflowRunStarter";
+import { RunPolicySnapshotFactory } from "../application/policies/RunPolicySnapshotFactory";
+import { RunTerminalPersistenceCoordinator } from "../application/policies/RunTerminalPersistenceCoordinator";
+import { WorkflowPolicyErrorServices } from "../application/policies/WorkflowPolicyErrorServices";
+import { WorkflowStoragePolicyEvaluator } from "../application/policies/WorkflowStoragePolicyEvaluator";
 import { CredentialResolverFactory } from "../application/credentials/CredentialResolverFactory";
 import { NodeEventPublisher } from "../application/events/NodeEventPublisher";
+import { EngineExecutionLimitsPolicy } from "../application/policies/EngineExecutionLimitsPolicy";
+import { RootExecutionOptionsFactory } from "../application/policies/RootExecutionOptionsFactory";
 import { EngineWorkflowPlanningFactory } from "../application/planning/EngineWorkflowPlanningFactory";
+import { DirectedCycleDetector } from "../domain/planning/DirectedCycleDetector";
 import { NodeExecutionStatePublisherFactory } from "../application/state/NodeExecutionStatePublisherFactory";
 import { TriggerRuntimeService } from "../application/triggers/TriggerRuntimeService";
 import { EngineWaiters } from "../application/waiters/EngineWaiters";
@@ -26,6 +33,8 @@ import { Engine } from "./Engine";
 export type EngineCompositionDeps = EngineDeps & {
   persistedWorkflowConfigHydrator?: PersistedWorkflowConfigHydrator;
   missingRuntimeNodeDefinitionFactory?: MissingRuntimeNodeDefinitionFactory;
+  /** When set, used for {@link WorkflowRunStarter}, {@link CurrentStateRunStarter}, {@link RootExecutionOptionsFactory}, and trigger/continuation fallbacks. */
+  executionLimitsPolicy?: EngineExecutionLimitsPolicy;
 };
 
 export class EngineFactory {
@@ -34,7 +43,9 @@ export class EngineFactory {
     const credentialResolverFactory = new CredentialResolverFactory(deps.credentialSessions);
     const nodeEventPublisher = new NodeEventPublisher(deps.eventBus);
     const nodeStatePublisherFactory = new NodeExecutionStatePublisherFactory(deps.runStore, nodeEventPublisher);
-    const planningFactory = new EngineWorkflowPlanningFactory(deps.workflowNodeInstanceFactory);
+    const planningFactory = new EngineWorkflowPlanningFactory(deps.workflowNodeInstanceFactory, new DirectedCycleDetector());
+    const executionLimitsPolicy = deps.executionLimitsPolicy ?? new EngineExecutionLimitsPolicy();
+    const rootExecutionOptionsFactory = new RootExecutionOptionsFactory(executionLimitsPolicy);
     const workflowSnapshotFactory = new PersistedWorkflowSnapshotFactory(deps.tokenRegistry);
     const persistedWorkflowConfigHydrator =
       deps.persistedWorkflowConfigHydrator ?? new PersistedWorkflowConfigHydrator(deps.tokenRegistry);
@@ -49,6 +60,10 @@ export class EngineFactory {
 
     const semantics = new RunStateSemantics();
     const activationEnqueueService = new ActivationEnqueueService(deps.activationScheduler, deps.runStore, nodeEventPublisher);
+    const runPolicySnapshotFactory = new RunPolicySnapshotFactory();
+    const storagePolicyEvaluator = new WorkflowStoragePolicyEvaluator(deps.nodeResolver);
+    const terminalPersistence = new RunTerminalPersistenceCoordinator(deps.runStore, storagePolicyEvaluator);
+    const policyErrorServices = new WorkflowPolicyErrorServices(deps.nodeResolver);
 
     const workflowRunStarter = new WorkflowRunStarter(
       deps.runIdFactory,
@@ -62,6 +77,9 @@ export class EngineFactory {
       credentialResolverFactory,
       activationEnqueueService,
       waiters,
+      runPolicySnapshotFactory,
+      deps.workflowPolicyRuntimeDefaults,
+      executionLimitsPolicy,
     );
     const currentStateRunStarter = new CurrentStateRunStarter(
       deps.runIdFactory,
@@ -77,6 +95,9 @@ export class EngineFactory {
       activationEnqueueService,
       semantics,
       waiters,
+      runPolicySnapshotFactory,
+      deps.workflowPolicyRuntimeDefaults,
+      executionLimitsPolicy,
     );
     const runContinuationService = new RunContinuationService(
       deps.activationIdFactory,
@@ -92,6 +113,9 @@ export class EngineFactory {
       nodeEventPublisher,
       semantics,
       waiters,
+      policyErrorServices,
+      terminalPersistence,
+      rootExecutionOptionsFactory,
     );
 
     const webhookBasePath = deps.webhookBasePath ?? "/webhooks";
@@ -112,6 +136,7 @@ export class EngineFactory {
           await workflowRunStarter.runWorkflow(workflow, triggerNodeId, items, undefined);
         },
       },
+      rootExecutionOptionsFactory,
     );
 
     const engine = new Engine({

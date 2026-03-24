@@ -1,0 +1,23 @@
+---
+description: Always apply Codemation coding + testing standards (OOP/DI, TDD, coverage, minimal mocking, outcome assertions, factories/harnesses, Clean Architecture core, DDD/CQRS next-host)
+alwaysApply: true
+---
+
+# Codemation coding standards (always)
+
+For **every** change to production or test code in this repository, follow the project skill:
+
+**`.cursor/skills/strict-oop-di/SKILL.md`**
+
+That skill is the single place for:
+
+- Strict **OOP + DI** (class-centric modules, constructor injection, no exported module functions except where repo policy allows).
+- **TDD**: prefer failing test first, then implementation; bugfixes should add a regression test when feasible.
+- **Coverage**: aim for **at least ~80%** on new or materially changed code; run **`pnpm run coverage`** (or package-scoped equivalent) before finishing substantive work.
+- **Minimal mocking**: use **real code paths**, **in-memory fakes**, and **DI**; mock only when **unavoidable** (e.g. third-party HTTP). This repo **forbids `vi.mock` / `vi.doMock`** in tests—see **`AGENTS.md`**.
+- **Assertions on real outcomes**: for mutations (POST/PUT/PATCH/DELETE), do **not** stop at “status was 2xx”—**verify state** with a **follow-up GET** (or equivalent read) and assert on persisted/domain fields.
+- **Factories, testkits, harnesses**: centralize repeated **arrange** setup (object graphs, bootstrap, integration clients). Avoid copy-pasting the same constructors and scenarios in many tests—extract shared helpers so refactors touch **one place**, not brittle duplicates.
+- **`packages/core` (engine)**: **Clean Architecture**—dependencies point **inward**; keep the engine **pure** (contracts + runtime); no HTTP/UI/persistence/node-catalog coupling—see **`AGENTS.md`**.
+- **`packages/next-host`**: **DDD** (domain-shaped features, ubiquitous language) + **CQRS** (**commands** vs **queries** separated; do not mush reads and writes into one opaque surface).
+
+UI tests must still follow **`.cursor/rules/testing-testids.mdc`** (`data-testid` selectors, no text queries).

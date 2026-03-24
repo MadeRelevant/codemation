@@ -4,6 +4,7 @@ CredentialSessionService,
 NodeActivationContinuation,
 NodeExecutionScheduler,
 NodeResolver,
+RootExecutionOptionsFactory,
 RunStateStore,
 WorkflowDefinition,
 WorkflowId,
@@ -24,6 +25,7 @@ export interface WorkerRuntimeScheduler extends NodeExecutionScheduler {
     binaryStorage?: BinaryStorage;
     workflows?: unknown;
     now?: () => Date;
+    rootExecutionOptionsFactory?: RootExecutionOptionsFactory;
   }>): WorkerRuntimeHandle;
 
   close(): Promise<void>;

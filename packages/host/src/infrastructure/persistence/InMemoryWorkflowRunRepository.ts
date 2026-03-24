@@ -1,13 +1,15 @@
 import {
-RunSummaryMapper,
-type NodeId,
-type NodeOutputs,
-type ParentExecutionRef,
-type PersistedRunState,
-type RunId,
-type RunStateStore,
-type RunSummary,
-type WorkflowId,
+  RunFinishedAtFactory,
+  RunSummaryMapper,
+  type NodeId,
+  type NodeOutputs,
+  type ParentExecutionRef,
+  type PersistedRunState,
+  type RunId,
+  type RunPruneCandidate,
+  type RunStateStore,
+  type RunSummary,
+  type WorkflowId,
 } from "@codemation/core";
 import { injectable } from "@codemation/core";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
@@ -25,6 +27,8 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Run
     control?: PersistedRunState["control"];
     workflowSnapshot?: PersistedRunState["workflowSnapshot"];
     mutableState?: PersistedRunState["mutableState"];
+    policySnapshot?: PersistedRunState["policySnapshot"];
+    engineCounters?: PersistedRunState["engineCounters"];
   }): Promise<void> {
     this.runs.set(args.runId, {
       runId: args.runId,
@@ -35,6 +39,8 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Run
       control: args.control,
       workflowSnapshot: args.workflowSnapshot,
       mutableState: args.mutableState,
+      policySnapshot: args.policySnapshot,
+      engineCounters: args.engineCounters,
       status: "running",
       queue: [],
       outputsByNode: {} as Record<NodeId, NodeOutputs>,
@@ -50,6 +56,10 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Run
     this.runs.set(state.runId, state);
   }
 
+  async deleteRun(runId: RunId): Promise<void> {
+    this.runs.delete(runId);
+  }
+
   async listRuns(args: Readonly<{ workflowId?: string; limit?: number }>): Promise<ReadonlyArray<RunSummary>> {
     const limit = args?.limit ?? 50;
     const workflowId = args?.workflowId ? decodeURIComponent(args.workflowId) : undefined;
@@ -59,5 +69,23 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Run
       .slice(0, limit)
       .map((s) => RunSummaryMapper.fromPersistedState(s));
     return summaries;
+  }
+
+  async listRunsOlderThan(args: Readonly<{ beforeIso: string; limit?: number }>): Promise<ReadonlyArray<RunPruneCandidate>> {
+    const limit = args.limit ?? 100;
+    const out: RunPruneCandidate[] = [];
+    for (const s of this.runs.values()) {
+      if (s.status !== "completed" && s.status !== "failed") continue;
+      const finishedAt = RunFinishedAtFactory.resolveIso(s);
+      if (!finishedAt || finishedAt >= args.beforeIso) continue;
+      out.push({
+        runId: s.runId,
+        workflowId: s.workflowId,
+        startedAt: s.startedAt,
+        finishedAt,
+      });
+    }
+    out.sort((a, b) => a.finishedAt.localeCompare(b.finishedAt));
+    return out.slice(0, limit);
   }
 }

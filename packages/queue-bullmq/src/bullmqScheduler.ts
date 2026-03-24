@@ -5,6 +5,7 @@ NodeActivationContinuation,
 NodeExecutionRequest,
 NodeExecutionScheduler,
 NodeResolver,
+RootExecutionOptionsFactory,
 RunStateStore,
 WorkflowDefinition,
 WorkflowId,
@@ -42,6 +43,8 @@ export class BullmqScheduler implements NodeExecutionScheduler {
     binaryStorage?: BinaryStorage;
     workflows?: unknown;
     now?: () => Date;
+    /** When set, must match the host engine policy so worker execution contexts use the same limits as `runtime.engineExecutionLimits`. */
+    rootExecutionOptionsFactory?: RootExecutionOptionsFactory;
   }>): BullmqWorker {
     if (args.workflows !== undefined || args.now !== undefined) {
       return new BullmqWorker(
@@ -56,6 +59,8 @@ export class BullmqScheduler implements NodeExecutionScheduler {
         args.workflows,
         args.now ?? (() => new Date()),
         args.binaryStorage,
+        undefined,
+        args.rootExecutionOptionsFactory,
       );
     }
 
@@ -71,6 +76,8 @@ export class BullmqScheduler implements NodeExecutionScheduler {
       undefined,
       () => new Date(),
       args.binaryStorage,
+      undefined,
+      args.rootExecutionOptionsFactory,
     );
   }
 }

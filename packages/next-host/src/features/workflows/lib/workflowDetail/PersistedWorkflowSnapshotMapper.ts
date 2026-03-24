@@ -1,13 +1,17 @@
 import { AgentAttachmentNodeIdFactory } from "@codemation/core/browser";
+import { WorkflowPolicyUiPresentationFactory } from "@codemation/host-src/application/mapping/WorkflowPolicyUiPresentationFactory";
 import type { PersistedWorkflowSnapshot,WorkflowDto } from "../../hooks/realtime/realtime";
 import type { WorkflowNodeDto } from "../realtime/workflowTypes";
 
 export class PersistedWorkflowSnapshotMapper {
+  constructor(private readonly policyUi = new WorkflowPolicyUiPresentationFactory()) {}
+
   map(snapshot: PersistedWorkflowSnapshot): WorkflowDto {
     const nodes = snapshot.nodes.flatMap((node) => this.toWorkflowNodes(node));
     return {
       id: snapshot.id,
       name: snapshot.name,
+      hasWorkflowErrorHandler: snapshot.workflowErrorHandlerConfigured,
       nodes,
       edges: [...snapshot.edges, ...this.toAttachmentEdges(nodes)],
     };
@@ -20,6 +24,8 @@ export class PersistedWorkflowSnapshotMapper {
       name: node.name,
       type: node.configTokenName ?? node.tokenName ?? node.configTokenId,
       role: this.isAgentConfig(node.config) ? "agent" : "workflowNode",
+      retryPolicySummary: this.policyUi.snapshotNodeRetrySummary(node.config),
+      hasNodeErrorHandler: this.policyUi.snapshotNodeHasErrorHandler(node.config),
     };
     return [workflowNode, ...this.toAttachmentNodes(node)];
   }

@@ -2,6 +2,7 @@ import { type WorkflowDefinition } from "@codemation/core";
 import { createWorkflowBuilder,ManualTrigger,MapData } from "@codemation/core-nodes";
 import type { WorkflowDto } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
 import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
+import { WorkflowPolicyUiPresentationFactory } from "../../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
 import type { CodemationConfig } from "../../../src/presentation/config/CodemationConfig";
 import { IntegrationTestAuth } from "../../http/testkit/IntegrationTestAuth";
 
@@ -22,7 +23,7 @@ export class WorkflowDetailRuntimeFixtureFactory {
     }
     const definition = this.createWorkflowDefinition(workflowId, workflowName, args.nodeIds);
     return {
-      workflow: new WorkflowDefinitionMapper().mapSync(definition) as WorkflowDto,
+      workflow: new WorkflowDefinitionMapper(new WorkflowPolicyUiPresentationFactory()).mapSync(definition) as WorkflowDto,
       definition,
       config: this.createConfig(definition),
       workflowId,

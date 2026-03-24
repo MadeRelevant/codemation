@@ -27,6 +27,7 @@ CoreTokens,
 DefaultDrivingScheduler,
 DefaultExecutionContextFactory,
   EngineFactory,
+EngineExecutionLimitsPolicy,
 EngineWorkflowRunnerService,
 HintOnlyOffloadPolicy,
 InMemoryWebhookTriggerMatcher,
@@ -142,6 +143,8 @@ export type EngineTestKitOptions = Partial<{
   makeRunId: () => string;
   makeActivationId: () => string;
   workflowRunner: EngineWorkflowRunnerService;
+  /** Passed to {@link EngineFactory} so integration tests can assert host-configured limits propagate. */
+  executionLimitsPolicy: EngineExecutionLimitsPolicy;
 }>;
 
 export function createEngineTestKit(options: EngineTestKitOptions = {}) {
@@ -210,6 +213,7 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
     eventBus,
     tokenRegistry,
     workflowNodeInstanceFactory,
+    ...(options.executionLimitsPolicy !== undefined ? { executionLimitsPolicy: options.executionLimitsPolicy } : {}),
   });
   const workflowRunner = options.workflowRunner ?? new EngineWorkflowRunnerService(engine, workflowCatalog);
   dependencyContainer.registerInstance(CoreTokens.WorkflowRunnerService, workflowRunner as WorkflowRunnerService);

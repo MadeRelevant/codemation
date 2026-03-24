@@ -17,6 +17,7 @@ CodemationValueBinding
 export type {
 CodemationApplicationRuntimeConfig,CodemationBootContext,CodemationBootHook,CodemationConfig,CodemationDatabaseConfig,
 CodemationDatabaseKind,
+CodemationEngineExecutionLimitsConfig,
 CodemationEventBusConfig,
 CodemationEventBusKind,
 CodemationSchedulerConfig,

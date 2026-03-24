@@ -6,6 +6,10 @@ export type WorkflowNodeDto = Readonly<{
   role?: string;
   icon?: string;
   parentNodeId?: string;
+  /** Short retry policy label for canvas/properties (e.g. fixed / exponential). */
+  retryPolicySummary?: string;
+  /** Whether this node declares a node-level error handler. */
+  hasNodeErrorHandler?: boolean;
 }>;
 
 export type WorkflowEdgeDto = Readonly<{
@@ -18,6 +22,8 @@ export type WorkflowDto = Readonly<{
   name: string;
   nodes: ReadonlyArray<WorkflowNodeDto>;
   edges: ReadonlyArray<WorkflowEdgeDto>;
+  /** Workflow-level error hook configured on the definition. */
+  hasWorkflowErrorHandler?: boolean;
 }>;
 
 export type WorkflowSummary = Readonly<{

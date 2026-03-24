@@ -10,6 +10,7 @@ import { PersistedWorkflowSnapshotFactory } from "@codemation/core/testing";
 import { AIAgent,Callback,ManualTrigger,WebhookTrigger } from "@codemation/core-nodes";
 import type { PersistedRunState,WorkflowDebuggerOverlayState,WorkflowDto } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
 import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
+import { WorkflowPolicyUiPresentationFactory } from "../../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
 
 export type WorkflowDetailTriggerKind = "manual" | "webhook";
 
@@ -110,7 +111,7 @@ export class WorkflowDetailFixtureFactory {
   }
 
   static createWorkflowDetail(options: WorkflowDetailDefinitionOptions = {}): WorkflowDto {
-    return new WorkflowDefinitionMapper().mapSync(this.createWorkflowDefinition(options)) as WorkflowDto;
+    return new WorkflowDefinitionMapper(new WorkflowPolicyUiPresentationFactory()).mapSync(this.createWorkflowDefinition(options)) as WorkflowDto;
   }
 
   static createWorkflowSnapshot(options: Readonly<{ workflow?: WorkflowDto } & WorkflowDetailDefinitionOptions> = {}): NonNullable<PersistedRunState["workflowSnapshot"]> {

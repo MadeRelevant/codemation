@@ -21,6 +21,9 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
     runId: RunId;
     workflowId: WorkflowId;
     parent?: ParentExecutionRef;
+    subworkflowDepth: number;
+    engineMaxNodeActivations: number;
+    engineMaxSubworkflowDepth: number;
     data: RunDataSnapshot;
     nodeState?: NodeExecutionStatePublisher;
     getCredential<TSession = unknown>(slotKey: string): Promise<TSession>;
@@ -29,6 +32,9 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
       runId: args.runId,
       workflowId: args.workflowId,
       parent: args.parent,
+      subworkflowDepth: args.subworkflowDepth,
+      engineMaxNodeActivations: args.engineMaxNodeActivations,
+      engineMaxSubworkflowDepth: args.engineMaxSubworkflowDepth,
       now: this.currentDate,
       data: args.data,
       nodeState: args.nodeState,

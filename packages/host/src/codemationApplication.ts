@@ -10,6 +10,7 @@ CoreTokens,
 DefaultDrivingScheduler,
 DefaultExecutionContextFactory,
 Engine,
+EngineExecutionLimitsPolicyMergeFactory,
 EngineFactory,
 EngineWorkflowRunnerService,
 InlineDrivingScheduler,
@@ -21,6 +22,7 @@ instanceCachingFactory,
 NodeInstanceFactory,
 PersistedWorkflowTokenRegistry,
 PublishingRunStateStore,
+RootExecutionOptionsFactory,
 RunIntentService,
 container as tsyringeContainer,
 UnavailableCredentialSessionService
@@ -41,6 +43,7 @@ import "./application/commands/SetPinnedNodeInputCommandHandler";
 import "./application/commands/StartWorkflowRunCommandHandler";
 import "./application/commands/UserAccountCommandHandlers";
 import { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
+import { WorkflowPolicyUiPresentationFactory } from "./application/mapping/WorkflowPolicyUiPresentationFactory";
 import "./application/queries/CredentialQueryHandlers";
 import "./application/queries/GetRunBinaryAttachmentQueryHandler";
 import "./application/queries/GetRunStateQueryHandler";
@@ -186,7 +189,18 @@ export class CodemationApplication {
   }
 
   useRuntimeConfig(runtimeConfig: CodemationApplicationRuntimeConfig): this {
-    this.runtimeConfig = { ...this.runtimeConfig, ...runtimeConfig };
+    this.runtimeConfig = {
+      ...this.runtimeConfig,
+      ...runtimeConfig,
+      ...(runtimeConfig.engineExecutionLimits !== undefined
+        ? {
+            engineExecutionLimits: {
+              ...this.runtimeConfig.engineExecutionLimits,
+              ...runtimeConfig.engineExecutionLimits,
+            },
+          }
+        : {}),
+    };
     return this;
   }
 
@@ -331,6 +345,7 @@ export class CodemationApplication {
     await engine.start([...workflows]);
     const workflowsById = new Map(workflows.map((workflow) => [workflow.id, workflow] as const));
     const scheduler = this.container.resolve(ApplicationTokens.WorkerRuntimeScheduler);
+    const executionLimitsPolicy = this.container.resolve(CoreTokens.EngineExecutionLimitsPolicy);
     const worker = scheduler.createWorker({
       queues: args.queues,
       workflowsById,
@@ -340,6 +355,7 @@ export class CodemationApplication {
       continuation: engine,
       binaryStorage: this.container.resolve(CoreTokens.BinaryStorage),
       workflows: this.container.resolve(CoreTokens.WorkflowRunnerService),
+      rootExecutionOptionsFactory: new RootExecutionOptionsFactory(executionLimitsPolicy),
     });
 
     void args.bootstrapSource;
@@ -450,6 +466,11 @@ export class CodemationApplication {
       useFactory: instanceCachingFactory((dependencyContainer) => new ContainerWorkflowRunnerResolver(dependencyContainer.resolve(CoreTokens.ServiceContainer))),
     });
     this.container.register(EngineFactory, { useClass: EngineFactory });
+    this.container.register(CoreTokens.EngineExecutionLimitsPolicy, {
+      useFactory: instanceCachingFactory(
+        () => new EngineExecutionLimitsPolicyMergeFactory().create(this.runtimeConfig.engineExecutionLimits),
+      ),
+    });
     this.container.register(Engine, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         const workflowCatalog = dependencyContainer.resolve(CoreTokens.WorkflowCatalog);
@@ -477,6 +498,7 @@ export class CodemationApplication {
           eventBus: dependencyContainer.resolve(CoreTokens.RunEventBus),
           tokenRegistry: tokenRegistryLike,
           workflowNodeInstanceFactory,
+          executionLimitsPolicy: dependencyContainer.resolve(CoreTokens.EngineExecutionLimitsPolicy),
         });
       }),
     });
@@ -517,6 +539,7 @@ export class CodemationApplication {
     this.container.register(CodemationWebhookRegistry, {
       useFactory: instanceCachingFactory(() => new CodemationWebhookRegistry()),
     });
+    this.container.register(WorkflowPolicyUiPresentationFactory, { useClass: WorkflowPolicyUiPresentationFactory });
     this.container.register(WorkflowDefinitionMapper, { useClass: WorkflowDefinitionMapper });
     this.container.register(RequestToWebhookItemMapper, { useClass: RequestToWebhookItemMapper });
     this.container.register(CredentialSecretCipher, { useClass: CredentialSecretCipher });

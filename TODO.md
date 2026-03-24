@@ -1,46 +1,87 @@
-* [x] use tsyringe instead of cheap createSimpleContainer()
-* [x] tighten typings and generics so consumers and library/core nodes allways get actual properties based on node input/output schemas which can be tight 100% when don correctly from the start
-* [x] let the frontend handle all the heavy lifting of spinning up the UI, http server etc but allow consumers to hook into this so they can provide custom routes easily
-* [x] ~move core/src/ai.ts to core-nodes/ai-agent~ clean up engine
-* [x] split workflow setup into separate service instead of within engine
-* [x] remove the service locator behaviour from the context factory, either set those at the factory or let classes just inject the required services
-* [ ] add infinite recursion protection
-* [ ] add tests what happens when aggregating items or vice versa (splitting items) and check paired items dont get messed up
-* [x] support binary data
-* [x] build webhook node
-* [x] add oauth flows for credentials
-* [ ] allow array of nodes in then() for parallelism
-* [ ] support human-in-the-loop node
-* [x] store a snapshot of the config at each run and build the canvas from that snapshot for historical views
-* [x] split RunRouteHandler
-* [x] Fix naming for PersistedWorkflow*
-* [ ] Fix icon resolver, currently its using hardcoded map/if
-* [ ] Fix datetime formatting, use battle tested library instead
-* [ ] Allow binary uploads to webhook nodes
-* [ ] (LLM) Observability
-* [x] Rehome packages/host/ui -> packages/next-host (UI lives under `packages/next-host/src/features`, `src/components`, `src/shell`, `src/providers`)
-* [x] Add signature token to sign credential values
-* [x] Split up UI components into smaller components
-* [x] **Design system (next-host)** — detailed checklist in Cursor plan `design_system_migration_8f27a4f3`; verification + inventory in [packages/next-host/docs/TAILWIND_SHADCN_MIGRATION.md](packages/next-host/docs/TAILWIND_SHADCN_MIGRATION.md)
-    * [x] Credentials internals: `credential-dialog__*` / `credentials-table__*` → shadcn Input/Table/Badge + tokens (`CredentialDialogFormSections`, `FieldRows`, `CredentialsScreenInstancesTable`, …)
-    * [x] Workflow detail: layout → inspector → canvas → realtime (`src/features/workflows/screens`, `components/workflowDetail`, `components/canvas`, `hooks/realtime`)
-    * [x] Shared widgets: `CodemationDataTable`, `PasswordStrengthMeter`, … + `cn()`
-    * [x] Purge `app/globals.css` legacy + bridge when unused; optional dark toggle
-    * [x] Light verify: `pnpm --filter @codemation/next-host lint` + `pnpm run test:ui`; full `pnpm test` for CI/pre-merge only
-* [ ] Setup dashboard
-    * [ ] Show LLM analytics
-    * [ ] Show workflow analytics (succeeded, failed, avg duration, avg token usage)
-    * [ ] Show recent workflow runs
-* [ ] Support white-label (logo + company name)
-* [x] Migrate RouteHandlers from frontend to nextjs layer and call commands/queries directly and remove custom annotation driven router
-* [x] Add "clear data" to the live workflow so you can run it cleanly instead of manually clicking play on first node -> then last node play button or "Run workflow"
-* [x] Audit ESLint intentional relaxations so we are not quietly bypassing architecture rules: inventory `files` / `ignores` overrides in `tooling/eslint-config/index.mjs` (e.g. `codemation/no-manual-di-new` / `no-static-methods` off for specific paths), plus any `eslint-disable` in source; decide keep vs refactor vs narrow scope, and document rationale next to each override.
-* [ ] Test credentials using Azure Keyvault instead of database
-* [ ] Support retry policy (default X times with fixed delay and exponential as alternative)
-* [ ] Support copy/paste between different live workflow instances (easy debugging prod inside dev)
-* [x] Organize workflows by folder based on src
-* [ ] Allow setting global GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET so oauth connections are easier
-* [ ] Use actual urls for different canvas states so runs can be shared
-* [ ] Organize CLI commands into their own file and let @injectAll() discover commands abd test consumers can add CLI commands too this way
-* [ ] Refactor ConsumerOutputBuilder, try and find a battle tested solution
-* [ ] Uyse better algorithm to visualize nodes as an agent within an if branch overlaps other nodes
+# Codemation TODO
+
+Open items first; completed work is archived at the bottom for history.
+
+## Open
+
+### Engine & workflow execution
+
+- [x] Add infinite recursion protection (directed cycle rejection, activation budget, subworkflow depth limits — see `packages/core/test/engine.*` hardening tests)
+- [ ] Allow an array of nodes in `then()` for parallelism
+- [ ] Support human-in-the-loop node
+- [ ] Implement pruning policy 
+- [ ] Fully test subworkflow execution + visualization
+  - [ ] Introduce explicit "When invoked by other workflow" trigger node so its clear and easy to reason about the start node when invoking a subworkflow
+- [ ] Allow setting agent max turns, max tokens, max tool calls, tool call parallelism
+- [ ] Lock when "not to continue", when no items are emitted for example and allow users to continue anyway even when items are empty
+
+### UI, URLs & sharing
+
+- [ ] Support copy/paste between different live workflow instances (e.g. debug prod inside dev)
+- [ ] Fix icon resolver (replace hardcoded map / `if` chain)
+- [ ] Fix datetime formatting (use a battle-tested library)
+- [ ] Use real URLs for canvas and live/historical runs so views and runs are shareable
+- [ ] Use a better layout algorithm when an agent node sits inside an `if` branch and overlaps other nodes
+
+### Dashboard & product
+
+- [ ] Setup dashboard
+  - [ ] LLM analytics
+  - [ ] Workflow analytics (succeeded, failed, avg duration, avg token usage)
+  - [ ] Recent workflow runs
+- [ ] Support white-label (logo + company name)
+
+### Integrations & observability
+
+- [ ] Allow binary uploads to webhook nodes
+- [ ] (LLM) Observability (cross-cut with dashboard LLM analytics)
+- [ ] Test credentials backed by Azure Key Vault instead of database
+
+### CLI
+
+- [ ] Organize CLI commands into dedicated modules and let `@injectAll()` discover commands; allow test consumers to register CLI commands
+
+---
+
+## Completed
+
+### Engine, core & nodes
+
+- [x] Use tsyringe instead of cheap `createSimpleContainer()`
+- [x] Tighten typings and generics so consumers and library/core nodes get actual properties from node input/output schemas when defined correctly from the start
+- [x] Let the frontend own spinning up UI, HTTP server, etc., with hooks so consumers can add custom routes easily
+- [x] Move `core/src/ai.ts` to core-nodes / clean up engine
+- [x] Split workflow setup into a separate service instead of inside the engine
+- [x] Remove service-locator behavior from the context factory (set at factory or inject dependencies)
+- [x] Aggregating/splitting + paired-item regression tests — **not pursued** by design: code-first TypeScript and batch `items`; stable correlation is explicit userland (ids/keys)
+- [x] Support binary data
+- [x] Build webhook node
+- [x] Add OAuth flows for credentials
+- [x] Store a config snapshot per run and build the canvas from it for historical views
+- [x] Split `RunRouteHandler`
+- [x] Fix naming for `PersistedWorkflow*`
+- [x] Add signature token to sign credential values
+- [x] Support retry policy (default N times with fixed delay; exponential as an option)
+- [x] Organize workflows by folder based on `src`
+- [x] Allow global `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` for easier OAuth
+
+### Host & Next
+
+- [x] Rehome `packages/host/ui` → `packages/next-host` (UI under `packages/next-host/src/features`, `components`, `shell`, `providers`)
+- [x] Migrate route handlers from frontend to the Next layer; call commands/queries directly; remove custom annotation-driven router
+- [x] Add “clear data” on the live workflow for clean runs without manual node-by-node play
+- [x] Refactor `ConsumerOutputBuilder` toward a battle-tested approach
+
+### UI / design system
+
+- [x] Split UI into smaller components
+- [x] **Design system (next-host)** — plan `design_system_migration_8f27a4f3`; details in [packages/next-host/docs/TAILWIND_SHADCN_MIGRATION.md](packages/next-host/docs/TAILWIND_SHADCN_MIGRATION.md)
+  - [x] Credentials internals: `credential-dialog__*` / `credentials-table__*` → shadcn Input/Table/Badge + tokens (`CredentialDialogFormSections`, `FieldRows`, `CredentialsScreenInstancesTable`, …)
+  - [x] Workflow detail: layout → inspector → canvas → realtime (`src/features/workflows/screens`, `components/workflowDetail`, `components/canvas`, `hooks/realtime`)
+  - [x] Shared widgets: `CodemationDataTable`, `PasswordStrengthMeter`, … + `cn()`
+  - [x] Purge `app/globals.css` legacy + bridge when unused; optional dark toggle
+  - [x] Light verify: `pnpm --filter @codemation/next-host lint` + `pnpm run test:ui`; full `pnpm test` for CI/pre-merge only
+
+### Tooling & quality
+
+- [x] Audit ESLint intentional relaxations: inventory `files` / `ignores` in `tooling/eslint-config/index.mjs` and `eslint-disable` in source; document rationale per override

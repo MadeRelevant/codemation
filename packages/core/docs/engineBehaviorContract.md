@@ -18,6 +18,7 @@ This document freezes the behavior the engine refactor must preserve. The source
 | Webhook respond-now flows | Trigger-thrown webhook control signals either complete immediately or respond immediately and continue processing. | `packages/core/test/engine.webhooks.test.ts` |
 | Run event publication | Queue, start, completion, and failure snapshots are published as run events with stable snapshot payloads. | `packages/core/test/run-events.test.ts` |
 | Endpoint-to-trigger matching | A registered webhook endpoint can be matched back to the owning workflow trigger without frontend graph knowledge. | `packages/core/test/engine.webhooks.test.ts` plus matcher tests added during this refactor |
+| Resource / loop hardening | Directed cycles are rejected at planning time; runs enforce a persisted activation budget and subworkflow depth limits (inherited along parent refs). | `packages/core/test/engine.cycleDetection.test.ts`, `packages/core/test/engine.activationBudget.test.ts`, `packages/core/test/engine.subworkflowDepth.test.ts`, `packages/core/test/engineExecutionLimitsPolicy.test.ts` |
 
 ## Refactor Rule
 

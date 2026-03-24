@@ -4,6 +4,7 @@ NodeOutputs,
 ParentExecutionRef,
 PersistedRunState,
 RunId,
+RunPruneCandidate,
 RunStateStore,
 RunSummary,
 WorkflowId,
@@ -12,11 +13,13 @@ import { inject,injectable } from "@codemation/core";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { PrismaClient } from "./generated/prisma-client/client.js";
 
-/** JSON blob stored in stateJson: workflowSnapshot, mutableState, pending, queue, outputsByNode, nodeSnapshotsByNodeId */
+/** JSON blob stored in stateJson: workflowSnapshot, mutableState, pending, queue, outputsByNode, nodeSnapshotsByNodeId, engineCounters */
 interface StateJsonBlob {
   control?: PersistedRunState["control"];
   workflowSnapshot?: PersistedRunState["workflowSnapshot"];
   mutableState?: PersistedRunState["mutableState"];
+  policySnapshot?: PersistedRunState["policySnapshot"];
+  engineCounters?: PersistedRunState["engineCounters"];
   pending?: PersistedRunState["pending"];
   queue: PersistedRunState["queue"];
   outputsByNode: Record<NodeId, NodeOutputs>;
@@ -36,6 +39,8 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
     control?: PersistedRunState["control"];
     workflowSnapshot?: PersistedRunState["workflowSnapshot"];
     mutableState?: PersistedRunState["mutableState"];
+    policySnapshot?: PersistedRunState["policySnapshot"];
+    engineCounters?: PersistedRunState["engineCounters"];
   }): Promise<void> {
     const now = new Date().toISOString();
     const state: PersistedRunState = {
@@ -47,6 +52,8 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
       control: args.control,
       workflowSnapshot: args.workflowSnapshot,
       mutableState: args.mutableState,
+      policySnapshot: args.policySnapshot,
+      engineCounters: args.engineCounters,
       status: "running",
       queue: [],
       outputsByNode: {} as Record<NodeId, NodeOutputs>,
@@ -110,11 +117,31 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
     return rows.map((r) => this.rowToRunSummary(r));
   }
 
+  async deleteRun(runId: RunId): Promise<void> {
+    const id = decodeURIComponent(runId);
+    await this.prisma.run.delete({ where: { runId: id } });
+  }
+
+  async listRunsOlderThan(args: Readonly<{ beforeIso: string; limit?: number }>): Promise<ReadonlyArray<RunPruneCandidate>> {
+    const limit = args.limit ?? 100;
+    const rows = await this.prisma.run.findMany({
+      where: {
+        status: { in: ["completed", "failed"] },
+        updatedAt: { lt: args.beforeIso },
+      },
+      orderBy: { updatedAt: "asc" },
+      take: limit,
+    });
+    return rows.map((r) => this.rowToPruneCandidate(r));
+  }
+
   private serializeStateBlob(state: PersistedRunState): string {
     const blob: StateJsonBlob = {
       control: state.control,
       workflowSnapshot: state.workflowSnapshot,
       mutableState: state.mutableState,
+      policySnapshot: state.policySnapshot,
+      engineCounters: state.engineCounters,
       pending: state.pending,
       queue: state.queue,
       outputsByNode: state.outputsByNode,
@@ -129,6 +156,8 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
       control: parsed.control,
       workflowSnapshot: parsed.workflowSnapshot,
       mutableState: parsed.mutableState,
+      policySnapshot: parsed.policySnapshot,
+      engineCounters: parsed.engineCounters,
       pending: parsed.pending,
       queue: parsed.queue ?? [],
       outputsByNode: (parsed.outputsByNode ?? {}) as Record<NodeId, NodeOutputs>,
@@ -158,10 +187,21 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
       control: blob.control,
       workflowSnapshot: blob.workflowSnapshot,
       mutableState: blob.mutableState,
+      policySnapshot: blob.policySnapshot,
+      engineCounters: blob.engineCounters,
       pending: blob.pending,
       queue: blob.queue,
       outputsByNode: blob.outputsByNode,
       nodeSnapshotsByNodeId: blob.nodeSnapshotsByNodeId,
+    };
+  }
+
+  private rowToPruneCandidate(row: { runId: string; workflowId: string; startedAt: string; updatedAt: string }): RunPruneCandidate {
+    return {
+      runId: row.runId as RunId,
+      workflowId: row.workflowId as WorkflowId,
+      startedAt: row.startedAt,
+      finishedAt: row.updatedAt,
     };
   }
 

@@ -26,3 +26,12 @@ export { DefaultAsyncSleeper } from "./execution/DefaultAsyncSleeper";
 export { InProcessRetryRunner } from "./execution/InProcessRetryRunner";
 export type { AsyncSleeper } from "./execution/asyncSleeper.types";
 
+export { ENGINE_EXECUTION_LIMITS_DEFAULTS, EngineExecutionLimitsPolicy, type EngineExecutionLimitsPolicyConfig } from "./application/policies/EngineExecutionLimitsPolicy";
+export { EngineExecutionLimitsPolicyMergeFactory } from "./application/policies/EngineExecutionLimitsPolicyMergeFactory";
+export { RootExecutionOptionsFactory } from "./application/policies/RootExecutionOptionsFactory";
+export { RunPolicySnapshotFactory } from "./application/policies/RunPolicySnapshotFactory";
+export { DirectedCycleDetector } from "./domain/planning/DirectedCycleDetector";
+export { RunTerminalPersistenceCoordinator } from "./application/policies/RunTerminalPersistenceCoordinator";
+export { WorkflowPolicyErrorServices } from "./application/policies/WorkflowPolicyErrorServices";
+export { WorkflowStoragePolicyEvaluator } from "./application/policies/WorkflowStoragePolicyEvaluator";
+

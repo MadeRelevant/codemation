@@ -22,6 +22,7 @@ import type {
   RunStateStore,
   WorkflowDefinition,
   WorkflowId,
+  WorkflowPolicyRuntimeDefaults,
   WorkflowSnapshotFactory,
 } from "../../../types";
 
@@ -30,12 +31,14 @@ import { WorkflowTopology } from "../../domain/planning/WorkflowTopologyPlanner"
 import { CurrentStateFrontierPlannerFactory } from "../planning/CurrentStateFrontierPlannerFactory";
 
 import { CredentialResolverFactory } from "../credentials/CredentialResolverFactory";
+import { EngineExecutionLimitsPolicy } from "../policies/EngineExecutionLimitsPolicy";
 import { EngineWorkflowPlanningFactory } from "../planning/EngineWorkflowPlanningFactory";
 import type { EngineWaiters } from "../waiters/EngineWaiters";
 import { NodeExecutionStatePublisherFactory } from "../state/NodeExecutionStatePublisherFactory";
 
 import { ActivationEnqueueService } from "./ActivationEnqueueService";
 import { RunStateSemantics } from "./RunStateSemantics";
+import { RunPolicySnapshotFactory } from "../policies/RunPolicySnapshotFactory";
 
 export class CurrentStateRunStarter {
   constructor(
@@ -52,6 +55,9 @@ export class CurrentStateRunStarter {
     private readonly activationEnqueueService: ActivationEnqueueService,
     private readonly semantics: RunStateSemantics,
     private readonly waiters: EngineWaiters,
+    private readonly runPolicySnapshotFactory: RunPolicySnapshotFactory,
+    private readonly workflowPolicyRuntimeDefaults: WorkflowPolicyRuntimeDefaults | undefined,
+    private readonly executionLimitsPolicy: EngineExecutionLimitsPolicy,
   ) {}
 
   async runWorkflowFromState(request: CurrentStateExecutionRequest): Promise<RunResult> {
@@ -59,19 +65,23 @@ export class CurrentStateRunStarter {
     const startedAt = new Date().toISOString();
     const workflowSnapshot = request.workflowSnapshot ?? this.workflowSnapshotFactory.create(request.workflow);
     const mutableState = request.mutableState ?? request.currentState?.mutableState;
+    const policySnapshot = this.runPolicySnapshotFactory.create(request.workflow, this.workflowPolicyRuntimeDefaults);
     const control = {
       stopCondition: request.stopCondition ?? { kind: "workflowCompleted" as const },
     };
+    const mergedExecutionOptions = this.executionLimitsPolicy.mergeExecutionOptionsForNewRun(request.parent, request.executionOptions);
 
     await this.runStore.createRun({
       runId,
       workflowId: request.workflow.id,
       startedAt,
       parent: request.parent,
-      executionOptions: request.executionOptions,
+      executionOptions: mergedExecutionOptions,
       control,
       workflowSnapshot,
       mutableState,
+      policySnapshot,
+      engineCounters: { completedNodeActivations: 0 },
     });
 
     const { topology, planner } = this.planningFactory.create(request.workflow);
@@ -89,6 +99,9 @@ export class CurrentStateRunStarter {
       workflowId: request.workflow.id,
       nodeId: request.workflow.nodes[0]?.id ?? "unknown_node",
       parent: request.parent,
+      subworkflowDepth: mergedExecutionOptions.subworkflowDepth ?? 0,
+      engineMaxNodeActivations: mergedExecutionOptions.maxNodeActivations!,
+      engineMaxSubworkflowDepth: mergedExecutionOptions.maxSubworkflowDepth!,
       data,
       nodeState: this.nodeStatePublisherFactory.create(runId, request.workflow.id, request.parent),
     });
@@ -99,7 +112,8 @@ export class CurrentStateRunStarter {
       workflow: request.workflow,
       workflowSnapshot,
       mutableState,
-      executionOptions: request.executionOptions,
+      policySnapshot,
+      executionOptions: mergedExecutionOptions,
       control,
       parent: request.parent,
       planner,
@@ -126,6 +140,7 @@ export class CurrentStateRunStarter {
     workflow: WorkflowDefinition;
     workflowSnapshot: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["workflowSnapshot"];
     mutableState: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["mutableState"];
+    policySnapshot: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["policySnapshot"];
     executionOptions?: RunExecutionOptions;
     control: PersistedRunControlState | undefined;
     parent?: ParentExecutionRef;
@@ -171,10 +186,12 @@ export class CurrentStateRunStarter {
           control: args.control,
           workflowSnapshot: args.workflowSnapshot,
           mutableState: args.mutableState,
+          policySnapshot: args.policySnapshot,
           pendingQueue: [],
           request,
           previousNodeSnapshotsByNodeId: initialNodeSnapshotsByNodeId,
           planner: args.planner,
+          engineCounters: { completedNodeActivations: 0 },
         });
       }
 
@@ -209,6 +226,7 @@ export class CurrentStateRunStarter {
         control: args.control,
         workflowSnapshot: args.workflowSnapshot,
         mutableState: args.mutableState,
+        policySnapshot: args.policySnapshot,
         pendingQueue: [],
         request,
         previousNodeSnapshotsByNodeId: initialNodeSnapshotsByNodeId,
@@ -225,6 +243,7 @@ export class CurrentStateRunStarter {
       control: args.control,
       workflowSnapshot: args.workflowSnapshot,
       mutableState: args.mutableState,
+      policySnapshot: args.policySnapshot,
       workflow: args.workflow,
       planner: args.planner,
       queue: [...args.plan.queue],
@@ -243,6 +262,7 @@ export class CurrentStateRunStarter {
     control: PersistedRunControlState | undefined;
     workflowSnapshot: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["workflowSnapshot"];
     mutableState: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["mutableState"];
+    policySnapshot: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["policySnapshot"];
     workflow: WorkflowDefinition;
     planner: RunQueuePlanner;
     queue: RunQueueEntry[];
@@ -272,6 +292,7 @@ export class CurrentStateRunStarter {
         control: args.control,
         workflowSnapshot: args.workflowSnapshot,
         mutableState: args.mutableState,
+        policySnapshot: args.policySnapshot,
         workflow: args.workflow,
         data: args.data,
         nodeSnapshotsByNodeId: args.nodeSnapshotsByNodeId,
@@ -329,10 +350,12 @@ export class CurrentStateRunStarter {
       control: args.control,
       workflowSnapshot: args.workflowSnapshot,
       mutableState: args.mutableState,
+      policySnapshot: args.policySnapshot,
       pendingQueue: args.queue,
       request,
       previousNodeSnapshotsByNodeId: args.nodeSnapshotsByNodeId,
       planner: args.planner,
+      engineCounters: { completedNodeActivations: 0 },
     });
   }
 
@@ -345,6 +368,7 @@ export class CurrentStateRunStarter {
     control: PersistedRunControlState | undefined;
     workflowSnapshot: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["workflowSnapshot"];
     mutableState: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["mutableState"];
+    policySnapshot: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["policySnapshot"];
     workflow: WorkflowDefinition;
     data: ReturnType<RunDataFactory["create"]>;
     nodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
@@ -358,6 +382,8 @@ export class CurrentStateRunStarter {
       control: args.control,
       workflowSnapshot: args.workflowSnapshot,
       mutableState: args.mutableState,
+      policySnapshot: args.policySnapshot,
+      engineCounters: { completedNodeActivations: 0 },
       status: "completed",
       pending: undefined,
       queue: [],
@@ -415,6 +441,9 @@ export class CurrentStateRunStarter {
     workflowId: WorkflowId;
     nodeId: NodeId;
     parent?: ParentExecutionRef;
+    subworkflowDepth: number;
+    engineMaxNodeActivations: number;
+    engineMaxSubworkflowDepth: number;
     data: ReturnType<RunDataFactory["create"]>;
     nodeState?: NodeExecutionStatePublisher;
   }) {
@@ -422,6 +451,9 @@ export class CurrentStateRunStarter {
       runId: args.runId,
       workflowId: args.workflowId,
       parent: args.parent,
+      subworkflowDepth: args.subworkflowDepth,
+      engineMaxNodeActivations: args.engineMaxNodeActivations,
+      engineMaxSubworkflowDepth: args.engineMaxSubworkflowDepth,
       data: args.data,
       nodeState: args.nodeState,
       getCredential: this.credentialResolverFactory.create(args.workflowId, args.nodeId),

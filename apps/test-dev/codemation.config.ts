@@ -56,6 +56,8 @@ export const codemationHost = {
   },
   bootHook: TestDevCredentialBootstrap,
   runtime: {
+    // Optional: tighten engine defaults (merged with framework defaults; see CodemationEngineExecutionLimitsConfig).
+    // engineExecutionLimits: { hardMaxNodeActivations: 50_000, hardMaxSubworkflowDepth: 24 },
     database: {
       url: databaseUrl,
     },

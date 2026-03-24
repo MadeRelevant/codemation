@@ -1,5 +1,6 @@
 import type { TypeToken } from "../di";
 import type { RunEventBus } from "../events/runEvents";
+import type { EngineExecutionLimitsPolicy } from "../engine/application/policies/EngineExecutionLimitsPolicy";
 import type {
   ActivationIdFactory,
   BinaryStorage,
@@ -46,5 +47,7 @@ export const CoreTokens = {
   RunEventBus: Symbol.for("codemation.core.RunEventBus") as TypeToken<RunEventBus>,
   BinaryStorage: Symbol.for("codemation.core.BinaryStorage") as TypeToken<BinaryStorage>,
   WebhookBasePath: Symbol.for("codemation.core.WebhookBasePath") as TypeToken<string>,
+  /** Engine execution limits (defaults + optional host overrides). Consumers may bind a custom instance to override. */
+  EngineExecutionLimitsPolicy: Symbol.for("codemation.core.EngineExecutionLimitsPolicy") as TypeToken<EngineExecutionLimitsPolicy>,
 } as const;
 

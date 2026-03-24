@@ -1,4 +1,4 @@
-import type { Container,TypeToken,WorkflowDefinition } from "@codemation/core";
+import type { Container,EngineExecutionLimitsPolicyConfig,TypeToken,WorkflowDefinition } from "@codemation/core";
 import type { CodemationApplication } from "../../codemationApplication";
 import type { CodemationAppSlots } from "./CodemationAppSlots";
 import type { CodemationAuthConfig } from "./CodemationAuthConfig";
@@ -27,11 +27,19 @@ export interface CodemationSchedulerConfig {
   readonly workerQueues?: ReadonlyArray<string>;
 }
 
+/**
+ * Optional overrides for engine execution limits (activation budget and subworkflow depth caps).
+ * Omitted fields keep framework defaults. Advanced users can bind `CoreTokens.EngineExecutionLimitsPolicy` for full control.
+ */
+export type CodemationEngineExecutionLimitsConfig = Readonly<Partial<EngineExecutionLimitsPolicyConfig>>;
+
 export interface CodemationApplicationRuntimeConfig {
   readonly frontendPort?: number;
   readonly database?: CodemationDatabaseConfig;
   readonly eventBus?: CodemationEventBusConfig;
   readonly scheduler?: CodemationSchedulerConfig;
+  /** Merged with engine defaults when building the execution limits policy (API + workers). */
+  readonly engineExecutionLimits?: CodemationEngineExecutionLimitsConfig;
 }
 
 export interface CodemationBootContext {

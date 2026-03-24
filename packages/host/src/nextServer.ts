@@ -7,6 +7,8 @@ export { performanceLogPolicyFactory, PerformanceLogPolicyFactory } from "./infr
 export { ServerLoggerFactory } from "./infrastructure/logging/ServerLoggerFactory";
 export { RunBinaryAttachmentLookupService } from "./application/binary/RunBinaryAttachmentLookupService";
 export { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefinitionMapper";
+export { WorkflowPolicyUiPresentationFactory } from "./application/mapping/WorkflowPolicyUiPresentationFactory";
+export { WorkflowRunRetentionPruneScheduler } from "./application/runs/WorkflowRunRetentionPruneScheduler";
 export { ApplicationTokens } from "./applicationTokens";
 export { CodemationApplication } from "./codemationApplication";
 export { CodemationPluginListMerger } from "./presentation/config/CodemationPluginListMerger";

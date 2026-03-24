@@ -15,6 +15,8 @@ export type WorkflowCanvasNodeData = Readonly<{
   hasOutputData: boolean;
   isLiveWorkflowView: boolean;
   isRunning: boolean;
+  retryPolicySummary?: string;
+  hasNodeErrorHandler?: boolean;
   onSelectNode: (nodeId: string) => void;
   onOpenPropertiesNode: (nodeId: string) => void;
   onRunNode: (nodeId: string) => void;

@@ -10,6 +10,7 @@ NodeKind,
 NodeOutputs,
 OutputPortKey,
 ParentExecutionRef,
+PersistedRunPolicySnapshot,
 PersistedTokenId,
 RunId,
 WorkflowDefinition,
@@ -24,6 +25,17 @@ export interface RunExecutionOptions {
   sourceRunId?: RunId;
   derivedFromRunId?: RunId;
   isMutable?: boolean;
+  /** Set by the engine for this run: 0 = root, 1 = first child subworkflow, … */
+  subworkflowDepth?: number;
+  /** Effective cap after engine policy merge (successful node completions per run). */
+  maxNodeActivations?: number;
+  /** Effective cap after engine policy merge (subworkflow nesting). */
+  maxSubworkflowDepth?: number;
+}
+
+/** Engine-owned counters persisted with the run (worker-safe). */
+export interface EngineRunCounters {
+  completedNodeActivations: number;
 }
 
 export type RunStopCondition =
@@ -59,6 +71,8 @@ export interface PersistedWorkflowSnapshot {
   name: string;
   nodes: ReadonlyArray<PersistedWorkflowSnapshotNode>;
   edges: ReadonlyArray<Edge>;
+  /** When the snapshot was built from a live workflow definition that configured a workflow error handler. */
+  workflowErrorHandlerConfigured?: boolean;
 }
 
 export type PinnedNodeOutputsByPort = Readonly<Record<OutputPortKey, Items>>;
@@ -176,6 +190,10 @@ export interface PersistedRunState {
   control?: PersistedRunControlState;
   workflowSnapshot?: PersistedWorkflowSnapshot;
   mutableState?: PersistedMutableRunState;
+  /** Frozen at createRun from workflow + runtime defaults for prune/storage decisions. */
+  policySnapshot?: PersistedRunPolicySnapshot;
+  /** Successful node completions so far (for activation budget). */
+  engineCounters?: EngineRunCounters;
   status: RunStatus;
   pending?: PendingNodeExecution;
   queue: RunQueueEntry[];
@@ -193,13 +211,28 @@ export interface RunStateStore {
     control?: PersistedRunControlState;
     workflowSnapshot?: PersistedWorkflowSnapshot;
     mutableState?: PersistedMutableRunState;
+    policySnapshot?: PersistedRunPolicySnapshot;
+    engineCounters?: EngineRunCounters;
   }): Promise<void>;
   load(runId: RunId): Promise<PersistedRunState | undefined>;
   save(state: PersistedRunState): Promise<void>;
+  deleteRun?(runId: RunId): Promise<void>;
 }
 
 export interface RunListingStore {
   listRuns(args?: Readonly<{ workflowId?: WorkflowId; limit?: number }>): Promise<ReadonlyArray<RunSummary>>;
+}
+
+/** Runs eligible for retention-based pruning (completed or failed, older than cutoff). */
+export interface RunPruneCandidate {
+  readonly runId: RunId;
+  readonly workflowId: WorkflowId;
+  readonly startedAt: string;
+  readonly finishedAt: string;
+}
+
+export interface RunPruneListingStore {
+  listRunsOlderThan(args: Readonly<{ beforeIso: string; limit?: number }>): Promise<ReadonlyArray<RunPruneCandidate>>;
 }
 
 export type RunResult =

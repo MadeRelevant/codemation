@@ -35,8 +35,9 @@ RunId,
 RunIdFactory,
 TriggerNodeConfig,
 TriggerNodeSetupState,
-WorkflowDefinition,
-WorkflowId,
+  WorkflowDefinition,
+  WorkflowId,
+  WorkflowPolicyRuntimeDefaults,
 } from "./workflowTypes";
 
 export interface WorkflowRunnerService {
@@ -139,6 +140,12 @@ export interface ExecutionContext {
   runId: RunId;
   workflowId: WorkflowId;
   parent?: ParentExecutionRef;
+  /** This run's subworkflow depth (0 = root). */
+  subworkflowDepth: number;
+  /** Effective activation budget cap for this run (after policy merge). */
+  engineMaxNodeActivations: number;
+  /** Effective subworkflow nesting cap for this run (after policy merge). */
+  engineMaxSubworkflowDepth: number;
   now: () => Date;
   data: RunDataSnapshot;
   nodeState?: NodeExecutionStatePublisher;
@@ -151,6 +158,9 @@ export interface ExecutionContextFactory {
     runId: RunId;
     workflowId: WorkflowId;
     parent?: ParentExecutionRef;
+    subworkflowDepth: number;
+    engineMaxNodeActivations: number;
+    engineMaxSubworkflowDepth: number;
     data: RunDataSnapshot;
     nodeState?: NodeExecutionStatePublisher;
     getCredential<TSession = unknown>(slotKey: string): Promise<TSession>;
@@ -353,4 +363,6 @@ export interface EngineDeps {
   eventBus?: RunEventBus;
   tokenRegistry: PersistedWorkflowTokenRegistryLike;
   workflowNodeInstanceFactory: WorkflowNodeInstanceFactory;
+  /** Defaults for prune/storage snapshot when workflow omits explicit policy fields. */
+  workflowPolicyRuntimeDefaults?: WorkflowPolicyRuntimeDefaults;
 }

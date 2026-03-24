@@ -15,8 +15,10 @@ WorkflowId,
 import {
   DefaultAsyncSleeper,
   DefaultExecutionContextFactory,
+  EngineExecutionLimitsPolicy,
   InMemoryRunDataFactory,
   InProcessRetryRunner,
+  RootExecutionOptionsFactory,
   UnavailableBinaryStorage,
 } from "@codemation/core";
 import type { Job } from "bullmq";
@@ -51,6 +53,7 @@ export class BullmqWorker {
   private readonly binaryStorage: BinaryStorage;
 
   private readonly runDataFactory = new InMemoryRunDataFactory();
+  private readonly rootExecutionOptionsFactory: RootExecutionOptionsFactory;
   private readonly retryRunner: InProcessRetryRunner;
   private readonly workers: Worker[] = [];
 
@@ -67,6 +70,7 @@ export class BullmqWorker {
     now: () => Date = () => new Date(),
     binaryStorage: BinaryStorage = new UnavailableBinaryStorage(),
     retryRunner: InProcessRetryRunner = new InProcessRetryRunner(new DefaultAsyncSleeper()),
+    rootExecutionOptionsFactory: RootExecutionOptionsFactory = new RootExecutionOptionsFactory(new EngineExecutionLimitsPolicy()),
   ) {
     this.connection = RedisConnectionOptionsFactory.fromConfig(connection);
     this.queuePrefix = queuePrefix;
@@ -79,6 +83,7 @@ export class BullmqWorker {
     this.now = now;
     this.binaryStorage = binaryStorage;
     this.retryRunner = retryRunner;
+    this.rootExecutionOptionsFactory = rootExecutionOptionsFactory;
 
     for (const q of queues) {
       const queueName = `${this.queuePrefix}.${q}`;
@@ -113,10 +118,15 @@ export class BullmqWorker {
     const outputsByNode = (state.outputsByNode ?? {}) as Record<string, any>;
     const dataStore = this.runDataFactory.create(outputsByNode as any);
 
+    const eo = state.executionOptions as { subworkflowDepth?: number; maxNodeActivations?: number; maxSubworkflowDepth?: number } | undefined;
+    const fb = this.rootExecutionOptionsFactory.create();
     const base = new DefaultExecutionContextFactory(this.binaryStorage, this.now).create({
       runId: request.runId,
       workflowId: request.workflowId,
       parent: (request.parent ?? state.parent) as any,
+      subworkflowDepth: eo?.subworkflowDepth ?? 0,
+      engineMaxNodeActivations: eo?.maxNodeActivations ?? fb.maxNodeActivations!,
+      engineMaxSubworkflowDepth: eo?.maxSubworkflowDepth ?? fb.maxSubworkflowDepth!,
       data: dataStore,
       getCredential: async <TSession = unknown>(slotKey: string): Promise<TSession> => {
         return await this.credentialSessions.getSession<TSession>({

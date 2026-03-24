@@ -73,6 +73,28 @@ export function WorkflowCanvasCodemationNodeCard(props: Readonly<{ data: Workflo
         >
           {data.label}
         </div>
+        {!isAttachment && (data.retryPolicySummary || data.hasNodeErrorHandler) ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+            {data.retryPolicySummary ? (
+              <span
+                data-testid={`canvas-node-policy-retry-${data.nodeId}`}
+                title={data.retryPolicySummary}
+                style={{ fontSize: 9, fontWeight: 700, color: "#0f766e", background: "#ccfbf1", padding: "1px 4px", borderRadius: 2 }}
+              >
+                R
+              </span>
+            ) : null}
+            {data.hasNodeErrorHandler ? (
+              <span
+                data-testid={`canvas-node-policy-error-handler-${data.nodeId}`}
+                title="Node error handler configured"
+                style={{ fontSize: 9, fontWeight: 700, color: "#7c3aed", background: "#ede9fe", padding: "1px 4px", borderRadius: 2 }}
+              >
+                E
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       {trailingIconForNode({ status: data.status, isPinned }) ? (
         <div

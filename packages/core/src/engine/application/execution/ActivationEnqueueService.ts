@@ -1,4 +1,5 @@
 import type {
+  EngineRunCounters,
   NodeActivationRequest,
   NodeExecutionSnapshot,
   NodeId,
@@ -38,10 +39,12 @@ export class ActivationEnqueueService {
     control: PersistedRunControlState | undefined;
     workflowSnapshot: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["workflowSnapshot"];
     mutableState: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["mutableState"];
+    policySnapshot: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["policySnapshot"];
     pendingQueue: RunQueueEntry[];
     request: NodeActivationRequest;
     previousNodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
     planner: RunQueuePlanner;
+    engineCounters?: EngineRunCounters;
   }): Promise<RunResult> {
     const { result, queuedSnapshot } = await this.enqueueActivationWithSnapshot(args);
     await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);
@@ -57,10 +60,12 @@ export class ActivationEnqueueService {
     control: PersistedRunControlState | undefined;
     workflowSnapshot: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["workflowSnapshot"];
     mutableState: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["mutableState"];
+    policySnapshot: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["policySnapshot"];
     pendingQueue: RunQueueEntry[];
     request: NodeActivationRequest;
     previousNodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
     planner: RunQueuePlanner;
+    engineCounters?: EngineRunCounters;
   }): Promise<{ result: RunResult; queuedSnapshot: NodeExecutionSnapshot }> {
     const receipt = await this.activationScheduler.enqueue(args.request);
     const inputsByPort = InputPortMap.fromRequest(args.request);
@@ -97,6 +102,8 @@ export class ActivationEnqueueService {
       control: args.control,
       workflowSnapshot: args.workflowSnapshot,
       mutableState: args.mutableState,
+      policySnapshot: args.policySnapshot,
+      engineCounters: args.engineCounters,
       status: "pending",
       pending,
       queue: args.pendingQueue.map((entry) => ({ ...entry })),
