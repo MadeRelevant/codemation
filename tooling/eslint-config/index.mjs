@@ -489,6 +489,17 @@ export default [
     },
   },
 
+  // Fixed consumer for Playwright (packages/e2e): same workflow DSL + slot components as apps/test-dev,
+  // which live outside packages/** and are not subject to the strict packages/** OOP rules above.
+  {
+    files: ["packages/e2e/**/*.{ts,tsx}"],
+    rules: {
+      "codemation/no-manual-di-new": "off",
+      "codemation/no-static-methods": "off",
+      "no-restricted-syntax": "off",
+    },
+  },
+
   // next-host: UI uses the HTTP API only (App Router → /api → Hono/CQRS), not Server Actions.
   {
     files: ["packages/next-host/**/*.{ts,tsx}"],

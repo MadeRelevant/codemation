@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
 import { OauthProviderIcon } from "../components/OauthProviderIcon";
+import { CredentialsSignInRedirectResolver } from "./CredentialsSignInRedirectResolver";
 
 type LoginPageClientProps = Readonly<{
   callbackUrl: string;
@@ -76,7 +77,8 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
               suppressHydrationWarning
               aria-busy={isSubmitting}
               onSubmit={(event: FormEvent) => {
-                void this.submitCredentials(event);
+                event.preventDefault();
+                void this.submitCredentials();
               }}
             >
               <div className="space-y-2">
@@ -116,7 +118,15 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
                   {this.state.error}
                 </p>
               ) : null}
-              <Button type="submit" className="w-full" data-testid="login-submit" disabled={formBusy}>
+              <Button
+                type="button"
+                className="w-full"
+                data-testid="login-submit"
+                disabled={formBusy}
+                onClick={() => {
+                  void this.submitCredentials();
+                }}
+              >
                 {isSubmitting ? (
                   <span
                     className="mr-2 inline-block size-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"
@@ -176,8 +186,7 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
     void signIn(providerId, { callbackUrl: this.props.callbackUrl });
   }
 
-  private async submitCredentials(event: FormEvent): Promise<void> {
-    event.preventDefault();
+  private async submitCredentials(): Promise<void> {
     this.setState({ error: null, isSubmitting: true });
     try {
       const result = await signIn("credentials", {
@@ -186,12 +195,17 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
         password: this.state.password,
         callbackUrl: this.props.callbackUrl,
       });
-      if (result?.error) {
+      if (!result) {
+        this.setState({ error: "Something went wrong. Try again.", isSubmitting: false });
+        return;
+      }
+      if (result.error) {
         this.setState({ error: "Invalid email or password.", isSubmitting: false });
         return;
       }
-      if (result?.url) {
-        window.location.assign(result.url);
+      const target = CredentialsSignInRedirectResolver.resolveRedirectUrl(result, this.props.callbackUrl);
+      if (target) {
+        window.location.assign(target);
         return;
       }
       this.setState({ isSubmitting: false });

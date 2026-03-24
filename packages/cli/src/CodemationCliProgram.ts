@@ -256,6 +256,8 @@ export class CodemationCli {
           WS_NO_BUFFER_UTIL: "1",
           WS_NO_UTF_8_VALIDATE: "1",
           ...(uiProxyBase.length > 0 ? { CODEMATION_DEV_UI_PROXY_TARGET: uiProxyBase } : {}),
+          DATABASE_URL: process.env.DATABASE_URL,
+          AUTH_SECRET: process.env.AUTH_SECRET,
         },
       });
       currentGateway.on("error", (error) => {
@@ -493,6 +495,9 @@ export class CodemationCli {
       ...(args.runtimeDevUrl !== undefined && args.runtimeDevUrl.trim().length > 0
         ? { CODEMATION_RUNTIME_DEV_URL: args.runtimeDevUrl.trim() }
         : {}),
+      // Consumer dotenv must not override secrets/DB URL when the parent (e.g. Playwright webServer) set them.
+      DATABASE_URL: process.env.DATABASE_URL ?? consumerEnv.DATABASE_URL,
+      AUTH_SECRET: process.env.AUTH_SECRET ?? consumerEnv.AUTH_SECRET,
     };
   }
 

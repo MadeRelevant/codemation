@@ -65,19 +65,27 @@ export class TestDevCredentialBootstrap implements CodemationBootHook {
     if (!slot) {
       return;
     }
-    const instanceId = await this.ensureEnvCredentialInstance({
-      displayName: TestDevCredentialBootstrap.openAiCredentialDisplayName,
-      typeId: TestDevCredentialBootstrap.openAiCredentialTypeId,
-      envSecretRefs: {
-        apiKey: "OPENAI_API_KEY",
-      },
-    });
-    await this.credentialBindingService.upsertBinding({
-      workflowId: slot.workflowId,
-      nodeId: slot.nodeId,
-      slotKey: slot.requirement.slotKey,
-      instanceId,
-    });
+    try {
+      const instanceId = await this.ensureEnvCredentialInstance({
+        displayName: TestDevCredentialBootstrap.openAiCredentialDisplayName,
+        typeId: TestDevCredentialBootstrap.openAiCredentialTypeId,
+        envSecretRefs: {
+          apiKey: "OPENAI_API_KEY",
+        },
+      });
+      await this.credentialBindingService.upsertBinding({
+        workflowId: slot.workflowId,
+        nodeId: slot.nodeId,
+        slotKey: slot.requirement.slotKey,
+        instanceId,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("Unknown credential type")) {
+        return;
+      }
+      throw error;
+    }
   }
 
   private async ensureGmailCredentialBinding(context: CodemationBootContext): Promise<void> {

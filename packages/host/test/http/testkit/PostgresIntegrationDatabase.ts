@@ -1,4 +1,6 @@
+import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { promisify } from "node:util";
 import { Client } from "pg";
 import { GenericContainer } from "testcontainers";
 import { PrismaClientFactory } from "../../../src/infrastructure/persistence/PrismaClientFactory";
@@ -8,8 +10,19 @@ import { PostgresRollbackTransaction } from "./PostgresRollbackTransaction";
 
 type StartedPostgresContainer = Readonly<{
   readonly databaseUrl: string;
+  readonly dockerContainerId?: string;
   stop(): Promise<void>;
 }>;
+
+/** Serializable state for cross-process teardown (e.g. Playwright globalTeardown). */
+export type PostgresIntegrationDatabaseSnapshot = Readonly<{
+  readonly databaseUrl: string;
+  readonly adminDatabaseUrl: string;
+  readonly databaseName: string;
+  readonly postgresDockerContainerId?: string;
+}>;
+
+const execFileAsync = promisify(execFile);
 
 export class PostgresIntegrationDatabase {
   private static readonly migrationDeployer = new PrismaMigrationDeployer();
@@ -22,6 +35,7 @@ export class PostgresIntegrationDatabase {
     private readonly adminDatabaseUrl: string,
     private readonly databaseName: string,
     private readonly startedContainer?: StartedPostgresContainer,
+    private readonly postgresDockerContainerId?: string,
   ) {}
 
   static async create(): Promise<PostgresIntegrationDatabase> {
@@ -40,7 +54,13 @@ export class PostgresIntegrationDatabase {
     }
     const databaseName = this.createDatabaseName();
     const databaseUrl = this.buildDatabaseUrl(adminDatabaseUrl, databaseName);
-    const database = new PostgresIntegrationDatabase(databaseUrl, adminDatabaseUrl, databaseName, startedContainer);
+    const database = new PostgresIntegrationDatabase(
+      databaseUrl,
+      adminDatabaseUrl,
+      databaseName,
+      startedContainer,
+      startedContainer?.dockerContainerId,
+    );
     await database.createDatabase();
     if (applyMigrations) {
       await database.applyMigrations();
@@ -52,6 +72,39 @@ export class PostgresIntegrationDatabase {
     await this.disconnectPrismaClient();
     await this.dropDatabase();
     await this.startedContainer?.stop();
+  }
+
+  serialize(): PostgresIntegrationDatabaseSnapshot {
+    return {
+      databaseUrl: this.databaseUrl,
+      adminDatabaseUrl: this.adminDatabaseUrl,
+      databaseName: this.databaseName,
+      postgresDockerContainerId: this.postgresDockerContainerId,
+    };
+  }
+
+  /**
+   * Drops the ephemeral database and stops the Postgres testcontainer when one was started.
+   * Used when global teardown runs in a different process than setup.
+   */
+  static async teardownSnapshot(snapshot: PostgresIntegrationDatabaseSnapshot): Promise<void> {
+    const client = await PostgresIntegrationDatabase.connectAdmin(snapshot.adminDatabaseUrl);
+    try {
+      await client.query(
+        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()",
+        [snapshot.databaseName],
+      );
+      await client.query(`DROP DATABASE IF EXISTS "${snapshot.databaseName}"`);
+    } finally {
+      await client.end();
+    }
+    if (snapshot.postgresDockerContainerId !== undefined && snapshot.postgresDockerContainerId.trim().length > 0) {
+      try {
+        await execFileAsync("docker", ["stop", snapshot.postgresDockerContainerId], { timeout: 120_000 });
+      } catch {
+        // Best-effort: CI may not expose Docker to the teardown process.
+      }
+    }
   }
 
   async beginRollbackTransaction(): Promise<PostgresRollbackTransaction> {
@@ -73,6 +126,7 @@ export class PostgresIntegrationDatabase {
     const port = container.getMappedPort(5432);
     return {
       databaseUrl: `postgresql://postgres:postgres@${host}:${port}/postgres`,
+      dockerContainerId: container.getId(),
       stop: async () => {
         await container.stop();
       },
@@ -135,6 +189,10 @@ export class PostgresIntegrationDatabase {
   }
 
   private async connect(connectionString: string): Promise<Client> {
+    return await PostgresIntegrationDatabase.connectAdmin(connectionString);
+  }
+
+  private static async connectAdmin(connectionString: string): Promise<Client> {
     const client = new Client({ connectionString });
     await client.connect();
     return client;

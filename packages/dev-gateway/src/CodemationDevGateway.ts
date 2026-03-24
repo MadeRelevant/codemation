@@ -311,6 +311,9 @@ export class CodemationDevGateway {
         ...this.resolveChildEnvironment(),
         CODEMATION_RUNTIME_HTTP_PORT: String(this.childHttpPort),
         CODEMATION_WS_PORT: String(this.childWsPort),
+        // Child env JSON must not override the gateway process database URL (e.g. Playwright e2e).
+        DATABASE_URL: process.env.DATABASE_URL,
+        AUTH_SECRET: process.env.AUTH_SECRET,
       },
     });
     this.child.on("exit", (code: number | null) => {

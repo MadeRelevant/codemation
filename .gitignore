@@ -14,3 +14,6 @@ out
 apps/test-dev/.tanstack
 packages/host/src/infrastructure/persistence/generated
 **/coverage
+packages/host/test/playwright/.e2e-prepared.json
+packages/host/test/playwright/.e2e-db-snapshot.json
+packages/host/test-results/

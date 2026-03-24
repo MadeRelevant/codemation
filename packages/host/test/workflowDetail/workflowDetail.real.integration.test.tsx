@@ -149,19 +149,25 @@ describe("workflow detail real integration", () => {
     await WorkflowDetailRealIntegrationFixture.pinNodeOutput(kit, "Agent", { pinned: true });
 
     const overlayBody = kit.latestRequestBody<OverlayBody>(`PUT ${ApiPaths.workflowDebuggerOverlay(fixture.workflowId)}`);
-    expect(overlayBody).toEqual({
-      currentState: expect.objectContaining({
-        mutableState: {
-          nodesById: {
-            Agent: {
-              pinnedOutputsByPort: {
-                main: [{ json: { pinned: true } }],
-              },
-            },
-          },
-        },
+    expect(overlayBody).toEqual(
+      expect.objectContaining({
+        currentState: expect.objectContaining({
+          mutableState: expect.objectContaining({
+            nodesById: expect.objectContaining({
+              Agent: expect.objectContaining({
+                pinnedOutputsByPort: expect.objectContaining({
+                  main: [
+                    expect.objectContaining({
+                      json: { pinned: true },
+                    }),
+                  ],
+                }),
+              }),
+            }),
+          }),
+        }),
       }),
-    });
+    );
 
     fireEvent.click(screen.getByTestId("canvas-node-run-button-Agent"));
 

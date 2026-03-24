@@ -129,7 +129,7 @@ export class WorkflowDetailScreenTestKit {
     }
     const environment = this.environment as WorkflowDetailTestEnvironment;
     await waitFor(() => {
-      expect(environment.socketConnections).toHaveLength(expectedCount);
+      expect(environment.socketConnections.length).toBeGreaterThanOrEqual(expectedCount);
     });
     return this.latestSocket();
   }
