@@ -162,6 +162,16 @@ export class RunQueuePlanner {
 
     if (!isMulti) {
       if (args.items.length === 0) {
+        if (this.shouldContinueAfterEmptyOutputFromSource(args.from.nodeId)) {
+          queue.push({
+            nodeId: args.to.nodeId,
+            input: args.items,
+            toInput: args.to.input,
+            batchId: args.batchId,
+            from: args.from,
+          });
+          return;
+        }
         this.propagateEmptyPath(queue, args.to.nodeId, args.batchId);
         return;
       }
@@ -189,6 +199,14 @@ export class RunQueuePlanner {
 
     const received = (collect.collect as any).received as Record<InputPortKey, Items>;
     received[args.to.input] = args.items;
+  }
+
+  private shouldContinueAfterEmptyOutputFromSource(fromNodeId: NodeId): boolean {
+    const def = this.topology.defsById.get(fromNodeId);
+    if (!def) {
+      return false;
+    }
+    return def.config.continueWhenEmptyOutput === true;
   }
 
   private propagateEmptyPath(queue: RunQueueEntry[], nodeId: NodeId, batchId: string): void {

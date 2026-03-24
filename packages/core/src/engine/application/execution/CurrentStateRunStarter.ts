@@ -1,13 +1,8 @@
 import type {
-  ActivationIdFactory,
   CurrentStateExecutionRequest,
   ExecutionContextFactory,
   ExecutionFrontierPlan,
-  Items,
-  NodeActivationRequest,
-  NodeExecutionContext,
   NodeExecutionSnapshot,
-  NodeExecutionStatePublisher,
   NodeId,
   NodeOutputs,
   ParentExecutionRef,
@@ -30,28 +25,28 @@ import { RunQueuePlanner } from "../../domain/planning/runQueuePlanner";
 import { WorkflowTopology } from "../../domain/planning/WorkflowTopologyPlanner";
 import { CurrentStateFrontierPlannerFactory } from "../planning/CurrentStateFrontierPlannerFactory";
 
-import { CredentialResolverFactory } from "../credentials/CredentialResolverFactory";
 import { EngineExecutionLimitsPolicy } from "../policies/EngineExecutionLimitsPolicy";
 import { EngineWorkflowPlanningFactory } from "../planning/EngineWorkflowPlanningFactory";
 import type { EngineWaiters } from "../waiters/EngineWaiters";
 import { NodeExecutionStatePublisherFactory } from "../state/NodeExecutionStatePublisherFactory";
 
 import { ActivationEnqueueService } from "./ActivationEnqueueService";
+import { NodeActivationRequestComposer } from "./NodeActivationRequestComposer";
 import { RunStateSemantics } from "./RunStateSemantics";
 import { RunPolicySnapshotFactory } from "../policies/RunPolicySnapshotFactory";
+import { WorkflowRunExecutionContextFactory } from "./WorkflowRunExecutionContextFactory";
 
 export class CurrentStateRunStarter {
   constructor(
     private readonly runIdFactory: RunIdFactory,
-    private readonly activationIdFactory: ActivationIdFactory,
     private readonly runStore: RunStateStore,
     private readonly runDataFactory: RunDataFactory,
-    private readonly executionContextFactory: ExecutionContextFactory,
     private readonly workflowSnapshotFactory: WorkflowSnapshotFactory,
     private readonly planningFactory: EngineWorkflowPlanningFactory,
     private readonly currentStateFrontierPlannerFactory: CurrentStateFrontierPlannerFactory,
     private readonly nodeStatePublisherFactory: NodeExecutionStatePublisherFactory,
-    private readonly credentialResolverFactory: CredentialResolverFactory,
+    private readonly runExecutionContextFactory: WorkflowRunExecutionContextFactory,
+    private readonly nodeActivationRequestComposer: NodeActivationRequestComposer,
     private readonly activationEnqueueService: ActivationEnqueueService,
     private readonly semantics: RunStateSemantics,
     private readonly waiters: EngineWaiters,
@@ -94,7 +89,7 @@ export class CurrentStateRunStarter {
     });
 
     const data = this.runDataFactory.create(plan.currentState.outputsByNode);
-    const base = this.createExecutionContext({
+    const base = this.runExecutionContextFactory.create({
       runId,
       workflowId: request.workflow.id,
       nodeId: request.workflow.nodes[0]?.id ?? "unknown_node",
@@ -166,7 +161,7 @@ export class CurrentStateRunStarter {
       }
       const startItems = args.plan.rootNodeInput ?? [];
       if (startDef.kind === "trigger") {
-        const request = this.createSingleActivationRequest({
+        const request = this.nodeActivationRequestComposer.createSingleFromDefinition({
           runId: args.runId,
           workflowId: args.workflow.id,
           definition: startDef,
@@ -195,28 +190,17 @@ export class CurrentStateRunStarter {
         });
       }
 
-      const activationId = this.activationIdFactory.makeActivationId();
-      const ctx: NodeExecutionContext = {
-        ...args.base,
-        data: args.data,
-        nodeId: startDef.id,
-        activationId,
-        config: startDef.config,
-        binary: args.base.binary.forNode({ nodeId: startDef.id, activationId }),
-        getCredential: this.credentialResolverFactory.create(args.workflow.id, startDef.id, startDef.config),
-      };
-      const request: NodeActivationRequest = {
-        kind: "single",
+      const request = this.nodeActivationRequestComposer.createSingleFromDefinition({
         runId: args.runId,
-        activationId,
         workflowId: args.workflow.id,
-        nodeId: startDef.id,
+        definition: startDef,
         parent: args.parent,
         executionOptions: args.executionOptions,
         batchId: "batch_1",
         input: startItems,
-        ctx,
-      };
+        base: args.base,
+        data: args.data,
+      });
       return await this.activationEnqueueService.enqueueActivation({
         runId: args.runId,
         workflowId: args.workflow.id,
@@ -304,42 +288,16 @@ export class CurrentStateRunStarter {
       throw new Error(`Node ${next.nodeId} is not a runnable node`);
     }
 
-    const activationId = this.activationIdFactory.makeActivationId();
-    const ctx: NodeExecutionContext = {
-      ...args.base,
+    const request = this.nodeActivationRequestComposer.createFromPlannedActivation({
+      next,
+      base: args.base,
       data: args.data,
-      nodeId: definition.id,
-      activationId,
-      config: definition.config,
-      binary: args.base.binary.forNode({ nodeId: definition.id, activationId }),
-      getCredential: this.credentialResolverFactory.create(args.workflowId, definition.id, definition.config),
-    };
-    const request: NodeActivationRequest =
-      next.kind === "multi"
-        ? {
-            kind: "multi",
-            runId: args.runId,
-            activationId,
-            workflowId: args.workflowId,
-            nodeId: definition.id,
-            parent: args.parent,
-            executionOptions: args.executionOptions,
-            batchId: next.batchId,
-            inputsByPort: next.inputsByPort,
-            ctx,
-          }
-        : {
-            kind: "single",
-            runId: args.runId,
-            activationId,
-            workflowId: args.workflowId,
-            nodeId: definition.id,
-            parent: args.parent,
-            executionOptions: args.executionOptions,
-            batchId: next.batchId,
-            input: next.input,
-            ctx,
-          };
+      runId: args.runId,
+      workflowId: args.workflowId,
+      parent: args.parent,
+      executionOptions: args.executionOptions,
+      nodeDefinition: definition,
+    });
 
     return await this.activationEnqueueService.enqueueActivation({
       runId: args.runId,
@@ -399,65 +357,6 @@ export class CurrentStateRunStarter {
     };
     this.waiters.resolveRunCompletion(result);
     return result;
-  }
-
-  private createSingleActivationRequest(args: {
-    runId: RunId;
-    workflowId: WorkflowId;
-    definition: Readonly<{ id: NodeId; config: NodeExecutionContext["config"] }>;
-    parent?: ParentExecutionRef;
-    executionOptions?: RunExecutionOptions;
-    batchId: string;
-    input: Items;
-    base: ReturnType<ExecutionContextFactory["create"]>;
-    data: ReturnType<RunDataFactory["create"]>;
-  }): NodeActivationRequest {
-    const activationId = this.activationIdFactory.makeActivationId();
-    const ctx: NodeExecutionContext = {
-      ...args.base,
-      data: args.data,
-      nodeId: args.definition.id,
-      activationId,
-      config: args.definition.config,
-      binary: args.base.binary.forNode({ nodeId: args.definition.id, activationId }),
-      getCredential: this.credentialResolverFactory.create(args.workflowId, args.definition.id, args.definition.config),
-    };
-    return {
-      kind: "single",
-      runId: args.runId,
-      activationId,
-      workflowId: args.workflowId,
-      nodeId: args.definition.id,
-      parent: args.parent,
-      executionOptions: args.executionOptions,
-      batchId: args.batchId,
-      input: args.input,
-      ctx,
-    };
-  }
-
-  private createExecutionContext(args: {
-    runId: RunId;
-    workflowId: WorkflowId;
-    nodeId: NodeId;
-    parent?: ParentExecutionRef;
-    subworkflowDepth: number;
-    engineMaxNodeActivations: number;
-    engineMaxSubworkflowDepth: number;
-    data: ReturnType<RunDataFactory["create"]>;
-    nodeState?: NodeExecutionStatePublisher;
-  }) {
-    return this.executionContextFactory.create({
-      runId: args.runId,
-      workflowId: args.workflowId,
-      parent: args.parent,
-      subworkflowDepth: args.subworkflowDepth,
-      engineMaxNodeActivations: args.engineMaxNodeActivations,
-      engineMaxSubworkflowDepth: args.engineMaxSubworkflowDepth,
-      data: args.data,
-      nodeState: args.nodeState,
-      getCredential: this.credentialResolverFactory.create(args.workflowId, args.nodeId),
-    });
   }
 }
 

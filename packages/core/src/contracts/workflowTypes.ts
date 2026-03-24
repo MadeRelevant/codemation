@@ -55,6 +55,12 @@ export interface NodeConfigBase {
   readonly retryPolicy?: RetryPolicySpec;
   /** Recover from execute failures; return outputs to continue, or rethrow to fail the node. */
   readonly nodeErrorHandler?: NodeErrorHandlerSpec;
+  /**
+   * When true, edges carrying zero items on an output port still schedule single-input downstream nodes.
+   * Decided from the **source** node that produced the (empty) output. Default (false/undefined): empty
+   * main batches skip downstream execution and propagate the empty path.
+   */
+  readonly continueWhenEmptyOutput?: boolean;
   getCredentialRequirements?(): ReadonlyArray<CredentialRequirement>;
 }
 

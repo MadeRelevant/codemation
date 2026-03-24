@@ -28,6 +28,7 @@ items,
 class ManualTestTriggerConfig<TOutputJson = unknown> implements TriggerNodeConfig<TOutputJson> {
   readonly kind = "trigger" as const;
   readonly type: TypeToken<unknown> = ManualTestTriggerNode;
+  readonly continueWhenEmptyOutput = true as const;
 
   constructor(
     public readonly name: string,
@@ -94,6 +95,29 @@ test("trigger nodes are marked completed and emit completion snapshots", async (
   assert.deepEqual(seenTriggerStatuses, ["completed"]);
 
   await subscription.close();
+});
+
+test("runWorkflowFromState still runs downstream after trigger when trigger opts into continueWhenEmptyOutput", async () => {
+  const downstreamEvents: string[] = [];
+  const trigger = new ManualTestTriggerConfig("Manual trigger", "trigger");
+  const downstream = new CallbackNodeConfig("Downstream", () => downstreamEvents.push("downstream"), { id: "downstream" });
+  const workflow = new WorkflowBuilder({ id: "wf.trigger.empty.continue", name: "Trigger empty continue" })
+    .trigger(trigger)
+    .then(downstream)
+    .build();
+
+  const kit = createEngineTestKit();
+  await kit.start([workflow]);
+
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow,
+    items: [],
+    stopCondition: { kind: "workflowCompleted" },
+  });
+  const done = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(done.status, "completed");
+  assert.deepEqual(downstreamEvents, ["downstream"]);
 });
 
 test("engine runs a diamond DAG A -> B + C -> D (fan-in join, D executes once)", async () => {

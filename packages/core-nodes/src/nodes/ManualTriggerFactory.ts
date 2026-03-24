@@ -19,6 +19,8 @@ export class ManualTrigger<TOutputJson = unknown> implements TriggerNodeConfig<T
   readonly type: TypeToken<unknown> = ManualTriggerNode;
   readonly defaultItems?: Items<TOutputJson>;
   readonly id?: string;
+  /** Manual runs often emit an empty batch; still schedule downstream by default. */
+  readonly continueWhenEmptyOutput = true as const;
 
   constructor(name?: string, id?: string);
   constructor(name: string, defaultItems: ManualTriggerDefaultValue<TOutputJson>, id?: string);

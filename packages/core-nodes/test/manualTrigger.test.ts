@@ -101,6 +101,11 @@ test("manual trigger prefers provided execution items over configured defaults",
   assert.deepEqual(outputs.main?.map((item) => item.json), [{ manual: true }]);
 });
 
+test("manual trigger defaults continueWhenEmptyOutput to true", () => {
+  const config = new ManualTrigger("Manual trigger");
+  assert.equal(config.continueWhenEmptyOutput, true);
+});
+
 test("manual trigger exposes configured default items through getTestItems", async () => {
   const node = new ManualTriggerNode();
   const outputs = await node.getTestItems(

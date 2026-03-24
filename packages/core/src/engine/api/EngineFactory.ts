@@ -7,8 +7,11 @@ import { PersistedWorkflowResolver } from "../adapters/persisted-workflow/Persis
 import { PersistedWorkflowSnapshotFactory } from "../adapters/persisted-workflow/PersistedWorkflowSnapshotFactory";
 import { ActivationEnqueueService } from "../application/execution/ActivationEnqueueService";
 import { CurrentStateRunStarter } from "../application/execution/CurrentStateRunStarter";
+import { NodeActivationRequestComposer } from "../application/execution/NodeActivationRequestComposer";
+import { PersistedRunStateTerminalBuilder } from "../application/execution/PersistedRunStateTerminalBuilder";
 import { RunContinuationService } from "../application/execution/RunContinuationService";
 import { RunStateSemantics } from "../application/execution/RunStateSemantics";
+import { WorkflowRunExecutionContextFactory } from "../application/execution/WorkflowRunExecutionContextFactory";
 import { WorkflowRunStarter } from "../application/execution/WorkflowRunStarter";
 import { RunPolicySnapshotFactory } from "../application/policies/RunPolicySnapshotFactory";
 import { RunTerminalPersistenceCoordinator } from "../application/policies/RunTerminalPersistenceCoordinator";
@@ -60,6 +63,9 @@ export class EngineFactory {
 
     const semantics = new RunStateSemantics();
     const activationEnqueueService = new ActivationEnqueueService(deps.activationScheduler, deps.runStore, nodeEventPublisher);
+    const runExecutionContextFactory = new WorkflowRunExecutionContextFactory(deps.executionContextFactory, credentialResolverFactory);
+    const nodeActivationRequestComposer = new NodeActivationRequestComposer(deps.activationIdFactory, credentialResolverFactory);
+    const persistedRunStateTerminalBuilder = new PersistedRunStateTerminalBuilder();
     const runPolicySnapshotFactory = new RunPolicySnapshotFactory();
     const storagePolicyEvaluator = new WorkflowStoragePolicyEvaluator(deps.nodeResolver);
     const terminalPersistence = new RunTerminalPersistenceCoordinator(deps.runStore, storagePolicyEvaluator);
@@ -67,14 +73,13 @@ export class EngineFactory {
 
     const workflowRunStarter = new WorkflowRunStarter(
       deps.runIdFactory,
-      deps.activationIdFactory,
       deps.runStore,
       deps.runDataFactory,
-      deps.executionContextFactory,
       workflowSnapshotFactory,
       planningFactory,
       nodeStatePublisherFactory,
-      credentialResolverFactory,
+      runExecutionContextFactory,
+      nodeActivationRequestComposer,
       activationEnqueueService,
       waiters,
       runPolicySnapshotFactory,
@@ -83,15 +88,14 @@ export class EngineFactory {
     );
     const currentStateRunStarter = new CurrentStateRunStarter(
       deps.runIdFactory,
-      deps.activationIdFactory,
       deps.runStore,
       deps.runDataFactory,
-      deps.executionContextFactory,
       workflowSnapshotFactory,
       planningFactory,
       new CurrentStateFrontierPlannerFactory(),
       nodeStatePublisherFactory,
-      credentialResolverFactory,
+      runExecutionContextFactory,
+      nodeActivationRequestComposer,
       activationEnqueueService,
       semantics,
       waiters,
@@ -103,11 +107,13 @@ export class EngineFactory {
       deps.activationIdFactory,
       deps.runStore,
       deps.runDataFactory,
-      deps.executionContextFactory,
+      runExecutionContextFactory,
       workflowSnapshotResolver,
       planningFactory,
       nodeStatePublisherFactory,
       credentialResolverFactory,
+      nodeActivationRequestComposer,
+      persistedRunStateTerminalBuilder,
       activationEnqueueService,
       nodeEventPublisher,
       semantics,

@@ -4,7 +4,7 @@ import { test } from "vitest";
 import { RunQueuePlanner } from "../src/engine/planning/runQueuePlanner.ts";
 import { WorkflowTopology } from "../src/engine/planning/WorkflowTopologyPlanner.ts";
 import type { RunQueueEntry } from "../src/types.ts";
-import { CallbackNodeConfig,MergeNode,MergeNodeConfig,dag,items } from "./harness/index.ts";
+import { CallbackNode,CallbackNodeConfig,MergeNode,MergeNodeConfig,chain,dag,items } from "./harness/index.ts";
 
 test("planner seals a partially satisfied collect with empty inputs when no runnable work remains", () => {
   const builder = dag({ id: "wf.run-queue.partial-collect", name: "Partial collect" });
@@ -75,4 +75,40 @@ test("planner still reports a collect with no received inputs as stuck", () => {
   ];
 
   assert.throws(() => planner.nextActivation(queue), /Multi-input collect is stuck/);
+});
+
+test("planner enqueues a single-input node when the source opts into continueWhenEmptyOutput", () => {
+  const A = new CallbackNodeConfig("A", () => {}, { id: "A", continueWhenEmptyOutput: true });
+  const B = new CallbackNodeConfig("B", () => {}, { id: "B" });
+  const workflow = chain({ id: "wf.run-queue.empty-continue", name: "Empty continue" }).start(A).then(B).build();
+  const planner = new RunQueuePlanner(
+    WorkflowTopology.fromWorkflow(workflow),
+    new Map([
+      ["A", new CallbackNode()],
+      ["B", new CallbackNode()],
+    ]),
+  );
+  const queue: RunQueueEntry[] = [];
+  planner.applyOutputs(queue, { fromNodeId: "A", outputs: { main: [] }, batchId: "batch_1" });
+
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0]?.nodeId, "B");
+  assert.deepEqual(queue[0]?.input, []);
+});
+
+test("planner propagates empty output past single-input nodes when the source does not opt in", () => {
+  const A = new CallbackNodeConfig("A", () => {}, { id: "A" });
+  const B = new CallbackNodeConfig("B", () => {}, { id: "B" });
+  const workflow = chain({ id: "wf.run-queue.empty-skip", name: "Empty skip" }).start(A).then(B).build();
+  const planner = new RunQueuePlanner(
+    WorkflowTopology.fromWorkflow(workflow),
+    new Map([
+      ["A", new CallbackNode()],
+      ["B", new CallbackNode()],
+    ]),
+  );
+  const queue: RunQueueEntry[] = [];
+  planner.applyOutputs(queue, { fromNodeId: "A", outputs: { main: [] }, batchId: "batch_1" });
+
+  assert.equal(queue.length, 0);
 });

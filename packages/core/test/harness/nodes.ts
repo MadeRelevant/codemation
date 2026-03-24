@@ -31,8 +31,13 @@ export class CallbackNodeConfig<TItemJson = unknown> implements RunnableNodeConf
       id?: string;
       execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }>;
       retryPolicy?: RetryPolicySpec;
+      continueWhenEmptyOutput?: boolean;
     }> = {},
   ) {}
+
+  get continueWhenEmptyOutput(): boolean | undefined {
+    return this.opts.continueWhenEmptyOutput;
+  }
 
   get id(): string | undefined {
     return this.opts.id;
