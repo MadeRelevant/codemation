@@ -13,20 +13,20 @@ Open items first; completed work is archived at the bottom for history.
 - [ ] Fully test subworkflow execution + visualization
   - [ ] Introduce explicit "When invoked by other workflow" trigger node so its clear and easy to reason about the start node when invoking a subworkflow
 - [ ] Allow setting agent max turns, max tokens, max tool calls, tool call parallelism
-- [ ] Lock when "not to continue", when no items are emitted for example and allow users to continue anyway even when items are empty
+- [x] Lock when "not to continue", when no items are emitted for example and allow users to continue anyway even when items are empty
 - [ ] Implement leader election logic so triggers and pruners are only started once
-- [ ] Remove the "register webhook" logic, webhooks must be scaleable by endpoint and just resolve the workflow once and then execute the "webhook" trigger 
+- [x] Remove the "register webhook" logic, webhooks must be scaleable by endpoint and just resolve the workflow once and then execute the "webhook" trigger 
 - [ ] Only start triggers for workflows that are "activated"
 - [ ] Organize tests better (currently core has 1 big flat list)
 - [ ] Let nodes define inputs, triggers wont have any, this way we can render them correctly too on the canvas. Currently they are rendered as if they would allow an incoming connection
 - [ ] Periodically clean up credential bindings for nodes that dont exist in code anymore (low prio)
+- [ ] Stress test webhook and measure cpu/mem and make sure they dont run out
 
 ### UI, URLs & sharing
 
 - [ ] Support copy/paste between different live workflow instances (e.g. debug prod inside dev)
 - [ ] Fix icon resolver (replace hardcoded map / `if` chain)
 - [ ] Fix datetime formatting (use a battle-tested library)
-- [ ] Use real URLs for canvas and live/historical runs so views and runs are shareable
 - [ ] Use a better layout algorithm when an agent node sits inside an `if` branch and overlaps other nodes
 
 ### Dashboard & product
@@ -77,6 +77,7 @@ Open items first; completed work is archived at the bottom for history.
 - [x] Migrate route handlers from frontend to the Next layer; call commands/queries directly; remove custom annotation-driven router
 - [x] Add “clear data” on the live workflow for clean runs without manual node-by-node play
 - [x] Refactor `ConsumerOutputBuilder` toward a battle-tested approach
+- [x] Use real URLs for canvas and live/historical runs so views and runs are shareable (`run`, `pane`, `node` query params; `WorkflowDetailUrlCodec`)
 
 ### UI / design system
 

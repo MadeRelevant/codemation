@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback,useEffect,useMemo,useRef,useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 useRunQuery,
 useWorkflowDebuggerOverlayQuery,
@@ -15,7 +16,8 @@ type RunSummary,
 type WorkflowDevBuildState,
 type WorkflowDto,
 } from "../realtime/realtime";
-import { WorkflowDetailPresenter,type RunWorkflowRequest } from "../../lib/workflowDetail/WorkflowDetailPresenter";
+import { WorkflowDetailPresenter, type RunWorkflowRequest } from "../../lib/workflowDetail/WorkflowDetailPresenter";
+import { WorkflowDetailUrlCodec, type WorkflowDetailUrlLocation } from "../../lib/workflowDetail/WorkflowDetailUrlCodec";
 import type {
 InspectorFormat,
 InspectorMode,
@@ -75,6 +77,17 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const MIN_INSPECTOR_HEIGHT = 240;
   const MAX_INSPECTOR_HEIGHT = 640;
   const { workflowId, initialWorkflow } = args;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlLocation = useMemo(() => WorkflowDetailUrlCodec.parseSearchParams(searchParams), [searchParams]);
+  const navigateToLocation = useCallback(
+    (location: WorkflowDetailUrlLocation) => {
+      const href = WorkflowDetailUrlCodec.buildHref(pathname, searchParams, location);
+      router.replace(href);
+    },
+    [pathname, router, searchParams],
+  );
   const queryClient = useQueryClient();
   const workflowQuery = useWorkflowQuery(workflowId, initialWorkflow);
   const runsQuery = useWorkflowRunsQuery(workflowId);
@@ -86,8 +99,8 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const [error, setError] = useState<string | null>(null);
   const [isRunRequestPending, setIsRunRequestPending] = useState(false);
   const [pendingTriggerFetchSnapshot, setPendingTriggerFetchSnapshot] = useState<NodeExecutionSnapshot | null>(null);
-  const [isRunsPaneVisible, setIsRunsPaneVisible] = useState(false);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const selectedRunId = urlLocation.selectedRunId;
+  const isRunsPaneVisible = urlLocation.isRunsPaneVisible;
   const [activeLiveRunId, setActiveLiveRunId] = useState<string | null>(null);
   const [pendingSelectedRun, setPendingSelectedRun] = useState<RunSummary | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -220,26 +233,76 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     if (!selectedRunId) {
       return;
     }
-    if (displayedRuns?.some((run) => run.runId === selectedRunId)) {
+    if (displayedRuns === undefined) {
       return;
     }
-    setSelectedRunId(null);
-  }, [displayedRuns, selectedRunId]);
+    if (displayedRuns.some((run) => run.runId === selectedRunId)) {
+      return;
+    }
+    navigateToLocation({
+      selectedRunId: null,
+      isRunsPaneVisible: true,
+      nodeId: urlLocation.nodeId,
+    });
+  }, [displayedRuns, navigateToLocation, selectedRunId, urlLocation.nodeId]);
 
   useEffect(() => {
     if (!selectedRunId) {
       return;
     }
-    setIsRunsPaneVisible(true);
-  }, [selectedRunId]);
+    if (selectedRunQuery.isLoading) {
+      return;
+    }
+    if (!selectedRunQuery.isError) {
+      return;
+    }
+    navigateToLocation({
+      selectedRunId: null,
+      isRunsPaneVisible: true,
+      nodeId: urlLocation.nodeId,
+    });
+  }, [
+    navigateToLocation,
+    selectedRunId,
+    selectedRunQuery.isError,
+    selectedRunQuery.isLoading,
+    urlLocation.nodeId,
+  ]);
+
+  useEffect(() => {
+    const nid = urlLocation.nodeId;
+    if (!nid || !displayedWorkflow) {
+      return;
+    }
+    if (displayedWorkflow.nodes.some((n) => n.id === nid)) {
+      return;
+    }
+    navigateToLocation({
+      selectedRunId: urlLocation.selectedRunId,
+      isRunsPaneVisible: urlLocation.isRunsPaneVisible,
+      nodeId: null,
+    });
+  }, [displayedWorkflow, navigateToLocation, urlLocation.isRunsPaneVisible, urlLocation.nodeId, urlLocation.selectedRunId]);
 
   useEffect(() => {
     setHasManuallySelectedNode(false);
   }, [selectedRunId]);
 
   useEffect(() => {
-    setIsRunsPaneVisible(false);
-    setSelectedRunId(null);
+    const id = urlLocation.nodeId;
+    if (id !== null) {
+      setSelectedNodeId(id);
+      setHasManuallySelectedNode(true);
+    }
+  }, [urlLocation.nodeId]);
+
+  useEffect(() => {
+    if (urlLocation.nodeId === null) {
+      setHasManuallySelectedNode(false);
+    }
+  }, [urlLocation.nodeId]);
+
+  useEffect(() => {
     setActiveLiveRunId(null);
     setPendingSelectedRun(null);
     setSelectedNodeId(null);
@@ -438,11 +501,17 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       }
       if (options.keepLiveWorkflow) {
         setActiveLiveRunId(result.runId);
-        setSelectedRunId(null);
-        setIsRunsPaneVisible(false);
+        navigateToLocation({
+          selectedRunId: null,
+          isRunsPaneVisible: false,
+          nodeId: null,
+        });
       } else {
-        setSelectedRunId(result.runId);
-        setIsRunsPaneVisible(true);
+        navigateToLocation({
+          selectedRunId: result.runId,
+          isRunsPaneVisible: true,
+          nodeId: null,
+        });
       }
       setPendingSelectedRun(
         result.state
@@ -455,7 +524,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
             },
       );
     },
-    [queryClient],
+    [navigateToLocation, queryClient],
   );
 
   const runExecution = useCallback(
@@ -542,13 +611,21 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       }
       setHasManuallySelectedNode(true);
       setSelectedNodeId(nodeId);
-      runExecution({
-        stopAt: nodeId,
-        clearFromNodeId: nodeId,
-        mode: "manual",
-      }, { keepLiveWorkflow: true });
+      navigateToLocation({
+        selectedRunId: urlLocation.selectedRunId,
+        isRunsPaneVisible: urlLocation.isRunsPaneVisible,
+        nodeId,
+      });
+      runExecution(
+        {
+          stopAt: nodeId,
+          clearFromNodeId: nodeId,
+          mode: "manual",
+        },
+        { keepLiveWorkflow: true },
+      );
     },
-    [runExecution, viewContext],
+    [navigateToLocation, runExecution, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId, viewContext],
   );
 
   const onPinSelectedOutput = useCallback(() => {
@@ -577,6 +654,11 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       const baseItems = pinnedOutput ?? snapshot?.outputs?.main;
       setHasManuallySelectedNode(true);
       setSelectedNodeId(nodeId);
+      navigateToLocation({
+        selectedRunId: urlLocation.selectedRunId,
+        isRunsPaneVisible: urlLocation.isRunsPaneVisible,
+        nodeId,
+      });
       setJsonEditorState({
         mode: "pin-output",
         title: `Edit output for ${WorkflowDetailPresenter.getNodeDisplayName(workflowNode, nodeId)}`,
@@ -586,7 +668,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
         binaryMapsByItemIndex: WorkflowDetailPresenter.extractBinaryMapsFromItems(baseItems),
       });
     },
-    [currentExecutionState, displayedWorkflow, viewContext, workflowId],
+    [currentExecutionState, displayedWorkflow, navigateToLocation, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId, viewContext, workflowId],
   );
 
   const onClearPin = useCallback(() => {
@@ -610,11 +692,16 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       });
       setHasManuallySelectedNode(true);
       setSelectedNodeId(nodeId);
+      navigateToLocation({
+        selectedRunId: urlLocation.selectedRunId,
+        isRunsPaneVisible: urlLocation.isRunsPaneVisible,
+        nodeId,
+      });
       void replaceDebuggerOverlay(nextCurrentState).catch((cause: unknown) =>
         setError(cause instanceof Error ? cause.message : String(cause)),
       );
     },
-    [createOverlayCurrentStateWithNodeState, replaceDebuggerOverlay, viewContext],
+    [createOverlayCurrentStateWithNodeState, navigateToLocation, replaceDebuggerOverlay, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId, viewContext],
   );
 
   const togglePinnedOutputForNode = useCallback(
@@ -625,6 +712,11 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       const pinnedOutput = WorkflowDetailPresenter.getPinnedOutput(currentExecutionState, nodeId);
       setHasManuallySelectedNode(true);
       setSelectedNodeId(nodeId);
+      navigateToLocation({
+        selectedRunId: urlLocation.selectedRunId,
+        isRunsPaneVisible: urlLocation.isRunsPaneVisible,
+        nodeId,
+      });
       if (pinnedOutput) {
         const nextCurrentState = createOverlayCurrentStateWithNodeState(nodeId, {
           pinnedOutputsByPort: undefined,
@@ -647,7 +739,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
         setError(cause instanceof Error ? cause.message : String(cause)),
       );
     },
-    [createOverlayCurrentStateWithNodeState, currentExecutionState, replaceDebuggerOverlay, viewContext],
+    [createOverlayCurrentStateWithNodeState, currentExecutionState, navigateToLocation, replaceDebuggerOverlay, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId, viewContext],
   );
 
   const onCopyToDebugger = useCallback(() => {
@@ -659,25 +751,41 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       .then((state) => {
         queryClient.setQueryData(WorkflowDetailPresenter.getWorkflowDebuggerOverlayQueryKey(workflowId), state);
         setActiveLiveRunId(null);
-        setSelectedRunId(null);
-        setIsRunsPaneVisible(false);
+        navigateToLocation({
+          selectedRunId: null,
+          isRunsPaneVisible: false,
+          nodeId: null,
+        });
       })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
-  }, [queryClient, selectedRun, workflowId]);
+  }, [navigateToLocation, queryClient, selectedRun, workflowId]);
 
-  const onSelectRun = useCallback((runId: string) => {
-    setIsRunsPaneVisible(true);
-    setSelectedRunId(runId);
-  }, []);
+  const onSelectRun = useCallback(
+    (runId: string) => {
+      navigateToLocation({
+        selectedRunId: runId,
+        isRunsPaneVisible: true,
+        nodeId: null,
+      });
+    },
+    [navigateToLocation],
+  );
 
   const onSelectLiveWorkflow = useCallback(() => {
-    setSelectedRunId(null);
-    setIsRunsPaneVisible(false);
-  }, []);
+    navigateToLocation({
+      selectedRunId: null,
+      isRunsPaneVisible: false,
+      nodeId: null,
+    });
+  }, [navigateToLocation]);
 
   const onOpenExecutionsPane = useCallback(() => {
-    setIsRunsPaneVisible(true);
-  }, []);
+    navigateToLocation({
+      selectedRunId: urlLocation.selectedRunId,
+      isRunsPaneVisible: true,
+      nodeId: urlLocation.nodeId,
+    });
+  }, [navigateToLocation, urlLocation.nodeId, urlLocation.selectedRunId]);
 
   const persistWorkflowSnapshotUpdate = useCallback(
     (runId: string, value: string) => {
@@ -802,23 +910,35 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     showsError: Boolean(selectedNodeError),
   };
 
-  const selectNode = useCallback((nodeId: string) => {
-    setHasManuallySelectedNode(true);
-    setSelectedNodeId(nodeId);
-  }, []);
+  const selectNode = useCallback(
+    (nodeId: string) => {
+      setHasManuallySelectedNode(true);
+      setSelectedNodeId(nodeId);
+      navigateToLocation({
+        selectedRunId: urlLocation.selectedRunId,
+        isRunsPaneVisible: urlLocation.isRunsPaneVisible,
+        nodeId,
+      });
+    },
+    [navigateToLocation, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId],
+  );
 
   const selectCanvasNode = useCallback(
     (nodeId: string) => {
       setHasManuallySelectedNode(true);
-      setSelectedNodeId(
-        WorkflowDetailPresenter.resolveInspectorNodeIdForCanvasPick(
-          nodeId,
-          displayedWorkflow,
-          currentExecutionState?.nodeSnapshotsByNodeId,
-        ),
+      const resolved = WorkflowDetailPresenter.resolveInspectorNodeIdForCanvasPick(
+        nodeId,
+        displayedWorkflow,
+        currentExecutionState?.nodeSnapshotsByNodeId,
       );
+      setSelectedNodeId(resolved);
+      navigateToLocation({
+        selectedRunId: urlLocation.selectedRunId,
+        isRunsPaneVisible: urlLocation.isRunsPaneVisible,
+        nodeId: resolved,
+      });
     },
-    [currentExecutionState?.nodeSnapshotsByNodeId, displayedWorkflow],
+    [currentExecutionState?.nodeSnapshotsByNodeId, displayedWorkflow, navigateToLocation, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId],
   );
 
   const openPropertiesPanelForNode = useCallback((nodeId: string) => {
