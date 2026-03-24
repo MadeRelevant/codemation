@@ -13,6 +13,10 @@ import {
 
 import { AIAgentNode } from "./AIAgentNodeFactory";
 
+/**
+ * AI agent: credential bindings are keyed to connection-owned LLM/tool node ids (ConnectionNodeIdFactory),
+ * not to the agent workflow node id.
+ */
 export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
   implements RunnableNodeConfig<TInputJson, TOutputJson>, AgentNodeConfig<TInputJson, TOutputJson>
 {
@@ -34,8 +38,4 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
     public readonly id?: string,
     public readonly retryPolicy: RetryPolicySpec = RetryPolicy.defaultForAiAgent,
   ) {}
-
-  getCredentialRequirements() {
-    return this.chatModel.getCredentialRequirements?.() ?? [];
-  }
 }

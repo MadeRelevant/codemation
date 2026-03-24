@@ -1,4 +1,6 @@
 import type { WorkflowDefinition } from "../../../types";
+import type { WorkflowExecutableNodeClassifier } from "../../../workflow/WorkflowExecutableNodeClassifier";
+import { createWorkflowExecutableNodeClassifier } from "../../../workflow/workflowExecutableNodeClassifier.types";
 
 type NodeId = string;
 type VisitState = "unvisited" | "visiting" | "done";
@@ -8,21 +10,28 @@ type VisitState = "unvisited" | "visiting" | "done";
  */
 export class DirectedCycleDetector {
   validateAcyclic(workflow: WorkflowDefinition): void {
-    const outgoing = this.buildOutgoingAdjacency(workflow);
+    const classifier = createWorkflowExecutableNodeClassifier(workflow);
+    const outgoing = this.buildOutgoingAdjacency(workflow, classifier);
     const state = new Map<NodeId, VisitState>();
     for (const n of workflow.nodes) {
-      state.set(n.id, "unvisited");
+      if (classifier.isExecutableNodeId(n.id)) state.set(n.id, "unvisited");
     }
     for (const n of workflow.nodes) {
-      if (state.get(n.id) === "unvisited") {
+      if (classifier.isExecutableNodeId(n.id) && state.get(n.id) === "unvisited") {
         this.depthFirstSearch(n.id, outgoing, state);
       }
     }
   }
 
-  private buildOutgoingAdjacency(workflow: WorkflowDefinition): ReadonlyMap<NodeId, ReadonlyArray<NodeId>> {
+  private buildOutgoingAdjacency(
+    workflow: WorkflowDefinition,
+    classifier: WorkflowExecutableNodeClassifier,
+  ): ReadonlyMap<NodeId, ReadonlyArray<NodeId>> {
     const map = new Map<NodeId, NodeId[]>();
     for (const e of workflow.edges) {
+      if (!classifier.isExecutableNodeId(e.from.nodeId) || !classifier.isExecutableNodeId(e.to.nodeId)) {
+        continue;
+      }
       const list = map.get(e.from.nodeId) ?? [];
       list.push(e.to.nodeId);
       map.set(e.from.nodeId, list);

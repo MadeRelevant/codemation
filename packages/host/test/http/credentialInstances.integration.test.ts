@@ -590,8 +590,56 @@ describe("credential instances http integration", () => {
     expect(response.statusCode).toBe(200);
     const types = response.json<ReadonlyArray<{ typeId: string }>>();
     const ids = types.map((t) => t.typeId);
+    expect(ids).toContain("openai.apiKey");
     expect(ids).toContain(testCredentialTypeId);
     expect(ids).toContain(testOAuthCredentialTypeId);
+  });
+
+  it("registers credential types from CodemationConfig.credentialTypes without a boot hook", async () => {
+    const consumerTypeId = "consumer.config.credential";
+    const harness = new FrontendHttpIntegrationHarness({
+      config: {
+        workflows: [CredentialIntegrationFixture.createWorkflow()],
+        runtime: { eventBus: { kind: "memory" as const }, scheduler: { kind: "local" as const } },
+        auth: IntegrationTestAuth.developmentBypass,
+        credentialTypes: [
+          {
+            definition: {
+              typeId: consumerTypeId,
+              displayName: "Consumer config credential",
+              secretFields: [{ key: "token", label: "Token", type: "password", required: true }],
+              supportedSourceKinds: ["db"],
+            },
+            createSession: async () => "session",
+            test: async () => ({ status: "healthy" as const, testedAt: new Date().toISOString() }),
+          },
+        ],
+      },
+      consumerRoot: path.resolve(import.meta.dirname, "../../.."),
+      env: {
+        DATABASE_URL: sharedDatabase!.databaseUrl,
+        CODEMATION_CREDENTIALS_MASTER_KEY: testMasterKey,
+      },
+      bindings: [
+        {
+          token: PrismaClient,
+          useFactory: () => transaction!.getPrismaClient(),
+        },
+      ],
+    });
+    await harness.start();
+    try {
+      const response = await harness.request({
+        method: "GET",
+        url: ApiPaths.credentialTypes(),
+      });
+      expect(response.statusCode).toBe(200);
+      const types = response.json<ReadonlyArray<{ typeId: string }>>();
+      expect(types.map((t) => t.typeId)).toContain(consumerTypeId);
+      expect(types.map((t) => t.typeId)).toContain("openai.apiKey");
+    } finally {
+      await harness.close();
+    }
   });
 
   it("lists credential instances including created rows", async () => {

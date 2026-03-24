@@ -3,6 +3,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 useRunQuery,
+useWorkflowCredentialHealthQuery,
 useWorkflowDebuggerOverlayQuery,
 useWorkflowDevBuildStateQuery,
 useWorkflowQuery,
@@ -35,6 +36,7 @@ WorkflowRunsSidebarModel,
 export type WorkflowDetailControllerResult = Readonly<{
   displayedWorkflow: WorkflowDto | undefined;
   displayedNodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
+  displayedConnectionInvocations: ReadonlyArray<NonNullable<PersistedRunState["connectionInvocations"]>[number]>;
   pinnedNodeIds: ReadonlySet<string>;
   isLiveWorkflowView: boolean;
   isRunsPaneVisible: boolean;
@@ -42,6 +44,12 @@ export type WorkflowDetailControllerResult = Readonly<{
   workflowDevBuildState: WorkflowDevBuildState;
   isRealtimeConnected: boolean;
   canCopySelectedRunToLive: boolean;
+  /** Nodes on the canvas that have a required credential slot with status unbound. */
+  credentialAttentionNodeIds: ReadonlySet<string>;
+  /** Lines for workflow-level credential attention tooltip (node label · slot label). */
+  credentialAttentionSummaryLines: ReadonlyArray<string>;
+  /** Per-canvas-node tooltip lines for unbound required credential slots. */
+  credentialAttentionTooltipByNodeId: ReadonlyMap<string, string>;
   selectedRun: PersistedRunState | undefined;
   sidebarModel: WorkflowRunsSidebarModel;
   sidebarFormatting: WorkflowRunsSidebarFormatting;
@@ -90,6 +98,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   );
   const queryClient = useQueryClient();
   const workflowQuery = useWorkflowQuery(workflowId, initialWorkflow);
+  const workflowCredentialHealthQuery = useWorkflowCredentialHealthQuery(workflowId);
   const runsQuery = useWorkflowRunsQuery(workflowId);
   const debuggerOverlayQuery = useWorkflowDebuggerOverlayQuery(workflowId);
   const workflowDevBuildStateQuery = useWorkflowDevBuildStateQuery(workflowId);
@@ -149,11 +158,13 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
               outputsByNode: {},
               nodeSnapshotsByNodeId: {},
               mutableState: overlayCurrentState?.mutableState,
+              connectionInvocations: overlayCurrentState?.connectionInvocations,
             } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>)
           : ({
               outputsByNode: activeLiveRun.outputsByNode,
               nodeSnapshotsByNodeId: activeLiveRun.nodeSnapshotsByNodeId,
               mutableState: overlayCurrentState?.mutableState ?? activeLiveRun.mutableState,
+              connectionInvocations: activeLiveRun.connectionInvocations ?? overlayCurrentState?.connectionInvocations,
             } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>);
     const reconciledBaseLiveExecutionState = WorkflowDetailPresenter.reconcileCurrentStateWithWorkflow(baseLiveExecutionState, workflow);
     if (!pendingTriggerFetchSnapshot || activeLiveRunId) {
@@ -167,6 +178,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
         outputsByNode: {},
         nodeSnapshotsByNodeId: {},
         mutableState: overlayCurrentState?.mutableState,
+        connectionInvocations: overlayCurrentState?.connectionInvocations,
       }),
       nodeSnapshotsByNodeId: {
         ...(reconciledBaseLiveExecutionState?.nodeSnapshotsByNodeId ?? {}),
@@ -181,6 +193,10 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const currentExecutionState = useMemo(
     () => (viewContext === "live-workflow" ? liveExecutionState : selectedRun),
     [liveExecutionState, selectedRun, viewContext],
+  );
+  const normalizedConnectionInvocations = useMemo(
+    () => WorkflowDetailPresenter.normalizeConnectionInvocations(currentExecutionState?.connectionInvocations),
+    [currentExecutionState?.connectionInvocations],
   );
   const isActiveLiveRunPending = useMemo(
     () =>
@@ -352,7 +368,14 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     setPendingSelectedRun(null);
     setPendingTriggerFetchSnapshot(null);
     setJsonEditorState(null);
-    if (selectedNodeId && !WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow(selectedNodeId, workflow)) {
+    if (
+      selectedNodeId &&
+      !WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow(
+        selectedNodeId,
+        workflow,
+        debuggerOverlay?.currentState.connectionInvocations,
+      )
+    ) {
       setSelectedNodeId(null);
       setHasManuallySelectedNode(false);
     }
@@ -417,13 +440,42 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   );
   const executionTreeData = useMemo(() => WorkflowDetailPresenter.buildExecutionTreeData(executionNodes), [executionNodes]);
   const executionTreeExpandedKeys = useMemo(() => WorkflowDetailPresenter.collectExecutionTreeKeys(executionTreeData), [executionTreeData]);
+  const selectedExecutionTreeKey = useMemo(
+    () => WorkflowDetailPresenter.resolveExecutionTreeKeyForNodeId(executionNodes, selectedNodeId),
+    [executionNodes, selectedNodeId],
+  );
+  const credentialAttention = useMemo(
+    () =>
+      WorkflowDetailPresenter.resolveCredentialAttention({
+        workflow,
+        slots: workflowCredentialHealthQuery.data?.slots,
+      }),
+    [workflow, workflowCredentialHealthQuery.data?.slots],
+  );
+  const credentialAttentionTooltipByNodeId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const slot of workflowCredentialHealthQuery.data?.slots ?? []) {
+      if (slot.health.status !== "unbound") {
+        continue;
+      }
+      const nodeLabel = slot.nodeName ?? workflow?.nodes.find((n) => n.id === slot.nodeId)?.name ?? slot.nodeId;
+      const line = `${slot.requirement.label} (${slot.requirement.acceptedTypes.join(" · ")})`;
+      const existing = map.get(slot.nodeId);
+      map.set(slot.nodeId, existing ? `${existing}\n${line}` : `${nodeLabel}\n${line}`);
+    }
+    return map;
+  }, [workflow, workflowCredentialHealthQuery.data?.slots]);
 
   useEffect(() => {
     if (!displayedWorkflow?.nodes.length) return;
     if (
       hasManuallySelectedNode &&
       selectedNodeId &&
-      WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow(selectedNodeId, displayedWorkflow)
+      WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow(
+        selectedNodeId,
+        displayedWorkflow,
+        currentExecutionState?.connectionInvocations,
+      )
     ) {
       return;
     }
@@ -441,12 +493,22 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     if (nextFocusedNodeId !== selectedNodeId) {
       setSelectedNodeId(nextFocusedNodeId);
     }
-  }, [currentExecutionState, displayedWorkflow, executionNodes, hasManuallySelectedNode, selectedNodeId]);
+  }, [currentExecutionState, displayedWorkflow, executionNodes, hasManuallySelectedNode, normalizedConnectionInvocations, selectedNodeId]);
 
-  const selectedExecutionNode = useMemo(
-    () => executionNodes.find((executionNode) => executionNode.node.id === selectedNodeId),
-    [executionNodes, selectedNodeId],
-  );
+  const selectedExecutionNode = useMemo(() => {
+    const direct = executionNodes.find((executionNode) => executionNode.node.id === selectedNodeId);
+    if (direct) {
+      return direct;
+    }
+    const byConnection = executionNodes
+      .filter((en) => en.workflowConnectionNodeId === selectedNodeId)
+      .sort((left, right) => {
+        const leftTs = WorkflowDetailPresenter.getSnapshotTimestamp(left.snapshot) ?? "";
+        const rightTs = WorkflowDetailPresenter.getSnapshotTimestamp(right.snapshot) ?? "";
+        return rightTs.localeCompare(leftTs);
+      });
+    return byConnection[0];
+  }, [executionNodes, selectedNodeId]);
   const selectedNodeSnapshot = useMemo<NodeExecutionSnapshot | undefined>(() => {
     if (!currentExecutionState || !selectedNodeId) return undefined;
     return selectedExecutionNode?.snapshot ?? currentExecutionState.nodeSnapshotsByNodeId[selectedNodeId];
@@ -586,7 +648,14 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       }>,
     ) => {
       const baseCurrentState = JSON.parse(
-        JSON.stringify(currentExecutionState ?? { outputsByNode: {}, nodeSnapshotsByNodeId: {}, mutableState: { nodesById: {} } }),
+        JSON.stringify(
+          currentExecutionState ?? {
+            outputsByNode: {},
+            nodeSnapshotsByNodeId: {},
+            mutableState: { nodesById: {} },
+            connectionInvocations: [],
+          },
+        ),
       ) as NonNullable<typeof debuggerOverlay>["currentState"];
       return {
         ...baseCurrentState,
@@ -930,6 +999,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
         nodeId,
         displayedWorkflow,
         currentExecutionState?.nodeSnapshotsByNodeId,
+        normalizedConnectionInvocations,
       );
       setSelectedNodeId(resolved);
       navigateToLocation({
@@ -938,7 +1008,14 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
         nodeId: resolved,
       });
     },
-    [currentExecutionState?.nodeSnapshotsByNodeId, displayedWorkflow, navigateToLocation, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId],
+    [
+      currentExecutionState?.nodeSnapshotsByNodeId,
+      displayedWorkflow,
+      navigateToLocation,
+      normalizedConnectionInvocations,
+      urlLocation.isRunsPaneVisible,
+      urlLocation.selectedRunId,
+    ],
   );
 
   const openPropertiesPanelForNode = useCallback((nodeId: string) => {
@@ -954,6 +1031,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   return {
     displayedWorkflow,
     displayedNodeSnapshotsByNodeId: currentExecutionState?.nodeSnapshotsByNodeId ?? {},
+    displayedConnectionInvocations: normalizedConnectionInvocations,
     pinnedNodeIds,
     isLiveWorkflowView: viewContext === "live-workflow",
     isRunsPaneVisible,
@@ -961,6 +1039,9 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     workflowDevBuildState,
     isRealtimeConnected,
     canCopySelectedRunToLive: viewContext === "historical-run" && Boolean(selectedRun),
+    credentialAttentionNodeIds: credentialAttention.attentionNodeIds,
+    credentialAttentionSummaryLines: credentialAttention.summaryLines,
+    credentialAttentionTooltipByNodeId,
     selectedRun,
     sidebarModel: {
       workflowId,
@@ -999,6 +1080,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       outputPane,
       executionTreeData,
       executionTreeExpandedKeys,
+      selectedExecutionTreeKey,
       nodeActions: {
         viewContext,
         isRunning,

@@ -5,12 +5,12 @@ import type { ExecutionTreeNode,WorkflowExecutionInspectorFormatting,WorkflowExe
 export function WorkflowExecutionInspectorTreePanel(props: Readonly<{
   model: Pick<
     WorkflowExecutionInspectorModel,
-    "executionTreeData" | "executionTreeExpandedKeys" | "selectedNodeId" | "viewContext"
+    "executionTreeData" | "executionTreeExpandedKeys" | "selectedExecutionTreeKey" | "viewContext"
   >;
   formatting: Pick<WorkflowExecutionInspectorFormatting, "formatDurationLabel" | "getNodeDisplayName">;
   onSelectNode: (nodeId: string) => void;
 }>) {
-  const { executionTreeData, executionTreeExpandedKeys, selectedNodeId, viewContext } = props.model;
+  const { executionTreeData, executionTreeExpandedKeys, selectedExecutionTreeKey, viewContext } = props.model;
   const { formatDurationLabel, getNodeDisplayName } = props.formatting;
   const { onSelectNode } = props;
   return (
@@ -41,12 +41,13 @@ export function WorkflowExecutionInspectorTreePanel(props: Readonly<{
             defaultExpandAll
             expandedKeys={[...executionTreeExpandedKeys]}
             selectable
-            selectedKeys={selectedNodeId ? [selectedNodeId] : []}
+            selectedKeys={selectedExecutionTreeKey ? [selectedExecutionTreeKey] : []}
             onSelect={(_keys, info) => {
-              onSelectNode(String(info.node.key));
+              const workflowNode = (info.node as ExecutionTreeNode).workflowNode;
+              onSelectNode(workflowNode?.id ?? String(info.node.key));
             }}
             titleRender={(treeNode) => {
-              const isSelected = treeNode.key === selectedNodeId;
+              const isSelected = treeNode.key === selectedExecutionTreeKey;
               const snapshot = treeNode.snapshot;
               const node = treeNode.workflowNode;
               const status = snapshot?.status ?? "pending";
@@ -56,7 +57,7 @@ export function WorkflowExecutionInspectorTreePanel(props: Readonly<{
                 <div
                   data-testid={`execution-tree-node-${String(treeNode.key)}`}
                   onClick={() => {
-                    onSelectNode(String(treeNode.key));
+                    onSelectNode(node?.id ?? String(treeNode.key));
                   }}
                   style={{
                     background: isSelected ? "#eff6ff" : "transparent",

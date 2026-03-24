@@ -15,10 +15,10 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
   const [credentialError, setCredentialError] = useState<string | null>(null);
   const [bindingInstanceIdBySlotKey, setBindingInstanceIdBySlotKey] = useState<Readonly<Record<string, string>>>({});
   const [activeBindingSlotKey, setActiveBindingSlotKey] = useState<string | null>(null);
-  const nodeCredentialSlots = useMemo(
-    () => workflowCredentialHealthQuery.data?.slots.filter((slot) => slot.nodeId === node.id) ?? [],
-    [node.id, workflowCredentialHealthQuery.data],
-  );
+  const nodeCredentialSlots = useMemo(() => {
+    const slots = workflowCredentialHealthQuery.data?.slots ?? [];
+    return slots.filter((slot) => slot.nodeId === node.id);
+  }, [node.id, workflowCredentialHealthQuery.data]);
 
   useEffect(() => {
     setBindingInstanceIdBySlotKey({});
@@ -28,8 +28,9 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
 
   const bindCredential = (request: UpsertCredentialBindingRequest) => {
     void (async () => {
+      const activeKey = `${request.nodeId}:${request.slotKey}`;
       try {
-        setActiveBindingSlotKey(request.slotKey);
+        setActiveBindingSlotKey(activeKey);
         setCredentialError(null);
         await codemationApiClient.putJson<void>(ApiPaths.credentialBindings(), request);
         await Promise.all([
@@ -76,18 +77,19 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
           {nodeCredentialSlots.map((slot, index) => {
             const compatibleInstances =
               credentialInstancesQuery.data?.filter((instance) => slot.requirement.acceptedTypes.includes(instance.typeId)) ?? [];
-            const selectedInstanceId = bindingInstanceIdBySlotKey[slot.requirement.slotKey] ?? slot.instance?.instanceId ?? "";
+            const bindingKey = `${slot.nodeId}:${slot.requirement.slotKey}`;
+            const selectedInstanceId = bindingInstanceIdBySlotKey[bindingKey] ?? slot.instance?.instanceId ?? "";
             return (
-              <div key={slot.requirement.slotKey} style={{ borderTop: index > 0 ? "1px solid #f1f5f9" : "none" }}>
+              <div key={bindingKey} style={{ borderTop: index > 0 ? "1px solid #f1f5f9" : "none" }}>
                 <NodeCredentialBindingRow
                   slot={slot}
                   compatibleInstances={compatibleInstances}
                   selectedInstanceId={selectedInstanceId}
-                  isBinding={activeBindingSlotKey === slot.requirement.slotKey}
+                  isBinding={activeBindingSlotKey === bindingKey}
                   onSelectInstance={(instanceId) =>
                     setBindingInstanceIdBySlotKey((current) => ({
                       ...current,
-                      [slot.requirement.slotKey]: instanceId,
+                      [bindingKey]: instanceId,
                     }))
                   }
                   onBind={bindCredential}

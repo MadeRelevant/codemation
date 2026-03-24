@@ -3,6 +3,7 @@ import type { Container,TypeToken } from "../di";
 import type { RunEventBus } from "../events/runEvents";
 import type { CredentialSessionService } from "./credentialTypes";
 import type {
+ConnectionInvocationAppendArgs,
 NodeInputsByPort,
 PersistedWorkflowSnapshot,
 PersistedWorkflowTokenRegistryLike,
@@ -63,6 +64,7 @@ export interface NodeExecutionStatePublisher {
   markRunning(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort }): Promise<void>;
   markCompleted(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort; outputs?: NodeOutputs }): Promise<void>;
   markFailed(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort; error: Error }): Promise<void>;
+  appendConnectionInvocation(args: ConnectionInvocationAppendArgs): Promise<void>;
 }
 
 export type BinaryBody = BinaryReadableStream<Uint8Array> | AsyncIterable<Uint8Array> | Uint8Array | ArrayBuffer;

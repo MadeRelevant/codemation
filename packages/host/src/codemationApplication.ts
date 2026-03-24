@@ -28,6 +28,7 @@ SystemClock,
 container as tsyringeContainer,
 UnavailableCredentialSessionService
 } from "@codemation/core";
+import { AIAgentConnectionWorkflowExpander, ConnectionCredentialNodeConfigFactory } from "@codemation/core-nodes";
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
 import { BullmqScheduler } from "@codemation/queue-bullmq";
 import type { CommandBus } from "./application/bus/CommandBus";
@@ -57,6 +58,7 @@ import "./application/queries/ListWorkflowRunsQueryHandler";
 import "./application/queries/UserAccountQueryHandlers";
 import { WorkflowRunEventWebsocketRelay } from "./application/websocket/WorkflowRunEventWebsocketRelay";
 import { ApplicationTokens } from "./applicationTokens";
+import { WorkflowCredentialNodeResolver } from "./domain/credentials/WorkflowCredentialNodeResolver";
 import {
 CredentialBindingService,
 CredentialInstanceService,
@@ -78,6 +80,7 @@ import { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinit
 import { AuthJsSessionVerifier } from "./infrastructure/auth/AuthJsSessionVerifier";
 import { DevelopmentSessionBypassVerifier } from "./infrastructure/auth/DevelopmentSessionBypassVerifier";
 import { LocalFilesystemBinaryStorage } from "./infrastructure/binary/LocalFilesystemBinaryStorageRegistry";
+import { FrameworkBuiltinCredentialTypesRegistrar } from "./infrastructure/credentials/FrameworkBuiltinCredentialTypesRegistrar";
 import { CodemationConfigBindingRegistrar } from "./infrastructure/config/CodemationConfigBindingRegistrar";
 import { CodemationPluginRegistrar } from "./infrastructure/config/CodemationPluginRegistrar";
 import { DependencyInjectionHookRunner } from "./infrastructure/config/DependencyInjectionHookRunner";
@@ -149,17 +152,28 @@ export class CodemationApplication {
   private plugins: ReadonlyArray<CodemationPlugin> = [];
   private sharedWorkflowWebsocketServer: WorkflowWebsocketServer | null = null;
   private applicationAuthConfig: CodemationAuthConfig | undefined;
+  private frameworkBuiltinCredentialTypesRegistered = false;
 
   constructor() {
     this.synchronizeContainerRegistrations();
   }
 
   useConfig(config: CodemationApplicationConfig): this {
+    // Credential registration must follow bindings: useBindings() re-syncs the container and replaces CredentialTypeRegistryImpl.
     if (config.workflows) {
       this.useWorkflows(config.workflows);
     }
     if (config.bindings) {
       this.useBindings(config.bindings);
+    }
+    if (!this.frameworkBuiltinCredentialTypesRegistered) {
+      new FrameworkBuiltinCredentialTypesRegistrar().register(this, config);
+      this.frameworkBuiltinCredentialTypesRegistered = true;
+    }
+    if (config.credentialTypes) {
+      for (const credentialType of config.credentialTypes) {
+        this.registerCredentialType(credentialType);
+      }
     }
     if (config.plugins) {
       this.usePlugins(config.plugins);
@@ -421,7 +435,12 @@ export class CodemationApplication {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationIdFactory)),
     });
     this.container.register(CoreTokens.WorkflowCatalog, {
-      useFactory: instanceCachingFactory(() => new LiveWorkflowCatalog()),
+      useFactory: instanceCachingFactory(
+        () =>
+          new LiveWorkflowCatalog(
+            new AIAgentConnectionWorkflowExpander(new ConnectionCredentialNodeConfigFactory()),
+          ),
+      ),
     });
     this.container.register(CoreTokens.WorkflowRegistry, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CoreTokens.WorkflowCatalog)),
@@ -513,6 +532,7 @@ export class CodemationApplication {
     this.container.register(CredentialMaterialResolver, { useClass: CredentialMaterialResolver });
     this.container.register(CredentialFieldEnvOverlayService, { useClass: CredentialFieldEnvOverlayService });
     this.container.register(CredentialRuntimeMaterialService, { useClass: CredentialRuntimeMaterialService });
+    this.container.register(WorkflowCredentialNodeResolver, { useClass: WorkflowCredentialNodeResolver });
     this.container.register(CredentialInstanceService, { useClass: CredentialInstanceService });
     this.container.register(CredentialBindingService, { useClass: CredentialBindingService });
     this.container.register(CredentialTestService, { useClass: CredentialTestService });

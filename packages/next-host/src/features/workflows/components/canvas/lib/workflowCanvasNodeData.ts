@@ -17,6 +17,8 @@ export type WorkflowCanvasNodeData = Readonly<{
   isRunning: boolean;
   retryPolicySummary?: string;
   hasNodeErrorHandler?: boolean;
+  /** When set, show a credential warning icon with this tooltip (required slot unbound). */
+  credentialAttentionTooltip?: string;
   onSelectNode: (nodeId: string) => void;
   onOpenPropertiesNode: (nodeId: string) => void;
   onRunNode: (nodeId: string) => void;

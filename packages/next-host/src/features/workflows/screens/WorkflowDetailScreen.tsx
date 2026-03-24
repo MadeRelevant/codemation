@@ -2,7 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AlertCircle } from "lucide-react";
 
+import { CanvasNodeChromeTooltip } from "../components/canvas/CanvasNodeChromeTooltip";
 import { WorkflowCanvas } from "../components/canvas/WorkflowCanvas";
 import type { WorkflowDto } from "../hooks/realtime/realtime";
 import { NodePropertiesSlidePanel } from "../components/workflowDetail/NodePropertiesSlidePanel";
@@ -66,6 +68,8 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                   <WorkflowCanvas
                     workflow={controller.displayedWorkflow}
                     nodeSnapshotsByNodeId={controller.displayedNodeSnapshotsByNodeId}
+                    connectionInvocations={controller.displayedConnectionInvocations}
+                    credentialAttentionTooltipByNodeId={controller.credentialAttentionTooltipByNodeId}
                     pinnedNodeIds={controller.pinnedNodeIds}
                     selectedNodeId={controller.selectedNodeId}
                     propertiesTargetNodeId={controller.propertiesPanelNodeId}
@@ -89,6 +93,30 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
             ) : (
               <div className="p-4 text-sm text-muted-foreground">Loading diagram…</div>
             )}
+            <div className="pointer-events-none absolute top-3 left-6 z-[6] flex max-w-[min(22rem,calc(100%-14rem))] min-w-0 items-center gap-2">
+              <div className="pointer-events-auto flex min-w-0 items-center gap-2">
+                <span
+                  data-testid="workflow-detail-workflow-title"
+                  className="truncate text-sm font-extrabold text-foreground"
+                >
+                  {controller.displayedWorkflow?.name ?? "Workflow"}
+                </span>
+                {controller.credentialAttentionSummaryLines.length > 0 ? (
+                  <CanvasNodeChromeTooltip
+                    testId="workflow-credential-attention-indicator"
+                    ariaLabel="Workflow credential issues"
+                    tooltip={controller.credentialAttentionSummaryLines.join("\n")}
+                  >
+                    <span
+                      data-testid="workflow-credential-attention-icon"
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-amber-300 bg-amber-50 text-amber-900 shadow-sm"
+                    >
+                      <AlertCircle size={16} strokeWidth={2.2} />
+                    </span>
+                  </CanvasNodeChromeTooltip>
+                ) : null}
+              </div>
+            </div>
             <div className="pointer-events-none absolute top-3 left-1/2 z-[6] flex -translate-x-1/2 items-center gap-2">
               <div className="pointer-events-auto flex overflow-hidden rounded-lg border border-border bg-card/95 shadow-md ring-1 ring-foreground/10">
                 <Button

@@ -1,4 +1,5 @@
 import type {
+  ConnectionInvocationRecord,
   EngineRunCounters,
   NodeActivationRequest,
   NodeExecutionSnapshot,
@@ -45,6 +46,7 @@ export class ActivationEnqueueService {
     previousNodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
     planner: RunQueuePlanner;
     engineCounters?: EngineRunCounters;
+    connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
   }): Promise<RunResult> {
     const { result, queuedSnapshot } = await this.enqueueActivationWithSnapshot(args);
     await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);
@@ -66,6 +68,7 @@ export class ActivationEnqueueService {
     previousNodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
     planner: RunQueuePlanner;
     engineCounters?: EngineRunCounters;
+    connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
   }): Promise<{ result: RunResult; queuedSnapshot: NodeExecutionSnapshot }> {
     const receipt = await this.activationScheduler.enqueue(args.request);
     const inputsByPort = InputPortMap.fromRequest(args.request);
@@ -104,6 +107,7 @@ export class ActivationEnqueueService {
       mutableState: args.mutableState,
       policySnapshot: args.policySnapshot,
       engineCounters: args.engineCounters,
+      connectionInvocations: args.connectionInvocations ? [...args.connectionInvocations] : [],
       status: "pending",
       pending,
       queue: args.pendingQueue.map((entry) => ({ ...entry })),

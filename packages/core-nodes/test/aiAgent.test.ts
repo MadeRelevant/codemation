@@ -1,6 +1,7 @@
 import type {
 ChatModelConfig,
 ChatModelFactory,
+CredentialSessionService,
 LangChainChatModelLike,
 NodeExecutionContext,
 NodeExecutionStatePublisher,
@@ -10,7 +11,15 @@ Tool,
 ToolConfig,
 ToolExecuteArgs,
 } from "@codemation/core";
-import { ContainerNodeResolver,DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory,container as tsyringeContainer } from "@codemation/core";
+import {
+ConnectionNodeIdFactory,
+ContainerNodeResolver,
+CoreTokens,
+DefaultExecutionBinaryService,
+InMemoryBinaryStorage,
+InMemoryRunDataFactory,
+container as tsyringeContainer,
+} from "@codemation/core";
 import { AIAgent,AIAgentNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
@@ -42,6 +51,12 @@ class CapturingNodeStatePublisher implements NodeExecutionStatePublisher {
 
   async markFailed(args: { nodeId: string; activationId?: string; inputsByPort?: NodeInputsByPort; error: Error }): Promise<void> {
     this.events.push(`failed:${args.nodeId}`);
+  }
+
+  readonly connectionInvocations: Array<Record<string, unknown>> = [];
+
+  async appendConnectionInvocation(args: Record<string, unknown>): Promise<void> {
+    this.connectionInvocations.push(args);
   }
 }
 
@@ -157,11 +172,18 @@ const delayToolOutputSchema = z.object({
   reason: z.string(),
 });
 
+class StubCredentialSessionService implements CredentialSessionService {
+  async getSession(): Promise<unknown> {
+    return "";
+  }
+}
+
 test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synthetic node states", async () => {
   DelayTool.reset();
   const data = new InMemoryRunDataFactory().create();
   const nodeState = new CapturingNodeStatePublisher();
   const container = tsyringeContainer.createChildContainer();
+  container.registerInstance(CoreTokens.CredentialSessionService, new StubCredentialSessionService());
   container.register(FakeChatModelFactory, { useClass: FakeChatModelFactory });
   container.register(DelayTool, { useClass: DelayTool });
   const config = new AIAgent(
@@ -189,7 +211,10 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
   };
 
   const startedAt = performance.now();
-  const outputs = await new AIAgentNode(new ContainerNodeResolver(container)).execute(
+  const outputs = await new AIAgentNode(
+    new ContainerNodeResolver(container),
+    container.resolve(CoreTokens.CredentialSessionService),
+  ).execute(
     [
       {
         json: {
@@ -209,30 +234,31 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
   const main = outputs.main ?? [];
   assert.equal(main.length, 1);
   assert.deepEqual(main[0]?.json, { output: "final answer" });
-  assert.deepEqual(nodeState.completedOutputsByNodeId.get("agent_1::llm::1")?.main?.[0]?.json, { content: "planning" });
-  assert.deepEqual(nodeState.completedOutputsByNodeId.get("agent_1::llm::2")?.main?.[0]?.json, { content: "final answer" });
+  const llmNodeId = ConnectionNodeIdFactory.languageModelConnectionNodeId("agent_1");
+  const subjectToolNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("agent_1", "subject_tool");
+  const bodyToolNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("agent_1", "body_tool");
+  assert.deepEqual(nodeState.completedOutputsByNodeId.get(llmNodeId)?.main?.[0]?.json, { content: "final answer" });
   assert.deepEqual(DelayTool.inputsFor("subject_tool"), [{ subject: "RFQ" }]);
   assert.deepEqual(DelayTool.inputsFor("body_tool"), [{ body: "quote" }]);
-  assert.deepEqual(nodeState.queuedInputsByNodeId.get("agent_1::tool::subject_tool::1")?.in?.[0]?.json, { subject: "RFQ" });
-  assert.deepEqual(nodeState.runningInputsByNodeId.get("agent_1::tool::subject_tool::1")?.in?.[0]?.json, { subject: "RFQ" });
-  assert.deepEqual(nodeState.completedInputsByNodeId.get("agent_1::tool::subject_tool::1")?.in?.[0]?.json, { subject: "RFQ" });
-  assert.deepEqual(nodeState.queuedInputsByNodeId.get("agent_1::tool::body_tool::1")?.in?.[0]?.json, { body: "quote" });
-  assert.deepEqual(nodeState.runningInputsByNodeId.get("agent_1::tool::body_tool::1")?.in?.[0]?.json, { body: "quote" });
-  assert.deepEqual(nodeState.completedInputsByNodeId.get("agent_1::tool::body_tool::1")?.in?.[0]?.json, { body: "quote" });
+  assert.deepEqual(nodeState.queuedInputsByNodeId.get(subjectToolNodeId)?.in?.[0]?.json, { subject: "RFQ" });
+  assert.deepEqual(nodeState.runningInputsByNodeId.get(subjectToolNodeId)?.in?.[0]?.json, { subject: "RFQ" });
+  assert.deepEqual(nodeState.completedInputsByNodeId.get(subjectToolNodeId)?.in?.[0]?.json, { subject: "RFQ" });
+  assert.deepEqual(nodeState.queuedInputsByNodeId.get(bodyToolNodeId)?.in?.[0]?.json, { body: "quote" });
+  assert.deepEqual(nodeState.runningInputsByNodeId.get(bodyToolNodeId)?.in?.[0]?.json, { body: "quote" });
+  assert.deepEqual(nodeState.completedInputsByNodeId.get(bodyToolNodeId)?.in?.[0]?.json, { body: "quote" });
 
-  assert.ok(nodeState.events.includes("queued:agent_1::llm::1"));
-  assert.ok(nodeState.events.includes("completed:agent_1::llm::1"));
-  assert.ok(nodeState.events.includes("queued:agent_1::llm::2"));
-  assert.ok(nodeState.events.includes("completed:agent_1::llm::2"));
-  assert.ok(nodeState.events.includes("queued:agent_1::tool::subject_tool::1"));
-  assert.ok(nodeState.events.includes("completed:agent_1::tool::subject_tool::1"));
-  assert.ok(nodeState.events.includes("queued:agent_1::tool::body_tool::1"));
-  assert.ok(nodeState.events.includes("completed:agent_1::tool::body_tool::1"));
+  assert.ok(nodeState.events.filter((e) => e === `queued:${llmNodeId}`).length === 2);
+  assert.ok(nodeState.events.filter((e) => e === `completed:${llmNodeId}`).length === 2);
+  assert.ok(nodeState.events.includes(`queued:${subjectToolNodeId}`));
+  assert.ok(nodeState.events.includes(`completed:${subjectToolNodeId}`));
+  assert.ok(nodeState.events.includes(`queued:${bodyToolNodeId}`));
+  assert.ok(nodeState.events.includes(`completed:${bodyToolNodeId}`));
 });
 
 test("AIAgentNode parses JSON model responses into structured output", async () => {
   const data = new InMemoryRunDataFactory().create();
   const container = tsyringeContainer.createChildContainer();
+  container.registerInstance(CoreTokens.CredentialSessionService, new StubCredentialSessionService());
   container.register(FakeJsonChatModelFactory, { useClass: FakeJsonChatModelFactory });
   const config = new AIAgent(
     "Classify (agent)",
@@ -260,7 +286,10 @@ test("AIAgentNode parses JSON model responses into structured output", async () 
     binary: binary.forNode({ nodeId: "agent_json", activationId: "act_2" }),
   };
 
-  const outputs = await new AIAgentNode(new ContainerNodeResolver(container)).execute(
+  const outputs = await new AIAgentNode(
+    new ContainerNodeResolver(container),
+    container.resolve(CoreTokens.CredentialSessionService),
+  ).execute(
     [
       {
         json: {

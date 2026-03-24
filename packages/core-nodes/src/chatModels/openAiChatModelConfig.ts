@@ -12,7 +12,6 @@ export class OpenAIChatModelConfig implements ChatModelConfig {
     public readonly credentialSlotKey: string = "openai",
     public readonly presentation?: AgentCanvasPresentation<CanvasIconName>,
     public readonly options?: Readonly<{
-      baseUrl?: string;
       temperature?: number;
       maxTokens?: number;
     }>,

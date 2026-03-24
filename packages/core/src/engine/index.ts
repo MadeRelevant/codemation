@@ -9,6 +9,7 @@ export { Engine } from "./api/Engine";
 export { EngineFactory, type EngineCompositionDeps } from "./api/EngineFactory";
 export { EngineWorkflowRunnerService } from "./application/workflows/EngineWorkflowRunnerService";
 export { UnavailableCredentialSessionService } from "./adapters/credentials/UnavailableCredentialSessionService";
+export { CredentialResolverFactory } from "./application/credentials/CredentialResolverFactory";
 export { DefaultDrivingScheduler } from "./scheduling/defaultDrivingScheduler";
 export { InlineDrivingScheduler } from "./scheduling/inlineDrivingScheduler";
 

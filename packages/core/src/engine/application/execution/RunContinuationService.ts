@@ -19,6 +19,7 @@ import type {
 } from "../../../types";
 
 import { WorkflowTopology } from "../../domain/planning/WorkflowTopologyPlanner";
+import { createWorkflowExecutableNodeClassifier } from "../../../workflow/workflowExecutableNodeClassifier.types";
 
 import { CredentialResolverFactory } from "../credentials/CredentialResolverFactory";
 import type { RootExecutionOptionsFactory } from "../policies/RootExecutionOptionsFactory";
@@ -206,11 +207,7 @@ export class RunContinuationService {
       );
     }
     if (!next) {
-      const lastNodeId =
-        wf.nodes.at(-1)?.id ??
-        (() => {
-          throw new Error(`Workflow ${wf.id} has no nodes`);
-        })();
+      const lastNodeId = createWorkflowExecutableNodeClassifier(wf).lastExecutableNodeIdInDefinitionOrder(wf);
       const outputs = data.getOutputItems(lastNodeId, "main");
 
       const completedState = this.persistedRunStateTerminalBuilder.mergeTerminal({
@@ -293,6 +290,7 @@ export class RunContinuationService {
       previousNodeSnapshotsByNodeId: nextNodeSnapshotsByNodeId,
       planner,
       engineCounters,
+      connectionInvocations: state.connectionInvocations ?? [],
     });
     await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
     await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);
@@ -540,11 +538,7 @@ export class RunContinuationService {
     const next = planner.nextActivation(queue);
 
     if (!next) {
-      const lastNodeId =
-        args.workflow.nodes.at(-1)?.id ??
-        (() => {
-          throw new Error(`Workflow ${args.workflow.id} has no nodes`);
-        })();
+      const lastNodeId = createWorkflowExecutableNodeClassifier(args.workflow).lastExecutableNodeIdInDefinitionOrder(args.workflow);
       const outputs = data.getOutputItems(lastNodeId, "main");
       const completedState = this.persistedRunStateTerminalBuilder.mergeTerminal({
         state: args.state,
@@ -669,6 +663,7 @@ export class RunContinuationService {
       },
       planner,
       engineCounters,
+      connectionInvocations: args.state.connectionInvocations ?? [],
     });
     await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
     await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);

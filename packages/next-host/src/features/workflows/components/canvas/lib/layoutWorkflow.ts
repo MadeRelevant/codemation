@@ -1,7 +1,7 @@
 import dagre from "dagre";
 import { MarkerType,Position,type Edge as ReactFlowEdge,type Node as ReactFlowNode } from "@xyflow/react";
 
-import type { NodeExecutionSnapshot } from "../../../lib/realtime/realtimeDomainTypes";
+import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../../lib/realtime/realtimeDomainTypes";
 import type { WorkflowDto } from "../../../lib/realtime/workflowTypes";
 import type { WorkflowCanvasNodeData } from "./workflowCanvasNodeData";
 import { WorkflowCanvasEdgeCountResolver } from "./WorkflowCanvasEdgeCountResolver";
@@ -10,7 +10,9 @@ import { WorkflowCanvasEdgeStyleResolver } from "./WorkflowCanvasEdgeStyleResolv
 export function layoutWorkflow(
   workflow: WorkflowDto,
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,
+  connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>,
   nodeStatusesByNodeId: Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>,
+  credentialAttentionTooltipByNodeId: ReadonlyMap<string, string>,
   selectedNodeId: string | null,
   propertiesTargetNodeId: string | null,
   pinnedNodeIds: ReadonlySet<string>,
@@ -162,6 +164,7 @@ export function layoutWorkflow(
         isRunning,
         retryPolicySummary: n.retryPolicySummary,
         hasNodeErrorHandler: n.hasNodeErrorHandler,
+        credentialAttentionTooltip: credentialAttentionTooltipByNodeId.get(n.id),
         onSelectNode,
         onOpenPropertiesNode,
         onRunNode,
@@ -194,6 +197,7 @@ export function layoutWorkflow(
       sourceSnapshot,
       targetSnapshot,
       nodeSnapshotsByNodeId,
+      connectionInvocations,
     });
     const edgeLabel = edgeItemCount > 0 ? `${edgeItemCount} item${edgeItemCount === 1 ? "" : "s"}` : undefined;
     const edgeStroke = WorkflowCanvasEdgeStyleResolver.resolveStrokeColor({

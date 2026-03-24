@@ -45,6 +45,7 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Run
       queue: [],
       outputsByNode: {} as Record<NodeId, NodeOutputs>,
       nodeSnapshotsByNodeId: {},
+      connectionInvocations: [],
     });
   }
 

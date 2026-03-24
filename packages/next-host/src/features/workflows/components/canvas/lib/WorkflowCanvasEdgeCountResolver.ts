@@ -1,6 +1,4 @@
-import { AgentAttachmentNodeIdFactory } from "@codemation/core/browser";
-
-import type { NodeExecutionSnapshot } from "../../../lib/realtime/realtimeDomainTypes";
+import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../../lib/realtime/realtimeDomainTypes";
 
 export class WorkflowCanvasEdgeCountResolver {
   static resolveCount(args: Readonly<{
@@ -11,9 +9,15 @@ export class WorkflowCanvasEdgeCountResolver {
     sourceSnapshot: NodeExecutionSnapshot | undefined;
     targetSnapshot: NodeExecutionSnapshot | undefined;
     nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
+    connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>;
   }>): number {
     if (args.targetNodeRole === "languageModel" || args.targetNodeRole === "tool") {
-      const attachmentInvocationCount = this.resolveAttachmentInvocationCount(args.targetNodeId, args.targetNodeRole, args.nodeSnapshotsByNodeId);
+      const attachmentInvocationCount = this.resolveAttachmentInvocationCount(
+        args.targetNodeId,
+        args.targetNodeRole,
+        args.nodeSnapshotsByNodeId,
+        args.connectionInvocations,
+      );
       if (attachmentInvocationCount > 0) return attachmentInvocationCount;
     }
 
@@ -26,13 +30,18 @@ export class WorkflowCanvasEdgeCountResolver {
     targetNodeId: string,
     targetNodeRole: string,
     nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,
+    connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>,
   ): number {
+    const fromHistory = connectionInvocations.filter((inv) => inv.connectionNodeId === targetNodeId).length;
+    if (fromHistory > 0) {
+      return fromHistory;
+    }
     return Object.values(nodeSnapshotsByNodeId).filter((snapshot) => {
       if (targetNodeRole === "languageModel") {
-        return AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(snapshot.nodeId) === targetNodeId;
+        return snapshot.nodeId === targetNodeId;
       }
       if (targetNodeRole === "tool") {
-        return AgentAttachmentNodeIdFactory.getBaseToolNodeId(snapshot.nodeId) === targetNodeId;
+        return snapshot.nodeId === targetNodeId;
       }
       return false;
     }).length;

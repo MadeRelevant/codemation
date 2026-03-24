@@ -1,5 +1,6 @@
 export * from "./canvasIconName";
 export * from "./chatModels/OpenAIChatModelFactory";
+export * from "./chatModels/OpenAiCredentialSession";
 export * from "./chatModels/openAiChatModelConfig";
 export * from "./nodes/aiAgent";
 export * from "./nodes/CallbackNodeFactory";
@@ -17,4 +18,9 @@ export * from "./nodes/WebhookTriggerFactory";
 export * from "./nodes/webhookTriggerNode";
 export * from "./register.types";
 export * from "./workflowBuilder.types";
+export * from "./workflows/AIAgentConnectionWorkflowExpander";
+export * from "./nodes/ConnectionCredentialNode";
+export * from "./nodes/ConnectionCredentialNodeConfig";
+export * from "./nodes/ConnectionCredentialNodeConfigFactory";
+export * from "./nodes/ConnectionCredentialExecutionContextFactory";
 

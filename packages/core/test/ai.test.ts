@@ -1,29 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { AgentAttachmentNodeIdFactory } from "../src/index.ts";
+import { ConnectionNodeIdFactory } from "../src/workflow/ConnectionNodeIdFactory";
 
-test("AgentAttachmentNodeIdFactory creates and parses language model invocation node ids", () => {
-  const nodeId = AgentAttachmentNodeIdFactory.createLanguageModelNodeId("agent_1", 1);
-
-  assert.equal(nodeId, "agent_1::llm::1");
-  assert.deepEqual(AgentAttachmentNodeIdFactory.parseLanguageModelNodeId(nodeId), {
-    parentNodeId: "agent_1",
-    invocationIndex: 1,
-  });
-  assert.equal(AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(nodeId), "agent_1::llm");
-  assert.equal(AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId("agent_1::llm"), "agent_1::llm");
+test("ConnectionNodeIdFactory builds stable language model and tool connection node ids", () => {
+  const llm = ConnectionNodeIdFactory.languageModelConnectionNodeId("agent_1");
+  assert.equal(llm, "agent_1__conn__llm");
+  assert.equal(ConnectionNodeIdFactory.isLanguageModelConnectionNodeId(llm), true);
 });
 
-test("AgentAttachmentNodeIdFactory creates and parses tool invocation node ids", () => {
-  const nodeId = AgentAttachmentNodeIdFactory.createToolNodeId("agent_1", "lookup tool", 2);
+test("ConnectionNodeIdFactory normalizes tool names and detects tool connection ids", () => {
+  const tool = ConnectionNodeIdFactory.toolConnectionNodeId("agent_1", "lookup tool");
+  assert.equal(tool, "agent_1__conn__tool__conn__lookup_tool");
+  assert.equal(ConnectionNodeIdFactory.isToolConnectionNodeId(tool), true);
+  assert.equal(ConnectionNodeIdFactory.normalizeToolName("lookup tool"), "lookup_tool");
+});
 
-  assert.equal(nodeId, "agent_1::tool::lookup_tool::2");
-  assert.deepEqual(AgentAttachmentNodeIdFactory.parseToolNodeId(nodeId), {
-    parentNodeId: "agent_1",
-    toolName: "lookup_tool",
-    invocationIndex: 2,
-  });
-  assert.equal(AgentAttachmentNodeIdFactory.getBaseToolNodeId(nodeId), "agent_1::tool::lookup_tool");
-  assert.equal(AgentAttachmentNodeIdFactory.getBaseToolNodeId("agent_1::tool::lookup_tool"), "agent_1::tool::lookup_tool");
+test("ConnectionNodeIdFactory classifies connection-owned descendants", () => {
+  assert.equal(ConnectionNodeIdFactory.isConnectionOwnedDescendantOf("agent_1", "agent_1__conn__llm"), true);
+  assert.equal(ConnectionNodeIdFactory.isConnectionOwnedDescendantOf("agent_1", "agent_1__conn__tool__conn__x"), true);
+  assert.equal(ConnectionNodeIdFactory.isConnectionOwnedDescendantOf("agent_1", "agent_1"), false);
 });

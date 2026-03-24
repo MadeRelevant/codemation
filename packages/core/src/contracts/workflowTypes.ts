@@ -21,11 +21,28 @@ export interface Edge {
   to: { nodeId: NodeId; input: InputPortKey };
 }
 
+export type NodeConnectionName = string;
+
+/**
+ * Named connection from an executable parent node to child nodes that exist in {@link WorkflowDefinition.nodes}
+ * but are not traversed by the main execution graph.
+ */
+export interface WorkflowNodeConnection {
+  readonly parentNodeId: NodeId;
+  readonly connectionName: NodeConnectionName;
+  readonly childNodeIds: ReadonlyArray<NodeId>;
+}
+
 export interface WorkflowDefinition {
   id: WorkflowId;
   name: string;
   nodes: NodeDefinition[];
   edges: Edge[];
+  /**
+   * Optional metadata: which nodes are connection-owned children (e.g. AI agent `llm` / `tools` slots).
+   * When omitted, all nodes in {@link nodes} are treated as executable for topology.
+   */
+  readonly connections?: ReadonlyArray<WorkflowNodeConnection>;
   /** Directory + file-stem path under a workflow discovery root (for UI grouping only). */
   discoveryPathSegments?: readonly string[];
   /** Retention for run JSON and binaries (seconds). Host/env may supply defaults when omitted. */

@@ -46,11 +46,19 @@ export class PersistedWorkflowResolver {
       } satisfies NodeDefinition;
     });
     const nodeIds = new Set(nodes.map((node) => node.id));
+    const connectionsFromSnapshot =
+      snapshot.connections
+        ?.map((connection) => ({
+          ...connection,
+          childNodeIds: connection.childNodeIds.filter((childId) => nodeIds.has(childId)),
+        }))
+        .filter((connection) => connection.childNodeIds.length > 0) ?? [];
     return {
       id: snapshot.id,
       name: snapshot.name,
       nodes,
       edges: snapshot.edges.filter((edge) => nodeIds.has(edge.from.nodeId) && nodeIds.has(edge.to.nodeId)),
+      ...(connectionsFromSnapshot.length > 0 ? { connections: connectionsFromSnapshot } : {}),
       ...(liveWorkflow?.discoveryPathSegments !== undefined
         ? { discoveryPathSegments: liveWorkflow.discoveryPathSegments }
         : {}),

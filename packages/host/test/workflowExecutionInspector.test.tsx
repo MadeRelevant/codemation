@@ -222,6 +222,7 @@ class WorkflowExecutionInspectorFixture {
       loadError: null,
       selectedRun: {} as WorkflowExecutionInspectorModel["selectedRun"],
       selectedNodeId: "node-1",
+      selectedExecutionTreeKey: "node-1",
       selectedNodeSnapshot,
       selectedWorkflowNode: undefined,
       selectedPinnedOutput: undefined,

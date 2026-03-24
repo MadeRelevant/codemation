@@ -1,5 +1,5 @@
 import {
-AgentAttachmentNodeIdFactory,
+ConnectionNodeIdFactory,
 PersistedWorkflowTokenRegistry,
 WorkflowBuilder,
 type ChatModelConfig,
@@ -63,11 +63,12 @@ export class WorkflowDetailFixtureFactory {
   static readonly nodeTwoId = "node_2";
   static readonly startedAt = "2026-03-11T12:00:00.000Z";
 
-  static readonly llmNodeId = AgentAttachmentNodeIdFactory.createLanguageModelNodeId(this.agentNodeId);
-  static readonly toolNodeId = AgentAttachmentNodeIdFactory.createToolNodeId(this.agentNodeId, "lookup_tool");
-  static readonly llmFirstInvocationNodeId = AgentAttachmentNodeIdFactory.createLanguageModelNodeId(this.agentNodeId, 1);
-  static readonly llmSecondInvocationNodeId = AgentAttachmentNodeIdFactory.createLanguageModelNodeId(this.agentNodeId, 2);
-  static readonly toolFirstInvocationNodeId = AgentAttachmentNodeIdFactory.createToolNodeId(this.agentNodeId, "lookup_tool", 1);
+  static readonly llmNodeId = ConnectionNodeIdFactory.languageModelConnectionNodeId(this.agentNodeId);
+  static readonly toolNodeId = ConnectionNodeIdFactory.toolConnectionNodeId(this.agentNodeId, "lookup_tool");
+  /** Aliases for tests: LLM re-invocations share the connection node id. */
+  static readonly llmFirstInvocationNodeId = this.llmNodeId;
+  static readonly llmSecondInvocationNodeId = this.llmNodeId;
+  static readonly toolFirstInvocationNodeId = this.toolNodeId;
 
   static createWorkflowDefinition(options: WorkflowDetailDefinitionOptions = {}): WorkflowDefinition {
     const workflowId = options.workflowId ?? this.workflowId;
@@ -155,9 +156,8 @@ export class WorkflowDetailFixtureFactory {
         [this.triggerNodeId]: this.createSnapshot(this.triggerNodeId, "completed", 0, runId),
         [this.nodeOneId]: this.createSnapshot(this.nodeOneId, "completed", 1, runId),
         [this.agentNodeId]: this.createSnapshot(this.agentNodeId, "completed", 2, runId),
-        [this.llmFirstInvocationNodeId]: this.createSnapshot(this.llmFirstInvocationNodeId, "completed", 3, runId),
-        [this.toolFirstInvocationNodeId]: this.createSnapshot(this.toolFirstInvocationNodeId, "completed", 4, runId),
-        [this.llmSecondInvocationNodeId]: this.createSnapshot(this.llmSecondInvocationNodeId, "completed", 5, runId),
+        [this.toolNodeId]: this.createSnapshot(this.toolNodeId, "completed", 4, runId),
+        [this.llmNodeId]: this.createSnapshot(this.llmNodeId, "completed", 5, runId),
         [this.nodeTwoId]: this.createSnapshot(this.nodeTwoId, "completed", 6, runId),
       },
     };
@@ -224,6 +224,7 @@ export class WorkflowDetailFixtureFactory {
     currentState: WorkflowDebuggerOverlayState["currentState"] = {
       outputsByNode: {},
       nodeSnapshotsByNodeId: {},
+      connectionInvocations: [],
       mutableState: {
         nodesById: {},
       },

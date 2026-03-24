@@ -19,6 +19,7 @@ WorkflowCredentialHealthSlotDto
 
 import { ApplicationTokens } from "../../applicationTokens";
 
+import { WorkflowCredentialNodeResolver } from "./WorkflowCredentialNodeResolver";
 import { CredentialInstanceService } from "./CredentialInstanceService";
 import type { CredentialStore,MutableCredentialSessionService } from "./CredentialServices";
 
@@ -33,6 +34,8 @@ export class CredentialBindingService {
     private readonly workflowRepository: WorkflowRepository,
     @inject(CoreTokens.CredentialSessionService)
     private readonly credentialSessionService: MutableCredentialSessionService,
+    @inject(WorkflowCredentialNodeResolver)
+    private readonly workflowCredentialNodeResolver: WorkflowCredentialNodeResolver,
   ) {}
 
   async upsertBinding(args: Readonly<{ workflowId: string; nodeId: string; slotKey: string; instanceId: CredentialInstanceId }>): Promise<CredentialBinding> {
@@ -64,47 +67,45 @@ export class CredentialBindingService {
     const bindings = await this.credentialStore.listBindingsByWorkflowId(workflowId);
     const bindingsByKey = new Map(bindings.map((binding) => [this.toBindingKeyString(binding.key), binding] as const));
     const slots: WorkflowCredentialHealthSlotDto[] = [];
-    for (const node of workflow.nodes) {
-      const requirements = node.config.getCredentialRequirements?.() ?? [];
-      for (const requirement of requirements) {
-        const bindingKey = {
-          workflowId,
-          nodeId: node.id,
-          slotKey: requirement.slotKey,
-        } satisfies CredentialBindingKey;
-        const binding = bindingsByKey.get(this.toBindingKeyString(bindingKey));
-        if (!binding) {
-          slots.push({
-            workflowId,
-            nodeId: node.id,
-            nodeName: node.name ?? node.config.name,
-            requirement,
-            health: {
-              status: requirement.optional ? "optional-unbound" : "unbound",
-            },
-          });
-          continue;
-        }
-        const instance = await this.credentialInstanceService.requireInstance(binding.instanceId);
-        const latestTestResult = await this.credentialStore.getLatestTestResult(instance.instanceId);
+    for (const slotRef of this.workflowCredentialNodeResolver.listSlots(workflow)) {
+      const requirement = slotRef.requirement;
+      const bindingKey = {
+        workflowId,
+        nodeId: slotRef.nodeId,
+        slotKey: requirement.slotKey,
+      } satisfies CredentialBindingKey;
+      const binding = bindingsByKey.get(this.toBindingKeyString(bindingKey));
+      if (!binding) {
         slots.push({
           workflowId,
-          nodeId: node.id,
-          nodeName: node.name ?? node.config.name,
+          nodeId: slotRef.nodeId,
+          nodeName: slotRef.nodeName,
           requirement,
-          instance: {
-            instanceId: instance.instanceId,
-            typeId: instance.typeId,
-            displayName: instance.displayName,
-            setupStatus: instance.setupStatus,
-          },
           health: {
-            status: latestTestResult?.health.status ?? "unknown",
-            message: latestTestResult?.health.message,
-            testedAt: latestTestResult?.health.testedAt,
+            status: requirement.optional ? "optional-unbound" : "unbound",
           },
         });
+        continue;
       }
+      const instance = await this.credentialInstanceService.requireInstance(binding.instanceId);
+      const latestTestResult = await this.credentialStore.getLatestTestResult(instance.instanceId);
+      slots.push({
+        workflowId,
+        nodeId: slotRef.nodeId,
+        nodeName: slotRef.nodeName,
+        requirement,
+        instance: {
+          instanceId: instance.instanceId,
+          typeId: instance.typeId,
+          displayName: instance.displayName,
+          setupStatus: instance.setupStatus,
+        },
+        health: {
+          status: latestTestResult?.health.status ?? "unknown",
+          message: latestTestResult?.health.message,
+          testedAt: latestTestResult?.health.testedAt,
+        },
+      });
     }
     return {
       workflowId,
@@ -121,15 +122,14 @@ export class CredentialBindingService {
   }
 
   private requireRequirement(workflow: WorkflowDefinition, nodeId: string, slotKey: string): CredentialRequirement {
-    const node = workflow.nodes.find((entry) => entry.id === nodeId);
-    if (!node) {
-      throw new ApplicationRequestError(404, `Unknown workflow node: ${nodeId}`);
-    }
-    const requirement = (node.config.getCredentialRequirements?.() ?? []).find((entry) => entry.slotKey === slotKey);
-    if (!requirement) {
+    const resolved = this.workflowCredentialNodeResolver.findRequirement(workflow, nodeId, slotKey);
+    if (!resolved) {
+      if (!this.workflowCredentialNodeResolver.isCredentialNodeIdInWorkflow(workflow, nodeId)) {
+        throw new ApplicationRequestError(404, `Unknown workflow node: ${nodeId}`);
+      }
       throw new ApplicationRequestError(400, `Node ${nodeId} does not declare credential slot ${slotKey}.`);
     }
-    return requirement;
+    return resolved.requirement;
   }
 
   private toBindingKeyString(bindingKey: CredentialBindingKey): string {

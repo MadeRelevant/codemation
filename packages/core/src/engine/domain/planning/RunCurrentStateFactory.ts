@@ -5,6 +5,7 @@ export class RunCurrentStateFactory {
     return {
       outputsByNode: {},
       nodeSnapshotsByNodeId: {},
+      connectionInvocations: [],
       mutableState: undefined,
     };
   }
@@ -16,6 +17,7 @@ export class RunCurrentStateFactory {
     return {
       outputsByNode: { ...currentState.outputsByNode },
       nodeSnapshotsByNodeId: { ...currentState.nodeSnapshotsByNodeId },
+      connectionInvocations: currentState.connectionInvocations ? [...currentState.connectionInvocations] : undefined,
       mutableState: currentState.mutableState,
     };
   }

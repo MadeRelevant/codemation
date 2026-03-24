@@ -1,4 +1,4 @@
-import type { Item as WorkflowItem } from "@codemation/core/browser";
+import type { Item as WorkflowItem, JsonValue } from "@codemation/core/browser";
 import type { WorkflowDto } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
 
 export type Item = WorkflowItem;
@@ -14,10 +14,17 @@ export type RunExecutionOptions = Readonly<{
   isMutable?: boolean;
 }>;
 
+export type PersistedWorkflowConnection = Readonly<{
+  parentNodeId: string;
+  connectionName: string;
+  childNodeIds: ReadonlyArray<string>;
+}>;
+
 export type PersistedWorkflowSnapshot = Readonly<{
   id: string;
   name: string;
   workflowErrorHandlerConfigured?: boolean;
+  connections?: ReadonlyArray<PersistedWorkflowConnection>;
   nodes: ReadonlyArray<
     Readonly<{
       id: string;
@@ -71,6 +78,24 @@ export type NodeExecutionSnapshot = Readonly<{
   error?: Readonly<{ message: string; name?: string; stack?: string }>;
 }>;
 
+/** One LLM/tool invocation under an agent; mirrors core {@link ConnectionInvocationRecord}. */
+export type ConnectionInvocationRecord = Readonly<{
+  invocationId: string;
+  runId: string;
+  workflowId: string;
+  connectionNodeId: string;
+  parentAgentNodeId: string;
+  parentAgentActivationId: string;
+  status: NodeExecutionSnapshot["status"];
+  managedInput?: JsonValue;
+  managedOutput?: JsonValue;
+  error?: NodeExecutionSnapshot["error"];
+  queuedAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  updatedAt: string;
+}>;
+
 export type PendingNodeExecution = Readonly<{
   runId: string;
   activationId: string;
@@ -97,11 +122,13 @@ export type PersistedRunState = Readonly<{
   queue: ReadonlyArray<unknown>;
   outputsByNode: Readonly<Record<string, Readonly<Record<string, Items>>>>;
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
+  connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
 }>;
 
 export type RunCurrentState = Readonly<{
   outputsByNode: PersistedRunState["outputsByNode"];
   nodeSnapshotsByNodeId: PersistedRunState["nodeSnapshotsByNodeId"];
+  connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
   mutableState?: PersistedMutableRunState;
 }>;
 

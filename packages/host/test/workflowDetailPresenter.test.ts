@@ -1,3 +1,4 @@
+import type { ConnectionInvocationRecord } from "@codemation/next-host/src/features/workflows/lib/realtime/realtimeDomainTypes";
 import { WorkflowDetailPresenter } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/WorkflowDetailPresenter";
 import { describe,expect,it } from "vitest";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit";
@@ -173,12 +174,97 @@ describe("WorkflowDetailPresenter", () => {
       WorkflowDetailFixtureFactory.llmNodeId,
       workflow,
       run.nodeSnapshotsByNodeId,
+      run.connectionInvocations,
     );
 
-    expect(resolved).toBe(WorkflowDetailFixtureFactory.llmSecondInvocationNodeId);
+    expect(resolved).toBe(WorkflowDetailFixtureFactory.llmNodeId);
   });
 
-  it("treats synthetic invocation ids as anchored to attachment workflow nodes for manual selection", () => {
+  it("dedupes duplicate connection invocation ids by keeping the newest updatedAt row", () => {
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
+    const base = WorkflowDetailFixtureFactory.createCompletedRunState({ workflow });
+    const connectionInvocations: ConnectionInvocationRecord[] = [
+      {
+        invocationId: "cinv_dup",
+        runId: base.runId,
+        workflowId: base.workflowId,
+        connectionNodeId: WorkflowDetailFixtureFactory.llmNodeId,
+        parentAgentNodeId: WorkflowDetailFixtureFactory.agentNodeId,
+        parentAgentActivationId: "act_main",
+        status: "completed",
+        managedInput: { prompts: 1 },
+        managedOutput: { text: "older" },
+        updatedAt: "2026-03-11T12:00:05.000Z",
+      },
+      {
+        invocationId: "cinv_dup",
+        runId: base.runId,
+        workflowId: base.workflowId,
+        connectionNodeId: WorkflowDetailFixtureFactory.llmNodeId,
+        parentAgentNodeId: WorkflowDetailFixtureFactory.agentNodeId,
+        parentAgentActivationId: "act_main",
+        status: "completed",
+        managedInput: { prompts: 1 },
+        managedOutput: { text: "newer" },
+        updatedAt: "2026-03-11T12:00:10.000Z",
+      },
+    ];
+    const run = { ...base, connectionInvocations };
+    const executionNodes = WorkflowDetailPresenter.buildExecutionNodes(workflow, run);
+    const llmRows = executionNodes.filter((entry) => entry.workflowConnectionNodeId === WorkflowDetailFixtureFactory.llmNodeId);
+    expect(llmRows).toHaveLength(1);
+    expect(llmRows[0]?.snapshot?.outputs?.main?.[0]?.json).toEqual({ text: "newer" });
+  });
+
+  it("uses connection invocation history for repeated LLM rows and picks the latest for canvas selection", () => {
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
+    const base = WorkflowDetailFixtureFactory.createCompletedRunState({ workflow });
+    const connectionInvocations: ConnectionInvocationRecord[] = [
+      {
+        invocationId: "cinv_llm_1",
+        runId: base.runId,
+        workflowId: base.workflowId,
+        connectionNodeId: WorkflowDetailFixtureFactory.llmNodeId,
+        parentAgentNodeId: WorkflowDetailFixtureFactory.agentNodeId,
+        parentAgentActivationId: "act_main",
+        status: "completed",
+        managedInput: { prompts: 1 },
+        managedOutput: { text: "a" },
+        updatedAt: "2026-03-11T12:00:05.000Z",
+      },
+      {
+        invocationId: "cinv_llm_2",
+        runId: base.runId,
+        workflowId: base.workflowId,
+        connectionNodeId: WorkflowDetailFixtureFactory.llmNodeId,
+        parentAgentNodeId: WorkflowDetailFixtureFactory.agentNodeId,
+        parentAgentActivationId: "act_main",
+        status: "completed",
+        managedInput: { prompts: 2 },
+        managedOutput: { text: "b" },
+        updatedAt: "2026-03-11T12:00:10.000Z",
+      },
+    ];
+    const run = { ...base, connectionInvocations };
+
+    const executionNodes = WorkflowDetailPresenter.buildExecutionNodes(workflow, run);
+    const llmRows = executionNodes.filter((entry) => entry.workflowConnectionNodeId === WorkflowDetailFixtureFactory.llmNodeId);
+    expect(llmRows.map((entry) => entry.node.id)).toEqual(["cinv_llm_1", "cinv_llm_2"]);
+
+    const resolved = WorkflowDetailPresenter.resolveInspectorNodeIdForCanvasPick(
+      WorkflowDetailFixtureFactory.llmNodeId,
+      workflow,
+      run.nodeSnapshotsByNodeId,
+      run.connectionInvocations,
+    );
+    expect(resolved).toBe("cinv_llm_2");
+
+    expect(
+      WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow("cinv_llm_1", workflow, run.connectionInvocations),
+    ).toBe(true);
+  });
+
+  it("treats connection LLM node ids as anchored to displayed workflow nodes for manual selection", () => {
     const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
 
     expect(
@@ -189,5 +275,94 @@ describe("WorkflowDetailPresenter", () => {
     ).toBe(true);
 
     expect(WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow("unknown::nope", workflow)).toBe(false);
+  });
+
+  it("places two distinct LLM invocations under the agent in the execution tree", () => {
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
+    const base = WorkflowDetailFixtureFactory.createCompletedRunState({ workflow });
+    const connectionInvocations: ConnectionInvocationRecord[] = [
+      {
+        invocationId: "cinv_llm_a",
+        runId: base.runId,
+        workflowId: base.workflowId,
+        connectionNodeId: WorkflowDetailFixtureFactory.llmNodeId,
+        parentAgentNodeId: WorkflowDetailFixtureFactory.agentNodeId,
+        parentAgentActivationId: "act_main",
+        status: "completed",
+        managedInput: { prompts: 1 },
+        managedOutput: { text: "a" },
+        updatedAt: "2026-03-11T12:00:05.000Z",
+      },
+      {
+        invocationId: "cinv_llm_b",
+        runId: base.runId,
+        workflowId: base.workflowId,
+        connectionNodeId: WorkflowDetailFixtureFactory.llmNodeId,
+        parentAgentNodeId: WorkflowDetailFixtureFactory.agentNodeId,
+        parentAgentActivationId: "act_main",
+        status: "completed",
+        managedInput: { prompts: 2 },
+        managedOutput: { text: "b" },
+        updatedAt: "2026-03-11T12:00:10.000Z",
+      },
+    ];
+    const run = { ...base, connectionInvocations };
+    const executionNodes = WorkflowDetailPresenter.buildExecutionNodes(workflow, run);
+    const tree = WorkflowDetailPresenter.buildExecutionTreeData(executionNodes);
+    const agentRoot = tree.find((n) => n.workflowNode?.id === WorkflowDetailFixtureFactory.agentNodeId);
+    const childRoles = (agentRoot?.children as typeof tree | undefined)?.map((c) => c.workflowNode?.role) ?? [];
+    const llmChildren = childRoles.filter((r) => r === "languageModel");
+    expect(llmChildren).toHaveLength(2);
+  });
+
+  it("normalizes duplicate connection invocation ids to the newest row", () => {
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
+    const base = WorkflowDetailFixtureFactory.createCompletedRunState({ workflow });
+    const connectionInvocations: ConnectionInvocationRecord[] = [
+      {
+        invocationId: "cinv_same",
+        runId: base.runId,
+        workflowId: base.workflowId,
+        connectionNodeId: WorkflowDetailFixtureFactory.llmNodeId,
+        parentAgentNodeId: WorkflowDetailFixtureFactory.agentNodeId,
+        parentAgentActivationId: "act_main",
+        status: "completed",
+        managedOutput: { text: "older" },
+        updatedAt: "2026-03-11T12:00:05.000Z",
+      },
+      {
+        invocationId: "cinv_same",
+        runId: base.runId,
+        workflowId: base.workflowId,
+        connectionNodeId: WorkflowDetailFixtureFactory.llmNodeId,
+        parentAgentNodeId: WorkflowDetailFixtureFactory.agentNodeId,
+        parentAgentActivationId: "act_main",
+        status: "completed",
+        managedOutput: { text: "newer" },
+        updatedAt: "2026-03-11T12:00:10.000Z",
+      },
+    ];
+    const normalized = WorkflowDetailPresenter.normalizeConnectionInvocations(connectionInvocations);
+    expect(normalized).toHaveLength(1);
+    expect(normalized[0]?.managedOutput).toEqual({ text: "newer" });
+  });
+
+  it("resolves credential attention for unbound required slots", () => {
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
+    const result = WorkflowDetailPresenter.resolveCredentialAttention({
+      workflow,
+      slots: [
+        {
+          workflowId: workflow.id,
+          nodeId: "node_needs_cred",
+          nodeName: "Cred node",
+          requirement: { slotKey: "api", label: "API key", acceptedTypes: ["openai.apiKey"] },
+          health: { status: "unbound" },
+        },
+      ],
+    });
+    expect(result.attentionNodeIds.has("node_needs_cred")).toBe(true);
+    expect(result.summaryLines[0]).toContain("Cred node");
+    expect(result.summaryLines[0]).toContain("API key");
   });
 });

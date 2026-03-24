@@ -9,6 +9,7 @@ export class WorkflowDebuggerOverlayStateFactory {
       currentState: {
         outputsByNode: {},
         nodeSnapshotsByNodeId: {},
+        connectionInvocations: [],
         mutableState: {
           nodesById: {},
         },
@@ -40,6 +41,10 @@ export class WorkflowDebuggerOverlayStateFactory {
     const filteredOutputsByNode: RunCurrentState["outputsByNode"] = { ...existingState.outputsByNode };
     const filteredSnapshotsByNodeId: RunCurrentState["nodeSnapshotsByNodeId"] = { ...existingState.nodeSnapshotsByNodeId };
     const filteredMutableNodesById = { ...(existingState.mutableState?.nodesById ?? {}) };
+    const filteredConnectionInvocations = (args.sourceState.connectionInvocations ?? []).filter(
+      (inv) => args.liveWorkflowNodeIds.has(inv.connectionNodeId) || args.liveWorkflowNodeIds.has(inv.parentAgentNodeId),
+    );
+
     for (const nodeId of args.liveWorkflowNodeIds) {
       const nodeOutputs = args.sourceState.outputsByNode[nodeId];
       const nodeSnapshot = args.sourceState.nodeSnapshotsByNodeId[nodeId];
@@ -65,6 +70,7 @@ export class WorkflowDebuggerOverlayStateFactory {
       currentState: {
         outputsByNode: filteredOutputsByNode,
         nodeSnapshotsByNodeId: filteredSnapshotsByNodeId,
+        connectionInvocations: filteredConnectionInvocations.map((inv) => JSON.parse(JSON.stringify(inv))),
         mutableState: {
           nodesById: filteredMutableNodesById,
         },
@@ -77,6 +83,7 @@ export class WorkflowDebuggerOverlayStateFactory {
       return {
         outputsByNode: {},
         nodeSnapshotsByNodeId: {},
+        connectionInvocations: [],
         mutableState: {
           nodesById: {},
         },
@@ -85,6 +92,9 @@ export class WorkflowDebuggerOverlayStateFactory {
     return {
       outputsByNode: JSON.parse(JSON.stringify(currentState.outputsByNode ?? {})) as RunCurrentState["outputsByNode"],
       nodeSnapshotsByNodeId: JSON.parse(JSON.stringify(currentState.nodeSnapshotsByNodeId ?? {})) as RunCurrentState["nodeSnapshotsByNodeId"],
+      connectionInvocations: currentState.connectionInvocations
+        ? (JSON.parse(JSON.stringify(currentState.connectionInvocations)) as NonNullable<RunCurrentState["connectionInvocations"]>)
+        : undefined,
       mutableState: JSON.parse(
         JSON.stringify(
           currentState.mutableState ?? {

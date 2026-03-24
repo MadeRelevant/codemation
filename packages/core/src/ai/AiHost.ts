@@ -18,6 +18,7 @@ export interface ToolConfig {
   readonly name: string;
   readonly description?: string;
   readonly presentation?: AgentCanvasPresentation;
+  getCredentialRequirements?(): ReadonlyArray<CredentialRequirement>;
 }
 
 export type ToolExecuteArgs<TConfig extends ToolConfig = ToolConfig, TInput = unknown> = Readonly<{
@@ -102,6 +103,3 @@ export class AgentConfigInspector {
 }
 
 export type AgentAttachmentRole = "languageModel" | "tool";
-
-export { AgentAttachmentNodeIdFactory } from "./AgentAttachmentNodeIdFactory";
-

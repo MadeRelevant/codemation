@@ -4,6 +4,7 @@ import type {
 Edge,
 InputPortKey,
 Items,
+JsonValue,
 NodeActivationId,
 NodeId,
 NodeKind,
@@ -15,6 +16,7 @@ PersistedTokenId,
 RunId,
 WorkflowDefinition,
 WorkflowId,
+WorkflowNodeConnection,
 } from "./workflowTypes";
 
 export interface RunExecutionOptions {
@@ -73,6 +75,8 @@ export interface PersistedWorkflowSnapshot {
   edges: ReadonlyArray<Edge>;
   /** When the snapshot was built from a live workflow definition that configured a workflow error handler. */
   workflowErrorHandlerConfigured?: boolean;
+  /** Connection metadata for child nodes not in the execution graph (e.g. AI agent attachments). */
+  connections?: ReadonlyArray<WorkflowNodeConnection>;
 }
 
 export type PinnedNodeOutputsByPort = Readonly<Record<OutputPortKey, Items>>;
@@ -125,9 +129,50 @@ export interface NodeExecutionSnapshot {
   error?: NodeExecutionError;
 }
 
+/** Stable id for a single connection invocation row in {@link ConnectionInvocationRecord}. */
+export type ConnectionInvocationId = string;
+
+/**
+ * One logical LLM or tool call under an owning workflow node (e.g. AI agent).
+ * The owning node defines what {@link managedInput} and {@link managedOutput} contain.
+ */
+export interface ConnectionInvocationRecord {
+  readonly invocationId: ConnectionInvocationId;
+  readonly runId: RunId;
+  readonly workflowId: WorkflowId;
+  readonly connectionNodeId: NodeId;
+  readonly parentAgentNodeId: NodeId;
+  readonly parentAgentActivationId: NodeActivationId;
+  readonly status: NodeExecutionStatus;
+  readonly managedInput?: JsonValue;
+  readonly managedOutput?: JsonValue;
+  readonly error?: NodeExecutionError;
+  readonly queuedAt?: string;
+  readonly startedAt?: string;
+  readonly finishedAt?: string;
+  readonly updatedAt: string;
+}
+
+/** Arguments for appending a {@link ConnectionInvocationRecord} (engine fills run/workflow ids and timestamps). */
+export type ConnectionInvocationAppendArgs = Readonly<{
+  invocationId: ConnectionInvocationId;
+  connectionNodeId: NodeId;
+  parentAgentNodeId: NodeId;
+  parentAgentActivationId: NodeActivationId;
+  status: NodeExecutionStatus;
+  managedInput?: JsonValue;
+  managedOutput?: JsonValue;
+  error?: NodeExecutionError;
+  queuedAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}>;
+
 export interface RunCurrentState {
   outputsByNode: Record<NodeId, NodeOutputs>;
   nodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
+  /** Append-only history of connection-scoped invocations (LLM/tool) for inspector and canvas. */
+  connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
   mutableState?: PersistedMutableRunState;
 }
 
@@ -199,6 +244,8 @@ export interface PersistedRunState {
   queue: RunQueueEntry[];
   outputsByNode: Record<NodeId, NodeOutputs>;
   nodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
+  /** Append-only history of connection invocations (LLM/tool) nested under owning nodes. */
+  connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
 }
 
 export interface RunStateStore {

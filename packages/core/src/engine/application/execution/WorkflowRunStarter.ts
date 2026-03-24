@@ -14,6 +14,7 @@ import type {
   WorkflowSnapshotFactory,
 } from "../../../types";
 
+import { createWorkflowExecutableNodeClassifier } from "../../../workflow/workflowExecutableNodeClassifier.types";
 import { EngineExecutionLimitsPolicy } from "../policies/EngineExecutionLimitsPolicy";
 import { RunPolicySnapshotFactory } from "../policies/RunPolicySnapshotFactory";
 import { EngineWorkflowPlanningFactory } from "../planning/EngineWorkflowPlanningFactory";
@@ -120,6 +121,7 @@ export class WorkflowRunStarter {
         previousNodeSnapshotsByNodeId: initialNodeSnapshotsByNodeId,
         planner,
         engineCounters: { completedNodeActivations: 0 },
+        connectionInvocations: [],
       });
     }
 
@@ -127,11 +129,7 @@ export class WorkflowRunStarter {
 
     const next = planner.nextActivation(queue);
     if (!next) {
-      const lastNodeId =
-        wf.nodes.at(-1)?.id ??
-        (() => {
-          throw new Error(`Workflow ${wf.id} has no nodes`);
-        })();
+      const lastNodeId = createWorkflowExecutableNodeClassifier(wf).lastExecutableNodeIdInDefinitionOrder(wf);
       const outputs = data.getOutputItems(lastNodeId, "main");
       await this.runStore.save({
         runId,
@@ -143,6 +141,7 @@ export class WorkflowRunStarter {
         mutableState,
         policySnapshot,
         engineCounters: { completedNodeActivations: 0 },
+        connectionInvocations: [],
         status: "completed",
         pending: undefined,
         queue: [],
@@ -183,6 +182,7 @@ export class WorkflowRunStarter {
       previousNodeSnapshotsByNodeId: initialNodeSnapshotsByNodeId,
       planner,
       engineCounters: { completedNodeActivations: 0 },
+      connectionInvocations: [],
     });
   }
 }

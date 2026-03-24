@@ -1,15 +1,4 @@
-
-
-
-
-import { AgentAttachmentNodeIdFactory } from "@codemation/core/browser";
-
-
-
-import type { NodeExecutionSnapshot } from "../../hooks/realtime/realtime";
-
-
-
+import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../hooks/realtime/realtime";
 
 export class VisibleNodeStatusResolver {
   private static readonly statusPriorityByStatus = new Map<NodeExecutionSnapshot["status"], number>([
@@ -21,15 +10,17 @@ export class VisibleNodeStatusResolver {
     ["pending", 5],
   ]);
 
+  private static readonly invocationWorstStatusOrder = ["failed", "running", "queued", "completed", "skipped", "pending"] as const;
+
   static resolveStatuses(
     nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,
+    connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>,
   ): Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>> {
     const snapshotsByVisibleNodeId = new Map<string, NodeExecutionSnapshot[]>();
     for (const [nodeId, snapshot] of Object.entries(nodeSnapshotsByNodeId)) {
-      const visibleNodeId = this.resolveVisibleNodeId(nodeId);
-      const snapshots = snapshotsByVisibleNodeId.get(visibleNodeId) ?? [];
+      const snapshots = snapshotsByVisibleNodeId.get(nodeId) ?? [];
       snapshots.push(snapshot);
-      snapshotsByVisibleNodeId.set(visibleNodeId, snapshots);
+      snapshotsByVisibleNodeId.set(nodeId, snapshots);
     }
 
     const statusEntries: Array<readonly [string, NodeExecutionSnapshot["status"]]> = [];
@@ -39,13 +30,39 @@ export class VisibleNodeStatusResolver {
         statusEntries.push([visibleNodeId, resolvedSnapshot.status] as const);
       }
     }
-    return Object.fromEntries(statusEntries);
+    const result = Object.fromEntries(statusEntries) as Record<string, NodeExecutionSnapshot["status"] | undefined>;
+    const invocationsByConnectionNodeId = new Map<string, ConnectionInvocationRecord[]>();
+    for (const inv of connectionInvocations ?? []) {
+      const list = invocationsByConnectionNodeId.get(inv.connectionNodeId) ?? [];
+      list.push(inv);
+      invocationsByConnectionNodeId.set(inv.connectionNodeId, list);
+    }
+    for (const [connectionNodeId, invs] of invocationsByConnectionNodeId.entries()) {
+      const aggregated = this.worstInvocationStatus(invs.map((entry) => entry.status));
+      if (aggregated) {
+        result[connectionNodeId] = aggregated;
+      }
+    }
+    return result;
   }
 
-  private static resolveVisibleNodeId(nodeId: string): string {
-    const languageModelNodeId = AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(nodeId);
-    if (languageModelNodeId !== nodeId) return languageModelNodeId;
-    return AgentAttachmentNodeIdFactory.getBaseToolNodeId(nodeId);
+  private static worstInvocationStatus(
+    statuses: ReadonlyArray<NodeExecutionSnapshot["status"]>,
+  ): NodeExecutionSnapshot["status"] | undefined {
+    if (statuses.length === 0) {
+      return undefined;
+    }
+    let best: NodeExecutionSnapshot["status"] | undefined;
+    let bestIdx: number = this.invocationWorstStatusOrder.length;
+    for (const status of statuses) {
+      const idx = this.invocationWorstStatusOrder.indexOf(status);
+      const resolvedIdx = idx >= 0 ? idx : this.invocationWorstStatusOrder.length;
+      if (resolvedIdx < bestIdx) {
+        bestIdx = resolvedIdx;
+        best = status;
+      }
+    }
+    return best ?? statuses[0];
   }
 
   private static compareSnapshots(left: NodeExecutionSnapshot, right: NodeExecutionSnapshot): number {

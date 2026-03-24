@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import {
-  AgentAttachmentNodeIdFactory,
+  ConnectionNodeIdFactory,
   InMemoryRunStateStore,
   type Items,
   type NodeExecutionContext,
@@ -444,8 +444,8 @@ test("current-state execution clears runtime attachment snapshots for reset desc
   const firstState = await kit.runStore.load(firstRun.runId);
   assert.ok(firstState);
 
-  const llmInvocationNodeId = AgentAttachmentNodeIdFactory.createLanguageModelNodeId("C", 1);
-  const toolInvocationNodeId = AgentAttachmentNodeIdFactory.createToolNodeId("C", "lookup_tool", 1);
+  const llmInvocationNodeId = ConnectionNodeIdFactory.languageModelConnectionNodeId("C");
+  const toolInvocationNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("C", "lookup_tool");
   const currentState = TargetedExecutionStateFactory.fromRunState(firstState);
   currentState.outputsByNode[llmInvocationNodeId] = { main: items([{ llm: true }]) };
   currentState.outputsByNode[toolInvocationNodeId] = { main: items([{ tool: true }]) };

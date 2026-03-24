@@ -8,6 +8,7 @@ import { MapDataNode } from "./nodes/mapData";
 import { NoOpNode } from "./nodes/noOp";
 import { SubWorkflowNode } from "./nodes/subWorkflow";
 import { WaitNode } from "./nodes/wait";
+import { ConnectionCredentialNode } from "./nodes/ConnectionCredentialNode";
 
 /**
  * Registrar for built-in nodes. In a real project, this would use tsyringe's
@@ -31,5 +32,6 @@ export function registerCoreNodes(container: Container): void {
   void ManualTriggerNode;
   void AIAgentNode;
   void WaitNode;
+  void ConnectionCredentialNode;
 }
 

@@ -45,6 +45,7 @@ export class InMemoryRunStateStore implements RunStateStore, RunListingStore, Ru
       queue: [],
       outputsByNode: {} as Record<NodeId, NodeOutputs>,
       nodeSnapshotsByNodeId: {},
+      connectionInvocations: [],
     });
   }
 

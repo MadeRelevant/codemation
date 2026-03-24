@@ -23,6 +23,7 @@ export function NodeCredentialBindingRow(args: Readonly<{
   onBind: (request: UpsertCredentialBindingRequest) => void;
 }>) {
   const { compatibleInstances, isBinding, onBind, onSelectInstance, selectedInstanceId, slot } = args;
+  const slotTestIdSuffix = `${slot.nodeId}-${slot.requirement.slotKey}`;
   const typesLine = slot.requirement.acceptedTypes.join(" · ");
   const status = slot.health.status;
   const statusBadgeClass =
@@ -48,7 +49,7 @@ export function NodeCredentialBindingRow(args: Readonly<{
   const disabledBind = !selectedInstanceId || isBinding;
   return (
     <div
-      data-testid={`node-properties-credential-slot-${slot.requirement.slotKey}`}
+      data-testid={`node-properties-credential-slot-${slotTestIdSuffix}`}
       className="flex flex-wrap items-center gap-2 py-2"
     >
       <div className="flex min-w-[160px] flex-1 flex-col gap-0.5">
@@ -79,7 +80,7 @@ export function NodeCredentialBindingRow(args: Readonly<{
       >
         <SelectTrigger
           className="h-8 min-w-[120px] max-w-[240px] flex-[1_1_140px]"
-          data-testid={`node-properties-credential-slot-select-${slot.requirement.slotKey}`}
+          data-testid={`node-properties-credential-slot-select-${slotTestIdSuffix}`}
         >
           <SelectValue placeholder="Select instance..." />
         </SelectTrigger>
@@ -95,7 +96,7 @@ export function NodeCredentialBindingRow(args: Readonly<{
       <Button
         type="button"
         size="sm"
-        data-testid={`node-properties-credential-slot-bind-${slot.requirement.slotKey}`}
+        data-testid={`node-properties-credential-slot-bind-${slotTestIdSuffix}`}
         disabled={disabledBind}
         className="shrink-0 text-xs font-bold"
         onClick={() =>

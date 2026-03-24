@@ -1,4 +1,6 @@
 import type {
+  ConnectionInvocationAppendArgs,
+  ConnectionInvocationRecord,
   NodeActivationId,
   NodeExecutionSnapshot,
   NodeExecutionStatePublisher,
@@ -103,6 +105,33 @@ export class BoundNodeExecutionStatePublisher implements NodeExecutionStatePubli
       });
       await this.saveSnapshot(state, snapshot);
       await this.publishNodeEvent("nodeFailed", snapshot);
+    });
+  }
+
+  appendConnectionInvocation(args: ConnectionInvocationAppendArgs): Promise<void> {
+    return this.enqueue(async () => {
+      const state = await this.loadState();
+      const updatedAt = new Date().toISOString();
+      const record: ConnectionInvocationRecord = {
+        invocationId: args.invocationId,
+        runId: this.runId,
+        workflowId: this.workflowId,
+        connectionNodeId: args.connectionNodeId,
+        parentAgentNodeId: args.parentAgentNodeId,
+        parentAgentActivationId: args.parentAgentActivationId,
+        status: args.status,
+        managedInput: args.managedInput,
+        managedOutput: args.managedOutput,
+        error: args.error,
+        queuedAt: args.queuedAt,
+        startedAt: args.startedAt,
+        finishedAt: args.finishedAt,
+        updatedAt,
+      };
+      await this.runStore.save({
+        ...state,
+        connectionInvocations: [...(state.connectionInvocations ?? []), record],
+      });
     });
   }
 

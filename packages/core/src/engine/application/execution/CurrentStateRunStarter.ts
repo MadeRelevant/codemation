@@ -21,6 +21,7 @@ import type {
   WorkflowSnapshotFactory,
 } from "../../../types";
 
+import { createWorkflowExecutableNodeClassifier } from "../../../workflow/workflowExecutableNodeClassifier.types";
 import { RunQueuePlanner } from "../../domain/planning/runQueuePlanner";
 import { WorkflowTopology } from "../../domain/planning/WorkflowTopologyPlanner";
 import { CurrentStateFrontierPlannerFactory } from "../planning/CurrentStateFrontierPlannerFactory";
@@ -92,7 +93,7 @@ export class CurrentStateRunStarter {
     const base = this.runExecutionContextFactory.create({
       runId,
       workflowId: request.workflow.id,
-      nodeId: request.workflow.nodes[0]?.id ?? "unknown_node",
+      nodeId: createWorkflowExecutableNodeClassifier(request.workflow).firstExecutableNodeIdInDefinitionOrder(request.workflow) ?? "unknown_node",
       parent: request.parent,
       subworkflowDepth: mergedExecutionOptions.subworkflowDepth ?? 0,
       engineMaxNodeActivations: mergedExecutionOptions.maxNodeActivations!,
@@ -125,6 +126,7 @@ export class CurrentStateRunStarter {
     return {
       outputsByNode: { ...(currentState?.outputsByNode ?? {}) },
       nodeSnapshotsByNodeId: { ...(currentState?.nodeSnapshotsByNodeId ?? {}) },
+      connectionInvocations: currentState?.connectionInvocations ? [...currentState.connectionInvocations] : undefined,
       mutableState: mutableState ?? currentState?.mutableState,
     };
   }
@@ -187,6 +189,7 @@ export class CurrentStateRunStarter {
           previousNodeSnapshotsByNodeId: initialNodeSnapshotsByNodeId,
           planner: args.planner,
           engineCounters: { completedNodeActivations: 0 },
+          connectionInvocations: args.plan.currentState.connectionInvocations ?? [],
         });
       }
 
@@ -215,6 +218,7 @@ export class CurrentStateRunStarter {
         request,
         previousNodeSnapshotsByNodeId: initialNodeSnapshotsByNodeId,
         planner: args.planner,
+        connectionInvocations: args.plan.currentState.connectionInvocations ?? [],
       });
     }
 
@@ -234,6 +238,7 @@ export class CurrentStateRunStarter {
       base: args.base,
       data: args.data,
       nodeSnapshotsByNodeId: initialNodeSnapshotsByNodeId,
+      connectionInvocations: args.plan.currentState.connectionInvocations ?? [],
     });
   }
 
@@ -253,6 +258,7 @@ export class CurrentStateRunStarter {
     base: ReturnType<ExecutionContextFactory["create"]>;
     data: ReturnType<RunDataFactory["create"]>;
     nodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
+    connectionInvocations: RunCurrentState["connectionInvocations"];
   }): Promise<RunResult> {
     this.semantics.applyPinnedQueueSkips({
       runId: args.runId,
@@ -280,6 +286,7 @@ export class CurrentStateRunStarter {
         workflow: args.workflow,
         data: args.data,
         nodeSnapshotsByNodeId: args.nodeSnapshotsByNodeId,
+        connectionInvocations: args.connectionInvocations,
       });
     }
 
@@ -314,6 +321,7 @@ export class CurrentStateRunStarter {
       previousNodeSnapshotsByNodeId: args.nodeSnapshotsByNodeId,
       planner: args.planner,
       engineCounters: { completedNodeActivations: 0 },
+      connectionInvocations: args.connectionInvocations ?? [],
     });
   }
 
@@ -330,6 +338,7 @@ export class CurrentStateRunStarter {
     workflow: WorkflowDefinition;
     data: ReturnType<RunDataFactory["create"]>;
     nodeSnapshotsByNodeId: Record<NodeId, NodeExecutionSnapshot>;
+    connectionInvocations: RunCurrentState["connectionInvocations"];
   }): Promise<RunResult> {
     await this.runStore.save({
       runId: args.runId,
@@ -342,6 +351,7 @@ export class CurrentStateRunStarter {
       mutableState: args.mutableState,
       policySnapshot: args.policySnapshot,
       engineCounters: { completedNodeActivations: 0 },
+      connectionInvocations: args.connectionInvocations ? [...args.connectionInvocations] : [],
       status: "completed",
       pending: undefined,
       queue: [],

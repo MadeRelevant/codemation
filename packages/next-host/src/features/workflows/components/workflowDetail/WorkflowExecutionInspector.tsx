@@ -13,6 +13,7 @@ export function WorkflowExecutionInspector(args: Readonly<{
   const {
     executionTreeData,
     executionTreeExpandedKeys,
+    selectedExecutionTreeKey,
     isLoading,
     loadError,
     selectedNodeId,
@@ -74,7 +75,12 @@ export function WorkflowExecutionInspector(args: Readonly<{
       }}
     >
       <WorkflowExecutionInspectorTreePanel
-        model={{ executionTreeData, executionTreeExpandedKeys, selectedNodeId, viewContext }}
+        model={{
+          executionTreeData,
+          executionTreeExpandedKeys,
+          selectedExecutionTreeKey,
+          viewContext,
+        }}
         formatting={{ formatDurationLabel: formatting.formatDurationLabel, getNodeDisplayName: formatting.getNodeDisplayName }}
         onSelectNode={onSelectNode}
       />

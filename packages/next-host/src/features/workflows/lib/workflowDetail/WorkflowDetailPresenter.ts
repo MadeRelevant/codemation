@@ -1,9 +1,11 @@
-import { AgentAttachmentNodeIdFactory,ItemsInputNormalizer,RunFinishedAtFactory } from "@codemation/core/browser";
+import { ItemsInputNormalizer, RunFinishedAtFactory } from "@codemation/core/browser";
+import type { WorkflowCredentialHealthSlotDto } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { format,isToday,isYesterday } from "date-fns";
 import prettyMilliseconds from "pretty-ms";
 import type {
+ConnectionInvocationRecord,
 Items,
 NodeExecutionSnapshot,
 PersistedRunState,
@@ -48,6 +50,7 @@ export type RunWorkflowRequest = Readonly<{
 type InspectableExecutionState = Readonly<{
   mutableState?: PersistedRunState["mutableState"];
   nodeSnapshotsByNodeId: PersistedRunState["nodeSnapshotsByNodeId"];
+  connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
 }>;
 
 export class WorkflowDetailPresenter {
@@ -193,42 +196,44 @@ export class WorkflowDetailPresenter {
     );
   }
 
-  static inspectorSelectionAnchorsDisplayedWorkflow(nodeId: string | null, workflow: WorkflowDto | undefined): boolean {
+  static inspectorSelectionAnchorsDisplayedWorkflow(
+    nodeId: string | null,
+    workflow: WorkflowDto | undefined,
+    connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>,
+  ): boolean {
     if (!nodeId || !workflow?.nodes.length) {
       return false;
     }
     if (workflow.nodes.some((n) => n.id === nodeId)) {
       return true;
     }
-    const baseLlm = AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(nodeId);
-    if (baseLlm !== nodeId && workflow.nodes.some((n) => n.id === baseLlm)) {
-      return true;
-    }
-    const baseTool = AgentAttachmentNodeIdFactory.getBaseToolNodeId(nodeId);
-    if (baseTool !== nodeId && workflow.nodes.some((n) => n.id === baseTool)) {
-      return true;
-    }
-    return false;
+    return Boolean(connectionInvocations?.some((inv) => inv.invocationId === nodeId));
   }
 
   static resolveInspectorNodeIdForCanvasPick(
     canvasWorkflowNodeId: string,
     workflow: WorkflowDto | undefined,
     nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>> | undefined,
+    connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>,
   ): string {
     const wfNode = workflow?.nodes.find((n) => n.id === canvasWorkflowNodeId);
     if (!wfNode) {
       return canvasWorkflowNodeId;
+    }
+    const invocationsForEdge = (connectionInvocations ?? []).filter((inv) => inv.connectionNodeId === canvasWorkflowNodeId);
+    if (invocationsForEdge.length > 0) {
+      const ordered = [...invocationsForEdge].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      return ordered[0]!.invocationId;
     }
     const snapshots = Object.values(nodeSnapshotsByNodeId ?? {}).filter((snapshot) =>
       this.visibleExecutionStatuses.has(snapshot.status),
     );
     const matching = snapshots.filter((snapshot) => {
       if (wfNode.role === "languageModel") {
-        return AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(snapshot.nodeId) === canvasWorkflowNodeId;
+        return snapshot.nodeId === canvasWorkflowNodeId;
       }
       if (wfNode.role === "tool") {
-        return AgentAttachmentNodeIdFactory.getBaseToolNodeId(snapshot.nodeId) === canvasWorkflowNodeId;
+        return snapshot.nodeId === canvasWorkflowNodeId;
       }
       return snapshot.nodeId === canvasWorkflowNodeId;
     });
@@ -499,6 +504,9 @@ export class WorkflowDetailPresenter {
       nodeSnapshotsByNodeId: Object.fromEntries(
         Object.entries(currentState.nodeSnapshotsByNodeId).filter(([nodeId]) => this.isCompatibleWorkflowNodeId(workflowNodeIds, nodeId)),
       ),
+      connectionInvocations: currentState.connectionInvocations?.filter(
+        (inv) => workflowNodeIds.has(inv.connectionNodeId) && workflowNodeIds.has(inv.parentAgentNodeId),
+      ),
       mutableState: currentState.mutableState
         ? {
             nodesById: Object.fromEntries(
@@ -511,7 +519,7 @@ export class WorkflowDetailPresenter {
 
   static createLiveRunCurrentState(
     request: RunWorkflowRequest,
-    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState"> | undefined,
+    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState" | "connectionInvocations"> | undefined,
   ): RunCurrentState {
     if (this.shouldStartWorkflowFromCleanState(request)) {
       return this.createCleanRunCurrentState(currentState);
@@ -573,18 +581,50 @@ export class WorkflowDetailPresenter {
     const snapshots = Object.values(executionState?.nodeSnapshotsByNodeId ?? {}).filter((snapshot) =>
       this.visibleExecutionStatuses.has(snapshot.status),
     );
+    const executionStateForInvocations: InspectableExecutionState | undefined =
+      executionState === undefined
+        ? undefined
+        : {
+            ...executionState,
+            connectionInvocations: this.normalizeConnectionInvocations(executionState.connectionInvocations),
+          };
     return workflow.nodes
-      .flatMap((node) => this.createExecutionNodesForWorkflowNode(node, snapshots))
+      .flatMap((node) => this.createExecutionNodesForWorkflowNode(node, snapshots, executionStateForInvocations))
       .sort((left, right) => this.compareExecutionNodes(left, right));
   }
 
+  /**
+   * Required credential slots that are still unbound (excluding optional credential slots).
+   */
+  static resolveCredentialAttention(args: Readonly<{
+    workflow: WorkflowDto | undefined;
+    slots: ReadonlyArray<WorkflowCredentialHealthSlotDto> | undefined;
+  }>): Readonly<{ attentionNodeIds: ReadonlySet<string>; summaryLines: ReadonlyArray<string> }> {
+    const slots = args.slots ?? [];
+    const workflow = args.workflow;
+    const attentionNodeIds = new Set<string>();
+    const summaryLines: string[] = [];
+    for (const slot of slots) {
+      if (slot.health.status !== "unbound") {
+        continue;
+      }
+      attentionNodeIds.add(slot.nodeId);
+      const label = slot.nodeName ?? workflow?.nodes.find((n) => n.id === slot.nodeId)?.name ?? slot.nodeId;
+      summaryLines.push(`${label} · ${slot.requirement.label}`);
+    }
+    return { attentionNodeIds, summaryLines };
+  }
+
   static buildExecutionTreeData(nodes: ReadonlyArray<ExecutionNode>): ReadonlyArray<ExecutionTreeNode> {
-    const treeNodesById = new Map<string, ExecutionTreeNode>();
+    const treeKeys = this.computeExecutionTreeStableKeys(nodes);
+    const treeNodesByKey = new Map<string, ExecutionTreeNode>();
     const rootNodes: ExecutionTreeNode[] = [];
 
-    for (const { node, snapshot } of nodes) {
-      treeNodesById.set(node.id, {
-        key: node.id,
+    for (let i = 0; i < nodes.length; i++) {
+      const { node, snapshot } = nodes[i]!;
+      const treeKey = treeKeys[i]!;
+      treeNodesByKey.set(treeKey, {
+        key: treeKey,
         title: node.name ?? node.type ?? node.id,
         workflowNode: node,
         snapshot,
@@ -592,14 +632,16 @@ export class WorkflowDetailPresenter {
       });
     }
 
-    for (const { node } of nodes) {
-      const treeNode = treeNodesById.get(node.id);
+    for (let i = 0; i < nodes.length; i++) {
+      const { node } = nodes[i]!;
+      const treeKey = treeKeys[i]!;
+      const treeNode = treeNodesByKey.get(treeKey);
       if (!treeNode) continue;
       if (!node.parentNodeId) {
         rootNodes.push(treeNode);
         continue;
       }
-      const parentTreeNode = treeNodesById.get(node.parentNodeId);
+      const parentTreeNode = treeNodesByKey.get(node.parentNodeId);
       if (!parentTreeNode) {
         rootNodes.push(treeNode);
         continue;
@@ -611,6 +653,23 @@ export class WorkflowDetailPresenter {
 
     this.sortExecutionTree(rootNodes);
     return rootNodes;
+  }
+
+  /** Resolves rc-tree selected key when tree keys use disambiguation suffixes for duplicate execution node ids. */
+  static resolveExecutionTreeKeyForNodeId(
+    executionNodes: ReadonlyArray<ExecutionNode>,
+    selectedNodeId: string | null,
+  ): string | null {
+    if (!selectedNodeId) {
+      return null;
+    }
+    const treeKeys = this.computeExecutionTreeStableKeys(executionNodes);
+    for (let i = executionNodes.length - 1; i >= 0; i--) {
+      if (executionNodes[i]!.node.id === selectedNodeId) {
+        return treeKeys[i]!;
+      }
+    }
+    return selectedNodeId;
   }
 
   static collectExecutionTreeKeys(nodes: ReadonlyArray<ExecutionTreeNode>): ReadonlyArray<string> {
@@ -630,9 +689,63 @@ export class WorkflowDetailPresenter {
   private static compareExecutionNodes(left: ExecutionNode, right: ExecutionNode): number {
     const timestampComparison = (this.getSnapshotTimestamp(left.snapshot) ?? "").localeCompare(this.getSnapshotTimestamp(right.snapshot) ?? "");
     if (timestampComparison !== 0) return timestampComparison;
+    const idTie = left.node.id.localeCompare(right.node.id);
+    if (idTie !== 0) return idTie;
     const roleComparison = this.compareExecutionNodeRoles(left.node.role, right.node.role);
     if (roleComparison !== 0) return roleComparison;
     return this.getNodeDisplayName(left.node, left.node.id).localeCompare(this.getNodeDisplayName(right.node, right.node.id));
+  }
+
+  private static computeExecutionTreeStableKeys(nodes: ReadonlyArray<ExecutionNode>): ReadonlyArray<string> {
+    const keyCounts = new Map<string, number>();
+    for (const { node } of nodes) {
+      keyCounts.set(node.id, (keyCounts.get(node.id) ?? 0) + 1);
+    }
+    const hasCollision = [...keyCounts.values()].some((count) => count > 1);
+    if (!hasCollision) {
+      return nodes.map(({ node }) => node.id);
+    }
+    const used = new Set<string>();
+    const keys: string[] = [];
+    for (let i = 0; i < nodes.length; i++) {
+      const { node } = nodes[i]!;
+      let key = node.id;
+      if (used.has(key)) {
+        let suffix = 1;
+        while (used.has(`${node.id}__${suffix}`)) {
+          suffix += 1;
+        }
+        key = `${node.id}__${suffix}`;
+      }
+      used.add(key);
+      keys.push(key);
+    }
+    return keys;
+  }
+
+  /**
+   * Deduplicates connection invocation rows by `invocationId` (keeps the newest `updatedAt`),
+   * then sorts for stable UI ordering. Use this for canvas badges and anywhere the execution
+   * tree should stay consistent with persisted run state.
+   */
+  static normalizeConnectionInvocations(
+    invocations: ReadonlyArray<ConnectionInvocationRecord> | undefined,
+  ): ReadonlyArray<ConnectionInvocationRecord> {
+    if (!invocations || invocations.length === 0) {
+      return [];
+    }
+    const byId = new Map<string, ConnectionInvocationRecord>();
+    for (const inv of invocations) {
+      const prev = byId.get(inv.invocationId);
+      if (!prev || prev.updatedAt.localeCompare(inv.updatedAt) <= 0) {
+        byId.set(inv.invocationId, inv);
+      }
+    }
+    return [...byId.values()].sort((left, right) => {
+      const t = left.updatedAt.localeCompare(right.updatedAt);
+      if (t !== 0) return t;
+      return left.invocationId.localeCompare(right.invocationId);
+    });
   }
 
   private static compareExecutionNodeRoles(leftRole: string | undefined, rightRole: string | undefined): number {
@@ -649,11 +762,7 @@ export class WorkflowDetailPresenter {
   }
 
   private static isCompatibleWorkflowNodeId(workflowNodeIds: ReadonlySet<string>, nodeId: string): boolean {
-    return (
-      workflowNodeIds.has(nodeId)
-      || workflowNodeIds.has(AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(nodeId))
-      || workflowNodeIds.has(AgentAttachmentNodeIdFactory.getBaseToolNodeId(nodeId))
-    );
+    return workflowNodeIds.has(nodeId);
   }
 
   private static sortExecutionTree(nodes: ExecutionTreeNode[]): void {
@@ -680,7 +789,21 @@ export class WorkflowDetailPresenter {
   private static createExecutionNodesForWorkflowNode(
     node: WorkflowNode,
     snapshots: ReadonlyArray<NodeExecutionSnapshot>,
+    executionState: InspectableExecutionState | undefined,
   ): ReadonlyArray<ExecutionNode> {
+    const invocations = (executionState?.connectionInvocations ?? []).filter((inv) => inv.connectionNodeId === node.id);
+    if ((node.role === "languageModel" || node.role === "tool") && invocations.length > 0) {
+      const ordered = [...invocations].sort((left, right) => {
+        const t = left.updatedAt.localeCompare(right.updatedAt);
+        if (t !== 0) return t;
+        return left.invocationId.localeCompare(right.invocationId);
+      });
+      return ordered.map((inv) => ({
+        node: this.createInvocationExecutionNode(node, inv.invocationId),
+        snapshot: this.snapshotFromConnectionInvocation(inv),
+        workflowConnectionNodeId: node.id,
+      }));
+    }
     const matchingSnapshots = this.resolveMatchingSnapshots(node, snapshots);
     if (matchingSnapshots.length === 0) {
       return [];
@@ -699,6 +822,46 @@ export class WorkflowDetailPresenter {
       }));
   }
 
+  private static createInvocationExecutionNode(baseNode: WorkflowNode, invocationId: string): WorkflowNode {
+    return {
+      ...baseNode,
+      id: invocationId,
+    };
+  }
+
+  private static snapshotFromConnectionInvocation(inv: ConnectionInvocationRecord): NodeExecutionSnapshot {
+    const mainIn = this.jsonValueToMainItems(inv.managedInput);
+    const mainOut = this.jsonValueToMainItems(inv.managedOutput);
+    return {
+      runId: inv.runId,
+      workflowId: inv.workflowId,
+      nodeId: inv.invocationId,
+      activationId: inv.parentAgentActivationId,
+      parent: { runId: inv.runId, workflowId: inv.workflowId, nodeId: inv.parentAgentNodeId },
+      status: inv.status,
+      queuedAt: inv.queuedAt,
+      startedAt: inv.startedAt,
+      finishedAt: inv.finishedAt,
+      updatedAt: inv.updatedAt,
+      inputsByPort: mainIn ? { main: mainIn } : undefined,
+      outputs: mainOut ? { main: mainOut } : undefined,
+      error: inv.error,
+    };
+  }
+
+  private static jsonValueToMainItems(value: unknown | undefined): Items | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+    if (value === null) {
+      return [{ json: {} }];
+    }
+    if (Array.isArray(value)) {
+      return value.map((json) => ({ json: json as object }));
+    }
+    return [{ json: value as object }];
+  }
+
 
   private static resolveMatchingSnapshots(
     node: WorkflowNode,
@@ -706,10 +869,10 @@ export class WorkflowDetailPresenter {
   ): ReadonlyArray<NodeExecutionSnapshot> {
     return snapshots.filter((snapshot) => {
       if (node.role === "languageModel") {
-        return AgentAttachmentNodeIdFactory.getBaseLanguageModelNodeId(snapshot.nodeId) === node.id;
+        return snapshot.nodeId === node.id;
       }
       if (node.role === "tool") {
-        return AgentAttachmentNodeIdFactory.getBaseToolNodeId(snapshot.nodeId) === node.id;
+        return snapshot.nodeId === node.id;
       }
       return snapshot.nodeId === node.id;
     });
@@ -737,23 +900,27 @@ export class WorkflowDetailPresenter {
   }
 
   private static createCleanRunCurrentState(
-    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState"> | undefined,
+    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState" | "connectionInvocations"> | undefined,
   ): RunCurrentState {
     return {
       outputsByNode: {},
       nodeSnapshotsByNodeId: {},
+      connectionInvocations: [],
       mutableState: this.cloneMutableState(currentState?.mutableState),
     };
   }
 
   private static cloneRunCurrentState(
-    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState"> | undefined,
+    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState" | "connectionInvocations"> | undefined,
   ): RunCurrentState {
     return {
       outputsByNode: JSON.parse(JSON.stringify(currentState?.outputsByNode ?? {})) as RunCurrentState["outputsByNode"],
       nodeSnapshotsByNodeId: JSON.parse(
         JSON.stringify(currentState?.nodeSnapshotsByNodeId ?? {}),
       ) as RunCurrentState["nodeSnapshotsByNodeId"],
+      connectionInvocations: currentState?.connectionInvocations
+        ? (JSON.parse(JSON.stringify(currentState.connectionInvocations)) as NonNullable<RunCurrentState["connectionInvocations"]>)
+        : undefined,
       mutableState: this.cloneMutableState(currentState?.mutableState),
     };
   }

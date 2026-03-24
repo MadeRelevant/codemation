@@ -2,7 +2,7 @@ import type { NodeExecutionContext,TriggerTestItemsContext } from "@codemation/c
 import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { ManualTrigger,ManualTriggerNode } from "../dist/index.js";
+import { ManualTrigger, ManualTriggerNode } from "../src/index.ts";
 
 class ManualTriggerExecutionContextFactory {
   static create(config: ManualTrigger<any>): NodeExecutionContext<ManualTrigger<any>> {

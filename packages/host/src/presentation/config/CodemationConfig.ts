@@ -1,5 +1,6 @@
 import type { Container,EngineExecutionLimitsPolicyConfig,TypeToken,WorkflowDefinition } from "@codemation/core";
 import type { CodemationApplication } from "../../codemationApplication";
+import type { RegisteredCredentialType } from "../../domain/credentials/CredentialServices";
 import type { CodemationAppSlots } from "./CodemationAppSlots";
 import type { CodemationAuthConfig } from "./CodemationAuthConfig";
 import type { CodemationBinding } from "./CodemationBinding";
@@ -62,6 +63,8 @@ export interface CodemationConfig {
   readonly workflowDiscovery?: CodemationWorkflowDiscovery;
   readonly bindings?: ReadonlyArray<CodemationBinding<unknown>>;
   readonly plugins?: ReadonlyArray<CodemationPlugin>;
+  /** Consumer-registered credential types (e.g. app-specific integrations), applied when the host loads config. */
+  readonly credentialTypes?: ReadonlyArray<RegisteredCredentialType>;
   readonly bootHook?: TypeToken<CodemationBootHook>;
   readonly slots?: CodemationAppSlots;
   /** Required for production hosts; optional only when using development bypass (never in production). */

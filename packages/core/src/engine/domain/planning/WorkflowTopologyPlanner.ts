@@ -1,4 +1,5 @@
 import type { InputPortKey, NodeId, OutputPortKey, WorkflowDefinition } from "../../../types";
+import { createWorkflowExecutableNodeClassifier } from "../../../workflow/workflowExecutableNodeClassifier.types";
 
 type NodeDef = WorkflowDefinition["nodes"][number];
 
@@ -18,11 +19,17 @@ export class WorkflowTopology {
   ) {}
 
   static fromWorkflow(wf: WorkflowDefinition): WorkflowTopology {
+    const classifier = createWorkflowExecutableNodeClassifier(wf);
     const defs = new Map<NodeId, NodeDef>();
-    for (const n of wf.nodes) defs.set(n.id, n);
+    for (const n of wf.nodes) {
+      if (classifier.isExecutableNodeId(n.id)) defs.set(n.id, n);
+    }
 
     const outgoing = new Map<NodeId, Array<Readonly<{ output: OutputPortKey; to: Readonly<{ nodeId: NodeId; input: InputPortKey }> }>>>();
     for (const e of wf.edges) {
+      if (!classifier.isExecutableNodeId(e.from.nodeId) || !classifier.isExecutableNodeId(e.to.nodeId)) {
+        continue;
+      }
       const list = outgoing.get(e.from.nodeId) ?? [];
       list.push({ output: e.from.output, to: { nodeId: e.to.nodeId, input: e.to.input } });
       outgoing.set(e.from.nodeId, list);
@@ -33,6 +40,9 @@ export class WorkflowTopology {
       Array<Readonly<{ from: Readonly<{ nodeId: NodeId; output: OutputPortKey }>; input: InputPortKey }>>
     >();
     for (const e of wf.edges) {
+      if (!classifier.isExecutableNodeId(e.from.nodeId) || !classifier.isExecutableNodeId(e.to.nodeId)) {
+        continue;
+      }
       const list = incomingByNode.get(e.to.nodeId) ?? [];
       list.push({ from: { nodeId: e.from.nodeId, output: e.from.output }, input: e.to.input });
       incomingByNode.set(e.to.nodeId, list);
@@ -56,7 +66,9 @@ export class WorkflowTopology {
       expected.set(toNodeId, order);
     }
 
-    const rootNodeIds = wf.nodes.filter((node) => !incomingByNode.has(node.id)).map((node) => node.id);
+    const rootNodeIds = wf.nodes
+      .filter((node) => classifier.isExecutableNodeId(node.id) && !incomingByNode.has(node.id))
+      .map((node) => node.id);
     return new WorkflowTopology(defs, outgoing, incomingByNode, expected, rootNodeIds);
   }
 }

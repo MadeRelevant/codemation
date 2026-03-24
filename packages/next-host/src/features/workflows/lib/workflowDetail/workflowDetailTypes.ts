@@ -11,7 +11,12 @@ export type ViewedWorkflowContext = "live-workflow" | "historical-run";
 export type PortEntries = ReadonlyArray<readonly [string, Items]>;
 export type WorkflowNode = WorkflowDto["nodes"][number];
 export type WorkflowDiagramNode = WorkflowDto["nodes"][number];
-export type ExecutionNode = Readonly<{ node: WorkflowNode; snapshot?: NodeExecutionSnapshot }>;
+export type ExecutionNode = Readonly<{
+  node: WorkflowNode;
+  snapshot?: NodeExecutionSnapshot;
+  /** Stable workflow attachment id when `node.id` is a synthetic per-invocation id. */
+  workflowConnectionNodeId?: string;
+}>;
 export type NodeExecutionError = NonNullable<NodeExecutionSnapshot["error"]>;
 export type JsonEditorMode = "pin-output" | "workflow-snapshot";
 /** Per-output-item binary maps for the pin-output dialog (parallel to parsed JSON items). */
@@ -113,6 +118,8 @@ export type WorkflowExecutionInspectorModel = Readonly<{
   outputPane: WorkflowExecutionInspectorPaneModel;
   executionTreeData: ReadonlyArray<ExecutionTreeNode>;
   executionTreeExpandedKeys: ReadonlyArray<string>;
+  /** rc-tree key for the selected execution row (may differ from {@link selectedNodeId} when keys are disambiguated). */
+  selectedExecutionTreeKey: string | null;
   nodeActions: WorkflowExecutionInspectorNodeActionsModel;
 }>;
 export type WorkflowExecutionInspectorFormatting = Readonly<{

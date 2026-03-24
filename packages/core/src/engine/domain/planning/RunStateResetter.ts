@@ -1,6 +1,6 @@
-import type { NodeId, NodeOutputs, RunCurrentState, RunStateResetRequest } from "../../../types";
+import type { ConnectionInvocationRecord, NodeId, NodeOutputs, RunCurrentState, RunStateResetRequest } from "../../../types";
 
-import { AgentAttachmentNodeIdFactory } from "../../../ai/AiHost";
+import { ConnectionNodeIdFactory } from "../../../workflow/ConnectionNodeIdFactory";
 
 import { PinnedOutputResolver } from "./PinnedOutputResolver";
 import { WorkflowTopology } from "./WorkflowTopologyPlanner";
@@ -30,6 +30,7 @@ export class RunStateResetter {
     const preservedPinnedNodeIds: NodeId[] = [];
     const descendants = this.collectDescendants(args.reset.clearFromNodeId);
     const runtimeDescendants = this.collectRuntimeDescendants(args.currentState, descendants);
+    const clearedIdSet = new Set<NodeId>([...descendants, ...runtimeDescendants]);
 
     for (const nodeId of [...descendants, ...runtimeDescendants]) {
       if (this.pinnedOutputResolver.hasPinnedOutputs(nodeId)) {
@@ -46,15 +47,31 @@ export class RunStateResetter {
       clearedNodeIds.push(nodeId);
     }
 
+    const connectionInvocations = this.filterConnectionInvocations(args.currentState.connectionInvocations, clearedIdSet);
+
     return {
       currentState: {
         outputsByNode,
         nodeSnapshotsByNodeId,
+        connectionInvocations,
         mutableState: args.currentState.mutableState,
       },
       clearedNodeIds,
       preservedPinnedNodeIds,
     };
+  }
+
+  private filterConnectionInvocations(
+    invocations: ReadonlyArray<ConnectionInvocationRecord> | undefined,
+    clearedIdSet: ReadonlySet<NodeId>,
+  ): ReadonlyArray<ConnectionInvocationRecord> | undefined {
+    if (!invocations || invocations.length === 0) {
+      return invocations;
+    }
+    const kept = invocations.filter(
+      (inv) => !clearedIdSet.has(inv.parentAgentNodeId) && !clearedIdSet.has(inv.connectionNodeId),
+    );
+    return kept.length === invocations.length ? invocations : kept;
   }
 
   private collectDescendants(startNodeId: NodeId): ReadonlyArray<NodeId> {
@@ -94,16 +111,11 @@ export class RunStateResetter {
       if (nodeId === descendantNodeId) {
         return false;
       }
-      if (nodeId.startsWith(`${descendantNodeId}::llm`) || nodeId.startsWith(`${descendantNodeId}::tool::`)) {
+      if (ConnectionNodeIdFactory.isConnectionOwnedDescendantOf(descendantNodeId, nodeId)) {
         return true;
       }
     }
-    const parsedLanguageModelNodeId = AgentAttachmentNodeIdFactory.parseLanguageModelNodeId(nodeId);
-    if (parsedLanguageModelNodeId && descendantNodeIds.has(parsedLanguageModelNodeId.parentNodeId)) {
-      return true;
-    }
-    const parsedToolNodeId = AgentAttachmentNodeIdFactory.parseToolNodeId(nodeId);
-    return Boolean(parsedToolNodeId && descendantNodeIds.has(parsedToolNodeId.parentNodeId));
+    return false;
   }
 }
 

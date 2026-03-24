@@ -1,8 +1,8 @@
 import type { CodemationAppSlots,CodemationConfig } from "@codemation/host";
+import { openAiApiKeyRegisteredCredentialType } from "@codemation/host/credentials";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { TestDevCredentialBootstrap } from "./src/bootstrap/TestDevCredentialBootstrap";
 import { TestDevGmailEnvironment } from "./src/bootstrap/TestDevGmailEnvironment";
 import { TestDevMailKeywordCatalog } from "./src/bootstrap/TestDevMailKeywordCatalog";
 import { TestDevOdooEnvironment } from "./src/bootstrap/TestDevOdooEnvironment";
@@ -54,7 +54,27 @@ export const codemationHost = {
   workflowDiscovery: {
     directories: ["src/workflows"],
   },
-  bootHook: TestDevCredentialBootstrap,
+  credentialTypes: [
+    openAiApiKeyRegisteredCredentialType,
+    {
+      definition: {
+        typeId: "odoo.demo",
+        displayName: "Odoo (demo)",
+        description: "Demo Odoo API credential for test-dev sample workflows.",
+        publicFields: [{ key: "baseUrl", label: "Base URL", type: "string", required: true }],
+        secretFields: [{ key: "apiKey", label: "API key", type: "password" }],
+        supportedSourceKinds: ["db", "env", "code"],
+      },
+      createSession: async (args) => ({
+        baseUrl: String(args.publicConfig.baseUrl ?? ""),
+        apiKey: String(args.material.apiKey ?? ""),
+      }),
+      test: async () => ({
+        status: "unknown",
+        testedAt: new Date().toISOString(),
+      }),
+    },
+  ],
   runtime: {
     // Optional: tighten engine defaults (merged with framework defaults; see CodemationEngineExecutionLimitsConfig).
     // engineExecutionLimits: { hardMaxNodeActivations: 50_000, hardMaxSubworkflowDepth: 24 },

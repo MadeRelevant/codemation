@@ -23,7 +23,12 @@ export class CredentialResolverFactory {
       } catch (error) {
         const acceptedTypes = acceptedTypesBySlot.get(slotKey) ?? [];
         const message = error instanceof Error ? error.message : String(error);
-        const acceptedTypesSuffix = acceptedTypes.length > 0 ? ` Accepted types: ${acceptedTypes.join(", ")}.` : "";
+        const alreadyListsAcceptedTypes =
+          message.includes("Accepted types:") ||
+          message.includes("Accepted credential types:") ||
+          message.includes("binding points at an unknown type");
+        const acceptedTypesSuffix =
+          acceptedTypes.length > 0 && !alreadyListsAcceptedTypes ? ` Accepted types: ${acceptedTypes.join(", ")}.` : "";
         throw new Error(
           `Failed to resolve credential for workflow ${workflowId} node ${nodeId} slot "${slotKey}". ${message}${acceptedTypesSuffix}`,
           { cause: error },

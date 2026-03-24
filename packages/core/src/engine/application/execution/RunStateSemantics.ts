@@ -16,6 +16,7 @@ import type {
   WorkflowId,
 } from "../../../types";
 
+import { createWorkflowExecutableNodeClassifier } from "../../../workflow/workflowExecutableNodeClassifier.types";
 import { RunQueuePlanner } from "../../domain/planning/runQueuePlanner";
 
 import { MissingRuntimeExecutionMarker } from "../../adapters/persisted-workflow/MissingRuntimeExecutionMarkerFactory";
@@ -38,11 +39,7 @@ export class RunStateSemantics {
     if (stopCondition?.kind === "nodeCompleted") {
       return outputsByNode[stopCondition.nodeId]?.main ?? [];
     }
-    const lastNodeId =
-      workflow.nodes.at(-1)?.id ??
-      (() => {
-        throw new Error(`Workflow ${workflow.id} has no nodes`);
-      })();
+    const lastNodeId = createWorkflowExecutableNodeClassifier(workflow).lastExecutableNodeIdInDefinitionOrder(workflow);
     return outputsByNode[lastNodeId]?.main ?? [];
   }
 

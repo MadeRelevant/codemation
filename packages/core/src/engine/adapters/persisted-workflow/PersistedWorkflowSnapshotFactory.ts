@@ -15,6 +15,9 @@ export class PersistedWorkflowSnapshotFactory {
       id: workflow.id,
       name: workflow.name,
       workflowErrorHandlerConfigured: workflow.workflowErrorHandler !== undefined,
+      ...(workflow.connections !== undefined && workflow.connections.length > 0
+        ? { connections: workflow.connections }
+        : {}),
       nodes: workflow.nodes.map((node) => {
         const nodeTokenId = this.resolveTokenId(node.type);
         const configTokenId = this.resolveTokenId(node.config.type);

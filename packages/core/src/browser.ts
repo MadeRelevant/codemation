@@ -1,4 +1,4 @@
-export { AgentAttachmentNodeIdFactory } from "./ai/AiHost";
+export { ConnectionNodeIdFactory } from "./workflow/ConnectionNodeIdFactory";
 export * from "./contracts/credentialTypes";
 export * from "./contracts/runtimeTypes";
 export * from "./contracts/runFinishedAtFactory";

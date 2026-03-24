@@ -71,6 +71,7 @@ describe("WorkflowDebuggerOverlayStateFactory", () => {
       existingOverlay: WorkflowDetailFixtureFactory.createDebuggerOverlayState(WorkflowDetailFixtureFactory.workflowId, {
         outputsByNode: {},
         nodeSnapshotsByNodeId: {},
+        connectionInvocations: [],
         mutableState: {
           nodesById: {
             [WorkflowDetailFixtureFactory.nodeOneId]: {
@@ -95,8 +96,7 @@ describe("WorkflowDebuggerOverlayStateFactory", () => {
 
   /**
    * Regression: `copyRunStateToOverlay` merges only ids from `workflow.nodes` (see `CopyRunToWorkflowDebuggerCommandHandler`).
-   * AI agent LLM/tool invocations persist under separate node ids (`agent::llm::n`, `agent::tool::…`) so items,
-   * snapshots, and binary attachments for those steps are dropped from the overlay until copy includes them.
+   * Connection-owned LLM/tool node ids (`agent__conn__llm`, …) must be listed in the live workflow for overlay copy.
    */
   it("omits agent attachment invocation outputs and snapshots from the debugger overlay (regression)", () => {
     const baseState =
@@ -108,17 +108,14 @@ describe("WorkflowDebuggerOverlayStateFactory", () => {
       ...baseState,
       outputsByNode: {
         ...baseState.outputsByNode,
-        [WorkflowDetailFixtureFactory.llmFirstInvocationNodeId]: {
-          main: [{ json: { invocation: 1 } }],
-        },
-        [WorkflowDetailFixtureFactory.llmSecondInvocationNodeId]: {
+        [WorkflowDetailFixtureFactory.llmNodeId]: {
           main: [
             {
               json: { invocation: 2 },
               binary: {
                 preview: {
                   id: binaryId,
-                  storageKey: `runs/${baseState.runId}/nodes/${WorkflowDetailFixtureFactory.llmSecondInvocationNodeId}/${binaryId}`,
+                  storageKey: `runs/${baseState.runId}/nodes/${WorkflowDetailFixtureFactory.llmNodeId}/${binaryId}`,
                   mimeType: "application/octet-stream",
                   size: 4,
                   previewKind: "download" as const,
@@ -142,11 +139,10 @@ describe("WorkflowDebuggerOverlayStateFactory", () => {
       ]),
     });
 
-    expect(sourceState.outputsByNode[WorkflowDetailFixtureFactory.llmFirstInvocationNodeId]).toBeDefined();
-    expect(sourceState.nodeSnapshotsByNodeId[WorkflowDetailFixtureFactory.llmSecondInvocationNodeId]?.status).toBe("completed");
-    expect(overlay.currentState.outputsByNode[WorkflowDetailFixtureFactory.llmFirstInvocationNodeId]).toBeUndefined();
-    expect(overlay.currentState.outputsByNode[WorkflowDetailFixtureFactory.llmSecondInvocationNodeId]).toBeUndefined();
-    expect(overlay.currentState.nodeSnapshotsByNodeId[WorkflowDetailFixtureFactory.llmSecondInvocationNodeId]).toBeUndefined();
+    expect(sourceState.outputsByNode[WorkflowDetailFixtureFactory.llmNodeId]).toBeDefined();
+    expect(sourceState.nodeSnapshotsByNodeId[WorkflowDetailFixtureFactory.llmNodeId]?.status).toBe("completed");
+    expect(overlay.currentState.outputsByNode[WorkflowDetailFixtureFactory.llmNodeId]).toBeUndefined();
+    expect(overlay.currentState.nodeSnapshotsByNodeId[WorkflowDetailFixtureFactory.llmNodeId]).toBeUndefined();
   });
 
   /**

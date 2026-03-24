@@ -13,6 +13,7 @@ import { ApplicationRequestError } from "../../application/ApplicationRequestErr
 
 import { ApplicationTokens } from "../../applicationTokens";
 
+import { WorkflowCredentialNodeResolver } from "./WorkflowCredentialNodeResolver";
 import { CredentialFieldEnvOverlayService } from "./CredentialFieldEnvOverlayService";
 import { CredentialRuntimeMaterialService } from "./CredentialRuntimeMaterialService";
 import type { CredentialStore } from "./CredentialServices";
@@ -34,14 +35,18 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
     private readonly credentialTypeRegistry: CredentialTypeRegistryImpl,
     @inject(CoreTokens.WorkflowRepository)
     private readonly workflowRepository: WorkflowRepository,
+    @inject(WorkflowCredentialNodeResolver)
+    private readonly workflowCredentialNodeResolver: WorkflowCredentialNodeResolver,
   ) {}
 
   async getSession<TSession = unknown>(args: Readonly<{ workflowId: string; nodeId: string; slotKey: string }>): Promise<TSession> {
     const workflow = this.workflowRepository.get(decodeURIComponent(args.workflowId));
-    const requirement = workflow?.nodes
-      .find((node) => node.id === args.nodeId)
-      ?.config.getCredentialRequirements?.()
-      .find((entry) => entry.slotKey === args.slotKey);
+    const displayLabel = workflow
+      ? this.workflowCredentialNodeResolver.describeCredentialNodeDisplay(workflow, args.nodeId)
+      : undefined;
+    const requirement = workflow
+      ? this.workflowCredentialNodeResolver.findRequirement(workflow, args.nodeId, args.slotKey)?.requirement
+      : undefined;
     const bindingKey: CredentialBindingKey = {
       workflowId: args.workflowId,
       nodeId: args.nodeId,
@@ -49,7 +54,11 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
     };
     const binding = await this.credentialStore.getBinding(bindingKey);
     if (!binding) {
-      throw new CredentialUnboundError(bindingKey, requirement?.acceptedTypes ?? []);
+      const unbound = new CredentialUnboundError(bindingKey, requirement?.acceptedTypes ?? []);
+      if (displayLabel) {
+        throw new Error(`${displayLabel}: ${unbound.message}`, { cause: unbound });
+      }
+      throw unbound;
     }
     const bindingCacheKey = this.toBindingKeyString(bindingKey);
     this.cachedInstanceIdsByBindingKey.set(bindingCacheKey, binding.instanceId);
@@ -57,7 +66,7 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
     if (cachedSession) {
       return (await cachedSession) as TSession;
     }
-    const nextSessionPromise = this.createSession(binding.instanceId).catch((error) => {
+    const nextSessionPromise = this.createSession(binding.instanceId, displayLabel).catch((error) => {
       this.cachedSessionsByInstanceId.delete(binding.instanceId);
       throw error;
     });
@@ -78,14 +87,18 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
     this.cachedInstanceIdsByBindingKey.delete(cacheKey);
   }
 
-  private async createSession(instanceId: CredentialInstanceId): Promise<unknown> {
+  private async createSession(instanceId: CredentialInstanceId, displayLabel?: string): Promise<unknown> {
     const instance = await this.credentialStore.getInstance(instanceId);
     if (!instance) {
       throw new ApplicationRequestError(404, `Unknown credential instance: ${instanceId}`);
     }
     const registeredType = this.credentialTypeRegistry.getRegisteredType(instance.typeId);
     if (!registeredType) {
-      throw new ApplicationRequestError(400, `Unknown credential type: ${instance.typeId}`);
+      const prefix = displayLabel ? `${displayLabel}: ` : "";
+      throw new ApplicationRequestError(
+        400,
+        `${prefix}Credential type "${instance.typeId}" is not registered in this runtime (binding points at an unknown type).`,
+      );
     }
     const material = await this.credentialRuntimeMaterialService.compose(instance);
     const { resolvedPublicConfig, resolvedMaterial } = this.credentialFieldEnvOverlayService.apply({

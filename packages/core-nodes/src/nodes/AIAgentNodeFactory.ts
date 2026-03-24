@@ -4,6 +4,7 @@ ChatModelConfig,
 ChatModelFactory,
 Item,
 Items,
+JsonValue,
 LangChainChatModelLike,
 Node,
 NodeExecutionContext,
@@ -14,13 +15,15 @@ ToolConfig,
 ZodSchemaAny
 } from "@codemation/core";
 
-import { AgentAttachmentNodeIdFactory,CoreTokens,inject,node,type NodeResolver } from "@codemation/core";
+import type { CredentialSessionService } from "@codemation/core";
+import { ConnectionInvocationIdFactory, ConnectionNodeIdFactory, CoreTokens, inject, node, type NodeResolver } from "@codemation/core";
 
 import { AIMessage,type BaseMessage } from "@langchain/core/messages";
 
 import { DynamicStructuredTool } from "@langchain/core/tools";
 
 import type { AIAgent } from "./AIAgentConfig";
+import { ConnectionCredentialExecutionContextFactory } from "./ConnectionCredentialExecutionContextFactory";
 import { AgentMessageFactory } from "./AgentMessageFactory";
 import { AgentOutputFactory } from "./AgentOutputFactory";
 import { AgentToolCallPortMap } from "./AgentToolCallPortMapFactory";
@@ -37,14 +40,24 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
 
+  private readonly connectionCredentialExecutionContextFactory: ConnectionCredentialExecutionContextFactory;
+
   constructor(
     @inject(CoreTokens.NodeResolver)
     private readonly nodeResolver: NodeResolver,
-  ) {}
+    @inject(CoreTokens.CredentialSessionService)
+    credentialSessions: CredentialSessionService,
+  ) {
+    this.connectionCredentialExecutionContextFactory = new ConnectionCredentialExecutionContextFactory(credentialSessions);
+  }
 
   async execute(items: Items, ctx: NodeExecutionContext<AIAgent<any, any>>): Promise<NodeOutputs> {
     const chatModelFactory = this.nodeResolver.resolve(ctx.config.chatModel.type) as ChatModelFactory<ChatModelConfig>;
-    const model = await Promise.resolve(chatModelFactory.create({ config: ctx.config.chatModel, ctx }));
+    const languageModelCredentialContext = this.connectionCredentialExecutionContextFactory.forConnectionNode(ctx, {
+      connectionNodeId: ConnectionNodeIdFactory.languageModelConnectionNodeId(ctx.nodeId),
+      getCredentialRequirements: () => ctx.config.chatModel.getCredentialRequirements?.() ?? [],
+    });
+    const model = await Promise.resolve(chatModelFactory.create({ config: ctx.config.chatModel, ctx: languageModelCredentialContext }));
     const resolvedTools = this.resolveTools(ctx.config.tools ?? []);
 
     const out: Item[] = [];
@@ -55,7 +68,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
       const itemScopedTools = this.createItemScopedTools(resolvedTools, ctx, item, i, items);
       const firstResponse = await this.invokeModel(
         itemScopedTools.length > 0 && model.bindTools ? model.bindTools(itemScopedTools.map((entry) => entry.langChainTool)) : model,
-        AgentAttachmentNodeIdFactory.createLanguageModelNodeId(ctx.nodeId, 1),
+        ConnectionNodeIdFactory.languageModelConnectionNodeId(ctx.nodeId),
         [AgentMessageFactory.createSystemPrompt(ctx.config.systemMessage), AgentMessageFactory.createUserPrompt(prompt)],
         ctx,
         itemInputsByPort,
@@ -77,7 +90,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
       const executedToolCalls = await this.executeToolCalls(plannedToolCalls, ctx);
       const finalResponse = await this.invokeModel(
         itemScopedTools.length > 0 && model.bindTools ? model.bindTools(itemScopedTools.map((entry) => entry.langChainTool)) : model,
-        AgentAttachmentNodeIdFactory.createLanguageModelNodeId(ctx.nodeId, 2),
+        ConnectionNodeIdFactory.languageModelConnectionNodeId(ctx.nodeId),
         [
           AgentMessageFactory.createSystemPrompt(ctx.config.systemMessage),
           AgentMessageFactory.createUserPrompt(prompt),
@@ -123,6 +136,10 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     items: Items,
   ): ReadonlyArray<ItemScopedToolBinding> {
     return tools.map((entry) => {
+      const toolCredentialContext = this.connectionCredentialExecutionContextFactory.forConnectionNode(ctx, {
+        connectionNodeId: ConnectionNodeIdFactory.toolConnectionNodeId(ctx.nodeId, entry.config.name),
+        getCredentialRequirements: () => entry.config.getCredentialRequirements?.() ?? [],
+      });
       const langChainTool = new DynamicStructuredTool({
         name: entry.config.name,
         description: entry.config.description ?? entry.tool.defaultDescription,
@@ -131,7 +148,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
           const result = await entry.tool.execute({
             config: entry.config,
             input,
-            ctx,
+            ctx: toolCredentialContext,
             item,
             itemIndex,
             items,
@@ -163,9 +180,20 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
           content: AgentMessageFactory.extractContent(response),
         }),
       });
+      const content = AgentMessageFactory.extractContent(response);
+      await ctx.nodeState?.appendConnectionInvocation({
+        invocationId: ConnectionInvocationIdFactory.create(),
+        connectionNodeId: nodeId,
+        parentAgentNodeId: ctx.nodeId,
+        parentAgentActivationId: ctx.activationId,
+        status: "completed",
+        managedInput: this.summarizeLlmMessages(messages),
+        managedOutput: content,
+        finishedAt: new Date().toISOString(),
+      });
       return response;
     } catch (error) {
-      throw await this.failTrackedNodeInvocation(error, nodeId, ctx, inputsByPort);
+      throw await this.failTrackedNodeInvocation(error, nodeId, ctx, inputsByPort, this.summarizeLlmMessages(messages));
     }
   }
 
@@ -199,6 +227,16 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
             inputsByPort: toolCallInputsByPort,
             outputs: AgentOutputFactory.fromUnknown(result),
           });
+          await ctx.nodeState?.appendConnectionInvocation({
+            invocationId: ConnectionInvocationIdFactory.create(),
+            connectionNodeId: plannedToolCall.nodeId,
+            parentAgentNodeId: ctx.nodeId,
+            parentAgentActivationId: ctx.activationId,
+            status: "completed",
+            managedInput: this.toolCallInputToJson(plannedToolCall.toolCall.input),
+            managedOutput: this.resultToJsonValue(result),
+            finishedAt: new Date().toISOString(),
+          });
           return {
             toolName: plannedToolCall.binding.config.name,
             toolCallId: plannedToolCall.toolCall.id ?? plannedToolCall.binding.config.name,
@@ -206,7 +244,13 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
             result,
           } satisfies ExecutedToolCall;
         } catch (error) {
-          throw await this.failTrackedNodeInvocation(error, plannedToolCall.nodeId, ctx, toolCallInputsByPort);
+          throw await this.failTrackedNodeInvocation(
+            error,
+            plannedToolCall.nodeId,
+            ctx,
+            toolCallInputsByPort,
+            this.toolCallInputToJson(plannedToolCall.toolCall.input),
+          );
         }
       }),
     );
@@ -236,7 +280,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
         binding,
         toolCall,
         invocationIndex,
-        nodeId: AgentAttachmentNodeIdFactory.createToolNodeId(parentNodeId, binding.config.name, invocationIndex),
+        nodeId: ConnectionNodeIdFactory.toolConnectionNodeId(parentNodeId, binding.config.name),
       } satisfies PlannedToolCall;
     });
   }
@@ -255,6 +299,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     nodeId: string,
     ctx: NodeExecutionContext<AIAgent<any, any>>,
     inputsByPort: NodeInputsByPort,
+    managedInput?: JsonValue,
   ): Promise<Error> {
     const effectiveError = error instanceof Error ? error : new Error(String(error));
     await ctx.nodeState?.markFailed({
@@ -263,6 +308,46 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
       inputsByPort,
       error: effectiveError,
     });
+    await ctx.nodeState?.appendConnectionInvocation({
+      invocationId: ConnectionInvocationIdFactory.create(),
+      connectionNodeId: nodeId,
+      parentAgentNodeId: ctx.nodeId,
+      parentAgentActivationId: ctx.activationId,
+      status: "failed",
+      managedInput,
+      error: {
+        message: effectiveError.message,
+        name: effectiveError.name,
+        stack: effectiveError.stack,
+      },
+      finishedAt: new Date().toISOString(),
+    });
     return effectiveError;
+  }
+
+  private summarizeLlmMessages(messages: ReadonlyArray<BaseMessage>): JsonValue {
+    const last = messages[messages.length - 1];
+    const preview =
+      typeof last?.content === "string"
+        ? last.content
+        : last?.content !== undefined
+          ? JSON.stringify(last.content)
+          : "";
+    return {
+      messageCount: messages.length,
+      lastMessagePreview: preview.slice(0, 4000),
+    };
+  }
+
+  private toolCallInputToJson(input: unknown): JsonValue | undefined {
+    return this.resultToJsonValue(input);
+  }
+
+  private resultToJsonValue(value: unknown): JsonValue | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+    const json = JSON.stringify(value);
+    return JSON.parse(json) as JsonValue;
   }
 }

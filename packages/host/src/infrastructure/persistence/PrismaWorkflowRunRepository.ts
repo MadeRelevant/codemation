@@ -13,7 +13,7 @@ import { inject,injectable } from "@codemation/core";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { PrismaClient } from "./generated/prisma-client/client.js";
 
-/** JSON blob stored in stateJson: workflowSnapshot, mutableState, pending, queue, outputsByNode, nodeSnapshotsByNodeId, engineCounters */
+/** JSON blob stored in stateJson: workflowSnapshot, mutableState, pending, queue, outputsByNode, nodeSnapshotsByNodeId, connectionInvocations, engineCounters */
 interface StateJsonBlob {
   control?: PersistedRunState["control"];
   workflowSnapshot?: PersistedRunState["workflowSnapshot"];
@@ -24,6 +24,7 @@ interface StateJsonBlob {
   queue: PersistedRunState["queue"];
   outputsByNode: Record<NodeId, NodeOutputs>;
   nodeSnapshotsByNodeId: PersistedRunState["nodeSnapshotsByNodeId"];
+  connectionInvocations?: PersistedRunState["connectionInvocations"];
 }
 
 @injectable()
@@ -58,6 +59,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
       queue: [],
       outputsByNode: {} as Record<NodeId, NodeOutputs>,
       nodeSnapshotsByNodeId: {},
+      connectionInvocations: [],
     };
     const stateJson = this.serializeStateBlob(state);
     await this.prisma.run.create({
@@ -146,6 +148,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
       queue: state.queue,
       outputsByNode: state.outputsByNode,
       nodeSnapshotsByNodeId: state.nodeSnapshotsByNodeId,
+      connectionInvocations: state.connectionInvocations,
     };
     return JSON.stringify(blob);
   }
@@ -162,6 +165,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
       queue: parsed.queue ?? [],
       outputsByNode: (parsed.outputsByNode ?? {}) as Record<NodeId, NodeOutputs>,
       nodeSnapshotsByNodeId: parsed.nodeSnapshotsByNodeId ?? {},
+      connectionInvocations: parsed.connectionInvocations,
     };
   }
 
@@ -193,6 +197,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
       queue: blob.queue,
       outputsByNode: blob.outputsByNode,
       nodeSnapshotsByNodeId: blob.nodeSnapshotsByNodeId,
+      connectionInvocations: blob.connectionInvocations,
     };
   }
 
