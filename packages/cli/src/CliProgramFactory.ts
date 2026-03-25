@@ -1,4 +1,4 @@
-import { CodemationPluginDiscovery } from "@codemation/host/server";
+import { CodemationConsumerConfigLoader, CodemationPluginDiscovery } from "@codemation/host/server";
 import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 
 import { ConsumerBuildArtifactsPublisher } from "./build/ConsumerBuildArtifactsPublisher";
@@ -38,14 +38,7 @@ export class CliProgramFactory {
 
     return new CliProgram(
       new ConsumerBuildOptionsParser(),
-      new BuildCommand(
-        cliLogger,
-        pathResolver,
-        pluginDiscovery,
-        artifactsPublisher,
-        tsRuntime,
-        outputBuilderLoader,
-      ),
+      new BuildCommand(cliLogger, pathResolver, pluginDiscovery, artifactsPublisher, tsRuntime, outputBuilderLoader),
       new DevCommand(
         pathResolver,
         pluginDiscovery,
@@ -66,7 +59,7 @@ export class CliProgramFactory {
         new ListenPortResolver(),
       ),
       new ServeWorkerCommand(sourceMapNodeOptions),
-      new UserCreateCommand(new LocalUserCreator()),
+      new UserCreateCommand(new LocalUserCreator(new CodemationConsumerConfigLoader(), pathResolver)),
     );
   }
 }

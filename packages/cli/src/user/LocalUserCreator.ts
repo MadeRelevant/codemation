@@ -1,10 +1,12 @@
+import { UpsertLocalBootstrapUserCommand } from "@codemation/host";
 import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
-import { CodemationPostgresPrismaClientFactory, type PrismaClient } from "@codemation/host/persistence";
 import { CodemationConsumerConfigLoader } from "@codemation/host/server";
-import { hash } from "bcryptjs";
 import { config as loadDotenv } from "dotenv";
 import { existsSync } from "node:fs";
 import path from "node:path";
+
+import { CodemationCliApplicationSession } from "../bootstrap/CodemationCliApplicationSession";
+import { CliPathResolver } from "../path/CliPathResolver";
 
 export type LocalUserCreateOptions = Readonly<{
   consumerRoot?: string;
@@ -16,7 +18,10 @@ export type LocalUserCreateOptions = Readonly<{
 export class LocalUserCreator {
   private readonly log = new ServerLoggerFactory(logLevelPolicyFactory).create("codemation-cli.user");
 
-  constructor(private readonly configLoader: CodemationConsumerConfigLoader = new CodemationConsumerConfigLoader()) {}
+  constructor(
+    private readonly configLoader: CodemationConsumerConfigLoader,
+    private readonly pathResolver: CliPathResolver,
+  ) {}
 
   async run(options: LocalUserCreateOptions): Promise<void> {
     const consumerRoot = options.consumerRoot ?? process.cwd();
@@ -38,26 +43,18 @@ export class LocalUserCreator {
       );
     }
     process.env.DATABASE_URL = databaseUrl;
-    const prisma: PrismaClient = CodemationPostgresPrismaClientFactory.create(databaseUrl);
+    const paths = await this.pathResolver.resolve(consumerRoot);
+    const session = await CodemationCliApplicationSession.open({
+      resolution,
+      repoRoot: paths.repoRoot,
+      env: process.env,
+    });
     try {
-      const passwordHash = await hash(password, 12);
-      await prisma.user.upsert({
-        where: { email },
-        create: {
-          email,
-          passwordHash,
-          name: email.split("@")[0] ?? email,
-          accountStatus: "active",
-        },
-        update: {
-          passwordHash,
-          accountStatus: "active",
-        },
-      });
+      const result = await session.getCommandBus().execute(new UpsertLocalBootstrapUserCommand(email, password));
+      this.log.info(result.outcome === "created" ? `Created local user: ${email}` : `Updated local user: ${email}`);
     } finally {
-      await prisma.$disconnect().catch(() => null);
+      await session.close();
     }
-    this.log.info(`Created or updated local user: ${email}`);
   }
 
   private loadConsumerDotenv(consumerRoot: string): void {

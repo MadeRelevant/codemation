@@ -87,13 +87,15 @@ For **framework author vs consumer** dev modes (`CODEMATION_DEV_MODE`), see [`do
 
 ## Commands (overview)
 
-| Command                    | Purpose                                                                                                                             |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `codemation dev` (default) | Dev session: ports, lock, optional UI proxy, spawn **dev-gateway** + **runtime-dev**, watch consumer sources and restart on change. |
-| `codemation build`         | Emit consumer output under `.codemation/output/build`, discover plugins, write manifest.                                            |
-| `codemation serve web`     | Run consumer build if needed, then **`next start`** from `@codemation/next-host` with env pointing at the manifest.                 |
-| `codemation serve worker`  | Spawn **`@codemation/worker-cli`** in the consumer root.                                                                            |
-| `codemation user create`   | Create/update a DB user when auth is local (uses consumer config / `DATABASE_URL`).                                                 |
+| Command                    | Purpose                                                                                                                                                                                                                |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `codemation dev` (default) | Dev session: ports, lock, optional UI proxy, spawn **dev-gateway** + **runtime-dev**, watch consumer sources and restart on change.                                                                                    |
+| `codemation build`         | Emit consumer output under `.codemation/output/build`, discover plugins, write manifest.                                                                                                                               |
+| `codemation serve web`     | Run consumer build if needed, then **`next start`** from `@codemation/next-host` with env pointing at the manifest.                                                                                                    |
+| `codemation serve worker`  | Spawn **`@codemation/worker-cli`** in the consumer root.                                                                                                                                                               |
+| `codemation user create`   | Create/update a DB user when auth is local (uses consumer config / `DATABASE_URL`). Dispatches `UpsertLocalBootstrapUserCommand` via the host `CommandBus` (password minimum 8 characters, same as invite acceptance). |
+
+Programmatic bootstrap: [`CodemationCliApplicationSession`](./src/bootstrap/CodemationCliApplicationSession.ts) opens `CodemationApplication` with `prepareCliPersistenceAndCommands` (no HTTP/WebSocket); use `getCommandBus()` for other admin commands later.
 
 Use `codemation --help` and `codemation <command> --help` for flags (`--consumer-root`, build targets, etc.).
 

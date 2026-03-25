@@ -1,3 +1,4 @@
+export { CodemationCliApplicationSession } from "./bootstrap/CodemationCliApplicationSession";
 export { CliBin } from "./CliBin";
 export { CliProgramFactory } from "./CliProgramFactory";
 export { CliPathResolver, type CliPaths } from "./path/CliPathResolver";

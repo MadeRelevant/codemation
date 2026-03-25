@@ -6,3 +6,5 @@ export { RegenerateUserInviteCommand } from "./RegenerateUserInviteCommand";
 export { RegenerateUserInviteCommandHandler } from "./RegenerateUserInviteCommandHandler";
 export { UpdateUserAccountStatusCommand } from "./UpdateUserAccountStatusCommand";
 export { UpdateUserAccountStatusCommandHandler } from "./UpdateUserAccountStatusCommandHandler";
+export { UpsertLocalBootstrapUserCommand } from "./UpsertLocalBootstrapUserCommand";
+export { UpsertLocalBootstrapUserCommandHandler } from "./UpsertLocalBootstrapUserCommandHandler";

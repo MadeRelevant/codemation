@@ -248,6 +248,28 @@ export class CodemationApplication {
     return this.container;
   }
 
+  /**
+   * Wires persistence, Prisma, buses, and domain services (no HTTP/WebSocket presentation).
+   * Use with {@link useConfig} for CLI/admin tools that dispatch commands via {@link getCommandBus}.
+   */
+  async prepareCliPersistenceAndCommands(
+    args: Readonly<{
+      repoRoot: string;
+      env?: Readonly<NodeJS.ProcessEnv>;
+    }>,
+  ): Promise<void> {
+    const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
+    await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
+  }
+
+  getCommandBus(): CommandBus {
+    return this.container.resolve(ApplicationTokens.CommandBus);
+  }
+
+  getQueryBus(): QueryBus {
+    return this.container.resolve(ApplicationTokens.QueryBus);
+  }
+
   getWorkflows(): ReadonlyArray<WorkflowDefinition> {
     return [...this.workflows];
   }

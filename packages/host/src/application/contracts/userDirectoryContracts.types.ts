@@ -53,3 +53,8 @@ export type AcceptUserInviteRequestDto = Readonly<{
 export type UpdateUserAccountStatusRequestDto = Readonly<{
   status: UserAccountStatus;
 }>;
+
+/** Result of CLI/bootstrap `upsert` for a local password user (distinct from invite-based onboarding). */
+export type UpsertLocalBootstrapUserResultDto = Readonly<{
+  outcome: "created" | "updated";
+}>;

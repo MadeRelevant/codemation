@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
 import type {
   InviteUserResponseDto,
+  UpsertLocalBootstrapUserResultDto,
   UserAccountDto,
   UserAccountStatus,
   VerifyUserInviteResponseDto,
@@ -187,6 +188,40 @@ export class UserAccountService {
       data: { accountStatus: status },
     });
     return await this.getUserDto(userId);
+  }
+
+  /**
+   * Bootstrap path for `codemation user create`: create or update an active local user with a password hash.
+   * Not used for invite-based onboarding (see {@link inviteUser} / {@link acceptInvite}).
+   */
+  async upsertBootstrapLocalUser(email: string, password: string): Promise<UpsertLocalBootstrapUserResultDto> {
+    this.assertLocalAuth();
+    const prisma = this.requirePrisma();
+    const normalized = email.trim().toLowerCase();
+    if (!normalized || !normalized.includes("@")) {
+      throw new ApplicationRequestError(400, "Invalid email.");
+    }
+    if (password.length < 8) {
+      throw new ApplicationRequestError(400, "Password must be at least 8 characters.");
+    }
+    const passwordHash = await hash(password, 12);
+    const existing = await prisma.user.findUnique({ where: { email: normalized } });
+    if (existing) {
+      await prisma.user.update({
+        where: { email: normalized },
+        data: { passwordHash, accountStatus: "active" },
+      });
+      return { outcome: "updated" };
+    }
+    await prisma.user.create({
+      data: {
+        email: normalized,
+        passwordHash,
+        name: normalized.split("@")[0] ?? normalized,
+        accountStatus: "active",
+      },
+    });
+    return { outcome: "created" };
   }
 
   private buildInviteUrl(origin: string, rawToken: string): string {
