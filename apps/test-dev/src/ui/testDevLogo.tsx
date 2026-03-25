@@ -17,7 +17,7 @@ export function TestDevLogo() {
     >
       <span>Codemation</span>
       <span style={{ opacity: 0.7 }}>/</span>
-      <span>Test Dev</span>
+      <span>Test Devvvv</span>
     </div>
   );
 }

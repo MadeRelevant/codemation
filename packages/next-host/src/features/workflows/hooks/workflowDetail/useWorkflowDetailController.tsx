@@ -61,7 +61,11 @@ export type WorkflowDetailControllerResult = Readonly<{
   inspectorFormatting: WorkflowExecutionInspectorFormatting;
   inspectorActions: WorkflowExecutionInspectorActions;
   selectedNodeId: string | null;
+  /** Workflow node id for canvas selection ring (invocation ids map to {@link ConnectionInvocationRecord#connectionNodeId}). */
+  canvasWorkflowNodeIdForHighlight: string | null;
   propertiesPanelNodeId: string | null;
+  /** When the panel is open, matches inspector/canvas selection (`selectedNodeId` wins). */
+  propertiesPanelResolvedNodeId: string | null;
   isPropertiesPanelOpen: boolean;
   selectedPropertiesWorkflowNode: WorkflowDto["nodes"][number] | undefined;
   selectCanvasNode: (nodeId: string) => void;
@@ -495,6 +499,9 @@ export function useWorkflowDetailController(
 
   useEffect(() => {
     if (!displayedWorkflow?.nodes.length) return;
+    if (isPropertiesPanelOpen) {
+      return;
+    }
     if (
       hasManuallySelectedNode &&
       selectedNodeId &&
@@ -525,6 +532,7 @@ export function useWorkflowDetailController(
     displayedWorkflow,
     executionNodes,
     hasManuallySelectedNode,
+    isPropertiesPanelOpen,
     normalizedConnectionInvocations,
     selectedNodeId,
   ]);
@@ -551,10 +559,40 @@ export function useWorkflowDetailController(
     () => selectedExecutionNode?.node ?? displayedWorkflow?.nodes.find((node) => node.id === selectedNodeId),
     [displayedWorkflow, selectedExecutionNode, selectedNodeId],
   );
+  const canvasWorkflowNodeIdForHighlight = useMemo(
+    () =>
+      WorkflowDetailPresenter.resolveCanvasWorkflowNodeIdForHighlight(
+        selectedNodeId,
+        displayedWorkflow,
+        currentExecutionState?.connectionInvocations,
+      ),
+    [currentExecutionState?.connectionInvocations, displayedWorkflow, selectedNodeId],
+  );
+
+  const propertiesPanelResolvedNodeId = useMemo(() => {
+    if (!isPropertiesPanelOpen) {
+      return null;
+    }
+    const raw = selectedNodeId ?? propertiesPanelNodeId;
+    return WorkflowDetailPresenter.resolveCanvasWorkflowNodeIdForHighlight(
+      raw,
+      displayedWorkflow,
+      currentExecutionState?.connectionInvocations,
+    );
+  }, [
+    currentExecutionState?.connectionInvocations,
+    displayedWorkflow,
+    isPropertiesPanelOpen,
+    propertiesPanelNodeId,
+    selectedNodeId,
+  ]);
+
   const selectedPropertiesWorkflowNode = useMemo(
     () =>
-      propertiesPanelNodeId ? displayedWorkflow?.nodes.find((node) => node.id === propertiesPanelNodeId) : undefined,
-    [displayedWorkflow, propertiesPanelNodeId],
+      propertiesPanelResolvedNodeId
+        ? displayedWorkflow?.nodes.find((node) => node.id === propertiesPanelResolvedNodeId)
+        : undefined,
+    [displayedWorkflow, propertiesPanelResolvedNodeId],
   );
   const inputPortEntries = useMemo(
     () => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.inputsByPort),
@@ -1195,7 +1233,9 @@ export function useWorkflowDetailController(
       onSelectOutputPort: setSelectedOutputPort,
     },
     selectedNodeId,
+    canvasWorkflowNodeIdForHighlight,
     propertiesPanelNodeId,
+    propertiesPanelResolvedNodeId,
     isPropertiesPanelOpen,
     selectedPropertiesWorkflowNode,
     selectCanvasNode,

@@ -1,0 +1,43 @@
+{
+  "name": "create-codemation",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Scaffold a Codemation consumer application (npm create codemation)",
+  "keywords": [
+    "codemation",
+    "create-app",
+    "scaffold",
+    "cli"
+  ],
+  "license": "UNLICENSED",
+  "type": "module",
+  "bin": {
+    "create-codemation": "./bin/create-codemation.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsdown src/bin.ts --out-dir dist",
+    "dev": "tsdown src/bin.ts --out-dir dist --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@codemation/eslint-config": "workspace:*",
+    "@types/node": "^25.3.5",
+    "eslint": "^10.0.3",
+    "tsdown": "^0.15.5",
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
+  }
+}

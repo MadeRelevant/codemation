@@ -295,6 +295,39 @@ describe("WorkflowDetailPresenter", () => {
     expect(WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow("unknown::nope", workflow)).toBe(false);
   });
 
+  it("resolves connection invocation ids to workflow node ids for canvas highlight and properties panel", () => {
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
+    const connectionInvocations: ConnectionInvocationRecord[] = [
+      {
+        invocationId: "cinv_llm_highlight",
+        runId: "run-1",
+        workflowId: workflow.id,
+        connectionNodeId: WorkflowDetailFixtureFactory.llmNodeId,
+        parentAgentNodeId: WorkflowDetailFixtureFactory.agentNodeId,
+        parentAgentActivationId: "act_main",
+        status: "completed",
+        updatedAt: "2026-03-11T12:00:05.000Z",
+      },
+    ];
+    expect(
+      WorkflowDetailPresenter.resolveCanvasWorkflowNodeIdForHighlight(
+        WorkflowDetailFixtureFactory.llmNodeId,
+        workflow,
+        connectionInvocations,
+      ),
+    ).toBe(WorkflowDetailFixtureFactory.llmNodeId);
+    expect(
+      WorkflowDetailPresenter.resolveCanvasWorkflowNodeIdForHighlight(
+        "cinv_llm_highlight",
+        workflow,
+        connectionInvocations,
+      ),
+    ).toBe(WorkflowDetailFixtureFactory.llmNodeId);
+    expect(
+      WorkflowDetailPresenter.resolveCanvasWorkflowNodeIdForHighlight(null, workflow, connectionInvocations),
+    ).toBeNull();
+  });
+
   it("places two distinct LLM invocations under the agent in the execution tree", () => {
     const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
     const base = WorkflowDetailFixtureFactory.createCompletedRunState({ workflow });

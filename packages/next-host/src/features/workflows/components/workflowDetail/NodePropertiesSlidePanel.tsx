@@ -8,6 +8,9 @@ import type { WorkflowDiagramNode } from "../../lib/workflowDetail/workflowDetai
 
 const panelWidthPx = 300;
 
+/**
+ * Overlays the canvas from the right (absolute) so the diagram does not reflow when opened/closed.
+ */
 export function NodePropertiesSlidePanel(
   args: Readonly<{
     workflowId: string;
@@ -23,11 +26,13 @@ export function NodePropertiesSlidePanel(
       data-testid="node-properties-slide-panel"
       aria-hidden={!isVisible}
       className={cn(
-        "flex min-h-0 flex-shrink-0 flex-col overflow-hidden bg-card transition-[width] duration-200 ease-out",
-        isVisible && "border-l border-border shadow-[-6px_0_18px_rgba(15,23,42,0.06)]",
+        "absolute top-0 right-0 bottom-0 z-[8] flex flex-col overflow-hidden bg-card shadow-[-6px_0_18px_rgba(15,23,42,0.06)] transition-transform duration-200 ease-out",
+        isVisible
+          ? "translate-x-0 border-l border-border"
+          : "pointer-events-none translate-x-full border-l border-transparent",
       )}
       style={{
-        width: isVisible ? panelWidthPx : 0,
+        width: panelWidthPx,
       }}
     >
       {isVisible && node ? (

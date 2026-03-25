@@ -1,5 +1,5 @@
 import type { CredentialRequirement, Item } from "@codemation/core";
-import { AIAgent, createWorkflowBuilder, If, NoOp, OpenAIChatModelConfig } from "@codemation/core-nodes";
+import { AIAgent, createWorkflowBuilder, If, NoOp } from "@codemation/core-nodes";
 import {
   OnNewGmailTrigger,
   type OnNewGmailTriggerItemJson,
@@ -12,6 +12,7 @@ import {
 } from "../../../gmail/AzureInvoiceOcrConsumer";
 import { CredentialAwareCallback } from "../../../gmail/CredentialAwareCallback";
 import { GmailTriggerEnvReader } from "../../../gmail/GmailTriggerEnvReader";
+import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
 
 const gmailTriggerConfiguration = new GmailTriggerEnvReader().readTriggerConfiguration();
 
@@ -136,7 +137,7 @@ export default createWorkflowBuilder({
       "Classify RFQ vs other",
       'You triage incoming mail for sales. You receive one JSON object with subject, from, to, cc, message (snippet/preview), and attachments (each with filename, mimetype, OCR content, and structured invoice fields). Decide if this is an RFQ (request for quote / pricing / bid) versus other. Respond with strict JSON only, no markdown. Shape: {"outcome":"rfq"|"other","reasoning":"…"}. The reasoning field must be a concise plain-text explanation (one to three short sentences) citing the strongest signals you used (subject, body/snippet, attachment types, OCR text or invoice fields).',
       (item) => JSON.stringify(item.json),
-      new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini", "openai", { icon: "bot", label: "OpenAI" }),
+      openAiChatModelPresets.demoGpt4oMini,
     ),
   )
   .then(

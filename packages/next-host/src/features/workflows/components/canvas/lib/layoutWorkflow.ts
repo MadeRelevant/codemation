@@ -10,6 +10,15 @@ import {
   WORKFLOW_CANVAS_MAIN_EDGE_CORNER_RADIUS,
   WORKFLOW_CANVAS_MAIN_EDGE_OFFSET,
 } from "./workflowCanvasEdgeGeometry";
+import {
+  WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX,
+  WORKFLOW_CANVAS_MAIN_NODE_CARD_PX,
+  WorkflowCanvasNodeGeometry,
+} from "./workflowCanvasNodeGeometry";
+
+function mainWorkflowNodeWidthPx(role: string | undefined): number {
+  return WorkflowCanvasNodeGeometry.mainNodeWidthPx(role === "agent");
+}
 import { WorkflowCanvasOverlapResolver } from "./WorkflowCanvasOverlapResolver";
 import { WorkflowCanvasPortOrderResolver } from "./WorkflowCanvasPortOrderResolver";
 
@@ -33,14 +42,10 @@ export function layoutWorkflow(
 ): Readonly<{ nodes: ReactFlowNode<WorkflowCanvasNodeData>[]; edges: ReactFlowEdge[] }> {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: "LR", ranksep: 96, nodesep: 44, edgesep: 16 });
+  dagreGraph.setGraph({ rankdir: "LR", ranksep: 128, nodesep: 56, edgesep: 20 });
 
-  const nodeWidth = 196;
-  const nodeHeight = 72;
-  const attachmentNodeWidth = 144;
-  const attachmentNodeHeight = 72;
-  const attachmentYOffset = 138;
-  const attachmentXSpacing = attachmentNodeWidth + 32;
+  const attachmentNodeWidth = WorkflowCanvasNodeGeometry.attachmentNodeWidthPx();
+  const attachmentXSpacing = attachmentNodeWidth + 36;
   const layoutNodes = workflow.nodes.filter((node) => !node.parentNodeId);
   const layoutNodeIds = new Set(layoutNodes.map((node) => node.id));
   const layoutEdges = workflow.edges.filter(
@@ -48,7 +53,10 @@ export function layoutWorkflow(
   );
 
   for (const node of layoutNodes) {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    dagreGraph.setNode(node.id, {
+      width: mainWorkflowNodeWidthPx(node.role),
+      height: WORKFLOW_CANVAS_MAIN_NODE_CARD_PX,
+    });
   }
   for (const [i, edge] of layoutEdges.entries()) {
     dagreGraph.setEdge(edge.from.nodeId, edge.to.nodeId, { i });
@@ -72,6 +80,16 @@ export function layoutWorkflow(
   for (const [parentNodeId, attachmentNodes] of attachmentNodesByParentNodeId.entries()) {
     const parentPosition = positionsByNodeId.get(parentNodeId);
     if (!parentPosition) continue;
+    const parentMeta = layoutNodes.find((n) => n.id === parentNodeId);
+    const parentLabel = parentMeta?.name ?? parentMeta?.type ?? parentNodeId;
+    const parentIsAgent = parentMeta?.role === "agent";
+    if (attachmentNodes.length === 0) {
+      continue;
+    }
+    const attachmentYOffset = WorkflowCanvasNodeGeometry.attachmentCardCenterYDeltaFromParentCardCenter(
+      parentLabel,
+      parentIsAgent,
+    );
     const orderedAttachmentNodes = [...attachmentNodes].sort((left, right) => {
       if (left.role === right.role) return left.name?.localeCompare(right.name ?? "") ?? 0;
       if (left.role === "languageModel") return -1;
@@ -89,8 +107,11 @@ export function layoutWorkflow(
   const widthByNodeId = new Map<string, number>();
   const heightByNodeId = new Map<string, number>();
   for (const n of workflow.nodes) {
-    widthByNodeId.set(n.id, n.parentNodeId ? attachmentNodeWidth : nodeWidth);
-    heightByNodeId.set(n.id, n.parentNodeId ? attachmentNodeHeight : nodeHeight);
+    widthByNodeId.set(n.id, n.parentNodeId ? attachmentNodeWidth : mainWorkflowNodeWidthPx(n.role));
+    heightByNodeId.set(
+      n.id,
+      n.parentNodeId ? WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX : WORKFLOW_CANVAS_MAIN_NODE_CARD_PX,
+    );
   }
   const resolvedPositions = WorkflowCanvasOverlapResolver.resolve({
     positionsByNodeId,
@@ -118,8 +139,13 @@ export function layoutWorkflow(
   const nodes: ReactFlowNode<WorkflowCanvasNodeData>[] = workflow.nodes.map((n) => {
     const pos = positionsByNodeId.get(n.id);
     const label = n.name ?? n.type ?? n.id;
-    const resolvedNodeWidth = n.parentNodeId ? attachmentNodeWidth : nodeWidth;
-    const resolvedNodeHeight = n.parentNodeId ? attachmentNodeHeight : nodeHeight;
+    const resolvedNodeWidth = n.parentNodeId ? attachmentNodeWidth : mainWorkflowNodeWidthPx(n.role);
+    const resolvedNodeHeight = n.parentNodeId
+      ? WorkflowCanvasNodeGeometry.attachmentNodeHeightPx(label)
+      : WorkflowCanvasNodeGeometry.mainNodeHeightPx(label, n.role === "agent");
+    const layoutCardHeightPx = n.parentNodeId
+      ? WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX
+      : WORKFLOW_CANVAS_MAIN_NODE_CARD_PX;
     const rawOut = outgoingOutputsByNodeId.get(n.id);
     const rawIn = incomingInputsByNodeId.get(n.id);
     const sourceOutputPorts = WorkflowCanvasPortOrderResolver.sortSourceOutputs(
@@ -133,7 +159,7 @@ export function layoutWorkflow(
       type: "codemation",
       position: {
         x: (pos?.x ?? 0) - resolvedNodeWidth / 2,
-        y: (pos?.y ?? 0) - resolvedNodeHeight / 2,
+        y: (pos?.y ?? 0) - layoutCardHeightPx / 2,
       },
       width: resolvedNodeWidth,
       height: resolvedNodeHeight,
@@ -156,6 +182,7 @@ export function layoutWorkflow(
         isRunning,
         retryPolicySummary: n.retryPolicySummary,
         hasNodeErrorHandler: n.hasNodeErrorHandler,
+        continueWhenEmptyOutput: n.continueWhenEmptyOutput,
         credentialAttentionTooltip: credentialAttentionTooltipByNodeId.get(n.id),
         sourceOutputPorts,
         targetInputPorts,
@@ -165,6 +192,8 @@ export function layoutWorkflow(
         onTogglePinnedOutput,
         onEditNodeOutput,
         onClearPinnedOutput,
+        layoutWidthPx: resolvedNodeWidth,
+        layoutHeightPx: resolvedNodeHeight,
       },
       draggable: false,
       sourcePosition: n.parentNodeId ? Position.Bottom : Position.Right,

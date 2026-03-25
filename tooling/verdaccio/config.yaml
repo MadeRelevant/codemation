@@ -1,0 +1,43 @@
+# Local npm registry for publishing @codemation/* and smoke-testing installs.
+# Paths are resolved relative to this file.
+#
+# Start (repo root): pnpm run verdaccio
+# Docker: pnpm exec docker compose -f tooling/verdaccio/docker-compose.yml up -d
+#
+# Security: bind to loopback in untrusted networks; this config allows anonymous publish for local dev only.
+
+storage: ./storage
+plugins: ./plugins
+
+web:
+  title: Codemation (local Verdaccio)
+
+listen:
+  - 0.0.0.0:4873
+
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+
+packages:
+  "@codemation/*":
+    access: $all
+    publish: $all
+    proxy: npmjs
+  "create-codemation":
+    access: $all
+    publish: $all
+    proxy: npmjs
+  "**":
+    access: $all
+    publish: $all
+    proxy: npmjs
+
+middlewares:
+  audit:
+    enabled: true
+
+log:
+  type: stdout
+  format: pretty
+  level: http

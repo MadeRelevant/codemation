@@ -115,7 +115,7 @@ describe("workflow canvas toolbar", () => {
 
     await waitFor(() => {
       expect(canvasRoot.getAttribute("data-workflow-structure-signature")).not.toBe(initialSignature);
-      expect(screen.getByTestId(`canvas-node-card-${WorkflowDetailFixtureFactory.nodeOneId}`)).toHaveTextContent(
+      expect(screen.getByTestId(`canvas-node-label-${WorkflowDetailFixtureFactory.nodeOneId}`)).toHaveTextContent(
         "Node 1 renamed",
       );
     });

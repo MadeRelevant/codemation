@@ -494,6 +494,12 @@ export default [
     },
   },
   {
+    files: ["packages/host/src/credentials.ts"],
+    rules: {
+      "codemation/no-manual-di-new": "off",
+    },
+  },
+  {
     files: ["packages/host/src/presentation/http/ApiPaths.ts"],
     rules: {
       "codemation/no-static-methods": "off",

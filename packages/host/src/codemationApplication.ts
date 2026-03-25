@@ -87,6 +87,8 @@ import { AuthJsSessionVerifier } from "./infrastructure/auth/AuthJsSessionVerifi
 import { DevelopmentSessionBypassVerifier } from "./infrastructure/auth/DevelopmentSessionBypassVerifier";
 import { LocalFilesystemBinaryStorage } from "./infrastructure/binary/LocalFilesystemBinaryStorageRegistry";
 import { FrameworkBuiltinCredentialTypesRegistrar } from "./infrastructure/credentials/FrameworkBuiltinCredentialTypesRegistrar";
+import { OpenAiApiKeyCredentialHealthTester } from "./infrastructure/credentials/OpenAiApiKeyCredentialHealthTester";
+import { OpenAiApiKeyCredentialTypeFactory } from "./infrastructure/credentials/OpenAiApiKeyCredentialTypeFactory";
 import { CodemationConfigBindingRegistrar } from "./infrastructure/config/CodemationConfigBindingRegistrar";
 import { CodemationPluginRegistrar } from "./infrastructure/config/CodemationPluginRegistrar";
 import { DependencyInjectionHookRunner } from "./infrastructure/config/DependencyInjectionHookRunner";
@@ -178,7 +180,9 @@ export class CodemationApplication {
       this.useBindings(config.bindings);
     }
     if (!this.frameworkBuiltinCredentialTypesRegistered) {
-      new FrameworkBuiltinCredentialTypesRegistrar().register(this, config);
+      new FrameworkBuiltinCredentialTypesRegistrar(
+        new OpenAiApiKeyCredentialTypeFactory(new OpenAiApiKeyCredentialHealthTester(globalThis.fetch)),
+      ).register(this, config);
       this.frameworkBuiltinCredentialTypesRegistered = true;
     }
     if (config.credentialTypes) {

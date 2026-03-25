@@ -63,9 +63,10 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
           name: node.name ?? node.config?.name,
           type: this.nodeTypeName(node),
           role,
-          icon: node.config?.icon,
+          icon: this.canvasIconFromNodeConfig(node.config),
           retryPolicySummary: this.policyUi.nodeRetrySummary(node.config),
           hasNodeErrorHandler: this.policyUi.nodeHasErrorHandler(node.config),
+          continueWhenEmptyOutput: node.config?.continueWhenEmptyOutput,
           parentNodeId: conn.parentNodeId,
         });
         continue;
@@ -76,9 +77,10 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
         name: node.name ?? node.config?.name,
         type: this.nodeTypeName(node),
         role: AgentConfigInspector.isAgentNodeConfig(node.config) ? "agent" : "workflowNode",
-        icon: node.config?.icon,
+        icon: AgentConfigInspector.isAgentNodeConfig(node.config) ? "lucide:bot" : node.config?.icon,
         retryPolicySummary: this.policyUi.nodeRetrySummary(node.config),
         hasNodeErrorHandler: this.policyUi.nodeHasErrorHandler(node.config),
+        continueWhenEmptyOutput: node.config?.continueWhenEmptyOutput,
       });
       if (AgentConfigInspector.isAgentNodeConfig(node.config) && !this.agentHasConnectionMetadata(workflow, node.id)) {
         nodes.push(this.createLanguageModelNode(node, node.config.chatModel));
@@ -146,6 +148,21 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
       icon: toolConfig.presentation?.icon,
       parentNodeId: node.id,
     };
+  }
+
+  /** Prefer `presentation.icon` (LLM/tools) so provider marks (e.g. OpenAI) resolve from chat model config. */
+  private canvasIconFromNodeConfig(config: unknown): string | undefined {
+    if (!config || typeof config !== "object") {
+      return undefined;
+    }
+    const c = config as { icon?: unknown; presentation?: { icon?: unknown } };
+    if (typeof c.presentation?.icon === "string") {
+      return c.presentation.icon;
+    }
+    if (typeof c.icon === "string") {
+      return c.icon;
+    }
+    return undefined;
   }
 
   private nodeTypeName(node: NodeDefinition): string {

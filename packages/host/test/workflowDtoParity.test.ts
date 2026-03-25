@@ -1,4 +1,5 @@
 import {
+  ConnectionNodeIdFactory,
   PersistedWorkflowTokenRegistry,
   chatModel,
   tool,
@@ -52,5 +53,25 @@ describe("workflow dto parity", () => {
     const snapshotDto = new PersistedWorkflowSnapshotMapper().map(snapshot);
 
     expect(snapshotDto).toEqual(liveDto);
+  });
+
+  it("live mapper uses bot for the agent node and presentation icon for the LLM connection", () => {
+    const workflow = WorkflowDetailFixtureFactory.createWorkflowDefinition({
+      workflowId: "wf.icons",
+      workflowName: "Icon mapping",
+      chatModelConfig: new FrontendParityChatModelConfig("Mock LLM", {
+        label: "Mock LLM",
+        icon: "builtin:openai",
+      }),
+    });
+    const liveDto = new WorkflowDefinitionMapper(new WorkflowPolicyUiPresentationFactory()).mapSync(workflow);
+    const agent = liveDto.nodes.find((n) => n.id === WorkflowDetailFixtureFactory.agentNodeId);
+    const llm = liveDto.nodes.find(
+      (n) => n.id === ConnectionNodeIdFactory.languageModelConnectionNodeId(WorkflowDetailFixtureFactory.agentNodeId),
+    );
+    expect(agent?.role).toBe("agent");
+    expect(agent?.icon).toBe("lucide:bot");
+    expect(llm?.role).toBe("languageModel");
+    expect(llm?.icon).toBe("builtin:openai");
   });
 });

@@ -13,7 +13,7 @@ export class WebhookTrigger<
 > implements TriggerNodeConfig<unknown> {
   readonly kind = "trigger" as const;
   readonly type: TypeToken<unknown> = WebhookTriggerNode;
-  readonly icon = "globe";
+  readonly icon = "lucide:globe";
 
   constructor(
     public readonly name: string,

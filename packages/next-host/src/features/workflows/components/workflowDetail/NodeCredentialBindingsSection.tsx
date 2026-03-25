@@ -1,20 +1,44 @@
 import type { UpsertCredentialBindingRequest } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
+import { CredentialConfirmDialog } from "../../../credentials/components/CredentialConfirmDialog";
+import { CredentialDialog } from "../../../credentials/components/CredentialDialog";
+import { useCredentialCreateDialog } from "../../../credentials/hooks/useCredentialCreateDialog";
 import { useCredentialInstancesQuery, useWorkflowCredentialHealthQuery } from "../../hooks/realtime/realtime";
 import { NodeCredentialBindingRow } from "./NodeCredentialBindingRow";
 import type { WorkflowDiagramNode } from "../../lib/workflowDetail/workflowDetailTypes";
 
 export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: string; node: WorkflowDiagramNode }>) {
   const { node, workflowId } = args;
+  const pendingCreateSlotBindingKeyRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
   const credentialInstancesQuery = useCredentialInstancesQuery();
   const workflowCredentialHealthQuery = useWorkflowCredentialHealthQuery(workflowId);
   const [credentialError, setCredentialError] = useState<string | null>(null);
   const [bindingInstanceIdBySlotKey, setBindingInstanceIdBySlotKey] = useState<Readonly<Record<string, string>>>({});
   const [activeBindingSlotKey, setActiveBindingSlotKey] = useState<string | null>(null);
+  const {
+    isDialogOpen,
+    dialogProps,
+    openCreateDialog,
+    oauthDisconnectConfirmOpen,
+    executeOAuthDisconnect,
+    cancelOAuthDisconnect,
+  } = useCredentialCreateDialog({
+    workflowId,
+    onCreated: (instance) => {
+      const key = pendingCreateSlotBindingKeyRef.current;
+      if (key) {
+        setBindingInstanceIdBySlotKey((current) => ({
+          ...current,
+          [key]: instance.instanceId,
+        }));
+        pendingCreateSlotBindingKeyRef.current = null;
+      }
+    },
+  });
   const nodeCredentialSlots = useMemo(() => {
     const slots = workflowCredentialHealthQuery.data?.slots ?? [];
     return slots.filter((slot) => slot.nodeId === node.id);
@@ -97,6 +121,11 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
                     }))
                   }
                   onBind={bindCredential}
+                  onRequestNewCredential={() => {
+                    pendingCreateSlotBindingKeyRef.current = bindingKey;
+                    const accepted = slot.requirement.acceptedTypes;
+                    openCreateDialog(accepted.length > 0 ? accepted : undefined);
+                  }}
                 />
               </div>
             );
@@ -105,6 +134,32 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
       )}
       {credentialError ? (
         <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c", lineHeight: 1.35 }}>{credentialError}</div>
+      ) : null}
+      {oauthDisconnectConfirmOpen ? (
+        <CredentialConfirmDialog
+          title="Disconnect OAuth2?"
+          testId="credential-oauth-disconnect-confirm-dialog"
+          cancelTestId="credential-oauth-disconnect-confirm-cancel"
+          confirmTestId="credential-oauth-disconnect-confirm-confirm"
+          confirmLabel="Disconnect"
+          confirmVariant="primary"
+          onCancel={cancelOAuthDisconnect}
+          onConfirm={() => void executeOAuthDisconnect()}
+        >
+          <p className="m-0 text-sm text-muted-foreground">
+            This will remove the OAuth connection for this credential. You can reconnect later.
+          </p>
+        </CredentialConfirmDialog>
+      ) : null}
+      {isDialogOpen && dialogProps ? (
+        <CredentialDialog
+          key={dialogProps.editingInstance?.instanceId ?? "create"}
+          {...dialogProps}
+          onClose={() => {
+            pendingCreateSlotBindingKeyRef.current = null;
+            dialogProps.onClose();
+          }}
+        />
       ) : null}
     </section>
   );

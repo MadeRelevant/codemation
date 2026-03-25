@@ -18,6 +18,7 @@ export class Callback<TInputJson = unknown, TOutputJson = TInputJson> implements
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = CallbackNode;
   readonly execution = { hint: "local" } as const;
+  readonly icon = "lucide:braces" as const;
 
   constructor(
     public readonly name: string = "Callback",

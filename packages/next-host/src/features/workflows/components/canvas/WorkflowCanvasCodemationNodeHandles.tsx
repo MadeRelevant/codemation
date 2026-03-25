@@ -15,34 +15,35 @@ const HANDLE_CENTERED_STYLE = {
 
 export function WorkflowCanvasCodemationNodeHandles(
   props: Readonly<{
+    kind: string;
     isAttachment: boolean;
     isAgent: boolean;
+    /** When true, agent bottom LLM/tools handles are rendered on the shell (see WorkflowCanvasCodemationNodeAgentBottomSourceHandles). */
+    omitAgentBottomSourceHandles: boolean;
     sourceOutputPorts: readonly string[];
     targetInputPorts: readonly string[];
   }>,
 ) {
-  const { isAgent, isAttachment, sourceOutputPorts, targetInputPorts } = props;
+  const { isAgent, isAttachment, omitAgentBottomSourceHandles, sourceOutputPorts, targetInputPorts, kind } = props;
 
   if (isAttachment) {
     return (
-      <>
-        <Handle
-          type="target"
-          position={Position.Top}
-          id="attachment-target"
-          style={{ width: 8, height: 8, background: "#64748b", border: "1px solid white" }}
-        />
-        <Handle type="source" position={Position.Bottom} style={HANDLE_BOX_STYLE} />
-      </>
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="attachment-target"
+        style={{ width: 8, height: 8, background: "#64748b", border: "1px solid white" }}
+      />
     );
   }
 
-  const targetHandles =
-    targetInputPorts.length <= 1 ? (
-      <Handle type="target" position={Position.Left} id={targetInputPorts[0] ?? "in"} style={HANDLE_BOX_STYLE} />
-    ) : (
-      <Handle type="target" position={Position.Left} style={HANDLE_CENTERED_STYLE} />
-    );
+  const isTrigger = kind === "trigger";
+
+  const targetHandles = isTrigger ? null : targetInputPorts.length <= 1 ? (
+    <Handle type="target" position={Position.Left} id={targetInputPorts[0] ?? "in"} style={HANDLE_BOX_STYLE} />
+  ) : (
+    <Handle type="target" position={Position.Left} style={HANDLE_CENTERED_STYLE} />
+  );
 
   const sourceHandlesRight =
     sourceOutputPorts.length <= 1 ? (
@@ -55,7 +56,7 @@ export function WorkflowCanvasCodemationNodeHandles(
     <>
       {targetHandles}
       {sourceHandlesRight}
-      {isAgent ? (
+      {isAgent && !omitAgentBottomSourceHandles ? (
         <>
           <Handle
             type="source"

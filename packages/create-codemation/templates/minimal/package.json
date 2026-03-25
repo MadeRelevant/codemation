@@ -1,0 +1,30 @@
+{
+  "name": "codemation-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "codemation dev",
+    "build": "codemation build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@codemation/cli": "*",
+    "@codemation/core": "*",
+    "@codemation/core-nodes": "*",
+    "@codemation/host": "*",
+    "dotenv": "^17.3.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "reflect-metadata": "^0.2.2",
+    "tsyringe": "^4.10.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

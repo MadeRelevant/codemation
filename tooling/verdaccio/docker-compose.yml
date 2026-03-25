@@ -1,0 +1,9 @@
+services:
+  verdaccio:
+    image: verdaccio/verdaccio:6
+    ports:
+      - "127.0.0.1:4873:4873"
+    volumes:
+      - ./config.yaml:/verdaccio/conf/config.yaml:ro
+      - ./storage:/verdaccio/conf/storage
+      - ./plugins:/verdaccio/conf/plugins

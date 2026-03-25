@@ -181,12 +181,14 @@ test("GmailPullTriggerRuntime renews the watch, pulls notifications, emits items
   const store = new InMemoryTriggerSetupStateStore();
   const configuredLabelService = new GmailConfiguredLabelService();
   const watchService = new GmailWatchService(configuredLabelService, store as never);
+  const gmailPubSubResolver = new GmailTriggerPubSubResourceResolver(process.env);
   const historySyncService = new GmailHistorySyncService(
     store as never,
     watchService,
     configuredLabelService,
     new GmailMessageItemMapper(),
     new GmailQueryMatcher(),
+    gmailPubSubResolver,
   );
   const emittedPayloads: Array<ReadonlyArray<unknown>> = [];
   const runtime = new GmailPullTriggerRuntime(
@@ -198,7 +200,7 @@ test("GmailPullTriggerRuntime renews the watch, pulls notifications, emits items
     new NoopGmailLogger(),
     watchService,
     historySyncService,
-    new GmailTriggerPubSubResourceResolver(process.env),
+    gmailPubSubResolver,
   );
 
   const initialState = await runtime.ensureStarted({
@@ -233,12 +235,14 @@ test("GmailPullTriggerRuntime stops polling after the trigger runtime is torn do
   const store = new InMemoryTriggerSetupStateStore();
   const configuredLabelService = new GmailConfiguredLabelService();
   const watchService = new GmailWatchService(configuredLabelService, store as never);
+  const gmailPubSubResolver = new GmailTriggerPubSubResourceResolver(process.env);
   const historySyncService = new GmailHistorySyncService(
     store as never,
     watchService,
     configuredLabelService,
     new GmailMessageItemMapper(),
     new GmailQueryMatcher(),
+    gmailPubSubResolver,
   );
   const emittedPayloads: Array<ReadonlyArray<unknown>> = [];
   const runtime = new GmailPullTriggerRuntime(
@@ -250,7 +254,7 @@ test("GmailPullTriggerRuntime stops polling after the trigger runtime is torn do
     new NoopGmailLogger(),
     watchService,
     historySyncService,
-    new GmailTriggerPubSubResourceResolver(process.env),
+    gmailPubSubResolver,
   );
   const trigger = {
     workflowId: "wf.gmail",
@@ -289,12 +293,14 @@ test("GmailPullTriggerRuntime skips when Pub/Sub resources cannot be resolved", 
   gmailApiClient.defaultGcpProjectIdForPubSub = undefined;
   const configuredLabelService = new GmailConfiguredLabelService();
   const watchService = new GmailWatchService(configuredLabelService, store as never);
+  const gmailPubSubResolver = new GmailTriggerPubSubResourceResolver({});
   const historySyncService = new GmailHistorySyncService(
     store as never,
     watchService,
     configuredLabelService,
     new GmailMessageItemMapper(),
     new GmailQueryMatcher(),
+    gmailPubSubResolver,
   );
   const runtime = new GmailPullTriggerRuntime(
     {
@@ -305,7 +311,7 @@ test("GmailPullTriggerRuntime skips when Pub/Sub resources cannot be resolved", 
     logger,
     watchService,
     historySyncService,
-    new GmailTriggerPubSubResourceResolver({}),
+    gmailPubSubResolver,
   );
 
   const state = await runtime.ensureStarted({
@@ -333,12 +339,14 @@ test("GmailPullTriggerRuntime starts when topic and subscription are omitted but
   const gmailApiClient = new FakeGmailApiClient();
   const configuredLabelService = new GmailConfiguredLabelService();
   const watchService = new GmailWatchService(configuredLabelService, store as never);
+  const gmailPubSubResolver = new GmailTriggerPubSubResourceResolver({});
   const historySyncService = new GmailHistorySyncService(
     store as never,
     watchService,
     configuredLabelService,
     new GmailMessageItemMapper(),
     new GmailQueryMatcher(),
+    gmailPubSubResolver,
   );
   const runtime = new GmailPullTriggerRuntime(
     {
@@ -349,7 +357,7 @@ test("GmailPullTriggerRuntime starts when topic and subscription are omitted but
     new NoopGmailLogger(),
     watchService,
     historySyncService,
-    new GmailTriggerPubSubResourceResolver({}),
+    gmailPubSubResolver,
   );
 
   await runtime.ensureStarted({

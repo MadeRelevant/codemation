@@ -10,6 +10,7 @@ export class ManualTrigger<TOutputJson = unknown> implements TriggerNodeConfig<T
   private static readonly itemsInputNormalizer = new ItemsInputNormalizer();
   readonly kind = "trigger" as const;
   readonly type: TypeToken<unknown> = ManualTriggerNode;
+  readonly icon = "lucide:play" as const;
   readonly defaultItems?: Items<TOutputJson>;
   readonly id?: string;
   /** Manual runs often emit an empty batch; still schedule downstream by default. */

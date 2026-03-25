@@ -219,6 +219,25 @@ export class WorkflowDetailPresenter {
     return Boolean(connectionInvocations?.some((inv) => inv.invocationId === nodeId));
   }
 
+  /**
+   * Maps inspector selection id (workflow node id or LLM/tool {@link ConnectionInvocationRecord#invocationId})
+   * to the workflow node id used for canvas chrome (selection ring, properties panel workflow lookup).
+   */
+  static resolveCanvasWorkflowNodeIdForHighlight(
+    selectedId: string | null,
+    workflow: WorkflowDto | undefined,
+    connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>,
+  ): string | null {
+    if (!selectedId || !workflow?.nodes.length) {
+      return null;
+    }
+    if (workflow.nodes.some((n) => n.id === selectedId)) {
+      return selectedId;
+    }
+    const inv = connectionInvocations?.find((i) => i.invocationId === selectedId);
+    return inv?.connectionNodeId ?? null;
+  }
+
   static resolveInspectorNodeIdForCanvasPick(
     canvasWorkflowNodeId: string,
     workflow: WorkflowDto | undefined,

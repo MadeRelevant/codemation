@@ -1,57 +1,6 @@
-import {
-  Bot,
-  Boxes,
-  Brain,
-  CircleAlert,
-  CircleCheckBig,
-  Clock3,
-  GitBranch,
-  Globe,
-  type LucideIcon,
-  Pin,
-  PlaySquare,
-  SquareStack,
-  Workflow,
-  Wrench,
-} from "lucide-react";
+import { CircleAlert, CircleCheckBig, Clock3, Pin } from "lucide-react";
 
 import type { NodeExecutionSnapshot } from "../../hooks/realtime/realtime";
-
-export function iconForNode(type: string, role?: string, icon?: string): LucideIcon {
-  const explicitIcon = icon?.toLowerCase();
-  if (explicitIcon === "globe") {
-    return Globe;
-  }
-  if (role === "agent") {
-    return Bot;
-  }
-  if (role === "languageModel") {
-    return Brain;
-  }
-  if (role === "tool") {
-    return Wrench;
-  }
-
-  const t = type.toLowerCase();
-
-  if (t.includes("if")) {
-    return GitBranch;
-  }
-  if (t.includes("subworkflow")) {
-    return Workflow;
-  }
-  if (t.includes("map")) {
-    return SquareStack;
-  }
-  if (t.includes("trigger")) {
-    return PlaySquare;
-  }
-  if (t.includes("agent") || t.includes("ai")) {
-    return Bot;
-  }
-
-  return Boxes;
-}
 
 export function statusIconForNode(status: NodeExecutionSnapshot["status"] | undefined) {
   if (status === "completed") {

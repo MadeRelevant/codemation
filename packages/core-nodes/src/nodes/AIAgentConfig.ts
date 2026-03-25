@@ -23,6 +23,7 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = AIAgentNode;
   readonly execution = { hint: "local" } as const;
+  readonly icon = "lucide:bot" as const;
 
   constructor(
     public readonly name: string,

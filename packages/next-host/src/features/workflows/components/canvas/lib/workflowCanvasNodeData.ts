@@ -17,12 +17,17 @@ export type WorkflowCanvasNodeData = Readonly<{
   isRunning: boolean;
   retryPolicySummary?: string;
   hasNodeErrorHandler?: boolean;
+  /** When true, empty main batches still schedule downstream; surfaced on the canvas. */
+  continueWhenEmptyOutput?: boolean;
   /** When set, show a credential warning icon with this tooltip (required slot unbound). */
   credentialAttentionTooltip?: string;
   /** Distinct source output port names on this node (for multi-handle Right routing). */
   sourceOutputPorts: readonly string[];
   /** Distinct target input port names on this node (for multi-handle Left routing). */
   targetInputPorts: readonly string[];
+  /** Matches Dagre / React Flow measured bounds (label wrap + agent badge row). */
+  layoutWidthPx: number;
+  layoutHeightPx: number;
   onSelectNode: (nodeId: string) => void;
   onOpenPropertiesNode: (nodeId: string) => void;
   onRunNode: (nodeId: string) => void;

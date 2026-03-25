@@ -19,9 +19,11 @@ export function NodeCredentialBindingRow(
     isBinding: boolean;
     onSelectInstance: (instanceId: string) => void;
     onBind: (request: UpsertCredentialBindingRequest) => void;
+    onRequestNewCredential: () => void;
   }>,
 ) {
-  const { compatibleInstances, isBinding, onBind, onSelectInstance, selectedInstanceId, slot } = args;
+  const { compatibleInstances, isBinding, onBind, onRequestNewCredential, onSelectInstance, selectedInstanceId, slot } =
+    args;
   const slotTestIdSuffix = `${slot.nodeId}-${slot.requirement.slotKey}`;
   const typesLine = slot.requirement.acceptedTypes.join(" · ");
   const status = slot.health.status;
@@ -95,6 +97,16 @@ export function NodeCredentialBindingRow(
           ))}
         </SelectContent>
       </Select>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 shrink-0 text-xs font-bold"
+        data-testid={`node-properties-credential-slot-new-${slotTestIdSuffix}`}
+        onClick={onRequestNewCredential}
+      >
+        New credential…
+      </Button>
       <Button
         type="button"
         size="sm"

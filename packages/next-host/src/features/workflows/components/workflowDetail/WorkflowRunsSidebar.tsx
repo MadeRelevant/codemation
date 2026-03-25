@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 import type {
   WorkflowRunsSidebarActions,
@@ -8,41 +8,35 @@ import type {
 
 import { WorkflowRunsList } from "./WorkflowRunsList";
 
+/**
+ * Left drawer over the canvas (see WorkflowDetailScreen). Open/close is driven by Live workflow / Executions tabs.
+ */
 export function WorkflowRunsSidebar(
   args: Readonly<{
+    isOpen: boolean;
     model: WorkflowRunsSidebarModel;
     actions: WorkflowRunsSidebarActions;
     formatting: WorkflowRunsSidebarFormatting;
   }>,
 ) {
-  const { actions, formatting, model } = args;
+  const { actions, formatting, isOpen, model } = args;
   const { formatRunListDurationLine, formatRunListWhen, getExecutionModeLabel } = formatting;
   const { onSelectRun } = actions;
-  const { displayedRuns, displayedWorkflow, error, runsError, selectedRunId, workflow, workflowError, workflowId } =
-    model;
+  const { displayedRuns, error, runsError, selectedRunId, workflowError } = model;
 
   return (
     <aside
       data-testid="workflow-runs-sidebar"
-      className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-border bg-card"
+      className={cn(
+        "absolute top-0 bottom-0 left-0 z-[7] flex min-h-0 w-[320px] flex-col overflow-hidden border-r bg-card shadow-[6px_0_18px_rgba(15,23,42,0.06)] transition-transform duration-200 ease-out",
+        isOpen ? "translate-x-0 border-border" : "pointer-events-none -translate-x-full border-transparent",
+      )}
     >
-      <div className="border-b border-border p-3.5">
-        <Link href="/workflows" className="text-sm text-primary no-underline opacity-90 hover:underline">
-          ← Workflows
-        </Link>
-        <div data-testid="workflow-title" className="mt-2.5 text-base leading-tight font-extrabold break-words">
-          {displayedWorkflow?.name ?? workflow?.name ?? "Workflow"}
+      {error || workflowError ? (
+        <div className="shrink-0 border-b border-border px-3.5 py-2.5 text-sm text-destructive">
+          {error ?? workflowError}
         </div>
-        <div className="mt-1 break-all text-xs text-muted-foreground">{workflowId}</div>
-        {error || workflowError ? (
-          <div className="mt-2.5 text-sm text-destructive">Error: {error ?? workflowError}</div>
-        ) : null}
-      </div>
-
-      <div className="flex items-baseline justify-between border-b border-border p-3.5">
-        <div className="text-xs font-extrabold tracking-wide text-muted-foreground uppercase">Executions</div>
-        <span className="text-xs text-muted-foreground">{displayedRuns?.length ?? "…"}</span>
-      </div>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-auto p-3.5">
         <WorkflowRunsList

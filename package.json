@@ -33,7 +33,8 @@
     "dupcheck": "jscpd packages apps/test-dev",
     "antipatterns": "ast-grep scan --report-style short --off=no-double-assertion",
     "antipatterns:assertions": "ast-grep scan --report-style short --filter no-double-assertion",
-    "prepare": "husky"
+    "prepare": "husky",
+    "verdaccio": "verdaccio --config tooling/verdaccio/config.yaml"
   },
   "devDependencies": {
     "@ast-grep/cli": "^0.41.1",
@@ -49,6 +50,7 @@
     "tsx": "^4.21.0",
     "turbo": "^2.8.14",
     "typescript": "^5.9.3",
+    "verdaccio": "^6.2.4",
     "vitest": "4.0.18"
   },
   "lint-staged": {

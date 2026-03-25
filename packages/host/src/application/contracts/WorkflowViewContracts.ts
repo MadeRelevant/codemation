@@ -10,6 +10,11 @@ export type WorkflowNodeDto = Readonly<{
   retryPolicySummary?: string;
   /** Whether this node declares a node-level error handler. */
   hasNodeErrorHandler?: boolean;
+  /**
+   * When true, empty main output batches still schedule single-input downstream nodes.
+   * Shown on the canvas (e.g. fast-forward affordance).
+   */
+  continueWhenEmptyOutput?: boolean;
 }>;
 
 export type WorkflowEdgeDto = Readonly<{

@@ -6,10 +6,10 @@ Gmail integration nodes for Codemation. New mail is ingested as workflow items u
 
 ## What this package does
 
-| Aspect | Details |
-|--------|---------|
-| **Goal** | Trigger on new messages in a mailbox, optionally filtered by labels and a simple client-side query |
-| **Auth** | Service account (domain-wide delegation) or OAuth2 (`gmail.readonly`) |
+| Aspect       | Details                                                                                                         |
+| ------------ | --------------------------------------------------------------------------------------------------------------- |
+| **Goal**     | Trigger on new messages in a mailbox, optionally filtered by labels and a simple client-side query              |
+| **Auth**     | Service account (domain-wide delegation) or OAuth2 (`gmail.readonly`)                                           |
 | **Delivery** | Gmail `users.watch` publishes to a Pub/Sub topic; the runtime **polls the subscription** and processes messages |
 
 Sending mail or changing labels is out of scope. This package is read-only and trigger-focused.
@@ -66,10 +66,10 @@ The `codemation.plugin` entry in `package.json` resolves the plugin to `GmailNod
 
 ## Plugin options (`GmailNodes`)
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `pullIntervalMs` | `number` | `5000` | Interval between Pub/Sub subscription pulls (ms). Clamped to a minimum of 25ms. |
-| `maxMessagesPerPull` | `number` | `10` | Max messages per pull. Minimum 1. |
+| Field                | Type     | Default | Description                                                                     |
+| -------------------- | -------- | ------- | ------------------------------------------------------------------------------- |
+| `pullIntervalMs`     | `number` | `5000`  | Interval between Pub/Sub subscription pulls (ms). Clamped to a minimum of 25ms. |
+| `maxMessagesPerPull` | `number` | `10`    | Max messages per pull. Minimum 1.                                               |
 
 The runtime logs startup and pull counts under the `codemation-gmail.runtime` logger.
 
@@ -96,14 +96,14 @@ new OnNewGmailTrigger(
 
 ### Trigger options (`OnNewGmailTriggerOptions`)
 
-| Field | Required | Example | Description |
-|-------|----------|---------|-------------|
-| `mailbox` | Yes | `"alice@company.com"` | Mailbox to watch. With a service account, use the **delegated user** email. OAuth may use `"me"`. |
-| `topicName` | No | `"projects/my-gcp-project/topics/codemation-gmail"` (OAuth); `"codemation-gmail"` (short id with service account) | Pub/Sub topic; falls back to resolver logic if omitted. |
-| `subscriptionName` | No | `"projects/my-gcp-project/subscriptions/codemation-gmail"` (OAuth); `"codemation-gmail"` (short id with service account) | Pub/Sub subscription; falls back to resolver logic if omitted. |
-| `labelIds` | No | `["INBOX", "My Label"]` | Display names of labels. Resolved to label IDs via `GmailConfiguredLabelService`; the message must have **every** listed label. |
-| `query` | No | `"purchase order"` | Client-side filter: case-insensitive substring match against `From`, `To`, `Subject`, and `snippet` concatenated. Not full Gmail search syntax. |
-| `downloadAttachments` | No | `true` | When `true`, loads attachments into item binaries (`GmailTriggerAttachmentService`). |
+| Field                 | Required | Example                                                                                                                  | Description                                                                                                                                     |
+| --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mailbox`             | Yes      | `"alice@company.com"`                                                                                                    | Mailbox to watch. With a service account, use the **delegated user** email. OAuth may use `"me"`.                                               |
+| `topicName`           | No       | `"projects/my-gcp-project/topics/codemation-gmail"` (OAuth); `"codemation-gmail"` (short id with service account)        | Pub/Sub topic; falls back to resolver logic if omitted.                                                                                         |
+| `subscriptionName`    | No       | `"projects/my-gcp-project/subscriptions/codemation-gmail"` (OAuth); `"codemation-gmail"` (short id with service account) | Pub/Sub subscription; falls back to resolver logic if omitted.                                                                                  |
+| `labelIds`            | No       | `["INBOX", "My Label"]`                                                                                                  | Display names of labels. Resolved to label IDs via `GmailConfiguredLabelService`; the message must have **every** listed label.                 |
+| `query`               | No       | `"purchase order"`                                                                                                       | Client-side filter: case-insensitive substring match against `From`, `To`, `Subject`, and `snippet` concatenated. Not full Gmail search syntax. |
+| `downloadAttachments` | No       | `true`                                                                                                                   | When `true`, loads attachments into item binaries (`GmailTriggerAttachmentService`).                                                            |
 
 Example `cfg` object (minimal vs. explicit Pub/Sub):
 
@@ -133,17 +133,17 @@ Example `cfg` object (minimal vs. explicit Pub/Sub):
 
 Main fields on each item’s `json`:
 
-| Field | Description |
-|-------|-------------|
-| `mailbox` | Target mailbox |
-| `historyId` | History id used for sync |
-| `messageId` | Message id |
-| `threadId` | Thread id if present |
-| `snippet`, `internalDate` | Snippet and date |
-| `labelIds` | Label id array |
-| `headers` | Header map (`Subject`, `From`, etc.) |
-| `from`, `to`, `subject`, `deliveredTo` | Common header shortcuts |
-| `attachments` | Attachment metadata (linked to binaries when `downloadAttachments` is enabled) |
+| Field                                  | Description                                                                    |
+| -------------------------------------- | ------------------------------------------------------------------------------ |
+| `mailbox`                              | Target mailbox                                                                 |
+| `historyId`                            | History id used for sync                                                       |
+| `messageId`                            | Message id                                                                     |
+| `threadId`                             | Thread id if present                                                           |
+| `snippet`, `internalDate`              | Snippet and date                                                               |
+| `labelIds`                             | Label id array                                                                 |
+| `headers`                              | Header map (`Subject`, `From`, etc.)                                           |
+| `from`, `to`, `subject`, `deliveredTo` | Common header shortcuts                                                        |
+| `attachments`                          | Attachment metadata (linked to binaries when `downloadAttachments` is enabled) |
 
 Manual **execute** fails if there are no pulled items (the trigger is event-driven).
 
@@ -153,16 +153,16 @@ Manual **execute** fails if there are no pulled items (the trigger is event-driv
 
 ### Slot
 
-| Slot | Label | Accepted types |
-|------|-------|------------------|
+| Slot   | Label         | Accepted types                        |
+| ------ | ------------- | ------------------------------------- |
 | `auth` | Gmail account | `gmail.serviceAccount`, `gmail.oauth` |
 
 ### Type IDs
 
-| Constant | Value |
-|----------|--------|
+| Constant                              | Value                  |
+| ------------------------------------- | ---------------------- |
 | `GmailCredentialTypes.serviceAccount` | `gmail.serviceAccount` |
-| `GmailCredentialTypes.oauth` | `gmail.oauth` |
+| `GmailCredentialTypes.oauth`          | `gmail.oauth`          |
 
 ---
 
@@ -172,12 +172,12 @@ Uses Google Workspace **domain-wide delegation** to call the Gmail API as a user
 
 **Secret material:**
 
-| Key | Description |
-|-----|-------------|
-| `clientEmail` | Service account client email |
-| `privateKey` | PEM private key |
-| `projectId` | GCP project id (also used as the default Pub/Sub project) |
-| `delegatedUser` | User email to impersonate (often matches `mailbox`) |
+| Key             | Description                                               |
+| --------------- | --------------------------------------------------------- |
+| `clientEmail`   | Service account client email                              |
+| `privateKey`    | PEM private key                                           |
+| `projectId`     | GCP project id (also used as the default Pub/Sub project) |
+| `delegatedUser` | User email to impersonate (often matches `mailbox`)       |
 
 **Sources**: `db`, `env`, or `code` as registered.
 
@@ -191,14 +191,14 @@ OAuth2 with `https://www.googleapis.com/auth/gmail.readonly`, managed by the fra
 
 **Public fields:**
 
-| Key | Notes |
-|-----|--------|
+| Key        | Notes                                                                      |
+| ---------- | -------------------------------------------------------------------------- |
 | `clientId` | Optional when `CODEMATION_GOOGLE_CLIENT_ID` is set in the host environment |
 
 **Secret fields:**
 
-| Key | Notes |
-|-----|--------|
+| Key            | Notes                                                  |
+| -------------- | ------------------------------------------------------ |
 | `clientSecret` | Optional when `CODEMATION_GOOGLE_CLIENT_SECRET` is set |
 
 **Token material** follows host storage (keys such as `access_token`, `refresh_token`, `expiry` are read by the registry).
@@ -234,13 +234,13 @@ OAuth2 with `https://www.googleapis.com/auth/gmail.readonly`, managed by the fra
 
 ## Environment variables
 
-| Variable | Purpose |
-|----------|---------|
-| `GMAIL_TRIGGER_TOPIC_NAME` | Default Pub/Sub topic (FQ or short id with service account) |
-| `GMAIL_TRIGGER_SUBSCRIPTION_NAME` | Default subscription name |
+| Variable                                                  | Purpose                                                                |
+| --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `GMAIL_TRIGGER_TOPIC_NAME`                                | Default Pub/Sub topic (FQ or short id with service account)            |
+| `GMAIL_TRIGGER_SUBSCRIPTION_NAME`                         | Default subscription name                                              |
 | `GOOGLE_CLOUD_PROJECT` / `GCP_PROJECT` / `GCLOUD_PROJECT` | Default project for OAuth Pub/Sub resolution, or helper for resolution |
-| `CODEMATION_GOOGLE_CLIENT_ID` | OAuth client id override |
-| `CODEMATION_GOOGLE_CLIENT_SECRET` | OAuth client secret override |
+| `CODEMATION_GOOGLE_CLIENT_ID`                             | OAuth client id override                                               |
+| `CODEMATION_GOOGLE_CLIENT_SECRET`                         | OAuth client secret override                                           |
 
 ---
 
@@ -264,27 +264,27 @@ If Pub/Sub cannot be resolved, the trigger **will not start** even with a valid 
 
 ## Troubleshooting
 
-| Symptom | What to check |
-|---------|----------------|
-| Trigger never runs | Non-empty `mailbox`; `auth` binding and credential test succeed |
+| Symptom                                            | What to check                                                                      |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Trigger never runs                                 | Non-empty `mailbox`; `auth` binding and credential test succeed                    |
 | “Pub/Sub topic/subscription could not be resolved” | For OAuth: `GOOGLE_CLOUD_PROJECT` or FQ names; for SA: `projectId` and Pub/Sub IAM |
-| Pub/Sub errors with OAuth | Avoid short topic names only; use **fully qualified** resource names |
-| No messages | `labelIds` not too strict; `query` matches concatenated header/snippet text |
-| Too slow | Lower `pullIntervalMs` (mind quota and load) |
+| Pub/Sub errors with OAuth                          | Avoid short topic names only; use **fully qualified** resource names               |
+| No messages                                        | `labelIds` not too strict; `query` matches concatenated header/snippet text        |
+| Too slow                                           | Lower `pullIntervalMs` (mind quota and load)                                       |
 
 ---
 
 ## Main exports
 
-| Kind | Name |
-|------|------|
-| Plugin | `GmailNodes` |
-| Trigger config | `OnNewGmailTrigger`, `OnNewGmailTriggerOptions`, `OnNewGmailTriggerItemJson` |
-| Node impl | `OnNewGmailTriggerNode` |
-| Credential types | `GmailCredentialTypes` |
-| Types | `GmailServiceAccountCredential`, `GmailOAuthCredential`, `GmailTriggerSetupState`, `GmailNodesOptions` |
-| Runtime | `GmailPullTriggerRuntime` |
-| Services | `GmailWatchService`, `GmailHistorySyncService`, others |
+| Kind             | Name                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------ |
+| Plugin           | `GmailNodes`                                                                                           |
+| Trigger config   | `OnNewGmailTrigger`, `OnNewGmailTriggerOptions`, `OnNewGmailTriggerItemJson`                           |
+| Node impl        | `OnNewGmailTriggerNode`                                                                                |
+| Credential types | `GmailCredentialTypes`                                                                                 |
+| Types            | `GmailServiceAccountCredential`, `GmailOAuthCredential`, `GmailTriggerSetupState`, `GmailNodesOptions` |
+| Runtime          | `GmailPullTriggerRuntime`                                                                              |
+| Services         | `GmailWatchService`, `GmailHistorySyncService`, others                                                 |
 
 ---
 

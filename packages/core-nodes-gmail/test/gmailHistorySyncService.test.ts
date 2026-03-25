@@ -14,6 +14,7 @@ import { GmailHistorySyncService } from "../src/services/GmailHistorySyncService
 import { GmailMessageItemMapper } from "../src/services/GmailMessageItemMapper";
 import type { GmailPulledNotification } from "../src/services/GmailPubSubPullClient";
 import { GmailQueryMatcher } from "../src/services/GmailQueryMatcher";
+import { GmailTriggerPubSubResourceResolver } from "../src/services/GmailTriggerPubSubResourceResolver";
 import { GmailWatchService } from "../src/services/GmailWatchService";
 
 class InMemoryTriggerSetupStateStore {
@@ -162,6 +163,7 @@ test("GmailHistorySyncService filters, deduplicates, and persists the next histo
     configuredLabelService,
     new GmailMessageItemMapper(),
     new GmailQueryMatcher(),
+    new GmailTriggerPubSubResourceResolver(process.env),
   );
 
   const items = await service.sync({
@@ -193,6 +195,7 @@ test("GmailHistorySyncService re-baselines after a Gmail history gap", async () 
     configuredLabelService,
     new GmailMessageItemMapper(),
     new GmailQueryMatcher(),
+    new GmailTriggerPubSubResourceResolver(process.env),
   );
 
   const items = await service.sync({
@@ -245,6 +248,7 @@ test("GmailHistorySyncService resolves configured label names to Gmail label ids
     configuredLabelService,
     new GmailMessageItemMapper(),
     new GmailQueryMatcher(),
+    new GmailTriggerPubSubResourceResolver(process.env),
   );
 
   const items = await service.sync({

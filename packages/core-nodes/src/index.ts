@@ -2,6 +2,7 @@ export * from "./canvasIconName";
 export * from "./chatModels/OpenAIChatModelFactory";
 export * from "./chatModels/OpenAiCredentialSession";
 export * from "./chatModels/openAiChatModelConfig";
+export * from "./chatModels/OpenAiChatModelPresetsFactory";
 export * from "./nodes/aiAgent";
 export * from "./nodes/CallbackNodeFactory";
 export * from "./nodes/httpRequest";

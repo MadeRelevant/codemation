@@ -26,6 +26,10 @@ import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegratio
 import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
 
 class FakeGmailApiClient implements GmailApiClient {
+  getDefaultGcpProjectIdForPubSub(): string | undefined {
+    return undefined;
+  }
+
   labels = [{ id: "IMPORTANT", name: "IMPORTANT" }] as const;
   messageIds: ReadonlyArray<string> = ["message_1"];
   watchRegistration: GmailWatchRegistration = {

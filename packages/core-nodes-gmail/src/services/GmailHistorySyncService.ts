@@ -7,6 +7,7 @@ import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "./GmailMessageItemMapper";
 import type { GmailPubSubNotification } from "./GmailPubSubPullClient";
 import { GmailQueryMatcher } from "./GmailQueryMatcher";
+import { GmailTriggerPubSubResourceResolver } from "./GmailTriggerPubSubResourceResolver";
 import { GmailWatchService } from "./GmailWatchService";
 
 @injectable()
@@ -17,6 +18,8 @@ export class GmailHistorySyncService {
     @inject(GmailConfiguredLabelService) private readonly gmailConfiguredLabelService: GmailConfiguredLabelService,
     @inject(GmailMessageItemMapper) private readonly gmailMessageItemMapper: GmailMessageItemMapper,
     @inject(GmailQueryMatcher) private readonly gmailQueryMatcher: GmailQueryMatcher,
+    @inject(GmailTriggerPubSubResourceResolver)
+    private readonly gmailTriggerPubSubResourceResolver: GmailTriggerPubSubResourceResolver,
   ) {}
 
   async sync(
@@ -54,12 +57,19 @@ export class GmailHistorySyncService {
       if (!(error instanceof GmailHistoryGapError)) {
         throw error;
       }
+      const pubSub = this.resolvePubSub(args.client, args.config);
+      if (!pubSub) {
+        throw new Error(
+          "Could not resolve Pub/Sub topic/subscription for Gmail history baseline (set them on the trigger, or GMAIL_TRIGGER_TOPIC_NAME / GMAIL_TRIGGER_SUBSCRIPTION_NAME, or GOOGLE_CLOUD_PROJECT).",
+          { cause: error },
+        );
+      }
       await this.gmailWatchService.baselineState({
         trigger: args.trigger,
         client: args.client,
         mailbox: args.config.cfg.mailbox,
-        topicName: args.config.cfg.topicName,
-        subscriptionName: args.config.cfg.subscriptionName,
+        topicName: pubSub.topicName,
+        subscriptionName: pubSub.subscriptionName,
       });
       return [];
     }
@@ -75,13 +85,26 @@ export class GmailHistorySyncService {
     if (currentState) {
       return currentState;
     }
+    const pubSub = this.resolvePubSub(client, config);
+    if (!pubSub) {
+      throw new Error(
+        "Could not resolve Pub/Sub topic/subscription for Gmail trigger setup (set them on the trigger, or GMAIL_TRIGGER_TOPIC_NAME / GMAIL_TRIGGER_SUBSCRIPTION_NAME, or GOOGLE_CLOUD_PROJECT).",
+      );
+    }
     return await this.gmailWatchService.baselineState({
       trigger,
       client,
       mailbox: config.cfg.mailbox,
-      topicName: config.cfg.topicName,
-      subscriptionName: config.cfg.subscriptionName,
+      topicName: pubSub.topicName,
+      subscriptionName: pubSub.subscriptionName,
     });
+  }
+
+  private resolvePubSub(
+    client: GmailApiClient,
+    config: OnNewGmailTrigger,
+  ): Readonly<{ topicName: string; subscriptionName: string }> | undefined {
+    return this.gmailTriggerPubSubResourceResolver.resolve(config.cfg, client.getDefaultGcpProjectIdForPubSub());
   }
 
   private async loadMatchingMessages(

@@ -57,7 +57,10 @@ export class GmailTriggerPubSubResourceResolver {
   private inferMissingSubscriptionName(topicName: string): string {
     const fromTopic = this.extractProjectIdFromFqn(topicName);
     if (fromTopic) {
-      return this.toFullyQualifiedSubscription(fromTopic, GmailTriggerPubSubResourceResolver.defaultSubscriptionSegment);
+      return this.toFullyQualifiedSubscription(
+        fromTopic,
+        GmailTriggerPubSubResourceResolver.defaultSubscriptionSegment,
+      );
     }
     return GmailTriggerPubSubResourceResolver.defaultSubscriptionSegment;
   }

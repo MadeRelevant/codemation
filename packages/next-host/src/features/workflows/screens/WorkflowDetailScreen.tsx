@@ -42,20 +42,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
 
   return (
     <main className="h-full w-full min-h-0 overflow-hidden bg-muted/40">
-      <section
-        className={cn(
-          "grid h-full min-h-0 w-full overflow-hidden",
-          controller.isRunsPaneVisible ? "grid-cols-[320px_1fr]" : "grid-cols-1",
-        )}
-      >
-        {controller.isRunsPaneVisible ? (
-          <WorkflowRunsSidebar
-            model={controller.sidebarModel}
-            formatting={controller.sidebarFormatting}
-            actions={controller.sidebarActions}
-          />
-        ) : null}
-
+      <section className="grid h-full min-h-0 w-full grid-cols-1 overflow-hidden">
         <div
           className="grid h-full min-h-0 min-w-0 bg-muted/40"
           style={{
@@ -67,15 +54,15 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
           <div className="relative flex h-full min-h-0 min-w-0 flex-row overflow-hidden bg-muted/40">
             {controller.displayedWorkflow ? (
               <>
-                <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+                <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
                   <WorkflowCanvas
                     workflow={controller.displayedWorkflow}
                     nodeSnapshotsByNodeId={controller.displayedNodeSnapshotsByNodeId}
                     connectionInvocations={controller.displayedConnectionInvocations}
                     credentialAttentionTooltipByNodeId={controller.credentialAttentionTooltipByNodeId}
                     pinnedNodeIds={controller.pinnedNodeIds}
-                    selectedNodeId={controller.selectedNodeId}
-                    propertiesTargetNodeId={controller.propertiesPanelNodeId}
+                    selectedNodeId={controller.canvasWorkflowNodeIdForHighlight}
+                    propertiesTargetNodeId={controller.propertiesPanelResolvedNodeId}
                     isLiveWorkflowView={controller.isLiveWorkflowView}
                     isRunning={controller.isRunning}
                     onSelectNode={controller.selectCanvasNode}
@@ -86,6 +73,12 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                     onClearPinnedOutput={controller.clearCanvasNodePin}
                   />
                 </div>
+                <WorkflowRunsSidebar
+                  isOpen={controller.isRunsPaneVisible}
+                  model={controller.sidebarModel}
+                  formatting={controller.sidebarFormatting}
+                  actions={controller.sidebarActions}
+                />
                 <NodePropertiesSlidePanel
                   workflowId={args.workflowId}
                   isOpen={controller.isPropertiesPanelOpen}
