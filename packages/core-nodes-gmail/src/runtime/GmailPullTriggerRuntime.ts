@@ -7,6 +7,7 @@ import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState
 import type { OnNewGmailTrigger } from "../nodes/OnNewGmailTrigger";
 import type { GmailApiClient } from "../services/GmailApiClient";
 import { GmailHistorySyncService } from "../services/GmailHistorySyncService";
+import { GmailTriggerPubSubResourceResolver } from "../services/GmailTriggerPubSubResourceResolver";
 import { GmailWatchService } from "../services/GmailWatchService";
 
 @injectable()
@@ -21,6 +22,8 @@ export class GmailPullTriggerRuntime {
     @inject(GmailNodeTokens.RuntimeLogger) private readonly logger: GmailLogger,
     @inject(GmailWatchService) private readonly gmailWatchService: GmailWatchService,
     @inject(GmailHistorySyncService) private readonly gmailHistorySyncService: GmailHistorySyncService,
+    @inject(GmailTriggerPubSubResourceResolver)
+    private readonly gmailTriggerPubSubResourceResolver: GmailTriggerPubSubResourceResolver,
   ) {}
 
   async ensureStarted(
@@ -35,31 +38,40 @@ export class GmailPullTriggerRuntime {
     if (!args.config.hasRequiredConfiguration()) {
       const missingFields = args.config.resolveMissingConfigurationFields();
       this.logger.warn(
-        `skipping trigger ${this.describeTrigger(args.trigger)} because required Gmail trigger config is missing: ${missingFields.join(", ")}`,
+        `Gmail pull trigger skipped (${this.describeTrigger(args.trigger)}): missing ${missingFields.join(", ")}`,
       );
       return args.previousState;
     }
-    this.logger.info(
-      `starting pull runtime for ${this.describeTrigger(args.trigger)} on mailbox "${args.config.cfg.mailbox}"`,
+    const resolvedPubSub = this.gmailTriggerPubSubResourceResolver.resolve(
+      args.config.cfg,
+      args.client.getDefaultGcpProjectIdForPubSub(),
     );
+    if (!resolvedPubSub) {
+      this.logger.warn(
+        `Gmail pull trigger skipped (${this.describeTrigger(args.trigger)}): could not resolve Pub/Sub topic/subscription (set them on the trigger, or GMAIL_TRIGGER_TOPIC_NAME / GMAIL_TRIGGER_SUBSCRIPTION_NAME, or GOOGLE_CLOUD_PROJECT; service accounts use the credential project id).`,
+      );
+      return args.previousState;
+    }
+    const effectiveConfig = await this.cloneTriggerWithResolvedPubSub(args.config, resolvedPubSub);
     const nextState = await this.gmailWatchService.ensureSetupState({
       trigger: args.trigger,
       client: args.client,
-      mailbox: args.config.cfg.mailbox,
-      topicName: args.config.cfg.topicName,
-      subscriptionName: args.config.cfg.subscriptionName,
-      labelIds: args.config.cfg.labelIds,
+      mailbox: effectiveConfig.cfg.mailbox,
+      topicName: resolvedPubSub.topicName,
+      subscriptionName: resolvedPubSub.subscriptionName,
+      labelIds: effectiveConfig.cfg.labelIds,
       previousState: args.previousState,
       persist: false,
     });
     this.ensurePullLoop({
       trigger: args.trigger,
       client: args.client,
-      config: args.config,
+      config: effectiveConfig,
+      pubSub: resolvedPubSub,
       emit: args.emit,
     });
     this.logger.info(
-      `pull runtime ready for ${this.describeTrigger(args.trigger)} with subscription "${args.config.cfg.subscriptionName}" and interval ${this.resolvePullIntervalMs()}ms`,
+      `Gmail pull trigger active: ${this.describeTrigger(args.trigger)}; mailbox "${effectiveConfig.cfg.mailbox}"; subscription "${resolvedPubSub.subscriptionName}"; poll every ${this.resolvePullIntervalMs()}ms`,
     );
     return nextState;
   }
@@ -81,6 +93,7 @@ export class GmailPullTriggerRuntime {
       trigger: TriggerInstanceId;
       client: GmailApiClient;
       config: OnNewGmailTrigger;
+      pubSub: Readonly<{ topicName: string; subscriptionName: string }>;
       emit(items: Items): Promise<void>;
     }>,
   ): void {
@@ -105,6 +118,7 @@ export class GmailPullTriggerRuntime {
       trigger: TriggerInstanceId;
       client: GmailApiClient;
       config: OnNewGmailTrigger;
+      pubSub: Readonly<{ topicName: string; subscriptionName: string }>;
       emit(items: Items): Promise<void>;
     }>,
   ): Promise<void> {
@@ -119,8 +133,8 @@ export class GmailPullTriggerRuntime {
         trigger: args.trigger,
         client: args.client,
         mailbox: args.config.cfg.mailbox,
-        topicName: args.config.cfg.topicName,
-        subscriptionName: args.config.cfg.subscriptionName,
+        topicName: args.pubSub.topicName,
+        subscriptionName: args.pubSub.subscriptionName,
         labelIds: args.config.cfg.labelIds,
         previousState: (await this.triggerSetupStateStore.load(args.trigger))?.state as
           | GmailTriggerSetupState
@@ -128,7 +142,7 @@ export class GmailPullTriggerRuntime {
         persist: true,
       });
       const notifications = await args.client.pull({
-        subscriptionName: args.config.cfg.subscriptionName,
+        subscriptionName: args.pubSub.subscriptionName,
         maxMessages: this.resolveMaxMessagesPerPull(),
       });
       if (notifications.length > 0) {
@@ -196,5 +210,17 @@ export class GmailPullTriggerRuntime {
       return;
     }
     this.logger.error(`${message}: ${String(error)}`);
+  }
+
+  /**
+   * Dynamic import avoids an ESM circular init cycle: this module → OnNewGmailTrigger → OnNewGmailTriggerNode → this module.
+   */
+  private async cloneTriggerWithResolvedPubSub(
+    config: OnNewGmailTrigger,
+    resolvedPubSub: Readonly<{ topicName: string; subscriptionName: string }>,
+  ): Promise<OnNewGmailTrigger> {
+    const { OnNewGmailTrigger: TriggerCtor } = await import("../nodes/OnNewGmailTrigger");
+    // eslint-disable-next-line codemation/no-manual-di-new -- merged trigger config; dynamic import breaks circular module graph
+    return new TriggerCtor(config.name, { ...config.cfg, ...resolvedPubSub }, config.id);
   }
 }

@@ -12,6 +12,7 @@ import { GmailMessageItemMapper } from "../services/GmailMessageItemMapper";
 import { GmailQueryMatcher } from "../services/GmailQueryMatcher";
 import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
 import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
+import { GmailTriggerPubSubResourceResolver } from "../services/GmailTriggerPubSubResourceResolver";
 import { GmailWatchService } from "../services/GmailWatchService";
 
 type PluginContext = Readonly<{
@@ -147,6 +148,7 @@ export class GmailNodes {
     container.register(GmailTriggerAttachmentService, { useClass: GmailTriggerAttachmentService });
     container.register(GmailTriggerTestItemService, { useClass: GmailTriggerTestItemService });
     container.register(GmailWatchService, { useClass: GmailWatchService });
+    container.registerInstance(GmailTriggerPubSubResourceResolver, new GmailTriggerPubSubResourceResolver(context.env));
     container.register(GmailPullTriggerRuntime, { useClass: GmailPullTriggerRuntime });
     void context.consumerRoot;
     void context.repoRoot;

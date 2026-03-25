@@ -44,6 +44,11 @@ export type GmailWatchRegistration = Readonly<{
 }>;
 
 export interface GmailApiClient {
+  /**
+   * Used to infer default Pub/Sub topic/subscription names when the trigger omits them.
+   * Service accounts should return their GCP project id; OAuth clients typically return undefined.
+   */
+  getDefaultGcpProjectIdForPubSub(): string | undefined;
   ensureSubscription(
     args: Readonly<{
       topicName: string;

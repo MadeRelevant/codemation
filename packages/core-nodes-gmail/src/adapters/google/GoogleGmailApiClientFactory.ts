@@ -26,6 +26,13 @@ type GmailGoogleCredential = GmailServiceAccountCredential | GmailOAuthCredentia
 export class GoogleGmailApiClient implements GmailApiClient {
   constructor(private readonly credential: GmailGoogleCredential) {}
 
+  getDefaultGcpProjectIdForPubSub(): string | undefined {
+    if (this.isServiceAccountCredential(this.credential)) {
+      return this.credential.projectId;
+    }
+    return undefined;
+  }
+
   async ensureSubscription(args: Readonly<{ topicName: string; subscriptionName: string }>): Promise<void> {
     const topicResource = this.resolvePubSubResource(args.topicName, "topics");
     const subscriptionResource = this.resolvePubSubResource(args.subscriptionName, "subscriptions");

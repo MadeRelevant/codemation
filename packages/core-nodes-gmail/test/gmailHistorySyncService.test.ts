@@ -33,6 +33,10 @@ class InMemoryTriggerSetupStateStore {
 }
 
 class FakeGmailApiClient implements GmailApiClient {
+  getDefaultGcpProjectIdForPubSub(): string | undefined {
+    return undefined;
+  }
+
   labels = [
     { id: "IMPORTANT", name: "IMPORTANT" },
     { id: "Label_demo", name: "Demo" },

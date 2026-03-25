@@ -17,6 +17,7 @@ import { GmailMessageItemMapper } from "../src/services/GmailMessageItemMapper";
 import type { GmailPulledNotification } from "../src/services/GmailPubSubPullClient";
 import { GmailQueryMatcher } from "../src/services/GmailQueryMatcher";
 import { GmailTriggerAttachmentService } from "../src/services/GmailTriggerAttachmentService";
+import { GmailTriggerPubSubResourceResolver } from "../src/services/GmailTriggerPubSubResourceResolver";
 import { GmailWatchService } from "../src/services/GmailWatchService";
 
 class InMemoryTriggerSetupStateStore {
@@ -36,6 +37,12 @@ class InMemoryTriggerSetupStateStore {
 }
 
 class FakeGmailApiClient implements GmailApiClient {
+  defaultGcpProjectIdForPubSub: string | undefined = "project-id";
+
+  getDefaultGcpProjectIdForPubSub(): string | undefined {
+    return this.defaultGcpProjectIdForPubSub;
+  }
+
   labels = [
     { id: "IMPORTANT", name: "IMPORTANT" },
     { id: "Label_demo", name: "Demo" },
@@ -191,6 +198,7 @@ test("GmailPullTriggerRuntime renews the watch, pulls notifications, emits items
     new NoopGmailLogger(),
     watchService,
     historySyncService,
+    new GmailTriggerPubSubResourceResolver(process.env),
   );
 
   const initialState = await runtime.ensureStarted({
@@ -242,6 +250,7 @@ test("GmailPullTriggerRuntime stops polling after the trigger runtime is torn do
     new NoopGmailLogger(),
     watchService,
     historySyncService,
+    new GmailTriggerPubSubResourceResolver(process.env),
   );
   const trigger = {
     workflowId: "wf.gmail",
@@ -273,10 +282,11 @@ test("GmailPullTriggerRuntime stops polling after the trigger runtime is torn do
   assert.equal(emittedPayloads.length, 0);
 });
 
-test("GmailPullTriggerRuntime logs the specific missing trigger configuration fields", async () => {
+test("GmailPullTriggerRuntime skips when Pub/Sub resources cannot be resolved", async () => {
   const store = new InMemoryTriggerSetupStateStore();
   const logger = new RecordingGmailLogger();
   const gmailApiClient = new FakeGmailApiClient();
+  gmailApiClient.defaultGcpProjectIdForPubSub = undefined;
   const configuredLabelService = new GmailConfiguredLabelService();
   const watchService = new GmailWatchService(configuredLabelService, store as never);
   const historySyncService = new GmailHistorySyncService(
@@ -295,6 +305,7 @@ test("GmailPullTriggerRuntime logs the specific missing trigger configuration fi
     logger,
     watchService,
     historySyncService,
+    new GmailTriggerPubSubResourceResolver({}),
   );
 
   const state = await runtime.ensureStarted({
@@ -305,8 +316,6 @@ test("GmailPullTriggerRuntime logs the specific missing trigger configuration fi
     client: gmailApiClient,
     config: new OnNewGmailTrigger("On Gmail", {
       mailbox: "sales@example.com",
-      topicName: "",
-      subscriptionName: "",
     }),
     previousState: undefined,
     emit: async () => {},
@@ -315,8 +324,48 @@ test("GmailPullTriggerRuntime logs the specific missing trigger configuration fi
   assert.equal(state, undefined);
   assert.equal(gmailApiClient.ensured, false);
   assert.deepEqual(logger.warnings, [
-    "skipping trigger wf.gmail.trigger because required Gmail trigger config is missing: topicName, subscriptionName",
+    "Gmail pull trigger skipped (wf.gmail.trigger): could not resolve Pub/Sub topic/subscription (set them on the trigger, or GMAIL_TRIGGER_TOPIC_NAME / GMAIL_TRIGGER_SUBSCRIPTION_NAME, or GOOGLE_CLOUD_PROJECT; service accounts use the credential project id).",
   ]);
+});
+
+test("GmailPullTriggerRuntime starts when topic and subscription are omitted but the credential supplies a GCP project id", async () => {
+  const store = new InMemoryTriggerSetupStateStore();
+  const gmailApiClient = new FakeGmailApiClient();
+  const configuredLabelService = new GmailConfiguredLabelService();
+  const watchService = new GmailWatchService(configuredLabelService, store as never);
+  const historySyncService = new GmailHistorySyncService(
+    store as never,
+    watchService,
+    configuredLabelService,
+    new GmailMessageItemMapper(),
+    new GmailQueryMatcher(),
+  );
+  const runtime = new GmailPullTriggerRuntime(
+    {
+      pullIntervalMs: 25,
+      maxMessagesPerPull: 5,
+    },
+    store as never,
+    new NoopGmailLogger(),
+    watchService,
+    historySyncService,
+    new GmailTriggerPubSubResourceResolver({}),
+  );
+
+  await runtime.ensureStarted({
+    trigger: {
+      workflowId: "wf.gmail",
+      nodeId: "trigger",
+    },
+    client: gmailApiClient,
+    config: new OnNewGmailTrigger("On Gmail", {
+      mailbox: "sales@example.com",
+    }),
+    previousState: undefined,
+    emit: async () => {},
+  });
+
+  assert.equal(gmailApiClient.ensured, true);
 });
 
 test("OnNewGmailTriggerNode downloads Gmail attachments into item binaries when enabled", async () => {

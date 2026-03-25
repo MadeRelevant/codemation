@@ -22,8 +22,10 @@ export type OnNewGmailTriggerItemJson = Readonly<{
 
 export type OnNewGmailTriggerOptions = Readonly<{
   mailbox: string;
-  topicName: string;
-  subscriptionName: string;
+  /** When omitted, resolved from env (`GMAIL_TRIGGER_*`, `GOOGLE_CLOUD_PROJECT`) or the Gmail credential project id. */
+  topicName?: string | undefined;
+  /** When omitted, resolved together with {@link topicName}. */
+  subscriptionName?: string | undefined;
   labelIds?: ReadonlyArray<string>;
   query?: string;
   downloadAttachments?: boolean;
@@ -35,6 +37,7 @@ export class OnNewGmailTrigger implements TriggerNodeConfig<
 > {
   readonly kind = "trigger" as const;
   readonly type: TypeToken<unknown> = OnNewGmailTriggerNode;
+  readonly icon = "si:gmail" as const;
 
   constructor(
     public readonly name: string,
@@ -61,12 +64,6 @@ export class OnNewGmailTrigger implements TriggerNodeConfig<
     const missingFields: string[] = [];
     if (this.cfg.mailbox.trim().length === 0) {
       missingFields.push("mailbox");
-    }
-    if (this.cfg.topicName.trim().length === 0) {
-      missingFields.push("topicName");
-    }
-    if (this.cfg.subscriptionName.trim().length === 0) {
-      missingFields.push("subscriptionName");
     }
     return missingFields;
   }

@@ -17,4 +17,5 @@ export * from "./services/GmailPubSubPullClient";
 export * from "./services/GmailQueryMatcher";
 export * from "./services/GmailTriggerAttachmentService";
 export * from "./services/GmailTriggerTestItemService";
+export * from "./services/GmailTriggerPubSubResourceResolver";
 export * from "./services/GmailWatchService";

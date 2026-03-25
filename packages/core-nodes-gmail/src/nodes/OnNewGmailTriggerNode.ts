@@ -32,16 +32,16 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
   async setup(
     ctx: TriggerSetupContext<OnNewGmailTrigger, GmailTriggerSetupState | undefined>,
   ): Promise<GmailTriggerSetupState | undefined> {
-    this.logger.info(
-      `setup starting for trigger ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} on mailbox "${ctx.config.cfg.mailbox || "<unset>"}"`,
-    );
     if (!ctx.config.hasRequiredConfiguration()) {
       const missingFields = ctx.config.resolveMissingConfigurationFields();
       this.logger.warn(
-        `skipping trigger ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} because required Gmail trigger config is missing: ${missingFields.join(", ")}`,
+        `Gmail trigger skipped (${ctx.trigger.workflowId}.${ctx.trigger.nodeId}): missing ${missingFields.join(", ")}`,
       );
       return ctx.previousState;
     }
+    this.logger.info(
+      `Gmail trigger setup starting: ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} (mailbox "${ctx.config.cfg.mailbox}")`,
+    );
     ctx.registerCleanup({
       stop: async () => {
         await this.gmailPullTriggerRuntime.stop(ctx.trigger);
@@ -57,9 +57,15 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
         await ctx.emit(items);
       },
     });
-    this.logger.info(
-      `setup finished for trigger ${ctx.trigger.workflowId}.${ctx.trigger.nodeId}${setupState ? ` with history ${setupState.historyId}` : " without active runtime state"}`,
-    );
+    if (setupState) {
+      this.logger.info(
+        `Gmail trigger ready: ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} (history ${setupState.historyId})`,
+      );
+    } else {
+      this.logger.debug(
+        `Gmail trigger inactive: ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} (no runtime state; see codemation-gmail.runtime warnings if this was unexpected)`,
+      );
+    }
     return setupState;
   }
 
