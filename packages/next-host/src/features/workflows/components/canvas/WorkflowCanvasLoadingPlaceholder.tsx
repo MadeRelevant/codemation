@@ -36,7 +36,9 @@ export function WorkflowCanvasLoadingPlaceholder(props: Readonly<{ isInitialView
               animation: "codemationCanvasLoaderPulse 1s ease-in-out infinite",
             }}
           />
-          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", color: "#475569" }}>
+          <div
+            style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", color: "#475569" }}
+          >
             Workflow diagram
           </div>
         </div>

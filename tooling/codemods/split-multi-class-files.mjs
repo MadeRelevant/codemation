@@ -13,13 +13,7 @@ import ts from "typescript";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
 
-const SKIP_DIR_NAMES = new Set([
-  "node_modules",
-  "dist",
-  ".next",
-  "coverage",
-  "generated",
-]);
+const SKIP_DIR_NAMES = new Set(["node_modules", "dist", ".next", "coverage", "generated"]);
 
 /** @param {string} filePath */
 function shouldSkipFile(filePath) {
@@ -89,10 +83,7 @@ function referencesIdentifier(classBody, name) {
 }
 
 function main() {
-  const roots = [
-    path.join(REPO_ROOT, "packages"),
-    path.join(REPO_ROOT, "apps"),
-  ];
+  const roots = [path.join(REPO_ROOT, "packages"), path.join(REPO_ROOT, "apps")];
 
   let filesChanged = 0;
   let classesMoved = 0;
@@ -108,7 +99,13 @@ function main() {
         const ext = path.extname(filePath);
         const baseNameNoExt = path.basename(filePath, ext);
         const text = fs.readFileSync(filePath, "utf8");
-        const sf = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true, ext === ".tsx" ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+        const sf = ts.createSourceFile(
+          filePath,
+          text,
+          ts.ScriptTarget.Latest,
+          true,
+          ext === ".tsx" ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+        );
 
         const classes = getTopLevelClasses(sf);
         if (classes.length <= 1) continue;
@@ -139,8 +136,7 @@ function main() {
           let body = nodeFullText(sf, cls);
           const trimmed = body.trimStart();
           const needsExport =
-            ts.canHaveModifiers(cls) &&
-            !cls.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
+            ts.canHaveModifiers(cls) && !cls.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
           if (needsExport && /\bclass\s/.test(trimmed)) {
             body = body.replace(/\b(class|abstract class)\b/, "export $1");
           }

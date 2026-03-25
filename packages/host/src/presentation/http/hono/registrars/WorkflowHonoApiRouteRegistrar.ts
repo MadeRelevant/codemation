@@ -1,4 +1,4 @@
-import { inject,injectable,registry } from "@codemation/core";
+import { inject, injectable, registry } from "@codemation/core";
 import { Hono } from "hono";
 import { ApplicationTokens } from "../../../../applicationTokens";
 import { WorkflowHttpRouteHandler } from "../../routeHandlers/WorkflowHttpRouteHandler";
@@ -23,6 +23,8 @@ export class WorkflowHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
     app.post("/workflows/:workflowId/debugger-overlay/copy-run", (c) =>
       this.handler.postCopyWorkflowDebuggerOverlay(c.req.raw, { workflowId: c.req.param("workflowId") }),
     );
-    app.get("/workflows/:workflowId", (c) => this.handler.getWorkflow(c.req.raw, { workflowId: c.req.param("workflowId") }));
+    app.get("/workflows/:workflowId", (c) =>
+      this.handler.getWorkflow(c.req.raw, { workflowId: c.req.param("workflowId") }),
+    );
   }
 }

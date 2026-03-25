@@ -1,4 +1,15 @@
-import type { NodeId,NodeOutputs,ParentExecutionRef,PersistedRunState,RunId,RunListingStore,RunStateStore,RunStatus,RunSummary,WorkflowId } from "@codemation/core";
+import type {
+  NodeId,
+  NodeOutputs,
+  ParentExecutionRef,
+  PersistedRunState,
+  RunId,
+  RunListingStore,
+  RunStateStore,
+  RunStatus,
+  RunSummary,
+  WorkflowId,
+} from "@codemation/core";
 import Database from "better-sqlite3";
 
 type DbRow = Readonly<{ run_id: string; state_json: string }>;
@@ -56,7 +67,9 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
     this.ensureInitialized(db);
 
     const json = this.stringifyState(state);
-    const stmt = db.prepare("INSERT INTO runs (run_id, state_json) VALUES (?, ?) ON CONFLICT(run_id) DO UPDATE SET state_json = excluded.state_json");
+    const stmt = db.prepare(
+      "INSERT INTO runs (run_id, state_json) VALUES (?, ?) ON CONFLICT(run_id) DO UPDATE SET state_json = excluded.state_json",
+    );
     stmt.run(state.runId as unknown as string, json);
 
     const now = new Date().toISOString();
@@ -88,7 +101,9 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
           )
           .all(workflowId as unknown as string, limit) as MetaRow[])
       : (db
-          .prepare("SELECT run_id, workflow_id, started_at, status, parent_json, updated_at FROM runs_meta ORDER BY started_at DESC LIMIT ?")
+          .prepare(
+            "SELECT run_id, workflow_id, started_at, status, parent_json, updated_at FROM runs_meta ORDER BY started_at DESC LIMIT ?",
+          )
           .all(limit) as MetaRow[]);
 
     return rows.map((r): RunSummary => {
@@ -136,4 +151,3 @@ export class SqliteRunStateStore implements RunStateStore, RunListingStore {
     return JSON.stringify(state);
   }
 }
-

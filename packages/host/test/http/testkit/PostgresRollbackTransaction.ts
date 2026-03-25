@@ -1,4 +1,4 @@
-import type { Prisma,PrismaClient } from "../../../src/infrastructure/persistence/generated/prisma-client/client.js";
+import type { Prisma, PrismaClient } from "../../../src/infrastructure/persistence/generated/prisma-client/client.js";
 
 export class PostgresRollbackTransaction {
   private static readonly rollbackMessage = "codemation.test.rollback";
@@ -84,7 +84,9 @@ class PromiseSignal<TValue> {
     this.rejectPromise = rejectPromise;
   }
 
-  resolve(value: TValue extends void ? undefined : TValue = undefined as TValue extends void ? undefined : TValue): void {
+  resolve(
+    value: TValue extends void ? undefined : TValue = undefined as TValue extends void ? undefined : TValue,
+  ): void {
     if (this.settled) {
       return;
     }

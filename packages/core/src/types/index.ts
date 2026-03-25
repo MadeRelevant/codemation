@@ -12,4 +12,3 @@ export * from "../workflow/ConnectionInvocationIdFactory";
 export * from "../workflow/ConnectionNodeIdFactory";
 export * from "../workflow/WorkflowExecutableNodeClassifier";
 export * from "../workflow/workflowExecutableNodeClassifier.types";
-

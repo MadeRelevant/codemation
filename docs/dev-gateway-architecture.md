@@ -4,11 +4,11 @@ This document defines responsibility boundaries and event contracts for Codemati
 
 ## Processes and roles
 
-| Process | Responsibility |
-|--------|------------------|
-| **Next dev** (`next dev` in `@codemation/next-host`) | Framework-author UI only: pages, assets, HMR. It does not own consumer runtime lifecycle. |
+| Process                                                | Responsibility                                                                                                                                                                                                                                  |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Next dev** (`next dev` in `@codemation/next-host`)   | Framework-author UI only: pages, assets, HMR. It does not own consumer runtime lifecycle.                                                                                                                                                       |
 | **Codemation dev gateway** (`@codemation/dev-gateway`) | Stable browser-facing HTTP/WebSocket surface for dev: proxies `/api/*` and workflow WebSocket upgrades to the **current** runtime child; exposes dev health and dev-event broadcasts; supervises the runtime child (spawn, restart, readiness). |
-| **Runtime child** (`@codemation/runtime-dev` binary) | Disposable process: loads the consumer manifest once per boot, runs Hono + `CodemationApplication`, runs `WorkflowWebsocketServer` on loopback ports. No in-process engine swap or manifest revision hot-swap. |
+| **Runtime child** (`@codemation/runtime-dev` binary)   | Disposable process: loads the consumer manifest once per boot, runs Hono + `CodemationApplication`, runs `WorkflowWebsocketServer` on loopback ports. No in-process engine swap or manifest revision hot-swap.                                  |
 
 ## Dev modes
 

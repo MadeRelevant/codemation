@@ -55,7 +55,10 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
         className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-muted/40 to-background p-4"
         data-testid="login-page"
       >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" aria-hidden />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent"
+          aria-hidden
+        />
         <Card className="relative z-10 w-full max-w-md shadow-lg">
           <CardHeader className="gap-3">
             <div className="flex items-start gap-3">

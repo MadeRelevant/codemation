@@ -58,7 +58,9 @@ describe("WorkflowDetailPresenter pin-output binary merge", () => {
     expect(WorkflowDetailPresenter.resolveBinaryContentUrl("wf-1", "live-workflow", att)).toBe(
       "/api/workflows/wf-1/debugger-overlay/binary/x/content",
     );
-    expect(WorkflowDetailPresenter.resolveBinaryContentUrl("wf-1", "historical-run", att)).toBe("/api/runs/run-1/binary/x/content");
+    expect(WorkflowDetailPresenter.resolveBinaryContentUrl("wf-1", "historical-run", att)).toBe(
+      "/api/runs/run-1/binary/x/content",
+    );
   });
 
   it("builds attachment models with overlay URLs for live workflow and run URLs for historical runs", () => {
@@ -80,11 +82,12 @@ describe("WorkflowDetailPresenter pin-output editor JSON", () => {
   it("toPinOutputEditorJson always uses a top-level array (never single-object collapse)", () => {
     expect(JSON.parse(WorkflowDetailPresenter.toPinOutputEditorJson(undefined))).toEqual([{}]);
     expect(JSON.parse(WorkflowDetailPresenter.toPinOutputEditorJson([]))).toEqual([]);
-    expect(JSON.parse(WorkflowDetailPresenter.toPinOutputEditorJson([{ json: { only: true } }]))).toEqual([{ only: true }]);
-    expect(JSON.parse(WorkflowDetailPresenter.toPinOutputEditorJson([{ json: { a: 1 } }, { json: { b: 2 } }]))).toEqual([
-      { a: 1 },
-      { b: 2 },
+    expect(JSON.parse(WorkflowDetailPresenter.toPinOutputEditorJson([{ json: { only: true } }]))).toEqual([
+      { only: true },
     ]);
+    expect(JSON.parse(WorkflowDetailPresenter.toPinOutputEditorJson([{ json: { a: 1 } }, { json: { b: 2 } }]))).toEqual(
+      [{ a: 1 }, { b: 2 }],
+    );
   });
 
   it("formatPinOutputJsonForSubmit wraps a single object as a one-element array", () => {

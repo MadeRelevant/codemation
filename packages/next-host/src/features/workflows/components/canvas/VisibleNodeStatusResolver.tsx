@@ -10,7 +10,14 @@ export class VisibleNodeStatusResolver {
     ["pending", 5],
   ]);
 
-  private static readonly invocationWorstStatusOrder = ["failed", "running", "queued", "completed", "skipped", "pending"] as const;
+  private static readonly invocationWorstStatusOrder = [
+    "failed",
+    "running",
+    "queued",
+    "completed",
+    "skipped",
+    "pending",
+  ] as const;
 
   static resolveStatuses(
     nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,

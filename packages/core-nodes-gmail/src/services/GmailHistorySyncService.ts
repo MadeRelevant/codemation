@@ -1,8 +1,8 @@
-import type { Items,TriggerInstanceId,TriggerSetupStateStore } from "@codemation/core";
-import { CoreTokens,inject,injectable } from "@codemation/core";
+import type { Items, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
+import { CoreTokens, inject, injectable } from "@codemation/core";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
-import type { OnNewGmailTrigger,OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
-import { GmailHistoryGapError,type GmailApiClient,type GmailMessageRecord } from "./GmailApiClient";
+import type { OnNewGmailTrigger, OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
+import { GmailHistoryGapError, type GmailApiClient, type GmailMessageRecord } from "./GmailApiClient";
 import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "./GmailMessageItemMapper";
 import type { GmailPubSubNotification } from "./GmailPubSubPullClient";
@@ -19,12 +19,14 @@ export class GmailHistorySyncService {
     @inject(GmailQueryMatcher) private readonly gmailQueryMatcher: GmailQueryMatcher,
   ) {}
 
-  async sync(args: Readonly<{
-    trigger: TriggerInstanceId;
-    client: GmailApiClient;
-    config: OnNewGmailTrigger;
-    notification: GmailPubSubNotification;
-  }>): Promise<Items<OnNewGmailTriggerItemJson>> {
+  async sync(
+    args: Readonly<{
+      trigger: TriggerInstanceId;
+      client: GmailApiClient;
+      config: OnNewGmailTrigger;
+      notification: GmailPubSubNotification;
+    }>,
+  ): Promise<Items<OnNewGmailTriggerItemJson>> {
     const currentState = await this.requireCurrentState(args.trigger, args.client, args.config);
     try {
       const historyDelta = await args.client.listAddedMessageIds({

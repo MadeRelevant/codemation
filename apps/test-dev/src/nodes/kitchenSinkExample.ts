@@ -1,4 +1,4 @@
-import type { NodeConfigBase,TypeToken } from "@codemation/core";
+import type { NodeConfigBase, TypeToken } from "@codemation/core";
 import { KitchenSinkExampleNode } from "./kitchenSinkExampleNode";
 
 export class KitchenSinkExample implements NodeConfigBase {

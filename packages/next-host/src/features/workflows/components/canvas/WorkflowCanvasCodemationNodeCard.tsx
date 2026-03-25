@@ -2,9 +2,11 @@ import { AlertCircle, RefreshCw, ShieldAlert, type LucideIcon } from "lucide-rea
 
 import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
 import { CanvasNodeChromeTooltip } from "./CanvasNodeChromeTooltip";
-import { trailingIconForNode,trailingIconKindForNode } from "./workflowCanvasNodeChrome";
+import { trailingIconForNode, trailingIconKindForNode } from "./workflowCanvasNodeChrome";
 
-export function WorkflowCanvasCodemationNodeCard(props: Readonly<{ data: WorkflowCanvasNodeData; TypeIcon: LucideIcon }>) {
+export function WorkflowCanvasCodemationNodeCard(
+  props: Readonly<{ data: WorkflowCanvasNodeData; TypeIcon: LucideIcon }>,
+) {
   const { TypeIcon, data } = props;
   const isAttachment = data.isAttachment;
   const isActive = data.status === "queued" || data.status === "running";
@@ -35,7 +37,17 @@ export function WorkflowCanvasCodemationNodeCard(props: Readonly<{ data: Workflo
               : isPropertiesTarget
                 ? "1px solid #7c3aed"
                 : "1px solid #e2e8f0",
-        background: isSelected ? (isAttachment ? "#fffaf0" : "#fffdf5") : isPropertiesTarget ? "#faf5ff" : isPinned ? "#f5f3ff" : isAttachment ? "#f8fafc" : "#ffffff",
+        background: isSelected
+          ? isAttachment
+            ? "#fffaf0"
+            : "#fffdf5"
+          : isPropertiesTarget
+            ? "#faf5ff"
+            : isPinned
+              ? "#f5f3ff"
+              : isAttachment
+                ? "#f8fafc"
+                : "#ffffff",
         boxShadow: isActive
           ? "0 1px 2px rgba(15,23,42,0.06), 0 4px 14px rgba(15,23,42,0.06)"
           : isSelected

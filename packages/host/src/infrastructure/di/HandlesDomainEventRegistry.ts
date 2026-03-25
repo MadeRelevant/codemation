@@ -1,4 +1,4 @@
-import { injectable,registry } from "@codemation/core";
+import { injectable, registry } from "@codemation/core";
 import type { DomainEvent } from "../../application/bus/DomainEvent";
 import type { DomainEventHandler } from "../../application/bus/DomainEventHandler";
 import { ApplicationTokens } from "../../applicationTokens";

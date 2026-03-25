@@ -1,9 +1,9 @@
 // @vitest-environment node
 
-import type { BinaryAttachment,PersistedRunState,RunSummary,WorkflowDefinition } from "@codemation/core";
-import { createWorkflowBuilder,ManualTrigger,MapData } from "@codemation/core-nodes";
+import type { BinaryAttachment, PersistedRunState, RunSummary, WorkflowDefinition } from "@codemation/core";
+import { createWorkflowBuilder, ManualTrigger, MapData } from "@codemation/core-nodes";
 import path from "node:path";
-import { afterAll,afterEach,beforeAll,describe,expect,it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { OVERLAY_PIN_BINARY_RUN_ID } from "../../src/application/binary/OverlayPinnedBinaryUploadService";
 import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
@@ -24,7 +24,10 @@ class WorkflowRunsIntegrationFixture {
   static async createHarness(
     options: Readonly<{ applyMigrations?: boolean }> = {},
   ): Promise<Readonly<{ harness: FrontendHttpIntegrationHarness; database: PostgresIntegrationDatabase }>> {
-    const database = options.applyMigrations === false ? await PostgresIntegrationDatabase.createUnmigrated() : await PostgresIntegrationDatabase.create();
+    const database =
+      options.applyMigrations === false
+        ? await PostgresIntegrationDatabase.createUnmigrated()
+        : await PostgresIntegrationDatabase.create();
     const config = this.createConfig();
     const harness = new FrontendHttpIntegrationHarness({
       config,
@@ -65,7 +68,10 @@ class WorkflowRunsIntegrationFixture {
       .build();
   }
 
-  static async waitForRunToComplete(harness: FrontendHttpIntegrationHarness, runId: string): Promise<PersistedRunState> {
+  static async waitForRunToComplete(
+    harness: FrontendHttpIntegrationHarness,
+    runId: string,
+  ): Promise<PersistedRunState> {
     const deadline = performance.now() + 5_000;
     while (performance.now() < deadline) {
       const response = await harness.request({
@@ -103,7 +109,10 @@ class WorkflowRunsIntegrationContext {
   }
 
   async start(options: Readonly<{ applyMigrations?: boolean }> = {}): Promise<FrontendHttpIntegrationHarness> {
-    const fixture = options.applyMigrations === false ? await WorkflowRunsIntegrationFixture.createHarness(options) : await this.createSharedHarness();
+    const fixture =
+      options.applyMigrations === false
+        ? await WorkflowRunsIntegrationFixture.createHarness(options)
+        : await this.createSharedHarness();
     this.harness = fixture.harness;
     this.database = fixture.database;
     this.ownsActiveDatabase = options.applyMigrations === false;
@@ -136,7 +145,9 @@ class WorkflowRunsIntegrationContext {
     this.sharedDatabase = null;
   }
 
-  private async createSharedHarness(): Promise<Readonly<{ harness: FrontendHttpIntegrationHarness; database: PostgresIntegrationDatabase }>> {
+  private async createSharedHarness(): Promise<
+    Readonly<{ harness: FrontendHttpIntegrationHarness; database: PostgresIntegrationDatabase }>
+  > {
     const database = this.requireSharedDatabase();
     this.transaction = await database.beginRollbackTransaction();
     return await this.createHarnessFromDatabase(database, [this.createPrismaClientBinding()]);
@@ -178,7 +189,9 @@ class WorkflowRunsIntegrationContext {
 
   private requireTransaction(): PrismaClient {
     if (!this.transaction) {
-      throw new Error("WorkflowRunsIntegrationContext.start() must create a transaction before resolving the Prisma client binding.");
+      throw new Error(
+        "WorkflowRunsIntegrationContext.start() must create a transaction before resolving the Prisma client binding.",
+      );
     }
     return this.transaction.getPrismaClient();
   }
@@ -316,7 +329,10 @@ describe("workflow runs http integration", () => {
         },
       },
     });
-    expect(updatedOverlay.currentState.mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]?.pinnedOutputsByPort?.main).toEqual(pinnedItems);
+    expect(
+      updatedOverlay.currentState.mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]
+        ?.pinnedOutputsByPort?.main,
+    ).toEqual(pinnedItems);
 
     const persistedOverlayResponse = await harness.request({
       method: "GET",
@@ -351,9 +367,16 @@ describe("workflow runs http integration", () => {
         items: [{}],
       },
     });
-    const firstCompletedState = await WorkflowRunsIntegrationFixture.waitForRunToComplete(harness, firstRunResponse.runId);
-    expect(firstCompletedState.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.triggerNodeId]?.status).toBe("completed");
-    expect(firstCompletedState.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.status).toBe("completed");
+    const firstCompletedState = await WorkflowRunsIntegrationFixture.waitForRunToComplete(
+      harness,
+      firstRunResponse.runId,
+    );
+    expect(firstCompletedState.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.triggerNodeId]?.status).toBe(
+      "completed",
+    );
+    expect(firstCompletedState.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.status).toBe(
+      "completed",
+    );
 
     const pinnedItems = [{ json: { reused: true } }];
     await harness.requestJson<WorkflowDebuggerOverlayResponse>({
@@ -388,9 +411,15 @@ describe("workflow runs http integration", () => {
       },
     });
 
-    expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.triggerNodeId]?.status).toBe("completed");
-    expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.status).toBe("completed");
-    expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.usedPinnedOutput).toBe(true);
+    expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.triggerNodeId]?.status).toBe(
+      "completed",
+    );
+    expect(secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.status).toBe(
+      "completed",
+    );
+    expect(
+      secondRunResponse.state?.nodeSnapshotsByNodeId[WorkflowRunsIntegrationFixture.mapNodeId]?.usedPinnedOutput,
+    ).toBe(true);
     expect(secondRunResponse.state?.outputsByNode[WorkflowRunsIntegrationFixture.mapNodeId]?.main).toEqual(pinnedItems);
   });
 
@@ -441,7 +470,8 @@ describe("workflow runs http integration", () => {
       url: ApiPaths.workflowDebuggerOverlay(WorkflowRunsIntegrationFixture.workflowId),
     });
     const pinnedMain =
-      overlayAfterPut.currentState.mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]?.pinnedOutputsByPort?.main;
+      overlayAfterPut.currentState.mutableState?.nodesById?.[WorkflowRunsIntegrationFixture.mapNodeId]
+        ?.pinnedOutputsByPort?.main;
     expect(pinnedMain).toBeDefined();
     expect(pinnedMain?.[0]?.json).toEqual({ pinned: true });
     expect(pinnedMain?.[0]?.binary?.doc?.id).toBe(attachment.id);

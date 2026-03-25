@@ -8,9 +8,7 @@ import Credentials from "next-auth/providers/credentials";
 const authSecretFromEnv = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 const authSecret =
   authSecretFromEnv?.trim() ||
-  (process.env.NODE_ENV === "development"
-    ? "codemation-dev-auth-secret-not-for-production"
-    : undefined);
+  (process.env.NODE_ENV === "development" ? "codemation-dev-auth-secret-not-for-production" : undefined);
 
 export const { auth } = NextAuth({
   trustHost: true,

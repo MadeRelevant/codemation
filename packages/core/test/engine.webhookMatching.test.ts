@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import type { Items, NodeExecutionContext, NodeOutputs, TriggerNodeConfig, TriggerSetupContext, TypeToken } from "../src/index.ts";
+import type {
+  Items,
+  NodeExecutionContext,
+  NodeOutputs,
+  TriggerNodeConfig,
+  TriggerSetupContext,
+  TypeToken,
+} from "../src/index.ts";
 import { WorkflowBuilder } from "../src/index.ts";
 import { createEngineTestKit } from "./harness/index.ts";
 
@@ -45,7 +52,11 @@ test("engine matches webhook endpoints from workflow catalog to trigger nodes", 
   assert.equal(resolution.status, "ok");
   if (resolution.status !== "ok") throw new Error("expected ok");
   assert.deepEqual(
-    { workflowId: resolution.match.workflowId, nodeId: resolution.match.nodeId, endpointPath: resolution.match.endpointPath },
+    {
+      workflowId: resolution.match.workflowId,
+      nodeId: resolution.match.nodeId,
+      endpointPath: resolution.match.endpointPath,
+    },
     {
       workflowId: "wf.webhook.match",
       nodeId: "trigger",

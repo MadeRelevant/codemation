@@ -1,4 +1,4 @@
-import { describe,expect,it,vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ApplicationRequestError } from "../src/application/ApplicationRequestError";
 import { ServerHttpErrorResponseFactory } from "../src/presentation/http/ServerHttpErrorResponseFactory";
 
@@ -22,6 +22,8 @@ describe("ServerHttpErrorResponseFactory", () => {
 
     await expect(response.json()).resolves.toEqual({ error: "Boom" });
     expect(response.status).toBe(500);
-    expect(consoleErrorSpy).toHaveBeenCalledWith("[codemation-http] unhandled route error\nError: Boom\n    at fake.ts:1:1");
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[codemation-http] unhandled route error\nError: Boom\n    at fake.ts:1:1",
+    );
   });
 });

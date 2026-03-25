@@ -1,27 +1,26 @@
-
 import type {
-CredentialBinding,
-CredentialBindingKey,
-CredentialInstanceId,
-CredentialRequirement,
-WorkflowDefinition,
-WorkflowRepository
+  CredentialBinding,
+  CredentialBindingKey,
+  CredentialInstanceId,
+  CredentialRequirement,
+  WorkflowDefinition,
+  WorkflowRepository,
 } from "@codemation/core";
 
-import { CoreTokens,inject,injectable } from "@codemation/core";
+import { CoreTokens, inject, injectable } from "@codemation/core";
 
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
 
 import type {
-WorkflowCredentialHealthDto,
-WorkflowCredentialHealthSlotDto
+  WorkflowCredentialHealthDto,
+  WorkflowCredentialHealthSlotDto,
 } from "../../application/contracts/CredentialContractsRegistry";
 
 import { ApplicationTokens } from "../../applicationTokens";
 
 import { WorkflowCredentialNodeResolver } from "./WorkflowCredentialNodeResolver";
 import { CredentialInstanceService } from "./CredentialInstanceService";
-import type { CredentialStore,MutableCredentialSessionService } from "./CredentialServices";
+import type { CredentialStore, MutableCredentialSessionService } from "./CredentialServices";
 
 @injectable()
 export class CredentialBindingService {
@@ -38,7 +37,9 @@ export class CredentialBindingService {
     private readonly workflowCredentialNodeResolver: WorkflowCredentialNodeResolver,
   ) {}
 
-  async upsertBinding(args: Readonly<{ workflowId: string; nodeId: string; slotKey: string; instanceId: CredentialInstanceId }>): Promise<CredentialBinding> {
+  async upsertBinding(
+    args: Readonly<{ workflowId: string; nodeId: string; slotKey: string; instanceId: CredentialInstanceId }>,
+  ): Promise<CredentialBinding> {
     const workflow = this.requireWorkflow(args.workflowId);
     const requirement = this.requireRequirement(workflow, args.nodeId, args.slotKey);
     const instance = await this.credentialInstanceService.requireInstance(args.instanceId);

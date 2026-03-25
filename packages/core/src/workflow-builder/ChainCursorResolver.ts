@@ -2,29 +2,48 @@ import type { NodeRef, OutputPortKey, RunnableNodeConfig, RunnableNodeOutputJson
 
 import { WorkflowBuilder } from "./WorkflowBuilder";
 import { WhenBuilder } from "./WhenBuilder";
-import type { AnyRunnableNodeConfig, BooleanWhenOverloads, BranchOutputGuard, BranchStepsArg, StepSequenceOutput } from "./workflowBuilderTypes";
+import type {
+  AnyRunnableNodeConfig,
+  BooleanWhenOverloads,
+  BranchOutputGuard,
+  BranchStepsArg,
+  StepSequenceOutput,
+} from "./workflowBuilderTypes";
 
 type ChainCursorWhenOverloads<TCurrentJson> = BooleanWhenOverloads<TCurrentJson, WhenBuilder<TCurrentJson>> & {
-  <TTrueSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined, TFalseSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined>(
+  <
+    TTrueSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined,
+    TFalseSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined,
+  >(
     branches: Readonly<{
       true?: TTrueSteps extends ReadonlyArray<AnyRunnableNodeConfig> ? BranchStepsArg<TCurrentJson, TTrueSteps> : never;
-      false?: TFalseSteps extends ReadonlyArray<AnyRunnableNodeConfig> ? BranchStepsArg<TCurrentJson, TFalseSteps> : never;
+      false?: TFalseSteps extends ReadonlyArray<AnyRunnableNodeConfig>
+        ? BranchStepsArg<TCurrentJson, TFalseSteps>
+        : never;
     }> &
       BranchOutputGuard<TCurrentJson, TTrueSteps, TFalseSteps>,
   ): ChainCursor<StepSequenceOutput<TCurrentJson, TTrueSteps>>;
 };
 
 export class ChainCursor<TCurrentJson> {
-  constructor(private readonly wf: WorkflowBuilder, private readonly cursor: NodeRef, private readonly cursorOutput: OutputPortKey) {}
+  constructor(
+    private readonly wf: WorkflowBuilder,
+    private readonly cursor: NodeRef,
+    private readonly cursorOutput: OutputPortKey,
+  ) {}
 
-  then<TConfig extends RunnableNodeConfig<TCurrentJson, any>>(config: TConfig): ChainCursor<RunnableNodeOutputJson<TConfig>> {
+  then<TConfig extends RunnableNodeConfig<TCurrentJson, any>>(
+    config: TConfig,
+  ): ChainCursor<RunnableNodeOutputJson<TConfig>> {
     const next = (this.wf as any).add(config) as NodeRef;
     (this.wf as any).connect(this.cursor, next, this.cursorOutput);
     return new ChainCursor<RunnableNodeOutputJson<TConfig>>(this.wf, next, "main");
   }
 
   readonly when: ChainCursorWhenOverloads<TCurrentJson> = ((
-    arg1: boolean | Readonly<{ true?: ReadonlyArray<AnyRunnableNodeConfig>; false?: ReadonlyArray<AnyRunnableNodeConfig> }>,
+    arg1:
+      | boolean
+      | Readonly<{ true?: ReadonlyArray<AnyRunnableNodeConfig>; false?: ReadonlyArray<AnyRunnableNodeConfig> }>,
     steps?: ReadonlyArray<AnyRunnableNodeConfig> | AnyRunnableNodeConfig,
     ...more: AnyRunnableNodeConfig[]
   ): WhenBuilder<TCurrentJson> | ChainCursor<TCurrentJson> => {
@@ -76,4 +95,3 @@ export class ChainCursor<TCurrentJson> {
     return this.wf.build();
   }
 }
-

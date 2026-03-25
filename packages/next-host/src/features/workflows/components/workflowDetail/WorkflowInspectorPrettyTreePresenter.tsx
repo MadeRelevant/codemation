@@ -58,7 +58,9 @@ export class WorkflowInspectorPrettyTreePresenter {
       };
     }
     if (this.isRecord(value)) {
-      const children = Object.entries(value).map(([childKey, childValue]) => this.createNode(childKey, childValue, `${key}.${childKey}`));
+      const children = Object.entries(value).map(([childKey, childValue]) =>
+        this.createNode(childKey, childValue, `${key}.${childKey}`),
+      );
       if (children.length === 0) {
         return {
           key,
@@ -117,7 +119,11 @@ export class WorkflowInspectorPrettyTreePresenter {
         </span>
       );
     }
-    return <span style={{ color: "#64748b", fontSize: 12, lineHeight: 1.5 }}>{value === undefined ? "undefined" : JSON.stringify(value)}</span>;
+    return (
+      <span style={{ color: "#64748b", fontSize: 12, lineHeight: 1.5 }}>
+        {value === undefined ? "undefined" : JSON.stringify(value)}
+      </span>
+    );
   }
 
   private static isRecord(value: unknown): value is Readonly<Record<string, unknown>> {

@@ -26,4 +26,3 @@ export class NodeInstanceFactory {
     return this.nodeResolver.resolve(definition.type);
   }
 }
-

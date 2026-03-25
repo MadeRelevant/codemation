@@ -47,11 +47,36 @@ interface EngineCurrentStateRunStarter {
 }
 
 interface EngineRunContinuationService {
-  markNodeRunning(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; inputsByPort: NodeInputsByPort }): Promise<void>;
-  resumeFromNodeResult(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; outputs: NodeOutputs }): Promise<RunResult>;
-  resumeFromNodeError(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; error: Error }): Promise<RunResult>;
-  resumeFromStepResult(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; outputs: NodeOutputs }): Promise<RunResult>;
-  resumeFromStepError(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; error: Error }): Promise<RunResult>;
+  markNodeRunning(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    inputsByPort: NodeInputsByPort;
+  }): Promise<void>;
+  resumeFromNodeResult(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    outputs: NodeOutputs;
+  }): Promise<RunResult>;
+  resumeFromNodeError(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    error: Error;
+  }): Promise<RunResult>;
+  resumeFromStepResult(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    outputs: NodeOutputs;
+  }): Promise<RunResult>;
+  resumeFromStepError(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    error: Error;
+  }): Promise<RunResult>;
   waitForCompletion(runId: RunId): Promise<Extract<RunResult, { status: "completed" | "failed" }>>;
   waitForWebhookResponse(runId: RunId): Promise<WebhookRunResult>;
 }
@@ -128,7 +153,14 @@ export class Engine implements NodeActivationContinuation {
       mutableState?: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>["mutableState"];
     }>,
   ): Promise<RunResult> {
-    return await this.deps.workflowRunStarter.runWorkflow(wf, startAt, items, parent, executionOptions, persistedStateOverrides);
+    return await this.deps.workflowRunStarter.runWorkflow(
+      wf,
+      startAt,
+      items,
+      parent,
+      executionOptions,
+      persistedStateOverrides,
+    );
   }
 
   async runWorkflowFromState(request: CurrentStateExecutionRequest): Promise<RunResult> {
@@ -144,19 +176,39 @@ export class Engine implements NodeActivationContinuation {
     return await this.deps.runContinuationService.markNodeRunning(args);
   }
 
-  async resumeFromNodeResult(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; outputs: NodeOutputs }): Promise<RunResult> {
+  async resumeFromNodeResult(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    outputs: NodeOutputs;
+  }): Promise<RunResult> {
     return await this.deps.runContinuationService.resumeFromNodeResult(args);
   }
 
-  async resumeFromNodeError(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; error: Error }): Promise<RunResult> {
+  async resumeFromNodeError(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    error: Error;
+  }): Promise<RunResult> {
     return await this.deps.runContinuationService.resumeFromNodeError(args);
   }
 
-  async resumeFromStepResult(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; outputs: NodeOutputs }): Promise<RunResult> {
+  async resumeFromStepResult(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    outputs: NodeOutputs;
+  }): Promise<RunResult> {
     return await this.deps.runContinuationService.resumeFromStepResult(args);
   }
 
-  async resumeFromStepError(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; error: Error }): Promise<RunResult> {
+  async resumeFromStepError(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    error: Error;
+  }): Promise<RunResult> {
     return await this.deps.runContinuationService.resumeFromStepError(args);
   }
 
@@ -168,4 +220,3 @@ export class Engine implements NodeActivationContinuation {
     return await this.deps.runContinuationService.waitForWebhookResponse(runId);
   }
 }
-

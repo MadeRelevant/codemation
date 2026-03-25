@@ -181,11 +181,11 @@ export class CodemationNextHost {
     const manifestText = await readFile(manifestPath, "utf8");
     const parsedManifest = JSON.parse(manifestText) as Partial<CodemationConsumerBuildManifest>;
     if (
-      typeof parsedManifest.buildVersion !== "string"
-      || typeof parsedManifest.consumerRoot !== "string"
-      || typeof parsedManifest.entryPath !== "string"
-      || typeof parsedManifest.pluginEntryPath !== "string"
-      || !Array.isArray(parsedManifest.workflowSourcePaths)
+      typeof parsedManifest.buildVersion !== "string" ||
+      typeof parsedManifest.consumerRoot !== "string" ||
+      typeof parsedManifest.entryPath !== "string" ||
+      typeof parsedManifest.pluginEntryPath !== "string" ||
+      !Array.isArray(parsedManifest.workflowSourcePaths)
     ) {
       throw new Error(`Invalid Codemation consumer build manifest at ${manifestPath}.`);
     }
@@ -194,13 +194,19 @@ export class CodemationNextHost {
       consumerRoot: path.resolve(parsedManifest.consumerRoot),
       entryPath: path.resolve(parsedManifest.entryPath),
       pluginEntryPath: path.resolve(parsedManifest.pluginEntryPath),
-      workflowSourcePaths: parsedManifest.workflowSourcePaths.filter((workflowSourcePath): workflowSourcePath is string => typeof workflowSourcePath === "string"),
+      workflowSourcePaths: parsedManifest.workflowSourcePaths.filter(
+        (workflowSourcePath): workflowSourcePath is string => typeof workflowSourcePath === "string",
+      ),
     };
     if (!(await this.exists(buildManifest.entryPath))) {
-      throw new Error(`Built consumer output not found at ${buildManifest.entryPath}. Run \`codemation build\` before starting the Next host.`);
+      throw new Error(
+        `Built consumer output not found at ${buildManifest.entryPath}. Run \`codemation build\` before starting the Next host.`,
+      );
     }
     if (!(await this.exists(buildManifest.pluginEntryPath))) {
-      throw new Error(`Discovered plugins output not found at ${buildManifest.pluginEntryPath}. Run \`codemation build\` before starting the Next host.`);
+      throw new Error(
+        `Discovered plugins output not found at ${buildManifest.pluginEntryPath}. Run \`codemation build\` before starting the Next host.`,
+      );
     }
     return buildManifest;
   }
@@ -208,11 +214,15 @@ export class CodemationNextHost {
   private async resolveBuildManifestPath(): Promise<string> {
     const configuredPath = process.env.CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH;
     if (!configuredPath || configuredPath.trim().length === 0) {
-      throw new Error("Missing CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH. Start the Next host through `codemation dev` or `codemation build`.");
+      throw new Error(
+        "Missing CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH. Start the Next host through `codemation dev` or `codemation build`.",
+      );
     }
     const resolvedPath = path.resolve(configuredPath);
     if (!(await this.exists(resolvedPath))) {
-      throw new Error(`Build manifest not found at ${resolvedPath}. Run \`codemation build\` before starting the Next host.`);
+      throw new Error(
+        `Build manifest not found at ${resolvedPath}. Run \`codemation build\` before starting the Next host.`,
+      );
     }
     return resolvedPath;
   }
@@ -231,7 +241,9 @@ export class CodemationNextHost {
     return consumerApp;
   }
 
-  private async loadDiscoveredPlugins(buildManifest: CodemationConsumerBuildManifest): Promise<ReadonlyArray<CodemationPlugin>> {
+  private async loadDiscoveredPlugins(
+    buildManifest: CodemationConsumerBuildManifest,
+  ): Promise<ReadonlyArray<CodemationPlugin>> {
     const resolvedPath = path.resolve(buildManifest.pluginEntryPath);
     if (!(await this.exists(resolvedPath))) {
       return [];

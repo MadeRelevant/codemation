@@ -1,15 +1,13 @@
-
 import type {
-CredentialBindingKey,
-CredentialInstanceId,
-CredentialSessionService,
-WorkflowRepository
+  CredentialBindingKey,
+  CredentialInstanceId,
+  CredentialSessionService,
+  WorkflowRepository,
 } from "@codemation/core";
 
-import { CoreTokens,CredentialUnboundError,inject,injectable } from "@codemation/core";
+import { CoreTokens, CredentialUnboundError, inject, injectable } from "@codemation/core";
 
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
-
 
 import { ApplicationTokens } from "../../applicationTokens";
 
@@ -39,7 +37,9 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
     private readonly workflowCredentialNodeResolver: WorkflowCredentialNodeResolver,
   ) {}
 
-  async getSession<TSession = unknown>(args: Readonly<{ workflowId: string; nodeId: string; slotKey: string }>): Promise<TSession> {
+  async getSession<TSession = unknown>(
+    args: Readonly<{ workflowId: string; nodeId: string; slotKey: string }>,
+  ): Promise<TSession> {
     const workflow = this.workflowRepository.get(decodeURIComponent(args.workflowId));
     const displayLabel = workflow
       ? this.workflowCredentialNodeResolver.describeCredentialNodeDisplay(workflow, args.nodeId)

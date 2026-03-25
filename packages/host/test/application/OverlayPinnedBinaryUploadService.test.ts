@@ -2,7 +2,10 @@
 
 import { InMemoryBinaryStorage } from "@codemation/core";
 import { describe, expect, it } from "vitest";
-import { OVERLAY_PIN_BINARY_RUN_ID, OverlayPinnedBinaryUploadService } from "../../src/application/binary/OverlayPinnedBinaryUploadService";
+import {
+  OVERLAY_PIN_BINARY_RUN_ID,
+  OverlayPinnedBinaryUploadService,
+} from "../../src/application/binary/OverlayPinnedBinaryUploadService";
 
 describe("OverlayPinnedBinaryUploadService", () => {
   it("stores bytes and returns attachment metadata scoped to overlay-pin run id", async () => {

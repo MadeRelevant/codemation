@@ -1,15 +1,18 @@
 import { Providers } from "@codemation/next-host/src/providers/Providers";
-import type { PersistedRunState,WorkflowDto } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import type {
+  PersistedRunState,
+  WorkflowDto,
+} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
 import { WorkflowDetailScreen } from "@codemation/next-host/src/features/workflows/screens/WorkflowDetailScreen";
-import { createRootRoute,createRoute,createRouter,Outlet,RouterProvider } from "@tanstack/react-router";
-import { act,cleanup,fireEvent,render,screen,waitFor,type RenderResult } from "@testing-library/react";
-import { StrictMode,type ReactElement } from "react";
+import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
+import { act, cleanup, fireEvent, render, screen, waitFor, type RenderResult } from "@testing-library/react";
+import { StrictMode, type ReactElement } from "react";
 import { expect } from "vitest";
 import { InMemoryWorkflowDetailTestEnvironment } from "./InMemoryWorkflowDetailTestEnvironment";
 import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";
 import type { WorkflowDetailRealtimeServerMessage } from "./WorkflowDetailRealtimeFixtures";
 import type { WorkflowDetailRuntimeFixture } from "./WorkflowDetailRuntimeFixtures";
-import { WorkflowDetailSocketConnection,WorkflowDetailTestEnvironment } from "./WorkflowDetailTestEnvironment";
+import { WorkflowDetailSocketConnection, WorkflowDetailTestEnvironment } from "./WorkflowDetailTestEnvironment";
 
 type WorkflowDetailEnvironment = WorkflowDetailTestEnvironment | InMemoryWorkflowDetailTestEnvironment;
 
@@ -21,7 +24,9 @@ export class WorkflowDetailScreenTestKit {
     public readonly environment: WorkflowDetailEnvironment = new WorkflowDetailTestEnvironment(workflow),
   ) {}
 
-  static create(workflow: WorkflowDto = WorkflowDetailFixtureFactory.createWorkflowDetail()): WorkflowDetailScreenTestKit {
+  static create(
+    workflow: WorkflowDto = WorkflowDetailFixtureFactory.createWorkflowDetail(),
+  ): WorkflowDetailScreenTestKit {
     return new WorkflowDetailScreenTestKit(workflow);
   }
 
@@ -34,7 +39,9 @@ export class WorkflowDetailScreenTestKit {
   install(): this {
     const installResult = this.environment.install();
     if (installResult instanceof Promise) {
-      throw new Error("WorkflowDetailScreenTestKit.installAsync() must be used with async workflow detail environments.");
+      throw new Error(
+        "WorkflowDetailScreenTestKit.installAsync() must be used with async workflow detail environments.",
+      );
     }
     return this;
   }
@@ -48,7 +55,9 @@ export class WorkflowDetailScreenTestKit {
     cleanup();
     const restoreResult = this.environment.restore();
     if (restoreResult instanceof Promise) {
-      throw new Error("WorkflowDetailScreenTestKit.disposeAsync() must be used with async workflow detail environments.");
+      throw new Error(
+        "WorkflowDetailScreenTestKit.disposeAsync() must be used with async workflow detail environments.",
+      );
     }
   }
 
@@ -76,9 +85,7 @@ export class WorkflowDetailScreenTestKit {
       </Providers>
     );
 
-    this.renderResult = render(
-      options.strictMode ? this.wrapInStrictMode(content) : content,
-    );
+    this.renderResult = render(options.strictMode ? this.wrapInStrictMode(content) : content);
     return this.renderResult;
   }
 
@@ -100,7 +107,9 @@ export class WorkflowDetailScreenTestKit {
     this.latestSocket().emitJson(message);
   }
 
-  emitJsonMessages(messages: ReadonlyArray<WorkflowDetailRealtimeServerMessage | Readonly<Record<string, unknown>>>): void {
+  emitJsonMessages(
+    messages: ReadonlyArray<WorkflowDetailRealtimeServerMessage | Readonly<Record<string, unknown>>>,
+  ): void {
     this.latestSocket().emitJsonMessages(messages);
   }
 
@@ -185,12 +194,18 @@ export class WorkflowDetailScreenTestKit {
   }
 
   currentNodeStatus(nodeId: string): string | null {
-    return this.container.querySelector<HTMLElement>(`[data-codemation-node-id="${nodeId}"]`)?.getAttribute("data-codemation-node-status") ?? null;
+    return (
+      this.container
+        .querySelector<HTMLElement>(`[data-codemation-node-id="${nodeId}"]`)
+        ?.getAttribute("data-codemation-node-status") ?? null
+    );
   }
 
   selectCanvasNode(nodeId: string): void {
     let clicked = false;
-    const inspectorTreeNode = this.container.querySelector<HTMLElement>(`[data-testid="execution-tree-node-${nodeId}"]`);
+    const inspectorTreeNode = this.container.querySelector<HTMLElement>(
+      `[data-testid="execution-tree-node-${nodeId}"]`,
+    );
     if (inspectorTreeNode) {
       fireEvent.click(inspectorTreeNode);
       clicked = true;

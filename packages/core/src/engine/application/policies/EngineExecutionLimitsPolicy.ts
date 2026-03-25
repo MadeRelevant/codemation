@@ -21,7 +21,10 @@ export const ENGINE_EXECUTION_LIMITS_DEFAULTS: EngineExecutionLimitsPolicyConfig
 export class EngineExecutionLimitsPolicy {
   constructor(private readonly config: EngineExecutionLimitsPolicyConfig = ENGINE_EXECUTION_LIMITS_DEFAULTS) {}
 
-  mergeExecutionOptionsForNewRun(parent: ParentExecutionRef | undefined, user: RunExecutionOptions | undefined): RunExecutionOptions {
+  mergeExecutionOptionsForNewRun(
+    parent: ParentExecutionRef | undefined,
+    user: RunExecutionOptions | undefined,
+  ): RunExecutionOptions {
     const subworkflowDepth = parent === undefined ? 0 : (parent.subworkflowDepth ?? 0) + 1;
     const inheritedMaxNode = parent?.engineMaxNodeActivations;
     const inheritedMaxSub = parent?.engineMaxSubworkflowDepth;

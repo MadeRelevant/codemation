@@ -90,11 +90,15 @@ describe("WorkflowDetailUrlCodec", () => {
   it("round-trips run pane and node through merge", () => {
     const base = new URLSearchParams("");
     const loc = WorkflowDetailUrlCodec.parseSearchParams(
-      new URLSearchParams(WorkflowDetailUrlCodec.toQueryString(WorkflowDetailUrlCodec.mergeLocationIntoSearchParams(base, {
-        selectedRunId: "r1",
-        isRunsPaneVisible: true,
-        nodeId: "n1",
-      }))),
+      new URLSearchParams(
+        WorkflowDetailUrlCodec.toQueryString(
+          WorkflowDetailUrlCodec.mergeLocationIntoSearchParams(base, {
+            selectedRunId: "r1",
+            isRunsPaneVisible: true,
+            nodeId: "n1",
+          }),
+        ),
+      ),
     );
     expect(loc).toEqual({
       selectedRunId: "r1",

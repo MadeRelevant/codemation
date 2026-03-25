@@ -1,12 +1,12 @@
-import { inject,injectable } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import { HttpRequestJsonBodyReader } from "../HttpRequestJsonBodyReader";
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import type { QueryBus } from "../../../application/bus/QueryBus";
 import { CopyRunToWorkflowDebuggerCommand } from "../../../application/commands/CopyRunToWorkflowDebuggerCommand";
 import { ReplaceWorkflowDebuggerOverlayCommand } from "../../../application/commands/ReplaceWorkflowDebuggerOverlayCommand";
 import type {
-CopyRunToWorkflowDebuggerRequest,
-UpdateWorkflowDebuggerOverlayRequest,
+  CopyRunToWorkflowDebuggerRequest,
+  UpdateWorkflowDebuggerOverlayRequest,
 } from "../../../application/contracts/WorkflowDebuggerContracts";
 import { WorkflowDefinitionMapper } from "../../../application/mapping/WorkflowDefinitionMapper";
 import { GetWorkflowDebuggerOverlayQuery } from "../../../application/queries/GetWorkflowDebuggerOverlayQuery";
@@ -68,7 +68,9 @@ export class WorkflowHttpRouteHandler {
   async putWorkflowDebuggerOverlay(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const body = await HttpRequestJsonBodyReader.readJsonBody<UpdateWorkflowDebuggerOverlayRequest>(request);
-      return Response.json(await this.commandBus.execute(new ReplaceWorkflowDebuggerOverlayCommand(params.workflowId!, body)));
+      return Response.json(
+        await this.commandBus.execute(new ReplaceWorkflowDebuggerOverlayCommand(params.workflowId!, body)),
+      );
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
@@ -77,10 +79,11 @@ export class WorkflowHttpRouteHandler {
   async postCopyWorkflowDebuggerOverlay(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const body = await HttpRequestJsonBodyReader.readJsonBody<CopyRunToWorkflowDebuggerRequest>(request);
-      return Response.json(await this.commandBus.execute(new CopyRunToWorkflowDebuggerCommand(params.workflowId!, body)));
+      return Response.json(
+        await this.commandBus.execute(new CopyRunToWorkflowDebuggerCommand(params.workflowId!, body)),
+      );
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
   }
-
 }

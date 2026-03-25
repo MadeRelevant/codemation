@@ -1,16 +1,18 @@
 import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../../lib/realtime/realtimeDomainTypes";
 
 export class WorkflowCanvasEdgeCountResolver {
-  static resolveCount(args: Readonly<{
-    targetNodeId: string;
-    targetNodeRole: string | undefined;
-    targetInput: string;
-    sourceOutput: string;
-    sourceSnapshot: NodeExecutionSnapshot | undefined;
-    targetSnapshot: NodeExecutionSnapshot | undefined;
-    nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
-    connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>;
-  }>): number {
+  static resolveCount(
+    args: Readonly<{
+      targetNodeId: string;
+      targetNodeRole: string | undefined;
+      targetInput: string;
+      sourceOutput: string;
+      sourceSnapshot: NodeExecutionSnapshot | undefined;
+      targetSnapshot: NodeExecutionSnapshot | undefined;
+      nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
+      connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>;
+    }>,
+  ): number {
     if (args.targetNodeRole === "languageModel" || args.targetNodeRole === "tool") {
       const attachmentInvocationCount = this.resolveAttachmentInvocationCount(
         args.targetNodeId,

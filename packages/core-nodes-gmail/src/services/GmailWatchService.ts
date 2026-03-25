@@ -1,5 +1,5 @@
-import type { TriggerInstanceId,TriggerSetupStateStore } from "@codemation/core";
-import { CoreTokens,inject,injectable } from "@codemation/core";
+import type { TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
+import { CoreTokens, inject, injectable } from "@codemation/core";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import type { GmailApiClient } from "./GmailApiClient";
 import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
@@ -11,16 +11,18 @@ export class GmailWatchService {
     @inject(CoreTokens.TriggerSetupStateStore) private readonly triggerSetupStateStore: TriggerSetupStateStore,
   ) {}
 
-  async ensureSetupState(args: Readonly<{
-    trigger: TriggerInstanceId;
-    client: GmailApiClient;
-    mailbox: string;
-    topicName: string;
-    subscriptionName: string;
-    labelIds?: ReadonlyArray<string>;
-    previousState: GmailTriggerSetupState | undefined;
-    persist: boolean;
-  }>): Promise<GmailTriggerSetupState> {
+  async ensureSetupState(
+    args: Readonly<{
+      trigger: TriggerInstanceId;
+      client: GmailApiClient;
+      mailbox: string;
+      topicName: string;
+      subscriptionName: string;
+      labelIds?: ReadonlyArray<string>;
+      previousState: GmailTriggerSetupState | undefined;
+      persist: boolean;
+    }>,
+  ): Promise<GmailTriggerSetupState> {
     const currentState = await this.loadCurrentState(args.trigger, args.previousState);
     if (currentState && !this.isExpiringSoon(currentState.watchExpiration)) {
       return currentState;
@@ -58,13 +60,15 @@ export class GmailWatchService {
     return nextState;
   }
 
-  async baselineState(args: Readonly<{
-    trigger: TriggerInstanceId;
-    client: GmailApiClient;
-    mailbox: string;
-    topicName: string;
-    subscriptionName: string;
-  }>): Promise<GmailTriggerSetupState> {
+  async baselineState(
+    args: Readonly<{
+      trigger: TriggerInstanceId;
+      client: GmailApiClient;
+      mailbox: string;
+      topicName: string;
+      subscriptionName: string;
+    }>,
+  ): Promise<GmailTriggerSetupState> {
     const historyId = await args.client.getCurrentHistoryId({
       mailbox: args.mailbox,
     });

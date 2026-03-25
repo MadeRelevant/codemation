@@ -9,10 +9,12 @@ import type { WorkflowSummary } from "../hooks/realtime/realtime";
 
 import { cn } from "@/lib/utils";
 
-export function WorkflowListItemCard(args: Readonly<{
-  workflow: WorkflowSummary;
-  appearance: "root" | "folder";
-}>): ReactNode {
+export function WorkflowListItemCard(
+  args: Readonly<{
+    workflow: WorkflowSummary;
+    appearance: "root" | "folder";
+  }>,
+): ReactNode {
   const { workflow, appearance } = args;
   const href = `/workflows/${encodeURIComponent(workflow.id)}`;
   const pathLine = workflow.discoveryPathSegments.length > 0 ? workflow.discoveryPathSegments.join(" / ") : null;

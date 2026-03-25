@@ -25,7 +25,10 @@ export class WorkflowTopology {
       if (classifier.isExecutableNodeId(n.id)) defs.set(n.id, n);
     }
 
-    const outgoing = new Map<NodeId, Array<Readonly<{ output: OutputPortKey; to: Readonly<{ nodeId: NodeId; input: InputPortKey }> }>>>();
+    const outgoing = new Map<
+      NodeId,
+      Array<Readonly<{ output: OutputPortKey; to: Readonly<{ nodeId: NodeId; input: InputPortKey }> }>>
+    >();
     for (const e of wf.edges) {
       if (!classifier.isExecutableNodeId(e.from.nodeId) || !classifier.isExecutableNodeId(e.to.nodeId)) {
         continue;
@@ -72,4 +75,3 @@ export class WorkflowTopology {
     return new WorkflowTopology(defs, outgoing, incomingByNode, expected, rootNodeIds);
   }
 }
-

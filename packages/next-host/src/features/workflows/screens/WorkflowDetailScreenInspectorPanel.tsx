@@ -34,12 +34,20 @@ export function WorkflowDetailScreenInspectorPanel(props: Readonly<{ controller:
           }}
           aria-label={controller.isPanelCollapsed ? "Open execution inspector" : "Collapse execution inspector"}
         >
-          {controller.isPanelCollapsed ? <PanelBottomOpen size={15} strokeWidth={1.9} /> : <PanelBottomClose size={15} strokeWidth={1.9} />}
+          {controller.isPanelCollapsed ? (
+            <PanelBottomOpen size={15} strokeWidth={1.9} />
+          ) : (
+            <PanelBottomClose size={15} strokeWidth={1.9} />
+          )}
         </Button>
       </div>
       {!controller.isPanelCollapsed ? (
         <div className="min-h-0 min-w-0 overflow-hidden">
-          <WorkflowExecutionInspector model={controller.inspectorModel} formatting={controller.inspectorFormatting} actions={controller.inspectorActions} />
+          <WorkflowExecutionInspector
+            model={controller.inspectorModel}
+            formatting={controller.inspectorFormatting}
+            actions={controller.inspectorActions}
+          />
         </div>
       ) : null}
     </div>

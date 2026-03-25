@@ -1,17 +1,8 @@
-import type {
-Item,
-Items,
-Node,
-NodeExecutionContext,
-NodeOutputs,
-WorkflowRunnerService
-} from "@codemation/core";
+import type { Item, Items, Node, NodeExecutionContext, NodeOutputs, WorkflowRunnerService } from "@codemation/core";
 
-import { CoreTokens,inject,node } from "@codemation/core";
+import { CoreTokens, inject, node } from "@codemation/core";
 
 import { SubWorkflow } from "./subWorkflow";
-
-
 
 @node({ packageName: "@codemation/core-nodes" })
 export class SubWorkflowNode implements Node<SubWorkflow<any, any>> {
@@ -27,9 +18,13 @@ export class SubWorkflowNode implements Node<SubWorkflow<any, any>> {
     const out: Item[] = [];
     for (let i = 0; i < items.length; i++) {
       const current = items[i]!;
-      const metaBase = (current.meta && typeof current.meta === "object" ? (current.meta as Record<string, unknown>) : {}) as Record<string, unknown>;
+      const metaBase = (
+        current.meta && typeof current.meta === "object" ? (current.meta as Record<string, unknown>) : {}
+      ) as Record<string, unknown>;
       const cmBase =
-        metaBase._cm && typeof metaBase._cm === "object" ? (metaBase._cm as Record<string, unknown>) : ({} as Record<string, unknown>);
+        metaBase._cm && typeof metaBase._cm === "object"
+          ? (metaBase._cm as Record<string, unknown>)
+          : ({} as Record<string, unknown>);
       const originIndex = typeof cmBase.originIndex === "number" ? (cmBase.originIndex as number) : undefined;
 
       const result = await this.workflows.runById({
@@ -45,10 +40,13 @@ export class SubWorkflowNode implements Node<SubWorkflow<any, any>> {
           engineMaxSubworkflowDepth: ctx.engineMaxSubworkflowDepth,
         },
       });
-      if (result.status !== "completed") throw new Error(`Subworkflow ${ctx.config.workflowId} did not complete (status=${result.status})`);
+      if (result.status !== "completed")
+        throw new Error(`Subworkflow ${ctx.config.workflowId} did not complete (status=${result.status})`);
       for (const produced of result.outputs) {
         const childMetaBase =
-          produced.meta && typeof produced.meta === "object" ? (produced.meta as Record<string, unknown>) : ({} as Record<string, unknown>);
+          produced.meta && typeof produced.meta === "object"
+            ? (produced.meta as Record<string, unknown>)
+            : ({} as Record<string, unknown>);
         const childCmBase =
           childMetaBase._cm && typeof childMetaBase._cm === "object"
             ? (childMetaBase._cm as Record<string, unknown>)

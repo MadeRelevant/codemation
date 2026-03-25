@@ -39,4 +39,3 @@ export class PinnedOutputResolver {
     return nodeState.pinnedOutputsByPort;
   }
 }
-

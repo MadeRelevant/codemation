@@ -1,4 +1,4 @@
-import type { InputPortKey,Item,Items,MultiInputNode,NodeExecutionContext,NodeOutputs } from "@codemation/core";
+import type { InputPortKey, Item, Items, MultiInputNode, NodeExecutionContext, NodeOutputs } from "@codemation/core";
 
 import { node } from "@codemation/core";
 
@@ -10,7 +10,10 @@ export class MergeNode implements MultiInputNode<Merge<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
 
-  async executeMulti(inputsByPort: Readonly<Record<InputPortKey, Items>>, ctx: NodeExecutionContext<Merge<any, any>>): Promise<NodeOutputs> {
+  async executeMulti(
+    inputsByPort: Readonly<Record<InputPortKey, Items>>,
+    ctx: NodeExecutionContext<Merge<any, any>>,
+  ): Promise<NodeOutputs> {
     const order = orderedInputs(inputsByPort, ctx.config.cfg.prefer);
 
     if (ctx.config.cfg.mode === "append") {

@@ -1,4 +1,4 @@
-import type { Items,WebhookControlSignal } from "@codemation/core";
+import type { Items, WebhookControlSignal } from "@codemation/core";
 
 export class WebhookRespondNowAndContinueError extends Error implements WebhookControlSignal {
   readonly __webhookControl = true as const;

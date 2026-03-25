@@ -1,27 +1,33 @@
-import type { Item,Items } from "@codemation/core";
+import type { Item, Items } from "@codemation/core";
 import { injectable } from "@codemation/core";
 import type { OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
 import type { GmailMessageRecord } from "./GmailApiClient";
 
 @injectable()
 export class GmailMessageItemMapper {
-  mapMany(args: Readonly<{
-    mailbox: string;
-    historyId: string;
-    messages: ReadonlyArray<GmailMessageRecord>;
-  }>): Items<OnNewGmailTriggerItemJson> {
-    return args.messages.map((message) => this.mapOne({
-      mailbox: args.mailbox,
-      historyId: args.historyId,
-      message,
-    }));
+  mapMany(
+    args: Readonly<{
+      mailbox: string;
+      historyId: string;
+      messages: ReadonlyArray<GmailMessageRecord>;
+    }>,
+  ): Items<OnNewGmailTriggerItemJson> {
+    return args.messages.map((message) =>
+      this.mapOne({
+        mailbox: args.mailbox,
+        historyId: args.historyId,
+        message,
+      }),
+    );
   }
 
-  private mapOne(args: Readonly<{
-    mailbox: string;
-    historyId: string;
-    message: GmailMessageRecord;
-  }>): Item<OnNewGmailTriggerItemJson> {
+  private mapOne(
+    args: Readonly<{
+      mailbox: string;
+      historyId: string;
+      message: GmailMessageRecord;
+    }>,
+  ): Item<OnNewGmailTriggerItemJson> {
     return {
       json: {
         mailbox: args.mailbox,

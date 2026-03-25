@@ -1,9 +1,7 @@
-import type { RunnableNodeConfig,TypeToken } from "@codemation/core";
-
-
+import type { RunnableNodeConfig, TypeToken } from "@codemation/core";
 
 import { ExampleUppercaseNode } from "./ExampleUppercaseNode";
- 
+
 export class ExampleUppercase<
   TInputJson extends Record<string, unknown> = Record<string, unknown>,
   TField extends keyof TInputJson & string = keyof TInputJson & string,

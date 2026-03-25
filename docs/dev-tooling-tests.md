@@ -2,10 +2,10 @@
 
 The CLI and runtime-dev packages have **Vitest** unit tests intended for day-to-day confidence when changing consumer builds or the dev runtime.
 
-| Package | README | Focus |
-|--------|--------|--------|
-| `@codemation/cli` | [packages/cli/README.md](../packages/cli/README.md) | Consumer output builder: full build + watch/incremental rebuild |
-| `@codemation/runtime-dev` | [packages/runtime-dev/README.md](../packages/runtime-dev/README.md) | Route guard + dev metrics (no full Vite stack in unit tests) |
+| Package                   | README                                                              | Focus                                                           |
+| ------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `@codemation/cli`         | [packages/cli/README.md](../packages/cli/README.md)                 | Consumer output builder: full build + watch/incremental rebuild |
+| `@codemation/runtime-dev` | [packages/runtime-dev/README.md](../packages/runtime-dev/README.md) | Route guard + dev metrics (no full Vite stack in unit tests)    |
 
 ## Running them
 

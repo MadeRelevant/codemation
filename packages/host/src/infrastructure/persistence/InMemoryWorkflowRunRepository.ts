@@ -72,7 +72,9 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Run
     return summaries;
   }
 
-  async listRunsOlderThan(args: Readonly<{ beforeIso: string; limit?: number }>): Promise<ReadonlyArray<RunPruneCandidate>> {
+  async listRunsOlderThan(
+    args: Readonly<{ beforeIso: string; limit?: number }>,
+  ): Promise<ReadonlyArray<RunPruneCandidate>> {
     const limit = args.limit ?? 100;
     const out: RunPruneCandidate[] = [];
     for (const s of this.runs.values()) {

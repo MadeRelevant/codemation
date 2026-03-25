@@ -12,7 +12,12 @@ export class WorkflowPolicyErrorServices {
 
   resolveNodeErrorHandler(spec: NodeErrorHandlerSpec | undefined): NodeErrorHandler | undefined {
     if (!spec) return undefined;
-    if (typeof spec === "object" && spec !== null && "handle" in spec && typeof (spec as NodeErrorHandler).handle === "function") {
+    if (
+      typeof spec === "object" &&
+      spec !== null &&
+      "handle" in spec &&
+      typeof (spec as NodeErrorHandler).handle === "function"
+    ) {
       return spec as NodeErrorHandler;
     }
     return this.nodeResolver.resolve(spec as TypeToken<NodeErrorHandler>);
@@ -20,7 +25,12 @@ export class WorkflowPolicyErrorServices {
 
   resolveWorkflowErrorHandler(spec: WorkflowErrorHandlerSpec | undefined): WorkflowErrorHandler | undefined {
     if (!spec) return undefined;
-    if (typeof spec === "object" && spec !== null && "onError" in spec && typeof (spec as WorkflowErrorHandler).onError === "function") {
+    if (
+      typeof spec === "object" &&
+      spec !== null &&
+      "onError" in spec &&
+      typeof (spec as WorkflowErrorHandler).onError === "function"
+    ) {
       return spec as WorkflowErrorHandler;
     }
     return this.nodeResolver.resolve(spec as TypeToken<WorkflowErrorHandler>);

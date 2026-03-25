@@ -1,7 +1,10 @@
-import type { PersistedRunState,WorkflowDto } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
-import { fireEvent,screen,waitFor } from "@testing-library/react";
-import { afterEach,describe,expect,it } from "vitest";
-import { WorkflowDetailFixtureFactory,WorkflowDetailScreenTestKit } from "./testkit";
+import type {
+  PersistedRunState,
+  WorkflowDto,
+} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { WorkflowDetailFixtureFactory, WorkflowDetailScreenTestKit } from "./testkit";
 
 class PinnedSkippedExecutionFixture {
   static readonly workflowId = "wf.frontend.pinned-skipped";
@@ -36,9 +39,25 @@ class PinnedSkippedExecutionFixture {
         C: { main: [{ json: { emittedBy: "C" } }] },
       },
       nodeSnapshotsByNodeId: {
-        A: this.createSnapshot({ nodeId: "A", status: "completed", second: 1, outputs: [{ json: { emittedBy: "A" } }] }),
-        B: this.createSnapshot({ nodeId: "B", status: "completed", second: 2, outputs: [{ json: { pinned: true } }], usedPinnedOutput: true }),
-        C: this.createSnapshot({ nodeId: "C", status: "completed", second: 3, outputs: [{ json: { emittedBy: "C" } }] }),
+        A: this.createSnapshot({
+          nodeId: "A",
+          status: "completed",
+          second: 1,
+          outputs: [{ json: { emittedBy: "A" } }],
+        }),
+        B: this.createSnapshot({
+          nodeId: "B",
+          status: "completed",
+          second: 2,
+          outputs: [{ json: { pinned: true } }],
+          usedPinnedOutput: true,
+        }),
+        C: this.createSnapshot({
+          nodeId: "C",
+          status: "completed",
+          second: 3,
+          outputs: [{ json: { emittedBy: "C" } }],
+        }),
       },
       workflowSnapshot: undefined,
       mutableState: {
@@ -66,13 +85,15 @@ class PinnedSkippedExecutionFixture {
     });
   }
 
-  private static createSnapshot(args: Readonly<{
-    nodeId: string;
-    status: "completed";
-    second: number;
-    outputs: ReadonlyArray<Readonly<{ json: unknown }>>;
-    usedPinnedOutput?: boolean;
-  }>): PersistedRunState["nodeSnapshotsByNodeId"][string] {
+  private static createSnapshot(
+    args: Readonly<{
+      nodeId: string;
+      status: "completed";
+      second: number;
+      outputs: ReadonlyArray<Readonly<{ json: unknown }>>;
+      usedPinnedOutput?: boolean;
+    }>,
+  ): PersistedRunState["nodeSnapshotsByNodeId"][string] {
     const timestamp = `2026-03-17T09:00:${String(args.second).padStart(2, "0")}.000Z`;
     return {
       runId: this.runId,
@@ -133,11 +154,41 @@ class PinnedChainExecutionFixture {
         E: { main: [{ json: { emittedBy: "E" } }] },
       },
       nodeSnapshotsByNodeId: {
-        A: this.createSnapshot({ nodeId: "A", status: "completed", second: 1, runId: this.historicalRunId, outputs: [{ json: { emittedBy: "A" } }] }),
-        B: this.createSnapshot({ nodeId: "B", status: "completed", second: 2, runId: this.historicalRunId, outputs: [{ json: { emittedBy: "B" } }] }),
-        C: this.createSnapshot({ nodeId: "C", status: "completed", second: 3, runId: this.historicalRunId, outputs: [{ json: { emittedBy: "C" } }] }),
-        Agent: this.createSnapshot({ nodeId: "Agent", status: "completed", second: 4, runId: this.historicalRunId, outputs: [{ json: { emittedBy: "Agent" } }] }),
-        E: this.createSnapshot({ nodeId: "E", status: "completed", second: 5, runId: this.historicalRunId, outputs: [{ json: { emittedBy: "E" } }] }),
+        A: this.createSnapshot({
+          nodeId: "A",
+          status: "completed",
+          second: 1,
+          runId: this.historicalRunId,
+          outputs: [{ json: { emittedBy: "A" } }],
+        }),
+        B: this.createSnapshot({
+          nodeId: "B",
+          status: "completed",
+          second: 2,
+          runId: this.historicalRunId,
+          outputs: [{ json: { emittedBy: "B" } }],
+        }),
+        C: this.createSnapshot({
+          nodeId: "C",
+          status: "completed",
+          second: 3,
+          runId: this.historicalRunId,
+          outputs: [{ json: { emittedBy: "C" } }],
+        }),
+        Agent: this.createSnapshot({
+          nodeId: "Agent",
+          status: "completed",
+          second: 4,
+          runId: this.historicalRunId,
+          outputs: [{ json: { emittedBy: "Agent" } }],
+        }),
+        E: this.createSnapshot({
+          nodeId: "E",
+          status: "completed",
+          second: 5,
+          runId: this.historicalRunId,
+          outputs: [{ json: { emittedBy: "E" } }],
+        }),
       },
       workflowSnapshot: undefined,
       mutableState: { nodesById: {} },
@@ -162,7 +213,13 @@ class PinnedChainExecutionFixture {
         Agent: { main: [{ json: { pinned: "Agent" } }] },
       },
       nodeSnapshotsByNodeId: {
-        A: this.createSnapshot({ nodeId: "A", status: "completed", second: 1, runId: "run_frontend_pinned_chain_to_a", outputs: [{ json: { emittedBy: "A" } }] }),
+        A: this.createSnapshot({
+          nodeId: "A",
+          status: "completed",
+          second: 1,
+          runId: "run_frontend_pinned_chain_to_a",
+          outputs: [{ json: { emittedBy: "A" } }],
+        }),
       },
       workflowSnapshot: undefined,
       mutableState: {
@@ -187,14 +244,16 @@ class PinnedChainExecutionFixture {
     };
   }
 
-  private static createSnapshot(args: Readonly<{
-    nodeId: string;
-    status: "completed";
-    second: number;
-    runId: string;
-    outputs: ReadonlyArray<Readonly<{ json: unknown }>>;
-    usedPinnedOutput?: boolean;
-  }>): PersistedRunState["nodeSnapshotsByNodeId"][string] {
+  private static createSnapshot(
+    args: Readonly<{
+      nodeId: string;
+      status: "completed";
+      second: number;
+      runId: string;
+      outputs: ReadonlyArray<Readonly<{ json: unknown }>>;
+      usedPinnedOutput?: boolean;
+    }>,
+  ): PersistedRunState["nodeSnapshotsByNodeId"][string] {
     const timestamp = `2026-03-17T10:00:${String(args.second).padStart(2, "0")}.000Z`;
     return {
       runId: args.runId,
@@ -245,14 +304,14 @@ describe("workflow detail mutable execution flows", () => {
       expect(screen.getByTestId("selected-node-name")).toHaveTextContent("Agent");
     });
 
-    const outputPanel = (() => {
+    const outputPanel = () => {
       const pane = screen.getByTestId("workflow-inspector-pane-output");
       const panel = pane.querySelector<HTMLElement>('[data-testid="workflow-inspector-json-panel"]');
       if (!panel) {
         throw new Error("Expected the workflow inspector output JSON panel to exist.");
       }
       return panel;
-    });
+    };
 
     expect(outputPanel()).toHaveTextContent("OUTPUT subject 2");
 
@@ -293,28 +352,34 @@ describe("workflow detail mutable execution flows", () => {
     fireEvent.click(screen.getByTestId("canvas-node-run-button-C"));
 
     expect(
-      kit.latestRequestBody<Readonly<{ currentState?: PersistedRunState["mutableState"] | PersistedRunState | unknown; stopAt?: string; clearFromNodeId?: string }>>(
-        "POST /api/runs",
-      ),
-    ).toEqual(expect.objectContaining({
-      workflowId: workflow.id,
-      items: [],
-      synthesizeTriggerItems: false,
-      currentState: expect.objectContaining({
-        mutableState: {
-          nodesById: {
-            B: {
-              pinnedOutputsByPort: {
-                main: [{ json: { pinned: true } }],
+      kit.latestRequestBody<
+        Readonly<{
+          currentState?: PersistedRunState["mutableState"] | PersistedRunState | unknown;
+          stopAt?: string;
+          clearFromNodeId?: string;
+        }>
+      >("POST /api/runs"),
+    ).toEqual(
+      expect.objectContaining({
+        workflowId: workflow.id,
+        items: [],
+        synthesizeTriggerItems: false,
+        currentState: expect.objectContaining({
+          mutableState: {
+            nodesById: {
+              B: {
+                pinnedOutputsByPort: {
+                  main: [{ json: { pinned: true } }],
+                },
               },
             },
           },
-        },
+        }),
+        stopAt: "C",
+        clearFromNodeId: "C",
+        mode: "manual",
       }),
-      stopAt: "C",
-      clearFromNodeId: "C",
-      mode: "manual",
-    }));
+    );
 
     kit.emitJson({
       kind: "event",
@@ -332,7 +397,6 @@ describe("workflow detail mutable execution flows", () => {
       expect(kit!.currentNodeStatus("B")).toBe("completed");
       expect(kit!.currentNodeStatus("C")).toBe("completed");
     });
-
   });
 
   it("keeps downstream pinned nodes on the canvas but removes them from the inspector when rerunning from the trigger", async () => {
@@ -376,15 +440,19 @@ describe("workflow detail mutable execution flows", () => {
     fireEvent.click(screen.getByTestId("canvas-node-run-button-A"));
 
     expect(
-      kit.latestRequestBody<Readonly<{ workflowId: string; stopAt?: string; clearFromNodeId?: string; currentState?: unknown }>>("POST /api/runs"),
-    ).toEqual(expect.objectContaining({
-      workflowId: workflow.id,
-      currentState: expect.any(Object),
-      stopAt: "A",
-      clearFromNodeId: "A",
-      mode: "manual",
-      synthesizeTriggerItems: true,
-    }));
+      kit.latestRequestBody<
+        Readonly<{ workflowId: string; stopAt?: string; clearFromNodeId?: string; currentState?: unknown }>
+      >("POST /api/runs"),
+    ).toEqual(
+      expect.objectContaining({
+        workflowId: workflow.id,
+        currentState: expect.any(Object),
+        stopAt: "A",
+        clearFromNodeId: "A",
+        mode: "manual",
+        synthesizeTriggerItems: true,
+      }),
+    );
 
     await waitFor(() => {
       expect(kit!.currentNodeStatus("A")).toBe("completed");
@@ -589,7 +657,9 @@ describe("workflow detail mutable execution flows", () => {
       ...kit.workflow,
       nodes: kit.workflow.nodes.filter((node) => node.id !== WorkflowDetailFixtureFactory.nodeTwoId),
       edges: kit.workflow.edges.filter(
-        (edge) => edge.from.nodeId !== WorkflowDetailFixtureFactory.nodeTwoId && edge.to.nodeId !== WorkflowDetailFixtureFactory.nodeTwoId,
+        (edge) =>
+          edge.from.nodeId !== WorkflowDetailFixtureFactory.nodeTwoId &&
+          edge.to.nodeId !== WorkflowDetailFixtureFactory.nodeTwoId,
       ),
     };
 
@@ -600,16 +670,18 @@ describe("workflow detail mutable execution flows", () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByTestId(`canvas-node-card-${WorkflowDetailFixtureFactory.nodeTwoId}`)).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId(`canvas-node-card-${WorkflowDetailFixtureFactory.nodeTwoId}`),
+      ).not.toBeInTheDocument();
     });
 
     kit.selectCanvasNode(WorkflowDetailFixtureFactory.nodeOneId);
     await waitFor(() => {
       expect(screen.getByTestId("selected-node-name")).toHaveTextContent("Node 1");
       expect(screen.getByTestId("selected-node-pinned-badge")).toHaveTextContent("Pinned");
-      expect(screen.queryByTestId(`canvas-node-card-${WorkflowDetailFixtureFactory.nodeTwoId}`)).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId(`canvas-node-card-${WorkflowDetailFixtureFactory.nodeTwoId}`),
+      ).not.toBeInTheDocument();
     });
   });
-
-
 });

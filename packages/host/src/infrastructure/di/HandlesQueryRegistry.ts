@@ -1,4 +1,4 @@
-import { injectable,registry } from "@codemation/core";
+import { injectable, registry } from "@codemation/core";
 import type { Query } from "../../application/bus/Query";
 import type { QueryHandler } from "../../application/bus/QueryHandler";
 import { ApplicationTokens } from "../../applicationTokens";

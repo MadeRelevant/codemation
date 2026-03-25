@@ -1,16 +1,18 @@
 import { injectable } from "@codemation/core";
-import { PubSub,v1 } from "@google-cloud/pubsub";
+import { PubSub, v1 } from "@google-cloud/pubsub";
 import type { GmailServiceAccountCredential } from "../../contracts/GmailServiceAccountCredential";
-import type { GmailPubSubPullClient,GmailPulledNotification } from "../../services/GmailPubSubPullClient";
+import type { GmailPubSubPullClient, GmailPulledNotification } from "../../services/GmailPubSubPullClient";
 import { GmailPubSubJsonNotificationReader } from "./GmailPubSubJsonNotificationReader";
 
 @injectable()
 export class GooglePubSubPullClient implements GmailPubSubPullClient {
-  async ensureSubscription(args: Readonly<{
-    credential: GmailServiceAccountCredential;
-    topicName: string;
-    subscriptionName: string;
-  }>): Promise<void> {
+  async ensureSubscription(
+    args: Readonly<{
+      credential: GmailServiceAccountCredential;
+      topicName: string;
+      subscriptionName: string;
+    }>,
+  ): Promise<void> {
     const client = this.createAdminClient(args.credential);
     const topic = client.topic(this.normalizeTopicName(args.topicName));
     const subscriptionName = this.normalizeSubscriptionName(args.subscriptionName);
@@ -21,13 +23,18 @@ export class GooglePubSubPullClient implements GmailPubSubPullClient {
     }
   }
 
-  async pull(args: Readonly<{
-    credential: GmailServiceAccountCredential;
-    subscriptionName: string;
-    maxMessages?: number;
-  }>): Promise<ReadonlyArray<GmailPulledNotification>> {
+  async pull(
+    args: Readonly<{
+      credential: GmailServiceAccountCredential;
+      subscriptionName: string;
+      maxMessages?: number;
+    }>,
+  ): Promise<ReadonlyArray<GmailPulledNotification>> {
     const subscriberClient = this.createSubscriberClient(args.credential);
-    const subscriptionPath = subscriberClient.subscriptionPath(args.credential.projectId, this.normalizeSubscriptionName(args.subscriptionName));
+    const subscriptionPath = subscriberClient.subscriptionPath(
+      args.credential.projectId,
+      this.normalizeSubscriptionName(args.subscriptionName),
+    );
     const [response] = await subscriberClient.pull({
       subscription: subscriptionPath,
       maxMessages: args.maxMessages ?? 10,

@@ -11,18 +11,20 @@ import type { JsonEditorState, PinBinaryMapsByItemIndex } from "../../lib/workfl
 import { WorkflowJsonEditorBinaryAttachmentRow } from "./WorkflowJsonEditorBinaryAttachmentRow";
 import { WorkflowJsonEditorBinaryUploadRow } from "./WorkflowJsonEditorBinaryUploadRow";
 
-export function WorkflowJsonEditorDialog(args: Readonly<{
-  state: JsonEditorState;
-  onClose: () => void;
-  onSave: (value: string, binaryMaps?: PinBinaryMapsByItemIndex) => void;
-  /** Initial tab when `state.mode === "pin-output"` (defaults to `json`). */
-  initialEditorTab?: "json" | "binaries";
-}>) {
+export function WorkflowJsonEditorDialog(
+  args: Readonly<{
+    state: JsonEditorState;
+    onClose: () => void;
+    onSave: (value: string, binaryMaps?: PinBinaryMapsByItemIndex) => void;
+    /** Initial tab when `state.mode === "pin-output"` (defaults to `json`). */
+    initialEditorTab?: "json" | "binaries";
+  }>,
+) {
   const { state, onClose, onSave, initialEditorTab } = args;
   const [value, setValue] = useState(state.value);
   const [error, setError] = useState<string | null>(null);
-  const [binaryMaps, setBinaryMaps] = useState<PinBinaryMapsByItemIndex>(
-    () => (state.mode === "pin-output" ? state.binaryMapsByItemIndex : []),
+  const [binaryMaps, setBinaryMaps] = useState<PinBinaryMapsByItemIndex>(() =>
+    state.mode === "pin-output" ? state.binaryMapsByItemIndex : [],
   );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadBusyKey, setUploadBusyKey] = useState<string | null>(null);
@@ -162,7 +164,11 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
               <TabsTrigger value="json" className="text-xs font-bold">
                 JSON
               </TabsTrigger>
-              <TabsTrigger value="binaries" className="text-xs font-bold" data-testid="workflow-json-editor-binaries-tab">
+              <TabsTrigger
+                value="binaries"
+                className="text-xs font-bold"
+                data-testid="workflow-json-editor-binaries-tab"
+              >
                 Binaries
               </TabsTrigger>
             </TabsList>
@@ -172,7 +178,9 @@ export function WorkflowJsonEditorDialog(args: Readonly<{
             <TabsContent value="binaries" className="mt-0 min-h-0 flex-1 overflow-y-auto data-[state=inactive]:hidden">
               <div className="flex flex-col gap-4 pb-2">
                 {itemCount === 0 ? (
-                  <div className="text-xs text-muted-foreground">Fix JSON on the JSON tab so at least one item exists.</div>
+                  <div className="text-xs text-muted-foreground">
+                    Fix JSON on the JSON tab so at least one item exists.
+                  </div>
                 ) : null}
                 {state.mode === "pin-output"
                   ? Array.from({ length: itemCount }, (_, itemIndex) => {

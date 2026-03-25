@@ -4,10 +4,22 @@ import tsPlugin from "@typescript-eslint/eslint-plugin";
 import globals from "globals";
 import noOnlyTests from "eslint-plugin-no-only-tests";
 
-const allowedConstructorNames = new Set(["Date", "Error", "Map", "Promise", "RegExp", "Set", "URL", "WeakMap", "WeakSet", "WebSocketServer"]);
+const allowedConstructorNames = new Set([
+  "Date",
+  "Error",
+  "Map",
+  "Promise",
+  "RegExp",
+  "Set",
+  "URL",
+  "WeakMap",
+  "WeakSet",
+  "WebSocketServer",
+]);
 const compositionRootFilePattern =
   /(?:Factory|Builder|Bootstrap|Discovery|Runner|Server|Mapper|Reader|Writer|Finder|Registry|Host|Protocol|Session|Program|Supervisor|Planner|Resolver|Environment|Worker|Scheduler|Connection|Application|Hub|Reporter|Loader|Validator|CliBin|LocalUserCreator|DevLock)\.tsx?$/;
-const isCompositionRootFile = (filename) => compositionRootFilePattern.test(filename) || /\/src\/bin\/[^/]+\.tsx?$/.test(filename);
+const isCompositionRootFile = (filename) =>
+  compositionRootFilePattern.test(filename) || /\/src\/bin\/[^/]+\.tsx?$/.test(filename);
 
 /**
  * Types that are routinely constructed at call sites (messages, errors, DTOs)
@@ -174,7 +186,8 @@ const architecturePlugin = {
             for (const node of classes.slice(1)) {
               context.report({
                 node,
-                message: "Each source file should declare a single class. Split additional classes into their own files.",
+                message:
+                  "Each source file should declare a single class. Split additional classes into their own files.",
               });
             }
           },
@@ -200,7 +213,8 @@ const architecturePlugin = {
             if (isManualNewAllowedTypeName(node.callee.name)) return;
             context.report({
               node,
-              message: "Avoid direct construction here. Register the dependency with tsyringe and inject or resolve it through the composition root instead.",
+              message:
+                "Avoid direct construction here. Register the dependency with tsyringe and inject or resolve it through the composition root instead.",
             });
           },
         };
@@ -221,7 +235,8 @@ const architecturePlugin = {
           "MethodDefinition[static=true]"(node) {
             context.report({
               node,
-              message: "Avoid static methods here. Move the behavior behind an injected class or a composition-root-specific factory.",
+              message:
+                "Avoid static methods here. Move the behavior behind an injected class or a composition-root-specific factory.",
             });
           },
         };
@@ -356,8 +371,10 @@ export default [
       "no-restricted-syntax": [
         "warn",
         {
-          selector: "VariableDeclarator[init.type='ObjectExpression'][id.typeAnnotation.typeAnnotation.typeName.name='WorkflowDefinition']",
-          message: "Prefer WorkflowBuilder helpers such as chain(), dag(), or createWorkflowBuilder() in tests instead of manually wiring WorkflowDefinition objects.",
+          selector:
+            "VariableDeclarator[init.type='ObjectExpression'][id.typeAnnotation.typeAnnotation.typeName.name='WorkflowDefinition']",
+          message:
+            "Prefer WorkflowBuilder helpers such as chain(), dag(), or createWorkflowBuilder() in tests instead of manually wiring WorkflowDefinition objects.",
         },
       ],
       "no-restricted-properties": [
@@ -373,7 +390,8 @@ export default [
         {
           object: "vi",
           property: "doMock",
-          message: "Prefer dependency injection seams and register fakes in the container instead of using vi.doMock().",
+          message:
+            "Prefer dependency injection seams and register fakes in the container instead of using vi.doMock().",
         },
         {
           object: "vi",
@@ -390,10 +408,15 @@ export default [
         {
           object: "vi",
           property: "stubEnv",
-          message: "Do not stub process.env via vi.stubEnv; pass env through harness constructors or copy/restore process.env keys explicitly.",
+          message:
+            "Do not stub process.env via vi.stubEnv; pass env through harness constructors or copy/restore process.env keys explicitly.",
         },
         { object: "Math", property: "random", message: "Avoid nondeterminism in tests (use deterministic factories)." },
-        { object: "Date", property: "now", message: "Avoid nondeterminism in tests (inject clock or use deterministic factories)." },
+        {
+          object: "Date",
+          property: "now",
+          message: "Avoid nondeterminism in tests (inject clock or use deterministic factories).",
+        },
       ],
     },
   },
@@ -401,13 +424,7 @@ export default [
   // DI + no root/exported functions: all workspace packages except next-host and apps/ (apps live outside packages/**).
   {
     files: ["packages/**/src/**/*.{ts,tsx}"],
-    ignores: [
-      "packages/next-host/**",
-      "**/index.ts",
-      "**/*.d.ts",
-      "**/*Types.ts",
-      "**/*types.ts",
-    ],
+    ignores: ["packages/next-host/**", "**/index.ts", "**/*.d.ts", "**/*Types.ts", "**/*types.ts"],
     rules: {
       "codemation/no-manual-di-new": "error",
       "codemation/no-static-methods": "error",
@@ -515,4 +532,3 @@ export default [
     },
   },
 ];
-

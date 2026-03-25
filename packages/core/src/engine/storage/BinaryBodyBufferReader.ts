@@ -1,9 +1,6 @@
-
 import { ReadableStream } from "node:stream/web";
 
 import type { BinaryBody } from "../../types";
-
-
 
 export class BinaryBodyBufferReader {
   async read(body: BinaryBody): Promise<Uint8Array> {

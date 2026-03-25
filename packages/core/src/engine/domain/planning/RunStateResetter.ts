@@ -1,4 +1,10 @@
-import type { ConnectionInvocationRecord, NodeId, NodeOutputs, RunCurrentState, RunStateResetRequest } from "../../../types";
+import type {
+  ConnectionInvocationRecord,
+  NodeId,
+  NodeOutputs,
+  RunCurrentState,
+  RunStateResetRequest,
+} from "../../../types";
 
 import { ConnectionNodeIdFactory } from "../../../workflow/ConnectionNodeIdFactory";
 
@@ -47,7 +53,10 @@ export class RunStateResetter {
       clearedNodeIds.push(nodeId);
     }
 
-    const connectionInvocations = this.filterConnectionInvocations(args.currentState.connectionInvocations, clearedIdSet);
+    const connectionInvocations = this.filterConnectionInvocations(
+      args.currentState.connectionInvocations,
+      clearedIdSet,
+    );
 
     return {
       currentState: {
@@ -90,7 +99,10 @@ export class RunStateResetter {
     return [...descendants];
   }
 
-  private collectRuntimeDescendants(currentState: RunCurrentState, descendantNodeIds: ReadonlyArray<NodeId>): ReadonlyArray<NodeId> {
+  private collectRuntimeDescendants(
+    currentState: RunCurrentState,
+    descendantNodeIds: ReadonlyArray<NodeId>,
+  ): ReadonlyArray<NodeId> {
     const descendantSet = new Set(descendantNodeIds);
     const runtimeNodeIds = new Set<NodeId>();
     for (const nodeId of [
@@ -118,4 +130,3 @@ export class RunStateResetter {
     return false;
   }
 }
-

@@ -1,9 +1,16 @@
-import type { PersistedRuntimeTypeDecoratorOptions, PersistedRuntimeTypeMetadata } from "./persistedRuntimeTypeModelRegistry";
+import type {
+  PersistedRuntimeTypeDecoratorOptions,
+  PersistedRuntimeTypeMetadata,
+} from "./persistedRuntimeTypeModelRegistry";
 
 import { InjectableRuntimeDecoratorComposer } from "./InjectableRuntimeDecoratorComposerRegistry";
 import { PersistedRuntimeTypeMetadataStore } from "./PersistedRuntimeTypeMetadataStoreRegistry";
 
-export type { PersistedRuntimeTypeDecoratorOptions, PersistedRuntimeTypeKind, PersistedRuntimeTypeMetadata } from "./persistedRuntimeTypeModelRegistry";
+export type {
+  PersistedRuntimeTypeDecoratorOptions,
+  PersistedRuntimeTypeKind,
+  PersistedRuntimeTypeMetadata,
+} from "./persistedRuntimeTypeModelRegistry";
 
 export function getPersistedRuntimeTypeMetadata(target: unknown): PersistedRuntimeTypeMetadata | undefined {
   return PersistedRuntimeTypeMetadataStore.get(target);
@@ -25,4 +32,3 @@ export { InjectableRuntimeDecoratorComposer } from "./InjectableRuntimeDecorator
 export { PersistedRuntimeTypeMetadataStore } from "./PersistedRuntimeTypeMetadataStoreRegistry";
 export { PersistedRuntimeTypeNameResolver } from "./PersistedRuntimeTypeNameResolver";
 export { StackTraceCallSitePathResolver } from "./StackTraceCallSitePathResolver";
-

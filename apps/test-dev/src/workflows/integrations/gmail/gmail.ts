@@ -1,5 +1,8 @@
 import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
-import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "@codemation/core-nodes-gmail/nodes/OnNewGmailTrigger";
+import {
+  OnNewGmailTrigger,
+  type OnNewGmailTriggerItemJson,
+} from "@codemation/core-nodes-gmail/nodes/OnNewGmailTrigger";
 
 import { GmailTriggerEnvReader } from "../../../gmail/GmailTriggerEnvReader";
 

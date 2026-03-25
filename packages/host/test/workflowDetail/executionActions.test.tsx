@@ -1,6 +1,10 @@
-import { fireEvent,screen,waitFor } from "@testing-library/react";
-import { afterEach,describe,expect,it } from "vitest";
-import { WorkflowDetailFixtureFactory,WorkflowDetailRealtimeFixtureFactory,WorkflowDetailScreenTestKit } from "./testkit";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  WorkflowDetailFixtureFactory,
+  WorkflowDetailRealtimeFixtureFactory,
+  WorkflowDetailScreenTestKit,
+} from "./testkit";
 import { WorkflowDetailTestEnvironment } from "./testkit/WorkflowDetailTestEnvironment";
 
 describe("workflow detail execution actions", () => {
@@ -125,7 +129,9 @@ describe("workflow detail execution actions", () => {
     expect(screen.getByTestId("selected-node-name")).toHaveTextContent("Agent");
     expect(screen.getByTestId("canvas-run-workflow-button")).toBeEnabled();
     expect(screen.getByTestId(`canvas-node-run-button-${WorkflowDetailFixtureFactory.agentNodeId}`)).toBeEnabled();
-    expect(screen.queryByTestId(`canvas-node-debug-button-${WorkflowDetailFixtureFactory.agentNodeId}`)).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId(`canvas-node-debug-button-${WorkflowDetailFixtureFactory.agentNodeId}`),
+    ).not.toBeInTheDocument();
   });
 
   it("shows live run updates on the canvas without switching to executions", async () => {

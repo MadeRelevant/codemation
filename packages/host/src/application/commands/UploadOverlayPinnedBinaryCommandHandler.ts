@@ -6,7 +6,10 @@ import { CommandHandler } from "../bus/CommandHandler";
 import { UploadOverlayPinnedBinaryCommand } from "./UploadOverlayPinnedBinaryCommand";
 
 @HandlesCommand.forCommand(UploadOverlayPinnedBinaryCommand)
-export class UploadOverlayPinnedBinaryCommandHandler extends CommandHandler<UploadOverlayPinnedBinaryCommand, BinaryAttachment> {
+export class UploadOverlayPinnedBinaryCommandHandler extends CommandHandler<
+  UploadOverlayPinnedBinaryCommand,
+  BinaryAttachment
+> {
   constructor(
     @inject(OverlayPinnedBinaryUploadService)
     private readonly overlayPinnedBinaryUpload: OverlayPinnedBinaryUploadService,

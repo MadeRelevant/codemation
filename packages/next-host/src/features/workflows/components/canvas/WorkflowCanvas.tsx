@@ -1,13 +1,20 @@
 "use client";
 
-import { Background,Controls,ReactFlow,type Edge as ReactFlowEdge,type ReactFlowInstance,type Node as ReactFlowNode } from "@xyflow/react";
-import { useCallback,useEffect,useMemo,useRef,useState } from "react";
+import {
+  Background,
+  Controls,
+  ReactFlow,
+  type Edge as ReactFlowEdge,
+  type ReactFlowInstance,
+  type Node as ReactFlowNode,
+} from "@xyflow/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../hooks/realtime/realtime";
 import type { WorkflowDto } from "../../lib/realtime/workflowTypes";
 import { layoutWorkflow } from "./lib/layoutWorkflow";
 import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
-import { workflowCanvasEdgeTypes,workflowCanvasNodeTypes } from "./lib/workflowCanvasFlowTypes";
+import { workflowCanvasEdgeTypes, workflowCanvasNodeTypes } from "./lib/workflowCanvasFlowTypes";
 import { useWorkflowCanvasVisibleNodeStatuses } from "../../hooks/canvas/useWorkflowCanvasVisibleNodeStatuses";
 import { WORKFLOW_CANVAS_EMBEDDED_STYLES } from "./lib/workflowCanvasEmbeddedStyles";
 import { WorkflowCanvasLoadingPlaceholder } from "./WorkflowCanvasLoadingPlaceholder";
@@ -50,7 +57,10 @@ export function WorkflowCanvas(args: {
   const [hasMountedOnClient, setHasMountedOnClient] = useState(false);
   const [isInitialViewportReady, setIsInitialViewportReady] = useState(false);
   const workflowStructureSignature = useMemo(() => WorkflowCanvasStructureSignature.create(workflow), [workflow]);
-  const visibleNodeStatusesByNodeId = useWorkflowCanvasVisibleNodeStatuses(nodeSnapshotsByNodeId, connectionInvocations);
+  const visibleNodeStatusesByNodeId = useWorkflowCanvasVisibleNodeStatuses(
+    nodeSnapshotsByNodeId,
+    connectionInvocations,
+  );
   const { nodes, edges } = useMemo(
     () =>
       layoutWorkflow(
@@ -91,7 +101,9 @@ export function WorkflowCanvas(args: {
     ],
   );
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
-  const reactFlowInstanceRef = useRef<ReactFlowInstance<ReactFlowNode<WorkflowCanvasNodeData>, ReactFlowEdge> | null>(null);
+  const reactFlowInstanceRef = useRef<ReactFlowInstance<ReactFlowNode<WorkflowCanvasNodeData>, ReactFlowEdge> | null>(
+    null,
+  );
   const fitViewAnimationFrameIdRef = useRef<number | null>(null);
   const fitViewTimeoutIdRef = useRef<number | null>(null);
   const fitViewRequestIdRef = useRef(0);

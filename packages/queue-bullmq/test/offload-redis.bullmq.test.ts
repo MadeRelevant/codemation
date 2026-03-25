@@ -4,35 +4,35 @@ import net from "node:net";
 import { type TestContext, onTestFinished, test } from "vitest";
 
 import type {
-Items,
-Node,
-NodeExecutionContext,
-NodeOutputs,
-PersistedTriggerSetupState,
-RunnableNodeConfig,
-TriggerSetupStateStore,
-TypeToken,
-WorkflowId,
+  Items,
+  Node,
+  NodeExecutionContext,
+  NodeOutputs,
+  PersistedTriggerSetupState,
+  RunnableNodeConfig,
+  TriggerSetupStateStore,
+  TypeToken,
+  WorkflowId,
 } from "@codemation/core";
 import {
-ConfigDrivenOffloadPolicy,
-ContainerNodeResolver,
-ContainerWorkflowRunnerResolver,
-CoreTokens,
-DefaultDrivingScheduler,
-DefaultExecutionContextFactory,
+  ConfigDrivenOffloadPolicy,
+  ContainerNodeResolver,
+  ContainerWorkflowRunnerResolver,
+  CoreTokens,
+  DefaultDrivingScheduler,
+  DefaultExecutionContextFactory,
   EngineFactory,
-EngineWorkflowRunnerService,
-InMemoryRunDataFactory,
-InMemoryRunEventBus,
-InMemoryRunStateStore,
-WorkflowCatalogWebhookTriggerMatcher,
-InlineDrivingScheduler,
-NodeInstanceFactory,
-PersistedWorkflowTokenRegistry,
-UnavailableCredentialSessionService,
-WorkflowBuilder,
-container as tsyringeContainer,
+  EngineWorkflowRunnerService,
+  InMemoryRunDataFactory,
+  InMemoryRunEventBus,
+  InMemoryRunStateStore,
+  WorkflowCatalogWebhookTriggerMatcher,
+  InlineDrivingScheduler,
+  NodeInstanceFactory,
+  PersistedWorkflowTokenRegistry,
+  UnavailableCredentialSessionService,
+  WorkflowBuilder,
+  container as tsyringeContainer,
 } from "@codemation/core";
 import { InMemoryWorkflowRegistry } from "@codemation/core/testing";
 import { GenericContainer } from "testcontainers";
@@ -53,21 +53,32 @@ class IdFactory {
   }
 }
 
-class UppercaseSubject<TItemJson extends Record<string, unknown> = Record<string, unknown>> implements RunnableNodeConfig<TItemJson, TItemJson> {
+class UppercaseSubject<
+  TItemJson extends Record<string, unknown> = Record<string, unknown>,
+> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = UppercaseSubjectNode;
   readonly execution = { hint: "worker" as const, queue: "default" as const };
-  constructor(public readonly name: string, public readonly id: string) {}
+  constructor(
+    public readonly name: string,
+    public readonly id: string,
+  ) {}
 }
 
 class UppercaseSubjectNode implements Node<UppercaseSubject<Record<string, unknown>>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
 
-  async execute(items: Items, _ctx: NodeExecutionContext<UppercaseSubject<Record<string, unknown>>>): Promise<NodeOutputs> {
+  async execute(
+    items: Items,
+    _ctx: NodeExecutionContext<UppercaseSubject<Record<string, unknown>>>,
+  ): Promise<NodeOutputs> {
     return {
       main: items.map((it) => {
-        const json = (it.json && typeof it.json === "object" ? (it.json as Record<string, unknown>) : {}) as Record<string, unknown>;
+        const json = (it.json && typeof it.json === "object" ? (it.json as Record<string, unknown>) : {}) as Record<
+          string,
+          unknown
+        >;
         const subject = String(json.subject ?? "");
         return { ...it, json: { ...json, subject: subject.toUpperCase() } };
       }),
@@ -124,7 +135,11 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   workflowCatalog.setWorkflows([wf]);
   const nodeResolver = new ContainerNodeResolver(container);
   const workflowRunnerResolver = new ContainerWorkflowRunnerResolver(container);
-  const activationScheduler = new DefaultDrivingScheduler(new ConfigDrivenOffloadPolicy("worker"), scheduler, new InlineDrivingScheduler(nodeResolver));
+  const activationScheduler = new DefaultDrivingScheduler(
+    new ConfigDrivenOffloadPolicy("worker"),
+    scheduler,
+    new InlineDrivingScheduler(nodeResolver),
+  );
   const eventBus = new InMemoryRunEventBus();
   const tokenRegistry = new PersistedWorkflowTokenRegistry();
   const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(workflowCatalog);
@@ -228,4 +243,3 @@ async function maybeStartRedisContainer(t: TestContext): Promise<StartedRedisCon
     return undefined;
   }
 }
-

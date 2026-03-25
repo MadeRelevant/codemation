@@ -8,4 +8,3 @@
   "include": ["src/**/*.ts", "src/**/*.tsx", "codemation.config.ts"],
   "exclude": ["node_modules"]
 }
-

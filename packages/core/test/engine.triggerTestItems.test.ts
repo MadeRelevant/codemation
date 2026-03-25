@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import type {
-Items,
-NodeExecutionContext,
-NodeOutputs,
-TestableTriggerNode,
-TriggerNodeConfig,
-TriggerSetupContext,
-TriggerTestItemsContext,
-TypeToken,
+  Items,
+  NodeExecutionContext,
+  NodeOutputs,
+  TestableTriggerNode,
+  TriggerNodeConfig,
+  TriggerSetupContext,
+  TriggerTestItemsContext,
+  TypeToken,
 } from "../src/index.ts";
-import { CallbackNodeConfig,chain,createEngineTestKit,items } from "./harness/index.ts";
+import { CallbackNodeConfig, chain, createEngineTestKit, items } from "./harness/index.ts";
 
 type PreviewSetupState = Readonly<{
   previewValue: string;
@@ -63,7 +63,10 @@ test("engine can synthesize trigger test items and stop at the trigger output", 
     nodeId: "trigger",
   });
   assert.ok(testItems);
-  assert.deepEqual(testItems?.map((item) => item.json), [{ value: "from_setup_state" }]);
+  assert.deepEqual(
+    testItems?.map((item) => item.json),
+    [{ value: "from_setup_state" }],
+  );
 
   const scheduled = await kit.engine.runWorkflowFromState({
     workflow,
@@ -73,7 +76,10 @@ test("engine can synthesize trigger test items and stop at the trigger output", 
   const done = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
 
   assert.equal(done.status, "completed");
-  assert.deepEqual(done.outputs.map((item) => item.json), [{ value: "from_setup_state" }]);
+  assert.deepEqual(
+    done.outputs.map((item) => item.json),
+    [{ value: "from_setup_state" }],
+  );
   assert.deepEqual(downstreamEvents, []);
 
   const stored = await kit.runStore.load(done.runId);

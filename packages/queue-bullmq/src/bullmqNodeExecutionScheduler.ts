@@ -1,4 +1,4 @@
-import type { NodeExecutionRequest,NodeExecutionScheduler } from "@codemation/core";
+import type { NodeExecutionRequest, NodeExecutionScheduler } from "@codemation/core";
 import { Queue } from "bullmq";
 
 import type { RedisConnectionConfig } from "./redisConnection";
@@ -23,11 +23,11 @@ export class BullmqNodeExecutionScheduler implements NodeExecutionScheduler {
 
     // BullMQ custom ids cannot contain ":".
     const jobId = `${request.runId}__${request.activationId}`;
-    await queue.add(
-      "node-execution",
-      { kind: "nodeExecution", request } as const,
-      { jobId, removeOnComplete: true, removeOnFail: true },
-    );
+    await queue.add("node-execution", { kind: "nodeExecution", request } as const, {
+      jobId,
+      removeOnComplete: true,
+      removeOnFail: true,
+    });
 
     return { receiptId: jobId };
   }
@@ -47,4 +47,3 @@ export class BullmqNodeExecutionScheduler implements NodeExecutionScheduler {
     return q;
   }
 }
-

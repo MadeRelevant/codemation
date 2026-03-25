@@ -1,30 +1,47 @@
 import { WorkflowStatusIcon } from "./WorkflowDetailIcons";
 import { WorkflowExecutionInspectorPanes } from "./WorkflowExecutionInspectorPanes";
-import type { WorkflowExecutionInspectorActions,WorkflowExecutionInspectorFormatting,WorkflowExecutionInspectorModel } from "../../lib/workflowDetail/workflowDetailTypes";
+import type {
+  WorkflowExecutionInspectorActions,
+  WorkflowExecutionInspectorFormatting,
+  WorkflowExecutionInspectorModel,
+} from "../../lib/workflowDetail/workflowDetailTypes";
 
-export function WorkflowExecutionInspectorDetailBody(props: Readonly<{
-  model: Pick<
-    WorkflowExecutionInspectorModel,
-    | "inputPane"
-    | "outputPane"
-    | "selectedMode"
-    | "selectedNodeError"
-    | "selectedNodeId"
-    | "nodeActions"
-    | "selectedNodeSnapshot"
-    | "selectedPinnedOutput"
-    | "selectedWorkflowNode"
-    | "viewContext"
-  >;
-  formatting: Pick<
-    WorkflowExecutionInspectorFormatting,
-    "formatDateTime" | "formatDurationLabel" | "getErrorClipboardText" | "getErrorHeadline" | "getErrorStack" | "getNodeDisplayName" | "getSnapshotTimestamp"
-  >;
-  actions: Pick<
-    WorkflowExecutionInspectorActions,
-    "onClearPinnedOutput" | "onEditSelectedOutput" | "onSelectFormat" | "onSelectInputPort" | "onSelectMode" | "onSelectOutputPort"
-  >;
-}>) {
+export function WorkflowExecutionInspectorDetailBody(
+  props: Readonly<{
+    model: Pick<
+      WorkflowExecutionInspectorModel,
+      | "inputPane"
+      | "outputPane"
+      | "selectedMode"
+      | "selectedNodeError"
+      | "selectedNodeId"
+      | "nodeActions"
+      | "selectedNodeSnapshot"
+      | "selectedPinnedOutput"
+      | "selectedWorkflowNode"
+      | "viewContext"
+    >;
+    formatting: Pick<
+      WorkflowExecutionInspectorFormatting,
+      | "formatDateTime"
+      | "formatDurationLabel"
+      | "getErrorClipboardText"
+      | "getErrorHeadline"
+      | "getErrorStack"
+      | "getNodeDisplayName"
+      | "getSnapshotTimestamp"
+    >;
+    actions: Pick<
+      WorkflowExecutionInspectorActions,
+      | "onClearPinnedOutput"
+      | "onEditSelectedOutput"
+      | "onSelectFormat"
+      | "onSelectInputPort"
+      | "onSelectMode"
+      | "onSelectOutputPort"
+    >;
+  }>,
+) {
   const { actions, formatting, model } = props;
   const {
     inputPane,
@@ -38,9 +55,30 @@ export function WorkflowExecutionInspectorDetailBody(props: Readonly<{
     selectedWorkflowNode,
     viewContext,
   } = model;
-  const { formatDateTime, formatDurationLabel, getErrorClipboardText, getErrorHeadline, getErrorStack, getNodeDisplayName, getSnapshotTimestamp } = formatting;
-  const { onClearPinnedOutput, onEditSelectedOutput, onSelectFormat, onSelectInputPort, onSelectMode, onSelectOutputPort } = actions;
-  const paneActions = { onClearPinnedOutput, onEditSelectedOutput, onSelectFormat, onSelectInputPort, onSelectOutputPort };
+  const {
+    formatDateTime,
+    formatDurationLabel,
+    getErrorClipboardText,
+    getErrorHeadline,
+    getErrorStack,
+    getNodeDisplayName,
+    getSnapshotTimestamp,
+  } = formatting;
+  const {
+    onClearPinnedOutput,
+    onEditSelectedOutput,
+    onSelectFormat,
+    onSelectInputPort,
+    onSelectMode,
+    onSelectOutputPort,
+  } = actions;
+  const paneActions = {
+    onClearPinnedOutput,
+    onEditSelectedOutput,
+    onSelectFormat,
+    onSelectInputPort,
+    onSelectOutputPort,
+  };
   const errorFormatting = { getErrorClipboardText, getErrorHeadline, getErrorStack };
   const isInputVisible = selectedMode === "input" || selectedMode === "split";
   const isOutputVisible = selectedMode === "output" || selectedMode === "split";
@@ -58,15 +96,39 @@ export function WorkflowExecutionInspectorDetailBody(props: Readonly<{
   return (
     <div style={{ display: "grid", gridTemplateRows: "auto 1fr", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
       <div style={{ display: "grid", gap: 8, padding: "10px 12px", borderBottom: "1px solid #d1d5db" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}
+        >
           <div style={{ minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <WorkflowStatusIcon status={selectedNodeSnapshot?.status ?? "pending"} />
-              <div data-testid="selected-node-name" style={{ fontWeight: 800, fontSize: 14, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div
+                data-testid="selected-node-name"
+                style={{
+                  fontWeight: 800,
+                  fontSize: 14,
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {getNodeDisplayName(selectedWorkflowNode, selectedNodeId)}
               </div>
               {selectedPinnedOutput ? (
-                <span data-testid="selected-node-pinned-badge" style={{ border: "1px solid #c4b5fd", background: "#f5f3ff", color: "#6d28d9", fontSize: 11, fontWeight: 800, letterSpacing: 0.3, textTransform: "uppercase", padding: "2px 6px" }}>
+                <span
+                  data-testid="selected-node-pinned-badge"
+                  style={{
+                    border: "1px solid #c4b5fd",
+                    background: "#f5f3ff",
+                    color: "#6d28d9",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: 0.3,
+                    textTransform: "uppercase",
+                    padding: "2px 6px",
+                  }}
+                >
                   Pinned
                 </span>
               ) : null}
@@ -79,15 +141,19 @@ export function WorkflowExecutionInspectorDetailBody(props: Readonly<{
                     <span data-testid="selected-node-duration">{` · ${selectedNodeDurationLabel}`}</span>
                   ) : null}
                 </>
-              ) : viewContext === "live-workflow" ? "Live workflow node" : "No execution snapshot yet"}
+              ) : viewContext === "live-workflow" ? (
+                "Live workflow node"
+              ) : (
+                "No execution snapshot yet"
+              )}
             </div>
           </div>
           <div style={{ display: "flex", minWidth: 0, flexWrap: "wrap", justifyContent: "flex-end", gap: 8 }}>
             <div style={{ display: "flex", gap: 8 }}>
-              {([
+              {[
                 { tab: "input" as const, isSelected: isInputVisible, hasError: false },
                 { tab: "output" as const, isSelected: isOutputVisible, hasError: Boolean(selectedNodeError) },
-              ]).map(({ tab, isSelected, hasError }) => (
+              ].map(({ tab, isSelected, hasError }) => (
                 <button
                   key={tab}
                   type="button"
@@ -106,7 +172,10 @@ export function WorkflowExecutionInspectorDetailBody(props: Readonly<{
                   }}
                 >
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span>{tab[0]!.toUpperCase()}{tab.slice(1)}</span>
+                    <span>
+                      {tab[0]!.toUpperCase()}
+                      {tab.slice(1)}
+                    </span>
                     {hasError ? (
                       <span
                         style={{

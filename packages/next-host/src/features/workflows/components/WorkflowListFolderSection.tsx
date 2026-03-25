@@ -17,13 +17,15 @@ function folderTestId(folderPath: ReadonlyArray<string>): string {
   return `workflows-folder-${folderPath.join("__")}`;
 }
 
-export function WorkflowListFolderSection(args: Readonly<{
-  node: WorkflowFolderTreeNode;
-  folderPath: ReadonlyArray<string>;
-  depth: number;
-  pathname: string;
-  workflows: ReadonlyArray<WorkflowSummary>;
-}>): ReactNode {
+export function WorkflowListFolderSection(
+  args: Readonly<{
+    node: WorkflowFolderTreeNode;
+    folderPath: ReadonlyArray<string>;
+    depth: number;
+    pathname: string;
+    workflows: ReadonlyArray<WorkflowSummary>;
+  }>,
+): ReactNode {
   const { node, folderPath, depth, pathname, workflows } = args;
   const nextPath = [...folderPath, node.segment];
   const totalInTree = WorkflowFolderUi.countWorkflowsInSubtree(node);

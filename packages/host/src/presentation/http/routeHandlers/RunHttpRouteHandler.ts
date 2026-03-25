@@ -1,4 +1,4 @@
-import { inject,injectable } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import { HttpRequestJsonBodyReader } from "../HttpRequestJsonBodyReader";
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import type { QueryBus } from "../../../application/bus/QueryBus";
@@ -7,10 +7,10 @@ import { ReplayWorkflowNodeCommand } from "../../../application/commands/ReplayW
 import { SetPinnedNodeInputCommand } from "../../../application/commands/SetPinnedNodeInputCommand";
 import { StartWorkflowRunCommand } from "../../../application/commands/StartWorkflowRunCommand";
 import type {
-CreateRunRequest,
-RunNodeRequest,
-UpdateRunNodePinRequest,
-UpdateRunWorkflowSnapshotRequest,
+  CreateRunRequest,
+  RunNodeRequest,
+  UpdateRunNodePinRequest,
+  UpdateRunWorkflowSnapshotRequest,
 } from "../../../application/contracts/RunContracts";
 import { GetRunStateQuery } from "../../../application/queries/GetRunStateQuery";
 import { ApplicationTokens } from "../../../applicationTokens";
@@ -50,7 +50,9 @@ export class RunHttpRouteHandler {
   async patchRunWorkflowSnapshot(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const body = await HttpRequestJsonBodyReader.readJsonBody<UpdateRunWorkflowSnapshotRequest>(request);
-      return Response.json(await this.commandBus.execute(new ReplaceMutableRunWorkflowSnapshotCommand(params.runId!, body)));
+      return Response.json(
+        await this.commandBus.execute(new ReplaceMutableRunWorkflowSnapshotCommand(params.runId!, body)),
+      );
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
@@ -59,7 +61,9 @@ export class RunHttpRouteHandler {
   async patchRunNodePin(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const body = await HttpRequestJsonBodyReader.readJsonBody<UpdateRunNodePinRequest>(request);
-      return Response.json(await this.commandBus.execute(new SetPinnedNodeInputCommand(params.runId!, params.nodeId!, body)));
+      return Response.json(
+        await this.commandBus.execute(new SetPinnedNodeInputCommand(params.runId!, params.nodeId!, body)),
+      );
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
@@ -68,10 +72,11 @@ export class RunHttpRouteHandler {
   async postRunNode(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const body = await HttpRequestJsonBodyReader.readJsonBody<RunNodeRequest>(request);
-      return Response.json(await this.commandBus.execute(new ReplayWorkflowNodeCommand(params.runId!, params.nodeId!, body)));
+      return Response.json(
+        await this.commandBus.execute(new ReplayWorkflowNodeCommand(params.runId!, params.nodeId!, body)),
+      );
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
   }
-
 }

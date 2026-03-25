@@ -1,6 +1,6 @@
 import { InviteAcceptScreen } from "@codemation/next-host/src/features/invite/screens/InviteAcceptScreen";
-import { cleanup,fireEvent,render,screen,waitFor } from "@testing-library/react";
-import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiPaths } from "../src/presentation/http/ApiPaths";
 
 describe("InviteAcceptScreen", () => {

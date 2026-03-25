@@ -1,42 +1,47 @@
 import type { ReadableStream as BinaryReadableStream } from "node:stream/web";
-import type { Container,TypeToken } from "../di";
+import type { Container, TypeToken } from "../di";
 import type { RunEventBus } from "../events/runEvents";
 import type { CredentialSessionService } from "./credentialTypes";
 import type {
-ConnectionInvocationAppendArgs,
-NodeInputsByPort,
-PersistedWorkflowSnapshot,
-PersistedWorkflowTokenRegistryLike,
-RunExecutionOptions,
-RunResult,
-RunStateStore,
+  ConnectionInvocationAppendArgs,
+  NodeInputsByPort,
+  PersistedWorkflowSnapshot,
+  PersistedWorkflowTokenRegistryLike,
+  RunExecutionOptions,
+  RunResult,
+  RunStateStore,
 } from "./runTypes";
 import type { TriggerInstanceId, WebhookTriggerMatcher } from "./webhookTypes";
 import type {
-ActivationIdFactory,
-BinaryAttachment,
-Item,
-Items,
-JsonValue,
-NodeActivationId,
-NodeConfigBase,
-NodeId,
-NodeOutputs,
-OutputPortKey,
-ParentExecutionRef,
-RunDataFactory,
-RunDataSnapshot,
-RunId,
-RunIdFactory,
-TriggerNodeConfig,
-TriggerNodeSetupState,
+  ActivationIdFactory,
+  BinaryAttachment,
+  Item,
+  Items,
+  JsonValue,
+  NodeActivationId,
+  NodeConfigBase,
+  NodeId,
+  NodeOutputs,
+  OutputPortKey,
+  ParentExecutionRef,
+  RunDataFactory,
+  RunDataSnapshot,
+  RunId,
+  RunIdFactory,
+  TriggerNodeConfig,
+  TriggerNodeSetupState,
   WorkflowDefinition,
   WorkflowId,
   WorkflowPolicyRuntimeDefaults,
 } from "./workflowTypes";
 
 export interface WorkflowRunnerService {
-  runById(args: { workflowId: WorkflowId; startAt?: NodeId; items: Items; parent?: ParentExecutionRef }): Promise<RunResult>;
+  runById(args: {
+    workflowId: WorkflowId;
+    startAt?: NodeId;
+    items: Items;
+    parent?: ParentExecutionRef;
+  }): Promise<RunResult>;
 }
 
 export interface WorkflowRunnerResolver {
@@ -61,9 +66,23 @@ export interface NodeResolver {
 
 export interface NodeExecutionStatePublisher {
   markQueued(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort }): Promise<void>;
-  markRunning(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort }): Promise<void>;
-  markCompleted(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort; outputs?: NodeOutputs }): Promise<void>;
-  markFailed(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort; error: Error }): Promise<void>;
+  markRunning(args: {
+    nodeId: NodeId;
+    activationId?: NodeActivationId;
+    inputsByPort?: NodeInputsByPort;
+  }): Promise<void>;
+  markCompleted(args: {
+    nodeId: NodeId;
+    activationId?: NodeActivationId;
+    inputsByPort?: NodeInputsByPort;
+    outputs?: NodeOutputs;
+  }): Promise<void>;
+  markFailed(args: {
+    nodeId: NodeId;
+    activationId?: NodeActivationId;
+    inputsByPort?: NodeInputsByPort;
+    error: Error;
+  }): Promise<void>;
   appendConnectionInvocation(args: ConnectionInvocationAppendArgs): Promise<void>;
 }
 
@@ -223,8 +242,9 @@ export interface TriggerNode<TConfig extends TriggerNodeConfig<any, any> = Trigg
   execute(items: Items, ctx: NodeExecutionContext<TConfig>): Promise<NodeOutputs>;
 }
 
-export interface TestableTriggerNode<TConfig extends TriggerNodeConfig<any, any> = TriggerNodeConfig<any, any>>
-  extends TriggerNode<TConfig> {
+export interface TestableTriggerNode<
+  TConfig extends TriggerNodeConfig<any, any> = TriggerNodeConfig<any, any>,
+> extends TriggerNode<TConfig> {
   getTestItems(ctx: TriggerTestItemsContext<TConfig>): Promise<Items>;
 }
 
@@ -283,8 +303,18 @@ export interface NodeActivationContinuation {
     nodeId: NodeId;
     inputsByPort: NodeInputsByPort;
   }): Promise<void>;
-  resumeFromNodeResult(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; outputs: NodeOutputs }): Promise<RunResult>;
-  resumeFromNodeError(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; error: Error }): Promise<RunResult>;
+  resumeFromNodeResult(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    outputs: NodeOutputs;
+  }): Promise<RunResult>;
+  resumeFromNodeError(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    error: Error;
+  }): Promise<RunResult>;
 }
 
 export interface NodeActivationScheduler {
@@ -303,7 +333,10 @@ export interface WorkflowSnapshotFactory {
 }
 
 export interface WorkflowSnapshotResolver {
-  resolve(args: { workflowId: WorkflowId; workflowSnapshot?: PersistedWorkflowSnapshot }): WorkflowDefinition | undefined;
+  resolve(args: {
+    workflowId: WorkflowId;
+    workflowSnapshot?: PersistedWorkflowSnapshot;
+  }): WorkflowDefinition | undefined;
 }
 
 export interface EngineDeps {

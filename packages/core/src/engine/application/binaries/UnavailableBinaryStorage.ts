@@ -1,4 +1,3 @@
-
 import type { BinaryStorage } from "../../../types";
 
 export class UnavailableBinaryStorage implements BinaryStorage {
@@ -18,4 +17,3 @@ export class UnavailableBinaryStorage implements BinaryStorage {
 
   async delete(): Promise<void> {}
 }
-

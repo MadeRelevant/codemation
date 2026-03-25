@@ -5,13 +5,15 @@
  * nodes sit under parents or when manual offsets interact with dense graphs.
  */
 export class WorkflowCanvasOverlapResolver {
-  static resolve(args: Readonly<{
-    positionsByNodeId: ReadonlyMap<string, { x: number; y: number }>;
-    widthByNodeId: ReadonlyMap<string, number>;
-    heightByNodeId: ReadonlyMap<string, number>;
-    gap: number;
-    maxIterations?: number;
-  }>): Map<string, { x: number; y: number }> {
+  static resolve(
+    args: Readonly<{
+      positionsByNodeId: ReadonlyMap<string, { x: number; y: number }>;
+      widthByNodeId: ReadonlyMap<string, number>;
+      heightByNodeId: ReadonlyMap<string, number>;
+      gap: number;
+      maxIterations?: number;
+    }>,
+  ): Map<string, { x: number; y: number }> {
     const maxIterations = args.maxIterations ?? 160;
     const gap = args.gap;
     const out = new Map<string, { x: number; y: number }>();

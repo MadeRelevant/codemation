@@ -1,5 +1,9 @@
 import type { CredentialRequirement, WorkflowDefinition } from "@codemation/core";
-import { AgentConfigInspector, ConnectionNodeIdFactory, createWorkflowExecutableNodeClassifier } from "@codemation/core";
+import {
+  AgentConfigInspector,
+  ConnectionNodeIdFactory,
+  createWorkflowExecutableNodeClassifier,
+} from "@codemation/core";
 
 import { injectable } from "@codemation/core";
 
@@ -88,12 +92,7 @@ export class WorkflowCredentialNodeResolver {
     if (ConnectionNodeIdFactory.isToolConnectionNodeId(nodeId)) {
       const parsed = this.parseToolConnectionNodeId(nodeId);
       if (parsed) {
-        const fromConn = this.findToolRequirement(
-          workflow,
-          parsed.parentNodeId,
-          parsed.normalizedToolName,
-          slotKey,
-        );
+        const fromConn = this.findToolRequirement(workflow, parsed.parentNodeId, parsed.normalizedToolName, slotKey);
         if (fromConn) {
           return fromConn;
         }
@@ -185,15 +184,14 @@ export class WorkflowCredentialNodeResolver {
     if (!parent || !AgentConfigInspector.isAgentNodeConfig(parent.config)) {
       return undefined;
     }
-    const requirement = parent.config.chatModel.getCredentialRequirements?.()?.find((entry) => entry.slotKey === slotKey);
+    const requirement = parent.config.chatModel
+      .getCredentialRequirements?.()
+      ?.find((entry) => entry.slotKey === slotKey);
     if (!requirement) {
       return undefined;
     }
     const nodeName =
-      parent.config.chatModel.presentation?.label ??
-      parent.config.chatModel.name ??
-      parent.name ??
-      parent.id;
+      parent.config.chatModel.presentation?.label ?? parent.config.chatModel.name ?? parent.name ?? parent.id;
     return { nodeName, requirement };
   }
 

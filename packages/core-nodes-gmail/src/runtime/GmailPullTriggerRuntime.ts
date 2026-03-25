@@ -1,5 +1,5 @@
-import type { Items,TriggerInstanceId,TriggerSetupStateStore } from "@codemation/core";
-import { CoreTokens,inject,injectable } from "@codemation/core";
+import type { Items, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
+import { CoreTokens, inject, injectable } from "@codemation/core";
 import type { GmailLogger } from "../contracts/GmailLogger";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
@@ -23,13 +23,15 @@ export class GmailPullTriggerRuntime {
     @inject(GmailHistorySyncService) private readonly gmailHistorySyncService: GmailHistorySyncService,
   ) {}
 
-  async ensureStarted(args: Readonly<{
-    trigger: TriggerInstanceId;
-    client: GmailApiClient;
-    config: OnNewGmailTrigger;
-    previousState: GmailTriggerSetupState | undefined;
-    emit(items: Items): Promise<void>;
-  }>): Promise<GmailTriggerSetupState | undefined> {
+  async ensureStarted(
+    args: Readonly<{
+      trigger: TriggerInstanceId;
+      client: GmailApiClient;
+      config: OnNewGmailTrigger;
+      previousState: GmailTriggerSetupState | undefined;
+      emit(items: Items): Promise<void>;
+    }>,
+  ): Promise<GmailTriggerSetupState | undefined> {
     if (!args.config.hasRequiredConfiguration()) {
       const missingFields = args.config.resolveMissingConfigurationFields();
       this.logger.warn(
@@ -74,12 +76,14 @@ export class GmailPullTriggerRuntime {
     this.logger.info(`pull loop stopped for ${this.describeTrigger(trigger)}`);
   }
 
-  private ensurePullLoop(args: Readonly<{
-    trigger: TriggerInstanceId;
-    client: GmailApiClient;
-    config: OnNewGmailTrigger;
-    emit(items: Items): Promise<void>;
-  }>): void {
+  private ensurePullLoop(
+    args: Readonly<{
+      trigger: TriggerInstanceId;
+      client: GmailApiClient;
+      config: OnNewGmailTrigger;
+      emit(items: Items): Promise<void>;
+    }>,
+  ): void {
     const key = this.toKey(args.trigger);
     if (this.activeTriggers.has(key)) {
       this.logger.debug(`pull loop already active for ${this.describeTrigger(args.trigger)}`);
@@ -96,12 +100,14 @@ export class GmailPullTriggerRuntime {
     this.logger.info(`pull loop started for ${this.describeTrigger(args.trigger)}`);
   }
 
-  private async pollOnce(args: Readonly<{
-    trigger: TriggerInstanceId;
-    client: GmailApiClient;
-    config: OnNewGmailTrigger;
-    emit(items: Items): Promise<void>;
-  }>): Promise<void> {
+  private async pollOnce(
+    args: Readonly<{
+      trigger: TriggerInstanceId;
+      client: GmailApiClient;
+      config: OnNewGmailTrigger;
+      emit(items: Items): Promise<void>;
+    }>,
+  ): Promise<void> {
     const key = this.toKey(args.trigger);
     if (this.busyTriggers.has(key)) {
       this.logger.debug(`poll loop skipped overlapping tick for ${this.describeTrigger(args.trigger)}`);
@@ -116,7 +122,9 @@ export class GmailPullTriggerRuntime {
         topicName: args.config.cfg.topicName,
         subscriptionName: args.config.cfg.subscriptionName,
         labelIds: args.config.cfg.labelIds,
-        previousState: (await this.triggerSetupStateStore.load(args.trigger))?.state as GmailTriggerSetupState | undefined,
+        previousState: (await this.triggerSetupStateStore.load(args.trigger))?.state as
+          | GmailTriggerSetupState
+          | undefined,
         persist: true,
       });
       const notifications = await args.client.pull({
@@ -124,7 +132,9 @@ export class GmailPullTriggerRuntime {
         maxMessages: this.resolveMaxMessagesPerPull(),
       });
       if (notifications.length > 0) {
-        this.logger.info(`pulled ${notifications.length} Gmail notification(s) for ${this.describeTrigger(args.trigger)}`);
+        this.logger.info(
+          `pulled ${notifications.length} Gmail notification(s) for ${this.describeTrigger(args.trigger)}`,
+        );
       }
       for (const notification of notifications) {
         await this.processNotification({
@@ -140,13 +150,15 @@ export class GmailPullTriggerRuntime {
     }
   }
 
-  private async processNotification(args: Readonly<{
-    trigger: TriggerInstanceId;
-    client: GmailApiClient;
-    config: OnNewGmailTrigger;
-    emit(items: Items): Promise<void>;
-    notification: Awaited<ReturnType<GmailApiClient["pull"]>>[number];
-  }>): Promise<void> {
+  private async processNotification(
+    args: Readonly<{
+      trigger: TriggerInstanceId;
+      client: GmailApiClient;
+      config: OnNewGmailTrigger;
+      emit(items: Items): Promise<void>;
+      notification: Awaited<ReturnType<GmailApiClient["pull"]>>[number];
+    }>,
+  ): Promise<void> {
     const items = await this.gmailHistorySyncService.sync({
       trigger: args.trigger,
       client: args.client,

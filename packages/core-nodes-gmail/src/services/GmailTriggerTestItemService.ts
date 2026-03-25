@@ -1,7 +1,7 @@
-import type { Items,TriggerInstanceId } from "@codemation/core";
-import { inject,injectable } from "@codemation/core";
+import type { Items, TriggerInstanceId } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
-import type { OnNewGmailTrigger,OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
+import type { OnNewGmailTrigger, OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
 import type { GmailApiClient } from "./GmailApiClient";
 import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "./GmailMessageItemMapper";
@@ -15,12 +15,14 @@ export class GmailTriggerTestItemService {
     @inject(GmailQueryMatcher) private readonly gmailQueryMatcher: GmailQueryMatcher,
   ) {}
 
-  async createItems(args: Readonly<{
-    trigger: TriggerInstanceId;
-    client: GmailApiClient;
-    config: OnNewGmailTrigger;
-    previousState: GmailTriggerSetupState | undefined;
-  }>): Promise<Items<OnNewGmailTriggerItemJson>> {
+  async createItems(
+    args: Readonly<{
+      trigger: TriggerInstanceId;
+      client: GmailApiClient;
+      config: OnNewGmailTrigger;
+      previousState: GmailTriggerSetupState | undefined;
+    }>,
+  ): Promise<Items<OnNewGmailTriggerItemJson>> {
     void args.trigger;
     const resolvedLabelIds = await this.gmailConfiguredLabelService.resolveLabelIds({
       client: args.client,
@@ -43,7 +45,10 @@ export class GmailTriggerTestItemService {
     if (!this.gmailQueryMatcher.matchesOnNewTrigger(message, args.config, resolvedLabelIds)) {
       return [];
     }
-    const historyId = message.historyId ?? args.previousState?.historyId ?? (await args.client.getCurrentHistoryId({ mailbox: args.config.cfg.mailbox }));
+    const historyId =
+      message.historyId ??
+      args.previousState?.historyId ??
+      (await args.client.getCurrentHistoryId({ mailbox: args.config.cfg.mailbox }));
     return this.gmailMessageItemMapper.mapMany({
       mailbox: args.config.cfg.mailbox,
       historyId,

@@ -33,11 +33,7 @@ export function AppShellHeaderActionsAuthenticated(): ReactNode {
 
   return (
     <div className="flex shrink-0 items-center gap-4">
-      <span
-        className="max-w-56 truncate text-xs text-muted-foreground"
-        data-testid="header-user-email"
-        title={email}
-      >
+      <span className="max-w-56 truncate text-xs text-muted-foreground" data-testid="header-user-email" title={email}>
         {email}
       </span>
       <Button

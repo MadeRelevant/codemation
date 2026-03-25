@@ -1,14 +1,20 @@
-import { useEffect,useRef,useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { WorkflowExecutionInspectorDetailBody } from "./WorkflowExecutionInspectorDetailBody";
 import { WorkflowExecutionInspectorSidebarResizer } from "./WorkflowExecutionInspectorSidebarResizer";
 import { WorkflowExecutionInspectorTreePanel } from "./WorkflowExecutionInspectorTreePanel";
-import type { WorkflowExecutionInspectorActions,WorkflowExecutionInspectorFormatting,WorkflowExecutionInspectorModel } from "../../lib/workflowDetail/workflowDetailTypes";
+import type {
+  WorkflowExecutionInspectorActions,
+  WorkflowExecutionInspectorFormatting,
+  WorkflowExecutionInspectorModel,
+} from "../../lib/workflowDetail/workflowDetailTypes";
 
-export function WorkflowExecutionInspector(args: Readonly<{
-  model: WorkflowExecutionInspectorModel;
-  actions: WorkflowExecutionInspectorActions;
-  formatting: WorkflowExecutionInspectorFormatting;
-}>) {
+export function WorkflowExecutionInspector(
+  args: Readonly<{
+    model: WorkflowExecutionInspectorModel;
+    actions: WorkflowExecutionInspectorActions;
+    formatting: WorkflowExecutionInspectorFormatting;
+  }>,
+) {
   const { actions, formatting, model } = args;
   const {
     executionTreeData,
@@ -56,8 +62,10 @@ export function WorkflowExecutionInspector(args: Readonly<{
     };
   }, [isTreePanelResizing]);
 
-  if (isLoading && viewContext === "historical-run" && !selectedRun) return <div style={{ opacity: 0.7 }}>Loading execution details…</div>;
-  if (isLoading && viewContext === "live-workflow" && !selectedWorkflowNode) return <div style={{ opacity: 0.7 }}>Loading live workflow state…</div>;
+  if (isLoading && viewContext === "historical-run" && !selectedRun)
+    return <div style={{ opacity: 0.7 }}>Loading execution details…</div>;
+  if (isLoading && viewContext === "live-workflow" && !selectedWorkflowNode)
+    return <div style={{ opacity: 0.7 }}>Loading live workflow state…</div>;
   if (loadError) return <div style={{ color: "#b91c1c" }}>{loadError}</div>;
   if (!selectedNodeId) return <div style={{ opacity: 0.7 }}>Select a node to inspect.</div>;
 
@@ -81,7 +89,10 @@ export function WorkflowExecutionInspector(args: Readonly<{
           selectedExecutionTreeKey,
           viewContext,
         }}
-        formatting={{ formatDurationLabel: formatting.formatDurationLabel, getNodeDisplayName: formatting.getNodeDisplayName }}
+        formatting={{
+          formatDurationLabel: formatting.formatDurationLabel,
+          getNodeDisplayName: formatting.getNodeDisplayName,
+        }}
         onSelectNode={onSelectNode}
       />
       <WorkflowExecutionInspectorSidebarResizer

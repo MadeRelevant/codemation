@@ -57,9 +57,7 @@ export function CredentialDialogFieldRows({
                   data-testid={`credential-public-${field.key}`}
                   rows={4}
                   value={publicFieldValues[field.key] ?? ""}
-                  onChange={(e) =>
-                    setPublicFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                  }
+                  onChange={(e) => setPublicFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
                   placeholder={field.placeholder}
                   readOnly={lockedByEnv}
                   disabled={lockedByEnv}
@@ -70,9 +68,7 @@ export function CredentialDialogFieldRows({
                   data-testid={`credential-public-${field.key}`}
                   type={field.type === "password" ? "password" : "text"}
                   value={publicFieldValues[field.key] ?? ""}
-                  onChange={(e) =>
-                    setPublicFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                  }
+                  onChange={(e) => setPublicFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
                   placeholder={field.placeholder}
                   readOnly={lockedByEnv}
                   disabled={lockedByEnv}
@@ -86,9 +82,7 @@ export function CredentialDialogFieldRows({
                   Managed by environment variable {field.envVarName}
                 </span>
               )}
-              {field.helpText && (
-                <span className="text-xs text-muted-foreground">{field.helpText}</span>
-              )}
+              {field.helpText && <span className="text-xs text-muted-foreground">{field.helpText}</span>}
             </div>
           );
         }
@@ -109,9 +103,7 @@ export function CredentialDialogFieldRows({
                   data-testid={`credential-secret-${field.key}`}
                   rows={4}
                   value={displayValue}
-                  onChange={(e) =>
-                    setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                  }
+                  onChange={(e) => setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
                   readOnly={isMasked || lockedByEnv}
                   disabled={lockedByEnv}
                   placeholder={isEdit ? undefined : field.placeholder}
@@ -120,11 +112,11 @@ export function CredentialDialogFieldRows({
                 <Input
                   id={id}
                   data-testid={`credential-secret-${field.key}`}
-                  type={showSecrets && field.type === "password" ? "text" : field.type === "password" ? "password" : "text"}
-                  value={displayValue}
-                  onChange={(e) =>
-                    setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                  type={
+                    showSecrets && field.type === "password" ? "text" : field.type === "password" ? "password" : "text"
                   }
+                  value={displayValue}
+                  onChange={(e) => setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
                   readOnly={isMasked || lockedByEnv}
                   disabled={lockedByEnv}
                   placeholder={isEdit ? undefined : field.placeholder}
@@ -138,9 +130,7 @@ export function CredentialDialogFieldRows({
                   Managed by environment variable {field.envVarName}
                 </span>
               )}
-              {field.helpText && (
-                <span className="text-xs text-muted-foreground">{field.helpText}</span>
-              )}
+              {field.helpText && <span className="text-xs text-muted-foreground">{field.helpText}</span>}
               {isEdit && !lockedByEnv && (
                 <span className="text-xs text-muted-foreground">Leave blank to keep existing value</span>
               )}
@@ -160,24 +150,17 @@ export function CredentialDialogFieldRows({
               data-testid={`credential-env-${field.key}`}
               type="text"
               value={displayEnv}
-              onChange={(e) =>
-                setEnvRefValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-              }
-              placeholder={isEdit ? undefined : field.placeholder ?? `e.g. GMAIL_${field.key.toUpperCase()}`}
+              onChange={(e) => setEnvRefValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+              placeholder={isEdit ? undefined : (field.placeholder ?? `e.g. GMAIL_${field.key.toUpperCase()}`)}
               readOnly={lockedByEnv}
               disabled={lockedByEnv}
             />
             {lockedByEnv && field.envVarName && (
-              <span
-                className="text-xs text-muted-foreground"
-                data-testid={`credential-field-env-managed-${field.key}`}
-              >
+              <span className="text-xs text-muted-foreground" data-testid={`credential-field-env-managed-${field.key}`}>
                 Managed by environment variable {field.envVarName}
               </span>
             )}
-            {field.helpText && (
-              <span className="text-xs text-muted-foreground">{field.helpText}</span>
-            )}
+            {field.helpText && <span className="text-xs text-muted-foreground">{field.helpText}</span>}
             {isEdit && !lockedByEnv && (
               <span className="text-xs text-muted-foreground">Leave blank to keep existing value</span>
             )}

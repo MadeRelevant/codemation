@@ -23,14 +23,17 @@ export class RunQueuePlanner {
         const only = inputs[0];
         if (only && only !== "in") {
           const inst = this.nodeInstances.get(toNodeId);
-          if (!this.isMultiInputNode(inst)) throw new Error(`Node ${toNodeId} only supports input 'in' (got '${only}').`);
+          if (!this.isMultiInputNode(inst))
+            throw new Error(`Node ${toNodeId} only supports input 'in' (got '${only}').`);
         }
         continue;
       }
 
       const inst = this.nodeInstances.get(toNodeId);
       if (!this.isMultiInputNode(inst)) {
-        throw new Error(`Node ${toNodeId} has ${inputs.length} inbound edges. Insert a Merge node to combine branches.`);
+        throw new Error(
+          `Node ${toNodeId} has ${inputs.length} inbound edges. Insert a Merge node to combine branches.`,
+        );
       }
     }
   }
@@ -49,7 +52,10 @@ export class RunQueuePlanner {
     return queue;
   }
 
-  applyOutputs(queue: RunQueueEntry[], args: { fromNodeId: NodeId; outputs: Record<string, Items | undefined>; batchId: string }): void {
+  applyOutputs(
+    queue: RunQueueEntry[],
+    args: { fromNodeId: NodeId; outputs: Record<string, Items | undefined>; batchId: string },
+  ): void {
     for (const e of this.topology.outgoingByNode.get(args.fromNodeId) ?? []) {
       const outItems = (args.outputs as any)[e.output] ?? [];
       this.enqueueEdge(queue, {
@@ -186,7 +192,9 @@ export class RunQueuePlanner {
     }
 
     const expected = this.topology.expectedInputsByNode.get(args.to.nodeId) ?? [];
-    let collect = queue.find((q) => q.nodeId === args.to.nodeId && (q.batchId ?? "batch_1") === args.batchId && !!q.collect);
+    let collect = queue.find(
+      (q) => q.nodeId === args.to.nodeId && (q.batchId ?? "batch_1") === args.batchId && !!q.collect,
+    );
     if (!collect) {
       collect = {
         nodeId: args.to.nodeId,
@@ -226,4 +234,3 @@ export class RunQueuePlanner {
 }
 
 export { RunQueuePlannerDiagnostics } from "./RunQueuePlannerDiagnostics";
-

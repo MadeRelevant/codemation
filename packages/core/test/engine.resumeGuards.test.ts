@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { CallbackNodeConfig,chain,createEngineTestKit,items } from "./harness/index.ts";
+import { CallbackNodeConfig, chain, createEngineTestKit, items } from "./harness/index.ts";
 
 test("resume rejects stale activation ids after a pending run was created", async () => {
   const A = new CallbackNodeConfig("A", () => {}, {

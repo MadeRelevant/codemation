@@ -1,41 +1,41 @@
 import type {
-Container,
-CredentialSessionService,
-ExecutionContextFactory,
-NodeExecutionRequest,
-NodeExecutionScheduler,
-NodeOffloadPolicy,
-PersistedTriggerSetupState,
-RunDataFactory,
-RunEventBus,
-RunIdFactory,
-RunResult,
-RunStateStore,
+  Container,
+  CredentialSessionService,
+  ExecutionContextFactory,
+  NodeExecutionRequest,
+  NodeExecutionScheduler,
+  NodeOffloadPolicy,
+  PersistedTriggerSetupState,
+  RunDataFactory,
+  RunEventBus,
+  RunIdFactory,
+  RunResult,
+  RunStateStore,
   TriggerSetupStateStore,
   WorkflowDefinition,
-WorkflowRunnerService,
+  WorkflowRunnerService,
 } from "../../src/index.ts";
 
-import type { DependencyContainer,InjectionToken } from "tsyringe";
+import type { DependencyContainer, InjectionToken } from "tsyringe";
 import { container as tsyringeContainer } from "tsyringe";
 import {
-ContainerNodeResolver,
-ContainerWorkflowRunnerResolver,
-CoreTokens,
-DefaultDrivingScheduler,
-DefaultExecutionContextFactory,
+  ContainerNodeResolver,
+  ContainerWorkflowRunnerResolver,
+  CoreTokens,
+  DefaultDrivingScheduler,
+  DefaultExecutionContextFactory,
   EngineFactory,
-EngineExecutionLimitsPolicy,
-EngineWorkflowRunnerService,
-HintOnlyOffloadPolicy,
-WorkflowCatalogWebhookTriggerMatcher,
-InMemoryRunDataFactory,
-InMemoryRunEventBus,
-InMemoryRunStateStore,
-InlineDrivingScheduler,
-NodeInstanceFactory,
-PersistedWorkflowTokenRegistry,
-UnavailableCredentialSessionService,
+  EngineExecutionLimitsPolicy,
+  EngineWorkflowRunnerService,
+  HintOnlyOffloadPolicy,
+  WorkflowCatalogWebhookTriggerMatcher,
+  InMemoryRunDataFactory,
+  InMemoryRunEventBus,
+  InMemoryRunStateStore,
+  InlineDrivingScheduler,
+  NodeInstanceFactory,
+  PersistedWorkflowTokenRegistry,
+  UnavailableCredentialSessionService,
 } from "../../src/index.ts";
 import { InMemoryWorkflowRegistry } from "../../src/testing.ts";
 import { SubWorkflowRunnerNode } from "./nodes.js";
@@ -131,7 +131,11 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   const dependencyContainer = container as DependencyContainer;
   const nodeResolver = new ContainerNodeResolver(container);
   const workflowRunnerResolver = new ContainerWorkflowRunnerResolver(container);
-  const activationScheduler = new DefaultDrivingScheduler(offloadPolicy, scheduler, new InlineDrivingScheduler(nodeResolver));
+  const activationScheduler = new DefaultDrivingScheduler(
+    offloadPolicy,
+    scheduler,
+    new InlineDrivingScheduler(nodeResolver),
+  );
 
   for (const [token, value] of options.providers ?? new Map()) {
     dependencyContainer.registerInstance(token, value);
@@ -179,13 +183,21 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   });
   const workflowRunner = options.workflowRunner ?? new EngineWorkflowRunnerService(engine, workflowCatalog);
   dependencyContainer.registerInstance(CoreTokens.WorkflowRunnerService, workflowRunner as WorkflowRunnerService);
-  dependencyContainer.registerInstance(SubWorkflowRunnerNode, new SubWorkflowRunnerNode(workflowRunner as WorkflowRunnerService));
+  dependencyContainer.registerInstance(
+    SubWorkflowRunnerNode,
+    new SubWorkflowRunnerNode(workflowRunner as WorkflowRunnerService),
+  );
 
   async function start(workflows: WorkflowDefinition[]): Promise<void> {
     await engine.start(workflows);
   }
 
-  async function runToCompletion(args: { wf: WorkflowDefinition; startAt: string; items: any; parent?: any }): Promise<RunResult> {
+  async function runToCompletion(args: {
+    wf: WorkflowDefinition;
+    startAt: string;
+    items: any;
+    parent?: any;
+  }): Promise<RunResult> {
     const r0 = await engine.runWorkflow(args.wf, args.startAt as any, args.items, args.parent);
     if (r0.status !== "pending") return r0;
     return await engine.waitForCompletion(r0.runId);

@@ -1,5 +1,5 @@
 import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
-import { CodemationPostgresPrismaClientFactory,type PrismaClient } from "@codemation/host/persistence";
+import { CodemationPostgresPrismaClientFactory, type PrismaClient } from "@codemation/host/persistence";
 import { CodemationConsumerConfigLoader } from "@codemation/host/server";
 import { hash } from "bcryptjs";
 import { config as loadDotenv } from "dotenv";
@@ -33,7 +33,9 @@ export class CodemationLocalUserCreator {
     const password = options.password;
     const databaseUrl = this.resolveDatabaseUrl(resolution.config.runtime?.database?.url);
     if (!databaseUrl) {
-      throw new Error("DATABASE_URL must be set (or configured on CodemationConfig.runtime.database.url) to create a user.");
+      throw new Error(
+        "DATABASE_URL must be set (or configured on CodemationConfig.runtime.database.url) to create a user.",
+      );
     }
     process.env.DATABASE_URL = databaseUrl;
     const prisma: PrismaClient = CodemationPostgresPrismaClientFactory.create(databaseUrl);

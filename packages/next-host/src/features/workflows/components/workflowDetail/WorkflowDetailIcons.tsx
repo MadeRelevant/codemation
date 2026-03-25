@@ -1,18 +1,18 @@
 import {
-Bot,
-Boxes,
-Brain,
-CircleAlert,
-CircleCheckBig,
-Clock3,
-GitBranch,
-Globe,
-LoaderCircle,
-PlaySquare,
-SquareStack,
-Workflow,
-Wrench,
-type LucideIcon,
+  Bot,
+  Boxes,
+  Brain,
+  CircleAlert,
+  CircleCheckBig,
+  Clock3,
+  GitBranch,
+  Globe,
+  LoaderCircle,
+  PlaySquare,
+  SquareStack,
+  Workflow,
+  Wrench,
+  type LucideIcon,
 } from "lucide-react";
 
 export function WorkflowStatusIcon(args: Readonly<{ status: string; size?: number }>) {
@@ -24,7 +24,13 @@ export function WorkflowStatusIcon(args: Readonly<{ status: string; size?: numbe
     return <CircleAlert size={size} style={{ color: "#b91c1c" }} strokeWidth={2.1} />;
   }
   if (status === "running" || status === "queued") {
-    return <LoaderCircle size={size} style={{ color: "#2563eb", animation: "codemationSpin 1s linear infinite" }} strokeWidth={2.1} />;
+    return (
+      <LoaderCircle
+        size={size}
+        style={{ color: "#2563eb", animation: "codemationSpin 1s linear infinite" }}
+        strokeWidth={2.1}
+      />
+    );
   }
   return <Clock3 size={size} style={{ color: "#6b7280" }} strokeWidth={2.1} />;
 }

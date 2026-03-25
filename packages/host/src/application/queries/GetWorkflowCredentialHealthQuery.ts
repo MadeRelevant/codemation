@@ -1,15 +1,6 @@
-
-
-import type {
-WorkflowCredentialHealthDto
-} from "../contracts/CredentialContractsRegistry";
+import type { WorkflowCredentialHealthDto } from "../contracts/CredentialContractsRegistry";
 
 import { Query } from "../bus/Query";
-
-
-
-
-
 
 export class GetWorkflowCredentialHealthQuery extends Query<WorkflowCredentialHealthDto> {
   constructor(public readonly workflowId: string) {

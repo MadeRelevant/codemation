@@ -3,7 +3,7 @@ import { test } from "vitest";
 
 import { CurrentStateFrontierPlanner } from "../src/engine/planning/currentStateFrontierPlanner.ts";
 import { WorkflowTopology } from "../src/engine/planning/WorkflowTopologyPlanner.ts";
-import { CallbackNodeConfig,MergeNodeConfig,chain,dag,items } from "./harness/index.ts";
+import { CallbackNodeConfig, MergeNodeConfig, chain, dag, items } from "./harness/index.ts";
 
 test("planner preserves pinned outputs when clearing from a pinned node", () => {
   const A = new CallbackNodeConfig("A", () => {}, { id: "A" });
@@ -36,8 +36,14 @@ test("planner preserves pinned outputs when clearing from a pinned node", () => 
   assert.deepEqual(plan.preservedPinnedNodeIds, ["B"]);
   assert.ok(plan.skippedNodeIds.includes("B"));
   assert.equal(plan.rootNodeId, undefined);
-  assert.deepEqual(plan.queue.map((entry) => entry.nodeId), ["C"]);
-  assert.deepEqual(plan.currentState.outputsByNode.B?.main?.map((item) => item.json), [{ value: "pinned-b" }]);
+  assert.deepEqual(
+    plan.queue.map((entry) => entry.nodeId),
+    ["C"],
+  );
+  assert.deepEqual(
+    plan.currentState.outputsByNode.B?.main?.map((item) => item.json),
+    [{ value: "pinned-b" }],
+  );
 });
 
 test("planner emits a collect queue entry when merge inputs are already satisfied", () => {
@@ -67,6 +73,12 @@ test("planner emits a collect queue entry when merge inputs are already satisfie
   assert.equal(plan.queue.length, 1);
   assert.equal(plan.queue[0]?.nodeId, "merge");
   assert.deepEqual(plan.queue[0]?.collect?.expectedInputs, ["left", "right"]);
-  assert.deepEqual(plan.queue[0]?.collect?.received.left.map((item) => item.json), [{ from: "A" }]);
-  assert.deepEqual(plan.queue[0]?.collect?.received.right.map((item) => item.json), [{ from: "B" }]);
+  assert.deepEqual(
+    plan.queue[0]?.collect?.received.left.map((item) => item.json),
+    [{ from: "A" }],
+  );
+  assert.deepEqual(
+    plan.queue[0]?.collect?.received.right.map((item) => item.json),
+    [{ from: "B" }],
+  );
 });

@@ -22,8 +22,7 @@ export class WorkflowDetailUrlCodec {
     const runRaw = searchParams.get(RUN_PARAM);
     const selectedRunId = runRaw !== null && runRaw.trim() !== "" ? runRaw.trim() : null;
     const paneRaw = searchParams.get(PANE_PARAM);
-    const pane: "live" | "executions" | null =
-      paneRaw === "live" || paneRaw === "executions" ? paneRaw : null;
+    const pane: "live" | "executions" | null = paneRaw === "live" || paneRaw === "executions" ? paneRaw : null;
     const nodeRaw = searchParams.get(NODE_PARAM);
     const nodeId = nodeRaw !== null && nodeRaw.trim() !== "" ? nodeRaw.trim() : null;
     const isRunsPaneVisible = selectedRunId !== null || pane === "executions";
@@ -59,7 +58,11 @@ export class WorkflowDetailUrlCodec {
     return s;
   }
 
-  static buildHref(pathname: string, base: WorkflowDetailSearchParamsInput, location: WorkflowDetailUrlLocation): string {
+  static buildHref(
+    pathname: string,
+    base: WorkflowDetailSearchParamsInput,
+    location: WorkflowDetailUrlLocation,
+  ): string {
     const merged = WorkflowDetailUrlCodec.mergeLocationIntoSearchParams(new URLSearchParams(base.toString()), location);
     const qs = merged.toString();
     return qs.length > 0 ? `${pathname}?${qs}` : pathname;

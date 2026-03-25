@@ -1,4 +1,4 @@
-import { Handle,Position } from "@xyflow/react";
+import { Handle, Position } from "@xyflow/react";
 
 const HANDLE_BOX_STYLE = {
   width: 8,
@@ -13,12 +13,14 @@ const HANDLE_CENTERED_STYLE = {
   top: "50%",
 } as const;
 
-export function WorkflowCanvasCodemationNodeHandles(props: Readonly<{
-  isAttachment: boolean;
-  isAgent: boolean;
-  sourceOutputPorts: readonly string[];
-  targetInputPorts: readonly string[];
-}>) {
+export function WorkflowCanvasCodemationNodeHandles(
+  props: Readonly<{
+    isAttachment: boolean;
+    isAgent: boolean;
+    sourceOutputPorts: readonly string[];
+    targetInputPorts: readonly string[];
+  }>,
+) {
   const { isAgent, isAttachment, sourceOutputPorts, targetInputPorts } = props;
 
   if (isAttachment) {

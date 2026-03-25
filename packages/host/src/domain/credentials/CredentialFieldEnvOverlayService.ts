@@ -1,5 +1,5 @@
-import type { CredentialFieldSchema,CredentialTypeDefinition } from "@codemation/core";
-import { inject,injectable } from "@codemation/core";
+import type { CredentialFieldSchema, CredentialTypeDefinition } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 
 import { ApplicationTokens } from "../../applicationTokens";
 
@@ -22,11 +22,13 @@ export class CredentialFieldEnvOverlayService {
     return typeof v === "string" && v.length > 0;
   }
 
-  apply(args: Readonly<{
-    definition: CredentialTypeDefinition;
-    publicConfig: JsonRecord;
-    material: JsonRecord;
-  }>): Readonly<{ resolvedPublicConfig: JsonRecord; resolvedMaterial: JsonRecord }> {
+  apply(
+    args: Readonly<{
+      definition: CredentialTypeDefinition;
+      publicConfig: JsonRecord;
+      material: JsonRecord;
+    }>,
+  ): Readonly<{ resolvedPublicConfig: JsonRecord; resolvedMaterial: JsonRecord }> {
     const pub: Record<string, unknown> = { ...args.publicConfig };
     const mat: Record<string, unknown> = { ...args.material };
     for (const field of args.definition.publicFields ?? []) {

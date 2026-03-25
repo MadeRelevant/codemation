@@ -1,24 +1,31 @@
 import type {
-AgentToolCall,
-ChatModelConfig,
-ChatModelFactory,
-Item,
-Items,
-JsonValue,
-LangChainChatModelLike,
-Node,
-NodeExecutionContext,
-NodeInputsByPort,
-NodeOutputs,
-Tool,
-ToolConfig,
-ZodSchemaAny
+  AgentToolCall,
+  ChatModelConfig,
+  ChatModelFactory,
+  Item,
+  Items,
+  JsonValue,
+  LangChainChatModelLike,
+  Node,
+  NodeExecutionContext,
+  NodeInputsByPort,
+  NodeOutputs,
+  Tool,
+  ToolConfig,
+  ZodSchemaAny,
 } from "@codemation/core";
 
 import type { CredentialSessionService } from "@codemation/core";
-import { ConnectionInvocationIdFactory, ConnectionNodeIdFactory, CoreTokens, inject, node, type NodeResolver } from "@codemation/core";
+import {
+  ConnectionInvocationIdFactory,
+  ConnectionNodeIdFactory,
+  CoreTokens,
+  inject,
+  node,
+  type NodeResolver,
+} from "@codemation/core";
 
-import { AIMessage,type BaseMessage } from "@langchain/core/messages";
+import { AIMessage, type BaseMessage } from "@langchain/core/messages";
 
 import { DynamicStructuredTool } from "@langchain/core/tools";
 
@@ -28,11 +35,11 @@ import { AgentMessageFactory } from "./AgentMessageFactory";
 import { AgentOutputFactory } from "./AgentOutputFactory";
 import { AgentToolCallPortMap } from "./AgentToolCallPortMapFactory";
 import {
-AgentItemPortMap,
-type ExecutedToolCall,
-type ItemScopedToolBinding,
-type PlannedToolCall,
-type ResolvedTool,
+  AgentItemPortMap,
+  type ExecutedToolCall,
+  type ItemScopedToolBinding,
+  type PlannedToolCall,
+  type ResolvedTool,
 } from "./aiAgentSupport.types";
 
 @node({ packageName: "@codemation/core-nodes" })
@@ -48,7 +55,9 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     @inject(CoreTokens.CredentialSessionService)
     credentialSessions: CredentialSessionService,
   ) {
-    this.connectionCredentialExecutionContextFactory = new ConnectionCredentialExecutionContextFactory(credentialSessions);
+    this.connectionCredentialExecutionContextFactory = new ConnectionCredentialExecutionContextFactory(
+      credentialSessions,
+    );
   }
 
   async execute(items: Items, ctx: NodeExecutionContext<AIAgent<any, any>>): Promise<NodeOutputs> {
@@ -57,7 +66,9 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
       connectionNodeId: ConnectionNodeIdFactory.languageModelConnectionNodeId(ctx.nodeId),
       getCredentialRequirements: () => ctx.config.chatModel.getCredentialRequirements?.() ?? [],
     });
-    const model = await Promise.resolve(chatModelFactory.create({ config: ctx.config.chatModel, ctx: languageModelCredentialContext }));
+    const model = await Promise.resolve(
+      chatModelFactory.create({ config: ctx.config.chatModel, ctx: languageModelCredentialContext }),
+    );
     const resolvedTools = this.resolveTools(ctx.config.tools ?? []);
 
     const out: Item[] = [];
@@ -67,9 +78,14 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
       const itemInputsByPort = AgentItemPortMap.fromItem(item);
       const itemScopedTools = this.createItemScopedTools(resolvedTools, ctx, item, i, items);
       const firstResponse = await this.invokeModel(
-        itemScopedTools.length > 0 && model.bindTools ? model.bindTools(itemScopedTools.map((entry) => entry.langChainTool)) : model,
+        itemScopedTools.length > 0 && model.bindTools
+          ? model.bindTools(itemScopedTools.map((entry) => entry.langChainTool))
+          : model,
         ConnectionNodeIdFactory.languageModelConnectionNodeId(ctx.nodeId),
-        [AgentMessageFactory.createSystemPrompt(ctx.config.systemMessage), AgentMessageFactory.createUserPrompt(prompt)],
+        [
+          AgentMessageFactory.createSystemPrompt(ctx.config.systemMessage),
+          AgentMessageFactory.createUserPrompt(prompt),
+        ],
         ctx,
         itemInputsByPort,
       );
@@ -89,13 +105,17 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
       await this.markQueuedTools(plannedToolCalls, ctx);
       const executedToolCalls = await this.executeToolCalls(plannedToolCalls, ctx);
       const finalResponse = await this.invokeModel(
-        itemScopedTools.length > 0 && model.bindTools ? model.bindTools(itemScopedTools.map((entry) => entry.langChainTool)) : model,
+        itemScopedTools.length > 0 && model.bindTools
+          ? model.bindTools(itemScopedTools.map((entry) => entry.langChainTool))
+          : model,
         ConnectionNodeIdFactory.languageModelConnectionNodeId(ctx.nodeId),
         [
           AgentMessageFactory.createSystemPrompt(ctx.config.systemMessage),
           AgentMessageFactory.createUserPrompt(prompt),
           firstResponse,
-          ...executedToolCalls.map((toolCall) => AgentMessageFactory.createToolMessage(toolCall.toolCallId, toolCall.serialized)),
+          ...executedToolCalls.map((toolCall) =>
+            AgentMessageFactory.createToolMessage(toolCall.toolCallId, toolCall.serialized),
+          ),
         ],
         ctx,
         itemInputsByPort,
@@ -112,9 +132,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     return { main: out };
   }
 
-  private resolveTools(
-    toolConfigs: ReadonlyArray<ToolConfig>,
-  ): ReadonlyArray<ResolvedTool> {
+  private resolveTools(toolConfigs: ReadonlyArray<ToolConfig>): ReadonlyArray<ResolvedTool> {
     const resolvedTools = toolConfigs.map((config) => ({
       config,
       tool: this.nodeResolver.resolve(config.type) as Tool<ToolConfig, ZodSchemaAny, ZodSchemaAny>,
@@ -217,7 +235,11 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     const results = await Promise.allSettled(
       plannedToolCalls.map(async (plannedToolCall) => {
         const toolCallInputsByPort = AgentToolCallPortMap.fromInput(plannedToolCall.toolCall.input ?? {});
-        await ctx.nodeState?.markRunning({ nodeId: plannedToolCall.nodeId, activationId: ctx.activationId, inputsByPort: toolCallInputsByPort });
+        await ctx.nodeState?.markRunning({
+          nodeId: plannedToolCall.nodeId,
+          activationId: ctx.activationId,
+          inputsByPort: toolCallInputsByPort,
+        });
         try {
           const serialized = await plannedToolCall.binding.langChainTool.invoke(plannedToolCall.toolCall.input ?? {});
           const result = this.parseToolOutput(serialized);

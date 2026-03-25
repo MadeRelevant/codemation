@@ -24,8 +24,7 @@ export class CodemationApiClient {
   private async requestOrThrow(url: string, init: RequestInit): Promise<Response> {
     const response = await fetch(url, { ...defaultInit, ...init });
     if (!response.ok) {
-      const bodyText =
-        typeof response.text === "function" ? await response.text() : "";
+      const bodyText = typeof response.text === "function" ? await response.text() : "";
       throw new CodemationApiHttpError(response.status, bodyText);
     }
     return response;

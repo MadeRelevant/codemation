@@ -11,10 +11,7 @@ import {
   type CredentialInstanceDto,
 } from "../../workflows/hooks/realtime/realtime";
 import { credentialFieldEnvStatusQueryKey } from "../../workflows/lib/realtime/realtimeQueryKeys";
-import {
-  buildEmptySecretFieldValues,
-  buildFieldStringValues,
-} from "../lib/credentialFieldHelpers";
+import { buildEmptySecretFieldValues, buildFieldStringValues } from "../lib/credentialFieldHelpers";
 import type { FormSourceKind } from "../lib/credentialFormTypes";
 
 type DialogMode = "create" | "edit" | null;
@@ -191,9 +188,10 @@ export function useCredentialsScreen() {
       setDialogTestResult(null);
       const secretConfig =
         sourceKind === "db"
-          ? (Object.fromEntries(
-              secretFields.map((f) => [f.key, secretFieldValues[f.key] ?? ""]),
-            ) as Record<string, unknown>)
+          ? (Object.fromEntries(secretFields.map((f) => [f.key, secretFieldValues[f.key] ?? ""])) as Record<
+              string,
+              unknown
+            >)
           : undefined;
       const envSecretRefs =
         sourceKind === "env"
@@ -443,16 +441,12 @@ export function useCredentialsScreen() {
     const fields = type?.secretFields ?? [];
     setEditPublicFieldValues(buildFieldStringValues(type?.publicFields ?? [], data.publicConfig));
     if (data.sourceKind === "db" && data.secretConfig) {
-      const values = Object.fromEntries(
-        fields.map((f) => [f.key, data.secretConfig![f.key] ?? ""]),
-      );
+      const values = Object.fromEntries(fields.map((f) => [f.key, data.secretConfig![f.key] ?? ""]));
       setEditSecretFieldValues(values);
       setEditEnvRefValues(Object.fromEntries(fields.map((f) => [f.key, ""])));
     } else if (data.sourceKind === "env" && data.envSecretRefs) {
       setEditSecretFieldValues(Object.fromEntries(fields.map((f) => [f.key, ""])));
-      const envValues = Object.fromEntries(
-        fields.map((f) => [f.key, data.envSecretRefs![f.key] ?? ""]),
-      );
+      const envValues = Object.fromEntries(fields.map((f) => [f.key, data.envSecretRefs![f.key] ?? ""]));
       setEditEnvRefValues(envValues);
     }
   }, [credentialWithSecretsQuery.data, credentialTypes, dialogMode, editingInstanceId]);

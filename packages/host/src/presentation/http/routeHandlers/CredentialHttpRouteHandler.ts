@@ -1,26 +1,26 @@
-import { inject,injectable } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import { HttpRequestJsonBodyReader } from "../HttpRequestJsonBodyReader";
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import type { QueryBus } from "../../../application/bus/QueryBus";
 import {
-CreateCredentialInstanceCommand,
-DeleteCredentialInstanceCommand,
-TestCredentialInstanceCommand,
-UpdateCredentialInstanceCommand,
-UpsertCredentialBindingCommand,
+  CreateCredentialInstanceCommand,
+  DeleteCredentialInstanceCommand,
+  TestCredentialInstanceCommand,
+  UpdateCredentialInstanceCommand,
+  UpsertCredentialBindingCommand,
 } from "../../../application/commands/CredentialCommandHandlers";
 import type {
-CreateCredentialInstanceRequest,
-UpdateCredentialInstanceRequest,
-UpsertCredentialBindingRequest,
+  CreateCredentialInstanceRequest,
+  UpdateCredentialInstanceRequest,
+  UpsertCredentialBindingRequest,
 } from "../../../application/contracts/CredentialContractsRegistry";
 import {
-GetCredentialFieldEnvStatusQuery,
-GetCredentialInstanceQuery,
-GetCredentialInstanceWithSecretsQuery,
-GetWorkflowCredentialHealthQuery,
-ListCredentialInstancesQuery,
-ListCredentialTypesQuery,
+  GetCredentialFieldEnvStatusQuery,
+  GetCredentialInstanceQuery,
+  GetCredentialInstanceWithSecretsQuery,
+  GetWorkflowCredentialHealthQuery,
+  ListCredentialInstancesQuery,
+  ListCredentialTypesQuery,
 } from "../../../application/queries/CredentialQueryHandlers";
 import { ApplicationTokens } from "../../../applicationTokens";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
@@ -86,7 +86,9 @@ export class CredentialHttpRouteHandler {
   async putCredentialInstance(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const body = await HttpRequestJsonBodyReader.readJsonBody<UpdateCredentialInstanceRequest>(request);
-      return Response.json(await this.commandBus.execute(new UpdateCredentialInstanceCommand(params.instanceId!, body)));
+      return Response.json(
+        await this.commandBus.execute(new UpdateCredentialInstanceCommand(params.instanceId!, body)),
+      );
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
@@ -124,5 +126,4 @@ export class CredentialHttpRouteHandler {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
   }
-
 }

@@ -53,7 +53,9 @@ export class RunStateSemantics {
     finishedAt: string;
   }): Record<NodeId, NodeExecutionSnapshot> {
     const snapshots = { ...args.currentState.nodeSnapshotsByNodeId };
-    const skippedPinnedNodeIds = new Set<NodeId>(args.preservedPinnedNodeIds.filter((nodeId) => args.skippedNodeIds.includes(nodeId)));
+    const skippedPinnedNodeIds = new Set<NodeId>(
+      args.preservedPinnedNodeIds.filter((nodeId) => args.skippedNodeIds.includes(nodeId)),
+    );
     for (const nodeId of args.skippedNodeIds) {
       if (args.currentState.mutableState?.nodesById?.[nodeId]?.pinnedOutputsByPort) {
         skippedPinnedNodeIds.add(nodeId);
@@ -151,4 +153,3 @@ export class RunStateSemantics {
     };
   }
 }
-

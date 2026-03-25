@@ -1,9 +1,9 @@
 // @vitest-environment node
 
-import type { PersistedRunState,WorkflowDefinition } from "@codemation/core";
-import { createWorkflowBuilder,ManualTrigger,MapData } from "@codemation/core-nodes";
+import type { PersistedRunState, WorkflowDefinition } from "@codemation/core";
+import { createWorkflowBuilder, ManualTrigger, MapData } from "@codemation/core-nodes";
 import path from "node:path";
-import { afterAll,afterEach,beforeAll,describe,expect,it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
@@ -145,7 +145,9 @@ class WorkflowDebugSessionIntegrationContext {
 
   private requireTransaction(): PrismaClient {
     if (!this.transaction) {
-      throw new Error("WorkflowDebugSessionIntegrationContext.start() must be called before resolving the Prisma client binding.");
+      throw new Error(
+        "WorkflowDebugSessionIntegrationContext.start() must be called before resolving the Prisma client binding.",
+      );
     }
     return this.transaction.getPrismaClient();
   }
@@ -197,7 +199,9 @@ class WorkflowWebsocketCaptureClient {
 
   getLastCompletedRunSavedState(runId: string): PersistedRunState | undefined {
     const runEvents = [...this.getRunEvents(runId)].reverse();
-    const completedRunSaved = runEvents.find((message) => message.event.kind === "runSaved" && message.event.state.status === "completed");
+    const completedRunSaved = runEvents.find(
+      (message) => message.event.kind === "runSaved" && message.event.state.status === "completed",
+    );
     return completedRunSaved?.event.kind === "runSaved" ? completedRunSaved.event.state : undefined;
   }
 
@@ -208,7 +212,9 @@ class WorkflowWebsocketCaptureClient {
     });
   }
 
-  private async waitForMessage(predicate: (message: CapturedWorkflowWebsocketMessage | undefined) => boolean): Promise<void> {
+  private async waitForMessage(
+    predicate: (message: CapturedWorkflowWebsocketMessage | undefined) => boolean,
+  ): Promise<void> {
     const deadline = performance.now() + 5_000;
     while (performance.now() < deadline) {
       const latestMessage = this.messages.at(-1);
@@ -253,9 +259,13 @@ describe("workflow debug session http integration", () => {
         workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
       },
     });
-    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, historicalRunResponse.runId, {
-      terminalNodeId: "node_6",
-    });
+    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(
+      harness,
+      historicalRunResponse.runId,
+      {
+        terminalNodeId: "node_6",
+      },
+    );
     expect(historicalRun.outputsByNode.node_2?.main?.length).toBeGreaterThan(0);
     expect(historicalRun.outputsByNode.node_3?.main?.length).toBeGreaterThan(0);
     expect(historicalRun.nodeSnapshotsByNodeId.node_2?.status).toBe("completed");
@@ -285,9 +295,13 @@ describe("workflow debug session http integration", () => {
         workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
       },
     });
-    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, historicalRunResponse.runId, {
-      terminalNodeId: "node_6",
-    });
+    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(
+      harness,
+      historicalRunResponse.runId,
+      {
+        terminalNodeId: "node_6",
+      },
+    );
     expect(historicalRun.nodeSnapshotsByNodeId.node_6?.status).toBe("completed");
 
     const copiedOverlay = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
@@ -310,7 +324,11 @@ describe("workflow debug session http integration", () => {
         mode: "manual",
       },
     });
-    const runToNode3State = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, runToNode3.runId, { terminalNodeId: "node_3" });
+    const runToNode3State = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(
+      harness,
+      runToNode3.runId,
+      { terminalNodeId: "node_3" },
+    );
     expect(runToNode3State.status).toBe("completed");
     expect(runToNode3State.nodeSnapshotsByNodeId.node_1?.status).toBe("completed");
     expect(runToNode3State.nodeSnapshotsByNodeId.node_2?.status).toBe("completed");
@@ -334,7 +352,11 @@ describe("workflow debug session http integration", () => {
         mode: "manual",
       },
     });
-    const runToNode4State = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, runToNode4.runId, { terminalNodeId: "node_4" });
+    const runToNode4State = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(
+      harness,
+      runToNode4.runId,
+      { terminalNodeId: "node_4" },
+    );
     expect(runToNode4State.status).toBe("completed");
     expect(runToNode4State.nodeSnapshotsByNodeId.node_4?.status).toBe("completed");
     expect(runToNode4State.nodeSnapshotsByNodeId.node_5).toBeUndefined();
@@ -355,7 +377,11 @@ describe("workflow debug session http integration", () => {
         mode: "manual",
       },
     });
-    const runToNode5State = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, runToNode5.runId, { terminalNodeId: "node_5" });
+    const runToNode5State = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(
+      harness,
+      runToNode5.runId,
+      { terminalNodeId: "node_5" },
+    );
     expect(runToNode5State.status).toBe("completed");
     expect(runToNode5State.nodeSnapshotsByNodeId.node_5?.status).toBe("completed");
     expect(runToNode5State.nodeSnapshotsByNodeId.node_6).toBeUndefined();
@@ -371,9 +397,13 @@ describe("workflow debug session http integration", () => {
         workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
       },
     });
-    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, historicalRunResponse.runId, {
-      terminalNodeId: "node_6",
-    });
+    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(
+      harness,
+      historicalRunResponse.runId,
+      {
+        terminalNodeId: "node_6",
+      },
+    );
     expect(historicalRun.nodeSnapshotsByNodeId.node_4?.status).toBe("completed");
 
     const copiedOverlay = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
@@ -395,7 +425,11 @@ describe("workflow debug session http integration", () => {
         mode: "manual",
       },
     });
-    const runToNode2State = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, runToNode2.runId, { terminalNodeId: "node_2" });
+    const runToNode2State = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(
+      harness,
+      runToNode2.runId,
+      { terminalNodeId: "node_2" },
+    );
     expect(runToNode2State.nodeSnapshotsByNodeId.node_1?.status).toBe("completed");
     expect(runToNode2State.nodeSnapshotsByNodeId.node_2?.status).toBe("completed");
     expect(runToNode2State.nodeSnapshotsByNodeId.node_3).toBeUndefined();
@@ -412,9 +446,13 @@ describe("workflow debug session http integration", () => {
         workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
       },
     });
-    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, historicalRunResponse.runId, {
-      terminalNodeId: "node_6",
-    });
+    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(
+      harness,
+      historicalRunResponse.runId,
+      {
+        terminalNodeId: "node_6",
+      },
+    );
     expect(historicalRun.nodeSnapshotsByNodeId.node_6?.status).toBe("completed");
 
     const updatedOverlay = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
@@ -449,9 +487,13 @@ describe("workflow debug session http integration", () => {
         mode: "manual",
       },
     });
-    const runToTriggerState = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, runToTriggerResponse.runId, {
-      terminalNodeId: "node_1",
-    });
+    const runToTriggerState = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(
+      harness,
+      runToTriggerResponse.runId,
+      {
+        terminalNodeId: "node_1",
+      },
+    );
 
     expect(runToTriggerState.status).toBe("completed");
     expect(runToTriggerState.nodeSnapshotsByNodeId.node_1?.status).toBe("completed");
@@ -460,113 +502,121 @@ describe("workflow debug session http integration", () => {
     expect(runToTriggerState.nodeSnapshotsByNodeId.node_4).toBeUndefined();
     expect(runToTriggerState.nodeSnapshotsByNodeId.node_5).toBeUndefined();
     expect(runToTriggerState.nodeSnapshotsByNodeId.node_6).toBeUndefined();
-    expect(runToTriggerState.mutableState?.nodesById?.node_2?.pinnedOutputsByPort?.main).toEqual(historicalRun.outputsByNode.node_2?.main);
-    expect(runToTriggerState.mutableState?.nodesById?.node_4?.pinnedOutputsByPort?.main).toEqual(historicalRun.outputsByNode.node_4?.main);
+    expect(runToTriggerState.mutableState?.nodesById?.node_2?.pinnedOutputsByPort?.main).toEqual(
+      historicalRun.outputsByNode.node_2?.main,
+    );
+    expect(runToTriggerState.mutableState?.nodesById?.node_4?.pinnedOutputsByPort?.main).toEqual(
+      historicalRun.outputsByNode.node_4?.main,
+    );
     expect(runToTriggerState.outputsByNode.node_2?.main).toEqual(historicalRun.outputsByNode.node_2?.main);
     expect(runToTriggerState.outputsByNode.node_4?.main).toEqual(historicalRun.outputsByNode.node_4?.main);
   });
 
-  it(
-    "emits the full websocket lifecycle when rerunning from A and then to C with B pinned",
-    async () => {
-      const harness = await context.start();
-      const websocket = new WorkflowWebsocketCaptureClient(harness.getWorkflowWebsocketPort());
-      await websocket.open();
-      websocket.subscribe(WorkflowDebugSessionIntegrationFixture.workflowId);
-      await websocket.waitForSubscription(WorkflowDebugSessionIntegrationFixture.workflowId);
+  it("emits the full websocket lifecycle when rerunning from A and then to C with B pinned", async () => {
+    const harness = await context.start();
+    const websocket = new WorkflowWebsocketCaptureClient(harness.getWorkflowWebsocketPort());
+    await websocket.open();
+    websocket.subscribe(WorkflowDebugSessionIntegrationFixture.workflowId);
+    await websocket.waitForSubscription(WorkflowDebugSessionIntegrationFixture.workflowId);
 
-      const historicalRunResponse = await harness.requestJson<RunCommandResult>({
-        method: "POST",
-        url: ApiPaths.runs(),
-        payload: {
-          workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
-        },
-      });
-      const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, historicalRunResponse.runId, {
+    const historicalRunResponse = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
+      },
+    });
+    const historicalRun = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(
+      harness,
+      historicalRunResponse.runId,
+      {
         terminalNodeId: "node_6",
-      });
+      },
+    );
 
-      const overlay = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
-        method: "PUT",
-        url: ApiPaths.workflowDebuggerOverlay(WorkflowDebugSessionIntegrationFixture.workflowId),
-        payload: {
-          currentState: {
-            outputsByNode: historicalRun.outputsByNode,
-            nodeSnapshotsByNodeId: historicalRun.nodeSnapshotsByNodeId,
-            mutableState: {
-              nodesById: {
-                node_2: {
-                  pinnedOutputsByPort: historicalRun.outputsByNode.node_2,
-                },
+    const overlay = await harness.requestJson<WorkflowDebuggerOverlayResponse>({
+      method: "PUT",
+      url: ApiPaths.workflowDebuggerOverlay(WorkflowDebugSessionIntegrationFixture.workflowId),
+      payload: {
+        currentState: {
+          outputsByNode: historicalRun.outputsByNode,
+          nodeSnapshotsByNodeId: historicalRun.nodeSnapshotsByNodeId,
+          mutableState: {
+            nodesById: {
+              node_2: {
+                pinnedOutputsByPort: historicalRun.outputsByNode.node_2,
               },
             },
           },
         },
-      });
+      },
+    });
 
-      const runToA = await harness.requestJson<RunCommandResult>({
-        method: "POST",
-        url: ApiPaths.runs(),
-        payload: {
-          workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
-          currentState: overlay.currentState,
-          clearFromNodeId: "node_1",
-          stopAt: "node_1",
-          mode: "manual",
+    const runToA = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
+        currentState: overlay.currentState,
+        clearFromNodeId: "node_1",
+        stopAt: "node_1",
+        mode: "manual",
+      },
+    });
+    const runToAState = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, runToA.runId, {
+      terminalNodeId: "node_1",
+    });
+    await websocket.waitForRunEventCount(runToA.runId, 7);
+
+    const runToC = await harness.requestJson<RunCommandResult>({
+      method: "POST",
+      url: ApiPaths.runs(),
+      payload: {
+        workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
+        currentState: {
+          outputsByNode: runToAState.outputsByNode,
+          nodeSnapshotsByNodeId: runToAState.nodeSnapshotsByNodeId,
+          mutableState: runToAState.mutableState,
         },
-      });
-      const runToAState = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, runToA.runId, { terminalNodeId: "node_1" });
-      await websocket.waitForRunEventCount(runToA.runId, 7);
+        clearFromNodeId: "node_3",
+        stopAt: "node_3",
+        mode: "manual",
+      },
+    });
+    const runToCState = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, runToC.runId, {
+      terminalNodeId: "node_3",
+    });
+    await websocket.waitForRunEventCount(runToC.runId, 7);
 
-      const runToC = await harness.requestJson<RunCommandResult>({
-        method: "POST",
-        url: ApiPaths.runs(),
-        payload: {
-          workflowId: WorkflowDebugSessionIntegrationFixture.workflowId,
-          currentState: {
-            outputsByNode: runToAState.outputsByNode,
-            nodeSnapshotsByNodeId: runToAState.nodeSnapshotsByNodeId,
-            mutableState: runToAState.mutableState,
-          },
-          clearFromNodeId: "node_3",
-          stopAt: "node_3",
-          mode: "manual",
-        },
-      });
-      const runToCState = await WorkflowDebugSessionIntegrationFixture.waitForRunToComplete(harness, runToC.runId, { terminalNodeId: "node_3" });
-      await websocket.waitForRunEventCount(runToC.runId, 7);
+    const runToAEvents = websocket.getRunEvents(runToA.runId);
+    expect(runToAEvents.map((message) => message.event.kind)).toEqual([
+      "runCreated",
+      "runSaved",
+      "nodeQueued",
+      "runSaved",
+      "nodeStarted",
+      "runSaved",
+      "nodeCompleted",
+    ]);
 
-      const runToAEvents = websocket.getRunEvents(runToA.runId);
-      expect(runToAEvents.map((message) => message.event.kind)).toEqual([
-        "runCreated",
-        "runSaved",
-        "nodeQueued",
-        "runSaved",
-        "nodeStarted",
-        "runSaved",
-        "nodeCompleted",
-      ]);
+    const runToCEvents = websocket.getRunEvents(runToC.runId);
+    expect(runToCEvents.map((message) => message.event.kind)).toEqual([
+      "runCreated",
+      "runSaved",
+      "nodeQueued",
+      "runSaved",
+      "nodeStarted",
+      "runSaved",
+      "nodeCompleted",
+    ]);
 
-      const runToCEvents = websocket.getRunEvents(runToC.runId);
-      expect(runToCEvents.map((message) => message.event.kind)).toEqual([
-        "runCreated",
-        "runSaved",
-        "nodeQueued",
-        "runSaved",
-        "nodeStarted",
-        "runSaved",
-        "nodeCompleted",
-      ]);
+    const completedRunSavedState = websocket.getLastCompletedRunSavedState(runToC.runId);
+    expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_1?.status).toBe("completed");
+    expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_2?.status).toBe("completed");
+    expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_2?.usedPinnedOutput).toBe(true);
+    expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_3?.status).toBe("completed");
+    expect(runToCState.nodeSnapshotsByNodeId.node_2?.usedPinnedOutput).toBe(true);
 
-      const completedRunSavedState = websocket.getLastCompletedRunSavedState(runToC.runId);
-      expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_1?.status).toBe("completed");
-      expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_2?.status).toBe("completed");
-      expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_2?.usedPinnedOutput).toBe(true);
-      expect(completedRunSavedState?.nodeSnapshotsByNodeId.node_3?.status).toBe("completed");
-      expect(runToCState.nodeSnapshotsByNodeId.node_2?.usedPinnedOutput).toBe(true);
-
-      await websocket.close();
-    },
-    60_000,
-  );
+    await websocket.close();
+  }, 60_000);
 });

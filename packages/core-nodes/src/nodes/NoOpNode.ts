@@ -1,10 +1,8 @@
-import type { Items,Node,NodeExecutionContext,NodeOutputs } from "@codemation/core";
+import type { Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
 
 import { node } from "@codemation/core";
 
 import { NoOp } from "./noOp";
-
-
 
 @node({ packageName: "@codemation/core-nodes" })
 export class NoOpNode implements Node<NoOp<any>> {

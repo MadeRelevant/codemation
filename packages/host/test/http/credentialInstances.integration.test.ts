@@ -1,16 +1,16 @@
 // @vitest-environment node
 
-import { createWorkflowBuilder,ManualTrigger } from "@codemation/core-nodes";
+import { createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
 import path from "node:path";
-import { afterAll,afterEach,beforeAll,describe,expect,it,vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type {
-CredentialInstanceDto,
-CredentialInstanceWithSecretsDto,
-WorkflowCredentialHealthDto,
+  CredentialInstanceDto,
+  CredentialInstanceWithSecretsDto,
+  WorkflowCredentialHealthDto,
 } from "../../src/application/contracts/CredentialContractsRegistry";
 import { CredentialSecretCipher } from "../../src/domain/credentials/CredentialServices";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
-import type { CodemationBootContext,CodemationBootHook } from "../../src/presentation/config/CodemationConfig";
+import type { CodemationBootContext, CodemationBootHook } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
 import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
@@ -339,101 +339,101 @@ describe("credential instances http integration", () => {
     const priorFetch = globalThis.fetch;
     globalThis.fetch = fetchMock as typeof fetch;
     try {
-    const createResponse = await harness.requestJson<CredentialInstanceDto>({
-      method: "POST",
-      url: ApiPaths.credentialInstances(),
-      payload: {
-        typeId: testOAuthCredentialTypeId,
-        displayName: "OAuth callback credential",
-        sourceKind: "db",
-        publicConfig: { clientId: "google-client-id" },
-        secretConfig: { clientSecret: "google-client-secret" },
-      },
-    });
+      const createResponse = await harness.requestJson<CredentialInstanceDto>({
+        method: "POST",
+        url: ApiPaths.credentialInstances(),
+        payload: {
+          typeId: testOAuthCredentialTypeId,
+          displayName: "OAuth callback credential",
+          sourceKind: "db",
+          publicConfig: { clientId: "google-client-id" },
+          secretConfig: { clientSecret: "google-client-secret" },
+        },
+      });
 
-    const firstAuthResponse = await harness.request({
-      method: "GET",
-      url: ApiPaths.oauth2Auth(createResponse.instanceId),
-    });
-    const firstLocation = String(firstAuthResponse.header("location"));
-    const firstState = new URL(firstLocation).searchParams.get("state");
+      const firstAuthResponse = await harness.request({
+        method: "GET",
+        url: ApiPaths.oauth2Auth(createResponse.instanceId),
+      });
+      const firstLocation = String(firstAuthResponse.header("location"));
+      const firstState = new URL(firstLocation).searchParams.get("state");
 
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      text: async () =>
-        JSON.stringify({
-          access_token: "access-token-1",
-          refresh_token: "refresh-token-1",
-          scope: "scope.one scope.two",
-          expires_in: 3600,
-          token_type: "Bearer",
-        }),
-    });
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      text: async () => JSON.stringify({ email: "user@example.com" }),
-    });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            access_token: "access-token-1",
+            refresh_token: "refresh-token-1",
+            scope: "scope.one scope.two",
+            expires_in: 3600,
+            token_type: "Bearer",
+          }),
+      });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        text: async () => JSON.stringify({ email: "user@example.com" }),
+      });
 
-    const firstCallbackResponse = await harness.request({
-      method: "GET",
-      url: `/api/oauth2/callback?code=first-code&state=${encodeURIComponent(firstState ?? "")}`,
-    });
+      const firstCallbackResponse = await harness.request({
+        method: "GET",
+        url: `/api/oauth2/callback?code=first-code&state=${encodeURIComponent(firstState ?? "")}`,
+      });
 
-    expect(firstCallbackResponse.statusCode).toBe(200);
-    expect(firstCallbackResponse.body).toContain("oauth2.connected");
+      expect(firstCallbackResponse.statusCode).toBe(200);
+      expect(firstCallbackResponse.body).toContain("oauth2.connected");
 
-    const firstInstanceResponse = await harness.request({
-      method: "GET",
-      url: ApiPaths.credentialInstance(createResponse.instanceId),
-    });
-    const firstInstance = firstInstanceResponse.json<CredentialInstanceDto>();
-    expect(firstInstance.oauth2Connection?.status).toBe("connected");
-    expect(firstInstance.oauth2Connection?.connectedEmail).toBe("user@example.com");
+      const firstInstanceResponse = await harness.request({
+        method: "GET",
+        url: ApiPaths.credentialInstance(createResponse.instanceId),
+      });
+      const firstInstance = firstInstanceResponse.json<CredentialInstanceDto>();
+      expect(firstInstance.oauth2Connection?.status).toBe("connected");
+      expect(firstInstance.oauth2Connection?.connectedEmail).toBe("user@example.com");
 
-    const secondAuthResponse = await harness.request({
-      method: "GET",
-      url: ApiPaths.oauth2Auth(createResponse.instanceId),
-    });
-    const secondLocation = String(secondAuthResponse.header("location"));
-    const secondState = new URL(secondLocation).searchParams.get("state");
+      const secondAuthResponse = await harness.request({
+        method: "GET",
+        url: ApiPaths.oauth2Auth(createResponse.instanceId),
+      });
+      const secondLocation = String(secondAuthResponse.header("location"));
+      const secondState = new URL(secondLocation).searchParams.get("state");
 
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      text: async () =>
-        JSON.stringify({
-          access_token: "access-token-2",
-          scope: "scope.one scope.two",
-          expires_in: 3600,
-          token_type: "Bearer",
-        }),
-    });
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      text: async () => JSON.stringify({ email: "user@example.com" }),
-    });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            access_token: "access-token-2",
+            scope: "scope.one scope.two",
+            expires_in: 3600,
+            token_type: "Bearer",
+          }),
+      });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        text: async () => JSON.stringify({ email: "user@example.com" }),
+      });
 
-    const secondCallbackResponse = await harness.request({
-      method: "GET",
-      url: `/api/oauth2/callback?code=second-code&state=${encodeURIComponent(secondState ?? "")}`,
-    });
+      const secondCallbackResponse = await harness.request({
+        method: "GET",
+        url: `/api/oauth2/callback?code=second-code&state=${encodeURIComponent(secondState ?? "")}`,
+      });
 
-    expect(secondCallbackResponse.statusCode).toBe(200);
+      expect(secondCallbackResponse.statusCode).toBe(200);
 
-    const storedMaterial = await transaction!.getPrismaClient().credentialOAuth2Material.findUnique({
-      where: { instanceId: createResponse.instanceId },
-    });
-    expect(storedMaterial).toBeTruthy();
+      const storedMaterial = await transaction!.getPrismaClient().credentialOAuth2Material.findUnique({
+        where: { instanceId: createResponse.instanceId },
+      });
+      expect(storedMaterial).toBeTruthy();
 
-    const cipher = new CredentialSecretCipher({
-      CODEMATION_CREDENTIALS_MASTER_KEY: testMasterKey,
-    });
-    const decrypted = cipher.decrypt({
-      encryptedJson: storedMaterial!.encryptedJson,
-      encryptionKeyId: storedMaterial!.encryptionKeyId,
-      schemaVersion: storedMaterial!.schemaVersion,
-    });
-    expect(decrypted.refresh_token).toBe("refresh-token-1");
-    expect(decrypted.access_token).toBe("access-token-2");
+      const cipher = new CredentialSecretCipher({
+        CODEMATION_CREDENTIALS_MASTER_KEY: testMasterKey,
+      });
+      const decrypted = cipher.decrypt({
+        encryptedJson: storedMaterial!.encryptedJson,
+        encryptionKeyId: storedMaterial!.encryptionKeyId,
+        schemaVersion: storedMaterial!.schemaVersion,
+      });
+      expect(decrypted.refresh_token).toBe("refresh-token-1");
+      expect(decrypted.access_token).toBe("access-token-2");
     } finally {
       globalThis.fetch = priorFetch;
     }
@@ -457,43 +457,43 @@ describe("credential instances http integration", () => {
     const priorFetch = globalThis.fetch;
     globalThis.fetch = fetchMock as typeof fetch;
     try {
-    const createResponse = await harness.requestJson<CredentialInstanceDto>({
-      method: "POST",
-      url: ApiPaths.credentialInstances(),
-      payload: {
-        typeId: testOAuthCredentialTypeId,
-        displayName: "OAuth evil message",
-        sourceKind: "db",
-        publicConfig: { clientId: "google-client-id" },
-        secretConfig: { clientSecret: "google-client-secret" },
-      },
-    });
+      const createResponse = await harness.requestJson<CredentialInstanceDto>({
+        method: "POST",
+        url: ApiPaths.credentialInstances(),
+        payload: {
+          typeId: testOAuthCredentialTypeId,
+          displayName: "OAuth evil message",
+          sourceKind: "db",
+          publicConfig: { clientId: "google-client-id" },
+          secretConfig: { clientSecret: "google-client-secret" },
+        },
+      });
 
-    const authResponse = await harness.request({
-      method: "GET",
-      url: ApiPaths.oauth2Auth(createResponse.instanceId),
-    });
-    const state = new URL(String(authResponse.header("location"))).searchParams.get("state");
+      const authResponse = await harness.request({
+        method: "GET",
+        url: ApiPaths.oauth2Auth(createResponse.instanceId),
+      });
+      const state = new URL(String(authResponse.header("location"))).searchParams.get("state");
 
-    fetchMock.mockResolvedValueOnce({
-      ok: false,
-      text: async () =>
-        JSON.stringify({
-          error: "invalid_grant",
-          error_description: 'evil</script><script>alert(1)</script>',
-        }),
-    });
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        text: async () =>
+          JSON.stringify({
+            error: "invalid_grant",
+            error_description: "evil</script><script>alert(1)</script>",
+          }),
+      });
 
-    const callbackResponse = await harness.request({
-      method: "GET",
-      url: `/api/oauth2/callback?code=bad-code&state=${encodeURIComponent(state ?? "")}`,
-    });
+      const callbackResponse = await harness.request({
+        method: "GET",
+        url: `/api/oauth2/callback?code=bad-code&state=${encodeURIComponent(state ?? "")}`,
+      });
 
-    expect(callbackResponse.statusCode).toBe(400);
-    const body = callbackResponse.body;
-    expect(body).toContain("oauth2.error");
-    expect(body).toMatch(/\\u003[Cc]\\u002[Ff]script/);
-    expect(body).not.toContain("</script><script>alert(1)</script>");
+      expect(callbackResponse.statusCode).toBe(400);
+      const body = callbackResponse.body;
+      expect(body).toContain("oauth2.error");
+      expect(body).toMatch(/\\u003[Cc]\\u002[Ff]script/);
+      expect(body).not.toContain("</script><script>alert(1)</script>");
     } finally {
       globalThis.fetch = priorFetch;
     }
@@ -505,63 +505,63 @@ describe("credential instances http integration", () => {
     const priorFetch = globalThis.fetch;
     globalThis.fetch = fetchMock as typeof fetch;
     try {
-    const createResponse = await harness.requestJson<CredentialInstanceDto>({
-      method: "POST",
-      url: ApiPaths.credentialInstances(),
-      payload: {
-        typeId: testOAuthCredentialTypeId,
-        displayName: "OAuth disconnect",
-        sourceKind: "db",
-        publicConfig: { clientId: "google-client-id" },
-        secretConfig: { clientSecret: "google-client-secret" },
-      },
-    });
+      const createResponse = await harness.requestJson<CredentialInstanceDto>({
+        method: "POST",
+        url: ApiPaths.credentialInstances(),
+        payload: {
+          typeId: testOAuthCredentialTypeId,
+          displayName: "OAuth disconnect",
+          sourceKind: "db",
+          publicConfig: { clientId: "google-client-id" },
+          secretConfig: { clientSecret: "google-client-secret" },
+        },
+      });
 
-    const authResponse = await harness.request({
-      method: "GET",
-      url: ApiPaths.oauth2Auth(createResponse.instanceId),
-    });
-    const oauthState = new URL(String(authResponse.header("location"))).searchParams.get("state");
+      const authResponse = await harness.request({
+        method: "GET",
+        url: ApiPaths.oauth2Auth(createResponse.instanceId),
+      });
+      const oauthState = new URL(String(authResponse.header("location"))).searchParams.get("state");
 
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      text: async () =>
-        JSON.stringify({
-          access_token: "access-token-dc",
-          refresh_token: "refresh-token-dc",
-          scope: "scope.one",
-          expires_in: 3600,
-          token_type: "Bearer",
-        }),
-    });
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      text: async () => JSON.stringify({ email: "dc@example.com" }),
-    });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            access_token: "access-token-dc",
+            refresh_token: "refresh-token-dc",
+            scope: "scope.one",
+            expires_in: 3600,
+            token_type: "Bearer",
+          }),
+      });
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        text: async () => JSON.stringify({ email: "dc@example.com" }),
+      });
 
-    const callbackResponse = await harness.request({
-      method: "GET",
-      url: `/api/oauth2/callback?code=dc-code&state=${encodeURIComponent(oauthState ?? "")}`,
-    });
-    expect(callbackResponse.statusCode).toBe(200);
+      const callbackResponse = await harness.request({
+        method: "GET",
+        url: `/api/oauth2/callback?code=dc-code&state=${encodeURIComponent(oauthState ?? "")}`,
+      });
+      expect(callbackResponse.statusCode).toBe(200);
 
-    const disconnectResponse = await harness.request({
-      method: "POST",
-      url: ApiPaths.oauth2Disconnect(createResponse.instanceId),
-    });
-    expect(disconnectResponse.statusCode).toBe(200);
+      const disconnectResponse = await harness.request({
+        method: "POST",
+        url: ApiPaths.oauth2Disconnect(createResponse.instanceId),
+      });
+      expect(disconnectResponse.statusCode).toBe(200);
 
-    const material = await transaction!.getPrismaClient().credentialOAuth2Material.findUnique({
-      where: { instanceId: createResponse.instanceId },
-    });
-    expect(material).toBeNull();
+      const material = await transaction!.getPrismaClient().credentialOAuth2Material.findUnique({
+        where: { instanceId: createResponse.instanceId },
+      });
+      expect(material).toBeNull();
 
-    const after = await harness.request({
-      method: "GET",
-      url: ApiPaths.credentialInstance(createResponse.instanceId),
-    });
-    const dto = after.json<CredentialInstanceDto>();
-    expect(dto.oauth2Connection?.status).toBe("disconnected");
+      const after = await harness.request({
+        method: "GET",
+        url: ApiPaths.credentialInstance(createResponse.instanceId),
+      });
+      const dto = after.json<CredentialInstanceDto>();
+      expect(dto.oauth2Connection?.status).toBe("disconnected");
     } finally {
       globalThis.fetch = priorFetch;
     }

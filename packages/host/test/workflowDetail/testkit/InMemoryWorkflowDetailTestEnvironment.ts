@@ -1,11 +1,18 @@
 import { RunFinishedAtFactory } from "@codemation/core";
 
-import type { PersistedRunState,RunSummary,WorkflowDebuggerOverlayState } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import type {
+  PersistedRunState,
+  RunSummary,
+  WorkflowDebuggerOverlayState,
+} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
 import path from "node:path";
 import { expect } from "vitest";
-import { WebSocket as NodeWebSocket,type RawData } from "ws";
+import { WebSocket as NodeWebSocket, type RawData } from "ws";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
-import { FrontendHttpIntegrationHarness,type FrontendHttpIntegrationRequest } from "../../http/testkit/FrontendHttpIntegrationHarness";
+import {
+  FrontendHttpIntegrationHarness,
+  type FrontendHttpIntegrationRequest,
+} from "../../http/testkit/FrontendHttpIntegrationHarness";
 import type { WorkflowDetailRuntimeFixture } from "./WorkflowDetailRuntimeFixtures";
 
 type RunCommandResponse = Readonly<{
@@ -93,7 +100,9 @@ class WorkflowRealtimeBridgeClient {
       return Buffer.from(data).toString("utf8");
     }
     if (Array.isArray(data)) {
-      return Buffer.concat(data.map((entry) => (typeof entry === "string" ? Buffer.from(entry) : Buffer.from(entry)))).toString("utf8");
+      return Buffer.concat(
+        data.map((entry) => (typeof entry === "string" ? Buffer.from(entry) : Buffer.from(entry))),
+      ).toString("utf8");
     }
     return Buffer.from(data).toString("utf8");
   }
@@ -109,7 +118,10 @@ class WorkflowRealtimeMockSocket {
   private readonly listenersByType = new Map<string, Set<(event: unknown) => void>>();
   private readyStateValue = WorkflowRealtimeMockSocket.CONNECTING;
 
-  constructor(url: string | URL, private readonly bridgeClient: WorkflowRealtimeBridgeClient) {
+  constructor(
+    url: string | URL,
+    private readonly bridgeClient: WorkflowRealtimeBridgeClient,
+  ) {
     this.url = String(url);
     this.bridgeClient.registerConnection(this);
   }
@@ -191,7 +203,9 @@ export class InMemoryWorkflowDetailTestEnvironment {
 
   get websocketPort(): string {
     if (!this.websocketPortValue) {
-      throw new Error("InMemoryWorkflowDetailTestEnvironment.install() must be called before reading the websocket port.");
+      throw new Error(
+        "InMemoryWorkflowDetailTestEnvironment.install() must be called before reading the websocket port.",
+      );
     }
     return this.websocketPortValue;
   }
@@ -415,7 +429,12 @@ export class InMemoryWorkflowDetailTestEnvironment {
       return undefined;
     }
     const parsed = JSON.parse(responseBody) as Partial<PersistedRunState>;
-    if (!parsed || typeof parsed.runId !== "string" || typeof parsed.workflowId !== "string" || typeof parsed.startedAt !== "string") {
+    if (
+      !parsed ||
+      typeof parsed.runId !== "string" ||
+      typeof parsed.workflowId !== "string" ||
+      typeof parsed.startedAt !== "string"
+    ) {
       return undefined;
     }
     return parsed as PersistedRunState;
@@ -442,7 +461,9 @@ export class InMemoryWorkflowDetailTestEnvironment {
     this.workflowRuns.unshift(summary);
   }
 
-  private createResponseHeaders(response: { header: (name: string) => string | string[] | number | undefined }): Headers {
+  private createResponseHeaders(response: {
+    header: (name: string) => string | string[] | number | undefined;
+  }): Headers {
     const headers = new Headers();
     for (const headerName of ["content-type", "location"]) {
       const value = response.header(headerName);
@@ -537,7 +558,9 @@ export class InMemoryWorkflowDetailTestEnvironment {
 
   private requireRealtimeBridgeClient(): WorkflowRealtimeBridgeClient {
     if (!this.realtimeBridgeClient) {
-      throw new Error("InMemoryWorkflowDetailTestEnvironment.install() must initialize the realtime bridge client before creating websocket mocks.");
+      throw new Error(
+        "InMemoryWorkflowDetailTestEnvironment.install() must initialize the realtime bridge client before creating websocket mocks.",
+      );
     }
     return this.realtimeBridgeClient;
   }

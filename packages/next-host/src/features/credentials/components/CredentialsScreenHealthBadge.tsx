@@ -11,8 +11,7 @@ export function CredentialsScreenHealthBadge({ status }: { status: string }) {
     <Badge
       variant={isFailing ? "destructive" : "outline"}
       className={cn(
-        isHealthy &&
-          "border-emerald-500/30 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200",
+        isHealthy && "border-emerald-500/30 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200",
         !isHealthy && !isFailing && "text-muted-foreground",
       )}
     >

@@ -1,18 +1,25 @@
 import Link from "next/link";
 
-import type { WorkflowRunsSidebarActions, WorkflowRunsSidebarFormatting, WorkflowRunsSidebarModel } from "../../lib/workflowDetail/workflowDetailTypes";
+import type {
+  WorkflowRunsSidebarActions,
+  WorkflowRunsSidebarFormatting,
+  WorkflowRunsSidebarModel,
+} from "../../lib/workflowDetail/workflowDetailTypes";
 
 import { WorkflowRunsList } from "./WorkflowRunsList";
 
-export function WorkflowRunsSidebar(args: Readonly<{
-  model: WorkflowRunsSidebarModel;
-  actions: WorkflowRunsSidebarActions;
-  formatting: WorkflowRunsSidebarFormatting;
-}>) {
+export function WorkflowRunsSidebar(
+  args: Readonly<{
+    model: WorkflowRunsSidebarModel;
+    actions: WorkflowRunsSidebarActions;
+    formatting: WorkflowRunsSidebarFormatting;
+  }>,
+) {
   const { actions, formatting, model } = args;
   const { formatRunListDurationLine, formatRunListWhen, getExecutionModeLabel } = formatting;
   const { onSelectRun } = actions;
-  const { displayedRuns, displayedWorkflow, error, runsError, selectedRunId, workflow, workflowError, workflowId } = model;
+  const { displayedRuns, displayedWorkflow, error, runsError, selectedRunId, workflow, workflowError, workflowId } =
+    model;
 
   return (
     <aside

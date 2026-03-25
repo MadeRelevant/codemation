@@ -1,4 +1,4 @@
-import { CodemationPostgresPrismaClientFactory,type PrismaClient } from "@codemation/host/persistence";
+import { CodemationPostgresPrismaClientFactory, type PrismaClient } from "@codemation/host/persistence";
 
 type GlobalWithPrisma = typeof globalThis & {
   __codemationAuthPrisma__?: PrismaClient;

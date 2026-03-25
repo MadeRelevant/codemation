@@ -2,11 +2,7 @@
 
 import * as React from "react";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 const maxWidthBySize = {
@@ -42,7 +38,12 @@ function CodemationDialogRoot({
   showCloseButton = false,
 }: CodemationDialogRootProps) {
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent
         showCloseButton={showCloseButton}
         data-testid={testId}
@@ -71,7 +72,9 @@ export type CodemationDialogTitleProps = Readonly<{
  */
 function CodemationDialogTitle({ children, className }: CodemationDialogTitleProps) {
   return (
-    <DialogTitle className={cn("m-0 shrink-0 border-b border-border px-4 py-3 text-base leading-none font-semibold", className)}>
+    <DialogTitle
+      className={cn("m-0 shrink-0 border-b border-border px-4 py-3 text-base leading-none font-semibold", className)}
+    >
       {children}
     </DialogTitle>
   );
@@ -84,12 +87,7 @@ export type CodemationDialogContentProps = Readonly<{
 
 function CodemationDialogContent({ children, className }: CodemationDialogContentProps) {
   return (
-    <div
-      className={cn(
-        "flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3 text-sm",
-        className,
-      )}
-    >
+    <div className={cn("flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3 text-sm", className)}>
       {children}
     </div>
   );

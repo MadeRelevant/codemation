@@ -178,6 +178,7 @@ export class FreePricing implements PricingStrategy {
 ## Gang of Four patterns (default mapping)
 
 Use these patterns as the first options for typical pressures:
+
 - **Strategy**: conditional algorithm variants.
 - **Factory / Abstract Factory**: complex creation logic; avoid `new` spread across the codebase.
 - **Adapter**: wrap vendor SDKs / infra clients behind local interfaces.

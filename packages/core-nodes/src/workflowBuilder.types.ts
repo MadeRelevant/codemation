@@ -7,4 +7,3 @@ export function createWorkflowBuilder(meta: Readonly<{ id: WorkflowId; name: str
     makeMergeNode: (name) => new Merge(name, { mode: "passThrough", prefer: ["true", "false"] }),
   });
 }
-

@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 
 import type { PersistedRunState } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
-import { fireEvent,screen,waitFor } from "@testing-library/react";
-import { afterEach,describe,expect,it } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
-import { WorkflowDetailRuntimeFixtureFactory,WorkflowDetailScreenTestKit,type WorkflowDetailRuntimeFixture } from "./testkit";
+import {
+  WorkflowDetailRuntimeFixtureFactory,
+  WorkflowDetailScreenTestKit,
+  type WorkflowDetailRuntimeFixture,
+} from "./testkit";
 
 type OverlayBody = Readonly<{
   currentState: Readonly<{
@@ -81,7 +85,11 @@ class WorkflowDetailRealIntegrationFixture {
     return runId;
   }
 
-  static async pinNodeOutput(kit: WorkflowDetailScreenTestKit, nodeId: string, value: Readonly<Record<string, unknown>>): Promise<void> {
+  static async pinNodeOutput(
+    kit: WorkflowDetailScreenTestKit,
+    nodeId: string,
+    value: Readonly<Record<string, unknown>>,
+  ): Promise<void> {
     kit.selectCanvasNode(nodeId);
     await waitFor(() => {
       expect(screen.getByTestId("selected-node-name")).toHaveTextContent(nodeId);
@@ -96,7 +104,10 @@ class WorkflowDetailRealIntegrationFixture {
     });
   }
 
-  static async runHistoricalWorkflowIntoLiveDebugger(kit: WorkflowDetailScreenTestKit, terminalNodeId: string): Promise<string> {
+  static async runHistoricalWorkflowIntoLiveDebugger(
+    kit: WorkflowDetailScreenTestKit,
+    terminalNodeId: string,
+  ): Promise<string> {
     const runId = await this.startRunAndWaitForCompletion(kit, terminalNodeId);
     kit.openExecutionsPane();
     await kit.waitForRunSummary(runId);
@@ -148,7 +159,9 @@ describe("workflow detail real integration", () => {
 
     await WorkflowDetailRealIntegrationFixture.pinNodeOutput(kit, "Agent", { pinned: true });
 
-    const overlayBody = kit.latestRequestBody<OverlayBody>(`PUT ${ApiPaths.workflowDebuggerOverlay(fixture.workflowId)}`);
+    const overlayBody = kit.latestRequestBody<OverlayBody>(
+      `PUT ${ApiPaths.workflowDebuggerOverlay(fixture.workflowId)}`,
+    );
     expect(overlayBody).toEqual(
       expect.objectContaining({
         currentState: expect.objectContaining({
@@ -176,9 +189,9 @@ describe("workflow detail real integration", () => {
     });
 
     expect(
-      kit.latestRequestBody<Readonly<{ mode?: "manual" | "debug"; stopAt?: string; clearFromNodeId?: string; currentState?: unknown }>>(
-        "POST /api/runs",
-      ),
+      kit.latestRequestBody<
+        Readonly<{ mode?: "manual" | "debug"; stopAt?: string; clearFromNodeId?: string; currentState?: unknown }>
+      >("POST /api/runs"),
     ).toEqual({
       mode: "manual",
       stopAt: "Agent",
@@ -206,7 +219,11 @@ describe("workflow detail real integration", () => {
 
     await kit.copyToDebugger();
 
-    expect(kit.latestRequestBody<Readonly<{ sourceRunId?: string }>>(`POST ${ApiPaths.workflowDebuggerOverlayCopyRun(fixture.workflowId)}`)).toEqual({
+    expect(
+      kit.latestRequestBody<Readonly<{ sourceRunId?: string }>>(
+        `POST ${ApiPaths.workflowDebuggerOverlayCopyRun(fixture.workflowId)}`,
+      ),
+    ).toEqual({
       sourceRunId: runId,
     });
     expect(screen.getByTestId("workflow-canvas-tab-live")).toHaveAttribute("aria-pressed", "true");
@@ -225,11 +242,16 @@ describe("workflow detail real integration", () => {
       kit!.expectCallCount("POST /api/runs", 2);
     });
 
-    expect(kit.latestRequestBody<Readonly<{ workflowId: string; currentState?: unknown; synthesizeTriggerItems?: boolean; mode?: string }>>("POST /api/runs")).toEqual({
+    expect(
+      kit.latestRequestBody<
+        Readonly<{ workflowId: string; currentState?: unknown; synthesizeTriggerItems?: boolean; mode?: string }>
+      >("POST /api/runs"),
+    ).toEqual({
       workflowId: fixture.workflowId,
       synthesizeTriggerItems: true,
       mode: "manual",
       currentState: {
+        connectionInvocations: [],
         outputsByNode: {},
         nodeSnapshotsByNodeId: {},
         mutableState: {
@@ -324,9 +346,13 @@ describe("workflow detail real integration", () => {
       expect(kit!.currentNodeStatus("node_6")).toBe("pending");
     });
     expect(
-      kit.latestRequestBody<Readonly<{ currentState?: PersistedRunState | PersistedRunState["mutableState"] | unknown; clearFromNodeId?: string; stopAt?: string }>>(
-        "POST /api/runs",
-      ),
+      kit.latestRequestBody<
+        Readonly<{
+          currentState?: PersistedRunState | PersistedRunState["mutableState"] | unknown;
+          clearFromNodeId?: string;
+          stopAt?: string;
+        }>
+      >("POST /api/runs"),
     ).toEqual({
       workflowId: fixture.workflowId,
       items: [],
@@ -349,7 +375,9 @@ describe("workflow detail real integration", () => {
       expect(kit!.currentNodeStatus("node_6")).toBe("pending");
     });
     expect(
-      kit.latestRequestBody<Readonly<{ currentState?: unknown; clearFromNodeId?: string; stopAt?: string }>>("POST /api/runs"),
+      kit.latestRequestBody<Readonly<{ currentState?: unknown; clearFromNodeId?: string; stopAt?: string }>>(
+        "POST /api/runs",
+      ),
     ).toEqual({
       workflowId: fixture.workflowId,
       items: [],
@@ -392,7 +420,9 @@ describe("workflow detail real integration", () => {
     });
 
     expect(
-      kit.latestRequestBody<Readonly<{ workflowId: string; currentState?: unknown; clearFromNodeId?: string; stopAt?: string }>>("POST /api/runs"),
+      kit.latestRequestBody<
+        Readonly<{ workflowId: string; currentState?: unknown; clearFromNodeId?: string; stopAt?: string }>
+      >("POST /api/runs"),
     ).toEqual({
       workflowId: fixture.workflowId,
       items: [],

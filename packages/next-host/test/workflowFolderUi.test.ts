@@ -5,11 +5,7 @@ import type { WorkflowSummary } from "../src/features/workflows/hooks/realtime/r
 import type { WorkflowFolderTreeNode } from "../src/shell/WorkflowFolderTreeBuilder";
 import { WorkflowFolderUi } from "../src/shell/WorkflowFolderUi";
 
-function summary(
-  id: string,
-  name: string,
-  discoveryPathSegments: readonly string[],
-): WorkflowSummary {
+function summary(id: string, name: string, discoveryPathSegments: readonly string[]): WorkflowSummary {
   return { id, name, discoveryPathSegments };
 }
 
@@ -31,34 +27,22 @@ test("computeDefaultFolderOpen is true when not on a workflow detail route", () 
     WorkflowFolderUi.computeDefaultFolderOpen(["a", "b"], "/workflows", [summary("wf.x", "X", ["a", "b", "c"])]),
     true,
   );
-  assert.equal(
-    WorkflowFolderUi.computeDefaultFolderOpen(["a"], "/dashboard", [summary("wf.x", "X", ["a"])]),
-    true,
-  );
+  assert.equal(WorkflowFolderUi.computeDefaultFolderOpen(["a"], "/dashboard", [summary("wf.x", "X", ["a"])]), true);
 });
 
 test("computeDefaultFolderOpen follows active workflow path", () => {
   const workflows = [summary("wf.active", "Active", ["integrations", "gmail", "gmail"])];
-  assert.equal(
-    WorkflowFolderUi.computeDefaultFolderOpen(["integrations"], "/workflows/wf.active", workflows),
-    true,
-  );
+  assert.equal(WorkflowFolderUi.computeDefaultFolderOpen(["integrations"], "/workflows/wf.active", workflows), true);
   assert.equal(
     WorkflowFolderUi.computeDefaultFolderOpen(["integrations", "gmail"], "/workflows/wf.active", workflows),
     true,
   );
-  assert.equal(
-    WorkflowFolderUi.computeDefaultFolderOpen(["samples"], "/workflows/wf.active", workflows),
-    false,
-  );
+  assert.equal(WorkflowFolderUi.computeDefaultFolderOpen(["samples"], "/workflows/wf.active", workflows), false);
 });
 
 test("computeDefaultFolderOpen decodes workflow id in the URL", () => {
   const workflows = [summary("wf.with%2Fedge", "Edge", ["a", "b"])];
-  assert.equal(
-    WorkflowFolderUi.computeDefaultFolderOpen(["a"], "/workflows/wf.with%2Fedge", workflows),
-    true,
-  );
+  assert.equal(WorkflowFolderUi.computeDefaultFolderOpen(["a"], "/workflows/wf.with%2Fedge", workflows), true);
 });
 
 test("computeDefaultFolderOpen is true when active id is unknown", () => {

@@ -12,4 +12,3 @@ export class ContainerWorkflowRunnerResolver implements WorkflowRunnerResolver {
     return this.container.resolve(CoreTokens.WorkflowRunnerService);
   }
 }
-

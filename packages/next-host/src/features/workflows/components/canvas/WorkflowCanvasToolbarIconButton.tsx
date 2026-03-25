@@ -1,16 +1,27 @@
-import { type MouseEvent,type ReactNode,useState } from "react";
+import { type MouseEvent, type ReactNode, useState } from "react";
 
-export function WorkflowCanvasToolbarIconButton(args: Readonly<{
-  testId: string;
-  ariaLabel: string;
-  tooltip: string;
-  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
-  onAfterClick?: () => void;
-  disabled?: boolean;
-  children: ReactNode;
-  accentColor?: string;
-}>) {
-  const { accentColor = "#111827", ariaLabel, children, disabled = false, onAfterClick, onClick, testId, tooltip } = args;
+export function WorkflowCanvasToolbarIconButton(
+  args: Readonly<{
+    testId: string;
+    ariaLabel: string;
+    tooltip: string;
+    onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+    onAfterClick?: () => void;
+    disabled?: boolean;
+    children: ReactNode;
+    accentColor?: string;
+  }>,
+) {
+  const {
+    accentColor = "#111827",
+    ariaLabel,
+    children,
+    disabled = false,
+    onAfterClick,
+    onClick,
+    testId,
+    tooltip,
+  } = args;
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     onClick(event);

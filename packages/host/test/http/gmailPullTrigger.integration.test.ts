@@ -1,21 +1,21 @@
 // @vitest-environment node
 
-import type { CredentialSessionService,PersistedRunState } from "@codemation/core";
+import type { CredentialSessionService, PersistedRunState } from "@codemation/core";
 import { CoreTokens } from "@codemation/core";
-import { Callback,createWorkflowBuilder } from "@codemation/core-nodes";
+import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
 import path from "node:path";
-import { afterEach,describe,expect,it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
-GmailNodes,
-GmailNodeTokens,
-OnNewGmailTrigger,
-type GmailApiClient,
-type GmailHistoryDelta,
-type GmailMessageAttachmentContent,
-type GmailMessageRecord,
-type GmailPulledNotification,
-type GmailWatchRegistration,
-type OnNewGmailTriggerItemJson,
+  GmailNodes,
+  GmailNodeTokens,
+  OnNewGmailTrigger,
+  type GmailApiClient,
+  type GmailHistoryDelta,
+  type GmailMessageAttachmentContent,
+  type GmailMessageRecord,
+  type GmailPulledNotification,
+  type GmailWatchRegistration,
+  type OnNewGmailTriggerItemJson,
 } from "../../../core-nodes-gmail/src/index";
 import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
@@ -93,7 +93,9 @@ class FakeGmailApiClient implements GmailApiClient {
 class GmailIntegrationCredentialSessionService implements CredentialSessionService {
   constructor(private readonly apiClient: GmailApiClient) {}
 
-  async getSession<TSession = unknown>(_: Readonly<{ workflowId: string; nodeId: string; slotKey: string }>): Promise<TSession> {
+  async getSession<TSession = unknown>(
+    _: Readonly<{ workflowId: string; nodeId: string; slotKey: string }>,
+  ): Promise<TSession> {
     return this.apiClient as TSession;
   }
 }
@@ -305,7 +307,8 @@ describe("Gmail pull trigger integration", () => {
       },
     });
     expect(
-      overlayState.currentState.mutableState?.nodesById?.[GmailPullTriggerIntegrationFixture.triggerNodeId]?.pinnedOutputsByPort?.main,
+      overlayState.currentState.mutableState?.nodesById?.[GmailPullTriggerIntegrationFixture.triggerNodeId]
+        ?.pinnedOutputsByPort?.main,
     ).toEqual(triggerOutputs);
   });
 

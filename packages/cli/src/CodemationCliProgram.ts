@@ -1,5 +1,9 @@
 import { Command } from "commander";
-import { CodemationConsumerConfigLoader,CodemationPluginDiscovery,type CodemationDiscoveredPluginPackage } from "@codemation/host/server";
+import {
+  CodemationConsumerConfigLoader,
+  CodemationPluginDiscovery,
+  type CodemationDiscoveredPluginPackage,
+} from "@codemation/host/server";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -9,14 +13,14 @@ import { createServer } from "node:net";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
-import { fileURLToPath,pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { ApiPaths } from "@codemation/host";
 import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 import { CodemationCliPathResolver } from "./CodemationCliPathResolver";
 import { CodemationConsumerEnvLoader } from "./CodemationConsumerEnvLoader";
 import {
-CodemationConsumerOutputBuilder,
-type CodemationConsumerOutputBuildSnapshot,
+  CodemationConsumerOutputBuilder,
+  type CodemationConsumerOutputBuildSnapshot,
 } from "./CodemationConsumerOutputBuilder";
 import { CodemationDevSourceWatcher } from "./CodemationDevSourceWatcher";
 import { CodemationDevLock } from "./CodemationDevLock";
@@ -34,7 +38,8 @@ export class CodemationCli {
   private readonly require = createRequire(import.meta.url);
   private readonly loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
   private readonly cliLogger = this.loggerFactory.create("codemation-cli");
-  private readonly performanceDiagnosticsLogger = this.loggerFactory.createPerformanceDiagnostics("codemation-cli.performance");
+  private readonly performanceDiagnosticsLogger =
+    this.loggerFactory.createPerformanceDiagnostics("codemation-cli.performance");
 
   constructor(
     private readonly pathResolver: CodemationCliPathResolver = new CodemationCliPathResolver(),
@@ -155,8 +160,8 @@ export class CodemationCli {
     const devMode = process.env.CODEMATION_DEV_MODE === "framework" ? "framework" : "consumer";
     const nextPort = this.resolveNextPort(process.env.PORT);
     const gatewayPort =
-      this.parsePositiveInt(process.env.CODEMATION_DEV_GATEWAY_HTTP_PORT)
-      ?? (devMode === "consumer" ? nextPort : await this.resolveFreePortOnLoopback());
+      this.parsePositiveInt(process.env.CODEMATION_DEV_GATEWAY_HTTP_PORT) ??
+      (devMode === "consumer" ? nextPort : await this.resolveFreePortOnLoopback());
     const devLock = new CodemationDevLock();
     await devLock.acquire({
       consumerRoot: paths.consumerRoot,
@@ -465,15 +470,17 @@ export class CodemationCli {
     process.env.CODEMATION_TSCONFIG_PATH = path.resolve(repoRoot, "tsconfig.base.json");
   }
 
-  private createNextHostEnvironment(args: Readonly<{
-    authConfigJson: string;
-    consumerRoot: string;
-    developmentServerToken: string;
-    nextPort: number;
-    skipUiAuth: boolean;
-    websocketPort: number;
-    runtimeDevUrl?: string;
-  }>): NodeJS.ProcessEnv {
+  private createNextHostEnvironment(
+    args: Readonly<{
+      authConfigJson: string;
+      consumerRoot: string;
+      developmentServerToken: string;
+      nextPort: number;
+      skipUiAuth: boolean;
+      websocketPort: number;
+      runtimeDevUrl?: string;
+    }>,
+  ): NodeJS.ProcessEnv {
     const consumerEnv = CodemationConsumerEnvLoader.load(args.consumerRoot);
     return {
       ...process.env,
@@ -506,10 +513,12 @@ export class CodemationCli {
     return randomUUID();
   }
 
-  private async resolveDevAuthSettings(consumerRoot: string): Promise<Readonly<{
-    authConfigJson: string;
-    skipUiAuth: boolean;
-  }>> {
+  private async resolveDevAuthSettings(consumerRoot: string): Promise<
+    Readonly<{
+      authConfigJson: string;
+      skipUiAuth: boolean;
+    }>
+  > {
     const resolution = await this.configLoader.load({ consumerRoot });
     return {
       authConfigJson: JSON.stringify(resolution.config.auth ?? null),
@@ -517,11 +526,13 @@ export class CodemationCli {
     };
   }
 
-  private resolveDevWatchRoots(args: Readonly<{
-    consumerRoot: string;
-    devMode: "consumer" | "framework";
-    repoRoot: string;
-  }>): ReadonlyArray<string> {
+  private resolveDevWatchRoots(
+    args: Readonly<{
+      consumerRoot: string;
+      devMode: "consumer" | "framework";
+      repoRoot: string;
+    }>,
+  ): ReadonlyArray<string> {
     if (args.devMode === "consumer") {
       return [args.consumerRoot];
     }
@@ -556,15 +567,19 @@ export class CodemationCli {
     });
   }
 
-  private async resolveRuntimeToolEntrypoint(args: Readonly<{
-    packageName: string;
-    repoRoot: string;
-    sourceEntrypoint: string;
-  }>): Promise<Readonly<{
-    args: ReadonlyArray<string>;
-    command: string;
-    env: Readonly<Record<string, string>>;
-  }>> {
+  private async resolveRuntimeToolEntrypoint(
+    args: Readonly<{
+      packageName: string;
+      repoRoot: string;
+      sourceEntrypoint: string;
+    }>,
+  ): Promise<
+    Readonly<{
+      args: ReadonlyArray<string>;
+      command: string;
+      env: Readonly<Record<string, string>>;
+    }>
+  > {
     const sourceEntrypointPath = path.resolve(args.repoRoot, args.sourceEntrypoint);
     if (await this.exists(sourceEntrypointPath)) {
       return {
@@ -613,15 +628,17 @@ export class CodemationCli {
     throw new Error("Timed out waiting for dev gateway HTTP health check.");
   }
 
-  private async notifyDevelopmentGateway(args: Readonly<{
-    gatewayBaseUrl: string;
-    developmentServerToken: string;
-    payload: Readonly<{
-      kind: "buildStarted" | "buildCompleted" | "buildFailed";
-      buildVersion?: string;
-      message?: string;
-    }>;
-  }>): Promise<void> {
+  private async notifyDevelopmentGateway(
+    args: Readonly<{
+      gatewayBaseUrl: string;
+      developmentServerToken: string;
+      payload: Readonly<{
+        kind: "buildStarted" | "buildCompleted" | "buildFailed";
+        buildVersion?: string;
+        message?: string;
+      }>;
+    }>,
+  ): Promise<void> {
     const targetUrl = `${args.gatewayBaseUrl.replace(/\/$/, "")}${ApiPaths.devGatewayNotify()}`;
     try {
       const response = await fetch(targetUrl, {
@@ -636,9 +653,7 @@ export class CodemationCli {
         this.cliLogger.warn(`failed to notify dev gateway status=${response.status}`);
       }
     } catch (error) {
-      this.cliLogger.warn(
-        `failed to notify dev gateway: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.cliLogger.warn(`failed to notify dev gateway: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -650,7 +665,9 @@ export class CodemationCli {
     return 3000;
   }
 
-  private resolveWebsocketPort(args: Readonly<{ nextPort: number; publicWebsocketPort: string | undefined; websocketPort: string | undefined }>): number {
+  private resolveWebsocketPort(
+    args: Readonly<{ nextPort: number; publicWebsocketPort: string | undefined; websocketPort: string | undefined }>,
+  ): number {
     const explicitPort = this.parsePositivePort(args.publicWebsocketPort) ?? this.parsePositivePort(args.websocketPort);
     if (explicitPort !== null) {
       return explicitPort;
@@ -692,12 +709,11 @@ export class CodemationCli {
   ): Promise<string> {
     const outputPath = path.resolve(snapshot.revisionOutputRoot, "plugins.js");
     await mkdir(path.dirname(outputPath), { recursive: true });
-    const outputLines: string[] = [
-      "const codemationDiscoveredPlugins = [];",
-      "",
-    ];
+    const outputLines: string[] = ["const codemationDiscoveredPlugins = [];", ""];
     discoveredPlugins.forEach((discoveredPlugin: CodemationDiscoveredPluginPackage, index: number) => {
-      const pluginFileUrl = pathToFileURL(path.resolve(discoveredPlugin.packageRoot, discoveredPlugin.manifest.entry)).href;
+      const pluginFileUrl = pathToFileURL(
+        path.resolve(discoveredPlugin.packageRoot, discoveredPlugin.manifest.entry),
+      ).href;
       const exportNameAccessor = discoveredPlugin.manifest.exportName
         ? `pluginModule${index}[${JSON.stringify(discoveredPlugin.manifest.exportName)}]`
         : `pluginModule${index}.default ?? pluginModule${index}.codemationPlugin`;
@@ -705,7 +721,9 @@ export class CodemationCli {
       outputLines.push(`const pluginValue${index} = ${exportNameAccessor};`);
       outputLines.push(`if (pluginValue${index} && typeof pluginValue${index}.register === "function") {`);
       outputLines.push(`  codemationDiscoveredPlugins.push(pluginValue${index});`);
-      outputLines.push(`} else if (typeof pluginValue${index} === "function" && pluginValue${index}.prototype && typeof pluginValue${index}.prototype.register === "function") {`);
+      outputLines.push(
+        `} else if (typeof pluginValue${index} === "function" && pluginValue${index}.prototype && typeof pluginValue${index}.prototype.register === "function") {`,
+      );
       outputLines.push(`  codemationDiscoveredPlugins.push(new pluginValue${index}());`);
       outputLines.push("}");
       outputLines.push("");

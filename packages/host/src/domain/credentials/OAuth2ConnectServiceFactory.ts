@@ -1,16 +1,16 @@
 import type { CredentialOAuth2AuthDefinition } from "@codemation/core";
-import { inject,injectable } from "@codemation/core";
-import { createHash,randomBytes } from "node:crypto";
+import { inject, injectable } from "@codemation/core";
+import { createHash, randomBytes } from "node:crypto";
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { CredentialStore } from "./CredentialServices";
 import {
-CredentialFieldEnvOverlayService,
-CredentialInstanceService,
-CredentialMaterialResolver,
-CredentialRuntimeMaterialService,
-CredentialSecretCipher,
-CredentialTypeRegistryImpl,
+  CredentialFieldEnvOverlayService,
+  CredentialInstanceService,
+  CredentialMaterialResolver,
+  CredentialRuntimeMaterialService,
+  CredentialSecretCipher,
+  CredentialTypeRegistryImpl,
 } from "./CredentialServices";
 import { OAuth2ProviderRegistry } from "./OAuth2ProviderRegistry";
 
@@ -233,20 +233,22 @@ export class OAuth2ConnectService {
     return registeredType;
   }
 
-  private async exchangeAuthorizationCode(args: Readonly<{
-    auth: CredentialOAuth2AuthDefinition;
-    code: string;
-    codeVerifier?: string;
-    provider: Readonly<{
-      authorizeUrl: string;
-      tokenUrl: string;
-      userInfoUrl?: string;
-      providerId: string;
-    }>;
-    publicConfig: JsonRecord;
-    redirectUri: string;
-    secretMaterial: JsonRecord;
-  }>): Promise<Readonly<Record<string, unknown>>> {
+  private async exchangeAuthorizationCode(
+    args: Readonly<{
+      auth: CredentialOAuth2AuthDefinition;
+      code: string;
+      codeVerifier?: string;
+      provider: Readonly<{
+        authorizeUrl: string;
+        tokenUrl: string;
+        userInfoUrl?: string;
+        providerId: string;
+      }>;
+      publicConfig: JsonRecord;
+      redirectUri: string;
+      secretMaterial: JsonRecord;
+    }>,
+  ): Promise<Readonly<Record<string, unknown>>> {
     const requestBody = new URLSearchParams();
     requestBody.set("grant_type", "authorization_code");
     requestBody.set("code", args.code);
@@ -255,7 +257,10 @@ export class OAuth2ConnectService {
     const clientSecretFieldKey = this.oauth2ProviderRegistry.resolveClientSecretFieldKey(args.auth);
     const clientSecret = String(args.secretMaterial[clientSecretFieldKey] ?? "");
     if (!clientSecret) {
-      throw new ApplicationRequestError(400, `OAuth2 client secret is missing from secret field "${clientSecretFieldKey}".`);
+      throw new ApplicationRequestError(
+        400,
+        `OAuth2 client secret is missing from secret field "${clientSecretFieldKey}".`,
+      );
     }
     requestBody.set("client_secret", clientSecret);
     if (args.codeVerifier) {
@@ -320,7 +325,10 @@ export class OAuth2ConnectService {
       .filter((entry) => entry.length > 0);
   }
 
-  private async resolveConnectedEmail(userInfoUrl: string | undefined, accessToken: unknown): Promise<string | undefined> {
+  private async resolveConnectedEmail(
+    userInfoUrl: string | undefined,
+    accessToken: unknown,
+  ): Promise<string | undefined> {
     if (!userInfoUrl || typeof accessToken !== "string" || accessToken.length === 0) {
       return undefined;
     }

@@ -1,8 +1,8 @@
-import { CoreTokens,Engine } from "@codemation/core";
+import { CoreTokens, Engine } from "@codemation/core";
 import { accessSync } from "node:fs";
 import path from "node:path";
 import type { QueryBus } from "../../application/bus/QueryBus";
-import type { WorkflowDto,WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
+import type { WorkflowDto, WorkflowSummary } from "../../application/contracts/WorkflowViewContracts";
 import { WorkflowDefinitionMapper } from "../../application/mapping/WorkflowDefinitionMapper";
 import { GetWorkflowDetailQuery } from "../../application/queries/GetWorkflowDetailQuery";
 import { GetWorkflowSummariesQuery } from "../../application/queries/GetWorkflowSummariesQuery";

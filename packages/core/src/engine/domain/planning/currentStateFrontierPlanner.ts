@@ -22,7 +22,12 @@ export class CurrentStateFrontierPlanner {
 
   constructor(private readonly topology: WorkflowTopology) {}
 
-  plan(args: { currentState?: RunCurrentState; stopCondition?: RunStopCondition; reset?: RunStateResetRequest; items?: Items }): ExecutionFrontierPlan {
+  plan(args: {
+    currentState?: RunCurrentState;
+    stopCondition?: RunStopCondition;
+    reset?: RunStateResetRequest;
+    items?: Items;
+  }): ExecutionFrontierPlan {
     const stopCondition = args.stopCondition ?? { kind: "workflowCompleted" as const };
     const baseState = RunCurrentStateFactory.clone(args.currentState);
     const pinnedOutputResolver = new PinnedOutputResolver(baseState);
@@ -39,7 +44,9 @@ export class CurrentStateFrontierPlanner {
       ]),
     ];
     const frontierNodeIds = this.collectFrontierNodeIds(requiredNodeIds, satisfactionResolver);
-    const rootNodeIds = frontierNodeIds.filter((nodeId) => (this.topology.incomingByNode.get(nodeId) ?? []).length === 0);
+    const rootNodeIds = frontierNodeIds.filter(
+      (nodeId) => (this.topology.incomingByNode.get(nodeId) ?? []).length === 0,
+    );
 
     if (rootNodeIds.length > 1) {
       throw new Error(`Ambiguous execution frontier. Multiple root nodes require input: ${rootNodeIds.join(", ")}`);
@@ -113,7 +120,9 @@ export class CurrentStateFrontierPlanner {
         continue;
       }
       const incomingEdges = this.topology.incomingByNode.get(nodeId) ?? [];
-      const isFrontier = incomingEdges.every((edge) => satisfactionResolver.isEdgeSatisfied({ nodeId, input: edge.input }));
+      const isFrontier = incomingEdges.every((edge) =>
+        satisfactionResolver.isEdgeSatisfied({ nodeId, input: edge.input }),
+      );
       if (isFrontier) {
         frontierNodeIds.push(nodeId);
       }
@@ -129,4 +138,3 @@ export { RequiredNodeCollector } from "./RequiredNodeCollector";
 export { RootNodeInputResolver } from "./RootNodeInputResolver";
 export { RunCurrentStateFactory } from "./RunCurrentStateFactory";
 export { RunStateResetter } from "./RunStateResetter";
-

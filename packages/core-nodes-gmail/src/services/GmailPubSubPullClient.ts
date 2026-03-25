@@ -13,14 +13,18 @@ export interface GmailPulledNotification {
 }
 
 export interface GmailPubSubPullClient {
-  ensureSubscription(args: Readonly<{
-    credential: GmailServiceAccountCredential;
-    topicName: string;
-    subscriptionName: string;
-  }>): Promise<void>;
-  pull(args: Readonly<{
-    credential: GmailServiceAccountCredential;
-    subscriptionName: string;
-    maxMessages?: number;
-  }>): Promise<ReadonlyArray<GmailPulledNotification>>;
+  ensureSubscription(
+    args: Readonly<{
+      credential: GmailServiceAccountCredential;
+      topicName: string;
+      subscriptionName: string;
+    }>,
+  ): Promise<void>;
+  pull(
+    args: Readonly<{
+      credential: GmailServiceAccountCredential;
+      subscriptionName: string;
+      maxMessages?: number;
+    }>,
+  ): Promise<ReadonlyArray<GmailPulledNotification>>;
 }

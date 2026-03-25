@@ -1,9 +1,9 @@
 import { RunFinishedAtFactory } from "@codemation/core";
 import type {
-PersistedRunState,
-RunSummary,
-WorkflowDebuggerOverlayState,
-WorkflowDto,
+  PersistedRunState,
+  RunSummary,
+  WorkflowDebuggerOverlayState,
+  WorkflowDto,
 } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
 import { expect } from "vitest";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
@@ -71,7 +71,9 @@ export class WorkflowDetailSocketConnection {
     this.dispatch("message", { data: JSON.stringify(message) });
   }
 
-  emitJsonMessages(messages: ReadonlyArray<WorkflowDetailRealtimeServerMessage | Readonly<Record<string, unknown>>>): void {
+  emitJsonMessages(
+    messages: ReadonlyArray<WorkflowDetailRealtimeServerMessage | Readonly<Record<string, unknown>>>,
+  ): void {
     for (const message of messages) {
       this.emitJson(message);
     }
@@ -113,38 +115,38 @@ export class WorkflowDetailTestEnvironment {
 
     this.priorWebSocket = globalThis.WebSocket;
     globalThis.WebSocket = class WorkflowRealtimeSocketMock {
-        static readonly CONNECTING = 0;
-        static readonly OPEN = 1;
-        static readonly CLOSING = 2;
-        static readonly CLOSED = 3;
+      static readonly CONNECTING = 0;
+      static readonly OPEN = 1;
+      static readonly CLOSING = 2;
+      static readonly CLOSED = 3;
 
-        readonly connection: WorkflowDetailSocketConnection;
-        readonly url: string;
-        readonly readyState: number;
+      readonly connection: WorkflowDetailSocketConnection;
+      readonly url: string;
+      readonly readyState: number;
 
-        constructor(url: string | URL) {
-          this.connection = new WorkflowDetailSocketConnection(url);
-          this.url = this.connection.url;
-          this.readyState = this.connection.readyState;
-          socketConnections.push(this.connection);
-        }
+      constructor(url: string | URL) {
+        this.connection = new WorkflowDetailSocketConnection(url);
+        this.url = this.connection.url;
+        this.readyState = this.connection.readyState;
+        socketConnections.push(this.connection);
+      }
 
-        addEventListener(type: string, listener: (event: unknown) => void): void {
-          this.connection.addEventListener(type, listener);
-        }
+      addEventListener(type: string, listener: (event: unknown) => void): void {
+        this.connection.addEventListener(type, listener);
+      }
 
-        removeEventListener(type: string, listener: (event: unknown) => void): void {
-          this.connection.removeEventListener(type, listener);
-        }
+      removeEventListener(type: string, listener: (event: unknown) => void): void {
+        this.connection.removeEventListener(type, listener);
+      }
 
-        send(data: string): void {
-          this.connection.send(data);
-        }
+      send(data: string): void {
+        this.connection.send(data);
+      }
 
-        close(): void {
-          this.connection.close();
-        }
-      } as unknown as typeof WebSocket;
+      close(): void {
+        this.connection.close();
+      }
+    } as unknown as typeof WebSocket;
 
     this.priorDomMatrixReadOnly = window.DOMMatrixReadOnly;
     Object.defineProperty(window, "DOMMatrixReadOnly", {
@@ -257,7 +259,10 @@ export class WorkflowDetailTestEnvironment {
   }
 
   private async handleRequest(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, window.location.origin);
+    const url = new URL(
+      typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+      window.location.origin,
+    );
     const method = (init?.method ?? "GET").toUpperCase();
     const routeKey = `${method} ${url.pathname}`;
     this.callsByRoute.set(routeKey, (this.callsByRoute.get(routeKey) ?? 0) + 1);
@@ -307,7 +312,6 @@ export class WorkflowDetailTestEnvironment {
     if (method === "PATCH" && url.pathname.includes("/workflow-snapshot")) {
       return this.handleWorkflowSnapshotRequest(routeKey, url);
     }
-
 
     if (method === "GET" && url.pathname === ApiPaths.credentialInstances()) {
       return Response.json([]);
@@ -412,7 +416,8 @@ export class WorkflowDetailTestEnvironment {
     const requestBody = this.latestRequestBody<WorkflowDebuggerOverlayCopyRequestBody>(routeKey);
     const sourceRunId = requestBody.sourceRunId ?? WorkflowDetailFixtureFactory.runId;
     const sourceRun =
-      this.runsById.get(sourceRunId) ?? WorkflowDetailFixtureFactory.createCompletedRunState({ runId: sourceRunId, workflow: this.workflowResponse });
+      this.runsById.get(sourceRunId) ??
+      WorkflowDetailFixtureFactory.createCompletedRunState({ runId: sourceRunId, workflow: this.workflowResponse });
     this.runsById.set(sourceRun.runId, sourceRun);
     this.prependWorkflowRun(sourceRun);
     this.debuggerOverlay = {

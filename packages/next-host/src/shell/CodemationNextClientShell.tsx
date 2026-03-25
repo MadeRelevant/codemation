@@ -3,7 +3,7 @@
 import "@xyflow/react/dist/style.css";
 import "rc-tree/assets/index.css";
 
-import { Component,type ReactNode } from "react";
+import { Component, type ReactNode } from "react";
 import { Providers } from "../providers/Providers";
 
 export interface CodemationNextClientShellProps {

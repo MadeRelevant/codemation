@@ -33,15 +33,17 @@ const defaultOptions: NonNullable<ComponentProps<typeof Editor>["options"]> = {
  * Tests and automation can drive `data-testid` on that textarea because Monaco’s surface is not a reliable
  * DOM target for `fireEvent.change` / user typing simulation.
  */
-export function JsonMonacoEditor(args: Readonly<{
-  path: string;
-  value: string;
-  onChange: (value: string | undefined) => void;
-  /** Shown below the editor region when set. */
-  error?: string | null;
-  /** Passed to the hidden textarea for stable test selectors. */
-  testId?: string;
-}>) {
+export function JsonMonacoEditor(
+  args: Readonly<{
+    path: string;
+    value: string;
+    onChange: (value: string | undefined) => void;
+    /** Shown below the editor region when set. */
+    error?: string | null;
+    /** Passed to the hidden textarea for stable test selectors. */
+    testId?: string;
+  }>,
+) {
   const { path, value, onChange, error, testId = "workflow-json-editor-input" } = args;
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
@@ -52,9 +54,7 @@ export function JsonMonacoEditor(args: Readonly<{
           path={path}
           value={value}
           onChange={onChange}
-          loading={
-            <div className="grid h-full place-items-center text-xs text-muted-foreground">Loading editor…</div>
-          }
+          loading={<div className="grid h-full place-items-center text-xs text-muted-foreground">Loading editor…</div>}
           options={defaultOptions}
         />
       </div>

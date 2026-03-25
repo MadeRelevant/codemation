@@ -5,6 +5,7 @@
 Based on USWDS, IBM Carbon, and Shopify Polaris patterns.
 
 ### Tier 1: Primitive Tokens (Foundation Layer)
+
 - Raw design values without context
 - Examples: `gray-50`, `gray-900`, `spacing-4`, `font-sans`
 - Purpose: "The most basic form of tokens, reducing infinite possibilities to a select few"
@@ -12,6 +13,7 @@ Based on USWDS, IBM Carbon, and Shopify Polaris patterns.
 - Immutable across themes
 
 ### Tier 2: Semantic Tokens (Context Layer)
+
 - Carry meaning about usage
 - Examples: `background-primary`, `text-error`, `border-interactive`
 - Purpose: Describe function, not appearance
@@ -19,12 +21,14 @@ Based on USWDS, IBM Carbon, and Shopify Polaris patterns.
 - Change between themes (light/dark)
 
 ### Tier 3: Component Tokens (Application Layer)
+
 - Specific to UI components
 - Examples: `button-height`, `card-padding`, `input-border-radius`
 - Reference semantic or primitive tokens
 - Enable component-level theming
 
 ### Token Hierarchy Benefits
+
 - Single source of truth
 - Update one token → cascades everywhere
 - Dark mode: Change semantic layer only
@@ -33,6 +37,7 @@ Based on USWDS, IBM Carbon, and Shopify Polaris patterns.
 ## OKLCH Color Space (Modern Standard)
 
 ### Why OKLCH over HSL
+
 - **Perceptually uniform**: Equal lightness steps look equal to human eyes
 - **Consistent brightness**: Yellow/cyan don't appear lighter than blue/red
 - **Algorithmic palettes**: Generate entire color systems from formulas
@@ -40,15 +45,18 @@ Based on USWDS, IBM Carbon, and Shopify Polaris patterns.
 - **Accessibility**: Easier to calculate contrast ratios
 
 ### Browser Support
+
 - 93%+ (2024) - All modern browsers
 - TailwindCSS v4 uses OKLCH by default
 
 ### Format: `oklch(L C H)`
+
 - **L**: Lightness (0-1 or 0%-100%)
 - **C**: Chroma/saturation (0-0.4)
 - **H**: Hue (0-360 degrees)
 
 ### HSL vs OKLCH Example
+
 - **HSL**: `hsl(210, 100%, 50%)` - Unpredictable perceived brightness
 - **OKLCH**: `oklch(0.55 0.22 264)` - Perceptually consistent
 
@@ -57,26 +65,31 @@ Based on USWDS, IBM Carbon, and Shopify Polaris patterns.
 Best practices from Smashing Magazine & Design Systems Collective.
 
 ### Structure Pattern
+
 ```
 [category]-[property]-[variant]-[state]
 ```
 
 ### Purpose-Driven Names ✅
+
 - `background-primary` (semantic)
 - `text-error` (semantic)
 - `button-primary-hover` (component + state)
 
 ### Avoid Appearance-Based ❌
+
 - `blue-500` (no context)
 - `dark-blue-bg` (ties to visual)
 - `header-color-1` (meaningless)
 
 ### Color Naming
+
 - **Primitives**: `[family]-[brightness]` → `gray-50` to `gray-900`
 - **Semantic**: `[purpose]-[role]` → `background-primary`, `text-on-primary`
 - **Component**: `[component]-[property]` → `button-background-primary`
 
 ### Key Characteristics
+
 - **Logical**: Consistent patterns team understands
 - **Scalable**: Accommodates growth without restructuring
 - **Searchable**: Easy filtering in design tools
@@ -85,6 +98,7 @@ Best practices from Smashing Magazine & Design Systems Collective.
 ## CSS Variable Configuration
 
 ### Three-Tier CSS Variables
+
 ```css
 :root {
   /* Tier 1: Primitives (immutable) */
@@ -110,11 +124,13 @@ Best practices from Smashing Magazine & Design Systems Collective.
 ```
 
 ### Color Space Recommendation
+
 - **Modern**: Use OKLCH for perceptual uniformity
 - **Legacy support**: Use HSL with fallbacks
 - **Avoid**: RGB/HEX for design tokens (not human-readable)
 
 ### Token Storage
+
 - Store in JSON for platform-agnostic distribution
 - Transform to CSS variables, Swift, XML using Style Dictionary
 - Version control tokens separately from component code
@@ -122,6 +138,7 @@ Best practices from Smashing Magazine & Design Systems Collective.
 ## Multi-Theme Support
 
 Support multiple brands/themes:
+
 - Define theme objects with token values
 - Inject CSS variables dynamically with JavaScript
 - Semantic tokens adapt per theme

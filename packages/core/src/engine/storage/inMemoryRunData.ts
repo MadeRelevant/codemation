@@ -1,4 +1,4 @@
-import type { Items,MutableRunData,NodeId,NodeOutputs,OutputPortKey } from "../../types";
+import type { Items, MutableRunData, NodeId, NodeOutputs, OutputPortKey } from "../../types";
 
 export class InMemoryRunData implements MutableRunData {
   private readonly byNode = new Map<NodeId, NodeOutputs>();
@@ -31,4 +31,3 @@ export class InMemoryRunData implements MutableRunData {
     return out;
   }
 }
-

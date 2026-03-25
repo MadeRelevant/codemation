@@ -1,4 +1,4 @@
-import { BaseEdge,type Edge,type EdgeProps } from "@xyflow/react";
+import { BaseEdge, type Edge, type EdgeProps } from "@xyflow/react";
 
 import { WORKFLOW_CANVAS_MAIN_EDGE_OFFSET } from "./lib/workflowCanvasEdgeGeometry";
 import { WorkflowCanvasSymmetricForkPathPlanner } from "./lib/WorkflowCanvasSymmetricForkPathPlanner";

@@ -1,26 +1,33 @@
 import { Pencil } from "lucide-react";
-import { WorkflowInspectorBinaryView,WorkflowInspectorErrorView,WorkflowInspectorJsonView,WorkflowInspectorPrettyView } from "./WorkflowInspectorViews";
+import {
+  WorkflowInspectorBinaryView,
+  WorkflowInspectorErrorView,
+  WorkflowInspectorJsonView,
+  WorkflowInspectorPrettyView,
+} from "./WorkflowInspectorViews";
 import type {
-WorkflowExecutionInspectorActions,
-WorkflowExecutionInspectorFormatting,
-WorkflowExecutionInspectorModel,
-WorkflowExecutionInspectorPaneModel,
+  WorkflowExecutionInspectorActions,
+  WorkflowExecutionInspectorFormatting,
+  WorkflowExecutionInspectorModel,
+  WorkflowExecutionInspectorPaneModel,
 } from "../../lib/workflowDetail/workflowDetailTypes";
 
-export function WorkflowExecutionInspectorPanes(props: Readonly<{
-  panes: ReadonlyArray<WorkflowExecutionInspectorPaneModel>;
-  nodeActions: WorkflowExecutionInspectorModel["nodeActions"];
-  selectedPinnedOutput: WorkflowExecutionInspectorModel["selectedPinnedOutput"];
-  selectedNodeError: WorkflowExecutionInspectorModel["selectedNodeError"];
-  actions: Pick<
-    WorkflowExecutionInspectorActions,
-    "onClearPinnedOutput" | "onEditSelectedOutput" | "onSelectFormat" | "onSelectInputPort" | "onSelectOutputPort"
-  >;
-  formatting: Pick<
-    WorkflowExecutionInspectorFormatting,
-    "getErrorClipboardText" | "getErrorHeadline" | "getErrorStack"
-  >;
-}>) {
+export function WorkflowExecutionInspectorPanes(
+  props: Readonly<{
+    panes: ReadonlyArray<WorkflowExecutionInspectorPaneModel>;
+    nodeActions: WorkflowExecutionInspectorModel["nodeActions"];
+    selectedPinnedOutput: WorkflowExecutionInspectorModel["selectedPinnedOutput"];
+    selectedNodeError: WorkflowExecutionInspectorModel["selectedNodeError"];
+    actions: Pick<
+      WorkflowExecutionInspectorActions,
+      "onClearPinnedOutput" | "onEditSelectedOutput" | "onSelectFormat" | "onSelectInputPort" | "onSelectOutputPort"
+    >;
+    formatting: Pick<
+      WorkflowExecutionInspectorFormatting,
+      "getErrorClipboardText" | "getErrorHeadline" | "getErrorStack"
+    >;
+  }>,
+) {
   const { actions, formatting, nodeActions, panes, selectedNodeError, selectedPinnedOutput } = props;
   const { onClearPinnedOutput, onEditSelectedOutput, onSelectFormat, onSelectInputPort, onSelectOutputPort } = actions;
   const { getErrorClipboardText, getErrorHeadline, getErrorStack } = formatting;
@@ -35,7 +42,8 @@ export function WorkflowExecutionInspectorPanes(props: Readonly<{
     >
       {panes.map((pane, index) => {
         const isOutputPane = pane.tab === "output";
-        const availableFormats = pane.attachments.length > 0 ? (["json", "pretty", "binary"] as const) : (["json", "pretty"] as const);
+        const availableFormats =
+          pane.attachments.length > 0 ? (["json", "pretty", "binary"] as const) : (["json", "pretty"] as const);
         return (
           <section
             key={pane.tab}
@@ -61,7 +69,15 @@ export function WorkflowExecutionInspectorPanes(props: Readonly<{
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", opacity: 0.72 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: 0.45,
+                    textTransform: "uppercase",
+                    opacity: 0.72,
+                  }}
+                >
                   {pane.tab}
                 </div>
                 {isOutputPane && nodeActions.viewContext === "live-workflow" ? (
@@ -108,7 +124,18 @@ export function WorkflowExecutionInspectorPanes(props: Readonly<{
                   </button>
                 ) : null}
                 {isOutputPane && pane.showsError ? (
-                  <span style={{ border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 10, fontWeight: 800, letterSpacing: 0.3, textTransform: "uppercase", padding: "1px 5px" }}>
+                  <span
+                    style={{
+                      border: "1px solid #fecaca",
+                      background: "#fef2f2",
+                      color: "#991b1b",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      letterSpacing: 0.3,
+                      textTransform: "uppercase",
+                      padding: "1px 5px",
+                    }}
+                  >
                     Error
                   </span>
                 ) : null}
@@ -138,7 +165,18 @@ export function WorkflowExecutionInspectorPanes(props: Readonly<{
             </div>
 
             {pane.portEntries.length > 1 ? (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "10px 12px", borderBottom: "1px solid #e5e7eb", background: "#ffffff", overflowX: "hidden", overflowY: "auto" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  padding: "10px 12px",
+                  borderBottom: "1px solid #e5e7eb",
+                  background: "#ffffff",
+                  overflowX: "hidden",
+                  overflowY: "auto",
+                }}
+              >
                 {pane.portEntries.map(([portName]) => {
                   const isSelected = pane.selectedPort === portName;
                   return (
@@ -149,7 +187,16 @@ export function WorkflowExecutionInspectorPanes(props: Readonly<{
                         if (pane.tab === "input") onSelectInputPort(portName);
                         if (pane.tab === "output") onSelectOutputPort(portName);
                       }}
-                      style={{ whiteSpace: "nowrap", border: isSelected ? "1px solid #111827" : "1px solid #d1d5db", background: isSelected ? "#111827" : "white", color: isSelected ? "white" : "#111827", padding: "6px 10px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                      style={{
+                        whiteSpace: "nowrap",
+                        border: isSelected ? "1px solid #111827" : "1px solid #d1d5db",
+                        background: isSelected ? "#111827" : "white",
+                        color: isSelected ? "white" : "#111827",
+                        padding: "6px 10px",
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
                     >
                       {portName}
                     </button>
@@ -174,7 +221,10 @@ export function WorkflowExecutionInspectorPanes(props: Readonly<{
                   <WorkflowInspectorJsonView value={selectedNodeError} emptyLabel={pane.emptyLabel} />
                 )
               ) : pane.format === "binary" ? (
-                <WorkflowInspectorBinaryView attachments={pane.attachments} emptyLabel="No binary attachments captured yet." />
+                <WorkflowInspectorBinaryView
+                  attachments={pane.attachments}
+                  emptyLabel="No binary attachments captured yet."
+                />
               ) : pane.format === "pretty" ? (
                 <WorkflowInspectorPrettyView value={pane.value} emptyLabel={pane.emptyLabel} />
               ) : (

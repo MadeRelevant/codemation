@@ -4,16 +4,18 @@ export type AnyRunnableNodeConfig = RunnableNodeConfig<any, any>;
 
 export type AnyTriggerNodeConfig = TriggerNodeConfig<any>;
 
-export type ValidStepSequence<TCurrentJson, TSteps extends ReadonlyArray<AnyRunnableNodeConfig>> =
-  TSteps extends readonly []
-    ? readonly []
-    : TSteps extends readonly [infer TFirst, ...infer TRest]
-      ? TFirst extends RunnableNodeConfig<TCurrentJson, infer TNextJson>
-        ? TRest extends ReadonlyArray<AnyRunnableNodeConfig>
-          ? readonly [TFirst, ...ValidStepSequence<TNextJson, TRest>]
-          : never
+export type ValidStepSequence<
+  TCurrentJson,
+  TSteps extends ReadonlyArray<AnyRunnableNodeConfig>,
+> = TSteps extends readonly []
+  ? readonly []
+  : TSteps extends readonly [infer TFirst, ...infer TRest]
+    ? TFirst extends RunnableNodeConfig<TCurrentJson, infer TNextJson>
+      ? TRest extends ReadonlyArray<AnyRunnableNodeConfig>
+        ? readonly [TFirst, ...ValidStepSequence<TNextJson, TRest>]
         : never
-      : TSteps;
+      : never
+    : TSteps;
 
 export type StepSequenceOutput<TCurrentJson, TSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined> =
   TSteps extends ReadonlyArray<AnyRunnableNodeConfig>
@@ -49,11 +51,13 @@ export type BranchMoreArgs<
 > = TRestSteps & ValidStepSequence<RunnableNodeOutputJson<TFirstStep>, TRestSteps>;
 
 export type BooleanWhenOverloads<TCurrentJson, TReturn> = {
-  <TSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(branch: boolean, steps: BranchStepsArg<TCurrentJson, TSteps>): TReturn;
+  <TSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
+    branch: boolean,
+    steps: BranchStepsArg<TCurrentJson, TSteps>,
+  ): TReturn;
   <TFirstStep extends RunnableNodeConfig<TCurrentJson, any>, TRestSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
     branch: boolean,
     step: TFirstStep,
     ...more: BranchMoreArgs<TCurrentJson, TFirstStep, TRestSteps>
   ): TReturn;
 };
-

@@ -1,4 +1,4 @@
-import type { NodeConfigBase,NodeId,NodeOffloadPolicy,NodeSchedulerDecision,WorkflowId } from "../../types";
+import type { NodeConfigBase, NodeId, NodeOffloadPolicy, NodeSchedulerDecision, WorkflowId } from "../../types";
 
 export class HintOnlyOffloadPolicy implements NodeOffloadPolicy {
   decide(args: { workflowId: WorkflowId; nodeId: NodeId; config: NodeConfigBase }): NodeSchedulerDecision {
@@ -7,4 +7,3 @@ export class HintOnlyOffloadPolicy implements NodeOffloadPolicy {
     return { mode: "local" };
   }
 }
-

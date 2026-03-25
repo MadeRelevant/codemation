@@ -82,7 +82,10 @@ export class InProcessRetryRunner {
         maxAttempts: InProcessRetryRunner.assertPositiveInt(p.maxAttempts, "exponential.maxAttempts"),
         initialDelayMs: InProcessRetryRunner.assertNonNegativeFinite(p.initialDelayMs, "exponential.initialDelayMs"),
         multiplier: InProcessRetryRunner.assertMultiplier(p.multiplier),
-        maxDelayMs: p.maxDelayMs === undefined ? undefined : InProcessRetryRunner.assertNonNegativeFinite(p.maxDelayMs, "exponential.maxDelayMs"),
+        maxDelayMs:
+          p.maxDelayMs === undefined
+            ? undefined
+            : InProcessRetryRunner.assertNonNegativeFinite(p.maxDelayMs, "exponential.maxDelayMs"),
         jitter: p.jitter === true,
       };
     }

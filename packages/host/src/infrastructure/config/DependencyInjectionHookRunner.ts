@@ -1,8 +1,14 @@
-import type { Container,TypeToken } from "@codemation/core";
-import type { CodemationBootContext,CodemationBootHook } from "../../presentation/config/CodemationConfig";
+import type { Container, TypeToken } from "@codemation/core";
+import type { CodemationBootContext, CodemationBootHook } from "../../presentation/config/CodemationConfig";
 
 export class DependencyInjectionHookRunner {
-  async run(args: Readonly<{ bootHookToken: TypeToken<CodemationBootHook> | undefined; container: Container; context: CodemationBootContext }>): Promise<void> {
+  async run(
+    args: Readonly<{
+      bootHookToken: TypeToken<CodemationBootHook> | undefined;
+      container: Container;
+      context: CodemationBootContext;
+    }>,
+  ): Promise<void> {
     if (!args.bootHookToken) {
       return;
     }
@@ -13,7 +19,9 @@ export class DependencyInjectionHookRunner {
 
   private asBootHook(value: unknown, token: TypeToken<CodemationBootHook>): CodemationBootHook {
     if (!value || typeof value !== "object" || typeof (value as { boot?: unknown }).boot !== "function") {
-      throw new Error(`Resolved boot hook token does not implement a boot(context) method: ${this.describeToken(token)}`);
+      throw new Error(
+        `Resolved boot hook token does not implement a boot(context) method: ${this.describeToken(token)}`,
+      );
     }
     return value as CodemationBootHook;
   }

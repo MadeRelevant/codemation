@@ -32,34 +32,35 @@ type PluginContext = Readonly<{
 }>;
 
 type CredentialTypeRegistrar = Readonly<{
-  registerCredentialType(type: Readonly<{
-    definition: Readonly<{
-      typeId: string;
-      displayName: string;
-      description?: string;
-      publicFields?: ReadonlyArray<
-        Readonly<{
-          key: string;
-          label: string;
-          type: string;
-          required?: true;
-          placeholder?: string;
-          helpText?: string;
-          envVarName?: string;
-        }>
-      >;
-      secretFields?: ReadonlyArray<
-        Readonly<{
-          key: string;
-          label: string;
-          type: string;
-          required?: true;
-          placeholder?: string;
-          helpText?: string;
-          envVarName?: string;
-        }>
-      >;
-      supportedSourceKinds?: ReadonlyArray<"db" | "env" | "code">;
+  registerCredentialType(
+    type: Readonly<{
+      definition: Readonly<{
+        typeId: string;
+        displayName: string;
+        description?: string;
+        publicFields?: ReadonlyArray<
+          Readonly<{
+            key: string;
+            label: string;
+            type: string;
+            required?: true;
+            placeholder?: string;
+            helpText?: string;
+            envVarName?: string;
+          }>
+        >;
+        secretFields?: ReadonlyArray<
+          Readonly<{
+            key: string;
+            label: string;
+            type: string;
+            required?: true;
+            placeholder?: string;
+            helpText?: string;
+            envVarName?: string;
+          }>
+        >;
+        supportedSourceKinds?: ReadonlyArray<"db" | "env" | "code">;
         auth?: Readonly<
           | {
               kind: "oauth2";
@@ -80,10 +81,31 @@ type CredentialTypeRegistrar = Readonly<{
               clientSecretFieldKey?: string;
             }
         >;
-    }>;
-    createSession(args: Readonly<{ material: Readonly<Record<string, unknown>>; instance: unknown; publicConfig: Readonly<Record<string, unknown>> }>): Promise<unknown>;
-    test(args: Readonly<{ material: Readonly<Record<string, unknown>>; instance: unknown; publicConfig: Readonly<Record<string, unknown>> }>): Promise<Readonly<{ status: "unknown" | "healthy" | "failing"; message?: string; testedAt?: string; expiresAt?: string; details?: Readonly<Record<string, unknown>> }>>;
-  }>): void;
+      }>;
+      createSession(
+        args: Readonly<{
+          material: Readonly<Record<string, unknown>>;
+          instance: unknown;
+          publicConfig: Readonly<Record<string, unknown>>;
+        }>,
+      ): Promise<unknown>;
+      test(
+        args: Readonly<{
+          material: Readonly<Record<string, unknown>>;
+          instance: unknown;
+          publicConfig: Readonly<Record<string, unknown>>;
+        }>,
+      ): Promise<
+        Readonly<{
+          status: "unknown" | "healthy" | "failing";
+          message?: string;
+          testedAt?: string;
+          expiresAt?: string;
+          details?: Readonly<Record<string, unknown>>;
+        }>
+      >;
+    }>,
+  ): void;
 }>;
 
 export class GmailNodes {

@@ -18,4 +18,3 @@ export class InMemoryWorkflowRegistry implements WorkflowCatalog {
     return this.workflowsById.get(workflowId);
   }
 }
-

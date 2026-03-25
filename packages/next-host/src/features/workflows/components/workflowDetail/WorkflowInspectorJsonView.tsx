@@ -11,17 +11,43 @@ export function WorkflowInspectorJsonView(args: Readonly<{ value: unknown; empty
   const isRenderableJson = value !== null && typeof value === "object";
 
   if (value === undefined) {
-    return <div data-testid="workflow-inspector-empty-state" style={{ opacity: 0.62, fontSize: 13 }}>{emptyLabel}</div>;
+    return (
+      <div data-testid="workflow-inspector-empty-state" style={{ opacity: 0.62, fontSize: 13 }}>
+        {emptyLabel}
+      </div>
+    );
   }
 
   return (
     <div style={{ height: "100%", minHeight: 0, display: "grid", gridTemplateRows: "auto 1fr", gap: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+      <div
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}
+      >
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <button onClick={() => setCollapsedLevel(true)} style={{ border: "1px solid #d1d5db", background: "white", padding: "6px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
+          <button
+            onClick={() => setCollapsedLevel(true)}
+            style={{
+              border: "1px solid #d1d5db",
+              background: "white",
+              padding: "6px 10px",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: 12,
+            }}
+          >
             Collapse all
           </button>
-          <button onClick={() => setCollapsedLevel(false)} style={{ border: "1px solid #d1d5db", background: "white", padding: "6px 10px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
+          <button
+            onClick={() => setCollapsedLevel(false)}
+            style={{
+              border: "1px solid #d1d5db",
+              background: "white",
+              padding: "6px 10px",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: 12,
+            }}
+          >
             Expand all
           </button>
         </div>
@@ -29,7 +55,17 @@ export function WorkflowInspectorJsonView(args: Readonly<{ value: unknown; empty
           {copyState === "copied" ? "Copied to clipboard" : "Use the copy icon in the viewer"}
         </div>
       </div>
-      <div data-testid="workflow-inspector-json-panel" style={{ minWidth: 0, overflowX: "hidden", overflowY: "auto", border: "1px solid #d1d5db", background: "#f8fafc", padding: 12 }}>
+      <div
+        data-testid="workflow-inspector-json-panel"
+        style={{
+          minWidth: 0,
+          overflowX: "hidden",
+          overflowY: "auto",
+          border: "1px solid #d1d5db",
+          background: "#f8fafc",
+          padding: 12,
+        }}
+      >
         {isRenderableJson ? (
           <div style={{ minWidth: 0, overflowWrap: "anywhere", wordBreak: "break-word" }}>
             <JsonView
@@ -57,7 +93,18 @@ export function WorkflowInspectorJsonView(args: Readonly<{ value: unknown; empty
             />
           </div>
         ) : (
-          <pre style={{ margin: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", wordBreak: "break-word", fontSize: 12, lineHeight: 1.6, color: "#111827", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
+          <pre
+            style={{
+              margin: 0,
+              whiteSpace: "pre-wrap",
+              overflowWrap: "anywhere",
+              wordBreak: "break-word",
+              fontSize: 12,
+              lineHeight: 1.6,
+              color: "#111827",
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            }}
+          >
             {JSON.stringify(value, null, 2)}
           </pre>
         )}

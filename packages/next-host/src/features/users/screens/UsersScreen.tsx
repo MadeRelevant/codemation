@@ -1,16 +1,13 @@
 "use client";
 
-import type { UserAccountDto, UserAccountStatus } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
+import type {
+  UserAccountDto,
+  UserAccountStatus,
+} from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { CodemationDataTable } from "../../../components/CodemationDataTable";
 import { CodemationFormattedDateTime } from "../../../components/CodemationFormattedDateTime";
@@ -104,7 +101,8 @@ export function UsersScreen() {
     <div data-testid="users-screen" className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <p className="m-0 max-w-2xl text-sm text-muted-foreground">
-          Invite teammates with a secure link. Invites expire after seven days; you can regenerate a link for any invited account.
+          Invite teammates with a secure link. Invites expire after seven days; you can regenerate a link for any
+          invited account.
         </p>
         <Button type="button" onClick={openInvite} data-testid="users-invite-open">
           Invite user
@@ -112,7 +110,11 @@ export function UsersScreen() {
       </div>
 
       {loadError && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert" data-testid="users-load-error">
+        <div
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
+          data-testid="users-load-error"
+        >
           Failed to load users.
         </div>
       )}
@@ -142,64 +144,64 @@ export function UsersScreen() {
           {users.map((user) => {
             const loginMethods = user.loginMethods ?? [];
             return (
-            <TableRow key={user.id} data-testid={`user-row-${user.id}`}>
-              <TableCell>
-                <span data-testid={`user-email-${user.id}`}>{user.email}</span>
-              </TableCell>
-              <TableCell>
-                <span data-testid={`user-login-methods-${user.id}`}>
-                  {loginMethods.length > 0 ? loginMethods.join(", ") : "—"}
-                </span>
-              </TableCell>
-              <TableCell>
-                <UsersScreenUserStatusBadge userId={user.id} status={user.status} />
-              </TableCell>
-              <TableCell>
-                <CodemationFormattedDateTime
-                  isoUtc={user.inviteExpiresAt}
-                  dataTestId={`user-invite-expires-${user.id}`}
-                />
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap items-center gap-2">
-                  {user.status === "invited" && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      data-testid={`user-regenerate-invite-${user.id}`}
-                      onClick={() => {
-                        setInviteError(null);
-                        setRegeneratedUrl(null);
-                        setRegenerateDialog(user);
-                      }}
-                      disabled={regenerateMutation.isPending}
-                    >
-                      Regenerate link
-                    </Button>
-                  )}
-                  {user.status !== "invited" && (
-                    <div className="inline-flex items-center gap-2">
-                      <span className="sr-only" data-testid={`user-status-label-${user.id}`}>
-                        Account status
-                      </span>
-                      <Select
-                        value={user.status}
-                        onValueChange={(value) => void onStatusChange(user, value as UserAccountStatus)}
-                        disabled={statusMutation.isPending}
+              <TableRow key={user.id} data-testid={`user-row-${user.id}`}>
+                <TableCell>
+                  <span data-testid={`user-email-${user.id}`}>{user.email}</span>
+                </TableCell>
+                <TableCell>
+                  <span data-testid={`user-login-methods-${user.id}`}>
+                    {loginMethods.length > 0 ? loginMethods.join(", ") : "—"}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <UsersScreenUserStatusBadge userId={user.id} status={user.status} />
+                </TableCell>
+                <TableCell>
+                  <CodemationFormattedDateTime
+                    isoUtc={user.inviteExpiresAt}
+                    dataTestId={`user-invite-expires-${user.id}`}
+                  />
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {user.status === "invited" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        data-testid={`user-regenerate-invite-${user.id}`}
+                        onClick={() => {
+                          setInviteError(null);
+                          setRegeneratedUrl(null);
+                          setRegenerateDialog(user);
+                        }}
+                        disabled={regenerateMutation.isPending}
                       >
-                        <SelectTrigger className="h-8 w-[140px]" data-testid={`user-account-status-${user.id}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="active">active</SelectItem>
-                          <SelectItem value="inactive">inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
+                        Regenerate link
+                      </Button>
+                    )}
+                    {user.status !== "invited" && (
+                      <div className="inline-flex items-center gap-2">
+                        <span className="sr-only" data-testid={`user-status-label-${user.id}`}>
+                          Account status
+                        </span>
+                        <Select
+                          value={user.status}
+                          onValueChange={(value) => void onStatusChange(user, value as UserAccountStatus)}
+                          disabled={statusMutation.isPending}
+                        >
+                          <SelectTrigger className="h-8 w-[140px]" data-testid={`user-account-status-${user.id}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">active</SelectItem>
+                            <SelectItem value="inactive">inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
             );
           })}
         </CodemationDataTable>

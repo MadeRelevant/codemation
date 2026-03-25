@@ -26,7 +26,12 @@ export function UsersRegenerateDialog({
   onClose,
 }: UsersRegenerateDialogProps) {
   return (
-    <CodemationDialog onClose={onClose} testId="users-regenerate-dialog" size="narrow" contentClassName="max-h-[min(90vh,640px)]">
+    <CodemationDialog
+      onClose={onClose}
+      testId="users-regenerate-dialog"
+      size="narrow"
+      contentClassName="max-h-[min(90vh,640px)]"
+    >
       <CodemationDialog.Title>Regenerate invite link</CodemationDialog.Title>
       <CodemationDialog.Content className="space-y-3">
         {newUrl ? (
@@ -34,7 +39,13 @@ export function UsersRegenerateDialog({
             <p className="m-0 text-muted-foreground" data-testid="users-regenerate-success-message">
               New link for {email}. Previous links stop working.
             </p>
-            <Input type="text" readOnly value={newUrl} data-testid="users-regenerate-link-field" className="font-mono text-xs" />
+            <Input
+              type="text"
+              readOnly
+              value={newUrl}
+              data-testid="users-regenerate-link-field"
+              className="font-mono text-xs"
+            />
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="secondary" data-testid="users-regenerate-copy-link" onClick={onCopy}>
                 {copyFeedback ? "Copied" : "Copy link"}
@@ -44,7 +55,8 @@ export function UsersRegenerateDialog({
         ) : (
           <>
             <p className="m-0 text-muted-foreground" data-testid="users-regenerate-confirm-text">
-              Generate a new seven-day link for <strong data-testid="users-regenerate-email">{email}</strong>? The current invite link will no longer work.
+              Generate a new seven-day link for <strong data-testid="users-regenerate-email">{email}</strong>? The
+              current invite link will no longer work.
             </p>
             {errorMessage ? (
               <div className="text-sm text-destructive" data-testid="users-regenerate-error">

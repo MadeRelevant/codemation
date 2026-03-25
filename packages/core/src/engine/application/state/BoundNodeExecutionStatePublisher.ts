@@ -24,10 +24,17 @@ export class BoundNodeExecutionStatePublisher implements NodeExecutionStatePubli
     private readonly runId: RunId,
     private readonly workflowId: WorkflowId,
     private readonly parent: ParentExecutionRef | undefined,
-    private readonly publishNodeEvent: (kind: "nodeQueued" | "nodeStarted" | "nodeCompleted" | "nodeFailed", snapshot: NodeExecutionSnapshot) => Promise<void>,
+    private readonly publishNodeEvent: (
+      kind: "nodeQueued" | "nodeStarted" | "nodeCompleted" | "nodeFailed",
+      snapshot: NodeExecutionSnapshot,
+    ) => Promise<void>,
   ) {}
 
-  markQueued(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort }): Promise<void> {
+  markQueued(args: {
+    nodeId: NodeId;
+    activationId?: NodeActivationId;
+    inputsByPort?: NodeInputsByPort;
+  }): Promise<void> {
     return this.enqueue(async () => {
       const state = await this.loadState();
       const previous = state.nodeSnapshotsByNodeId?.[args.nodeId];
@@ -46,7 +53,11 @@ export class BoundNodeExecutionStatePublisher implements NodeExecutionStatePubli
     });
   }
 
-  markRunning(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort }): Promise<void> {
+  markRunning(args: {
+    nodeId: NodeId;
+    activationId?: NodeActivationId;
+    inputsByPort?: NodeInputsByPort;
+  }): Promise<void> {
     return this.enqueue(async () => {
       const state = await this.loadState();
       const previous = state.nodeSnapshotsByNodeId?.[args.nodeId];
@@ -66,7 +77,12 @@ export class BoundNodeExecutionStatePublisher implements NodeExecutionStatePubli
     });
   }
 
-  markCompleted(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort; outputs?: NodeOutputs }): Promise<void> {
+  markCompleted(args: {
+    nodeId: NodeId;
+    activationId?: NodeActivationId;
+    inputsByPort?: NodeInputsByPort;
+    outputs?: NodeOutputs;
+  }): Promise<void> {
     return this.enqueue(async () => {
       const state = await this.loadState();
       const previous = state.nodeSnapshotsByNodeId?.[args.nodeId];
@@ -87,7 +103,12 @@ export class BoundNodeExecutionStatePublisher implements NodeExecutionStatePubli
     });
   }
 
-  markFailed(args: { nodeId: NodeId; activationId?: NodeActivationId; inputsByPort?: NodeInputsByPort; error: Error }): Promise<void> {
+  markFailed(args: {
+    nodeId: NodeId;
+    activationId?: NodeActivationId;
+    inputsByPort?: NodeInputsByPort;
+    error: Error;
+  }): Promise<void> {
     return this.enqueue(async () => {
       const state = await this.loadState();
       const previous = state.nodeSnapshotsByNodeId?.[args.nodeId];
@@ -149,7 +170,10 @@ export class BoundNodeExecutionStatePublisher implements NodeExecutionStatePubli
     return state;
   }
 
-  private async saveSnapshot(state: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>, snapshot: NodeExecutionSnapshot): Promise<void> {
+  private async saveSnapshot(
+    state: NonNullable<Awaited<ReturnType<RunStateStore["load"]>>>,
+    snapshot: NodeExecutionSnapshot,
+  ): Promise<void> {
     await this.runStore.save({
       ...state,
       nodeSnapshotsByNodeId: {
@@ -159,4 +183,3 @@ export class BoundNodeExecutionStatePublisher implements NodeExecutionStatePubli
     });
   }
 }
-

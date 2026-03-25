@@ -34,4 +34,3 @@ export function registerCoreNodes(container: Container): void {
   void WaitNode;
   void ConnectionCredentialNode;
 }
-

@@ -1,13 +1,16 @@
-import type { NodeExecutionContext,TriggerTestItemsContext } from "@codemation/core";
-import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
+import type { NodeExecutionContext, TriggerTestItemsContext } from "@codemation/core";
+import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { ManualTrigger, ManualTriggerNode } from "../src/index.ts";
 
 class ManualTriggerExecutionContextFactory {
   static create(config: ManualTrigger<any>): NodeExecutionContext<ManualTrigger<any>> {
-    const binary = new DefaultExecutionBinaryService(new InMemoryBinaryStorage(), "wf.manual.execute", "run_manual_execute", () =>
-      new Date("2026-03-17T12:00:00.000Z"),
+    const binary = new DefaultExecutionBinaryService(
+      new InMemoryBinaryStorage(),
+      "wf.manual.execute",
+      "run_manual_execute",
+      () => new Date("2026-03-17T12:00:00.000Z"),
     );
     return {
       runId: "run_manual_execute",
@@ -57,14 +60,23 @@ test("manual trigger falls back to configured default items when invoked without
     ),
   );
 
-  assert.deepEqual(outputs.main?.map((item) => item.json), [{ seeded: true }]);
+  assert.deepEqual(
+    outputs.main?.map((item) => item.json),
+    [{ seeded: true }],
+  );
 });
 
 test("manual trigger normalizes a single json object as default input", async () => {
   const node = new ManualTriggerNode();
-  const outputs = await node.execute([], ManualTriggerExecutionContextFactory.create(new ManualTrigger("Manual trigger", { seeded: true })));
+  const outputs = await node.execute(
+    [],
+    ManualTriggerExecutionContextFactory.create(new ManualTrigger("Manual trigger", { seeded: true })),
+  );
 
-  assert.deepEqual(outputs.main?.map((item) => item.json), [{ seeded: true }]);
+  assert.deepEqual(
+    outputs.main?.map((item) => item.json),
+    [{ seeded: true }],
+  );
 });
 
 test("manual trigger normalizes an array of json objects as default input", async () => {
@@ -74,7 +86,10 @@ test("manual trigger normalizes an array of json objects as default input", asyn
     ManualTriggerExecutionContextFactory.create(new ManualTrigger("Manual trigger", [{ seeded: 1 }, { seeded: 2 }])),
   );
 
-  assert.deepEqual(outputs.main?.map((item) => item.json), [{ seeded: 1 }, { seeded: 2 }]);
+  assert.deepEqual(
+    outputs.main?.map((item) => item.json),
+    [{ seeded: 1 }, { seeded: 2 }],
+  );
 });
 
 test("manual trigger prefers provided execution items over configured defaults", async () => {
@@ -98,7 +113,10 @@ test("manual trigger prefers provided execution items over configured defaults",
     ),
   );
 
-  assert.deepEqual(outputs.main?.map((item) => item.json), [{ manual: true }]);
+  assert.deepEqual(
+    outputs.main?.map((item) => item.json),
+    [{ manual: true }],
+  );
 });
 
 test("manual trigger defaults continueWhenEmptyOutput to true", () => {
@@ -120,5 +138,8 @@ test("manual trigger exposes configured default items through getTestItems", asy
     ),
   );
 
-  assert.deepEqual(outputs.map((item) => item.json), [{ seeded: true }]);
+  assert.deepEqual(
+    outputs.map((item) => item.json),
+    [{ seeded: true }],
+  );
 });

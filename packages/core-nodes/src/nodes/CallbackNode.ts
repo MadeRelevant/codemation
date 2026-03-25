@@ -1,11 +1,9 @@
-import type { Items,Node,NodeExecutionContext,NodeOutputs } from "@codemation/core";
+import type { Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
 
 import { node } from "@codemation/core";
 
 import { Callback } from "./CallbackNodeFactory";
 import { CallbackResultNormalizer } from "./CallbackResultNormalizerFactory";
-
-
 
 @node({ packageName: "@codemation/core-nodes" })
 export class CallbackNode implements Node<Callback<any, any>> {

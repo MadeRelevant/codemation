@@ -1,4 +1,4 @@
-import { createWorkflowBuilder,MapData,WebhookRespondNowError,WebhookTrigger } from "@codemation/core-nodes";
+import { createWorkflowBuilder, MapData, WebhookRespondNowError, WebhookTrigger } from "@codemation/core-nodes";
 
 export default createWorkflowBuilder({ id: "wf.webhook.respond-now", name: "Webhook respond now and stop" })
   .trigger(
@@ -23,10 +23,14 @@ export default createWorkflowBuilder({ id: "wf.webhook.respond-now", name: "Webh
     ),
   )
   .then(
-    new MapData("This step should never run", () => {
-      return {
-        ok: false,
-      };
-    }, "never_reached"),
+    new MapData(
+      "This step should never run",
+      () => {
+        return {
+          ok: false,
+        };
+      },
+      "never_reached",
+    ),
   )
   .build();

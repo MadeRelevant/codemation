@@ -4,4 +4,7 @@
  */
 export { CodemationTsyringeParamInfoReader } from "./presentation/server/CodemationTsyringeParamInfoReader";
 export { CodemationTsyringeTypeInfoRegistrar } from "./presentation/server/CodemationTsyringeTypeInfoRegistrar";
-export { DevelopmentRuntimeRouteGuard,type DevelopmentRuntimeSignal } from "./presentation/server/DevelopmentRuntimeRouteGuard";
+export {
+  DevelopmentRuntimeRouteGuard,
+  type DevelopmentRuntimeSignal,
+} from "./presentation/server/DevelopmentRuntimeRouteGuard";

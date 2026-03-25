@@ -1,10 +1,8 @@
-import type { Item,Items,Node,NodeExecutionContext,NodeOutputs } from "@codemation/core";
+import type { Item, Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
 
 import { node } from "@codemation/core";
 
 import { MapData } from "./mapData";
-
-
 
 @node({ packageName: "@codemation/core-nodes" })
 export class MapDataNode implements Node<MapData<any, any>> {

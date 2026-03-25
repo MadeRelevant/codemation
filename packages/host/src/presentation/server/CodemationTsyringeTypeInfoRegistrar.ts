@@ -66,7 +66,10 @@ export class CodemationTsyringeTypeInfoRegistrar {
     Object.values(value).forEach((entry: unknown) => this.registerConfigTokens(entry));
   }
 
-  private registerFactoryProvider(token: new (...args: ReadonlyArray<unknown>) => unknown, paramInfo: ReadonlyArray<unknown>): void {
+  private registerFactoryProvider(
+    token: new (...args: ReadonlyArray<unknown>) => unknown,
+    paramInfo: ReadonlyArray<unknown>,
+  ): void {
     if (this.container.isRegistered(token as TypeToken<unknown>, true)) {
       return;
     }
@@ -74,7 +77,9 @@ export class CodemationTsyringeTypeInfoRegistrar {
     const constructorToken = token as unknown as new (...args: ReadonlyArray<unknown>) => unknown;
     this.container.register(classToken, {
       useFactory: (dependencyContainer) => {
-        const dependencies = paramInfo.map((dependency: unknown) => this.resolveFactoryDependency(dependencyContainer, dependency));
+        const dependencies = paramInfo.map((dependency: unknown) =>
+          this.resolveFactoryDependency(dependencyContainer, dependency),
+        );
         return new constructorToken(...dependencies);
       },
     });
@@ -87,10 +92,7 @@ export class CodemationTsyringeTypeInfoRegistrar {
     return dependency;
   }
 
-  private resolveFactoryDependency(
-    dependencyContainer: Container,
-    dependency: unknown,
-  ): unknown {
+  private resolveFactoryDependency(dependencyContainer: Container, dependency: unknown): unknown {
     const token = this.resolveDependencyToken(dependency);
     if (typeof token === "function") {
       if (dependencyContainer.isRegistered(token as TypeToken<unknown>, true)) {
@@ -105,7 +107,9 @@ export class CodemationTsyringeTypeInfoRegistrar {
       this.registerTypeToken(token);
       const constructorToken = token as unknown as new (...args: ReadonlyArray<unknown>) => unknown;
       const paramInfo = CodemationTsyringeParamInfoReader.read(token);
-      const nestedDependencies = paramInfo.map((entry: unknown) => this.resolveFactoryDependency(dependencyContainer, entry));
+      const nestedDependencies = paramInfo.map((entry: unknown) =>
+        this.resolveFactoryDependency(dependencyContainer, entry),
+      );
       return new constructorToken(...nestedDependencies);
     }
     return dependencyContainer.resolve(token as TypeToken<unknown>);

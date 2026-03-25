@@ -1,12 +1,17 @@
 import type { NodeExecutionContext } from "@codemation/core";
-import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
-import { HttpRequest,HttpRequestNode } from "@codemation/core-nodes";
+import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
+import { HttpRequest, HttpRequestNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
 class HttpRequestNodeTestContextFactory {
   static create(config: HttpRequest<any>): NodeExecutionContext<HttpRequest<any>> {
-    const binary = new DefaultExecutionBinaryService(new InMemoryBinaryStorage(), "wf_http_request", "run_http_request", () => new Date("2026-03-17T12:00:00.000Z"));
+    const binary = new DefaultExecutionBinaryService(
+      new InMemoryBinaryStorage(),
+      "wf_http_request",
+      "run_http_request",
+      () => new Date("2026-03-17T12:00:00.000Z"),
+    );
     return {
       runId: "run_http_request",
       workflowId: "wf_http_request",

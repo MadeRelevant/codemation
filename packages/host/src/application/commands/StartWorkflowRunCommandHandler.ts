@@ -1,14 +1,14 @@
 import type {
-Items,
-NodeId,
-PersistedMutableRunState,
-PersistedRunState,
-RunCurrentState,
-RunStopCondition,
-WorkflowDefinition,
+  Items,
+  NodeId,
+  PersistedMutableRunState,
+  PersistedRunState,
+  RunCurrentState,
+  RunStopCondition,
+  WorkflowDefinition,
 } from "@codemation/core";
-import { Engine,ItemsInputNormalizer,RunIntentService,inject } from "@codemation/core";
-import type { Logger,LoggerFactory } from "../logging/Logger";
+import { Engine, ItemsInputNormalizer, RunIntentService, inject } from "@codemation/core";
+import type { Logger, LoggerFactory } from "../logging/Logger";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import type { WorkflowDebuggerOverlayRepository } from "../../domain/workflows/WorkflowDebuggerOverlayRepository";
@@ -16,7 +16,7 @@ import type { WorkflowDefinitionRepository } from "../../domain/workflows/Workfl
 import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";
 import { ApplicationRequestError } from "../ApplicationRequestError";
 import { CommandHandler } from "../bus/CommandHandler";
-import type { CreateRunRequest,RunCommandResult } from "../contracts/RunContracts";
+import type { CreateRunRequest, RunCommandResult } from "../contracts/RunContracts";
 import { WorkflowDebuggerOverlayStateFactory } from "../workflows/WorkflowDebuggerOverlayStateFactory";
 import { StartWorkflowRunCommand } from "./StartWorkflowRunCommand";
 
@@ -49,21 +49,21 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
     if (!body.workflowId) {
       throw new ApplicationRequestError(400, "Missing workflowId");
     }
-    const sourceState = body.sourceRunId && !body.currentState ? await this.workflowRunRepository.load(body.sourceRunId) : undefined;
+    const sourceState =
+      body.sourceRunId && !body.currentState ? await this.workflowRunRepository.load(body.sourceRunId) : undefined;
     const debuggerOverlay = await this.workflowDebuggerOverlayRepository.load(body.workflowId);
     const workflow = await this.resolveWorkflow(body);
     if (!workflow) {
       throw new ApplicationRequestError(404, "Unknown workflowId");
     }
-    const executionOptions =
-      body.mode
-        ? {
-            mode: body.mode,
-            sourceWorkflowId: body.workflowId,
-            sourceRunId: body.sourceRunId ?? debuggerOverlay?.copiedFromRunId,
-            derivedFromRunId: body.sourceRunId ?? debuggerOverlay?.copiedFromRunId,
-          }
-        : undefined;
+    const executionOptions = body.mode
+      ? {
+          mode: body.mode,
+          sourceWorkflowId: body.workflowId,
+          sourceRunId: body.sourceRunId ?? debuggerOverlay?.copiedFromRunId,
+          derivedFromRunId: body.sourceRunId ?? debuggerOverlay?.copiedFromRunId,
+        }
+      : undefined;
     const legacyStartNodeId = body.startAt as NodeId | undefined;
     const clearFromNodeId = body.clearFromNodeId as NodeId | undefined;
     const requestedItems = await this.resolveRequestedItems({
@@ -98,7 +98,10 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
             mutableState: this.cloneMutableState(currentState.mutableState),
             currentState,
             reset: this.createResetRequest(clearFromNodeId),
-            stopCondition: legacyStartNodeId && !body.sourceRunId && !body.currentState && !body.stopAt ? undefined : this.createStopCondition(body.stopAt),
+            stopCondition:
+              legacyStartNodeId && !body.sourceRunId && !body.currentState && !body.stopAt
+                ? undefined
+                : this.createStopCondition(body.stopAt),
           });
     const state = (await this.workflowRunRepository.load(result.runId)) ?? null;
     this.routesLog.info(
@@ -143,11 +146,13 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
     return this.isTriggerStart(workflow, startAt) ? [] : [{ json: {} }];
   }
 
-  private async resolveRequestedItems(args: Readonly<{
-    workflow: WorkflowDefinition;
-    body: CreateRunRequest;
-    clearFromNodeId: NodeId | undefined;
-  }>): Promise<Items | undefined> {
+  private async resolveRequestedItems(
+    args: Readonly<{
+      workflow: WorkflowDefinition;
+      body: CreateRunRequest;
+      clearFromNodeId: NodeId | undefined;
+    }>,
+  ): Promise<Items | undefined> {
     const triggerNodeId = this.resolveTriggerTestNodeId(args);
     const normalizedItems = args.body.items == null ? undefined : this.itemsInputNormalizer.normalize(args.body.items);
     if (!this.shouldSynthesizeTriggerItems(args.body, triggerNodeId, normalizedItems)) {
@@ -160,16 +165,19 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
   }
 
   private isTriggerStart(workflow: WorkflowDefinition, startAt: string | undefined): boolean {
-    const resolvedStartAt = startAt ?? workflow.nodes.find((node) => node.kind === "trigger")?.id ?? workflow.nodes[0]?.id;
+    const resolvedStartAt =
+      startAt ?? workflow.nodes.find((node) => node.kind === "trigger")?.id ?? workflow.nodes[0]?.id;
     const startNode = resolvedStartAt ? workflow.nodes.find((node) => node.id === resolvedStartAt) : undefined;
     return startNode?.kind === "trigger";
   }
 
-  private resolveTriggerTestNodeId(args: Readonly<{
-    workflow: WorkflowDefinition;
-    body: CreateRunRequest;
-    clearFromNodeId: NodeId | undefined;
-  }>): NodeId | undefined {
+  private resolveTriggerTestNodeId(
+    args: Readonly<{
+      workflow: WorkflowDefinition;
+      body: CreateRunRequest;
+      clearFromNodeId: NodeId | undefined;
+    }>,
+  ): NodeId | undefined {
     const stopAtNodeId = args.body.stopAt as NodeId | undefined;
     if (stopAtNodeId && this.isTriggerNode(args.workflow, stopAtNodeId)) {
       return stopAtNodeId;
@@ -217,17 +225,21 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
     }
     return {
       outputsByNode: JSON.parse(JSON.stringify(state.outputsByNode)) as RunCurrentState["outputsByNode"],
-      nodeSnapshotsByNodeId: JSON.parse(JSON.stringify(state.nodeSnapshotsByNodeId)) as RunCurrentState["nodeSnapshotsByNodeId"],
+      nodeSnapshotsByNodeId: JSON.parse(
+        JSON.stringify(state.nodeSnapshotsByNodeId),
+      ) as RunCurrentState["nodeSnapshotsByNodeId"],
       mutableState: this.cloneMutableState(state.mutableState),
     };
   }
 
-  private createCurrentState(args: Readonly<{
-    workflowId: string;
-    requestedCurrentState: RunCurrentState | undefined;
-    sourceState: PersistedRunState | undefined;
-    debuggerOverlay: Awaited<ReturnType<WorkflowDebuggerOverlayRepository["load"]>>;
-  }>): RunCurrentState {
+  private createCurrentState(
+    args: Readonly<{
+      workflowId: string;
+      requestedCurrentState: RunCurrentState | undefined;
+      sourceState: PersistedRunState | undefined;
+      debuggerOverlay: Awaited<ReturnType<WorkflowDebuggerOverlayRepository["load"]>>;
+    }>,
+  ): RunCurrentState {
     if (args.requestedCurrentState) {
       return WorkflowDebuggerOverlayStateFactory.cloneCurrentState(args.requestedCurrentState);
     }

@@ -9,4 +9,3 @@ export class OutputStats {
     return out;
   }
 }
-

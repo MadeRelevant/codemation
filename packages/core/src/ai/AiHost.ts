@@ -38,14 +38,15 @@ export interface Tool<
   readonly defaultDescription: string;
   readonly inputSchema: TInputSchema;
   readonly outputSchema: TOutputSchema;
-  execute(args: ToolExecuteArgs<TConfig, ZodInput<TInputSchema>>): Promise<ZodOutput<TOutputSchema>> | ZodOutput<TOutputSchema>;
+  execute(
+    args: ToolExecuteArgs<TConfig, ZodInput<TInputSchema>>,
+  ): Promise<ZodOutput<TOutputSchema>> | ZodOutput<TOutputSchema>;
 }
 
-export type AgentTool<TInputSchema extends ZodSchemaAny = ZodSchemaAny, TOutputSchema extends ZodSchemaAny = ZodSchemaAny> = Tool<
-  ToolConfig,
-  TInputSchema,
-  TOutputSchema
->;
+export type AgentTool<
+  TInputSchema extends ZodSchemaAny = ZodSchemaAny,
+  TOutputSchema extends ZodSchemaAny = ZodSchemaAny,
+> = Tool<ToolConfig, TInputSchema, TOutputSchema>;
 
 export type AgentToolExecuteArgs<TInput = unknown> = ToolExecuteArgs<ToolConfig, TInput>;
 
@@ -79,10 +80,15 @@ export interface LangChainChatModelLike {
 }
 
 export interface ChatModelFactory<TConfig extends ChatModelConfig = ChatModelConfig> {
-  create(args: Readonly<{ config: TConfig; ctx: NodeExecutionContext<any> }>): Promise<LangChainChatModelLike> | LangChainChatModelLike;
+  create(
+    args: Readonly<{ config: TConfig; ctx: NodeExecutionContext<any> }>,
+  ): Promise<LangChainChatModelLike> | LangChainChatModelLike;
 }
 
-export interface AgentNodeConfig<TInputJson = unknown, TOutputJson = unknown> extends RunnableNodeConfig<TInputJson, TOutputJson> {
+export interface AgentNodeConfig<TInputJson = unknown, TOutputJson = unknown> extends RunnableNodeConfig<
+  TInputJson,
+  TOutputJson
+> {
   readonly systemMessage: string;
   readonly userMessageFormatter: (
     item: Item<TInputJson>,
@@ -98,7 +104,11 @@ export class AgentConfigInspector {
   static isAgentNodeConfig(config: NodeConfigBase | undefined): config is AgentNodeConfig<any, any> {
     if (!config) return false;
     const candidate = config as Partial<AgentNodeConfig<any, any>>;
-    return typeof candidate.systemMessage === "string" && typeof candidate.userMessageFormatter === "function" && !!candidate.chatModel;
+    return (
+      typeof candidate.systemMessage === "string" &&
+      typeof candidate.userMessageFormatter === "function" &&
+      !!candidate.chatModel
+    );
   }
 }
 

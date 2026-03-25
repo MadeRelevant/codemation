@@ -1,19 +1,14 @@
 import { injectable } from "@codemation/core";
 
-
 import type {
-CredentialInstanceRecord,
-CredentialOAuth2MaterialMetadata,
-CredentialOAuth2MaterialRecord,
-CredentialOAuth2StateRecord,
-CredentialSecretMaterialRecord,
-CredentialStore,
-CredentialTestRecord,
+  CredentialInstanceRecord,
+  CredentialOAuth2MaterialMetadata,
+  CredentialOAuth2MaterialRecord,
+  CredentialOAuth2StateRecord,
+  CredentialSecretMaterialRecord,
+  CredentialStore,
+  CredentialTestRecord,
 } from "../../domain/credentials/CredentialServices";
-
-
-
-
 
 @injectable()
 export class InMemoryCredentialStore implements CredentialStore {
@@ -32,7 +27,9 @@ export class InMemoryCredentialStore implements CredentialStore {
     return this.instancesById.get(instanceId);
   }
 
-  async saveInstance(args: Readonly<{ instance: CredentialInstanceRecord; secretMaterial?: CredentialSecretMaterialRecord }>): Promise<void> {
+  async saveInstance(
+    args: Readonly<{ instance: CredentialInstanceRecord; secretMaterial?: CredentialSecretMaterialRecord }>,
+  ): Promise<void> {
     this.instancesById.set(args.instance.instanceId, args.instance);
     if (args.secretMaterial) {
       this.secretsByInstanceId.set(args.instance.instanceId, args.secretMaterial);
@@ -77,13 +74,15 @@ export class InMemoryCredentialStore implements CredentialStore {
     return this.oauth2MaterialsByInstanceId.get(instanceId);
   }
 
-  async saveOAuth2Material(args: Readonly<{
-    instanceId: string;
-    encryptedJson: string;
-    encryptionKeyId: string;
-    schemaVersion: number;
-    metadata: CredentialOAuth2MaterialMetadata;
-  }>): Promise<void> {
+  async saveOAuth2Material(
+    args: Readonly<{
+      instanceId: string;
+      encryptedJson: string;
+      encryptionKeyId: string;
+      schemaVersion: number;
+      metadata: CredentialOAuth2MaterialMetadata;
+    }>,
+  ): Promise<void> {
     this.oauth2MaterialsByInstanceId.set(args.instanceId, {
       instanceId: args.instanceId,
       encryptedJson: args.encryptedJson,
@@ -105,11 +104,15 @@ export class InMemoryCredentialStore implements CredentialStore {
     this.bindingsByKey.set(this.toBindingKey(binding.key), binding);
   }
 
-  async getBinding(key: import("@codemation/core").CredentialBindingKey): Promise<import("@codemation/core").CredentialBinding | undefined> {
+  async getBinding(
+    key: import("@codemation/core").CredentialBindingKey,
+  ): Promise<import("@codemation/core").CredentialBinding | undefined> {
     return this.bindingsByKey.get(this.toBindingKey(key));
   }
 
-  async listBindingsByWorkflowId(workflowId: string): Promise<ReadonlyArray<import("@codemation/core").CredentialBinding>> {
+  async listBindingsByWorkflowId(
+    workflowId: string,
+  ): Promise<ReadonlyArray<import("@codemation/core").CredentialBinding>> {
     return [...this.bindingsByKey.values()].filter((binding) => binding.key.workflowId === workflowId);
   }
 

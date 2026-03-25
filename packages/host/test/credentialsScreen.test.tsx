@@ -1,8 +1,8 @@
 import type { CredentialTypeDefinition } from "@codemation/core/browser";
 import { CredentialsScreen } from "@codemation/next-host/src/features/credentials/screens/CredentialsScreen";
-import { QueryClient,QueryClientProvider } from "@tanstack/react-query";
-import { cleanup,fireEvent,render,screen,waitFor } from "@testing-library/react";
-import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CredentialInstanceDto } from "../src/application/contracts/CredentialContractsRegistry";
 import { ApiPaths } from "../src/presentation/http/ApiPaths";
 
@@ -65,9 +65,7 @@ describe("CredentialsScreen", () => {
       { key: "region", label: "Region", type: "string" as const, required: true as const, order: 3 },
       { key: "accountId", label: "Account ID", type: "string" as const, required: true as const, order: 1 },
     ],
-    secretFields: [
-      { key: "apiKey", label: "API key", type: "password" as const, required: true as const, order: 2 },
-    ],
+    secretFields: [{ key: "apiKey", label: "API key", type: "password" as const, required: true as const, order: 2 }],
   } as unknown as CredentialTypeDefinition;
   const credentialInstance = {
     instanceId: "inst-1",

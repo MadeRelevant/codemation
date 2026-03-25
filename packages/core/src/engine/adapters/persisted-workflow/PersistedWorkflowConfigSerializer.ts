@@ -63,4 +63,3 @@ export class PersistedWorkflowConfigSerializer {
     return undefined;
   }
 }
-

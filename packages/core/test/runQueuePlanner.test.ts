@@ -4,7 +4,7 @@ import { test } from "vitest";
 import { RunQueuePlanner } from "../src/engine/planning/runQueuePlanner.ts";
 import { WorkflowTopology } from "../src/engine/planning/WorkflowTopologyPlanner.ts";
 import type { RunQueueEntry } from "../src/types.ts";
-import { CallbackNode,CallbackNodeConfig,MergeNode,MergeNodeConfig,chain,dag,items } from "./harness/index.ts";
+import { CallbackNode, CallbackNodeConfig, MergeNode, MergeNodeConfig, chain, dag, items } from "./harness/index.ts";
 
 test("planner seals a partially satisfied collect with empty inputs when no runnable work remains", () => {
   const builder = dag({ id: "wf.run-queue.partial-collect", name: "Partial collect" });
@@ -14,12 +14,7 @@ test("planner seals a partially satisfied collect with empty inputs when no runn
   builder.connect("A", "merge", "main", "left");
   builder.connect("B", "merge", "main", "right");
   const workflow = builder.build();
-  const planner = new RunQueuePlanner(
-    WorkflowTopology.fromWorkflow(workflow),
-    new Map([
-      ["merge", new MergeNode()],
-    ]),
-  );
+  const planner = new RunQueuePlanner(WorkflowTopology.fromWorkflow(workflow), new Map([["merge", new MergeNode()]]));
   const queue: RunQueueEntry[] = [
     {
       nodeId: "merge",
@@ -56,12 +51,7 @@ test("planner still reports a collect with no received inputs as stuck", () => {
   builder.connect("A", "merge", "main", "left");
   builder.connect("B", "merge", "main", "right");
   const workflow = builder.build();
-  const planner = new RunQueuePlanner(
-    WorkflowTopology.fromWorkflow(workflow),
-    new Map([
-      ["merge", new MergeNode()],
-    ]),
-  );
+  const planner = new RunQueuePlanner(WorkflowTopology.fromWorkflow(workflow), new Map([["merge", new MergeNode()]]));
   const queue: RunQueueEntry[] = [
     {
       nodeId: "merge",

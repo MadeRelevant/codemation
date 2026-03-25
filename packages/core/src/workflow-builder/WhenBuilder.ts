@@ -4,9 +4,15 @@ import { WorkflowBuilder } from "./WorkflowBuilder";
 import type { AnyRunnableNodeConfig, BooleanWhenOverloads, ValidStepSequence } from "./workflowBuilderTypes";
 
 export class WhenBuilder<TCurrentJson> {
-  constructor(private readonly wf: WorkflowBuilder, private readonly from: NodeRef, private readonly branchPort: OutputPortKey) {}
+  constructor(
+    private readonly wf: WorkflowBuilder,
+    private readonly from: NodeRef,
+    private readonly branchPort: OutputPortKey,
+  ) {}
 
-  addBranch<TSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(steps: TSteps & ValidStepSequence<TCurrentJson, TSteps>): this {
+  addBranch<TSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
+    steps: TSteps & ValidStepSequence<TCurrentJson, TSteps>,
+  ): this {
     const created: NodeRef[] = [];
 
     let prev: NodeRef | null = null;
@@ -49,4 +55,3 @@ export class WhenBuilder<TCurrentJson> {
     return this.wf.build();
   }
 }
-

@@ -1,5 +1,5 @@
 import { parse } from "dotenv";
-import { existsSync,readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 /**

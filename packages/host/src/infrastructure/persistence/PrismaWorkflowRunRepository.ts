@@ -1,15 +1,15 @@
 import type {
-NodeId,
-NodeOutputs,
-ParentExecutionRef,
-PersistedRunState,
-RunId,
-RunPruneCandidate,
-RunStateStore,
-RunSummary,
-WorkflowId,
+  NodeId,
+  NodeOutputs,
+  ParentExecutionRef,
+  PersistedRunState,
+  RunId,
+  RunPruneCandidate,
+  RunStateStore,
+  RunSummary,
+  WorkflowId,
 } from "@codemation/core";
-import { inject,injectable } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { PrismaClient } from "./generated/prisma-client/client.js";
 
@@ -124,7 +124,9 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
     await this.prisma.run.delete({ where: { runId: id } });
   }
 
-  async listRunsOlderThan(args: Readonly<{ beforeIso: string; limit?: number }>): Promise<ReadonlyArray<RunPruneCandidate>> {
+  async listRunsOlderThan(
+    args: Readonly<{ beforeIso: string; limit?: number }>,
+  ): Promise<ReadonlyArray<RunPruneCandidate>> {
     const limit = args.limit ?? 100;
     const rows = await this.prisma.run.findMany({
       where: {
@@ -201,7 +203,12 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunSt
     };
   }
 
-  private rowToPruneCandidate(row: { runId: string; workflowId: string; startedAt: string; updatedAt: string }): RunPruneCandidate {
+  private rowToPruneCandidate(row: {
+    runId: string;
+    workflowId: string;
+    startedAt: string;
+    updatedAt: string;
+  }): RunPruneCandidate {
     return {
       runId: row.runId as RunId,
       workflowId: row.workflowId as WorkflowId,

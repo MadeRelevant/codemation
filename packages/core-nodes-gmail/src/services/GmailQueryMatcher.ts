@@ -21,10 +21,12 @@ export class GmailQueryMatcher {
     });
   }
 
-  matches(args: Readonly<{
-    query: string | undefined;
-    message: GmailMessageRecord;
-  }>): boolean {
+  matches(
+    args: Readonly<{
+      query: string | undefined;
+      message: GmailMessageRecord;
+    }>,
+  ): boolean {
     if (!args.query) {
       return true;
     }

@@ -70,7 +70,10 @@ export class WorkflowCatalogWebhookTriggerMatcher implements WebhookTriggerMatch
     }
   }
 
-  private tryMatchFromTriggerNode(workflow: WorkflowDefinition, def: NodeDefinition): WebhookInvocationMatch | undefined {
+  private tryMatchFromTriggerNode(
+    workflow: WorkflowDefinition,
+    def: NodeDefinition,
+  ): WebhookInvocationMatch | undefined {
     if (def.kind !== "trigger") {
       return undefined;
     }
@@ -86,8 +89,7 @@ export class WorkflowCatalogWebhookTriggerMatcher implements WebhookTriggerMatch
       return undefined;
     }
     const methods = config.methods as HttpMethod[];
-    const parseJsonBody =
-      typeof config.parseJsonBody === "function" ? config.parseJsonBody.bind(config) : undefined;
+    const parseJsonBody = typeof config.parseJsonBody === "function" ? config.parseJsonBody.bind(config) : undefined;
     return {
       endpointPath: config.endpointKey,
       workflowId: workflow.id as WorkflowId,

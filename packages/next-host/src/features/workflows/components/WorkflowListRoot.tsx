@@ -9,11 +9,13 @@ import type { WorkflowFolderTreeNode } from "@/shell/WorkflowFolderTreeBuilder";
 import { WorkflowListFolderSection } from "./WorkflowListFolderSection";
 import { WorkflowListItemCard } from "./WorkflowListItemCard";
 
-export function WorkflowListRoot(args: Readonly<{
-  node: WorkflowFolderTreeNode;
-  pathname: string;
-  workflows: ReadonlyArray<WorkflowSummary>;
-}>): ReactNode {
+export function WorkflowListRoot(
+  args: Readonly<{
+    node: WorkflowFolderTreeNode;
+    pathname: string;
+    workflows: ReadonlyArray<WorkflowSummary>;
+  }>,
+): ReactNode {
   const { node, pathname, workflows } = args;
   return (
     <>

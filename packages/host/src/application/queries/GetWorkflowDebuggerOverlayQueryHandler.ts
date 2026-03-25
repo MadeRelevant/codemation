@@ -20,6 +20,9 @@ export class GetWorkflowDebuggerOverlayQueryHandler extends QueryHandler<
   }
 
   async execute(query: GetWorkflowDebuggerOverlayQuery): Promise<WorkflowDebuggerOverlayState> {
-    return (await this.workflowDebuggerOverlayRepository.load(query.workflowId)) ?? WorkflowDebuggerOverlayStateFactory.createEmpty(query.workflowId);
+    return (
+      (await this.workflowDebuggerOverlayRepository.load(query.workflowId)) ??
+      WorkflowDebuggerOverlayStateFactory.createEmpty(query.workflowId)
+    );
   }
 }

@@ -1,28 +1,16 @@
-
-
 import type {
-CredentialBinding,
-CredentialBindingKey,
-CredentialHealth,
-CredentialInstanceId,
-CredentialMaterialSourceKind,
-CredentialSessionService,
-CredentialSetupStatus,
-CredentialTypeDefinition,
-CredentialTypeId,
+  CredentialBinding,
+  CredentialBindingKey,
+  CredentialHealth,
+  CredentialInstanceId,
+  CredentialMaterialSourceKind,
+  CredentialSessionService,
+  CredentialSetupStatus,
+  CredentialTypeDefinition,
+  CredentialTypeId,
 } from "@codemation/core";
 
-
-
-
-
-
-
-
-
 export type JsonRecord = Readonly<Record<string, unknown>>;
-
-
 
 export type CredentialSecretRef = Readonly<
   | { kind: "db" }
@@ -35,8 +23,6 @@ export type CredentialSecretRef = Readonly<
       value: JsonRecord;
     }
 >;
-
-
 
 export type CredentialInstanceRecord = Readonly<{
   instanceId: CredentialInstanceId;
@@ -51,8 +37,6 @@ export type CredentialInstanceRecord = Readonly<{
   updatedAt: string;
 }>;
 
-
-
 export type CredentialSecretMaterialRecord = Readonly<{
   instanceId: CredentialInstanceId;
   encryptedJson: string;
@@ -60,8 +44,6 @@ export type CredentialSecretMaterialRecord = Readonly<{
   schemaVersion: number;
   updatedAt: string;
 }>;
-
-
 
 export type CredentialOAuth2MaterialMetadata = Readonly<{
   providerId: string;
@@ -71,16 +53,12 @@ export type CredentialOAuth2MaterialMetadata = Readonly<{
   updatedAt: string;
 }>;
 
-
-
 export type CredentialOAuth2MaterialRecord = Readonly<
   {
     instanceId: CredentialInstanceId;
   } & CredentialSecretMaterialRecord &
     CredentialOAuth2MaterialMetadata
 >;
-
-
 
 export type CredentialOAuth2StateRecord = Readonly<{
   state: string;
@@ -92,8 +70,6 @@ export type CredentialOAuth2StateRecord = Readonly<{
   expiresAt: string;
 }>;
 
-
-
 export type CredentialTestRecord = Readonly<{
   testId: string;
   instanceId: CredentialInstanceId;
@@ -102,53 +78,55 @@ export type CredentialTestRecord = Readonly<{
   expiresAt?: string;
 }>;
 
-
-
 export interface CredentialStore {
   listInstances(): Promise<ReadonlyArray<CredentialInstanceRecord>>;
   getInstance(instanceId: CredentialInstanceId): Promise<CredentialInstanceRecord | undefined>;
-  saveInstance(args: Readonly<{
-    instance: CredentialInstanceRecord;
-    secretMaterial?: CredentialSecretMaterialRecord;
-  }>): Promise<void>;
+  saveInstance(
+    args: Readonly<{
+      instance: CredentialInstanceRecord;
+      secretMaterial?: CredentialSecretMaterialRecord;
+    }>,
+  ): Promise<void>;
   deleteInstance(instanceId: CredentialInstanceId): Promise<void>;
   getSecretMaterial(instanceId: CredentialInstanceId): Promise<CredentialSecretMaterialRecord | undefined>;
   createOAuth2State(record: CredentialOAuth2StateRecord): Promise<void>;
   consumeOAuth2State(state: string): Promise<CredentialOAuth2StateRecord | undefined>;
   getOAuth2Material(instanceId: CredentialInstanceId): Promise<CredentialOAuth2MaterialRecord | undefined>;
-  saveOAuth2Material(args: Readonly<{
-    instanceId: CredentialInstanceId;
-    encryptedJson: string;
-    encryptionKeyId: string;
-    schemaVersion: number;
-    metadata: CredentialOAuth2MaterialMetadata;
-  }>): Promise<void>;
+  saveOAuth2Material(
+    args: Readonly<{
+      instanceId: CredentialInstanceId;
+      encryptedJson: string;
+      encryptionKeyId: string;
+      schemaVersion: number;
+      metadata: CredentialOAuth2MaterialMetadata;
+    }>,
+  ): Promise<void>;
   deleteOAuth2Material(instanceId: CredentialInstanceId): Promise<void>;
   upsertBinding(binding: CredentialBinding): Promise<void>;
   getBinding(key: CredentialBindingKey): Promise<CredentialBinding | undefined>;
   listBindingsByWorkflowId(workflowId: string): Promise<ReadonlyArray<CredentialBinding>>;
   saveTestResult(record: CredentialTestRecord): Promise<void>;
   getLatestTestResult(instanceId: CredentialInstanceId): Promise<CredentialTestRecord | undefined>;
-  getLatestTestResults(instanceIds: ReadonlyArray<CredentialInstanceId>): Promise<ReadonlyMap<CredentialInstanceId, CredentialTestRecord>>;
+  getLatestTestResults(
+    instanceIds: ReadonlyArray<CredentialInstanceId>,
+  ): Promise<ReadonlyMap<CredentialInstanceId, CredentialTestRecord>>;
 }
 
+export type CredentialSessionFactory = (
+  args: Readonly<{
+    instance: CredentialInstanceRecord;
+    material: JsonRecord;
+    publicConfig: JsonRecord;
+  }>,
+) => Promise<unknown>;
 
-
-export type CredentialSessionFactory = (args: Readonly<{
-  instance: CredentialInstanceRecord;
-  material: JsonRecord;
-  publicConfig: JsonRecord;
-}>) => Promise<unknown>;
-
-
-
-export type CredentialHealthTester = (args: Readonly<{
-  instance: CredentialInstanceRecord;
-  material: JsonRecord;
-  publicConfig: JsonRecord;
-}>) => Promise<CredentialHealth>;
-
-
+export type CredentialHealthTester = (
+  args: Readonly<{
+    instance: CredentialInstanceRecord;
+    material: JsonRecord;
+    publicConfig: JsonRecord;
+  }>,
+) => Promise<CredentialHealth>;
 
 export type RegisteredCredentialType = Readonly<{
   definition: CredentialTypeDefinition;
@@ -156,14 +134,11 @@ export type RegisteredCredentialType = Readonly<{
   test: CredentialHealthTester;
 }>;
 
-
-
-export type MutableCredentialSessionService = CredentialSessionService & Readonly<{
-  evictInstance(instanceId: CredentialInstanceId): void;
-  evictBinding(bindingKey: CredentialBindingKey): void;
-}>;
-
-
+export type MutableCredentialSessionService = CredentialSessionService &
+  Readonly<{
+    evictInstance(instanceId: CredentialInstanceId): void;
+    evictBinding(bindingKey: CredentialBindingKey): void;
+  }>;
 
 export { CredentialTypeRegistryImpl } from "./CredentialTypeRegistryImpl";
 export { CredentialBindingService } from "./CredentialBindingService";

@@ -36,11 +36,7 @@ export function PasswordStrengthMeter(props: PasswordStrengthMeterProps): ReactN
     cn(
       "h-1.5 flex-1 rounded-sm bg-muted transition-colors",
       i <= score &&
-        (score <= 1
-          ? "bg-destructive"
-          : score <= 3
-            ? "bg-amber-500"
-            : "bg-emerald-600 dark:bg-emerald-500"),
+        (score <= 1 ? "bg-destructive" : score <= 3 ? "bg-amber-500" : "bg-emerald-600 dark:bg-emerald-500"),
     );
 
   return (

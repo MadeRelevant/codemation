@@ -19,7 +19,9 @@
       "@codemation/cli": ["packages/cli/src/index.ts"],
       "@codemation/core-nodes": ["packages/core-nodes/src/index.ts"],
       "@codemation/core-nodes-gmail": ["packages/core-nodes-gmail/src/index.ts"],
-      "@codemation/core-nodes-gmail/nodes/OnNewGmailTrigger": ["packages/core-nodes-gmail/src/nodes/OnNewGmailTrigger.ts"],
+      "@codemation/core-nodes-gmail/nodes/OnNewGmailTrigger": [
+        "packages/core-nodes-gmail/src/nodes/OnNewGmailTrigger.ts"
+      ],
       "@codemation/eventbus-redis": ["packages/eventbus-redis/src/index.ts"],
       "@codemation/host": ["packages/host/src/index.ts"],
       "@codemation/host/client": ["packages/host/src/client.ts"],

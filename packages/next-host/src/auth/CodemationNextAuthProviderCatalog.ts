@@ -1,4 +1,8 @@
-import type { CodemationAuthConfig,CodemationAuthOAuthProviderConfig,CodemationAuthOidcProviderConfig } from "@codemation/host";
+import type {
+  CodemationAuthConfig,
+  CodemationAuthOAuthProviderConfig,
+  CodemationAuthOidcProviderConfig,
+} from "@codemation/host";
 import type { PrismaClient } from "@codemation/host/persistence";
 import { compare } from "bcryptjs";
 import type { NextAuthConfig } from "next-auth";
@@ -67,7 +71,10 @@ export class CodemationNextAuthProviderCatalog {
     });
   }
 
-  private static createOAuthProvider(entry: CodemationAuthOAuthProviderConfig, env: NodeJS.ProcessEnv): NextAuthConfig["providers"][number] {
+  private static createOAuthProvider(
+    entry: CodemationAuthOAuthProviderConfig,
+    env: NodeJS.ProcessEnv,
+  ): NextAuthConfig["providers"][number] {
     const clientId = env[entry.clientIdEnv] ?? "";
     const clientSecret = env[entry.clientSecretEnv] ?? "";
     if (entry.provider === "google") {
@@ -84,7 +91,10 @@ export class CodemationNextAuthProviderCatalog {
     });
   }
 
-  private static createOidcProvider(entry: CodemationAuthOidcProviderConfig, env: NodeJS.ProcessEnv): NextAuthConfig["providers"][number] {
+  private static createOidcProvider(
+    entry: CodemationAuthOidcProviderConfig,
+    env: NodeJS.ProcessEnv,
+  ): NextAuthConfig["providers"][number] {
     return {
       id: entry.id,
       name: entry.id,

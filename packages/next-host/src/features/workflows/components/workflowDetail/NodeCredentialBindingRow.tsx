@@ -1,27 +1,26 @@
-import type { UpsertCredentialBindingRequest, WorkflowCredentialHealthSlotDto } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+import type {
+  UpsertCredentialBindingRequest,
+  WorkflowCredentialHealthSlotDto,
+} from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { CredentialInstanceDto } from "../../hooks/realtime/realtime";
 
 const INSTANCE_PLACEHOLDER = "__none__";
 
-export function NodeCredentialBindingRow(args: Readonly<{
-  slot: WorkflowCredentialHealthSlotDto;
-  compatibleInstances: ReadonlyArray<CredentialInstanceDto>;
-  selectedInstanceId: string;
-  isBinding: boolean;
-  onSelectInstance: (instanceId: string) => void;
-  onBind: (request: UpsertCredentialBindingRequest) => void;
-}>) {
+export function NodeCredentialBindingRow(
+  args: Readonly<{
+    slot: WorkflowCredentialHealthSlotDto;
+    compatibleInstances: ReadonlyArray<CredentialInstanceDto>;
+    selectedInstanceId: string;
+    isBinding: boolean;
+    onSelectInstance: (instanceId: string) => void;
+    onBind: (request: UpsertCredentialBindingRequest) => void;
+  }>,
+) {
   const { compatibleInstances, isBinding, onBind, onSelectInstance, selectedInstanceId, slot } = args;
   const slotTestIdSuffix = `${slot.nodeId}-${slot.requirement.slotKey}`;
   const typesLine = slot.requirement.acceptedTypes.join(" · ");
@@ -58,7 +57,10 @@ export function NodeCredentialBindingRow(args: Readonly<{
           <span className="max-w-[min(100%,12rem)] truncate text-[11px] text-muted-foreground" title={typesLine}>
             {typesLine}
           </span>
-          <Badge variant="outline" className={cn("shrink-0 px-1.5 py-0 text-[10px] font-extrabold tracking-wide uppercase", statusBadgeClass)}>
+          <Badge
+            variant="outline"
+            className={cn("shrink-0 px-1.5 py-0 text-[10px] font-extrabold tracking-wide uppercase", statusBadgeClass)}
+          >
             {statusLabel}
           </Badge>
         </div>

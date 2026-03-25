@@ -29,11 +29,13 @@ export class DevelopmentRuntimeRouteGuard {
     return DevelopmentRuntimeRouteGuard.parseSignalFromPayload(payload);
   }
 
-  static parseSignalFromPayload(payload: Readonly<{
-    kind?: unknown;
-    buildVersion?: unknown;
-    message?: unknown;
-  }>): DevelopmentRuntimeSignal {
+  static parseSignalFromPayload(
+    payload: Readonly<{
+      kind?: unknown;
+      buildVersion?: unknown;
+      message?: unknown;
+    }>,
+  ): DevelopmentRuntimeSignal {
     if (payload.kind === "buildStarted") {
       return {
         kind: payload.kind,

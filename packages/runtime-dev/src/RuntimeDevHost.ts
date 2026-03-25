@@ -186,11 +186,13 @@ export class RuntimeDevHost {
           return false;
         }
         const packageRecord = candidate as Partial<CodemationDiscoveredPluginPackage>;
-        return typeof packageRecord.packageName === "string"
-          && typeof packageRecord.packageRoot === "string"
-          && Boolean(packageRecord.manifest)
-          && packageRecord.manifest?.kind === "plugin"
-          && typeof packageRecord.manifest.entry === "string";
+        return (
+          typeof packageRecord.packageName === "string" &&
+          typeof packageRecord.packageRoot === "string" &&
+          Boolean(packageRecord.manifest) &&
+          packageRecord.manifest?.kind === "plugin" &&
+          typeof packageRecord.manifest.entry === "string"
+        );
       });
     } catch {
       return null;

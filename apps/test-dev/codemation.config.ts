@@ -16,7 +16,9 @@ loadDotenv({
 const useRedisRuntime = Boolean(process.env.REDIS_URL);
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required for the test-dev app. Configure a PostgreSQL connection string in apps/test-dev/.env.");
+  throw new Error(
+    "DATABASE_URL is required for the test-dev app. Configure a PostgreSQL connection string in apps/test-dev/.env.",
+  );
 }
 const slots: CodemationAppSlots = {
   Logo: TestDevLogo,
@@ -70,7 +72,9 @@ export const codemationHost = {
         supportedSourceKinds: ["db", "env", "code"],
       },
       createSession: async (args) => {
-        const endpoint = String(args.publicConfig.endpoint ?? "").trim().replace(/\/+$/, "");
+        const endpoint = String(args.publicConfig.endpoint ?? "")
+          .trim()
+          .replace(/\/+$/, "");
         return {
           endpoint,
           apiKey: String(args.material.apiKey ?? ""),

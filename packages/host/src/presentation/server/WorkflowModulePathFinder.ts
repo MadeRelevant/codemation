@@ -5,11 +5,13 @@ export class WorkflowModulePathFinder {
   static readonly defaultWorkflowDirectories = ["src/workflows", "workflows"] as const;
   private readonly workflowExtensions = new Set([".ts", ".js", ".mts", ".mjs"]);
 
-  async discoverModulePaths(args: Readonly<{
-    consumerRoot: string;
-    workflowDirectories: ReadonlyArray<string> | undefined;
-    exists: (absolutePath: string) => Promise<boolean>;
-  }>): Promise<ReadonlyArray<string>> {
+  async discoverModulePaths(
+    args: Readonly<{
+      consumerRoot: string;
+      workflowDirectories: ReadonlyArray<string> | undefined;
+      exists: (absolutePath: string) => Promise<boolean>;
+    }>,
+  ): Promise<ReadonlyArray<string>> {
     const directories = args.workflowDirectories ?? WorkflowModulePathFinder.defaultWorkflowDirectories;
     const workflowModulePaths: string[] = [];
     for (const directory of directories) {

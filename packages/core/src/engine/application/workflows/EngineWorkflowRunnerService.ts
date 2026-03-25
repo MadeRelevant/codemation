@@ -1,4 +1,12 @@
-import type { Items, NodeId, ParentExecutionRef, RunResult, WorkflowDefinition, WorkflowId, WorkflowRepository } from "../../../types";
+import type {
+  Items,
+  NodeId,
+  ParentExecutionRef,
+  RunResult,
+  WorkflowDefinition,
+  WorkflowId,
+  WorkflowRepository,
+} from "../../../types";
 import { createWorkflowExecutableNodeClassifier } from "../../../workflow/workflowExecutableNodeClassifier.types";
 
 import { Engine } from "../../api/Engine";
@@ -9,7 +17,12 @@ export class EngineWorkflowRunnerService {
     private readonly workflowRepository: WorkflowRepository,
   ) {}
 
-  async runById(args: { workflowId: WorkflowId; startAt?: NodeId; items: Items; parent?: ParentExecutionRef }): Promise<RunResult> {
+  async runById(args: {
+    workflowId: WorkflowId;
+    startAt?: NodeId;
+    items: Items;
+    parent?: ParentExecutionRef;
+  }): Promise<RunResult> {
     const { workflowId, startAt, items, parent } = args;
     const wf = this.workflowRepository.get(workflowId);
     if (!wf) throw new Error(`Unknown workflowId: ${workflowId}`);
@@ -24,4 +37,3 @@ export class EngineWorkflowRunnerService {
     return createWorkflowExecutableNodeClassifier(wf).findDefaultExecutableStartNodeId(wf);
   }
 }
-

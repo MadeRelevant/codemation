@@ -1,14 +1,6 @@
 import { createHash } from "node:crypto";
 
-
-
-
 import { Transform } from "node:stream";
-
-
-
-
-
 
 export class CountingSha256Transform extends Transform {
   private readonly hash = createHash("sha256");

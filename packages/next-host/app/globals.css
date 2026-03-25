@@ -180,11 +180,15 @@
   border-right: 1px solid var(--sidebar-border);
   display: flex;
   flex-direction: column;
-  transition: width 0.2s ease, min-width 0.2s ease;
+  transition:
+    width 0.2s ease,
+    min-width 0.2s ease;
 }
 
 .app-sidebar--collapsed {
-  transition: width 0.2s ease, min-width 0.2s ease;
+  transition:
+    width 0.2s ease,
+    min-width 0.2s ease;
 }
 
 .app-sidebar__resize-handle {
@@ -225,7 +229,9 @@
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
   z-index: 1000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
@@ -268,7 +274,10 @@
   background: transparent;
   color: var(--sidebar-text-muted);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
 }
 
 .app-sidebar__toggle:hover {
@@ -297,7 +306,9 @@
   border-radius: var(--btn-radius);
   text-decoration: none;
   color: var(--sidebar-text);
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .app-sidebar__item:hover {
@@ -354,7 +365,9 @@
   text-decoration: none;
   color: var(--sidebar-text);
   font-size: 0.875rem;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .app-sidebar__workflow:hover {
@@ -452,7 +465,9 @@
   background: var(--color-surface);
   color: var(--color-text);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .app-shell-header-actions__logout:hover:not(:disabled) {
@@ -477,7 +492,6 @@
   overflow: hidden;
 }
 
-
 /* —— Login (auth shell) —— */
 .codemation-login-root {
   min-height: 100vh;
@@ -501,8 +515,7 @@
   background:
     radial-gradient(ellipse 120% 80% at 20% 0%, hsl(221 83% 53% / 0.14), transparent 55%),
     radial-gradient(ellipse 100% 70% at 100% 30%, hsl(215 60% 45% / 0.1), transparent 50%),
-    radial-gradient(ellipse 80% 60% at 50% 100%, hsl(214 40% 70% / 0.08), transparent 45%),
-    var(--color-bg);
+    radial-gradient(ellipse 80% 60% at 50% 100%, hsl(214 40% 70% / 0.08), transparent 45%), var(--color-bg);
 }
 
 .login-page__noise {
@@ -611,7 +624,9 @@
   background: var(--color-surface);
   color: var(--color-text);
   font-family: inherit;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .login-page__input:hover {
@@ -836,7 +851,9 @@
   cursor: pointer;
   box-shadow: var(--btn-shadow);
   font-family: inherit;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .users-screen__primary-btn:hover {
@@ -972,7 +989,6 @@
   color: var(--color-link-hover);
   text-decoration: underline;
 }
-
 
 .invite-accept-layout {
   min-height: 100vh;

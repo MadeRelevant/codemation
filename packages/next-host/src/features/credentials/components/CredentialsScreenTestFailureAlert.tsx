@@ -10,12 +10,7 @@ export type CredentialsScreenTestFailureAlertProps = {
 
 export function CredentialsScreenTestFailureAlert({ message, onDismiss }: CredentialsScreenTestFailureAlertProps) {
   return (
-    <Alert
-      variant="destructive"
-      role="alert"
-      data-testid="credential-test-failure-alert"
-      className="mb-6 items-start"
-    >
+    <Alert variant="destructive" role="alert" data-testid="credential-test-failure-alert" className="mb-6 items-start">
       <div className="min-w-0 flex-1">
         <AlertTitle>Credential test failed</AlertTitle>
         <AlertDescription className="text-destructive/90">{message || "Test failed"}</AlertDescription>

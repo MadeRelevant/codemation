@@ -5,7 +5,12 @@ import { ActivationEnqueueService } from "../src/engine/application/execution/Ac
 import { NodeEventPublisher } from "../src/engine/application/events/NodeEventPublisher.ts";
 import { InMemoryRunDataFactory } from "../src/engine/storage/inMemoryRunDataFactory.ts";
 import { InMemoryRunStateStore } from "../src/engine/storage/inMemoryRunStateStore.ts";
-import type { ConnectionInvocationRecord, NodeActivationRequest, NodeExecutionContext, RunQueuePlanner } from "../src/index.ts";
+import type {
+  ConnectionInvocationRecord,
+  NodeActivationRequest,
+  NodeExecutionContext,
+  RunQueuePlanner,
+} from "../src/index.ts";
 
 class StubActivationScheduler {
   async enqueue(): Promise<{ receiptId: string }> {
@@ -57,7 +62,11 @@ test("enqueueActivationWithSnapshot keeps existing connection invocation history
     ctx,
   } satisfies NodeActivationRequest;
 
-  const service = new ActivationEnqueueService(new StubActivationScheduler(), runStore, new NodeEventPublisher(undefined));
+  const service = new ActivationEnqueueService(
+    new StubActivationScheduler(),
+    runStore,
+    new NodeEventPublisher(undefined),
+  );
 
   await service.enqueueActivationWithSnapshot({
     runId: "run_1",

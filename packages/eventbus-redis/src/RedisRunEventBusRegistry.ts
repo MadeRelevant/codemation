@@ -1,5 +1,4 @@
-import type { RunEvent,RunEventBus,RunEventSubscription,WorkflowId } from "@codemation/core";
-
+import type { RunEvent, RunEventBus, RunEventSubscription, WorkflowId } from "@codemation/core";
 
 import IORedis from "ioredis";
 

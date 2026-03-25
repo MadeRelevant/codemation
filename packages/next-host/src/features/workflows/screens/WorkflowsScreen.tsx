@@ -18,7 +18,9 @@ export function WorkflowsScreen(args: Readonly<{ initialWorkflows?: ReadonlyArra
         <div>
           <div className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Codemation</div>
           <h1 className="mb-0 mt-2 text-3xl font-semibold tracking-tight">Workflows</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Framework-managed workflows using the shared Codemation runtime.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Framework-managed workflows using the shared Codemation runtime.
+          </p>
         </div>
       </header>
       <section className="mt-8">

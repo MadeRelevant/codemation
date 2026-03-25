@@ -39,7 +39,11 @@ export class DirectedCycleDetector {
     return map;
   }
 
-  private depthFirstSearch(nodeId: NodeId, outgoing: ReadonlyMap<NodeId, ReadonlyArray<NodeId>>, visitState: Map<NodeId, VisitState>): void {
+  private depthFirstSearch(
+    nodeId: NodeId,
+    outgoing: ReadonlyMap<NodeId, ReadonlyArray<NodeId>>,
+    visitState: Map<NodeId, VisitState>,
+  ): void {
     visitState.set(nodeId, "visiting");
     for (const toId of outgoing.get(nodeId) ?? []) {
       const s = visitState.get(toId);

@@ -1,14 +1,14 @@
 import type { BinaryAttachment } from "@codemation/core";
 import { WorkflowExecutionInspector } from "@codemation/next-host/src/features/workflows/components/workflowDetail/WorkflowExecutionInspector";
 import type {
-WorkflowExecutionInspectorActions,
-WorkflowExecutionInspectorFormatting,
-WorkflowExecutionInspectorModel,
+  WorkflowExecutionInspectorActions,
+  WorkflowExecutionInspectorFormatting,
+  WorkflowExecutionInspectorModel,
 } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/workflowDetailTypes";
-import { QueryClient,QueryClientProvider } from "@tanstack/react-query";
-import { cleanup,fireEvent,render,screen,within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach,describe,expect,it,vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("workflow execution inspector", () => {
   afterEach(() => {
@@ -88,7 +88,9 @@ describe("workflow execution inspector", () => {
     );
 
     expect(screen.getByTestId("execution-tree-node-duration-node-1")).toHaveTextContent("Took 500ms");
-    expect(within(screen.getByTestId("execution-tree-node-node-1")).queryByText("Today 09:51:00")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("execution-tree-node-node-1")).queryByText("Today 09:51:00"),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Today 09:51:00")).toBeInTheDocument();
     expect(screen.getByTestId("selected-node-duration")).toHaveTextContent("Took 500ms");
   });
@@ -235,8 +237,9 @@ class WorkflowExecutionInspectorFixture {
         portEntries: [["main", []]],
         attachments: [],
         value: {
-          body:
-            "This payload stays readable even when the inspector is narrow because the pane should wrap and clip instead of widening the layout.".repeat(4),
+          body: "This payload stays readable even when the inspector is narrow because the pane should wrap and clip instead of widening the layout.".repeat(
+            4,
+          ),
         },
         emptyLabel: "No input",
         showsError: false,
@@ -249,7 +252,9 @@ class WorkflowExecutionInspectorFixture {
         attachments: [],
         value: {
           result:
-            "This output is intentionally long to mimic large execution payloads without letting the inspector grow wider than the viewport.".repeat(4),
+            "This output is intentionally long to mimic large execution payloads without letting the inspector grow wider than the viewport.".repeat(
+              4,
+            ),
         },
         emptyLabel: "No output",
         showsError: false,

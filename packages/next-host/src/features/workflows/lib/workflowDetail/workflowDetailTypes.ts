@@ -1,7 +1,13 @@
 import type { BinaryAttachment } from "@codemation/core/browser";
 import type { FieldDataNode } from "rc-tree";
 import type { ReactNode } from "react";
-import type { Items,NodeExecutionSnapshot,PersistedRunState,RunSummary,WorkflowDto } from "../../hooks/realtime/realtime";
+import type {
+  Items,
+  NodeExecutionSnapshot,
+  PersistedRunState,
+  RunSummary,
+  WorkflowDto,
+} from "../../hooks/realtime/realtime";
 
 export type InspectorTab = "input" | "output";
 export type InspectorMode = InspectorTab | "split";
@@ -44,7 +50,9 @@ export type ExecutionTreeNode = FieldDataNode<
     snapshot?: NodeExecutionSnapshot;
   }>
 >;
-export type WorkflowRunsSidebarSelectedRun = Pick<PersistedRunState, "workflowSnapshot" | "executionOptions"> | undefined;
+export type WorkflowRunsSidebarSelectedRun =
+  | Pick<PersistedRunState, "workflowSnapshot" | "executionOptions">
+  | undefined;
 export type WorkflowRunsSidebarRun = RunSummary;
 export type WorkflowRunsSidebarModel = Readonly<{
   workflowId: string;
@@ -61,7 +69,9 @@ export type WorkflowRunsSidebarFormatting = Readonly<{
   formatDateTime: (value: string | undefined) => string;
   formatRunListWhen: (value: string | undefined) => string;
   formatRunListDurationLine: (run: Pick<RunSummary, "startedAt" | "finishedAt" | "status">) => string;
-  getExecutionModeLabel: (run: Pick<RunSummary, "executionOptions"> | Pick<PersistedRunState, "executionOptions"> | undefined) => string | null;
+  getExecutionModeLabel: (
+    run: Pick<RunSummary, "executionOptions"> | Pick<PersistedRunState, "executionOptions"> | undefined,
+  ) => string | null;
 }>;
 export type WorkflowRunsSidebarActions = Readonly<{
   onSelectRun: (runId: string) => void;

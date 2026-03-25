@@ -1,4 +1,4 @@
-import type { Items,Node,NodeExecutionContext,NodeOutputs } from "@codemation/core";
+import type { Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
 
 import { node } from "@codemation/core";
 

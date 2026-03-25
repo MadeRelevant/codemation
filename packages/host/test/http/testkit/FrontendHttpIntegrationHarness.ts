@@ -104,7 +104,12 @@ export class FrontendHttpIntegrationHarness {
   }
 
   async requestJson<TValue>(
-    args: Readonly<Omit<FrontendHttpIntegrationRequest, "payload" | "headers"> & { headers?: Readonly<Record<string, string>>; payload?: unknown }>,
+    args: Readonly<
+      Omit<FrontendHttpIntegrationRequest, "payload" | "headers"> & {
+        headers?: Readonly<Record<string, string>>;
+        payload?: unknown;
+      }
+    >,
   ): Promise<TValue> {
     const response = await this.request({
       ...args,

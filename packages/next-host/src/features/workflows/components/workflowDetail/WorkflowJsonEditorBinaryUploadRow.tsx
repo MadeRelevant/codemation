@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function WorkflowJsonEditorBinaryUploadRow(args: Readonly<{
-  itemIndex: number;
-  suggestName: string;
-  busyKey: string | null;
-  onUpload: (file: File, attachmentName: string) => void;
-}>): ReactNode {
+export function WorkflowJsonEditorBinaryUploadRow(
+  args: Readonly<{
+    itemIndex: number;
+    suggestName: string;
+    busyKey: string | null;
+    onUpload: (file: File, attachmentName: string) => void;
+  }>,
+): ReactNode {
   const { itemIndex, suggestName, busyKey, onUpload } = args;
   const [name, setName] = useState(suggestName);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);

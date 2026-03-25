@@ -1,14 +1,18 @@
 import {
-ConnectionNodeIdFactory,
-PersistedWorkflowTokenRegistry,
-WorkflowBuilder,
-type ChatModelConfig,
-type ToolConfig,
-type WorkflowDefinition,
+  ConnectionNodeIdFactory,
+  PersistedWorkflowTokenRegistry,
+  WorkflowBuilder,
+  type ChatModelConfig,
+  type ToolConfig,
+  type WorkflowDefinition,
 } from "@codemation/core";
 import { PersistedWorkflowSnapshotFactory } from "@codemation/core/testing";
-import { AIAgent,Callback,ManualTrigger,WebhookTrigger } from "@codemation/core-nodes";
-import type { PersistedRunState,WorkflowDebuggerOverlayState,WorkflowDto } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import { AIAgent, Callback, ManualTrigger, WebhookTrigger } from "@codemation/core-nodes";
+import type {
+  PersistedRunState,
+  WorkflowDebuggerOverlayState,
+  WorkflowDto,
+} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
 import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowPolicyUiPresentationFactory } from "../../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
 
@@ -74,8 +78,11 @@ export class WorkflowDetailFixtureFactory {
     const workflowId = options.workflowId ?? this.workflowId;
     const workflowName = options.workflowName ?? "Frontend realtime workflow";
     const triggerKind = options.triggerKind ?? "manual";
-    const chatModelConfig = options.chatModelConfig ?? new FrontendWorkflowDetailChatModelConfig("Mock LLM", { label: "Mock LLM" });
-    const toolConfigs = options.toolConfigs ?? [new FrontendWorkflowDetailToolConfig("lookup_tool", "Lookup tool", { label: "Lookup tool" })];
+    const chatModelConfig =
+      options.chatModelConfig ?? new FrontendWorkflowDetailChatModelConfig("Mock LLM", { label: "Mock LLM" });
+    const toolConfigs = options.toolConfigs ?? [
+      new FrontendWorkflowDetailToolConfig("lookup_tool", "Lookup tool", { label: "Lookup tool" }),
+    ];
 
     const builder = new WorkflowBuilder({ id: workflowId, name: workflowName });
     if (triggerKind === "webhook") {
@@ -112,10 +119,14 @@ export class WorkflowDetailFixtureFactory {
   }
 
   static createWorkflowDetail(options: WorkflowDetailDefinitionOptions = {}): WorkflowDto {
-    return new WorkflowDefinitionMapper(new WorkflowPolicyUiPresentationFactory()).mapSync(this.createWorkflowDefinition(options)) as WorkflowDto;
+    return new WorkflowDefinitionMapper(new WorkflowPolicyUiPresentationFactory()).mapSync(
+      this.createWorkflowDefinition(options),
+    ) as WorkflowDto;
   }
 
-  static createWorkflowSnapshot(options: Readonly<{ workflow?: WorkflowDto } & WorkflowDetailDefinitionOptions> = {}): NonNullable<PersistedRunState["workflowSnapshot"]> {
+  static createWorkflowSnapshot(
+    options: Readonly<{ workflow?: WorkflowDto } & WorkflowDetailDefinitionOptions> = {},
+  ): NonNullable<PersistedRunState["workflowSnapshot"]> {
     const workflow = options.workflow
       ? this.createWorkflowDefinition({
           workflowId: options.workflow.id,
@@ -174,14 +185,18 @@ export class WorkflowDetailFixtureFactory {
           error: {
             name: "NodeExecutionError",
             message: "Execution failed while rendering preview output.",
-            stack: "Execution failed while rendering preview output.\nReason: upstream API rejected the payload.\nHint: inspect the input tab.",
+            stack:
+              "Execution failed while rendering preview output.\nReason: upstream API rejected the payload.\nHint: inspect the input tab.",
           },
         },
       },
     };
   }
 
-  static createPinnedMutableRunStateForNode(nodeId: string, options: Omit<WorkflowDetailRunStateOptions, "mode"> = {}): PersistedRunState {
+  static createPinnedMutableRunStateForNode(
+    nodeId: string,
+    options: Omit<WorkflowDetailRunStateOptions, "mode"> = {},
+  ): PersistedRunState {
     return {
       ...this.createCompletedRunState({ ...options, mode: "manual" }),
       mutableState: {

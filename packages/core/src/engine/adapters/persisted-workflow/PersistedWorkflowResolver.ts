@@ -19,7 +19,10 @@ export class PersistedWorkflowResolver {
     private readonly missingNodeDefinitionFactory: MissingRuntimeNodeDefinitionFactory,
   ) {}
 
-  resolve(args: { workflowId: WorkflowId; workflowSnapshot?: PersistedWorkflowSnapshot }): WorkflowDefinition | undefined {
+  resolve(args: {
+    workflowId: WorkflowId;
+    workflowSnapshot?: PersistedWorkflowSnapshot;
+  }): WorkflowDefinition | undefined {
     const liveWorkflow = this.workflowRepository.get(args.workflowId);
     if (!args.workflowSnapshot) {
       return liveWorkflow;
@@ -30,7 +33,10 @@ export class PersistedWorkflowResolver {
     return this.rebuildWorkflow(args.workflowSnapshot, liveWorkflow);
   }
 
-  private rebuildWorkflow(snapshot: PersistedWorkflowSnapshot, liveWorkflow: WorkflowDefinition | undefined): WorkflowDefinition {
+  private rebuildWorkflow(
+    snapshot: PersistedWorkflowSnapshot,
+    liveWorkflow: WorkflowDefinition | undefined,
+  ): WorkflowDefinition {
     const liveNodesById = new Map((liveWorkflow?.nodes ?? []).map((node) => [node.id, node] as const));
     const nodes = snapshot.nodes.map((snapshotNode) => {
       const liveNode = liveNodesById.get(snapshotNode.id);
@@ -94,4 +100,3 @@ export class PersistedWorkflowResolver {
     return undefined;
   }
 }
-

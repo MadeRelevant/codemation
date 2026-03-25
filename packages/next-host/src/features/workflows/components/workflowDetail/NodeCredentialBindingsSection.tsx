@@ -1,9 +1,9 @@
 import type { UpsertCredentialBindingRequest } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect,useMemo,useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
-import { useCredentialInstancesQuery,useWorkflowCredentialHealthQuery } from "../../hooks/realtime/realtime";
+import { useCredentialInstancesQuery, useWorkflowCredentialHealthQuery } from "../../hooks/realtime/realtime";
 import { NodeCredentialBindingRow } from "./NodeCredentialBindingRow";
 import type { WorkflowDiagramNode } from "../../lib/workflowDetail/workflowDetailTypes";
 
@@ -47,7 +47,9 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
 
   return (
     <section data-testid="node-properties-credential-section" style={{ padding: "10px 12px 14px" }}>
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", opacity: 0.64 }}>Credentials</div>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", opacity: 0.64 }}>
+        Credentials
+      </div>
       {nodeCredentialSlots.length === 0 ? (
         <div
           style={{
@@ -76,7 +78,9 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
         >
           {nodeCredentialSlots.map((slot, index) => {
             const compatibleInstances =
-              credentialInstancesQuery.data?.filter((instance) => slot.requirement.acceptedTypes.includes(instance.typeId)) ?? [];
+              credentialInstancesQuery.data?.filter((instance) =>
+                slot.requirement.acceptedTypes.includes(instance.typeId),
+              ) ?? [];
             const bindingKey = `${slot.nodeId}:${slot.requirement.slotKey}`;
             const selectedInstanceId = bindingInstanceIdBySlotKey[bindingKey] ?? slot.instance?.instanceId ?? "";
             return (
@@ -99,7 +103,9 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
           })}
         </div>
       )}
-      {credentialError ? <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c", lineHeight: 1.35 }}>{credentialError}</div> : null}
+      {credentialError ? (
+        <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c", lineHeight: 1.35 }}>{credentialError}</div>
+      ) : null}
     </section>
   );
 }

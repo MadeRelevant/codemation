@@ -78,7 +78,11 @@ export class NodeActivationRequestComposer {
       activationId,
       config: args.nodeDefinition.config,
       binary: args.base.binary.forNode({ nodeId: args.nodeDefinition.id, activationId }),
-      getCredential: this.credentialResolverFactory.create(args.workflowId, args.nodeDefinition.id, args.nodeDefinition.config),
+      getCredential: this.credentialResolverFactory.create(
+        args.workflowId,
+        args.nodeDefinition.id,
+        args.nodeDefinition.config,
+      ),
     };
     if (args.next.kind === "multi") {
       return {

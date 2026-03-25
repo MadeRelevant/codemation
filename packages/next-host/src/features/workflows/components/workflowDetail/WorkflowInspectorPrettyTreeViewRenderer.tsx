@@ -17,7 +17,9 @@ export class WorkflowInspectorPrettyTreeViewRenderer {
       <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
         {nodes.map((node) => (
           <li key={node.key} style={{ listStyle: "none", margin: 0, padding: 0 }}>
-            {node.isLeaf ? this.renderLeafNode(node, depth) : this.renderBranchNode(node, expandedKeys, onToggle, depth)}
+            {node.isLeaf
+              ? this.renderLeafNode(node, depth)
+              : this.renderBranchNode(node, expandedKeys, onToggle, depth)}
           </li>
         ))}
       </ul>

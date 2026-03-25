@@ -3,16 +3,25 @@ import { watch } from "chokidar";
 import path from "node:path";
 
 export class CodemationDevSourceWatcher {
-  private static readonly ignoredDirectoryNames = new Set([".codemation", ".git", ".next", "coverage", "dist", "node_modules"]);
+  private static readonly ignoredDirectoryNames = new Set([
+    ".codemation",
+    ".git",
+    ".next",
+    "coverage",
+    "dist",
+    "node_modules",
+  ]);
 
   private watcher: FSWatcher | null = null;
   private debounceTimeout: NodeJS.Timeout | null = null;
   private pendingChange = false;
 
-  async start(args: Readonly<{
-    roots: ReadonlyArray<string>;
-    onChange: () => Promise<void>;
-  }>): Promise<void> {
+  async start(
+    args: Readonly<{
+      roots: ReadonlyArray<string>;
+      onChange: () => Promise<void>;
+    }>,
+  ): Promise<void> {
     if (this.watcher) {
       return;
     }
@@ -74,15 +83,17 @@ export class CodemationDevSourceWatcher {
       return true;
     }
     const extension = path.extname(watchPath).toLowerCase();
-    return extension === ".cts"
-      || extension === ".cjs"
-      || extension === ".js"
-      || extension === ".json"
-      || extension === ".jsx"
-      || extension === ".mts"
-      || extension === ".mjs"
-      || extension === ".prisma"
-      || extension === ".ts"
-      || extension === ".tsx";
+    return (
+      extension === ".cts" ||
+      extension === ".cjs" ||
+      extension === ".js" ||
+      extension === ".json" ||
+      extension === ".jsx" ||
+      extension === ".mts" ||
+      extension === ".mjs" ||
+      extension === ".prisma" ||
+      extension === ".ts" ||
+      extension === ".tsx"
+    );
   }
 }

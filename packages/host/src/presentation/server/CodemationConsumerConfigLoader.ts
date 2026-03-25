@@ -1,5 +1,5 @@
 import type { WorkflowDefinition } from "@codemation/core";
-import { access,stat } from "node:fs/promises";
+import { access, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { NamespacedUnregister } from "tsx/esm/api";
@@ -22,11 +22,13 @@ export class CodemationConsumerConfigLoader {
   private readonly configExportsResolver = new CodemationConsumerConfigExportsResolver();
   private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
   private readonly pathSegmentsComputer = new WorkflowDiscoveryPathSegmentsComputer();
-  private readonly performanceDiagnosticsLogger = new ServerLoggerFactory(logLevelPolicyFactory).createPerformanceDiagnostics(
-    "codemation-config-loader.timing",
-  );
+  private readonly performanceDiagnosticsLogger = new ServerLoggerFactory(
+    logLevelPolicyFactory,
+  ).createPerformanceDiagnostics("codemation-config-loader.timing");
 
-  async load(args: Readonly<{ consumerRoot: string; configPathOverride?: string }>): Promise<CodemationConsumerConfigResolution> {
+  async load(
+    args: Readonly<{ consumerRoot: string; configPathOverride?: string }>,
+  ): Promise<CodemationConsumerConfigResolution> {
     const loadStarted = performance.now();
     let mark = loadStarted;
     const phaseMs = (label: string): void => {
@@ -40,7 +42,9 @@ export class CodemationConsumerConfigLoader {
     const bootstrapSource = await this.resolveConfigPath(args.consumerRoot, args.configPathOverride);
     phaseMs("resolveConfigPath");
     if (!bootstrapSource) {
-      throw new Error('Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".');
+      throw new Error(
+        'Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".',
+      );
     }
     const moduleExports = await this.importModule(bootstrapSource);
     phaseMs("importConfigModule");
@@ -50,7 +54,8 @@ export class CodemationConsumerConfigLoader {
     }
     const workflowSources = await this.resolveWorkflowSources(args.consumerRoot, config);
     phaseMs("resolveWorkflowSources");
-    const workflows = config.workflows ?? (await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources));
+    const workflows =
+      config.workflows ?? (await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources));
     phaseMs("loadDiscoveredWorkflows");
     return {
       config: {
@@ -62,9 +67,14 @@ export class CodemationConsumerConfigLoader {
     };
   }
 
-  private async resolveConfigPath(consumerRoot: string, configPathOverride: string | undefined): Promise<string | null> {
+  private async resolveConfigPath(
+    consumerRoot: string,
+    configPathOverride: string | undefined,
+  ): Promise<string | null> {
     if (configPathOverride) {
-      const explicitPath = path.isAbsolute(configPathOverride) ? configPathOverride : path.resolve(consumerRoot, configPathOverride);
+      const explicitPath = path.isAbsolute(configPathOverride)
+        ? configPathOverride
+        : path.resolve(consumerRoot, configPathOverride);
       if (!(await this.exists(explicitPath))) {
         throw new Error(`Config file not found: ${explicitPath}`);
       }
@@ -118,7 +128,10 @@ export class CodemationConsumerConfigLoader {
       })),
     );
     for (const loadedWorkflowModule of loadedWorkflowModules) {
-      for (const workflow of this.resolveWorkflows(loadedWorkflowModule.moduleExports, loadedWorkflowModule.workflowSource)) {
+      for (const workflow of this.resolveWorkflows(
+        loadedWorkflowModule.moduleExports,
+        loadedWorkflowModule.workflowSource,
+      )) {
         const enriched =
           loadedWorkflowModule.segments && loadedWorkflowModule.segments.length > 0
             ? ({ ...workflow, discoveryPathSegments: loadedWorkflowModule.segments } satisfies WorkflowDefinition)
@@ -129,7 +142,10 @@ export class CodemationConsumerConfigLoader {
     return [...workflowsById.values()];
   }
 
-  private resolveWorkflows(moduleExports: Readonly<Record<string, unknown>>, workflowSource: string): ReadonlyArray<WorkflowDefinition> {
+  private resolveWorkflows(
+    moduleExports: Readonly<Record<string, unknown>>,
+    workflowSource: string,
+  ): ReadonlyArray<WorkflowDefinition> {
     const workflows: WorkflowDefinition[] = [];
     for (const exportedValue of Object.values(moduleExports)) {
       if (this.isWorkflowDefinition(exportedValue)) {

@@ -23,4 +23,3 @@ export class StackTraceCallSitePathResolver {
     return bareMatch?.[1];
   }
 }
-

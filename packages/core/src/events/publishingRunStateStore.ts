@@ -19,7 +19,13 @@ export class PublishingRunStateStore implements RunStateStore, RunListingStore, 
 
   async createRun(args: Parameters<RunStateStore["createRun"]>[0]): Promise<void> {
     await this.inner.createRun(args);
-    await this.eventBus.publish({ kind: "runCreated", runId: args.runId, workflowId: args.workflowId, parent: args.parent, at: this.now().toISOString() });
+    await this.eventBus.publish({
+      kind: "runCreated",
+      runId: args.runId,
+      workflowId: args.workflowId,
+      parent: args.parent,
+      at: this.now().toISOString(),
+    });
   }
 
   async load(runId: RunId): Promise<PersistedRunState | undefined> {
@@ -28,7 +34,14 @@ export class PublishingRunStateStore implements RunStateStore, RunListingStore, 
 
   async save(state: PersistedRunState): Promise<void> {
     await this.inner.save(state);
-    await this.eventBus.publish({ kind: "runSaved", runId: state.runId, workflowId: state.workflowId, parent: state.parent, at: this.now().toISOString(), state });
+    await this.eventBus.publish({
+      kind: "runSaved",
+      runId: state.runId,
+      workflowId: state.workflowId,
+      parent: state.parent,
+      at: this.now().toISOString(),
+      state,
+    });
   }
 
   async deleteRun(runId: RunId): Promise<void> {
@@ -42,10 +55,11 @@ export class PublishingRunStateStore implements RunStateStore, RunListingStore, 
     return await innerAny.listRuns(args);
   }
 
-  async listRunsOlderThan(args: Readonly<{ beforeIso: string; limit?: number }>): Promise<ReadonlyArray<RunPruneCandidate>> {
+  async listRunsOlderThan(
+    args: Readonly<{ beforeIso: string; limit?: number }>,
+  ): Promise<ReadonlyArray<RunPruneCandidate>> {
     const innerAny = this.inner as unknown as Partial<RunPruneListingStore>;
     if (!innerAny.listRunsOlderThan) return [];
     return await innerAny.listRunsOlderThan(args);
   }
 }
-

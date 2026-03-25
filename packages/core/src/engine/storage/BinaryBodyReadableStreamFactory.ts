@@ -1,8 +1,4 @@
-
 import { ReadableStream } from "node:stream/web";
-
-
-
 
 export class BinaryBodyReadableStreamFactory {
   constructor(private readonly bytes: Uint8Array) {}

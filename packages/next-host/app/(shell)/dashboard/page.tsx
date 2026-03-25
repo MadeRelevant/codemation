@@ -6,9 +6,7 @@ export default function DashboardPage() {
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle>Welcome</CardTitle>
-          <CardDescription>
-            Use the sidebar to navigate to workflows or credentials.
-          </CardDescription>
+          <CardDescription>Use the sidebar to navigate to workflows or credentials.</CardDescription>
         </CardHeader>
       </Card>
     </div>

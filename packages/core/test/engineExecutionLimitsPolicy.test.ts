@@ -5,7 +5,10 @@ import { EngineExecutionLimitsPolicy } from "../src/engine/application/policies/
 import { EngineExecutionLimitsPolicyFactory } from "../src/engine/application/policies/EngineExecutionLimitsPolicyFactory.ts";
 
 test("EngineExecutionLimitsPolicyFactory merges overrides from args", () => {
-  const p = new EngineExecutionLimitsPolicyFactory().create({ hardMaxNodeActivations: 42, defaultMaxNodeActivations: 42 });
+  const p = new EngineExecutionLimitsPolicyFactory().create({
+    hardMaxNodeActivations: 42,
+    defaultMaxNodeActivations: 42,
+  });
   const o = p.mergeExecutionOptionsForNewRun(undefined, undefined);
   assert.equal(o.maxNodeActivations, 42);
   assert.equal(o.maxSubworkflowDepth, 32);
@@ -39,7 +42,12 @@ test("child depth and inheritance of limits from parent ref", () => {
 });
 
 test("child exceeding maxSubworkflowDepth throws", () => {
-  const p = new EngineExecutionLimitsPolicy({ defaultMaxNodeActivations: 100, hardMaxNodeActivations: 100, defaultMaxSubworkflowDepth: 1, hardMaxSubworkflowDepth: 1 });
+  const p = new EngineExecutionLimitsPolicy({
+    defaultMaxNodeActivations: 100,
+    hardMaxNodeActivations: 100,
+    defaultMaxSubworkflowDepth: 1,
+    hardMaxSubworkflowDepth: 1,
+  });
   const root = p.mergeExecutionOptionsForNewRun(undefined, undefined);
   const midParent = {
     runId: "r1",

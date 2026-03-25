@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { InMemoryRunEventBus,InMemoryRunStateStore,PublishingRunStateStore } from "../src/index.ts";
-import { CallbackNodeConfig,chain,createEngineTestKit,items } from "./harness/index.ts";
+import { InMemoryRunEventBus, InMemoryRunStateStore, PublishingRunStateStore } from "../src/index.ts";
+import { CallbackNodeConfig, chain, createEngineTestKit, items } from "./harness/index.ts";
 
 test("in-memory run event bus supports workflow-scoped subscriptions", async () => {
   const bus = new InMemoryRunEventBus();
@@ -40,7 +40,9 @@ test("engine publishes queued, running, and completed node snapshots", async () 
   const result = await kit.runToCompletion({ wf: workflow, startAt: "A", items: items([{ hello: "world" }]) });
   assert.equal(result.status, "completed");
 
-  const nodeKinds = seenKinds.filter((kind) => kind === "nodeQueued" || kind === "nodeStarted" || kind === "nodeCompleted");
+  const nodeKinds = seenKinds.filter(
+    (kind) => kind === "nodeQueued" || kind === "nodeStarted" || kind === "nodeCompleted",
+  );
   assert.deepEqual(nodeKinds, ["nodeQueued", "nodeStarted", "nodeCompleted"]);
   assert.deepEqual(queuedInputs, { hello: "world" });
   assert.deepEqual(completedOutputs, { hello: "world" });

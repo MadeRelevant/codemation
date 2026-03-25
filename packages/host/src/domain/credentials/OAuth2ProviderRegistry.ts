@@ -1,4 +1,4 @@
-import type { CredentialOAuth2AuthDefinition,CredentialTypeDefinition } from "@codemation/core";
+import type { CredentialOAuth2AuthDefinition, CredentialTypeDefinition } from "@codemation/core";
 import { injectable } from "@codemation/core";
 
 type JsonRecord = Readonly<Record<string, unknown>>;
@@ -19,10 +19,7 @@ export class OAuth2ProviderRegistry {
     userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo",
   } satisfies OAuth2ResolvedProvider);
 
-  resolve(
-    definition: CredentialTypeDefinition,
-    publicConfig: JsonRecord,
-  ): OAuth2ResolvedProvider {
+  resolve(definition: CredentialTypeDefinition, publicConfig: JsonRecord): OAuth2ResolvedProvider {
     const auth = definition.auth;
     if (auth?.kind !== "oauth2") {
       throw new Error(`Credential type ${definition.typeId} does not use OAuth2.`);
@@ -46,7 +43,9 @@ export class OAuth2ProviderRegistry {
     return auth.clientSecretFieldKey ?? "clientSecret";
   }
 
-  private resolveBuiltInProvider(auth: Extract<CredentialOAuth2AuthDefinition, { providerId: string }>): OAuth2ResolvedProvider {
+  private resolveBuiltInProvider(
+    auth: Extract<CredentialOAuth2AuthDefinition, { providerId: string }>,
+  ): OAuth2ResolvedProvider {
     if (auth.providerId === "google") {
       return OAuth2ProviderRegistry.googleProvider;
     }

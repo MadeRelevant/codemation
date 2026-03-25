@@ -1,6 +1,4 @@
-import type { RunnableNodeConfig,TypeToken } from "@codemation/core";
-
-
+import type { RunnableNodeConfig, TypeToken } from "@codemation/core";
 
 import { WaitNode } from "./WaitNode";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Locale } from "date-fns";
-import { format,isValid,parseISO } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { enUS } from "date-fns/locale";
 import type { ReactNode } from "react";
 

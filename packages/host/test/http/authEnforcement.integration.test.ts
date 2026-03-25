@@ -2,9 +2,9 @@
 
 import { encode } from "@auth/core/jwt";
 import type { WorkflowDefinition } from "@codemation/core";
-import { createWorkflowBuilder,ManualTrigger,MapData } from "@codemation/core-nodes";
+import { createWorkflowBuilder, ManualTrigger, MapData } from "@codemation/core-nodes";
 import path from "node:path";
-import { afterAll,beforeAll,describe,expect,it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";

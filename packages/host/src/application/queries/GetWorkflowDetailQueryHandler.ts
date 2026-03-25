@@ -7,7 +7,10 @@ import { QueryHandler } from "../bus/QueryHandler";
 import { GetWorkflowDetailQuery } from "./GetWorkflowDetailQuery";
 
 @HandlesQuery.for(GetWorkflowDetailQuery)
-export class GetWorkflowDetailQueryHandler extends QueryHandler<GetWorkflowDetailQuery, WorkflowDefinition | undefined> {
+export class GetWorkflowDetailQueryHandler extends QueryHandler<
+  GetWorkflowDetailQuery,
+  WorkflowDefinition | undefined
+> {
   constructor(
     @inject(ApplicationTokens.WorkflowDefinitionRepository)
     private readonly workflowDefinitionRepository: WorkflowDefinitionRepository,

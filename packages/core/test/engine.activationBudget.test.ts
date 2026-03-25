@@ -20,19 +20,15 @@ function linearWorkflow(nodeCount: number) {
   return b.build();
 }
 
-test(
-  "run fails when maxNodeActivations would be exceeded",
-  async () => {
-    const wf = linearWorkflow(10);
-    const kit = await createEngineTestKit();
-    await kit.start([wf]);
-    const result = await kit.engine.runWorkflow(wf, "n0", items([{ v: 1 }]), undefined, { maxNodeActivations: 5 });
-    if (result.status !== "pending") {
-      assert.fail("expected pending then failure");
-    }
-    const done = await kit.engine.waitForCompletion(result.runId);
-    assert.equal(done.status, "failed");
-    assert.match(done.error.message, /maxNodeActivations/);
-  },
-  2000,
-);
+test("run fails when maxNodeActivations would be exceeded", async () => {
+  const wf = linearWorkflow(10);
+  const kit = await createEngineTestKit();
+  await kit.start([wf]);
+  const result = await kit.engine.runWorkflow(wf, "n0", items([{ v: 1 }]), undefined, { maxNodeActivations: 5 });
+  if (result.status !== "pending") {
+    assert.fail("expected pending then failure");
+  }
+  const done = await kit.engine.waitForCompletion(result.runId);
+  assert.equal(done.status, "failed");
+  assert.match(done.error.message, /maxNodeActivations/);
+}, 2000);

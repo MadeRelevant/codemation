@@ -8,13 +8,15 @@ import { WorkflowCanvasRoundedOrthogonalPathPlanner } from "./WorkflowCanvasRoun
  * quadratic smoothing as React Flow smoothstep edges.
  */
 export class WorkflowCanvasSymmetricForkPathPlanner {
-  static build(args: Readonly<{
-    sourceX: number;
-    sourceY: number;
-    targetX: number;
-    targetY: number;
-    offset: number;
-  }>): Readonly<{ path: string; labelX: number; labelY: number }> {
+  static build(
+    args: Readonly<{
+      sourceX: number;
+      sourceY: number;
+      targetX: number;
+      targetY: number;
+      offset: number;
+    }>,
+  ): Readonly<{ path: string; labelX: number; labelY: number }> {
     const { sourceX, sourceY, targetX, targetY, offset } = args;
     let x1 = sourceX + offset;
     let x2 = targetX - offset;
@@ -30,7 +32,10 @@ export class WorkflowCanvasSymmetricForkPathPlanner {
       { x: x2, y: targetY },
       { x: targetX, y: targetY },
     ];
-    const path = WorkflowCanvasRoundedOrthogonalPathPlanner.buildPathFromPoints(points, WORKFLOW_CANVAS_MAIN_EDGE_CORNER_RADIUS);
+    const path = WorkflowCanvasRoundedOrthogonalPathPlanner.buildPathFromPoints(
+      points,
+      WORKFLOW_CANVAS_MAIN_EDGE_CORNER_RADIUS,
+    );
     const labelX = (x1 + x2) / 2;
     const labelY = targetY;
     return { path, labelX, labelY };

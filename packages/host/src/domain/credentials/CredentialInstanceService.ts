@@ -1,22 +1,22 @@
 import { randomUUID } from "node:crypto";
 
 import type {
-CredentialFieldSchema,
-CredentialInstanceId,
-CredentialMaterialSourceKind,
-CredentialTypeId
+  CredentialFieldSchema,
+  CredentialInstanceId,
+  CredentialMaterialSourceKind,
+  CredentialTypeId,
 } from "@codemation/core";
 
-import { CoreTokens,inject,injectable } from "@codemation/core";
+import { CoreTokens, inject, injectable } from "@codemation/core";
 
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
 
 import type {
-CreateCredentialInstanceRequest,
-CredentialInstanceDto,
-CredentialInstanceWithSecretsDto,
-CredentialOAuth2ConnectionDto,
-UpdateCredentialInstanceRequest
+  CreateCredentialInstanceRequest,
+  CredentialInstanceDto,
+  CredentialInstanceWithSecretsDto,
+  CredentialOAuth2ConnectionDto,
+  UpdateCredentialInstanceRequest,
 } from "../../application/contracts/CredentialContractsRegistry";
 
 import { ApplicationTokens } from "../../applicationTokens";
@@ -25,18 +25,16 @@ import { CredentialFieldEnvOverlayService } from "./CredentialFieldEnvOverlaySer
 import { CredentialMaterialResolver } from "./CredentialMaterialResolver";
 import { CredentialSecretCipher } from "./CredentialSecretCipher";
 import type {
-CredentialInstanceRecord,
-CredentialSecretMaterialRecord,
-CredentialSecretRef,
-CredentialStore,
-CredentialTestRecord,
-JsonRecord,
-MutableCredentialSessionService,
-RegisteredCredentialType,
+  CredentialInstanceRecord,
+  CredentialSecretMaterialRecord,
+  CredentialSecretRef,
+  CredentialStore,
+  CredentialTestRecord,
+  JsonRecord,
+  MutableCredentialSessionService,
+  RegisteredCredentialType,
 } from "./CredentialServices";
 import { CredentialTypeRegistryImpl } from "./CredentialServices";
-
-
 
 @injectable()
 export class CredentialInstanceService {
@@ -57,7 +55,9 @@ export class CredentialInstanceService {
 
   async listInstances(): Promise<ReadonlyArray<CredentialInstanceDto>> {
     const instances = await this.credentialStore.listInstances();
-    const latestTestResults = await this.credentialStore.getLatestTestResults(instances.map((instance) => instance.instanceId));
+    const latestTestResults = await this.credentialStore.getLatestTestResults(
+      instances.map((instance) => instance.instanceId),
+    );
     return await Promise.all(
       instances.map(async (instance) => await this.toDto(instance, latestTestResults.get(instance.instanceId))),
     );
@@ -72,7 +72,9 @@ export class CredentialInstanceService {
     return await this.toDto(instance, latestTestResult);
   }
 
-  async getInstanceWithSecrets(instanceId: CredentialInstanceId): Promise<CredentialInstanceWithSecretsDto | undefined> {
+  async getInstanceWithSecrets(
+    instanceId: CredentialInstanceId,
+  ): Promise<CredentialInstanceWithSecretsDto | undefined> {
     const instance = await this.credentialStore.getInstance(instanceId);
     if (!instance) {
       return undefined;
@@ -81,13 +83,12 @@ export class CredentialInstanceService {
     const base = await this.toDto(instance, latestTestResult);
     try {
       const material = await this.credentialMaterialResolver.resolveMaterial(instance);
-      const secretConfig = Object.fromEntries(
-        Object.entries(material).map(([k, v]) => [k, String(v ?? "")]),
-      ) as Record<string, string>;
+      const secretConfig = Object.fromEntries(Object.entries(material).map(([k, v]) => [k, String(v ?? "")])) as Record<
+        string,
+        string
+      >;
       const envSecretRefs =
-        instance.secretRef.kind === "env"
-          ? (instance.secretRef.envByField as Record<string, string>)
-          : undefined;
+        instance.secretRef.kind === "env" ? (instance.secretRef.envByField as Record<string, string>) : undefined;
       return { ...base, secretConfig, envSecretRefs };
     } catch {
       return base;
@@ -130,7 +131,10 @@ export class CredentialInstanceService {
     return this.toDto(instance, undefined);
   }
 
-  async update(instanceId: CredentialInstanceId, request: UpdateCredentialInstanceRequest): Promise<CredentialInstanceDto> {
+  async update(
+    instanceId: CredentialInstanceId,
+    request: UpdateCredentialInstanceRequest,
+  ): Promise<CredentialInstanceDto> {
     const existing = await this.requireInstance(instanceId);
     const registeredType = this.requireRegisteredType(existing.typeId);
     const mergedPublicRaw = { ...(request.publicConfig ?? existing.publicConfig) };
@@ -152,9 +156,7 @@ export class CredentialInstanceService {
       ...this.stripEnvManagedFieldValues(registeredType.definition.publicFields ?? [], mergedPublicRaw),
     });
     const mergedSecretForRef =
-      nextSecretConfig !== undefined
-        ? this.stripEnvManagedFieldValues(secretFields, nextSecretConfig)
-        : undefined;
+      nextSecretConfig !== undefined ? this.stripEnvManagedFieldValues(secretFields, nextSecretConfig) : undefined;
     const instance: CredentialInstanceRecord = {
       ...existing,
       displayName: request.displayName?.trim() || existing.displayName,
@@ -248,16 +250,18 @@ export class CredentialInstanceService {
     };
   }
 
-  private validateRequestFields(args: Readonly<{
-    displayName: string;
-    publicFields: ReadonlyArray<CredentialFieldSchema>;
-    publicConfig: JsonRecord;
-    secretFields: ReadonlyArray<CredentialFieldSchema>;
-    sourceKind: CredentialMaterialSourceKind;
-    secretConfig: JsonRecord;
-    envSecretRefs: Readonly<Record<string, string>>;
-    allowSecretOmission?: boolean;
-  }>): void {
+  private validateRequestFields(
+    args: Readonly<{
+      displayName: string;
+      publicFields: ReadonlyArray<CredentialFieldSchema>;
+      publicConfig: JsonRecord;
+      secretFields: ReadonlyArray<CredentialFieldSchema>;
+      sourceKind: CredentialMaterialSourceKind;
+      secretConfig: JsonRecord;
+      envSecretRefs: Readonly<Record<string, string>>;
+      allowSecretOmission?: boolean;
+    }>,
+  ): void {
     if (!args.displayName || args.displayName.trim().length === 0) {
       throw new ApplicationRequestError(400, "Credential displayName is required.");
     }
@@ -279,10 +283,7 @@ export class CredentialInstanceService {
     }
   }
 
-  private stripEnvManagedFieldValues(
-    fields: ReadonlyArray<CredentialFieldSchema>,
-    value: JsonRecord,
-  ): JsonRecord {
+  private stripEnvManagedFieldValues(fields: ReadonlyArray<CredentialFieldSchema>, value: JsonRecord): JsonRecord {
     const out: Record<string, unknown> = { ...value };
     for (const field of fields) {
       if (this.credentialFieldEnvOverlayService.isFieldResolvedFromEnv(field)) {
@@ -329,10 +330,7 @@ export class CredentialInstanceService {
     return registeredType;
   }
 
-  async markOAuth2Connected(
-    instanceId: CredentialInstanceId,
-    connectedAt: string,
-  ): Promise<void> {
+  async markOAuth2Connected(instanceId: CredentialInstanceId, connectedAt: string): Promise<void> {
     const instance = await this.requireInstance(instanceId);
     await this.credentialStore.saveInstance({
       instance: {
@@ -372,9 +370,7 @@ export class CredentialInstanceService {
       return undefined;
     }
     const providerId =
-      "providerId" in registeredType.definition.auth
-        ? registeredType.definition.auth.providerId
-        : "custom";
+      "providerId" in registeredType.definition.auth ? registeredType.definition.auth.providerId : "custom";
     const material = await this.credentialStore.getOAuth2Material(instance.instanceId);
     if (!material) {
       return {

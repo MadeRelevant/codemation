@@ -1,15 +1,17 @@
 import { injectable } from "@codemation/core";
-import type { GmailApiClient,GmailLabelRecord } from "./GmailApiClient";
+import type { GmailApiClient, GmailLabelRecord } from "./GmailApiClient";
 
 @injectable()
 export class GmailConfiguredLabelService {
   private readonly labelsByMailbox = new Map<string, ReadonlyArray<GmailLabelRecord>>();
 
-  async resolveLabelIds(args: Readonly<{
-    client: GmailApiClient;
-    mailbox: string;
-    configuredLabels?: ReadonlyArray<string>;
-  }>): Promise<ReadonlyArray<string> | undefined> {
+  async resolveLabelIds(
+    args: Readonly<{
+      client: GmailApiClient;
+      mailbox: string;
+      configuredLabels?: ReadonlyArray<string>;
+    }>,
+  ): Promise<ReadonlyArray<string> | undefined> {
     if (!args.configuredLabels || args.configuredLabels.length === 0) {
       return undefined;
     }

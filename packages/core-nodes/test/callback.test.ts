@@ -1,12 +1,17 @@
-import type { Item,NodeExecutionContext } from "@codemation/core";
-import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
-import { Callback,CallbackNode } from "@codemation/core-nodes";
+import type { Item, NodeExecutionContext } from "@codemation/core";
+import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
+import { Callback, CallbackNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
 class CallbackNodeTestContextFactory {
   static create(config: Callback): NodeExecutionContext<Callback> {
-    const binary = new DefaultExecutionBinaryService(new InMemoryBinaryStorage(), "wf_callback", "run_callback", () => new Date());
+    const binary = new DefaultExecutionBinaryService(
+      new InMemoryBinaryStorage(),
+      "wf_callback",
+      "run_callback",
+      () => new Date(),
+    );
     return {
       runId: "run_callback",
       workflowId: "wf_callback",

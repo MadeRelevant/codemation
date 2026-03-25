@@ -1,14 +1,14 @@
 import type {
-BinaryStorage,
-CredentialSessionService,
-NodeActivationContinuation,
-NodeExecutionRequest,
-NodeExecutionScheduler,
-NodeResolver,
-RootExecutionOptionsFactory,
-RunStateStore,
-WorkflowDefinition,
-WorkflowId,
+  BinaryStorage,
+  CredentialSessionService,
+  NodeActivationContinuation,
+  NodeExecutionRequest,
+  NodeExecutionScheduler,
+  NodeResolver,
+  RootExecutionOptionsFactory,
+  RunStateStore,
+  WorkflowDefinition,
+  WorkflowId,
 } from "@codemation/core";
 
 import { BullmqNodeExecutionScheduler } from "./bullmqNodeExecutionScheduler";
@@ -33,19 +33,21 @@ export class BullmqScheduler implements NodeExecutionScheduler {
     await this.scheduler.close();
   }
 
-  createWorker(args: Readonly<{
-    queues: ReadonlyArray<string>;
-    workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>;
-    nodeResolver: NodeResolver;
-    credentialSessions: CredentialSessionService;
-    runStore: RunStateStore;
-    continuation: NodeActivationContinuation;
-    binaryStorage?: BinaryStorage;
-    workflows?: unknown;
-    now?: () => Date;
-    /** When set, must match the host engine policy so worker execution contexts use the same limits as `runtime.engineExecutionLimits`. */
-    rootExecutionOptionsFactory?: RootExecutionOptionsFactory;
-  }>): BullmqWorker {
+  createWorker(
+    args: Readonly<{
+      queues: ReadonlyArray<string>;
+      workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>;
+      nodeResolver: NodeResolver;
+      credentialSessions: CredentialSessionService;
+      runStore: RunStateStore;
+      continuation: NodeActivationContinuation;
+      binaryStorage?: BinaryStorage;
+      workflows?: unknown;
+      now?: () => Date;
+      /** When set, must match the host engine policy so worker execution contexts use the same limits as `runtime.engineExecutionLimits`. */
+      rootExecutionOptionsFactory?: RootExecutionOptionsFactory;
+    }>,
+  ): BullmqWorker {
     if (args.workflows !== undefined || args.now !== undefined) {
       return new BullmqWorker(
         this.connection,
@@ -81,4 +83,3 @@ export class BullmqScheduler implements NodeExecutionScheduler {
     );
   }
 }
-

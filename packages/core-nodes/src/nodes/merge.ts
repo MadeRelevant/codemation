@@ -1,14 +1,13 @@
-import type { InputPortKey,RunnableNodeConfig,TypeToken } from "@codemation/core";
-
-
+import type { InputPortKey, RunnableNodeConfig, TypeToken } from "@codemation/core";
 
 import { MergeNode } from "./MergeNode";
 
 export type MergeMode = "passThrough" | "append" | "mergeByPosition";
 
-
-
-export class Merge<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<TInputJson, TOutputJson> {
+export class Merge<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<
+  TInputJson,
+  TOutputJson
+> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = MergeNode;
 

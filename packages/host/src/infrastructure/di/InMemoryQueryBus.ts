@@ -1,4 +1,4 @@
-import { injectAll,injectable } from "@codemation/core";
+import { injectAll, injectable } from "@codemation/core";
 import type { Query } from "../../application/bus/Query";
 import type { QueryBus } from "../../application/bus/QueryBus";
 import type { QueryHandler } from "../../application/bus/QueryHandler";

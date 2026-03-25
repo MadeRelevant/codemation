@@ -6,7 +6,9 @@ import type { ReactNode } from "react";
 import { RealtimeContext } from "./RealtimeContext";
 import { useWorkflowRealtimeInfrastructure } from "../../hooks/realtime/useWorkflowRealtimeInfrastructure";
 
-export function WorkflowRealtimeProvider(args: Readonly<{ children: ReactNode; logger: Logger; websocketPort?: string }>) {
+export function WorkflowRealtimeProvider(
+  args: Readonly<{ children: ReactNode; logger: Logger; websocketPort?: string }>,
+) {
   const { children, logger, websocketPort } = args;
   const value = useWorkflowRealtimeInfrastructure({ logger, websocketPort });
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;

@@ -1,4 +1,9 @@
-import { createWorkflowBuilder,MapData,WebhookRespondNowAndContinueError,WebhookTrigger } from "@codemation/core-nodes";
+import {
+  createWorkflowBuilder,
+  MapData,
+  WebhookRespondNowAndContinueError,
+  WebhookTrigger,
+} from "@codemation/core-nodes";
 
 export default createWorkflowBuilder({ id: "wf.webhook.respond-continue", name: "Webhook respond now and continue" })
   .trigger(
@@ -26,12 +31,16 @@ export default createWorkflowBuilder({ id: "wf.webhook.respond-continue", name: 
     ),
   )
   .then(
-    new MapData("Continue processing request", (item) => {
-      return {
-        ok: true,
-        continued: true,
-        request: item.json,
-      };
-    }, "continued_processing"),
+    new MapData(
+      "Continue processing request",
+      (item) => {
+        return {
+          ok: true,
+          continued: true,
+          request: item.json,
+        };
+      },
+      "continued_processing",
+    ),
   )
   .build();

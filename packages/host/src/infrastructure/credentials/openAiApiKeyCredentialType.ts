@@ -24,8 +24,7 @@ export const openAiApiKeyRegisteredCredentialType: RegisteredCredentialType = {
   },
   createSession: async (args) => {
     const baseUrlRaw = args.publicConfig.baseUrl;
-    const baseUrl =
-      typeof baseUrlRaw === "string" && baseUrlRaw.trim() !== "" ? baseUrlRaw.trim() : undefined;
+    const baseUrl = typeof baseUrlRaw === "string" && baseUrlRaw.trim() !== "" ? baseUrlRaw.trim() : undefined;
     return {
       apiKey: String(args.material.apiKey ?? ""),
       baseUrl,

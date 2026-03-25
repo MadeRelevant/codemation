@@ -1,4 +1,4 @@
-import { type CSSProperties,useEffect,useRef,useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 
 import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
 import { iconForNode } from "./workflowCanvasNodeChrome";
@@ -32,7 +32,9 @@ export function CodemationNode({ data }: { data: WorkflowCanvasNodeData }) {
     opacity: isRunning ? 1 : 0.75,
     padding: 2,
     background: `conic-gradient(from var(--codemation-node-ring-angle), ${activityColor} 0deg, ${activityColor} 72deg, ${activityColor}22 132deg, ${activityColor}1f 228deg, ${activityColor} 324deg, ${activityColor} 360deg)`,
-    animation: isRunning ? "codemationNodeRingRotate 1.5s linear infinite" : "codemationNodeRingRotate 4.5s linear infinite",
+    animation: isRunning
+      ? "codemationNodeRingRotate 1.5s linear infinite"
+      : "codemationNodeRingRotate 4.5s linear infinite",
     WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
     WebkitMaskComposite: "xor",
     maskComposite: "exclude",

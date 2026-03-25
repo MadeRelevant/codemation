@@ -33,16 +33,25 @@ test("returns url when present and non-empty", () => {
 });
 
 test("falls back to callbackUrl when ok is true and url is null", () => {
-  const target = CredentialsSignInRedirectResolver.resolveRedirectUrl(response({ url: null, ok: true, status: 200 }), "/workflows");
+  const target = CredentialsSignInRedirectResolver.resolveRedirectUrl(
+    response({ url: null, ok: true, status: 200 }),
+    "/workflows",
+  );
   assert.equal(target, "/workflows");
 });
 
 test("falls back to callbackUrl when ok is true and url is whitespace-only", () => {
-  const target = CredentialsSignInRedirectResolver.resolveRedirectUrl(response({ url: "   ", ok: true, status: 200 }), "/");
+  const target = CredentialsSignInRedirectResolver.resolveRedirectUrl(
+    response({ url: "   ", ok: true, status: 200 }),
+    "/",
+  );
   assert.equal(target, "/");
 });
 
 test("returns null when not ok and no usable url", () => {
-  const target = CredentialsSignInRedirectResolver.resolveRedirectUrl(response({ ok: false, status: 500, url: null }), "/");
+  const target = CredentialsSignInRedirectResolver.resolveRedirectUrl(
+    response({ ok: false, status: 500, url: null }),
+    "/",
+  );
   assert.equal(target, null);
 });

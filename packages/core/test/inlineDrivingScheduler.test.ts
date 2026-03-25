@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { InlineDrivingScheduler,type NodeActivationContinuation,type NodeActivationRequest,type NodeResolver } from "../src/index.ts";
+import {
+  InlineDrivingScheduler,
+  type NodeActivationContinuation,
+  type NodeActivationRequest,
+  type NodeResolver,
+} from "../src/index.ts";
 
 class SuccessfulNode {
   readonly kind = "node" as const;

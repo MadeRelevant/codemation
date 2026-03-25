@@ -1,5 +1,5 @@
 import { type WorkflowDefinition } from "@codemation/core";
-import { createWorkflowBuilder,ManualTrigger,MapData } from "@codemation/core-nodes";
+import { createWorkflowBuilder, ManualTrigger, MapData } from "@codemation/core-nodes";
 import type { WorkflowDto } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
 import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowPolicyUiPresentationFactory } from "../../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
@@ -15,15 +15,21 @@ export interface WorkflowDetailRuntimeFixture {
 }
 
 export class WorkflowDetailRuntimeFixtureFactory {
-  static createLinearWorkflow(args: Readonly<{ workflowId?: string; workflowName?: string; nodeIds: ReadonlyArray<string> }>): WorkflowDetailRuntimeFixture {
+  static createLinearWorkflow(
+    args: Readonly<{ workflowId?: string; workflowName?: string; nodeIds: ReadonlyArray<string> }>,
+  ): WorkflowDetailRuntimeFixture {
     const workflowId = args.workflowId ?? "wf.frontend.runtime";
     const workflowName = args.workflowName ?? "Workflow detail runtime fixture";
     if (args.nodeIds.length < 2) {
-      throw new Error("WorkflowDetailRuntimeFixtureFactory.createLinearWorkflow() requires at least a trigger node and one downstream node.");
+      throw new Error(
+        "WorkflowDetailRuntimeFixtureFactory.createLinearWorkflow() requires at least a trigger node and one downstream node.",
+      );
     }
     const definition = this.createWorkflowDefinition(workflowId, workflowName, args.nodeIds);
     return {
-      workflow: new WorkflowDefinitionMapper(new WorkflowPolicyUiPresentationFactory()).mapSync(definition) as WorkflowDto,
+      workflow: new WorkflowDefinitionMapper(new WorkflowPolicyUiPresentationFactory()).mapSync(
+        definition,
+      ) as WorkflowDto,
       definition,
       config: this.createConfig(definition),
       workflowId,
@@ -31,13 +37,19 @@ export class WorkflowDetailRuntimeFixtureFactory {
     };
   }
 
-  private static createWorkflowDefinition(workflowId: string, workflowName: string, nodeIds: ReadonlyArray<string>): WorkflowDefinition {
+  private static createWorkflowDefinition(
+    workflowId: string,
+    workflowName: string,
+    nodeIds: ReadonlyArray<string>,
+  ): WorkflowDefinition {
     let builder = createWorkflowBuilder({
       id: workflowId,
       name: workflowName,
     }).trigger(new ManualTrigger(nodeIds[0] ?? "Trigger", [{ json: {} }], nodeIds[0] ?? "Trigger"));
     for (const [index, nodeId] of nodeIds.slice(1).entries()) {
-      builder = builder.then(new MapData(nodeId, (item) => this.createNodeOutput(item.json, nodeId, index + 1), nodeId));
+      builder = builder.then(
+        new MapData(nodeId, (item) => this.createNodeOutput(item.json, nodeId, index + 1), nodeId),
+      );
     }
     return builder.build();
   }

@@ -63,10 +63,7 @@ async function main() {
     process.exit(1);
   }
   const repoRoot = resolveRepoRoot();
-  const defaultTarget = path.join(
-    repoRoot,
-    "apps/test-dev/src/workflows/dev/hot-reload-probe.ts",
-  );
+  const defaultTarget = path.join(repoRoot, "apps/test-dev/src/workflows/dev/hot-reload-probe.ts");
   const target = args.targetFile.trim().length > 0 ? path.resolve(args.targetFile) : defaultTarget;
   const base = args.runtimeUrl.replace(/\/$/, "");
   const original = await readFile(target, "utf8");
@@ -94,7 +91,9 @@ async function main() {
           console.log(`[stress-reload-metrics] iteration=${i} heapUsed=${heap}`);
         }
       } catch (error) {
-        console.warn(`[stress-reload-metrics] metrics fetch failed: ${error instanceof Error ? error.message : String(error)}`);
+        console.warn(
+          `[stress-reload-metrics] metrics fetch failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
   } finally {

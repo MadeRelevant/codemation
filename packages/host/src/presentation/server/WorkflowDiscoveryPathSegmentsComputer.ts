@@ -3,11 +3,13 @@ import path from "node:path";
 import { WorkflowModulePathFinder } from "./WorkflowModulePathFinder";
 
 export class WorkflowDiscoveryPathSegmentsComputer {
-  compute(args: Readonly<{
-    consumerRoot: string;
-    workflowDiscoveryDirectories: ReadonlyArray<string>;
-    absoluteWorkflowModulePath: string;
-  }>): readonly string[] | undefined {
+  compute(
+    args: Readonly<{
+      consumerRoot: string;
+      workflowDiscoveryDirectories: ReadonlyArray<string>;
+      absoluteWorkflowModulePath: string;
+    }>,
+  ): readonly string[] | undefined {
     const normalizedConsumer = path.resolve(args.consumerRoot);
     const normalizedWorkflowPath = path.resolve(args.absoluteWorkflowModulePath);
     const directories =
@@ -19,7 +21,8 @@ export class WorkflowDiscoveryPathSegmentsComputer {
     for (const directory of directories) {
       const absoluteDirectory = path.resolve(normalizedConsumer, directory);
       const isPrefix =
-        normalizedWorkflowPath === absoluteDirectory || normalizedWorkflowPath.startsWith(`${absoluteDirectory}${path.sep}`);
+        normalizedWorkflowPath === absoluteDirectory ||
+        normalizedWorkflowPath.startsWith(`${absoluteDirectory}${path.sep}`);
       if (!isPrefix) {
         continue;
       }

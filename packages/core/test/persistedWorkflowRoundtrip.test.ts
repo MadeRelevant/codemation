@@ -4,26 +4,33 @@ import "reflect-metadata";
 
 import { container as tsyringeContainer } from "tsyringe";
 import type {
-ChatModelConfig,
-ChatModelFactory,
-Items,
-LangChainChatModelLike,
-Node,
-NodeExecutionContext,
-NodeOutputs,
-NodeResolver,
-RunnableNodeConfig,
-Tool,
-ToolConfig,
-ToolExecuteArgs,
-TypeToken,
+  ChatModelConfig,
+  ChatModelFactory,
+  Items,
+  LangChainChatModelLike,
+  Node,
+  NodeExecutionContext,
+  NodeOutputs,
+  NodeResolver,
+  RunnableNodeConfig,
+  Tool,
+  ToolConfig,
+  ToolExecuteArgs,
+  TypeToken,
 } from "../src/index.ts";
-import { ContainerNodeResolver,PersistedWorkflowTokenRegistry,WorkflowBuilder,chatModel,node,tool } from "../src/index.ts";
-import { InMemoryWorkflowRegistry,PersistedWorkflowSnapshotFactory } from "../src/testing.ts";
+import {
+  ContainerNodeResolver,
+  PersistedWorkflowTokenRegistry,
+  WorkflowBuilder,
+  chatModel,
+  node,
+  tool,
+} from "../src/index.ts";
+import { InMemoryWorkflowRegistry, PersistedWorkflowSnapshotFactory } from "../src/testing.ts";
 import { MissingRuntimeNodeDefinitionFactory } from "../src/engine/adapters/persisted-workflow/MissingRuntimeNodeDefinitionFactory";
 import { PersistedWorkflowConfigHydrator } from "../src/engine/adapters/persisted-workflow/PersistedWorkflowConfigHydrator";
 import { PersistedWorkflowResolver } from "../src/engine/adapters/persisted-workflow/PersistedWorkflowResolver";
-import { createEngineTestKit,items } from "./harness/index.ts";
+import { createEngineTestKit, items } from "./harness/index.ts";
 
 class StableChatModelConfig implements ChatModelConfig {
   readonly type: TypeToken<unknown> = StableChatModelFactory;
@@ -164,13 +171,16 @@ test("workflow builder produces a compiled workflow whose node and nested depend
   });
 
   assert.equal(result.status, "completed");
-  assert.deepEqual(result.outputs.map((item) => item.json), [
-    {
-      hello: "world",
-      resolvedChatModel: "Stable chat model",
-      resolvedTools: ["lookup_tool"],
-    },
-  ]);
+  assert.deepEqual(
+    result.outputs.map((item) => item.json),
+    [
+      {
+        hello: "world",
+        resolvedChatModel: "Stable chat model",
+        resolvedTools: ["lookup_tool"],
+      },
+    ],
+  );
 });
 
 test("builder snapshot roundtrip preserves persisted workflow identity without drift", () => {

@@ -1,4 +1,4 @@
-import type { InputPortKey,Item,Items } from "@codemation/core";
+import type { InputPortKey, Item, Items } from "@codemation/core";
 
 export function getOriginIndex(item: Item): number | undefined {
   const meta = item.meta as Record<string, unknown> | undefined;

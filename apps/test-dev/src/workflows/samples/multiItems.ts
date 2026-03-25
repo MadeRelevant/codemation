@@ -1,4 +1,4 @@
-import { Callback,createWorkflowBuilder,If,ManualTrigger,MapData,Wait } from "@codemation/core-nodes";
+import { Callback, createWorkflowBuilder, If, ManualTrigger, MapData, Wait } from "@codemation/core-nodes";
 
 export default createWorkflowBuilder({ id: "wf.multi-item-race", name: "Multi-item race demo" })
   .trigger(
@@ -56,7 +56,7 @@ export default createWorkflowBuilder({ id: "wf.multi-item-race", name: "Multi-it
           delayMs: 450,
         };
       }),
-      // wait between 800 - 1200ms minus the speed of the racer 
+      // wait between 800 - 1200ms minus the speed of the racer
       new Wait("Shortcut delay", 800 + Math.floor(Math.random() * 400)),
     ],
     false: [

@@ -68,7 +68,9 @@ export class PrismaMigrationDeployer {
         paths: [process.cwd(), this.resolvePackageRoot()],
       });
     } catch {
-      throw new Error("Unable to resolve the Prisma CLI required for startup migrations. Ensure `prisma` is installed.");
+      throw new Error(
+        "Unable to resolve the Prisma CLI required for startup migrations. Ensure `prisma` is installed.",
+      );
     }
   }
 

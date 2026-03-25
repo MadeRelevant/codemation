@@ -1,5 +1,5 @@
 import type { RunCurrentState } from "@codemation/core";
-import { inject,injectable } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import type { WorkflowDebuggerOverlayRepository } from "../../domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDebuggerOverlayState } from "../../domain/workflows/WorkflowDebuggerOverlayState";
 import { PrismaClient } from "./generated/prisma-client/client.js";
@@ -40,12 +40,14 @@ export class PrismaWorkflowDebuggerOverlayRepository implements WorkflowDebugger
     });
   }
 
-  private rowToState(row: Readonly<{
-    workflowId: string;
-    updatedAt: string;
-    copiedFromRunId: string | null;
-    stateJson: string;
-  }>): WorkflowDebuggerOverlayState {
+  private rowToState(
+    row: Readonly<{
+      workflowId: string;
+      updatedAt: string;
+      copiedFromRunId: string | null;
+      stateJson: string;
+    }>,
+  ): WorkflowDebuggerOverlayState {
     const parsed = JSON.parse(row.stateJson) as DebuggerOverlayStateJson;
     return {
       workflowId: row.workflowId,

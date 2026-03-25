@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import type { Items,Node,NodeOutputs,RunnableNodeConfig,TypeToken } from "../src/index.ts";
-import { PersistedWorkflowTokenRegistry,node,tool } from "../src/index.ts";
-import { InMemoryWorkflowRegistry,PersistedWorkflowSnapshotFactory } from "../src/testing.ts";
+import type { Items, Node, NodeOutputs, RunnableNodeConfig, TypeToken } from "../src/index.ts";
+import { PersistedWorkflowTokenRegistry, node, tool } from "../src/index.ts";
+import { InMemoryWorkflowRegistry, PersistedWorkflowSnapshotFactory } from "../src/testing.ts";
 import { MissingRuntimeNodeDefinitionFactory } from "../src/engine/adapters/persisted-workflow/MissingRuntimeNodeDefinitionFactory";
 import { PersistedWorkflowConfigHydrator } from "../src/engine/adapters/persisted-workflow/PersistedWorkflowConfigHydrator";
 import { PersistedWorkflowResolver } from "../src/engine/adapters/persisted-workflow/PersistedWorkflowResolver";
@@ -140,7 +140,10 @@ test("engine persists workflow snapshots and execution mode metadata", async () 
   assert.equal(stored.executionOptions?.mode, "debug");
   assert.equal(stored.executionOptions?.sourceWorkflowId, wf.id);
   assert.equal(stored.workflowSnapshot?.id, wf.id);
-  assert.deepEqual(stored.mutableState?.nodesById.n1?.pinnedOutputsByPort?.main?.map((item) => item.json), [{ pinned: true }]);
+  assert.deepEqual(
+    stored.mutableState?.nodesById.n1?.pinnedOutputsByPort?.main?.map((item) => item.json),
+    [{ pinned: true }],
+  );
   assert.deepEqual(
     stored.workflowSnapshot?.nodes.map((node) => node.id),
     ["n1", "n2"],
@@ -155,7 +158,11 @@ test("engine resumes from stored workflow snapshots and skips nodes missing from
   });
   const n2 = new CallbackNodeConfig("n2", () => {}, { id: "n2" });
   const n3 = new CallbackNodeConfig("n3", () => {}, { id: "n3" });
-  const originalWorkflow = chain({ id: "wf.snapshot.resume", name: "Snapshot resume" }).start(n1).then(n2).then(n3).build();
+  const originalWorkflow = chain({ id: "wf.snapshot.resume", name: "Snapshot resume" })
+    .start(n1)
+    .then(n2)
+    .then(n3)
+    .build();
 
   const kit = createEngineTestKit();
   await kit.start([originalWorkflow]);
@@ -165,7 +172,10 @@ test("engine resumes from stored workflow snapshots and skips nodes missing from
   const storedPending = await kit.runStore.load(scheduled.runId);
   assert.ok(storedPending?.workflowSnapshot);
 
-  const updatedWorkflow = chain({ id: "wf.snapshot.resume", name: "Snapshot resume updated" }).start(n1).then(n3).build();
+  const updatedWorkflow = chain({ id: "wf.snapshot.resume", name: "Snapshot resume updated" })
+    .start(n1)
+    .then(n3)
+    .build();
   await kit.start([updatedWorkflow]);
 
   const resumed = await kit.engine.resumeFromStepResult({
@@ -178,18 +188,26 @@ test("engine resumes from stored workflow snapshots and skips nodes missing from
   assert.equal(resumed.status, "pending");
   const done = await kit.engine.waitForCompletion(scheduled.runId);
   assert.equal(done.status, "completed");
-  assert.deepEqual(done.outputs.map((item) => item.json), [{ step: 2 }]);
+  assert.deepEqual(
+    done.outputs.map((item) => item.json),
+    [{ step: 2 }],
+  );
 
   const storedDone = await kit.runStore.load(scheduled.runId);
   assert.ok(storedDone);
   assert.equal(storedDone.nodeSnapshotsByNodeId.n2?.status, "skipped");
-  assert.deepEqual(storedDone.nodeSnapshotsByNodeId.n2?.outputs?.main?.map((item) => item.json), [{ step: 2 }]);
+  assert.deepEqual(
+    storedDone.nodeSnapshotsByNodeId.n2?.outputs?.main?.map((item) => item.json),
+    [{ step: 2 }],
+  );
   assert.equal(storedDone.nodeSnapshotsByNodeId.n3?.status, "completed");
 });
 
 test("persisted workflow resolver preserves nested dependency tokens from live configs", () => {
   const workflow = chain({ id: "wf.snapshot.tokens", name: "Snapshot tokens" })
-    .start(new SnapshotTokenNodeConfig("agent", new NestedChatModelConfig("chat"), [new NestedToolConfig("tool")], "agent"))
+    .start(
+      new SnapshotTokenNodeConfig("agent", new NestedChatModelConfig("chat"), [new NestedToolConfig("tool")], "agent"),
+    )
     .build();
   const tokenRegistry = new PersistedWorkflowTokenRegistry();
   tokenRegistry.registerFromWorkflows([workflow]);
@@ -197,8 +215,14 @@ test("persisted workflow resolver preserves nested dependency tokens from live c
   const registry = new InMemoryWorkflowRegistry();
   registry.setWorkflows([workflow]);
 
-  assert.equal((snapshot.nodes[0]?.config as { chatModel?: { type?: unknown } } | undefined)?.chatModel?.type, undefined);
-  assert.equal((snapshot.nodes[0]?.config as { tools?: ReadonlyArray<{ type?: unknown }> } | undefined)?.tools?.[0]?.type, undefined);
+  assert.equal(
+    (snapshot.nodes[0]?.config as { chatModel?: { type?: unknown } } | undefined)?.chatModel?.type,
+    undefined,
+  );
+  assert.equal(
+    (snapshot.nodes[0]?.config as { tools?: ReadonlyArray<{ type?: unknown }> } | undefined)?.tools?.[0]?.type,
+    undefined,
+  );
 
   const resolved = new PersistedWorkflowResolver(
     registry,
@@ -215,4 +239,3 @@ test("persisted workflow resolver preserves nested dependency tokens from live c
   assert.equal(config.chatModel.type, NestedTokenDependency);
   assert.equal(config.tools[0]?.type, NestedTokenDependency);
 });
-

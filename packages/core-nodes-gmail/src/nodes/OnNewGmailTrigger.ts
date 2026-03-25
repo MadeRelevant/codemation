@@ -1,4 +1,4 @@
-import type { CredentialRequirement,TriggerNodeConfig,TypeToken } from "@codemation/core";
+import type { CredentialRequirement, TriggerNodeConfig, TypeToken } from "@codemation/core";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import type { GmailMessageAttachmentRecord } from "../services/GmailApiClient";
@@ -29,9 +29,10 @@ export type OnNewGmailTriggerOptions = Readonly<{
   downloadAttachments?: boolean;
 }>;
 
-export class OnNewGmailTrigger
-  implements TriggerNodeConfig<OnNewGmailTriggerItemJson, GmailTriggerSetupState | undefined>
-{
+export class OnNewGmailTrigger implements TriggerNodeConfig<
+  OnNewGmailTriggerItemJson,
+  GmailTriggerSetupState | undefined
+> {
   readonly kind = "trigger" as const;
   readonly type: TypeToken<unknown> = OnNewGmailTriggerNode;
 

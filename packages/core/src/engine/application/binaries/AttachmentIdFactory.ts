@@ -1,7 +1,3 @@
-
-
-
-
 export class AttachmentIdFactory {
   static create(fallbackValue: string): string {
     const cryptoObject = globalThis.crypto;
@@ -11,4 +7,3 @@ export class AttachmentIdFactory {
     return fallbackValue;
   }
 }
-

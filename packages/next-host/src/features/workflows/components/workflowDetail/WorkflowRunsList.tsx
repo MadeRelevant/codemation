@@ -5,16 +5,26 @@ import { cn } from "@/lib/utils";
 
 import { WorkflowStatusIcon } from "./WorkflowDetailIcons";
 
-export function WorkflowRunsList(args: Readonly<{
-  displayedRuns: ReadonlyArray<RunSummary> | undefined;
-  runsError: string | null;
-  selectedRunId: string | null;
-  formatRunListWhen: (value: string | undefined) => string;
-  formatRunListDurationLine: (run: Pick<RunSummary, "startedAt" | "finishedAt" | "status">) => string;
-  getExecutionModeLabel: (run: Pick<RunSummary, "executionOptions"> | undefined) => string | null;
-  onSelectRun: (runId: string) => void;
-}>) {
-  const { displayedRuns, formatRunListDurationLine, formatRunListWhen, getExecutionModeLabel, onSelectRun, runsError, selectedRunId } = args;
+export function WorkflowRunsList(
+  args: Readonly<{
+    displayedRuns: ReadonlyArray<RunSummary> | undefined;
+    runsError: string | null;
+    selectedRunId: string | null;
+    formatRunListWhen: (value: string | undefined) => string;
+    formatRunListDurationLine: (run: Pick<RunSummary, "startedAt" | "finishedAt" | "status">) => string;
+    getExecutionModeLabel: (run: Pick<RunSummary, "executionOptions"> | undefined) => string | null;
+    onSelectRun: (runId: string) => void;
+  }>,
+) {
+  const {
+    displayedRuns,
+    formatRunListDurationLine,
+    formatRunListWhen,
+    getExecutionModeLabel,
+    onSelectRun,
+    runsError,
+    selectedRunId,
+  } = args;
 
   if (runsError) return <p className="text-sm text-destructive">Failed to load executions: {runsError}</p>;
   if (!displayedRuns) return <p className="text-sm text-muted-foreground">Loading executions…</p>;

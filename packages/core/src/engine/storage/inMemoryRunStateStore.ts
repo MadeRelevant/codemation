@@ -71,7 +71,9 @@ export class InMemoryRunStateStore implements RunStateStore, RunListingStore, Ru
     return summaries;
   }
 
-  async listRunsOlderThan(args: Readonly<{ beforeIso: string; limit?: number }>): Promise<ReadonlyArray<RunPruneCandidate>> {
+  async listRunsOlderThan(
+    args: Readonly<{ beforeIso: string; limit?: number }>,
+  ): Promise<ReadonlyArray<RunPruneCandidate>> {
     const limit = args.limit ?? 100;
     const out: RunPruneCandidate[] = [];
     for (const s of this.runs.values()) {
@@ -89,4 +91,3 @@ export class InMemoryRunStateStore implements RunStateStore, RunListingStore, Ru
     return out.slice(0, limit);
   }
 }
-

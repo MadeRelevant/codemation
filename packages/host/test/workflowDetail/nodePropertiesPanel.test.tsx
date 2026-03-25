@@ -1,6 +1,6 @@
-import { fireEvent,screen,waitFor } from "@testing-library/react";
-import { afterEach,describe,expect,it } from "vitest";
-import { WorkflowDetailRealtimeFixtureFactory,WorkflowDetailScreenTestKit } from "./testkit";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { WorkflowDetailRealtimeFixtureFactory, WorkflowDetailScreenTestKit } from "./testkit";
 
 describe("workflow detail node properties panel", () => {
   let kit: WorkflowDetailScreenTestKit | null = null;

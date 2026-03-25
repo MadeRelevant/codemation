@@ -1,19 +1,19 @@
-import { inject,injectable } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import { ApplicationRequestError } from "../../../application/ApplicationRequestError";
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import type { QueryBus } from "../../../application/bus/QueryBus";
 import {
-AcceptUserInviteCommand,
-InviteUserCommand,
-RegenerateUserInviteCommand,
-UpdateUserAccountStatusCommand,
+  AcceptUserInviteCommand,
+  InviteUserCommand,
+  RegenerateUserInviteCommand,
+  UpdateUserAccountStatusCommand,
 } from "../../../application/commands/UserAccountCommandHandlers";
 import type {
-AcceptUserInviteRequestDto,
-InviteUserRequestDto,
-UpdateUserAccountStatusRequestDto,
+  AcceptUserInviteRequestDto,
+  InviteUserRequestDto,
+  UpdateUserAccountStatusRequestDto,
 } from "../../../application/contracts/userDirectoryContracts.types";
-import { ListUserAccountsQuery,VerifyUserInviteQuery } from "../../../application/queries/UserAccountQueryHandlers";
+import { ListUserAccountsQuery, VerifyUserInviteQuery } from "../../../application/queries/UserAccountQueryHandlers";
 import { ApplicationTokens } from "../../../applicationTokens";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 import type { ServerHttpRouteParams } from "../ServerHttpRouteParams";
@@ -49,10 +49,7 @@ export class UserHttpRouteHandler {
     try {
       const body = await this.readJsonBody<InviteUserRequestDto>(request);
       const origin = this.resolveRequestOrigin(request);
-      return Response.json(
-        await this.commandBus.execute(new InviteUserCommand(body.email, origin)),
-        { status: 201 },
-      );
+      return Response.json(await this.commandBus.execute(new InviteUserCommand(body.email, origin)), { status: 201 });
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }

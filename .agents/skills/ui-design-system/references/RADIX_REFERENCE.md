@@ -3,6 +3,7 @@
 Complete guide to Radix UI accessible component primitives for building custom components.
 
 ## Table of Contents
+
 - [What is Radix UI](#what-is-radix-ui)
 - [Core Primitives](#core-primitives)
 - [Overlay Components](#overlay-components)
@@ -13,11 +14,13 @@ Complete guide to Radix UI accessible component primitives for building custom c
 ## What is Radix UI
 
 **Radix UI** provides unstyled, accessible component primitives that handle:
+
 - **Behavior**: Component logic and interactions
 - **Accessibility**: ARIA attributes, keyboard navigation, focus management
 - **Flexibility**: Unopinionated styling, full customization
 
 **Use Radix when:**
+
 - Building custom component libraries
 - Need accessibility out of the box
 - Want full control over styling
@@ -30,7 +33,7 @@ Complete guide to Radix UI accessible component primitives for building custom c
 Accessible modal dialog with portal, overlay, and focus management.
 
 ```tsx
-import * as Dialog from '@radix-ui/react-dialog'
+import * as Dialog from "@radix-ui/react-dialog";
 
 export function CustomDialog() {
   return (
@@ -46,9 +49,7 @@ export function CustomDialog() {
         {/* Content */}
         <Dialog.Content className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] bg-white p-6 rounded-lg">
           <Dialog.Title className="text-2xl font-bold">Title</Dialog.Title>
-          <Dialog.Description className="text-gray-600">
-            Description text
-          </Dialog.Description>
+          <Dialog.Description className="text-gray-600">Description text</Dialog.Description>
 
           {/* Your content */}
           <div>Content goes here</div>
@@ -59,11 +60,12 @@ export function CustomDialog() {
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-  )
+  );
 }
 ```
 
 **Key Features:**
+
 - Automatic focus management
 - Focus trap within modal
 - Escape key to close
@@ -76,7 +78,7 @@ export function CustomDialog() {
 Floating content anchored to a trigger element.
 
 ```tsx
-import * as Popover from '@radix-ui/react-popover'
+import * as Popover from "@radix-ui/react-popover";
 
 export function CustomPopover() {
   return (
@@ -86,21 +88,19 @@ export function CustomPopover() {
       </Popover.Trigger>
 
       <Popover.Portal>
-        <Popover.Content
-          className="bg-white p-4 rounded-lg shadow-lg"
-          sideOffset={5}
-        >
+        <Popover.Content className="bg-white p-4 rounded-lg shadow-lg" sideOffset={5}>
           <Popover.Arrow className="fill-white" />
           <div>Popover content</div>
           <Popover.Close className="...">Close</Popover.Close>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
-  )
+  );
 }
 ```
 
 **Positioning Props:**
+
 - `side`: "top" | "right" | "bottom" | "left"
 - `align`: "start" | "center" | "end"
 - `sideOffset`: Distance from trigger
@@ -111,7 +111,7 @@ export function CustomPopover() {
 Context menu with nested items, keyboard navigation.
 
 ```tsx
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 export function CustomDropdown() {
   return (
@@ -122,20 +122,14 @@ export function CustomDropdown() {
 
       <DropdownMenu.Portal>
         <DropdownMenu.Content className="bg-white rounded-lg shadow-lg p-2">
-          <DropdownMenu.Item className="px-3 py-2 hover:bg-gray-100 rounded">
-            Edit
-          </DropdownMenu.Item>
+          <DropdownMenu.Item className="px-3 py-2 hover:bg-gray-100 rounded">Edit</DropdownMenu.Item>
 
-          <DropdownMenu.Item className="px-3 py-2 hover:bg-gray-100 rounded">
-            Duplicate
-          </DropdownMenu.Item>
+          <DropdownMenu.Item className="px-3 py-2 hover:bg-gray-100 rounded">Duplicate</DropdownMenu.Item>
 
           <DropdownMenu.Separator className="h-px bg-gray-200 my-1" />
 
           <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger className="px-3 py-2">
-              More →
-            </DropdownMenu.SubTrigger>
+            <DropdownMenu.SubTrigger className="px-3 py-2">More →</DropdownMenu.SubTrigger>
             <DropdownMenu.Portal>
               <DropdownMenu.SubContent className="...">
                 <DropdownMenu.Item>Nested item</DropdownMenu.Item>
@@ -145,17 +139,16 @@ export function CustomDropdown() {
 
           <DropdownMenu.Separator className="h-px bg-gray-200 my-1" />
 
-          <DropdownMenu.Item className="px-3 py-2 text-red-600 hover:bg-red-50 rounded">
-            Delete
-          </DropdownMenu.Item>
+          <DropdownMenu.Item className="px-3 py-2 text-red-600 hover:bg-red-50 rounded">Delete</DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
-  )
+  );
 }
 ```
 
 **Features:**
+
 - Arrow key navigation
 - Type-ahead search
 - Nested submenus
@@ -166,7 +159,7 @@ export function CustomDropdown() {
 Collapsible sections with single or multiple open panels.
 
 ```tsx
-import * as Accordion from '@radix-ui/react-accordion'
+import * as Accordion from "@radix-ui/react-accordion";
 
 export function CustomAccordion() {
   return (
@@ -178,27 +171,22 @@ export function CustomAccordion() {
             <ChevronDownIcon className="..." />
           </Accordion.Trigger>
         </Accordion.Header>
-        <Accordion.Content className="py-4">
-          Answer to question 1
-        </Accordion.Content>
+        <Accordion.Content className="py-4">Answer to question 1</Accordion.Content>
       </Accordion.Item>
 
       <Accordion.Item value="item-2" className="border-b">
         <Accordion.Header>
-          <Accordion.Trigger className="...">
-            Question 2
-          </Accordion.Trigger>
+          <Accordion.Trigger className="...">Question 2</Accordion.Trigger>
         </Accordion.Header>
-        <Accordion.Content className="...">
-          Answer to question 2
-        </Accordion.Content>
+        <Accordion.Content className="...">Answer to question 2</Accordion.Content>
       </Accordion.Item>
     </Accordion.Root>
-  )
+  );
 }
 ```
 
 **Types:**
+
 - `type="single"`: Only one panel open at a time
 - `type="multiple"`: Multiple panels can be open
 - `collapsible`: Allow closing the open panel
@@ -208,7 +196,7 @@ export function CustomAccordion() {
 Accessible tab navigation with keyboard support.
 
 ```tsx
-import * as Tabs from '@radix-ui/react-tabs'
+import * as Tabs from "@radix-ui/react-tabs";
 
 export function CustomTabs() {
   return (
@@ -230,7 +218,7 @@ export function CustomTabs() {
         Content for tab 2
       </Tabs.Content>
     </Tabs.Root>
-  )
+  );
 }
 ```
 
@@ -241,7 +229,7 @@ export function CustomTabs() {
 Modal dialog for confirmations and destructive actions.
 
 ```tsx
-import * as AlertDialog from '@radix-ui/react-alert-dialog'
+import * as AlertDialog from "@radix-ui/react-alert-dialog";
 
 export function DeleteConfirmation() {
   return (
@@ -253,12 +241,8 @@ export function DeleteConfirmation() {
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 bg-black/50" />
         <AlertDialog.Content className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] bg-white p-6 rounded-lg">
-          <AlertDialog.Title className="text-xl font-bold">
-            Are you sure?
-          </AlertDialog.Title>
-          <AlertDialog.Description className="text-gray-600">
-            This action cannot be undone.
-          </AlertDialog.Description>
+          <AlertDialog.Title className="text-xl font-bold">Are you sure?</AlertDialog.Title>
+          <AlertDialog.Description className="text-gray-600">This action cannot be undone.</AlertDialog.Description>
 
           <div className="flex gap-4 mt-6">
             <AlertDialog.Cancel asChild>
@@ -271,7 +255,7 @@ export function DeleteConfirmation() {
         </AlertDialog.Content>
       </AlertDialog.Portal>
     </AlertDialog.Root>
-  )
+  );
 }
 ```
 
@@ -280,7 +264,7 @@ export function DeleteConfirmation() {
 Accessible tooltip with automatic positioning.
 
 ```tsx
-import * as Tooltip from '@radix-ui/react-tooltip'
+import * as Tooltip from "@radix-ui/react-tooltip";
 
 export function WithTooltip() {
   return (
@@ -291,17 +275,14 @@ export function WithTooltip() {
         </Tooltip.Trigger>
 
         <Tooltip.Portal>
-          <Tooltip.Content
-            className="bg-gray-900 text-white px-3 py-2 rounded text-sm"
-            sideOffset={5}
-          >
+          <Tooltip.Content className="bg-gray-900 text-white px-3 py-2 rounded text-sm" sideOffset={5}>
             Tooltip content
             <Tooltip.Arrow className="fill-gray-900" />
           </Tooltip.Content>
         </Tooltip.Portal>
       </Tooltip.Root>
     </Tooltip.Provider>
-  )
+  );
 }
 ```
 
@@ -312,23 +293,20 @@ export function WithTooltip() {
 Accessible checkbox with indeterminate state support.
 
 ```tsx
-import * as Checkbox from '@radix-ui/react-checkbox'
-import { CheckIcon } from 'lucide-react'
+import * as Checkbox from "@radix-ui/react-checkbox";
+import { CheckIcon } from "lucide-react";
 
 export function CustomCheckbox() {
   return (
     <div className="flex items-center gap-2">
-      <Checkbox.Root
-        className="w-5 h-5 border rounded flex items-center justify-center"
-        id="terms"
-      >
+      <Checkbox.Root className="w-5 h-5 border rounded flex items-center justify-center" id="terms">
         <Checkbox.Indicator>
           <CheckIcon className="w-4 h-4" />
         </Checkbox.Indicator>
       </Checkbox.Root>
       <label htmlFor="terms">Accept terms</label>
     </div>
-  )
+  );
 }
 ```
 
@@ -337,17 +315,13 @@ export function CustomCheckbox() {
 Accessible radio button group.
 
 ```tsx
-import * as RadioGroup from '@radix-ui/react-radio-group'
+import * as RadioGroup from "@radix-ui/react-radio-group";
 
 export function CustomRadioGroup() {
   return (
     <RadioGroup.Root defaultValue="option1" className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <RadioGroup.Item
-          value="option1"
-          id="option1"
-          className="w-5 h-5 border rounded-full"
-        >
+        <RadioGroup.Item value="option1" id="option1" className="w-5 h-5 border rounded-full">
           <RadioGroup.Indicator className="block w-3 h-3 bg-blue-600 rounded-full m-auto" />
         </RadioGroup.Item>
         <label htmlFor="option1">Option 1</label>
@@ -360,7 +334,7 @@ export function CustomRadioGroup() {
         <label htmlFor="option2">Option 2</label>
       </div>
     </RadioGroup.Root>
-  )
+  );
 }
 ```
 
@@ -369,7 +343,7 @@ export function CustomRadioGroup() {
 Accessible select dropdown with search and keyboard navigation.
 
 ```tsx
-import * as Select from '@radix-ui/react-select'
+import * as Select from "@radix-ui/react-select";
 
 export function CustomSelect() {
   return (
@@ -394,7 +368,7 @@ export function CustomSelect() {
         </Select.Content>
       </Select.Portal>
     </Select.Root>
-  )
+  );
 }
 ```
 
@@ -403,22 +377,17 @@ export function CustomSelect() {
 Accessible range slider with single or multiple thumbs.
 
 ```tsx
-import * as Slider from '@radix-ui/react-slider'
+import * as Slider from "@radix-ui/react-slider";
 
 export function CustomSlider() {
   return (
-    <Slider.Root
-      className="relative flex items-center w-full h-5"
-      defaultValue={[50]}
-      max={100}
-      step={1}
-    >
+    <Slider.Root className="relative flex items-center w-full h-5" defaultValue={[50]} max={100} step={1}>
       <Slider.Track className="relative h-1 bg-gray-200 rounded-full flex-grow">
         <Slider.Range className="absolute h-full bg-blue-600 rounded-full" />
       </Slider.Track>
       <Slider.Thumb className="block w-5 h-5 bg-white border-2 border-blue-600 rounded-full" />
     </Slider.Root>
-  )
+  );
 }
 ```
 
@@ -427,20 +396,17 @@ export function CustomSlider() {
 Accessible toggle switch.
 
 ```tsx
-import * as Switch from '@radix-ui/react-switch'
+import * as Switch from "@radix-ui/react-switch";
 
 export function CustomSwitch() {
   return (
     <div className="flex items-center gap-2">
-      <Switch.Root
-        className="w-11 h-6 bg-gray-300 rounded-full data-[state=checked]:bg-blue-600"
-        id="airplane-mode"
-      >
+      <Switch.Root className="w-11 h-6 bg-gray-300 rounded-full data-[state=checked]:bg-blue-600" id="airplane-mode">
         <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform data-[state=checked]:translate-x-5" />
       </Switch.Root>
       <label htmlFor="airplane-mode">Airplane Mode</label>
     </div>
-  )
+  );
 }
 ```
 
@@ -451,20 +417,22 @@ export function CustomSwitch() {
 Accessible multi-level navigation with keyboard support.
 
 ```tsx
-import * as NavigationMenu from '@radix-ui/react-navigation-menu'
+import * as NavigationMenu from "@radix-ui/react-navigation-menu";
 
 export function CustomNav() {
   return (
     <NavigationMenu.Root className="...">
       <NavigationMenu.List className="flex gap-4">
         <NavigationMenu.Item>
-          <NavigationMenu.Trigger className="...">
-            Products
-          </NavigationMenu.Trigger>
+          <NavigationMenu.Trigger className="...">Products</NavigationMenu.Trigger>
           <NavigationMenu.Content className="absolute top-full left-0 bg-white rounded-lg shadow-lg p-4">
             <ul className="...">
-              <li><a href="/product1">Product 1</a></li>
-              <li><a href="/product2">Product 2</a></li>
+              <li>
+                <a href="/product1">Product 1</a>
+              </li>
+              <li>
+                <a href="/product2">Product 2</a>
+              </li>
             </ul>
           </NavigationMenu.Content>
         </NavigationMenu.Item>
@@ -476,7 +444,7 @@ export function CustomNav() {
         </NavigationMenu.Item>
       </NavigationMenu.List>
     </NavigationMenu.Root>
-  )
+  );
 }
 ```
 
@@ -485,6 +453,7 @@ export function CustomNav() {
 ### Built-in ARIA Support
 
 Radix automatically handles:
+
 - `role` attributes
 - `aria-*` attributes
 - `id` linking between components
@@ -494,10 +463,12 @@ Radix automatically handles:
 ### Keyboard Navigation
 
 **Dialog/AlertDialog:**
+
 - `Escape`: Close dialog
 - `Tab`: Focus trap within dialog
 
 **DropdownMenu:**
+
 - `Space/Enter`: Open menu
 - `↑↓`: Navigate items
 - `→`: Open submenu
@@ -506,17 +477,20 @@ Radix automatically handles:
 - Type to search items
 
 **Tabs:**
+
 - `Tab`: Focus active tab panel
 - `Arrow keys`: Navigate between tabs
 - `Home/End`: First/last tab
 
 **Accordion:**
+
 - `Space/Enter`: Toggle panel
 - `Arrow keys`: Navigate headers
 
 ### Focus Management
 
 All Radix primitives handle focus correctly:
+
 - Focus trap in modals
 - Focus return on close
 - Focus visible indicators
@@ -525,6 +499,7 @@ All Radix primitives handle focus correctly:
 ### Screen Reader Support
 
 Radix ensures screen reader compatibility:
+
 - Proper semantic HTML
 - ARIA labels and descriptions
 - Live regions for dynamic content
@@ -533,6 +508,7 @@ Radix ensures screen reader compatibility:
 ## Best Practices
 
 1. **Always use asChild prop** when wrapping custom components:
+
    ```tsx
    <Dialog.Trigger asChild>
      <button>Custom button</button>
@@ -540,11 +516,13 @@ Radix ensures screen reader compatibility:
    ```
 
 2. **Style with Tailwind** or CSS-in-JS:
+
    ```tsx
    <Dialog.Content className="fixed left-[50%] top-[50%] ...">
    ```
 
 3. **Use Portal for overlays** to render outside parent DOM:
+
    ```tsx
    <Dialog.Portal>
      <Dialog.Overlay />
@@ -553,6 +531,7 @@ Radix ensures screen reader compatibility:
    ```
 
 4. **Leverage data attributes** for state-based styling:
+
    ```tsx
    <Switch.Root className="data-[state=checked]:bg-blue-600">
    ```
@@ -562,9 +541,7 @@ Radix ensures screen reader compatibility:
    // Build complex components from simple primitives
    <Popover.Root>
      <Popover.Trigger>
-       <Select.Root>
-         {/* Combine primitives */}
-       </Select.Root>
+       <Select.Root>{/* Combine primitives */}</Select.Root>
      </Popover.Trigger>
    </Popover.Root>
    ```

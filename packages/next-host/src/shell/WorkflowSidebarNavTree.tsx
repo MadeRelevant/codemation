@@ -14,13 +14,15 @@ import { IconWorkflow } from "./appLayoutSidebarIcons";
 
 const treeBuilder = new WorkflowFolderTreeBuilder();
 
-export function WorkflowSidebarNavTree(args: Readonly<{
-  workflows: ReadonlyArray<WorkflowSummary>;
-  pathname: string;
-  workflowLinkClass: (isActive: boolean) => string;
-  /** Icon-only / compact layout (collapsed shell sidebar). */
-  collapsed?: boolean;
-}>): ReactNode {
+export function WorkflowSidebarNavTree(
+  args: Readonly<{
+    workflows: ReadonlyArray<WorkflowSummary>;
+    pathname: string;
+    workflowLinkClass: (isActive: boolean) => string;
+    /** Icon-only / compact layout (collapsed shell sidebar). */
+    collapsed?: boolean;
+  }>,
+): ReactNode {
   const tree = treeBuilder.build(args.workflows);
   const collapsed = args.collapsed === true;
   return (

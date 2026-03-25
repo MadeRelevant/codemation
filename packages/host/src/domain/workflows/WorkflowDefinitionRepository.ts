@@ -5,5 +5,7 @@ export interface WorkflowDefinitionRepository {
 
   getDefinition(workflowId: string): Promise<WorkflowDefinition | undefined>;
 
-  resolveSnapshot(args: Readonly<{ workflowId: string; workflowSnapshot?: unknown }>): Promise<WorkflowDefinition | undefined>;
+  resolveSnapshot(
+    args: Readonly<{ workflowId: string; workflowSnapshot?: unknown }>,
+  ): Promise<WorkflowDefinition | undefined>;
 }

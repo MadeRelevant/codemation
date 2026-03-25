@@ -87,4 +87,3 @@ export class PersistedWorkflowTokenRegistry {
     return this.tokensById.get(tokenId);
   }
 }
-

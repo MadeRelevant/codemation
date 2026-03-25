@@ -118,11 +118,7 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
               <span className="px-4 py-2 text-xs text-muted-foreground">No workflows</span>
             )}
             {!workflowsQuery.isLoading && workflows.length > 0 && (
-              <WorkflowSidebarNavTree
-                workflows={workflows}
-                pathname={pathname}
-                workflowLinkClass={workflowLinkClass}
-              />
+              <WorkflowSidebarNavTree workflows={workflows} pathname={pathname} workflowLinkClass={workflowLinkClass} />
             )}
           </div>
         </div>

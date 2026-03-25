@@ -1,9 +1,6 @@
 import { inject } from "@codemation/core";
 
-import type {
-UserAccountDto
-} from "../contracts/userDirectoryContracts.types";
-
+import type { UserAccountDto } from "../contracts/userDirectoryContracts.types";
 
 import { QueryHandler } from "../bus/QueryHandler";
 
@@ -12,8 +9,6 @@ import { HandlesQuery } from "../../infrastructure/di/HandlesQueryRegistry";
 import { UserAccountService } from "../../domain/users/UserAccountServiceRegistry";
 
 import { ListUserAccountsQuery } from "./ListUserAccountsQuery";
-
-
 
 @HandlesQuery.for(ListUserAccountsQuery)
 export class ListUserAccountsQueryHandler extends QueryHandler<ListUserAccountsQuery, ReadonlyArray<UserAccountDto>> {

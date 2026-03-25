@@ -70,4 +70,3 @@ try {
 } finally {
   await writeFile(targetPath, original, "utf8").catch(() => null);
 }
-

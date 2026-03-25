@@ -24,7 +24,9 @@ import { NodeSnapshotFactory } from "../../domain/execution/NodeSnapshotFactory"
 
 export class ActivationEnqueueService {
   constructor(
-    private readonly activationScheduler: { enqueue: (request: NodeActivationRequest) => Promise<{ receiptId: string; queue?: string }> } & {
+    private readonly activationScheduler: {
+      enqueue: (request: NodeActivationRequest) => Promise<{ receiptId: string; queue?: string }>;
+    } & {
       notifyPendingStatePersisted?: (runId: RunId) => void;
     },
     private readonly runStore: RunStateStore,
@@ -72,7 +74,10 @@ export class ActivationEnqueueService {
   }): Promise<{ result: RunResult; queuedSnapshot: NodeExecutionSnapshot }> {
     const receipt = await this.activationScheduler.enqueue(args.request);
     const inputsByPort = InputPortMap.fromRequest(args.request);
-    const itemsIn = args.request.kind === "multi" ? args.planner.sumItemsByPort(args.request.inputsByPort) : args.request.input.length;
+    const itemsIn =
+      args.request.kind === "multi"
+        ? args.planner.sumItemsByPort(args.request.inputsByPort)
+        : args.request.input.length;
     const enqueuedAt = new Date().toISOString();
     const pending: PendingNodeExecution = {
       runId: args.runId,
@@ -128,4 +133,3 @@ export class ActivationEnqueueService {
     this.activationScheduler.notifyPendingStatePersisted?.(runId);
   }
 }
-

@@ -1,8 +1,11 @@
 import { WorkflowCanvas } from "@codemation/next-host/src/features/workflows/components/canvas/WorkflowCanvas";
-import type { NodeExecutionSnapshot,WorkflowDto } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
-import { cleanup,fireEvent,render,screen,waitFor } from "@testing-library/react";
+import type {
+  NodeExecutionSnapshot,
+  WorkflowDto,
+} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { afterAll,afterEach,beforeAll,describe,expect,it,vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit/WorkflowDetailFixtures";
 
 describe("workflow canvas toolbar", () => {
@@ -112,7 +115,9 @@ describe("workflow canvas toolbar", () => {
 
     await waitFor(() => {
       expect(canvasRoot.getAttribute("data-workflow-structure-signature")).not.toBe(initialSignature);
-      expect(screen.getByTestId(`canvas-node-card-${WorkflowDetailFixtureFactory.nodeOneId}`)).toHaveTextContent("Node 1 renamed");
+      expect(screen.getByTestId(`canvas-node-card-${WorkflowDetailFixtureFactory.nodeOneId}`)).toHaveTextContent(
+        "Node 1 renamed",
+      );
     });
   });
 });
@@ -120,8 +125,8 @@ describe("workflow canvas toolbar", () => {
 function WorkflowCanvasHarness(args: Readonly<{ initialPinned: boolean }>) {
   const workflow = WorkflowDetailFixtureFactory.createWorkflowDetail();
   const nodeId = WorkflowDetailFixtureFactory.agentNodeId;
-  const [pinnedNodeIds, setPinnedNodeIds] = useState<ReadonlySet<string>>(
-    () => (args.initialPinned ? new Set([nodeId]) : new Set<string>()),
+  const [pinnedNodeIds, setPinnedNodeIds] = useState<ReadonlySet<string>>(() =>
+    args.initialPinned ? new Set([nodeId]) : new Set<string>(),
   );
   const nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>> = {
     [nodeId]: WorkflowDetailFixtureFactory.createSnapshot(nodeId, "completed", 2),

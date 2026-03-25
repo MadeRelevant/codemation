@@ -2,35 +2,38 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-useRunQuery,
-useWorkflowCredentialHealthQuery,
-useWorkflowDebuggerOverlayQuery,
-useWorkflowDevBuildStateQuery,
-useWorkflowQuery,
-useWorkflowRealtimeConnectionState,
-useWorkflowRealtimeSubscription,
-useWorkflowRunsQuery,
-type Items,
-type NodeExecutionSnapshot,
-type PersistedRunState,
-type RunSummary,
-type WorkflowDevBuildState,
-type WorkflowDto,
+  useRunQuery,
+  useWorkflowCredentialHealthQuery,
+  useWorkflowDebuggerOverlayQuery,
+  useWorkflowDevBuildStateQuery,
+  useWorkflowQuery,
+  useWorkflowRealtimeConnectionState,
+  useWorkflowRealtimeSubscription,
+  useWorkflowRunsQuery,
+  type Items,
+  type NodeExecutionSnapshot,
+  type PersistedRunState,
+  type RunSummary,
+  type WorkflowDevBuildState,
+  type WorkflowDto,
 } from "../realtime/realtime";
 import { WorkflowDetailPresenter, type RunWorkflowRequest } from "../../lib/workflowDetail/WorkflowDetailPresenter";
-import { WorkflowDetailUrlCodec, type WorkflowDetailUrlLocation } from "../../lib/workflowDetail/WorkflowDetailUrlCodec";
+import {
+  WorkflowDetailUrlCodec,
+  type WorkflowDetailUrlLocation,
+} from "../../lib/workflowDetail/WorkflowDetailUrlCodec";
 import type {
-InspectorFormat,
-InspectorMode,
-InspectorTab,
-JsonEditorState,
-PinBinaryMapsByItemIndex,
-WorkflowExecutionInspectorActions,
-WorkflowExecutionInspectorFormatting,
-WorkflowExecutionInspectorModel,
-WorkflowRunsSidebarActions,
-WorkflowRunsSidebarFormatting,
-WorkflowRunsSidebarModel,
+  InspectorFormat,
+  InspectorMode,
+  InspectorTab,
+  JsonEditorState,
+  PinBinaryMapsByItemIndex,
+  WorkflowExecutionInspectorActions,
+  WorkflowExecutionInspectorFormatting,
+  WorkflowExecutionInspectorModel,
+  WorkflowRunsSidebarActions,
+  WorkflowRunsSidebarFormatting,
+  WorkflowRunsSidebarModel,
 } from "../../lib/workflowDetail/workflowDetailTypes";
 
 export type WorkflowDetailControllerResult = Readonly<{
@@ -81,7 +84,9 @@ export type WorkflowDetailControllerResult = Readonly<{
   saveJsonEditor: (value: string, binaryMaps?: PinBinaryMapsByItemIndex) => void;
 }>;
 
-export function useWorkflowDetailController(args: Readonly<{ workflowId: string; initialWorkflow?: WorkflowDto }>): WorkflowDetailControllerResult {
+export function useWorkflowDetailController(
+  args: Readonly<{ workflowId: string; initialWorkflow?: WorkflowDto }>,
+): WorkflowDetailControllerResult {
   const MIN_INSPECTOR_HEIGHT = 240;
   const MAX_INSPECTOR_HEIGHT = 640;
   const { workflowId, initialWorkflow } = args;
@@ -140,7 +145,10 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     updatedAt: new Date(0).toISOString(),
   };
   const workflowDevBuildStateQueryKey = useMemo(() => ["workflow-dev-build-state", workflowId] as const, [workflowId]);
-  const liveWorkflowSignature = useMemo(() => WorkflowDetailPresenter.createWorkflowStructureSignature(workflow), [workflow]);
+  const liveWorkflowSignature = useMemo(
+    () => WorkflowDetailPresenter.createWorkflowStructureSignature(workflow),
+    [workflow],
+  );
   const runs = runsQuery.data;
   const selectedRunQuery = useRunQuery(selectedRunId);
   const selectedRun = selectedRunQuery.data;
@@ -150,23 +158,25 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   const viewContext = selectedRunId ? "historical-run" : "live-workflow";
   const liveExecutionState = useMemo(() => {
     const overlayCurrentState = debuggerOverlay?.currentState;
-    const baseLiveExecutionState =
-      !activeLiveRunId
-        ? overlayCurrentState
-        : !activeLiveRun
-          ? ({
-              outputsByNode: {},
-              nodeSnapshotsByNodeId: {},
-              mutableState: overlayCurrentState?.mutableState,
-              connectionInvocations: overlayCurrentState?.connectionInvocations,
-            } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>)
-          : ({
-              outputsByNode: activeLiveRun.outputsByNode,
-              nodeSnapshotsByNodeId: activeLiveRun.nodeSnapshotsByNodeId,
-              mutableState: overlayCurrentState?.mutableState ?? activeLiveRun.mutableState,
-              connectionInvocations: activeLiveRun.connectionInvocations ?? overlayCurrentState?.connectionInvocations,
-            } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>);
-    const reconciledBaseLiveExecutionState = WorkflowDetailPresenter.reconcileCurrentStateWithWorkflow(baseLiveExecutionState, workflow);
+    const baseLiveExecutionState = !activeLiveRunId
+      ? overlayCurrentState
+      : !activeLiveRun
+        ? ({
+            outputsByNode: {},
+            nodeSnapshotsByNodeId: {},
+            mutableState: overlayCurrentState?.mutableState,
+            connectionInvocations: overlayCurrentState?.connectionInvocations,
+          } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>)
+        : ({
+            outputsByNode: activeLiveRun.outputsByNode,
+            nodeSnapshotsByNodeId: activeLiveRun.nodeSnapshotsByNodeId,
+            mutableState: overlayCurrentState?.mutableState ?? activeLiveRun.mutableState,
+            connectionInvocations: activeLiveRun.connectionInvocations ?? overlayCurrentState?.connectionInvocations,
+          } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>);
+    const reconciledBaseLiveExecutionState = WorkflowDetailPresenter.reconcileCurrentStateWithWorkflow(
+      baseLiveExecutionState,
+      workflow,
+    );
     if (!pendingTriggerFetchSnapshot || activeLiveRunId) {
       return reconciledBaseLiveExecutionState;
     }
@@ -202,12 +212,12 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     () =>
       Boolean(
         activeLiveRunId &&
-          (!activeLiveRun ||
-            activeLiveRun.status === "pending" ||
-            activeLiveRun.pending ||
-            Object.values(activeLiveRun.nodeSnapshotsByNodeId).some(
-              (snapshot) => snapshot.status === "queued" || snapshot.status === "running",
-            )),
+        (!activeLiveRun ||
+          activeLiveRun.status === "pending" ||
+          activeLiveRun.pending ||
+          Object.values(activeLiveRun.nodeSnapshotsByNodeId).some(
+            (snapshot) => snapshot.status === "queued" || snapshot.status === "running",
+          )),
       ),
     [activeLiveRun, activeLiveRunId],
   );
@@ -277,13 +287,7 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       isRunsPaneVisible: true,
       nodeId: urlLocation.nodeId,
     });
-  }, [
-    navigateToLocation,
-    selectedRunId,
-    selectedRunQuery.isError,
-    selectedRunQuery.isLoading,
-    urlLocation.nodeId,
-  ]);
+  }, [navigateToLocation, selectedRunId, selectedRunQuery.isError, selectedRunQuery.isLoading, urlLocation.nodeId]);
 
   useEffect(() => {
     const nid = urlLocation.nodeId;
@@ -298,7 +302,13 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       isRunsPaneVisible: urlLocation.isRunsPaneVisible,
       nodeId: null,
     });
-  }, [displayedWorkflow, navigateToLocation, urlLocation.isRunsPaneVisible, urlLocation.nodeId, urlLocation.selectedRunId]);
+  }, [
+    displayedWorkflow,
+    navigateToLocation,
+    urlLocation.isRunsPaneVisible,
+    urlLocation.nodeId,
+    urlLocation.selectedRunId,
+  ]);
 
   useEffect(() => {
     setHasManuallySelectedNode(false);
@@ -360,7 +370,9 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
         }
         return {
           ...existing,
-          currentState: WorkflowDetailPresenter.reconcileCurrentStateWithWorkflow(existing.currentState, workflow) ?? existing.currentState,
+          currentState:
+            WorkflowDetailPresenter.reconcileCurrentStateWithWorkflow(existing.currentState, workflow) ??
+            existing.currentState,
         };
       },
     );
@@ -383,7 +395,16 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       setPropertiesPanelNodeId(null);
       setIsPropertiesPanelOpen(false);
     }
-  }, [debuggerOverlay, liveWorkflowSignature, propertiesPanelNodeId, queryClient, selectedNodeId, selectedRunId, workflow, workflowId]);
+  }, [
+    debuggerOverlay,
+    liveWorkflowSignature,
+    propertiesPanelNodeId,
+    queryClient,
+    selectedNodeId,
+    selectedRunId,
+    workflow,
+    workflowId,
+  ]);
 
   useEffect(() => {
     if (workflowDevBuildState.state !== "building" || !workflowDevBuildState.awaitingWorkflowRefreshAt) {
@@ -438,8 +459,14 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     () => WorkflowDetailPresenter.buildExecutionNodes(displayedWorkflow, currentExecutionState),
     [currentExecutionState, displayedWorkflow],
   );
-  const executionTreeData = useMemo(() => WorkflowDetailPresenter.buildExecutionTreeData(executionNodes), [executionNodes]);
-  const executionTreeExpandedKeys = useMemo(() => WorkflowDetailPresenter.collectExecutionTreeKeys(executionTreeData), [executionTreeData]);
+  const executionTreeData = useMemo(
+    () => WorkflowDetailPresenter.buildExecutionTreeData(executionNodes),
+    [executionNodes],
+  );
+  const executionTreeExpandedKeys = useMemo(
+    () => WorkflowDetailPresenter.collectExecutionTreeKeys(executionTreeData),
+    [executionTreeData],
+  );
   const selectedExecutionTreeKey = useMemo(
     () => WorkflowDetailPresenter.resolveExecutionTreeKeyForNodeId(executionNodes, selectedNodeId),
     [executionNodes, selectedNodeId],
@@ -493,7 +520,14 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     if (nextFocusedNodeId !== selectedNodeId) {
       setSelectedNodeId(nextFocusedNodeId);
     }
-  }, [currentExecutionState, displayedWorkflow, executionNodes, hasManuallySelectedNode, normalizedConnectionInvocations, selectedNodeId]);
+  }, [
+    currentExecutionState,
+    displayedWorkflow,
+    executionNodes,
+    hasManuallySelectedNode,
+    normalizedConnectionInvocations,
+    selectedNodeId,
+  ]);
 
   const selectedExecutionNode = useMemo(() => {
     const direct = executionNodes.find((executionNode) => executionNode.node.id === selectedNodeId);
@@ -518,11 +552,18 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     [displayedWorkflow, selectedExecutionNode, selectedNodeId],
   );
   const selectedPropertiesWorkflowNode = useMemo(
-    () => (propertiesPanelNodeId ? displayedWorkflow?.nodes.find((node) => node.id === propertiesPanelNodeId) : undefined),
+    () =>
+      propertiesPanelNodeId ? displayedWorkflow?.nodes.find((node) => node.id === propertiesPanelNodeId) : undefined,
     [displayedWorkflow, propertiesPanelNodeId],
   );
-  const inputPortEntries = useMemo(() => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.inputsByPort), [selectedNodeSnapshot]);
-  const outputPortEntries = useMemo(() => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.outputs), [selectedNodeSnapshot]);
+  const inputPortEntries = useMemo(
+    () => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.inputsByPort),
+    [selectedNodeSnapshot],
+  );
+  const outputPortEntries = useMemo(
+    () => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.outputs),
+    [selectedNodeSnapshot],
+  );
   const visibleOutputPortEntries = useMemo(
     () => WorkflowDetailPresenter.applyPinnedOutputToPortEntries(outputPortEntries, selectedPinnedOutput),
     [outputPortEntries, selectedPinnedOutput],
@@ -550,7 +591,13 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
 
   const applyPendingRunResult = useCallback(
     (
-      result: { runId: string; workflowId: string; status: string; startedAt?: string; state: PersistedRunState | null },
+      result: {
+        runId: string;
+        workflowId: string;
+        status: string;
+        startedAt?: string;
+        state: PersistedRunState | null;
+      },
       options: Readonly<{ keepLiveWorkflow: boolean }>,
     ) => {
       if (result.state) {
@@ -590,7 +637,10 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
   );
 
   const runExecution = useCallback(
-    (request: RunWorkflowRequest = {}, options: Readonly<{ keepLiveWorkflow: boolean }> = { keepLiveWorkflow: false }) => {
+    (
+      request: RunWorkflowRequest = {},
+      options: Readonly<{ keepLiveWorkflow: boolean }> = { keepLiveWorkflow: false },
+    ) => {
       if (runRequestInFlightRef.current || (options.keepLiveWorkflow && isActiveLiveRunPending)) {
         return;
       }
@@ -644,7 +694,9 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     (
       nodeId: string,
       values: Readonly<{
-        pinnedOutputsByPort?: NonNullable<NonNullable<PersistedRunState["mutableState"]>["nodesById"][string]["pinnedOutputsByPort"]>;
+        pinnedOutputsByPort?: NonNullable<
+          NonNullable<PersistedRunState["mutableState"]>["nodesById"][string]["pinnedOutputsByPort"]
+        >;
       }>,
     ) => {
       const baseCurrentState = JSON.parse(
@@ -737,7 +789,15 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
         binaryMapsByItemIndex: WorkflowDetailPresenter.extractBinaryMapsFromItems(baseItems),
       });
     },
-    [currentExecutionState, displayedWorkflow, navigateToLocation, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId, viewContext, workflowId],
+    [
+      currentExecutionState,
+      displayedWorkflow,
+      navigateToLocation,
+      urlLocation.isRunsPaneVisible,
+      urlLocation.selectedRunId,
+      viewContext,
+      workflowId,
+    ],
   );
 
   const onClearPin = useCallback(() => {
@@ -747,8 +807,9 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     const nextCurrentState = createOverlayCurrentStateWithNodeState(selectedNodeId, {
       pinnedOutputsByPort: undefined,
     });
-    void replaceDebuggerOverlay(nextCurrentState)
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
+    void replaceDebuggerOverlay(nextCurrentState).catch((cause: unknown) =>
+      setError(cause instanceof Error ? cause.message : String(cause)),
+    );
   }, [createOverlayCurrentStateWithNodeState, replaceDebuggerOverlay, selectedNodeId, viewContext]);
 
   const clearPinnedOutputForNode = useCallback(
@@ -770,7 +831,14 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
         setError(cause instanceof Error ? cause.message : String(cause)),
       );
     },
-    [createOverlayCurrentStateWithNodeState, navigateToLocation, replaceDebuggerOverlay, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId, viewContext],
+    [
+      createOverlayCurrentStateWithNodeState,
+      navigateToLocation,
+      replaceDebuggerOverlay,
+      urlLocation.isRunsPaneVisible,
+      urlLocation.selectedRunId,
+      viewContext,
+    ],
   );
 
   const togglePinnedOutputForNode = useCallback(
@@ -808,7 +876,15 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
         setError(cause instanceof Error ? cause.message : String(cause)),
       );
     },
-    [createOverlayCurrentStateWithNodeState, currentExecutionState, navigateToLocation, replaceDebuggerOverlay, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId, viewContext],
+    [
+      createOverlayCurrentStateWithNodeState,
+      currentExecutionState,
+      navigateToLocation,
+      replaceDebuggerOverlay,
+      urlLocation.isRunsPaneVisible,
+      urlLocation.selectedRunId,
+      viewContext,
+    ],
   );
 
   const onCopyToDebugger = useCallback(() => {
@@ -929,7 +1005,10 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
       : debuggerOverlayQuery.error instanceof Error
         ? debuggerOverlayQuery.error.message
         : null;
-  const selectedInputItems = useMemo(() => inputPortEntries.find(([portName]) => portName === selectedInputPort)?.[1], [inputPortEntries, selectedInputPort]);
+  const selectedInputItems = useMemo(
+    () => inputPortEntries.find(([portName]) => portName === selectedInputPort)?.[1],
+    [inputPortEntries, selectedInputPort],
+  );
   const selectedOutputItems = useMemo(
     () => visibleOutputPortEntries.find(([portName]) => portName === selectedOutputPort)?.[1],
     [selectedOutputPort, visibleOutputPortEntries],
@@ -940,7 +1019,12 @@ export function useWorkflowDetailController(args: Readonly<{ workflowId: string;
     [selectedInputItems, viewContext, workflowId],
   );
   const outputAttachments = useMemo(
-    () => WorkflowDetailPresenter.toAttachmentModels(selectedNodeError ? undefined : selectedOutputItems, workflowId, viewContext),
+    () =>
+      WorkflowDetailPresenter.toAttachmentModels(
+        selectedNodeError ? undefined : selectedOutputItems,
+        workflowId,
+        viewContext,
+      ),
     [selectedNodeError, selectedOutputItems, viewContext, workflowId],
   );
 

@@ -21,7 +21,17 @@
 Prefer the barrel so agents don’t mix ad-hoc stacks:
 
 ```ts
-import { z, zodResolver, useForm, Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/forms";
+import {
+  z,
+  zodResolver,
+  useForm,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/forms";
 import { Input } from "@/components/ui/input";
 ```
 

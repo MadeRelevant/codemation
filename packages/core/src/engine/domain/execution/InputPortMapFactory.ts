@@ -12,4 +12,3 @@ export class InputPortMap {
     return { in: request.input };
   }
 }
-

@@ -1,10 +1,10 @@
 import type { Logger } from "@codemation/host/next/server";
 import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
-import { WorkflowDiscoveryPathSegmentsComputer,WorkflowModulePathFinder } from "@codemation/host/server";
+import { WorkflowDiscoveryPathSegmentsComputer, WorkflowModulePathFinder } from "@codemation/host/server";
 import type { FSWatcher } from "chokidar";
 import { watch } from "chokidar";
 import { randomUUID } from "node:crypto";
-import { access,copyFile,cp,mkdir,readdir,readFile,rename,rm,stat,writeFile } from "node:fs/promises";
+import { access, copyFile, cp, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
@@ -27,7 +27,9 @@ type CodemationBuildConfigMetadata = Readonly<{
   workflowDiscoveryDirectories: ReadonlyArray<string>;
 }>;
 
-const defaultConsumerOutputLogger = new ServerLoggerFactory(logLevelPolicyFactory).create("codemation-cli.consumer-output");
+const defaultConsumerOutputLogger = new ServerLoggerFactory(logLevelPolicyFactory).create(
+  "codemation-cli.consumer-output",
+);
 
 export class CodemationConsumerOutputBuilder {
   private static readonly ignoredDirectoryNames = new Set([".codemation", ".git", "dist", "node_modules"]);
@@ -76,11 +78,13 @@ export class CodemationConsumerOutputBuilder {
     this.watchBuildLoopPromise = null;
   }
 
-  async ensureWatching(args: Readonly<{
-    onBuildStarted?: () => Promise<void>;
-    onBuildCompleted: (snapshot: CodemationConsumerOutputBuildSnapshot) => Promise<void>;
-    onBuildFailed?: (error: Error) => Promise<void>;
-  }>): Promise<void> {
+  async ensureWatching(
+    args: Readonly<{
+      onBuildStarted?: () => Promise<void>;
+      onBuildCompleted: (snapshot: CodemationConsumerOutputBuildSnapshot) => Promise<void>;
+      onBuildFailed?: (error: Error) => Promise<void>;
+    }>,
+  ): Promise<void> {
     if (this.watcher) {
       return;
     }
@@ -106,11 +110,13 @@ export class CodemationConsumerOutputBuilder {
     });
   }
 
-  private async flushWatchBuilds(args: Readonly<{
-    onBuildStarted?: () => Promise<void>;
-    onBuildCompleted: (snapshot: CodemationConsumerOutputBuildSnapshot) => Promise<void>;
-    onBuildFailed?: (error: Error) => Promise<void>;
-  }>): Promise<void> {
+  private async flushWatchBuilds(
+    args: Readonly<{
+      onBuildStarted?: () => Promise<void>;
+      onBuildCompleted: (snapshot: CodemationConsumerOutputBuildSnapshot) => Promise<void>;
+      onBuildFailed?: (error: Error) => Promise<void>;
+    }>,
+  ): Promise<void> {
     try {
       while (this.hasPendingWatchBuild) {
         this.hasPendingWatchBuild = false;
@@ -149,10 +155,10 @@ export class CodemationConsumerOutputBuilder {
     const watchEvents = options?.watchEvents ?? [];
     const configSourcePath = await this.resolveConfigPath(this.consumerRoot);
     if (
-      watchEvents.length > 0
-      && this.lastPromotedSnapshot !== null
-      && configSourcePath !== null
-      && !this.requiresFullConsumerRebuild(watchEvents, configSourcePath)
+      watchEvents.length > 0 &&
+      this.lastPromotedSnapshot !== null &&
+      configSourcePath !== null &&
+      !this.requiresFullConsumerRebuild(watchEvents, configSourcePath)
     ) {
       const changedSourcePaths = this.resolveIncrementalEmitSourcePaths(watchEvents);
       if (changedSourcePaths.length > 0) {
@@ -190,7 +196,9 @@ export class CodemationConsumerOutputBuilder {
     return false;
   }
 
-  private resolveIncrementalEmitSourcePaths(events: ReadonlyArray<{ event: string; path: string }>): ReadonlyArray<string> {
+  private resolveIncrementalEmitSourcePaths(
+    events: ReadonlyArray<{ event: string; path: string }>,
+  ): ReadonlyArray<string> {
     const uniquePaths = new Set<string>();
     for (const entry of events) {
       if (entry.event !== "change") {
@@ -207,15 +215,19 @@ export class CodemationConsumerOutputBuilder {
     return [...uniquePaths];
   }
 
-  private async prepareStagedConsumerBuildSnapshot(args: Readonly<{
-    configSourcePath: string;
-    buildVersion: string;
-  }>): Promise<Readonly<{
-    stagedSnapshot: CodemationConsumerOutputBuildSnapshot;
-    outputAppRoot: string;
-    revisionOutputRoot: string;
-    stagedRevisionOutputRoot: string;
-  }>> {
+  private async prepareStagedConsumerBuildSnapshot(
+    args: Readonly<{
+      configSourcePath: string;
+      buildVersion: string;
+    }>,
+  ): Promise<
+    Readonly<{
+      stagedSnapshot: CodemationConsumerOutputBuildSnapshot;
+      outputAppRoot: string;
+      revisionOutputRoot: string;
+      stagedRevisionOutputRoot: string;
+    }>
+  > {
     const outputRoot = this.resolveOutputRoot();
     const revisionOutputRoot = this.resolveRevisionOutputRoot(args.buildVersion);
     const stagedRevisionOutputRoot = this.resolveStagedRevisionOutputRoot(args.buildVersion);
@@ -245,14 +257,16 @@ export class CodemationConsumerOutputBuilder {
     return { stagedSnapshot, outputAppRoot, revisionOutputRoot, stagedRevisionOutputRoot };
   }
 
-  private async emitStagedRevisionAndPromote(args: Readonly<{
-    configSourcePath: string;
-    stagedSnapshot: CodemationConsumerOutputBuildSnapshot;
-    outputAppRoot: string;
-    revisionOutputRoot: string;
-    stagedRevisionOutputRoot: string;
-    emitOutputFiles: () => Promise<void>;
-  }>): Promise<CodemationConsumerOutputBuildSnapshot> {
+  private async emitStagedRevisionAndPromote(
+    args: Readonly<{
+      configSourcePath: string;
+      stagedSnapshot: CodemationConsumerOutputBuildSnapshot;
+      outputAppRoot: string;
+      revisionOutputRoot: string;
+      stagedRevisionOutputRoot: string;
+      emitOutputFiles: () => Promise<void>;
+    }>,
+  ): Promise<CodemationConsumerOutputBuildSnapshot> {
     let promotedRevision = false;
     try {
       await args.emitOutputFiles();
@@ -278,14 +292,18 @@ export class CodemationConsumerOutputBuilder {
     }
   }
 
-  private async buildInternalIncremental(changedSourcePaths: ReadonlyArray<string>): Promise<CodemationConsumerOutputBuildSnapshot> {
+  private async buildInternalIncremental(
+    changedSourcePaths: ReadonlyArray<string>,
+  ): Promise<CodemationConsumerOutputBuildSnapshot> {
     const previous = this.lastPromotedSnapshot;
     if (!previous) {
       throw new Error("Incremental consumer build requires a previous revision.");
     }
     const configSourcePath = await this.resolveConfigPath(this.consumerRoot);
     if (!configSourcePath) {
-      throw new Error('Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".');
+      throw new Error(
+        'Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".',
+      );
     }
     const runtimeSourcePaths = await this.collectRuntimeSourcePaths();
     const runtimeSourceSet = new Set(runtimeSourcePaths.map((sourcePath) => path.resolve(sourcePath)));
@@ -295,10 +313,11 @@ export class CodemationConsumerOutputBuilder {
       }
     }
     const buildVersion = this.createBuildVersion();
-    const { stagedSnapshot, outputAppRoot, revisionOutputRoot, stagedRevisionOutputRoot } = await this.prepareStagedConsumerBuildSnapshot({
-      configSourcePath,
-      buildVersion,
-    });
+    const { stagedSnapshot, outputAppRoot, revisionOutputRoot, stagedRevisionOutputRoot } =
+      await this.prepareStagedConsumerBuildSnapshot({
+        configSourcePath,
+        buildVersion,
+      });
     return await this.emitStagedRevisionAndPromote({
       configSourcePath,
       stagedSnapshot,
@@ -320,14 +339,17 @@ export class CodemationConsumerOutputBuilder {
   private async buildInternalFull(): Promise<CodemationConsumerOutputBuildSnapshot> {
     const configSourcePath = await this.resolveConfigPath(this.consumerRoot);
     if (!configSourcePath) {
-      throw new Error('Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".');
+      throw new Error(
+        'Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".',
+      );
     }
     const runtimeSourcePaths = await this.collectRuntimeSourcePaths();
     const buildVersion = this.createBuildVersion();
-    const { stagedSnapshot, outputAppRoot, revisionOutputRoot, stagedRevisionOutputRoot } = await this.prepareStagedConsumerBuildSnapshot({
-      configSourcePath,
-      buildVersion,
-    });
+    const { stagedSnapshot, outputAppRoot, revisionOutputRoot, stagedRevisionOutputRoot } =
+      await this.prepareStagedConsumerBuildSnapshot({
+        configSourcePath,
+        buildVersion,
+      });
     return await this.emitStagedRevisionAndPromote({
       configSourcePath,
       stagedSnapshot,
@@ -352,11 +374,13 @@ export class CodemationConsumerOutputBuilder {
     });
   }
 
-  private scheduleWatchBuild(args: Readonly<{
-    onBuildStarted?: () => Promise<void>;
-    onBuildCompleted: (snapshot: CodemationConsumerOutputBuildSnapshot) => Promise<void>;
-    onBuildFailed?: (error: Error) => Promise<void>;
-  }>): void {
+  private scheduleWatchBuild(
+    args: Readonly<{
+      onBuildStarted?: () => Promise<void>;
+      onBuildCompleted: (snapshot: CodemationConsumerOutputBuildSnapshot) => Promise<void>;
+      onBuildFailed?: (error: Error) => Promise<void>;
+    }>,
+  ): void {
     this.hasQueuedWatchEvent = true;
     if (this.watchBuildDebounceTimeout) {
       clearTimeout(this.watchBuildDebounceTimeout);
@@ -423,7 +447,10 @@ export class CodemationConsumerOutputBuilder {
       fileName: args.sourcePath,
       reportDiagnostics: false,
     });
-    const rewrittenOutputText = await this.rewriteRelativeImportSpecifiers(args.sourcePath, transpiledOutput.outputText);
+    const rewrittenOutputText = await this.rewriteRelativeImportSpecifiers(
+      args.sourcePath,
+      transpiledOutput.outputText,
+    );
     const outputPath = this.resolveOutputPath(args.outputAppRoot, args.sourcePath);
     await mkdir(path.dirname(outputPath), { recursive: true });
     await writeFile(outputPath, rewrittenOutputText, "utf8");
@@ -446,11 +473,13 @@ export class CodemationConsumerOutputBuilder {
     };
   }
 
-  private async writeEntryFile(args: Readonly<{
-    configSourcePath: string;
-    outputAppRoot: string;
-    snapshot: CodemationConsumerOutputBuildSnapshot;
-  }>): Promise<void> {
+  private async writeEntryFile(
+    args: Readonly<{
+      configSourcePath: string;
+      outputAppRoot: string;
+      snapshot: CodemationConsumerOutputBuildSnapshot;
+    }>,
+  ): Promise<void> {
     const configImportPath = this.resolveOutputImportPath(
       args.outputAppRoot,
       args.snapshot.outputEntryPath,
@@ -461,7 +490,11 @@ export class CodemationConsumerOutputBuilder {
     }
     const workflowImportBlocks = args.snapshot.workflowSourcePaths
       .map((workflowSourcePath: string, index: number) => {
-        const importPath = this.resolveOutputImportPath(args.outputAppRoot, args.snapshot.outputEntryPath, workflowSourcePath);
+        const importPath = this.resolveOutputImportPath(
+          args.outputAppRoot,
+          args.snapshot.outputEntryPath,
+          workflowSourcePath,
+        );
         if (!importPath) {
           throw new Error(`Could not resolve workflow output path: ${workflowSourcePath}`);
         }
@@ -544,9 +577,21 @@ export class CodemationConsumerOutputBuilder {
   }
 
   private async rewriteRelativeImportSpecifiers(sourcePath: string, outputText: string): Promise<string> {
-    let nextOutputText = await this.rewritePatternMatches(sourcePath, outputText, /(from\s+["'])(\.{1,2}\/[^"']+)(["'])/g);
-    nextOutputText = await this.rewritePatternMatches(sourcePath, nextOutputText, /(import\s+["'])(\.{1,2}\/[^"']+)(["'])/g);
-    nextOutputText = await this.rewritePatternMatches(sourcePath, nextOutputText, /(import\s*\(\s*["'])(\.{1,2}\/[^"']+)(["']\s*\))/g);
+    let nextOutputText = await this.rewritePatternMatches(
+      sourcePath,
+      outputText,
+      /(from\s+["'])(\.{1,2}\/[^"']+)(["'])/g,
+    );
+    nextOutputText = await this.rewritePatternMatches(
+      sourcePath,
+      nextOutputText,
+      /(import\s+["'])(\.{1,2}\/[^"']+)(["'])/g,
+    );
+    nextOutputText = await this.rewritePatternMatches(
+      sourcePath,
+      nextOutputText,
+      /(import\s*\(\s*["'])(\.{1,2}\/[^"']+)(["']\s*\))/g,
+    );
     return nextOutputText;
   }
 
@@ -559,7 +604,10 @@ export class CodemationConsumerOutputBuilder {
       if (nextSpecifier === currentSpecifier) {
         continue;
       }
-      rewrittenText = rewrittenText.replace(`${match[1]}${currentSpecifier}${match[3]}`, `${match[1]}${nextSpecifier}${match[3]}`);
+      rewrittenText = rewrittenText.replace(
+        `${match[1]}${currentSpecifier}${match[3]}`,
+        `${match[1]}${nextSpecifier}${match[3]}`,
+      );
     }
     return rewrittenText;
   }
@@ -604,7 +652,11 @@ export class CodemationConsumerOutputBuilder {
     return null;
   }
 
-  private resolveOutputImportPath(outputAppRoot: string, outputEntryPath: string, sourcePath: string | null): string | null {
+  private resolveOutputImportPath(
+    outputAppRoot: string,
+    outputEntryPath: string,
+    sourcePath: string | null,
+  ): string | null {
     if (!sourcePath) {
       return null;
     }
@@ -640,7 +692,9 @@ export class CodemationConsumerOutputBuilder {
     return path.resolve(this.resolveOutputRoot(), "revisions");
   }
 
-  private async promoteStagedRevision(args: Readonly<{ revisionOutputRoot: string; stagedRevisionOutputRoot: string }>): Promise<void> {
+  private async promoteStagedRevision(
+    args: Readonly<{ revisionOutputRoot: string; stagedRevisionOutputRoot: string }>,
+  ): Promise<void> {
     await mkdir(path.dirname(args.revisionOutputRoot), { recursive: true });
     await rm(args.revisionOutputRoot, { force: true, recursive: true }).catch(() => null);
     await rename(args.stagedRevisionOutputRoot, args.revisionOutputRoot);
@@ -725,9 +779,10 @@ export class CodemationConsumerOutputBuilder {
     const workflowDiscoveryDirectories = this.readStringArrayProperty(workflowDiscovery, "directories");
     return {
       hasInlineWorkflows: this.hasProperty(configObjectLiteral, "workflows"),
-      workflowDiscoveryDirectories: workflowDiscoveryDirectories.length > 0
-        ? workflowDiscoveryDirectories
-        : [...WorkflowModulePathFinder.defaultWorkflowDirectories],
+      workflowDiscoveryDirectories:
+        workflowDiscoveryDirectories.length > 0
+          ? workflowDiscoveryDirectories
+          : [...WorkflowModulePathFinder.defaultWorkflowDirectories],
     };
   }
 
@@ -779,7 +834,8 @@ export class CodemationConsumerOutputBuilder {
         }
       }
     }
-    const namedConfigLiteral = objectLiteralsByIdentifier.get("codemationHost") ?? objectLiteralsByIdentifier.get("config");
+    const namedConfigLiteral =
+      objectLiteralsByIdentifier.get("codemationHost") ?? objectLiteralsByIdentifier.get("config");
     if (namedConfigLiteral) {
       return namedConfigLiteral;
     }
@@ -788,7 +844,8 @@ export class CodemationConsumerOutputBuilder {
 
   private hasExportModifier(statement: ts.Node): boolean {
     return ts.canHaveModifiers(statement)
-      ? (ts.getModifiers(statement)?.some((modifier: ts.Modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false)
+      ? (ts.getModifiers(statement)?.some((modifier: ts.Modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ??
+          false)
       : false;
   }
 
@@ -809,12 +866,18 @@ export class CodemationConsumerOutputBuilder {
     return this.getPropertyAssignment(objectLiteral, propertyName) !== null;
   }
 
-  private readObjectLiteralProperty(objectLiteral: ts.ObjectLiteralExpression, propertyName: string): ts.ObjectLiteralExpression | null {
+  private readObjectLiteralProperty(
+    objectLiteral: ts.ObjectLiteralExpression,
+    propertyName: string,
+  ): ts.ObjectLiteralExpression | null {
     const property = this.getPropertyAssignment(objectLiteral, propertyName);
     return this.unwrapObjectLiteralExpression(property?.initializer);
   }
 
-  private readStringArrayProperty(objectLiteral: ts.ObjectLiteralExpression | null, propertyName: string): ReadonlyArray<string> {
+  private readStringArrayProperty(
+    objectLiteral: ts.ObjectLiteralExpression | null,
+    propertyName: string,
+  ): ReadonlyArray<string> {
     if (!objectLiteral) {
       return [];
     }
@@ -831,7 +894,10 @@ export class CodemationConsumerOutputBuilder {
     return values;
   }
 
-  private getPropertyAssignment(objectLiteral: ts.ObjectLiteralExpression, propertyName: string): ts.PropertyAssignment | null {
+  private getPropertyAssignment(
+    objectLiteral: ts.ObjectLiteralExpression,
+    propertyName: string,
+  ): ts.PropertyAssignment | null {
     for (const property of objectLiteral.properties) {
       if (!ts.isPropertyAssignment(property)) {
         continue;
@@ -851,7 +917,10 @@ export class CodemationConsumerOutputBuilder {
     return null;
   }
 
-  private async resolveWorkflowSources(consumerRoot: string, configMetadata: CodemationBuildConfigMetadata): Promise<ReadonlyArray<string>> {
+  private async resolveWorkflowSources(
+    consumerRoot: string,
+    configMetadata: CodemationBuildConfigMetadata,
+  ): Promise<ReadonlyArray<string>> {
     if (configMetadata.hasInlineWorkflows) {
       return [];
     }
@@ -892,7 +961,10 @@ export class CodemationConsumerOutputBuilder {
       if (args.protectedBuildVersions.has(revisionEntry.name)) {
         continue;
       }
-      if (args.protectedBuildVersions.size + retainedNonProtectedRevisionCount < CodemationConsumerOutputBuilder.maxRetainedRevisions) {
+      if (
+        args.protectedBuildVersions.size + retainedNonProtectedRevisionCount <
+        CodemationConsumerOutputBuilder.maxRetainedRevisions
+      ) {
         retainedNonProtectedRevisionCount += 1;
         continue;
       }

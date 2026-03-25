@@ -16,11 +16,11 @@ This document sets the “golden standard” for how we build and review changes
 ### Packages
 
 - `packages/core/`
- - Engine runtime, execution model, workflow builder DSL, and shared types.
- - **Must not** depend on any concrete node implementations.
+- Engine runtime, execution model, workflow builder DSL, and shared types.
+- **Must not** depend on any concrete node implementations.
 - `packages/host/`
- - Framework-owned host package (UI shell, HTTP/WebSocket gateway, persistence wiring).
- - Consumers configure this package; they do not own the UI shell or framework API routes.
+- Framework-owned host package (UI shell, HTTP/WebSocket gateway, persistence wiring).
+- Consumers configure this package; they do not own the UI shell or framework API routes.
 - `packages/core-nodes/`
   - Built-in node configs and implementations.
   - Depends on `@codemation/core`.
@@ -81,7 +81,7 @@ This document sets the “golden standard” for how we build and review changes
 
 ### Forms (`packages/next-host`)
 
-- Use **React Hook Form + Zod** and the barrel **`@/components/forms`** with **`@/components/ui/form`** (not ad-hoc controlled fields). See **`packages/next-host/docs/FORMS.md`**. ESLint blocks raw **`<input>`** / **`<textarea>`** outside **`src/components/ui/**`** (primitives only).
+- Use **React Hook Form + Zod** and the barrel **`@/components/forms`** with **`@/components/ui/form`** (not ad-hoc controlled fields). See **`packages/next-host/docs/FORMS.md`**. ESLint blocks raw **`<input>`** / **`<textarea>`** outside **`src/components/ui/**`\*\* (primitives only).
 
 ### Logging (server / package `src`)
 
@@ -115,6 +115,7 @@ This document sets the “golden standard” for how we build and review changes
 ### Golden rule: mock as little as possible
 
 Use mocks only for:
+
 - truly non-deterministic or expensive integrations (third-party APIs),
 - failure injection that is otherwise impractical,
 - timing edge cases that require deterministic clocks.
@@ -128,10 +129,12 @@ In **`**/test/**`** and **`*.test.*`**, ESLint forbids **`vi.mock`**, **`vi.doMo
 ### Use interfaces + in-memory variants
 
 When introducing a new dependency boundary, define an interface and provide:
+
 - a production implementation (later),
 - an **in-memory implementation** for tests and local dev.
 
 Examples (future):
+
 - `RunStore` → `InMemoryRunStore`
 - `CredentialStore` → `InMemoryCredentialStore`
 - `EventBus` → `InMemoryEventBus`
@@ -197,14 +200,14 @@ Tests use **Vitest** (Vite is the test runner only; there is no Vite-based app).
 
 From the repo root, suites are grouped for **parallel** runs and a single merged coverage artifact:
 
-| Script | Config | Scope |
-|--------|--------|--------|
-| `pnpm run test:unit` | `tooling/vitest/unit.config.ts` | `packages/core`, `core-nodes`, `core-nodes-gmail`, `@codemation/cli`, `@codemation/runtime-dev`, `next-host`, `@codemation/host` `*.test.ts` (Node) |
-| `pnpm run test:integration` | `tooling/vitest/integration.config.ts` | `queue-bullmq`, `@codemation/host` HTTP/integration tests |
-| `pnpm run test:ui` | `tooling/vitest/ui.config.ts` | `@codemation/host` `*.test.tsx` (jsdom) |
-| `pnpm run test:e2e` | `tooling/vitest/e2e.config.ts` | `@codemation/host` e2e placeholders (`passWithNoTests` until cases exist) |
-| `pnpm test` | — | `turbo run build` then **all four** suites in parallel (`test:suites`) |
-| `pnpm run coverage` | — | Runs each suite with **lcov** under `coverage/raw/{unit,integration,ui,e2e}/`, then merges to **`coverage/lcov.info`** |
+| Script                      | Config                                 | Scope                                                                                                                                               |
+| --------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run test:unit`        | `tooling/vitest/unit.config.ts`        | `packages/core`, `core-nodes`, `core-nodes-gmail`, `@codemation/cli`, `@codemation/runtime-dev`, `next-host`, `@codemation/host` `*.test.ts` (Node) |
+| `pnpm run test:integration` | `tooling/vitest/integration.config.ts` | `queue-bullmq`, `@codemation/host` HTTP/integration tests                                                                                           |
+| `pnpm run test:ui`          | `tooling/vitest/ui.config.ts`          | `@codemation/host` `*.test.tsx` (jsdom)                                                                                                             |
+| `pnpm run test:e2e`         | `tooling/vitest/e2e.config.ts`         | `@codemation/host` e2e placeholders (`passWithNoTests` until cases exist)                                                                           |
+| `pnpm test`                 | —                                      | `turbo run build` then **all four** suites in parallel (`test:suites`)                                                                              |
+| `pnpm run coverage`         | —                                      | Runs each suite with **lcov** under `coverage/raw/{unit,integration,ui,e2e}/`, then merges to **`coverage/lcov.info`**                              |
 
 Per-package `pnpm test` remains useful for iterating on one package; the canonical full run is **`pnpm test`** from the root.
 
@@ -230,4 +233,3 @@ Workspace ESLint enforces DI-friendly patterns: no arbitrary `new PascalCase` ou
 - Consumer **`pnpm dev`** is intentionally different: it runs **`codemation dev`**, which starts the Next host from `@codemation/next-host`, watches consumer files, rebuilds `.codemation/output`, and hot-swaps the consumer manifest. It does not watch Codemation workspace packages.
 - See **`docs/development-modes.md`** for the distinction between framework-author mode and consumer mode.
 - Root **`pnpm codemation …`** runs the CLI from source via `tsx` with `tsconfig.codemation-tsx.json` so decorator-heavy workspace imports work from any cwd. From **`apps/test-dev`**, the same script is available as **`pnpm codemation …`** (consumer root defaults to `.`, so you can omit `--consumer-root`). If your shell or pnpm version swallows arguments, insert `--` after `codemation`.
-

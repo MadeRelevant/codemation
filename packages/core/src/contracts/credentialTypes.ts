@@ -1,4 +1,4 @@
-import type { NodeId,WorkflowId } from "./workflowTypes";
+import type { NodeId, WorkflowId } from "./workflowTypes";
 
 export type CredentialTypeId = string;
 export type CredentialInstanceId = string;
@@ -84,11 +84,13 @@ export type CredentialTypeDefinition = Readonly<{
 }>;
 
 export interface CredentialSessionService {
-  getSession<TSession = unknown>(args: Readonly<{
-    workflowId: WorkflowId;
-    nodeId: NodeId;
-    slotKey: string;
-  }>): Promise<TSession>;
+  getSession<TSession = unknown>(
+    args: Readonly<{
+      workflowId: WorkflowId;
+      nodeId: NodeId;
+      slotKey: string;
+    }>,
+  ): Promise<TSession>;
 }
 
 export interface CredentialTypeRegistry {

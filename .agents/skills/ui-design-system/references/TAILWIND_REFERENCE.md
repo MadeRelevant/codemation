@@ -3,6 +3,7 @@
 Complete reference for TailwindCSS utilities and patterns within the UI design system.
 
 ## Table of Contents
+
 - [Layout Utilities](#layout-utilities)
 - [Spacing](#spacing)
 - [Typography](#typography)
@@ -14,6 +15,7 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 ## Layout Utilities
 
 ### Display
+
 ```html
 <div class="block">Block element</div>
 <div class="inline-block">Inline block</div>
@@ -24,27 +26,31 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 ```
 
 ### Flexbox
+
 ```html
 <!-- Alignment -->
 <div class="flex items-center justify-between">
-<div class="flex items-start justify-center">
-<div class="flex items-end justify-around">
+  <div class="flex items-start justify-center">
+    <div class="flex items-end justify-around">
+      <!-- Direction -->
+      <div class="flex flex-col">Vertical stack</div>
+      <div class="flex flex-row">Horizontal row</div>
+      <div class="flex flex-row-reverse">Reverse row</div>
 
-<!-- Direction -->
-<div class="flex flex-col">Vertical stack</div>
-<div class="flex flex-row">Horizontal row</div>
-<div class="flex flex-row-reverse">Reverse row</div>
+      <!-- Wrap -->
+      <div class="flex flex-wrap">Wrapping flex</div>
+      <div class="flex flex-nowrap">No wrap</div>
 
-<!-- Wrap -->
-<div class="flex flex-wrap">Wrapping flex</div>
-<div class="flex flex-nowrap">No wrap</div>
-
-<!-- Gap -->
-<div class="flex gap-4">16px gap</div>
-<div class="flex gap-x-6 gap-y-4">Different X/Y gaps</div>
+      <!-- Gap -->
+      <div class="flex gap-4">16px gap</div>
+      <div class="flex gap-x-6 gap-y-4">Different X/Y gaps</div>
+    </div>
+  </div>
+</div>
 ```
 
 ### Grid
+
 ```html
 <!-- Basic grid -->
 <div class="grid grid-cols-3 gap-4">3 equal columns</div>
@@ -54,12 +60,11 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 <div class="grid grid-cols-[1fr_500px_2fr]">Fixed + flexible</div>
 
 <!-- Auto-fill/fit -->
-<div class="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))]">
-  Responsive auto-fill
-</div>
+<div class="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))]">Responsive auto-fill</div>
 ```
 
 ### Positioning
+
 ```html
 <div class="relative">Relative positioning</div>
 <div class="absolute top-0 right-0">Absolute</div>
@@ -70,6 +75,7 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 ## Spacing
 
 ### Padding
+
 ```html
 <div class="p-4">All sides: 16px</div>
 <div class="px-6 py-3">Horizontal: 24px, Vertical: 12px</div>
@@ -80,6 +86,7 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 ```
 
 ### Margin
+
 ```html
 <div class="m-4">All sides: 16px</div>
 <div class="mx-auto">Center horizontally</div>
@@ -89,6 +96,7 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 ```
 
 ### Spacing Scale
+
 - `0`: 0px
 - `px`: 1px
 - `0.5`: 2px (0.125rem)
@@ -105,6 +113,7 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 ## Typography
 
 ### Font Size
+
 ```html
 <p class="text-xs">12px - Extra small</p>
 <p class="text-sm">14px - Small</p>
@@ -118,6 +127,7 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 ```
 
 ### Font Weight
+
 ```html
 <p class="font-thin">100 - Thin</p>
 <p class="font-light">300 - Light</p>
@@ -129,6 +139,7 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 ```
 
 ### Line Height
+
 ```html
 <p class="leading-none">1 - No line height</p>
 <p class="leading-tight">1.25 - Tight</p>
@@ -141,6 +152,7 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 ```
 
 ### Text Alignment
+
 ```html
 <p class="text-left">Left aligned</p>
 <p class="text-center">Center aligned</p>
@@ -149,6 +161,7 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 ```
 
 ### Text Truncation
+
 ```html
 <p class="truncate">Truncate with ellipsis on one line</p>
 <p class="line-clamp-3">Truncate after 3 lines</p>
@@ -158,7 +171,9 @@ Complete reference for TailwindCSS utilities and patterns within the UI design s
 ## Colors & Backgrounds
 
 ### Color Scale (50-950)
+
 Each color has 11 shades:
+
 - `50`: Lightest
 - `100-400`: Light variations
 - `500`: Base color (default)
@@ -166,6 +181,7 @@ Each color has 11 shades:
 - `950`: Darkest
 
 ### Text Colors
+
 ```html
 <p class="text-gray-900">Dark gray text</p>
 <p class="text-blue-600">Blue text</p>
@@ -174,6 +190,7 @@ Each color has 11 shades:
 ```
 
 ### Background Colors
+
 ```html
 <div class="bg-white">White background</div>
 <div class="bg-gray-100">Light gray</div>
@@ -182,6 +199,7 @@ Each color has 11 shades:
 ```
 
 ### Opacity Modifiers
+
 ```html
 <div class="bg-black/75">75% opacity</div>
 <div class="text-blue-500/30">30% opacity text</div>
@@ -191,6 +209,7 @@ Each color has 11 shades:
 ## Responsive Design
 
 ### Breakpoints
+
 - `sm`: 640px and up (mobile landscape, small tablets)
 - `md`: 768px and up (tablets)
 - `lg`: 1024px and up (laptops, small desktops)
@@ -198,22 +217,24 @@ Each color has 11 shades:
 - `2xl`: 1536px and up (large desktops)
 
 ### Mobile-First Examples
+
 ```html
 <!-- Responsive columns: 1 on mobile, 2 on tablet, 4 on desktop -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  <!-- Responsive text sizes -->
+  <h1 class="text-2xl md:text-4xl lg:text-6xl">Responsive heading</h1>
 
-<!-- Responsive text sizes -->
-<h1 class="text-2xl md:text-4xl lg:text-6xl">Responsive heading</h1>
+  <!-- Hide/show at breakpoints -->
+  <div class="hidden lg:block">Desktop only</div>
+  <div class="block lg:hidden">Mobile only</div>
 
-<!-- Hide/show at breakpoints -->
-<div class="hidden lg:block">Desktop only</div>
-<div class="block lg:hidden">Mobile only</div>
-
-<!-- Responsive padding -->
-<div class="p-4 md:p-6 lg:p-8">Responsive padding</div>
+  <!-- Responsive padding -->
+  <div class="p-4 md:p-6 lg:p-8">Responsive padding</div>
+</div>
 ```
 
 ### Max-Width Queries
+
 ```html
 <!-- Apply below 768px -->
 <div class="flex max-md:hidden">Hidden on mobile</div>
@@ -223,23 +244,24 @@ Each color has 11 shades:
 ```
 
 ### Container Queries
+
 ```html
 <div class="@container">
-  <div class="@md:grid-cols-2 @lg:grid-cols-3">
-    Responds to parent width, not viewport
-  </div>
+  <div class="@md:grid-cols-2 @lg:grid-cols-3">Responds to parent width, not viewport</div>
 </div>
 ```
 
 ## Dark Mode
 
 ### Setup
+
 ```html
 <!-- Add dark mode class to html element -->
-<html class="dark">
+<html class="dark"></html>
 ```
 
 ### Dark Mode Utilities
+
 ```html
 <!-- Colors -->
 <div class="bg-white dark:bg-gray-900">Background</div>
@@ -256,24 +278,27 @@ Each color has 11 shades:
 ```
 
 ### Dark Mode Toggle
+
 ```javascript
 // Toggle dark mode
 function toggleDarkMode() {
-  const isDark = document.documentElement.classList.toggle('dark')
-  localStorage.setItem('theme', isDark ? 'dark' : 'light')
+  const isDark = document.documentElement.classList.toggle("dark");
+  localStorage.setItem("theme", isDark ? "dark" : "light");
 }
 
 // Initialize on page load
-if (localStorage.theme === 'dark' ||
-    (!('theme' in localStorage) &&
-     window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-  document.documentElement.classList.add('dark')
+if (
+  localStorage.theme === "dark" ||
+  (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)
+) {
+  document.documentElement.classList.add("dark");
 }
 ```
 
 ## Custom Theme Configuration
 
 ### CSS Variables Approach
+
 ```css
 @layer base {
   :root {
@@ -295,6 +320,7 @@ if (localStorage.theme === 'dark' ||
 ```
 
 ### Tailwind Config Extend
+
 ```typescript
 // tailwind.config.ts
 export default {
@@ -302,28 +328,29 @@ export default {
     extend: {
       colors: {
         brand: {
-          50: 'hsl(var(--color-brand-50))',
-          500: 'hsl(var(--color-brand-500))',
-          900: 'hsl(var(--color-brand-900))',
+          50: "hsl(var(--color-brand-50))",
+          500: "hsl(var(--color-brand-500))",
+          900: "hsl(var(--color-brand-900))",
         },
       },
       fontFamily: {
-        display: 'var(--font-display)',
+        display: "var(--font-display)",
       },
       spacing: {
-        navbar: 'var(--spacing-navbar)',
+        navbar: "var(--spacing-navbar)",
       },
       screens: {
-        '3xl': '120rem',
+        "3xl": "120rem",
       },
     },
   },
-}
+};
 ```
 
 ## Interactive States
 
 ### Hover
+
 ```html
 <button class="bg-blue-500 hover:bg-blue-700">Hover color change</button>
 <a class="text-blue-600 hover:underline">Hover underline</a>
@@ -331,24 +358,26 @@ export default {
 ```
 
 ### Focus
+
 ```html
 <input class="border focus:border-blue-500 focus:ring-2 focus:ring-blue-200" />
 <button class="focus:outline-none focus:ring-4 focus:ring-blue-300">Focus ring</button>
 ```
 
 ### Active
+
 ```html
 <button class="bg-blue-500 active:bg-blue-800">Active state</button>
 ```
 
 ### Disabled
+
 ```html
-<button class="disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-  Disabled button
-</button>
+<button class="disabled:opacity-50 disabled:cursor-not-allowed" disabled>Disabled button</button>
 ```
 
 ### Group Hover (Parent State)
+
 ```html
 <div class="group hover:bg-gray-100">
   <p class="group-hover:text-blue-600">Changes on parent hover</p>
@@ -357,11 +386,10 @@ export default {
 ```
 
 ### Peer State (Sibling State)
+
 ```html
 <input type="checkbox" class="peer" id="terms" />
-<label for="terms" class="peer-checked:text-blue-600">
-  I accept terms (changes when checkbox checked)
-</label>
+<label for="terms" class="peer-checked:text-blue-600"> I accept terms (changes when checkbox checked) </label>
 ```
 
 ## Best Practices
@@ -376,6 +404,7 @@ export default {
 ## Common Patterns
 
 ### Centered Content
+
 ```html
 <!-- Horizontal center -->
 <div class="flex justify-center">Content</div>
@@ -386,13 +415,13 @@ export default {
 ```
 
 ### Full-Width with Max Width
+
 ```html
-<div class="container mx-auto px-4 max-w-7xl">
-  Contained content with padding
-</div>
+<div class="container mx-auto px-4 max-w-7xl">Contained content with padding</div>
 ```
 
 ### Aspect Ratios
+
 ```html
 <div class="aspect-square">Square (1:1)</div>
 <div class="aspect-video">Video (16:9)</div>
@@ -400,6 +429,7 @@ export default {
 ```
 
 ### Smooth Scrolling
+
 ```html
 <html class="scroll-smooth">
   <a href="#section">Smooth scroll to section</a>

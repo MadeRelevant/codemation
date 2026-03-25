@@ -31,13 +31,15 @@ class FrontendWebhookWorkflowFixture {
 }
 
 function resolveWebhookFromEntry(
-  entry: Readonly<{
-    endpointPath: string;
-    workflowId: string;
-    nodeId: string;
-    methods: ReadonlyArray<"GET" | "POST" | "PUT" | "PATCH" | "DELETE">;
-    parseJsonBody?: (body: unknown) => unknown;
-  }> | undefined,
+  entry:
+    | Readonly<{
+        endpointPath: string;
+        workflowId: string;
+        nodeId: string;
+        methods: ReadonlyArray<"GET" | "POST" | "PUT" | "PATCH" | "DELETE">;
+        parseJsonBody?: (body: unknown) => unknown;
+      }>
+    | undefined,
   endpointPath: string,
   method: string,
 ): WebhookTriggerResolution {
@@ -58,40 +60,46 @@ function resolveWebhookFromEntry(
 }
 
 class FrontendWebhookRuntimeFixture {
-  static create(args?: Readonly<{
-    entry?: Readonly<{
-      endpointPath: string;
-      workflowId: string;
-      nodeId: string;
-      methods: ReadonlyArray<"GET" | "POST" | "PUT" | "PATCH" | "DELETE">;
-      parseJsonBody?: (body: unknown) => unknown;
-    }>;
-    responseItems?: ReadonlyArray<Readonly<{ json: unknown }>>;
-  }>) {
-    const runWebhookMatch = vi.fn().mockImplementation(
-      async ({ match, requestItem }: { match: WebhookInvocationMatch; requestItem: { json?: unknown } }) => {
-        const entry = args?.entry;
-        if (!entry || entry.endpointPath !== match.endpointPath) {
-          throw new Error("Unknown webhook endpoint");
-        }
-        return {
-          runId: "run_webhook_route",
-          workflowId: FrontendWebhookWorkflowFixture.createWorkflow().id,
-          startedAt: "2026-03-11T12:00:00.000Z",
-          runStatus: "completed" as const,
-          response: [{ json: requestItem.json }, ...(args?.responseItems ?? [{ json: { ok: true } }])],
-        };
-      },
-    );
+  static create(
+    args?: Readonly<{
+      entry?: Readonly<{
+        endpointPath: string;
+        workflowId: string;
+        nodeId: string;
+        methods: ReadonlyArray<"GET" | "POST" | "PUT" | "PATCH" | "DELETE">;
+        parseJsonBody?: (body: unknown) => unknown;
+      }>;
+      responseItems?: ReadonlyArray<Readonly<{ json: unknown }>>;
+    }>,
+  ) {
+    const runWebhookMatch = vi
+      .fn()
+      .mockImplementation(
+        async ({ match, requestItem }: { match: WebhookInvocationMatch; requestItem: { json?: unknown } }) => {
+          const entry = args?.entry;
+          if (!entry || entry.endpointPath !== match.endpointPath) {
+            throw new Error("Unknown webhook endpoint");
+          }
+          return {
+            runId: "run_webhook_route",
+            workflowId: FrontendWebhookWorkflowFixture.createWorkflow().id,
+            startedAt: "2026-03-11T12:00:00.000Z",
+            runStatus: "completed" as const,
+            response: [{ json: requestItem.json }, ...(args?.responseItems ?? [{ json: { ok: true } }])],
+          };
+        },
+      );
     const workflow = FrontendWebhookWorkflowFixture.createWorkflow();
     return {
       workflow,
       runWebhookMatch,
       preparedExecutionRuntime: {
         runIntentService: {
-          resolveWebhookTrigger: vi.fn().mockImplementation(({ endpointPath, method }: { endpointPath: string; method: string }) =>
-            resolveWebhookFromEntry(args?.entry, endpointPath, method),
-          ),
+          resolveWebhookTrigger: vi
+            .fn()
+            .mockImplementation(({ endpointPath, method }: { endpointPath: string; method: string }) =>
+              resolveWebhookFromEntry(args?.entry, endpointPath, method),
+            ),
           runWebhookMatch,
         },
       },

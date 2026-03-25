@@ -1,4 +1,4 @@
-import { WebSocket,WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
 import type { WorkflowWebsocketMessage } from "../../application/contracts/WorkflowWebsocketMessage";
 import type { Logger } from "../../application/logging/Logger";
 import type { WorkflowWebsocketPublisher } from "../../application/websocket/WorkflowWebsocketPublisher";
@@ -123,16 +123,22 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
       if (message.kind === "subscribe") {
         this.roomIdsBySocket.get(socket)?.add(message.roomId);
         this.logger.debug(`subscribed room=${message.roomId}`);
-        socket.send(JSON.stringify({ kind: "subscribed", roomId: message.roomId } satisfies WorkflowWebsocketServerMessage));
+        socket.send(
+          JSON.stringify({ kind: "subscribed", roomId: message.roomId } satisfies WorkflowWebsocketServerMessage),
+        );
         return;
       }
       this.roomIdsBySocket.get(socket)?.delete(message.roomId);
       this.logger.debug(`unsubscribed room=${message.roomId}`);
-      socket.send(JSON.stringify({ kind: "unsubscribed", roomId: message.roomId } satisfies WorkflowWebsocketServerMessage));
+      socket.send(
+        JSON.stringify({ kind: "unsubscribed", roomId: message.roomId } satisfies WorkflowWebsocketServerMessage),
+      );
     } catch (error) {
       const exception = error instanceof Error ? error : new Error(String(error));
       this.logger.warn(`failed to handle client message: ${exception.message}`);
-      socket.send(JSON.stringify({ kind: "error", message: exception.message } satisfies WorkflowWebsocketServerMessage));
+      socket.send(
+        JSON.stringify({ kind: "error", message: exception.message } satisfies WorkflowWebsocketServerMessage),
+      );
     }
   }
 
@@ -160,5 +166,4 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
     }
     throw new Error("Unsupported websocket client message.");
   }
-
 }

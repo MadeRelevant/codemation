@@ -2,8 +2,6 @@ import type { RunEventSubscription } from "@codemation/core";
 
 import IORedis from "ioredis";
 
-
-
 export class RedisRunEventSubscription implements RunEventSubscription {
   constructor(
     private readonly subscriber: IORedis,

@@ -1,4 +1,4 @@
-import { describe,expect,it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { InMemoryTriggerSetupStateStore } from "../src/infrastructure/persistence/InMemoryTriggerSetupStateStore";
 
 class TriggerSetupStateStoreFixture {

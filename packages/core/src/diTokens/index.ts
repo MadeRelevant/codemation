@@ -22,8 +22,12 @@ import type {
 } from "../types";
 
 export const CoreTokens = {
-  PersistedWorkflowTokenRegistry: Symbol.for("codemation.core.PersistedWorkflowTokenRegistry") as TypeToken<PersistedWorkflowTokenRegistryLike>,
-  CredentialSessionService: Symbol.for("codemation.core.CredentialSessionService") as TypeToken<CredentialSessionService>,
+  PersistedWorkflowTokenRegistry: Symbol.for(
+    "codemation.core.PersistedWorkflowTokenRegistry",
+  ) as TypeToken<PersistedWorkflowTokenRegistryLike>,
+  CredentialSessionService: Symbol.for(
+    "codemation.core.CredentialSessionService",
+  ) as TypeToken<CredentialSessionService>,
   CredentialTypeRegistry: Symbol.for("codemation.core.CredentialTypeRegistry") as TypeToken<CredentialTypeRegistry>,
   WorkflowRunnerService: Symbol.for("codemation.core.WorkflowRunnerService") as TypeToken<WorkflowRunnerService>,
   WorkflowRunnerResolver: Symbol.for("codemation.core.WorkflowRunnerResolver") as TypeToken<WorkflowRunnerResolver>,
@@ -44,6 +48,7 @@ export const CoreTokens = {
   BinaryStorage: Symbol.for("codemation.core.BinaryStorage") as TypeToken<BinaryStorage>,
   WebhookBasePath: Symbol.for("codemation.core.WebhookBasePath") as TypeToken<string>,
   /** Engine execution limits (defaults + optional host overrides). Consumers may bind a custom instance to override. */
-  EngineExecutionLimitsPolicy: Symbol.for("codemation.core.EngineExecutionLimitsPolicy") as TypeToken<EngineExecutionLimitsPolicy>,
+  EngineExecutionLimitsPolicy: Symbol.for(
+    "codemation.core.EngineExecutionLimitsPolicy",
+  ) as TypeToken<EngineExecutionLimitsPolicy>,
 } as const;
-

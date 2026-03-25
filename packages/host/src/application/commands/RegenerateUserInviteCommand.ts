@@ -1,14 +1,6 @@
-
-import type {
-InviteUserResponseDto
-} from "../contracts/userDirectoryContracts.types";
+import type { InviteUserResponseDto } from "../contracts/userDirectoryContracts.types";
 
 import { Command } from "../bus/Command";
-
-
-
-
-
 
 export class RegenerateUserInviteCommand extends Command<InviteUserResponseDto> {
   constructor(

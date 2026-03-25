@@ -1,4 +1,4 @@
-import { createWorkflowBuilder,MapData,WebhookTrigger } from "@codemation/core-nodes";
+import { createWorkflowBuilder, MapData, WebhookTrigger } from "@codemation/core-nodes";
 import { z } from "zod";
 
 export default createWorkflowBuilder({ id: "wf.webhook.normal", name: "Webhook normal completion" })
@@ -18,18 +18,22 @@ export default createWorkflowBuilder({ id: "wf.webhook.normal", name: "Webhook n
     ),
   )
   .then(
-    new MapData("Format webhook response", (item) => {
-      const payload = item.json as Readonly<{
-        json?: Readonly<{ orderId: string; amount: number }>;
-        method: string;
-      }>;
-      return {
-        ok: true,
-        mode: "normal",
-        method: payload.method,
-        orderId: payload.json?.orderId,
-        amount: payload.json?.amount,
-      };
-    }, "format_response"),
+    new MapData(
+      "Format webhook response",
+      (item) => {
+        const payload = item.json as Readonly<{
+          json?: Readonly<{ orderId: string; amount: number }>;
+          method: string;
+        }>;
+        return {
+          ok: true,
+          mode: "normal",
+          method: payload.method,
+          orderId: payload.json?.orderId,
+          amount: payload.json?.amount,
+        };
+      },
+      "format_response",
+    ),
   )
   .build();

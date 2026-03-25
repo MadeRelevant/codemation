@@ -1,12 +1,15 @@
 import dagre from "dagre";
-import { MarkerType,Position,type Edge as ReactFlowEdge,type Node as ReactFlowNode } from "@xyflow/react";
+import { MarkerType, Position, type Edge as ReactFlowEdge, type Node as ReactFlowNode } from "@xyflow/react";
 
 import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../../lib/realtime/realtimeDomainTypes";
 import type { WorkflowDto } from "../../../lib/realtime/workflowTypes";
 import type { WorkflowCanvasNodeData } from "./workflowCanvasNodeData";
 import { WorkflowCanvasEdgeCountResolver } from "./WorkflowCanvasEdgeCountResolver";
 import { WorkflowCanvasEdgeStyleResolver } from "./WorkflowCanvasEdgeStyleResolver";
-import { WORKFLOW_CANVAS_MAIN_EDGE_CORNER_RADIUS,WORKFLOW_CANVAS_MAIN_EDGE_OFFSET } from "./workflowCanvasEdgeGeometry";
+import {
+  WORKFLOW_CANVAS_MAIN_EDGE_CORNER_RADIUS,
+  WORKFLOW_CANVAS_MAIN_EDGE_OFFSET,
+} from "./workflowCanvasEdgeGeometry";
 import { WorkflowCanvasOverlapResolver } from "./WorkflowCanvasOverlapResolver";
 import { WorkflowCanvasPortOrderResolver } from "./WorkflowCanvasPortOrderResolver";
 
@@ -40,7 +43,9 @@ export function layoutWorkflow(
   const attachmentXSpacing = attachmentNodeWidth + 32;
   const layoutNodes = workflow.nodes.filter((node) => !node.parentNodeId);
   const layoutNodeIds = new Set(layoutNodes.map((node) => node.id));
-  const layoutEdges = workflow.edges.filter((edge) => layoutNodeIds.has(edge.from.nodeId) && layoutNodeIds.has(edge.to.nodeId));
+  const layoutEdges = workflow.edges.filter(
+    (edge) => layoutNodeIds.has(edge.from.nodeId) && layoutNodeIds.has(edge.to.nodeId),
+  );
 
   for (const node of layoutNodes) {
     dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
@@ -117,8 +122,12 @@ export function layoutWorkflow(
     const resolvedNodeHeight = n.parentNodeId ? attachmentNodeHeight : nodeHeight;
     const rawOut = outgoingOutputsByNodeId.get(n.id);
     const rawIn = incomingInputsByNodeId.get(n.id);
-    const sourceOutputPorts = WorkflowCanvasPortOrderResolver.sortSourceOutputs(rawOut && rawOut.size > 0 ? [...rawOut] : ["main"]);
-    const targetInputPorts = WorkflowCanvasPortOrderResolver.sortTargetInputs(rawIn && rawIn.size > 0 ? [...rawIn] : ["in"]);
+    const sourceOutputPorts = WorkflowCanvasPortOrderResolver.sortSourceOutputs(
+      rawOut && rawOut.size > 0 ? [...rawOut] : ["main"],
+    );
+    const targetInputPorts = WorkflowCanvasPortOrderResolver.sortTargetInputs(
+      rawIn && rawIn.size > 0 ? [...rawIn] : ["in"],
+    );
     return {
       id: n.id,
       type: "codemation",
@@ -168,7 +177,11 @@ export function layoutWorkflow(
     const targetNode = nodesById.get(e.to.nodeId);
     const isAttachmentEdge = targetNode?.role === "languageModel" || targetNode?.role === "tool";
     const attachmentSourceHandle =
-      targetNode?.role === "languageModel" ? "attachment-llm-source" : targetNode?.role === "tool" ? "attachment-tools-source" : undefined;
+      targetNode?.role === "languageModel"
+        ? "attachment-llm-source"
+        : targetNode?.role === "tool"
+          ? "attachment-tools-source"
+          : undefined;
     const outgoingFromSourceCount = outgoingOutputsByNodeId.get(e.from.nodeId)?.size ?? 0;
     const incomingToTargetCount = incomingInputsByNodeId.get(e.to.nodeId)?.size ?? 0;
     const useSharedBranchSourceHandle = !isAttachmentEdge && outgoingFromSourceCount > 1;
@@ -198,7 +211,11 @@ export function layoutWorkflow(
       : useSharedBranchSourceHandle
         ? undefined
         : e.from.output;
-    const mainTargetHandle = isAttachmentEdge ? "attachment-target" : useSharedBranchTargetHandle ? undefined : e.to.input;
+    const mainTargetHandle = isAttachmentEdge
+      ? "attachment-target"
+      : useSharedBranchTargetHandle
+        ? undefined
+        : e.to.input;
     const isForkOutgoingEdge = !isAttachmentEdge && !isStraightMainEdge && outgoingFromSourceCount > 1;
     return {
       id: `${e.from.nodeId}:${e.from.output}->${e.to.nodeId}:${e.to.input}:${i}`,
@@ -207,7 +224,13 @@ export function layoutWorkflow(
       sourceHandle: mainSourceHandle,
       targetHandle: mainTargetHandle,
       animated: false,
-      type: isAttachmentEdge ? "smoothstep" : isStraightMainEdge ? "straightCount" : isForkOutgoingEdge ? "symmetricFork" : "smoothstep",
+      type: isAttachmentEdge
+        ? "smoothstep"
+        : isStraightMainEdge
+          ? "straightCount"
+          : isForkOutgoingEdge
+            ? "symmetricFork"
+            : "smoothstep",
       pathOptions:
         isAttachmentEdge || isStraightMainEdge || isForkOutgoingEdge
           ? undefined

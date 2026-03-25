@@ -1,17 +1,10 @@
-import type {
-BinaryAttachment,
-NodeActivationId,
-NodeId,
-RunId,
-WorkflowId
-} from "../../types";
-
+import type { BinaryAttachment, NodeActivationId, NodeId, RunId, WorkflowId } from "../../types";
 
 import type {
-BinaryStorage,
-BinaryStorageReadResult,
-ExecutionBinaryService,
-NodeBinaryAttachmentService
+  BinaryStorage,
+  BinaryStorageReadResult,
+  ExecutionBinaryService,
+  NodeBinaryAttachmentService,
 } from "../../types";
 
 import { DefaultNodeBinaryAttachmentService } from "./DefaultNodeBinaryAttachmentServiceFactory";

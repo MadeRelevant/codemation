@@ -1,6 +1,10 @@
-import type { NodeExecutionSnapshot,PersistedRunState,WorkflowDto } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
-import { fireEvent,screen,waitFor } from "@testing-library/react";
-import { afterEach,describe,expect,it } from "vitest";
+import type {
+  NodeExecutionSnapshot,
+  PersistedRunState,
+  WorkflowDto,
+} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import { WorkflowDetailScreenTestKit } from "./testkit";
 
 class DebugSessionSequenceFixture {
@@ -39,9 +43,14 @@ class DebugSessionSequenceFixture {
       startedAt: this.startedAt,
       status: "completed",
       queue: [],
-      outputsByNode: Object.fromEntries(completedNodeIds.map((nodeId, index) => [nodeId, { main: [{ json: { nodeId, step: index + 1 } }] }])) as PersistedRunState["outputsByNode"],
+      outputsByNode: Object.fromEntries(
+        completedNodeIds.map((nodeId, index) => [nodeId, { main: [{ json: { nodeId, step: index + 1 } }] }]),
+      ) as PersistedRunState["outputsByNode"],
       nodeSnapshotsByNodeId: Object.fromEntries(
-        completedNodeIds.map((nodeId, index) => [nodeId, this.createSnapshot({ nodeId, step: index + 1, status: "completed", runId: args.runId })]),
+        completedNodeIds.map((nodeId, index) => [
+          nodeId,
+          this.createSnapshot({ nodeId, step: index + 1, status: "completed", runId: args.runId }),
+        ]),
       ) as PersistedRunState["nodeSnapshotsByNodeId"],
       workflowSnapshot: undefined,
       mutableState: {
@@ -76,7 +85,9 @@ class DebugSessionSequenceFixture {
     };
   }
 
-  static createSnapshot(args: Readonly<{ nodeId: string; step: number; status: NodeExecutionSnapshot["status"]; runId: string }>): NodeExecutionSnapshot {
+  static createSnapshot(
+    args: Readonly<{ nodeId: string; step: number; status: NodeExecutionSnapshot["status"]; runId: string }>,
+  ): NodeExecutionSnapshot {
     const timestamp = `2026-03-16T12:00:${String(args.step).padStart(2, "0")}.000Z`;
     return {
       runId: args.runId,
@@ -136,5 +147,4 @@ describe("workflow detail debug session sequence", () => {
       expect(screen.getByTestId("canvas-node-run-button-node_4")).toBeEnabled();
     });
   });
-
 });

@@ -6,4 +6,3 @@ export class CurrentStateFrontierPlannerFactory {
     return new CurrentStateFrontierPlanner(topology);
   }
 }
-

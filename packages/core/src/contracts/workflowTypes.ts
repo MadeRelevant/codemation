@@ -93,7 +93,10 @@ export interface RunnableNodeConfig<TInputJson = unknown, TOutputJson = unknown>
 
 export declare const triggerNodeSetupStateType: unique symbol;
 
-export interface TriggerNodeConfig<TOutputJson = unknown, TSetupState extends JsonValue | undefined = undefined> extends NodeConfigBase {
+export interface TriggerNodeConfig<
+  TOutputJson = unknown,
+  TSetupState extends JsonValue | undefined = undefined,
+> extends NodeConfigBase {
   readonly kind: "trigger";
   readonly [triggerNodeOutputType]?: TOutputJson;
   readonly [triggerNodeSetupStateType]?: TSetupState;

@@ -31,6 +31,12 @@ export class ConnectionNodeIdFactory {
 
   /** Normalizes a tool display name to a stable id segment. */
   static normalizeToolName(toolName: string): string {
-    return toolName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "tool";
+    return (
+      toolName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "") || "tool"
+    );
   }
 }

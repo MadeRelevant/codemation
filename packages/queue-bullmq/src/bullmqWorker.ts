@@ -1,16 +1,16 @@
 import type {
-BinaryStorage,
-CredentialSessionService,
-Items,
-Node,
-NodeActivationContinuation,
-NodeConfigBase,
-NodeExecutionContext,
-NodeOutputs,
-NodeResolver,
-RunStateStore,
-WorkflowDefinition,
-WorkflowId,
+  BinaryStorage,
+  CredentialSessionService,
+  Items,
+  Node,
+  NodeActivationContinuation,
+  NodeConfigBase,
+  NodeExecutionContext,
+  NodeOutputs,
+  NodeResolver,
+  RunStateStore,
+  WorkflowDefinition,
+  WorkflowId,
 } from "@codemation/core";
 import {
   DefaultAsyncSleeper,
@@ -70,7 +70,9 @@ export class BullmqWorker {
     now: () => Date = () => new Date(),
     binaryStorage: BinaryStorage = new UnavailableBinaryStorage(),
     retryRunner: InProcessRetryRunner = new InProcessRetryRunner(new DefaultAsyncSleeper()),
-    rootExecutionOptionsFactory: RootExecutionOptionsFactory = new RootExecutionOptionsFactory(new EngineExecutionLimitsPolicy()),
+    rootExecutionOptionsFactory: RootExecutionOptionsFactory = new RootExecutionOptionsFactory(
+      new EngineExecutionLimitsPolicy(),
+    ),
   ) {
     this.connection = RedisConnectionOptionsFactory.fromConfig(connection);
     this.queuePrefix = queuePrefix;
@@ -106,7 +108,8 @@ export class BullmqWorker {
     const { request } = data;
     const state = await this.runStore.load(request.runId as any);
     if (!state) throw new Error(`Unknown runId: ${request.runId}`);
-    if (state.workflowId !== request.workflowId) throw new Error(`workflowId mismatch for run ${request.runId}: ${state.workflowId} vs ${request.workflowId}`);
+    if (state.workflowId !== request.workflowId)
+      throw new Error(`workflowId mismatch for run ${request.runId}: ${state.workflowId} vs ${request.workflowId}`);
 
     const wf = this.workflowsById.get(request.workflowId);
     if (!wf) throw new Error(`Unknown workflowId: ${request.workflowId}`);
@@ -118,7 +121,9 @@ export class BullmqWorker {
     const outputsByNode = (state.outputsByNode ?? {}) as Record<string, any>;
     const dataStore = this.runDataFactory.create(outputsByNode as any);
 
-    const eo = state.executionOptions as { subworkflowDepth?: number; maxNodeActivations?: number; maxSubworkflowDepth?: number } | undefined;
+    const eo = state.executionOptions as
+      | { subworkflowDepth?: number; maxNodeActivations?: number; maxSubworkflowDepth?: number }
+      | undefined;
     const fb = this.rootExecutionOptionsFactory.create();
     const base = new DefaultExecutionContextFactory(this.binaryStorage, this.now).create({
       runId: request.runId,
@@ -181,4 +186,3 @@ export class BullmqWorker {
     }
   }
 }
-

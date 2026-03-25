@@ -10,7 +10,12 @@ import { PersistedRuntimeTypeNameResolver } from "./PersistedRuntimeTypeNameReso
 import { StackTraceCallSitePathResolver } from "./StackTraceCallSitePathResolver";
 
 export class PersistedRuntimeTypeMetadataStore {
-  static define(target: DecoratedRuntimeType, kind: PersistedRuntimeTypeKind, options: PersistedRuntimeTypeDecoratorOptions, decoratorFileUrl: string): void {
+  static define(
+    target: DecoratedRuntimeType,
+    kind: PersistedRuntimeTypeKind,
+    options: PersistedRuntimeTypeDecoratorOptions,
+    decoratorFileUrl: string,
+  ): void {
     const normalizedOptions = PersistedRuntimeTypeDecoratorDefaults.apply(options);
     const metadata: PersistedRuntimeTypeMetadata = {
       persistedName: PersistedRuntimeTypeNameResolver.resolve(target, normalizedOptions.name),
@@ -30,7 +35,8 @@ export class PersistedRuntimeTypeMetadataStore {
     if (!target || (typeof target !== "function" && typeof target !== "object")) {
       return undefined;
     }
-    return (target as Record<PropertyKey, unknown>)[persistedRuntimeTypeMetadataKey] as PersistedRuntimeTypeMetadata | undefined;
+    return (target as Record<PropertyKey, unknown>)[persistedRuntimeTypeMetadataKey] as
+      | PersistedRuntimeTypeMetadata
+      | undefined;
   }
 }
-

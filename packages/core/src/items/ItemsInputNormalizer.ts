@@ -29,4 +29,3 @@ export class ItemsInputNormalizer {
     return typeof raw === "object" && raw !== null && Object.prototype.hasOwnProperty.call(raw, "json");
   }
 }
-

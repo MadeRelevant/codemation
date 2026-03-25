@@ -1,4 +1,4 @@
-import { injectable,registry } from "@codemation/core";
+import { injectable, registry } from "@codemation/core";
 import type { Command } from "../../application/bus/Command";
 import type { CommandHandler } from "../../application/bus/CommandHandler";
 import { ApplicationTokens } from "../../applicationTokens";

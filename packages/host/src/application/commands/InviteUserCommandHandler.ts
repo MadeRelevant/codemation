@@ -1,9 +1,6 @@
 import { inject } from "@codemation/core";
 
-import type {
-InviteUserResponseDto
-} from "../contracts/userDirectoryContracts.types";
-
+import type { InviteUserResponseDto } from "../contracts/userDirectoryContracts.types";
 
 import { CommandHandler } from "../bus/CommandHandler";
 
@@ -12,8 +9,6 @@ import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";
 import { UserAccountService } from "../../domain/users/UserAccountServiceRegistry";
 
 import { InviteUserCommand } from "./InviteUserCommand";
-
-
 
 @HandlesCommand.forCommand(InviteUserCommand)
 export class InviteUserCommandHandler extends CommandHandler<InviteUserCommand, InviteUserResponseDto> {

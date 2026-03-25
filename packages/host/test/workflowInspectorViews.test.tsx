@@ -1,7 +1,11 @@
 import { WorkflowDetailPresenter } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/WorkflowDetailPresenter";
-import { WorkflowInspectorErrorView,WorkflowInspectorJsonView,WorkflowInspectorPrettyView } from "@codemation/next-host/src/features/workflows/components/workflowDetail/WorkflowInspectorViews";
-import { cleanup,fireEvent,render,screen } from "@testing-library/react";
-import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
+import {
+  WorkflowInspectorErrorView,
+  WorkflowInspectorJsonView,
+  WorkflowInspectorPrettyView,
+} from "@codemation/next-host/src/features/workflows/components/workflowDetail/WorkflowInspectorViews";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("workflow inspector views", () => {
   beforeEach(() => {
@@ -41,7 +45,9 @@ describe("workflow inspector views", () => {
   });
 
   it("renders structured values in the json inspector", () => {
-    render(<WorkflowInspectorJsonView value={{ body: "Body line 1", metadata: { source: "test" } }} emptyLabel="No value" />);
+    render(
+      <WorkflowInspectorJsonView value={{ body: "Body line 1", metadata: { source: "test" } }} emptyLabel="No value" />,
+    );
 
     expect(screen.getByTestId("workflow-inspector-json-copy-hint")).toBeInTheDocument();
     expect(screen.getByTestId("workflow-inspector-json-panel")).toHaveTextContent("Body line 1");

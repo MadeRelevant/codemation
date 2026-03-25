@@ -1,6 +1,6 @@
 import type { ConnectionInvocationRecord } from "@codemation/next-host/src/features/workflows/lib/realtime/realtimeDomainTypes";
 import { WorkflowDetailPresenter } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/WorkflowDetailPresenter";
-import { describe,expect,it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { WorkflowDetailFixtureFactory } from "./workflowDetail/testkit";
 
 describe("WorkflowDetailPresenter", () => {
@@ -28,10 +28,12 @@ describe("WorkflowDetailPresenter", () => {
   });
 
   it("serializes editable items from objects and arrays", () => {
-    expect(WorkflowDetailPresenter.parseEditableItems(JSON.stringify({ changed: true }))).toEqual([{ json: { changed: true } }]);
-    expect(WorkflowDetailPresenter.parseEditableItems(JSON.stringify({ json: { alreadyWrappedSingle: true } }))).toEqual([
-      { json: { alreadyWrappedSingle: true } },
+    expect(WorkflowDetailPresenter.parseEditableItems(JSON.stringify({ changed: true }))).toEqual([
+      { json: { changed: true } },
     ]);
+    expect(
+      WorkflowDetailPresenter.parseEditableItems(JSON.stringify({ json: { alreadyWrappedSingle: true } })),
+    ).toEqual([{ json: { alreadyWrappedSingle: true } }]);
     expect(WorkflowDetailPresenter.parseEditableItems(JSON.stringify([{ first: true }, { second: true }]))).toEqual([
       { json: { first: true } },
       { json: { second: true } },
@@ -42,10 +44,14 @@ describe("WorkflowDetailPresenter", () => {
   });
 
   it("exposes pinned output helpers and editable json", () => {
-    const run = WorkflowDetailFixtureFactory.createPinnedMutableRunStateForNode(WorkflowDetailFixtureFactory.triggerNodeId);
+    const run = WorkflowDetailFixtureFactory.createPinnedMutableRunStateForNode(
+      WorkflowDetailFixtureFactory.triggerNodeId,
+    );
 
     expect(WorkflowDetailPresenter.getExecutionModeLabel(run)).toBe("Manual");
-    expect(WorkflowDetailPresenter.getPinnedOutput(run, WorkflowDetailFixtureFactory.triggerNodeId)).toEqual([{ json: { pinned: true } }]);
+    expect(WorkflowDetailPresenter.getPinnedOutput(run, WorkflowDetailFixtureFactory.triggerNodeId)).toEqual([
+      { json: { pinned: true } },
+    ]);
     expect(WorkflowDetailPresenter.toEditableJson([{ json: { pinned: true } }])).toContain('"pinned": true');
   });
 
@@ -71,8 +77,12 @@ describe("WorkflowDetailPresenter", () => {
     const executionTree = WorkflowDetailPresenter.buildExecutionTreeData(executionNodes);
     const executionKeys = WorkflowDetailPresenter.collectExecutionTreeKeys(executionTree);
 
-    expect(executionNodes.some((entry) => entry.node.id === WorkflowDetailFixtureFactory.llmFirstInvocationNodeId)).toBe(true);
-    expect(executionNodes.some((entry) => entry.node.id === WorkflowDetailFixtureFactory.toolFirstInvocationNodeId)).toBe(true);
+    expect(
+      executionNodes.some((entry) => entry.node.id === WorkflowDetailFixtureFactory.llmFirstInvocationNodeId),
+    ).toBe(true);
+    expect(
+      executionNodes.some((entry) => entry.node.id === WorkflowDetailFixtureFactory.toolFirstInvocationNodeId),
+    ).toBe(true);
     expect(executionKeys).toContain(WorkflowDetailFixtureFactory.llmFirstInvocationNodeId);
     expect(executionKeys).toContain(WorkflowDetailFixtureFactory.toolFirstInvocationNodeId);
     expect(executionKeys).toContain(WorkflowDetailFixtureFactory.llmSecondInvocationNodeId);
@@ -211,7 +221,9 @@ describe("WorkflowDetailPresenter", () => {
     ];
     const run = { ...base, connectionInvocations };
     const executionNodes = WorkflowDetailPresenter.buildExecutionNodes(workflow, run);
-    const llmRows = executionNodes.filter((entry) => entry.workflowConnectionNodeId === WorkflowDetailFixtureFactory.llmNodeId);
+    const llmRows = executionNodes.filter(
+      (entry) => entry.workflowConnectionNodeId === WorkflowDetailFixtureFactory.llmNodeId,
+    );
     expect(llmRows).toHaveLength(1);
     expect(llmRows[0]?.snapshot?.outputs?.main?.[0]?.json).toEqual({ text: "newer" });
   });
@@ -248,7 +260,9 @@ describe("WorkflowDetailPresenter", () => {
     const run = { ...base, connectionInvocations };
 
     const executionNodes = WorkflowDetailPresenter.buildExecutionNodes(workflow, run);
-    const llmRows = executionNodes.filter((entry) => entry.workflowConnectionNodeId === WorkflowDetailFixtureFactory.llmNodeId);
+    const llmRows = executionNodes.filter(
+      (entry) => entry.workflowConnectionNodeId === WorkflowDetailFixtureFactory.llmNodeId,
+    );
     expect(llmRows.map((entry) => entry.node.id)).toEqual(["cinv_llm_1", "cinv_llm_2"]);
 
     const resolved = WorkflowDetailPresenter.resolveInspectorNodeIdForCanvasPick(
@@ -260,7 +274,11 @@ describe("WorkflowDetailPresenter", () => {
     expect(resolved).toBe("cinv_llm_2");
 
     expect(
-      WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow("cinv_llm_1", workflow, run.connectionInvocations),
+      WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow(
+        "cinv_llm_1",
+        workflow,
+        run.connectionInvocations,
+      ),
     ).toBe(true);
   });
 

@@ -65,7 +65,10 @@ export class CurrentStateRunStarter {
     const control = {
       stopCondition: request.stopCondition ?? { kind: "workflowCompleted" as const },
     };
-    const mergedExecutionOptions = this.executionLimitsPolicy.mergeExecutionOptionsForNewRun(request.parent, request.executionOptions);
+    const mergedExecutionOptions = this.executionLimitsPolicy.mergeExecutionOptionsForNewRun(
+      request.parent,
+      request.executionOptions,
+    );
 
     await this.runStore.createRun({
       runId,
@@ -93,7 +96,10 @@ export class CurrentStateRunStarter {
     const base = this.runExecutionContextFactory.create({
       runId,
       workflowId: request.workflow.id,
-      nodeId: createWorkflowExecutableNodeClassifier(request.workflow).firstExecutableNodeIdInDefinitionOrder(request.workflow) ?? "unknown_node",
+      nodeId:
+        createWorkflowExecutableNodeClassifier(request.workflow).firstExecutableNodeIdInDefinitionOrder(
+          request.workflow,
+        ) ?? "unknown_node",
       parent: request.parent,
       subworkflowDepth: mergedExecutionOptions.subworkflowDepth ?? 0,
       engineMaxNodeActivations: mergedExecutionOptions.maxNodeActivations!,
@@ -363,10 +369,13 @@ export class CurrentStateRunStarter {
       workflowId: args.workflowId,
       startedAt: args.startedAt,
       status: "completed",
-      outputs: this.semantics.resolveResultOutputs(args.workflow, args.control?.stopCondition, args.data.dump() as Record<NodeId, NodeOutputs>),
+      outputs: this.semantics.resolveResultOutputs(
+        args.workflow,
+        args.control?.stopCondition,
+        args.data.dump() as Record<NodeId, NodeOutputs>,
+      ),
     };
     this.waiters.resolveRunCompletion(result);
     return result;
   }
 }
-

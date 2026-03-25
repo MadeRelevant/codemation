@@ -21,8 +21,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
   const realtimeBadge =
     controller.workflowDevBuildState.state === "failed"
       ? {
-          className:
-            "border-destructive/40 bg-destructive/10 text-destructive shadow-md ring-1 ring-foreground/10",
+          className: "border-destructive/40 bg-destructive/10 text-destructive shadow-md ring-1 ring-foreground/10",
           label: "Rebuild failed. Latest code is not live yet.",
           testId: "workflow-dev-build-failed-indicator",
         }
@@ -50,7 +49,11 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
         )}
       >
         {controller.isRunsPaneVisible ? (
-          <WorkflowRunsSidebar model={controller.sidebarModel} formatting={controller.sidebarFormatting} actions={controller.sidebarActions} />
+          <WorkflowRunsSidebar
+            model={controller.sidebarModel}
+            formatting={controller.sidebarFormatting}
+            actions={controller.sidebarActions}
+          />
         ) : null}
 
         <div

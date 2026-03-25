@@ -46,7 +46,10 @@ export class EngineFactory {
     const credentialResolverFactory = new CredentialResolverFactory(deps.credentialSessions);
     const nodeEventPublisher = new NodeEventPublisher(deps.eventBus);
     const nodeStatePublisherFactory = new NodeExecutionStatePublisherFactory(deps.runStore, nodeEventPublisher);
-    const planningFactory = new EngineWorkflowPlanningFactory(deps.workflowNodeInstanceFactory, new DirectedCycleDetector());
+    const planningFactory = new EngineWorkflowPlanningFactory(
+      deps.workflowNodeInstanceFactory,
+      new DirectedCycleDetector(),
+    );
     const executionLimitsPolicy = deps.executionLimitsPolicy ?? new EngineExecutionLimitsPolicy();
     const rootExecutionOptionsFactory = new RootExecutionOptionsFactory(executionLimitsPolicy);
     const workflowSnapshotFactory = new PersistedWorkflowSnapshotFactory(deps.tokenRegistry);
@@ -62,9 +65,19 @@ export class EngineFactory {
     );
 
     const semantics = new RunStateSemantics();
-    const activationEnqueueService = new ActivationEnqueueService(deps.activationScheduler, deps.runStore, nodeEventPublisher);
-    const runExecutionContextFactory = new WorkflowRunExecutionContextFactory(deps.executionContextFactory, credentialResolverFactory);
-    const nodeActivationRequestComposer = new NodeActivationRequestComposer(deps.activationIdFactory, credentialResolverFactory);
+    const activationEnqueueService = new ActivationEnqueueService(
+      deps.activationScheduler,
+      deps.runStore,
+      nodeEventPublisher,
+    );
+    const runExecutionContextFactory = new WorkflowRunExecutionContextFactory(
+      deps.executionContextFactory,
+      credentialResolverFactory,
+    );
+    const nodeActivationRequestComposer = new NodeActivationRequestComposer(
+      deps.activationIdFactory,
+      credentialResolverFactory,
+    );
     const persistedRunStateTerminalBuilder = new PersistedRunStateTerminalBuilder();
     const runPolicySnapshotFactory = new RunPolicySnapshotFactory();
     const storagePolicyEvaluator = new WorkflowStoragePolicyEvaluator(deps.nodeResolver);
@@ -155,4 +168,3 @@ export class EngineFactory {
     return engine;
   }
 }
-

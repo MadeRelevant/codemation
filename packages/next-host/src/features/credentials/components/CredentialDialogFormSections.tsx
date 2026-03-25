@@ -6,13 +6,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";
 import type { FormSourceKind } from "../lib/credentialFormTypes";
 
@@ -91,9 +85,7 @@ export function CredentialDialogFormSections({
           </SelectContent>
         </Select>
         {typesLoading && <span className="text-xs text-muted-foreground">Loading…</span>}
-        {typesError && (
-          <span className="text-sm text-destructive">Failed to load credential types.</span>
-        )}
+        {typesError && <span className="text-sm text-destructive">Failed to load credential types.</span>}
         {!typesLoading && !typesError && typesEmpty && (
           <span className="text-xs text-muted-foreground">No credential types available.</span>
         )}
@@ -114,10 +106,7 @@ export function CredentialDialogFormSections({
       {!isEdit && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="credential-source-kind">Secret source</Label>
-          <Select
-            value={sourceKind}
-            onValueChange={(v) => setSourceKind(v as FormSourceKind)}
-          >
+          <Select value={sourceKind} onValueChange={(v) => setSourceKind(v as FormSourceKind)}>
             <SelectTrigger id="credential-source-kind" className="w-full" data-testid="credential-source-kind-select">
               <SelectValue />
             </SelectTrigger>
@@ -142,9 +131,7 @@ export function CredentialDialogFormSections({
           >
             {showSecrets ? "Hide" : "Show"} values
           </Button>
-          {isEdit && secretsLoading && (
-            <span className="text-xs text-muted-foreground">Loading credential…</span>
-          )}
+          {isEdit && secretsLoading && <span className="text-xs text-muted-foreground">Loading credential…</span>}
         </div>
       )}
 
@@ -155,12 +142,7 @@ export function CredentialDialogFormSections({
             <span className="text-xs text-muted-foreground">Loading redirect URI…</span>
           ) : (
             <>
-              <Input
-                data-testid="credential-oauth2-redirect-uri"
-                type="text"
-                readOnly
-                value={oauth2RedirectUri}
-              />
+              <Input data-testid="credential-oauth2-redirect-uri" type="text" readOnly value={oauth2RedirectUri} />
               <span className="text-xs text-muted-foreground">
                 Configure this redirect URI in your OAuth client before connecting.
               </span>

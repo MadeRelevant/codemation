@@ -57,11 +57,13 @@ export class AzureInvoiceOcrConsumer {
     return out;
   }
 
-  async analyzePrebuiltInvoiceWithRetry(args: Readonly<{
-    session: AzureContentUnderstandingSession;
-    body: Uint8Array;
-    contentType: string;
-  }>): Promise<Readonly<{ content: string; fields: OcrStructuredFields }>> {
+  async analyzePrebuiltInvoiceWithRetry(
+    args: Readonly<{
+      session: AzureContentUnderstandingSession;
+      body: Uint8Array;
+      contentType: string;
+    }>,
+  ): Promise<Readonly<{ content: string; fields: OcrStructuredFields }>> {
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -77,11 +79,13 @@ export class AzureInvoiceOcrConsumer {
     throw lastError instanceof Error ? lastError : new Error(String(lastError));
   }
 
-  private async analyzeOnce(args: Readonly<{
-    session: AzureContentUnderstandingSession;
-    body: Uint8Array;
-    contentType: string;
-  }>): Promise<Readonly<{ content: string; fields: OcrStructuredFields }>> {
+  private async analyzeOnce(
+    args: Readonly<{
+      session: AzureContentUnderstandingSession;
+      body: Uint8Array;
+      contentType: string;
+    }>,
+  ): Promise<Readonly<{ content: string; fields: OcrStructuredFields }>> {
     const client = new ContentUnderstandingClient(args.session.endpoint, new AzureKeyCredential(args.session.apiKey));
     const poller = client.analyzeBinary(prebuiltInvoiceAnalyzerId, args.body, args.contentType);
     const result = await poller.pollUntilDone();

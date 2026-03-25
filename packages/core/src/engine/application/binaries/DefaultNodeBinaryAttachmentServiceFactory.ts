@@ -8,7 +8,12 @@ import type {
   WorkflowId,
 } from "../../../types";
 
-import type { BinaryAttachmentCreateRequest, BinaryStorage, BinaryStorageReadResult, NodeBinaryAttachmentService } from "../../../types";
+import type {
+  BinaryAttachmentCreateRequest,
+  BinaryStorage,
+  BinaryStorageReadResult,
+  NodeBinaryAttachmentService,
+} from "../../../types";
 
 import { AttachmentIdFactory } from "./AttachmentIdFactory";
 
@@ -115,4 +120,3 @@ export class DefaultNodeBinaryAttachmentService implements NodeBinaryAttachmentS
     return "download";
   }
 }
-

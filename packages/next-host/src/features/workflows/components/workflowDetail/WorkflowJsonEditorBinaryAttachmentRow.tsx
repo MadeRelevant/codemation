@@ -7,15 +7,17 @@ import { useRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function WorkflowJsonEditorBinaryAttachmentRow(args: Readonly<{
-  workflowId: string;
-  itemIndex: number;
-  name: string;
-  attachment: BinaryAttachment;
-  uploadBusyKey: string | null;
-  onReplace: (file: File) => void;
-  onRemove: () => void;
-}>): ReactNode {
+export function WorkflowJsonEditorBinaryAttachmentRow(
+  args: Readonly<{
+    workflowId: string;
+    itemIndex: number;
+    name: string;
+    attachment: BinaryAttachment;
+    uploadBusyKey: string | null;
+    onReplace: (file: File) => void;
+    onRemove: () => void;
+  }>,
+): ReactNode {
   const { workflowId, itemIndex, name, attachment, uploadBusyKey, onReplace, onRemove } = args;
   const replaceInputRef = useRef<HTMLInputElement | null>(null);
   return (

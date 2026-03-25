@@ -40,7 +40,12 @@ export function UsersInviteDialog({
   });
 
   return (
-    <CodemationDialog onClose={onClose} testId="users-invite-dialog" size="narrow" contentClassName="max-h-[min(90vh,640px)]">
+    <CodemationDialog
+      onClose={onClose}
+      testId="users-invite-dialog"
+      size="narrow"
+      contentClassName="max-h-[min(90vh,640px)]"
+    >
       <CodemationDialog.Title>Invite user</CodemationDialog.Title>
       {successUrl ? (
         <>
@@ -48,7 +53,13 @@ export function UsersInviteDialog({
             <p className="m-0 text-muted-foreground" data-testid="users-invite-success-message">
               Share this link; it expires in seven days.
             </p>
-            <Input type="text" readOnly value={successUrl} data-testid="users-invite-link-field" className="font-mono text-xs" />
+            <Input
+              type="text"
+              readOnly
+              value={successUrl}
+              data-testid="users-invite-link-field"
+              className="font-mono text-xs"
+            />
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="secondary" data-testid="users-invite-copy-link" onClick={onCopy}>
                 {copyFeedback ? "Copied" : "Copy link"}

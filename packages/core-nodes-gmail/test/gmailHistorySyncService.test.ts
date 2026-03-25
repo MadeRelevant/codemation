@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import { OnNewGmailTrigger } from "../src/nodes/OnNewGmailTrigger";
 import {
-GmailHistoryGapError,
-type GmailApiClient,
-type GmailHistoryDelta,
-type GmailMessageAttachmentContent,
-type GmailMessageRecord,
-type GmailWatchRegistration,
+  GmailHistoryGapError,
+  type GmailApiClient,
+  type GmailHistoryDelta,
+  type GmailMessageAttachmentContent,
+  type GmailMessageRecord,
+  type GmailWatchRegistration,
 } from "../src/services/GmailApiClient";
 import { GmailConfiguredLabelService } from "../src/services/GmailConfiguredLabelService";
 import { GmailHistorySyncService } from "../src/services/GmailHistorySyncService";

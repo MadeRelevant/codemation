@@ -3,12 +3,14 @@
 import { type ReactNode, useState } from "react";
 
 /** Small floating tooltip (not the browser `title` tooltip) for compact canvas chrome. */
-export function CanvasNodeChromeTooltip(args: Readonly<{
-  testId: string;
-  ariaLabel: string;
-  tooltip: string;
-  children: ReactNode;
-}>): React.JSX.Element {
+export function CanvasNodeChromeTooltip(
+  args: Readonly<{
+    testId: string;
+    ariaLabel: string;
+    tooltip: string;
+    children: ReactNode;
+  }>,
+): React.JSX.Element {
   const { ariaLabel, children, testId, tooltip } = args;
   const [visible, setVisible] = useState(false);
   return (

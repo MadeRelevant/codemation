@@ -24,17 +24,15 @@ export class OverlayPinnedBinaryUploadService {
     const attachmentId = this.createAttachmentId();
     const createdAt = new Date().toISOString();
     const activationId = this.overlayActivationId(args.itemIndex);
-    const storageKey = this.createStorageKey(
-      {
-        workflowId: args.workflowId,
-        runId: OVERLAY_PIN_BINARY_RUN_ID,
-        nodeId: args.nodeId,
-        activationId,
-        attachmentId,
-        name: args.name,
-        filename: args.filename,
-      },
-    );
+    const storageKey = this.createStorageKey({
+      workflowId: args.workflowId,
+      runId: OVERLAY_PIN_BINARY_RUN_ID,
+      nodeId: args.nodeId,
+      activationId,
+      attachmentId,
+      name: args.name,
+      filename: args.filename,
+    });
     const stored = await this.binaryStorage.write({
       storageKey,
       body: args.body,
@@ -68,15 +66,17 @@ export class OverlayPinnedBinaryUploadService {
     return `bin-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 
-  private createStorageKey(args: Readonly<{
-    workflowId: string;
-    runId: string;
-    nodeId: string;
-    activationId: string;
-    attachmentId: string;
-    name: string;
-    filename?: string;
-  }>): string {
+  private createStorageKey(
+    args: Readonly<{
+      workflowId: string;
+      runId: string;
+      nodeId: string;
+      activationId: string;
+      attachmentId: string;
+      name: string;
+      filename?: string;
+    }>,
+  ): string {
     const safeName = this.sanitizeSegment(args.name);
     const safeFilename = this.sanitizeFilenameForKey(args.filename);
     const filenameSuffix = safeFilename ? `-${safeFilename}` : "";

@@ -1,7 +1,4 @@
-import type { Items,NodeOutputs } from "@codemation/core";
-
-
-
+import type { Items, NodeOutputs } from "@codemation/core";
 
 export class CallbackResultNormalizer {
   static toNodeOutputs(result: Items | void, items: Items): NodeOutputs {

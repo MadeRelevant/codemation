@@ -1,4 +1,4 @@
-import { inject,injectable } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import serialize from "serialize-javascript";
 import { CredentialInstanceService } from "../../../domain/credentials/CredentialServices";
 import { OAuth2ConnectService } from "../../../domain/credentials/OAuth2ConnectServiceFactory";
@@ -20,7 +20,10 @@ export class OAuth2HttpRouteHandler {
       if (!instanceId) {
         return Response.json({ error: "Missing instanceId query parameter." }, { status: 400 });
       }
-      const redirect = await this.oauth2ConnectService.createAuthRedirect(instanceId, this.resolveRequestOrigin(request));
+      const redirect = await this.oauth2ConnectService.createAuthRedirect(
+        instanceId,
+        this.resolveRequestOrigin(request),
+      );
       return Response.redirect(redirect.redirectUrl, 302);
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
@@ -75,12 +78,8 @@ export class OAuth2HttpRouteHandler {
   }
 
   private resolveRequestOrigin(request: Request): string {
-    const forwardedProto = OAuth2HttpRouteHandler.firstCommaSeparatedValue(
-      request.headers.get("x-forwarded-proto"),
-    );
-    const forwardedHost = OAuth2HttpRouteHandler.firstCommaSeparatedValue(
-      request.headers.get("x-forwarded-host"),
-    );
+    const forwardedProto = OAuth2HttpRouteHandler.firstCommaSeparatedValue(request.headers.get("x-forwarded-proto"));
+    const forwardedHost = OAuth2HttpRouteHandler.firstCommaSeparatedValue(request.headers.get("x-forwarded-host"));
     if (forwardedProto && forwardedHost) {
       return `${forwardedProto}://${forwardedHost}`;
     }

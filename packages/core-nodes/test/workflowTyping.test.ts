@@ -1,5 +1,5 @@
-import type { Items,Node,NodeExecutionContext,NodeOutputs,RunnableNodeConfig,TypeToken } from "@codemation/core";
-import { Callback,If,ManualTrigger,MapData,Wait,createWorkflowBuilder } from "@codemation/core-nodes";
+import type { Items, Node, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import { Callback, If, ManualTrigger, MapData, Wait, createWorkflowBuilder } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 

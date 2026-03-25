@@ -83,9 +83,7 @@ export class CodemationPlaywrightUiHarness {
   }
 
   /** Workflow detail / canvas: primary run control is visible. */
-  async waitForCanvasRunWorkflowButton(
-    options?: Readonly<{ timeoutMs?: number }>,
-  ): Promise<void> {
+  async waitForCanvasRunWorkflowButton(options?: Readonly<{ timeoutMs?: number }>): Promise<void> {
     const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasRunButtonTimeoutMs;
     await expect(this.page.getByTestId("canvas-run-workflow-button")).toBeVisible({ timeout: timeoutMs });
   }

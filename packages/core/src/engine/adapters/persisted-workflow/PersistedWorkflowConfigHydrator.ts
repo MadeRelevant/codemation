@@ -20,7 +20,9 @@ export class PersistedWorkflowConfigHydrator {
     const liveRecord = this.asRecord(liveValue);
     const snapshotRecord = this.asRecord(snapshotValue);
     const hydrated = Object.create(
-      liveValue && typeof liveValue === "object" ? (Object.getPrototypeOf(liveValue) ?? Object.prototype) : Object.prototype,
+      liveValue && typeof liveValue === "object"
+        ? (Object.getPrototypeOf(liveValue) ?? Object.prototype)
+        : Object.prototype,
     ) as Record<string, unknown>;
 
     for (const [key, value] of Object.entries(snapshotRecord)) {
@@ -43,7 +45,10 @@ export class PersistedWorkflowConfigHydrator {
     return snapshotValue;
   }
 
-  private restoreNonSerializableProperties(liveRecord: Record<string, unknown>, hydrated: Record<string, unknown>): void {
+  private restoreNonSerializableProperties(
+    liveRecord: Record<string, unknown>,
+    hydrated: Record<string, unknown>,
+  ): void {
     for (const [key, value] of Object.entries(liveRecord)) {
       if (typeof value === "function" || typeof value === "symbol") {
         hydrated[key] = value;
@@ -69,4 +74,3 @@ export class PersistedWorkflowConfigHydrator {
     return { ...(value as Record<string, unknown>) };
   }
 }
-

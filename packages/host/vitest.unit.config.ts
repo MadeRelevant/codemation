@@ -11,11 +11,7 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
     include: ["./test/**/*.test.ts"],
-    exclude: [
-      "./test/**/*.integration.test.ts",
-      "./test/http/**",
-      "./test/**/*.e2e.test.ts",
-    ],
+    exclude: ["./test/**/*.integration.test.ts", "./test/http/**", "./test/**/*.e2e.test.ts"],
     passWithNoTests: true,
     pool: "threads",
     isolate: true,

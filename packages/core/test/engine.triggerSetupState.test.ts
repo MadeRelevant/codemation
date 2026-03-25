@@ -1,8 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import type { Items,NodeExecutionContext,NodeOutputs,PersistedTriggerSetupState,TriggerNode,TriggerNodeConfig,TriggerSetupContext,TypeToken } from "../src/index.ts";
+import type {
+  Items,
+  NodeExecutionContext,
+  NodeOutputs,
+  PersistedTriggerSetupState,
+  TriggerNode,
+  TriggerNodeConfig,
+  TriggerSetupContext,
+  TypeToken,
+} from "../src/index.ts";
 import { WorkflowBuilder } from "../src/index.ts";
-import { CallbackNodeConfig,createEngineTestKit } from "./harness/index.ts";
+import { CallbackNodeConfig, createEngineTestKit } from "./harness/index.ts";
 
 type SetupStatePayload = Readonly<{
   cursor: string;
@@ -62,9 +71,14 @@ class TriggerSetupStateTestFixture {
 
 test("engine passes the previously persisted trigger setup state into setup()", async () => {
   const previousStates: SetupStatePayload[] = [];
-  const config = new StatefulSetupTriggerConfig("Stateful trigger", previousStates, {
-    cursor: "history_2",
-  }, TriggerSetupStateTestFixture.triggerNodeId);
+  const config = new StatefulSetupTriggerConfig(
+    "Stateful trigger",
+    previousStates,
+    {
+      cursor: "history_2",
+    },
+    TriggerSetupStateTestFixture.triggerNodeId,
+  );
   const kit = createEngineTestKit();
   await kit.triggerSetupStateStore.save(
     TriggerSetupStateTestFixture.createPersistedState({

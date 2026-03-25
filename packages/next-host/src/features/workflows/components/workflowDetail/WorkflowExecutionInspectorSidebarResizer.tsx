@@ -1,8 +1,10 @@
-export function WorkflowExecutionInspectorSidebarResizer(props: Readonly<{
-  widthPx: number;
-  isResizing: boolean;
-  onResizeStart: (clientX: number, currentWidth: number) => void;
-}>) {
+export function WorkflowExecutionInspectorSidebarResizer(
+  props: Readonly<{
+    widthPx: number;
+    isResizing: boolean;
+    onResizeStart: (clientX: number, currentWidth: number) => void;
+  }>,
+) {
   const { isResizing, onResizeStart, widthPx } = props;
   const TREE_RESIZE_HANDLE_WIDTH_PX = 8;
   return (

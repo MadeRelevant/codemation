@@ -44,40 +44,54 @@ export type GmailWatchRegistration = Readonly<{
 }>;
 
 export interface GmailApiClient {
-  ensureSubscription(args: Readonly<{
-    topicName: string;
-    subscriptionName: string;
-  }>): Promise<void>;
-  pull(args: Readonly<{
-    subscriptionName: string;
-    maxMessages?: number;
-  }>): Promise<ReadonlyArray<GmailPulledNotification>>;
+  ensureSubscription(
+    args: Readonly<{
+      topicName: string;
+      subscriptionName: string;
+    }>,
+  ): Promise<void>;
+  pull(
+    args: Readonly<{
+      subscriptionName: string;
+      maxMessages?: number;
+    }>,
+  ): Promise<ReadonlyArray<GmailPulledNotification>>;
   getCurrentHistoryId(args: Readonly<{ mailbox: string }>): Promise<string>;
-  listMessageIds(args: Readonly<{
-    mailbox: string;
-    labelIds?: ReadonlyArray<string>;
-    query?: string;
-    maxResults?: number;
-  }>): Promise<ReadonlyArray<string>>;
+  listMessageIds(
+    args: Readonly<{
+      mailbox: string;
+      labelIds?: ReadonlyArray<string>;
+      query?: string;
+      maxResults?: number;
+    }>,
+  ): Promise<ReadonlyArray<string>>;
   listLabels(args: Readonly<{ mailbox: string }>): Promise<ReadonlyArray<GmailLabelRecord>>;
-  watchMailbox(args: Readonly<{
-    mailbox: string;
-    topicName: string;
-    labelIds?: ReadonlyArray<string>;
-  }>): Promise<GmailWatchRegistration>;
-  listAddedMessageIds(args: Readonly<{
-    mailbox: string;
-    startHistoryId: string;
-  }>): Promise<GmailHistoryDelta>;
-  getMessage(args: Readonly<{
-    mailbox: string;
-    messageId: string;
-  }>): Promise<GmailMessageRecord>;
-  getAttachmentContent(args: Readonly<{
-    mailbox: string;
-    messageId: string;
-    attachment: GmailMessageAttachmentRecord;
-  }>): Promise<GmailMessageAttachmentContent>;
+  watchMailbox(
+    args: Readonly<{
+      mailbox: string;
+      topicName: string;
+      labelIds?: ReadonlyArray<string>;
+    }>,
+  ): Promise<GmailWatchRegistration>;
+  listAddedMessageIds(
+    args: Readonly<{
+      mailbox: string;
+      startHistoryId: string;
+    }>,
+  ): Promise<GmailHistoryDelta>;
+  getMessage(
+    args: Readonly<{
+      mailbox: string;
+      messageId: string;
+    }>,
+  ): Promise<GmailMessageRecord>;
+  getAttachmentContent(
+    args: Readonly<{
+      mailbox: string;
+      messageId: string;
+      attachment: GmailMessageAttachmentRecord;
+    }>,
+  ): Promise<GmailMessageAttachmentContent>;
 }
 
 export class GmailHistoryGapError extends Error {

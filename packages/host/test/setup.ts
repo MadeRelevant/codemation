@@ -1,4 +1,11 @@
 import "@testing-library/jest-dom/vitest";
+import { afterEach } from "vitest";
+
+import { resetNextNavigationTestDouble } from "./nextNavigationStub";
+
+afterEach(() => {
+  resetNextNavigationTestDouble();
+});
 
 class FrontendTestResizeObserver {
   observe(): void {}

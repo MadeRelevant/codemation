@@ -1,12 +1,12 @@
 import type {
-MultiInputNode,
-Node,
-NodeActivationContinuation,
-NodeActivationReceipt,
-NodeActivationRequest,
-NodeActivationScheduler,
-NodeResolver,
-RunId,
+  MultiInputNode,
+  Node,
+  NodeActivationContinuation,
+  NodeActivationReceipt,
+  NodeActivationRequest,
+  NodeActivationScheduler,
+  NodeResolver,
+  RunId,
 } from "../../types";
 import { DefaultAsyncSleeper } from "../execution/DefaultAsyncSleeper";
 import { InProcessRetryRunner } from "../execution/InProcessRetryRunner";
@@ -18,7 +18,10 @@ import { MissingRuntimeTriggerToken } from "../adapters/persisted-workflow/Missi
 export class InlineDrivingScheduler implements NodeActivationScheduler {
   private continuation: NodeActivationContinuation | undefined;
   private readonly drainingRuns = new Set<RunId>();
-  private readonly queuesByRunId = new Map<RunId, Array<Readonly<{ request: NodeActivationRequest; receipt: NodeActivationReceipt }>>>();
+  private readonly queuesByRunId = new Map<
+    RunId,
+    Array<Readonly<{ request: NodeActivationRequest; receipt: NodeActivationReceipt }>>
+  >();
   private readonly scheduledRuns = new Set<RunId>();
   private seq = 0;
 
@@ -166,7 +169,11 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
 
   private isIgnorableContinuationError(e: unknown): boolean {
     const message = this.asError(e).message;
-    return message.includes(" is not pending") || message.includes("activationId mismatch") || message.includes("nodeId mismatch");
+    return (
+      message.includes(" is not pending") ||
+      message.includes("activationId mismatch") ||
+      message.includes("nodeId mismatch")
+    );
   }
 
   private resolveNodeInstance(token: unknown, nodeResolver: Readonly<{ resolve(token: unknown): unknown }>): unknown {
@@ -179,4 +186,3 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
     return nodeResolver.resolve(token);
   }
 }
-

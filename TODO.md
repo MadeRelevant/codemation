@@ -9,18 +9,20 @@ Open items first; completed work is archived at the bottom for history.
 - [x] Add infinite recursion protection (directed cycle rejection, activation budget, subworkflow depth limits — see `packages/core/test/engine.*` hardening tests)
 - [ ] Allow an array of nodes in `then()` for parallelism
 - [ ] Support human-in-the-loop node
-- [x] Implement pruning policy 
+- [x] Implement pruning policy
 - [ ] Fully test subworkflow execution + visualization
   - [ ] Introduce explicit "When invoked by other workflow" trigger node so its clear and easy to reason about the start node when invoking a subworkflow
 - [ ] Allow setting agent max turns, max tokens, max tool calls, tool call parallelism
 - [x] Lock when "not to continue", when no items are emitted for example and allow users to continue anyway even when items are empty
 - [ ] Implement leader election logic so triggers and pruners are only started once
-- [x] Remove the "register webhook" logic, webhooks must be scaleable by endpoint and just resolve the workflow once and then execute the "webhook" trigger 
+- [x] Remove the "register webhook" logic, webhooks must be scaleable by endpoint and just resolve the workflow once and then execute the "webhook" trigger
 - [ ] Only start triggers for workflows that are "activated"
 - [ ] Organize tests better (currently core has 1 big flat list)
 - [ ] Let nodes define inputs, triggers wont have any, this way we can render them correctly too on the canvas. Currently they are rendered as if they would allow an incoming connection
 - [ ] Periodically clean up credential bindings for nodes that dont exist in code anymore (low prio)
 - [ ] Stress test webhook and measure cpu/mem and make sure they dont run out
+- [ ] Add Switch node for easy branching
+- [ ] Add documentation project
 
 ### UI, URLs & sharing
 

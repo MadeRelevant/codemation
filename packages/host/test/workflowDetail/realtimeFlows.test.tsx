@@ -1,11 +1,11 @@
-import { screen,waitFor } from "@testing-library/react";
-import { afterEach,describe,expect,it } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import {
-WorkflowDetailFixtureFactory,
-WorkflowDetailRealtimeFixtureFactory,
-WorkflowDetailScreenTestKit,
-WorkflowExecutionTreeAssertions,
-WorkflowStatusAssertions,
+  WorkflowDetailFixtureFactory,
+  WorkflowDetailRealtimeFixtureFactory,
+  WorkflowDetailScreenTestKit,
+  WorkflowExecutionTreeAssertions,
+  WorkflowStatusAssertions,
 } from "./testkit";
 
 describe("workflow detail realtime flows", () => {
@@ -80,7 +80,9 @@ describe("workflow detail realtime flows", () => {
       });
     });
 
-    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.nodeStarted(WorkflowDetailFixtureFactory.llmFirstInvocationNodeId, 3));
+    kit.emitJson(
+      WorkflowDetailRealtimeFixtureFactory.nodeStarted(WorkflowDetailFixtureFactory.llmFirstInvocationNodeId, 3),
+    );
     await waitFor(() => {
       WorkflowStatusAssertions.expectStatuses(kit!.container, {
         [WorkflowDetailFixtureFactory.agentNodeId]: "running",
@@ -89,7 +91,9 @@ describe("workflow detail realtime flows", () => {
       });
     });
 
-    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.nodeCompleted(WorkflowDetailFixtureFactory.llmFirstInvocationNodeId, 3));
+    kit.emitJson(
+      WorkflowDetailRealtimeFixtureFactory.nodeCompleted(WorkflowDetailFixtureFactory.llmFirstInvocationNodeId, 3),
+    );
     await kit.waitForStatusVisibilityWindow();
     await waitFor(() => {
       WorkflowStatusAssertions.expectStatuses(kit!.container, {
@@ -99,7 +103,9 @@ describe("workflow detail realtime flows", () => {
       });
     });
 
-    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.nodeStarted(WorkflowDetailFixtureFactory.toolFirstInvocationNodeId, 4));
+    kit.emitJson(
+      WorkflowDetailRealtimeFixtureFactory.nodeStarted(WorkflowDetailFixtureFactory.toolFirstInvocationNodeId, 4),
+    );
     await waitFor(() => {
       WorkflowStatusAssertions.expectStatuses(kit!.container, {
         [WorkflowDetailFixtureFactory.agentNodeId]: "running",
@@ -108,7 +114,9 @@ describe("workflow detail realtime flows", () => {
       });
     });
 
-    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.nodeCompleted(WorkflowDetailFixtureFactory.toolFirstInvocationNodeId, 4));
+    kit.emitJson(
+      WorkflowDetailRealtimeFixtureFactory.nodeCompleted(WorkflowDetailFixtureFactory.toolFirstInvocationNodeId, 4),
+    );
     await kit.waitForStatusVisibilityWindow();
     await waitFor(() => {
       WorkflowStatusAssertions.expectStatuses(kit!.container, {

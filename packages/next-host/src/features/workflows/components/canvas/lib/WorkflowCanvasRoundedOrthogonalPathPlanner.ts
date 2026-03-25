@@ -35,7 +35,11 @@ export class WorkflowCanvasRoundedOrthogonalPathPlanner {
 
   /** Ported from @xyflow/system getBend (smoothstep-edge). */
   private static bend(a: XY, b: XY, c: XY, size: number): string {
-    const bendSize = Math.min(WorkflowCanvasRoundedOrthogonalPathPlanner.distance(a, b) / 2, WorkflowCanvasRoundedOrthogonalPathPlanner.distance(b, c) / 2, size);
+    const bendSize = Math.min(
+      WorkflowCanvasRoundedOrthogonalPathPlanner.distance(a, b) / 2,
+      WorkflowCanvasRoundedOrthogonalPathPlanner.distance(b, c) / 2,
+      size,
+    );
     const { x, y } = b;
     if ((a.x === x && x === c.x) || (a.y === y && y === c.y)) {
       return `L${x} ${y}`;

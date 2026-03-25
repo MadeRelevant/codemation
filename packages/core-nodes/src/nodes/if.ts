@@ -1,6 +1,4 @@
-import type { Item,Items,NodeExecutionContext,RunnableNodeConfig,TypeToken } from "@codemation/core";
-
-
+import type { Item, Items, NodeExecutionContext, RunnableNodeConfig, TypeToken } from "@codemation/core";
 
 import { IfNode } from "./IfNode";
 

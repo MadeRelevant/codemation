@@ -1,10 +1,18 @@
-import type { InputPortKey,NodeConfigBase,NodeDefinition,NodeRef,OutputPortKey,WorkflowDefinition,WorkflowId } from "../../src/index.ts";
+import type {
+  InputPortKey,
+  NodeConfigBase,
+  NodeDefinition,
+  NodeRef,
+  OutputPortKey,
+  WorkflowDefinition,
+  WorkflowId,
+} from "../../src/index.ts";
 import { WorkflowBuilder } from "../../src/index.ts";
 
 type Meta = Readonly<{ id: WorkflowId; name: string }>;
 
 function tokenName(config: NodeConfigBase): string {
-  return typeof config.type === "function" ? config.type.name ?? "node" : String(config.type);
+  return typeof config.type === "function" ? (config.type.name ?? "node") : String(config.type);
 }
 
 export function chain(meta: Meta): WorkflowBuilder {
@@ -22,7 +30,12 @@ export function dag(meta: Meta) {
     return { id, kind: config.kind, name: config.name };
   }
 
-  function connect(from: NodeRef | string, to: NodeRef | string, fromOutput: OutputPortKey = "main", toInput: InputPortKey = "in"): void {
+  function connect(
+    from: NodeRef | string,
+    to: NodeRef | string,
+    fromOutput: OutputPortKey = "main",
+    toInput: InputPortKey = "in",
+  ): void {
     const fromId = typeof from === "string" ? from : from.id;
     const toId = typeof to === "string" ? to : to.id;
     edges.push({ from: { nodeId: fromId, output: fromOutput }, to: { nodeId: toId, input: toInput } });
@@ -42,4 +55,3 @@ export function dag(meta: Meta) {
     edges: () => edges.slice(),
   };
 }
-

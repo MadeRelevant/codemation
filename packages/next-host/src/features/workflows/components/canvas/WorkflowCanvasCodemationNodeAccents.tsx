@@ -1,16 +1,27 @@
 import type { CSSProperties } from "react";
 
-export function WorkflowCanvasCodemationNodeAccents(props: Readonly<{
-  isActive: boolean;
-  isRunning: boolean;
-  activityColor: string;
-  activityRingStyle: CSSProperties;
-  isPropertiesTarget: boolean;
-  isActiveForProperties: boolean;
-  isSelected: boolean;
-  isActiveForSelected: boolean;
-}>) {
-  const { activityColor, activityRingStyle, isActive, isActiveForProperties, isActiveForSelected, isPropertiesTarget, isRunning, isSelected } = props;
+export function WorkflowCanvasCodemationNodeAccents(
+  props: Readonly<{
+    isActive: boolean;
+    isRunning: boolean;
+    activityColor: string;
+    activityRingStyle: CSSProperties;
+    isPropertiesTarget: boolean;
+    isActiveForProperties: boolean;
+    isSelected: boolean;
+    isActiveForSelected: boolean;
+  }>,
+) {
+  const {
+    activityColor,
+    activityRingStyle,
+    isActive,
+    isActiveForProperties,
+    isActiveForSelected,
+    isPropertiesTarget,
+    isRunning,
+    isSelected,
+  } = props;
   return (
     <>
       {isActive ? (
@@ -26,10 +37,7 @@ export function WorkflowCanvasCodemationNodeAccents(props: Readonly<{
               animation: isRunning ? "codemationNodeBreath 2.2s ease-in-out infinite" : "none",
             }}
           />
-          <div
-            aria-hidden
-            style={activityRingStyle}
-          />
+          <div aria-hidden style={activityRingStyle} />
         </>
       ) : null}
       {isPropertiesTarget ? (

@@ -1,9 +1,6 @@
-import { createCipheriv,createDecipheriv,createHash,randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 
-
-import { inject,injectable } from "@codemation/core";
-
-
+import { inject, injectable } from "@codemation/core";
 
 import { ApplicationTokens } from "../../applicationTokens";
 
@@ -64,6 +61,9 @@ export class CredentialSecretCipher {
 
   private resolveKeyId(): string {
     const rawValue = this.env.CODEMATION_CREDENTIALS_MASTER_KEY;
-    return createHash("sha256").update(rawValue ?? "").digest("hex").slice(0, 12);
+    return createHash("sha256")
+      .update(rawValue ?? "")
+      .digest("hex")
+      .slice(0, 12);
   }
 }

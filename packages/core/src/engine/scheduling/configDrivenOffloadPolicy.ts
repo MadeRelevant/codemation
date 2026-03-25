@@ -1,4 +1,11 @@
-import type { ExecutionMode,NodeConfigBase,NodeId,NodeOffloadPolicy,NodeSchedulerDecision,WorkflowId } from "../../types";
+import type {
+  ExecutionMode,
+  NodeConfigBase,
+  NodeId,
+  NodeOffloadPolicy,
+  NodeSchedulerDecision,
+  WorkflowId,
+} from "../../types";
 
 export class ConfigDrivenOffloadPolicy implements NodeOffloadPolicy {
   private readonly defaultMode: ExecutionMode;
@@ -20,4 +27,3 @@ export class ConfigDrivenOffloadPolicy implements NodeOffloadPolicy {
     return { mode: this.defaultMode };
   }
 }
-

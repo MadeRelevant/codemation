@@ -9,8 +9,9 @@ import { openAiApiKeyRegisteredCredentialType } from "./openAiApiKeyCredentialTy
 export class FrameworkBuiltinCredentialTypesRegistrar {
   register(application: CodemationApplication, config?: CodemationConfig): void {
     const openAiProvidedInConsumerConfig =
-      config?.credentialTypes?.some((entry) => entry.definition.typeId === openAiApiKeyRegisteredCredentialType.definition.typeId) ??
-      false;
+      config?.credentialTypes?.some(
+        (entry) => entry.definition.typeId === openAiApiKeyRegisteredCredentialType.definition.typeId,
+      ) ?? false;
     if (!openAiProvidedInConsumerConfig) {
       application.registerCredentialType(openAiApiKeyRegisteredCredentialType);
     }

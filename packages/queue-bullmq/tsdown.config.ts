@@ -7,4 +7,3 @@ export default defineConfig({
   dts: true,
   format: ["esm", "cjs"],
 });
-

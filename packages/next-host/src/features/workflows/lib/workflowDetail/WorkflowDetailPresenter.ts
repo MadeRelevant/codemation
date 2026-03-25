@@ -2,31 +2,31 @@ import { ItemsInputNormalizer, RunFinishedAtFactory } from "@codemation/core/bro
 import type { WorkflowCredentialHealthSlotDto } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
-import { format,isToday,isYesterday } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import prettyMilliseconds from "pretty-ms";
 import type {
-ConnectionInvocationRecord,
-Items,
-NodeExecutionSnapshot,
-PersistedRunState,
-PersistedWorkflowSnapshot,
-RunCurrentState,
-RunSummary,
-WorkflowDebuggerOverlayState,
-WorkflowDto,
+  ConnectionInvocationRecord,
+  Items,
+  NodeExecutionSnapshot,
+  PersistedRunState,
+  PersistedWorkflowSnapshot,
+  RunCurrentState,
+  RunSummary,
+  WorkflowDebuggerOverlayState,
+  WorkflowDto,
 } from "../../hooks/realtime/realtime";
 import { PersistedWorkflowSnapshotMapper } from "./PersistedWorkflowSnapshotMapper";
 import type { BinaryAttachment } from "@codemation/core/browser";
 import type {
-ExecutionNode,
-ExecutionTreeNode,
-InspectorMode,
-NodeExecutionError,
-PinBinaryMapsByItemIndex,
-PortEntries,
-ViewedWorkflowContext,
-WorkflowExecutionInspectorAttachmentModel,
-WorkflowNode,
+  ExecutionNode,
+  ExecutionTreeNode,
+  InspectorMode,
+  NodeExecutionError,
+  PinBinaryMapsByItemIndex,
+  PortEntries,
+  ViewedWorkflowContext,
+  WorkflowExecutionInspectorAttachmentModel,
+  WorkflowNode,
 } from "./workflowDetailTypes";
 
 export type RunWorkflowResult = Readonly<{
@@ -63,7 +63,11 @@ export class WorkflowDetailPresenter {
     "failed",
   ]);
 
-  static async runWorkflow(workflowId: string, workflow: WorkflowDto | undefined, request: RunWorkflowRequest = {}): Promise<RunWorkflowResult> {
+  static async runWorkflow(
+    workflowId: string,
+    workflow: WorkflowDto | undefined,
+    request: RunWorkflowRequest = {},
+  ): Promise<RunWorkflowResult> {
     const shouldSynthesizeTriggerItems = this.shouldSynthesizeTriggerItems(workflow, request);
     const items = request.items ?? (shouldSynthesizeTriggerItems ? undefined : this.createRunItems(workflow));
     return await codemationApiClient.postJson<RunWorkflowResult>(ApiPaths.runs(), {
@@ -118,8 +122,13 @@ export class WorkflowDetailPresenter {
     return await codemationApiClient.patchJson<PersistedRunState>(ApiPaths.runNodePin(runId, nodeId), { items });
   }
 
-  static async updateWorkflowSnapshot(runId: string, workflowSnapshot: PersistedWorkflowSnapshot): Promise<PersistedRunState> {
-    return await codemationApiClient.patchJson<PersistedRunState>(ApiPaths.runWorkflowSnapshot(runId), { workflowSnapshot });
+  static async updateWorkflowSnapshot(
+    runId: string,
+    workflowSnapshot: PersistedWorkflowSnapshot,
+  ): Promise<PersistedRunState> {
+    return await codemationApiClient.patchJson<PersistedRunState>(ApiPaths.runWorkflowSnapshot(runId), {
+      workflowSnapshot,
+    });
   }
 
   static createRunItems(workflow: WorkflowDto | undefined): Items {
@@ -220,7 +229,9 @@ export class WorkflowDetailPresenter {
     if (!wfNode) {
       return canvasWorkflowNodeId;
     }
-    const invocationsForEdge = (connectionInvocations ?? []).filter((inv) => inv.connectionNodeId === canvasWorkflowNodeId);
+    const invocationsForEdge = (connectionInvocations ?? []).filter(
+      (inv) => inv.connectionNodeId === canvasWorkflowNodeId,
+    );
     if (invocationsForEdge.length > 0) {
       const ordered = [...invocationsForEdge].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
       return ordered[0]!.invocationId;
@@ -331,13 +342,15 @@ export class WorkflowDetailPresenter {
     }));
   }
 
-  static async uploadOverlayPinnedBinary(args: Readonly<{
-    workflowId: string;
-    nodeId: string;
-    itemIndex: number;
-    attachmentName: string;
-    file: File;
-  }>): Promise<BinaryAttachment> {
+  static async uploadOverlayPinnedBinary(
+    args: Readonly<{
+      workflowId: string;
+      nodeId: string;
+      itemIndex: number;
+      attachmentName: string;
+      file: File;
+    }>,
+  ): Promise<BinaryAttachment> {
     const form = new FormData();
     form.set("file", args.file);
     form.set("nodeId", args.nodeId);
@@ -374,7 +387,10 @@ export class WorkflowDetailPresenter {
     };
   }
 
-  static mergeRunSummaryList(existing: ReadonlyArray<RunSummary> | undefined, summary: RunSummary): ReadonlyArray<RunSummary> {
+  static mergeRunSummaryList(
+    existing: ReadonlyArray<RunSummary> | undefined,
+    summary: RunSummary,
+  ): ReadonlyArray<RunSummary> {
     const current = [...(existing ?? [])];
     const index = current.findIndex((entry) => entry.runId === summary.runId);
     if (index >= 0) {
@@ -398,7 +414,9 @@ export class WorkflowDetailPresenter {
 
   static getErrorClipboardText(error: NodeExecutionError | undefined): string {
     if (!error) return "";
-    return [this.getErrorHeadline(error), this.getErrorStack(error)].filter((value): value is string => Boolean(value)).join("\n\n");
+    return [this.getErrorHeadline(error), this.getErrorStack(error)]
+      .filter((value): value is string => Boolean(value))
+      .join("\n\n");
   }
 
   static isTriggerStartedWorkflow(workflow: WorkflowDto | undefined): boolean {
@@ -409,7 +427,10 @@ export class WorkflowDetailPresenter {
     return Boolean(this.resolveTriggerTestNodeId(workflow, request));
   }
 
-  private static resolveTriggerTestNodeId(workflow: WorkflowDto | undefined, request: RunWorkflowRequest): string | undefined {
+  private static resolveTriggerTestNodeId(
+    workflow: WorkflowDto | undefined,
+    request: RunWorkflowRequest,
+  ): string | undefined {
     if (request.items !== undefined) {
       return undefined;
     }
@@ -429,7 +450,9 @@ export class WorkflowDetailPresenter {
     return workflow?.nodes.find((node) => node.id === nodeId)?.kind === "trigger";
   }
 
-  static getExecutionModeLabel(run: Pick<RunSummary, "executionOptions"> | Pick<PersistedRunState, "executionOptions"> | undefined): string | null {
+  static getExecutionModeLabel(
+    run: Pick<RunSummary, "executionOptions"> | Pick<PersistedRunState, "executionOptions"> | undefined,
+  ): string | null {
     const mode = run?.executionOptions?.mode;
     if (mode === "manual") return "Manual";
     if (mode === "debug") return "Debug";
@@ -456,25 +479,39 @@ export class WorkflowDetailPresenter {
     workflowId: string,
     currentState: WorkflowDebuggerOverlayState["currentState"],
   ): Promise<WorkflowDebuggerOverlayState> {
-    return await codemationApiClient.putJson<WorkflowDebuggerOverlayState>(ApiPaths.workflowDebuggerOverlay(workflowId), {
-      currentState,
-    });
+    return await codemationApiClient.putJson<WorkflowDebuggerOverlayState>(
+      ApiPaths.workflowDebuggerOverlay(workflowId),
+      {
+        currentState,
+      },
+    );
   }
 
-  static async copyRunToDebuggerOverlay(workflowId: string, sourceRunId: string): Promise<WorkflowDebuggerOverlayState> {
-    return await codemationApiClient.postJson<WorkflowDebuggerOverlayState>(ApiPaths.workflowDebuggerOverlayCopyRun(workflowId), {
-      sourceRunId,
-    });
+  static async copyRunToDebuggerOverlay(
+    workflowId: string,
+    sourceRunId: string,
+  ): Promise<WorkflowDebuggerOverlayState> {
+    return await codemationApiClient.postJson<WorkflowDebuggerOverlayState>(
+      ApiPaths.workflowDebuggerOverlayCopyRun(workflowId),
+      {
+        sourceRunId,
+      },
+    );
   }
 
-  static workflowFromSnapshot(snapshot: PersistedWorkflowSnapshot | undefined, fallback: WorkflowDto | undefined): WorkflowDto | undefined {
+  static workflowFromSnapshot(
+    snapshot: PersistedWorkflowSnapshot | undefined,
+    fallback: WorkflowDto | undefined,
+  ): WorkflowDto | undefined {
     if (!snapshot) {
       return fallback;
     }
     return this.persistedWorkflowDtoMapper.map(snapshot);
   }
 
-  static resolveViewedWorkflow(args: Readonly<{ selectedRun?: PersistedRunState; liveWorkflow?: WorkflowDto }>): WorkflowDto | undefined {
+  static resolveViewedWorkflow(
+    args: Readonly<{ selectedRun?: PersistedRunState; liveWorkflow?: WorkflowDto }>,
+  ): WorkflowDto | undefined {
     return this.workflowFromSnapshot(args.selectedRun?.workflowSnapshot, args.liveWorkflow);
   }
 
@@ -482,7 +519,10 @@ export class WorkflowDetailPresenter {
     return JSON.stringify(workflow ?? null);
   }
 
-  static getPinnedOutput(currentState: InspectableExecutionState | undefined, nodeId: string | null): Items | undefined {
+  static getPinnedOutput(
+    currentState: InspectableExecutionState | undefined,
+    nodeId: string | null,
+  ): Items | undefined {
     if (!currentState || !nodeId) {
       return undefined;
     }
@@ -499,10 +539,14 @@ export class WorkflowDetailPresenter {
     const workflowNodeIds = new Set(workflow.nodes.map((node) => node.id));
     return {
       outputsByNode: Object.fromEntries(
-        Object.entries(currentState.outputsByNode).filter(([nodeId]) => this.isCompatibleWorkflowNodeId(workflowNodeIds, nodeId)),
+        Object.entries(currentState.outputsByNode).filter(([nodeId]) =>
+          this.isCompatibleWorkflowNodeId(workflowNodeIds, nodeId),
+        ),
       ),
       nodeSnapshotsByNodeId: Object.fromEntries(
-        Object.entries(currentState.nodeSnapshotsByNodeId).filter(([nodeId]) => this.isCompatibleWorkflowNodeId(workflowNodeIds, nodeId)),
+        Object.entries(currentState.nodeSnapshotsByNodeId).filter(([nodeId]) =>
+          this.isCompatibleWorkflowNodeId(workflowNodeIds, nodeId),
+        ),
       ),
       connectionInvocations: currentState.connectionInvocations?.filter(
         (inv) => workflowNodeIds.has(inv.connectionNodeId) && workflowNodeIds.has(inv.parentAgentNodeId),
@@ -510,7 +554,9 @@ export class WorkflowDetailPresenter {
       mutableState: currentState.mutableState
         ? {
             nodesById: Object.fromEntries(
-              Object.entries(currentState.mutableState.nodesById).filter(([nodeId]) => this.isCompatibleWorkflowNodeId(workflowNodeIds, nodeId)),
+              Object.entries(currentState.mutableState.nodesById).filter(([nodeId]) =>
+                this.isCompatibleWorkflowNodeId(workflowNodeIds, nodeId),
+              ),
             ),
           }
         : undefined,
@@ -519,7 +565,9 @@ export class WorkflowDetailPresenter {
 
   static createLiveRunCurrentState(
     request: RunWorkflowRequest,
-    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState" | "connectionInvocations"> | undefined,
+    currentState:
+      | Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState" | "connectionInvocations">
+      | undefined,
   ): RunCurrentState {
     if (this.shouldStartWorkflowFromCleanState(request)) {
       return this.createCleanRunCurrentState(currentState);
@@ -596,10 +644,12 @@ export class WorkflowDetailPresenter {
   /**
    * Required credential slots that are still unbound (excluding optional credential slots).
    */
-  static resolveCredentialAttention(args: Readonly<{
-    workflow: WorkflowDto | undefined;
-    slots: ReadonlyArray<WorkflowCredentialHealthSlotDto> | undefined;
-  }>): Readonly<{ attentionNodeIds: ReadonlySet<string>; summaryLines: ReadonlyArray<string> }> {
+  static resolveCredentialAttention(
+    args: Readonly<{
+      workflow: WorkflowDto | undefined;
+      slots: ReadonlyArray<WorkflowCredentialHealthSlotDto> | undefined;
+    }>,
+  ): Readonly<{ attentionNodeIds: ReadonlySet<string>; summaryLines: ReadonlyArray<string> }> {
     const slots = args.slots ?? [];
     const workflow = args.workflow;
     const attentionNodeIds = new Set<string>();
@@ -687,13 +737,17 @@ export class WorkflowDetailPresenter {
   }
 
   private static compareExecutionNodes(left: ExecutionNode, right: ExecutionNode): number {
-    const timestampComparison = (this.getSnapshotTimestamp(left.snapshot) ?? "").localeCompare(this.getSnapshotTimestamp(right.snapshot) ?? "");
+    const timestampComparison = (this.getSnapshotTimestamp(left.snapshot) ?? "").localeCompare(
+      this.getSnapshotTimestamp(right.snapshot) ?? "",
+    );
     if (timestampComparison !== 0) return timestampComparison;
     const idTie = left.node.id.localeCompare(right.node.id);
     if (idTie !== 0) return idTie;
     const roleComparison = this.compareExecutionNodeRoles(left.node.role, right.node.role);
     if (roleComparison !== 0) return roleComparison;
-    return this.getNodeDisplayName(left.node, left.node.id).localeCompare(this.getNodeDisplayName(right.node, right.node.id));
+    return this.getNodeDisplayName(left.node, left.node.id).localeCompare(
+      this.getNodeDisplayName(right.node, right.node.id),
+    );
   }
 
   private static computeExecutionTreeStableKeys(nodes: ReadonlyArray<ExecutionNode>): ReadonlyArray<string> {
@@ -862,7 +916,6 @@ export class WorkflowDetailPresenter {
     return [{ json: value as object }];
   }
 
-
   private static resolveMatchingSnapshots(
     node: WorkflowNode,
     snapshots: ReadonlyArray<NodeExecutionSnapshot>,
@@ -900,7 +953,9 @@ export class WorkflowDetailPresenter {
   }
 
   private static createCleanRunCurrentState(
-    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState" | "connectionInvocations"> | undefined,
+    currentState:
+      | Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState" | "connectionInvocations">
+      | undefined,
   ): RunCurrentState {
     return {
       outputsByNode: {},
@@ -911,7 +966,9 @@ export class WorkflowDetailPresenter {
   }
 
   private static cloneRunCurrentState(
-    currentState: Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState" | "connectionInvocations"> | undefined,
+    currentState:
+      | Pick<RunCurrentState, "outputsByNode" | "nodeSnapshotsByNodeId" | "mutableState" | "connectionInvocations">
+      | undefined,
   ): RunCurrentState {
     return {
       outputsByNode: JSON.parse(JSON.stringify(currentState?.outputsByNode ?? {})) as RunCurrentState["outputsByNode"],
@@ -919,7 +976,9 @@ export class WorkflowDetailPresenter {
         JSON.stringify(currentState?.nodeSnapshotsByNodeId ?? {}),
       ) as RunCurrentState["nodeSnapshotsByNodeId"],
       connectionInvocations: currentState?.connectionInvocations
-        ? (JSON.parse(JSON.stringify(currentState.connectionInvocations)) as NonNullable<RunCurrentState["connectionInvocations"]>)
+        ? (JSON.parse(JSON.stringify(currentState.connectionInvocations)) as NonNullable<
+            RunCurrentState["connectionInvocations"]
+          >)
         : undefined,
       mutableState: this.cloneMutableState(currentState?.mutableState),
     };

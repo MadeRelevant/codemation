@@ -1,20 +1,19 @@
 import type { CredentialTypeDefinition } from "@codemation/core/browser";
 import type {
-CredentialInstanceDto,
-CredentialInstanceWithSecretsDto,
-WorkflowCredentialHealthDto,
+  CredentialInstanceDto,
+  CredentialInstanceWithSecretsDto,
+  WorkflowCredentialHealthDto,
 } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
-import { withUserAccountLoginMethodsDefaults, type UserAccountDto } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
-import type { WorkflowDto,WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
+import {
+  withUserAccountLoginMethodsDefaults,
+  type UserAccountDto,
+} from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
+import type { WorkflowDto, WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 
-import type {
-PersistedRunState,
-RunSummary,
-WorkflowDebuggerOverlayState,
-} from "./realtimeDomainTypes";
+import type { PersistedRunState, RunSummary, WorkflowDebuggerOverlayState } from "./realtimeDomainTypes";
 
 export async function fetchWorkflows(): Promise<ReadonlyArray<WorkflowSummary>> {
   return await codemationApiClient.getJson<ReadonlyArray<WorkflowSummary>>(ApiPaths.workflows());
@@ -48,8 +47,12 @@ export async function fetchCredentialInstances(): Promise<ReadonlyArray<Credenti
   return await codemationApiClient.getJson<ReadonlyArray<CredentialInstanceDto>>(ApiPaths.credentialInstances());
 }
 
-export async function fetchCredentialInstanceWithSecrets(instanceId: string): Promise<CredentialInstanceWithSecretsDto> {
-  return await codemationApiClient.getJson<CredentialInstanceWithSecretsDto>(ApiPaths.credentialInstance(instanceId, true));
+export async function fetchCredentialInstanceWithSecrets(
+  instanceId: string,
+): Promise<CredentialInstanceWithSecretsDto> {
+  return await codemationApiClient.getJson<CredentialInstanceWithSecretsDto>(
+    ApiPaths.credentialInstance(instanceId, true),
+  );
 }
 
 export async function fetchWorkflowCredentialHealth(workflowId: string): Promise<WorkflowCredentialHealthDto> {

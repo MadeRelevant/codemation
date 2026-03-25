@@ -2,29 +2,41 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import type {
-ExecutableTriggerNode,
-Items,
-NodeExecutionContext,
-NodeOutputs,
-TriggerNodeConfig,
-TriggerSetupContext,
-TypeToken,
-WebhookControlSignal,
-WorkflowDefinition,
+  ExecutableTriggerNode,
+  Items,
+  NodeExecutionContext,
+  NodeOutputs,
+  TriggerNodeConfig,
+  TriggerSetupContext,
+  TypeToken,
+  WebhookControlSignal,
+  WorkflowDefinition,
 } from "../src/index.ts";
 import { WorkflowBuilder } from "../src/index.ts";
-import { CallbackNodeConfig,createEngineTestKit,items } from "./harness/index.ts";
+import { CallbackNodeConfig, createEngineTestKit, items } from "./harness/index.ts";
 
 class WebhookRunResultFactory {
   static async run(
     engine: {
-      runWorkflow: (wf: WorkflowDefinition, startAt: string, input: Items, parent: undefined, executionOptions: Readonly<{ localOnly: true; webhook: true }>) => Promise<any>;
+      runWorkflow: (
+        wf: WorkflowDefinition,
+        startAt: string,
+        input: Items,
+        parent: undefined,
+        executionOptions: Readonly<{ localOnly: true; webhook: true }>,
+      ) => Promise<any>;
       waitForWebhookResponse: (runId: string) => Promise<any>;
       waitForCompletion: (runId: string) => Promise<any>;
     },
     workflow: WorkflowDefinition,
     itemsToSend: Items,
-  ): Promise<{ runId: string; workflowId: string; startedAt: string; runStatus: "pending" | "completed"; response: Items }> {
+  ): Promise<{
+    runId: string;
+    workflowId: string;
+    startedAt: string;
+    runStatus: "pending" | "completed";
+    response: Items;
+  }> {
     const scheduled = await engine.runWorkflow(workflow, "trigger", itemsToSend, undefined, {
       localOnly: true,
       webhook: true,
@@ -135,7 +147,10 @@ test("webhook runs execute the matched trigger first and keep worker-hinted down
   const result = await WebhookRunResultFactory.run(kit.engine as any, workflow, items([{ orderId: "ord_1" }]));
 
   assert.equal(result.runStatus, "completed");
-  assert.deepEqual(result.response.map((item) => item.json), [{ orderId: "ord_1" }]);
+  assert.deepEqual(
+    result.response.map((item) => item.json),
+    [{ orderId: "ord_1" }],
+  );
   assert.equal(events.join(","), "trigger,downstream");
   const stored = await kit.runStore.load(result.runId);
   assert.equal(stored?.nodeSnapshotsByNodeId.trigger?.status, "completed");
@@ -171,7 +186,10 @@ test("webhook respond-now control signals complete the run and stop downstream e
   const stored = await kit.runStore.load(result.runId);
 
   assert.equal(result.runStatus, "completed");
-  assert.deepEqual(result.response.map((item) => item.json), [{ accepted: true }]);
+  assert.deepEqual(
+    result.response.map((item) => item.json),
+    [{ accepted: true }],
+  );
   assert.equal(stored?.status, "completed");
   assert.equal(events.join(","), "trigger");
 });
@@ -181,10 +199,7 @@ test("webhook respond-now-and-continue control signals return immediately and ke
   const trigger = new WebhookTestTriggerConfig(
     "Webhook trigger",
     async () => {
-      throw new TestWebhookRespondNowAndContinueError(
-        items([{ accepted: true }]),
-        items([{ forwarded: "payload" }]),
-      );
+      throw new TestWebhookRespondNowAndContinueError(items([{ accepted: true }]), items([{ forwarded: "payload" }]));
     },
     "trigger",
   );
@@ -208,7 +223,10 @@ test("webhook respond-now-and-continue control signals return immediately and ke
   const stored = await kit.runStore.load(result.runId);
 
   assert.equal(result.runStatus, "pending");
-  assert.deepEqual(result.response.map((item) => item.json), [{ accepted: true }]);
+  assert.deepEqual(
+    result.response.map((item) => item.json),
+    [{ accepted: true }],
+  );
   assert.equal(completed.status, "completed");
   assert.deepEqual(downstreamInputs, [{ forwarded: "payload" }]);
   assert.equal(stored?.status, "completed");

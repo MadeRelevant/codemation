@@ -7,6 +7,9 @@ export default defineConfig({
   test: {
     maxWorkers: 2,
     fileParallelism: true,
-    projects: [p("../../packages/queue-bullmq/vitest.config.ts"), p("../../packages/host/vitest.integration.config.ts")],
+    projects: [
+      p("../../packages/queue-bullmq/vitest.config.ts"),
+      p("../../packages/host/vitest.integration.config.ts"),
+    ],
   },
 });

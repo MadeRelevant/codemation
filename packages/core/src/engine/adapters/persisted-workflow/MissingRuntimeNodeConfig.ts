@@ -12,4 +12,3 @@ export class MissingRuntimeNodeConfig implements NodeConfigBase {
     public readonly missingRuntime = true,
   ) {}
 }
-

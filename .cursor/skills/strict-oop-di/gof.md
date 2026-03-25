@@ -9,6 +9,7 @@ Use these patterns to remove duplication and isolate change. Default goal: **sma
 **Rule of thumb**: if a conditional grows beyond ~3 branches or keeps changing, move to strategies.
 
 **Structure**:
+
 - `Strategy` interface
 - one class per variant
 - a selector/orchestrator (itself a class) that chooses the strategy
@@ -18,6 +19,7 @@ Use these patterns to remove duplication and isolate change. Default goal: **sma
 **Use when**: construction is non-trivial, parameter-dependent, or requires runtime selection.
 
 **DI-friendly shape**:
+
 - Factory is a class injected where needed.
 - Factory depends on abstractions and container-resolved constructors/providers.
 
@@ -26,6 +28,7 @@ Use these patterns to remove duplication and isolate change. Default goal: **sma
 **Use when**: integrating a vendor SDK or awkward API.
 
 **DI-friendly shape**:
+
 - Define a local interface (port) expressing what the app needs.
 - Implement it with an adapter class that wraps the SDK client.
 - Inject the adapter via the interface.
@@ -35,6 +38,7 @@ Use these patterns to remove duplication and isolate change. Default goal: **sma
 **Use when**: add behavior without changing a class (caching, retries, tracing, metrics).
 
 **DI-friendly shape**:
+
 - `Service` interface
 - base implementation
 - one or more decorators that wrap another `Service`
@@ -45,6 +49,7 @@ Use these patterns to remove duplication and isolate change. Default goal: **sma
 **Use when**: actions need to be queued, retried, logged, or composed.
 
 **DI-friendly shape**:
+
 - `Command` interface: `execute()` (or `handle()`)
 - each command has injected dependencies and immutable input
 - commands are created by factories if input is dynamic
@@ -54,6 +59,7 @@ Use these patterns to remove duplication and isolate change. Default goal: **sma
 **Use when**: publish/subscribe events without tight coupling.
 
 **DI-friendly shape**:
+
 - inject an `EventBus` interface; avoid global emitters
 - handlers/subscribers are classes registered with the bus
 
@@ -68,5 +74,6 @@ Use these patterns to remove duplication and isolate change. Default goal: **sma
 **Use when**: complex object construction with many optional pieces.
 
 **DI-friendly shape**:
+
 - builder is a class; if it needs services, inject them
 - keep the builder’s API fluent but typed

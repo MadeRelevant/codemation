@@ -55,7 +55,9 @@ function parseArgs(argv) {
 async function main() {
   const args = parseArgs(process.argv);
   if (!args.nextUrl || !args.runtimeUrl) {
-    console.error("Usage: node stress-reload-and-run.mjs --next-url http://127.0.0.1:3000 --runtime-url http://127.0.0.1:RT");
+    console.error(
+      "Usage: node stress-reload-and-run.mjs --next-url http://127.0.0.1:3000 --runtime-url http://127.0.0.1:RT",
+    );
     process.exit(1);
   }
   const repoRoot = resolveRepoRoot();

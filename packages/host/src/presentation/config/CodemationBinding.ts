@@ -1,4 +1,4 @@
-import type { Container,TypeToken } from "@codemation/core";
+import type { Container, TypeToken } from "@codemation/core";
 
 export type CodemationClassToken<TValue> = new (...args: never[]) => TValue;
 

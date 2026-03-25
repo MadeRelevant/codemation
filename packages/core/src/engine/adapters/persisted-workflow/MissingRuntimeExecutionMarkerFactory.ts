@@ -3,4 +3,3 @@ export class MissingRuntimeExecutionMarker {
     return Boolean((config as Partial<{ missingRuntime: boolean }> | undefined)?.missingRuntime);
   }
 }
-

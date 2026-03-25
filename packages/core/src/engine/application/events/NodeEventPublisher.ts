@@ -4,7 +4,10 @@ import type { NodeExecutionSnapshot } from "../../../types";
 export class NodeEventPublisher {
   constructor(private readonly eventBus: RunEventBus | undefined) {}
 
-  async publish(kind: "nodeQueued" | "nodeStarted" | "nodeCompleted" | "nodeFailed", snapshot: NodeExecutionSnapshot): Promise<void> {
+  async publish(
+    kind: "nodeQueued" | "nodeStarted" | "nodeCompleted" | "nodeFailed",
+    snapshot: NodeExecutionSnapshot,
+  ): Promise<void> {
     if (!this.eventBus) return;
     await this.eventBus.publish({
       kind,
@@ -16,4 +19,3 @@ export class NodeEventPublisher {
     });
   }
 }
-

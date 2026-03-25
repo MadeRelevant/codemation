@@ -1,5 +1,5 @@
-import type { PersistedTriggerSetupState,TriggerInstanceId,TriggerSetupStateStore } from "@codemation/core";
-import { inject,injectable } from "@codemation/core";
+import type { PersistedTriggerSetupState, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import { PrismaClient } from "./generated/prisma-client/client.js";
 
 type TriggerSetupStateJson = Readonly<{

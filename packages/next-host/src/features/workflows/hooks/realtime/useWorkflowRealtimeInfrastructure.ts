@@ -1,28 +1,30 @@
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import type { Logger } from "@codemation/host-src/application/logging/Logger";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback,useEffect,useMemo,useRef,useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { RealtimeContextValue } from "../../components/realtime/RealtimeContext";
 import { applyWorkflowEvent } from "../../lib/realtime/realtimeRunMutations";
 import {
-getRealtimeBridge,
-minimumRealtimeActiveVisibilityMs,
-persistentRealtimeDisconnectWarningDelayMs,
-RealtimeReadyState,
-type RealtimeClientMessage,
-type RealtimeReadyValue,
-type RealtimeServerMessage,
+  getRealtimeBridge,
+  minimumRealtimeActiveVisibilityMs,
+  persistentRealtimeDisconnectWarningDelayMs,
+  RealtimeReadyState,
+  type RealtimeClientMessage,
+  type RealtimeReadyValue,
+  type RealtimeServerMessage,
 } from "../../lib/realtime/realtimeClientBridge";
 import {
-runQueryKey,
-workflowDevBuildStateQueryKey,
-workflowQueryKey,
-workflowsQueryKey,
+  runQueryKey,
+  workflowDevBuildStateQueryKey,
+  workflowQueryKey,
+  workflowsQueryKey,
 } from "../../lib/realtime/realtimeQueryKeys";
-import type { PersistedRunState,WorkflowDevBuildState } from "../../lib/realtime/realtimeDomainTypes";
+import type { PersistedRunState, WorkflowDevBuildState } from "../../lib/realtime/realtimeDomainTypes";
 
-export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logger; websocketPort?: string }>): RealtimeContextValue {
+export function useWorkflowRealtimeInfrastructure(
+  args: Readonly<{ logger: Logger; websocketPort?: string }>,
+): RealtimeContextValue {
   const { logger, websocketPort } = args;
   const queryClient = useQueryClient();
   const desiredWorkflowCountsRef = useRef(new Map<string, number>());
@@ -65,43 +67,52 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
     window.clearTimeout(disconnectWarningTimeoutRef.current);
     disconnectWarningTimeoutRef.current = null;
   }, []);
-  const schedulePersistentDisconnectWarning = useCallback((reason: string): void => {
-    pendingDisconnectReasonRef.current = reason;
-    if (disconnectWarningTimeoutRef.current !== null) {
-      return;
-    }
-    disconnectWarningTimeoutRef.current = window.setTimeout(() => {
-      disconnectWarningTimeoutRef.current = null;
-      if (readyStateRef.current === RealtimeReadyState.OPEN) {
-        pendingDisconnectReasonRef.current = null;
+  const schedulePersistentDisconnectWarning = useCallback(
+    (reason: string): void => {
+      pendingDisconnectReasonRef.current = reason;
+      if (disconnectWarningTimeoutRef.current !== null) {
         return;
       }
-      logger.warn(
-        `websocket transport is still unavailable after ${persistentRealtimeDisconnectWarningDelayMs}ms at ${websocketUrl}: ${pendingDisconnectReasonRef.current ?? reason}`,
-      );
-    }, persistentRealtimeDisconnectWarningDelayMs);
-  }, [logger, websocketUrl]);
+      disconnectWarningTimeoutRef.current = window.setTimeout(() => {
+        disconnectWarningTimeoutRef.current = null;
+        if (readyStateRef.current === RealtimeReadyState.OPEN) {
+          pendingDisconnectReasonRef.current = null;
+          return;
+        }
+        logger.warn(
+          `websocket transport is still unavailable after ${persistentRealtimeDisconnectWarningDelayMs}ms at ${websocketUrl}: ${pendingDisconnectReasonRef.current ?? reason}`,
+        );
+      }, persistentRealtimeDisconnectWarningDelayMs);
+    },
+    [logger, websocketUrl],
+  );
   const clearPendingTerminalEventDelay = useCallback((nodeKey: string): void => {
     const timeoutId = terminalEventTimeoutIdByNodeKeyRef.current.get(nodeKey);
     if (timeoutId === undefined) return;
     window.clearTimeout(timeoutId);
     terminalEventTimeoutIdByNodeKeyRef.current.delete(nodeKey);
   }, []);
-  const clearRunRealtimeDelays = useCallback((runId: string): void => {
-    const runPrefix = `${runId}:`;
-    for (const nodeKey of terminalEventTimeoutIdByNodeKeyRef.current.keys()) {
-      if (!nodeKey.startsWith(runPrefix)) continue;
-      clearPendingTerminalEventDelay(nodeKey);
-    }
-    for (const nodeKey of activeStatusShownAtByNodeKeyRef.current.keys()) {
-      if (!nodeKey.startsWith(runPrefix)) continue;
-      activeStatusShownAtByNodeKeyRef.current.delete(nodeKey);
-    }
-  }, [clearPendingTerminalEventDelay]);
+  const clearRunRealtimeDelays = useCallback(
+    (runId: string): void => {
+      const runPrefix = `${runId}:`;
+      for (const nodeKey of terminalEventTimeoutIdByNodeKeyRef.current.keys()) {
+        if (!nodeKey.startsWith(runPrefix)) continue;
+        clearPendingTerminalEventDelay(nodeKey);
+      }
+      for (const nodeKey of activeStatusShownAtByNodeKeyRef.current.keys()) {
+        if (!nodeKey.startsWith(runPrefix)) continue;
+        activeStatusShownAtByNodeKeyRef.current.delete(nodeKey);
+      }
+    },
+    [clearPendingTerminalEventDelay],
+  );
   const handleRealtimeServerMessage = useCallback(
     (message: RealtimeServerMessage) => {
       if (message.kind === "event") {
-        const eventDetails = "snapshot" in message.event && message.event.snapshot ? `:${message.event.snapshot.nodeId}:${message.event.snapshot.status}` : "";
+        const eventDetails =
+          "snapshot" in message.event && message.event.snapshot
+            ? `:${message.event.snapshot.nodeId}:${message.event.snapshot.status}`
+            : "";
         if ("snapshot" in message.event && message.event.snapshot) {
           logger.info(`realtime snapshot event node=${message.event.snapshot.nodeId} kind=${message.event.kind}`);
         }
@@ -179,12 +190,15 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
             `[codemation-dev-timing] workflowChanged received workflowId=${message.workflowId} t=${workflowRefreshStarted.toFixed(1)}`,
           );
         }
-        queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey(message.workflowId), (existing) => ({
-          state: "building",
-          updatedAt: existing?.updatedAt ?? new Date().toISOString(),
-          buildVersion: existing?.buildVersion,
-          awaitingWorkflowRefreshAt: new Date().toISOString(),
-        }));
+        queryClient.setQueryData<WorkflowDevBuildState>(
+          workflowDevBuildStateQueryKey(message.workflowId),
+          (existing) => ({
+            state: "building",
+            updatedAt: existing?.updatedAt ?? new Date().toISOString(),
+            buildVersion: existing?.buildVersion,
+            awaitingWorkflowRefreshAt: new Date().toISOString(),
+          }),
+        );
         void queryClient.invalidateQueries({ queryKey: workflowQueryKey(message.workflowId) });
         void queryClient.invalidateQueries({ queryKey: workflowsQueryKey });
         void queryClient
@@ -215,21 +229,24 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
 
       if (message.kind === "devBuildCompleted") {
         logger.info(`workflow rebuild completed ${message.workflowId} revision=${message.buildVersion}`);
-        queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey(message.workflowId), (existing) => {
-          if (existing?.awaitingWorkflowRefreshAt) {
+        queryClient.setQueryData<WorkflowDevBuildState>(
+          workflowDevBuildStateQueryKey(message.workflowId),
+          (existing) => {
+            if (existing?.awaitingWorkflowRefreshAt) {
+              return {
+                state: "building",
+                updatedAt: new Date().toISOString(),
+                buildVersion: message.buildVersion,
+                awaitingWorkflowRefreshAt: existing.awaitingWorkflowRefreshAt,
+              };
+            }
             return {
-              state: "building",
+              state: "idle",
               updatedAt: new Date().toISOString(),
               buildVersion: message.buildVersion,
-              awaitingWorkflowRefreshAt: existing.awaitingWorkflowRefreshAt,
             };
-          }
-          return {
-            state: "idle",
-            updatedAt: new Date().toISOString(),
-            buildVersion: message.buildVersion,
-          };
-        });
+          },
+        );
         void queryClient.invalidateQueries({ queryKey: workflowQueryKey(message.workflowId) });
         void queryClient.refetchQueries({ queryKey: workflowQueryKey(message.workflowId), type: "active" });
         return;
@@ -351,7 +368,9 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
           logger.debug(`websocket transport is not available yet at ${websocketUrl}`);
         }
         if (hasOpenedConnectionRef.current) {
-          schedulePersistentDisconnectWarning(`closed code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`);
+          schedulePersistentDisconnectWarning(
+            `closed code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`,
+          );
         }
         if (disposed) {
           return;
@@ -456,10 +475,15 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
       desiredWorkflowCountsRef.current.set(workflowId, nextCount);
       setActiveWorkflowIds((current) => {
         const next = [...desiredWorkflowCountsRef.current.keys()];
-        return current.length === next.length && current.every((value, index) => value === next[index]) ? current : next;
+        return current.length === next.length && current.every((value, index) => value === next[index])
+          ? current
+          : next;
       });
       if (nextCount === 1 && readyStateRef.current === RealtimeReadyState.OPEN && canSendJsonMessage()) {
-        const sent = sendJsonMessageRef.current({ kind: "subscribe", roomId: workflowId } satisfies RealtimeClientMessage);
+        const sent = sendJsonMessageRef.current({
+          kind: "subscribe",
+          roomId: workflowId,
+        } satisfies RealtimeClientMessage);
         logger.debug(`${sent ? "sent" : "queued"} retain subscription for workflow ${workflowId}`);
       }
 
@@ -469,10 +493,15 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
           desiredWorkflowCountsRef.current.delete(workflowId);
           setActiveWorkflowIds((current) => {
             const next = [...desiredWorkflowCountsRef.current.keys()];
-            return current.length === next.length && current.every((value, index) => value === next[index]) ? current : next;
+            return current.length === next.length && current.every((value, index) => value === next[index])
+              ? current
+              : next;
           });
           if (readyStateRef.current === RealtimeReadyState.OPEN && canSendJsonMessage()) {
-            const sent = sendJsonMessageRef.current({ kind: "unsubscribe", roomId: workflowId } satisfies RealtimeClientMessage);
+            const sent = sendJsonMessageRef.current({
+              kind: "unsubscribe",
+              roomId: workflowId,
+            } satisfies RealtimeClientMessage);
             logger.debug(`${sent ? "sent" : "queued"} unsubscribe for workflow ${workflowId}`);
           }
           return;
@@ -480,7 +509,9 @@ export function useWorkflowRealtimeInfrastructure(args: Readonly<{ logger: Logge
         desiredWorkflowCountsRef.current.set(workflowId, currentCount - 1);
         setActiveWorkflowIds((current) => {
           const next = [...desiredWorkflowCountsRef.current.keys()];
-          return current.length === next.length && current.every((value, index) => value === next[index]) ? current : next;
+          return current.length === next.length && current.every((value, index) => value === next[index])
+            ? current
+            : next;
         });
       };
     },

@@ -1,4 +1,19 @@
-import { Bot,Boxes,Brain,CircleAlert,CircleCheckBig,Clock3,GitBranch,Globe,type LucideIcon,Pin,PlaySquare,SquareStack,Workflow,Wrench } from "lucide-react";
+import {
+  Bot,
+  Boxes,
+  Brain,
+  CircleAlert,
+  CircleCheckBig,
+  Clock3,
+  GitBranch,
+  Globe,
+  type LucideIcon,
+  Pin,
+  PlaySquare,
+  SquareStack,
+  Workflow,
+  Wrench,
+} from "lucide-react";
 
 import type { NodeExecutionSnapshot } from "../../hooks/realtime/realtime";
 
@@ -54,14 +69,18 @@ export function statusIconForNode(status: NodeExecutionSnapshot["status"] | unde
   return null;
 }
 
-export function trailingIconForNode(args: Readonly<{ status: NodeExecutionSnapshot["status"] | undefined; isPinned: boolean }>) {
+export function trailingIconForNode(
+  args: Readonly<{ status: NodeExecutionSnapshot["status"] | undefined; isPinned: boolean }>,
+) {
   if (args.isPinned) {
     return <Pin size={14} style={{ color: "#6d28d9" }} strokeWidth={2.4} fill="currentColor" />;
   }
   return statusIconForNode(args.status);
 }
 
-export function trailingIconKindForNode(args: Readonly<{ status: NodeExecutionSnapshot["status"] | undefined; isPinned: boolean }>): string {
+export function trailingIconKindForNode(
+  args: Readonly<{ status: NodeExecutionSnapshot["status"] | undefined; isPinned: boolean }>,
+): string {
   if (args.isPinned) {
     return "pin";
   }

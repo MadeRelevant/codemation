@@ -1,4 +1,4 @@
-import type { Container,EngineExecutionLimitsPolicyConfig,TypeToken,WorkflowDefinition } from "@codemation/core";
+import type { Container, EngineExecutionLimitsPolicyConfig, TypeToken, WorkflowDefinition } from "@codemation/core";
 import type { CodemationApplication } from "../../codemationApplication";
 import type { RegisteredCredentialType } from "../../domain/credentials/CredentialServices";
 import type { CodemationAppSlots } from "./CodemationAppSlots";

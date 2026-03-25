@@ -1,11 +1,11 @@
 import type {
-CredentialHealth,
-CredentialInstanceId,
-CredentialMaterialSourceKind,
-CredentialRequirement,
-CredentialSetupStatus,
-CredentialTypeDefinition,
-CredentialTypeId,
+  CredentialHealth,
+  CredentialInstanceId,
+  CredentialMaterialSourceKind,
+  CredentialRequirement,
+  CredentialSetupStatus,
+  CredentialTypeDefinition,
+  CredentialTypeId,
 } from "@codemation/core";
 
 export type CredentialInstanceDto = Readonly<{

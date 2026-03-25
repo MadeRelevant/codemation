@@ -30,7 +30,9 @@ export class WebhookHttpRouteHandler {
       }
       const requestItem = await this.requestToWebhookItemMapper.map(request, resolution.match);
       return Response.json(
-        await this.commandBus.execute(new HandleWebhookInvocationCommand(endpointPath, request.method.toUpperCase(), requestItem)),
+        await this.commandBus.execute(
+          new HandleWebhookInvocationCommand(endpointPath, request.method.toUpperCase(), requestItem),
+        ),
       );
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);

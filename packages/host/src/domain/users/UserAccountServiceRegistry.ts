@@ -1,11 +1,11 @@
 import { hash } from "bcryptjs";
-import { createHash,randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
 import type {
-InviteUserResponseDto,
-UserAccountDto,
-UserAccountStatus,
-VerifyUserInviteResponseDto,
+  InviteUserResponseDto,
+  UserAccountDto,
+  UserAccountStatus,
+  VerifyUserInviteResponseDto,
 } from "../../application/contracts/userDirectoryContracts.types";
 import { PrismaClient } from "../../infrastructure/persistence/generated/prisma-client/client.js";
 import type { CodemationAuthConfig } from "../../presentation/config/CodemationAuthConfig";
@@ -233,20 +233,17 @@ export class UserAccountService {
     return this.toDto(row);
   }
 
-  private toDto(
-    row: {
-      id: string;
-      email: string | null;
-      accountStatus: string;
-      passwordHash: string | null;
-      accounts: ReadonlyArray<{ provider: string; type: string }>;
-      invites: ReadonlyArray<{ expiresAt: Date }>;
-    },
-  ): UserAccountDto {
+  private toDto(row: {
+    id: string;
+    email: string | null;
+    accountStatus: string;
+    passwordHash: string | null;
+    accounts: ReadonlyArray<{ provider: string; type: string }>;
+    invites: ReadonlyArray<{ expiresAt: Date }>;
+  }): UserAccountDto {
     const now = new Date();
     const open = row.invites[0];
-    const inviteExpiresAt =
-      open && open.expiresAt > now ? open.expiresAt.toISOString() : null;
+    const inviteExpiresAt = open && open.expiresAt > now ? open.expiresAt.toISOString() : null;
     return {
       id: row.id,
       email: row.email ?? "",

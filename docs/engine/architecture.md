@@ -6,10 +6,10 @@ This document describes the **workflow execution engine** inside `@codemation/co
 
 ## How to read this doc
 
-| If you… | Start here, then… |
-|--------|-------------------|
-| Want a **5-minute mental model** | [What the engine is](#what-the-engine-is-for-a-general-audience) → [Big picture](#big-picture) → [Glossary](#glossary) |
-| Need to **navigate the codebase** | [Source layout](#source-layout-packagescoresrcengine) → [Public entry points](#public-entry-points) |
+| If you…                                    | Start here, then…                                                                                                                                  |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Want a **5-minute mental model**           | [What the engine is](#what-the-engine-is-for-a-general-audience) → [Big picture](#big-picture) → [Glossary](#glossary)                             |
+| Need to **navigate the codebase**          | [Source layout](#source-layout-packagescoresrcengine) → [Public entry points](#public-entry-points)                                                |
 | Are **implementing or extending** behavior | [Layered design](#layered-design) → [Ports and dependencies](#ports-and-dependencies) → [Execution pipeline](#execution-pipeline-for-implementers) |
 
 ---
@@ -18,11 +18,11 @@ This document describes the **workflow execution engine** inside `@codemation/co
 
 The engine is the **runtime that runs workflows**: it schedules work between nodes, persists progress, resumes after failures or external waits, and coordinates triggers (for example webhooks). It is **not** the product UI, HTTP server shell, or database schema—those live in host and app packages and plug into the engine through **well-defined interfaces** (“ports”).
 
-**In one sentence:** the engine turns *workflow definitions + items of data* into *durable runs* with deterministic orchestration rules.
+**In one sentence:** the engine turns _workflow definitions + items of data_ into _durable runs_ with deterministic orchestration rules.
 
 ---
 
-## What the engine deliberately does *not* do
+## What the engine deliberately does _not_ do
 
 Keeping these boundaries stable is what lets the monorepo stay modular:
 
@@ -69,15 +69,15 @@ At runtime, **host wiring** constructs an `Engine` (usually via `EngineFactory`)
 
 ## Glossary
 
-| Term | Meaning |
-|------|---------|
-| **Workflow definition** | In-memory graph: nodes, edges, and typed node configs discovered from code/config. |
-| **Run** | One execution of a workflow from some entry node, with a stable **run id** and persisted state. |
-| **Activation** | A unit of scheduled node work (often tied to a **node activation id** and optional queue receipt). |
-| **Items** | The data flowing between nodes (batches per node invocation). |
-| **Live workflows** | The current definitions available at runtime (`list` / `get` via `WorkflowRepository`). |
+| Term                            | Meaning                                                                                                 |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Workflow definition**         | In-memory graph: nodes, edges, and typed node configs discovered from code/config.                      |
+| **Run**                         | One execution of a workflow from some entry node, with a stable **run id** and persisted state.         |
+| **Activation**                  | A unit of scheduled node work (often tied to a **node activation id** and optional queue receipt).      |
+| **Items**                       | The data flowing between nodes (batches per node invocation).                                           |
+| **Live workflows**              | The current definitions available at runtime (`list` / `get` via `WorkflowRepository`).                 |
 | **Persisted workflow snapshot** | Serialized workflow shape stored on a long-lived run so older runs can be resumed even if code changes. |
-| **Trigger** | Entry path that can start or feed a workflow (webhooks, manual, etc.—depending on packages wired in). |
+| **Trigger**                     | Entry path that can start or feed a workflow (webhooks, manual, etc.—depending on packages wired in).   |
 
 ---
 
@@ -85,17 +85,17 @@ At runtime, **host wiring** constructs an `Engine` (usually via `EngineFactory`)
 
 The engine code is grouped by responsibility:
 
-| Folder | Role |
-|--------|------|
-| `api/` | **Facade & composition root**: `Engine` (thin surface), `EngineFactory` (wires internal services). |
-| `application/` | **Orchestration**: start/resume runs, triggers, intents, state publishing, waiters, credentials glue, execution services. |
-| `domain/` | **Pure logic**: planning, frontier/current-state helpers, snapshot-oriented utilities without I/O. |
-| `adapters/` | **Concrete helpers** that implement engine-facing concerns: persisted-workflow materialization, container `NodeResolver`, in-memory matchers for tests, etc. |
-| `scheduling/` | **Schedulers & offload policy** implementations used when executing activations. |
-| `storage/` | **Run-store helpers** bundled with the engine package (in-memory implementations for tests/dev tooling). |
-| `graph/` | **Graph construction** helpers for executable workflow structure. |
-| `context/` | **Execution context** defaults (including binary attachment factories used along runs). |
-| `planning/` | Legacy/extra planning entry points; **prefer `domain/planning/`** for the canonical graph algorithms where duplicated. |
+| Folder         | Role                                                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `api/`         | **Facade & composition root**: `Engine` (thin surface), `EngineFactory` (wires internal services).                                                           |
+| `application/` | **Orchestration**: start/resume runs, triggers, intents, state publishing, waiters, credentials glue, execution services.                                    |
+| `domain/`      | **Pure logic**: planning, frontier/current-state helpers, snapshot-oriented utilities without I/O.                                                           |
+| `adapters/`    | **Concrete helpers** that implement engine-facing concerns: persisted-workflow materialization, container `NodeResolver`, in-memory matchers for tests, etc. |
+| `scheduling/`  | **Schedulers & offload policy** implementations used when executing activations.                                                                             |
+| `storage/`     | **Run-store helpers** bundled with the engine package (in-memory implementations for tests/dev tooling).                                                     |
+| `graph/`       | **Graph construction** helpers for executable workflow structure.                                                                                            |
+| `context/`     | **Execution context** defaults (including binary attachment factories used along runs).                                                                      |
+| `planning/`    | Legacy/extra planning entry points; **prefer `domain/planning/`** for the canonical graph algorithms where duplicated.                                       |
 
 > **Note:** Over time, some planning code exists in both `planning/` and `domain/planning/` as refactors land. When in doubt, follow imports from `application/` services.
 
@@ -186,13 +186,13 @@ In DI, prefer the **`WorkflowCatalog`** token for the canonical mutable registra
 
 ## Live workflows vs persisted snapshots
 
-| Concern | Live | Persisted |
-|--------|------|-----------|
-| **Source of truth** | Current definitions in the **`WorkflowCatalog` / repository** | **`workflowSnapshot`** stored on the run record |
-| **Used for** | Scheduling new work, triggers, “run latest” | Resuming old runs, drift-tolerant execution |
-| **Materialization** | Engine reads from repository | `PersistedWorkflowResolver` combines snapshot + registry tokens into a runnable definition |
+| Concern             | Live                                                          | Persisted                                                                                  |
+| ------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **Source of truth** | Current definitions in the **`WorkflowCatalog` / repository** | **`workflowSnapshot`** stored on the run record                                            |
+| **Used for**        | Scheduling new work, triggers, “run latest”                   | Resuming old runs, drift-tolerant execution                                                |
+| **Materialization** | Engine reads from repository                                  | `PersistedWorkflowResolver` combines snapshot + registry tokens into a runnable definition |
 
-**Outsider takeaway:** “Live” is what your deployment knows about *now*; “persisted” is what a specific *historical run* recorded *then*.
+**Outsider takeaway:** “Live” is what your deployment knows about _now_; “persisted” is what a specific _historical run_ recorded _then_.
 
 **Nerd detail:** resolvers and hydrators live under `engine/adapters/persisted-workflow/`; they are intentionally **not** something host apps should fork lightly—keep them engine-internal.
 

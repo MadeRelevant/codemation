@@ -6,7 +6,10 @@ import { HandlesQuery } from "../../infrastructure/di/HandlesQueryRegistry";
 import { GetRunBinaryAttachmentQuery } from "./GetRunBinaryAttachmentQuery";
 
 @HandlesQuery.for(GetRunBinaryAttachmentQuery)
-export class GetRunBinaryAttachmentQueryHandler extends QueryHandler<GetRunBinaryAttachmentQuery, BinaryAttachment | undefined> {
+export class GetRunBinaryAttachmentQueryHandler extends QueryHandler<
+  GetRunBinaryAttachmentQuery,
+  BinaryAttachment | undefined
+> {
   constructor(
     @inject(RunBinaryAttachmentLookupService)
     private readonly lookupService: RunBinaryAttachmentLookupService,

@@ -1,11 +1,11 @@
 import type {
-NodeActivationContinuation,
-NodeActivationReceipt,
-NodeActivationRequest,
-NodeActivationScheduler,
-NodeExecutionRequest,
-NodeExecutionScheduler,
-NodeOffloadPolicy,
+  NodeActivationContinuation,
+  NodeActivationReceipt,
+  NodeActivationRequest,
+  NodeActivationScheduler,
+  NodeExecutionRequest,
+  NodeExecutionScheduler,
+  NodeOffloadPolicy,
 } from "../../types";
 
 import { InlineDrivingScheduler } from "./inlineDrivingScheduler";
@@ -61,4 +61,3 @@ export class DefaultDrivingScheduler implements NodeActivationScheduler {
     this.inline.notifyPendingStatePersisted(runId);
   }
 }
-

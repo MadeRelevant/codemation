@@ -19,15 +19,17 @@ function folderTestId(path: ReadonlyArray<string>): string {
   return `nav-workflow-folder-${path.join("__")}`;
 }
 
-export function WorkflowSidebarNavFolder(args: Readonly<{
-  node: WorkflowFolderTreeNode;
-  pathPrefix: ReadonlyArray<string>;
-  pathname: string;
-  workflows: ReadonlyArray<WorkflowSummary>;
-  workflowLinkClass: (isActive: boolean) => string;
-  depth: number;
-  collapsed?: boolean;
-}>): ReactNode {
+export function WorkflowSidebarNavFolder(
+  args: Readonly<{
+    node: WorkflowFolderTreeNode;
+    pathPrefix: ReadonlyArray<string>;
+    pathname: string;
+    workflows: ReadonlyArray<WorkflowSummary>;
+    workflowLinkClass: (isActive: boolean) => string;
+    depth: number;
+    collapsed?: boolean;
+  }>,
+): ReactNode {
   const { node, pathPrefix, pathname, workflows, workflowLinkClass, depth } = args;
   const collapsed = args.collapsed === true;
   const folderPath = [...pathPrefix, node.segment];

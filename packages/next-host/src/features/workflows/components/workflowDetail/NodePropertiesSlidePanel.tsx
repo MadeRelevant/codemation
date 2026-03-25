@@ -8,12 +8,14 @@ import type { WorkflowDiagramNode } from "../../lib/workflowDetail/workflowDetai
 
 const panelWidthPx = 300;
 
-export function NodePropertiesSlidePanel(args: Readonly<{
-  workflowId: string;
-  isOpen: boolean;
-  node: WorkflowDiagramNode | undefined;
-  onClose: () => void;
-}>) {
+export function NodePropertiesSlidePanel(
+  args: Readonly<{
+    workflowId: string;
+    isOpen: boolean;
+    node: WorkflowDiagramNode | undefined;
+    onClose: () => void;
+  }>,
+) {
   const { isOpen, node, onClose, workflowId } = args;
   const isVisible = isOpen && Boolean(node);
   return (

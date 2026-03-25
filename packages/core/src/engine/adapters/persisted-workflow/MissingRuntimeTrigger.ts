@@ -14,4 +14,3 @@ export class MissingRuntimeTrigger implements ExecutableTriggerNode<MissingRunti
     return { main: items };
   }
 }
-

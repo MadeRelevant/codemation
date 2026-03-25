@@ -11,7 +11,9 @@ export class RunPolicySnapshotFactory {
     const retentionSeconds = prune?.runDataRetentionSeconds ?? defaults?.retentionSeconds;
     const binaryRetentionSeconds = prune?.binaryRetentionSeconds ?? defaults?.binaryRetentionSeconds;
     const storagePolicy: WorkflowStoragePolicyMode =
-      typeof workflow.storagePolicy === "string" ? (workflow.storagePolicy as WorkflowStoragePolicyMode) : defaults?.storagePolicy ?? "ALL";
+      typeof workflow.storagePolicy === "string"
+        ? (workflow.storagePolicy as WorkflowStoragePolicyMode)
+        : (defaults?.storagePolicy ?? "ALL");
     return {
       retentionSeconds,
       binaryRetentionSeconds,

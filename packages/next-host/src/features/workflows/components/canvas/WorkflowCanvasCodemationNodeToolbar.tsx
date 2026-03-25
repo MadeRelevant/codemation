@@ -1,14 +1,16 @@
-import { Pencil,Pin,PinOff,Play } from "lucide-react";
+import { Pencil, Pin, PinOff, Play } from "lucide-react";
 
 import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
 import { WorkflowCanvasToolbarIconButton } from "./WorkflowCanvasToolbarIconButton";
 
-export function WorkflowCanvasCodemationNodeToolbar(props: Readonly<{
-  data: WorkflowCanvasNodeData;
-  isPinned: boolean;
-  isToolbarVisible: boolean;
-  setHasToolbarFocus: (value: boolean) => void;
-}>) {
+export function WorkflowCanvasCodemationNodeToolbar(
+  props: Readonly<{
+    data: WorkflowCanvasNodeData;
+    isPinned: boolean;
+    isToolbarVisible: boolean;
+    setHasToolbarFocus: (value: boolean) => void;
+  }>,
+) {
   const { data, isPinned, isToolbarVisible, setHasToolbarFocus } = props;
   return (
     <div
@@ -47,9 +49,7 @@ export function WorkflowCanvasCodemationNodeToolbar(props: Readonly<{
       <WorkflowCanvasToolbarIconButton
         testId={`${isPinned ? "canvas-node-unpin-button" : "canvas-node-pin-button"}-${data.nodeId}`}
         ariaLabel={`${isPinned ? "Unpin" : "Pin"} ${data.label}`}
-        tooltip={
-          !data.hasOutputData ? "No output to pin yet" : isPinned ? "Unpin output" : "Pin current output"
-        }
+        tooltip={!data.hasOutputData ? "No output to pin yet" : isPinned ? "Unpin output" : "Pin current output"}
         onAfterClick={() => setHasToolbarFocus(false)}
         onClick={(event) => {
           event.stopPropagation();

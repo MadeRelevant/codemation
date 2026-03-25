@@ -1,4 +1,4 @@
-import { inject,type PersistedRunState } from "@codemation/core";
+import { inject, type PersistedRunState } from "@codemation/core";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";

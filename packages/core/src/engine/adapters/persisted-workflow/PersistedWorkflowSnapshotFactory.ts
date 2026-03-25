@@ -1,5 +1,10 @@
 import type { TypeToken } from "../../../di";
-import type { PersistedTokenId, PersistedWorkflowSnapshot, PersistedWorkflowTokenRegistryLike, WorkflowDefinition } from "../../../types";
+import type {
+  PersistedTokenId,
+  PersistedWorkflowSnapshot,
+  PersistedWorkflowTokenRegistryLike,
+  WorkflowDefinition,
+} from "../../../types";
 
 import { PersistedWorkflowConfigSerializer } from "./PersistedWorkflowConfigSerializer";
 
@@ -50,4 +55,3 @@ export class PersistedWorkflowSnapshotFactory {
     return typeof token === "function" && token.name ? token.name : typeof token === "string" ? token : undefined;
   }
 }
-

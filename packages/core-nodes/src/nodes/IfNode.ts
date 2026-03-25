@@ -1,10 +1,8 @@
-import type { Item,Items,Node,NodeExecutionContext,NodeOutputs } from "@codemation/core";
+import type { Item, Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
 
 import { node } from "@codemation/core";
 
 import { If } from "./if";
-
-
 
 @node({ packageName: "@codemation/core-nodes" })
 export class IfNode implements Node<If<any>> {
@@ -16,9 +14,13 @@ export class IfNode implements Node<If<any>> {
     const f: Item[] = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i] as Item<unknown>;
-      const metaBase = (item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}) as Record<string, unknown>;
+      const metaBase = (
+        item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}
+      ) as Record<string, unknown>;
       const cmBase =
-        metaBase._cm && typeof metaBase._cm === "object" ? (metaBase._cm as Record<string, unknown>) : ({} as Record<string, unknown>);
+        metaBase._cm && typeof metaBase._cm === "object"
+          ? (metaBase._cm as Record<string, unknown>)
+          : ({} as Record<string, unknown>);
       const originIndex = typeof cmBase.originIndex === "number" ? (cmBase.originIndex as number) : i;
       const tagged: Item = {
         ...item,

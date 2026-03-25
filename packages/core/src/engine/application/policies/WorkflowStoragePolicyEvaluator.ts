@@ -23,7 +23,9 @@ export class WorkflowStoragePolicyEvaluator {
     if (typeof spec === "string") {
       return this.modeMatches(spec as WorkflowStoragePolicyMode, args);
     }
-    const resolver = this.nodeResolver.resolve(spec as TypeToken<WorkflowStoragePolicyResolver>) as WorkflowStoragePolicyResolver;
+    const resolver = this.nodeResolver.resolve(
+      spec as TypeToken<WorkflowStoragePolicyResolver>,
+    ) as WorkflowStoragePolicyResolver;
     return Boolean(await resolver.shouldPersist(args));
   }
 

@@ -1,5 +1,5 @@
-import type { Item,NodeExecutionContext } from "@codemation/core";
-import { Callback,createWorkflowBuilder,HttpRequest,ManualTrigger } from "@codemation/core-nodes";
+import type { Item, NodeExecutionContext } from "@codemation/core";
+import { Callback, createWorkflowBuilder, HttpRequest, ManualTrigger } from "@codemation/core-nodes";
 
 type MediaSeedJson = Readonly<{
   label: string;
@@ -22,10 +22,17 @@ class MediaPreviewGeneratedNoteFactory {
   ): Promise<ReadonlyArray<Item<MediaPreviewGeneratedJson>>> {
     return await Promise.all(
       items.map(async (item) => {
-        const noteFilename = `${item.json.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "attachment"}-note.txt`;
+        const noteFilename = `${
+          item.json.label
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "") || "attachment"
+        }-note.txt`;
         const noteAttachment = await ctx.binary.attach({
           name: "note",
-          body: new TextEncoder().encode(`Generated note for ${item.json.label}. This item demonstrates a node returning JSON and binary together.`),
+          body: new TextEncoder().encode(
+            `Generated note for ${item.json.label}. This item demonstrates a node returning JSON and binary together.`,
+          ),
           mimeType: "text/plain",
           filename: noteFilename,
         });
@@ -84,13 +91,10 @@ export default createWorkflowBuilder({ id: "wf.media.preview", name: "Media prev
     ]),
   )
   .then(
-    new HttpRequest<MediaSeedJson>(
-      "Download media body",
-      {
-        downloadMode: "always",
-        binaryName: "body",
-      },
-    ),
+    new HttpRequest<MediaSeedJson>("Download media body", {
+      downloadMode: "always",
+      binaryName: "body",
+    }),
   )
   .then(
     new Callback<MediaPreviewGeneratedJson, MediaPreviewGeneratedJson>("Attach generated note", async (items, ctx) => {

@@ -15,7 +15,13 @@ import {
   type TypeToken,
   WorkflowBuilder,
 } from "../src/index.ts";
-import { CallbackNodeConfig, chain, createEngineTestKit, items, pollRunStoreUntilPendingNode } from "./harness/index.ts";
+import {
+  CallbackNodeConfig,
+  chain,
+  createEngineTestKit,
+  items,
+  pollRunStoreUntilPendingNode,
+} from "./harness/index.ts";
 
 class TargetedExecutionStateFactory {
   static fromRunState(state: PersistedRunState): {
@@ -25,8 +31,12 @@ class TargetedExecutionStateFactory {
   } {
     return {
       outputsByNode: JSON.parse(JSON.stringify(state.outputsByNode)) as PersistedRunState["outputsByNode"],
-      nodeSnapshotsByNodeId: JSON.parse(JSON.stringify(state.nodeSnapshotsByNodeId)) as PersistedRunState["nodeSnapshotsByNodeId"],
-      mutableState: JSON.parse(JSON.stringify(state.mutableState ?? { nodesById: {} })) as PersistedRunState["mutableState"],
+      nodeSnapshotsByNodeId: JSON.parse(
+        JSON.stringify(state.nodeSnapshotsByNodeId),
+      ) as PersistedRunState["nodeSnapshotsByNodeId"],
+      mutableState: JSON.parse(
+        JSON.stringify(state.mutableState ?? { nodesById: {} }),
+      ) as PersistedRunState["mutableState"],
     };
   }
 }
@@ -190,10 +200,9 @@ test("pinned outputs survive clear-from-node and complete immediately without ex
   currentState.mutableState = {
     nodesById: {
       C: {
-        pinnedOutputsByPort:
-          pinnedOutputsByPort as NonNullable<
-            NonNullable<NonNullable<PersistedRunState["mutableState"]>["nodesById"][string]["pinnedOutputsByPort"]>
-          >,
+        pinnedOutputsByPort: pinnedOutputsByPort as NonNullable<
+          NonNullable<NonNullable<PersistedRunState["mutableState"]>["nodesById"][string]["pinnedOutputsByPort"]>
+        >,
       },
     },
   };
@@ -253,7 +262,10 @@ test("running to C with only B pinned completes A and C while completing B from 
   assert.equal(stored?.nodeSnapshotsByNodeId.B?.status, "completed");
   assert.equal(stored?.nodeSnapshotsByNodeId.B?.usedPinnedOutput, true);
   assert.equal(stored?.nodeSnapshotsByNodeId.C?.status, "completed");
-  assert.deepEqual(stored?.outputsByNode.B?.main?.map((item) => item.json), [{ pinned: true }]);
+  assert.deepEqual(
+    stored?.outputsByNode.B?.main?.map((item) => item.json),
+    [{ pinned: true }],
+  );
 });
 
 test("stopping at a trigger does not materialize downstream pinned snapshots in the execution state", async () => {
@@ -303,8 +315,14 @@ test("stopping at a trigger does not materialize downstream pinned snapshots in 
   assert.equal(stored?.nodeSnapshotsByNodeId.B, undefined);
   assert.equal(stored?.nodeSnapshotsByNodeId.C, undefined);
   assert.equal(stored?.nodeSnapshotsByNodeId.D, undefined);
-  assert.deepEqual(stored?.outputsByNode.B?.main?.map((item) => item.json), [{ pinned: "B" }]);
-  assert.deepEqual(stored?.outputsByNode.D?.main?.map((item) => item.json), [{ pinned: "D" }]);
+  assert.deepEqual(
+    stored?.outputsByNode.B?.main?.map((item) => item.json),
+    [{ pinned: "B" }],
+  );
+  assert.deepEqual(
+    stored?.outputsByNode.D?.main?.map((item) => item.json),
+    [{ pinned: "D" }],
+  );
 });
 
 test("running to a downstream node rematerializes required pinned nodes into execution snapshots", async () => {
@@ -338,7 +356,8 @@ test("running to a downstream node rematerializes required pinned nodes into exe
     reset: { clearFromNodeId: "A" },
     stopCondition: { kind: "nodeCompleted", nodeId: "A" },
   });
-  const triggerState = (runToTrigger.status === "pending" ? await kit.engine.waitForCompletion(runToTrigger.runId) : runToTrigger);
+  const triggerState =
+    runToTrigger.status === "pending" ? await kit.engine.waitForCompletion(runToTrigger.runId) : runToTrigger;
   const persistedTriggerState = await kit.runStore.load(triggerState.runId);
   assert.ok(persistedTriggerState);
   assert.equal(persistedTriggerState.nodeSnapshotsByNodeId.B, undefined);
@@ -434,7 +453,12 @@ test("current-state execution clears runtime attachment snapshots for reset desc
   const B = new CallbackNodeConfig("B", () => events.push("B"), { id: "B" });
   const C = new CallbackNodeConfig("C", () => events.push("C"), { id: "C" });
   const D = new CallbackNodeConfig("D", () => events.push("D"), { id: "D" });
-  const wf = chain({ id: "wf.clear.runtime", name: "Clear runtime descendants" }).start(A).then(B).then(C).then(D).build();
+  const wf = chain({ id: "wf.clear.runtime", name: "Clear runtime descendants" })
+    .start(A)
+    .then(B)
+    .then(C)
+    .then(D)
+    .build();
 
   const kit = createEngineTestKit();
   await kit.start([wf]);
@@ -524,7 +548,12 @@ test("serialized stop conditions survive worker scheduling and stop before downs
   await pollRunStoreUntilPendingNode(kit.runStore, scheduled.runId, "n2");
   const storedPending = await kit.runStore.load(scheduled.runId);
   assert.equal(storedPending?.control?.stopCondition?.kind, "nodeCompleted");
-  assert.equal(storedPending?.control?.stopCondition && "nodeId" in storedPending.control.stopCondition ? storedPending.control.stopCondition.nodeId : undefined, "n2");
+  assert.equal(
+    storedPending?.control?.stopCondition && "nodeId" in storedPending.control.stopCondition
+      ? storedPending.control.stopCondition.nodeId
+      : undefined,
+    "n2",
+  );
   assert.equal(storedPending?.pending?.nodeId, "n2");
 
   const resumed = await kit.engine.resumeFromStepResult({

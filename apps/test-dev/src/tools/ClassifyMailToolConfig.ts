@@ -1,13 +1,8 @@
-import type { AgentCanvasPresentation,ToolConfig } from "@codemation/core";
-
+import type { AgentCanvasPresentation, ToolConfig } from "@codemation/core";
 
 import type { CanvasIconName } from "@codemation/core-nodes";
 
-
-
 import { ClassifyMailTool } from "./classifyMailTool";
-
-
 
 export class ClassifyMailToolConfig implements ToolConfig {
   readonly type = ClassifyMailTool;

@@ -1,12 +1,4 @@
-import {
-  Callback,
-  createWorkflowBuilder,
-  If,
-  ManualTrigger,
-  MapData,
-  NoOp,
-  Wait,
-} from "@codemation/core-nodes";
+import { Callback, createWorkflowBuilder, If, ManualTrigger, MapData, NoOp, Wait } from "@codemation/core-nodes";
 
 /**
  * Large branching graph for exercising workflow canvas layout (Dagre + overlap pass).
@@ -29,9 +21,7 @@ export default createWorkflowBuilder({
     ]),
   )
   .then(
-    new MapData<StressJson>("Ingest payload", (item) =>
-      pass(item, { stage: "ingested", version: 1 } as StressJson),
-    ),
+    new MapData<StressJson>("Ingest payload", (item) => pass(item, { stage: "ingested", version: 1 } as StressJson)),
   )
   .then(new If<StressJson>("Primary gate (score ≥ 40)?", (item) => Number((item.json as StressJson).score ?? 0) >= 40))
   .when({
@@ -64,11 +54,11 @@ export default createWorkflowBuilder({
       new MapData<StressJson>("EU: audit note", (item) => pass(item, { audit: "queued" } as StressJson)),
       new NoOp<StressJson>("EU: noop"),
     ],
-    false: [
-      new MapData<StressJson>("Non-EU: tag", (item) => pass(item, { compliance: "other" } as StressJson)),
-    ],
+    false: [new MapData<StressJson>("Non-EU: tag", (item) => pass(item, { compliance: "other" } as StressJson))],
   })
-  .then(new If<StressJson>("Asymmetric split (fork A)?", (item) => String((item.json as StressJson).fork ?? "") === "A"))
+  .then(
+    new If<StressJson>("Asymmetric split (fork A)?", (item) => String((item.json as StressJson).fork ?? "") === "A"),
+  )
   .when({
     true: [
       new MapData<StressJson>("A: step 1", (item) => pass(item, { path: "A1" } as StressJson)),
@@ -81,7 +71,12 @@ export default createWorkflowBuilder({
       new Wait<StressJson>("B-merge: wait", 15),
     ],
   })
-  .then(new If<StressJson>("Final dispatch (audit queued)?", (item) => String((item.json as StressJson).audit ?? "") === "queued"))
+  .then(
+    new If<StressJson>(
+      "Final dispatch (audit queued)?",
+      (item) => String((item.json as StressJson).audit ?? "") === "queued",
+    ),
+  )
   .when({
     true: [
       new MapData<StressJson>("Dispatch: priority lane", (item) => pass(item, { dispatch: "priority" } as StressJson)),

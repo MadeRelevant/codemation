@@ -14,13 +14,17 @@ test("isAuthorized requires x-codemation-dev-token when CODEMATION_DEV_SERVER_TO
   process.env.CODEMATION_DEV_SERVER_TOKEN = "secret-token";
   try {
     assert.equal(
-      DevelopmentRuntimeRouteGuard.isAuthorized(new Request("http://127.0.0.1/dev/runtime", { headers: { "x-codemation-dev-token": "secret-token" } })),
+      DevelopmentRuntimeRouteGuard.isAuthorized(
+        new Request("http://127.0.0.1/dev/runtime", { headers: { "x-codemation-dev-token": "secret-token" } }),
+      ),
       true,
     );
     assert.equal(DevelopmentRuntimeRouteGuard.isAuthorized(new Request("http://127.0.0.1/dev/runtime")), true);
     assert.equal(DevelopmentRuntimeRouteGuard.isAuthorized(new Request("http://example.com/dev/runtime")), false);
     assert.equal(
-      DevelopmentRuntimeRouteGuard.isAuthorized(new Request("http://example.com/dev/runtime", { headers: { "x-codemation-dev-token": "wrong" } })),
+      DevelopmentRuntimeRouteGuard.isAuthorized(
+        new Request("http://example.com/dev/runtime", { headers: { "x-codemation-dev-token": "wrong" } }),
+      ),
       false,
     );
   } finally {
@@ -37,10 +41,13 @@ test("parseSignalFromPayload maps build lifecycle payloads", () => {
     kind: "buildStarted",
     buildVersion: "v1",
   });
-  assert.deepEqual(DevelopmentRuntimeRouteGuard.parseSignalFromPayload({ kind: "buildCompleted", buildVersion: "v2" }), {
-    kind: "buildCompleted",
-    buildVersion: "v2",
-  });
+  assert.deepEqual(
+    DevelopmentRuntimeRouteGuard.parseSignalFromPayload({ kind: "buildCompleted", buildVersion: "v2" }),
+    {
+      kind: "buildCompleted",
+      buildVersion: "v2",
+    },
+  );
   assert.deepEqual(DevelopmentRuntimeRouteGuard.parseSignalFromPayload({ kind: "buildFailed", message: "x" }), {
     kind: "buildFailed",
     message: "x",
@@ -48,6 +55,9 @@ test("parseSignalFromPayload maps build lifecycle payloads", () => {
 });
 
 test("parseSignalFromPayload rejects unsupported payloads", () => {
-  assert.throws(() => DevelopmentRuntimeRouteGuard.parseSignalFromPayload({ kind: "buildFailed", message: "" }), /Unsupported/);
+  assert.throws(
+    () => DevelopmentRuntimeRouteGuard.parseSignalFromPayload({ kind: "buildFailed", message: "" }),
+    /Unsupported/,
+  );
   assert.throws(() => DevelopmentRuntimeRouteGuard.parseSignalFromPayload({ kind: "unknown" }), /Unsupported/);
 });

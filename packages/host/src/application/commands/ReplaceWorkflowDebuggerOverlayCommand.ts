@@ -1,5 +1,8 @@
 import { Command } from "../bus/Command";
-import type { UpdateWorkflowDebuggerOverlayRequest,WorkflowDebuggerOverlayResponse } from "../contracts/WorkflowDebuggerContracts";
+import type {
+  UpdateWorkflowDebuggerOverlayRequest,
+  WorkflowDebuggerOverlayResponse,
+} from "../contracts/WorkflowDebuggerContracts";
 
 export class ReplaceWorkflowDebuggerOverlayCommand extends Command<WorkflowDebuggerOverlayResponse> {
   constructor(

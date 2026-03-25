@@ -1,12 +1,4 @@
-import type {
-Item,
-NodeOutputs
-} from "@codemation/core";
-
-
-
-
-
+import type { Item, NodeOutputs } from "@codemation/core";
 
 export class AgentOutputFactory {
   static fromUnknown(value: unknown): NodeOutputs {

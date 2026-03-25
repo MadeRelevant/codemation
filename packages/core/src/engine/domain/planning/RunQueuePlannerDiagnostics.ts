@@ -11,7 +11,9 @@ export class RunQueuePlannerDiagnostics {
   describeUnsatisfiedCollect(queueEntry: RunQueueEntry): string {
     const batchId = queueEntry.batchId ?? "batch_1";
     const expectedInputs = queueEntry.collect?.expectedInputs ?? [];
-    const receivedInputs = Object.keys((queueEntry.collect?.received ?? {}) as Record<InputPortKey, Items>) as InputPortKey[];
+    const receivedInputs = Object.keys(
+      (queueEntry.collect?.received ?? {}) as Record<InputPortKey, Items>,
+    ) as InputPortKey[];
     const missingInputs = expectedInputs.filter((input) => !receivedInputs.includes(input));
     const mergeNodeLabel = this.formatNodeLabel(queueEntry.nodeId);
     const receivedSummary = this.describeReceivedInputs(queueEntry);
@@ -29,7 +31,9 @@ export class RunQueuePlannerDiagnostics {
     const received = (queueEntry.collect?.received ?? {}) as Record<InputPortKey, Items>;
     const receivedEntries = Object.entries(received);
     if (receivedEntries.length === 0) return "none";
-    return receivedEntries.map(([input, items]) => `${input} (${items.length} item${items.length === 1 ? "" : "s"})`).join(", ");
+    return receivedEntries
+      .map(([input, items]) => `${input} (${items.length} item${items.length === 1 ? "" : "s"})`)
+      .join(", ");
   }
 
   private describeMissingInputs(nodeId: NodeId, missingInputs: ReadonlyArray<InputPortKey>): string {
@@ -66,9 +70,8 @@ export class RunQueuePlannerDiagnostics {
       definition?.type && typeof definition.type === "function"
         ? definition.type.name
         : instance && typeof instance === "object" && "constructor" in instance
-          ? (instance.constructor as { name?: string }).name ?? "Node"
+          ? ((instance.constructor as { name?: string }).name ?? "Node")
           : "Node";
     return definition?.name ? `"${definition.name}" (${typeName}:${nodeId})` : `${typeName}:${nodeId}`;
   }
 }
-

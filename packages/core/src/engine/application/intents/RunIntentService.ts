@@ -34,10 +34,17 @@ export class RunIntentService {
     reset?: CurrentStateExecutionRequest["reset"];
   }): Promise<RunResult> {
     if (args.startAt && !args.currentState && !args.stopCondition && !args.reset) {
-      return await this.engine.runWorkflow(args.workflow, args.startAt, args.items, args.parent, args.executionOptions, {
-        workflowSnapshot: args.workflowSnapshot,
-        mutableState: args.mutableState,
-      });
+      return await this.engine.runWorkflow(
+        args.workflow,
+        args.startAt,
+        args.items,
+        args.parent,
+        args.executionOptions,
+        {
+          workflowSnapshot: args.workflowSnapshot,
+          mutableState: args.mutableState,
+        },
+      );
     }
     return await this.engine.runWorkflowFromState({
       workflow: args.workflow,
@@ -84,7 +91,11 @@ export class RunIntentService {
     return this.engine.resolveWebhookTrigger(args);
   }
 
-  async runMatchedWebhook(args: { endpointPath: string; method: HttpMethod; requestItem: Items[number] }): Promise<WebhookRunResult> {
+  async runMatchedWebhook(args: {
+    endpointPath: string;
+    method: HttpMethod;
+    requestItem: Items[number];
+  }): Promise<WebhookRunResult> {
     const resolution = this.resolveWebhookTrigger(args);
     if (resolution.status === "notFound") {
       throw new Error("Unknown webhook endpoint");
@@ -98,7 +109,10 @@ export class RunIntentService {
     });
   }
 
-  async runWebhookMatch(args: { match: WebhookInvocationMatch; requestItem: Items[number] }): Promise<WebhookRunResult> {
+  async runWebhookMatch(args: {
+    match: WebhookInvocationMatch;
+    requestItem: Items[number];
+  }): Promise<WebhookRunResult> {
     const workflow = this.workflowRepository.get(args.match.workflowId);
     if (!workflow) {
       throw new Error(`Unknown workflowId: ${args.match.workflowId}`);
@@ -136,4 +150,3 @@ export class RunIntentService {
     ]);
   }
 }
-

@@ -172,9 +172,7 @@ export class PersistedWorkflowSnapshotMapper {
     return this.asRecord(presentation).icon;
   }
 
-  private asRecord(
-    value: unknown,
-  ): Readonly<{
+  private asRecord(value: unknown): Readonly<{
     name?: string;
     label?: string;
     icon?: string;

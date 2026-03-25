@@ -1,10 +1,6 @@
-
 import { inject } from "@codemation/core";
 
-import type {
-CredentialInstanceWithSecretsDto
-} from "../contracts/CredentialContractsRegistry";
-
+import type { CredentialInstanceWithSecretsDto } from "../contracts/CredentialContractsRegistry";
 
 import { QueryHandler } from "../bus/QueryHandler";
 
@@ -12,8 +8,6 @@ import { HandlesQuery } from "../../infrastructure/di/HandlesQueryRegistry";
 
 import { CredentialInstanceService } from "../../domain/credentials/CredentialServices";
 import { GetCredentialInstanceWithSecretsQuery } from "./GetCredentialInstanceWithSecretsQuery";
-
-
 
 @HandlesQuery.for(GetCredentialInstanceWithSecretsQuery)
 export class GetCredentialInstanceWithSecretsQueryHandler extends QueryHandler<

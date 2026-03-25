@@ -2,11 +2,8 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { RunFinishedAtFactory } from "@codemation/core/browser";
 
-import type { Items,PersistedRunState,RunSummary,WorkflowEvent } from "./realtimeDomainTypes";
-import {
-runQueryKey,
-workflowRunsQueryKey,
-} from "./realtimeQueryKeys";
+import type { Items, PersistedRunState, RunSummary, WorkflowEvent } from "./realtimeDomainTypes";
+import { runQueryKey, workflowRunsQueryKey } from "./realtimeQueryKeys";
 
 function countItems(inputsByPort: Readonly<Record<string, Items>> | undefined): number {
   return Object.values(inputsByPort ?? {}).reduce((sum, items) => sum + items.length, 0);
@@ -41,7 +38,10 @@ function toRunSummary(state: PersistedRunState): RunSummary {
   };
 }
 
-function mergeRunSummaryList(existing: ReadonlyArray<RunSummary> | undefined, summary: RunSummary): ReadonlyArray<RunSummary> {
+function mergeRunSummaryList(
+  existing: ReadonlyArray<RunSummary> | undefined,
+  summary: RunSummary,
+): ReadonlyArray<RunSummary> {
   const current = [...(existing ?? [])];
   const index = current.findIndex((entry) => entry.runId === summary.runId);
   if (index >= 0) current[index] = summary;
@@ -98,7 +98,9 @@ function mergeSnapshotIntoRunState(
       : base.pending?.nodeId === event.snapshot.nodeId
         ? undefined
         : base.pending;
-  const hasActiveSnapshots = Object.values(nextNodeSnapshots).some((snapshot) => snapshot.status === "queued" || snapshot.status === "running");
+  const hasActiveSnapshots = Object.values(nextNodeSnapshots).some(
+    (snapshot) => snapshot.status === "queued" || snapshot.status === "running",
+  );
   const nextStatus =
     event.kind === "nodeFailed"
       ? "failed"
@@ -122,21 +124,26 @@ export function applyWorkflowEvent(queryClient: QueryClient, event: WorkflowEven
   if (event.kind === "runCreated") {
     const initialRunState = createInitialRunState(event);
     queryClient.setQueryData(runQueryKey(event.runId), initialRunState);
-    queryClient.setQueryData(workflowRunsQueryKey(event.workflowId), (existing: ReadonlyArray<RunSummary> | undefined) =>
-      mergeRunSummaryList(existing, toRunSummary(initialRunState)),
+    queryClient.setQueryData(
+      workflowRunsQueryKey(event.workflowId),
+      (existing: ReadonlyArray<RunSummary> | undefined) => mergeRunSummaryList(existing, toRunSummary(initialRunState)),
     );
     return;
   }
 
   if (event.kind === "runSaved") {
     queryClient.setQueryData(runQueryKey(event.runId), event.state);
-    queryClient.setQueryData(workflowRunsQueryKey(event.workflowId), (existing: ReadonlyArray<RunSummary> | undefined) =>
-      mergeRunSummaryList(existing, toRunSummary(event.state)),
+    queryClient.setQueryData(
+      workflowRunsQueryKey(event.workflowId),
+      (existing: ReadonlyArray<RunSummary> | undefined) => mergeRunSummaryList(existing, toRunSummary(event.state)),
     );
     return;
   }
 
-  const nextRunState = mergeSnapshotIntoRunState(queryClient.getQueryData<PersistedRunState>(runQueryKey(event.runId)), event);
+  const nextRunState = mergeSnapshotIntoRunState(
+    queryClient.getQueryData<PersistedRunState>(runQueryKey(event.runId)),
+    event,
+  );
   queryClient.setQueryData(runQueryKey(event.runId), nextRunState);
   queryClient.setQueryData(workflowRunsQueryKey(event.workflowId), (existing: ReadonlyArray<RunSummary> | undefined) =>
     mergeRunSummaryList(existing, toRunSummary(nextRunState)),

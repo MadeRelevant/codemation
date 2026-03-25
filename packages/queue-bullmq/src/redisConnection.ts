@@ -29,7 +29,8 @@ export class RedisConnectionOptionsFactory {
 
   static fromUrl(redisUrl: string): Readonly<Record<string, unknown>> {
     const u = new URL(redisUrl);
-    if (u.protocol !== "redis:" && u.protocol !== "rediss:") throw new Error(`Unsupported redis URL protocol: ${u.protocol}`);
+    if (u.protocol !== "redis:" && u.protocol !== "rediss:")
+      throw new Error(`Unsupported redis URL protocol: ${u.protocol}`);
 
     const host = u.hostname;
     const port = u.port ? Number(u.port) : 6379;
@@ -48,4 +49,3 @@ export class RedisConnectionOptionsFactory {
     });
   }
 }
-

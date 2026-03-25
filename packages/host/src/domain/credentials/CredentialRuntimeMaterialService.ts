@@ -1,14 +1,10 @@
-
-
-import { inject,injectable } from "@codemation/core";
-
-
+import { inject, injectable } from "@codemation/core";
 
 import { ApplicationTokens } from "../../applicationTokens";
 
 import { CredentialMaterialResolver } from "./CredentialMaterialResolver";
 import { CredentialSecretCipher } from "./CredentialSecretCipher";
-import type { CredentialInstanceRecord,CredentialStore,JsonRecord } from "./CredentialServices";
+import type { CredentialInstanceRecord, CredentialStore, JsonRecord } from "./CredentialServices";
 import { CredentialTypeRegistryImpl } from "./CredentialServices";
 
 @injectable()

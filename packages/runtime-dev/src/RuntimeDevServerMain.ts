@@ -9,11 +9,7 @@ import { RuntimeDevMetrics } from "./RuntimeDevMetrics";
 export class RuntimeDevServerMain {
   async run(): Promise<void> {
     const metrics = new RuntimeDevMetrics();
-    const host = new RuntimeDevHost(
-      new CodemationConsumerConfigLoader(),
-      new CodemationPluginDiscovery(),
-      metrics,
-    );
+    const host = new RuntimeDevHost(new CodemationConsumerConfigLoader(), new CodemationPluginDiscovery(), metrics);
     const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
     const bootstrapLogger = loggerFactory.create("codemation-runtime-dev.bootstrap");
     const httpPort = this.resolveHttpPort();

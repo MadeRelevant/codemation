@@ -29,13 +29,25 @@ export const ApplicationTokens = {
   CommandBus: Symbol.for("codemation.application.CommandBus") as TypeToken<CommandBus>,
   DomainEventBus: Symbol.for("codemation.application.DomainEventBus") as TypeToken<DomainEventBus>,
   QueryHandler: Symbol.for("codemation.application.QueryHandler") as TypeToken<QueryHandler<Query<unknown>, unknown>>,
-  CommandHandler: Symbol.for("codemation.application.CommandHandler") as TypeToken<CommandHandler<Command<unknown>, unknown>>,
-  DomainEventHandler: Symbol.for("codemation.application.DomainEventHandler") as TypeToken<DomainEventHandler<DomainEvent>>,
+  CommandHandler: Symbol.for("codemation.application.CommandHandler") as TypeToken<
+    CommandHandler<Command<unknown>, unknown>
+  >,
+  DomainEventHandler: Symbol.for("codemation.application.DomainEventHandler") as TypeToken<
+    DomainEventHandler<DomainEvent>
+  >,
   HonoApiRouteRegistrar: Symbol.for("codemation.application.HonoApiRouteRegistrar") as TypeToken<HonoApiRouteRegistrar>,
-  WorkflowWebsocketPublisher: Symbol.for("codemation.application.WorkflowWebsocketPublisher") as TypeToken<WorkflowWebsocketPublisher>,
-  WorkerRuntimeScheduler: Symbol.for("codemation.application.WorkerRuntimeScheduler") as TypeToken<WorkerRuntimeScheduler>,
-  WorkflowDefinitionRepository: Symbol.for("codemation.application.WorkflowDefinitionRepository") as TypeToken<WorkflowDefinitionRepository>,
-  WorkflowDebuggerOverlayRepository: Symbol.for("codemation.application.WorkflowDebuggerOverlayRepository") as TypeToken<WorkflowDebuggerOverlayRepository>,
+  WorkflowWebsocketPublisher: Symbol.for(
+    "codemation.application.WorkflowWebsocketPublisher",
+  ) as TypeToken<WorkflowWebsocketPublisher>,
+  WorkerRuntimeScheduler: Symbol.for(
+    "codemation.application.WorkerRuntimeScheduler",
+  ) as TypeToken<WorkerRuntimeScheduler>,
+  WorkflowDefinitionRepository: Symbol.for(
+    "codemation.application.WorkflowDefinitionRepository",
+  ) as TypeToken<WorkflowDefinitionRepository>,
+  WorkflowDebuggerOverlayRepository: Symbol.for(
+    "codemation.application.WorkflowDebuggerOverlayRepository",
+  ) as TypeToken<WorkflowDebuggerOverlayRepository>,
   WorkflowRunRepository: Symbol.for("codemation.application.WorkflowRunRepository") as TypeToken<WorkflowRunRepository>,
   LoggerFactory: Symbol.for("codemation.application.LoggerFactory") as TypeToken<LoggerFactory>,
   /**

@@ -10,19 +10,19 @@ import type {
   TriggerSetupContext,
   TypeToken,
 } from "../src/index.ts";
-import { InMemoryRunEventBus,InMemoryRunStateStore,PublishingRunStateStore,WorkflowBuilder } from "../src/index.ts";
+import { InMemoryRunEventBus, InMemoryRunStateStore, PublishingRunStateStore, WorkflowBuilder } from "../src/index.ts";
 
 import {
-CallbackNodeConfig,
-IfNodeConfig,
-MapNodeConfig,
-MergeNodeConfig,
-SubWorkflowRunnerConfig,
-ThrowNodeConfig,
-chain,
-createEngineTestKit,
-dag,
-items,
+  CallbackNodeConfig,
+  IfNodeConfig,
+  MapNodeConfig,
+  MergeNodeConfig,
+  SubWorkflowRunnerConfig,
+  ThrowNodeConfig,
+  chain,
+  createEngineTestKit,
+  dag,
+  items,
 } from "./harness/index.ts";
 
 class ManualTestTriggerConfig<TOutputJson = unknown> implements TriggerNodeConfig<TOutputJson> {
@@ -81,7 +81,10 @@ test("trigger nodes are marked completed and emit completion snapshots", async (
 
   const trigger = new ManualTestTriggerConfig("Manual trigger", "trigger");
   const finish = new CallbackNodeConfig("Finish", () => {}, { id: "finish" });
-  const workflow = new WorkflowBuilder({ id: "wf.trigger.completed", name: "Trigger completed" }).trigger(trigger).then(finish).build();
+  const workflow = new WorkflowBuilder({ id: "wf.trigger.completed", name: "Trigger completed" })
+    .trigger(trigger)
+    .then(finish)
+    .build();
 
   const kit = createEngineTestKit({ runStore, eventBus: bus });
   await kit.start([workflow]);
@@ -100,7 +103,9 @@ test("trigger nodes are marked completed and emit completion snapshots", async (
 test("runWorkflowFromState still runs downstream after trigger when trigger opts into continueWhenEmptyOutput", async () => {
   const downstreamEvents: string[] = [];
   const trigger = new ManualTestTriggerConfig("Manual trigger", "trigger");
-  const downstream = new CallbackNodeConfig("Downstream", () => downstreamEvents.push("downstream"), { id: "downstream" });
+  const downstream = new CallbackNodeConfig("Downstream", () => downstreamEvents.push("downstream"), {
+    id: "downstream",
+  });
   const workflow = new WorkflowBuilder({ id: "wf.trigger.empty.continue", name: "Trigger empty continue" })
     .trigger(trigger)
     .then(downstream)
@@ -279,7 +284,10 @@ test("engine processes multiple items as a batch", async () => {
 
   assert.deepEqual(seen, { A: 3, B: 3, C: 3 });
   assert.equal(r.outputs.length, 3);
-  assert.deepEqual(r.outputs.map((i) => i.json), [{ n: 1 }, { n: 2 }, { n: 3 }]);
+  assert.deepEqual(
+    r.outputs.map((i) => i.json),
+    [{ n: 1 }, { n: 2 }, { n: 3 }],
+  );
 });
 
 test("workflow completes when a node has 2 outputs but only emits 1 output key", async () => {
@@ -310,11 +318,17 @@ test("when({true,false}) auto-inserts merge and chain can continue", async () =>
   const wf = new WorkflowBuilder(
     { id: "wf.when.merge", name: "when+merge" },
     {
-      makeMergeNode: (name) => new MergeNodeConfig(name, { mode: "passThrough", prefer: ["true", "false"] }, { id: "merge" }),
+      makeMergeNode: (name) =>
+        new MergeNodeConfig(name, { mode: "passThrough", prefer: ["true", "false"] }, { id: "merge" }),
     },
   )
     .start(new MapNodeConfig("seed", async (item) => item.json, { id: "seed" }))
-    .then(new IfNodeConfig("if", async (item) => Number((item.json as any).x ?? 0) % 2 === 0, { id: "if", omitUnusedOutputKey: false }))
+    .then(
+      new IfNodeConfig("if", async (item) => Number((item.json as any).x ?? 0) % 2 === 0, {
+        id: "if",
+        omitUnusedOutputKey: false,
+      }),
+    )
     .when({
       true: [new MapNodeConfig("T", async (item) => ({ ...(item.json as any), branch: "true" }), { id: "T" })],
       false: [new MapNodeConfig("F", async (item) => ({ ...(item.json as any), branch: "false" }), { id: "F" })],
@@ -337,10 +351,13 @@ test("when({true,false}) auto-inserts merge and chain can continue", async () =>
   assert.equal(r.status, "completed");
 
   assert.equal(afterItems.length, 2);
-  assert.deepEqual(afterItems.map((i) => i.json), [
-    { x: 1, branch: "false" },
-    { x: 2, branch: "true" },
-  ]);
+  assert.deepEqual(
+    afterItems.map((i) => i.json),
+    [
+      { x: 1, branch: "false" },
+      { x: 2, branch: "true" },
+    ],
+  );
 });
 
 test("when({true,false}) auto-merge accepts an untaken branch as empty through downstream nodes", async () => {
@@ -349,7 +366,8 @@ test("when({true,false}) auto-merge accepts an untaken branch as empty through d
   const wf = new WorkflowBuilder(
     { id: "wf.when.callback.noop", name: "when+callback+noop" },
     {
-      makeMergeNode: (name) => new MergeNodeConfig(name, { mode: "passThrough", prefer: ["true", "false"] }, { id: "merge" }),
+      makeMergeNode: (name) =>
+        new MergeNodeConfig(name, { mode: "passThrough", prefer: ["true", "false"] }, { id: "merge" }),
     },
   )
     .start(new MapNodeConfig("seed", async (item) => item.json, { id: "seed" }))
@@ -377,4 +395,3 @@ test("when({true,false}) auto-merge accepts an untaken branch as empty through d
   assert.equal(afterItems.length, 1);
   assert.deepEqual(afterItems[0]?.json, { x: 2 });
 });
-

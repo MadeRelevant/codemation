@@ -1,32 +1,38 @@
 import path from "node:path";
 import "reflect-metadata";
 
-import type { Container,RunEventBus,RunStateStore,TriggerSetupStateStore,WorkflowDefinition } from "@codemation/core";
+import type {
+  Container,
+  RunEventBus,
+  RunStateStore,
+  TriggerSetupStateStore,
+  WorkflowDefinition,
+} from "@codemation/core";
 import {
-ConfigDrivenOffloadPolicy,
-ContainerNodeResolver,
-ContainerWorkflowRunnerResolver,
-CoreTokens,
-DefaultDrivingScheduler,
-DefaultExecutionContextFactory,
-Engine,
-EngineExecutionLimitsPolicyFactory,
-EngineFactory,
-EngineWorkflowRunnerService,
-InlineDrivingScheduler,
-InMemoryBinaryStorage,
-InMemoryRunDataFactory,
-InMemoryRunEventBus,
-WorkflowCatalogWebhookTriggerMatcher,
-instanceCachingFactory,
-NodeInstanceFactory,
-PersistedWorkflowTokenRegistry,
-PublishingRunStateStore,
-RootExecutionOptionsFactory,
-RunIntentService,
-SystemClock,
-container as tsyringeContainer,
-UnavailableCredentialSessionService
+  ConfigDrivenOffloadPolicy,
+  ContainerNodeResolver,
+  ContainerWorkflowRunnerResolver,
+  CoreTokens,
+  DefaultDrivingScheduler,
+  DefaultExecutionContextFactory,
+  Engine,
+  EngineExecutionLimitsPolicyFactory,
+  EngineFactory,
+  EngineWorkflowRunnerService,
+  InlineDrivingScheduler,
+  InMemoryBinaryStorage,
+  InMemoryRunDataFactory,
+  InMemoryRunEventBus,
+  WorkflowCatalogWebhookTriggerMatcher,
+  instanceCachingFactory,
+  NodeInstanceFactory,
+  PersistedWorkflowTokenRegistry,
+  PublishingRunStateStore,
+  RootExecutionOptionsFactory,
+  RunIntentService,
+  SystemClock,
+  container as tsyringeContainer,
+  UnavailableCredentialSessionService,
 } from "@codemation/core";
 import { AIAgentConnectionWorkflowExpander, ConnectionCredentialNodeConfigFactory } from "@codemation/core-nodes";
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
@@ -60,16 +66,16 @@ import { WorkflowRunEventWebsocketRelay } from "./application/websocket/Workflow
 import { ApplicationTokens } from "./applicationTokens";
 import { WorkflowCredentialNodeResolver } from "./domain/credentials/WorkflowCredentialNodeResolver";
 import {
-CredentialBindingService,
-CredentialInstanceService,
-CredentialFieldEnvOverlayService,
-CredentialMaterialResolver,
-CredentialRuntimeMaterialService,
-CredentialSecretCipher,
-CredentialSessionServiceImpl,
-CredentialTestService,
-CredentialTypeRegistryImpl,
-type RegisteredCredentialType,
+  CredentialBindingService,
+  CredentialInstanceService,
+  CredentialFieldEnvOverlayService,
+  CredentialMaterialResolver,
+  CredentialRuntimeMaterialService,
+  CredentialSecretCipher,
+  CredentialSessionServiceImpl,
+  CredentialTestService,
+  CredentialTypeRegistryImpl,
+  type RegisteredCredentialType,
 } from "./domain/credentials/CredentialServices";
 import { OAuth2ConnectService } from "./domain/credentials/OAuth2ConnectServiceFactory";
 import { OAuth2ProviderRegistry } from "./domain/credentials/OAuth2ProviderRegistry";
@@ -90,7 +96,10 @@ import { InMemoryQueryBus } from "./infrastructure/di/InMemoryQueryBus";
 import { CodemationIdFactory } from "./infrastructure/ids/CodemationIdFactory";
 import { LogLevelPolicyFactory, logLevelPolicyFactory } from "./infrastructure/logging/LogLevelPolicyFactory";
 import { ServerLoggerFactory } from "./infrastructure/logging/ServerLoggerFactory";
-import { InMemoryCredentialStore,PrismaCredentialStore } from "./infrastructure/persistence/CredentialPersistenceStore";
+import {
+  InMemoryCredentialStore,
+  PrismaCredentialStore,
+} from "./infrastructure/persistence/CredentialPersistenceStore";
 import { PrismaClient } from "./infrastructure/persistence/generated/prisma-client/client.js";
 import { InMemoryTriggerSetupStateStore } from "./infrastructure/persistence/InMemoryTriggerSetupStateStore";
 import { InMemoryWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/InMemoryWorkflowDebuggerOverlayRepository";
@@ -108,9 +117,11 @@ import { RequestToWebhookItemMapper } from "./infrastructure/webhooks/RequestToW
 import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";
 import type { CodemationBinding } from "./presentation/config/CodemationBinding";
 import type {
-CodemationApplicationRuntimeConfig,CodemationConfig,CodemationDatabaseKind,
-CodemationEventBusKind,
-CodemationSchedulerKind
+  CodemationApplicationRuntimeConfig,
+  CodemationConfig,
+  CodemationDatabaseKind,
+  CodemationEventBusKind,
+  CodemationSchedulerKind,
 } from "./presentation/config/CodemationConfig";
 import type { CodemationPlugin } from "./presentation/config/CodemationPlugin";
 import { ApiPaths } from "./presentation/http/ApiPaths";
@@ -217,7 +228,9 @@ export class CodemationApplication {
 
   useBindings(bindings: NonNullable<CodemationConfig["bindings"]>): this {
     this.bindings = [...bindings];
-    this.hasConfigCredentialSessionServiceBinding = bindings.some((entry) => entry.token === CoreTokens.CredentialSessionService);
+    this.hasConfigCredentialSessionServiceBinding = bindings.some(
+      (entry) => entry.token === CoreTokens.CredentialSessionService,
+    );
     this.synchronizeContainerRegistrations();
     return this;
   }
@@ -250,12 +263,14 @@ export class CodemationApplication {
     this.container.resolve(CredentialTypeRegistryImpl).register(type);
   }
 
-  async applyPlugins(args: Readonly<{
-    consumerRoot: string;
-    repoRoot: string;
-    env?: Readonly<Record<string, string | undefined>>;
-    workflowSources?: ReadonlyArray<string>;
-  }>): Promise<void> {
+  async applyPlugins(
+    args: Readonly<{
+      consumerRoot: string;
+      repoRoot: string;
+      env?: Readonly<Record<string, string | undefined>>;
+      workflowSources?: ReadonlyArray<string>;
+    }>,
+  ): Promise<void> {
     await this.pluginRegistrar.apply({
       plugins: this.plugins,
       application: this,
@@ -268,13 +283,15 @@ export class CodemationApplication {
     });
   }
 
-  async applyBootHook(args: Readonly<{
-    bootHookToken: CodemationConfig["bootHook"];
-    consumerRoot: string;
-    repoRoot: string;
-    env?: Readonly<Record<string, string | undefined>>;
-    workflowSources?: ReadonlyArray<string>;
-  }>): Promise<void> {
+  async applyBootHook(
+    args: Readonly<{
+      bootHookToken: CodemationConfig["bootHook"];
+      consumerRoot: string;
+      repoRoot: string;
+      env?: Readonly<Record<string, string | undefined>>;
+      workflowSources?: ReadonlyArray<string>;
+    }>,
+  ): Promise<void> {
     await this.dependencyInjectionHookRunner.run({
       bootHookToken: args.bootHookToken,
       container: this.container,
@@ -290,20 +307,25 @@ export class CodemationApplication {
     });
   }
 
-  async prepareFrontendServerContainer(args: Readonly<{
-    repoRoot: string;
-    env?: Readonly<NodeJS.ProcessEnv>;
-    /**
-     * When true, skips starting the workflow WebSocket server and run-event relay.
-     * Used when API execution lives in another process (e.g. `runtime-dev`) and this container
-     * only needs session verification and persistence wiring (e.g. Next.js auth shell).
-     */
-    skipPresentationServers?: boolean;
-  }>): Promise<void> {
+  async prepareFrontendServerContainer(
+    args: Readonly<{
+      repoRoot: string;
+      env?: Readonly<NodeJS.ProcessEnv>;
+      /**
+       * When true, skips starting the workflow WebSocket server and run-event relay.
+       * Used when API execution lives in another process (e.g. `runtime-dev`) and this container
+       * only needs session verification and persistence wiring (e.g. Next.js auth shell).
+       */
+      skipPresentationServers?: boolean;
+    }>,
+  ): Promise<void> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
     await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
     this.container.registerInstance(ApplicationTokens.WebSocketPort, this.resolveWebSocketPort(effectiveEnv));
-    this.container.registerInstance(ApplicationTokens.WebSocketBindHost, effectiveEnv.CODEMATION_WS_BIND_HOST ?? "0.0.0.0");
+    this.container.registerInstance(
+      ApplicationTokens.WebSocketBindHost,
+      effectiveEnv.CODEMATION_WS_BIND_HOST ?? "0.0.0.0",
+    );
     this.registerSessionVerification(effectiveEnv);
     this.registerWebhookRuntimeHost();
     if (args.skipPresentationServers !== true) {
@@ -317,10 +339,11 @@ export class CodemationApplication {
       throw new Error("CodemationConfig.auth is required when NODE_ENV is production.");
     }
     if (isProduction && this.applicationAuthConfig?.allowUnauthenticatedInDevelopment === true) {
-      throw new Error("CodemationAuthConfig.allowUnauthenticatedInDevelopment is not allowed when NODE_ENV is production.");
+      throw new Error(
+        "CodemationAuthConfig.allowUnauthenticatedInDevelopment is not allowed when NODE_ENV is production.",
+      );
     }
-    const bypassAllowed =
-      !isProduction && this.applicationAuthConfig?.allowUnauthenticatedInDevelopment === true;
+    const bypassAllowed = !isProduction && this.applicationAuthConfig?.allowUnauthenticatedInDevelopment === true;
     if (bypassAllowed) {
       this.container.register(ApplicationTokens.SessionVerifier, {
         useValue: new DevelopmentSessionBypassVerifier(),
@@ -338,13 +361,15 @@ export class CodemationApplication {
     });
   }
 
-  async startWorkerRuntime(args: Readonly<{
-    repoRoot: string;
-    env?: Readonly<NodeJS.ProcessEnv>;
-    queues: ReadonlyArray<string>;
-    bootstrapSource?: string | null;
-    workflowSources?: ReadonlyArray<string>;
-  }>): Promise<CodemationStopHandle> {
+  async startWorkerRuntime(
+    args: Readonly<{
+      repoRoot: string;
+      env?: Readonly<NodeJS.ProcessEnv>;
+      queues: ReadonlyArray<string>;
+      bootstrapSource?: string | null;
+      workflowSources?: ReadonlyArray<string>;
+    }>,
+  ): Promise<CodemationStopHandle> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
     await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
     this.registerWebhookRuntimeHost();
@@ -424,7 +449,9 @@ export class CodemationApplication {
       useFactory: instanceCachingFactory(() => new CredentialTypeRegistryImpl()),
     });
     this.container.register(CoreTokens.CredentialTypeRegistry, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CredentialTypeRegistryImpl)),
+      useFactory: instanceCachingFactory((dependencyContainer) =>
+        dependencyContainer.resolve(CredentialTypeRegistryImpl),
+      ),
     });
     this.container.registerInstance(CoreTokens.CredentialSessionService, new UnavailableCredentialSessionService());
     this.container.register(CodemationIdFactory, { useClass: CodemationIdFactory });
@@ -437,27 +464,34 @@ export class CodemationApplication {
     this.container.register(CoreTokens.WorkflowCatalog, {
       useFactory: instanceCachingFactory(
         () =>
-          new LiveWorkflowCatalog(
-            new AIAgentConnectionWorkflowExpander(new ConnectionCredentialNodeConfigFactory()),
-          ),
+          new LiveWorkflowCatalog(new AIAgentConnectionWorkflowExpander(new ConnectionCredentialNodeConfigFactory())),
       ),
     });
     this.container.register(CoreTokens.WorkflowRegistry, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CoreTokens.WorkflowCatalog)),
+      useFactory: instanceCachingFactory((dependencyContainer) =>
+        dependencyContainer.resolve(CoreTokens.WorkflowCatalog),
+      ),
     });
     this.container.register(CoreTokens.WorkflowRepository, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CoreTokens.WorkflowCatalog)),
+      useFactory: instanceCachingFactory((dependencyContainer) =>
+        dependencyContainer.resolve(CoreTokens.WorkflowCatalog),
+      ),
     });
     this.container.register(CoreTokens.NodeResolver, {
-      useFactory: instanceCachingFactory((dependencyContainer) => new ContainerNodeResolver(dependencyContainer.resolve(CoreTokens.ServiceContainer))),
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) => new ContainerNodeResolver(dependencyContainer.resolve(CoreTokens.ServiceContainer)),
+      ),
     });
     this.container.register(CoreTokens.WorkflowRunnerResolver, {
-      useFactory: instanceCachingFactory((dependencyContainer) => new ContainerWorkflowRunnerResolver(dependencyContainer.resolve(CoreTokens.ServiceContainer))),
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) =>
+          new ContainerWorkflowRunnerResolver(dependencyContainer.resolve(CoreTokens.ServiceContainer)),
+      ),
     });
     this.container.register(EngineFactory, { useClass: EngineFactory });
     this.container.register(CoreTokens.EngineExecutionLimitsPolicy, {
-      useFactory: instanceCachingFactory(
-        () => new EngineExecutionLimitsPolicyFactory().create(this.runtimeConfig.engineExecutionLimits),
+      useFactory: instanceCachingFactory(() =>
+        new EngineExecutionLimitsPolicyFactory().create(this.runtimeConfig.engineExecutionLimits),
       ),
     });
     this.container.register(Engine, {
@@ -465,9 +499,13 @@ export class CodemationApplication {
         const workflowCatalog = dependencyContainer.resolve(CoreTokens.WorkflowCatalog);
         const nodeResolver = dependencyContainer.resolve(CoreTokens.NodeResolver);
         const tokenRegistryLike = dependencyContainer.resolve(CoreTokens.PersistedWorkflowTokenRegistry);
-        const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(dependencyContainer.resolve(CoreTokens.WorkflowRepository), {
-          warn: (message) => dependencyContainer.resolve(ServerLoggerFactory).create("codemation.webhooks.routing").warn(message),
-        });
+        const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(
+          dependencyContainer.resolve(CoreTokens.WorkflowRepository),
+          {
+            warn: (message) =>
+              dependencyContainer.resolve(ServerLoggerFactory).create("codemation.webhooks.routing").warn(message),
+          },
+        );
         const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
         return dependencyContainer.resolve(EngineFactory).create({
           credentialSessions: dependencyContainer.resolve(CoreTokens.CredentialSessionService),
@@ -492,7 +530,10 @@ export class CodemationApplication {
     });
     this.container.register(RunIntentService, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new RunIntentService(dependencyContainer.resolve(Engine), dependencyContainer.resolve(CoreTokens.WorkflowRepository));
+        return new RunIntentService(
+          dependencyContainer.resolve(Engine),
+          dependencyContainer.resolve(CoreTokens.WorkflowRepository),
+        );
       }),
     });
     this.container.registerInstance(LogLevelPolicyFactory, logLevelPolicyFactory);
@@ -519,7 +560,10 @@ export class CodemationApplication {
     });
     this.container.register(CoreTokens.WorkflowRunnerService, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
-        return new EngineWorkflowRunnerService(dependencyContainer.resolve(Engine), dependencyContainer.resolve(CoreTokens.WorkflowRepository));
+        return new EngineWorkflowRunnerService(
+          dependencyContainer.resolve(Engine),
+          dependencyContainer.resolve(CoreTokens.WorkflowRepository),
+        );
       }),
     });
     this.container.register(PrismaClientFactory, { useClass: PrismaClientFactory });
@@ -547,23 +591,32 @@ export class CodemationApplication {
     this.container.register(InMemoryTriggerSetupStateStore, { useClass: InMemoryTriggerSetupStateStore });
     this.container.register(InMemoryCredentialStore, { useClass: InMemoryCredentialStore });
     this.container.register(SqlWorkflowRunRepository, { useClass: SqlWorkflowRunRepository });
-    this.container.register(InMemoryWorkflowDebuggerOverlayRepository, { useClass: InMemoryWorkflowDebuggerOverlayRepository });
+    this.container.register(InMemoryWorkflowDebuggerOverlayRepository, {
+      useClass: InMemoryWorkflowDebuggerOverlayRepository,
+    });
     this.container.register(PrismaTriggerSetupStateStore, { useClass: PrismaTriggerSetupStateStore });
-    this.container.register(PrismaWorkflowDebuggerOverlayRepository, { useClass: PrismaWorkflowDebuggerOverlayRepository });
+    this.container.register(PrismaWorkflowDebuggerOverlayRepository, {
+      useClass: PrismaWorkflowDebuggerOverlayRepository,
+    });
     this.container.register(PrismaCredentialStore, { useClass: PrismaCredentialStore });
     this.container.register(ApplicationTokens.WorkflowDefinitionRepository, {
       useFactory: instanceCachingFactory(
-        (dependencyContainer) => dependencyContainer.resolve(WorkflowDefinitionRepositoryAdapter) as unknown as WorkflowDefinitionRepository,
+        (dependencyContainer) =>
+          dependencyContainer.resolve(WorkflowDefinitionRepositoryAdapter) as unknown as WorkflowDefinitionRepository,
       ),
     });
     this.container.register(ApplicationTokens.WorkflowRunRepository, {
       useFactory: instanceCachingFactory(
-        (dependencyContainer) => dependencyContainer.resolve(SqlWorkflowRunRepository) as unknown as WorkflowRunRepository,
+        (dependencyContainer) =>
+          dependencyContainer.resolve(SqlWorkflowRunRepository) as unknown as WorkflowRunRepository,
       ),
     });
     this.container.register(ApplicationTokens.WorkflowDebuggerOverlayRepository, {
       useFactory: instanceCachingFactory(
-        (dependencyContainer) => dependencyContainer.resolve(InMemoryWorkflowDebuggerOverlayRepository) as unknown as WorkflowDebuggerOverlayRepository,
+        (dependencyContainer) =>
+          dependencyContainer.resolve(
+            InMemoryWorkflowDebuggerOverlayRepository,
+          ) as unknown as WorkflowDebuggerOverlayRepository,
       ),
     });
     this.container.register(ApplicationTokens.CredentialStore, {
@@ -573,13 +626,19 @@ export class CodemationApplication {
     this.container.register(InMemoryCommandBus, { useClass: InMemoryCommandBus });
     this.container.register(InMemoryDomainEventBus, { useClass: InMemoryDomainEventBus });
     this.container.register(ApplicationTokens.QueryBus, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(InMemoryQueryBus) as unknown as QueryBus),
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) => dependencyContainer.resolve(InMemoryQueryBus) as unknown as QueryBus,
+      ),
     });
     this.container.register(ApplicationTokens.CommandBus, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(InMemoryCommandBus) as unknown as CommandBus),
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) => dependencyContainer.resolve(InMemoryCommandBus) as unknown as CommandBus,
+      ),
     });
     this.container.register(ApplicationTokens.DomainEventBus, {
-      useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(InMemoryDomainEventBus) as unknown as DomainEventBus),
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) => dependencyContainer.resolve(InMemoryDomainEventBus) as unknown as DomainEventBus,
+      ),
     });
   }
 
@@ -622,7 +681,10 @@ export class CodemationApplication {
     this.container.registerInstance(CoreTokens.NodeActivationScheduler, activationScheduler);
     this.container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
     this.container.registerInstance(CoreTokens.BinaryStorage, binaryStorage);
-    this.container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory(binaryStorage));
+    this.container.registerInstance(
+      CoreTokens.ExecutionContextFactory,
+      new DefaultExecutionContextFactory(binaryStorage),
+    );
     this.container.registerInstance(ApplicationTokens.ProcessEnv, env);
     this.container.registerInstance(ApplicationTokens.Clock, new SystemClock());
     this.container.registerInstance(ApplicationTokens.CodemationAuthConfig, this.applicationAuthConfig);
@@ -631,10 +693,16 @@ export class CodemationApplication {
         const prismaClient = dependencyContainer.isRegistered(PrismaClient, true)
           ? dependencyContainer.resolve(PrismaClient)
           : undefined;
-        return new UserAccountService(dependencyContainer.resolve(ApplicationTokens.CodemationAuthConfig), prismaClient);
+        return new UserAccountService(
+          dependencyContainer.resolve(ApplicationTokens.CodemationAuthConfig),
+          prismaClient,
+        );
       }),
     });
-    this.container.registerInstance(ApplicationTokens.WorkflowDebuggerOverlayRepository, persistence.workflowDebuggerOverlayRepository);
+    this.container.registerInstance(
+      ApplicationTokens.WorkflowDebuggerOverlayRepository,
+      persistence.workflowDebuggerOverlayRepository,
+    );
     if (persistence.workflowRunRepository) {
       this.container.registerInstance(ApplicationTokens.WorkflowRunRepository, persistence.workflowRunRepository);
     }
@@ -644,11 +712,16 @@ export class CodemationApplication {
     if (resolved.databaseUrl) {
       this.container.registerInstance(ApplicationTokens.CredentialStore, this.container.resolve(PrismaCredentialStore));
     } else {
-      this.container.registerInstance(ApplicationTokens.CredentialStore, this.container.resolve(InMemoryCredentialStore));
+      this.container.registerInstance(
+        ApplicationTokens.CredentialStore,
+        this.container.resolve(InMemoryCredentialStore),
+      );
     }
     if (!this.hasConfigCredentialSessionServiceBinding) {
       this.container.register(CoreTokens.CredentialSessionService, {
-        useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CredentialSessionServiceImpl)),
+        useFactory: instanceCachingFactory((dependencyContainer) =>
+          dependencyContainer.resolve(CredentialSessionServiceImpl),
+        ),
       });
     }
     if (resolved.workerRuntimeScheduler) {
@@ -657,11 +730,14 @@ export class CodemationApplication {
     this.synchronizeWorkflowRegistry();
   }
 
-  private async applyDatabaseMigrations(resolved: ResolvedImplementationSelection, env: NodeJS.ProcessEnv): Promise<void> {
+  private async applyDatabaseMigrations(
+    resolved: ResolvedImplementationSelection,
+    env: NodeJS.ProcessEnv,
+  ): Promise<void> {
     if (
-      !resolved.databaseUrl
-      || this.hasProvidedPrismaClientOverride()
-      || env.CODEMATION_SKIP_STARTUP_MIGRATIONS === "true"
+      !resolved.databaseUrl ||
+      this.hasProvidedPrismaClientOverride() ||
+      env.CODEMATION_SKIP_STARTUP_MIGRATIONS === "true"
     ) {
       return;
     }
@@ -736,7 +812,11 @@ export class CodemationApplication {
   private createNodeActivationScheduler(resolved: ResolvedImplementationSelection) {
     const nodeResolver = this.container.resolve(CoreTokens.NodeResolver);
     if (resolved.workerRuntimeScheduler) {
-      return new DefaultDrivingScheduler(new ConfigDrivenOffloadPolicy(), resolved.workerRuntimeScheduler, new InlineDrivingScheduler(nodeResolver));
+      return new DefaultDrivingScheduler(
+        new ConfigDrivenOffloadPolicy(),
+        resolved.workerRuntimeScheduler,
+        new InlineDrivingScheduler(nodeResolver),
+      );
     }
     return new InlineDrivingScheduler(nodeResolver);
   }
@@ -748,11 +828,13 @@ export class CodemationApplication {
     return new LocalFilesystemBinaryStorage(path.join(repoRoot, ".codemation", "binary"));
   }
 
-  private resolveImplementationSelection(args: Readonly<{
-    repoRoot: string;
-    runtimeConfig: CodemationApplicationRuntimeConfig;
-    env: Readonly<NodeJS.ProcessEnv>;
-  }>): ResolvedImplementationSelection {
+  private resolveImplementationSelection(
+    args: Readonly<{
+      repoRoot: string;
+      runtimeConfig: CodemationApplicationRuntimeConfig;
+      env: Readonly<NodeJS.ProcessEnv>;
+    }>,
+  ): ResolvedImplementationSelection {
     void args.repoRoot;
     const databaseUrl = this.resolveDatabaseUrl(args.runtimeConfig, args.env);
     const databaseKind = databaseUrl ? this.resolveDatabaseKind(args.runtimeConfig) : undefined;
@@ -760,15 +842,22 @@ export class CodemationApplication {
     const schedulerKind = this.resolveSchedulerKind(args.runtimeConfig, args.env, redisUrl);
     const eventBusKind = this.resolveEventBusKind(args.runtimeConfig, args.env, schedulerKind, redisUrl);
     const queuePrefix =
-      args.runtimeConfig.scheduler?.queuePrefix ?? args.runtimeConfig.eventBus?.queuePrefix ?? args.env.QUEUE_PREFIX ?? "codemation";
+      args.runtimeConfig.scheduler?.queuePrefix ??
+      args.runtimeConfig.eventBus?.queuePrefix ??
+      args.env.QUEUE_PREFIX ??
+      "codemation";
     if (schedulerKind === "bullmq" && eventBusKind !== "redis") {
-      throw new Error("BullMQ scheduling requires a Redis event bus so worker events can be forwarded to connected clients.");
+      throw new Error(
+        "BullMQ scheduling requires a Redis event bus so worker events can be forwarded to connected clients.",
+      );
     }
     if (eventBusKind === "redis" && !redisUrl) {
       throw new Error("Redis event bus requires runtime.eventBus.redisUrl or REDIS_URL.");
     }
     const workerRuntimeScheduler =
-      schedulerKind === "bullmq" ? new BullmqScheduler({ url: this.requireRedisUrl(redisUrl) }, queuePrefix) : undefined;
+      schedulerKind === "bullmq"
+        ? new BullmqScheduler({ url: this.requireRedisUrl(redisUrl) }, queuePrefix)
+        : undefined;
     return {
       databaseUrl,
       databaseKind,
@@ -864,4 +953,3 @@ type ResolvedImplementationSelection = Readonly<{
   schedulerKind: CodemationSchedulerKind;
   workerRuntimeScheduler?: WorkerRuntimeScheduler;
 }>;
-

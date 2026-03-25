@@ -1,5 +1,5 @@
 import { Command } from "../bus/Command";
-import type { RunCommandResult,RunNodeRequest } from "../contracts/RunContracts";
+import type { RunCommandResult, RunNodeRequest } from "../contracts/RunContracts";
 
 export class ReplayWorkflowNodeCommand extends Command<RunCommandResult> {
   constructor(

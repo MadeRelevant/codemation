@@ -102,7 +102,8 @@ export class RunContinuationService {
     const state = await this.runStore.load(args.runId);
     if (!state) throw new Error(`Unknown runId: ${args.runId}`);
     if (state.status !== "pending" || !state.pending) throw new Error(`Run ${args.runId} is not pending`);
-    if (state.pending.activationId !== args.activationId) throw new Error(`activationId mismatch for run ${args.runId}`);
+    if (state.pending.activationId !== args.activationId)
+      throw new Error(`activationId mismatch for run ${args.runId}`);
     if (state.pending.nodeId !== args.nodeId) throw new Error(`nodeId mismatch for run ${args.runId}`);
 
     const wf = this.resolvePersistedWorkflow(state);
@@ -199,7 +200,10 @@ export class RunContinuationService {
       next = planner.nextActivation(queue);
     } catch (cause) {
       const completedDefinition = topology.defsById.get(args.nodeId);
-      const completedNodeLabel = RuntimeContinuationDiagnostics.formatNodeLabel({ definition: completedDefinition, nodeId: args.nodeId });
+      const completedNodeLabel = RuntimeContinuationDiagnostics.formatNodeLabel({
+        definition: completedDefinition,
+        nodeId: args.nodeId,
+      });
       const reason = cause instanceof Error ? cause.message : String(cause);
       throw new Error(
         `After completing ${completedNodeLabel}, the engine could not plan the next activation. ${reason} Outputs: ${RuntimeContinuationDiagnostics.formatOutputCounts(args.outputs)}.`,
@@ -227,7 +231,13 @@ export class RunContinuationService {
         finishedAt: completedAt,
       });
 
-      const result: RunResult = { runId: state.runId, workflowId: state.workflowId, startedAt: state.startedAt, status: "completed", outputs };
+      const result: RunResult = {
+        runId: state.runId,
+        workflowId: state.workflowId,
+        startedAt: state.startedAt,
+        status: "completed",
+        outputs,
+      };
       this.waiters.resolveRunCompletion(result);
       return result;
     }
@@ -297,18 +307,26 @@ export class RunContinuationService {
     return result;
   }
 
-  async resumeFromNodeError(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; error: Error }): Promise<RunResult> {
+  async resumeFromNodeError(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    error: Error;
+  }): Promise<RunResult> {
     const state = await this.runStore.load(args.runId);
     if (!state) throw new Error(`Unknown runId: ${args.runId}`);
     if (state.status !== "pending" || !state.pending) throw new Error(`Run ${args.runId} is not pending`);
-    if (state.pending.activationId !== args.activationId) throw new Error(`activationId mismatch for run ${args.runId}`);
+    if (state.pending.activationId !== args.activationId)
+      throw new Error(`activationId mismatch for run ${args.runId}`);
     if (state.pending.nodeId !== args.nodeId) throw new Error(`nodeId mismatch for run ${args.runId}`);
 
     const wf = this.resolvePersistedWorkflow(state);
     if (!wf) throw new Error(`Unknown workflowId: ${state.workflowId}`);
     const failedDefinition = WorkflowTopology.fromWorkflow(wf).defsById.get(args.nodeId);
     const webhookControlSignal =
-      state.executionOptions?.webhook && failedDefinition?.kind === "trigger" ? this.asWebhookControlSignal(args.error) : undefined;
+      state.executionOptions?.webhook && failedDefinition?.kind === "trigger"
+        ? this.asWebhookControlSignal(args.error)
+        : undefined;
     if (webhookControlSignal) {
       return await this.resumeFromWebhookControl({ state, workflow: wf, args, signal: webhookControlSignal });
     }
@@ -390,16 +408,32 @@ export class RunContinuationService {
       finishedAt,
     });
 
-    const result: RunResult = { runId: state.runId, workflowId: state.workflowId, startedAt: state.startedAt, status: "failed", error: { message } };
+    const result: RunResult = {
+      runId: state.runId,
+      workflowId: state.workflowId,
+      startedAt: state.startedAt,
+      status: "failed",
+      error: { message },
+    };
     this.waiters.resolveRunCompletion(result);
     return result;
   }
 
-  async resumeFromStepResult(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; outputs: NodeOutputs }): Promise<RunResult> {
+  async resumeFromStepResult(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    outputs: NodeOutputs;
+  }): Promise<RunResult> {
     return await this.resumeFromNodeResult(args);
   }
 
-  async resumeFromStepError(args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; error: Error }): Promise<RunResult> {
+  async resumeFromStepError(args: {
+    runId: RunId;
+    activationId: NodeActivationId;
+    nodeId: NodeId;
+    error: Error;
+  }): Promise<RunResult> {
     return await this.resumeFromNodeError(args);
   }
 
@@ -407,11 +441,25 @@ export class RunContinuationService {
     const existing = await this.runStore.load(runId);
     if (existing?.status === "completed") {
       const wf = this.resolvePersistedWorkflow(existing);
-      const outputs = wf ? this.semantics.resolveResultOutputs(wf, existing.control?.stopCondition, existing.outputsByNode) : [];
-      return { runId: existing.runId, workflowId: existing.workflowId, startedAt: existing.startedAt, status: "completed", outputs };
+      const outputs = wf
+        ? this.semantics.resolveResultOutputs(wf, existing.control?.stopCondition, existing.outputsByNode)
+        : [];
+      return {
+        runId: existing.runId,
+        workflowId: existing.workflowId,
+        startedAt: existing.startedAt,
+        status: "completed",
+        outputs,
+      };
     }
     if (existing?.status === "failed") {
-      return { runId: existing.runId, workflowId: existing.workflowId, startedAt: existing.startedAt, status: "failed", error: { message: "Run failed" } };
+      return {
+        runId: existing.runId,
+        workflowId: existing.workflowId,
+        startedAt: existing.startedAt,
+        status: "failed",
+        error: { message: "Run failed" },
+      };
     }
 
     const result = await this.waiters.waitForCompletion(runId);
@@ -434,7 +482,8 @@ export class RunContinuationService {
     const data = this.runDataFactory.create(args.state.outputsByNode);
     const { topology, planner } = this.planningFactory.create(args.workflow);
 
-    const continuedItems = args.signal.kind === "respondNowAndContinue" ? (args.signal.continueItems ?? []) : args.signal.responseItems;
+    const continuedItems =
+      args.signal.kind === "respondNowAndContinue" ? (args.signal.continueItems ?? []) : args.signal.responseItems;
     const triggerOutputs: NodeOutputs = { main: continuedItems };
     data.setOutputs(args.args.nodeId, triggerOutputs);
 
@@ -533,12 +582,17 @@ export class RunContinuationService {
     }
 
     const batchId = args.state.pending?.batchId ?? "batch_1";
-    const queue: RunQueueEntry[] = (args.state.queue ?? []).map((entry) => ({ ...entry, batchId: entry.batchId ?? batchId }));
+    const queue: RunQueueEntry[] = (args.state.queue ?? []).map((entry) => ({
+      ...entry,
+      batchId: entry.batchId ?? batchId,
+    }));
     planner.applyOutputs(queue, { fromNodeId: args.args.nodeId, outputs: triggerOutputs as any, batchId });
     const next = planner.nextActivation(queue);
 
     if (!next) {
-      const lastNodeId = createWorkflowExecutableNodeClassifier(args.workflow).lastExecutableNodeIdInDefinitionOrder(args.workflow);
+      const lastNodeId = createWorkflowExecutableNodeClassifier(args.workflow).lastExecutableNodeIdInDefinitionOrder(
+        args.workflow,
+      );
       const outputs = data.getOutputItems(lastNodeId, "main");
       const completedState = this.persistedRunStateTerminalBuilder.mergeTerminal({
         state: args.state,
@@ -737,4 +791,3 @@ export class RunContinuationService {
     };
   }
 }
-

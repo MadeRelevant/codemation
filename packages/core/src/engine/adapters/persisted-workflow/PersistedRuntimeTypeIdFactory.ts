@@ -17,4 +17,3 @@ export class PersistedRuntimeTypeIdFactory {
     return `${packageName}::${metadata.persistedName}` as PersistedTokenId;
   }
 }
-

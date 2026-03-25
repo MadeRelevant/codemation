@@ -1,9 +1,10 @@
-import type { WorkflowExecutionInspectorAttachmentModel,WorkflowInspectorAttachmentGroup } from "../../lib/workflowDetail/workflowDetailTypes";
+import type {
+  WorkflowExecutionInspectorAttachmentModel,
+  WorkflowInspectorAttachmentGroup,
+} from "../../lib/workflowDetail/workflowDetailTypes";
 
 export class WorkflowInspectorAttachmentGroupingPresenter {
-  static buildGroups(
-    attachments: ReadonlyArray<WorkflowExecutionInspectorAttachmentModel>,
-  ): Readonly<{
+  static buildGroups(attachments: ReadonlyArray<WorkflowExecutionInspectorAttachmentModel>): Readonly<{
     groups: ReadonlyArray<WorkflowInspectorAttachmentGroup>;
     shouldShowGroupHeadings: boolean;
   }> {

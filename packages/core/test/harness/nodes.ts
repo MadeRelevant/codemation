@@ -1,18 +1,18 @@
 import type {
-InputPortKey,
-Item,
-Items,
-MultiInputNode,
-Node,
-NodeConfigBase,
-NodeExecutionContext,
-NodeId,
-NodeOutputs,
-RetryPolicySpec,
-RunnableNodeConfig,
-TypeToken,
-WorkflowId,
-WorkflowRunnerService,
+  InputPortKey,
+  Item,
+  Items,
+  MultiInputNode,
+  Node,
+  NodeConfigBase,
+  NodeExecutionContext,
+  NodeId,
+  NodeOutputs,
+  RetryPolicySpec,
+  RunnableNodeConfig,
+  TypeToken,
+  WorkflowId,
+  WorkflowRunnerService,
 } from "../../src/index.ts";
 
 export type CallbackExecuteArgs<TConfig extends NodeConfigBase> = Readonly<{
@@ -68,11 +68,11 @@ export class ThrowNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<
 
   constructor(
     public readonly name: string,
-    public readonly errorOrFactory:
-      | Error
-      | string
-      | ((args: CallbackExecuteArgs<ThrowNodeConfig<TItemJson>>) => Error),
-    public readonly opts: Readonly<{ id?: string; execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }> }> = {},
+    public readonly errorOrFactory: Error | string | ((args: CallbackExecuteArgs<ThrowNodeConfig<TItemJson>>) => Error),
+    public readonly opts: Readonly<{
+      id?: string;
+      execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }>;
+    }> = {},
   ) {}
 
   get id(): string | undefined {
@@ -102,8 +102,15 @@ export class BranchNodeConfig<TItemJson = unknown> implements RunnableNodeConfig
 
   constructor(
     public readonly name: string,
-    public readonly decide: (item: Item<TItemJson>, ctx: NodeExecutionContext<BranchNodeConfig<TItemJson>>, index: number) => boolean | Promise<boolean>,
-    public readonly opts: Readonly<{ id?: string; execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }> }> = {},
+    public readonly decide: (
+      item: Item<TItemJson>,
+      ctx: NodeExecutionContext<BranchNodeConfig<TItemJson>>,
+      index: number,
+    ) => boolean | Promise<boolean>,
+    public readonly opts: Readonly<{
+      id?: string;
+      execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }>;
+    }> = {},
   ) {}
 
   get id(): string | undefined {
@@ -125,9 +132,13 @@ export class BranchNode implements Node<BranchNodeConfig<any>> {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i]!;
-      const metaBase = (item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}) as Record<string, unknown>;
+      const metaBase = (
+        item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}
+      ) as Record<string, unknown>;
       const cmBase =
-        metaBase._cm && typeof metaBase._cm === "object" ? (metaBase._cm as Record<string, unknown>) : ({} as Record<string, unknown>);
+        metaBase._cm && typeof metaBase._cm === "object"
+          ? (metaBase._cm as Record<string, unknown>)
+          : ({} as Record<string, unknown>);
       const originIndex = typeof cmBase.originIndex === "number" ? (cmBase.originIndex as number) : i;
       const tagged: Item = {
         ...item,
@@ -149,8 +160,15 @@ export class MapNodeConfig<TIn = unknown, TOut = unknown> implements RunnableNod
 
   constructor(
     public readonly name: string,
-    public readonly map: (item: Item<TIn>, ctx: NodeExecutionContext<MapNodeConfig<TIn, TOut>>, index: number) => TOut | Promise<TOut>,
-    public readonly opts: Readonly<{ id?: string; execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }> }> = {},
+    public readonly map: (
+      item: Item<TIn>,
+      ctx: NodeExecutionContext<MapNodeConfig<TIn, TOut>>,
+      index: number,
+    ) => TOut | Promise<TOut>,
+    public readonly opts: Readonly<{
+      id?: string;
+      execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }>;
+    }> = {},
   ) {}
 
   get id(): string | undefined {
@@ -183,7 +201,11 @@ export class IfNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<TIt
 
   constructor(
     public readonly name: string,
-    public readonly decide: (item: Item<TItemJson>, ctx: NodeExecutionContext<IfNodeConfig<TItemJson>>, index: number) => boolean | Promise<boolean>,
+    public readonly decide: (
+      item: Item<TItemJson>,
+      ctx: NodeExecutionContext<IfNodeConfig<TItemJson>>,
+      index: number,
+    ) => boolean | Promise<boolean>,
     public readonly opts: Readonly<{
       id?: string;
       omitUnusedOutputKey?: boolean;
@@ -214,9 +236,13 @@ export class IfNode implements Node<IfNodeConfig<any>> {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i]!;
-      const metaBase = (item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}) as Record<string, unknown>;
+      const metaBase = (
+        item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}
+      ) as Record<string, unknown>;
       const cmBase =
-        metaBase._cm && typeof metaBase._cm === "object" ? (metaBase._cm as Record<string, unknown>) : ({} as Record<string, unknown>);
+        metaBase._cm && typeof metaBase._cm === "object"
+          ? (metaBase._cm as Record<string, unknown>)
+          : ({} as Record<string, unknown>);
       const originIndex = typeof cmBase.originIndex === "number" ? (cmBase.originIndex as number) : i;
       const tagged: Item = {
         ...item,
@@ -236,13 +262,21 @@ export class IfNode implements Node<IfNodeConfig<any>> {
   }
 }
 
-export class SubWorkflowRunnerConfig<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<TInputJson, TOutputJson> {
+export class SubWorkflowRunnerConfig<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<
+  TInputJson,
+  TOutputJson
+> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = SubWorkflowRunnerNode;
 
   constructor(
     public readonly name: string,
-    public readonly args: Readonly<{ workflowId: WorkflowId; startAt?: NodeId; id?: string; execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }> }>,
+    public readonly args: Readonly<{
+      workflowId: WorkflowId;
+      startAt?: NodeId;
+      id?: string;
+      execution?: Readonly<{ hint?: "local" | "worker"; queue?: string }>;
+    }>,
   ) {}
 
   get id(): string | undefined {
@@ -295,13 +329,19 @@ export class SubWorkflowRunnerNode implements Node<SubWorkflowRunnerConfig<any, 
   }
 }
 
-export class MergeNodeConfig<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<TInputJson, TOutputJson> {
+export class MergeNodeConfig<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<
+  TInputJson,
+  TOutputJson
+> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = MergeNode;
 
   constructor(
     public readonly name: string,
-    public readonly cfg: Readonly<{ mode: "passThrough" | "append" | "mergeByPosition"; prefer?: ReadonlyArray<InputPortKey> }> = { mode: "passThrough" },
+    public readonly cfg: Readonly<{
+      mode: "passThrough" | "append" | "mergeByPosition";
+      prefer?: ReadonlyArray<InputPortKey>;
+    }> = { mode: "passThrough" },
     public readonly opts: Readonly<{ id?: string }> = {},
   ) {}
 
@@ -310,7 +350,10 @@ export class MergeNodeConfig<TInputJson = unknown, TOutputJson = TInputJson> imp
   }
 }
 
-function orderedInputs(inputsByPort: Readonly<Record<InputPortKey, Items>>, prefer?: ReadonlyArray<InputPortKey>): InputPortKey[] {
+function orderedInputs(
+  inputsByPort: Readonly<Record<InputPortKey, Items>>,
+  prefer?: ReadonlyArray<InputPortKey>,
+): InputPortKey[] {
   const keys = Object.keys(inputsByPort);
   const preferred = (prefer ?? []).filter((k) => keys.includes(k));
   const rest = keys.filter((k) => !preferred.includes(k)).sort();
@@ -321,7 +364,10 @@ export class MergeNode implements MultiInputNode<MergeNodeConfig<any, any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async executeMulti(inputsByPort: Readonly<Record<InputPortKey, Items>>, ctx: NodeExecutionContext<MergeNodeConfig<any, any>>): Promise<NodeOutputs> {
+  async executeMulti(
+    inputsByPort: Readonly<Record<InputPortKey, Items>>,
+    ctx: NodeExecutionContext<MergeNodeConfig<any, any>>,
+  ): Promise<NodeOutputs> {
     const order = orderedInputs(inputsByPort, ctx.config.cfg.prefer);
 
     if (ctx.config.cfg.mode === "append") {
@@ -371,4 +417,3 @@ export class MergeNode implements MultiInputNode<MergeNodeConfig<any, any>> {
     return { main: out };
   }
 }
-

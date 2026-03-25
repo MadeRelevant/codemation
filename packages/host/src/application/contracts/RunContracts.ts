@@ -1,4 +1,4 @@
-import type { Items,PersistedMutableRunState,PersistedRunState,RunCurrentState } from "@codemation/core";
+import type { Items, PersistedMutableRunState, PersistedRunState, RunCurrentState } from "@codemation/core";
 
 export type CreateRunRequest = Readonly<{
   workflowId?: string;

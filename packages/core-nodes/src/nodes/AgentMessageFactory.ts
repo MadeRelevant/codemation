@@ -1,12 +1,6 @@
-import type {
-AgentToolCall
-} from "@codemation/core";
+import type { AgentToolCall } from "@codemation/core";
 
-
-import { HumanMessage,SystemMessage,ToolMessage } from "@langchain/core/messages";
-
-
-
+import { HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 
 export class AgentMessageFactory {
   static createSystemPrompt(systemMessage: string): SystemMessage {

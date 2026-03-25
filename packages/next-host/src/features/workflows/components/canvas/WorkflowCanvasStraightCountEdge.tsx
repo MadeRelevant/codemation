@@ -1,4 +1,9 @@
-import { BaseEdge,getStraightPath,type Edge as ReactFlowEdge,type EdgeProps as ReactFlowEdgeProps } from "@xyflow/react";
+import {
+  BaseEdge,
+  getStraightPath,
+  type Edge as ReactFlowEdge,
+  type EdgeProps as ReactFlowEdgeProps,
+} from "@xyflow/react";
 
 export function StraightCountEdge(props: ReactFlowEdgeProps<ReactFlowEdge>) {
   const [edgePath, labelX, labelY] = getStraightPath({

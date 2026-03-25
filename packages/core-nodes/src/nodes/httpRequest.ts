@@ -1,12 +1,8 @@
 import { RetryPolicy, type RetryPolicySpec, type RunnableNodeConfig, type TypeToken } from "@codemation/core";
 
-
-
 import { HttpRequestNode } from "./HttpRequestNodeFactory";
 
 export type HttpRequestDownloadMode = "auto" | "always" | "never";
-
-
 
 export type HttpRequestOutputJson = Readonly<{
   http: Readonly<{
@@ -21,11 +17,10 @@ export type HttpRequestOutputJson = Readonly<{
   }>;
 }>;
 
-
-
-export class HttpRequest<TInputJson = Readonly<{ url?: string }>, TOutputJson = TInputJson & HttpRequestOutputJson>
-  implements RunnableNodeConfig<TInputJson, TOutputJson>
-{
+export class HttpRequest<
+  TInputJson = Readonly<{ url?: string }>,
+  TOutputJson = TInputJson & HttpRequestOutputJson,
+> implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = HttpRequestNode;
   readonly execution = { hint: "local" } as const;

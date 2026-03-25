@@ -9,7 +9,10 @@ import type {
   WorkflowId,
 } from "../../../types";
 
-import { DefaultExecutionBinaryService, UnavailableBinaryStorage } from "../binaries/DefaultExecutionBinaryServiceFactory";
+import {
+  DefaultExecutionBinaryService,
+  UnavailableBinaryStorage,
+} from "../binaries/DefaultExecutionBinaryServiceFactory";
 
 export class DefaultExecutionContextFactory implements ExecutionContextFactory {
   constructor(
@@ -43,4 +46,3 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
     };
   }
 }
-

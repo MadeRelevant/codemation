@@ -1,17 +1,10 @@
-import type {
-Items,
-TriggerNodeConfig,
-TypeToken
-} from "@codemation/core";
-
+import type { Items, TriggerNodeConfig, TypeToken } from "@codemation/core";
 
 import { ItemsInputNormalizer } from "@codemation/core";
 
 import { ManualTriggerNode } from "./ManualTriggerNode";
 
 type ManualTriggerDefaultValue<TOutputJson> = Items<TOutputJson> | ReadonlyArray<TOutputJson> | TOutputJson;
-
-
 
 export class ManualTrigger<TOutputJson = unknown> implements TriggerNodeConfig<TOutputJson> {
   private static readonly itemsInputNormalizer = new ItemsInputNormalizer();

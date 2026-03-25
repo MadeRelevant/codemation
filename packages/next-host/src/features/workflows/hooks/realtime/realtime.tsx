@@ -1,60 +1,64 @@
 "use client";
 
 export type {
-CredentialInstanceDto,
-CredentialInstanceWithSecretsDto,
-WorkflowCredentialHealthDto,
+  CredentialInstanceDto,
+  CredentialInstanceWithSecretsDto,
+  WorkflowCredentialHealthDto,
 } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
-export type { WorkflowDto,WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
-export type { InviteUserResponseDto,UserAccountDto,UserAccountStatus } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
+export type { WorkflowDto, WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
+export type {
+  InviteUserResponseDto,
+  UserAccountDto,
+  UserAccountStatus,
+} from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
 
 export * from "../../lib/realtime/realtimeDomainTypes";
 
 export { WorkflowRealtimeProvider } from "../../components/realtime/WorkflowRealtimeProvider";
 
 import {
-withInviteUserResponseLoginMethodsDefaults,
-withUserAccountLoginMethodsDefaults,
-type InviteUserResponseDto,
-type UserAccountDto,
-type UserAccountStatus,
+  withInviteUserResponseLoginMethodsDefaults,
+  withUserAccountLoginMethodsDefaults,
+  type InviteUserResponseDto,
+  type UserAccountDto,
+  type UserAccountStatus,
 } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
-import type { WorkflowDto,WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
+import type { WorkflowDto, WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
-import { useMutation,useQuery,useQueryClient } from "@tanstack/react-query";
-import { useContext,useEffect,useMemo,useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useContext, useEffect, useMemo, useState } from "react";
 
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { RealtimeContext } from "../../components/realtime/RealtimeContext";
 import {
-fetchCredentialFieldEnvStatus,
-fetchCredentialInstanceWithSecrets,
-fetchCredentialInstances,
-fetchCredentialTypes,
-fetchRun,
-fetchUserAccounts,
-fetchWorkflow,
-fetchWorkflowCredentialHealth,
-fetchWorkflowDebuggerOverlay,
-fetchWorkflowRuns,
-fetchWorkflows,
+  fetchCredentialFieldEnvStatus,
+  fetchCredentialInstanceWithSecrets,
+  fetchCredentialInstances,
+  fetchCredentialTypes,
+  fetchRun,
+  fetchUserAccounts,
+  fetchWorkflow,
+  fetchWorkflowCredentialHealth,
+  fetchWorkflowDebuggerOverlay,
+  fetchWorkflowRuns,
+  fetchWorkflows,
 } from "../../lib/realtime/realtimeApi";
 import { getRealtimeBridge } from "../../lib/realtime/realtimeClientBridge";
 import {
-credentialFieldEnvStatusQueryKey,
-credentialInstanceWithSecretsQueryKey,
-credentialInstancesQueryKey,
-credentialTypesQueryKey,
-runQueryKey,
-userAccountsQueryKey,
-workflowCredentialHealthQueryKey,
-workflowDebuggerOverlayQueryKey,
-workflowDevBuildStateQueryKey,
-workflowQueryKey,
-workflowRunsQueryKey,
-workflowsQueryKey,
+  credentialFieldEnvStatusQueryKey,
+  credentialInstanceWithSecretsQueryKey,
+  credentialInstancesQueryKey,
+  credentialTypesQueryKey,
+  runQueryKey,
+  userAccountsQueryKey,
+  workflowCredentialHealthQueryKey,
+  workflowDebuggerOverlayQueryKey,
+  workflowDevBuildStateQueryKey,
+  workflowQueryKey,
+  workflowRunsQueryKey,
+  workflowsQueryKey,
 } from "../../lib/realtime/realtimeQueryKeys";
-import type { PersistedRunState,WorkflowDevBuildState } from "../../lib/realtime/realtimeDomainTypes";
+import type { PersistedRunState, WorkflowDevBuildState } from "../../lib/realtime/realtimeDomainTypes";
 
 export function useWorkflowRealtimeSubscription(workflowId: string | null | undefined): void {
   const [bridgeVersion, setBridgeVersion] = useState(0);
@@ -184,7 +188,9 @@ export function useCredentialInstancesQuery() {
 
 export function useCredentialInstanceWithSecretsQuery(instanceId: string | null | undefined) {
   return useQuery({
-    queryKey: instanceId ? credentialInstanceWithSecretsQueryKey(instanceId) : ["credential-instance-with-secrets", "disabled"],
+    queryKey: instanceId
+      ? credentialInstanceWithSecretsQueryKey(instanceId)
+      : ["credential-instance-with-secrets", "disabled"],
     queryFn: async () => await fetchCredentialInstanceWithSecrets(instanceId!),
     enabled: Boolean(instanceId),
   });

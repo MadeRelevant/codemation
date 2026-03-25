@@ -1,26 +1,26 @@
 import type {
-ChatModelConfig,
-ChatModelFactory,
-CredentialSessionService,
-LangChainChatModelLike,
-NodeExecutionContext,
-NodeExecutionStatePublisher,
-NodeInputsByPort,
-NodeOutputs,
-Tool,
-ToolConfig,
-ToolExecuteArgs,
+  ChatModelConfig,
+  ChatModelFactory,
+  CredentialSessionService,
+  LangChainChatModelLike,
+  NodeExecutionContext,
+  NodeExecutionStatePublisher,
+  NodeInputsByPort,
+  NodeOutputs,
+  Tool,
+  ToolConfig,
+  ToolExecuteArgs,
 } from "@codemation/core";
 import {
-ConnectionNodeIdFactory,
-ContainerNodeResolver,
-CoreTokens,
-DefaultExecutionBinaryService,
-InMemoryBinaryStorage,
-InMemoryRunDataFactory,
-container as tsyringeContainer,
+  ConnectionNodeIdFactory,
+  ContainerNodeResolver,
+  CoreTokens,
+  DefaultExecutionBinaryService,
+  InMemoryBinaryStorage,
+  InMemoryRunDataFactory,
+  container as tsyringeContainer,
 } from "@codemation/core";
-import { AIAgent,AIAgentNode } from "@codemation/core-nodes";
+import { AIAgent, AIAgentNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { test } from "vitest";
@@ -43,13 +43,23 @@ class CapturingNodeStatePublisher implements NodeExecutionStatePublisher {
     this.runningInputsByNodeId.set(args.nodeId, args.inputsByPort);
   }
 
-  async markCompleted(args: { nodeId: string; activationId?: string; inputsByPort?: NodeInputsByPort; outputs?: NodeOutputs }): Promise<void> {
+  async markCompleted(args: {
+    nodeId: string;
+    activationId?: string;
+    inputsByPort?: NodeInputsByPort;
+    outputs?: NodeOutputs;
+  }): Promise<void> {
     this.events.push(`completed:${args.nodeId}`);
     this.completedInputsByNodeId.set(args.nodeId, args.inputsByPort);
     this.completedOutputsByNodeId.set(args.nodeId, args.outputs);
   }
 
-  async markFailed(args: { nodeId: string; activationId?: string; inputsByPort?: NodeInputsByPort; error: Error }): Promise<void> {
+  async markFailed(args: {
+    nodeId: string;
+    activationId?: string;
+    inputsByPort?: NodeInputsByPort;
+    error: Error;
+  }): Promise<void> {
     this.events.push(`failed:${args.nodeId}`);
   }
 
@@ -146,7 +156,9 @@ class DelayTool implements Tool<DelayToolConfig, typeof delayToolInputSchema, ty
     return [...(this.inputsByToolName.get(toolName) ?? [])];
   }
 
-  async execute(args: ToolExecuteArgs<DelayToolConfig, z.input<typeof delayToolInputSchema>>): Promise<z.output<typeof delayToolOutputSchema>> {
+  async execute(
+    args: ToolExecuteArgs<DelayToolConfig, z.input<typeof delayToolInputSchema>>,
+  ): Promise<z.output<typeof delayToolOutputSchema>> {
     DelayTool.startedAt.push(performance.now());
     const inputs = DelayTool.inputsByToolName.get(args.config.name) ?? [];
     DelayTool.inputsByToolName.set(args.config.name, [...inputs, args.input]);
@@ -191,10 +203,7 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
     "Use tools to classify this mail.",
     (item) => JSON.stringify(item.json ?? {}),
     new FakeChatModelConfig("Fake Chat Model"),
-    [
-      new DelayToolConfig("subject_tool", 40, "subject", "RFQ"),
-      new DelayToolConfig("body_tool", 40, "body", "quote"),
-    ],
+    [new DelayToolConfig("subject_tool", 40, "subject", "RFQ"), new DelayToolConfig("body_tool", 40, "body", "quote")],
   );
   const binary = new DefaultExecutionBinaryService(new InMemoryBinaryStorage(), "wf_1", "run_1", () => new Date());
   const ctx: NodeExecutionContext<AIAgent> = {
@@ -229,7 +238,10 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
 
   assert.ok(elapsedMs < 80, `expected tool execution to be parallel, elapsed=${elapsedMs}ms`);
   assert.equal(DelayTool.snapshot().length, 2);
-  assert.ok(Math.abs(DelayTool.snapshot()[0]! - DelayTool.snapshot()[1]!) < 30, "expected both tools to start close together");
+  assert.ok(
+    Math.abs(DelayTool.snapshot()[0]! - DelayTool.snapshot()[1]!) < 30,
+    "expected both tools to start close together",
+  );
 
   const main = outputs.main ?? [];
   assert.equal(main.length, 1);

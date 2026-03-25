@@ -97,10 +97,7 @@ export class CodemationPluginDiscovery {
   }
 
   private async loadPlugin(discoveredPackage: CodemationDiscoveredPluginPackage): Promise<CodemationPlugin> {
-    const pluginModulePath = path.resolve(
-      discoveredPackage.packageRoot,
-      this.resolvePluginEntry(discoveredPackage),
-    );
+    const pluginModulePath = path.resolve(discoveredPackage.packageRoot, this.resolvePluginEntry(discoveredPackage));
     const importedModule = (await import(pathToFileURL(pluginModulePath).href)) as Record<string, unknown>;
     const pluginExportName = discoveredPackage.manifest.exportName;
     const explicitExport = pluginExportName ? importedModule[pluginExportName] : undefined;
@@ -123,7 +120,9 @@ export class CodemationPluginDiscovery {
   }
 
   private isPlugin(value: unknown): value is CodemationPlugin {
-    return Boolean(value) && typeof value === "object" && typeof (value as { register?: unknown }).register === "function";
+    return (
+      Boolean(value) && typeof value === "object" && typeof (value as { register?: unknown }).register === "function"
+    );
   }
 
   private isPluginConstructor(value: unknown): value is new () => CodemationPlugin {
@@ -132,9 +131,9 @@ export class CodemationPluginDiscovery {
 
   private resolvePluginEntry(discoveredPackage: CodemationDiscoveredPluginPackage): string {
     if (
-      process.env.CODEMATION_PREFER_PLUGIN_SOURCE_ENTRY === "true"
-      && typeof discoveredPackage.developmentEntry === "string"
-      && discoveredPackage.developmentEntry.trim().length > 0
+      process.env.CODEMATION_PREFER_PLUGIN_SOURCE_ENTRY === "true" &&
+      typeof discoveredPackage.developmentEntry === "string" &&
+      discoveredPackage.developmentEntry.trim().length > 0
     ) {
       return discoveredPackage.developmentEntry;
     }

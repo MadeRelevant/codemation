@@ -16,18 +16,21 @@ Production-ready implementations with **TailwindCSS + Radix UI + shadcn/ui** and
 ### The Three Pillars
 
 **Layer 1: TailwindCSS (Styling Foundation)**
+
 - Utility-first CSS framework with build-time generation
 - Zero runtime overhead, minimal production bundles
 - Design tokens: colors, spacing, typography, breakpoints
 - Responsive utilities and dark mode support
 
 **Layer 2: Radix UI (Behavior & Accessibility)**
+
 - Unstyled, accessible component primitives
 - WAI-ARIA compliant with keyboard navigation
 - Focus management and screen reader support
 - Unopinionated - full styling control
 
 **Layer 3: shadcn/ui (Beautiful Components)**
+
 - Pre-built components = Radix primitives + Tailwind styling
 - Copy-paste distribution (you own the code)
 - Built-in React Hook Form + Zod validation
@@ -50,7 +53,9 @@ TailwindCSS Utilities (Design system, styling)
 ## Core Capabilities
 
 ### UI/UX Review & Audit
+
 Systematic evaluation of existing interfaces:
+
 - **Component Architecture Review:** Analyze component composition, reusability, and single responsibility
 - **Accessibility Audit:** WCAG 2.1/2.2 AA/AAA compliance, keyboard navigation, screen reader support
 - **Performance Analysis:** Core Web Vitals (LCP, FID, CLS), bundle size, render performance
@@ -60,7 +65,9 @@ Systematic evaluation of existing interfaces:
 - **Visual Hierarchy:** Typography scale, spacing rhythm, color contrast, focus indicators
 
 ### UI/UX Design
+
 Creating production-ready interface designs:
+
 - **Component Design:** Atomic design principles, composition patterns, variant systems
 - **Layout Architecture:** Grid systems, flexbox patterns, responsive containers
 - **Interaction Design:** Hover states, focus states, loading states, error states
@@ -70,7 +77,9 @@ Creating production-ready interface designs:
 - **Animation & Transitions:** Micro-interactions, loading feedback, state changes
 
 ### UI/UX Improvement
+
 Enhancing existing implementations:
+
 - **Accessibility Enhancement:** ARIA patterns, semantic HTML, keyboard navigation
 - **Performance Optimization:** Code splitting, lazy loading, virtualization, image optimization
 - **Responsive Refinement:** Breakpoint optimization, mobile-first improvements
@@ -80,7 +89,9 @@ Enhancing existing implementations:
 - **Developer Experience:** Component documentation, Storybook stories, type safety
 
 ### Styling Integration
+
 Framework-agnostic styling approaches:
+
 - **Tailwind with Components:** Utility-first styling for any framework
 - **CSS-in-JS:** emotion, styled-components, vanilla-extract
 - **CSS Modules:** Scoped styles without runtime overhead
@@ -89,6 +100,7 @@ Framework-agnostic styling approaches:
 ## When to Use Each Layer
 
 ### Use TailwindCSS Directly When:
+
 - Building custom layouts and spacing
 - Styling static content and containers
 - Rapid prototyping without complex interactions
@@ -97,6 +109,7 @@ Framework-agnostic styling approaches:
 **Example scenarios:** Hero sections, grid layouts, cards without interaction, text styling
 
 ### Use Radix UI Primitives When:
+
 - Building custom component libraries
 - Need accessibility but require custom design
 - shadcn/ui doesn't have the component you need
@@ -105,6 +118,7 @@ Framework-agnostic styling approaches:
 **Example scenarios:** Custom date picker, unique navigation pattern, specialized modal behavior
 
 ### Use shadcn/ui Components When:
+
 - Building standard UI components quickly
 - Need beautiful defaults with customization options
 - Enterprise application development
@@ -115,20 +129,26 @@ Framework-agnostic styling approaches:
 ## Critical Design Principles
 
 ### 1. Progressive Enhancement
+
 Start simple, enhance as needed:
+
 1. Tailwind utilities for basic styling
 2. Add Radix primitives for interaction
 3. Use shadcn/ui for complete solutions
 4. Customize components in your codebase
 
 ### 2. Composition Over Complexity
+
 Build complex UIs from simple, reusable components:
+
 - Small, focused components (single responsibility)
 - Compose primitives rather than creating monoliths
 - Leverage component slots and children patterns
 
 ### 3. Accessibility First
+
 Radix UI handles accessibility automatically:
+
 - ARIA attributes applied correctly
 - Keyboard navigation built-in
 - Focus management and trapping
@@ -137,14 +157,18 @@ Radix UI handles accessibility automatically:
 **Never override accessibility features** - enhance them.
 
 ### 4. Design Token Consistency
+
 Use Tailwind's design system consistently:
+
 - Stick to spacing scale (4, 8, 16, 24px)
 - Use color palette (50-950 shades)
 - Apply typography scale systematically
 - Avoid arbitrary values unless necessary
 
 ### 5. Mobile-First Responsive
+
 Always design mobile-first, scale up:
+
 - Base styles for mobile
 - Use breakpoints (sm, md, lg, xl, 2xl) to enhance
 - Test on actual devices, not just browser resize
@@ -152,6 +176,7 @@ Always design mobile-first, scale up:
 ## Setup Strategy
 
 ### Installation Order
+
 1. **TailwindCSS** - Foundation
 2. **shadcn/ui CLI** - Includes Radix dependencies
 3. **Add components** - Install only what you need
@@ -161,12 +186,14 @@ Always design mobile-first, scale up:
 ### Configuration Best Practices
 
 **Tailwind Config:**
+
 - Use `content` paths correctly (scan all component files)
 - Extend theme with CSS variables, not hardcoded values
 - Enable dark mode with `class` strategy
 - Install `tailwindcss-animate` plugin
 
 **CSS Variables (Three-Tier System):**
+
 ```css
 :root {
   /* Tier 1: Primitives (immutable) */
@@ -192,16 +219,19 @@ Always design mobile-first, scale up:
 ```
 
 **Color Space Recommendation:**
+
 - **Modern**: Use OKLCH for perceptual uniformity
 - **Legacy support**: Use HSL with fallbacks
 - **Avoid**: RGB/HEX for design tokens (not human-readable)
 
 **Token Storage:**
+
 - Store in JSON for platform-agnostic distribution
 - Transform to CSS variables, Swift, XML using Style Dictionary
 - Version control tokens separately from component code
 
 **Path Aliases:**
+
 - Configure `@/components` and `@/lib` in tsconfig
 - Ensure consistency between Next.js and TypeScript configs
 - Use aliases in imports for cleaner code
@@ -209,25 +239,33 @@ Always design mobile-first, scale up:
 ## Integration Patterns
 
 ### Pattern 1: shadcn/ui + Custom Tailwind
+
 Use shadcn/ui components as base, customize with Tailwind classes:
+
 - Apply custom spacing, colors via className prop
 - Override default styles with Tailwind utilities
 - Maintain component accessibility
 
 ### Pattern 2: Radix Primitives + Tailwind
+
 Build custom components from scratch:
+
 - Use Radix for behavior (Dialog, Dropdown, etc.)
 - Style completely with Tailwind utilities
 - Full control over structure and appearance
 
 ### Pattern 3: Hybrid Approach
+
 Modify shadcn/ui components in your codebase:
+
 - Edit component files in `components/ui/`
 - Add new variants, sizes, or styles
 - Maintain type safety with CVA (Class Variance Authority)
 
 ### Pattern 4: Component Composition
+
 Combine multiple primitives for complex UIs:
+
 - Popover + Select for searchable dropdown
 - Dialog + Form for modal forms
 - Tabs + Cards for multi-section interfaces
@@ -235,6 +273,7 @@ Combine multiple primitives for complex UIs:
 ## Design Token Architecture
 
 Use three-tier token system for scalable, maintainable design systems:
+
 - **Tier 1 (Primitive)**: Raw values (`gray-50`, `spacing-4`)
 - **Tier 2 (Semantic)**: Purpose-driven (`background-primary`, `text-error`)
 - **Tier 3 (Component)**: Component-specific (`button-height`, `card-padding`)
@@ -242,6 +281,7 @@ Use three-tier token system for scalable, maintainable design systems:
 **Modern Color:** Use OKLCH color space for perceptual uniformity and better accessibility calculations.
 
 **📖 See [DESIGN_TOKENS.md](references/DESIGN_TOKENS.md) for:**
+
 - Complete three-tier token system implementation
 - OKLCH color space guide and examples
 - Token naming conventions and best practices
@@ -255,6 +295,7 @@ Use three-tier token system for scalable, maintainable design systems:
 **Key patterns:** Layout shifts (column→row), component switching (Dialog→Drawer), container queries for modular responsiveness.
 
 **📖 See [RESPONSIVE_PATTERNS.md](references/RESPONSIVE_PATTERNS.md) for:**
+
 - Complete breakpoint strategy and implementation
 - Responsive component patterns and examples
 - Container queries guide
@@ -267,6 +308,7 @@ Use three-tier token system for scalable, maintainable design systems:
 **Strategy:** React Hook Form + Zod for schema-first validation with type inference and accessible error handling.
 
 **📖 See [CUSTOMIZATION.md](references/CUSTOMIZATION.md#form-architecture) for:**
+
 - Complete React Hook Form + Zod setup
 - Reusable field wrapper patterns
 - Multi-step form implementation
@@ -277,6 +319,7 @@ Use three-tier token system for scalable, maintainable design systems:
 **Core strategies:** Code splitting (React.lazy), Tailwind optimization (accurate content paths), virtualization (@tanstack/react-virtual for long lists).
 
 **📖 See [PERFORMANCE_OPTIMIZATION.md](references/PERFORMANCE_OPTIMIZATION.md) for:**
+
 - Complete performance optimization guide
 - Core Web Vitals optimization strategies
 - Bundle analysis and tree shaking
@@ -286,18 +329,21 @@ Use three-tier token system for scalable, maintainable design systems:
 ## Component Customization & Dark Mode
 
 ### Customization Strategies
+
 1. **Direct Modification**: Edit shadcn/ui files in your codebase
 2. **Variant Extension**: Use CVA for type-safe variants
 3. **Wrapper Components**: Add custom logic around base components
 4. **Theme Customization**: Modify CSS variables globally
 
 ### Dark Mode Setup
+
 1. **ThemeProvider** with next-themes
 2. **Class strategy** (`class`, not media query)
 3. **CSS variables** in `.dark` class
 4. **Accessible toggle** component
 
 **📖 See [CUSTOMIZATION.md](references/CUSTOMIZATION.md) for:**
+
 - Complete customization strategies with examples
 - CVA variant implementation guide
 - Dark mode setup and configuration
@@ -307,6 +353,7 @@ Use three-tier token system for scalable, maintainable design systems:
 ## Accessibility Standards
 
 ### Radix UI Built-In Guarantees
+
 - ✅ ARIA attributes applied correctly
 - ✅ Keyboard navigation functional
 - ✅ Focus management and trapping automatic
@@ -315,17 +362,20 @@ Use three-tier token system for scalable, maintainable design systems:
 ### WCAG Contrast Requirements (Critical)
 
 **WCAG 2.1 Level AA (Legal Minimum):**
+
 - Normal text: **4.5:1** minimum contrast ratio
 - Large text (18pt/14pt bold+): **3:1** minimum
 - UI components/graphics: **3:1** minimum
 - **Industry standard**: Most legal requirements specify AA
 
 **WCAG Level AAA (Enhanced):**
+
 - Normal text: **7:1** contrast ratio
 - Large text: **4.5:1** contrast ratio
 - **Best practice**: Aim for AAA when design constraints allow
 
 **Measurement:**
+
 - Contrast ratio range: 1:1 (white on white) to 21:1 (black on white)
 - Use tools: WebAIM Color Contrast Checker, browser DevTools
 - Test during design phase, not after implementation
@@ -334,6 +384,7 @@ Use three-tier token system for scalable, maintainable design systems:
 Perceptually uniform color space makes contrast calculations more reliable and predictable compared to HSL.
 
 ### Implementation Checklist
+
 - ✅ All text meets 4.5:1 minimum (AA standard)
 - ✅ Interactive elements meet 3:1 minimum
 - ✅ Provide descriptive labels (`aria-label`, `<label>`)
@@ -345,6 +396,7 @@ Perceptually uniform color space makes contrast calculations more reliable and p
 - ✅ Ensure dark mode maintains contrast standards
 
 ### Testing Strategy
+
 1. **Automated**: Use contrast checkers during design
 2. **Manual**: Tab through entire interface
 3. **Screen readers**: Test with at least one screen reader
@@ -353,6 +405,7 @@ Perceptually uniform color space makes contrast calculations more reliable and p
 ## Common Pitfalls
 
 Avoid these frequent issues:
+
 1. **Dynamic classes**: Tailwind doesn't generate at runtime → use conditionals
 2. **Content config**: Verify paths include all component files
 3. **Import paths**: Check tsconfig.json aliases
@@ -364,11 +417,13 @@ Avoid these frequent issues:
 ## Resources
 
 ### Official Documentation
+
 - **TailwindCSS:** https://tailwindcss.com/docs
 - **Radix UI:** https://www.radix-ui.com/primitives
 - **shadcn/ui:** https://ui.shadcn.com | https://ui.shadcn.com/llms.txt
 
 ### Authoritative Design System Sources
+
 - **USWDS Design Tokens:** https://designsystem.digital.gov/design-tokens/
 - **Smashing Magazine Naming:** https://www.smashingmagazine.com/2024/05/naming-best-practices/
 - **OKLCH Color Space:** https://evilmartians.com/chronicles/oklch-in-css-why-quit-rgb-hsl
@@ -377,12 +432,14 @@ Avoid these frequent issues:
 ### Reference Files (Detailed Guides & Patterns)
 
 **Core Concepts:**
+
 - **[DESIGN_TOKENS.md](references/DESIGN_TOKENS.md)** - Three-tier token system, OKLCH, naming
 - **[RESPONSIVE_PATTERNS.md](references/RESPONSIVE_PATTERNS.md)** - Breakpoints, container queries, testing
 - **[CUSTOMIZATION.md](references/CUSTOMIZATION.md)** - Component customization, dark mode, forms
 - **[PERFORMANCE_OPTIMIZATION.md](references/PERFORMANCE_OPTIMIZATION.md)** - Performance, Core Web Vitals, pitfalls
 
 **Implementation References:**
+
 - **[TAILWIND_REFERENCE.md](references/TAILWIND_REFERENCE.md)** - Complete utilities
 - **[RADIX_REFERENCE.md](references/RADIX_REFERENCE.md)** - Primitives with code
 - **[SHADCN_REFERENCE.md](references/SHADCN_REFERENCE.md)** - Components with install
@@ -421,6 +478,7 @@ Avoid these frequent issues:
 **Production:** Validate Tailwind purging | Test all states | Cross-browser testing | Performance audit
 
 **📖 Detailed checklists available in:**
+
 - [DESIGN_TOKENS.md](references/DESIGN_TOKENS.md#implementation-checklist)
 - [RESPONSIVE_PATTERNS.md](references/RESPONSIVE_PATTERNS.md#testing-checklist)
 - [CUSTOMIZATION.md](references/CUSTOMIZATION.md#accessibility-requirements)
@@ -436,11 +494,13 @@ Avoid these frequent issues:
 ## Skill Summary
 
 **Primary Functions:**
+
 1. **Review:** Audit UI/UX for accessibility, performance, and design system consistency
 2. **Design:** Create production-ready interfaces with modern React and styling systems
 3. **Improve:** Enhance existing implementations for better UX, performance, and maintainability
 
 **Technology Focus:**
+
 - TailwindCSS, Radix UI, shadcn/ui (styling layer)
 - Design tokens and design systems
 - Accessibility standards (WCAG 2.1/2.2)
@@ -448,6 +508,7 @@ Avoid these frequent issues:
 - Color systems (OKLCH) and typography
 
 **Activation Triggers:**
+
 - UI/UX review, audit, or analysis requests
 - Design system architecture and token design
 - Accessibility improvements (WCAG compliance)

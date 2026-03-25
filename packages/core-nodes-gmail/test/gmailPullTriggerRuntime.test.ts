@@ -1,15 +1,15 @@
-import { DefaultExecutionBinaryService,InMemoryBinaryStorage,InMemoryRunDataFactory } from "@codemation/core";
+import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { OnNewGmailTrigger } from "../src/nodes/OnNewGmailTrigger";
 import { OnNewGmailTriggerNode } from "../src/nodes/OnNewGmailTriggerNode";
 import { GmailPullTriggerRuntime } from "../src/runtime/GmailPullTriggerRuntime";
 import type {
-GmailApiClient,
-GmailHistoryDelta,
-GmailMessageAttachmentContent,
-GmailMessageRecord,
-GmailWatchRegistration,
+  GmailApiClient,
+  GmailHistoryDelta,
+  GmailMessageAttachmentContent,
+  GmailMessageRecord,
+  GmailWatchRegistration,
 } from "../src/services/GmailApiClient";
 import { GmailConfiguredLabelService } from "../src/services/GmailConfiguredLabelService";
 import { GmailHistorySyncService } from "../src/services/GmailHistorySyncService";
@@ -333,7 +333,12 @@ test("OnNewGmailTriggerNode downloads Gmail attachments into item binaries when 
       },
     ],
   };
-  const binary = new DefaultExecutionBinaryService(new InMemoryBinaryStorage(), "wf.gmail", "run.gmail", () => new Date());
+  const binary = new DefaultExecutionBinaryService(
+    new InMemoryBinaryStorage(),
+    "wf.gmail",
+    "run.gmail",
+    () => new Date(),
+  );
   const node = new OnNewGmailTriggerNode(
     {} as GmailPullTriggerRuntime,
     new GmailTriggerAttachmentService(),

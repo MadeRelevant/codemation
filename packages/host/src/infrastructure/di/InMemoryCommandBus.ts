@@ -1,4 +1,4 @@
-import { injectAll,injectable } from "@codemation/core";
+import { injectAll, injectable } from "@codemation/core";
 import type { Command } from "../../application/bus/Command";
 import type { CommandBus } from "../../application/bus/CommandBus";
 import type { CommandHandler } from "../../application/bus/CommandHandler";
@@ -31,7 +31,9 @@ export class InMemoryCommandBus implements CommandBus {
   ): ReadonlyMap<CommandType, CommandHandler<Command<unknown>, unknown>> {
     const handlersByCommandType = new Map<CommandType, CommandHandler<Command<unknown>, unknown>>();
     for (const handler of handlers) {
-      const commandType = Reflect.getMetadata(commandHandlerMetadataKey, handler.constructor) as CommandType | undefined;
+      const commandType = Reflect.getMetadata(commandHandlerMetadataKey, handler.constructor) as
+        | CommandType
+        | undefined;
       if (!commandType) {
         throw new Error(`Command handler ${handler.constructor.name} is missing @HandlesCommand metadata.`);
       }

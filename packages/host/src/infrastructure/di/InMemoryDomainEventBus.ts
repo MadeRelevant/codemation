@@ -1,4 +1,4 @@
-import { injectAll,injectable } from "@codemation/core";
+import { injectAll, injectable } from "@codemation/core";
 import type { DomainEvent } from "../../application/bus/DomainEvent";
 import type { DomainEventBus } from "../../application/bus/DomainEventBus";
 import type { DomainEventHandler } from "../../application/bus/DomainEventHandler";
@@ -30,7 +30,9 @@ export class InMemoryDomainEventBus implements DomainEventBus {
   ): ReadonlyMap<DomainEventType, ReadonlyArray<DomainEventHandler<DomainEvent>>> {
     const handlersByEventType = new Map<DomainEventType, Array<DomainEventHandler<DomainEvent>>>();
     for (const handler of handlers) {
-      const eventType = Reflect.getMetadata(domainEventHandlerMetadataKey, handler.constructor) as DomainEventType | undefined;
+      const eventType = Reflect.getMetadata(domainEventHandlerMetadataKey, handler.constructor) as
+        | DomainEventType
+        | undefined;
       if (!eventType) {
         throw new Error(`Domain event handler ${handler.constructor.name} is missing @HandlesDomainEvent metadata.`);
       }
@@ -38,6 +40,8 @@ export class InMemoryDomainEventBus implements DomainEventBus {
       currentHandlers.push(handler);
       handlersByEventType.set(eventType, currentHandlers);
     }
-    return new Map([...handlersByEventType.entries()].map(([eventType, eventHandlers]) => [eventType, [...eventHandlers]] as const));
+    return new Map(
+      [...handlersByEventType.entries()].map(([eventType, eventHandlers]) => [eventType, [...eventHandlers]] as const),
+    );
   }
 }

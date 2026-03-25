@@ -504,11 +504,11 @@ export class CodemationDevGateway {
         return;
       }
       if (
-        (message.kind === "workflowChanged"
-          || message.kind === "devBuildStarted"
-          || message.kind === "devBuildCompleted"
-          || message.kind === "devBuildFailed")
-        && typeof message.workflowId === "string"
+        (message.kind === "workflowChanged" ||
+          message.kind === "devBuildStarted" ||
+          message.kind === "devBuildCompleted" ||
+          message.kind === "devBuildFailed") &&
+        typeof message.workflowId === "string"
       ) {
         this.broadcastWorkflowTextToRoom(message.workflowId, text);
         return;

@@ -2,11 +2,14 @@
 
 import { encode } from "@auth/core/jwt";
 import type { WorkflowDefinition } from "@codemation/core";
-import { createWorkflowBuilder,ManualTrigger } from "@codemation/core-nodes";
+import { createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { afterAll,afterEach,beforeAll,describe,expect,it } from "vitest";
-import type { InviteUserResponseDto,UserAccountDto } from "../../src/application/contracts/userDirectoryContracts.types";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import type {
+  InviteUserResponseDto,
+  UserAccountDto,
+} from "../../src/application/contracts/userDirectoryContracts.types";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
@@ -116,14 +119,22 @@ describe("user management http integration", () => {
   });
 
   it("returns 401 for GET /users without session when local auth is enforced", async () => {
-    const harness = await UserManagementFixture.createHarness(sharedDatabase!, transaction!, UserManagementFixture.createLocalAuthConfig());
+    const harness = await UserManagementFixture.createHarness(
+      sharedDatabase!,
+      transaction!,
+      UserManagementFixture.createLocalAuthConfig(),
+    );
     const response = await harness.request({ method: "GET", url: ApiPaths.users() });
     expect(response.statusCode).toBe(401);
     await harness.close();
   });
 
   it("lists users with valid session", async () => {
-    const harness = await UserManagementFixture.createHarness(sharedDatabase!, transaction!, UserManagementFixture.createLocalAuthConfig());
+    const harness = await UserManagementFixture.createHarness(
+      sharedDatabase!,
+      transaction!,
+      UserManagementFixture.createLocalAuthConfig(),
+    );
     const prisma = transaction!.getPrismaClient();
     await prisma.user.create({
       data: { email: "alpha@example.com", name: "Alpha", accountStatus: "active" },
@@ -142,7 +153,11 @@ describe("user management http integration", () => {
   });
 
   it("lists sign-in methods for password and linked OAuth accounts", async () => {
-    const harness = await UserManagementFixture.createHarness(sharedDatabase!, transaction!, UserManagementFixture.createLocalAuthConfig());
+    const harness = await UserManagementFixture.createHarness(
+      sharedDatabase!,
+      transaction!,
+      UserManagementFixture.createLocalAuthConfig(),
+    );
     const prisma = transaction!.getPrismaClient();
     const withOAuth = await prisma.user.create({
       data: { email: "oauth@example.com", name: "OAuth", accountStatus: "active" },
@@ -197,7 +212,11 @@ describe("user management http integration", () => {
   });
 
   it("invite, verify, accept, and login-ready user flow", async () => {
-    const harness = await UserManagementFixture.createHarness(sharedDatabase!, transaction!, UserManagementFixture.createLocalAuthConfig());
+    const harness = await UserManagementFixture.createHarness(
+      sharedDatabase!,
+      transaction!,
+      UserManagementFixture.createLocalAuthConfig(),
+    );
     const created = await harness.requestJson<InviteUserResponseDto>({
       method: "POST",
       url: ApiPaths.userInvites(),
@@ -245,7 +264,11 @@ describe("user management http integration", () => {
   });
 
   it("rejects invite for already-active email", async () => {
-    const harness = await UserManagementFixture.createHarness(sharedDatabase!, transaction!, UserManagementFixture.createLocalAuthConfig());
+    const harness = await UserManagementFixture.createHarness(
+      sharedDatabase!,
+      transaction!,
+      UserManagementFixture.createLocalAuthConfig(),
+    );
     const prisma = transaction!.getPrismaClient();
     await prisma.user.create({
       data: { email: "existing@example.com", name: "Existing", accountStatus: "active", passwordHash: "x" },
@@ -261,7 +284,11 @@ describe("user management http integration", () => {
   });
 
   it("stores invite expiry within a seven-day window", async () => {
-    const harness = await UserManagementFixture.createHarness(sharedDatabase!, transaction!, UserManagementFixture.createLocalAuthConfig());
+    const harness = await UserManagementFixture.createHarness(
+      sharedDatabase!,
+      transaction!,
+      UserManagementFixture.createLocalAuthConfig(),
+    );
     const created = await harness.requestJson<InviteUserResponseDto>({
       method: "POST",
       url: ApiPaths.userInvites(),
@@ -280,7 +307,11 @@ describe("user management http integration", () => {
   });
 
   it("regenerate invalidates the previous token", async () => {
-    const harness = await UserManagementFixture.createHarness(sharedDatabase!, transaction!, UserManagementFixture.createLocalAuthConfig());
+    const harness = await UserManagementFixture.createHarness(
+      sharedDatabase!,
+      transaction!,
+      UserManagementFixture.createLocalAuthConfig(),
+    );
     const first = await harness.requestJson<InviteUserResponseDto>({
       method: "POST",
       url: ApiPaths.userInvites(),
@@ -312,7 +343,11 @@ describe("user management http integration", () => {
   });
 
   it("returns 409 when regenerating for a non-invited user", async () => {
-    const harness = await UserManagementFixture.createHarness(sharedDatabase!, transaction!, UserManagementFixture.createLocalAuthConfig());
+    const harness = await UserManagementFixture.createHarness(
+      sharedDatabase!,
+      transaction!,
+      UserManagementFixture.createLocalAuthConfig(),
+    );
     const prisma = transaction!.getPrismaClient();
     const u = await prisma.user.create({
       data: { email: "activeonly@example.com", name: "A", accountStatus: "active" },
@@ -327,7 +362,11 @@ describe("user management http integration", () => {
   });
 
   it("verify returns invalid for expired invite", async () => {
-    const harness = await UserManagementFixture.createHarness(sharedDatabase!, transaction!, UserManagementFixture.createLocalAuthConfig());
+    const harness = await UserManagementFixture.createHarness(
+      sharedDatabase!,
+      transaction!,
+      UserManagementFixture.createLocalAuthConfig(),
+    );
     const prisma = transaction!.getPrismaClient();
     const u = await prisma.user.create({
       data: { email: "expired@example.com", name: "E", accountStatus: "invited" },
@@ -352,7 +391,11 @@ describe("user management http integration", () => {
   });
 
   it("accept rejects short password", async () => {
-    const harness = await UserManagementFixture.createHarness(sharedDatabase!, transaction!, UserManagementFixture.createLocalAuthConfig());
+    const harness = await UserManagementFixture.createHarness(
+      sharedDatabase!,
+      transaction!,
+      UserManagementFixture.createLocalAuthConfig(),
+    );
     const created = await harness.requestJson<InviteUserResponseDto>({
       method: "POST",
       url: ApiPaths.userInvites(),
@@ -371,7 +414,11 @@ describe("user management http integration", () => {
   });
 
   it("patch status updates account", async () => {
-    const harness = await UserManagementFixture.createHarness(sharedDatabase!, transaction!, UserManagementFixture.createLocalAuthConfig());
+    const harness = await UserManagementFixture.createHarness(
+      sharedDatabase!,
+      transaction!,
+      UserManagementFixture.createLocalAuthConfig(),
+    );
     const prisma = transaction!.getPrismaClient();
     const u = await prisma.user.create({
       data: { email: "patch@example.com", name: "P", accountStatus: "active" },

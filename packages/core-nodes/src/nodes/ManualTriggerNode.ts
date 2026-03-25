@@ -1,17 +1,15 @@
 import type {
-Items,
-NodeExecutionContext,
-NodeOutputs,
-TestableTriggerNode,
-TriggerSetupContext,
-TriggerTestItemsContext
+  Items,
+  NodeExecutionContext,
+  NodeOutputs,
+  TestableTriggerNode,
+  TriggerSetupContext,
+  TriggerTestItemsContext,
 } from "@codemation/core";
 
 import { node } from "@codemation/core";
 
 import { ManualTrigger } from "./ManualTriggerFactory";
-
-
 
 /**
  * Setup is intentionally a no-op: the engine host can run workflows manually

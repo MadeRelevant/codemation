@@ -1,4 +1,4 @@
-import { ItemsInputNormalizer,inject,type PersistedRunState } from "@codemation/core";
+import { ItemsInputNormalizer, inject, type PersistedRunState } from "@codemation/core";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";
@@ -26,7 +26,8 @@ export class SetPinnedNodeInputCommandHandler extends CommandHandler<SetPinnedNo
       throw new ApplicationRequestError(403, `Run ${state.runId} is immutable`);
     }
     const decodedNodeId = decodeURIComponent(command.nodeId);
-    const pinnedItems = command.body.items == null ? undefined : this.itemsInputNormalizer.normalize(command.body.items);
+    const pinnedItems =
+      command.body.items == null ? undefined : this.itemsInputNormalizer.normalize(command.body.items);
     const nextNodesById = {
       ...(state.mutableState?.nodesById ?? {}),
       [decodedNodeId]: {

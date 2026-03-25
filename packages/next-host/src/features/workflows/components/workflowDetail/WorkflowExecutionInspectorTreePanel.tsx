@@ -1,15 +1,21 @@
 import Tree from "rc-tree";
-import { WorkflowNodeIconResolver,WorkflowStatusIcon } from "./WorkflowDetailIcons";
-import type { ExecutionTreeNode,WorkflowExecutionInspectorFormatting,WorkflowExecutionInspectorModel } from "../../lib/workflowDetail/workflowDetailTypes";
+import { WorkflowNodeIconResolver, WorkflowStatusIcon } from "./WorkflowDetailIcons";
+import type {
+  ExecutionTreeNode,
+  WorkflowExecutionInspectorFormatting,
+  WorkflowExecutionInspectorModel,
+} from "../../lib/workflowDetail/workflowDetailTypes";
 
-export function WorkflowExecutionInspectorTreePanel(props: Readonly<{
-  model: Pick<
-    WorkflowExecutionInspectorModel,
-    "executionTreeData" | "executionTreeExpandedKeys" | "selectedExecutionTreeKey" | "viewContext"
-  >;
-  formatting: Pick<WorkflowExecutionInspectorFormatting, "formatDurationLabel" | "getNodeDisplayName">;
-  onSelectNode: (nodeId: string) => void;
-}>) {
+export function WorkflowExecutionInspectorTreePanel(
+  props: Readonly<{
+    model: Pick<
+      WorkflowExecutionInspectorModel,
+      "executionTreeData" | "executionTreeExpandedKeys" | "selectedExecutionTreeKey" | "viewContext"
+    >;
+    formatting: Pick<WorkflowExecutionInspectorFormatting, "formatDurationLabel" | "getNodeDisplayName">;
+    onSelectNode: (nodeId: string) => void;
+  }>,
+) {
   const { executionTreeData, executionTreeExpandedKeys, selectedExecutionTreeKey, viewContext } = props.model;
   const { formatDurationLabel, getNodeDisplayName } = props.formatting;
   const { onSelectNode } = props;
@@ -30,7 +36,9 @@ export function WorkflowExecutionInspectorTreePanel(props: Readonly<{
       <div style={{ marginTop: 10 }}>
         {executionTreeData.length === 0 ? (
           <div style={{ fontSize: 12, opacity: 0.7 }}>
-            {viewContext === "live-workflow" ? "No workflow nodes available yet." : "No node events yet for this execution."}
+            {viewContext === "live-workflow"
+              ? "No workflow nodes available yet."
+              : "No node events yet for this execution."}
           </div>
         ) : (
           <Tree<ExecutionTreeNode>
@@ -71,11 +79,31 @@ export function WorkflowExecutionInspectorTreePanel(props: Readonly<{
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto" }}>
-                    <div style={{ width: 20, height: 20, display: "grid", placeItems: "center", color: "#111827", background: "#f8fafc", flex: "0 0 auto" }}>
+                    <div
+                      style={{
+                        width: 20,
+                        height: 20,
+                        display: "grid",
+                        placeItems: "center",
+                        color: "#111827",
+                        background: "#f8fafc",
+                        flex: "0 0 auto",
+                      }}
+                    >
                       <FallbackIcon size={14} strokeWidth={1.9} />
                     </div>
                     <WorkflowStatusIcon status={status} size={15} />
-                    <div style={{ minWidth: 0, fontSize: 13, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div
+                      style={{
+                        minWidth: 0,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#111827",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {getNodeDisplayName(node, snapshot?.nodeId ?? null)}
                     </div>
                   </div>

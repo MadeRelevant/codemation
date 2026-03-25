@@ -1,18 +1,16 @@
-import { inject,injectable } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 
 import type {
-CredentialInstanceRecord,
-CredentialOAuth2MaterialMetadata,
-CredentialOAuth2MaterialRecord,
-CredentialOAuth2StateRecord,
-CredentialSecretMaterialRecord,
-CredentialStore,
-CredentialTestRecord,
+  CredentialInstanceRecord,
+  CredentialOAuth2MaterialMetadata,
+  CredentialOAuth2MaterialRecord,
+  CredentialOAuth2StateRecord,
+  CredentialSecretMaterialRecord,
+  CredentialStore,
+  CredentialTestRecord,
 } from "../../domain/credentials/CredentialServices";
 
 import { PrismaClient } from "./generated/prisma-client/client.js";
-
-
 
 @injectable()
 export class PrismaCredentialStore implements CredentialStore {
@@ -32,7 +30,9 @@ export class PrismaCredentialStore implements CredentialStore {
     return row ? this.toInstanceRecord(row) : undefined;
   }
 
-  async saveInstance(args: Readonly<{ instance: CredentialInstanceRecord; secretMaterial?: CredentialSecretMaterialRecord }>): Promise<void> {
+  async saveInstance(
+    args: Readonly<{ instance: CredentialInstanceRecord; secretMaterial?: CredentialSecretMaterialRecord }>,
+  ): Promise<void> {
     await this.prisma.$transaction(async (transaction) => {
       await transaction.credentialInstance.upsert({
         where: { instanceId: args.instance.instanceId },
@@ -162,13 +162,15 @@ export class PrismaCredentialStore implements CredentialStore {
       : undefined;
   }
 
-  async saveOAuth2Material(args: Readonly<{
-    instanceId: string;
-    encryptedJson: string;
-    encryptionKeyId: string;
-    schemaVersion: number;
-    metadata: CredentialOAuth2MaterialMetadata;
-  }>): Promise<void> {
+  async saveOAuth2Material(
+    args: Readonly<{
+      instanceId: string;
+      encryptedJson: string;
+      encryptionKeyId: string;
+      schemaVersion: number;
+      metadata: CredentialOAuth2MaterialMetadata;
+    }>,
+  ): Promise<void> {
     await this.prisma.credentialOAuth2Material.upsert({
       where: { instanceId: args.instanceId },
       create: {
@@ -224,7 +226,9 @@ export class PrismaCredentialStore implements CredentialStore {
     });
   }
 
-  async getBinding(key: import("@codemation/core").CredentialBindingKey): Promise<import("@codemation/core").CredentialBinding | undefined> {
+  async getBinding(
+    key: import("@codemation/core").CredentialBindingKey,
+  ): Promise<import("@codemation/core").CredentialBinding | undefined> {
     const row = await this.prisma.credentialBinding.findUnique({
       where: {
         workflowId_nodeId_slotKey: {
@@ -247,7 +251,9 @@ export class PrismaCredentialStore implements CredentialStore {
       : undefined;
   }
 
-  async listBindingsByWorkflowId(workflowId: string): Promise<ReadonlyArray<import("@codemation/core").CredentialBinding>> {
+  async listBindingsByWorkflowId(
+    workflowId: string,
+  ): Promise<ReadonlyArray<import("@codemation/core").CredentialBinding>> {
     const rows = await this.prisma.credentialBinding.findMany({
       where: { workflowId },
     });
@@ -306,18 +312,20 @@ export class PrismaCredentialStore implements CredentialStore {
     return latestByInstanceId;
   }
 
-  private toInstanceRecord(row: Readonly<{
-    instanceId: string;
-    typeId: string;
-    displayName: string;
-    sourceKind: string;
-    publicConfigJson: string;
-    secretRefJson: string;
-    tagsJson: string;
-    setupStatus: string;
-    createdAt: string;
-    updatedAt: string;
-  }>): CredentialInstanceRecord {
+  private toInstanceRecord(
+    row: Readonly<{
+      instanceId: string;
+      typeId: string;
+      displayName: string;
+      sourceKind: string;
+      publicConfigJson: string;
+      secretRefJson: string;
+      tagsJson: string;
+      setupStatus: string;
+      createdAt: string;
+      updatedAt: string;
+    }>,
+  ): CredentialInstanceRecord {
     return {
       instanceId: row.instanceId,
       typeId: row.typeId,
@@ -332,15 +340,17 @@ export class PrismaCredentialStore implements CredentialStore {
     };
   }
 
-  private toTestRecord(row: Readonly<{
-    testId: string;
-    instanceId: string;
-    status: string;
-    message: string | null;
-    detailsJson: string;
-    testedAt: string;
-    expiresAt: string | null;
-  }>): CredentialTestRecord {
+  private toTestRecord(
+    row: Readonly<{
+      testId: string;
+      instanceId: string;
+      status: string;
+      message: string | null;
+      detailsJson: string;
+      testedAt: string;
+      expiresAt: string | null;
+    }>,
+  ): CredentialTestRecord {
     return {
       testId: row.testId,
       instanceId: row.instanceId,

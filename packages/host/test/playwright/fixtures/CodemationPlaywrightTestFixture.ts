@@ -1,4 +1,4 @@
-import { test as testBase,type TestInfo } from "@playwright/test";
+import { test as testBase, type TestInfo } from "@playwright/test";
 import { addCoverageReport } from "monocart-reporter";
 
 type CodemationBrowserFixtures = {

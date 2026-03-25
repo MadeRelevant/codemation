@@ -20,9 +20,7 @@ function minimalWorkflow(
 }
 
 test("toSummary maps discoveryPathSegments when present", () => {
-  const summary = mapper.toSummary(
-    minimalWorkflow({ id: "wf.a", name: "A", discoveryPathSegments: ["x", "y"] }),
-  );
+  const summary = mapper.toSummary(minimalWorkflow({ id: "wf.a", name: "A", discoveryPathSegments: ["x", "y"] }));
   assert.equal(summary.id, "wf.a");
   assert.equal(summary.name, "A");
   assert.deepEqual(summary.discoveryPathSegments, ["x", "y"]);

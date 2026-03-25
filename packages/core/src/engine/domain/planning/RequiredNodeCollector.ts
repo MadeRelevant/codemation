@@ -32,7 +32,10 @@ export class RequiredNodeCollector {
     if (this.requiredNodeIds.has(nodeId)) {
       return;
     }
-    if (this.satisfactionResolver.isNodeSatisfied(nodeId) && !this.satisfactionResolver.isNodeSatisfiedByOutputsOnly(nodeId)) {
+    if (
+      this.satisfactionResolver.isNodeSatisfied(nodeId) &&
+      !this.satisfactionResolver.isNodeSatisfiedByOutputsOnly(nodeId)
+    ) {
       return;
     }
     this.requiredNodeIds.add(nodeId);
@@ -46,4 +49,3 @@ export class RequiredNodeCollector {
     }
   }
 }
-

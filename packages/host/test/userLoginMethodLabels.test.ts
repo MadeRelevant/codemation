@@ -1,4 +1,4 @@
-import { describe,expect,it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { labelForLinkedAuthAccount } from "../src/domain/users/userLoginMethodLabels.types";
 
 describe("labelForLinkedAuthAccount", () => {

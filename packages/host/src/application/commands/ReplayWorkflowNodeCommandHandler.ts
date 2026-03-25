@@ -1,11 +1,11 @@
 import type {
-Items,
-PersistedMutableRunState,
-PersistedRunState,
-RunCurrentState,
-WorkflowDefinition,
+  Items,
+  PersistedMutableRunState,
+  PersistedRunState,
+  RunCurrentState,
+  WorkflowDefinition,
 } from "@codemation/core";
-import { Engine,ItemsInputNormalizer,RunIntentService,inject } from "@codemation/core";
+import { Engine, ItemsInputNormalizer, RunIntentService, inject } from "@codemation/core";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";
@@ -48,18 +48,17 @@ export class ReplayWorkflowNodeCommandHandler extends CommandHandler<ReplayWorkf
       synthesizeTriggerItems: command.body.synthesizeTriggerItems,
     });
     const mutableStateBase = this.cloneMutableState(state.mutableState) ?? { nodesById: {} };
-    const mutableState =
-      requestedItems
-        ? ({
-            nodesById: {
-              ...mutableStateBase.nodesById,
-              [decodedNodeId]: {
-                ...(mutableStateBase.nodesById[decodedNodeId] ?? {}),
-                lastDebugInput: requestedItems,
-              },
+    const mutableState = requestedItems
+      ? ({
+          nodesById: {
+            ...mutableStateBase.nodesById,
+            [decodedNodeId]: {
+              ...(mutableStateBase.nodesById[decodedNodeId] ?? {}),
+              lastDebugInput: requestedItems,
             },
-          } satisfies PersistedMutableRunState)
-        : mutableStateBase;
+          },
+        } satisfies PersistedMutableRunState)
+      : mutableStateBase;
     const executionOptions = {
       mode,
       sourceWorkflowId: state.executionOptions?.sourceWorkflowId ?? state.workflowId,
@@ -106,7 +105,9 @@ export class ReplayWorkflowNodeCommandHandler extends CommandHandler<ReplayWorkf
     return JSON.parse(JSON.stringify(mutableState)) as PersistedMutableRunState;
   }
 
-  private cloneWorkflowSnapshot(workflowSnapshot: PersistedRunState["workflowSnapshot"]): PersistedRunState["workflowSnapshot"] {
+  private cloneWorkflowSnapshot(
+    workflowSnapshot: PersistedRunState["workflowSnapshot"],
+  ): PersistedRunState["workflowSnapshot"] {
     if (!workflowSnapshot) {
       return undefined;
     }
@@ -119,17 +120,21 @@ export class ReplayWorkflowNodeCommandHandler extends CommandHandler<ReplayWorkf
   ): RunCurrentState {
     return {
       outputsByNode: JSON.parse(JSON.stringify(state.outputsByNode)) as RunCurrentState["outputsByNode"],
-      nodeSnapshotsByNodeId: JSON.parse(JSON.stringify(state.nodeSnapshotsByNodeId)) as RunCurrentState["nodeSnapshotsByNodeId"],
+      nodeSnapshotsByNodeId: JSON.parse(
+        JSON.stringify(state.nodeSnapshotsByNodeId),
+      ) as RunCurrentState["nodeSnapshotsByNodeId"],
       mutableState,
     };
   }
 
-  private async resolveRequestedItems(args: Readonly<{
-    workflow: WorkflowDefinition;
-    nodeId: string;
-    items: Items | undefined | null;
-    synthesizeTriggerItems: boolean | undefined;
-  }>): Promise<Items | undefined> {
+  private async resolveRequestedItems(
+    args: Readonly<{
+      workflow: WorkflowDefinition;
+      nodeId: string;
+      items: Items | undefined | null;
+      synthesizeTriggerItems: boolean | undefined;
+    }>,
+  ): Promise<Items | undefined> {
     const normalizedItems = args.items == null ? undefined : this.itemsInputNormalizer.normalize(args.items);
     if (!this.shouldSynthesizeTriggerItems(args.workflow, args.nodeId, args.synthesizeTriggerItems, normalizedItems)) {
       return normalizedItems;

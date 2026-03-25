@@ -1,5 +1,5 @@
-import type { BinaryAttachment,BinaryBody,BinaryStorage } from "@codemation/core";
-import { CoreTokens,inject,injectable } from "@codemation/core";
+import type { BinaryAttachment, BinaryBody, BinaryStorage } from "@codemation/core";
+import { CoreTokens, inject, injectable } from "@codemation/core";
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import type { QueryBus } from "../../../application/bus/QueryBus";
 import { UploadOverlayPinnedBinaryCommand } from "../../../application/commands/UploadOverlayPinnedBinaryCommand";

@@ -31,7 +31,11 @@ export class CodemationConsumerAppResolver {
     return {
       config: {
         ...config,
-        workflows: this.resolveWorkflows(args.workflowModules, args.workflowSourcePaths, args.workflowDiscoveryPathSegmentsList),
+        workflows: this.resolveWorkflows(
+          args.workflowModules,
+          args.workflowSourcePaths,
+          args.workflowDiscoveryPathSegmentsList,
+        ),
       },
       workflowSources: args.workflowSourcePaths,
     };

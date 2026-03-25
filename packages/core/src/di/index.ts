@@ -21,4 +21,3 @@ export type {
   RegistrationOptions,
   InjectionToken as TypeToken,
 } from "tsyringe";
-

@@ -1,15 +1,11 @@
-import type {
-NodeId,
-RunnableNodeConfig,
-TypeToken,
-UpstreamRefPlaceholder
-} from "@codemation/core";
-
-
+import type { NodeId, RunnableNodeConfig, TypeToken, UpstreamRefPlaceholder } from "@codemation/core";
 
 import { SubWorkflowNode } from "./SubWorkflowNode";
 
-export class SubWorkflow<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<TInputJson, TOutputJson> {
+export class SubWorkflow<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<
+  TInputJson,
+  TOutputJson
+> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = SubWorkflowNode;
   constructor(

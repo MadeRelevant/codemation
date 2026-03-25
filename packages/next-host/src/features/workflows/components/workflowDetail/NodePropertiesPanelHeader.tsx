@@ -2,11 +2,13 @@ import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-export function NodePropertiesPanelHeader(args: Readonly<{
-  title: string;
-  subtitle?: string;
-  onClose: () => void;
-}>) {
+export function NodePropertiesPanelHeader(
+  args: Readonly<{
+    title: string;
+    subtitle?: string;
+    onClose: () => void;
+  }>,
+) {
   const { onClose, subtitle, title } = args;
   return (
     <div

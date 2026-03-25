@@ -10,4 +10,3 @@ export class MissingRuntimeNode implements Node<MissingRuntimeNodeConfig> {
     return { main: items };
   }
 }
-

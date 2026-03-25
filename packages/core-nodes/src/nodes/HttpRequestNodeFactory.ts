@@ -1,11 +1,9 @@
-import type { Item,Items,Node,NodeExecutionContext,NodeOutputs } from "@codemation/core";
+import type { Item, Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
 
 import { node } from "@codemation/core";
 
 import type { HttpRequestDownloadMode } from "./httpRequest";
 import { HttpRequest } from "./httpRequest";
-
-
 
 @node({ packageName: "@codemation/core-nodes" })
 export class HttpRequestNode implements Node<HttpRequest<any, any>> {
@@ -50,7 +48,9 @@ export class HttpRequestNode implements Node<HttpRequest<any, any>> {
 
     const attachment = await ctx.binary.attach({
       name: bodyBinaryName,
-      body: response.body ? (response.body as unknown as Parameters<typeof ctx.binary.attach>[0]["body"]) : new Uint8Array(await response.arrayBuffer()),
+      body: response.body
+        ? (response.body as unknown as Parameters<typeof ctx.binary.attach>[0]["body"])
+        : new Uint8Array(await response.arrayBuffer()),
       mimeType,
       filename: this.resolveFilename(url, headers),
     });

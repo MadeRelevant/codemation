@@ -4,7 +4,11 @@ import { WorkflowCanvasPortOrderResolver } from "../src/features/workflows/compo
 
 describe("WorkflowCanvasPortOrderResolver", () => {
   it("orders source outputs with true above false", () => {
-    expect(WorkflowCanvasPortOrderResolver.sortSourceOutputs(["false", "main", "true"])).toEqual(["true", "false", "main"]);
+    expect(WorkflowCanvasPortOrderResolver.sortSourceOutputs(["false", "main", "true"])).toEqual([
+      "true",
+      "false",
+      "main",
+    ]);
   });
 
   it("orders merge inputs with true above false", () => {

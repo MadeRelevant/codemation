@@ -149,8 +149,43 @@ export type WorkflowDevBuildState = Readonly<{
 
 export type WorkflowEvent =
   | Readonly<{ kind: "runCreated"; runId: string; workflowId: string; parent?: ParentExecutionRef; at: string }>
-  | Readonly<{ kind: "runSaved"; runId: string; workflowId: string; parent?: ParentExecutionRef; at: string; state: PersistedRunState }>
-  | Readonly<{ kind: "nodeQueued"; runId: string; workflowId: string; parent?: ParentExecutionRef; at: string; snapshot: NodeExecutionSnapshot }>
-  | Readonly<{ kind: "nodeStarted"; runId: string; workflowId: string; parent?: ParentExecutionRef; at: string; snapshot: NodeExecutionSnapshot }>
-  | Readonly<{ kind: "nodeCompleted"; runId: string; workflowId: string; parent?: ParentExecutionRef; at: string; snapshot: NodeExecutionSnapshot }>
-  | Readonly<{ kind: "nodeFailed"; runId: string; workflowId: string; parent?: ParentExecutionRef; at: string; snapshot: NodeExecutionSnapshot }>;
+  | Readonly<{
+      kind: "runSaved";
+      runId: string;
+      workflowId: string;
+      parent?: ParentExecutionRef;
+      at: string;
+      state: PersistedRunState;
+    }>
+  | Readonly<{
+      kind: "nodeQueued";
+      runId: string;
+      workflowId: string;
+      parent?: ParentExecutionRef;
+      at: string;
+      snapshot: NodeExecutionSnapshot;
+    }>
+  | Readonly<{
+      kind: "nodeStarted";
+      runId: string;
+      workflowId: string;
+      parent?: ParentExecutionRef;
+      at: string;
+      snapshot: NodeExecutionSnapshot;
+    }>
+  | Readonly<{
+      kind: "nodeCompleted";
+      runId: string;
+      workflowId: string;
+      parent?: ParentExecutionRef;
+      at: string;
+      snapshot: NodeExecutionSnapshot;
+    }>
+  | Readonly<{
+      kind: "nodeFailed";
+      runId: string;
+      workflowId: string;
+      parent?: ParentExecutionRef;
+      at: string;
+      snapshot: NodeExecutionSnapshot;
+    }>;

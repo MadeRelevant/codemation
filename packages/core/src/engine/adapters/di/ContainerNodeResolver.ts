@@ -12,4 +12,3 @@ export class ContainerNodeResolver implements NodeResolver {
     return this.container;
   }
 }
-

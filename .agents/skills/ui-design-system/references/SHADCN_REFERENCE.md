@@ -48,7 +48,7 @@ npx shadcn@latest add card
 ```
 
 ```tsx
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 
 <Card>
   <CardHeader>
@@ -61,7 +61,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
   <CardFooter>
     <Button>Action</Button>
   </CardFooter>
-</Card>
+</Card>;
 ```
 
 ### Dialogs
@@ -71,7 +71,15 @@ npx shadcn@latest add dialog
 ```
 
 ```tsx
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 <Dialog>
   <DialogTrigger asChild>
@@ -87,7 +95,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
       <Button>Save</Button>
     </DialogFooter>
   </DialogContent>
-</Dialog>
+</Dialog>;
 ```
 
 ### Forms
@@ -98,26 +106,26 @@ npm install react-hook-form @hookform/resolvers zod
 ```
 
 ```tsx
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const formSchema = z.object({
   username: z.string().min(2, "Too short").max(50, "Too long"),
   email: z.string().email("Invalid email"),
-})
+});
 
 export function MyForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { username: "", email: "" },
-  })
+  });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values)
+    console.log(values);
   }
 
   return (
@@ -140,7 +148,7 @@ export function MyForm() {
         <Button type="submit">Submit</Button>
       </form>
     </Form>
-  )
+  );
 }
 ```
 
@@ -152,7 +160,7 @@ npm install @tanstack/react-table
 ```
 
 ```tsx
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 <Table>
   <TableCaption>A list of your recent invoices.</TableCaption>
@@ -170,7 +178,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
       <TableCell className="text-right">$250.00</TableCell>
     </TableRow>
   </TableBody>
-</Table>
+</Table>;
 ```
 
 ### Dropdowns & Menus
@@ -180,7 +188,14 @@ npx shadcn@latest add dropdown-menu
 ```
 
 ```tsx
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 <DropdownMenu>
   <DropdownMenuTrigger asChild>
@@ -193,7 +208,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
     <DropdownMenuItem>Billing</DropdownMenuItem>
     <DropdownMenuItem>Settings</DropdownMenuItem>
   </DropdownMenuContent>
-</DropdownMenu>
+</DropdownMenu>;
 ```
 
 ### Toasts
@@ -203,12 +218,12 @@ npx shadcn@latest add toast
 ```
 
 ```tsx
-import { useToast } from "@/hooks/use-toast"
-import { Button } from "@/components/ui/button"
-import { Toaster } from "@/components/ui/toaster"
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/toaster";
 
 export function MyComponent() {
-  const { toast } = useToast()
+  const { toast } = useToast();
 
   return (
     <>
@@ -217,14 +232,14 @@ export function MyComponent() {
           toast({
             title: "Scheduled: Catch up",
             description: "Friday, February 10, 2023 at 5:57 PM",
-          })
+          });
         }}
       >
         Show Toast
       </Button>
       <Toaster />
     </>
-  )
+  );
 }
 ```
 
@@ -235,7 +250,7 @@ npx shadcn@latest add select
 ```
 
 ```tsx
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 <Select>
   <SelectTrigger className="w-[180px]">
@@ -246,7 +261,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
     <SelectItem value="dark">Dark</SelectItem>
     <SelectItem value="system">System</SelectItem>
   </SelectContent>
-</Select>
+</Select>;
 ```
 
 ### Accordions
@@ -256,22 +271,18 @@ npx shadcn@latest add accordion
 ```
 
 ```tsx
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 <Accordion type="single" collapsible>
   <AccordionItem value="item-1">
     <AccordionTrigger>Is it accessible?</AccordionTrigger>
-    <AccordionContent>
-      Yes. It adheres to the WAI-ARIA design pattern.
-    </AccordionContent>
+    <AccordionContent>Yes. It adheres to the WAI-ARIA design pattern.</AccordionContent>
   </AccordionItem>
   <AccordionItem value="item-2">
     <AccordionTrigger>Is it styled?</AccordionTrigger>
-    <AccordionContent>
-      Yes. It comes with default styles.
-    </AccordionContent>
+    <AccordionContent>Yes. It comes with default styles.</AccordionContent>
   </AccordionItem>
-</Accordion>
+</Accordion>;
 ```
 
 ### Tabs
@@ -281,7 +292,7 @@ npx shadcn@latest add tabs
 ```
 
 ```tsx
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 <Tabs defaultValue="account" className="w-[400px]">
   <TabsList>
@@ -290,7 +301,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
   </TabsList>
   <TabsContent value="account">Account settings</TabsContent>
   <TabsContent value="password">Password settings</TabsContent>
-</Tabs>
+</Tabs>;
 ```
 
 ### Alerts
@@ -339,12 +350,12 @@ npx shadcn@latest add avatar
 ```
 
 ```tsx
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 <Avatar>
   <AvatarImage src="https://github.com/shadcn.png" />
   <AvatarFallback>CN</AvatarFallback>
-</Avatar>
+</Avatar>;
 ```
 
 ### Skeletons (Loading States)
@@ -354,7 +365,7 @@ npx shadcn@latest add skeleton
 ```
 
 ```tsx
-import { Skeleton } from "@/components/ui/skeleton"
+import { Skeleton } from "@/components/ui/skeleton";
 
 <div className="flex items-center space-x-4">
   <Skeleton className="h-12 w-12 rounded-full" />
@@ -362,7 +373,7 @@ import { Skeleton } from "@/components/ui/skeleton"
     <Skeleton className="h-4 w-[250px]" />
     <Skeleton className="h-4 w-[200px]" />
   </div>
-</div>
+</div>;
 ```
 
 ### Progress
@@ -372,9 +383,9 @@ npx shadcn@latest add progress
 ```
 
 ```tsx
-import { Progress } from "@/components/ui/progress"
+import { Progress } from "@/components/ui/progress";
 
-<Progress value={33} />
+<Progress value={33} />;
 ```
 
 ### Calendar
@@ -385,20 +396,13 @@ npm install react-day-picker date-fns
 ```
 
 ```tsx
-import { Calendar } from "@/components/ui/calendar"
-import { useState } from "react"
+import { Calendar } from "@/components/ui/calendar";
+import { useState } from "react";
 
 export function MyCalendar() {
-  const [date, setDate] = useState<Date | undefined>(new Date())
+  const [date, setDate] = useState<Date | undefined>(new Date());
 
-  return (
-    <Calendar
-      mode="single"
-      selected={date}
-      onSelect={setDate}
-      className="rounded-md border"
-    />
-  )
+  return <Calendar mode="single" selected={date} onSelect={setDate} className="rounded-md border" />;
 }
 ```
 
@@ -409,7 +413,7 @@ npx shadcn@latest add popover
 ```
 
 ```tsx
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 <Popover>
   <PopoverTrigger asChild>
@@ -419,13 +423,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
     <div className="grid gap-4">
       <div className="space-y-2">
         <h4 className="font-medium leading-none">Dimensions</h4>
-        <p className="text-sm text-muted-foreground">
-          Set the dimensions for the layer.
-        </p>
+        <p className="text-sm text-muted-foreground">Set the dimensions for the layer.</p>
       </div>
     </div>
   </PopoverContent>
-</Popover>
+</Popover>;
 ```
 
 ## Customizing Components
@@ -434,52 +436,55 @@ shadcn/ui components live in your codebase (`components/ui/`), so you can modify
 
 ```tsx
 // components/ui/button.tsx
-const buttonVariants = cva(
-  "inline-flex items-center justify-center...",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground",
-        // Add custom variant
-        custom: "bg-gradient-to-r from-purple-500 to-pink-500",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        // Add custom size
-        xl: "h-14 px-10 text-lg",
-      },
+const buttonVariants = cva("inline-flex items-center justify-center...", {
+  variants: {
+    variant: {
+      default: "bg-primary text-primary-foreground",
+      // Add custom variant
+      custom: "bg-gradient-to-r from-purple-500 to-pink-500",
     },
-  }
-)
+    size: {
+      default: "h-10 px-4 py-2",
+      // Add custom size
+      xl: "h-14 px-10 text-lg",
+    },
+  },
+});
 ```
 
 ## Complete Component List
 
 **Form & Input:**
+
 - button, input, textarea, label, form
 - checkbox, radio-group, switch
 - select, combobox, command
 - slider, calendar, date-picker
 
 **Layout:**
+
 - card, separator, aspect-ratio
 - scroll-area, resizable
 
 **Navigation:**
+
 - navigation-menu, menubar, tabs
 - breadcrumb, pagination
 
 **Overlay:**
+
 - dialog, alert-dialog, sheet, drawer
 - popover, tooltip, hover-card
 - dropdown-menu, context-menu
 
 **Display:**
+
 - table, data-table
 - avatar, badge, skeleton
 - progress, alert
 
 **Feedback:**
+
 - toast, sonner (advanced toast)
 - alert
 

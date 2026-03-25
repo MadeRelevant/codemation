@@ -1,12 +1,16 @@
-import type { HttpMethod,Items,NodeExecutionContext,TriggerNodeConfig,TypeToken } from "@codemation/core";
+import type { HttpMethod, Items, NodeExecutionContext, TriggerNodeConfig, TypeToken } from "@codemation/core";
 import type { ZodType } from "zod";
 import { WebhookTriggerNode } from "./webhookTriggerNode";
 
 type WebhookInputSchema = ZodType<any, any, any>;
-type WebhookTriggerHandler<TConfig extends WebhookTrigger<any> = WebhookTrigger<any>> =
-  (items: Items, ctx: NodeExecutionContext<TConfig>) => Promise<Items | void> | Items | void;
+type WebhookTriggerHandler<TConfig extends WebhookTrigger<any> = WebhookTrigger<any>> = (
+  items: Items,
+  ctx: NodeExecutionContext<TConfig>,
+) => Promise<Items | void> | Items | void;
 
-export class WebhookTrigger<TSchema extends WebhookInputSchema | undefined = undefined> implements TriggerNodeConfig<unknown> {
+export class WebhookTrigger<
+  TSchema extends WebhookInputSchema | undefined = undefined,
+> implements TriggerNodeConfig<unknown> {
   readonly kind = "trigger" as const;
   readonly type: TypeToken<unknown> = WebhookTriggerNode;
   readonly icon = "globe";
@@ -18,7 +22,9 @@ export class WebhookTrigger<TSchema extends WebhookInputSchema | undefined = und
       methods: ReadonlyArray<HttpMethod>;
       inputSchema?: TSchema;
     }>,
-    public readonly handler: WebhookTriggerHandler<WebhookTrigger<TSchema>> = WebhookTrigger.defaultHandler as WebhookTriggerHandler<WebhookTrigger<TSchema>>,
+    public readonly handler: WebhookTriggerHandler<
+      WebhookTrigger<TSchema>
+    > = WebhookTrigger.defaultHandler as WebhookTriggerHandler<WebhookTrigger<TSchema>>,
     public readonly id?: string,
   ) {}
 
