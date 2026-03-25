@@ -1,9 +1,7 @@
 export type GmailTriggerSetupState = Readonly<{
   mailbox: string;
-  topicName: string;
-  subscriptionName: string;
-  historyId: string;
-  watchExpiration: string;
-  lastNotificationAt?: string;
-  lastSynchronizedAt?: string;
+  /** IDs already seen so we only emit new mail (capped list for memory). */
+  processedMessageIds: ReadonlyArray<string>;
+  /** After the first poll, existing inbox snapshot is marked seen without emitting. */
+  baselineComplete: boolean;
 }>;

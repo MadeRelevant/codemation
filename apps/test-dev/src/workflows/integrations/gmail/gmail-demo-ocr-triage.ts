@@ -12,7 +12,7 @@ import {
 } from "../../../gmail/AzureInvoiceOcrConsumer";
 import { CredentialAwareCallback } from "../../../gmail/CredentialAwareCallback";
 import { GmailTriggerEnvReader } from "../../../gmail/GmailTriggerEnvReader";
-import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
+import { openAiChatModelPresets } from "../../../lib/openAiChatModelPresets";
 
 const gmailTriggerConfiguration = new GmailTriggerEnvReader().readTriggerConfiguration();
 
@@ -76,8 +76,6 @@ export default createWorkflowBuilder({
       "On Demo Mail (OCR triage)",
       {
         mailbox: gmailTriggerConfiguration.mailbox,
-        topicName: gmailTriggerConfiguration.topicName,
-        subscriptionName: gmailTriggerConfiguration.subscriptionName,
         labelIds: ["Demo"],
         query: gmailTriggerConfiguration.query,
         downloadAttachments: true,

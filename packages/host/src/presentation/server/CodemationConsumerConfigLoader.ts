@@ -7,7 +7,9 @@ import { register } from "tsx/esm/api";
 import type { CodemationConfig } from "../config/CodemationConfig";
 import { logLevelPolicyFactory } from "../../infrastructure/logging/LogLevelPolicyFactory";
 import { ServerLoggerFactory } from "../../infrastructure/logging/ServerLoggerFactory";
+import { DiscoveredWorkflowsEmptyMessageFactory } from "./DiscoveredWorkflowsEmptyMessageFactory";
 import { CodemationConsumerConfigExportsResolver } from "./CodemationConsumerConfigExportsResolver";
+import { WorkflowDefinitionExportsResolver } from "./WorkflowDefinitionExportsResolver";
 import { WorkflowDiscoveryPathSegmentsComputer } from "./WorkflowDiscoveryPathSegmentsComputer";
 import { WorkflowModulePathFinder } from "./WorkflowModulePathFinder";
 
@@ -21,6 +23,8 @@ export class CodemationConsumerConfigLoader {
   private static readonly importerRegistrationsByTsconfig = new Map<string, NamespacedUnregister>();
   private readonly configExportsResolver = new CodemationConsumerConfigExportsResolver();
   private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
+  private readonly workflowDefinitionExportsResolver = new WorkflowDefinitionExportsResolver();
+  private readonly discoveredWorkflowsEmptyMessageFactory = new DiscoveredWorkflowsEmptyMessageFactory();
   private readonly pathSegmentsComputer = new WorkflowDiscoveryPathSegmentsComputer();
   private readonly performanceDiagnosticsLogger = new ServerLoggerFactory(
     logLevelPolicyFactory,
@@ -128,10 +132,7 @@ export class CodemationConsumerConfigLoader {
       })),
     );
     for (const loadedWorkflowModule of loadedWorkflowModules) {
-      for (const workflow of this.resolveWorkflows(
-        loadedWorkflowModule.moduleExports,
-        loadedWorkflowModule.workflowSource,
-      )) {
+      for (const workflow of this.workflowDefinitionExportsResolver.resolve(loadedWorkflowModule.moduleExports)) {
         const enriched =
           loadedWorkflowModule.segments && loadedWorkflowModule.segments.length > 0
             ? ({ ...workflow, discoveryPathSegments: loadedWorkflowModule.segments } satisfies WorkflowDefinition)
@@ -139,30 +140,10 @@ export class CodemationConsumerConfigLoader {
         workflowsById.set(workflow.id, enriched);
       }
     }
+    if (workflowsById.size === 0 && workflowSources.length > 0) {
+      throw new Error(this.discoveredWorkflowsEmptyMessageFactory.create(workflowSources));
+    }
     return [...workflowsById.values()];
-  }
-
-  private resolveWorkflows(
-    moduleExports: Readonly<Record<string, unknown>>,
-    workflowSource: string,
-  ): ReadonlyArray<WorkflowDefinition> {
-    const workflows: WorkflowDefinition[] = [];
-    for (const exportedValue of Object.values(moduleExports)) {
-      if (this.isWorkflowDefinition(exportedValue)) {
-        workflows.push(exportedValue);
-      }
-    }
-    if (workflows.length === 0) {
-      throw new Error(`Workflow module does not export a workflow definition: ${workflowSource}`);
-    }
-    return workflows;
-  }
-
-  private isWorkflowDefinition(value: unknown): value is WorkflowDefinition {
-    if (!value || typeof value !== "object") {
-      return false;
-    }
-    return "id" in value && "name" in value && "nodes" in value && "edges" in value;
   }
 
   private async importModule(modulePath: string): Promise<Record<string, unknown>> {

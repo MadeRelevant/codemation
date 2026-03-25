@@ -56,3 +56,28 @@ test("resolve does not inject paths when config lists workflows inline", () => {
   assert.deepEqual(result.workflowSources, []);
   assert.equal(result.config.workflows?.[0]?.discoveryPathSegments, undefined);
 });
+
+test("resolve skips modules whose exports are not workflow definitions", () => {
+  const result = resolver.resolve({
+    configModule: { default: { runtime: {} } },
+    workflowModules: [{ presets: { x: 1 } }, { exported: minimalWorkflow("wf.real") }],
+    workflowSourcePaths: ["/consumer/src/workflows/lib/presets.ts", "/consumer/src/workflows/foo.ts"],
+  });
+  assert.equal(result.config.workflows?.length, 1);
+  assert.equal(result.config.workflows?.[0]?.id, "wf.real");
+});
+
+test("resolve throws when every discovered module lacks workflow exports", () => {
+  assert.throws(
+    () =>
+      resolver.resolve({
+        configModule: { default: { runtime: {} } },
+        workflowModules: [{ presets: { x: 1 } }],
+        workflowSourcePaths: ["/consumer/src/workflows/lib/presets.ts"],
+      }),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.message.includes("none export a WorkflowDefinition") &&
+      error.message.includes("presets.ts"),
+  );
+});

@@ -1,7 +1,7 @@
 import { AIAgent, Callback, createWorkflowBuilder, If, ManualTrigger, MapData } from "@codemation/core-nodes";
 import { ExampleUppercase } from "@codemation/node-example";
 import { ClassifyMailToolConfig } from "../../../tools/classifyMailTool";
-import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
+import { openAiChatModelPresets } from "../../../lib/openAiChatModelPresets";
 
 export const ORDERS_CREATE_START = "orders.create.start";
 

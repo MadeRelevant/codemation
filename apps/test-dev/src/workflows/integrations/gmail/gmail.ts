@@ -22,8 +22,6 @@ export default createWorkflowBuilder({ id: "wf.gmail.pull", name: "Gmail pull tr
       "On Demo Mail",
       {
         mailbox: gmailTriggerConfiguration.mailbox,
-        topicName: gmailTriggerConfiguration.topicName,
-        subscriptionName: gmailTriggerConfiguration.subscriptionName,
         labelIds: ["Demo"],
         query: gmailTriggerConfiguration.query,
         downloadAttachments: true,

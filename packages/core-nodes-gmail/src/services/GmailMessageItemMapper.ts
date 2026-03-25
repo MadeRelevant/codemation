@@ -38,6 +38,8 @@ export class GmailMessageItemMapper {
         internalDate: args.message.internalDate,
         labelIds: args.message.labelIds,
         headers: args.message.headers,
+        textPlain: args.message.textPlain,
+        textHtml: args.message.textHtml,
         from: args.message.headers.From,
         to: args.message.headers.To,
         subject: args.message.headers.Subject,

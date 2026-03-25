@@ -1,6 +1,8 @@
 import type { WorkflowDefinition } from "@codemation/core";
 import type { CodemationConfig } from "../config/CodemationConfig";
 import { CodemationConsumerConfigExportsResolver } from "./CodemationConsumerConfigExportsResolver";
+import { DiscoveredWorkflowsEmptyMessageFactory } from "./DiscoveredWorkflowsEmptyMessageFactory";
+import { WorkflowDefinitionExportsResolver } from "./WorkflowDefinitionExportsResolver";
 
 export type CodemationConsumerApp = Readonly<{
   config: CodemationConfig;
@@ -9,6 +11,8 @@ export type CodemationConsumerApp = Readonly<{
 
 export class CodemationConsumerAppResolver {
   private readonly configExportsResolver = new CodemationConsumerConfigExportsResolver();
+  private readonly workflowDefinitionExportsResolver = new WorkflowDefinitionExportsResolver();
+  private readonly discoveredWorkflowsEmptyMessageFactory = new DiscoveredWorkflowsEmptyMessageFactory();
 
   resolve(
     args: Readonly<{
@@ -48,9 +52,8 @@ export class CodemationConsumerAppResolver {
   ): ReadonlyArray<WorkflowDefinition> {
     const workflowsById = new Map<string, WorkflowDefinition>();
     workflowModules.forEach((workflowModule: Readonly<Record<string, unknown>>, index: number) => {
-      const workflowSourcePath = workflowSourcePaths[index] ?? `workflow-module-${index}`;
       const pathSegments = workflowDiscoveryPathSegmentsList?.[index];
-      const workflows = this.resolveWorkflowModuleExports(workflowModule, workflowSourcePath);
+      const workflows = this.workflowDefinitionExportsResolver.resolve(workflowModule);
       workflows.forEach((workflow: WorkflowDefinition) => {
         const enriched =
           pathSegments && pathSegments.length > 0
@@ -59,26 +62,9 @@ export class CodemationConsumerAppResolver {
         workflowsById.set(workflow.id, enriched);
       });
     });
+    if (workflowsById.size === 0 && workflowSourcePaths.length > 0) {
+      throw new Error(this.discoveredWorkflowsEmptyMessageFactory.create(workflowSourcePaths));
+    }
     return [...workflowsById.values()];
-  }
-
-  private resolveWorkflowModuleExports(
-    moduleExports: Readonly<Record<string, unknown>>,
-    workflowSourcePath: string,
-  ): ReadonlyArray<WorkflowDefinition> {
-    const workflows = Object.values(moduleExports).filter((value: unknown): value is WorkflowDefinition =>
-      this.isWorkflowDefinition(value),
-    );
-    if (workflows.length === 0) {
-      throw new Error(`Workflow module does not export a workflow definition: ${workflowSourcePath}`);
-    }
-    return workflows;
-  }
-
-  private isWorkflowDefinition(value: unknown): value is WorkflowDefinition {
-    if (!value || typeof value !== "object") {
-      return false;
-    }
-    return "edges" in value && "id" in value && "name" in value && "nodes" in value;
   }
 }

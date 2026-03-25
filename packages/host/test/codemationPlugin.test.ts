@@ -42,6 +42,5 @@ describe("Codemation plugins", () => {
     });
 
     expect(application.getContainer().isRegistered(GmailNodeTokens.GmailApiClient, true)).toBe(true);
-    expect(application.getContainer().isRegistered(GmailNodeTokens.GmailPubSubPullClient, true)).toBe(true);
   });
 });

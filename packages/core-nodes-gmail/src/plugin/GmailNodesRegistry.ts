@@ -4,16 +4,14 @@ import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailOAuthCredential } from "../contracts/GmailOAuthCredential";
 import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
-import { GmailPullTriggerRuntime } from "../runtime/GmailPullTriggerRuntime";
+import { GmailPollingTriggerRuntime } from "../runtime/GmailPollingTriggerRuntime";
 import type { GmailApiClient } from "../services/GmailApiClient";
 import { GmailConfiguredLabelService } from "../services/GmailConfiguredLabelService";
-import { GmailHistorySyncService } from "../services/GmailHistorySyncService";
 import { GmailMessageItemMapper } from "../services/GmailMessageItemMapper";
+import { GmailPollingService } from "../services/GmailPollingService";
 import { GmailQueryMatcher } from "../services/GmailQueryMatcher";
 import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
 import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
-import { GmailTriggerPubSubResourceResolver } from "../services/GmailTriggerPubSubResourceResolver";
-import { GmailWatchService } from "../services/GmailWatchService";
 
 type PluginContext = Readonly<{
   container: Container;
@@ -136,20 +134,13 @@ export class GmailNodes {
         throw new Error("GmailApiClient must be supplied by the active Gmail runtime binding.");
       },
     });
-    container.register(GmailNodeTokens.GmailPubSubPullClient, {
-      useFactory: () => {
-        throw new Error("GmailPubSubPullClient must be supplied by the active Gmail runtime binding.");
-      },
-    });
-    container.register(GmailHistorySyncService, { useClass: GmailHistorySyncService });
     container.register(GmailConfiguredLabelService, { useClass: GmailConfiguredLabelService });
     container.register(GmailMessageItemMapper, { useClass: GmailMessageItemMapper });
     container.register(GmailQueryMatcher, { useClass: GmailQueryMatcher });
     container.register(GmailTriggerAttachmentService, { useClass: GmailTriggerAttachmentService });
     container.register(GmailTriggerTestItemService, { useClass: GmailTriggerTestItemService });
-    container.register(GmailWatchService, { useClass: GmailWatchService });
-    container.registerInstance(GmailTriggerPubSubResourceResolver, new GmailTriggerPubSubResourceResolver(context.env));
-    container.register(GmailPullTriggerRuntime, { useClass: GmailPullTriggerRuntime });
+    container.register(GmailPollingService, { useClass: GmailPollingService });
+    container.register(GmailPollingTriggerRuntime, { useClass: GmailPollingTriggerRuntime });
     void context.consumerRoot;
     void context.repoRoot;
     void context.env;

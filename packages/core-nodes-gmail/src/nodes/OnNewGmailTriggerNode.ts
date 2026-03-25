@@ -10,7 +10,7 @@ import { inject, node } from "@codemation/core";
 import type { GmailLogger } from "../contracts/GmailLogger";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
-import { GmailPullTriggerRuntime } from "../runtime/GmailPullTriggerRuntime";
+import { GmailPollingTriggerRuntime } from "../runtime/GmailPollingTriggerRuntime";
 import type { GmailApiClient } from "../services/GmailApiClient";
 import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
 import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
@@ -22,7 +22,7 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
   readonly outputPorts = ["main"] as const;
 
   constructor(
-    @inject(GmailPullTriggerRuntime) private readonly gmailPullTriggerRuntime: GmailPullTriggerRuntime,
+    @inject(GmailPollingTriggerRuntime) private readonly gmailPollingTriggerRuntime: GmailPollingTriggerRuntime,
     @inject(GmailTriggerAttachmentService)
     private readonly gmailTriggerAttachmentService: GmailTriggerAttachmentService,
     @inject(GmailTriggerTestItemService) private readonly gmailTriggerTestItemService: GmailTriggerTestItemService,
@@ -44,11 +44,11 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
     );
     ctx.registerCleanup({
       stop: async () => {
-        await this.gmailPullTriggerRuntime.stop(ctx.trigger);
+        await this.gmailPollingTriggerRuntime.stop(ctx.trigger);
       },
     });
     const client = await ctx.getCredential<GmailApiClient>("auth");
-    const setupState = await this.gmailPullTriggerRuntime.ensureStarted({
+    const setupState = await this.gmailPollingTriggerRuntime.ensureStarted({
       trigger: ctx.trigger,
       client,
       config: ctx.config,
@@ -59,7 +59,7 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
     });
     if (setupState) {
       this.logger.info(
-        `Gmail trigger ready: ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} (history ${setupState.historyId})`,
+        `Gmail trigger ready: ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} (${setupState.processedMessageIds.length} message id(s) in dedupe window; baseline ${setupState.baselineComplete ? "done" : "pending"})`,
       );
     } else {
       this.logger.debug(

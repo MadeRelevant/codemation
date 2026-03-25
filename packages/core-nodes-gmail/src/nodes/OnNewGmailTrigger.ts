@@ -13,6 +13,10 @@ export type OnNewGmailTriggerItemJson = Readonly<{
   internalDate?: string;
   labelIds: ReadonlyArray<string>;
   headers: Readonly<Record<string, string>>;
+  /** Inline plain-text body (from MIME `text/plain` when present in the full message). */
+  textPlain?: string;
+  /** Inline HTML body (from MIME `text/html` when present). */
+  textHtml?: string;
   from?: string;
   to?: string;
   subject?: string;
@@ -22,10 +26,6 @@ export type OnNewGmailTriggerItemJson = Readonly<{
 
 export type OnNewGmailTriggerOptions = Readonly<{
   mailbox: string;
-  /** When omitted, resolved from env (`GMAIL_TRIGGER_*`, `GOOGLE_CLOUD_PROJECT`) or the Gmail credential project id. */
-  topicName?: string | undefined;
-  /** When omitted, resolved together with {@link topicName}. */
-  subscriptionName?: string | undefined;
   labelIds?: ReadonlyArray<string>;
   query?: string;
   downloadAttachments?: boolean;

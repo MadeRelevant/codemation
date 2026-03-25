@@ -1,5 +1,3 @@
-import type { GmailPulledNotification } from "./GmailPubSubPullClient";
-
 export type GmailMessageRecord = Readonly<{
   messageId: string;
   threadId?: string;
@@ -8,6 +6,10 @@ export type GmailMessageRecord = Readonly<{
   internalDate?: string;
   labelIds: ReadonlyArray<string>;
   headers: Readonly<Record<string, string>>;
+  /** Inline `text/plain` body from the message payload (when returned with `format: full`). */
+  textPlain?: string;
+  /** Inline `text/html` body from the message payload (when returned with `format: full`). */
+  textHtml?: string;
   attachments: ReadonlyArray<GmailMessageAttachmentRecord>;
 }>;
 
@@ -33,34 +35,7 @@ export type GmailMessageAttachmentContent = Readonly<{
   size?: number;
 }>;
 
-export type GmailHistoryDelta = Readonly<{
-  historyId: string;
-  messageIds: ReadonlyArray<string>;
-}>;
-
-export type GmailWatchRegistration = Readonly<{
-  historyId: string;
-  expirationAt: string;
-}>;
-
 export interface GmailApiClient {
-  /**
-   * Used to infer default Pub/Sub topic/subscription names when the trigger omits them.
-   * Service accounts should return their GCP project id; OAuth clients typically return undefined.
-   */
-  getDefaultGcpProjectIdForPubSub(): string | undefined;
-  ensureSubscription(
-    args: Readonly<{
-      topicName: string;
-      subscriptionName: string;
-    }>,
-  ): Promise<void>;
-  pull(
-    args: Readonly<{
-      subscriptionName: string;
-      maxMessages?: number;
-    }>,
-  ): Promise<ReadonlyArray<GmailPulledNotification>>;
   getCurrentHistoryId(args: Readonly<{ mailbox: string }>): Promise<string>;
   listMessageIds(
     args: Readonly<{
@@ -71,19 +46,6 @@ export interface GmailApiClient {
     }>,
   ): Promise<ReadonlyArray<string>>;
   listLabels(args: Readonly<{ mailbox: string }>): Promise<ReadonlyArray<GmailLabelRecord>>;
-  watchMailbox(
-    args: Readonly<{
-      mailbox: string;
-      topicName: string;
-      labelIds?: ReadonlyArray<string>;
-    }>,
-  ): Promise<GmailWatchRegistration>;
-  listAddedMessageIds(
-    args: Readonly<{
-      mailbox: string;
-      startHistoryId: string;
-    }>,
-  ): Promise<GmailHistoryDelta>;
   getMessage(
     args: Readonly<{
       mailbox: string;
@@ -97,11 +59,4 @@ export interface GmailApiClient {
       attachment: GmailMessageAttachmentRecord;
     }>,
   ): Promise<GmailMessageAttachmentContent>;
-}
-
-export class GmailHistoryGapError extends Error {
-  constructor(message = "The stored Gmail history cursor is no longer available and must be re-baselined.") {
-    super(message);
-    this.name = "GmailHistoryGapError";
-  }
 }

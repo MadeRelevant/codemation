@@ -24,6 +24,7 @@ export class GmailTriggerTestItemService {
     }>,
   ): Promise<Items<OnNewGmailTriggerItemJson>> {
     void args.trigger;
+    void args.previousState;
     const resolvedLabelIds = await this.gmailConfiguredLabelService.resolveLabelIds({
       client: args.client,
       mailbox: args.config.cfg.mailbox,
@@ -46,9 +47,7 @@ export class GmailTriggerTestItemService {
       return [];
     }
     const historyId =
-      message.historyId ??
-      args.previousState?.historyId ??
-      (await args.client.getCurrentHistoryId({ mailbox: args.config.cfg.mailbox }));
+      message.historyId ?? (await args.client.getCurrentHistoryId({ mailbox: args.config.cfg.mailbox }));
     return this.gmailMessageItemMapper.mapMany({
       mailbox: args.config.cfg.mailbox,
       historyId,

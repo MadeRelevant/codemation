@@ -39,6 +39,8 @@ export class GmailQueryMatcher {
       args.message.headers.To,
       args.message.headers.Subject,
       args.message.snippet,
+      args.message.textPlain,
+      args.message.textHtml,
     ]
       .filter((value): value is string => typeof value === "string")
       .join(" ")

@@ -33,8 +33,8 @@ describe("CodemationPluginListMerger", () => {
 
   it("dedupes by pluginPackageId when constructor args differ (same logical package, distinct instances)", () => {
     const merger = new CodemationPluginListMerger();
-    const configured = [new GmailNodes({ pullIntervalMs: 111 })];
-    const discovered = [new GmailNodes({ pullIntervalMs: 999 })];
+    const configured = [new GmailNodes({ pollIntervalMs: 111 })];
+    const discovered = [new GmailNodes({ pollIntervalMs: 999 })];
     const merged = merger.merge(configured, discovered);
     expect(merged).toHaveLength(1);
     expect(merged[0]).toBe(configured[0]);
@@ -42,8 +42,8 @@ describe("CodemationPluginListMerger", () => {
 
   it("dedupes two discovered entries with the same pluginPackageId but different options", () => {
     const merger = new CodemationPluginListMerger();
-    const firstDiscovered = new GmailNodes({ maxMessagesPerPull: 1 });
-    const secondDiscovered = new GmailNodes({ maxMessagesPerPull: 50 });
+    const firstDiscovered = new GmailNodes({ maxMessagesPerPoll: 1 });
+    const secondDiscovered = new GmailNodes({ maxMessagesPerPoll: 50 });
     const merged = merger.merge([], [firstDiscovered, secondDiscovered]);
     expect(merged).toHaveLength(1);
     expect(merged[0]).toBe(firstDiscovered);

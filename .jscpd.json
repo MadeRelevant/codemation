@@ -12,8 +12,7 @@
     "**/*.test.tsx",
     "**/.codemation/**",
     "**/generated/**",
-    "**/packages/create-codemation/templates/**",
-    "**/useCredentialDialogSession.ts"
+    "**/packages/create-codemation/templates/**"
   ],
   "absolute": true,
   "minLines": 10,

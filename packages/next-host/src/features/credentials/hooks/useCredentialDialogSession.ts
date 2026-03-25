@@ -590,6 +590,7 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
     oauth2RedirectUri,
     isLoadingOauth2RedirectUri,
     errorMessage,
+    setErrorMessage,
     dialogTestResult,
     isSubmitting,
     isEditSubmitting,
