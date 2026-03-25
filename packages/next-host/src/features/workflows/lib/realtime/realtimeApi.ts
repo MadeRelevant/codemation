@@ -31,8 +31,12 @@ export async function fetchWorkflowDebuggerOverlay(workflowId: string): Promise<
   return await codemationApiClient.getJson<WorkflowDebuggerOverlayState>(ApiPaths.workflowDebuggerOverlay(workflowId));
 }
 
-export async function fetchRun(runId: string): Promise<PersistedRunState> {
-  return await codemationApiClient.getJson<PersistedRunState>(ApiPaths.runState(runId));
+export async function fetchRun(
+  runId: string,
+  options?: Readonly<{ signal?: AbortSignal }>,
+): Promise<PersistedRunState> {
+  const init: RequestInit | undefined = options?.signal ? { signal: options.signal } : undefined;
+  return await codemationApiClient.getJson<PersistedRunState>(ApiPaths.runState(runId), init);
 }
 
 export async function fetchCredentialTypes(): Promise<ReadonlyArray<CredentialTypeDefinition>> {

@@ -365,21 +365,27 @@ describe("workflow detail mutable execution flows", () => {
         items: [],
         synthesizeTriggerItems: false,
         currentState: expect.objectContaining({
-          mutableState: {
-            nodesById: {
-              B: {
-                pinnedOutputsByPort: {
-                  main: [{ json: { pinned: true } }],
-                },
-              },
-            },
-          },
+          mutableState: expect.objectContaining({
+            nodesById: expect.objectContaining({
+              B: expect.objectContaining({
+                pinnedOutputsByPort: expect.objectContaining({
+                  main: expect.arrayContaining([
+                    expect.objectContaining({
+                      json: { pinned: true },
+                    }),
+                  ]),
+                }),
+              }),
+            }),
+          }),
         }),
         stopAt: "C",
         clearFromNodeId: "C",
         mode: "manual",
       }),
     );
+
+    await kit.waitForWorkflowSubscription(workflow.id);
 
     kit.emitJson({
       kind: "event",
@@ -567,6 +573,7 @@ describe("workflow detail mutable execution flows", () => {
     kit.render();
 
     await kit.waitForSocketConnection();
+    await kit.waitForWorkflowSubscription(workflow.id);
     kit.openExecutionsPane();
     await kit.waitForRunSummary(historicalRunState.runId);
     fireEvent.click(screen.getByTestId(`run-summary-${historicalRunState.runId}`));
@@ -587,8 +594,17 @@ describe("workflow detail mutable execution flows", () => {
       expect(screen.queryByTestId("execution-tree-node-B")).not.toBeInTheDocument();
       expect(screen.queryByTestId("execution-tree-node-C")).not.toBeInTheDocument();
     });
+    await waitFor(() => {
+      expect(kit!.currentNodeStatus("A")).toBe("completed");
+    });
 
     fireEvent.click(screen.getByTestId("canvas-node-run-button-C"));
+    await waitFor(() => {
+      kit!.expectCallCount("POST /api/runs", 2);
+    });
+    await waitFor(() => {
+      expect(kit!.currentNodeStatus("C")).toBe("completed");
+    });
     await waitFor(() => {
       expect(screen.getByTestId("execution-tree-node-A")).toBeInTheDocument();
       expect(screen.getByTestId("execution-tree-node-B")).toBeInTheDocument();

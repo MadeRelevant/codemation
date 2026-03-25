@@ -50,6 +50,22 @@ function mergeRunSummaryList(
   return current;
 }
 
+export function reduceWorkflowEventIntoPersistedRunState(
+  current: PersistedRunState | undefined,
+  event: WorkflowEvent,
+): PersistedRunState {
+  if (event.kind === "runCreated") {
+    return createInitialRunState(event);
+  }
+  if (event.kind === "runSaved") {
+    return event.state;
+  }
+  return mergeSnapshotIntoRunState(
+    current,
+    event as Extract<WorkflowEvent, { kind: "nodeQueued" | "nodeStarted" | "nodeCompleted" | "nodeFailed" }>,
+  );
+}
+
 function mergeSnapshotIntoRunState(
   current: PersistedRunState | undefined,
   event: Extract<WorkflowEvent, { kind: "nodeQueued" | "nodeStarted" | "nodeCompleted" | "nodeFailed" }>,
@@ -121,31 +137,31 @@ function mergeSnapshotIntoRunState(
 }
 
 export function applyWorkflowEvent(queryClient: QueryClient, event: WorkflowEvent): void {
+  const key = runQueryKey(event.runId);
+  const runsKey = workflowRunsQueryKey(event.workflowId);
+
   if (event.kind === "runCreated") {
-    const initialRunState = createInitialRunState(event);
-    queryClient.setQueryData(runQueryKey(event.runId), initialRunState);
-    queryClient.setQueryData(
-      workflowRunsQueryKey(event.workflowId),
-      (existing: ReadonlyArray<RunSummary> | undefined) => mergeRunSummaryList(existing, toRunSummary(initialRunState)),
+    const next = reduceWorkflowEventIntoPersistedRunState(undefined, event);
+    queryClient.setQueryData(key, next);
+    queryClient.setQueryData(runsKey, (existing: ReadonlyArray<RunSummary> | undefined) =>
+      mergeRunSummaryList(existing, toRunSummary(next)),
     );
     return;
   }
 
   if (event.kind === "runSaved") {
-    queryClient.setQueryData(runQueryKey(event.runId), event.state);
-    queryClient.setQueryData(
-      workflowRunsQueryKey(event.workflowId),
-      (existing: ReadonlyArray<RunSummary> | undefined) => mergeRunSummaryList(existing, toRunSummary(event.state)),
+    const next = reduceWorkflowEventIntoPersistedRunState(undefined, event);
+    queryClient.setQueryData(key, next);
+    queryClient.setQueryData(runsKey, (existing: ReadonlyArray<RunSummary> | undefined) =>
+      mergeRunSummaryList(existing, toRunSummary(next)),
     );
     return;
   }
 
-  const nextRunState = mergeSnapshotIntoRunState(
-    queryClient.getQueryData<PersistedRunState>(runQueryKey(event.runId)),
-    event,
-  );
-  queryClient.setQueryData(runQueryKey(event.runId), nextRunState);
-  queryClient.setQueryData(workflowRunsQueryKey(event.workflowId), (existing: ReadonlyArray<RunSummary> | undefined) =>
+  const current = queryClient.getQueryData<PersistedRunState>(key);
+  const nextRunState = reduceWorkflowEventIntoPersistedRunState(current, event);
+  queryClient.setQueryData(key, nextRunState);
+  queryClient.setQueryData(runsKey, (existing: ReadonlyArray<RunSummary> | undefined) =>
     mergeRunSummaryList(existing, toRunSummary(nextRunState)),
   );
 }

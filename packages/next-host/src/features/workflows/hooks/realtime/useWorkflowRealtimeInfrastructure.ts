@@ -28,7 +28,6 @@ export function useWorkflowRealtimeInfrastructure(
   const { logger, websocketPort } = args;
   const queryClient = useQueryClient();
   const desiredWorkflowCountsRef = useRef(new Map<string, number>());
-  const pendingJsonMessagesRef = useRef<RealtimeServerMessage[]>([]);
   const pendingOutgoingMessagesRef = useRef<RealtimeClientMessage[]>([]);
   const activeStatusShownAtByNodeKeyRef = useRef(new Map<string, number>());
   const terminalEventTimeoutIdByNodeKeyRef = useRef(new Map<string, number>());
@@ -40,7 +39,6 @@ export function useWorkflowRealtimeInfrastructure(
   const hasLoggedUnavailableTransportRef = useRef(false);
   const pendingDisconnectReasonRef = useRef<string | null>(null);
   const [readyState, setReadyState] = useState<RealtimeReadyValue>(RealtimeReadyState.UNINSTANTIATED);
-  const [messageQueueVersion, setMessageQueueVersion] = useState(0);
   const sendJsonMessageRef = useRef<(message: RealtimeClientMessage) => boolean>(() => false);
   const [, setActiveWorkflowIds] = useState<ReadonlyArray<string>>([]);
   const websocketUrl = useMemo(() => {
@@ -272,6 +270,9 @@ export function useWorkflowRealtimeInfrastructure(
     },
     [clearPendingTerminalEventDelay, clearRunRealtimeDelays, logger, queryClient],
   );
+  const handleRealtimeServerMessageRef = useRef(handleRealtimeServerMessage);
+  handleRealtimeServerMessageRef.current = handleRealtimeServerMessage;
+
   const sendJsonMessage = useCallback((message: RealtimeClientMessage): boolean => {
     if (socketRef.current?.readyState !== WebSocket.OPEN) {
       pendingOutgoingMessagesRef.current.push(message);
@@ -341,8 +342,7 @@ export function useWorkflowRealtimeInfrastructure(
           } else {
             logger.info(`raw websocket control kind=${parsedMessage.kind}`);
           }
-          pendingJsonMessagesRef.current.push(parsedMessage);
-          setMessageQueueVersion((current) => current + 1);
+          handleRealtimeServerMessageRef.current(parsedMessage);
         } catch (error) {
           const exception = error instanceof Error ? error : new Error(String(error));
           logger.error(`failed to parse websocket message for ${websocketUrl}: ${exception.message}`);
@@ -424,16 +424,6 @@ export function useWorkflowRealtimeInfrastructure(
       socket.close();
     };
   }, [devGatewayWebsocketUrl, logger, queryClient, shouldConnect]);
-
-  useEffect(() => {
-    if (pendingJsonMessagesRef.current.length === 0) {
-      return;
-    }
-    const messages = pendingJsonMessagesRef.current.splice(0, pendingJsonMessagesRef.current.length);
-    for (const message of messages) {
-      handleRealtimeServerMessage(message);
-    }
-  }, [handleRealtimeServerMessage, messageQueueVersion]);
 
   useEffect(() => {
     return () => {

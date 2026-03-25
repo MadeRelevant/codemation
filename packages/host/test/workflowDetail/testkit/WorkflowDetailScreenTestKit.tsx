@@ -1,4 +1,5 @@
 import { Providers } from "@codemation/next-host/src/providers/Providers";
+import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
 import type {
   PersistedRunState,
   WorkflowDto,
@@ -104,13 +105,35 @@ export class WorkflowDetailScreenTestKit {
   }
 
   emitJson(message: WorkflowDetailRealtimeServerMessage | Readonly<Record<string, unknown>>): void {
-    this.latestSocket().emitJson(message);
+    if (this.environment instanceof WorkflowDetailTestEnvironment) {
+      this.environment.recordSimulatedRealtimeServerMessage(message);
+    }
+    act(() => {
+      if (this.environment instanceof WorkflowDetailTestEnvironment) {
+        const env = this.environment;
+        const workflowWsPath = ApiPaths.workflowWebsocket();
+        const workflowSockets = env.socketConnections.filter((c) => c.url.includes(workflowWsPath));
+        const targets =
+          workflowSockets.length > 0 ? workflowSockets : [env.resolveSocketThatSubscribedToWorkflow(this.workflow.id)];
+        const seen = new Set<WorkflowDetailSocketConnection>();
+        for (const connection of targets) {
+          if (!seen.has(connection)) {
+            seen.add(connection);
+            connection.emitJson(message);
+          }
+        }
+        return;
+      }
+      this.latestSocket().emitJson(message);
+    });
   }
 
   emitJsonMessages(
     messages: ReadonlyArray<WorkflowDetailRealtimeServerMessage | Readonly<Record<string, unknown>>>,
   ): void {
-    this.latestSocket().emitJsonMessages(messages);
+    for (const message of messages) {
+      this.emitJson(message);
+    }
   }
 
   expectCallCount(route: string, expectedCount: number): void {
@@ -144,9 +167,16 @@ export class WorkflowDetailScreenTestKit {
   }
 
   async waitForWorkflowSubscription(workflowId = this.workflow.id): Promise<void> {
-    const socket = this.latestSocket();
+    const subscribeJson = JSON.stringify({ kind: "subscribe", roomId: workflowId });
     await waitFor(() => {
-      expect(socket.sentMessages).toContain(JSON.stringify({ kind: "subscribe", roomId: workflowId }));
+      if (!(this.environment instanceof WorkflowDetailTestEnvironment)) {
+        expect(this.latestSocket().sentMessages).toContain(subscribeJson);
+        return;
+      }
+      const sentOnAnyConnection = this.environment.socketConnections.some((c) =>
+        c.sentMessages.includes(subscribeJson),
+      );
+      expect(sentOnAnyConnection).toBe(true);
     });
   }
 

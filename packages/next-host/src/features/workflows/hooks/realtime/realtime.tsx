@@ -26,7 +26,7 @@ import {
 import type { WorkflowDto, WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { RealtimeContext } from "../../components/realtime/RealtimeContext";
@@ -152,16 +152,27 @@ export function useWorkflowDevBuildStateQuery(workflowId: string) {
 
 export function useRunQuery(runId: string | null | undefined, options: Readonly<{ disableFetch?: boolean }> = {}) {
   const queryClient = useQueryClient();
-  const cachedState = useMemo(() => {
-    if (!runId) return undefined;
-    return queryClient.getQueryData<PersistedRunState>(runQueryKey(runId));
-  }, [queryClient, runId]);
 
   return useQuery({
     queryKey: runId ? runQueryKey(runId) : ["run", "disabled"],
-    queryFn: async () => await fetchRun(runId!),
+    queryFn: async ({ signal }) => {
+      const incoming = await fetchRun(runId!, { signal });
+      const previous = queryClient.getQueryData<PersistedRunState>(runQueryKey(runId!));
+      if (previous) {
+        if (previous.status === "completed" && incoming.status !== "completed") {
+          return previous;
+        }
+        if (previous.status === "failed" && incoming.status === "pending") {
+          return previous;
+        }
+        if (previous.status === "running" && incoming.status === "pending") {
+          return previous;
+        }
+      }
+      return incoming;
+    },
     enabled: Boolean(runId) && !options.disableFetch,
-    initialData: cachedState,
+    staleTime: 30_000,
   });
 }
 

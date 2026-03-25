@@ -313,6 +313,9 @@ export class InMemoryWorkflowDetailTestEnvironment {
   }
 
   private async handleRequest(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    if (init?.signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
     const url = this.resolveUrl(input);
     const method = this.resolveMethod(input, init);
     const routeKey = `${method} ${url.pathname}`;

@@ -34,6 +34,15 @@ class NextNavigationTestDouble {
     this.emit();
   }
 
+  /** Align URL pathname with the workflow under test (defaults in reset() use the standard fixture id). */
+  configureForWorkflow(workflowId: string): void {
+    this.snapshot = {
+      pathname: `/workflows/${workflowId}`,
+      searchParams: new URLSearchParams(),
+    };
+    this.emit();
+  }
+
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
     return () => {
@@ -79,6 +88,10 @@ const nextNavigationTestDouble = new NextNavigationTestDouble();
 /** Resets URL state between UI tests (`isolate: false` shares this module). */
 export function resetNextNavigationTestDouble(): void {
   nextNavigationTestDouble.reset();
+}
+
+export function configureWorkflowDetailNavigationForUiTest(workflowId: string): void {
+  nextNavigationTestDouble.configureForWorkflow(workflowId);
 }
 
 export function useRouter(): AppRouterInstance {

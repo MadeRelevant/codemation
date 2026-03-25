@@ -1,4 +1,6 @@
 import { RunFinishedAtFactory } from "@codemation/core";
+import type { WorkflowEvent } from "@codemation/next-host/src/features/workflows/lib/realtime/realtimeDomainTypes";
+import { reduceWorkflowEventIntoPersistedRunState } from "@codemation/next-host/src/features/workflows/lib/realtime/realtimeRunMutations";
 import type {
   PersistedRunState,
   RunSummary,
@@ -105,6 +107,29 @@ export class WorkflowDetailTestEnvironment {
   constructor(public readonly workflow: WorkflowDto) {
     this.workflowResponse = workflow;
     this.debuggerOverlay = WorkflowDetailFixtureFactory.createDebuggerOverlayState(workflow.id);
+  }
+
+  /**
+   * Mirrors {@link reduceWorkflowEventIntoPersistedRunState} into the synthetic fetch store so GET /api/runs/:id
+   * stays consistent with the client cache when Vitest simulates websocket events (TanStack Query may refetch).
+   */
+  recordSimulatedRealtimeServerMessage(
+    message: WorkflowDetailRealtimeServerMessage | Readonly<Record<string, unknown>>,
+  ): void {
+    if (typeof message !== "object" || message === null || !("kind" in message) || message.kind !== "event") {
+      return;
+    }
+    if (!("event" in message) || typeof message.event !== "object" || message.event === null) {
+      return;
+    }
+    const event = message.event as WorkflowEvent;
+    if (typeof event.runId !== "string") {
+      return;
+    }
+    const current = this.runsById.get(event.runId);
+    const next = reduceWorkflowEventIntoPersistedRunState(current, event);
+    this.runsById.set(event.runId, next);
+    this.prependWorkflowRun(next);
   }
 
   install(): void {
@@ -237,6 +262,19 @@ export class WorkflowDetailTestEnvironment {
     return latestConnection;
   }
 
+  /**
+   * When multiple mock sockets exist (e.g. reconnect or StrictMode), the active client may not be the
+   * last pushed connection. Prefer the most recent socket that sent subscribe for this workflow.
+   */
+  resolveSocketThatSubscribedToWorkflow(workflowId: string): WorkflowDetailSocketConnection {
+    const subscribeJson = JSON.stringify({ kind: "subscribe", roomId: workflowId });
+    const subscribed = this.socketConnections.filter((c) => c.sentMessages.includes(subscribeJson));
+    if (subscribed.length > 0) {
+      return subscribed.at(-1)!;
+    }
+    return this.latestSocket();
+  }
+
   expectCallCount(route: string, expectedCount: number): void {
     expect(this.callsByRoute.get(route) ?? 0).toBe(expectedCount);
   }
@@ -259,6 +297,9 @@ export class WorkflowDetailTestEnvironment {
   }
 
   private async handleRequest(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    if (init?.signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
     const url = new URL(
       typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
       window.location.origin,
