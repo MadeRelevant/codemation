@@ -1,64 +1,24 @@
-import { CodemationPluginDiscovery } from "@codemation/host/server";
-import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { ConsumerBuildArtifactsPublisher } from "./build/ConsumerBuildArtifactsPublisher";
 import { ConsumerBuildOptionsParser } from "./build/ConsumerBuildOptionsParser";
 import { BuildCommand } from "./commands/BuildCommand";
 import { DevCommand } from "./commands/DevCommand";
 import { ServeWebCommand } from "./commands/ServeWebCommand";
 import { ServeWorkerCommand } from "./commands/ServeWorkerCommand";
 import { UserCreateCommand } from "./commands/UserCreateCommand";
-import { ConsumerEnvLoader } from "./consumer/ConsumerEnvLoader";
-import { ConsumerOutputBuilderLoader } from "./consumer/Loader";
-import { DevSessionServicesBuilder } from "./dev/Builder";
-import { DevLockFactory } from "./dev/Factory";
-import { DevSourceWatcherFactory } from "./dev/Runner";
-import { CliPathResolver } from "./path/CliPathResolver";
-import { ListenPortResolver } from "./runtime/ListenPortResolver";
-import { SourceMapNodeOptions } from "./runtime/SourceMapNodeOptions";
-import { TypeScriptRuntimeConfigurator } from "./runtime/TypeScriptRuntimeConfigurator";
-import { LocalUserCreator } from "./user/LocalUserCreator";
-
-const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
 
 export class CliProgram {
-  private readonly buildOptionsParser = new ConsumerBuildOptionsParser();
-
   constructor(
-    private readonly buildCommand: BuildCommand = new BuildCommand(
-      loggerFactory.create("codemation-cli"),
-      new CliPathResolver(),
-      new CodemationPluginDiscovery(),
-      new ConsumerBuildArtifactsPublisher(),
-      new TypeScriptRuntimeConfigurator(),
-      new ConsumerOutputBuilderLoader(),
-    ),
-    private readonly devCommand: DevCommand = new DevCommand(
-      new CliPathResolver(),
-      new CodemationPluginDiscovery(),
-      new TypeScriptRuntimeConfigurator(),
-      new DevLockFactory(),
-      new DevSourceWatcherFactory(),
-      loggerFactory.create("codemation-cli"),
-      new DevSessionServicesBuilder(loggerFactory).build(),
-    ),
-    private readonly serveWebCommand: ServeWebCommand = new ServeWebCommand(
-      new CliPathResolver(),
-      new CodemationPluginDiscovery(),
-      new ConsumerBuildArtifactsPublisher(),
-      new TypeScriptRuntimeConfigurator(),
-      new SourceMapNodeOptions(),
-      new ConsumerOutputBuilderLoader(),
-      new ConsumerEnvLoader(),
-      new ListenPortResolver(),
-    ),
-    private readonly serveWorkerCommand: ServeWorkerCommand = new ServeWorkerCommand(new SourceMapNodeOptions()),
-    private readonly userCreateCommand: UserCreateCommand = new UserCreateCommand(new LocalUserCreator()),
+    private readonly buildOptionsParser: ConsumerBuildOptionsParser,
+    private readonly buildCommand: BuildCommand,
+    private readonly devCommand: DevCommand,
+    private readonly serveWebCommand: ServeWebCommand,
+    private readonly serveWorkerCommand: ServeWorkerCommand,
+    private readonly userCreateCommand: UserCreateCommand,
   ) {}
 
   async run(argv: ReadonlyArray<string>): Promise<void> {

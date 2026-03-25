@@ -31,6 +31,10 @@ For architectural boundaries and tooling, **`AGENTS.md`** remains the canonical 
   - No `new`ing dependencies inside service/domain classes; dependencies arrive via **constructor injection**.
   - Prefer **class tokens** or **stable symbols** for DI resolution; avoid runtime string names.
   - Constructors should be cheap and side-effect free; do work in explicit methods (e.g. `execute`, `run`, `handle`).
+- **Packages that do not use tsyringe** (thin entrypoints such as **`@codemation/cli`**):
+  - **No** requirement to mirror the host’s container: wire collaborators in **one composition-root module** (repo ESLint treats `*Factory.ts`, `Program.ts`, `*Bootstrap.ts`, `bin/*`, etc. as composition roots).
+  - Keep **constructor injection** on commands, coordinators, and services; **do not** embed large default-parameter object graphs on the program class—**centralize** `new` wiring in that composition root.
+  - **Do not** use this as an excuse to skip tests or to add hidden globals; it only relaxes **tsyringe/container parity**, not TDD or OOP export rules.
 - **Strict TypeScript**:
   - Avoid `any` (and `unknown` without narrowing).
   - Prefer explicit types at boundaries: public methods, exports, interfaces.
@@ -104,7 +108,7 @@ For architectural boundaries and tooling, **`AGENTS.md`** remains the canonical 
 2. Model seams as **interfaces** (ports) and **classes** (adapters/implementations).
 3. Keep business rules in classes that depend only on abstractions.
 4. Choose GoF patterns only where they remove duplication or isolate change.
-5. Ensure new code can be registered/resolved by the DI container (constructor injection; stable tokens).
+5. **Where the package uses tsyringe** (e.g. engine/host bootstrap): register/resolve via the container. **Otherwise**: wire dependencies in a composition-root file (Factory/Program/Bootstrap) with constructor-injected collaborators—no container required.
 6. **Write or update tests first** (TDD), then implement; finish with **coverage** and **outcome-level assertions**.
 7. **Reuse factories, testkits, and harnesses** for arrange/setup; add new shared helpers when duplication appears.
 
@@ -192,7 +196,7 @@ For more detailed guidance and examples, see `gof.md`.
 
 - **No top-level functions** exist in new/changed files (unless repo tooling explicitly exempts the file).
 - **No exported functions** exist in new/changed files (same caveat).
-- **All external effects** (time, IO, network, crypto, queues, persistence) are behind injected dependencies.
+- **All external effects** (time, IO, network, crypto, queues, persistence) are behind injected dependencies (or composed only in an explicit composition root for thin packages that do not use tsyringe).
 - **No concrete infra imports** inside core logic.
 - **Tests exist** for new behavior or regressions; **TDD** was used where practical.
 - **Coverage**: changed areas are not left largely untested; **~80%** target is met for new/changed code where feasible.
