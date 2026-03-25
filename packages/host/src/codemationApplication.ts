@@ -260,6 +260,13 @@ export class CodemationApplication {
   ): Promise<void> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
     await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
+    // Same port/bind tokens as prepareFrontendServerContainer so WorkflowWebsocketServer / relay can be
+    // resolved during stopFrontendServerContainer without starting presentation servers.
+    this.container.registerInstance(ApplicationTokens.WebSocketPort, this.resolveWebSocketPort(effectiveEnv));
+    this.container.registerInstance(
+      ApplicationTokens.WebSocketBindHost,
+      effectiveEnv.CODEMATION_WS_BIND_HOST ?? "0.0.0.0",
+    );
   }
 
   getCommandBus(): CommandBus {

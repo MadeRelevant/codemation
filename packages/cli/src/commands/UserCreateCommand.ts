@@ -1,10 +1,11 @@
-import path from "node:path";
-import process from "node:process";
-
 import { LocalUserCreator, type LocalUserCreateOptions } from "../user/LocalUserCreator";
+import type { UserAdminCliOptionsParser } from "../user/UserAdminCliOptionsParser";
 
 export class UserCreateCommand {
-  constructor(private readonly localUserCreator: LocalUserCreator) {}
+  constructor(
+    private readonly localUserCreator: LocalUserCreator,
+    private readonly userAdminCliOptionsParser: UserAdminCliOptionsParser,
+  ) {}
 
   async execute(
     opts: Readonly<{
@@ -15,11 +16,7 @@ export class UserCreateCommand {
     }>,
   ): Promise<void> {
     const options: LocalUserCreateOptions = {
-      consumerRoot:
-        opts.consumerRoot !== undefined && opts.consumerRoot.trim().length > 0
-          ? path.resolve(process.cwd(), opts.consumerRoot.trim())
-          : undefined,
-      configPath: opts.config && opts.config.trim().length > 0 ? opts.config.trim() : undefined,
+      ...this.userAdminCliOptionsParser.parse(opts),
       email: opts.email,
       password: opts.password,
     };

@@ -1,9 +1,9 @@
-import { CodemationApplication, type CommandBus } from "@codemation/host";
+import { CodemationApplication, type CommandBus, type QueryBus } from "@codemation/host";
 import type { CodemationConsumerConfigResolution } from "@codemation/host/server";
 
 /**
- * Opens a {@link CodemationApplication} with persistence + command bus only (no HTTP/WebSocket servers),
- * for CLI tools that dispatch application commands (e.g. local user bootstrap).
+ * Opens a {@link CodemationApplication} with persistence + command/query buses (no HTTP/WebSocket servers),
+ * for CLI tools that dispatch application commands or queries (e.g. user admin).
  */
 export class CodemationCliApplicationSession {
   private constructor(private readonly application: CodemationApplication) {}
@@ -22,6 +22,10 @@ export class CodemationCliApplicationSession {
 
   getCommandBus(): CommandBus {
     return this.application.getCommandBus();
+  }
+
+  getQueryBus(): QueryBus {
+    return this.application.getQueryBus();
   }
 
   async close(): Promise<void> {

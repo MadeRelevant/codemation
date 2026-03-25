@@ -10,6 +10,7 @@ export default defineConfig({
     projects: [
       p("../../packages/queue-bullmq/vitest.config.ts"),
       p("../../packages/host/vitest.integration.config.ts"),
+      p("../../packages/cli/vitest.integration.config.ts"),
     ],
   },
 });

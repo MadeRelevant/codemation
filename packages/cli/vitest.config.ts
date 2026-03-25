@@ -6,6 +6,7 @@ export default defineConfig({
     root: import.meta.dirname,
     environment: "node",
     include: ["test/**/*.test.ts"],
+    exclude: ["**/*.integration.test.ts"],
     pool: "threads",
     testTimeout: 120_000,
   },

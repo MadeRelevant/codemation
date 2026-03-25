@@ -10,6 +10,7 @@ import { DevCommand } from "./commands/DevCommand";
 import { ServeWebCommand } from "./commands/ServeWebCommand";
 import { ServeWorkerCommand } from "./commands/ServeWorkerCommand";
 import { UserCreateCommand } from "./commands/UserCreateCommand";
+import { UserListCommand } from "./commands/UserListCommand";
 
 export class CliProgram {
   constructor(
@@ -19,6 +20,7 @@ export class CliProgram {
     private readonly serveWebCommand: ServeWebCommand,
     private readonly serveWorkerCommand: ServeWorkerCommand,
     private readonly userCreateCommand: UserCreateCommand,
+    private readonly userListCommand: UserListCommand,
   ) {}
 
   async run(argv: ReadonlyArray<string>): Promise<void> {
@@ -111,6 +113,17 @@ export class CliProgram {
           await this.userCreateCommand.execute(opts);
         },
       );
+
+    user
+      .command("list")
+      .description(
+        'List users in the database when CodemationConfig.auth.kind is "local". Uses DATABASE_URL or configured database URL.',
+      )
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .action(async (opts: Readonly<{ consumerRoot?: string; config?: string }>) => {
+        await this.userListCommand.execute(opts);
+      });
 
     await program.parseAsync(argv as string[], { from: "user" });
   }

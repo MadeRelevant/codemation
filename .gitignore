@@ -17,3 +17,4 @@ packages/host/src/infrastructure/persistence/generated
 packages/host/test/playwright/.e2e-prepared.json
 packages/host/test/playwright/.e2e-db-snapshot.json
 packages/host/test-results/
+packages/cli/test/integration-sandbox/

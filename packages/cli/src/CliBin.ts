@@ -1,9 +1,6 @@
-import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 import process from "node:process";
 
 import { CliProgramFactory } from "./CliProgramFactory";
-
-const binLogger = new ServerLoggerFactory(logLevelPolicyFactory).create("codemation-cli.bin");
 
 export class CliBin {
   static async run(argv: ReadonlyArray<string>): Promise<void> {
@@ -11,8 +8,9 @@ export class CliBin {
       const cli = new CliProgramFactory().create();
       await cli.run([...argv]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      binLogger.error(message);
+      // Always print to stderr: host ServerLogger respects CODEMATION_LOG_LEVEL=silent and would
+      // suppress logger.error here; Prisma/DB errors also need the full Error (message + stack).
+      console.error("codemation:", error);
       process.exitCode = 1;
     }
   }

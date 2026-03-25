@@ -8,6 +8,7 @@ import { DevCommand } from "./commands/DevCommand";
 import { ServeWebCommand } from "./commands/ServeWebCommand";
 import { ServeWorkerCommand } from "./commands/ServeWorkerCommand";
 import { UserCreateCommand } from "./commands/UserCreateCommand";
+import { UserListCommand } from "./commands/UserListCommand";
 import { ConsumerEnvLoader } from "./consumer/ConsumerEnvLoader";
 import { ConsumerOutputBuilderLoader } from "./consumer/Loader";
 import { DevSessionServicesBuilder } from "./dev/Builder";
@@ -19,6 +20,10 @@ import { ListenPortResolver } from "./runtime/ListenPortResolver";
 import { SourceMapNodeOptions } from "./runtime/SourceMapNodeOptions";
 import { TypeScriptRuntimeConfigurator } from "./runtime/TypeScriptRuntimeConfigurator";
 import { LocalUserCreator } from "./user/LocalUserCreator";
+import { CliDatabaseUrlDescriptor } from "./user/CliDatabaseUrlDescriptor";
+import { UserAdminCliBootstrap } from "./user/UserAdminCliBootstrap";
+import { UserAdminCliOptionsParser } from "./user/UserAdminCliOptionsParser";
+import { UserAdminConsumerDotenvLoader } from "./user/UserAdminConsumerDotenvLoader";
 
 const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
 
@@ -35,6 +40,12 @@ export class CliProgramFactory {
     const tsRuntime = new TypeScriptRuntimeConfigurator();
     const outputBuilderLoader = new ConsumerOutputBuilderLoader();
     const sourceMapNodeOptions = new SourceMapNodeOptions();
+    const userAdminBootstrap = new UserAdminCliBootstrap(
+      new CodemationConsumerConfigLoader(),
+      pathResolver,
+      new UserAdminConsumerDotenvLoader(),
+    );
+    const userAdminCliOptionsParser = new UserAdminCliOptionsParser();
 
     return new CliProgram(
       new ConsumerBuildOptionsParser(),
@@ -59,7 +70,8 @@ export class CliProgramFactory {
         new ListenPortResolver(),
       ),
       new ServeWorkerCommand(sourceMapNodeOptions),
-      new UserCreateCommand(new LocalUserCreator(new CodemationConsumerConfigLoader(), pathResolver)),
+      new UserCreateCommand(new LocalUserCreator(userAdminBootstrap), userAdminCliOptionsParser),
+      new UserListCommand(cliLogger, userAdminBootstrap, new CliDatabaseUrlDescriptor(), userAdminCliOptionsParser),
     );
   }
 }

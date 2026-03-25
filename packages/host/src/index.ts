@@ -1,5 +1,6 @@
 export type { CommandBus } from "./application/bus/CommandBus";
 export type { QueryBus } from "./application/bus/QueryBus";
+export { ListUserAccountsQuery } from "./application/queries/ListUserAccountsQuery";
 export { UpsertLocalBootstrapUserCommand } from "./application/commands/UpsertLocalBootstrapUserCommand";
 export type { UpsertLocalBootstrapUserResultDto } from "./application/contracts/userDirectoryContracts.types";
 export { CodemationApplication } from "./codemationApplication";
