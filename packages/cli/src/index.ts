@@ -1,8 +1,10 @@
-export { CodemationCliBin } from "./CodemationCliBin";
-export { CodemationCliPathResolver } from "./CodemationCliPathResolver";
-export { CodemationCli } from "./CodemationCliProgram";
-export { CodemationConsumerOutputBuilder } from "./CodemationConsumerOutputBuilder";
-export type { CodemationConsumerOutputBuildSnapshot } from "./CodemationConsumerOutputBuilder";
-export type { CodemationLocalUserCreateOptions } from "./CodemationLocalUserCreator";
-export { CodemationPluginDiscovery } from "@codemation/host/server";
+export { CliBin } from "./CliBin";
+export { CliPathResolver, type CliPaths } from "./path/CliPathResolver";
+export { CliProgram } from "./Program";
+export { ConsumerBuildOptionsParser } from "./build/ConsumerBuildOptionsParser";
+export { ConsumerOutputBuilder } from "./consumer/ConsumerOutputBuilder";
+export type { ConsumerOutputBuildSnapshot } from "./consumer/ConsumerOutputBuilder";
+export type { ConsumerBuildOptions, EcmaScriptBuildTarget } from "./consumer/consumerBuildOptions.types";
 export type { CodemationDiscoveredPluginPackage, CodemationResolvedPluginPackage } from "@codemation/host/server";
+export { CodemationPluginDiscovery } from "@codemation/host/server";
+export type { LocalUserCreateOptions } from "./user/LocalUserCreator";

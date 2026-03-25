@@ -2,20 +2,20 @@ import { mkdir, open, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
-type CodemationDevLockRecord = Readonly<{
+type DevLockRecord = Readonly<{
   pid: number;
   startedAt: string;
   consumerRoot: string;
   nextPort: number;
 }>;
 
-export class CodemationDevLock {
+export class DevLock {
   private lockPath: string | null = null;
 
   async acquire(args: Readonly<{ consumerRoot: string; nextPort: number }>): Promise<void> {
     const lockPath = this.resolveLockPath(args.consumerRoot);
     await mkdir(path.dirname(lockPath), { recursive: true });
-    const record: CodemationDevLockRecord = {
+    const record: DevLockRecord = {
       pid: process.pid,
       startedAt: new Date().toISOString(),
       consumerRoot: args.consumerRoot,
@@ -66,10 +66,10 @@ export class CodemationDevLock {
     }
   }
 
-  private async readExistingRecord(lockPath: string): Promise<CodemationDevLockRecord | null> {
+  private async readExistingRecord(lockPath: string): Promise<DevLockRecord | null> {
     try {
       const raw = await readFile(lockPath, "utf8");
-      const parsed = JSON.parse(raw) as Partial<CodemationDevLockRecord>;
+      const parsed = JSON.parse(raw) as Partial<DevLockRecord>;
       if (
         typeof parsed.pid !== "number" ||
         typeof parsed.startedAt !== "string" ||
@@ -78,7 +78,7 @@ export class CodemationDevLock {
       ) {
         return null;
       }
-      return parsed as CodemationDevLockRecord;
+      return parsed as DevLockRecord;
     } catch {
       return null;
     }

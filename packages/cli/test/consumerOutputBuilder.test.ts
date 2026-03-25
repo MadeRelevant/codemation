@@ -5,10 +5,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, beforeEach, test } from "vitest";
 
-import {
-  CodemationConsumerOutputBuilder,
-  type CodemationConsumerOutputBuildSnapshot,
-} from "../src/CodemationConsumerOutputBuilder";
+import { ConsumerOutputBuilder, type ConsumerOutputBuildSnapshot } from "../src/consumer/ConsumerOutputBuilder";
 
 // When the dev/watch pipeline and test environment have stabilized, refactor this suite so it does not
 // rely on chokidar polling, debounce windows, and long wall-clock waits; the goal is faster, tighter tests.
@@ -29,7 +26,7 @@ function workflowSource(name: string): string {
 }
 
 let teardownConsumerRoot: string | null = null;
-let teardownBuilder: CodemationConsumerOutputBuilder | null = null;
+let teardownBuilder: ConsumerOutputBuilder | null = null;
 
 let previousChokidarPolling: string | undefined;
 
@@ -54,7 +51,7 @@ afterEach(async () => {
   }
 });
 
-test("ensureBuilt writes revision output, manifest path, and entry index", async () => {
+test("ensureBuilt writes build output, manifest path, and entry index", async () => {
   const consumerRoot = await mkdtemp(path.join(os.tmpdir(), "codemation-cli-consumer-"));
   teardownConsumerRoot = consumerRoot;
   await writeFile(path.join(consumerRoot, "codemation.config.ts"), fixtureConfig, "utf8");
@@ -62,7 +59,7 @@ test("ensureBuilt writes revision output, manifest path, and entry index", async
   await mkdir(path.dirname(workflowPath), { recursive: true });
   await writeFile(workflowPath, workflowSource("Fixture one"), "utf8");
 
-  const builder = new CodemationConsumerOutputBuilder(consumerRoot);
+  const builder = new ConsumerOutputBuilder(consumerRoot);
   const snapshot = await builder.ensureBuilt();
 
   assert.match(snapshot.buildVersion, /^\d+-\d+$/);
@@ -71,7 +68,7 @@ test("ensureBuilt writes revision output, manifest path, and entry index", async
   const indexText = await readFile(snapshot.outputEntryPath, "utf8");
   assert.match(indexText, /codemationConsumerBuildVersion/);
   assert.match(indexText, /workflowModule0/);
-  const emittedWorkflow = path.join(snapshot.revisionOutputRoot, "app", "src", "workflows", "fixture.js");
+  const emittedWorkflow = path.join(snapshot.emitOutputRoot, "app", "src", "workflows", "fixture.js");
   assert.match(await readFile(emittedWorkflow, "utf8"), /wf\.cli\.fixture/);
   assert.ok(snapshot.manifestPath.endsWith("current.json"), "snapshot points at manifest path for CLI publish step");
 });
@@ -84,14 +81,14 @@ test("watch rebuild updates workflow output after a single file change (incremen
   await mkdir(path.dirname(workflowPath), { recursive: true });
   await writeFile(workflowPath, workflowSource("Fixture one"), "utf8");
 
-  const builder = new CodemationConsumerOutputBuilder(consumerRoot);
+  const builder = new ConsumerOutputBuilder(consumerRoot);
   teardownBuilder = builder;
   const first = await builder.ensureBuilt();
-  const emittedWorkflowJs = path.join(first.revisionOutputRoot, "app", "src", "workflows", "fixture.js");
+  const emittedWorkflowJs = path.join(first.emitOutputRoot, "app", "src", "workflows", "fixture.js");
   assert.match(await readFile(emittedWorkflowJs, "utf8"), /Fixture one/);
 
   const watchBuilds: Array<{ buildVersion: string }> = [];
-  let watchSnapshot: CodemationConsumerOutputBuildSnapshot | undefined;
+  let watchSnapshot: ConsumerOutputBuildSnapshot | undefined;
   await builder.ensureWatching({
     onBuildFailed: async (error) => {
       assert.fail(`watch consumer build failed: ${error.message}`);
@@ -111,6 +108,6 @@ test("watch rebuild updates workflow output after a single file change (incremen
   assert.equal(watchBuilds.length, 1, "expected one watch-triggered build");
   assert.notEqual(watchBuilds[0].buildVersion, first.buildVersion);
   assert.ok(watchSnapshot);
-  const emittedAfter = path.join(watchSnapshot.revisionOutputRoot, "app", "src", "workflows", "fixture.js");
+  const emittedAfter = path.join(watchSnapshot.emitOutputRoot, "app", "src", "workflows", "fixture.js");
   assert.match(await readFile(emittedAfter, "utf8"), /Fixture two/);
 });

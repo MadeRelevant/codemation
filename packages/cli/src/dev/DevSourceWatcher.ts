@@ -2,7 +2,7 @@ import type { FSWatcher } from "chokidar";
 import { watch } from "chokidar";
 import path from "node:path";
 
-export class CodemationDevSourceWatcher {
+export class DevSourceWatcher {
   private static readonly ignoredDirectoryNames = new Set([
     ".codemation",
     ".git",
@@ -72,9 +72,7 @@ export class CodemationDevSourceWatcher {
 
   private isIgnoredPath(watchPath: string): boolean {
     const normalized = path.resolve(watchPath).replace(/\\/g, "/");
-    return normalized
-      .split("/")
-      .some((segment: string) => CodemationDevSourceWatcher.ignoredDirectoryNames.has(segment));
+    return normalized.split("/").some((segment: string) => DevSourceWatcher.ignoredDirectoryNames.has(segment));
   }
 
   private isRelevantPath(watchPath: string): boolean {

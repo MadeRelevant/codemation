@@ -1,5 +1,5 @@
 #!/usr/bin/env node
 import "reflect-metadata";
-import { CodemationCliBin } from "../src/CodemationCliBin";
+import { CliBin } from "../src/CliBin";
 
-void CodemationCliBin.run(process.argv.slice(2));
+void CliBin.run(process.argv.slice(2));

@@ -1,13 +1,13 @@
 import { access } from "node:fs/promises";
 import path from "node:path";
 
-export type CodemationCliPaths = Readonly<{
+export type CliPaths = Readonly<{
   consumerRoot: string;
   repoRoot: string;
 }>;
 
-export class CodemationCliPathResolver {
-  async resolve(consumerStartPath: string): Promise<CodemationCliPaths> {
+export class CliPathResolver {
+  async resolve(consumerStartPath: string): Promise<CliPaths> {
     const consumerRoot = path.resolve(consumerStartPath);
     const repoRoot = await this.detectWorkspaceRoot(consumerRoot);
     return {

@@ -6,19 +6,19 @@ import { config as loadDotenv } from "dotenv";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-export type CodemationLocalUserCreateOptions = Readonly<{
+export type LocalUserCreateOptions = Readonly<{
   consumerRoot?: string;
   configPath?: string;
   email: string;
   password: string;
 }>;
 
-export class CodemationLocalUserCreator {
+export class LocalUserCreator {
   private readonly log = new ServerLoggerFactory(logLevelPolicyFactory).create("codemation-cli.user");
 
   constructor(private readonly configLoader: CodemationConsumerConfigLoader = new CodemationConsumerConfigLoader()) {}
 
-  async run(options: CodemationLocalUserCreateOptions): Promise<void> {
+  async run(options: LocalUserCreateOptions): Promise<void> {
     const consumerRoot = options.consumerRoot ?? process.cwd();
     this.loadConsumerDotenv(consumerRoot);
     this.applyWorkspaceTsconfigForTsxIfPresent(consumerRoot);
