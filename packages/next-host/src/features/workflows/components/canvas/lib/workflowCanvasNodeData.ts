@@ -19,6 +19,10 @@ export type WorkflowCanvasNodeData = Readonly<{
   hasNodeErrorHandler?: boolean;
   /** When set, show a credential warning icon with this tooltip (required slot unbound). */
   credentialAttentionTooltip?: string;
+  /** Distinct source output port names on this node (for multi-handle Right routing). */
+  sourceOutputPorts: readonly string[];
+  /** Distinct target input port names on this node (for multi-handle Left routing). */
+  targetInputPorts: readonly string[];
   onSelectNode: (nodeId: string) => void;
   onOpenPropertiesNode: (nodeId: string) => void;
   onRunNode: (nodeId: string) => void;

@@ -6,6 +6,9 @@ import type { WorkflowDto } from "../../../lib/realtime/workflowTypes";
 import type { WorkflowCanvasNodeData } from "./workflowCanvasNodeData";
 import { WorkflowCanvasEdgeCountResolver } from "./WorkflowCanvasEdgeCountResolver";
 import { WorkflowCanvasEdgeStyleResolver } from "./WorkflowCanvasEdgeStyleResolver";
+import { WORKFLOW_CANVAS_MAIN_EDGE_CORNER_RADIUS,WORKFLOW_CANVAS_MAIN_EDGE_OFFSET } from "./workflowCanvasEdgeGeometry";
+import { WorkflowCanvasOverlapResolver } from "./WorkflowCanvasOverlapResolver";
+import { WorkflowCanvasPortOrderResolver } from "./WorkflowCanvasPortOrderResolver";
 
 export function layoutWorkflow(
   workflow: WorkflowDto,
@@ -27,15 +30,14 @@ export function layoutWorkflow(
 ): Readonly<{ nodes: ReactFlowNode<WorkflowCanvasNodeData>[]; edges: ReactFlowEdge[] }> {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: "LR", ranksep: 72, nodesep: 28, edgesep: 12 });
+  dagreGraph.setGraph({ rankdir: "LR", ranksep: 96, nodesep: 44, edgesep: 16 });
 
   const nodeWidth = 196;
-  const nodeHeight = 54;
+  const nodeHeight = 72;
   const attachmentNodeWidth = 144;
-  const attachmentNodeHeight = 54;
-  const branchSpacing = nodeHeight + 28;
-  const attachmentYOffset = 118;
-  const attachmentXSpacing = attachmentNodeWidth + 26;
+  const attachmentNodeHeight = 72;
+  const attachmentYOffset = 138;
+  const attachmentXSpacing = attachmentNodeWidth + 32;
   const layoutNodes = workflow.nodes.filter((node) => !node.parentNodeId);
   const layoutNodeIds = new Set(layoutNodes.map((node) => node.id));
   const layoutEdges = workflow.edges.filter((edge) => layoutNodeIds.has(edge.from.nodeId) && layoutNodeIds.has(edge.to.nodeId));
@@ -53,58 +55,6 @@ export function layoutWorkflow(
   for (const node of layoutNodes) {
     const position = dagreGraph.node(node.id) as { x: number; y: number } | undefined;
     positionsByNodeId.set(node.id, { x: position?.x ?? 0, y: position?.y ?? 0 });
-  }
-
-  const outgoingNodeIdsByNodeId = new Map<string, string[]>();
-  const incomingNodeIdsByNodeId = new Map<string, string[]>();
-  for (const edge of layoutEdges) {
-    const outgoing = outgoingNodeIdsByNodeId.get(edge.from.nodeId) ?? [];
-    outgoing.push(edge.to.nodeId);
-    outgoingNodeIdsByNodeId.set(edge.from.nodeId, outgoing);
-
-    const incoming = incomingNodeIdsByNodeId.get(edge.to.nodeId) ?? [];
-    incoming.push(edge.from.nodeId);
-    incomingNodeIdsByNodeId.set(edge.to.nodeId, incoming);
-  }
-
-  for (const node of layoutNodes) {
-    const childNodeIds = outgoingNodeIdsByNodeId.get(node.id) ?? [];
-    if (childNodeIds.length < 2) continue;
-
-    const parentPosition = positionsByNodeId.get(node.id);
-    if (!parentPosition) continue;
-
-    const orderedChildNodeIds = [...childNodeIds].sort((leftNodeId, rightNodeId) => {
-      const leftY = positionsByNodeId.get(leftNodeId)?.y ?? 0;
-      const rightY = positionsByNodeId.get(rightNodeId)?.y ?? 0;
-      return leftY - rightY;
-    });
-
-    orderedChildNodeIds.forEach((childNodeId, index) => {
-      const childPosition = positionsByNodeId.get(childNodeId);
-      if (!childPosition) return;
-
-      positionsByNodeId.set(childNodeId, {
-        x: childPosition.x,
-        y: parentPosition.y + (index - (orderedChildNodeIds.length - 1) / 2) * branchSpacing,
-      });
-    });
-  }
-
-  for (const node of layoutNodes) {
-    const parentNodeIds = incomingNodeIdsByNodeId.get(node.id) ?? [];
-    if (parentNodeIds.length < 2) continue;
-
-    const nodePosition = positionsByNodeId.get(node.id);
-    if (!nodePosition) continue;
-
-    const averageParentY =
-      parentNodeIds.reduce((sum, parentNodeId) => sum + (positionsByNodeId.get(parentNodeId)?.y ?? nodePosition.y), 0) / parentNodeIds.length;
-
-    positionsByNodeId.set(node.id, {
-      x: nodePosition.x,
-      y: averageParentY,
-    });
   }
 
   const attachmentNodesByParentNodeId = new Map<string, WorkflowDto["nodes"]>();
@@ -131,11 +81,44 @@ export function layoutWorkflow(
     });
   }
 
+  const widthByNodeId = new Map<string, number>();
+  const heightByNodeId = new Map<string, number>();
+  for (const n of workflow.nodes) {
+    widthByNodeId.set(n.id, n.parentNodeId ? attachmentNodeWidth : nodeWidth);
+    heightByNodeId.set(n.id, n.parentNodeId ? attachmentNodeHeight : nodeHeight);
+  }
+  const resolvedPositions = WorkflowCanvasOverlapResolver.resolve({
+    positionsByNodeId,
+    widthByNodeId,
+    heightByNodeId,
+    gap: 10,
+  });
+  for (const [id, pos] of resolvedPositions) {
+    positionsByNodeId.set(id, pos);
+  }
+
+  const outgoingOutputsByNodeId = new Map<string, Set<string>>();
+  const incomingInputsByNodeId = new Map<string, Set<string>>();
+  for (const edge of workflow.edges) {
+    if (!outgoingOutputsByNodeId.has(edge.from.nodeId)) {
+      outgoingOutputsByNodeId.set(edge.from.nodeId, new Set());
+    }
+    outgoingOutputsByNodeId.get(edge.from.nodeId)!.add(edge.from.output);
+    if (!incomingInputsByNodeId.has(edge.to.nodeId)) {
+      incomingInputsByNodeId.set(edge.to.nodeId, new Set());
+    }
+    incomingInputsByNodeId.get(edge.to.nodeId)!.add(edge.to.input);
+  }
+
   const nodes: ReactFlowNode<WorkflowCanvasNodeData>[] = workflow.nodes.map((n) => {
     const pos = positionsByNodeId.get(n.id);
     const label = n.name ?? n.type ?? n.id;
     const resolvedNodeWidth = n.parentNodeId ? attachmentNodeWidth : nodeWidth;
     const resolvedNodeHeight = n.parentNodeId ? attachmentNodeHeight : nodeHeight;
+    const rawOut = outgoingOutputsByNodeId.get(n.id);
+    const rawIn = incomingInputsByNodeId.get(n.id);
+    const sourceOutputPorts = WorkflowCanvasPortOrderResolver.sortSourceOutputs(rawOut && rawOut.size > 0 ? [...rawOut] : ["main"]);
+    const targetInputPorts = WorkflowCanvasPortOrderResolver.sortTargetInputs(rawIn && rawIn.size > 0 ? [...rawIn] : ["in"]);
     return {
       id: n.id,
       type: "codemation",
@@ -165,6 +148,8 @@ export function layoutWorkflow(
         retryPolicySummary: n.retryPolicySummary,
         hasNodeErrorHandler: n.hasNodeErrorHandler,
         credentialAttentionTooltip: credentialAttentionTooltipByNodeId.get(n.id),
+        sourceOutputPorts,
+        targetInputPorts,
         onSelectNode,
         onOpenPropertiesNode,
         onRunNode,
@@ -184,6 +169,10 @@ export function layoutWorkflow(
     const isAttachmentEdge = targetNode?.role === "languageModel" || targetNode?.role === "tool";
     const attachmentSourceHandle =
       targetNode?.role === "languageModel" ? "attachment-llm-source" : targetNode?.role === "tool" ? "attachment-tools-source" : undefined;
+    const outgoingFromSourceCount = outgoingOutputsByNodeId.get(e.from.nodeId)?.size ?? 0;
+    const incomingToTargetCount = incomingInputsByNodeId.get(e.to.nodeId)?.size ?? 0;
+    const useSharedBranchSourceHandle = !isAttachmentEdge && outgoingFromSourceCount > 1;
+    const useSharedBranchTargetHandle = !isAttachmentEdge && incomingToTargetCount > 1;
     const sourcePosition = positionsByNodeId.get(e.from.nodeId);
     const targetPosition = positionsByNodeId.get(e.to.nodeId);
     const isStraightMainEdge = !isAttachmentEdge && Math.abs((sourcePosition?.y ?? 0) - (targetPosition?.y ?? 0)) < 1;
@@ -204,19 +193,35 @@ export function layoutWorkflow(
       edgeItemCount,
       isAttachmentEdge,
     });
+    const mainSourceHandle = isAttachmentEdge
+      ? attachmentSourceHandle
+      : useSharedBranchSourceHandle
+        ? undefined
+        : e.from.output;
+    const mainTargetHandle = isAttachmentEdge ? "attachment-target" : useSharedBranchTargetHandle ? undefined : e.to.input;
+    const isForkOutgoingEdge = !isAttachmentEdge && !isStraightMainEdge && outgoingFromSourceCount > 1;
     return {
       id: `${e.from.nodeId}:${e.from.output}->${e.to.nodeId}:${e.to.input}:${i}`,
       source: e.from.nodeId,
       target: e.to.nodeId,
-      sourceHandle: isAttachmentEdge ? attachmentSourceHandle : undefined,
-      targetHandle: isAttachmentEdge ? "attachment-target" : undefined,
+      sourceHandle: mainSourceHandle,
+      targetHandle: mainTargetHandle,
       animated: false,
-      type: isAttachmentEdge ? "smoothstep" : isStraightMainEdge ? "straightCount" : "step",
+      type: isAttachmentEdge ? "smoothstep" : isStraightMainEdge ? "straightCount" : isForkOutgoingEdge ? "symmetricFork" : "smoothstep",
+      pathOptions:
+        isAttachmentEdge || isStraightMainEdge || isForkOutgoingEdge
+          ? undefined
+          : {
+              borderRadius: WORKFLOW_CANVAS_MAIN_EDGE_CORNER_RADIUS,
+              offset: WORKFLOW_CANVAS_MAIN_EDGE_OFFSET,
+              stepPosition: 0.5,
+            },
       style: {
         stroke: edgeStroke,
         strokeWidth: isAttachmentEdge ? 1.35 : 1.5,
         strokeDasharray: isAttachmentEdge ? "2 6" : undefined,
-        strokeLinecap: isAttachmentEdge ? "round" : undefined,
+        strokeLinecap: isAttachmentEdge ? "round" : "round",
+        strokeLinejoin: isAttachmentEdge ? undefined : "round",
       },
       label: edgeLabel,
       labelStyle: {
@@ -235,7 +240,7 @@ export function layoutWorkflow(
         fillOpacity: 1,
       },
       labelBgPadding: isAttachmentEdge ? [4, 2] : [6, 3],
-      labelBgBorderRadius: 0,
+      labelBgBorderRadius: 4,
       markerEnd: isAttachmentEdge
         ? undefined
         : {

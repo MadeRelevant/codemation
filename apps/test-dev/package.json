@@ -20,6 +20,8 @@
     "@codemation/eventbus-redis": "workspace:*",
     "@codemation/host": "workspace:*",
     "@codemation/node-example": "workspace:*",
+    "@azure/ai-content-understanding": "^1.0.0",
+    "@azure/core-auth": "^1.10.1",
     "@codemation/queue-bullmq": "workspace:*",
     "@codemation/worker-cli": "workspace:*",
     "dotenv": "^17.3.1",

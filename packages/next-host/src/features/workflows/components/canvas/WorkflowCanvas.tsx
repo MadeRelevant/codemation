@@ -213,7 +213,7 @@ export function WorkflowCanvas(args: {
           zoomOnScroll
           panOnScroll
         >
-          <Background gap={18} size={1} color="#e5e7eb" />
+          <Background gap={22} size={1.1} color="#d9e0ea" />
           <Controls showInteractive={false} position="bottom-left" />
         </ReactFlow>
       ) : null}

@@ -24,17 +24,25 @@ export function WorkflowCanvasCodemationNodeCard(props: Readonly<{ data: Workflo
         alignItems: "center",
         gap: isAttachment ? 8 : 10,
         height: "100%",
-        padding: isAttachment ? "0 10px" : "0 10px",
-        borderRadius: 0,
-        border: isActive ? "1px solid transparent" : isPinned ? "1px solid #7c3aed" : isSelected ? "1px solid #111827" : isPropertiesTarget ? "1px solid #7c3aed" : "1px solid #d1d5db",
-        background: isSelected ? (isAttachment ? "#fffaf0" : "#fffdf5") : isPropertiesTarget ? "#faf5ff" : isPinned ? "#faf5ff" : isAttachment ? "#fcfcfd" : "white",
+        padding: isAttachment ? "6px 10px" : "8px 12px",
+        borderRadius: 8,
+        border: isActive
+          ? "1px solid transparent"
+          : isPinned
+            ? "1px solid #6d28d9"
+            : isSelected
+              ? "1px solid #111827"
+              : isPropertiesTarget
+                ? "1px solid #7c3aed"
+                : "1px solid #e2e8f0",
+        background: isSelected ? (isAttachment ? "#fffaf0" : "#fffdf5") : isPropertiesTarget ? "#faf5ff" : isPinned ? "#f5f3ff" : isAttachment ? "#f8fafc" : "#ffffff",
         boxShadow: isActive
-          ? "0 2px 6px rgba(15,23,42,0.05)"
+          ? "0 1px 2px rgba(15,23,42,0.06), 0 4px 14px rgba(15,23,42,0.06)"
           : isSelected
-            ? "0 0 0 1px rgba(245,158,11,0.45) inset, 0 2px 10px rgba(15,23,42,0.08)"
+            ? "0 0 0 1px rgba(245,158,11,0.4) inset, 0 4px 16px rgba(15,23,42,0.1)"
             : isPropertiesTarget || isPinned
-              ? "0 0 0 1px rgba(124,58,237,0.22) inset, 0 2px 10px rgba(124,58,237,0.08)"
-              : "0 2px 6px rgba(15,23,42,0.05)",
+              ? "0 0 0 1px rgba(124,58,237,0.18) inset, 0 4px 14px rgba(91,33,182,0.08)"
+              : "0 1px 2px rgba(15,23,42,0.05), 0 3px 10px rgba(15,23,42,0.06)",
         position: "relative",
         overflow: "visible",
       }}
@@ -49,11 +57,11 @@ export function WorkflowCanvasCodemationNodeCard(props: Readonly<{ data: Workflo
         style={{
           width: isAttachment ? 24 : 26,
           height: isAttachment ? 24 : 26,
-          borderRadius: 0,
-          background: isAttachment ? "#f1f5f9" : "#f8fafc",
+          borderRadius: 7,
+          background: isAttachment ? "#eef2f7" : "#f1f5f9",
           display: "grid",
           placeItems: "center",
-          color: "#111827",
+          color: "#0f172a",
           flex: "0 0 auto",
         }}
       >
@@ -64,7 +72,7 @@ export function WorkflowCanvasCodemationNodeCard(props: Readonly<{ data: Workflo
           style={{
             fontWeight: 800,
             fontSize: isAttachment ? 12 : 13,
-            lineHeight: 1.2,
+            lineHeight: 1.28,
             overflow: "hidden",
             textOverflow: "ellipsis",
             display: "-webkit-box",

@@ -27,6 +27,7 @@ export function CodemationNode({ data }: { data: WorkflowCanvasNodeData }) {
   const activityRingStyle: CSSProperties = {
     position: "absolute",
     inset: -4,
+    borderRadius: 12,
     pointerEvents: "none",
     opacity: isRunning ? 1 : 0.75,
     padding: 2,
@@ -82,8 +83,8 @@ export function CodemationNode({ data }: { data: WorkflowCanvasNodeData }) {
       }}
       style={{
         width: isAttachment ? 144 : 196,
-        height: 54,
-        borderRadius: 0,
+        height: 72,
+        borderRadius: 8,
         background: "transparent",
         boxShadow: "none",
         position: "relative",
@@ -101,7 +102,12 @@ export function CodemationNode({ data }: { data: WorkflowCanvasNodeData }) {
         isRunning={isRunning}
         isSelected={isSelected}
       />
-      <WorkflowCanvasCodemationNodeHandles isAgent={isAgent} isAttachment={isAttachment} />
+      <WorkflowCanvasCodemationNodeHandles
+        isAgent={isAgent}
+        isAttachment={isAttachment}
+        sourceOutputPorts={data.sourceOutputPorts}
+        targetInputPorts={data.targetInputPorts}
+      />
       <WorkflowCanvasCodemationNodeCard TypeIcon={TypeIcon} data={data} />
       {showsCanvasControls ? (
         <WorkflowCanvasCodemationNodeToolbar

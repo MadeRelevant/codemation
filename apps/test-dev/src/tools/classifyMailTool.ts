@@ -9,7 +9,7 @@ import { inject,tool } from "@codemation/core";
 import { z } from "zod";
 
 
-import { TestDevMailKeywordCatalog } from "../bootstrap/TestDevMailKeywordCatalog";
+import { MailKeywordCatalog } from "../MailKeywordCatalog";
 
 import type { ClassifyMailToolConfig } from "./ClassifyMailToolConfig";
 
@@ -34,8 +34,8 @@ export class ClassifyMailTool implements Tool<ClassifyMailToolConfig, typeof cla
   readonly outputSchema = classifyMailOutputSchema;
 
   constructor(
-    @inject(TestDevMailKeywordCatalog)
-    private readonly mailKeywordCatalog: TestDevMailKeywordCatalog,
+    @inject(MailKeywordCatalog)
+    private readonly mailKeywordCatalog: MailKeywordCatalog,
   ) {}
 
   async execute(args: ToolExecuteArgs<ClassifyMailToolConfig, z.input<typeof classifyMailInputSchema>>): Promise<z.output<typeof classifyMailOutputSchema>> {

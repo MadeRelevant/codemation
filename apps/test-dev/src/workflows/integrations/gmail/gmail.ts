@@ -1,9 +1,9 @@
-import { Callback,createWorkflowBuilder } from "@codemation/core-nodes";
-import { OnNewGmailTrigger,type OnNewGmailTriggerItemJson } from "@codemation/core-nodes-gmail/nodes/OnNewGmailTrigger";
-import { TestDevGmailEnvironment } from "../../../bootstrap/TestDevGmailEnvironment";
+import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
+import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "@codemation/core-nodes-gmail/nodes/OnNewGmailTrigger";
 
-const gmailEnvironment = new TestDevGmailEnvironment();
-const gmailTriggerConfiguration = gmailEnvironment.resolveTriggerConfiguration();
+import { GmailTriggerEnvReader } from "../../../gmail/GmailTriggerEnvReader";
+
+const gmailTriggerConfiguration = new GmailTriggerEnvReader().readTriggerConfiguration();
 
 type GmailWorkflowResultJson = Readonly<{
   mailbox: string;

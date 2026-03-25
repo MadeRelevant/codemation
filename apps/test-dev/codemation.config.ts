@@ -1,11 +1,10 @@
-import type { CodemationAppSlots,CodemationConfig } from "@codemation/host";
+import type { CodemationAppSlots, CodemationConfig } from "@codemation/host";
 import { openAiApiKeyRegisteredCredentialType } from "@codemation/host/credentials";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { TestDevGmailEnvironment } from "./src/bootstrap/TestDevGmailEnvironment";
-import { TestDevMailKeywordCatalog } from "./src/bootstrap/TestDevMailKeywordCatalog";
-import { TestDevOdooEnvironment } from "./src/bootstrap/TestDevOdooEnvironment";
+import { MailKeywordCatalog } from "./src/MailKeywordCatalog";
+import { OdooDemoSettings } from "./src/OdooDemoSettings";
 import { TestDevLogo } from "./src/ui/testDevLogo";
 import { TestDevNavigation } from "./src/ui/testDevNavigation";
 
@@ -16,7 +15,6 @@ loadDotenv({
 
 const useRedisRuntime = Boolean(process.env.REDIS_URL);
 const databaseUrl = process.env.DATABASE_URL;
-const gmailEnvironment = new TestDevGmailEnvironment();
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required for the test-dev app. Configure a PostgreSQL connection string in apps/test-dev/.env.");
 }
@@ -39,16 +37,12 @@ export const codemationHost = {
   },
   bindings: [
     {
-      token: TestDevGmailEnvironment,
-      useValue: gmailEnvironment,
+      token: MailKeywordCatalog,
+      useValue: new MailKeywordCatalog(["RFQ", "QUOTE", "QUOTATION", "RFP"]),
     },
     {
-      token: TestDevMailKeywordCatalog,
-      useValue: new TestDevMailKeywordCatalog(["RFQ", "QUOTE", "QUOTATION", "RFP"]),
-    },
-    {
-      token: TestDevOdooEnvironment,
-      useValue: new TestDevOdooEnvironment("https://demo.odoo.test"),
+      token: OdooDemoSettings,
+      useValue: new OdooDemoSettings(process.env.ODOO_DEMO_BASE_URL ?? "https://demo.odoo.test"),
     },
   ],
   workflowDiscovery: {
@@ -56,6 +50,49 @@ export const codemationHost = {
   },
   credentialTypes: [
     openAiApiKeyRegisteredCredentialType,
+    {
+      definition: {
+        typeId: "azureFoundry.contentUnderstandingApiKey",
+        displayName: "Azure AI Content Understanding (Foundry)",
+        description:
+          "Microsoft Foundry resource endpoint and API key for Azure AI Content Understanding (prebuilt analyzers such as prebuilt-invoice).",
+        publicFields: [
+          {
+            key: "endpoint",
+            label: "Endpoint",
+            type: "string",
+            required: true,
+            placeholder: "https://your-resource.services.ai.azure.com/",
+            helpText: "Microsoft Foundry / Azure AI endpoint (Portal → Keys and Endpoint).",
+          },
+        ],
+        secretFields: [{ key: "apiKey", label: "API key", type: "password", required: true }],
+        supportedSourceKinds: ["db", "env", "code"],
+      },
+      createSession: async (args) => {
+        const endpoint = String(args.publicConfig.endpoint ?? "").trim().replace(/\/+$/, "");
+        return {
+          endpoint,
+          apiKey: String(args.material.apiKey ?? ""),
+        };
+      },
+      test: async (args) => {
+        const endpoint = String(args.publicConfig.endpoint ?? "").trim();
+        const apiKey = String(args.material.apiKey ?? "").trim();
+        if (endpoint.length === 0 || apiKey.length === 0) {
+          return {
+            status: "failing" as const,
+            message: "Endpoint and API key are required.",
+            testedAt: new Date().toISOString(),
+          };
+        }
+        return {
+          status: "healthy" as const,
+          message: "Azure AI Content Understanding credential material is present.",
+          testedAt: new Date().toISOString(),
+        };
+      },
+    },
     {
       definition: {
         typeId: "odoo.demo",
@@ -70,14 +107,12 @@ export const codemationHost = {
         apiKey: String(args.material.apiKey ?? ""),
       }),
       test: async () => ({
-        status: "unknown",
+        status: "unknown" as const,
         testedAt: new Date().toISOString(),
       }),
     },
   ],
   runtime: {
-    // Optional: tighten engine defaults (merged with framework defaults; see CodemationEngineExecutionLimitsConfig).
-    // engineExecutionLimits: { hardMaxNodeActivations: 50_000, hardMaxSubworkflowDepth: 24 },
     database: {
       url: databaseUrl,
     },

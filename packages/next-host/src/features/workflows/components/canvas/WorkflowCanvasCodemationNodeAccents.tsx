@@ -19,7 +19,7 @@ export function WorkflowCanvasCodemationNodeAccents(props: Readonly<{
             style={{
               position: "absolute",
               inset: -8,
-              borderRadius: 0,
+              borderRadius: 12,
               pointerEvents: "none",
               boxShadow: `0 0 14px ${activityColor}33, 0 0 28px ${activityColor}22`,
               opacity: isRunning ? 0.85 : 0.48,
@@ -38,6 +38,7 @@ export function WorkflowCanvasCodemationNodeAccents(props: Readonly<{
           style={{
             position: "absolute",
             inset: 2,
+            borderRadius: 6,
             pointerEvents: "none",
             border: "2px solid #7c3aed",
             boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.78)",
@@ -51,6 +52,7 @@ export function WorkflowCanvasCodemationNodeAccents(props: Readonly<{
           style={{
             position: "absolute",
             inset: 4,
+            borderRadius: 5,
             pointerEvents: "none",
             border: "2px dashed #f59e0b",
             boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.85)",

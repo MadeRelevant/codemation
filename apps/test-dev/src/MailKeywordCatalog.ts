@@ -1,3 +1,3 @@
-export class TestDevMailKeywordCatalog {
+export class MailKeywordCatalog {
   constructor(public readonly keywords: ReadonlyArray<string>) {}
 }

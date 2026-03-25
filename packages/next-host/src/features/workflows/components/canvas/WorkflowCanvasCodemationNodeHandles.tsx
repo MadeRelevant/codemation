@@ -1,35 +1,73 @@
 import { Handle,Position } from "@xyflow/react";
 
-export function WorkflowCanvasCodemationNodeHandles(props: Readonly<{ isAttachment: boolean; isAgent: boolean }>) {
-  const { isAgent, isAttachment } = props;
+const HANDLE_BOX_STYLE = {
+  width: 8,
+  height: 8,
+  background: "#111827",
+  border: "1px solid white",
+} as const;
+
+/** Single centered handle on an edge so true/false (or merge inputs) share one symmetric opening. */
+const HANDLE_CENTERED_STYLE = {
+  ...HANDLE_BOX_STYLE,
+  top: "50%",
+} as const;
+
+export function WorkflowCanvasCodemationNodeHandles(props: Readonly<{
+  isAttachment: boolean;
+  isAgent: boolean;
+  sourceOutputPorts: readonly string[];
+  targetInputPorts: readonly string[];
+}>) {
+  const { isAgent, isAttachment, sourceOutputPorts, targetInputPorts } = props;
+
+  if (isAttachment) {
+    return (
+      <>
+        <Handle
+          type="target"
+          position={Position.Top}
+          id="attachment-target"
+          style={{ width: 8, height: 8, background: "#64748b", border: "1px solid white" }}
+        />
+        <Handle type="source" position={Position.Bottom} style={HANDLE_BOX_STYLE} />
+      </>
+    );
+  }
+
+  const targetHandles =
+    targetInputPorts.length <= 1 ? (
+      <Handle type="target" position={Position.Left} id={targetInputPorts[0] ?? "in"} style={HANDLE_BOX_STYLE} />
+    ) : (
+      <Handle type="target" position={Position.Left} style={HANDLE_CENTERED_STYLE} />
+    );
+
+  const sourceHandlesRight =
+    sourceOutputPorts.length <= 1 ? (
+      <Handle type="source" position={Position.Right} id={sourceOutputPorts[0] ?? "main"} style={HANDLE_BOX_STYLE} />
+    ) : (
+      <Handle type="source" position={Position.Right} style={HANDLE_CENTERED_STYLE} />
+    );
+
   return (
     <>
-      <Handle
-        type="target"
-        position={isAttachment ? Position.Top : Position.Left}
-        id={isAttachment ? "attachment-target" : undefined}
-        style={{ width: 8, height: 8, background: isAttachment ? "#64748b" : "#111827", border: "1px solid white" }}
-      />
-      <Handle
-        type="source"
-        position={isAttachment ? Position.Bottom : Position.Right}
-        style={{ width: 8, height: 8, background: "#111827", border: "1px solid white" }}
-      />
+      {targetHandles}
+      {sourceHandlesRight}
       {isAgent ? (
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="attachment-llm-source"
-          style={{ left: "34%", width: 8, height: 8, background: "#2563eb", border: "1px solid white" }}
-        />
-      ) : null}
-      {isAgent ? (
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="attachment-tools-source"
-          style={{ left: "66%", width: 8, height: 8, background: "#7c3aed", border: "1px solid white" }}
-        />
+        <>
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="attachment-llm-source"
+            style={{ left: "34%", width: 8, height: 8, background: "#2563eb", border: "1px solid white" }}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="attachment-tools-source"
+            style={{ left: "66%", width: 8, height: 8, background: "#7c3aed", border: "1px solid white" }}
+          />
+        </>
       ) : null}
     </>
   );
