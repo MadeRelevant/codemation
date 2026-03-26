@@ -48,7 +48,7 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
       await this.closeAfterFailedStart(websocketServer);
       throw error;
     }
-    this.logger.info(`listening on ws://${this.bindHost}:${this.port}${ApiPaths.workflowWebsocket()}`);
+    this.logger.debug(`listening on ws://${this.bindHost}:${this.port}${ApiPaths.workflowWebsocket()}`);
     this.started = true;
   }
 

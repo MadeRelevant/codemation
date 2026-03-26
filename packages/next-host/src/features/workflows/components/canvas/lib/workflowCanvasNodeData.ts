@@ -34,4 +34,8 @@ export type WorkflowCanvasNodeData = Readonly<{
   onTogglePinnedOutput: (nodeId: string) => void;
   onEditNodeOutput: (nodeId: string) => void;
   onClearPinnedOutput: (nodeId: string) => void;
+  /** Live workflow: node has a bound credential — toolbar can open the edit dialog. */
+  showCredentialEditToolbar?: boolean;
+  /** Opens properties (if needed) and the credential edit dialog for this node. */
+  onOpenCredentialEditFromCanvas?: () => void;
 }>;

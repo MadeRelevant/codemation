@@ -3,127 +3,207 @@ import type {
   WorkflowCredentialHealthSlotDto,
 } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+
+import { CanvasNodeChromeTooltip } from "../canvas/CanvasNodeChromeTooltip";
+import { AlertCircle, CheckCircle2, HelpCircle, Link2, Loader2, MinusCircle, Pencil, Plus, Unplug } from "lucide-react";
+import type { ReactNode } from "react";
 import type { CredentialInstanceDto } from "../../hooks/realtime/realtime";
 
 const INSTANCE_PLACEHOLDER = "__none__";
+const NEW_CREDENTIAL_VALUE = "__new_credential__";
+
+class CredentialSlotHealthPresentation {
+  private constructor() {}
+
+  static icon(status: WorkflowCredentialHealthSlotDto["health"]["status"]): ReactNode {
+    const iconClass = "size-4 shrink-0";
+    if (status === "healthy") {
+      return <CheckCircle2 className={cn(iconClass, "text-emerald-600 dark:text-emerald-400")} aria-hidden />;
+    }
+    if (status === "failing") {
+      return <AlertCircle className={cn(iconClass, "text-destructive")} aria-hidden />;
+    }
+    if (status === "unbound") {
+      return <Unplug className={cn(iconClass, "text-amber-600 dark:text-amber-400")} aria-hidden />;
+    }
+    if (status === "optional-unbound") {
+      return <MinusCircle className={cn(iconClass, "text-muted-foreground")} aria-hidden />;
+    }
+    return <HelpCircle className={cn(iconClass, "text-muted-foreground")} aria-hidden />;
+  }
+
+  static label(status: WorkflowCredentialHealthSlotDto["health"]["status"]): string {
+    if (status === "healthy") {
+      return "Credential healthy";
+    }
+    if (status === "failing") {
+      return "Credential check failed";
+    }
+    if (status === "unbound") {
+      return "No credential bound";
+    }
+    if (status === "optional-unbound") {
+      return "Optional slot unbound";
+    }
+    return "Credential status unknown";
+  }
+}
 
 export function NodeCredentialBindingRow(
   args: Readonly<{
     slot: WorkflowCredentialHealthSlotDto;
     compatibleInstances: ReadonlyArray<CredentialInstanceDto>;
+    /** Full catalog (e.g. bound instance may be resolved when not in the compatible filter). */
+    allCredentialInstances: ReadonlyArray<CredentialInstanceDto>;
     selectedInstanceId: string;
     isBinding: boolean;
     onSelectInstance: (instanceId: string) => void;
     onBind: (request: UpsertCredentialBindingRequest) => void;
+    onEditCredential: (instance: CredentialInstanceDto) => void;
     onRequestNewCredential: () => void;
   }>,
 ) {
-  const { compatibleInstances, isBinding, onBind, onRequestNewCredential, onSelectInstance, selectedInstanceId, slot } =
-    args;
+  const {
+    allCredentialInstances,
+    compatibleInstances,
+    isBinding,
+    onBind,
+    onEditCredential,
+    onRequestNewCredential,
+    onSelectInstance,
+    selectedInstanceId,
+    slot,
+  } = args;
   const slotTestIdSuffix = `${slot.nodeId}-${slot.requirement.slotKey}`;
-  const typesLine = slot.requirement.acceptedTypes.join(" · ");
   const status = slot.health.status;
-  const statusBadgeClass =
-    status === "healthy"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
-      : status === "failing"
-        ? "border-destructive/40 bg-destructive/10 text-destructive"
-        : status === "unbound"
-          ? "border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
-          : status === "optional-unbound"
-            ? "border-border bg-muted text-muted-foreground"
-            : "border-border bg-muted text-muted-foreground";
-  const statusLabel =
-    status === "healthy"
-      ? "OK"
-      : status === "failing"
-        ? "Fail"
-        : status === "unbound"
-          ? "Unbound"
-          : status === "optional-unbound"
-            ? "Optional"
-            : "Unknown";
   const disabledBind = !selectedInstanceId || isBinding;
+  const selectedCredentialInstance =
+    selectedInstanceId !== ""
+      ? (compatibleInstances.find((i) => i.instanceId === selectedInstanceId) ??
+        allCredentialInstances.find((i) => i.instanceId === selectedInstanceId))
+      : undefined;
+  const canEditCredential = Boolean(selectedCredentialInstance);
+  const healthTitle = CredentialSlotHealthPresentation.label(status);
+
   return (
-    <div
-      data-testid={`node-properties-credential-slot-${slotTestIdSuffix}`}
-      className="flex flex-wrap items-center gap-2 py-2"
-    >
-      <div className="flex min-w-[160px] flex-1 flex-col gap-0.5">
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <span className="text-xs font-bold text-foreground">{slot.requirement.label}</span>
-          <span className="max-w-[min(100%,12rem)] truncate text-[11px] text-muted-foreground" title={typesLine}>
-            {typesLine}
-          </span>
-          <Badge
-            variant="outline"
-            className={cn("shrink-0 px-1.5 py-0 text-[10px] font-extrabold tracking-wide uppercase", statusBadgeClass)}
-          >
-            {statusLabel}
-          </Badge>
-        </div>
+    <div data-testid={`node-properties-credential-slot-${slotTestIdSuffix}`} className="flex flex-col gap-2 py-2">
+      <div className="min-w-0">
+        <span className="text-xs font-bold text-foreground">{slot.requirement.label}</span>
         {slot.health.message ? (
           <div
             className={cn(
-              "line-clamp-2 text-[11px] leading-snug",
+              "mt-0.5 line-clamp-2 text-[11px] leading-snug",
               status === "failing" ? "text-destructive" : "text-muted-foreground",
             )}
-            title={slot.health.message}
           >
             {slot.health.message}
           </div>
         ) : null}
       </div>
-      <Select
-        value={selectedInstanceId || INSTANCE_PLACEHOLDER}
-        onValueChange={(value) => onSelectInstance(value === INSTANCE_PLACEHOLDER ? "" : value)}
-      >
-        <SelectTrigger
-          className="h-8 min-w-[120px] max-w-[240px] flex-[1_1_140px]"
-          data-testid={`node-properties-credential-slot-select-${slotTestIdSuffix}`}
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <Select
+          value={selectedInstanceId || INSTANCE_PLACEHOLDER}
+          onValueChange={(value) => {
+            if (value === NEW_CREDENTIAL_VALUE) {
+              onRequestNewCredential();
+              return;
+            }
+            onSelectInstance(value === INSTANCE_PLACEHOLDER ? "" : value);
+          }}
         >
-          <SelectValue placeholder="Select instance..." />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={INSTANCE_PLACEHOLDER}>Select instance...</SelectItem>
-          {compatibleInstances.map((instance) => (
-            <SelectItem key={instance.instanceId} value={instance.instanceId}>
-              {instance.displayName}
+          <SelectTrigger
+            className="h-8 min-h-8 w-full min-w-0 flex-1 sm:max-w-none"
+            data-testid={`node-properties-credential-slot-select-${slotTestIdSuffix}`}
+            size="sm"
+          >
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <CanvasNodeChromeTooltip
+                testId={`node-properties-credential-slot-status-tooltip-${slotTestIdSuffix}`}
+                ariaLabel={healthTitle}
+                tooltip={healthTitle}
+              >
+                <span
+                  className="inline-flex shrink-0"
+                  data-testid={`node-properties-credential-slot-status-${slotTestIdSuffix}`}
+                >
+                  {CredentialSlotHealthPresentation.icon(status)}
+                </span>
+              </CanvasNodeChromeTooltip>
+              <SelectValue placeholder="Select credential…" />
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={INSTANCE_PLACEHOLDER}>Select credential…</SelectItem>
+            {compatibleInstances.map((instance) => (
+              <SelectItem key={instance.instanceId} value={instance.instanceId}>
+                {instance.displayName}
+              </SelectItem>
+            ))}
+            <SelectSeparator />
+            <SelectItem
+              value={NEW_CREDENTIAL_VALUE}
+              data-testid={`node-properties-credential-slot-new-${slotTestIdSuffix}`}
+              className="font-medium"
+            >
+              <span className="flex items-center gap-2">
+                <Plus className="size-4 shrink-0" aria-hidden />
+                <span>New credential</span>
+              </span>
             </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-8 shrink-0 text-xs font-bold"
-        data-testid={`node-properties-credential-slot-new-${slotTestIdSuffix}`}
-        onClick={onRequestNewCredential}
-      >
-        New credential…
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        data-testid={`node-properties-credential-slot-bind-${slotTestIdSuffix}`}
-        disabled={disabledBind}
-        className="shrink-0 text-xs font-bold"
-        onClick={() =>
-          onBind({
-            workflowId: slot.workflowId,
-            nodeId: slot.nodeId,
-            slotKey: slot.requirement.slotKey,
-            instanceId: selectedInstanceId,
-          })
-        }
-      >
-        {isBinding ? "Binding..." : "Bind"}
-      </Button>
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 shrink-0 px-2.5 text-xs font-bold leading-none"
+          data-testid={`node-properties-credential-slot-edit-${slotTestIdSuffix}`}
+          disabled={!canEditCredential}
+          aria-label={canEditCredential ? undefined : "Select a credential to edit"}
+          onClick={() => {
+            if (selectedCredentialInstance) {
+              onEditCredential(selectedCredentialInstance);
+            }
+          }}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Pencil className="size-4 shrink-0" aria-hidden />
+            <span className="leading-none">Edit</span>
+          </span>
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          data-testid={`node-properties-credential-slot-bind-${slotTestIdSuffix}`}
+          disabled={disabledBind}
+          className="h-8 shrink-0 px-2.5 text-xs font-bold leading-none"
+          onClick={() =>
+            onBind({
+              workflowId: slot.workflowId,
+              nodeId: slot.nodeId,
+              slotKey: slot.requirement.slotKey,
+              instanceId: selectedInstanceId,
+            })
+          }
+        >
+          <span className="inline-flex items-center gap-1.5">
+            {isBinding ? (
+              <>
+                <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden />
+                <span className="leading-none">Binding…</span>
+              </>
+            ) : (
+              <>
+                <Link2 className="size-4 shrink-0" aria-hidden />
+                <span className="leading-none">Bind</span>
+              </>
+            )}
+          </span>
+        </Button>
+      </div>
     </div>
   );
 }

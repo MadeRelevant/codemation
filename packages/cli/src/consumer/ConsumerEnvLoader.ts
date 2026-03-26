@@ -23,4 +23,25 @@ export class ConsumerEnvLoader {
     }
     return merged;
   }
+
+  /**
+   * Merges consumer `.env` / `.env.local` values into a process environment snapshot.
+   * Consumer keys override the base snapshot for most variables. `DATABASE_URL` and `AUTH_SECRET`
+   * prefer the base (shell) when set, matching the dev Next host spawn behavior.
+   */
+  mergeIntoProcessEnvironment(
+    processEnv: NodeJS.ProcessEnv,
+    consumerEnv: Readonly<Record<string, string>>,
+  ): NodeJS.ProcessEnv {
+    return {
+      ...processEnv,
+      ...consumerEnv,
+      DATABASE_URL: processEnv.DATABASE_URL ?? consumerEnv.DATABASE_URL,
+      AUTH_SECRET: processEnv.AUTH_SECRET ?? consumerEnv.AUTH_SECRET,
+    };
+  }
+
+  mergeConsumerRootIntoProcessEnvironment(consumerRoot: string, processEnv: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+    return this.mergeIntoProcessEnvironment(processEnv, this.load(consumerRoot));
+  }
 }

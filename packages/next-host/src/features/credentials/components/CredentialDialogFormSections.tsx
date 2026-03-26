@@ -3,12 +3,15 @@
 import type { CredentialTypeDefinition } from "@codemation/core/browser";
 import type { Dispatch, SetStateAction } from "react";
 
+import { Eye, EyeOff, LogIn, Plug, RefreshCw, Unplug } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";
 import type { FormSourceKind } from "../lib/credentialFormTypes";
+import { CredentialFieldCopyButton } from "./CredentialFieldCopyButton";
 
 const TYPE_PLACEHOLDER = "__none__";
 
@@ -124,12 +127,19 @@ export function CredentialDialogFormSections({
             type="button"
             variant="outline"
             size="sm"
-            className="w-fit"
+            className="h-8 w-fit gap-1.5 px-2.5 text-xs font-semibold leading-none"
             onClick={() => setShowSecrets((s) => !s)}
             data-testid="credential-show-secrets-toggle"
             disabled={isEdit && secretsLoading}
           >
-            {showSecrets ? "Hide" : "Show"} values
+            <span className="inline-flex items-center gap-1.5">
+              {showSecrets ? (
+                <EyeOff className="size-3.5 shrink-0" aria-hidden />
+              ) : (
+                <Eye className="size-3.5 shrink-0" aria-hidden />
+              )}
+              <span className="leading-none">{showSecrets ? "Hide" : "Show"} values</span>
+            </span>
           </Button>
           {isEdit && secretsLoading && <span className="text-xs text-muted-foreground">Loading credential…</span>}
         </div>
@@ -142,9 +152,22 @@ export function CredentialDialogFormSections({
             <span className="text-xs text-muted-foreground">Loading redirect URI…</span>
           ) : (
             <>
-              <Input data-testid="credential-oauth2-redirect-uri" type="text" readOnly value={oauth2RedirectUri} />
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  className="min-w-0 flex-1"
+                  data-testid="credential-oauth2-redirect-uri"
+                  type="text"
+                  readOnly
+                  value={oauth2RedirectUri}
+                />
+                <CredentialFieldCopyButton
+                  value={oauth2RedirectUri}
+                  label="Copy URI"
+                  testId="credential-oauth2-redirect-uri-copy"
+                />
+              </div>
               <span className="text-xs text-muted-foreground">
-                Configure this redirect URI in your OAuth client before connecting.
+                Add this redirect URI to your OAuth client (Google Cloud Console, etc.) before connecting.
               </span>
             </>
           )}
@@ -159,28 +182,44 @@ export function CredentialDialogFormSections({
           <div className="mt-1 flex flex-wrap gap-2">
             <Button
               type="button"
-              variant="outline"
+              variant="default"
               size="sm"
+              className="h-8 gap-1.5 px-2.5 text-xs font-semibold leading-none"
               data-testid="credential-oauth2-connect-button"
               onClick={() => void onConnectOAuth2()}
               disabled={!isEdit && !canSubmit}
             >
-              {isEdit
-                ? editingInstance?.oauth2Connection?.status === "connected"
-                  ? "Reconnect"
-                  : "Connect"
-                : "Create and connect"}
+              <span className="inline-flex items-center gap-1.5">
+                {isEdit && editingInstance?.oauth2Connection?.status === "connected" ? (
+                  <RefreshCw className="size-3.5 shrink-0" aria-hidden />
+                ) : isEdit ? (
+                  <Plug className="size-3.5 shrink-0" aria-hidden />
+                ) : (
+                  <LogIn className="size-3.5 shrink-0" aria-hidden />
+                )}
+                <span className="leading-none">
+                  {isEdit
+                    ? editingInstance?.oauth2Connection?.status === "connected"
+                      ? "Reconnect"
+                      : "Connect"
+                    : "Create and connect"}
+                </span>
+              </span>
             </Button>
             {isEdit && (
               <Button
                 type="button"
-                variant="outline"
+                variant="destructive"
                 size="sm"
+                className="h-8 gap-1.5 px-2.5 text-xs font-semibold leading-none"
                 data-testid="credential-oauth2-disconnect-button"
                 onClick={() => void onDisconnectOAuth2()}
                 disabled={editingInstance?.oauth2Connection?.status !== "connected"}
               >
-                Disconnect
+                <span className="inline-flex items-center gap-1.5">
+                  <Unplug className="size-3.5 shrink-0" aria-hidden />
+                  <span className="leading-none">Disconnect</span>
+                </span>
               </Button>
             )}
           </div>

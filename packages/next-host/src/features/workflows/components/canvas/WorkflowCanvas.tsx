@@ -36,6 +36,8 @@ export function WorkflowCanvas(args: {
   onTogglePinnedOutput: (nodeId: string) => void;
   onEditNodeOutput: (nodeId: string) => void;
   onClearPinnedOutput: (nodeId: string) => void;
+  workflowNodeIdsWithBoundCredential?: ReadonlySet<string>;
+  onRequestOpenCredentialEditForNode?: (nodeId: string) => void;
 }) {
   const {
     workflow,
@@ -53,6 +55,8 @@ export function WorkflowCanvas(args: {
     onTogglePinnedOutput,
     onEditNodeOutput,
     onClearPinnedOutput,
+    workflowNodeIdsWithBoundCredential = new Set<string>(),
+    onRequestOpenCredentialEditForNode = () => {},
   } = args;
   const [hasMountedOnClient, setHasMountedOnClient] = useState(false);
   const [isInitialViewportReady, setIsInitialViewportReady] = useState(false);
@@ -74,8 +78,10 @@ export function WorkflowCanvas(args: {
         pinnedNodeIds,
         isLiveWorkflowView,
         isRunning,
+        workflowNodeIdsWithBoundCredential,
         onSelectNode,
         onOpenPropertiesNode,
+        onRequestOpenCredentialEditForNode,
         onRunNode,
         onTogglePinnedOutput,
         onEditNodeOutput,
@@ -90,6 +96,7 @@ export function WorkflowCanvas(args: {
       onClearPinnedOutput,
       onEditNodeOutput,
       onOpenPropertiesNode,
+      onRequestOpenCredentialEditForNode,
       onRunNode,
       onSelectNode,
       onTogglePinnedOutput,
@@ -98,6 +105,7 @@ export function WorkflowCanvas(args: {
       selectedNodeId,
       visibleNodeStatusesByNodeId,
       workflow,
+      workflowNodeIdsWithBoundCredential,
     ],
   );
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);

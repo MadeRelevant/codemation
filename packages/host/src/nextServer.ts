@@ -1,3 +1,4 @@
+export type { DevBootstrapSummaryJson } from "./application/dev/DevBootstrapSummaryJson.types";
 export type { LogFilter } from "./application/logging/LogFilter";
 export type { Logger, LoggerFactory } from "./application/logging/Logger";
 export { FilteringLogger } from "./infrastructure/logging/FilteringLogger";

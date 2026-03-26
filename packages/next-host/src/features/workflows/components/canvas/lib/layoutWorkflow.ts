@@ -33,8 +33,10 @@ export function layoutWorkflow(
   pinnedNodeIds: ReadonlySet<string>,
   isLiveWorkflowView: boolean,
   isRunning: boolean,
+  workflowNodeIdsWithBoundCredential: ReadonlySet<string>,
   onSelectNode: (nodeId: string) => void,
   onOpenPropertiesNode: (nodeId: string) => void,
+  onRequestOpenCredentialEditForNode: (nodeId: string) => void,
   onRunNode: (nodeId: string) => void,
   onTogglePinnedOutput: (nodeId: string) => void,
   onEditNodeOutput: (nodeId: string) => void,
@@ -192,6 +194,11 @@ export function layoutWorkflow(
         onTogglePinnedOutput,
         onEditNodeOutput,
         onClearPinnedOutput,
+        showCredentialEditToolbar: isLiveWorkflowView && workflowNodeIdsWithBoundCredential.has(n.id),
+        onOpenCredentialEditFromCanvas:
+          isLiveWorkflowView && workflowNodeIdsWithBoundCredential.has(n.id)
+            ? () => onRequestOpenCredentialEditForNode(n.id)
+            : undefined,
         layoutWidthPx: resolvedNodeWidth,
         layoutHeightPx: resolvedNodeHeight,
       },

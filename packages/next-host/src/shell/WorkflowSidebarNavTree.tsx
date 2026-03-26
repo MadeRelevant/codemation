@@ -36,7 +36,13 @@ export function WorkflowSidebarNavTree(
             href={href}
             className={args.workflowLinkClass(isActive)}
             data-testid={`nav-workflow-${w.id}`}
-            title={w.discoveryPathSegments.length > 0 ? w.discoveryPathSegments.join(" / ") : w.name}
+            aria-label={
+              collapsed
+                ? w.discoveryPathSegments.length > 0
+                  ? w.discoveryPathSegments.join(" / ")
+                  : w.name
+                : undefined
+            }
           >
             <span className="flex shrink-0 opacity-70" aria-hidden>
               <IconWorkflow />

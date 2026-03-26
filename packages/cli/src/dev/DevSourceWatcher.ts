@@ -14,12 +14,12 @@ export class DevSourceWatcher {
 
   private watcher: FSWatcher | null = null;
   private debounceTimeout: NodeJS.Timeout | null = null;
-  private pendingChange = false;
+  private readonly changedPathsBuffer = new Set<string>();
 
   async start(
     args: Readonly<{
       roots: ReadonlyArray<string>;
-      onChange: () => Promise<void>;
+      onChange: (ctx: Readonly<{ changedPaths: ReadonlyArray<string> }>) => Promise<void>;
     }>,
   ): Promise<void> {
     if (this.watcher) {
@@ -36,7 +36,7 @@ export class DevSourceWatcher {
       if (!this.isRelevantPath(watchPath)) {
         return;
       }
-      this.pendingChange = true;
+      this.changedPathsBuffer.add(path.resolve(watchPath));
       this.scheduleDebouncedChange(args.onChange);
     });
   }
@@ -52,7 +52,9 @@ export class DevSourceWatcher {
     }
   }
 
-  private scheduleDebouncedChange(onChange: () => Promise<void>): void {
+  private scheduleDebouncedChange(
+    onChange: (ctx: Readonly<{ changedPaths: ReadonlyArray<string> }>) => Promise<void>,
+  ): void {
     if (this.debounceTimeout) {
       clearTimeout(this.debounceTimeout);
     }
@@ -62,12 +64,15 @@ export class DevSourceWatcher {
     }, 75);
   }
 
-  private async flushPendingChange(onChange: () => Promise<void>): Promise<void> {
-    if (!this.pendingChange) {
+  private async flushPendingChange(
+    onChange: (ctx: Readonly<{ changedPaths: ReadonlyArray<string> }>) => Promise<void>,
+  ): Promise<void> {
+    if (this.changedPathsBuffer.size === 0) {
       return;
     }
-    this.pendingChange = false;
-    await onChange();
+    const changedPaths = [...this.changedPathsBuffer];
+    this.changedPathsBuffer.clear();
+    await onChange({ changedPaths });
   }
 
   private isIgnoredPath(watchPath: string): boolean {

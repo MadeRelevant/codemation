@@ -1,4 +1,4 @@
-import { Pencil, Pin, PinOff, Play } from "lucide-react";
+import { KeyRound, Pencil, Pin, PinOff, Play } from "lucide-react";
 
 import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
 import { WorkflowCanvasToolbarIconButton } from "./WorkflowCanvasToolbarIconButton";
@@ -32,6 +32,22 @@ export function WorkflowCanvasCodemationNodeToolbar(
         zIndex: 30,
       }}
     >
+      {data.showCredentialEditToolbar && data.onOpenCredentialEditFromCanvas ? (
+        <WorkflowCanvasToolbarIconButton
+          testId={`canvas-node-credential-edit-button-${data.nodeId}`}
+          ariaLabel={`Edit credential for ${data.label}`}
+          tooltip="Edit credential"
+          onAfterClick={() => setHasToolbarFocus(false)}
+          onClick={(event) => {
+            event.stopPropagation();
+            data.onSelectNode(data.nodeId);
+            data.onOpenCredentialEditFromCanvas?.();
+          }}
+          accentColor="#b45309"
+        >
+          <KeyRound size={12} strokeWidth={2.1} />
+        </WorkflowCanvasToolbarIconButton>
+      ) : null}
       <WorkflowCanvasToolbarIconButton
         testId={`canvas-node-run-button-${data.nodeId}`}
         ariaLabel={`Run to ${data.label}`}

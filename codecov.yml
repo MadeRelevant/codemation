@@ -1,0 +1,32 @@
+# https://docs.codecov.com/docs/codecov-yaml
+# For public repos: enable the GitHub app or add CODECOV_TOKEN as an optional repo secret for uploads.
+
+codecov:
+  require_ci_to_pass: true
+  notify:
+    wait_for_ci: true
+
+coverage:
+  precision: 2
+  round: down
+  range: 60...100
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: auto
+
+comment:
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+
+ignore:
+  - "**/dist/**"
+  - "**/node_modules/**"
+  - "**/*.config.ts"
+  - "**/vitest*.config.ts"
+  - "apps/**"
+  - "tooling/**"

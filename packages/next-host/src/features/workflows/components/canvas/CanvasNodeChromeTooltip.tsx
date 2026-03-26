@@ -3,7 +3,10 @@
 import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-/** Floating tooltip for canvas chrome (portal to `document.body` so parent `overflow:hidden` does not clip). */
+/**
+ * Floating tooltip for canvas chrome (portal to `document.body` so parent `overflow:hidden` does not clip).
+ * Positioned below the anchor so header-row icons (e.g. next to Active) are not clipped by the viewport top edge.
+ */
 export function CanvasNodeChromeTooltip(
   args: Readonly<{
     testId: string;
@@ -23,7 +26,7 @@ export function CanvasNodeChromeTooltip(
       return;
     }
     const r = el.getBoundingClientRect();
-    setBubble({ x: r.left + r.width / 2, y: r.top });
+    setBubble({ x: r.left + r.width / 2, y: r.bottom });
   }, []);
 
   useLayoutEffect(() => {
@@ -55,7 +58,7 @@ export function CanvasNodeChromeTooltip(
         style={{
           left: bubble.x,
           top: bubble.y,
-          transform: "translate(-50%, calc(-100% - 8px))",
+          transform: "translate(-50%, 8px)",
           background: "rgba(15,23,42,0.94)",
           boxShadow: "0 10px 24px rgba(15,23,42,0.2)",
         }}

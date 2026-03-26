@@ -64,6 +64,8 @@ import "./application/queries/GetWorkflowDetailQueryHandler";
 import "./application/queries/GetWorkflowSummariesQueryHandler";
 import "./application/queries/ListWorkflowRunsQueryHandler";
 import "./application/queries/UserAccountQueryHandlers";
+import { BootRuntimeSnapshotHolder } from "./application/dev/BootRuntimeSnapshotHolder";
+import { DevBootstrapSummaryAssembler } from "./application/dev/DevBootstrapSummaryAssembler";
 import { WorkflowRunEventWebsocketRelay } from "./application/websocket/WorkflowRunEventWebsocketRelay";
 import { ApplicationTokens } from "./applicationTokens";
 import { WorkflowCredentialNodeResolver } from "./domain/credentials/WorkflowCredentialNodeResolver";
@@ -100,6 +102,7 @@ import { InMemoryCommandBus } from "./infrastructure/di/InMemoryCommandBus";
 import { InMemoryDomainEventBus } from "./infrastructure/di/InMemoryDomainEventBus";
 import { InMemoryQueryBus } from "./infrastructure/di/InMemoryQueryBus";
 import { CodemationIdFactory } from "./infrastructure/ids/CodemationIdFactory";
+import type { BootRuntimeSummary } from "./application/dev/BootRuntimeSummary.types";
 import { LogLevelPolicyFactory, logLevelPolicyFactory } from "./infrastructure/logging/LogLevelPolicyFactory";
 import { ServerLoggerFactory } from "./infrastructure/logging/ServerLoggerFactory";
 import {
@@ -136,7 +139,9 @@ import type {
 } from "./presentation/config/CodemationConfig";
 import type { CodemationPlugin } from "./presentation/config/CodemationPlugin";
 import { ApiPaths } from "./presentation/http/ApiPaths";
+import { DevBootstrapSummaryHttpRouteHandler } from "./presentation/http/routeHandlers/DevBootstrapSummaryHttpRouteHandler";
 import { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiAppFactory";
+import "./presentation/http/hono/registrars/DevHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/BinaryHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/CredentialHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/OAuth2HonoApiRouteRegistrar";
@@ -171,6 +176,7 @@ export class CodemationApplication {
   private ownedPglite: PGlite | null = null;
   private readonly databasePersistenceResolver = new DatabasePersistenceResolver();
   private readonly schedulerPersistenceCompatibilityValidator = new SchedulerPersistenceCompatibilityValidator();
+  private bootRuntimeSummary: BootRuntimeSummary | null = null;
   private runtimeConfig: CodemationApplicationRuntimeConfig = {};
   private bindings: ReadonlyArray<CodemationBinding<unknown>> = [];
   private hasConfigCredentialSessionServiceBinding = false;
@@ -495,6 +501,7 @@ export class CodemationApplication {
   }
 
   private registerCoreInfrastructure(): void {
+    this.container.registerInstance(BootRuntimeSnapshotHolder, new BootRuntimeSnapshotHolder());
     this.container.registerInstance(CodemationApplication, this);
     this.container.registerInstance(CoreTokens.ServiceContainer, this.container);
     this.container.registerInstance(CoreTokens.PersistedWorkflowTokenRegistry, new PersistedWorkflowTokenRegistry());
@@ -564,7 +571,7 @@ export class CodemationApplication {
           workflowActivationPolicy,
           {
             warn: (message) => webhookRoutingLogger.warn(message),
-            info: (message) => webhookRoutingLogger.info(message),
+            info: (message) => webhookRoutingLogger.debug(message),
           },
         );
         const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
@@ -588,7 +595,7 @@ export class CodemationApplication {
           workflowNodeInstanceFactory,
           executionLimitsPolicy: dependencyContainer.resolve(CoreTokens.EngineExecutionLimitsPolicy),
           triggerRuntimeDiagnostics: {
-            info: (message) => triggerRuntimeLogger.info(message),
+            info: (message) => triggerRuntimeLogger.debug(message),
             warn: (message) => triggerRuntimeLogger.warn(message),
           },
         });
@@ -713,6 +720,8 @@ export class CodemationApplication {
   }
 
   private registerApplicationServicesAndRoutes(): void {
+    this.container.register(DevBootstrapSummaryAssembler, { useClass: DevBootstrapSummaryAssembler });
+    this.container.register(DevBootstrapSummaryHttpRouteHandler, { useClass: DevBootstrapSummaryHttpRouteHandler });
     this.container.register(CodemationHonoApiApp, {
       useClass: CodemationHonoApiApp,
     });
@@ -744,6 +753,14 @@ export class CodemationApplication {
       env,
       runtimeConfig: this.runtimeConfig,
     });
+    this.bootRuntimeSummary = {
+      databasePersistence: resolved.databasePersistence,
+      eventBusKind: resolved.eventBusKind,
+      queuePrefix: resolved.queuePrefix,
+      schedulerKind: resolved.schedulerKind,
+      redisUrl: resolved.redisUrl,
+    };
+    this.container.resolve(BootRuntimeSnapshotHolder).set(this.bootRuntimeSummary);
     await this.applyDatabaseMigrations(resolved, env);
     const eventBus = this.createRunEventBus(resolved);
     const persistence = await this.createRunPersistence(resolved, eventBus);

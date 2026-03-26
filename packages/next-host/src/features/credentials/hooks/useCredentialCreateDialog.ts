@@ -24,6 +24,7 @@ export function useCredentialCreateDialog(
     isDialogOpen: session.dialogMode !== null,
     dialogProps: session.dialogProps,
     openCreateDialog: session.openCreateDialog,
+    openEditDialog: session.openEditDialog,
     closeDialog: session.closeDialog,
     oauthDisconnectConfirmOpen: session.oauthDisconnectConfirmOpen,
     executeOAuthDisconnect: session.executeOAuthDisconnect,

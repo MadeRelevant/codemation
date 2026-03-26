@@ -10,8 +10,15 @@ import { useCredentialInstancesQuery, useWorkflowCredentialHealthQuery } from ".
 import { NodeCredentialBindingRow } from "./NodeCredentialBindingRow";
 import type { WorkflowDiagramNode } from "../../lib/workflowDetail/workflowDetailTypes";
 
-export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: string; node: WorkflowDiagramNode }>) {
-  const { node, workflowId } = args;
+export function NodeCredentialBindingsSection(
+  args: Readonly<{
+    workflowId: string;
+    node: WorkflowDiagramNode;
+    pendingCredentialEditForNodeId: string | null;
+    onConsumedPendingCredentialEdit: () => void;
+  }>,
+) {
+  const { node, workflowId, pendingCredentialEditForNodeId, onConsumedPendingCredentialEdit } = args;
   const pendingCreateSlotBindingKeyRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
   const credentialInstancesQuery = useCredentialInstancesQuery();
@@ -23,6 +30,7 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
     isDialogOpen,
     dialogProps,
     openCreateDialog,
+    openEditDialog,
     oauthDisconnectConfirmOpen,
     executeOAuthDisconnect,
     cancelOAuthDisconnect,
@@ -43,6 +51,56 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
     const slots = workflowCredentialHealthQuery.data?.slots ?? [];
     return slots.filter((slot) => slot.nodeId === node.id);
   }, [node.id, workflowCredentialHealthQuery.data]);
+
+  const pendingCredentialEditHandledRef = useRef(false);
+
+  useEffect(() => {
+    if (pendingCredentialEditForNodeId === null) {
+      pendingCredentialEditHandledRef.current = false;
+      return;
+    }
+    if (pendingCredentialEditForNodeId !== node.id) {
+      pendingCredentialEditHandledRef.current = false;
+    }
+  }, [node.id, pendingCredentialEditForNodeId]);
+
+  useEffect(() => {
+    if (pendingCredentialEditForNodeId !== node.id) {
+      return;
+    }
+    if (pendingCredentialEditHandledRef.current) {
+      return;
+    }
+    if (workflowCredentialHealthQuery.isLoading) {
+      return;
+    }
+    const slotsWithInstance = nodeCredentialSlots.filter((slot) => slot.instance?.instanceId);
+    if (slotsWithInstance.length === 0) {
+      pendingCredentialEditHandledRef.current = true;
+      onConsumedPendingCredentialEdit();
+      return;
+    }
+    if (credentialInstancesQuery.isLoading) {
+      return;
+    }
+    const first = slotsWithInstance[0];
+    const instanceId = first.instance!.instanceId;
+    const full = credentialInstancesQuery.data?.find((instance) => instance.instanceId === instanceId);
+    pendingCredentialEditHandledRef.current = true;
+    if (full) {
+      openEditDialog(full);
+    }
+    onConsumedPendingCredentialEdit();
+  }, [
+    credentialInstancesQuery.data,
+    credentialInstancesQuery.isLoading,
+    node.id,
+    nodeCredentialSlots,
+    onConsumedPendingCredentialEdit,
+    openEditDialog,
+    pendingCredentialEditForNodeId,
+    workflowCredentialHealthQuery.isLoading,
+  ]);
 
   useEffect(() => {
     setBindingInstanceIdBySlotKey({});
@@ -105,6 +163,7 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
               credentialInstancesQuery.data?.filter((instance) =>
                 slot.requirement.acceptedTypes.includes(instance.typeId),
               ) ?? [];
+            const allInstances = credentialInstancesQuery.data ?? [];
             const bindingKey = `${slot.nodeId}:${slot.requirement.slotKey}`;
             const selectedInstanceId = bindingInstanceIdBySlotKey[bindingKey] ?? slot.instance?.instanceId ?? "";
             return (
@@ -112,6 +171,7 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
                 <NodeCredentialBindingRow
                   slot={slot}
                   compatibleInstances={compatibleInstances}
+                  allCredentialInstances={allInstances}
                   selectedInstanceId={selectedInstanceId}
                   isBinding={activeBindingSlotKey === bindingKey}
                   onSelectInstance={(instanceId) =>
@@ -121,6 +181,7 @@ export function NodeCredentialBindingsSection(args: Readonly<{ workflowId: strin
                     }))
                   }
                   onBind={bindCredential}
+                  onEditCredential={openEditDialog}
                   onRequestNewCredential={() => {
                     pendingCreateSlotBindingKeyRef.current = bindingKey;
                     const accepted = slot.requirement.acceptedTypes;

@@ -1,8 +1,10 @@
 "use client";
 
 import type { CredentialFieldSchema, CredentialTypeDefinition } from "@codemation/core/browser";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
+
+import { FlaskConical, PlusCircle, Save, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CodemationDialog } from "@/components/CodemationDialog";
@@ -110,7 +112,21 @@ export function CredentialDialog({
   const isEdit = mode === "edit";
   const isTypeLocked = isEdit && editingInstance != null;
   const isDbSecretSource = isEdit ? editingInstance?.sourceKind === "db" : sourceKind === "db";
-  const canToggleSecrets = isDbSecretSource && secretFields.some((field) => field.type === "password");
+  const hasVisiblePasswordSecretField = useMemo(() => {
+    let hasVisible = false;
+    for (const field of secretFields) {
+      if (field.type !== "password") {
+        continue;
+      }
+      if (isCredentialFieldLockedByEnv(field, credentialFieldEnvStatus)) {
+        continue;
+      }
+      hasVisible = true;
+      break;
+    }
+    return hasVisible;
+  }, [secretFields, credentialFieldEnvStatus]);
+  const canToggleSecrets = isDbSecretSource && hasVisiblePasswordSecretField;
 
   useEffect(() => {
     if (isEdit && editingInstance) {
@@ -195,25 +211,40 @@ export function CredentialDialog({
         <CredentialDialogFeedback errorMessage={errorMessage} dialogTestResult={dialogTestResult} />
       </CodemationDialog.Content>
       <CodemationDialog.Actions>
-        <Button type="button" variant="outline" onClick={onClose}>
+        <Button type="button" variant="outline" className="gap-1.5" onClick={onClose}>
+          <X className="size-4 shrink-0" aria-hidden />
           Cancel
         </Button>
         <Button
           type="button"
           variant="secondary"
+          className="gap-1.5"
           data-testid="credential-test-button"
           disabled={!canTest}
           onClick={() => void onTest()}
         >
-          {isDialogTesting ? "Testing…" : "Test"}
+          <span className="inline-flex items-center gap-1.5">
+            <FlaskConical className="size-4 shrink-0" aria-hidden />
+            <span className="leading-none">{isDialogTesting ? "Testing…" : "Test"}</span>
+          </span>
         </Button>
         <Button
           type="button"
+          className="gap-1.5"
           data-testid={isEdit ? "credential-save-button" : "credential-create-button"}
           disabled={!canSubmit}
           onClick={handleSubmit}
         >
-          {isSubmitting ? (isEdit ? "Saving…" : "Creating…") : isEdit ? "Save" : "Create"}
+          <span className="inline-flex items-center gap-1.5">
+            {isEdit ? (
+              <Save className="size-4 shrink-0" aria-hidden />
+            ) : (
+              <PlusCircle className="size-4 shrink-0" aria-hidden />
+            )}
+            <span className="leading-none">
+              {isSubmitting ? (isEdit ? "Saving…" : "Creating…") : isEdit ? "Save" : "Create"}
+            </span>
+          </span>
         </Button>
       </CodemationDialog.Actions>
     </CodemationDialog>

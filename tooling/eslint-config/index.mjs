@@ -10,6 +10,7 @@ const allowedConstructorNames = new Set([
   "Map",
   "Promise",
   "RegExp",
+  "Response",
   "Set",
   "URL",
   "WeakMap",
@@ -238,6 +239,72 @@ const architecturePlugin = {
               message:
                 "Avoid static methods here. Move the behavior behind an injected class or a composition-root-specific factory.",
             });
+          },
+        };
+      },
+    },
+    /**
+     * The HTML global `title` attribute triggers native browser tooltips. Prefer visible copy,
+     * `aria-label` when supplementary, or a design-system tooltip—not ad-hoc `title={...}` on DOM
+     * or components that forward it (Next.js `Link`, Radix/shadcn triggers, etc.).
+     */
+    "no-native-tooltip-title-attribute": {
+      meta: {
+        type: "problem",
+        docs: {
+          description: "forbid HTML title attribute used as native browser tooltip",
+        },
+        schema: [],
+      },
+      create(context) {
+        const filename = context.filename ?? context.getFilename();
+        if (!filename.endsWith(".tsx")) {
+          return {};
+        }
+
+        const componentsThatForwardTitleToDom = new Set(["Link", "Button", "CollapsibleTrigger", "SelectTrigger"]);
+
+        function isIntrinsicJsxTag(name) {
+          if (name.type === "JSXIdentifier") {
+            return /^[a-z]/.test(name.name);
+          }
+          if (name.type === "JSXMemberExpression" && name.property.type === "JSXIdentifier") {
+            return /^[a-z]/.test(name.property.name);
+          }
+          return false;
+        }
+
+        function forbidsTitleAttribute(elementName) {
+          if (elementName.type === "JSXIdentifier") {
+            if (isIntrinsicJsxTag(elementName)) {
+              return true;
+            }
+            return componentsThatForwardTitleToDom.has(elementName.name);
+          }
+          if (elementName.type === "JSXMemberExpression") {
+            return isIntrinsicJsxTag(elementName);
+          }
+          return false;
+        }
+
+        return {
+          JSXOpeningElement(node) {
+            if (!forbidsTitleAttribute(node.name)) {
+              return;
+            }
+            for (const attr of node.attributes) {
+              if (attr.type !== "JSXAttribute") {
+                continue;
+              }
+              if (attr.name.type !== "JSXIdentifier" || attr.name.name !== "title") {
+                continue;
+              }
+              context.report({
+                node: attr,
+                message:
+                  "Do not use the HTML `title` attribute (native browser tooltips). Prefer visible text, `aria-label` for supplementary context, or a shared tooltip component—not `title={...}`.",
+              });
+            }
           },
         };
       },
@@ -532,6 +599,9 @@ export default [
   // next-host: UI uses the HTTP API only (App Router → /api → Hono/CQRS), not Server Actions.
   {
     files: ["packages/next-host/**/*.{ts,tsx}"],
+    plugins: {
+      codemation: architecturePlugin,
+    },
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -541,6 +611,7 @@ export default [
             'Use the HTTP API (/api/*) and @codemation/host handlers only; do not add Server Actions ("use server").',
         },
       ],
+      "codemation/no-native-tooltip-title-attribute": "error",
     },
   },
 ];

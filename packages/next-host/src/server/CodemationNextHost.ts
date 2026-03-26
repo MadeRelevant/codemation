@@ -147,7 +147,6 @@ export class CodemationNextHost {
       const engine = container.resolve(Engine);
       await engine.start([...workflowRepository.list()]);
     }
-
     return {
       application,
       authConfig: resolvedConsumerApp.config.auth,

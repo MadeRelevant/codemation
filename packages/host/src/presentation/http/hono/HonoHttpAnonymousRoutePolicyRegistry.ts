@@ -13,7 +13,7 @@ export class HonoHttpAnonymousRoutePolicy {
     if (pathname === ApiPaths.webhooks() || pathname.startsWith(this.webhookPrefix)) {
       return true;
     }
-    if (pathname === "/api/dev/runtime") {
+    if (pathname === "/api/dev/runtime" || pathname === "/api/dev/bootstrap-summary") {
       return true;
     }
     if (pathname === ApiPaths.userInviteVerify() || pathname === ApiPaths.userInviteAccept()) {

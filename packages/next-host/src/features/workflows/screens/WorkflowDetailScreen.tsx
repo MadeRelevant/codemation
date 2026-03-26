@@ -136,6 +136,8 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                     onTogglePinnedOutput={controller.toggleCanvasNodePin}
                     onEditNodeOutput={controller.editCanvasNodeOutput}
                     onClearPinnedOutput={controller.clearCanvasNodePin}
+                    workflowNodeIdsWithBoundCredential={controller.workflowNodeIdsWithBoundCredential}
+                    onRequestOpenCredentialEditForNode={controller.requestOpenCredentialEditForNode}
                   />
                 </div>
                 <NodePropertiesSlidePanel
@@ -143,6 +145,8 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                   isOpen={controller.isPropertiesPanelOpen}
                   node={controller.selectedPropertiesWorkflowNode}
                   onClose={controller.closePropertiesPanel}
+                  pendingCredentialEditForNodeId={controller.pendingCredentialEditForNodeId}
+                  onConsumedPendingCredentialEdit={controller.consumePendingCredentialEditRequest}
                 />
               </>
             ) : (

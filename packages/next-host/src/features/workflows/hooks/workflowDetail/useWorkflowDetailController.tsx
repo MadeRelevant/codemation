@@ -56,6 +56,8 @@ export type WorkflowDetailControllerResult = Readonly<{
   credentialAttentionSummaryLines: ReadonlyArray<string>;
   /** Per-canvas-node tooltip lines for unbound required credential slots. */
   credentialAttentionTooltipByNodeId: ReadonlyMap<string, string>;
+  /** Nodes that have at least one bound credential instance (canvas toolbar can open edit). */
+  workflowNodeIdsWithBoundCredential: ReadonlySet<string>;
   selectedRun: PersistedRunState | undefined;
   sidebarModel: WorkflowRunsSidebarModel;
   sidebarFormatting: WorkflowRunsSidebarFormatting;
@@ -69,6 +71,10 @@ export type WorkflowDetailControllerResult = Readonly<{
   selectedPropertiesWorkflowNode: WorkflowDto["nodes"][number] | undefined;
   selectCanvasNode: (nodeId: string) => void;
   openPropertiesPanelForNode: (nodeId: string) => void;
+  /** Opens the properties panel and requests the credential edit dialog for the first bound slot on that node. */
+  requestOpenCredentialEditForNode: (nodeId: string) => void;
+  pendingCredentialEditForNodeId: string | null;
+  consumePendingCredentialEditRequest: () => void;
   closePropertiesPanel: () => void;
   runCanvasNode: (nodeId: string) => void;
   toggleCanvasNodePin: (nodeId: string) => void;
@@ -517,6 +523,18 @@ export function useWorkflowDetailController(
     }
     return map;
   }, [workflow, workflowCredentialHealthQuery.data?.slots]);
+
+  const workflowNodeIdsWithBoundCredential = useMemo(() => {
+    const ids = new Set<string>();
+    for (const slot of workflowCredentialHealthQuery.data?.slots ?? []) {
+      if (slot.instance?.instanceId) {
+        ids.add(slot.nodeId);
+      }
+    }
+    return ids;
+  }, [workflowCredentialHealthQuery.data?.slots]);
+
+  const [pendingCredentialEditForNodeId, setPendingCredentialEditForNodeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!displayedWorkflow?.nodes.length) return;
@@ -1132,9 +1150,20 @@ export function useWorkflowDetailController(
     setIsPropertiesPanelOpen(true);
   }, []);
 
+  const requestOpenCredentialEditForNode = useCallback((nodeId: string) => {
+    setPendingCredentialEditForNodeId(nodeId);
+    setPropertiesPanelNodeId(nodeId);
+    setIsPropertiesPanelOpen(true);
+  }, []);
+
+  const consumePendingCredentialEditRequest = useCallback(() => {
+    setPendingCredentialEditForNodeId(null);
+  }, []);
+
   const closePropertiesPanel = useCallback(() => {
     setIsPropertiesPanelOpen(false);
     setPropertiesPanelNodeId(null);
+    setPendingCredentialEditForNodeId(null);
   }, []);
 
   return {
@@ -1151,6 +1180,7 @@ export function useWorkflowDetailController(
     credentialAttentionNodeIds: credentialAttention.attentionNodeIds,
     credentialAttentionSummaryLines: credentialAttention.summaryLines,
     credentialAttentionTooltipByNodeId,
+    workflowNodeIdsWithBoundCredential,
     selectedRun,
     sidebarModel: {
       workflowId,
@@ -1225,6 +1255,9 @@ export function useWorkflowDetailController(
     selectedPropertiesWorkflowNode,
     selectCanvasNode,
     openPropertiesPanelForNode,
+    requestOpenCredentialEditForNode,
+    pendingCredentialEditForNodeId,
+    consumePendingCredentialEditRequest,
     closePropertiesPanel,
     runCanvasNode: runNode,
     toggleCanvasNodePin: togglePinnedOutputForNode,

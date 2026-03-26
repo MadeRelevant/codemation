@@ -49,7 +49,7 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
         href={href}
         className={navLinkClass(isActive)}
         data-testid={`nav-${label.toLowerCase().replace(/\s+/g, "-")}`}
-        title={collapsed ? label : undefined}
+        aria-label={collapsed ? label : undefined}
       >
         <span className="flex shrink-0 items-center justify-center" aria-hidden>
           {icon}
@@ -58,7 +58,7 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
       </Link>
     );
     return collapsed ? (
-      <span key={href} className="relative flex overflow-visible" title={label}>
+      <span key={href} className="relative flex overflow-visible">
         {content}
       </span>
     ) : (
@@ -73,7 +73,7 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
       {navItem("/users", "Users", <IconUsers />)}
       {collapsed ? (
         <div className="mt-3 flex flex-col gap-1">
-          <span className="relative flex overflow-visible" title="All workflows">
+          <span className="relative flex overflow-visible">
             <Link
               href="/workflows"
               className={cn(
@@ -81,6 +81,7 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
                 pathname === "/workflows" && "bg-sidebar-accent font-medium text-sidebar-primary",
               )}
               data-testid="nav-workflows"
+              aria-label="All workflows"
             >
               <span className="flex shrink-0 opacity-70" aria-hidden>
                 <IconWorkflow />

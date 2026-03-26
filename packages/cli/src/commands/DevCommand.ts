@@ -1,14 +1,18 @@
 import type { Logger } from "@codemation/host/next/server";
 import { CodemationPluginDiscovery } from "@codemation/host/server";
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
 
 import type { DatabaseMigrationsApplyService } from "../database/DatabaseMigrationsApplyService";
+import type { DevBootstrapSummaryFetcher } from "../dev/DevBootstrapSummaryFetcher";
+import type { DevCliBannerRenderer } from "../dev/DevCliBannerRenderer";
+import { ConsumerEnvDotenvFilePredicate } from "../dev/ConsumerEnvDotenvFilePredicate";
 import type { DevSourceWatcher } from "../dev/DevSourceWatcher";
 import { DevSessionServices } from "../dev/DevSessionServices";
 import { DevLockFactory } from "../dev/Factory";
+import { DevTrackedProcessTreeKiller } from "../dev/DevTrackedProcessTreeKiller";
 import { DevSourceWatcherFactory } from "../dev/Runner";
 import { CliPathResolver, type CliPaths } from "../path/CliPathResolver";
 import { TypeScriptRuntimeConfigurator } from "../runtime/TypeScriptRuntimeConfigurator";
@@ -29,6 +33,10 @@ export class DevCommand {
     private readonly cliLogger: Logger,
     private readonly session: DevSessionServices,
     private readonly databaseMigrationsApplyService: DatabaseMigrationsApplyService,
+    private readonly devBootstrapSummaryFetcher: DevBootstrapSummaryFetcher,
+    private readonly devCliBannerRenderer: DevCliBannerRenderer,
+    private readonly consumerEnvDotenvFilePredicate: ConsumerEnvDotenvFilePredicate,
+    private readonly devTrackedProcessTreeKiller: DevTrackedProcessTreeKiller,
   ) {}
 
   async execute(consumerRoot: string): Promise<void> {
@@ -55,6 +63,11 @@ export class DevCommand {
       const uiProxyBase = await this.startConsumerUiProxyWhenNeeded(prepared, processState);
       const gatewayBaseUrl = this.gatewayBaseHttpUrl(gatewayPort);
       await this.spawnGatewayChildAndWaitForHealth(prepared, processState, gatewayBaseUrl, uiProxyBase);
+      await this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl);
+      const initialSummary = await this.devBootstrapSummaryFetcher.fetch(gatewayBaseUrl);
+      if (initialSummary) {
+        this.devCliBannerRenderer.renderFull(initialSummary);
+      }
       this.bindShutdownSignalsToChildProcesses(processState);
       this.spawnFrameworkNextHostWhenNeeded(prepared, processState, gatewayBaseUrl);
       await this.startWatcherForSourceRestart(prepared, watcher, devMode, gatewayBaseUrl);
@@ -148,7 +161,7 @@ export class DevCommand {
     const nextHostRoot = path.dirname(nextHostPackageJsonPath);
     state.currentUiNext = spawn("pnpm", ["exec", "next", "start"], {
       cwd: nextHostRoot,
-      stdio: "inherit",
+      ...this.devDetachedChildSpawnOptions(),
       env: {
         ...process.env,
         ...prepared.consumerEnv,
@@ -177,7 +190,7 @@ export class DevCommand {
       }
       state.stopRequested = true;
       if (state.currentGateway?.exitCode === null) {
-        state.currentGateway.kill("SIGTERM");
+        void this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(state.currentGateway);
       }
       state.stopReject?.(new Error(`next start (consumer UI) exited unexpectedly with code ${code ?? 0}.`));
     });
@@ -191,11 +204,15 @@ export class DevCommand {
     gatewayBaseUrl: string,
     uiProxyBase: string,
   ): Promise<void> {
+    const gatewayProcessEnv = this.session.consumerEnvLoader.mergeIntoProcessEnvironment(
+      process.env,
+      prepared.consumerEnv,
+    );
     state.currentGateway = spawn(prepared.gatewayEntrypoint.command, prepared.gatewayEntrypoint.args, {
       cwd: prepared.runtimeWorkingDirectory,
-      stdio: "inherit",
+      ...this.devDetachedChildSpawnOptions(),
       env: {
-        ...process.env,
+        ...gatewayProcessEnv,
         ...prepared.gatewayEntrypoint.env,
         CODEMATION_DEV_GATEWAY_HTTP_PORT: String(prepared.gatewayPort),
         CODEMATION_RUNTIME_CHILD_BIN: prepared.runtimeEntrypoint.command,
@@ -211,8 +228,6 @@ export class DevCommand {
         WS_NO_BUFFER_UTIL: "1",
         WS_NO_UTF_8_VALIDATE: "1",
         ...(uiProxyBase.length > 0 ? { CODEMATION_DEV_UI_PROXY_TARGET: uiProxyBase } : {}),
-        DATABASE_URL: process.env.DATABASE_URL,
-        AUTH_SECRET: process.env.AUTH_SECRET,
       },
     });
     state.currentGateway.on("error", (error) => {
@@ -231,20 +246,38 @@ export class DevCommand {
     await this.session.devHttpProbe.waitUntilGatewayHealthy(gatewayBaseUrl);
   }
 
+  private devDetachedChildSpawnOptions(): Readonly<{
+    stdio: "inherit";
+    detached: boolean;
+    windowsHide?: boolean;
+  }> {
+    return process.platform === "win32"
+      ? { stdio: "inherit", detached: true, windowsHide: true }
+      : { stdio: "inherit", detached: true };
+  }
+
   private bindShutdownSignalsToChildProcesses(state: DevMutableProcessState): void {
+    let shutdownInProgress = false;
+    const runShutdown = async (): Promise<void> => {
+      if (shutdownInProgress) {
+        return;
+      }
+      shutdownInProgress = true;
+      state.stopRequested = true;
+      process.stdout.write("\n[codemation] Stopping..\n");
+      const children: ChildProcess[] = [];
+      for (const child of [state.currentUiNext, state.currentNextHost, state.currentGateway]) {
+        if (child && child.exitCode === null && child.signalCode === null) {
+          children.push(child);
+        }
+      }
+      await Promise.all(children.map((child) => this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(child)));
+      process.stdout.write("[codemation] Stopped.\n");
+      state.stopResolve?.();
+    };
     for (const signal of ["SIGINT", "SIGTERM", "SIGQUIT"] as const) {
       process.on(signal, () => {
-        state.stopRequested = true;
-        if (state.currentUiNext?.exitCode === null) {
-          state.currentUiNext.kill(signal);
-        }
-        if (state.currentNextHost?.exitCode === null) {
-          state.currentNextHost.kill(signal);
-        }
-        if (state.currentGateway?.exitCode === null) {
-          state.currentGateway.kill(signal);
-        }
-        state.stopResolve?.();
+        void runShutdown();
       });
     }
   }
@@ -274,7 +307,7 @@ export class DevCommand {
     });
     state.currentNextHost = spawn("pnpm", ["exec", "next", "dev"], {
       cwd: nextHostRoot,
-      stdio: "inherit",
+      ...this.devDetachedChildSpawnOptions(),
       env: nextHostEnvironment,
     });
     state.currentNextHost.on("exit", (code) => {
@@ -285,7 +318,7 @@ export class DevCommand {
       if (normalizedCode === 0) {
         state.stopRequested = true;
         if (state.currentGateway?.exitCode === null) {
-          state.currentGateway.kill("SIGTERM");
+          void this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(state.currentGateway);
         }
         state.stopResolve?.();
         return;
@@ -313,11 +346,25 @@ export class DevCommand {
         devMode,
         repoRoot: prepared.paths.repoRoot,
       }),
-      onChange: async () => {
+      onChange: async ({ changedPaths }) => {
+        if (changedPaths.length > 0 && changedPaths.every((p) => this.consumerEnvDotenvFilePredicate.matches(p))) {
+          process.stdout.write(
+            "\n[codemation] Consumer environment file changed (e.g. .env). Restart the `codemation dev` process so the gateway and runtime pick up updated variables (host `process.env` does not hot-reload).\n",
+          );
+          return;
+        }
+        process.stdout.write("\n[codemation] Source change detected — rebuilding consumer…\n");
         await this.session.sourceRestartCoordinator.runHandshakeAfterSourceChange(
           gatewayBaseUrl,
           prepared.developmentServerToken,
         );
+        process.stdout.write("[codemation] Waiting for runtime to accept traffic…\n");
+        await this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl);
+        const json = await this.devBootstrapSummaryFetcher.fetch(gatewayBaseUrl);
+        if (json) {
+          this.devCliBannerRenderer.renderCompact(json);
+        }
+        process.stdout.write("[codemation] Runtime ready.\n");
       },
     });
   }

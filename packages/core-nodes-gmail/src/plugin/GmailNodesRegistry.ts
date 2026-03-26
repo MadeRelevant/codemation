@@ -137,7 +137,6 @@ export class GmailNodes {
             type: "string",
             required: true,
             envVarName: "CODEMATION_GOOGLE_CLIENT_ID",
-            helpText: "Optional when CODEMATION_GOOGLE_CLIENT_ID is set in the host environment.",
           },
         ],
         secretFields: [
@@ -147,7 +146,6 @@ export class GmailNodes {
             type: "password",
             required: true,
             envVarName: "CODEMATION_GOOGLE_CLIENT_SECRET",
-            helpText: "Optional when CODEMATION_GOOGLE_CLIENT_SECRET is set in the host environment.",
           },
         ],
         supportedSourceKinds: ["db", "env", "code"],

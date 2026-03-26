@@ -339,9 +339,11 @@ export function useWorkflowRealtimeInfrastructure(
       });
 
       socket.addEventListener("error", () => {
-        if (!hasOpenedConnectionRef.current && !hasLoggedUnavailableTransportRef.current) {
-          hasLoggedUnavailableTransportRef.current = true;
-          logger.debug(`websocket transport is not available yet at ${websocketUrl}`);
+        if (!hasOpenedConnectionRef.current) {
+          if (!hasLoggedUnavailableTransportRef.current) {
+            hasLoggedUnavailableTransportRef.current = true;
+            logger.debug(`websocket transport is not available yet at ${websocketUrl}`);
+          }
           return;
         }
         schedulePersistentDisconnectWarning("transport error while reconnecting");

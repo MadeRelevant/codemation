@@ -44,7 +44,7 @@ export function WorkflowSidebarNavFolder(
       <CollapsibleTrigger
         type="button"
         data-testid={folderTestId(folderPath)}
-        title={folderPath.join(" / ")}
+        aria-label={collapsed ? folderPath.join(" / ") : undefined}
         className={cn(
           "group/trigger flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none transition-colors",
           collapsed && "justify-center px-1 py-2",
@@ -78,7 +78,13 @@ export function WorkflowSidebarNavFolder(
                 href={href}
                 className={workflowLinkClass(isActive)}
                 data-testid={`nav-workflow-${w.id}`}
-                title={w.discoveryPathSegments.length > 0 ? w.discoveryPathSegments.join(" / ") : w.name}
+                aria-label={
+                  collapsed
+                    ? w.discoveryPathSegments.length > 0
+                      ? w.discoveryPathSegments.join(" / ")
+                      : w.name
+                    : undefined
+                }
               >
                 <span className="flex shrink-0 opacity-70" aria-hidden>
                   <IconWorkflow />

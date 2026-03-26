@@ -20,10 +20,9 @@ export class DevNextHostEnvironmentBuilder {
       runtimeDevUrl?: string;
     }>,
   ): NodeJS.ProcessEnv {
-    const consumerEnv = this.consumerEnvLoader.load(args.consumerRoot);
+    const merged = this.consumerEnvLoader.mergeConsumerRootIntoProcessEnvironment(args.consumerRoot, process.env);
     return {
-      ...process.env,
-      ...consumerEnv,
+      ...merged,
       PORT: String(args.nextPort),
       CODEMATION_AUTH_CONFIG_JSON: args.authConfigJson,
       CODEMATION_CONSUMER_ROOT: args.consumerRoot,
@@ -39,8 +38,6 @@ export class DevNextHostEnvironmentBuilder {
       ...(args.runtimeDevUrl !== undefined && args.runtimeDevUrl.trim().length > 0
         ? { CODEMATION_RUNTIME_DEV_URL: args.runtimeDevUrl.trim() }
         : {}),
-      DATABASE_URL: process.env.DATABASE_URL ?? consumerEnv.DATABASE_URL,
-      AUTH_SECRET: process.env.AUTH_SECRET ?? consumerEnv.AUTH_SECRET,
     };
   }
 }

@@ -39,7 +39,7 @@ export function CodemationFormattedDateTime(props: CodemationFormattedDateTimePr
   }
   const label = format(parsed, "PPp", { locale });
   return (
-    <time className={className} dateTime={isoUtc} data-testid={dataTestId} title={isoUtc}>
+    <time className={className} dateTime={isoUtc} data-testid={dataTestId}>
       {label}
     </time>
   );

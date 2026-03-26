@@ -17,6 +17,13 @@ export type CredentialFieldSchema = Readonly<{
   helpText?: string;
   /** When set, host resolves this field from process.env at runtime; env wins over stored values. */
   envVarName?: string;
+  /**
+   * When set, the dialog shows a copy action for this exact string (e.g. a static OAuth redirect URI
+   * pattern or documentation URL). Do not use for secret values.
+   */
+  copyValue?: string;
+  /** Accessible label for the copy control (default: Copy). */
+  copyButtonLabel?: string;
 }>;
 
 export type CredentialRequirement = Readonly<{

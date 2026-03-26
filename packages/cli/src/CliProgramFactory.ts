@@ -17,8 +17,12 @@ import { ConsumerDatabaseConnectionResolver } from "./database/ConsumerDatabaseC
 import { DatabaseMigrationsApplyService } from "./database/DatabaseMigrationsApplyService";
 import { HostPackageRootResolver } from "./database/HostPackageRootResolver";
 import { DatabasePersistenceResolver, PrismaMigrationDeployer } from "@codemation/host/persistence";
+import { DevBootstrapSummaryFetcher } from "./dev/DevBootstrapSummaryFetcher";
+import { DevCliBannerRenderer } from "./dev/DevCliBannerRenderer";
 import { DevSessionServicesBuilder } from "./dev/Builder";
 import { DevLockFactory } from "./dev/Factory";
+import { ConsumerEnvDotenvFilePredicate } from "./dev/ConsumerEnvDotenvFilePredicate";
+import { DevTrackedProcessTreeKiller } from "./dev/DevTrackedProcessTreeKiller";
 import { DevSourceWatcherFactory } from "./dev/Runner";
 import { CliProgram } from "./Program";
 import { CliPathResolver } from "./path/CliPathResolver";
@@ -80,6 +84,10 @@ export class CliProgramFactory {
         cliLogger,
         new DevSessionServicesBuilder(loggerFactory).build(),
         databaseMigrationsApplyService,
+        new DevBootstrapSummaryFetcher(),
+        new DevCliBannerRenderer(),
+        new ConsumerEnvDotenvFilePredicate(),
+        new DevTrackedProcessTreeKiller(),
       ),
       new ServeWebCommand(
         pathResolver,

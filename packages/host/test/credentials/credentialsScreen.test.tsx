@@ -94,6 +94,22 @@ describe("CredentialsScreen", () => {
       scopes: ["scope.one"],
     },
   };
+  const oauthCredentialInstanceEnv = {
+    instanceId: "oauth-env-inst-1",
+    typeId: "test.oauth.env",
+    displayName: "My OAuth env credential",
+    sourceKind: "db" as const,
+    publicConfig: { clientId: "client-id-from-db" },
+    tags: [],
+    setupStatus: "draft" as const,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    oauth2Connection: {
+      status: "disconnected" as const,
+      providerId: "google",
+      scopes: ["scope.one"],
+    },
+  };
   const credentialWithSecrets = {
     ...credentialInstance,
     secretConfig: { apiKey: "actual-secret-value" },
@@ -175,7 +191,94 @@ describe("CredentialsScreen", () => {
     expect(screen.getByTestId("credential-add-button")).toBeInTheDocument();
   });
 
-  it("disables oauth client fields when env status marks them as set", async () => {
+  it("does not show missing-host-env notice while creating a credential even when env status is false", async () => {
+    renderCredentialsScreen({
+      credentialTypes: [oauthCredentialTypeWithEnv],
+      credentialInstances: [],
+      credentialFieldEnvStatus: {
+        TEST_OAUTH_UI_CLIENT_ID: false,
+        TEST_OAUTH_UI_CLIENT_SECRET: false,
+      },
+    });
+
+    fireEvent.click(screen.getByTestId("credential-add-button"));
+    await screen.findByTestId("credential-dialog");
+
+    selectCredentialTypeOption("Test OAuth env");
+
+    await screen.findByTestId("credential-public-clientId");
+    expect(screen.queryByTestId("credential-field-env-missing-clientId")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("credential-field-env-missing-clientSecret")).not.toBeInTheDocument();
+  });
+
+  it("shows missing-host-env notice when editing an existing credential and env status is false", async () => {
+    renderCredentialsScreen({
+      credentialTypes: [oauthCredentialTypeWithEnv],
+      credentialInstances: [oauthCredentialInstanceEnv],
+      credentialFieldEnvStatus: {
+        TEST_OAUTH_UI_CLIENT_ID: false,
+        TEST_OAUTH_UI_CLIENT_SECRET: false,
+      },
+    });
+
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("withSecrets=1")) {
+        return {
+          ok: true,
+          json: async () => ({
+            ...oauthCredentialInstanceEnv,
+            secretConfig: { clientSecret: "stored-secret" },
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ redirectUri: "http://localhost:3000/api/oauth2/callback" }),
+      };
+    });
+
+    fireEvent.click(screen.getByTestId("credential-instance-name-oauth-env-inst-1"));
+
+    await screen.findByTestId("credential-dialog");
+
+    expect(await screen.findByTestId("credential-field-env-missing-clientId")).toBeInTheDocument();
+    expect(await screen.findByTestId("credential-field-env-missing-clientSecret")).toBeInTheDocument();
+  });
+
+  it("hides show-secrets toggle when all password secrets are env-managed on edit", async () => {
+    renderCredentialsScreen({
+      credentialTypes: [oauthCredentialTypeWithEnv],
+      credentialInstances: [oauthCredentialInstanceEnv],
+      credentialFieldEnvStatus: {
+        TEST_OAUTH_UI_CLIENT_ID: true,
+        TEST_OAUTH_UI_CLIENT_SECRET: true,
+      },
+    });
+
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("withSecrets=1")) {
+        return {
+          ok: true,
+          json: async () => ({
+            ...oauthCredentialInstanceEnv,
+            secretConfig: { clientSecret: "stored-secret" },
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ redirectUri: "http://localhost:3000/api/oauth2/callback" }),
+      };
+    });
+
+    fireEvent.click(screen.getByTestId("credential-instance-name-oauth-env-inst-1"));
+
+    await screen.findByTestId("credential-dialog");
+
+    expect(screen.queryByTestId("credential-show-secrets-toggle")).not.toBeInTheDocument();
+  });
+
+  it("hides oauth client inputs when host env already provides those variables", async () => {
     renderCredentialsScreen({
       credentialTypes: [oauthCredentialTypeWithEnv],
       credentialInstances: [],
@@ -190,12 +293,12 @@ describe("CredentialsScreen", () => {
 
     selectCredentialTypeOption("Test OAuth env");
 
-    const clientId = await screen.findByTestId("credential-public-clientId");
-    expect(clientId).toBeDisabled();
+    const clientIdBlock = await screen.findByTestId("credential-public-clientId");
+    expect(clientIdBlock.querySelector("input")).toBeNull();
     expect(screen.getByTestId("credential-field-env-managed-clientId")).toBeInTheDocument();
 
-    const clientSecret = await screen.findByTestId("credential-secret-clientSecret");
-    expect(clientSecret).toBeDisabled();
+    const clientSecretBlock = await screen.findByTestId("credential-secret-clientSecret");
+    expect(clientSecretBlock.querySelector("input")).toBeNull();
     expect(screen.getByTestId("credential-field-env-managed-clientSecret")).toBeInTheDocument();
   });
 

@@ -11,6 +11,7 @@ class CodemationNextHostPathRules {
     return (
       pathname.startsWith("/api/webhooks") ||
       pathname === "/api/dev/runtime" ||
+      pathname === "/api/dev/bootstrap-summary" ||
       pathname === "/api/users/invites/verify" ||
       pathname === "/api/users/invites/accept"
     );
