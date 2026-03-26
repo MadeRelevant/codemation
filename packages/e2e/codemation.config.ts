@@ -11,7 +11,8 @@ loadDotenv({
   quiet: true,
 });
 
-const useRedisRuntime = Boolean(process.env.REDIS_URL);
+const forceLocalRuntime = process.env.CODEMATION_E2E_FORCE_LOCAL_RUNTIME === "1";
+const useRedisRuntime = !forceLocalRuntime && Boolean(process.env.REDIS_URL);
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required for the e2e consumer app. Configure PostgreSQL in packages/e2e/.env.");

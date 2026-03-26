@@ -20,7 +20,6 @@ const webServerEnv: NodeJS.ProcessEnv = {
   ...process.env,
   ...prepared.serverEnv,
 };
-delete webServerEnv.REDIS_URL;
 
 export default defineConfig({
   /**

@@ -50,6 +50,8 @@ export class CodemationPlaywrightEnvironmentPreparer {
           ...process.env,
           DATABASE_URL: database.databaseUrl,
           AUTH_SECRET: authSecret,
+          REDIS_URL: "",
+          CODEMATION_E2E_FORCE_LOCAL_RUNTIME: "1",
           CODEMATION_TSCONFIG_PATH: path.join(repoRoot, "tsconfig.base.json"),
         },
         stdio: "inherit",
@@ -63,6 +65,8 @@ export class CodemationPlaywrightEnvironmentPreparer {
       ...process.env,
       DATABASE_URL: database.databaseUrl,
       AUTH_SECRET: authSecret,
+      REDIS_URL: "",
+      CODEMATION_E2E_FORCE_LOCAL_RUNTIME: "1",
       CODEMATION_TSCONFIG_PATH: path.join(repoRoot, "tsconfig.base.json"),
     };
     const turboBuild = spawnSync(
@@ -93,6 +97,8 @@ export class CodemationPlaywrightEnvironmentPreparer {
       AUTH_URL: "http://localhost:3001",
       NEXTAUTH_URL: "http://localhost:3001",
       PORT: "3001",
+      REDIS_URL: "",
+      CODEMATION_E2E_FORCE_LOCAL_RUNTIME: "1",
       CODEMATION_TSCONFIG_PATH: path.join(repoRoot, "tsconfig.base.json"),
     };
 
