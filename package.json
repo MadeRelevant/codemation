@@ -55,5 +55,10 @@
   },
   "lint-staged": {
     "*.{ts,tsx,mjs,cjs,js,jsx,json,md,yml,yaml,css,html}": "prettier --write"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@ast-grep/cli"
+    ]
   }
 }
