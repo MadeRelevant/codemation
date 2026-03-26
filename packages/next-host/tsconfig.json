@@ -25,6 +25,7 @@
       "@codemation/host/consumer": ["../../packages/host/src/consumer.ts"],
       "@codemation/host/next/server": ["../../packages/host/src/nextServer.ts"],
       "@codemation/host/server": ["../../packages/host/src/server.ts"],
+      "@codemation/host/dev-server-sidecar": ["../../packages/host/src/devServerSidecar.ts"],
       "@codemation/host/persistence": ["../../packages/host/src/persistenceServer.ts"],
       "@codemation/host-src/*": ["../../packages/host/src/*"],
       "@codemation/next-host": ["./src/index.ts"],
