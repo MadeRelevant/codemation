@@ -18,6 +18,9 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # prisma.config.ts requires DATABASE_URL; `prisma generate` does not need a live server.
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
     strategy:
       fail-fast: false
       matrix:
@@ -46,6 +49,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client (@codemation/host)
+        if: ${{ matrix.name != 'Format' }}
+        run: pnpm --filter @codemation/host prisma:generate
 
       - name: Run ${{ matrix.name }}
         run: pnpm ${{ matrix.command }}
