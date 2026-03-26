@@ -16,9 +16,9 @@ Open items first; completed work is archived at the bottom for history.
 - [x] Lock when "not to continue", when no items are emitted for example and allow users to continue anyway even when items are empty
 - [ ] Implement leader election logic so triggers and pruners are only started once
 - [x] Remove the "register webhook" logic, webhooks must be scaleable by endpoint and just resolve the workflow once and then execute the "webhook" trigger
-- [ ] Only start triggers for workflows that are "activated"
+- [x] Only start triggers for workflows that are "activated"
 - [ ] Organize tests better (currently core has 1 big flat list)
-- [ ] Let nodes define inputs, triggers wont have any, this way we can render them correctly too on the canvas. Currently they are rendered as if they would allow an incoming connection
+- [x] Let nodes define inputs, triggers wont have any, this way we can render them correctly too on the canvas. Currently they are rendered as if they would allow an incoming connection
 - [ ] Periodically clean up credential bindings for nodes that dont exist in code anymore (low prio)
 - [ ] Stress test webhook and measure cpu/mem and make sure they dont run out
 - [ ] Add Switch node for easy branching
@@ -27,9 +27,10 @@ Open items first; completed work is archived at the bottom for history.
 ### UI, URLs & sharing
 
 - [ ] Support copy/paste between different live workflow instances (e.g. debug prod inside dev)
-- [ ] Fix icon resolver (replace hardcoded map / `if` chain)
+- [x] Fix icon resolver (replace hardcoded map / `if` chain)
 - [ ] Fix datetime formatting (use a battle-tested library)
-- [ ] Use a better layout algorithm when an agent node sits inside an `if` branch and overlaps other nodes
+- [x] Use a better layout algorithm when an agent node sits inside an `if` branch and overlaps other nodes
+- [ ] make usre websockets only can update the UI if needed vs small packet and let UI refetch, but hceck exact route for performance impact on high traffic webhooks
 
 ### Dashboard & product
 
@@ -38,16 +39,18 @@ Open items first; completed work is archived at the bottom for history.
   - [ ] Workflow analytics (succeeded, failed, avg duration, avg token usage)
   - [ ] Recent workflow runs
 - [ ] Support white-label (logo + company name)
+- [ ] add worker monitoring (jobs processed, running, cpu/mem usage)
 
 ### Integrations & observability
 
-- [ ] Allow binary uploads to webhook nodes
+- [x] Allow binary uploads to webhook nodes
 - [ ] (LLM) Observability (cross-cut with dashboard LLM analytics)
 - [ ] Test credentials backed by Azure Key Vault instead of database
 
 ### CLI
 
-- [ ] Organize CLI commands into dedicated modules and let `@injectAll()` discover commands; allow test consumers to register CLI commands
+- [x] Organize CLI commands into dedicated modules and let `@injectAll()` discover commands; allow test consumers to register CLI commands
+      no tsyringe tokeep it small and thin but commands are much better split
 
 ---
 

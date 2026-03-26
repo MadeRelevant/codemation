@@ -1,6 +1,11 @@
-import type { ChatModelConfig, NodeDefinition, ToolConfig, WorkflowDefinition } from "@codemation/core";
-import { AgentConfigInspector, ConnectionNodeIdFactory } from "@codemation/core";
-import { inject, injectable } from "@codemation/core";
+import type {
+  ChatModelConfig,
+  NodeDefinition,
+  ToolConfig,
+  WorkflowActivationPolicy,
+  WorkflowDefinition,
+} from "@codemation/core";
+import { AgentConfigInspector, ConnectionNodeIdFactory, CoreTokens, inject, injectable } from "@codemation/core";
 import type { WorkflowDto, WorkflowNodeDto, WorkflowSummary } from "../contracts/WorkflowViewContracts";
 import type { DataMapper } from "./DataMapper";
 import { WorkflowPolicyUiPresentationFactory } from "./WorkflowPolicyUiPresentationFactory";
@@ -10,6 +15,8 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
   constructor(
     @inject(WorkflowPolicyUiPresentationFactory)
     private readonly policyUi: WorkflowPolicyUiPresentationFactory,
+    @inject(CoreTokens.WorkflowActivationPolicy)
+    private readonly workflowActivationPolicy: WorkflowActivationPolicy,
   ) {}
 
   async map(workflow: WorkflowDefinition): Promise<WorkflowDto> {
@@ -20,6 +27,7 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
     return {
       id: workflow.id,
       name: workflow.name,
+      active: this.workflowActivationPolicy.isActive(workflow.id),
       hasWorkflowErrorHandler: this.policyUi.workflowHasErrorHandler(workflow),
       nodes: this.toNodes(workflow),
       edges: this.toEdges(workflow),
@@ -30,6 +38,7 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
     return {
       id: workflow.id,
       name: workflow.name,
+      active: this.workflowActivationPolicy.isActive(workflow.id),
       discoveryPathSegments: workflow.discoveryPathSegments ?? [],
     };
   }
@@ -63,10 +72,9 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
           name: node.name ?? node.config?.name,
           type: this.nodeTypeName(node),
           role,
-          icon: this.canvasIconFromNodeConfig(node.config),
+          icon: node.config?.icon,
           retryPolicySummary: this.policyUi.nodeRetrySummary(node.config),
           hasNodeErrorHandler: this.policyUi.nodeHasErrorHandler(node.config),
-          continueWhenEmptyOutput: node.config?.continueWhenEmptyOutput,
           parentNodeId: conn.parentNodeId,
         });
         continue;
@@ -77,10 +85,9 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
         name: node.name ?? node.config?.name,
         type: this.nodeTypeName(node),
         role: AgentConfigInspector.isAgentNodeConfig(node.config) ? "agent" : "workflowNode",
-        icon: AgentConfigInspector.isAgentNodeConfig(node.config) ? "lucide:bot" : node.config?.icon,
+        icon: node.config?.icon,
         retryPolicySummary: this.policyUi.nodeRetrySummary(node.config),
         hasNodeErrorHandler: this.policyUi.nodeHasErrorHandler(node.config),
-        continueWhenEmptyOutput: node.config?.continueWhenEmptyOutput,
       });
       if (AgentConfigInspector.isAgentNodeConfig(node.config) && !this.agentHasConnectionMetadata(workflow, node.id)) {
         nodes.push(this.createLanguageModelNode(node, node.config.chatModel));
@@ -148,21 +155,6 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
       icon: toolConfig.presentation?.icon,
       parentNodeId: node.id,
     };
-  }
-
-  /** Prefer `presentation.icon` (LLM/tools) so provider marks (e.g. OpenAI) resolve from chat model config. */
-  private canvasIconFromNodeConfig(config: unknown): string | undefined {
-    if (!config || typeof config !== "object") {
-      return undefined;
-    }
-    const c = config as { icon?: unknown; presentation?: { icon?: unknown } };
-    if (typeof c.presentation?.icon === "string") {
-      return c.presentation.icon;
-    }
-    if (typeof c.icon === "string") {
-      return c.icon;
-    }
-    return undefined;
   }
 
   private nodeTypeName(node: NodeDefinition): string {

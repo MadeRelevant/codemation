@@ -7,6 +7,7 @@ function wf(args: Readonly<{ id: string; name: string; discoveryPathSegments: re
   return {
     id: args.id,
     name: args.name,
+    active: false,
     discoveryPathSegments: args.discoveryPathSegments,
   };
 }

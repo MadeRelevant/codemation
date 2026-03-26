@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { ConsumerBuildOptionsParser } from "./build/ConsumerBuildOptionsParser";
 import { BuildCommand } from "./commands/BuildCommand";
+import type { DbMigrateCommand } from "./commands/DbMigrateCommand";
 import { DevCommand } from "./commands/DevCommand";
 import { ServeWebCommand } from "./commands/ServeWebCommand";
 import { ServeWorkerCommand } from "./commands/ServeWorkerCommand";
@@ -19,6 +20,7 @@ export class CliProgram {
     private readonly devCommand: DevCommand,
     private readonly serveWebCommand: ServeWebCommand,
     private readonly serveWorkerCommand: ServeWorkerCommand,
+    private readonly dbMigrateCommand: DbMigrateCommand,
     private readonly userCreateCommand: UserCreateCommand,
     private readonly userListCommand: UserListCommand,
   ) {}
@@ -88,6 +90,21 @@ export class CliProgram {
       .option("--config <path>", "Override path to codemation.config.ts / .js")
       .action(async (opts: Readonly<{ consumerRoot?: string; config?: string }>) => {
         await this.serveWorkerCommand.execute(resolveConsumerRoot(opts.consumerRoot), opts.config);
+      });
+
+    const db = program.command("db").description("Database utilities (PostgreSQL / Prisma).");
+
+    db.command("migrate")
+      .description(
+        "Apply pending Prisma migrations using the consumer database URL (DATABASE_URL in `.env`, or CodemationConfig.runtime.database.url).",
+      )
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .action(async (opts: Readonly<{ consumerRoot?: string; config?: string }>) => {
+        await this.dbMigrateCommand.execute({
+          consumerRoot: resolveConsumerRoot(opts.consumerRoot),
+          configPath: opts.config,
+        });
       });
 
     const user = program.command("user").description("User administration (local auth)");

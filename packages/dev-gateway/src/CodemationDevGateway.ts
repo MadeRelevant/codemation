@@ -5,6 +5,7 @@ import type { Duplex } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
 import { ApiPaths } from "@codemation/host";
 import { DevelopmentRuntimeRouteGuard } from "@codemation/host/dev-server-sidecar";
+import { DevGatewayBuildLifecycleBroadcastPayloads } from "./DevGatewayBuildLifecycleBroadcastPayloads";
 import httpProxy from "http-proxy";
 import { WebSocket, WebSocketServer } from "ws";
 
@@ -223,7 +224,11 @@ export class CodemationDevGateway {
     }
     if (kind === "buildCompleted") {
       await this.restartChild();
-      this.broadcastDev({ kind: "devBuildCompleted" });
+      const buildVersion = DevGatewayBuildLifecycleBroadcastPayloads.resolveBuildVersionFromNotifyPayload(payload);
+      this.broadcastDev(DevGatewayBuildLifecycleBroadcastPayloads.devSocketDevBuildCompleted(buildVersion));
+      this.broadcastWorkflowLifecycleToSubscribedRooms((roomId: string) =>
+        DevGatewayBuildLifecycleBroadcastPayloads.workflowRoomDevBuildCompleted(roomId, buildVersion),
+      );
       res.writeHead(204);
       res.end();
       return;

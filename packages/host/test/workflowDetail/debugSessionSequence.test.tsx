@@ -16,6 +16,7 @@ class DebugSessionSequenceFixture {
     return {
       id: this.workflowId,
       name: "Frontend debug sequence workflow",
+      active: true,
       nodes: this.nodeIds.map((nodeId, index) => ({
         id: nodeId,
         kind: index === 0 ? "trigger" : "node",

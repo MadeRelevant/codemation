@@ -42,6 +42,7 @@ import {
   fetchWorkflowDebuggerOverlay,
   fetchWorkflowRuns,
   fetchWorkflows,
+  patchWorkflowActivation,
 } from "../../lib/realtime/realtimeApi";
 import { getRealtimeBridge } from "../../lib/realtime/realtimeClientBridge";
 import {
@@ -117,6 +118,17 @@ export function useWorkflowQuery(workflowId: string, initialData?: WorkflowDto) 
     queryClient.setQueryData(workflowQueryKey(workflowId), initialData);
   }, [initialData, queryClient, workflowId]);
   return query;
+}
+
+export function useSetWorkflowActivationMutation(workflowId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (active: boolean) => await patchWorkflowActivation(workflowId, active),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: workflowQueryKey(workflowId) });
+      await queryClient.invalidateQueries({ queryKey: workflowsQueryKey });
+    },
+  });
 }
 
 export function useWorkflowRunsQuery(workflowId: string) {

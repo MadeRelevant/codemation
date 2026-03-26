@@ -11,6 +11,7 @@ import type {
   RunResult,
   RunStateStore,
 } from "./runTypes";
+import type { WorkflowActivationPolicy } from "./workflowActivationPolicy";
 import type { TriggerInstanceId, WebhookTriggerMatcher } from "./webhookTypes";
 import type {
   ActivationIdFactory,
@@ -339,11 +340,19 @@ export interface WorkflowSnapshotResolver {
   }): WorkflowDefinition | undefined;
 }
 
+/** Optional host wiring for trigger lifecycle logs (boot skip + activation sync). */
+export interface TriggerRuntimeDiagnostics {
+  info(message: string): void;
+  warn(message: string): void;
+}
+
 export interface EngineDeps {
   credentialSessions: CredentialSessionService;
   workflowRunnerResolver: WorkflowRunnerResolver;
   workflowCatalog: WorkflowCatalog;
   workflowRepository: WorkflowRepository;
+  /** When {@link AllWorkflowsActiveWorkflowActivationPolicy}, all workflows behave as active (tests). */
+  workflowActivationPolicy: WorkflowActivationPolicy;
   nodeResolver: NodeResolver;
   triggerSetupStateStore: TriggerSetupStateStore;
   webhookTriggerMatcher: WebhookTriggerMatcher;
@@ -358,4 +367,6 @@ export interface EngineDeps {
   workflowNodeInstanceFactory: WorkflowNodeInstanceFactory;
   /** Defaults for prune/storage snapshot when workflow omits explicit policy fields. */
   workflowPolicyRuntimeDefaults?: WorkflowPolicyRuntimeDefaults;
+  /** When set, logs inactive-workflow skips at boot and trigger start/stop on activation changes. */
+  triggerRuntimeDiagnostics?: TriggerRuntimeDiagnostics;
 }

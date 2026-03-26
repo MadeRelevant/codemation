@@ -11,6 +11,8 @@ export interface WebhookControlSignal {
 
 export interface WebhookTriggerRoutingDiagnostics {
   warn(message: string): void;
+  /** Inactive workflows omitted from the webhook route index (optional; host should wire for clarity at boot/reload). */
+  info?(message: string): void;
 }
 
 export interface TriggerInstanceId {
@@ -42,4 +44,6 @@ export interface WebhookTriggerMatcher {
   lookup(endpointPath: string): WebhookInvocationMatch | undefined;
   onEngineWorkflowsLoaded?(): void;
   onEngineStopped?(): void;
+  /** Rebuild route index after activation changes without stopping the engine. */
+  reloadWebhookRoutes?(): void;
 }

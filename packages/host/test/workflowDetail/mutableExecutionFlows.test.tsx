@@ -14,6 +14,7 @@ class PinnedSkippedExecutionFixture {
     return {
       id: this.workflowId,
       name: "Pinned skipped workflow",
+      active: true,
       nodes: [
         { id: "A", kind: "trigger", type: "ManualTriggerNode", name: "A" },
         { id: "B", kind: "node", type: "CallbackNode", name: "B" },
@@ -123,6 +124,7 @@ class PinnedChainExecutionFixture {
     return {
       id: this.workflowId,
       name: "Pinned chain workflow",
+      active: true,
       nodes: [
         { id: "A", kind: "trigger", type: "ManualTriggerNode", name: "A" },
         { id: "B", kind: "node", type: "CallbackNode", name: "B" },

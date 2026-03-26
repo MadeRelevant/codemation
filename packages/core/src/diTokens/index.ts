@@ -14,6 +14,7 @@ import type {
   RunIdFactory,
   RunStateStore,
   TriggerSetupStateStore,
+  WorkflowActivationPolicy,
   WorkflowCatalog,
   WorkflowRepository,
   WorkflowRegistry,
@@ -51,4 +52,7 @@ export const CoreTokens = {
   EngineExecutionLimitsPolicy: Symbol.for(
     "codemation.core.EngineExecutionLimitsPolicy",
   ) as TypeToken<EngineExecutionLimitsPolicy>,
+  WorkflowActivationPolicy: Symbol.for(
+    "codemation.core.WorkflowActivationPolicy",
+  ) as TypeToken<WorkflowActivationPolicy>,
 } as const;

@@ -1,5 +1,3 @@
-import { cn } from "@/lib/utils";
-
 import type {
   WorkflowRunsSidebarActions,
   WorkflowRunsSidebarFormatting,
@@ -9,17 +7,18 @@ import type {
 import { WorkflowRunsList } from "./WorkflowRunsList";
 
 /**
- * Left drawer over the canvas (see WorkflowDetailScreen). Open/close is driven by Live workflow / Executions tabs.
+ * Left column when the executions pane is open (see WorkflowDetailScreen grid). Must stay in document flow so
+ * `grid-cols-[320px_1fr]` reserves space; `position:absolute` would anchor to the wrong containing block and
+ * collapse the canvas column.
  */
 export function WorkflowRunsSidebar(
   args: Readonly<{
-    isOpen: boolean;
     model: WorkflowRunsSidebarModel;
     actions: WorkflowRunsSidebarActions;
     formatting: WorkflowRunsSidebarFormatting;
   }>,
 ) {
-  const { actions, formatting, isOpen, model } = args;
+  const { actions, formatting, model } = args;
   const { formatRunListDurationLine, formatRunListWhen, getExecutionModeLabel } = formatting;
   const { onSelectRun } = actions;
   const { displayedRuns, error, runsError, selectedRunId, workflowError } = model;
@@ -27,10 +26,7 @@ export function WorkflowRunsSidebar(
   return (
     <aside
       data-testid="workflow-runs-sidebar"
-      className={cn(
-        "absolute top-0 bottom-0 left-0 z-[7] flex min-h-0 w-[320px] flex-col overflow-hidden border-r bg-card shadow-[6px_0_18px_rgba(15,23,42,0.06)] transition-transform duration-200 ease-out",
-        isOpen ? "translate-x-0 border-border" : "pointer-events-none -translate-x-full border-transparent",
-      )}
+      className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden border-r border-border bg-card shadow-[6px_0_18px_rgba(15,23,42,0.06)]"
     >
       {error || workflowError ? (
         <div className="shrink-0 border-b border-border px-3.5 py-2.5 text-sm text-destructive">

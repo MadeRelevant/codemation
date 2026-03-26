@@ -45,6 +45,7 @@ import "./application/commands/CredentialCommandHandlers";
 import "./application/commands/HandleWebhookInvocationCommandHandler";
 import "./application/commands/ReplaceMutableRunWorkflowSnapshotCommandHandler";
 import "./application/commands/ReplaceWorkflowDebuggerOverlayCommandHandler";
+import "./application/commands/SetWorkflowActivationCommandHandler";
 import "./application/commands/UploadOverlayPinnedBinaryCommandHandler";
 import "./application/commands/ReplayWorkflowNodeCommandHandler";
 import "./application/commands/SetPinnedNodeInputCommandHandler";
@@ -83,6 +84,8 @@ import { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
 import { UserAccountService } from "./domain/users/UserAccountServiceRegistry";
 import { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
+import { WorkflowActivationPreflight } from "./domain/workflows/WorkflowActivationPreflight";
+import { WorkflowActivationPreflightRules } from "./domain/workflows/WorkflowActivationPreflightRules";
 import { AuthJsSessionVerifier } from "./infrastructure/auth/AuthJsSessionVerifier";
 import { DevelopmentSessionBypassVerifier } from "./infrastructure/auth/DevelopmentSessionBypassVerifier";
 import { LocalFilesystemBinaryStorage } from "./infrastructure/binary/LocalFilesystemBinaryStorageRegistry";
@@ -105,12 +108,15 @@ import {
 import { PrismaClient } from "./infrastructure/persistence/generated/prisma-client/client.js";
 import { InMemoryTriggerSetupStateStore } from "./infrastructure/persistence/InMemoryTriggerSetupStateStore";
 import { InMemoryWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/InMemoryWorkflowDebuggerOverlayRepository";
+import { InMemoryWorkflowActivationRepository } from "./infrastructure/persistence/InMemoryWorkflowActivationRepository";
 import { InMemoryWorkflowRunRepository } from "./infrastructure/persistence/InMemoryWorkflowRunRepository";
 import { PrismaClientFactory } from "./infrastructure/persistence/PrismaClientFactory";
 import { PrismaMigrationDeployer } from "./infrastructure/persistence/PrismaMigrationDeployer";
 import { PrismaTriggerSetupStateStore } from "./infrastructure/persistence/PrismaTriggerSetupStateStore";
+import { PrismaWorkflowActivationRepository } from "./infrastructure/persistence/PrismaWorkflowActivationRepository";
 import { PrismaWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/PrismaWorkflowDebuggerOverlayRepository";
 import { PrismaWorkflowRunRepository } from "./infrastructure/persistence/PrismaWorkflowRunRepository";
+import { RuntimeWorkflowActivationPolicy } from "./infrastructure/persistence/RuntimeWorkflowActivationPolicy";
 import { WorkflowDefinitionRepositoryAdapter } from "./infrastructure/persistence/WorkflowDefinitionRepositoryAdapter";
 import { LiveWorkflowCatalog } from "./infrastructure/runtime/LiveWorkflowCatalog";
 import { WorkflowRunRepository as SqlWorkflowRunRepository } from "./infrastructure/persistence/WorkflowRunRepository";
@@ -172,6 +178,7 @@ export class CodemationApplication {
   }
 
   useConfig(config: CodemationApplicationConfig): this {
+    logLevelPolicyFactory.create().applyCodemationLogConfig(config.log);
     // Credential registration must follow bindings: useBindings() re-syncs the container and replaces CredentialTypeRegistryImpl.
     if (config.workflows) {
       this.useWorkflows(config.workflows);
@@ -521,6 +528,9 @@ export class CodemationApplication {
           new ContainerWorkflowRunnerResolver(dependencyContainer.resolve(CoreTokens.ServiceContainer)),
       ),
     });
+    const runtimeWorkflowActivationPolicy = new RuntimeWorkflowActivationPolicy();
+    this.container.registerInstance(RuntimeWorkflowActivationPolicy, runtimeWorkflowActivationPolicy);
+    this.container.registerInstance(CoreTokens.WorkflowActivationPolicy, runtimeWorkflowActivationPolicy);
     this.container.register(EngineFactory, { useClass: EngineFactory });
     this.container.register(CoreTokens.EngineExecutionLimitsPolicy, {
       useFactory: instanceCachingFactory(() =>
@@ -532,11 +542,16 @@ export class CodemationApplication {
         const workflowCatalog = dependencyContainer.resolve(CoreTokens.WorkflowCatalog);
         const nodeResolver = dependencyContainer.resolve(CoreTokens.NodeResolver);
         const tokenRegistryLike = dependencyContainer.resolve(CoreTokens.PersistedWorkflowTokenRegistry);
+        const workflowActivationPolicy = dependencyContainer.resolve(CoreTokens.WorkflowActivationPolicy);
+        const serverLoggerFactory = dependencyContainer.resolve(ServerLoggerFactory);
+        const webhookRoutingLogger = serverLoggerFactory.create("codemation.webhooks.routing");
+        const triggerRuntimeLogger = serverLoggerFactory.create("codemation.engine.triggers");
         const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(
           dependencyContainer.resolve(CoreTokens.WorkflowRepository),
+          workflowActivationPolicy,
           {
-            warn: (message) =>
-              dependencyContainer.resolve(ServerLoggerFactory).create("codemation.webhooks.routing").warn(message),
+            warn: (message) => webhookRoutingLogger.warn(message),
+            info: (message) => webhookRoutingLogger.info(message),
           },
         );
         const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
@@ -545,6 +560,7 @@ export class CodemationApplication {
           workflowRunnerResolver: dependencyContainer.resolve(CoreTokens.WorkflowRunnerResolver),
           workflowCatalog,
           workflowRepository: dependencyContainer.resolve(CoreTokens.WorkflowRepository),
+          workflowActivationPolicy,
           nodeResolver,
           triggerSetupStateStore: dependencyContainer.resolve(CoreTokens.TriggerSetupStateStore),
           webhookTriggerMatcher,
@@ -558,6 +574,10 @@ export class CodemationApplication {
           tokenRegistry: tokenRegistryLike,
           workflowNodeInstanceFactory,
           executionLimitsPolicy: dependencyContainer.resolve(CoreTokens.EngineExecutionLimitsPolicy),
+          triggerRuntimeDiagnostics: {
+            info: (message) => triggerRuntimeLogger.info(message),
+            warn: (message) => triggerRuntimeLogger.warn(message),
+          },
         });
       }),
     });
@@ -612,6 +632,8 @@ export class CodemationApplication {
     this.container.register(WorkflowCredentialNodeResolver, { useClass: WorkflowCredentialNodeResolver });
     this.container.register(CredentialInstanceService, { useClass: CredentialInstanceService });
     this.container.register(CredentialBindingService, { useClass: CredentialBindingService });
+    this.container.register(WorkflowActivationPreflightRules, { useClass: WorkflowActivationPreflightRules });
+    this.container.register(WorkflowActivationPreflight, { useClass: WorkflowActivationPreflight });
     this.container.register(CredentialTestService, { useClass: CredentialTestService });
     this.container.register(CredentialSessionServiceImpl, { useClass: CredentialSessionServiceImpl });
     this.container.register(OAuth2ProviderRegistry, { useClass: OAuth2ProviderRegistry });
@@ -631,6 +653,8 @@ export class CodemationApplication {
     this.container.register(PrismaWorkflowDebuggerOverlayRepository, {
       useClass: PrismaWorkflowDebuggerOverlayRepository,
     });
+    this.container.register(PrismaWorkflowActivationRepository, { useClass: PrismaWorkflowActivationRepository });
+    this.container.register(InMemoryWorkflowActivationRepository, { useClass: InMemoryWorkflowActivationRepository });
     this.container.register(PrismaCredentialStore, { useClass: PrismaCredentialStore });
     this.container.register(ApplicationTokens.WorkflowDefinitionRepository, {
       useFactory: instanceCachingFactory(
@@ -742,6 +766,11 @@ export class CodemationApplication {
     if (persistence.prismaClient) {
       this.container.registerInstance(PrismaClient, persistence.prismaClient);
     }
+    const workflowActivationRepository = persistence.prismaClient
+      ? this.container.resolve(PrismaWorkflowActivationRepository)
+      : this.container.resolve(InMemoryWorkflowActivationRepository);
+    this.container.registerInstance(ApplicationTokens.WorkflowActivationRepository, workflowActivationRepository);
+    await this.container.resolve(RuntimeWorkflowActivationPolicy).hydrateFromRepository(workflowActivationRepository);
     if (resolved.databaseUrl) {
       this.container.registerInstance(ApplicationTokens.CredentialStore, this.container.resolve(PrismaCredentialStore));
     } else {

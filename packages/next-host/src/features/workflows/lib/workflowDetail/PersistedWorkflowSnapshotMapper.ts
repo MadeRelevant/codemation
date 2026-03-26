@@ -20,6 +20,7 @@ export class PersistedWorkflowSnapshotMapper {
     return {
       id: snapshot.id,
       name: snapshot.name,
+      active: false,
       hasWorkflowErrorHandler: snapshot.workflowErrorHandlerConfigured,
       nodes,
       edges: [...snapshot.edges, ...this.toAttachmentEdges(nodes)],
@@ -66,18 +67,15 @@ export class PersistedWorkflowSnapshotMapper {
     snapshot: PersistedWorkflowSnapshot,
     nodesById: ReadonlyMap<string, PersistedWorkflowSnapshot["nodes"][number]>,
   ): ReadonlyArray<WorkflowNodeDto> {
-    const configRecord = this.asRecord(node.config);
-    const isAgent = this.isAgentConfig(node.config);
     const workflowNode: WorkflowNodeDto = {
       id: node.id,
       kind: node.kind,
       name: node.name,
       type: node.configTokenName ?? node.tokenName ?? node.configTokenId,
-      role: isAgent ? "agent" : "workflowNode",
-      icon: isAgent ? "lucide:bot" : typeof configRecord.icon === "string" ? configRecord.icon : undefined,
+      role: this.isAgentConfig(node.config) ? "agent" : "workflowNode",
+      icon: this.readNodeIcon(node.config),
       retryPolicySummary: this.policyUi.snapshotNodeRetrySummary(node.config),
       hasNodeErrorHandler: this.policyUi.snapshotNodeHasErrorHandler(node.config),
-      continueWhenEmptyOutput: configRecord.continueWhenEmptyOutput,
     };
 
     if (!this.isAgentConfig(node.config)) {
@@ -100,17 +98,15 @@ export class PersistedWorkflowSnapshotMapper {
     meta: Readonly<{ parentNodeId: string; connectionName: string }>,
   ): WorkflowNodeDto {
     const role = meta.connectionName === "llm" ? "languageModel" : "tool";
-    const configRecord = this.asRecord(node.config);
     return {
       id: node.id,
       kind: node.kind,
       name: node.name,
       type: node.configTokenName ?? node.tokenName ?? node.configTokenId,
       role,
-      icon: this.canvasIconFromSnapshotConfig(node.config),
+      icon: this.readNodeIcon(node.config),
       retryPolicySummary: this.policyUi.snapshotNodeRetrySummary(node.config),
       hasNodeErrorHandler: this.policyUi.snapshotNodeHasErrorHandler(node.config),
-      continueWhenEmptyOutput: configRecord.continueWhenEmptyOutput,
       parentNodeId: meta.parentNodeId,
     };
   }
@@ -170,19 +166,6 @@ export class PersistedWorkflowSnapshotMapper {
     return typeof record.systemMessage === "string" && record.chatModel !== undefined;
   }
 
-  /** Match `WorkflowDefinitionMapper` / connection DTOs: prefer `presentation.icon` (provider marks). */
-  private canvasIconFromSnapshotConfig(config: unknown): string | undefined {
-    const c = this.asRecord(config);
-    const pres = this.asRecord(c.presentation);
-    if (typeof pres.icon === "string") {
-      return pres.icon;
-    }
-    if (typeof c.icon === "string") {
-      return c.icon;
-    }
-    return undefined;
-  }
-
   private readAttachmentLabel(presentation: unknown, fallback: string): string {
     const presentationRecord = this.asRecord(presentation);
     return presentationRecord.label ?? fallback;
@@ -190,6 +173,11 @@ export class PersistedWorkflowSnapshotMapper {
 
   private readAttachmentIcon(presentation: unknown): string | undefined {
     return this.asRecord(presentation).icon;
+  }
+
+  private readNodeIcon(config: unknown): string | undefined {
+    const c = this.asRecord(config);
+    return typeof c.icon === "string" ? c.icon : undefined;
   }
 
   private asRecord(value: unknown): Readonly<{
@@ -200,7 +188,6 @@ export class PersistedWorkflowSnapshotMapper {
     chatModel?: unknown;
     tools?: ReadonlyArray<unknown>;
     presentation?: unknown;
-    continueWhenEmptyOutput?: boolean;
   }> {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       return {};
@@ -213,7 +200,6 @@ export class PersistedWorkflowSnapshotMapper {
       chatModel?: unknown;
       tools?: ReadonlyArray<unknown>;
       presentation?: unknown;
-      continueWhenEmptyOutput?: boolean;
     }>;
   }
 }

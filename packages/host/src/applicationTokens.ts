@@ -15,6 +15,7 @@ import type { CredentialStore } from "./domain/credentials/CredentialServices";
 import type { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
 import type { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
+import type { WorkflowActivationRepository } from "./domain/workflows/WorkflowActivationRepository";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
 import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";
 import type { HonoApiRouteRegistrar } from "./presentation/http/hono/HonoApiRouteRegistrar";
@@ -45,6 +46,9 @@ export const ApplicationTokens = {
   WorkflowDefinitionRepository: Symbol.for(
     "codemation.application.WorkflowDefinitionRepository",
   ) as TypeToken<WorkflowDefinitionRepository>,
+  WorkflowActivationRepository: Symbol.for(
+    "codemation.application.WorkflowActivationRepository",
+  ) as TypeToken<WorkflowActivationRepository>,
   WorkflowDebuggerOverlayRepository: Symbol.for(
     "codemation.application.WorkflowDebuggerOverlayRepository",
   ) as TypeToken<WorkflowDebuggerOverlayRepository>,

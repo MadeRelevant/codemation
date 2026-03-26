@@ -1,4 +1,5 @@
 import {
+  AllWorkflowsActiveWorkflowActivationPolicy,
   ConnectionNodeIdFactory,
   PersistedWorkflowTokenRegistry,
   WorkflowBuilder,
@@ -119,9 +120,10 @@ export class WorkflowDetailFixtureFactory {
   }
 
   static createWorkflowDetail(options: WorkflowDetailDefinitionOptions = {}): WorkflowDto {
-    return new WorkflowDefinitionMapper(new WorkflowPolicyUiPresentationFactory()).mapSync(
-      this.createWorkflowDefinition(options),
-    ) as WorkflowDto;
+    return new WorkflowDefinitionMapper(
+      new WorkflowPolicyUiPresentationFactory(),
+      new AllWorkflowsActiveWorkflowActivationPolicy(),
+    ).mapSync(this.createWorkflowDefinition(options)) as WorkflowDto;
   }
 
   static createWorkflowSnapshot(

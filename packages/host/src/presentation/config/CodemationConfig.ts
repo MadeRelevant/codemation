@@ -5,6 +5,7 @@ import type { CodemationAppSlots } from "./CodemationAppSlots";
 import type { CodemationAuthConfig } from "./CodemationAuthConfig";
 import type { CodemationBinding } from "./CodemationBinding";
 import type { CodemationPlugin } from "./CodemationPlugin";
+import type { CodemationLogConfig } from "./CodemationLogConfig";
 import type { CodemationWorkflowDiscovery } from "./CodemationWorkflowDiscovery";
 
 export type CodemationEventBusKind = "memory" | "redis";
@@ -69,4 +70,9 @@ export interface CodemationConfig {
   readonly slots?: CodemationAppSlots;
   /** Required for production hosts; optional only when using development bypass (never in production). */
   readonly auth?: CodemationAuthConfig;
+  /**
+   * Namespace-level log filters (first matching rule wins). Unmatched namespaces use `CODEMATION_LOG_LEVEL` / defaults.
+   * Omit to keep env-only behavior.
+   */
+  readonly log?: CodemationLogConfig;
 }

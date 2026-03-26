@@ -23,6 +23,15 @@ export async function fetchWorkflow(workflowId: string): Promise<WorkflowDto> {
   return await codemationApiClient.getJson<WorkflowDto>(ApiPaths.workflow(workflowId));
 }
 
+export async function patchWorkflowActivation(
+  workflowId: string,
+  active: boolean,
+): Promise<Readonly<{ active: boolean }>> {
+  return await codemationApiClient.patchJson<Readonly<{ active: boolean }>>(ApiPaths.workflowActivation(workflowId), {
+    active,
+  });
+}
+
 export async function fetchWorkflowRuns(workflowId: string): Promise<ReadonlyArray<RunSummary>> {
   return await codemationApiClient.getJson<ReadonlyArray<RunSummary>>(ApiPaths.workflowRuns(workflowId));
 }

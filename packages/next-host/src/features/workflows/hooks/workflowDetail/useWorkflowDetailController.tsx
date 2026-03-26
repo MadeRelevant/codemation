@@ -1,14 +1,16 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { WorkflowActivationHttpErrorFormat } from "../../lib/workflowDetail/WorkflowActivationHttpErrorFormat";
 import {
   useRunQuery,
   useWorkflowCredentialHealthQuery,
   useWorkflowDebuggerOverlayQuery,
   useWorkflowDevBuildStateQuery,
   useWorkflowQuery,
-  useWorkflowRealtimeConnectionState,
   useWorkflowRealtimeSubscription,
+  useSetWorkflowActivationMutation,
   useWorkflowRunsQuery,
   type Items,
   type NodeExecutionSnapshot,
@@ -17,6 +19,7 @@ import {
   type WorkflowDevBuildState,
   type WorkflowDto,
 } from "../realtime/realtime";
+import { useWorkflowRealtimeShowDisconnectedBadge } from "../realtime/useWorkflowRealtimeShowDisconnectedBadge";
 import { WorkflowDetailPresenter, type RunWorkflowRequest } from "../../lib/workflowDetail/WorkflowDetailPresenter";
 import {
   WorkflowDetailUrlCodec,
@@ -45,7 +48,7 @@ export type WorkflowDetailControllerResult = Readonly<{
   isRunsPaneVisible: boolean;
   isRunning: boolean;
   workflowDevBuildState: WorkflowDevBuildState;
-  isRealtimeConnected: boolean;
+  showRealtimeDisconnectedBadge: boolean;
   canCopySelectedRunToLive: boolean;
   /** Nodes on the canvas that have a required credential slot with status unbound. */
   credentialAttentionNodeIds: ReadonlySet<string>;
@@ -61,11 +64,7 @@ export type WorkflowDetailControllerResult = Readonly<{
   inspectorFormatting: WorkflowExecutionInspectorFormatting;
   inspectorActions: WorkflowExecutionInspectorActions;
   selectedNodeId: string | null;
-  /** Workflow node id for canvas selection ring (invocation ids map to {@link ConnectionInvocationRecord#connectionNodeId}). */
-  canvasWorkflowNodeIdForHighlight: string | null;
   propertiesPanelNodeId: string | null;
-  /** When the panel is open, matches inspector/canvas selection (`selectedNodeId` wins). */
-  propertiesPanelResolvedNodeId: string | null;
   isPropertiesPanelOpen: boolean;
   selectedPropertiesWorkflowNode: WorkflowDto["nodes"][number] | undefined;
   selectCanvasNode: (nodeId: string) => void;
@@ -86,6 +85,11 @@ export type WorkflowDetailControllerResult = Readonly<{
   jsonEditorState: JsonEditorState | null;
   closeJsonEditor: () => void;
   saveJsonEditor: (value: string, binaryMaps?: PinBinaryMapsByItemIndex) => void;
+  workflowIsActive: boolean;
+  isWorkflowActivationPending: boolean;
+  workflowActivationAlertLines: ReadonlyArray<string> | null;
+  dismissWorkflowActivationAlert: () => void;
+  setWorkflowActive: (active: boolean) => void;
 }>;
 
 export function useWorkflowDetailController(
@@ -107,13 +111,16 @@ export function useWorkflowDetailController(
   );
   const queryClient = useQueryClient();
   const workflowQuery = useWorkflowQuery(workflowId, initialWorkflow);
+  const setWorkflowActivationMutation = useSetWorkflowActivationMutation(workflowId);
   const workflowCredentialHealthQuery = useWorkflowCredentialHealthQuery(workflowId);
   const runsQuery = useWorkflowRunsQuery(workflowId);
   const debuggerOverlayQuery = useWorkflowDebuggerOverlayQuery(workflowId);
   const workflowDevBuildStateQuery = useWorkflowDevBuildStateQuery(workflowId);
-  const isRealtimeConnected = useWorkflowRealtimeConnectionState();
+  const showRealtimeDisconnectedBadge = useWorkflowRealtimeShowDisconnectedBadge();
   useWorkflowRealtimeSubscription(workflowId);
 
+  const workflowActivationErrorFormat = useMemo(() => new WorkflowActivationHttpErrorFormat(), []);
+  const [workflowActivationAlertLines, setWorkflowActivationAlertLines] = useState<ReadonlyArray<string> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunRequestPending, setIsRunRequestPending] = useState(false);
   const [pendingTriggerFetchSnapshot, setPendingTriggerFetchSnapshot] = useState<NodeExecutionSnapshot | null>(null);
@@ -417,6 +424,19 @@ export function useWorkflowDetailController(
     if (workflowQuery.isFetching) {
       return;
     }
+    if (workflowQuery.isError) {
+      queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey, (existing) => {
+        if (!existing || existing.state !== "building") {
+          return existing;
+        }
+        return {
+          state: "idle",
+          updatedAt: new Date().toISOString(),
+          buildVersion: existing.buildVersion,
+        };
+      });
+      return;
+    }
     const workflowRefreshRequestedAt = Date.parse(workflowDevBuildState.awaitingWorkflowRefreshAt);
     if (!Number.isFinite(workflowRefreshRequestedAt) || workflowQuery.dataUpdatedAt < workflowRefreshRequestedAt) {
       return;
@@ -437,6 +457,7 @@ export function useWorkflowDetailController(
     workflowDevBuildStateQueryKey,
     workflowDevBuildState.state,
     workflowQuery.dataUpdatedAt,
+    workflowQuery.isError,
     workflowQuery.isFetching,
   ]);
 
@@ -499,9 +520,6 @@ export function useWorkflowDetailController(
 
   useEffect(() => {
     if (!displayedWorkflow?.nodes.length) return;
-    if (isPropertiesPanelOpen) {
-      return;
-    }
     if (
       hasManuallySelectedNode &&
       selectedNodeId &&
@@ -532,7 +550,6 @@ export function useWorkflowDetailController(
     displayedWorkflow,
     executionNodes,
     hasManuallySelectedNode,
-    isPropertiesPanelOpen,
     normalizedConnectionInvocations,
     selectedNodeId,
   ]);
@@ -559,40 +576,10 @@ export function useWorkflowDetailController(
     () => selectedExecutionNode?.node ?? displayedWorkflow?.nodes.find((node) => node.id === selectedNodeId),
     [displayedWorkflow, selectedExecutionNode, selectedNodeId],
   );
-  const canvasWorkflowNodeIdForHighlight = useMemo(
-    () =>
-      WorkflowDetailPresenter.resolveCanvasWorkflowNodeIdForHighlight(
-        selectedNodeId,
-        displayedWorkflow,
-        currentExecutionState?.connectionInvocations,
-      ),
-    [currentExecutionState?.connectionInvocations, displayedWorkflow, selectedNodeId],
-  );
-
-  const propertiesPanelResolvedNodeId = useMemo(() => {
-    if (!isPropertiesPanelOpen) {
-      return null;
-    }
-    const raw = selectedNodeId ?? propertiesPanelNodeId;
-    return WorkflowDetailPresenter.resolveCanvasWorkflowNodeIdForHighlight(
-      raw,
-      displayedWorkflow,
-      currentExecutionState?.connectionInvocations,
-    );
-  }, [
-    currentExecutionState?.connectionInvocations,
-    displayedWorkflow,
-    isPropertiesPanelOpen,
-    propertiesPanelNodeId,
-    selectedNodeId,
-  ]);
-
   const selectedPropertiesWorkflowNode = useMemo(
     () =>
-      propertiesPanelResolvedNodeId
-        ? displayedWorkflow?.nodes.find((node) => node.id === propertiesPanelResolvedNodeId)
-        : undefined,
-    [displayedWorkflow, propertiesPanelResolvedNodeId],
+      propertiesPanelNodeId ? displayedWorkflow?.nodes.find((node) => node.id === propertiesPanelNodeId) : undefined,
+    [displayedWorkflow, propertiesPanelNodeId],
   );
   const inputPortEntries = useMemo(
     () => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.inputsByPort),
@@ -1159,7 +1146,7 @@ export function useWorkflowDetailController(
     isRunsPaneVisible,
     isRunning,
     workflowDevBuildState,
-    isRealtimeConnected,
+    showRealtimeDisconnectedBadge,
     canCopySelectedRunToLive: viewContext === "historical-run" && Boolean(selectedRun),
     credentialAttentionNodeIds: credentialAttention.attentionNodeIds,
     credentialAttentionSummaryLines: credentialAttention.summaryLines,
@@ -1233,9 +1220,7 @@ export function useWorkflowDetailController(
       onSelectOutputPort: setSelectedOutputPort,
     },
     selectedNodeId,
-    canvasWorkflowNodeIdForHighlight,
     propertiesPanelNodeId,
-    propertiesPanelResolvedNodeId,
     isPropertiesPanelOpen,
     selectedPropertiesWorkflowNode,
     selectCanvasNode,
@@ -1261,5 +1246,22 @@ export function useWorkflowDetailController(
     jsonEditorState,
     closeJsonEditor: () => setJsonEditorState(null),
     saveJsonEditor,
+    workflowIsActive: workflow?.active ?? false,
+    isWorkflowActivationPending: setWorkflowActivationMutation.isPending,
+    workflowActivationAlertLines,
+    dismissWorkflowActivationAlert: () => {
+      setWorkflowActivationAlertLines(null);
+    },
+    setWorkflowActive: (active: boolean) => {
+      setWorkflowActivationAlertLines(null);
+      setWorkflowActivationMutation.mutate(active, {
+        onSuccess: () => {
+          setWorkflowActivationAlertLines(null);
+        },
+        onError: (mutationError) => {
+          setWorkflowActivationAlertLines(workflowActivationErrorFormat.extractMessages(mutationError));
+        },
+      });
+    },
   };
 }

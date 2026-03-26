@@ -6,6 +6,7 @@ import type {
   WebhookInvocationMatch,
   WebhookTriggerMatcher,
   WebhookTriggerRoutingDiagnostics,
+  WorkflowActivationPolicy,
   WorkflowDefinition,
   WorkflowId,
   WorkflowRepository,
@@ -21,6 +22,7 @@ export class WorkflowCatalogWebhookTriggerMatcher implements WebhookTriggerMatch
 
   constructor(
     private readonly workflowRepository: WorkflowRepository,
+    private readonly workflowActivationPolicy: WorkflowActivationPolicy,
     private readonly diagnostics?: WebhookTriggerRoutingDiagnostics,
   ) {}
 
@@ -32,6 +34,13 @@ export class WorkflowCatalogWebhookTriggerMatcher implements WebhookTriggerMatch
   onEngineStopped(): void {
     this.engineRoutesActive = false;
     this.routeByPath.clear();
+  }
+
+  reloadWebhookRoutes(): void {
+    if (!this.engineRoutesActive) {
+      return;
+    }
+    this.rebuildRouteIndex();
   }
 
   lookup(endpointPath: string): WebhookInvocationMatch | undefined {
@@ -53,6 +62,22 @@ export class WorkflowCatalogWebhookTriggerMatcher implements WebhookTriggerMatch
   private rebuildRouteIndex(): void {
     this.routeByPath.clear();
     for (const workflow of this.workflowRepository.list()) {
+      if (!this.workflowActivationPolicy.isActive(workflow.id)) {
+        const triggerCount = workflow.nodes.filter((n) => n.kind === "trigger").length;
+        if (triggerCount > 0) {
+          const paths = this.collectWebhookEndpointPaths(workflow);
+          if (paths.length > 0) {
+            this.diagnostics?.info?.(
+              `Workflow "${workflow.name}" (${workflow.id}) is inactive; webhook routes not registered: ${paths.map((p) => `"${p}"`).join(", ")}`,
+            );
+          } else {
+            this.diagnostics?.info?.(
+              `Workflow "${workflow.name}" (${workflow.id}) is inactive; no catalog webhook routes for its triggers (other trigger kinds are unchanged).`,
+            );
+          }
+        }
+        continue;
+      }
       for (const def of workflow.nodes) {
         const match = this.tryMatchFromTriggerNode(workflow, def);
         if (!match) {
@@ -68,6 +93,20 @@ export class WorkflowCatalogWebhookTriggerMatcher implements WebhookTriggerMatch
         this.routeByPath.set(key, match);
       }
     }
+  }
+
+  private collectWebhookEndpointPaths(workflow: WorkflowDefinition): string[] {
+    const paths: string[] = [];
+    for (const def of workflow.nodes) {
+      if (def.kind !== "trigger") {
+        continue;
+      }
+      const match = this.tryMatchFromTriggerNode(workflow, def);
+      if (match) {
+        paths.push(match.endpointPath);
+      }
+    }
+    return paths;
   }
 
   private tryMatchFromTriggerNode(

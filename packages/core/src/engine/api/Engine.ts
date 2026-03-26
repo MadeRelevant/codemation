@@ -25,6 +25,7 @@ import type {
 interface EngineTriggerRuntime {
   startTriggers(): Promise<void>;
   stop(): Promise<void>;
+  syncWorkflowTriggersForActivation(workflowId: WorkflowId): Promise<void>;
   createTriggerTestItems(args: { workflow: WorkflowDefinition; nodeId: NodeId }): Promise<Items | undefined>;
 }
 
@@ -114,6 +115,11 @@ export class Engine implements NodeActivationContinuation {
 
   async startTriggers(): Promise<void> {
     return await this.deps.triggerRuntime.startTriggers();
+  }
+
+  async syncWorkflowTriggersForActivation(workflowId: WorkflowId): Promise<void> {
+    await this.deps.triggerRuntime.syncWorkflowTriggersForActivation(workflowId);
+    this.deps.webhookTriggerMatcher.reloadWebhookRoutes?.();
   }
 
   async start(workflows: WorkflowDefinition[]): Promise<void> {

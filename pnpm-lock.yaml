@@ -431,6 +431,9 @@ importers:
       '@codemation/core':
         specifier: workspace:*
         version: link:../core
+      '@codemation/core-nodes':
+        specifier: workspace:*
+        version: link:../core-nodes
       '@codemation/eventbus-redis':
         specifier: workspace:*
         version: link:../eventbus-redis
@@ -528,9 +531,6 @@ importers:
         specifier: ^4.4.2
         version: 4.4.2
     devDependencies:
-      '@codemation/core-nodes':
-        specifier: workspace:*
-        version: link:../core-nodes
       '@codemation/core-nodes-gmail':
         specifier: workspace:*
         version: link:../core-nodes-gmail

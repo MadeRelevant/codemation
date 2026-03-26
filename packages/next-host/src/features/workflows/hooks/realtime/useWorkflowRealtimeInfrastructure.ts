@@ -227,24 +227,13 @@ export function useWorkflowRealtimeInfrastructure(
 
       if (message.kind === "devBuildCompleted") {
         logger.info(`workflow rebuild completed ${message.workflowId} revision=${message.buildVersion}`);
-        queryClient.setQueryData<WorkflowDevBuildState>(
-          workflowDevBuildStateQueryKey(message.workflowId),
-          (existing) => {
-            if (existing?.awaitingWorkflowRefreshAt) {
-              return {
-                state: "building",
-                updatedAt: new Date().toISOString(),
-                buildVersion: message.buildVersion,
-                awaitingWorkflowRefreshAt: existing.awaitingWorkflowRefreshAt,
-              };
-            }
-            return {
-              state: "idle",
-              updatedAt: new Date().toISOString(),
-              buildVersion: message.buildVersion,
-            };
-          },
-        );
+        const completedAt = new Date().toISOString();
+        queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey(message.workflowId), () => ({
+          state: "building",
+          updatedAt: completedAt,
+          buildVersion: message.buildVersion,
+          awaitingWorkflowRefreshAt: completedAt,
+        }));
         void queryClient.invalidateQueries({ queryKey: workflowQueryKey(message.workflowId) });
         void queryClient.refetchQueries({ queryKey: workflowQueryKey(message.workflowId), type: "active" });
         return;
@@ -412,6 +401,19 @@ export function useWorkflowRealtimeInfrastructure(
         const parsed = JSON.parse(event.data) as { kind?: string; message?: string };
         if (parsed.kind === "devBuildCompleted") {
           void queryClient.invalidateQueries({ queryKey: workflowsQueryKey });
+          void queryClient.invalidateQueries({
+            predicate: (q) =>
+              Array.isArray(q.queryKey) && q.queryKey[0] === "workflow" && typeof q.queryKey[1] === "string",
+          });
+          for (const query of queryClient.getQueryCache().findAll({ queryKey: ["workflow-dev-build-state"] })) {
+            const key = query.queryKey;
+            if (Array.isArray(key) && key[0] === "workflow-dev-build-state" && typeof key[1] === "string") {
+              queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey(key[1]), {
+                state: "idle",
+                updatedAt: new Date().toISOString(),
+              });
+            }
+          }
         }
         if (parsed.kind === "devBuildFailed" && typeof parsed.message === "string") {
           logger.error(`consumer rebuild failed: ${parsed.message}`);
@@ -512,6 +514,7 @@ export function useWorkflowRealtimeInfrastructure(
     () => ({
       retainWorkflowSubscription,
       isConnected: readyState === RealtimeReadyState.OPEN,
+      showDisconnectedBadge: readyState === RealtimeReadyState.CLOSED,
     }),
     [readyState, retainWorkflowSubscription],
   );

@@ -61,11 +61,13 @@ export class CodemationConsumerConfigLoader {
     const workflows =
       config.workflows ?? (await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources));
     phaseMs("loadDiscoveredWorkflows");
+    const resolvedConfig: CodemationConfig = {
+      ...config,
+      workflows,
+    };
+    logLevelPolicyFactory.create().applyCodemationLogConfig(resolvedConfig.log);
     return {
-      config: {
-        ...config,
-        workflows,
-      },
+      config: resolvedConfig,
       bootstrapSource,
       workflowSources,
     };

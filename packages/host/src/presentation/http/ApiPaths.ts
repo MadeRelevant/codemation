@@ -21,6 +21,10 @@ export class ApiPaths {
     return `${this.workflowsBasePath}/${encodeURIComponent(workflowId)}`;
   }
 
+  static workflowActivation(workflowId: string): string {
+    return `${this.workflow(workflowId)}/activation`;
+  }
+
   static workflowRuns(workflowId: string): string {
     return `${this.workflow(workflowId)}/runs`;
   }

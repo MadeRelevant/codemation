@@ -115,7 +115,13 @@ export class AppLayout extends Component<AppLayoutProps, AppLayoutState> {
               {sidebarCollapsed ? <IconChevronRight /> : <IconChevronLeft />}
             </Button>
           </div>
-          <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3" aria-label="Main navigation">
+          <nav
+            className={cn(
+              "flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto p-3",
+              sidebarCollapsed && "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            )}
+            aria-label="Main navigation"
+          >
             <AppLayoutNavItems collapsed={sidebarCollapsed} />
           </nav>
           {!sidebarCollapsed && (

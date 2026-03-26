@@ -83,6 +83,7 @@
   "dependencies": {
     "@auth/core": "^0.34.3",
     "@codemation/core": "workspace:*",
+    "@codemation/core-nodes": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",
     "@codemation/queue-bullmq": "workspace:*",
     "@monaco-editor/react": "^4.7.0",
@@ -117,7 +118,6 @@
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
-    "@codemation/core-nodes": "workspace:*",
     "@codemation/core-nodes-gmail": "workspace:*",
     "@playwright/test": "^1.58.2",
     "@tanstack/react-router": "^1.167.3",

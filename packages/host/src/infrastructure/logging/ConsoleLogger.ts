@@ -23,15 +23,19 @@ export class ConsoleLogger implements Logger {
     this.log("debug", message, exception);
   }
 
+  private formatTimestamp(): string {
+    return new Date().toISOString();
+  }
+
   private log(level: "info" | "warn" | "error" | "debug", message: string, exception?: Error): void {
-    if (!this.logLevelPolicy.shouldEmit(level)) {
+    if (!this.logLevelPolicy.shouldEmit(level, this.scope)) {
       return;
     }
-    const prefix = `[${this.scope}]`;
+    const line = `[${level}][${this.scope}][${this.formatTimestamp()}]: ${message}`;
     if (exception) {
-      console[level](`${prefix} ${message}`, exception);
+      console[level](line, exception);
       return;
     }
-    console[level](`${prefix} ${message}`);
+    console[level](line);
   }
 }

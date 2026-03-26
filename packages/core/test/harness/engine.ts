@@ -19,6 +19,7 @@ import type {
 import type { DependencyContainer, InjectionToken } from "tsyringe";
 import { container as tsyringeContainer } from "tsyringe";
 import {
+  AllWorkflowsActiveWorkflowActivationPolicy,
   ContainerNodeResolver,
   ContainerWorkflowRunnerResolver,
   CoreTokens,
@@ -160,13 +161,15 @@ export function createEngineTestKit(options: EngineTestKitOptions = {}) {
   dependencyContainer.register(EngineFactory, { useClass: EngineFactory });
 
   const tokenRegistry = new PersistedWorkflowTokenRegistry();
-  const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(workflowCatalog);
+  const workflowActivationPolicy = new AllWorkflowsActiveWorkflowActivationPolicy();
+  const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(workflowCatalog, workflowActivationPolicy);
   const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
   const engine = dependencyContainer.resolve(EngineFactory).create({
     credentialSessions,
     workflowRunnerResolver,
     workflowCatalog,
     workflowRepository: workflowCatalog,
+    workflowActivationPolicy,
     nodeResolver,
     webhookTriggerMatcher,
     runIdFactory: new CounterFactory(makeRunId, makeActivationId),

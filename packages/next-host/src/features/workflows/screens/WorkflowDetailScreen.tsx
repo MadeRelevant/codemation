@@ -1,10 +1,10 @@
 "use client";
 
+import { useEffect, useMemo, useRef } from "react";
+
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { AlertCircle } from "lucide-react";
 
-import { CanvasNodeChromeTooltip } from "../components/canvas/CanvasNodeChromeTooltip";
 import { WorkflowCanvas } from "../components/canvas/WorkflowCanvas";
 import type { WorkflowDto } from "../hooks/realtime/realtime";
 import { NodePropertiesSlidePanel } from "../components/workflowDetail/NodePropertiesSlidePanel";
@@ -13,9 +13,61 @@ import { WorkflowJsonEditorDialog } from "../components/workflowDetail/WorkflowJ
 import { WorkflowRunsSidebar } from "../components/workflowDetail/WorkflowRunsSidebar";
 import { WORKFLOW_DETAIL_TREE_STYLES } from "../lib/workflowDetailTreeStyles";
 import { WorkflowDetailScreenInspectorPanel } from "./WorkflowDetailScreenInspectorPanel";
+import { useWorkflowDetailChromeDispatch } from "../../../shell/WorkflowDetailChromeContext";
 
 export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initialWorkflow?: WorkflowDto }>) {
   const controller = useWorkflowDetailController(args);
+  const setChrome = useWorkflowDetailChromeDispatch();
+  const controllerRef = useRef(controller);
+  controllerRef.current = controller;
+
+  const activationAlertKey = (controller.workflowActivationAlertLines ?? []).join("\u0000");
+  const credentialAttentionKey = controller.credentialAttentionSummaryLines.join("\u0000");
+
+  const chromeStateKey = useMemo(
+    () =>
+      [
+        controller.isLiveWorkflowView,
+        controller.workflowIsActive,
+        controller.isWorkflowActivationPending,
+        activationAlertKey,
+        credentialAttentionKey,
+      ].join("|"),
+    [
+      controller.isLiveWorkflowView,
+      controller.workflowIsActive,
+      controller.isWorkflowActivationPending,
+      activationAlertKey,
+      credentialAttentionKey,
+    ],
+  );
+
+  useEffect(() => {
+    if (!setChrome) {
+      return;
+    }
+    const c = controllerRef.current;
+    setChrome({
+      isLiveWorkflowView: c.isLiveWorkflowView,
+      workflowIsActive: c.workflowIsActive,
+      isWorkflowActivationPending: c.isWorkflowActivationPending,
+      setWorkflowActive: (active) => {
+        controllerRef.current.setWorkflowActive(active);
+      },
+      workflowActivationAlertLines: c.workflowActivationAlertLines,
+      dismissWorkflowActivationAlert: () => {
+        controllerRef.current.dismissWorkflowActivationAlert();
+      },
+      credentialAttentionSummaryLines: c.credentialAttentionSummaryLines,
+    });
+  }, [setChrome, chromeStateKey]);
+
+  useEffect(() => {
+    return () => {
+      setChrome?.(null);
+    };
+  }, [setChrome]);
+
   const activeCanvasTab = controller.isRunsPaneVisible ? "executions" : "live";
   const shouldShowRealtimeBadge = controller.isLiveWorkflowView && !controller.isRunsPaneVisible;
   const realtimeBadge =
@@ -25,7 +77,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
           label: "Rebuild failed. Latest code is not live yet.",
           testId: "workflow-dev-build-failed-indicator",
         }
-      : !controller.isRealtimeConnected
+      : controller.showRealtimeDisconnectedBadge
         ? {
             className:
               "border-amber-400/60 bg-amber-50 text-amber-950 shadow-md ring-1 ring-foreground/10 dark:bg-amber-950/20 dark:text-amber-100",
@@ -42,7 +94,20 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
 
   return (
     <main className="h-full w-full min-h-0 overflow-hidden bg-muted/40">
-      <section className="grid h-full min-h-0 w-full grid-cols-1 overflow-hidden">
+      <section
+        className={cn(
+          "relative grid h-full min-h-0 w-full min-w-0 overflow-hidden",
+          controller.isRunsPaneVisible ? "grid-cols-[minmax(0,320px)_minmax(0,1fr)]" : "grid-cols-1",
+        )}
+      >
+        {controller.isRunsPaneVisible ? (
+          <WorkflowRunsSidebar
+            model={controller.sidebarModel}
+            formatting={controller.sidebarFormatting}
+            actions={controller.sidebarActions}
+          />
+        ) : null}
+
         <div
           className="grid h-full min-h-0 min-w-0 bg-muted/40"
           style={{
@@ -54,15 +119,15 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
           <div className="relative flex h-full min-h-0 min-w-0 flex-row overflow-hidden bg-muted/40">
             {controller.displayedWorkflow ? (
               <>
-                <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
+                <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
                   <WorkflowCanvas
                     workflow={controller.displayedWorkflow}
                     nodeSnapshotsByNodeId={controller.displayedNodeSnapshotsByNodeId}
                     connectionInvocations={controller.displayedConnectionInvocations}
                     credentialAttentionTooltipByNodeId={controller.credentialAttentionTooltipByNodeId}
                     pinnedNodeIds={controller.pinnedNodeIds}
-                    selectedNodeId={controller.canvasWorkflowNodeIdForHighlight}
-                    propertiesTargetNodeId={controller.propertiesPanelResolvedNodeId}
+                    selectedNodeId={controller.selectedNodeId}
+                    propertiesTargetNodeId={controller.propertiesPanelNodeId}
                     isLiveWorkflowView={controller.isLiveWorkflowView}
                     isRunning={controller.isRunning}
                     onSelectNode={controller.selectCanvasNode}
@@ -73,12 +138,6 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                     onClearPinnedOutput={controller.clearCanvasNodePin}
                   />
                 </div>
-                <WorkflowRunsSidebar
-                  isOpen={controller.isRunsPaneVisible}
-                  model={controller.sidebarModel}
-                  formatting={controller.sidebarFormatting}
-                  actions={controller.sidebarActions}
-                />
                 <NodePropertiesSlidePanel
                   workflowId={args.workflowId}
                   isOpen={controller.isPropertiesPanelOpen}
@@ -89,30 +148,6 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
             ) : (
               <div className="p-4 text-sm text-muted-foreground">Loading diagram…</div>
             )}
-            <div className="pointer-events-none absolute top-3 left-6 z-[6] flex max-w-[min(22rem,calc(100%-14rem))] min-w-0 items-center gap-2">
-              <div className="pointer-events-auto flex min-w-0 items-center gap-2">
-                <span
-                  data-testid="workflow-detail-workflow-title"
-                  className="truncate text-sm font-extrabold text-foreground"
-                >
-                  {controller.displayedWorkflow?.name ?? "Workflow"}
-                </span>
-                {controller.credentialAttentionSummaryLines.length > 0 ? (
-                  <CanvasNodeChromeTooltip
-                    testId="workflow-credential-attention-indicator"
-                    ariaLabel="Workflow credential issues"
-                    tooltip={controller.credentialAttentionSummaryLines.join("\n")}
-                  >
-                    <span
-                      data-testid="workflow-credential-attention-icon"
-                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-amber-300 bg-amber-50 text-amber-900 shadow-sm"
-                    >
-                      <AlertCircle size={16} strokeWidth={2.2} />
-                    </span>
-                  </CanvasNodeChromeTooltip>
-                ) : null}
-              </div>
-            </div>
             <div className="pointer-events-none absolute top-3 left-1/2 z-[6] flex -translate-x-1/2 items-center gap-2">
               <div className="pointer-events-auto flex overflow-hidden rounded-lg border border-border bg-card/95 shadow-md ring-1 ring-foreground/10">
                 <Button
@@ -164,17 +199,19 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                 </Button>
               </div>
             ) : null}
-            {shouldShowRealtimeBadge && realtimeBadge ? (
-              <div
-                data-testid={realtimeBadge.testId}
-                className={cn(
-                  "absolute top-3 right-3 z-[6] rounded-md border px-2.5 py-2 text-xs font-bold",
-                  realtimeBadge.className,
-                )}
-              >
-                {realtimeBadge.label}
-              </div>
-            ) : null}
+            <div className="pointer-events-none absolute top-3 right-3 z-[6] flex max-w-[min(22rem,calc(100%-1.5rem))] flex-col items-end gap-2">
+              {shouldShowRealtimeBadge && realtimeBadge ? (
+                <div
+                  data-testid={realtimeBadge.testId}
+                  className={cn(
+                    "pointer-events-auto rounded-md border px-2.5 py-2 text-xs font-bold",
+                    realtimeBadge.className,
+                  )}
+                >
+                  {realtimeBadge.label}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <WorkflowDetailScreenInspectorPanel controller={controller} />

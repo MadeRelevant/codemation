@@ -10,10 +10,7 @@ export type WorkflowNodeDto = Readonly<{
   retryPolicySummary?: string;
   /** Whether this node declares a node-level error handler. */
   hasNodeErrorHandler?: boolean;
-  /**
-   * When true, empty main output batches still schedule single-input downstream nodes.
-   * Shown on the canvas (e.g. fast-forward affordance).
-   */
+  /** When true, downstream nodes may run even when this node outputs zero items. */
   continueWhenEmptyOutput?: boolean;
 }>;
 
@@ -25,6 +22,8 @@ export type WorkflowEdgeDto = Readonly<{
 export type WorkflowDto = Readonly<{
   id: string;
   name: string;
+  /** When true, trigger setup runs and webhooks are registered for this workflow. */
+  active: boolean;
   nodes: ReadonlyArray<WorkflowNodeDto>;
   edges: ReadonlyArray<WorkflowEdgeDto>;
   /** Workflow-level error hook configured on the definition. */
@@ -34,6 +33,8 @@ export type WorkflowDto = Readonly<{
 export type WorkflowSummary = Readonly<{
   id: string;
   name: string;
+  /** When true, trigger setup runs and webhooks are registered for this workflow. */
+  active: boolean;
   /** Path under workflow discovery root: folders + workflow file stem. */
   discoveryPathSegments: readonly string[];
 }>;

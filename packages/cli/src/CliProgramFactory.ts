@@ -4,13 +4,18 @@ import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/nex
 import { ConsumerBuildArtifactsPublisher } from "./build/ConsumerBuildArtifactsPublisher";
 import { ConsumerBuildOptionsParser } from "./build/ConsumerBuildOptionsParser";
 import { BuildCommand } from "./commands/BuildCommand";
+import { DbMigrateCommand } from "./commands/DbMigrateCommand";
 import { DevCommand } from "./commands/DevCommand";
 import { ServeWebCommand } from "./commands/ServeWebCommand";
 import { ServeWorkerCommand } from "./commands/ServeWorkerCommand";
 import { UserCreateCommand } from "./commands/UserCreateCommand";
 import { UserListCommand } from "./commands/UserListCommand";
+import { ConsumerCliTsconfigPreparation } from "./consumer/ConsumerCliTsconfigPreparation";
 import { ConsumerEnvLoader } from "./consumer/ConsumerEnvLoader";
 import { ConsumerOutputBuilderLoader } from "./consumer/Loader";
+import { ConsumerDatabaseUrlResolver } from "./database/ConsumerDatabaseUrlResolver";
+import { HostPackageRootResolver } from "./database/HostPackageRootResolver";
+import { PrismaMigrateDeployInvoker } from "./database/PrismaMigrateDeployInvoker";
 import { DevSessionServicesBuilder } from "./dev/Builder";
 import { DevLockFactory } from "./dev/Factory";
 import { DevSourceWatcherFactory } from "./dev/Runner";
@@ -40,11 +45,14 @@ export class CliProgramFactory {
     const tsRuntime = new TypeScriptRuntimeConfigurator();
     const outputBuilderLoader = new ConsumerOutputBuilderLoader();
     const sourceMapNodeOptions = new SourceMapNodeOptions();
+    const tsconfigPreparation = new ConsumerCliTsconfigPreparation();
     const userAdminBootstrap = new UserAdminCliBootstrap(
       new CodemationConsumerConfigLoader(),
       pathResolver,
       new UserAdminConsumerDotenvLoader(),
+      tsconfigPreparation,
     );
+    const hostPackageRoot = new HostPackageRootResolver().resolveHostPackageRoot();
     const userAdminCliOptionsParser = new UserAdminCliOptionsParser();
 
     return new CliProgram(
@@ -70,6 +78,16 @@ export class CliProgramFactory {
         new ListenPortResolver(),
       ),
       new ServeWorkerCommand(sourceMapNodeOptions),
+      new DbMigrateCommand(
+        cliLogger,
+        new UserAdminConsumerDotenvLoader(),
+        tsconfigPreparation,
+        new CodemationConsumerConfigLoader(),
+        new ConsumerDatabaseUrlResolver(),
+        new CliDatabaseUrlDescriptor(),
+        hostPackageRoot,
+        new PrismaMigrateDeployInvoker(),
+      ),
       new UserCreateCommand(new LocalUserCreator(userAdminBootstrap), userAdminCliOptionsParser),
       new UserListCommand(cliLogger, userAdminBootstrap, new CliDatabaseUrlDescriptor(), userAdminCliOptionsParser),
     );

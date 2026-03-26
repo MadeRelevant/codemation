@@ -12,7 +12,7 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint && pnpm run dupcheck && pnpm run antipatterns",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
-    "precommit": "pnpm lint && pnpm typecheck",
+    "precommit": "pnpm lint && pnpm typecheck && pnpm run test:unit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "turbo run build && pnpm run test:suites",

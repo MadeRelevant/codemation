@@ -138,6 +138,7 @@ export class EngineFactory {
 
     const triggerRuntime = new TriggerRuntimeService(
       deps.workflowRepository,
+      deps.workflowActivationPolicy,
       deps.runIdFactory,
       deps.runDataFactory,
       deps.executionContextFactory,
@@ -151,6 +152,7 @@ export class EngineFactory {
         },
       },
       rootExecutionOptionsFactory,
+      deps.triggerRuntimeDiagnostics,
     );
 
     const engine = new Engine({

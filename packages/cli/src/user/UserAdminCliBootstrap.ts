@@ -1,8 +1,7 @@
 import { CodemationConsumerConfigLoader } from "@codemation/host/server";
-import { existsSync } from "node:fs";
-import path from "node:path";
 
 import { CodemationCliApplicationSession } from "../bootstrap/CodemationCliApplicationSession";
+import type { ConsumerCliTsconfigPreparation } from "../consumer/ConsumerCliTsconfigPreparation";
 import { CliPathResolver } from "../path/CliPathResolver";
 import type { UserAdminConsumerDotenvLoader } from "./UserAdminConsumerDotenvLoader";
 
@@ -19,6 +18,7 @@ export class UserAdminCliBootstrap {
     private readonly configLoader: CodemationConsumerConfigLoader,
     private readonly pathResolver: CliPathResolver,
     private readonly consumerDotenvLoader: UserAdminConsumerDotenvLoader,
+    private readonly tsconfigPreparation: ConsumerCliTsconfigPreparation,
   ) {}
 
   async withSession<T>(
@@ -27,7 +27,7 @@ export class UserAdminCliBootstrap {
   ): Promise<T> {
     const consumerRoot = options.consumerRoot ?? process.cwd();
     this.consumerDotenvLoader.load(consumerRoot);
-    this.applyWorkspaceTsconfigForTsxIfPresent(consumerRoot);
+    this.tsconfigPreparation.applyWorkspaceTsconfigForTsxIfPresent(consumerRoot);
     const resolution = await this.configLoader.load({
       consumerRoot,
       configPathOverride: options.configPath,
@@ -52,30 +52,6 @@ export class UserAdminCliBootstrap {
       return await fn(session);
     } finally {
       await session.close();
-    }
-  }
-
-  /**
-   * tsx/esbuild only applies `experimentalDecorators` when the active tsconfig's `include`
-   * covers imported files. Consumer apps under `apps/<name>` usually have a narrow `include`,
-   * which breaks loading `codemation.config.ts` when it pulls in decorator-using workspace packages.
-   * If the monorepo ships `tsconfig.codemation-tsx.json`, use it automatically.
-   */
-  private applyWorkspaceTsconfigForTsxIfPresent(consumerRoot: string): void {
-    if (process.env.CODEMATION_TSCONFIG_PATH && process.env.CODEMATION_TSCONFIG_PATH.trim().length > 0) {
-      return;
-    }
-    const resolvedRoot = path.resolve(consumerRoot);
-    const candidates = [
-      path.resolve(resolvedRoot, "tsconfig.codemation-tsx.json"),
-      path.resolve(resolvedRoot, "..", "tsconfig.codemation-tsx.json"),
-      path.resolve(resolvedRoot, "..", "..", "tsconfig.codemation-tsx.json"),
-    ];
-    for (const candidate of candidates) {
-      if (existsSync(candidate)) {
-        process.env.CODEMATION_TSCONFIG_PATH = candidate;
-        return;
-      }
     }
   }
 

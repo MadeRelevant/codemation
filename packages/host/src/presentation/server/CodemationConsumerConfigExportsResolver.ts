@@ -26,7 +26,8 @@ export class CodemationConsumerConfigExportsResolver {
       "plugins" in value ||
       "bootHook" in value ||
       "slots" in value ||
-      "auth" in value
+      "auth" in value ||
+      "log" in value
     );
   }
 }

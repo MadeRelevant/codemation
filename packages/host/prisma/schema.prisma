@@ -25,6 +25,12 @@ model WorkflowDebuggerOverlay {
   stateJson        String  @map("state_json")
 }
 
+model WorkflowActivation {
+  workflowId String  @id @map("workflow_id")
+  isActive   Boolean @default(false) @map("is_active")
+  updatedAt  String  @map("updated_at")
+}
+
 model TriggerSetupState {
   workflowId       String  @map("workflow_id")
   nodeId           String  @map("node_id")

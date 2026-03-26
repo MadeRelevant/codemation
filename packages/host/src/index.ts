@@ -33,6 +33,11 @@ export type {
   CodemationSchedulerKind,
 } from "./presentation/config/CodemationConfig";
 export type {
+  CodemationLogConfig,
+  CodemationLogLevelName,
+  CodemationLogRule,
+} from "./presentation/config/CodemationLogConfig";
+export type {
   CodemationPackageManifest,
   CodemationPluginPackageManifest,
 } from "./presentation/config/CodemationPackageManifest";

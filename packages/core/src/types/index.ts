@@ -8,6 +8,7 @@ export * from "../contracts/runFinishedAtFactory";
 export * from "../contracts/runTypes";
 export * from "../contracts/webhookTypes";
 export * from "../contracts/workflowTypes";
+export * from "../contracts/workflowActivationPolicy";
 export * from "../workflow/ConnectionInvocationIdFactory";
 export * from "../workflow/ConnectionNodeIdFactory";
 export * from "../workflow/WorkflowExecutableNodeClassifier";

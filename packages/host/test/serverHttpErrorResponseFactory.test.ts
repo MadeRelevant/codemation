@@ -13,6 +13,21 @@ describe("ServerHttpErrorResponseFactory", () => {
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
+  it("includes validation details when ApplicationRequestError carries multiple messages", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = ServerHttpErrorResponseFactory.fromUnknown(
+      new ApplicationRequestError(400, "Workflow cannot be activated.", ["First issue", "Second issue"]),
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      error: "Workflow cannot be activated.",
+      errors: ["First issue", "Second issue"],
+    });
+    expect(response.status).toBe(400);
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+  });
+
   it("logs unexpected errors with their stack traces", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const error = new Error("Boom");

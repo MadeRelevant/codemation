@@ -6,7 +6,7 @@ import type { WorkflowFolderTreeNode } from "../src/shell/WorkflowFolderTreeBuil
 import { WorkflowFolderUi } from "../src/shell/WorkflowFolderUi";
 
 function summary(id: string, name: string, discoveryPathSegments: readonly string[]): WorkflowSummary {
-  return { id, name, discoveryPathSegments };
+  return { id, name, active: false, discoveryPathSegments };
 }
 
 const emptyNode = (): WorkflowFolderTreeNode => ({

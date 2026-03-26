@@ -4,6 +4,7 @@ import type { CommandBus } from "../../../application/bus/CommandBus";
 import type { QueryBus } from "../../../application/bus/QueryBus";
 import { CopyRunToWorkflowDebuggerCommand } from "../../../application/commands/CopyRunToWorkflowDebuggerCommand";
 import { ReplaceWorkflowDebuggerOverlayCommand } from "../../../application/commands/ReplaceWorkflowDebuggerOverlayCommand";
+import { SetWorkflowActivationCommand } from "../../../application/commands/SetWorkflowActivationCommand";
 import type {
   CopyRunToWorkflowDebuggerRequest,
   UpdateWorkflowDebuggerOverlayRequest,
@@ -44,6 +45,20 @@ export class WorkflowHttpRouteHandler {
         return Response.json({ error: "Unknown workflowId" }, { status: 404 });
       }
       return Response.json(await this.workflowDefinitionMapper.map(workflow));
+    } catch (error) {
+      return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  async patchWorkflowActivation(request: Request, params: ServerHttpRouteParams): Promise<Response> {
+    try {
+      const body = await HttpRequestJsonBodyReader.readJsonBody<Readonly<{ active?: unknown }>>(request);
+      if (typeof body.active !== "boolean") {
+        return Response.json({ error: "Request body must include boolean active" }, { status: 400 });
+      }
+      return Response.json(
+        await this.commandBus.execute(new SetWorkflowActivationCommand(params.workflowId!, body.active)),
+      );
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }

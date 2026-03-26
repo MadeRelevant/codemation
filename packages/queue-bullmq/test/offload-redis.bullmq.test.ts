@@ -15,6 +15,7 @@ import type {
   WorkflowId,
 } from "@codemation/core";
 import {
+  AllWorkflowsActiveWorkflowActivationPolicy,
   ConfigDrivenOffloadPolicy,
   ContainerNodeResolver,
   ContainerWorkflowRunnerResolver,
@@ -142,7 +143,8 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   );
   const eventBus = new InMemoryRunEventBus();
   const tokenRegistry = new PersistedWorkflowTokenRegistry();
-  const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(workflowCatalog);
+  const workflowActivationPolicy = new AllWorkflowsActiveWorkflowActivationPolicy();
+  const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(workflowCatalog, workflowActivationPolicy);
   const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
   container.registerInstance(CoreTokens.ServiceContainer, container);
   container.registerInstance(CoreTokens.CredentialSessionService, credentialSessions);
@@ -166,6 +168,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
     workflowRunnerResolver,
     workflowCatalog,
     workflowRepository: workflowCatalog,
+    workflowActivationPolicy,
     nodeResolver,
     webhookTriggerMatcher,
     runIdFactory: IdFactory,

@@ -26,5 +26,8 @@ export class WorkflowHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
     app.get("/workflows/:workflowId", (c) =>
       this.handler.getWorkflow(c.req.raw, { workflowId: c.req.param("workflowId") }),
     );
+    app.patch("/workflows/:workflowId/activation", (c) =>
+      this.handler.patchWorkflowActivation(c.req.raw, { workflowId: c.req.param("workflowId") }),
+    );
   }
 }

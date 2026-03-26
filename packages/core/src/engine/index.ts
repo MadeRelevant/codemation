@@ -3,6 +3,7 @@ export { ContainerNodeResolver } from "./adapters/di/ContainerNodeResolver";
 export { ContainerWorkflowRunnerResolver } from "./adapters/di/ContainerWorkflowRunnerResolver";
 export { WorkflowCatalogWebhookTriggerMatcher } from "./adapters/webhooks/WorkflowCatalogWebhookTriggerMatcher";
 export { NodeInstanceFactory } from "./adapters/nodes/NodeInstanceFactory";
+export { MissingRuntimeTriggerToken } from "./adapters/persisted-workflow/MissingRuntimeTriggerToken";
 export { PersistedWorkflowTokenRegistry } from "./adapters/persisted-workflow/PersistedWorkflowTokenRegistryFactory";
 export { RunIntentService } from "./application/intents/RunIntentService";
 export { Engine } from "./api/Engine";

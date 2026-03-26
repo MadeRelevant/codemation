@@ -1,4 +1,4 @@
-import { type WorkflowDefinition } from "@codemation/core";
+import { AllWorkflowsActiveWorkflowActivationPolicy, type WorkflowDefinition } from "@codemation/core";
 import { createWorkflowBuilder, ManualTrigger, MapData } from "@codemation/core-nodes";
 import type { WorkflowDto } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
 import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
@@ -27,9 +27,10 @@ export class WorkflowDetailRuntimeFixtureFactory {
     }
     const definition = this.createWorkflowDefinition(workflowId, workflowName, args.nodeIds);
     return {
-      workflow: new WorkflowDefinitionMapper(new WorkflowPolicyUiPresentationFactory()).mapSync(
-        definition,
-      ) as WorkflowDto,
+      workflow: new WorkflowDefinitionMapper(
+        new WorkflowPolicyUiPresentationFactory(),
+        new AllWorkflowsActiveWorkflowActivationPolicy(),
+      ).mapSync(definition) as WorkflowDto,
       definition,
       config: this.createConfig(definition),
       workflowId,
