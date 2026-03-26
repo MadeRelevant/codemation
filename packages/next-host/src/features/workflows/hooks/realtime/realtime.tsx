@@ -27,7 +27,6 @@ import type { WorkflowDto, WorkflowSummary } from "@codemation/host-src/applicat
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useContext, useEffect, useState } from "react";
-
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { RealtimeContext } from "../../components/realtime/RealtimeContext";
 import {
@@ -60,6 +59,7 @@ import {
   workflowsQueryKey,
 } from "../../lib/realtime/realtimeQueryKeys";
 import type { PersistedRunState, WorkflowDevBuildState } from "../../lib/realtime/realtimeDomainTypes";
+import { resolveFetchedRunState, resolveRunPollingIntervalMs } from "./runQueryPolling";
 
 export function useWorkflowRealtimeSubscription(workflowId: string | null | undefined): void {
   const [bridgeVersion, setBridgeVersion] = useState(0);
@@ -161,29 +161,24 @@ export function useWorkflowDevBuildStateQuery(workflowId: string) {
     } satisfies WorkflowDevBuildState,
   });
 }
-
-export function useRunQuery(runId: string | null | undefined, options: Readonly<{ disableFetch?: boolean }> = {}) {
+export function useRunQuery(
+  runId: string | null | undefined,
+  options: Readonly<{ disableFetch?: boolean; pollWhileNonTerminalMs?: number }> = {},
+) {
   const queryClient = useQueryClient();
-
   return useQuery({
     queryKey: runId ? runQueryKey(runId) : ["run", "disabled"],
     queryFn: async ({ signal }) => {
       const incoming = await fetchRun(runId!, { signal });
       const previous = queryClient.getQueryData<PersistedRunState>(runQueryKey(runId!));
-      if (previous) {
-        if (previous.status === "completed" && incoming.status !== "completed") {
-          return previous;
-        }
-        if (previous.status === "failed" && incoming.status === "pending") {
-          return previous;
-        }
-        if (previous.status === "running" && incoming.status === "pending") {
-          return previous;
-        }
-      }
-      return incoming;
+      return resolveFetchedRunState({ incoming, previous });
     },
     enabled: Boolean(runId) && !options.disableFetch,
+    refetchInterval: (query) =>
+      resolveRunPollingIntervalMs({
+        runState: query.state.data as PersistedRunState | undefined,
+        pollWhileNonTerminalMs: options.pollWhileNonTerminalMs,
+      }),
     staleTime: 30_000,
   });
 }

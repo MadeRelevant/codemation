@@ -23,7 +23,11 @@ const webServerEnv: NodeJS.ProcessEnv = {
 delete webServerEnv.REDIS_URL;
 
 export default defineConfig({
-  timeout: 120_000,
+  /**
+   * Must exceed sequential harness waits: {@link CodemationPlaywrightUiHarness} allows up to 120s
+   * for workflow API readiness and up to 120s+120s for canvas node completion; cold CI needs headroom.
+   */
+  timeout: 300_000,
   testDir: path.join(hostPackageRoot, "test/playwright/specs"),
   globalTeardown: path.join(hostPackageRoot, "test/playwright/global-teardown.ts"),
   forbidOnly: Boolean(process.env.CI),

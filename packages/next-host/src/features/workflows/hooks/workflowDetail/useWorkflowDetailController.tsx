@@ -169,7 +169,7 @@ export function useWorkflowDetailController(
   const runs = runsQuery.data;
   const selectedRunQuery = useRunQuery(selectedRunId);
   const selectedRun = selectedRunQuery.data;
-  const activeLiveRunQuery = useRunQuery(activeLiveRunId);
+  const activeLiveRunQuery = useRunQuery(activeLiveRunId, { pollWhileNonTerminalMs: 250 });
   const activeLiveRun = activeLiveRunQuery.data;
   const debuggerOverlay = debuggerOverlayQuery.data;
   const viewContext = selectedRunId ? "historical-run" : "live-workflow";
