@@ -1,3 +1,4 @@
+import type { PGlite } from "@electric-sql/pglite";
 import path from "node:path";
 import "reflect-metadata";
 
@@ -76,7 +77,7 @@ import {
   CredentialSessionServiceImpl,
   CredentialTestService,
   CredentialTypeRegistryImpl,
-  type RegisteredCredentialType,
+  type CredentialType,
 } from "./domain/credentials/CredentialServices";
 import { OAuth2ConnectService } from "./domain/credentials/OAuth2ConnectServiceFactory";
 import { OAuth2ProviderRegistry } from "./domain/credentials/OAuth2ProviderRegistry";
@@ -110,6 +111,9 @@ import { InMemoryTriggerSetupStateStore } from "./infrastructure/persistence/InM
 import { InMemoryWorkflowDebuggerOverlayRepository } from "./infrastructure/persistence/InMemoryWorkflowDebuggerOverlayRepository";
 import { InMemoryWorkflowActivationRepository } from "./infrastructure/persistence/InMemoryWorkflowActivationRepository";
 import { InMemoryWorkflowRunRepository } from "./infrastructure/persistence/InMemoryWorkflowRunRepository";
+import type { ResolvedDatabasePersistence } from "./infrastructure/persistence/DatabasePersistenceResolver";
+import { DatabasePersistenceResolver } from "./infrastructure/persistence/DatabasePersistenceResolver";
+import { SchedulerPersistenceCompatibilityValidator } from "./infrastructure/persistence/SchedulerPersistenceCompatibilityValidator";
 import { PrismaClientFactory } from "./infrastructure/persistence/PrismaClientFactory";
 import { PrismaMigrationDeployer } from "./infrastructure/persistence/PrismaMigrationDeployer";
 import { PrismaTriggerSetupStateStore } from "./infrastructure/persistence/PrismaTriggerSetupStateStore";
@@ -127,7 +131,6 @@ import type { CodemationBinding } from "./presentation/config/CodemationBinding"
 import type {
   CodemationApplicationRuntimeConfig,
   CodemationConfig,
-  CodemationDatabaseKind,
   CodemationEventBusKind,
   CodemationSchedulerKind,
 } from "./presentation/config/CodemationConfig";
@@ -165,6 +168,9 @@ export class CodemationApplication {
   private container: Container = tsyringeContainer.createChildContainer();
   private workflows: WorkflowDefinition[] = [];
   private ownedPrismaClient: PrismaClient | null = null;
+  private ownedPglite: PGlite | null = null;
+  private readonly databasePersistenceResolver = new DatabasePersistenceResolver();
+  private readonly schedulerPersistenceCompatibilityValidator = new SchedulerPersistenceCompatibilityValidator();
   private runtimeConfig: CodemationApplicationRuntimeConfig = {};
   private bindings: ReadonlyArray<CodemationBinding<unknown>> = [];
   private hasConfigCredentialSessionServiceBinding = false;
@@ -266,11 +272,12 @@ export class CodemationApplication {
   async prepareCliPersistenceAndCommands(
     args: Readonly<{
       repoRoot: string;
+      consumerRoot: string;
       env?: Readonly<NodeJS.ProcessEnv>;
     }>,
   ): Promise<void> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
-    await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
+    await this.prepareImplementationRegistrations(args.repoRoot, args.consumerRoot, effectiveEnv);
     // Same port/bind tokens as prepareFrontendServerContainer so WorkflowWebsocketServer / relay can be
     // resolved during stopFrontendServerContainer without starting presentation servers.
     this.container.registerInstance(ApplicationTokens.WebSocketPort, this.resolveWebSocketPort(effectiveEnv));
@@ -299,7 +306,7 @@ export class CodemationApplication {
     return this;
   }
 
-  registerCredentialType(type: RegisteredCredentialType): void {
+  registerCredentialType(type: CredentialType<any, any, unknown>): void {
     this.container.resolve(CredentialTypeRegistryImpl).register(type);
   }
 
@@ -350,6 +357,7 @@ export class CodemationApplication {
   async prepareFrontendServerContainer(
     args: Readonly<{
       repoRoot: string;
+      consumerRoot: string;
       env?: Readonly<NodeJS.ProcessEnv>;
       /**
        * When true, skips starting the workflow WebSocket server and run-event relay.
@@ -360,7 +368,7 @@ export class CodemationApplication {
     }>,
   ): Promise<void> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
-    await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
+    await this.prepareImplementationRegistrations(args.repoRoot, args.consumerRoot, effectiveEnv);
     this.container.registerInstance(ApplicationTokens.WebSocketPort, this.resolveWebSocketPort(effectiveEnv));
     this.container.registerInstance(
       ApplicationTokens.WebSocketBindHost,
@@ -404,6 +412,7 @@ export class CodemationApplication {
   async startWorkerRuntime(
     args: Readonly<{
       repoRoot: string;
+      consumerRoot: string;
       env?: Readonly<NodeJS.ProcessEnv>;
       queues: ReadonlyArray<string>;
       bootstrapSource?: string | null;
@@ -411,7 +420,7 @@ export class CodemationApplication {
     }>,
   ): Promise<CodemationStopHandle> {
     const effectiveEnv = { ...process.env, ...(args.env ?? {}) };
-    await this.prepareImplementationRegistrations(args.repoRoot, effectiveEnv);
+    await this.prepareImplementationRegistrations(args.repoRoot, args.consumerRoot, effectiveEnv);
     this.registerWebhookRuntimeHost();
     if (!this.container.isRegistered(ApplicationTokens.WorkerRuntimeScheduler, true)) {
       throw new Error("Worker mode requires a BullMQ scheduler backed by a Redis event bus.");
@@ -458,6 +467,10 @@ export class CodemationApplication {
     if (this.ownedPrismaClient) {
       await this.ownedPrismaClient.$disconnect();
       this.ownedPrismaClient = null;
+    }
+    if (this.ownedPglite) {
+      await this.ownedPglite.close();
+      this.ownedPglite = null;
     }
   }
 
@@ -720,15 +733,20 @@ export class CodemationApplication {
     }
   }
 
-  private async prepareImplementationRegistrations(repoRoot: string, env: NodeJS.ProcessEnv): Promise<void> {
+  private async prepareImplementationRegistrations(
+    repoRoot: string,
+    consumerRoot: string,
+    env: NodeJS.ProcessEnv,
+  ): Promise<void> {
     const resolved = this.resolveImplementationSelection({
       repoRoot,
+      consumerRoot,
       env,
       runtimeConfig: this.runtimeConfig,
     });
     await this.applyDatabaseMigrations(resolved, env);
     const eventBus = this.createRunEventBus(resolved);
-    const persistence = this.createRunPersistence(resolved, eventBus);
+    const persistence = await this.createRunPersistence(resolved, eventBus);
     const activationScheduler = this.createNodeActivationScheduler(resolved);
     const binaryStorage = this.createBinaryStorage(repoRoot);
 
@@ -771,7 +789,7 @@ export class CodemationApplication {
       : this.container.resolve(InMemoryWorkflowActivationRepository);
     this.container.registerInstance(ApplicationTokens.WorkflowActivationRepository, workflowActivationRepository);
     await this.container.resolve(RuntimeWorkflowActivationPolicy).hydrateFromRepository(workflowActivationRepository);
-    if (resolved.databaseUrl) {
+    if (resolved.databasePersistence.kind !== "none") {
       this.container.registerInstance(ApplicationTokens.CredentialStore, this.container.resolve(PrismaCredentialStore));
     } else {
       this.container.registerInstance(
@@ -797,16 +815,13 @@ export class CodemationApplication {
     env: NodeJS.ProcessEnv,
   ): Promise<void> {
     if (
-      !resolved.databaseUrl ||
+      resolved.databasePersistence.kind === "none" ||
       this.hasProvidedPrismaClientOverride() ||
       env.CODEMATION_SKIP_STARTUP_MIGRATIONS === "true"
     ) {
       return;
     }
-    await this.container.resolve(PrismaMigrationDeployer).deploy({
-      databaseUrl: resolved.databaseUrl,
-      env,
-    });
+    await this.container.resolve(PrismaMigrationDeployer).deployPersistence(resolved.databasePersistence, env);
   }
 
   private createRunEventBus(resolved: ResolvedImplementationSelection): RunEventBus {
@@ -816,17 +831,19 @@ export class CodemationApplication {
     return new InMemoryRunEventBus();
   }
 
-  private createRunPersistence(
+  private async createRunPersistence(
     resolved: ResolvedImplementationSelection,
     eventBus: RunEventBus,
-  ): Readonly<{
-    runStore: RunStateStore;
-    triggerSetupStateStore: TriggerSetupStateStore;
-    workflowRunRepository?: WorkflowRunRepository;
-    workflowDebuggerOverlayRepository: WorkflowDebuggerOverlayRepository;
-    prismaClient?: PrismaClient;
-  }> {
-    if (!resolved.databaseUrl) {
+  ): Promise<
+    Readonly<{
+      runStore: RunStateStore;
+      triggerSetupStateStore: TriggerSetupStateStore;
+      workflowRunRepository?: WorkflowRunRepository;
+      workflowDebuggerOverlayRepository: WorkflowDebuggerOverlayRepository;
+      prismaClient?: PrismaClient;
+    }>
+  > {
+    if (resolved.databasePersistence.kind === "none") {
       const workflowRunRepository = this.container.resolve(InMemoryWorkflowRunRepository);
       return {
         workflowRunRepository,
@@ -835,7 +852,7 @@ export class CodemationApplication {
         runStore: new PublishingRunStateStore(workflowRunRepository, eventBus),
       };
     }
-    const prismaClientResolution = this.resolveInjectedOrOwnedPrismaClient(resolved.databaseUrl);
+    const prismaClientResolution = await this.resolveInjectedOrOwnedPrismaClient(resolved.databasePersistence);
     const childContainer = this.container.createChildContainer();
     childContainer.registerInstance(PrismaClient, prismaClientResolution.prismaClient);
     const workflowRunRepository = childContainer.resolve(PrismaWorkflowRunRepository);
@@ -854,17 +871,33 @@ export class CodemationApplication {
     return this.container.isRegistered(PrismaClient, true);
   }
 
-  private resolveInjectedOrOwnedPrismaClient(databaseUrl: string): Readonly<{
-    prismaClient: PrismaClient;
-    ownedPrismaClient?: PrismaClient;
-  }> {
+  private async resolveInjectedOrOwnedPrismaClient(persistence: ResolvedDatabasePersistence): Promise<
+    Readonly<{
+      prismaClient: PrismaClient;
+      ownedPrismaClient?: PrismaClient;
+    }>
+  > {
     if (this.hasProvidedPrismaClientOverride()) {
       return {
         prismaClient: this.container.resolve(PrismaClient),
       };
     }
-    const prismaClient = this.container.resolve(PrismaClientFactory).create(databaseUrl);
+    const factory = this.container.resolve(PrismaClientFactory);
+    if (persistence.kind === "postgresql") {
+      this.ownedPglite = null;
+      const prismaClient = factory.createPostgres(persistence.databaseUrl);
+      this.ownedPrismaClient = prismaClient;
+      return {
+        prismaClient,
+        ownedPrismaClient: prismaClient,
+      };
+    }
+    if (persistence.kind !== "pglite") {
+      throw new Error("Unexpected database persistence mode for Prisma.");
+    }
+    const { prismaClient, pglite } = await factory.createPglite(persistence.dataDir);
     this.ownedPrismaClient = prismaClient;
+    this.ownedPglite = pglite;
     return {
       prismaClient,
       ownedPrismaClient: prismaClient,
@@ -893,13 +926,17 @@ export class CodemationApplication {
   private resolveImplementationSelection(
     args: Readonly<{
       repoRoot: string;
+      consumerRoot: string;
       runtimeConfig: CodemationApplicationRuntimeConfig;
       env: Readonly<NodeJS.ProcessEnv>;
     }>,
   ): ResolvedImplementationSelection {
     void args.repoRoot;
-    const databaseUrl = this.resolveDatabaseUrl(args.runtimeConfig, args.env);
-    const databaseKind = databaseUrl ? this.resolveDatabaseKind(args.runtimeConfig) : undefined;
+    const databasePersistence = this.databasePersistenceResolver.resolve({
+      runtimeConfig: args.runtimeConfig,
+      env: args.env,
+      consumerRoot: args.consumerRoot,
+    });
     const redisUrl = args.runtimeConfig.eventBus?.redisUrl ?? args.env.REDIS_URL;
     const schedulerKind = this.resolveSchedulerKind(args.runtimeConfig, args.env, redisUrl);
     const eventBusKind = this.resolveEventBusKind(args.runtimeConfig, args.env, schedulerKind, redisUrl);
@@ -916,13 +953,13 @@ export class CodemationApplication {
     if (eventBusKind === "redis" && !redisUrl) {
       throw new Error("Redis event bus requires runtime.eventBus.redisUrl or REDIS_URL.");
     }
+    this.schedulerPersistenceCompatibilityValidator.validate({ schedulerKind, persistence: databasePersistence });
     const workerRuntimeScheduler =
       schedulerKind === "bullmq"
         ? new BullmqScheduler({ url: this.requireRedisUrl(redisUrl) }, queuePrefix)
         : undefined;
     return {
-      databaseUrl,
-      databaseKind,
+      databasePersistence,
       eventBusKind,
       queuePrefix,
       redisUrl,
@@ -953,27 +990,6 @@ export class CodemationApplication {
     return redisUrl ? "redis" : "memory";
   }
 
-  private resolveDatabaseKind(runtimeConfig: CodemationApplicationRuntimeConfig): CodemationDatabaseKind {
-    return runtimeConfig.database?.kind ?? "postgresql";
-  }
-
-  private resolveDatabaseUrl(
-    runtimeConfig: CodemationApplicationRuntimeConfig,
-    env: Readonly<NodeJS.ProcessEnv>,
-  ): string | undefined {
-    const configuredUrl = runtimeConfig.database?.url ?? env.DATABASE_URL;
-    if (!configuredUrl) {
-      if (runtimeConfig.database) {
-        throw new Error("Database configuration requires runtime.database.url or DATABASE_URL.");
-      }
-      return undefined;
-    }
-    if (!this.isPostgresUrl(configuredUrl)) {
-      throw new Error(`Unsupported DATABASE_URL protocol for PostgreSQL runtime persistence: ${configuredUrl}`);
-    }
-    return configuredUrl;
-  }
-
   private readSchedulerKind(value: string | undefined): CodemationSchedulerKind | undefined {
     if (value === "local" || value === "bullmq") return value;
     return undefined;
@@ -987,10 +1003,6 @@ export class CodemationApplication {
   private requireRedisUrl(redisUrl: string | undefined): string {
     if (!redisUrl) throw new Error("Redis-backed runtime requires runtime.eventBus.redisUrl or REDIS_URL.");
     return redisUrl;
-  }
-
-  private isPostgresUrl(databaseUrl: string): boolean {
-    return databaseUrl.startsWith("postgresql://") || databaseUrl.startsWith("postgres://");
   }
 
   private resolveWebSocketPort(env: Readonly<NodeJS.ProcessEnv>): number {
@@ -1007,8 +1019,7 @@ export class CodemationApplication {
 }
 
 type ResolvedImplementationSelection = Readonly<{
-  databaseUrl?: string;
-  databaseKind?: CodemationDatabaseKind;
+  databasePersistence: ResolvedDatabasePersistence;
   eventBusKind: CodemationEventBusKind;
   queuePrefix: string;
   redisUrl?: string;

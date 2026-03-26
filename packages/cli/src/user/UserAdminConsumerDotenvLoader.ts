@@ -15,5 +15,10 @@ export class UserAdminConsumerDotenvLoader {
       override: true,
       quiet: true,
     });
+    loadDotenv({
+      path: path.resolve(consumerRoot, ".env.local"),
+      override: true,
+      quiet: true,
+    });
   }
 }

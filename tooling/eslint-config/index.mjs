@@ -469,7 +469,6 @@ export default [
       "packages/core-nodes-gmail/src/**/*.ts",
       "packages/queue-bullmq/src/**/*.ts",
       "packages/eventbus-redis/src/**/*.ts",
-      "packages/run-store-sqlite/src/**/*.ts",
       "packages/node-example/src/**/*.ts",
       "packages/host/src/**/*.ts",
     ],
@@ -496,6 +495,13 @@ export default [
   {
     files: ["packages/host/src/credentials.ts"],
     rules: {
+      "codemation/no-manual-di-new": "off",
+    },
+  },
+  {
+    files: ["packages/host/src/infrastructure/persistence/PrismaMigrationDeployer.ts"],
+    rules: {
+      // PGlite + PGLiteSocketServer are third-party library constructors; not container-managed DI.
       "codemation/no-manual-di-new": "off",
     },
   },

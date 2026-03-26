@@ -1,15 +1,61 @@
+import { PGlite } from "@electric-sql/pglite";
+import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { injectable } from "@codemation/core";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type { ResolvedDatabasePersistence } from "./DatabasePersistenceResolver";
 
+/**
+ * Runs `prisma migrate deploy` against TCP PostgreSQL or against a PGlite data directory
+ * by temporarily exposing PGlite on a local Postgres protocol socket (see `@electric-sql/pglite-socket`).
+ */
 @injectable()
 export class PrismaMigrationDeployer {
   private readonly require = createRequire(import.meta.url);
 
+  async deployPersistence(persistence: ResolvedDatabasePersistence, env?: Readonly<NodeJS.ProcessEnv>): Promise<void> {
+    if (persistence.kind === "none") {
+      return;
+    }
+    if (persistence.kind === "postgresql") {
+      await this.deployPostgres({ databaseUrl: persistence.databaseUrl, env });
+      return;
+    }
+    await this.deployPgliteViaPrismaCli({ dataDir: persistence.dataDir, env });
+  }
+
   async deploy(args: Readonly<{ databaseUrl: string; env?: Readonly<NodeJS.ProcessEnv> }>): Promise<void> {
+    await this.deployPostgres(args);
+  }
+
+  private async deployPgliteViaPrismaCli(
+    args: Readonly<{ dataDir: string; env?: Readonly<NodeJS.ProcessEnv> }>,
+  ): Promise<void> {
+    const pglite = new PGlite(args.dataDir);
+    await pglite.waitReady;
+    const server = new PGLiteSocketServer({
+      db: pglite,
+      port: 0,
+      host: "127.0.0.1",
+      // Prisma migrate may use multiple connections; default maxConnections is 1.
+      maxConnections: 32,
+    });
+    await server.start();
+    try {
+      const databaseUrl = this.pgliteSocketConnectionToPostgresUrl(server.getServerConn());
+      await this.deployPostgres({ databaseUrl, env: args.env });
+    } finally {
+      await server.stop();
+      await pglite.close();
+    }
+  }
+
+  private async deployPostgres(
+    args: Readonly<{ databaseUrl: string; env?: Readonly<NodeJS.ProcessEnv> }>,
+  ): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const command = spawn(
         process.execPath,
@@ -39,6 +85,26 @@ export class PrismaMigrationDeployer {
         reject(this.createDeployError(exitCode, stdout, stderr));
       });
     });
+  }
+
+  /**
+   * {@link PGLiteSocketServer.getServerConn} returns `host:port` or a unix socket path — Prisma requires a `postgresql://` URL.
+   * The query engine expects `sslmode=disable` on this loopback socket and a user (PGlite accepts `postgres`).
+   */
+  private pgliteSocketConnectionToPostgresUrl(raw: string): string {
+    if (raw.startsWith("postgresql://") || raw.startsWith("postgres://")) {
+      return raw.includes("sslmode=") ? raw : `${raw}${raw.includes("?") ? "&" : "?"}sslmode=disable`;
+    }
+    if (raw.startsWith("/")) {
+      return `postgresql://postgres@localhost/postgres?host=${encodeURIComponent(raw)}&sslmode=disable`;
+    }
+    const colon = raw.lastIndexOf(":");
+    if (colon <= 0 || colon === raw.length - 1) {
+      throw new Error(`Unexpected PGlite socket connection string: ${raw}`);
+    }
+    const host = raw.slice(0, colon);
+    const port = raw.slice(colon + 1);
+    return `postgresql://postgres@${host}:${port}/postgres?sslmode=disable`;
   }
 
   private createProcessEnvironment(databaseUrl: string, env?: Readonly<NodeJS.ProcessEnv>): NodeJS.ProcessEnv {
@@ -82,13 +148,11 @@ export class PrismaMigrationDeployer {
     return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "prisma.config.ts");
   }
 
-  private resolvePackageRoot(): string {
+  resolvePackageRoot(): string {
     const configuredRoot = process.env.CODEMATION_HOST_PACKAGE_ROOT;
     if (configuredRoot) {
       return configuredRoot;
     }
-    // Use path.resolve instead of `new URL("../../..", import.meta.url)` so bundlers (e.g. Turbopack)
-    // do not treat the segment as a module specifier.
     return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
   }
 

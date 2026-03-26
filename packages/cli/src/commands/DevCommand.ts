@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
 
+import type { DatabaseMigrationsApplyService } from "../database/DatabaseMigrationsApplyService";
 import type { DevSourceWatcher } from "../dev/DevSourceWatcher";
 import { DevSessionServices } from "../dev/DevSessionServices";
 import { DevLockFactory } from "../dev/Factory";
@@ -27,11 +28,13 @@ export class DevCommand {
     private readonly devSourceWatcherFactory: DevSourceWatcherFactory,
     private readonly cliLogger: Logger,
     private readonly session: DevSessionServices,
+    private readonly databaseMigrationsApplyService: DatabaseMigrationsApplyService,
   ) {}
 
   async execute(consumerRoot: string): Promise<void> {
     const paths = await this.pathResolver.resolve(consumerRoot);
     this.tsRuntime.configure(paths.repoRoot);
+    await this.databaseMigrationsApplyService.applyForConsumer(paths.consumerRoot);
     const devMode = this.resolveDevModeFromEnv();
     const { nextPort, gatewayPort } = await this.session.sessionPorts.resolve({
       devMode,

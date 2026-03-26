@@ -87,6 +87,7 @@
     "@codemation/eventbus-redis": "workspace:*",
     "@codemation/queue-bullmq": "workspace:*",
     "@electric-sql/pglite": "^0.4.2",
+    "@electric-sql/pglite-socket": "^0.1.2",
     "@monaco-editor/react": "^4.7.0",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",

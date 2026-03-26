@@ -3,14 +3,17 @@ import type {
   CredentialBindingKey,
   CredentialHealth,
   CredentialInstanceId,
-  CredentialMaterialSourceKind,
+  CredentialInstanceRecord as CoreCredentialInstanceRecord,
+  CredentialJsonRecord,
   CredentialSessionService,
-  CredentialSetupStatus,
-  CredentialTypeDefinition,
-  CredentialTypeId,
+  CredentialHealthTester as CoreCredentialHealthTester,
+  CredentialSessionFactory as CoreCredentialSessionFactory,
+  CredentialSessionFactoryArgs,
+  AnyCredentialType,
+  CredentialType as CoreCredentialType,
 } from "@codemation/core";
 
-export type JsonRecord = Readonly<Record<string, unknown>>;
+export type JsonRecord = CredentialJsonRecord;
 
 export type CredentialSecretRef = Readonly<
   | { kind: "db" }
@@ -24,18 +27,12 @@ export type CredentialSecretRef = Readonly<
     }
 >;
 
-export type CredentialInstanceRecord = Readonly<{
-  instanceId: CredentialInstanceId;
-  typeId: CredentialTypeId;
-  displayName: string;
-  sourceKind: CredentialMaterialSourceKind;
-  publicConfig: JsonRecord;
-  secretRef: CredentialSecretRef;
-  tags: ReadonlyArray<string>;
-  setupStatus: CredentialSetupStatus;
-  createdAt: string;
-  updatedAt: string;
-}>;
+/**
+ * Persisted credential instance for the host store (stricter `CredentialSecretRef` than core's envelope).
+ */
+export type CredentialInstanceRecord<TPublicConfig extends JsonRecord = JsonRecord> = Readonly<
+  Omit<CoreCredentialInstanceRecord<TPublicConfig>, "secretRef"> & { secretRef: CredentialSecretRef }
+>;
 
 export type CredentialSecretMaterialRecord = Readonly<{
   instanceId: CredentialInstanceId;
@@ -112,27 +109,24 @@ export interface CredentialStore {
   ): Promise<ReadonlyMap<CredentialInstanceId, CredentialTestRecord>>;
 }
 
-export type CredentialSessionFactory = (
-  args: Readonly<{
-    instance: CredentialInstanceRecord;
-    material: JsonRecord;
-    publicConfig: JsonRecord;
-  }>,
-) => Promise<unknown>;
+export type CredentialSessionFactory<
+  TPublicConfig extends JsonRecord = JsonRecord,
+  TMaterial extends JsonRecord = JsonRecord,
+  TSession = unknown,
+> = CoreCredentialSessionFactory<TPublicConfig, TMaterial, TSession>;
 
-export type CredentialHealthTester = (
-  args: Readonly<{
-    instance: CredentialInstanceRecord;
-    material: JsonRecord;
-    publicConfig: JsonRecord;
-  }>,
-) => Promise<CredentialHealth>;
+export type CredentialHealthTester<
+  TPublicConfig extends JsonRecord = JsonRecord,
+  TMaterial extends JsonRecord = JsonRecord,
+> = CoreCredentialHealthTester<TPublicConfig, TMaterial>;
 
-export type RegisteredCredentialType = Readonly<{
-  definition: CredentialTypeDefinition;
-  createSession: CredentialSessionFactory;
-  test: CredentialHealthTester;
-}>;
+export type CredentialType<
+  TPublicConfig extends JsonRecord = JsonRecord,
+  TMaterial extends JsonRecord = JsonRecord,
+  TSession = unknown,
+> = CoreCredentialType<TPublicConfig, TMaterial, TSession>;
+
+export type { AnyCredentialType, CredentialSessionFactoryArgs };
 
 export type MutableCredentialSessionService = CredentialSessionService &
   Readonly<{

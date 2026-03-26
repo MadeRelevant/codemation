@@ -54,6 +54,13 @@ This document sets the “golden standard” for how we build and review changes
   - Prefer additive changes.
   - If a breaking change is necessary, isolate it behind new types and deprecate old ones first.
 
+### Credential types (`@codemation/core`)
+
+- **`CredentialType<TPublic, TMaterial, TSession>`** — full registration: `definition`, `createSession`, and `test` (typed like node `execute` / `config`). Use `satisfies CredentialType<…>` on object literals when defining custom credentials.
+- **`CredentialTypeDefinition`** — schema/UI only (what the credentials screen lists); not a session factory.
+- **`AnyCredentialType`** (`CredentialType<any, any, unknown>`) — type for heterogeneous lists: `CodemationConfig.credentialTypes`, the host registry, and packaged exports like **`openAiApiKeyCredentialType`**. Typed `CredentialType<Specific…>` values assign here without casts.
+- Host API: `CodemationApplication.registerCredentialType`, `CredentialTypeRegistryImpl.getCredentialType`, `OpenAiApiKeyCredentialTypeFactory.createCredentialType`, export **`openAiApiKeyCredentialType`** from `@codemation/host/credentials`.
+
 ## Coding standards
 
 ### TypeScript
@@ -85,7 +92,7 @@ This document sets the “golden standard” for how we build and review changes
 
 ### Logging (server / package `src`)
 
-- **Do not use `console.log`** under `packages/*/src` for core, nodes, queue, eventbus, run-store, `node-example`, and `@codemation/host` TypeScript sources (ESLint enforces this). Inject **`LoggerFactory`** / **`Logger`** (`packages/host/src/application/logging/Logger.ts`) and use **`logger.info` / `warn` / `error` / `debug`**; server wiring uses **`ServerLoggerFactory`**.
+- **Do not use `console.log`** under `packages/*/src` for core, nodes, queue, eventbus, `node-example`, and `@codemation/host` TypeScript sources (ESLint enforces this). Inject **`LoggerFactory`** / **`Logger`** (`packages/host/src/application/logging/Logger.ts`) and use **`logger.info` / `warn` / `error` / `debug`**; server wiring uses **`ServerLoggerFactory`**.
 - **Log noise in tests:** `ServerLogger` / `BrowserLogger` use an injected **`LogLevelPolicy`** (process-wide singleton from **`LogLevelPolicyFactory`** / `logLevelPolicyFactory`): under **Vitest** (`VITEST=true`), the default minimum level is **`warn`**, so routine **`info`/`debug`** lines are suppressed while **`warn`/`error`** still print. Set **`CODEMATION_LOG_LEVEL`** to `debug|info|warn|error|silent` to override (e.g. verbose integration debugging).
 - **`ServerHttpErrorResponseFactory`** still uses **`console.error`** for uncaught route failures so real handler bugs stay visible regardless of log level.
 - **`packages/next-host`** and **`packages/cli`** are excluded from the `console.log` ESLint rule (UI / user-facing stdout). Client-side logging may use **`BrowserLoggerFactory`** when the app provides it.

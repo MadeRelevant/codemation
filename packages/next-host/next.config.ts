@@ -17,7 +17,6 @@ const nextConfig: NextConfig = {
     "@codemation/host",
     "@codemation/node-example",
     "@codemation/queue-bullmq",
-    "@codemation/run-store-sqlite",
   ],
   experimental: {
     externalDir: true,

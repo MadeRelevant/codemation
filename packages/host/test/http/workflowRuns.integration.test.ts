@@ -13,7 +13,10 @@ import type { CodemationConfig } from "../../src/presentation/config/CodemationC
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
 import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
-import { PostgresIntegrationDatabase } from "./testkit/PostgresIntegrationDatabase";
+import type { IntegrationDatabase } from "./testkit/IntegrationDatabaseFactory";
+import { IntegrationDatabaseFactory } from "./testkit/IntegrationDatabaseFactory";
+import { IntegrationTestDatabaseSession } from "./testkit/IntegrationTestDatabaseSession";
+import { mergeIntegrationDatabaseRuntime } from "./testkit/mergeIntegrationDatabaseRuntime";
 import { PostgresRollbackTransaction } from "./testkit/PostgresRollbackTransaction";
 
 class WorkflowRunsIntegrationFixture {
@@ -23,18 +26,15 @@ class WorkflowRunsIntegrationFixture {
 
   static async createHarness(
     options: Readonly<{ applyMigrations?: boolean }> = {},
-  ): Promise<Readonly<{ harness: FrontendHttpIntegrationHarness; database: PostgresIntegrationDatabase }>> {
+  ): Promise<Readonly<{ harness: FrontendHttpIntegrationHarness; database: IntegrationDatabase }>> {
     const database =
       options.applyMigrations === false
-        ? await PostgresIntegrationDatabase.createUnmigrated()
-        : await PostgresIntegrationDatabase.create();
-    const config = this.createConfig();
+        ? await IntegrationDatabaseFactory.createUnmigrated()
+        : await IntegrationDatabaseFactory.create();
+    const config = mergeIntegrationDatabaseRuntime(this.createConfig(), database);
     const harness = new FrontendHttpIntegrationHarness({
       config,
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      env: {
-        DATABASE_URL: database.databaseUrl,
-      },
     });
     await harness.start();
     return {
@@ -95,17 +95,17 @@ class WorkflowRunsIntegrationFixture {
 }
 
 class WorkflowRunsIntegrationContext {
-  sharedDatabase: PostgresIntegrationDatabase | null = null;
+  private readonly session = new IntegrationTestDatabaseSession();
   harness: FrontendHttpIntegrationHarness | null = null;
-  database: PostgresIntegrationDatabase | null = null;
+  database: IntegrationDatabase | null = null;
   transaction: PostgresRollbackTransaction | null = null;
   private ownsActiveDatabase = false;
 
   async prepareSharedDatabase(): Promise<void> {
-    if (this.sharedDatabase) {
+    if (this.session.database) {
       return;
     }
-    this.sharedDatabase = await PostgresIntegrationDatabase.create();
+    await this.session.start();
   }
 
   async start(options: Readonly<{ applyMigrations?: boolean }> = {}): Promise<FrontendHttpIntegrationHarness> {
@@ -130,40 +130,34 @@ class WorkflowRunsIntegrationContext {
       }
       this.database = null;
     }
-    if (this.transaction) {
-      await this.transaction.rollback();
-      this.transaction = null;
+    this.transaction = null;
+    if (!this.ownsActiveDatabase && this.session.database) {
+      await this.session.afterEach();
+      this.transaction = this.session.transaction;
     }
     this.ownsActiveDatabase = false;
   }
 
   async closeSharedDatabase(): Promise<void> {
-    if (!this.sharedDatabase) {
-      return;
-    }
-    await this.sharedDatabase.close();
-    this.sharedDatabase = null;
+    await this.session.dispose();
   }
 
   private async createSharedHarness(): Promise<
-    Readonly<{ harness: FrontendHttpIntegrationHarness; database: PostgresIntegrationDatabase }>
+    Readonly<{ harness: FrontendHttpIntegrationHarness; database: IntegrationDatabase }>
   > {
     const database = this.requireSharedDatabase();
-    this.transaction = await database.beginRollbackTransaction();
+    this.transaction = this.session.transaction;
     return await this.createHarnessFromDatabase(database, [this.createPrismaClientBinding()]);
   }
 
   private async createHarnessFromDatabase(
-    database: PostgresIntegrationDatabase,
+    database: IntegrationDatabase,
     bindings: ReadonlyArray<CodemationBinding<unknown>> = [],
-  ): Promise<Readonly<{ harness: FrontendHttpIntegrationHarness; database: PostgresIntegrationDatabase }>> {
-    const config = WorkflowRunsIntegrationFixture.createConfig();
+  ): Promise<Readonly<{ harness: FrontendHttpIntegrationHarness; database: IntegrationDatabase }>> {
+    const config = mergeIntegrationDatabaseRuntime(WorkflowRunsIntegrationFixture.createConfig(), database);
     const harness = new FrontendHttpIntegrationHarness({
       config,
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      env: {
-        DATABASE_URL: database.databaseUrl,
-      },
       bindings,
     });
     await harness.start();
@@ -180,11 +174,11 @@ class WorkflowRunsIntegrationContext {
     };
   }
 
-  private requireSharedDatabase(): PostgresIntegrationDatabase {
-    if (!this.sharedDatabase) {
+  private requireSharedDatabase(): IntegrationDatabase {
+    if (!this.session.database) {
       throw new Error("WorkflowRunsIntegrationContext.prepareSharedDatabase() must be called before start().");
     }
-    return this.sharedDatabase;
+    return this.session.database;
   }
 
   private requireTransaction(): PrismaClient {

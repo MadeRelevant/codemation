@@ -92,8 +92,8 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
     if (!instance) {
       throw new ApplicationRequestError(404, `Unknown credential instance: ${instanceId}`);
     }
-    const registeredType = this.credentialTypeRegistry.getRegisteredType(instance.typeId);
-    if (!registeredType) {
+    const credentialType = this.credentialTypeRegistry.getCredentialType(instance.typeId);
+    if (!credentialType) {
       const prefix = displayLabel ? `${displayLabel}: ` : "";
       throw new ApplicationRequestError(
         400,
@@ -102,11 +102,11 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
     }
     const material = await this.credentialRuntimeMaterialService.compose(instance);
     const { resolvedPublicConfig, resolvedMaterial } = this.credentialFieldEnvOverlayService.apply({
-      definition: registeredType.definition,
+      definition: credentialType.definition,
       publicConfig: instance.publicConfig,
       material,
     });
-    return await registeredType.createSession({
+    return await credentialType.createSession({
       instance,
       material: resolvedMaterial,
       publicConfig: resolvedPublicConfig,

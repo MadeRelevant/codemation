@@ -1,6 +1,11 @@
-import type { RegisteredCredentialType } from "../../domain/credentials/CredentialServices";
+import type { CredentialType } from "../../domain/credentials/CredentialServices";
 
 import type { OpenAiApiKeyCredentialHealthTester } from "./OpenAiApiKeyCredentialHealthTester";
+import type {
+  OpenAiApiKeyMaterial,
+  OpenAiApiKeyPublicConfig,
+  OpenAiApiKeySession,
+} from "./OpenAiApiKeyCredentialShapes.types";
 
 /**
  * Builds the OpenAI-compatible API key credential (`openai.apiKey`) registration.
@@ -10,7 +15,7 @@ import type { OpenAiApiKeyCredentialHealthTester } from "./OpenAiApiKeyCredentia
 export class OpenAiApiKeyCredentialTypeFactory {
   constructor(private readonly healthTester: OpenAiApiKeyCredentialHealthTester) {}
 
-  createRegisteredCredentialType(): RegisteredCredentialType {
+  createCredentialType(): CredentialType<OpenAiApiKeyPublicConfig, OpenAiApiKeyMaterial, OpenAiApiKeySession> {
     return {
       definition: {
         typeId: "openai.apiKey",

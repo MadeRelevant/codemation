@@ -20,7 +20,6 @@ export class WatchRootsResolver {
       path.resolve(args.repoRoot, "packages", "host"),
       path.resolve(args.repoRoot, "packages", "node-example"),
       path.resolve(args.repoRoot, "packages", "queue-bullmq"),
-      path.resolve(args.repoRoot, "packages", "run-store-sqlite"),
       path.resolve(args.repoRoot, "packages", "runtime-dev"),
     ];
   }

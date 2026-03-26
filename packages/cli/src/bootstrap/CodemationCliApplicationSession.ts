@@ -1,4 +1,4 @@
-import { CodemationApplication, type CommandBus, type QueryBus } from "@codemation/host";
+import { CodemationApplication, PrismaClient, type CommandBus, type QueryBus } from "@codemation/host";
 import type { CodemationConsumerConfigResolution } from "@codemation/host/server";
 
 /**
@@ -12,12 +12,25 @@ export class CodemationCliApplicationSession {
     args: Readonly<{
       resolution: CodemationConsumerConfigResolution;
       repoRoot: string;
+      consumerRoot: string;
       env?: Readonly<NodeJS.ProcessEnv>;
     }>,
   ): Promise<CodemationCliApplicationSession> {
     const app = new CodemationApplication().useConfig(args.resolution.config);
-    await app.prepareCliPersistenceAndCommands({ repoRoot: args.repoRoot, env: args.env });
+    await app.prepareCliPersistenceAndCommands({
+      repoRoot: args.repoRoot,
+      consumerRoot: args.consumerRoot,
+      env: args.env,
+    });
     return new CodemationCliApplicationSession(app);
+  }
+
+  getPrismaClient(): PrismaClient | undefined {
+    const container = this.application.getContainer();
+    if (!container.isRegistered(PrismaClient, true)) {
+      return undefined;
+    }
+    return container.resolve(PrismaClient);
   }
 
   getCommandBus(): CommandBus {

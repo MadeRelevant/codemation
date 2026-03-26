@@ -30,8 +30,7 @@
       "@codemation/next-host": ["./src/index.ts"],
       "@codemation/next-host/src/*": ["./src/*"],
       "@codemation/node-example": ["../../packages/node-example/src/index.ts"],
-      "@codemation/queue-bullmq": ["../../packages/queue-bullmq/src/index.ts"],
-      "@codemation/run-store-sqlite": ["../../packages/run-store-sqlite/src/index.ts"]
+      "@codemation/queue-bullmq": ["../../packages/queue-bullmq/src/index.ts"]
     }
   },
   "include": ["next-env.d.ts", "app/**/*.ts", "app/**/*.tsx", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],

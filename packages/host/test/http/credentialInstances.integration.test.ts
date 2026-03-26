@@ -14,8 +14,10 @@ import type { CodemationBootContext, CodemationBootHook } from "../../src/presen
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
 import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
-import { PostgresIntegrationDatabase } from "./testkit/PostgresIntegrationDatabase";
-import { PostgresRollbackTransaction } from "./testkit/PostgresRollbackTransaction";
+import type { IntegrationDatabase } from "./testkit/IntegrationDatabaseFactory";
+import { IntegrationTestDatabaseSession } from "./testkit/IntegrationTestDatabaseSession";
+import { mergeIntegrationDatabaseRuntime } from "./testkit/mergeIntegrationDatabaseRuntime";
+import type { PostgresRollbackTransaction } from "./testkit/PostgresRollbackTransaction";
 
 const testCredentialTypeId = "test.apiKey";
 const testOAuthCredentialTypeId = "test.oauth";
@@ -90,24 +92,26 @@ class CredentialIntegrationFixture {
   }
 
   static async createHarness(
-    database: PostgresIntegrationDatabase,
+    database: IntegrationDatabase,
     transaction: PostgresRollbackTransaction,
     envOverrides?: Readonly<NodeJS.ProcessEnv>,
   ): Promise<FrontendHttpIntegrationHarness> {
-    const config = {
-      workflows: [this.createWorkflow()],
-      bootHook: TestCredentialBootHook,
-      runtime: {
-        eventBus: { kind: "memory" as const },
-        scheduler: { kind: "local" as const },
+    const config = mergeIntegrationDatabaseRuntime(
+      {
+        workflows: [this.createWorkflow()],
+        bootHook: TestCredentialBootHook,
+        runtime: {
+          eventBus: { kind: "memory" as const },
+          scheduler: { kind: "local" as const },
+        },
+        auth: IntegrationTestAuth.developmentBypass,
       },
-      auth: IntegrationTestAuth.developmentBypass,
-    };
+      database,
+    );
     const harness = new FrontendHttpIntegrationHarness({
       config,
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
       env: {
-        DATABASE_URL: database.databaseUrl,
         CODEMATION_CREDENTIALS_MASTER_KEY: testMasterKey,
         TEST_CREDENTIAL_API_KEY: "env-resolved-secret-value",
         TEST_OAUTH_INTEGRATION_CLIENT_ID: "oauth-client-from-env",
@@ -127,34 +131,22 @@ class CredentialIntegrationFixture {
 }
 
 describe("credential instances http integration", () => {
-  let sharedDatabase: PostgresIntegrationDatabase | null = null;
-  let transaction: PostgresRollbackTransaction | null = null;
+  const session = new IntegrationTestDatabaseSession();
 
   beforeAll(async () => {
-    sharedDatabase = await PostgresIntegrationDatabase.create();
-    transaction = await sharedDatabase!.beginRollbackTransaction();
+    await session.start();
   });
 
   afterEach(async () => {
-    if (transaction) {
-      await transaction.rollback();
-      transaction = await sharedDatabase!.beginRollbackTransaction();
-    }
+    await session.afterEach();
   });
 
   afterAll(async () => {
-    if (transaction) {
-      await transaction.rollback();
-      transaction = null;
-    }
-    if (sharedDatabase) {
-      await sharedDatabase.close();
-      sharedDatabase = null;
-    }
+    await session.dispose();
   });
 
   it("returns credential instance without secrets by default", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const createResponse = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
@@ -182,7 +174,7 @@ describe("credential instances http integration", () => {
   });
 
   it("returns credential instance with secrets when withSecrets=1", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const createResponse = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
@@ -208,7 +200,7 @@ describe("credential instances http integration", () => {
   });
 
   it("returns env credential with envSecretRefs and resolved secretConfig when withSecrets=1", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const createResponse = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
@@ -235,7 +227,7 @@ describe("credential instances http integration", () => {
   });
 
   it("returns credential field env status for registered types", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const response = await harness.request({
       method: "GET",
@@ -249,7 +241,7 @@ describe("credential instances http integration", () => {
   });
 
   it("creates OAuth credential without stored client id and secret when env provides values", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const createResponse = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
@@ -277,7 +269,7 @@ describe("credential instances http integration", () => {
   });
 
   it("uses env-resolved client_id in OAuth2 auth redirect when instance omits stored client id", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const createResponse = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
@@ -303,7 +295,7 @@ describe("credential instances http integration", () => {
   });
 
   it("creates an OAuth2 auth redirect and persists state", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const createResponse = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
@@ -328,13 +320,13 @@ describe("credential instances http integration", () => {
     expect(String(locationHeader)).toContain("https://accounts.google.com/o/oauth2/v2/auth");
     expect(String(locationHeader)).toContain("state=");
 
-    const persistedStates = await transaction!.getPrismaClient().credentialOAuth2State.findMany();
+    const persistedStates = await session.transaction!.getPrismaClient().credentialOAuth2State.findMany();
     expect(persistedStates).toHaveLength(1);
     expect(persistedStates[0]?.instanceId).toBe(createResponse.instanceId);
   });
 
   it("stores OAuth2 token material and preserves the refresh token on reconnect", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
     const fetchMock = vi.fn();
     const priorFetch = globalThis.fetch;
     globalThis.fetch = fetchMock as typeof fetch;
@@ -419,7 +411,7 @@ describe("credential instances http integration", () => {
 
       expect(secondCallbackResponse.statusCode).toBe(200);
 
-      const storedMaterial = await transaction!.getPrismaClient().credentialOAuth2Material.findUnique({
+      const storedMaterial = await session.transaction!.getPrismaClient().credentialOAuth2Material.findUnique({
         where: { instanceId: createResponse.instanceId },
       });
       expect(storedMaterial).toBeTruthy();
@@ -440,7 +432,7 @@ describe("credential instances http integration", () => {
   });
 
   it("rejects OAuth2 auth when instanceId is missing", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const response = await harness.request({
       method: "GET",
@@ -452,7 +444,7 @@ describe("credential instances http integration", () => {
   });
 
   it("returns OAuth2 callback error HTML without raw script-breaking markup in inline script", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
     const fetchMock = vi.fn();
     const priorFetch = globalThis.fetch;
     globalThis.fetch = fetchMock as typeof fetch;
@@ -500,7 +492,7 @@ describe("credential instances http integration", () => {
   });
 
   it("disconnects OAuth2 for a credential instance", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
     const fetchMock = vi.fn();
     const priorFetch = globalThis.fetch;
     globalThis.fetch = fetchMock as typeof fetch;
@@ -551,7 +543,7 @@ describe("credential instances http integration", () => {
       });
       expect(disconnectResponse.statusCode).toBe(200);
 
-      const material = await transaction!.getPrismaClient().credentialOAuth2Material.findUnique({
+      const material = await session.transaction!.getPrismaClient().credentialOAuth2Material.findUnique({
         where: { instanceId: createResponse.instanceId },
       });
       expect(material).toBeNull();
@@ -568,7 +560,7 @@ describe("credential instances http integration", () => {
   });
 
   it("rejects OAuth2 disconnect when instanceId is missing", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const response = await harness.request({
       method: "POST",
@@ -579,8 +571,8 @@ describe("credential instances http integration", () => {
     expect(response.json<{ error?: string }>().error).toContain("instanceId");
   });
 
-  it("lists registered credential types", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+  it("lists credential types", async () => {
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const response = await harness.request({
       method: "GET",
@@ -598,32 +590,34 @@ describe("credential instances http integration", () => {
   it("registers credential types from CodemationConfig.credentialTypes without a boot hook", async () => {
     const consumerTypeId = "consumer.config.credential";
     const harness = new FrontendHttpIntegrationHarness({
-      config: {
-        workflows: [CredentialIntegrationFixture.createWorkflow()],
-        runtime: { eventBus: { kind: "memory" as const }, scheduler: { kind: "local" as const } },
-        auth: IntegrationTestAuth.developmentBypass,
-        credentialTypes: [
-          {
-            definition: {
-              typeId: consumerTypeId,
-              displayName: "Consumer config credential",
-              secretFields: [{ key: "token", label: "Token", type: "password", required: true }],
-              supportedSourceKinds: ["db"],
+      config: mergeIntegrationDatabaseRuntime(
+        {
+          workflows: [CredentialIntegrationFixture.createWorkflow()],
+          runtime: { eventBus: { kind: "memory" as const }, scheduler: { kind: "local" as const } },
+          auth: IntegrationTestAuth.developmentBypass,
+          credentialTypes: [
+            {
+              definition: {
+                typeId: consumerTypeId,
+                displayName: "Consumer config credential",
+                secretFields: [{ key: "token", label: "Token", type: "password", required: true }],
+                supportedSourceKinds: ["db"],
+              },
+              createSession: async () => "session",
+              test: async () => ({ status: "healthy" as const, testedAt: new Date().toISOString() }),
             },
-            createSession: async () => "session",
-            test: async () => ({ status: "healthy" as const, testedAt: new Date().toISOString() }),
-          },
-        ],
-      },
+          ],
+        },
+        session.database!,
+      ),
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
       env: {
-        DATABASE_URL: sharedDatabase!.databaseUrl,
         CODEMATION_CREDENTIALS_MASTER_KEY: testMasterKey,
       },
       bindings: [
         {
           token: PrismaClient,
-          useFactory: () => transaction!.getPrismaClient(),
+          useFactory: () => session.transaction!.getPrismaClient(),
         },
       ],
     });
@@ -643,7 +637,7 @@ describe("credential instances http integration", () => {
   });
 
   it("lists credential instances including created rows", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const empty = await harness.request({ method: "GET", url: ApiPaths.credentialInstances() });
     expect(empty.statusCode).toBe(200);
@@ -669,7 +663,7 @@ describe("credential instances http integration", () => {
   });
 
   it("returns 404 for an unknown credential instance", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const response = await harness.request({
       method: "GET",
@@ -680,7 +674,7 @@ describe("credential instances http integration", () => {
   });
 
   it("updates a credential instance via PUT", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const created = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
@@ -709,7 +703,7 @@ describe("credential instances http integration", () => {
   });
 
   it("deletes a credential instance", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const created = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
@@ -737,7 +731,7 @@ describe("credential instances http integration", () => {
   });
 
   it("tests a credential instance without mocking fetch", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const created = await harness.requestJson<CredentialInstanceDto>({
       method: "POST",
@@ -761,7 +755,7 @@ describe("credential instances http integration", () => {
   });
 
   it("rejects credential create when JSON body is invalid", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const response = await harness.request({
       method: "POST",
@@ -781,7 +775,7 @@ describe("credential instances http integration", () => {
   });
 
   it("returns OAuth2 redirect URI for the request origin", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const response = await harness.request({
       method: "GET",
@@ -794,7 +788,7 @@ describe("credential instances http integration", () => {
   });
 
   it("returns OAuth2 redirect URI when CODEMATION_PUBLIC_BASE_URL omits http scheme", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!, {
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!, {
       CODEMATION_PUBLIC_BASE_URL: "127.0.0.1:5555",
     });
 
@@ -809,7 +803,7 @@ describe("credential instances http integration", () => {
   });
 
   it("returns OAuth2 callback error HTML when code and state are missing (no fetch)", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const response = await harness.request({
       method: "GET",
@@ -822,7 +816,7 @@ describe("credential instances http integration", () => {
   });
 
   it("returns workflow credential health for a registered workflow", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(sharedDatabase!, transaction!);
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const response = await harness.request({
       method: "GET",

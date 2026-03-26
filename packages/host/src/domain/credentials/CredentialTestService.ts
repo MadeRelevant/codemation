@@ -11,7 +11,7 @@ import { ApplicationTokens } from "../../applicationTokens";
 import { CredentialFieldEnvOverlayService } from "./CredentialFieldEnvOverlayService";
 import { CredentialInstanceService } from "./CredentialInstanceService";
 import { CredentialRuntimeMaterialService } from "./CredentialRuntimeMaterialService";
-import type { CredentialStore, MutableCredentialSessionService, RegisteredCredentialType } from "./CredentialServices";
+import type { CredentialStore, AnyCredentialType, MutableCredentialSessionService } from "./CredentialServices";
 import { CredentialTypeRegistryImpl } from "./CredentialServices";
 
 @injectable()
@@ -33,14 +33,14 @@ export class CredentialTestService {
 
   async test(instanceId: CredentialInstanceId): Promise<CredentialHealth> {
     const instance = await this.credentialInstanceService.requireInstance(instanceId);
-    const registeredType = this.requireRegisteredType(instance.typeId);
+    const credentialType = this.requireCredentialType(instance.typeId);
     const material = await this.credentialRuntimeMaterialService.compose(instance);
     const { resolvedPublicConfig, resolvedMaterial } = this.credentialFieldEnvOverlayService.apply({
-      definition: registeredType.definition,
+      definition: credentialType.definition,
       publicConfig: instance.publicConfig,
       material,
     });
-    const health = await registeredType.test({
+    const health = await credentialType.test({
       instance,
       material: resolvedMaterial,
       publicConfig: resolvedPublicConfig,
@@ -63,11 +63,11 @@ export class CredentialTestService {
     };
   }
 
-  private requireRegisteredType(typeId: CredentialTypeId): RegisteredCredentialType {
-    const registeredType = this.credentialTypeRegistry.getRegisteredType(typeId);
-    if (!registeredType) {
+  private requireCredentialType(typeId: CredentialTypeId): AnyCredentialType {
+    const credentialType = this.credentialTypeRegistry.getCredentialType(typeId);
+    if (!credentialType) {
       throw new ApplicationRequestError(400, `Unknown credential type: ${typeId}`);
     }
-    return registeredType;
+    return credentialType;
   }
 }

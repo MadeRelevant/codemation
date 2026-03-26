@@ -21,6 +21,9 @@ import type { CodemationConfig } from "../../src/presentation/config/CodemationC
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
 import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
+import type { IntegrationDatabase } from "./testkit/IntegrationDatabaseFactory";
+import { IntegrationDatabaseFactory } from "./testkit/IntegrationDatabaseFactory";
+import { mergeIntegrationDatabaseRuntime } from "./testkit/mergeIntegrationDatabaseRuntime";
 
 class FakeGmailApiClient implements GmailApiClient {
   labels = [{ id: "IMPORTANT", name: "IMPORTANT" }] as const;
@@ -163,7 +166,7 @@ class GmailPollingTriggerIntegrationFixture {
   }
 
   static async waitForRun(harness: FrontendHttpIntegrationHarness): Promise<Readonly<{ runId: string }>> {
-    const deadline = performance.now() + 8_000;
+    const deadline = performance.now() + 15_000;
     while (performance.now() < deadline) {
       const response = await harness.request({
         method: "GET",
@@ -182,7 +185,7 @@ class GmailPollingTriggerIntegrationFixture {
     harness: FrontendHttpIntegrationHarness,
     runId: string,
   ): Promise<PersistedRunState> {
-    const deadline = performance.now() + 8_000;
+    const deadline = performance.now() + 15_000;
     while (performance.now() < deadline) {
       const response = await harness.request({
         method: "GET",
@@ -202,22 +205,49 @@ class GmailPollingTriggerIntegrationFixture {
 
 describe("Gmail polling trigger integration", () => {
   const harnesses: FrontendHttpIntegrationHarness[] = [];
+  const databases: IntegrationDatabase[] = [];
 
   afterEach(async () => {
     while (harnesses.length > 0) {
       await harnesses.pop()?.close();
     }
+    while (databases.length > 0) {
+      await databases.pop()?.close();
+    }
   });
 
-  it("boots with new GmailNodes() and starts a run after polling sees a new message", async () => {
-    const apiClient = new FakeGmailApiClient();
+  async function startHarness(
+    apiClient: FakeGmailApiClient,
+    options: Readonly<{ seedWorkflowActivation?: boolean }> = {},
+  ): Promise<FrontendHttpIntegrationHarness> {
+    const database = await IntegrationDatabaseFactory.createEphemeral();
+    databases.push(database);
+    if (options.seedWorkflowActivation === true) {
+      const prisma = database.getPrismaClient();
+      const updatedAt = new Date().toISOString();
+      await prisma.workflowActivation.upsert({
+        where: { workflowId: GmailPollingTriggerIntegrationFixture.workflowId },
+        create: {
+          workflowId: GmailPollingTriggerIntegrationFixture.workflowId,
+          isActive: true,
+          updatedAt,
+        },
+        update: { isActive: true, updatedAt },
+      });
+    }
     const harness = new FrontendHttpIntegrationHarness({
-      config: GmailPollingTriggerIntegrationFixture.createConfig(),
+      config: mergeIntegrationDatabaseRuntime(GmailPollingTriggerIntegrationFixture.createConfig(), database),
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
       bindings: GmailPollingTriggerIntegrationFixture.createBindings(apiClient),
     });
     harnesses.push(harness);
     await harness.start();
+    return harness;
+  }
+
+  it("boots with new GmailNodes() and starts a run after polling sees a new message", async () => {
+    const apiClient = new FakeGmailApiClient();
+    const harness = await startHarness(apiClient, { seedWorkflowActivation: true });
 
     const run = await GmailPollingTriggerIntegrationFixture.waitForRun(harness);
     const runState = await GmailPollingTriggerIntegrationFixture.waitForCompletedRunState(harness, run.runId);
@@ -228,13 +258,7 @@ describe("Gmail polling trigger integration", () => {
 
   it("synthesizes a Gmail test item through the runs api and allows pinning the trigger output", async () => {
     const apiClient = new FakeGmailApiClient();
-    const harness = new FrontendHttpIntegrationHarness({
-      config: GmailPollingTriggerIntegrationFixture.createConfig(),
-      consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      bindings: GmailPollingTriggerIntegrationFixture.createBindings(apiClient),
-    });
-    harnesses.push(harness);
-    await harness.start();
+    const harness = await startHarness(apiClient);
 
     const runResponse = await harness.requestJson<RunCommandResult>({
       method: "POST",
@@ -292,13 +316,7 @@ describe("Gmail polling trigger integration", () => {
 
   it("synthesizes Gmail test items when Run workflow sends a cleared debugger currentState with synthesizeTriggerItems", async () => {
     const apiClient = new FakeGmailApiClient();
-    const harness = new FrontendHttpIntegrationHarness({
-      config: GmailPollingTriggerIntegrationFixture.createConfig(),
-      consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      bindings: GmailPollingTriggerIntegrationFixture.createBindings(apiClient),
-    });
-    harnesses.push(harness);
-    await harness.start();
+    const harness = await startHarness(apiClient);
 
     const runResponse = await harness.requestJson<RunCommandResult>({
       method: "POST",
@@ -330,13 +348,7 @@ describe("Gmail polling trigger integration", () => {
 
   it("auto-synthesizes trigger test items when stopping at a trigger with an empty trigger payload", async () => {
     const apiClient = new FakeGmailApiClient();
-    const harness = new FrontendHttpIntegrationHarness({
-      config: GmailPollingTriggerIntegrationFixture.createConfig(),
-      consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      bindings: GmailPollingTriggerIntegrationFixture.createBindings(apiClient),
-    });
-    harnesses.push(harness);
-    await harness.start();
+    const harness = await startHarness(apiClient);
 
     const runResponse = await harness.requestJson<RunCommandResult>({
       method: "POST",

@@ -11,9 +11,11 @@ loadDotenv({
 });
 
 const useRedisRuntime = Boolean(process.env.REDIS_URL);
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required (see .env.example).");
+const databaseUrl = process.env.DATABASE_URL?.trim();
+if (useRedisRuntime && (!databaseUrl || databaseUrl.length === 0)) {
+  throw new Error(
+    "DATABASE_URL is required when REDIS_URL is set (BullMQ requires a shared PostgreSQL database). PGlite cannot be used with the BullMQ scheduler.",
+  );
 }
 
 const slots: CodemationAppSlots = {
@@ -38,7 +40,9 @@ export const codemationHost = {
     directories: ["src/workflows"],
   },
   runtime: {
-    database: { url: databaseUrl },
+    database: useRedisRuntime
+      ? { kind: "postgresql" as const, url: databaseUrl! }
+      : { kind: "pglite" as const, pgliteDataDir: ".codemation/pglite" },
     scheduler: {
       kind: useRedisRuntime ? "bullmq" : "local",
       queuePrefix: "codemation-minimal",

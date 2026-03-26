@@ -30,9 +30,9 @@ import type {
   CredentialSecretRef,
   CredentialStore,
   CredentialTestRecord,
+  AnyCredentialType,
   JsonRecord,
   MutableCredentialSessionService,
-  RegisteredCredentialType,
 } from "./CredentialServices";
 import { CredentialTypeRegistryImpl } from "./CredentialServices";
 
@@ -96,9 +96,9 @@ export class CredentialInstanceService {
   }
 
   async create(request: CreateCredentialInstanceRequest): Promise<CredentialInstanceDto> {
-    const registeredType = this.requireRegisteredType(request.typeId);
-    const publicFields = registeredType.definition.publicFields ?? [];
-    const secretFields = registeredType.definition.secretFields ?? [];
+    const credentialType = this.requireCredentialType(request.typeId);
+    const publicFields = credentialType.definition.publicFields ?? [];
+    const secretFields = credentialType.definition.secretFields ?? [];
     this.validateRequestFields({
       displayName: request.displayName,
       publicFields,
@@ -119,7 +119,7 @@ export class CredentialInstanceService {
       publicConfig: Object.freeze({ ...strippedPublic }),
       secretRef: this.createSecretRef(request.sourceKind, strippedSecretForRef, request.envSecretRefs ?? {}),
       tags: Object.freeze([...(request.tags ?? [])]),
-      setupStatus: registeredType.definition.auth?.kind === "oauth2" ? "draft" : "ready",
+      setupStatus: credentialType.definition.auth?.kind === "oauth2" ? "draft" : "ready",
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -136,15 +136,15 @@ export class CredentialInstanceService {
     request: UpdateCredentialInstanceRequest,
   ): Promise<CredentialInstanceDto> {
     const existing = await this.requireInstance(instanceId);
-    const registeredType = this.requireRegisteredType(existing.typeId);
+    const credentialType = this.requireCredentialType(existing.typeId);
     const mergedPublicRaw = { ...(request.publicConfig ?? existing.publicConfig) };
     const updatedAt = new Date().toISOString();
     const nextSecretConfig = request.secretConfig;
     const nextEnvSecretRefs = request.envSecretRefs;
-    const secretFields = registeredType.definition.secretFields ?? [];
+    const secretFields = credentialType.definition.secretFields ?? [];
     this.validateRequestFields({
       displayName: request.displayName ?? existing.displayName,
-      publicFields: registeredType.definition.publicFields ?? [],
+      publicFields: credentialType.definition.publicFields ?? [],
       publicConfig: mergedPublicRaw,
       secretFields,
       sourceKind: existing.sourceKind,
@@ -153,7 +153,7 @@ export class CredentialInstanceService {
       allowSecretOmission: true,
     });
     const publicConfig = Object.freeze({
-      ...this.stripEnvManagedFieldValues(registeredType.definition.publicFields ?? [], mergedPublicRaw),
+      ...this.stripEnvManagedFieldValues(credentialType.definition.publicFields ?? [], mergedPublicRaw),
     });
     const mergedSecretForRef =
       nextSecretConfig !== undefined ? this.stripEnvManagedFieldValues(secretFields, nextSecretConfig) : undefined;
@@ -187,8 +187,8 @@ export class CredentialInstanceService {
 
   async disconnectOAuth2(instanceId: CredentialInstanceId): Promise<CredentialInstanceDto> {
     const instance = await this.requireInstance(instanceId);
-    const registeredType = this.requireRegisteredType(instance.typeId);
-    if (registeredType.definition.auth?.kind !== "oauth2") {
+    const credentialType = this.requireCredentialType(instance.typeId);
+    if (credentialType.definition.auth?.kind !== "oauth2") {
       throw new ApplicationRequestError(400, `Credential instance ${instanceId} does not use OAuth2.`);
     }
     const updatedInstance: CredentialInstanceRecord = {
@@ -322,12 +322,12 @@ export class CredentialInstanceService {
     }
   }
 
-  private requireRegisteredType(typeId: CredentialTypeId): RegisteredCredentialType {
-    const registeredType = this.credentialTypeRegistry.getRegisteredType(typeId);
-    if (!registeredType) {
+  private requireCredentialType(typeId: CredentialTypeId): AnyCredentialType {
+    const credentialType = this.credentialTypeRegistry.getCredentialType(typeId);
+    if (!credentialType) {
       throw new ApplicationRequestError(400, `Unknown credential type: ${typeId}`);
     }
-    return registeredType;
+    return credentialType;
   }
 
   async markOAuth2Connected(instanceId: CredentialInstanceId, connectedAt: string): Promise<void> {
@@ -365,18 +365,18 @@ export class CredentialInstanceService {
   private async toOAuth2ConnectionDto(
     instance: CredentialInstanceRecord,
   ): Promise<CredentialOAuth2ConnectionDto | undefined> {
-    const registeredType = this.credentialTypeRegistry.getRegisteredType(instance.typeId);
-    if (registeredType?.definition.auth?.kind !== "oauth2") {
+    const credentialType = this.credentialTypeRegistry.getCredentialType(instance.typeId);
+    if (credentialType?.definition.auth?.kind !== "oauth2") {
       return undefined;
     }
     const providerId =
-      "providerId" in registeredType.definition.auth ? registeredType.definition.auth.providerId : "custom";
+      "providerId" in credentialType.definition.auth ? credentialType.definition.auth.providerId : "custom";
     const material = await this.credentialStore.getOAuth2Material(instance.instanceId);
     if (!material) {
       return {
         status: "disconnected",
         providerId,
-        scopes: [...registeredType.definition.auth.scopes],
+        scopes: [...credentialType.definition.auth.scopes],
       };
     }
     return {

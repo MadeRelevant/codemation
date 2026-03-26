@@ -84,6 +84,7 @@ export class CodemationServerGateway {
     });
     await application.prepareFrontendServerContainer({
       repoRoot,
+      consumerRoot: this.consumerRoot,
       env,
     });
     await application.applyBootHook({

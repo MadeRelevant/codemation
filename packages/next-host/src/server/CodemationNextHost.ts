@@ -124,6 +124,7 @@ export class CodemationNextHost {
     });
     await application.prepareFrontendServerContainer({
       repoRoot,
+      consumerRoot,
       env,
       skipPresentationServers: isRuntimeDevProxy,
     });

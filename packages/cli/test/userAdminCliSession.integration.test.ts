@@ -10,7 +10,8 @@ import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 
 import { CodemationCliApplicationSession } from "../src/bootstrap/CodemationCliApplicationSession";
-import { PostgresIntegrationDatabase } from "../../host/test/http/testkit/PostgresIntegrationDatabase";
+import type { IntegrationDatabase } from "../../host/test/http/testkit/IntegrationDatabaseFactory";
+import { IntegrationDatabaseFactory } from "../../host/test/http/testkit/IntegrationDatabaseFactory";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const integrationSandboxRoot = path.join(repoRoot, "packages/cli/test/integration-sandbox");
@@ -29,21 +30,20 @@ it(
   "loads transpiled consumer config and opens a CodemationCliApplicationSession without errors",
   { timeout: 180_000 },
   async () => {
-    let database: PostgresIntegrationDatabase | null = null;
+    let database: IntegrationDatabase | null = null;
     let consumerRoot: string | null = null;
     try {
-      database = await PostgresIntegrationDatabase.create();
+      database = await IntegrationDatabaseFactory.create();
       await mkdir(integrationSandboxRoot, { recursive: true });
       consumerRoot = await mkdtemp(path.join(integrationSandboxRoot, "consumer-"));
       const databaseUrl = database.databaseUrl;
-      process.env.DATABASE_URL = databaseUrl;
       process.env.CODEMATION_TSCONFIG_PATH = path.join(repoRoot, "tsconfig.codemation-tsx.json");
 
       const configSource = `export default {
   auth: { kind: "local" },
   workflowDiscovery: { directories: ["src/workflows"] },
   runtime: {
-    database: { url: ${JSON.stringify(databaseUrl)} },
+    database: { kind: "postgresql", url: ${JSON.stringify(databaseUrl)} },
     eventBus: { kind: "memory" },
     scheduler: { kind: "local" },
   },
@@ -61,7 +61,8 @@ it(
       const session = await CodemationCliApplicationSession.open({
         resolution,
         repoRoot,
-        env: { ...process.env, DATABASE_URL: databaseUrl },
+        consumerRoot,
+        env: { ...process.env },
       });
       try {
         const users = await session.getQueryBus().execute(new ListUserAccountsQuery());

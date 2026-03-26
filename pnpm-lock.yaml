@@ -443,6 +443,9 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.4.2
         version: 0.4.2
+      '@electric-sql/pglite-socket':
+        specifier: ^0.1.2
+        version: 0.1.2(@electric-sql/pglite@0.4.2)
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -801,34 +804,6 @@ importers:
       vitest:
         specifier: 4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
-
-  packages/run-store-sqlite:
-    dependencies:
-      '@codemation/core':
-        specifier: workspace:*
-        version: link:../core
-      better-sqlite3:
-        specifier: ^12.4.1
-        version: 12.6.2
-    devDependencies:
-      '@types/better-sqlite3':
-        specifier: ^7.6.13
-        version: 7.6.13
-      '@types/node':
-        specifier: ^25.3.5
-        version: 25.3.5
-      eslint:
-        specifier: ^10.0.3
-        version: 10.0.3(jiti@2.6.1)
-      tsdown:
-        specifier: ^0.15.5
-        version: 0.15.12(typescript@5.9.3)
-      tsx:
-        specifier: ^4.21.0
-        version: 4.21.0
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
 
   packages/runtime-dev:
     dependencies:
@@ -1314,6 +1289,12 @@ packages:
     hasBin: true
     peerDependencies:
       '@electric-sql/pglite': 0.3.15
+
+  '@electric-sql/pglite-socket@0.1.2':
+    resolution: {integrity: sha512-Hz+IIentlbz9Zpln7Ft0iTDtbLvIfmmwIIC0CCU6ViklsDzbOIZV9xqcbvME21O3pqjjDNhERc57ynRCdshkZA==}
+    hasBin: true
+    peerDependencies:
+      '@electric-sql/pglite': 0.4.2
 
   '@electric-sql/pglite-tools@0.2.20':
     resolution: {integrity: sha512-BK50ZnYa3IG7ztXhtgYf0Q7zijV32Iw1cYS8C+ThdQlwx12V5VZ9KRJ42y82Hyb4PkTxZQklVQA9JHyUlex33A==}
@@ -3164,9 +3145,6 @@ packages:
   '@types/bcryptjs@3.0.0':
     resolution: {integrity: sha512-WRZOuCuaz8UcZZE4R5HXTco2goQSI2XxjGY3hbM/xDvwmqFWd4ivooImsMx65OKM6CtNKbnZ5YL+YwAwK7c1dg==}
     deprecated: This is a stub types definition. bcryptjs provides its own type definitions, so you do not need this installed.
-
-  '@types/better-sqlite3@7.6.13':
-    resolution: {integrity: sha512-NMv9ASNARoKksWtsq/SHakpYAYnhBrQgGD8zkLYk/jaK8jUGn08CfEdTRgYhMypUQAfzSP8W6gNLe0q19/t4VA==}
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -8106,6 +8084,10 @@ snapshots:
     dependencies:
       '@electric-sql/pglite': 0.3.15
 
+  '@electric-sql/pglite-socket@0.1.2(@electric-sql/pglite@0.4.2)':
+    dependencies:
+      '@electric-sql/pglite': 0.4.2
+
   '@electric-sql/pglite-tools@0.2.20(@electric-sql/pglite@0.3.15)':
     dependencies:
       '@electric-sql/pglite': 0.3.15
@@ -9833,10 +9815,6 @@ snapshots:
     dependencies:
       bcryptjs: 3.0.3
 
-  '@types/better-sqlite3@7.6.13':
-    dependencies:
-      '@types/node': 25.3.5
-
   '@types/chai@5.2.3':
     dependencies:
       '@types/deep-eql': 4.0.2
@@ -10521,6 +10499,7 @@ snapshots:
     dependencies:
       bindings: 1.5.0
       prebuild-install: 7.1.3
+    optional: true
 
   bidi-js@1.0.3:
     dependencies:
@@ -10531,6 +10510,7 @@ snapshots:
   bindings@1.5.0:
     dependencies:
       file-uri-to-path: 1.0.0
+    optional: true
 
   birpc@2.9.0: {}
 
@@ -11025,7 +11005,8 @@ snapshots:
 
   deep-equal@1.0.1: {}
 
-  deep-extend@0.6.0: {}
+  deep-extend@0.6.0:
+    optional: true
 
   deep-is@0.1.4: {}
 
@@ -11369,7 +11350,8 @@ snapshots:
       strip-final-newline: 4.0.0
       yoctocolors: 2.1.2
 
-  expand-template@2.0.3: {}
+  expand-template@2.0.3:
+    optional: true
 
   expect-type@1.3.0: {}
 
@@ -11498,7 +11480,8 @@ snapshots:
     dependencies:
       flat-cache: 4.0.1
 
-  file-uri-to-path@1.0.0: {}
+  file-uri-to-path@1.0.0:
+    optional: true
 
   fill-range@7.1.1:
     dependencies:
@@ -11666,7 +11649,8 @@ snapshots:
       nypm: 0.6.5
       pathe: 2.0.3
 
-  github-from-package@0.0.0: {}
+  github-from-package@0.0.0:
+    optional: true
 
   gitignore-to-glob@0.3.0: {}
 
@@ -11914,7 +11898,8 @@ snapshots:
 
   inherits@2.0.4: {}
 
-  ini@1.3.8: {}
+  ini@1.3.8:
+    optional: true
 
   ioredis@5.9.3:
     dependencies:
@@ -12622,7 +12607,8 @@ snapshots:
 
   nanoid@3.3.11: {}
 
-  napi-build-utils@2.0.0: {}
+  napi-build-utils@2.0.0:
+    optional: true
 
   natural-compare@1.4.0: {}
 
@@ -12687,6 +12673,7 @@ snapshots:
   node-abi@3.87.0:
     dependencies:
       semver: 7.7.4
+    optional: true
 
   node-abort-controller@3.1.1: {}
 
@@ -13091,6 +13078,7 @@ snapshots:
       simple-get: 4.0.1
       tar-fs: 2.1.4
       tunnel-agent: 0.6.0
+    optional: true
 
   prelude-ls@1.2.1: {}
 
@@ -13408,6 +13396,7 @@ snapshots:
       ini: 1.3.8
       minimist: 1.2.8
       strip-json-comments: 2.0.1
+    optional: true
 
   react-dom@19.2.4(react@19.2.4):
     dependencies:
@@ -13871,13 +13860,15 @@ snapshots:
 
   signal-exit@4.1.0: {}
 
-  simple-concat@1.0.1: {}
+  simple-concat@1.0.1:
+    optional: true
 
   simple-get@4.0.1:
     dependencies:
       decompress-response: 6.0.0
       once: 1.4.0
       simple-concat: 1.0.1
+    optional: true
 
   simple-icons@16.12.0: {}
 
@@ -14030,7 +14021,8 @@ snapshots:
     dependencies:
       min-indent: 1.0.1
 
-  strip-json-comments@2.0.1: {}
+  strip-json-comments@2.0.1:
+    optional: true
 
   styled-jsx@5.1.6(@babel/core@7.29.0)(react@19.2.4):
     dependencies:

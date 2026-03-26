@@ -8,7 +8,9 @@ import type { CodemationConfig } from "../../src/presentation/config/CodemationC
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
 import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
-import { PostgresIntegrationDatabase } from "./testkit/PostgresIntegrationDatabase";
+import type { IntegrationDatabase } from "./testkit/IntegrationDatabaseFactory";
+import { IntegrationDatabaseFactory } from "./testkit/IntegrationDatabaseFactory";
+import { mergeIntegrationDatabaseRuntime } from "./testkit/mergeIntegrationDatabaseRuntime";
 
 class WorkflowActivationIntegrationFixture {
   static readonly manualOnlyWorkflowId = "wf.http.activation.manual";
@@ -55,17 +57,14 @@ class WorkflowActivationIntegrationFixture {
 }
 
 describe("workflow activation HTTP", () => {
-  let database: PostgresIntegrationDatabase;
+  let database: IntegrationDatabase;
   let harness: FrontendHttpIntegrationHarness;
 
   beforeAll(async () => {
-    database = await PostgresIntegrationDatabase.create();
+    database = await IntegrationDatabaseFactory.create();
     harness = new FrontendHttpIntegrationHarness({
-      config: WorkflowActivationIntegrationFixture.createConfig(),
+      config: mergeIntegrationDatabaseRuntime(WorkflowActivationIntegrationFixture.createConfig(), database),
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      env: {
-        DATABASE_URL: database.databaseUrl,
-      },
     });
     await harness.start();
   });

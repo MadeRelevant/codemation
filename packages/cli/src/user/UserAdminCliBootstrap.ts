@@ -1,3 +1,4 @@
+import { DatabasePersistenceResolver } from "@codemation/host/persistence";
 import { CodemationConsumerConfigLoader } from "@codemation/host/server";
 
 import { CodemationCliApplicationSession } from "../bootstrap/CodemationCliApplicationSession";
@@ -19,6 +20,7 @@ export class UserAdminCliBootstrap {
     private readonly pathResolver: CliPathResolver,
     private readonly consumerDotenvLoader: UserAdminConsumerDotenvLoader,
     private readonly tsconfigPreparation: ConsumerCliTsconfigPreparation,
+    private readonly databasePersistenceResolver: DatabasePersistenceResolver,
   ) {}
 
   async withSession<T>(
@@ -35,17 +37,21 @@ export class UserAdminCliBootstrap {
     if (resolution.config.auth?.kind !== "local") {
       throw new Error('Codemation user commands require CodemationConfig.auth.kind to be "local".');
     }
-    const databaseUrl = this.resolveDatabaseUrl(resolution.config.runtime?.database?.url);
-    if (!databaseUrl) {
+    const persistence = this.databasePersistenceResolver.resolve({
+      runtimeConfig: resolution.config.runtime ?? {},
+      env: process.env,
+      consumerRoot,
+    });
+    if (persistence.kind === "none") {
       throw new Error(
-        "DATABASE_URL must be set (or configured on CodemationConfig.runtime.database.url) for user administration.",
+        "Database persistence is not configured. Set CodemationConfig.runtime.database (postgresql URL or PGlite).",
       );
     }
-    process.env.DATABASE_URL = databaseUrl;
     const paths = await this.pathResolver.resolve(consumerRoot);
     const session = await CodemationCliApplicationSession.open({
       resolution,
       repoRoot: paths.repoRoot,
+      consumerRoot,
       env: process.env,
     });
     try {
@@ -53,16 +59,5 @@ export class UserAdminCliBootstrap {
     } finally {
       await session.close();
     }
-  }
-
-  private resolveDatabaseUrl(configUrl: string | undefined): string | undefined {
-    const fromEnv = process.env.DATABASE_URL;
-    if (fromEnv && fromEnv.trim().length > 0) {
-      return fromEnv.trim();
-    }
-    if (configUrl && configUrl.trim().length > 0) {
-      return configUrl.trim();
-    }
-    return undefined;
   }
 }

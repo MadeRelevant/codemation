@@ -130,6 +130,7 @@ export class RuntimeDevHost {
     phaseMs("applyPlugins");
     await application.prepareFrontendServerContainer({
       repoRoot,
+      consumerRoot,
       env,
     });
     phaseMs("prepareFrontendServerContainer");

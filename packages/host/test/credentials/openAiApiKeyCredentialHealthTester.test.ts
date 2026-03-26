@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { CredentialInstanceRecord } from "../../src/domain/credentials/CredentialServices";
+import type { OpenAiApiKeyPublicConfig } from "../../src/infrastructure/credentials/OpenAiApiKeyCredentialShapes.types";
 import { OpenAiApiKeyCredentialHealthTester } from "../../src/infrastructure/credentials/OpenAiApiKeyCredentialHealthTester";
 
 describe("OpenAiApiKeyCredentialHealthTester", () => {
-  const minimalInstance: CredentialInstanceRecord = {
+  const minimalInstance: CredentialInstanceRecord<OpenAiApiKeyPublicConfig> = {
     instanceId: "cred.inst.openai.test",
     typeId: "openai.apiKey",
     displayName: "OpenAI",

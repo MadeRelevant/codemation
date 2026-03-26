@@ -13,6 +13,10 @@ export default defineConfig({
     testTimeout: 180_000,
     hookTimeout: 180_000,
     isolate: true,
-    globalSetup: [path.join(hostPackageRoot, "scripts/ensure-prisma-runtime-sourcemaps.mjs")],
+    globalSetup: [
+      path.join(hostPackageRoot, "scripts/ensure-prisma-runtime-sourcemaps.mjs"),
+      path.join(hostPackageRoot, "scripts/integration-database-global-setup.mjs"),
+    ],
+    setupFiles: [path.join(hostPackageRoot, "test/integration/loadSharedIntegrationDatabaseEnv.ts")],
   },
 });

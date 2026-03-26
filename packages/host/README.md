@@ -35,3 +35,41 @@ Common subpaths (see `package.json` `exports`):
 | `@codemation/host/dev-server-sidecar` | Dev-time sidecar/guards    |
 
 The `development` condition in `exports` can resolve TypeScript sources during local work; published builds use `dist`.
+
+## Persistence: TCP PostgreSQL vs PGlite
+
+Codemation uses a **single** Prisma schema (`provider = "postgresql"`). You can run it against either:
+
+- **TCP PostgreSQL** — a normal `postgresql://` or `postgres://` URL (Docker, managed cloud, CI services). Use this for production, shared databases, and any deployment where **multiple processes** need the same database (API + workers, horizontal scale).
+- **PGlite** — embedded Postgres via [`@electric-sql/pglite`](https://github.com/electric-sql/pglite), with the Prisma adapter. Data lives under a directory on disk (default relative path `.codemation/pglite` in the consumer app). **Single-process**; ideal for local dev, quick scaffolding, and tests that do not need a shared server.
+
+### Configuration
+
+In `codemation.config.ts`, `runtime.database` accepts:
+
+| Field           | Meaning                                                                                                               |
+| --------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `kind`          | `"postgresql"` or `"pglite"` (if omitted, inferred from `url` or defaults to PGlite when no postgres URL is present). |
+| `url`           | Required when using TCP Postgres (`postgresql://…`).                                                                  |
+| `pgliteDataDir` | Relative to the **consumer root** or absolute; used when `kind` is `"pglite"` (default: `.codemation/pglite`).        |
+
+Environment overrides (optional; persistence is primarily defined in **`codemation.config.ts`** — use `process.env` **inside** that file if you want `.env` to supply values):
+
+- **`CODEMATION_DATABASE_KIND`** — `postgresql` or `pglite` to force kind.
+- **`CODEMATION_PGLITE_DATA_DIR`** — Path to the PGlite data directory (relative to consumer root or absolute).
+
+### Migrations
+
+`codemation db migrate` and startup migrations both run **`prisma migrate deploy`**: TCP Postgres uses your `runtime.database.url`; PGlite temporarily exposes the data directory on a local Postgres protocol socket ([`@electric-sql/pglite-socket`](https://github.com/electric-sql/pglite-socket)) so the Prisma CLI applies the same migration history as server Postgres.
+
+### Scheduler and PGlite
+
+**BullMQ** (non-local scheduler) requires a **shared** PostgreSQL database. The host **fails fast** at bootstrap if the scheduler is BullMQ and persistence is PGlite. Set `runtime.database` to TCP Postgres when `REDIS_URL` / BullMQ is enabled. The **local** in-process scheduler is compatible with PGlite.
+
+### Integration tests
+
+Point the suite at PGlite or TCP Postgres by setting **`DATABASE_URL`** for the harness factory (`pglite:///…` vs `postgresql://…`) and merging the resulting database into **`CodemationConfig.runtime.database`** (see `mergeIntegrationDatabaseRuntime` in host tests). CI can use a matrix: PGlite vs a Postgres service.
+
+### Gitignore
+
+Ignore the embedded data directory (e.g. `.codemation/pglite`) in consumer repos so PGlite files are not committed.

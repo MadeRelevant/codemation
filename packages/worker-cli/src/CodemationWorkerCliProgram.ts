@@ -43,6 +43,7 @@ export class CodemationWorkerCli {
       this.parseQueues(effectiveEnv.WORKER_QUEUES ?? "default");
     const handle = await application.startWorkerRuntime({
       repoRoot: paths.repoRoot,
+      consumerRoot: paths.consumerRoot,
       env: effectiveEnv,
       queues: workerQueues,
       bootstrapSource: configResolution.bootstrapSource,

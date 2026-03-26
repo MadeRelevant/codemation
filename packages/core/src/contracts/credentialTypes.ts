@@ -83,6 +83,75 @@ export type CredentialTypeDefinition = Readonly<{
   auth?: CredentialAuthDefinition;
 }>;
 
+/**
+ * JSON-shaped credential field bag (public config, resolved secret material, etc.).
+ */
+export type CredentialJsonRecord = Readonly<Record<string, unknown>>;
+
+/**
+ * Persisted credential instance with typed `publicConfig`.
+ * Hosts may specialize `secretRef` with a stricter union while remaining
+ * assignable here for session/test callbacks.
+ */
+export type CredentialInstanceRecord<TPublicConfig extends CredentialJsonRecord = CredentialJsonRecord> = Readonly<{
+  instanceId: CredentialInstanceId;
+  typeId: CredentialTypeId;
+  displayName: string;
+  sourceKind: CredentialMaterialSourceKind;
+  publicConfig: TPublicConfig;
+  secretRef: CredentialJsonRecord;
+  tags: ReadonlyArray<string>;
+  setupStatus: CredentialSetupStatus;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
+/**
+ * Arguments passed to `CredentialType.createSession` and `CredentialType.test`.
+ * Declare `TPublicConfig` / `TMaterial` on `CredentialType` so implementations are checked
+ * against your credential shapes (similar to `NodeExecutionContext.config` for nodes).
+ */
+export type CredentialSessionFactoryArgs<
+  TPublicConfig extends CredentialJsonRecord = CredentialJsonRecord,
+  TMaterial extends CredentialJsonRecord = CredentialJsonRecord,
+> = Readonly<{
+  instance: CredentialInstanceRecord<TPublicConfig>;
+  material: TMaterial;
+  publicConfig: TPublicConfig;
+}>;
+
+export type CredentialSessionFactory<
+  TPublicConfig extends CredentialJsonRecord = CredentialJsonRecord,
+  TMaterial extends CredentialJsonRecord = CredentialJsonRecord,
+  TSession = unknown,
+> = (args: CredentialSessionFactoryArgs<TPublicConfig, TMaterial>) => Promise<TSession>;
+
+export type CredentialHealthTester<
+  TPublicConfig extends CredentialJsonRecord = CredentialJsonRecord,
+  TMaterial extends CredentialJsonRecord = CredentialJsonRecord,
+> = (args: CredentialSessionFactoryArgs<TPublicConfig, TMaterial>) => Promise<CredentialHealth>;
+
+/**
+ * Full credential type implementation: `definition` (UI/schema), `createSession`, and `test`.
+ * Use this at registration and config boundaries; `CredentialTypeDefinition` is only the schema slice.
+ */
+export type CredentialType<
+  TPublicConfig extends CredentialJsonRecord = CredentialJsonRecord,
+  TMaterial extends CredentialJsonRecord = CredentialJsonRecord,
+  TSession = unknown,
+> = Readonly<{
+  definition: CredentialTypeDefinition;
+  createSession: CredentialSessionFactory<TPublicConfig, TMaterial, TSession>;
+  test: CredentialHealthTester<TPublicConfig, TMaterial>;
+}>;
+
+/**
+ * Credential type with unspecified generics — used for `CodemationConfig.credentialTypes`, the host registry,
+ * and anywhere a concrete `CredentialType<YourPublic, YourMaterial, YourSession>` is placed in a heterogeneous list.
+ * Using `any` here avoids unsafe `as` casts while keeping typed `satisfies CredentialType<…>` definitions.
+ */
+export type AnyCredentialType = CredentialType<any, any, unknown>;
+
 export interface CredentialSessionService {
   getSession<TSession = unknown>(
     args: Readonly<{

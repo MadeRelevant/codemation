@@ -2,28 +2,28 @@ import type { CredentialTypeDefinition, CredentialTypeId, CredentialTypeRegistry
 
 import { injectable } from "@codemation/core";
 
-import type { RegisteredCredentialType } from "./CredentialServices";
+import type { AnyCredentialType, CredentialType } from "./CredentialServices";
 
 @injectable()
 export class CredentialTypeRegistryImpl implements CredentialTypeRegistry {
-  private readonly registeredTypesById = new Map<CredentialTypeId, RegisteredCredentialType>();
+  private readonly credentialTypesById = new Map<CredentialTypeId, AnyCredentialType>();
 
-  register(type: RegisteredCredentialType): void {
-    if (this.registeredTypesById.has(type.definition.typeId)) {
+  register(type: CredentialType<any, any, unknown>): void {
+    if (this.credentialTypesById.has(type.definition.typeId)) {
       throw new Error(`Credential type already registered: ${type.definition.typeId}`);
     }
-    this.registeredTypesById.set(type.definition.typeId, type);
+    this.credentialTypesById.set(type.definition.typeId, type);
   }
 
   listTypes(): ReadonlyArray<CredentialTypeDefinition> {
-    return [...this.registeredTypesById.values()].map((entry) => entry.definition);
+    return [...this.credentialTypesById.values()].map((entry) => entry.definition);
   }
 
   getType(typeId: CredentialTypeId): CredentialTypeDefinition | undefined {
-    return this.registeredTypesById.get(typeId)?.definition;
+    return this.credentialTypesById.get(typeId)?.definition;
   }
 
-  getRegisteredType(typeId: CredentialTypeId): RegisteredCredentialType | undefined {
-    return this.registeredTypesById.get(typeId);
+  getCredentialType(typeId: CredentialTypeId): AnyCredentialType | undefined {
+    return this.credentialTypesById.get(typeId);
   }
 }

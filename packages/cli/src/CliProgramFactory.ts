@@ -13,9 +13,10 @@ import { UserListCommand } from "./commands/UserListCommand";
 import { ConsumerCliTsconfigPreparation } from "./consumer/ConsumerCliTsconfigPreparation";
 import { ConsumerEnvLoader } from "./consumer/ConsumerEnvLoader";
 import { ConsumerOutputBuilderLoader } from "./consumer/Loader";
-import { ConsumerDatabaseUrlResolver } from "./database/ConsumerDatabaseUrlResolver";
+import { ConsumerDatabaseConnectionResolver } from "./database/ConsumerDatabaseConnectionResolver";
+import { DatabaseMigrationsApplyService } from "./database/DatabaseMigrationsApplyService";
 import { HostPackageRootResolver } from "./database/HostPackageRootResolver";
-import { PrismaMigrateDeployInvoker } from "./database/PrismaMigrateDeployInvoker";
+import { DatabasePersistenceResolver, PrismaMigrationDeployer } from "@codemation/host/persistence";
 import { DevSessionServicesBuilder } from "./dev/Builder";
 import { DevLockFactory } from "./dev/Factory";
 import { DevSourceWatcherFactory } from "./dev/Runner";
@@ -46,14 +47,26 @@ export class CliProgramFactory {
     const outputBuilderLoader = new ConsumerOutputBuilderLoader();
     const sourceMapNodeOptions = new SourceMapNodeOptions();
     const tsconfigPreparation = new ConsumerCliTsconfigPreparation();
+    const databasePersistenceResolver = new DatabasePersistenceResolver();
     const userAdminBootstrap = new UserAdminCliBootstrap(
       new CodemationConsumerConfigLoader(),
       pathResolver,
       new UserAdminConsumerDotenvLoader(),
       tsconfigPreparation,
+      databasePersistenceResolver,
     );
     const hostPackageRoot = new HostPackageRootResolver().resolveHostPackageRoot();
     const userAdminCliOptionsParser = new UserAdminCliOptionsParser();
+    const databaseMigrationsApplyService = new DatabaseMigrationsApplyService(
+      cliLogger,
+      new UserAdminConsumerDotenvLoader(),
+      tsconfigPreparation,
+      new CodemationConsumerConfigLoader(),
+      new ConsumerDatabaseConnectionResolver(),
+      new CliDatabaseUrlDescriptor(),
+      hostPackageRoot,
+      new PrismaMigrationDeployer(),
+    );
 
     return new CliProgram(
       new ConsumerBuildOptionsParser(),
@@ -66,6 +79,7 @@ export class CliProgramFactory {
         new DevSourceWatcherFactory(),
         cliLogger,
         new DevSessionServicesBuilder(loggerFactory).build(),
+        databaseMigrationsApplyService,
       ),
       new ServeWebCommand(
         pathResolver,
@@ -78,16 +92,7 @@ export class CliProgramFactory {
         new ListenPortResolver(),
       ),
       new ServeWorkerCommand(sourceMapNodeOptions),
-      new DbMigrateCommand(
-        cliLogger,
-        new UserAdminConsumerDotenvLoader(),
-        tsconfigPreparation,
-        new CodemationConsumerConfigLoader(),
-        new ConsumerDatabaseUrlResolver(),
-        new CliDatabaseUrlDescriptor(),
-        hostPackageRoot,
-        new PrismaMigrateDeployInvoker(),
-      ),
+      new DbMigrateCommand(databaseMigrationsApplyService),
       new UserCreateCommand(new LocalUserCreator(userAdminBootstrap), userAdminCliOptionsParser),
       new UserListCommand(cliLogger, userAdminBootstrap, new CliDatabaseUrlDescriptor(), userAdminCliOptionsParser),
     );

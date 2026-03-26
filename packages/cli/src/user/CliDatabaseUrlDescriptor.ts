@@ -1,7 +1,19 @@
+import type { ResolvedDatabasePersistence } from "@codemation/host/persistence";
+
 /**
  * Formats a database URL for CLI messages without exposing credentials (no user/password).
  */
 export class CliDatabaseUrlDescriptor {
+  describePersistence(persistence: ResolvedDatabasePersistence): string {
+    if (persistence.kind === "none") {
+      return "none";
+    }
+    if (persistence.kind === "postgresql") {
+      return this.describeForDisplay(persistence.databaseUrl);
+    }
+    return `PGlite (${persistence.dataDir})`;
+  }
+
   describeForDisplay(databaseUrl: string | undefined): string {
     if (!databaseUrl || databaseUrl.trim().length === 0) {
       return "unknown database target";

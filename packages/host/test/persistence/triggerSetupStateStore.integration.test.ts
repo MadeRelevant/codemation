@@ -3,27 +3,17 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
 import { PrismaTriggerSetupStateStore } from "../../src/infrastructure/persistence/PrismaTriggerSetupStateStore";
-import { PostgresIntegrationDatabase } from "../http/testkit/PostgresIntegrationDatabase";
-import { PostgresRollbackTransaction } from "../http/testkit/PostgresRollbackTransaction";
+import { IntegrationTestDatabaseSession } from "../http/testkit/IntegrationTestDatabaseSession";
 
 class TriggerSetupStateStoreIntegrationContext {
-  database: PostgresIntegrationDatabase | null = null;
-  transaction: PostgresRollbackTransaction | null = null;
+  private readonly session = new IntegrationTestDatabaseSession();
 
   async start(): Promise<void> {
-    this.database = await PostgresIntegrationDatabase.create();
-    this.transaction = await this.database.beginRollbackTransaction();
+    await this.session.start();
   }
 
   async stop(): Promise<void> {
-    if (this.transaction) {
-      await this.transaction.rollback();
-      this.transaction = null;
-    }
-    if (this.database) {
-      await this.database.close();
-      this.database = null;
-    }
+    await this.session.dispose();
   }
 
   createStore(): PrismaTriggerSetupStateStore {
@@ -31,10 +21,10 @@ class TriggerSetupStateStoreIntegrationContext {
   }
 
   private requirePrismaClient(): PrismaClient {
-    if (!this.transaction) {
+    if (!this.session.transaction) {
       throw new Error("TriggerSetupStateStoreIntegrationContext.start() must be called before creating the store.");
     }
-    return this.transaction.getPrismaClient();
+    return this.session.transaction.getPrismaClient();
   }
 }
 

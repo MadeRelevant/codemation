@@ -10,11 +10,12 @@ export class FrameworkBuiltinCredentialTypesRegistrar {
   constructor(private readonly openAiApiKeyCredentialTypeFactory: OpenAiApiKeyCredentialTypeFactory) {}
 
   register(application: CodemationApplication, config?: CodemationConfig): void {
-    const openAiRegistered = this.openAiApiKeyCredentialTypeFactory.createRegisteredCredentialType();
+    const openAiCredentialType = this.openAiApiKeyCredentialTypeFactory.createCredentialType();
     const openAiProvidedInConsumerConfig =
-      config?.credentialTypes?.some((entry) => entry.definition.typeId === openAiRegistered.definition.typeId) ?? false;
+      config?.credentialTypes?.some((entry) => entry.definition.typeId === openAiCredentialType.definition.typeId) ??
+      false;
     if (!openAiProvidedInConsumerConfig) {
-      application.registerCredentialType(openAiRegistered);
+      application.registerCredentialType(openAiCredentialType);
     }
   }
 }

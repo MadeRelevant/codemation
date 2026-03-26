@@ -1,6 +1,11 @@
-import type { Container, EngineExecutionLimitsPolicyConfig, TypeToken, WorkflowDefinition } from "@codemation/core";
+import type {
+  AnyCredentialType,
+  Container,
+  EngineExecutionLimitsPolicyConfig,
+  TypeToken,
+  WorkflowDefinition,
+} from "@codemation/core";
 import type { CodemationApplication } from "../../codemationApplication";
-import type { RegisteredCredentialType } from "../../domain/credentials/CredentialServices";
 import type { CodemationAppSlots } from "./CodemationAppSlots";
 import type { CodemationAuthConfig } from "./CodemationAuthConfig";
 import type { CodemationBinding } from "./CodemationBinding";
@@ -10,11 +15,14 @@ import type { CodemationWorkflowDiscovery } from "./CodemationWorkflowDiscovery"
 
 export type CodemationEventBusKind = "memory" | "redis";
 export type CodemationSchedulerKind = "local" | "bullmq";
-export type CodemationDatabaseKind = "postgresql";
+export type CodemationDatabaseKind = "postgresql" | "pglite";
 
 export interface CodemationDatabaseConfig {
   readonly kind?: CodemationDatabaseKind;
+  /** TCP PostgreSQL URL when `kind` is `postgresql` (or omitted with a postgres URL). */
   readonly url?: string;
+  /** Directory for embedded PGlite data when `kind` is `pglite`. Relative paths resolve from the consumer app root. */
+  readonly pgliteDataDir?: string;
 }
 
 export interface CodemationEventBusConfig {
@@ -64,8 +72,8 @@ export interface CodemationConfig {
   readonly workflowDiscovery?: CodemationWorkflowDiscovery;
   readonly bindings?: ReadonlyArray<CodemationBinding<unknown>>;
   readonly plugins?: ReadonlyArray<CodemationPlugin>;
-  /** Consumer-registered credential types (e.g. app-specific integrations), applied when the host loads config. */
-  readonly credentialTypes?: ReadonlyArray<RegisteredCredentialType>;
+  /** Consumer-defined `CredentialType` entries (see `@codemation/core`), applied when the host loads config. */
+  readonly credentialTypes?: ReadonlyArray<AnyCredentialType>;
   readonly bootHook?: TypeToken<CodemationBootHook>;
   readonly slots?: CodemationAppSlots;
   /** Required for production hosts; optional only when using development bypass (never in production). */

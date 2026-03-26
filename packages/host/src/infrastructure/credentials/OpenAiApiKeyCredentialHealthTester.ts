@@ -1,6 +1,6 @@
-import type { CredentialHealth } from "@codemation/core";
+import type { CredentialHealth, CredentialSessionFactoryArgs } from "@codemation/core";
 
-import type { CredentialInstanceRecord, JsonRecord } from "../../domain/credentials/CredentialServices";
+import type { OpenAiApiKeyMaterial, OpenAiApiKeyPublicConfig } from "./OpenAiApiKeyCredentialShapes.types";
 
 /**
  * Verifies an OpenAI-compatible API key by calling the provider's models list endpoint
@@ -10,11 +10,7 @@ export class OpenAiApiKeyCredentialHealthTester {
   constructor(private readonly fetchImpl: typeof globalThis.fetch) {}
 
   async test(
-    args: Readonly<{
-      instance: CredentialInstanceRecord;
-      material: JsonRecord;
-      publicConfig: JsonRecord;
-    }>,
+    args: CredentialSessionFactoryArgs<OpenAiApiKeyPublicConfig, OpenAiApiKeyMaterial>,
   ): Promise<CredentialHealth> {
     const testedAt = new Date().toISOString();
     const apiKey = String(args.material.apiKey ?? "").trim();

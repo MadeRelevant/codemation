@@ -14,7 +14,9 @@ import type { CodemationConfig } from "../../src/presentation/config/CodemationC
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
 import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
-import { PostgresIntegrationDatabase } from "./testkit/PostgresIntegrationDatabase";
+import type { IntegrationDatabase } from "./testkit/IntegrationDatabaseFactory";
+import { IntegrationTestDatabaseSession } from "./testkit/IntegrationTestDatabaseSession";
+import { mergeIntegrationDatabaseRuntime } from "./testkit/mergeIntegrationDatabaseRuntime";
 import { PostgresRollbackTransaction } from "./testkit/PostgresRollbackTransaction";
 
 class WorkflowDebugSessionIntegrationFixture {
@@ -83,26 +85,23 @@ class WorkflowDebugSessionIntegrationFixture {
 }
 
 class WorkflowDebugSessionIntegrationContext {
-  sharedDatabase: PostgresIntegrationDatabase | null = null;
+  private readonly session = new IntegrationTestDatabaseSession();
   harness: FrontendHttpIntegrationHarness | null = null;
   transaction: PostgresRollbackTransaction | null = null;
 
   async prepareSharedDatabase(): Promise<void> {
-    if (this.sharedDatabase) {
+    if (this.session.database) {
       return;
     }
-    this.sharedDatabase = await PostgresIntegrationDatabase.create();
+    await this.session.start();
   }
 
   async start(): Promise<FrontendHttpIntegrationHarness> {
     const database = this.requireSharedDatabase();
-    this.transaction = await database.beginRollbackTransaction();
+    this.transaction = this.session.transaction;
     const harness = new FrontendHttpIntegrationHarness({
-      config: WorkflowDebugSessionIntegrationFixture.createConfig(),
+      config: mergeIntegrationDatabaseRuntime(WorkflowDebugSessionIntegrationFixture.createConfig(), database),
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      env: {
-        DATABASE_URL: database.databaseUrl,
-      },
       bindings: [this.createPrismaClientBinding()],
     });
     await harness.start();
@@ -115,18 +114,13 @@ class WorkflowDebugSessionIntegrationContext {
       await this.harness.close();
       this.harness = null;
     }
-    if (this.transaction) {
-      await this.transaction.rollback();
-      this.transaction = null;
-    }
+    this.transaction = null;
+    await this.session.afterEach();
+    this.transaction = this.session.transaction;
   }
 
   async closeSharedDatabase(): Promise<void> {
-    if (!this.sharedDatabase) {
-      return;
-    }
-    await this.sharedDatabase.close();
-    this.sharedDatabase = null;
+    await this.session.dispose();
   }
 
   private createPrismaClientBinding(): CodemationBinding<unknown> {
@@ -136,11 +130,11 @@ class WorkflowDebugSessionIntegrationContext {
     };
   }
 
-  private requireSharedDatabase(): PostgresIntegrationDatabase {
-    if (!this.sharedDatabase) {
+  private requireSharedDatabase(): IntegrationDatabase {
+    if (!this.session.database) {
       throw new Error("WorkflowDebugSessionIntegrationContext.prepareSharedDatabase() must be called before start().");
     }
-    return this.sharedDatabase;
+    return this.session.database;
   }
 
   private requireTransaction(): PrismaClient {

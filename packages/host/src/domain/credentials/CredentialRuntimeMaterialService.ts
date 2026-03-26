@@ -22,7 +22,7 @@ export class CredentialRuntimeMaterialService {
 
   async compose(instance: CredentialInstanceRecord): Promise<JsonRecord> {
     const baseMaterial = await this.credentialMaterialResolver.resolveMaterial(instance);
-    const auth = this.credentialTypeRegistry.getRegisteredType(instance.typeId)?.definition.auth;
+    const auth = this.credentialTypeRegistry.getCredentialType(instance.typeId)?.definition.auth;
     if (auth?.kind !== "oauth2") {
       return baseMaterial;
     }

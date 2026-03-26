@@ -54,14 +54,14 @@ export class OAuth2ConnectService {
 
   async createAuthRedirect(instanceId: string, requestOrigin: string): Promise<OAuth2AuthRedirectResult> {
     const instance = await this.credentialInstanceService.requireInstance(instanceId);
-    const registeredType = this.requireOAuth2Type(instance.typeId);
+    const credentialType = this.requireOAuth2Type(instance.typeId);
     const emptyMaterial = await this.credentialMaterialResolver.resolveMaterial(instance);
     const { resolvedPublicConfig } = this.credentialFieldEnvOverlayService.apply({
-      definition: registeredType.definition,
+      definition: credentialType.definition,
       publicConfig: instance.publicConfig,
       material: emptyMaterial,
     });
-    const provider = this.oauth2ProviderRegistry.resolve(registeredType.definition, resolvedPublicConfig);
+    const provider = this.oauth2ProviderRegistry.resolve(credentialType.definition, resolvedPublicConfig);
     const redirectUri = this.getRedirectUri(requestOrigin);
     const state = this.createOpaqueValue();
     const codeVerifier = this.createOpaqueValue();
@@ -73,7 +73,7 @@ export class OAuth2ConnectService {
       instanceId,
       codeVerifier,
       providerId: provider.providerId,
-      requestedScopes: registeredType.definition.auth!.scopes,
+      requestedScopes: credentialType.definition.auth!.scopes,
       createdAt: createdAt.toISOString(),
       expiresAt: expiresAt.toISOString(),
     });
@@ -81,10 +81,10 @@ export class OAuth2ConnectService {
     authorizeUrl.searchParams.set("response_type", "code");
     authorizeUrl.searchParams.set(
       "client_id",
-      this.oauth2ProviderRegistry.resolveClientId(registeredType.definition.auth!, resolvedPublicConfig),
+      this.oauth2ProviderRegistry.resolveClientId(credentialType.definition.auth!, resolvedPublicConfig),
     );
     authorizeUrl.searchParams.set("redirect_uri", redirectUri);
-    authorizeUrl.searchParams.set("scope", registeredType.definition.auth!.scopes.join(" "));
+    authorizeUrl.searchParams.set("scope", credentialType.definition.auth!.scopes.join(" "));
     authorizeUrl.searchParams.set("state", state);
     authorizeUrl.searchParams.set("code_challenge", codeChallenge);
     authorizeUrl.searchParams.set("code_challenge_method", "S256");
@@ -119,15 +119,15 @@ export class OAuth2ConnectService {
       throw new ApplicationRequestError(400, "OAuth2 state has expired. Start the connection flow again.");
     }
     const instance = await this.credentialInstanceService.requireInstance(storedState.instanceId);
-    const registeredType = this.requireOAuth2Type(instance.typeId);
-    const auth = registeredType.definition.auth!;
+    const credentialType = this.requireOAuth2Type(instance.typeId);
+    const auth = credentialType.definition.auth!;
     const composedMaterial = await this.credentialRuntimeMaterialService.compose(instance);
     const { resolvedPublicConfig, resolvedMaterial } = this.credentialFieldEnvOverlayService.apply({
-      definition: registeredType.definition,
+      definition: credentialType.definition,
       publicConfig: instance.publicConfig,
       material: composedMaterial,
     });
-    const provider = this.oauth2ProviderRegistry.resolve(registeredType.definition, resolvedPublicConfig);
+    const provider = this.oauth2ProviderRegistry.resolve(credentialType.definition, resolvedPublicConfig);
     const redirectUri = this.getRedirectUri(args.requestOrigin);
     const tokenResponse = await this.exchangeAuthorizationCode({
       auth,
@@ -223,14 +223,14 @@ export class OAuth2ConnectService {
   }
 
   private requireOAuth2Type(typeId: string) {
-    const registeredType = this.credentialTypeRegistry.getRegisteredType(typeId);
-    if (!registeredType) {
+    const credentialType = this.credentialTypeRegistry.getCredentialType(typeId);
+    if (!credentialType) {
       throw new ApplicationRequestError(400, `Unknown credential type: ${typeId}`);
     }
-    if (registeredType.definition.auth?.kind !== "oauth2") {
+    if (credentialType.definition.auth?.kind !== "oauth2") {
       throw new ApplicationRequestError(400, `Credential type ${typeId} is not configured for OAuth2.`);
     }
-    return registeredType;
+    return credentialType;
   }
 
   private async exchangeAuthorizationCode(
