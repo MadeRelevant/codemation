@@ -19,8 +19,6 @@ const prepared = JSON.parse(fs.readFileSync(preparedPath, "utf8")) as Codemation
 const webServerEnv: NodeJS.ProcessEnv = {
   ...process.env,
   ...prepared.serverEnv,
-  /** Avoid dev-gateway runtime child restart on buildCompleted (Next HMR / CLI notify) — restarts race Prisma vs ephemeral Playwright DB (P1003). */
-  CODEMATION_PLAYWRIGHT_BROWSER_E2E: "1",
 };
 delete webServerEnv.REDIS_URL;
 
@@ -47,7 +45,7 @@ export default defineConfig({
     ],
   ],
   use: {
-    /** Align with Next dev "Local" URL and AUTH_URL so Auth.js cookies are not split across localhost vs 127.0.0.1. */
+    /** Align with app URL and AUTH_URL so Auth.js cookies are not split across localhost vs 127.0.0.1. */
     baseURL: "http://localhost:3001",
     trace: "retain-on-failure",
     video: "retain-on-failure",
@@ -59,13 +57,14 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm run e2e:devserver",
+    /** Production-style `next start` via CLI (not `codemation dev`). Heavy turbo + consumer build runs in CodemationPlaywrightEnvironmentPreparer so this only boots the server. */
+    command: "pnpm run e2e:serve-web",
     cwd: repoRoot,
     env: webServerEnv,
     url: "http://localhost:3001",
-    // Always start a fresh dev server so DATABASE_URL/AUTH_SECRET from `.e2e-prepared.json` match the DB that was provisioned for this run (reuse can leave a stale server on port 3001).
+    // Always start a fresh server so DATABASE_URL/AUTH_SECRET from `.e2e-prepared.json` match the DB that was provisioned for this run (reuse can leave a stale server on port 3001).
     reuseExistingServer: false,
-    timeout: 300_000,
+    timeout: 180_000,
     stdout: "pipe",
     stderr: "pipe",
   },

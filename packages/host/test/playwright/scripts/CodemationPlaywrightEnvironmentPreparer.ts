@@ -17,7 +17,7 @@ export type CodemationPlaywrightPreparedEnvironment = Readonly<{
  *
  * Returns the live {@link PostgresIntegrationDatabase} handle so callers can keep a reference
  * until Playwright finishes — testcontainers may tear down Docker Postgres when the preparing
- * process exits before the dev server is done (Ryuk / session cleanup).
+ * process exits before the web server is done (Ryuk / session cleanup).
  */
 export class CodemationPlaywrightEnvironmentPreparer {
   static async prepare(): Promise<PostgresIntegrationDatabase> {
@@ -57,6 +57,33 @@ export class CodemationPlaywrightEnvironmentPreparer {
     );
     if (userCreate.status !== 0) {
       throw new Error(`codemation user create failed with exit code ${userCreate.status ?? "unknown"}.`);
+    }
+
+    const buildEnv = {
+      ...process.env,
+      DATABASE_URL: database.databaseUrl,
+      AUTH_SECRET: authSecret,
+      CODEMATION_TSCONFIG_PATH: path.join(repoRoot, "tsconfig.base.json"),
+    };
+    const turboBuild = spawnSync(
+      "pnpm",
+      ["exec", "turbo", "run", "build", "--filter=@codemation/e2e-app...", "--filter=!@codemation/eslint-config"],
+      {
+        cwd: repoRoot,
+        env: buildEnv,
+        stdio: "inherit",
+      },
+    );
+    if (turboBuild.status !== 0) {
+      throw new Error(`turbo build for browser E2E failed with exit code ${turboBuild.status ?? "unknown"}.`);
+    }
+    const consumerBuild = spawnSync("pnpm", ["--filter", "@codemation/e2e-app", "exec", "codemation", "build"], {
+      cwd: repoRoot,
+      env: buildEnv,
+      stdio: "inherit",
+    });
+    if (consumerBuild.status !== 0) {
+      throw new Error(`codemation build for browser E2E failed with exit code ${consumerBuild.status ?? "unknown"}.`);
     }
 
     const serverEnv: Record<string, string> = {
