@@ -14,3 +14,4 @@ yarn.lock
 apps/test-dev/.tanstack
 packages/host/src/infrastructure/persistence/generated
 packages/host/test-results
+tooling/verdaccio/storage
