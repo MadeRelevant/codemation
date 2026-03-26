@@ -1,6 +1,11 @@
+import process from "node:process";
+
 import { ConsumerProjectScaffolder } from "./ConsumerProjectScaffolder";
 import { CreateCodemationProgram } from "./CreateCodemationProgram";
+import { NodeChildProcessRunner } from "./NodeChildProcessRunner";
 import { NodeFileSystem } from "./NodeFileSystem";
+import { NodeInteractivePrompt } from "./NodeInteractivePrompt";
+import { PostScaffoldOnboardingCoordinator } from "./PostScaffoldOnboardingCoordinator";
 import { ProcessStdout } from "./ProcessStdout";
 import { ProjectNameSanitizer } from "./ProjectNameSanitizer";
 import { TemplateCatalog } from "./TemplateCatalog";
@@ -15,6 +20,14 @@ export class CreateCodemationProgramFactory {
     const templateCatalog = new TemplateCatalog(resolver, fs);
     const projectNameSanitizer = new ProjectNameSanitizer();
     const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, projectNameSanitizer, fs);
-    return new CreateCodemationProgram(scaffolder, templateCatalog, new ProcessStdout());
+    const stdout = new ProcessStdout();
+    const onboarding = new PostScaffoldOnboardingCoordinator(
+      stdout,
+      new NodeInteractivePrompt(process.stdin, process.stdout),
+      fs,
+      new NodeChildProcessRunner(),
+      process.stdin.isTTY === true,
+    );
+    return new CreateCodemationProgram(scaffolder, templateCatalog, stdout, onboarding);
   }
 }

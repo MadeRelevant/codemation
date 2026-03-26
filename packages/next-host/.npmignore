@@ -1,0 +1,15 @@
+# Next.js output is huge and must be produced in the consumer environment (next dev / next build).
+# Including .next breaks npm publish (integrity hash limits) and is not portable.
+.next
+.turbo
+node_modules
+coverage
+test
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+playwright-report
+test-results
+.env
+.env.*

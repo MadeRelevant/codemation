@@ -6,6 +6,9 @@
 #
 # Security: bind to loopback in untrusted networks; this config allows anonymous publish for local dev only.
 
+# Default is ~1MB; workspace packages can exceed that before `files`/`npmignore` trimming (e.g. host).
+max_body_size: 100mb
+
 storage: ./storage
 plugins: ./plugins
 

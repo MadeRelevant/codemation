@@ -1,26 +1,60 @@
 # `@codemation/runtime-dev`
 
-Development-only HTTP server used as the **runtime child** behind the dev gateway: loads built consumer output via Vite, hosts the Codemation Hono API, and runs the workflow WebSocket server on loopback ports assigned by `@codemation/dev-gateway`.
+**Development runtime** child process: HTTP server that loads built consumer output, serves Codemation API routes, and exposes the workflow WebSocket server on loopback ports chosen by `@codemation/dev-gateway`. It is **not** used for production `serve web`.
 
-Reload notifications and consumer rebuild coordination are handled by the **gateway** (`POST /api/dev/notify` on the gateway process) and process restarts—not by in-process hot-swap inside this package.
+## At a glance (monorepo / dev stack)
 
-## Tests
+```
+  apps/test-dev  ·  consumer repos
+         │
+         │  codemation dev
+         ▼
+  ┌──────────────┐      spawns       ┌─────────────────┐
+  │ @codemation/ │ ───────────────►  │ @codemation/    │
+  │ cli          │                  │ dev-gateway     │  ◄── browser (stable URL)
+  └──────────────┘                  └────────┬─────────┘
+                                           │ spawns / restarts
+                                           ▼
+                                  ┌─────────────────┐
+                                  │ @codemation/    │  ◄── THIS PACKAGE
+                                  │ runtime-dev     │     (codemation-runtime-dev)
+                                  │                 │
+                                  │ · load consumer │
+                                  │ · Codemation    │
+                                  │   application   │
+                                  │ · engine + API  │
+                                  │ · workflow WS   │
+                                  └─────────────────┘
+                                           ▲
+                                           │ optional parallel
+  ┌─────────────────┐                      │ (framework mode)
+  │ @codemation/    │ ─────────────────────┘
+  │ next-host       │   Next dev UI (separate process; gateway proxies)
+  └─────────────────┘
 
-Unit tests live under `test/` and run on Node with Vitest.
-
-```bash
-pnpm --filter @codemation/runtime-dev test
+  Production path: codemation serve web → next start + host — not runtime-dev.
 ```
 
-From the repository root they are also included in the shared unit suite:
+**Role:** one **short-lived process** that holds the dev engine and HTTP/WS surface; **dev-gateway** keeps a stable port and recycles this child when your consumer code rebuilds.
+
+## Install
 
 ```bash
-pnpm run test:unit
+pnpm add @codemation/runtime-dev@^0.0.0
+# or
+npm install @codemation/runtime-dev@^0.0.0
 ```
 
-### What is covered
+## When to use
 
-- **`DevelopmentRuntimeRouteGuard`** (`@codemation/host/dev-server-sidecar`): loopback authorization, optional `CODEMATION_DEV_SERVER_TOKEN` behavior, and `parseSignalFromPayload` for `buildStarted` / `buildCompleted` / `buildFailed`.
-- **`RuntimeDevMetrics`**: bounded sample buffers for reload and engine-swap timings (legacy metrics retained for diagnostics).
+This package is a dependency of **`@codemation/cli`** for `codemation dev`. Use it directly only if you are reproducing or extending the dev stack (for example in the monorepo or custom tooling).
 
-These tests avoid spinning up the full Vite + `CodemationApplication` stack; that path remains covered by manual dev workflows and higher-level integration elsewhere.
+## Usage
+
+Binary name (see `package.json` `"bin"`):
+
+```bash
+codemation-runtime-dev
+```
+
+In normal workflows the CLI starts this process for you with the right env and ports. Unit tests live under `test/`; run `pnpm --filter @codemation/runtime-dev test` or the repo root `pnpm run test:unit`.

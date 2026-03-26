@@ -1,36 +1,56 @@
 # `@codemation/core-nodes-gmail`
 
-Gmail trigger node for Codemation. The **`OnNewGmailTrigger`** uses **simple polling** against the Gmail API (`users.messages.list` + `users.messages.get`): no Pub/Sub, no Gmail push/watch, and no GCP topic wiring.
+Optional **Gmail** integration for Codemation: a polling-based “new mail” trigger and supporting types/services. It talks to the Gmail API and is distributed as a **plugin** package the host can discover alongside your consumer app.
 
-## Plugin
+## At a glance
 
-Register `GmailNodes` in `codemation.config.ts`. Options:
+```
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │                    On-new-mail trigger (polling)                         │
+  └─────────────────────────────────────────────────────────────────────────┘
 
-| Option               | Default | Meaning                                     |
-| -------------------- | ------- | ------------------------------------------- |
-| `pollIntervalMs`     | `60000` | Time between polls (minimum `25` ms).       |
-| `maxMessagesPerPoll` | `20`    | `maxResults` for each `messages.list` call. |
+       ┌──────────────┐         poll on an interval (e.g. ~60s)
+       │   Scheduler  │────────────────────────────────────┐
+       │  (timer loop)│                                    │
+       └──────────────┘                                    ▼
+                                                    ┌──────────────┐
+   OAuth / API key ─────────────────────────────────►│ Gmail API    │
+   (host credentials)                                │ (list + get │
+                                                    │  messages)  │
+                                                    └──────┬───────┘
+                                                           │
+                     GmailPollingService                   │ new IDs vs
+                     compares message IDs                  │ stored state
+                     (baseline pass, then deltas)         ▼
+                                                    ┌──────────────┐
+                                                    │ emit(items) │
+                                                    │  → engine    │
+                                                    └──────┬───────┘
+                                                           │
+                                                           ▼
+                                                    workflow runs
+                                                    from trigger
+```
 
-## Trigger configuration
+**Setup:** `setup()` wires the poller and persists **trigger setup state** (processed message IDs, mailbox cursor) so restarts do not duplicate work. **Execute:** the trigger node receives **items produced by polls** (not manual runs without items); attachments are resolved in the execute path.
 
-| Field                 | Required | Notes                                                                        |
-| --------------------- | -------- | ---------------------------------------------------------------------------- |
-| `mailbox`             | Yes      | Service account: delegated user email. OAuth: often `"me"`.                  |
-| `labelIds`            | No       | Label **names** or **ids** (must match Gmail). All must be on a message.     |
-| `query`               | No       | Passed to Gmail `q` **and** client-side substring filter on headers/snippet. |
-| `downloadAttachments` | No       | When `true`, attachments become item binaries in the execute step.           |
+## Install
 
-Each trigger item includes **inline MIME body** (`textPlain` / `textHtml`) when Gmail returns it with `messages.get` (`format: full`). Large bodies may only expose an `attachmentId`; use `downloadAttachments` for those files.
+```bash
+pnpm add @codemation/core-nodes-gmail@^0.0.0
+# or
+npm install @codemation/core-nodes-gmail@^0.0.0
+```
 
-## How polling works
+## When to use
 
-1. **First poll**: Lists up to `maxMessagesPerPoll` message ids and records them as **seen** without emitting (baseline).
-2. **Later polls**: Any **new** id not in the seen set is loaded; items matching `labelIds` / `query` are emitted. Seen ids are capped (see `GmailPollingService`) to bound memory.
+Use this package when workflows should start from Gmail messages and you are fine with **polling** (not push/Pub/Sub). Register the plugin in `codemation.config.ts` and configure Gmail credentials as documented in the host UI and your deployment.
 
-## Credentials
+## Usage
 
-Same as before: `gmail.oauth` (readonly scope) or `gmail.serviceAccount` with domain-wide delegation. See `GmailNodesRegistry` for field shapes.
+```ts
+import { GmailNodes } from "@codemation/core-nodes-gmail";
+// Register the plugin class from package.json "codemation.plugin" (exportName: GmailNodes)
+```
 
-## See also
-
-- Root `AGENTS.md` for monorepo conventions.
+Subpath `@codemation/core-nodes-gmail/codemation-plugin` is available for plugin registry wiring. Trigger behavior and credential shapes are defined in this package’s source (`GmailNodes`, `OnNewGmailTrigger`, credential types).

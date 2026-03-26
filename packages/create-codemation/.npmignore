@@ -1,0 +1,6 @@
+# Supplement to package.json "files" (bin, dist, templates).
+.turbo
+coverage
+test
+**/*.test.ts
+vitest.config.ts

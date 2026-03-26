@@ -1,0 +1,15 @@
+node_modules
+.turbo
+coverage
+test
+test-results
+playwright-report
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+vitest*.config.ts
+.env
+.env.*
+# Dev sqlite artifacts (not for consumers)
+prisma/.codemation

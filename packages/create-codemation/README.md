@@ -1,14 +1,18 @@
-# create-codemation
+# `create-codemation`
 
-Scaffolds a Codemation consumer application. Published as the `create-codemation` npm package so users can run:
+Scaffolds a **Codemation consumer application** (config stub, workflows folder, dependencies). Published as the unscoped npm initializer **`create-codemation`** so users can run `npm create codemation`.
+
+## Install / run
 
 ```bash
 npm create codemation@latest
-# or
 pnpm create codemation
-# or
 yarn create codemation
 ```
+
+## When to use
+
+Use this when starting a **new consumer repo** that will define `codemation.config.ts` and AI automatino workflows and run the stack via `@codemation/cli`.
 
 ## Usage
 
@@ -18,17 +22,10 @@ npm create codemation@latest my-app -- --template default
 
 - **`[directory]`** — target folder (default: `codemation-app`).
 - **`--template <id>`** — `default` or `minimal` (see `templates/` in this package).
-- **`--list-templates`** — print available template ids and exit.
+- **`--list-templates`** — print template ids and exit.
 - **`--force`** — allow writing into a non-empty directory (overwrites on conflict).
+- **`--non-interactive`** / **`--no-interaction`** / **`-y` / `--yes`** — skip prompts and optional first-user setup; print manual next steps instead.
 
-## Development (this monorepo)
+**Engines:** Node >= 20.
 
-```bash
-pnpm --filter create-codemation build
-pnpm --filter create-codemation test
-node packages/create-codemation/bin/create-codemation.js /tmp/out --template minimal
-```
-
-## Templates
-
-Templates live under `templates/<id>/` and are shipped in the npm tarball (`files` in `package.json`). Add a new directory there and document the id in this README.
+Development in this monorepo: `pnpm --filter create-codemation build`, `pnpm --filter create-codemation test`, and run `node packages/create-codemation/bin/create-codemation.js /tmp/out --template minimal` to exercise the binary locally.

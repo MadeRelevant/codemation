@@ -1,0 +1,13 @@
+# Keep published tarballs small and avoid leaking dev-only files.
+node_modules
+.turbo
+coverage
+test
+docs
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+vitest.config.ts
+.env
+.env.*

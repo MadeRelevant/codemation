@@ -1,7 +1,14 @@
-# Codemation starter
+# Codemation starter (default template)
 
-1. Copy `.env.example` to `.env` and set `DATABASE_URL` (PostgreSQL).
-2. Install dependencies: `pnpm install` / `npm install`.
-3. Run: `pnpm dev` / `npm run dev` (starts `codemation dev`).
+## Quick start
 
-Optional: set `REDIS_URL` to use BullMQ + Redis for the scheduler and event bus; otherwise the app uses in-memory / local modes suitable for development.
+1. **Environment** — Copy `.env.example` to `.env` and set `DATABASE_URL` (PostgreSQL). Optionally set `REDIS_URL` for BullMQ + Redis (scheduler and event bus); otherwise the app uses local/in-memory modes for development.
+
+2. **Dependencies** — `npm install` or `pnpm install`.
+
+3. **First admin user** — After migrations (`npm exec codemation -- db migrate`), create a user:
+   `npm exec codemation -- user create --email you@example.com --password 'your-secure-password'`
+
+4. **Run** — `npm run dev` (starts `codemation dev`).
+
+If you used `npm create codemation`, you may have been prompted to run migrations and create a user automatically; otherwise follow the steps above.
