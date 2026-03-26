@@ -6,6 +6,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { ApiPaths } from "@codemation/host";
 import { DevelopmentRuntimeRouteGuard } from "@codemation/host/dev-server-sidecar";
 import { DevGatewayBuildLifecycleBroadcastPayloads } from "./DevGatewayBuildLifecycleBroadcastPayloads";
+import { DevGatewayRuntimeRestartPolicy } from "./DevGatewayRuntimeRestartPolicy.js";
 import httpProxy from "http-proxy";
 import { WebSocket, WebSocketServer } from "ws";
 
@@ -15,6 +16,7 @@ type WorkflowClientMessage =
   | Readonly<{ kind: "unsubscribe"; roomId: string }>;
 
 export class CodemationDevGateway {
+  private readonly runtimeRestartPolicy = new DevGatewayRuntimeRestartPolicy(process.env);
   private readonly proxy = httpProxy.createProxyServer({ ws: true, xfwd: true });
   private readonly devClients = new Set<WebSocket>();
   private readonly devWss = new WebSocketServer({ noServer: true });
@@ -223,8 +225,10 @@ export class CodemationDevGateway {
       return;
     }
     if (kind === "buildCompleted") {
-      await this.restartChild();
       const buildVersion = DevGatewayBuildLifecycleBroadcastPayloads.resolveBuildVersionFromNotifyPayload(payload);
+      if (this.runtimeRestartPolicy.shouldRestartOnBuildCompleted()) {
+        await this.restartChild();
+      }
       this.broadcastDev(DevGatewayBuildLifecycleBroadcastPayloads.devSocketDevBuildCompleted(buildVersion));
       this.broadcastWorkflowLifecycleToSubscribedRooms((roomId: string) =>
         DevGatewayBuildLifecycleBroadcastPayloads.workflowRoomDevBuildCompleted(roomId, buildVersion),

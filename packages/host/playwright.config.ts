@@ -19,6 +19,8 @@ const prepared = JSON.parse(fs.readFileSync(preparedPath, "utf8")) as Codemation
 const webServerEnv: NodeJS.ProcessEnv = {
   ...process.env,
   ...prepared.serverEnv,
+  /** Avoid dev-gateway runtime child restart on buildCompleted (Next HMR / CLI notify) — restarts race Prisma vs ephemeral Playwright DB (P1003). */
+  CODEMATION_PLAYWRIGHT_BROWSER_E2E: "1",
 };
 delete webServerEnv.REDIS_URL;
 
