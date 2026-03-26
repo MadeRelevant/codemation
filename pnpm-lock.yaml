@@ -440,6 +440,9 @@ importers:
       '@codemation/queue-bullmq':
         specifier: workspace:*
         version: link:../queue-bullmq
+      '@electric-sql/pglite':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -491,6 +494,9 @@ importers:
       pg:
         specifier: ^8.16.3
         version: 8.20.0
+      pglite-prisma-adapter:
+        specifier: ^0.7.2
+        version: 0.7.2(@electric-sql/pglite@0.4.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))
       pretty-ms:
         specifier: ^9.3.0
         version: 9.3.0
@@ -1317,6 +1323,9 @@ packages:
   '@electric-sql/pglite@0.3.15':
     resolution: {integrity: sha512-Cj++n1Mekf9ETfdc16TlDi+cDDQF0W7EcbyRHYOAeZdsAe8M/FJg18itDTSwyHfar2WIezawM9o0EKaRGVKygQ==}
 
+  '@electric-sql/pglite@0.4.2':
+    resolution: {integrity: sha512-1GUUl/MZpy5QWgWisD3Epho3GkJrZ1MzVgQpo2pifQWUs96F9rXKZxeVLPhkwFYck34CH/kQ8lis6wX9ifn3kg==}
+
   '@emnapi/core@1.8.1':
     resolution: {integrity: sha512-AvT9QFpxK0Zd8J0jopedNm+w/2fIzvtPKPjqyw9jwvBaReTTqPBk9Hixaz7KbjimP+QNz605/XnjFcDAL2pqBg==}
 
@@ -2009,6 +2018,9 @@ packages:
 
   '@prisma/dev@0.20.0':
     resolution: {integrity: sha512-ovlBYwWor0OzG+yH4J3Ot+AneD818BttLA+Ii7wjbcLHUrnC4tbUPVGyNd3c/+71KETPKZfjhkTSpdS15dmXNQ==}
+
+  '@prisma/driver-adapter-utils@7.2.0':
+    resolution: {integrity: sha512-gzrUcbI9VmHS24Uf+0+7DNzdIw7keglJsD5m/MHxQOU68OhGVzlphQRobLiDMn8CHNA2XN8uugwKjudVtnfMVQ==}
 
   '@prisma/driver-adapter-utils@7.5.0':
     resolution: {integrity: sha512-B79N/amgV677mFesFDBAdrW0OIaqawap9E0sjgLBtzIz2R3hIMS1QB8mLZuUEiS4q5Y8Oh3I25Kw4SLxMypk9Q==}
@@ -6063,6 +6075,12 @@ packages:
       pg-native:
         optional: true
 
+  pglite-prisma-adapter@0.7.2:
+    resolution: {integrity: sha512-NqLXIUguFbgEHpIoyCvAbpEurbK+AUukiv96gIogVnNYWBdhAU0idfTXcJrsS7OdWenYa8QxEQM2ND1cTQrU4g==}
+    peerDependencies:
+      '@electric-sql/pglite': '>=0.2.0'
+      '@prisma/client': '>= 7.1.0'
+
   pgpass@1.0.5:
     resolution: {integrity: sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==}
 
@@ -8094,6 +8112,8 @@ snapshots:
 
   '@electric-sql/pglite@0.3.15': {}
 
+  '@electric-sql/pglite@0.4.2': {}
+
   '@emnapi/core@1.8.1':
     dependencies:
       '@emnapi/wasi-threads': 1.1.0
@@ -8705,6 +8725,10 @@ snapshots:
       zeptomatch: 2.1.0
     transitivePeerDependencies:
       - typescript
+
+  '@prisma/driver-adapter-utils@7.2.0':
+    dependencies:
+      '@prisma/debug': 7.2.0
 
   '@prisma/driver-adapter-utils@7.5.0':
     dependencies:
@@ -12929,6 +12953,13 @@ snapshots:
       pgpass: 1.0.5
     optionalDependencies:
       pg-cloudflare: 1.3.0
+
+  pglite-prisma-adapter@0.7.2(@electric-sql/pglite@0.4.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)):
+    dependencies:
+      '@electric-sql/pglite': 0.4.2
+      '@prisma/client': 7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
+      '@prisma/driver-adapter-utils': 7.2.0
+      postgres-array: 3.0.4
 
   pgpass@1.0.5:
     dependencies:

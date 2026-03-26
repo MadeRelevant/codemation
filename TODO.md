@@ -23,6 +23,7 @@ Open items first; completed work is archived at the bottom for history.
 - [ ] Stress test webhook and measure cpu/mem and make sure they dont run out
 - [ ] Add Switch node for easy branching
 - [ ] Add documentation project
+- [ ] Consolidate packages/worker-cli within packages/cli
 
 ### UI, URLs & sharing
 
@@ -40,12 +41,14 @@ Open items first; completed work is archived at the bottom for history.
   - [ ] Recent workflow runs
 - [ ] Support white-label (logo + company name)
 - [ ] add worker monitoring (jobs processed, running, cpu/mem usage)
+- [ ] Show onboarding to create initial user or create initial user during `npx create codemation`
 
 ### Integrations & observability
 
 - [x] Allow binary uploads to webhook nodes
 - [ ] (LLM) Observability (cross-cut with dashboard LLM analytics)
 - [ ] Test credentials backed by Azure Key Vault instead of database
+- [ ] Expose prometheus metrics from ui, worker and ws
 
 ### CLI
 
