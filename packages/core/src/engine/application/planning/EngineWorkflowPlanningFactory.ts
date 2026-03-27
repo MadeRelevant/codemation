@@ -1,8 +1,8 @@
 import type { WorkflowDefinition, WorkflowNodeInstanceFactory } from "../../../types";
 
-import { DirectedCycleDetector } from "../../domain/planning/DirectedCycleDetector";
-import { RunQueuePlanner } from "../../domain/planning/runQueuePlanner";
-import { WorkflowTopology } from "../../domain/planning/WorkflowTopologyPlanner";
+import { DirectedCycleDetector } from "../../planning/DirectedCycleDetector";
+import { RunQueuePlanner } from "../../planning/runQueuePlanner";
+import { WorkflowTopology } from "../../planning/WorkflowTopologyPlanner";
 
 export class EngineWorkflowPlanningFactory {
   constructor(

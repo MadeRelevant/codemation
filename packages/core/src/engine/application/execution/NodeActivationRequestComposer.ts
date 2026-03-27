@@ -12,7 +12,7 @@ import type {
   WorkflowId,
 } from "../../../types";
 
-import type { PlannedActivation } from "../../domain/planning/runQueuePlanner";
+import type { PlannedActivation } from "../../planning/runQueuePlanner";
 
 import { CredentialResolverFactory } from "../credentials/CredentialResolverFactory";
 

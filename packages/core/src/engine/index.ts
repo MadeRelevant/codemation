@@ -17,8 +17,8 @@ export { InlineDrivingScheduler } from "./scheduling/inlineDrivingScheduler";
 export {
   DefaultExecutionBinaryService,
   UnavailableBinaryStorage,
-} from "./context/DefaultExecutionBinaryServiceFactory";
-export { DefaultExecutionContextFactory } from "./context/defaultExecutionContextFactory";
+} from "./application/binaries/DefaultExecutionBinaryServiceFactory";
+export { DefaultExecutionContextFactory } from "./application/context/DefaultExecutionContextFactory";
 export { DefaultWorkflowGraphFactory } from "./graph/defaultWorkflowGraphFactory";
 export { ConfigDrivenOffloadPolicy } from "./scheduling/configDrivenOffloadPolicy";
 export { HintOnlyOffloadPolicy } from "./scheduling/hintOnlyOffloadPolicy";
@@ -40,7 +40,7 @@ export {
 export { EngineExecutionLimitsPolicyFactory } from "./application/policies/EngineExecutionLimitsPolicyFactory";
 export { RootExecutionOptionsFactory } from "./application/policies/RootExecutionOptionsFactory";
 export { RunPolicySnapshotFactory } from "./application/policies/RunPolicySnapshotFactory";
-export { DirectedCycleDetector } from "./domain/planning/DirectedCycleDetector";
+export { DirectedCycleDetector } from "./planning/DirectedCycleDetector";
 export { RunTerminalPersistenceCoordinator } from "./application/policies/RunTerminalPersistenceCoordinator";
 export { WorkflowPolicyErrorServices } from "./application/policies/WorkflowPolicyErrorServices";
 export { WorkflowStoragePolicyEvaluator } from "./application/policies/WorkflowStoragePolicyEvaluator";
