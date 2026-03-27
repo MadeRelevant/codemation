@@ -1,7 +1,11 @@
 {
   "name": "@codemation/queue-bullmq",
   "version": "0.0.0",
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Made Relevant B.V.",
+  "homepage": "https://www.maderelevant.com",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

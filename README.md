@@ -1,7 +1,7 @@
 # Codemation
 
 [![CI](https://github.com/MadeRelevant/codemation/actions/workflows/ci.yml/badge.svg)](https://github.com/MadeRelevant/codemation/actions/workflows/ci.yml)
-[![Codecov](https://img.shields.io/codecov/c/github/MadeRelevant/codemation?logo=codecov)](https://codecov.io/gh/MadeRelevant/codemation)
+[![codecov](https://codecov.io/gh/MadeRelevant/codemation/graph/badge.svg?token=DQ1I6NK2LM)](https://codecov.io/gh/MadeRelevant/codemation)
 [![npm @codemation/cli](https://img.shields.io/npm/v/@codemation/cli?label=npm%20%40codemation%2Fcli&logo=npm)](https://www.npmjs.com/package/@codemation/cli)
 
 **Codemation** is a **code-first** automation framework for teams that want to ship **AI and agentic workflows** without rebuilding the same plumbing every time.
