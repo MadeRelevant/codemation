@@ -1,7 +1,11 @@
 {
   "name": "create-codemation",
   "version": "0.0.0",
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Made Relevant B.V.",
+  "homepage": "https://www.maderelevant.com",
   "description": "Scaffold a Codemation consumer application (npm create codemation)",
   "keywords": [
     "codemation",

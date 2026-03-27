@@ -1,7 +1,11 @@
 {
   "name": "@codemation/worker-cli",
   "version": "0.0.0",
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Made Relevant B.V.",
+  "homepage": "https://www.maderelevant.com",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
