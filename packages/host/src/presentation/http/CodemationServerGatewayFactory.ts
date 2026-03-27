@@ -73,7 +73,7 @@ export class CodemationServerGateway {
 
   private async createContext(): Promise<ServerGatewayContext> {
     const repoRoot = this.detectWorkspaceRoot(this.consumerRoot);
-    const env = { ...process.env, ...(this.env ?? {}) };
+    const env = { ...process.env, ...(this.env ?? {}), CODEMATION_CONSUMER_ROOT: this.consumerRoot };
     const application = new CodemationApplication();
     application.useConfig(this.config);
     await application.applyPlugins({

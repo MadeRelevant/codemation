@@ -1,16 +1,15 @@
 import type { CredentialType } from "@codemation/core";
-import type { CodemationAppSlots, CodemationConfig } from "@codemation/host";
+import type { CodemationConfig } from "@codemation/host";
 import { openAiApiKeyCredentialType } from "@codemation/host/credentials";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { MailKeywordCatalog } from "./src/MailKeywordCatalog";
 import { OdooDemoSettings } from "./src/OdooDemoSettings";
-import { TestDevLogo } from "./src/ui/testDevLogo";
-import { TestDevNavigation } from "./src/ui/testDevNavigation";
+
+const consumerRoot = process.env.CODEMATION_CONSUMER_ROOT?.trim() || process.cwd();
 
 loadDotenv({
-  path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env"),
+  path: path.resolve(consumerRoot, ".env"),
   quiet: true,
 });
 
@@ -89,15 +88,11 @@ const odooDemoCredentialType = {
     testedAt: new Date().toISOString(),
   }),
 } satisfies CredentialType<OdooDemoPublicConfig, OdooDemoMaterial, OdooDemoSession>;
-const slots: CodemationAppSlots = {
-  Logo: TestDevLogo,
-  Navigation: TestDevNavigation,
-};
 
 export const codemationHost = {
   auth: {
     kind: "local" as const,
-    allowUnauthenticatedInDevelopment: true,
+    allowUnauthenticatedInDevelopment: false,
     oauth: [
       {
         provider: "google",
@@ -135,7 +130,10 @@ export const codemationHost = {
       queuePrefix: "codemation",
     },
   },
-  slots,
+  whitelabel: {
+    productName: "Codemation test-dev",
+    logoPath: "branding/logo.svg",
+  },
 } satisfies CodemationConfig;
 
 export default codemationHost;

@@ -112,6 +112,7 @@ export class RuntimeDevHost {
     }
     env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
     env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
+    env.CODEMATION_CONSUMER_ROOT = consumerRoot;
     const application = new CodemationApplication();
     application.useSharedWorkflowWebsocketServer(this.sharedWorkflowWebsocketServer);
     const discoveredPlugins = await this.loadDiscoveredPlugins(consumerRoot);

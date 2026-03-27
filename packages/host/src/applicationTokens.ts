@@ -17,13 +17,18 @@ import type { WorkflowDebuggerOverlayRepository } from "./domain/workflows/Workf
 import type { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
 import type { WorkflowActivationRepository } from "./domain/workflows/WorkflowActivationRepository";
 import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
+import type { PrismaClient } from "./infrastructure/persistence/generated/prisma-client/client.js";
 import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";
+import type { CodemationWhitelabelConfig } from "./presentation/config/CodemationWhitelabelConfig";
 import type { HonoApiRouteRegistrar } from "./presentation/http/hono/HonoApiRouteRegistrar";
 
 export const ApplicationTokens = {
   CodemationAuthConfig: Symbol.for("codemation.application.CodemationAuthConfig") as TypeToken<
     CodemationAuthConfig | undefined
   >,
+  CodemationWhitelabelConfig: Symbol.for(
+    "codemation.application.CodemationWhitelabelConfig",
+  ) as TypeToken<CodemationWhitelabelConfig>,
   WebSocketPort: Symbol.for("codemation.application.WebSocketPort") as TypeToken<number>,
   WebSocketBindHost: Symbol.for("codemation.application.WebSocketBindHost") as TypeToken<string>,
   QueryBus: Symbol.for("codemation.application.QueryBus") as TypeToken<QueryBus>,
@@ -59,6 +64,7 @@ export const ApplicationTokens = {
    */
   PerformanceDiagnosticsLogger: Symbol.for("codemation.application.PerformanceDiagnosticsLogger") as TypeToken<Logger>,
   CredentialStore: Symbol.for("codemation.application.CredentialStore") as TypeToken<CredentialStore>,
+  PrismaClient: Symbol.for("codemation.application.PrismaClient") as TypeToken<PrismaClient>,
   ProcessEnv: Symbol.for("codemation.application.ProcessEnv") as TypeToken<Readonly<NodeJS.ProcessEnv>>,
   SessionVerifier: Symbol.for("codemation.application.SessionVerifier") as TypeToken<SessionVerifier>,
   Clock: Symbol.for("codemation.application.Clock") as TypeToken<Clock>,

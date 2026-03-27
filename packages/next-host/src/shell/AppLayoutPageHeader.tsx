@@ -9,6 +9,7 @@ import { AlertCircle } from "lucide-react";
 import { CanvasNodeChromeTooltip } from "../features/workflows/components/canvas/CanvasNodeChromeTooltip";
 import { WorkflowActivationErrorDialog } from "../features/workflows/components/workflowDetail/WorkflowActivationErrorDialog";
 import { WorkflowActivationHeaderControl } from "../features/workflows/components/workflowDetail/WorkflowActivationHeaderControl";
+import { useWhitelabel } from "../providers/WhitelabelProvider";
 import { getPageTitle } from "./appLayoutPageTitle";
 import { AppShellHeaderActions } from "./AppShellHeaderActions";
 import { useWorkflowDetailChrome } from "./WorkflowDetailChromeContext";
@@ -16,9 +17,10 @@ import { useWorkflowsQuery } from "../features/workflows/hooks/realtime/realtime
 
 export function AppLayoutPageHeader(): ReactNode {
   const pathname = usePathname();
+  const { productName } = useWhitelabel();
   const workflowsQuery = useWorkflowsQuery();
   const workflows = workflowsQuery.data ?? [];
-  const title = getPageTitle(pathname, workflows);
+  const title = getPageTitle(pathname, workflows, productName);
   const chrome = useWorkflowDetailChrome();
   const isWorkflowDetail = /^\/workflows\/[^/]+$/.test(pathname);
   const showChromeRow = isWorkflowDetail && chrome !== null;

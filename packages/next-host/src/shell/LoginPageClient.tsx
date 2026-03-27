@@ -14,6 +14,8 @@ import { CredentialsSignInRedirectResolver } from "./CredentialsSignInRedirectRe
 
 type LoginPageClientProps = Readonly<{
   callbackUrl: string;
+  productName: string;
+  logoUrl: string | null;
 }>;
 
 type LoginPageClientState = Readonly<{
@@ -49,6 +51,8 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
   override render(): ReactNode {
     const { isSubmitting, oauthSubmittingId } = this.state;
     const formBusy = isSubmitting || oauthSubmittingId !== null;
+    const { productName, logoUrl } = this.props;
+    const titleInitial = productName.trim().length > 0 ? productName.trim().charAt(0).toUpperCase() : "C";
 
     return (
       <div
@@ -62,14 +66,29 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
         <Card className="relative z-10 w-full max-w-md shadow-lg">
           <CardHeader className="gap-3">
             <div className="flex items-start gap-3">
-              <span
-                className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground"
-                aria-hidden
-              >
-                C
-              </span>
+              {logoUrl !== null ? (
+                <img
+                  src={logoUrl}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="size-10 shrink-0 rounded-lg object-contain"
+                  data-testid="login-whitelabel-logo"
+                />
+              ) : (
+                <span
+                  className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground"
+                  aria-hidden
+                  data-testid="login-whitelabel-initial"
+                >
+                  {titleInitial}
+                </span>
+              )}
               <div className="min-w-0 space-y-1">
                 <CardTitle className="text-xl">Welcome back</CardTitle>
+                <p className="text-base font-semibold text-foreground" data-testid="login-whitelabel-product-name">
+                  {productName}
+                </p>
                 <CardDescription>Sign in to run and manage your workflows.</CardDescription>
               </div>
             </div>
@@ -177,7 +196,9 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
             ) : null}
           </CardContent>
           <CardFooter className="justify-center border-t bg-transparent pt-0">
-            <p className="text-center text-xs text-muted-foreground">Codemation — workflow automation you own.</p>
+            <p className="text-center text-xs text-muted-foreground" data-testid="login-whitelabel-tagline">
+              {productName} — workflow automation you own.
+            </p>
           </CardFooter>
         </Card>
       </div>

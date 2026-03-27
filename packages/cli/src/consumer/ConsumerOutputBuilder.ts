@@ -539,7 +539,7 @@ export class ConsumerOutputBuilder {
       "  },",
       "  isConfig(value) {",
       "    if (!value || typeof value !== 'object') return false;",
-      "    return 'runtime' in value || 'workflows' in value || 'workflowDiscovery' in value || 'bindings' in value || 'plugins' in value || 'bootHook' in value || 'slots' in value;",
+      "    return 'runtime' in value || 'workflows' in value || 'workflowDiscovery' in value || 'bindings' in value || 'plugins' in value || 'bootHook' in value || 'whitelabel' in value;",
       "  },",
       "  resolveWorkflows(workflowModules, workflowSourcePaths, workflowDiscoveryPathSegmentsList) {",
       "    const workflowsById = new Map();",

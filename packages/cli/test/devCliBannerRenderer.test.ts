@@ -43,3 +43,22 @@ test("DevCliBannerRenderer renderCompact omits full banner subtitle", () => {
   assert.match(out, /Runtime \(updated\)/);
   assert.doesNotMatch(out, /AI Automation framework/);
 });
+
+test("DevCliBannerRenderer renderBrandHeader then renderRuntimeSummary matches renderFull", () => {
+  const renderer = new DevCliBannerRenderer();
+  const splitOut = captureStdout(() => {
+    renderer.renderBrandHeader();
+    renderer.renderRuntimeSummary(sampleSummary);
+  });
+  const fullOut = captureStdout(() => {
+    new DevCliBannerRenderer().renderFull(sampleSummary);
+  });
+  assert.equal(splitOut, fullOut);
+});
+
+test("DevCliBannerRenderer renderBrandHeader includes subtitle", () => {
+  const out = captureStdout(() => {
+    new DevCliBannerRenderer().renderBrandHeader();
+  });
+  assert.match(out, /AI Automation framework/);
+});

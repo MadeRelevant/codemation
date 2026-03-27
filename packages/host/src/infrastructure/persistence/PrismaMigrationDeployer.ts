@@ -34,8 +34,13 @@ export class PrismaMigrationDeployer {
   private async deployPgliteViaPrismaCli(
     args: Readonly<{ dataDir: string; env?: Readonly<NodeJS.ProcessEnv> }>,
   ): Promise<void> {
-    const pglite = new PGlite(args.dataDir);
-    await pglite.waitReady;
+    let pglite: PGlite;
+    try {
+      pglite = new PGlite(args.dataDir);
+      await pglite.waitReady;
+    } catch (cause) {
+      throw this.createPgliteOpenFailureError(args.dataDir, cause);
+    }
     const server = new PGLiteSocketServer({
       db: pglite,
       port: 0,
@@ -154,6 +159,19 @@ export class PrismaMigrationDeployer {
       return configuredRoot;
     }
     return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+  }
+
+  private createPgliteOpenFailureError(dataDir: string, cause: unknown): Error {
+    const underlying = cause instanceof Error ? cause.message : String(cause);
+    return new Error(
+      [
+        `PGlite could not open "${dataDir}".`,
+        "Embedded PGlite files are sometimes left in a bad state after a crash, kill -9, or interrupted migration.",
+        "If this is a dev database you can recreate, delete that directory and run again.",
+        `Underlying error: ${underlying}`,
+      ].join(" "),
+      { cause: cause instanceof Error ? cause : undefined },
+    );
   }
 
   private createDeployError(exitCode: number | null, stdout: string, stderr: string): Error {

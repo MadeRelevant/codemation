@@ -65,10 +65,12 @@ export class DatabaseMigrationsApplyService {
       return;
     }
     process.env.CODEMATION_HOST_PACKAGE_ROOT = this.hostPackageRoot;
-    this.cliLogger.info(
+    this.cliLogger.debug(
       `Applying database migrations (${this.databaseUrlDescriptor.describePersistence(persistence)})`,
     );
     await this.migrationDeployer.deployPersistence(persistence, process.env);
-    this.cliLogger.info("Migrations applied successfully.");
+    this.cliLogger.info(
+      `Database migrations applied (${this.databaseUrlDescriptor.describePersistence(persistence)}).`,
+    );
   }
 }

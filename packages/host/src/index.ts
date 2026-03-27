@@ -5,7 +5,7 @@ export { UpsertLocalBootstrapUserCommand } from "./application/commands/UpsertLo
 export type { UpsertLocalBootstrapUserResultDto } from "./application/contracts/userDirectoryContracts.types";
 export { CodemationApplication } from "./codemationApplication";
 export type { CodemationApplicationConfig, CodemationStopHandle } from "./codemationApplication";
-export type { CodemationAppSlots } from "./presentation/config/CodemationAppSlots";
+export type { CodemationWhitelabelConfig } from "./presentation/config/CodemationWhitelabelConfig";
 export type {
   CodemationAuthConfig,
   CodemationAuthKind,

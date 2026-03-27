@@ -137,9 +137,11 @@ import type {
   CodemationEventBusKind,
   CodemationSchedulerKind,
 } from "./presentation/config/CodemationConfig";
+import type { CodemationWhitelabelConfig } from "./presentation/config/CodemationWhitelabelConfig";
 import type { CodemationPlugin } from "./presentation/config/CodemationPlugin";
 import { ApiPaths } from "./presentation/http/ApiPaths";
 import { DevBootstrapSummaryHttpRouteHandler } from "./presentation/http/routeHandlers/DevBootstrapSummaryHttpRouteHandler";
+import { WhitelabelLogoHttpRouteHandler } from "./presentation/http/routeHandlers/WhitelabelLogoHttpRouteHandler";
 import { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiAppFactory";
 import "./presentation/http/hono/registrars/DevHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/BinaryHonoApiRouteRegistrar";
@@ -148,6 +150,7 @@ import "./presentation/http/hono/registrars/OAuth2HonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/RunHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/UserHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/WebhookHonoApiRouteRegistrar";
+import "./presentation/http/hono/registrars/WhitelabelHonoApiRouteRegistrar";
 import "./presentation/http/hono/registrars/WorkflowHonoApiRouteRegistrar";
 import "./application/binary/OverlayPinnedBinaryUploadService";
 import "./presentation/http/routeHandlers/BinaryHttpRouteHandlerFactory";
@@ -183,6 +186,7 @@ export class CodemationApplication {
   private plugins: ReadonlyArray<CodemationPlugin> = [];
   private sharedWorkflowWebsocketServer: WorkflowWebsocketServer | null = null;
   private applicationAuthConfig: CodemationAuthConfig | undefined;
+  private whitelabelConfig: CodemationWhitelabelConfig = {};
   private frameworkBuiltinCredentialTypesRegistered = false;
 
   constructor() {
@@ -218,6 +222,7 @@ export class CodemationApplication {
     if (config.auth !== undefined) {
       this.applicationAuthConfig = config.auth;
     }
+    this.whitelabelConfig = config.whitelabel ?? {};
     return this;
   }
 
@@ -722,6 +727,7 @@ export class CodemationApplication {
   private registerApplicationServicesAndRoutes(): void {
     this.container.register(DevBootstrapSummaryAssembler, { useClass: DevBootstrapSummaryAssembler });
     this.container.register(DevBootstrapSummaryHttpRouteHandler, { useClass: DevBootstrapSummaryHttpRouteHandler });
+    this.container.register(WhitelabelLogoHttpRouteHandler, { useClass: WhitelabelLogoHttpRouteHandler });
     this.container.register(CodemationHonoApiApp, {
       useClass: CodemationHonoApiApp,
     });
@@ -780,6 +786,7 @@ export class CodemationApplication {
     this.container.registerInstance(ApplicationTokens.ProcessEnv, env);
     this.container.registerInstance(ApplicationTokens.Clock, new SystemClock());
     this.container.registerInstance(ApplicationTokens.CodemationAuthConfig, this.applicationAuthConfig);
+    this.container.registerInstance(ApplicationTokens.CodemationWhitelabelConfig, this.whitelabelConfig);
     this.container.register(UserAccountService, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         const prismaClient = dependencyContainer.isRegistered(PrismaClient, true)
@@ -800,6 +807,9 @@ export class CodemationApplication {
     }
     if (persistence.prismaClient) {
       this.container.registerInstance(PrismaClient, persistence.prismaClient);
+    }
+    if (this.container.isRegistered(PrismaClient, true)) {
+      this.container.registerInstance(ApplicationTokens.PrismaClient, this.container.resolve(PrismaClient));
     }
     const workflowActivationRepository = persistence.prismaClient
       ? this.container.resolve(PrismaWorkflowActivationRepository)
