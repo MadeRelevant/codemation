@@ -97,6 +97,11 @@ export class BullmqWorker {
     }
   }
 
+  /** Resolves when each BullMQ worker has a live Redis connection and is ready to process jobs. */
+  async waitUntilReady(): Promise<void> {
+    await Promise.all(this.workers.map((w) => w.waitUntilReady()));
+  }
+
   async stop(): Promise<void> {
     await Promise.all(this.workers.map((w) => w.close()));
   }

@@ -13,11 +13,20 @@ export type RedisConnectionConfig =
     }>;
 
 export class RedisConnectionOptionsFactory {
+  /**
+   * BullMQ uses blocking Redis commands; ioredis must not retry each command by default or workers/queues can stall.
+   * @see https://docs.bullmq.io/guide/connections
+   */
+  private static readonly bullMqIoredisDefaults = {
+    maxRetriesPerRequest: null,
+  } as const;
+
   static fromConfig(cfg: RedisConnectionConfig): Readonly<Record<string, unknown>> {
     if ("url" in cfg) return this.fromUrl(cfg.url);
 
     const { host, port, username, password, db, tls } = cfg;
     return {
+      ...this.bullMqIoredisDefaults,
       host,
       port,
       ...(username ? { username } : {}),
