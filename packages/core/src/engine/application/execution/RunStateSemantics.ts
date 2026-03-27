@@ -17,7 +17,7 @@ import type {
 } from "../../../types";
 
 import { createWorkflowExecutableNodeClassifier } from "../../../workflow/workflowExecutableNodeClassifier.types";
-import { RunQueuePlanner } from "../../domain/planning/runQueuePlanner";
+import { RunQueuePlanner } from "../../planning/runQueuePlanner";
 
 import { MissingRuntimeExecutionMarker } from "../../adapters/persisted-workflow/MissingRuntimeExecutionMarkerFactory";
 import { InputPortMap } from "../../domain/execution/InputPortMapFactory";

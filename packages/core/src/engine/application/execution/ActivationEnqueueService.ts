@@ -16,7 +16,7 @@ import type {
   WorkflowId,
 } from "../../../types";
 
-import { RunQueuePlanner } from "../../domain/planning/runQueuePlanner";
+import { RunQueuePlanner } from "../../planning/runQueuePlanner";
 
 import { InputPortMap } from "../../domain/execution/InputPortMapFactory";
 import { NodeEventPublisher } from "../events/NodeEventPublisher";

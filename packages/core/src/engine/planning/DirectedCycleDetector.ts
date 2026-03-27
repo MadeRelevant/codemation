@@ -1,6 +1,6 @@
-import type { WorkflowDefinition } from "../../../types";
-import type { WorkflowExecutableNodeClassifier } from "../../../workflow/WorkflowExecutableNodeClassifier";
-import { createWorkflowExecutableNodeClassifier } from "../../../workflow/workflowExecutableNodeClassifier.types";
+import type { WorkflowDefinition } from "../../types";
+import type { WorkflowExecutableNodeClassifier } from "../../workflow/WorkflowExecutableNodeClassifier";
+import { createWorkflowExecutableNodeClassifier } from "../../workflow/workflowExecutableNodeClassifier.types";
 
 type NodeId = string;
 type VisitState = "unvisited" | "visiting" | "done";

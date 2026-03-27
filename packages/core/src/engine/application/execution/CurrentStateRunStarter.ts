@@ -22,8 +22,8 @@ import type {
 } from "../../../types";
 
 import { createWorkflowExecutableNodeClassifier } from "../../../workflow/workflowExecutableNodeClassifier.types";
-import { RunQueuePlanner } from "../../domain/planning/runQueuePlanner";
-import { WorkflowTopology } from "../../domain/planning/WorkflowTopologyPlanner";
+import { RunQueuePlanner } from "../../planning/runQueuePlanner";
+import { WorkflowTopology } from "../../planning/WorkflowTopologyPlanner";
 import { CurrentStateFrontierPlannerFactory } from "../planning/CurrentStateFrontierPlannerFactory";
 
 import { EngineExecutionLimitsPolicy } from "../policies/EngineExecutionLimitsPolicy";

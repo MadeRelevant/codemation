@@ -22,7 +22,7 @@ import { NodeEventPublisher } from "../application/events/NodeEventPublisher";
 import { EngineExecutionLimitsPolicy } from "../application/policies/EngineExecutionLimitsPolicy";
 import { RootExecutionOptionsFactory } from "../application/policies/RootExecutionOptionsFactory";
 import { EngineWorkflowPlanningFactory } from "../application/planning/EngineWorkflowPlanningFactory";
-import { DirectedCycleDetector } from "../domain/planning/DirectedCycleDetector";
+import { DirectedCycleDetector } from "../planning/DirectedCycleDetector";
 import { NodeExecutionStatePublisherFactory } from "../application/state/NodeExecutionStatePublisherFactory";
 import { TriggerRuntimeService } from "../application/triggers/TriggerRuntimeService";
 import { EngineWaiters } from "../application/waiters/EngineWaiters";

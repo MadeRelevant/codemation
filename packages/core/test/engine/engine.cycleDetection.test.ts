@@ -3,7 +3,7 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { DirectedCycleDetector } from "../../src/engine/domain/planning/DirectedCycleDetector.ts";
+import { DirectedCycleDetector } from "../../src/engine/planning/DirectedCycleDetector.ts";
 import { createEngineTestKit } from "../harness/engine.ts";
 import { CallbackNodeConfig, dag, items } from "../harness/index.ts";
 

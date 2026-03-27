@@ -18,7 +18,7 @@ import type {
   WorkflowSnapshotResolver,
 } from "../../../types";
 
-import { WorkflowTopology } from "../../domain/planning/WorkflowTopologyPlanner";
+import { WorkflowTopology } from "../../planning/WorkflowTopologyPlanner";
 import { createWorkflowExecutableNodeClassifier } from "../../../workflow/workflowExecutableNodeClassifier.types";
 
 import { CredentialResolverFactory } from "../credentials/CredentialResolverFactory";
