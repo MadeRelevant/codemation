@@ -19,6 +19,7 @@ import { HostPackageRootResolver } from "./database/HostPackageRootResolver";
 import { DatabasePersistenceResolver, PrismaMigrationDeployer } from "@codemation/host/persistence";
 import { DevBootstrapSummaryFetcher } from "./dev/DevBootstrapSummaryFetcher";
 import { DevCliBannerRenderer } from "./dev/DevCliBannerRenderer";
+import { DevConsumerPublishBootstrap } from "./dev/DevConsumerPublishBootstrap";
 import { DevSessionServicesBuilder } from "./dev/Builder";
 import { DevLockFactory } from "./dev/Factory";
 import { ConsumerEnvDotenvFilePredicate } from "./dev/ConsumerEnvDotenvFilePredicate";
@@ -72,8 +73,16 @@ export class CliProgramFactory {
       new PrismaMigrationDeployer(),
     );
 
+    const buildOptionsParser = new ConsumerBuildOptionsParser();
+    const devConsumerPublishBootstrap = new DevConsumerPublishBootstrap(
+      cliLogger,
+      pluginDiscovery,
+      artifactsPublisher,
+      outputBuilderLoader,
+      buildOptionsParser,
+    );
     return new CliProgram(
-      new ConsumerBuildOptionsParser(),
+      buildOptionsParser,
       new BuildCommand(cliLogger, pathResolver, pluginDiscovery, artifactsPublisher, tsRuntime, outputBuilderLoader),
       new DevCommand(
         pathResolver,
@@ -86,6 +95,7 @@ export class CliProgramFactory {
         databaseMigrationsApplyService,
         new DevBootstrapSummaryFetcher(),
         new DevCliBannerRenderer(),
+        devConsumerPublishBootstrap,
         new ConsumerEnvDotenvFilePredicate(),
         new DevTrackedProcessTreeKiller(),
       ),

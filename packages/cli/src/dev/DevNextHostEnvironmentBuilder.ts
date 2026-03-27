@@ -1,3 +1,4 @@
+import path from "node:path";
 import process from "node:process";
 
 import { ConsumerEnvLoader } from "../consumer/ConsumerEnvLoader";
@@ -18,14 +19,19 @@ export class DevNextHostEnvironmentBuilder {
       skipUiAuth: boolean;
       websocketPort: number;
       runtimeDevUrl?: string;
+      /** Same manifest as `codemation build` / serve-web so @codemation/next-host can load consumer config (whitelabel, etc.). */
+      consumerOutputManifestPath?: string;
     }>,
   ): NodeJS.ProcessEnv {
     const merged = this.consumerEnvLoader.mergeConsumerRootIntoProcessEnvironment(args.consumerRoot, process.env);
+    const manifestPath =
+      args.consumerOutputManifestPath ?? path.resolve(args.consumerRoot, ".codemation", "output", "current.json");
     return {
       ...merged,
       PORT: String(args.nextPort),
       CODEMATION_AUTH_CONFIG_JSON: args.authConfigJson,
       CODEMATION_CONSUMER_ROOT: args.consumerRoot,
+      CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH: manifestPath,
       CODEMATION_SKIP_UI_AUTH: args.skipUiAuth ? "true" : "false",
       NEXT_PUBLIC_CODEMATION_SKIP_UI_AUTH: args.skipUiAuth ? "true" : "false",
       CODEMATION_WS_PORT: String(args.websocketPort),

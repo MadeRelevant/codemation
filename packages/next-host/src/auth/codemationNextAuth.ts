@@ -7,6 +7,7 @@ import { CodemationNextAuthProviderCatalog } from "./CodemationNextAuthProviderC
 export const { handlers, auth, signIn, signOut } = NextAuth(async () => {
   const env = process.env;
   const authConfig = await new CodemationNextAuthConfigResolver().resolve();
+  const prisma = await CodemationAuthPrismaClient.resolveShared();
   const secretFromEnv = env.AUTH_SECRET ?? env.NEXTAUTH_SECRET;
   const secret =
     secretFromEnv?.trim() ||
@@ -14,12 +15,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth(async () => {
   if (!secret || secret.trim().length === 0) {
     throw new Error("AUTH_SECRET (or NEXTAUTH_SECRET) is required for Codemation authentication.");
   }
-  const providers = await CodemationNextAuthProviderCatalog.build(authConfig, CodemationAuthPrismaClient.shared, env);
+  const providers = await CodemationNextAuthProviderCatalog.build(authConfig, prisma, env);
   if (env.NODE_ENV === "production" && providers.length === 0) {
     throw new Error("CodemationConfig.auth must configure at least one NextAuth provider for production.");
   }
   return {
-    adapter: PrismaAdapter(CodemationAuthPrismaClient.shared),
+    adapter: PrismaAdapter(prisma),
     secret,
     session: { strategy: "jwt" },
     providers: [...providers],

@@ -8,7 +8,10 @@ import type { DevBootstrapSummaryJson } from "@codemation/host/next/server";
  * Renders the figlet banner once on cold start; append-only compact block after hot reload.
  */
 export class DevCliBannerRenderer {
-  renderFull(summary: DevBootstrapSummaryJson): void {
+  /**
+   * Figlet header only — call early so branding appears before migrations / gateway work.
+   */
+  renderBrandHeader(): void {
     const titleLines = this.renderFigletTitle();
     const subtitle = chalk.dim.italic("AI Automation framework");
     const headerInner = `${titleLines}\n${subtitle}`;
@@ -19,7 +22,13 @@ export class DevCliBannerRenderer {
       borderColor: "cyan",
       textAlignment: "center",
     });
+    process.stdout.write(`${headerBox}\n`);
+  }
 
+  /**
+   * Runtime detail + active workflows (after bootstrap summary is available).
+   */
+  renderRuntimeSummary(summary: DevBootstrapSummaryJson): void {
     const detailBody = this.buildDetailBody(summary);
     const detailBox = boxen(detailBody, {
       padding: { top: 0, bottom: 0, left: 1, right: 1 },
@@ -30,10 +39,13 @@ export class DevCliBannerRenderer {
       title: chalk.bold("Runtime"),
       titleAlignment: "center",
     });
-
     const activeSection = this.buildActiveWorkflowsSection(summary);
-    const combined = `${headerBox}\n${detailBox}\n${activeSection}\n`;
-    process.stdout.write(combined);
+    process.stdout.write(`${detailBox}\n${activeSection}\n`);
+  }
+
+  renderFull(summary: DevBootstrapSummaryJson): void {
+    this.renderBrandHeader();
+    this.renderRuntimeSummary(summary);
   }
 
   /**

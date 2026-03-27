@@ -8,6 +8,7 @@ import process from "node:process";
 import type { DatabaseMigrationsApplyService } from "../database/DatabaseMigrationsApplyService";
 import type { DevBootstrapSummaryFetcher } from "../dev/DevBootstrapSummaryFetcher";
 import type { DevCliBannerRenderer } from "../dev/DevCliBannerRenderer";
+import type { DevConsumerPublishBootstrap } from "../dev/DevConsumerPublishBootstrap";
 import { ConsumerEnvDotenvFilePredicate } from "../dev/ConsumerEnvDotenvFilePredicate";
 import type { DevSourceWatcher } from "../dev/DevSourceWatcher";
 import { DevSessionServices } from "../dev/DevSessionServices";
@@ -35,14 +36,17 @@ export class DevCommand {
     private readonly databaseMigrationsApplyService: DatabaseMigrationsApplyService,
     private readonly devBootstrapSummaryFetcher: DevBootstrapSummaryFetcher,
     private readonly devCliBannerRenderer: DevCliBannerRenderer,
+    private readonly devConsumerPublishBootstrap: DevConsumerPublishBootstrap,
     private readonly consumerEnvDotenvFilePredicate: ConsumerEnvDotenvFilePredicate,
     private readonly devTrackedProcessTreeKiller: DevTrackedProcessTreeKiller,
   ) {}
 
   async execute(consumerRoot: string): Promise<void> {
     const paths = await this.pathResolver.resolve(consumerRoot);
+    this.devCliBannerRenderer.renderBrandHeader();
     this.tsRuntime.configure(paths.repoRoot);
     await this.databaseMigrationsApplyService.applyForConsumer(paths.consumerRoot);
+    await this.devConsumerPublishBootstrap.ensurePublished(paths);
     const devMode = this.resolveDevModeFromEnv();
     const { nextPort, gatewayPort } = await this.session.sessionPorts.resolve({
       devMode,
@@ -66,7 +70,7 @@ export class DevCommand {
       await this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl);
       const initialSummary = await this.devBootstrapSummaryFetcher.fetch(gatewayBaseUrl);
       if (initialSummary) {
-        this.devCliBannerRenderer.renderFull(initialSummary);
+        this.devCliBannerRenderer.renderRuntimeSummary(initialSummary);
       }
       this.bindShutdownSignalsToChildProcesses(processState);
       this.spawnFrameworkNextHostWhenNeeded(prepared, processState, gatewayBaseUrl);
@@ -159,6 +163,12 @@ export class DevCommand {
     const uiProxyBase = `http://127.0.0.1:${uiPort}`;
     const nextHostPackageJsonPath = this.require.resolve("@codemation/next-host/package.json");
     const nextHostRoot = path.dirname(nextHostPackageJsonPath);
+    const consumerOutputManifestPath = path.resolve(
+      prepared.paths.consumerRoot,
+      ".codemation",
+      "output",
+      "current.json",
+    );
     state.currentUiNext = spawn("pnpm", ["exec", "next", "start"], {
       cwd: nextHostRoot,
       ...this.devDetachedChildSpawnOptions(),
@@ -168,6 +178,7 @@ export class DevCommand {
         PORT: String(uiPort),
         CODEMATION_AUTH_CONFIG_JSON: prepared.authSettings.authConfigJson,
         CODEMATION_CONSUMER_ROOT: prepared.paths.consumerRoot,
+        CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH: consumerOutputManifestPath,
         CODEMATION_SKIP_UI_AUTH: prepared.authSettings.skipUiAuth ? "true" : "false",
         NEXT_PUBLIC_CODEMATION_SKIP_UI_AUTH: prepared.authSettings.skipUiAuth ? "true" : "false",
         CODEMATION_WS_PORT: String(websocketPort),

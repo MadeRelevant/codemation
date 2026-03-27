@@ -1,12 +1,11 @@
-import type { CodemationAppSlots, CodemationConfig } from "@codemation/host";
+import type { CodemationConfig } from "@codemation/host";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { StarterLogo } from "./src/ui/StarterLogo";
-import { StarterNavigation } from "./src/ui/StarterNavigation";
+
+const consumerRoot = process.env.CODEMATION_CONSUMER_ROOT?.trim() || process.cwd();
 
 loadDotenv({
-  path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env"),
+  path: path.resolve(consumerRoot, ".env"),
   quiet: true,
 });
 
@@ -17,11 +16,6 @@ if (useRedisRuntime && (!databaseUrl || databaseUrl.length === 0)) {
     "DATABASE_URL is required when REDIS_URL is set (BullMQ requires a shared PostgreSQL database). PGlite cannot be used with the BullMQ scheduler.",
   );
 }
-
-const slots: CodemationAppSlots = {
-  Logo: StarterLogo,
-  Navigation: StarterNavigation,
-};
 
 export const codemationHost = {
   auth: {
@@ -54,7 +48,10 @@ export const codemationHost = {
       queuePrefix: "codemation-minimal",
     },
   },
-  slots,
+  whitelabel: {
+    productName: "My automation",
+    logoPath: "src/branding/logo.svg",
+  },
 } satisfies CodemationConfig;
 
 export default codemationHost;

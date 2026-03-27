@@ -2,6 +2,7 @@ import type { Container } from "@codemation/core";
 import { CoreTokens, Engine } from "@codemation/core";
 import type { CodemationAuthConfig, CodemationPlugin } from "@codemation/host";
 import {
+  ApplicationTokens,
   CodemationApplication,
   CodemationHonoApiApp,
   CodemationPluginListMerger,
@@ -9,12 +10,16 @@ import {
   ServerLoggerFactory,
   WorkflowWebsocketServer,
 } from "@codemation/host/next/server";
+import type { PrismaClient } from "@codemation/host-src/infrastructure/persistence/generated/prisma-client/client.js";
 import { CodemationTsyringeTypeInfoRegistrar } from "@codemation/host/dev-server-sidecar";
-import type { CodemationConsumerApp } from "@codemation/host/server";
+import type { CodemationConsumerApp } from "@codemation/host-src/presentation/server/CodemationConsumerAppResolver";
 import type { Hono } from "hono";
 import { access, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { CodemationWhitelabelSnapshotFactory } from "../whitelabel/CodemationWhitelabelSnapshotFactory";
+import type { CodemationWhitelabelSnapshot } from "../whitelabel/CodemationWhitelabelSnapshot";
 
 export type CodemationNextHostContext = Readonly<{
   application: CodemationApplication;
@@ -23,6 +28,8 @@ export type CodemationNextHostContext = Readonly<{
   consumerRoot: string;
   repoRoot: string;
   workflowSources: ReadonlyArray<string>;
+  /** Derived from the loaded consumer manifest config (same source as {@link CodemationApplication.useConfig}). */
+  whitelabelSnapshot: CodemationWhitelabelSnapshot;
 }>;
 
 type CodemationNextHostGlobal = typeof globalThis & {
@@ -38,13 +45,20 @@ type CodemationConsumerBuildManifest = Readonly<{
 }>;
 
 /**
- * Next-hosted consumer runtime: one loaded context per process. Dev reloads use the dev gateway + runtime child instead of in-process swapping.
+ * Next-hosted consumer runtime: one loaded context per process.
+ * In development, the consumer manifest `buildVersion` is re-read on each prepare; when it changes
+ * (e.g. after `codemation build` / dev publish), the previous {@link CodemationApplication} is torn
+ * down so whitelabel and config updates apply without restarting Next.
  */
 export class CodemationNextHost {
   private readonly pluginListMerger = new CodemationPluginListMerger();
   private nextApiApp: Hono | null = null;
   private nextApiAppBuildVersion: string | null = null;
   private contextPromise: Promise<CodemationNextHostContext> | null = null;
+  /** Tracks which manifest `buildVersion` the current {@link contextPromise} was built from (dev invalidation). */
+  private loadedManifestBuildVersion: string | null = null;
+  /** Single-flight so concurrent `prepare()` calls do not create duplicate application graphs. */
+  private prepareInFlight: Promise<CodemationNextHostContext> | null = null;
   private sharedWorkflowWebsocketServer: WorkflowWebsocketServer | null = null;
 
   static get shared(): CodemationNextHost {
@@ -56,14 +70,88 @@ export class CodemationNextHost {
   }
 
   async prepare(): Promise<CodemationNextHostContext> {
-    if (!this.contextPromise) {
-      this.contextPromise = this.loadContextOnce();
+    if (this.prepareInFlight) {
+      return this.prepareInFlight;
     }
-    return this.contextPromise;
+    this.prepareInFlight = this.prepareInternal();
+    try {
+      return await this.prepareInFlight;
+    } finally {
+      this.prepareInFlight = null;
+    }
+  }
+
+  private async prepareInternal(): Promise<CodemationNextHostContext> {
+    const manifest = await this.resolveBuildManifest();
+    if (this.shouldReloadContextForDev(manifest)) {
+      await this.teardownLoadedContext();
+    }
+    if (!this.contextPromise) {
+      const context = await this.createContext(manifest);
+      this.loadedManifestBuildVersion = manifest.buildVersion;
+      this.contextPromise = Promise.resolve(context);
+    }
+    return await this.contextPromise;
+  }
+
+  private shouldReloadContextForDev(manifest: CodemationConsumerBuildManifest): boolean {
+    if (process.env.NODE_ENV === "production") {
+      return false;
+    }
+    if (this.contextPromise === null || this.loadedManifestBuildVersion === null) {
+      return false;
+    }
+    return this.loadedManifestBuildVersion !== manifest.buildVersion;
+  }
+
+  private async teardownLoadedContext(): Promise<void> {
+    if (!this.contextPromise) {
+      return;
+    }
+    try {
+      const ctx = await this.contextPromise;
+      await ctx.application.stopFrontendServerContainer({ stopWebsocketServer: false });
+    } catch {
+      // Best-effort teardown before reloading consumer output.
+    }
+    this.contextPromise = null;
+    this.nextApiApp = null;
+    this.nextApiAppBuildVersion = null;
+    this.loadedManifestBuildVersion = null;
   }
 
   async getContainer(): Promise<Container> {
     return (await this.prepare()).application.getContainer();
+  }
+
+  async getPreparedPrismaClient(): Promise<PrismaClient> {
+    const preparedContext = await this.prepare();
+    const existingPrisma = this.tryResolvePreparedPrismaClient(preparedContext);
+    if (existingPrisma) {
+      return existingPrisma;
+    }
+    await this.teardownLoadedContext();
+    const refreshedContext = await this.prepare();
+    const refreshedPrisma = this.tryResolvePreparedPrismaClient(refreshedContext);
+    if (refreshedPrisma) {
+      return refreshedPrisma;
+    }
+    throw new Error(
+      [
+        "Codemation authentication requires prepared runtime database persistence.",
+        "Ensure the Next host has been prepared with PostgreSQL or PGlite before creating the auth adapter.",
+      ].join(" "),
+    );
+  }
+
+  /**
+   * Resolved whitelabel for Server Components (sidebar, login, metadata). Requires {@link prepare} first.
+   * Uses the snapshot captured from the built consumer config so branding matches `codemation.config` even if DI
+   * resolution were ever misaligned in a bundled server graph.
+   */
+  async getWhitelabelSnapshot(): Promise<CodemationWhitelabelSnapshot> {
+    const context = await this.prepare();
+    return context.whitelabelSnapshot;
   }
 
   /**
@@ -85,11 +173,6 @@ export class CodemationNextHost {
     return coreApp;
   }
 
-  private async loadContextOnce(): Promise<CodemationNextHostContext> {
-    const manifest = await this.resolveBuildManifest();
-    return await this.createContext(manifest);
-  }
-
   private async createContext(buildManifest: CodemationConsumerBuildManifest): Promise<CodemationNextHostContext> {
     const consumerRoot = path.resolve(buildManifest.consumerRoot);
     const repoRoot = await this.detectWorkspaceRoot(consumerRoot);
@@ -100,13 +183,16 @@ export class CodemationNextHost {
     }
     process.env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
     process.env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
+    process.env.CODEMATION_CONSUMER_ROOT = consumerRoot;
     const resolvedConsumerApp = await this.loadBuiltConsumerApp(buildManifest.entryPath);
+    const whitelabelSnapshot = CodemationWhitelabelSnapshotFactory.fromConsumerConfig(resolvedConsumerApp.config);
     const env = { ...process.env };
     if (prismaCliOverride) {
       env.CODEMATION_PRISMA_CLI_PATH = prismaCliOverride;
     }
     env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
     env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
+    env.CODEMATION_CONSUMER_ROOT = consumerRoot;
     const isRuntimeDevProxy = Boolean(process.env.CODEMATION_RUNTIME_DEV_URL?.trim());
     const application = new CodemationApplication();
     application.useSharedWorkflowWebsocketServer(this.resolveSharedWorkflowWebsocketServer());
@@ -154,7 +240,16 @@ export class CodemationNextHost {
       consumerRoot,
       repoRoot,
       workflowSources: resolvedConsumerApp.workflowSources,
+      whitelabelSnapshot,
     };
+  }
+
+  private tryResolvePreparedPrismaClient(context: CodemationNextHostContext): PrismaClient | null {
+    const container = context.application.getContainer();
+    if (!container.isRegistered(ApplicationTokens.PrismaClient, true)) {
+      return null;
+    }
+    return container.resolve(ApplicationTokens.PrismaClient);
   }
 
   private async detectWorkspaceRoot(startDirectory: string): Promise<string> {

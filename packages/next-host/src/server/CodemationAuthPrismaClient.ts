@@ -1,25 +1,21 @@
-import { CodemationPostgresPrismaClientFactory, type PrismaClient } from "@codemation/host/persistence";
-
-type GlobalWithPrisma = typeof globalThis & {
-  __codemationAuthPrisma__?: PrismaClient;
-};
+import type { PrismaClient } from "@codemation/host-src/infrastructure/persistence/generated/prisma-client/client.js";
 
 export class CodemationAuthPrismaClient {
-  static get shared(): PrismaClient {
-    return CodemationAuthPrismaClient.resolveSingleton();
+  static async resolveShared(): Promise<PrismaClient> {
+    return await CodemationAuthPrismaClient.resolveFromPreparedNextHost();
   }
 
-  private static resolveSingleton(): PrismaClient {
-    const globalState = globalThis as GlobalWithPrisma;
-    if (globalState.__codemationAuthPrisma__) {
-      return globalState.__codemationAuthPrisma__;
+  private static async resolveFromPreparedNextHost(): Promise<PrismaClient> {
+    const { CodemationNextHost } = await import("./CodemationNextHost");
+    try {
+      return await CodemationNextHost.shared.getPreparedPrismaClient();
+    } catch {
+      throw new Error(
+        [
+          "Codemation authentication requires prepared runtime database persistence.",
+          "Ensure the Next host has been prepared with PostgreSQL or PGlite before creating the auth adapter.",
+        ].join(" "),
+      );
     }
-    const databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl || databaseUrl.trim().length === 0) {
-      throw new Error("DATABASE_URL is required for Codemation authentication.");
-    }
-    const prisma = CodemationPostgresPrismaClientFactory.create(databaseUrl.trim());
-    globalState.__codemationAuthPrisma__ = prisma;
-    return prisma;
   }
 }

@@ -1,13 +1,12 @@
-import type { CodemationAppSlots, CodemationConfig } from "@codemation/host";
+import type { CodemationConfig } from "@codemation/host";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { E2eBootHook } from "./src/bootstrap/E2eBootHook";
-import { E2eLogo } from "./src/ui/E2eLogo";
-import { E2eNavigation } from "./src/ui/E2eNavigation";
+
+const consumerRoot = process.env.CODEMATION_CONSUMER_ROOT?.trim() || process.cwd();
 
 loadDotenv({
-  path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".env"),
+  path: path.resolve(consumerRoot, ".env"),
   quiet: true,
 });
 
@@ -17,11 +16,6 @@ const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required for the e2e consumer app. Configure PostgreSQL in packages/e2e/.env.");
 }
-
-const slots: CodemationAppSlots = {
-  Logo: E2eLogo,
-  Navigation: E2eNavigation,
-};
 
 /**
  * Fixed consumer used by Playwright and CI only: always require sign-in (no dev auth bypass).
@@ -58,7 +52,10 @@ export const codemationHost = {
       queuePrefix: "codemation-e2e",
     },
   },
-  slots,
+  whitelabel: {
+    productName: "Codemation e2e",
+    logoPath: "branding/logo.svg",
+  },
 } satisfies CodemationConfig;
 
 export default codemationHost;

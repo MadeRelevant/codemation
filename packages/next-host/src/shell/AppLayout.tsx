@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import { Component, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 import { AppLayoutNavItems } from "./AppLayoutNavItems";
 import { AppLayoutPageHeader } from "./AppLayoutPageHeader";
+import { AppLayoutSidebarBrand } from "./AppLayoutSidebarBrand";
 import { AppMainContent } from "./AppMainContent";
 import { IconChevronLeft, IconChevronRight } from "./appLayoutSidebarIcons";
 
@@ -96,13 +95,7 @@ export class AppLayout extends Component<AppLayoutProps, AppLayoutState> {
           data-testid="app-sidebar"
         >
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-sidebar-border px-4">
-            <Link
-              href="/"
-              className="text-lg font-semibold text-sidebar-foreground no-underline hover:text-primary"
-              data-testid="sidebar-brand"
-            >
-              {!sidebarCollapsed && <span>Codemation</span>}
-            </Link>
+            <AppLayoutSidebarBrand collapsed={sidebarCollapsed} />
             <Button
               type="button"
               variant="ghost"

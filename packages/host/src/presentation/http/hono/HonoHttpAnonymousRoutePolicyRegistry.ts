@@ -19,6 +19,9 @@ export class HonoHttpAnonymousRoutePolicy {
     if (pathname === ApiPaths.userInviteVerify() || pathname === ApiPaths.userInviteAccept()) {
       return true;
     }
+    if (pathname === ApiPaths.whitelabelLogo()) {
+      return true;
+    }
     return false;
   }
 }

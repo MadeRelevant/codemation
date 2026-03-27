@@ -6,11 +6,11 @@ import type {
   WorkflowDefinition,
 } from "@codemation/core";
 import type { CodemationApplication } from "../../codemationApplication";
-import type { CodemationAppSlots } from "./CodemationAppSlots";
 import type { CodemationAuthConfig } from "./CodemationAuthConfig";
 import type { CodemationBinding } from "./CodemationBinding";
 import type { CodemationPlugin } from "./CodemationPlugin";
 import type { CodemationLogConfig } from "./CodemationLogConfig";
+import type { CodemationWhitelabelConfig } from "./CodemationWhitelabelConfig";
 import type { CodemationWorkflowDiscovery } from "./CodemationWorkflowDiscovery";
 
 export type CodemationEventBusKind = "memory" | "redis";
@@ -75,7 +75,8 @@ export interface CodemationConfig {
   /** Consumer-defined `CredentialType` entries (see `@codemation/core`), applied when the host loads config. */
   readonly credentialTypes?: ReadonlyArray<AnyCredentialType>;
   readonly bootHook?: TypeToken<CodemationBootHook>;
-  readonly slots?: CodemationAppSlots;
+  /** Optional shell whitelabel (product name, logo path). */
+  readonly whitelabel?: CodemationWhitelabelConfig;
   /** Required for production hosts; optional only when using development bypass (never in production). */
   readonly auth?: CodemationAuthConfig;
   /**

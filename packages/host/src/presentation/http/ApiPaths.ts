@@ -13,6 +13,8 @@ export class ApiPaths {
 
   private static readonly usersBasePath = `${this.apiBasePath}/users`;
 
+  private static readonly whitelabelBasePath = `${this.apiBasePath}/whitelabel`;
+
   static workflows(): string {
     return this.workflowsBasePath;
   }
@@ -154,5 +156,10 @@ export class ApiPaths {
 
   static runBinaryContent(runId: string, binaryId: string): string {
     return `${this.runState(runId)}/binary/${encodeURIComponent(binaryId)}/content`;
+  }
+
+  /** Anonymous: consumer logo from `codemation.config.ts` whitelabel.logoPath. */
+  static whitelabelLogo(): string {
+    return `${this.whitelabelBasePath}/logo`;
   }
 }

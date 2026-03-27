@@ -1,4 +1,8 @@
-export function getPageTitle(pathname: string, workflows: ReadonlyArray<{ id: string; name: string }>): string {
+export function getPageTitle(
+  pathname: string,
+  workflows: ReadonlyArray<{ id: string; name: string }>,
+  shellDefaultTitle: string,
+): string {
   if (pathname === "/dashboard") return "Dashboard";
   if (pathname === "/credentials") return "Credentials";
   if (pathname === "/users") return "Users";
@@ -8,5 +12,5 @@ export function getPageTitle(pathname: string, workflows: ReadonlyArray<{ id: st
     const w = workflows.find((x) => x.id === decodeURIComponent(workflowMatch[1]));
     return w?.name ?? "Workflow";
   }
-  return "Codemation";
+  return shellDefaultTitle;
 }

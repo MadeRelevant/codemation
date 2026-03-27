@@ -25,7 +25,7 @@ export class CodemationConsumerConfigExportsResolver {
       "bindings" in value ||
       "plugins" in value ||
       "bootHook" in value ||
-      "slots" in value ||
+      "whitelabel" in value ||
       "auth" in value ||
       "log" in value
     );
