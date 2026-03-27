@@ -18,6 +18,7 @@ export default defineConfig({
       p("../../packages/cli/vitest.config.ts"),
       p("../../packages/dev-gateway/vitest.config.ts"),
       p("../../packages/runtime-dev/vitest.config.ts"),
+      p("../../packages/queue-bullmq/vitest.unit.config.ts"),
       p("../../packages/next-host/vitest.config.ts"),
       p("../../packages/host/vitest.unit.config.ts"),
     ],

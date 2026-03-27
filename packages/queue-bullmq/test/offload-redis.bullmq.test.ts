@@ -104,6 +104,12 @@ class InMemoryTriggerSetupStateStore implements TriggerSetupStateStore {
 }
 
 test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
+  if (process.env.CI === "true" && !process.env.REDIS_URL) {
+    throw new Error(
+      "CI must set REDIS_URL (use the GitHub Actions redis service); do not rely on Testcontainers here.",
+    );
+  }
+
   const queuePrefix = `codemation_${randomBytes(8).toString("hex")}`;
   const startedRedisContainer = process.env.REDIS_URL ? undefined : await maybeStartRedisContainer(t);
   const redisUrl = process.env.REDIS_URL ?? startedRedisContainer?.redisUrl;
@@ -112,7 +118,8 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   const u = new URL(redisUrl);
   const hostName = u.hostname;
   const port = u.port ? Number(u.port) : 6379;
-  if (!(await TcpHealthCheck.canConnect(hostName, port, 2000))) {
+  const connectTimeoutMs = process.env.CI === "true" ? 15_000 : 2000;
+  if (!(await TcpHealthCheck.canConnect(hostName, port, connectTimeoutMs))) {
     t.skip(`Redis not reachable at ${hostName}:${port}`);
     return;
   }
@@ -195,6 +202,8 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
     continuation: engine,
     workflows: workflowRunner,
   });
+  await worker.waitUntilReady();
+
   onTestFinished(async () => {
     await worker.stop();
     await scheduler.close();
