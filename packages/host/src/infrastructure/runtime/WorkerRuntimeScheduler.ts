@@ -1,11 +1,11 @@
 import type {
   BinaryStorage,
   CredentialSessionService,
+  EngineExecutionLimitsPolicy,
   NodeActivationContinuation,
   NodeExecutionScheduler,
   NodeResolver,
-  RootExecutionOptionsFactory,
-  RunStateStore,
+  WorkflowExecutionRepository,
   WorkflowDefinition,
   WorkflowId,
 } from "@codemation/core";
@@ -21,12 +21,13 @@ export interface WorkerRuntimeScheduler extends NodeExecutionScheduler {
       workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>;
       nodeResolver: NodeResolver;
       credentialSessions: CredentialSessionService;
-      runStore: RunStateStore;
+      workflowExecutionRepository: WorkflowExecutionRepository;
       continuation: NodeActivationContinuation;
       binaryStorage?: BinaryStorage;
       workflows?: unknown;
       now?: () => Date;
-      rootExecutionOptionsFactory?: RootExecutionOptionsFactory;
+      /** When set, must match the host engine policy so worker execution contexts use the same limits as `runtime.engineExecutionLimits`. */
+      executionLimitsPolicy?: EngineExecutionLimitsPolicy;
     }>,
   ): WorkerRuntimeHandle;
 

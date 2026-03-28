@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { InMemoryRunEventBus, InMemoryRunStateStore, PublishingRunStateStore } from "../../src/index.ts";
+import { EventPublishingWorkflowExecutionRepository, InMemoryRunEventBus } from "../../src/index.ts";
+import { InMemoryWorkflowExecutionRepository } from "../../src/bootstrap/index.ts";
 import { CallbackNodeConfig, chain, createEngineTestKit, items } from "../harness/index.ts";
 
 test("in-memory run event bus supports workflow-scoped subscriptions", async () => {
@@ -21,7 +22,7 @@ test("in-memory run event bus supports workflow-scoped subscriptions", async () 
 
 test("engine publishes queued, running, and completed node snapshots", async () => {
   const bus = new InMemoryRunEventBus();
-  const runStore = new PublishingRunStateStore(new InMemoryRunStateStore(), bus);
+  const runStore = new EventPublishingWorkflowExecutionRepository(new InMemoryWorkflowExecutionRepository(), bus);
   const seenKinds: string[] = [];
   let queuedInputs: unknown;
   let completedOutputs: unknown;

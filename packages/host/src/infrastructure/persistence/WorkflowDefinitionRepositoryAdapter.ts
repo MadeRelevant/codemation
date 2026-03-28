@@ -1,5 +1,6 @@
-import type { RunStateStore, WorkflowDefinition, WorkflowRepository } from "@codemation/core";
-import { CoreTokens, Engine, inject, injectable } from "@codemation/core";
+import type { WorkflowDefinition, WorkflowExecutionRepository, WorkflowRepository } from "@codemation/core";
+import { CoreTokens, inject, injectable } from "@codemation/core";
+import { Engine } from "@codemation/core/bootstrap";
 import { WorkflowDefinitionRepository } from "../../domain/workflows/WorkflowDefinitionRepository";
 
 @injectable()
@@ -23,7 +24,7 @@ export class WorkflowDefinitionRepositoryAdapter implements WorkflowDefinitionRe
     return this.engine.resolveWorkflowSnapshot({
       workflowId: decodeURIComponent(args.workflowId),
       workflowSnapshot: args.workflowSnapshot as NonNullable<
-        Awaited<ReturnType<RunStateStore["load"]>>
+        Awaited<ReturnType<WorkflowExecutionRepository["load"]>>
       >["workflowSnapshot"],
     });
   }

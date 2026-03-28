@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { RunQueuePlanner } from "../../src/engine/planning/runQueuePlanner.ts";
-import { WorkflowTopology } from "../../src/engine/planning/WorkflowTopologyPlanner.ts";
+import { RunQueuePlanner } from "../../src/planning/RunQueuePlanner.ts";
+import { WorkflowTopology } from "../../src/planning/WorkflowTopologyPlanner.ts";
 import type { RunQueueEntry } from "../../src/types.ts";
 import { CallbackNode, CallbackNodeConfig, MergeNode, MergeNodeConfig, chain, dag, items } from "../harness/index.ts";
 

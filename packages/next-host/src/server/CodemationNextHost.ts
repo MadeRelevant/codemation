@@ -1,5 +1,6 @@
 import type { Container } from "@codemation/core";
-import { CoreTokens, Engine } from "@codemation/core";
+import { CoreTokens } from "@codemation/core";
+import { Engine } from "@codemation/core/bootstrap";
 import type { CodemationAuthConfig, CodemationPlugin } from "@codemation/host";
 import {
   ApplicationTokens,

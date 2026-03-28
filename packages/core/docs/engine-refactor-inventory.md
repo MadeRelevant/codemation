@@ -1,55 +1,100 @@
-# Engine refactor inventory (checkpoint)
+# Core systems regroup inventory
 
-This snapshot records the **north-star layout** for `packages/core`’s engine module, what is **in place**, and **transitional seams** to watch after the refactor.
+This file tracks what is actually true while the `packages/core` systems-first regroup is in progress.
+It is intentionally conservative: if the package still reads as `engine/` first, the work is not done yet.
 
-## Target layout (north star)
+## Status
 
-| Area                      | Role                                                                                                                                                                    |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/engine/api/`         | Public façade: `Engine`, `EngineFactory`, composition types (`EngineCompositionDeps`).                                                                                  |
-| `src/engine/application/` | Orchestration: execution, triggers, intents, state publishing, waiters, planning glue.                                                                                  |
-| `src/engine/domain/`      | Pure logic: planning structures, snapshot/continuation helpers, port-style types used by application code.                                                              |
-| `src/engine/adapters/`    | Infrastructure-style implementations: DI helpers, webhooks, credentials, persisted-workflow materialization, in-memory registry (tests use `@codemation/core/testing`). |
-| `src/contracts/`          | Ports and shared engine contracts (`EngineDeps`, `WorkflowRepository`, `WorkflowCatalog`, …).                                                                           |
+| Area                         | Status                         | Notes                                                                                                                                                       |
+| ---------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Behavior coverage            | done enough to refactor safely | Runtime/intents/persisted/planner scenario coverage exists and should remain the regression net.                                                            |
+| Bootstrap cleanup            | done                           | Composition and runtime wiring now live under `src/bootstrap/` and `src/bootstrap/runtime/`.                                                                |
+| Systems-first package layout | done                           | `src/engine/` has been removed; `src/` now reads as top-level systems.                                                                                      |
+| Smaller public API           | done                           | `src/index.ts` uses explicit exports, old catalog/store compatibility aliases are removed, and advanced runtime wiring stays behind secondary entry points. |
+| Consolidation of micro-parts | partial                        | The physical regroup is done, but some subsystem internals still merit further consolidation.                                                               |
 
-**Workflow loading:** read paths use `WorkflowRepository`; mutable discovery/sync uses `WorkflowCatalog` (`CoreTokens.WorkflowCatalog`). `CoreTokens.WorkflowRegistry` remains a compatibility alias to the same instance. Host owns `LiveWorkflowCatalog`.
+## Current status
 
-**Persisted workflows:** materialization stays inside `EngineFactory` (with optional overrides on `EngineCompositionDeps` for tests). `PersistedWorkflowSnapshotFactory` for tests lives under `@codemation/core/testing`.
+The physical regroup is now in place:
 
-## Current directory map (engine)
+- `workflow-builder/` has moved under `workflow/dsl/`.
+- workflow definition helpers now live under `workflow/definition/` and `workflow/graph/`.
+- `orchestration/` now carries the engine facade and long-lived run coordination flow.
+- runtime-facing orchestration lives under `runtime/`.
+- execution, planning, policies, workflow snapshots, run storage, binaries, schedulers, and serialization each live in their own top-level systems.
+- `src/engine/` has been removed instead of retained as a compatibility layer.
 
-```
-engine/
-  api/              Engine, EngineFactory
-  application/      execution, intents, triggers, state, waiters, planning, workflows, …
-  domain/           planning, execution (pure helpers)
-  adapters/         di, credentials, nodes, persisted-workflow, registry, webhooks, …
-  context/          execution context helpers
-  graph/            workflow graph defaults
-  scheduling/       schedulers, offload policies
-  storage/          in-memory run store, binary, mappers
-```
+## Target top-level systems
 
-The former `engine/runtime/` shim tree was **removed**; barrels and call sites import canonical modules under `api/`, `application/`, `domain/`, and `adapters/`.
+The intended top-level package shape is:
 
-## North star vs transitional
+- `workflow/`
+- `orchestration/`
+- `runtime/`
+- `execution/`
+- `planning/`
+- `workflowSnapshots/`
+- `policies/`
+- `runStorage/`
+- `scheduler/`
+- `serialization/`
+- `binaries/`
+- `events/`
+- `bootstrap/`
+- `testing/`
 
-| Topic                                          | Status                                                                                                                                |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Thin `Engine` façade                           | **Done** — delegates to injected services.                                                                                            |
-| `EngineFactory` as composition root            | **Done** — internal persisted-workflow services constructed here; optional overrides on `EngineCompositionDeps`.                      |
-| `WorkflowRepository` / `WorkflowCatalog` split | **Done** — contracts + `CoreTokens.WorkflowCatalog` primary registration.                                                             |
-| Test-only in-memory workflow catalog           | **Done** — `InMemoryWorkflowRegistry` via `@codemation/core/testing`.                                                                 |
-| Public barrel hygiene                          | **Done** — missing-runtime markers / snapshot factory removed from main export; snapshot factory re-exported from testing entry only. |
-| Runtime re-export shims                        | **Done** — `engine/runtime/` removed.                                                                                                 |
+There is no remaining `src/engine/` directory in the active source layout.
 
-## Remaining seams (low priority)
+## Directory mapping
 
-- **`CoreTokens.WorkflowRegistry`** — kept as a deprecated alias; can be removed in a future major if consumers migrate to `WorkflowCatalog`.
-- **Docs / skills** — a few repo docs still say “engine/runtime”; update when those files are touched.
-- **Optional:** rename `synchronizeWorkflowRegistry` in host to `synchronizeWorkflowCatalog` for naming consistency (behavior unchanged).
+| Current location                                                                                                 | Target system                                   |
+| ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `src/workflow-builder/`                                                                                          | `src/workflow/dsl/`                             |
+| `src/workflow/`                                                                                                  | `src/workflow/definition/`                      |
+| `src/engine/api/`, `src/engine/intents/`, `src/engine/workflows/`, `src/engine/triggers/`, `src/engine/waiters/` | `src/runtime/`                                  |
+| `src/engine/runtime/`                                                                                            | `src/bootstrap/runtime/`                        |
+| `src/engine/execution/`                                                                                          | `src/execution/`                                |
+| `src/engine/planning/`                                                                                           | `src/planning/`                                 |
+| `src/engine/materialization/`                                                                                    | `src/workflowSnapshots/`                        |
+| `src/engine/policies/`                                                                                           | `src/policies/`                                 |
+| `src/engine/storage/`                                                                                            | `src/runStorage/`                               |
+| `src/engine/state/`                                                                                              | `src/execution/`                                |
+| `src/engine/binaries/`                                                                                           | `src/binaries/`                                 |
+| `src/engine/context/`, `src/engine/credentials/`                                                                 | `src/execution/`                                |
+| `src/engine/graph/`                                                                                              | `src/workflow/graph/`                           |
+| legacy in-memory live-workflow adapter under `src/engine/adapters/catalog/`                                      | `src/runtime/InMemoryLiveWorkflowRepository.ts` |
 
-## Tooling notes
+## Public API target
 
-- **`@codemation/core/testing`** is mapped in `tsconfig.base.json` (and `packages/next-host/tsconfig.json`) so TypeScript does not treat `…/core/testing` as a path under the main `index.ts` stub.
-- **Host Vitest** (`packages/host/vitest.shared.ts`) adds a resolve alias for `@codemation/core/testing` _before_ `@codemation/core`, matching the same constraint for Vite’s resolver.
+The package surfaces should converge toward:
+
+- `@codemation/core`
+  - workflow DSL
+  - stable contracts/types
+  - only intentionally supported runtime entrypoints
+- `@codemation/core/bootstrap`
+  - advanced composition root and runtime registration
+- `@codemation/core/testing`
+  - test-only helpers and fakes
+
+Legacy catalog/store compatibility aliases should be removed so both internal code and public surfaces use the repository-based names consistently.
+
+The following should stop being part of the general main barrel:
+
+- container DI bridges
+- runtime registration and matcher wiring
+- in-memory stores and similar implementation helpers
+- policy evaluators and other advanced internal engine pieces
+
+## Migration rules
+
+- Prefer cohesive subsystem files over tiny registration wrappers.
+- Merge thin helper classes when they have no meaningful independent seam.
+- Keep compatibility shims only as long as monorepo imports still need migration.
+- Update tests and internal consumers alongside moves so the new layout becomes the real layout, not just an extra alias layer.
+
+## Validation contract
+
+- Existing Vitest suites remain the regression net.
+- Add focused coverage only when a move reveals an unprotected behavior.
+- Finish the regroup with typecheck, build, tests, lint, and coverage on the touched packages.

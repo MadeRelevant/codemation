@@ -1,5 +1,6 @@
 import type { WebhookRunResult } from "@codemation/core";
-import { RunIntentService, inject } from "@codemation/core";
+import { inject } from "@codemation/core";
+import { RunIntentService } from "@codemation/core/bootstrap";
 import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";
 import { ApplicationRequestError } from "../ApplicationRequestError";
 import { CommandHandler } from "../bus/CommandHandler";

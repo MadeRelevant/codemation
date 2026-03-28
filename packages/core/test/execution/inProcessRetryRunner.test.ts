@@ -4,8 +4,8 @@ import { test } from "vitest";
 import { ExpRetryPolicy } from "../../src/contracts/ExpRetryPolicy";
 import { RetryPolicy } from "../../src/contracts/RetryPolicy";
 import type { FixedRetryPolicySpec } from "../../src/contracts/retryPolicySpec.types";
-import type { AsyncSleeper } from "../../src/engine/execution/asyncSleeper.types";
-import { InProcessRetryRunner } from "../../src/engine/execution/InProcessRetryRunner";
+import type { AsyncSleeper } from "../../src/execution/asyncSleeper.types";
+import { InProcessRetryRunner } from "../../src/execution/InProcessRetryRunner";
 
 class RecordingAsyncSleeper implements AsyncSleeper {
   readonly sleeps: number[] = [];

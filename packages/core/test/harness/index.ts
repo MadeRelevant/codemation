@@ -2,7 +2,7 @@ export { branchRef } from "../../src/index.ts";
 
 export { assertCompleted, assertFailed, assertPending, items, jsonItem } from "./assert.js";
 export { pollRunStoreUntilPendingNode } from "./runStorePoll.js";
-export { CapturingScheduler, createEngineTestKit } from "./engine.js";
+export { CapturingScheduler, createEngineTestKit, createRegistrarEngineTestKit } from "./engine.js";
 export {
   BranchNode,
   BranchNodeConfig,

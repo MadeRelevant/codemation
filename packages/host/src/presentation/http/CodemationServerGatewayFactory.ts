@@ -1,4 +1,5 @@
-import { CoreTokens, Engine } from "@codemation/core";
+import { CoreTokens } from "@codemation/core";
+import { Engine } from "@codemation/core/bootstrap";
 import { accessSync } from "node:fs";
 import path from "node:path";
 import type { QueryBus } from "../../application/bus/QueryBus";

@@ -7,7 +7,9 @@ import type {
   RunStopCondition,
   WorkflowDefinition,
 } from "@codemation/core";
-import { Engine, ItemsInputNormalizer, RunIntentService, inject } from "@codemation/core";
+import { ItemsInputNormalizer, inject } from "@codemation/core";
+import { RunIntentService } from "@codemation/core/bootstrap";
+import { Engine } from "@codemation/core/bootstrap";
 import type { Logger, LoggerFactory } from "../logging/Logger";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";

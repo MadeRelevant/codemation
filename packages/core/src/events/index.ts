@@ -1,3 +1,4 @@
+export { NodeEventPublisher } from "./NodeEventPublisher";
 export { InMemoryRunEventBus } from "./InMemoryRunEventBusRegistry";
-export { PublishingRunStateStore } from "./publishingRunStateStore";
+export { EventPublishingWorkflowExecutionRepository } from "./EventPublishingWorkflowExecutionRepository";
 export * from "./runEvents";

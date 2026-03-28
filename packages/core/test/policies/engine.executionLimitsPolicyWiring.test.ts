@@ -3,7 +3,7 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { EngineExecutionLimitsPolicy } from "../../src/engine/application/policies/EngineExecutionLimitsPolicy.ts";
+import { EngineExecutionLimitsPolicy } from "../../src/policies/executionLimits/EngineExecutionLimitsPolicy.ts";
 import { createEngineTestKit } from "../harness/engine.ts";
 import { CallbackNodeConfig, dag, items, SubWorkflowRunnerConfig } from "../harness/index.ts";
 

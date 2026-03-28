@@ -3,18 +3,18 @@ import { test } from "vitest";
 
 import {
   ConnectionNodeIdFactory,
-  InMemoryRunStateStore,
   type Items,
   type NodeExecutionContext,
   type NodeOutputs,
   type PersistedRunState,
-  type RunStateStore,
   type TriggerNode,
   type TriggerNodeConfig,
   type TriggerSetupContext,
   type TypeToken,
+  type WorkflowExecutionRepository,
   WorkflowBuilder,
 } from "../../src/index.ts";
+import { InMemoryWorkflowExecutionRepository } from "../../src/bootstrap/index.ts";
 import {
   CallbackNodeConfig,
   chain,
@@ -64,9 +64,9 @@ class TargetedManualTriggerNode implements TriggerNode<TargetedManualTriggerConf
   }
 }
 
-class DelayedPendingSaveRunStateStore implements RunStateStore {
+class DelayedPendingSaveWorkflowExecutionRepository implements WorkflowExecutionRepository {
   constructor(
-    private readonly inner: RunStateStore,
+    private readonly inner: WorkflowExecutionRepository,
     private readonly delayMs: number,
   ) {}
 
@@ -131,7 +131,7 @@ test("current-state execution still drains inline activations when pending state
   const wf = chain({ id: "wf.pending.persistence.race", name: "Pending persistence race" }).start(A).then(B).build();
 
   const kit = createEngineTestKit({
-    runStore: new DelayedPendingSaveRunStateStore(new InMemoryRunStateStore(), 20),
+    runStore: new DelayedPendingSaveWorkflowExecutionRepository(new InMemoryWorkflowExecutionRepository(), 20),
   });
   await kit.start([wf]);
 

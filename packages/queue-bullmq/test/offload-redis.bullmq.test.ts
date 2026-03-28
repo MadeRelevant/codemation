@@ -10,32 +10,34 @@ import type {
   NodeOutputs,
   PersistedTriggerSetupState,
   RunnableNodeConfig,
-  TriggerSetupStateStore,
+  TriggerSetupStateRepository,
   TypeToken,
   WorkflowId,
 } from "@codemation/core";
 import {
   AllWorkflowsActiveWorkflowActivationPolicy,
-  ConfigDrivenOffloadPolicy,
-  ContainerNodeResolver,
-  ContainerWorkflowRunnerResolver,
   CoreTokens,
-  DefaultDrivingScheduler,
-  DefaultExecutionContextFactory,
-  EngineFactory,
-  EngineWorkflowRunnerService,
-  InMemoryRunDataFactory,
   InMemoryRunEventBus,
-  InMemoryRunStateStore,
-  WorkflowCatalogWebhookTriggerMatcher,
-  InlineDrivingScheduler,
-  NodeInstanceFactory,
-  PersistedWorkflowTokenRegistry,
-  UnavailableCredentialSessionService,
   WorkflowBuilder,
   container as tsyringeContainer,
 } from "@codemation/core";
-import { InMemoryWorkflowRegistry } from "@codemation/core/testing";
+import {
+  ConfigDrivenOffloadPolicy,
+  DefaultAsyncSleeper,
+  DefaultDrivingScheduler,
+  DefaultExecutionContextFactory,
+  EngineWorkflowRunnerService,
+  InProcessRetryRunner,
+  InMemoryRunDataFactory,
+  InMemoryWorkflowExecutionRepository,
+  InlineDrivingScheduler,
+  NodeExecutor,
+  NodeInstanceFactory,
+  PersistedWorkflowTokenRegistry,
+  EngineFactory,
+  WorkflowRepositoryWebhookTriggerMatcher,
+} from "@codemation/core/bootstrap";
+import { InMemoryLiveWorkflowRepository, RejectingCredentialSessionService } from "@codemation/core/testing";
 import { GenericContainer } from "testcontainers";
 
 import { BullmqScheduler } from "../src/bullmqScheduler";
@@ -87,7 +89,7 @@ class UppercaseSubjectNode implements Node<UppercaseSubject<Record<string, unkno
   }
 }
 
-class InMemoryTriggerSetupStateStore implements TriggerSetupStateStore {
+class InMemoryTriggerSetupStateRepository implements TriggerSetupStateRepository {
   private readonly statesByKey = new Map<string, PersistedTriggerSetupState>();
 
   async load(trigger: { workflowId: string; nodeId: string }): Promise<PersistedTriggerSetupState | undefined> {
@@ -135,36 +137,39 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   const container = tsyringeContainer.createChildContainer();
   container.register(UppercaseSubjectNode, { useClass: UppercaseSubjectNode });
   container.register(EngineFactory, { useClass: EngineFactory });
-  const credentialSessions = new UnavailableCredentialSessionService();
-  const runStore = new InMemoryRunStateStore();
+  const credentialSessions = new RejectingCredentialSessionService();
+  const workflowExecutionRepository = new InMemoryWorkflowExecutionRepository();
   const scheduler = new BullmqScheduler({ url: redisUrl }, queuePrefix);
-  const workflowCatalog = new InMemoryWorkflowRegistry();
-  const triggerSetupStateStore = new InMemoryTriggerSetupStateStore();
-  workflowCatalog.setWorkflows([wf]);
-  const nodeResolver = new ContainerNodeResolver(container);
-  const workflowRunnerResolver = new ContainerWorkflowRunnerResolver(container);
+  const liveWorkflowRepository = new InMemoryLiveWorkflowRepository();
+  const triggerSetupStateRepository = new InMemoryTriggerSetupStateRepository();
+  liveWorkflowRepository.setWorkflows([wf]);
+  const nodeResolver = container;
+  const nodeExecutor = new NodeExecutor(
+    new NodeInstanceFactory(nodeResolver),
+    new InProcessRetryRunner(new DefaultAsyncSleeper()),
+  );
   const activationScheduler = new DefaultDrivingScheduler(
     new ConfigDrivenOffloadPolicy("worker"),
     scheduler,
-    new InlineDrivingScheduler(nodeResolver),
+    new InlineDrivingScheduler(nodeExecutor),
   );
   const eventBus = new InMemoryRunEventBus();
   const tokenRegistry = new PersistedWorkflowTokenRegistry();
   const workflowActivationPolicy = new AllWorkflowsActiveWorkflowActivationPolicy();
-  const webhookTriggerMatcher = new WorkflowCatalogWebhookTriggerMatcher(workflowCatalog, workflowActivationPolicy);
+  const webhookTriggerMatcher = new WorkflowRepositoryWebhookTriggerMatcher(
+    liveWorkflowRepository,
+    workflowActivationPolicy,
+  );
   const workflowNodeInstanceFactory = new NodeInstanceFactory(nodeResolver);
-  container.registerInstance(CoreTokens.ServiceContainer, container);
   container.registerInstance(CoreTokens.CredentialSessionService, credentialSessions);
-  container.registerInstance(CoreTokens.WorkflowCatalog, workflowCatalog);
-  container.registerInstance(CoreTokens.WorkflowRegistry, workflowCatalog);
-  container.registerInstance(CoreTokens.WorkflowRepository, workflowCatalog);
+  container.registerInstance(CoreTokens.LiveWorkflowRepository, liveWorkflowRepository);
+  container.registerInstance(CoreTokens.WorkflowRepository, liveWorkflowRepository);
   container.registerInstance(CoreTokens.NodeResolver, nodeResolver);
-  container.registerInstance(CoreTokens.WorkflowRunnerResolver, workflowRunnerResolver);
   container.registerInstance(CoreTokens.RunIdFactory, IdFactory);
   container.registerInstance(CoreTokens.ActivationIdFactory, IdFactory);
   container.registerInstance(CoreTokens.WebhookBasePath, "/webhooks");
-  container.registerInstance(CoreTokens.RunStateStore, runStore);
-  container.registerInstance(CoreTokens.TriggerSetupStateStore, triggerSetupStateStore);
+  container.registerInstance(CoreTokens.WorkflowExecutionRepository, workflowExecutionRepository);
+  container.registerInstance(CoreTokens.TriggerSetupStateRepository, triggerSetupStateRepository);
   container.registerInstance(CoreTokens.NodeActivationScheduler, activationScheduler);
   container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
   container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory());
@@ -172,16 +177,15 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
   container.registerInstance(CoreTokens.PersistedWorkflowTokenRegistry, tokenRegistry);
   const engine = container.resolve(EngineFactory).create({
     credentialSessions,
-    workflowRunnerResolver,
-    workflowCatalog,
-    workflowRepository: workflowCatalog,
+    liveWorkflowRepository,
+    workflowRepository: liveWorkflowRepository,
     workflowActivationPolicy,
     nodeResolver,
     webhookTriggerMatcher,
     runIdFactory: IdFactory,
     activationIdFactory: IdFactory,
-    runStore,
-    triggerSetupStateStore,
+    workflowExecutionRepository,
+    triggerSetupStateRepository,
     activationScheduler,
     runDataFactory: new InMemoryRunDataFactory(),
     executionContextFactory: new DefaultExecutionContextFactory(),
@@ -189,7 +193,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
     tokenRegistry,
     workflowNodeInstanceFactory,
   });
-  const workflowRunner = new EngineWorkflowRunnerService(engine, workflowCatalog);
+  const workflowRunner = new EngineWorkflowRunnerService(engine, liveWorkflowRepository);
   container.registerInstance(CoreTokens.WorkflowRunnerService, workflowRunner);
   await engine.start([wf]);
 
@@ -198,7 +202,7 @@ test("e2e: node offloads to Redis (BullMQ) and completes", async (t) => {
     workflowsById,
     nodeResolver,
     credentialSessions,
-    runStore,
+    workflowExecutionRepository,
     continuation: engine,
     workflows: workflowRunner,
   });

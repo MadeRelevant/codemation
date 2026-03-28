@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import type { Items, Node, NodeOutputs, RunnableNodeConfig, TypeToken } from "../../src/index.ts";
-import { PersistedWorkflowTokenRegistry, node, tool } from "../../src/index.ts";
-import { InMemoryWorkflowRegistry, PersistedWorkflowSnapshotFactory } from "../../src/testing.ts";
-import { MissingRuntimeNodeDefinitionFactory } from "../../src/engine/adapters/persisted-workflow/MissingRuntimeNodeDefinitionFactory";
-import { PersistedWorkflowConfigHydrator } from "../../src/engine/adapters/persisted-workflow/PersistedWorkflowConfigHydrator";
-import { PersistedWorkflowResolver } from "../../src/engine/adapters/persisted-workflow/PersistedWorkflowResolver";
+import { node, tool } from "../../src/index.ts";
+import { PersistedWorkflowTokenRegistry } from "../../src/bootstrap/index.ts";
+import { InMemoryLiveWorkflowRepository, PersistedWorkflowSnapshotFactory } from "../../src/testing.ts";
+import { MissingRuntimeFallbacks } from "../../src/workflowSnapshots/MissingRuntimeFallbacksFactory";
+import { WorkflowSnapshotCodec } from "../../src/workflowSnapshots/WorkflowSnapshotCodec";
+import { WorkflowSnapshotResolver } from "../../src/workflowSnapshots/WorkflowSnapshotResolver";
 import {
   CallbackNodeConfig,
   CapturingScheduler,
@@ -212,7 +213,7 @@ test("persisted workflow resolver preserves nested dependency tokens from live c
   const tokenRegistry = new PersistedWorkflowTokenRegistry();
   tokenRegistry.registerFromWorkflows([workflow]);
   const snapshot = new PersistedWorkflowSnapshotFactory(tokenRegistry).create(workflow);
-  const registry = new InMemoryWorkflowRegistry();
+  const registry = new InMemoryLiveWorkflowRepository();
   registry.setWorkflows([workflow]);
 
   assert.equal(
@@ -224,11 +225,11 @@ test("persisted workflow resolver preserves nested dependency tokens from live c
     undefined,
   );
 
-  const resolved = new PersistedWorkflowResolver(
+  const resolved = new WorkflowSnapshotResolver(
     registry,
     tokenRegistry,
-    new PersistedWorkflowConfigHydrator(tokenRegistry),
-    new MissingRuntimeNodeDefinitionFactory(),
+    new WorkflowSnapshotCodec(tokenRegistry),
+    new MissingRuntimeFallbacks(),
   ).resolve({
     workflowId: workflow.id,
     workflowSnapshot: snapshot,

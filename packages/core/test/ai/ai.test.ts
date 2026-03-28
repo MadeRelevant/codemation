@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { ConnectionNodeIdFactory } from "../../src/workflow/ConnectionNodeIdFactory";
+import { ConnectionNodeIdFactory } from "../../src/workflow/definition/ConnectionNodeIdFactory";
 
 test("ConnectionNodeIdFactory builds stable language model and tool connection node ids", () => {
   const llm = ConnectionNodeIdFactory.languageModelConnectionNodeId("agent_1");

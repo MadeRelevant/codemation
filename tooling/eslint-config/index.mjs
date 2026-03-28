@@ -554,7 +554,13 @@ export default [
   },
 
   {
-    files: ["packages/core/src/engine/runtime/runtimeEngine.ts"],
+    files: [
+      "packages/core/src/engine/runtime/EngineRuntimeRegistrar.ts",
+      "packages/core/src/engine/runtime/EngineRuntimeEngineBinding.ts",
+      "packages/core/src/engine/runtime/EngineRuntimeExecutionLimitsRegistration.ts",
+      "packages/core/src/engine/runtime/EngineRuntimeIntentServicesBinding.ts",
+      "packages/core/src/engine/runtime/runtimeEngine.ts",
+    ],
     rules: {
       "codemation/no-manual-di-new": "off",
     },

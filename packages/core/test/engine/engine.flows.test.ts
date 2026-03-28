@@ -10,12 +10,8 @@ import type {
   TriggerSetupContext,
   TypeToken,
 } from "../../src/index.ts";
-import {
-  InMemoryRunEventBus,
-  InMemoryRunStateStore,
-  PublishingRunStateStore,
-  WorkflowBuilder,
-} from "../../src/index.ts";
+import { InMemoryWorkflowExecutionRepository } from "../../src/bootstrap/index.ts";
+import { EventPublishingWorkflowExecutionRepository, InMemoryRunEventBus, WorkflowBuilder } from "../../src/index.ts";
 
 import {
   CallbackNodeConfig,
@@ -75,7 +71,7 @@ test("engine runs a simple A -> B -> C flow", async () => {
 
 test("trigger nodes are marked completed and emit completion snapshots", async () => {
   const bus = new InMemoryRunEventBus();
-  const runStore = new PublishingRunStateStore(new InMemoryRunStateStore(), bus);
+  const runStore = new EventPublishingWorkflowExecutionRepository(new InMemoryWorkflowExecutionRepository(), bus);
   const seenTriggerStatuses: string[] = [];
 
   const subscription = await bus.subscribe((event) => {
@@ -194,7 +190,7 @@ test("engine can run a subworkflow node", async () => {
   const events: string[] = [];
   const childParents: Array<any> = [];
   const bus = new InMemoryRunEventBus();
-  const runStore = new PublishingRunStateStore(new InMemoryRunStateStore(), bus);
+  const runStore = new EventPublishingWorkflowExecutionRepository(new InMemoryWorkflowExecutionRepository(), bus);
   const childRunCreatedParents: Array<any> = [];
 
   const busSubscription = await bus.subscribe((event) => {

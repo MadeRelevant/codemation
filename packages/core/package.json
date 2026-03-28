@@ -32,6 +32,15 @@
       },
       "import": "./dist/testing.js",
       "require": "./dist/testing.cjs"
+    },
+    "./bootstrap": {
+      "types": "./dist/bootstrap/index.d.ts",
+      "development": {
+        "import": "./src/bootstrap/index.ts",
+        "require": "./dist/bootstrap/index.cjs"
+      },
+      "import": "./dist/bootstrap/index.js",
+      "require": "./dist/bootstrap/index.cjs"
     }
   },
   "scripts": {

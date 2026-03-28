@@ -1,11 +1,11 @@
 import {
   AllWorkflowsActiveWorkflowActivationPolicy,
-  PersistedWorkflowTokenRegistry,
   chatModel,
   tool,
   type ChatModelConfig,
   type ToolConfig,
 } from "@codemation/core";
+import { PersistedWorkflowTokenRegistry } from "@codemation/core/bootstrap";
 import { PersistedWorkflowSnapshotFactory } from "@codemation/core/testing";
 import { PersistedWorkflowSnapshotMapper } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/PersistedWorkflowSnapshotMapper";
 import { describe, expect, it } from "vitest";

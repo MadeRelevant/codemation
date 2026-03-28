@@ -1,12 +1,12 @@
 import {
   AllWorkflowsActiveWorkflowActivationPolicy,
   ConnectionNodeIdFactory,
-  PersistedWorkflowTokenRegistry,
   WorkflowBuilder,
   type ChatModelConfig,
   type ToolConfig,
   type WorkflowDefinition,
 } from "@codemation/core";
+import { PersistedWorkflowTokenRegistry } from "@codemation/core/bootstrap";
 import { PersistedWorkflowSnapshotFactory } from "@codemation/core/testing";
 import { AIAgent, Callback, ManualTrigger, WebhookTrigger } from "@codemation/core-nodes";
 import type {

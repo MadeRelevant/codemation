@@ -1,4 +1,5 @@
-import { Engine, inject } from "@codemation/core";
+import { inject } from "@codemation/core";
+import { Engine } from "@codemation/core/bootstrap";
 import { ApplicationTokens } from "../../applicationTokens";
 import { WorkflowActivationPreflight } from "../../domain/workflows/WorkflowActivationPreflight";
 import type { WorkflowActivationRepository } from "../../domain/workflows/WorkflowActivationRepository";

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { ActivationEnqueueService } from "../../src/engine/application/execution/ActivationEnqueueService.ts";
-import { NodeEventPublisher } from "../../src/engine/application/events/NodeEventPublisher.ts";
-import { InMemoryRunDataFactory } from "../../src/engine/storage/inMemoryRunDataFactory.ts";
-import { InMemoryRunStateStore } from "../../src/engine/storage/inMemoryRunStateStore.ts";
+import { ActivationEnqueueService } from "../../src/execution/ActivationEnqueueService.ts";
+import { NodeEventPublisher } from "../../src/events/NodeEventPublisher.ts";
+import { InMemoryWorkflowExecutionRepository } from "../../src/runStorage/InMemoryWorkflowExecutionRepository.ts";
+import { InMemoryRunDataFactory } from "../../src/runStorage/InMemoryRunDataFactory.ts";
 import type {
   ConnectionInvocationRecord,
   NodeActivationRequest,
@@ -25,7 +25,7 @@ class StubRunQueuePlanner {
 }
 
 test("enqueueActivationWithSnapshot keeps existing connection invocation history on the persisted run", async () => {
-  const runStore = new InMemoryRunStateStore();
+  const runStore = new InMemoryWorkflowExecutionRepository();
   await runStore.createRun({
     runId: "run_1",
     workflowId: "wf_1",

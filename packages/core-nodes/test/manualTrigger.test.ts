@@ -1,5 +1,9 @@
 import type { NodeExecutionContext, TriggerTestItemsContext } from "@codemation/core";
-import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
+import {
+  DefaultExecutionBinaryService,
+  InMemoryBinaryStorage,
+  InMemoryRunDataFactory,
+} from "@codemation/core/bootstrap";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { ManualTrigger, ManualTriggerNode } from "../src/index.ts";

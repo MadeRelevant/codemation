@@ -5,11 +5,11 @@ import type {
   NodeExecutionRequest,
   NodeExecutionScheduler,
   NodeResolver,
-  RootExecutionOptionsFactory,
-  RunStateStore,
+  WorkflowExecutionRepository,
   WorkflowDefinition,
   WorkflowId,
 } from "@codemation/core";
+import type { EngineExecutionLimitsPolicy } from "@codemation/core/bootstrap";
 
 import { BullmqNodeExecutionScheduler } from "./bullmqNodeExecutionScheduler";
 import { BullmqWorker } from "./bullmqWorker";
@@ -39,13 +39,13 @@ export class BullmqScheduler implements NodeExecutionScheduler {
       workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>;
       nodeResolver: NodeResolver;
       credentialSessions: CredentialSessionService;
-      runStore: RunStateStore;
+      workflowExecutionRepository: WorkflowExecutionRepository;
       continuation: NodeActivationContinuation;
       binaryStorage?: BinaryStorage;
       workflows?: unknown;
       now?: () => Date;
       /** When set, must match the host engine policy so worker execution contexts use the same limits as `runtime.engineExecutionLimits`. */
-      rootExecutionOptionsFactory?: RootExecutionOptionsFactory;
+      executionLimitsPolicy?: EngineExecutionLimitsPolicy;
     }>,
   ): BullmqWorker {
     if (args.workflows !== undefined || args.now !== undefined) {
@@ -55,14 +55,14 @@ export class BullmqScheduler implements NodeExecutionScheduler {
         args.workflowsById,
         args.nodeResolver,
         args.credentialSessions,
-        args.runStore,
+        args.workflowExecutionRepository,
         args.continuation,
         this.queuePrefix,
         args.workflows,
         args.now ?? (() => new Date()),
         args.binaryStorage,
         undefined,
-        args.rootExecutionOptionsFactory,
+        args.executionLimitsPolicy,
       );
     }
 
@@ -72,14 +72,14 @@ export class BullmqScheduler implements NodeExecutionScheduler {
       args.workflowsById,
       args.nodeResolver,
       args.credentialSessions,
-      args.runStore,
+      args.workflowExecutionRepository,
       args.continuation,
       this.queuePrefix,
       undefined,
       () => new Date(),
       args.binaryStorage,
       undefined,
-      args.rootExecutionOptionsFactory,
+      args.executionLimitsPolicy,
     );
   }
 }

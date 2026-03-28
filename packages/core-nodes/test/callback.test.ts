@@ -1,5 +1,9 @@
 import type { Item, NodeExecutionContext } from "@codemation/core";
-import { DefaultExecutionBinaryService, InMemoryBinaryStorage, InMemoryRunDataFactory } from "@codemation/core";
+import {
+  DefaultExecutionBinaryService,
+  InMemoryBinaryStorage,
+  InMemoryRunDataFactory,
+} from "@codemation/core/bootstrap";
 import { Callback, CallbackNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";

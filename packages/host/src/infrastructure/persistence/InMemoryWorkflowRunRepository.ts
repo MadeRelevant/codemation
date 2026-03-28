@@ -1,21 +1,21 @@
 import {
   RunFinishedAtFactory,
-  RunSummaryMapper,
   type NodeId,
   type NodeOutputs,
   type ParentExecutionRef,
   type PersistedRunState,
   type RunId,
   type RunPruneCandidate,
-  type RunStateStore,
   type RunSummary,
+  type WorkflowExecutionRepository,
   type WorkflowId,
 } from "@codemation/core";
 import { injectable } from "@codemation/core";
+import { RunSummaryMapper } from "@codemation/core/bootstrap";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 
 @injectable()
-export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, RunStateStore {
+export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, WorkflowExecutionRepository {
   private readonly runs = new Map<RunId, PersistedRunState>();
 
   async createRun(args: {

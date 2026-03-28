@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { InMemoryTriggerSetupStateStore } from "../../src/infrastructure/persistence/InMemoryTriggerSetupStateStore";
+import { InMemoryTriggerSetupStateRepository } from "../../src/infrastructure/persistence/InMemoryTriggerSetupStateRepository";
 
-class TriggerSetupStateStoreFixture {
+class TriggerSetupStateRepositoryFixture {
   static readonly trigger = {
     workflowId: "wf.gmail",
     nodeId: "trigger",
   } as const;
 }
 
-describe("InMemoryTriggerSetupStateStore", () => {
+describe("InMemoryTriggerSetupStateRepository", () => {
   it("round-trips setup state for a trigger instance", async () => {
-    const store = new InMemoryTriggerSetupStateStore();
+    const store = new InMemoryTriggerSetupStateRepository();
 
     await store.save({
-      trigger: TriggerSetupStateStoreFixture.trigger,
+      trigger: TriggerSetupStateRepositoryFixture.trigger,
       updatedAt: "2026-03-17T12:00:00.000Z",
       state: {
         historyId: "123",
@@ -21,8 +21,8 @@ describe("InMemoryTriggerSetupStateStore", () => {
       },
     });
 
-    await expect(store.load(TriggerSetupStateStoreFixture.trigger)).resolves.toEqual({
-      trigger: TriggerSetupStateStoreFixture.trigger,
+    await expect(store.load(TriggerSetupStateRepositoryFixture.trigger)).resolves.toEqual({
+      trigger: TriggerSetupStateRepositoryFixture.trigger,
       updatedAt: "2026-03-17T12:00:00.000Z",
       state: {
         historyId: "123",
@@ -32,14 +32,14 @@ describe("InMemoryTriggerSetupStateStore", () => {
   });
 
   it("isolates state by trigger instance and supports deletes", async () => {
-    const store = new InMemoryTriggerSetupStateStore();
+    const store = new InMemoryTriggerSetupStateRepository();
     const otherTrigger = {
       workflowId: "wf.other",
       nodeId: "trigger",
     } as const;
 
     await store.save({
-      trigger: TriggerSetupStateStoreFixture.trigger,
+      trigger: TriggerSetupStateRepositoryFixture.trigger,
       updatedAt: "2026-03-17T12:00:00.000Z",
       state: {
         historyId: "one",
@@ -53,9 +53,9 @@ describe("InMemoryTriggerSetupStateStore", () => {
       },
     });
 
-    await store.delete(TriggerSetupStateStoreFixture.trigger);
+    await store.delete(TriggerSetupStateRepositoryFixture.trigger);
 
-    await expect(store.load(TriggerSetupStateStoreFixture.trigger)).resolves.toBeUndefined();
+    await expect(store.load(TriggerSetupStateRepositoryFixture.trigger)).resolves.toBeUndefined();
     await expect(store.load(otherTrigger)).resolves.toEqual({
       trigger: otherTrigger,
       updatedAt: "2026-03-17T12:05:00.000Z",

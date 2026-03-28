@@ -18,18 +18,12 @@ import type {
   ToolExecuteArgs,
   TypeToken,
 } from "../../src/index.ts";
-import {
-  ContainerNodeResolver,
-  PersistedWorkflowTokenRegistry,
-  WorkflowBuilder,
-  chatModel,
-  node,
-  tool,
-} from "../../src/index.ts";
-import { InMemoryWorkflowRegistry, PersistedWorkflowSnapshotFactory } from "../../src/testing.ts";
-import { MissingRuntimeNodeDefinitionFactory } from "../../src/engine/adapters/persisted-workflow/MissingRuntimeNodeDefinitionFactory";
-import { PersistedWorkflowConfigHydrator } from "../../src/engine/adapters/persisted-workflow/PersistedWorkflowConfigHydrator";
-import { PersistedWorkflowResolver } from "../../src/engine/adapters/persisted-workflow/PersistedWorkflowResolver";
+import { PersistedWorkflowTokenRegistry } from "../../src/bootstrap/index.ts";
+import { WorkflowBuilder, chatModel, node, tool } from "../../src/index.ts";
+import { InMemoryLiveWorkflowRepository, PersistedWorkflowSnapshotFactory } from "../../src/testing.ts";
+import { MissingRuntimeFallbacks } from "../../src/workflowSnapshots/MissingRuntimeFallbacksFactory";
+import { WorkflowSnapshotCodec } from "../../src/workflowSnapshots/WorkflowSnapshotCodec";
+import { WorkflowSnapshotResolver } from "../../src/workflowSnapshots/WorkflowSnapshotResolver";
 import { createEngineTestKit, items } from "../harness/index.ts";
 
 class StableChatModelConfig implements ChatModelConfig {
@@ -148,7 +142,7 @@ test("workflow builder produces a compiled workflow whose node and nested depend
   const container = tsyringeContainer.createChildContainer();
   const workflow = StableWorkflowFixtureFactory.createWorkflow();
   const providers = new Map<TypeToken<unknown>, unknown>([
-    [StableResolvableNode, new StableResolvableNode(new ContainerNodeResolver(container))],
+    [StableResolvableNode, new StableResolvableNode(container)],
     [StableChatModelFactory, new StableChatModelFactory()],
     [StableTool, new StableTool()],
   ]);
@@ -189,15 +183,15 @@ test("builder snapshot roundtrip preserves persisted workflow identity without d
   tokenRegistry.registerFromWorkflows([workflow]);
   const snapshotFactory = new PersistedWorkflowSnapshotFactory(tokenRegistry);
   const originalSnapshot = snapshotFactory.create(workflow);
-  const registry = new InMemoryWorkflowRegistry();
+  const registry = new InMemoryLiveWorkflowRepository();
 
   registry.setWorkflows([workflow]);
 
-  const resolvedWorkflow = new PersistedWorkflowResolver(
+  const resolvedWorkflow = new WorkflowSnapshotResolver(
     registry,
     tokenRegistry,
-    new PersistedWorkflowConfigHydrator(tokenRegistry),
-    new MissingRuntimeNodeDefinitionFactory(),
+    new WorkflowSnapshotCodec(tokenRegistry),
+    new MissingRuntimeFallbacks(),
   ).resolve({
     workflowId: workflow.id,
     workflowSnapshot: originalSnapshot,

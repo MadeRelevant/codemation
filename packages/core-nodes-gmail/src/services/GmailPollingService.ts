@@ -1,4 +1,4 @@
-import type { Item, Items, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
+import type { Item, Items, TriggerInstanceId, TriggerSetupStateRepository } from "@codemation/core";
 import { CoreTokens, inject, injectable } from "@codemation/core";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import type { OnNewGmailTrigger, OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
@@ -12,7 +12,8 @@ export class GmailPollingService {
   private static readonly maxProcessedIds = 2000;
 
   constructor(
-    @inject(CoreTokens.TriggerSetupStateStore) private readonly triggerSetupStateStore: TriggerSetupStateStore,
+    @inject(CoreTokens.TriggerSetupStateRepository)
+    private readonly triggerSetupStateRepository: TriggerSetupStateRepository,
     @inject(GmailConfiguredLabelService) private readonly gmailConfiguredLabelService: GmailConfiguredLabelService,
     @inject(GmailMessageItemMapper) private readonly gmailMessageItemMapper: GmailMessageItemMapper,
     @inject(GmailQueryMatcher) private readonly gmailQueryMatcher: GmailQueryMatcher,
@@ -28,7 +29,7 @@ export class GmailPollingService {
       seedState: GmailTriggerSetupState | undefined;
     }>,
   ): Promise<Readonly<{ items: Items<OnNewGmailTriggerItemJson>; nextState: GmailTriggerSetupState }>> {
-    const loaded = await this.triggerSetupStateStore.load(args.trigger);
+    const loaded = await this.triggerSetupStateRepository.load(args.trigger);
     const state = this.ensureState({
       fromStore: loaded?.state as GmailTriggerSetupState | undefined,
       seed: args.seedState,
@@ -115,7 +116,7 @@ export class GmailPollingService {
   }
 
   private async persist(trigger: TriggerInstanceId, state: GmailTriggerSetupState): Promise<void> {
-    await this.triggerSetupStateStore.save({
+    await this.triggerSetupStateRepository.save({
       trigger,
       updatedAt: new Date().toISOString(),
       state,

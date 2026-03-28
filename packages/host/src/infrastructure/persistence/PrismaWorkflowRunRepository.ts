@@ -5,8 +5,8 @@ import type {
   PersistedRunState,
   RunId,
   RunPruneCandidate,
-  RunStateStore,
   RunSummary,
+  WorkflowExecutionRepository,
   WorkflowId,
 } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
@@ -28,7 +28,7 @@ interface StateJsonBlob {
 }
 
 @injectable()
-export class PrismaWorkflowRunRepository implements WorkflowRunRepository, RunStateStore {
+export class PrismaWorkflowRunRepository implements WorkflowRunRepository, WorkflowExecutionRepository {
   constructor(@inject(PrismaClient) private readonly prisma: PrismaClient) {}
 
   async createRun(args: {
