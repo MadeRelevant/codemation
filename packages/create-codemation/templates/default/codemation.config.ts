@@ -1,11 +1,9 @@
-import type { CodemationConfig } from "@codemation/host";
+import type { CodemationAppContext, CodemationConfig } from "@codemation/host";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 
-const consumerRoot = process.env.CODEMATION_CONSUMER_ROOT?.trim() || process.cwd();
-
 loadDotenv({
-  path: path.resolve(consumerRoot, ".env"),
+  path: path.resolve(import.meta.dirname, ".env"),
   quiet: true,
 });
 
@@ -18,32 +16,27 @@ if (useRedisRuntime && (!databaseUrl || databaseUrl.length === 0)) {
 }
 
 export const codemationHost = {
-  auth: {
-    kind: "local" as const,
-    allowUnauthenticatedInDevelopment: true,
-  },
-  bindings: [],
-  workflowDiscovery: {
-    directories: ["src/workflows"],
-  },
-  runtime: {
+  app: {
+    auth: {
+      kind: "local" as const,
+      allowUnauthenticatedInDevelopment: true,
+    },
     database: useRedisRuntime
       ? { kind: "postgresql" as const, url: databaseUrl! }
       : { kind: "pglite" as const, pgliteDataDir: ".codemation/pglite" },
     scheduler: {
-      kind: useRedisRuntime ? "bullmq" : "local",
+      kind: useRedisRuntime ? ("queue" as const) : ("inline" as const),
       queuePrefix: "codemation-starter",
       workerQueues: ["default"],
-    },
-    eventBus: {
-      kind: useRedisRuntime ? "redis" : "memory",
       redisUrl: process.env.REDIS_URL,
-      queuePrefix: "codemation-starter",
+    },
+    whitelabel: {
+      productName: "My automation",
+      logoPath: "src/branding/logo.svg",
     },
   },
-  whitelabel: {
-    productName: "My automation",
-    logoPath: "src/branding/logo.svg",
+  register(app: CodemationAppContext) {
+    app.discoverWorkflows("src/workflows");
   },
 } satisfies CodemationConfig;
 
