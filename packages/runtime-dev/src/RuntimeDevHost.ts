@@ -70,6 +70,20 @@ export class RuntimeDevHost {
     return (await this.prepare()).application.getContainer();
   }
 
+  async stop(): Promise<void> {
+    const contextPromise = this.contextPromise;
+    this.contextPromise = null;
+    try {
+      if (!contextPromise) {
+        return;
+      }
+      const context = await contextPromise;
+      await context.application.stop();
+    } finally {
+      await this.sharedWorkflowWebsocketServer.stop();
+    }
+  }
+
   private async createInitialContext(): Promise<RuntimeDevHostContext> {
     const context = await this.createContext();
     await this.emitInitialDevBootMessages(context);

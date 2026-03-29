@@ -5,6 +5,7 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { RuntimeDevHost } from "./RuntimeDevHost";
 import { RuntimeDevMetrics } from "./RuntimeDevMetrics";
+import { RuntimeDevShutdownController } from "./RuntimeDevShutdownController";
 
 export class RuntimeDevServerMain {
   async run(): Promise<void> {
@@ -27,7 +28,7 @@ export class RuntimeDevServerMain {
       return context.application.getContainer().resolve(CodemationHonoApiApp).fetch(c.req.raw);
     });
 
-    serve(
+    const server = serve(
       {
         fetch: root.fetch,
         port: httpPort,
@@ -40,6 +41,7 @@ export class RuntimeDevServerMain {
         });
       },
     );
+    new RuntimeDevShutdownController(host, server, bootstrapLogger).bindSignals();
   }
 
   private resolveHttpPort(): number {
