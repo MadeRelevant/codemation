@@ -2,7 +2,7 @@
 
 import "reflect-metadata";
 
-import { ListUserAccountsQuery } from "@codemation/host";
+import { CodemationBootstrapRequest, ListUserAccountsQuery } from "@codemation/host";
 import { CodemationConsumerConfigLoader } from "@codemation/host/server";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -60,9 +60,12 @@ it(
       // Consumer under /tmp would not resolve a workspace root; persistence needs the real monorepo root.
       const session = await CodemationCliApplicationSession.open({
         resolution,
-        repoRoot,
-        consumerRoot,
-        env: { ...process.env },
+        bootstrap: new CodemationBootstrapRequest({
+          repoRoot,
+          consumerRoot,
+          env: { ...process.env },
+          workflowSources: resolution.workflowSources,
+        }),
       });
       try {
         const users = await session.getQueryBus().execute(new ListUserAccountsQuery());

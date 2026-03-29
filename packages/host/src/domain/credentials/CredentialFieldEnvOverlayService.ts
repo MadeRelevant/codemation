@@ -2,14 +2,15 @@ import type { CredentialFieldSchema, CredentialTypeDefinition } from "@codematio
 import { inject, injectable } from "@codemation/core";
 
 import { ApplicationTokens } from "../../applicationTokens";
+import type { AppConfig } from "../../presentation/config/AppConfig";
 
 import type { JsonRecord } from "./CredentialServices";
 
 @injectable()
 export class CredentialFieldEnvOverlayService {
   constructor(
-    @inject(ApplicationTokens.ProcessEnv)
-    private readonly env: Readonly<NodeJS.ProcessEnv>,
+    @inject(ApplicationTokens.AppConfig)
+    private readonly appConfig: AppConfig,
   ) {}
 
   /** True when the field declares an env var and process.env has a non-empty string for it. */
@@ -18,7 +19,7 @@ export class CredentialFieldEnvOverlayService {
     if (!name) {
       return false;
     }
-    const v = this.env[name];
+    const v = this.appConfig.env[name];
     return typeof v === "string" && v.length > 0;
   }
 
@@ -36,7 +37,7 @@ export class CredentialFieldEnvOverlayService {
       if (!name) {
         continue;
       }
-      const v = this.env[name];
+      const v = this.appConfig.env[name];
       if (typeof v === "string" && v.length > 0) {
         pub[field.key] = v;
       }
@@ -46,7 +47,7 @@ export class CredentialFieldEnvOverlayService {
       if (!name) {
         continue;
       }
-      const v = this.env[name];
+      const v = this.appConfig.env[name];
       if (typeof v === "string" && v.length > 0) {
         mat[field.key] = v;
       }

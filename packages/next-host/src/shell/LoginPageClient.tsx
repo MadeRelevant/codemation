@@ -1,6 +1,6 @@
 "use client";
 
-import { getProviders, signIn } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { Component, type FormEvent, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -16,13 +16,13 @@ type LoginPageClientProps = Readonly<{
   callbackUrl: string;
   productName: string;
   logoUrl: string | null;
+  oauthProviders: ReadonlyArray<{ id: string; name: string }>;
 }>;
 
 type LoginPageClientState = Readonly<{
   email: string;
   password: string;
   error: string | null;
-  oauthProviders: ReadonlyArray<{ id: string; name: string }>;
   isSubmitting: boolean;
   oauthSubmittingId: string | null;
 }>;
@@ -34,18 +34,9 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
       email: "",
       password: "",
       error: null,
-      oauthProviders: [],
       isSubmitting: false,
       oauthSubmittingId: null,
     };
-  }
-
-  override async componentDidMount(): Promise<void> {
-    const providers = await getProviders();
-    const oauthProviders = Object.values(providers ?? {})
-      .filter((p) => p.id !== "credentials")
-      .map((p) => ({ id: p.id, name: p.name ?? p.id }));
-    this.setState({ oauthProviders });
   }
 
   override render(): ReactNode {
@@ -103,7 +94,7 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
                 void this.submitCredentials();
               }}
             >
-              <div className="space-y-2">
+              <div className="space-y-2" suppressHydrationWarning>
                 <Label htmlFor="codemation-login-email">Email</Label>
                 <Input
                   id="codemation-login-email"
@@ -119,7 +110,7 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
                   data-testid="login-email"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2" suppressHydrationWarning>
                 <Label htmlFor="codemation-login-password">Password</Label>
                 <Input
                   id="codemation-login-password"
@@ -159,7 +150,7 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
                 {isSubmitting ? "Signing in…" : "Sign in"}
               </Button>
             </form>
-            {this.state.oauthProviders.length > 0 ? (
+            {this.props.oauthProviders.length > 0 ? (
               <div className="mt-6 space-y-4">
                 <div className="flex items-center gap-3">
                   <Separator className="flex-1" />
@@ -169,7 +160,7 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
                 <section className="space-y-3" aria-label="OAuth sign-in">
                   <p className="text-center text-xs text-muted-foreground">Continue with a connected account</p>
                   <div className="flex flex-col gap-2">
-                    {this.state.oauthProviders.map((provider) => {
+                    {this.props.oauthProviders.map((provider) => {
                       const busy = oauthSubmittingId === provider.id;
                       return (
                         <Button

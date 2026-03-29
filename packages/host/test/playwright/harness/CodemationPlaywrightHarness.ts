@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * Paths and conventions for Playwright + the `@codemation/e2e-app` consumer (`packages/e2e`).
+ * Paths and conventions for Playwright + the `@codemation/e2e-app` consumer (`apps/e2e`).
  * Use this when adding new e2e specs or alternate consumer roots / env overlays.
  */
 export class CodemationPlaywrightHarness {
@@ -11,9 +11,9 @@ export class CodemationPlaywrightHarness {
     return path.resolve(here, "../../../../..");
   }
 
-  /** Default consumer app for browser e2e (see `packages/e2e`). */
+  /** Default consumer app for browser e2e (see `apps/e2e`). */
   static defaultConsumerRoot(): string {
-    return path.join(this.resolveRepoRoot(), "packages/e2e");
+    return path.join(this.resolveRepoRoot(), "apps/e2e");
   }
 
   /**

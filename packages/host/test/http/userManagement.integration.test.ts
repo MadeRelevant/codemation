@@ -55,12 +55,9 @@ class UserManagementFixture {
       env: {
         AUTH_SECRET: authSecret,
       },
-      bindings: [
-        {
-          token: PrismaClient,
-          useFactory: () => transaction.getPrismaClient(),
-        },
-      ],
+      register: (context) => {
+        context.registerFactory(PrismaClient, () => transaction.getPrismaClient());
+      },
     });
     await harness.start();
     return harness;

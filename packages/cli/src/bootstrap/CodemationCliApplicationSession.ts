@@ -1,4 +1,12 @@
-import { CodemationApplication, PrismaClient, type CommandBus, type QueryBus } from "@codemation/host";
+import { type Container } from "@codemation/core";
+import {
+  ApplicationTokens,
+  CodemationApplication,
+  CodemationBootstrapRequest,
+  PrismaClient,
+  type CommandBus,
+  type QueryBus,
+} from "@codemation/host";
 import type { CodemationConsumerConfigResolution } from "@codemation/host/server";
 
 /**
@@ -11,22 +19,23 @@ export class CodemationCliApplicationSession {
   static async open(
     args: Readonly<{
       resolution: CodemationConsumerConfigResolution;
-      repoRoot: string;
-      consumerRoot: string;
-      env?: Readonly<NodeJS.ProcessEnv>;
+      bootstrap: CodemationBootstrapRequest;
     }>,
   ): Promise<CodemationCliApplicationSession> {
     const app = new CodemationApplication().useConfig(args.resolution.config);
-    await app.prepareCliPersistenceAndCommands({
-      repoRoot: args.repoRoot,
-      consumerRoot: args.consumerRoot,
-      env: args.env,
-    });
+    await app.bootCli(
+      new CodemationBootstrapRequest({
+        repoRoot: args.bootstrap.repoRoot,
+        consumerRoot: args.bootstrap.consumerRoot,
+        env: args.bootstrap.env,
+        workflowSources: args.resolution.workflowSources,
+      }),
+    );
     return new CodemationCliApplicationSession(app);
   }
 
   getPrismaClient(): PrismaClient | undefined {
-    const container = this.application.getContainer();
+    const container = this.getContainer();
     if (!container.isRegistered(PrismaClient, true)) {
       return undefined;
     }
@@ -34,14 +43,18 @@ export class CodemationCliApplicationSession {
   }
 
   getCommandBus(): CommandBus {
-    return this.application.getCommandBus();
+    return this.getContainer().resolve(ApplicationTokens.CommandBus);
   }
 
   getQueryBus(): QueryBus {
-    return this.application.getQueryBus();
+    return this.getContainer().resolve(ApplicationTokens.QueryBus);
   }
 
   async close(): Promise<void> {
-    await this.application.stopFrontendServerContainer({ stopWebsocketServer: false });
+    await this.application.stop({ stopWebsocketServer: false });
+  }
+
+  private getContainer(): Container {
+    return this.application.getContainer();
   }
 }

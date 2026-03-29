@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GmailNodes, GmailNodeTokens } from "../../../core-nodes-gmail/src/index";
+import { CodemationBootstrapRequest } from "../../src/bootstrap/CodemationBootstrapRequest";
 import { CodemationApplication } from "../../src/codemationApplication";
 import type { CodemationPlugin, CodemationPluginContext } from "../../src/presentation/config/CodemationPlugin";
 
@@ -20,11 +21,13 @@ describe("Codemation plugins", () => {
       plugins: [new TestPlugin()],
     });
 
-    await application.applyPlugins({
-      consumerRoot: import.meta.dirname,
-      repoRoot: import.meta.dirname,
-      env: {},
-    });
+    await application.applyPlugins(
+      new CodemationBootstrapRequest({
+        consumerRoot: import.meta.dirname,
+        repoRoot: import.meta.dirname,
+        env: {},
+      }),
+    );
 
     expect(application.getContainer().resolve(TestPluginTokenCatalog.value)).toBe("registered-by-plugin");
   });
@@ -35,11 +38,13 @@ describe("Codemation plugins", () => {
       plugins: [new GmailNodes()],
     });
 
-    await application.applyPlugins({
-      consumerRoot: import.meta.dirname,
-      repoRoot: import.meta.dirname,
-      env: {},
-    });
+    await application.applyPlugins(
+      new CodemationBootstrapRequest({
+        consumerRoot: import.meta.dirname,
+        repoRoot: import.meta.dirname,
+        env: {},
+      }),
+    );
 
     expect(application.getContainer().isRegistered(GmailNodeTokens.GmailApiClient, true)).toBe(true);
   });

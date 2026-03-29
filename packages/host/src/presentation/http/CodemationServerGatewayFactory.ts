@@ -1,5 +1,3 @@
-import { CoreTokens } from "@codemation/core";
-import { Engine } from "@codemation/core/bootstrap";
 import { accessSync } from "node:fs";
 import path from "node:path";
 import type { QueryBus } from "../../application/bus/QueryBus";
@@ -9,6 +7,8 @@ import { GetWorkflowDetailQuery } from "../../application/queries/GetWorkflowDet
 import { GetWorkflowSummariesQuery } from "../../application/queries/GetWorkflowSummariesQuery";
 import { ApplicationTokens } from "../../applicationTokens";
 import { CodemationApplication } from "../../codemationApplication";
+import { CodemationBootstrapRequest } from "../../bootstrap/CodemationBootstrapRequest";
+import { CodemationFrontendBootstrapRequest } from "../../bootstrap/CodemationFrontendBootstrapRequest";
 import type { CodemationConfig } from "../config/CodemationConfig";
 import { CodemationHonoApiApp } from "./hono/CodemationHonoApiAppFactory";
 
@@ -44,7 +44,7 @@ export class CodemationServerGateway {
       return;
     }
     CodemationServerGateway.contextsByConfig.delete(this.config as object);
-    await (await cachedContext).application.stopFrontendServerContainer();
+    await (await cachedContext).application.stop();
   }
 
   async loadWorkflowSummaries(): Promise<ReadonlyArray<WorkflowSummary>> {
@@ -74,28 +74,17 @@ export class CodemationServerGateway {
 
   private async createContext(): Promise<ServerGatewayContext> {
     const repoRoot = this.detectWorkspaceRoot(this.consumerRoot);
-    const env = { ...process.env, ...(this.env ?? {}), CODEMATION_CONSUMER_ROOT: this.consumerRoot };
+    const bootstrapRequest = new CodemationBootstrapRequest({
+      repoRoot,
+      consumerRoot: this.consumerRoot,
+      env: this.env,
+      workflowSources: this.resolveWorkflowSources(),
+    });
     const application = new CodemationApplication();
     application.useConfig(this.config);
-    await application.applyPlugins({
-      consumerRoot: this.consumerRoot,
-      repoRoot,
-      env,
-      workflowSources: this.resolveWorkflowSources(),
-    });
-    await application.prepareFrontendServerContainer({
-      repoRoot,
-      consumerRoot: this.consumerRoot,
-      env,
-    });
-    await application.applyBootHook({
-      bootHookToken: this.config.bootHook,
-      consumerRoot: this.consumerRoot,
-      repoRoot,
-      env,
-      workflowSources: this.resolveWorkflowSources(),
-    });
-    await this.startEngine(application);
+    await application.applyPlugins(bootstrapRequest);
+    await application.prepareContainer(bootstrapRequest);
+    await application.bootFrontend(new CodemationFrontendBootstrapRequest({ bootstrap: bootstrapRequest }));
     return {
       application,
       httpApi: application.getContainer().resolve(CodemationHonoApiApp),
@@ -113,14 +102,6 @@ export class CodemationServerGateway {
     }
     return [this.configSource];
   }
-
-  private async startEngine(application: CodemationApplication): Promise<void> {
-    const container = application.getContainer();
-    const workflowRepository = container.resolve(CoreTokens.WorkflowRepository);
-    const engine = container.resolve(Engine);
-    await engine.start([...workflowRepository.list()]);
-  }
-
   private detectWorkspaceRoot(startDirectory: string): string {
     let currentDirectory = path.resolve(startDirectory);
     while (true) {

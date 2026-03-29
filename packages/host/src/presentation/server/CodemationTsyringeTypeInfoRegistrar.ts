@@ -33,10 +33,6 @@ export class CodemationTsyringeTypeInfoRegistrar {
     this.registerFactoryProvider(token as new (...args: ReadonlyArray<unknown>) => unknown, paramInfo);
   }
 
-  registerBootHookToken(token: TypeToken<unknown> | undefined): void {
-    this.registerTypeToken(token);
-  }
-
   private registerDependency(dependency: unknown): void {
     const token = this.resolveDependencyToken(dependency);
     if (typeof token !== "function") {

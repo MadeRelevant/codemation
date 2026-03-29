@@ -1,4 +1,5 @@
 import type { Container, CredentialType } from "@codemation/core";
+import type { CodemationPluginContext } from "@codemation/host";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
@@ -12,23 +13,6 @@ import { GmailPollingService } from "../services/GmailPollingService";
 import { GmailQueryMatcher } from "../services/GmailQueryMatcher";
 import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
 import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
-
-type PluginContext = Readonly<{
-  container: Container;
-  application: unknown;
-  loggerFactory: Readonly<{
-    create(scope: string): Readonly<{
-      info(message: string, exception?: Error): void;
-      warn(message: string, exception?: Error): void;
-      error(message: string, exception?: Error): void;
-      debug(message: string, exception?: Error): void;
-    }>;
-  }>;
-  consumerRoot: string;
-  repoRoot: string;
-  env: Readonly<Record<string, string | undefined>>;
-  workflowSources: ReadonlyArray<string>;
-}>;
 
 type GmailServiceAccountPublicConfig = Readonly<Record<string, never>>;
 
@@ -50,10 +34,6 @@ type GmailOAuthMaterial = Readonly<{
   expiry?: string;
 }>;
 
-type CredentialTypeRegistrar = Readonly<{
-  registerCredentialType(type: CredentialType<any, any, unknown>): void;
-}>;
-
 export class GmailNodes {
   readonly pluginPackageId = "@codemation/core-nodes-gmail" as const;
 
@@ -63,17 +43,17 @@ export class GmailNodes {
     this.options = options;
   }
 
-  async register(context: PluginContext): Promise<void> {
+  async register(context: CodemationPluginContext): Promise<void> {
     this.registerOptions(context.container);
     this.registerServices(context.container, context);
-    this.registerCredentialTypes(context.application);
+    this.registerCredentialTypes(context);
   }
 
   private registerOptions(container: Container): void {
     container.registerInstance(GmailNodeTokens.GmailNodesOptions, this.options);
   }
 
-  private registerServices(container: Container, context: PluginContext): void {
+  private registerServices(container: Container, context: CodemationPluginContext): void {
     container.registerInstance(GmailNodeTokens.TriggerLogger, context.loggerFactory.create("codemation-gmail.trigger"));
     container.registerInstance(GmailNodeTokens.RuntimeLogger, context.loggerFactory.create("codemation-gmail.runtime"));
     container.register(GmailNodeTokens.GmailApiClient, {
@@ -88,17 +68,10 @@ export class GmailNodes {
     container.register(GmailTriggerTestItemService, { useClass: GmailTriggerTestItemService });
     container.register(GmailPollingService, { useClass: GmailPollingService });
     container.register(GmailPollingTriggerRuntime, { useClass: GmailPollingTriggerRuntime });
-    void context.consumerRoot;
-    void context.repoRoot;
-    void context.env;
-    void context.workflowSources;
+    void context.appConfig;
   }
 
-  private registerCredentialTypes(application: unknown): void {
-    const registrar = this.asCredentialTypeRegistrar(application);
-    if (!registrar) {
-      return;
-    }
+  private registerCredentialTypes(context: CodemationPluginContext): void {
     const serviceAccountType: CredentialType<
       GmailServiceAccountPublicConfig,
       GmailServiceAccountMaterial,
@@ -124,7 +97,7 @@ export class GmailNodes {
         return this.testGmailApiClient(await this.createGoogleGmailApiClient(credential), credential.delegatedUser);
       },
     };
-    registrar.registerCredentialType(serviceAccountType);
+    context.registerCredentialType(serviceAccountType);
     const oauthType: CredentialType<GmailOAuthPublicConfig, GmailOAuthMaterial, GmailApiClient> = {
       definition: {
         typeId: GmailCredentialTypes.oauth,
@@ -165,7 +138,7 @@ export class GmailNodes {
         );
       },
     };
-    registrar.registerCredentialType(oauthType);
+    context.registerCredentialType(oauthType);
   }
 
   private async createGoogleGmailApiClient(
@@ -201,15 +174,6 @@ export class GmailNodes {
         testedAt: new Date().toISOString(),
       };
     }
-  }
-
-  private asCredentialTypeRegistrar(application: unknown): CredentialTypeRegistrar | undefined {
-    if (!application || typeof application !== "object") {
-      return undefined;
-    }
-    return typeof (application as { registerCredentialType?: unknown }).registerCredentialType === "function"
-      ? (application as CredentialTypeRegistrar)
-      : undefined;
   }
 
   private toServiceAccountCredential(material: GmailServiceAccountMaterial): GmailServiceAccountCredential {

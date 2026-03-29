@@ -96,7 +96,7 @@ For **framework author vs consumer** dev modes (`CODEMATION_DEV_MODE`), see [`do
 | `codemation user create`   | Create/update a DB user when auth is local (uses consumer config / `DATABASE_URL`). Dispatches `UpsertLocalBootstrapUserCommand` via the host `CommandBus` (password minimum 8 characters, same as invite acceptance). |
 | `codemation user list`     | List users via `ListUserAccountsQuery` and the host `QueryBus` (same auth/DB requirements as `user create`).                                                                                                           |
 
-Programmatic bootstrap: [`CodemationCliApplicationSession`](./src/bootstrap/CodemationCliApplicationSession.ts) opens `CodemationApplication` with `prepareCliPersistenceAndCommands` (no HTTP/WebSocket); use `getCommandBus()` for other admin commands later.
+Programmatic bootstrap: [`CodemationCliApplicationSession`](./src/bootstrap/CodemationCliApplicationSession.ts) opens `CodemationApplication` with `bootCli` (no HTTP/WebSocket); use `getCommandBus()` for other admin commands later.
 
 Use `codemation --help` and `codemation <command> --help` for flags (`--consumer-root`, build targets, etc.).
 

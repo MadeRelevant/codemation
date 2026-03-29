@@ -10,7 +10,7 @@ import type {
 } from "../../src/application/contracts/CredentialContractsRegistry";
 import { CredentialSecretCipher } from "../../src/domain/credentials/CredentialServices";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
-import type { CodemationBootContext, CodemationBootHook } from "../../src/presentation/config/CodemationConfig";
+import type { CodemationAppContext } from "../../src/presentation/config/CodemationAppContext";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
 import { IntegrationTestAuth } from "./testkit/IntegrationTestAuth";
@@ -24,9 +24,9 @@ const testOAuthCredentialTypeId = "test.oauth";
 const testSecretValue = "secret-value-12345";
 const testMasterKey = "test-master-key-for-integration-tests-only";
 
-class TestCredentialBootHook implements CodemationBootHook {
-  async boot(context: CodemationBootContext): Promise<void> {
-    context.application.registerCredentialType({
+class TestCredentialRegistrar {
+  register(context: CodemationAppContext): void {
+    context.registerCredentialType({
       definition: {
         typeId: testCredentialTypeId,
         displayName: "Test API key",
@@ -41,7 +41,7 @@ class TestCredentialBootHook implements CodemationBootHook {
         testedAt: new Date().toISOString(),
       }),
     });
-    context.application.registerCredentialType({
+    context.registerCredentialType({
       definition: {
         typeId: testOAuthCredentialTypeId,
         displayName: "Test OAuth",
@@ -99,7 +99,6 @@ class CredentialIntegrationFixture {
     const config = mergeIntegrationDatabaseRuntime(
       {
         workflows: [this.createWorkflow()],
-        bootHook: TestCredentialBootHook,
         runtime: {
           eventBus: { kind: "memory" as const },
           scheduler: { kind: "local" as const },
@@ -118,12 +117,10 @@ class CredentialIntegrationFixture {
         TEST_OAUTH_INTEGRATION_CLIENT_SECRET: "oauth-secret-from-env",
         ...envOverrides,
       },
-      bindings: [
-        {
-          token: PrismaClient,
-          useFactory: () => transaction.getPrismaClient(),
-        },
-      ],
+      register: (context) => {
+        new TestCredentialRegistrar().register(context);
+        context.registerFactory(PrismaClient, () => transaction.getPrismaClient());
+      },
     });
     await harness.start();
     return harness;
@@ -417,7 +414,20 @@ describe("credential instances http integration", () => {
       expect(storedMaterial).toBeTruthy();
 
       const cipher = new CredentialSecretCipher({
-        CODEMATION_CREDENTIALS_MASTER_KEY: testMasterKey,
+        consumerRoot: import.meta.dirname,
+        repoRoot: import.meta.dirname,
+        env: {
+          CODEMATION_CREDENTIALS_MASTER_KEY: testMasterKey,
+        },
+        workflowSources: [],
+        scheduler: {
+          kind: "local",
+          workerQueues: [],
+        },
+        eventing: {
+          kind: "memory",
+        },
+        whitelabel: {},
       });
       const decrypted = cipher.decrypt({
         encryptedJson: storedMaterial!.encryptedJson,
@@ -614,12 +624,9 @@ describe("credential instances http integration", () => {
       env: {
         CODEMATION_CREDENTIALS_MASTER_KEY: testMasterKey,
       },
-      bindings: [
-        {
-          token: PrismaClient,
-          useFactory: () => session.transaction!.getPrismaClient(),
-        },
-      ],
+      register: (context) => {
+        context.registerFactory(PrismaClient, () => session.transaction!.getPrismaClient());
+      },
     });
     await harness.start();
     try {

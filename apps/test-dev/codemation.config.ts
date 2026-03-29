@@ -1,15 +1,12 @@
 import type { CredentialType } from "@codemation/core";
-import type { CodemationConfig } from "@codemation/host";
-import { openAiApiKeyCredentialType } from "@codemation/host/credentials";
+import type { CodemationAppContext, CodemationConfig } from "@codemation/host";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import { MailKeywordCatalog } from "./src/MailKeywordCatalog";
 import { OdooDemoSettings } from "./src/OdooDemoSettings";
 
-const consumerRoot = process.env.CODEMATION_CONSUMER_ROOT?.trim() || process.cwd();
-
 loadDotenv({
-  path: path.resolve(consumerRoot, ".env"),
+  path: path.resolve(import.meta.dirname, ".env"),
   quiet: true,
 });
 
@@ -90,49 +87,41 @@ const odooDemoCredentialType = {
 } satisfies CredentialType<OdooDemoPublicConfig, OdooDemoMaterial, OdooDemoSession>;
 
 export const codemationHost = {
-  auth: {
-    kind: "local" as const,
-    allowUnauthenticatedInDevelopment: false,
-    oauth: [
-      {
-        provider: "google",
-        clientIdEnv: "GOOGLE_CLIENT_ID",
-        clientSecretEnv: "GOOGLE_CLIENT_SECRET",
-      },
-    ],
-  },
-  bindings: [
-    {
-      token: MailKeywordCatalog,
-      useValue: new MailKeywordCatalog(["RFQ", "QUOTE", "QUOTATION", "RFP"]),
+  app: {
+    auth: {
+      kind: "local" as const,
+      allowUnauthenticatedInDevelopment: false,
+      oauth: [
+        {
+          provider: "google",
+          clientIdEnv: "GOOGLE_CLIENT_ID",
+          clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+        },
+      ],
     },
-    {
-      token: OdooDemoSettings,
-      useValue: new OdooDemoSettings(process.env.ODOO_DEMO_BASE_URL ?? "https://demo.odoo.test"),
-    },
-  ],
-  workflowDiscovery: {
-    directories: ["src/workflows"],
-  },
-  credentialTypes: [openAiApiKeyCredentialType, azureFoundryContentUnderstandingCredentialType, odooDemoCredentialType],
-  runtime: {
     database: useRedisRuntime
       ? { kind: "postgresql" as const, url: databaseUrl ?? "" }
       : { kind: "pglite" as const, pgliteDataDir: ".codemation/pglite" },
     scheduler: {
-      kind: useRedisRuntime ? "bullmq" : "local",
+      kind: useRedisRuntime ? ("queue" as const) : ("inline" as const),
       queuePrefix: "codemation",
       workerQueues: ["default"],
-    },
-    eventBus: {
-      kind: useRedisRuntime ? "redis" : "memory",
       redisUrl: process.env.REDIS_URL,
-      queuePrefix: "codemation",
+    },
+    whitelabel: {
+      productName: "Codemation test-dev",
+      logoPath: "branding/logo.svg",
     },
   },
-  whitelabel: {
-    productName: "Codemation test-dev",
-    logoPath: "branding/logo.svg",
+  register(app: CodemationAppContext) {
+    app.registerValue(MailKeywordCatalog, new MailKeywordCatalog(["RFQ", "QUOTE", "QUOTATION", "RFP"]));
+    app.registerValue(
+      OdooDemoSettings,
+      new OdooDemoSettings(process.env.ODOO_DEMO_BASE_URL ?? "https://demo.odoo.test"),
+    );
+    app.registerCredentialType(azureFoundryContentUnderstandingCredentialType);
+    app.registerCredentialType(odooDemoCredentialType);
+    app.discoverWorkflows("src/workflows");
   },
 } satisfies CodemationConfig;
 

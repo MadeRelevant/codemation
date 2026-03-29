@@ -4,19 +4,20 @@ import path from "node:path";
 import { Readable } from "node:stream";
 
 import { ApplicationTokens } from "../../../applicationTokens";
+import type { AppConfig } from "../../config/AppConfig";
 import type { CodemationWhitelabelConfig } from "../../config/CodemationWhitelabelConfig";
 
 @injectable()
 export class WhitelabelLogoHttpRouteHandler {
   constructor(
-    @inject(ApplicationTokens.ProcessEnv)
-    private readonly processEnv: Readonly<NodeJS.ProcessEnv>,
+    @inject(ApplicationTokens.AppConfig)
+    private readonly appConfig: AppConfig,
     @inject(ApplicationTokens.CodemationWhitelabelConfig)
     private readonly whitelabel: CodemationWhitelabelConfig,
   ) {}
 
   async getLogo(): Promise<Response> {
-    const consumerRootRaw = this.processEnv.CODEMATION_CONSUMER_ROOT?.trim();
+    const consumerRootRaw = this.appConfig.consumerRoot.trim();
     if (!consumerRootRaw || consumerRootRaw.length === 0) {
       return new Response(null, { status: 404 });
     }

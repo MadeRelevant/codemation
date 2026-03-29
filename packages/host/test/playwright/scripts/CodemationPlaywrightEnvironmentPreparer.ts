@@ -28,7 +28,7 @@ export class CodemationPlaywrightEnvironmentPreparer {
     const preparedPath = path.join(hostPackageRoot, "test/playwright/.e2e-prepared.json");
 
     const database = await PostgresIntegrationDatabase.create();
-    fs.rmSync(path.join(repoRoot, "packages/e2e/.codemation/dev.lock"), { force: true });
+    fs.rmSync(path.join(repoRoot, "apps/e2e/.codemation/dev.lock"), { force: true });
     fs.writeFileSync(snapshotPath, JSON.stringify(database.serialize()), "utf8");
 
     const buildEnv = {
@@ -62,7 +62,7 @@ export class CodemationPlaywrightEnvironmentPreparer {
         "--password",
         "E2E-test-password-1!",
         "--consumer-root",
-        "packages/e2e",
+        "apps/e2e",
       ],
       {
         cwd: repoRoot,

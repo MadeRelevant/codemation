@@ -16,7 +16,7 @@ import {
 } from "../../../core-nodes-gmail/src/index";
 import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
-import type { CodemationBinding } from "../../src/presentation/config/CodemationBinding";
+import type { CodemationAppContext } from "../../src/presentation/config/CodemationAppContext";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
@@ -152,17 +152,9 @@ class GmailPollingTriggerIntegrationFixture {
     };
   }
 
-  static createBindings(apiClient: GmailApiClient): ReadonlyArray<CodemationBinding<unknown>> {
-    return [
-      {
-        token: CoreTokens.CredentialSessionService,
-        useValue: new GmailIntegrationCredentialSessionService(apiClient),
-      },
-      {
-        token: GmailNodeTokens.GmailApiClient,
-        useValue: apiClient,
-      },
-    ];
+  static registerTestServices(context: CodemationAppContext, apiClient: GmailApiClient): void {
+    context.registerValue(CoreTokens.CredentialSessionService, new GmailIntegrationCredentialSessionService(apiClient));
+    context.registerValue(GmailNodeTokens.GmailApiClient, apiClient);
   }
 
   static async waitForRun(harness: FrontendHttpIntegrationHarness): Promise<Readonly<{ runId: string }>> {
@@ -238,7 +230,7 @@ describe("Gmail polling trigger integration", () => {
     const harness = new FrontendHttpIntegrationHarness({
       config: mergeIntegrationDatabaseRuntime(GmailPollingTriggerIntegrationFixture.createConfig(), database),
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      bindings: GmailPollingTriggerIntegrationFixture.createBindings(apiClient),
+      register: (context) => GmailPollingTriggerIntegrationFixture.registerTestServices(context, apiClient),
     });
     harnesses.push(harness);
     await harness.start();

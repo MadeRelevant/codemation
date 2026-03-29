@@ -1,13 +1,6 @@
-import type {
-  AnyCredentialType,
-  Container,
-  EngineExecutionLimitsPolicyConfig,
-  TypeToken,
-  WorkflowDefinition,
-} from "@codemation/core";
-import type { CodemationApplication } from "../../codemationApplication";
+import type { AnyCredentialType, EngineExecutionLimitsPolicyConfig, WorkflowDefinition } from "@codemation/core";
 import type { CodemationAuthConfig } from "./CodemationAuthConfig";
-import type { CodemationBinding } from "./CodemationBinding";
+import type { CodemationAppContext } from "./CodemationAppContext";
 import type { CodemationPlugin } from "./CodemationPlugin";
 import type { CodemationLogConfig } from "./CodemationLogConfig";
 import type { CodemationWhitelabelConfig } from "./CodemationWhitelabelConfig";
@@ -37,11 +30,31 @@ export interface CodemationSchedulerConfig {
   readonly workerQueues?: ReadonlyArray<string>;
 }
 
+export type CodemationAppSchedulerKind = "inline" | "queue";
+
+export interface CodemationAppSchedulerConfig {
+  readonly kind?: CodemationAppSchedulerKind;
+  readonly queuePrefix?: string;
+  readonly workerQueues?: ReadonlyArray<string>;
+  readonly redisUrl?: string;
+}
+
 /**
  * Optional overrides for engine execution limits (activation budget and subworkflow depth caps).
  * Omitted fields keep framework defaults. Advanced users can bind `CoreTokens.EngineExecutionLimitsPolicy` for full control.
  */
 export type CodemationEngineExecutionLimitsConfig = Readonly<Partial<EngineExecutionLimitsPolicyConfig>>;
+
+export interface CodemationAppDefinition {
+  readonly frontendPort?: number;
+  readonly databaseUrl?: string;
+  readonly database?: CodemationDatabaseConfig;
+  readonly scheduler?: CodemationAppSchedulerConfig;
+  readonly auth?: CodemationAuthConfig;
+  readonly whitelabel?: CodemationWhitelabelConfig;
+  readonly log?: CodemationLogConfig;
+  readonly engineExecutionLimits?: CodemationEngineExecutionLimitsConfig;
+}
 
 export interface CodemationApplicationRuntimeConfig {
   readonly frontendPort?: number;
@@ -52,29 +65,15 @@ export interface CodemationApplicationRuntimeConfig {
   readonly engineExecutionLimits?: CodemationEngineExecutionLimitsConfig;
 }
 
-export interface CodemationBootContext {
-  readonly application: CodemationApplication;
-  readonly container: Container;
-  readonly consumerRoot: string;
-  readonly repoRoot: string;
-  readonly env: Readonly<Record<string, string | undefined>>;
-  readonly discoveredWorkflows: ReadonlyArray<WorkflowDefinition>;
-  readonly workflowSources: ReadonlyArray<string>;
-}
-
-export interface CodemationBootHook {
-  boot(context: CodemationBootContext): void | Promise<void>;
-}
-
 export interface CodemationConfig {
+  readonly app?: CodemationAppDefinition;
+  readonly register?: (context: CodemationAppContext) => void;
   readonly runtime?: CodemationApplicationRuntimeConfig;
   readonly workflows?: ReadonlyArray<WorkflowDefinition>;
   readonly workflowDiscovery?: CodemationWorkflowDiscovery;
-  readonly bindings?: ReadonlyArray<CodemationBinding<unknown>>;
   readonly plugins?: ReadonlyArray<CodemationPlugin>;
   /** Consumer-defined `CredentialType` entries (see `@codemation/core`), applied when the host loads config. */
   readonly credentialTypes?: ReadonlyArray<AnyCredentialType>;
-  readonly bootHook?: TypeToken<CodemationBootHook>;
   /** Optional shell whitelabel (product name, logo path). */
   readonly whitelabel?: CodemationWhitelabelConfig;
   /** Required for production hosts; optional only when using development bypass (never in production). */

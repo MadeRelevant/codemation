@@ -1,6 +1,6 @@
 # `@codemation/e2e-app`
 
-**Internal monorepo package** under `packages/e2e`: a sample consumer wired with `@codemation/cli`, `@codemation/host`, core nodes, and `@codemation/runtime-dev` for manual and scripted end-to-end checks. It is not a supported template for external apps.
+**Internal monorepo app** under `apps/e2e`: a sample consumer wired with `@codemation/cli`, `@codemation/host`, core nodes, and `@codemation/runtime-dev` for manual and scripted end-to-end checks. It is not a supported template for external apps.
 
 ## Install
 

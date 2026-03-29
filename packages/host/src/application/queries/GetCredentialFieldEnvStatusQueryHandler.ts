@@ -2,6 +2,7 @@ import type { CredentialFieldSchema } from "@codemation/core";
 import { inject } from "@codemation/core";
 
 import { ApplicationTokens } from "../../applicationTokens";
+import type { AppConfig } from "../../presentation/config/AppConfig";
 import { QueryHandler } from "../bus/QueryHandler";
 import { HandlesQuery } from "../../infrastructure/di/HandlesQueryRegistry";
 import { CredentialTypeRegistryImpl } from "../../domain/credentials/CredentialServices";
@@ -16,8 +17,8 @@ export class GetCredentialFieldEnvStatusQueryHandler extends QueryHandler<
   constructor(
     @inject(CredentialTypeRegistryImpl)
     private readonly credentialTypeRegistry: CredentialTypeRegistryImpl,
-    @inject(ApplicationTokens.ProcessEnv)
-    private readonly env: Readonly<NodeJS.ProcessEnv>,
+    @inject(ApplicationTokens.AppConfig)
+    private readonly appConfig: AppConfig,
   ) {
     super();
   }
@@ -34,7 +35,7 @@ export class GetCredentialFieldEnvStatusQueryHandler extends QueryHandler<
     }
     const out: Record<string, boolean> = {};
     for (const name of names) {
-      const v = this.env[name];
+      const v = this.appConfig.env[name];
       out[name] = typeof v === "string" && v.length > 0;
     }
     return Object.freeze(out);
