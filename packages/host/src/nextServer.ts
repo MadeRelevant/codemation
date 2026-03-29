@@ -15,6 +15,9 @@ export { WorkflowPolicyUiPresentationFactory } from "./application/mapping/Workf
 export { WorkflowRunRetentionPruneScheduler } from "./application/runs/WorkflowRunRetentionPruneScheduler";
 export { ApplicationTokens } from "./applicationTokens";
 export { CodemationApplication } from "./codemationApplication";
+export { CodemationBootstrapRequest } from "./bootstrap/CodemationBootstrapRequest";
+export { CodemationFrontendBootstrapRequest } from "./bootstrap/CodemationFrontendBootstrapRequest";
+export { CodemationWorkerBootstrapRequest } from "./bootstrap/CodemationWorkerBootstrapRequest";
 export { CodemationPluginListMerger } from "./presentation/config/CodemationPluginListMerger";
 export { CredentialBindingService, CredentialInstanceService } from "./domain/credentials/CredentialServices";
 export { RequestToWebhookItemMapper } from "./infrastructure/webhooks/RequestToWebhookItemMapper";

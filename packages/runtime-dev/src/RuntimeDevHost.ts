@@ -1,9 +1,10 @@
 import type { Container } from "@codemation/core";
-import { CoreTokens, Engine } from "@codemation/core";
 import type { CodemationAuthConfig, CodemationPlugin } from "@codemation/host";
 import type { Logger } from "@codemation/host/next/server";
 import {
   CodemationApplication,
+  CodemationBootstrapRequest,
+  CodemationFrontendBootstrapRequest,
   CodemationPluginListMerger,
   logLevelPolicyFactory,
   ServerLoggerFactory,
@@ -113,6 +114,12 @@ export class RuntimeDevHost {
     env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
     env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
     env.CODEMATION_CONSUMER_ROOT = consumerRoot;
+    const bootstrapRequest = new CodemationBootstrapRequest({
+      consumerRoot,
+      repoRoot,
+      env,
+      workflowSources: configResolution.workflowSources,
+    });
     const application = new CodemationApplication();
     application.useSharedWorkflowWebsocketServer(this.sharedWorkflowWebsocketServer);
     const discoveredPlugins = await this.loadDiscoveredPlugins(consumerRoot);
@@ -122,38 +129,16 @@ export class RuntimeDevHost {
     if (discoveredPlugins.length > 0) {
       application.usePlugins(this.pluginListMerger.merge(configResolution.config.plugins ?? [], discoveredPlugins));
     }
-    await application.applyPlugins({
-      consumerRoot,
-      repoRoot,
-      env,
-      workflowSources: configResolution.workflowSources,
-    });
+    await application.applyPlugins(bootstrapRequest);
     phaseMs("applyPlugins");
-    await application.prepareFrontendServerContainer({
-      repoRoot,
-      consumerRoot,
-      env,
-    });
-    phaseMs("prepareFrontendServerContainer");
+    await application.prepareContainer(bootstrapRequest);
+    phaseMs("prepareContainer");
     const typeInfoRegistrar = new CodemationTsyringeTypeInfoRegistrar(application.getContainer());
     typeInfoRegistrar.registerWorkflowDefinitions(configResolution.config.workflows ?? []);
-    typeInfoRegistrar.registerBootHookToken(configResolution.config.bootHook);
-    if (process.env.CODEMATION_SKIP_BOOT_HOOK !== "true") {
-      await application.applyBootHook({
-        bootHookToken: configResolution.config.bootHook,
-        consumerRoot,
-        repoRoot,
-        env,
-        workflowSources: configResolution.workflowSources,
-      });
-    }
-    phaseMs("registerTypesAndBootHook");
+    phaseMs("registerTypes");
 
-    const container = application.getContainer();
-    const workflowRepository = container.resolve(CoreTokens.WorkflowRepository);
-    const engine = container.resolve(Engine);
-    await engine.start([...workflowRepository.list()]);
-    phaseMs("engine.start");
+    await application.bootFrontend(new CodemationFrontendBootstrapRequest({ bootstrap: bootstrapRequest }));
+    phaseMs("bootFrontend");
 
     return {
       application,

@@ -80,7 +80,7 @@ test("engine passes the previously persisted trigger setup state into setup()", 
     TriggerSetupStateTestFixture.triggerNodeId,
   );
   const kit = createEngineTestKit();
-  await kit.triggerSetupStateStore.save(
+  await kit.triggerSetupStateRepository.save(
     TriggerSetupStateTestFixture.createPersistedState({
       cursor: "history_1",
       leaseOwner: "instance-a",
@@ -111,7 +111,7 @@ test("engine persists the next trigger setup state returned from setup()", async
 
   await kit.start([TriggerSetupStateTestFixture.createWorkflow(config)]);
 
-  const persistedState = await kit.triggerSetupStateStore.load({
+  const persistedState = await kit.triggerSetupStateRepository.load({
     workflowId: TriggerSetupStateTestFixture.workflowId,
     nodeId: TriggerSetupStateTestFixture.triggerNodeId,
   });

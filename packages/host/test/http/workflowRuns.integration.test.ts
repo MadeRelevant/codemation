@@ -8,7 +8,7 @@ import { OVERLAY_PIN_BINARY_RUN_ID } from "../../src/application/binary/OverlayP
 import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
-import type { CodemationBinding } from "../../src/presentation/config/CodemationBinding";
+import type { CodemationAppContext } from "../../src/presentation/config/CodemationAppContext";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
@@ -147,18 +147,18 @@ class WorkflowRunsIntegrationContext {
   > {
     const database = this.requireSharedDatabase();
     this.transaction = this.session.transaction;
-    return await this.createHarnessFromDatabase(database, [this.createPrismaClientBinding()]);
+    return await this.createHarnessFromDatabase(database, (context) => this.registerPrismaClient(context));
   }
 
   private async createHarnessFromDatabase(
     database: IntegrationDatabase,
-    bindings: ReadonlyArray<CodemationBinding<unknown>> = [],
+    register?: (context: CodemationAppContext) => void,
   ): Promise<Readonly<{ harness: FrontendHttpIntegrationHarness; database: IntegrationDatabase }>> {
     const config = mergeIntegrationDatabaseRuntime(WorkflowRunsIntegrationFixture.createConfig(), database);
     const harness = new FrontendHttpIntegrationHarness({
       config,
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      bindings,
+      register,
     });
     await harness.start();
     return {
@@ -167,11 +167,8 @@ class WorkflowRunsIntegrationContext {
     };
   }
 
-  private createPrismaClientBinding(): CodemationBinding<unknown> {
-    return {
-      token: PrismaClient,
-      useFactory: () => this.requireTransaction(),
-    };
+  private registerPrismaClient(context: CodemationAppContext): void {
+    context.registerFactory(PrismaClient, () => this.requireTransaction());
   }
 
   private requireSharedDatabase(): IntegrationDatabase {

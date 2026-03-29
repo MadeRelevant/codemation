@@ -4,6 +4,7 @@ import { test } from "vitest";
 import { CoreTokens, EngineExecutionLimitsPolicy } from "@codemation/core";
 
 import { CodemationApplication } from "../../src/codemationApplication";
+import { openAiApiKeyCredentialType } from "../../src/credentials";
 
 test("runtime.engineExecutionLimits is merged into the DI-resolved policy", () => {
   const app = new CodemationApplication();
@@ -21,7 +22,7 @@ test("runtime.engineExecutionLimits is merged into the DI-resolved policy", () =
   assert.equal(o.maxSubworkflowDepth, 5);
 });
 
-test("bindings can replace CoreTokens.EngineExecutionLimitsPolicy", () => {
+test("register(context) can replace CoreTokens.EngineExecutionLimitsPolicy", () => {
   const custom = new EngineExecutionLimitsPolicy({
     defaultMaxNodeActivations: 7,
     hardMaxNodeActivations: 7,
@@ -36,10 +37,22 @@ test("bindings can replace CoreTokens.EngineExecutionLimitsPolicy", () => {
         defaultMaxNodeActivations: 1,
       },
     },
-    bindings: [{ token: CoreTokens.EngineExecutionLimitsPolicy, useValue: custom }],
+    register(context) {
+      context.registerValue(CoreTokens.EngineExecutionLimitsPolicy, custom);
+    },
   });
   const p = app.getContainer().resolve(CoreTokens.EngineExecutionLimitsPolicy);
   assert.strictEqual(p, custom);
   const o = p.mergeExecutionOptionsForNewRun(undefined, undefined);
   assert.equal(o.maxNodeActivations, 7);
+});
+
+test("useConfig does not duplicate framework credential types already provided by config", () => {
+  const app = new CodemationApplication();
+
+  app.useConfig({
+    credentialTypes: [openAiApiKeyCredentialType],
+  });
+
+  assert.doesNotThrow(() => app.getContainer());
 });

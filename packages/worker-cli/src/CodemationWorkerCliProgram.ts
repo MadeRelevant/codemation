@@ -1,4 +1,4 @@
-import { CodemationApplication } from "@codemation/host";
+import { CodemationApplication, CodemationBootstrapRequest, CodemationWorkerBootstrapRequest } from "@codemation/host";
 import path from "node:path";
 import process from "node:process";
 import { CodemationWorkerConfigLoader } from "./CodemationWorkerConfigLoader";
@@ -19,36 +19,27 @@ export class CodemationWorkerCli {
       configPathOverride: configPath,
     });
     const effectiveEnv = this.createStringEnvironment();
+    const bootstrapRequest = new CodemationBootstrapRequest({
+      consumerRoot: paths.consumerRoot,
+      repoRoot: paths.repoRoot,
+      env: effectiveEnv,
+      workflowSources: configResolution.workflowSources,
+    });
     const application = new CodemationApplication();
     application.useConfig(configResolution.config);
-    await application.applyPlugins({
-      consumerRoot: paths.consumerRoot,
-      repoRoot: paths.repoRoot,
-      env: effectiveEnv,
-      workflowSources: configResolution.workflowSources,
-    });
-    await application.applyBootHook({
-      bootHookToken: configResolution.config.bootHook,
-      consumerRoot: paths.consumerRoot,
-      repoRoot: paths.repoRoot,
-      env: effectiveEnv,
-      workflowSources: configResolution.workflowSources,
-    });
-
-    process.env.CODEMATION_CONSUMER_ROOT = paths.consumerRoot;
-    process.env.CODEMATION_REPO_ROOT = paths.repoRoot;
+    await application.applyPlugins(bootstrapRequest);
 
     const workerQueues =
       configResolution.config.runtime?.scheduler?.workerQueues ??
       this.parseQueues(effectiveEnv.WORKER_QUEUES ?? "default");
-    const handle = await application.startWorkerRuntime({
-      repoRoot: paths.repoRoot,
-      consumerRoot: paths.consumerRoot,
-      env: effectiveEnv,
-      queues: workerQueues,
-      bootstrapSource: configResolution.bootstrapSource,
-      workflowSources: configResolution.workflowSources,
-    });
+    await application.prepareContainer(bootstrapRequest);
+    const handle = await application.bootWorker(
+      new CodemationWorkerBootstrapRequest({
+        bootstrap: bootstrapRequest,
+        queues: workerQueues,
+        bootstrapSource: configResolution.bootstrapSource,
+      }),
+    );
 
     this.bindSignals(handle.stop);
   }

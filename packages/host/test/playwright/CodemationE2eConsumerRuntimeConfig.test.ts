@@ -2,7 +2,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-const e2eConfigPath = path.resolve(import.meta.dirname, "..", "..", "..", "e2e", "codemation.config.ts");
+const e2eConfigPath = path.resolve(import.meta.dirname, "..", "..", "..", "..", "apps", "e2e", "codemation.config.ts");
 const managedEnvKeys = ["DATABASE_URL", "REDIS_URL", "CODEMATION_E2E_FORCE_LOCAL_RUNTIME"] as const;
 let importCounter = 0;
 const originalEnv = new Map(managedEnvKeys.map((key) => [key, process.env[key]]));
@@ -29,7 +29,7 @@ async function loadCodemationHost(env: Readonly<Record<string, string | undefine
   }
   const moduleUrl = `${pathToFileURL(e2eConfigPath).href}?case=${(importCounter += 1)}`;
   const imported = (await import(moduleUrl)) as {
-    codemationHost: { runtime: { scheduler: { kind: string }; eventBus: { kind: string } } };
+    codemationHost: { app: { scheduler: { kind: string; redisUrl?: string } } };
   };
   return imported.codemationHost;
 }
@@ -41,8 +41,8 @@ describe("browser e2e consumer runtime config", () => {
       REDIS_URL: "redis://127.0.0.1:6379",
       CODEMATION_E2E_FORCE_LOCAL_RUNTIME: undefined,
     });
-    expect(host.runtime.scheduler.kind).toBe("bullmq");
-    expect(host.runtime.eventBus.kind).toBe("redis");
+    expect(host.app.scheduler.kind).toBe("queue");
+    expect(host.app.scheduler.redisUrl).toBe("redis://127.0.0.1:6379");
   });
 
   it("forces local runtime for browser e2e even when REDIS_URL exists", async () => {
@@ -51,7 +51,6 @@ describe("browser e2e consumer runtime config", () => {
       REDIS_URL: "redis://127.0.0.1:6379",
       CODEMATION_E2E_FORCE_LOCAL_RUNTIME: "1",
     });
-    expect(host.runtime.scheduler.kind).toBe("local");
-    expect(host.runtime.eventBus.kind).toBe("memory");
+    expect(host.app.scheduler.kind).toBe("inline");
   });
 });

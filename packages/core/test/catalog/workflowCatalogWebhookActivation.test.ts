@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import type { WorkflowActivationPolicy, WorkflowId } from "../../src/contracts/workflowActivationPolicy";
-import { WorkflowCatalogWebhookTriggerMatcher } from "../../src/engine/adapters/webhooks/WorkflowCatalogWebhookTriggerMatcher";
-import { InMemoryWorkflowRegistry } from "../../src/testing";
+import { WorkflowRepositoryWebhookTriggerMatcher } from "../../src/runtime/WorkflowRepositoryWebhookTriggerMatcher";
+import { InMemoryLiveWorkflowRepository } from "../../src/testing";
 
 class InactiveWorkflowActivationPolicy implements WorkflowActivationPolicy {
   isActive(_workflowId: WorkflowId): boolean {
@@ -12,7 +12,7 @@ class InactiveWorkflowActivationPolicy implements WorkflowActivationPolicy {
 }
 
 test("webhook matcher excludes inactive workflows from the route index", () => {
-  const catalog = new InMemoryWorkflowRegistry();
+  const catalog = new InMemoryLiveWorkflowRepository();
   catalog.setWorkflows([
     {
       id: "wf.webhook",
@@ -34,7 +34,7 @@ test("webhook matcher excludes inactive workflows from the route index", () => {
       edges: [],
     },
   ]);
-  const matcher = new WorkflowCatalogWebhookTriggerMatcher(catalog, new InactiveWorkflowActivationPolicy());
+  const matcher = new WorkflowRepositoryWebhookTriggerMatcher(catalog, new InactiveWorkflowActivationPolicy());
   matcher.onEngineWorkflowsLoaded();
   assert.equal(matcher.lookup("incoming"), undefined);
 });

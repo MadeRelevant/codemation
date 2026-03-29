@@ -18,13 +18,13 @@ export class CodemationConsumerConfigExportsResolver {
       return false;
     }
     return (
+      "app" in value ||
+      "register" in value ||
       "credentials" in value ||
       "runtime" in value ||
       "workflows" in value ||
       "workflowDiscovery" in value ||
-      "bindings" in value ||
       "plugins" in value ||
-      "bootHook" in value ||
       "whitelabel" in value ||
       "auth" in value ||
       "log" in value

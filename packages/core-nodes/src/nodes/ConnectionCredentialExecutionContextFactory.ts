@@ -6,7 +6,7 @@ import type {
   NodeId,
 } from "@codemation/core";
 
-import { CredentialResolverFactory } from "@codemation/core";
+import { CredentialResolverFactory } from "@codemation/core/bootstrap";
 
 /**
  * Builds a {@link NodeExecutionContext} whose identity for credential binding and `getCredential`

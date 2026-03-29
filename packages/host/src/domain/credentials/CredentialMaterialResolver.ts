@@ -1,6 +1,7 @@
 import { inject, injectable } from "@codemation/core";
 
 import { ApplicationTokens } from "../../applicationTokens";
+import type { AppConfig } from "../../presentation/config/AppConfig";
 
 import { CredentialSecretCipher } from "./CredentialSecretCipher";
 import type { CredentialInstanceRecord, CredentialStore, JsonRecord } from "./CredentialServices";
@@ -12,8 +13,8 @@ export class CredentialMaterialResolver {
     private readonly credentialStore: CredentialStore,
     @inject(CredentialSecretCipher)
     private readonly credentialSecretCipher: CredentialSecretCipher,
-    @inject(ApplicationTokens.ProcessEnv)
-    private readonly env: Readonly<NodeJS.ProcessEnv>,
+    @inject(ApplicationTokens.AppConfig)
+    private readonly appConfig: AppConfig,
   ) {}
 
   async resolveMaterial(instance: CredentialInstanceRecord): Promise<JsonRecord> {
@@ -37,7 +38,7 @@ export class CredentialMaterialResolver {
     const resolved: Record<string, unknown> = {};
     const missingEnvironmentVariables: string[] = [];
     for (const [fieldKey, envVarName] of Object.entries(instance.secretRef.envByField)) {
-      const value = this.env[envVarName];
+      const value = this.appConfig.env[envVarName];
       if (value === undefined || value.length === 0) {
         missingEnvironmentVariables.push(envVarName);
         continue;

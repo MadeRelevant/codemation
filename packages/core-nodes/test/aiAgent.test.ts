@@ -11,15 +11,13 @@ import type {
   ToolConfig,
   ToolExecuteArgs,
 } from "@codemation/core";
+import { ConnectionNodeIdFactory, CoreTokens, container as tsyringeContainer } from "@codemation/core";
+
 import {
-  ConnectionNodeIdFactory,
-  ContainerNodeResolver,
-  CoreTokens,
   DefaultExecutionBinaryService,
   InMemoryBinaryStorage,
   InMemoryRunDataFactory,
-  container as tsyringeContainer,
-} from "@codemation/core";
+} from "@codemation/core/bootstrap";
 import { AIAgent, AIAgentNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
@@ -220,10 +218,7 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
   };
 
   const startedAt = performance.now();
-  const outputs = await new AIAgentNode(
-    new ContainerNodeResolver(container),
-    container.resolve(CoreTokens.CredentialSessionService),
-  ).execute(
+  const outputs = await new AIAgentNode(container, container.resolve(CoreTokens.CredentialSessionService)).execute(
     [
       {
         json: {
@@ -298,10 +293,7 @@ test("AIAgentNode parses JSON model responses into structured output", async () 
     binary: binary.forNode({ nodeId: "agent_json", activationId: "act_2" }),
   };
 
-  const outputs = await new AIAgentNode(
-    new ContainerNodeResolver(container),
-    container.resolve(CoreTokens.CredentialSessionService),
-  ).execute(
+  const outputs = await new AIAgentNode(container, container.resolve(CoreTokens.CredentialSessionService)).execute(
     [
       {
         json: {

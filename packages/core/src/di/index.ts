@@ -1,5 +1,6 @@
 import "reflect-metadata";
 
+export { CoreTokens } from "./CoreTokens";
 export {
   container,
   delay,

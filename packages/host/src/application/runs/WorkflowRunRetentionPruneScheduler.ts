@@ -4,6 +4,7 @@ import { inject, injectable } from "@codemation/core";
 import type { Logger } from "../logging/Logger";
 import { RunStateBinaryStorageKeysCollector } from "../binary/RunStateBinaryStorageKeysCollector";
 import { ApplicationTokens } from "../../applicationTokens";
+import type { AppConfig } from "../../presentation/config/AppConfig";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { ServerLoggerFactory } from "../../infrastructure/logging/ServerLoggerFactory";
 
@@ -22,20 +23,20 @@ export class WorkflowRunRetentionPruneScheduler {
     @inject(ApplicationTokens.Clock) private readonly clock: Clock,
     @inject(ApplicationTokens.WorkflowRunRepository) private readonly runs: WorkflowRunRepository,
     @inject(CoreTokens.BinaryStorage) private readonly binaryStorage: BinaryStorage,
-    @inject(ApplicationTokens.ProcessEnv) private readonly env: NodeJS.ProcessEnv,
+    @inject(ApplicationTokens.AppConfig) private readonly appConfig: AppConfig,
     @inject(ServerLoggerFactory) loggerFactory: ServerLoggerFactory,
   ) {
     this.logger = loggerFactory.create("codemation.runRetentionPrune");
   }
 
   start(): void {
-    if (this.env.CODEMATION_RUN_PRUNE_ENABLED === "false") {
+    if (this.appConfig.env.CODEMATION_RUN_PRUNE_ENABLED === "false") {
       return;
     }
     if (this.timer) {
       return;
     }
-    const intervalMs = Number(this.env.CODEMATION_RUN_PRUNE_INTERVAL_MS ?? 60_000);
+    const intervalMs = Number(this.appConfig.env.CODEMATION_RUN_PRUNE_INTERVAL_MS ?? 60_000);
     this.timer = setInterval(() => {
       void this.runOnce().catch((error: unknown) => {
         this.logger.warn(`Run retention prune tick failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -54,7 +55,7 @@ export class WorkflowRunRetentionPruneScheduler {
   async runOnce(): Promise<void> {
     this.logger.debug("Run retention prune: starting check");
 
-    const defaultRetentionSec = Number(this.env.CODEMATION_RUN_RETENTION_DEFAULT_SECONDS ?? 86_400);
+    const defaultRetentionSec = Number(this.appConfig.env.CODEMATION_RUN_RETENTION_DEFAULT_SECONDS ?? 86_400);
     const summaries = await this.runs.listRuns({ limit: 500 });
     const nowMs = this.clock.now().getTime();
 

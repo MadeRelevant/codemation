@@ -2,10 +2,10 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
-import { PrismaTriggerSetupStateStore } from "../../src/infrastructure/persistence/PrismaTriggerSetupStateStore";
+import { PrismaTriggerSetupStateRepository } from "../../src/infrastructure/persistence/PrismaTriggerSetupStateRepository";
 import { IntegrationTestDatabaseSession } from "../http/testkit/IntegrationTestDatabaseSession";
 
-class TriggerSetupStateStoreIntegrationContext {
+class TriggerSetupStateRepositoryIntegrationContext {
   private readonly session = new IntegrationTestDatabaseSession();
 
   async start(): Promise<void> {
@@ -16,20 +16,22 @@ class TriggerSetupStateStoreIntegrationContext {
     await this.session.dispose();
   }
 
-  createStore(): PrismaTriggerSetupStateStore {
-    return new PrismaTriggerSetupStateStore(this.requirePrismaClient());
+  createStore(): PrismaTriggerSetupStateRepository {
+    return new PrismaTriggerSetupStateRepository(this.requirePrismaClient());
   }
 
   private requirePrismaClient(): PrismaClient {
     if (!this.session.transaction) {
-      throw new Error("TriggerSetupStateStoreIntegrationContext.start() must be called before creating the store.");
+      throw new Error(
+        "TriggerSetupStateRepositoryIntegrationContext.start() must be called before creating the store.",
+      );
     }
     return this.session.transaction.getPrismaClient();
   }
 }
 
-describe("PrismaTriggerSetupStateStore", () => {
-  const context = new TriggerSetupStateStoreIntegrationContext();
+describe("PrismaTriggerSetupStateRepository", () => {
+  const context = new TriggerSetupStateRepositoryIntegrationContext();
 
   beforeAll(async () => {
     await context.start();

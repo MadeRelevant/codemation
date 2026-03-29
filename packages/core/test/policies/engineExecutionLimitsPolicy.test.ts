@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { EngineExecutionLimitsPolicy } from "../../src/engine/application/policies/EngineExecutionLimitsPolicy.ts";
-import { EngineExecutionLimitsPolicyFactory } from "../../src/engine/application/policies/EngineExecutionLimitsPolicyFactory.ts";
+import { EngineExecutionLimitsPolicy } from "../../src/policies/executionLimits/EngineExecutionLimitsPolicy.ts";
+import { EngineExecutionLimitsPolicyFactory } from "../../src/policies/executionLimits/EngineExecutionLimitsPolicyFactory.ts";
 
 test("EngineExecutionLimitsPolicyFactory merges overrides from args", () => {
   const p = new EngineExecutionLimitsPolicyFactory().create({

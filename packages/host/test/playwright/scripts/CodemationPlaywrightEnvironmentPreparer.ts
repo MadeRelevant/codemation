@@ -28,38 +28,8 @@ export class CodemationPlaywrightEnvironmentPreparer {
     const preparedPath = path.join(hostPackageRoot, "test/playwright/.e2e-prepared.json");
 
     const database = await PostgresIntegrationDatabase.create();
-    fs.rmSync(path.join(repoRoot, "packages/e2e/.codemation/dev.lock"), { force: true });
+    fs.rmSync(path.join(repoRoot, "apps/e2e/.codemation/dev.lock"), { force: true });
     fs.writeFileSync(snapshotPath, JSON.stringify(database.serialize()), "utf8");
-
-    const userCreate = spawnSync(
-      "pnpm",
-      [
-        "codemation",
-        "user",
-        "create",
-        "--email",
-        "e2e@codemation.test",
-        "--password",
-        "E2E-test-password-1!",
-        "--consumer-root",
-        "packages/e2e",
-      ],
-      {
-        cwd: repoRoot,
-        env: {
-          ...process.env,
-          DATABASE_URL: database.databaseUrl,
-          AUTH_SECRET: authSecret,
-          REDIS_URL: "",
-          CODEMATION_E2E_FORCE_LOCAL_RUNTIME: "1",
-          CODEMATION_TSCONFIG_PATH: path.join(repoRoot, "tsconfig.base.json"),
-        },
-        stdio: "inherit",
-      },
-    );
-    if (userCreate.status !== 0) {
-      throw new Error(`codemation user create failed with exit code ${userCreate.status ?? "unknown"}.`);
-    }
 
     const buildEnv = {
       ...process.env,
@@ -80,6 +50,28 @@ export class CodemationPlaywrightEnvironmentPreparer {
     );
     if (turboBuild.status !== 0) {
       throw new Error(`turbo build for browser E2E failed with exit code ${turboBuild.status ?? "unknown"}.`);
+    }
+    const userCreate = spawnSync(
+      "pnpm",
+      [
+        "codemation",
+        "user",
+        "create",
+        "--email",
+        "e2e@codemation.test",
+        "--password",
+        "E2E-test-password-1!",
+        "--consumer-root",
+        "apps/e2e",
+      ],
+      {
+        cwd: repoRoot,
+        env: buildEnv,
+        stdio: "inherit",
+      },
+    );
+    if (userCreate.status !== 0) {
+      throw new Error(`codemation user create failed with exit code ${userCreate.status ?? "unknown"}.`);
     }
     const consumerBuild = spawnSync("pnpm", ["--filter", "@codemation/e2e-app", "exec", "codemation", "build"], {
       cwd: repoRoot,

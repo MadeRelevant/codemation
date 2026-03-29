@@ -1,4 +1,5 @@
-import { RunIntentService, inject, injectable } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
+import { RunIntentService } from "@codemation/core/bootstrap";
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import { HandleWebhookInvocationCommand } from "../../../application/commands/HandleWebhookInvocationCommand";
 import { ApplicationTokens } from "../../../applicationTokens";

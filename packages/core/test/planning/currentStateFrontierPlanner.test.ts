@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { CurrentStateFrontierPlanner } from "../../src/engine/planning/currentStateFrontierPlanner.ts";
-import { WorkflowTopology } from "../../src/engine/planning/WorkflowTopologyPlanner.ts";
+import { CurrentStateFrontierPlanner } from "../../src/planning/CurrentStateFrontierPlanner.ts";
+import { WorkflowTopology } from "../../src/planning/WorkflowTopologyPlanner.ts";
 import { CallbackNodeConfig, MergeNodeConfig, chain, dag, items } from "../harness/index.ts";
 
 test("planner preserves pinned outputs when clearing from a pinned node", () => {

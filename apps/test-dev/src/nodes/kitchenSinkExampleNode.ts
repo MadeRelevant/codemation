@@ -1,4 +1,11 @@
-import type { Item, Items, Node, NodeExecutionContext, NodeOutputs, RunStateStore } from "@codemation/core";
+import type {
+  Item,
+  Items,
+  Node,
+  NodeExecutionContext,
+  NodeOutputs,
+  WorkflowExecutionRepository,
+} from "@codemation/core";
 import { CoreTokens, inject, node } from "@codemation/core";
 import { OdooService } from "../services/odooService";
 import type { KitchenSinkExample } from "./kitchenSinkExample";
@@ -9,8 +16,8 @@ export class KitchenSinkExampleNode implements Node<KitchenSinkExample> {
   outputPorts = ["main"] as const;
 
   constructor(
-    @inject(CoreTokens.RunStateStore)
-    private readonly runStore: RunStateStore,
+    @inject(CoreTokens.WorkflowExecutionRepository)
+    private readonly runStore: WorkflowExecutionRepository,
     @inject(OdooService)
     private readonly odooService: OdooService,
   ) {}

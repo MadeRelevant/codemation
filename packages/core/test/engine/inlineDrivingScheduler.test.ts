@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
+import { type NodeActivationContinuation, type NodeActivationRequest, type NodeResolver } from "../../src/index.ts";
 import {
+  DefaultAsyncSleeper,
+  InProcessRetryRunner,
   InlineDrivingScheduler,
-  type NodeActivationContinuation,
-  type NodeActivationRequest,
-  type NodeResolver,
-} from "../../src/index.ts";
+  NodeExecutor,
+  NodeInstanceFactory,
+} from "../../src/bootstrap/index.ts";
 
 class SuccessfulNode {
   readonly kind = "node" as const;
@@ -22,10 +24,6 @@ class StaticNodeResolver implements NodeResolver {
 
   resolve<T>(): T {
     return this.node as T;
-  }
-
-  getContainer(): undefined {
-    return undefined;
   }
 }
 
@@ -48,7 +46,12 @@ class StaleResultContinuation implements NodeActivationContinuation {
 
 test("inline scheduler ignores stale continuation races after a node already finished", async () => {
   const continuation = new StaleResultContinuation();
-  const scheduler = new InlineDrivingScheduler(new StaticNodeResolver(new SuccessfulNode()));
+  const scheduler = new InlineDrivingScheduler(
+    new NodeExecutor(
+      new NodeInstanceFactory(new StaticNodeResolver(new SuccessfulNode())),
+      new InProcessRetryRunner(new DefaultAsyncSleeper()),
+    ),
+  );
   scheduler.setContinuation(continuation);
 
   const request: NodeActivationRequest = {

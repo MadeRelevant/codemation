@@ -8,7 +8,7 @@ import type {
   NodeExecutionContext,
   NodeOutputs,
   NodeResolver,
-  RunStateStore,
+  WorkflowExecutionRepository,
   WorkflowDefinition,
   WorkflowId,
 } from "@codemation/core";
@@ -18,9 +18,8 @@ import {
   EngineExecutionLimitsPolicy,
   InMemoryRunDataFactory,
   InProcessRetryRunner,
-  RootExecutionOptionsFactory,
   UnavailableBinaryStorage,
-} from "@codemation/core";
+} from "@codemation/core/bootstrap";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 
@@ -47,13 +46,13 @@ export class BullmqWorker {
   private readonly workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>;
   private readonly nodeResolver: NodeResolver;
   private readonly credentialSessions: CredentialSessionService;
-  private readonly runStore: RunStateStore;
+  private readonly workflowExecutionRepository: WorkflowExecutionRepository;
   private readonly continuation: NodeActivationContinuation;
   private readonly workflows: unknown;
   private readonly binaryStorage: BinaryStorage;
 
   private readonly runDataFactory = new InMemoryRunDataFactory();
-  private readonly rootExecutionOptionsFactory: RootExecutionOptionsFactory;
+  private readonly executionLimitsPolicy: EngineExecutionLimitsPolicy;
   private readonly retryRunner: InProcessRetryRunner;
   private readonly workers: Worker[] = [];
 
@@ -63,29 +62,27 @@ export class BullmqWorker {
     workflowsById: ReadonlyMap<WorkflowId, WorkflowDefinition>,
     nodeResolver: NodeResolver,
     credentialSessions: CredentialSessionService,
-    runStore: RunStateStore,
+    workflowExecutionRepository: WorkflowExecutionRepository,
     continuation: NodeActivationContinuation,
     queuePrefix: string = "codemation",
     workflows: unknown = undefined,
     now: () => Date = () => new Date(),
     binaryStorage: BinaryStorage = new UnavailableBinaryStorage(),
     retryRunner: InProcessRetryRunner = new InProcessRetryRunner(new DefaultAsyncSleeper()),
-    rootExecutionOptionsFactory: RootExecutionOptionsFactory = new RootExecutionOptionsFactory(
-      new EngineExecutionLimitsPolicy(),
-    ),
+    executionLimitsPolicy: EngineExecutionLimitsPolicy = new EngineExecutionLimitsPolicy(),
   ) {
     this.connection = RedisConnectionOptionsFactory.fromConfig(connection);
     this.queuePrefix = queuePrefix;
     this.workflowsById = workflowsById;
     this.nodeResolver = nodeResolver;
     this.credentialSessions = credentialSessions;
-    this.runStore = runStore;
+    this.workflowExecutionRepository = workflowExecutionRepository;
     this.continuation = continuation;
     this.workflows = workflows;
     this.now = now;
     this.binaryStorage = binaryStorage;
     this.retryRunner = retryRunner;
-    this.rootExecutionOptionsFactory = rootExecutionOptionsFactory;
+    this.executionLimitsPolicy = executionLimitsPolicy;
 
     for (const q of queues) {
       const queueName = `${this.queuePrefix}.${q}`;
@@ -111,7 +108,7 @@ export class BullmqWorker {
     if (!data || data.kind !== "nodeExecution") throw new Error(`Unexpected job payload for queue ${queueName}`);
 
     const { request } = data;
-    const state = await this.runStore.load(request.runId as any);
+    const state = await this.workflowExecutionRepository.load(request.runId as any);
     if (!state) throw new Error(`Unknown runId: ${request.runId}`);
     if (state.workflowId !== request.workflowId)
       throw new Error(`workflowId mismatch for run ${request.runId}: ${state.workflowId} vs ${request.workflowId}`);
@@ -129,7 +126,7 @@ export class BullmqWorker {
     const eo = state.executionOptions as
       | { subworkflowDepth?: number; maxNodeActivations?: number; maxSubworkflowDepth?: number }
       | undefined;
-    const fb = this.rootExecutionOptionsFactory.create();
+    const fb = this.executionLimitsPolicy.createRootExecutionOptions();
     const base = new DefaultExecutionContextFactory(this.binaryStorage, this.now).create({
       runId: request.runId,
       workflowId: request.workflowId,

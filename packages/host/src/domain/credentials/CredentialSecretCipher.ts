@@ -3,6 +3,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 import { inject, injectable } from "@codemation/core";
 
 import { ApplicationTokens } from "../../applicationTokens";
+import type { AppConfig } from "../../presentation/config/AppConfig";
 
 import type { JsonRecord } from "./CredentialServices";
 
@@ -13,8 +14,8 @@ export class CredentialSecretCipher {
   private static readonly ivLength = 12;
 
   constructor(
-    @inject(ApplicationTokens.ProcessEnv)
-    private readonly env: Readonly<NodeJS.ProcessEnv>,
+    @inject(ApplicationTokens.AppConfig)
+    private readonly appConfig: AppConfig,
   ) {}
 
   encrypt(value: JsonRecord): Readonly<{
@@ -52,7 +53,7 @@ export class CredentialSecretCipher {
   }
 
   private resolveKeyMaterial(): Buffer {
-    const rawValue = this.env.CODEMATION_CREDENTIALS_MASTER_KEY;
+    const rawValue = this.appConfig.env.CODEMATION_CREDENTIALS_MASTER_KEY;
     if (!rawValue || rawValue.trim().length === 0) {
       throw new Error("CODEMATION_CREDENTIALS_MASTER_KEY is required to encrypt database-managed credentials.");
     }
@@ -60,7 +61,7 @@ export class CredentialSecretCipher {
   }
 
   private resolveKeyId(): string {
-    const rawValue = this.env.CODEMATION_CREDENTIALS_MASTER_KEY;
+    const rawValue = this.appConfig.env.CODEMATION_CREDENTIALS_MASTER_KEY;
     return createHash("sha256")
       .update(rawValue ?? "")
       .digest("hex")

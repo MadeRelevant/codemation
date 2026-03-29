@@ -9,7 +9,7 @@ import type { RunCommandResult } from "../../src/application/contracts/RunContra
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
 import type { WorkflowWebsocketMessage } from "../../src/application/contracts/WorkflowWebsocketMessage";
 import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
-import type { CodemationBinding } from "../../src/presentation/config/CodemationBinding";
+import type { CodemationAppContext } from "../../src/presentation/config/CodemationAppContext";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
@@ -102,7 +102,7 @@ class WorkflowDebugSessionIntegrationContext {
     const harness = new FrontendHttpIntegrationHarness({
       config: mergeIntegrationDatabaseRuntime(WorkflowDebugSessionIntegrationFixture.createConfig(), database),
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
-      bindings: [this.createPrismaClientBinding()],
+      register: (context) => this.registerPrismaClient(context),
     });
     await harness.start();
     this.harness = harness;
@@ -123,11 +123,8 @@ class WorkflowDebugSessionIntegrationContext {
     await this.session.dispose();
   }
 
-  private createPrismaClientBinding(): CodemationBinding<unknown> {
-    return {
-      token: PrismaClient,
-      useFactory: () => this.requireTransaction(),
-    };
+  private registerPrismaClient(context: CodemationAppContext): void {
+    context.registerFactory(PrismaClient, () => this.requireTransaction());
   }
 
   private requireSharedDatabase(): IntegrationDatabase {

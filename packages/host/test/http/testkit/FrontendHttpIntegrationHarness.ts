@@ -1,5 +1,5 @@
 import net from "node:net";
-import type { CodemationBinding } from "../../../src/presentation/config/CodemationBinding";
+import type { CodemationAppContext } from "../../../src/presentation/config/CodemationAppContext";
 import type { CodemationConfig } from "../../../src/presentation/config/CodemationConfig";
 import { CodemationServerGateway } from "../../../src/presentation/http/CodemationServerGatewayFactory";
 
@@ -9,7 +9,7 @@ export interface FrontendHttpIntegrationHarnessOptions {
   readonly configSource?: string;
   readonly workflowSources?: ReadonlyArray<string>;
   readonly env?: Readonly<NodeJS.ProcessEnv>;
-  readonly bindings?: ReadonlyArray<CodemationBinding<unknown>>;
+  readonly register?: (context: CodemationAppContext) => void;
 }
 
 export interface FrontendHttpIntegrationRequest {
@@ -143,12 +143,15 @@ export class FrontendHttpIntegrationHarness {
   }
 
   private createEffectiveConfig(): CodemationConfig {
-    if (!this.options.bindings || this.options.bindings.length === 0) {
+    if (!this.options.register) {
       return this.options.config;
     }
     return {
       ...this.options.config,
-      bindings: [...(this.options.config.bindings ?? []), ...this.options.bindings],
+      register: (context) => {
+        this.options.config.register?.(context);
+        this.options.register?.(context);
+      },
     };
   }
 

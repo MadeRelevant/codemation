@@ -1,4 +1,5 @@
-import { MissingRuntimeTriggerToken, node } from "@codemation/core";
+import { node } from "@codemation/core";
+import { MissingRuntimeTriggerToken } from "@codemation/core/bootstrap";
 import type { WorkflowCredentialHealthDto } from "../../src/application/contracts/CredentialContractsRegistry";
 import { WorkflowActivationPreflightRules } from "../../src/domain/workflows/WorkflowActivationPreflightRules";
 import { createWorkflowBuilder, ManualTrigger, WebhookTrigger } from "@codemation/core-nodes";

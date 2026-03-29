@@ -5,7 +5,9 @@ import type {
   RunCurrentState,
   WorkflowDefinition,
 } from "@codemation/core";
-import { Engine, ItemsInputNormalizer, RunIntentService, inject } from "@codemation/core";
+import { ItemsInputNormalizer, inject } from "@codemation/core";
+import { RunIntentService } from "@codemation/core/bootstrap";
+import { Engine } from "@codemation/core/bootstrap";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import { HandlesCommand } from "../../infrastructure/di/HandlesCommandRegistry";

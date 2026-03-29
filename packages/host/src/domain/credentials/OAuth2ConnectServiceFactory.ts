@@ -3,6 +3,7 @@ import { inject, injectable } from "@codemation/core";
 import { createHash, randomBytes } from "node:crypto";
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
 import { ApplicationTokens } from "../../applicationTokens";
+import type { AppConfig } from "../../presentation/config/AppConfig";
 import type { CredentialStore } from "./CredentialServices";
 import {
   CredentialFieldEnvOverlayService,
@@ -48,8 +49,8 @@ export class OAuth2ConnectService {
     private readonly credentialSecretCipher: CredentialSecretCipher,
     @inject(OAuth2ProviderRegistry)
     private readonly oauth2ProviderRegistry: OAuth2ProviderRegistry,
-    @inject(ApplicationTokens.ProcessEnv)
-    private readonly env: Readonly<NodeJS.ProcessEnv>,
+    @inject(ApplicationTokens.AppConfig)
+    private readonly appConfig: AppConfig,
   ) {}
 
   async createAuthRedirect(instanceId: string, requestOrigin: string): Promise<OAuth2AuthRedirectResult> {
@@ -169,7 +170,7 @@ export class OAuth2ConnectService {
   }
 
   getRedirectUri(requestOrigin: string): string {
-    const rawBase = this.env.CODEMATION_PUBLIC_BASE_URL?.trim() || requestOrigin.trim();
+    const rawBase = this.appConfig.env.CODEMATION_PUBLIC_BASE_URL?.trim() || requestOrigin.trim();
     if (!rawBase) {
       throw new Error("Unable to resolve the public base URL for OAuth2 redirect URI generation.");
     }

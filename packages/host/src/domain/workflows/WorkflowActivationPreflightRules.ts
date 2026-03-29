@@ -1,10 +1,6 @@
 import type { WorkflowCredentialHealthDto } from "../../application/contracts/CredentialContractsRegistry";
-import {
-  getPersistedRuntimeTypeMetadata,
-  injectable,
-  MissingRuntimeTriggerToken,
-  type WorkflowDefinition,
-} from "@codemation/core";
+import { getPersistedRuntimeTypeMetadata, injectable, type WorkflowDefinition } from "@codemation/core";
+import { MissingRuntimeTriggerToken } from "@codemation/core/bootstrap";
 import { ManualTriggerNode } from "@codemation/core-nodes";
 
 @injectable()

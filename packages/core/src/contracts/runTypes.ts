@@ -20,7 +20,9 @@ import type {
 } from "./workflowTypes";
 
 export interface RunExecutionOptions {
+  /** Run-intent override: force the inline scheduler and bypass node-level offload decisions. */
   localOnly?: boolean;
+  /** Marks runs started from webhook handling so orchestration can apply webhook-specific continuation rules. */
   webhook?: boolean;
   mode?: "manual" | "debug";
   sourceWorkflowId?: WorkflowId;
@@ -248,7 +250,7 @@ export interface PersistedRunState {
   connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
 }
 
-export interface RunStateStore {
+export interface WorkflowExecutionRepository {
   createRun(args: {
     runId: RunId;
     workflowId: WorkflowId;
@@ -266,7 +268,7 @@ export interface RunStateStore {
   deleteRun?(runId: RunId): Promise<void>;
 }
 
-export interface RunListingStore {
+export interface WorkflowExecutionListingRepository {
   listRuns(args?: Readonly<{ workflowId?: WorkflowId; limit?: number }>): Promise<ReadonlyArray<RunSummary>>;
 }
 
@@ -278,7 +280,7 @@ export interface RunPruneCandidate {
   readonly finishedAt: string;
 }
 
-export interface RunPruneListingStore {
+export interface WorkflowExecutionPruneRepository {
   listRunsOlderThan(args: Readonly<{ beforeIso: string; limit?: number }>): Promise<ReadonlyArray<RunPruneCandidate>>;
 }
 

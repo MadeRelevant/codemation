@@ -7,6 +7,10 @@ import type {
   PersistedRuntimeTypeKind,
 } from "./persistedRuntimeTypeModelRegistry";
 
+/**
+ * Applies both tsyringe injectability and persisted runtime metadata in one decorator.
+ * This keeps runtime-type decorators thin while still recording enough data for snapshot hydration.
+ */
 export class InjectableRuntimeDecoratorComposer {
   static compose(
     kind: PersistedRuntimeTypeKind,

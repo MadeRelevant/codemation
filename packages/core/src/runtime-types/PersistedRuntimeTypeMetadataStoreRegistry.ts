@@ -9,6 +9,10 @@ import {
 import { PersistedRuntimeTypeNameResolver } from "./PersistedRuntimeTypeNameResolver";
 import { StackTraceCallSitePathResolver } from "./StackTraceCallSitePathResolver";
 
+/**
+ * Defines and retrieves persisted runtime metadata on decorated classes.
+ * The metadata is attached as a non-enumerable property so runtime objects stay serializable.
+ */
 export class PersistedRuntimeTypeMetadataStore {
   static define(
     target: DecoratedRuntimeType,

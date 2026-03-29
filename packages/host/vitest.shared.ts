@@ -30,6 +30,10 @@ export const hostVitestSharedConfig = {
         replacement: path.resolve(import.meta.dirname, "../eventbus-redis/src/index.ts"),
       },
       { find: "@codemation/core/testing", replacement: path.resolve(import.meta.dirname, "../core/src/testing.ts") },
+      {
+        find: "@codemation/core/bootstrap",
+        replacement: path.resolve(import.meta.dirname, "../core/src/bootstrap/index.ts"),
+      },
       { find: "@codemation/core", replacement: path.resolve(import.meta.dirname, "../core/src/index.ts") },
       {
         find: "next/navigation",

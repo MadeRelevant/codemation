@@ -1,9 +1,10 @@
 import type { Container } from "@codemation/core";
-import { CoreTokens, Engine } from "@codemation/core";
 import type { CodemationAuthConfig, CodemationPlugin } from "@codemation/host";
 import {
   ApplicationTokens,
   CodemationApplication,
+  CodemationBootstrapRequest,
+  CodemationFrontendBootstrapRequest,
   CodemationHonoApiApp,
   CodemationPluginListMerger,
   logLevelPolicyFactory,
@@ -110,7 +111,7 @@ export class CodemationNextHost {
     }
     try {
       const ctx = await this.contextPromise;
-      await ctx.application.stopFrontendServerContainer({ stopWebsocketServer: false });
+      await ctx.application.stop({ stopWebsocketServer: false });
     } catch {
       // Best-effort teardown before reloading consumer output.
     }
@@ -183,7 +184,6 @@ export class CodemationNextHost {
     }
     process.env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
     process.env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
-    process.env.CODEMATION_CONSUMER_ROOT = consumerRoot;
     const resolvedConsumerApp = await this.loadBuiltConsumerApp(buildManifest.entryPath);
     const whitelabelSnapshot = CodemationWhitelabelSnapshotFactory.fromConsumerConfig(resolvedConsumerApp.config);
     const env = { ...process.env };
@@ -194,6 +194,12 @@ export class CodemationNextHost {
     env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
     env.CODEMATION_CONSUMER_ROOT = consumerRoot;
     const isRuntimeDevProxy = Boolean(process.env.CODEMATION_RUNTIME_DEV_URL?.trim());
+    const bootstrapRequest = new CodemationBootstrapRequest({
+      consumerRoot,
+      repoRoot,
+      env,
+      workflowSources: resolvedConsumerApp.workflowSources,
+    });
     const application = new CodemationApplication();
     application.useSharedWorkflowWebsocketServer(this.resolveSharedWorkflowWebsocketServer());
     const discoveredPlugins = await this.loadDiscoveredPlugins(buildManifest);
@@ -202,37 +208,16 @@ export class CodemationNextHost {
     if (discoveredPlugins.length > 0) {
       application.usePlugins(this.pluginListMerger.merge(resolvedConsumerApp.config.plugins ?? [], discoveredPlugins));
     }
-    await application.applyPlugins({
-      consumerRoot,
-      repoRoot,
-      env,
-      workflowSources: resolvedConsumerApp.workflowSources,
-    });
-    await application.prepareFrontendServerContainer({
-      repoRoot,
-      consumerRoot,
-      env,
-      skipPresentationServers: isRuntimeDevProxy,
-    });
+    await application.applyPlugins(bootstrapRequest);
+    await application.prepareContainer(bootstrapRequest);
     const typeInfoRegistrar = new CodemationTsyringeTypeInfoRegistrar(application.getContainer());
     typeInfoRegistrar.registerWorkflowDefinitions(resolvedConsumerApp.config.workflows ?? []);
-    typeInfoRegistrar.registerBootHookToken(resolvedConsumerApp.config.bootHook);
-    if (process.env.CODEMATION_SKIP_BOOT_HOOK !== "true" && !isRuntimeDevProxy) {
-      await application.applyBootHook({
-        bootHookToken: resolvedConsumerApp.config.bootHook,
-        consumerRoot,
-        repoRoot,
-        env,
-        workflowSources: resolvedConsumerApp.workflowSources,
-      });
-    }
-
-    if (!isRuntimeDevProxy) {
-      const container = application.getContainer();
-      const workflowRepository = container.resolve(CoreTokens.WorkflowRepository);
-      const engine = container.resolve(Engine);
-      await engine.start([...workflowRepository.list()]);
-    }
+    await application.bootFrontend(
+      new CodemationFrontendBootstrapRequest({
+        bootstrap: bootstrapRequest,
+        skipPresentationServers: isRuntimeDevProxy,
+      }),
+    );
     return {
       application,
       authConfig: resolvedConsumerApp.config.auth,

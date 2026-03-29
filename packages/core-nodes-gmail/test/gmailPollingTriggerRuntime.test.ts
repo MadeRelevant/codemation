@@ -1,5 +1,5 @@
 import { test } from "vitest";
-import type { PersistedTriggerSetupState, TriggerInstanceId, TriggerSetupStateStore } from "@codemation/core";
+import type { PersistedTriggerSetupState, TriggerInstanceId, TriggerSetupStateRepository } from "@codemation/core";
 import assert from "node:assert/strict";
 import { OnNewGmailTrigger } from "../src/nodes/OnNewGmailTrigger";
 import { GmailPollingTriggerRuntime } from "../src/runtime/GmailPollingTriggerRuntime";
@@ -9,7 +9,7 @@ import { GmailMessageItemMapper } from "../src/services/GmailMessageItemMapper";
 import { GmailPollingService } from "../src/services/GmailPollingService";
 import { GmailQueryMatcher } from "../src/services/GmailQueryMatcher";
 
-class InMemoryTriggerSetupStateStore implements TriggerSetupStateStore {
+class InMemoryTriggerSetupStateRepository implements TriggerSetupStateRepository {
   private readonly statesByKey = new Map<string, PersistedTriggerSetupState>();
 
   async load(trigger: TriggerInstanceId): Promise<PersistedTriggerSetupState | undefined> {
@@ -121,7 +121,7 @@ class GmailPollingTriggerRuntimeFixture {
 }
 
 test("GmailPollingTriggerRuntime baselines on first poll then emits new messages", async () => {
-  const store = new InMemoryTriggerSetupStateStore();
+  const store = new InMemoryTriggerSetupStateRepository();
   const configuredLabelService = new GmailConfiguredLabelService();
   const pollingService = new GmailPollingService(
     store,
@@ -163,7 +163,7 @@ test("GmailPollingTriggerRuntime baselines on first poll then emits new messages
 });
 
 test("GmailPollingTriggerRuntime stop clears the poll loop", async () => {
-  const store = new InMemoryTriggerSetupStateStore();
+  const store = new InMemoryTriggerSetupStateRepository();
   const configuredLabelService = new GmailConfiguredLabelService();
   const pollingService = new GmailPollingService(
     store,

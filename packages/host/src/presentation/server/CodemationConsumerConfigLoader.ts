@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import type { NamespacedUnregister } from "tsx/esm/api";
 import { register } from "tsx/esm/api";
 import type { CodemationConfig } from "../config/CodemationConfig";
+import { CodemationConfigNormalizer } from "../config/CodemationConfigNormalizer";
 import { logLevelPolicyFactory } from "../../infrastructure/logging/LogLevelPolicyFactory";
 import { ServerLoggerFactory } from "../../infrastructure/logging/ServerLoggerFactory";
 import { DiscoveredWorkflowsEmptyMessageFactory } from "./DiscoveredWorkflowsEmptyMessageFactory";
@@ -22,6 +23,7 @@ export type CodemationConsumerConfigResolution = Readonly<{
 export class CodemationConsumerConfigLoader {
   private static readonly importerRegistrationsByTsconfig = new Map<string, NamespacedUnregister>();
   private readonly configExportsResolver = new CodemationConsumerConfigExportsResolver();
+  private readonly configNormalizer = new CodemationConfigNormalizer();
   private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
   private readonly workflowDefinitionExportsResolver = new WorkflowDefinitionExportsResolver();
   private readonly discoveredWorkflowsEmptyMessageFactory = new DiscoveredWorkflowsEmptyMessageFactory();
@@ -52,14 +54,17 @@ export class CodemationConsumerConfigLoader {
     }
     const moduleExports = await this.importModule(bootstrapSource);
     phaseMs("importConfigModule");
-    const config = this.configExportsResolver.resolveConfig(moduleExports);
-    if (!config) {
+    const rawConfig = this.configExportsResolver.resolveConfig(moduleExports);
+    if (!rawConfig) {
       throw new Error(`Config file does not export a Codemation config object: ${bootstrapSource}`);
     }
+    const config = this.configNormalizer.normalize(rawConfig);
     const workflowSources = await this.resolveWorkflowSources(args.consumerRoot, config);
     phaseMs("resolveWorkflowSources");
-    const workflows =
-      config.workflows ?? (await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources));
+    const workflows = this.mergeWorkflows(
+      config.workflows ?? [],
+      await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources),
+    );
     phaseMs("loadDiscoveredWorkflows");
     const resolvedConfig: CodemationConfig = {
       ...config,
@@ -104,7 +109,7 @@ export class CodemationConsumerConfigLoader {
   }
 
   private async resolveWorkflowSources(consumerRoot: string, config: CodemationConfig): Promise<ReadonlyArray<string>> {
-    if (config.workflows !== undefined) {
+    if ((config.workflowDiscovery?.directories?.length ?? 0) === 0) {
       return [];
     }
     const discoveredPaths = await this.workflowModulePathFinder.discoverModulePaths({
@@ -144,6 +149,20 @@ export class CodemationConsumerConfigLoader {
     }
     if (workflowsById.size === 0 && workflowSources.length > 0) {
       throw new Error(this.discoveredWorkflowsEmptyMessageFactory.create(workflowSources));
+    }
+    return [...workflowsById.values()];
+  }
+
+  private mergeWorkflows(
+    configuredWorkflows: ReadonlyArray<WorkflowDefinition>,
+    discoveredWorkflows: ReadonlyArray<WorkflowDefinition>,
+  ): ReadonlyArray<WorkflowDefinition> {
+    const workflowsById = new Map<string, WorkflowDefinition>();
+    for (const workflow of discoveredWorkflows) {
+      workflowsById.set(workflow.id, workflow);
+    }
+    for (const workflow of configuredWorkflows) {
+      workflowsById.set(workflow.id, workflow);
     }
     return [...workflowsById.values()];
   }

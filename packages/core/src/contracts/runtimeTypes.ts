@@ -1,5 +1,5 @@
 import type { ReadableStream as BinaryReadableStream } from "node:stream/web";
-import type { Container, TypeToken } from "../di";
+import type { TypeToken } from "../di";
 import type { RunEventBus } from "../events/runEvents";
 import type { CredentialSessionService } from "./credentialTypes";
 import type {
@@ -9,7 +9,7 @@ import type {
   PersistedWorkflowTokenRegistryLike,
   RunExecutionOptions,
   RunResult,
-  RunStateStore,
+  WorkflowExecutionRepository,
 } from "./runTypes";
 import type { WorkflowActivationPolicy } from "./workflowActivationPolicy";
 import type { TriggerInstanceId, WebhookTriggerMatcher } from "./webhookTypes";
@@ -54,15 +54,12 @@ export interface WorkflowRepository {
   get(workflowId: WorkflowId): WorkflowDefinition | undefined;
 }
 
-export interface WorkflowCatalog extends WorkflowRepository {
+export interface LiveWorkflowRepository extends WorkflowRepository {
   setWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): void;
 }
 
-export type WorkflowRegistry = WorkflowCatalog;
-
 export interface NodeResolver {
   resolve<T>(token: TypeToken<T>): T;
-  getContainer(): Container | undefined;
 }
 
 export interface NodeExecutionStatePublisher {
@@ -207,7 +204,7 @@ export interface PersistedTriggerSetupState<TState extends JsonValue | undefined
   state: TState;
 }
 
-export interface TriggerSetupStateStore {
+export interface TriggerSetupStateRepository {
   load(trigger: TriggerInstanceId): Promise<PersistedTriggerSetupState | undefined>;
   save(state: PersistedTriggerSetupState): Promise<void>;
   delete(trigger: TriggerInstanceId): Promise<void>;
@@ -327,6 +324,11 @@ export interface NodeActivationScheduler {
 
 export interface WorkflowNodeInstanceFactory {
   createNodes(workflow: WorkflowDefinition): ReadonlyMap<NodeId, unknown>;
+  createByType(type: TypeToken<unknown>): unknown;
+}
+
+export interface NodeExecutor {
+  execute(request: NodeActivationRequest): Promise<NodeOutputs>;
 }
 
 export interface WorkflowSnapshotFactory {
@@ -348,17 +350,16 @@ export interface TriggerRuntimeDiagnostics {
 
 export interface EngineDeps {
   credentialSessions: CredentialSessionService;
-  workflowRunnerResolver: WorkflowRunnerResolver;
-  workflowCatalog: WorkflowCatalog;
+  liveWorkflowRepository: LiveWorkflowRepository;
   workflowRepository: WorkflowRepository;
   /** When {@link AllWorkflowsActiveWorkflowActivationPolicy}, all workflows behave as active (tests). */
   workflowActivationPolicy: WorkflowActivationPolicy;
   nodeResolver: NodeResolver;
-  triggerSetupStateStore: TriggerSetupStateStore;
+  triggerSetupStateRepository: TriggerSetupStateRepository;
   webhookTriggerMatcher: WebhookTriggerMatcher;
   runIdFactory: RunIdFactory;
   activationIdFactory: ActivationIdFactory;
-  runStore: RunStateStore;
+  workflowExecutionRepository: WorkflowExecutionRepository;
   activationScheduler: NodeActivationScheduler;
   runDataFactory: RunDataFactory;
   executionContextFactory: ExecutionContextFactory;

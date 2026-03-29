@@ -28,7 +28,7 @@ Keeping these boundaries stable is what lets the monorepo stay modular:
 
 - **No opinionated HTTP/UI** — consumers use `@codemation/host` / Next host for gateways and screens.
 - **No node plugin catalog inside core** — nodes live in separate packages (`@codemation/core-nodes`, `node-*`, etc.); core stays a **contract + runtime** layer.
-- **No direct infrastructure** in domain logic — file/DB/queue access is behind injected ports (`RunStateStore`, `NodeActivationScheduler`, …).
+- **No direct infrastructure** in domain logic — file/DB/queue access is behind injected ports (`WorkflowExecutionRepository`, `NodeActivationScheduler`, …).
 
 ---
 
@@ -38,32 +38,35 @@ Keeping these boundaries stable is what lets the monorepo stay modular:
 flowchart LR
   subgraph Host["Consumer / host (outside core engine)"]
     App[App wiring & DI]
-    Catalog[Live workflow catalog]
-    Store[(Run state store)]
+    Catalog[Live workflow repository]
+    Store[(Workflow execution repository)]
     Queue[Activation scheduler]
   end
 
   subgraph CoreEngine["@codemation/core engine"]
-    API["api: Engine, EngineFactory"]
-    APP["application: run/trigger/continuation services"]
-    DOM["domain: planning & pure helpers"]
-    ADP["adapters: persisted workflow, DI helpers, …"]
+    API["orchestration + runtime: Engine and intent services"]
+    EXEC["execution + scheduler: run continuation and node activation"]
+    PLAN["planning: topology, queue, frontier"]
+    PERS["workflowSnapshots: snapshot/hydrate/resolver"]
+    ADP["bootstrap + runtime helpers"]
   end
 
   Ports["contracts: ports & types"]
 
   App --> API
-  API --> APP
-  APP --> Ports
-  APP --> DOM
+  API --> EXEC
+  EXEC --> Ports
+  EXEC --> PLAN
+  PERS --> Ports
   ADP --> Ports
-  APP --> ADP
+  EXEC --> PERS
+  EXEC --> ADP
   Catalog --> Ports
   Store --> Ports
   Queue --> Ports
 ```
 
-At runtime, **host wiring** constructs an `Engine` (usually via `EngineFactory`) and registers implementations for **ports** such as `WorkflowRepository`, `RunStateStore`, and `NodeActivationScheduler`.
+At runtime, **host wiring** registers implementations for **ports** such as `LiveWorkflowRepository`, `WorkflowRepository`, `WorkflowExecutionRepository`, and `NodeActivationScheduler`, then calls `EngineRuntimeRegistrar` so the container can resolve `Engine` and the intent services directly.
 
 ---
 
@@ -81,23 +84,26 @@ At runtime, **host wiring** constructs an `Engine` (usually via `EngineFactory`)
 
 ---
 
-## Source layout (`packages/core/src/engine`)
+## Source layout (`packages/core/src`)
 
-The engine code is grouped by responsibility:
+The engine code is now grouped by top-level systems instead of a single `engine/` catch-all:
 
-| Folder         | Role                                                                                                                                                         |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `api/`         | **Facade & composition root**: `Engine` (thin surface), `EngineFactory` (wires internal services).                                                           |
-| `application/` | **Orchestration**: start/resume runs, triggers, intents, state publishing, waiters, credentials glue, execution services.                                    |
-| `domain/`      | **Pure logic**: planning, frontier/current-state helpers, snapshot-oriented utilities without I/O.                                                           |
-| `adapters/`    | **Concrete helpers** that implement engine-facing concerns: persisted-workflow materialization, container `NodeResolver`, in-memory matchers for tests, etc. |
-| `scheduling/`  | **Schedulers & offload policy** implementations used when executing activations.                                                                             |
-| `storage/`     | **Run-store helpers** bundled with the engine package (in-memory implementations for tests/dev tooling).                                                     |
-| `graph/`       | **Graph construction** helpers for executable workflow structure.                                                                                            |
-| `context/`     | **Execution context** defaults (including binary attachment factories used along runs).                                                                      |
-| `planning/`    | Legacy/extra planning entry points; **prefer `domain/planning/`** for the canonical graph algorithms where duplicated.                                       |
-
-> **Note:** Over time, some planning code exists in both `planning/` and `domain/planning/` as refactors land. When in doubt, follow imports from `application/` services.
+| Folder               | Role                                                                                                                               |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `workflow/`          | Workflow authoring and structure: `dsl/`, `definition/`, and `graph/`.                                                             |
+| `orchestration/`     | The engine facade and long-running coordination flow: `Engine`, trigger runtime, waiters, run start, and run continuation.         |
+| `runtime/`           | Host-facing services and in-memory runtime helpers such as `EngineFactory`, `RunIntentService`, and `EngineWorkflowRunnerService`. |
+| `execution/`         | Node execution, activation enqueue, retry helpers, execution context, and state-writing helpers.                                   |
+| `planning/`          | Topology, queue, cycle, frontier, and current-state planning.                                                                      |
+| `workflowSnapshots/` | Persisted workflow hydration, serialization, token registry, and missing-runtime stand-ins.                                        |
+| `policies/`          | Execution limits, run policy snapshots, storage/error policy helpers.                                                              |
+| `runStorage/`        | In-memory workflow execution repositories, run data helpers, binary readers, and summary mapping.                                  |
+| `binaries/`          | Binary attachment and execution binary services.                                                                                   |
+| `events/`            | Run lifecycle contracts and `NodeEventPublisher`.                                                                                  |
+| `scheduler/`         | Scheduler implementations and offload policy selection.                                                                            |
+| `serialization/`     | Serialization helpers such as `ItemsInputNormalizer`.                                                                              |
+| `bootstrap/`         | Composition-root and advanced runtime wiring, including `bootstrap/runtime/`.                                                      |
+| `testing/`           | Test-only helpers and fakes.                                                                                                       |
 
 Stable **cross-cutting contracts** (ports shared beyond the engine folder) live under `packages/core/src/contracts/` and are re-exported via `packages/core/src/types/`.
 
@@ -105,48 +111,46 @@ Stable **cross-cutting contracts** (ports shared beyond the engine folder) live 
 
 ## Public entry points
 
-- **`Engine`** (`engine/api/Engine.ts`): the **facade** consumers call—`start`, `runWorkflow`, resume methods, webhook trigger matching, etc. It delegates to injected services and does not embed orchestration logic.
-- **`EngineFactory`** (`engine/api/EngineFactory.ts`): the **composition root** for engine-internal services. It constructs collaborators (persisted-workflow resolver, run starters, continuation service, trigger runtime, …) from `EngineDeps` / `EngineCompositionDeps`.
-- **Barrel** (`engine/index.ts`): re-exports the engine’s supported public surface for `@codemation/core` (alongside other package exports in `src/index.ts`).
+- **`Engine`** (`orchestration/Engine.ts`): the facade for `start`, `runWorkflow`, resume methods, and webhook trigger matching. The class token is imported from **`@codemation/core/bootstrap`**, not the main `@codemation/core` barrel.
+- **`EngineFactory`** (`runtime/EngineFactory.ts`): the composition root for engine-internal services; same **`@codemation/core/bootstrap`** export story as **`Engine`**.
+- **Main barrel** (`src/index.ts`): explicit exports only. There is no public `src/engine/index.ts` barrel anymore.
 
-For **tests only**, in-memory workflow helpers are exposed from `@codemation/core/testing` so production bundles do not treat them as the default runtime story.
+For tests, `@codemation/core/testing` remains the preferred entry point for in-memory helpers and other test-only conveniences.
 
 ---
 
-## Layered design
+## Engine design
 
-### 1. API layer (`engine/api/`)
+### 1. Runtime facade layer (`orchestration/` + `runtime/`)
 
 - **`Engine`** exposes a **stable, narrow interface** and implements **`NodeActivationContinuation`** so the activation scheduler can call back into resume semantics.
 - **`EngineFactory.create`** is the **single preferred place** to instantiate the graph of engine services, keeping `new` out of domain code (see repo ESLint rules around manual DI).
 
-### 2. Application layer (`engine/application/`)
+### 1b. Facade services (`runtime/`)
+
+- **`RunIntentService`** — higher-level entry points (current-state runs, webhooks) that delegate to **`Engine`**.
+- **`EngineWorkflowRunnerService`** — “run by workflow id” on top of **`Engine`**.
+
+### 2. Runtime orchestration (`execution/`, `orchestration/`, `events/`, …)
 
 Typical responsibilities:
 
-- **Execution** — `WorkflowRunStarter`, `CurrentStateRunStarter`, `RunContinuationService`, `RunStateSemantics`, `ActivationEnqueueService`.
-- **Triggers** — `TriggerRuntimeService` (bootstraps triggers against `WorkflowRepository`).
-- **Intents / runners** — `RunIntentService`, `EngineWorkflowRunnerService` (higher-level “run by id” style entry points).
-- **State & events** — publishers/factories for node lifecycle marks and run events.
-- **Waiters** — coordination for completion / webhook waits (`EngineWaiters`).
+- **Execution** — `RunStartService`, `RunContinuationService`, `RunStateSemantics`, `ActivationEnqueueService`.
+- **Triggers** — **`TriggerRuntimeService`** (`runtime/`) bootstraps trigger nodes against **`WorkflowRepository`**.
+- **Context & credentials** — **`DefaultExecutionContextFactory`** and **`CredentialResolverFactory`** (`execution/`).
+- **State & events** — node lifecycle marks and snapshots are produced inside **`execution/`** and fan out through **`NodeEventPublisher`** (`src/events/NodeEventPublisher.ts`).
+- **Waiters** — **`EngineWaiters`** (`orchestration/`) for completion / webhook waits.
 
 These classes **orchestrate**; they depend on ports and pure domain helpers.
 
-### 3. Domain layer (`engine/domain/`)
+### 3. Planning, materialization, adapters, and runtime helpers
 
-**Deterministic** helpers: planning (`WorkflowTopology`, queue planning, frontier/current-state planners), execution snapshot helpers (`NodeSnapshotFactory`, diagnostics types), etc.
+Concrete implementations that sit beside the orchestration layers:
 
-Domain code should avoid **constructing** infrastructure; it works on data structures and contracts.
+- **Persisted workflow** — snapshot serialization, hydration, resolution, missing-node placeholders, token registry (`workflowSnapshots/`).
+- **Runtime/bootstrap helpers** — **`InMemoryLiveWorkflowRepository`** and **`WorkflowRepositoryWebhookTriggerMatcher`** (`runtime/`), plus **`NodeInstanceFactory`** (`execution/`). **`EngineRuntimeRegistrar`** remains the only bootstrap/runtime composition root and is intentionally not part of the main barrel.
 
-### 4. Adapters layer (`engine/adapters/`)
-
-Bridge **ports** to **implementations**:
-
-- **Persisted workflow** — snapshot serialization/hydration/resolution (`PersistedWorkflowResolver`, `PersistedWorkflowSnapshotFactory`, config hydrator, missing-node placeholders).
-- **DI** — `ContainerNodeResolver`, `ContainerWorkflowRunnerResolver`.
-- **Nodes** — `NodeInstanceFactory` mapping definitions to executable node instances via `NodeResolver`.
-
-Host-specific catalogs (e.g. Postgres-backed definitions) stay **outside** core; core only sees **`WorkflowRepository` / `WorkflowCatalog`**.
+Host-specific repositories (e.g. Postgres-backed definitions) stay **outside** core; core only sees **`WorkflowRepository` / `LiveWorkflowRepository`**.
 
 ---
 
@@ -154,16 +158,16 @@ Host-specific catalogs (e.g. Postgres-backed definitions) stay **outside** core;
 
 The engine’s external surface area is expressed as **TypeScript interfaces** in `packages/core/src/contracts/runtimeTypes.ts` (aggregated through `packages/core/src/types/`).
 
-### Workflow access: repository vs catalog
+### Workflow access: repository vs live repository
 
 - **`WorkflowRepository`** — read-only: `list()` and `get(workflowId)`. Used anywhere the engine only needs to **read** discovered workflows (triggers, run-by-id, etc.).
-- **`WorkflowCatalog`** — extends the repository with **`setWorkflows(...)`** for the **mutable** “what is currently loaded” view. `Engine.loadWorkflows` updates both token registration and the catalog.
+- **`LiveWorkflowRepository`** — extends the repository with **`setWorkflows(...)`** for the **mutable** “what is currently loaded” view. `Engine.loadWorkflows` updates both token registration and the live repository.
 
-In DI, prefer the **`WorkflowCatalog`** token for the canonical mutable registration; a **`WorkflowRegistry`** name may exist as a **compatibility alias** pointing at the same instance.
+In DI, use **`CoreTokens.LiveWorkflowRepository`** (and **`CoreTokens.WorkflowRepository`** when you only need read-only access).
 
 ### Other ports (representative)
 
-- **`RunStateStore`** — load/save run state, listings, summaries (persistence).
+- **`WorkflowExecutionRepository`** — load/save run state, listings, summaries (persistence).
 - **`NodeActivationScheduler`** — enqueue activations (local or worker queues).
 - **`PersistedWorkflowTokenRegistryLike`** — token metadata for serializable configs.
 - **`NodeResolver`** — resolve `TypeToken`s to node implementations (from DI).
@@ -171,13 +175,19 @@ In DI, prefer the **`WorkflowCatalog`** token for the canonical mutable registra
 
 `EngineDeps` (see `runtimeTypes.ts`) is the **bundle of ports** `EngineFactory` expects.
 
+### Container-first boundary (host)
+
+At the **host boundary**, apps should **not** manually assemble the object graph passed to `EngineFactory.create`. After registering the usual ports (`LiveWorkflowRepository`, `WorkflowRepository`, `WorkflowExecutionRepository`, `NodeResolver`, credential session service, schedulers, …), wiring calls **`EngineRuntimeRegistrar.register(container, options)`** (`bootstrap/runtime/EngineRuntimeRegistrar.ts`). That registers `EngineFactory`, resolves or registers execution limits policy, registers **`Engine`**, **`RunIntentService`**, and **`CoreTokens.WorkflowRunnerService`**, and injects the webhook matcher (and optional trigger diagnostics) from **options** so host logging/config stays at the edge.
+
+Tests and harnesses may still register **`EngineFactory`** alone when a **minimal** graph is enough.
+
 ---
 
 ## Composition: `EngineFactory` and `EngineCompositionDeps`
 
 `EngineFactory.create` builds the internal graph:
 
-- **Persisted workflow pipeline** — constructs `PersistedWorkflowSnapshotFactory` and `PersistedWorkflowResolver` (hydration + missing-runtime placeholders) **inside the factory** so hosts do not reassemble this pipeline by hand.
+- **Persisted workflow pipeline** — constructs the snapshot codec and resolver path (`WorkflowSnapshotCodec`, `WorkflowSnapshotResolver`, and missing-runtime fallbacks) **inside the factory** so hosts do not reassemble this pipeline by hand.
 - **Run services** — wires run starter, current-state starter, continuation service, trigger runtime, waiters, publishers.
 
 `EngineCompositionDeps` extends `EngineDeps` with **optional overrides** for advanced tests or bespoke wiring (for example injecting a custom hydrator). Defaults keep construction centralized in `EngineFactory`.
@@ -186,15 +196,15 @@ In DI, prefer the **`WorkflowCatalog`** token for the canonical mutable registra
 
 ## Live workflows vs persisted snapshots
 
-| Concern             | Live                                                          | Persisted                                                                                  |
-| ------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **Source of truth** | Current definitions in the **`WorkflowCatalog` / repository** | **`workflowSnapshot`** stored on the run record                                            |
-| **Used for**        | Scheduling new work, triggers, “run latest”                   | Resuming old runs, drift-tolerant execution                                                |
-| **Materialization** | Engine reads from repository                                  | `PersistedWorkflowResolver` combines snapshot + registry tokens into a runnable definition |
+| Concern             | Live                                                                 | Persisted                                                                                 |
+| ------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Source of truth** | Current definitions in the **`LiveWorkflowRepository` / repository** | **`workflowSnapshot`** stored on the run record                                           |
+| **Used for**        | Scheduling new work, triggers, “run latest”                          | Resuming old runs, drift-tolerant execution                                               |
+| **Materialization** | Engine reads from repository                                         | `WorkflowSnapshotResolver` combines snapshot + registry tokens into a runnable definition |
 
 **Outsider takeaway:** “Live” is what your deployment knows about _now_; “persisted” is what a specific _historical run_ recorded _then_.
 
-**Nerd detail:** resolvers and hydrators live under `engine/adapters/persisted-workflow/`; they are intentionally **not** something host apps should fork lightly—keep them engine-internal.
+**Nerd detail:** resolvers and hydrators live under `workflowSnapshots/`; they are intentionally **not** something host apps should fork lightly.
 
 ---
 
@@ -205,10 +215,10 @@ High-level flow for a typical forward run:
 1. **Plan** — build a `WorkflowTopology` and planner (via `EngineWorkflowPlanningFactory` and domain planners).
 2. **Enqueue** — `ActivationEnqueueService` schedules activations through `NodeActivationScheduler`.
 3. **Execute** — schedulers run node `execute` methods with **batched items** (core contract: nodes receive **items as a batch**).
-4. **Persist** — `RunStateStore` records outputs, snapshots, and continuation points.
+4. **Persist** — `WorkflowExecutionRepository` records outputs, snapshots, and continuation points.
 5. **Continue** — `RunContinuationService` resumes when nodes complete, fail, or wait (webhooks, external workers).
 
-For **resume-from-state** and **partial replays**, `CurrentStateRunStarter` and frontier planners consult **current run state** rather than assuming a cold start.
+For **resume-from-state** and **partial replays**, `RunStartService` and frontier planners consult **current run state** rather than assuming a cold start.
 
 ---
 
@@ -222,7 +232,7 @@ Exact HTTP behavior belongs to host packages; the engine exposes **matching** an
 
 ## Scheduling and offload
 
-Under `engine/scheduling/` you will find:
+Under `scheduler/` you will find:
 
 - **Driving schedulers** (inline vs default driving).
 - **Offload policies** — hints for whether work should run locally vs be queued (integration with BullMQ lives in `packages/queue-bullmq`).
@@ -231,16 +241,17 @@ Under `engine/scheduling/` you will find:
 
 ## Testing strategy (mental model)
 
-- **Unit tests** in `packages/core/test/` exercise the engine with **real small nodes** and in-memory stores—minimal mocking (per repo testing standards).
-- **`@codemation/core/testing`** exposes **in-memory workflow catalog** helpers for tests **only**—not as the supported production story.
+- **Unit tests** in `packages/core/test/` exercise the engine with **real small nodes** and in-memory repositories—minimal mocking (per repo testing standards).
+- **`@codemation/core/testing`** exposes **in-memory live workflow repository** helpers for tests **only**—not as the supported production story.
 
 ---
 
 ## Related reading
 
+- **Public API boundary** — `packages/core/docs/public-api-boundary.md`
 - **Repository-wide contributor rules** — `AGENTS.md`
 - **Contracts** — `packages/core/src/contracts/runtimeTypes.ts`
-- **Host wiring** — `packages/host/src/codemationApplication.ts` (DI registration for catalog, engine, stores)
+- **Host wiring** — `packages/host/src/codemationApplication.ts` (DI registration for repositories, engine, and schedulers)
 
 ---
 
@@ -249,5 +260,7 @@ Under `engine/scheduling/` you will find:
 When you change execution semantics, prefer:
 
 1. Update **contracts** if boundaries change.
-2. Keep **`Engine` thin**—shift logic into named services under `application/` or pure code under `domain/`.
+2. Keep **`Engine` thin**—shift logic into named runtime services under `execution/`, `state/`, `planning/`, `policies/`, or adjacent engine subsystem folders.
 3. Document **user-visible behavior** in PR descriptions; update this file when folder boundaries or port meanings shift.
+
+**Note:** Use the canonical repository tokens and types directly: **`LiveWorkflowRepository`**, **`WorkflowRepository`**, **`WorkflowExecutionRepository`**, and **`TriggerSetupStateRepository`**.

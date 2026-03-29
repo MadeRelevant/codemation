@@ -2,7 +2,7 @@ import type { CredentialRequirement, WorkflowDefinition } from "@codemation/core
 import {
   AgentConfigInspector,
   ConnectionNodeIdFactory,
-  createWorkflowExecutableNodeClassifier,
+  WorkflowExecutableNodeClassifierFactory,
 } from "@codemation/core";
 
 import { injectable } from "@codemation/core";
@@ -103,7 +103,7 @@ export class WorkflowCredentialNodeResolver {
 
   listSlots(workflow: WorkflowDefinition): ReadonlyArray<WorkflowCredentialSlotRef> {
     const slots: WorkflowCredentialSlotRef[] = [];
-    const classifier = createWorkflowExecutableNodeClassifier(workflow);
+    const classifier = WorkflowExecutableNodeClassifierFactory.create(workflow);
     const hasConnectionMetadata = (workflow.connections?.length ?? 0) > 0;
 
     for (const node of workflow.nodes) {

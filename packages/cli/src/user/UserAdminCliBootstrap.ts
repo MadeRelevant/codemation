@@ -1,3 +1,4 @@
+import { CodemationBootstrapRequest } from "@codemation/host";
 import { DatabasePersistenceResolver } from "@codemation/host/persistence";
 import { CodemationConsumerConfigLoader } from "@codemation/host/server";
 
@@ -50,9 +51,12 @@ export class UserAdminCliBootstrap {
     const paths = await this.pathResolver.resolve(consumerRoot);
     const session = await CodemationCliApplicationSession.open({
       resolution,
-      repoRoot: paths.repoRoot,
-      consumerRoot,
-      env: process.env,
+      bootstrap: new CodemationBootstrapRequest({
+        repoRoot: paths.repoRoot,
+        consumerRoot,
+        env: process.env,
+        workflowSources: resolution.workflowSources,
+      }),
     });
     try {
       return await fn(session);
