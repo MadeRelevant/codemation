@@ -6,6 +6,8 @@ dist
 out
 .env
 .env.*
+# Ship template starter env samples with create-codemation (would otherwise match `.env.*` above).
+!packages/create-codemation/templates/**/.env.example
 *.log
 .cursor/plans
 .codemation
