@@ -33,7 +33,7 @@ export class DevSessionServicesBuilder {
       loopbackPortAllocator,
       new DevHttpProbe(),
       new RuntimeToolEntrypointResolver(),
-      new DevAuthSettingsLoader(new CodemationConsumerConfigLoader()),
+      new DevAuthSettingsLoader(new CodemationConsumerConfigLoader(), consumerEnvLoader),
       new DevNextHostEnvironmentBuilder(consumerEnvLoader, sourceMapNodeOptions),
       new WatchRootsResolver(),
       new DevSourceChangeClassifier(),

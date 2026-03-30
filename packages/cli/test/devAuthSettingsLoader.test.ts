@@ -1,5 +1,10 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+
 import { expect, test } from "vitest";
 
+import { ConsumerEnvLoader } from "../src/consumer/ConsumerEnvLoader";
 import { DevAuthSettingsLoader } from "../src/dev/DevAuthSettingsLoader";
 
 class StubConfigLoader {
@@ -23,7 +28,7 @@ test("uses a stable development auth secret when none is configured", async () =
     delete process.env.AUTH_SECRET;
     delete process.env.NEXTAUTH_SECRET;
 
-    const loader = new DevAuthSettingsLoader(new StubConfigLoader() as never);
+    const loader = new DevAuthSettingsLoader(new StubConfigLoader() as never, new ConsumerEnvLoader());
     const resolved = await loader.loadForConsumer("/tmp/consumer");
 
     expect(resolved.authSecret).toBe(DevAuthSettingsLoader.defaultDevelopmentAuthSecret);
@@ -43,8 +48,22 @@ test("uses a stable development auth secret when none is configured", async () =
 });
 
 test("prefers configured auth secrets over the development fallback", () => {
-  const loader = new DevAuthSettingsLoader(new StubConfigLoader() as never);
+  const loader = new DevAuthSettingsLoader(new StubConfigLoader() as never, new ConsumerEnvLoader());
 
   expect(loader.resolveDevelopmentAuthSecret({ AUTH_SECRET: "from-auth-secret" })).toBe("from-auth-secret");
   expect(loader.resolveDevelopmentAuthSecret({ NEXTAUTH_SECRET: "from-nextauth-secret" })).toBe("from-nextauth-secret");
+});
+
+test("loadForConsumer reads AUTH_SECRET from the consumer project .env", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "codemation-dev-auth-"));
+  try {
+    await writeFile(path.join(root, ".env"), "AUTH_SECRET=from-consumer-env\n", "utf8");
+
+    const loader = new DevAuthSettingsLoader(new StubConfigLoader() as never, new ConsumerEnvLoader());
+    const resolved = await loader.loadForConsumer(root);
+
+    expect(resolved.authSecret).toBe("from-consumer-env");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
