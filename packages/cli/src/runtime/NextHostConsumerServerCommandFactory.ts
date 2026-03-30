@@ -27,7 +27,9 @@ export class NextHostConsumerServerCommandFactory {
     }
     return {
       command: "pnpm",
-      args: ["exec", "next", "start"],
+      // Bind loopback so `codemation dev` health probes (`http://127.0.0.1:<port>`) work in Docker,
+      // where `process.env.HOSTNAME` is the container id and would otherwise be used by `next start`.
+      args: ["exec", "next", "start", "-H", "127.0.0.1"],
       cwd: args.nextHostRoot,
     };
   }

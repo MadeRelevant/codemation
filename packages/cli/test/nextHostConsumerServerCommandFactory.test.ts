@@ -34,7 +34,7 @@ test("falls back to next start when standalone output is unavailable", async () 
 
     expect(command).toEqual({
       command: "pnpm",
-      args: ["exec", "next", "start"],
+      args: ["exec", "next", "start", "-H", "127.0.0.1"],
       cwd: nextHostRoot,
     });
   } finally {

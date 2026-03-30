@@ -35,6 +35,9 @@ export class DevNextHostEnvironmentBuilder {
         websocketPort: args.websocketPort,
         consumerOutputManifestPath: args.consumerOutputManifestPath,
       }),
+      // Standalone `server.js` uses `process.env.HOSTNAME || '0.0.0.0'` for bind; Docker sets HOSTNAME to the
+      // container id, which breaks loopback health checks — force IPv4 loopback for the UI child only.
+      HOSTNAME: "127.0.0.1",
       AUTH_SECRET: args.authSecret,
       AUTH_URL: args.publicBaseUrl,
       NEXTAUTH_SECRET: args.authSecret,

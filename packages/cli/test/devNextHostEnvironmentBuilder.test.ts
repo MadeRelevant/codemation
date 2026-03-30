@@ -59,5 +59,6 @@ describe("DevNextHostEnvironmentBuilder", () => {
     expect(env.NEXTAUTH_SECRET).toBe("dev-secret");
     expect(env.NEXTAUTH_URL).toBe("http://127.0.0.1:3000");
     expect(env.CODEMATION_SKIP_STARTUP_MIGRATIONS).toBe("true");
+    expect(env.HOSTNAME).toBe("127.0.0.1");
   });
 });
