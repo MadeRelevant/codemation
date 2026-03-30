@@ -57,7 +57,7 @@ export class CliProgram {
     program
       .command("dev", { isDefault: true })
       .description(
-        "Start the dev gateway and runtime child. Use CODEMATION_DEV_MODE=framework with Next dev for framework UI HMR; default consumer mode serves API/WebSocket from the gateway only.",
+        "Start the dev gateway and runtime child. Default consumer mode uses the packaged Codemation UI; use CODEMATION_DEV_MODE=framework for Next dev HMR when working on the host itself.",
       )
       .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
       .action(async (opts: Readonly<{ consumerRoot?: string }>) => {
@@ -68,7 +68,7 @@ export class CliProgram {
 
     serve
       .command("web")
-      .description("Start the built Next.js Codemation host (next start).")
+      .description("Start the packaged Codemation web host.")
       .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
       .option(
         "--no-source-maps",

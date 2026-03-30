@@ -10,6 +10,7 @@ import type { ConsumerBuildOptions } from "../consumer/consumerBuildOptions.type
 import { ConsumerOutputBuilderLoader } from "../consumer/Loader";
 import { CliPathResolver } from "../path/CliPathResolver";
 import { ListenPortResolver } from "../runtime/ListenPortResolver";
+import { NextHostConsumerServerCommandFactory } from "../runtime/NextHostConsumerServerCommandFactory";
 import { SourceMapNodeOptions } from "../runtime/SourceMapNodeOptions";
 import { TypeScriptRuntimeConfigurator } from "../runtime/TypeScriptRuntimeConfigurator";
 
@@ -25,6 +26,7 @@ export class ServeWebCommand {
     private readonly outputBuilderLoader: ConsumerOutputBuilderLoader,
     private readonly envLoader: ConsumerEnvLoader,
     private readonly listenPortResolver: ListenPortResolver,
+    private readonly nextHostConsumerServerCommandFactory: NextHostConsumerServerCommandFactory,
   ) {}
 
   async execute(consumerRoot: string, buildOptions: ConsumerBuildOptions): Promise<void> {
@@ -35,6 +37,7 @@ export class ServeWebCommand {
     const discoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
     const manifest = await this.artifactsPublisher.publish(snapshot, discoveredPlugins);
     const nextHostRoot = path.dirname(this.require.resolve("@codemation/next-host/package.json"));
+    const nextHostCommand = await this.nextHostConsumerServerCommandFactory.create({ nextHostRoot });
     const consumerEnv = this.envLoader.load(paths.consumerRoot);
     const nextPort = this.listenPortResolver.resolvePrimaryApplicationPort(process.env.PORT);
     const websocketPort = this.listenPortResolver.resolveWebsocketPortRelativeToHttp({
@@ -42,8 +45,8 @@ export class ServeWebCommand {
       publicWebsocketPort: process.env.NEXT_PUBLIC_CODEMATION_WS_PORT,
       websocketPort: process.env.CODEMATION_WS_PORT,
     });
-    const child = spawn("pnpm", ["exec", "next", "start"], {
-      cwd: nextHostRoot,
+    const child = spawn(nextHostCommand.command, nextHostCommand.args, {
+      cwd: nextHostCommand.cwd,
       stdio: "inherit",
       env: {
         ...process.env,

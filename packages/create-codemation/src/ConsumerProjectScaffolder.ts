@@ -20,6 +20,7 @@ export class ConsumerProjectScaffolder {
     await this.ensureTargetIsUsable(resolvedTarget, args.force);
     await this.fs.mkdir(resolvedTarget, { recursive: true });
     await this.fs.cp(templateDirectory, resolvedTarget, { recursive: true, force: true });
+    await this.applyDefaultEnvFile(resolvedTarget);
     const projectName = this.projectNameSanitizer.sanitizeFromTargetPath(resolvedTarget);
     await this.applyPackageName(resolvedTarget, projectName);
   }
@@ -45,5 +46,22 @@ export class ConsumerProjectScaffolder {
     const parsed = JSON.parse(raw) as { name?: string };
     parsed.name = projectName;
     await this.fs.writeFile(packageJsonPath, `${JSON.stringify(parsed, null, 2)}\n`);
+  }
+
+  private async applyDefaultEnvFile(projectRoot: string): Promise<void> {
+    const envPath = path.join(projectRoot, ".env");
+    try {
+      await this.fs.readFile(envPath, "utf8");
+      return;
+    } catch {
+      // Fresh scaffold: fall through and copy .env.example when present.
+    }
+    const envExamplePath = path.join(projectRoot, ".env.example");
+    try {
+      const envExample = await this.fs.readFile(envExamplePath, "utf8");
+      await this.fs.writeFile(envPath, envExample);
+    } catch {
+      // Some templates may not ship .env.example.
+    }
   }
 }

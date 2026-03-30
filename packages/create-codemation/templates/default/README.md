@@ -2,13 +2,13 @@
 
 ## Quick start
 
-1. **Environment** — Copy `.env.example` to `.env`. By default the app uses **embedded Postgres (PGlite)** under `.codemation/pglite`; you do not need `DATABASE_URL` unless you switch to TCP PostgreSQL. Optionally set `REDIS_URL` for BullMQ + Redis (scheduler and event bus); when `REDIS_URL` is set you **must** set `DATABASE_URL` to a shared PostgreSQL URL (BullMQ cannot use PGlite).
+1. **Environment** — `.env` is created for you with zero-setup defaults: **embedded Postgres (PGlite)** under `.codemation/pglite`, plus local-development auth and credential-encryption keys. You do not need `DATABASE_URL` unless you switch to TCP PostgreSQL. Optionally set `REDIS_URL` for BullMQ + Redis (scheduler and event bus); when `REDIS_URL` is set you **must** set `DATABASE_URL` to a shared PostgreSQL URL (BullMQ cannot use PGlite).
 
-2. **Dependencies** — `npm install` or `pnpm install`.
+2. **Dependencies** — `pnpm install`.
 
-3. **First admin user** — After migrations (`npm exec codemation -- db migrate`), create a user:
-   `npm exec codemation -- user create --email you@example.com --password 'your-secure-password'`
+3. **First admin user** — After migrations (`pnpm exec codemation db migrate`), create a user:
+   `pnpm exec codemation user create --email you@example.com --password 'your-secure-password'`
 
-4. **Run** — `npm run dev` (starts `codemation dev`).
+4. **Run** — `pnpm dev` (starts `codemation dev`).
 
-If you used `npm create codemation`, you may have been prompted to run migrations and create a user automatically; otherwise follow the steps above.
+If you want PostgreSQL or Redis instead of the zero-setup defaults, edit `.env` before running migrations.

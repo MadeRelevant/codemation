@@ -20,3 +20,4 @@ packages/host/test/playwright/.e2e-db-snapshot.json
 packages/host/test-results/
 packages/cli/test/integration-sandbox/
 packages/host/.cache/
+.verdaccio/

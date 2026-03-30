@@ -28,6 +28,7 @@ import { DevSourceWatcherFactory } from "./dev/Runner";
 import { CliProgram } from "./Program";
 import { CliPathResolver } from "./path/CliPathResolver";
 import { ListenPortResolver } from "./runtime/ListenPortResolver";
+import { NextHostConsumerServerCommandFactory } from "./runtime/NextHostConsumerServerCommandFactory";
 import { SourceMapNodeOptions } from "./runtime/SourceMapNodeOptions";
 import { TypeScriptRuntimeConfigurator } from "./runtime/TypeScriptRuntimeConfigurator";
 import { LocalUserCreator } from "./user/LocalUserCreator";
@@ -51,6 +52,7 @@ export class CliProgramFactory {
     const tsRuntime = new TypeScriptRuntimeConfigurator();
     const outputBuilderLoader = new ConsumerOutputBuilderLoader();
     const sourceMapNodeOptions = new SourceMapNodeOptions();
+    const nextHostConsumerServerCommandFactory = new NextHostConsumerServerCommandFactory();
     const tsconfigPreparation = new ConsumerCliTsconfigPreparation();
     const databasePersistenceResolver = new DatabasePersistenceResolver();
     const userAdminBootstrap = new UserAdminCliBootstrap(
@@ -98,6 +100,7 @@ export class CliProgramFactory {
         devConsumerPublishBootstrap,
         new ConsumerEnvDotenvFilePredicate(),
         new DevTrackedProcessTreeKiller(),
+        nextHostConsumerServerCommandFactory,
       ),
       new ServeWebCommand(
         pathResolver,
@@ -108,6 +111,7 @@ export class CliProgramFactory {
         outputBuilderLoader,
         new ConsumerEnvLoader(),
         new ListenPortResolver(),
+        nextHostConsumerServerCommandFactory,
       ),
       new ServeWorkerCommand(sourceMapNodeOptions),
       new DbMigrateCommand(databaseMigrationsApplyService),

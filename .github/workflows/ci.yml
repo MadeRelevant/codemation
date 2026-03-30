@@ -57,6 +57,39 @@ jobs:
       - name: Run ${{ matrix.name }}
         run: pnpm ${{ matrix.command }}
 
+  template-release-smoke:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Template packaged smoke
+            command: test:packaged-smoke
+          - name: Template interactive Verdaccio smoke
+            command: test:interactive-verdaccio-smoke
+    container:
+      image: node:22-bookworm
+
+    steps:
+      - name: Install container prerequisites
+        run: apt-get update && apt-get install -y git util-linux python3 make g++
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Enable corepack pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.13.1 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ${{ matrix.name }}
+        run: pnpm --filter create-codemation run ${{ matrix.command }}
+
   coverage:
     name: Build, tests & Codecov
     runs-on: ubuntu-latest

@@ -4,10 +4,13 @@ import { CodemationConsumerConfigLoader } from "@codemation/host/server";
 
 export type DevResolvedAuthSettings = Readonly<{
   authConfigJson: string;
+  authSecret: string;
   skipUiAuth: boolean;
 }>;
 
 export class DevAuthSettingsLoader {
+  static readonly defaultDevelopmentAuthSecret = "codemation-dev-auth-secret-not-for-production";
+
   constructor(private readonly configLoader: CodemationConsumerConfigLoader) {}
 
   resolveDevelopmentServerToken(rawToken: string | undefined): string {
@@ -21,7 +24,16 @@ export class DevAuthSettingsLoader {
     const resolution = await this.configLoader.load({ consumerRoot });
     return {
       authConfigJson: JSON.stringify(resolution.config.auth ?? null),
+      authSecret: this.resolveDevelopmentAuthSecret(process.env),
       skipUiAuth: resolution.config.auth?.allowUnauthenticatedInDevelopment === true,
     };
+  }
+
+  resolveDevelopmentAuthSecret(env: NodeJS.ProcessEnv): string {
+    const configuredSecret = env.AUTH_SECRET ?? env.NEXTAUTH_SECRET;
+    if (configuredSecret && configuredSecret.trim().length > 0) {
+      return configuredSecret;
+    }
+    return DevAuthSettingsLoader.defaultDevelopmentAuthSecret;
   }
 }

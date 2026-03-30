@@ -11,6 +11,8 @@ export type DevMutableProcessState = {
   currentGateway: ChildProcess | null;
   currentNextHost: ChildProcess | null;
   currentUiNext: ChildProcess | null;
+  currentUiProxyBaseUrl: string | null;
+  isRestartingNextHost: boolean;
   stopRequested: boolean;
   stopResolve: (() => void) | null;
   stopReject: ((error: Error) => void) | null;

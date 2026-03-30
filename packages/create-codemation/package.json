@@ -1,6 +1,6 @@
 {
   "name": "create-codemation",
-  "version": "0.0.0",
+  "version": "0.0.6",
   "publishConfig": {
     "access": "public"
   },
@@ -28,7 +28,11 @@
     "dev": "tsdown src/bin.ts --out-dir dist --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:smoke": "node ./test/CreateCodemationSmoke.mjs",
+    "test:packaged-smoke": "node ./test/CreateCodemationPackagedSmoke.mjs",
+    "test:verdaccio-smoke": "node ./test/CreateCodemationVerdaccioSmoke.mjs",
+    "test:interactive-verdaccio-smoke": "node ./test/CreateCodemationInteractiveVerdaccioSmoke.mjs"
   },
   "engines": {
     "node": ">=20"

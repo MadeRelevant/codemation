@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 
 import type { ChildProcessRunnerPort } from "./ChildProcessRunnerPort";
@@ -26,93 +27,166 @@ export class PostScaffoldOnboardingCoordinator implements PostScaffoldOnboarding
       this.printManualSteps(args.targetDirectory);
       return;
     }
-    const proceed = await this.prompts.confirm(
-      "\nSet up PostgreSQL and create your first admin user now? (requires npm install and a reachable database)",
-    );
-    if (!proceed) {
-      this.printManualSteps(args.targetDirectory);
-      return;
+    await this.ensureDefaultEnvFile(args.targetDirectory);
+    const authSetup = await this.resolveAuthenticationSetup();
+    await this.installDependencies(args.targetDirectory);
+    await this.runDatabaseMigrations(args.targetDirectory);
+    if (authSetup) {
+      await this.createAdminUser(args.targetDirectory, authSetup);
+    } else {
+      this.stdout.write("\nAuthentication skipped. You can create a user later if you decide to enable auth.\n");
     }
-    const databaseUrl = await this.prompts.question(
-      "PostgreSQL DATABASE_URL (e.g. postgresql://user:pass@127.0.0.1:5432/codemation): ",
-    );
-    if (databaseUrl.length === 0) {
-      this.stdout.write("No DATABASE_URL provided; skipping automated setup.\n");
-      this.printManualSteps(args.targetDirectory);
-      return;
-    }
-    const email = await this.prompts.question("Admin email: ");
-    if (!this.isValidEmail(email)) {
-      this.stdout.write("That does not look like a valid email; skipping automated setup.\n");
-      this.printManualSteps(args.targetDirectory);
-      return;
-    }
-    const password = await this.prompts.question("Admin password (min 8 characters; shown as you type): ");
-    const passwordAgain = await this.prompts.question("Repeat password: ");
-    if (password.length < 8 || password !== passwordAgain) {
-      this.stdout.write("Passwords must match and be at least 8 characters; skipping automated setup.\n");
-      this.printManualSteps(args.targetDirectory);
-      return;
-    }
-    const envPath = path.join(args.targetDirectory, ".env");
-    const examplePath = path.join(args.targetDirectory, ".env.example");
-    let envBody: string;
-    try {
-      envBody = await this.fs.readFile(examplePath, "utf8");
-    } catch {
-      envBody = "";
-    }
-    const merged = this.mergeDatabaseUrlIntoEnv(envBody, databaseUrl);
-    await this.fs.writeFile(envPath, merged);
-    this.stdout.write("\nInstalling dependencies (npm install)…\n");
-    await this.processRunner.run("npm", ["install"], { cwd: args.targetDirectory });
-    this.stdout.write("\nRunning database migrations…\n");
-    await this.processRunner.run("npm", ["exec", "codemation", "--", "db", "migrate"], {
-      cwd: args.targetDirectory,
-    });
-    this.stdout.write("\nCreating admin user…\n");
-    await this.processRunner.run(
-      "npm",
-      ["exec", "codemation", "--", "user", "create", "--email", email, "--password", password],
-      {
-        cwd: args.targetDirectory,
-      },
-    );
+    const packageManager = this.resolvePackageManagerFromTargetDirectory(args.targetDirectory);
     this.stdout.write("\nDone. Start the app with:\n");
     this.stdout.write(`  cd ${path.basename(args.targetDirectory)}\n`);
-    this.stdout.write("  npm run dev\n\n");
+    this.stdout.write(`  ${packageManager.runDevCommand}\n\n`);
   }
 
-  private mergeDatabaseUrlIntoEnv(envExampleBody: string, databaseUrl: string): string {
-    const lines = envExampleBody.split(/\r?\n/);
-    const out: string[] = [];
-    let replaced = false;
-    for (const line of lines) {
-      if (line.startsWith("DATABASE_URL=")) {
-        out.push(`DATABASE_URL=${databaseUrl}`);
-        replaced = true;
-      } else {
-        out.push(line);
+  private async resolveAuthenticationSetup(): Promise<Readonly<{ email: string; password: string }> | null> {
+    while (true) {
+      const requiresAuth = await this.prompts.confirm(
+        "\nDo you want authentication enabled? It is recommended and enabled by default.",
+        { defaultValue: true },
+      );
+      if (!requiresAuth) {
+        return null;
+      }
+      const authSetup = await this.promptForAuthenticationDetails();
+      if (authSetup) {
+        return authSetup;
       }
     }
-    if (!replaced) {
-      out.unshift(`DATABASE_URL=${databaseUrl}`);
+  }
+
+  private async promptForAuthenticationDetails(): Promise<Readonly<{ email: string; password: string }> | null> {
+    const email = await this.prompts.question("Admin email: ");
+    const password = await this.prompts.question("Admin password (min 8 characters): ", { maskInput: true });
+    const passwordAgain = await this.prompts.question("Repeat password: ", { maskInput: true });
+    if (this.isAuthSetupSkipped(email, password, passwordAgain)) {
+      this.stdout.write("\nAuthentication details were left empty; returning to the authentication question.\n");
+      return null;
     }
-    return `${out.join("\n").replace(/\n+$/, "")}\n`;
+    if (!this.isValidEmail(email)) {
+      this.stdout.write(
+        "That does not look like a valid email. Leave auth details empty if you want to continue without authentication.\n",
+      );
+      return null;
+    }
+    if (password.length < 8 || password !== passwordAgain) {
+      this.stdout.write(
+        "Passwords must match and be at least 8 characters. Leave auth details empty if you want to continue without authentication.\n",
+      );
+      return null;
+    }
+    return { email, password };
   }
 
   private isValidEmail(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 
+  private isAuthSetupSkipped(email: string, password: string, passwordAgain: string): boolean {
+    return email.length === 0 && password.length === 0 && passwordAgain.length === 0;
+  }
+
   private printManualSteps(targetDirectory: string): void {
     const name = path.basename(targetDirectory);
+    const packageManager = this.resolvePackageManagerFromTargetDirectory(targetDirectory);
     this.stdout.write(`\nNext steps for ${name}:\n`);
     this.stdout.write(`  cd ${name}\n`);
-    this.stdout.write("  cp .env.example .env   # edit DATABASE_URL (PostgreSQL)\n");
-    this.stdout.write("  npm install\n");
-    this.stdout.write("  npm exec codemation -- db migrate\n");
-    this.stdout.write("  npm exec codemation -- user create --email you@example.com --password 'your-password'\n");
-    this.stdout.write("  npm run dev\n\n");
+    this.stdout.write("  # .env is already created with zero-setup PGlite defaults.\n");
+    this.stdout.write(`  ${packageManager.installCommand}\n`);
+    this.stdout.write(`  ${packageManager.execCommand} db migrate\n`);
+    this.stdout.write("  # Optional if you want authentication enabled:\n");
+    this.stdout.write(
+      `  ${packageManager.execCommand} user create --email you@example.com --password 'your-password'\n`,
+    );
+    this.stdout.write(`  ${packageManager.runDevCommand}\n\n`);
+  }
+
+  private async installDependencies(targetDirectory: string): Promise<void> {
+    const packageManager = this.resolvePackageManagerFromTargetDirectory(targetDirectory);
+    this.stdout.write(`\nInstalling dependencies (${packageManager.installCommand})…\n`);
+    await this.processRunner.run(packageManager.command, packageManager.installArgs, { cwd: targetDirectory });
+  }
+
+  private async runDatabaseMigrations(targetDirectory: string): Promise<void> {
+    const packageManager = this.resolvePackageManagerFromTargetDirectory(targetDirectory);
+    this.stdout.write("\nRunning database migrations…\n");
+    await this.processRunner.run(packageManager.command, [...packageManager.execArgs, "db", "migrate"], {
+      cwd: targetDirectory,
+    });
+  }
+
+  private async createAdminUser(
+    targetDirectory: string,
+    authSetup: Readonly<{ email: string; password: string }>,
+  ): Promise<void> {
+    const packageManager = this.resolvePackageManagerFromTargetDirectory(targetDirectory);
+    this.stdout.write("\nCreating admin user…\n");
+    await this.processRunner.run(
+      packageManager.command,
+      [...packageManager.execArgs, "user", "create", "--email", authSetup.email, "--password", authSetup.password],
+      {
+        cwd: targetDirectory,
+      },
+    );
+  }
+
+  private async ensureDefaultEnvFile(targetDirectory: string): Promise<void> {
+    const envPath = path.join(targetDirectory, ".env");
+    try {
+      await this.fs.readFile(envPath, "utf8");
+      return;
+    } catch {
+      // Fresh scaffold: copy .env.example when present.
+    }
+    const examplePath = path.join(targetDirectory, ".env.example");
+    try {
+      const envExample = await this.fs.readFile(examplePath, "utf8");
+      await this.fs.writeFile(envPath, envExample);
+    } catch {
+      // Some templates may not provide .env.example.
+    }
+  }
+
+  private resolvePackageManagerFromTargetDirectory(targetDirectory: string): Readonly<{
+    command: string;
+    installArgs: ReadonlyArray<string>;
+    execArgs: ReadonlyArray<string>;
+    installCommand: string;
+    execCommand: string;
+    runDevCommand: string;
+  }> {
+    const packageManagerField = this.readPackageManagerField(targetDirectory);
+    if (packageManagerField?.startsWith("pnpm@")) {
+      return {
+        command: "pnpm",
+        installArgs: ["install"],
+        execArgs: ["exec", "codemation"],
+        installCommand: "pnpm install",
+        execCommand: "pnpm exec codemation",
+        runDevCommand: "pnpm dev",
+      };
+    }
+    return {
+      command: "npm",
+      installArgs: ["install"],
+      execArgs: ["exec", "--", "codemation"],
+      installCommand: "npm install",
+      execCommand: "npm exec -- codemation",
+      runDevCommand: "npm run dev",
+    };
+  }
+
+  private readPackageManagerField(targetDirectory: string): string | null {
+    const packageJsonPath = path.join(targetDirectory, "package.json");
+    try {
+      const raw = fs.readFileSync(packageJsonPath, "utf8");
+      const parsed = JSON.parse(raw) as { packageManager?: unknown };
+      return typeof parsed.packageManager === "string" ? parsed.packageManager : null;
+    } catch {
+      return null;
+    }
   }
 }

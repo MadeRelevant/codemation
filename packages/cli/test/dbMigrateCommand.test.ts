@@ -35,6 +35,7 @@ class RecordingMigrationDeployer {
 test("runs migrations using runtime.database.url from consumer config (after .env load) and passes persistence to the deployer", async () => {
   const savedTsconfig = process.env.CODEMATION_TSCONFIG_PATH;
   const savedDatabaseUrl = process.env.DATABASE_URL;
+  const savedPrismaConfigPath = process.env.CODEMATION_PRISMA_CONFIG_PATH;
   let tempRoot: string | null = null;
   try {
     process.env.CODEMATION_TSCONFIG_PATH = path.join(repoRoot, "tsconfig.codemation-tsx.json");
@@ -87,6 +88,7 @@ test("runs migrations using runtime.database.url from consumer config (after .en
       databaseUrl: "postgresql://localhost:5432/cli_migrate_fixture",
     });
     expect(process.env.CODEMATION_HOST_PACKAGE_ROOT).toBe(hostRoot);
+    expect(process.env.CODEMATION_PRISMA_CONFIG_PATH).toBe(path.join(hostRoot, "prisma.config.ts"));
   } finally {
     if (tempRoot) {
       await rm(tempRoot, { force: true, recursive: true }).catch(() => null);
@@ -101,12 +103,18 @@ test("runs migrations using runtime.database.url from consumer config (after .en
     } else {
       process.env.CODEMATION_TSCONFIG_PATH = savedTsconfig;
     }
+    if (savedPrismaConfigPath === undefined) {
+      delete process.env.CODEMATION_PRISMA_CONFIG_PATH;
+    } else {
+      process.env.CODEMATION_PRISMA_CONFIG_PATH = savedPrismaConfigPath;
+    }
   }
 });
 
 test("throws when no database persistence can be resolved", async () => {
   const savedTsconfig = process.env.CODEMATION_TSCONFIG_PATH;
   const savedDatabaseUrl = process.env.DATABASE_URL;
+  const savedPrismaConfigPath = process.env.CODEMATION_PRISMA_CONFIG_PATH;
   let tempRoot: string | null = null;
   try {
     process.env.CODEMATION_TSCONFIG_PATH = path.join(repoRoot, "tsconfig.codemation-tsx.json");
@@ -147,6 +155,11 @@ test("throws when no database persistence can be resolved", async () => {
       delete process.env.CODEMATION_TSCONFIG_PATH;
     } else {
       process.env.CODEMATION_TSCONFIG_PATH = savedTsconfig;
+    }
+    if (savedPrismaConfigPath === undefined) {
+      delete process.env.CODEMATION_PRISMA_CONFIG_PATH;
+    } else {
+      process.env.CODEMATION_PRISMA_CONFIG_PATH = savedPrismaConfigPath;
     }
   }
 });

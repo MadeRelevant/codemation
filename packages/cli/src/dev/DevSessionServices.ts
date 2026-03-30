@@ -5,6 +5,7 @@ import { DevAuthSettingsLoader } from "./DevAuthSettingsLoader";
 import { DevHttpProbe } from "./DevHttpProbe";
 import { DevNextHostEnvironmentBuilder } from "./DevNextHostEnvironmentBuilder";
 import { DevSessionPortsResolver } from "./DevSessionPortsResolver";
+import { DevSourceChangeClassifier } from "./DevSourceChangeClassifier";
 import { DevSourceRestartCoordinator } from "./DevSourceRestartCoordinator";
 import { LoopbackPortAllocator } from "./LoopbackPortAllocator";
 import { RuntimeToolEntrypointResolver } from "./RuntimeToolEntrypointResolver";
@@ -24,6 +25,7 @@ export class DevSessionServices {
     readonly devAuthLoader: DevAuthSettingsLoader,
     readonly nextHostEnvBuilder: DevNextHostEnvironmentBuilder,
     readonly watchRootsResolver: WatchRootsResolver,
+    readonly sourceChangeClassifier: DevSourceChangeClassifier,
     readonly sourceRestartCoordinator: DevSourceRestartCoordinator,
   ) {}
 }

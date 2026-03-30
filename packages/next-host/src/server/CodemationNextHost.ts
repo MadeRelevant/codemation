@@ -16,11 +16,13 @@ import { CodemationTsyringeTypeInfoRegistrar } from "@codemation/host/dev-server
 import type { CodemationConsumerApp } from "@codemation/host-src/presentation/server/CodemationConsumerAppResolver";
 import type { Hono } from "hono";
 import { access, readFile, stat } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { CodemationWhitelabelSnapshotFactory } from "../whitelabel/CodemationWhitelabelSnapshotFactory";
 import type { CodemationWhitelabelSnapshot } from "../whitelabel/CodemationWhitelabelSnapshot";
+import { NextHostPackageRootResolver } from "./NextHostPackageRootResolver";
 
 export type CodemationNextHostContext = Readonly<{
   application: CodemationApplication;
@@ -52,7 +54,16 @@ type CodemationConsumerBuildManifest = Readonly<{
  * down so whitelabel and config updates apply without restarting Next.
  */
 export class CodemationNextHost {
+  private readonly require = createRequire(import.meta.url);
   private readonly pluginListMerger = new CodemationPluginListMerger();
+  private readonly hostPackageRootResolver = new NextHostPackageRootResolver(
+    {
+      exists: async (filePath: string) => await this.exists(filePath),
+    },
+    {
+      resolveHostPackageJsonPath: () => this.require.resolve("@codemation/host/package.json"),
+    },
+  );
   private nextApiApp: Hono | null = null;
   private nextApiAppBuildVersion: string | null = null;
   private contextPromise: Promise<CodemationNextHostContext> | null = null;
@@ -178,7 +189,7 @@ export class CodemationNextHost {
     const consumerRoot = path.resolve(buildManifest.consumerRoot);
     const repoRoot = await this.detectWorkspaceRoot(consumerRoot);
     const prismaCliOverride = await this.resolvePrismaCliOverride();
-    const hostPackageRoot = path.resolve(repoRoot, "packages", "host");
+    const hostPackageRoot = await this.hostPackageRootResolver.resolve(repoRoot, process.env);
     if (prismaCliOverride) {
       process.env.CODEMATION_PRISMA_CLI_PATH = prismaCliOverride;
     }

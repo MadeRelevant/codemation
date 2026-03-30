@@ -17,6 +17,7 @@ import { DevTrackedProcessTreeKiller } from "../dev/DevTrackedProcessTreeKiller"
 import { DevSourceWatcherFactory } from "../dev/Runner";
 import { CliPathResolver, type CliPaths } from "../path/CliPathResolver";
 import { TypeScriptRuntimeConfigurator } from "../runtime/TypeScriptRuntimeConfigurator";
+import { NextHostConsumerServerCommandFactory } from "../runtime/NextHostConsumerServerCommandFactory";
 
 import type { DevResolvedAuthSettings } from "../dev/DevAuthSettingsLoader";
 
@@ -39,6 +40,7 @@ export class DevCommand {
     private readonly devConsumerPublishBootstrap: DevConsumerPublishBootstrap,
     private readonly consumerEnvDotenvFilePredicate: ConsumerEnvDotenvFilePredicate,
     private readonly devTrackedProcessTreeKiller: DevTrackedProcessTreeKiller,
+    private readonly nextHostConsumerServerCommandFactory: NextHostConsumerServerCommandFactory,
   ) {}
 
   async execute(consumerRoot: string): Promise<void> {
@@ -60,9 +62,9 @@ export class DevCommand {
     });
     const authSettings = await this.session.devAuthLoader.loadForConsumer(paths.consumerRoot);
     const watcher = this.devSourceWatcherFactory.create();
+    const processState = this.createInitialProcessState();
     try {
       const prepared = await this.prepareDevRuntime(paths, devMode, nextPort, gatewayPort, authSettings);
-      const processState = this.createInitialProcessState();
       const stopPromise = this.wireStopPromise(processState);
       const uiProxyBase = await this.startConsumerUiProxyWhenNeeded(prepared, processState);
       const gatewayBaseUrl = this.gatewayBaseHttpUrl(gatewayPort);
@@ -73,11 +75,13 @@ export class DevCommand {
         this.devCliBannerRenderer.renderRuntimeSummary(initialSummary);
       }
       this.bindShutdownSignalsToChildProcesses(processState);
-      this.spawnFrameworkNextHostWhenNeeded(prepared, processState, gatewayBaseUrl);
-      await this.startWatcherForSourceRestart(prepared, watcher, devMode, gatewayBaseUrl);
+      await this.spawnFrameworkNextHostWhenNeeded(prepared, processState, gatewayBaseUrl);
+      await this.startWatcherForSourceRestart(prepared, processState, watcher, devMode, gatewayBaseUrl);
       this.logConsumerDevHintWhenNeeded(devMode, gatewayPort);
       await stopPromise;
     } finally {
+      processState.stopRequested = true;
+      await this.stopLiveChildProcesses(processState);
       await watcher.stop();
       await devLock.release();
     }
@@ -130,6 +134,8 @@ export class DevCommand {
       currentGateway: null,
       currentNextHost: null,
       currentUiNext: null,
+      currentUiProxyBaseUrl: null,
+      isRestartingNextHost: false,
       stopRequested: false,
       stopResolve: null,
       stopReject: null,
@@ -159,44 +165,56 @@ export class DevCommand {
       return "";
     }
     const websocketPort = prepared.gatewayPort;
-    const uiPort = await this.session.loopbackPortAllocator.allocate();
-    const uiProxyBase = `http://127.0.0.1:${uiPort}`;
+    const uiProxyBase =
+      state.currentUiProxyBaseUrl ?? `http://127.0.0.1:${await this.session.loopbackPortAllocator.allocate()}`;
+    state.currentUiProxyBaseUrl = uiProxyBase;
+    await this.spawnConsumerUiProxy(prepared, state, prepared.authSettings, websocketPort, uiProxyBase);
+    return uiProxyBase;
+  }
+
+  private async spawnConsumerUiProxy(
+    prepared: DevPreparedRuntime,
+    state: DevMutableProcessState,
+    authSettings: DevResolvedAuthSettings,
+    websocketPort: number,
+    uiProxyBase: string,
+  ): Promise<void> {
     const nextHostPackageJsonPath = this.require.resolve("@codemation/next-host/package.json");
     const nextHostRoot = path.dirname(nextHostPackageJsonPath);
+    const nextHostCommand = await this.nextHostConsumerServerCommandFactory.create({ nextHostRoot });
     const consumerOutputManifestPath = path.resolve(
       prepared.paths.consumerRoot,
       ".codemation",
       "output",
       "current.json",
     );
-    state.currentUiNext = spawn("pnpm", ["exec", "next", "start"], {
-      cwd: nextHostRoot,
+    const uiPort = Number(new URL(uiProxyBase).port);
+    const nextHostEnvironment = this.session.nextHostEnvBuilder.buildConsumerUiProxy({
+      authConfigJson: authSettings.authConfigJson,
+      authSecret: authSettings.authSecret,
+      consumerRoot: prepared.paths.consumerRoot,
+      consumerOutputManifestPath,
+      developmentServerToken: prepared.developmentServerToken,
+      nextPort: uiPort,
+      publicBaseUrl: this.gatewayBaseHttpUrl(prepared.gatewayPort),
+      runtimeDevUrl: this.gatewayBaseHttpUrl(prepared.gatewayPort),
+      skipUiAuth: authSettings.skipUiAuth,
+      websocketPort,
+    });
+    state.currentUiNext = spawn(nextHostCommand.command, nextHostCommand.args, {
+      cwd: nextHostCommand.cwd,
       ...this.devDetachedChildSpawnOptions(),
-      env: {
-        ...process.env,
-        ...prepared.consumerEnv,
-        PORT: String(uiPort),
-        CODEMATION_AUTH_CONFIG_JSON: prepared.authSettings.authConfigJson,
-        CODEMATION_CONSUMER_ROOT: prepared.paths.consumerRoot,
-        CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH: consumerOutputManifestPath,
-        CODEMATION_SKIP_UI_AUTH: prepared.authSettings.skipUiAuth ? "true" : "false",
-        NEXT_PUBLIC_CODEMATION_SKIP_UI_AUTH: prepared.authSettings.skipUiAuth ? "true" : "false",
-        CODEMATION_WS_PORT: String(websocketPort),
-        NEXT_PUBLIC_CODEMATION_WS_PORT: String(websocketPort),
-        CODEMATION_DEV_SERVER_TOKEN: prepared.developmentServerToken,
-        NODE_OPTIONS: this.session.sourceMapNodeOptions.appendToNodeOptions(process.env.NODE_OPTIONS),
-        WS_NO_BUFFER_UTIL: "1",
-        WS_NO_UTF_8_VALIDATE: "1",
-      },
+      env: nextHostEnvironment,
     });
     state.currentUiNext.on("error", (error) => {
-      if (!state.stopRequested) {
-        state.stopRequested = true;
-        state.stopReject?.(error instanceof Error ? error : new Error(String(error)));
+      if (state.stopRequested || state.isRestartingNextHost) {
+        return;
       }
+      state.stopRequested = true;
+      state.stopReject?.(error instanceof Error ? error : new Error(String(error)));
     });
     state.currentUiNext.on("exit", (code) => {
-      if (state.stopRequested) {
+      if (state.stopRequested || state.isRestartingNextHost) {
         return;
       }
       state.stopRequested = true;
@@ -206,7 +224,6 @@ export class DevCommand {
       state.stopReject?.(new Error(`next start (consumer UI) exited unexpectedly with code ${code ?? 0}.`));
     });
     await this.session.devHttpProbe.waitUntilUrlRespondsOk(`${uiProxyBase}/`);
-    return uiProxyBase;
   }
 
   private async spawnGatewayChildAndWaitForHealth(
@@ -296,23 +313,32 @@ export class DevCommand {
   /**
    * Framework mode: run `next dev` for the Next host with HMR, pointed at the dev gateway runtime URL.
    */
-  private spawnFrameworkNextHostWhenNeeded(
+  private async spawnFrameworkNextHostWhenNeeded(
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
     gatewayBaseUrl: string,
-  ): void {
+  ): Promise<void> {
     if (prepared.devMode !== "framework") {
       return;
     }
+    await this.spawnFrameworkNextHost(prepared, state, gatewayBaseUrl, prepared.authSettings);
+  }
+
+  private async spawnFrameworkNextHost(
+    prepared: DevPreparedRuntime,
+    state: DevMutableProcessState,
+    gatewayBaseUrl: string,
+    authSettings: DevResolvedAuthSettings,
+  ): Promise<void> {
     const websocketPort = prepared.gatewayPort;
     const nextHostPackageJsonPath = this.require.resolve("@codemation/next-host/package.json");
     const nextHostRoot = path.dirname(nextHostPackageJsonPath);
     const nextHostEnvironment = this.session.nextHostEnvBuilder.build({
-      authConfigJson: prepared.authSettings.authConfigJson,
+      authConfigJson: authSettings.authConfigJson,
       consumerRoot: prepared.paths.consumerRoot,
       developmentServerToken: prepared.developmentServerToken,
       nextPort: prepared.nextPort,
-      skipUiAuth: prepared.authSettings.skipUiAuth,
+      skipUiAuth: authSettings.skipUiAuth,
       websocketPort,
       runtimeDevUrl: gatewayBaseUrl,
     });
@@ -323,7 +349,7 @@ export class DevCommand {
     });
     state.currentNextHost.on("exit", (code) => {
       const normalizedCode = code ?? 0;
-      if (state.stopRequested) {
+      if (state.stopRequested || state.isRestartingNextHost) {
         return;
       }
       if (normalizedCode === 0) {
@@ -338,15 +364,18 @@ export class DevCommand {
       state.stopReject?.(new Error(`next host exited with code ${normalizedCode}.`));
     });
     state.currentNextHost.on("error", (error) => {
-      if (!state.stopRequested) {
-        state.stopRequested = true;
-        state.stopReject?.(error instanceof Error ? error : new Error(String(error)));
+      if (state.stopRequested || state.isRestartingNextHost) {
+        return;
       }
+      state.stopRequested = true;
+      state.stopReject?.(error instanceof Error ? error : new Error(String(error)));
     });
+    await this.session.devHttpProbe.waitUntilUrlRespondsOk(`http://127.0.0.1:${prepared.nextPort}/`);
   }
 
   private async startWatcherForSourceRestart(
     prepared: DevPreparedRuntime,
+    state: DevMutableProcessState,
     watcher: DevSourceWatcher,
     devMode: DevMode,
     gatewayBaseUrl: string,
@@ -364,20 +393,110 @@ export class DevCommand {
           );
           return;
         }
-        process.stdout.write("\n[codemation] Source change detected — rebuilding consumer…\n");
-        await this.session.sourceRestartCoordinator.runHandshakeAfterSourceChange(
-          gatewayBaseUrl,
-          prepared.developmentServerToken,
-        );
-        process.stdout.write("[codemation] Waiting for runtime to accept traffic…\n");
-        await this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl);
-        const json = await this.devBootstrapSummaryFetcher.fetch(gatewayBaseUrl);
-        if (json) {
-          this.devCliBannerRenderer.renderCompact(json);
+        try {
+          const shouldRepublishConsumerOutput = this.session.sourceChangeClassifier.shouldRepublishConsumerOutput({
+            changedPaths,
+            consumerRoot: prepared.paths.consumerRoot,
+          });
+          const shouldRestartNextHost = this.session.sourceChangeClassifier.requiresNextHostRestart({
+            changedPaths,
+            consumerRoot: prepared.paths.consumerRoot,
+          });
+          process.stdout.write(
+            shouldRestartNextHost
+              ? "\n[codemation] Consumer config change detected — rebuilding consumer, restarting runtime, and restarting Next host…\n"
+              : "\n[codemation] Source change detected — rebuilding consumer and restarting runtime…\n",
+          );
+          if (shouldRepublishConsumerOutput) {
+            await this.devConsumerPublishBootstrap.ensurePublished(prepared.paths);
+          }
+          await this.session.sourceRestartCoordinator.runHandshakeAfterSourceChange(
+            gatewayBaseUrl,
+            prepared.developmentServerToken,
+          );
+          process.stdout.write("[codemation] Waiting for runtime to accept traffic…\n");
+          await this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl);
+          if (shouldRestartNextHost) {
+            await this.restartNextHostForConfigChange(prepared, state, gatewayBaseUrl);
+          }
+          const json = await this.devBootstrapSummaryFetcher.fetch(gatewayBaseUrl);
+          if (json) {
+            this.devCliBannerRenderer.renderCompact(json);
+          }
+          process.stdout.write("[codemation] Runtime ready.\n");
+        } catch (error) {
+          await this.failDevSessionAfterIrrecoverableSourceError(state, error);
         }
-        process.stdout.write("[codemation] Runtime ready.\n");
       },
     });
+  }
+
+  private async restartNextHostForConfigChange(
+    prepared: DevPreparedRuntime,
+    state: DevMutableProcessState,
+    gatewayBaseUrl: string,
+  ): Promise<void> {
+    const refreshedAuthSettings = await this.session.devAuthLoader.loadForConsumer(prepared.paths.consumerRoot);
+    process.stdout.write("[codemation] Restarting Next host to apply auth/database/scheduler/branding changes…\n");
+    state.isRestartingNextHost = true;
+    try {
+      if (prepared.devMode === "consumer") {
+        await this.restartConsumerUiProxy(prepared, state, refreshedAuthSettings);
+        return;
+      }
+      await this.restartFrameworkNextHost(prepared, state, gatewayBaseUrl, refreshedAuthSettings);
+    } finally {
+      state.isRestartingNextHost = false;
+    }
+  }
+
+  private async restartConsumerUiProxy(
+    prepared: DevPreparedRuntime,
+    state: DevMutableProcessState,
+    authSettings: DevResolvedAuthSettings,
+  ): Promise<void> {
+    if (state.currentUiNext && state.currentUiNext.exitCode === null && state.currentUiNext.signalCode === null) {
+      await this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(state.currentUiNext);
+    }
+    state.currentUiNext = null;
+    const uiProxyBaseUrl = state.currentUiProxyBaseUrl;
+    if (!uiProxyBaseUrl) {
+      throw new Error("Consumer UI proxy base URL is missing during Next host restart.");
+    }
+    await this.spawnConsumerUiProxy(prepared, state, authSettings, prepared.gatewayPort, uiProxyBaseUrl);
+  }
+
+  private async restartFrameworkNextHost(
+    prepared: DevPreparedRuntime,
+    state: DevMutableProcessState,
+    gatewayBaseUrl: string,
+    authSettings: DevResolvedAuthSettings,
+  ): Promise<void> {
+    if (state.currentNextHost && state.currentNextHost.exitCode === null && state.currentNextHost.signalCode === null) {
+      await this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(state.currentNextHost);
+    }
+    state.currentNextHost = null;
+    await this.spawnFrameworkNextHost(prepared, state, gatewayBaseUrl, authSettings);
+  }
+
+  private async failDevSessionAfterIrrecoverableSourceError(
+    state: DevMutableProcessState,
+    error: unknown,
+  ): Promise<void> {
+    const exception = error instanceof Error ? error : new Error(String(error));
+    state.stopRequested = true;
+    await this.stopLiveChildProcesses(state);
+    state.stopReject?.(exception);
+  }
+
+  private async stopLiveChildProcesses(state: DevMutableProcessState): Promise<void> {
+    const children: ChildProcess[] = [];
+    for (const child of [state.currentUiNext, state.currentNextHost, state.currentGateway]) {
+      if (child && child.exitCode === null && child.signalCode === null) {
+        children.push(child);
+      }
+    }
+    await Promise.all(children.map((child) => this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(child)));
   }
 
   private logConsumerDevHintWhenNeeded(devMode: DevMode, gatewayPort: number): void {
@@ -385,7 +504,7 @@ export class DevCommand {
       return;
     }
     this.cliLogger.info(
-      `codemation dev (consumer): open http://127.0.0.1:${gatewayPort} — requires a built @codemation/next-host (next build). For Next HMR use CODEMATION_DEV_MODE=framework.`,
+      `codemation dev (consumer): open http://127.0.0.1:${gatewayPort} — uses the packaged @codemation/next-host UI. For framework UI HMR, set CODEMATION_DEV_MODE=framework.`,
     );
   }
 }

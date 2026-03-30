@@ -10,6 +10,38 @@ export class DevNextHostEnvironmentBuilder {
     private readonly sourceMapNodeOptions: SourceMapNodeOptions,
   ) {}
 
+  buildConsumerUiProxy(
+    args: Readonly<{
+      authConfigJson: string;
+      authSecret: string;
+      consumerRoot: string;
+      developmentServerToken: string;
+      nextPort: number;
+      publicBaseUrl: string;
+      runtimeDevUrl: string;
+      skipUiAuth: boolean;
+      websocketPort: number;
+      consumerOutputManifestPath?: string;
+    }>,
+  ): NodeJS.ProcessEnv {
+    return {
+      ...this.build({
+        authConfigJson: args.authConfigJson,
+        consumerRoot: args.consumerRoot,
+        developmentServerToken: args.developmentServerToken,
+        nextPort: args.nextPort,
+        runtimeDevUrl: args.runtimeDevUrl,
+        skipUiAuth: args.skipUiAuth,
+        websocketPort: args.websocketPort,
+        consumerOutputManifestPath: args.consumerOutputManifestPath,
+      }),
+      AUTH_SECRET: args.authSecret,
+      AUTH_URL: args.publicBaseUrl,
+      NEXTAUTH_SECRET: args.authSecret,
+      NEXTAUTH_URL: args.publicBaseUrl,
+    };
+  }
+
   build(
     args: Readonly<{
       authConfigJson: string;

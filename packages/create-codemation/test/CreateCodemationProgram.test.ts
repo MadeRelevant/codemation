@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import process from "node:process";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -27,6 +28,20 @@ class NoopOnboarding implements PostScaffoldOnboardingPort {
 class RecordingOnboarding implements PostScaffoldOnboardingPort {
   last: { targetDirectory: string; noInteraction: boolean } | undefined;
   async runAfterScaffold(args: Readonly<{ targetDirectory: string; noInteraction: boolean }>): Promise<void> {
+    this.last = args;
+  }
+}
+
+class RecordingScaffolder {
+  last:
+    | Readonly<{
+        templateId: string;
+        targetDirectory: string;
+        force: boolean;
+      }>
+    | undefined;
+
+  async scaffold(args: Readonly<{ templateId: string; targetDirectory: string; force: boolean }>): Promise<void> {
     this.last = args;
   }
 }
@@ -81,5 +96,49 @@ describe("CreateCodemationProgram", () => {
     const appDir = path.join(target, "npm-create-app");
     await program.run(["--no-interaction", "--template", "minimal", appDir]);
     expect(onboarding.last?.noInteraction).toBe(true);
+  });
+
+  it("defaults the target directory to codemation-app in the current working directory", async () => {
+    const resolver = new TemplateDirectoryResolver(import.meta.url);
+    const nodeFs = new NodeFileSystem();
+    const templateCatalog = new TemplateCatalog(resolver, nodeFs);
+    const memory = new MemoryStdout();
+    const onboarding = new RecordingOnboarding();
+    const scaffolder = new RecordingScaffolder();
+    const program = new CreateCodemationProgram(scaffolder as never, templateCatalog, memory, onboarding);
+    const workingDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-cwd-"));
+    tmpDirs.push(workingDirectory);
+    const mutableProcess = process as NodeJS.Process & { cwd: () => string };
+    const originalCwd = mutableProcess.cwd;
+
+    try {
+      mutableProcess.cwd = () => workingDirectory;
+      await program.run([]);
+    } finally {
+      mutableProcess.cwd = originalCwd;
+    }
+
+    expect(scaffolder.last?.targetDirectory).toBe(path.join(workingDirectory, "codemation-app"));
+    expect(scaffolder.last?.templateId).toBe("default");
+    expect(onboarding.last?.targetDirectory).toBe(path.join(workingDirectory, "codemation-app"));
+    expect(onboarding.last?.noInteraction).toBe(false);
+  });
+
+  it("forwards --force to the scaffolder", async () => {
+    const resolver = new TemplateDirectoryResolver(import.meta.url);
+    const nodeFs = new NodeFileSystem();
+    const templateCatalog = new TemplateCatalog(resolver, nodeFs);
+    const memory = new MemoryStdout();
+    const onboarding = new RecordingOnboarding();
+    const scaffolder = new RecordingScaffolder();
+    const program = new CreateCodemationProgram(scaffolder as never, templateCatalog, memory, onboarding);
+
+    await program.run(["--force", "--template", "minimal", "forced-app"]);
+
+    expect(scaffolder.last).toEqual({
+      templateId: "minimal",
+      targetDirectory: path.resolve("forced-app"),
+      force: true,
+    });
   });
 });

@@ -11,6 +11,7 @@ import { DevHttpProbe } from "./DevHttpProbe";
 import { DevNextHostEnvironmentBuilder } from "./DevNextHostEnvironmentBuilder";
 import { DevSessionPortsResolver } from "./DevSessionPortsResolver";
 import { DevSessionServices } from "./DevSessionServices";
+import { DevSourceChangeClassifier } from "./DevSourceChangeClassifier";
 import { DevSourceRestartCoordinator } from "./DevSourceRestartCoordinator";
 import { LoopbackPortAllocator } from "./LoopbackPortAllocator";
 import { RuntimeToolEntrypointResolver } from "./RuntimeToolEntrypointResolver";
@@ -35,6 +36,7 @@ export class DevSessionServicesBuilder {
       new DevAuthSettingsLoader(new CodemationConsumerConfigLoader()),
       new DevNextHostEnvironmentBuilder(consumerEnvLoader, sourceMapNodeOptions),
       new WatchRootsResolver(),
+      new DevSourceChangeClassifier(),
       new DevSourceRestartCoordinator(
         new DevelopmentGatewayNotifier(cliLogger),
         this.loggerFactory.createPerformanceDiagnostics("codemation-cli.performance"),

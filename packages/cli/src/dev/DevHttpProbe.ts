@@ -4,8 +4,8 @@ export class DevHttpProbe {
   async waitUntilUrlRespondsOk(url: string): Promise<void> {
     for (let attempt = 0; attempt < 200; attempt += 1) {
       try {
-        const response = await fetch(url);
-        if (response.ok || response.status === 404) {
+        const response = await fetch(url, { redirect: "manual" });
+        if (response.ok || response.status === 404 || this.isRedirectStatus(response.status)) {
           return;
         }
       } catch {
@@ -50,5 +50,9 @@ export class DevHttpProbe {
       await delay(50);
     }
     throw new Error("Timed out waiting for dev runtime bootstrap summary.");
+  }
+
+  private isRedirectStatus(status: number): boolean {
+    return status >= 300 && status < 400;
   }
 }

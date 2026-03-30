@@ -89,6 +89,7 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
               className="flex flex-col gap-4"
               suppressHydrationWarning
               aria-busy={isSubmitting}
+              data-testid="login-form"
               onSubmit={(event: FormEvent) => {
                 event.preventDefault();
                 void this.submitCredentials();
@@ -131,15 +132,7 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
                   {this.state.error}
                 </p>
               ) : null}
-              <Button
-                type="button"
-                className="w-full"
-                data-testid="login-submit"
-                disabled={formBusy}
-                onClick={() => {
-                  void this.submitCredentials();
-                }}
-              >
+              <Button type="submit" className="w-full" data-testid="login-submit" disabled={formBusy}>
                 {isSubmitting ? (
                   <span
                     className="mr-2 inline-block size-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"
