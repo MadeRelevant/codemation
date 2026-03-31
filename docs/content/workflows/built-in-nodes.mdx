@@ -1,0 +1,117 @@
+---
+title: Built-in Nodes
+description: See the built-in node packages, what they are for, and how to start configuring them in your workflows.
+---
+
+# Built-in Nodes
+
+Most apps start with the built-in nodes exported by `@codemation/core-nodes`.
+
+## Main built-in node categories
+
+### Triggers
+
+- `ManualTrigger`: start a workflow manually
+- `WebhookTrigger`: start a workflow from an HTTP webhook
+
+### Data and integration helpers
+
+- `MapData`: transform the JSON shape flowing through a workflow
+- `HttpRequest`: call external HTTP APIs
+- `Callback`: run custom TypeScript logic against the current items
+
+### Control flow
+
+- `If`: branch on a predicate
+- `Merge`: join paths again
+- `Wait`: pause and continue later
+- `NoOp`: placeholder or explicit pass-through step
+- `SubWorkflow`: run another workflow as part of the current flow
+
+### AI
+
+- `AIAgent`: call an LLM with workflow data and structured prompting
+- `OpenAIChatModelConfig`: configure the model connection used by AI nodes
+- dedicated guide: [AI Agent](/docs/workflows/ai-agent)
+
+## Optional official node packages
+
+The repo also contains additional node packages, for example:
+
+- `@codemation/core-nodes-gmail`: Gmail trigger and related integration support
+- `@codemation/node-example`: a minimal custom node package that shows the extension pattern
+
+## A simple built-in node example
+
+The starter template uses `ManualTrigger` and `MapData`:
+
+```ts
+new ManualTrigger<SeedJson>("Start", [{ json: { step: "start" } }])
+
+new MapData<SeedJson, SeedJson & { hello: boolean }>("Hello", (item) => ({
+  ...item.json,
+  hello: true,
+}))
+```
+
+That pattern is typical across built-in nodes:
+
+- instantiate a config class,
+- give it a readable name,
+- pass the configuration it needs,
+- chain it into the builder.
+
+## AI node example
+
+An advanced workflow in the repo uses an AI node like this:
+
+```ts
+new AIAgent(
+  "Classify RFQ vs other",
+  "You triage incoming mail for sales...",
+  (item) => JSON.stringify(item.json),
+  openAiChatModelPresets.demoGpt4oMini,
+)
+```
+
+In practice, AI nodes usually combine:
+
+- a prompt,
+- a serializer for the current workflow item,
+- a chat model config,
+- a credential slot that resolves to an API key.
+
+Because `AIAgent` is one of the most important built-in nodes, it has its own page:
+
+- [AI Agent](/docs/workflows/ai-agent)
+
+## OpenAI model configuration
+
+The built-in OpenAI chat model config declares a default credential slot and accepts the built-in `openai.apiKey` credential type.
+
+That means a common setup is:
+
+1. configure an OpenAI credential instance in the host UI,
+2. bind it to the expected slot,
+3. use `OpenAIChatModelConfig` or a preset in your workflow.
+
+## How to choose nodes
+
+Start with:
+
+- `ManualTrigger` for quick local testing
+- `MapData` for shaping data
+- `If` for branching
+- `HttpRequest` or `Callback` for external work
+
+Then add:
+
+- `WebhookTrigger` when you want inbound HTTP
+- `AIAgent` when you want model-backed classification or generation
+- optional package nodes such as Gmail when your use case matches them
+
+## Continue with
+
+1. [AI Agent](/docs/workflows/ai-agent)
+2. [Custom nodes](/docs/workflows/custom-nodes)
+3. [Use credentials](/docs/credentials/using-credentials)

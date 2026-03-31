@@ -1,0 +1,52 @@
+<svg width="1600" height="960" viewBox="0 0 1600 960" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="70" x2="1490" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="270" y1="220" x2="1340" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="0.5" stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="960" rx="36" fill="url(#bg)"/>
+  <text x="90" y="110" fill="white" font-family="Arial, sans-serif" font-size="42" font-weight="700">Engine architecture: the high-level view most app developers need</text>
+  <text x="90" y="152" fill="#94A3B8" font-family="Arial, sans-serif" font-size="24">What the engine owns, and what the host and UI add around it</text>
+
+  <rect x="90" y="230" width="260" height="140" rx="24" fill="#111827" stroke="#334155" stroke-width="2"/>
+  <text x="132" y="288" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">Workflow</text>
+  <text x="132" y="326" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="24">definition</text>
+
+  <rect x="450" y="170" width="720" height="560" rx="30" fill="#0B1220" stroke="#475569" stroke-width="2"/>
+  <text x="488" y="228" fill="white" font-family="Arial, sans-serif" font-size="36" font-weight="700">@codemation/core engine</text>
+
+  <rect x="500" y="270" width="250" height="110" rx="20" fill="#111827" stroke="#38BDF8" stroke-width="2"/>
+  <rect x="810" y="270" width="300" height="110" rx="20" fill="#111827" stroke="#22C55E" stroke-width="2"/>
+  <rect x="500" y="430" width="250" height="110" rx="20" fill="#111827" stroke="#F59E0B" stroke-width="2"/>
+  <rect x="810" y="430" width="300" height="110" rx="20" fill="#111827" stroke="#8B5CF6" stroke-width="2"/>
+  <rect x="655" y="590" width="300" height="90" rx="20" fill="#111827" stroke="#EF4444" stroke-width="2"/>
+
+  <text x="575" y="332" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">Planning</text>
+  <text x="884" y="318" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">Execution</text>
+  <text x="884" y="350" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="22">run continuation</text>
+  <text x="575" y="492" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">Policies</text>
+  <text x="890" y="478" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">Snapshots</text>
+  <text x="890" y="510" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="22">drift-tolerant resumes</text>
+  <text x="760" y="646" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">Ports and contracts</text>
+
+  <rect x="1260" y="230" width="250" height="140" rx="24" fill="#111827" stroke="#334155" stroke-width="2"/>
+  <text x="1302" y="288" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">Host</text>
+  <text x="1302" y="326" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="24">persistence, scheduler, API</text>
+
+  <rect x="1260" y="500" width="250" height="140" rx="24" fill="#111827" stroke="#334155" stroke-width="2"/>
+  <text x="1302" y="558" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">UI</text>
+  <text x="1302" y="596" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="24">operator visibility</text>
+
+  <path d="M350 300H430" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M1170 300H1240" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M1170 570H1240" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M955 635H1170" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+
+  <text x="90" y="858" fill="#94A3B8" font-family="Arial, sans-serif" font-size="22">Key idea: the engine owns workflow orchestration; the host and UI provide infrastructure and product surface around it.</text>
+</svg>

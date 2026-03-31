@@ -1,0 +1,54 @@
+<svg width="1600" height="980" viewBox="0 0 1600 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="70" x2="1490" y2="920" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="250" y1="240" x2="1320" y2="820" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22C55E"/>
+      <stop offset="0.5" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="980" rx="36" fill="url(#bg)"/>
+  <text x="90" y="110" fill="white" font-family="Arial, sans-serif" font-size="42" font-weight="700">Production setup: shared database, queue, web process, worker process</text>
+  <text x="90" y="152" fill="#94A3B8" font-family="Arial, sans-serif" font-size="24">Same workflow code, more durable infrastructure and clearer separation of concerns</text>
+
+  <rect x="90" y="220" width="280" height="170" rx="24" fill="#111827" stroke="#334155" stroke-width="2"/>
+  <text x="126" y="278" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">Your app</text>
+  <text x="126" y="322" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="24">codemation.config.ts</text>
+  <text x="126" y="356" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="24">src/workflows/**/*.ts</text>
+
+  <rect x="450" y="160" width="370" height="200" rx="28" fill="#0B1220" stroke="#38BDF8" stroke-width="3"/>
+  <text x="490" y="220" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">Web process</text>
+  <text x="490" y="266" fill="#BAE6FD" font-family="Arial, sans-serif" font-size="24">codemation serve web</text>
+  <text x="490" y="304" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="23">Next host UI</text>
+  <text x="490" y="338" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="23">API + auth + workflow control</text>
+
+  <rect x="450" y="460" width="370" height="200" rx="28" fill="#0B1220" stroke="#22C55E" stroke-width="3"/>
+  <text x="490" y="520" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">Worker process</text>
+  <text x="490" y="566" fill="#BBF7D0" font-family="Arial, sans-serif" font-size="24">codemation serve worker</text>
+  <text x="490" y="604" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="23">Consumes BullMQ jobs</text>
+  <text x="490" y="638" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="23">Runs offloaded workflow work</text>
+
+  <rect x="960" y="180" width="520" height="190" rx="28" fill="#0B1220" stroke="#475569" stroke-width="2"/>
+  <text x="998" y="238" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">Shared infrastructure</text>
+  <rect x="998" y="274" width="210" height="70" rx="18" fill="#111827" stroke="#F59E0B" stroke-width="2"/>
+  <rect x="1232" y="274" width="210" height="70" rx="18" fill="#111827" stroke="#EF4444" stroke-width="2"/>
+  <text x="1048" y="318" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">PostgreSQL</text>
+  <text x="1300" y="318" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">Redis</text>
+
+  <rect x="960" y="500" width="520" height="190" rx="28" fill="#0B1220" stroke="#475569" stroke-width="2"/>
+  <text x="998" y="558" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">Codemation runtime services</text>
+  <rect x="998" y="594" width="210" height="70" rx="18" fill="#111827" stroke="#8B5CF6" stroke-width="2"/>
+  <rect x="1232" y="594" width="210" height="70" rx="18" fill="#111827" stroke="#38BDF8" stroke-width="2"/>
+  <text x="1065" y="638" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">BullMQ</text>
+  <text x="1278" y="638" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">Credentials</text>
+
+  <path d="M370 305H420" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M370 305C420 305 420 560 420 560H450" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M820 260H930" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M820 560H930" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M1215 370V470" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+  <text x="90" y="882" fill="#94A3B8" font-family="Arial, sans-serif" font-size="22">Use this setup when you need shared persistence, queue-backed execution, or dedicated workers.</text>
+</svg>

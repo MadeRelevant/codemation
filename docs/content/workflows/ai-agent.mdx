@@ -1,0 +1,560 @@
+---
+title: AI Agent
+description: Use the built-in AIAgent node for prompt-based workflow steps, structured output, and tool-enabled agent flows.
+---
+
+# AI Agent
+
+`AIAgent` is one of the most important built-in nodes in Codemation.
+
+It gives you a code-first way to:
+
+- run an LLM against each workflow item,
+- shape the prompt from workflow data,
+- attach a chat model configuration,
+- optionally let the model call tools,
+- return either plain text or structured JSON back into the workflow.
+
+For many apps, this is the main node used for:
+
+- classification,
+- extraction,
+- summarization,
+- routing,
+- enrichment,
+- agent-style tool calling.
+
+## The constructor at a glance
+
+`AIAgent` is configured with:
+
+1. a node name
+2. a `systemMessage`
+3. a `userMessageFormatter`
+4. a `chatModel`
+5. optional `tools`
+6. an optional `id`
+7. an optional retry policy
+
+That means you control both the instruction layer and how each workflow item is turned into a prompt.
+
+## Minimal example
+
+```ts
+new AIAgent<
+  { subject: string; body: string },
+  { outcome: "rfq" | "other"; reasoning: string }
+>(
+  "Classify RFQ vs other",
+  'Respond with strict JSON only. Shape: {"outcome":"rfq"|"other","reasoning":"..."}',
+  (item) => JSON.stringify(item.json),
+  openAiChatModelPresets.demoGpt4oMini,
+)
+```
+
+This is a good default pattern because it is:
+
+- explicit,
+- easy to test,
+- easy to understand later,
+- friendly to strict JSON outputs.
+
+## Common usage scenarios
+
+Most teams do not start by asking "how does `AIAgent` work?".
+
+They start by asking "how do I use it for classification, extraction, routing, or tool-backed answers?".
+
+These are the most common patterns.
+
+### 1. Classify incoming data
+
+Use this when you want the model to choose between a few stable outcomes, such as:
+
+- RFQ vs not RFQ
+- urgent vs normal
+- support vs sales vs spam
+- approved vs needs review
+
+Pattern:
+
+```ts
+new AIAgent<
+  { subject: string; body: string },
+  { category: "sales" | "support" | "spam"; reasoning: string }
+>(
+  "Classify inbox message",
+  'Respond with strict JSON only. Shape: {"category":"sales"|"support"|"spam","reasoning":"..."}',
+  (item) => JSON.stringify({
+    subject: item.json.subject,
+    body: item.json.body,
+  }),
+  openAiChatModelPresets.demoGpt4oMini,
+)
+```
+
+Use this pattern when the next step is deterministic, for example:
+
+- branch with `If`
+- map the category to a workflow decision
+- call a specific downstream integration
+
+### 2. Extract structured data
+
+Use this when you want fields back, not prose.
+
+Examples:
+
+- invoice numbers
+- customer names
+- intent fields
+- dates and amounts
+
+Pattern:
+
+```ts
+new AIAgent<
+  { emailText: string },
+  { customerName: string; invoiceNumber: string; totalAmount: string }
+>(
+  "Extract invoice fields",
+  'Return strict JSON only with shape {"customerName":"","invoiceNumber":"","totalAmount":""}. Use empty strings when a field is missing.',
+  (item) => item.json.emailText,
+  openAiChatModelPresets.demoGpt4oMini,
+)
+```
+
+Good follow-up nodes:
+
+- `MapData` to normalize the extracted values
+- `HttpRequest` to send them somewhere
+- a custom node for domain-specific validation
+
+### 3. Route the workflow
+
+Sometimes the model should not be the last step. It should produce a routing decision that the rest of the workflow uses.
+
+Pattern:
+
+```text
+Trigger
+  → prepare input
+  → AIAgent returns { route: "...", reasoning: "..." }
+  → If / branching node
+  → route-specific business actions
+```
+
+This is exactly the pattern used by the RFQ triage workflow in the repo:
+
+- aggregate incoming Gmail data
+- classify with `AIAgent`
+- branch on the resulting `outcome`
+
+### 4. Summarize for humans or downstream systems
+
+Use this when you want a compact summary for:
+
+- an operator UI
+- a CRM note
+- a Slack message
+- a handoff step before a human review
+
+Pattern:
+
+```ts
+new AIAgent<
+  { transcript: string },
+  { summary: string }
+>(
+  "Summarize support call",
+  'Return strict JSON only. Shape: {"summary":"..."} Keep it concise and factual.',
+  (item) => item.json.transcript,
+  openAiChatModelPresets.demoGpt4oMini,
+)
+```
+
+If the summary will drive automation, keep it structured.
+If it is mainly for display, a simpler text-oriented output can also be acceptable.
+
+### 5. Use tools before answering
+
+Use tools when the model should not rely only on the current workflow item.
+
+Good candidates:
+
+- documentation search
+- product lookup
+- internal knowledge API
+- policy retrieval
+- deterministic calculations
+
+Pattern:
+
+```ts
+new AIAgent(
+  "Answer with product context",
+  "Use the available tools when needed, then answer with a final structured result.",
+  (item) => JSON.stringify(item.json),
+  openAiChatModelPresets.demoGpt4oMini,
+  [new SearchDocsToolConfig(), new PricingLookupToolConfig()],
+)
+```
+
+Reach for tools when:
+
+- the model needs fresh or external data
+- the operation should be deterministic
+- you need a capability that belongs outside the prompt
+
+### 6. Draft content, but keep reviewable outputs
+
+You can also use `AIAgent` for drafting:
+
+- reply suggestions
+- CRM notes
+- task descriptions
+- customer response drafts
+
+Even here, it is often better to return structured JSON like:
+
+```json
+{
+  "subject": "...",
+  "body": "...",
+  "tone": "professional"
+}
+```
+
+That keeps downstream handling easier than a raw paragraph blob.
+
+## Which scenario should I start with?
+
+If you are unsure, start here:
+
+- **Need a yes/no or category decision?** Use classification.
+- **Need fields back?** Use extraction.
+- **Need the result to drive later workflow branches?** Use routing.
+- **Need external knowledge or deterministic actions?** Add tools.
+- **Need human-facing copy?** Use summarization or drafting, but prefer structured output if automation follows.
+
+## How to think about the prompt split
+
+### `systemMessage`
+
+Use this for:
+
+- role and behavior
+- output rules
+- safety or style constraints
+- required JSON shape
+
+Keep it stable and intention-revealing.
+
+### `userMessageFormatter`
+
+Use this for:
+
+- the item-specific data
+- item-to-prompt serialization
+- any per-item formatting logic
+
+Because the formatter receives `item`, `index`, `items`, and `ctx`, it can shape prompts using the current workflow batch and execution context.
+
+## Recommended output pattern: strict JSON
+
+For workflow automation, structured output is usually better than free-form prose.
+
+A very practical pattern is:
+
+1. instruct the model to return strict JSON
+2. keep the expected shape small
+3. branch or map on the resulting JSON in later nodes
+
+Real example shape from this repo:
+
+```ts
+new AIAgent<TriageEmailAggregateJson, TriageEmailAggregateJson & TriageClassifyJson>(
+  "Classify RFQ vs other",
+  '... Respond with strict JSON only. Shape: {"outcome":"rfq"|"other","reasoning":"…"} ...',
+  (item) => JSON.stringify(item.json),
+  openAiChatModelPresets.demoGpt4oMini,
+)
+```
+
+That pattern is especially useful when the next node is an `If`, `MapData`, or another deterministic step.
+
+## Recipe: from agent output to workflow action
+
+One of the best ways to use `AIAgent` is to keep the AI step narrow and immediately hand off to deterministic logic.
+
+A strong pattern is:
+
+```text
+Trigger
+  → prepare data
+  → AIAgent returns compact JSON
+  → If / MapData / Callback / HttpRequest
+  → downstream business action
+```
+
+This keeps:
+
+- prompts focused
+- workflow behavior predictable
+- debugging easier
+- the "AI" part separate from the "business action" part
+
+## Chat model configuration
+
+The `chatModel` argument is a `ChatModelConfig`.
+
+The most common starting point is an OpenAI model config or preset:
+
+```ts
+openAiChatModelPresets.demoGpt4oMini
+```
+
+The built-in OpenAI config supports:
+
+- model selection
+- a configurable credential slot key
+- optional model options such as temperature and max tokens
+
+The built-in OpenAI chat model config defaults to:
+
+- credential slot: `"openai"`
+- accepted credential type: `openai.apiKey`
+
+So the common flow is:
+
+1. define or use an OpenAI credential instance
+2. bind it to the `openai` slot
+3. use an OpenAI chat model config in the agent
+
+## Practical example with a custom model config
+
+```ts
+new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini", "openai", undefined, {
+  temperature: 0.1,
+  maxTokens: 800,
+})
+```
+
+Use low temperature for:
+
+- classification
+- extraction
+- routing
+- normalization
+
+Use higher temperature more carefully for:
+
+- brainstorming
+- open-ended generation
+- creative drafting
+
+## Tools
+
+`AIAgent` also supports tools:
+
+```ts
+new AIAgent(
+  "Classify with tools",
+  "Use tools when helpful, then return a final answer.",
+  (item) => JSON.stringify(item.json),
+  openAiChatModelPresets.demoGpt4oMini,
+  [myToolConfigA, myToolConfigB],
+)
+```
+
+Under the hood, the agent:
+
+- resolves the configured tools,
+- binds them to the model when supported,
+- executes requested tool calls,
+- feeds tool outputs back into the model,
+- emits the final result into the workflow output.
+
+Two useful things to know:
+
+- tool names must be unique within the agent
+- tool calls are executed in parallel when multiple are requested
+
+This makes `AIAgent` more than a prompt wrapper: it can act like a small agent runtime inside a workflow step.
+
+## Credential usage in tools
+
+Tools can also define their own credential requirements with `getCredentialRequirements()`.
+
+That means one agent can have:
+
+- a credentialed chat model connection
+- one or more credentialed tools
+
+Each connection is resolved through its own connection node context, which keeps the runtime behavior explicit and observable.
+
+## Full example: tool implementation with a credential
+
+If you want an agent tool to call a real external service, the pattern is:
+
+1. define a tool config class
+2. expose `getCredentialRequirements()` on that config
+3. resolve the typed session inside the tool with `args.ctx.getCredential(...)`
+
+```ts
+import type { CredentialRequirement, Tool, ToolConfig, ToolExecuteArgs, TypeToken } from "@codemation/core";
+import { tool } from "@codemation/core";
+import { z } from "zod";
+
+type SearchApiSession = Readonly<{
+  baseUrl: string;
+  apiKey: string;
+}>;
+
+const searchToolInputSchema = z.object({
+  query: z.string(),
+});
+
+const searchToolOutputSchema = z.object({
+  results: z.array(
+    z.object({
+      title: z.string(),
+      url: z.string(),
+    }),
+  ),
+});
+
+export class SearchDocsToolConfig implements ToolConfig {
+  readonly type: TypeToken<unknown> = SearchDocsTool;
+
+  constructor(
+    public readonly name: string = "search_docs",
+    public readonly description: string = "Search product documentation for the current task.",
+    public readonly credentialSlotKey: string = "searchApi",
+  ) {}
+
+  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
+    return [
+      {
+        slotKey: this.credentialSlotKey,
+        label: "Search API credential",
+        acceptedTypes: ["search-api.apiKey"],
+      },
+    ];
+  }
+}
+
+@tool()
+export class SearchDocsTool
+  implements Tool<SearchDocsToolConfig, typeof searchToolInputSchema, typeof searchToolOutputSchema>
+{
+  readonly defaultDescription = "Search documentation and return the best matching pages.";
+  readonly inputSchema = searchToolInputSchema;
+  readonly outputSchema = searchToolOutputSchema;
+
+  async execute(
+    args: ToolExecuteArgs<SearchDocsToolConfig, z.input<typeof searchToolInputSchema>>,
+  ): Promise<z.output<typeof searchToolOutputSchema>> {
+    const session = await args.ctx.getCredential<SearchApiSession>(args.config.credentialSlotKey);
+
+    const response = await fetch(`${session.baseUrl}/search?q=${encodeURIComponent(args.input.query)}`, {
+      headers: {
+        Authorization: `Bearer ${session.apiKey}`,
+      },
+    });
+
+    const data = (await response.json()) as {
+      results?: Array<{ title?: string; url?: string }>;
+    };
+
+    return {
+      results: (data.results ?? []).map((entry) => ({
+        title: String(entry.title ?? ""),
+        url: String(entry.url ?? ""),
+      })),
+    };
+  }
+}
+```
+
+Use the tool in your agent like this:
+
+```ts
+new AIAgent(
+  "Answer product questions",
+  "Use the search_docs tool when you need product documentation context, then answer clearly.",
+  (item) => JSON.stringify(item.json),
+  openAiChatModelPresets.demoGpt4oMini,
+  [new SearchDocsToolConfig()],
+)
+```
+
+This is the same credential-slot idea as model configuration:
+
+- the tool config declares the slot and accepted credential type
+- the runtime binds a concrete credential instance to that slot
+- the tool resolves the typed session inside `execute()`
+
+## Retry behavior
+
+`AIAgent` has a default retry policy:
+
+```ts
+RetryPolicy.defaultForAiAgent
+```
+
+That is helpful because AI calls are external runtime calls and can fail transiently.
+
+You can override the retry policy if the default is not right for your use case.
+
+## What comes out of the node
+
+The agent returns workflow items on the `main` output port.
+
+In practice:
+
+- plain text model output becomes workflow JSON output content
+- JSON-shaped output can be parsed into structured workflow data
+- tool-enabled flows still end by producing a final response on `main`
+
+This is why `AIAgent` works well in the middle of a larger workflow chain.
+
+## When to use `AIAgent`
+
+Use it when the workflow step needs model reasoning, such as:
+
+- deciding a route
+- extracting a compact structured result
+- summarizing long content
+- using tools before returning a final answer
+
+Do **not** reach for `AIAgent` first when a simple deterministic transform is enough. In those cases, `MapData`, `If`, `HttpRequest`, or a custom node is often easier to reason about.
+
+## Good patterns
+
+- Keep the output schema small and stable
+- Serialize only the fields the model really needs
+- Prefer strict JSON for automation
+- Keep prompts domain-specific and concise
+- Use tools for real capability gaps, not for everything
+- Follow an `AIAgent` with deterministic nodes that act on the result
+
+## Common workflow pattern
+
+One strong pattern looks like this:
+
+```text
+Trigger
+  → MapData / enrich inputs
+  → AIAgent
+  → If / MapData / Callback
+  → downstream business action
+```
+
+That keeps the LLM step narrow and makes the rest of the flow easier to understand.
+
+## Continue with
+
+1. [Use credentials](/docs/credentials/using-credentials)
+2. [Custom credential types](/docs/credentials/custom-credential-types)
+3. [Custom nodes](/docs/workflows/custom-nodes)

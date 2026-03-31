@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
+import { authJsLogger } from "./AuthJsLogger";
 import { AuthSnapshotReader } from "./AuthSnapshotReader";
 
 /**
@@ -17,6 +18,7 @@ export const { auth } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
   secret: authSecret,
+  logger: authJsLogger,
   providers: [
     Credentials({
       id: "edge-jwt-verifier-placeholder",

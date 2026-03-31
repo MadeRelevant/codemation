@@ -2,6 +2,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth from "next-auth";
 
 import { CodemationAuthPrismaClient } from "../server/CodemationAuthPrismaClient";
+import { authJsLogger } from "./AuthJsLogger";
 import { AuthSnapshotResolver } from "./AuthSnapshotResolver";
 import { NextAuthProviderCatalog } from "./NextAuthProviderCatalog";
 
@@ -20,6 +21,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(async () => {
   }
   return {
     adapter: PrismaAdapter(prisma),
+    logger: authJsLogger,
     secret,
     session: { strategy: "jwt" },
     providers: [...providers],

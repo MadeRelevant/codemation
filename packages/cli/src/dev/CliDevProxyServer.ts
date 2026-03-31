@@ -3,6 +3,7 @@ import { ApiPaths } from "@codemation/host";
 import httpProxy from "http-proxy";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer } from "ws";
+import type { ListenPortConflictDescriber } from "./ListenPortConflictDescriber";
 
 type WorkflowClientMessage =
   | Readonly<{ kind: "subscribe"; roomId: string }>
@@ -29,7 +30,10 @@ export class CliDevProxyServer {
   private server: HttpServer | null = null;
   private uiProxyTarget: string | null = null;
 
-  constructor(private readonly listenPort: number) {}
+  constructor(
+    private readonly listenPort: number,
+    private readonly listenPortConflictDescriber: ListenPortConflictDescriber,
+  ) {}
 
   async start(): Promise<void> {
     if (this.server) {
@@ -53,7 +57,9 @@ export class CliDevProxyServer {
       this.handleUpgrade(request, socket, head);
     });
     await new Promise<void>((resolve, reject) => {
-      server.once("error", reject);
+      server.once("error", (error) => {
+        void this.rejectListenError(error, reject);
+      });
       server.listen(this.listenPort, "127.0.0.1", () => {
         resolve();
       });
@@ -216,6 +222,22 @@ export class CliDevProxyServer {
     } catch {
       return url.split("?")[0] ?? url;
     }
+  }
+
+  private async rejectListenError(error: unknown, reject: (reason?: unknown) => void): Promise<void> {
+    const errorWithCode = error as Error & Readonly<{ code?: unknown }>;
+    if (errorWithCode.code !== "EADDRINUSE") {
+      reject(error);
+      return;
+    }
+
+    const description = await this.listenPortConflictDescriber.describeLoopbackPort(this.listenPort);
+    const baseMessage = `Dev gateway port ${this.listenPort} is already in use on 127.0.0.1.`;
+    const suffix =
+      description === null
+        ? " Stop the process using that port or change the configured Codemation dev port."
+        : ` Listener: ${description}. Stop that process or change the configured Codemation dev port.`;
+    reject(new Error(`${baseMessage}${suffix}`, { cause: error instanceof Error ? error : undefined }));
   }
 
   private broadcastDev(message: Readonly<Record<string, unknown>>): void {

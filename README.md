@@ -74,9 +74,10 @@ Clone for **contributors** and **framework authors** working inside the monorepo
 ```bash
 pnpm install
 pnpm dev
+pnpm run dev:docs
 ```
 
-That runs the sample app under [`apps/test-dev/`](apps/test-dev/) with framework dev mode. Full test and lint commands:
+That runs the sample app under [`apps/test-dev/`](apps/test-dev/) with framework dev mode, and starts the Fumadocs site only when you explicitly opt into `pnpm run dev:docs`. Full test and lint commands:
 
 | Command                                | Purpose                           |
 | -------------------------------------- | --------------------------------- |

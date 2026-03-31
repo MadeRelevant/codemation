@@ -4,6 +4,7 @@ dist
 .turbo
 .next
 out
+.source
 .env
 .env.*
 # Ship template starter env samples with create-codemation (would otherwise match `.env.*` above).

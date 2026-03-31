@@ -6,6 +6,17 @@ import WebSocket, { WebSocketServer } from "ws";
 import { ApiPaths } from "@codemation/host";
 
 import { CliDevProxyServer } from "../src/dev/CliDevProxyServer";
+import { ListenPortConflictDescriber } from "../src/dev/ListenPortConflictDescriber";
+
+class StubListenPortConflictDescriber extends ListenPortConflictDescriber {
+  constructor(private readonly description: string | null) {
+    super("linux");
+  }
+
+  override async describeLoopbackPort(_port: number): Promise<string | null> {
+    return this.description;
+  }
+}
 
 class StubRuntimeServer {
   private apiServer: HttpServer | null = null;
@@ -137,6 +148,7 @@ class StubUiServer {
 class ProxyHarness {
   proxyServer: CliDevProxyServer | null = null;
   private baseUrl = "";
+  private readonly listenPortConflictDescriber = new StubListenPortConflictDescriber(null);
 
   get httpBaseUrl(): string {
     return this.baseUrl;
@@ -158,7 +170,7 @@ class ProxyHarness {
       });
     });
     this.baseUrl = `http://127.0.0.1:${port}`;
-    this.proxyServer = new CliDevProxyServer(port);
+    this.proxyServer = new CliDevProxyServer(port, this.listenPortConflictDescriber);
     await this.proxyServer.start();
   }
 
@@ -238,6 +250,42 @@ test("CliDevProxyServer holds traffic during rebuilds and swaps to the latest ru
   const runtimeBResponse = await harness.fetchApi("/api/example");
   assert.equal(runtimeBResponse.status, 200);
   assert.equal(await runtimeBResponse.text(), "runtime-b");
+});
+
+test("CliDevProxyServer start includes listener details when the port is already in use", async () => {
+  const occupiedServer = createServer();
+  await new Promise<void>((resolve, reject) => {
+    occupiedServer.once("error", reject);
+    occupiedServer.listen(0, "127.0.0.1", () => resolve());
+  });
+  const occupiedPort = (occupiedServer.address() as AddressInfo).port;
+  const proxyServer = new CliDevProxyServer(
+    occupiedPort,
+    new StubListenPortConflictDescriber("pid=4242 command=next-server endpoint=TCP 127.0.0.1:3000 (LISTEN)"),
+  );
+
+  await assert.rejects(
+    async () => {
+      await proxyServer.start();
+    },
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /Dev gateway port/);
+      assert.match(error.message, /pid=4242/);
+      assert.match(error.message, /next-server/);
+      return true;
+    },
+  );
+
+  await new Promise<void>((resolve, reject) => {
+    occupiedServer.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
 });
 
 test("GET /api/dev/health reports stopped, building, then ready", async () => {

@@ -1,0 +1,50 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="70" x2="1490" y2="850" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="250" y1="210" x2="1310" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" rx="36" fill="url(#bg)"/>
+  <text x="90" y="110" fill="white" font-family="Arial, sans-serif" font-size="42" font-weight="700">Minimum setup: one app, one process, quickest path to value</text>
+  <text x="90" y="152" fill="#94A3B8" font-family="Arial, sans-serif" font-size="24">Great for first projects and local development</text>
+
+  <rect x="90" y="220" width="280" height="170" rx="24" fill="#111827" stroke="#334155" stroke-width="2"/>
+  <text x="126" y="278" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">Your app</text>
+  <text x="126" y="322" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="24">codemation.config.ts</text>
+  <text x="126" y="356" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="24">src/workflows/**/*.ts</text>
+
+  <rect x="470" y="220" width="300" height="170" rx="24" fill="#0F172A" stroke="#38BDF8" stroke-width="3"/>
+  <text x="510" y="278" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">@codemation/cli</text>
+  <text x="510" y="322" fill="#BAE6FD" font-family="Arial, sans-serif" font-size="24">pnpm dev</text>
+  <text x="510" y="356" fill="#BAE6FD" font-family="Arial, sans-serif" font-size="24">codemation dev</text>
+
+  <rect x="885" y="190" width="620" height="230" rx="28" fill="#0B1220" stroke="#475569" stroke-width="2"/>
+  <text x="922" y="246" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">Framework runtime in one flow</text>
+  <rect x="922" y="278" width="168" height="104" rx="18" fill="#111827" stroke="#22C55E" stroke-width="2"/>
+  <rect x="1110" y="278" width="168" height="104" rx="18" fill="#111827" stroke="#38BDF8" stroke-width="2"/>
+  <rect x="1298" y="278" width="168" height="104" rx="18" fill="#111827" stroke="#8B5CF6" stroke-width="2"/>
+  <text x="968" y="338" fill="white" font-family="Arial, sans-serif" font-size="30" font-weight="700">Core</text>
+  <text x="1140" y="338" fill="white" font-family="Arial, sans-serif" font-size="30" font-weight="700">Host</text>
+  <text x="1327" y="338" fill="white" font-family="Arial, sans-serif" font-size="30" font-weight="700">UI</text>
+
+  <rect x="430" y="560" width="740" height="190" rx="28" fill="#0B1220" stroke="#475569" stroke-width="2"/>
+  <text x="468" y="616" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">Local infrastructure</text>
+  <rect x="468" y="646" width="300" height="70" rx="18" fill="#111827" stroke="#F59E0B" stroke-width="2"/>
+  <rect x="806" y="646" width="300" height="70" rx="18" fill="#111827" stroke="#10B981" stroke-width="2"/>
+  <text x="515" y="690" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">PGlite</text>
+  <text x="601" y="690" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="22">embedded Postgres</text>
+  <text x="861" y="690" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">Local scheduler</text>
+  <text x="1016" y="690" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="22">one process</text>
+
+  <path d="M370 305H450" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M770 305H855" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M620 390V520" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M620 520H800" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+
+  <text x="90" y="812" fill="#94A3B8" font-family="Arial, sans-serif" font-size="22">Use this setup when you want the shortest path from workflow code to a running product.</text>
+</svg>

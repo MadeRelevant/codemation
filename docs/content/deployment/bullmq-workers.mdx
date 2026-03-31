@@ -1,0 +1,99 @@
+---
+title: Use BullMQ and Workers
+description: Run Codemation in a more production-oriented setup with Redis, BullMQ, and dedicated worker processes.
+---
+
+# Use BullMQ and Workers
+
+For quick local development, Codemation can run everything in one process with the local scheduler.
+
+For higher-throughput or more production-oriented setups, use:
+
+- PostgreSQL
+- Redis
+- BullMQ
+- one or more worker processes
+
+## Important compatibility rule
+
+BullMQ requires a **shared PostgreSQL database**.
+
+It cannot be used with the local embedded PGlite database. If you enable Redis and queue-based execution, switch your database config to PostgreSQL first.
+
+## Starter template pattern
+
+The default template already shows the expected runtime switch:
+
+```ts
+const useRedisRuntime = Boolean(process.env.REDIS_URL);
+
+scheduler: {
+  kind: useRedisRuntime ? ("queue" as const) : ("inline" as const),
+  queuePrefix: "codemation-starter",
+  workerQueues: ["default"],
+  redisUrl: process.env.REDIS_URL,
+}
+```
+
+In normalized runtime terms, queue mode becomes BullMQ.
+
+## Environment variables
+
+Typical `.env` setup:
+
+```bash
+REDIS_URL=redis://127.0.0.1:6379
+DATABASE_URL=postgresql://user:password@127.0.0.1:5432/codemation
+```
+
+## Migration step
+
+Before starting web or worker processes:
+
+```bash
+pnpm exec codemation db migrate
+```
+
+## Start the web process
+
+```bash
+pnpm exec codemation serve web
+```
+
+## Start a worker process
+
+```bash
+pnpm exec codemation serve worker
+```
+
+Worker mode requires the scheduler kind to resolve to BullMQ. If it does not, the CLI fails fast instead of silently starting in the wrong mode.
+
+## Typical production shape
+
+```text
+Web process
+  ├─ serves UI and APIs
+  └─ uses the shared PostgreSQL + Redis setup
+
+Worker process
+  ├─ consumes BullMQ jobs
+  └─ uses the same PostgreSQL + Redis setup
+```
+
+You can add more workers later as your workload grows, as long as they point at the same shared infrastructure.
+
+## When to adopt this setup
+
+Use BullMQ and workers when:
+
+- workflows can become slow or bursty,
+- you want work offloaded from the web process,
+- you want clearer production separation between request handling and execution.
+
+## Keep it simple locally
+
+If you are still exploring or building your first workflows, it is usually better to stay on the local default until you need:
+
+- shared infrastructure,
+- separate scaling,
+- queue-backed execution.
