@@ -44,7 +44,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
 
       - name: Install dependencies
@@ -56,6 +56,47 @@ jobs:
 
       - name: Run ${{ matrix.name }}
         run: pnpm ${{ matrix.command }}
+
+  template-release-smoke:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # prisma.config.ts requires DATABASE_URL; `prisma generate` does not need a live server.
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Template packaged smoke
+            command: test:packaged-smoke
+          - name: Template interactive Verdaccio smoke
+            command: test:interactive-verdaccio-smoke
+    container:
+      image: node:24-bookworm
+
+    steps:
+      - name: Install container prerequisites
+        # `script` (util-linux) is required by the interactive smoke test; keep Python/build tools as
+        # native-module fallback for dependency installs inside the bare Node container.
+        run: apt-get update && apt-get install -y git util-linux python3 make g++
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Enable corepack pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.13.1 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client (@codemation/host)
+        run: pnpm --filter @codemation/host prisma:generate
+
+      - name: Run ${{ matrix.name }}
+        run: pnpm --filter create-codemation run ${{ matrix.command }}
 
   coverage:
     name: Build, tests & Codecov
@@ -101,7 +142,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
 
       - name: Install dependencies

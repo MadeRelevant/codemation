@@ -9,7 +9,7 @@ export class DevSessionPortsResolver {
 
   async resolve(
     args: Readonly<{
-      devMode: "consumer" | "framework";
+      devMode: "packaged-ui" | "watch-framework";
       portEnv: string | undefined;
       gatewayPortEnv: string | undefined;
     }>,
@@ -17,7 +17,7 @@ export class DevSessionPortsResolver {
     const nextPort = this.listenPorts.resolvePrimaryApplicationPort(args.portEnv);
     const gatewayPort =
       this.listenPorts.parsePositiveInteger(args.gatewayPortEnv) ??
-      (args.devMode === "consumer" ? nextPort : await this.loopbackPorts.allocate());
+      (args.devMode === "packaged-ui" ? nextPort : await this.loopbackPorts.allocate());
     return { nextPort, gatewayPort };
   }
 }

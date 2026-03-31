@@ -1,55 +1,53 @@
-# Local Verdaccio registry
+# Local Verdaccio Registry
 
-Use this to publish Codemation workspace packages to a **local** registry and validate installs, `npm create codemation`, and consumer apps without the monorepo `workspace:*` links.
+Use this when you want to consume Codemation packages like a real published release without touching npmjs.
 
-## Start Verdaccio
+## Persistent workflow
 
-From the repository root:
+1. Start the local registry:
 
 ```bash
 pnpm run verdaccio
 ```
 
-Or with Docker (binds to `127.0.0.1:4873`):
+2. Publish the current workspace packages into it:
 
 ```bash
-pnpm exec docker compose -f tooling/verdaccio/docker-compose.yml up -d
+pnpm run local-release:publish
 ```
 
-## Point npm/pnpm at the registry
+3. Point a consumer app at the local registry with an `.npmrc`:
 
-Create or extend `.npmrc` in the directory where you publish or install:
-
-```
-registry=http://localhost:4873/
-```
-
-For a **scoped** publish while keeping the public registry for other packages:
-
-```
-@codemation:registry=http://localhost:4873/
+```ini
+registry=http://127.0.0.1:4873/
+@codemation:registry=http://127.0.0.1:4873/
+//127.0.0.1:4873/:_authToken=codemation-local-registry-token
 ```
 
-## Publish workspace packages
-
-Packages must be **built** (`dist/`, etc.) before publishing.
-
-Typical flow:
-
-1. `pnpm run build` (or `turbo run build` for the subset you need).
-2. If `npm publish` fails with **401 Unauthorized**, create a local user: `npm adduser --registry http://localhost:4873` (Verdaccio ships with the htpasswd plugin; credentials stay in `tooling/verdaccio/htpasswd`, gitignored).
-3. Publish in **dependency order** (dependencies before dependents). For example: `@codemation/core` → … → `@codemation/cli` → `create-codemation`.
-
-Use `pnpm publish --filter <pkg> --no-git-checks --registry http://localhost:4873` per package, or automate with a script that respects the graph.
-
-## Install / create against the local registry
+4. Use the packages as if they came from npmjs:
 
 ```bash
-npm create codemation@latest my-app -- --template default --registry http://localhost:4873
+pnpm dlx create-codemation@0.0.3 my-app --template minimal --yes
+cd my-app
+pnpm install
+pnpm dev
 ```
 
-(Exact flags depend on your npm version; you can also set `registry` in `.npmrc` next to the command.)
+If you prefer `npm create`, run it from a directory with the same `.npmrc` in place.
 
-## Storage
+## Smoke gate
 
-Tarballs and metadata live under `tooling/verdaccio/storage/` (gitignored). Delete that folder to reset the registry.
+Use this before any real npm publish:
+
+```bash
+pnpm run local-release:smoke
+```
+
+That command starts an isolated temporary Verdaccio instance, publishes the local Codemation packages into it, scaffolds a fresh app from the registry, installs dependencies, runs migrations, creates a user, and verifies `codemation dev` boots successfully.
+
+## Notes
+
+- `pnpm run local-release:publish` builds the publishable packages before publishing them in dependency order.
+- The persistent Verdaccio config lives in `tooling/verdaccio/config.yaml`.
+- The temporary smoke registry is separate and cleans itself up after each run.
+- Local Verdaccio storage under `.verdaccio/` is gitignored. Delete it if you want to reset the persistent registry.

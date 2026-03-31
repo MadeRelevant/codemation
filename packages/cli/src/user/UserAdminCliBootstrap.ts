@@ -1,6 +1,4 @@
-import { CodemationBootstrapRequest } from "@codemation/host";
-import { DatabasePersistenceResolver } from "@codemation/host/persistence";
-import { CodemationConsumerConfigLoader } from "@codemation/host/server";
+import { AppConfigLoader } from "@codemation/host/server";
 
 import { CodemationCliApplicationSession } from "../bootstrap/CodemationCliApplicationSession";
 import type { ConsumerCliTsconfigPreparation } from "../consumer/ConsumerCliTsconfigPreparation";
@@ -17,11 +15,10 @@ export type UserAdminCliOptions = Readonly<{
  */
 export class UserAdminCliBootstrap {
   constructor(
-    private readonly configLoader: CodemationConsumerConfigLoader,
+    private readonly appConfigLoader: AppConfigLoader,
     private readonly pathResolver: CliPathResolver,
     private readonly consumerDotenvLoader: UserAdminConsumerDotenvLoader,
     private readonly tsconfigPreparation: ConsumerCliTsconfigPreparation,
-    private readonly databasePersistenceResolver: DatabasePersistenceResolver,
   ) {}
 
   async withSession<T>(
@@ -31,32 +28,23 @@ export class UserAdminCliBootstrap {
     const consumerRoot = options.consumerRoot ?? process.cwd();
     this.consumerDotenvLoader.load(consumerRoot);
     this.tsconfigPreparation.applyWorkspaceTsconfigForTsxIfPresent(consumerRoot);
-    const resolution = await this.configLoader.load({
+    const paths = await this.pathResolver.resolve(consumerRoot);
+    const loadResult = await this.appConfigLoader.load({
       consumerRoot,
+      repoRoot: paths.repoRoot,
+      env: process.env,
       configPathOverride: options.configPath,
     });
-    if (resolution.config.auth?.kind !== "local") {
+    if (loadResult.appConfig.auth?.kind !== "local") {
       throw new Error('Codemation user commands require CodemationConfig.auth.kind to be "local".');
     }
-    const persistence = this.databasePersistenceResolver.resolve({
-      runtimeConfig: resolution.config.runtime ?? {},
-      env: process.env,
-      consumerRoot,
-    });
-    if (persistence.kind === "none") {
+    if (loadResult.appConfig.persistence.kind === "none") {
       throw new Error(
         "Database persistence is not configured. Set CodemationConfig.runtime.database (postgresql URL or PGlite).",
       );
     }
-    const paths = await this.pathResolver.resolve(consumerRoot);
     const session = await CodemationCliApplicationSession.open({
-      resolution,
-      bootstrap: new CodemationBootstrapRequest({
-        repoRoot: paths.repoRoot,
-        consumerRoot,
-        env: process.env,
-        workflowSources: resolution.workflowSources,
-      }),
+      appConfig: loadResult.appConfig,
     });
     try {
       return await fn(session);

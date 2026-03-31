@@ -81,4 +81,4 @@ Wire this package when you run Codemation in multi-process or scaled setups and 
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
 ```
 
-Register the implementation through your host DI/bootstrap where `EventBus`-style services are bound (exact wiring depends on your `CodemationApplication` configuration).
+Register the implementation through your host container wiring where `RunEventBus`-style services are bound.

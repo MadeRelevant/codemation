@@ -3,16 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.13.1",
   "scripts": {
     "dev": "codemation dev",
     "build": "codemation build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@codemation/cli": "^0.0.0",
-    "@codemation/core": "^0.0.0",
-    "@codemation/core-nodes": "^0.0.0",
-    "@codemation/host": "^0.0.0",
+    "@codemation/cli": "^0.0.5",
+    "@codemation/core": "^0.0.5",
+    "@codemation/core-nodes": "^0.0.5",
+    "@codemation/host": "^0.0.5",
     "dotenv": "^17.3.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

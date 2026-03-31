@@ -1,6 +1,6 @@
 {
   "name": "@codemation/host",
-  "version": "0.0.0",
+  "version": "0.0.5",
   "publishConfig": {
     "access": "public"
   },
@@ -89,7 +89,6 @@
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",
-    "@codemation/queue-bullmq": "workspace:*",
     "@electric-sql/pglite": "^0.4.2",
     "@electric-sql/pglite-socket": "^0.1.2",
     "@monaco-editor/react": "^4.7.0",
@@ -101,6 +100,7 @@
     "@uiw/react-json-view": "2.0.0-alpha.41",
     "@xyflow/react": "^12.10.1",
     "bcryptjs": "^3.0.3",
+    "bullmq": "^5.58.3",
     "dagre": "^0.8.5",
     "date-fns": "^4.1.0",
     "hono": "^4.12.8",

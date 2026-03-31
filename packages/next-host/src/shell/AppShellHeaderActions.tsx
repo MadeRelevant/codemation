@@ -1,11 +1,13 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useContext, type ReactNode } from "react";
 
+import { CodemationSessionRootContext } from "../providers/CodemationSessionProvider";
 import { AppShellHeaderActionsAuthenticated } from "./AppShellHeaderActionsAuthenticated";
 
 export function AppShellHeaderActions(): ReactNode {
-  if (process.env.NEXT_PUBLIC_CODEMATION_SKIP_UI_AUTH === "true") {
+  const sessionRoot = useContext(CodemationSessionRootContext);
+  if (!sessionRoot.enabled) {
     return null;
   }
   return <AppShellHeaderActionsAuthenticated />;

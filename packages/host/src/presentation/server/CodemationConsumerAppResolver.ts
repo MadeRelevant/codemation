@@ -1,12 +1,12 @@
 import type { WorkflowDefinition } from "@codemation/core";
-import type { CodemationConfig } from "../config/CodemationConfig";
 import { CodemationConfigNormalizer } from "../config/CodemationConfigNormalizer";
+import type { NormalizedCodemationConfig } from "../config/CodemationConfigNormalizer";
 import { CodemationConsumerConfigExportsResolver } from "./CodemationConsumerConfigExportsResolver";
 import { DiscoveredWorkflowsEmptyMessageFactory } from "./DiscoveredWorkflowsEmptyMessageFactory";
 import { WorkflowDefinitionExportsResolver } from "./WorkflowDefinitionExportsResolver";
 
 export type CodemationConsumerApp = Readonly<{
-  config: CodemationConfig;
+  config: NormalizedCodemationConfig;
   workflowSources: ReadonlyArray<string>;
 }>;
 

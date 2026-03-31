@@ -2,6 +2,7 @@ import type {
   ActivationIdFactory,
   ExecutionContextFactory,
   Items,
+  NodeActivationId,
   NodeActivationRequest,
   NodeExecutionContext,
   NodeId,
@@ -47,13 +48,23 @@ export class NodeActivationRequestComposer {
     private readonly credentialResolverFactory: CredentialResolverFactory,
   ) {}
 
-  createSingleFromDefinition(args: SingleDefinitionActivationRequest): NodeActivationRequest {
-    const activationId = this.activationIdFactory.makeActivationId();
-    const ctx = this.createNodeExecutionContext(args, args.definition, activationId);
+  createSingleFromDefinition(
+    args: SingleDefinitionActivationRequest,
+  ): Extract<NodeActivationRequest, { kind: "single" }> {
+    return this.createSingleFromDefinitionWithActivation({
+      ...args,
+      activationId: this.activationIdFactory.makeActivationId(),
+    });
+  }
+
+  createSingleFromDefinitionWithActivation(
+    args: SingleDefinitionActivationRequest & Readonly<{ activationId: NodeActivationId }>,
+  ): Extract<NodeActivationRequest, { kind: "single" }> {
+    const ctx = this.createNodeExecutionContext(args, args.definition, args.activationId);
     return {
       kind: "single",
       runId: args.runId,
-      activationId,
+      activationId: args.activationId,
       workflowId: args.workflowId,
       nodeId: args.definition.id,
       parent: args.parent,

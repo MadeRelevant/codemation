@@ -2,8 +2,8 @@
 
 import "reflect-metadata";
 
-import { CodemationBootstrapRequest, ListUserAccountsQuery } from "@codemation/host";
-import { CodemationConsumerConfigLoader } from "@codemation/host/server";
+import { ListUserAccountsQuery } from "@codemation/host";
+import { AppConfigLoader } from "@codemation/host/server";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -53,19 +53,17 @@ it(
       await mkdir(path.join(consumerRoot, "src", "workflows"), { recursive: true });
       await writeFile(path.join(consumerRoot, "src", "workflows", "fixture.ts"), minimalWorkflowSource(), "utf8");
 
-      const loader = new CodemationConsumerConfigLoader();
-      const resolution = await loader.load({ consumerRoot });
-      expect(resolution.config.auth?.kind).toBe("local");
+      const loader = new AppConfigLoader();
+      const resolution = await loader.load({
+        consumerRoot,
+        repoRoot,
+        env: { ...process.env },
+      });
+      expect(resolution.appConfig.auth?.kind).toBe("local");
 
       // Consumer under /tmp would not resolve a workspace root; persistence needs the real monorepo root.
       const session = await CodemationCliApplicationSession.open({
-        resolution,
-        bootstrap: new CodemationBootstrapRequest({
-          repoRoot,
-          consumerRoot,
-          env: { ...process.env },
-          workflowSources: resolution.workflowSources,
-        }),
+        appConfig: resolution.appConfig,
       });
       try {
         const users = await session.getQueryBus().execute(new ListUserAccountsQuery());

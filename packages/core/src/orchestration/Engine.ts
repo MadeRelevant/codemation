@@ -4,6 +4,8 @@ import type {
   Items,
   NodeActivationContinuation,
   NodeActivationId,
+  NodeExecutionRequest,
+  NodeExecutionRequestHandler,
   NodeId,
   NodeInputsByPort,
   NodeOutputs,
@@ -79,6 +81,10 @@ interface EngineRunContinuationService {
   waitForWebhookResponse(runId: RunId): Promise<WebhookRunResult>;
 }
 
+interface EngineNodeExecutionRequestHandler {
+  handleNodeExecutionRequest(request: NodeExecutionRequest): Promise<void>;
+}
+
 export interface EngineFacadeDeps {
   liveWorkflowRepository: LiveWorkflowRepository;
   tokenRegistry: PersistedWorkflowTokenRegistryLike;
@@ -87,6 +93,7 @@ export interface EngineFacadeDeps {
   triggerRuntime: EngineTriggerRuntime;
   runStartService: EngineRunStartService;
   runContinuationService: EngineRunContinuationService;
+  nodeExecutionRequestHandler: EngineNodeExecutionRequestHandler;
 }
 
 /**
@@ -94,7 +101,7 @@ export interface EngineFacadeDeps {
  * Prefer {@link import("../intents/RunIntentService").RunIntentService} for host/HTTP invocation boundaries.
  * The class token is exported from `@codemation/core/bootstrap` (not the main `@codemation/core` barrel).
  */
-export class Engine implements NodeActivationContinuation {
+export class Engine implements NodeActivationContinuation, NodeExecutionRequestHandler {
   constructor(private readonly deps: EngineFacadeDeps) {}
 
   loadWorkflows(workflows: ReadonlyArray<WorkflowDefinition>): void {
@@ -225,5 +232,9 @@ export class Engine implements NodeActivationContinuation {
 
   async waitForWebhookResponse(runId: RunId): Promise<WebhookRunResult> {
     return await this.deps.runContinuationService.waitForWebhookResponse(runId);
+  }
+
+  async handleNodeExecutionRequest(request: NodeExecutionRequest): Promise<void> {
+    await this.deps.nodeExecutionRequestHandler.handleNodeExecutionRequest(request);
   }
 }

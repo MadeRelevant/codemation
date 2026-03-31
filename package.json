@@ -35,7 +35,9 @@
     "antipatterns": "ast-grep scan --report-style short --off=no-double-assertion",
     "antipatterns:assertions": "ast-grep scan --report-style short --filter no-double-assertion",
     "prepare": "husky",
-    "verdaccio": "verdaccio --config tooling/verdaccio/config.yaml"
+    "verdaccio": "verdaccio --config tooling/verdaccio/config.yaml",
+    "local-release:publish": "node tooling/verdaccio/publish-local-registry.mjs",
+    "local-release:smoke": "pnpm --filter create-codemation test:verdaccio-smoke"
   },
   "devDependencies": {
     "@ast-grep/cli": "^0.41.1",

@@ -1,4 +1,11 @@
-import { CodemationConsumerConfigLoader, CodemationPluginDiscovery } from "@codemation/host/server";
+import {
+  AppConfigLoader,
+  CodemationConsumerConfigLoader,
+  CodemationFrontendAuthSnapshotFactory,
+  CodemationPluginDiscovery,
+  FrontendAppConfigJsonCodec,
+} from "@codemation/host/server";
+import { AppContainerFactory } from "@codemation/host";
 import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 
 import { ConsumerBuildArtifactsPublisher } from "./build/ConsumerBuildArtifactsPublisher";
@@ -16,10 +23,13 @@ import { ConsumerOutputBuilderLoader } from "./consumer/Loader";
 import { ConsumerDatabaseConnectionResolver } from "./database/ConsumerDatabaseConnectionResolver";
 import { DatabaseMigrationsApplyService } from "./database/DatabaseMigrationsApplyService";
 import { HostPackageRootResolver } from "./database/HostPackageRootResolver";
-import { DatabasePersistenceResolver, PrismaMigrationDeployer } from "@codemation/host/persistence";
+import { PrismaMigrationDeployer } from "@codemation/host/persistence";
 import { DevBootstrapSummaryFetcher } from "./dev/DevBootstrapSummaryFetcher";
 import { DevCliBannerRenderer } from "./dev/DevCliBannerRenderer";
 import { DevConsumerPublishBootstrap } from "./dev/DevConsumerPublishBootstrap";
+import { CliDevProxyServerFactory } from "./dev/CliDevProxyServerFactory";
+import { DevApiRuntimeFactory } from "./dev/DevApiRuntimeFactory";
+import { DevRebuildQueueFactory } from "./dev/DevRebuildQueueFactory";
 import { DevSessionServicesBuilder } from "./dev/Builder";
 import { DevLockFactory } from "./dev/Factory";
 import { ConsumerEnvDotenvFilePredicate } from "./dev/ConsumerEnvDotenvFilePredicate";
@@ -28,6 +38,7 @@ import { DevSourceWatcherFactory } from "./dev/Runner";
 import { CliProgram } from "./Program";
 import { CliPathResolver } from "./path/CliPathResolver";
 import { ListenPortResolver } from "./runtime/ListenPortResolver";
+import { NextHostConsumerServerCommandFactory } from "./runtime/NextHostConsumerServerCommandFactory";
 import { SourceMapNodeOptions } from "./runtime/SourceMapNodeOptions";
 import { TypeScriptRuntimeConfigurator } from "./runtime/TypeScriptRuntimeConfigurator";
 import { LocalUserCreator } from "./user/LocalUserCreator";
@@ -45,20 +56,21 @@ const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
 export class CliProgramFactory {
   create(): CliProgram {
     const cliLogger = loggerFactory.create("codemation-cli");
+    const appConfigLoader = new AppConfigLoader();
     const pathResolver = new CliPathResolver();
     const pluginDiscovery = new CodemationPluginDiscovery();
     const artifactsPublisher = new ConsumerBuildArtifactsPublisher();
     const tsRuntime = new TypeScriptRuntimeConfigurator();
     const outputBuilderLoader = new ConsumerOutputBuilderLoader();
     const sourceMapNodeOptions = new SourceMapNodeOptions();
+    const nextHostConsumerServerCommandFactory = new NextHostConsumerServerCommandFactory();
+    const devSessionServices = new DevSessionServicesBuilder().build();
     const tsconfigPreparation = new ConsumerCliTsconfigPreparation();
-    const databasePersistenceResolver = new DatabasePersistenceResolver();
     const userAdminBootstrap = new UserAdminCliBootstrap(
-      new CodemationConsumerConfigLoader(),
+      appConfigLoader,
       pathResolver,
       new UserAdminConsumerDotenvLoader(),
       tsconfigPreparation,
-      databasePersistenceResolver,
     );
     const hostPackageRoot = new HostPackageRootResolver().resolveHostPackageRoot();
     const userAdminCliOptionsParser = new UserAdminCliOptionsParser();
@@ -86,21 +98,25 @@ export class CliProgramFactory {
       new BuildCommand(cliLogger, pathResolver, pluginDiscovery, artifactsPublisher, tsRuntime, outputBuilderLoader),
       new DevCommand(
         pathResolver,
-        pluginDiscovery,
         tsRuntime,
         new DevLockFactory(),
         new DevSourceWatcherFactory(),
         cliLogger,
-        new DevSessionServicesBuilder(loggerFactory).build(),
+        devSessionServices,
         databaseMigrationsApplyService,
         new DevBootstrapSummaryFetcher(),
         new DevCliBannerRenderer(),
         devConsumerPublishBootstrap,
         new ConsumerEnvDotenvFilePredicate(),
         new DevTrackedProcessTreeKiller(),
+        nextHostConsumerServerCommandFactory,
+        new DevApiRuntimeFactory(devSessionServices.loopbackPortAllocator, appConfigLoader, pluginDiscovery),
+        new CliDevProxyServerFactory(),
+        new DevRebuildQueueFactory(),
       ),
       new ServeWebCommand(
         pathResolver,
+        new CodemationConsumerConfigLoader(),
         pluginDiscovery,
         artifactsPublisher,
         tsRuntime,
@@ -108,8 +124,11 @@ export class CliProgramFactory {
         outputBuilderLoader,
         new ConsumerEnvLoader(),
         new ListenPortResolver(),
+        nextHostConsumerServerCommandFactory,
+        new CodemationFrontendAuthSnapshotFactory(),
+        new FrontendAppConfigJsonCodec(),
       ),
-      new ServeWorkerCommand(sourceMapNodeOptions),
+      new ServeWorkerCommand(pathResolver, appConfigLoader, new AppContainerFactory()),
       new DbMigrateCommand(databaseMigrationsApplyService),
       new UserCreateCommand(new LocalUserCreator(userAdminBootstrap), userAdminCliOptionsParser),
       new UserListCommand(cliLogger, userAdminBootstrap, new CliDatabaseUrlDescriptor(), userAdminCliOptionsParser),

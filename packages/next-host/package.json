@@ -1,12 +1,21 @@
 {
   "name": "@codemation/next-host",
-  "version": "0.0.0",
+  "version": "0.0.5",
   "publishConfig": {
     "access": "public"
   },
   "author": "Made Relevant B.V.",
   "homepage": "https://www.maderelevant.com",
   "type": "module",
+  "files": [
+    ".next/standalone",
+    "src",
+    "app",
+    "middleware.ts",
+    "next.config.ts",
+    "next-env.d.ts",
+    "package.json"
+  ],
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -16,7 +25,7 @@
   },
   "scripts": {
     "dev:next": "next dev",
-    "build": "next build",
+    "build": "next build && node ./scripts/prepare-standalone.mjs",
     "start": "next start",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",

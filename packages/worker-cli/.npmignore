@@ -1,9 +1,0 @@
-node_modules
-.turbo
-coverage
-test
-**/*.test.ts
-**/*.test.tsx
-vitest.config.ts
-.env
-.env.*

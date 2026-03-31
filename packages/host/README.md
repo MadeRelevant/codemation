@@ -1,6 +1,6 @@
 # `@codemation/host`
 
-The **framework host**: application composition (`CodemationApplication`), HTTP/WebSocket gateway (Hono), persistence (Prisma/Postgres), plugin and workflow discovery, shared React UI shell pieces, and server/client **subpath bundles** so Next.js and Node servers only import what they need.
+The **framework host**: app-config loading, app-container composition, HTTP/WebSocket gateway (Hono), persistence (Prisma/Postgres), plugin and workflow discovery, shared React UI shell pieces, and server/client **subpath bundles** so Next.js and Node servers only import what they need.
 
 ## Install
 
@@ -16,10 +16,10 @@ Depend on this package when you embed Codemation in a custom server, extend the 
 
 ## Usage
 
-Root re-exports types and `CodemationApplication` for programmatic hosting:
+Root re-exports the container-oriented hosting surface:
 
 ```ts
-import { CodemationApplication, type CodemationApplicationConfig } from "@codemation/host";
+import { AppContainerFactory, AppConfigFactory } from "@codemation/host";
 ```
 
 Common subpaths (see `package.json` `exports`):

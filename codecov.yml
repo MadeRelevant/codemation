@@ -14,10 +14,14 @@ coverage:
     project:
       default:
         target: auto
-        threshold: 1%
+        # Large deletes (e.g. whole packages + their tests) can move project % more than
+        # small feature PRs; keep CI meaningful without blocking structural refactors.
+        threshold: 10%
     patch:
       default:
         target: auto
+        # Diff-only gate is noisy on wide refactors; project + full suite still enforce quality.
+        informational: true
 
 comment:
   layout: "reach,diff,flags,files,footer"

@@ -8,7 +8,6 @@ export default defineConfig({
     maxWorkers: 2,
     fileParallelism: true,
     projects: [
-      p("../../packages/queue-bullmq/vitest.config.ts"),
       p("../../packages/host/vitest.integration.config.ts"),
       p("../../packages/cli/vitest.integration.config.ts"),
     ],

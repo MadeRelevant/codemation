@@ -1,6 +1,7 @@
 import { CodemationConsumerConfigLoader } from "@codemation/host/server";
-import type { ResolvedDatabasePersistence } from "@codemation/host/persistence";
+import type { AppPersistenceConfig } from "@codemation/host/persistence";
 import type { Logger } from "@codemation/host/next/server";
+import path from "node:path";
 
 import { ConsumerCliTsconfigPreparation } from "../consumer/ConsumerCliTsconfigPreparation";
 import { ConsumerDatabaseConnectionResolver } from "./ConsumerDatabaseConnectionResolver";
@@ -8,7 +9,7 @@ import type { CliDatabaseUrlDescriptor } from "../user/CliDatabaseUrlDescriptor"
 import type { UserAdminConsumerDotenvLoader } from "../user/UserAdminConsumerDotenvLoader";
 
 export type DatabaseMigrationDeployer = {
-  deployPersistence(persistence: ResolvedDatabasePersistence, env?: Readonly<NodeJS.ProcessEnv>): Promise<void>;
+  deployPersistence(persistence: AppPersistenceConfig, env?: Readonly<NodeJS.ProcessEnv>): Promise<void>;
 };
 
 /**
@@ -65,6 +66,7 @@ export class DatabaseMigrationsApplyService {
       return;
     }
     process.env.CODEMATION_HOST_PACKAGE_ROOT = this.hostPackageRoot;
+    process.env.CODEMATION_PRISMA_CONFIG_PATH = path.join(this.hostPackageRoot, "prisma.config.ts");
     this.cliLogger.debug(
       `Applying database migrations (${this.databaseUrlDescriptor.describePersistence(persistence)})`,
     );

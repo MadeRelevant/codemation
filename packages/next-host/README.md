@@ -1,6 +1,6 @@
 # `@codemation/next-host`
 
-The **production Next.js host** for Codemation: App Router app, UI features (workflows, credentials, users), and server wiring that delegates to `@codemation/host`. The CLI runs `next start` / dev from this package when you `serve web` or develop a consumer app.
+The **production Next.js host** for Codemation: App Router app, UI features (workflows, credentials, users), and server wiring that delegates to `@codemation/host`. Published packages ship a prebuilt standalone runtime for consumer apps, while framework authors can still run `next dev` from this package during local development.
 
 ## Install
 
@@ -22,4 +22,4 @@ The package exports a Next host bootstrap type:
 import { CodemationNextHost } from "@codemation/next-host";
 ```
 
-Day-to-day apps run via Next CLI (`next dev`, `next start`) with environment and consumer manifest supplied by `@codemation/cli` or your own orchestration. See `package.json` scripts `dev:next`, `build`, and `start`.
+Consumer apps normally start the packaged standalone runtime through `@codemation/cli`. Framework authors can still run the raw Next CLI (`next dev`, `next start`) from this package while iterating on the host itself. See `package.json` scripts `dev:next`, `build`, and `start`.

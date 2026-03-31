@@ -420,6 +420,12 @@ describe("credential instances http integration", () => {
           CODEMATION_CREDENTIALS_MASTER_KEY: testMasterKey,
         },
         workflowSources: [],
+        workflows: [],
+        containerRegistrations: [],
+        credentialTypes: [],
+        plugins: [],
+        hasConfiguredCredentialSessionServiceRegistration: false,
+        persistence: { kind: "none" },
         scheduler: {
           kind: "local",
           workerQueues: [],
@@ -428,6 +434,8 @@ describe("credential instances http integration", () => {
           kind: "memory",
         },
         whitelabel: {},
+        webSocketPort: 3001,
+        webSocketBindHost: "0.0.0.0",
       });
       const decrypted = cipher.decrypt({
         encryptedJson: storedMaterial!.encryptedJson,

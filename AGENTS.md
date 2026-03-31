@@ -59,7 +59,7 @@ This document sets the “golden standard” for how we build and review changes
 - **`CredentialType<TPublic, TMaterial, TSession>`** — full registration: `definition`, `createSession`, and `test` (typed like node `execute` / `config`). Use `satisfies CredentialType<…>` on object literals when defining custom credentials.
 - **`CredentialTypeDefinition`** — schema/UI only (what the credentials screen lists); not a session factory.
 - **`AnyCredentialType`** (`CredentialType<any, any, unknown>`) — type for heterogeneous lists: `CodemationConfig.credentialTypes`, the host registry, and packaged exports like **`openAiApiKeyCredentialType`**. Typed `CredentialType<Specific…>` values assign here without casts.
-- Host API: `CodemationApplication.registerCredentialType`, `CredentialTypeRegistryImpl.getCredentialType`, `OpenAiApiKeyCredentialTypeFactory.createCredentialType`, export **`openAiApiKeyCredentialType`** from `@codemation/host/credentials`.
+- Host API: `AppContainerFactory.create`, `CredentialTypeRegistryImpl.getCredentialType`, `OpenAiApiKeyCredentialTypeFactory.createCredentialType`, export **`openAiApiKeyCredentialType`** from `@codemation/host/credentials`.
 
 ## Coding standards
 
@@ -207,14 +207,14 @@ Tests use **Vitest** (Vite is the test runner only; there is no Vite-based app).
 
 From the repo root, suites are grouped for **parallel** runs and a single merged coverage artifact:
 
-| Script                      | Config                                 | Scope                                                                                                                                               |
-| --------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm run test:unit`        | `tooling/vitest/unit.config.ts`        | `packages/core`, `core-nodes`, `core-nodes-gmail`, `@codemation/cli`, `@codemation/runtime-dev`, `next-host`, `@codemation/host` `*.test.ts` (Node) |
-| `pnpm run test:integration` | `tooling/vitest/integration.config.ts` | `queue-bullmq`, `@codemation/host` HTTP/integration tests                                                                                           |
-| `pnpm run test:ui`          | `tooling/vitest/ui.config.ts`          | `@codemation/host` `*.test.tsx` (jsdom)                                                                                                             |
-| `pnpm run test:e2e`         | `tooling/vitest/e2e.config.ts`         | `@codemation/host` e2e placeholders (`passWithNoTests` until cases exist)                                                                           |
-| `pnpm test`                 | —                                      | `turbo run build` then **all four** suites in parallel (`test:suites`)                                                                              |
-| `pnpm run coverage`         | —                                      | Runs each suite with **lcov** under `coverage/raw/{unit,integration,ui,e2e}/`, then merges to **`coverage/lcov.info`**                              |
+| Script                      | Config                                 | Scope                                                                                                                       |
+| --------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run test:unit`        | `tooling/vitest/unit.config.ts`        | Core/node packages plus `create-codemation`, `@codemation/cli`, `@codemation/next-host`, and `@codemation/host` unit suites |
+| `pnpm run test:integration` | `tooling/vitest/integration.config.ts` | `@codemation/host` HTTP/integration tests and `@codemation/cli` integration tests                                           |
+| `pnpm run test:ui`          | `tooling/vitest/ui.config.ts`          | `@codemation/host` `*.test.tsx` (jsdom)                                                                                     |
+| `pnpm run test:e2e`         | `tooling/vitest/e2e.config.ts`         | `@codemation/host` e2e placeholders (`passWithNoTests` until cases exist)                                                   |
+| `pnpm test`                 | —                                      | `turbo run build` then **all four** suites in parallel (`test:suites`)                                                      |
+| `pnpm run coverage`         | —                                      | Runs each suite with **lcov** under `coverage/raw/{unit,integration,ui,e2e}/`, then merges to **`coverage/lcov.info`**      |
 
 Per-package `pnpm test` remains useful for iterating on one package; the canonical full run is **`pnpm test`** from the root.
 

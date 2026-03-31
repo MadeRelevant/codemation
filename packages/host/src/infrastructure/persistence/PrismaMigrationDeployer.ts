@@ -3,10 +3,11 @@ import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { injectable } from "@codemation/core";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ResolvedDatabasePersistence } from "./DatabasePersistenceResolver";
+import type { AppPersistenceConfig } from "../../presentation/config/AppConfig";
 
 /**
  * Runs `prisma migrate deploy` against TCP PostgreSQL or against a PGlite data directory
@@ -16,7 +17,7 @@ import type { ResolvedDatabasePersistence } from "./DatabasePersistenceResolver"
 export class PrismaMigrationDeployer {
   private readonly require = createRequire(import.meta.url);
 
-  async deployPersistence(persistence: ResolvedDatabasePersistence, env?: Readonly<NodeJS.ProcessEnv>): Promise<void> {
+  async deployPersistence(persistence: AppPersistenceConfig, env?: Readonly<NodeJS.ProcessEnv>): Promise<void> {
     if (persistence.kind === "none") {
       return;
     }
@@ -34,6 +35,7 @@ export class PrismaMigrationDeployer {
   private async deployPgliteViaPrismaCli(
     args: Readonly<{ dataDir: string; env?: Readonly<NodeJS.ProcessEnv> }>,
   ): Promise<void> {
+    await this.ensurePgliteParentDirectoryExists(args.dataDir);
     let pglite: PGlite;
     try {
       pglite = new PGlite(args.dataDir);
@@ -61,12 +63,13 @@ export class PrismaMigrationDeployer {
   private async deployPostgres(
     args: Readonly<{ databaseUrl: string; env?: Readonly<NodeJS.ProcessEnv> }>,
   ): Promise<void> {
+    const prismaConfigPath = this.resolveAbsolutePrismaConfigPath();
     await new Promise<void>((resolve, reject) => {
       const command = spawn(
         process.execPath,
-        [this.resolvePrismaCliPath(), "migrate", "deploy", "--config", this.resolvePrismaConfigPath()],
+        [this.resolvePrismaCliPath(), "migrate", "deploy", "--config", path.basename(prismaConfigPath)],
         {
-          cwd: this.resolvePackageRoot(),
+          cwd: path.dirname(prismaConfigPath),
           env: this.createProcessEnvironment(args.databaseUrl, args.env),
           stdio: ["ignore", "pipe", "pipe"],
         },
@@ -145,12 +148,12 @@ export class PrismaMigrationDeployer {
     }
   }
 
-  private resolvePrismaConfigPath(): string {
+  private resolveAbsolutePrismaConfigPath(): string {
     const configuredPath = process.env.CODEMATION_PRISMA_CONFIG_PATH;
     if (configuredPath) {
-      return configuredPath;
+      return path.isAbsolute(configuredPath) ? configuredPath : path.resolve(this.resolvePackageRoot(), configuredPath);
     }
-    return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "prisma.config.ts");
+    return path.resolve(this.resolvePackageRoot(), "prisma.config.ts");
   }
 
   resolvePackageRoot(): string {
@@ -158,7 +161,22 @@ export class PrismaMigrationDeployer {
     if (configuredRoot) {
       return configuredRoot;
     }
-    return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+    let currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+    for (let depth = 0; depth < 8; depth += 1) {
+      if (existsSync(path.join(currentDirectory, "prisma", "schema.prisma"))) {
+        return currentDirectory;
+      }
+      const parentDirectory = path.dirname(currentDirectory);
+      if (parentDirectory === currentDirectory) {
+        break;
+      }
+      currentDirectory = parentDirectory;
+    }
+    throw new Error(`Could not locate prisma/schema.prisma near ${fileURLToPath(import.meta.url)}.`);
+  }
+
+  private async ensurePgliteParentDirectoryExists(dataDir: string): Promise<void> {
+    await mkdir(path.dirname(dataDir), { recursive: true });
   }
 
   private createPgliteOpenFailureError(dataDir: string, cause: unknown): Error {

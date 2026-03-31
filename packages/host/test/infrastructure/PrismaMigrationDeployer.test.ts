@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -15,5 +15,17 @@ describe("PrismaMigrationDeployer", () => {
       /PGlite could not open.*delete that directory/,
     );
     await rm(dir, { recursive: true, force: true });
+  });
+
+  it("creates the parent directory for a new PGlite data directory", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "codemation-pglite-parent-"));
+    try {
+      const dataDir = path.join(root, ".codemation", "pglite");
+      const deployer = new PrismaMigrationDeployer();
+      await deployer.deployPersistence({ kind: "pglite", dataDir }, process.env);
+      await access(path.join(root, ".codemation"));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

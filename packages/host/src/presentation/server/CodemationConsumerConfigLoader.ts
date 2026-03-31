@@ -6,6 +6,7 @@ import type { NamespacedUnregister } from "tsx/esm/api";
 import { register } from "tsx/esm/api";
 import type { CodemationConfig } from "../config/CodemationConfig";
 import { CodemationConfigNormalizer } from "../config/CodemationConfigNormalizer";
+import type { NormalizedCodemationConfig } from "../config/CodemationConfigNormalizer";
 import { logLevelPolicyFactory } from "../../infrastructure/logging/LogLevelPolicyFactory";
 import { ServerLoggerFactory } from "../../infrastructure/logging/ServerLoggerFactory";
 import { DiscoveredWorkflowsEmptyMessageFactory } from "./DiscoveredWorkflowsEmptyMessageFactory";
@@ -15,7 +16,7 @@ import { WorkflowDiscoveryPathSegmentsComputer } from "./WorkflowDiscoveryPathSe
 import { WorkflowModulePathFinder } from "./WorkflowModulePathFinder";
 
 export type CodemationConsumerConfigResolution = Readonly<{
-  config: CodemationConfig;
+  config: NormalizedCodemationConfig;
   bootstrapSource: string | null;
   workflowSources: ReadonlyArray<string>;
 }>;
@@ -66,7 +67,7 @@ export class CodemationConsumerConfigLoader {
       await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources),
     );
     phaseMs("loadDiscoveredWorkflows");
-    const resolvedConfig: CodemationConfig = {
+    const resolvedConfig: NormalizedCodemationConfig = {
       ...config,
       workflows,
     };
