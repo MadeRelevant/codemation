@@ -30,7 +30,6 @@
     "@codemation/host": "workspace:*",
     "@codemation/next-host": "workspace:*",
     "@codemation/runtime-dev": "workspace:*",
-    "@codemation/worker-cli": "workspace:*",
     "bcryptjs": "^3.0.3",
     "boxen": "^8.0.1",
     "chalk": "^5.6.2",

@@ -1,37 +1,35 @@
 import { type Container } from "@codemation/core";
 import {
   ApplicationTokens,
-  CodemationApplication,
-  CodemationBootstrapRequest,
+  AppContainerFactory,
+  AppContainerLifecycle,
+  type AppConfig,
+  DatabaseMigrations,
   PrismaClient,
   type CommandBus,
   type QueryBus,
 } from "@codemation/host";
-import type { CodemationConsumerConfigResolution } from "@codemation/host/server";
 
 /**
- * Opens a {@link CodemationApplication} with persistence + command/query buses (no HTTP/WebSocket servers),
+ * Opens an app container with persistence + command/query buses (no HTTP/WebSocket servers),
  * for CLI tools that dispatch application commands or queries (e.g. user admin).
  */
 export class CodemationCliApplicationSession {
-  private constructor(private readonly application: CodemationApplication) {}
+  private constructor(private readonly container: Container) {}
 
   static async open(
     args: Readonly<{
-      resolution: CodemationConsumerConfigResolution;
-      bootstrap: CodemationBootstrapRequest;
+      appConfig: AppConfig;
     }>,
   ): Promise<CodemationCliApplicationSession> {
-    const app = new CodemationApplication().useConfig(args.resolution.config);
-    await app.bootCli(
-      new CodemationBootstrapRequest({
-        repoRoot: args.bootstrap.repoRoot,
-        consumerRoot: args.bootstrap.consumerRoot,
-        env: args.bootstrap.env,
-        workflowSources: args.resolution.workflowSources,
-      }),
-    );
-    return new CodemationCliApplicationSession(app);
+    const container = await new AppContainerFactory().create({
+      appConfig: args.appConfig,
+      sharedWorkflowWebsocketServer: null,
+    });
+    if (args.appConfig.env.CODEMATION_SKIP_STARTUP_MIGRATIONS !== "true") {
+      await container.resolve(DatabaseMigrations).migrate();
+    }
+    return new CodemationCliApplicationSession(container);
   }
 
   getPrismaClient(): PrismaClient | undefined {
@@ -51,10 +49,10 @@ export class CodemationCliApplicationSession {
   }
 
   async close(): Promise<void> {
-    await this.application.stop({ stopWebsocketServer: false });
+    await this.container.resolve(AppContainerLifecycle).stop({ stopWebsocketServer: false });
   }
 
   private getContainer(): Container {
-    return this.application.getContainer();
+    return this.container;
   }
 }

@@ -36,12 +36,10 @@ class LocalRegistryPublisher {
     "--filter=@codemation/core",
     "--filter=@codemation/core-nodes",
     "--filter=@codemation/eventbus-redis",
-    "--filter=@codemation/queue-bullmq",
     "--filter=@codemation/host",
     "--filter=@codemation/next-host",
     "--filter=@codemation/runtime-dev",
     "--filter=@codemation/dev-gateway",
-    "--filter=@codemation/worker-cli",
     "--filter=@codemation/cli",
   ];
 
@@ -49,12 +47,10 @@ class LocalRegistryPublisher {
     "packages/core",
     "packages/core-nodes",
     "packages/eventbus-redis",
-    "packages/queue-bullmq",
     "packages/host",
     "packages/next-host",
     "packages/runtime-dev",
     "packages/dev-gateway",
-    "packages/worker-cli",
     "packages/cli",
     "packages/create-codemation",
   ];

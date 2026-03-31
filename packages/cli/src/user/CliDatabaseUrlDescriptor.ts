@@ -1,10 +1,10 @@
-import type { ResolvedDatabasePersistence } from "@codemation/host/persistence";
+import type { AppPersistenceConfig } from "@codemation/host/persistence";
 
 /**
  * Formats a database URL for CLI messages without exposing credentials (no user/password).
  */
 export class CliDatabaseUrlDescriptor {
-  describePersistence(persistence: ResolvedDatabasePersistence): string {
+  describePersistence(persistence: AppPersistenceConfig): string {
     if (persistence.kind === "none") {
       return "none";
     }

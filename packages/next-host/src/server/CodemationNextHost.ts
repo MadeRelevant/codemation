@@ -1,12 +1,15 @@
 import type { Container } from "@codemation/core";
-import type { CodemationAuthConfig, CodemationPlugin } from "@codemation/host";
+import type { CodemationPlugin } from "@codemation/host";
 import {
   ApplicationTokens,
-  CodemationApplication,
-  CodemationBootstrapRequest,
-  CodemationFrontendBootstrapRequest,
+  AppConfigFactory,
+  AppContainerFactory,
+  AppContainerLifecycle,
   CodemationHonoApiApp,
   CodemationPluginListMerger,
+  type FrontendAppConfig,
+  FrontendAppConfigFactory,
+  FrontendRuntime,
   logLevelPolicyFactory,
   ServerLoggerFactory,
   WorkflowWebsocketServer,
@@ -20,19 +23,15 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { CodemationWhitelabelSnapshotFactory } from "../whitelabel/CodemationWhitelabelSnapshotFactory";
-import type { CodemationWhitelabelSnapshot } from "../whitelabel/CodemationWhitelabelSnapshot";
 import { NextHostPackageRootResolver } from "./NextHostPackageRootResolver";
 
 export type CodemationNextHostContext = Readonly<{
-  application: CodemationApplication;
-  authConfig: CodemationAuthConfig | undefined;
   buildVersion: string;
+  container: Container;
   consumerRoot: string;
+  frontendAppConfig: FrontendAppConfig;
   repoRoot: string;
   workflowSources: ReadonlyArray<string>;
-  /** Derived from the loaded consumer manifest config (same source as {@link CodemationApplication.useConfig}). */
-  whitelabelSnapshot: CodemationWhitelabelSnapshot;
 }>;
 
 type CodemationNextHostGlobal = typeof globalThis & {
@@ -50,7 +49,7 @@ type CodemationConsumerBuildManifest = Readonly<{
 /**
  * Next-hosted consumer runtime: one loaded context per process.
  * In development, the consumer manifest `buildVersion` is re-read on each prepare; when it changes
- * (e.g. after `codemation build` / dev publish), the previous {@link CodemationApplication} is torn
+ * (e.g. after `codemation build` / dev publish), the previous container is torn
  * down so whitelabel and config updates apply without restarting Next.
  */
 export class CodemationNextHost {
@@ -122,7 +121,7 @@ export class CodemationNextHost {
     }
     try {
       const ctx = await this.contextPromise;
-      await ctx.application.stop({ stopWebsocketServer: false });
+      await ctx.container.resolve(AppContainerLifecycle).stop({ stopWebsocketServer: false });
     } catch {
       // Best-effort teardown before reloading consumer output.
     }
@@ -133,7 +132,7 @@ export class CodemationNextHost {
   }
 
   async getContainer(): Promise<Container> {
-    return (await this.prepare()).application.getContainer();
+    return (await this.prepare()).container;
   }
 
   async getPreparedPrismaClient(): Promise<PrismaClient> {
@@ -156,14 +155,9 @@ export class CodemationNextHost {
     );
   }
 
-  /**
-   * Resolved whitelabel for Server Components (sidebar, login, metadata). Requires {@link prepare} first.
-   * Uses the snapshot captured from the built consumer config so branding matches `codemation.config` even if DI
-   * resolution were ever misaligned in a bundled server graph.
-   */
-  async getWhitelabelSnapshot(): Promise<CodemationWhitelabelSnapshot> {
+  async getFrontendAppConfig(): Promise<FrontendAppConfig> {
     const context = await this.prepare();
-    return context.whitelabelSnapshot;
+    return context.frontendAppConfig;
   }
 
   /**
@@ -179,7 +173,7 @@ export class CodemationNextHost {
     if (this.nextApiApp && this.nextApiAppBuildVersion === context.buildVersion) {
       return this.nextApiApp;
     }
-    const coreApp = context.application.getContainer().resolve(CodemationHonoApiApp).getHono();
+    const coreApp = context.container.resolve(CodemationHonoApiApp).getHono();
     this.nextApiApp = coreApp;
     this.nextApiAppBuildVersion = context.buildVersion;
     return coreApp;
@@ -196,7 +190,6 @@ export class CodemationNextHost {
     process.env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
     process.env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
     const resolvedConsumerApp = await this.loadBuiltConsumerApp(buildManifest.entryPath);
-    const whitelabelSnapshot = CodemationWhitelabelSnapshotFactory.fromConsumerConfig(resolvedConsumerApp.config);
     const env = { ...process.env };
     if (prismaCliOverride) {
       env.CODEMATION_PRISMA_CLI_PATH = prismaCliOverride;
@@ -205,43 +198,41 @@ export class CodemationNextHost {
     env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
     env.CODEMATION_CONSUMER_ROOT = consumerRoot;
     const isRuntimeDevProxy = Boolean(process.env.CODEMATION_RUNTIME_DEV_URL?.trim());
-    const bootstrapRequest = new CodemationBootstrapRequest({
-      consumerRoot,
+    const discoveredPlugins = await this.loadDiscoveredPlugins(buildManifest);
+    const normalizedConfig = {
+      ...resolvedConsumerApp.config,
+      plugins:
+        discoveredPlugins.length > 0
+          ? this.pluginListMerger.merge(resolvedConsumerApp.config.plugins ?? [], discoveredPlugins)
+          : (resolvedConsumerApp.config.plugins ?? []),
+    };
+    const appConfig = new AppConfigFactory().create({
       repoRoot,
+      consumerRoot,
       env,
+      config: normalizedConfig,
       workflowSources: resolvedConsumerApp.workflowSources,
     });
-    const application = new CodemationApplication();
-    application.useSharedWorkflowWebsocketServer(this.resolveSharedWorkflowWebsocketServer());
-    const discoveredPlugins = await this.loadDiscoveredPlugins(buildManifest);
-
-    application.useConfig(resolvedConsumerApp.config);
-    if (discoveredPlugins.length > 0) {
-      application.usePlugins(this.pluginListMerger.merge(resolvedConsumerApp.config.plugins ?? [], discoveredPlugins));
-    }
-    await application.applyPlugins(bootstrapRequest);
-    await application.prepareContainer(bootstrapRequest);
-    const typeInfoRegistrar = new CodemationTsyringeTypeInfoRegistrar(application.getContainer());
-    typeInfoRegistrar.registerWorkflowDefinitions(resolvedConsumerApp.config.workflows ?? []);
-    await application.bootFrontend(
-      new CodemationFrontendBootstrapRequest({
-        bootstrap: bootstrapRequest,
-        skipPresentationServers: isRuntimeDevProxy,
-      }),
-    );
+    const container = await new AppContainerFactory().create({
+      appConfig,
+      sharedWorkflowWebsocketServer: this.resolveSharedWorkflowWebsocketServer(),
+    });
+    const frontendAppConfig = container.resolve(FrontendAppConfigFactory).create();
+    const typeInfoRegistrar = new CodemationTsyringeTypeInfoRegistrar(container);
+    typeInfoRegistrar.registerWorkflowDefinitions(appConfig.workflows ?? []);
+    await container.resolve(FrontendRuntime).start({ skipPresentationServers: isRuntimeDevProxy });
     return {
-      application,
-      authConfig: resolvedConsumerApp.config.auth,
       buildVersion: buildManifest.buildVersion,
+      container,
       consumerRoot,
+      frontendAppConfig,
       repoRoot,
-      workflowSources: resolvedConsumerApp.workflowSources,
-      whitelabelSnapshot,
+      workflowSources: appConfig.workflowSources,
     };
   }
 
   private tryResolvePreparedPrismaClient(context: CodemationNextHostContext): PrismaClient | null {
-    const container = context.application.getContainer();
+    const container = context.container;
     if (!container.isRegistered(ApplicationTokens.PrismaClient, true)) {
       return null;
     }

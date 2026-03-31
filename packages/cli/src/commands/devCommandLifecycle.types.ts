@@ -4,15 +4,15 @@ import type { DevResolvedAuthSettings } from "../dev/DevAuthSettingsLoader";
 import type { ResolvedRuntimeToolEntrypoint } from "../dev/RuntimeToolEntrypointResolver";
 import type { CliPaths } from "../path/CliPathResolver";
 
-export type DevMode = "consumer" | "framework";
+export type DevMode = "packaged-ui" | "watch-framework";
 
 /** Mutable child process handles and stop coordination (shared across dev session helpers). */
 export type DevMutableProcessState = {
   currentGateway: ChildProcess | null;
-  currentNextHost: ChildProcess | null;
-  currentUiNext: ChildProcess | null;
-  currentUiProxyBaseUrl: string | null;
-  isRestartingNextHost: boolean;
+  currentDevUi: ChildProcess | null;
+  currentPackagedUi: ChildProcess | null;
+  currentPackagedUiBaseUrl: string | null;
+  isRestartingUi: boolean;
   stopRequested: boolean;
   stopResolve: (() => void) | null;
   stopReject: ((error: Error) => void) | null;

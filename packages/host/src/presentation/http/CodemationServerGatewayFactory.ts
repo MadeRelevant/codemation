@@ -6,14 +6,16 @@ import { WorkflowDefinitionMapper } from "../../application/mapping/WorkflowDefi
 import { GetWorkflowDetailQuery } from "../../application/queries/GetWorkflowDetailQuery";
 import { GetWorkflowSummariesQuery } from "../../application/queries/GetWorkflowSummariesQuery";
 import { ApplicationTokens } from "../../applicationTokens";
-import { CodemationApplication } from "../../codemationApplication";
-import { CodemationBootstrapRequest } from "../../bootstrap/CodemationBootstrapRequest";
-import { CodemationFrontendBootstrapRequest } from "../../bootstrap/CodemationFrontendBootstrapRequest";
+import { AppContainerFactory } from "../../bootstrap/AppContainerFactory";
+import { AppContainerLifecycle } from "../../bootstrap/AppContainerLifecycle";
+import { FrontendRuntime } from "../../bootstrap/runtime/FrontendRuntime";
+import { AppConfigFactory } from "../../bootstrap/runtime/AppConfigFactory";
 import type { CodemationConfig } from "../config/CodemationConfig";
+import { CodemationConfigNormalizer } from "../config/CodemationConfigNormalizer";
 import { CodemationHonoApiApp } from "./hono/CodemationHonoApiAppFactory";
 
 type ServerGatewayContext = Readonly<{
-  application: CodemationApplication;
+  container: import("@codemation/core").Container;
   httpApi: CodemationHonoApiApp;
   queryBus: QueryBus;
   workflowDefinitionMapper: WorkflowDefinitionMapper;
@@ -44,7 +46,7 @@ export class CodemationServerGateway {
       return;
     }
     CodemationServerGateway.contextsByConfig.delete(this.config as object);
-    await (await cachedContext).application.stop();
+    await (await cachedContext).container.resolve(AppContainerLifecycle).stop();
   }
 
   async loadWorkflowSummaries(): Promise<ReadonlyArray<WorkflowSummary>> {
@@ -74,22 +76,26 @@ export class CodemationServerGateway {
 
   private async createContext(): Promise<ServerGatewayContext> {
     const repoRoot = this.detectWorkspaceRoot(this.consumerRoot);
-    const bootstrapRequest = new CodemationBootstrapRequest({
+    // This gateway is the config/env boundary that materializes AppConfig from raw inputs.
+    // eslint-disable-next-line no-restricted-properties
+    const env = this.env ?? process.env;
+    const appConfig = new AppConfigFactory().create({
       repoRoot,
       consumerRoot: this.consumerRoot,
-      env: this.env,
+      env,
+      config: new CodemationConfigNormalizer().normalize(this.config),
       workflowSources: this.resolveWorkflowSources(),
     });
-    const application = new CodemationApplication();
-    application.useConfig(this.config);
-    await application.applyPlugins(bootstrapRequest);
-    await application.prepareContainer(bootstrapRequest);
-    await application.bootFrontend(new CodemationFrontendBootstrapRequest({ bootstrap: bootstrapRequest }));
+    const container = await new AppContainerFactory().create({
+      appConfig,
+      sharedWorkflowWebsocketServer: null,
+    });
+    await container.resolve(FrontendRuntime).start();
     return {
-      application,
-      httpApi: application.getContainer().resolve(CodemationHonoApiApp),
-      queryBus: application.getContainer().resolve(ApplicationTokens.QueryBus),
-      workflowDefinitionMapper: application.getContainer().resolve(WorkflowDefinitionMapper),
+      container,
+      httpApi: container.resolve(CodemationHonoApiApp),
+      queryBus: container.resolve(ApplicationTokens.QueryBus),
+      workflowDefinitionMapper: container.resolve(WorkflowDefinitionMapper),
     };
   }
 

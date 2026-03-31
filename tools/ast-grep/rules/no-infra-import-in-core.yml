@@ -10,5 +10,4 @@ rule:
     - pattern: import $$$ from "ioredis"
     - pattern: import $$$ from "bullmq"
     - pattern: import $$$ from "@codemation/eventbus-redis"
-    - pattern: import $$$ from "@codemation/queue-bullmq"
-note: Core must stay pure per AGENTS.md. No HTTP server, no UI, no vendor SDKs. Infrastructure adapters live in packages like eventbus-redis, queue-bullmq.
+note: Core must stay pure per AGENTS.md. No HTTP server, no UI, no vendor SDKs. Infrastructure adapters live in packages like eventbus-redis and host runtime infrastructure.

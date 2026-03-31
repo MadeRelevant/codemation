@@ -8,19 +8,19 @@ This document defines responsibility boundaries and event contracts for Codemati
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Next dev** (`next dev` in `@codemation/next-host`)   | Framework-author UI only: pages, assets, HMR. It does not own consumer runtime lifecycle.                                                                                                                                                       |
 | **Codemation dev gateway** (`@codemation/dev-gateway`) | Stable browser-facing HTTP/WebSocket surface for dev: proxies `/api/*` and workflow WebSocket upgrades to the **current** runtime child; exposes dev health and dev-event broadcasts; supervises the runtime child (spawn, restart, readiness). |
-| **Runtime child** (`@codemation/runtime-dev` binary)   | Disposable process: loads the consumer manifest once per boot, runs Hono + `CodemationApplication`, runs `WorkflowWebsocketServer` on loopback ports. No in-process engine swap or manifest revision hot-swap.                                  |
+| **Runtime child** (`@codemation/runtime-dev` binary)   | Disposable process: loads `AppConfig`, builds an app container, starts the frontend runtime services, and runs `WorkflowWebsocketServer` on loopback ports. No in-process engine swap or manifest revision hot-swap.                            |
 
 ## Dev modes
 
 ### Framework dev (monorepo / `apps/test-dev`)
 
-- **Command**: `pnpm codemation dev` with `CODEMATION_DEV_MODE=framework` (see `apps/test-dev`).
+- **Command**: `pnpm codemation dev --watch-framework` (see `apps/test-dev`).
 - **Processes**: Next dev + dev gateway + runtime child (child is spawned by the gateway).
 - **Watch**: Consumer output builder + plugin discovery remain in the CLI; rebuild completion triggers a **gateway-driven child restart**, not `POST /dev/runtime` on the runtime.
 
 ### Consumer dev (external projects)
 
-- **Command**: `codemation dev` (default `CODEMATION_DEV_MODE=consumer`).
+- **Command**: `codemation dev`.
 - **Processes**: The CLI starts `next start` for `@codemation/next-host` on a loopback port (requires a prior `next build` of that package), then the **dev gateway** on the public port. The gateway sets `CODEMATION_DEV_UI_PROXY_TARGET` so non-`/api` HTTP and non-API WebSocket upgrades are proxied to Next, while `/api/*` and workflow WebSocket traffic go to the runtime child.
 - **Watch**: The CLI’s consumer output builder watches consumer files and notifies the gateway; the gateway restarts the runtime child after a successful rebuild.
 

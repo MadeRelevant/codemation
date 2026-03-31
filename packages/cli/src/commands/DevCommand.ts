@@ -43,13 +43,13 @@ export class DevCommand {
     private readonly nextHostConsumerServerCommandFactory: NextHostConsumerServerCommandFactory,
   ) {}
 
-  async execute(consumerRoot: string): Promise<void> {
-    const paths = await this.pathResolver.resolve(consumerRoot);
+  async execute(args: Readonly<{ consumerRoot: string; watchFramework?: boolean }>): Promise<void> {
+    const paths = await this.pathResolver.resolve(args.consumerRoot);
     this.devCliBannerRenderer.renderBrandHeader();
     this.tsRuntime.configure(paths.repoRoot);
     await this.databaseMigrationsApplyService.applyForConsumer(paths.consumerRoot);
     await this.devConsumerPublishBootstrap.ensurePublished(paths);
-    const devMode = this.resolveDevModeFromEnv();
+    const devMode = this.resolveDevMode(args);
     const { nextPort, gatewayPort } = await this.session.sessionPorts.resolve({
       devMode,
       portEnv: process.env.PORT,
@@ -58,7 +58,7 @@ export class DevCommand {
     const devLock = this.devLockFactory.create();
     await devLock.acquire({
       consumerRoot: paths.consumerRoot,
-      nextPort: devMode === "framework" ? nextPort : gatewayPort,
+      nextPort: devMode === "watch-framework" ? nextPort : gatewayPort,
     });
     const authSettings = await this.session.devAuthLoader.loadForConsumer(paths.consumerRoot);
     const watcher = this.devSourceWatcherFactory.create();
@@ -66,7 +66,7 @@ export class DevCommand {
     try {
       const prepared = await this.prepareDevRuntime(paths, devMode, nextPort, gatewayPort, authSettings);
       const stopPromise = this.wireStopPromise(processState);
-      const uiProxyBase = await this.startConsumerUiProxyWhenNeeded(prepared, processState);
+      const uiProxyBase = await this.startPackagedUiWhenNeeded(prepared, processState);
       const gatewayBaseUrl = this.gatewayBaseHttpUrl(gatewayPort);
       await this.spawnGatewayChildAndWaitForHealth(prepared, processState, gatewayBaseUrl, uiProxyBase);
       await this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl);
@@ -75,9 +75,9 @@ export class DevCommand {
         this.devCliBannerRenderer.renderRuntimeSummary(initialSummary);
       }
       this.bindShutdownSignalsToChildProcesses(processState);
-      await this.spawnFrameworkNextHostWhenNeeded(prepared, processState, gatewayBaseUrl);
+      await this.spawnDevUiWhenNeeded(prepared, processState, gatewayBaseUrl);
       await this.startWatcherForSourceRestart(prepared, processState, watcher, devMode, gatewayBaseUrl);
-      this.logConsumerDevHintWhenNeeded(devMode, gatewayPort);
+      this.logPackagedUiDevHintWhenNeeded(devMode, gatewayPort);
       await stopPromise;
     } finally {
       processState.stopRequested = true;
@@ -87,8 +87,11 @@ export class DevCommand {
     }
   }
 
-  private resolveDevModeFromEnv(): DevMode {
-    return process.env.CODEMATION_DEV_MODE === "framework" ? "framework" : "consumer";
+  private resolveDevMode(args: Readonly<{ watchFramework?: boolean }>): DevMode {
+    if (args.watchFramework === true || process.env.CODEMATION_DEV_MODE === "framework") {
+      return "watch-framework";
+    }
+    return "packaged-ui";
   }
 
   private async prepareDevRuntime(
@@ -132,10 +135,10 @@ export class DevCommand {
   private createInitialProcessState(): DevMutableProcessState {
     return {
       currentGateway: null,
-      currentNextHost: null,
-      currentUiNext: null,
-      currentUiProxyBaseUrl: null,
-      isRestartingNextHost: false,
+      currentDevUi: null,
+      currentPackagedUi: null,
+      currentPackagedUiBaseUrl: null,
+      isRestartingUi: false,
       stopRequested: false,
       stopResolve: null,
       stopReject: null,
@@ -154,25 +157,25 @@ export class DevCommand {
   }
 
   /**
-   * Consumer mode: run `next start` for the host UI and wait until it responds, so the gateway can proxy to it.
-   * Framework mode: no separate UI child (Next runs in dev later).
+   * Default dev path: run packaged `next start` for the host UI and wait until it responds, so the gateway can proxy to it.
+   * Framework watch mode: no separate packaged UI child (`next dev` starts later).
    */
-  private async startConsumerUiProxyWhenNeeded(
+  private async startPackagedUiWhenNeeded(
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
   ): Promise<string> {
-    if (prepared.devMode !== "consumer") {
+    if (prepared.devMode !== "packaged-ui") {
       return "";
     }
     const websocketPort = prepared.gatewayPort;
     const uiProxyBase =
-      state.currentUiProxyBaseUrl ?? `http://127.0.0.1:${await this.session.loopbackPortAllocator.allocate()}`;
-    state.currentUiProxyBaseUrl = uiProxyBase;
-    await this.spawnConsumerUiProxy(prepared, state, prepared.authSettings, websocketPort, uiProxyBase);
+      state.currentPackagedUiBaseUrl ?? `http://127.0.0.1:${await this.session.loopbackPortAllocator.allocate()}`;
+    state.currentPackagedUiBaseUrl = uiProxyBase;
+    await this.spawnPackagedUi(prepared, state, prepared.authSettings, websocketPort, uiProxyBase);
     return uiProxyBase;
   }
 
-  private async spawnConsumerUiProxy(
+  private async spawnPackagedUi(
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
     authSettings: DevResolvedAuthSettings,
@@ -201,27 +204,27 @@ export class DevCommand {
       skipUiAuth: authSettings.skipUiAuth,
       websocketPort,
     });
-    state.currentUiNext = spawn(nextHostCommand.command, nextHostCommand.args, {
+    state.currentPackagedUi = spawn(nextHostCommand.command, nextHostCommand.args, {
       cwd: nextHostCommand.cwd,
       ...this.devDetachedChildSpawnOptions(),
       env: nextHostEnvironment,
     });
-    state.currentUiNext.on("error", (error) => {
-      if (state.stopRequested || state.isRestartingNextHost) {
+    state.currentPackagedUi.on("error", (error) => {
+      if (state.stopRequested || state.isRestartingUi) {
         return;
       }
       state.stopRequested = true;
       state.stopReject?.(error instanceof Error ? error : new Error(String(error)));
     });
-    state.currentUiNext.on("exit", (code) => {
-      if (state.stopRequested || state.isRestartingNextHost) {
+    state.currentPackagedUi.on("exit", (code) => {
+      if (state.stopRequested || state.isRestartingUi) {
         return;
       }
       state.stopRequested = true;
       if (state.currentGateway?.exitCode === null) {
         void this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(state.currentGateway);
       }
-      state.stopReject?.(new Error(`next start (consumer UI) exited unexpectedly with code ${code ?? 0}.`));
+      state.stopReject?.(new Error(`next start (packaged UI) exited unexpectedly with code ${code ?? 0}.`));
     });
     await this.session.devHttpProbe.waitUntilUrlRespondsOk(`${uiProxyBase}/`);
   }
@@ -294,7 +297,7 @@ export class DevCommand {
       state.stopRequested = true;
       process.stdout.write("\n[codemation] Stopping..\n");
       const children: ChildProcess[] = [];
-      for (const child of [state.currentUiNext, state.currentNextHost, state.currentGateway]) {
+      for (const child of [state.currentPackagedUi, state.currentDevUi, state.currentGateway]) {
         if (child && child.exitCode === null && child.signalCode === null) {
           children.push(child);
         }
@@ -311,20 +314,20 @@ export class DevCommand {
   }
 
   /**
-   * Framework mode: run `next dev` for the Next host with HMR, pointed at the dev gateway runtime URL.
+   * Framework watch mode: run `next dev` for the Next host with HMR, pointed at the dev gateway runtime URL.
    */
-  private async spawnFrameworkNextHostWhenNeeded(
+  private async spawnDevUiWhenNeeded(
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
     gatewayBaseUrl: string,
   ): Promise<void> {
-    if (prepared.devMode !== "framework") {
+    if (prepared.devMode !== "watch-framework") {
       return;
     }
-    await this.spawnFrameworkNextHost(prepared, state, gatewayBaseUrl, prepared.authSettings);
+    await this.spawnDevUi(prepared, state, gatewayBaseUrl, prepared.authSettings);
   }
 
-  private async spawnFrameworkNextHost(
+  private async spawnDevUi(
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
     gatewayBaseUrl: string,
@@ -342,14 +345,14 @@ export class DevCommand {
       websocketPort,
       runtimeDevUrl: gatewayBaseUrl,
     });
-    state.currentNextHost = spawn("pnpm", ["exec", "next", "dev"], {
+    state.currentDevUi = spawn("pnpm", ["exec", "next", "dev"], {
       cwd: nextHostRoot,
       ...this.devDetachedChildSpawnOptions(),
       env: nextHostEnvironment,
     });
-    state.currentNextHost.on("exit", (code) => {
+    state.currentDevUi.on("exit", (code) => {
       const normalizedCode = code ?? 0;
-      if (state.stopRequested || state.isRestartingNextHost) {
+      if (state.stopRequested || state.isRestartingUi) {
         return;
       }
       if (normalizedCode === 0) {
@@ -363,8 +366,8 @@ export class DevCommand {
       state.stopRequested = true;
       state.stopReject?.(new Error(`next host exited with code ${normalizedCode}.`));
     });
-    state.currentNextHost.on("error", (error) => {
-      if (state.stopRequested || state.isRestartingNextHost) {
+    state.currentDevUi.on("error", (error) => {
+      if (state.stopRequested || state.isRestartingUi) {
         return;
       }
       state.stopRequested = true;
@@ -398,13 +401,13 @@ export class DevCommand {
             changedPaths,
             consumerRoot: prepared.paths.consumerRoot,
           });
-          const shouldRestartNextHost = this.session.sourceChangeClassifier.requiresNextHostRestart({
+          const shouldRestartUi = this.session.sourceChangeClassifier.requiresUiRestart({
             changedPaths,
             consumerRoot: prepared.paths.consumerRoot,
           });
           process.stdout.write(
-            shouldRestartNextHost
-              ? "\n[codemation] Consumer config change detected — rebuilding consumer, restarting runtime, and restarting Next host…\n"
+            shouldRestartUi
+              ? "\n[codemation] Source change detected — rebuilding consumer, restarting runtime, and restarting the UI…\n"
               : "\n[codemation] Source change detected — rebuilding consumer and restarting runtime…\n",
           );
           if (shouldRepublishConsumerOutput) {
@@ -416,8 +419,8 @@ export class DevCommand {
           );
           process.stdout.write("[codemation] Waiting for runtime to accept traffic…\n");
           await this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl);
-          if (shouldRestartNextHost) {
-            await this.restartNextHostForConfigChange(prepared, state, gatewayBaseUrl);
+          if (shouldRestartUi) {
+            await this.restartUiAfterSourceChange(prepared, state, gatewayBaseUrl);
           }
           const json = await this.devBootstrapSummaryFetcher.fetch(gatewayBaseUrl);
           if (json) {
@@ -431,52 +434,56 @@ export class DevCommand {
     });
   }
 
-  private async restartNextHostForConfigChange(
+  private async restartUiAfterSourceChange(
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
     gatewayBaseUrl: string,
   ): Promise<void> {
     const refreshedAuthSettings = await this.session.devAuthLoader.loadForConsumer(prepared.paths.consumerRoot);
-    process.stdout.write("[codemation] Restarting Next host to apply auth/database/scheduler/branding changes…\n");
-    state.isRestartingNextHost = true;
+    process.stdout.write("[codemation] Restarting the UI process to apply source changes…\n");
+    state.isRestartingUi = true;
     try {
-      if (prepared.devMode === "consumer") {
-        await this.restartConsumerUiProxy(prepared, state, refreshedAuthSettings);
+      if (prepared.devMode === "packaged-ui") {
+        await this.restartPackagedUi(prepared, state, refreshedAuthSettings);
         return;
       }
-      await this.restartFrameworkNextHost(prepared, state, gatewayBaseUrl, refreshedAuthSettings);
+      await this.restartDevUi(prepared, state, gatewayBaseUrl, refreshedAuthSettings);
     } finally {
-      state.isRestartingNextHost = false;
+      state.isRestartingUi = false;
     }
   }
 
-  private async restartConsumerUiProxy(
+  private async restartPackagedUi(
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
     authSettings: DevResolvedAuthSettings,
   ): Promise<void> {
-    if (state.currentUiNext && state.currentUiNext.exitCode === null && state.currentUiNext.signalCode === null) {
-      await this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(state.currentUiNext);
+    if (
+      state.currentPackagedUi &&
+      state.currentPackagedUi.exitCode === null &&
+      state.currentPackagedUi.signalCode === null
+    ) {
+      await this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(state.currentPackagedUi);
     }
-    state.currentUiNext = null;
-    const uiProxyBaseUrl = state.currentUiProxyBaseUrl;
+    state.currentPackagedUi = null;
+    const uiProxyBaseUrl = state.currentPackagedUiBaseUrl;
     if (!uiProxyBaseUrl) {
-      throw new Error("Consumer UI proxy base URL is missing during Next host restart.");
+      throw new Error("Packaged UI proxy base URL is missing during UI restart.");
     }
-    await this.spawnConsumerUiProxy(prepared, state, authSettings, prepared.gatewayPort, uiProxyBaseUrl);
+    await this.spawnPackagedUi(prepared, state, authSettings, prepared.gatewayPort, uiProxyBaseUrl);
   }
 
-  private async restartFrameworkNextHost(
+  private async restartDevUi(
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
     gatewayBaseUrl: string,
     authSettings: DevResolvedAuthSettings,
   ): Promise<void> {
-    if (state.currentNextHost && state.currentNextHost.exitCode === null && state.currentNextHost.signalCode === null) {
-      await this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(state.currentNextHost);
+    if (state.currentDevUi && state.currentDevUi.exitCode === null && state.currentDevUi.signalCode === null) {
+      await this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(state.currentDevUi);
     }
-    state.currentNextHost = null;
-    await this.spawnFrameworkNextHost(prepared, state, gatewayBaseUrl, authSettings);
+    state.currentDevUi = null;
+    await this.spawnDevUi(prepared, state, gatewayBaseUrl, authSettings);
   }
 
   private async failDevSessionAfterIrrecoverableSourceError(
@@ -491,7 +498,7 @@ export class DevCommand {
 
   private async stopLiveChildProcesses(state: DevMutableProcessState): Promise<void> {
     const children: ChildProcess[] = [];
-    for (const child of [state.currentUiNext, state.currentNextHost, state.currentGateway]) {
+    for (const child of [state.currentPackagedUi, state.currentDevUi, state.currentGateway]) {
       if (child && child.exitCode === null && child.signalCode === null) {
         children.push(child);
       }
@@ -499,12 +506,12 @@ export class DevCommand {
     await Promise.all(children.map((child) => this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(child)));
   }
 
-  private logConsumerDevHintWhenNeeded(devMode: DevMode, gatewayPort: number): void {
-    if (devMode !== "consumer") {
+  private logPackagedUiDevHintWhenNeeded(devMode: DevMode, gatewayPort: number): void {
+    if (devMode !== "packaged-ui") {
       return;
     }
     this.cliLogger.info(
-      `codemation dev (consumer): open http://127.0.0.1:${gatewayPort} — uses the packaged @codemation/next-host UI. For framework UI HMR, set CODEMATION_DEV_MODE=framework.`,
+      `codemation dev: open http://127.0.0.1:${gatewayPort} — this uses the packaged @codemation/next-host UI. Use \`codemation dev --watch-framework\` only when working on the framework UI itself.`,
     );
   }
 }

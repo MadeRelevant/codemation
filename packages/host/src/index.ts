@@ -3,15 +3,16 @@ export type { QueryBus } from "./application/bus/QueryBus";
 export { ListUserAccountsQuery } from "./application/queries/ListUserAccountsQuery";
 export { UpsertLocalBootstrapUserCommand } from "./application/commands/UpsertLocalBootstrapUserCommand";
 export type { UpsertLocalBootstrapUserResultDto } from "./application/contracts/userDirectoryContracts.types";
-export { CodemationApplication } from "./codemationApplication";
-export type { CodemationApplicationConfig, CodemationStopHandle } from "./codemationApplication";
+export { AppContainerFactory } from "./bootstrap/AppContainerFactory";
+export { AppContainerLifecycle } from "./bootstrap/AppContainerLifecycle";
+export { DatabaseMigrations } from "./bootstrap/runtime/DatabaseMigrations";
+export { FrontendRuntime } from "./bootstrap/runtime/FrontendRuntime";
+export { WorkerRuntime } from "./bootstrap/runtime/WorkerRuntime";
+export { AppConfigFactory } from "./bootstrap/runtime/AppConfigFactory";
 export { ApplicationTokens } from "./applicationTokens";
 export { CodemationBootstrapRequest } from "./bootstrap/CodemationBootstrapRequest";
-export { CodemationFrontendBootstrapRequest } from "./bootstrap/CodemationFrontendBootstrapRequest";
-export { CodemationWorkerBootstrapRequest } from "./bootstrap/CodemationWorkerBootstrapRequest";
 export type { CodemationWhitelabelConfig } from "./presentation/config/CodemationWhitelabelConfig";
 export type { AppConfig } from "./presentation/config/AppConfig";
-export type { CodemationApplicationFacade } from "./presentation/config/CodemationApplicationFacade";
 export type {
   CodemationAuthConfig,
   CodemationAuthKind,
@@ -38,6 +39,11 @@ export type {
   CodemationRegistrationContextBase,
 } from "./presentation/config/CodemationAppContext";
 export type {
+  CodemationFrontendAuthProviderSnapshot,
+  CodemationFrontendAuthSnapshot,
+} from "./presentation/frontend/CodemationFrontendAuthSnapshot";
+export type { FrontendAppConfig } from "./presentation/frontend/FrontendAppConfig";
+export type {
   CodemationLogConfig,
   CodemationLogLevelName,
   CodemationLogRule,
@@ -51,6 +57,10 @@ export { CodemationPluginListMerger } from "./presentation/config/CodemationPlug
 export type { CodemationWorkflowDiscovery } from "./presentation/config/CodemationWorkflowDiscovery";
 export {
   ApiPaths,
+  CodemationFrontendAuthSnapshotFactory,
+  CodemationFrontendAuthSnapshotJsonCodec,
+  FrontendAppConfigFactory,
+  FrontendAppConfigJsonCodec,
   CodemationConsumerConfigLoader,
   CodemationPostgresPrismaClientFactory,
   CodemationServerGateway,

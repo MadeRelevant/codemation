@@ -1,10 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { auth } from "./src/auth/codemationEdgeAuth";
+import { auth } from "./src/auth/edgeAuth";
+import { AuthSnapshotReader } from "./src/auth/AuthSnapshotReader";
 import { CodemationNextHostMiddlewarePathRules } from "./src/middleware/CodemationNextHostMiddlewarePathRules";
 
+const frontendAuthSnapshot = AuthSnapshotReader.readFromEnvironment();
+
 export default auth((request: NextRequest) => {
-  if (process.env.CODEMATION_SKIP_UI_AUTH === "true") {
+  if (frontendAuthSnapshot?.uiAuthEnabled === false) {
     return NextResponse.next();
   }
   const pathname = request.nextUrl.pathname;

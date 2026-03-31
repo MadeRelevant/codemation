@@ -235,7 +235,7 @@ Exact HTTP behavior belongs to host packages; the engine exposes **matching** an
 Under `scheduler/` you will find:
 
 - **Driving schedulers** (inline vs default driving).
-- **Offload policies** — hints for whether work should run locally vs be queued (integration with BullMQ lives in `packages/queue-bullmq`).
+- **Offload policies** — hints for whether work should run locally vs be queued (BullMQ integration now lives in the host runtime infrastructure).
 
 ---
 

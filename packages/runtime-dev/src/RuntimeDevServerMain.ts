@@ -1,5 +1,5 @@
 import { DevelopmentRuntimeRouteGuard } from "@codemation/host/dev-server-sidecar";
-import { CodemationConsumerConfigLoader, CodemationPluginDiscovery } from "@codemation/host/server";
+import { AppConfigLoader, CodemationPluginDiscovery } from "@codemation/host/server";
 import { CodemationHonoApiApp, logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
@@ -10,7 +10,7 @@ import { RuntimeDevShutdownController } from "./RuntimeDevShutdownController";
 export class RuntimeDevServerMain {
   async run(): Promise<void> {
     const metrics = new RuntimeDevMetrics();
-    const host = new RuntimeDevHost(new CodemationConsumerConfigLoader(), new CodemationPluginDiscovery(), metrics);
+    const host = new RuntimeDevHost(new AppConfigLoader(), new CodemationPluginDiscovery(), metrics);
     const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
     const bootstrapLogger = loggerFactory.create("codemation-runtime-dev.bootstrap");
     const httpPort = this.resolveHttpPort();
@@ -25,7 +25,7 @@ export class RuntimeDevServerMain {
     });
     root.all("*", async (c) => {
       const context = await host.prepare();
-      return context.application.getContainer().resolve(CodemationHonoApiApp).fetch(c.req.raw);
+      return context.container.resolve(CodemationHonoApiApp).fetch(c.req.raw);
     });
 
     const server = serve(

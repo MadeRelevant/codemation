@@ -26,10 +26,10 @@ test("ListenPortResolver resolves websocket port from explicit env or next+1", (
   );
 });
 
-test("DevSessionPortsResolver: consumer mode ties gateway port to HTTP port when gateway env unset", async () => {
+test("DevSessionPortsResolver: packaged UI mode ties gateway port to HTTP port when gateway env unset", async () => {
   const resolver = new DevSessionPortsResolver(new ListenPortResolver(), new LoopbackPortAllocator());
   const ports = await resolver.resolve({
-    devMode: "consumer",
+    devMode: "packaged-ui",
     portEnv: "4000",
     gatewayPortEnv: undefined,
   });
@@ -37,10 +37,10 @@ test("DevSessionPortsResolver: consumer mode ties gateway port to HTTP port when
   assert.equal(ports.gatewayPort, 4000);
 });
 
-test("DevSessionPortsResolver: framework mode uses free loopback port for gateway when gateway env unset", async () => {
+test("DevSessionPortsResolver: framework watch mode uses free loopback port for gateway when gateway env unset", async () => {
   const resolver = new DevSessionPortsResolver(new ListenPortResolver(), new LoopbackPortAllocator());
   const ports = await resolver.resolve({
-    devMode: "framework",
+    devMode: "watch-framework",
     portEnv: undefined,
     gatewayPortEnv: undefined,
   });

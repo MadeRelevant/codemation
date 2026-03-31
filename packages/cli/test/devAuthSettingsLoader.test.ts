@@ -23,10 +23,8 @@ class StubConfigLoader {
 
 test("uses a stable development auth secret when none is configured", async () => {
   const savedAuthSecret = process.env.AUTH_SECRET;
-  const savedNextAuthSecret = process.env.NEXTAUTH_SECRET;
   try {
     delete process.env.AUTH_SECRET;
-    delete process.env.NEXTAUTH_SECRET;
 
     const loader = new DevAuthSettingsLoader(new StubConfigLoader() as never, new ConsumerEnvLoader());
     const resolved = await loader.loadForConsumer("/tmp/consumer");
@@ -39,11 +37,6 @@ test("uses a stable development auth secret when none is configured", async () =
     } else {
       process.env.AUTH_SECRET = savedAuthSecret;
     }
-    if (savedNextAuthSecret === undefined) {
-      delete process.env.NEXTAUTH_SECRET;
-    } else {
-      process.env.NEXTAUTH_SECRET = savedNextAuthSecret;
-    }
   }
 });
 
@@ -51,7 +44,7 @@ test("prefers configured auth secrets over the development fallback", () => {
   const loader = new DevAuthSettingsLoader(new StubConfigLoader() as never, new ConsumerEnvLoader());
 
   expect(loader.resolveDevelopmentAuthSecret({ AUTH_SECRET: "from-auth-secret" })).toBe("from-auth-secret");
-  expect(loader.resolveDevelopmentAuthSecret({ NEXTAUTH_SECRET: "from-nextauth-secret" })).toBe("from-nextauth-secret");
+  expect(loader.resolveDevelopmentAuthSecret({})).toBe(DevAuthSettingsLoader.defaultDevelopmentAuthSecret);
 });
 
 test("loadForConsumer reads AUTH_SECRET from the consumer project .env", async () => {

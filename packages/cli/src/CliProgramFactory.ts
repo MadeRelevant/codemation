@@ -1,4 +1,11 @@
-import { CodemationConsumerConfigLoader, CodemationPluginDiscovery } from "@codemation/host/server";
+import {
+  AppConfigLoader,
+  CodemationConsumerConfigLoader,
+  CodemationFrontendAuthSnapshotFactory,
+  CodemationPluginDiscovery,
+  FrontendAppConfigJsonCodec,
+} from "@codemation/host/server";
+import { AppContainerFactory } from "@codemation/host";
 import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 
 import { ConsumerBuildArtifactsPublisher } from "./build/ConsumerBuildArtifactsPublisher";
@@ -16,7 +23,7 @@ import { ConsumerOutputBuilderLoader } from "./consumer/Loader";
 import { ConsumerDatabaseConnectionResolver } from "./database/ConsumerDatabaseConnectionResolver";
 import { DatabaseMigrationsApplyService } from "./database/DatabaseMigrationsApplyService";
 import { HostPackageRootResolver } from "./database/HostPackageRootResolver";
-import { DatabasePersistenceResolver, PrismaMigrationDeployer } from "@codemation/host/persistence";
+import { PrismaMigrationDeployer } from "@codemation/host/persistence";
 import { DevBootstrapSummaryFetcher } from "./dev/DevBootstrapSummaryFetcher";
 import { DevCliBannerRenderer } from "./dev/DevCliBannerRenderer";
 import { DevConsumerPublishBootstrap } from "./dev/DevConsumerPublishBootstrap";
@@ -54,13 +61,11 @@ export class CliProgramFactory {
     const sourceMapNodeOptions = new SourceMapNodeOptions();
     const nextHostConsumerServerCommandFactory = new NextHostConsumerServerCommandFactory();
     const tsconfigPreparation = new ConsumerCliTsconfigPreparation();
-    const databasePersistenceResolver = new DatabasePersistenceResolver();
     const userAdminBootstrap = new UserAdminCliBootstrap(
-      new CodemationConsumerConfigLoader(),
+      new AppConfigLoader(),
       pathResolver,
       new UserAdminConsumerDotenvLoader(),
       tsconfigPreparation,
-      databasePersistenceResolver,
     );
     const hostPackageRoot = new HostPackageRootResolver().resolveHostPackageRoot();
     const userAdminCliOptionsParser = new UserAdminCliOptionsParser();
@@ -104,6 +109,7 @@ export class CliProgramFactory {
       ),
       new ServeWebCommand(
         pathResolver,
+        new CodemationConsumerConfigLoader(),
         pluginDiscovery,
         artifactsPublisher,
         tsRuntime,
@@ -112,8 +118,10 @@ export class CliProgramFactory {
         new ConsumerEnvLoader(),
         new ListenPortResolver(),
         nextHostConsumerServerCommandFactory,
+        new CodemationFrontendAuthSnapshotFactory(),
+        new FrontendAppConfigJsonCodec(),
       ),
-      new ServeWorkerCommand(sourceMapNodeOptions),
+      new ServeWorkerCommand(pathResolver, new AppConfigLoader(), new AppContainerFactory()),
       new DbMigrateCommand(databaseMigrationsApplyService),
       new UserCreateCommand(new LocalUserCreator(userAdminBootstrap), userAdminCliOptionsParser),
       new UserListCommand(cliLogger, userAdminBootstrap, new CliDatabaseUrlDescriptor(), userAdminCliOptionsParser),

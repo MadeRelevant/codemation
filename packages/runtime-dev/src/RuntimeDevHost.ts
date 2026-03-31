@@ -2,16 +2,16 @@ import type { Container } from "@codemation/core";
 import type { CodemationAuthConfig, CodemationPlugin } from "@codemation/host";
 import type { Logger } from "@codemation/host/next/server";
 import {
-  CodemationApplication,
-  CodemationBootstrapRequest,
-  CodemationFrontendBootstrapRequest,
+  AppContainerFactory,
+  AppContainerLifecycle,
+  FrontendRuntime,
   CodemationPluginListMerger,
   logLevelPolicyFactory,
   ServerLoggerFactory,
   WorkflowWebsocketServer,
 } from "@codemation/host/next/server";
 import {
-  CodemationConsumerConfigLoader,
+  AppConfigLoader,
   CodemationPluginDiscovery,
   type CodemationDiscoveredPluginPackage,
   type CodemationResolvedPluginPackage,
@@ -22,12 +22,13 @@ import { CodemationTsyringeTypeInfoRegistrar } from "@codemation/host/dev-server
 import { RuntimeDevMetrics } from "./RuntimeDevMetrics";
 
 export type RuntimeDevHostContext = Readonly<{
-  application: CodemationApplication;
   authConfig: CodemationAuthConfig | undefined;
   buildVersion: string;
+  container: Container;
   consumerRoot: string;
   repoRoot: string;
   workflowSources: ReadonlyArray<string>;
+  workflowIds: ReadonlyArray<string>;
 }>;
 
 /**
@@ -41,7 +42,7 @@ export class RuntimeDevHost {
   private readonly performanceDiagnosticsLogger: Logger;
 
   constructor(
-    private readonly configLoader: CodemationConsumerConfigLoader,
+    private readonly configLoader: AppConfigLoader,
     private readonly pluginDiscovery: CodemationPluginDiscovery,
     metrics: RuntimeDevMetrics,
   ) {
@@ -67,7 +68,7 @@ export class RuntimeDevHost {
   }
 
   async getContainer(): Promise<Container> {
-    return (await this.prepare()).application.getContainer();
+    return (await this.prepare()).container;
   }
 
   async stop(): Promise<void> {
@@ -78,7 +79,7 @@ export class RuntimeDevHost {
         return;
       }
       const context = await contextPromise;
-      await context.application.stop();
+      await context.container.resolve(AppContainerLifecycle).stop();
     } finally {
       await this.sharedWorkflowWebsocketServer.stop();
     }
@@ -119,8 +120,6 @@ export class RuntimeDevHost {
     }
     process.env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
     process.env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
-    const configResolution = await this.configLoader.load({ consumerRoot });
-    phaseMs("loadConsumerAppFromSource");
     const env = { ...process.env };
     if (prismaCliOverride) {
       env.CODEMATION_PRISMA_CLI_PATH = prismaCliOverride;
@@ -128,39 +127,41 @@ export class RuntimeDevHost {
     env.CODEMATION_HOST_PACKAGE_ROOT = hostPackageRoot;
     env.CODEMATION_PRISMA_CONFIG_PATH = path.resolve(hostPackageRoot, "prisma.config.ts");
     env.CODEMATION_CONSUMER_ROOT = consumerRoot;
-    const bootstrapRequest = new CodemationBootstrapRequest({
+    const configResolution = await this.configLoader.load({
       consumerRoot,
       repoRoot,
       env,
-      workflowSources: configResolution.workflowSources,
     });
-    const application = new CodemationApplication();
-    application.useSharedWorkflowWebsocketServer(this.sharedWorkflowWebsocketServer);
+    phaseMs("loadConsumerAppFromSource");
     const discoveredPlugins = await this.loadDiscoveredPlugins(consumerRoot);
     phaseMs("discoverPlugins");
-
-    application.useConfig(configResolution.config);
-    if (discoveredPlugins.length > 0) {
-      application.usePlugins(this.pluginListMerger.merge(configResolution.config.plugins ?? [], discoveredPlugins));
-    }
-    await application.applyPlugins(bootstrapRequest);
-    phaseMs("applyPlugins");
-    await application.prepareContainer(bootstrapRequest);
+    const appConfig = {
+      ...configResolution.appConfig,
+      env,
+      plugins:
+        discoveredPlugins.length > 0
+          ? this.pluginListMerger.merge(configResolution.appConfig.plugins, discoveredPlugins)
+          : configResolution.appConfig.plugins,
+    };
+    const container = await new AppContainerFactory().create({
+      appConfig,
+      sharedWorkflowWebsocketServer: this.sharedWorkflowWebsocketServer,
+    });
     phaseMs("prepareContainer");
-    const typeInfoRegistrar = new CodemationTsyringeTypeInfoRegistrar(application.getContainer());
-    typeInfoRegistrar.registerWorkflowDefinitions(configResolution.config.workflows ?? []);
+    const typeInfoRegistrar = new CodemationTsyringeTypeInfoRegistrar(container);
+    typeInfoRegistrar.registerWorkflowDefinitions(appConfig.workflows ?? []);
     phaseMs("registerTypes");
-
-    await application.bootFrontend(new CodemationFrontendBootstrapRequest({ bootstrap: bootstrapRequest }));
+    await container.resolve(FrontendRuntime).start();
     phaseMs("bootFrontend");
 
     return {
-      application,
-      authConfig: configResolution.config.auth,
+      authConfig: appConfig.auth,
       buildVersion: this.createBuildVersion(),
+      container,
       consumerRoot,
       repoRoot,
-      workflowSources: configResolution.workflowSources,
+      workflowSources: appConfig.workflowSources,
+      workflowIds: appConfig.workflows.map((workflow) => workflow.id),
     };
   }
 
@@ -245,7 +246,7 @@ export class RuntimeDevHost {
   }
 
   private resolveWorkflowIds(context: RuntimeDevHostContext): ReadonlyArray<string> {
-    return context.application.getWorkflows().map((workflow) => workflow.id);
+    return context.workflowIds;
   }
 
   private resolveWebSocketPort(): number {

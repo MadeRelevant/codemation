@@ -36,7 +36,7 @@ export class DevAuthSettingsLoader {
   }
 
   resolveDevelopmentAuthSecret(env: NodeJS.ProcessEnv): string {
-    const configuredSecret = env.AUTH_SECRET ?? env.NEXTAUTH_SECRET;
+    const configuredSecret = env.AUTH_SECRET;
     if (configuredSecret && configuredSecret.trim().length > 0) {
       return configuredSecret;
     }

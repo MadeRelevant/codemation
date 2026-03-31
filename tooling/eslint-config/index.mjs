@@ -534,7 +534,6 @@ export default [
       "packages/core/src/**/*.ts",
       "packages/core-nodes/src/**/*.ts",
       "packages/core-nodes-gmail/src/**/*.ts",
-      "packages/queue-bullmq/src/**/*.ts",
       "packages/eventbus-redis/src/**/*.ts",
       "packages/node-example/src/**/*.ts",
       "packages/host/src/**/*.ts",
@@ -548,6 +547,109 @@ export default [
           property: "log",
           message:
             "Avoid console.log. Inject LoggerFactory (see packages/host/src/application/logging/Logger.ts) or a domain Logger token and call logger.info/warn/error/debug; server code should resolve ServerLoggerFactory from the container.",
+        },
+      ],
+    },
+  },
+
+  {
+    files: ["packages/host/src/**/*.ts"],
+    ignores: [
+      "**/test/**",
+      "**/*.test.ts",
+      "packages/host/src/bootstrap/CodemationBootstrapRequest.ts",
+      "packages/host/src/presentation/server/CodemationConsumerConfigLoader.ts",
+      "packages/host/src/presentation/server/CodemationPluginDiscovery.ts",
+      "packages/host/src/presentation/server/DevelopmentRuntimeRouteGuard.ts",
+      "packages/host/src/application/dev/DevBootstrapSummaryAssembler.ts",
+      "packages/host/src/infrastructure/logging/LogLevelPolicy.ts",
+      "packages/host/src/infrastructure/logging/PerformanceLogPolicy.ts",
+      "packages/host/src/infrastructure/persistence/PrismaMigrationDeployer.ts",
+    ],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "process",
+          property: "env",
+          message:
+            "Do not read process.env directly here. Resolve consumer/runtime environment at the boundary and pass AppConfig.env or an explicit env snapshot into deeper services.",
+        },
+      ],
+    },
+  },
+
+  {
+    files: ["packages/next-host/src/**/*.{ts,tsx}", "packages/next-host/app/**/*.{ts,tsx}"],
+    ignores: [
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "packages/next-host/src/auth/edgeAuth.ts",
+      "packages/next-host/src/auth/nextAuth.ts",
+      "packages/next-host/src/auth/AuthSnapshotReader.ts",
+      "packages/next-host/src/auth/AuthSnapshotResolver.ts",
+      "packages/next-host/src/server/CodemationNextHost.ts",
+      "packages/next-host/src/features/workflows/hooks/realtime/useWorkflowRealtimeInfrastructure.ts",
+      "packages/next-host/src/providers/Providers.tsx",
+      "packages/next-host/src/shell/CodemationNextClientShell.tsx",
+    ],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "process",
+          property: "env",
+          message:
+            "Do not read process.env directly in Next shell/UI modules. Consume the host-provided auth/shell snapshot or an explicit browser-safe env boundary instead.",
+        },
+      ],
+    },
+  },
+
+  {
+    files: [
+      "packages/core/src/**/*.ts",
+      "packages/core-nodes/src/**/*.ts",
+      "packages/core-nodes-gmail/src/**/*.ts",
+      "packages/eventbus-redis/src/**/*.ts",
+      "packages/node-example/src/**/*.ts",
+      "packages/cli/src/**/*.ts",
+      "packages/runtime-dev/src/**/*.ts",
+      "packages/dev-gateway/src/**/*.ts",
+      "packages/create-codemation/src/**/*.{ts,tsx,js,mjs}",
+      "apps/**/*.{ts,tsx,js,mjs}",
+    ],
+    ignores: [
+      "**/test/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "packages/cli/src/dev/DevAuthSettingsLoader.ts",
+      "packages/cli/src/dev/DevNextHostEnvironmentBuilder.ts",
+      "packages/cli/src/commands/DevCommand.ts",
+      "packages/cli/src/commands/ServeWebCommand.ts",
+      "packages/cli/src/commands/ServeWorkerCommand.ts",
+      "packages/cli/src/commands/UserListCommand.ts",
+      "packages/cli/src/runtime/NextHostConsumerServerCommandFactory.ts",
+      "packages/cli/src/runtime/TypeScriptRuntimeConfigurator.ts",
+      "packages/cli/src/database/DatabaseMigrationsApplyService.ts",
+      "packages/cli/src/consumer/ConsumerCliTsconfigPreparation.ts",
+      "packages/cli/src/user/UserAdminCliBootstrap.ts",
+      "packages/runtime-dev/src/RuntimeDevHost.ts",
+      "packages/runtime-dev/src/RuntimeDevServerMain.ts",
+      "packages/dev-gateway/src/CodemationDevGateway.ts",
+      "packages/create-codemation/src/NodeChildProcessRunner.ts",
+      "apps/test-dev/codemation.config.ts",
+      "apps/e2e/codemation.config.ts",
+      "apps/test-dev/src/gmail/GmailTriggerEnvReader.ts",
+    ],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "process",
+          property: "env",
+          message:
+            "Do not read process.env directly in source modules. Resolve env at the boundary and inject it, or locally disable this rule when the file is the justified boundary.",
         },
       ],
     },

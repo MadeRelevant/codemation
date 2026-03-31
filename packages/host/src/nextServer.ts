@@ -14,11 +14,20 @@ export { WorkflowDefinitionMapper } from "./application/mapping/WorkflowDefiniti
 export { WorkflowPolicyUiPresentationFactory } from "./application/mapping/WorkflowPolicyUiPresentationFactory";
 export { WorkflowRunRetentionPruneScheduler } from "./application/runs/WorkflowRunRetentionPruneScheduler";
 export { ApplicationTokens } from "./applicationTokens";
-export { CodemationApplication } from "./codemationApplication";
+export { AppContainerFactory } from "./bootstrap/AppContainerFactory";
+export { AppContainerLifecycle } from "./bootstrap/AppContainerLifecycle";
+export { DatabaseMigrations } from "./bootstrap/runtime/DatabaseMigrations";
+export { FrontendRuntime } from "./bootstrap/runtime/FrontendRuntime";
+export { WorkerRuntime } from "./bootstrap/runtime/WorkerRuntime";
+export { AppConfigFactory } from "./bootstrap/runtime/AppConfigFactory";
 export { CodemationBootstrapRequest } from "./bootstrap/CodemationBootstrapRequest";
-export { CodemationFrontendBootstrapRequest } from "./bootstrap/CodemationFrontendBootstrapRequest";
-export { CodemationWorkerBootstrapRequest } from "./bootstrap/CodemationWorkerBootstrapRequest";
 export { CodemationPluginListMerger } from "./presentation/config/CodemationPluginListMerger";
+export type {
+  CodemationFrontendAuthProviderSnapshot,
+  CodemationFrontendAuthSnapshot,
+} from "./presentation/frontend/CodemationFrontendAuthSnapshot";
+export type { FrontendAppConfig } from "./presentation/frontend/FrontendAppConfig";
+export { FrontendAppConfigFactory } from "./presentation/frontend/FrontendAppConfigFactory";
 export { CredentialBindingService, CredentialInstanceService } from "./domain/credentials/CredentialServices";
 export { RequestToWebhookItemMapper } from "./infrastructure/webhooks/RequestToWebhookItemMapper";
 export { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiAppFactory";
