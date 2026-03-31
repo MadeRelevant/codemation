@@ -21,7 +21,7 @@ import { RuntimeWorkflowActivationPolicy } from "../../src/infrastructure/persis
 import type {
   WorkerRuntimeHandle,
   WorkerRuntimeScheduler,
-} from "../../src/infrastructure/runtime/WorkerRuntimeScheduler";
+} from "../../src/infrastructure/scheduler/WorkerRuntimeScheduler";
 
 class RecordingDatabaseMigrations {
   migrateCalls = 0;
@@ -46,7 +46,7 @@ class RecordingWorkerRuntimeScheduler implements WorkerRuntimeScheduler {
     return Promise.resolve({ receiptId: "test-receipt" });
   }
 
-  createWorker(): WorkerRuntimeHandle {
+  createWorker(_args: Readonly<{ queues: ReadonlyArray<string>; requestHandler: unknown }>): WorkerRuntimeHandle {
     this.createWorkerCalls += 1;
     return {
       stop: async () => {

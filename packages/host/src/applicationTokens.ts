@@ -16,7 +16,7 @@ import type { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository"
 import type { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
 import type { WorkflowActivationRepository } from "./domain/workflows/WorkflowActivationRepository";
-import type { WorkerRuntimeScheduler } from "./infrastructure/runtime/WorkerRuntimeScheduler";
+import type { WorkerRuntimeScheduler } from "./infrastructure/scheduler/WorkerRuntimeScheduler";
 import type { PrismaClient } from "./infrastructure/persistence/generated/prisma-client/client.js";
 import type { AppConfig } from "./presentation/config/AppConfig";
 import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";

@@ -7,6 +7,7 @@ import { WorkflowSnapshotResolver } from "../workflowSnapshots/WorkflowSnapshotR
 import { ActivationEnqueueService } from "../execution/ActivationEnqueueService";
 import { NodeActivationRequestComposer } from "../execution/NodeActivationRequestComposer";
 import { PersistedRunStateTerminalBuilder } from "../execution/PersistedRunStateTerminalBuilder";
+import { NodeExecutionRequestHandlerService } from "../orchestration/NodeExecutionRequestHandlerService";
 import { RunContinuationService } from "../orchestration/RunContinuationService";
 import { RunStartService } from "../orchestration/RunStartService";
 import { RunStateSemantics } from "../execution/RunStateSemantics";
@@ -115,6 +116,17 @@ export class EngineFactory {
       terminalPersistence,
       executionLimitsPolicy,
     );
+    const nodeExecutionRequestHandler = new NodeExecutionRequestHandlerService(
+      deps.workflowExecutionRepository,
+      workflowSnapshotResolver,
+      deps.runDataFactory,
+      runExecutionContextFactory,
+      nodeStatePublisherFactory,
+      nodeActivationRequestComposer,
+      deps.nodeExecutor,
+      runContinuationService,
+      executionLimitsPolicy,
+    );
 
     const triggerRuntime = new TriggerRuntimeService(
       deps.workflowRepository,
@@ -143,6 +155,7 @@ export class EngineFactory {
       triggerRuntime,
       runStartService,
       runContinuationService,
+      nodeExecutionRequestHandler,
     });
 
     deps.activationScheduler.setContinuation?.(engine);

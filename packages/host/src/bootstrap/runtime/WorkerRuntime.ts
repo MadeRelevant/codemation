@@ -1,16 +1,12 @@
-import type {
-  BinaryStorage,
-  CredentialSessionService,
-  EngineExecutionLimitsPolicy,
-  NodeResolver,
-  WorkflowExecutionRepository,
-  WorkflowRepository,
-} from "@codemation/core";
+import type { WorkflowRepository } from "@codemation/core";
 import { CoreTokens, inject, injectable } from "@codemation/core";
 import { Engine } from "@codemation/core/bootstrap";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { AppConfig } from "../../presentation/config/AppConfig";
-import type { WorkerRuntimeHandle, WorkerRuntimeScheduler } from "../../infrastructure/runtime/WorkerRuntimeScheduler";
+import type {
+  WorkerRuntimeHandle,
+  WorkerRuntimeScheduler,
+} from "../../infrastructure/scheduler/WorkerRuntimeScheduler";
 import { RuntimeWorkflowActivationPolicy } from "../../infrastructure/persistence/RuntimeWorkflowActivationPolicy";
 import type { WorkflowActivationRepository } from "../../domain/workflows/WorkflowActivationRepository";
 import { DatabaseMigrations } from "./DatabaseMigrations";
@@ -31,18 +27,6 @@ export class WorkerRuntime {
     private readonly workflowRepository: WorkflowRepository,
     @inject(Engine)
     private readonly engine: Engine,
-    @inject(CoreTokens.NodeResolver)
-    private readonly nodeResolver: NodeResolver,
-    @inject(CoreTokens.CredentialSessionService)
-    private readonly credentialSessionService: CredentialSessionService,
-    @inject(CoreTokens.WorkflowExecutionRepository)
-    private readonly workflowExecutionRepository: WorkflowExecutionRepository,
-    @inject(CoreTokens.BinaryStorage)
-    private readonly binaryStorage: BinaryStorage,
-    @inject(CoreTokens.WorkflowRunnerService)
-    private readonly workflowRunnerService: unknown,
-    @inject(CoreTokens.EngineExecutionLimitsPolicy)
-    private readonly executionLimitsPolicy: EngineExecutionLimitsPolicy,
     @inject(ApplicationTokens.WorkerRuntimeScheduler)
     private readonly scheduler: WorkerRuntimeScheduler,
     @inject(AppContainerLifecycle)
@@ -56,17 +40,9 @@ export class WorkerRuntime {
     await this.runtimeWorkflowActivationPolicy.hydrateFromRepository(this.workflowActivationRepository);
     const workflows = [...this.workflowRepository.list()];
     await this.engine.start(workflows);
-    const workflowsById = new Map(workflows.map((workflow) => [workflow.id, workflow] as const));
     const worker = this.scheduler.createWorker({
       queues,
-      workflowsById,
-      nodeResolver: this.nodeResolver,
-      credentialSessions: this.credentialSessionService,
-      workflowExecutionRepository: this.workflowExecutionRepository,
-      continuation: this.engine,
-      binaryStorage: this.binaryStorage,
-      workflows: this.workflowRunnerService,
-      executionLimitsPolicy: this.executionLimitsPolicy,
+      requestHandler: this.engine,
     });
     return {
       stop: async () => {

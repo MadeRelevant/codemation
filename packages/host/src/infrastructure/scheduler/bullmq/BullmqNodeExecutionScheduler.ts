@@ -7,12 +7,13 @@ type QueueName = string;
 
 export class BullmqNodeExecutionScheduler implements NodeExecutionScheduler {
   private readonly connection: Readonly<Record<string, unknown>>;
-  private readonly queuePrefix: string;
   private readonly queuesByName = new Map<QueueName, Queue>();
 
-  constructor(connection: RedisConnectionConfig, queuePrefix: string = "codemation") {
+  constructor(
+    connection: RedisConnectionConfig,
+    private readonly queuePrefix: string = "codemation",
+  ) {
     this.connection = RedisConnectionOptionsFactory.fromConfig(connection);
-    this.queuePrefix = queuePrefix;
   }
 
   async enqueue(request: NodeExecutionRequest): Promise<{ receiptId: string }> {

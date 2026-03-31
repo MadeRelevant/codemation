@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { RedisConnectionOptionsFactory } from "../../../src/infrastructure/runtime/RedisConnectionOptionsFactory";
+import { RedisConnectionOptionsFactory } from "../../../src/infrastructure/scheduler/bullmq/RedisConnectionOptionsFactory";
 
 describe("RedisConnectionOptionsFactory", () => {
   it("fromUrl parses redis:// with host, port, password, and db index", () => {

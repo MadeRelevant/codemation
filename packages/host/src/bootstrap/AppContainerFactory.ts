@@ -111,7 +111,7 @@ import { AppContainerLifecycle } from "./AppContainerLifecycle";
 import { DatabaseMigrations } from "./runtime/DatabaseMigrations";
 import { FrontendRuntime } from "./runtime/FrontendRuntime";
 import { WorkerRuntime } from "./runtime/WorkerRuntime";
-import { BullmqScheduler } from "../infrastructure/runtime/BullmqScheduler";
+import { BullmqScheduler } from "../infrastructure/scheduler/bullmq/BullmqScheduler";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;

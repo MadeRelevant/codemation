@@ -1,74 +1,26 @@
 import "reflect-metadata";
 
 import type {
-  NodeActivationContinuation,
   NodeActivationId,
-  NodeResolver,
+  NodeExecutionRequest,
+  NodeExecutionRequestHandler,
   RunId,
-  RunResult,
-  TypeToken,
-  WorkflowExecutionRepository,
   WorkflowId,
 } from "@codemation/core";
-import { InMemoryWorkflowExecutionRepository } from "@codemation/core/bootstrap";
-import { Callback, CallbackNode, createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
-import { RejectingCredentialSessionService } from "@codemation/core/testing";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { BullmqNodeExecutionScheduler } from "../../../src/infrastructure/runtime/BullmqNodeExecutionScheduler";
-import { BullmqWorker } from "../../../src/infrastructure/runtime/BullmqWorker";
+import { BullmqNodeExecutionScheduler } from "../../../src/infrastructure/scheduler/bullmq/BullmqNodeExecutionScheduler";
+import { BullmqWorker } from "../../../src/infrastructure/scheduler/bullmq/BullmqWorker";
 
 const redisUrl = process.env.REDIS_URL?.trim();
 
 let bullmqQueuePrefixSequence = 0;
 
-class CallbackOnlyNodeResolver implements NodeResolver {
-  resolve<T>(token: TypeToken<unknown>): T {
-    if (token === CallbackNode) {
-      return new CallbackNode() as T;
-    }
-    throw new Error(`Unexpected node token: ${String(token)}`);
-  }
-}
+class RecordingNodeExecutionRequestHandler implements NodeExecutionRequestHandler {
+  readonly handled: NodeExecutionRequest[] = [];
 
-class OutcomeRecordingContinuation implements NodeActivationContinuation {
-  readonly completed: Array<Parameters<NodeActivationContinuation["resumeFromNodeResult"]>[0]> = [];
-
-  constructor(private readonly repository: WorkflowExecutionRepository) {}
-
-  async markNodeRunning(_args: Parameters<NodeActivationContinuation["markNodeRunning"]>[0]): Promise<void> {}
-
-  async resumeFromNodeResult(
-    args: Parameters<NodeActivationContinuation["resumeFromNodeResult"]>[0],
-  ): Promise<RunResult> {
-    this.completed.push(args);
-    const state = await this.repository.load(args.runId);
-    if (!state) {
-      throw new Error(`Missing run ${args.runId}`);
-    }
-    return {
-      runId: args.runId,
-      workflowId: state.workflowId,
-      startedAt: state.startedAt,
-      status: "completed",
-      outputs: [],
-    };
-  }
-
-  async resumeFromNodeError(
-    args: Parameters<NodeActivationContinuation["resumeFromNodeError"]>[0],
-  ): Promise<RunResult> {
-    const state = await this.repository.load(args.runId);
-    if (!state) {
-      throw new Error(`Missing run ${args.runId}`);
-    }
-    return {
-      runId: args.runId,
-      workflowId: state.workflowId,
-      startedAt: state.startedAt,
-      status: "failed",
-      error: { message: args.error.message },
-    };
+  async handleNodeExecutionRequest(request: NodeExecutionRequest): Promise<void> {
+    this.handled.push(request);
   }
 }
 
@@ -88,32 +40,12 @@ describe.skipIf(!redisUrl)("BullMQ scheduler + worker (Redis)", () => {
     bullmqQueuePrefixSequence += 1;
 
     const connection = { url: redisUrl! };
-    const repository = new InMemoryWorkflowExecutionRepository();
-    const continuation = new OutcomeRecordingContinuation(repository);
-    const workflow = createWorkflowBuilder({ id: "wf-bullmq-it", name: "bullmq-it" })
-      .trigger(new ManualTrigger("Manual", "tr"))
-      .then(new Callback("n1", undefined, "n1"))
-      .build();
-    const workflowsById = new Map<WorkflowId, typeof workflow>([[workflow.id, workflow]]);
+    const requestHandler = new RecordingNodeExecutionRequestHandler();
 
     const runId = "run-bullmq-it" as RunId;
-    const workflowId = workflow.id as WorkflowId;
-    await repository.createRun({
-      runId,
-      workflowId,
-      startedAt: "2025-01-01T00:00:00.000Z",
-    });
+    const workflowId = "wf-bullmq-it" as WorkflowId;
 
-    worker = new BullmqWorker(
-      connection,
-      ["default"],
-      workflowsById,
-      new CallbackOnlyNodeResolver(),
-      new RejectingCredentialSessionService(),
-      repository,
-      continuation,
-      queuePrefix,
-    );
+    worker = new BullmqWorker(connection, ["default"], queuePrefix, requestHandler);
     await worker.waitUntilReady();
 
     scheduler = new BullmqNodeExecutionScheduler(connection, queuePrefix);
@@ -125,11 +57,18 @@ describe.skipIf(!redisUrl)("BullMQ scheduler + worker (Redis)", () => {
       input: [{ json: { ok: true } }],
     });
 
-    for (let attempt = 0; attempt < 2400 && continuation.completed.length === 0; attempt += 1) {
+    for (let attempt = 0; attempt < 2400 && requestHandler.handled.length === 0; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
 
-    expect(continuation.completed.length).toBe(1);
-    expect(continuation.completed[0]?.outputs).toEqual({ main: [{ json: { ok: true } }] });
+    expect(requestHandler.handled).toEqual([
+      {
+        runId,
+        activationId: "act-bullmq-it",
+        workflowId,
+        nodeId: "n1",
+        input: [{ json: { ok: true } }],
+      },
+    ]);
   });
 });

@@ -106,6 +106,38 @@ test("engine can offload a node (pending) and resume later", async () => {
   assert.equal(storedDone.nodeSnapshotsByNodeId.n3?.status, "completed");
 });
 
+test("engine can execute an offloaded node through the queued execution handler", async () => {
+  const events: string[] = [];
+  const n1 = new CallbackNodeConfig("n1", () => events.push("n1"), { id: "n1" });
+  const n2 = new CallbackNodeConfig("n2", () => events.push("n2"), {
+    id: "n2",
+    execution: { hint: "worker", queue: "q.default" },
+  });
+  const n3 = new CallbackNodeConfig("n3", () => events.push("n3"), { id: "n3" });
+  const wf = chain({ id: "wf.offload.handler", name: "Offload handler" }).start(n1).then(n2).then(n3).build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const started = await kit.engine.runWorkflow(wf, "n1", items([{ a: 1 }]), undefined);
+  assert.equal(started.status, "pending");
+  await pollRunStoreUntilPendingNode(kit.runStore, started.runId, "n2");
+
+  const scheduler = kit.scheduler as CapturingScheduler;
+  assert.ok(scheduler.lastRequest);
+
+  await kit.engine.handleNodeExecutionRequest(scheduler.lastRequest);
+
+  const completed = await kit.engine.waitForCompletion(started.runId);
+  assert.equal(completed.status, "completed");
+  assert.equal(events.join(","), "n1,n2,n3");
+
+  const storedDone = await kit.runStore.load(started.runId);
+  assert.ok(storedDone);
+  assert.equal(storedDone.nodeSnapshotsByNodeId.n2?.status, "completed");
+  assert.equal(storedDone.nodeSnapshotsByNodeId.n3?.status, "completed");
+});
+
 test("engine persists workflow snapshots and execution mode metadata", async () => {
   const n1 = new CallbackNodeConfig("n1", () => {}, { id: "n1", execution: { hint: "worker" } });
   const n2 = new CallbackNodeConfig("n2", () => {}, { id: "n2" });
