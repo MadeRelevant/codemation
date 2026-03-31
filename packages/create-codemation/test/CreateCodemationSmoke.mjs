@@ -327,8 +327,6 @@ class SmokeRegistryPublisher {
     { name: "@codemation/eventbus-redis", relativeDirectory: "packages/eventbus-redis" },
     { name: "@codemation/host", relativeDirectory: "packages/host" },
     { name: "@codemation/next-host", relativeDirectory: "packages/next-host" },
-    { name: "@codemation/runtime-dev", relativeDirectory: "packages/runtime-dev" },
-    { name: "@codemation/dev-gateway", relativeDirectory: "packages/dev-gateway" },
     { name: "@codemation/cli", relativeDirectory: "packages/cli" },
     { name: "create-codemation", relativeDirectory: "packages/create-codemation" },
   ];
@@ -362,11 +360,9 @@ class CreateCodemationSmoke {
     { name: "@codemation/core", relativeDirectory: "packages/core" },
     { name: "@codemation/core-nodes", relativeDirectory: "packages/core-nodes" },
     { name: "@codemation/core-nodes-gmail", relativeDirectory: "packages/core-nodes-gmail" },
-    { name: "@codemation/dev-gateway", relativeDirectory: "packages/dev-gateway" },
     { name: "@codemation/eventbus-redis", relativeDirectory: "packages/eventbus-redis" },
     { name: "@codemation/host", relativeDirectory: "packages/host" },
     { name: "@codemation/next-host", relativeDirectory: "packages/next-host" },
-    { name: "@codemation/runtime-dev", relativeDirectory: "packages/runtime-dev" },
   ];
 
   static buildFilters = [
@@ -376,8 +372,6 @@ class CreateCodemationSmoke {
     "--filter=@codemation/eventbus-redis",
     "--filter=@codemation/host",
     "--filter=@codemation/next-host",
-    "--filter=@codemation/runtime-dev",
-    "--filter=@codemation/dev-gateway",
     "--filter=@codemation/cli",
   ];
 

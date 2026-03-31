@@ -38,8 +38,6 @@ class LocalRegistryPublisher {
     "--filter=@codemation/eventbus-redis",
     "--filter=@codemation/host",
     "--filter=@codemation/next-host",
-    "--filter=@codemation/runtime-dev",
-    "--filter=@codemation/dev-gateway",
     "--filter=@codemation/cli",
   ];
 
@@ -49,8 +47,6 @@ class LocalRegistryPublisher {
     "packages/eventbus-redis",
     "packages/host",
     "packages/next-host",
-    "packages/runtime-dev",
-    "packages/dev-gateway",
     "packages/cli",
     "packages/create-codemation",
   ];

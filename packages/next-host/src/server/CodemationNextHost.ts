@@ -161,7 +161,7 @@ export class CodemationNextHost {
   }
 
   /**
-   * Entry point for all `/api/**` traffic when the App Router route is not proxying to the dev gateway.
+   * Entry point for all `/api/**` traffic when the App Router route is not proxying to the stable dev endpoint.
    */
   async fetchApi(request: Request): Promise<Response> {
     const context = await this.prepare();

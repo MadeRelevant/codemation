@@ -207,14 +207,14 @@ Tests use **Vitest** (Vite is the test runner only; there is no Vite-based app).
 
 From the repo root, suites are grouped for **parallel** runs and a single merged coverage artifact:
 
-| Script                      | Config                                 | Scope                                                                                                                                                                             |
-| --------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm run test:unit`        | `tooling/vitest/unit.config.ts`        | Core/node packages plus `create-codemation`, `@codemation/cli`, `@codemation/dev-gateway`, `@codemation/runtime-dev`, `@codemation/next-host`, and `@codemation/host` unit suites |
-| `pnpm run test:integration` | `tooling/vitest/integration.config.ts` | `@codemation/host` HTTP/integration tests and `@codemation/cli` integration tests                                                                                                 |
-| `pnpm run test:ui`          | `tooling/vitest/ui.config.ts`          | `@codemation/host` `*.test.tsx` (jsdom)                                                                                                                                           |
-| `pnpm run test:e2e`         | `tooling/vitest/e2e.config.ts`         | `@codemation/host` e2e placeholders (`passWithNoTests` until cases exist)                                                                                                         |
-| `pnpm test`                 | —                                      | `turbo run build` then **all four** suites in parallel (`test:suites`)                                                                                                            |
-| `pnpm run coverage`         | —                                      | Runs each suite with **lcov** under `coverage/raw/{unit,integration,ui,e2e}/`, then merges to **`coverage/lcov.info`**                                                            |
+| Script                      | Config                                 | Scope                                                                                                                       |
+| --------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run test:unit`        | `tooling/vitest/unit.config.ts`        | Core/node packages plus `create-codemation`, `@codemation/cli`, `@codemation/next-host`, and `@codemation/host` unit suites |
+| `pnpm run test:integration` | `tooling/vitest/integration.config.ts` | `@codemation/host` HTTP/integration tests and `@codemation/cli` integration tests                                           |
+| `pnpm run test:ui`          | `tooling/vitest/ui.config.ts`          | `@codemation/host` `*.test.tsx` (jsdom)                                                                                     |
+| `pnpm run test:e2e`         | `tooling/vitest/e2e.config.ts`         | `@codemation/host` e2e placeholders (`passWithNoTests` until cases exist)                                                   |
+| `pnpm test`                 | —                                      | `turbo run build` then **all four** suites in parallel (`test:suites`)                                                      |
+| `pnpm run coverage`         | —                                      | Runs each suite with **lcov** under `coverage/raw/{unit,integration,ui,e2e}/`, then merges to **`coverage/lcov.info`**      |
 
 Per-package `pnpm test` remains useful for iterating on one package; the canonical full run is **`pnpm test`** from the root.
 

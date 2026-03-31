@@ -16,13 +16,13 @@ export class WatchRootsResolver {
     // feed the consumer output and packaged Next host.
     return [
       args.consumerRoot,
+      path.resolve(args.repoRoot, "packages", "cli"),
       path.resolve(args.repoRoot, "packages", "core"),
       path.resolve(args.repoRoot, "packages", "core-nodes"),
       path.resolve(args.repoRoot, "packages", "core-nodes-gmail"),
       path.resolve(args.repoRoot, "packages", "eventbus-redis"),
       path.resolve(args.repoRoot, "packages", "host"),
       path.resolve(args.repoRoot, "packages", "node-example"),
-      path.resolve(args.repoRoot, "packages", "runtime-dev"),
     ];
   }
 }

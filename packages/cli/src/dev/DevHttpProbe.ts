@@ -29,11 +29,11 @@ export class DevHttpProbe {
       }
       await delay(50);
     }
-    throw new Error("Timed out waiting for dev gateway HTTP health check.");
+    throw new Error("Timed out waiting for the stable dev HTTP health check.");
   }
 
   /**
-   * Polls until the runtime child serves bootstrap summary (after gateway is up, the disposable runtime may still be wiring).
+   * Polls until the active disposable runtime serves bootstrap summary through the stable CLI dev endpoint.
    */
   async waitUntilBootstrapSummaryReady(gatewayBaseUrl: string): Promise<void> {
     const normalizedBase = gatewayBaseUrl.replace(/\/$/, "");

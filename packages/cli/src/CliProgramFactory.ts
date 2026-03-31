@@ -27,6 +27,9 @@ import { PrismaMigrationDeployer } from "@codemation/host/persistence";
 import { DevBootstrapSummaryFetcher } from "./dev/DevBootstrapSummaryFetcher";
 import { DevCliBannerRenderer } from "./dev/DevCliBannerRenderer";
 import { DevConsumerPublishBootstrap } from "./dev/DevConsumerPublishBootstrap";
+import { CliDevProxyServerFactory } from "./dev/CliDevProxyServerFactory";
+import { DevApiRuntimeFactory } from "./dev/DevApiRuntimeFactory";
+import { DevRebuildQueueFactory } from "./dev/DevRebuildQueueFactory";
 import { DevSessionServicesBuilder } from "./dev/Builder";
 import { DevLockFactory } from "./dev/Factory";
 import { ConsumerEnvDotenvFilePredicate } from "./dev/ConsumerEnvDotenvFilePredicate";
@@ -53,6 +56,7 @@ const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
 export class CliProgramFactory {
   create(): CliProgram {
     const cliLogger = loggerFactory.create("codemation-cli");
+    const appConfigLoader = new AppConfigLoader();
     const pathResolver = new CliPathResolver();
     const pluginDiscovery = new CodemationPluginDiscovery();
     const artifactsPublisher = new ConsumerBuildArtifactsPublisher();
@@ -60,9 +64,10 @@ export class CliProgramFactory {
     const outputBuilderLoader = new ConsumerOutputBuilderLoader();
     const sourceMapNodeOptions = new SourceMapNodeOptions();
     const nextHostConsumerServerCommandFactory = new NextHostConsumerServerCommandFactory();
+    const devSessionServices = new DevSessionServicesBuilder().build();
     const tsconfigPreparation = new ConsumerCliTsconfigPreparation();
     const userAdminBootstrap = new UserAdminCliBootstrap(
-      new AppConfigLoader(),
+      appConfigLoader,
       pathResolver,
       new UserAdminConsumerDotenvLoader(),
       tsconfigPreparation,
@@ -93,12 +98,11 @@ export class CliProgramFactory {
       new BuildCommand(cliLogger, pathResolver, pluginDiscovery, artifactsPublisher, tsRuntime, outputBuilderLoader),
       new DevCommand(
         pathResolver,
-        pluginDiscovery,
         tsRuntime,
         new DevLockFactory(),
         new DevSourceWatcherFactory(),
         cliLogger,
-        new DevSessionServicesBuilder(loggerFactory).build(),
+        devSessionServices,
         databaseMigrationsApplyService,
         new DevBootstrapSummaryFetcher(),
         new DevCliBannerRenderer(),
@@ -106,6 +110,9 @@ export class CliProgramFactory {
         new ConsumerEnvDotenvFilePredicate(),
         new DevTrackedProcessTreeKiller(),
         nextHostConsumerServerCommandFactory,
+        new DevApiRuntimeFactory(devSessionServices.loopbackPortAllocator, appConfigLoader, pluginDiscovery),
+        new CliDevProxyServerFactory(),
+        new DevRebuildQueueFactory(),
       ),
       new ServeWebCommand(
         pathResolver,
@@ -121,7 +128,7 @@ export class CliProgramFactory {
         new CodemationFrontendAuthSnapshotFactory(),
         new FrontendAppConfigJsonCodec(),
       ),
-      new ServeWorkerCommand(pathResolver, new AppConfigLoader(), new AppContainerFactory()),
+      new ServeWorkerCommand(pathResolver, appConfigLoader, new AppContainerFactory()),
       new DbMigrateCommand(databaseMigrationsApplyService),
       new UserCreateCommand(new LocalUserCreator(userAdminBootstrap), userAdminCliOptionsParser),
       new UserListCommand(cliLogger, userAdminBootstrap, new CliDatabaseUrlDescriptor(), userAdminCliOptionsParser),

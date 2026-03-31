@@ -6,7 +6,7 @@
   "scripts": {
     "codemation": "tsx --tsconfig ../../tsconfig.codemation-tsx.json ../../packages/cli/src/bin.ts",
     "dev": "pnpm codemation dev --watch-framework",
-    "build": "pnpm --filter @codemation/runtime-dev build && pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js build",
+    "build": "pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "echo \"(e2e consumer — browser tests live in @codemation/host)\""
@@ -16,7 +16,6 @@
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
     "@codemation/host": "workspace:*",
-    "@codemation/runtime-dev": "workspace:*",
     "dotenv": "^17.3.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

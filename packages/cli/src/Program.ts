@@ -56,7 +56,9 @@ export class CliProgram {
 
     program
       .command("dev", { isDefault: true })
-      .description("Start the dev gateway and runtime child. Uses the packaged Codemation UI by default.")
+      .description(
+        "Start the stable dev endpoint and disposable API runtime. Uses the packaged Codemation UI by default.",
+      )
       .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
       .option("--watch-framework", "Use Next dev HMR for framework UI work inside this repository.")
       .action(async (opts: Readonly<{ consumerRoot?: string; watchFramework?: boolean }>) => {
