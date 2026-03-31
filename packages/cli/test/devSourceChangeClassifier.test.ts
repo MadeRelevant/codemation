@@ -30,12 +30,12 @@ test("shouldRepublishConsumerOutput returns false for framework package changes 
   );
 });
 
-test("requiresNextHostRestart returns true for consumer config changes", () => {
+test("requiresUiRestart returns true for consumer config changes", () => {
   const classifier = new DevSourceChangeClassifier();
   const consumerRoot = "/tmp/my-automation";
 
   assert.equal(
-    classifier.requiresNextHostRestart({
+    classifier.requiresUiRestart({
       changedPaths: [path.resolve(consumerRoot, "codemation.config.ts")],
       consumerRoot,
     }),
@@ -43,13 +43,39 @@ test("requiresNextHostRestart returns true for consumer config changes", () => {
   );
 });
 
-test("requiresNextHostRestart returns false for workflow-only changes", () => {
+test("requiresUiRestart returns false for workflow-only changes", () => {
   const classifier = new DevSourceChangeClassifier();
   const consumerRoot = "/tmp/my-automation";
 
   assert.equal(
-    classifier.requiresNextHostRestart({
+    classifier.requiresUiRestart({
       changedPaths: [path.resolve(consumerRoot, "src", "workflows", "starter", "hello.ts")],
+      consumerRoot,
+    }),
+    false,
+  );
+});
+
+test("requiresUiRestart returns true for credential changes", () => {
+  const classifier = new DevSourceChangeClassifier();
+  const consumerRoot = "/tmp/my-automation";
+
+  assert.equal(
+    classifier.requiresUiRestart({
+      changedPaths: [path.resolve(consumerRoot, "src", "credentials", "openAiCredential.ts")],
+      consumerRoot,
+    }),
+    true,
+  );
+});
+
+test("requiresUiRestart returns false for plugin-only changes", () => {
+  const classifier = new DevSourceChangeClassifier();
+  const consumerRoot = "/tmp/my-automation";
+
+  assert.equal(
+    classifier.requiresUiRestart({
+      changedPaths: [path.resolve(consumerRoot, "src", "plugins", "customPlugin.ts")],
       consumerRoot,
     }),
     false,

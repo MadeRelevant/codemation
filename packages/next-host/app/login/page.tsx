@@ -1,4 +1,3 @@
-import { CodemationNextAuthOAuthProviderSnapshotResolver } from "../../src/auth/CodemationNextAuthOAuthProviderSnapshotResolver";
 import { CodemationNextHost } from "../../src/server/CodemationNextHost";
 import { LoginPageClient } from "../../src/shell/LoginPageClient";
 
@@ -9,14 +8,29 @@ export default async function LoginPage(args: Readonly<{ searchParams: Promise<{
       ? searchParams.callbackUrl
       : "/";
   const fallbackWhitelabel = { productName: "Codemation", logoUrl: null } as const;
-  const whitelabel = await CodemationNextHost.shared.getWhitelabelSnapshot().catch(() => fallbackWhitelabel);
-  const oauthProviders = await new CodemationNextAuthOAuthProviderSnapshotResolver().resolve().catch(() => []);
-  return (
-    <LoginPageClient
-      callbackUrl={callbackUrl}
-      productName={whitelabel.productName}
-      logoUrl={whitelabel.logoUrl}
-      oauthProviders={oauthProviders}
-    />
-  );
+  try {
+    const frontendAppConfig = await CodemationNextHost.shared.getFrontendAppConfig();
+    return (
+      <LoginPageClient
+        authStatus="resolved"
+        callbackUrl={callbackUrl}
+        credentialsEnabled={frontendAppConfig.auth.credentialsEnabled}
+        productName={frontendAppConfig.productName}
+        logoUrl={frontendAppConfig.logoUrl}
+        oauthProviders={frontendAppConfig.auth.oauthProviders}
+      />
+    );
+  } catch (error) {
+    return (
+      <LoginPageClient
+        authStatus="failed"
+        authFailureMessage={error instanceof Error ? error.message : undefined}
+        callbackUrl={callbackUrl}
+        credentialsEnabled={false}
+        productName={fallbackWhitelabel.productName}
+        logoUrl={fallbackWhitelabel.logoUrl}
+        oauthProviders={[]}
+      />
+    );
+  }
 }

@@ -56,8 +56,7 @@ describe("DevNextHostEnvironmentBuilder", () => {
     expect(env.AUTH_URL).toBe("http://127.0.0.1:3000");
     expect(env.CODEMATION_RUNTIME_DEV_URL).toBe("http://127.0.0.1:3000");
     expect(env.AUTH_SECRET).toBe("dev-secret");
-    expect(env.NEXTAUTH_SECRET).toBe("dev-secret");
-    expect(env.NEXTAUTH_URL).toBe("http://127.0.0.1:3000");
+    expect(env.CODEMATION_FRONTEND_APP_CONFIG_JSON).toContain('"uiAuthEnabled":true');
     expect(env.CODEMATION_SKIP_STARTUP_MIGRATIONS).toBe("true");
     expect(env.HOSTNAME).toBe("127.0.0.1");
   });

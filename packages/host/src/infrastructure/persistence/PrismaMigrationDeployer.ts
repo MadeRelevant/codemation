@@ -7,7 +7,7 @@ import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ResolvedDatabasePersistence } from "./DatabasePersistenceResolver";
+import type { AppPersistenceConfig } from "../../presentation/config/AppConfig";
 
 /**
  * Runs `prisma migrate deploy` against TCP PostgreSQL or against a PGlite data directory
@@ -17,7 +17,7 @@ import type { ResolvedDatabasePersistence } from "./DatabasePersistenceResolver"
 export class PrismaMigrationDeployer {
   private readonly require = createRequire(import.meta.url);
 
-  async deployPersistence(persistence: ResolvedDatabasePersistence, env?: Readonly<NodeJS.ProcessEnv>): Promise<void> {
+  async deployPersistence(persistence: AppPersistenceConfig, env?: Readonly<NodeJS.ProcessEnv>): Promise<void> {
     if (persistence.kind === "none") {
       return;
     }

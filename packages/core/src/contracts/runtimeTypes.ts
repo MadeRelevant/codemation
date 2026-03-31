@@ -265,6 +265,10 @@ export interface NodeExecutionScheduler {
   cancel?(receiptId: string): Promise<void>;
 }
 
+export interface NodeExecutionRequestHandler {
+  handleNodeExecutionRequest(request: NodeExecutionRequest): Promise<void>;
+}
+
 export type NodeActivationRequestBase = Readonly<{
   runId: RunId;
   activationId: NodeActivationId;
@@ -363,6 +367,7 @@ export interface EngineDeps {
   activationScheduler: NodeActivationScheduler;
   runDataFactory: RunDataFactory;
   executionContextFactory: ExecutionContextFactory;
+  nodeExecutor: NodeExecutor;
   eventBus?: RunEventBus;
   tokenRegistry: PersistedWorkflowTokenRegistryLike;
   workflowNodeInstanceFactory: WorkflowNodeInstanceFactory;

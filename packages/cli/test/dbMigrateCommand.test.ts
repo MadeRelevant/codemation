@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ResolvedDatabasePersistence } from "@codemation/host/persistence";
+import type { AppPersistenceConfig } from "@codemation/host/persistence";
 import { expect, test } from "vitest";
 
 import { CodemationConsumerConfigLoader } from "@codemation/host/server";
@@ -25,9 +25,9 @@ const silentLogger: Logger = {
 };
 
 class RecordingMigrationDeployer {
-  public last: { persistence: ResolvedDatabasePersistence; env: NodeJS.ProcessEnv } | null = null;
+  public last: { persistence: AppPersistenceConfig; env: NodeJS.ProcessEnv } | null = null;
 
-  async deployPersistence(persistence: ResolvedDatabasePersistence, env?: Readonly<NodeJS.ProcessEnv>): Promise<void> {
+  async deployPersistence(persistence: AppPersistenceConfig, env?: Readonly<NodeJS.ProcessEnv>): Promise<void> {
     this.last = { persistence, env: { ...process.env, ...(env ?? {}) } };
   }
 }

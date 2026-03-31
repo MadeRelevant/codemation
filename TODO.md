@@ -23,7 +23,7 @@ Open items first; completed work is archived at the bottom for history.
 - [ ] Stress test webhook and measure cpu/mem and make sure they dont run out
 - [ ] Add Switch node for easy branching
 - [ ] Add documentation project
-- [ ] Consolidate packages/worker-cli within packages/cli
+- [x] Inline worker startup into the CLI/host app-container flow
 
 ### UI, URLs & sharing
 

@@ -19,7 +19,6 @@ const nextConfig: NextConfig = {
     "@codemation/eventbus-redis",
     "@codemation/host",
     "@codemation/node-example",
-    "@codemation/queue-bullmq",
   ],
   experimental: {
     externalDir: true,

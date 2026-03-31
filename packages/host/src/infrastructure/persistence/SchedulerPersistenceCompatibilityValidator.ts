@@ -1,11 +1,11 @@
-import type { ResolvedDatabasePersistence } from "./DatabasePersistenceResolver";
+import type { AppPersistenceConfig } from "../../presentation/config/AppConfig";
 import type { CodemationSchedulerKind } from "../../presentation/config/CodemationConfig";
 
 /**
  * Ensures scheduler and database selections are compatible (e.g. BullMQ requires shared TCP PostgreSQL).
  */
 export class SchedulerPersistenceCompatibilityValidator {
-  validate(args: Readonly<{ schedulerKind: CodemationSchedulerKind; persistence: ResolvedDatabasePersistence }>): void {
+  validate(args: Readonly<{ schedulerKind: CodemationSchedulerKind; persistence: AppPersistenceConfig }>): void {
     if (args.schedulerKind === "bullmq" && args.persistence.kind === "none") {
       throw new Error(
         "BullMQ requires PostgreSQL persistence. Configure runtime.database with a postgresql URL (embedded PGlite is not compatible with BullMQ).",

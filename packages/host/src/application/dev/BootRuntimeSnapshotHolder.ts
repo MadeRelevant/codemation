@@ -2,8 +2,8 @@ import { injectable } from "@codemation/core";
 import type { BootRuntimeSummary } from "./BootRuntimeSummary.types";
 
 /**
- * Holds the latest {@link BootRuntimeSummary} after {@link CodemationApplication} prepare wiring.
- * Avoids injecting {@link CodemationApplication} into dev diagnostics (circular ESM graph with assembler).
+ * Holds the latest {@link BootRuntimeSummary} after app container creation.
+ * Avoids injecting container-building services into dev diagnostics.
  */
 @injectable()
 export class BootRuntimeSnapshotHolder {

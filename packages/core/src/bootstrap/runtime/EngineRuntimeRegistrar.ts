@@ -31,6 +31,7 @@ export class EngineRuntimeRegistrar {
     this.registerSupportFactories(container);
     this.registerExecutionLimitsPolicy(container, options);
     this.ensureWorkflowNodeInstanceFactory(container);
+    this.ensureNodeExecutor(container);
     this.registerDefaultActivationScheduler(container);
     this.registerEngine(container, options);
     this.registerIntentServices(container);
@@ -81,8 +82,8 @@ export class EngineRuntimeRegistrar {
     });
   }
 
-  private registerDefaultActivationScheduler(container: DependencyContainer): void {
-    if (container.isRegistered(CoreTokens.NodeActivationScheduler, true)) {
+  private ensureNodeExecutor(container: DependencyContainer): void {
+    if (container.isRegistered(NodeExecutor, true)) {
       return;
     }
     container.register(NodeExecutor, {
@@ -95,6 +96,12 @@ export class EngineRuntimeRegistrar {
           .create(dependencyContainer.resolve(CoreTokens.WorkflowNodeInstanceFactory), retryRunner);
       }),
     });
+  }
+
+  private registerDefaultActivationScheduler(container: DependencyContainer): void {
+    if (container.isRegistered(CoreTokens.NodeActivationScheduler, true)) {
+      return;
+    }
     container.register(InlineDrivingScheduler, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         return dependencyContainer
@@ -135,6 +142,7 @@ export class EngineRuntimeRegistrar {
           activationScheduler: dependencyContainer.resolve(CoreTokens.NodeActivationScheduler),
           runDataFactory: dependencyContainer.resolve(CoreTokens.RunDataFactory),
           executionContextFactory: dependencyContainer.resolve(CoreTokens.ExecutionContextFactory),
+          nodeExecutor: dependencyContainer.resolve(NodeExecutor),
           eventBus: dependencyContainer.resolve(CoreTokens.RunEventBus),
           tokenRegistry: tokenRegistryLike,
           workflowNodeInstanceFactory,

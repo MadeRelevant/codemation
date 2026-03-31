@@ -13,7 +13,10 @@ import { OauthProviderIcon } from "../components/OauthProviderIcon";
 import { CredentialsSignInRedirectResolver } from "./CredentialsSignInRedirectResolver";
 
 type LoginPageClientProps = Readonly<{
+  authStatus: "failed" | "resolved";
   callbackUrl: string;
+  credentialsEnabled: boolean;
+  authFailureMessage?: string;
   productName: string;
   logoUrl: string | null;
   oauthProviders: ReadonlyArray<{ id: string; name: string }>;
@@ -42,8 +45,12 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
   override render(): ReactNode {
     const { isSubmitting, oauthSubmittingId } = this.state;
     const formBusy = isSubmitting || oauthSubmittingId !== null;
-    const { productName, logoUrl } = this.props;
+    const { authStatus, authFailureMessage, productName, logoUrl } = this.props;
     const titleInitial = productName.trim().length > 0 ? productName.trim().charAt(0).toUpperCase() : "C";
+    const showCredentialsForm = authStatus === "resolved" && this.props.credentialsEnabled;
+    const showOauthProviders = authStatus === "resolved" && this.props.oauthProviders.length > 0;
+    const showUnavailableMessage = authStatus === "failed";
+    const showNoProvidersMessage = authStatus === "resolved" && !showCredentialsForm && !showOauthProviders;
 
     return (
       <div
@@ -85,71 +92,84 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
             </div>
           </CardHeader>
           <CardContent>
-            <form
-              className="flex flex-col gap-4"
-              suppressHydrationWarning
-              aria-busy={isSubmitting}
-              data-testid="login-form"
-              onSubmit={(event: FormEvent) => {
-                event.preventDefault();
-                void this.submitCredentials();
-              }}
-            >
-              <div className="space-y-2" suppressHydrationWarning>
-                <Label htmlFor="codemation-login-email">Email</Label>
-                <Input
-                  id="codemation-login-email"
-                  type="email"
-                  name="email"
-                  autoComplete="username"
-                  placeholder="you@company.com"
-                  value={this.state.email}
-                  onChange={(e) => this.setState({ email: e.target.value })}
-                  required
-                  disabled={formBusy}
-                  suppressHydrationWarning
-                  data-testid="login-email"
-                />
+            {showUnavailableMessage ? (
+              <div
+                className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+                data-testid="login-auth-unavailable"
+                role="alert"
+              >
+                {authFailureMessage ?? "Sign-in options could not be loaded. Refresh the page or check the host logs."}
               </div>
-              <div className="space-y-2" suppressHydrationWarning>
-                <Label htmlFor="codemation-login-password">Password</Label>
-                <Input
-                  id="codemation-login-password"
-                  type="password"
-                  name="password"
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  value={this.state.password}
-                  onChange={(e) => this.setState({ password: e.target.value })}
-                  required
-                  disabled={formBusy}
-                  suppressHydrationWarning
-                  data-testid="login-password"
-                />
-              </div>
-              {this.state.error ? (
-                <p className="text-sm text-destructive" data-testid="login-error" role="alert">
-                  {this.state.error}
-                </p>
-              ) : null}
-              <Button type="submit" className="w-full" data-testid="login-submit" disabled={formBusy}>
-                {isSubmitting ? (
-                  <span
-                    className="mr-2 inline-block size-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"
-                    aria-hidden
-                    data-testid="login-submit-spinner"
+            ) : null}
+            {showCredentialsForm ? (
+              <form
+                className="flex flex-col gap-4"
+                suppressHydrationWarning
+                aria-busy={isSubmitting}
+                data-testid="login-form"
+                onSubmit={(event: FormEvent) => {
+                  event.preventDefault();
+                  void this.submitCredentials();
+                }}
+              >
+                <div className="space-y-2" suppressHydrationWarning>
+                  <Label htmlFor="codemation-login-email">Email</Label>
+                  <Input
+                    id="codemation-login-email"
+                    type="email"
+                    name="email"
+                    autoComplete="username"
+                    placeholder="you@company.com"
+                    value={this.state.email}
+                    onChange={(e) => this.setState({ email: e.target.value })}
+                    required
+                    disabled={formBusy}
+                    suppressHydrationWarning
+                    data-testid="login-email"
                   />
-                ) : null}
-                {isSubmitting ? "Signing in…" : "Sign in"}
-              </Button>
-            </form>
-            {this.props.oauthProviders.length > 0 ? (
-              <div className="mt-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <Separator className="flex-1" />
-                  <span className="text-xs text-muted-foreground">Or</span>
-                  <Separator className="flex-1" />
                 </div>
+                <div className="space-y-2" suppressHydrationWarning>
+                  <Label htmlFor="codemation-login-password">Password</Label>
+                  <Input
+                    id="codemation-login-password"
+                    type="password"
+                    name="password"
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    value={this.state.password}
+                    onChange={(e) => this.setState({ password: e.target.value })}
+                    required
+                    disabled={formBusy}
+                    suppressHydrationWarning
+                    data-testid="login-password"
+                  />
+                </div>
+                {this.state.error ? (
+                  <p className="text-sm text-destructive" data-testid="login-error" role="alert">
+                    {this.state.error}
+                  </p>
+                ) : null}
+                <Button type="submit" className="w-full" data-testid="login-submit" disabled={formBusy}>
+                  {isSubmitting ? (
+                    <span
+                      className="mr-2 inline-block size-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"
+                      aria-hidden
+                      data-testid="login-submit-spinner"
+                    />
+                  ) : null}
+                  {isSubmitting ? "Signing in…" : "Sign in"}
+                </Button>
+              </form>
+            ) : null}
+            {showOauthProviders ? (
+              <div className="mt-6 space-y-4">
+                {showCredentialsForm ? (
+                  <div className="flex items-center gap-3">
+                    <Separator className="flex-1" />
+                    <span className="text-xs text-muted-foreground">Or</span>
+                    <Separator className="flex-1" />
+                  </div>
+                ) : null}
                 <section className="space-y-3" aria-label="OAuth sign-in">
                   <p className="text-center text-xs text-muted-foreground">Continue with a connected account</p>
                   <div className="flex flex-col gap-2">
@@ -177,6 +197,11 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
                   </div>
                 </section>
               </div>
+            ) : null}
+            {showNoProvidersMessage ? (
+              <p className="text-sm text-muted-foreground" data-testid="login-no-auth-methods">
+                No sign-in methods are configured for this environment yet.
+              </p>
             ) : null}
           </CardContent>
           <CardFooter className="justify-center border-t bg-transparent pt-0">

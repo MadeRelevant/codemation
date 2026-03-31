@@ -5,9 +5,9 @@ import { CodemationNextHost } from "../../src/server/CodemationNextHost";
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const whitelabel = await CodemationNextHost.shared.getWhitelabelSnapshot();
+    const frontendAppConfig = await CodemationNextHost.shared.getFrontendAppConfig();
     return {
-      title: `Sign in — ${whitelabel.productName}`,
+      title: `Sign in — ${frontendAppConfig.productName}`,
     };
   } catch {
     return {

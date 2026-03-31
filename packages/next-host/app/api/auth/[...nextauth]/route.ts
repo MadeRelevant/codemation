@@ -1,3 +1,3 @@
-import { handlers } from "../../../../src/auth/codemationNextAuth";
+import { handlers } from "../../../../src/auth/nextAuth";
 
 export const { GET, POST } = handlers;

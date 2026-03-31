@@ -26,11 +26,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@codemation/dev-gateway": "workspace:*",
     "@codemation/host": "workspace:*",
     "@codemation/next-host": "workspace:*",
-    "@codemation/runtime-dev": "workspace:*",
-    "@codemation/worker-cli": "workspace:*",
+    "@hono/node-server": "^1.19.9",
     "bcryptjs": "^3.0.3",
     "boxen": "^8.0.1",
     "chalk": "^5.6.2",
@@ -38,12 +36,17 @@
     "commander": "^14.0.3",
     "dotenv": "^17.3.1",
     "figlet": "^1.11.0",
+    "hono": "^4.12.8",
+    "http-proxy": "^1.18.1",
     "reflect-metadata": "^0.2.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@codemation/eslint-config": "workspace:*",
+    "@types/http-proxy": "^1.17.15",
     "@types/node": "^25.3.5",
+    "@types/ws": "^8.18.1",
     "eslint": "^10.0.3",
     "tsdown": "^0.15.5",
     "tsx": "^4.21.0",

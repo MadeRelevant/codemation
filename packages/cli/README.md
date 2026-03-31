@@ -8,7 +8,7 @@ It is intentionally **thin**: no DI container. [`CliProgramFactory`](./src/CliPr
 
 ## How it fits in the monorepo
 
-The CLI **orchestrates** other packages. It does not embed the full Next UI or engine—it **spawns** or **calls into** them as needed.
+The CLI **orchestrates** other packages. It does not embed the full Next UI or engine, but it now owns the dev runtime control plane directly instead of delegating dev hot-swap to separate workspace packages.
 
 ```text
   Consumer project (your repo)
@@ -43,35 +43,28 @@ The CLI **orchestrates** other packages. It does not embed the full Next UI or e
            │  uses / spawns
            ▼
   ┌────────────────────┬─────────────────────┬────────────────────────────┐
-  │ @codemation/host   │ @codemation/next-host│ @codemation/dev-gateway   │
-  │ (plugin discovery, │ (production:        │ (dev: HTTP gateway binary) │
-  │  logging, workflow │  `pnpm exec next    │                            │
+  │ @codemation/host   │ @codemation/next-host│ CLI-owned dev runtime     │
+  │ (plugin discovery, │ (production:        │ (stable proxy +           │
+  │  logging, workflow │  `pnpm exec next    │  disposable API runtime)  │
   │  path helpers)     │   start` cwd)      │                            │
   └─────────┬──────────┴──────────┬──────────┴─────────────┬────────────────┘
             │                     │                      │
             │                     │                      │
             ▼                     │                      ▼
   ┌───────────────────┐           │            ┌─────────────────────┐
-  │ Engine & types     │           │            │ @codemation/        │
-  │ via host (not a    │           │            │ runtime-dev         │
-  │ direct cli dep)    │           │            │ (dev child process) │
+  │ Engine & types     │           │            │ Worker runtime      │
+  │ via host (not a    │           │            │ via CLI + host      │
+  │ direct cli dep)    │           │            │ (`serve worker`)    │
   └───────────────────┘           │            └─────────────────────┘
-                                    │
-                                    ▼
-                          ┌───────────────────┐
-                          │ @codemation/      │
-                          │ worker-cli        │
-                          │ (`serve worker`)  │
-                          └───────────────────┘
 ```
 
 **Reading the diagram**
 
 - **Vertical flow**: the binary loads `CliProgramFactory`, builds `CliProgram`, then Commander dispatches to a **command class** (`commands/*`).
-- **Horizontal row**: shared **libraries** the CLI imports for discovery, logging, and path logic; **next-host** is where `serve web` runs the production Next server; **dev-gateway** + **runtime-dev** are the dev-time split (gateway + disposable runtime child).
+- **Horizontal row**: shared **libraries** the CLI imports for discovery, logging, and path logic; **next-host** is where `serve web` runs the production Next server; the CLI now also owns the stable dev proxy and disposable in-process API runtime used by `codemation dev`. `serve worker` stays inside the CLI/host container flow instead of delegating to a separate worker package.
 - **Consumer tree**: `ConsumerOutputBuilder` transpiles sources into `.codemation/output/build` and writes the entry `index.js`; `ConsumerBuildArtifactsPublisher` writes plugins and updates the manifest consumed by the host at runtime.
 
-For **framework author vs consumer** dev modes (`CODEMATION_DEV_MODE`), see [`docs/development-modes.md`](../../docs/development-modes.md) at the repo root.
+For **default consumer dev** vs **framework UI watch mode** (`codemation dev` vs `codemation dev --watch-framework`), see [`docs/development-modes.md`](../../docs/development-modes.md) at the repo root.
 
 ---
 
@@ -87,16 +80,17 @@ For **framework author vs consumer** dev modes (`CODEMATION_DEV_MODE`), see [`do
 
 ## Commands (overview)
 
-| Command                    | Purpose                                                                                                                                                                                                                |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `codemation dev` (default) | Dev session: ports, lock, optional UI proxy, spawn **dev-gateway** + **runtime-dev**, watch consumer sources and restart on change.                                                                                    |
-| `codemation build`         | Emit consumer output under `.codemation/output/build`, discover plugins, write manifest.                                                                                                                               |
-| `codemation serve web`     | Run consumer build if needed, then **`next start`** from `@codemation/next-host` with env pointing at the manifest.                                                                                                    |
-| `codemation serve worker`  | Spawn **`@codemation/worker-cli`** in the consumer root.                                                                                                                                                               |
-| `codemation user create`   | Create/update a DB user when auth is local (uses consumer config / `DATABASE_URL`). Dispatches `UpsertLocalBootstrapUserCommand` via the host `CommandBus` (password minimum 8 characters, same as invite acceptance). |
-| `codemation user list`     | List users via `ListUserAccountsQuery` and the host `QueryBus` (same auth/DB requirements as `user create`).                                                                                                           |
+| Command                            | Purpose                                                                                                                                                                                                                |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `codemation dev` (default)         | Dev session: ports, lock, packaged UI proxy, stable CLI-owned dev endpoint, watch consumer sources, and hot-swap a disposable in-process API runtime on change.                                                        |
+| `codemation dev --watch-framework` | Framework-author dev session: same runtime/proxy flow, but runs **`next dev`** for `@codemation/next-host` UI HMR.                                                                                                     |
+| `codemation build`                 | Emit consumer output under `.codemation/output/build`, discover plugins, write manifest.                                                                                                                               |
+| `codemation serve web`             | Run consumer build if needed, then **`next start`** from `@codemation/next-host` with env pointing at the manifest.                                                                                                    |
+| `codemation serve worker`          | Load `AppConfig`, build the app container in-process, and start the configured queue-backed worker runtime.                                                                                                            |
+| `codemation user create`           | Create/update a DB user when auth is local (uses consumer config / `DATABASE_URL`). Dispatches `UpsertLocalBootstrapUserCommand` via the host `CommandBus` (password minimum 8 characters, same as invite acceptance). |
+| `codemation user list`             | List users via `ListUserAccountsQuery` and the host `QueryBus` (same auth/DB requirements as `user create`).                                                                                                           |
 
-Programmatic bootstrap: [`CodemationCliApplicationSession`](./src/bootstrap/CodemationCliApplicationSession.ts) opens `CodemationApplication` with `bootCli` (no HTTP/WebSocket); use `getCommandBus()` for other admin commands later.
+Programmatic bootstrap: [`CodemationCliApplicationSession`](./src/bootstrap/CodemationCliApplicationSession.ts) builds an app container for command/query access (no HTTP/WebSocket servers); migrations and startup side effects remain explicit after container creation.
 
 Use `codemation --help` and `codemation <command> --help` for flags (`--consumer-root`, build targets, etc.).
 

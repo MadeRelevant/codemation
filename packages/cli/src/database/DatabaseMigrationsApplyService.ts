@@ -1,5 +1,5 @@
 import { CodemationConsumerConfigLoader } from "@codemation/host/server";
-import type { ResolvedDatabasePersistence } from "@codemation/host/persistence";
+import type { AppPersistenceConfig } from "@codemation/host/persistence";
 import type { Logger } from "@codemation/host/next/server";
 import path from "node:path";
 
@@ -9,7 +9,7 @@ import type { CliDatabaseUrlDescriptor } from "../user/CliDatabaseUrlDescriptor"
 import type { UserAdminConsumerDotenvLoader } from "../user/UserAdminConsumerDotenvLoader";
 
 export type DatabaseMigrationDeployer = {
-  deployPersistence(persistence: ResolvedDatabasePersistence, env?: Readonly<NodeJS.ProcessEnv>): Promise<void>;
+  deployPersistence(persistence: AppPersistenceConfig, env?: Readonly<NodeJS.ProcessEnv>): Promise<void>;
 };
 
 /**

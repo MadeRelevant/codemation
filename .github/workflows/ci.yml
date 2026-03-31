@@ -44,7 +44,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
 
       - name: Install dependencies
@@ -73,10 +73,12 @@ jobs:
           - name: Template interactive Verdaccio smoke
             command: test:interactive-verdaccio-smoke
     container:
-      image: node:22-bookworm
+      image: node:24-bookworm
 
     steps:
       - name: Install container prerequisites
+        # `script` (util-linux) is required by the interactive smoke test; keep Python/build tools as
+        # native-module fallback for dependency installs inside the bare Node container.
         run: apt-get update && apt-get install -y git util-linux python3 make g++
 
       - name: Checkout
@@ -140,7 +142,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
 
       - name: Install dependencies

@@ -57,11 +57,15 @@ export class CliProgram {
     program
       .command("dev", { isDefault: true })
       .description(
-        "Start the dev gateway and runtime child. Default consumer mode uses the packaged Codemation UI; use CODEMATION_DEV_MODE=framework for Next dev HMR when working on the host itself.",
+        "Start the stable dev endpoint and disposable API runtime. Uses the packaged Codemation UI by default.",
       )
       .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
-      .action(async (opts: Readonly<{ consumerRoot?: string }>) => {
-        await this.devCommand.execute(resolveConsumerRoot(opts.consumerRoot));
+      .option("--watch-framework", "Use Next dev HMR for framework UI work inside this repository.")
+      .action(async (opts: Readonly<{ consumerRoot?: string; watchFramework?: boolean }>) => {
+        await this.devCommand.execute({
+          consumerRoot: resolveConsumerRoot(opts.consumerRoot),
+          watchFramework: opts.watchFramework === true,
+        });
       });
 
     const serve = program.command("serve").description("Run production web or worker processes (no dev watchers).");
