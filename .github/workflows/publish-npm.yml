@@ -3,7 +3,9 @@ name: Publish npm
 on:
   push:
     tags:
+      # Match release tags like v0.0.7 and bare semver like 0.0.6 (fnmatch; quote so YAML does not treat * as alias).
       - "v*"
+      - "*.*.*"
 
 permissions:
   contents: read
