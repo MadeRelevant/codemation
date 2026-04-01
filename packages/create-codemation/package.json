@@ -6,6 +6,11 @@
   },
   "author": "Made Relevant B.V.",
   "homepage": "https://www.maderelevant.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MadeRelevant/codemation.git",
+    "directory": "packages/create-codemation"
+  },
   "description": "Scaffold a Codemation consumer application (npm create codemation)",
   "keywords": [
     "codemation",

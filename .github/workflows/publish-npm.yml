@@ -39,7 +39,11 @@ jobs:
       - name: Build
         run: pnpm exec turbo run build
 
-      # Publishes every workspace package under packages/ with "private": false.
-      # Trusted publishing (OIDC): enable the GitHub Actions publisher for this repo in npm; no NPM_TOKEN secret.
+      # Trusted publishing (OIDC): each published package needs:
+      # - GitHub Actions trusted publisher on npmjs.com (Package → Settings → Trusted publishing): repo
+      #   MadeRelevant/codemation, workflow file publish-npm.yml (name must match exactly).
+      # - package.json "repository.url" matching this repo (see packages/*/package.json).
+      # 404 / ENEEDAUTH from the registry often means OIDC trust mismatch, not a missing tarball.
+      # Requires npm CLI ≥ 11.5.1 (Node 24 images satisfy this).
       - name: Publish to npm
         run: pnpm publish -r --access public --no-git-checks --filter "./packages/*"

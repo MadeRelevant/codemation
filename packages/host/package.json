@@ -6,6 +6,11 @@
   },
   "author": "Made Relevant B.V.",
   "homepage": "https://www.maderelevant.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MadeRelevant/codemation.git",
+    "directory": "packages/host"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
