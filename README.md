@@ -95,6 +95,7 @@ Layout and package-level notes: [`docs/development-modes.md`](docs/development-m
 | Doc                                                      | Use when                                                     |
 | -------------------------------------------------------- | ------------------------------------------------------------ |
 | [`AGENTS.md`](AGENTS.md)                                 | You **change** the framework: architecture rules, tests, DI. |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md)                     | Branches, PRs, and what runs locally vs in CI.               |
 | [`docs/development-modes.md`](docs/development-modes.md) | You work **inside** this repo vs a standalone consumer app.  |
 
 ---
