@@ -1,6 +1,6 @@
 ---
 title: AI Agent
-description: Run an LLM-backed workflow step with a prompt, chat model, and optional tools.
+description: Run an LLM-backed workflow step with ordered messages, a chat model, optional tools, and guardrails.
 ---
 
 # AI Agent
@@ -9,17 +9,27 @@ description: Run an LLM-backed workflow step with a prompt, chat model, and opti
 
 `AIAgent` runs a model against each workflow item. It is the main built-in node for classification, extraction, summarization, routing, and tool-enabled agent flows.
 
+Construct it with an **options object**: required `name`, `messages`, and `chatModel`; optional `tools`, `guardrails`, `id`, and `retryPolicy`. See the [AI Agent workflow guide](/docs/workflows/ai-agent) for message shapes, node-backed tools, and turn limits.
+
 ## Examples
 
 ### Basic usage: classify inbound mail into RFQ or other
 
 ```ts
-new AIAgent<{ subject: string; body: string }, { outcome: "rfq" | "other"; reasoning: string }>(
-  "Classify RFQ vs other",
-  'Respond with strict JSON only. Shape: {"outcome":"rfq"|"other","reasoning":"..."}',
-  (item) => JSON.stringify(item.json),
-  openAiChatModelPresets.demoGpt4oMini,
-);
+new AIAgent<{ subject: string; body: string }, { outcome: "rfq" | "other"; summary: string }>({
+  name: "Classify RFQ vs other",
+  messages: [
+    {
+      role: "system",
+      content: 'Respond with strict JSON only. Shape: {"outcome":"rfq"|"other","summary":"..."}',
+    },
+    {
+      role: "user",
+      content: ({ item }) => JSON.stringify(item.json),
+    },
+  ],
+  chatModel: openAiChatModelPresets.demoGpt4oMini,
+});
 ```
 
 Example input:
@@ -36,20 +46,25 @@ Example output:
 ```json
 {
   "outcome": "rfq",
-  "reasoning": "The sender is explicitly requesting a quote."
+  "summary": "The sender is explicitly requesting a quote."
 }
 ```
 
 ### Advanced usage: use tools before returning a structured answer
 
 ```ts
-new AIAgent(
-  "Answer with product context",
-  "Use the available tools when needed, then answer with a final structured result.",
-  (item) => JSON.stringify(item.json),
-  openAiChatModelPresets.demoGpt4oMini,
-  [new SearchDocsToolConfig(), new PricingLookupToolConfig()],
-);
+new AIAgent({
+  name: "Answer with product context",
+  messages: [
+    {
+      role: "system",
+      content: "Use the available tools when needed, then answer with a final structured result.",
+    },
+    { role: "user", content: ({ item }) => JSON.stringify(item.json) },
+  ],
+  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  tools: [new SearchDocsToolConfig(), new PricingLookupToolConfig()],
+});
 ```
 
 Example input:
@@ -69,3 +84,7 @@ Example output:
   "monthlyPrice": 99
 }
 ```
+
+## See also
+
+- [AI Agent workflow guide](/docs/workflows/ai-agent) — full configuration, guardrails, and tools
