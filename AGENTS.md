@@ -5,6 +5,8 @@ The goal is a pluggable architecture with strict maintainability standards: clea
 
 This document sets the “golden standard” for how we build and review changes in this repo.
 
+**Contribution workflow (branches, PRs, local vs CI checks):** see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 ## Monorepo structure
 
 ### Apps
