@@ -11,24 +11,27 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { WorkflowCredentialNodeResolver } from "../../src/domain/credentials/WorkflowCredentialNodeResolver";
 
+const agentMessages = [
+  { role: "system" as const, content: "You are helpful." },
+  { role: "user" as const, content: "Inspect this item." },
+];
+
 describe("WorkflowCredentialNodeResolver", () => {
   const resolver = new WorkflowCredentialNodeResolver();
 
-  it("lists connection-shaped LLM node ids when workflow has no connection metadata (legacy)", () => {
+  it("lists connection-shaped LLM node ids when workflow has no connection metadata", () => {
     const workflow = createWorkflowBuilder({
       id: "wf.ai.attachments",
       name: "AI attachments",
     })
       .trigger(new ManualTrigger("Start", "trig"))
       .then(
-        new AIAgent(
-          "Agent",
-          "You are helpful.",
-          (item) => JSON.stringify(item.json ?? {}),
-          new OpenAIChatModelConfig("OpenAI", "gpt-4.1-mini"),
-          [],
-          "agent_1",
-        ),
+        new AIAgent({
+          name: "Agent",
+          messages: agentMessages,
+          chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4.1-mini"),
+          id: "agent_1",
+        }),
       )
       .build();
 
@@ -45,14 +48,12 @@ describe("WorkflowCredentialNodeResolver", () => {
     })
       .trigger(new ManualTrigger("Start", "trig"))
       .then(
-        new AIAgent(
-          "Agent",
-          "You are helpful.",
-          (item) => JSON.stringify(item.json ?? {}),
-          new OpenAIChatModelConfig("OpenAI", "gpt-4.1-mini"),
-          [],
-          "agent_1",
-        ),
+        new AIAgent({
+          name: "Agent",
+          messages: agentMessages,
+          chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4.1-mini"),
+          id: "agent_1",
+        }),
       )
       .build();
     const workflow = new AIAgentConnectionWorkflowExpander(new ConnectionCredentialNodeConfigFactory()).expand(raw);
@@ -68,14 +69,12 @@ describe("WorkflowCredentialNodeResolver", () => {
     })
       .trigger(new ManualTrigger("Start", "trig"))
       .then(
-        new AIAgent(
-          "My agent",
-          "You are helpful.",
-          (item) => JSON.stringify(item.json ?? {}),
-          new OpenAIChatModelConfig("OpenAI", "gpt-4.1-mini", "openai"),
-          [],
-          "agent_1",
-        ),
+        new AIAgent({
+          name: "My agent",
+          messages: agentMessages,
+          chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4.1-mini", "openai"),
+          id: "agent_1",
+        }),
       )
       .build();
 
@@ -91,14 +90,12 @@ describe("WorkflowCredentialNodeResolver", () => {
     })
       .trigger(new ManualTrigger("Start", "trig"))
       .then(
-        new AIAgent(
-          "Agent",
-          "You are helpful.",
-          (item) => JSON.stringify(item.json ?? {}),
-          new OpenAIChatModelConfig("OpenAI", "gpt-4.1-mini", "openai"),
-          [],
-          "agent_1",
-        ),
+        new AIAgent({
+          name: "Agent",
+          messages: agentMessages,
+          chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4.1-mini", "openai"),
+          id: "agent_1",
+        }),
       )
       .build();
 
@@ -116,14 +113,12 @@ describe("WorkflowCredentialNodeResolver", () => {
     })
       .trigger(new ManualTrigger("Start", "trig"))
       .then(
-        new AIAgent(
-          "Agent",
-          "You are helpful.",
-          (item) => JSON.stringify(item.json ?? {}),
-          new OpenAIChatModelConfig("OpenAI", "gpt-4.1-mini", "openai"),
-          [],
-          "agent_1",
-        ),
+        new AIAgent({
+          name: "Agent",
+          messages: agentMessages,
+          chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4.1-mini", "openai"),
+          id: "agent_1",
+        }),
       )
       .build();
     const workflow = new AIAgentConnectionWorkflowExpander(new ConnectionCredentialNodeConfigFactory()).expand(raw);

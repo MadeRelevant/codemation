@@ -19,7 +19,7 @@ import type {
   TypeToken,
 } from "../../src/index.ts";
 import { PersistedWorkflowTokenRegistry } from "../../src/bootstrap/index.ts";
-import { WorkflowBuilder, chatModel, node, tool } from "../../src/index.ts";
+import { AgentToolFactory, WorkflowBuilder, chatModel, node, tool } from "../../src/index.ts";
 import { InMemoryLiveWorkflowRepository, PersistedWorkflowSnapshotFactory } from "../../src/testing.ts";
 import { MissingRuntimeFallbacks } from "../../src/workflowSnapshots/MissingRuntimeFallbacksFactory";
 import { WorkflowSnapshotCodec } from "../../src/workflowSnapshots/WorkflowSnapshotCodec";
@@ -73,6 +73,33 @@ class StableTool implements Tool<StableToolConfig> {
   }
 }
 
+class StableToolNodeConfig implements RunnableNodeConfig<Record<string, unknown>, Record<string, unknown>> {
+  readonly kind = "node" as const;
+  readonly type: TypeToken<unknown> = StableToolNode;
+
+  constructor(
+    public readonly name: string,
+    public readonly id?: string,
+  ) {}
+}
+
+@node({ packageName: "@codemation/test" })
+class StableToolNode implements Node<StableToolNodeConfig> {
+  readonly kind = "node" as const;
+  readonly outputPorts = ["main"] as const;
+
+  async execute(itemsIn: Items, _ctx: NodeExecutionContext<StableToolNodeConfig>): Promise<NodeOutputs> {
+    return {
+      main: itemsIn.map((item) => ({
+        json: {
+          echoed: (item.json as Record<string, unknown>).query ?? "missing",
+          fromNode: true,
+        },
+      })),
+    };
+  }
+}
+
 class StableResolvableNodeConfig implements RunnableNodeConfig<Record<string, unknown>, Record<string, unknown>> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = StableResolvableNode;
@@ -80,7 +107,7 @@ class StableResolvableNodeConfig implements RunnableNodeConfig<Record<string, un
   constructor(
     public readonly name: string,
     public readonly chatModel: StableChatModelConfig,
-    public readonly tools: ReadonlyArray<StableToolConfig>,
+    public readonly tools: ReadonlyArray<ToolConfig>,
     public readonly id?: string,
   ) {}
 }
@@ -95,8 +122,7 @@ class StableResolvableNode implements Node<StableResolvableNodeConfig> {
   async execute(itemsIn: Items, ctx: NodeExecutionContext<StableResolvableNodeConfig>): Promise<NodeOutputs> {
     const chatModelFactory = this.nodeResolver.resolve(ctx.config.chatModel.type) as StableChatModelFactory;
     const resolvedToolNames = ctx.config.tools.map((toolConfig) => {
-      const tool = this.nodeResolver.resolve(toolConfig.type) as StableTool;
-      assert.ok(tool instanceof StableTool);
+      assert.ok(this.nodeResolver.resolve(toolConfig.type));
       return toolConfig.name;
     });
 
@@ -121,7 +147,23 @@ class StableWorkflowFixtureFactory {
         new StableResolvableNodeConfig(
           "Resolve dependencies",
           new StableChatModelConfig("Stable chat model"),
-          [new StableToolConfig("lookup_tool", "Lookup tool")],
+          [
+            new StableToolConfig("lookup_tool", "Lookup tool"),
+            AgentToolFactory.asTool(new StableToolNodeConfig("Echo node"), {
+              name: "node_lookup_tool",
+              description: "Lookup via node-backed tool",
+              inputSchema: {
+                parse(input: unknown): unknown {
+                  return input;
+                },
+              } as Tool<StableToolConfig>["inputSchema"],
+              outputSchema: {
+                parse(input: unknown): unknown {
+                  return input;
+                },
+              } as Tool<StableToolConfig>["outputSchema"],
+            }),
+          ],
           "resolve",
         ),
       )
@@ -145,6 +187,7 @@ test("workflow builder produces a compiled workflow whose node and nested depend
     [StableResolvableNode, new StableResolvableNode(container)],
     [StableChatModelFactory, new StableChatModelFactory()],
     [StableTool, new StableTool()],
+    [StableToolNode, new StableToolNode()],
   ]);
   const kit = createEngineTestKit({ container, providers });
 
@@ -171,7 +214,7 @@ test("workflow builder produces a compiled workflow whose node and nested depend
       {
         hello: "world",
         resolvedChatModel: "Stable chat model",
-        resolvedTools: ["lookup_tool"],
+        resolvedTools: ["lookup_tool", "node_lookup_tool"],
       },
     ],
   );
@@ -208,6 +251,12 @@ test("builder snapshot roundtrip preserves persisted workflow identity without d
   const configRecord = SnapshotConfigReader.asRecord(nodeSnapshot.config);
   const chatModelRecord = SnapshotConfigReader.asRecord(configRecord.chatModel);
   const toolRecord = SnapshotConfigReader.asRecord((configRecord.tools as ReadonlyArray<unknown> | undefined)?.[0]);
+  const nodeBackedToolRecord = SnapshotConfigReader.asRecord(
+    (configRecord.tools as ReadonlyArray<unknown> | undefined)?.[1],
+  );
+  const nestedNodeRecord = SnapshotConfigReader.asRecord(nodeBackedToolRecord.node);
   assert.equal(chatModelRecord.tokenId, "@codemation/test::StableChatModelFactory");
   assert.equal(toolRecord.tokenId, "@codemation/test::StableTool");
+  assert.equal(nodeBackedToolRecord.tokenId, "@codemation/test::StableToolNode");
+  assert.equal(nestedNodeRecord.tokenId, "@codemation/test::StableToolNode");
 });

@@ -131,12 +131,18 @@ export default createWorkflowBuilder({
     ),
   )
   .then(
-    new AIAgent<TriageEmailAggregateJson, TriageEmailAggregateJson & TriageClassifyJson>(
-      "Classify RFQ vs other",
-      'You triage incoming mail for sales. You receive one JSON object with subject, from, to, cc, message (snippet/preview), and attachments (each with filename, mimetype, OCR content, and structured invoice fields). Decide if this is an RFQ (request for quote / pricing / bid) versus other. Respond with strict JSON only, no markdown. Shape: {"outcome":"rfq"|"other","reasoning":"…"}. The reasoning field must be a concise plain-text explanation (one to three short sentences) citing the strongest signals you used (subject, body/snippet, attachment types, OCR text or invoice fields).',
-      (item) => JSON.stringify(item.json),
-      openAiChatModelPresets.demoGpt4oMini,
-    ),
+    new AIAgent<TriageEmailAggregateJson, TriageEmailAggregateJson & TriageClassifyJson>({
+      name: "Classify RFQ vs other",
+      messages: [
+        {
+          role: "system",
+          content:
+            'You triage incoming mail for sales. You receive one JSON object with subject, from, to, cc, message (snippet/preview), and attachments (each with filename, mimetype, OCR content, and structured invoice fields). Decide if this is an RFQ (request for quote / pricing / bid) versus other. Respond with strict JSON only, no markdown. Shape: {"outcome":"rfq"|"other","reasoning":"…"}. The reasoning field must be a concise plain-text explanation (one to three short sentences) citing the strongest signals you used (subject, body/snippet, attachment types, OCR text or invoice fields).',
+        },
+        { role: "user", content: ({ item }) => JSON.stringify(item.json) },
+      ],
+      chatModel: openAiChatModelPresets.demoGpt4oMini,
+    }),
   )
   .then(
     new If<TriageEmailAggregateJson & TriageClassifyJson>("Is RFQ?", (item) => {

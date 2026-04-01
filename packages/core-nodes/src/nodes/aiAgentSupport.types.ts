@@ -1,4 +1,11 @@
-import type { AgentToolCall, Item, NodeInputsByPort, Tool, ToolConfig, ZodSchemaAny } from "@codemation/core";
+import type {
+  AgentToolCall,
+  Item,
+  NodeInputsByPort,
+  ToolConfig,
+  ToolExecuteArgs,
+  ZodSchemaAny,
+} from "@codemation/core";
 import type { DynamicStructuredTool } from "@langchain/core/tools";
 
 export class AgentItemPortMap {
@@ -9,7 +16,11 @@ export class AgentItemPortMap {
 
 export type ResolvedTool = Readonly<{
   config: ToolConfig;
-  tool: Tool<ToolConfig, ZodSchemaAny, ZodSchemaAny>;
+  runtime: Readonly<{
+    defaultDescription: string;
+    inputSchema: ZodSchemaAny;
+    execute(args: ToolExecuteArgs<ToolConfig, unknown>): Promise<unknown>;
+  }>;
 }>;
 
 export type ItemScopedToolBinding = Readonly<{

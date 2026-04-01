@@ -1,0 +1,286 @@
+<<<<<<< Current (Your changes)
+=======
+---
+title: AI Agent
+description: Use the built-in AIAgent node for structured prompting, multi-turn tool use, node-backed tools, and explicit execution guardrails.
+---
+
+# AI Agent
+
+`AIAgent` is the built-in node for model-backed workflow steps.
+
+Use it when a workflow item needs:
+
+- classification
+- extraction
+- routing
+- summarization
+- tool-backed reasoning
+
+The agent still runs once per workflow item, with explicit message authoring, multi-turn tool use, and optional turn limits.
+
+## Configuration
+
+`AIAgent` is constructed with an options object. You always supply `name`, `messages`, and `chatModel`; optional fields include `tools`, `guardrails`, `id`, and `retryPolicy`.
+
+```ts
+new AIAgent<{ subject: string; body: string }, { outcome: "rfq" | "other"; summary: string }>({
+  name: "Classify RFQ vs other",
+  messages: [
+    {
+      role: "system",
+      content:
+        'You triage incoming mail. Return strict JSON only with shape {"outcome":"rfq"|"other","summary":"..."}',
+    },
+    {
+      role: "user",
+      content: ({ item }) => JSON.stringify(item.json),
+    },
+  ],
+  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  guardrails: {
+    maxTurns: 10,
+  },
+});
+```
+
+## Message authoring
+
+`messages` is usually a **plain array** of `{ role, content }` in chat order. Each `content` is either a string or a function `(args) => string` that receives the current item, index, batch, and execution context—handy for serializing `item.json`.
+
+When you need **both** fixed lines and a separate `buildMessages` callback (appended after `prompt`), use an object:
+
+- `prompt`: optional ordered lines (same shape as the array form)
+- `buildMessages`: optional callback returning extra `AgentMessageDto` rows
+
+The supported roles are:
+
+- `system`
+- `user`
+- `assistant`
+
+Example with `prompt` plus `buildMessages`:
+
+```ts
+new AIAgent({
+  name: "Prepare support response",
+  messages: {
+    prompt: [
+      { role: "system", content: "Answer as a support triage assistant. Return JSON only." },
+      { role: "user", content: ({ item }) => `Inbound mail:\n${item.json.body}` },
+    ],
+    buildMessages: ({ itemIndex, items }) => [
+      {
+        role: "assistant",
+        content: `This is item ${itemIndex + 1} of ${items.length}.`,
+      },
+    ],
+  },
+  chatModel: openAiChatModelPresets.demoGpt4oMini,
+});
+```
+
+Use a plain array when everything fits one list. Use the object form when you want callback-built messages appended after `prompt`.
+
+## Recommended output pattern
+
+For workflow automation, return compact JSON instead of prose whenever possible.
+
+Good examples:
+
+- `{ "outcome": "rfq", "reasoning": "..." }`
+- `{ "route": "support", "priority": "high" }`
+- `{ "customerName": "...", "invoiceNumber": "..." }`
+
+This keeps downstream `If`, `MapData`, `HttpRequest`, and custom nodes deterministic.
+
+## Tools
+
+An agent can attach normal tool configs or node-backed tools.
+
+Two rules still matter:
+
+- tool names must be unique inside the agent
+- multiple tool calls in one round are executed in parallel
+
+### When to use a normal custom tool
+
+Use a normal `ToolConfig` + `Tool` implementation when:
+
+- the capability only exists for agent use
+- the input and output shape is tool-specific
+- the runtime does not naturally belong in a reusable workflow node
+
+### When to use a node-backed tool
+
+Use a node-backed tool when you already have a runnable node and want to expose it to the agent without writing a second adapter class.
+
+The default adapter behavior is:
+
+- the tool input becomes one node input item
+- the wrapped node runs through DI using its normal node token
+- the first `main` output item becomes the tool result
+
+Example:
+
+```ts
+const lookupCustomerTool = AgentToolFactory.asTool(new LookupCustomerNodeConfig("Lookup customer"), {
+  name: "lookup_customer",
+  description: "Look up the current customer record.",
+  inputSchema: z.object({
+    customerId: z.string(),
+  }),
+  outputSchema: z.object({
+    customerName: z.string(),
+    accountTier: z.string(),
+  }),
+});
+
+new AIAgent({
+  name: "Answer with customer context",
+  messages: [
+    { role: "system", content: "Use tools when needed. Return JSON only." },
+    { role: "user", content: ({ item }) => JSON.stringify(item.json) },
+  ],
+  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  tools: [lookupCustomerTool],
+});
+```
+
+### Reusing the current workflow item in tool input
+
+Use `mapInput` when the model supplies only part of the node input and the rest should come from the current workflow item.
+
+```ts
+const classifyMailTool = AgentToolFactory.asTool(new ClassifyMailNodeConfig("Classify mail"), {
+  name: "classify_mail",
+  description: "Classify the current mail as RFQ or not.",
+  inputSchema: z.object({
+    bodyHint: z.string(),
+  }),
+  outputSchema: z.object({
+    isRfq: z.boolean(),
+    reason: z.string(),
+  }),
+  mapInput: ({ input, item }) => ({
+    subject: String(item.json.subject ?? ""),
+    body: input.bodyHint,
+  }),
+});
+```
+
+Use `mapOutput` when the wrapped node returns more than the tool should expose back to the model.
+
+## Credentials
+
+Chat models and tools can both declare credential requirements.
+
+That means one agent can have:
+
+- one language model credential slot
+- zero or more tool credential slots
+
+Each attachment is tracked as its own connection-owned child node in the workflow graph and runtime state.
+
+## Guardrails
+
+Agent-level guardrails are configured on `guardrails`.
+
+The main control is `maxTurns`: each **turn** is one model invocation for the item (including a round that only plans tool calls). Tool calls in parallel still count as part of that turn; the next turn starts after tool results are appended to the conversation.
+
+**Default:** `maxTurns` defaults to **10**—a practical safety budget so the model can alternate between answering and calling tools without running forever (many tool-agent UIs use a similar default iteration cap). If the model still wants to call tools when the cap is hit, Codemation either throws (`onTurnLimitReached: "error"`, the default) or returns the last assistant message (`"respondWithLastMessage"`), depending on configuration.
+
+```ts
+new AIAgent({
+  name: "Support agent",
+  messages: [
+    { role: "system", content: "Use tools carefully. Return JSON only." },
+    { role: "user", content: ({ item }) => JSON.stringify(item.json) },
+  ],
+  chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
+  guardrails: {
+    maxTurns: 3,
+    onTurnLimitReached: "error",
+    modelInvocationOptions: {
+      maxTokens: 800,
+    },
+  },
+});
+```
+
+Use guardrails to control:
+
+- how many model rounds the agent may take per item
+- what happens if the turn cap is reached while tool calls are still pending
+- per-call model invocation options when the provider supports them
+
+If you omit `guardrails`, the built-in default remains bounded (10 turns) rather than unbounded.
+
+## Practical patterns
+
+### Classification
+
+```ts
+new AIAgent({
+  name: "Classify inbox message",
+  messages: [
+    {
+      role: "system",
+      content:
+        'Return strict JSON only. Shape: {"category":"sales"|"support"|"spam","reasoning":"..."}',
+    },
+    {
+      role: "user",
+      content: ({ item }) =>
+        JSON.stringify({
+          subject: item.json.subject,
+          body: item.json.body,
+        }),
+    },
+  ],
+  chatModel: openAiChatModelPresets.demoGpt4oMini,
+});
+```
+
+### Tool-backed answering
+
+```ts
+new AIAgent({
+  name: "Answer with policy context",
+  messages: [
+    { role: "system", content: "Use tools for policy lookup. Return JSON only." },
+    { role: "user", content: ({ item }) => JSON.stringify(item.json) },
+  ],
+  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  tools: [lookupCustomerTool, searchDocsTool],
+  guardrails: {
+    maxTurns: 3,
+  },
+});
+```
+
+## What comes out of the node
+
+The agent still emits workflow items on `main`.
+
+In practice:
+
+- plain text becomes `{ output: "..." }`
+- valid JSON content is parsed into structured workflow JSON
+- tool-enabled flows still end with one final agent response
+
+## Good defaults
+
+- Keep prompts narrow and domain-specific.
+- Prefer strict JSON outputs for automation.
+- Use node-backed tools when you already have a good reusable node.
+- Use custom tools when the capability is agent-only.
+- Lower `maxTurns` when the task should be a single-shot classification; raise it when the model needs several tool rounds (defaults are aligned with common “max iterations” tooling defaults).
+- Follow `AIAgent` with deterministic nodes that act on the result.
+
+## Continue with
+
+1. [Built-in nodes](/docs/workflows/built-in-nodes)
+2. [Custom nodes](/docs/workflows/custom-nodes)
+3. [Plugin developers](/docs/plugin-developers)
+>>>>>>> Incoming (Background Agent changes)

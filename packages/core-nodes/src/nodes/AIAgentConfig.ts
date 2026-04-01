@@ -1,17 +1,26 @@
 import {
   RetryPolicy,
+  type AgentGuardrailConfig,
+  type AgentMessageConfig,
   type AgentNodeConfig,
   type ChatModelConfig,
-  type Item,
-  type Items,
-  type NodeExecutionContext,
   type RetryPolicySpec,
   type RunnableNodeConfig,
   type ToolConfig,
   type TypeToken,
 } from "@codemation/core";
 
-import { AIAgentNode } from "./AIAgentNodeFactory";
+import { AIAgentNode } from "./AIAgentNode";
+
+export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown> {
+  readonly name: string;
+  readonly messages: AgentMessageConfig<TInputJson>;
+  readonly chatModel: ChatModelConfig;
+  readonly tools?: ReadonlyArray<ToolConfig>;
+  readonly id?: string;
+  readonly retryPolicy?: RetryPolicySpec;
+  readonly guardrails?: AgentGuardrailConfig;
+}
 
 /**
  * AI agent: credential bindings are keyed to connection-owned LLM/tool node ids (ConnectionNodeIdFactory),
@@ -24,19 +33,21 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
   readonly type: TypeToken<unknown> = AIAgentNode;
   readonly execution = { hint: "local" } as const;
   readonly icon = "lucide:bot" as const;
+  readonly name: string;
+  readonly messages: AgentMessageConfig<TInputJson>;
+  readonly chatModel: ChatModelConfig;
+  readonly tools: ReadonlyArray<ToolConfig>;
+  readonly id?: string;
+  readonly retryPolicy: RetryPolicySpec;
+  readonly guardrails?: AgentGuardrailConfig;
 
-  constructor(
-    public readonly name: string,
-    public readonly systemMessage: string,
-    public readonly userMessageFormatter: (
-      item: Item<TInputJson>,
-      index: number,
-      items: Items<TInputJson>,
-      ctx: NodeExecutionContext<AIAgent<TInputJson, TOutputJson>>,
-    ) => string,
-    public readonly chatModel: ChatModelConfig,
-    public readonly tools: ReadonlyArray<ToolConfig> = [],
-    public readonly id?: string,
-    public readonly retryPolicy: RetryPolicySpec = RetryPolicy.defaultForAiAgent,
-  ) {}
+  constructor(options: AIAgentOptions<TInputJson, TOutputJson>) {
+    this.name = options.name;
+    this.messages = options.messages;
+    this.chatModel = options.chatModel;
+    this.tools = options.tools ?? [];
+    this.id = options.id;
+    this.retryPolicy = options.retryPolicy ?? RetryPolicy.defaultForAiAgent;
+    this.guardrails = options.guardrails;
+  }
 }

@@ -1,0 +1,242 @@
+<<<<<<< Current (Your changes)
+=======
+---
+title: Plugin Developers
+description: Build reusable Codemation plugins with custom nodes, credentials, and AI-tool-ready node packages.
+---
+
+# Plugin Developers
+
+This page is for authors who want to package reusable workflow capabilities, not just wire one app-local node.
+
+Use it when you want to:
+
+- publish a node package
+- ship reusable credential-aware integrations
+- expose existing nodes as AI tools
+- keep a stable plugin surface across projects
+
+## What a plugin usually contains
+
+A practical plugin package often includes:
+
+- one or more config classes
+- one or more runtime node classes
+- optional credential types
+- exports that make registration straightforward for consumers
+
+Typical structure:
+
+```text
+packages/node-my-feature/
+  src/
+    MyNodeConfig.ts
+    MyNode.ts
+    credentials/
+      myCredentialType.ts
+    index.ts
+```
+
+Keep the package focused. A plugin should group related capabilities, not every unrelated node you happen to own.
+
+## Step 1: Author a normal runnable node
+
+Start with a normal node first.
+
+Config class:
+
+```ts
+import type { RunnableNodeConfig, TypeToken } from "@codemation/core";
+
+import { LookupCustomerNode } from "./LookupCustomerNode";
+
+export class LookupCustomerNodeConfig
+  implements RunnableNodeConfig<{ customerId: string }, { customerName: string; accountTier: string }>
+{
+  readonly kind = "node" as const;
+  readonly type: TypeToken<unknown> = LookupCustomerNode;
+
+  constructor(
+    public readonly name: string,
+    public readonly id?: string,
+  ) {}
+}
+```
+
+Runtime class:
+
+```ts
+import type { Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
+import { inject, node } from "@codemation/core";
+
+import { CustomerDirectory } from "./CustomerDirectory";
+import type { LookupCustomerNodeConfig } from "./LookupCustomerNodeConfig";
+
+@node({ packageName: "@acme/node-customer" })
+export class LookupCustomerNode implements Node<LookupCustomerNodeConfig> {
+  readonly kind = "node" as const;
+  readonly outputPorts = ["main"] as const;
+
+  constructor(
+    @inject(CustomerDirectory)
+    private readonly customerDirectory: CustomerDirectory,
+  ) {}
+
+  async execute(items: Items, _ctx: NodeExecutionContext<LookupCustomerNodeConfig>): Promise<NodeOutputs> {
+    return {
+      main: await Promise.all(
+        items.map(async (item) => {
+          const customer = await this.customerDirectory.lookup(String(item.json.customerId ?? ""));
+          return {
+            json: {
+              customerName: customer.name,
+              accountTier: customer.tier,
+            },
+          };
+        }),
+      ),
+    };
+  }
+}
+```
+
+This is the right first step because the node can now be:
+
+- used directly in workflows
+- tested without an agent
+- reused as a building block for AI tools later
+
+## Step 2: Expose the node as an AI tool
+
+If the node is useful to an `AIAgent`, expose it with `AgentToolFactory.asTool(...)`.
+
+```ts
+import { AgentToolFactory } from "@codemation/core";
+import { z } from "zod";
+
+const lookupCustomerTool = AgentToolFactory.asTool(new LookupCustomerNodeConfig("Lookup customer"), {
+  name: "lookup_customer",
+  description: "Look up a customer record by id.",
+  inputSchema: z.object({
+    customerId: z.string(),
+  }),
+  outputSchema: z.object({
+    customerName: z.string(),
+    accountTier: z.string(),
+  }),
+});
+```
+
+That gives plugin consumers a reusable tool config without requiring a second `Tool` adapter class.
+
+## When the default adapter is enough
+
+Use the default node-backed tool behavior when:
+
+- the tool input already matches the node input
+- the first `main` output item is exactly what the model should receive
+- the node already has the right credential requirements and DI wiring
+
+This is the lowest-maintenance option.
+
+## When to use `mapInput`
+
+Use `mapInput` when the model provides only part of the node input and the rest should come from the current workflow item.
+
+```ts
+const classifyMailTool = AgentToolFactory.asTool(new ClassifyMailNodeConfig("Classify mail"), {
+  name: "classify_mail",
+  description: "Classify the current mail as RFQ or not.",
+  inputSchema: z.object({
+    bodyHint: z.string(),
+  }),
+  outputSchema: z.object({
+    isRfq: z.boolean(),
+    reason: z.string(),
+  }),
+  mapInput: ({ input, item }) => ({
+    subject: String(item.json.subject ?? ""),
+    body: input.bodyHint,
+  }),
+});
+```
+
+Use this when the workflow item already contains valuable context that the model should not have to repeat into the tool call.
+
+## When to use `mapOutput`
+
+Use `mapOutput` when the wrapped node returns more data than the tool should expose back to the model.
+
+Examples:
+
+- the node returns internal audit fields
+- the node emits multiple output fields but the model only needs two
+- the node result needs reshaping before it becomes a tool result
+
+## Credentials for node-backed tools
+
+If the wrapped node already declares `getCredentialRequirements()`, the node-backed tool reuses those requirements automatically.
+
+That means plugin authors should keep credential requirements on the reusable node config itself whenever possible.
+
+This is usually better than duplicating credential declarations in a separate tool adapter.
+
+## Packaging and exports
+
+A good plugin package exports:
+
+- the config class
+- the runtime node class
+- any helper factory or preset consumers should instantiate directly
+- any credential types that belong with the node
+
+Example barrel:
+
+```ts
+export { LookupCustomerNodeConfig } from "./LookupCustomerNodeConfig";
+export { LookupCustomerNode } from "./LookupCustomerNode";
+export { customerApiCredentialType } from "./credentials/customerApiCredentialType";
+```
+
+If the package exposes AI-ready helpers, export those too:
+
+```ts
+export { lookupCustomerTool } from "./lookupCustomerTool";
+```
+
+## Registration guidance
+
+Keep registration simple for consumers:
+
+- exported classes should be directly importable
+- runtime classes should use the normal decorators such as `@node(...)`
+- package names in decorators should match the published package identity
+
+If your node needs collaborators, inject them through the constructor and keep the config class cheap and serializable.
+
+## Stability advice
+
+Treat these as part of your plugin surface:
+
+- config constructor parameters
+- credential slot keys
+- credential type ids
+- AI tool names
+
+Changing any of those can break workflows or credential bindings in consumer apps.
+
+Prefer additive changes over renames.
+
+## Good references in this repo
+
+The repository includes practical examples you can study:
+
+- `@codemation/node-example`
+- `@codemation/core-nodes-gmail`
+
+Use those alongside:
+
+- [Custom nodes](/docs/workflows/custom-nodes)
+- [AI Agent](/docs/workflows/ai-agent)
+- [Custom credential types](/docs/credentials/custom-credential-types)
+>>>>>>> Incoming (Background Agent changes)

@@ -106,14 +106,19 @@ export class WorkflowDetailFixtureFactory {
       .trigger(new ManualTrigger("Manual trigger", this.triggerNodeId))
       .then(new Callback("Node 1", undefined, this.nodeOneId))
       .then(
-        new AIAgent(
-          "Agent",
-          "Inspect the item and use the tool when needed.",
-          (item) => JSON.stringify(item.json ?? {}),
-          chatModelConfig,
-          [...toolConfigs],
-          this.agentNodeId,
-        ),
+        new AIAgent({
+          name: "Agent",
+          messages: [
+            { role: "system", content: "Inspect the item and use the tool when needed." },
+            {
+              role: "user",
+              content: ({ item }) => JSON.stringify(item.json ?? {}),
+            },
+          ],
+          chatModel: chatModelConfig,
+          tools: [...toolConfigs],
+          id: this.agentNodeId,
+        }),
       )
       .then(new Callback("Node 2", undefined, this.nodeTwoId))
       .build();

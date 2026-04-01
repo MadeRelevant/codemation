@@ -1,4 +1,5 @@
 import type {
+  AgentGuardrailConfig,
   AgentToolCall,
   ChatModelConfig,
   ChatModelFactory,
@@ -17,9 +18,12 @@ import type {
 
 import type { CredentialSessionService } from "@codemation/core";
 import {
+  AgentGuardrailDefaults,
+  AgentMessageConfigNormalizer,
   ConnectionInvocationIdFactory,
   ConnectionNodeIdFactory,
   CoreTokens,
+  NodeBackedToolConfig,
   inject,
   node,
   type NodeResolver,
@@ -27,13 +31,13 @@ import {
 
 import { AIMessage, type BaseMessage } from "@langchain/core/messages";
 
-import { DynamicStructuredTool } from "@langchain/core/tools";
-
 import type { AIAgent } from "./AIAgentConfig";
+import { AIAgentExecutionHelpersFactory } from "./AIAgentExecutionHelpersFactory";
 import { ConnectionCredentialExecutionContextFactory } from "./ConnectionCredentialExecutionContextFactory";
 import { AgentMessageFactory } from "./AgentMessageFactory";
 import { AgentOutputFactory } from "./AgentOutputFactory";
 import { AgentToolCallPortMap } from "./AgentToolCallPortMapFactory";
+import { NodeBackedToolRuntime } from "./NodeBackedToolRuntime";
 import {
   AgentItemPortMap,
   type ExecutedToolCall,
@@ -41,6 +45,18 @@ import {
   type PlannedToolCall,
   type ResolvedTool,
 } from "./aiAgentSupport.types";
+
+type ResolvedGuardrails = Required<Pick<AgentGuardrailConfig, "maxTurns" | "onTurnLimitReached">> &
+  Pick<AgentGuardrailConfig, "modelInvocationOptions">;
+
+/** Everything needed to run the agent loop for a workflow execution (one `execute` call). */
+interface PreparedAgentExecution {
+  readonly ctx: NodeExecutionContext<AIAgent<any, any>>;
+  readonly model: LangChainChatModelLike;
+  readonly resolvedTools: ReadonlyArray<ResolvedTool>;
+  readonly guardrails: ResolvedGuardrails;
+  readonly languageModelConnectionNodeId: string;
+}
 
 @node({ packageName: "@codemation/core-nodes" })
 export class AIAgentNode implements Node<AIAgent<any, any>> {
@@ -54,13 +70,28 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     private readonly nodeResolver: NodeResolver,
     @inject(CoreTokens.CredentialSessionService)
     credentialSessions: CredentialSessionService,
+    @inject(NodeBackedToolRuntime)
+    private readonly nodeBackedToolRuntime: NodeBackedToolRuntime,
+    @inject(AIAgentExecutionHelpersFactory)
+    private readonly executionHelpers: AIAgentExecutionHelpersFactory,
   ) {
-    this.connectionCredentialExecutionContextFactory = new ConnectionCredentialExecutionContextFactory(
-      credentialSessions,
-    );
+    this.connectionCredentialExecutionContextFactory =
+      this.executionHelpers.createConnectionCredentialExecutionContextFactory(credentialSessions);
   }
 
   async execute(items: Items, ctx: NodeExecutionContext<AIAgent<any, any>>): Promise<NodeOutputs> {
+    const prepared = await this.prepareExecution(ctx);
+    const out: Item[] = [];
+    for (let i = 0; i < items.length; i++) {
+      out.push(await this.runAgentForItem(prepared, items[i]!, i, items));
+    }
+    return { main: out };
+  }
+
+  /**
+   * Resolves the chat model and tools once, then returns shared state for every item in the batch.
+   */
+  private async prepareExecution(ctx: NodeExecutionContext<AIAgent<any, any>>): Promise<PreparedAgentExecution> {
     const chatModelFactory = this.nodeResolver.resolve(ctx.config.chatModel.type) as ChatModelFactory<ChatModelConfig>;
     const languageModelCredentialContext = this.connectionCredentialExecutionContextFactory.forConnectionNode(ctx, {
       connectionNodeId: ConnectionNodeIdFactory.languageModelConnectionNodeId(ctx.nodeId),
@@ -69,73 +100,137 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     const model = await Promise.resolve(
       chatModelFactory.create({ config: ctx.config.chatModel, ctx: languageModelCredentialContext }),
     );
-    const resolvedTools = this.resolveTools(ctx.config.tools ?? []);
+    return {
+      ctx,
+      model,
+      resolvedTools: this.resolveTools(ctx.config.tools ?? []),
+      guardrails: this.resolveGuardrails(ctx.config.guardrails),
+      languageModelConnectionNodeId: ConnectionNodeIdFactory.languageModelConnectionNodeId(ctx.nodeId),
+    };
+  }
 
-    const out: Item[] = [];
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]!;
-      const prompt = ctx.config.userMessageFormatter(item, i, items, ctx);
-      const itemInputsByPort = AgentItemPortMap.fromItem(item);
-      const itemScopedTools = this.createItemScopedTools(resolvedTools, ctx, item, i, items);
-      const firstResponse = await this.invokeModel(
-        itemScopedTools.length > 0 && model.bindTools
-          ? model.bindTools(itemScopedTools.map((entry) => entry.langChainTool))
-          : model,
-        ConnectionNodeIdFactory.languageModelConnectionNodeId(ctx.nodeId),
-        [
-          AgentMessageFactory.createSystemPrompt(ctx.config.systemMessage),
-          AgentMessageFactory.createUserPrompt(prompt),
-        ],
+  /**
+   * One item: build prompts, optionally bind tools, run the multi-turn loop, map the final model message to workflow JSON.
+   */
+  private async runAgentForItem(
+    prepared: PreparedAgentExecution,
+    item: Item,
+    itemIndex: number,
+    items: Items,
+  ): Promise<Item> {
+    const { ctx } = prepared;
+    const itemInputsByPort = AgentItemPortMap.fromItem(item);
+    const itemScopedTools = this.createItemScopedTools(prepared.resolvedTools, ctx, item, itemIndex, items);
+    const conversation: BaseMessage[] = [...this.createPromptMessages(item, itemIndex, items, ctx)];
+    const modelWithTools = this.bindToolsToModel(prepared.model, itemScopedTools);
+    const finalResponse = await this.runTurnLoopUntilFinalAnswer({
+      prepared,
+      itemInputsByPort,
+      itemScopedTools,
+      conversation,
+      modelWithTools,
+    });
+    return this.buildOutputItem(item, finalResponse);
+  }
+
+  /**
+   * Repeatedly invokes the model until it returns without tool calls, or guardrails end the loop.
+   */
+  private async runTurnLoopUntilFinalAnswer(args: {
+    prepared: PreparedAgentExecution;
+    itemInputsByPort: NodeInputsByPort;
+    itemScopedTools: ReadonlyArray<ItemScopedToolBinding>;
+    conversation: BaseMessage[];
+    modelWithTools: LangChainChatModelLike;
+  }): Promise<AIMessage> {
+    const { prepared, itemInputsByPort, itemScopedTools, conversation, modelWithTools } = args;
+    const { ctx, guardrails, languageModelConnectionNodeId } = prepared;
+
+    let finalResponse: AIMessage | undefined;
+
+    for (let turn = 1; turn <= guardrails.maxTurns; turn++) {
+      const response = await this.invokeModel(
+        modelWithTools,
+        languageModelConnectionNodeId,
+        conversation,
         ctx,
         itemInputsByPort,
+        guardrails.modelInvocationOptions,
       );
+      finalResponse = response;
 
-      const toolCalls = AgentMessageFactory.extractToolCalls(firstResponse);
+      const toolCalls = AgentMessageFactory.extractToolCalls(response);
       if (toolCalls.length === 0) {
-        out.push(
-          AgentOutputFactory.replaceJson(
-            item,
-            AgentOutputFactory.fromAgentContent(AgentMessageFactory.extractContent(firstResponse)),
-          ),
-        );
-        continue;
+        break;
+      }
+
+      if (this.cannotExecuteAnotherToolRound(turn, guardrails)) {
+        this.finishOrThrowWhenTurnCapHitWithToolCalls(ctx, guardrails);
+        break;
       }
 
       const plannedToolCalls = this.planToolCalls(itemScopedTools, toolCalls, ctx.nodeId);
       await this.markQueuedTools(plannedToolCalls, ctx);
       const executedToolCalls = await this.executeToolCalls(plannedToolCalls, ctx);
-      const finalResponse = await this.invokeModel(
-        itemScopedTools.length > 0 && model.bindTools
-          ? model.bindTools(itemScopedTools.map((entry) => entry.langChainTool))
-          : model,
-        ConnectionNodeIdFactory.languageModelConnectionNodeId(ctx.nodeId),
-        [
-          AgentMessageFactory.createSystemPrompt(ctx.config.systemMessage),
-          AgentMessageFactory.createUserPrompt(prompt),
-          firstResponse,
-          ...executedToolCalls.map((toolCall) =>
-            AgentMessageFactory.createToolMessage(toolCall.toolCallId, toolCall.serialized),
-          ),
-        ],
-        ctx,
-        itemInputsByPort,
-      );
-
-      out.push(
-        AgentOutputFactory.replaceJson(
-          item,
-          AgentOutputFactory.fromAgentContent(AgentMessageFactory.extractContent(finalResponse)),
-        ),
-      );
+      this.appendAssistantAndToolMessages(conversation, response, executedToolCalls);
     }
 
-    return { main: out };
+    if (!finalResponse) {
+      throw new Error(`AIAgent "${ctx.config.name ?? ctx.nodeId}" did not produce a model response.`);
+    }
+    return finalResponse;
+  }
+
+  private cannotExecuteAnotherToolRound(turn: number, guardrails: ResolvedGuardrails): boolean {
+    return turn >= guardrails.maxTurns;
+  }
+
+  private finishOrThrowWhenTurnCapHitWithToolCalls(
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
+    guardrails: ResolvedGuardrails,
+  ): void {
+    if (guardrails.onTurnLimitReached === "respondWithLastMessage") {
+      return;
+    }
+    throw new Error(
+      `AIAgent "${ctx.config.name ?? ctx.nodeId}" reached maxTurns=${guardrails.maxTurns} before producing a final response.`,
+    );
+  }
+
+  private appendAssistantAndToolMessages(
+    conversation: BaseMessage[],
+    assistantMessage: AIMessage,
+    executedToolCalls: ReadonlyArray<ExecutedToolCall>,
+  ): void {
+    conversation.push(
+      assistantMessage,
+      ...executedToolCalls.map((toolCall) =>
+        AgentMessageFactory.createToolMessage(toolCall.toolCallId, toolCall.serialized),
+      ),
+    );
+  }
+
+  private buildOutputItem(item: Item, finalResponse: AIMessage): Item {
+    return AgentOutputFactory.replaceJson(
+      item,
+      AgentOutputFactory.fromAgentContent(AgentMessageFactory.extractContent(finalResponse)),
+    );
+  }
+
+  private bindToolsToModel(
+    model: LangChainChatModelLike,
+    itemScopedTools: ReadonlyArray<ItemScopedToolBinding>,
+  ): LangChainChatModelLike {
+    if (itemScopedTools.length === 0 || !model.bindTools) {
+      return model;
+    }
+    return model.bindTools(itemScopedTools.map((entry) => entry.langChainTool));
   }
 
   private resolveTools(toolConfigs: ReadonlyArray<ToolConfig>): ReadonlyArray<ResolvedTool> {
     const resolvedTools = toolConfigs.map((config) => ({
       config,
-      tool: this.nodeResolver.resolve(config.type) as Tool<ToolConfig, ZodSchemaAny, ZodSchemaAny>,
+      runtime: this.resolveToolRuntime(config),
     }));
 
     const names = new Set<string>();
@@ -158,22 +253,13 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
         connectionNodeId: ConnectionNodeIdFactory.toolConnectionNodeId(ctx.nodeId, entry.config.name),
         getCredentialRequirements: () => entry.config.getCredentialRequirements?.() ?? [],
       });
-      const langChainTool = new DynamicStructuredTool({
-        name: entry.config.name,
-        description: entry.config.description ?? entry.tool.defaultDescription,
-        schema: entry.tool.inputSchema,
-        func: async (input) => {
-          const result = await entry.tool.execute({
-            config: entry.config,
-            input,
-            ctx: toolCredentialContext,
-            item,
-            itemIndex,
-            items,
-          });
-          return JSON.stringify(result);
-        },
-      });
+      const langChainTool = this.executionHelpers.createDynamicStructuredTool(
+        entry,
+        toolCredentialContext,
+        item,
+        itemIndex,
+        items,
+      );
 
       return { config: entry.config, langChainTool };
     });
@@ -185,11 +271,12 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     messages: ReadonlyArray<BaseMessage>,
     ctx: NodeExecutionContext<AIAgent<any, any>>,
     inputsByPort: NodeInputsByPort,
+    options?: AgentGuardrailConfig["modelInvocationOptions"],
   ): Promise<AIMessage> {
     await ctx.nodeState?.markQueued({ nodeId, activationId: ctx.activationId, inputsByPort });
     await ctx.nodeState?.markRunning({ nodeId, activationId: ctx.activationId, inputsByPort });
     try {
-      const response = (await model.invoke(messages)) as AIMessage;
+      const response = (await model.invoke(messages, options)) as AIMessage;
       await ctx.nodeState?.markCompleted({
         nodeId,
         activationId: ctx.activationId,
@@ -371,5 +458,49 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     }
     const json = JSON.stringify(value);
     return JSON.parse(json) as JsonValue;
+  }
+
+  private createPromptMessages(
+    item: Item,
+    itemIndex: number,
+    items: Items,
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
+  ): ReadonlyArray<BaseMessage> {
+    return AgentMessageFactory.createPromptMessages(
+      AgentMessageConfigNormalizer.normalize(ctx.config, {
+        item,
+        itemIndex,
+        items,
+        ctx,
+      }),
+    );
+  }
+
+  private resolveToolRuntime(config: ToolConfig): ResolvedTool["runtime"] {
+    if (config instanceof NodeBackedToolConfig) {
+      return {
+        defaultDescription: `Run workflow node "${config.node.name ?? config.name}" as an AI tool.`,
+        inputSchema: config.getInputSchema(),
+        execute: async (args) => await this.nodeBackedToolRuntime.execute(config, args),
+      };
+    }
+    const tool = this.nodeResolver.resolve(config.type) as Tool<ToolConfig, ZodSchemaAny, ZodSchemaAny>;
+    return {
+      defaultDescription: tool.defaultDescription,
+      inputSchema: tool.inputSchema,
+      execute: async (args) => await Promise.resolve(tool.execute(args)),
+    };
+  }
+
+  private resolveGuardrails(guardrails: AgentGuardrailConfig | undefined): ResolvedGuardrails {
+    const maxTurns = guardrails?.maxTurns ?? AgentGuardrailDefaults.maxTurns;
+    if (!Number.isInteger(maxTurns) || maxTurns < 1) {
+      throw new Error(`AIAgent maxTurns must be a positive integer. Received: ${String(maxTurns)}`);
+    }
+    return {
+      maxTurns,
+      onTurnLimitReached: guardrails?.onTurnLimitReached ?? AgentGuardrailDefaults.onTurnLimitReached,
+      modelInvocationOptions: guardrails?.modelInvocationOptions,
+    };
   }
 }

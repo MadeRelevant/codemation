@@ -1,5 +1,5 @@
 import type { Container } from "@codemation/core";
-import { AIAgentNode } from "./nodes/aiAgent";
+import { AIAgentExecutionHelpersFactory, AIAgentNode } from "./nodes/aiAgent";
 import { CallbackNode } from "./nodes/CallbackNodeFactory";
 import { HttpRequestNode } from "./nodes/httpRequest";
 import { IfNode } from "./nodes/if";
@@ -31,6 +31,7 @@ export function registerCoreNodes(container: Container): void {
   void SubWorkflowNode;
   void ManualTriggerNode;
   void AIAgentNode;
+  void AIAgentExecutionHelpersFactory;
   void WaitNode;
   void ConnectionCredentialNode;
 }

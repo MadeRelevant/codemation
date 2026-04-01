@@ -1,7 +1,7 @@
 import type { NodeDefinition, WorkflowDefinition, WorkflowNodeConnection } from "@codemation/core";
 import { AgentConfigInspector, ConnectionNodeIdFactory } from "@codemation/core";
 
-import { AIAgentNode } from "../nodes/AIAgentNodeFactory";
+import { AIAgentNode } from "../nodes/AIAgentNode";
 import { ConnectionCredentialNode } from "../nodes/ConnectionCredentialNode";
 import { ConnectionCredentialNodeConfigFactory } from "../nodes/ConnectionCredentialNodeConfigFactory";
 

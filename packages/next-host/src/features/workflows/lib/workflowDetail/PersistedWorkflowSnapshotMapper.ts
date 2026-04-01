@@ -163,7 +163,7 @@ export class PersistedWorkflowSnapshotMapper {
 
   private isAgentConfig(value: unknown): boolean {
     const record = this.asRecord(value);
-    return typeof record.systemMessage === "string" && record.chatModel !== undefined;
+    return record.chatModel !== undefined && record.messages !== undefined;
   }
 
   private readAttachmentLabel(presentation: unknown, fallback: string): string {
@@ -184,9 +184,9 @@ export class PersistedWorkflowSnapshotMapper {
     name?: string;
     label?: string;
     icon?: string;
-    systemMessage?: string;
     chatModel?: unknown;
     tools?: ReadonlyArray<unknown>;
+    messages?: unknown;
     presentation?: unknown;
   }> {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -196,9 +196,9 @@ export class PersistedWorkflowSnapshotMapper {
       name?: string;
       label?: string;
       icon?: string;
-      systemMessage?: string;
       chatModel?: unknown;
       tools?: ReadonlyArray<unknown>;
+      messages?: unknown;
       presentation?: unknown;
     }>;
   }
