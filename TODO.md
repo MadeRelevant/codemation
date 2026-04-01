@@ -23,6 +23,8 @@ Open items first; completed work is archived at the bottom for history.
 - [ ] Stress test webhook and measure cpu/mem and make sure they dont run out
 - [ ] Add Switch node for easy branching
 - [ ] Add documentation project
+- [ ] Allow nodes to be used as agent tools
+- [ ] Standardize runtime evals so its easy to provide string values from a callback that receives current execution context (for AI promtp message for example)
 - [x] Inline worker startup into the CLI/host app-container flow
 
 ### UI, URLs & sharing

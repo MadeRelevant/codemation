@@ -7,7 +7,7 @@
     "dev": "node ./scripts/dev.mjs",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "fumadocs-mdx && tsc -p tsconfig.json --noEmit",
     "lint": "eslint ."
   },
   "dependencies": {

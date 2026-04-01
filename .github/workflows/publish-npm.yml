@@ -6,6 +6,7 @@ on:
       - "v*"
 
 permissions:
+  id-token: write # Required for OIDC
   contents: read
 
 jobs:
@@ -39,8 +40,6 @@ jobs:
         run: pnpm exec turbo run build
 
       # Publishes every workspace package under packages/ with "private": false.
-      # Add repository, files, and publishConfig in each package you publish; set NPM_TOKEN in repo secrets.
+      # Trusted publishing (OIDC): enable the GitHub Actions publisher for this repo in npm; no NPM_TOKEN secret.
       - name: Publish to npm
         run: pnpm publish -r --access public --no-git-checks --filter "./packages/*"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

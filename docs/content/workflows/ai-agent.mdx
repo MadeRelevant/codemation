@@ -41,15 +41,12 @@ That means you control both the instruction layer and how each workflow item is 
 ## Minimal example
 
 ```ts
-new AIAgent<
-  { subject: string; body: string },
-  { outcome: "rfq" | "other"; reasoning: string }
->(
+new AIAgent<{ subject: string; body: string }, { outcome: "rfq" | "other"; reasoning: string }>(
   "Classify RFQ vs other",
   'Respond with strict JSON only. Shape: {"outcome":"rfq"|"other","reasoning":"..."}',
   (item) => JSON.stringify(item.json),
   openAiChatModelPresets.demoGpt4oMini,
-)
+);
 ```
 
 This is a good default pattern because it is:
@@ -79,18 +76,16 @@ Use this when you want the model to choose between a few stable outcomes, such a
 Pattern:
 
 ```ts
-new AIAgent<
-  { subject: string; body: string },
-  { category: "sales" | "support" | "spam"; reasoning: string }
->(
+new AIAgent<{ subject: string; body: string }, { category: "sales" | "support" | "spam"; reasoning: string }>(
   "Classify inbox message",
   'Respond with strict JSON only. Shape: {"category":"sales"|"support"|"spam","reasoning":"..."}',
-  (item) => JSON.stringify({
-    subject: item.json.subject,
-    body: item.json.body,
-  }),
+  (item) =>
+    JSON.stringify({
+      subject: item.json.subject,
+      body: item.json.body,
+    }),
   openAiChatModelPresets.demoGpt4oMini,
-)
+);
 ```
 
 Use this pattern when the next step is deterministic, for example:
@@ -113,15 +108,12 @@ Examples:
 Pattern:
 
 ```ts
-new AIAgent<
-  { emailText: string },
-  { customerName: string; invoiceNumber: string; totalAmount: string }
->(
+new AIAgent<{ emailText: string }, { customerName: string; invoiceNumber: string; totalAmount: string }>(
   "Extract invoice fields",
   'Return strict JSON only with shape {"customerName":"","invoiceNumber":"","totalAmount":""}. Use empty strings when a field is missing.',
   (item) => item.json.emailText,
   openAiChatModelPresets.demoGpt4oMini,
-)
+);
 ```
 
 Good follow-up nodes:
@@ -162,15 +154,12 @@ Use this when you want a compact summary for:
 Pattern:
 
 ```ts
-new AIAgent<
-  { transcript: string },
-  { summary: string }
->(
+new AIAgent<{ transcript: string }, { summary: string }>(
   "Summarize support call",
   'Return strict JSON only. Shape: {"summary":"..."} Keep it concise and factual.',
   (item) => item.json.transcript,
   openAiChatModelPresets.demoGpt4oMini,
-)
+);
 ```
 
 If the summary will drive automation, keep it structured.
@@ -197,7 +186,7 @@ new AIAgent(
   (item) => JSON.stringify(item.json),
   openAiChatModelPresets.demoGpt4oMini,
   [new SearchDocsToolConfig(), new PricingLookupToolConfig()],
-)
+);
 ```
 
 Reach for tools when:
@@ -278,7 +267,7 @@ new AIAgent<TriageEmailAggregateJson, TriageEmailAggregateJson & TriageClassifyJ
   '... Respond with strict JSON only. Shape: {"outcome":"rfq"|"other","reasoning":"…"} ...',
   (item) => JSON.stringify(item.json),
   openAiChatModelPresets.demoGpt4oMini,
-)
+);
 ```
 
 That pattern is especially useful when the next node is an `If`, `MapData`, or another deterministic step.
@@ -311,7 +300,7 @@ The `chatModel` argument is a `ChatModelConfig`.
 The most common starting point is an OpenAI model config or preset:
 
 ```ts
-openAiChatModelPresets.demoGpt4oMini
+openAiChatModelPresets.demoGpt4oMini;
 ```
 
 The built-in OpenAI config supports:
@@ -337,7 +326,7 @@ So the common flow is:
 new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini", "openai", undefined, {
   temperature: 0.1,
   maxTokens: 800,
-})
+});
 ```
 
 Use low temperature for:
@@ -364,7 +353,7 @@ new AIAgent(
   (item) => JSON.stringify(item.json),
   openAiChatModelPresets.demoGpt4oMini,
   [myToolConfigA, myToolConfigB],
-)
+);
 ```
 
 Under the hood, the agent:
@@ -445,9 +434,11 @@ export class SearchDocsToolConfig implements ToolConfig {
 }
 
 @tool()
-export class SearchDocsTool
-  implements Tool<SearchDocsToolConfig, typeof searchToolInputSchema, typeof searchToolOutputSchema>
-{
+export class SearchDocsTool implements Tool<
+  SearchDocsToolConfig,
+  typeof searchToolInputSchema,
+  typeof searchToolOutputSchema
+> {
   readonly defaultDescription = "Search documentation and return the best matching pages.";
   readonly inputSchema = searchToolInputSchema;
   readonly outputSchema = searchToolOutputSchema;
@@ -486,7 +477,7 @@ new AIAgent(
   (item) => JSON.stringify(item.json),
   openAiChatModelPresets.demoGpt4oMini,
   [new SearchDocsToolConfig()],
-)
+);
 ```
 
 This is the same credential-slot idea as model configuration:
@@ -500,7 +491,7 @@ This is the same credential-slot idea as model configuration:
 `AIAgent` has a default retry policy:
 
 ```ts
-RetryPolicy.defaultForAiAgent
+RetryPolicy.defaultForAiAgent;
 ```
 
 That is helpful because AI calls are external runtime calls and can fail transiently.

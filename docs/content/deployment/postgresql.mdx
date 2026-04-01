@@ -52,7 +52,7 @@ const databaseUrl = process.env.DATABASE_URL?.trim();
 
 database: useRedisRuntime
   ? { kind: "postgresql" as const, url: databaseUrl! }
-  : { kind: "pglite" as const, pgliteDataDir: ".codemation/pglite" }
+  : { kind: "pglite" as const, pgliteDataDir: ".codemation/pglite" };
 ```
 
 For a dedicated PostgreSQL setup, the intent is the same even if you remove the conditional:

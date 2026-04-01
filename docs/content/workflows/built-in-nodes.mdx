@@ -58,12 +58,12 @@ The repo also contains additional node packages, for example:
 The starter template uses `ManualTrigger` and `MapData`:
 
 ```ts
-new ManualTrigger<SeedJson>("Start", [{ json: { step: "start" } }])
+new ManualTrigger<SeedJson>("Start", [{ json: { step: "start" } }]);
 
 new MapData<SeedJson, SeedJson & { hello: boolean }>("Hello", (item) => ({
   ...item.json,
   hello: true,
-}))
+}));
 ```
 
 That pattern is typical across built-in nodes:
@@ -83,7 +83,7 @@ new AIAgent(
   "You triage incoming mail for sales...",
   (item) => JSON.stringify(item.json),
   openAiChatModelPresets.demoGpt4oMini,
-)
+);
 ```
 
 In practice, AI nodes usually combine:

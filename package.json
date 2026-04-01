@@ -32,7 +32,7 @@
     "coverage:e2e": "vitest run --config tooling/vitest/e2e.config.ts --coverage --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportsDirectory=coverage/raw/e2e",
     "coverage:browser": "timeout 15m pnpm --filter @codemation/host run test:browser",
     "coverage:merge": "lcov-result-merger 'coverage/raw/**/lcov.info' coverage/lcov.info",
-    "dupcheck": "jscpd packages apps/test-dev",
+    "dupcheck": "jscpd packages apps/test-dev apps/docs",
     "antipatterns": "ast-grep scan --report-style short --off=no-double-assertion",
     "antipatterns:assertions": "ast-grep scan --report-style short --filter no-double-assertion",
     "prepare": "husky",
