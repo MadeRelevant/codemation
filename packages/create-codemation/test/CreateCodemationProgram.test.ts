@@ -26,8 +26,20 @@ class NoopOnboarding implements PostScaffoldOnboardingPort {
 }
 
 class RecordingOnboarding implements PostScaffoldOnboardingPort {
-  last: { targetDirectory: string; noInteraction: boolean } | undefined;
-  async runAfterScaffold(args: Readonly<{ targetDirectory: string; noInteraction: boolean }>): Promise<void> {
+  last:
+    | {
+        targetDirectory: string;
+        noInteraction: boolean;
+        adminUser?: Readonly<{ email: string; password: string }>;
+      }
+    | undefined;
+  async runAfterScaffold(
+    args: Readonly<{
+      targetDirectory: string;
+      noInteraction: boolean;
+      adminUser?: Readonly<{ email: string; password: string }>;
+    }>,
+  ): Promise<void> {
     this.last = args;
   }
 }
@@ -96,6 +108,39 @@ describe("CreateCodemationProgram", () => {
     const appDir = path.join(target, "npm-create-app");
     await program.run(["--no-interaction", "--template", "minimal", appDir]);
     expect(onboarding.last?.noInteraction).toBe(true);
+  });
+
+  it("forwards non-interactive admin credentials to onboarding", async () => {
+    const resolver = new TemplateDirectoryResolver(import.meta.url);
+    const nodeFs = new NodeFileSystem();
+    const templateCatalog = new TemplateCatalog(resolver, nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
+    const memory = new MemoryStdout();
+    const onboarding = new RecordingOnboarding();
+    const program = new CreateCodemationProgram(scaffolder, templateCatalog, memory, onboarding);
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-prog-"));
+    tmpDirs.push(target);
+    const appDir = path.join(target, "ci-auth-app");
+
+    await program.run([
+      "--yes",
+      "--template",
+      "minimal",
+      "--admin-email",
+      "admin@example.com",
+      "--admin-password",
+      "longpassword",
+      appDir,
+    ]);
+
+    expect(onboarding.last).toEqual({
+      targetDirectory: appDir,
+      noInteraction: true,
+      adminUser: {
+        email: "admin@example.com",
+        password: "longpassword",
+      },
+    });
   });
 
   it("defaults the target directory to codemation-app in the current working directory", async () => {

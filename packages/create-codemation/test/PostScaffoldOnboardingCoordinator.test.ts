@@ -312,4 +312,38 @@ describe("PostScaffoldOnboardingCoordinator", () => {
       },
     ]);
   });
+
+  it("runs automated onboarding without prompts when admin credentials are provided", async () => {
+    const out = new MemoryStdout();
+    const runner = new RecordingRunner();
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "onb-"));
+    tmpDirs.push(target);
+    await fs.writeFile(path.join(target, "package.json"), JSON.stringify({ packageManager: "pnpm@10.13.1" }), "utf8");
+    await fs.writeFile(path.join(target, ".env.example"), "# zero-setup defaults\n", "utf8");
+    const prompts = new ScriptedPrompts(false, []);
+    const coordinator = new PostScaffoldOnboardingCoordinator(out, prompts, new NodeFileSystem(), runner, false);
+
+    await coordinator.runAfterScaffold({
+      targetDirectory: target,
+      noInteraction: true,
+      adminUser: {
+        email: "admin@example.com",
+        password: "longpassword",
+      },
+    });
+
+    expect(runner.calls).toEqual([
+      { command: "pnpm", args: ["install"], cwd: target },
+      { command: "pnpm", args: ["exec", "codemation", "db", "migrate"], cwd: target },
+      {
+        command: "pnpm",
+        args: ["exec", "codemation", "user", "create", "--email", "admin@example.com", "--password", "longpassword"],
+        cwd: target,
+      },
+    ]);
+    expect(prompts.confirmCalls).toEqual([]);
+    expect(prompts.questionCalls).toEqual([]);
+    expect(out.text).toContain("Creating admin user");
+    expect(out.text).toContain("pnpm dev");
+  });
 });

@@ -16,19 +16,26 @@ export class PostScaffoldOnboardingCoordinator implements PostScaffoldOnboarding
     private readonly stdinIsTTY: boolean,
   ) {}
 
-  async runAfterScaffold(args: Readonly<{ targetDirectory: string; noInteraction: boolean }>): Promise<void> {
+  async runAfterScaffold(
+    args: Readonly<{
+      targetDirectory: string;
+      noInteraction: boolean;
+      adminUser?: Readonly<{ email: string; password: string }>;
+    }>,
+  ): Promise<void> {
     const noInteraction = args.noInteraction || !this.stdinIsTTY;
-    if (!args.noInteraction && !this.stdinIsTTY) {
+    const providedAdminUser = this.resolveProvidedAdminUser(args.adminUser);
+    if (!args.noInteraction && !this.stdinIsTTY && providedAdminUser === undefined) {
       this.stdout.write(
         "\nNote: stdin is not a TTY; skipping interactive onboarding. Use --no-interaction to hide this message next time.\n",
       );
     }
-    if (noInteraction) {
+    if (noInteraction && providedAdminUser === undefined) {
       this.printManualSteps(args.targetDirectory);
       return;
     }
     await this.ensureDefaultEnvFile(args.targetDirectory);
-    const authSetup = await this.resolveAuthenticationSetup();
+    const authSetup = providedAdminUser ?? (noInteraction ? null : await this.resolveAuthenticationSetup());
     await this.installDependencies(args.targetDirectory);
     await this.runDatabaseMigrations(args.targetDirectory);
     if (authSetup) {
@@ -40,6 +47,21 @@ export class PostScaffoldOnboardingCoordinator implements PostScaffoldOnboarding
     this.stdout.write("\nDone. Start the app with:\n");
     this.stdout.write(`  cd ${path.basename(args.targetDirectory)}\n`);
     this.stdout.write(`  ${packageManager.runDevCommand}\n\n`);
+  }
+
+  private resolveProvidedAdminUser(
+    adminUser: Readonly<{ email: string; password: string }> | undefined,
+  ): Readonly<{ email: string; password: string }> | undefined {
+    if (adminUser === undefined) {
+      return undefined;
+    }
+    if (!this.isValidEmail(adminUser.email)) {
+      throw new Error("create-codemation: --admin-email must be a valid email address.");
+    }
+    if (adminUser.password.length < 8) {
+      throw new Error("create-codemation: --admin-password must be at least 8 characters long.");
+    }
+    return adminUser;
   }
 
   private async resolveAuthenticationSetup(): Promise<Readonly<{ email: string; password: string }> | null> {

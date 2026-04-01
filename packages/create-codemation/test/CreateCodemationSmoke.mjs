@@ -441,7 +441,7 @@ class CreateCodemationSmoke {
       }
       const commandEnv = registry ? registry.createProcessEnv(env) : env;
       const codemationBin = path.join(appRoot, "node_modules", ".bin", "codemation");
-      if (!interactiveOnboarding) {
+      if (installMode !== "registry") {
         await SmokeProcessRunner.run("pnpm", ["install", "--lockfile=false"], {
           cwd: appRoot,
           env: commandEnv,
@@ -549,7 +549,18 @@ class CreateCodemationSmoke {
     const createCodemationVersion = await this.resolveCreateCodemationVersion(args.repoRoot);
     await SmokeProcessRunner.run(
       "pnpm",
-      ["dlx", `create-codemation@${createCodemationVersion}`, args.appRoot, "--template", args.templateId, "--yes"],
+      [
+        "dlx",
+        `create-codemation@${createCodemationVersion}`,
+        args.appRoot,
+        "--template",
+        args.templateId,
+        "--yes",
+        "--admin-email",
+        this.adminEmail,
+        "--admin-password",
+        this.adminPassword,
+      ],
       {
         cwd: args.repoRoot,
         env: args.registry.createProcessEnv(process.env),

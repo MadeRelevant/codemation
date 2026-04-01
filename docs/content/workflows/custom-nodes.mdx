@@ -7,6 +7,8 @@ description: Extend Codemation with your own nodes by pairing a config class wit
 
 When the built-in nodes are not enough, define your own node.
 
+The built-in `Callback` node is fine for **quick, inline** logic when you want to move fast. The **intended** way to build durable workflow behavior is still a **custom node** (config + implementation): that is what makes automated testing straightforward and reuse natural. If you are past a one-off experiment, prefer this page over piling logic into `Callback`.
+
 The pattern is simple:
 
 1. a **config class** that describes how the node is used in workflow definitions

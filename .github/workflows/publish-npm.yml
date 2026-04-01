@@ -3,56 +3,14 @@ name: Publish npm
 on:
   push:
     tags:
-      # Match release tags like v0.0.7 and bare semver like 0.0.6 (fnmatch; quote so YAML does not treat * as alias).
       - "v*"
-      - "*.*.*"
 
 permissions:
   contents: read
 
 jobs:
-  template-release-smoke:
-    name: ${{ matrix.name }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Template packaged smoke
-            command: test:packaged-smoke
-          - name: Template interactive Verdaccio smoke
-            command: test:interactive-verdaccio-smoke
-    container:
-      image: node:24-bookworm
-
-    steps:
-      - name: Install container prerequisites
-        # `script` (util-linux) is required by the interactive smoke test; keep Python/build tools as
-        # native-module fallback for dependency installs inside the bare Node container.
-        run: apt-get update && apt-get install -y git util-linux python3 make g++
-
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Enable corepack pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@10.13.1 --activate
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate Prisma client (@codemation/host)
-        run: pnpm --filter @codemation/host prisma:generate
-
-      - name: Run ${{ matrix.name }}
-        run: pnpm --filter create-codemation run ${{ matrix.command }}
-
+  # Template smokes (packaged + interactive Verdaccio) run on main via CI; release only publishes.
   publish:
-    needs: template-release-smoke
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
