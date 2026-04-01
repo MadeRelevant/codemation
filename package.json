@@ -4,9 +4,10 @@
   "packageManager": "pnpm@10.13.1",
   "scripts": {
     "codemation": "tsx --tsconfig tsconfig.codemation-tsx.json packages/cli/src/bin.ts",
-    "dev": "pnpm run dev:repo",
+    "dev": "pnpm run dev:framework",
     "dev:docs": "pnpm --filter @codemation/docs dev",
-    "dev:repo": "pnpm exec turbo run build --filter=@codemation/test-dev... --filter=!@codemation/next-host --filter=!@codemation/eslint-config && pnpm exec turbo run dev --filter=@codemation/test-dev... --filter=!@codemation/next-host --filter=!@codemation/eslint-config",
+    "dev:framework": "pnpm exec turbo run dev --filter=@codemation/test-dev... --filter=!@codemation/next-host --filter=!@codemation/eslint-config",
+    "dev:framework:warm": "pnpm exec turbo run build --filter=@codemation/test-dev... --filter=!@codemation/next-host --filter=!@codemation/eslint-config && pnpm exec turbo run dev --filter=@codemation/test-dev... --filter=!@codemation/next-host --filter=!@codemation/eslint-config",
     "dev:consumer": "pnpm --filter @codemation/test-dev dev",
     "e2e:devserver": "pnpm exec turbo run build --filter=@codemation/e2e-app... --filter=!@codemation/next-host --filter=!@codemation/eslint-config && pnpm --filter @codemation/e2e-app dev",
     "e2e:serve-web": "pnpm --filter @codemation/e2e-app exec codemation serve web",

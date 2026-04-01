@@ -1,0 +1,105 @@
+---
+title: Create Custom Node
+description: Build a reusable Codemation node by pairing a config class with a node implementation.
+---
+
+# Create Custom Node
+
+This guide shows the standard Codemation pattern for turning workflow logic into a proper reusable node.
+
+## Use this guide when
+
+Prefer a custom node when:
+
+- the built-in nodes are not enough
+- a `Callback` is becoming real product logic
+- you want isolated tests and reuse across multiple workflows
+
+## Example scenario
+
+Imagine you want a node that uppercases a field called `subject`.
+
+The durable pattern is:
+
+1. create a config class used in workflow definitions
+2. create a node class that performs the runtime work
+3. use that config in workflows like any other node
+
+## Step 1: define the config class
+
+```ts
+import type { RunnableNodeConfig, TypeToken } from "@codemation/core";
+
+export class ExampleUppercase<
+  TInputJson extends Record<string, unknown> = Record<string, unknown>,
+  TField extends keyof TInputJson & string = keyof TInputJson & string,
+> implements RunnableNodeConfig<TInputJson, TInputJson> {
+  readonly kind = "node" as const;
+  readonly type: TypeToken<unknown> = ExampleUppercaseNode;
+
+  constructor(
+    public readonly name: string,
+    public readonly cfg: { field: TField },
+    public readonly id?: string,
+  ) {}
+}
+```
+
+## Step 2: implement the runtime node
+
+```ts
+import type { Item, Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
+import { node } from "@codemation/core";
+
+@node({ packageName: "@codemation/node-example" })
+export class ExampleUppercaseNode implements Node<ExampleUppercase<Record<string, unknown>, string>> {
+  readonly kind = "node" as const;
+  readonly outputPorts = ["main"] as const;
+
+  async execute(
+    items: Items,
+    ctx: NodeExecutionContext<ExampleUppercase<Record<string, unknown>, string>>,
+  ): Promise<NodeOutputs> {
+    const out: Item[] = [];
+
+    for (const item of items) {
+      const json = typeof item.json === "object" && item.json !== null ? (item.json as Record<string, unknown>) : {};
+      const value = String(json[ctx.config.cfg.field] ?? "");
+      out.push({
+        ...item,
+        json: {
+          ...json,
+          [ctx.config.cfg.field]: value.toUpperCase(),
+        },
+      });
+    }
+
+    return { main: out };
+  }
+}
+```
+
+## Step 3: use the node in a workflow
+
+```ts
+import { createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
+
+export default createWorkflowBuilder({ id: "wf.uppercase.subject", name: "Uppercase subject" })
+  .trigger(new ManualTrigger("Start", [{ json: { subject: "hello" } }]))
+  .then(new ExampleUppercase("Uppercase subject", { field: "subject" }))
+  .build();
+```
+
+## Why this pattern pays off
+
+Compared with burying logic inside a callback, a custom node gives you:
+
+- clearer names in the workflow graph
+- isolated tests
+- reuse across workflows and apps
+- a stable place for credential and dependency boundaries
+
+## Related pages
+
+1. [Create a custom credential](/docs/how-to-guides/create-custom-credential)
+2. [Callback node](/docs/nodes/core/callback)

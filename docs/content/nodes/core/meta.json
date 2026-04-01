@@ -1,0 +1,16 @@
+{
+  "title": "Core",
+  "pages": [
+    "manual-trigger",
+    "webhook-trigger",
+    "map-data",
+    "http-request",
+    "callback",
+    "if",
+    "merge",
+    "wait",
+    "no-op",
+    "sub-workflow",
+    "ai-agent"
+  ]
+}

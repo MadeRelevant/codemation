@@ -1,0 +1,67 @@
+---
+title: On New Gmail Trigger
+description: Start a workflow when new Gmail messages matching a mailbox, label, or query are detected.
+---
+
+# On New Gmail Trigger
+
+## Description
+
+`OnNewGmailTrigger` polls Gmail for new messages and emits workflow items that include message metadata, headers, body content, and optional attachments. Use it for inbound mail automation, triage, and attachment processing.
+
+## Examples
+
+### Basic usage: watch a mailbox for new messages
+
+```ts
+new OnNewGmailTrigger("On Inbox Mail", {
+  mailbox: "ops@example.com",
+});
+```
+
+Example output:
+
+```json
+{
+  "mailbox": "ops@example.com",
+  "messageId": "msg_123",
+  "subject": "Need help with invoice 42",
+  "from": "buyer@example.com",
+  "labelIds": ["INBOX"],
+  "attachments": []
+}
+```
+
+### Advanced usage: filter by label and query, and download attachments
+
+```ts
+new OnNewGmailTrigger(
+  "On Demo Mail",
+  {
+    mailbox: gmailTriggerConfiguration.mailbox,
+    labelIds: ["Inbox"],
+    query: gmailTriggerConfiguration.query,
+    downloadAttachments: true,
+  },
+  "gmail_trigger",
+);
+```
+
+Example output:
+
+```json
+{
+  "mailbox": "sales@example.com",
+  "messageId": "msg_456",
+  "subject": "RFQ with PDF attachment",
+  "from": "procurement@example.com",
+  "labelIds": ["Inbox"],
+  "attachments": [
+    {
+      "filename": "rfq.pdf",
+      "mimeType": "application/pdf",
+      "binaryName": "attachment_0"
+    }
+  ]
+}
+```

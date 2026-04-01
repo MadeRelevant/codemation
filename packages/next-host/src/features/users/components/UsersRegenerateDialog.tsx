@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { CodemationDialog } from "@/components/CodemationDialog";
-import { Input } from "@/components/ui/input";
+import { InviteLinkCopyRow } from "./InviteLinkCopyRow";
 
 type UsersRegenerateDialogProps = Readonly<{
   email: string;
@@ -39,18 +39,13 @@ export function UsersRegenerateDialog({
             <p className="m-0 text-muted-foreground" data-testid="users-regenerate-success-message">
               New link for {email}. Previous links stop working.
             </p>
-            <Input
-              type="text"
-              readOnly
-              value={newUrl}
-              data-testid="users-regenerate-link-field"
-              className="font-mono text-xs"
+            <InviteLinkCopyRow
+              url={newUrl}
+              copyFeedback={copyFeedback}
+              onCopy={onCopy}
+              linkTestId="users-regenerate-link-field"
+              copyTestId="users-regenerate-copy-link"
             />
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="secondary" data-testid="users-regenerate-copy-link" onClick={onCopy}>
-                {copyFeedback ? "Copied" : "Copy link"}
-              </Button>
-            </div>
           </>
         ) : (
           <>

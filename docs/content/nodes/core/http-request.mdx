@@ -1,0 +1,82 @@
+---
+title: HTTP Request
+description: Call an external HTTP endpoint and emit response metadata (and optional binary body) as each output item.
+---
+
+# HTTP Request
+
+## Description
+
+`HttpRequest` issues an outbound HTTP call for each item. Each output item’s JSON is **only** the HTTP response metadata (status, headers, and so on); input fields are **not** merged in. It is a good fit when a workflow needs to fetch a document, call a REST API, or download binary content for later processing.
+
+## Examples
+
+### Basic usage: fetch JSON from a URL on the item
+
+```ts
+new HttpRequest("Fetch customer profile", {
+  method: "GET",
+  urlField: "profileUrl",
+  downloadMode: "auto",
+});
+```
+
+Example input:
+
+```json
+{
+  "profileUrl": "https://api.example.test/customers/cus_9"
+}
+```
+
+Example output (one item):
+
+```json
+{
+  "url": "https://api.example.test/customers/cus_9",
+  "method": "GET",
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "mimeType": "application/json",
+  "headers": {
+    "content-type": "application/json"
+  }
+}
+```
+
+### Advanced usage: always download a binary document for later OCR
+
+```ts
+new HttpRequest("Fetch invoice PDF", {
+  method: "GET",
+  urlField: "documentUrl",
+  downloadMode: "always",
+  binaryName: "invoicePdf",
+});
+```
+
+Example input:
+
+```json
+{
+  "documentUrl": "https://files.example.test/invoices/inv_42.pdf"
+}
+```
+
+Example output (one item; binary attached under the configured name):
+
+```json
+{
+  "url": "https://files.example.test/invoices/inv_42.pdf",
+  "method": "GET",
+  "ok": true,
+  "status": 200,
+  "statusText": "OK",
+  "mimeType": "application/pdf",
+  "headers": {
+    "content-type": "application/pdf"
+  },
+  "bodyBinaryName": "invoicePdf"
+}
+```

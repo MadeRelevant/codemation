@@ -27,7 +27,7 @@ export class HttpRequestNode implements Node<HttpRequest<any, any>> {
     const mimeType = this.resolveMimeType(headers);
     const bodyBinaryName = ctx.config.binaryName;
     const shouldAttachBody = this.shouldAttachBody(ctx.config.downloadMode, mimeType);
-    const responseJson = this.createResponseJson(item.json, {
+    const outputJson: Readonly<Record<string, unknown>> = {
       url,
       method: ctx.config.method,
       ok: response.ok,
@@ -35,12 +35,11 @@ export class HttpRequestNode implements Node<HttpRequest<any, any>> {
       statusText: response.statusText,
       mimeType,
       headers,
-      bodyBinaryName: shouldAttachBody ? bodyBinaryName : undefined,
-    });
+      ...(shouldAttachBody ? { bodyBinaryName } : {}),
+    };
 
     let outputItem: Item = {
-      ...item,
-      json: responseJson,
+      json: outputJson,
     };
     if (!shouldAttachBody) {
       return outputItem;
@@ -98,25 +97,6 @@ export class HttpRequestNode implements Node<HttpRequest<any, any>> {
       return false;
     }
     return mimeType.startsWith("image/") || mimeType.startsWith("audio/") || mimeType.startsWith("video/");
-  }
-
-  private createResponseJson(
-    inputJson: unknown,
-    responseJson: Readonly<{
-      url: string;
-      method: string;
-      ok: boolean;
-      status: number;
-      statusText: string;
-      mimeType: string;
-      headers: Readonly<Record<string, string>>;
-      bodyBinaryName?: string;
-    }>,
-  ): Readonly<Record<string, unknown>> {
-    return {
-      ...this.asRecord(inputJson),
-      http: responseJson,
-    };
   }
 
   private resolveFilename(url: string, headers: Readonly<Record<string, string>>): string | undefined {

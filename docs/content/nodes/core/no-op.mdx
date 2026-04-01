@@ -1,0 +1,64 @@
+---
+title: No Op
+description: Pass items through unchanged when you need an explicit placeholder node.
+---
+
+# No Op
+
+## Description
+
+`NoOp` forwards items without changing them. It is useful as a placeholder step, an explicit branch target, or a temporary node while shaping a workflow.
+
+## Examples
+
+### Basic usage: keep a placeholder branch visible
+
+```ts
+new NoOp("Nothing to do yet");
+```
+
+Example input:
+
+```json
+{
+  "route": "manual-review",
+  "ticketId": "t_42"
+}
+```
+
+Example output:
+
+```json
+{
+  "route": "manual-review",
+  "ticketId": "t_42"
+}
+```
+
+### Advanced usage: add an explicit pass-through step during workflow refactoring
+
+```ts
+createWorkflowBuilder({ id: "wf.refactor.safe", name: "Safe refactor path" })
+  .trigger(new ManualTrigger("Start", [{ json: { orderId: "ord_1", total: 149 } }]))
+  .then(new NoOp("Temporary compatibility boundary"))
+  .then(new MapData("Mark reviewed", (item) => ({ ...item.json, reviewed: true })))
+  .build();
+```
+
+Example input:
+
+```json
+{
+  "orderId": "ord_1",
+  "total": 149
+}
+```
+
+Example output:
+
+```json
+{
+  "orderId": "ord_1",
+  "total": 149
+}
+```

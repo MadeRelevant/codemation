@@ -1,0 +1,107 @@
+---
+title: Deployment
+description: Choose the right Codemation runtime shape for local development, shared environments, and worker-based execution.
+---
+
+# Deployment
+
+Codemation supports a clean progression from a zero-setup local runtime to a shared production deployment.
+
+## Local default
+
+The generated app starts with:
+
+- embedded Postgres via PGlite
+- an inline scheduler
+- one process running the UI and runtime together
+
+That is the right default when you are learning the framework, building the first workflows, or iterating quickly on one machine.
+
+## Shared database setup
+
+When you are ready for shared environments or multiple processes, switch to PostgreSQL.
+
+Typical environment setup:
+
+```bash
+DATABASE_URL=postgresql://user:password@127.0.0.1:5432/codemation
+```
+
+Then run migrations:
+
+```bash
+pnpm exec codemation db migrate
+```
+
+## Queue-backed workers
+
+When you want dedicated worker processes, add Redis and queue-backed scheduling:
+
+```bash
+REDIS_URL=redis://127.0.0.1:6379
+DATABASE_URL=postgresql://user:password@127.0.0.1:5432/codemation
+```
+
+Start the web process:
+
+```bash
+pnpm exec codemation serve web
+```
+
+Start a worker process:
+
+```bash
+pnpm exec codemation serve worker
+```
+
+## Important compatibility rule
+
+BullMQ requires a **shared PostgreSQL database**.
+
+Do not pair BullMQ with the local embedded PGlite setup.
+
+## Decision guide
+
+Use the local default when:
+
+- you are developing alone
+- one process is enough
+- you want the shortest path to first success
+
+Use PostgreSQL when:
+
+- multiple instances need the same database
+- you want shared staging or production environments
+- you are moving beyond a single machine
+
+Use BullMQ workers when:
+
+- workflows are long-running or bursty
+- you want work offloaded from the web process
+- you want clearer production separation between request handling and execution
+
+## The runtime switch in config
+
+The starter template already points at this progression:
+
+```ts
+const useRedisRuntime = Boolean(process.env.REDIS_URL);
+const databaseUrl = process.env.DATABASE_URL?.trim();
+
+database: useRedisRuntime
+  ? { kind: "postgresql" as const, url: databaseUrl! }
+  : { kind: "pglite" as const, pgliteDataDir: ".codemation/pglite" };
+
+scheduler: {
+  kind: useRedisRuntime ? ("queue" as const) : ("inline" as const),
+  queuePrefix: "codemation-starter",
+  workerQueues: ["default"],
+  redisUrl: process.env.REDIS_URL,
+}
+```
+
+## Recommended next pages
+
+1. [Architecture](/docs/architecture)
+2. [On New Gmail Trigger node](/docs/nodes/gmail/on-new-gmail-trigger)
+3. [Create a custom node](/docs/how-to-guides/create-custom-node)

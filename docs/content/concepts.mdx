@@ -1,0 +1,103 @@
+---
+title: Concepts
+description: Learn the core Codemation mental models before you start extending workflows and nodes.
+---
+
+# Concepts
+
+Codemation stays approachable when you keep a few core ideas in your head.
+
+## Workflows
+
+A workflow is a TypeScript definition that describes how data moves through triggers, nodes, branches, and downstream actions.
+
+In a normal app, workflow files live under `src/workflows` and are discovered from `codemation.config.ts`.
+
+## Triggers
+
+A trigger starts a workflow run.
+
+Common examples:
+
+- `ManualTrigger` for local testing and seeded runs
+- `WebhookTrigger` for inbound HTTP
+- `OnNewGmailTrigger` for polling Gmail and turning new messages into workflow items
+
+## Nodes
+
+Nodes process items after a trigger.
+
+They usually do one of four jobs:
+
+- transform data
+- call external systems
+- make branching decisions
+- coordinate control flow such as waiting or merging
+
+Each user-facing node has its own reference page under [Nodes](/docs/nodes/core/manual-trigger).
+
+## Items
+
+Workflow data flows as **items**.
+
+An item usually contains:
+
+- `json` for structured data
+- optional `binary` content for files and attachments
+
+Nodes receive batches of items, not just single records, so workflow code can stay consistent across small and large runs.
+
+## Credentials
+
+Credentials are typed runtime resources.
+
+Instead of hard-coding secrets directly into workflow files, nodes declare credential requirements through named slots, and the runtime binds concrete credential instances to those slots.
+
+That gives you:
+
+- typed sessions
+- health checks
+- better operator UX
+- safer reuse across workflows
+
+## Workflow activation
+
+**Workflow activation** is framework-managed: the runtime tracks whether a workflow is **active** (it can be triggered and start new runs) or **inactive** (the definition is present, but it will not start new runs). Operators **toggle activation in the UI**.
+
+That supports a safe rollout:
+
+1. **Deploy** your workflow (and any new nodes) to the environment.
+2. **Configure credentials** in the UI and **test** them until slots resolve and health checks pass.
+3. **Activate** the workflow when you are ready for real traffic.
+
+You can also **disable** a workflow temporarily—for example when you add a node that **requires a new credential**. Deploy the change, configure and test credentials, then **redeploy** and **activate** again once the environment matches what the graph needs. That avoids accidental runs against missing or untested credentials.
+
+## Chat models and tools
+
+AI workflows usually combine:
+
+- a chat model configuration
+- an `AIAgent` node
+- optional tools
+- credential bindings for the model and any external integrations
+
+The important boundary is simple: let the model reason, then let deterministic nodes handle the actual business action.
+
+## Runs
+
+A run is a durable execution of a workflow.
+
+The engine handles graph progress, continuation, retries, and execution state, while the host runtime adds the surrounding product behavior such as APIs, persistence, and operator views.
+
+## A practical rule of thumb
+
+Think of Codemation like this:
+
+- your app defines workflow behavior
+- the framework provides the platform around that behavior
+
+## Recommended next pages
+
+1. [Architecture](/docs/architecture)
+2. [Deployment](/docs/deployment)
+3. [Create a custom node](/docs/how-to-guides/create-custom-node)

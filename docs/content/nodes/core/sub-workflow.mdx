@@ -1,0 +1,67 @@
+---
+title: Sub Workflow
+description: Invoke another workflow as part of the current workflow graph.
+---
+
+# Sub Workflow
+
+## Description
+
+`SubWorkflow` runs another workflow from inside the current workflow. Use it when you want to compose larger flows from smaller reusable ones.
+
+## Examples
+
+### Basic usage: hand off an item to a reusable workflow
+
+```ts
+new SubWorkflow("Run shared enrichment flow", "wf.shared.enrichment");
+```
+
+Example input:
+
+```json
+{
+  "customerId": "cus_9"
+}
+```
+
+Example output:
+
+```json
+{
+  "customerId": "cus_9",
+  "enriched": true,
+  "segment": "enterprise"
+}
+```
+
+### Advanced usage: resume a sub-workflow from a specific node
+
+```ts
+new SubWorkflow(
+  "Resume invoice remediation flow",
+  "wf.invoice.remediation",
+  [{ nodeId: "collect_invoice_context" }],
+  "retry_failed_delivery",
+  "subflow_retry_invoice",
+);
+```
+
+Example input:
+
+```json
+{
+  "invoiceId": "inv_42",
+  "retryCount": 2
+}
+```
+
+Example output:
+
+```json
+{
+  "invoiceId": "inv_42",
+  "retryCount": 2,
+  "deliveryStatus": "scheduled"
+}
+```

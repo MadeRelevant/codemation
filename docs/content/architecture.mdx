@@ -1,0 +1,104 @@
+---
+title: Architecture
+description: Understand the runtime shape of Codemation from the local setup to the production worker model.
+---
+
+# Architecture
+
+You do not need every internal detail to use Codemation well.
+
+Most app developers need a clear picture of:
+
+- the minimum setup that gets you productive quickly
+- the production setup that adds shared infrastructure and workers
+- the engine layer that keeps workflow definitions stable as the runtime grows
+
+## Main packages
+
+| Package                 | Role                                                                        |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `@codemation/core`      | Workflow engine, runtime contracts, and workflow DSL                        |
+| `@codemation/host`      | Config loading, persistence, credentials, API surface, and scheduler wiring |
+| `@codemation/next-host` | Framework-owned operator UI                                                 |
+| `@codemation/cli`       | `dev`, `build`, `db migrate`, `serve web`, and `serve worker` commands      |
+
+## Minimum setup
+
+![Minimum setup architecture](/architecture/minimum-setup.svg)
+
+This is the default path most apps should start with:
+
+- your app provides `codemation.config.ts` and workflow files
+- `pnpm dev` runs the Codemation CLI
+- the framework starts the runtime and UI together
+- persistence uses local embedded Postgres via PGlite
+- one process is enough to run both the web surface and execution
+
+### When the minimum setup is right
+
+Use it when:
+
+- you are creating your first app
+- you want fast local iteration
+- you do not need shared workers yet
+- one machine or one process is enough
+
+## Production setup
+
+![Production setup architecture](/architecture/production-setup.svg)
+
+When your app needs shared infrastructure or worker separation, the runtime shape changes but your workflow code does not.
+
+The important differences are:
+
+- PostgreSQL replaces the local embedded database
+- Redis is added for queue-backed execution
+- BullMQ powers the scheduler
+- web and worker processes run separately
+- both processes share the same database and Redis instance
+
+### When the production setup is right
+
+Use it when:
+
+- you want separate web and worker processes
+- workflows can be long-running or bursty
+- you need a shared staging or production environment
+- queued execution is a better fit than an inline local scheduler
+
+## Engine layer
+
+![Engine architecture overview](/architecture/engine-overview.svg)
+
+At a high level, `@codemation/core` owns:
+
+- workflow definition and planning
+- execution and continuation
+- policies and limits
+- runtime contracts and ports
+- snapshot-based resume behavior
+
+It does **not** directly own:
+
+- the web UI
+- auth and user management
+- concrete database implementations
+- Redis or BullMQ wiring
+- framework-specific API hosting
+
+Those responsibilities are added by the host and UI packages around the engine.
+
+## Where your code lives
+
+In a normal app, you mainly work in:
+
+- `codemation.config.ts`
+- `src/workflows/**/*.ts`
+- optional custom node modules or packages
+- optional credential type registrations
+
+## Recommended next pages
+
+1. [Deployment](/docs/deployment)
+2. [Concepts](/docs/concepts)
+3. [Create a custom credential](/docs/how-to-guides/create-custom-credential)

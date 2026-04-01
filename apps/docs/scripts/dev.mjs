@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 class DocsDevProgram {
   #docsDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  #defaultPort = process.env.PORT?.trim() || "4000";
 
   #pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
@@ -119,7 +120,7 @@ class DocsDevProgram {
 
   #spawnNextDev() {
     // This script is the environment boundary for the docs dev process.
-    return spawn(this.#pnpmCommand, ["exec", "next", "dev"], {
+    return spawn(this.#pnpmCommand, ["exec", "next", "dev", "--port", this.#defaultPort], {
       cwd: this.#docsDirectory,
       stdio: "inherit",
       env: process.env,

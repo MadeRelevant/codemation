@@ -1,0 +1,114 @@
+---
+title: Create Custom Agent Tool
+description: Add a tool that an AIAgent node can call during workflow execution.
+---
+
+# Create Custom Agent Tool
+
+This guide shows how to build a custom tool that an `AIAgent` can call when the model needs external capability or fresh data.
+
+## Use this guide when
+
+Reach for a custom agent tool when:
+
+- the model needs deterministic computation
+- the model needs fresh or external data
+- you want the model to call an internal API instead of guessing
+
+## Example scenario
+
+Imagine you want an agent that can search your internal documentation before it answers.
+
+The pattern is:
+
+1. define a tool config
+2. implement the tool with input and output schemas
+3. attach the tool config to an `AIAgent`
+
+## Step 1: define the tool config
+
+```ts
+import type { ToolConfig, TypeToken } from "@codemation/core";
+
+export class SearchDocsToolConfig implements ToolConfig {
+  readonly type: TypeToken<unknown> = SearchDocsTool;
+
+  constructor(
+    public readonly name: string = "search_docs",
+    public readonly description: string = "Search product documentation for the current task.",
+  ) {}
+}
+```
+
+## Step 2: implement the tool
+
+```ts
+import type { Tool, ToolExecuteArgs } from "@codemation/core";
+import { tool } from "@codemation/core";
+import { z } from "zod";
+
+const searchToolInputSchema = z.object({
+  query: z.string(),
+});
+
+const searchToolOutputSchema = z.object({
+  results: z.array(
+    z.object({
+      title: z.string(),
+      url: z.string(),
+    }),
+  ),
+});
+
+@tool()
+export class SearchDocsTool implements Tool<
+  SearchDocsToolConfig,
+  typeof searchToolInputSchema,
+  typeof searchToolOutputSchema
+> {
+  readonly defaultDescription = "Search documentation and return the best matching pages.";
+  readonly inputSchema = searchToolInputSchema;
+  readonly outputSchema = searchToolOutputSchema;
+
+  async execute(
+    args: ToolExecuteArgs<SearchDocsToolConfig, z.input<typeof searchToolInputSchema>>,
+  ): Promise<z.output<typeof searchToolOutputSchema>> {
+    const query = args.input.query.trim();
+
+    return {
+      results: [
+        {
+          title: `Result for ${query}`,
+          url: "https://example.test/docs",
+        },
+      ],
+    };
+  }
+}
+```
+
+## Step 3: attach the tool to an AIAgent
+
+```ts
+new AIAgent(
+  "Answer product questions",
+  "Use the search_docs tool when you need product documentation context, then answer clearly.",
+  (item) => JSON.stringify(item.json),
+  openAiChatModelPresets.demoGpt4oMini,
+  [new SearchDocsToolConfig()],
+);
+```
+
+## Why tools are useful
+
+Tools let the model stay focused on reasoning while deterministic code handles:
+
+- lookups
+- calculations
+- external API access
+- capability boundaries that should not live inside a prompt
+
+## Related pages
+
+1. [AI Agent node](/docs/nodes/core/ai-agent)
+2. [Create a custom credential](/docs/how-to-guides/create-custom-credential)

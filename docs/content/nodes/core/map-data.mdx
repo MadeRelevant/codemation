@@ -1,0 +1,77 @@
+---
+title: Map Data
+description: Transform each workflow item into a new JSON shape.
+---
+
+# Map Data
+
+## Description
+
+`MapData` maps each input item to a new output JSON value. Use it to normalize payloads, add derived fields, or prepare data for the next node.
+
+## Examples
+
+### Basic usage: add a derived status field
+
+```ts
+new MapData("Mark invoice as ready", (item) => ({
+  ...item.json,
+  status: "ready",
+}));
+```
+
+Example input:
+
+```json
+{
+  "invoiceId": "inv_42",
+  "amount": 799
+}
+```
+
+Example output:
+
+```json
+{
+  "invoiceId": "inv_42",
+  "amount": 799,
+  "status": "ready"
+}
+```
+
+### Advanced usage: reshape nested input for downstream APIs
+
+```ts
+new MapData("Prepare CRM payload", (item) => ({
+  customerId: item.json.customer.id,
+  customerName: item.json.customer.name,
+  total: item.json.invoice.total,
+  currency: item.json.invoice.currency,
+}));
+```
+
+Example input:
+
+```json
+{
+  "customer": {
+    "id": "cus_9",
+    "name": "Acme Corp"
+  },
+  "invoice": {
+    "total": 799,
+    "currency": "EUR"
+  }
+}
+```
+
+Example output:
+
+```json
+{
+  "customerId": "cus_9",
+  "customerName": "Acme Corp",
+  "total": 799,
+  "currency": "EUR"
+}
+```
