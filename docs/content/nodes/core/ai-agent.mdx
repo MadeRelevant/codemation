@@ -28,7 +28,7 @@ new AIAgent<{ subject: string; body: string }, { outcome: "rfq" | "other"; summa
       content: ({ item }) => JSON.stringify(item.json),
     },
   ],
-  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
 });
 ```
 
@@ -62,7 +62,7 @@ new AIAgent({
     },
     { role: "user", content: ({ item }) => JSON.stringify(item.json) },
   ],
-  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
   tools: [new SearchDocsToolConfig(), new PricingLookupToolConfig()],
 });
 ```
