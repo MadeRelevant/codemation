@@ -18,7 +18,7 @@ This runs `codemation dev --watch-framework` (set in `apps/test-dev/package.json
 - The CLI starts **`next dev`** in `@codemation/next-host` for UI HMR and points it at the stable dev endpoint via `CODEMATION_RUNTIME_DEV_URL`.
 - On source changes, the CLI republishes consumer output when needed, rebuilds a fresh disposable API runtime in-process, swaps the stable proxy over atomically, and keeps workflow/dev websocket paths stable.
 
-Root `pnpm dev` may still use Turbo to warm workspace packages; the Next dev server is **not** started by Turbo for `next-host`—the CLI owns `next dev` in framework mode.
+Root `pnpm dev` now runs the same framework-author path through Turbo package watchers **without** a pre-warm build step. The Next dev server is **not** started by Turbo for `next-host`—the CLI owns `next dev` in framework mode.
 
 ## 2. Consumer mode (default `codemation dev`)
 
@@ -41,6 +41,12 @@ Framework UI HMR is opt-in via `codemation dev --watch-framework` (as in `apps/t
 
 - Monorepo framework work: `codemation dev --watch-framework` + Next dev + stable CLI-owned runtime swapping.
 - External consumer: `codemation dev` — one command, packaged UI + stable CLI-owned runtime swapping.
+
+## Root scripts
+
+- Repo root `pnpm dev`: fast framework-author mode through Turbo watchers, with no pre-warm build.
+- Repo root `pnpm run dev:framework`: the explicit name for that same fast framework-author workflow.
+- Repo root `pnpm run dev:framework:warm`: the warm-first workflow when you explicitly want the initial Turbo build step.
 
 ## Tests
 

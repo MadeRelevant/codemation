@@ -1,0 +1,92 @@
+---
+title: Callback
+description: Run inline TypeScript against the current batch of workflow items.
+---
+
+# Callback
+
+## Description
+
+`Callback` runs custom TypeScript logic directly inside a workflow definition. It is useful for quick experiments and small local transformations, but long-lived business logic usually belongs in a custom node.
+
+## Examples
+
+### Basic usage: annotate every item in the batch
+
+```ts
+new Callback("Annotate", (items) =>
+  items.map((item) => ({
+    ...item,
+    json: {
+      ...item.json,
+      note: "processed",
+    },
+  })),
+);
+```
+
+Example input:
+
+```json
+[
+  {
+    "json": {
+      "orderId": "ord_1"
+    }
+  }
+]
+```
+
+Example output:
+
+```json
+[
+  {
+    "json": {
+      "orderId": "ord_1",
+      "note": "processed"
+    }
+  }
+]
+```
+
+### Advanced usage: use execution context inside async logic
+
+```ts
+new Callback("Attach account base URL", async (items, ctx) => {
+  const session = await ctx.getCredential<{ baseUrl: string }>("crm");
+
+  return items.map((item) => ({
+    ...item,
+    json: {
+      ...item.json,
+      crmBaseUrl: session.baseUrl,
+    },
+  }));
+});
+```
+
+Example input:
+
+```json
+[
+  {
+    "json": {
+      "customerId": "cus_9"
+    }
+  }
+]
+```
+
+Example output:
+
+```json
+[
+  {
+    "json": {
+      "customerId": "cus_9",
+      "crmBaseUrl": "https://crm.example.test"
+    }
+  }
+]
+```

@@ -1,0 +1,108 @@
+---
+title: Merge
+description: Join multiple workflow branches back into one node.
+---
+
+# Merge
+
+## Description
+
+`Merge` combines multiple upstream paths into a single downstream stream. Use it after branching when later steps should continue from one merged path again.
+
+## Examples
+
+### Basic usage: rejoin two branches in a predictable order
+
+```ts
+new Merge("Join branch results", {
+  mode: "passThrough",
+  prefer: ["true", "false"],
+});
+```
+
+Example input:
+
+```json
+{
+  "true": [
+    {
+      "json": {
+        "orderId": "ord_1",
+        "route": "priority"
+      }
+    }
+  ],
+  "false": [
+    {
+      "json": {
+        "orderId": "ord_2",
+        "route": "standard"
+      }
+    }
+  ]
+}
+```
+
+Example output:
+
+```json
+[
+  {
+    "json": {
+      "orderId": "ord_1",
+      "route": "priority"
+    }
+  },
+  {
+    "json": {
+      "orderId": "ord_2",
+      "route": "standard"
+    }
+  }
+]
+```
+
+### Advanced usage: merge matching positions from two upstream paths
+
+```ts
+new Merge("Combine enrichment results", {
+  mode: "mergeByPosition",
+});
+```
+
+Example input:
+
+```json
+{
+  "left": [
+    {
+      "json": {
+        "customerId": "cus_9",
+        "name": "Acme Corp"
+      }
+    }
+  ],
+  "right": [
+    {
+      "json": {
+        "customerId": "cus_9",
+        "healthScore": 91
+      }
+    }
+  ]
+}
+```
+
+Example output:
+
+```json
+[
+  {
+    "json": {
+      "customerId": "cus_9",
+      "name": "Acme Corp",
+      "healthScore": 91
+    }
+  }
+]
+```

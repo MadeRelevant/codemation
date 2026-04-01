@@ -1,4 +1,14 @@
 {
   "title": "Codemation",
-  "pages": ["index", "getting-started", "overview", "workflows", "credentials", "deployment", "plugin-developers"]
+  "pages": [
+    "index",
+    "getting-started",
+    "concepts",
+    "architecture",
+    "deployment",
+    "---",
+    "how-to-guides",
+    "---",
+    "nodes"
+  ]
 }

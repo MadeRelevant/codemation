@@ -1,0 +1,70 @@
+---
+title: Manual Trigger
+description: Start a workflow manually and optionally seed the run with test items.
+---
+
+# Manual Trigger
+
+## Description
+
+`ManualTrigger` starts a workflow manually. It is the best default trigger for local development, smoke tests, and examples where you want deterministic starter items.
+
+## Examples
+
+### Basic usage: seed one starter item
+
+```ts
+createWorkflowBuilder({ id: "wf.starter.hello", name: "Starter Hello" })
+  .trigger(new ManualTrigger("Start", [{ json: { step: "start" } }]))
+  .then(new MapData("Mark ready", (item) => ({ ...item.json, ready: true })))
+  .build();
+```
+
+Example output:
+
+```json
+[
+  {
+    "json": {
+      "step": "start"
+    }
+  }
+]
+```
+
+### Advanced usage: seed a batch for local workflow testing
+
+```ts
+createWorkflowBuilder({ id: "wf.demo.batch", name: "Batch demo" })
+  .trigger(
+    new ManualTrigger(
+      "Seed test orders",
+      [
+        { json: { orderId: "ord_1", total: 120 } },
+        { json: { orderId: "ord_2", total: 450 } },
+      ],
+      "trigger_seed_orders",
+    ),
+  )
+  .then(new Callback("Summarize batch", (items) => items))
+  .build();
+```
+
+Example output:
+
+```json
+[
+  {
+    "json": {
+      "orderId": "ord_1",
+      "total": 120
+    }
+  },
+  {
+    "json": {
+      "orderId": "ord_2",
+      "total": 450
+    }
+  }
+]
+```

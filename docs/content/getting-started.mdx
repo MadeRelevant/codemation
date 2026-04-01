@@ -1,0 +1,65 @@
+---
+title: Getting Started
+description: Scaffold a Codemation app, run it locally, and understand the smallest useful setup.
+---
+
+# Getting Started
+
+This page is the fastest path from zero to a working Codemation app.
+
+## Fastest path
+
+```bash
+pnpm create codemation <project-name>
+cd <project-name>
+pnpm dev
+```
+
+That starts the framework-owned UI and the runtime behind it. To change discovery, credentials, database mode, or other wiring, edit `<project-name>/codemation.config.ts`.
+
+## Other scaffolds
+
+You can also use:
+
+```bash
+npm create codemation@latest my-app
+yarn create codemation
+```
+
+## First-time setup (when you need it)
+
+Some templates walk you through migrations and a first user interactively. If yours does not, run these inside the project:
+
+```bash
+pnpm install
+pnpm exec codemation db migrate
+pnpm exec codemation user create --email you@example.com --password 'your-secure-password'
+pnpm dev
+```
+
+## What the starter gives you
+
+The generated project already includes:
+
+- `codemation.config.ts`
+- a discovered `src/workflows` directory
+- a sample workflow
+- local auth defaults for development
+- an embedded Postgres-compatible local database via PGlite
+- a `pnpm dev` workflow that runs `codemation dev`
+
+## The smallest mental model
+
+At the beginning, you only need to understand four things:
+
+1. `codemation.config.ts` composes your app
+2. `src/workflows` contains workflow definitions
+3. nodes move data through a workflow graph
+4. the runtime gives you persistence, credentials, APIs, and the operator UI
+
+## Recommended next pages
+
+1. [Concepts](/docs/concepts)
+2. [Architecture](/docs/architecture)
+3. [Deployment](/docs/deployment)
+4. [Manual Trigger node](/docs/nodes/core/manual-trigger)

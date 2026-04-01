@@ -1,0 +1,75 @@
+---
+title: Wait
+description: Pause workflow progress for a fixed duration before continuing.
+---
+
+# Wait
+
+## Description
+
+`Wait` pauses execution for a configured number of milliseconds, then continues downstream. Use it for delay windows, retry spacing, or time-based orchestration steps.
+
+## Examples
+
+### Basic usage: delay a follow-up step by one minute
+
+```ts
+new Wait("Give the customer time to reply", 60_000);
+```
+
+Example input:
+
+```json
+{
+  "ticketId": "t_42",
+  "status": "pending_reply"
+}
+```
+
+Example output:
+
+```json
+{
+  "ticketId": "t_42",
+  "status": "pending_reply"
+}
+```
+
+### Advanced usage: create a short cooldown inside a retry-oriented flow
+
+```ts
+createWorkflowBuilder({ id: "wf.retry.cooldown", name: "Retry cooldown" })
+  .trigger(new ManualTrigger("Start", [{ json: { attempt: 1, url: "https://api.example.test" } }]))
+  .then(new HttpRequest("Call external API"))
+  .then(new Wait("Cooldown before next decision", 5_000))
+  .build();
+```
+
+Example input:
+
+```json
+{
+  "attempt": 1,
+  "url": "https://api.example.test"
+}
+```
+
+Example output:
+
+```json
+{
+  "attempt": 1,
+  "url": "https://api.example.test",
+  "http": {
+    "url": "https://api.example.test",
+    "method": "GET",
+    "ok": true,
+    "status": 200,
+    "statusText": "OK",
+    "mimeType": "application/json",
+    "headers": {
+      "content-type": "application/json"
+    }
+  }
+}
+```

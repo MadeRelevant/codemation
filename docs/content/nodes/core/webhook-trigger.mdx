@@ -1,0 +1,86 @@
+---
+title: Webhook Trigger
+description: Start a workflow from inbound HTTP requests with an endpoint key, methods, and optional schema validation.
+---
+
+# Webhook Trigger
+
+## Description
+
+`WebhookTrigger` starts a workflow when Codemation receives an HTTP request that matches the configured endpoint and methods. Use it for inbound integrations, event receivers, and lightweight API-style automations.
+
+## Examples
+
+### Basic usage: accept a POST payload and pass it through
+
+```ts
+createWorkflowBuilder({ id: "wf.webhook.orders", name: "Orders webhook" })
+  .trigger(
+    new WebhookTrigger(
+      "Receive order",
+      { endpointKey: "orders", methods: ["POST"] },
+      (items) => items,
+    ),
+  )
+  .then(new Callback("Handle order", (items) => items))
+  .build();
+```
+
+Example output:
+
+```json
+[
+  {
+    "json": {
+      "orderId": "ord_123",
+      "total": 149
+    }
+  }
+]
+```
+
+### Advanced usage: validate and normalize an inbound invoice event
+
+```ts
+const invoiceWebhookSchema = z.object({
+  invoiceId: z.string(),
+  customerId: z.string(),
+  amount: z.number(),
+});
+
+createWorkflowBuilder({ id: "wf.webhook.invoice", name: "Invoice webhook" })
+  .trigger(
+    new WebhookTrigger(
+      "Receive invoice",
+      {
+        endpointKey: "invoice-created",
+        methods: ["POST"],
+        inputSchema: invoiceWebhookSchema,
+      },
+      (items) =>
+        items.map((item) => ({
+          json: {
+            ...item.json,
+            source: "webhook",
+          },
+        })),
+      "invoice_webhook_trigger",
+    ),
+  )
+  .build();
+```
+
+Example output:
+
+```json
+[
+  {
+    "json": {
+      "invoiceId": "inv_42",
+      "customerId": "cus_9",
+      "amount": 799,
+      "source": "webhook"
+    }
+  }
+]
+```

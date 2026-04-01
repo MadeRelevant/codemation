@@ -1,49 +1,54 @@
 ---
 title: Codemation
-description: Build automation workflows in TypeScript with a code-first developer experience and a real runtime behind it.
+description: Build automation workflows in TypeScript with a code-first developer experience, durable execution, and a framework-owned runtime.
 ---
 
 # Codemation
 
 Codemation is a **code-first automation framework** for developers who want to build durable workflows in TypeScript instead of stitching together one-off scripts, custom queues, ad-hoc secrets handling, and a separate operator UI.
 
-## Fastest path to running app
+## See Codemation in action
 
-If you just want to get Codemation up and running, use these commands first:
+Browse a few highlights from the framework-owned operator UI: workflows, binaries, credentials, users, debugger pins, and integrations.
+
+<DocsScreenshotCarousel />
+
+## Fastest path to a running app
+
+Two commands after you pick a project name:
 
 ```bash
-npm create codemation@latest my-app
-cd my-app
-pnpm install
-pnpm exec codemation db migrate
-pnpm exec codemation user create --email you@example.com --password 'your-secure-password'
+pnpm create codemation <project-name>
+cd <project-name>
 pnpm dev
 ```
 
-That gives you:
+Configure workflows, credentials, and runtime wiring in `<project-name>/codemation.config.ts` when you need to go beyond the defaults.
 
-- a generated Codemation app
-- a migrated local database
-- a first user for the UI
-- a running local development environment
+That gives you a generated Codemation app and a working local development environment. Add database migrations and a first UI user when your template or setup prompts for them, or follow [Getting Started](/docs/getting-started) for the full first-time steps.
 
-Read the rest of the docs when you need to go deeper.
+Codemation is designed for teams building:
 
-It is designed for teams building:
+- internal automations
+- AI-powered workflows
+- integration pipelines
+- agentic flows that need observability and retries
+- production setups that grow from local development to web + worker deployments
 
-- internal automations,
-- AI-powered workflows,
-- integration pipelines,
-- agentic flows that need observability and retries,
-- production setups that can grow from local development to web + worker deployments.
+## Start here
 
-| Operator experience                                                                         | Code-first authoring                                                                        |
-| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| ![Placeholder for workflow canvas and run detail screenshot](/placeholders/operator-ui.svg) | ![Placeholder for workflow code and CLI screenshot](/placeholders/code-first-authoring.svg) |
+The docs now split into three clear tracks:
 
-> The visuals above are intentionally placeholders for now. Replace them later with screenshots from your own app and workflow examples.
+- [Getting Started](/docs/getting-started) for the fastest path to first success
+- [Concepts](/docs/concepts) for the mental models behind workflows, nodes, credentials, and runs
+- [Architecture](/docs/architecture) and [Deployment](/docs/deployment) for runtime shape and operating decisions
 
-## What you build
+When you are ready to extend the framework, move into:
+
+- [How-To Guides](/docs/how-to-guides/create-custom-credential) for story-driven extension walkthroughs
+- [Nodes](/docs/nodes/core/manual-trigger) for per-node reference pages with signatures and examples
+
+## What you own
 
 As an app developer, you mainly own:
 
@@ -51,39 +56,31 @@ As an app developer, you mainly own:
 - workflow files under `src/workflows`
 - optional custom nodes
 - optional custom credential types
-- runtime choices such as local embedded storage vs PostgreSQL, and inline execution vs BullMQ workers
+- deployment choices such as local embedded storage vs PostgreSQL and inline execution vs BullMQ workers
 
 ## What the framework owns
 
 Codemation provides the runtime and product surface around your workflow code:
 
-- a workflow engine for graph execution, continuations, and retries,
-- a host runtime for config loading, persistence, credentials, and APIs,
-- a framework-owned Next.js UI for operators,
-- a CLI for local development, building, migrations, and worker processes,
-- pluggable node packages so you can mix built-in capabilities with your own.
+- a workflow engine for graph execution, continuations, and retries
+- a host runtime for config loading, persistence, credentials, and APIs
+- a framework-owned Next.js UI for operators
+- a CLI for local development, building, migrations, and worker processes
+- pluggable node packages so you can mix built-in capabilities with your own
 
-## High-level architecture
+## Runtime at a glance
 
 ![Minimum setup architecture](/architecture/minimum-setup.svg)
 
-If you want the side-by-side view of the **minimum setup**, the **production worker setup**, and the **engine layer**, go straight to [Architecture overview](/docs/overview/architecture).
+If you want the side-by-side view of the minimum setup, the production worker setup, and the engine layer, go straight to [Architecture](/docs/architecture).
 
-## Start here
+## Suggested reading order
 
 If you are new to Codemation, read these pages in order:
 
-1. [Create your first app](/docs/getting-started/create-your-first-app)
-2. [Architecture overview](/docs/overview/architecture)
-3. [Engine architecture](/docs/overview/engine-architecture)
-4. [Define workflows](/docs/workflows/define-workflows)
-5. [Built-in nodes](/docs/workflows/built-in-nodes)
-6. [Use credentials](/docs/credentials/using-credentials)
-7. [Use PostgreSQL for shared environments](/docs/deployment/postgresql)
-8. [Use BullMQ and workers](/docs/deployment/bullmq-workers)
-
-## How this docs site stays focused
-
-This site intentionally indexes only the user guide under `docs/content/`.
-
-That keeps framework-user documentation easy to scan and easy to maintain, while deeper internal or contributor-only notes can live elsewhere in the repository without leaking into the main product docs.
+1. [Getting Started](/docs/getting-started)
+2. [Concepts](/docs/concepts)
+3. [Architecture](/docs/architecture)
+4. [Deployment](/docs/deployment)
+5. [Nodes](/docs/nodes/core/manual-trigger)
+6. [How-To Guides](/docs/how-to-guides/create-custom-node)

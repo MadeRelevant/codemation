@@ -123,7 +123,18 @@ describe("UsersScreen", () => {
     await waitFor(() => {
       expect(screen.getByTestId("users-invite-link-field")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("users-invite-link-field")).toHaveValue("http://localhost:3000/invite/raw-token-value");
+    const linkField = screen.getByTestId("users-invite-link-field");
+    expect(linkField.textContent).toBe("http://localhost:3000/invite/raw-token-value");
+    expect(linkField).toHaveAttribute("data-invite-link-layout", "single-line-scroll");
+
+    const copyBtn = screen.getByTestId("users-invite-copy-link");
+    expect(copyBtn).not.toBeDisabled();
+    fireEvent.click(copyBtn);
+    await waitFor(() => {
+      expect(copyBtn).toBeDisabled();
+      expect(copyBtn.textContent).toContain("Copied");
+    });
+
     expect(fetchMock).toHaveBeenCalledWith(
       ApiPaths.userInvites(),
       expect.objectContaining({
@@ -158,7 +169,7 @@ describe("UsersScreen", () => {
     fireEvent.submit(screen.getByTestId("users-invite-form"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("users-invite-link-field")).toHaveValue("http://localhost:3000/invite/from-enter");
+      expect(screen.getByTestId("users-invite-link-field").textContent).toBe("http://localhost:3000/invite/from-enter");
     });
   });
 
@@ -193,7 +204,18 @@ describe("UsersScreen", () => {
     await waitFor(() => {
       expect(screen.getByTestId("users-regenerate-link-field")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("users-regenerate-link-field")).toHaveValue("http://localhost:3000/invite/new-raw-token");
+    const regenLink = screen.getByTestId("users-regenerate-link-field");
+    expect(regenLink.textContent).toBe("http://localhost:3000/invite/new-raw-token");
+    expect(regenLink).toHaveAttribute("data-invite-link-layout", "single-line-scroll");
+
+    const regenCopy = screen.getByTestId("users-regenerate-copy-link");
+    expect(regenCopy).not.toBeDisabled();
+    fireEvent.click(regenCopy);
+    await waitFor(() => {
+      expect(regenCopy).toBeDisabled();
+      expect(regenCopy.textContent).toContain("Copied");
+    });
+
     expect(fetchMock).toHaveBeenCalledWith(
       ApiPaths.userInviteRegenerate("u-inv"),
       expect.objectContaining({ method: "POST" }),

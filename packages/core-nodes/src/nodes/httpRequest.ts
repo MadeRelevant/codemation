@@ -4,22 +4,21 @@ import { HttpRequestNode } from "./HttpRequestNodeFactory";
 
 export type HttpRequestDownloadMode = "auto" | "always" | "never";
 
+/** JSON emitted by {@link HttpRequest} — response metadata only (input item fields are not passed through). */
 export type HttpRequestOutputJson = Readonly<{
-  http: Readonly<{
-    url: string;
-    method: string;
-    ok: boolean;
-    status: number;
-    statusText: string;
-    mimeType: string;
-    headers: Readonly<Record<string, string>>;
-    bodyBinaryName?: string;
-  }>;
+  url: string;
+  method: string;
+  ok: boolean;
+  status: number;
+  statusText: string;
+  mimeType: string;
+  headers: Readonly<Record<string, string>>;
+  bodyBinaryName?: string;
 }>;
 
 export class HttpRequest<
   TInputJson = Readonly<{ url?: string }>,
-  TOutputJson = TInputJson & HttpRequestOutputJson,
+  TOutputJson = HttpRequestOutputJson,
 > implements RunnableNodeConfig<TInputJson, TOutputJson> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = HttpRequestNode;

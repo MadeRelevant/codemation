@@ -237,7 +237,7 @@ Workspace ESLint enforces DI-friendly patterns: no arbitrary `new PascalCase` ou
 
 - Monorepo uses **pnpm workspaces** and **Turborepo**.
 - Library bundling uses **tsdown**.
-- Root **`pnpm dev`** is framework-author mode and delegates to **`pnpm run dev:repo`**. It warms the workspace build graph for **`@codemation/test-dev`** and then runs **`turbo run dev --filter=@codemation/test-dev... --filter=!@codemation/next-host --filter=!@codemation/eslint-config`** so the framework packages stay rebuilt automatically while `apps/test-dev` runs **`pnpm exec codemation dev`**. Next is still started by the CLI, not by Turbo.
+- Root **`pnpm dev`** is framework-author mode and delegates to **`pnpm run dev:framework`**. That starts the Turbo watcher graph for **`@codemation/test-dev`** without a pre-warm build step, so the framework packages stay rebuilt automatically while `apps/test-dev` runs **`pnpm exec codemation dev`**. Use **`pnpm run dev:framework:warm`** only when you explicitly want the old warm-first behavior. Next is still started by the CLI, not by Turbo.
 - Root **`pnpm run dev:consumer`** is a convenience alias for running **consumer mode** against `apps/test-dev` from the repo root.
 - Consumer **`pnpm dev`** is intentionally different: it runs **`codemation dev`**, which starts the Next host from `@codemation/next-host`, watches consumer files, rebuilds `.codemation/output`, and hot-swaps the consumer manifest. It does not watch Codemation workspace packages.
 - See **`docs/development-modes.md`** for the distinction between framework-author mode and consumer mode.

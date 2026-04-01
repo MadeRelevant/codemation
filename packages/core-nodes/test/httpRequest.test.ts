@@ -45,11 +45,11 @@ test("HttpRequestNode downloads media responses into binary attachments", async 
 
   const item = outputs.main?.[0];
   assert.ok(item);
-  const json = item.json as { http: { status: number; bodyBinaryName?: string } };
+  const json = item.json as { status: number; bodyBinaryName?: string };
   assert.equal(item.binary?.body?.mimeType, "image/png");
   assert.equal(item.binary?.body?.previewKind, "image");
-  assert.equal(json.http.status, 200);
-  assert.equal(json.http.bodyBinaryName, "body");
+  assert.equal(json.status, 200);
+  assert.equal(json.bodyBinaryName, "body");
 });
 
 test("HttpRequestNode keeps text responses JSON-only in auto mode", async () => {
@@ -67,10 +67,10 @@ test("HttpRequestNode keeps text responses JSON-only in auto mode", async () => 
 
   const item = outputs.main?.[0];
   assert.ok(item);
-  const json = item.json as { http: { mimeType: string; bodyBinaryName?: string } };
+  const json = item.json as { mimeType: string; bodyBinaryName?: string };
   assert.equal(item.binary, undefined);
-  assert.equal(json.http.mimeType, "text/plain");
-  assert.equal(json.http.bodyBinaryName, undefined);
+  assert.equal(json.mimeType, "text/plain");
+  assert.equal(json.bodyBinaryName, undefined);
 });
 
 test("HttpRequestNode stores pdf and text bodies as download attachments in always mode", async () => {
@@ -96,16 +96,40 @@ test("HttpRequestNode stores pdf and text bodies as download attachments in alwa
   assert.ok(pdfItem);
   assert.ok(textItem);
 
-  const pdfJson = pdfItem.json as { http: { mimeType: string; bodyBinaryName?: string } };
-  const textJson = textItem.json as { http: { mimeType: string; bodyBinaryName?: string } };
+  const pdfJson = pdfItem.json as { mimeType: string; bodyBinaryName?: string };
+  const textJson = textItem.json as { mimeType: string; bodyBinaryName?: string };
 
   assert.equal(pdfItem.binary?.body?.mimeType, "application/pdf");
   assert.equal(pdfItem.binary?.body?.previewKind, "download");
-  assert.equal(pdfJson.http.mimeType, "application/pdf");
-  assert.equal(pdfJson.http.bodyBinaryName, "body");
+  assert.equal(pdfJson.mimeType, "application/pdf");
+  assert.equal(pdfJson.bodyBinaryName, "body");
 
   assert.equal(textItem.binary?.body?.mimeType, "text/plain");
   assert.equal(textItem.binary?.body?.previewKind, "download");
-  assert.equal(textJson.http.mimeType, "text/plain");
-  assert.equal(textJson.http.bodyBinaryName, "body");
+  assert.equal(textJson.mimeType, "text/plain");
+  assert.equal(textJson.bodyBinaryName, "body");
+});
+
+test("HttpRequestNode output replaces the item JSON and does not pass through input fields", async () => {
+  const config = new HttpRequest("Fetch", { urlField: "profileUrl" });
+  const outputs = await new HttpRequestNode().execute(
+    [
+      {
+        json: {
+          profileUrl: "data:text/plain,hello",
+          customerId: "cus_9",
+          extra: { nested: true },
+        },
+      },
+    ],
+    HttpRequestNodeTestContextFactory.create(config),
+  );
+
+  const item = outputs.main?.[0];
+  assert.ok(item);
+  const json = item.json as Record<string, unknown>;
+  assert.equal("customerId" in json, false);
+  assert.equal("extra" in json, false);
+  assert.equal(json.status, 200);
+  assert.equal(typeof json.url, "string");
 });

@@ -23,6 +23,7 @@
     "components/**/*.ts",
     "components/**/*.tsx",
     "lib/**/*.ts",
+    "lib/**/*.tsx",
     ".next/types/**/*.ts"
   ],
   "exclude": ["node_modules"]

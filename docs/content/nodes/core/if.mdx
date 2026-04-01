@@ -1,0 +1,77 @@
+---
+title: If
+description: Split the workflow into `true` and `false` paths based on a predicate.
+---
+
+# If
+
+## Description
+
+`If` evaluates a predicate for each item and routes that item into the `true` or `false` branch. Use it when later workflow actions depend on a deterministic decision.
+
+## Examples
+
+### Basic usage: branch on a classification result
+
+```ts
+new If("Is RFQ", (item) => item.json.outcome === "rfq");
+```
+
+Example input:
+
+```json
+{
+  "outcome": "rfq",
+  "reasoning": "Customer is asking for a quote."
+}
+```
+
+Example output:
+
+```json
+{
+  "true": [
+    {
+      "json": {
+        "outcome": "rfq",
+        "reasoning": "Customer is asking for a quote."
+      }
+    }
+  ],
+  "false": []
+}
+```
+
+### Advanced usage: branch on richer business logic
+
+```ts
+new If(
+  "Needs manager review",
+  (item) => item.json.total > 1000 || item.json.country !== "NL",
+);
+```
+
+Example input:
+
+```json
+{
+  "total": 1800,
+  "country": "DE"
+}
+```
+
+Example output:
+
+```json
+{
+  "true": [
+    {
+      "json": {
+        "total": 1800,
+        "country": "DE"
+      }
+    }
+  ],
+  "false": []
+}
+```

@@ -1,14 +1,19 @@
 import type { Item, NodeExecutionContext } from "@codemation/core";
-import { Callback, createWorkflowBuilder, HttpRequest, ManualTrigger } from "@codemation/core-nodes";
+import {
+  Callback,
+  createWorkflowBuilder,
+  HttpRequest,
+  type HttpRequestOutputJson,
+  ManualTrigger,
+} from "@codemation/core-nodes";
 
 type MediaSeedJson = Readonly<{
   label: string;
   url: string;
 }>;
 
-type MediaPreviewGeneratedJson = MediaSeedJson &
+type MediaPreviewGeneratedJson = HttpRequestOutputJson &
   Readonly<{
-    http: Readonly<Record<string, unknown>>;
     generated?: Readonly<{
       noteBinaryName: string;
       hasGeneratedBinary: boolean;
@@ -16,14 +21,39 @@ type MediaPreviewGeneratedJson = MediaSeedJson &
   }>;
 
 class MediaPreviewGeneratedNoteFactory {
+  /** Human-readable slug for notes; seed `label` is not on the item after HttpRequest (output replaces JSON). */
+  private static labelFromHttpItem(json: HttpRequestOutputJson): string {
+    const { url } = json;
+    if (url.startsWith("data:")) {
+      const mime = url.slice("data:".length).split(";")[0]?.toLowerCase() ?? "";
+      if (mime.includes("pdf")) return "PDF sample";
+      if (mime.includes("plain")) return "Text sample";
+      return "Data URL sample";
+    }
+    try {
+      const pathname = new URL(url).pathname;
+      const last = pathname.split("/").filter(Boolean).pop();
+      if (!last) return "Media sample";
+      return (
+        last
+          .replace(/\.[^.]+$/, "")
+          .replace(/[-_]+/g, " ")
+          .trim() || "Media sample"
+      );
+    } catch {
+      return "Media sample";
+    }
+  }
+
   static async attach(
-    items: ReadonlyArray<Item<MediaPreviewGeneratedJson>>,
-    ctx: NodeExecutionContext<Callback<MediaPreviewGeneratedJson, MediaPreviewGeneratedJson>>,
+    items: ReadonlyArray<Item<HttpRequestOutputJson>>,
+    ctx: NodeExecutionContext<Callback<HttpRequestOutputJson, MediaPreviewGeneratedJson>>,
   ): Promise<ReadonlyArray<Item<MediaPreviewGeneratedJson>>> {
     return await Promise.all(
       items.map(async (item) => {
+        const label = MediaPreviewGeneratedNoteFactory.labelFromHttpItem(item.json);
         const noteFilename = `${
-          item.json.label
+          label
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/^-+|-+$/g, "") || "attachment"
@@ -31,7 +61,7 @@ class MediaPreviewGeneratedNoteFactory {
         const noteAttachment = await ctx.binary.attach({
           name: "note",
           body: new TextEncoder().encode(
-            `Generated note for ${item.json.label}. This item demonstrates a node returning JSON and binary together.`,
+            `Generated note for ${label}. This item demonstrates a node returning JSON and binary together.`,
           ),
           mimeType: "text/plain",
           filename: noteFilename,
@@ -97,7 +127,7 @@ export default createWorkflowBuilder({ id: "wf.media.preview", name: "Media prev
     }),
   )
   .then(
-    new Callback<MediaPreviewGeneratedJson, MediaPreviewGeneratedJson>("Attach generated note", async (items, ctx) => {
+    new Callback<HttpRequestOutputJson, MediaPreviewGeneratedJson>("Attach generated note", async (items, ctx) => {
       return await MediaPreviewGeneratedNoteFactory.attach(items, ctx);
     }),
   )
