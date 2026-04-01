@@ -14,10 +14,7 @@ description: Run an LLM-backed workflow step with a prompt, chat model, and opti
 ### Basic usage: classify inbound mail into RFQ or other
 
 ```ts
-new AIAgent<
-  { subject: string; body: string },
-  { outcome: "rfq" | "other"; reasoning: string }
->(
+new AIAgent<{ subject: string; body: string }, { outcome: "rfq" | "other"; reasoning: string }>(
   "Classify RFQ vs other",
   'Respond with strict JSON only. Shape: {"outcome":"rfq"|"other","reasoning":"..."}',
   (item) => JSON.stringify(item.json),

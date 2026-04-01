@@ -15,13 +15,7 @@ description: Start a workflow from inbound HTTP requests with an endpoint key, m
 
 ```ts
 createWorkflowBuilder({ id: "wf.webhook.orders", name: "Orders webhook" })
-  .trigger(
-    new WebhookTrigger(
-      "Receive order",
-      { endpointKey: "orders", methods: ["POST"] },
-      (items) => items,
-    ),
-  )
+  .trigger(new WebhookTrigger("Receive order", { endpointKey: "orders", methods: ["POST"] }, (items) => items))
   .then(new Callback("Handle order", (items) => items))
   .build();
 ```

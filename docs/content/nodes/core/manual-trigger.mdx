@@ -39,10 +39,7 @@ createWorkflowBuilder({ id: "wf.demo.batch", name: "Batch demo" })
   .trigger(
     new ManualTrigger(
       "Seed test orders",
-      [
-        { json: { orderId: "ord_1", total: 120 } },
-        { json: { orderId: "ord_2", total: 450 } },
-      ],
+      [{ json: { orderId: "ord_1", total: 120 } }, { json: { orderId: "ord_2", total: 450 } }],
       "trigger_seed_orders",
     ),
   )

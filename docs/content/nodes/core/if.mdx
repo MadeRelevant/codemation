@@ -45,10 +45,7 @@ Example output:
 ### Advanced usage: branch on richer business logic
 
 ```ts
-new If(
-  "Needs manager review",
-  (item) => item.json.total > 1000 || item.json.country !== "NL",
-);
+new If("Needs manager review", (item) => item.json.total > 1000 || item.json.country !== "NL");
 ```
 
 Example input:

@@ -14,12 +14,9 @@ description: Start a workflow when new Gmail messages matching a mailbox, label,
 ### Basic usage: watch a mailbox for new messages
 
 ```ts
-new OnNewGmailTrigger(
-  "On Inbox Mail",
-  {
-    mailbox: "ops@example.com",
-  },
-);
+new OnNewGmailTrigger("On Inbox Mail", {
+  mailbox: "ops@example.com",
+});
 ```
 
 Example output:
