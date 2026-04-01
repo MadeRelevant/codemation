@@ -172,13 +172,20 @@ export class CliDevProxyServer {
       return;
     }
     if (pathname.startsWith("/api/")) {
-      if (this.activeBuildStatus === "building" || !this.activeRuntime) {
+      const runtimeTarget = this.activeRuntime;
+      if (pathname === "/api/dev/bootstrap-summary" && runtimeTarget) {
+        this.proxy.web(req, res, {
+          target: `http://127.0.0.1:${runtimeTarget.httpPort}`,
+        });
+        return;
+      }
+      if (this.activeBuildStatus === "building" || !runtimeTarget) {
         res.writeHead(503, { "content-type": "text/plain" });
         res.end("Runtime is rebuilding.");
         return;
       }
       this.proxy.web(req, res, {
-        target: `http://127.0.0.1:${this.activeRuntime.httpPort}`,
+        target: `http://127.0.0.1:${runtimeTarget.httpPort}`,
       });
       return;
     }

@@ -40,6 +40,7 @@ export class PostScaffoldOnboardingCoordinator implements PostScaffoldOnboarding
     await this.runDatabaseMigrations(args.targetDirectory);
     if (authSetup) {
       await this.createAdminUser(args.targetDirectory, authSetup);
+      await this.disableDevelopmentAuthBypass(args.targetDirectory);
     } else {
       this.stdout.write("\nAuthentication skipped. You can create a user later if you decide to enable auth.\n");
     }
@@ -153,6 +154,24 @@ export class PostScaffoldOnboardingCoordinator implements PostScaffoldOnboarding
         cwd: targetDirectory,
       },
     );
+  }
+
+  private async disableDevelopmentAuthBypass(targetDirectory: string): Promise<void> {
+    const configPath = path.join(targetDirectory, "codemation.config.ts");
+    let configSource: string;
+    try {
+      configSource = await this.fs.readFile(configPath, "utf8");
+    } catch {
+      return;
+    }
+    const updatedSource = configSource.replace(
+      /allowUnauthenticatedInDevelopment:\s*true/,
+      "allowUnauthenticatedInDevelopment: false",
+    );
+    if (updatedSource === configSource) {
+      return;
+    }
+    await this.fs.writeFile(configPath, updatedSource);
   }
 
   private async ensureDefaultEnvFile(targetDirectory: string): Promise<void> {

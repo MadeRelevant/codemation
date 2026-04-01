@@ -88,11 +88,18 @@ describe("PostScaffoldOnboardingCoordinator", () => {
     tmpDirs.push(target);
     await fs.writeFile(path.join(target, "package.json"), JSON.stringify({ packageManager: "pnpm@10.13.1" }), "utf8");
     await fs.writeFile(path.join(target, ".env.example"), "# zero-setup defaults\n", "utf8");
+    await fs.writeFile(
+      path.join(target, "codemation.config.ts"),
+      "export default { app: { auth: { allowUnauthenticatedInDevelopment: true } } };\n",
+      "utf8",
+    );
     const prompts = new ScriptedPrompts(true, ["admin@example.com", "longpassword", "longpassword"]);
     const coordinator = new PostScaffoldOnboardingCoordinator(out, prompts, new NodeFileSystem(), runner, true);
     await coordinator.runAfterScaffold({ targetDirectory: target, noInteraction: false });
     const env = await fs.readFile(path.join(target, ".env"), "utf8");
+    const config = await fs.readFile(path.join(target, "codemation.config.ts"), "utf8");
     expect(env).toContain("# zero-setup defaults");
+    expect(config).toContain("allowUnauthenticatedInDevelopment: false");
     expect(runner.calls).toEqual([
       { command: "pnpm", args: ["install"], cwd: target },
       { command: "pnpm", args: ["exec", "codemation", "db", "migrate"], cwd: target },
@@ -320,6 +327,11 @@ describe("PostScaffoldOnboardingCoordinator", () => {
     tmpDirs.push(target);
     await fs.writeFile(path.join(target, "package.json"), JSON.stringify({ packageManager: "pnpm@10.13.1" }), "utf8");
     await fs.writeFile(path.join(target, ".env.example"), "# zero-setup defaults\n", "utf8");
+    await fs.writeFile(
+      path.join(target, "codemation.config.ts"),
+      "export default { app: { auth: { allowUnauthenticatedInDevelopment: true } } };\n",
+      "utf8",
+    );
     const prompts = new ScriptedPrompts(false, []);
     const coordinator = new PostScaffoldOnboardingCoordinator(out, prompts, new NodeFileSystem(), runner, false);
 
@@ -331,6 +343,7 @@ describe("PostScaffoldOnboardingCoordinator", () => {
         password: "longpassword",
       },
     });
+    const config = await fs.readFile(path.join(target, "codemation.config.ts"), "utf8");
 
     expect(runner.calls).toEqual([
       { command: "pnpm", args: ["install"], cwd: target },
@@ -343,6 +356,7 @@ describe("PostScaffoldOnboardingCoordinator", () => {
     ]);
     expect(prompts.confirmCalls).toEqual([]);
     expect(prompts.questionCalls).toEqual([]);
+    expect(config).toContain("allowUnauthenticatedInDevelopment: false");
     expect(out.text).toContain("Creating admin user");
     expect(out.text).toContain("pnpm dev");
   });
