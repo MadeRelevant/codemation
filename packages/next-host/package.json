@@ -8,7 +8,7 @@
   "homepage": "https://www.maderelevant.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MadeRelevant/codemation.git",
+    "url": "https://github.com/MadeRelevant/codemation",
     "directory": "packages/next-host"
   },
   "type": "module",
