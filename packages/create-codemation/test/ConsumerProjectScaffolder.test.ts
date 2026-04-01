@@ -56,7 +56,7 @@ describe("ConsumerProjectScaffolder", () => {
     const pkg = JSON.parse(pkgRaw) as { name: string; packageManager?: string; dependencies?: Record<string, string> };
     expect(pkg.name).toBe("my-minimal-app");
     expect(pkg.packageManager).toBe("pnpm@10.13.1");
-    expect(pkg.dependencies?.["@codemation/cli"]).toBe("^0.0.9");
+    expect(pkg.dependencies?.["@codemation/cli"]).toBe("^0.0.10");
     const env = await fs.readFile(path.join(projectDir, ".env"), "utf8");
     expect(env).toContain("CODEMATION_CREDENTIALS_MASTER_KEY=codemation-local-dev-credentials-master-key");
     expect(env).toContain("AUTH_SECRET=codemation-local-dev-auth-secret");

@@ -1,6 +1,6 @@
 {
   "name": "@codemation/node-example",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "publishConfig": {
     "access": "public"
   },
