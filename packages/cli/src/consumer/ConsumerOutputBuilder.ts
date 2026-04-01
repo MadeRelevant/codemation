@@ -374,6 +374,7 @@ export class ConsumerOutputBuilder {
             sourcePath,
           });
         }
+        await this.emitConfigSourceFile(outputAppRoot, configSourcePath, runtimeSourcePaths);
       },
     });
   }
@@ -461,6 +462,24 @@ export class ConsumerOutputBuilder {
     if (transpiledOutput.sourceMapText) {
       await writeFile(`${outputPath}.map`, transpiledOutput.sourceMapText, "utf8");
     }
+  }
+
+  private async emitConfigSourceFile(
+    outputAppRoot: string,
+    configSourcePath: string,
+    runtimeSourcePaths: ReadonlyArray<string>,
+  ): Promise<void> {
+    const normalizedConfigSourcePath = path.resolve(configSourcePath);
+    const alreadyEmitted = runtimeSourcePaths.some(
+      (sourcePath) => path.resolve(sourcePath) === normalizedConfigSourcePath,
+    );
+    if (alreadyEmitted) {
+      return;
+    }
+    await this.emitSourceFile({
+      outputAppRoot,
+      sourcePath: normalizedConfigSourcePath,
+    });
   }
 
   private createCompilerOptions(): ts.CompilerOptions {

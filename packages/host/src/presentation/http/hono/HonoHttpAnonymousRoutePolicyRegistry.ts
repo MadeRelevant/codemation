@@ -16,6 +16,9 @@ export class HonoHttpAnonymousRoutePolicy {
     if (pathname === "/api/dev/runtime" || pathname === "/api/dev/bootstrap-summary") {
       return true;
     }
+    if (pathname === ApiPaths.frontendBootstrap() || pathname === ApiPaths.internalAuthBootstrap()) {
+      return true;
+    }
     if (pathname === ApiPaths.userInviteVerify() || pathname === ApiPaths.userInviteAccept()) {
       return true;
     }

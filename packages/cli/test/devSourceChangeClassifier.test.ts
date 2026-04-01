@@ -4,25 +4,25 @@ import { test } from "vitest";
 
 import { DevSourceChangeClassifier } from "../src/dev/DevSourceChangeClassifier";
 
-test("shouldRepublishConsumerOutput returns true for consumer workflow changes", () => {
+test("requiresUiRestart returns false for consumer workflow changes", () => {
   const classifier = new DevSourceChangeClassifier();
   const consumerRoot = "/tmp/my-automation";
 
   assert.equal(
-    classifier.shouldRepublishConsumerOutput({
+    classifier.requiresUiRestart({
       changedPaths: [path.resolve(consumerRoot, "src", "workflows", "starter", "hello.ts")],
       consumerRoot,
     }),
-    true,
+    false,
   );
 });
 
-test("shouldRepublishConsumerOutput returns false for framework package changes outside the consumer root", () => {
+test("requiresUiRestart returns false for framework package changes outside the consumer root", () => {
   const classifier = new DevSourceChangeClassifier();
   const consumerRoot = "/tmp/my-automation";
 
   assert.equal(
-    classifier.shouldRepublishConsumerOutput({
+    classifier.requiresUiRestart({
       changedPaths: ["/workspace/packages/core/src/index.ts"],
       consumerRoot,
     }),
@@ -40,6 +40,19 @@ test("requiresUiRestart returns true for consumer config changes", () => {
       consumerRoot,
     }),
     true,
+  );
+});
+
+test("requiresUiRestart returns false for plugin sandbox config changes", () => {
+  const classifier = new DevSourceChangeClassifier();
+  const consumerRoot = "/tmp/my-automation";
+
+  assert.equal(
+    classifier.requiresUiRestart({
+      changedPaths: [path.resolve(consumerRoot, "codemation.plugin.ts")],
+      consumerRoot,
+    }),
+    false,
   );
 });
 

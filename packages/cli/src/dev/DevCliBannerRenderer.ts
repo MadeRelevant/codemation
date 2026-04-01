@@ -39,8 +39,9 @@ export class DevCliBannerRenderer {
       title: chalk.bold("Runtime"),
       titleAlignment: "center",
     });
+    const pluginsSection = this.buildPluginsSection(summary);
     const activeSection = this.buildActiveWorkflowsSection(summary);
-    process.stdout.write(`${detailBox}\n${activeSection}\n`);
+    process.stdout.write(`${detailBox}\n${pluginsSection}\n${activeSection}\n`);
   }
 
   renderFull(summary: DevBootstrapSummaryJson): void {
@@ -62,8 +63,9 @@ export class DevCliBannerRenderer {
       title: chalk.bold("Runtime (updated)"),
       titleAlignment: "center",
     });
+    const pluginsSection = this.buildPluginsSection(summary);
     const activeSection = this.buildActiveWorkflowsSection(summary);
-    process.stdout.write(`\n${detailBox}\n${activeSection}\n`);
+    process.stdout.write(`\n${detailBox}\n${pluginsSection}\n${activeSection}\n`);
   }
 
   private renderFigletTitle(): string {
@@ -100,6 +102,23 @@ export class DevCliBannerRenderer {
       borderStyle: "single",
       borderColor: "magenta",
       title: chalk.bold("Active workflows"),
+      titleAlignment: "left",
+    });
+  }
+
+  private buildPluginsSection(summary: DevBootstrapSummaryJson): string {
+    const lines =
+      summary.plugins.length === 0
+        ? [chalk.dim("  (none discovered or configured)")]
+        : summary.plugins.map(
+            (plugin) => `${chalk.whiteBright(`  • ${plugin.packageName} `)}${chalk.dim(`(${plugin.source})`)}`,
+          );
+    return boxen(lines.join("\n"), {
+      padding: { top: 0, bottom: 0, left: 0, right: 0 },
+      margin: { top: 1, bottom: 0 },
+      borderStyle: "single",
+      borderColor: "cyan",
+      title: chalk.bold("Plugins"),
       titleAlignment: "left",
     });
   }

@@ -1,46 +1,50 @@
-import type { CodemationPlugin } from "./CodemationPlugin";
+import { CodemationPluginPackageMetadata, type CodemationPlugin } from "./CodemationPlugin";
 
 /**
  * Merges explicitly configured plugins with auto-discovered plugins.
  * Configured plugins are applied first; discovered plugins fill in gaps.
- * Plugins that declare `pluginPackageId` are deduped by that string so the same npm package is not
- * registered twice when the consumer config lists a plugin and discovery also finds it, or when two
- * module evaluations produce different `constructor` identities for the same logical plugin.
+ * Plugins discovered from package.json manifests are deduped by npm package name so the same package is not
+ * registered twice when the consumer config lists a discovered plugin explicitly and auto-discovery also finds it.
  */
 export class CodemationPluginListMerger {
+  constructor(private readonly packageMetadata: CodemationPluginPackageMetadata) {}
+
   merge(
     configuredPlugins: ReadonlyArray<CodemationPlugin>,
     discoveredPlugins: ReadonlyArray<CodemationPlugin>,
   ): ReadonlyArray<CodemationPlugin> {
     const pluginsByPackageId = new Map<string, CodemationPlugin>();
-    const pluginsByConstructor = new Map<unknown, CodemationPlugin>();
+    const pluginsByReference = new Set<CodemationPlugin>();
     const result: CodemationPlugin[] = [];
 
-    const tryAdd = (plugin: CodemationPlugin): void => {
-      const packageId = plugin.pluginPackageId;
-      if (typeof packageId === "string" && packageId.trim().length > 0) {
-        const key = packageId.trim();
-        if (pluginsByPackageId.has(key)) {
-          return;
-        }
-        pluginsByPackageId.set(key, plugin);
-        result.push(plugin);
-        return;
-      }
-      const constructorKey = Object.getPrototypeOf(plugin)?.constructor ?? plugin;
-      if (pluginsByConstructor.has(constructorKey)) {
-        return;
-      }
-      pluginsByConstructor.set(constructorKey, plugin);
-      result.push(plugin);
-    };
-
     for (const plugin of configuredPlugins) {
-      tryAdd(plugin);
+      this.tryAdd(plugin, pluginsByPackageId, pluginsByReference, result);
     }
     for (const plugin of discoveredPlugins) {
-      tryAdd(plugin);
+      this.tryAdd(plugin, pluginsByPackageId, pluginsByReference, result);
     }
     return result;
+  }
+
+  private tryAdd(
+    plugin: CodemationPlugin,
+    pluginsByPackageId: Map<string, CodemationPlugin>,
+    pluginsByReference: Set<CodemationPlugin>,
+    result: CodemationPlugin[],
+  ): void {
+    const packageId = this.packageMetadata.readPackageName(plugin);
+    if (packageId) {
+      if (pluginsByPackageId.has(packageId)) {
+        return;
+      }
+      pluginsByPackageId.set(packageId, plugin);
+      result.push(plugin);
+      return;
+    }
+    if (pluginsByReference.has(plugin)) {
+      return;
+    }
+    pluginsByReference.add(plugin);
+    result.push(plugin);
   }
 }

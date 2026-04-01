@@ -1,5 +1,5 @@
 import type { CodemationPackageManifest } from "../config/CodemationPackageManifest";
-import type { CodemationPlugin } from "../config/CodemationPlugin";
+import { CodemationPluginPackageMetadata, type CodemationPlugin } from "../config/CodemationPlugin";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 export type CodemationDiscoveredPluginPackage = Readonly<{
   packageName: string;
   packageRoot: string;
-  manifest: NonNullable<CodemationPackageManifest["plugin"]>;
+  pluginEntry: string;
   developmentEntry?: string;
 }>;
 
@@ -24,6 +24,8 @@ type PackageJsonShape = Readonly<{
 }>;
 
 export class CodemationPluginDiscovery {
+  private readonly pluginPackageMetadata = new CodemationPluginPackageMetadata();
+
   async discover(consumerRoot: string): Promise<ReadonlyArray<CodemationDiscoveredPluginPackage>> {
     const nodeModulesRoot = path.resolve(consumerRoot, "node_modules");
     const packageRoots = await this.collectPackageRoots(nodeModulesRoot);
@@ -31,14 +33,14 @@ export class CodemationPluginDiscovery {
     for (const packageRoot of packageRoots) {
       const packageJson = await this.readPackageJson(path.resolve(packageRoot, "package.json"));
       const pluginManifest = packageJson.codemation?.plugin;
-      if (!packageJson.name || !pluginManifest || pluginManifest.kind !== "plugin") {
+      if (!packageJson.name || typeof pluginManifest !== "string" || pluginManifest.trim().length === 0) {
         continue;
       }
       discoveredPackages.push({
         packageName: packageJson.name,
         packageRoot,
-        manifest: pluginManifest,
-        developmentEntry: this.resolveDevelopmentPluginEntry(packageJson),
+        pluginEntry: pluginManifest,
+        developmentEntry: await this.resolveDevelopmentPluginEntry(packageRoot),
       });
     }
     return discoveredPackages.sort((left, right) => left.packageName.localeCompare(right.packageName));
@@ -98,35 +100,45 @@ export class CodemationPluginDiscovery {
 
   private async loadPlugin(discoveredPackage: CodemationDiscoveredPluginPackage): Promise<CodemationPlugin> {
     const pluginModulePath = path.resolve(discoveredPackage.packageRoot, this.resolvePluginEntry(discoveredPackage));
-    const importedModule = (await import(pathToFileURL(pluginModulePath).href)) as Record<string, unknown>;
-    const pluginExportName = discoveredPackage.manifest.exportName;
-    const explicitExport = pluginExportName ? importedModule[pluginExportName] : undefined;
-    const exportedValue = explicitExport ?? importedModule.default ?? importedModule.codemationPlugin;
+    const importedModule = (await import(
+      /* webpackIgnore: true */ this.resolvePluginModuleSpecifier(pluginModulePath)
+    )) as Record<string, unknown>;
+    const exportedValue = importedModule.default;
     const plugin = this.resolvePluginValue(exportedValue);
     if (!plugin) {
-      throw new Error(`Plugin package "${discoveredPackage.packageName}" did not export a Codemation plugin instance.`);
+      throw new Error(`Plugin package "${discoveredPackage.packageName}" did not default-export a Codemation plugin.`);
     }
-    return plugin;
+    return this.pluginPackageMetadata.attachPackageName(plugin, discoveredPackage.packageName);
   }
 
   private resolvePluginValue(value: unknown): CodemationPlugin | null {
-    if (this.isPlugin(value)) {
+    if (this.isPluginConfig(value)) {
       return value;
-    }
-    if (this.isPluginConstructor(value)) {
-      return new value();
     }
     return null;
   }
 
-  private isPlugin(value: unknown): value is CodemationPlugin {
+  private isPluginConfig(value: unknown): value is CodemationPlugin {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return false;
+    }
+    const pluginValue = value as {
+      credentialTypes?: unknown;
+      register?: unknown;
+      sandbox?: unknown;
+    };
+    if (pluginValue.register !== undefined && typeof pluginValue.register !== "function") {
+      return false;
+    }
+    if (pluginValue.credentialTypes !== undefined && !Array.isArray(pluginValue.credentialTypes)) {
+      return false;
+    }
     return (
-      Boolean(value) && typeof value === "object" && typeof (value as { register?: unknown }).register === "function"
+      pluginValue.register !== undefined ||
+      pluginValue.credentialTypes !== undefined ||
+      pluginValue.sandbox !== undefined ||
+      Object.keys(pluginValue).length === 0
     );
-  }
-
-  private isPluginConstructor(value: unknown): value is new () => CodemationPlugin {
-    return typeof value === "function" && this.isPlugin(value.prototype);
   }
 
   private resolvePluginEntry(discoveredPackage: CodemationDiscoveredPluginPackage): string {
@@ -137,15 +149,34 @@ export class CodemationPluginDiscovery {
     ) {
       return discoveredPackage.developmentEntry;
     }
-    return discoveredPackage.manifest.entry;
+    return discoveredPackage.pluginEntry;
   }
 
-  private resolveDevelopmentPluginEntry(packageJson: PackageJsonShape): string | undefined {
-    const exportRecord = packageJson.exports?.["./codemation-plugin"];
-    if (!exportRecord || typeof exportRecord !== "object") {
-      return undefined;
+  private async resolveDevelopmentPluginEntry(packageRoot: string): Promise<string | undefined> {
+    const candidates = [
+      path.resolve(packageRoot, "codemation.plugin.ts"),
+      path.resolve(packageRoot, "codemation.plugin.js"),
+      path.resolve(packageRoot, "src", "codemation.plugin.ts"),
+      path.resolve(packageRoot, "src", "codemation.plugin.js"),
+    ];
+    for (const candidate of candidates) {
+      if (await this.exists(candidate)) {
+        return path.relative(packageRoot, candidate);
+      }
     }
-    const importPath = (exportRecord as { import?: unknown }).import;
-    return typeof importPath === "string" && importPath.trim().length > 0 ? importPath : undefined;
+    return undefined;
+  }
+
+  private async exists(filePath: string): Promise<boolean> {
+    try {
+      await readFile(filePath, "utf8");
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private resolvePluginModuleSpecifier(pluginModulePath: string): string {
+    return pathToFileURL(pluginModulePath).href;
   }
 }

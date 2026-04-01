@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { CodemationNextHost } from "../../src/server/CodemationNextHost";
+import { CodemationRuntimeBootstrapClient } from "../../src/bootstrap/CodemationRuntimeBootstrapClient";
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const frontendAppConfig = await CodemationNextHost.shared.getFrontendAppConfig();
+    const frontendAppConfig = await new CodemationRuntimeBootstrapClient().getPublicFrontendBootstrap();
     return {
       title: `Sign in — ${frontendAppConfig.productName}`,
     };

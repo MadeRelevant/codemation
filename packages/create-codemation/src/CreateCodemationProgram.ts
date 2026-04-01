@@ -20,7 +20,7 @@ export class CreateCodemationProgram {
     const argvForParse = argv.filter((a) => a !== "--no-interaction");
     const program = new Command();
     program.name("create-codemation");
-    program.description("Create a Codemation consumer application");
+    program.description("Create a Codemation consumer application or plugin package");
     program.argument("[directory]", "Target directory (default: codemation-app)");
     program.option("-t, --template <id>", "Template id", "default");
     program.option("--force", "Allow writing into a non-empty directory", false);
@@ -35,7 +35,7 @@ export class CreateCodemationProgram {
     program.option("--admin-password <password>", "Password for --admin-email (min 8 characters)");
     program.addHelpText(
       "after",
-      "\nExamples:\n  npm create codemation@latest my-app -- --template default\n  npm create codemation@latest my-app -- --no-interaction\n  npm create codemation@latest my-app -- --yes --admin-email admin@example.com --admin-password 'supersecret'\n  pnpm create codemation my-app --template minimal -- --non-interactive\n",
+      "\nExamples:\n  npm create codemation@latest my-app -- --template default\n  npm create codemation@latest my-plugin -- --template plugin\n  npm create codemation@latest my-app -- --no-interaction\n  npm create codemation@latest my-app -- --yes --admin-email admin@example.com --admin-password 'supersecret'\n  pnpm create codemation my-app --template minimal -- --non-interactive\n",
     );
     program.showHelpAfterError(true);
     await program.parseAsync(argvForParse, { from: "user" });
@@ -63,6 +63,7 @@ export class CreateCodemationProgram {
     });
     const noInteraction = argvNoInteraction || opts.nonInteractive || opts.yes;
     await this.onboarding.runAfterScaffold({
+      templateId: opts.template,
       targetDirectory,
       noInteraction,
       adminUser: this.resolveAdminUserOption(opts, program),

@@ -491,7 +491,14 @@ export default [
   // DI + no root/exported functions: all workspace packages except next-host and apps/ (apps live outside packages/**).
   {
     files: ["packages/**/src/**/*.{ts,tsx}"],
-    ignores: ["packages/next-host/**", "**/index.ts", "**/*.d.ts", "**/*Types.ts", "**/*types.ts"],
+    ignores: [
+      "packages/next-host/**",
+      "packages/host/src/presentation/config/CodemationPlugin.ts",
+      "**/index.ts",
+      "**/*.d.ts",
+      "**/*Types.ts",
+      "**/*types.ts",
+    ],
     rules: {
       "codemation/no-manual-di-new": "error",
       "codemation/no-static-methods": "error",
@@ -586,8 +593,9 @@ export default [
       "**/*.test.tsx",
       "packages/next-host/src/auth/edgeAuth.ts",
       "packages/next-host/src/auth/nextAuth.ts",
-      "packages/next-host/src/auth/AuthSnapshotReader.ts",
+      "packages/next-host/src/auth/EdgeAuthConfigurationReader.ts",
       "packages/next-host/src/auth/AuthSnapshotResolver.ts",
+      "packages/next-host/src/bootstrap/CodemationRuntimeBootstrapClient.ts",
       "packages/next-host/src/server/CodemationNextHost.ts",
       "packages/next-host/src/features/workflows/hooks/realtime/useWorkflowRealtimeInfrastructure.ts",
       "packages/next-host/src/providers/Providers.tsx",
@@ -621,7 +629,7 @@ export default [
       "**/test/**",
       "**/*.test.ts",
       "**/*.test.tsx",
-      "packages/cli/src/dev/DevAuthSettingsLoader.ts",
+      "packages/cli/src/dev/NextHostEdgeSeedLoader.ts",
       "packages/cli/src/dev/DevNextHostEnvironmentBuilder.ts",
       "packages/cli/src/commands/DevCommand.ts",
       "packages/cli/src/commands/ServeWebCommand.ts",

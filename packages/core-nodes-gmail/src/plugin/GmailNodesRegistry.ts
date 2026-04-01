@@ -35,8 +35,6 @@ type GmailOAuthMaterial = Readonly<{
 }>;
 
 export class GmailNodes {
-  readonly pluginPackageId = "@codemation/core-nodes-gmail" as const;
-
   private readonly options: GmailNodesOptions;
 
   constructor(options: GmailNodesOptions = {}) {

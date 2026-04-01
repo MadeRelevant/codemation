@@ -1,14 +1,17 @@
-import type { CodemationFrontendAuthSnapshot } from "@codemation/host/client";
+import type { InternalAuthBootstrap } from "@codemation/host/client";
 
-import { AuthSnapshotReader } from "./AuthSnapshotReader";
+import { CodemationRuntimeBootstrapClient } from "../bootstrap/CodemationRuntimeBootstrapClient";
+import { EdgeAuthConfigurationReader } from "./EdgeAuthConfigurationReader";
 
 export class AuthSnapshotResolver {
-  static async resolve(): Promise<CodemationFrontendAuthSnapshot> {
-    const fromEnvironment = AuthSnapshotReader.readFromEnvironment();
-    if (fromEnvironment) {
-      return fromEnvironment;
-    }
-    const { CodemationNextHost } = await import("../server/CodemationNextHost");
-    return (await CodemationNextHost.shared.getFrontendAppConfig()).auth;
+  private static readonly edgeAuthConfigurationReader = new EdgeAuthConfigurationReader();
+  private static readonly runtimeBootstrapClient = new CodemationRuntimeBootstrapClient();
+
+  static async resolve(): Promise<InternalAuthBootstrap> {
+    return await AuthSnapshotResolver.runtimeBootstrapClient.getInternalAuthBootstrap();
+  }
+
+  static resolveAuthSecret(env: NodeJS.ProcessEnv = process.env): string | null {
+    return AuthSnapshotResolver.edgeAuthConfigurationReader.readFromEnvironment(env).authSecret;
   }
 }

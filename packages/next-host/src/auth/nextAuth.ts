@@ -8,10 +8,10 @@ import { NextAuthProviderCatalog } from "./NextAuthProviderCatalog";
 
 export const { handlers, auth, signIn, signOut } = NextAuth(async () => {
   const env = process.env;
-  const authSnapshot = await AuthSnapshotResolver.resolve();
+  const authBootstrap = await AuthSnapshotResolver.resolve();
   const prisma = await CodemationAuthPrismaClient.resolveShared();
-  const authConfig = authSnapshot.config;
-  const secret = authSnapshot.secret;
+  const authConfig = authBootstrap.authConfig;
+  const secret = AuthSnapshotResolver.resolveAuthSecret(env);
   if (!secret || secret.trim().length === 0) {
     throw new Error("AUTH_SECRET is required for Codemation authentication.");
   }

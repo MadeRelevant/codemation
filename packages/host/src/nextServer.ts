@@ -27,7 +27,11 @@ export type {
   CodemationFrontendAuthSnapshot,
 } from "./presentation/frontend/CodemationFrontendAuthSnapshot";
 export type { FrontendAppConfig } from "./presentation/frontend/FrontendAppConfig";
+export type { InternalAuthBootstrap } from "./presentation/frontend/InternalAuthBootstrap";
+export type { PublicFrontendBootstrap } from "./presentation/frontend/PublicFrontendBootstrap";
 export { FrontendAppConfigFactory } from "./presentation/frontend/FrontendAppConfigFactory";
+export { InternalAuthBootstrapFactory } from "./presentation/frontend/InternalAuthBootstrapFactory";
+export { PublicFrontendBootstrapFactory } from "./presentation/frontend/PublicFrontendBootstrapFactory";
 export { CredentialBindingService, CredentialInstanceService } from "./domain/credentials/CredentialServices";
 export { RequestToWebhookItemMapper } from "./infrastructure/webhooks/RequestToWebhookItemMapper";
 export { CodemationHonoApiApp } from "./presentation/http/hono/CodemationHonoApiAppFactory";

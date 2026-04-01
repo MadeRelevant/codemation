@@ -4,13 +4,12 @@ import { CodemationConsumerConfigLoader } from "@codemation/host/server";
 
 import type { ConsumerEnvLoader } from "../consumer/ConsumerEnvLoader";
 
-export type DevResolvedAuthSettings = Readonly<{
-  authConfigJson: string;
+export type NextHostEdgeSeed = Readonly<{
   authSecret: string;
-  skipUiAuth: boolean;
+  uiAuthEnabled: boolean;
 }>;
 
-export class DevAuthSettingsLoader {
+export class NextHostEdgeSeedLoader {
   static readonly defaultDevelopmentAuthSecret = "codemation-dev-auth-secret-not-for-production";
 
   constructor(
@@ -25,13 +24,18 @@ export class DevAuthSettingsLoader {
     return randomUUID();
   }
 
-  async loadForConsumer(consumerRoot: string): Promise<DevResolvedAuthSettings> {
-    const resolution = await this.configLoader.load({ consumerRoot });
+  async loadForConsumer(
+    consumerRoot: string,
+    options?: Readonly<{ configPathOverride?: string }>,
+  ): Promise<NextHostEdgeSeed> {
+    const resolution = await this.configLoader.load({
+      consumerRoot,
+      configPathOverride: options?.configPathOverride,
+    });
     const envForAuthSecret = this.consumerEnvLoader.mergeConsumerRootIntoProcessEnvironment(consumerRoot, process.env);
     return {
-      authConfigJson: JSON.stringify(resolution.config.auth ?? null),
       authSecret: this.resolveDevelopmentAuthSecret(envForAuthSecret),
-      skipUiAuth: resolution.config.auth?.allowUnauthenticatedInDevelopment === true,
+      uiAuthEnabled: resolution.config.auth?.allowUnauthenticatedInDevelopment !== true,
     };
   }
 
@@ -40,6 +44,6 @@ export class DevAuthSettingsLoader {
     if (configuredSecret && configuredSecret.trim().length > 0) {
       return configuredSecret;
     }
-    return DevAuthSettingsLoader.defaultDevelopmentAuthSecret;
+    return NextHostEdgeSeedLoader.defaultDevelopmentAuthSecret;
   }
 }

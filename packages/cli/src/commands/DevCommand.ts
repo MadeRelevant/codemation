@@ -10,7 +10,6 @@ import type { DevBootstrapSummaryFetcher } from "../dev/DevBootstrapSummaryFetch
 import type { CliDevProxyServer } from "../dev/CliDevProxyServer";
 import type { CliDevProxyServerFactory } from "../dev/CliDevProxyServerFactory";
 import type { DevCliBannerRenderer } from "../dev/DevCliBannerRenderer";
-import type { DevConsumerPublishBootstrap } from "../dev/DevConsumerPublishBootstrap";
 import { ConsumerEnvDotenvFilePredicate } from "../dev/ConsumerEnvDotenvFilePredicate";
 import type { DevRebuildQueueFactory } from "../dev/DevRebuildQueueFactory";
 import type { DevSourceWatcher } from "../dev/DevSourceWatcher";
@@ -18,7 +17,7 @@ import { DevSessionServices } from "../dev/DevSessionServices";
 import { DevLockFactory } from "../dev/Factory";
 import { DevTrackedProcessTreeKiller } from "../dev/DevTrackedProcessTreeKiller";
 import { DevSourceWatcherFactory } from "../dev/Runner";
-import type { DevResolvedAuthSettings } from "../dev/DevAuthSettingsLoader";
+import type { NextHostEdgeSeed } from "../dev/NextHostEdgeSeedLoader";
 import { CliPathResolver, type CliPaths } from "../path/CliPathResolver";
 import { NextHostConsumerServerCommandFactory } from "../runtime/NextHostConsumerServerCommandFactory";
 import { TypeScriptRuntimeConfigurator } from "../runtime/TypeScriptRuntimeConfigurator";
@@ -38,7 +37,6 @@ export class DevCommand {
     private readonly databaseMigrationsApplyService: DatabaseMigrationsApplyService,
     private readonly devBootstrapSummaryFetcher: DevBootstrapSummaryFetcher,
     private readonly devCliBannerRenderer: DevCliBannerRenderer,
-    private readonly devConsumerPublishBootstrap: DevConsumerPublishBootstrap,
     private readonly consumerEnvDotenvFilePredicate: ConsumerEnvDotenvFilePredicate,
     private readonly devTrackedProcessTreeKiller: DevTrackedProcessTreeKiller,
     private readonly nextHostConsumerServerCommandFactory: NextHostConsumerServerCommandFactory,
@@ -47,12 +45,21 @@ export class DevCommand {
     private readonly devRebuildQueueFactory: DevRebuildQueueFactory,
   ) {}
 
-  async execute(args: Readonly<{ consumerRoot: string; watchFramework?: boolean }>): Promise<void> {
+  async execute(
+    args: Readonly<{
+      consumerRoot: string;
+      watchFramework?: boolean;
+      commandName?: "dev" | "dev:plugin";
+      configPathOverride?: string;
+    }>,
+  ): Promise<void> {
     const paths = await this.pathResolver.resolve(args.consumerRoot);
+    const commandName = args.commandName ?? "dev";
     this.devCliBannerRenderer.renderBrandHeader();
     this.tsRuntime.configure(paths.repoRoot);
-    await this.databaseMigrationsApplyService.applyForConsumer(paths.consumerRoot);
-    await this.devConsumerPublishBootstrap.ensurePublished(paths);
+    await this.databaseMigrationsApplyService.applyForConsumer(paths.consumerRoot, {
+      configPath: args.configPathOverride,
+    });
     const devMode = this.resolveDevMode(args);
     const { nextPort, gatewayPort } = await this.session.sessionPorts.resolve({
       devMode,
@@ -64,14 +71,23 @@ export class DevCommand {
       consumerRoot: paths.consumerRoot,
       nextPort: devMode === "watch-framework" ? nextPort : gatewayPort,
     });
-    const authSettings = await this.session.devAuthLoader.loadForConsumer(paths.consumerRoot);
+    const authSettings = await this.session.nextHostEdgeSeedLoader.loadForConsumer(paths.consumerRoot, {
+      configPathOverride: args.configPathOverride,
+    });
     const watcher = this.devSourceWatcherFactory.create();
     const processState = this.createInitialProcessState();
     let proxyServer: CliDevProxyServer | null = null;
     try {
-      const prepared = await this.prepareDevRuntime(paths, devMode, nextPort, gatewayPort, authSettings);
+      const prepared = await this.prepareDevRuntime(
+        paths,
+        devMode,
+        nextPort,
+        gatewayPort,
+        authSettings,
+        args.configPathOverride,
+      );
       const stopPromise = this.wireStopPromise(processState);
-      const uiProxyBase = await this.startPackagedUiWhenNeeded(prepared, processState);
+      const uiProxyBase = await this.preparePackagedUiBaseUrlWhenNeeded(prepared, processState);
       proxyServer = await this.startProxyServer(prepared.gatewayPort, uiProxyBase);
       const gatewayBaseUrl = this.gatewayBaseHttpUrl(gatewayPort);
       await this.bootInitialRuntime(prepared, processState, proxyServer);
@@ -80,10 +96,14 @@ export class DevCommand {
       if (initialSummary) {
         this.devCliBannerRenderer.renderRuntimeSummary(initialSummary);
       }
+      await this.startPackagedUiWhenNeeded(prepared, processState, uiProxyBase);
       this.bindShutdownSignalsToChildProcesses(processState, proxyServer);
       await this.spawnDevUiWhenNeeded(prepared, processState, gatewayBaseUrl);
-      await this.startWatcherForSourceRestart(prepared, processState, watcher, devMode, gatewayBaseUrl, proxyServer);
-      this.logPackagedUiDevHintWhenNeeded(devMode, gatewayPort);
+      await this.startWatcherForSourceRestart(prepared, processState, watcher, devMode, gatewayBaseUrl, proxyServer, {
+        commandName,
+        configPathOverride: args.configPathOverride,
+      });
+      this.logPackagedUiDevHintWhenNeeded(devMode, gatewayPort, commandName);
       await stopPromise;
     } finally {
       processState.stopRequested = true;
@@ -105,14 +125,16 @@ export class DevCommand {
     devMode: DevMode,
     nextPort: number,
     gatewayPort: number,
-    authSettings: DevResolvedAuthSettings,
+    authSettings: NextHostEdgeSeed,
+    configPathOverride?: string,
   ): Promise<DevPreparedRuntime> {
-    const developmentServerToken = this.session.devAuthLoader.resolveDevelopmentServerToken(
+    const developmentServerToken = this.session.nextHostEdgeSeedLoader.resolveDevelopmentServerToken(
       process.env.CODEMATION_DEV_SERVER_TOKEN,
     );
     const consumerEnv = this.session.consumerEnvLoader.load(paths.consumerRoot);
     return {
       paths,
+      configPathOverride,
       devMode,
       nextPort,
       gatewayPort,
@@ -146,48 +168,50 @@ export class DevCommand {
     return `http://127.0.0.1:${gatewayPort}`;
   }
 
-  private async startPackagedUiWhenNeeded(
+  private async preparePackagedUiBaseUrlWhenNeeded(
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
   ): Promise<string> {
     if (prepared.devMode !== "packaged-ui") {
       return "";
     }
-    const websocketPort = prepared.gatewayPort;
     const uiProxyBase =
       state.currentPackagedUiBaseUrl ?? `http://127.0.0.1:${await this.session.loopbackPortAllocator.allocate()}`;
     state.currentPackagedUiBaseUrl = uiProxyBase;
-    await this.spawnPackagedUi(prepared, state, prepared.authSettings, websocketPort, uiProxyBase);
     return uiProxyBase;
+  }
+
+  private async startPackagedUiWhenNeeded(
+    prepared: DevPreparedRuntime,
+    state: DevMutableProcessState,
+    uiProxyBase: string,
+  ): Promise<void> {
+    if (prepared.devMode !== "packaged-ui" || uiProxyBase.length === 0) {
+      return;
+    }
+    await this.spawnPackagedUi(prepared, state, prepared.authSettings, prepared.gatewayPort, uiProxyBase);
   }
 
   private async spawnPackagedUi(
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
-    authSettings: DevResolvedAuthSettings,
+    authSettings: NextHostEdgeSeed,
     websocketPort: number,
     uiProxyBase: string,
   ): Promise<void> {
     const nextHostPackageJsonPath = this.require.resolve("@codemation/next-host/package.json");
     const nextHostRoot = path.dirname(nextHostPackageJsonPath);
     const nextHostCommand = await this.nextHostConsumerServerCommandFactory.create({ nextHostRoot });
-    const consumerOutputManifestPath = path.resolve(
-      prepared.paths.consumerRoot,
-      ".codemation",
-      "output",
-      "current.json",
-    );
     const uiPort = Number(new URL(uiProxyBase).port);
     const nextHostEnvironment = this.session.nextHostEnvBuilder.buildConsumerUiProxy({
-      authConfigJson: authSettings.authConfigJson,
       authSecret: authSettings.authSecret,
+      configPathOverride: prepared.configPathOverride,
       consumerRoot: prepared.paths.consumerRoot,
-      consumerOutputManifestPath,
       developmentServerToken: prepared.developmentServerToken,
       nextPort: uiPort,
       publicBaseUrl: this.gatewayBaseHttpUrl(prepared.gatewayPort),
       runtimeDevUrl: this.gatewayBaseHttpUrl(prepared.gatewayPort),
-      skipUiAuth: authSettings.skipUiAuth,
+      skipUiAuth: !authSettings.uiAuthEnabled,
       websocketPort,
     });
     state.currentPackagedUi = spawn(nextHostCommand.command, nextHostCommand.args, {
@@ -282,17 +306,18 @@ export class DevCommand {
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
     gatewayBaseUrl: string,
-    authSettings: DevResolvedAuthSettings,
+    authSettings: NextHostEdgeSeed,
   ): Promise<void> {
     const websocketPort = prepared.gatewayPort;
     const nextHostPackageJsonPath = this.require.resolve("@codemation/next-host/package.json");
     const nextHostRoot = path.dirname(nextHostPackageJsonPath);
     const nextHostEnvironment = this.session.nextHostEnvBuilder.build({
-      authConfigJson: authSettings.authConfigJson,
+      authSecret: authSettings.authSecret,
+      configPathOverride: prepared.configPathOverride,
       consumerRoot: prepared.paths.consumerRoot,
       developmentServerToken: prepared.developmentServerToken,
       nextPort: prepared.nextPort,
-      skipUiAuth: authSettings.skipUiAuth,
+      skipUiAuth: !authSettings.uiAuthEnabled,
       websocketPort,
       runtimeDevUrl: gatewayBaseUrl,
     });
@@ -331,6 +356,10 @@ export class DevCommand {
     devMode: DevMode,
     gatewayBaseUrl: string,
     proxyServer: CliDevProxyServer,
+    options: Readonly<{
+      commandName: "dev" | "dev:plugin";
+      configPathOverride?: string;
+    }>,
   ): Promise<void> {
     const rebuildQueue = this.devRebuildQueueFactory.create({
       run: async (request) => {
@@ -351,22 +380,18 @@ export class DevCommand {
           return;
         }
         try {
-          const shouldRepublishConsumerOutput = this.session.sourceChangeClassifier.shouldRepublishConsumerOutput({
-            changedPaths,
-            consumerRoot: prepared.paths.consumerRoot,
-          });
           const shouldRestartUi = this.session.sourceChangeClassifier.requiresUiRestart({
             changedPaths,
             consumerRoot: prepared.paths.consumerRoot,
           });
           process.stdout.write(
             shouldRestartUi
-              ? "\n[codemation] Source change detected — rebuilding consumer, restarting the runtime, and restarting the UI…\n"
-              : "\n[codemation] Source change detected — rebuilding consumer and restarting the runtime…\n",
+              ? `\n[codemation] Source change detected — rebuilding for \`${options.commandName}\`, restarting the runtime, and restarting the UI…\n`
+              : `\n[codemation] Source change detected — rebuilding for \`${options.commandName}\` and restarting the runtime…\n`,
           );
           await rebuildQueue.enqueue({
             changedPaths,
-            shouldRepublishConsumerOutput,
+            configPathOverride: options.configPathOverride,
             shouldRestartUi,
           });
         } catch (error) {
@@ -383,7 +408,7 @@ export class DevCommand {
     proxyServer: CliDevProxyServer,
     request: Readonly<{
       changedPaths: ReadonlyArray<string>;
-      shouldRepublishConsumerOutput: boolean;
+      configPathOverride?: string;
       shouldRestartUi: boolean;
     }>,
   ): Promise<void> {
@@ -391,9 +416,6 @@ export class DevCommand {
     proxyServer.setBuildStatus("building");
     proxyServer.broadcastBuildStarted();
     try {
-      if (request.shouldRepublishConsumerOutput) {
-        await this.devConsumerPublishBootstrap.ensurePublished(prepared.paths);
-      }
       await this.stopCurrentRuntime(state, proxyServer);
       process.stdout.write("[codemation] Waiting for runtime to accept traffic…\n");
       const runtime = await this.createRuntime(prepared);
@@ -425,7 +447,12 @@ export class DevCommand {
     state: DevMutableProcessState,
     gatewayBaseUrl: string,
   ): Promise<void> {
-    const refreshedAuthSettings = await this.session.devAuthLoader.loadForConsumer(prepared.paths.consumerRoot);
+    const refreshedAuthSettings = await this.session.nextHostEdgeSeedLoader.loadForConsumer(
+      prepared.paths.consumerRoot,
+      {
+        configPathOverride: prepared.configPathOverride,
+      },
+    );
     process.stdout.write("[codemation] Restarting the UI process to apply source changes…\n");
     state.isRestartingUi = true;
     try {
@@ -442,7 +469,7 @@ export class DevCommand {
   private async restartPackagedUi(
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
-    authSettings: DevResolvedAuthSettings,
+    authSettings: NextHostEdgeSeed,
   ): Promise<void> {
     if (
       state.currentPackagedUi &&
@@ -463,7 +490,7 @@ export class DevCommand {
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
     gatewayBaseUrl: string,
-    authSettings: DevResolvedAuthSettings,
+    authSettings: NextHostEdgeSeed,
   ): Promise<void> {
     if (state.currentDevUi && state.currentDevUi.exitCode === null && state.currentDevUi.signalCode === null) {
       await this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(state.currentDevUi);
@@ -517,6 +544,7 @@ export class DevCommand {
       prepared.consumerEnv,
     );
     return await this.devApiRuntimeFactory.create({
+      configPathOverride: prepared.configPathOverride,
       consumerRoot: prepared.paths.consumerRoot,
       runtimeWorkingDirectory: process.cwd(),
       env: {
@@ -530,12 +558,16 @@ export class DevCommand {
     });
   }
 
-  private logPackagedUiDevHintWhenNeeded(devMode: DevMode, gatewayPort: number): void {
+  private logPackagedUiDevHintWhenNeeded(
+    devMode: DevMode,
+    gatewayPort: number,
+    commandName: "dev" | "dev:plugin",
+  ): void {
     if (devMode !== "packaged-ui") {
       return;
     }
     this.cliLogger.info(
-      `codemation dev: open http://127.0.0.1:${gatewayPort} — this uses the packaged @codemation/next-host UI. Use \`codemation dev --watch-framework\` only when working on the framework UI itself.`,
+      `codemation ${commandName}: open http://127.0.0.1:${gatewayPort} — this uses the packaged @codemation/next-host UI. Use \`codemation ${commandName} --watch-framework\` only when working on the framework UI itself.`,
     );
   }
 }

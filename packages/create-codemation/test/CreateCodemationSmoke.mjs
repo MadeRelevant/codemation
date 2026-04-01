@@ -441,25 +441,27 @@ class CreateCodemationSmoke {
       }
       const commandEnv = registry ? registry.createProcessEnv(env) : env;
       const codemationBin = path.join(appRoot, "node_modules", ".bin", "codemation");
-      if (installMode !== "registry") {
+      if (installMode !== "registry" || templateId === "plugin") {
         await SmokeProcessRunner.run("pnpm", ["install", "--lockfile=false"], {
           cwd: appRoot,
           env: commandEnv,
         });
-        await SmokeProcessRunner.run(codemationBin, ["db", "migrate"], {
-          cwd: appRoot,
-          env: commandEnv,
-        });
-        await SmokeProcessRunner.run(
-          codemationBin,
-          ["user", "create", "--email", this.adminEmail, "--password", this.adminPassword],
-          {
+        if (templateId !== "plugin") {
+          await SmokeProcessRunner.run(codemationBin, ["db", "migrate"], {
             cwd: appRoot,
             env: commandEnv,
-          },
-        );
+          });
+          await SmokeProcessRunner.run(
+            codemationBin,
+            ["user", "create", "--email", this.adminEmail, "--password", this.adminPassword],
+            {
+              cwd: appRoot,
+              env: commandEnv,
+            },
+          );
+        }
       }
-      const child = SmokeProcessRunner.spawn(codemationBin, ["dev"], {
+      const child = SmokeProcessRunner.spawn(codemationBin, [templateId === "plugin" ? "dev:plugin" : "dev"], {
         cwd: appRoot,
         env: commandEnv,
       });
@@ -507,7 +509,7 @@ class CreateCodemationSmoke {
 
   static resolveTemplateId() {
     const templateId = process.env[this.templateIdEnvName];
-    if (templateId === "default" || templateId === "minimal") {
+    if (templateId === "default" || templateId === "minimal" || templateId === "plugin") {
       return templateId;
     }
     return "minimal";

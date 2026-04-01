@@ -15,6 +15,12 @@ export class CodemationPluginRegistrar {
     }>,
   ): Promise<void> {
     for (const plugin of args.plugins) {
+      for (const credentialType of plugin.credentialTypes ?? []) {
+        args.registerCredentialType(credentialType);
+      }
+      if (!plugin.register) {
+        continue;
+      }
       await plugin.register({
         container: args.container,
         appConfig: args.appConfig,

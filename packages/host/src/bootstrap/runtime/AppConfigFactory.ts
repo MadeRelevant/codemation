@@ -1,5 +1,6 @@
 import { CoreTokens } from "@codemation/core";
-import type { AppConfig } from "../../presentation/config/AppConfig";
+import type { AppConfig, AppPluginLoadSummary } from "../../presentation/config/AppConfig";
+import { CodemationPluginPackageMetadata } from "../../presentation/config/CodemationPlugin";
 import type { NormalizedCodemationConfig } from "../../presentation/config/CodemationConfigNormalizer";
 import type {
   CodemationApplicationRuntimeConfig,
@@ -10,6 +11,8 @@ import type {
 import path from "node:path";
 
 export class AppConfigFactory {
+  private readonly pluginPackageMetadata = new CodemationPluginPackageMetadata();
+
   create(
     args: Readonly<{
       repoRoot: string;
@@ -30,6 +33,7 @@ export class AppConfigFactory {
     const hasConfiguredCredentialSessionServiceRegistration = args.config.containerRegistrations.some(
       (entry) => entry.token === CoreTokens.CredentialSessionService,
     );
+    const plugins = [...(args.config.plugins ?? [])];
 
     return {
       consumerRoot: args.consumerRoot,
@@ -39,7 +43,8 @@ export class AppConfigFactory {
       workflows: [...(args.config.workflows ?? [])],
       containerRegistrations: [...args.config.containerRegistrations],
       credentialTypes: [...(args.config.credentialTypes ?? [])],
-      plugins: [...(args.config.plugins ?? [])],
+      plugins,
+      pluginLoadSummary: this.createConfiguredPluginLoadSummary(plugins),
       hasConfiguredCredentialSessionServiceRegistration,
       log: args.config.log,
       engineExecutionLimits: runtimeConfig.engineExecutionLimits,
@@ -63,6 +68,21 @@ export class AppConfigFactory {
       webSocketPort: this.resolveWebSocketPort(args.env),
       webSocketBindHost: args.env.CODEMATION_WS_BIND_HOST ?? "0.0.0.0",
     };
+  }
+
+  private createConfiguredPluginLoadSummary(plugins: AppConfig["plugins"]): AppConfig["pluginLoadSummary"] {
+    const summaries: AppPluginLoadSummary[] = [];
+    for (const plugin of plugins) {
+      const packageName = this.pluginPackageMetadata.readPackageName(plugin);
+      if (!packageName) {
+        continue;
+      }
+      summaries.push({
+        packageName,
+        source: "configured",
+      });
+    }
+    return summaries;
   }
 
   private resolvePersistence(

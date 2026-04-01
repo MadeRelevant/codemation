@@ -4,13 +4,13 @@ import { ConsumerEnvLoader } from "../consumer/ConsumerEnvLoader";
 import { ListenPortResolver } from "../runtime/ListenPortResolver";
 import { SourceMapNodeOptions } from "../runtime/SourceMapNodeOptions";
 
-import { DevAuthSettingsLoader } from "./DevAuthSettingsLoader";
 import { DevHttpProbe } from "./DevHttpProbe";
 import { DevNextHostEnvironmentBuilder } from "./DevNextHostEnvironmentBuilder";
 import { DevSessionPortsResolver } from "./DevSessionPortsResolver";
 import { DevSessionServices } from "./DevSessionServices";
 import { DevSourceChangeClassifier } from "./DevSourceChangeClassifier";
 import { LoopbackPortAllocator } from "./LoopbackPortAllocator";
+import { NextHostEdgeSeedLoader } from "./NextHostEdgeSeedLoader";
 import { WatchRootsResolver } from "./WatchRootsResolver";
 
 export class DevSessionServicesBuilder {
@@ -25,7 +25,7 @@ export class DevSessionServicesBuilder {
       new DevSessionPortsResolver(listenPortResolver, loopbackPortAllocator),
       loopbackPortAllocator,
       new DevHttpProbe(),
-      new DevAuthSettingsLoader(new CodemationConsumerConfigLoader(), consumerEnvLoader),
+      new NextHostEdgeSeedLoader(new CodemationConsumerConfigLoader(), consumerEnvLoader),
       new DevNextHostEnvironmentBuilder(consumerEnvLoader, sourceMapNodeOptions),
       new WatchRootsResolver(),
       new DevSourceChangeClassifier(),

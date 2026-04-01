@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { WorkflowDetailPageApiAdapter } from "../../src/features/workflows/server/WorkflowDetailPageApiAdapter";
 import { WorkflowDetailPageAccessResolver } from "../../src/features/workflows/server/WorkflowDetailPageAccessResolver";
 import type { WorkflowDetailPageApiPort } from "../../src/features/workflows/server/WorkflowDetailPageApiPort.types";
-import { CodemationNextHost } from "../../src/server/CodemationNextHost";
 
 class StubWorkflowDetailPageApi implements WorkflowDetailPageApiPort {
   constructor(private readonly status: number) {}
@@ -15,14 +14,17 @@ class StubWorkflowDetailPageApi implements WorkflowDetailPageApiPort {
 
 describe("WorkflowDetailPageAccessResolver", () => {
   it("forwards the workflow request to the next host API with the caller cookies", async () => {
-    const shared = CodemationNextHost.shared;
-    const originalFetchApi = shared.fetchApi.bind(shared);
-    const seen: Array<{ cookie: string | null; pathname: string }> = [];
-    shared.fetchApi = async (request: Request): Promise<Response> => {
+    const originalFetch = globalThis.fetch;
+    const originalRuntimeDevUrl = process.env.CODEMATION_RUNTIME_DEV_URL;
+    const seen: Array<{ cookie: string | null; pathname: string; origin: string }> = [];
+    process.env.CODEMATION_RUNTIME_DEV_URL = "http://127.0.0.1:4010";
+    globalThis.fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      const request = new Request(input, init);
       const url = new URL(request.url);
       seen.push({
         cookie: request.headers.get("cookie"),
         pathname: url.pathname,
+        origin: url.origin,
       });
       return new Response(null, { status: 204 });
     };
@@ -36,13 +38,19 @@ describe("WorkflowDetailPageAccessResolver", () => {
         }),
       ).resolves.toBe(204);
     } finally {
-      shared.fetchApi = originalFetchApi;
+      globalThis.fetch = originalFetch;
+      if (originalRuntimeDevUrl === undefined) {
+        delete process.env.CODEMATION_RUNTIME_DEV_URL;
+      } else {
+        process.env.CODEMATION_RUNTIME_DEV_URL = originalRuntimeDevUrl;
+      }
     }
 
     expect(seen).toEqual([
       {
         cookie: "session=abc",
         pathname: "/api/workflows/wf.present",
+        origin: "http://127.0.0.1:4010",
       },
     ]);
   });

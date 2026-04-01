@@ -6,4 +6,10 @@ export type DevBootstrapSummaryJson = Readonly<{
   eventBusLabel: string;
   redisUrlRedacted?: string;
   activeWorkflows: ReadonlyArray<Readonly<{ id: string; name: string }>>;
+  plugins: ReadonlyArray<
+    Readonly<{
+      packageName: string;
+      source: "configured" | "discovered";
+    }>
+  >;
 }>;

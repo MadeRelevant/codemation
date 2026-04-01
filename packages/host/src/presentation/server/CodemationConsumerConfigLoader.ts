@@ -3,7 +3,6 @@ import { access, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { NamespacedUnregister } from "tsx/esm/api";
-import { register } from "tsx/esm/api";
 import type { CodemationConfig } from "../config/CodemationConfig";
 import { CodemationConfigNormalizer } from "../config/CodemationConfigNormalizer";
 import type { NormalizedCodemationConfig } from "../config/CodemationConfigNormalizer";
@@ -173,10 +172,15 @@ export class CodemationConsumerConfigLoader {
       return await this.importModuleWithNativeRuntime(modulePath);
     }
     const tsconfigPath = await this.resolveTsconfigPath(modulePath);
+    if (this.shouldResetImporterBeforeImport()) {
+      await this.resetImporter(tsconfigPath);
+    }
     const importSpecifier = await this.createImportSpecifier(modulePath);
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const importedModule = await this.getOrCreateImporter(tsconfigPath).import(importSpecifier, import.meta.url);
+        const importedModule = await (
+          await this.getOrCreateImporter(tsconfigPath)
+        ).import(importSpecifier, import.meta.url);
         return importedModule as Record<string, unknown>;
       } catch (error) {
         if (!this.isStoppedTransformServiceError(error) || attempt === 2) {
@@ -202,12 +206,13 @@ export class CodemationConsumerConfigLoader {
     return discoveredPath ?? false;
   }
 
-  private getOrCreateImporter(tsconfigPath: string | false): NamespacedUnregister {
+  private async getOrCreateImporter(tsconfigPath: string | false): Promise<NamespacedUnregister> {
     const cacheKey = tsconfigPath || "default";
     const existingImporter = CodemationConsumerConfigLoader.importerRegistrationsByTsconfig.get(cacheKey);
     if (existingImporter) {
       return existingImporter;
     }
+    const { register } = await import(/* webpackIgnore: true */ this.resolveTsxImporterModuleSpecifier());
     const nextImporter = register({
       namespace: this.toNamespace(cacheKey),
       tsconfig: tsconfigPath,
@@ -228,6 +233,10 @@ export class CodemationConsumerConfigLoader {
 
   private toNamespace(cacheKey: string): string {
     return `codemation_consumer_${cacheKey.replace(/[^a-zA-Z0-9_-]+/g, "_")}`;
+  }
+
+  private resolveTsxImporterModuleSpecifier(): string {
+    return ["tsx", "esm", "api"].join("/");
   }
 
   private async findNearestTsconfig(modulePath: string): Promise<string | null> {
@@ -254,6 +263,10 @@ export class CodemationConsumerConfigLoader {
 
   private shouldUseNativeRuntimeImport(): boolean {
     return process.env.CODEMATION_TS_RUNTIME === "ts-node";
+  }
+
+  private shouldResetImporterBeforeImport(): boolean {
+    return (process.env.CODEMATION_DEV_SERVER_TOKEN?.trim().length ?? 0) > 0;
   }
 
   private isStoppedTransformServiceError(error: unknown): boolean {
