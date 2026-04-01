@@ -8,7 +8,7 @@ export function getBaseLayoutOptions(): BaseLayoutProps {
     links: [
       {
         text: "Repository",
-        url: "https://github.com/maderelevant/codemation",
+        url: "https://github.com/MadeRelevant/codemation",
       },
     ],
   };
