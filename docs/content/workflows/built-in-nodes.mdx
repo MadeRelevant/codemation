@@ -1,0 +1,139 @@
+---
+title: Built-in Nodes
+description: See the built-in node packages, what they are for, and how to start configuring them in your workflows.
+---
+
+# Built-in Nodes
+
+Most apps start with the built-in nodes exported by `@codemation/core-nodes`.
+
+## Main built-in node categories
+
+### Triggers
+
+- `ManualTrigger`: start a workflow manually
+- `WebhookTrigger`: start a workflow from an HTTP webhook
+
+### Data and integration helpers
+
+- `MapData`: transform the JSON shape flowing through a workflow
+- `HttpRequest`: call external HTTP APIs
+- `Callback`: run custom TypeScript logic against the current items (see below)
+
+### Control flow
+
+- `If`: branch on a predicate
+- `Merge`: join paths again
+- `Wait`: pause and continue later
+- `NoOp`: placeholder or explicit pass-through step
+- `SubWorkflow`: run another workflow as part of the current flow
+
+### AI
+
+- `AIAgent`: call an LLM with workflow data, richer message authoring, tool use, and guardrails
+- `OpenAIChatModelConfig`: configure the model connection used by AI nodes
+- dedicated guide: [AI Agent](/docs/workflows/ai-agent)
+
+### Callback
+
+`Callback` is the fastest way to drop in ad hoc logic: a small function that runs against the current items without defining a new node type. Use it when you want to try something quickly, wire a one-off transform, or sketch a flow before you commit to structure.
+
+The **intended** way to grow real workflow logic in Codemation is to implement **proper node classes** (config + `Node` implementation) and register them like any other node. That path pays off because you can:
+
+- **Test** behavior in isolation with deterministic, injected dependencies instead of burying logic only inside a workflow file.
+- **Reuse** the same node across workflows and apps, with a clear name and typed configuration.
+- **Evolve** the implementation without rewriting every workflow that used a throwaway callback.
+
+See [Custom nodes](/docs/workflows/custom-nodes) for the pattern. Treat `Callback` as a convenience for speed; treat custom nodes as the default for anything you expect to keep, share, or cover with automated tests.
+
+## Optional official node packages
+
+The repo also contains additional node packages, for example:
+
+- `@codemation/core-nodes-gmail`: Gmail trigger and related integration support
+- `@codemation/node-example`: a minimal custom node package that shows the extension pattern
+
+## A simple built-in node example
+
+The starter template uses `ManualTrigger` and `MapData`:
+
+```ts
+new ManualTrigger<SeedJson>("Start", [{ json: { step: "start" } }]);
+
+new MapData<SeedJson, SeedJson & { hello: boolean }>("Hello", (item) => ({
+  ...item.json,
+  hello: true,
+}));
+```
+
+That pattern is typical across built-in nodes:
+
+- instantiate a config class,
+- give it a readable name,
+- pass the configuration it needs,
+- chain it into the builder.
+
+## AI node example
+
+An advanced workflow in the repo uses an AI node like this:
+
+```ts
+new AIAgent({
+  name: "Classify RFQ vs other",
+  messages: [
+    { role: "system", content: "You triage incoming mail for sales. Return JSON only." },
+    { role: "user", content: ({ item }) => JSON.stringify(item.json) },
+  ],
+  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  guardrails: {
+    maxTurns: 10,
+  },
+});
+```
+
+In practice, AI nodes usually combine:
+
+- one or more ordered messages,
+- item-aware prompt serialization,
+- a chat model config,
+- optional tools or node-backed tools,
+- optional turn caps and model invocation options,
+- a credential slot that resolves to an API key.
+
+Because `AIAgent` is one of the most important built-in nodes, it has its own page:
+
+- [AI Agent](/docs/workflows/ai-agent)
+
+## OpenAI model configuration
+
+The built-in OpenAI chat model config declares a default credential slot and accepts the built-in `openai.apiKey` credential type.
+
+That means a common setup is:
+
+1. configure an OpenAI credential instance in the host UI,
+2. bind it to the expected slot,
+3. use `OpenAIChatModelConfig` or a preset in your workflow.
+
+## How to choose nodes
+
+Start with:
+
+- `ManualTrigger` for quick local testing
+- `MapData` for shaping data
+- `If` for branching
+- `HttpRequest` for HTTP calls
+- `Callback` when you need custom logic **right now** and want the smallest possible edit
+
+When that custom logic is more than a quick experiment, prefer extracting it into a **custom node class** so you can test and reuse it cleanly (see [Custom nodes](/docs/workflows/custom-nodes)).
+
+Then add:
+
+- `WebhookTrigger` when you want inbound HTTP
+- `AIAgent` when you want model-backed classification or generation
+- optional package nodes such as Gmail when your use case matches them
+
+## Continue with
+
+1. [AI Agent](/docs/workflows/ai-agent)
+2. [Custom nodes](/docs/workflows/custom-nodes)
+3. [Use credentials](/docs/credentials/using-credentials)

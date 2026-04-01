@@ -1,6 +1,6 @@
 /**
  * Built-in canvas icons (brand marks, etc.) shipped as **SVG files** under `public/canvas-icons/builtin/`.
- * Same idea as n8n’s `file:icon.svg`: one asset per id, square or near-square artboard, no per-brand TSX.
+ * One SVG asset per id, square or near-square artboard, no per-brand TSX.
  *
  * To add a builtin:
  * 1. Add `public/canvas-icons/builtin/<id>.svg` (prefer square viewBox; optimize with SVGO).

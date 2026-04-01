@@ -34,18 +34,24 @@ export default createWorkflowBuilder({ id: "wf.example", name: "Example workflow
   )
   .then(new ExampleUppercase<ExampleSeedJson, "subject">("Uppercase subject", { field: "subject" }))
   .then(
-    new AIAgent<ExampleSeedJson, ExampleAgentJson>(
-      "Classify (agent)",
-      "Classify if the message is an RFQ. Use the available tools when needed and return strict JSON with keys isRfq and summary only.",
-      (item) => JSON.stringify(item.json ?? {}),
-      openAiChatModelPresets.demoGpt41,
-      [
+    new AIAgent<ExampleSeedJson, ExampleAgentJson>({
+      name: "Classify (agent)",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Classify if the message is an RFQ. Use the available tools when needed and return strict JSON with keys isRfq and summary only.",
+        },
+        { role: "user", content: ({ item }) => JSON.stringify(item.json ?? {}) },
+      ],
+      chatModel: openAiChatModelPresets.demoGpt41,
+      tools: [
         new ClassifyMailToolConfig("classifyMail", ["RFQ", "QUOTE", "QUOTATION"], undefined, {
           icon: "mail",
           label: "Classify mail!",
         }),
       ],
-    ),
+    }),
   )
   .then(new If<ExampleAgentJson>("If RFQ?", (item) => item.json.isRfq))
   .when({

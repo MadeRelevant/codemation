@@ -23,6 +23,31 @@ const isCompositionRootFile = (filename) =>
   compositionRootFilePattern.test(filename) || /\/src\/bin\/[^/]+\.tsx?$/.test(filename);
 
 /**
+ * Allow `static create…` helpers on classes named `*Factory` without treating the whole file as a composition root.
+ */
+function isStaticCreateMethodOnFactoryClass(node) {
+  if (node.type !== "MethodDefinition" || !node.static) {
+    return false;
+  }
+  const classBody = node.parent;
+  if (!classBody || classBody.type !== "ClassBody") {
+    return false;
+  }
+  const classDecl = classBody.parent;
+  if (!classDecl || classDecl.type !== "ClassDeclaration" || !classDecl.id || classDecl.id.type !== "Identifier") {
+    return false;
+  }
+  if (!classDecl.id.name.endsWith("Factory")) {
+    return false;
+  }
+  const key = node.key;
+  if (key.type !== "Identifier") {
+    return false;
+  }
+  return key.name.startsWith("create");
+}
+
+/**
  * Types that are routinely constructed at call sites (messages, errors, DTOs)
  * rather than resolved from a DI container.
  */
@@ -234,6 +259,9 @@ const architecturePlugin = {
         if (isCompositionRootFile(filename)) return {};
         return {
           "MethodDefinition[static=true]"(node) {
+            if (isStaticCreateMethodOnFactoryClass(node)) {
+              return;
+            }
             context.report({
               node,
               message:

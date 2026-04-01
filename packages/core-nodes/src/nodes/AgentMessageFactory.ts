@@ -1,14 +1,22 @@
-import type { AgentToolCall } from "@codemation/core";
+import type { AgentMessageDto, AgentToolCall } from "@codemation/core";
 
-import { HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, SystemMessage, ToolMessage, type BaseMessage } from "@langchain/core/messages";
 
 export class AgentMessageFactory {
+  static createPromptMessages(messages: ReadonlyArray<AgentMessageDto>): ReadonlyArray<BaseMessage> {
+    return messages.map((message) => this.createPromptMessage(message));
+  }
+
   static createSystemPrompt(systemMessage: string): SystemMessage {
     return new SystemMessage(systemMessage);
   }
 
   static createUserPrompt(prompt: string): HumanMessage {
     return new HumanMessage(prompt);
+  }
+
+  static createAssistantPrompt(prompt: string): AIMessage {
+    return new AIMessage(prompt);
   }
 
   static createToolMessage(toolCallId: string, content: string): ToolMessage {
@@ -47,5 +55,15 @@ export class AgentMessageFactory {
 
   private static isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
+  }
+
+  private static createPromptMessage(message: AgentMessageDto): BaseMessage {
+    if (message.role === "system") {
+      return this.createSystemPrompt(message.content);
+    }
+    if (message.role === "assistant") {
+      return this.createAssistantPrompt(message.content);
+    }
+    return this.createUserPrompt(message.content);
   }
 }
