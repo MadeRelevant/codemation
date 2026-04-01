@@ -59,6 +59,7 @@ import {
   workflowsQueryKey,
 } from "../../lib/realtime/realtimeQueryKeys";
 import type { PersistedRunState, WorkflowDevBuildState } from "../../lib/realtime/realtimeDomainTypes";
+import { WorkflowQueryRetryPolicy } from "../../lib/realtime/WorkflowQueryRetryPolicy";
 import { resolveFetchedRunState, resolveRunPollingIntervalMs } from "./runQueryPolling";
 
 export function useWorkflowRealtimeSubscription(workflowId: string | null | undefined): void {
@@ -112,6 +113,7 @@ export function useWorkflowQuery(workflowId: string, initialData?: WorkflowDto) 
     queryFn: async () => await fetchWorkflow(workflowId),
     enabled: Boolean(workflowId),
     initialData,
+    retry: WorkflowQueryRetryPolicy.shouldRetry,
   });
   useEffect(() => {
     if (!workflowId || !initialData) return;
@@ -219,6 +221,7 @@ export function useWorkflowCredentialHealthQuery(workflowId: string) {
     queryKey: workflowCredentialHealthQueryKey(workflowId),
     queryFn: async () => await fetchWorkflowCredentialHealth(workflowId),
     enabled: Boolean(workflowId),
+    retry: WorkflowQueryRetryPolicy.shouldRetry,
   });
 }
 

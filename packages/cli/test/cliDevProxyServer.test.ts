@@ -245,6 +245,9 @@ test("CliDevProxyServer holds traffic during rebuilds and swaps to the latest ru
     httpPort: runtimeB.httpPort,
     workflowWebSocketPort: runtimeB.workflowPort,
   });
+  const bootstrapSummaryWhileBuilding = await harness.fetchApi("/api/dev/bootstrap-summary");
+  assert.equal(bootstrapSummaryWhileBuilding.status, 200);
+  assert.equal(await bootstrapSummaryWhileBuilding.text(), "runtime-b");
   harness.proxyServer.setBuildStatus("idle");
 
   const runtimeBResponse = await harness.fetchApi("/api/example");
