@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: Plugin Developers
 description: Build reusable Codemation plugins with custom nodes, credentials, and AI-tool-ready node packages.
@@ -50,9 +48,10 @@ import type { RunnableNodeConfig, TypeToken } from "@codemation/core";
 
 import { LookupCustomerNode } from "./LookupCustomerNode";
 
-export class LookupCustomerNodeConfig
-  implements RunnableNodeConfig<{ customerId: string }, { customerName: string; accountTier: string }>
-{
+export class LookupCustomerNodeConfig implements RunnableNodeConfig<
+  { customerId: string },
+  { customerName: string; accountTier: string }
+> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = LookupCustomerNode;
 
@@ -239,4 +238,3 @@ Use those alongside:
 - [Custom nodes](/docs/workflows/custom-nodes)
 - [AI Agent](/docs/workflows/ai-agent)
 - [Custom credential types](/docs/credentials/custom-credential-types)
->>>>>>> Incoming (Background Agent changes)
