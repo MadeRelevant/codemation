@@ -84,7 +84,7 @@ new AIAgent({
     { role: "system", content: "You triage incoming mail for sales. Return JSON only." },
     { role: "user", content: ({ item }) => JSON.stringify(item.json) },
   ],
-  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
   guardrails: {
     maxTurns: 10,
   },
@@ -112,7 +112,7 @@ That means a common setup is:
 
 1. configure an OpenAI credential instance in the host UI,
 2. bind it to the expected slot,
-3. use `OpenAIChatModelConfig` or a preset in your workflow.
+3. use `OpenAIChatModelConfig` (or any `ChatModelConfig` implementation) in your workflow.
 
 ## How to choose nodes
 

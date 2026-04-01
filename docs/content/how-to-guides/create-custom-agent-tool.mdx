@@ -90,13 +90,18 @@ export class SearchDocsTool implements Tool<
 ## Step 3: attach the tool to an AIAgent
 
 ```ts
-new AIAgent(
-  "Answer product questions",
-  "Use the search_docs tool when you need product documentation context, then answer clearly.",
-  (item) => JSON.stringify(item.json),
-  openAiChatModelPresets.demoGpt4oMini,
-  [new SearchDocsToolConfig()],
-);
+new AIAgent({
+  name: "Answer product questions",
+  messages: [
+    {
+      role: "system",
+      content: "Use the search_docs tool when you need product documentation context, then answer clearly.",
+    },
+    { role: "user", content: ({ item }) => JSON.stringify(item.json) },
+  ],
+  chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
+  tools: [new SearchDocsToolConfig()],
+});
 ```
 
 ## Why tools are useful

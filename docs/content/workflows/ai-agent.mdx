@@ -34,7 +34,7 @@ new AIAgent<{ subject: string; body: string }, { outcome: "rfq" | "other"; summa
       content: ({ item }) => JSON.stringify(item.json),
     },
   ],
-  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
   guardrails: {
     maxTurns: 10,
   },
@@ -73,7 +73,7 @@ new AIAgent({
       },
     ],
   },
-  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
 });
 ```
 
@@ -139,7 +139,7 @@ new AIAgent({
     { role: "system", content: "Use tools when needed. Return JSON only." },
     { role: "user", content: ({ item }) => JSON.stringify(item.json) },
   ],
-  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
   tools: [lookupCustomerTool],
 });
 ```
@@ -234,7 +234,7 @@ new AIAgent({
         }),
     },
   ],
-  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
 });
 ```
 
@@ -247,7 +247,7 @@ new AIAgent({
     { role: "system", content: "Use tools for policy lookup. Return JSON only." },
     { role: "user", content: ({ item }) => JSON.stringify(item.json) },
   ],
-  chatModel: openAiChatModelPresets.demoGpt4oMini,
+  chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
   tools: [lookupCustomerTool, searchDocsTool],
   guardrails: {
     maxTurns: 3,
