@@ -13,6 +13,7 @@ import { ConsumerBuildOptionsParser } from "./build/ConsumerBuildOptionsParser";
 import { BuildCommand } from "./commands/BuildCommand";
 import { DbMigrateCommand } from "./commands/DbMigrateCommand";
 import { DevCommand } from "./commands/DevCommand";
+import { DevPluginCommand } from "./commands/DevPluginCommand";
 import { ServeWebCommand } from "./commands/ServeWebCommand";
 import { ServeWorkerCommand } from "./commands/ServeWorkerCommand";
 import { UserCreateCommand } from "./commands/UserCreateCommand";
@@ -33,6 +34,7 @@ import { DevRebuildQueueFactory } from "./dev/DevRebuildQueueFactory";
 import { DevSessionServicesBuilder } from "./dev/Builder";
 import { DevLockFactory } from "./dev/Factory";
 import { ConsumerEnvDotenvFilePredicate } from "./dev/ConsumerEnvDotenvFilePredicate";
+import { PluginDevConfigFactory } from "./dev/PluginDevConfigFactory";
 import { DevTrackedProcessTreeKiller } from "./dev/DevTrackedProcessTreeKiller";
 import { DevSourceWatcherFactory } from "./dev/Runner";
 import { CliProgram } from "./Program";
@@ -93,27 +95,29 @@ export class CliProgramFactory {
       outputBuilderLoader,
       buildOptionsParser,
     );
+    const devCommand = new DevCommand(
+      pathResolver,
+      tsRuntime,
+      new DevLockFactory(),
+      new DevSourceWatcherFactory(),
+      cliLogger,
+      devSessionServices,
+      databaseMigrationsApplyService,
+      new DevBootstrapSummaryFetcher(),
+      new DevCliBannerRenderer(),
+      devConsumerPublishBootstrap,
+      new ConsumerEnvDotenvFilePredicate(),
+      new DevTrackedProcessTreeKiller(),
+      nextHostConsumerServerCommandFactory,
+      new DevApiRuntimeFactory(devSessionServices.loopbackPortAllocator, appConfigLoader, pluginDiscovery),
+      new CliDevProxyServerFactory(),
+      new DevRebuildQueueFactory(),
+    );
     return new CliProgram(
       buildOptionsParser,
       new BuildCommand(cliLogger, pathResolver, pluginDiscovery, artifactsPublisher, tsRuntime, outputBuilderLoader),
-      new DevCommand(
-        pathResolver,
-        tsRuntime,
-        new DevLockFactory(),
-        new DevSourceWatcherFactory(),
-        cliLogger,
-        devSessionServices,
-        databaseMigrationsApplyService,
-        new DevBootstrapSummaryFetcher(),
-        new DevCliBannerRenderer(),
-        devConsumerPublishBootstrap,
-        new ConsumerEnvDotenvFilePredicate(),
-        new DevTrackedProcessTreeKiller(),
-        nextHostConsumerServerCommandFactory,
-        new DevApiRuntimeFactory(devSessionServices.loopbackPortAllocator, appConfigLoader, pluginDiscovery),
-        new CliDevProxyServerFactory(),
-        new DevRebuildQueueFactory(),
-      ),
+      devCommand,
+      new DevPluginCommand(new PluginDevConfigFactory(), devCommand),
       new ServeWebCommand(
         pathResolver,
         new CodemationConsumerConfigLoader(),

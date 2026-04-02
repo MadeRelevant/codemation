@@ -1,6 +1,6 @@
 import type { CodemationPackageManifest } from "../config/CodemationPackageManifest";
 import type { CodemationPlugin } from "../config/CodemationPlugin";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -98,7 +98,9 @@ export class CodemationPluginDiscovery {
 
   private async loadPlugin(discoveredPackage: CodemationDiscoveredPluginPackage): Promise<CodemationPlugin> {
     const pluginModulePath = path.resolve(discoveredPackage.packageRoot, this.resolvePluginEntry(discoveredPackage));
-    const importedModule = (await import(pathToFileURL(pluginModulePath).href)) as Record<string, unknown>;
+    const importedModule = (await import(
+      /* webpackIgnore: true */ await this.createImportSpecifier(pluginModulePath)
+    )) as Record<string, unknown>;
     const pluginExportName = discoveredPackage.manifest.exportName;
     const explicitExport = pluginExportName ? importedModule[pluginExportName] : undefined;
     const exportedValue = explicitExport ?? importedModule.default ?? importedModule.codemationPlugin;
@@ -147,5 +149,12 @@ export class CodemationPluginDiscovery {
     }
     const importPath = (exportRecord as { import?: unknown }).import;
     return typeof importPath === "string" && importPath.trim().length > 0 ? importPath : undefined;
+  }
+
+  private async createImportSpecifier(filePath: string): Promise<string> {
+    const fileUrl = pathToFileURL(filePath);
+    const fileStats = await stat(filePath);
+    fileUrl.searchParams.set("t", String(fileStats.mtimeMs));
+    return fileUrl.href;
   }
 }

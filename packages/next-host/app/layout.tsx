@@ -52,13 +52,14 @@ export default async function RootLayout(args: Readonly<{ children: ReactNode }>
   } catch {
     whitelabel = defaultWhitelabel;
   }
-  const session = frontendAppConfig?.auth.uiAuthEnabled === false ? null : await auth();
+  const uiAuthEnabled = frontendAppConfig?.auth.uiAuthEnabled === true;
+  const session = uiAuthEnabled ? await auth() : null;
   return (
     <html lang="en" className={leagueSpartan.variable} suppressHydrationWarning>
       <body className={leagueSpartan.className} suppressHydrationWarning>
         <WhitelabelProvider value={whitelabel}>
           <CodemationNextClientShell>
-            <CodemationSessionRoot enabled={frontendAppConfig?.auth.uiAuthEnabled !== false} session={session}>
+            <CodemationSessionRoot enabled={uiAuthEnabled} session={session}>
               {args.children}
             </CodemationSessionRoot>
           </CodemationNextClientShell>

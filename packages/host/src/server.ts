@@ -19,3 +19,4 @@ export type {
 } from "./presentation/server/CodemationPluginDiscovery";
 export { WorkflowModulePathFinder } from "./presentation/server/WorkflowModulePathFinder";
 export { WorkflowDiscoveryPathSegmentsComputer } from "./presentation/server/WorkflowDiscoveryPathSegmentsComputer";
+export { CodemationTsyringeTypeInfoRegistrar } from "./presentation/server/CodemationTsyringeTypeInfoRegistrar";

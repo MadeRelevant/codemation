@@ -196,6 +196,10 @@ This gives high-signal coverage without fragile mocks.
 - Node must be deterministic and testable (injected deps; no hidden globals).
 - Provide at least one unit test for the node behavior (prefer in-memory deps).
 
+### Optional plugin entry (`codemation.plugin.ts`)
+
+Packages that register nodes/credentials with the host can export a default plugin object from `codemation.plugin.ts`. Use **`definePlugin`** (registers declarative `credentialTypes` before your `register` hook) and **`SandboxFactory.create`** (typed local-dev defaults for `sandbox`) from **`@codemation/host`** so every package does not duplicate the same PGlite/inline-scheduler/auth fragment. Consumer discovery uses `package.json` → `codemation.plugin` with `{ "kind": "plugin", "entry": "..." }`; **`codemation dev:plugin`** synthesizes a temporary consumer config that merges `plugin.sandbox` and appends the plugin to `plugins`.
+
 ## `@codemation/host` package exports
 
 The package exposes **multiple subpath entry points** on purpose:

@@ -8,12 +8,12 @@ import {
 import {
   AppConfigLoader,
   CodemationPluginDiscovery,
+  CodemationTsyringeTypeInfoRegistrar,
   type CodemationResolvedPluginPackage,
 } from "@codemation/host/server";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { CodemationTsyringeTypeInfoRegistrar } from "@codemation/host-src/presentation/server/CodemationTsyringeTypeInfoRegistrar";
 
 import type { DevApiRuntimeContext } from "./DevApiRuntimeTypes";
 
@@ -26,6 +26,7 @@ export class DevApiRuntimeHost {
     private readonly pluginDiscovery: CodemationPluginDiscovery,
     private readonly args: Readonly<{
       consumerRoot: string;
+      configPathOverride?: string;
       env: NodeJS.ProcessEnv;
       runtimeWorkingDirectory: string;
     }>,
@@ -62,6 +63,7 @@ export class DevApiRuntimeHost {
     env.CODEMATION_CONSUMER_ROOT = consumerRoot;
     const configResolution = await this.configLoader.load({
       consumerRoot,
+      configPathOverride: this.args.configPathOverride,
       repoRoot,
       env,
     });

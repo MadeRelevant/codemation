@@ -25,9 +25,21 @@ export class DevAuthSettingsLoader {
     return randomUUID();
   }
 
-  async loadForConsumer(consumerRoot: string): Promise<DevResolvedAuthSettings> {
-    const resolution = await this.configLoader.load({ consumerRoot });
-    const envForAuthSecret = this.consumerEnvLoader.mergeConsumerRootIntoProcessEnvironment(consumerRoot, process.env);
+  async loadForConsumer(
+    consumerRoot: string,
+    options?: Readonly<{
+      configPathOverride?: string;
+      processEnv?: NodeJS.ProcessEnv;
+    }>,
+  ): Promise<DevResolvedAuthSettings> {
+    const resolution = await this.configLoader.load({
+      consumerRoot,
+      configPathOverride: options?.configPathOverride,
+    });
+    const envForAuthSecret = this.consumerEnvLoader.mergeConsumerRootIntoProcessEnvironment(
+      consumerRoot,
+      options?.processEnv ?? {},
+    );
     return {
       authConfigJson: JSON.stringify(resolution.config.auth ?? null),
       authSecret: this.resolveDevelopmentAuthSecret(envForAuthSecret),

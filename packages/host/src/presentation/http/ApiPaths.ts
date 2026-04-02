@@ -15,6 +15,8 @@ export class ApiPaths {
 
   private static readonly whitelabelBasePath = `${this.apiBasePath}/whitelabel`;
 
+  private static readonly bootstrapBasePath = `${this.apiBasePath}/bootstrap`;
+
   static workflows(): string {
     return this.workflowsBasePath;
   }
@@ -98,6 +100,14 @@ export class ApiPaths {
 
   static workflowWebsocket(): string {
     return `${this.workflowsBasePath}/ws`;
+  }
+
+  static frontendBootstrap(): string {
+    return `${this.bootstrapBasePath}/frontend`;
+  }
+
+  static internalAuthBootstrap(): string {
+    return `${this.bootstrapBasePath}/auth/internal`;
   }
 
   /** Dev gateway: stable browser WebSocket for build lifecycle (CLI → gateway → browser). */

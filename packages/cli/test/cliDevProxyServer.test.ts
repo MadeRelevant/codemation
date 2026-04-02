@@ -248,6 +248,12 @@ test("CliDevProxyServer holds traffic during rebuilds and swaps to the latest ru
   const bootstrapSummaryWhileBuilding = await harness.fetchApi("/api/dev/bootstrap-summary");
   assert.equal(bootstrapSummaryWhileBuilding.status, 200);
   assert.equal(await bootstrapSummaryWhileBuilding.text(), "runtime-b");
+  const publicBootstrapWhileBuilding = await harness.fetchApi(ApiPaths.frontendBootstrap());
+  assert.equal(publicBootstrapWhileBuilding.status, 200);
+  assert.equal(await publicBootstrapWhileBuilding.text(), "runtime-b");
+  const internalBootstrapWhileBuilding = await harness.fetchApi(ApiPaths.internalAuthBootstrap());
+  assert.equal(internalBootstrapWhileBuilding.status, 200);
+  assert.equal(await internalBootstrapWhileBuilding.text(), "runtime-b");
   harness.proxyServer.setBuildStatus("idle");
 
   const runtimeBResponse = await harness.fetchApi("/api/example");

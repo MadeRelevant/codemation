@@ -63,6 +63,7 @@ export class ConsumerOutputBuilder {
     private readonly consumerRoot: string,
     logOverride?: Logger,
     buildOptionsOverride?: ConsumerBuildOptions,
+    private readonly configPathOverride?: string,
   ) {
     this.log = logOverride ?? defaultConsumerOutputLogger;
     this.buildOptions = buildOptionsOverride ?? defaultConsumerBuildOptions;
@@ -697,6 +698,9 @@ export class ConsumerOutputBuilder {
   }
 
   private async resolveConfigPath(consumerRoot: string): Promise<string | null> {
+    if (this.configPathOverride && (await this.fileExists(this.configPathOverride))) {
+      return path.resolve(this.configPathOverride);
+    }
     for (const candidate of this.getConventionCandidates(consumerRoot)) {
       if (await this.fileExists(candidate)) {
         return candidate;

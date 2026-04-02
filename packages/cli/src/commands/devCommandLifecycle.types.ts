@@ -21,6 +21,7 @@ export type DevMutableProcessState = {
 /** Immutable inputs resolved before any child processes are spawned. */
 export type DevPreparedRuntime = Readonly<{
   paths: CliPaths;
+  configPathOverride?: string;
   devMode: DevMode;
   nextPort: number;
   gatewayPort: number;

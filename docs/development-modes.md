@@ -37,6 +37,20 @@ There is **no** `next dev` in consumer mode (no framework HMR).
 
 Framework UI HMR is opt-in via `codemation dev --watch-framework` (as in `apps/test-dev`).
 
+## 3. Plugin package development (`codemation dev:plugin`)
+
+Plugin packages export a default plugin from `codemation.plugin.ts` (see `definePlugin` and `SandboxFactory` in `@codemation/host`). For local development, `codemation dev:plugin` (used by the `create-codemation` plugin template and `apps/plugin-dev`) writes a **temporary consumer config** under `.codemation/plugin-dev/` that imports your plugin, merges `plugin.sandbox` into the root `CodemationConfig`, and appends the plugin to `plugins`—that is the same shape a real app would use, without publishing the package first.
+
+Published plugins are discovered from `node_modules` via `package.json`:
+
+```json
+"codemation": {
+  "plugin": { "kind": "plugin", "entry": "./dist/codemation.plugin.js" }
+}
+```
+
+The host loads `entry` and registers the plugin alongside the consumer’s own `codemation.config`.
+
 ## Rule of thumb
 
 - Monorepo framework work: `codemation dev --watch-framework` + Next dev + stable CLI-owned runtime swapping.

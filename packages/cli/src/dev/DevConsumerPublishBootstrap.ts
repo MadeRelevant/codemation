@@ -8,7 +8,7 @@ import type { CliPaths } from "../path/CliPathResolver";
 
 /**
  * Ensures `.codemation/output/current.json` and transpiled consumer config exist before the Next host boots.
- * Without this, `codemation dev` can serve a stale built `codemation.config.js` (e.g. missing whitelabel).
+ * Without this, `codemation dev` can serve a stale built consumer output.
  */
 export class DevConsumerPublishBootstrap {
   constructor(
@@ -19,11 +19,16 @@ export class DevConsumerPublishBootstrap {
     private readonly buildOptionsParser: ConsumerBuildOptionsParser,
   ) {}
 
-  async ensurePublished(paths: CliPaths): Promise<void> {
+  async ensurePublished(paths: CliPaths, options?: Readonly<{ configPathOverride?: string }>): Promise<void> {
     const buildOptions = this.buildOptionsParser.parse({});
-    const builder = this.outputBuilderLoader.create(paths.consumerRoot, buildOptions);
+    const builder = this.outputBuilderLoader.create(paths.consumerRoot, buildOptions, {
+      configPathOverride: options?.configPathOverride,
+    });
     const snapshot = await builder.ensureBuilt();
-    const discoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
+    const discoveredPlugins =
+      options?.configPathOverride && options.configPathOverride.trim().length > 0
+        ? []
+        : await this.pluginDiscovery.discover(paths.consumerRoot);
     await this.artifactsPublisher.publish(snapshot, discoveredPlugins);
     this.cliLogger.debug(`Dev: consumer output published (${snapshot.buildVersion}).`);
   }

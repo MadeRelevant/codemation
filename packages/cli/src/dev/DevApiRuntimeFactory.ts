@@ -22,6 +22,7 @@ export class DevApiRuntimeFactory {
       workflowWebSocketPort,
       new DevApiRuntimeHost(this.configLoader, this.pluginDiscovery, {
         consumerRoot: args.consumerRoot,
+        configPathOverride: args.configPathOverride,
         env: {
           ...args.env,
           CODEMATION_WS_PORT: String(workflowWebSocketPort),

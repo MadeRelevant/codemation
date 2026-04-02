@@ -173,7 +173,7 @@ export class CliDevProxyServer {
     }
     if (pathname.startsWith("/api/")) {
       const runtimeTarget = this.activeRuntime;
-      if (pathname === "/api/dev/bootstrap-summary" && runtimeTarget) {
+      if (this.shouldProxyDuringRebuild(pathname) && runtimeTarget) {
         this.proxy.web(req, res, {
           target: `http://127.0.0.1:${runtimeTarget.httpPort}`,
         });
@@ -229,6 +229,14 @@ export class CliDevProxyServer {
     } catch {
       return url.split("?")[0] ?? url;
     }
+  }
+
+  private shouldProxyDuringRebuild(pathname: string): boolean {
+    return (
+      pathname === "/api/dev/bootstrap-summary" ||
+      pathname === ApiPaths.frontendBootstrap() ||
+      pathname === ApiPaths.internalAuthBootstrap()
+    );
   }
 
   private async rejectListenError(error: unknown, reject: (reason?: unknown) => void): Promise<void> {

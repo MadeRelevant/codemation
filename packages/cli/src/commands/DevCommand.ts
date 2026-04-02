@@ -47,12 +47,24 @@ export class DevCommand {
     private readonly devRebuildQueueFactory: DevRebuildQueueFactory,
   ) {}
 
-  async execute(args: Readonly<{ consumerRoot: string; watchFramework?: boolean }>): Promise<void> {
+  async execute(
+    args: Readonly<{
+      consumerRoot: string;
+      watchFramework?: boolean;
+      configPathOverride?: string;
+      commandName?: string;
+    }>,
+  ): Promise<void> {
     const paths = await this.pathResolver.resolve(args.consumerRoot);
     this.devCliBannerRenderer.renderBrandHeader();
     this.tsRuntime.configure(paths.repoRoot);
-    await this.databaseMigrationsApplyService.applyForConsumer(paths.consumerRoot);
-    await this.devConsumerPublishBootstrap.ensurePublished(paths);
+    void args.commandName;
+    await this.databaseMigrationsApplyService.applyForConsumer(paths.consumerRoot, {
+      configPath: args.configPathOverride,
+    });
+    await this.devConsumerPublishBootstrap.ensurePublished(paths, {
+      configPathOverride: args.configPathOverride,
+    });
     const devMode = this.resolveDevMode(args);
     const { nextPort, gatewayPort } = await this.session.sessionPorts.resolve({
       devMode,
@@ -64,12 +76,22 @@ export class DevCommand {
       consumerRoot: paths.consumerRoot,
       nextPort: devMode === "watch-framework" ? nextPort : gatewayPort,
     });
-    const authSettings = await this.session.devAuthLoader.loadForConsumer(paths.consumerRoot);
+    const authSettings = await this.session.devAuthLoader.loadForConsumer(paths.consumerRoot, {
+      configPathOverride: args.configPathOverride,
+      processEnv: process.env,
+    });
     const watcher = this.devSourceWatcherFactory.create();
     const processState = this.createInitialProcessState();
     let proxyServer: CliDevProxyServer | null = null;
     try {
-      const prepared = await this.prepareDevRuntime(paths, devMode, nextPort, gatewayPort, authSettings);
+      const prepared = await this.prepareDevRuntime(
+        paths,
+        devMode,
+        nextPort,
+        gatewayPort,
+        authSettings,
+        args.configPathOverride,
+      );
       const stopPromise = this.wireStopPromise(processState);
       const uiProxyBase = await this.startPackagedUiWhenNeeded(prepared, processState);
       proxyServer = await this.startProxyServer(prepared.gatewayPort, uiProxyBase);
@@ -106,6 +128,7 @@ export class DevCommand {
     nextPort: number,
     gatewayPort: number,
     authSettings: DevResolvedAuthSettings,
+    configPathOverride?: string,
   ): Promise<DevPreparedRuntime> {
     const developmentServerToken = this.session.devAuthLoader.resolveDevelopmentServerToken(
       process.env.CODEMATION_DEV_SERVER_TOKEN,
@@ -113,6 +136,7 @@ export class DevCommand {
     const consumerEnv = this.session.consumerEnvLoader.load(paths.consumerRoot);
     return {
       paths,
+      configPathOverride,
       devMode,
       nextPort,
       gatewayPort,
@@ -392,7 +416,9 @@ export class DevCommand {
     proxyServer.broadcastBuildStarted();
     try {
       if (request.shouldRepublishConsumerOutput) {
-        await this.devConsumerPublishBootstrap.ensurePublished(prepared.paths);
+        await this.devConsumerPublishBootstrap.ensurePublished(prepared.paths, {
+          configPathOverride: prepared.configPathOverride,
+        });
       }
       await this.stopCurrentRuntime(state, proxyServer);
       process.stdout.write("[codemation] Waiting for runtime to accept traffic…\n");
@@ -425,7 +451,10 @@ export class DevCommand {
     state: DevMutableProcessState,
     gatewayBaseUrl: string,
   ): Promise<void> {
-    const refreshedAuthSettings = await this.session.devAuthLoader.loadForConsumer(prepared.paths.consumerRoot);
+    const refreshedAuthSettings = await this.session.devAuthLoader.loadForConsumer(prepared.paths.consumerRoot, {
+      configPathOverride: prepared.configPathOverride,
+      processEnv: process.env,
+    });
     process.stdout.write("[codemation] Restarting the UI process to apply source changes…\n");
     state.isRestartingUi = true;
     try {
@@ -518,6 +547,7 @@ export class DevCommand {
     );
     return await this.devApiRuntimeFactory.create({
       consumerRoot: prepared.paths.consumerRoot,
+      configPathOverride: prepared.configPathOverride,
       runtimeWorkingDirectory: process.cwd(),
       env: {
         ...runtimeEnvironment,

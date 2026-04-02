@@ -1,3 +1,7 @@
+import type { CodemationPlugin } from "./presentation/config/CodemationPlugin";
+import type { CodemationPluginDefinitionArgs } from "./presentation/config/CodemationPluginDefinitionFactory";
+import { CodemationPluginDefinitionFactory } from "./presentation/config/CodemationPluginDefinitionFactory";
+
 export type { CommandBus } from "./application/bus/CommandBus";
 export type { QueryBus } from "./application/bus/QueryBus";
 export { ListUserAccountsQuery } from "./application/queries/ListUserAccountsQuery";
@@ -53,7 +57,11 @@ export type {
   CodemationPluginPackageManifest,
 } from "./presentation/config/CodemationPackageManifest";
 export type { CodemationPlugin, CodemationPluginContext } from "./presentation/config/CodemationPlugin";
+export { CodemationPluginDefinitionFactory } from "./presentation/config/CodemationPluginDefinitionFactory";
+export type { CodemationPluginDefinitionArgs } from "./presentation/config/CodemationPluginDefinitionFactory";
 export { CodemationPluginListMerger } from "./presentation/config/CodemationPluginListMerger";
+export { SandboxFactory } from "./presentation/config/SandboxFactory";
+export type { SandboxFactoryOptions } from "./presentation/config/SandboxFactory";
 export type { CodemationWorkflowDiscovery } from "./presentation/config/CodemationWorkflowDiscovery";
 export {
   ApiPaths,
@@ -66,3 +74,7 @@ export {
   CodemationServerGateway,
   PrismaClient,
 } from "./server";
+
+export function definePlugin(args: CodemationPluginDefinitionArgs): CodemationPlugin {
+  return CodemationPluginDefinitionFactory.createPlugin(args);
+}

@@ -12,13 +12,23 @@ class RecordingDevCommand {
   }
 }
 
+class RecordingDevPluginCommand {
+  readonly calls: Array<Readonly<{ pluginRoot: string; watchFramework?: boolean }>> = [];
+
+  async execute(args: Readonly<{ pluginRoot: string; watchFramework?: boolean }>): Promise<void> {
+    this.calls.push(args);
+  }
+}
+
 test("CliProgram forwards --watch-framework to the dev command", async () => {
   const devCommand = new RecordingDevCommand();
+  const devPluginCommand = new RecordingDevPluginCommand();
   const noopCommand = { execute: async () => undefined } as never;
   const program = new CliProgram(
     new ConsumerBuildOptionsParser(),
     noopCommand,
     devCommand as never,
+    devPluginCommand as never,
     noopCommand,
     noopCommand,
     noopCommand,
@@ -33,11 +43,13 @@ test("CliProgram forwards --watch-framework to the dev command", async () => {
 
 test("CliProgram defaults dev to the packaged UI path", async () => {
   const devCommand = new RecordingDevCommand();
+  const devPluginCommand = new RecordingDevPluginCommand();
   const noopCommand = { execute: async () => undefined } as never;
   const program = new CliProgram(
     new ConsumerBuildOptionsParser(),
     noopCommand,
     devCommand as never,
+    devPluginCommand as never,
     noopCommand,
     noopCommand,
     noopCommand,
@@ -48,4 +60,26 @@ test("CliProgram defaults dev to the packaged UI path", async () => {
   await program.run(["dev", "--consumer-root", "/tmp/my-automation"]);
 
   assert.deepEqual(devCommand.calls, [{ consumerRoot: "/tmp/my-automation", watchFramework: false }]);
+});
+
+test("CliProgram routes dev:plugin to the plugin dev command", async () => {
+  const devCommand = new RecordingDevCommand();
+  const devPluginCommand = new RecordingDevPluginCommand();
+  const noopCommand = { execute: async () => undefined } as never;
+  const program = new CliProgram(
+    new ConsumerBuildOptionsParser(),
+    noopCommand,
+    devCommand as never,
+    devPluginCommand as never,
+    noopCommand,
+    noopCommand,
+    noopCommand,
+    noopCommand,
+    noopCommand,
+  );
+
+  await program.run(["dev:plugin", "--plugin-root", "/tmp/my-plugin", "--watch-framework"]);
+
+  assert.deepEqual(devPluginCommand.calls, [{ pluginRoot: "/tmp/my-plugin", watchFramework: true }]);
+  assert.deepEqual(devCommand.calls, []);
 });

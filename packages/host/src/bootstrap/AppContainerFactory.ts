@@ -65,6 +65,7 @@ import { DevBootstrapSummaryHttpRouteHandler } from "../presentation/http/routeH
 import { WhitelabelLogoHttpRouteHandler } from "../presentation/http/routeHandlers/WhitelabelLogoHttpRouteHandler";
 import { CodemationHonoApiApp } from "../presentation/http/hono/CodemationHonoApiAppFactory";
 import { BinaryHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/BinaryHonoApiRouteRegistrar";
+import { BootstrapHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/BootstrapHonoApiRouteRegistrar";
 import { CredentialHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/CredentialHonoApiRouteRegistrar";
 import { DevHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/DevHonoApiRouteRegistrar";
 import { OAuth2HonoApiRouteRegistrar } from "../presentation/http/hono/registrars/OAuth2HonoApiRouteRegistrar";
@@ -126,6 +127,7 @@ type PrismaOwnership = Readonly<{
 export class AppContainerFactory {
   private static readonly honoRouteRegistrars = [
     BinaryHonoApiRouteRegistrar,
+    BootstrapHonoApiRouteRegistrar,
     CredentialHonoApiRouteRegistrar,
     DevHonoApiRouteRegistrar,
     OAuth2HonoApiRouteRegistrar,
