@@ -7,6 +7,8 @@ export class CodemationNextHostMiddlewarePathRules {
   static isAnonymousApiRoute(pathname: string): boolean {
     return (
       pathname.startsWith("/api/webhooks") ||
+      pathname === "/api/bootstrap/frontend" ||
+      pathname === "/api/bootstrap/auth/internal" ||
       pathname === "/api/dev/runtime" ||
       pathname === "/api/dev/bootstrap-summary" ||
       pathname === "/api/users/invites/verify" ||

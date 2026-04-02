@@ -18,11 +18,16 @@ export class PostScaffoldOnboardingCoordinator implements PostScaffoldOnboarding
 
   async runAfterScaffold(
     args: Readonly<{
+      templateId: string;
       targetDirectory: string;
       noInteraction: boolean;
       adminUser?: Readonly<{ email: string; password: string }>;
     }>,
   ): Promise<void> {
+    if (args.templateId === "plugin") {
+      await this.runPluginOnboarding(args);
+      return;
+    }
     const noInteraction = args.noInteraction || !this.stdinIsTTY;
     const providedAdminUser = this.resolveProvidedAdminUser(args.adminUser);
     if (!args.noInteraction && !this.stdinIsTTY && providedAdminUser === undefined) {
@@ -46,6 +51,28 @@ export class PostScaffoldOnboardingCoordinator implements PostScaffoldOnboarding
     }
     const packageManager = this.resolvePackageManagerFromTargetDirectory(args.targetDirectory);
     this.stdout.write("\nDone. Start the app with:\n");
+    this.stdout.write(`  cd ${path.basename(args.targetDirectory)}\n`);
+    this.stdout.write(`  ${packageManager.runDevCommand}\n\n`);
+  }
+
+  private async runPluginOnboarding(
+    args: Readonly<{
+      templateId: string;
+      targetDirectory: string;
+      noInteraction: boolean;
+      adminUser?: Readonly<{ email: string; password: string }>;
+    }>,
+  ): Promise<void> {
+    void args.templateId;
+    void args.adminUser;
+    await this.ensureDefaultEnvFile(args.targetDirectory);
+    if (args.noInteraction || !this.stdinIsTTY) {
+      this.printPluginManualSteps(args.targetDirectory);
+      return;
+    }
+    await this.installDependencies(args.targetDirectory);
+    const packageManager = this.resolvePackageManagerFromTargetDirectory(args.targetDirectory);
+    this.stdout.write("\nDone. Start the plugin sandbox with:\n");
     this.stdout.write(`  cd ${path.basename(args.targetDirectory)}\n`);
     this.stdout.write(`  ${packageManager.runDevCommand}\n\n`);
   }
@@ -124,6 +151,16 @@ export class PostScaffoldOnboardingCoordinator implements PostScaffoldOnboarding
     this.stdout.write(
       `  ${packageManager.execCommand} user create --email you@example.com --password 'your-password'\n`,
     );
+    this.stdout.write(`  ${packageManager.runDevCommand}\n\n`);
+  }
+
+  private printPluginManualSteps(targetDirectory: string): void {
+    const name = path.basename(targetDirectory);
+    const packageManager = this.resolvePackageManagerFromTargetDirectory(targetDirectory);
+    this.stdout.write(`\nNext steps for ${name}:\n`);
+    this.stdout.write(`  cd ${name}\n`);
+    this.stdout.write("  # .env is already created with local sandbox defaults.\n");
+    this.stdout.write(`  ${packageManager.installCommand}\n`);
     this.stdout.write(`  ${packageManager.runDevCommand}\n\n`);
   }
 

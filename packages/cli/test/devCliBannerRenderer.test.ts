@@ -10,6 +10,7 @@ const sampleSummary: DevBootstrapSummaryJson = {
   schedulerLabel: "inline (this process)",
   eventBusLabel: "in-memory",
   activeWorkflows: [{ id: "wf1", name: "Sample workflow" }],
+  plugins: [{ packageName: "@codemation/example-plugin", source: "discovered" }],
 };
 
 function captureStdout(run: () => void): string {
@@ -33,7 +34,9 @@ test("DevCliBannerRenderer renderFull includes subtitle and workflow names", () 
   });
   assert.match(out, /AI Automation framework/);
   assert.match(out, /Sample workflow/);
+  assert.match(out, /@codemation\/example-plugin/);
   assert.match(out, /Active workflows/);
+  assert.match(out, /Plugins/);
 });
 
 test("DevCliBannerRenderer renderCompact omits full banner subtitle", () => {

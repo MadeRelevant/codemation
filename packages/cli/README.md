@@ -62,7 +62,7 @@ The CLI **orchestrates** other packages. It does not embed the full Next UI or e
 
 - **Vertical flow**: the binary loads `CliProgramFactory`, builds `CliProgram`, then Commander dispatches to a **command class** (`commands/*`).
 - **Horizontal row**: shared **libraries** the CLI imports for discovery, logging, and path logic; **next-host** is where `serve web` runs the production Next server; the CLI now also owns the stable dev proxy and disposable in-process API runtime used by `codemation dev`. `serve worker` stays inside the CLI/host container flow instead of delegating to a separate worker package.
-- **Consumer tree**: `ConsumerOutputBuilder` transpiles sources into `.codemation/output/build` and writes the entry `index.js`; `ConsumerBuildArtifactsPublisher` writes plugins and updates the manifest consumed by the host at runtime.
+- **Consumer tree**: `ConsumerOutputBuilder` is now a production-oriented emission step for `codemation build`; dev and `serve web` load consumer config directly instead of going through published manifests.
 
 For **default consumer dev** vs **framework UI watch mode** (`codemation dev` vs `codemation dev --watch-framework`), see [`docs/development-modes.md`](../../docs/development-modes.md) at the repo root.
 
@@ -84,8 +84,8 @@ For **default consumer dev** vs **framework UI watch mode** (`codemation dev` vs
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `codemation dev` (default)         | Dev session: ports, lock, packaged UI proxy, stable CLI-owned dev endpoint, watch consumer sources, and hot-swap a disposable in-process API runtime on change.                                                        |
 | `codemation dev --watch-framework` | Framework-author dev session: same runtime/proxy flow, but runs **`next dev`** for `@codemation/next-host` UI HMR.                                                                                                     |
-| `codemation build`                 | Emit consumer output under `.codemation/output/build`, discover plugins, write manifest.                                                                                                                               |
-| `codemation serve web`             | Run consumer build if needed, then **`next start`** from `@codemation/next-host` with env pointing at the manifest.                                                                                                    |
+| `codemation build`                 | Emit consumer output under `.codemation/output/build` for production-oriented packaging flows.                                                                                                                         |
+| `codemation serve web`             | Start **`next start`** from `@codemation/next-host`; the host loads consumer config directly and fetches runtime bootstrap contracts instead of consuming a published manifest.                                        |
 | `codemation serve worker`          | Load `AppConfig`, build the app container in-process, and start the configured queue-backed worker runtime.                                                                                                            |
 | `codemation user create`           | Create/update a DB user when auth is local (uses consumer config / `DATABASE_URL`). Dispatches `UpsertLocalBootstrapUserCommand` via the host `CommandBus` (password minimum 8 characters, same as invite acceptance). |
 | `codemation user list`             | List users via `ListUserAccountsQuery` and the host `QueryBus` (same auth/DB requirements as `user create`).                                                                                                           |
@@ -100,7 +100,7 @@ Use `codemation --help` and `codemation <command> --help` for flags (`--consumer
 
 1. **`ConsumerOutputBuilder.ensureBuilt()`** discovers config and workflows, transpiles with TypeScript, stages under `.codemation/output/staging/<version>-<uuid>/`, then **renames** to `.codemation/output/build/` (atomic promote).
 2. **Watch** (dev): debounced chokidar rebuilds; incremental builds copy forward from the last promoted `build/` when possible.
-3. **Publish** (`ConsumerBuildArtifactsPublisher`): writes `plugins.js` and **`current.json`** manifest (build version, paths). The host reads the manifest path from env when you run `serve web` or dev.
+3. **Consume**: the Next host no longer depends on published `current.json` manifests for dev or `serve web`; it loads consumer config directly and exposes bootstrap contracts from the prepared runtime.
 
 ---
 

@@ -44,13 +44,12 @@ npm install @codemation/core-nodes-gmail@^0.0.0
 
 ## When to use
 
-Use this package when workflows should start from Gmail messages and you are fine with **polling** (not push/Pub/Sub). Register the plugin in `codemation.config.ts` and configure Gmail credentials as documented in the host UI and your deployment.
+Use this package when workflows should start from Gmail messages and you are fine with **polling** (not push/Pub/Sub). Install the package, let Codemation auto-discover it through `codemation.plugin.ts`, and configure Gmail credentials as documented in the host UI and your deployment.
 
 ## Usage
 
-```ts
-import { GmailNodes } from "@codemation/core-nodes-gmail";
-// Register the plugin class from package.json "codemation.plugin" (exportName: GmailNodes)
+```bash
+pnpm add @codemation/core-nodes-gmail
 ```
 
-Subpath `@codemation/core-nodes-gmail/codemation-plugin` is available for plugin registry wiring. Trigger behavior and credential shapes are defined in this package’s source (`GmailNodes`, `OnNewGmailTrigger`, credential types).
+The package exposes a `codemation.plugin.ts` entry for discovery. Trigger behavior and credential shapes are defined in this package’s source (`GmailNodes`, `OnNewGmailTrigger`, credential types).

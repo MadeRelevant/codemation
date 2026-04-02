@@ -28,6 +28,7 @@ class NoopOnboarding implements PostScaffoldOnboardingPort {
 class RecordingOnboarding implements PostScaffoldOnboardingPort {
   last:
     | {
+        templateId: string;
         targetDirectory: string;
         noInteraction: boolean;
         adminUser?: Readonly<{ email: string; password: string }>;
@@ -35,6 +36,7 @@ class RecordingOnboarding implements PostScaffoldOnboardingPort {
     | undefined;
   async runAfterScaffold(
     args: Readonly<{
+      templateId: string;
       targetDirectory: string;
       noInteraction: boolean;
       adminUser?: Readonly<{ email: string; password: string }>;
@@ -134,6 +136,7 @@ describe("CreateCodemationProgram", () => {
     ]);
 
     expect(onboarding.last).toEqual({
+      templateId: "minimal",
       targetDirectory: appDir,
       noInteraction: true,
       adminUser: {

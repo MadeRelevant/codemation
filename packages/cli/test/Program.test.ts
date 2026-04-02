@@ -24,6 +24,7 @@ test("CliProgram forwards --watch-framework to the dev command", async () => {
     noopCommand,
     noopCommand,
     noopCommand,
+    noopCommand,
   );
 
   await program.run(["dev", "--watch-framework", "--consumer-root", "/tmp/my-automation"]);
@@ -38,6 +39,7 @@ test("CliProgram defaults dev to the packaged UI path", async () => {
     new ConsumerBuildOptionsParser(),
     noopCommand,
     devCommand as never,
+    noopCommand,
     noopCommand,
     noopCommand,
     noopCommand,

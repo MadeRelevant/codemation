@@ -1,4 +1,4 @@
-import { CodemationNextHost } from "../../src/server/CodemationNextHost";
+import { CodemationRuntimeBootstrapClient } from "../../src/bootstrap/CodemationRuntimeBootstrapClient";
 import { LoginPageClient } from "../../src/shell/LoginPageClient";
 
 export default async function LoginPage(args: Readonly<{ searchParams: Promise<{ callbackUrl?: string }> }>) {
@@ -9,15 +9,15 @@ export default async function LoginPage(args: Readonly<{ searchParams: Promise<{
       : "/";
   const fallbackWhitelabel = { productName: "Codemation", logoUrl: null } as const;
   try {
-    const frontendAppConfig = await CodemationNextHost.shared.getFrontendAppConfig();
+    const frontendAppConfig = await new CodemationRuntimeBootstrapClient().getPublicFrontendBootstrap();
     return (
       <LoginPageClient
         authStatus="resolved"
         callbackUrl={callbackUrl}
-        credentialsEnabled={frontendAppConfig.auth.credentialsEnabled}
+        credentialsEnabled={frontendAppConfig.credentialsEnabled}
         productName={frontendAppConfig.productName}
         logoUrl={frontendAppConfig.logoUrl}
-        oauthProviders={frontendAppConfig.auth.oauthProviders}
+        oauthProviders={frontendAppConfig.oauthProviders}
       />
     );
   } catch (error) {

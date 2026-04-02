@@ -1,7 +1,7 @@
 import type { ChildProcess } from "node:child_process";
 
-import type { DevResolvedAuthSettings } from "../dev/DevAuthSettingsLoader";
 import type { DevApiRuntimeServerHandle } from "../dev/DevApiRuntimeFactory";
+import type { NextHostEdgeSeed } from "../dev/NextHostEdgeSeedLoader";
 import type { CliPaths } from "../path/CliPathResolver";
 
 export type DevMode = "packaged-ui" | "watch-framework";
@@ -21,10 +21,11 @@ export type DevMutableProcessState = {
 /** Immutable inputs resolved before any child processes are spawned. */
 export type DevPreparedRuntime = Readonly<{
   paths: CliPaths;
+  configPathOverride?: string;
   devMode: DevMode;
   nextPort: number;
   gatewayPort: number;
-  authSettings: DevResolvedAuthSettings;
+  authSettings: NextHostEdgeSeed;
   developmentServerToken: string;
   consumerEnv: Readonly<Record<string, string>>;
 }>;

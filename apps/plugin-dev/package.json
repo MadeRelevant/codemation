@@ -1,0 +1,27 @@
+{
+  "name": "@codemation/plugin-dev",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "codemation": "tsx --tsconfig ../../tsconfig.codemation-tsx.json ../../packages/cli/src/bin.ts",
+    "dev": "pnpm codemation dev:plugin",
+    "build": "pnpm exec tsdown src/index.ts codemation.plugin.ts --out-dir dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@codemation/cli": "workspace:*",
+    "@codemation/core": "workspace:*",
+    "@codemation/core-nodes": "workspace:*",
+    "@codemation/host": "workspace:*",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "eslint": "^10.0.3",
+    "tsdown": "^0.15.5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

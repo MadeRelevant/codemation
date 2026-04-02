@@ -1,6 +1,6 @@
 export type DevRebuildRequest = Readonly<{
   changedPaths: ReadonlyArray<string>;
-  shouldRepublishConsumerOutput: boolean;
+  configPathOverride?: string;
   shouldRestartUi: boolean;
 }>;
 
@@ -47,7 +47,7 @@ export class DevRebuildQueue {
     }
     return {
       changedPaths: [...new Set([...current.changedPaths, ...next.changedPaths])],
-      shouldRepublishConsumerOutput: current.shouldRepublishConsumerOutput || next.shouldRepublishConsumerOutput,
+      configPathOverride: next.configPathOverride ?? current.configPathOverride,
       shouldRestartUi: current.shouldRestartUi || next.shouldRestartUi,
     };
   }

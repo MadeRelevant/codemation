@@ -35,6 +35,7 @@ export class DevBootstrapSummaryAssembler {
       eventBusLabel: this.formatEventBus(summary),
       redisUrlRedacted: this.formatRedis(summary),
       activeWorkflows: active,
+      plugins: [...summary.plugins].sort((left, right) => left.packageName.localeCompare(right.packageName)),
     };
   }
 

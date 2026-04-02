@@ -5,8 +5,39 @@ import {
   CodemationFrontendAuthSnapshotFactory,
   CodemationFrontendAuthSnapshotJsonCodec,
   FrontendAppConfigFactory,
+  InternalAuthBootstrapFactory,
+  InternalAuthBootstrapJsonCodec,
+  PublicFrontendBootstrapFactory,
+  PublicFrontendBootstrapJsonCodec,
 } from "../src";
 import type { AppConfig, CodemationAuthConfig } from "../src";
+import { InternalAuthBootstrapHttpRouteHandler } from "../src/presentation/http/routeHandlers/InternalAuthBootstrapHttpRouteHandler";
+import { PublicFrontendBootstrapHttpRouteHandler } from "../src/presentation/http/routeHandlers/PublicFrontendBootstrapHttpRouteHandler";
+
+class FrontendAppConfigFixture {
+  create(
+    args?: Readonly<{ auth?: CodemationAuthConfig; env?: NodeJS.ProcessEnv; whitelabel?: AppConfig["whitelabel"] }>,
+  ): AppConfig {
+    return {
+      consumerRoot: "/tmp/my-automation",
+      repoRoot: "/workspace/codemation",
+      env: args?.env ?? { NODE_ENV: "production", AUTH_SECRET: "prod-secret" },
+      workflowSources: [],
+      workflows: [],
+      containerRegistrations: [],
+      credentialTypes: [],
+      plugins: [],
+      hasConfiguredCredentialSessionServiceRegistration: false,
+      persistence: { kind: "none" },
+      scheduler: { kind: "local", workerQueues: [] },
+      eventing: { kind: "memory" },
+      auth: args?.auth,
+      whitelabel: args?.whitelabel ?? {},
+      webSocketPort: 3001,
+      webSocketBindHost: "0.0.0.0",
+    };
+  }
+}
 
 test("CodemationFrontendAuthSnapshotFactory disables UI auth when development auth bypass is allowed", () => {
   const factory = new CodemationFrontendAuthSnapshotFactory();
@@ -118,28 +149,117 @@ test("CodemationFrontendAuthSnapshotJsonCodec returns null for invalid JSON", ()
 });
 
 test("FrontendAppConfigFactory projects auth and branding from AppConfig", () => {
-  const appConfig: AppConfig = {
-    consumerRoot: "/tmp/my-automation",
-    repoRoot: "/workspace/codemation",
-    env: { NODE_ENV: "production", AUTH_SECRET: "prod-secret" },
-    workflowSources: [],
-    workflows: [],
-    containerRegistrations: [],
-    credentialTypes: [],
-    plugins: [],
-    hasConfiguredCredentialSessionServiceRegistration: false,
-    persistence: { kind: "none" },
-    scheduler: { kind: "local", workerQueues: [] },
-    eventing: { kind: "memory" },
+  const appConfig = new FrontendAppConfigFixture().create({
     auth: { kind: "local" },
     whitelabel: { productName: "Acme Corp" },
-    webSocketPort: 3001,
-    webSocketBindHost: "0.0.0.0",
-  };
+  });
 
   const snapshot = new FrontendAppConfigFactory(appConfig, new CodemationFrontendAuthSnapshotFactory()).create();
 
   assert.equal(snapshot.auth.credentialsEnabled, true);
   assert.equal(snapshot.auth.secret, "prod-secret");
   assert.equal(snapshot.productName, "Acme Corp");
+});
+
+test("PublicFrontendBootstrapFactory strips auth config and secrets for the Next shell", () => {
+  const appConfig = new FrontendAppConfigFixture().create({
+    auth: { kind: "local" },
+    whitelabel: { productName: "Acme Corp" },
+  });
+
+  const bootstrap = new PublicFrontendBootstrapFactory(
+    new FrontendAppConfigFactory(appConfig, new CodemationFrontendAuthSnapshotFactory()),
+  ).create();
+
+  assert.deepEqual(bootstrap, {
+    credentialsEnabled: true,
+    logoUrl: null,
+    oauthProviders: [],
+    productName: "Acme Corp",
+    uiAuthEnabled: true,
+  });
+});
+
+test("InternalAuthBootstrapFactory keeps declarative auth config but not secrets", () => {
+  const appConfig = new FrontendAppConfigFixture().create({
+    auth: {
+      kind: "oauth",
+      oauth: [{ provider: "github", clientIdEnv: "GITHUB_ID", clientSecretEnv: "GITHUB_SECRET" }],
+    },
+  });
+
+  const bootstrap = new InternalAuthBootstrapFactory(appConfig, new CodemationFrontendAuthSnapshotFactory()).create();
+
+  assert.deepEqual(bootstrap, {
+    authConfig: appConfig.auth,
+    credentialsEnabled: false,
+    oauthProviders: [{ id: "github", name: "GitHub" }],
+    uiAuthEnabled: true,
+  });
+});
+
+test("PublicFrontendBootstrapJsonCodec round-trips public bootstrap payloads", () => {
+  const codec = new PublicFrontendBootstrapJsonCodec();
+  const bootstrap = new PublicFrontendBootstrapFactory(
+    new FrontendAppConfigFactory(
+      new FrontendAppConfigFixture().create({ auth: { kind: "local" }, whitelabel: { productName: "Acme Corp" } }),
+      new CodemationFrontendAuthSnapshotFactory(),
+    ),
+  ).create();
+
+  assert.deepEqual(codec.deserialize(codec.serialize(bootstrap)), bootstrap);
+});
+
+test("InternalAuthBootstrapJsonCodec round-trips internal auth bootstrap payloads", () => {
+  const codec = new InternalAuthBootstrapJsonCodec();
+  const bootstrap = new InternalAuthBootstrapFactory(
+    new FrontendAppConfigFixture().create({
+      auth: {
+        kind: "oauth",
+        oauth: [{ provider: "google", clientIdEnv: "GOOGLE_ID", clientSecretEnv: "GOOGLE_SECRET" }],
+      },
+    }),
+    new CodemationFrontendAuthSnapshotFactory(),
+  ).create();
+
+  assert.deepEqual(codec.deserialize(codec.serialize(bootstrap)), bootstrap);
+});
+
+test("PublicFrontendBootstrapHttpRouteHandler returns bootstrap JSON", async () => {
+  const bootstrapFactory = new PublicFrontendBootstrapFactory(
+    new FrontendAppConfigFactory(
+      new FrontendAppConfigFixture().create({ auth: { kind: "local" }, whitelabel: { productName: "Acme Corp" } }),
+      new CodemationFrontendAuthSnapshotFactory(),
+    ),
+  );
+  const response = new PublicFrontendBootstrapHttpRouteHandler(bootstrapFactory).getBootstrap();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    credentialsEnabled: true,
+    logoUrl: null,
+    oauthProviders: [],
+    productName: "Acme Corp",
+    uiAuthEnabled: true,
+  });
+});
+
+test("InternalAuthBootstrapHttpRouteHandler returns node auth bootstrap JSON", async () => {
+  const appConfig = new FrontendAppConfigFixture().create({
+    auth: {
+      kind: "oauth",
+      oauth: [{ provider: "google", clientIdEnv: "GOOGLE_ID", clientSecretEnv: "GOOGLE_SECRET" }],
+    },
+  });
+  const response = new InternalAuthBootstrapHttpRouteHandler(
+    new InternalAuthBootstrapFactory(appConfig, new CodemationFrontendAuthSnapshotFactory()),
+  ).getBootstrap();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    authConfig: appConfig.auth,
+    credentialsEnabled: false,
+    oauthProviders: [{ id: "google", name: "Google" }],
+    uiAuthEnabled: true,
+  });
 });

@@ -12,7 +12,13 @@ export { CodemationFrontendAuthSnapshotFactory } from "./presentation/frontend/C
 export { CodemationFrontendAuthSnapshotJsonCodec } from "./presentation/frontend/CodemationFrontendAuthSnapshotJsonCodec";
 export { FrontendAppConfigFactory } from "./presentation/frontend/FrontendAppConfigFactory";
 export { FrontendAppConfigJsonCodec } from "./presentation/frontend/FrontendAppConfigJsonCodec";
+export { InternalAuthBootstrapFactory } from "./presentation/frontend/InternalAuthBootstrapFactory";
+export { InternalAuthBootstrapJsonCodec } from "./presentation/frontend/InternalAuthBootstrapJsonCodec";
+export { PublicFrontendBootstrapFactory } from "./presentation/frontend/PublicFrontendBootstrapFactory";
+export { PublicFrontendBootstrapJsonCodec } from "./presentation/frontend/PublicFrontendBootstrapJsonCodec";
 export type { FrontendAppConfig } from "./presentation/frontend/FrontendAppConfig";
+export type { InternalAuthBootstrap } from "./presentation/frontend/InternalAuthBootstrap";
+export type { PublicFrontendBootstrap } from "./presentation/frontend/PublicFrontendBootstrap";
 export type {
   CodemationDiscoveredPluginPackage,
   CodemationResolvedPluginPackage,

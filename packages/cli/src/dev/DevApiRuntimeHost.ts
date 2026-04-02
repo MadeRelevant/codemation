@@ -1,4 +1,5 @@
-import type { CodemationPlugin } from "@codemation/host";
+import type { AppConfig, AppPluginLoadSummary, CodemationPlugin } from "@codemation/host";
+import { CodemationPluginPackageMetadata } from "@codemation/host";
 import {
   AppContainerFactory,
   AppContainerLifecycle,
@@ -18,13 +19,15 @@ import { CodemationTsyringeTypeInfoRegistrar } from "@codemation/host-src/presen
 import type { DevApiRuntimeContext } from "./DevApiRuntimeTypes";
 
 export class DevApiRuntimeHost {
-  private readonly pluginListMerger = new CodemationPluginListMerger();
+  private readonly pluginPackageMetadata = new CodemationPluginPackageMetadata();
+  private readonly pluginListMerger = new CodemationPluginListMerger(this.pluginPackageMetadata);
   private contextPromise: Promise<DevApiRuntimeContext> | null = null;
 
   constructor(
     private readonly configLoader: AppConfigLoader,
     private readonly pluginDiscovery: CodemationPluginDiscovery,
     private readonly args: Readonly<{
+      configPathOverride?: string;
       consumerRoot: string;
       env: NodeJS.ProcessEnv;
       runtimeWorkingDirectory: string;
@@ -62,17 +65,24 @@ export class DevApiRuntimeHost {
     env.CODEMATION_CONSUMER_ROOT = consumerRoot;
     const configResolution = await this.configLoader.load({
       consumerRoot,
+      configPathOverride: this.args.configPathOverride,
       repoRoot,
       env,
     });
     const discoveredPlugins = await this.loadDiscoveredPlugins(consumerRoot);
+    const mergedPlugins =
+      discoveredPlugins.length > 0
+        ? this.pluginListMerger.merge(configResolution.appConfig.plugins, discoveredPlugins)
+        : configResolution.appConfig.plugins;
     const appConfig = {
       ...configResolution.appConfig,
       env,
-      plugins:
-        discoveredPlugins.length > 0
-          ? this.pluginListMerger.merge(configResolution.appConfig.plugins, discoveredPlugins)
-          : configResolution.appConfig.plugins,
+      plugins: mergedPlugins,
+      pluginLoadSummary: this.createPluginLoadSummary(
+        configResolution.appConfig.plugins,
+        discoveredPlugins,
+        mergedPlugins,
+      ),
     };
     const container = await new AppContainerFactory().create({
       appConfig,
@@ -94,6 +104,27 @@ export class DevApiRuntimeHost {
   private async loadDiscoveredPlugins(consumerRoot: string): Promise<ReadonlyArray<CodemationPlugin>> {
     const resolvedPackages = await this.pluginDiscovery.resolvePlugins(consumerRoot);
     return resolvedPackages.map((resolvedPackage: CodemationResolvedPluginPackage) => resolvedPackage.plugin);
+  }
+
+  private createPluginLoadSummary(
+    configuredPlugins: ReadonlyArray<CodemationPlugin>,
+    discoveredPlugins: ReadonlyArray<CodemationPlugin>,
+    mergedPlugins: ReadonlyArray<CodemationPlugin>,
+  ): AppConfig["pluginLoadSummary"] {
+    const configuredPluginSet = new Set(configuredPlugins);
+    const discoveredPluginSet = new Set(discoveredPlugins);
+    const summaries: AppPluginLoadSummary[] = [];
+    for (const plugin of mergedPlugins) {
+      const packageName = this.pluginPackageMetadata.readPackageName(plugin);
+      if (!packageName) {
+        continue;
+      }
+      summaries.push({
+        packageName,
+        source: configuredPluginSet.has(plugin) || !discoveredPluginSet.has(plugin) ? "configured" : "discovered",
+      });
+    }
+    return summaries;
   }
 
   private async detectWorkspaceRoot(startDirectory: string): Promise<string> {

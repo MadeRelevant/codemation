@@ -72,7 +72,7 @@ describe("PostScaffoldOnboardingCoordinator", () => {
     const target = await fs.mkdtemp(path.join(os.tmpdir(), "onb-"));
     tmpDirs.push(target);
     await fs.writeFile(path.join(target, "package.json"), JSON.stringify({ packageManager: "pnpm@10.13.1" }), "utf8");
-    await coordinator.runAfterScaffold({ targetDirectory: target, noInteraction: true });
+    await coordinator.runAfterScaffold({ templateId: "default", targetDirectory: target, noInteraction: true });
     expect(out.text).toContain("pnpm install");
     expect(out.text).toContain("pnpm exec codemation db migrate");
     expect(out.text).toContain("pnpm dev");
@@ -95,7 +95,7 @@ describe("PostScaffoldOnboardingCoordinator", () => {
     );
     const prompts = new ScriptedPrompts(true, ["admin@example.com", "longpassword", "longpassword"]);
     const coordinator = new PostScaffoldOnboardingCoordinator(out, prompts, new NodeFileSystem(), runner, true);
-    await coordinator.runAfterScaffold({ targetDirectory: target, noInteraction: false });
+    await coordinator.runAfterScaffold({ templateId: "default", targetDirectory: target, noInteraction: false });
     const env = await fs.readFile(path.join(target, ".env"), "utf8");
     const config = await fs.readFile(path.join(target, "codemation.config.ts"), "utf8");
     expect(env).toContain("# zero-setup defaults");
@@ -135,7 +135,7 @@ describe("PostScaffoldOnboardingCoordinator", () => {
       runner,
       true,
     );
-    await coordinator.runAfterScaffold({ targetDirectory: target, noInteraction: false });
+    await coordinator.runAfterScaffold({ templateId: "default", targetDirectory: target, noInteraction: false });
     expect(runner.calls).toEqual([
       { command: "pnpm", args: ["install"], cwd: target },
       { command: "pnpm", args: ["exec", "codemation", "db", "migrate"], cwd: target },
@@ -161,7 +161,7 @@ describe("PostScaffoldOnboardingCoordinator", () => {
       ],
     );
     const coordinator = new PostScaffoldOnboardingCoordinator(out, prompts, new NodeFileSystem(), runner, true);
-    await coordinator.runAfterScaffold({ targetDirectory: target, noInteraction: false });
+    await coordinator.runAfterScaffold({ templateId: "default", targetDirectory: target, noInteraction: false });
     expect(out.text).toContain(
       "Passwords must match and be at least 8 characters. Leave auth details empty if you want to continue without authentication.",
     );
@@ -203,7 +203,7 @@ describe("PostScaffoldOnboardingCoordinator", () => {
     await fs.writeFile(path.join(target, "package.json"), JSON.stringify({ packageManager: "pnpm@10.13.1" }), "utf8");
     const prompts = new ScriptedPrompts([true, false], ["", "", ""]);
     const coordinator = new PostScaffoldOnboardingCoordinator(out, prompts, new NodeFileSystem(), runner, true);
-    await coordinator.runAfterScaffold({ targetDirectory: target, noInteraction: false });
+    await coordinator.runAfterScaffold({ templateId: "default", targetDirectory: target, noInteraction: false });
     expect(out.text).toContain("Authentication details were left empty; returning to the authentication question.");
     expect(runner.calls).toEqual([
       { command: "pnpm", args: ["install"], cwd: target },
@@ -230,7 +230,7 @@ describe("PostScaffoldOnboardingCoordinator", () => {
     const prompts = new ScriptedPrompts(true, ["admin@example.com", "longpassword", "longpassword"]);
     const coordinator = new PostScaffoldOnboardingCoordinator(out, prompts, new NodeFileSystem(), runner, true);
 
-    await coordinator.runAfterScaffold({ targetDirectory: target, noInteraction: false });
+    await coordinator.runAfterScaffold({ templateId: "default", targetDirectory: target, noInteraction: false });
 
     expect(runner.calls).toEqual([
       { command: "npm", args: ["install"], cwd: target },
@@ -268,7 +268,7 @@ describe("PostScaffoldOnboardingCoordinator", () => {
       false,
     );
 
-    await coordinator.runAfterScaffold({ targetDirectory: target, noInteraction: false });
+    await coordinator.runAfterScaffold({ templateId: "default", targetDirectory: target, noInteraction: false });
 
     expect(runner.calls).toEqual([]);
     expect(out.text).toContain("stdin is not a TTY; skipping interactive onboarding");
@@ -287,7 +287,7 @@ describe("PostScaffoldOnboardingCoordinator", () => {
     );
     const coordinator = new PostScaffoldOnboardingCoordinator(out, prompts, new NodeFileSystem(), runner, true);
 
-    await coordinator.runAfterScaffold({ targetDirectory: target, noInteraction: false });
+    await coordinator.runAfterScaffold({ templateId: "default", targetDirectory: target, noInteraction: false });
 
     expect(out.text).toContain("That does not look like a valid email.");
     expect(prompts.confirmCalls).toEqual([
@@ -336,6 +336,7 @@ describe("PostScaffoldOnboardingCoordinator", () => {
     const coordinator = new PostScaffoldOnboardingCoordinator(out, prompts, new NodeFileSystem(), runner, false);
 
     await coordinator.runAfterScaffold({
+      templateId: "default",
       targetDirectory: target,
       noInteraction: true,
       adminUser: {

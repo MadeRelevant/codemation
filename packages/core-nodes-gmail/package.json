@@ -16,11 +16,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "codemation": {
-    "plugin": {
-      "kind": "plugin",
-      "entry": "./dist/index.js",
-      "exportName": "GmailNodes"
-    }
+    "plugin": "./dist/codemation.plugin.js"
   },
   "exports": {
     ".": {
@@ -31,10 +27,6 @@
       },
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    },
-    "./codemation-plugin": {
-      "types": "./src/codemationPluginRegistry.ts",
-      "import": "./src/codemationPluginRegistry.ts"
     },
     "./nodes/OnNewGmailTrigger": {
       "types": "./src/nodes/OnNewGmailTrigger.ts",
@@ -47,8 +39,8 @@
     }
   },
   "scripts": {
-    "dev": "tsdown --watch",
-    "build": "tsdown",
+    "dev": "tsdown src/index.ts codemation.plugin.ts --out-dir dist --watch",
+    "build": "tsdown src/index.ts codemation.plugin.ts --out-dir dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "pnpm build && vitest run"

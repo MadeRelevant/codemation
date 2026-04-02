@@ -16,6 +16,11 @@ export type AppPersistenceConfig =
   | Readonly<{ kind: "postgresql"; databaseUrl: string }>
   | Readonly<{ kind: "pglite"; dataDir: string }>;
 
+export type AppPluginLoadSummary = Readonly<{
+  packageName: string;
+  source: "configured" | "discovered";
+}>;
+
 export interface AppConfig {
   readonly consumerRoot: string;
   readonly repoRoot: string;
@@ -25,6 +30,7 @@ export interface AppConfig {
   readonly containerRegistrations: ReadonlyArray<CodemationContainerRegistration<unknown>>;
   readonly credentialTypes: ReadonlyArray<AnyCredentialType>;
   readonly plugins: ReadonlyArray<CodemationPlugin>;
+  readonly pluginLoadSummary?: ReadonlyArray<AppPluginLoadSummary>;
   readonly hasConfiguredCredentialSessionServiceRegistration: boolean;
   readonly log?: CodemationLogConfig;
   readonly engineExecutionLimits?: CodemationEngineExecutionLimitsConfig;

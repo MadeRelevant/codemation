@@ -22,12 +22,52 @@ import {
   WorkflowRepositoryWebhookTriggerMatcher,
 } from "@codemation/core/bootstrap";
 import { AIAgentConnectionWorkflowExpander, ConnectionCredentialNodeConfigFactory } from "@codemation/core-nodes";
-import "../application/commands/CredentialCommandHandlers";
-import "../application/commands/UserAccountCommandHandlers";
-import "../application/commands/WorkflowCommandHandlers";
-import "../application/queries/CredentialQueryHandlers";
-import "../application/queries/UserAccountQueryHandlers";
-import "../application/queries/WorkflowQueryHandlers";
+import {
+  CreateCredentialInstanceCommandHandler,
+  DeleteCredentialInstanceCommandHandler,
+  TestCredentialInstanceCommandHandler,
+  UpdateCredentialInstanceCommandHandler,
+  UpsertCredentialBindingCommandHandler,
+} from "../application/commands/CredentialCommandHandlers";
+import {
+  AcceptUserInviteCommandHandler,
+  InviteUserCommandHandler,
+  RegenerateUserInviteCommandHandler,
+  UpdateUserAccountStatusCommandHandler,
+  UpsertLocalBootstrapUserCommandHandler,
+} from "../application/commands/UserAccountCommandHandlers";
+import {
+  CopyRunToWorkflowDebuggerCommandHandler,
+  HandleWebhookInvocationCommandHandler,
+  ReplaceMutableRunWorkflowSnapshotCommandHandler,
+  ReplaceWorkflowDebuggerOverlayCommandHandler,
+  ReplayWorkflowNodeCommandHandler,
+  SetPinnedNodeInputCommandHandler,
+  SetWorkflowActivationCommandHandler,
+  StartWorkflowRunCommandHandler,
+  UploadOverlayPinnedBinaryCommandHandler,
+} from "../application/commands/WorkflowCommandHandlers";
+import {
+  GetCredentialFieldEnvStatusQueryHandler,
+  GetCredentialInstanceQueryHandler,
+  GetCredentialInstanceWithSecretsQueryHandler,
+  GetWorkflowCredentialHealthQueryHandler,
+  ListCredentialInstancesQueryHandler,
+  ListCredentialTypesQueryHandler,
+} from "../application/queries/CredentialQueryHandlers";
+import {
+  ListUserAccountsQueryHandler,
+  VerifyUserInviteQueryHandler,
+} from "../application/queries/UserAccountQueryHandlers";
+import {
+  GetRunBinaryAttachmentQueryHandler,
+  GetRunStateQueryHandler,
+  GetWorkflowDebuggerOverlayQueryHandler,
+  GetWorkflowDetailQueryHandler,
+  GetWorkflowOverlayBinaryAttachmentQueryHandler,
+  GetWorkflowSummariesQueryHandler,
+  ListWorkflowRunsQueryHandler,
+} from "../application/queries/WorkflowQueryHandlers";
 import { OpenAiApiKeyCredentialHealthTester } from "../infrastructure/credentials/OpenAiApiKeyCredentialHealthTester";
 import { OpenAiApiKeyCredentialTypeFactory } from "../infrastructure/credentials/OpenAiApiKeyCredentialTypeFactory";
 import { CodemationPluginRegistrar } from "../infrastructure/config/CodemationPluginRegistrar";
@@ -61,10 +101,15 @@ import { WorkflowPolicyUiPresentationFactory } from "../application/mapping/Work
 import { WorkflowWebsocketServer } from "../presentation/websocket/WorkflowWebsocketServer";
 import { CodemationFrontendAuthSnapshotFactory } from "../presentation/frontend/CodemationFrontendAuthSnapshotFactory";
 import { FrontendAppConfigFactory } from "../presentation/frontend/FrontendAppConfigFactory";
+import { InternalAuthBootstrapFactory } from "../presentation/frontend/InternalAuthBootstrapFactory";
+import { PublicFrontendBootstrapFactory } from "../presentation/frontend/PublicFrontendBootstrapFactory";
 import { DevBootstrapSummaryHttpRouteHandler } from "../presentation/http/routeHandlers/DevBootstrapSummaryHttpRouteHandler";
+import { InternalAuthBootstrapHttpRouteHandler } from "../presentation/http/routeHandlers/InternalAuthBootstrapHttpRouteHandler";
+import { PublicFrontendBootstrapHttpRouteHandler } from "../presentation/http/routeHandlers/PublicFrontendBootstrapHttpRouteHandler";
 import { WhitelabelLogoHttpRouteHandler } from "../presentation/http/routeHandlers/WhitelabelLogoHttpRouteHandler";
 import { CodemationHonoApiApp } from "../presentation/http/hono/CodemationHonoApiAppFactory";
 import { BinaryHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/BinaryHonoApiRouteRegistrar";
+import { BootstrapHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/BootstrapHonoApiRouteRegistrar";
 import { CredentialHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/CredentialHonoApiRouteRegistrar";
 import { DevHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/DevHonoApiRouteRegistrar";
 import { OAuth2HonoApiRouteRegistrar } from "../presentation/http/hono/registrars/OAuth2HonoApiRouteRegistrar";
@@ -124,8 +169,47 @@ type PrismaOwnership = Readonly<{
 }>;
 
 export class AppContainerFactory {
+  private static readonly queryHandlers = [
+    GetCredentialFieldEnvStatusQueryHandler,
+    GetCredentialInstanceQueryHandler,
+    GetCredentialInstanceWithSecretsQueryHandler,
+    GetWorkflowCredentialHealthQueryHandler,
+    ListCredentialInstancesQueryHandler,
+    ListCredentialTypesQueryHandler,
+    ListUserAccountsQueryHandler,
+    VerifyUserInviteQueryHandler,
+    GetRunBinaryAttachmentQueryHandler,
+    GetRunStateQueryHandler,
+    GetWorkflowDebuggerOverlayQueryHandler,
+    GetWorkflowDetailQueryHandler,
+    GetWorkflowOverlayBinaryAttachmentQueryHandler,
+    GetWorkflowSummariesQueryHandler,
+    ListWorkflowRunsQueryHandler,
+  ] as const;
+  private static readonly commandHandlers = [
+    CreateCredentialInstanceCommandHandler,
+    DeleteCredentialInstanceCommandHandler,
+    TestCredentialInstanceCommandHandler,
+    UpdateCredentialInstanceCommandHandler,
+    UpsertCredentialBindingCommandHandler,
+    AcceptUserInviteCommandHandler,
+    InviteUserCommandHandler,
+    RegenerateUserInviteCommandHandler,
+    UpdateUserAccountStatusCommandHandler,
+    UpsertLocalBootstrapUserCommandHandler,
+    CopyRunToWorkflowDebuggerCommandHandler,
+    HandleWebhookInvocationCommandHandler,
+    ReplaceMutableRunWorkflowSnapshotCommandHandler,
+    ReplaceWorkflowDebuggerOverlayCommandHandler,
+    ReplayWorkflowNodeCommandHandler,
+    SetPinnedNodeInputCommandHandler,
+    SetWorkflowActivationCommandHandler,
+    StartWorkflowRunCommandHandler,
+    UploadOverlayPinnedBinaryCommandHandler,
+  ] as const;
   private static readonly honoRouteRegistrars = [
     BinaryHonoApiRouteRegistrar,
+    BootstrapHonoApiRouteRegistrar,
     CredentialHonoApiRouteRegistrar,
     DevHonoApiRouteRegistrar,
     OAuth2HonoApiRouteRegistrar,
@@ -327,6 +411,8 @@ export class AppContainerFactory {
     container.register(OAuth2ConnectService, { useClass: OAuth2ConnectService });
     container.register(CodemationFrontendAuthSnapshotFactory, { useClass: CodemationFrontendAuthSnapshotFactory });
     container.register(FrontendAppConfigFactory, { useClass: FrontendAppConfigFactory });
+    container.register(PublicFrontendBootstrapFactory, { useClass: PublicFrontendBootstrapFactory });
+    container.register(InternalAuthBootstrapFactory, { useClass: InternalAuthBootstrapFactory });
     container.register(DatabaseMigrations, { useClass: DatabaseMigrations });
     container.register(FrontendRuntime, { useClass: FrontendRuntime });
     container.register(WorkerRuntime, { useClass: WorkerRuntime });
@@ -397,6 +483,12 @@ export class AppContainerFactory {
     container.register(InMemoryQueryBus, { useClass: InMemoryQueryBus });
     container.register(InMemoryCommandBus, { useClass: InMemoryCommandBus });
     container.register(InMemoryDomainEventBus, { useClass: InMemoryDomainEventBus });
+    for (const handler of AppContainerFactory.queryHandlers) {
+      container.register(ApplicationTokens.QueryHandler, { useClass: handler });
+    }
+    for (const handler of AppContainerFactory.commandHandlers) {
+      container.register(ApplicationTokens.CommandHandler, { useClass: handler });
+    }
     container.register(ApplicationTokens.QueryBus, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(InMemoryQueryBus)),
     });
@@ -411,6 +503,8 @@ export class AppContainerFactory {
   private registerApplicationServicesAndRoutes(container: Container): void {
     container.register(DevBootstrapSummaryAssembler, { useClass: DevBootstrapSummaryAssembler });
     container.register(DevBootstrapSummaryHttpRouteHandler, { useClass: DevBootstrapSummaryHttpRouteHandler });
+    container.register(PublicFrontendBootstrapHttpRouteHandler, { useClass: PublicFrontendBootstrapHttpRouteHandler });
+    container.register(InternalAuthBootstrapHttpRouteHandler, { useClass: InternalAuthBootstrapHttpRouteHandler });
     container.register(WhitelabelLogoHttpRouteHandler, { useClass: WhitelabelLogoHttpRouteHandler });
     for (const registrar of AppContainerFactory.honoRouteRegistrars) {
       container.register(ApplicationTokens.HonoApiRouteRegistrar, { useClass: registrar });
@@ -561,6 +655,7 @@ export class AppContainerFactory {
     return {
       databasePersistence: appConfig.persistence,
       eventBusKind: appConfig.eventing.kind,
+      plugins: appConfig.pluginLoadSummary ?? [],
       queuePrefix: appConfig.scheduler.queuePrefix ?? appConfig.eventing.queuePrefix ?? "codemation",
       schedulerKind: appConfig.scheduler.kind,
       redisUrl: appConfig.scheduler.redisUrl ?? appConfig.eventing.redisUrl,

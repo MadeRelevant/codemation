@@ -1,12 +1,11 @@
 import "@xyflow/react/dist/style.css";
-import type { FrontendAppConfig } from "@codemation/host/next/server";
 import { League_Spartan } from "next/font/google";
 import "rc-tree/assets/index.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { auth } from "../src/auth/nextAuth";
+import { CodemationRuntimeBootstrapClient } from "../src/bootstrap/CodemationRuntimeBootstrapClient";
 import { WhitelabelProvider } from "../src/providers/WhitelabelProvider";
-import { CodemationNextHost } from "../src/server/CodemationNextHost";
 import { CodemationNextClientShell } from "../src/shell/CodemationNextClientShell";
 import { CodemationSessionRoot } from "../src/providers/CodemationSessionProvider";
 import "./globals.css";
@@ -27,7 +26,7 @@ const defaultWhitelabel: Readonly<{ productName: string; logoUrl: string | null 
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const frontendAppConfig = await CodemationNextHost.shared.getFrontendAppConfig();
+    const frontendAppConfig = await new CodemationRuntimeBootstrapClient().getPublicFrontendBootstrap();
     return {
       title: frontendAppConfig.productName,
       description: "Framework-managed workflows running inside the Next.js host.",
@@ -41,10 +40,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout(args: Readonly<{ children: ReactNode }>) {
-  let frontendAppConfig: FrontendAppConfig | null = null;
+  let frontendAppConfig: Awaited<ReturnType<CodemationRuntimeBootstrapClient["getPublicFrontendBootstrap"]>> | null =
+    null;
   let whitelabel: typeof defaultWhitelabel;
   try {
-    frontendAppConfig = await CodemationNextHost.shared.getFrontendAppConfig();
+    frontendAppConfig = await new CodemationRuntimeBootstrapClient().getPublicFrontendBootstrap();
     whitelabel = {
       productName: frontendAppConfig.productName,
       logoUrl: frontendAppConfig.logoUrl,
@@ -52,13 +52,13 @@ export default async function RootLayout(args: Readonly<{ children: ReactNode }>
   } catch {
     whitelabel = defaultWhitelabel;
   }
-  const session = frontendAppConfig?.auth.uiAuthEnabled === false ? null : await auth();
+  const session = frontendAppConfig?.uiAuthEnabled === false ? null : await auth();
   return (
     <html lang="en" className={leagueSpartan.variable} suppressHydrationWarning>
       <body className={leagueSpartan.className} suppressHydrationWarning>
         <WhitelabelProvider value={whitelabel}>
           <CodemationNextClientShell>
-            <CodemationSessionRoot enabled={frontendAppConfig?.auth.uiAuthEnabled !== false} session={session}>
+            <CodemationSessionRoot enabled={frontendAppConfig?.uiAuthEnabled !== false} session={session}>
               {args.children}
             </CodemationSessionRoot>
           </CodemationNextClientShell>

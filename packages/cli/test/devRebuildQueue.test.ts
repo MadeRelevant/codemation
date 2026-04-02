@@ -51,17 +51,14 @@ test("DevRebuildQueue merges pending rebuilds while a rebuild is already running
 
   const firstDrain = queue.enqueue({
     changedPaths: ["/consumer/src/a.ts"],
-    shouldRepublishConsumerOutput: false,
     shouldRestartUi: false,
   });
   const secondDrain = queue.enqueue({
     changedPaths: ["/consumer/src/b.ts"],
-    shouldRepublishConsumerOutput: true,
     shouldRestartUi: false,
   });
   const thirdDrain = queue.enqueue({
     changedPaths: ["/consumer/src/c.ts"],
-    shouldRepublishConsumerOutput: false,
     shouldRestartUi: true,
   });
 
@@ -73,7 +70,6 @@ test("DevRebuildQueue merges pending rebuilds while a rebuild is already running
   await handler.waitForRunCount(2);
   assert.equal(handler.handledRequests.length, 2);
   assert.deepEqual(handler.handledRequests[1]?.changedPaths, ["/consumer/src/b.ts", "/consumer/src/c.ts"]);
-  assert.equal(handler.handledRequests[1]?.shouldRepublishConsumerOutput, true);
   assert.equal(handler.handledRequests[1]?.shouldRestartUi, true);
 
   handler.releaseNext();

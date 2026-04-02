@@ -12,7 +12,7 @@ export { AppConfigFactory } from "./bootstrap/runtime/AppConfigFactory";
 export { ApplicationTokens } from "./applicationTokens";
 export { CodemationBootstrapRequest } from "./bootstrap/CodemationBootstrapRequest";
 export type { CodemationWhitelabelConfig } from "./presentation/config/CodemationWhitelabelConfig";
-export type { AppConfig } from "./presentation/config/AppConfig";
+export type { AppConfig, AppPluginLoadSummary } from "./presentation/config/AppConfig";
 export type {
   CodemationAuthConfig,
   CodemationAuthKind,
@@ -48,19 +48,27 @@ export type {
   CodemationLogLevelName,
   CodemationLogRule,
 } from "./presentation/config/CodemationLogConfig";
+export type { CodemationPackageManifest } from "./presentation/config/CodemationPackageManifest";
 export type {
-  CodemationPackageManifest,
-  CodemationPluginPackageManifest,
-} from "./presentation/config/CodemationPackageManifest";
-export type { CodemationPlugin, CodemationPluginContext } from "./presentation/config/CodemationPlugin";
+  CodemationPlugin,
+  CodemationPluginConfig,
+  CodemationPluginContext,
+} from "./presentation/config/CodemationPlugin";
+export { CodemationPluginPackageMetadata, definePlugin } from "./presentation/config/CodemationPlugin";
 export { CodemationPluginListMerger } from "./presentation/config/CodemationPluginListMerger";
 export type { CodemationWorkflowDiscovery } from "./presentation/config/CodemationWorkflowDiscovery";
+export type { InternalAuthBootstrap } from "./presentation/frontend/InternalAuthBootstrap";
+export type { PublicFrontendBootstrap } from "./presentation/frontend/PublicFrontendBootstrap";
 export {
   ApiPaths,
   CodemationFrontendAuthSnapshotFactory,
   CodemationFrontendAuthSnapshotJsonCodec,
   FrontendAppConfigFactory,
   FrontendAppConfigJsonCodec,
+  InternalAuthBootstrapFactory,
+  InternalAuthBootstrapJsonCodec,
+  PublicFrontendBootstrapFactory,
+  PublicFrontendBootstrapJsonCodec,
   CodemationConsumerConfigLoader,
   CodemationPostgresPrismaClientFactory,
   CodemationServerGateway,

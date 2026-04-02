@@ -8,6 +8,7 @@ import { ConsumerBuildOptionsParser } from "./build/ConsumerBuildOptionsParser";
 import { BuildCommand } from "./commands/BuildCommand";
 import type { DbMigrateCommand } from "./commands/DbMigrateCommand";
 import { DevCommand } from "./commands/DevCommand";
+import type { DevPluginCommand } from "./commands/DevPluginCommand";
 import { ServeWebCommand } from "./commands/ServeWebCommand";
 import { ServeWorkerCommand } from "./commands/ServeWorkerCommand";
 import { UserCreateCommand } from "./commands/UserCreateCommand";
@@ -18,6 +19,7 @@ export class CliProgram {
     private readonly buildOptionsParser: ConsumerBuildOptionsParser,
     private readonly buildCommand: BuildCommand,
     private readonly devCommand: DevCommand,
+    private readonly devPluginCommand: DevPluginCommand,
     private readonly serveWebCommand: ServeWebCommand,
     private readonly serveWorkerCommand: ServeWorkerCommand,
     private readonly dbMigrateCommand: DbMigrateCommand,
@@ -65,6 +67,16 @@ export class CliProgram {
         await this.devCommand.execute({
           consumerRoot: resolveConsumerRoot(opts.consumerRoot),
           watchFramework: opts.watchFramework === true,
+        });
+      });
+
+    program
+      .command("dev:plugin")
+      .description("Start plugin sandbox development using `codemation.plugin.ts`.")
+      .option("--plugin-root <path>", "Path to the plugin project root (defaults to cwd)")
+      .action(async (opts: Readonly<{ pluginRoot?: string }>) => {
+        await this.devPluginCommand.execute({
+          pluginRoot: resolveConsumerRoot(opts.pluginRoot),
         });
       });
 

@@ -10,6 +10,7 @@ export type DevApiRuntimeContext = Readonly<{
 }>;
 
 export type DevApiRuntimeFactoryArgs = Readonly<{
+  configPathOverride?: string;
   consumerRoot: string;
   env: NodeJS.ProcessEnv;
   runtimeWorkingDirectory: string;

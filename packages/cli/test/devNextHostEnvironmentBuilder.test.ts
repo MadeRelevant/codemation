@@ -6,42 +6,38 @@ import { DevNextHostEnvironmentBuilder } from "../src/dev/DevNextHostEnvironment
 import { SourceMapNodeOptions } from "../src/runtime/SourceMapNodeOptions";
 
 describe("DevNextHostEnvironmentBuilder", () => {
-  it("sets CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH to .codemation/output/current.json under consumer root", () => {
+  it("sets the direct consumer root and edge auth flag", () => {
     const builder = new DevNextHostEnvironmentBuilder(new ConsumerEnvLoader(), new SourceMapNodeOptions());
     const consumerRoot = path.resolve("/tmp/my-consumer");
     const env = builder.build({
-      authConfigJson: "{}",
       consumerRoot,
       developmentServerToken: "token",
       nextPort: 3000,
       skipUiAuth: true,
       websocketPort: 3001,
     });
-    expect(env.CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH).toBe(
-      path.resolve(consumerRoot, ".codemation", "output", "current.json"),
-    );
+    expect(env.CODEMATION_CONSUMER_ROOT).toBe(consumerRoot);
+    expect(env.CODEMATION_UI_AUTH_ENABLED).toBe("false");
   });
 
-  it("allows overriding consumerOutputManifestPath", () => {
+  it("allows overriding the config path for the Next host", () => {
     const builder = new DevNextHostEnvironmentBuilder(new ConsumerEnvLoader(), new SourceMapNodeOptions());
-    const override = path.resolve("/tmp", "custom-manifest.json");
+    const override = path.resolve("/tmp", "custom.config.ts");
     const env = builder.build({
-      authConfigJson: "{}",
       consumerRoot: path.resolve("/tmp/my-consumer"),
+      configPathOverride: override,
       developmentServerToken: "token",
       nextPort: 3000,
       skipUiAuth: true,
       websocketPort: 3001,
-      consumerOutputManifestPath: override,
     });
-    expect(env.CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH).toBe(override);
+    expect(env.CODEMATION_CONFIG_PATH).toBe(override);
   });
 
   it("buildConsumerUiProxy includes runtime proxy and auth secrets for packaged consumer mode", () => {
     const builder = new DevNextHostEnvironmentBuilder(new ConsumerEnvLoader(), new SourceMapNodeOptions());
     const consumerRoot = path.resolve("/tmp/my-consumer");
     const env = builder.buildConsumerUiProxy({
-      authConfigJson: '{"kind":"local"}',
       authSecret: "dev-secret",
       consumerRoot,
       developmentServerToken: "token",
@@ -56,7 +52,7 @@ describe("DevNextHostEnvironmentBuilder", () => {
     expect(env.AUTH_URL).toBe("http://127.0.0.1:3000");
     expect(env.CODEMATION_RUNTIME_DEV_URL).toBe("http://127.0.0.1:3000");
     expect(env.AUTH_SECRET).toBe("dev-secret");
-    expect(env.CODEMATION_FRONTEND_APP_CONFIG_JSON).toContain('"uiAuthEnabled":true');
+    expect(env.CODEMATION_UI_AUTH_ENABLED).toBe("true");
     expect(env.CODEMATION_SKIP_STARTUP_MIGRATIONS).toBe("true");
     expect(env.HOSTNAME).toBe("127.0.0.1");
   });

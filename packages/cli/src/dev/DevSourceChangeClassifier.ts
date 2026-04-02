@@ -1,21 +1,16 @@
 import path from "node:path";
 
 export class DevSourceChangeClassifier {
-  private static readonly configFileNames = new Set([
+  private static readonly uiConfigFileNames = new Set([
     "codemation.config.ts",
     "codemation.config.js",
     "codemation.config.mjs",
   ]);
-
-  shouldRepublishConsumerOutput(
-    args: Readonly<{
-      changedPaths: ReadonlyArray<string>;
-      consumerRoot: string;
-    }>,
-  ): boolean {
-    const resolvedConsumerRoot = path.resolve(args.consumerRoot);
-    return args.changedPaths.some((changedPath) => this.isPathInsideDirectory(changedPath, resolvedConsumerRoot));
-  }
+  private static readonly pluginConfigFileNames = new Set([
+    "codemation.plugin.ts",
+    "codemation.plugin.js",
+    "codemation.plugin.mjs",
+  ]);
 
   requiresUiRestart(
     args: Readonly<{
@@ -40,9 +35,14 @@ export class DevSourceChangeClassifier {
       return false;
     }
     const relativePath = path.relative(consumerRoot, resolvedPath);
-    if (DevSourceChangeClassifier.configFileNames.has(path.basename(relativePath))) {
+    const fileName = path.basename(relativePath);
+    if (DevSourceChangeClassifier.uiConfigFileNames.has(fileName)) {
       // Config changes affect auth and branding projections consumed by the packaged Next host.
       return true;
+    }
+    if (DevSourceChangeClassifier.pluginConfigFileNames.has(fileName)) {
+      // Plugin sandbox configs also define workflows, so keep them on the cheap runtime-only reload path.
+      return false;
     }
     if (relativePath.startsWith(path.join("src", "workflows"))) {
       return false;

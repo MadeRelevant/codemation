@@ -1,13 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth } from "./src/auth/edgeAuth";
-import { AuthSnapshotReader } from "./src/auth/AuthSnapshotReader";
+import { EdgeAuthConfigurationReader } from "./src/auth/EdgeAuthConfigurationReader";
 import { CodemationNextHostMiddlewarePathRules } from "./src/middleware/CodemationNextHostMiddlewarePathRules";
 
-const frontendAuthSnapshot = AuthSnapshotReader.readFromEnvironment();
+const edgeAuthConfiguration = new EdgeAuthConfigurationReader().readFromEnvironment();
 
 export default auth((request: NextRequest) => {
-  if (frontendAuthSnapshot?.uiAuthEnabled === false) {
+  if (edgeAuthConfiguration.uiAuthEnabled === false) {
     return NextResponse.next();
   }
   const pathname = request.nextUrl.pathname;
