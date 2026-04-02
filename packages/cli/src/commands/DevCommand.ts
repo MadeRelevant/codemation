@@ -1,9 +1,12 @@
+import type { CodemationPluginDiscovery } from "@codemation/host/server";
 import type { Logger } from "@codemation/host/next/server";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
 
+import type { ConsumerBuildArtifactsPublisher } from "../build/ConsumerBuildArtifactsPublisher";
+import type { ConsumerOutputBuilderFactory } from "../consumer/ConsumerOutputBuilderFactory";
 import type { DatabaseMigrationsApplyService } from "../database/DatabaseMigrationsApplyService";
 import type { DevApiRuntimeFactory, DevApiRuntimeServerHandle } from "../dev/DevApiRuntimeFactory";
 import type { DevBootstrapSummaryFetcher } from "../dev/DevBootstrapSummaryFetcher";
@@ -35,6 +38,9 @@ export class DevCommand {
     private readonly cliLogger: Logger,
     private readonly session: DevSessionServices,
     private readonly databaseMigrationsApplyService: DatabaseMigrationsApplyService,
+    private readonly consumerOutputBuilderFactory: ConsumerOutputBuilderFactory,
+    private readonly pluginDiscovery: CodemationPluginDiscovery,
+    private readonly consumerBuildArtifactsPublisher: ConsumerBuildArtifactsPublisher,
     private readonly devBootstrapSummaryFetcher: DevBootstrapSummaryFetcher,
     private readonly devCliBannerRenderer: DevCliBannerRenderer,
     private readonly consumerEnvDotenvFilePredicate: ConsumerEnvDotenvFilePredicate,
@@ -87,6 +93,9 @@ export class DevCommand {
         authSettings,
         args.configPathOverride,
       );
+      if (prepared.devMode === "packaged-ui") {
+        await this.publishConsumerArtifacts(prepared.paths, prepared.configPathOverride);
+      }
       // The disposable runtime is created in-process, so config reloads must see the same token in
       // `process.env` that we also pass through the child-facing env object.
       process.env.CODEMATION_DEV_SERVER_TOKEN = prepared.developmentServerToken;
@@ -425,6 +434,9 @@ export class DevCommand {
     proxyServer.setBuildStatus("building");
     proxyServer.broadcastBuildStarted();
     try {
+      if (prepared.devMode === "packaged-ui") {
+        await this.publishConsumerArtifacts(prepared.paths, request.configPathOverride);
+      }
       await this.stopCurrentRuntime(state, proxyServer);
       process.stdout.write("[codemation] Waiting for runtime to accept traffic…\n");
       const runtime = await this.createRuntime(prepared);
@@ -568,6 +580,16 @@ export class DevCommand {
         WS_NO_UTF_8_VALIDATE: "1",
       },
     });
+  }
+
+  private async publishConsumerArtifacts(paths: CliPaths, configPathOverride?: string): Promise<void> {
+    const builder = this.consumerOutputBuilderFactory.create(paths.consumerRoot, {
+      configPathOverride,
+    });
+    const snapshot = await builder.ensureBuilt();
+    const discoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
+    await this.consumerBuildArtifactsPublisher.publish(snapshot, discoveredPlugins);
+    this.cliLogger.debug(`Dev: consumer output published (${snapshot.buildVersion}).`);
   }
 
   private logPackagedUiDevHintWhenNeeded(

@@ -231,6 +231,19 @@ export class CliDevProxyServer {
     }
   }
 
+  private extractOccupyingPids(listenerDescription: string): ReadonlyArray<number> {
+    const seen = new Set<number>();
+    const re = /pid=(\d+)/g;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(listenerDescription)) !== null) {
+      const pid = Number.parseInt(match[1] ?? "0", 10);
+      if (Number.isFinite(pid) && pid > 0) {
+        seen.add(pid);
+      }
+    }
+    return [...seen];
+  }
+
   private async rejectListenError(error: unknown, reject: (reason?: unknown) => void): Promise<void> {
     const errorWithCode = error as Error & Readonly<{ code?: unknown }>;
     if (errorWithCode.code !== "EADDRINUSE") {
@@ -239,6 +252,13 @@ export class CliDevProxyServer {
     }
 
     const description = await this.listenPortConflictDescriber.describeLoopbackPort(this.listenPort);
+    const occupyingPids = description !== null ? this.extractOccupyingPids(description) : [];
+    if (occupyingPids.length > 0) {
+      const pidList = occupyingPids.join(", ");
+      process.stderr.write(
+        `[codemation] Dev gateway port ${this.listenPort} is already in use (occupying pid(s): ${pidList}).\n`,
+      );
+    }
     const baseMessage = `Dev gateway port ${this.listenPort} is already in use on 127.0.0.1.`;
     const suffix =
       description === null

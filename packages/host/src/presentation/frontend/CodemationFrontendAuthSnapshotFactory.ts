@@ -39,6 +39,13 @@ export class CodemationFrontendAuthSnapshotFactory {
   }
 
   private resolveUiAuthEnabled(authConfig: CodemationAuthConfig | undefined, env: NodeJS.ProcessEnv): boolean {
+    const configuredOverride = env.CODEMATION_UI_AUTH_ENABLED?.trim().toLowerCase();
+    if (configuredOverride === "true") {
+      return true;
+    }
+    if (configuredOverride === "false") {
+      return false;
+    }
     return !(env.NODE_ENV !== "production" && authConfig?.allowUnauthenticatedInDevelopment === true);
   }
 

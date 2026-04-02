@@ -71,6 +71,38 @@ test("CodemationFrontendAuthSnapshotFactory disables UI auth when development au
   assert.deepEqual(snapshot.oauthProviders, []);
 });
 
+test("CodemationFrontendAuthSnapshotFactory honors explicit UI auth env override", () => {
+  const factory = new CodemationFrontendAuthSnapshotFactory();
+
+  const snapshot = factory.createFromAppConfig({
+    consumerRoot: "/tmp/my-automation",
+    repoRoot: "/workspace/codemation",
+    env: {
+      NODE_ENV: "production",
+      AUTH_SECRET: "prod-secret",
+      CODEMATION_UI_AUTH_ENABLED: "false",
+    },
+    workflowSources: [],
+    workflows: [],
+    containerRegistrations: [],
+    credentialTypes: [],
+    plugins: [],
+    hasConfiguredCredentialSessionServiceRegistration: false,
+    persistence: { kind: "none" },
+    scheduler: { kind: "local", workerQueues: [] },
+    eventing: { kind: "memory" },
+    auth: {
+      kind: "local",
+      allowUnauthenticatedInDevelopment: true,
+    },
+    whitelabel: {},
+    webSocketPort: 3001,
+    webSocketBindHost: "0.0.0.0",
+  });
+
+  assert.equal(snapshot.uiAuthEnabled, false);
+});
+
 test("CodemationFrontendAuthSnapshotFactory resolves OAuth provider descriptors and configured secrets", () => {
   const factory = new CodemationFrontendAuthSnapshotFactory();
   const authConfig: CodemationAuthConfig = {

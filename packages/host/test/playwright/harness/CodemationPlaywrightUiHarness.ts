@@ -60,6 +60,12 @@ export class CodemationPlaywrightUiHarness {
     });
   }
 
+  async expectWorkflowListItemVisible(workflowId: string, workflowName: string): Promise<void> {
+    const item = this.page.getByTestId(`workflow-list-item-${workflowId}`);
+    await expect(item).toBeVisible({ timeout: CodemationPlaywrightUiHarness.workflowsListTimeoutMs });
+    await expect(item).toContainText(workflowName, { timeout: CodemationPlaywrightUiHarness.workflowsListTimeoutMs });
+  }
+
   /**
    * From the workflows list, open a workflow and poll until `GET /api/workflows/:id` returns 200
    * (handles transient 503 while the runtime gateway attaches).
@@ -69,6 +75,10 @@ export class CodemationPlaywrightUiHarness {
     options?: Readonly<{ apiReadyTimeoutMs?: number }>,
   ): Promise<void> {
     await this.page.getByTestId(`workflow-open-${workflowId}`).click();
+    await this.waitForWorkflowApiReady(workflowId, options);
+  }
+
+  async waitForWorkflowApiReady(workflowId: string, options?: Readonly<{ apiReadyTimeoutMs?: number }>): Promise<void> {
     const apiReadyTimeoutMs = options?.apiReadyTimeoutMs ?? CodemationPlaywrightUiHarness.workflowApiReadyTimeoutMs;
     await expect
       .poll(
@@ -90,6 +100,26 @@ export class CodemationPlaywrightUiHarness {
 
   async clickCanvasRunWorkflowButton(): Promise<void> {
     await this.page.getByTestId("canvas-run-workflow-button").click();
+  }
+
+  async openExecutionsTab(): Promise<void> {
+    await this.page.getByTestId("workflow-canvas-tab-executions").click();
+  }
+
+  async expectWorkflowTitle(name: string, options?: Readonly<{ timeoutMs?: number }>): Promise<void> {
+    const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.workflowApiReadyTimeoutMs;
+    await expect(this.page.getByTestId("workflow-detail-workflow-title")).toHaveText(name, { timeout: timeoutMs });
+  }
+
+  async expectLatestRunCompleted(options?: Readonly<{ timeoutMs?: number }>): Promise<void> {
+    const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasNodeCompletionTimeoutMs;
+    const runsSidebar = this.page.getByTestId("workflow-runs-sidebar");
+    await expect(runsSidebar).toBeVisible({ timeout: timeoutMs });
+    await expect
+      .poll(async () => await runsSidebar.locator('[data-testid^="run-status-"]').allTextContents(), {
+        timeout: timeoutMs,
+      })
+      .toContain("completed");
   }
 
   /** Assert a canvas node card exists and reaches `completed` (runtime finished for that node). */

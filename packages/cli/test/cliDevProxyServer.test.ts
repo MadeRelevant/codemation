@@ -256,6 +256,36 @@ test("CliDevProxyServer holds traffic during rebuilds and swaps to the latest ru
 });
 
 test("CliDevProxyServer start includes listener details when the port is already in use", async () => {
+  const stderrLines: string[] = [];
+  const originalWrite = process.stderr.write;
+  const write = originalWrite.bind(process.stderr) as {
+    (chunk: string | Uint8Array): boolean;
+    (chunk: string | Uint8Array, cb: (err?: Error | null) => void): boolean;
+    (chunk: string | Uint8Array, encoding: BufferEncoding, cb?: (err?: Error | null) => void): boolean;
+  };
+  process.stderr.write = function (
+    chunk: string | Uint8Array,
+    ...args: [encoding?: BufferEncoding | ((err?: Error | null) => void), cb?: (err?: Error | null) => void]
+  ): boolean {
+    if (typeof chunk === "string") {
+      stderrLines.push(chunk);
+    }
+    const [encodingOrCallback, callback] = args;
+    if (typeof encodingOrCallback === "function") {
+      return write(chunk, encodingOrCallback);
+    }
+    if (callback) {
+      if (!encodingOrCallback) {
+        return write(chunk, callback);
+      }
+      return write(chunk, encodingOrCallback, callback);
+    }
+    if (encodingOrCallback) {
+      return write(chunk, encodingOrCallback);
+    }
+    return write(chunk);
+  };
+
   const occupiedServer = createServer();
   await new Promise<void>((resolve, reject) => {
     occupiedServer.once("error", reject);
@@ -267,28 +297,33 @@ test("CliDevProxyServer start includes listener details when the port is already
     new StubListenPortConflictDescriber("pid=4242 command=next-server endpoint=TCP 127.0.0.1:3000 (LISTEN)"),
   );
 
-  await assert.rejects(
-    async () => {
-      await proxyServer.start();
-    },
-    (error: unknown) => {
-      assert.ok(error instanceof Error);
-      assert.match(error.message, /Dev gateway port/);
-      assert.match(error.message, /pid=4242/);
-      assert.match(error.message, /next-server/);
-      return true;
-    },
-  );
-
-  await new Promise<void>((resolve, reject) => {
-    occupiedServer.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
+  try {
+    await assert.rejects(
+      async () => {
+        await proxyServer.start();
+      },
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Dev gateway port/);
+        assert.match(error.message, /pid=4242/);
+        assert.match(error.message, /next-server/);
+        return true;
+      },
+    );
+    const combinedStderr = stderrLines.join("");
+    assert.match(combinedStderr, /occupying pid\(s\): 4242/);
+  } finally {
+    process.stderr.write = originalWrite;
+    await new Promise<void>((resolve, reject) => {
+      occupiedServer.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
     });
-  });
+  }
 });
 
 test("GET /api/dev/health reports stopped, building, then ready", async () => {

@@ -1,5 +1,7 @@
+import type { CodemationPluginDiscovery } from "@codemation/host/server";
 import type { Logger } from "@codemation/host/next/server";
 
+import type { ConsumerBuildArtifactsPublisher } from "../build/ConsumerBuildArtifactsPublisher";
 import type { ConsumerOutputBuilderFactory } from "../consumer/ConsumerOutputBuilderFactory";
 import type { ConsumerBuildOptions } from "../consumer/consumerBuildOptions.types";
 import { CliPathResolver } from "../path/CliPathResolver";
@@ -10,6 +12,8 @@ export class BuildCommand {
     private readonly cliLogger: Logger,
     private readonly pathResolver: CliPathResolver,
     private readonly consumerOutputBuilderFactory: ConsumerOutputBuilderFactory,
+    private readonly pluginDiscovery: CodemationPluginDiscovery,
+    private readonly consumerBuildArtifactsPublisher: ConsumerBuildArtifactsPublisher,
     private readonly tsRuntime: TypeScriptRuntimeConfigurator,
   ) {}
 
@@ -18,7 +22,10 @@ export class BuildCommand {
     this.tsRuntime.configure(paths.repoRoot);
     const builder = this.consumerOutputBuilderFactory.create(paths.consumerRoot, { buildOptions });
     const snapshot = await builder.ensureBuilt();
+    const discoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
+    const manifest = await this.consumerBuildArtifactsPublisher.publish(snapshot, discoveredPlugins);
     this.cliLogger.info(`Built consumer output: ${snapshot.outputEntryPath}`);
+    this.cliLogger.info(`Build manifest: ${manifest.manifestPath}`);
     this.cliLogger.info(`Workflow modules emitted: ${snapshot.workflowSourcePaths.length}`);
   }
 }
