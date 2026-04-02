@@ -183,6 +183,14 @@ export class ScaffoldedDevServerHarness {
       AUTH_SECRET: "codemation-scaffolded-browser-e2e-auth-secret",
       CODEMATION_CREDENTIALS_MASTER_KEY: "codemation-scaffolded-browser-e2e-master-key",
       CODEMATION_LOG_LEVEL: "info",
+      // Force scaffolded dev E2E onto the same zero-setup runtime across local and CI. GitHub Actions jobs set
+      // DATABASE_URL/REDIS_URL for the host package browser suite, but leaking those into the generated consumer
+      // app flips the default template from inline PGlite to queued PostgreSQL/BullMQ without a worker process.
+      DATABASE_URL: "",
+      REDIS_URL: "",
+      CODEMATION_DATABASE_KIND: "pglite",
+      CODEMATION_SCHEDULER: "local",
+      CODEMATION_EVENT_BUS: "memory",
       CHOKIDAR_USEPOLLING: "1",
     };
   }
