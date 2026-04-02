@@ -9,6 +9,10 @@ import path from "node:path";
 import process from "node:process";
 import ts from "typescript";
 
+import {
+  ConsumerOutputSourceChangeClassifier,
+  type ConsumerOutputWatchEvent,
+} from "./ConsumerOutputSourceChangeClassifier";
 import type { ConsumerBuildOptions } from "./consumerBuildOptions.types";
 
 export type ConsumerOutputBuildSnapshot = Readonly<{
@@ -39,14 +43,13 @@ const defaultConsumerBuildOptions: ConsumerBuildOptions = Object.freeze({
 });
 
 export class ConsumerOutputBuilder {
-  private static readonly ignoredDirectoryNames = new Set([".codemation", ".git", "dist", "node_modules"]);
-  private static readonly supportedSourceExtensions = new Set([".ts", ".tsx", ".mts", ".cts"]);
   private static readonly watchBuildDebounceMs = 75;
   private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
+  private readonly sourceChangeClassifier = new ConsumerOutputSourceChangeClassifier();
 
   /** Last promoted build output used to copy-forward unchanged emitted files on incremental watch builds. */
   private lastPromotedSnapshot: ConsumerOutputBuildSnapshot | null = null;
-  private pendingWatchEvents: Array<{ event: string; path: string }> = [];
+  private pendingWatchEvents: ConsumerOutputWatchEvent[] = [];
 
   private activeBuildPromise: Promise<ConsumerOutputBuildSnapshot> | null = null;
   private watcher: FSWatcher | null = null;
@@ -104,7 +107,7 @@ export class ConsumerOutputBuilder {
     }
     this.watcher = watch([this.consumerRoot], {
       ignoreInitial: true,
-      ignored: this.createIgnoredMatcher(),
+      ignored: this.sourceChangeClassifier.createIgnoredMatcher(this.consumerRoot),
     });
     this.watcher.on("all", (eventName, rawPath) => {
       if (typeof rawPath === "string" && rawPath.length > 0) {
@@ -150,28 +153,26 @@ export class ConsumerOutputBuilder {
     }
   }
 
-  private takePendingWatchEvents(): ReadonlyArray<{ event: string; path: string }> {
+  private takePendingWatchEvents(): ReadonlyArray<ConsumerOutputWatchEvent> {
     const events = [...this.pendingWatchEvents];
     this.pendingWatchEvents = [];
     return events;
   }
 
   private async buildInternal(
-    options?: Readonly<{ watchEvents: ReadonlyArray<{ event: string; path: string }> }>,
+    options?: Readonly<{ watchEvents: ReadonlyArray<ConsumerOutputWatchEvent> }>,
   ): Promise<ConsumerOutputBuildSnapshot> {
     const watchEvents = options?.watchEvents ?? [];
     const configSourcePath = await this.resolveConfigPath(this.consumerRoot);
-    if (
-      watchEvents.length > 0 &&
-      this.lastPromotedSnapshot !== null &&
-      configSourcePath !== null &&
-      !this.requiresFullConsumerRebuild(watchEvents, configSourcePath)
-    ) {
-      const changedSourcePaths = this.resolveIncrementalEmitSourcePaths(watchEvents);
-      if (changedSourcePaths.length > 0) {
+    if (watchEvents.length > 0 && this.lastPromotedSnapshot !== null && configSourcePath !== null) {
+      const rebuildClassification = this.sourceChangeClassifier.classifyRebuild({
+        configSourcePath,
+        events: watchEvents,
+      });
+      if (rebuildClassification.kind === "incremental") {
         try {
           await access(this.lastPromotedSnapshot.emitOutputRoot);
-          const snapshot = await this.buildInternalIncremental(changedSourcePaths);
+          const snapshot = await this.buildInternalIncremental(rebuildClassification.sourcePaths);
           this.lastPromotedSnapshot = snapshot;
           return snapshot;
         } catch {
@@ -182,44 +183,6 @@ export class ConsumerOutputBuilder {
     const snapshot = await this.buildInternalFull();
     this.lastPromotedSnapshot = snapshot;
     return snapshot;
-  }
-
-  private requiresFullConsumerRebuild(
-    events: ReadonlyArray<{ event: string; path: string }>,
-    configSourcePath: string,
-  ): boolean {
-    const resolvedConfig = path.resolve(configSourcePath);
-    for (const entry of events) {
-      if (entry.event !== "change") {
-        return true;
-      }
-      if (path.resolve(entry.path) === resolvedConfig) {
-        return true;
-      }
-      if (this.shouldCopyAssetPath(entry.path)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private resolveIncrementalEmitSourcePaths(
-    events: ReadonlyArray<{ event: string; path: string }>,
-  ): ReadonlyArray<string> {
-    const uniquePaths = new Set<string>();
-    for (const entry of events) {
-      if (entry.event !== "change") {
-        return [];
-      }
-      if (this.shouldCopyAssetPath(entry.path)) {
-        return [];
-      }
-      if (!this.shouldEmitSourcePath(entry.path)) {
-        continue;
-      }
-      uniquePaths.add(path.resolve(entry.path));
-    }
-    return [...uniquePaths];
   }
 
   private async prepareEmitBuildSnapshot(
@@ -363,7 +326,7 @@ export class ConsumerOutputBuilder {
       stagingBuildRoot,
       emitOutputFiles: async () => {
         for (const sourcePath of runtimeSourcePaths) {
-          if (this.shouldCopyAssetPath(sourcePath)) {
+          if (this.sourceChangeClassifier.isAssetPath(sourcePath)) {
             await this.copyAssetFile({
               outputAppRoot,
               sourcePath,
@@ -404,7 +367,7 @@ export class ConsumerOutputBuilder {
     const sourcePaths: string[] = [];
     await this.collectSourcePathsRecursively(this.consumerRoot, sourcePaths);
     return sourcePaths
-      .filter((sourcePath: string) => this.shouldEmitSourcePath(sourcePath))
+      .filter((sourcePath: string) => this.sourceChangeClassifier.isEmitSourcePath(sourcePath))
       .sort((left: string, right: string) => left.localeCompare(right));
   }
 
@@ -413,7 +376,7 @@ export class ConsumerOutputBuilder {
     for (const entry of entries) {
       const entryPath = path.resolve(directoryPath, entry.name);
       if (entry.isDirectory()) {
-        if (ConsumerOutputBuilder.ignoredDirectoryNames.has(entry.name)) {
+        if (this.sourceChangeClassifier.createIgnoredMatcher(this.consumerRoot)(entryPath)) {
           continue;
         }
         await this.collectSourcePathsRecursively(entryPath, sourcePaths);
@@ -421,22 +384,6 @@ export class ConsumerOutputBuilder {
       }
       sourcePaths.push(entryPath);
     }
-  }
-
-  private shouldEmitSourcePath(sourcePath: string): boolean {
-    if (this.shouldCopyAssetPath(sourcePath)) {
-      return true;
-    }
-    if (sourcePath.endsWith(".d.ts")) {
-      return false;
-    }
-    const extension = path.extname(sourcePath);
-    return ConsumerOutputBuilder.supportedSourceExtensions.has(extension);
-  }
-
-  private shouldCopyAssetPath(sourcePath: string): boolean {
-    const fileName = path.basename(sourcePath);
-    return fileName === ".env" || fileName.startsWith(".env.");
   }
 
   private async copyAssetFile(args: Readonly<{ outputAppRoot: string; sourcePath: string }>): Promise<void> {
@@ -593,7 +540,7 @@ export class ConsumerOutputBuilder {
 
   private async resolveFileImportSpecifier(sourcePath: string, importSpecifier: string): Promise<string | null> {
     const resolvedBasePath = path.resolve(path.dirname(sourcePath), importSpecifier);
-    for (const sourceExtension of ConsumerOutputBuilder.supportedSourceExtensions) {
+    for (const sourceExtension of this.sourceChangeClassifier.getSupportedSourceExtensions()) {
       if (await this.fileExists(`${resolvedBasePath}${sourceExtension}`)) {
         return `${importSpecifier}${this.toJavascriptExtension(sourceExtension)}`;
       }
@@ -603,7 +550,7 @@ export class ConsumerOutputBuilder {
 
   private async resolveIndexImportSpecifier(sourcePath: string, importSpecifier: string): Promise<string | null> {
     const resolvedDirectoryPath = path.resolve(path.dirname(sourcePath), importSpecifier);
-    for (const sourceExtension of ConsumerOutputBuilder.supportedSourceExtensions) {
+    for (const sourceExtension of this.sourceChangeClassifier.getSupportedSourceExtensions()) {
       const indexSourcePath = path.resolve(resolvedDirectoryPath, `index${sourceExtension}`);
       if (await this.fileExists(indexSourcePath)) {
         return `${importSpecifier}/index${this.toJavascriptExtension(sourceExtension)}`;
@@ -661,7 +608,7 @@ export class ConsumerOutputBuilder {
   }
 
   private isSourceExtension(extension: string): boolean {
-    return ConsumerOutputBuilder.supportedSourceExtensions.has(extension);
+    return this.sourceChangeClassifier.isSourceExtension(extension);
   }
 
   private toJavascriptExtension(extension: string): string {
@@ -672,19 +619,6 @@ export class ConsumerOutputBuilder {
       return ".mjs";
     }
     return ".js";
-  }
-
-  private createIgnoredMatcher(): (watchPath: string) => boolean {
-    return (watchPath: string): boolean => {
-      const relativePath = path.relative(this.consumerRoot, watchPath);
-      if (relativePath.startsWith("..")) {
-        return false;
-      }
-      return relativePath
-        .replace(/\\/g, "/")
-        .split("/")
-        .some((segment: string) => ConsumerOutputBuilder.ignoredDirectoryNames.has(segment));
-    };
   }
 
   private toConsumerRelativePath(filePath: string): string {
