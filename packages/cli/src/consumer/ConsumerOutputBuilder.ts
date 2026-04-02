@@ -13,6 +13,7 @@ import {
   ConsumerOutputSourceChangeClassifier,
   type ConsumerOutputWatchEvent,
 } from "./ConsumerOutputSourceChangeClassifier";
+import { ConsumerOutputRebuildPlanner } from "./ConsumerOutputRebuildPlanner";
 import type { ConsumerBuildOptions } from "./consumerBuildOptions.types";
 
 export type ConsumerOutputBuildSnapshot = Readonly<{
@@ -46,6 +47,7 @@ export class ConsumerOutputBuilder {
   private static readonly watchBuildDebounceMs = 75;
   private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
   private readonly sourceChangeClassifier = new ConsumerOutputSourceChangeClassifier();
+  private readonly rebuildPlanner = new ConsumerOutputRebuildPlanner(this.sourceChangeClassifier);
 
   /** Last promoted build output used to copy-forward unchanged emitted files on incremental watch builds. */
   private lastPromotedSnapshot: ConsumerOutputBuildSnapshot | null = null;
@@ -164,20 +166,19 @@ export class ConsumerOutputBuilder {
   ): Promise<ConsumerOutputBuildSnapshot> {
     const watchEvents = options?.watchEvents ?? [];
     const configSourcePath = await this.resolveConfigPath(this.consumerRoot);
-    if (watchEvents.length > 0 && this.lastPromotedSnapshot !== null && configSourcePath !== null) {
-      const rebuildClassification = this.sourceChangeClassifier.classifyRebuild({
-        configSourcePath,
-        events: watchEvents,
-      });
-      if (rebuildClassification.kind === "incremental") {
-        try {
-          await access(this.lastPromotedSnapshot.emitOutputRoot);
-          const snapshot = await this.buildInternalIncremental(rebuildClassification.sourcePaths);
-          this.lastPromotedSnapshot = snapshot;
-          return snapshot;
-        } catch {
-          // Fall back to a full rebuild (missing output, emit failure, etc.).
-        }
+    const rebuildPlan = this.rebuildPlanner.plan({
+      configSourcePath,
+      hasPreviousSnapshot: this.lastPromotedSnapshot !== null,
+      watchEvents,
+    });
+    if (rebuildPlan.kind === "incremental" && this.lastPromotedSnapshot !== null) {
+      try {
+        await access(this.lastPromotedSnapshot.emitOutputRoot);
+        const snapshot = await this.buildInternalIncremental(rebuildPlan.sourcePaths);
+        this.lastPromotedSnapshot = snapshot;
+        return snapshot;
+      } catch {
+        // Fall back to a full rebuild (missing output, emit failure, etc.).
       }
     }
     const snapshot = await this.buildInternalFull();
