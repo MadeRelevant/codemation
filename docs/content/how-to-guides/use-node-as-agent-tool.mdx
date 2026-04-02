@@ -1,0 +1,159 @@
+---
+title: Use a Node as an Agent Tool
+description: Expose a runnable node to AIAgent with AgentToolFactory.asTool instead of writing a second tool adapter.
+---
+
+If you already have a good runnable node, the easiest way to make it available to `AIAgent` is to wrap it as a node-backed tool.
+
+That lets one capability work in two places:
+
+- as a normal workflow node
+- as a tool the model can call
+
+## Use this guide when
+
+This path is the right choice when:
+
+- the business capability already exists as a node
+- the node already has the DI wiring you want
+- the node already declares credential requirements
+- you do not want to maintain a separate `Tool` implementation for the same capability
+
+If the capability only exists for agent use, follow [Create custom agent tool](/docs/how-to-guides/create-custom-agent-tool) instead.
+
+## The pattern
+
+The flow is:
+
+1. start with a normal runnable node
+2. wrap it with `AgentToolFactory.asTool(...)`
+3. attach that tool to an `AIAgent`
+
+## Step 1: start with a normal node
+
+Assume you already have a config class and runtime node:
+
+```ts
+export class LookupCustomerNodeConfig implements RunnableNodeConfig<
+  { customerId: string },
+  { customerName: string; accountTier: string }
+> {
+  readonly kind = "node" as const;
+  readonly type: TypeToken<unknown> = LookupCustomerNode;
+
+  constructor(
+    public readonly name: string,
+    public readonly id?: string,
+  ) {}
+}
+```
+
+That node should already be useful outside an agent.
+
+## Step 2: wrap it as a tool
+
+Use `AgentToolFactory.asTool(...)`:
+
+```ts
+import { AgentToolFactory } from "@codemation/core";
+import { z } from "zod";
+
+const lookupCustomerTool = AgentToolFactory.asTool(new LookupCustomerNodeConfig("Lookup customer"), {
+  name: "lookup_customer",
+  description: "Look up the current customer record by id.",
+  inputSchema: z.object({
+    customerId: z.string(),
+  }),
+  outputSchema: z.object({
+    customerName: z.string(),
+    accountTier: z.string(),
+  }),
+});
+```
+
+The default behavior is intentionally simple:
+
+- the tool input becomes one node input item
+- the wrapped node runs through its normal node token and DI path
+- the first `main` output item becomes the tool result
+
+## Step 3: attach it to `AIAgent`
+
+```ts
+new AIAgent({
+  name: "Answer with customer context",
+  messages: [
+    { role: "system", content: "Use tools when needed. Return JSON only." },
+    { role: "user", content: ({ item }) => JSON.stringify(item.json) },
+  ],
+  chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
+  tools: [lookupCustomerTool],
+});
+```
+
+From the workflow author's point of view, this is just another agent tool.
+
+## Step 4: adapt input or output when needed
+
+Use `mapInput` when the model provides only part of what the node needs and the rest should come from the current workflow item:
+
+```ts
+const classifyMailTool = AgentToolFactory.asTool(new ClassifyMailNodeConfig("Classify mail"), {
+  name: "classify_mail",
+  description: "Classify the current mail as RFQ or not.",
+  inputSchema: z.object({
+    bodyHint: z.string(),
+  }),
+  outputSchema: z.object({
+    isRfq: z.boolean(),
+    reason: z.string(),
+  }),
+  mapInput: ({ input, item }) => ({
+    subject: String(item.json.subject ?? ""),
+    body: input.bodyHint,
+  }),
+});
+```
+
+Use `mapOutput` when the wrapped node returns more than the model should see.
+
+## Credentials come along automatically
+
+If the wrapped node already defines `getCredentialRequirements()`, the node-backed tool reuses those requirements automatically.
+
+That is one of the biggest reasons to prefer this pattern over writing a second adapter.
+
+## Registration still matters
+
+Wrapping a node as a tool does not remove the normal registration requirement.
+
+If the node is app-local, register it in `codemation.config.ts`:
+
+```ts
+import type { CodemationAppContext, CodemationConfig } from "@codemation/host";
+
+export default {
+  register(app: CodemationAppContext) {
+    app.registerNode(LookupCustomerNode);
+    app.discoverWorkflows("src/workflows");
+  },
+} satisfies CodemationConfig;
+```
+
+If the node lives in a plugin package, register it from the plugin:
+
+```ts
+import { definePlugin } from "@codemation/host";
+
+export default definePlugin({
+  register(context) {
+    context.registerNode(LookupCustomerNode);
+  },
+});
+```
+
+## Related pages
+
+1. [AI Agent](/docs/workflows/ai-agent)
+2. [Create custom node](/docs/how-to-guides/create-custom-node)
+3. [Create custom agent tool](/docs/how-to-guides/create-custom-agent-tool)

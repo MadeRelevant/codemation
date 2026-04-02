@@ -1,0 +1,129 @@
+---
+title: Engine
+description: Configure scheduling, eventing, workers, and execution limits for the runtime.
+---
+
+For most consumer apps, engine configuration comes down to two decisions:
+
+- how work should be scheduled
+- what limits should protect execution
+
+## Scheduling modes
+
+At the consumer level, `app.scheduler` uses two friendly modes:
+
+- `inline` for one-process execution
+- `queue` for Redis and worker-backed execution
+
+Example:
+
+```ts
+app: {
+  scheduler: {
+    kind: "inline",
+  },
+}
+```
+
+This is the right default when:
+
+- you are developing locally
+- one process is enough
+- you want the shortest feedback loop
+
+When you are ready for dedicated workers, switch to queue mode:
+
+```ts
+app: {
+  scheduler: {
+    kind: "queue",
+    queuePrefix: "codemation-starter",
+    workerQueues: ["default"],
+    redisUrl: process.env.REDIS_URL,
+  },
+}
+```
+
+## What Codemation derives for you
+
+The consumer-facing scheduler setting is normalized into lower-level runtime pieces:
+
+- `inline` becomes a local scheduler with in-memory eventing
+- `queue` becomes a BullMQ scheduler with Redis-backed eventing
+
+That is why most users should stay with `app.scheduler` instead of configuring `runtime.scheduler` and `runtime.eventBus` directly.
+
+## When workers matter
+
+Queue-backed execution is useful when:
+
+- workflows are long-running
+- traffic is bursty
+- you want the web process and workflow execution process separated
+
+A typical split deployment looks like this:
+
+```bash
+pnpm exec codemation serve web
+pnpm exec codemation serve worker
+```
+
+With queue mode, make sure `REDIS_URL` and `DATABASE_URL` both exist.
+
+## Execution limits
+
+Codemation also lets you tune runtime safety limits on the engine.
+
+The consumer-facing entry point is `app.engineExecutionLimits`:
+
+```ts
+app: {
+  engineExecutionLimits: {
+    defaultMaxNodeActivations: 25_000,
+    hardMaxNodeActivations: 25_000,
+    defaultMaxSubworkflowDepth: 8,
+    hardMaxSubworkflowDepth: 8,
+  },
+}
+```
+
+These limits protect two things:
+
+- how many node activations a run may consume
+- how deep subworkflows may nest
+
+If you omit them, Codemation uses framework defaults:
+
+- `defaultMaxNodeActivations: 100000`
+- `hardMaxNodeActivations: 100000`
+- `defaultMaxSubworkflowDepth: 32`
+- `hardMaxSubworkflowDepth: 32`
+
+The important mental model is that these are execution budgets, not just abstract tuning knobs.
+
+## Environment knobs
+
+The runtime also respects several environment variables:
+
+- `REDIS_URL` for queue-backed scheduling and Redis eventing
+- `QUEUE_PREFIX` for queue names
+- `CODEMATION_SCHEDULER` to force `local` or `bullmq`
+- `CODEMATION_EVENT_BUS` to force `memory` or `redis`
+
+These are useful when one codebase runs in multiple environments with different runtime topology.
+
+## `app.scheduler` vs `runtime.*`
+
+Use `app.scheduler` and `app.engineExecutionLimits` unless you have an advanced reason not to.
+
+Reach for `runtime.scheduler`, `runtime.eventBus`, or `runtime.engineExecutionLimits` when:
+
+- you need the lower-level runtime shape explicitly
+- you are documenting a split deployment in infrastructure code
+- you want direct control over scheduler and event bus kinds
+
+## Related pages
+
+1. [Persistence](/docs/configuration/persistence)
+2. [Deployment](/docs/deployment)
+3. [Architecture](/docs/architecture)

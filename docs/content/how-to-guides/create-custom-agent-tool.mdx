@@ -3,9 +3,9 @@ title: Create Custom Agent Tool
 description: Add a tool that an AIAgent node can call during workflow execution.
 ---
 
-# Create Custom Agent Tool
+This guide shows how to build a standalone custom tool that an `AIAgent` can call when the model needs external capability or fresh data.
 
-This guide shows how to build a custom tool that an `AIAgent` can call when the model needs external capability or fresh data.
+If you already have a runnable node and just want to expose it to the agent, use [Use a Node as an Agent Tool](/docs/how-to-guides/use-node-as-agent-tool) instead. That path usually avoids writing a second adapter class.
 
 ## Use this guide when
 
@@ -14,6 +14,7 @@ Reach for a custom agent tool when:
 - the model needs deterministic computation
 - the model needs fresh or external data
 - you want the model to call an internal API instead of guessing
+- the capability does not naturally belong in a reusable workflow node
 
 ## Example scenario
 
@@ -116,4 +117,5 @@ Tools let the model stay focused on reasoning while deterministic code handles:
 ## Related pages
 
 1. [AI Agent node](/docs/nodes/core/ai-agent)
-2. [Create a custom credential](/docs/how-to-guides/create-custom-credential)
+2. [Use a node as an agent tool](/docs/how-to-guides/use-node-as-agent-tool)
+3. [Create a custom credential](/docs/how-to-guides/create-custom-credential)

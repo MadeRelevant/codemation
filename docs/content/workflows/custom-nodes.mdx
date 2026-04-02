@@ -3,8 +3,6 @@ title: Custom Nodes
 description: Extend Codemation with your own nodes by pairing a config class with a node implementation class.
 ---
 
-# Custom Nodes
-
 When the built-in nodes are not enough, define your own node.
 
 The built-in `Callback` node is fine for **quick, inline** logic when you want to move fast. The **intended** way to build durable workflow behavior is still a **custom node** (config + implementation): that is what makes automated testing straightforward and reuse natural. If you are past a one-off experiment, prefer this page over piling logic into `Callback`.
@@ -119,6 +117,25 @@ packages/node-my-feature/
 
 That gives you a clean path to share nodes across projects.
 
+## Register app-local nodes
+
+If the node lives inside your app repo, register the runtime class in `codemation.config.ts`.
+
+```ts
+import type { CodemationAppContext, CodemationConfig } from "@codemation/host";
+
+export default {
+  register(app: CodemationAppContext) {
+    app.registerNode(MyCustomNode);
+    app.discoverWorkflows("src/workflows");
+  },
+} satisfies CodemationConfig;
+```
+
+Without that registration step, the host knows about the config class in your workflow code but does not know how to construct the runtime implementation.
+
+If the node lives in a plugin package, do the same registration from `definePlugin({ register(context) { ... } })`.
+
 ## Use a custom node in a workflow
 
 Once the package is installed and available, use it like any other node:
@@ -155,5 +172,6 @@ See [Plugin developers](/docs/plugin-developers) for the node-backed tool patter
 
 ## Continue with
 
-1. [Custom credential types](/docs/credentials/custom-credential-types)
-2. [Plugin developers](/docs/plugin-developers)
+1. [Create custom credential](/docs/how-to-guides/create-custom-credential)
+2. [Use a node as an agent tool](/docs/how-to-guides/use-node-as-agent-tool)
+3. [Plugin developers](/docs/plugin-developers)
