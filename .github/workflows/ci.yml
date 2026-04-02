@@ -305,6 +305,20 @@ jobs:
       - name: Coverage (browser)
         run: pnpm run coverage:browser
 
+      - name: Upload browser failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure-artifacts
+          path: |
+            packages/host/test-results
+            packages/host/test/playwright/.e2e-prepared.json
+            coverage/raw/browser/monocart-report.html
+            coverage/raw/browser/monocart-report.json
+            coverage/raw/browser-scaffolded/monocart-report.html
+            coverage/raw/browser-scaffolded/monocart-report.json
+          if-no-files-found: warn
+
       - name: Upload lcov (browser)
         uses: actions/upload-artifact@v4
         with:

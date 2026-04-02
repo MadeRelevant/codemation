@@ -95,11 +95,11 @@ export class CodemationPlaywrightUiHarness {
   /** Workflow detail / canvas: primary run control is visible. */
   async waitForCanvasRunWorkflowButton(options?: Readonly<{ timeoutMs?: number }>): Promise<void> {
     const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasRunButtonTimeoutMs;
-    await expect(this.page.getByTestId("canvas-run-workflow-button")).toBeVisible({ timeout: timeoutMs });
+    await expect(this.canvasRunWorkflowButton()).toBeVisible({ timeout: timeoutMs });
   }
 
   async clickCanvasRunWorkflowButton(): Promise<void> {
-    await this.page.getByTestId("canvas-run-workflow-button").click();
+    await this.canvasRunWorkflowButton().click();
   }
 
   async openExecutionsTab(): Promise<void> {
@@ -140,6 +140,21 @@ export class CodemationPlaywrightUiHarness {
       .toContain("completed");
   }
 
+  async selectLatestRunFromSidebar(options?: Readonly<{ timeoutMs?: number }>): Promise<string> {
+    const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasNodeCompletionTimeoutMs;
+    const runsSidebar = this.page.getByTestId("workflow-runs-sidebar");
+    await expect(runsSidebar).toBeVisible({ timeout: timeoutMs });
+    const latestRun = runsSidebar.locator('[data-testid^="run-summary-"]').first();
+    await expect(latestRun).toBeVisible({ timeout: timeoutMs });
+    const testId = await latestRun.getAttribute("data-testid");
+    const runId = testId?.replace(/^run-summary-/, "") ?? "";
+    if (!runId) {
+      throw new Error(`Missing run id for latest run summary (testid=${testId ?? "null"})`);
+    }
+    await latestRun.click();
+    return runId;
+  }
+
   /** Assert a canvas node card exists and reaches `completed` (runtime finished for that node). */
   async expectCanvasNodeCompleted(
     nodeId: string,
@@ -150,5 +165,9 @@ export class CodemationPlaywrightUiHarness {
     const statusTimeoutMs = options?.statusTimeoutMs ?? CodemationPlaywrightUiHarness.canvasNodeCompletionTimeoutMs;
     await expect(card).toBeVisible({ timeout: visibleTimeoutMs });
     await expect(card).toHaveAttribute("data-codemation-node-status", "completed", { timeout: statusTimeoutMs });
+  }
+
+  private canvasRunWorkflowButton() {
+    return this.page.getByTestId("canvas-run-workflow-button").last();
   }
 }

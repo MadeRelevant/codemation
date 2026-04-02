@@ -80,11 +80,11 @@ for (const scenario of scenarios) {
       await ui.waitForCanvasRunWorkflowButton();
       await ui.clickCanvasRunWorkflowButton();
       await ui.openExecutionsTab();
-      // Inspector needs a selected node; index 1 is the first non-trigger step (map / plugin node).
-      const mapNodeId = await ui.selectCanvasNodeByCardIndex(1);
+      await ui.selectLatestRunFromSidebar({ timeoutMs: 60_000 });
+      const mapNodeId = await ui.selectCanvasNodeByCardIndex(1, { timeoutMs: 60_000 });
       await ui.expectCanvasNodeCompleted(mapNodeId, {
-        visibleTimeoutMs: 120_000,
-        statusTimeoutMs: 300_000,
+        visibleTimeoutMs: 60_000,
+        statusTimeoutMs: 60_000,
       });
 
       const hotReloadStartedAt = performance.now();
