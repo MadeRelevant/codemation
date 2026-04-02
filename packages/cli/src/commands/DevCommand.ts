@@ -14,6 +14,7 @@ import type { DevConsumerPublishBootstrap } from "../dev/DevConsumerPublishBoots
 import { ConsumerEnvDotenvFilePredicate } from "../dev/ConsumerEnvDotenvFilePredicate";
 import type { DevRebuildQueueFactory } from "../dev/DevRebuildQueueFactory";
 import type { DevSourceWatcher } from "../dev/DevSourceWatcher";
+import type { DevSourceRebuildPlanner } from "../dev/DevSourceRebuildPlanner";
 import { DevSessionServices } from "../dev/DevSessionServices";
 import { DevLockFactory } from "../dev/Factory";
 import { DevTrackedProcessTreeKiller } from "../dev/DevTrackedProcessTreeKiller";
@@ -45,6 +46,7 @@ export class DevCommand {
     private readonly devApiRuntimeFactory: DevApiRuntimeFactory,
     private readonly cliDevProxyServerFactory: CliDevProxyServerFactory,
     private readonly devRebuildQueueFactory: DevRebuildQueueFactory,
+    private readonly devSourceRebuildPlanner: DevSourceRebuildPlanner,
   ) {}
 
   async execute(
@@ -368,31 +370,17 @@ export class DevCommand {
         repoRoot: prepared.paths.repoRoot,
       }),
       onChange: async ({ changedPaths }) => {
-        if (changedPaths.length > 0 && changedPaths.every((p) => this.consumerEnvDotenvFilePredicate.matches(p))) {
-          process.stdout.write(
-            "\n[codemation] Consumer environment file changed (e.g. .env). Restart the `codemation dev` process so the runtime picks up updated variables (host `process.env` does not hot-reload).\n",
-          );
-          return;
-        }
         try {
-          const shouldRepublishConsumerOutput = this.session.sourceChangeClassifier.shouldRepublishConsumerOutput({
+          const rebuildPlan = this.devSourceRebuildPlanner.plan({
             changedPaths,
             consumerRoot: prepared.paths.consumerRoot,
           });
-          const shouldRestartUi = this.session.sourceChangeClassifier.requiresUiRestart({
-            changedPaths,
-            consumerRoot: prepared.paths.consumerRoot,
-          });
-          process.stdout.write(
-            shouldRestartUi
-              ? "\n[codemation] Source change detected — rebuilding consumer, restarting the runtime, and restarting the UI…\n"
-              : "\n[codemation] Source change detected — rebuilding consumer and restarting the runtime…\n",
-          );
-          await rebuildQueue.enqueue({
-            changedPaths,
-            shouldRepublishConsumerOutput,
-            shouldRestartUi,
-          });
+          if (rebuildPlan.kind === "restart-dev-process") {
+            process.stdout.write(rebuildPlan.message);
+            return;
+          }
+          process.stdout.write(rebuildPlan.announcement);
+          await rebuildQueue.enqueue(rebuildPlan.request);
         } catch (error) {
           await this.failDevSessionAfterIrrecoverableSourceError(state, proxyServer, error);
         }

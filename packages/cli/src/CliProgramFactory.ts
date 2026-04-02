@@ -31,6 +31,7 @@ import { DevConsumerPublishBootstrap } from "./dev/DevConsumerPublishBootstrap";
 import { CliDevProxyServerFactory } from "./dev/CliDevProxyServerFactory";
 import { DevApiRuntimeFactory } from "./dev/DevApiRuntimeFactory";
 import { DevRebuildQueueFactory } from "./dev/DevRebuildQueueFactory";
+import { DevSourceRebuildPlanner } from "./dev/DevSourceRebuildPlanner";
 import { DevSessionServicesBuilder } from "./dev/Builder";
 import { DevLockFactory } from "./dev/Factory";
 import { ConsumerEnvDotenvFilePredicate } from "./dev/ConsumerEnvDotenvFilePredicate";
@@ -95,6 +96,7 @@ export class CliProgramFactory {
       outputBuilderLoader,
       buildOptionsParser,
     );
+    const consumerEnvDotenvFilePredicate = new ConsumerEnvDotenvFilePredicate();
     const devCommand = new DevCommand(
       pathResolver,
       tsRuntime,
@@ -106,12 +108,13 @@ export class CliProgramFactory {
       new DevBootstrapSummaryFetcher(),
       new DevCliBannerRenderer(),
       devConsumerPublishBootstrap,
-      new ConsumerEnvDotenvFilePredicate(),
+      consumerEnvDotenvFilePredicate,
       new DevTrackedProcessTreeKiller(),
       nextHostConsumerServerCommandFactory,
       new DevApiRuntimeFactory(devSessionServices.loopbackPortAllocator, appConfigLoader, pluginDiscovery),
       new CliDevProxyServerFactory(),
       new DevRebuildQueueFactory(),
+      new DevSourceRebuildPlanner(consumerEnvDotenvFilePredicate, devSessionServices.sourceChangeClassifier),
     );
     return new CliProgram(
       buildOptionsParser,
