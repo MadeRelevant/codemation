@@ -13,10 +13,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@codemation/cli": "^0.0.14",
-    "@codemation/core": "^0.0.14",
-    "@codemation/core-nodes": "^0.0.14",
-    "@codemation/host": "^0.0.14",
+    "@codemation/cli": "0.0.x",
+    "@codemation/core": "0.0.x",
+    "@codemation/core-nodes": "0.0.x",
+    "@codemation/host": "0.0.x",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
