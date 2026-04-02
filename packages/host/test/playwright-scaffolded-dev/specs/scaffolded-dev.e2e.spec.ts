@@ -24,7 +24,8 @@ const scenarios: ReadonlyArray<ScaffoldedDevScenario> = [
   {
     name: "scaffolded app `pnpm dev` opens, runs, and hot-reloads in browser",
     commandName: "dev",
-    executionSummaryPattern: /Hello Took/i,
+    // Node title and duration are not always adjacent (status/icon may appear between).
+    executionSummaryPattern: /Hello[\s\S]*Took/i,
     contract: {
       templateId: "default",
       workflowId: "wf.starter.hello",
@@ -38,7 +39,7 @@ const scenarios: ReadonlyArray<ScaffoldedDevScenario> = [
   {
     name: "scaffolded plugin `pnpm dev:plugin` opens, runs, and hot-reloads in browser",
     commandName: "dev:plugin",
-    executionSummaryPattern: /Uppercase message Took/i,
+    executionSummaryPattern: /Uppercase message[\s\S]*Took/i,
     contract: {
       templateId: "plugin",
       workflowId: "wf.plugin.hello",
