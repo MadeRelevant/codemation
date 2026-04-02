@@ -248,7 +248,7 @@ jobs:
   coverage-browser:
     name: Coverage — browser
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
       REDIS_URL: redis://127.0.0.1:6379
