@@ -3,7 +3,7 @@ title: Codemation
 description: Build automation workflows in TypeScript with a code-first developer experience, durable execution, and a framework-owned runtime.
 ---
 
-# Codemation
+# What is Codemation
 
 Codemation is a **code-first automation framework** for developers who want to build durable workflows in TypeScript instead of stitching together one-off scripts, custom queues, ad-hoc secrets handling, and a separate operator UI.
 
@@ -43,10 +43,11 @@ Codemation is designed for teams building:
 
 ## Start here
 
-The docs now split into three clear tracks:
+The docs now split into four clear tracks:
 
 - [Getting Started](/docs/getting-started) for the fastest path to first success
 - [Concepts](/docs/concepts) for the mental models behind workflows, nodes, credentials, and runs
+- [Configuration](/docs/configuration) for `codemation.config.ts`, auth, database persistence, engine settings, and branding
 - [Architecture](/docs/architecture) and [Deployment](/docs/deployment) for runtime shape and operating decisions
 
 When you are ready to extend the framework, move into:
@@ -63,7 +64,7 @@ As an app developer, you mainly own:
 - workflow files under `src/workflows`
 - optional custom nodes
 - optional custom credential types
-- deployment choices such as local embedded storage vs PostgreSQL and inline execution vs BullMQ workers
+- deployment choices such as embedded database (PGlite) vs PostgreSQL and inline execution vs BullMQ workers
 
 ## What the framework owns
 
@@ -87,7 +88,8 @@ If you are new to Codemation, read these pages in order:
 
 1. [Getting Started](/docs/getting-started)
 2. [Concepts](/docs/concepts)
-3. [Architecture](/docs/architecture)
-4. [Deployment](/docs/deployment)
-5. [Nodes](/docs/nodes/core/manual-trigger)
-6. [How-To Guides](/docs/how-to-guides/create-custom-node)
+3. [Configuration](/docs/configuration)
+4. [Architecture](/docs/architecture)
+5. [Deployment](/docs/deployment)
+6. [Nodes](/docs/nodes/core/manual-trigger)
+7. [How-To Guides](/docs/how-to-guides/create-custom-node)

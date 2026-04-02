@@ -1,0 +1,115 @@
+---
+title: Configuration
+description: Configure authentication, database persistence, execution, and branding in codemation.config.ts.
+---
+
+`codemation.config.ts` is the composition file for a Codemation app.
+
+Most consumer projects only need to understand four things in it:
+
+- `app` for consumer-facing host settings
+- `register(...)` for nodes, credential types, and workflow discovery
+- `workflows` or `discoverWorkflows(...)` for what the runtime should load
+- `plugins` when you want packaged extensions
+
+## The shape at a glance
+
+The starter templates follow this pattern:
+
+```ts
+import type { CodemationAppContext, CodemationConfig } from "@codemation/host";
+
+export default {
+  app: {
+    auth: {
+      kind: "local",
+      allowUnauthenticatedInDevelopment: true,
+    },
+    database: {
+      kind: "pglite",
+      pgliteDataDir: ".codemation/pglite",
+    },
+    scheduler: {
+      kind: "inline",
+    },
+    whitelabel: {
+      productName: "My automation",
+      logoPath: "src/branding/logo.svg",
+    },
+  },
+  register(app: CodemationAppContext) {
+    app.discoverWorkflows("src/workflows");
+  },
+} satisfies CodemationConfig;
+```
+
+That is enough to get a normal consumer app running.
+
+## What lives where
+
+### `app`
+
+Use `app` for the settings most teams actually care about:
+
+- authentication for the hosted UI and HTTP API
+- database persistence (`app.database`)
+- scheduler mode for inline execution vs queues
+- engine execution limits
+- product name and logo
+
+This is the most important part of the config for day-to-day app development.
+
+### `register(...)`
+
+Use `register(...)` when you need to teach the host about code it cannot discover by itself.
+
+Common examples:
+
+- register an app-local custom node with `app.registerNode(...)`
+- register a custom credential type with `app.registerCredentialType(...)`
+- add workflows programmatically with `app.registerWorkflow(...)`
+- discover workflow files from one or more directories with `app.discoverWorkflows(...)`
+
+If you define a custom node class inside your app, this hook is where you make it available to the runtime.
+
+### `runtime`
+
+`runtime` is the lower-level form of the same runtime settings.
+
+Most users can ignore it and stay with `app`. Reach for `runtime` when you are doing more advanced setup such as:
+
+- explicit scheduler and event bus wiring
+- split web and worker processes
+- env-heavy deployments where you want the lower-level runtime shape
+
+The host normalizes `app.scheduler` into runtime concepts for you. For example:
+
+- `inline` becomes a local scheduler plus in-memory eventing
+- `queue` becomes a BullMQ scheduler plus Redis-backed eventing
+
+## Authentication is not workflow credentials
+
+Two surfaces often get confused:
+
+- `auth` controls who can sign into the Codemation UI and call the hosted API
+- `credentialTypes` control what secrets or sessions your workflows and nodes can bind at runtime
+
+If you are configuring login, stay in the `Configuration` pages below.
+
+If you are defining API keys or service sessions for nodes, go to [Create custom credential](/docs/how-to-guides/create-custom-credential).
+
+## Configuration guides in this section
+
+- [Authentication](/docs/configuration/authentication) for local auth, OAuth, OIDC, and production rules
+- [Persistence](/docs/configuration/persistence) for PGlite, PostgreSQL, migrations, and environment overrides
+- [Engine](/docs/configuration/engine) for scheduling, eventing, workers, and execution limits
+- [Branding](/docs/configuration/branding) for product name and logo configuration
+
+## A practical reading order
+
+If you are setting up a real app for the first time, read these in order:
+
+1. [Getting Started](/docs/getting-started)
+2. [Configuration](/docs/configuration)
+3. [Deployment](/docs/deployment)
+4. [Create custom credential](/docs/how-to-guides/create-custom-credential)

@@ -1,4 +1,4 @@
 {
   "title": "How-To Guides",
-  "pages": ["create-custom-credential", "create-custom-node", "create-custom-agent-tool"]
+  "pages": ["create-custom-credential", "create-custom-node", "use-node-as-agent-tool", "create-custom-agent-tool"]
 }

@@ -1,0 +1,188 @@
+---
+title: Authentication
+description: Configure login for the hosted UI and API with local auth, OAuth, or OIDC.
+---
+
+Codemation authentication is the consumer-side config for the hosted UI and HTTP API.
+
+This is separate from workflow credentials:
+
+- `auth` decides who can sign into the app
+- credential types decide what services workflows and nodes can call
+
+## The default development setup
+
+The starter templates use local auth in development:
+
+```ts
+app: {
+  auth: {
+    kind: "local",
+    allowUnauthenticatedInDevelopment: true,
+  },
+}
+```
+
+That gives you the shortest path to first success while you are still scaffolding workflows and database setup.
+
+When you want a real local sign-in flow, create a user:
+
+```bash
+pnpm exec codemation user create --email you@example.com --password 'your-secure-password'
+```
+
+## Authentication modes
+
+Codemation supports three consumer-facing auth kinds:
+
+- `local` for Codemation-managed sign-in
+- `oauth` for built-in OAuth providers
+- `oidc` for a custom OpenID Connect provider
+
+### `local`
+
+Use `local` when you want the built-in email/password flow.
+
+This is the simplest option for:
+
+- local development
+- internal tools with a small set of operators
+- early-stage staging environments
+
+You can also combine `local` with provider-based sign-in by adding `oauth` entries to the same config.
+
+Example:
+
+```ts
+app: {
+  auth: {
+    kind: "local",
+    oauth: [
+      {
+        provider: "google",
+        clientIdEnv: "GOOGLE_CLIENT_ID",
+        clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+      },
+    ],
+  },
+}
+```
+
+### `oauth`
+
+Use `oauth` when users should sign in with a built-in provider such as Google, GitHub, or Microsoft Entra ID.
+
+Example:
+
+```ts
+app: {
+  auth: {
+    kind: "oauth",
+    oauth: [
+      {
+        provider: "github",
+        clientIdEnv: "GITHUB_CLIENT_ID",
+        clientSecretEnv: "GITHUB_CLIENT_SECRET",
+      },
+    ],
+  },
+}
+```
+
+Supported built-in provider ids are:
+
+- `google`
+- `github`
+- `microsoft-entra-id`
+
+For Microsoft Entra ID, add `tenantIdEnv` as well.
+
+### `oidc`
+
+Use `oidc` when you need a provider that exposes a standard OpenID Connect issuer but is not one of the built-in OAuth presets.
+
+Example:
+
+```ts
+app: {
+  auth: {
+    kind: "oidc",
+    oidc: [
+      {
+        id: "my-company-sso",
+        issuer: "https://login.example.com/realms/platform",
+        clientIdEnv: "SSO_CLIENT_ID",
+        clientSecretEnv: "SSO_CLIENT_SECRET",
+      },
+    ],
+  },
+}
+```
+
+## Environment variables
+
+Provider config stores the names of environment variables, not the secrets themselves.
+
+That means this config:
+
+```ts
+{
+  provider: "google",
+  clientIdEnv: "GOOGLE_CLIENT_ID",
+  clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+}
+```
+
+expects your environment to define:
+
+```bash
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+AUTH_SECRET=...
+```
+
+`AUTH_SECRET` is required for real authentication flows.
+
+## Development bypass
+
+`allowUnauthenticatedInDevelopment` is a development-only shortcut.
+
+Use it when:
+
+- you are still wiring the app together
+- you need fast local iteration before real sign-in exists
+
+Do not treat it as a staging or production mode. Codemation only honors it outside production.
+
+## Production rules
+
+Production auth is intentionally stricter:
+
+- `CodemationConfig.auth` is required when `NODE_ENV=production`
+- `allowUnauthenticatedInDevelopment` is not allowed in production
+- `AUTH_SECRET` must be set
+- production must resolve to at least one real NextAuth provider
+
+The safe mental model is: development can be lenient, production cannot.
+
+## Where to put auth config
+
+Most apps should put auth under `app.auth`:
+
+```ts
+export default {
+  app: {
+    auth: {
+      kind: "local",
+    },
+  },
+} satisfies CodemationConfig;
+```
+
+There is also a top-level `auth` field, but `app.auth` is the clearer consumer-facing entry point and is what the starter templates use.
+
+## Related pages
+
+1. [Configuration](/docs/configuration)
+2. [Persistence](/docs/configuration/persistence)
+3. [Create custom credential](/docs/how-to-guides/create-custom-credential)

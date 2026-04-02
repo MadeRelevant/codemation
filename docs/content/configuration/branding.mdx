@@ -1,0 +1,67 @@
+---
+title: Branding
+description: Set the product name and logo for the hosted Codemation UI.
+---
+
+Codemation lets consumer apps apply lightweight whitelabeling to the hosted UI shell.
+
+The main knobs are:
+
+- `productName`
+- `logoPath`
+
+## Basic example
+
+Put branding under `app.whitelabel`:
+
+```ts
+app: {
+  whitelabel: {
+    productName: "My automation",
+    logoPath: "src/branding/logo.svg",
+  },
+}
+```
+
+This is the same pattern the starter templates use.
+
+## What these fields affect
+
+Branding is intended for the framework-owned shell around your workflows:
+
+- sidebar and app chrome
+- login and operator-facing surfaces
+- document title and product naming
+
+Keep the values stable so operators always know which environment they are in.
+
+## Asset path rules
+
+`logoPath` is resolved relative to the consumer project root.
+
+Examples:
+
+- `src/branding/logo.svg`
+- `public/logo.png`
+
+If you prefer, you can also pass an absolute path, but relative paths are easier to keep portable inside one app repo.
+
+## Where to put branding config
+
+Most consumer apps should set branding under `app.whitelabel`.
+
+There is also a top-level `whitelabel` field. If both are set, `app.whitelabel` wins during normalization, so the `app` form is the clearer default for app authors.
+
+## A practical approach
+
+For most teams, a good first pass is:
+
+- set `productName` immediately so the shell matches the project
+- add a logo once the app has a stable brand asset
+- keep dev, staging, and production assets consistent unless you intentionally want environment-specific branding
+
+## Related pages
+
+1. [Configuration](/docs/configuration)
+2. [Getting Started](/docs/getting-started)
+3. [Plugin development](/docs/plugin-development)

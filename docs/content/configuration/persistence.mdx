@@ -1,0 +1,136 @@
+---
+title: Persistence
+description: Configure database persistence—PGlite or PostgreSQL—paths, URLs, and migrations.
+---
+
+This page covers **`app.database`**: where the host stores **application data** (runs, users, credentials metadata, and related records).
+
+It is **not** about file or blob storage (S3, uploads, attachments). Those are usually workflow or node concerns, not this config surface.
+
+Codemation supports two database modes for consumer apps:
+
+- `pglite` for embedded local development
+- `postgresql` for shared environments and production
+
+## Local default: PGlite
+
+PGlite is the shortest path to a working app on one machine.
+
+Example:
+
+```ts
+app: {
+  database: {
+    kind: "pglite",
+    pgliteDataDir: ".codemation/pglite",
+  },
+}
+```
+
+This is a good default when:
+
+- you are learning Codemation
+- one developer is iterating locally
+- you do not need multiple processes or shared access yet
+
+`pgliteDataDir` is where the embedded database files live on disk; it is still **database persistence**, not a general-purpose file store. Paths resolve relative to the consumer project root unless you pass an absolute path.
+
+If you omit `pgliteDataDir`, Codemation falls back to `.codemation/pglite`.
+
+## Shared environments: PostgreSQL
+
+Switch to PostgreSQL when the app needs a shared database.
+
+Example:
+
+```ts
+app: {
+  database: {
+    kind: "postgresql",
+    url: process.env.DATABASE_URL,
+  },
+}
+```
+
+The URL must be a `postgresql://` or `postgres://` connection string.
+
+Typical environment setup:
+
+```bash
+DATABASE_URL=postgresql://user:password@127.0.0.1:5432/codemation
+```
+
+After pointing the app at PostgreSQL, run migrations:
+
+```bash
+pnpm exec codemation db migrate
+```
+
+## A practical starter pattern
+
+The generated templates switch between embedded PGlite and PostgreSQL based on `REDIS_URL` and `DATABASE_URL`:
+
+```ts
+const useRedisRuntime = Boolean(process.env.REDIS_URL);
+const databaseUrl = process.env.DATABASE_URL?.trim();
+
+if (useRedisRuntime && (!databaseUrl || databaseUrl.length === 0)) {
+  throw new Error(
+    "DATABASE_URL is required when REDIS_URL is set (BullMQ requires a shared PostgreSQL database).",
+  );
+}
+
+app: {
+  database: useRedisRuntime
+    ? { kind: "postgresql", url: databaseUrl! }
+    : { kind: "pglite", pgliteDataDir: ".codemation/pglite" },
+}
+```
+
+That gives one simple progression:
+
+1. local PGlite while you are building
+2. PostgreSQL when the app becomes shared
+3. PostgreSQL plus Redis when you add queue-backed workers
+
+## Environment overrides
+
+The host also supports environment-level overrides for database kind and paths:
+
+- `DATABASE_URL` for PostgreSQL URLs
+- `CODEMATION_DATABASE_KIND` to force `postgresql` or `pglite`
+- `CODEMATION_PGLITE_DATA_DIR` to override the embedded PGlite data directory
+
+These are useful when the same codebase needs different persistence in local, staging, and production environments.
+
+## BullMQ compatibility rule
+
+If you move to queue-backed scheduling, do not keep PGlite.
+
+BullMQ requires:
+
+- Redis for queues
+- PostgreSQL for shared persistence
+
+That means this combination is valid:
+
+```bash
+REDIS_URL=redis://127.0.0.1:6379
+DATABASE_URL=postgresql://user:password@127.0.0.1:5432/codemation
+```
+
+This combination is not:
+
+- Redis queues with embedded PGlite only
+
+## `app.database` vs `runtime.database`
+
+Most consumer apps should configure persistence through `app.database`.
+
+Use `runtime.database` only when you need the lower-level runtime shape directly. The consumer-facing `app` form is the recommended path for templates and normal apps.
+
+## Related pages
+
+1. [Configuration](/docs/configuration)
+2. [Engine](/docs/configuration/engine)
+3. [Deployment](/docs/deployment)

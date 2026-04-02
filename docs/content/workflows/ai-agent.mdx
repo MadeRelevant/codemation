@@ -3,8 +3,6 @@ title: AI Agent
 description: Use the built-in AIAgent node for structured prompting, multi-turn tool use, node-backed tools, and explicit execution guardrails.
 ---
 
-# AI Agent
-
 `AIAgent` is the built-in node for model-backed workflow steps.
 
 Use it when a workflow item needs:
@@ -111,6 +109,8 @@ Use a normal `ToolConfig` + `Tool` implementation when:
 ### When to use a node-backed tool
 
 Use a node-backed tool when you already have a runnable node and want to expose it to the agent without writing a second adapter class.
+
+If you want the shortest recipe for that pattern, see [Use a Node as an Agent Tool](/docs/how-to-guides/use-node-as-agent-tool).
 
 The default adapter behavior is:
 
