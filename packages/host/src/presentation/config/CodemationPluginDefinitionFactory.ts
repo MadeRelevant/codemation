@@ -1,12 +1,11 @@
 import type { AnyCredentialType } from "@codemation/core";
 
-import type { CodemationConfig } from "./CodemationConfig";
-import type { CodemationPlugin, CodemationPluginContext } from "./CodemationPlugin";
+import type { CodemationPlugin, CodemationPluginContext, CodemationPluginSandbox } from "./CodemationPlugin";
 
 export type CodemationPluginDefinitionArgs = Readonly<{
   register: (context: CodemationPluginContext) => void | Promise<void>;
   /** Merged into generated consumer config for `codemation dev:plugin`. */
-  sandbox?: CodemationConfig;
+  sandbox?: CodemationPluginSandbox;
   /** Registered up-front via {@link CodemationPluginContext.registerCredentialType} before `register` runs. */
   credentialTypes?: ReadonlyArray<AnyCredentialType>;
   pluginPackageId?: string;

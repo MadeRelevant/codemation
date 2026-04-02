@@ -19,6 +19,9 @@ export const minimumRealtimeActiveVisibilityMs = 300;
 
 export const persistentRealtimeDisconnectWarningDelayMs = 5000;
 
+/** How long to show the transient “realtime connected” banner after a successful reconnect. */
+export const realtimeReconnectSuccessBannerMs = 3000;
+
 export type RetainWorkflowSubscription = (workflowId: string) => () => void;
 
 export type RealtimeBridgeState = {

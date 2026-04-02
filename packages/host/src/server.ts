@@ -1,6 +1,10 @@
 export { CodemationPostgresPrismaClientFactory, PrismaClient } from "./persistenceServer";
 export { ApiPaths } from "./presentation/http/ApiPaths";
 export { CodemationServerGateway } from "./presentation/http/CodemationServerGatewayFactory";
+export { AppContainerFactory } from "./bootstrap/AppContainerFactory";
+export { AppContainerLifecycle } from "./bootstrap/AppContainerLifecycle";
+export { FrontendRuntime } from "./bootstrap/runtime/FrontendRuntime";
+export { CodemationPluginListMerger } from "./presentation/config/CodemationPluginListMerger";
 export { CodemationConsumerAppResolver } from "./presentation/server/CodemationConsumerAppResolver";
 export type { CodemationConsumerApp } from "./presentation/server/CodemationConsumerAppResolver";
 export { AppConfigLoader } from "./presentation/server/AppConfigLoader";

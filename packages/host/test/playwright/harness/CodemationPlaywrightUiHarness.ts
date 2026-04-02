@@ -24,6 +24,7 @@ export class CodemationPlaywrightUiHarness {
   private static readonly workflowApiReadyTimeoutMs = 120_000;
   private static readonly canvasRunButtonTimeoutMs = 60_000;
   private static readonly canvasNodeCompletionTimeoutMs = 120_000;
+  private static readonly realtimeDisconnectGracePeriodMs = 6_000;
 
   constructor(private readonly page: Page) {}
 
@@ -90,6 +91,16 @@ export class CodemationPlaywrightUiHarness {
 
   async clickCanvasRunWorkflowButton(): Promise<void> {
     await this.page.getByTestId("canvas-run-workflow-button").click();
+  }
+
+  /**
+   * Realtime websocket reconnects can briefly close during dev rebuilds. This waits past the
+   * persistent-disconnect grace period and then asserts the warning badge never stuck around.
+   */
+  async expectNoPersistentRealtimeDisconnect(options?: Readonly<{ gracePeriodMs?: number }>): Promise<void> {
+    const gracePeriodMs = options?.gracePeriodMs ?? CodemationPlaywrightUiHarness.realtimeDisconnectGracePeriodMs;
+    await this.page.waitForTimeout(gracePeriodMs);
+    await expect(this.page.getByTestId("workflow-realtime-disconnected-indicator")).toBeHidden();
   }
 
   /** Assert a canvas node card exists and reaches `completed` (runtime finished for that node). */

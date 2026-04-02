@@ -38,9 +38,19 @@ export function NodePropertiesSlidePanel(
     onClose: () => void;
     pendingCredentialEditForNodeId: string | null;
     onConsumedPendingCredentialEdit: () => void;
+    /** Reported when width is loaded from storage or changes (resize), for layout that must clear the panel overlay. */
+    onPanelWidthPxChange?: (widthPx: number) => void;
   }>,
 ) {
-  const { isOpen, node, onClose, workflowId, pendingCredentialEditForNodeId, onConsumedPendingCredentialEdit } = args;
+  const {
+    isOpen,
+    node,
+    onClose,
+    workflowId,
+    pendingCredentialEditForNodeId,
+    onConsumedPendingCredentialEdit,
+    onPanelWidthPxChange,
+  } = args;
   const isVisible = isOpen && Boolean(node);
   const [panelWidthPx, setPanelWidthPx] = useState(DEFAULT_PANEL_WIDTH_PX);
   const [isResizing, setIsResizing] = useState(false);
@@ -57,6 +67,10 @@ export function NodePropertiesSlidePanel(
   useEffect(() => {
     panelWidthRef.current = panelWidthPx;
   }, [panelWidthPx]);
+
+  useEffect(() => {
+    onPanelWidthPxChange?.(panelWidthPx);
+  }, [onPanelWidthPxChange, panelWidthPx]);
 
   const handleResizeMouseDown = useCallback((event: ReactMouseEvent): void => {
     event.preventDefault();

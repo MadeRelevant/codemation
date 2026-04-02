@@ -296,7 +296,7 @@ export class ConsumerOutputBuilder {
       stagingBuildRoot,
       emitOutputFiles: async () => {
         await cp(previous.emitOutputRoot, stagingBuildRoot, { recursive: true });
-        for (const sourcePath of changedSourcePaths) {
+        for (const sourcePath of this.createEmitSourcePaths(changedSourcePaths, configSourcePath)) {
           await this.emitSourceFile({
             outputAppRoot,
             sourcePath,
@@ -326,7 +326,7 @@ export class ConsumerOutputBuilder {
       finalBuildRoot,
       stagingBuildRoot,
       emitOutputFiles: async () => {
-        for (const sourcePath of runtimeSourcePaths) {
+        for (const sourcePath of this.createEmitSourcePaths(runtimeSourcePaths, configSourcePath)) {
           if (this.sourceChangeClassifier.isAssetPath(sourcePath)) {
             await this.copyAssetFile({
               outputAppRoot,
@@ -341,6 +341,23 @@ export class ConsumerOutputBuilder {
         }
       },
     });
+  }
+
+  private createEmitSourcePaths(
+    runtimeSourcePaths: ReadonlyArray<string>,
+    configSourcePath: string,
+  ): ReadonlyArray<string> {
+    const seenPaths = new Set<string>();
+    const emitSourcePaths: string[] = [];
+    for (const sourcePath of [configSourcePath, ...runtimeSourcePaths]) {
+      const resolvedPath = path.resolve(sourcePath);
+      if (seenPaths.has(resolvedPath)) {
+        continue;
+      }
+      seenPaths.add(resolvedPath);
+      emitSourcePaths.push(sourcePath);
+    }
+    return emitSourcePaths;
   }
 
   private scheduleWatchBuild(

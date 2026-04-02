@@ -27,6 +27,7 @@
       "@codemation/host/client": ["packages/host/src/client.ts"],
       "@codemation/host/credentials": ["packages/host/src/credentials.ts"],
       "@codemation/host/consumer": ["packages/host/src/consumer.ts"],
+      "@codemation/host/plugin": ["packages/host/src/plugin/index.ts"],
       "@codemation/host/next/server": ["packages/host/src/nextServer.ts"],
       "@codemation/host/server": ["packages/host/src/server.ts"],
       "@codemation/host/persistence": ["packages/host/src/persistenceServer.ts"],

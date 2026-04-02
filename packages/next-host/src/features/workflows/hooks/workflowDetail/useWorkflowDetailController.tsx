@@ -19,6 +19,7 @@ import {
   type WorkflowDevBuildState,
   type WorkflowDto,
 } from "../realtime/realtime";
+import { useWorkflowRealtimeShowConnectedBanner } from "../realtime/useWorkflowRealtimeShowConnectedBanner";
 import { useWorkflowRealtimeShowDisconnectedBadge } from "../realtime/useWorkflowRealtimeShowDisconnectedBadge";
 import { WorkflowDetailPresenter, type RunWorkflowRequest } from "../../lib/workflowDetail/WorkflowDetailPresenter";
 import {
@@ -49,6 +50,7 @@ export type WorkflowDetailControllerResult = Readonly<{
   isRunning: boolean;
   workflowDevBuildState: WorkflowDevBuildState;
   showRealtimeDisconnectedBadge: boolean;
+  showRealtimeConnectedBanner: boolean;
   canCopySelectedRunToLive: boolean;
   /** Nodes on the canvas that have a required credential slot with status unbound. */
   credentialAttentionNodeIds: ReadonlySet<string>;
@@ -123,6 +125,7 @@ export function useWorkflowDetailController(
   const debuggerOverlayQuery = useWorkflowDebuggerOverlayQuery(workflowId);
   const workflowDevBuildStateQuery = useWorkflowDevBuildStateQuery(workflowId);
   const showRealtimeDisconnectedBadge = useWorkflowRealtimeShowDisconnectedBadge();
+  const showRealtimeConnectedBanner = useWorkflowRealtimeShowConnectedBanner();
   useWorkflowRealtimeSubscription(workflowId);
 
   const workflowActivationErrorFormat = useMemo(() => new WorkflowActivationHttpErrorFormat(), []);
@@ -1176,6 +1179,7 @@ export function useWorkflowDetailController(
     isRunning,
     workflowDevBuildState,
     showRealtimeDisconnectedBadge,
+    showRealtimeConnectedBanner,
     canCopySelectedRunToLive: viewContext === "historical-run" && Boolean(selectedRun),
     credentialAttentionNodeIds: credentialAttention.attentionNodeIds,
     credentialAttentionSummaryLines: credentialAttention.summaryLines,

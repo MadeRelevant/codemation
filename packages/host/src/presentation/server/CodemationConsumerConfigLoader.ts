@@ -23,6 +23,7 @@ export type CodemationConsumerConfigResolution = Readonly<{
 
 export class CodemationConsumerConfigLoader {
   private static readonly importerRegistrationsByTsconfig = new Map<string, NamespacedUnregister>();
+  private static readonly importerNamespaceVersionsByTsconfig = new Map<string, number>();
   private readonly configExportsResolver = new CodemationConsumerConfigExportsResolver();
   private readonly configNormalizer = new CodemationConfigNormalizer();
   private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
@@ -53,7 +54,9 @@ export class CodemationConsumerConfigLoader {
         'Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".',
       );
     }
-    const moduleExports = await this.importModule(bootstrapSource);
+    const moduleExports = await this.importModule(bootstrapSource, {
+      forceFresh: args.configPathOverride !== undefined,
+    });
     phaseMs("importConfigModule");
     const rawConfig = this.configExportsResolver.resolveConfig(moduleExports);
     if (!rawConfig) {
@@ -168,12 +171,18 @@ export class CodemationConsumerConfigLoader {
     return [...workflowsById.values()];
   }
 
-  private async importModule(modulePath: string): Promise<Record<string, unknown>> {
+  private async importModule(
+    modulePath: string,
+    options?: Readonly<{ forceFresh?: boolean }>,
+  ): Promise<Record<string, unknown>> {
     if (this.shouldUseNativeRuntimeImport()) {
-      return await this.importModuleWithNativeRuntime(modulePath);
+      return await this.importModuleWithNativeRuntime(modulePath, options);
     }
     const tsconfigPath = await this.resolveTsconfigPath(modulePath);
-    const importSpecifier = await this.createImportSpecifier(modulePath);
+    if (options?.forceFresh === true) {
+      await this.resetImporter(tsconfigPath);
+    }
+    const importSpecifier = await this.createImportSpecifier(modulePath, options);
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         const importedModule = await this.getOrCreateImporter(tsconfigPath).import(importSpecifier, import.meta.url);
@@ -188,8 +197,11 @@ export class CodemationConsumerConfigLoader {
     throw new Error(`Failed to import consumer module after retries: ${modulePath}`);
   }
 
-  private async importModuleWithNativeRuntime(modulePath: string): Promise<Record<string, unknown>> {
-    const importedModule = await import(await this.createImportSpecifier(modulePath));
+  private async importModuleWithNativeRuntime(
+    modulePath: string,
+    options?: Readonly<{ forceFresh?: boolean }>,
+  ): Promise<Record<string, unknown>> {
+    const importedModule = await import(await this.createImportSpecifier(modulePath, options));
     return importedModule as Record<string, unknown>;
   }
 
@@ -208,8 +220,11 @@ export class CodemationConsumerConfigLoader {
     if (existingImporter) {
       return existingImporter;
     }
+    const nextNamespaceVersion =
+      (CodemationConsumerConfigLoader.importerNamespaceVersionsByTsconfig.get(cacheKey) ?? 0) + 1;
+    CodemationConsumerConfigLoader.importerNamespaceVersionsByTsconfig.set(cacheKey, nextNamespaceVersion);
     const nextImporter = register({
-      namespace: this.toNamespace(cacheKey),
+      namespace: this.toNamespace(cacheKey, nextNamespaceVersion),
       tsconfig: tsconfigPath,
     });
     CodemationConsumerConfigLoader.importerRegistrationsByTsconfig.set(cacheKey, nextImporter);
@@ -226,8 +241,8 @@ export class CodemationConsumerConfigLoader {
     await existingImporter.unregister().catch(() => null);
   }
 
-  private toNamespace(cacheKey: string): string {
-    return `codemation_consumer_${cacheKey.replace(/[^a-zA-Z0-9_-]+/g, "_")}`;
+  private toNamespace(cacheKey: string, version: number): string {
+    return `codemation_consumer_${cacheKey.replace(/[^a-zA-Z0-9_-]+/g, "_")}_${version}`;
   }
 
   private async findNearestTsconfig(modulePath: string): Promise<string | null> {
@@ -245,10 +260,13 @@ export class CodemationConsumerConfigLoader {
     }
   }
 
-  private async createImportSpecifier(modulePath: string): Promise<string> {
+  private async createImportSpecifier(
+    modulePath: string,
+    options?: Readonly<{ forceFresh?: boolean }>,
+  ): Promise<string> {
     const moduleUrl = pathToFileURL(modulePath);
-    const moduleStats = await stat(modulePath);
-    moduleUrl.searchParams.set("t", String(moduleStats.mtimeMs));
+    const cacheBustValue = options?.forceFresh === true ? String(Date.now()) : String((await stat(modulePath)).mtimeMs);
+    moduleUrl.searchParams.set("t", cacheBustValue);
     return moduleUrl.href;
   }
 

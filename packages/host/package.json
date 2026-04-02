@@ -44,6 +44,13 @@
       },
       "import": "./dist/consumer.js"
     },
+    "./plugin": {
+      "types": "./dist/plugin/index.d.ts",
+      "development": {
+        "import": "./src/plugin/index.ts"
+      },
+      "import": "./dist/plugin/index.js"
+    },
     "./next/server": {
       "types": "./dist/nextServer.d.ts",
       "development": {
@@ -75,8 +82,8 @@
   },
   "scripts": {
     "prisma:generate": "prisma generate && node ./scripts/ensure-prisma-runtime-sourcemaps.mjs",
-    "build": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap",
-    "dev": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap --watch",
+    "build": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/plugin/index.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap",
+    "dev": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/plugin/index.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "pnpm -w exec concurrently -m 5 -c auto -n unit,integration,ui,browser,e2e \"pnpm run test:unit\" \"pnpm run test:integration\" \"pnpm run test:ui\" \"pnpm run test:browser\" \"pnpm run test:e2e\"",

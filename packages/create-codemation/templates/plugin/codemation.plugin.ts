@@ -1,5 +1,5 @@
 import { createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
-import { definePlugin, SandboxFactory } from "@codemation/host";
+import { definePlugin, SandboxFactory } from "@codemation/host/plugin";
 import { exampleApiKeyCredentialType } from "./src/credentialTypes/ExampleApiKeyCredentialType";
 import { ExamplePluginHttpDemo } from "./src/nodes/ExamplePluginHttpDemo";
 import { ExamplePluginHttpDemoNode } from "./src/nodes/ExamplePluginHttpDemoNode";

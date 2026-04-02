@@ -73,6 +73,59 @@ test("ensureBuilt writes build output, manifest path, and entry index", async ()
   assert.ok(snapshot.manifestPath.endsWith("current.json"), "snapshot points at manifest path for CLI publish step");
 });
 
+test("ensureBuilt emits a config override from .codemation so the generated entry can import it", async () => {
+  const consumerRoot = await mkdtemp(path.join(os.tmpdir(), "codemation-cli-plugin-dev-"));
+  teardownConsumerRoot = consumerRoot;
+  const pluginEntryPath = path.join(consumerRoot, "codemation.plugin.ts");
+  const syntheticConfigPath = path.join(consumerRoot, ".codemation", "plugin-dev", "codemation.config.ts");
+  await mkdir(path.dirname(syntheticConfigPath), { recursive: true });
+  await writeFile(
+    pluginEntryPath,
+    [
+      "const plugin = {",
+      "  sandbox: { workflows: [] },",
+      "  register() {},",
+      "};",
+      "",
+      "export default plugin;",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  await writeFile(
+    syntheticConfigPath,
+    [
+      'import type { CodemationConfig } from "@codemation/host";',
+      'import plugin from "../../codemation.plugin.ts";',
+      "",
+      "const sandbox = plugin.sandbox ?? {};",
+      "const config: CodemationConfig = {",
+      "  ...sandbox,",
+      "  plugins: [...(sandbox.plugins ?? []), plugin],",
+      "};",
+      "",
+      "export default config;",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  const builder = new ConsumerOutputBuilder(consumerRoot, undefined, undefined, syntheticConfigPath);
+  const snapshot = await builder.ensureBuilt();
+
+  const entryText = await readFile(snapshot.outputEntryPath, "utf8");
+  assert.match(entryText, /\.\/app\/\.codemation\/plugin-dev\/codemation\.config\.js/);
+  const emittedConfigPath = path.join(
+    snapshot.emitOutputRoot,
+    "app",
+    ".codemation",
+    "plugin-dev",
+    "codemation.config.js",
+  );
+  const emittedConfigText = await readFile(emittedConfigPath, "utf8");
+  assert.match(emittedConfigText, /\.\.\/\.\.\/codemation\.plugin\.js/);
+});
+
 test("watch rebuild updates workflow output after a single file change (incremental path)", async () => {
   const consumerRoot = await mkdtemp(path.join(os.tmpdir(), "codemation-cli-consumer-"));
   teardownConsumerRoot = consumerRoot;

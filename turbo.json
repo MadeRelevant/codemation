@@ -1,6 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "concurrency": "12",
+  "globalPassThroughEnv": ["PORT", "AUTH_SECRET", "CODEMATION_DEV_GATEWAY_HTTP_PORT", "CODEMATION_LOG_LEVEL"],
   "tasks": {
     "dev": {
       "cache": false,

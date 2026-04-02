@@ -1,4 +1,4 @@
-import { definePlugin, SandboxFactory } from "@codemation/host";
+import { definePlugin, SandboxFactory } from "@codemation/host/plugin";
 import { GmailNodes } from "./src/plugin/GmailNodesRegistry";
 
 const sandbox = SandboxFactory.create({

@@ -342,7 +342,8 @@ export class AppContainerFactory {
     container.register(ApplicationTokens.SessionVerifier, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         const appConfig = dependencyContainer.resolve<AppConfig>(ApplicationTokens.AppConfig);
-        const isProduction = appConfig.env.NODE_ENV === "production";
+        const isRuntimeDevProxy = Boolean(appConfig.env.CODEMATION_RUNTIME_DEV_URL?.trim());
+        const isProduction = appConfig.env.NODE_ENV === "production" && !isRuntimeDevProxy;
         const authConfig = appConfig.auth;
         if (isProduction && !authConfig) {
           throw new Error("CodemationConfig.auth is required when NODE_ENV is production.");

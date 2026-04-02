@@ -1,5 +1,5 @@
 import type { Container, CredentialType } from "@codemation/core";
-import type { CodemationPluginContext } from "@codemation/host";
+import type { CodemationPluginContext } from "@codemation/host/plugin";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";

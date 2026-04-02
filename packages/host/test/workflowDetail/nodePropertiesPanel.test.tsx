@@ -45,4 +45,27 @@ describe("workflow detail node properties panel", () => {
     });
     expect(targetCard).toHaveAttribute("data-codemation-properties-target", "false");
   });
+
+  it("shows the workflow rebuild indicator and spinner above the open properties panel", async () => {
+    kit = WorkflowDetailScreenTestKit.create().install();
+    kit.render();
+
+    await kit.waitForSocketConnection();
+    await kit.waitForWorkflowSubscription();
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.subscribed());
+
+    const selectedNodeName = await screen.findByTestId("selected-node-name");
+    const initialInspectorName = selectedNodeName.textContent ?? "";
+    const targetNodeId = initialInspectorName.includes("Node 2") ? "agent" : "node_2";
+
+    fireEvent.click(await screen.findByTestId(`canvas-node-card-${targetNodeId}`));
+    await screen.findByTestId("node-properties-panel");
+
+    kit.emitJson(WorkflowDetailRealtimeFixtureFactory.devBuildStarted());
+    await waitFor(() => {
+      expect(screen.getByTestId("workflow-dev-build-started-indicator")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("workflow-dev-build-reload-spinner")).toBeInTheDocument();
+    expect(screen.getByTestId("workflow-dev-build-started-indicator")).toHaveTextContent("Rebuilding workflow...");
+  });
 });

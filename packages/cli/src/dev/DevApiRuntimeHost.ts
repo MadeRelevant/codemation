@@ -2,13 +2,11 @@ import type { CodemationPlugin } from "@codemation/host";
 import {
   AppContainerFactory,
   AppContainerLifecycle,
-  CodemationPluginListMerger,
-  FrontendRuntime,
-} from "@codemation/host/next/server";
-import {
   AppConfigLoader,
   CodemationPluginDiscovery,
+  CodemationPluginListMerger,
   CodemationTsyringeTypeInfoRegistrar,
+  FrontendRuntime,
   type CodemationResolvedPluginPackage,
 } from "@codemation/host/server";
 import { access } from "node:fs/promises";

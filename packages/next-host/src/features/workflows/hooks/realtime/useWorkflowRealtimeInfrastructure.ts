@@ -9,6 +9,7 @@ import {
   getRealtimeBridge,
   minimumRealtimeActiveVisibilityMs,
   persistentRealtimeDisconnectWarningDelayMs,
+  realtimeReconnectSuccessBannerMs,
   RealtimeReadyState,
   type RealtimeClientMessage,
   type RealtimeReadyValue,
@@ -21,6 +22,7 @@ import {
   workflowsQueryKey,
 } from "../../lib/realtime/realtimeQueryKeys";
 import type { PersistedRunState, WorkflowDevBuildState } from "../../lib/realtime/realtimeDomainTypes";
+import { RealtimeDisconnectBadgeVisibilityPolicy } from "../../lib/realtime/RealtimeDisconnectBadgeVisibilityPolicy";
 
 export function useWorkflowRealtimeInfrastructure(
   args: Readonly<{ logger: Logger; websocketPort?: string }>,
@@ -39,6 +41,10 @@ export function useWorkflowRealtimeInfrastructure(
   const hasLoggedUnavailableTransportRef = useRef(false);
   const pendingDisconnectReasonRef = useRef<string | null>(null);
   const [readyState, setReadyState] = useState<RealtimeReadyValue>(RealtimeReadyState.UNINSTANTIATED);
+  const [hasEverBeenOpen, setHasEverBeenOpen] = useState(false);
+  const hasEverBeenOpenRef = useRef(false);
+  const [showConnectedBanner, setShowConnectedBanner] = useState(false);
+  const connectedBannerTimeoutRef = useRef<number | null>(null);
   const sendJsonMessageRef = useRef<(message: RealtimeClientMessage) => boolean>(() => false);
   const [, setActiveWorkflowIds] = useState<ReadonlyArray<string>>([]);
   const websocketUrl = useMemo(() => {
@@ -58,6 +64,7 @@ export function useWorkflowRealtimeInfrastructure(
   const shouldConnect = Boolean(websocketUrl);
 
   readyStateRef.current = readyState;
+
   const clearPendingDisconnectWarning = useCallback((): void => {
     if (disconnectWarningTimeoutRef.current === null) {
       return;
@@ -65,6 +72,28 @@ export function useWorkflowRealtimeInfrastructure(
     window.clearTimeout(disconnectWarningTimeoutRef.current);
     disconnectWarningTimeoutRef.current = null;
   }, []);
+  const clearConnectedBannerTimeout = useCallback((): void => {
+    if (connectedBannerTimeoutRef.current === null) {
+      return;
+    }
+    window.clearTimeout(connectedBannerTimeoutRef.current);
+    connectedBannerTimeoutRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (readyState === RealtimeReadyState.OPEN) {
+      return;
+    }
+    clearConnectedBannerTimeout();
+    setShowConnectedBanner(false);
+  }, [clearConnectedBannerTimeout, readyState]);
+
+  useEffect(() => {
+    return () => {
+      clearConnectedBannerTimeout();
+    };
+  }, [clearConnectedBannerTimeout]);
+
   const schedulePersistentDisconnectWarning = useCallback(
     (reason: string): void => {
       pendingDisconnectReasonRef.current = reason;
@@ -304,11 +333,22 @@ export function useWorkflowRealtimeInfrastructure(
         if (disposed || socketRef.current !== socket) {
           return;
         }
+        const wasReconnect = hasEverBeenOpenRef.current;
+        hasEverBeenOpenRef.current = true;
         hasOpenedConnectionRef.current = true;
         hasLoggedUnavailableTransportRef.current = false;
         pendingDisconnectReasonRef.current = null;
         clearPendingDisconnectWarning();
+        setHasEverBeenOpen(true);
         setReadyState(RealtimeReadyState.OPEN);
+        if (wasReconnect) {
+          clearConnectedBannerTimeout();
+          setShowConnectedBanner(true);
+          connectedBannerTimeoutRef.current = window.setTimeout(() => {
+            connectedBannerTimeoutRef.current = null;
+            setShowConnectedBanner(false);
+          }, realtimeReconnectSuccessBannerMs);
+        }
         logger.info(`websocket transport opened to ${websocketUrl}`);
         const queuedMessages = pendingOutgoingMessagesRef.current.splice(0, pendingOutgoingMessagesRef.current.length);
         for (const queuedMessage of queuedMessages) {
@@ -388,7 +428,14 @@ export function useWorkflowRealtimeInfrastructure(
         socketRef.current = null;
       }
     };
-  }, [clearPendingDisconnectWarning, logger, schedulePersistentDisconnectWarning, shouldConnect, websocketUrl]);
+  }, [
+    clearConnectedBannerTimeout,
+    clearPendingDisconnectWarning,
+    logger,
+    schedulePersistentDisconnectWarning,
+    shouldConnect,
+    websocketUrl,
+  ]);
 
   useEffect(() => {
     if (!shouldConnect || !devGatewayWebsocketUrl) {
@@ -516,9 +563,14 @@ export function useWorkflowRealtimeInfrastructure(
     () => ({
       retainWorkflowSubscription,
       isConnected: readyState === RealtimeReadyState.OPEN,
-      showDisconnectedBadge: readyState === RealtimeReadyState.CLOSED,
+      showDisconnectedBadge: RealtimeDisconnectBadgeVisibilityPolicy.shouldShow({
+        hasEverBeenOpen,
+        shouldConnect,
+        readyState,
+      }),
+      showRealtimeConnectedBanner: showConnectedBanner,
     }),
-    [readyState, retainWorkflowSubscription],
+    [hasEverBeenOpen, readyState, retainWorkflowSubscription, shouldConnect, showConnectedBanner],
   );
 
   useEffect(() => {
