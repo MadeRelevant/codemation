@@ -107,14 +107,21 @@ export class CodemationPlaywrightUiHarness {
   }
 
   /**
-   * Clicks a canvas node card by index (0-based DOM order). Needed so the execution inspector mounts
-   * the tree panel (`workflow-execution-tree-panel`) when nothing is auto-selected after a run.
+   * Clicks a canvas node card by index (0-based DOM order) and returns that node's id. Needed so the
+   * execution inspector mounts when nothing is auto-selected after a run.
    */
-  async selectCanvasNodeByCardIndex(index: number, options?: Readonly<{ timeoutMs?: number }>): Promise<void> {
+  async selectCanvasNodeByCardIndex(index: number, options?: Readonly<{ timeoutMs?: number }>): Promise<string> {
     const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasNodeCompletionTimeoutMs;
     const cards = this.page.locator('[data-testid^="canvas-node-card-"]');
-    await expect(cards.nth(index)).toBeVisible({ timeout: timeoutMs });
-    await cards.nth(index).click();
+    const card = cards.nth(index);
+    await expect(card).toBeVisible({ timeout: timeoutMs });
+    const testId = await card.getAttribute("data-testid");
+    const nodeId = testId?.replace(/^canvas-node-card-/, "") ?? "";
+    if (!nodeId) {
+      throw new Error(`Missing canvas node id for card index ${String(index)} (testid=${testId ?? "null"})`);
+    }
+    await card.click();
+    return nodeId;
   }
 
   async expectWorkflowTitle(name: string, options?: Readonly<{ timeoutMs?: number }>): Promise<void> {

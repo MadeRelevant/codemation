@@ -1,5 +1,5 @@
 import { writeFile } from "node:fs/promises";
-import { expect, test } from "@playwright/test";
+import { test } from "@playwright/test";
 
 import { CodemationPlaywrightHarness } from "../../playwright/harness/CodemationPlaywrightHarness";
 import { CodemationPlaywrightUiHarness } from "../../playwright/harness/CodemationPlaywrightUiHarness";
@@ -17,15 +17,12 @@ type ScaffoldedDevScenario = Readonly<{
   name: string;
   commandName: ScaffoldedDevCommandName;
   contract: ScaffoldedCreateCodemationProjectContract;
-  executionSummaryPattern: RegExp;
 }>;
 
 const scenarios: ReadonlyArray<ScaffoldedDevScenario> = [
   {
     name: "scaffolded app `pnpm dev` opens, runs, and hot-reloads in browser",
     commandName: "dev",
-    // Node title and duration are not always adjacent (status/icon may appear between).
-    executionSummaryPattern: /Hello[\s\S]*Took/i,
     contract: {
       templateId: "default",
       workflowId: "wf.starter.hello",
@@ -39,7 +36,6 @@ const scenarios: ReadonlyArray<ScaffoldedDevScenario> = [
   {
     name: "scaffolded plugin `pnpm dev:plugin` opens, runs, and hot-reloads in browser",
     commandName: "dev:plugin",
-    executionSummaryPattern: /Uppercase message[\s\S]*Took/i,
     contract: {
       templateId: "plugin",
       workflowId: "wf.plugin.hello",
@@ -84,11 +80,11 @@ for (const scenario of scenarios) {
       await ui.waitForCanvasRunWorkflowButton();
       await ui.clickCanvasRunWorkflowButton();
       await ui.openExecutionsTab();
-      // Inspector shows "Select a node…" until a canvas node is selected; tree panel mounts after selection.
-      await ui.selectCanvasNodeByCardIndex(1);
-      // Cold CI + first-time scaffolded dev can exceed 120s before the run finishes and the tree shows "Took …".
-      await expect(page.getByTestId("workflow-execution-tree-panel")).toContainText(scenario.executionSummaryPattern, {
-        timeout: 300_000,
+      // Inspector needs a selected node; index 1 is the first non-trigger step (map / plugin node).
+      const mapNodeId = await ui.selectCanvasNodeByCardIndex(1);
+      await ui.expectCanvasNodeCompleted(mapNodeId, {
+        visibleTimeoutMs: 120_000,
+        statusTimeoutMs: 300_000,
       });
 
       const hotReloadStartedAt = performance.now();
