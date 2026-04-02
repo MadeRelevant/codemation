@@ -83,9 +83,9 @@ for (const scenario of scenarios) {
       await ui.waitForCanvasRunWorkflowButton();
       await ui.clickCanvasRunWorkflowButton();
       await ui.openExecutionsTab();
-      await ui.expectLatestRunCompleted({ timeoutMs: 120_000 });
+      // Cold CI + first-time scaffolded dev can exceed 120s before the run finishes and the tree shows "Took …".
       await expect(page.getByTestId("workflow-execution-tree-panel")).toContainText(scenario.executionSummaryPattern, {
-        timeout: 120_000,
+        timeout: 300_000,
       });
 
       const hotReloadStartedAt = performance.now();
