@@ -8,9 +8,9 @@ This template scaffolds a plugin package around `codemation.plugin.ts`.
 
 What you get:
 
-- `codemation.plugin.ts` with `definePlugin(...)`
-- a sample credential type in `src/credentialTypes`
-- a sample custom node in `src/nodes`
-- a sandbox workflow that exercises the custom node immediately
+- `codemation.plugin.ts` with `definePlugin(...)` and a sandbox app via `defineCodemationApp(...)`
+- a sample credential type in `src/credentialTypes` built with `defineCredential(...)`
+- a sample custom node in `src/nodes` built with `defineNode(...)`
+- a sandbox workflow that exercises the custom node immediately with `workflow("...")`
 
 When you are ready to publish, run `pnpm build` and publish the package like any other npm package. Installing the package in a Codemation app is enough for auto-discovery in the common case.

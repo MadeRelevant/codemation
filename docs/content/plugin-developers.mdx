@@ -18,85 +18,41 @@ Use it when you want to:
 
 A practical plugin package often includes:
 
-- one or more config classes
-- one or more runtime node classes
+- one or more helper-defined or class-defined nodes
 - optional credential types
-- exports that make registration straightforward for consumers
+- a plugin export created with `definePlugin(...)`
 
 Typical structure:
 
 ```text
 packages/node-my-feature/
   src/
-    MyNodeConfig.ts
-    MyNode.ts
+    lookupCustomerNode.ts
     credentials/
       myCredentialType.ts
+    codemation.plugin.ts
     index.ts
 ```
 
 Keep the package focused. A plugin should group related capabilities, not every unrelated node you happen to own.
 
-## Step 1: Author a normal runnable node
+## Step 1: Author a reusable node
 
-Start with a normal node first.
-
-Config class:
+Start with a reusable node first. The shortest path is `defineNode(...)`.
 
 ```ts
-import type { RunnableNodeConfig, TypeToken } from "@codemation/core";
+import { defineNode } from "@codemation/core";
 
-import { LookupCustomerNode } from "./LookupCustomerNode";
-
-export class LookupCustomerNodeConfig implements RunnableNodeConfig<
-  { customerId: string },
-  { customerName: string; accountTier: string }
-> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = LookupCustomerNode;
-
-  constructor(
-    public readonly name: string,
-    public readonly id?: string,
-  ) {}
-}
-```
-
-Runtime class:
-
-```ts
-import type { Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
-import { inject, node } from "@codemation/core";
-
-import { CustomerDirectory } from "./CustomerDirectory";
-import type { LookupCustomerNodeConfig } from "./LookupCustomerNodeConfig";
-
-@node({ packageName: "@acme/node-customer" })
-export class LookupCustomerNode implements Node<LookupCustomerNodeConfig> {
-  readonly kind = "node" as const;
-  readonly outputPorts = ["main"] as const;
-
-  constructor(
-    @inject(CustomerDirectory)
-    private readonly customerDirectory: CustomerDirectory,
-  ) {}
-
-  async execute(items: Items, _ctx: NodeExecutionContext<LookupCustomerNodeConfig>): Promise<NodeOutputs> {
-    return {
-      main: await Promise.all(
-        items.map(async (item) => {
-          const customer = await this.customerDirectory.lookup(String(item.json.customerId ?? ""));
-          return {
-            json: {
-              customerName: customer.name,
-              accountTier: customer.tier,
-            },
-          };
-        }),
-      ),
-    };
-  }
-}
+export const lookupCustomerNode = defineNode({
+  key: "acme.lookupCustomer",
+  title: "Lookup customer",
+  run(items) {
+    return items.map((item) => ({
+      customerName: `Customer ${item.customerId}`,
+      accountTier: "gold",
+    }));
+  },
+});
 ```
 
 This is the right first step because the node can now be:
@@ -113,7 +69,7 @@ If the node is useful to an `AIAgent`, expose it with `AgentToolFactory.asTool(.
 import { AgentToolFactory } from "@codemation/core";
 import { z } from "zod";
 
-const lookupCustomerTool = AgentToolFactory.asTool(new LookupCustomerNodeConfig("Lookup customer"), {
+const lookupCustomerTool = AgentToolFactory.asTool(lookupCustomerNode.create({}, "Lookup customer"), {
   name: "lookup_customer",
   description: "Look up a customer record by id.",
   inputSchema: z.object({
@@ -184,34 +140,27 @@ This is usually better than duplicating credential declarations in a separate to
 
 A good plugin package exports:
 
-- the config class
-- the runtime node class
-- any helper factory or preset consumers should instantiate directly
+- the helper-defined node or class pair
 - any credential types that belong with the node
+- the default plugin export
 
 Example barrel:
 
 ```ts
-export { LookupCustomerNodeConfig } from "./LookupCustomerNodeConfig";
-export { LookupCustomerNode } from "./LookupCustomerNode";
+export { lookupCustomerNode } from "./lookupCustomerNode";
 export { customerApiCredentialType } from "./credentials/customerApiCredentialType";
-```
-
-If the package exposes AI-ready helpers, export those too:
-
-```ts
-export { lookupCustomerTool } from "./lookupCustomerTool";
+export { default as codemationPlugin } from "./codemation.plugin";
 ```
 
 ## Registration guidance
 
 Keep registration simple for consumers:
 
-- exported classes should be directly importable
-- runtime classes should use the normal decorators such as `@node(...)`
-- package names in decorators should match the published package identity
+- export a `definePlugin(...)` result as the package's Codemation entrypoint
+- keep helper nodes and credentials in the plugin's `nodes` / `credentials` arrays
+- drop down to class-based nodes only when you need DI-heavy collaborators or finer runtime metadata control
 
-If your node needs collaborators, inject them through the constructor and keep the config class cheap and serializable.
+If your node needs collaborators, inject them through the constructor and keep the class-based config cheap and serializable.
 
 ## Stability advice
 

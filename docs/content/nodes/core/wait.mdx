@@ -14,7 +14,10 @@ description: Pause workflow progress for a fixed duration before continuing.
 ### Basic usage: delay a follow-up step by one minute
 
 ```ts
-new Wait("Give the customer time to reply", 60_000);
+workflow("wf.wait.reply")
+  .manualTrigger({ ticketId: "t_42", status: "pending_reply" })
+  .wait("Give the customer time to reply", "60s")
+  .build();
 ```
 
 Example input:
@@ -38,10 +41,10 @@ Example output:
 ### Advanced usage: create a short cooldown inside a retry-oriented flow
 
 ```ts
-createWorkflowBuilder({ id: "wf.retry.cooldown", name: "Retry cooldown" })
-  .trigger(new ManualTrigger("Start", [{ json: { attempt: 1, url: "https://api.example.test" } }]))
-  .then(new HttpRequest("Call external API"))
-  .then(new Wait("Cooldown before next decision", 5_000))
+workflow("wf.retry.cooldown")
+  .name("Retry cooldown")
+  .manualTrigger("Start", { attempt: 1, url: "https://api.example.test" })
+  .wait("Cooldown before next decision", "5s")
   .build();
 ```
 
@@ -59,17 +62,6 @@ Example output:
 ```json
 {
   "attempt": 1,
-  "url": "https://api.example.test",
-  "http": {
-    "url": "https://api.example.test",
-    "method": "GET",
-    "ok": true,
-    "status": 200,
-    "statusText": "OK",
-    "mimeType": "application/json",
-    "headers": {
-      "content-type": "application/json"
-    }
-  }
+  "url": "https://api.example.test"
 }
 ```

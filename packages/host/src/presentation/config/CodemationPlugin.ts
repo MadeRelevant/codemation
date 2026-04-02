@@ -11,6 +11,7 @@ export interface CodemationPluginContext extends CodemationRegistrationContextBa
 }
 
 export interface CodemationPluginConfig {
+  readonly pluginPackageId?: string;
   readonly credentialTypes?: ReadonlyArray<AnyCredentialType>;
   readonly register?: (context: CodemationPluginContext) => void | Promise<void>;
   readonly sandbox?: CodemationConfig;

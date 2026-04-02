@@ -1,9 +1,11 @@
 ---
 title: Create Custom Node
-description: Build a reusable Codemation node by pairing a config class with a node implementation.
+description: Build a reusable Codemation node with `defineNode(...)`, then drop to classes only when you need more control.
 ---
 
-This guide shows the standard Codemation pattern for turning workflow logic into a proper reusable node.
+# Create Custom Node
+
+This guide starts with the lightweight `defineNode(...)` helper, which is the fastest path for app-local or package-local nodes.
 
 ## Use this guide when
 
@@ -17,106 +19,53 @@ Prefer a custom node when:
 
 Imagine you want a node that uppercases a field called `subject`.
 
-The durable pattern is:
+The lightweight pattern is:
 
-1. create a config class used in workflow definitions
-2. create a node class that performs the runtime work
-3. register the node with the host
-4. use that config in workflows like any other node
+1. define the node once with `defineNode(...)`
+2. keep the runtime logic in the helper `run(...)`
+3. use the helper directly from a fluent workflow
 
-## Step 1: define the config class
-
-```ts
-import type { RunnableNodeConfig, TypeToken } from "@codemation/core";
-
-export class ExampleUppercase<
-  TInputJson extends Record<string, unknown> = Record<string, unknown>,
-  TField extends keyof TInputJson & string = keyof TInputJson & string,
-> implements RunnableNodeConfig<TInputJson, TInputJson> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = ExampleUppercaseNode;
-
-  constructor(
-    public readonly name: string,
-    public readonly cfg: { field: TField },
-    public readonly id?: string,
-  ) {}
-}
-```
-
-## Step 2: implement the runtime node
+## Step 1: define the node
 
 ```ts
-import type { Item, Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
-import { node } from "@codemation/core";
+import { defineNode } from "@codemation/core";
 
-@node({ packageName: "@codemation/node-example" })
-export class ExampleUppercaseNode implements Node<ExampleUppercase<Record<string, unknown>, string>> {
-  readonly kind = "node" as const;
-  readonly outputPorts = ["main"] as const;
-
-  async execute(
-    items: Items,
-    ctx: NodeExecutionContext<ExampleUppercase<Record<string, unknown>, string>>,
-  ): Promise<NodeOutputs> {
-    const out: Item[] = [];
-
-    for (const item of items) {
-      const json = typeof item.json === "object" && item.json !== null ? (item.json as Record<string, unknown>) : {};
-      const value = String(json[ctx.config.cfg.field] ?? "");
-      out.push({
-        ...item,
-        json: {
-          ...json,
-          [ctx.config.cfg.field]: value.toUpperCase(),
-        },
-      });
-    }
-
-    return { main: out };
-  }
-}
-```
-
-## Step 3: register the node
-
-Defining the config class is not enough by itself. The runtime still needs the node implementation class registered in the host container.
-
-For an app-local node, do that in `codemation.config.ts`:
-
-```ts
-import type { CodemationAppContext, CodemationConfig } from "@codemation/host";
-
-export default {
-  register(app: CodemationAppContext) {
-    app.registerNode(ExampleUppercaseNode);
-    app.discoverWorkflows("src/workflows");
+export const uppercaseNode = defineNode({
+  key: "example.uppercase",
+  title: "Uppercase field",
+  input: {
+    field: "string",
   },
-} satisfies CodemationConfig;
-```
-
-If the node lives in a plugin package, register it from the plugin instead:
-
-```ts
-import { definePlugin } from "@codemation/host";
-
-export default definePlugin({
-  register(context) {
-    context.registerNode(ExampleUppercaseNode);
+  run(items, { config }) {
+    return items.map((item) => ({
+      ...item,
+      [config.field]: String(item[config.field as keyof typeof item] ?? "").toUpperCase(),
+    }));
   },
 });
 ```
 
-## Step 4: use the node in a workflow
+## Step 2: use the node in a workflow
 
 ```ts
-import { createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
 
-export default createWorkflowBuilder({ id: "wf.uppercase.subject", name: "Uppercase subject" })
-  .trigger(new ManualTrigger("Start", [{ json: { subject: "hello" } }]))
-  .then(new ExampleUppercase("Uppercase subject", { field: "subject" }))
+export default workflow("wf.uppercase.subject")
+  .name("Uppercase subject")
+  .manualTrigger({ subject: "hello" })
+  .node(uppercaseNode, { field: "subject" })
   .build();
 ```
+
+## When to drop down to classes
+
+Reach for the lower-level `RunnableNodeConfig<TIn, TOut>` + `Node<TConfig>` pattern when you need:
+
+- constructor-injected collaborators
+- decorators and persisted runtime metadata
+- more explicit packaging boundaries for published plugins
+
+The class-based pattern is still fully supported. `defineNode(...)` is simply the better place to start.
 
 ## Why this pattern pays off
 

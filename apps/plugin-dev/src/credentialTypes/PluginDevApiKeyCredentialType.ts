@@ -1,35 +1,21 @@
-import type { CredentialType } from "@codemation/core";
+import { defineCredential } from "@codemation/core";
 
-type PluginDevApiKeyPublicConfig = Readonly<Record<string, never>>;
-
-type PluginDevApiKeyMaterial = Readonly<{
-  apiKey?: string;
-}>;
-
-type PluginDevApiKeySession = Readonly<{
-  apiKey: string;
-}>;
-
-export const pluginDevApiKeyCredentialType: CredentialType<
-  PluginDevApiKeyPublicConfig,
-  PluginDevApiKeyMaterial,
-  PluginDevApiKeySession
-> = {
-  definition: {
-    typeId: "plugin-dev.api-key",
-    displayName: "Plugin dev API key",
-    description: "Minimal credential used by the in-repo plugin development sandbox.",
-    secretFields: [{ key: "apiKey", label: "API key", type: "password", required: true }],
-    supportedSourceKinds: ["db", "env", "code"],
+export const pluginDevApiKeyCredentialType = defineCredential({
+  key: "plugin-dev.api-key",
+  label: "Plugin dev API key",
+  description: "Minimal credential used by the in-repo plugin development sandbox.",
+  public: {},
+  secret: {
+    apiKey: "password",
   },
-  createSession: async (args) => {
+  async createSession(args) {
     const apiKey = String(args.material.apiKey ?? "");
     if (apiKey.length === 0) {
       throw new Error("Plugin dev API key material is incomplete.");
     }
     return { apiKey };
   },
-  test: async (args) => {
+  async test(args) {
     const apiKey = String(args.material.apiKey ?? "");
     return {
       status: apiKey.length > 0 ? "healthy" : "failing",
@@ -37,4 +23,4 @@ export const pluginDevApiKeyCredentialType: CredentialType<
       testedAt: new Date().toISOString(),
     };
   },
-};
+});

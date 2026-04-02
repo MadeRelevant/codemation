@@ -8,6 +8,12 @@
 
 **Codemation** is a code-first automation framework for shipping AI and agentic workflows in TypeScript—triggers, run lifecycle, live progress, credentials, and a host you can run in dev and production.
 
+The beginner path now leads with:
+
+- `defineCodemationApp(...)` for app setup
+- `workflow("...")` for fluent workflow authoring
+- `defineNode(...)` and `defineCredential(...)` for simple custom extensions
+
 ---
 
 ## Getting started

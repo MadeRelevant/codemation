@@ -1,7 +1,9 @@
 import type { Items, Node, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken } from "@codemation/core";
-import { Callback, If, ManualTrigger, MapData, Wait, createWorkflowBuilder } from "@codemation/core-nodes";
+import { defineNode } from "@codemation/core";
+import { Callback, If, ManualTrigger, MapData, Wait, createWorkflowBuilder, workflow } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
+import { z } from "zod";
 
 type AssertTrue<T extends true> = T;
 type IsExact<TLeft, TRight> = [TLeft] extends [TRight] ? ([TRight] extends [TLeft] ? true : false) : false;
@@ -89,4 +91,66 @@ test("custom workflow nodes must declare the current item shape when inference i
   const typedChain = chain.then(new RequiresExplicitInputNode<EnrichedJson>("Typed input shape"));
 
   assert.equal(typedChain.build().id, "wf.custom.typing");
+});
+
+test("workflow helper preserves inference across map, if, wait, agent, and helper node usage", () => {
+  const helperNode = defineNode({
+    key: "workflowTyping.helperUppercase",
+    title: "Helper uppercase",
+    input: {
+      field: "string",
+    },
+    run(items, { config }) {
+      const _typedField: string = config.field;
+      type FieldIsString = AssertTrue<IsExact<typeof _typedField, string>>;
+      const fieldIsString: FieldIsString = true;
+      void fieldIsString;
+
+      return items.map((item) => ({
+        ...item,
+        [config.field]: String(item[config.field as keyof typeof item] ?? "").toUpperCase(),
+      }));
+    },
+  });
+
+  const built = workflow("wf.helper.typing")
+    .name("Workflow helper typing")
+    .manualTrigger({
+      subject: "hello",
+      count: 1,
+    })
+    .map("Enrich", (item) => {
+      const _typedSubject: string = item.subject;
+      type SubjectIsString = AssertTrue<IsExact<typeof _typedSubject, string>>;
+      const subjectIsString: SubjectIsString = true;
+      void subjectIsString;
+      return {
+        ...item,
+        upperSubject: item.subject.toUpperCase(),
+      };
+    })
+    .if("Has count", (item) => item.count > 0, {
+      true: (branch) =>
+        branch.wait("2s").map((item) => ({
+          ...item,
+          route: "sales" as const,
+        })),
+      false: (branch) =>
+        branch.wait("Skip", 0).map((item) => ({
+          ...item,
+          route: "sales" as const,
+        })),
+    })
+    .agent("Summarize", {
+      prompt: (item) => `${item.subject}:${item.route}`,
+      model: "openai:gpt-4o-mini",
+      outputSchema: z.object({
+        summary: z.string(),
+      }),
+    })
+    .node(helperNode, { field: "summary" })
+    .build();
+
+  assert.equal(built.id, "wf.helper.typing");
+  assert.equal(built.nodes.length, 10);
 });

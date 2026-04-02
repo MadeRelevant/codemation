@@ -10,6 +10,7 @@ export { FrontendRuntime } from "./bootstrap/runtime/FrontendRuntime";
 export { WorkerRuntime } from "./bootstrap/runtime/WorkerRuntime";
 export { AppConfigFactory } from "./bootstrap/runtime/AppConfigFactory";
 export { ApplicationTokens } from "./applicationTokens";
+export { workflow } from "@codemation/core-nodes";
 export { CodemationBootstrapRequest } from "./bootstrap/CodemationBootstrapRequest";
 export type { CodemationWhitelabelConfig } from "./presentation/config/CodemationWhitelabelConfig";
 export type { AppConfig, AppPluginLoadSummary } from "./presentation/config/AppConfig";
@@ -35,6 +36,13 @@ export type {
   CodemationSchedulerKind,
 } from "./presentation/config/CodemationConfig";
 export type {
+  DefineCodemationAppOptions,
+  DefinePluginOptions,
+  FriendlyCodemationDatabaseConfig,
+  FriendlyCodemationExecutionConfig,
+} from "./presentation/config/CodemationAuthoring.types";
+export { defineCodemationApp, definePlugin } from "./presentation/config/CodemationAuthoring.types";
+export type {
   CodemationAppContext,
   CodemationRegistrationContextBase,
 } from "./presentation/config/CodemationAppContext";
@@ -54,7 +62,7 @@ export type {
   CodemationPluginConfig,
   CodemationPluginContext,
 } from "./presentation/config/CodemationPlugin";
-export { CodemationPluginPackageMetadata, definePlugin } from "./presentation/config/CodemationPlugin";
+export { CodemationPluginPackageMetadata } from "./presentation/config/CodemationPlugin";
 export { CodemationPluginListMerger } from "./presentation/config/CodemationPluginListMerger";
 export type { CodemationWorkflowDiscovery } from "./presentation/config/CodemationWorkflowDiscovery";
 export type { InternalAuthBootstrap } from "./presentation/frontend/InternalAuthBootstrap";
