@@ -10,10 +10,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@codemation/cli": "^0.0.16",
-    "@codemation/core": "^0.0.16",
-    "@codemation/core-nodes": "^0.0.16",
-    "@codemation/host": "^0.0.16",
+    "@codemation/cli": "0.0.x",
+    "@codemation/core": "0.0.x",
+    "@codemation/core-nodes": "0.0.x",
+    "@codemation/host": "0.0.x",
     "dotenv": "^17.3.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

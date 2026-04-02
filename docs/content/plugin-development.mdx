@@ -1,0 +1,143 @@
+---
+title: Plugin development
+description: Scaffold a plugin package, run it against the real host, understand sandbox config, publish, and consume it from an app.
+---
+
+# Plugin development
+
+A **plugin** is an npm package that exports a default Codemation plugin object from `codemation.plugin.ts` (built to `dist/`). It registers nodes, credential types, and optional sandbox defaults so local development matches how a consumer app loads the same package from `node_modules`.
+
+Use this page for the **end-to-end plugin workflow**. For reusable nodes and credentials themselves, follow the same guides as app-local extensions—see [Nodes and credentials](#nodes-and-credentials) below.
+
+## Getting started
+
+Scaffold the **plugin** template, install, and start the plugin dev server:
+
+```bash
+pnpm create codemation my-plugin --template plugin
+cd my-plugin
+pnpm install
+pnpm dev
+```
+
+`pnpm dev` runs `codemation dev:plugin`, which boots the real host and UI against a **synthetic** `codemation.config.ts` generated next to your plugin (see [Lifecycle with the host](#lifecycle-with-the-host)). Open the URL the CLI prints, create credentials as needed, and run the sample workflow.
+
+To see all template ids (including `plugin`):
+
+```bash
+pnpm create codemation --list-templates
+```
+
+### Framework package versions (`0.0.x`)
+
+Scaffolded **default**, **minimal**, and **plugin** projects list `@codemation/*` dependencies as **`0.0.x`**. That semver range matches any **`0.0.*`** patch release on npm, so you can run **`pnpm upgrade`** (or `pnpm update`) to move to newer `0.0.z` builds without hand-editing versions each time. Pin stricter ranges once you are past pre-1.0 churn or need reproducible installs.
+
+## The plugin config file (`codemation.plugin.ts`)
+
+The default export is built with **`definePlugin`** from `@codemation/host/plugin`. Typical shape:
+
+```ts
+import { definePlugin, SandboxFactory } from "@codemation/host/plugin";
+
+const sandbox = SandboxFactory.create({
+  productName: "My plugin sandbox",
+  config: {
+    // Optional CodemationConfig fragment merged into the dev consumer config.
+    // Often includes demo workflows that exercise your nodes.
+  },
+});
+
+const plugin = definePlugin({
+  credentialTypes: [/* optional declarative credential types */],
+  register: (context) => {
+    context.registerNode(MyNode);
+  },
+  sandbox,
+});
+
+export default plugin;
+```
+
+### Sandbox (`SandboxFactory` + `plugin.sandbox`)
+
+**`SandboxFactory.create`** returns a **`CodemationPluginSandbox`** with:
+
+- **`config`** — a `CodemationConfig` fragment merged into the root config when tooling synthesizes a consumer app (for example demo `workflows`, or overrides). Defaults include a PGlite database dir, inline scheduler, local auth with dev bypass, and whitelabel `productName`.
+- **`env`** — dev-only defaults such as `CODEMATION_CREDENTIALS_MASTER_KEY` for local credential encryption. **Shell environment always wins**; sandbox `env` only fills missing variables.
+
+Plugins use this so every package does not duplicate the same PGlite + inline scheduler + auth fragment in READMEs.
+
+### Plugin surface (`definePlugin`)
+
+- **`credentialTypes`** — optional list registered declaratively (alongside anything you register in `register`).
+- **`register`** — imperative registration: e.g. `context.registerNode(...)`, container bindings, and other host hooks.
+- **`sandbox`** — optional; required for the `dev:plugin` story so the generated config can merge sandbox `config` and apply sandbox `env`.
+
+For **`pluginPackageId`**, see [Using a plugin in a project](#using-a-plugin-in-a-project) (deduplication when the same package appears in config and discovery).
+
+## Lifecycle with the host
+
+1. **Local plugin development** — `codemation dev:plugin` (usually via `pnpm dev` in the template) uses **`PluginDevConfigFactory`** to write **`.codemation/plugin-dev/codemation.config.ts`** beside your package. That file:
+   - imports your default plugin export;
+   - applies `plugin.sandbox.env` to `process.env` (without overriding existing vars);
+   - merges `plugin.sandbox.config` into the root `CodemationConfig`;
+   - appends your plugin to `plugins`.
+
+   So you develop against the **same host and runtime** as a normal consumer, without publishing first.
+
+2. **Consumer apps** — When the CLI loads a consumer `codemation.config.ts`, it **merges** plugins from your config with plugins **discovered** under `node_modules` (see below). The host then runs registration, workflows, and the UI as usual.
+
+## Nodes and credentials
+
+Implementing nodes and credential types in a plugin follows the **same patterns** as in an application: config classes, `@node`, `CredentialType`, constructor injection, and tests without heavy mocking.
+
+**Start here:**
+
+- [Custom nodes](/docs/workflows/custom-nodes) — patterns and engine contract
+- [Create custom node](/docs/how-to-guides/create-custom-node) — step-by-step
+- [Create custom credential](/docs/how-to-guides/create-custom-credential) — typed credentials and sessions
+
+Optional deeper reading:
+
+- [Concepts](/docs/concepts) — workflows, nodes, credentials, runs
+- [Plugin developers](/docs/plugin-developers) — packaging nodes for **AI agent tools** (`AgentToolFactory.asTool(...)`) and stability notes for published surfaces
+
+## Publishing
+
+1. **Build** the package so `codemation.plugin.ts` compiles to the entry the manifest points at (the template uses `tsdown`):
+
+   ```bash
+   pnpm build
+   ```
+
+2. **Declare the plugin entry** in `package.json` so the host can discover the package after install:
+
+   ```json
+   {
+     "name": "@acme/codemation-plugin-hello",
+     "codemation": {
+       "plugin": { "kind": "plugin", "entry": "./dist/codemation.plugin.js" }
+     }
+   }
+   ```
+
+3. **Publish** to npm (or your private registry) as you would any TypeScript library. Ensure `files` / `exports` include `dist/` and that the plugin entry path is correct for consumers.
+
+## Using a plugin in a project
+
+1. **Add the dependency** to your Codemation consumer app:
+
+   ```bash
+   pnpm add @acme/codemation-plugin-hello
+   ```
+
+2. **Discovery** — The host scans `node_modules` for packages whose `package.json` includes `codemation.plugin` with `"kind": "plugin"` and loads the **`entry`** module. You do **not** have to duplicate that import in `codemation.config.ts` unless you want an explicit reference.
+
+3. **Explicit `plugins`** — You can still add plugins to `codemation.config.ts` (for example a local file path while developing). Configured plugins are merged with discovered plugins; duplicates are deduped when possible using **`pluginPackageId`** on the plugin object.
+
+4. **Run the app** — `pnpm dev` / `codemation dev` as usual. Your workflows can reference node types registered by the plugin.
+
+## See also
+
+- [Getting started](/docs/getting-started) — full consumer app path
+- [Plugin developers](/docs/plugin-developers) — AI tools and export surface for reusable packages
