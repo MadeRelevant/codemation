@@ -83,7 +83,8 @@ for (const scenario of scenarios) {
       await ui.waitForCanvasRunWorkflowButton();
       await ui.clickCanvasRunWorkflowButton();
       await ui.openExecutionsTab();
-      await expect(page.getByRole("treeitem", { name: scenario.executionSummaryPattern })).toBeVisible({
+      await ui.expectLatestRunCompleted({ timeoutMs: 120_000 });
+      await expect(page.getByTestId("workflow-execution-tree-panel")).toContainText(scenario.executionSummaryPattern, {
         timeout: 120_000,
       });
 

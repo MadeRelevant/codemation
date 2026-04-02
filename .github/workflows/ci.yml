@@ -27,8 +27,10 @@ jobs:
         include:
           - name: Format
             command: "format:check"
-          - name: Lint
-            command: lint
+          - name: Lint ESLint
+            command: "lint:eslint"
+          - name: Lint repo
+            command: "lint:repo"
           - name: Typecheck
             command: typecheck
 
@@ -98,14 +100,54 @@ jobs:
       - name: Run ${{ matrix.name }}
         run: pnpm --filter create-codemation run ${{ matrix.command }}
 
-  coverage:
-    name: Build, tests & Codecov
+  # --- Coverage: one job per suite (parallel runners); merge + Codecov in coverage-report ---
+  coverage-unit:
+    name: Coverage — unit
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client (@codemation/host)
+        run: pnpm --filter @codemation/host prisma:generate
+
+      - name: Build
+        run: pnpm exec turbo run build
+
+      - name: Coverage (unit)
+        run: pnpm run coverage:unit
+
+      - name: Upload lcov (unit)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-unit
+          path: coverage/raw/unit/lcov.info
+          if-no-files-found: error
+
+  coverage-integration:
+    name: Coverage — integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
       REDIS_URL: redis://127.0.0.1:6379
-
     services:
       postgres:
         image: postgres:16-alpine
@@ -129,7 +171,86 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client (@codemation/host)
+        run: pnpm --filter @codemation/host prisma:generate
+
+      - name: Build
+        run: pnpm exec turbo run build
+
+      - name: Coverage (integration)
+        run: pnpm run coverage:integration
+
+      - name: Upload lcov (integration)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-integration
+          path: coverage/raw/integration/lcov.info
+          if-no-files-found: error
+
+  coverage-ui:
+    name: Coverage — UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client (@codemation/host)
+        run: pnpm --filter @codemation/host prisma:generate
+
+      - name: Build
+        run: pnpm exec turbo run build
+
+      - name: Coverage (UI)
+        run: pnpm run coverage:ui
+
+      - name: Upload lcov (ui)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-ui
+          path: coverage/raw/ui/lcov.info
+          if-no-files-found: error
+
+  coverage-browser:
+    name: Coverage — browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -157,8 +278,113 @@ jobs:
       - name: Build
         run: pnpm exec turbo run build
 
-      - name: Coverage (all test suites)
-        run: pnpm run coverage
+      - name: Coverage (browser)
+        run: pnpm run coverage:browser
+
+      - name: Upload lcov (browser)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-browser
+          path: coverage/raw/browser/lcov.info
+          if-no-files-found: error
+
+  coverage-e2e:
+    name: Coverage — e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client (@codemation/host)
+        run: pnpm --filter @codemation/host prisma:generate
+
+      - name: Build
+        run: pnpm exec turbo run build
+
+      - name: Coverage (e2e)
+        run: pnpm run coverage:e2e
+
+      - name: Upload lcov (e2e)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-e2e
+          path: coverage/raw/e2e/lcov.info
+          if-no-files-found: error
+
+  coverage-report:
+    name: Merge coverage & Codecov
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - coverage-unit
+      - coverage-integration
+      - coverage-ui
+      - coverage-browser
+      - coverage-e2e
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download all lcov artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: lcov-*
+          path: coverage-artifacts
+
+      - name: Normalize lcov paths for merge
+        run: |
+          set -euo pipefail
+          mkdir -p coverage/raw/unit coverage/raw/integration coverage/raw/ui coverage/raw/browser coverage/raw/e2e
+          copy_one() {
+            local artifact="$1"
+            local dest="$2"
+            local src
+            src=$(find "coverage-artifacts/$artifact" -name lcov.info -print -quit)
+            if [ -z "${src:-}" ] || [ ! -f "$src" ]; then
+              echo "Missing lcov.info under coverage-artifacts/$artifact" >&2
+              exit 1
+            fi
+            cp -f "$src" "$dest"
+          }
+          copy_one lcov-unit coverage/raw/unit/lcov.info
+          copy_one lcov-integration coverage/raw/integration/lcov.info
+          copy_one lcov-ui coverage/raw/ui/lcov.info
+          copy_one lcov-browser coverage/raw/browser/lcov.info
+          copy_one lcov-e2e coverage/raw/e2e/lcov.info
+
+      - name: Merge coverage
+        run: pnpm run coverage:merge
 
       # Optional: add CODECOV_TOKEN secret if uploads fail (public repos often work without it).
       - name: Upload coverage to Codecov
