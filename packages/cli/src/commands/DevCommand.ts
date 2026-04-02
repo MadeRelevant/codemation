@@ -55,6 +55,7 @@ export class DevCommand {
   ): Promise<void> {
     const paths = await this.pathResolver.resolve(args.consumerRoot);
     const commandName = args.commandName ?? "dev";
+    const previousDevelopmentServerToken = process.env.CODEMATION_DEV_SERVER_TOKEN;
     this.devCliBannerRenderer.renderBrandHeader();
     this.tsRuntime.configure(paths.repoRoot);
     await this.databaseMigrationsApplyService.applyForConsumer(paths.consumerRoot, {
@@ -86,6 +87,9 @@ export class DevCommand {
         authSettings,
         args.configPathOverride,
       );
+      // The disposable runtime is created in-process, so config reloads must see the same token in
+      // `process.env` that we also pass through the child-facing env object.
+      process.env.CODEMATION_DEV_SERVER_TOKEN = prepared.developmentServerToken;
       const stopPromise = this.wireStopPromise(processState);
       const uiProxyBase = await this.preparePackagedUiBaseUrlWhenNeeded(prepared, processState);
       proxyServer = await this.startProxyServer(prepared.gatewayPort, uiProxyBase);
@@ -106,6 +110,11 @@ export class DevCommand {
       this.logPackagedUiDevHintWhenNeeded(devMode, gatewayPort, commandName);
       await stopPromise;
     } finally {
+      if (previousDevelopmentServerToken === undefined) {
+        delete process.env.CODEMATION_DEV_SERVER_TOKEN;
+      } else {
+        process.env.CODEMATION_DEV_SERVER_TOKEN = previousDevelopmentServerToken;
+      }
       processState.stopRequested = true;
       await this.stopLiveProcesses(processState, proxyServer);
       await watcher.stop();
@@ -424,15 +433,18 @@ export class DevCommand {
         httpPort: runtime.httpPort,
         workflowWebSocketPort: runtime.workflowWebSocketPort,
       });
-      if (request.shouldRestartUi) {
-        await this.restartUiAfterSourceChange(prepared, state, gatewayBaseUrl);
-      }
       await this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl);
       const json = await this.devBootstrapSummaryFetcher.fetch(gatewayBaseUrl);
       if (json) {
         this.devCliBannerRenderer.renderCompact(json);
       }
       proxyServer.setBuildStatus("idle");
+      // Let the new runtime become queryable through the stable gateway before restarting the
+      // packaged UI; otherwise the UI bootstrap hits `/api/bootstrap/*` while the gateway still
+      // reports "Runtime is rebuilding" and the restart can deadlock indefinitely.
+      if (request.shouldRestartUi) {
+        await this.restartUiAfterSourceChange(prepared, state, gatewayBaseUrl);
+      }
       proxyServer.broadcastBuildCompleted(runtime.buildVersion);
       process.stdout.write("[codemation] Runtime ready.\n");
     } catch (error) {

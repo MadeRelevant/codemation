@@ -22,6 +22,7 @@ export type CodemationConsumerConfigResolution = Readonly<{
 
 export class CodemationConsumerConfigLoader {
   private static readonly importerRegistrationsByTsconfig = new Map<string, NamespacedUnregister>();
+  private static readonly importerNamespaceVersionByTsconfig = new Map<string, number>();
   private readonly configExportsResolver = new CodemationConsumerConfigExportsResolver();
   private readonly configNormalizer = new CodemationConfigNormalizer();
   private readonly workflowModulePathFinder = new WorkflowModulePathFinder();
@@ -213,8 +214,10 @@ export class CodemationConsumerConfigLoader {
       return existingImporter;
     }
     const { register } = await import(/* webpackIgnore: true */ this.resolveTsxImporterModuleSpecifier());
+    const namespaceVersion = this.nextNamespaceVersion(cacheKey);
     const nextImporter = register({
-      namespace: this.toNamespace(cacheKey),
+      // A fresh namespace prevents cache hits from prior scoped imports after a dev rebuild.
+      namespace: this.toNamespace(cacheKey, namespaceVersion),
       tsconfig: tsconfigPath,
     });
     CodemationConsumerConfigLoader.importerRegistrationsByTsconfig.set(cacheKey, nextImporter);
@@ -231,8 +234,14 @@ export class CodemationConsumerConfigLoader {
     await existingImporter.unregister().catch(() => null);
   }
 
-  private toNamespace(cacheKey: string): string {
-    return `codemation_consumer_${cacheKey.replace(/[^a-zA-Z0-9_-]+/g, "_")}`;
+  private nextNamespaceVersion(cacheKey: string): number {
+    const nextVersion = (CodemationConsumerConfigLoader.importerNamespaceVersionByTsconfig.get(cacheKey) ?? 0) + 1;
+    CodemationConsumerConfigLoader.importerNamespaceVersionByTsconfig.set(cacheKey, nextVersion);
+    return nextVersion;
+  }
+
+  private toNamespace(cacheKey: string, namespaceVersion: number): string {
+    return `codemation_consumer_${cacheKey.replace(/[^a-zA-Z0-9_-]+/g, "_")}_${namespaceVersion}`;
   }
 
   private resolveTsxImporterModuleSpecifier(): string {
