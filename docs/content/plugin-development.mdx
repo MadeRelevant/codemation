@@ -48,7 +48,9 @@ const sandbox = SandboxFactory.create({
 });
 
 const plugin = definePlugin({
-  credentialTypes: [/* optional declarative credential types */],
+  credentialTypes: [
+    /* optional declarative credential types */
+  ],
   register: (context) => {
     context.registerNode(MyNode);
   },
