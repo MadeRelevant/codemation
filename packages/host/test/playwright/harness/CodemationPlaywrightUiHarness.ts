@@ -106,6 +106,17 @@ export class CodemationPlaywrightUiHarness {
     await this.page.getByTestId("workflow-canvas-tab-executions").click();
   }
 
+  /**
+   * Clicks a canvas node card by index (0-based DOM order). Needed so the execution inspector mounts
+   * the tree panel (`workflow-execution-tree-panel`) when nothing is auto-selected after a run.
+   */
+  async selectCanvasNodeByCardIndex(index: number, options?: Readonly<{ timeoutMs?: number }>): Promise<void> {
+    const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasNodeCompletionTimeoutMs;
+    const cards = this.page.locator('[data-testid^="canvas-node-card-"]');
+    await expect(cards.nth(index)).toBeVisible({ timeout: timeoutMs });
+    await cards.nth(index).click();
+  }
+
   async expectWorkflowTitle(name: string, options?: Readonly<{ timeoutMs?: number }>): Promise<void> {
     const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.workflowApiReadyTimeoutMs;
     await expect(this.page.getByTestId("workflow-detail-workflow-title")).toHaveText(name, { timeout: timeoutMs });

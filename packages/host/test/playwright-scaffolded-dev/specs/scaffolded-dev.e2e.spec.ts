@@ -84,6 +84,8 @@ for (const scenario of scenarios) {
       await ui.waitForCanvasRunWorkflowButton();
       await ui.clickCanvasRunWorkflowButton();
       await ui.openExecutionsTab();
+      // Inspector shows "Select a node…" until a canvas node is selected; tree panel mounts after selection.
+      await ui.selectCanvasNodeByCardIndex(1);
       // Cold CI + first-time scaffolded dev can exceed 120s before the run finishes and the tree shows "Took …".
       await expect(page.getByTestId("workflow-execution-tree-panel")).toContainText(scenario.executionSummaryPattern, {
         timeout: 300_000,
