@@ -9,8 +9,9 @@ on:
 permissions:
   contents: read
 
+# One run per PR (by number) or per ref; new pushes cancel superseded runs.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -445,6 +446,11 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      # changeset status compares to baseBranch (main); PR checkouts often lack a local refs/heads/main.
+      - name: Fetch base branch for changesets
+        if: github.event_name == 'pull_request'
+        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
 
       - name: Install pnpm
         if: github.event_name == 'pull_request'
