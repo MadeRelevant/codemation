@@ -34,6 +34,16 @@ Optional **Gmail** integration for Codemation: a polling-based “new mail” tr
 
 **Setup:** `setup()` wires the poller and persists **trigger setup state** (processed message IDs, mailbox cursor) so restarts do not duplicate work. **Execute:** the trigger node receives **items produced by polls** (not manual runs without items); attachments are resolved in the execute path.
 
+## Emitted item contract
+
+This trigger emits **one workflow item per Gmail message**.
+
+- the batch (`Items`) is the set of matching emails
+- each emitted `item.json` is **one mail event**
+- attachments remain attached to that same item
+
+The trigger does **not** wrap multiple messages into a payload such as `json: { results: [...] }` or `json: { items: [...] }`. If Gmail returns three matching emails, the engine receives three workflow items.
+
 ## Install
 
 ```bash

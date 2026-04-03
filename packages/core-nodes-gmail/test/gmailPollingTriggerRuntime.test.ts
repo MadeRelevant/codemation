@@ -94,13 +94,19 @@ class NoopGmailLogger {
 }
 
 class GmailPollingTriggerRuntimeFixture {
-  static createConfig(): OnNewGmailTrigger {
+  static createConfig(
+    overrides: Partial<{
+      mailbox: string;
+      labelIds: ReadonlyArray<string>;
+      query: string;
+    }> = {},
+  ): OnNewGmailTrigger {
     return new OnNewGmailTrigger(
       "On Gmail",
       {
-        mailbox: "sales@example.com",
-        labelIds: ["IMPORTANT"],
-        query: "quote",
+        mailbox: overrides.mailbox ?? "sales@example.com",
+        labelIds: overrides.labelIds ?? ["IMPORTANT"],
+        query: overrides.query ?? "quote",
       },
       "gmail_trigger",
     );
@@ -147,6 +153,49 @@ test("GmailPollingTriggerRuntime baselines on first poll then emits new messages
     },
   });
   assert.equal(emitted.length, 0);
+  await GmailPollingTriggerRuntimeFixture.waitFor(() => {
+    assert.ok(emitted.length >= 1);
+  });
+  assert.ok(
+    emitted.some(
+      (row) =>
+        typeof row === "object" &&
+        row !== null &&
+        "json" in row &&
+        (row as { json: { messageId?: string } }).json.messageId === "m2",
+    ),
+  );
+  await runtime.stop(trigger);
+});
+
+test("GmailPollingTriggerRuntime emits new messages for Gmail search syntax queries", async () => {
+  const store = new InMemoryTriggerSetupStateRepository();
+  const configuredLabelService = new GmailConfiguredLabelService();
+  const pollingService = new GmailPollingService(
+    store,
+    configuredLabelService,
+    new GmailMessageItemMapper(),
+    new GmailQueryMatcher(),
+  );
+  const runtime = new GmailPollingTriggerRuntime(
+    { pollIntervalMs: 25, maxMessagesPerPoll: 20 },
+    new NoopGmailLogger(),
+    pollingService,
+  );
+  const gmailApiClient = new FakeGmailApiClient();
+  const emitted: unknown[] = [];
+  const trigger = { workflowId: "wf.gmail", nodeId: "gmail_trigger" };
+  await runtime.ensureStarted({
+    trigger,
+    client: gmailApiClient,
+    config: GmailPollingTriggerRuntimeFixture.createConfig({
+      query: "from:buyer@example.com has:attachment newer_than:7d",
+    }),
+    previousState: undefined,
+    emit: async (items) => {
+      emitted.push(...items);
+    },
+  });
   await GmailPollingTriggerRuntimeFixture.waitFor(() => {
     assert.ok(emitted.length >= 1);
   });

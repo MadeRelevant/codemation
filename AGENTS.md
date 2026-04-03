@@ -118,6 +118,15 @@ This document sets the “golden standard” for how we build and review changes
 
 - Nodes receive **`items` as a batch** and must iterate internally:
   - This is required so each node can control concurrency and batching semantics.
+- **`execute` must return what the node produces on each output port**, not a generic “input plus a wrapper”:
+  - For each emitted `Item`, **`json` is the node’s output payload** for that step—the shape your `RunnableNodeConfig<…, TOutputJson>` (or documented contract) describes as **downstream data**, not the input object with an extra nested bag for “the real result”.
+  - **Do not** default to `json: { ...inputJson, result: <actualOutput> }` or similar unless that **nested** shape is intentionally the public API of the node. Prefer `json: <actualOutput>` (and only spread or merge input fields when the node is explicitly an **enrichment** / **field update** step).
+  - You may still carry forward **`binary`**, **`meta`**, or **`paired`** from the incoming item when the product needs lineage or attachments; that is separate from over-wrapping **`json`**.
+  - **Pass-through** (`return { main: items }`) is correct for routers/merges/no-ops; **replace-the-payload** nodes (HTTP, transforms that emit a new DTO) should match built-ins such as **`HttpRequest`** (“response metadata only—input fields are not passed through” on the output type).
+- **Trigger payload shape follows the same rule**:
+  - Emit **one workflow `Item` per external event/record** (for example: one email, one webhook request, one queue message).
+  - **Do not** pack multiple events into one item as `json: { results: [...] }`, `json: { foundItems: [...] }`, or similar wrapper bags just because the source API returned an array.
+  - If the upstream system returns multiple records, map them to **multiple emitted items** so downstream nodes always see the same stable batch shape: `Items` is the collection; each `item.json` is one domain record.
 
 ## Testing standards (minimal mocking)
 
@@ -194,6 +203,7 @@ This gives high-signal coverage without fragile mocks.
 
 - **No core edits required** to add a node package.
 - Node must be deterministic and testable (injected deps; no hidden globals).
+- **`execute` returns produced payloads** on each port (`item.json` = output contract), not input wrapped with an extra “result” layer—see **Engine ↔ Node contract** above.
 - Provide at least one unit test for the node behavior (prefer in-memory deps).
 
 ## `@codemation/host` package exports

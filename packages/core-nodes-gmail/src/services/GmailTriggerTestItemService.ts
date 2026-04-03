@@ -43,7 +43,7 @@ export class GmailTriggerTestItemService {
       mailbox: args.config.cfg.mailbox,
       messageId: messageIds[0]!,
     });
-    if (!this.gmailQueryMatcher.matchesOnNewTrigger(message, args.config, resolvedLabelIds)) {
+    if (!this.gmailQueryMatcher.matchesOnNewTrigger(message, resolvedLabelIds)) {
       return [];
     }
     const historyId =

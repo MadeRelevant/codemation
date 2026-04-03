@@ -87,6 +87,51 @@ export class ExampleUppercaseNode implements Node<ExampleUppercase<Record<string
 
 The same pattern also works inside an app repo. A custom node does not need a package name unless you are treating it as a reusable package.
 
+## What `execute` should return
+
+Downstream nodes read **`item.json`** on each output port. That value should be **what this step produces**, shaped like your node’s **output** contract—not the input payload with the real result nested inside.
+
+- **Prefer** setting `json` to the **actual output DTO** for that step (same idea as built-in **`HttpRequest`**: its output type is response metadata only; it does not pass arbitrary input fields through).
+- **Avoid** the recurring anti-pattern of returning `{ ...item, json: { ...inputJson, result: <actual> } }` when downstream only needs `<actual>`. Use `json: <actual>` (and only merge or spread input when the node is intentionally an **enrichment** that keeps the same top-level schema).
+- You may still forward **`binary`**, **`meta`**, or **`paired`** from the input item when you need attachments or lineage; that is independent of keeping **`json`** honest.
+- **Pass-through** (`return { main: items }`) is valid for **merge / route / no-op** nodes, not as a default for every transform.
+
+## Trigger item shape
+
+Trigger nodes should follow the same contract, with one extra rule:
+
+- **Emit one workflow item per external event or record**
+- one email should become **one `Item`**
+- one webhook request should become **one `Item`**
+- one queue message should become **one `Item`**
+
+The batch is already the array. Because of that, avoid wrapper payloads such as:
+
+- `json: { results: [...] }`
+- `json: { foundItems: [...] }`
+- `json: { items: [...] }`
+
+when those arrays really mean “multiple emitted events”.
+
+Instead, map each source record to its own workflow item so downstream nodes always consume a consistent shape:
+
+```ts
+return {
+  main: sourceMessages.map((message) => ({
+    json: {
+      messageId: message.id,
+      subject: message.subject,
+    },
+  })),
+};
+```
+
+That keeps the engine contract predictable:
+
+- **`Items`** is the collection
+- each **`item.json`** is one emitted domain record
+- downstream nodes do not need trigger-specific unwrapping logic
+
 ## What to remember
 
 - Nodes receive **batches of items**, not single records
@@ -94,6 +139,7 @@ The same pattern also works inside an app repo. A custom node does not need a pa
 - Put external calls inside `execute(...)`
 - Prefer explicit configuration over hidden globals
 - Return outputs by named ports such as `main`
+- On each port, **`json` is the emitted payload** for the next step—produce it deliberately, not as “input plus wrapper”
 
 ## App-local node vs shared package
 

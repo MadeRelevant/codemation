@@ -64,7 +64,7 @@ export class GmailPollingService {
         mailbox: args.config.cfg.mailbox,
         messageId,
       });
-      if (!this.gmailQueryMatcher.matchesOnNewTrigger(message, args.config, resolvedLabelIds)) {
+      if (!this.gmailQueryMatcher.matchesOnNewTrigger(message, resolvedLabelIds)) {
         continue;
       }
       items.push(
