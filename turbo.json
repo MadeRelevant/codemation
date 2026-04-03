@@ -10,8 +10,12 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "prisma:generate": {
+      "dependsOn": [],
+      "outputs": ["src/infrastructure/persistence/generated/**"]
+    },
     "typecheck": {
-      "dependsOn": ["^typecheck"],
+      "dependsOn": ["^typecheck", "@codemation/host#prisma:generate"],
       "outputs": []
     },
     "lint": {
