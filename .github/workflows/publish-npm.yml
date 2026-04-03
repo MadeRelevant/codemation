@@ -12,7 +12,7 @@ concurrency:
 
 permissions:
   id-token: write # Required for OIDC
-  contents: read
+  contents: write # GitHub Release from @codemation/core CHANGELOG section
 
 jobs:
   # Template smokes (packaged + interactive Verdaccio) run on main via CI; release only publishes.
@@ -53,3 +53,32 @@ jobs:
       # Requires npm CLI ≥ 11.5.1 (Node 24 images satisfy this).
       - name: Publish to npm
         run: pnpm publish -r --access public --no-git-checks --filter "./packages/*"
+
+      - name: Create GitHub Release (notes from @codemation/core CHANGELOG)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          NOTES_FILE="${RUNNER_TEMP}/release-notes.md"
+          awk -v ver="$VERSION" '
+            /^## [0-9]/ {
+              if (found) exit
+              if ($2 == ver) { found=1; next }
+              next
+            }
+            found { print }
+          ' packages/core/CHANGELOG.md > "$NOTES_FILE" || true
+          if [ ! -s "$NOTES_FILE" ]; then
+            {
+              echo "Release **${TAG}** (anchor: \`@codemation/core@${VERSION}\`)."
+              echo
+              echo "Full history: [packages/core/CHANGELOG.md](https://github.com/MadeRelevant/codemation/blob/${GITHUB_SHA}/packages/core/CHANGELOG.md)"
+            } > "$NOTES_FILE"
+          fi
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release edit "$TAG" --repo "${{ github.repository }}" --notes-file "$NOTES_FILE"
+          else
+            gh release create "$TAG" --repo "${{ github.repository }}" --title "$TAG" --notes-file "$NOTES_FILE"
+          fi

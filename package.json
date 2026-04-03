@@ -50,6 +50,7 @@
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "@ast-grep/cli": "^0.41.1",
+    "@changesets/changelog-github": "^0.6.0",
     "@changesets/cli": "^2.30.0",
     "@types/node": "^25.3.5",
     "@vitest/coverage-v8": "4.0.18",
