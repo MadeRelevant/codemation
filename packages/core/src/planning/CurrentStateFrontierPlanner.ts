@@ -303,7 +303,17 @@ export class CurrentStateFrontierPlanner {
     if (!incomingEdge) {
       return false;
     }
-    return this.hasOutputPort(currentState, incomingEdge.from.nodeId, incomingEdge.from.output);
+    if (!this.hasOutputPort(currentState, incomingEdge.from.nodeId, incomingEdge.from.output)) {
+      return false;
+    }
+    if (this.usesCollect(nodeId)) {
+      return true;
+    }
+    const items = this.resolveOutputItems(currentState, incomingEdge.from.nodeId, incomingEdge.from.output);
+    if (items.length > 0) {
+      return true;
+    }
+    return this.shouldContinueAfterEmptyOutputFromSource(incomingEdge.from.nodeId);
   }
 
   private resolveInput(currentState: RunCurrentState, nodeId: NodeId, input: InputPortKey): Items {
@@ -333,6 +343,19 @@ export class CurrentStateFrontierPlanner {
 
   private resolveOutputItems(currentState: RunCurrentState, nodeId: NodeId, output: OutputPortKey): Items {
     return currentState.outputsByNode[nodeId]?.[output] ?? [];
+  }
+
+  private usesCollect(nodeId: NodeId): boolean {
+    const expectedInputs = this.topology.expectedInputsByNode.get(nodeId) ?? [];
+    return expectedInputs.length !== 1 || expectedInputs[0] !== "in";
+  }
+
+  private shouldContinueAfterEmptyOutputFromSource(nodeId: NodeId): boolean {
+    const definition = this.topology.defsById.get(nodeId);
+    if (!definition) {
+      return false;
+    }
+    return definition.config.continueWhenEmptyOutput === true;
   }
 
   private getPinnedOutputs(currentState: RunCurrentState, nodeId: NodeId): NodeOutputs | undefined {

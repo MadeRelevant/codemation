@@ -68,11 +68,7 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
       : undefined;
     const legacyStartNodeId = body.startAt as NodeId | undefined;
     const clearFromNodeId = body.clearFromNodeId as NodeId | undefined;
-    const requestedItems = await this.resolveRequestedItems({
-      workflow,
-      body,
-      clearFromNodeId,
-    });
+    const requestedItems = this.resolveRequestedItems(body);
     const items = this.resolveRunRequestItems(workflow, legacyStartNodeId, requestedItems);
     const currentState = this.createCurrentState({
       workflowId: body.workflowId,
@@ -87,6 +83,7 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
             nodeId: legacyStartNodeId,
             currentState,
             items: requestedItems,
+            synthesizeTriggerItems: body.synthesizeTriggerItems,
             executionOptions,
             workflowSnapshot: sourceState?.workflowSnapshot,
             mutableState: this.cloneMutableState(currentState.mutableState),
@@ -95,6 +92,7 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
             workflow,
             startAt: legacyStartNodeId && !body.sourceRunId && !body.stopAt ? legacyStartNodeId : undefined,
             items,
+            synthesizeTriggerItems: body.synthesizeTriggerItems,
             executionOptions,
             workflowSnapshot: sourceState?.workflowSnapshot,
             mutableState: this.cloneMutableState(currentState.mutableState),
@@ -148,22 +146,8 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
     return this.isTriggerStart(workflow, startAt) ? [] : [{ json: {} }];
   }
 
-  private async resolveRequestedItems(
-    args: Readonly<{
-      workflow: WorkflowDefinition;
-      body: CreateRunRequest;
-      clearFromNodeId: NodeId | undefined;
-    }>,
-  ): Promise<Items | undefined> {
-    const triggerNodeId = this.resolveTriggerTestNodeId(args);
-    const normalizedItems = args.body.items == null ? undefined : this.itemsInputNormalizer.normalize(args.body.items);
-    if (!this.shouldSynthesizeTriggerItems(args.body, triggerNodeId, normalizedItems)) {
-      return normalizedItems;
-    }
-    return await this.engine.createTriggerTestItems({
-      workflow: args.workflow,
-      nodeId: triggerNodeId!,
-    });
+  private resolveRequestedItems(body: CreateRunRequest): Items | undefined {
+    return body.items == null ? undefined : this.itemsInputNormalizer.normalize(body.items);
   }
 
   private isTriggerStart(workflow: WorkflowDefinition, startAt: string | undefined): boolean {
@@ -171,47 +155,6 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
       startAt ?? workflow.nodes.find((node) => node.kind === "trigger")?.id ?? workflow.nodes[0]?.id;
     const startNode = resolvedStartAt ? workflow.nodes.find((node) => node.id === resolvedStartAt) : undefined;
     return startNode?.kind === "trigger";
-  }
-
-  private resolveTriggerTestNodeId(
-    args: Readonly<{
-      workflow: WorkflowDefinition;
-      body: CreateRunRequest;
-      clearFromNodeId: NodeId | undefined;
-    }>,
-  ): NodeId | undefined {
-    const stopAtNodeId = args.body.stopAt as NodeId | undefined;
-    if (stopAtNodeId && this.isTriggerNode(args.workflow, stopAtNodeId)) {
-      return stopAtNodeId;
-    }
-    if (!args.body.sourceRunId && !args.clearFromNodeId && !stopAtNodeId) {
-      if (args.body.currentState && !args.body.synthesizeTriggerItems) {
-        return undefined;
-      }
-      return args.workflow.nodes.find((node) => node.kind === "trigger")?.id;
-    }
-    return undefined;
-  }
-
-  private shouldSynthesizeTriggerItems(
-    body: CreateRunRequest,
-    triggerNodeId: NodeId | undefined,
-    normalizedItems: Items | undefined,
-  ): boolean {
-    if (!triggerNodeId) {
-      return false;
-    }
-    if (body.synthesizeTriggerItems) {
-      return true;
-    }
-    if (normalizedItems && normalizedItems.length > 0) {
-      return false;
-    }
-    return body.stopAt === triggerNodeId;
-  }
-
-  private isTriggerNode(workflow: WorkflowDefinition, nodeId: NodeId): boolean {
-    return workflow.nodes.find((node) => node.id === nodeId)?.kind === "trigger";
   }
 
   private cloneMutableState(mutableState: PersistedRunState["mutableState"]): PersistedMutableRunState | undefined {

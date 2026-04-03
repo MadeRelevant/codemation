@@ -396,3 +396,159 @@ test("when({true,false}) auto-merge accepts an untaken branch as empty through d
   assert.equal(afterItems.length, 1);
   assert.deepEqual(afterItems[0]?.json, { x: 2 });
 });
+
+/**
+ * Regression: when the If node routes to the long true branch (B→C→D), the false
+ * branch chain (E→F→G) must not run — only the merge and downstream Z should see
+ * items from the taken branch. Expected path: If → B → C → D → Z (merge is internal).
+ *
+ * 1) Fresh run: callbacks + ThrowNodes prove E–G never activate.
+ * 2) runWorkflowFromState with If already completed: CurrentStateFrontierPlanner
+ *    must not treat the empty false output as a reason to run E (and then F/G).
+ *    Today the false-branch frontier is scheduled and the run fails (Throw on E).
+ */
+test("when({true,false}) long true branch: false-branch E–G never run (fresh run)", async () => {
+  const events: string[] = [];
+
+  const wf = new WorkflowBuilder(
+    { id: "wf.when.longbranch", name: "when+long-branches" },
+    {
+      makeMergeNode: (name) =>
+        new MergeNodeConfig(name, { mode: "passThrough", prefer: ["true", "false"] }, { id: "merge" }),
+    },
+  )
+    .start(new MapNodeConfig("seed", async (item) => item.json, { id: "seed" }))
+    .then(new IfNodeConfig("if", async () => true, { id: "if", omitUnusedOutputKey: false }))
+    .when({
+      true: [
+        new CallbackNodeConfig("B", () => events.push("B"), { id: "B" }),
+        new CallbackNodeConfig("C", () => events.push("C"), { id: "C" }),
+        new CallbackNodeConfig("D", () => events.push("D"), { id: "D" }),
+      ],
+      false: [
+        new ThrowNodeConfig("E", new Error("unreachable: E must not run on taken true branch"), { id: "E" }),
+        new ThrowNodeConfig("F", new Error("unreachable: F must not run on taken true branch"), { id: "F" }),
+        new ThrowNodeConfig("G", new Error("unreachable: G must not run on taken true branch"), { id: "G" }),
+      ],
+    })
+    .then(new CallbackNodeConfig("Z", () => events.push("Z"), { id: "Z" }))
+    .build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const r = await kit.runToCompletion({ wf, startAt: "seed", items: items([{ x: 1 }]) });
+  assert.equal(r.status, "completed");
+
+  assert.equal(events.join(","), "B,C,D,Z");
+});
+
+test("when({true,false}) long true branch: runWorkflowFromState after If must not run false chain E–G", async () => {
+  const events: string[] = [];
+
+  const wf = new WorkflowBuilder(
+    { id: "wf.when.longbranch.resume", name: "when+long-branches+resume" },
+    {
+      makeMergeNode: (name) =>
+        new MergeNodeConfig(name, { mode: "passThrough", prefer: ["true", "false"] }, { id: "merge" }),
+    },
+  )
+    .start(new MapNodeConfig("seed", async (item) => item.json, { id: "seed" }))
+    .then(new IfNodeConfig("if", async () => true, { id: "if", omitUnusedOutputKey: false }))
+    .when({
+      true: [
+        new CallbackNodeConfig("B", () => events.push("B"), { id: "B" }),
+        new CallbackNodeConfig("C", () => events.push("C"), { id: "C" }),
+        new CallbackNodeConfig("D", () => events.push("D"), { id: "D" }),
+      ],
+      false: [
+        new ThrowNodeConfig("E", new Error("unreachable: E after resume"), { id: "E" }),
+        new ThrowNodeConfig("F", new Error("unreachable: F after resume"), { id: "F" }),
+        new ThrowNodeConfig("G", new Error("unreachable: G after resume"), { id: "G" }),
+      ],
+    })
+    .then(new CallbackNodeConfig("Z", () => events.push("Z"), { id: "Z" }))
+    .build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const input = items([{ x: 1 }]);
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow: wf,
+    items: [],
+    currentState: {
+      outputsByNode: {
+        seed: { main: input },
+        if: { true: input, false: [] },
+      },
+      nodeSnapshotsByNodeId: {},
+    },
+    stopCondition: { kind: "workflowCompleted" },
+  });
+  const r = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(r.status, "completed");
+  assert.equal(events.join(","), "B,C,D,Z");
+});
+
+test("when({true,false}) long true branch: skipped E with empty output must not wake F or G on resume", async () => {
+  const events: string[] = [];
+
+  const wf = new WorkflowBuilder(
+    { id: "wf.when.longbranch.resume.skipped-e", name: "when+long-branches+resume+skipped-e" },
+    {
+      makeMergeNode: (name) =>
+        new MergeNodeConfig(name, { mode: "passThrough", prefer: ["true", "false"] }, { id: "merge" }),
+    },
+  )
+    .start(new MapNodeConfig("seed", async (item) => item.json, { id: "seed" }))
+    .then(new IfNodeConfig("if", async () => true, { id: "if", omitUnusedOutputKey: false }))
+    .when({
+      true: [
+        new CallbackNodeConfig("B", () => events.push("B"), { id: "B" }),
+        new CallbackNodeConfig("C", () => events.push("C"), { id: "C" }),
+        new CallbackNodeConfig("D", () => events.push("D"), { id: "D" }),
+      ],
+      false: [
+        new CallbackNodeConfig("E", () => events.push("E"), { id: "E" }),
+        new ThrowNodeConfig("F", new Error("unreachable: F after skipped E resume"), { id: "F" }),
+        new ThrowNodeConfig("G", new Error("unreachable: G after skipped E resume"), { id: "G" }),
+      ],
+    })
+    .then(new CallbackNodeConfig("Z", () => events.push("Z"), { id: "Z" }))
+    .build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const input = items([{ x: 1 }]);
+  const skippedAt = new Date().toISOString();
+  const scheduled = await kit.engine.runWorkflowFromState({
+    workflow: wf,
+    items: [],
+    currentState: {
+      outputsByNode: {
+        seed: { main: input },
+        if: { true: input, false: [] },
+        E: { main: [] },
+      },
+      nodeSnapshotsByNodeId: {
+        E: {
+          runId: "previous_run",
+          workflowId: wf.id,
+          nodeId: "E",
+          status: "skipped",
+          updatedAt: skippedAt,
+          finishedAt: skippedAt,
+          outputs: { main: [] },
+        },
+      },
+    },
+    stopCondition: { kind: "workflowCompleted" },
+  });
+  const r = scheduled.status === "pending" ? await kit.engine.waitForCompletion(scheduled.runId) : scheduled;
+
+  assert.equal(r.status, "completed");
+  assert.equal(events.join(","), "B,C,D,Z");
+});

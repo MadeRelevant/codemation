@@ -20,6 +20,7 @@ export type StartWorkflowIntent = {
   workflow: WorkflowDefinition;
   startAt?: string;
   items: Items;
+  synthesizeTriggerItems?: boolean;
   parent?: CurrentStateExecutionRequest["parent"];
   executionOptions?: RunExecutionOptions;
   workflowSnapshot?: CurrentStateExecutionRequest["workflowSnapshot"];
@@ -34,6 +35,7 @@ export type RerunFromNodeIntent = {
   nodeId: NodeId;
   currentState: RunCurrentState;
   items?: Items;
+  synthesizeTriggerItems?: boolean;
   parent?: CurrentStateExecutionRequest["parent"];
   executionOptions?: RunExecutionOptions;
   workflowSnapshot?: CurrentStateExecutionRequest["workflowSnapshot"];
@@ -58,22 +60,16 @@ export class RunIntentService {
   ) {}
 
   async startWorkflow(args: StartWorkflowIntent): Promise<RunResult> {
+    const items = await this.resolveStartWorkflowItems(args);
     if (args.startAt && !args.currentState && !args.stopCondition && !args.reset) {
-      return await this.engine.runWorkflow(
-        args.workflow,
-        args.startAt,
-        args.items,
-        args.parent,
-        args.executionOptions,
-        {
-          workflowSnapshot: args.workflowSnapshot,
-          mutableState: args.mutableState,
-        },
-      );
+      return await this.engine.runWorkflow(args.workflow, args.startAt, items, args.parent, args.executionOptions, {
+        workflowSnapshot: args.workflowSnapshot,
+        mutableState: args.mutableState,
+      });
     }
     return await this.engine.runWorkflowFromState({
       workflow: args.workflow,
-      items: args.items,
+      items,
       parent: args.parent,
       executionOptions: args.executionOptions,
       workflowSnapshot: args.workflowSnapshot,
@@ -85,8 +81,9 @@ export class RunIntentService {
   }
 
   async rerunFromNode(args: RerunFromNodeIntent): Promise<RunResult> {
-    if (args.items) {
-      return await this.engine.runWorkflow(args.workflow, args.nodeId, args.items, args.parent, args.executionOptions, {
+    const items = await this.resolveRerunItems(args);
+    if (items) {
+      return await this.engine.runWorkflow(args.workflow, args.nodeId, items, args.parent, args.executionOptions, {
         workflowSnapshot: args.workflowSnapshot,
         mutableState: args.mutableState,
       });
@@ -101,6 +98,63 @@ export class RunIntentService {
       stopCondition: { kind: "workflowCompleted" },
       reset: { clearFromNodeId: args.nodeId },
     });
+  }
+
+  private async resolveStartWorkflowItems(args: StartWorkflowIntent): Promise<Items> {
+    if (this.hasNonEmptyItems(args.items)) {
+      return args.items;
+    }
+    const triggerNodeId = this.resolveStartWorkflowTriggerNodeId(args);
+    if (!triggerNodeId) {
+      return args.items;
+    }
+    return (await this.engine.createTriggerTestItems({ workflow: args.workflow, nodeId: triggerNodeId })) ?? args.items;
+  }
+
+  private async resolveRerunItems(args: RerunFromNodeIntent): Promise<Items | undefined> {
+    if (this.hasNonEmptyItems(args.items)) {
+      return args.items;
+    }
+    const triggerNodeId = this.resolveRerunTriggerNodeId(args);
+    if (!triggerNodeId) {
+      return args.items;
+    }
+    return (await this.engine.createTriggerTestItems({ workflow: args.workflow, nodeId: triggerNodeId })) ?? args.items;
+  }
+
+  private resolveStartWorkflowTriggerNodeId(args: StartWorkflowIntent): NodeId | undefined {
+    if (args.stopCondition?.kind === "nodeCompleted" && this.isTriggerNode(args.workflow, args.stopCondition.nodeId)) {
+      return args.stopCondition.nodeId;
+    }
+    if (!args.synthesizeTriggerItems) {
+      return undefined;
+    }
+    if (args.startAt && this.isTriggerNode(args.workflow, args.startAt)) {
+      return args.startAt;
+    }
+    return this.firstTriggerNodeId(args.workflow);
+  }
+
+  private resolveRerunTriggerNodeId(args: RerunFromNodeIntent): NodeId | undefined {
+    if (this.isTriggerNode(args.workflow, args.nodeId)) {
+      return args.nodeId;
+    }
+    if (!args.synthesizeTriggerItems) {
+      return undefined;
+    }
+    return this.firstTriggerNodeId(args.workflow);
+  }
+
+  private firstTriggerNodeId(workflow: WorkflowDefinition): NodeId | undefined {
+    return workflow.nodes.find((node) => node.kind === "trigger")?.id;
+  }
+
+  private isTriggerNode(workflow: WorkflowDefinition, nodeId: string): boolean {
+    return workflow.nodes.find((node) => node.id === nodeId)?.kind === "trigger";
+  }
+
+  private hasNonEmptyItems(items: Items | undefined): boolean {
+    return (items?.length ?? 0) > 0;
   }
 
   resolveWebhookTrigger(args: { endpointPath: string; method: HttpMethod }): WebhookTriggerResolution {
