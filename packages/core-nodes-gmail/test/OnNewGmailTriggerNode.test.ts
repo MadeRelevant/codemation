@@ -78,13 +78,19 @@ class FakeGmailLogger implements GmailLogger {
 }
 
 class OnNewGmailTriggerNodeTestFixture {
-  static createConfig(): OnNewGmailTrigger {
+  static createConfig(
+    overrides: Partial<{
+      mailbox: string;
+      labelIds: ReadonlyArray<string>;
+      query: string;
+    }> = {},
+  ): OnNewGmailTrigger {
     return new OnNewGmailTrigger(
       "On Gmail",
       {
-        mailbox: "sales@example.com",
-        labelIds: ["IMPORTANT"],
-        query: "quote",
+        mailbox: overrides.mailbox ?? "sales@example.com",
+        labelIds: overrides.labelIds ?? ["IMPORTANT"],
+        query: overrides.query ?? "quote",
       },
       "gmail_trigger",
     );
@@ -127,6 +133,22 @@ test("GmailTriggerTestItemService creates a preview item from the latest matchin
   assert.deepEqual(items[0]?.json.snippet, "Need a quote");
   assert.deepEqual(items[0]?.json.textPlain, "Need a quote for widgets.");
   assert.deepEqual(items[0]?.json.attachments, []);
+});
+
+test("GmailTriggerTestItemService keeps preview items when Gmail search syntax matched upstream", async () => {
+  const service = OnNewGmailTriggerNodeTestFixture.createTestItemService();
+  const client = new FakeGmailApiClient();
+  const items = await service.createItems({
+    trigger: { workflowId: "wf.gmail", nodeId: "gmail_trigger" },
+    client,
+    config: OnNewGmailTriggerNodeTestFixture.createConfig({
+      query: "from:buyer@example.com has:attachment newer_than:7d",
+    }),
+    previousState: undefined,
+  });
+
+  assert.equal(items.length, 1);
+  assert.deepEqual(items[0]?.json.messageId, "message_1");
 });
 
 test("OnNewGmailTriggerNode.execute rejects manual execution without Gmail items", async () => {

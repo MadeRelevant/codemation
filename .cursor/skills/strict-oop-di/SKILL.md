@@ -88,6 +88,16 @@ For architectural boundaries and tooling, **`AGENTS.md`** remains the canonical 
 - Node implementations live in node packages (plugins).
 - Apps compose packages and wire the DI container.
 
+### Node `execute()` → `NodeOutputs` (agents: read this)
+
+When implementing **`Node.execute`**, return **`NodeOutputs`** whose **`Items` are what this node actually emits** on each port—not a standing pattern of “clone the input items and tuck the real output under an extra key”.
+
+- **Treat each output item’s `json` as the node’s output payload** for downstream workflow steps (the shape implied by `RunnableNodeConfig<TIn, TOut>` / your exported output type). Avoid `json: { ...input, result: produced }` unless that nesting is **deliberately** the node’s API.
+- **Enrichment nodes** may merge into a copy of input JSON (e.g. uppercase one field); **fetch / map / DTO nodes** should set **`json` to the produced value** (see **`HttpRequestOutputJson`** in core-nodes: metadata only, no pass-through of arbitrary input fields).
+- Preserve **`binary` / `meta` / `paired`** when the feature needs them; do not use that as an excuse to wrap **`json`** unnecessarily.
+- **Pass-through** (`return { main: items }`) is fine for no-op / routing behavior only—not as a lazy default for transforms.
+- **Triggers follow the same contract**: emit **one `Item` per external event/record** (one email, one webhook request, one queue message). Do **not** hide many events inside `json: { results: [...] }`, `json: { foundItems: [...] }`, or similar wrapper objects. The batch is the array of `Items`; each `item.json` should be a single emitted domain record.
+
 ### `packages/core` (engine): Clean Architecture
 
 - **Dependency rule (inward only)**: inner layers **must not** depend on outer layers. The engine’s **center** stays **framework-agnostic**: execution model, workflow DSL, stable **contracts** (types, ports), and orchestration that speaks in domain/engine terms—not HTTP, not UI, not persistence, not vendor SDKs, and not a concrete **node catalog** (nodes remain plugins).
@@ -206,3 +216,4 @@ For more detailed guidance and examples, see `gof.md`.
 - **Repeated test setup** is not copy-pasted across files; **factories / testkits / harnesses** own shared arrange logic so refactors do not require sweeping edits to brittle literals.
 - **`packages/core`**: **Clean Architecture** dependency rule preserved—no outer-layer or infrastructure leaks into the engine.
 - **`packages/next-host`**: **DDD** naming/cohesion and **CQRS**-style **command vs query** separation are respected for new or refactored features.
+- **Node `execute`**: output **`json`** is the **produced payload** for downstream steps, not a redundant wrapper around input + result (unless that nested shape is the intentional API)—see **Node `execute()` → `NodeOutputs`** above.
