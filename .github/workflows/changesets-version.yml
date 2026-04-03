@@ -48,3 +48,36 @@ jobs:
           commit: "chore: version packages"
           # `changesets/action@v1` treats `branch` as the PR base and creates `changeset-release/<branch>` automatically.
           branch: main
+
+  tag-release:
+    name: Tag merged release
+    needs: version
+    if: "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'chore: version packages') }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Resolve release tag version
+        run: node tooling/release/resolve-release-tag-version.mjs --root . --output "${RUNNER_TEMP}/release-tag-version.txt"
+
+      - name: Create and push release tag
+        env:
+          RELEASE_TAG_VERSION_FILE: ${{ runner.temp }}/release-tag-version.txt
+        run: |
+          tag_name="v$(tr -d '\n' < "${RELEASE_TAG_VERSION_FILE}")"
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
+            echo "Tag ${tag_name} already exists; skipping."
+            exit 0
+          fi
+
+          git tag "${tag_name}" "${GITHUB_SHA}"
+          git push origin "${tag_name}"
