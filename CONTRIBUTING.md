@@ -5,7 +5,7 @@
 - **Do not push directly to `main`.** Open a **pull request** from a feature branch.
 - CI runs the full quality gates on each PR (format, full lint including duplicate detection and ast-grep rules, typecheck, the full test matrix, and **changeset status** when workspace packages change).
 - **Changesets:** If your PR should affect a published package version, add a changeset before merge: `pnpm changeset` (or add the `.changeset/*.md` entry by hand). Docs-only or other exceptions that truly need no release note are rare—when in doubt, add a patch changeset. If you run **`pnpm changeset version` locally**, set **`GITHUB_TOKEN`** (classic PAT with `repo`, or `gh auth token`) so **`@changesets/changelog-github`** can resolve PR links; CI already has a token.
-- **Branch protection (maintainers):** The `main` ruleset lists **required status checks** that must match the **job names** in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (the `name:` field for each job / matrix row). After changing CI job names, update the ruleset so contexts stay in sync.
+- **Branch protection (maintainers):** The `main` ruleset lists **required status checks** that must match the **job names** in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (the `name:` field for each job / matrix row). The ruleset bypass is **pull-request only**, so direct pushes to `main` are blocked even for maintainers. After changing CI job names, update the ruleset so contexts stay in sync.
 
   Current checks (copy the strings exactly, including `—` and `&`):
 
@@ -29,12 +29,12 @@
 
   ```bash
   gh api repos/MadeRelevant/codemation/rulesets --jq '.[] | select(.name=="main") | .id'
-  gh api repos/MadeRelevant/codemation/rulesets/RULESET_ID --jq '.rules[] | select(.type=="required_status_checks")'
+  gh api repos/MadeRelevant/codemation/rulesets/RULESET_ID --jq '{bypass_actors, rules}'
   ```
 
   Replace `RULESET_ID` with the id from the first command (or open **Settings → Rules → Rulesets → main** in the GitHub UI).
 
-- **Version bump PRs (Changesets):** The bot opens **`release/version-packages`** → `main` with version + changelog updates. Full **CI is skipped** on that PR (industry pattern: bot-only diffs, low risk). **Merge** using **Allow merge without waiting for requirements** (maintainers) or add your **Maintainer** role to the ruleset **bypass** list so you are not blocked by missing checks. Optionally configure **Vercel** (Ignored Build Step or ignore `release/**` previews) to avoid noisy deploys on those PRs.
+- **Version bump PRs (Changesets):** The bot opens **`release/version-packages`** → `main` with version + changelog updates. Full **CI is skipped** on that PR (industry pattern: bot-only diffs, low risk). Merge those PRs through GitHub using the maintainer PR bypass when needed; do not push version bumps straight to `main`. Optionally configure **Vercel** (Ignored Build Step or ignore `release/**` previews) to avoid noisy deploys on those PRs.
 
 - Keep PRs focused and reasonably small when possible.
 
