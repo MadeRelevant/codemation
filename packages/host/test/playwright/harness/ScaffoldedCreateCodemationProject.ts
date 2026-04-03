@@ -12,12 +12,16 @@ export type ScaffoldedCreateCodemationProjectContract = Readonly<{
   sourceReplacementAfter: string;
 }>;
 
+export type ScaffoldedCreateCodemationProjectDependencyMode = "workspace" | "published";
+
 type SpawnResult = Readonly<{
   exitCode: number;
   output: string;
 }>;
 
 export class ScaffoldedCreateCodemationProject {
+  private static readonly adminEmail = "playwright-auth@example.com";
+  private static readonly adminPassword = "playwright12345";
   private static readonly workspaceDependencyNames = [
     "@codemation/cli",
     "@codemation/core",
@@ -33,30 +37,47 @@ export class ScaffoldedCreateCodemationProject {
   constructor(
     private readonly repoRoot: string,
     private readonly contract: ScaffoldedCreateCodemationProjectContract,
+    private readonly dependencyMode: ScaffoldedCreateCodemationProjectDependencyMode = "workspace",
   ) {}
 
   async create(): Promise<void> {
     const tempRoot = path.join(this.repoRoot, "apps");
     this.projectRoot = await mkdtemp(path.join(tempRoot, `create-codemation-${this.contract.templateId}-browser-e2e-`));
-    await this.runCommand(
-      "node",
-      [
-        "packages/create-codemation/bin/create-codemation.js",
-        this.rootPath(),
-        "--template",
-        this.contract.templateId,
-        "--yes",
-      ],
-      {
-        cwd: this.repoRoot,
-        env: process.env,
+    const createCommandArgs = [
+      "packages/create-codemation/bin/create-codemation.js",
+      this.rootPath(),
+      "--template",
+      this.contract.templateId,
+      "--yes",
+    ];
+    if (this.dependencyMode === "published") {
+      createCommandArgs.push(
+        "--admin-email",
+        ScaffoldedCreateCodemationProject.adminEmail,
+        "--admin-password",
+        ScaffoldedCreateCodemationProject.adminPassword,
+      );
+    }
+    await this.runCommand("node", createCommandArgs, {
+      cwd: this.repoRoot,
+      env: {
+        ...process.env,
+        ...(this.dependencyMode === "published"
+          ? {
+              CI: "",
+              PNPM_CONFIG_FROZEN_LOCKFILE: "false",
+              npm_config_frozen_lockfile: "false",
+            }
+          : {}),
       },
-    );
-    await this.rewriteWorkspaceDependencies();
-    await this.runCommand("pnpm", ["install", "--lockfile=false"], {
-      cwd: this.rootPath(),
-      env: process.env,
     });
+    if (this.dependencyMode === "workspace") {
+      await this.rewriteWorkspaceDependencies();
+      await this.runCommand("pnpm", ["install", "--lockfile=false"], {
+        cwd: this.rootPath(),
+        env: process.env,
+      });
+    }
   }
 
   async dispose(): Promise<void> {

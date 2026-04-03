@@ -147,6 +147,21 @@ export class ScaffoldedDevServerHarness {
     );
   }
 
+  async waitForAuthSessionReady(): Promise<void> {
+    await Eventually.waitFor(
+      async () => {
+        const response = await fetch(`${this.baseUrl()}/api/auth/session`, {
+          redirect: "manual",
+        });
+        return response.status;
+      },
+      (status) => status >= 200 && status < 500,
+      120_000,
+      500,
+      `Timed out waiting for auth session via ${this.commandName}. Output:\n${this.renderLogs()}`,
+    );
+  }
+
   private async waitUntilReady(): Promise<void> {
     await Eventually.waitFor(
       async () => {
