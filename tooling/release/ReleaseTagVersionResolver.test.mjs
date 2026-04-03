@@ -1,12 +1,18 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { promisify } from "node:util";
 
 import { ReleaseTagVersionResolver } from "./ReleaseTagVersionResolver.mjs";
 
 class ReleaseTagVersionResolverTest {
+  constructor() {
+    this.execFileAsync = promisify(execFile);
+  }
+
   async shouldResolveTheSinglePublishedVersion() {
     const workspaceDirectory = await this.#createWorkspaceDirectory();
 
@@ -36,10 +42,11 @@ class ReleaseTagVersionResolverTest {
     }
   }
 
-  async shouldResolveTheMostCommonPublishedVersion() {
+  async shouldResolveTheVersionFromPackagesChangedInHeadCommit() {
     const workspaceDirectory = await this.#createWorkspaceDirectory();
 
     try {
+      await this.#initializeGitRepository(workspaceDirectory);
       await this.#writePackage({
         workspaceDirectory,
         directoryName: "agent-skills",
@@ -64,12 +71,26 @@ class ReleaseTagVersionResolverTest {
         packageName: "@codemation/next-host",
         version: "0.0.19",
       });
+      await this.#commitAll(workspaceDirectory, "initial versions");
+      await this.#writePackage({
+        workspaceDirectory,
+        directoryName: "core",
+        packageName: "@codemation/core",
+        version: "0.0.20",
+      });
+      await this.#writePackage({
+        workspaceDirectory,
+        directoryName: "next-host",
+        packageName: "@codemation/next-host",
+        version: "0.0.20",
+      });
+      await this.#commitAll(workspaceDirectory, "release versions");
 
       const resolver = new ReleaseTagVersionResolver({
         rootDirectory: workspaceDirectory,
       });
 
-      assert.equal(await resolver.resolve(), "0.0.19");
+      assert.equal(await resolver.resolve(), "0.0.20");
     } finally {
       await rm(workspaceDirectory, { recursive: true, force: true });
     }
@@ -123,6 +144,17 @@ class ReleaseTagVersionResolverTest {
     return workspaceDirectory;
   }
 
+  async #initializeGitRepository(workspaceDirectory) {
+    await this.execFileAsync("git", ["init"], { cwd: workspaceDirectory });
+    await this.execFileAsync("git", ["config", "user.name", "Codemation Tests"], { cwd: workspaceDirectory });
+    await this.execFileAsync("git", ["config", "user.email", "tests@codemation.local"], { cwd: workspaceDirectory });
+  }
+
+  async #commitAll(workspaceDirectory, message) {
+    await this.execFileAsync("git", ["add", "."], { cwd: workspaceDirectory });
+    await this.execFileAsync("git", ["commit", "-m", message], { cwd: workspaceDirectory });
+  }
+
   async #writePackage({ workspaceDirectory, directoryName, packageName, version }) {
     const packageDirectory = path.join(workspaceDirectory, "packages", directoryName);
 
@@ -143,8 +175,10 @@ test(
 );
 
 test(
-  "resolves the most common published version for mixed release bumps",
-  releaseTagVersionResolverTest.shouldResolveTheMostCommonPublishedVersion.bind(releaseTagVersionResolverTest),
+  "resolves the version from packages changed in the head commit",
+  releaseTagVersionResolverTest.shouldResolveTheVersionFromPackagesChangedInHeadCommit.bind(
+    releaseTagVersionResolverTest,
+  ),
 );
 
 test(
