@@ -1,5 +1,16 @@
 # @codemation/next-host
 
+## 0.0.20
+
+### Patch Changes
+
+- [#28](https://github.com/MadeRelevant/codemation/pull/28) [`b39cc51`](https://github.com/MadeRelevant/codemation/commit/b39cc51925162b5b46ac9d9653f3d9bf4a1eaf73) Thanks [@cblokland90](https://github.com/cblokland90)! - Fix Gmail trigger preview/manual-run regressions and restore fresh scaffold auth startup in the packaged Next host.
+
+  Clarify the trigger item contract so integrations emit one workflow item per external event instead of wrapper payloads.
+
+- Updated dependencies []:
+  - @codemation/host@0.0.19
+
 ## 0.0.19
 
 ### Patch Changes
