@@ -34,6 +34,8 @@
 
   Replace `RULESET_ID` with the id from the first command (or open **Settings → Rules → Rulesets → main** in the GitHub UI).
 
+- **Version bump PRs (Changesets):** The bot opens **`release/version-packages`** → `main` with version + changelog updates. Full **CI is skipped** on that PR (industry pattern: bot-only diffs, low risk). **Merge** using **Allow merge without waiting for requirements** (maintainers) or add your **Maintainer** role to the ruleset **bypass** list so you are not blocked by missing checks. Optionally configure **Vercel** (Ignored Build Step or ignore `release/**` previews) to avoid noisy deploys on those PRs.
+
 - Keep PRs focused and reasonably small when possible.
 
 ## Local checks before you push

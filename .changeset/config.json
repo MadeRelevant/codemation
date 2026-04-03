@@ -7,5 +7,12 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@codemation/docs", "@codemation/e2e-app", "@codemation/plugin-dev", "@codemation/test-dev"]
+  "ignore": [
+    "@codemation/docs",
+    "@codemation/e2e-app",
+    "@codemation/eslint-config",
+    "@codemation/plugin-dev",
+    "@codemation/test-dev",
+    "@codemation/tsconfig"
+  ]
 }

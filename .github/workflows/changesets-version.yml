@@ -42,5 +42,7 @@ jobs:
         with:
           title: "chore: version packages"
           commit: "chore: version packages"
+          # Industry pattern: fixed branch name under release/* so CI can skip full matrix (see ci.yml + CONTRIBUTING).
+          branch: release/version-packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
