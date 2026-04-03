@@ -431,3 +431,58 @@ jobs:
           files: coverage/lcov.info
           fail_ci_if_error: true
           verbose: true
+
+  # Pull requests only: fail when workspace packages change without a matching .changeset entry.
+  changeset-verify:
+    name: Verify changeset
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client (@codemation/host)
+        run: pnpm --filter @codemation/host prisma:generate
+
+      - name: Changeset status (requires changesets when packages change)
+        run: pnpm exec changeset status
+
+  # Single check for branch protection: require this job name ("CI") instead of every matrix job.
+  ci-success:
+    name: CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - static
+      - template-release-smoke
+      - coverage-report
+      - changeset-verify
+    if: always()
+    steps:
+      - name: Require successful checks
+        run: |
+          fail() { echo "Required job failed: $1 (result=${2})" >&2; exit 1; }
+          if [ "${{ needs.static.result }}" != "success" ]; then fail static "${{ needs.static.result }}"; fi
+          if [ "${{ needs.template-release-smoke.result }}" != "success" ]; then fail template-release-smoke "${{ needs.template-release-smoke.result }}"; fi
+          if [ "${{ needs.coverage-report.result }}" != "success" ]; then fail coverage-report "${{ needs.coverage-report.result }}"; fi
+          if [ "${{ needs.changeset-verify.result }}" != "success" ] && [ "${{ needs.changeset-verify.result }}" != "skipped" ]; then fail changeset-verify "${{ needs.changeset-verify.result }}"; fi
+          echo "All required jobs passed."

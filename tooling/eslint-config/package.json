@@ -6,6 +6,7 @@
   },
   "author": "Made Relevant B.V.",
   "homepage": "https://www.maderelevant.com",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "exports": {
     ".": "./index.mjs"
