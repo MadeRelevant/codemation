@@ -36,4 +36,4 @@ See **[`CONTRIBUTING.md`](CONTRIBUTING.md)** for branches, pull requests, change
 
 ## License
 
-Published packages use the **Codemation Pre-Stable License** (`LICENSE` next to each package). Use is permitted before `@codemation/core` 1.0.0 under non-commercial terms; commercial sale or profit-oriented use is not allowed until a stable release. See the full text in [`LICENSE`](LICENSE).
+Published packages declare **`SEE LICENSE IN LICENSE`** in `package.json`. Each package directory has a **`LICENSE` symlink** to the [repository root `LICENSE`](LICENSE) so the legal text is not duplicated and npm packs still ship a file beside the package. Use is permitted before `@codemation/core` 1.0.0 under non-commercial terms; commercial sale or profit-oriented use is not allowed until a stable release.

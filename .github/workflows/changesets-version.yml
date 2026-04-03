@@ -17,8 +17,6 @@ jobs:
     name: Version packages
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -36,9 +34,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Generate Prisma client (@codemation/host)
-        run: pnpm --filter @codemation/host prisma:generate
 
       - name: Create or update Version Packages PR
         uses: changesets/action@v1
