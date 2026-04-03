@@ -4,7 +4,7 @@
 
 - **Do not push directly to `main`.** Open a **pull request** from a feature branch.
 - CI runs the full quality gates on each PR (format, full lint including duplicate detection and ast-grep rules, typecheck, the full test matrix, and **changeset status** when workspace packages change).
-- **Changesets:** If your PR should affect a published package version, add a changeset before merge: `pnpm changeset` (or add the `.changeset/*.md` entry by hand). Docs-only or other exceptions that truly need no release note are rare—when in doubt, add a patch changeset.
+- **Changesets:** If your PR should affect a published package version, add a changeset before merge: `pnpm changeset` (or add the `.changeset/*.md` entry by hand). Docs-only or other exceptions that truly need no release note are rare—when in doubt, add a patch changeset. If you run **`pnpm changeset version` locally**, set **`GITHUB_TOKEN`** (classic PAT with `repo`, or `gh auth token`) so **`@changesets/changelog-github`** can resolve PR links; CI already has a token.
 - **Branch protection (maintainers):** The `main` ruleset lists **required status checks** that must match the **job names** in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (the `name:` field for each job / matrix row). After changing CI job names, update the ruleset so contexts stay in sync.
 
   Current checks (copy the strings exactly, including `—` and `&`):

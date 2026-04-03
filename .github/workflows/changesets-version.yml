@@ -19,6 +19,9 @@ jobs:
     name: Version packages
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # Used by @changesets/changelog-github (get-github-info) when resolving PRs/commits.
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -44,5 +47,3 @@ jobs:
           commit: "chore: version packages"
           # Industry pattern: fixed branch name under release/* so CI can skip full matrix (see ci.yml + CONTRIBUTING).
           branch: release/version-packages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
