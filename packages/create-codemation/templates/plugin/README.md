@@ -6,6 +6,8 @@ This template scaffolds a plugin package around `codemation.plugin.ts`.
 2. `pnpm dev`
 3. Open the printed local URL to inspect the sandbox app.
 
+This template already includes `AGENTS.md` and packaged Codemation skills under `.agents/skills/extracted`, so coding agents can load plugin-specific guidance immediately.
+
 What you get:
 
 - `codemation.plugin.ts` with `definePlugin(...)` and a sandbox app via `defineCodemationApp(...)`

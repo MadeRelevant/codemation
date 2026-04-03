@@ -43,6 +43,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@codemation/agent-skills": "workspace:*",
     "commander": "^14.0.3"
   },
   "devDependencies": {

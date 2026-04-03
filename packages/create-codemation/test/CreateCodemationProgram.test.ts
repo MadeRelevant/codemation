@@ -5,6 +5,7 @@ import process from "node:process";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { AgentSkillsDirectoryResolver } from "../src/AgentSkillsDirectoryResolver";
 import { ConsumerProjectScaffolder } from "../src/ConsumerProjectScaffolder";
 import { CreateCodemationProgram } from "../src/CreateCodemationProgram";
 import { NodeFileSystem } from "../src/NodeFileSystem";
@@ -62,6 +63,7 @@ class RecordingScaffolder {
 
 describe("CreateCodemationProgram", () => {
   const tmpDirs: string[] = [];
+  const agentSkillsDirectoryResolver = new AgentSkillsDirectoryResolver(import.meta.url);
 
   afterEach(async () => {
     for (const dir of tmpDirs.splice(0)) {
@@ -73,26 +75,38 @@ describe("CreateCodemationProgram", () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();
     const templateCatalog = new TemplateCatalog(resolver, nodeFs);
-    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      new ProjectNameSanitizer(),
+      nodeFs,
+    );
     const memory = new MemoryStdout();
     const program = new CreateCodemationProgram(scaffolder, templateCatalog, memory, new NoopOnboarding());
     await program.run(["--list-templates"]);
     expect(memory.text).toContain("default");
-    expect(memory.text).toContain("minimal");
+    expect(memory.text).toContain("plugin");
   });
 
   it("passes noInteraction to onboarding when --non-interactive is set", async () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();
     const templateCatalog = new TemplateCatalog(resolver, nodeFs);
-    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      new ProjectNameSanitizer(),
+      nodeFs,
+    );
     const memory = new MemoryStdout();
     const onboarding = new RecordingOnboarding();
     const program = new CreateCodemationProgram(scaffolder, templateCatalog, memory, onboarding);
     const target = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-prog-"));
     tmpDirs.push(target);
     const appDir = path.join(target, "ci-app");
-    await program.run(["--non-interactive", "--template", "minimal", appDir]);
+    await program.run(["--non-interactive", "--template", "default", appDir]);
     expect(onboarding.last?.noInteraction).toBe(true);
     expect(onboarding.last?.targetDirectory).toBe(appDir);
   });
@@ -101,14 +115,20 @@ describe("CreateCodemationProgram", () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();
     const templateCatalog = new TemplateCatalog(resolver, nodeFs);
-    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      new ProjectNameSanitizer(),
+      nodeFs,
+    );
     const memory = new MemoryStdout();
     const onboarding = new RecordingOnboarding();
     const program = new CreateCodemationProgram(scaffolder, templateCatalog, memory, onboarding);
     const target = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-prog-"));
     tmpDirs.push(target);
     const appDir = path.join(target, "npm-create-app");
-    await program.run(["--no-interaction", "--template", "minimal", appDir]);
+    await program.run(["--no-interaction", "--template", "default", appDir]);
     expect(onboarding.last?.noInteraction).toBe(true);
   });
 
@@ -116,7 +136,13 @@ describe("CreateCodemationProgram", () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();
     const templateCatalog = new TemplateCatalog(resolver, nodeFs);
-    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      new ProjectNameSanitizer(),
+      nodeFs,
+    );
     const memory = new MemoryStdout();
     const onboarding = new RecordingOnboarding();
     const program = new CreateCodemationProgram(scaffolder, templateCatalog, memory, onboarding);
@@ -127,7 +153,7 @@ describe("CreateCodemationProgram", () => {
     await program.run([
       "--yes",
       "--template",
-      "minimal",
+      "default",
       "--admin-email",
       "admin@example.com",
       "--admin-password",
@@ -136,7 +162,7 @@ describe("CreateCodemationProgram", () => {
     ]);
 
     expect(onboarding.last).toEqual({
-      templateId: "minimal",
+      templateId: "default",
       targetDirectory: appDir,
       noInteraction: true,
       adminUser: {
@@ -181,10 +207,10 @@ describe("CreateCodemationProgram", () => {
     const scaffolder = new RecordingScaffolder();
     const program = new CreateCodemationProgram(scaffolder as never, templateCatalog, memory, onboarding);
 
-    await program.run(["--force", "--template", "minimal", "forced-app"]);
+    await program.run(["--force", "--template", "default", "forced-app"]);
 
     expect(scaffolder.last).toEqual({
-      templateId: "minimal",
+      templateId: "default",
       targetDirectory: path.resolve("forced-app"),
       force: true,
     });

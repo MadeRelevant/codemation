@@ -35,7 +35,7 @@ export class CreateCodemationProgram {
     program.option("--admin-password <password>", "Password for --admin-email (min 8 characters)");
     program.addHelpText(
       "after",
-      "\nExamples:\n  npm create codemation@latest my-app -- --template default\n  npm create codemation@latest my-plugin -- --template plugin\n  npm create codemation@latest my-app -- --no-interaction\n  npm create codemation@latest my-app -- --yes --admin-email admin@example.com --admin-password 'supersecret'\n  pnpm create codemation my-app --template minimal -- --non-interactive\n",
+      "\nExamples:\n  npm create codemation@latest my-app -- --template default\n  npm create codemation@latest my-plugin -- --template plugin\n  npm create codemation@latest my-app -- --no-interaction\n  npm create codemation@latest my-app -- --yes --admin-email admin@example.com --admin-password 'supersecret'\n  pnpm create codemation my-app --template default -- --non-interactive\n",
     );
     program.showHelpAfterError(true);
     await program.parseAsync(argvForParse, { from: "user" });

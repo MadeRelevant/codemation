@@ -1,0 +1,42 @@
+{
+  "name": "@codemation/agent-skills",
+  "version": "0.0.18",
+  "description": "Reusable agent skills for Codemation projects and plugin development.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Made Relevant B.V.",
+  "homepage": "https://www.maderelevant.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MadeRelevant/codemation",
+    "directory": "packages/agent-skills"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "bin": {
+    "codemation-agent-skills": "./bin/codemation-agent-skills.mjs"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "keywords": [
+    "codemation",
+    "agent",
+    "skills",
+    "cursor",
+    "copilot"
+  ],
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "bin",
+    "skills"
+  ]
+}

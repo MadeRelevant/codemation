@@ -21,7 +21,7 @@ npm create codemation@latest my-app -- --template default
 ```
 
 - **`[directory]`** — target folder (default: `codemation-app`).
-- **`--template <id>`** — `default`, `minimal`, or `plugin` (see `templates/` in this package).
+- **`--template <id>`** — `default` or `plugin` (see `templates/` in this package).
 - **`--list-templates`** — print template ids and exit.
 - **`--force`** — allow writing into a non-empty directory (overwrites on conflict).
 - **`--non-interactive`** / **`--no-interaction`** / **`-y` / `--yes`** — skip prompts and optional first-user setup; print manual next steps instead.
@@ -30,4 +30,4 @@ npm create codemation@latest my-app -- --template default
 
 Templates list `@codemation/*` as **`0.0.x`** so new projects can **`pnpm upgrade`** within the pre-1.0 line without bumping fixed versions on every release.
 
-Development in this monorepo: `pnpm --filter create-codemation build`, `pnpm --filter create-codemation test`, and run `node packages/create-codemation/bin/create-codemation.js /tmp/out --template minimal` to exercise the binary locally.
+Development in this monorepo: `pnpm --filter create-codemation build`, `pnpm --filter create-codemation test`, and run `node packages/create-codemation/bin/create-codemation.js /tmp/out --template default` to exercise the binary locally.
