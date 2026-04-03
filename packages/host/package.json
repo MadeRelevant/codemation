@@ -11,6 +11,7 @@
     "url": "https://github.com/MadeRelevant/codemation",
     "directory": "packages/host"
   },
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

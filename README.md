@@ -8,12 +8,6 @@
 
 **Codemation** is a code-first automation framework for shipping AI and agentic workflows in TypeScript—triggers, run lifecycle, live progress, credentials, and a host you can run in dev and production.
 
-The beginner path now leads with:
-
-- `defineCodemationApp(...)` for app setup
-- `workflow("...")` for fluent workflow authoring
-- `defineNode(...)` and `defineCredential(...)` for simple custom extensions
-
 ---
 
 ## Getting started
@@ -30,18 +24,16 @@ Then open the generated app and follow its README (environment, database, first 
 
 ## Documentation
 
-**[docs.maderelevant.com](https://docs.maderelevant.com)** — guides, API reference, and plugin development.
-
-Repository references for contributors: [`AGENTS.md`](AGENTS.md) (architecture and tests), [`docs/development-modes.md`](docs/development-modes.md) (framework vs consumer workflows).
+**[docs.maderelevant.com](https://docs.maderelevant.com)**
 
 ---
 
 ## Contributing
 
-See **[`CONTRIBUTING.md`](CONTRIBUTING.md)** for branches, pull requests, and local checks. Framework changes should follow [`AGENTS.md`](AGENTS.md).
+See **[`CONTRIBUTING.md`](CONTRIBUTING.md)** for branches, pull requests, changesets, and local checks. Framework changes should follow [`AGENTS.md`](AGENTS.md).
 
 ---
 
 ## License
 
-Licensing may vary by package; see each `package.json` under `packages/` and `apps/`.
+Published packages declare **`SEE LICENSE IN LICENSE`** in `package.json`. Each package directory has a **`LICENSE` symlink** to the [repository root `LICENSE`](LICENSE) so the legal text is not duplicated and npm packs still ship a file beside the package. Use is permitted before `@codemation/core` 1.0.0 under non-commercial terms; commercial sale or profit-oriented use is not allowed until a stable release.

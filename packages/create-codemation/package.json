@@ -18,7 +18,7 @@
     "scaffold",
     "cli"
   ],
-  "license": "UNLICENSED",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "bin": {
     "create-codemation": "./bin/create-codemation.js"

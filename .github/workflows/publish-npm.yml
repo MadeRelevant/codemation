@@ -1,9 +1,14 @@
 name: Publish npm
 
+# After the Version Packages PR merges, tag a release (e.g. v0.0.18) to publish. Changesets open that PR via changesets-version.yml.
 on:
   push:
     tags:
       - "v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   id-token: write # Required for OIDC

@@ -9,8 +9,9 @@ on:
 permissions:
   contents: read
 
+# One run per PR (by number) or per ref; new pushes cancel superseded runs.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -431,3 +432,47 @@ jobs:
           files: coverage/lcov.info
           fail_ci_if_error: true
           verbose: true
+
+  # Fail when workspace packages change without a matching .changeset entry (pull requests only).
+  # No prisma:generate — changeset status only reads package manifests + git; it does not load generated code.
+  # A no-op step on push keeps this check name green for rulesets that require it on every workflow run.
+  changeset-verify:
+    name: Verify changeset
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # changeset status compares to baseBranch (main); PR checkouts often lack a local refs/heads/main.
+      - name: Fetch base branch for changesets
+        if: github.event_name == 'pull_request'
+        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+
+      - name: Install pnpm
+        if: github.event_name == 'pull_request'
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        if: github.event_name == 'pull_request'
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        if: github.event_name == 'pull_request'
+        run: pnpm install --frozen-lockfile
+
+      - name: Changeset status (requires changesets when packages change)
+        if: github.event_name == 'pull_request'
+        run: pnpm exec changeset status
+
+      - name: Pass when not a pull request
+        if: github.event_name != 'pull_request'
+        run: echo "Changeset verification applies to pull requests only."
