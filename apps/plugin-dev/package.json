@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "codemation": "tsx --tsconfig ../../tsconfig.codemation-tsx.json ../../packages/cli/src/bin.ts",
-    "dev": "pnpm codemation dev:plugin",
+    "dev": "pnpm run dev:packaged",
+    "dev:packaged": "pnpm codemation dev:plugin",
+    "dev:framework": "pnpm codemation dev:plugin --watch-framework",
     "build": "pnpm exec tsdown src/index.ts codemation.plugin.ts --out-dir dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint ."

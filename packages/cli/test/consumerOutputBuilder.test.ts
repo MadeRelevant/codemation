@@ -111,3 +111,20 @@ test("watch rebuild updates workflow output after a single file change (incremen
   const emittedAfter = path.join(watchSnapshot.emitOutputRoot, "app", "src", "workflows", "fixture.js");
   assert.match(await readFile(emittedAfter, "utf8"), /Fixture two/);
 });
+
+test("ensureBuilt honors an explicit config path override", async () => {
+  const consumerRoot = await mkdtemp(path.join(os.tmpdir(), "codemation-cli-consumer-"));
+  teardownConsumerRoot = consumerRoot;
+  const overrideConfigPath = path.join(consumerRoot, ".codemation", "plugin-dev", "codemation.config.ts");
+  await mkdir(path.dirname(overrideConfigPath), { recursive: true });
+  await writeFile(overrideConfigPath, fixtureConfig, "utf8");
+  const workflowPath = path.join(consumerRoot, "src", "workflows", "fixture.ts");
+  await mkdir(path.dirname(workflowPath), { recursive: true });
+  await writeFile(workflowPath, workflowSource("Fixture override"), "utf8");
+
+  const builder = new ConsumerOutputBuilder(consumerRoot, undefined, undefined, overrideConfigPath);
+  const snapshot = await builder.ensureBuilt();
+
+  assert.equal(snapshot.configSourcePath, overrideConfigPath);
+  assert.match(await readFile(snapshot.outputEntryPath, "utf8"), /codemationConsumerApp/);
+});

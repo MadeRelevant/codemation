@@ -1,6 +1,7 @@
-import type { CodemationAppContext, CodemationConfig } from "@codemation/host";
+import { defineCodemationApp } from "@codemation/host";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
+import starterHelloWorkflow from "./src/workflows/starter/hello";
 
 loadDotenv({
   path: path.resolve(import.meta.dirname, ".env"),
@@ -15,29 +16,25 @@ if (useRedisRuntime && (!databaseUrl || databaseUrl.length === 0)) {
   );
 }
 
-export const codemationHost = {
-  app: {
-    auth: {
-      kind: "local" as const,
-      allowUnauthenticatedInDevelopment: true,
-    },
-    database: useRedisRuntime
-      ? { kind: "postgresql" as const, url: databaseUrl! }
-      : { kind: "pglite" as const, pgliteDataDir: ".codemation/pglite" },
-    scheduler: {
-      kind: useRedisRuntime ? ("queue" as const) : ("inline" as const),
-      queuePrefix: "codemation-starter",
-      workerQueues: ["default"],
-      redisUrl: process.env.REDIS_URL,
-    },
-    whitelabel: {
-      productName: "My automation",
-      logoPath: "src/branding/logo.svg",
-    },
+export const codemationHost = defineCodemationApp({
+  name: "My automation",
+  auth: {
+    kind: "local",
+    allowUnauthenticatedInDevelopment: true,
   },
-  register(app: CodemationAppContext) {
-    app.discoverWorkflows("src/workflows");
+  database: useRedisRuntime
+    ? { kind: "postgresql", url: databaseUrl! }
+    : { kind: "pglite", dataDir: ".codemation/pglite" },
+  execution: {
+    mode: useRedisRuntime ? "queue" : "inline",
+    queuePrefix: "codemation-starter",
+    workerQueues: ["default"],
+    redisUrl: process.env.REDIS_URL,
   },
-} satisfies CodemationConfig;
+  whitelabel: {
+    logoPath: "src/branding/logo.svg",
+  },
+  workflows: [starterHelloWorkflow],
+});
 
 export default codemationHost;

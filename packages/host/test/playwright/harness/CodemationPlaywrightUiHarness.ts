@@ -60,6 +60,12 @@ export class CodemationPlaywrightUiHarness {
     });
   }
 
+  async expectWorkflowListItemVisible(workflowId: string, workflowName: string): Promise<void> {
+    const item = this.page.getByTestId(`workflow-list-item-${workflowId}`);
+    await expect(item).toBeVisible({ timeout: CodemationPlaywrightUiHarness.workflowsListTimeoutMs });
+    await expect(item).toContainText(workflowName, { timeout: CodemationPlaywrightUiHarness.workflowsListTimeoutMs });
+  }
+
   /**
    * From the workflows list, open a workflow and poll until `GET /api/workflows/:id` returns 200
    * (handles transient 503 while the runtime gateway attaches).
@@ -69,6 +75,10 @@ export class CodemationPlaywrightUiHarness {
     options?: Readonly<{ apiReadyTimeoutMs?: number }>,
   ): Promise<void> {
     await this.page.getByTestId(`workflow-open-${workflowId}`).click();
+    await this.waitForWorkflowApiReady(workflowId, options);
+  }
+
+  async waitForWorkflowApiReady(workflowId: string, options?: Readonly<{ apiReadyTimeoutMs?: number }>): Promise<void> {
     const apiReadyTimeoutMs = options?.apiReadyTimeoutMs ?? CodemationPlaywrightUiHarness.workflowApiReadyTimeoutMs;
     await expect
       .poll(
@@ -85,11 +95,64 @@ export class CodemationPlaywrightUiHarness {
   /** Workflow detail / canvas: primary run control is visible. */
   async waitForCanvasRunWorkflowButton(options?: Readonly<{ timeoutMs?: number }>): Promise<void> {
     const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasRunButtonTimeoutMs;
-    await expect(this.page.getByTestId("canvas-run-workflow-button")).toBeVisible({ timeout: timeoutMs });
+    await expect(this.canvasRunWorkflowButton()).toBeVisible({ timeout: timeoutMs });
   }
 
   async clickCanvasRunWorkflowButton(): Promise<void> {
-    await this.page.getByTestId("canvas-run-workflow-button").click();
+    await this.canvasRunWorkflowButton().click();
+  }
+
+  async openExecutionsTab(): Promise<void> {
+    await this.page.getByTestId("workflow-canvas-tab-executions").click();
+  }
+
+  /**
+   * Clicks a canvas node card by index (0-based DOM order) and returns that node's id. Needed so the
+   * execution inspector mounts when nothing is auto-selected after a run.
+   */
+  async selectCanvasNodeByCardIndex(index: number, options?: Readonly<{ timeoutMs?: number }>): Promise<string> {
+    const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasNodeCompletionTimeoutMs;
+    const cards = this.page.locator('[data-testid^="canvas-node-card-"]');
+    const card = cards.nth(index);
+    await expect(card).toBeVisible({ timeout: timeoutMs });
+    const testId = await card.getAttribute("data-testid");
+    const nodeId = testId?.replace(/^canvas-node-card-/, "") ?? "";
+    if (!nodeId) {
+      throw new Error(`Missing canvas node id for card index ${String(index)} (testid=${testId ?? "null"})`);
+    }
+    await card.click();
+    return nodeId;
+  }
+
+  async expectWorkflowTitle(name: string, options?: Readonly<{ timeoutMs?: number }>): Promise<void> {
+    const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.workflowApiReadyTimeoutMs;
+    await expect(this.page.getByTestId("workflow-detail-workflow-title")).toHaveText(name, { timeout: timeoutMs });
+  }
+
+  async expectLatestRunCompleted(options?: Readonly<{ timeoutMs?: number }>): Promise<void> {
+    const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasNodeCompletionTimeoutMs;
+    const runsSidebar = this.page.getByTestId("workflow-runs-sidebar");
+    await expect(runsSidebar).toBeVisible({ timeout: timeoutMs });
+    await expect
+      .poll(async () => await runsSidebar.locator('[data-testid^="run-status-"]').allTextContents(), {
+        timeout: timeoutMs,
+      })
+      .toContain("completed");
+  }
+
+  async selectLatestRunFromSidebar(options?: Readonly<{ timeoutMs?: number }>): Promise<string> {
+    const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasNodeCompletionTimeoutMs;
+    const runsSidebar = this.page.getByTestId("workflow-runs-sidebar");
+    await expect(runsSidebar).toBeVisible({ timeout: timeoutMs });
+    const latestRun = runsSidebar.locator('[data-testid^="run-summary-"]').first();
+    await expect(latestRun).toBeVisible({ timeout: timeoutMs });
+    const testId = await latestRun.getAttribute("data-testid");
+    const runId = testId?.replace(/^run-summary-/, "") ?? "";
+    if (!runId) {
+      throw new Error(`Missing run id for latest run summary (testid=${testId ?? "null"})`);
+    }
+    await latestRun.click();
+    return runId;
   }
 
   /** Assert a canvas node card exists and reaches `completed` (runtime finished for that node). */
@@ -102,5 +165,9 @@ export class CodemationPlaywrightUiHarness {
     const statusTimeoutMs = options?.statusTimeoutMs ?? CodemationPlaywrightUiHarness.canvasNodeCompletionTimeoutMs;
     await expect(card).toBeVisible({ timeout: visibleTimeoutMs });
     await expect(card).toHaveAttribute("data-codemation-node-status", "completed", { timeout: statusTimeoutMs });
+  }
+
+  private canvasRunWorkflowButton() {
+    return this.page.getByTestId("canvas-run-workflow-button").last();
   }
 }

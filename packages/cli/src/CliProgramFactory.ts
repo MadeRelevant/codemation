@@ -3,6 +3,7 @@ import { AppContainerFactory } from "@codemation/host";
 import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 
 import { ConsumerBuildOptionsParser } from "./build/ConsumerBuildOptionsParser";
+import { ConsumerBuildArtifactsPublisher } from "./build/ConsumerBuildArtifactsPublisher";
 import { BuildCommand } from "./commands/BuildCommand";
 import { DbMigrateCommand } from "./commands/DbMigrateCommand";
 import { DevCommand } from "./commands/DevCommand";
@@ -78,6 +79,8 @@ export class CliProgramFactory {
     );
 
     const buildOptionsParser = new ConsumerBuildOptionsParser();
+    const consumerOutputBuilderFactory = new ConsumerOutputBuilderFactory();
+    const consumerBuildArtifactsPublisher = new ConsumerBuildArtifactsPublisher();
     const devCommand = new DevCommand(
       pathResolver,
       tsRuntime,
@@ -86,6 +89,9 @@ export class CliProgramFactory {
       cliLogger,
       devSessionServices,
       databaseMigrationsApplyService,
+      consumerOutputBuilderFactory,
+      pluginDiscovery,
+      consumerBuildArtifactsPublisher,
       new DevBootstrapSummaryFetcher(),
       new DevCliBannerRenderer(),
       new ConsumerEnvDotenvFilePredicate(),
@@ -97,7 +103,14 @@ export class CliProgramFactory {
     );
     return new CliProgram(
       buildOptionsParser,
-      new BuildCommand(cliLogger, pathResolver, new ConsumerOutputBuilderFactory(), tsRuntime),
+      new BuildCommand(
+        cliLogger,
+        pathResolver,
+        consumerOutputBuilderFactory,
+        pluginDiscovery,
+        consumerBuildArtifactsPublisher,
+        tsRuntime,
+      ),
       devCommand,
       new DevPluginCommand(new PluginDevConfigFactory(), devCommand),
       new ServeWebCommand(

@@ -61,11 +61,37 @@ describe("ConsumerProjectScaffolder", () => {
     expect(env).toContain("CODEMATION_CREDENTIALS_MASTER_KEY=codemation-local-dev-credentials-master-key");
     expect(env).toContain("AUTH_SECRET=codemation-local-dev-auth-secret");
     await expect(fs.readFile(path.join(projectDir, "codemation.config.ts"), "utf8")).resolves.toContain(
-      'productName: "My automation"',
+      'name: "My automation"',
     );
     await expect(fs.readFile(path.join(projectDir, "src", "workflows", "hello.ts"), "utf8")).resolves.toContain(
-      'id: "wf.minimal.hello"',
+      'workflow("wf.minimal.hello")',
     );
+  });
+
+  it("copies the plugin template with the simplified plugin authoring surface", async () => {
+    const resolver = new TemplateDirectoryResolver(import.meta.url);
+    const nodeFs = new NodeFileSystem();
+    const templateCatalog = new TemplateCatalog(resolver, nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-plugin-"));
+    tmpDirs.push(target);
+    const projectDir = path.join(target, "my-plugin");
+
+    await scaffolder.scaffold({ templateId: "plugin", targetDirectory: projectDir, force: false });
+
+    const pluginEntry = await fs.readFile(path.join(projectDir, "codemation.plugin.ts"), "utf8");
+    expect(pluginEntry).toContain("definePlugin");
+    expect(pluginEntry).toContain("defineCodemationApp");
+    expect(pluginEntry).toContain('workflow("wf.plugin.hello")');
+
+    const credentialFile = await fs.readFile(
+      path.join(projectDir, "src", "credentialTypes", "ExampleApiKeyCredentialType.ts"),
+      "utf8",
+    );
+    expect(credentialFile).toContain("defineCredential");
+
+    const nodeFile = await fs.readFile(path.join(projectDir, "src", "nodes", "ExamplePluginUppercase.ts"), "utf8");
+    expect(nodeFile).toContain("defineNode");
   });
 
   it("overwrites matching template files when --force is set", async () => {

@@ -13,7 +13,7 @@ cd <project-name>
 pnpm dev
 ```
 
-That starts the framework-owned UI and the runtime behind it. To change discovery, authentication, database persistence, engine settings, credentials, or other wiring, edit `<project-name>/codemation.config.ts`.
+That starts the framework-owned UI and the runtime behind it. To change workflows, credentials, database mode, or other wiring, edit `<project-name>/codemation.config.ts` with `defineCodemationApp(...)`.
 
 ## Other scaffolds
 
@@ -40,7 +40,7 @@ pnpm dev
 The generated project already includes:
 
 - `codemation.config.ts`
-- a discovered `src/workflows` directory
+- a `src/workflows` directory with a fluent `workflow("...")` example
 - a sample workflow
 - local auth defaults for development
 - an embedded Postgres-compatible local database via PGlite
@@ -51,8 +51,8 @@ The generated project already includes:
 
 At the beginning, you only need to understand four things:
 
-1. `codemation.config.ts` composes your app
-2. `src/workflows` contains workflow definitions
+1. `codemation.config.ts` composes your app with `defineCodemationApp(...)`
+2. `src/workflows` contains workflow definitions built with `workflow("...")`
 3. nodes move data through a workflow graph
 4. the runtime gives you persistence, credentials, APIs, and the operator UI
 

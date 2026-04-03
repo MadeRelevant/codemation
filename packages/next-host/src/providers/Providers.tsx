@@ -1,3 +1,5 @@
+"use client";
+
 import type { Logger } from "@codemation/host-src/application/logging/Logger";
 
 import { BrowserLoggerFactory } from "@codemation/host-src/infrastructure/logging/BrowserLoggerFactory";

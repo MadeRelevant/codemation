@@ -1,6 +1,7 @@
-import type { CodemationAppContext, CodemationConfig } from "@codemation/host";
+import { defineCodemationApp } from "@codemation/host";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
+import helloWorkflow from "./src/workflows/hello";
 
 loadDotenv({
   path: path.resolve(import.meta.dirname, ".env"),
@@ -15,36 +16,32 @@ if (useRedisRuntime && (!databaseUrl || databaseUrl.length === 0)) {
   );
 }
 
-export const codemationHost = {
-  app: {
-    auth: {
-      kind: "local" as const,
-      allowUnauthenticatedInDevelopment: true,
-      oauth: [
-        {
-          provider: "google",
-          clientIdEnv: "GOOGLE_CLIENT_ID",
-          clientSecretEnv: "GOOGLE_CLIENT_SECRET",
-        },
-      ],
-    },
-    database: useRedisRuntime
-      ? { kind: "postgresql" as const, url: databaseUrl! }
-      : { kind: "pglite" as const, pgliteDataDir: ".codemation/pglite" },
-    scheduler: {
-      kind: useRedisRuntime ? ("queue" as const) : ("inline" as const),
-      queuePrefix: "codemation-minimal",
-      workerQueues: ["default"],
-      redisUrl: process.env.REDIS_URL,
-    },
-    whitelabel: {
-      productName: "My automation",
-      logoPath: "src/branding/logo.svg",
-    },
+export const codemationHost = defineCodemationApp({
+  name: "My automation",
+  auth: {
+    kind: "local",
+    allowUnauthenticatedInDevelopment: true,
+    oauth: [
+      {
+        provider: "google",
+        clientIdEnv: "GOOGLE_CLIENT_ID",
+        clientSecretEnv: "GOOGLE_CLIENT_SECRET",
+      },
+    ],
   },
-  register(app: CodemationAppContext) {
-    app.discoverWorkflows("src/workflows");
+  database: useRedisRuntime
+    ? { kind: "postgresql", url: databaseUrl! }
+    : { kind: "pglite", dataDir: ".codemation/pglite" },
+  execution: {
+    mode: useRedisRuntime ? "queue" : "inline",
+    queuePrefix: "codemation-minimal",
+    workerQueues: ["default"],
+    redisUrl: process.env.REDIS_URL,
   },
-} satisfies CodemationConfig;
+  whitelabel: {
+    logoPath: "src/branding/logo.svg",
+  },
+  workflows: [helloWorkflow],
+});
 
 export default codemationHost;

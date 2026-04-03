@@ -18,11 +18,7 @@ export class ListenPortConflictDescriber {
       return null;
     }
 
-    const raw = await this.readLsofOutput(port);
-    if (raw === null) {
-      return null;
-    }
-    const occupants = this.parseLsofOutput(raw);
+    const occupants = await this.resolveLoopbackOccupants(port);
     if (occupants.length === 0) {
       return null;
     }
@@ -30,6 +26,22 @@ export class ListenPortConflictDescriber {
     return occupants
       .map((occupant) => `pid=${occupant.pid} command=${occupant.command} endpoint=${occupant.endpoint}`)
       .join("; ");
+  }
+
+  private async resolveLoopbackOccupants(port: number): Promise<ReadonlyArray<PortOccupant>> {
+    const lsofRaw = await this.readLsofOutput(port);
+    const fromLsof = lsofRaw !== null ? this.parseLsofOutput(lsofRaw) : [];
+    if (fromLsof.length > 0) {
+      return fromLsof;
+    }
+    if (this.platform !== "linux") {
+      return [];
+    }
+    const ssRaw = await this.readSsOutput(port);
+    if (ssRaw === null) {
+      return [];
+    }
+    return this.parseSsListenOutput(ssRaw, port);
   }
 
   private async readLsofOutput(port: number): Promise<string | null> {
@@ -78,6 +90,55 @@ export class ListenPortConflictDescriber {
       }
     }
 
+    return occupants;
+  }
+
+  private async readSsOutput(port: number): Promise<string | null> {
+    const filtered = await this.execFileStdout("ss", ["-lntp", `sport = :${port}`]);
+    if (filtered !== null && filtered.trim().length > 0) {
+      return filtered;
+    }
+    return this.execFileStdout("ss", ["-lntp"]);
+  }
+
+  private async execFileStdout(command: string, args: readonly string[]): Promise<string | null> {
+    try {
+      return await new Promise<string>((resolve, reject) => {
+        execFile(command, [...args], (error, stdout) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(stdout);
+        });
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  private parseSsListenOutput(raw: string, port: number): ReadonlyArray<PortOccupant> {
+    const occupants: PortOccupant[] = [];
+    const portSuffix = `:${port}`;
+    for (const line of raw.split("\n")) {
+      if (!line.includes("LISTEN") || !line.includes(portSuffix)) {
+        continue;
+      }
+      const pidMatch = line.match(/pid=(\d+)/);
+      if (!pidMatch) {
+        continue;
+      }
+      const pid = Number.parseInt(pidMatch[1] ?? "0", 10);
+      const cmdMatch = line.match(/users:\(\("([^"]*)"/);
+      const command = cmdMatch?.[1] ?? "unknown";
+      const localAddrMatch = line.match(/\s+(\S+:\d+|\[[^\]]+\]:\d+)\s+/);
+      const endpoint = localAddrMatch?.[1] ?? `tcp:${String(port)}`;
+      occupants.push({
+        pid,
+        command,
+        endpoint,
+      });
+    }
     return occupants;
   }
 }

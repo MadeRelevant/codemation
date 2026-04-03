@@ -63,6 +63,7 @@ export class ConsumerOutputBuilder {
     private readonly consumerRoot: string,
     logOverride?: Logger,
     buildOptionsOverride?: ConsumerBuildOptions,
+    private readonly configPathOverride?: string,
   ) {
     this.log = logOverride ?? defaultConsumerOutputLogger;
     this.buildOptions = buildOptionsOverride ?? defaultConsumerBuildOptions;
@@ -716,6 +717,14 @@ export class ConsumerOutputBuilder {
   }
 
   private async resolveConfigPath(consumerRoot: string): Promise<string | null> {
+    const configuredOverride = this.configPathOverride?.trim();
+    if (configuredOverride && configuredOverride.length > 0) {
+      const resolvedOverride = path.resolve(configuredOverride);
+      if (await this.fileExists(resolvedOverride)) {
+        return resolvedOverride;
+      }
+      throw new Error(`Codemation config override not found at ${resolvedOverride}.`);
+    }
     for (const candidate of this.getConventionCandidates(consumerRoot)) {
       if (await this.fileExists(candidate)) {
         return candidate;

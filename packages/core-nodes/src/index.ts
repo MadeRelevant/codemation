@@ -19,6 +19,7 @@ export * from "./nodes/WebhookTriggerFactory";
 export * from "./nodes/webhookTriggerNode";
 export * from "./register.types";
 export * from "./workflowBuilder.types";
+export * from "./workflowAuthoring.types";
 export * from "./workflows/AIAgentConnectionWorkflowExpander";
 export * from "./nodes/ConnectionCredentialNode";
 export * from "./nodes/ConnectionCredentialNodeConfig";

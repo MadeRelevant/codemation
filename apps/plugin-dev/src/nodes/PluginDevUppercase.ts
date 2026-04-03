@@ -1,17 +1,18 @@
-import type { RunnableNodeConfig, TypeToken } from "@codemation/core";
+import { defineNode } from "@codemation/core";
 
-import { PluginDevUppercaseNode } from "./PluginDevUppercaseNode";
-
-export class PluginDevUppercase<
-  TInputJson extends Record<string, unknown> = Record<string, unknown>,
-  TField extends keyof TInputJson & string = keyof TInputJson & string,
-> implements RunnableNodeConfig<TInputJson, TInputJson> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = PluginDevUppercaseNode;
-
-  constructor(
-    public readonly name: string,
-    public readonly cfg: Readonly<{ field: TField }>,
-    public readonly id?: string,
-  ) {}
-}
+export const pluginDevUppercaseNode = defineNode({
+  key: "plugin-dev.uppercase",
+  title: "Uppercase text",
+  input: {
+    field: "string",
+  },
+  run(
+    items: ReadonlyArray<Readonly<{ message: string }>>,
+    { config }: { readonly config: Readonly<{ field: string }> },
+  ) {
+    return items.map((item) => ({
+      ...item,
+      [config.field]: String(item[config.field as keyof typeof item] ?? "").toUpperCase(),
+    }));
+  },
+});

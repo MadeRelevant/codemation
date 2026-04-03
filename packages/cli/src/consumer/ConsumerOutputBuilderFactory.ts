@@ -8,9 +8,10 @@ export class ConsumerOutputBuilderFactory {
     consumerRoot: string,
     args?: Readonly<{
       buildOptions?: ConsumerBuildOptions;
+      configPathOverride?: string;
       logger?: Logger;
     }>,
   ): ConsumerOutputBuilder {
-    return new ConsumerOutputBuilder(consumerRoot, args?.logger, args?.buildOptions);
+    return new ConsumerOutputBuilder(consumerRoot, args?.logger, args?.buildOptions, args?.configPathOverride);
   }
 }

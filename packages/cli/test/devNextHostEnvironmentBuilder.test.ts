@@ -18,6 +18,7 @@ describe("DevNextHostEnvironmentBuilder", () => {
     });
     expect(env.CODEMATION_CONSUMER_ROOT).toBe(consumerRoot);
     expect(env.CODEMATION_UI_AUTH_ENABLED).toBe("false");
+    expect(env.CODEMATION_PUBLIC_WS_PORT).toBe("3001");
   });
 
   it("allows overriding the config path for the Next host", () => {
@@ -50,10 +51,16 @@ describe("DevNextHostEnvironmentBuilder", () => {
 
     expect(env.PORT).toBe("4242");
     expect(env.AUTH_URL).toBe("http://127.0.0.1:3000");
+    expect(env.CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH).toBe(
+      path.resolve(consumerRoot, ".codemation", "output", "current.json"),
+    );
     expect(env.CODEMATION_RUNTIME_DEV_URL).toBe("http://127.0.0.1:3000");
     expect(env.AUTH_SECRET).toBe("dev-secret");
     expect(env.CODEMATION_UI_AUTH_ENABLED).toBe("true");
+    expect(env.CODEMATION_PUBLIC_WS_PORT).toBe("3000");
     expect(env.CODEMATION_SKIP_STARTUP_MIGRATIONS).toBe("true");
+    expect(env.CODEMATION_WS_PORT).toBe("3001");
+    expect(env.NEXT_PUBLIC_CODEMATION_WS_PORT).toBe("3000");
     expect(env.HOSTNAME).toBe("127.0.0.1");
   });
 });

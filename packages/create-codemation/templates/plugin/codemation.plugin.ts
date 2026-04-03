@@ -1,43 +1,33 @@
-import { createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
-import { definePlugin, type CodemationConfig } from "@codemation/host";
+import { defineCodemationApp, definePlugin, workflow } from "@codemation/host";
 import { exampleApiKeyCredentialType } from "./src/credentialTypes/ExampleApiKeyCredentialType";
-import { ExamplePluginUppercase, ExamplePluginUppercaseNode } from "./src/nodes/ExamplePluginUppercase";
+import { examplePluginUppercaseNode } from "./src/nodes/ExamplePluginUppercase";
 
-type SandboxSeedJson = Readonly<{
-  message: string;
-}>;
-
-const sandbox: CodemationConfig = {
-  app: {
+const plugin = definePlugin({
+  credentials: [exampleApiKeyCredentialType],
+  nodes: [examplePluginUppercaseNode],
+  sandbox: defineCodemationApp({
+    name: "Plugin sandbox",
     auth: {
       kind: "local",
       allowUnauthenticatedInDevelopment: true,
     },
     database: {
       kind: "pglite",
-      pgliteDataDir: ".codemation/pglite",
+      dataDir: ".codemation/pglite",
     },
-    scheduler: {
-      kind: "inline",
+    execution: {
+      mode: "inline",
     },
-    whitelabel: {
-      productName: "Plugin sandbox",
-    },
-  },
-  workflows: [
-    createWorkflowBuilder({ id: "wf.plugin.hello", name: "Plugin Hello" })
-      .trigger(new ManualTrigger<SandboxSeedJson>("Start", [{ json: { message: "hello plugin" } }]))
-      .then(new ExamplePluginUppercase<SandboxSeedJson, "message">("Uppercase message", { field: "message" }))
-      .build(),
-  ],
-};
-
-const plugin = definePlugin({
-  credentialTypes: [exampleApiKeyCredentialType],
-  register: (context) => {
-    context.registerNode(ExamplePluginUppercaseNode);
-  },
-  sandbox,
+    workflows: [
+      workflow("wf.plugin.hello")
+        .name("Plugin Hello")
+        .manualTrigger("Start", {
+          message: "hello plugin",
+        })
+        .node(examplePluginUppercaseNode, { field: "message" }, "Uppercase message")
+        .build(),
+    ],
+  }),
 });
 
 export default plugin;

@@ -1,3 +1,4 @@
+import path from "node:path";
 import process from "node:process";
 
 import { ConsumerEnvLoader } from "../consumer/ConsumerEnvLoader";
@@ -13,6 +14,7 @@ export class DevNextHostEnvironmentBuilder {
     args: Readonly<{
       authSecret: string;
       configPathOverride?: string;
+      consumerOutputManifestPath?: string;
       consumerRoot: string;
       developmentServerToken: string;
       nextPort: number;
@@ -22,10 +24,12 @@ export class DevNextHostEnvironmentBuilder {
       websocketPort: number;
     }>,
   ): NodeJS.ProcessEnv {
+    const publicWebsocketPort = this.resolvePublicWebsocketPort(args.publicBaseUrl, args.websocketPort);
     return {
       ...this.build({
         authSecret: args.authSecret,
         configPathOverride: args.configPathOverride,
+        consumerOutputManifestPath: args.consumerOutputManifestPath,
         consumerRoot: args.consumerRoot,
         developmentServerToken: args.developmentServerToken,
         nextPort: args.nextPort,
@@ -38,6 +42,8 @@ export class DevNextHostEnvironmentBuilder {
       HOSTNAME: "127.0.0.1",
       AUTH_SECRET: args.authSecret,
       AUTH_URL: args.publicBaseUrl,
+      CODEMATION_PUBLIC_WS_PORT: String(publicWebsocketPort),
+      NEXT_PUBLIC_CODEMATION_WS_PORT: String(publicWebsocketPort),
     };
   }
 
@@ -45,6 +51,7 @@ export class DevNextHostEnvironmentBuilder {
     args: Readonly<{
       authSecret?: string;
       configPathOverride?: string;
+      consumerOutputManifestPath?: string;
       consumerRoot: string;
       developmentServerToken: string;
       nextPort: number;
@@ -54,11 +61,15 @@ export class DevNextHostEnvironmentBuilder {
     }>,
   ): NodeJS.ProcessEnv {
     const merged = this.consumerEnvLoader.mergeConsumerRootIntoProcessEnvironment(args.consumerRoot, process.env);
+    const consumerOutputManifestPath =
+      args.consumerOutputManifestPath ?? path.resolve(args.consumerRoot, ".codemation", "output", "current.json");
     return {
       ...merged,
       PORT: String(args.nextPort),
       CODEMATION_CONSUMER_ROOT: args.consumerRoot,
+      CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH: consumerOutputManifestPath,
       CODEMATION_UI_AUTH_ENABLED: String(!args.skipUiAuth),
+      CODEMATION_PUBLIC_WS_PORT: String(args.websocketPort),
       CODEMATION_WS_PORT: String(args.websocketPort),
       NEXT_PUBLIC_CODEMATION_WS_PORT: String(args.websocketPort),
       CODEMATION_DEV_SERVER_TOKEN: args.developmentServerToken,
@@ -74,5 +85,18 @@ export class DevNextHostEnvironmentBuilder {
         ? { CODEMATION_RUNTIME_DEV_URL: args.runtimeDevUrl.trim() }
         : {}),
     };
+  }
+
+  private resolvePublicWebsocketPort(publicBaseUrl: string, fallbackPort: number): number {
+    try {
+      const parsedUrl = new URL(publicBaseUrl);
+      const parsedPort = Number(parsedUrl.port);
+      if (Number.isInteger(parsedPort) && parsedPort > 0) {
+        return parsedPort;
+      }
+    } catch {
+      // Fall back to the runtime websocket port when the public URL is malformed.
+    }
+    return fallbackPort;
   }
 }
