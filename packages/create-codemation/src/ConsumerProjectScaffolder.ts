@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import type { AgentSkillsDirectoryResolver } from "./AgentSkillsDirectoryResolver";
 import type { FileSystemPort } from "./FileSystemPort";
 import type { ProjectNameSanitizer } from "./ProjectNameSanitizer";
 import type { TemplateCatalog } from "./TemplateCatalog";
@@ -8,6 +9,7 @@ import type { TemplateDirectoryResolver } from "./TemplateDirectoryResolver";
 export class ConsumerProjectScaffolder {
   constructor(
     private readonly resolver: TemplateDirectoryResolver,
+    private readonly agentSkillsDirectoryResolver: AgentSkillsDirectoryResolver,
     private readonly templateCatalog: TemplateCatalog,
     private readonly projectNameSanitizer: ProjectNameSanitizer,
     private readonly fs: FileSystemPort,
@@ -21,6 +23,7 @@ export class ConsumerProjectScaffolder {
     await this.fs.mkdir(resolvedTarget, { recursive: true });
     await this.fs.cp(templateDirectory, resolvedTarget, { recursive: true, force: true });
     await this.applyDefaultEnvFile(resolvedTarget);
+    await this.copyPackagedAgentSkills(resolvedTarget);
     const projectName = this.projectNameSanitizer.sanitizeFromTargetPath(resolvedTarget);
     await this.applyPackageName(resolvedTarget, projectName);
   }
@@ -63,5 +66,13 @@ export class ConsumerProjectScaffolder {
     } catch {
       // Some templates may not ship .env.example.
     }
+  }
+
+  private async copyPackagedAgentSkills(projectRoot: string): Promise<void> {
+    const sourceSkillsRoot = this.agentSkillsDirectoryResolver.resolveSkillsRoot();
+    const agentSkillsRoot = path.join(projectRoot, ".agents", "skills");
+    const extractedSkillsRoot = path.join(agentSkillsRoot, "extracted");
+    await this.fs.mkdir(agentSkillsRoot, { recursive: true });
+    await this.fs.cp(sourceSkillsRoot, extractedSkillsRoot, { recursive: true, force: true });
   }
 }

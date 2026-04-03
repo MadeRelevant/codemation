@@ -11,6 +11,7 @@ export default defineConfig({
     maxWorkers: 2,
     fileParallelism: true,
     projects: [
+      p("../../packages/agent-skills/vitest.config.ts"),
       p("../../packages/core/vitest.config.ts"),
       p("../../packages/core-nodes/vitest.config.ts"),
       p("../../packages/core-nodes-gmail/vitest.config.ts"),

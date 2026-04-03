@@ -27,7 +27,7 @@ registry=http://127.0.0.1:4873/
 4. Use the packages as if they came from npmjs:
 
 ```bash
-pnpm dlx create-codemation@0.0.3 my-app --template minimal --yes
+pnpm dlx create-codemation@0.0.3 my-app --template default --yes
 cd my-app
 pnpm install
 pnpm dev

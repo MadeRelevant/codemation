@@ -328,6 +328,7 @@ class SmokeRegistryPublisher {
     { name: "@codemation/host", relativeDirectory: "packages/host" },
     { name: "@codemation/next-host", relativeDirectory: "packages/next-host" },
     { name: "@codemation/cli", relativeDirectory: "packages/cli" },
+    { name: "@codemation/agent-skills", relativeDirectory: "packages/agent-skills" },
     { name: "create-codemation", relativeDirectory: "packages/create-codemation" },
   ];
 
@@ -509,10 +510,10 @@ class CreateCodemationSmoke {
 
   static resolveTemplateId() {
     const templateId = process.env[this.templateIdEnvName];
-    if (templateId === "default" || templateId === "minimal" || templateId === "plugin") {
+    if (templateId === "default" || templateId === "plugin") {
       return templateId;
     }
-    return "minimal";
+    return "default";
   }
 
   static resolveRepoRoot() {

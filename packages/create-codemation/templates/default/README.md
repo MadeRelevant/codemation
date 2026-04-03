@@ -6,6 +6,8 @@
 
 2. **Dependencies** — `pnpm install`.
 
+   This template already includes `AGENTS.md` and packaged Codemation skills under `.agents/skills/extracted`, so coding agents can pick up project guidance immediately.
+
 3. **First admin user** — After migrations (`pnpm exec codemation db migrate`), create a user:
    `pnpm exec codemation user create --email you@example.com --password 'your-secure-password'`
 

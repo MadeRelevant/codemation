@@ -1,5 +1,6 @@
 import process from "node:process";
 
+import { AgentSkillsDirectoryResolver } from "./AgentSkillsDirectoryResolver";
 import { ConsumerProjectScaffolder } from "./ConsumerProjectScaffolder";
 import { CreateCodemationProgram } from "./CreateCodemationProgram";
 import { NodeChildProcessRunner } from "./NodeChildProcessRunner";
@@ -16,10 +17,17 @@ export class CreateCodemationProgramFactory {
 
   create(): CreateCodemationProgram {
     const resolver = new TemplateDirectoryResolver(this.importMetaUrl);
+    const agentSkillsDirectoryResolver = new AgentSkillsDirectoryResolver(this.importMetaUrl);
     const fs = new NodeFileSystem();
     const templateCatalog = new TemplateCatalog(resolver, fs);
     const projectNameSanitizer = new ProjectNameSanitizer();
-    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, projectNameSanitizer, fs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      projectNameSanitizer,
+      fs,
+    );
     const stdout = new ProcessStdout();
     const onboarding = new PostScaffoldOnboardingCoordinator(
       stdout,

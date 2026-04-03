@@ -48,6 +48,7 @@ class LocalRegistryPublisher {
     "packages/host",
     "packages/next-host",
     "packages/cli",
+    "packages/agent-skills",
     "packages/create-codemation",
   ];
 

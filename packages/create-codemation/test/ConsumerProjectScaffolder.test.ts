@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { AgentSkillsDirectoryResolver } from "../src/AgentSkillsDirectoryResolver";
 import { ConsumerProjectScaffolder } from "../src/ConsumerProjectScaffolder";
 import { NodeFileSystem } from "../src/NodeFileSystem";
 import { ProjectNameSanitizer } from "../src/ProjectNameSanitizer";
@@ -12,6 +13,7 @@ import { TemplateDirectoryResolver } from "../src/TemplateDirectoryResolver";
 
 describe("ConsumerProjectScaffolder", () => {
   const tmpDirs: string[] = [];
+  const agentSkillsDirectoryResolver = new AgentSkillsDirectoryResolver(import.meta.url);
 
   afterEach(async () => {
     for (const dir of tmpDirs.splice(0)) {
@@ -23,7 +25,13 @@ describe("ConsumerProjectScaffolder", () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();
     const templateCatalog = new TemplateCatalog(resolver, nodeFs);
-    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      new ProjectNameSanitizer(),
+      nodeFs,
+    );
     const target = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-"));
     tmpDirs.push(target);
     const projectDir = path.join(target, "my-cool-app");
@@ -39,40 +47,25 @@ describe("ConsumerProjectScaffolder", () => {
     await expect(fs.readFile(path.join(projectDir, "codemation.config.ts"), "utf8")).resolves.toContain(
       "codemationHost",
     );
-  });
-
-  it("copies the minimal template with the expected starter workflow layout", async () => {
-    const resolver = new TemplateDirectoryResolver(import.meta.url);
-    const nodeFs = new NodeFileSystem();
-    const templateCatalog = new TemplateCatalog(resolver, nodeFs);
-    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
-    const target = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-"));
-    tmpDirs.push(target);
-    const projectDir = path.join(target, "my-minimal-app");
-
-    await scaffolder.scaffold({ templateId: "minimal", targetDirectory: projectDir, force: false });
-
-    const pkgRaw = await fs.readFile(path.join(projectDir, "package.json"), "utf8");
-    const pkg = JSON.parse(pkgRaw) as { name: string; packageManager?: string; dependencies?: Record<string, string> };
-    expect(pkg.name).toBe("my-minimal-app");
-    expect(pkg.packageManager).toBe("pnpm@10.13.1");
-    expect(pkg.dependencies?.["@codemation/cli"]).toBe("0.0.x");
-    const env = await fs.readFile(path.join(projectDir, ".env"), "utf8");
-    expect(env).toContain("CODEMATION_CREDENTIALS_MASTER_KEY=codemation-local-dev-credentials-master-key");
-    expect(env).toContain("AUTH_SECRET=codemation-local-dev-auth-secret");
-    await expect(fs.readFile(path.join(projectDir, "codemation.config.ts"), "utf8")).resolves.toContain(
-      'name: "My automation"',
+    await expect(fs.readFile(path.join(projectDir, "AGENTS.md"), "utf8")).resolves.toContain(
+      "Before making substantive changes, read the relevant Codemation skills first.",
     );
-    await expect(fs.readFile(path.join(projectDir, "src", "workflows", "hello.ts"), "utf8")).resolves.toContain(
-      'workflow("wf.minimal.hello")',
-    );
+    await expect(
+      fs.readFile(path.join(projectDir, ".agents", "skills", "extracted", "codemation-cli", "SKILL.md"), "utf8"),
+    ).resolves.toContain("name: codemation-cli");
   });
 
   it("copies the plugin template with the simplified plugin authoring surface", async () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();
     const templateCatalog = new TemplateCatalog(resolver, nodeFs);
-    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      new ProjectNameSanitizer(),
+      nodeFs,
+    );
     const target = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-plugin-"));
     tmpDirs.push(target);
     const projectDir = path.join(target, "my-plugin");
@@ -92,13 +85,28 @@ describe("ConsumerProjectScaffolder", () => {
 
     const nodeFile = await fs.readFile(path.join(projectDir, "src", "nodes", "ExamplePluginUppercase.ts"), "utf8");
     expect(nodeFile).toContain("defineNode");
+    await expect(fs.readFile(path.join(projectDir, "AGENTS.md"), "utf8")).resolves.toContain(
+      "codemation-plugin-development",
+    );
+    await expect(
+      fs.readFile(
+        path.join(projectDir, ".agents", "skills", "extracted", "codemation-plugin-development", "SKILL.md"),
+        "utf8",
+      ),
+    ).resolves.toContain("name: codemation-plugin-development");
   });
 
   it("overwrites matching template files when --force is set", async () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();
     const templateCatalog = new TemplateCatalog(resolver, nodeFs);
-    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      new ProjectNameSanitizer(),
+      nodeFs,
+    );
     const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-force-"));
     tmpDirs.push(projectDir);
     await fs.writeFile(path.join(projectDir, "README.md"), "occupied\n", "utf8");
@@ -118,13 +126,19 @@ describe("ConsumerProjectScaffolder", () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();
     const templateCatalog = new TemplateCatalog(resolver, nodeFs);
-    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      new ProjectNameSanitizer(),
+      nodeFs,
+    );
     const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-env-"));
     tmpDirs.push(projectDir);
     const existingEnv = "AUTH_SECRET=keep-me\n";
     await fs.writeFile(path.join(projectDir, ".env"), existingEnv, "utf8");
 
-    await scaffolder.scaffold({ templateId: "minimal", targetDirectory: projectDir, force: false });
+    await scaffolder.scaffold({ templateId: "default", targetDirectory: projectDir, force: false });
 
     await expect(fs.readFile(path.join(projectDir, ".env"), "utf8")).resolves.toBe(existingEnv);
   });
@@ -133,11 +147,17 @@ describe("ConsumerProjectScaffolder", () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();
     const templateCatalog = new TemplateCatalog(resolver, nodeFs);
-    const scaffolder = new ConsumerProjectScaffolder(resolver, templateCatalog, new ProjectNameSanitizer(), nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      new ProjectNameSanitizer(),
+      nodeFs,
+    );
     const target = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-"));
     tmpDirs.push(target);
     await fs.writeFile(path.join(target, "README.md"), "occupied\n", "utf8");
-    await expect(scaffolder.scaffold({ templateId: "minimal", targetDirectory: target, force: false })).rejects.toThrow(
+    await expect(scaffolder.scaffold({ templateId: "default", targetDirectory: target, force: false })).rejects.toThrow(
       /not empty/,
     );
   });
