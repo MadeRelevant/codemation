@@ -43,41 +43,53 @@ export class ScaffoldedCreateCodemationProject {
   async create(): Promise<void> {
     const tempRoot = path.join(this.repoRoot, "apps");
     this.projectRoot = await mkdtemp(path.join(tempRoot, `create-codemation-${this.contract.templateId}-browser-e2e-`));
-    const createCommandArgs = [
-      "packages/create-codemation/bin/create-codemation.js",
-      this.rootPath(),
-      "--template",
-      this.contract.templateId,
-      "--yes",
-    ];
-    if (this.dependencyMode === "published") {
-      createCommandArgs.push(
-        "--admin-email",
-        ScaffoldedCreateCodemationProject.adminEmail,
-        "--admin-password",
-        ScaffoldedCreateCodemationProject.adminPassword,
-      );
-    }
-    await this.runCommand("node", createCommandArgs, {
-      cwd: this.repoRoot,
-      env: {
-        ...process.env,
-        ...(this.dependencyMode === "published"
-          ? {
-              CI: "",
-              PNPM_CONFIG_FROZEN_LOCKFILE: "false",
-              npm_config_frozen_lockfile: "false",
-            }
-          : {}),
+    await this.runCommand(
+      "node",
+      [
+        "packages/create-codemation/bin/create-codemation.js",
+        this.rootPath(),
+        "--template",
+        this.contract.templateId,
+        "--yes",
+      ],
+      {
+        cwd: this.repoRoot,
+        env: process.env,
       },
-    });
+    );
     if (this.dependencyMode === "workspace") {
       await this.rewriteWorkspaceDependencies();
       await this.runCommand("pnpm", ["install", "--lockfile=false"], {
         cwd: this.rootPath(),
         env: process.env,
       });
+      return;
     }
+    await this.runCommand("pnpm", ["install", "--lockfile=false"], {
+      cwd: this.rootPath(),
+      env: this.publishedInstallEnvironment(),
+    });
+    await this.runCommand("pnpm", ["exec", "codemation", "db", "migrate"], {
+      cwd: this.rootPath(),
+      env: this.publishedInstallEnvironment(),
+    });
+    await this.runCommand(
+      "pnpm",
+      [
+        "exec",
+        "codemation",
+        "user",
+        "create",
+        "--email",
+        ScaffoldedCreateCodemationProject.adminEmail,
+        "--password",
+        ScaffoldedCreateCodemationProject.adminPassword,
+      ],
+      {
+        cwd: this.rootPath(),
+        env: this.publishedInstallEnvironment(),
+      },
+    );
   }
 
   async dispose(): Promise<void> {
@@ -155,6 +167,16 @@ export class ScaffoldedCreateCodemationProject {
       ),
     };
     await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+  }
+
+  private publishedInstallEnvironment(): NodeJS.ProcessEnv {
+    return {
+      ...process.env,
+      CI: "",
+      GITHUB_ACTIONS: "",
+      PNPM_CONFIG_FROZEN_LOCKFILE: "false",
+      npm_config_frozen_lockfile: "false",
+    };
   }
 
   private async runCommand(
