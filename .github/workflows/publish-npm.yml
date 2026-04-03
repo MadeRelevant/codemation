@@ -12,7 +12,7 @@ concurrency:
 
 permissions:
   id-token: write # Required for OIDC
-  contents: read
+  contents: write # Create or update the GitHub Release for the tag
 
 jobs:
   # Template smokes (packaged + interactive Verdaccio) run on main via CI; release only publishes.
@@ -53,3 +53,19 @@ jobs:
       # Requires npm CLI ≥ 11.5.1 (Node 24 images satisfy this).
       - name: Publish to npm
         run: pnpm publish -r --access public --no-git-checks --filter "./packages/*"
+
+      - name: Build aggregated GitHub Release notes
+        run: |
+          node tooling/release/build-github-release-notes.mjs \
+            --root . \
+            --version "${GITHUB_REF_NAME#v}" \
+            --tag "${GITHUB_REF_NAME}" \
+            --repository "${GITHUB_REPOSITORY}" \
+            --output "${RUNNER_TEMP}/release-notes.md"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: ${{ runner.temp }}/release-notes.md
