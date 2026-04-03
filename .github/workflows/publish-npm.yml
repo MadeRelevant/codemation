@@ -5,6 +5,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish, for example v0.0.19"
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -22,6 +28,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v5
@@ -34,6 +42,21 @@ jobs:
           node-version: "24"
           registry-url: https://registry.npmjs.org
           cache: pnpm
+
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Resolve release tag
+        id: release-tag
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "${REQUESTED_TAG}" ]; then
+            echo "tag=${REQUESTED_TAG}" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "tag=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -49,23 +72,28 @@ jobs:
       #   MadeRelevant/codemation, workflow file publish-npm.yml (name must match exactly).
       # - package.json "repository.url" must match provenance (canonical):
       #   https://github.com/MadeRelevant/codemation (not git+https / .git variants).
+      # - Avoid legacy token auth when using OIDC; npm otherwise surfaces misleading 404 / ENEEDAUTH errors.
       # 404 / ENEEDAUTH from the registry often means OIDC trust mismatch, not a missing tarball.
       # Requires npm CLI ≥ 11.5.1 (Node 24 images satisfy this).
       - name: Publish to npm
-        run: pnpm publish -r --access public --no-git-checks --filter "./packages/*"
+        env:
+          NODE_AUTH_TOKEN: ""
+        run: pnpm publish -r --access public --no-git-checks --provenance --filter "./packages/*"
 
       - name: Build aggregated GitHub Release notes
+        env:
+          RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
         run: |
           node tooling/release/build-github-release-notes.mjs \
             --root . \
-            --version "${GITHUB_REF_NAME#v}" \
-            --tag "${GITHUB_REF_NAME}" \
+            --version "${RELEASE_TAG#v}" \
+            --tag "${RELEASE_TAG}" \
             --repository "${GITHUB_REPOSITORY}" \
             --output "${RUNNER_TEMP}/release-notes.md"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ steps.release-tag.outputs.tag }}
+          name: ${{ steps.release-tag.outputs.tag }}
           body_path: ${{ runner.temp }}/release-notes.md
