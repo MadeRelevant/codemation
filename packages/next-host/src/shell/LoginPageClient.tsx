@@ -1,8 +1,10 @@
 "use client";
 
+import { InAppCallbackUrlPolicy } from "@codemation/host-src/infrastructure/auth/InAppCallbackUrlPolicy";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { Component, type ReactNode } from "react";
 
+import { CodemationBrowserCsrfCoordinator } from "./CodemationBrowserCsrfCoordinator";
 import { LoginPageCard } from "./LoginPageCard";
 
 type LoginPageClientProps = Readonly<{
@@ -24,6 +26,10 @@ type LoginPageClientState = Readonly<{
 }>;
 
 export class LoginPageClient extends Component<LoginPageClientProps, LoginPageClientState> {
+  private readonly callbackUrlPolicy = new InAppCallbackUrlPolicy();
+
+  private readonly csrfCoordinator = new CodemationBrowserCsrfCoordinator(ApiPaths.authSession());
+
   constructor(props: LoginPageClientProps) {
     super(props);
     this.state = {
@@ -70,13 +76,14 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
 
   private handleOAuthSignIn(providerId: string): void {
     this.setState({ oauthSubmittingId: providerId, error: null });
-    window.location.assign(ApiPaths.authOAuthStart(providerId, this.props.callbackUrl));
+    const safeCallbackUrl = this.callbackUrlPolicy.resolveSafeRelativeCallbackUrl(this.props.callbackUrl);
+    window.location.assign(ApiPaths.authOAuthStart(providerId, safeCallbackUrl));
   }
 
   private async submitCredentials(): Promise<void> {
     this.setState({ error: null, isSubmitting: true });
     try {
-      const csrfToken = await this.ensureCsrfToken();
+      const csrfToken = await this.csrfCoordinator.ensureToken(globalThis.fetch);
       if (!csrfToken) {
         this.setState({ error: "Something went wrong. Try again.", isSubmitting: false });
         return;
@@ -94,7 +101,8 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
         }),
       });
       if (response.status === 204) {
-        window.location.assign(this.props.callbackUrl);
+        const safeCallbackUrl = this.callbackUrlPolicy.resolveSafeRelativeCallbackUrl(this.props.callbackUrl);
+        window.location.assign(safeCallbackUrl);
         return;
       }
       if (response.status === 401) {
@@ -114,33 +122,5 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
     } catch {
       this.setState({ error: "Something went wrong. Try again.", isSubmitting: false });
     }
-  }
-
-  private async ensureCsrfToken(): Promise<string | null> {
-    const existing = this.readCsrfCookie();
-    if (existing) {
-      return existing;
-    }
-    await fetch(ApiPaths.authSession(), {
-      cache: "no-store",
-      credentials: "include",
-    });
-    return this.readCsrfCookie();
-  }
-
-  private readCsrfCookie(): string | null {
-    const cookies = document.cookie.split(";");
-    for (const rawCookie of cookies) {
-      const separatorIndex = rawCookie.indexOf("=");
-      if (separatorIndex < 0) {
-        continue;
-      }
-      const key = rawCookie.slice(0, separatorIndex).trim();
-      if (key !== "codemation.csrf-token" && key !== "__Host-codemation.csrf-token") {
-        continue;
-      }
-      return decodeURIComponent(rawCookie.slice(separatorIndex + 1).trim());
-    }
-    return null;
   }
 }

@@ -1,13 +1,16 @@
 import { getToken } from "@auth/core/jwt";
 import type { AuthenticatedPrincipal } from "../../application/auth/AuthenticatedPrincipal";
 import type { SessionVerifier } from "../../application/auth/SessionVerifier";
+import type { SecureRequestDetector } from "./SecureRequestDetector";
 
 export class AuthJsSessionVerifier implements SessionVerifier {
-  constructor(private readonly authSecret: string) {}
+  constructor(
+    private readonly authSecret: string,
+    private readonly secureRequestDetector: SecureRequestDetector,
+  ) {}
 
   async verify(request: Request): Promise<AuthenticatedPrincipal | null> {
-    const requestUrl = new URL(request.url);
-    const secureCookie = requestUrl.protocol === "https:";
+    const secureCookie = this.secureRequestDetector.isSecureRequest(request);
     const token = await getToken({
       req: request,
       secret: this.authSecret,

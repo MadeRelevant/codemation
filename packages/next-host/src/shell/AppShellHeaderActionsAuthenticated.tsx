@@ -5,6 +5,7 @@ import { useContext, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { CodemationSessionRootContext } from "../providers/CodemationSessionProvider";
+import { CodemationBrowserCsrfCoordinator } from "./CodemationBrowserCsrfCoordinator";
 
 export function AppShellHeaderActionsAuthenticated(): ReactNode {
   const sessionContext = useContext(CodemationSessionRootContext);
@@ -26,26 +27,11 @@ export function AppShellHeaderActionsAuthenticated(): ReactNode {
     return null;
   }
 
-  const readCsrfCookie = (): string | null => {
-    const cookies = document.cookie.split(";");
-    for (const rawCookie of cookies) {
-      const separatorIndex = rawCookie.indexOf("=");
-      if (separatorIndex < 0) {
-        continue;
-      }
-      const key = rawCookie.slice(0, separatorIndex).trim();
-      if (key !== "codemation.csrf-token" && key !== "__Host-codemation.csrf-token") {
-        continue;
-      }
-      return decodeURIComponent(rawCookie.slice(separatorIndex + 1).trim());
-    }
-    return null;
-  };
-
   const handleSignOut = async (): Promise<void> => {
     setIsSigningOut(true);
     try {
-      const csrfToken = readCsrfCookie();
+      const coordinator = new CodemationBrowserCsrfCoordinator(ApiPaths.authSession());
+      const csrfToken = await coordinator.ensureToken(globalThis.fetch);
       if (csrfToken) {
         await fetch(ApiPaths.authLogout(), {
           method: "POST",

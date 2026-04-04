@@ -1,10 +1,12 @@
 import { inject, injectable } from "@codemation/core";
 import { encode } from "@auth/core/jwt";
+import { parse, serialize } from "hono/utils/cookie";
 import { randomBytes } from "node:crypto";
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
 import type { AuthenticatedPrincipal } from "../../application/auth/AuthenticatedPrincipal";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { AppConfig } from "../../presentation/config/AppConfig";
+import { SecureRequestDetector } from "./SecureRequestDetector";
 
 @injectable()
 export class AuthSessionCookieFactory {
@@ -19,6 +21,8 @@ export class AuthSessionCookieFactory {
   constructor(
     @inject(ApplicationTokens.AppConfig)
     private readonly appConfig: AppConfig,
+    @inject(SecureRequestDetector)
+    private readonly secureRequestDetector: SecureRequestDetector,
   ) {}
 
   async createSessionCookie(request: Request, principal: AuthenticatedPrincipal): Promise<string> {
@@ -32,30 +36,30 @@ export class AuthSessionCookieFactory {
         name: principal.name ?? undefined,
       },
     });
-    return this.createCookieHeader({
+    return this.buildSetCookieHeader({
       httpOnly: true,
       maxAgeSeconds: AuthSessionCookieFactory.sessionCookieMaxAgeSeconds,
-      name: this.resolveSessionCookieName(this.isSecureRequest(request)),
+      name: this.resolveSessionCookieName(this.secureRequestDetector.isSecureRequest(request)),
       request,
       value: token,
     });
   }
 
   clearSessionCookie(request: Request): string {
-    return this.createCookieHeader({
+    return this.buildSetCookieHeader({
       httpOnly: true,
       maxAgeSeconds: 0,
-      name: this.resolveSessionCookieName(this.isSecureRequest(request)),
+      name: this.resolveSessionCookieName(this.secureRequestDetector.isSecureRequest(request)),
       request,
       value: "",
     });
   }
 
   ensureCsrfCookie(request: Request): Readonly<{ cookieHeader: string | null; csrfToken: string }> {
-    const secure = this.isSecureRequest(request);
+    const secure = this.secureRequestDetector.isSecureRequest(request);
     const cookieName = this.resolveCsrfCookieName(secure);
-    const cookies = this.readCookies(request);
-    const existing = cookies.get(cookieName);
+    const jar = this.parseCookieHeader(request);
+    const existing = jar[cookieName];
     if (existing) {
       return {
         cookieHeader: null,
@@ -64,7 +68,7 @@ export class AuthSessionCookieFactory {
     }
     const csrfToken = randomBytes(24).toString("base64url");
     return {
-      cookieHeader: this.createCookieHeader({
+      cookieHeader: this.buildSetCookieHeader({
         httpOnly: false,
         maxAgeSeconds: AuthSessionCookieFactory.csrfCookieMaxAgeSeconds,
         name: cookieName,
@@ -76,16 +80,17 @@ export class AuthSessionCookieFactory {
   }
 
   assertCsrf(request: Request): void {
-    const secure = this.isSecureRequest(request);
+    const secure = this.secureRequestDetector.isSecureRequest(request);
     const cookieName = this.resolveCsrfCookieName(secure);
     const headerToken = request.headers.get("x-codemation-csrf-token")?.trim();
-    const cookieToken = this.readCookies(request).get(cookieName)?.trim();
+    const jar = this.parseCookieHeader(request);
+    const cookieToken = jar[cookieName]?.trim();
     if (!headerToken || !cookieToken || headerToken !== cookieToken) {
       throw new ApplicationRequestError(403, "Invalid CSRF token.");
     }
   }
 
-  private createCookieHeader(
+  private buildSetCookieHeader(
     args: Readonly<{
       name: string;
       value: string;
@@ -94,37 +99,22 @@ export class AuthSessionCookieFactory {
       httpOnly: boolean;
     }>,
   ): string {
-    const segments = [
-      `${args.name}=${encodeURIComponent(args.value)}`,
-      "Path=/",
-      `Max-Age=${String(args.maxAgeSeconds)}`,
-      "SameSite=Lax",
-    ];
-    if (args.httpOnly) {
-      segments.push("HttpOnly");
-    }
-    if (this.isSecureRequest(args.request)) {
-      segments.push("Secure");
-    }
-    return segments.join("; ");
+    const secure = this.secureRequestDetector.isSecureRequest(args.request);
+    return serialize(args.name, args.value, {
+      path: "/",
+      maxAge: args.maxAgeSeconds,
+      httpOnly: args.httpOnly,
+      sameSite: "Lax",
+      secure,
+    });
   }
 
-  private readCookies(request: Request): Map<string, string> {
-    const cookies = new Map<string, string>();
+  private parseCookieHeader(request: Request): Record<string, string> {
     const raw = request.headers.get("cookie");
     if (!raw) {
-      return cookies;
+      return {};
     }
-    for (const entry of raw.split(";")) {
-      const separatorIndex = entry.indexOf("=");
-      if (separatorIndex < 0) {
-        continue;
-      }
-      const key = entry.slice(0, separatorIndex).trim();
-      const value = entry.slice(separatorIndex + 1).trim();
-      cookies.set(key, decodeURIComponent(value));
-    }
-    return cookies;
+    return parse(raw);
   }
 
   private resolveSessionCookieName(secure: boolean): string {
@@ -135,14 +125,6 @@ export class AuthSessionCookieFactory {
 
   private resolveCsrfCookieName(secure: boolean): string {
     return secure ? AuthSessionCookieFactory.secureCsrfCookieName : AuthSessionCookieFactory.insecureCsrfCookieName;
-  }
-
-  private isSecureRequest(request: Request): boolean {
-    const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
-    if (forwardedProto === "https") {
-      return true;
-    }
-    return new URL(request.url).protocol === "https:";
   }
 
   private requireAuthSecret(): string {

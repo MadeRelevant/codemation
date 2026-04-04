@@ -130,6 +130,8 @@ import { InMemoryQueryBus } from "../infrastructure/di/InMemoryQueryBus";
 import { AuthJsSessionVerifier } from "../infrastructure/auth/AuthJsSessionVerifier";
 import { AuthSessionCookieFactory } from "../infrastructure/auth/AuthSessionCookieFactory";
 import { CodemationAuthCore } from "../infrastructure/auth/CodemationAuthCore";
+import { InAppCallbackUrlPolicy } from "../infrastructure/auth/InAppCallbackUrlPolicy";
+import { SecureRequestDetector } from "../infrastructure/auth/SecureRequestDetector";
 import { CodemationAuthProviderCatalog } from "../infrastructure/auth/CodemationAuthProviderCatalog";
 import { CodemationAuthRequestFactory } from "../infrastructure/auth/CodemationAuthRequestFactory";
 import { CodemationSessionVerifier } from "../infrastructure/auth/CodemationSessionVerifier";
@@ -425,6 +427,8 @@ export class AppContainerFactory {
     container.register(FrontendRuntime, { useClass: FrontendRuntime });
     container.register(WorkerRuntime, { useClass: WorkerRuntime });
     container.register(DevelopmentSessionBypassVerifier, { useClass: DevelopmentSessionBypassVerifier });
+    container.register(SecureRequestDetector, { useClass: SecureRequestDetector });
+    container.register(InAppCallbackUrlPolicy, { useClass: InAppCallbackUrlPolicy });
     container.register(AuthSessionCookieFactory, { useClass: AuthSessionCookieFactory });
     container.register(CodemationAuthProviderCatalog, { useClass: CodemationAuthProviderCatalog });
     container.register(CodemationAuthRequestFactory, { useClass: CodemationAuthRequestFactory });
@@ -439,13 +443,17 @@ export class AppContainerFactory {
           prismaClient,
           dependencyContainer.resolve(CodemationAuthProviderCatalog),
           dependencyContainer.resolve(CodemationAuthRequestFactory),
+          dependencyContainer.resolve(InAppCallbackUrlPolicy),
         );
       }),
     });
     container.register(AuthJsSessionVerifier, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         const appConfig = dependencyContainer.resolve<AppConfig>(ApplicationTokens.AppConfig);
-        return new AuthJsSessionVerifier(appConfig.env.AUTH_SECRET ?? "");
+        return new AuthJsSessionVerifier(
+          appConfig.env.AUTH_SECRET ?? "",
+          dependencyContainer.resolve(SecureRequestDetector),
+        );
       }),
     });
     container.register(CodemationSessionVerifier, { useClass: CodemationSessionVerifier });

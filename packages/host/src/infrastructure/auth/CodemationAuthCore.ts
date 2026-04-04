@@ -7,6 +7,7 @@ import type { AppConfig } from "../../presentation/config/AppConfig";
 import type { PrismaClient } from "../persistence/generated/prisma-client/client.js";
 import { CodemationAuthProviderCatalog } from "./CodemationAuthProviderCatalog";
 import { CodemationAuthRequestFactory } from "./CodemationAuthRequestFactory";
+import { InAppCallbackUrlPolicy } from "./InAppCallbackUrlPolicy";
 
 @injectable()
 export class CodemationAuthCore {
@@ -16,6 +17,8 @@ export class CodemationAuthCore {
     private readonly prismaClient: PrismaClient | undefined,
     private readonly providerCatalog: CodemationAuthProviderCatalog,
     private readonly requestFactory: CodemationAuthRequestFactory,
+    @inject(InAppCallbackUrlPolicy)
+    private readonly inAppCallbackUrlPolicy: InAppCallbackUrlPolicy,
   ) {}
 
   async startOAuth(request: Request, providerId: string): Promise<Response> {
@@ -24,7 +27,8 @@ export class CodemationAuthCore {
     const callbackUrl = requestUrl.searchParams.get("callbackUrl");
     const authUrl = this.buildAuthUrl(request, `/api/auth/signin/${encodeURIComponent(providerId)}`);
     if (callbackUrl) {
-      authUrl.searchParams.set("callbackUrl", callbackUrl);
+      const safeCallbackUrl = this.inAppCallbackUrlPolicy.resolveSafeRelativeCallbackUrl(callbackUrl);
+      authUrl.searchParams.set("callbackUrl", safeCallbackUrl);
     }
     return await Auth(this.requestFactory.create(authUrl, request, "POST"), this.createConfig());
   }
