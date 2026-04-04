@@ -19,6 +19,19 @@ export class HonoHttpAnonymousRoutePolicy {
     if (pathname === ApiPaths.frontendBootstrap() || pathname === ApiPaths.internalAuthBootstrap()) {
       return true;
     }
+    if (
+      pathname === ApiPaths.authSession() ||
+      pathname === ApiPaths.authLogin() ||
+      pathname === ApiPaths.authLogout()
+    ) {
+      return true;
+    }
+    if (pathname.startsWith("/api/auth/oauth/")) {
+      return true;
+    }
+    if (pathname.startsWith("/api/auth/callback/")) {
+      return true;
+    }
     if (pathname === ApiPaths.userInviteVerify() || pathname === ApiPaths.userInviteAccept()) {
       return true;
     }

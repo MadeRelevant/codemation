@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { AuthSnapshotResolver } from "../src/auth/AuthSnapshotResolver";
 import { EdgeAuthConfigurationReader } from "../src/auth/EdgeAuthConfigurationReader";
 
 test("EdgeAuthConfigurationReader resolves the local edge seed from environment", () => {
@@ -17,11 +16,11 @@ test("EdgeAuthConfigurationReader resolves the local edge seed from environment"
   });
 });
 
-test("AuthSnapshotResolver falls back to the development auth secret when needed", () => {
+test("EdgeAuthConfigurationReader falls back to the development auth secret when needed", () => {
   assert.equal(
-    AuthSnapshotResolver.resolveAuthSecret({
+    new EdgeAuthConfigurationReader().readFromEnvironment({
       NODE_ENV: "development",
-    }),
+    }).authSecret,
     "codemation-dev-auth-secret-not-for-production",
   );
 });

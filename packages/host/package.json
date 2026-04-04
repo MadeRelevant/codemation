@@ -72,7 +72,8 @@
         "import": "./src/persistenceServer.ts"
       },
       "import": "./dist/persistenceServer.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
     "prisma:generate": "prisma generate && node ./scripts/ensure-prisma-runtime-sourcemaps.mjs",
@@ -94,11 +95,12 @@
   },
   "dependencies": {
     "@auth/core": "^0.34.3",
+    "@auth/prisma-adapter": "^2.11.1",
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",
-    "@electric-sql/pglite": "^0.4.2",
-    "@electric-sql/pglite-socket": "^0.1.2",
+    "@electric-sql/pglite": "^0.4.3",
+    "@electric-sql/pglite-socket": "^0.1.3",
     "@monaco-editor/react": "^4.7.0",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",

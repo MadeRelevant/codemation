@@ -103,11 +103,13 @@ import { CodemationFrontendAuthSnapshotFactory } from "../presentation/frontend/
 import { FrontendAppConfigFactory } from "../presentation/frontend/FrontendAppConfigFactory";
 import { InternalAuthBootstrapFactory } from "../presentation/frontend/InternalAuthBootstrapFactory";
 import { PublicFrontendBootstrapFactory } from "../presentation/frontend/PublicFrontendBootstrapFactory";
+import { AuthHttpRouteHandler } from "../presentation/http/routeHandlers/AuthHttpRouteHandlerFactory";
 import { DevBootstrapSummaryHttpRouteHandler } from "../presentation/http/routeHandlers/DevBootstrapSummaryHttpRouteHandler";
 import { InternalAuthBootstrapHttpRouteHandler } from "../presentation/http/routeHandlers/InternalAuthBootstrapHttpRouteHandler";
 import { PublicFrontendBootstrapHttpRouteHandler } from "../presentation/http/routeHandlers/PublicFrontendBootstrapHttpRouteHandler";
 import { WhitelabelLogoHttpRouteHandler } from "../presentation/http/routeHandlers/WhitelabelLogoHttpRouteHandler";
 import { CodemationHonoApiApp } from "../presentation/http/hono/CodemationHonoApiAppFactory";
+import { AuthHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/AuthHonoApiRouteRegistrar";
 import { BinaryHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/BinaryHonoApiRouteRegistrar";
 import { BootstrapHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/BootstrapHonoApiRouteRegistrar";
 import { CredentialHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/CredentialHonoApiRouteRegistrar";
@@ -126,6 +128,11 @@ import { InMemoryCommandBus } from "../infrastructure/di/InMemoryCommandBus";
 import { InMemoryDomainEventBus } from "../infrastructure/di/InMemoryDomainEventBus";
 import { InMemoryQueryBus } from "../infrastructure/di/InMemoryQueryBus";
 import { AuthJsSessionVerifier } from "../infrastructure/auth/AuthJsSessionVerifier";
+import { AuthSessionCookieFactory } from "../infrastructure/auth/AuthSessionCookieFactory";
+import { CodemationAuthCore } from "../infrastructure/auth/CodemationAuthCore";
+import { CodemationAuthProviderCatalog } from "../infrastructure/auth/CodemationAuthProviderCatalog";
+import { CodemationAuthRequestFactory } from "../infrastructure/auth/CodemationAuthRequestFactory";
+import { CodemationSessionVerifier } from "../infrastructure/auth/CodemationSessionVerifier";
 import { DevelopmentSessionBypassVerifier } from "../infrastructure/auth/DevelopmentSessionBypassVerifier";
 import {
   InMemoryCredentialStore,
@@ -208,6 +215,7 @@ export class AppContainerFactory {
     UploadOverlayPinnedBinaryCommandHandler,
   ] as const;
   private static readonly honoRouteRegistrars = [
+    AuthHonoApiRouteRegistrar,
     BinaryHonoApiRouteRegistrar,
     BootstrapHonoApiRouteRegistrar,
     CredentialHonoApiRouteRegistrar,
@@ -417,16 +425,35 @@ export class AppContainerFactory {
     container.register(FrontendRuntime, { useClass: FrontendRuntime });
     container.register(WorkerRuntime, { useClass: WorkerRuntime });
     container.register(DevelopmentSessionBypassVerifier, { useClass: DevelopmentSessionBypassVerifier });
+    container.register(AuthSessionCookieFactory, { useClass: AuthSessionCookieFactory });
+    container.register(CodemationAuthProviderCatalog, { useClass: CodemationAuthProviderCatalog });
+    container.register(CodemationAuthRequestFactory, { useClass: CodemationAuthRequestFactory });
+    container.register(CodemationAuthCore, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        const appConfig = dependencyContainer.resolve<AppConfig>(ApplicationTokens.AppConfig);
+        const prismaClient = dependencyContainer.isRegistered(ApplicationTokens.PrismaClient, true)
+          ? dependencyContainer.resolve(ApplicationTokens.PrismaClient)
+          : undefined;
+        return new CodemationAuthCore(
+          appConfig,
+          prismaClient,
+          dependencyContainer.resolve(CodemationAuthProviderCatalog),
+          dependencyContainer.resolve(CodemationAuthRequestFactory),
+        );
+      }),
+    });
     container.register(AuthJsSessionVerifier, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         const appConfig = dependencyContainer.resolve<AppConfig>(ApplicationTokens.AppConfig);
         return new AuthJsSessionVerifier(appConfig.env.AUTH_SECRET ?? "");
       }),
     });
+    container.register(CodemationSessionVerifier, { useClass: CodemationSessionVerifier });
     container.register(ApplicationTokens.SessionVerifier, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         const appConfig = dependencyContainer.resolve<AppConfig>(ApplicationTokens.AppConfig);
-        const isProduction = appConfig.env.NODE_ENV === "production";
+        const isPackagedDevRuntime = Boolean(appConfig.env.CODEMATION_RUNTIME_DEV_URL?.trim());
+        const isProduction = appConfig.env.NODE_ENV === "production" && !isPackagedDevRuntime;
         const authConfig = appConfig.auth;
         if (isProduction && !authConfig) {
           throw new Error("CodemationConfig.auth is required when NODE_ENV is production.");
@@ -446,7 +473,7 @@ export class AppContainerFactory {
             "AUTH_SECRET is required unless CodemationAuthConfig.allowUnauthenticatedInDevelopment is enabled in a non-production environment.",
           );
         }
-        return dependencyContainer.resolve(AuthJsSessionVerifier);
+        return dependencyContainer.resolve(CodemationSessionVerifier);
       }),
     });
     container.register(UserAccountService, {
@@ -503,6 +530,7 @@ export class AppContainerFactory {
   private registerApplicationServicesAndRoutes(container: Container): void {
     container.register(DevBootstrapSummaryAssembler, { useClass: DevBootstrapSummaryAssembler });
     container.register(DevBootstrapSummaryHttpRouteHandler, { useClass: DevBootstrapSummaryHttpRouteHandler });
+    container.register(AuthHttpRouteHandler, { useClass: AuthHttpRouteHandler });
     container.register(PublicFrontendBootstrapHttpRouteHandler, { useClass: PublicFrontendBootstrapHttpRouteHandler });
     container.register(InternalAuthBootstrapHttpRouteHandler, { useClass: InternalAuthBootstrapHttpRouteHandler });
     container.register(WhitelabelLogoHttpRouteHandler, { useClass: WhitelabelLogoHttpRouteHandler });

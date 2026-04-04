@@ -36,6 +36,33 @@ Common subpaths (see `package.json` `exports`):
 
 The `development` condition in `exports` can resolve TypeScript sources during local work; published builds use `dist`.
 
+## Auth and sessions
+
+`@codemation/host` now owns the browser auth/session contract.
+
+- The backend issues and verifies the session cookie.
+- The Next.js UI shell calls backend auth routes and does not bootstrap its own Prisma-backed auth adapter.
+- OAuth/OIDC entrypoints start from the host-owned route surface as well.
+
+Primary routes:
+
+| Route                                 | Purpose                                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `GET /api/auth/session`               | Return the current principal JSON or `null` and issue the CSRF cookie when needed.         |
+| `POST /api/auth/login`                | Local email/password sign-in; sets the backend session cookie.                             |
+| `POST /api/auth/logout`               | Clear the backend session cookie.                                                          |
+| `GET /api/auth/oauth/:provider/start` | Start the browser redirect for OAuth/OIDC providers configured in `CodemationConfig.auth`. |
+
+Important env/config notes:
+
+- `AUTH_SECRET` signs the backend-issued session token.
+- `CODEMATION_PUBLIC_BASE_URL` is the public origin the host should use when it must generate redirects (dev tooling sets this for packaged `codemation dev`).
+- `CODEMATION_UI_AUTH_ENABLED=false` disables the UI login gate intentionally; do not use it as a production shortcut.
+
+### No legacy dual-stack auth
+
+There is no dual-cookie or dual-route compatibility layer. Consumers should migrate to the backend-owned `/api/auth/*` surface in one step.
+
 ## Persistence: TCP PostgreSQL vs PGlite
 
 Codemation uses a **single** Prisma schema (`provider = "postgresql"`). You can run it against either:
@@ -73,3 +100,11 @@ Point the suite at PGlite or TCP Postgres by setting **`DATABASE_URL`** for the 
 ### Gitignore
 
 Ignore the embedded data directory (e.g. `.codemation/pglite`) in consumer repos so PGlite files are not committed.
+
+## SQLite follow-up
+
+SQLite is intentionally not part of the current runtime surface yet.
+
+- The host still uses one PostgreSQL-shaped Prisma schema for both TCP Postgres and PGlite.
+- Now that auth/session handling is backend-owned, a future local-only SQLite mode is easier to evaluate without dragging browser-auth persistence into the decision.
+- Any SQLite work should be explicit about parity limits, dual Prisma-client generation, and how migration history is maintained across PostgreSQL and SQLite.

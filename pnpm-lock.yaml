@@ -60,6 +60,153 @@ importers:
         specifier: 4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
 
+  apps/create-codemation-default-browser-e2e-0tmE0F:
+    dependencies:
+      '@codemation/cli':
+        specifier: 0.0.x
+        version: 0.0.20(@babel/runtime@7.28.6)(@cfworker/json-schema@4.1.1)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(tsx@4.21.0)
+      '@codemation/core':
+        specifier: 0.0.x
+        version: 0.0.19
+      '@codemation/core-nodes':
+        specifier: 0.0.x
+        version: 0.0.19(@opentelemetry/api@1.9.0)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(react@19.2.4)(ws@8.19.0)
+      '@codemation/host':
+        specifier: 0.0.x
+        version: 0.0.19(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(typescript@5.9.3)
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.4(react@19.2.4)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      tsyringe:
+        specifier: ^4.10.0
+        version: 4.10.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.5
+        version: 25.3.5
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  apps/create-codemation-default-browser-e2e-Dj4Kvw:
+    dependencies:
+      '@codemation/cli':
+        specifier: 0.0.x
+        version: 0.0.20(@babel/runtime@7.28.6)(@cfworker/json-schema@4.1.1)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(tsx@4.21.0)
+      '@codemation/core':
+        specifier: 0.0.x
+        version: 0.0.19
+      '@codemation/core-nodes':
+        specifier: 0.0.x
+        version: 0.0.19(@opentelemetry/api@1.9.0)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(react@19.2.4)(ws@8.19.0)
+      '@codemation/host':
+        specifier: 0.0.x
+        version: 0.0.19(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(typescript@5.9.3)
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.4(react@19.2.4)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      tsyringe:
+        specifier: ^4.10.0
+        version: 4.10.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.5
+        version: 25.3.5
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  apps/create-codemation-default-browser-e2e-aQJfc1:
+    dependencies:
+      '@codemation/cli':
+        specifier: 0.0.x
+        version: 0.0.20(@babel/runtime@7.28.6)(@cfworker/json-schema@4.1.1)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(tsx@4.21.0)
+      '@codemation/core':
+        specifier: 0.0.x
+        version: 0.0.19
+      '@codemation/core-nodes':
+        specifier: 0.0.x
+        version: 0.0.19(@opentelemetry/api@1.9.0)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(react@19.2.4)(ws@8.19.0)
+      '@codemation/host':
+        specifier: 0.0.x
+        version: 0.0.19(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(typescript@5.9.3)
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.4(react@19.2.4)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      tsyringe:
+        specifier: ^4.10.0
+        version: 4.10.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.5
+        version: 25.3.5
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   apps/docs:
     dependencies:
       '@vercel/analytics':
@@ -197,6 +344,55 @@ importers:
       tsdown:
         specifier: ^0.15.5
         version: 0.15.12(typescript@5.9.3)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  apps/prove-packaged-auth-fix:
+    dependencies:
+      '@codemation/cli':
+        specifier: 0.0.x
+        version: 0.0.20(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(tsx@4.21.0)
+      '@codemation/core':
+        specifier: 0.0.x
+        version: 0.0.19
+      '@codemation/core-nodes':
+        specifier: 0.0.x
+        version: 0.0.19(@opentelemetry/api@1.9.0)(react@19.2.4)(ws@8.19.0)
+      '@codemation/host':
+        specifier: file:../../.tmp-proof/codemation-host-0.0.19.tgz
+        version: file:.tmp-proof/codemation-host-0.0.19.tgz(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(typescript@5.9.3)
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.4(react@19.2.4)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      tsyringe:
+        specifier: ^4.10.0
+        version: 4.10.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.5
+        version: 25.3.5
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -510,6 +706,9 @@ importers:
       '@auth/core':
         specifier: ^0.34.3
         version: 0.34.3(nodemailer@7.0.13)
+      '@auth/prisma-adapter':
+        specifier: ^2.11.1
+        version: 2.11.1(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(nodemailer@7.0.13)
       '@codemation/core':
         specifier: workspace:*
         version: link:../core
@@ -520,11 +719,11 @@ importers:
         specifier: workspace:*
         version: link:../eventbus-redis
       '@electric-sql/pglite':
-        specifier: ^0.4.2
-        version: 0.4.2
+        specifier: ^0.4.3
+        version: 0.4.3
       '@electric-sql/pglite-socket':
-        specifier: ^0.1.2
-        version: 0.1.2(@electric-sql/pglite@0.4.2)
+        specifier: ^0.1.3
+        version: 0.1.3(@electric-sql/pglite@0.4.3)
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -581,7 +780,7 @@ importers:
         version: 8.20.0
       pglite-prisma-adapter:
         specifier: ^0.7.2
-        version: 0.7.2(@electric-sql/pglite@0.4.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))
+        version: 0.7.2(@electric-sql/pglite@0.4.3)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))
       pretty-ms:
         specifier: ^9.3.0
         version: 9.3.0
@@ -694,9 +893,9 @@ importers:
 
   packages/next-host:
     dependencies:
-      '@auth/prisma-adapter':
-        specifier: ^2.11.1
-        version: 2.11.1(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))
+      '@auth/core':
+        specifier: ^0.34.3
+        version: 0.34.3(nodemailer@7.0.13)
       '@codemation/core':
         specifier: workspace:*
         version: link:../core
@@ -718,9 +917,6 @@ importers:
       '@xyflow/react':
         specifier: ^12.10.1
         version: 12.10.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      bcryptjs:
-        specifier: ^3.0.3
-        version: 3.0.3
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -748,9 +944,6 @@ importers:
       next:
         specifier: ^16.2.0
         version: 16.2.0(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      next-auth:
-        specifier: 5.0.0-beta.30
-        version: 5.0.0-beta.30(next@16.2.0(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
       pretty-ms:
         specifier: ^9.3.0
         version: 9.3.0
@@ -1251,6 +1444,31 @@ packages:
   '@chevrotain/utils@10.5.0':
     resolution: {integrity: sha512-hBzuU5+JjB2cqNZyszkDHZgOSrUUT8V3dhgRl8Q9Gp6dAj/H5+KILGjbhDpc3Iy9qmqlm/akuOI2ut9VUtzJxQ==}
 
+  '@codemation/cli@0.0.20':
+    resolution: {integrity: sha512-Pi8Ru3Rjql1wEXYiI3zwT1WjStfcKzpBsoFNM1At/3WoBXFSFmoNcqSg7w6AzI+qWy/FQT6G0Bn57JyECk33/A==}
+    hasBin: true
+    peerDependencies:
+      tsx: '>=4.0.0'
+
+  '@codemation/core-nodes@0.0.19':
+    resolution: {integrity: sha512-QPvFh4z0HrAbeEWPKVcgP6+pIm3254USXv3CQuFg03B4kgdvOh1Uu3CJIs0pl7Yah/OQJzBouz8CuPfIbdoZ+A==}
+
+  '@codemation/core@0.0.19':
+    resolution: {integrity: sha512-SUJ/ERXttdI7kngqxS/9Hq7BUvDJM/nhs3GYNUf/NEGLYCMj5OTc+Q6QULj8BASj2SzI9YFv+q6VFKQzoQwFTA==}
+
+  '@codemation/eventbus-redis@0.0.19':
+    resolution: {integrity: sha512-inCeTBRncBh5Z0XqgRvC58P+jobircQzkirOzI+3E1/1P9+Ry3W0BsVUchzk18HyIDtbYwRv06cmrNQ7IzYSSA==}
+
+  '@codemation/host@0.0.19':
+    resolution: {integrity: sha512-zalcdepzzOeURrYRDy4zBd6I5Js9T30MJnx1wdx8KDKFylc2YVe2rtknOjfmkeTS25vmFH1VcYQgn9tZMIMGdw==}
+
+  '@codemation/host@file:.tmp-proof/codemation-host-0.0.19.tgz':
+    resolution: {integrity: sha512-ZH2icCwRU8Z0zDiSA2ZODA9o23zxeYHvtO9sw+lw48UBZedtiG2zuplQ1DhxjIx9rMjj9ZxeRC9haZKdVbBHfw==, tarball: file:.tmp-proof/codemation-host-0.0.19.tgz}
+    version: 0.0.19
+
+  '@codemation/next-host@0.0.20':
+    resolution: {integrity: sha512-iGs7u9bnYJa3TefG1/UsIOYBEvPL9S0Vy/9CHnENHamjmC8AYIYWPAjw6ZKStuWWDrYbC3JPkbcTEy3lMPzpiQ==}
+
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
     engines: {node: '>=0.1.90'}
@@ -1340,6 +1558,12 @@ packages:
     peerDependencies:
       '@electric-sql/pglite': 0.4.2
 
+  '@electric-sql/pglite-socket@0.1.3':
+    resolution: {integrity: sha512-LAciWM0M1dCL8hlsxu2venbVZcdxema0BtDfpWYVqr+Y468UADw0pFWidhKw1M8sfJ8rdLT71tjMmnirf/IZRQ==}
+    hasBin: true
+    peerDependencies:
+      '@electric-sql/pglite': 0.4.3
+
   '@electric-sql/pglite-tools@0.2.20':
     resolution: {integrity: sha512-BK50ZnYa3IG7ztXhtgYf0Q7zijV32Iw1cYS8C+ThdQlwx12V5VZ9KRJ42y82Hyb4PkTxZQklVQA9JHyUlex33A==}
     peerDependencies:
@@ -1350,6 +1574,9 @@ packages:
 
   '@electric-sql/pglite@0.4.2':
     resolution: {integrity: sha512-1GUUl/MZpy5QWgWisD3Epho3GkJrZ1MzVgQpo2pifQWUs96F9rXKZxeVLPhkwFYck34CH/kQ8lis6wX9ifn3kg==}
+
+  '@electric-sql/pglite@0.4.3':
+    resolution: {integrity: sha512-ichuWTgtd4mOM1G4SpyGJa5trT03lWbMypDV0fUXUCXg5hiHqVAz/bZyV68NqmkLB7WcYmj1RMJVSp8HV/v/ZQ==}
 
   '@emnapi/core@1.8.1':
     resolution: {integrity: sha512-AvT9QFpxK0Zd8J0jopedNm+w/2fIzvtPKPjqyw9jwvBaReTTqPBk9Hixaz7KbjimP+QNz605/XnjFcDAL2pqBg==}
@@ -8648,25 +8875,29 @@ snapshots:
     optionalDependencies:
       nodemailer: 7.0.13
 
-  '@auth/core@0.41.0':
+  '@auth/core@0.41.0(nodemailer@7.0.13)':
     dependencies:
       '@panva/hkdf': 1.2.1
       jose: 6.2.2
       oauth4webapi: 3.8.5
       preact: 10.24.3
       preact-render-to-string: 6.5.11(preact@10.24.3)
+    optionalDependencies:
+      nodemailer: 7.0.13
 
-  '@auth/core@0.41.1':
+  '@auth/core@0.41.1(nodemailer@7.0.13)':
     dependencies:
       '@panva/hkdf': 1.2.1
       jose: 6.2.2
       oauth4webapi: 3.8.5
       preact: 10.24.3
       preact-render-to-string: 6.5.11(preact@10.24.3)
+    optionalDependencies:
+      nodemailer: 7.0.13
 
-  '@auth/prisma-adapter@2.11.1(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))':
+  '@auth/prisma-adapter@2.11.1(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(nodemailer@7.0.13)':
     dependencies:
-      '@auth/core': 0.41.1
+      '@auth/core': 0.41.1(nodemailer@7.0.13)
       '@prisma/client': 7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
     transitivePeerDependencies:
       - '@simplewebauthn/browser'
@@ -9120,6 +9351,445 @@ snapshots:
 
   '@chevrotain/utils@10.5.0': {}
 
+  '@codemation/cli@0.0.20(@babel/runtime@7.28.6)(@cfworker/json-schema@4.1.1)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(tsx@4.21.0)':
+    dependencies:
+      '@codemation/host': 0.0.19(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(typescript@5.9.3)
+      '@codemation/next-host': 0.0.20(@babel/runtime@7.28.6)(@cfworker/json-schema@4.1.1)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(typescript@5.9.3)
+      '@hono/node-server': 1.19.9(hono@4.12.8)
+      bcryptjs: 3.0.3
+      boxen: 8.0.1
+      chalk: 5.6.2
+      chokidar: 5.0.0
+      commander: 14.0.3
+      dotenv: 17.3.1
+      figlet: 1.11.0
+      hono: 4.12.8
+      http-proxy: 1.18.1
+      reflect-metadata: 0.2.2
+      tsx: 4.21.0
+      typescript: 5.9.3
+      ws: 8.19.0
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@babel/runtime'
+      - '@cfworker/json-schema'
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - '@playwright/test'
+      - '@prisma/client'
+      - '@simplewebauthn/browser'
+      - '@simplewebauthn/server'
+      - '@types/node'
+      - '@types/react'
+      - '@types/react-dom'
+      - babel-plugin-macros
+      - babel-plugin-react-compiler
+      - better-sqlite3
+      - bufferutil
+      - debug
+      - immer
+      - magicast
+      - next
+      - nodemailer
+      - openai
+      - pg-native
+      - sass
+      - supports-color
+      - utf-8-validate
+
+  '@codemation/cli@0.0.20(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(tsx@4.21.0)':
+    dependencies:
+      '@codemation/host': 0.0.19(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(typescript@5.9.3)
+      '@codemation/next-host': 0.0.20(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(nodemailer@7.0.13)(typescript@5.9.3)
+      '@hono/node-server': 1.19.9(hono@4.12.8)
+      bcryptjs: 3.0.3
+      boxen: 8.0.1
+      chalk: 5.6.2
+      chokidar: 5.0.0
+      commander: 14.0.3
+      dotenv: 17.3.1
+      figlet: 1.11.0
+      hono: 4.12.8
+      http-proxy: 1.18.1
+      reflect-metadata: 0.2.2
+      tsx: 4.21.0
+      typescript: 5.9.3
+      ws: 8.19.0
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@babel/runtime'
+      - '@cfworker/json-schema'
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - '@playwright/test'
+      - '@prisma/client'
+      - '@simplewebauthn/browser'
+      - '@simplewebauthn/server'
+      - '@types/node'
+      - '@types/react'
+      - '@types/react-dom'
+      - babel-plugin-macros
+      - babel-plugin-react-compiler
+      - better-sqlite3
+      - bufferutil
+      - debug
+      - immer
+      - magicast
+      - next
+      - nodemailer
+      - openai
+      - pg-native
+      - sass
+      - supports-color
+      - utf-8-validate
+
+  '@codemation/core-nodes@0.0.19(@opentelemetry/api@1.9.0)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(react@19.2.4)(ws@8.19.0)':
+    dependencies:
+      '@codemation/core': 0.0.19
+      '@langchain/core': 1.1.31(@opentelemetry/api@1.9.0)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))
+      '@langchain/openai': 1.2.12(@langchain/core@1.1.31(@opentelemetry/api@1.9.0)(openai@6.27.0(ws@8.19.0)(zod@4.3.6)))(ws@8.19.0)
+      lucide-react: 0.577.0(react@19.2.4)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - openai
+      - react
+      - ws
+
+  '@codemation/core-nodes@0.0.19(@opentelemetry/api@1.9.0)(react@19.2.4)(ws@8.19.0)':
+    dependencies:
+      '@codemation/core': 0.0.19
+      '@langchain/core': 1.1.31(@opentelemetry/api@1.9.0)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))
+      '@langchain/openai': 1.2.12(@langchain/core@1.1.31(@opentelemetry/api@1.9.0))(ws@8.19.0)
+      lucide-react: 0.577.0(react@19.2.4)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - openai
+      - react
+      - ws
+
+  '@codemation/core@0.0.19':
+    dependencies:
+      reflect-metadata: 0.2.2
+      tsyringe: 4.10.0
+      zod: 4.3.6
+
+  '@codemation/eventbus-redis@0.0.19':
+    dependencies:
+      '@codemation/core': 0.0.19
+      ioredis: 5.9.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@codemation/host@0.0.19(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(typescript@5.9.3)':
+    dependencies:
+      '@auth/core': 0.34.3(nodemailer@7.0.13)
+      '@codemation/core': 0.0.19
+      '@codemation/core-nodes': 0.0.19(@opentelemetry/api@1.9.0)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(react@19.2.4)(ws@8.19.0)
+      '@codemation/eventbus-redis': 0.0.19
+      '@electric-sql/pglite': 0.4.2
+      '@electric-sql/pglite-socket': 0.1.2(@electric-sql/pglite@0.4.2)
+      '@monaco-editor/react': 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@prisma/adapter-pg': 7.5.0
+      '@prisma/client': 7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
+      '@prisma/client-runtime-utils': 7.5.0
+      '@tanstack/react-query': 5.90.21(react@19.2.4)
+      '@types/bcryptjs': 3.0.0
+      '@uiw/react-json-view': 2.0.0-alpha.41(@babel/runtime@7.28.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@xyflow/react': 12.10.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      bcryptjs: 3.0.3
+      bullmq: 5.70.4
+      dagre: 0.8.5
+      date-fns: 4.1.0
+      hono: 4.12.8
+      jose: 6.2.2
+      lucide-react: 0.577.0(react@19.2.4)
+      monaco-editor: 0.55.1
+      next-auth: 4.24.13(@auth/core@0.34.3(nodemailer@7.0.13))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      pg: 8.20.0
+      pglite-prisma-adapter: 0.7.2(@electric-sql/pglite@0.4.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))
+      pretty-ms: 9.3.0
+      prisma: 7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
+      rc-tree: 5.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      react-router-dom: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react-use-websocket: 4.13.0
+      reflect-metadata: 0.2.2
+      sanitize-filename: 1.6.4
+      serialize-javascript: 7.0.4
+      tsx: 4.21.0
+      ws: 8.19.0
+      zxcvbn: 4.4.2
+    transitivePeerDependencies:
+      - '@babel/runtime'
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - '@simplewebauthn/browser'
+      - '@simplewebauthn/server'
+      - '@types/react'
+      - better-sqlite3
+      - bufferutil
+      - immer
+      - magicast
+      - next
+      - nodemailer
+      - openai
+      - pg-native
+      - supports-color
+      - typescript
+      - utf-8-validate
+
+  '@codemation/host@0.0.19(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(typescript@5.9.3)':
+    dependencies:
+      '@auth/core': 0.34.3(nodemailer@7.0.13)
+      '@codemation/core': 0.0.19
+      '@codemation/core-nodes': 0.0.19(@opentelemetry/api@1.9.0)(react@19.2.4)(ws@8.19.0)
+      '@codemation/eventbus-redis': 0.0.19
+      '@electric-sql/pglite': 0.4.2
+      '@electric-sql/pglite-socket': 0.1.2(@electric-sql/pglite@0.4.2)
+      '@monaco-editor/react': 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@prisma/adapter-pg': 7.5.0
+      '@prisma/client': 7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
+      '@prisma/client-runtime-utils': 7.5.0
+      '@tanstack/react-query': 5.90.21(react@19.2.4)
+      '@types/bcryptjs': 3.0.0
+      '@uiw/react-json-view': 2.0.0-alpha.41(@babel/runtime@7.28.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@xyflow/react': 12.10.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      bcryptjs: 3.0.3
+      bullmq: 5.70.4
+      dagre: 0.8.5
+      date-fns: 4.1.0
+      hono: 4.12.8
+      jose: 6.2.2
+      lucide-react: 0.577.0(react@19.2.4)
+      monaco-editor: 0.55.1
+      next-auth: 4.24.13(@auth/core@0.34.3(nodemailer@7.0.13))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      pg: 8.20.0
+      pglite-prisma-adapter: 0.7.2(@electric-sql/pglite@0.4.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))
+      pretty-ms: 9.3.0
+      prisma: 7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
+      rc-tree: 5.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      react-router-dom: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react-use-websocket: 4.13.0
+      reflect-metadata: 0.2.2
+      sanitize-filename: 1.6.4
+      serialize-javascript: 7.0.4
+      tsx: 4.21.0
+      ws: 8.19.0
+      zxcvbn: 4.4.2
+    transitivePeerDependencies:
+      - '@babel/runtime'
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - '@simplewebauthn/browser'
+      - '@simplewebauthn/server'
+      - '@types/react'
+      - better-sqlite3
+      - bufferutil
+      - immer
+      - magicast
+      - next
+      - nodemailer
+      - openai
+      - pg-native
+      - supports-color
+      - typescript
+      - utf-8-validate
+
+  '@codemation/host@file:.tmp-proof/codemation-host-0.0.19.tgz(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(typescript@5.9.3)':
+    dependencies:
+      '@auth/core': 0.34.3(nodemailer@7.0.13)
+      '@codemation/core': 0.0.19
+      '@codemation/core-nodes': 0.0.19(@opentelemetry/api@1.9.0)(react@19.2.4)(ws@8.19.0)
+      '@codemation/eventbus-redis': 0.0.19
+      '@electric-sql/pglite': 0.4.3
+      '@electric-sql/pglite-socket': 0.1.3(@electric-sql/pglite@0.4.3)
+      '@monaco-editor/react': 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@prisma/adapter-pg': 7.5.0
+      '@prisma/client': 7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
+      '@prisma/client-runtime-utils': 7.5.0
+      '@tanstack/react-query': 5.90.21(react@19.2.4)
+      '@types/bcryptjs': 3.0.0
+      '@uiw/react-json-view': 2.0.0-alpha.41(@babel/runtime@7.28.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@xyflow/react': 12.10.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      bcryptjs: 3.0.3
+      bullmq: 5.70.4
+      dagre: 0.8.5
+      date-fns: 4.1.0
+      hono: 4.12.8
+      jose: 6.2.2
+      lucide-react: 0.577.0(react@19.2.4)
+      monaco-editor: 0.55.1
+      next-auth: 4.24.13(@auth/core@0.34.3(nodemailer@7.0.13))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      pg: 8.20.0
+      pglite-prisma-adapter: 0.7.2(@electric-sql/pglite@0.4.3)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))
+      pretty-ms: 9.3.0
+      prisma: 7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
+      rc-tree: 5.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      react-router-dom: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react-use-websocket: 4.13.0
+      reflect-metadata: 0.2.2
+      sanitize-filename: 1.6.4
+      serialize-javascript: 7.0.4
+      tsx: 4.21.0
+      ws: 8.19.0
+      zxcvbn: 4.4.2
+    transitivePeerDependencies:
+      - '@babel/runtime'
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - '@simplewebauthn/browser'
+      - '@simplewebauthn/server'
+      - '@types/react'
+      - better-sqlite3
+      - bufferutil
+      - immer
+      - magicast
+      - next
+      - nodemailer
+      - openai
+      - pg-native
+      - supports-color
+      - typescript
+      - utf-8-validate
+
+  '@codemation/next-host@0.0.20(@babel/runtime@7.28.6)(@cfworker/json-schema@4.1.1)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(typescript@5.9.3)':
+    dependencies:
+      '@auth/prisma-adapter': 2.11.1(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(nodemailer@7.0.13)
+      '@codemation/core': 0.0.19
+      '@codemation/host': 0.0.19(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))(typescript@5.9.3)
+      '@hookform/resolvers': 5.2.2(react-hook-form@7.71.2(react@19.2.4))
+      '@monaco-editor/react': 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@tanstack/react-query': 5.90.21(react@19.2.4)
+      '@uiw/react-json-view': 2.0.0-alpha.41(@babel/runtime@7.28.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@xyflow/react': 12.10.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      bcryptjs: 3.0.3
+      class-variance-authority: 0.7.1
+      clsx: 2.1.1
+      dagre: 0.8.5
+      date-fns: 4.1.0
+      hono: 4.12.8
+      jose: 6.2.2
+      lucide-react: 0.577.0(react@19.2.4)
+      monaco-editor: 0.55.1
+      next: 16.2.0(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      next-auth: 5.0.0-beta.30(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(react@19.2.4)
+      pretty-ms: 9.3.0
+      prisma: 7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
+      radix-ui: 1.4.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      rc-tree: 5.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      react-hook-form: 7.71.2(react@19.2.4)
+      shadcn: 4.1.0(@cfworker/json-schema@4.1.1)(@types/node@25.3.5)(typescript@5.9.3)
+      simple-icons: 16.12.0
+      tailwind-merge: 3.5.0
+      tw-animate-css: 1.4.0
+      zod: 3.25.76
+      zxcvbn: 4.4.2
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@babel/runtime'
+      - '@cfworker/json-schema'
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - '@playwright/test'
+      - '@prisma/client'
+      - '@simplewebauthn/browser'
+      - '@simplewebauthn/server'
+      - '@types/node'
+      - '@types/react'
+      - '@types/react-dom'
+      - babel-plugin-macros
+      - babel-plugin-react-compiler
+      - better-sqlite3
+      - bufferutil
+      - immer
+      - magicast
+      - nodemailer
+      - openai
+      - pg-native
+      - sass
+      - supports-color
+      - typescript
+      - utf-8-validate
+
+  '@codemation/next-host@0.0.20(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(nodemailer@7.0.13)(typescript@5.9.3)':
+    dependencies:
+      '@auth/prisma-adapter': 2.11.1(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(nodemailer@7.0.13)
+      '@codemation/core': 0.0.19
+      '@codemation/host': 0.0.19(@babel/runtime@7.28.6)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(typescript@5.9.3)
+      '@hookform/resolvers': 5.2.2(react-hook-form@7.71.2(react@19.2.4))
+      '@monaco-editor/react': 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@tanstack/react-query': 5.90.21(react@19.2.4)
+      '@uiw/react-json-view': 2.0.0-alpha.41(@babel/runtime@7.28.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@xyflow/react': 12.10.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      bcryptjs: 3.0.3
+      class-variance-authority: 0.7.1
+      clsx: 2.1.1
+      dagre: 0.8.5
+      date-fns: 4.1.0
+      hono: 4.12.8
+      jose: 6.2.2
+      lucide-react: 0.577.0(react@19.2.4)
+      monaco-editor: 0.55.1
+      next: 16.2.0(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      next-auth: 5.0.0-beta.30(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(react@19.2.4)
+      pretty-ms: 9.3.0
+      prisma: 7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
+      radix-ui: 1.4.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      rc-tree: 5.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      react-hook-form: 7.71.2(react@19.2.4)
+      shadcn: 4.1.0(@cfworker/json-schema@4.1.1)(@types/node@25.3.5)(typescript@5.9.3)
+      simple-icons: 16.12.0
+      tailwind-merge: 3.5.0
+      tw-animate-css: 1.4.0
+      zod: 3.25.76
+      zxcvbn: 4.4.2
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@babel/runtime'
+      - '@cfworker/json-schema'
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - '@playwright/test'
+      - '@prisma/client'
+      - '@simplewebauthn/browser'
+      - '@simplewebauthn/server'
+      - '@types/node'
+      - '@types/react'
+      - '@types/react-dom'
+      - babel-plugin-macros
+      - babel-plugin-react-compiler
+      - better-sqlite3
+      - bufferutil
+      - immer
+      - magicast
+      - nodemailer
+      - openai
+      - pg-native
+      - sass
+      - supports-color
+      - typescript
+      - utf-8-validate
+
   '@colors/colors@1.5.0':
     optional: true
 
@@ -9210,6 +9880,10 @@ snapshots:
     dependencies:
       '@electric-sql/pglite': 0.4.2
 
+  '@electric-sql/pglite-socket@0.1.3(@electric-sql/pglite@0.4.3)':
+    dependencies:
+      '@electric-sql/pglite': 0.4.3
+
   '@electric-sql/pglite-tools@0.2.20(@electric-sql/pglite@0.3.15)':
     dependencies:
       '@electric-sql/pglite': 0.3.15
@@ -9217,6 +9891,8 @@ snapshots:
   '@electric-sql/pglite@0.3.15': {}
 
   '@electric-sql/pglite@0.4.2': {}
+
+  '@electric-sql/pglite@0.4.3': {}
 
   '@emnapi/core@1.8.1':
     dependencies:
@@ -9643,6 +10319,15 @@ snapshots:
       - openai
 
   '@langchain/openai@1.2.12(@langchain/core@1.1.31(@opentelemetry/api@1.9.0)(openai@6.27.0(ws@8.19.0)(zod@4.3.6)))(ws@8.19.0)':
+    dependencies:
+      '@langchain/core': 1.1.31(@opentelemetry/api@1.9.0)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))
+      js-tiktoken: 1.0.21
+      openai: 6.27.0(ws@8.19.0)(zod@4.3.6)
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - ws
+
+  '@langchain/openai@1.2.12(@langchain/core@1.1.31(@opentelemetry/api@1.9.0))(ws@8.19.0)':
     dependencies:
       '@langchain/core': 1.1.31(@opentelemetry/api@1.9.0)(openai@6.27.0(ws@8.19.0)(zod@4.3.6))
       js-tiktoken: 1.0.21
@@ -14813,11 +15498,13 @@ snapshots:
       '@auth/core': 0.34.3(nodemailer@7.0.13)
       nodemailer: 7.0.13
 
-  next-auth@5.0.0-beta.30(next@16.2.0(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4):
+  next-auth@5.0.0-beta.30(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(react@19.2.4):
     dependencies:
-      '@auth/core': 0.41.0
+      '@auth/core': 0.41.0(nodemailer@7.0.13)
       next: 16.2.0(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react: 19.2.4
+    optionalDependencies:
+      nodemailer: 7.0.13
 
   next-themes@0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
@@ -15168,6 +15855,13 @@ snapshots:
   pglite-prisma-adapter@0.7.2(@electric-sql/pglite@0.4.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)):
     dependencies:
       '@electric-sql/pglite': 0.4.2
+      '@prisma/client': 7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
+      '@prisma/driver-adapter-utils': 7.2.0
+      postgres-array: 3.0.4
+
+  pglite-prisma-adapter@0.7.2(@electric-sql/pglite@0.4.3)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)):
+    dependencies:
+      '@electric-sql/pglite': 0.4.3
       '@prisma/client': 7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
       '@prisma/driver-adapter-utils': 7.2.0
       postgres-array: 3.0.4

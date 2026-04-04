@@ -5,7 +5,7 @@ import { test } from "vitest";
 import {
   NextHostPackageRootResolver,
   type FileExistencePort,
-  type HostPackageJsonPathResolver,
+  type InstalledHostPackageRootResolver,
 } from "../src/server/NextHostPackageRootResolver";
 
 class StubFileExistencePort implements FileExistencePort {
@@ -16,18 +16,18 @@ class StubFileExistencePort implements FileExistencePort {
   }
 }
 
-class StubHostPackageJsonPathResolver implements HostPackageJsonPathResolver {
-  constructor(private readonly hostPackageJsonPath: string) {}
+class StubInstalledHostPackageRootResolver implements InstalledHostPackageRootResolver {
+  constructor(private readonly installedHostPackageRoot: string) {}
 
-  resolveHostPackageJsonPath(): string {
-    return this.hostPackageJsonPath;
+  resolveInstalledHostPackageRoot(): string {
+    return this.installedHostPackageRoot;
   }
 }
 
 test("resolver prefers an explicit CODEMATION_HOST_PACKAGE_ROOT override", async () => {
   const resolver = new NextHostPackageRootResolver(
     new StubFileExistencePort(new Set()),
-    new StubHostPackageJsonPathResolver("/installed/node_modules/@codemation/host/package.json"),
+    new StubInstalledHostPackageRootResolver("/installed/node_modules/@codemation/host"),
   );
 
   const resolved = await resolver.resolve("/repo", {
@@ -41,7 +41,7 @@ test("resolver uses the workspace host package when repoRoot contains packages/h
   const repoRoot = "/repo";
   const resolver = new NextHostPackageRootResolver(
     new StubFileExistencePort(new Set([path.resolve(repoRoot, "packages", "host", "prisma", "schema.prisma")])),
-    new StubHostPackageJsonPathResolver("/installed/node_modules/@codemation/host/package.json"),
+    new StubInstalledHostPackageRootResolver("/installed/node_modules/@codemation/host"),
   );
 
   const resolved = await resolver.resolve(repoRoot, {});
@@ -52,7 +52,7 @@ test("resolver uses the workspace host package when repoRoot contains packages/h
 test("resolver falls back to the installed @codemation/host package for external consumers", async () => {
   const resolver = new NextHostPackageRootResolver(
     new StubFileExistencePort(new Set()),
-    new StubHostPackageJsonPathResolver("/installed/node_modules/@codemation/host/package.json"),
+    new StubInstalledHostPackageRootResolver("/installed/node_modules/@codemation/host"),
   );
 
   const resolved = await resolver.resolve("/external/my-automation", {});

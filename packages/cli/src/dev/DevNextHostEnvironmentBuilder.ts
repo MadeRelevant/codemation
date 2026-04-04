@@ -42,6 +42,7 @@ export class DevNextHostEnvironmentBuilder {
       HOSTNAME: "127.0.0.1",
       AUTH_SECRET: args.authSecret,
       AUTH_URL: args.publicBaseUrl,
+      CODEMATION_PUBLIC_BASE_URL: args.publicBaseUrl,
       CODEMATION_PUBLIC_WS_PORT: String(publicWebsocketPort),
       NEXT_PUBLIC_CODEMATION_WS_PORT: String(publicWebsocketPort),
     };

@@ -13,6 +13,10 @@ async function handle(request: Request): Promise<Response> {
   if (incoming.pathname === "/api/dev/runtime") {
     return new Response(null, { status: 204 });
   }
+  if (incoming.pathname.startsWith("/api/auth/")) {
+    const { CodemationNextHost } = await import("../../../src/server/CodemationNextHost");
+    return CodemationNextHost.shared.fetchApi(request);
+  }
   const runtimeDevUrl = process.env.CODEMATION_RUNTIME_DEV_URL;
   if (runtimeDevUrl !== undefined && runtimeDevUrl.trim().length > 0) {
     const base = runtimeDevUrl.replace(/\/$/, "");

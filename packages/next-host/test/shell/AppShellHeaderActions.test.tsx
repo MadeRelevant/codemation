@@ -1,16 +1,21 @@
 // @vitest-environment jsdom
 
-import type { Session } from "next-auth";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { CodemationSessionRoot } from "../../src/providers/CodemationSessionProvider";
 import { AppShellHeaderActions } from "../../src/shell/AppShellHeaderActions";
 
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
 describe("AppShellHeaderActions", () => {
   it("renders nothing when UI auth is disabled and no session provider is present", () => {
     const view = render(
-      <CodemationSessionRoot enabled={false} session={null}>
+      <CodemationSessionRoot enabled={false}>
         <AppShellHeaderActions />
       </CodemationSessionRoot>,
     );
@@ -18,21 +23,23 @@ describe("AppShellHeaderActions", () => {
     expect(view.container).toBeEmptyDOMElement();
   });
 
-  it("renders the authenticated header actions when session auth is enabled", () => {
-    const session: Session = {
-      user: {
-        email: "admin@example.com",
-      },
-      expires: "2099-01-01T00:00:00.000Z",
-    };
-
+  it("renders the authenticated header actions from the backend session endpoint", async () => {
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify({ id: "user-1", email: "admin@example.com", name: "Admin" }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      });
     render(
-      <CodemationSessionRoot enabled={true} session={session}>
+      <CodemationSessionRoot enabled={true}>
         <AppShellHeaderActions />
       </CodemationSessionRoot>,
     );
 
-    expect(screen.getByTestId("header-user-email").textContent).toContain("admin@example.com");
+    await waitFor(() => {
+      expect(screen.getByTestId("header-user-email").textContent).toContain("admin@example.com");
+    });
     expect(screen.getByTestId("header-logout")).toBeInTheDocument();
   });
 });

@@ -48,7 +48,10 @@ export class CodemationNextHost {
       exists: async (filePath: string) => await this.exists(filePath),
     },
     {
-      resolveHostPackageJsonPath: () => this.require.resolve("@codemation/host/package.json"),
+      resolveInstalledHostPackageRoot: () => {
+        const installedHostEntrypointPath = this.require.resolve("@codemation/host/next/server");
+        return path.resolve(path.dirname(installedHostEntrypointPath), "..");
+      },
     },
   );
   private contextPromise: Promise<CodemationNextHostContext> | null = null;

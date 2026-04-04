@@ -51,6 +51,7 @@ describe("DevNextHostEnvironmentBuilder", () => {
 
     expect(env.PORT).toBe("4242");
     expect(env.AUTH_URL).toBe("http://127.0.0.1:3000");
+    expect(env.CODEMATION_PUBLIC_BASE_URL).toBe("http://127.0.0.1:3000");
     expect(env.CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH).toBe(
       path.resolve(consumerRoot, ".codemation", "output", "current.json"),
     );

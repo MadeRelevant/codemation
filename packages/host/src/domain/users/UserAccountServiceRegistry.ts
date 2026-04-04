@@ -1,6 +1,7 @@
-import { hash } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 import { createHash, randomBytes } from "node:crypto";
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
+import type { AuthenticatedPrincipal } from "../../application/auth/AuthenticatedPrincipal";
 import type {
   InviteUserResponseDto,
   UpsertLocalBootstrapUserResultDto,
@@ -222,6 +223,28 @@ export class UserAccountService {
       },
     });
     return { outcome: "created" };
+  }
+
+  async authenticateLocalUser(email: string, password: string): Promise<AuthenticatedPrincipal> {
+    this.assertLocalAuth();
+    const prisma = this.requirePrisma();
+    const normalized = email.trim().toLowerCase();
+    if (!normalized || !password) {
+      throw new ApplicationRequestError(401, "Invalid email or password.");
+    }
+    const user = await prisma.user.findUnique({ where: { email: normalized } });
+    if (!user?.passwordHash || user.accountStatus !== "active") {
+      throw new ApplicationRequestError(401, "Invalid email or password.");
+    }
+    const matches = await compare(password, user.passwordHash);
+    if (!matches) {
+      throw new ApplicationRequestError(401, "Invalid email or password.");
+    }
+    return {
+      id: user.id,
+      email: user.email ?? normalized,
+      name: user.name ?? null,
+    };
   }
 
   private buildInviteUrl(origin: string, rawToken: string): string {

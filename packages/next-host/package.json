@@ -38,7 +38,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "^2.11.1",
+    "@auth/core": "^0.34.3",
     "@codemation/core": "workspace:*",
     "@codemation/host": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
@@ -46,7 +46,6 @@
     "@tanstack/react-query": "^5.90.21",
     "@uiw/react-json-view": "2.0.0-alpha.41",
     "@xyflow/react": "^12.10.1",
-    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dagre": "^0.8.5",
@@ -56,7 +55,6 @@
     "lucide-react": "^0.577.0",
     "monaco-editor": "^0.55.1",
     "next": "^16.2.0",
-    "next-auth": "5.0.0-beta.30",
     "pretty-ms": "^9.3.0",
     "prisma": "^7.5.0",
     "radix-ui": "^1.4.3",
@@ -73,9 +71,9 @@
   },
   "devDependencies": {
     "@codemation/eslint-config": "workspace:*",
+    "@tailwindcss/postcss": "^4.2.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@tailwindcss/postcss": "^4.2.2",
     "@types/dagre": "^0.7.54",
     "@types/node": "^25.3.5",
     "@types/react": "^19.2.14",

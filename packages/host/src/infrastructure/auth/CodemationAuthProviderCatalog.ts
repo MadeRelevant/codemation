@@ -1,43 +1,40 @@
+import Credentials from "@auth/core/providers/credentials";
+import GitHub from "@auth/core/providers/github";
+import Google from "@auth/core/providers/google";
+import MicrosoftEntraID from "@auth/core/providers/microsoft-entra-id";
+import { compare } from "bcryptjs";
+import type { Provider } from "@auth/core/providers";
 import type {
   CodemationAuthConfig,
   CodemationAuthOAuthProviderConfig,
   CodemationAuthOidcProviderConfig,
-} from "@codemation/host";
-import type { PrismaClient } from "@codemation/host/persistence";
-import { compare } from "bcryptjs";
-import type { NextAuthConfig } from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import GitHub from "next-auth/providers/github";
-import Google from "next-auth/providers/google";
-import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
+} from "../../presentation/config/CodemationAuthConfig";
+import type { PrismaClient } from "../persistence/generated/prisma-client/client.js";
 
-export class NextAuthProviderCatalog {
-  static async build(
+export class CodemationAuthProviderCatalog {
+  build(
     authConfig: CodemationAuthConfig | undefined,
-    prisma: PrismaClient,
+    prisma: PrismaClient | undefined,
     env: NodeJS.ProcessEnv,
-  ): Promise<NextAuthConfig["providers"]> {
+  ): ReadonlyArray<Provider> {
     if (!authConfig) {
       return [];
     }
-    const providers: NextAuthConfig["providers"] = [];
-    if (NextAuthProviderCatalog.includesCredentialsProvider(authConfig)) {
-      providers.push(NextAuthProviderCatalog.createCredentialsProvider(prisma));
+    const providers: Provider[] = [];
+    if (authConfig.kind === "local") {
+      providers.push(this.createCredentialsProvider(prisma));
     }
     for (const entry of authConfig.oauth ?? []) {
-      providers.push(NextAuthProviderCatalog.createOAuthProvider(entry, env));
+      providers.push(this.createOAuthProvider(entry, env));
     }
     for (const entry of authConfig.oidc ?? []) {
-      providers.push(NextAuthProviderCatalog.createOidcProvider(entry, env));
+      providers.push(this.createOidcProvider(entry, env));
     }
     return providers;
   }
 
-  private static includesCredentialsProvider(authConfig: CodemationAuthConfig): boolean {
-    return authConfig.kind === "local";
-  }
-
-  private static createCredentialsProvider(prisma: PrismaClient): NextAuthConfig["providers"][number] {
+  private createCredentialsProvider(prisma: PrismaClient | undefined): Provider {
+    const resolvedPrisma = this.requirePrisma(prisma);
     return Credentials({
       name: "Email and password",
       credentials: {
@@ -45,16 +42,13 @@ export class NextAuthProviderCatalog {
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
-        const email = typeof credentials?.email === "string" ? credentials.email.trim() : "";
+        const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
         const password = typeof credentials?.password === "string" ? credentials.password : "";
         if (!email || !password) {
           return null;
         }
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user?.passwordHash || user.accountStatus === "inactive") {
-          return null;
-        }
-        if (user.accountStatus !== "active") {
+        const user = await resolvedPrisma.user.findUnique({ where: { email } });
+        if (!user?.passwordHash || user.accountStatus !== "active") {
           return null;
         }
         const matches = await compare(password, user.passwordHash);
@@ -71,10 +65,7 @@ export class NextAuthProviderCatalog {
     });
   }
 
-  private static createOAuthProvider(
-    entry: CodemationAuthOAuthProviderConfig,
-    env: NodeJS.ProcessEnv,
-  ): NextAuthConfig["providers"][number] {
+  private createOAuthProvider(entry: CodemationAuthOAuthProviderConfig, env: NodeJS.ProcessEnv): Provider {
     const clientId = env[entry.clientIdEnv] ?? "";
     const clientSecret = env[entry.clientSecretEnv] ?? "";
     if (entry.provider === "google") {
@@ -91,10 +82,7 @@ export class NextAuthProviderCatalog {
     });
   }
 
-  private static createOidcProvider(
-    entry: CodemationAuthOidcProviderConfig,
-    env: NodeJS.ProcessEnv,
-  ): NextAuthConfig["providers"][number] {
+  private createOidcProvider(entry: CodemationAuthOidcProviderConfig, env: NodeJS.ProcessEnv): Provider {
     return {
       id: entry.id,
       name: entry.id,
@@ -103,5 +91,12 @@ export class NextAuthProviderCatalog {
       clientId: env[entry.clientIdEnv] ?? "",
       clientSecret: env[entry.clientSecretEnv] ?? "",
     };
+  }
+
+  private requirePrisma(prisma: PrismaClient | undefined): PrismaClient {
+    if (!prisma) {
+      throw new Error("Authentication providers require a prepared Prisma client.");
+    }
+    return prisma;
   }
 }

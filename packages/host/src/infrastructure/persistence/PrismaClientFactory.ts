@@ -18,7 +18,12 @@ export class PrismaClientFactory {
 
   async createPglite(dataDir: string): Promise<PglitePrismaClients> {
     const pglite = new PGlite(dataDir);
-    await pglite.waitReady;
+    try {
+      await pglite.waitReady;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`PGlite failed to initialize properly for "${dataDir}". Cause: ${reason}`, { cause: error });
+    }
     const adapter = new PrismaPGlite(pglite);
     const prismaClient = new PrismaClient({ adapter });
     return { prismaClient, pglite };

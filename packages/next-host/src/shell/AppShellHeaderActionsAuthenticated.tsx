@@ -1,16 +1,16 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
-
-import { useState, type ReactNode } from "react";
+import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import { useContext, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { CodemationSessionRootContext } from "../providers/CodemationSessionProvider";
 
 export function AppShellHeaderActionsAuthenticated(): ReactNode {
-  const { data: session, status } = useSession();
+  const sessionContext = useContext(CodemationSessionRootContext);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  if (status === "loading") {
+  if (sessionContext.status === "loading") {
     return (
       <div
         className="flex shrink-0 items-center gap-4"
@@ -21,14 +21,43 @@ export function AppShellHeaderActionsAuthenticated(): ReactNode {
     );
   }
 
-  const email = session?.user?.email;
+  const email = sessionContext.session?.email;
   if (!email) {
     return null;
   }
 
-  const handleSignOut = (): void => {
+  const readCsrfCookie = (): string | null => {
+    const cookies = document.cookie.split(";");
+    for (const rawCookie of cookies) {
+      const separatorIndex = rawCookie.indexOf("=");
+      if (separatorIndex < 0) {
+        continue;
+      }
+      const key = rawCookie.slice(0, separatorIndex).trim();
+      if (key !== "codemation.csrf-token" && key !== "__Host-codemation.csrf-token") {
+        continue;
+      }
+      return decodeURIComponent(rawCookie.slice(separatorIndex + 1).trim());
+    }
+    return null;
+  };
+
+  const handleSignOut = async (): Promise<void> => {
     setIsSigningOut(true);
-    void signOut({ callbackUrl: "/login" });
+    try {
+      const csrfToken = readCsrfCookie();
+      if (csrfToken) {
+        await fetch(ApiPaths.authLogout(), {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "x-codemation-csrf-token": csrfToken,
+          },
+        });
+      }
+    } finally {
+      window.location.assign("/login");
+    }
   };
 
   return (
@@ -42,7 +71,7 @@ export function AppShellHeaderActionsAuthenticated(): ReactNode {
         size="sm"
         data-testid="header-logout"
         disabled={isSigningOut}
-        onClick={handleSignOut}
+        onClick={() => void handleSignOut()}
       >
         {isSigningOut ? "Signing out…" : "Log out"}
       </Button>

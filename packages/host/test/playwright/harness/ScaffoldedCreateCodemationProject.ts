@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 
@@ -12,7 +12,7 @@ export type ScaffoldedCreateCodemationProjectContract = Readonly<{
   sourceReplacementAfter: string;
 }>;
 
-export type ScaffoldedCreateCodemationProjectDependencyMode = "workspace" | "published";
+export type ScaffoldedCreateCodemationProjectDependencyMode = "workspace" | "published" | "packed";
 
 type SpawnResult = Readonly<{
   exitCode: number;
@@ -22,6 +22,11 @@ type SpawnResult = Readonly<{
 export class ScaffoldedCreateCodemationProject {
   private static readonly adminEmail = "playwright-auth@example.com";
   private static readonly adminPassword = "playwright12345";
+  private static readonly packedDependencyPackageDirectories = [
+    "packages/host",
+    "packages/next-host",
+    "packages/cli",
+  ] as const;
   private static readonly workspaceDependencyNames = [
     "@codemation/cli",
     "@codemation/core",
@@ -33,6 +38,7 @@ export class ScaffoldedCreateCodemationProject {
   ];
 
   private projectRoot: string | null = null;
+  private packedArtifactsRoot: string | null = null;
 
   constructor(
     private readonly repoRoot: string,
@@ -41,7 +47,8 @@ export class ScaffoldedCreateCodemationProject {
   ) {}
 
   async create(): Promise<void> {
-    const tempRoot = path.join(this.repoRoot, "apps");
+    const tempRoot = this.resolveTempRoot();
+    await mkdir(tempRoot, { recursive: true });
     this.projectRoot = await mkdtemp(path.join(tempRoot, `create-codemation-${this.contract.templateId}-browser-e2e-`));
     await this.runCommand(
       "node",
@@ -65,18 +72,23 @@ export class ScaffoldedCreateCodemationProject {
       });
       return;
     }
-    await this.runCommand("pnpm", ["install", "--lockfile=false"], {
+    const installCommandArgs =
+      this.dependencyMode === "packed"
+        ? await this.preparePackedInstallArguments()
+        : (["install", "--lockfile=false"] as const);
+    await this.runCommand("pnpm", [...installCommandArgs], {
       cwd: this.rootPath(),
       env: this.publishedInstallEnvironment(),
     });
-    await this.runCommand("pnpm", ["exec", "codemation", "db", "migrate"], {
+    const execPrefix = this.dependencyMode === "packed" ? ["--ignore-workspace", "exec"] : ["exec"];
+    await this.runCommand("pnpm", [...execPrefix, "codemation", "db", "migrate"], {
       cwd: this.rootPath(),
       env: this.publishedInstallEnvironment(),
     });
     await this.runCommand(
       "pnpm",
       [
-        "exec",
+        ...execPrefix,
         "codemation",
         "user",
         "create",
@@ -99,6 +111,11 @@ export class ScaffoldedCreateCodemationProject {
     const currentRoot = this.projectRoot;
     this.projectRoot = null;
     await rm(currentRoot, { recursive: true, force: true });
+    if (this.packedArtifactsRoot) {
+      const currentArtifactsRoot = this.packedArtifactsRoot;
+      this.packedArtifactsRoot = null;
+      await rm(currentArtifactsRoot, { recursive: true, force: true });
+    }
   }
 
   rootPath(): string {
@@ -124,6 +141,13 @@ export class ScaffoldedCreateCodemationProject {
     return this.contract.updatedWorkflowName;
   }
 
+  adminCredentials(): Readonly<{ email: string; password: string }> {
+    return {
+      email: ScaffoldedCreateCodemationProject.adminEmail,
+      password: ScaffoldedCreateCodemationProject.adminPassword,
+    };
+  }
+
   async applyHotReloadEdit(): Promise<void> {
     const workflowPath = this.workflowPath();
     const originalSource = await readFile(workflowPath, "utf8");
@@ -141,13 +165,7 @@ export class ScaffoldedCreateCodemationProject {
 
   private async rewriteWorkspaceDependencies(): Promise<void> {
     const packageJsonPath = path.join(this.rootPath(), "package.json");
-    const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as {
-      dependencies?: Record<string, string>;
-      devDependencies?: Record<string, string>;
-      pnpm?: {
-        overrides?: Record<string, string>;
-      };
-    };
+    const packageJson = await this.readPackageJson(packageJsonPath);
     for (const dependencyName of ScaffoldedCreateCodemationProject.workspaceDependencyNames) {
       if (packageJson.dependencies?.[dependencyName]) {
         packageJson.dependencies[dependencyName] = "workspace:*";
@@ -167,6 +185,92 @@ export class ScaffoldedCreateCodemationProject {
       ),
     };
     await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+  }
+
+  private async preparePackedInstallArguments(): Promise<ReadonlyArray<string>> {
+    const packedDependencies = await this.packLocalDependencies();
+    await this.rewritePackedDependencies(packedDependencies);
+    return ["install", "--lockfile=false", "--ignore-workspace"];
+  }
+
+  private async rewritePackedDependencies(packedDependencies: Readonly<Record<string, string>>): Promise<void> {
+    const packageJsonPath = path.join(this.rootPath(), "package.json");
+    const packageJson = await this.readPackageJson(packageJsonPath);
+    packageJson.dependencies ??= {};
+    packageJson.dependencies["@codemation/cli"] = packedDependencies["@codemation/cli"]!;
+    packageJson.dependencies["@codemation/host"] = packedDependencies["@codemation/host"]!;
+    packageJson.dependencies["@codemation/next-host"] = packedDependencies["@codemation/next-host"]!;
+    packageJson.pnpm ??= {};
+    packageJson.pnpm.overrides = {
+      ...(packageJson.pnpm.overrides ?? {}),
+      "@codemation/cli": packedDependencies["@codemation/cli"]!,
+      "@codemation/host": packedDependencies["@codemation/host"]!,
+      "@codemation/next-host": packedDependencies["@codemation/next-host"]!,
+    };
+    await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
+  }
+
+  private async packLocalDependencies(): Promise<Readonly<Record<string, string>>> {
+    const artifactsRoot = await this.ensurePackedArtifactsRoot();
+    await this.runCommand("pnpm", ["--filter", "@codemation/host", "build"], {
+      cwd: this.repoRoot,
+      env: process.env,
+    });
+    await this.runCommand("pnpm", ["--filter", "@codemation/next-host", "build"], {
+      cwd: this.repoRoot,
+      env: process.env,
+    });
+    await this.runCommand("pnpm", ["--filter", "@codemation/cli", "build"], {
+      cwd: this.repoRoot,
+      env: process.env,
+    });
+    const packedDependencies: Record<string, string> = {};
+    for (const relativeDirectory of ScaffoldedCreateCodemationProject.packedDependencyPackageDirectories) {
+      const packageDirectory = path.join(this.repoRoot, relativeDirectory);
+      const packageJson = JSON.parse(await readFile(path.join(packageDirectory, "package.json"), "utf8")) as {
+        name: string;
+        version: string;
+      };
+      await this.runCommand("pnpm", ["pack", "--pack-destination", artifactsRoot], {
+        cwd: packageDirectory,
+        env: process.env,
+      });
+      packedDependencies[packageJson.name] = `file:${path.join(
+        artifactsRoot,
+        this.tarballFileName(packageJson.name, packageJson.version),
+      )}`;
+    }
+    return packedDependencies;
+  }
+
+  private async ensurePackedArtifactsRoot(): Promise<string> {
+    if (this.packedArtifactsRoot) {
+      return this.packedArtifactsRoot;
+    }
+    const proofRoot = path.join(this.repoRoot, ".tmp-proof");
+    await mkdir(proofRoot, { recursive: true });
+    this.packedArtifactsRoot = await mkdtemp(path.join(proofRoot, "scaffolded-packed-browser-e2e-"));
+    return this.packedArtifactsRoot;
+  }
+
+  private tarballFileName(packageName: string, version: string): string {
+    return `${packageName.replace(/^@/, "").replace(/\//g, "-")}-${version}.tgz`;
+  }
+
+  private async readPackageJson(packageJsonPath: string): Promise<{
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+    pnpm?: {
+      overrides?: Record<string, string>;
+    };
+  }> {
+    return JSON.parse(await readFile(packageJsonPath, "utf8")) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+      pnpm?: {
+        overrides?: Record<string, string>;
+      };
+    };
   }
 
   private publishedInstallEnvironment(): NodeJS.ProcessEnv {
@@ -205,5 +309,12 @@ export class ScaffoldedCreateCodemationProject {
       throw new Error([`Command failed: ${command} ${args.join(" ")}`, `cwd: ${options.cwd}`, output].join("\n\n"));
     }
     return { exitCode, output };
+  }
+
+  private resolveTempRoot(): string {
+    if (this.dependencyMode === "workspace") {
+      return path.join(this.repoRoot, "apps");
+    }
+    return path.join(this.repoRoot, ".tmp-proof");
   }
 }

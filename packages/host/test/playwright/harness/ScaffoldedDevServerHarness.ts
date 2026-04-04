@@ -155,7 +155,7 @@ export class ScaffoldedDevServerHarness {
         });
         return response.status;
       },
-      (status) => status >= 200 && status < 500,
+      (status) => status === 200,
       120_000,
       500,
       `Timed out waiting for auth session via ${this.commandName}. Output:\n${this.renderLogs()}`,
