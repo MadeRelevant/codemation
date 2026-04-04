@@ -15,7 +15,7 @@ describe("ScaffoldedBrowserRuntimeEnvironment", () => {
 
     expect(result.DATABASE_URL).toBe("");
     expect(result.REDIS_URL).toBe("");
-    expect(result.CODEMATION_DATABASE_KIND).toBe("pglite");
+    expect(result.CODEMATION_DATABASE_KIND).toBe("sqlite");
     expect(result.CODEMATION_SCHEDULER).toBe("local");
     expect(result.CODEMATION_EVENT_BUS).toBe("memory");
     expect(result.CI).toBe("");

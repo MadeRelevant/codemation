@@ -218,6 +218,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
+      CODEMATION_DATABASE_KIND: sqlite
       DATABASE_URL: file:/tmp/codemation-integration.sqlite
     steps:
       - name: Checkout
