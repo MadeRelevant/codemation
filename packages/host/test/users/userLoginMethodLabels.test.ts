@@ -5,7 +5,7 @@ describe("labelForLinkedAuthAccount", () => {
   it("maps known OAuth providers", () => {
     expect(labelForLinkedAuthAccount("google", "oauth")).toBe("Google");
     expect(labelForLinkedAuthAccount("github", "oauth")).toBe("GitHub");
-    expect(labelForLinkedAuthAccount("microsoft-entra-id", "oidc")).toBe("Microsoft Entra ID");
+    expect(labelForLinkedAuthAccount("microsoft", "oidc")).toBe("Microsoft Entra ID");
   });
 
   it("labels generic OIDC with SSO prefix", () => {

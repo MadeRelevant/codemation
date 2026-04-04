@@ -109,16 +109,18 @@ model CredentialTestResult {
   @@index([instanceId, testedAt])
 }
 
-/// Auth.js / NextAuth user directory (JWT sessions; optional OAuth linking)
+/// Better Auth user directory (DB sessions + optional OAuth linking)
 model User {
-  id            String       @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String?
-  email         String?      @unique
-  emailVerified DateTime?    @map("email_verified")
+  email         String?   @unique
+  emailVerified Boolean   @default(false) @map("email_verified")
   image         String?
-  passwordHash  String?      @map("password_hash")
+  passwordHash  String?   @map("password_hash")
   /// invited | active | inactive (local directory / invite flow)
-  accountStatus String       @default("active") @map("account_status")
+  accountStatus String    @default("active") @map("account_status")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
   accounts      Account[]
   sessions      Session[]
   invites       UserInvite[]
@@ -140,18 +142,25 @@ model UserInvite {
 }
 
 model Account {
-  id                String  @id @default(cuid())
-  userId            String  @map("user_id")
-  type              String
-  provider          String
-  providerAccountId String  @map("provider_account_id")
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
+  id                    String    @id @default(cuid())
+  userId                String    @map("user_id")
+  /// Legacy Auth.js discriminator; Better Auth omits it on create — default keeps OAuth/credential rows valid.
+  type                  String    @default("oauth")
+  provider              String
+  providerAccountId     String    @map("provider_account_id")
+  /// Better Auth email/password (credential provider) hash; kept in sync with `User.passwordHash` for local flows.
+  password              String?   @map("password")
+  refresh_token         String?
+  access_token          String?
+  expires_at            Int?
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  token_type            String?
+  scope                 String?
+  id_token              String?
+  session_state         String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -160,19 +169,26 @@ model Account {
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique @map("session_token")
-  userId       String   @map("user_id")
+  id           String    @id @default(cuid())
+  sessionToken String    @unique @map("session_token")
+  userId       String    @map("user_id")
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("codemation_auth_session")
 }
 
 model VerificationToken {
+  id         String   @id @default(cuid())
   identifier String
   token      String
   expires    DateTime
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@unique([identifier, token])
   @@map("codemation_auth_verification_token")

@@ -4,7 +4,7 @@ import { InAppCallbackUrlPolicy } from "@codemation/host-src/infrastructure/auth
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { Component, type ReactNode } from "react";
 
-import { CodemationBrowserCsrfCoordinator } from "./CodemationBrowserCsrfCoordinator";
+import { CodemationBetterAuthBrowserClientFactory } from "../auth/CodemationBetterAuthBrowserClientFactory";
 import { LoginPageCard } from "./LoginPageCard";
 
 type LoginPageClientProps = Readonly<{
@@ -28,7 +28,7 @@ type LoginPageClientState = Readonly<{
 export class LoginPageClient extends Component<LoginPageClientProps, LoginPageClientState> {
   private readonly callbackUrlPolicy = new InAppCallbackUrlPolicy();
 
-  private readonly csrfCoordinator = new CodemationBrowserCsrfCoordinator(ApiPaths.authSession());
+  private readonly authClient = new CodemationBetterAuthBrowserClientFactory().create();
 
   constructor(props: LoginPageClientProps) {
     super(props);
@@ -83,44 +83,44 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
   private async submitCredentials(): Promise<void> {
     this.setState({ error: null, isSubmitting: true });
     try {
-      const csrfToken = await this.csrfCoordinator.ensureToken(globalThis.fetch);
-      if (!csrfToken) {
-        this.setState({ error: "Something went wrong. Try again.", isSubmitting: false });
-        return;
-      }
-      const response = await fetch(ApiPaths.authLogin(), {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "content-type": "application/json",
-          "x-codemation-csrf-token": csrfToken,
-        },
-        body: JSON.stringify({
-          email: this.state.email,
-          password: this.state.password,
-        }),
+      const result = await this.authClient.signIn.email({
+        email: this.state.email,
+        password: this.state.password,
       });
-      if (response.status === 204) {
-        const safeCallbackUrl = this.callbackUrlPolicy.resolveSafeRelativeCallbackUrl(this.props.callbackUrl);
-        window.location.assign(safeCallbackUrl);
-        return;
-      }
-      if (response.status === 401) {
-        this.setState({ error: "Invalid email or password.", isSubmitting: false });
-        return;
-      }
-      let errorMessage = "Something went wrong. Try again.";
-      try {
-        const payload = (await response.json()) as { error?: string };
-        if (payload.error) {
-          errorMessage = payload.error;
+      const signInError = this.readBetterFetchError(result);
+      if (signInError) {
+        if (signInError.status === 401) {
+          this.setState({ error: "Invalid email or password.", isSubmitting: false });
+          return;
         }
-      } catch {
-        // Leave the generic message when the backend returned no JSON payload.
+        this.setState({
+          error: signInError.message ?? "Something went wrong. Try again.",
+          isSubmitting: false,
+        });
+        return;
       }
-      this.setState({ error: errorMessage, isSubmitting: false });
+      const safeCallbackUrl = this.callbackUrlPolicy.resolveSafeRelativeCallbackUrl(this.props.callbackUrl);
+      window.location.assign(safeCallbackUrl);
     } catch {
       this.setState({ error: "Something went wrong. Try again.", isSubmitting: false });
     }
+  }
+
+  private readBetterFetchError(result: unknown): { status: number; message?: string } | null {
+    if (result === null || result === undefined || typeof result !== "object") {
+      return null;
+    }
+    const record = result as Record<string, unknown>;
+    const error = record.error;
+    if (error === null || error === undefined) {
+      return null;
+    }
+    if (typeof error !== "object") {
+      return { status: 500 };
+    }
+    const errorRecord = error as Record<string, unknown>;
+    const status = typeof errorRecord.status === "number" ? errorRecord.status : 500;
+    const message = typeof errorRecord.message === "string" ? errorRecord.message : undefined;
+    return { status, message };
   }
 }

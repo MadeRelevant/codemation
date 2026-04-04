@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@auth/core": "^0.34.3",
+    "better-auth": "^1.5.6",
     "@codemation/core": "workspace:*",
     "@codemation/host": "workspace:*",
     "@hookform/resolvers": "^5.2.2",

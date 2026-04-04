@@ -1,10 +1,10 @@
 /**
- * Human-readable labels for Auth.js Account.provider / type (users list, admin UI).
+ * Human-readable labels for Better Auth account providers and Codemation-linked identities.
  */
 const KNOWN_PROVIDER_LABELS: Readonly<Record<string, string>> = {
   google: "Google",
   github: "GitHub",
-  "microsoft-entra-id": "Microsoft Entra ID",
+  microsoft: "Microsoft Entra ID",
   "azure-ad": "Microsoft Entra ID",
   email: "Email link",
 };

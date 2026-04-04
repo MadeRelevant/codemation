@@ -132,7 +132,7 @@ test("CodemationFrontendAuthSnapshotFactory maps GitHub and Microsoft provider l
       kind: "oauth",
       oauth: [
         { provider: "github", clientIdEnv: "GITHUB_ID", clientSecretEnv: "GITHUB_SECRET" },
-        { provider: "microsoft-entra-id", clientIdEnv: "MS_ID", clientSecretEnv: "MS_SECRET" },
+        { provider: "microsoft", clientIdEnv: "MS_ID", clientSecretEnv: "MS_SECRET" },
       ],
     },
     env: { NODE_ENV: "production", AUTH_SECRET: "prod-secret" },
@@ -141,7 +141,7 @@ test("CodemationFrontendAuthSnapshotFactory maps GitHub and Microsoft provider l
 
   assert.deepEqual(snapshot.oauthProviders, [
     { id: "github", name: "GitHub" },
-    { id: "microsoft-entra-id", name: "Microsoft" },
+    { id: "microsoft", name: "Microsoft" },
   ]);
 });
 

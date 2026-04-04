@@ -1,14 +1,21 @@
+import type { BetterAuthOptions } from "better-auth";
+
 /**
  * Consumer-declared authentication profile for the hosted UI + HTTP API.
- * NextAuth / Auth.js wires concrete providers from this configuration plus environment secrets.
+ * Social provider ids intentionally match Better Auth's provider ids so config stays 1:1 with the auth runtime.
  */
 export type CodemationAuthKind = "local" | "oauth" | "oidc";
 
+export type CodemationAuthOAuthProviderId = Extract<
+  keyof NonNullable<BetterAuthOptions["socialProviders"]>,
+  "github" | "google" | "microsoft"
+>;
+
 export interface CodemationAuthOAuthProviderConfig {
-  readonly provider: "google" | "github" | "microsoft-entra-id";
+  readonly provider: CodemationAuthOAuthProviderId;
   readonly clientIdEnv: string;
   readonly clientSecretEnv: string;
-  /** Microsoft Entra ID tenant; environment variable name whose value is the tenant ID. */
+  /** Microsoft tenant; environment variable name whose value is the tenant ID. */
   readonly tenantIdEnv?: string;
 }
 

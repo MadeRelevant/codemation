@@ -9,7 +9,6 @@ const originalFetch = globalThis.fetch;
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  document.cookie = "codemation.csrf-token=; Max-Age=0; path=/";
 });
 
 describe("LoginPageClient", () => {
@@ -77,14 +76,13 @@ describe("LoginPageClient", () => {
     expect(screen.getByTestId("login-no-auth-methods")).toBeInTheDocument();
   });
 
-  it("posts credentials to the backend login endpoint with the CSRF header", async () => {
-    document.cookie = "codemation.csrf-token=test-csrf; path=/";
+  it("posts credentials to Better Auth email sign-in without Codemation CSRF headers", async () => {
     let fetchUrl = "";
     let fetchInit: RequestInit | undefined;
     globalThis.fetch = async (input, init) => {
       fetchUrl = typeof input === "string" ? input : input.toString();
       fetchInit = init;
-      return new Response(JSON.stringify({ error: "Invalid email or password." }), {
+      return new Response(JSON.stringify({ message: "Invalid email or password" }), {
         status: 401,
         headers: {
           "content-type": "application/json",
@@ -111,12 +109,23 @@ describe("LoginPageClient", () => {
     fireEvent.submit(screen.getByTestId("login-form"));
 
     await waitFor(() => {
-      expect(fetchUrl).toBe("/api/auth/login");
+      expect(fetchUrl).toContain("/api/auth/sign-in/email");
     });
     expect(fetchInit?.method).toBe("POST");
     expect(fetchInit?.credentials).toBe("include");
-    expect((fetchInit?.headers as Record<string, string>)["x-codemation-csrf-token"]).toBe("test-csrf");
-    expect(fetchInit?.body).toBe(JSON.stringify({ email: "admin@example.com", password: "password-123" }));
+    const headers = fetchInit?.headers;
+    expect(headers).toBeDefined();
+    if (headers instanceof Headers) {
+      expect(headers.get("x-codemation-csrf-token")).toBeNull();
+    } else {
+      expect((headers as Record<string, string>)["x-codemation-csrf-token"]).toBeUndefined();
+    }
+    expect(JSON.parse(String(fetchInit?.body))).toEqual(
+      expect.objectContaining({
+        email: "admin@example.com",
+        password: "password-123",
+      }),
+    );
     await waitFor(() => {
       expect(screen.getByTestId("login-error")).toHaveTextContent("Invalid email or password.");
     });

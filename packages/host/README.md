@@ -56,7 +56,8 @@ Primary routes:
 Important env/config notes:
 
 - `AUTH_SECRET` signs the backend-issued session token.
-- `CODEMATION_PUBLIC_BASE_URL` is the public origin the host should use when it must generate redirects (dev tooling sets this for packaged `codemation dev`).
+- `BETTER_AUTH_URL` (preferred) or `CODEMATION_PUBLIC_BASE_URL` sets the public origin for Better Auth; packaged `codemation dev` sets `CODEMATION_PUBLIC_BASE_URL`, and Better Auth falls back to it when `BETTER_AUTH_URL` is unset.
+- `CODEMATION_PUBLIC_BASE_URL` is still used for other redirect generation (e.g. credential OAuth2) when only one base is configured.
 - `CODEMATION_UI_AUTH_ENABLED=false` disables the UI login gate intentionally; do not use it as a production shortcut.
 
 ### No legacy dual-stack auth

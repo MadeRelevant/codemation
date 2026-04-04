@@ -1,19 +1,13 @@
 "use client";
 
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { Component, createContext, type ReactNode } from "react";
 
-export type CodemationSession = Readonly<{
-  id: string;
-  email: string | null;
-  name: string | null;
-}>;
+import { CodemationBetterAuthBrowserClientFactory } from "../auth/CodemationBetterAuthBrowserClientFactory";
+import { CodemationBetterAuthPrincipalMapper } from "../auth/CodemationBetterAuthPrincipalMapper";
 
-export type CodemationSessionContextValue = Readonly<{
-  enabled: boolean;
-  session: CodemationSession | null;
-  status: "anonymous" | "authenticated" | "loading";
-}>;
+import type { CodemationSession, CodemationSessionContextValue } from "./CodemationSession.types";
+
+export type { CodemationSession, CodemationSessionContextValue };
 
 type CodemationSessionRootProps = Readonly<{
   children: ReactNode;
@@ -32,6 +26,10 @@ type CodemationSessionRootState = Readonly<{
 }>;
 
 export class CodemationSessionRoot extends Component<CodemationSessionRootProps> {
+  private readonly authClient = new CodemationBetterAuthBrowserClientFactory().create();
+
+  private readonly principalMapper = new CodemationBetterAuthPrincipalMapper();
+
   state: CodemationSessionRootState = this.props.enabled
     ? {
         session: null,
@@ -75,15 +73,13 @@ export class CodemationSessionRoot extends Component<CodemationSessionRootProps>
 
   private async refreshSession(): Promise<void> {
     try {
-      const response = await fetch(ApiPaths.authSession(), {
-        cache: "no-store",
-        credentials: "include",
-      });
-      if (!response.ok) {
+      const result = await this.authClient.getSession();
+      const payload = this.unwrapBetterFetchResult(result);
+      if (payload === undefined) {
         this.setState({ session: null, status: "anonymous" });
         return;
       }
-      const session = (await response.json()) as CodemationSession | null;
+      const session = this.principalMapper.fromGetSessionPayload(payload);
       this.setState({
         session,
         status: session ? "authenticated" : "anonymous",
@@ -91,5 +87,19 @@ export class CodemationSessionRoot extends Component<CodemationSessionRootProps>
     } catch {
       this.setState({ session: null, status: "anonymous" });
     }
+  }
+
+  private unwrapBetterFetchResult(result: unknown): unknown {
+    if (result === null || result === undefined || typeof result !== "object") {
+      return undefined;
+    }
+    const record = result as Record<string, unknown>;
+    if ("error" in record && record.error !== null && record.error !== undefined) {
+      return undefined;
+    }
+    if ("data" in record) {
+      return record.data;
+    }
+    return result;
   }
 }

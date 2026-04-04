@@ -1,7 +1,6 @@
-import { compare, hash } from "bcryptjs";
+import { hash } from "bcryptjs";
 import { createHash, randomBytes } from "node:crypto";
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
-import type { AuthenticatedPrincipal } from "../../application/auth/AuthenticatedPrincipal";
 import type {
   InviteUserResponseDto,
   UpsertLocalBootstrapUserResultDto,
@@ -12,6 +11,7 @@ import type {
 import type { PrismaDatabaseClient } from "../../infrastructure/persistence/PrismaDatabaseClient";
 import type { CodemationAuthConfig } from "../../presentation/config/CodemationAuthConfig";
 import { labelForLinkedAuthAccount } from "./userLoginMethodLabels.types";
+import { UserAccountSessionPolicy } from "./UserAccountSessionPolicy";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -19,6 +19,7 @@ export class UserAccountService {
   constructor(
     private readonly authConfig: CodemationAuthConfig | undefined,
     private readonly prisma: PrismaDatabaseClient | undefined,
+    private readonly accountSessionPolicy: UserAccountSessionPolicy,
   ) {}
 
   async listUsers(): Promise<ReadonlyArray<UserAccountDto>> {
@@ -47,7 +48,7 @@ export class UserAccountService {
       throw new ApplicationRequestError(400, "Invalid email.");
     }
     const existing = await prisma.user.findUnique({ where: { email: normalized } });
-    if (existing?.accountStatus === "active") {
+    if (existing && this.accountSessionPolicy.allowsBetterAuthCookieSession(existing.accountStatus)) {
       throw new ApplicationRequestError(409, "User is already active.");
     }
     if (existing?.accountStatus === "inactive") {
@@ -97,7 +98,7 @@ export class UserAccountService {
     if (!row) {
       throw new ApplicationRequestError(404, "Unknown user.");
     }
-    if (row.accountStatus !== "invited") {
+    if (!this.accountSessionPolicy.isEligibleForInviteTokenFlow(row.accountStatus)) {
       throw new ApplicationRequestError(409, "Can only regenerate invites for invited users.");
     }
 
@@ -134,7 +135,7 @@ export class UserAccountService {
       return { valid: false };
     }
     const user = await prisma.user.findUnique({ where: { id: invite.userId } });
-    if (!user?.email || user.accountStatus !== "invited") {
+    if (!user?.email || !this.accountSessionPolicy.isEligibleForInviteTokenFlow(user.accountStatus)) {
       return { valid: false };
     }
     return { valid: true, email: user.email };
@@ -157,7 +158,7 @@ export class UserAccountService {
       throw new ApplicationRequestError(400, "Invite is invalid or has expired.");
     }
     const user = await prisma.user.findUnique({ where: { id: invite.userId } });
-    if (!user || user.accountStatus !== "invited") {
+    if (!user || !this.accountSessionPolicy.isEligibleForInviteTokenFlow(user.accountStatus)) {
       throw new ApplicationRequestError(400, "Invite cannot be used for this account.");
     }
     const passwordHash = await hash(password, 12);
@@ -167,6 +168,7 @@ export class UserAccountService {
         where: { id: user.id },
         data: { passwordHash, accountStatus: "active" },
       });
+      await this.upsertCredentialAccountWithClient(tx, user.id, passwordHash);
       await tx.userInvite.updateMany({
         where: { userId: user.id, revokedAt: null },
         data: { revokedAt: now },
@@ -212,9 +214,10 @@ export class UserAccountService {
         where: { email: normalized },
         data: { passwordHash, accountStatus: "active" },
       });
+      await this.upsertCredentialAccountWithClient(prisma, existing.id, passwordHash);
       return { outcome: "updated" };
     }
-    await prisma.user.create({
+    const created = await prisma.user.create({
       data: {
         email: normalized,
         passwordHash,
@@ -222,29 +225,8 @@ export class UserAccountService {
         accountStatus: "active",
       },
     });
+    await this.upsertCredentialAccountWithClient(prisma, created.id, passwordHash);
     return { outcome: "created" };
-  }
-
-  async authenticateLocalUser(email: string, password: string): Promise<AuthenticatedPrincipal> {
-    this.assertLocalAuth();
-    const prisma = this.requirePrisma();
-    const normalized = email.trim().toLowerCase();
-    if (!normalized || !password) {
-      throw new ApplicationRequestError(401, "Invalid email or password.");
-    }
-    const user = await prisma.user.findUnique({ where: { email: normalized } });
-    if (!user?.passwordHash || user.accountStatus !== "active") {
-      throw new ApplicationRequestError(401, "Invalid email or password.");
-    }
-    const matches = await compare(password, user.passwordHash);
-    if (!matches) {
-      throw new ApplicationRequestError(401, "Invalid email or password.");
-    }
-    return {
-      id: user.id,
-      email: user.email ?? normalized,
-      name: user.name ?? null,
-    };
   }
 
   private buildInviteUrl(origin: string, rawToken: string): string {
@@ -264,6 +246,33 @@ export class UserAccountService {
     if (this.authConfig?.kind !== "local") {
       throw new ApplicationRequestError(403, "User management requires local authentication.");
     }
+  }
+
+  /**
+   * Better Auth email/password sign-in reads `Account.password` for provider `credential` (`providerAccountId` = user id).
+   */
+  private async upsertCredentialAccountWithClient(
+    client: Pick<PrismaDatabaseClient, "account">,
+    userId: string,
+    passwordHash: string,
+  ): Promise<void> {
+    await client.account.upsert({
+      where: {
+        provider_providerAccountId: {
+          provider: "credential",
+          providerAccountId: userId,
+        },
+      },
+      create: {
+        userId,
+        provider: "credential",
+        providerAccountId: userId,
+        password: passwordHash,
+      },
+      update: {
+        password: passwordHash,
+      },
+    });
   }
 
   private requirePrisma(): PrismaDatabaseClient {
@@ -322,7 +331,7 @@ export class UserAccountService {
       seen.add("Password");
     }
     for (const account of row.accounts) {
-      if (account.provider === "credentials") {
+      if (account.provider === "credentials" || account.provider === "credential") {
         continue;
       }
       const label = labelForLinkedAuthAccount(account.provider, account.type);

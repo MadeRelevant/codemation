@@ -88,6 +88,7 @@ import { OAuth2ConnectService } from "../domain/credentials/OAuth2ConnectService
 import { OAuth2ProviderRegistry } from "../domain/credentials/OAuth2ProviderRegistry";
 import { WorkflowCredentialNodeResolver } from "../domain/credentials/WorkflowCredentialNodeResolver";
 import { UserAccountService } from "../domain/users/UserAccountServiceRegistry";
+import { UserAccountSessionPolicy } from "../domain/users/UserAccountSessionPolicy";
 import type { WorkflowDebuggerOverlayRepository } from "../domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDefinitionRepository } from "../domain/workflows/WorkflowDefinitionRepository";
 import { WorkflowActivationPreflight } from "../domain/workflows/WorkflowActivationPreflight";
@@ -126,13 +127,16 @@ import { CodemationIdFactory } from "../infrastructure/ids/CodemationIdFactory";
 import { InMemoryCommandBus } from "../infrastructure/di/InMemoryCommandBus";
 import { InMemoryDomainEventBus } from "../infrastructure/di/InMemoryDomainEventBus";
 import { InMemoryQueryBus } from "../infrastructure/di/InMemoryQueryBus";
-import { AuthJsSessionVerifier } from "../infrastructure/auth/AuthJsSessionVerifier";
 import { AuthSessionCookieFactory } from "../infrastructure/auth/AuthSessionCookieFactory";
-import { CodemationAuthCore } from "../infrastructure/auth/CodemationAuthCore";
+import { BetterAuthApiSessionVerifier } from "../infrastructure/auth/BetterAuthApiSessionVerifier";
+import { PrismaUserAccountSessionEligibilityChecker } from "../infrastructure/auth/PrismaUserAccountSessionEligibilityChecker";
+import { CodemationBetterAuthBcryptPasswordCodec } from "../infrastructure/auth/CodemationBetterAuthBcryptPasswordCodec";
+import { CodemationBetterAuthDatabaseOptionsFactory } from "../infrastructure/auth/CodemationBetterAuthDatabaseOptionsFactory";
+import { CodemationBetterAuthRuntime } from "../infrastructure/auth/CodemationBetterAuthRuntime";
+import { CodemationBetterAuthBaseUrlPolicy } from "../infrastructure/auth/CodemationBetterAuthBaseUrlPolicy";
+import { CodemationBetterAuthServerFactory } from "../infrastructure/auth/CodemationBetterAuthServerFactory";
 import { InAppCallbackUrlPolicy } from "../infrastructure/auth/InAppCallbackUrlPolicy";
 import { SecureRequestDetector } from "../infrastructure/auth/SecureRequestDetector";
-import { CodemationAuthProviderCatalog } from "../infrastructure/auth/CodemationAuthProviderCatalog";
-import { CodemationAuthRequestFactory } from "../infrastructure/auth/CodemationAuthRequestFactory";
 import { CodemationSessionVerifier } from "../infrastructure/auth/CodemationSessionVerifier";
 import { DevelopmentSessionBypassVerifier } from "../infrastructure/auth/DevelopmentSessionBypassVerifier";
 import {
@@ -431,30 +435,55 @@ export class AppContainerFactory {
     container.register(SecureRequestDetector, { useClass: SecureRequestDetector });
     container.register(InAppCallbackUrlPolicy, { useClass: InAppCallbackUrlPolicy });
     container.register(AuthSessionCookieFactory, { useClass: AuthSessionCookieFactory });
-    container.register(CodemationAuthProviderCatalog, { useClass: CodemationAuthProviderCatalog });
-    container.register(CodemationAuthRequestFactory, { useClass: CodemationAuthRequestFactory });
-    container.register(CodemationAuthCore, {
+    container.register(CodemationBetterAuthBcryptPasswordCodec, { useClass: CodemationBetterAuthBcryptPasswordCodec });
+    container.register(CodemationBetterAuthDatabaseOptionsFactory, {
+      useClass: CodemationBetterAuthDatabaseOptionsFactory,
+    });
+    container.register(UserAccountSessionPolicy, { useClass: UserAccountSessionPolicy });
+    container.register(CodemationBetterAuthBaseUrlPolicy, {
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) =>
+          new CodemationBetterAuthBaseUrlPolicy(
+            dependencyContainer.resolve(ServerLoggerFactory).create("codemation.auth.better-auth.base-url"),
+          ),
+      ),
+    });
+    container.register(CodemationBetterAuthServerFactory, {
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) =>
+          new CodemationBetterAuthServerFactory(
+            dependencyContainer.resolve(ApplicationTokens.AppConfig),
+            dependencyContainer.resolve(CodemationBetterAuthDatabaseOptionsFactory),
+            dependencyContainer.resolve(CodemationBetterAuthBcryptPasswordCodec),
+            dependencyContainer.resolve(UserAccountSessionPolicy),
+            dependencyContainer.resolve(CodemationBetterAuthBaseUrlPolicy),
+          ),
+      ),
+    });
+    container.register(CodemationBetterAuthRuntime, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         const appConfig = dependencyContainer.resolve<AppConfig>(ApplicationTokens.AppConfig);
         const prismaClient = dependencyContainer.isRegistered(ApplicationTokens.PrismaClient, true)
           ? dependencyContainer.resolve(ApplicationTokens.PrismaClient)
           : undefined;
-        return new CodemationAuthCore(
+        return new CodemationBetterAuthRuntime(
           appConfig,
+          dependencyContainer.resolve(CodemationBetterAuthServerFactory),
           prismaClient,
-          dependencyContainer.resolve(CodemationAuthProviderCatalog),
-          dependencyContainer.resolve(CodemationAuthRequestFactory),
-          dependencyContainer.resolve(InAppCallbackUrlPolicy),
         );
       }),
     });
-    container.register(AuthJsSessionVerifier, {
+    container.register(BetterAuthApiSessionVerifier, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
-        const appConfig = dependencyContainer.resolve<AppConfig>(ApplicationTokens.AppConfig);
-        return new AuthJsSessionVerifier(
-          appConfig.env.AUTH_SECRET ?? "",
-          dependencyContainer.resolve(SecureRequestDetector),
-        );
+        const runtime = dependencyContainer.resolve(CodemationBetterAuthRuntime);
+        const prismaClient = dependencyContainer.isRegistered(ApplicationTokens.PrismaClient, true)
+          ? dependencyContainer.resolve<PrismaDatabaseClient>(ApplicationTokens.PrismaClient)
+          : undefined;
+        const policy = dependencyContainer.resolve(UserAccountSessionPolicy);
+        const eligibility = prismaClient
+          ? new PrismaUserAccountSessionEligibilityChecker(prismaClient, policy)
+          : undefined;
+        return new BetterAuthApiSessionVerifier(runtime, eligibility);
       }),
     });
     container.register(CodemationSessionVerifier, { useClass: CodemationSessionVerifier });
@@ -491,7 +520,7 @@ export class AppContainerFactory {
         const prisma = dependencyContainer.isRegistered(ApplicationTokens.PrismaClient, true)
           ? dependencyContainer.resolve(ApplicationTokens.PrismaClient)
           : undefined;
-        return new UserAccountService(appConfig.auth, prisma);
+        return new UserAccountService(appConfig.auth, prisma, dependencyContainer.resolve(UserAccountSessionPolicy));
       }),
     });
   }

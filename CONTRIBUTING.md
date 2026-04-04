@@ -79,8 +79,11 @@ Current backend auth routes:
 Required env/config expectations:
 
 - `AUTH_SECRET` signs backend session cookies.
-- `CODEMATION_PUBLIC_BASE_URL` should be set by dev/proxy tooling when the host must generate public redirects.
+- `BETTER_AUTH_URL` (preferred) or `CODEMATION_PUBLIC_BASE_URL` should match the browser-facing origin so Better Auth can build correct OAuth and session URLs; packaged `codemation dev` sets `CODEMATION_PUBLIC_BASE_URL` from the public UI URL.
+- `CODEMATION_PUBLIC_BASE_URL` remains the shared public base for other host redirects (e.g. credential OAuth2) when tooling does not set `BETTER_AUTH_URL`.
 - `CODEMATION_UI_AUTH_ENABLED=false` disables the UI login gate for explicit local-dev bypass scenarios only.
+
+See [`docs/better-auth-host.md`](docs/better-auth-host.md) for the full split between Better Auth and Codemation-owned account policy.
 
 ## Auth migration notes
 

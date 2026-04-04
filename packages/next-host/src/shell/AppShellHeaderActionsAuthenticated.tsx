@@ -1,11 +1,10 @@
 "use client";
 
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useContext, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { CodemationBetterAuthBrowserClientFactory } from "../auth/CodemationBetterAuthBrowserClientFactory";
 import { CodemationSessionRootContext } from "../providers/CodemationSessionProvider";
-import { CodemationBrowserCsrfCoordinator } from "./CodemationBrowserCsrfCoordinator";
 
 export function AppShellHeaderActionsAuthenticated(): ReactNode {
   const sessionContext = useContext(CodemationSessionRootContext);
@@ -30,17 +29,8 @@ export function AppShellHeaderActionsAuthenticated(): ReactNode {
   const handleSignOut = async (): Promise<void> => {
     setIsSigningOut(true);
     try {
-      const coordinator = new CodemationBrowserCsrfCoordinator(ApiPaths.authSession());
-      const csrfToken = await coordinator.ensureToken(globalThis.fetch);
-      if (csrfToken) {
-        await fetch(ApiPaths.authLogout(), {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "x-codemation-csrf-token": csrfToken,
-          },
-        });
-      }
+      const client = new CodemationBetterAuthBrowserClientFactory().create();
+      await client.signOut();
     } finally {
       window.location.assign("/login");
     }
