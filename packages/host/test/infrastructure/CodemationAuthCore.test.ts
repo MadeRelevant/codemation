@@ -5,7 +5,7 @@ import { CodemationAuthCore } from "../../src/infrastructure/auth/CodemationAuth
 import { CodemationAuthProviderCatalog } from "../../src/infrastructure/auth/CodemationAuthProviderCatalog";
 import { CodemationAuthRequestFactory } from "../../src/infrastructure/auth/CodemationAuthRequestFactory";
 import { InAppCallbackUrlPolicy } from "../../src/infrastructure/auth/InAppCallbackUrlPolicy";
-import type { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
+import type { PrismaDatabaseClient as PrismaClient } from "../../src/infrastructure/persistence/PrismaDatabaseClient";
 import type { AppConfig } from "../../src/presentation/config/AppConfig";
 
 class FakePrismaClientFactory {

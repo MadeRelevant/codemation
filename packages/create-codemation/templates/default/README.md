@@ -2,7 +2,7 @@
 
 ## Quick start
 
-1. **Environment** — `.env` is created for you with zero-setup defaults: **embedded Postgres (PGlite)** under `.codemation/pglite`, plus local-development auth and credential-encryption keys. You do not need `DATABASE_URL` unless you switch to TCP PostgreSQL. Optionally set `REDIS_URL` for BullMQ + Redis (scheduler and event bus); when `REDIS_URL` is set you **must** set `DATABASE_URL` to a shared PostgreSQL URL (BullMQ cannot use PGlite).
+1. **Environment** — `.env` is created for you with zero-setup defaults: **SQLite** under `.codemation/codemation.sqlite`, plus local-development auth and credential-encryption keys. You do not need `DATABASE_URL` unless you switch to TCP PostgreSQL. Optionally set `REDIS_URL` for BullMQ + Redis (scheduler and event bus); when `REDIS_URL` is set you **must** set `DATABASE_URL` to a shared PostgreSQL URL (BullMQ cannot use SQLite).
 
 2. **Dependencies** — `pnpm install`.
 

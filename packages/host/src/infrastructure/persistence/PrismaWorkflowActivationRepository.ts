@@ -1,13 +1,13 @@
 import { inject, injectable } from "@codemation/core";
-import { PrismaClient } from "./generated/prisma-client/client.js";
 import type {
   WorkflowActivationRepository,
   WorkflowActivationRow,
 } from "../../domain/workflows/WorkflowActivationRepository";
+import { PrismaDatabaseClientToken, type PrismaDatabaseClient } from "./PrismaDatabaseClient";
 
 @injectable()
 export class PrismaWorkflowActivationRepository implements WorkflowActivationRepository {
-  constructor(@inject(PrismaClient) private readonly prisma: PrismaClient) {}
+  constructor(@inject(PrismaDatabaseClientToken) private readonly prisma: PrismaDatabaseClient) {}
 
   async loadAll(): Promise<ReadonlyArray<WorkflowActivationRow>> {
     const rows = await this.prisma.workflowActivation.findMany();

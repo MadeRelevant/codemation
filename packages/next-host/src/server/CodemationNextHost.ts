@@ -1,5 +1,5 @@
 import type { Container } from "@codemation/core";
-import type { AppConfig, AppPluginLoadSummary, CodemationPlugin } from "@codemation/host";
+import type { AppConfig, AppPluginLoadSummary, CodemationPlugin, PrismaClient } from "@codemation/host";
 import { CodemationPluginPackageMetadata } from "@codemation/host";
 import {
   ApplicationTokens,
@@ -18,7 +18,6 @@ import {
   type CodemationResolvedPluginPackage,
 } from "@codemation/host/server";
 import { CodemationTsyringeTypeInfoRegistrar } from "@codemation/host/dev-server-sidecar";
-import type { PrismaClient } from "@codemation/host-src/infrastructure/persistence/generated/prisma-client/client.js";
 import type { Hono } from "hono";
 import { access } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -98,7 +97,7 @@ export class CodemationNextHost {
     throw new Error(
       [
         "Codemation authentication requires prepared runtime database persistence.",
-        "Ensure the Next host has been prepared with PostgreSQL or PGlite before creating the auth adapter.",
+        "Ensure the Next host has been prepared with PostgreSQL or SQLite before creating the auth adapter.",
       ].join(" "),
     );
   }

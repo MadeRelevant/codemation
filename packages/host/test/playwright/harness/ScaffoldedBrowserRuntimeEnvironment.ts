@@ -8,7 +8,7 @@ export class ScaffoldedBrowserRuntimeEnvironment {
       npm_config_frozen_lockfile: "false",
       DATABASE_URL: "",
       REDIS_URL: "",
-      CODEMATION_DATABASE_KIND: "pglite",
+      CODEMATION_DATABASE_KIND: "sqlite",
       CODEMATION_SCHEDULER: "local",
       CODEMATION_EVENT_BUS: "memory",
     };

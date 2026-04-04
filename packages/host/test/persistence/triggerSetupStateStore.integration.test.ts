@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
+import type { PrismaDatabaseClient as PrismaClient } from "../../src/infrastructure/persistence/PrismaDatabaseClient";
 import { PrismaTriggerSetupStateRepository } from "../../src/infrastructure/persistence/PrismaTriggerSetupStateRepository";
 import { IntegrationTestDatabaseSession } from "../http/testkit/IntegrationTestDatabaseSession";
 

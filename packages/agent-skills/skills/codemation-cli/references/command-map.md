@@ -57,6 +57,6 @@ Use `codemation dev --watch-framework` when working inside the Codemation monore
 
 ## Environment notes
 
-- PGlite is the zero-setup default for starter apps.
-- When `REDIS_URL` is set, use a shared PostgreSQL `DATABASE_URL`; BullMQ cannot run on PGlite.
+- SQLite is the zero-setup default for starter apps.
+- When `REDIS_URL` is set, use a shared PostgreSQL `DATABASE_URL`; BullMQ cannot run on SQLite.
 - Use `--consumer-root` when commands need to target a different consumer app root.

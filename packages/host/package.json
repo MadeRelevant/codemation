@@ -76,7 +76,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "prisma:generate": "prisma generate && node ./scripts/ensure-prisma-runtime-sourcemaps.mjs",
+    "prisma:generate": "node ./scripts/generate-prisma-clients.mjs && node ./scripts/ensure-prisma-runtime-sourcemaps.mjs",
     "build": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap",
     "dev": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -99,9 +99,9 @@
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",
-    "@electric-sql/pglite": "^0.4.3",
-    "@electric-sql/pglite-socket": "^0.1.3",
+    "@libsql/client": "^0.17.2",
     "@monaco-editor/react": "^4.7.0",
+    "@prisma/adapter-libsql": "^7.6.0",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "@prisma/client-runtime-utils": "^7.5.0",
@@ -119,7 +119,6 @@
     "monaco-editor": "^0.55.1",
     "next-auth": "^4.24.13",
     "pg": "^8.16.3",
-    "pglite-prisma-adapter": "^0.7.2",
     "pretty-ms": "^9.3.0",
     "prisma": "^7.0.0",
     "rc-tree": "^5.13.1",

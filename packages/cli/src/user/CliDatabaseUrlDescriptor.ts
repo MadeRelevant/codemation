@@ -11,7 +11,7 @@ export class CliDatabaseUrlDescriptor {
     if (persistence.kind === "postgresql") {
       return this.describeForDisplay(persistence.databaseUrl);
     }
-    return `PGlite (${persistence.dataDir})`;
+    return `SQLite (${persistence.databaseFilePath})`;
   }
 
   describeForDisplay(databaseUrl: string | undefined): string {

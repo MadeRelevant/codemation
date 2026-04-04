@@ -12,7 +12,7 @@ export class HostPackageRootResolver {
     const entry = fileURLToPath(entryUrl);
     let dir = path.dirname(entry);
     for (let depth = 0; depth < 8; depth += 1) {
-      if (existsSync(path.join(dir, "prisma", "schema.prisma"))) {
+      if (existsSync(path.join(dir, "prisma", "schema.postgresql.prisma"))) {
         return dir;
       }
       const parent = path.dirname(dir);
@@ -21,6 +21,6 @@ export class HostPackageRootResolver {
       }
       dir = parent;
     }
-    throw new Error(`Could not locate prisma/schema.prisma near @codemation/host entry: ${entry}`);
+    throw new Error(`Could not locate prisma/schema.postgresql.prisma near @codemation/host entry: ${entry}`);
   }
 }

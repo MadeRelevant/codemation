@@ -8,14 +8,14 @@ import type { CodemationWorkflowDiscovery } from "./CodemationWorkflowDiscovery"
 
 export type CodemationEventBusKind = "memory" | "redis";
 export type CodemationSchedulerKind = "local" | "bullmq";
-export type CodemationDatabaseKind = "postgresql" | "pglite";
+export type CodemationDatabaseKind = "postgresql" | "sqlite";
 
 export interface CodemationDatabaseConfig {
   readonly kind?: CodemationDatabaseKind;
   /** TCP PostgreSQL URL when `kind` is `postgresql` (or omitted with a postgres URL). */
   readonly url?: string;
-  /** Directory for embedded PGlite data when `kind` is `pglite`. Relative paths resolve from the consumer app root. */
-  readonly pgliteDataDir?: string;
+  /** SQLite database file path when `kind` is `sqlite`. Relative paths resolve from the consumer app root. */
+  readonly sqliteFilePath?: string;
 }
 
 export interface CodemationEventBusConfig {

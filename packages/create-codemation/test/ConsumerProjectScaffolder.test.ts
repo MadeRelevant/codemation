@@ -41,7 +41,7 @@ describe("ConsumerProjectScaffolder", () => {
     expect(pkg.name).toBe("my-cool-app");
     expect(pkg.packageManager).toBe("pnpm@10.13.1");
     const env = await fs.readFile(path.join(projectDir, ".env"), "utf8");
-    expect(env).toContain(".codemation/pglite");
+    expect(env).toContain(".codemation/codemation.sqlite");
     expect(env).toContain("CODEMATION_CREDENTIALS_MASTER_KEY=codemation-local-dev-credentials-master-key");
     expect(env).toContain("AUTH_SECRET=codemation-local-dev-auth-secret");
     await expect(fs.readFile(path.join(projectDir, "codemation.config.ts"), "utf8")).resolves.toContain(

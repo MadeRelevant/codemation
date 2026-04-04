@@ -8,8 +8,8 @@ const sandbox: CodemationConfig = {
       allowUnauthenticatedInDevelopment: true,
     },
     database: {
-      kind: "pglite",
-      pgliteDataDir: ".codemation/pglite",
+      kind: "sqlite",
+      sqliteFilePath: ".codemation/codemation.sqlite",
     },
     scheduler: {
       kind: "inline",

@@ -9,12 +9,12 @@ import type {
   CodemationAuthOAuthProviderConfig,
   CodemationAuthOidcProviderConfig,
 } from "../../presentation/config/CodemationAuthConfig";
-import type { PrismaClient } from "../persistence/generated/prisma-client/client.js";
+import type { PrismaDatabaseClient } from "../persistence/PrismaDatabaseClient";
 
 export class CodemationAuthProviderCatalog {
   build(
     authConfig: CodemationAuthConfig | undefined,
-    prisma: PrismaClient | undefined,
+    prisma: PrismaDatabaseClient | undefined,
     env: NodeJS.ProcessEnv,
   ): ReadonlyArray<Provider> {
     if (!authConfig) {
@@ -33,7 +33,7 @@ export class CodemationAuthProviderCatalog {
     return providers;
   }
 
-  private createCredentialsProvider(prisma: PrismaClient | undefined): Provider {
+  private createCredentialsProvider(prisma: PrismaDatabaseClient | undefined): Provider {
     const resolvedPrisma = this.requirePrisma(prisma);
     return Credentials({
       name: "Email and password",
@@ -93,7 +93,7 @@ export class CodemationAuthProviderCatalog {
     };
   }
 
-  private requirePrisma(prisma: PrismaClient | undefined): PrismaClient {
+  private requirePrisma(prisma: PrismaDatabaseClient | undefined): PrismaDatabaseClient {
     if (!prisma) {
       throw new Error("Authentication providers require a prepared Prisma client.");
     }

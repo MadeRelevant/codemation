@@ -5,7 +5,7 @@ import {
   AppContainerLifecycle,
   type AppConfig,
   DatabaseMigrations,
-  PrismaClient,
+  type PrismaClient,
   type CommandBus,
   type QueryBus,
 } from "@codemation/host";
@@ -34,10 +34,10 @@ export class CodemationCliApplicationSession {
 
   getPrismaClient(): PrismaClient | undefined {
     const container = this.getContainer();
-    if (!container.isRegistered(PrismaClient, true)) {
+    if (!container.isRegistered(ApplicationTokens.PrismaClient, true)) {
       return undefined;
     }
-    return container.resolve(PrismaClient);
+    return container.resolve(ApplicationTokens.PrismaClient);
   }
 
   getCommandBus(): CommandBus {

@@ -9,7 +9,7 @@ import type {
   UserAccountStatus,
   VerifyUserInviteResponseDto,
 } from "../../application/contracts/userDirectoryContracts.types";
-import { PrismaClient } from "../../infrastructure/persistence/generated/prisma-client/client.js";
+import type { PrismaDatabaseClient } from "../../infrastructure/persistence/PrismaDatabaseClient";
 import type { CodemationAuthConfig } from "../../presentation/config/CodemationAuthConfig";
 import { labelForLinkedAuthAccount } from "./userLoginMethodLabels.types";
 
@@ -18,7 +18,7 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export class UserAccountService {
   constructor(
     private readonly authConfig: CodemationAuthConfig | undefined,
-    private readonly prisma: PrismaClient | undefined,
+    private readonly prisma: PrismaDatabaseClient | undefined,
   ) {}
 
   async listUsers(): Promise<ReadonlyArray<UserAccountDto>> {
@@ -266,7 +266,7 @@ export class UserAccountService {
     }
   }
 
-  private requirePrisma(): PrismaClient {
+  private requirePrisma(): PrismaDatabaseClient {
     if (!this.prisma) {
       throw new ApplicationRequestError(503, "User management requires a database.");
     }

@@ -7,7 +7,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { OVERLAY_PIN_BINARY_RUN_ID } from "../../src/application/binary/OverlayPinnedBinaryUploadService";
 import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
-import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
+import { ApplicationTokens } from "../../src/applicationTokens";
+import type { PrismaDatabaseClient as PrismaClient } from "../../src/infrastructure/persistence/PrismaDatabaseClient";
 import type { CodemationAppContext } from "../../src/presentation/config/CodemationAppContext";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
@@ -168,7 +169,7 @@ class WorkflowRunsIntegrationContext {
   }
 
   private registerPrismaClient(context: CodemationAppContext): void {
-    context.registerFactory(PrismaClient, () => this.requireTransaction());
+    context.registerFactory(ApplicationTokens.PrismaClient, () => this.requireTransaction());
   }
 
   private requireSharedDatabase(): IntegrationDatabase {

@@ -40,7 +40,9 @@ test("resolver prefers an explicit CODEMATION_HOST_PACKAGE_ROOT override", async
 test("resolver uses the workspace host package when repoRoot contains packages/host", async () => {
   const repoRoot = "/repo";
   const resolver = new NextHostPackageRootResolver(
-    new StubFileExistencePort(new Set([path.resolve(repoRoot, "packages", "host", "prisma", "schema.prisma")])),
+    new StubFileExistencePort(
+      new Set([path.resolve(repoRoot, "packages", "host", "prisma", "schema.postgresql.prisma")]),
+    ),
     new StubInstalledHostPackageRootResolver("/installed/node_modules/@codemation/host"),
   );
 

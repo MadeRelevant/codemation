@@ -8,12 +8,12 @@ export class SchedulerPersistenceCompatibilityValidator {
   validate(args: Readonly<{ schedulerKind: CodemationSchedulerKind; persistence: AppPersistenceConfig }>): void {
     if (args.schedulerKind === "bullmq" && args.persistence.kind === "none") {
       throw new Error(
-        "BullMQ requires PostgreSQL persistence. Configure runtime.database with a postgresql URL (embedded PGlite is not compatible with BullMQ).",
+        "BullMQ requires PostgreSQL persistence. Configure runtime.database with a postgresql URL (local SQLite is not compatible with BullMQ).",
       );
     }
-    if (args.schedulerKind === "bullmq" && args.persistence.kind === "pglite") {
+    if (args.schedulerKind === "bullmq" && args.persistence.kind === "sqlite") {
       throw new Error(
-        'BullMQ requires a shared PostgreSQL database. PGlite cannot be used with the BullMQ scheduler. Set runtime.database.kind to "postgresql" with a PostgreSQL URL, or use the local scheduler when using PGlite.',
+        'BullMQ requires a shared PostgreSQL database. SQLite cannot be used with the BullMQ scheduler. Set runtime.database.kind to "postgresql" with a PostgreSQL URL, or use the local scheduler when using SQLite.',
       );
     }
   }

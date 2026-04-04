@@ -142,6 +142,10 @@ export class CodemationPlaywrightUiHarness {
 
   async selectLatestRunFromSidebar(options?: Readonly<{ timeoutMs?: number }>): Promise<string> {
     const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasNodeCompletionTimeoutMs;
+    const readySurface = await this.waitForRunSelectionSurface(timeoutMs);
+    if (readySurface === "inspector") {
+      return "live-execution";
+    }
     const runsSidebar = this.page.getByTestId("workflow-runs-sidebar");
     await expect(runsSidebar).toBeVisible({ timeout: timeoutMs });
     const latestRun = runsSidebar.locator('[data-testid^="run-summary-"]').first();
@@ -169,5 +173,23 @@ export class CodemationPlaywrightUiHarness {
 
   private canvasRunWorkflowButton() {
     return this.page.getByTestId("canvas-run-workflow-button").last();
+  }
+
+  private async waitForRunSelectionSurface(timeoutMs: number): Promise<"sidebar" | "inspector"> {
+    const pollIntervalMs = 250;
+    const attempts = Math.ceil(timeoutMs / pollIntervalMs);
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      if ((await this.page.getByTestId("workflow-runs-sidebar").count()) > 0) {
+        return "sidebar";
+      }
+      const executionTreeNode = this.page.locator('[data-testid^="execution-tree-node-"]').first();
+      if ((await executionTreeNode.count()) > 0 && (await this.page.getByTestId("selected-node-name").count()) > 0) {
+        await expect(executionTreeNode).toBeVisible({ timeout: 5_000 });
+        await expect(this.page.getByTestId("selected-node-name")).toBeVisible({ timeout: 5_000 });
+        return "inspector";
+      }
+      await this.page.waitForTimeout(pollIntervalMs);
+    }
+    throw new Error(`Timed out after ${String(timeoutMs)}ms waiting for the run sidebar or execution inspector.`);
   }
 }

@@ -4,7 +4,7 @@ import { Auth, skipCSRFCheck } from "@auth/core";
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { AppConfig } from "../../presentation/config/AppConfig";
-import type { PrismaClient } from "../persistence/generated/prisma-client/client.js";
+import type { PrismaDatabaseClient } from "../persistence/PrismaDatabaseClient";
 import { CodemationAuthProviderCatalog } from "./CodemationAuthProviderCatalog";
 import { CodemationAuthRequestFactory } from "./CodemationAuthRequestFactory";
 import { InAppCallbackUrlPolicy } from "./InAppCallbackUrlPolicy";
@@ -14,7 +14,7 @@ export class CodemationAuthCore {
   constructor(
     @inject(ApplicationTokens.AppConfig)
     private readonly appConfig: AppConfig,
-    private readonly prismaClient: PrismaClient | undefined,
+    private readonly prismaClient: PrismaDatabaseClient | undefined,
     private readonly providerCatalog: CodemationAuthProviderCatalog,
     private readonly requestFactory: CodemationAuthRequestFactory,
     @inject(InAppCallbackUrlPolicy)
@@ -106,7 +106,7 @@ export class CodemationAuthCore {
     return secret;
   }
 
-  private requirePrismaClient(): PrismaClient {
+  private requirePrismaClient(): PrismaDatabaseClient {
     if (!this.prismaClient) {
       throw new ApplicationRequestError(503, "Authentication requires prepared runtime database persistence.");
     }

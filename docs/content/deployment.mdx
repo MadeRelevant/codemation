@@ -11,7 +11,7 @@ Codemation supports a clean progression from a zero-setup local runtime to a sha
 
 The generated app starts with:
 
-- embedded Postgres via PGlite
+- local SQLite
 - an inline scheduler
 - one process running the UI and runtime together
 
@@ -58,7 +58,7 @@ pnpm exec codemation serve worker
 
 BullMQ requires a **shared PostgreSQL database**.
 
-Do not pair BullMQ with the local embedded PGlite setup.
+Do not pair BullMQ with the local SQLite setup.
 
 ## Decision guide
 
@@ -90,7 +90,7 @@ const databaseUrl = process.env.DATABASE_URL?.trim();
 
 database: useRedisRuntime
   ? { kind: "postgresql" as const, url: databaseUrl! }
-  : { kind: "pglite" as const, pgliteDataDir: ".codemation/pglite" };
+  : { kind: "sqlite" as const, sqliteFilePath: ".codemation/codemation.sqlite" };
 
 scheduler: {
   kind: useRedisRuntime ? ("queue" as const) : ("inline" as const),

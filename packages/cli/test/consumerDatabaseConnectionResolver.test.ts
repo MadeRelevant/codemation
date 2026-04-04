@@ -56,24 +56,24 @@ test("CODEMATION_DATABASE_KIND selects postgresql when set alongside a postgres 
   ).toEqual({ kind: "postgresql", databaseUrl: "postgresql://localhost/db" });
 });
 
-test("resolves PGlite data directory from CODEMATION_PGLITE_DATA_DIR relative to consumer root", () => {
+test("resolves SQLite file path from CODEMATION_SQLITE_FILE_PATH relative to consumer root", () => {
   const r = new ConsumerDatabaseConnectionResolver();
   expect(
     r.resolve(
-      { CODEMATION_PGLITE_DATA_DIR: "custom-pg" } as NodeJS.ProcessEnv,
-      { runtime: { database: { kind: "pglite" } } } as CodemationConfig,
+      { CODEMATION_SQLITE_FILE_PATH: "custom/sqlite.db" } as NodeJS.ProcessEnv,
+      { runtime: { database: { kind: "sqlite" } } } as CodemationConfig,
       "/app/consumer",
     ),
-  ).toEqual({ kind: "pglite", dataDir: "/app/consumer/custom-pg" });
+  ).toEqual({ kind: "sqlite", databaseFilePath: "/app/consumer/custom/sqlite.db" });
 });
 
-test("uses configured pgliteDataDir when env override is absent", () => {
+test("uses configured sqliteFilePath when env override is absent", () => {
   const r = new ConsumerDatabaseConnectionResolver();
   expect(
     r.resolve(
       {} as NodeJS.ProcessEnv,
-      { runtime: { database: { kind: "pglite", pgliteDataDir: "/var/pglite" } } } as CodemationConfig,
+      { runtime: { database: { kind: "sqlite", sqliteFilePath: "/var/codemation.sqlite" } } } as CodemationConfig,
       consumerRoot,
     ),
-  ).toEqual({ kind: "pglite", dataDir: "/var/pglite" });
+  ).toEqual({ kind: "sqlite", databaseFilePath: "/var/codemation.sqlite" });
 });

@@ -26,8 +26,8 @@ export default {
       allowUnauthenticatedInDevelopment: true,
     },
     database: {
-      kind: "pglite",
-      pgliteDataDir: ".codemation/pglite",
+      kind: "sqlite",
+      sqliteFilePath: ".codemation/codemation.sqlite",
     },
     scheduler: {
       kind: "inline",
@@ -101,7 +101,7 @@ If you are defining API keys or service sessions for nodes, go to [Create custom
 ## Configuration guides in this section
 
 - [Authentication](/docs/configuration/authentication) for local auth, OAuth, OIDC, and production rules
-- [Persistence](/docs/configuration/persistence) for PGlite, PostgreSQL, migrations, and environment overrides
+- [Persistence](/docs/configuration/persistence) for SQLite, PostgreSQL, migrations, and environment overrides
 - [Engine](/docs/configuration/engine) for scheduling, eventing, workers, and execution limits
 - [Branding](/docs/configuration/branding) for product name and logo configuration
 

@@ -707,7 +707,7 @@ export default [
   {
     files: ["packages/host/src/infrastructure/persistence/PrismaMigrationDeployer.ts"],
     rules: {
-      // PGlite + PGLiteSocketServer are third-party library constructors; not container-managed DI.
+      // Prisma driver adapters are created locally inside the migration deployer.
       "codemation/no-manual-di-new": "off",
     },
   },

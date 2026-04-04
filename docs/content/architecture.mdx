@@ -31,7 +31,7 @@ This is the default path most apps should start with:
 - your app provides `codemation.config.ts` and workflow files
 - `pnpm dev` runs the Codemation CLI
 - the framework starts the runtime and UI together
-- persistence uses local embedded Postgres via PGlite
+- persistence uses local SQLite
 - one process is enough to run both the web surface and execution
 
 ### When the minimum setup is right
@@ -51,7 +51,7 @@ When your app needs shared infrastructure or worker separation, the runtime shap
 
 The important differences are:
 
-- PostgreSQL replaces the local embedded database
+- PostgreSQL replaces the local SQLite database
 - Redis is added for queue-backed execution
 - BullMQ powers the scheduler
 - web and worker processes run separately

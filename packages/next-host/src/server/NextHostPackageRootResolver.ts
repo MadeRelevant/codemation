@@ -20,7 +20,7 @@ export class NextHostPackageRootResolver {
       return path.resolve(configuredRoot);
     }
     const workspaceHostRoot = path.resolve(repoRoot, "packages", "host");
-    if (await this.fileExistencePort.exists(path.resolve(workspaceHostRoot, "prisma", "schema.prisma"))) {
+    if (await this.fileExistencePort.exists(path.resolve(workspaceHostRoot, "prisma", "schema.postgresql.prisma"))) {
       return workspaceHostRoot;
     }
     return this.installedHostPackageRootResolver.resolveInstalledHostPackageRoot();

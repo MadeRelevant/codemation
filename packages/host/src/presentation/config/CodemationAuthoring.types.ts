@@ -10,9 +10,9 @@ import type { CodemationPlugin, CodemationPluginContext } from "./CodemationPlug
 import type { CodemationWhitelabelConfig } from "./CodemationWhitelabelConfig";
 
 export interface FriendlyCodemationDatabaseConfig {
-  readonly kind: "postgresql" | "pglite";
+  readonly kind: "postgresql" | "sqlite";
   readonly url?: string;
-  readonly dataDir?: string;
+  readonly filePath?: string;
 }
 
 export interface FriendlyCodemationExecutionConfig {
@@ -103,10 +103,10 @@ class CodemationAuthoringConfigFactory {
     if (!database) {
       return undefined;
     }
-    if (database.kind === "pglite") {
+    if (database.kind === "sqlite") {
       return {
-        kind: "pglite",
-        pgliteDataDir: database.dataDir,
+        kind: "sqlite",
+        sqliteFilePath: database.filePath,
       };
     }
     return {

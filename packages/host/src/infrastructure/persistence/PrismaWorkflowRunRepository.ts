@@ -11,7 +11,7 @@ import type {
 } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
-import { PrismaClient } from "./generated/prisma-client/client.js";
+import { PrismaDatabaseClientToken, type PrismaDatabaseClient } from "./PrismaDatabaseClient";
 
 /** JSON blob stored in stateJson: workflowSnapshot, mutableState, pending, queue, outputsByNode, nodeSnapshotsByNodeId, connectionInvocations, engineCounters */
 interface StateJsonBlob {
@@ -29,7 +29,7 @@ interface StateJsonBlob {
 
 @injectable()
 export class PrismaWorkflowRunRepository implements WorkflowRunRepository, WorkflowExecutionRepository {
-  constructor(@inject(PrismaClient) private readonly prisma: PrismaClient) {}
+  constructor(@inject(PrismaDatabaseClientToken) private readonly prisma: PrismaDatabaseClient) {}
 
   async createRun(args: {
     runId: RunId;

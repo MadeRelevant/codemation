@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: true,
   /** Playwright and some browsers hit the dev server via 127.0.0.1 while Next prints localhost — silence Turbopack HMR cross-origin warnings. */
   allowedDevOrigins: ["127.0.0.1", "localhost"],
-  serverExternalPackages: ["@electric-sql/pglite", "@electric-sql/pglite-socket", "pglite-prisma-adapter"],
+  serverExternalPackages: ["@libsql/client", "@prisma/adapter-libsql"],
   transpilePackages: [
     "@codemation/core",
     "@codemation/core-nodes",

@@ -3,7 +3,7 @@ import type { AppPersistenceConfig } from "@codemation/host/persistence";
 import path from "node:path";
 
 /**
- * Resolves TCP PostgreSQL vs PGlite vs none from env + {@link CodemationConfig} (same rules as the host runtime).
+ * Resolves TCP PostgreSQL vs SQLite vs none from env + {@link CodemationConfig} (same rules as the host runtime).
  */
 export class ConsumerDatabaseConnectionResolver {
   resolve(processEnv: NodeJS.ProcessEnv, config: CodemationConfig, consumerRoot: string): AppPersistenceConfig {
@@ -20,18 +20,18 @@ export class ConsumerDatabaseConnectionResolver {
       return { kind: "postgresql", databaseUrl };
     }
     return {
-      kind: "pglite",
-      dataDir: this.resolvePgliteDataDir(database.pgliteDataDir, processEnv, consumerRoot),
+      kind: "sqlite",
+      databaseFilePath: this.resolveSqliteFilePath(database.sqliteFilePath, processEnv, consumerRoot),
     };
   }
 
   private resolveDatabaseKind(
-    configuredKind: "postgresql" | "pglite" | undefined,
+    configuredKind: "postgresql" | "sqlite" | undefined,
     databaseUrl: string | undefined,
     env: NodeJS.ProcessEnv,
-  ): "postgresql" | "pglite" {
+  ): "postgresql" | "sqlite" {
     const kindFromEnv = env.CODEMATION_DATABASE_KIND?.trim();
-    if (kindFromEnv === "postgresql" || kindFromEnv === "pglite") {
+    if (kindFromEnv === "postgresql" || kindFromEnv === "sqlite") {
       return kindFromEnv;
     }
     if (configuredKind) {
@@ -41,15 +41,15 @@ export class ConsumerDatabaseConnectionResolver {
     if (trimmedUrl && (trimmedUrl.startsWith("postgresql://") || trimmedUrl.startsWith("postgres://"))) {
       return "postgresql";
     }
-    return "pglite";
+    return "sqlite";
   }
 
-  private resolvePgliteDataDir(
+  private resolveSqliteFilePath(
     configuredPath: string | undefined,
     env: NodeJS.ProcessEnv,
     consumerRoot: string,
   ): string {
-    const envPath = env.CODEMATION_PGLITE_DATA_DIR?.trim();
+    const envPath = env.CODEMATION_SQLITE_FILE_PATH?.trim();
     if (envPath && envPath.length > 0) {
       return path.isAbsolute(envPath) ? envPath : path.resolve(consumerRoot, envPath);
     }
@@ -59,6 +59,6 @@ export class ConsumerDatabaseConnectionResolver {
         ? trimmedConfiguredPath
         : path.resolve(consumerRoot, trimmedConfiguredPath);
     }
-    return path.resolve(consumerRoot, ".codemation", "pglite");
+    return path.resolve(consumerRoot, ".codemation", "codemation.sqlite");
   }
 }

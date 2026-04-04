@@ -3,7 +3,7 @@
 import { hash } from "bcryptjs";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
+import { ApplicationTokens } from "../../src/applicationTokens";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
@@ -57,7 +57,7 @@ class AuthHttpFixture {
         AUTH_SECRET: authSecret,
       },
       register: (context) => {
-        context.registerFactory(PrismaClient, () => transaction.getPrismaClient());
+        context.registerFactory(ApplicationTokens.PrismaClient, () => transaction.getPrismaClient());
       },
     });
     await harness.start();
@@ -77,7 +77,7 @@ class AuthHttpFixture {
         GOOGLE_CLIENT_SECRET: "google-client-secret",
       },
       register: (context) => {
-        context.registerFactory(PrismaClient, () => transaction.getPrismaClient());
+        context.registerFactory(ApplicationTokens.PrismaClient, () => transaction.getPrismaClient());
       },
     });
     await harness.start();

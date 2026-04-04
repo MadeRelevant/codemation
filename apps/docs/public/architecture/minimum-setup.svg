@@ -36,8 +36,8 @@
   <text x="468" y="616" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="700">Local infrastructure</text>
   <rect x="468" y="646" width="300" height="70" rx="18" fill="#111827" stroke="#F59E0B" stroke-width="2"/>
   <rect x="806" y="646" width="300" height="70" rx="18" fill="#111827" stroke="#10B981" stroke-width="2"/>
-  <text x="515" y="690" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">PGlite</text>
-  <text x="601" y="690" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="22">embedded Postgres</text>
+  <text x="515" y="690" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">SQLite</text>
+  <text x="601" y="690" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="22">local database file</text>
   <text x="861" y="690" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="700">Local scheduler</text>
   <text x="1016" y="690" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="22">one process</text>
 

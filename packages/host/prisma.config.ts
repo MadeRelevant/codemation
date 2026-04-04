@@ -2,7 +2,24 @@ import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
 class PrismaConfigEnvironment {
-  static fallbackGenerateDatabaseUrl = "postgresql://codemation:codemation@127.0.0.1:5432/codemation";
+  static fallbackGeneratePostgresqlDatabaseUrl = "postgresql://codemation:codemation@127.0.0.1:5432/codemation";
+  static fallbackGenerateSqliteDatabaseUrl = "file:./.codemation/prisma-generate.sqlite";
+
+  static resolveProvider(): "postgresql" | "sqlite" {
+    const configuredProvider = process.env.CODEMATION_PRISMA_PROVIDER?.trim();
+    if (configuredProvider === "postgresql" || configuredProvider === "sqlite") {
+      return configuredProvider;
+    }
+    return "postgresql";
+  }
+
+  static resolveSchemaPath(): string {
+    return this.resolveProvider() === "sqlite" ? "prisma/schema.sqlite.prisma" : "prisma/schema.postgresql.prisma";
+  }
+
+  static resolveMigrationsPath(): string {
+    return this.resolveProvider() === "sqlite" ? "prisma/migrations.sqlite" : "prisma/migrations";
+  }
 
   static resolveDatasourceUrl(): string {
     const databaseUrl = process.env.DATABASE_URL?.trim();
@@ -10,14 +27,16 @@ class PrismaConfigEnvironment {
       return databaseUrl;
     }
     // `prisma generate` only needs a schema-compatible datasource URL; runtime commands inject a real one.
-    return this.fallbackGenerateDatabaseUrl;
+    return this.resolveProvider() === "sqlite"
+      ? this.fallbackGenerateSqliteDatabaseUrl
+      : this.fallbackGeneratePostgresqlDatabaseUrl;
   }
 }
 
 export default defineConfig({
-  schema: "prisma/schema.prisma",
+  schema: PrismaConfigEnvironment.resolveSchemaPath(),
   migrations: {
-    path: "prisma/migrations",
+    path: PrismaConfigEnvironment.resolveMigrationsPath(),
   },
   datasource: {
     url: PrismaConfigEnvironment.resolveDatasourceUrl(),

@@ -44,8 +44,8 @@ export class DevBootstrapSummaryAssembler {
     if (p.kind === "none") {
       return "in-memory (no Prisma persistence)";
     }
-    if (p.kind === "pglite") {
-      return `PGlite — ${p.dataDir}`;
+    if (p.kind === "sqlite") {
+      return `SQLite — ${p.databaseFilePath}`;
     }
     return `PostgreSQL — ${this.redactUrlForDisplay(p.databaseUrl)}`;
   }

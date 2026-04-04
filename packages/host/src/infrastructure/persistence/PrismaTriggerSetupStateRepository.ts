@@ -1,6 +1,6 @@
 import type { PersistedTriggerSetupState, TriggerInstanceId, TriggerSetupStateRepository } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
-import { PrismaClient } from "./generated/prisma-client/client.js";
+import { PrismaDatabaseClientToken, type PrismaDatabaseClient } from "./PrismaDatabaseClient";
 
 type TriggerSetupStateJson = Readonly<{
   state: PersistedTriggerSetupState["state"];
@@ -8,7 +8,7 @@ type TriggerSetupStateJson = Readonly<{
 
 @injectable()
 export class PrismaTriggerSetupStateRepository implements TriggerSetupStateRepository {
-  constructor(@inject(PrismaClient) private readonly prisma: PrismaClient) {}
+  constructor(@inject(PrismaDatabaseClientToken) private readonly prisma: PrismaDatabaseClient) {}
 
   async load(trigger: TriggerInstanceId): Promise<PersistedTriggerSetupState | undefined> {
     const row = await this.prisma.triggerSetupState.findUnique({

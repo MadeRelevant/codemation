@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/infrastructure/persistence/generated/prisma-postgresql-client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Run {
+  runId                String  @id @map("run_id")
+  workflowId           String  @map("workflow_id")
+  startedAt            String  @map("started_at")
+  status               String
+  parentJson           String? @map("parent_json")
+  executionOptionsJson String? @map("execution_options_json")
+  updatedAt            String  @map("updated_at")
+  stateJson            String  @map("state_json")
+}
+
+model WorkflowDebuggerOverlay {
+  workflowId      String  @id @map("workflow_id")
+  updatedAt       String  @map("updated_at")
+  copiedFromRunId String? @map("copied_from_run_id")
+  stateJson       String  @map("state_json")
+}
+
+model WorkflowActivation {
+  workflowId String  @id @map("workflow_id")
+  isActive   Boolean @default(false) @map("is_active")
+  updatedAt  String  @map("updated_at")
+}
+
+model TriggerSetupState {
+  workflowId String @map("workflow_id")
+  nodeId     String @map("node_id")
+  updatedAt  String @map("updated_at")
+  stateJson  String @map("state_json")
+
+  @@id([workflowId, nodeId])
+}
+
+model CredentialInstance {
+  instanceId       String @id @map("instance_id")
+  typeId           String @map("type_id")
+  displayName      String @map("display_name")
+  sourceKind       String @map("source_kind")
+  publicConfigJson String @map("public_config_json")
+  secretRefJson    String @map("secret_ref_json")
+  tagsJson         String @map("tags_json")
+  setupStatus      String @map("setup_status")
+  createdAt        String @map("created_at")
+  updatedAt        String @map("updated_at")
+}
+
+model CredentialSecretMaterial {
+  instanceId      String @id @map("instance_id")
+  encryptedJson   String @map("encrypted_json")
+  encryptionKeyId String @map("encryption_key_id")
+  schemaVersion   Int    @map("schema_version")
+  updatedAt       String @map("updated_at")
+}
+
+model CredentialOAuth2Material {
+  instanceId      String  @id @map("instance_id")
+  encryptedJson   String  @map("encrypted_json")
+  encryptionKeyId String  @map("encryption_key_id")
+  schemaVersion   Int     @map("schema_version")
+  providerId      String  @map("provider_id")
+  connectedEmail  String? @map("connected_email")
+  connectedAt     String? @map("connected_at")
+  scopesJson      String  @map("scopes_json")
+  updatedAt       String  @map("updated_at")
+}
+
+model CredentialOAuth2State {
+  state               String  @id
+  instanceId          String  @map("instance_id")
+  codeVerifier        String? @map("code_verifier")
+  providerId          String? @map("provider_id")
+  requestedScopesJson String  @map("requested_scopes_json")
+  createdAt           String  @map("created_at")
+  expiresAt           String  @map("expires_at")
+
+  @@index([instanceId])
+  @@index([expiresAt])
+}
+
+model CredentialBinding {
+  workflowId String @map("workflow_id")
+  nodeId     String @map("node_id")
+  slotKey    String @map("slot_key")
+  instanceId String @map("instance_id")
+  updatedAt  String @map("updated_at")
+
+  @@id([workflowId, nodeId, slotKey])
+  @@index([instanceId])
+}
+
+model CredentialTestResult {
+  testId      String  @id @map("test_id")
+  instanceId  String  @map("instance_id")
+  status      String
+  message     String?
+  detailsJson String  @map("details_json")
+  testedAt    String  @map("tested_at")
+  expiresAt   String? @map("expires_at")
+
+  @@index([instanceId, testedAt])
+}
+
+/// Auth.js / NextAuth user directory (JWT sessions; optional OAuth linking)
+model User {
+  id            String       @id @default(cuid())
+  name          String?
+  email         String?      @unique
+  emailVerified DateTime?    @map("email_verified")
+  image         String?
+  passwordHash  String?      @map("password_hash")
+  /// invited | active | inactive (local directory / invite flow)
+  accountStatus String       @default("active") @map("account_status")
+  accounts      Account[]
+  sessions      Session[]
+  invites       UserInvite[]
+
+  @@map("codemation_auth_user")
+}
+
+model UserInvite {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("codemation_auth_user_invite")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String? @db.Text
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("codemation_auth_account")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("codemation_auth_session")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("codemation_auth_verification_token")
+}

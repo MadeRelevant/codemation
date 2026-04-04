@@ -8,7 +8,8 @@ import { WebSocket } from "ws";
 import type { RunCommandResult } from "../../src/application/contracts/RunContracts";
 import type { WorkflowDebuggerOverlayResponse } from "../../src/application/contracts/WorkflowDebuggerContracts";
 import type { WorkflowWebsocketMessage } from "../../src/application/contracts/WorkflowWebsocketMessage";
-import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
+import { ApplicationTokens } from "../../src/applicationTokens";
+import type { PrismaDatabaseClient as PrismaClient } from "../../src/infrastructure/persistence/PrismaDatabaseClient";
 import type { CodemationAppContext } from "../../src/presentation/config/CodemationAppContext";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
@@ -124,7 +125,7 @@ class WorkflowDebugSessionIntegrationContext {
   }
 
   private registerPrismaClient(context: CodemationAppContext): void {
-    context.registerFactory(PrismaClient, () => this.requireTransaction());
+    context.registerFactory(ApplicationTokens.PrismaClient, () => this.requireTransaction());
   }
 
   private requireSharedDatabase(): IntegrationDatabase {

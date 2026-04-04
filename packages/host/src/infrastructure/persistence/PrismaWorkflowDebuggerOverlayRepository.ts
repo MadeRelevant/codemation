@@ -2,7 +2,7 @@ import type { RunCurrentState } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
 import type { WorkflowDebuggerOverlayRepository } from "../../domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDebuggerOverlayState } from "../../domain/workflows/WorkflowDebuggerOverlayState";
-import { PrismaClient } from "./generated/prisma-client/client.js";
+import { PrismaDatabaseClientToken, type PrismaDatabaseClient } from "./PrismaDatabaseClient";
 
 type DebuggerOverlayStateJson = Readonly<{
   currentState: RunCurrentState;
@@ -10,7 +10,7 @@ type DebuggerOverlayStateJson = Readonly<{
 
 @injectable()
 export class PrismaWorkflowDebuggerOverlayRepository implements WorkflowDebuggerOverlayRepository {
-  constructor(@inject(PrismaClient) private readonly prisma: PrismaClient) {}
+  constructor(@inject(PrismaDatabaseClientToken) private readonly prisma: PrismaDatabaseClient) {}
 
   async load(workflowId: string): Promise<WorkflowDebuggerOverlayState | undefined> {
     const decodedWorkflowId = decodeURIComponent(workflowId);
