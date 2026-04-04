@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { ScaffoldedBrowserRuntimeEnvironment } from "./ScaffoldedBrowserRuntimeEnvironment";
 
 export type ScaffoldedCreateCodemationProjectContract = Readonly<{
   templateId: "default" | "plugin";
@@ -39,6 +40,7 @@ export class ScaffoldedCreateCodemationProject {
 
   private projectRoot: string | null = null;
   private packedArtifactsRoot: string | null = null;
+  private readonly runtimeEnvironment = new ScaffoldedBrowserRuntimeEnvironment();
 
   constructor(
     private readonly repoRoot: string,
@@ -274,13 +276,7 @@ export class ScaffoldedCreateCodemationProject {
   }
 
   private publishedInstallEnvironment(): NodeJS.ProcessEnv {
-    return {
-      ...process.env,
-      CI: "",
-      GITHUB_ACTIONS: "",
-      PNPM_CONFIG_FROZEN_LOCKFILE: "false",
-      npm_config_frozen_lockfile: "false",
-    };
+    return this.runtimeEnvironment.createPublishedInstallEnvironment(process.env);
   }
 
   private async runCommand(
