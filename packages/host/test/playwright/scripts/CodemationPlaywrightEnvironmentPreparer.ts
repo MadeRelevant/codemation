@@ -85,9 +85,10 @@ export class CodemationPlaywrightEnvironmentPreparer {
     const serverEnv: Record<string, string> = {
       DATABASE_URL: database.databaseUrl,
       AUTH_SECRET: authSecret,
-      /** Must match Playwright `baseURL` so Auth.js session cookies align with the browser origin (127.0.0.1 vs localhost breaks cookies + middleware). */
+      /** Must match Playwright `baseURL` so server-side URL resolution uses the browser origin. */
       AUTH_URL: "http://localhost:3001",
       NEXTAUTH_URL: "http://localhost:3001",
+      CODEMATION_PUBLIC_BASE_URL: "http://localhost:3001",
       PORT: "3001",
       REDIS_URL: "",
       CODEMATION_E2E_FORCE_LOCAL_RUNTIME: "1",

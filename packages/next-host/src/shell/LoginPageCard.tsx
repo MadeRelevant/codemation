@@ -16,6 +16,7 @@ type LoginPageCardProps = Readonly<{
   credentialsEnabled: boolean;
   email: string;
   error: string | null;
+  isInteractive: boolean;
   isSubmitting: boolean;
   logoUrl: string | null;
   oauthProviders: ReadonlyArray<{ id: string; name: string }>;
@@ -30,8 +31,9 @@ type LoginPageCardProps = Readonly<{
 
 export class LoginPageCard extends Component<LoginPageCardProps> {
   override render(): ReactNode {
-    const { isSubmitting, oauthSubmittingId, authStatus, authFailureMessage, productName, logoUrl } = this.props;
-    const formBusy = isSubmitting || oauthSubmittingId !== null;
+    const { isInteractive, isSubmitting, oauthSubmittingId, authStatus, authFailureMessage, productName, logoUrl } =
+      this.props;
+    const formBusy = !isInteractive || isSubmitting || oauthSubmittingId !== null;
     const titleInitial = productName.trim().length > 0 ? productName.trim().charAt(0).toUpperCase() : "C";
     const showCredentialsForm = authStatus === "resolved" && this.props.credentialsEnabled;
     const showOauthProviders = authStatus === "resolved" && this.props.oauthProviders.length > 0;
@@ -127,7 +129,13 @@ export class LoginPageCard extends Component<LoginPageCardProps> {
                   {this.props.error}
                 </p>
               ) : null}
-              <Button type="submit" className="w-full" data-testid="login-submit" disabled={formBusy}>
+              <Button
+                type="button"
+                className="w-full"
+                data-testid="login-submit"
+                disabled={formBusy}
+                onClick={() => this.props.onSubmit()}
+              >
                 {isSubmitting ? (
                   <span
                     className="mr-2 inline-block size-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"

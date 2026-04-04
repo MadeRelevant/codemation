@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe("LoginPageClient", () => {
-  it("renders a native submit button so pressing Enter submits the login form", () => {
+  it("renders a guarded login form surface without relying on native submit button behavior", () => {
     render(
       <LoginPageClient
         authStatus="resolved"
@@ -25,7 +25,7 @@ describe("LoginPageClient", () => {
     );
 
     expect(screen.getByTestId("login-form")).toBeInTheDocument();
-    expect(screen.getByTestId("login-submit")).toHaveAttribute("type", "submit");
+    expect(screen.getByTestId("login-submit")).toHaveAttribute("type", "button");
   });
 
   it("does not render login controls while auth resolution is failed", () => {
@@ -124,6 +124,7 @@ describe("LoginPageClient", () => {
       expect.objectContaining({
         email: "admin@example.com",
         password: "password-123",
+        callbackURL: "http://localhost:3000/dashboard",
       }),
     );
     await waitFor(() => {

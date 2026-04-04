@@ -6,6 +6,8 @@ import { createAuthClient } from "better-auth/client";
  */
 export class CodemationBetterAuthBrowserClientFactory {
   create(): ReturnType<typeof createAuthClient> {
-    return createAuthClient();
+    return createAuthClient({
+      disableDefaultFetchPlugins: true,
+    });
   }
 }

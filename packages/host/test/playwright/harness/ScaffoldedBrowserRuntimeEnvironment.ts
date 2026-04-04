@@ -20,6 +20,7 @@ export class ScaffoldedBrowserRuntimeEnvironment {
       PORT: String(port),
       AUTH_URL: `http://127.0.0.1:${port}`,
       NEXTAUTH_URL: `http://127.0.0.1:${port}`,
+      CODEMATION_PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
       AUTH_SECRET: "codemation-scaffolded-browser-e2e-auth-secret",
       CODEMATION_CREDENTIALS_MASTER_KEY: "codemation-scaffolded-browser-e2e-master-key",
       CODEMATION_LOG_LEVEL: "info",

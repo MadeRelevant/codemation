@@ -21,6 +21,7 @@ type LoginPageClientState = Readonly<{
   email: string;
   password: string;
   error: string | null;
+  isInteractive: boolean;
   isSubmitting: boolean;
   oauthSubmittingId: string | null;
 }>;
@@ -36,9 +37,14 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
       email: "",
       password: "",
       error: null,
+      isInteractive: false,
       isSubmitting: false,
       oauthSubmittingId: null,
     };
+  }
+
+  override componentDidMount(): void {
+    this.setState({ isInteractive: true });
   }
 
   override render(): ReactNode {
@@ -57,6 +63,7 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
           credentialsEnabled={this.props.credentialsEnabled}
           email={this.state.email}
           error={this.state.error}
+          isInteractive={this.state.isInteractive}
           isSubmitting={this.state.isSubmitting}
           logoUrl={this.props.logoUrl}
           oauthProviders={this.props.oauthProviders}
@@ -83,9 +90,12 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
   private async submitCredentials(): Promise<void> {
     this.setState({ error: null, isSubmitting: true });
     try {
+      const safeCallbackUrl = this.callbackUrlPolicy.resolveSafeRelativeCallbackUrl(this.props.callbackUrl);
+      const callbackUrl = new URL(safeCallbackUrl, window.location.origin).toString();
       const result = await this.authClient.signIn.email({
         email: this.state.email,
         password: this.state.password,
+        callbackURL: callbackUrl,
       });
       const signInError = this.readBetterFetchError(result);
       if (signInError) {
@@ -99,7 +109,6 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
         });
         return;
       }
-      const safeCallbackUrl = this.callbackUrlPolicy.resolveSafeRelativeCallbackUrl(this.props.callbackUrl);
       window.location.assign(safeCallbackUrl);
     } catch {
       this.setState({ error: "Something went wrong. Try again.", isSubmitting: false });
