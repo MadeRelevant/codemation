@@ -39,6 +39,7 @@ export class CodemationBetterAuthServerFactory {
       secret: this.requireAuthSecret(),
       basePath: "/api/auth",
       baseURL: this.betterAuthBaseUrlPolicy.resolveOriginFromEnv(this.appConfig.env),
+      trustedOrigins: [...this.betterAuthBaseUrlPolicy.resolveTrustedOriginsFromEnv(this.appConfig.env)],
       database: adapter,
       advanced: {
         trustedProxyHeaders: true,

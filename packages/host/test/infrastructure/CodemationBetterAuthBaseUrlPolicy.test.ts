@@ -68,3 +68,13 @@ test("CodemationBetterAuthBaseUrlPolicy warns on invalid BETTER_AUTH_URL", () =>
   assert.equal(origin, "http://127.0.0.1:4000");
   assert.ok(logger.warnings.some((w) => w.includes("BETTER_AUTH_URL")));
 });
+
+test("CodemationBetterAuthBaseUrlPolicy trusts both localhost loopback aliases", () => {
+  const logger = new CapturingLogger();
+  const policy = new CodemationBetterAuthBaseUrlPolicy(logger);
+  const origins = policy.resolveTrustedOriginsFromEnv({
+    CODEMATION_PUBLIC_BASE_URL: "http://localhost:3001",
+    NODE_ENV: "test",
+  });
+  assert.deepEqual([...origins].sort(), ["http://127.0.0.1:3001", "http://localhost:3001"]);
+});

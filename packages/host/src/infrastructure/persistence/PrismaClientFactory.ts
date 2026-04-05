@@ -15,8 +15,10 @@ export class PrismaClientFactory {
   }
 
   createSqlite(databaseFilePath: string): PrismaDatabaseClient {
+    const resolvedPath = path.resolve(databaseFilePath);
+    const resolvedUrl = pathToFileURL(resolvedPath).toString();
     const adapter = new PrismaLibSql({
-      url: pathToFileURL(path.resolve(databaseFilePath)).toString(),
+      url: resolvedUrl,
     });
     return new SqlitePrismaClient({ adapter }) as unknown as PrismaDatabaseClient;
   }

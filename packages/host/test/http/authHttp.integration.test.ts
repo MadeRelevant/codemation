@@ -74,13 +74,16 @@ class AuthHttpFixture {
   static async createOAuthHarness(
     database: IntegrationDatabase,
     transaction: PostgresRollbackTransaction,
+    options?: Readonly<{
+      publicBaseUrl?: string;
+    }>,
   ): Promise<FrontendHttpIntegrationHarness> {
     const harness = new FrontendHttpIntegrationHarness({
       config: mergeIntegrationDatabaseRuntime(this.createOAuthAuthConfig(), database),
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
       env: {
         AUTH_SECRET: authSecret,
-        CODEMATION_PUBLIC_BASE_URL: testTrustedOrigin,
+        CODEMATION_PUBLIC_BASE_URL: options?.publicBaseUrl ?? testTrustedOrigin,
         GOOGLE_CLIENT_ID: "google-client-id",
         GOOGLE_CLIENT_SECRET: "google-client-secret",
       },
@@ -323,6 +326,49 @@ describe("auth http integration", () => {
     expect(response.statusCode).toBe(302);
     expect(response.header("location")).toMatch(/^https:\/\/accounts\.google\.com\//);
     expect(response.header("set-cookie")).toBeDefined();
+    await harness.close();
+  });
+
+  it("starts OAuth providers when the configured public origin is localhost but requests arrive on 127.0.0.1", async () => {
+    const harness = await AuthHttpFixture.createOAuthHarness(session.database!, session.transaction!, {
+      publicBaseUrl: "http://localhost",
+    });
+
+    const response = await harness.request({
+      method: "GET",
+      url: `${ApiPaths.authOAuthStart("google")}?callbackUrl=%2Fworkflows`,
+      headers: {
+        referer: "http://127.0.0.1/workflows",
+      },
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.header("location")).toMatch(/^https:\/\/accounts\.google\.com\//);
+    await harness.close();
+  });
+
+  it("starts OAuth when CSRF cookies exist even if the client sends a misleading Origin header", async () => {
+    const harness = await AuthHttpFixture.createOAuthHarness(session.database!, session.transaction!);
+
+    const csrfProbe = await harness.request({
+      method: "GET",
+      url: ApiPaths.authSession(),
+    });
+    expect(csrfProbe.statusCode).toBe(200);
+    const csrfCookieHeader = cookieHeaderParser.requireHeaderString(csrfProbe.header("set-cookie"));
+    const csrfCookiePair = cookieHeaderParser.extractCookiePair(csrfCookieHeader);
+
+    const response = await harness.request({
+      method: "GET",
+      url: `${ApiPaths.authOAuthStart("google")}?callbackUrl=%2F`,
+      headers: {
+        cookie: csrfCookiePair,
+        origin: "http://malicious.example.com",
+      },
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.header("location")).toMatch(/^https:\/\/accounts\.google\.com\//);
     await harness.close();
   });
 

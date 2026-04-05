@@ -14,10 +14,11 @@ export class CodemationBetterAuthBaseUrlPolicy {
   constructor(private readonly logger: Logger) {}
 
   resolveOriginFromEnv(env: Readonly<NodeJS.ProcessEnv>): string | undefined {
-    const betterRaw = env.BETTER_AUTH_URL?.trim();
-    const publicRaw = env.CODEMATION_PUBLIC_BASE_URL?.trim();
-    const betterOrigin = betterRaw ? this.tryParseOrigin(betterRaw) : undefined;
-    const publicOrigin = publicRaw ? this.tryParseOrigin(publicRaw) : undefined;
+    const parsed = this.parseConfiguredOrigins(env);
+    const betterRaw = parsed.betterRaw;
+    const publicRaw = parsed.publicRaw;
+    const betterOrigin = parsed.betterOrigin;
+    const publicOrigin = parsed.publicOrigin;
 
     if (betterRaw && !betterOrigin) {
       this.logger.warn(
@@ -45,6 +46,49 @@ export class CodemationBetterAuthBaseUrlPolicy {
     }
 
     return chosen;
+  }
+
+  resolveTrustedOriginsFromEnv(env: Readonly<NodeJS.ProcessEnv>): ReadonlyArray<string> {
+    const parsed = this.parseConfiguredOrigins(env);
+    const trustedOrigins = new Set<string>();
+    if (parsed.betterOrigin) {
+      this.addOriginWithLoopbackAliases(trustedOrigins, parsed.betterOrigin);
+    }
+    if (parsed.publicOrigin) {
+      this.addOriginWithLoopbackAliases(trustedOrigins, parsed.publicOrigin);
+    }
+    return [...trustedOrigins];
+  }
+
+  private parseConfiguredOrigins(env: Readonly<NodeJS.ProcessEnv>): Readonly<{
+    betterRaw: string | undefined;
+    publicRaw: string | undefined;
+    betterOrigin: string | undefined;
+    publicOrigin: string | undefined;
+  }> {
+    const betterRaw = env.BETTER_AUTH_URL?.trim();
+    const publicRaw = env.CODEMATION_PUBLIC_BASE_URL?.trim();
+    const betterOrigin = betterRaw ? this.tryParseOrigin(betterRaw) : undefined;
+    const publicOrigin = publicRaw ? this.tryParseOrigin(publicRaw) : undefined;
+    return {
+      betterOrigin,
+      betterRaw,
+      publicOrigin,
+      publicRaw,
+    };
+  }
+
+  private addOriginWithLoopbackAliases(target: Set<string>, origin: string): void {
+    target.add(origin);
+    const parsed = new URL(origin);
+    const host = parsed.hostname;
+    const protocol = parsed.protocol;
+    const port = parsed.port;
+    if (host !== "localhost" && host !== "127.0.0.1") {
+      return;
+    }
+    const aliasHost = host === "localhost" ? "127.0.0.1" : "localhost";
+    target.add(`${protocol}//${aliasHost}${port ? `:${port}` : ""}`);
   }
 
   private tryParseOrigin(raw: string): string | undefined {

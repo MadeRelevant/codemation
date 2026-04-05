@@ -164,14 +164,23 @@ export class AuthHttpRouteHandler {
     return new URL(pathname, `${protocol}//${host}`);
   }
 
+  /**
+   * Origin sent to Better Auth for proxied /internal requests must match the same host and scheme
+   * as {@link resolveForwardedOriginUrl} (not the client `Origin` header). Otherwise Better Auth's
+   * origin check can reject valid flows when cookies exist and `X-Forwarded-*` differs from
+   * `request.url`, or when a client sends a misleading `Origin` header.
+   */
+  private resolveCanonicalOriginForBetterAuthRequest(request: Request): string {
+    return this.resolveForwardedOriginUrl(request, "/").origin;
+  }
+
   private buildInternalAuthHeaders(request: Request): Headers {
     const headers = new Headers();
     const cookie = request.headers.get("cookie");
     if (cookie) {
       headers.set("cookie", cookie);
     }
-    const origin = request.headers.get("origin") ?? new URL(request.url).origin;
-    headers.set("origin", origin);
+    headers.set("origin", this.resolveCanonicalOriginForBetterAuthRequest(request));
     return headers;
   }
 

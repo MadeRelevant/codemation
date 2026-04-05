@@ -15,3 +15,18 @@ test("anonymous API routes include public bootstrap paths for SSR shell reads", 
 test("anonymous API routes reject arbitrary api paths", () => {
   assert.equal(CodemationNextHostMiddlewarePathRules.isAnonymousApiRoute("/api/workflows"), false);
 });
+
+test("framework api routes include authenticated host api paths", () => {
+  assert.equal(CodemationNextHostMiddlewarePathRules.isFrameworkApiRoute("/api/workflows"), true);
+  assert.equal(
+    CodemationNextHostMiddlewarePathRules.isFrameworkApiRoute("/api/workflows/wf.dev.canvasLayoutStress"),
+    true,
+  );
+});
+
+test("next static assets include well-known discovery paths", () => {
+  assert.equal(
+    CodemationNextHostMiddlewarePathRules.isNextStaticAsset("/.well-known/appspecific/com.chrome.devtools.json"),
+    true,
+  );
+});

@@ -4,6 +4,10 @@ export class CodemationNextHostMiddlewarePathRules {
     return pathname.startsWith("/api/auth");
   }
 
+  static isFrameworkApiRoute(pathname: string): boolean {
+    return pathname.startsWith("/api/");
+  }
+
   static isAnonymousApiRoute(pathname: string): boolean {
     return (
       pathname.startsWith("/api/webhooks") ||
@@ -25,6 +29,7 @@ export class CodemationNextHostMiddlewarePathRules {
   static isNextStaticAsset(pathname: string): boolean {
     return (
       pathname.startsWith("/_next") ||
+      pathname.startsWith("/.well-known/") ||
       pathname === "/favicon.ico" ||
       pathname.startsWith("/favicon.ico") ||
       pathname.startsWith("/public")

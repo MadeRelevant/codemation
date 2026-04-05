@@ -20,7 +20,7 @@ export class AuthHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
     app.get("/auth/oauth/:providerId/start", (c) =>
       this.handler.getOAuthStart(c.req.raw, { providerId: c.req.param("providerId") }),
     );
-    app.all("/auth/*", (c) => {
+    app.all("/auth/*", async (c) => {
       const auth = this.betterAuthRuntime.tryGetAuth();
       if (!auth) {
         return c.json({ error: "Authentication requires prepared runtime database persistence." }, 503);

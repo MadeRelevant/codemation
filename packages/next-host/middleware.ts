@@ -13,6 +13,7 @@ export default async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   if (
     CodemationNextHostMiddlewarePathRules.isFrameworkAuthRoute(pathname) ||
+    CodemationNextHostMiddlewarePathRules.isFrameworkApiRoute(pathname) ||
     CodemationNextHostMiddlewarePathRules.isAnonymousApiRoute(pathname) ||
     CodemationNextHostMiddlewarePathRules.isPublicUiRoute(pathname) ||
     CodemationNextHostMiddlewarePathRules.isNextStaticAsset(pathname)
