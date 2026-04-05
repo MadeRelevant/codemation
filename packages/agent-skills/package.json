@@ -1,6 +1,6 @@
 {
   "name": "@codemation/agent-skills",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Reusable agent skills for Codemation projects and plugin development.",
   "publishConfig": {
     "access": "public"
