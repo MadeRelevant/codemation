@@ -93,7 +93,7 @@ Supported built-in provider ids are:
 
 - `google`
 - `github`
-- `microsoft-entra-id`
+- `microsoft`
 
 For Microsoft Entra ID, add `tenantIdEnv` as well.
 
@@ -161,7 +161,7 @@ Production auth is intentionally stricter:
 - `CodemationConfig.auth` is required when `NODE_ENV=production`
 - `allowUnauthenticatedInDevelopment` is not allowed in production
 - `AUTH_SECRET` must be set
-- production must resolve to at least one real NextAuth provider
+- production must resolve to at least one real auth provider
 
 The safe mental model is: development can be lenient, production cannot.
 

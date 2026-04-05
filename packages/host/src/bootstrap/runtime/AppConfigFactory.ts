@@ -108,8 +108,8 @@ export class AppConfigFactory {
       return { kind: "postgresql", databaseUrl };
     }
     return {
-      kind: "pglite",
-      dataDir: this.resolvePgliteDataDir(database.pgliteDataDir, env, consumerRoot),
+      kind: "sqlite",
+      databaseFilePath: this.resolveSqliteFilePath(database.sqliteFilePath, env, consumerRoot),
     };
   }
 
@@ -119,7 +119,7 @@ export class AppConfigFactory {
     env: NodeJS.ProcessEnv,
   ): CodemationDatabaseKind {
     const kindFromEnv = env.CODEMATION_DATABASE_KIND?.trim();
-    if (kindFromEnv === "postgresql" || kindFromEnv === "pglite") {
+    if (kindFromEnv === "postgresql" || kindFromEnv === "sqlite") {
       return kindFromEnv;
     }
     if (configuredKind) {
@@ -129,15 +129,15 @@ export class AppConfigFactory {
     if (trimmedUrl && (trimmedUrl.startsWith("postgresql://") || trimmedUrl.startsWith("postgres://"))) {
       return "postgresql";
     }
-    return "pglite";
+    return "sqlite";
   }
 
-  private resolvePgliteDataDir(
+  private resolveSqliteFilePath(
     configuredPath: string | undefined,
     env: NodeJS.ProcessEnv,
     consumerRoot: string,
   ): string {
-    const envPath = env.CODEMATION_PGLITE_DATA_DIR?.trim();
+    const envPath = env.CODEMATION_SQLITE_FILE_PATH?.trim();
     if (envPath && envPath.length > 0) {
       return path.isAbsolute(envPath) ? envPath : path.resolve(consumerRoot, envPath);
     }
@@ -147,7 +147,7 @@ export class AppConfigFactory {
         ? trimmedConfiguredPath
         : path.resolve(consumerRoot, trimmedConfiguredPath);
     }
-    return path.resolve(consumerRoot, ".codemation", "pglite");
+    return path.resolve(consumerRoot, ".codemation", "codemation.sqlite");
   }
 
   private resolveSchedulerKind(

@@ -20,10 +20,13 @@ const defaultTemplateContract: ScaffoldedCreateCodemationProjectContract = {
 
 test.describe.configure({ mode: "serial" });
 
-test("published scaffolded app auth session does not fail during dev startup", async ({ request }, testInfo) => {
+test("published scaffolded app auth session boots and local login reaches workflows", async ({
+  page,
+  request,
+}, testInfo) => {
   const repoRoot = CodemationPlaywrightHarness.resolveRepoRoot();
   const port = await new LoopbackPortAllocator().allocate();
-  const project = new ScaffoldedCreateCodemationProject(repoRoot, defaultTemplateContract, "published");
+  const project = new ScaffoldedCreateCodemationProject(repoRoot, defaultTemplateContract, "packed");
   let server: ScaffoldedDevServerHarness | null = null;
 
   try {
@@ -31,9 +34,20 @@ test("published scaffolded app auth session does not fail during dev startup", a
     server = new ScaffoldedDevServerHarness(project.rootPath(), "dev", port, testInfo.outputPath("dev-process"));
     await server.start();
     await server.waitForAuthSessionReady();
+    await server.waitForWorkflowListed(project.workflowId());
 
     const authSessionResponse = await request.get(`${server.baseUrl()}/api/auth/session`);
     expect(authSessionResponse.status()).toBeLessThan(500);
+
+    const credentials = project.adminCredentials();
+    await page.goto(`${server.baseUrl()}/login?callbackUrl=/workflows`);
+    await expect(page.getByTestId("login-page")).toBeVisible();
+    await page.getByTestId("login-email").fill(credentials.email);
+    await page.getByTestId("login-password").fill(credentials.password);
+    await page.getByTestId("login-submit").click({ force: true });
+    await page.waitForURL(`${server.baseUrl()}/workflows`, { timeout: 60_000 });
+    await expect(page.getByTestId("workflows-list")).toBeVisible();
+    await expect(page.getByTestId(`workflow-list-item-${project.workflowId()}`)).toBeVisible();
   } finally {
     if (server) {
       await server.stop();

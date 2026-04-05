@@ -40,7 +40,7 @@ export class UserAdminCliBootstrap {
     }
     if (loadResult.appConfig.persistence.kind === "none") {
       throw new Error(
-        "Database persistence is not configured. Set CodemationConfig.runtime.database (postgresql URL or PGlite).",
+        "Database persistence is not configured. Set CodemationConfig.runtime.database (postgresql URL or SQLite file path).",
       );
     }
     const session = await CodemationCliApplicationSession.open({

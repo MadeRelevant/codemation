@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { encode } from "@auth/core/jwt";
+import { hash } from "bcryptjs";
 import type { WorkflowDefinition } from "@codemation/core";
 import { createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
 import { createHash } from "node:crypto";
@@ -10,7 +10,7 @@ import type {
   InviteUserResponseDto,
   UserAccountDto,
 } from "../../src/application/contracts/userDirectoryContracts.types";
-import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
+import { ApplicationTokens } from "../../src/applicationTokens";
 import type { CodemationConfig } from "../../src/presentation/config/CodemationConfig";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
@@ -20,6 +20,7 @@ import { mergeIntegrationDatabaseRuntime } from "./testkit/mergeIntegrationDatab
 import type { PostgresRollbackTransaction } from "./testkit/PostgresRollbackTransaction";
 
 const authSecret = "codemation-user-mgmt-test-secret-min-32-chars";
+const testTrustedOrigin = "http://127.0.0.1";
 
 class UserManagementFixture {
   static readonly workflowId = "wf.user.mgmt.integration";
@@ -54,9 +55,10 @@ class UserManagementFixture {
       consumerRoot: path.resolve(import.meta.dirname, "../../.."),
       env: {
         AUTH_SECRET: authSecret,
+        CODEMATION_PUBLIC_BASE_URL: testTrustedOrigin,
       },
       register: (context) => {
-        context.registerFactory(PrismaClient, () => transaction.getPrismaClient());
+        context.registerFactory(ApplicationTokens.PrismaClient, () => transaction.getPrismaClient());
       },
     });
     await harness.start();
@@ -64,17 +66,103 @@ class UserManagementFixture {
   }
 }
 
-async function authHeaders(): Promise<Readonly<Record<string, string>>> {
-  const token = await encode({
-    secret: authSecret,
-    salt: "authjs.session-token",
-    token: {
-      sub: "integration-admin",
-      email: "admin@codemation.test",
-      name: "Admin",
-    },
-  });
-  return { authorization: `Bearer ${encodeURIComponent(token)}` };
+class CookieHeaderParser {
+  extractCookiePair(setCookieHeader: string): string {
+    return setCookieHeader.split(";")[0] ?? "";
+  }
+
+  extractCookieValue(setCookieHeader: string, cookieName: string): string {
+    const pair = this.extractCookiePair(setCookieHeader);
+    const prefix = `${cookieName}=`;
+    if (!pair.startsWith(prefix)) {
+      throw new Error(`Expected cookie ${cookieName} in header: ${setCookieHeader}`);
+    }
+    return decodeURIComponent(pair.slice(prefix.length));
+  }
+
+  requireHeaderString(value: string | string[] | number | undefined): string {
+    if (typeof value === "string") {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      return value[0] ?? "";
+    }
+    throw new Error(`Expected string header value, received ${String(value)}`);
+  }
+}
+
+class LocalAuthSessionHeaderFactory {
+  private static readonly adminEmail = "integration-admin@codemation.test";
+  private static readonly adminPassword = "integration-admin-password";
+
+  constructor(
+    private readonly cookieHeaderParser: CookieHeaderParser,
+    private readonly harness: FrontendHttpIntegrationHarness,
+    private readonly transaction: PostgresRollbackTransaction,
+  ) {}
+
+  async createHeaders(): Promise<Readonly<Record<string, string>>> {
+    const prisma = this.transaction.getPrismaClient();
+    const passwordHash = await hash(LocalAuthSessionHeaderFactory.adminPassword, 12);
+    const existing = await prisma.user.findUnique({
+      where: { email: LocalAuthSessionHeaderFactory.adminEmail },
+    });
+    const userId =
+      existing?.id ??
+      (
+        await prisma.user.create({
+          data: {
+            email: LocalAuthSessionHeaderFactory.adminEmail,
+            name: "Integration Admin",
+            accountStatus: "active",
+            passwordHash,
+          },
+        })
+      ).id;
+    await prisma.account.upsert({
+      where: {
+        provider_providerAccountId: {
+          provider: "credential",
+          providerAccountId: userId,
+        },
+      },
+      create: {
+        userId,
+        provider: "credential",
+        providerAccountId: userId,
+        password: passwordHash,
+      },
+      update: {
+        password: passwordHash,
+      },
+    });
+    const csrfProbe = await this.harness.request({
+      method: "GET",
+      url: ApiPaths.authSession(),
+    });
+    const csrfCookieHeader = this.cookieHeaderParser.requireHeaderString(csrfProbe.header("set-cookie"));
+    const csrfCookiePair = this.cookieHeaderParser.extractCookiePair(csrfCookieHeader);
+    const csrfToken = this.cookieHeaderParser.extractCookieValue(csrfCookieHeader, "codemation.csrf-token");
+    const login = await this.harness.request({
+      method: "POST",
+      url: ApiPaths.authLogin(),
+      headers: {
+        cookie: csrfCookiePair,
+        origin: testTrustedOrigin,
+        "content-type": "application/json",
+        "x-codemation-csrf-token": csrfToken,
+      },
+      payload: JSON.stringify({
+        email: LocalAuthSessionHeaderFactory.adminEmail,
+        password: LocalAuthSessionHeaderFactory.adminPassword,
+      }),
+    });
+    const sessionCookieHeader = this.cookieHeaderParser.requireHeaderString(login.header("set-cookie"));
+    return {
+      cookie: `${csrfCookiePair}; ${this.cookieHeaderParser.extractCookiePair(sessionCookieHeader)}`,
+      origin: testTrustedOrigin,
+    };
+  }
 }
 
 function hashInviteToken(raw: string): string {
@@ -91,6 +179,7 @@ function extractRawTokenFromInviteUrl(inviteUrl: string): string {
 
 describe("user management http integration", () => {
   const session = new IntegrationTestDatabaseSession();
+  const cookieHeaderParser = new CookieHeaderParser();
 
   beforeAll(async () => {
     await session.start();
@@ -128,7 +217,11 @@ describe("user management http integration", () => {
     const response = await harness.request({
       method: "GET",
       url: ApiPaths.users(),
-      headers: await authHeaders(),
+      headers: await new LocalAuthSessionHeaderFactory(
+        cookieHeaderParser,
+        harness,
+        session.transaction!,
+      ).createHeaders(),
     });
     expect(response.statusCode).toBe(200);
     const list = response.json<ReadonlyArray<UserAccountDto>>();
@@ -176,7 +269,11 @@ describe("user management http integration", () => {
     const list = await harness.requestJson<ReadonlyArray<UserAccountDto>>({
       method: "GET",
       url: ApiPaths.users(),
-      headers: await authHeaders(),
+      headers: await new LocalAuthSessionHeaderFactory(
+        cookieHeaderParser,
+        harness,
+        session.transaction!,
+      ).createHeaders(),
     });
     expect(list.find((u) => u.email === "oauth@example.com")?.loginMethods).toEqual(["Google"]);
     expect(list.find((u) => u.email === "both@example.com")?.loginMethods).toEqual(["Password", "GitHub"]);
@@ -186,12 +283,11 @@ describe("user management http integration", () => {
   it("returns 403 for user routes when auth kind is not local", async () => {
     const harness = await UserManagementFixture.createHarness(session.database!, session.transaction!, {
       ...UserManagementFixture.createLocalAuthConfig(),
-      auth: { kind: "oauth" },
+      auth: { kind: "oauth", allowUnauthenticatedInDevelopment: true },
     });
     const response = await harness.request({
       method: "GET",
       url: ApiPaths.users(),
-      headers: await authHeaders(),
     });
     expect(response.statusCode).toBe(403);
     await harness.close();
@@ -206,7 +302,10 @@ describe("user management http integration", () => {
     const created = await harness.requestJson<InviteUserResponseDto>({
       method: "POST",
       url: ApiPaths.userInvites(),
-      headers: { ...(await authHeaders()), "content-type": "application/json" },
+      headers: {
+        ...(await new LocalAuthSessionHeaderFactory(cookieHeaderParser, harness, session.transaction!).createHeaders()),
+        "content-type": "application/json",
+      },
       payload: { email: "newuser@example.com" },
     });
     expect(created.user.email).toBe("newuser@example.com");
@@ -241,7 +340,11 @@ describe("user management http integration", () => {
     const list = await harness.requestJson<ReadonlyArray<UserAccountDto>>({
       method: "GET",
       url: ApiPaths.users(),
-      headers: await authHeaders(),
+      headers: await new LocalAuthSessionHeaderFactory(
+        cookieHeaderParser,
+        harness,
+        session.transaction!,
+      ).createHeaders(),
     });
     const row = list.find((u) => u.email === "newuser@example.com");
     expect(row?.status).toBe("active");
@@ -262,7 +365,10 @@ describe("user management http integration", () => {
     const response = await harness.request({
       method: "POST",
       url: ApiPaths.userInvites(),
-      headers: { ...(await authHeaders()), "content-type": "application/json" },
+      headers: {
+        ...(await new LocalAuthSessionHeaderFactory(cookieHeaderParser, harness, session.transaction!).createHeaders()),
+        "content-type": "application/json",
+      },
       payload: JSON.stringify({ email: "existing@example.com" }),
     });
     expect(response.statusCode).toBe(409);
@@ -278,7 +384,10 @@ describe("user management http integration", () => {
     const created = await harness.requestJson<InviteUserResponseDto>({
       method: "POST",
       url: ApiPaths.userInvites(),
-      headers: { ...(await authHeaders()), "content-type": "application/json" },
+      headers: {
+        ...(await new LocalAuthSessionHeaderFactory(cookieHeaderParser, harness, session.transaction!).createHeaders()),
+        "content-type": "application/json",
+      },
       payload: { email: "ttl@example.com" },
     });
     const prisma = session.transaction!.getPrismaClient();
@@ -301,7 +410,10 @@ describe("user management http integration", () => {
     const first = await harness.requestJson<InviteUserResponseDto>({
       method: "POST",
       url: ApiPaths.userInvites(),
-      headers: { ...(await authHeaders()), "content-type": "application/json" },
+      headers: {
+        ...(await new LocalAuthSessionHeaderFactory(cookieHeaderParser, harness, session.transaction!).createHeaders()),
+        "content-type": "application/json",
+      },
       payload: { email: "regen@example.com" },
     });
     const tokenA = extractRawTokenFromInviteUrl(first.inviteUrl);
@@ -309,7 +421,11 @@ describe("user management http integration", () => {
     const second = await harness.requestJson<InviteUserResponseDto>({
       method: "POST",
       url: ApiPaths.userInviteRegenerate(first.user.id),
-      headers: await authHeaders(),
+      headers: await new LocalAuthSessionHeaderFactory(
+        cookieHeaderParser,
+        harness,
+        session.transaction!,
+      ).createHeaders(),
     });
     const tokenB = extractRawTokenFromInviteUrl(second.inviteUrl);
     expect(tokenA).not.toBe(tokenB);
@@ -341,7 +457,11 @@ describe("user management http integration", () => {
     const response = await harness.request({
       method: "POST",
       url: ApiPaths.userInviteRegenerate(u.id),
-      headers: await authHeaders(),
+      headers: await new LocalAuthSessionHeaderFactory(
+        cookieHeaderParser,
+        harness,
+        session.transaction!,
+      ).createHeaders(),
     });
     expect(response.statusCode).toBe(409);
     await harness.close();
@@ -385,7 +505,10 @@ describe("user management http integration", () => {
     const created = await harness.requestJson<InviteUserResponseDto>({
       method: "POST",
       url: ApiPaths.userInvites(),
-      headers: { ...(await authHeaders()), "content-type": "application/json" },
+      headers: {
+        ...(await new LocalAuthSessionHeaderFactory(cookieHeaderParser, harness, session.transaction!).createHeaders()),
+        "content-type": "application/json",
+      },
       payload: { email: "shortpw@example.com" },
     });
     const rawToken = extractRawTokenFromInviteUrl(created.inviteUrl);
@@ -412,7 +535,10 @@ describe("user management http integration", () => {
     const updated = await harness.requestJson<UserAccountDto>({
       method: "PATCH",
       url: ApiPaths.userStatus(u.id),
-      headers: { ...(await authHeaders()), "content-type": "application/json" },
+      headers: {
+        ...(await new LocalAuthSessionHeaderFactory(cookieHeaderParser, harness, session.transaction!).createHeaders()),
+        "content-type": "application/json",
+      },
       payload: { status: "inactive" },
     });
     expect(updated.status).toBe("inactive");

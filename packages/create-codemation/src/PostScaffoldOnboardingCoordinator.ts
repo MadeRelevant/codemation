@@ -144,7 +144,7 @@ export class PostScaffoldOnboardingCoordinator implements PostScaffoldOnboarding
     const packageManager = this.resolvePackageManagerFromTargetDirectory(targetDirectory);
     this.stdout.write(`\nNext steps for ${name}:\n`);
     this.stdout.write(`  cd ${name}\n`);
-    this.stdout.write("  # .env is already created with zero-setup PGlite defaults.\n");
+    this.stdout.write("  # .env is already created with zero-setup SQLite defaults.\n");
     this.stdout.write(`  ${packageManager.installCommand}\n`);
     this.stdout.write(`  ${packageManager.execCommand} db migrate\n`);
     this.stdout.write("  # Optional if you want authentication enabled:\n");

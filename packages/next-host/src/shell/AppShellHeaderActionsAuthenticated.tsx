@@ -1,16 +1,16 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
-
-import { useState, type ReactNode } from "react";
+import { useContext, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { CodemationBetterAuthBrowserClientFactory } from "../auth/CodemationBetterAuthBrowserClientFactory";
+import { CodemationSessionRootContext } from "../providers/CodemationSessionProvider";
 
 export function AppShellHeaderActionsAuthenticated(): ReactNode {
-  const { data: session, status } = useSession();
+  const sessionContext = useContext(CodemationSessionRootContext);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  if (status === "loading") {
+  if (sessionContext.status === "loading") {
     return (
       <div
         className="flex shrink-0 items-center gap-4"
@@ -21,14 +21,19 @@ export function AppShellHeaderActionsAuthenticated(): ReactNode {
     );
   }
 
-  const email = session?.user?.email;
+  const email = sessionContext.session?.email;
   if (!email) {
     return null;
   }
 
-  const handleSignOut = (): void => {
+  const handleSignOut = async (): Promise<void> => {
     setIsSigningOut(true);
-    void signOut({ callbackUrl: "/login" });
+    try {
+      const client = new CodemationBetterAuthBrowserClientFactory().create();
+      await client.signOut();
+    } finally {
+      window.location.assign("/login");
+    }
   };
 
   return (
@@ -42,7 +47,7 @@ export function AppShellHeaderActionsAuthenticated(): ReactNode {
         size="sm"
         data-testid="header-logout"
         disabled={isSigningOut}
-        onClick={handleSignOut}
+        onClick={() => void handleSignOut()}
       >
         {isSigningOut ? "Signing out…" : "Log out"}
       </Button>

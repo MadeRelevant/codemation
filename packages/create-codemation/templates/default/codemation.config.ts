@@ -12,7 +12,7 @@ const useRedisRuntime = Boolean(process.env.REDIS_URL);
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (useRedisRuntime && (!databaseUrl || databaseUrl.length === 0)) {
   throw new Error(
-    "DATABASE_URL is required when REDIS_URL is set (BullMQ requires a shared PostgreSQL database). PGlite cannot be used with the BullMQ scheduler.",
+    "DATABASE_URL is required when REDIS_URL is set (BullMQ requires a shared PostgreSQL database). SQLite cannot be used with the BullMQ scheduler.",
   );
 }
 
@@ -24,7 +24,7 @@ export const codemationHost = defineCodemationApp({
   },
   database: useRedisRuntime
     ? { kind: "postgresql", url: databaseUrl! }
-    : { kind: "pglite", dataDir: ".codemation/pglite" },
+    : { kind: "sqlite", filePath: ".codemation/codemation.sqlite" },
   execution: {
     mode: useRedisRuntime ? "queue" : "inline",
     queuePrefix: "codemation-starter",

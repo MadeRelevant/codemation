@@ -14,7 +14,7 @@ import type { CodemationWhitelabelConfig } from "./CodemationWhitelabelConfig";
 export type AppPersistenceConfig =
   | Readonly<{ kind: "none" }>
   | Readonly<{ kind: "postgresql"; databaseUrl: string }>
-  | Readonly<{ kind: "pglite"; dataDir: string }>;
+  | Readonly<{ kind: "sqlite"; databaseFilePath: string }>;
 
 export type AppPluginLoadSummary = Readonly<{
   packageName: string;

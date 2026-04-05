@@ -8,8 +8,8 @@ import type {
   CredentialInstanceWithSecretsDto,
   WorkflowCredentialHealthDto,
 } from "../../src/application/contracts/CredentialContractsRegistry";
+import { ApplicationTokens } from "../../src/applicationTokens";
 import { CredentialSecretCipher } from "../../src/domain/credentials/CredentialServices";
-import { PrismaClient } from "../../src/infrastructure/persistence/generated/prisma-client/client.js";
 import type { CodemationAppContext } from "../../src/presentation/config/CodemationAppContext";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
 import { FrontendHttpIntegrationHarness } from "./testkit/FrontendHttpIntegrationHarness";
@@ -119,7 +119,7 @@ class CredentialIntegrationFixture {
       },
       register: (context) => {
         new TestCredentialRegistrar().register(context);
-        context.registerFactory(PrismaClient, () => transaction.getPrismaClient());
+        context.registerFactory(ApplicationTokens.PrismaClient, () => transaction.getPrismaClient());
       },
     });
     await harness.start();
@@ -633,7 +633,7 @@ describe("credential instances http integration", () => {
         CODEMATION_CREDENTIALS_MASTER_KEY: testMasterKey,
       },
       register: (context) => {
-        context.registerFactory(PrismaClient, () => session.transaction!.getPrismaClient());
+        context.registerFactory(ApplicationTokens.PrismaClient, () => session.transaction!.getPrismaClient());
       },
     });
     await harness.start();

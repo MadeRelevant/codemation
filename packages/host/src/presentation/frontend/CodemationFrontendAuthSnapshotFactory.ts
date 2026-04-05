@@ -73,13 +73,10 @@ export class CodemationFrontendAuthSnapshotFactory {
   }
 
   private createOAuthProvider(provider: CodemationAuthOAuthProviderConfig): CodemationFrontendAuthProviderSnapshot {
-    if (provider.provider === "google") {
-      return { id: "google", name: "Google" };
-    }
-    if (provider.provider === "github") {
-      return { id: "github", name: "GitHub" };
-    }
-    return { id: "microsoft-entra-id", name: "Microsoft" };
+    return {
+      id: provider.provider,
+      name: this.resolveOAuthProviderName(provider.provider),
+    };
   }
 
   private createOidcProvider(provider: CodemationAuthOidcProviderConfig): CodemationFrontendAuthProviderSnapshot {
@@ -87,5 +84,15 @@ export class CodemationFrontendAuthSnapshotFactory {
       id: provider.id,
       name: provider.id,
     };
+  }
+
+  private resolveOAuthProviderName(providerId: CodemationAuthOAuthProviderConfig["provider"]): string {
+    if (providerId === "google") {
+      return "Google";
+    }
+    if (providerId === "github") {
+      return "GitHub";
+    }
+    return "Microsoft";
   }
 }

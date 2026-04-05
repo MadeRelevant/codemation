@@ -4,11 +4,11 @@ import { SchedulerPersistenceCompatibilityValidator } from "../../src/infrastruc
 describe("SchedulerPersistenceCompatibilityValidator", () => {
   const validator = new SchedulerPersistenceCompatibilityValidator();
 
-  it("throws when BullMQ is combined with PGlite persistence", () => {
+  it("throws when BullMQ is combined with SQLite persistence", () => {
     expect(() =>
       validator.validate({
         schedulerKind: "bullmq",
-        persistence: { kind: "pglite", dataDir: "/tmp/x" },
+        persistence: { kind: "sqlite", databaseFilePath: "/tmp/codemation.sqlite" },
       }),
     ).toThrow(/BullMQ requires a shared PostgreSQL database/);
   });
@@ -31,11 +31,11 @@ describe("SchedulerPersistenceCompatibilityValidator", () => {
     ).not.toThrow();
   });
 
-  it("allows local scheduler with PGlite", () => {
+  it("allows local scheduler with SQLite", () => {
     expect(() =>
       validator.validate({
         schedulerKind: "local",
-        persistence: { kind: "pglite", dataDir: "/tmp/x" },
+        persistence: { kind: "sqlite", databaseFilePath: "/tmp/codemation.sqlite" },
       }),
     ).not.toThrow();
   });

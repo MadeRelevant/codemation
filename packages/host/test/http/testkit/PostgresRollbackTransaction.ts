@@ -1,4 +1,5 @@
-import type { Prisma, PrismaClient } from "../../../src/infrastructure/persistence/generated/prisma-client/client.js";
+import type { Prisma } from "../../../src/infrastructure/persistence/generated/prisma-postgresql-client/client.js";
+import type { PrismaDatabaseClient } from "../../../src/infrastructure/persistence/PrismaDatabaseClient";
 
 export class PostgresRollbackTransaction {
   private static readonly rollbackMessage = "codemation.test.rollback";
@@ -8,7 +9,7 @@ export class PostgresRollbackTransaction {
   private transactionClient: Prisma.TransactionClient | null = null;
   private transactionPromise: Promise<unknown> | null = null;
 
-  constructor(private readonly prismaClient: PrismaClient) {}
+  constructor(private readonly prismaClient: PrismaDatabaseClient) {}
 
   async start(): Promise<void> {
     const transactionPromise = this.prismaClient.$transaction(
@@ -38,8 +39,8 @@ export class PostgresRollbackTransaction {
     return this.transactionClient;
   }
 
-  getPrismaClient(): PrismaClient {
-    return this.getClient() as unknown as PrismaClient;
+  getPrismaClient(): PrismaDatabaseClient {
+    return this.getClient() as unknown as PrismaDatabaseClient;
   }
 
   async rollback(): Promise<void> {

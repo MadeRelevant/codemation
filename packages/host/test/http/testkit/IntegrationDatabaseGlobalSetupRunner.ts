@@ -1,6 +1,6 @@
 import { PrismaMigrationDeployer } from "../../../src/infrastructure/persistence/PrismaMigrationDeployer";
-import { PgliteIntegrationDatabase } from "./PgliteIntegrationDatabase";
 import { PostgresIntegrationDatabase } from "./PostgresIntegrationDatabase";
+import { SqliteIntegrationDatabase } from "./SqliteIntegrationDatabase";
 import { writeIntegrationDatabaseCache } from "./integrationDatabaseCache";
 
 /**
@@ -12,10 +12,10 @@ export default async function runIntegrationDatabaseGlobalSetup(): Promise<void>
   if (!raw) {
     return;
   }
-  if (raw.startsWith("pglite:")) {
-    const dataDir = PgliteIntegrationDatabase.parsePgliteDataDirFromUrl(raw, process.cwd());
-    process.env.CODEMATION_HOST_PACKAGE_ROOT = PgliteIntegrationDatabase.resolveHostPackageRoot();
-    await new PrismaMigrationDeployer().deployPersistence({ kind: "pglite", dataDir }, process.env);
+  if (raw.startsWith("file:")) {
+    const databaseFilePath = SqliteIntegrationDatabase.parseSqliteFilePathFromUrl(raw);
+    process.env.CODEMATION_HOST_PACKAGE_ROOT = SqliteIntegrationDatabase.resolveHostPackageRoot();
+    await new PrismaMigrationDeployer().deployPersistence({ kind: "sqlite", databaseFilePath }, process.env);
     writeIntegrationDatabaseCache({ databaseUrl: raw });
     return;
   }

@@ -9,7 +9,7 @@ const hostRequire = module.createRequire(
 );
 
 class StandaloneRuntimePreparer {
-  static externalStandalonePackages = ["@electric-sql/pglite", "@electric-sql/pglite-socket", "pglite-prisma-adapter"];
+  static externalStandalonePackages = ["@libsql/client", "@prisma/adapter-libsql"];
 
   static async run() {
     const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

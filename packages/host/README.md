@@ -36,40 +36,81 @@ Common subpaths (see `package.json` `exports`):
 
 The `development` condition in `exports` can resolve TypeScript sources during local work; published builds use `dist`.
 
-## Persistence: TCP PostgreSQL vs PGlite
+## Auth and sessions
 
-Codemation uses a **single** Prisma schema (`provider = "postgresql"`). You can run it against either:
+`@codemation/host` now owns the browser auth/session contract.
+
+- The backend issues and verifies the session cookie.
+- The Next.js UI shell calls backend auth routes and does not bootstrap its own Prisma-backed auth adapter.
+- OAuth/OIDC entrypoints start from the host-owned route surface as well.
+
+Primary routes:
+
+| Route                                 | Purpose                                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `GET /api/auth/session`               | Return the current principal JSON or `null` and issue the CSRF cookie when needed.         |
+| `POST /api/auth/login`                | Local email/password sign-in; sets the backend session cookie.                             |
+| `POST /api/auth/logout`               | Clear the backend session cookie.                                                          |
+| `GET /api/auth/oauth/:provider/start` | Start the browser redirect for OAuth/OIDC providers configured in `CodemationConfig.auth`. |
+
+Important env/config notes:
+
+- `AUTH_SECRET` signs the backend-issued session token.
+- `BETTER_AUTH_URL` (preferred) or `CODEMATION_PUBLIC_BASE_URL` sets the public origin for Better Auth; packaged `codemation dev` sets `CODEMATION_PUBLIC_BASE_URL`, and Better Auth falls back to it when `BETTER_AUTH_URL` is unset.
+- `CODEMATION_PUBLIC_BASE_URL` is still used for other redirect generation (e.g. credential OAuth2) when only one base is configured.
+- `CODEMATION_UI_AUTH_ENABLED=false` disables the UI login gate intentionally; do not use it as a production shortcut.
+
+### No legacy dual-stack auth
+
+There is no dual-cookie or dual-route compatibility layer. Consumers should migrate to the backend-owned `/api/auth/*` surface in one step.
+
+## Persistence: TCP PostgreSQL vs SQLite
+
+Codemation now maintains **two** Prisma tracks:
+
+- **PostgreSQL** for production/shared-database deployments.
+- **SQLite** for local, single-process development.
+
+You can run the host against either:
 
 - **TCP PostgreSQL** — a normal `postgresql://` or `postgres://` URL (Docker, managed cloud, CI services). Use this for production, shared databases, and any deployment where **multiple processes** need the same database (API + workers, horizontal scale).
-- **PGlite** — embedded Postgres via [`@electric-sql/pglite`](https://github.com/electric-sql/pglite), with the Prisma adapter. Data lives under a directory on disk (default relative path `.codemation/pglite` in the consumer app). **Single-process**; ideal for local dev, quick scaffolding, and tests that do not need a shared server.
+- **SQLite** — a local file-backed database (default relative path `.codemation/codemation.sqlite` in the consumer app). **Single-process**; ideal for local dev, quick scaffolding, and tests that do not need a shared server.
 
 ### Configuration
 
 In `codemation.config.ts`, `runtime.database` accepts:
 
-| Field           | Meaning                                                                                                               |
-| --------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `kind`          | `"postgresql"` or `"pglite"` (if omitted, inferred from `url` or defaults to PGlite when no postgres URL is present). |
-| `url`           | Required when using TCP Postgres (`postgresql://…`).                                                                  |
-| `pgliteDataDir` | Relative to the **consumer root** or absolute; used when `kind` is `"pglite"` (default: `.codemation/pglite`).        |
+| Field            | Meaning                                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `kind`           | `"postgresql"` or `"sqlite"` (if omitted, inferred from `url` or defaults to SQLite when no postgres URL is present).     |
+| `url`            | Required when using TCP Postgres (`postgresql://…`).                                                                      |
+| `sqliteFilePath` | Relative to the **consumer root** or absolute; used when `kind` is `"sqlite"` (default: `.codemation/codemation.sqlite`). |
 
 Environment overrides (optional; persistence is primarily defined in **`codemation.config.ts`** — use `process.env` **inside** that file if you want `.env` to supply values):
 
-- **`CODEMATION_DATABASE_KIND`** — `postgresql` or `pglite` to force kind.
-- **`CODEMATION_PGLITE_DATA_DIR`** — Path to the PGlite data directory (relative to consumer root or absolute).
+- **`CODEMATION_DATABASE_KIND`** — `postgresql` or `sqlite` to force kind.
+- **`CODEMATION_SQLITE_FILE_PATH`** — Path to the SQLite database file (relative to consumer root or absolute).
 
 ### Migrations
 
-`codemation db migrate` and startup migrations both run **`prisma migrate deploy`**: TCP Postgres uses your `runtime.database.url`; PGlite temporarily exposes the data directory on a local Postgres protocol socket ([`@electric-sql/pglite-socket`](https://github.com/electric-sql/pglite-socket)) so the Prisma CLI applies the same migration history as server Postgres.
+`codemation db migrate` and startup migrations both run **`prisma migrate deploy`** through the host Prisma config: TCP Postgres uses your `runtime.database.url`, while SQLite uses the configured local database file and its own SQLite migration history.
 
-### Scheduler and PGlite
+### Scheduler and SQLite
 
-**BullMQ** (non-local scheduler) requires a **shared** PostgreSQL database. The host **fails fast** at bootstrap if the scheduler is BullMQ and persistence is PGlite. Set `runtime.database` to TCP Postgres when `REDIS_URL` / BullMQ is enabled. The **local** in-process scheduler is compatible with PGlite.
+**BullMQ** (non-local scheduler) requires a **shared** PostgreSQL database. The host **fails fast** at bootstrap if the scheduler is BullMQ and persistence is SQLite. Set `runtime.database` to TCP Postgres when `REDIS_URL` / BullMQ is enabled. The **local** in-process scheduler is compatible with SQLite.
 
 ### Integration tests
 
-Point the suite at PGlite or TCP Postgres by setting **`DATABASE_URL`** for the harness factory (`pglite:///…` vs `postgresql://…`) and merging the resulting database into **`CodemationConfig.runtime.database`** (see `mergeIntegrationDatabaseRuntime` in host tests). CI can use a matrix: PGlite vs a Postgres service.
+Point the suite at SQLite or TCP Postgres by setting **`DATABASE_URL`** for the harness factory (`file:/tmp/codemation.sqlite` vs `postgresql://…`) and merging the resulting database into **`CodemationConfig.runtime.database`** (see `mergeIntegrationDatabaseRuntime` in host tests). CI can use a matrix: SQLite vs a Postgres service.
 
 ### Gitignore
 
-Ignore the embedded data directory (e.g. `.codemation/pglite`) in consumer repos so PGlite files are not committed.
+Ignore the local database file (for example `.codemation/codemation.sqlite`) in consumer repos so SQLite state is not committed.
+
+## Dual Prisma tracks
+
+The host keeps separate Prisma schema, generated client, and migration tracks for PostgreSQL and SQLite.
+
+- `prisma/schema.postgresql.prisma` and `prisma/migrations/` are the shared-database production path.
+- `prisma/schema.sqlite.prisma` and `prisma/migrations.sqlite/` are the local-dev SQLite path.
+- `prisma.config.ts` selects the correct track via `CODEMATION_PRISMA_PROVIDER`, while runtime migration code injects the matching provider automatically.

@@ -33,7 +33,7 @@ Do not use this skill for workflow graph design, custom node implementation, or 
 1. Treat `codemation.config.ts` as the consumer entrypoint.
 2. Mention `.codemation/output` only when build artifacts or runtime bootstrap details matter.
 3. When the user is in the monorepo, distinguish framework-author mode from normal consumer mode explicitly.
-4. When Redis-backed execution is involved, mention the shared PostgreSQL requirement instead of assuming PGlite still fits.
+4. When Redis-backed execution is involved, mention the shared PostgreSQL requirement instead of assuming local SQLite still fits.
 
 ## Read next when needed
 

@@ -1,26 +1,25 @@
-import { PGlite } from "@electric-sql/pglite";
 import { injectable } from "@codemation/core";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaPGlite } from "pglite-prisma-adapter";
-import { PrismaClient } from "./generated/prisma-client/client.js";
-
-export type PglitePrismaClients = Readonly<{
-  prismaClient: PrismaClient;
-  pglite: PGlite;
-}>;
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { PrismaClient as PostgresqlPrismaClient } from "./generated/prisma-postgresql-client/client.js";
+import { PrismaClient as SqlitePrismaClient } from "./generated/prisma-sqlite-client/client.js";
+import type { PrismaDatabaseClient } from "./PrismaDatabaseClient";
 
 @injectable()
 export class PrismaClientFactory {
-  createPostgres(databaseUrl: string): PrismaClient {
+  createPostgres(databaseUrl: string): PrismaDatabaseClient {
     const adapter = new PrismaPg({ connectionString: databaseUrl });
-    return new PrismaClient({ adapter });
+    return new PostgresqlPrismaClient({ adapter });
   }
 
-  async createPglite(dataDir: string): Promise<PglitePrismaClients> {
-    const pglite = new PGlite(dataDir);
-    await pglite.waitReady;
-    const adapter = new PrismaPGlite(pglite);
-    const prismaClient = new PrismaClient({ adapter });
-    return { prismaClient, pglite };
+  createSqlite(databaseFilePath: string): PrismaDatabaseClient {
+    const resolvedPath = path.resolve(databaseFilePath);
+    const resolvedUrl = pathToFileURL(resolvedPath).toString();
+    const adapter = new PrismaLibSql({
+      url: resolvedUrl,
+    });
+    return new SqlitePrismaClient({ adapter }) as unknown as PrismaDatabaseClient;
   }
 }

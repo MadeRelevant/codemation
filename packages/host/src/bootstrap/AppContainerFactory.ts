@@ -1,6 +1,5 @@
 import "reflect-metadata";
 
-import type { PGlite } from "@electric-sql/pglite";
 import type { Container } from "@codemation/core";
 import {
   CoreTokens,
@@ -89,6 +88,7 @@ import { OAuth2ConnectService } from "../domain/credentials/OAuth2ConnectService
 import { OAuth2ProviderRegistry } from "../domain/credentials/OAuth2ProviderRegistry";
 import { WorkflowCredentialNodeResolver } from "../domain/credentials/WorkflowCredentialNodeResolver";
 import { UserAccountService } from "../domain/users/UserAccountServiceRegistry";
+import { UserAccountSessionPolicy } from "../domain/users/UserAccountSessionPolicy";
 import type { WorkflowDebuggerOverlayRepository } from "../domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDefinitionRepository } from "../domain/workflows/WorkflowDefinitionRepository";
 import { WorkflowActivationPreflight } from "../domain/workflows/WorkflowActivationPreflight";
@@ -103,11 +103,13 @@ import { CodemationFrontendAuthSnapshotFactory } from "../presentation/frontend/
 import { FrontendAppConfigFactory } from "../presentation/frontend/FrontendAppConfigFactory";
 import { InternalAuthBootstrapFactory } from "../presentation/frontend/InternalAuthBootstrapFactory";
 import { PublicFrontendBootstrapFactory } from "../presentation/frontend/PublicFrontendBootstrapFactory";
+import { AuthHttpRouteHandler } from "../presentation/http/routeHandlers/AuthHttpRouteHandlerFactory";
 import { DevBootstrapSummaryHttpRouteHandler } from "../presentation/http/routeHandlers/DevBootstrapSummaryHttpRouteHandler";
 import { InternalAuthBootstrapHttpRouteHandler } from "../presentation/http/routeHandlers/InternalAuthBootstrapHttpRouteHandler";
 import { PublicFrontendBootstrapHttpRouteHandler } from "../presentation/http/routeHandlers/PublicFrontendBootstrapHttpRouteHandler";
 import { WhitelabelLogoHttpRouteHandler } from "../presentation/http/routeHandlers/WhitelabelLogoHttpRouteHandler";
 import { CodemationHonoApiApp } from "../presentation/http/hono/CodemationHonoApiAppFactory";
+import { AuthHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/AuthHonoApiRouteRegistrar";
 import { BinaryHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/BinaryHonoApiRouteRegistrar";
 import { BootstrapHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/BootstrapHonoApiRouteRegistrar";
 import { CredentialHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/CredentialHonoApiRouteRegistrar";
@@ -125,7 +127,17 @@ import { CodemationIdFactory } from "../infrastructure/ids/CodemationIdFactory";
 import { InMemoryCommandBus } from "../infrastructure/di/InMemoryCommandBus";
 import { InMemoryDomainEventBus } from "../infrastructure/di/InMemoryDomainEventBus";
 import { InMemoryQueryBus } from "../infrastructure/di/InMemoryQueryBus";
-import { AuthJsSessionVerifier } from "../infrastructure/auth/AuthJsSessionVerifier";
+import { AuthSessionCookieFactory } from "../infrastructure/auth/AuthSessionCookieFactory";
+import { BetterAuthApiSessionVerifier } from "../infrastructure/auth/BetterAuthApiSessionVerifier";
+import { PrismaUserAccountSessionEligibilityChecker } from "../infrastructure/auth/PrismaUserAccountSessionEligibilityChecker";
+import { CodemationBetterAuthBcryptPasswordCodec } from "../infrastructure/auth/CodemationBetterAuthBcryptPasswordCodec";
+import { CodemationBetterAuthDatabaseOptionsFactory } from "../infrastructure/auth/CodemationBetterAuthDatabaseOptionsFactory";
+import { CodemationBetterAuthRuntime } from "../infrastructure/auth/CodemationBetterAuthRuntime";
+import { CodemationBetterAuthBaseUrlPolicy } from "../infrastructure/auth/CodemationBetterAuthBaseUrlPolicy";
+import { CodemationBetterAuthServerFactory } from "../infrastructure/auth/CodemationBetterAuthServerFactory";
+import { InAppCallbackUrlPolicy } from "../infrastructure/auth/InAppCallbackUrlPolicy";
+import { SecureRequestDetector } from "../infrastructure/auth/SecureRequestDetector";
+import { CodemationSessionVerifier } from "../infrastructure/auth/CodemationSessionVerifier";
 import { DevelopmentSessionBypassVerifier } from "../infrastructure/auth/DevelopmentSessionBypassVerifier";
 import {
   InMemoryCredentialStore,
@@ -135,8 +147,11 @@ import { InMemoryTriggerSetupStateRepository } from "../infrastructure/persisten
 import { InMemoryWorkflowActivationRepository } from "../infrastructure/persistence/InMemoryWorkflowActivationRepository";
 import { InMemoryWorkflowDebuggerOverlayRepository } from "../infrastructure/persistence/InMemoryWorkflowDebuggerOverlayRepository";
 import { InMemoryWorkflowRunRepository } from "../infrastructure/persistence/InMemoryWorkflowRunRepository";
+import {
+  PrismaDatabaseClientToken,
+  type PrismaDatabaseClient,
+} from "../infrastructure/persistence/PrismaDatabaseClient";
 import { PrismaClientFactory } from "../infrastructure/persistence/PrismaClientFactory";
-import { PrismaClient } from "../infrastructure/persistence/generated/prisma-client/client.js";
 import { PrismaTriggerSetupStateRepository } from "../infrastructure/persistence/PrismaTriggerSetupStateRepository";
 import { PrismaWorkflowActivationRepository } from "../infrastructure/persistence/PrismaWorkflowActivationRepository";
 import { PrismaWorkflowDebuggerOverlayRepository } from "../infrastructure/persistence/PrismaWorkflowDebuggerOverlayRepository";
@@ -164,8 +179,7 @@ type AppContainerInputs = Readonly<{
 }>;
 
 type PrismaOwnership = Readonly<{
-  ownedPrismaClient: PrismaClient | null;
-  ownedPglite: PGlite | null;
+  ownedPrismaClient: PrismaDatabaseClient | null;
 }>;
 
 export class AppContainerFactory {
@@ -208,6 +222,7 @@ export class AppContainerFactory {
     UploadOverlayPinnedBinaryCommandHandler,
   ] as const;
   private static readonly honoRouteRegistrars = [
+    AuthHonoApiRouteRegistrar,
     BinaryHonoApiRouteRegistrar,
     BootstrapHonoApiRouteRegistrar,
     CredentialHonoApiRouteRegistrar,
@@ -241,7 +256,7 @@ export class AppContainerFactory {
     container.resolve(BootRuntimeSnapshotHolder).set(this.createRuntimeSummary(inputs.appConfig));
     container.registerInstance(
       AppContainerLifecycle,
-      new AppContainerLifecycle(container, ownership.ownedPrismaClient, ownership.ownedPglite),
+      new AppContainerLifecycle(container, ownership.ownedPrismaClient),
     );
     return container;
   }
@@ -417,16 +432,66 @@ export class AppContainerFactory {
     container.register(FrontendRuntime, { useClass: FrontendRuntime });
     container.register(WorkerRuntime, { useClass: WorkerRuntime });
     container.register(DevelopmentSessionBypassVerifier, { useClass: DevelopmentSessionBypassVerifier });
-    container.register(AuthJsSessionVerifier, {
+    container.register(SecureRequestDetector, { useClass: SecureRequestDetector });
+    container.register(InAppCallbackUrlPolicy, { useClass: InAppCallbackUrlPolicy });
+    container.register(AuthSessionCookieFactory, { useClass: AuthSessionCookieFactory });
+    container.register(CodemationBetterAuthBcryptPasswordCodec, { useClass: CodemationBetterAuthBcryptPasswordCodec });
+    container.register(CodemationBetterAuthDatabaseOptionsFactory, {
+      useClass: CodemationBetterAuthDatabaseOptionsFactory,
+    });
+    container.register(UserAccountSessionPolicy, { useClass: UserAccountSessionPolicy });
+    container.register(CodemationBetterAuthBaseUrlPolicy, {
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) =>
+          new CodemationBetterAuthBaseUrlPolicy(
+            dependencyContainer.resolve(ServerLoggerFactory).create("codemation.auth.better-auth.base-url"),
+          ),
+      ),
+    });
+    container.register(CodemationBetterAuthServerFactory, {
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) =>
+          new CodemationBetterAuthServerFactory(
+            dependencyContainer.resolve(ApplicationTokens.AppConfig),
+            dependencyContainer.resolve(CodemationBetterAuthDatabaseOptionsFactory),
+            dependencyContainer.resolve(CodemationBetterAuthBcryptPasswordCodec),
+            dependencyContainer.resolve(UserAccountSessionPolicy),
+            dependencyContainer.resolve(CodemationBetterAuthBaseUrlPolicy),
+          ),
+      ),
+    });
+    container.register(CodemationBetterAuthRuntime, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         const appConfig = dependencyContainer.resolve<AppConfig>(ApplicationTokens.AppConfig);
-        return new AuthJsSessionVerifier(appConfig.env.AUTH_SECRET ?? "");
+        const prismaClient = dependencyContainer.isRegistered(ApplicationTokens.PrismaClient, true)
+          ? dependencyContainer.resolve(ApplicationTokens.PrismaClient)
+          : undefined;
+        return new CodemationBetterAuthRuntime(
+          appConfig,
+          dependencyContainer.resolve(CodemationBetterAuthServerFactory),
+          prismaClient,
+        );
       }),
     });
+    container.register(BetterAuthApiSessionVerifier, {
+      useFactory: instanceCachingFactory((dependencyContainer) => {
+        const runtime = dependencyContainer.resolve(CodemationBetterAuthRuntime);
+        const prismaClient = dependencyContainer.isRegistered(ApplicationTokens.PrismaClient, true)
+          ? dependencyContainer.resolve<PrismaDatabaseClient>(ApplicationTokens.PrismaClient)
+          : undefined;
+        const policy = dependencyContainer.resolve(UserAccountSessionPolicy);
+        const eligibility = prismaClient
+          ? new PrismaUserAccountSessionEligibilityChecker(prismaClient, policy)
+          : undefined;
+        return new BetterAuthApiSessionVerifier(runtime, eligibility);
+      }),
+    });
+    container.register(CodemationSessionVerifier, { useClass: CodemationSessionVerifier });
     container.register(ApplicationTokens.SessionVerifier, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         const appConfig = dependencyContainer.resolve<AppConfig>(ApplicationTokens.AppConfig);
-        const isProduction = appConfig.env.NODE_ENV === "production";
+        const isPackagedDevRuntime = Boolean(appConfig.env.CODEMATION_RUNTIME_DEV_URL?.trim());
+        const isProduction = appConfig.env.NODE_ENV === "production" && !isPackagedDevRuntime;
         const authConfig = appConfig.auth;
         if (isProduction && !authConfig) {
           throw new Error("CodemationConfig.auth is required when NODE_ENV is production.");
@@ -446,16 +511,16 @@ export class AppContainerFactory {
             "AUTH_SECRET is required unless CodemationAuthConfig.allowUnauthenticatedInDevelopment is enabled in a non-production environment.",
           );
         }
-        return dependencyContainer.resolve(AuthJsSessionVerifier);
+        return dependencyContainer.resolve(CodemationSessionVerifier);
       }),
     });
     container.register(UserAccountService, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         const appConfig = dependencyContainer.resolve<AppConfig>(ApplicationTokens.AppConfig);
-        const prisma = dependencyContainer.isRegistered(PrismaClient, true)
-          ? dependencyContainer.resolve(PrismaClient)
+        const prisma = dependencyContainer.isRegistered(ApplicationTokens.PrismaClient, true)
+          ? dependencyContainer.resolve(ApplicationTokens.PrismaClient)
           : undefined;
-        return new UserAccountService(appConfig.auth, prisma);
+        return new UserAccountService(appConfig.auth, prisma, dependencyContainer.resolve(UserAccountSessionPolicy));
       }),
     });
   }
@@ -503,6 +568,7 @@ export class AppContainerFactory {
   private registerApplicationServicesAndRoutes(container: Container): void {
     container.register(DevBootstrapSummaryAssembler, { useClass: DevBootstrapSummaryAssembler });
     container.register(DevBootstrapSummaryHttpRouteHandler, { useClass: DevBootstrapSummaryHttpRouteHandler });
+    container.register(AuthHttpRouteHandler, { useClass: AuthHttpRouteHandler });
     container.register(PublicFrontendBootstrapHttpRouteHandler, { useClass: PublicFrontendBootstrapHttpRouteHandler });
     container.register(InternalAuthBootstrapHttpRouteHandler, { useClass: InternalAuthBootstrapHttpRouteHandler });
     container.register(WhitelabelLogoHttpRouteHandler, { useClass: WhitelabelLogoHttpRouteHandler });
@@ -555,17 +621,16 @@ export class AppContainerFactory {
       this.registerRuntimeNodeActivationScheduler(container);
       return {
         ownedPrismaClient: null,
-        ownedPglite: null,
       };
     }
 
     const prismaOwnership = await this.resolvePrismaOwnership(container, appConfig);
     const childContainer = container.createChildContainer();
-    childContainer.registerInstance(PrismaClient, prismaOwnership.prismaClient);
+    childContainer.registerInstance(PrismaDatabaseClientToken, prismaOwnership.prismaClient);
     const workflowRunRepository = childContainer.resolve(PrismaWorkflowRunRepository);
     const triggerSetupStateRepository = childContainer.resolve(PrismaTriggerSetupStateRepository);
     const workflowDebuggerOverlayRepository = childContainer.resolve(PrismaWorkflowDebuggerOverlayRepository);
-    container.registerInstance(PrismaClient, prismaOwnership.prismaClient);
+    container.registerInstance(PrismaDatabaseClientToken, prismaOwnership.prismaClient);
     container.registerInstance(ApplicationTokens.PrismaClient, prismaOwnership.prismaClient);
     container.registerInstance(
       CoreTokens.WorkflowExecutionRepository,
@@ -591,21 +656,17 @@ export class AppContainerFactory {
     this.registerRuntimeNodeActivationScheduler(container);
     return {
       ownedPrismaClient: prismaOwnership.ownedPrismaClient,
-      ownedPglite: prismaOwnership.ownedPglite,
     };
   }
 
   private async resolvePrismaOwnership(
     container: Container,
     appConfig: AppConfig,
-  ): Promise<
-    Readonly<{ prismaClient: PrismaClient; ownedPrismaClient: PrismaClient | null; ownedPglite: PGlite | null }>
-  > {
-    if (container.isRegistered(PrismaClient, true)) {
+  ): Promise<Readonly<{ prismaClient: PrismaDatabaseClient; ownedPrismaClient: PrismaDatabaseClient | null }>> {
+    if (container.isRegistered(ApplicationTokens.PrismaClient, true)) {
       return {
-        prismaClient: container.resolve(PrismaClient),
+        prismaClient: container.resolve(ApplicationTokens.PrismaClient),
         ownedPrismaClient: null,
-        ownedPglite: null,
       };
     }
     const factory = container.resolve(PrismaClientFactory);
@@ -614,17 +675,15 @@ export class AppContainerFactory {
       return {
         prismaClient,
         ownedPrismaClient: prismaClient,
-        ownedPglite: null,
       };
     }
-    if (appConfig.persistence.kind !== "pglite") {
+    if (appConfig.persistence.kind !== "sqlite") {
       throw new Error("Unexpected database persistence mode for Prisma.");
     }
-    const { prismaClient, pglite } = await factory.createPglite(appConfig.persistence.dataDir);
+    const prismaClient = factory.createSqlite(appConfig.persistence.databaseFilePath);
     return {
       prismaClient,
       ownedPrismaClient: prismaClient,
-      ownedPglite: pglite,
     };
   }
 

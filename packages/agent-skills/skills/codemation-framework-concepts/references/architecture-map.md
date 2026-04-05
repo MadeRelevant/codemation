@@ -22,7 +22,7 @@ Use the minimum setup when:
 
 - you are starting a new app
 - one process is enough
-- local PGlite is fine
+- local SQLite is fine
 - fast local iteration matters more than shared worker infrastructure
 
 ## Production setup
@@ -36,7 +36,7 @@ Move to the production shape when:
 
 That usually means:
 
-- PostgreSQL instead of embedded PGlite
+- PostgreSQL instead of local SQLite
 - Redis for queue-backed execution
 - BullMQ-backed scheduling
 

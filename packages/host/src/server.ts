@@ -1,4 +1,5 @@
-export { CodemationPostgresPrismaClientFactory, PrismaClient } from "./persistenceServer";
+export { CodemationPostgresPrismaClientFactory } from "./persistenceServer";
+export type { PrismaClient } from "./persistenceServer";
 export { ApiPaths } from "./presentation/http/ApiPaths";
 export { CodemationServerGateway } from "./presentation/http/CodemationServerGatewayFactory";
 export { CodemationConsumerAppResolver } from "./presentation/server/CodemationConsumerAppResolver";

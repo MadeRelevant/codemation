@@ -28,27 +28,42 @@ export class CodemationPlaywrightUiHarness {
   constructor(private readonly page: Page) {}
 
   /**
-   * Full local-credentials login: `/login`, fill fields, submit, wait until URL leaves `/login` or surface `login-error`.
+   * Browser-authenticated local login via the host-owned auth API.
+   * UI rendering is covered in `@codemation/next-host`; browser E2E needs a stable authenticated session
+   * before exercising the protected workflows/canvas surface.
    */
   async signInWithLocalCredentials(
     credentials: CodemationPlaywrightLocalCredentials = CodemationPlaywrightUiHarness.defaultLocalCredentials,
   ): Promise<void> {
     await this.page.goto("/login");
     await expect(this.page.getByTestId("login-page")).toBeVisible();
-    await this.page.waitForLoadState("domcontentloaded");
-    await this.page.getByTestId("login-email").fill(credentials.email);
-    await this.page.getByTestId("login-password").fill(credentials.password);
-    await this.page.getByTestId("login-submit").click({ force: true });
-    try {
-      await this.page.waitForURL((url) => !url.pathname.startsWith("/login"), {
-        timeout: CodemationPlaywrightUiHarness.loginNavigationTimeoutMs,
-      });
-    } catch (error) {
-      const loginError = this.page.getByTestId("login-error");
-      if (await loginError.isVisible()) {
-        throw new Error(`Login UI error: ${(await loginError.textContent()) ?? ""}`, { cause: error });
-      }
-      throw error;
+    const csrfToken = await this.resolveCsrfToken();
+    const result = await this.page.evaluate(
+      async ({ email, password, csrfToken: token }) => {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "content-type": "application/json",
+            "x-codemation-csrf-token": token,
+          },
+          body: JSON.stringify({ email, password }),
+        });
+        return {
+          body: await response.text(),
+          status: response.status,
+        };
+      },
+      {
+        csrfToken,
+        email: credentials.email,
+        password: credentials.password,
+      },
+    );
+    if (result.status !== 204) {
+      throw new Error(
+        `Programmatic local login failed with ${String(result.status)}${result.body ? `: ${result.body}` : ""}`,
+      );
     }
   }
 
@@ -142,6 +157,10 @@ export class CodemationPlaywrightUiHarness {
 
   async selectLatestRunFromSidebar(options?: Readonly<{ timeoutMs?: number }>): Promise<string> {
     const timeoutMs = options?.timeoutMs ?? CodemationPlaywrightUiHarness.canvasNodeCompletionTimeoutMs;
+    const readySurface = await this.waitForRunSelectionSurface(timeoutMs);
+    if (readySurface === "inspector") {
+      return "live-execution";
+    }
     const runsSidebar = this.page.getByTestId("workflow-runs-sidebar");
     await expect(runsSidebar).toBeVisible({ timeout: timeoutMs });
     const latestRun = runsSidebar.locator('[data-testid^="run-summary-"]').first();
@@ -169,5 +188,41 @@ export class CodemationPlaywrightUiHarness {
 
   private canvasRunWorkflowButton() {
     return this.page.getByTestId("canvas-run-workflow-button").last();
+  }
+
+  private async resolveCsrfToken(): Promise<string> {
+    const token = await this.page.evaluate(async () => {
+      await fetch("/api/auth/session", { credentials: "include" });
+      const cookie = document.cookie
+        .split(";")
+        .map((part) => part.trim())
+        .find((part) => part.startsWith("__Host-codemation.csrf-token=") || part.startsWith("codemation.csrf-token="));
+      if (!cookie) {
+        return "";
+      }
+      return decodeURIComponent(cookie.split("=").slice(1).join("="));
+    });
+    if (!token) {
+      throw new Error("Auth session bootstrap did not expose a CSRF cookie for programmatic local login.");
+    }
+    return token;
+  }
+
+  private async waitForRunSelectionSurface(timeoutMs: number): Promise<"sidebar" | "inspector"> {
+    const pollIntervalMs = 250;
+    const attempts = Math.ceil(timeoutMs / pollIntervalMs);
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      if ((await this.page.getByTestId("workflow-runs-sidebar").count()) > 0) {
+        return "sidebar";
+      }
+      const executionTreeNode = this.page.locator('[data-testid^="execution-tree-node-"]').first();
+      if ((await executionTreeNode.count()) > 0 && (await this.page.getByTestId("selected-node-name").count()) > 0) {
+        await expect(executionTreeNode).toBeVisible({ timeout: 5_000 });
+        await expect(this.page.getByTestId("selected-node-name")).toBeVisible({ timeout: 5_000 });
+        return "inspector";
+      }
+      await this.page.waitForTimeout(pollIntervalMs);
+    }
+    throw new Error(`Timed out after ${String(timeoutMs)}ms waiting for the run sidebar or execution inspector.`);
   }
 }

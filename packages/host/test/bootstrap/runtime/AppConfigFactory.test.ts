@@ -34,7 +34,7 @@ describe("AppConfigFactory", () => {
     const app = factory.create({
       repoRoot: "/repo",
       consumerRoot: "/consumer",
-      env: { CODEMATION_DATABASE_KIND: "pglite" } as NodeJS.ProcessEnv,
+      env: { CODEMATION_DATABASE_KIND: "sqlite" } as NodeJS.ProcessEnv,
       config: normalizedBase({
         runtime: {
           database: { kind: "postgresql", url: "postgresql://localhost/db" },
@@ -43,8 +43,8 @@ describe("AppConfigFactory", () => {
       workflowSources: [],
     });
     expect(app.persistence).toEqual({
-      kind: "pglite",
-      dataDir: "/consumer/.codemation/pglite",
+      kind: "sqlite",
+      databaseFilePath: "/consumer/.codemation/codemation.sqlite",
     });
   });
 

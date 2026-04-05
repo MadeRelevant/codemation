@@ -3,6 +3,7 @@ import path from "node:path";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 
 import { Eventually } from "./Eventually";
+import { ScaffoldedBrowserRuntimeEnvironment } from "./ScaffoldedBrowserRuntimeEnvironment";
 
 export type ScaffoldedDevCommandName = "dev" | "dev:plugin";
 
@@ -28,6 +29,7 @@ export class ScaffoldedDevServerHarness {
   private readonly stdoutChunks: string[] = [];
   private readonly stderrChunks: string[] = [];
   private readonly metadata: ScaffoldedDevArtifactMetadata;
+  private readonly runtimeEnvironment = new ScaffoldedBrowserRuntimeEnvironment();
   private child: ChildProcessWithoutNullStreams | null = null;
 
   constructor(
@@ -155,7 +157,7 @@ export class ScaffoldedDevServerHarness {
         });
         return response.status;
       },
-      (status) => status >= 200 && status < 500,
+      (status) => status === 200,
       120_000,
       500,
       `Timed out waiting for auth session via ${this.commandName}. Output:\n${this.renderLogs()}`,
@@ -179,6 +181,22 @@ export class ScaffoldedDevServerHarness {
       500,
       `Timed out waiting for ${this.commandName} to become ready. Output:\n${this.renderLogs()}`,
     );
+    // Runtime can be ready before `codemation dev` finishes `spawnPackagedUi` (Next `next start`).
+    // `/api/auth/*` is served by the disposable runtime, so session checks can pass while the UI
+    // proxy target is not accepting traffic yet — wait for a real UI route through the gateway.
+    await Eventually.waitFor(
+      async () => {
+        if (this.child?.exitCode !== null) {
+          throw new Error(`Dev process exited early.\n\n${this.renderLogs()}`);
+        }
+        const response = await fetch(`${this.baseUrl()}/login`, { redirect: "manual" });
+        return response.status;
+      },
+      (status) => status >= 200 && status < 400,
+      240_000,
+      500,
+      `Timed out waiting for packaged UI /login via gateway during ${this.commandName}. Output:\n${this.renderLogs()}`,
+    );
   }
 
   private codemationBinPath(): string {
@@ -191,23 +209,7 @@ export class ScaffoldedDevServerHarness {
   }
 
   private environmentOverrides(): Readonly<Record<string, string>> {
-    return {
-      PORT: String(this.port),
-      AUTH_URL: this.baseUrl(),
-      NEXTAUTH_URL: this.baseUrl(),
-      AUTH_SECRET: "codemation-scaffolded-browser-e2e-auth-secret",
-      CODEMATION_CREDENTIALS_MASTER_KEY: "codemation-scaffolded-browser-e2e-master-key",
-      CODEMATION_LOG_LEVEL: "info",
-      // Force scaffolded dev E2E onto the same zero-setup runtime across local and CI. GitHub Actions jobs set
-      // DATABASE_URL/REDIS_URL for the host package browser suite, but leaking those into the generated consumer
-      // app flips the default template from inline PGlite to queued PostgreSQL/BullMQ without a worker process.
-      DATABASE_URL: "",
-      REDIS_URL: "",
-      CODEMATION_DATABASE_KIND: "pglite",
-      CODEMATION_SCHEDULER: "local",
-      CODEMATION_EVENT_BUS: "memory",
-      CHOKIDAR_USEPOLLING: "1",
-    };
+    return this.runtimeEnvironment.createDevServerEnvironment(process.env, this.port);
   }
 
   private renderLogs(): string {

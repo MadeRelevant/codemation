@@ -4,14 +4,14 @@ export interface FileExistencePort {
   exists(filePath: string): Promise<boolean>;
 }
 
-export interface HostPackageJsonPathResolver {
-  resolveHostPackageJsonPath(): string;
+export interface InstalledHostPackageRootResolver {
+  resolveInstalledHostPackageRoot(): string;
 }
 
 export class NextHostPackageRootResolver {
   constructor(
     private readonly fileExistencePort: FileExistencePort,
-    private readonly hostPackageJsonPathResolver: HostPackageJsonPathResolver,
+    private readonly installedHostPackageRootResolver: InstalledHostPackageRootResolver,
   ) {}
 
   async resolve(repoRoot: string, env: NodeJS.ProcessEnv): Promise<string> {
@@ -20,9 +20,9 @@ export class NextHostPackageRootResolver {
       return path.resolve(configuredRoot);
     }
     const workspaceHostRoot = path.resolve(repoRoot, "packages", "host");
-    if (await this.fileExistencePort.exists(path.resolve(workspaceHostRoot, "prisma", "schema.prisma"))) {
+    if (await this.fileExistencePort.exists(path.resolve(workspaceHostRoot, "prisma", "schema.postgresql.prisma"))) {
       return workspaceHostRoot;
     }
-    return path.dirname(this.hostPackageJsonPathResolver.resolveHostPackageJsonPath());
+    return this.installedHostPackageRootResolver.resolveInstalledHostPackageRoot();
   }
 }

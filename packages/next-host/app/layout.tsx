@@ -3,7 +3,6 @@ import { League_Spartan } from "next/font/google";
 import "rc-tree/assets/index.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { auth } from "../src/auth/nextAuth";
 import { CodemationRuntimeBootstrapClient } from "../src/bootstrap/CodemationRuntimeBootstrapClient";
 import { WhitelabelProvider } from "../src/providers/WhitelabelProvider";
 import { CodemationNextClientShell } from "../src/shell/CodemationNextClientShell";
@@ -52,13 +51,12 @@ export default async function RootLayout(args: Readonly<{ children: ReactNode }>
   } catch {
     whitelabel = defaultWhitelabel;
   }
-  const session = frontendAppConfig?.uiAuthEnabled === false ? null : await auth();
   return (
     <html lang="en" className={leagueSpartan.variable} suppressHydrationWarning>
       <body className={leagueSpartan.className} suppressHydrationWarning>
         <WhitelabelProvider value={whitelabel}>
           <CodemationNextClientShell>
-            <CodemationSessionRoot enabled={frontendAppConfig?.uiAuthEnabled !== false} session={session}>
+            <CodemationSessionRoot enabled={frontendAppConfig?.uiAuthEnabled !== false}>
               {args.children}
             </CodemationSessionRoot>
           </CodemationNextClientShell>

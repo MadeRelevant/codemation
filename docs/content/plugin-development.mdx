@@ -45,8 +45,8 @@ const sandbox: CodemationConfig = {
       allowUnauthenticatedInDevelopment: true,
     },
     database: {
-      kind: "pglite",
-      pgliteDataDir: ".codemation/pglite",
+      kind: "sqlite",
+      sqliteFilePath: ".codemation/codemation.sqlite",
     },
     scheduler: {
       kind: "inline",
@@ -82,7 +82,7 @@ export default definePlugin({
 
 - demo workflows
 - local auth defaults
-- embedded database (PGlite)
+- local SQLite
 - lightweight branding for the plugin sandbox
 
 ### Plugin surface (`definePlugin`)

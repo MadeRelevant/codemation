@@ -20,11 +20,13 @@ test("handles undefined and empty", () => {
   expect(d.describeForDisplay("")).toBe("unknown database target");
 });
 
-test("describePersistence formats postgresql and pglite", () => {
+test("describePersistence formats postgresql and sqlite", () => {
   const d = new CliDatabaseUrlDescriptor();
   expect(d.describePersistence({ kind: "postgresql", databaseUrl: "postgresql://localhost:5432/db" })).toBe(
     'database "db" on localhost:5432',
   );
-  expect(d.describePersistence({ kind: "pglite", dataDir: "/tmp/pglite-data" })).toBe("PGlite (/tmp/pglite-data)");
+  expect(d.describePersistence({ kind: "sqlite", databaseFilePath: "/tmp/codemation.sqlite" })).toBe(
+    "SQLite (/tmp/codemation.sqlite)",
+  );
   expect(d.describePersistence({ kind: "none" })).toBe("none");
 });

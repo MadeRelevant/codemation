@@ -1,6 +1,6 @@
 ---
 title: Persistence
-description: Configure database persistence—PGlite or PostgreSQL—paths, URLs, and migrations.
+description: Configure database persistence—SQLite or PostgreSQL—paths, URLs, and migrations.
 ---
 
 This page covers **`app.database`**: where the host stores **application data** (runs, users, credentials metadata, and related records).
@@ -9,20 +9,20 @@ It is **not** about file or blob storage (S3, uploads, attachments). Those are u
 
 Codemation supports two database modes for consumer apps:
 
-- `pglite` for embedded local development
+- `sqlite` for embedded local development
 - `postgresql` for shared environments and production
 
-## Local default: PGlite
+## Local default: SQLite
 
-PGlite is the shortest path to a working app on one machine.
+SQLite is the shortest path to a working app on one machine.
 
 Example:
 
 ```ts
 app: {
   database: {
-    kind: "pglite",
-    pgliteDataDir: ".codemation/pglite",
+    kind: "sqlite",
+    sqliteFilePath: ".codemation/codemation.sqlite",
   },
 }
 ```
@@ -33,9 +33,9 @@ This is a good default when:
 - one developer is iterating locally
 - you do not need multiple processes or shared access yet
 
-`pgliteDataDir` is where the embedded database files live on disk; it is still **database persistence**, not a general-purpose file store. Paths resolve relative to the consumer project root unless you pass an absolute path.
+`sqliteFilePath` is where the local database file lives on disk; it is still **database persistence**, not a general-purpose file store. Paths resolve relative to the consumer project root unless you pass an absolute path.
 
-If you omit `pgliteDataDir`, Codemation falls back to `.codemation/pglite`.
+If you omit `sqliteFilePath`, Codemation falls back to `.codemation/codemation.sqlite`.
 
 ## Shared environments: PostgreSQL
 
@@ -68,7 +68,7 @@ pnpm exec codemation db migrate
 
 ## A practical starter pattern
 
-The generated templates switch between embedded PGlite and PostgreSQL based on `REDIS_URL` and `DATABASE_URL`:
+The generated templates switch between local SQLite and PostgreSQL based on `REDIS_URL` and `DATABASE_URL`:
 
 ```ts
 const useRedisRuntime = Boolean(process.env.REDIS_URL);
@@ -83,13 +83,13 @@ if (useRedisRuntime && (!databaseUrl || databaseUrl.length === 0)) {
 app: {
   database: useRedisRuntime
     ? { kind: "postgresql", url: databaseUrl! }
-    : { kind: "pglite", pgliteDataDir: ".codemation/pglite" },
+    : { kind: "sqlite", sqliteFilePath: ".codemation/codemation.sqlite" },
 }
 ```
 
 That gives one simple progression:
 
-1. local PGlite while you are building
+1. local SQLite while you are building
 2. PostgreSQL when the app becomes shared
 3. PostgreSQL plus Redis when you add queue-backed workers
 
@@ -98,14 +98,14 @@ That gives one simple progression:
 The host also supports environment-level overrides for database kind and paths:
 
 - `DATABASE_URL` for PostgreSQL URLs
-- `CODEMATION_DATABASE_KIND` to force `postgresql` or `pglite`
-- `CODEMATION_PGLITE_DATA_DIR` to override the embedded PGlite data directory
+- `CODEMATION_DATABASE_KIND` to force `postgresql` or `sqlite`
+- `CODEMATION_SQLITE_FILE_PATH` to override the local SQLite database file path
 
 These are useful when the same codebase needs different persistence in local, staging, and production environments.
 
 ## BullMQ compatibility rule
 
-If you move to queue-backed scheduling, do not keep PGlite.
+If you move to queue-backed scheduling, do not keep SQLite.
 
 BullMQ requires:
 
@@ -121,7 +121,7 @@ DATABASE_URL=postgresql://user:password@127.0.0.1:5432/codemation
 
 This combination is not:
 
-- Redis queues with embedded PGlite only
+- Redis queues with local SQLite only
 
 ## `app.database` vs `runtime.database`
 

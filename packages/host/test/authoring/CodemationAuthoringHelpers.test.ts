@@ -45,8 +45,8 @@ describe("Codemation authoring helpers", () => {
         allowUnauthenticatedInDevelopment: true,
       },
       database: {
-        kind: "pglite",
-        dataDir: ".codemation/pglite",
+        kind: "sqlite",
+        filePath: ".codemation/codemation.sqlite",
       },
       execution: {
         mode: "inline",
@@ -64,8 +64,8 @@ describe("Codemation authoring helpers", () => {
         allowUnauthenticatedInDevelopment: true,
       },
       database: {
-        kind: "pglite",
-        pgliteDataDir: ".codemation/pglite",
+        kind: "sqlite",
+        sqliteFilePath: ".codemation/codemation.sqlite",
       },
       scheduler: {
         kind: "inline",

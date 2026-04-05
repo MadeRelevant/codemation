@@ -17,6 +17,8 @@ export class ApiPaths {
 
   private static readonly bootstrapBasePath = `${this.apiBasePath}/bootstrap`;
 
+  private static readonly authBasePath = `${this.apiBasePath}/auth`;
+
   static workflows(): string {
     return this.workflowsBasePath;
   }
@@ -118,6 +120,30 @@ export class ApiPaths {
 
   static users(): string {
     return this.usersBasePath;
+  }
+
+  static authSession(): string {
+    return `${this.authBasePath}/session`;
+  }
+
+  static authLogin(): string {
+    return `${this.authBasePath}/login`;
+  }
+
+  static authLogout(): string {
+    return `${this.authBasePath}/logout`;
+  }
+
+  static authOAuthStart(providerId: string, callbackUrl?: string): string {
+    const base = `${this.authBasePath}/oauth/${encodeURIComponent(providerId)}/start`;
+    if (!callbackUrl) {
+      return base;
+    }
+    return `${base}?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+  }
+
+  static authOAuthCallback(providerId: string): string {
+    return `${this.authBasePath}/oauth/${encodeURIComponent(providerId)}/callback`;
   }
 
   static userInviteVerify(): string {

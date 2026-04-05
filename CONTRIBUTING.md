@@ -60,3 +60,35 @@ pnpm run check
 ```
 
 See [`AGENTS.md`](AGENTS.md) for architecture, testing standards, and review expectations.
+
+## Auth model
+
+Codemation now treats `@codemation/host` as the single auth/session authority.
+
+- Browser login/logout/session flows use backend routes under `/api/auth/*`.
+- `packages/next-host` is a thin UI shell: it renders the login page, calls `/api/auth/session` and `/api/auth/login`, and relies on backend-issued HttpOnly cookies.
+- Do not add new NextAuth/Auth.js route handlers to `packages/next-host`; if auth behavior changes, change the host-owned route surface instead.
+
+Current backend auth routes:
+
+- `GET /api/auth/session` returns `200` with the current principal JSON or `null`.
+- `POST /api/auth/login` accepts local credentials and sets the session cookie.
+- `POST /api/auth/logout` clears the session cookie.
+- `GET /api/auth/oauth/:provider/start` begins an OAuth/OIDC browser redirect.
+
+Required env/config expectations:
+
+- `AUTH_SECRET` signs backend session cookies.
+- `BETTER_AUTH_URL` (preferred) or `CODEMATION_PUBLIC_BASE_URL` should match the browser-facing origin so Better Auth can build correct OAuth and session URLs; packaged `codemation dev` sets `CODEMATION_PUBLIC_BASE_URL` from the public UI URL.
+- `CODEMATION_PUBLIC_BASE_URL` remains the shared public base for other host redirects (e.g. credential OAuth2) when tooling does not set `BETTER_AUTH_URL`.
+- `CODEMATION_UI_AUTH_ENABLED=false` disables the UI login gate for explicit local-dev bypass scenarios only.
+
+See [`docs/better-auth-host.md`](docs/better-auth-host.md) for the full split between Better Auth and Codemation-owned account policy.
+
+## Auth migration notes
+
+This is a clean cutover. Do not preserve or reintroduce dual auth stacks.
+
+- There is no compatibility layer for legacy NextAuth route handlers or cookie names in `packages/next-host`.
+- Upgrade work should target the backend-owned `/api/auth/*` surface directly.
+- If you touch templates or the CLI dev environment, verify scaffolded apps still boot, return `200` from `/api/auth/session`, and can complete a real browser login flow.

@@ -60,7 +60,7 @@ export class DatabaseMigrationsApplyService {
     if (persistence.kind === "none") {
       if (requirePersistence) {
         throw new Error(
-          "Database persistence is not configured. Set CodemationConfig.runtime.database (postgresql URL or PGlite).",
+          "Database persistence is not configured. Set CodemationConfig.runtime.database (postgresql URL or SQLite file path).",
         );
       }
       return;

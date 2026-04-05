@@ -6,7 +6,7 @@ import { GenericContainer } from "testcontainers";
 import type { CodemationDatabaseConfig } from "../../../src/presentation/config/CodemationConfig";
 import { PrismaClientFactory } from "../../../src/infrastructure/persistence/PrismaClientFactory";
 import { PrismaMigrationDeployer } from "../../../src/infrastructure/persistence/PrismaMigrationDeployer";
-import type { PrismaClient } from "../../../src/infrastructure/persistence/generated/prisma-client/client.js";
+import type { PrismaClient } from "../../../src/infrastructure/persistence/generated/prisma-postgresql-client/client.js";
 import { PostgresRollbackTransaction } from "./PostgresRollbackTransaction";
 
 type StartedPostgresContainer = Readonly<{

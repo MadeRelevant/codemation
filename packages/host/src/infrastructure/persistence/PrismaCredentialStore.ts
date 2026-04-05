@@ -9,12 +9,11 @@ import type {
   CredentialStore,
   CredentialTestRecord,
 } from "../../domain/credentials/CredentialServices";
-
-import { PrismaClient } from "./generated/prisma-client/client.js";
+import { PrismaDatabaseClientToken, type PrismaDatabaseClient } from "./PrismaDatabaseClient";
 
 @injectable()
 export class PrismaCredentialStore implements CredentialStore {
-  constructor(@inject(PrismaClient) private readonly prisma: PrismaClient) {}
+  constructor(@inject(PrismaDatabaseClientToken) private readonly prisma: PrismaDatabaseClient) {}
 
   async listInstances(): Promise<ReadonlyArray<CredentialInstanceRecord>> {
     const rows = await this.prisma.credentialInstance.findMany({

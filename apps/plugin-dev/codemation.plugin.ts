@@ -13,8 +13,8 @@ const plugin = definePlugin({
       allowUnauthenticatedInDevelopment: true,
     },
     database: {
-      kind: "pglite",
-      dataDir: ".codemation/pglite",
+      kind: "sqlite",
+      filePath: ".codemation/codemation.sqlite",
     },
     execution: {
       mode: "inline",

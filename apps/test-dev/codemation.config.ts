@@ -101,7 +101,7 @@ export const codemationHost = {
     },
     database: useRedisRuntime
       ? { kind: "postgresql" as const, url: databaseUrl ?? "" }
-      : { kind: "pglite" as const, pgliteDataDir: ".codemation/pglite" },
+      : { kind: "sqlite" as const, sqliteFilePath: ".codemation/codemation.sqlite" },
     scheduler: {
       kind: useRedisRuntime ? ("queue" as const) : ("inline" as const),
       queuePrefix: "codemation",

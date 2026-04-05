@@ -16,8 +16,8 @@ import type { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository"
 import type { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
 import type { WorkflowActivationRepository } from "./domain/workflows/WorkflowActivationRepository";
+import type { PrismaDatabaseClient } from "./infrastructure/persistence/PrismaDatabaseClient";
 import type { WorkerRuntimeScheduler } from "./infrastructure/scheduler/WorkerRuntimeScheduler";
-import type { PrismaClient } from "./infrastructure/persistence/generated/prisma-client/client.js";
 import type { AppConfig } from "./presentation/config/AppConfig";
 import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";
 import type { CodemationWhitelabelConfig } from "./presentation/config/CodemationWhitelabelConfig";
@@ -66,7 +66,7 @@ export const ApplicationTokens = {
    */
   PerformanceDiagnosticsLogger: Symbol.for("codemation.application.PerformanceDiagnosticsLogger") as TypeToken<Logger>,
   CredentialStore: Symbol.for("codemation.application.CredentialStore") as TypeToken<CredentialStore>,
-  PrismaClient: Symbol.for("codemation.application.PrismaClient") as TypeToken<PrismaClient>,
+  PrismaClient: Symbol.for("codemation.application.PrismaClient") as TypeToken<PrismaDatabaseClient>,
   SessionVerifier: Symbol.for("codemation.application.SessionVerifier") as TypeToken<SessionVerifier>,
   Clock: Symbol.for("codemation.application.Clock") as TypeToken<Clock>,
 } as const;
