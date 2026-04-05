@@ -181,6 +181,22 @@ export class ScaffoldedDevServerHarness {
       500,
       `Timed out waiting for ${this.commandName} to become ready. Output:\n${this.renderLogs()}`,
     );
+    // Runtime can be ready before `codemation dev` finishes `spawnPackagedUi` (Next `next start`).
+    // `/api/auth/*` is served by the disposable runtime, so session checks can pass while the UI
+    // proxy target is not accepting traffic yet — wait for a real UI route through the gateway.
+    await Eventually.waitFor(
+      async () => {
+        if (this.child?.exitCode !== null) {
+          throw new Error(`Dev process exited early.\n\n${this.renderLogs()}`);
+        }
+        const response = await fetch(`${this.baseUrl()}/login`, { redirect: "manual" });
+        return response.status;
+      },
+      (status) => status >= 200 && status < 400,
+      240_000,
+      500,
+      `Timed out waiting for packaged UI /login via gateway during ${this.commandName}. Output:\n${this.renderLogs()}`,
+    );
   }
 
   private codemationBinPath(): string {

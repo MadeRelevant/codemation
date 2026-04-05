@@ -441,3 +441,27 @@ test("proxies non-API HTTP traffic to the UI target when configured", async () =
   assert.equal(page.status, 200);
   assert.equal(await page.text(), "ui-ok");
 });
+
+test("routes /api/auth/* to the disposable runtime when the UI proxy is configured", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const ui = new StubUiServer();
+  activeUiServers.push(ui);
+  await ui.start();
+  harness.proxyServer.setUiProxyTarget(`http://127.0.0.1:${ui.port}`);
+
+  const runtime = new StubRuntimeServer("auth-from-runtime");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const response = await harness.fetchApi("/api/auth/session");
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "auth-from-runtime");
+});

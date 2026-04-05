@@ -165,12 +165,9 @@ export class CliDevProxyServer {
       );
       return;
     }
-    if (uiProxyTarget && pathname.startsWith("/api/auth/")) {
-      this.proxy.web(req, res, {
-        target: uiProxyTarget.replace(/\/$/, ""),
-      });
-      return;
-    }
+    // Host-owned `/api/auth/*` is served by the disposable Hono runtime (same DB as other APIs).
+    // Do not route it to the Next UI — that used to cause gateway → Next → gateway loops when Next
+    // proxied auth back through CODEMATION_RUNTIME_DEV_URL.
     if (pathname.startsWith("/api/")) {
       const runtimeTarget = this.activeRuntime;
       if (pathname === "/api/dev/bootstrap-summary" && runtimeTarget) {
