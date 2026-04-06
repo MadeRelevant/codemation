@@ -9,9 +9,6 @@ const runner = path.join(hostPackageRoot, "test/http/testkit/IntegrationDatabase
 const cachePath = path.join(hostPackageRoot, ".cache", "integration-database.json");
 
 export default function integrationDatabaseGlobalSetup() {
-  if (!process.env.DATABASE_URL?.trim()) {
-    return;
-  }
   const result = spawnSync("pnpm", ["exec", "tsx", runner], {
     cwd: repoRoot,
     stdio: "inherit",
