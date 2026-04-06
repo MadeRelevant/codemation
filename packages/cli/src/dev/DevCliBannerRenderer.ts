@@ -50,6 +50,45 @@ export class DevCliBannerRenderer {
   }
 
   /**
+   * URL to open in the browser: packaged UI uses the CLI gateway port; watch-framework uses the
+   * Next.js dev port (PORT). When they differ, {@link devGatewayPort} is shown in the footer.
+   */
+  renderGatewayListeningHint(
+    browserPort: number,
+    commandName: "dev" | "dev:plugin",
+    devMode: "packaged-ui" | "watch-framework",
+    devGatewayPort?: number,
+  ): void {
+    const url = `http://127.0.0.1:${browserPort}`;
+    const footer =
+      devMode === "watch-framework"
+        ? chalk.dim(
+            devGatewayPort !== undefined && devGatewayPort !== browserPort
+              ? `The dev gateway (API + runtime) is at http://127.0.0.1:${devGatewayPort}. Open the URL above for the Next.js UI (HMR).`
+              : "Open the URL above for the Next.js UI.",
+          )
+        : chalk.dim(
+            `The UI is served through this URL (not the internal Next port). Framework UI work in the monorepo: \`codemation ${commandName} --watch-framework\`.`,
+          );
+    const bodyLines = [
+      chalk.whiteBright.bold("Codemation is running"),
+      "",
+      `${chalk.hex("#9ca3af")("Open in your browser:")}  ${chalk.greenBright.underline(url)}`,
+      "",
+      footer,
+    ];
+    const box = boxen(bodyLines.join("\n"), {
+      padding: { top: 0, bottom: 0, left: 1, right: 1 },
+      margin: { top: 1, bottom: 0 },
+      borderStyle: "double",
+      borderColor: "green",
+      title: chalk.bold("Codemation dev"),
+      titleAlignment: "center",
+    });
+    process.stdout.write(`${box}\n`);
+  }
+
+  /**
    * Shown after hot reload / watcher restarts (no figlet).
    */
   renderCompact(summary: DevBootstrapSummaryJson): void {

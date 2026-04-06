@@ -1,6 +1,7 @@
 name: Changesets
 
-# Opens or updates the "Version Packages" PR when changesets land on main. Publishing stays on tag (publish-npm.yml).
+# Opens or updates the "Version Packages" PR when changesets land on main, then tags and calls publish-npm.yml (npm + GitHub Release).
+# Tag pushes from GITHUB_TOKEN do not trigger publish-npm.yml on push: tags, so publish is invoked via workflow_call.
 on:
   push:
     branches:
@@ -14,6 +15,7 @@ concurrency:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write # publish-release (reusable publish-npm.yml) uses npm OIDC provenance
 
 jobs:
   version:
@@ -55,6 +57,9 @@ jobs:
     if: "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'chore: version packages') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.publish-release-tag.outputs.tag_name }}
+      tag_created: ${{ steps.publish-release-tag.outputs.tag_created }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -70,14 +75,28 @@ jobs:
         run: node tooling/release/resolve-release-tag-version.mjs --root . --output "${RUNNER_TEMP}/release-tag-version.txt"
 
       - name: Create and push release tag
+        id: publish-release-tag
         env:
           RELEASE_TAG_VERSION_FILE: ${{ runner.temp }}/release-tag-version.txt
         run: |
+          set -euo pipefail
           tag_name="v$(tr -d '\n' < "${RELEASE_TAG_VERSION_FILE}")"
+          echo "tag_name=${tag_name}" >> "${GITHUB_OUTPUT}"
           if git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
-            echo "Tag ${tag_name} already exists; skipping."
+            echo "Tag ${tag_name} already exists; skipping publish."
+            echo "tag_created=false" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
           git tag "${tag_name}" "${GITHUB_SHA}"
           git push origin "${tag_name}"
+          echo "tag_created=true" >> "${GITHUB_OUTPUT}"
+
+  publish-release:
+    name: Publish npm and GitHub Release
+    needs: tag-release
+    if: ${{ needs.tag-release.result == 'success' && needs.tag-release.outputs.tag_created == 'true' }}
+    uses: ./.github/workflows/publish-npm.yml
+    with:
+      tag: ${{ needs.tag-release.outputs.tag }}
+    secrets: inherit

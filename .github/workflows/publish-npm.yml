@@ -1,6 +1,8 @@
 name: Publish npm
 
-# After the Version Packages PR merges, tag a release (e.g. v0.0.18) to publish. Changesets open that PR via changesets-version.yml.
+# After the Version Packages PR merges, changesets-version.yml tags main (e.g. v0.0.18) and calls this workflow.
+# Tag pushes from GITHUB_TOKEN do not trigger other workflows, so publish is invoked via workflow_call from Changesets.
+# Manual tag push (or workflow_dispatch) still works.
 on:
   push:
     tags:
@@ -9,6 +11,12 @@ on:
     inputs:
       tag:
         description: "Release tag to publish, for example v0.0.19"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to publish (same as workflow_dispatch)"
         required: true
         type: string
 
