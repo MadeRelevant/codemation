@@ -45,7 +45,7 @@ The generated project already includes:
 - local auth defaults for development
 - a local SQLite database for zero-setup development
 - a `pnpm dev` workflow that runs `codemation dev`
-- `@codemation/*` dependencies pinned with the **`0.0.x`** semver range (any **`0.0.*`** patch), so **`pnpm upgrade`** can pull newer pre-1.0 releases without editing `package.json` by hand
+- `@codemation/*` dependencies use **`0.0.x`** for most packages and **`0.1.x`** for **`@codemation/host`**, so **`pnpm upgrade`** can pull compatible pre-1.0 releases without editing `package.json` by hand
 
 ## The smallest mental model
 

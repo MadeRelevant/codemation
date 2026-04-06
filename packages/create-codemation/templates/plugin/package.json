@@ -16,7 +16,7 @@
     "@codemation/cli": "0.0.x",
     "@codemation/core": "0.0.x",
     "@codemation/core-nodes": "0.0.x",
-    "@codemation/host": "0.0.x",
+    "@codemation/host": "0.1.x",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {

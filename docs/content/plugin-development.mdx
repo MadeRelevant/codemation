@@ -26,9 +26,9 @@ To see all template ids (including `plugin`):
 pnpm create codemation --list-templates
 ```
 
-### Framework package versions (`0.0.x`)
+### Framework package versions (`0.0.x` / `0.1.x`)
 
-Scaffolded **default** and **plugin** projects list `@codemation/*` dependencies as **`0.0.x`**. That semver range matches any **`0.0.*`** patch release on npm, so you can run **`pnpm upgrade`** (or `pnpm update`) to move to newer `0.0.z` builds without hand-editing versions each time. Pin stricter ranges once you are past pre-1.0 churn or need reproducible installs.
+Scaffolded **default** and **plugin** projects list most `@codemation/*` dependencies as **`0.0.x`** (any **`0.0.*`** patch). **`@codemation/host`** uses **`0.1.x`** because the host package ships on the **`0.1.*`** line. Run **`pnpm upgrade`** (or `pnpm update`) to pull newer compatible releases without hand-editing versions each time. Pin stricter ranges once you are past pre-1.0 churn or need reproducible installs.
 
 ## The plugin config file (`codemation.plugin.ts`)
 

@@ -28,6 +28,6 @@ npm create codemation@latest my-app -- --template default
 
 **Engines:** Node >= 20.
 
-Templates list `@codemation/*` as **`0.0.x`** so new projects can **`pnpm upgrade`** within the pre-1.0 line without bumping fixed versions on every release.
+Templates list most `@codemation/*` packages as **`0.0.x`** and **`@codemation/host`** as **`0.1.x`**, so new projects can **`pnpm upgrade`** within those ranges without bumping fixed versions on every release.
 
 Development in this monorepo: `pnpm --filter create-codemation build`, `pnpm --filter create-codemation test`, and run `node packages/create-codemation/bin/create-codemation.js /tmp/out --template default` to exercise the binary locally.
