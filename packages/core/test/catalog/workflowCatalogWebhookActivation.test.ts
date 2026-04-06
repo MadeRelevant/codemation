@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
+import "reflect-metadata";
 
 import type { WorkflowActivationPolicy, WorkflowId } from "../../src/contracts/workflowActivationPolicy";
 import { WorkflowRepositoryWebhookTriggerMatcher } from "../../src/runtime/WorkflowRepositoryWebhookTriggerMatcher";

@@ -103,6 +103,16 @@ export default definePlugin({
 
 2. **Consumer apps** — When the CLI loads a consumer `codemation.config.ts`, it **merges** plugins from your config with plugins **discovered** under `node_modules` (see below). The host then runs registration, workflows, and the UI as usual.
 
+## Unit testing with `WorkflowTestKit`
+
+For fast feedback without starting the full host, use **`WorkflowTestKit`** from **`@codemation/core/testing`**. It wires the real engine (`Engine`, `EngineWorkflowRunnerService`, in-memory repositories, inline scheduler) the same way framework tests do.
+
+- **`run({ workflow, items, startAt? })`** — register a full `WorkflowDefinition`, start it, then run to completion (same outcome assertions as integration tests: `RunResult`, completed outputs).
+- **`runNode({ node, items, workflowId?, workflowName? })`** — shortcut that builds a minimal workflow: a harness-only manual trigger → your runnable node, then runs it. Use this for single-node tests (for example `defineNode` plugins). It does **not** require `@codemation/core-nodes` for `ManualTrigger`.
+- **`registerDefinedNodes([...])`** — call once per suite (or per test) so `defineNode(...).register(...)` implementations are bound on the kit’s DI container, mirroring `plugin.register({ registerNode })` in the host.
+
+Use **`pnpm dev` / `codemation dev:plugin`** when you need the operator UI, credentials, and persistence; use **`WorkflowTestKit`** in **Vitest** for deterministic node-level tests. The **plugin** starter template includes an example test under `test/`.
+
 ## Nodes and credentials
 
 Implementing nodes and credential types in a plugin follows the **same patterns** as in an application: config classes, `@node`, `CredentialType`, constructor injection, and tests without heavy mocking.

@@ -35,6 +35,7 @@ If a project-local skill exists under `.agents/skills/` outside `extracted/`, tr
 - Run dev: `pnpm dev`
 - Build: `pnpm build`
 - Typecheck: `pnpm typecheck`
+- Unit tests: `pnpm test` (smoke import of `@codemation/core/testing`)
 
 ## Guardrails
 

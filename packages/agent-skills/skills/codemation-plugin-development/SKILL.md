@@ -32,6 +32,11 @@ Do not use this skill for ordinary consumer workflow-only changes unless the wor
 - `src/nodes/*`: custom node definitions
 - `src/credentialTypes/*`: custom credential definitions
 - `src/index.ts`: package exports
+- `test/*.test.ts` (optional): Vitest + `WorkflowTestKit` from `@codemation/core/testing` for engine-backed unit tests without starting the full host (`pnpm test`)
+
+## Unit tests (`WorkflowTestKit`)
+
+Import **`WorkflowTestKit`** from **`@codemation/core/testing`**. Use **`registerDefinedNodes([...])`** for `defineNode` packages, then **`runNode({ node: yourNode.create(...), items })`** or **`run({ workflow, items })`** for fuller graphs. Prefer this for fast node tests; use **`codemation dev:plugin`** when you need the UI and persistence.
 
 ## Read next when needed
 

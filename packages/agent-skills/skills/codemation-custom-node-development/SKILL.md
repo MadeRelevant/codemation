@@ -27,6 +27,10 @@ Do not use this skill for pure workflow chaining questions unless the node imple
 4. Remember that runtime execution receives batches of items.
 5. Drop to class-based node APIs only when you need constructor-injected collaborators, decorators, or deeper runtime metadata.
 
+## Testing with `WorkflowTestKit`
+
+For engine-backed tests without the host, use **`WorkflowTestKit`** from **`@codemation/core/testing`**: **`registerDefinedNodes([...])`**, then **`runNode`** or **`run`**. See the plugin development doc and `@codemation/core` tests for examples.
+
 ## Read next when needed
 
 - Read `references/node-patterns.md` for `defineNode(...)` patterns and packaging guidance.
