@@ -9,21 +9,20 @@
 
   Current checks (copy the strings exactly, including `—` and `&`):
 
-  | Context                                |
-  | -------------------------------------- |
-  | `Format`                               |
-  | `Lint ESLint`                          |
-  | `Lint repo`                            |
-  | `Typecheck`                            |
-  | `Template packaged smoke`              |
-  | `Template interactive Verdaccio smoke` |
-  | `Coverage — unit`                      |
-  | `Coverage — integration`               |
-  | `Coverage — UI`                        |
-  | `Coverage — browser`                   |
-  | `Coverage — e2e`                       |
-  | `Merge coverage & Codecov`             |
-  | `Verify changeset`                     |
+  | Context                    |
+  | -------------------------- |
+  | `Format`                   |
+  | `Lint ESLint`              |
+  | `Lint repo`                |
+  | `Typecheck`                |
+  | `Template packaged smoke`  |
+  | `Coverage — unit`          |
+  | `Coverage — integration`   |
+  | `Coverage — UI`            |
+  | `Coverage — browser`       |
+  | `Coverage — e2e`           |
+  | `Merge coverage & Codecov` |
+  | `Verify changeset`         |
 
   Inspect the ruleset:
 

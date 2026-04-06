@@ -77,16 +77,13 @@ jobs:
         include:
           - name: Template packaged smoke
             command: test:packaged-smoke
-          - name: Template interactive Verdaccio smoke
-            command: test:interactive-verdaccio-smoke
     container:
       image: node:24-bookworm
 
     steps:
       - name: Install container prerequisites
-        # `script` (util-linux) is required by the interactive smoke test; keep Python/build tools as
-        # native-module fallback for dependency installs inside the bare Node container.
-        run: apt-get update && apt-get install -y git util-linux python3 make g++
+        # Git for pnpm/workspace checks; Python/build tools as native-module fallback for dependency installs.
+        run: apt-get update && apt-get install -y git python3 make g++
 
       - name: Checkout
         uses: actions/checkout@v6

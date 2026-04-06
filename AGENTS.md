@@ -189,6 +189,8 @@ export class CallbackNode implements Node<CallbackNodeConfig> {
 
 This gives high-signal coverage without fragile mocks.
 
+**Plugin and package authors** can also use **`WorkflowTestKit`** from **`@codemation/core/testing`**: it runs the real engine path (`Engine`, `EngineWorkflowRunnerService`, in-memory stores) with **`run()`** for full workflows and **`runNode()`** for a minimal trigger → node graph. Call **`registerDefinedNodes([...])`** so `defineNode(...)` implementations register on the kit container like **`plugin.register({ registerNode })`** in the host.
+
 ## Adding a new node package (community-friendly)
 
 ### Requirements

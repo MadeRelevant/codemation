@@ -29,7 +29,7 @@ permissions:
   contents: write # Create or update the GitHub Release for the tag
 
 jobs:
-  # Template smokes (packaged + interactive Verdaccio) run on main via CI; release only publishes.
+  # Template packaged smoke runs on main via CI; release only publishes.
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 45
