@@ -65,3 +65,30 @@ test("DevCliBannerRenderer renderBrandHeader includes subtitle", () => {
   });
   assert.match(out, /AI Automation framework/);
 });
+
+test("DevCliBannerRenderer renderGatewayListeningHint highlights gateway URL (packaged UI)", () => {
+  const out = captureStdout(() => {
+    new DevCliBannerRenderer().renderGatewayListeningHint(3000, "dev:plugin", "packaged-ui");
+  });
+  assert.match(out, /Codemation is running/);
+  assert.match(out, /http:\/\/127\.0\.0\.1:3000/);
+  assert.match(out, /dev:plugin/);
+  assert.match(out, /--watch-framework/);
+});
+
+test("DevCliBannerRenderer renderGatewayListeningHint shows Next URL and dev gateway when ports differ", () => {
+  const out = captureStdout(() => {
+    new DevCliBannerRenderer().renderGatewayListeningHint(3000, "dev", "watch-framework", 41234);
+  });
+  assert.match(out, /http:\/\/127\.0\.0\.1:3000/);
+  assert.match(out, /dev gateway \(API \+ runtime\) is at http:\/\/127\.0\.0\.1:41234/);
+  assert.doesNotMatch(out, /--watch-framework/);
+});
+
+test("DevCliBannerRenderer renderGatewayListeningHint watch-framework short footer when gateway matches browser", () => {
+  const out = captureStdout(() => {
+    new DevCliBannerRenderer().renderGatewayListeningHint(3000, "dev", "watch-framework", 3000);
+  });
+  assert.match(out, /http:\/\/127\.0\.0\.1:3000/);
+  assert.match(out, /Open the URL above for the Next\.js UI/);
+});

@@ -13,6 +13,7 @@ import type { DevBootstrapSummaryFetcher } from "../dev/DevBootstrapSummaryFetch
 import type { CliDevProxyServer } from "../dev/CliDevProxyServer";
 import type { CliDevProxyServerFactory } from "../dev/CliDevProxyServerFactory";
 import type { DevCliBannerRenderer } from "../dev/DevCliBannerRenderer";
+import type { DevNextChildProcessOutputFilter } from "../dev/DevNextChildProcessOutputFilter";
 import { ConsumerEnvDotenvFilePredicate } from "../dev/ConsumerEnvDotenvFilePredicate";
 import type { DevRebuildQueueFactory } from "../dev/DevRebuildQueueFactory";
 import type { DevSourceWatcher } from "../dev/DevSourceWatcher";
@@ -49,6 +50,7 @@ export class DevCommand {
     private readonly devApiRuntimeFactory: DevApiRuntimeFactory,
     private readonly cliDevProxyServerFactory: CliDevProxyServerFactory,
     private readonly devRebuildQueueFactory: DevRebuildQueueFactory,
+    private readonly devNextChildProcessOutputFilter: DevNextChildProcessOutputFilter,
   ) {}
 
   async execute(
@@ -112,11 +114,16 @@ export class DevCommand {
       await this.startPackagedUiWhenNeeded(prepared, processState, uiProxyBase);
       this.bindShutdownSignalsToChildProcesses(processState, proxyServer);
       await this.spawnDevUiWhenNeeded(prepared, processState, gatewayBaseUrl);
+      this.devCliBannerRenderer.renderGatewayListeningHint(
+        prepared.devMode === "watch-framework" ? prepared.nextPort : prepared.gatewayPort,
+        commandName,
+        prepared.devMode,
+        prepared.devMode === "watch-framework" ? prepared.gatewayPort : undefined,
+      );
       await this.startWatcherForSourceRestart(prepared, processState, watcher, devMode, gatewayBaseUrl, proxyServer, {
         commandName,
         configPathOverride: args.configPathOverride,
       });
-      this.logPackagedUiDevHintWhenNeeded(devMode, gatewayPort, commandName);
       await stopPromise;
     } finally {
       if (previousDevelopmentServerToken === undefined) {
@@ -234,9 +241,10 @@ export class DevCommand {
     });
     state.currentPackagedUi = spawn(nextHostCommand.command, nextHostCommand.args, {
       cwd: nextHostCommand.cwd,
-      ...this.devDetachedChildSpawnOptions(),
+      ...this.devDetachedChildSpawnPipeOptions(),
       env: nextHostEnvironment,
     });
+    this.devNextChildProcessOutputFilter.attach(state.currentPackagedUi);
     state.currentPackagedUi.on("error", (error) => {
       if (state.stopRequested || state.isRestartingUi) {
         return;
@@ -276,14 +284,18 @@ export class DevCommand {
     proxyServer.setBuildStatus("idle");
   }
 
-  private devDetachedChildSpawnOptions(): Readonly<{
-    stdio: "inherit";
+  /**
+   * Next startup lines are filtered (see {@link DevNextChildProcessOutputFilter}) so the CLI can
+   * own the primary “open this URL” message without the internal loopback port dominating stdout.
+   */
+  private devDetachedChildSpawnPipeOptions(): Readonly<{
+    stdio: ["ignore", "pipe", "pipe"];
     detached: boolean;
     windowsHide?: boolean;
   }> {
     return process.platform === "win32"
-      ? { stdio: "inherit", detached: true, windowsHide: true }
-      : { stdio: "inherit", detached: true };
+      ? { stdio: ["ignore", "pipe", "pipe"], detached: true, windowsHide: true }
+      : { stdio: ["ignore", "pipe", "pipe"], detached: true };
   }
 
   private bindShutdownSignalsToChildProcesses(
@@ -341,9 +353,10 @@ export class DevCommand {
     });
     state.currentDevUi = spawn("pnpm", ["exec", "next", "dev"], {
       cwd: nextHostRoot,
-      ...this.devDetachedChildSpawnOptions(),
+      ...this.devDetachedChildSpawnPipeOptions(),
       env: nextHostEnvironment,
     });
+    this.devNextChildProcessOutputFilter.attach(state.currentDevUi);
     state.currentDevUi.on("exit", (code) => {
       const normalizedCode = code ?? 0;
       if (state.stopRequested || state.isRestartingUi) {
@@ -590,18 +603,5 @@ export class DevCommand {
     const discoveredPlugins = await this.pluginDiscovery.discover(paths.consumerRoot);
     await this.consumerBuildArtifactsPublisher.publish(snapshot, discoveredPlugins);
     this.cliLogger.debug(`Dev: consumer output published (${snapshot.buildVersion}).`);
-  }
-
-  private logPackagedUiDevHintWhenNeeded(
-    devMode: DevMode,
-    gatewayPort: number,
-    commandName: "dev" | "dev:plugin",
-  ): void {
-    if (devMode !== "packaged-ui") {
-      return;
-    }
-    this.cliLogger.info(
-      `codemation ${commandName}: open http://127.0.0.1:${gatewayPort} — this uses the packaged @codemation/next-host UI. Use \`codemation ${commandName} --watch-framework\` only when working on the framework UI itself.`,
-    );
   }
 }

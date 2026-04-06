@@ -21,6 +21,8 @@ import { HostPackageRootResolver } from "./database/HostPackageRootResolver";
 import { PrismaMigrationDeployer } from "@codemation/host/persistence";
 import { DevBootstrapSummaryFetcher } from "./dev/DevBootstrapSummaryFetcher";
 import { DevCliBannerRenderer } from "./dev/DevCliBannerRenderer";
+import { DevNextChildProcessOutputFilter } from "./dev/DevNextChildProcessOutputFilter";
+import { DevNextStartupBannerLineFilter } from "./dev/DevNextStartupBannerLineFilter";
 import { CliDevProxyServerFactory } from "./dev/CliDevProxyServerFactory";
 import { DevApiRuntimeFactory } from "./dev/DevApiRuntimeFactory";
 import { DevRebuildQueueFactory } from "./dev/DevRebuildQueueFactory";
@@ -100,6 +102,7 @@ export class CliProgramFactory {
       new DevApiRuntimeFactory(devSessionServices.loopbackPortAllocator, appConfigLoader, pluginDiscovery),
       new CliDevProxyServerFactory(),
       new DevRebuildQueueFactory(),
+      new DevNextChildProcessOutputFilter(new DevNextStartupBannerLineFilter()),
     );
     return new CliProgram(
       buildOptionsParser,
