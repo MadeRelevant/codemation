@@ -1,5 +1,16 @@
 # @codemation/host
 
+## 0.1.1
+
+### Patch Changes
+
+- [#39](https://github.com/MadeRelevant/codemation/pull/39) [`cbfe843`](https://github.com/MadeRelevant/codemation/commit/cbfe843ef2363e400a219f4d0bcd05b091ab83b4) Thanks [@cblokland90](https://github.com/cblokland90)! - Integration tests: provision one shared Postgres in Vitest global setup when `DATABASE_URL` is unset (avoids per-suite Testcontainers flakes), with a cross-process lock when host and CLI integration projects run global setup together.
+
+- Updated dependencies [[`cbfe843`](https://github.com/MadeRelevant/codemation/commit/cbfe843ef2363e400a219f4d0bcd05b091ab83b4)]:
+  - @codemation/core@0.1.0
+  - @codemation/core-nodes@0.0.20
+  - @codemation/eventbus-redis@0.0.20
+
 ## 0.1.0
 
 ### Minor Changes
