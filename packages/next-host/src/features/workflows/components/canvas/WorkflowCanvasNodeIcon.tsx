@@ -3,6 +3,7 @@ import { DynamicIcon } from "lucide-react/dynamic";
 import type { IconName } from "lucide-react/dynamic";
 import { Suspense, type CSSProperties, type ReactNode } from "react";
 
+import { WorkflowNodeIconResolver } from "../workflowDetail/WorkflowDetailIcons";
 import { CanvasNodeIconSlot } from "./CanvasNodeIconSlot";
 import { WorkflowCanvasBuiltinIconRegistry } from "./lib/WorkflowCanvasBuiltinIconRegistry";
 import { WorkflowCanvasSiIconRegistry } from "./lib/WorkflowCanvasSiIconRegistry";
@@ -42,13 +43,23 @@ function builtinAssetImg(url: string, sizePx: number): ReactNode {
  *
  * Node configs set {@link import("@codemation/core").NodeConfigBase.icon}.
  */
-export function WorkflowCanvasNodeIcon(props: Readonly<{ icon?: string; sizePx: number; strokeWidth?: number }>) {
-  const { icon, sizePx, strokeWidth = 2 } = props;
+export function WorkflowCanvasNodeIcon(
+  props: Readonly<{
+    icon?: string;
+    sizePx: number;
+    strokeWidth?: number;
+    /** When `icon` is unset, Lucide fallback from node type + role (e.g. nested agent → Bot, not Boxes). */
+    fallbackType?: string;
+    fallbackRole?: string;
+  }>,
+) {
+  const { icon, sizePx, strokeWidth = 2, fallbackType, fallbackRole } = props;
   const raw = icon?.trim();
   if (!raw) {
+    const FallbackIcon = WorkflowNodeIconResolver.resolveFallback(fallbackType ?? "", fallbackRole, undefined);
     return (
       <CanvasNodeIconSlot sizePx={sizePx}>
-        <Boxes size={sizePx} strokeWidth={strokeWidth} />
+        <FallbackIcon size={sizePx} strokeWidth={strokeWidth} />
       </CanvasNodeIconSlot>
     );
   }

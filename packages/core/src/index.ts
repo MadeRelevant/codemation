@@ -1,6 +1,12 @@
 export { SystemClock, type Clock } from "./contracts/Clock";
 export * from "./authoring";
 export * from "./ai/AiHost";
+export { AgentConnectionNodeCollector } from "./ai/AgentConnectionNodeCollector";
+export type {
+  AgentConnectionCredentialSource,
+  AgentConnectionNodeDescriptor,
+  AgentConnectionNodeRole,
+} from "./ai/AgentConnectionNodeCollector";
 export * from "./workflow";
 export * from "./di";
 export * from "./events";

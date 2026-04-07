@@ -79,12 +79,18 @@ class DelayedPendingSaveWorkflowExecutionRepository implements WorkflowExecution
     control?: PersistedRunState["control"];
     workflowSnapshot?: PersistedRunState["workflowSnapshot"];
     mutableState?: PersistedRunState["mutableState"];
+    policySnapshot?: PersistedRunState["policySnapshot"];
+    engineCounters?: PersistedRunState["engineCounters"];
   }): Promise<void> {
     await this.inner.createRun(args);
   }
 
   async load(runId: string): Promise<PersistedRunState | undefined> {
     return await this.inner.load(runId);
+  }
+
+  async loadSchedulingState(runId: string) {
+    return await this.inner.loadSchedulingState(runId);
   }
 
   async save(state: PersistedRunState): Promise<void> {

@@ -13,8 +13,11 @@ import type {
 } from "../../src/index.ts";
 
 class StubActivationScheduler {
-  async enqueue(): Promise<{ receiptId: string }> {
-    return { receiptId: "receipt_stub" };
+  async prepareDispatch() {
+    return {
+      receipt: { receiptId: "receipt_stub" },
+      dispatch: async () => undefined,
+    };
   }
 }
 

@@ -6,12 +6,14 @@ import { format, isToday, isYesterday } from "date-fns";
 import prettyMilliseconds from "pretty-ms";
 import type {
   ConnectionInvocationRecord,
+  ExecutionInstanceDto,
   Items,
   NodeExecutionSnapshot,
   PersistedRunState,
   PersistedWorkflowSnapshot,
   RunCurrentState,
   RunSummary,
+  WorkflowRunDetailDto,
   WorkflowDebuggerOverlayState,
   WorkflowDto,
 } from "../../hooks/realtime/realtime";
@@ -243,7 +245,15 @@ export class WorkflowDetailPresenter {
     workflow: WorkflowDto | undefined,
     nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>> | undefined,
     connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>,
+    executionDetail?: WorkflowRunDetailDto,
   ): string {
+    const historicalSelection = this.resolveHistoricalInspectorNodeIdForCanvasPick(
+      canvasWorkflowNodeId,
+      executionDetail,
+    );
+    if (historicalSelection) {
+      return historicalSelection;
+    }
     const wfNode = workflow?.nodes.find((n) => n.id === canvasWorkflowNodeId);
     if (!wfNode) {
       return canvasWorkflowNodeId;
@@ -262,7 +272,7 @@ export class WorkflowDetailPresenter {
       if (wfNode.role === "languageModel") {
         return snapshot.nodeId === canvasWorkflowNodeId;
       }
-      if (wfNode.role === "tool") {
+      if (wfNode.role === "tool" || wfNode.role === "nestedAgent") {
         return snapshot.nodeId === canvasWorkflowNodeId;
       }
       return snapshot.nodeId === canvasWorkflowNodeId;
@@ -660,6 +670,19 @@ export class WorkflowDetailPresenter {
       .sort((left, right) => this.compareExecutionNodes(left, right));
   }
 
+  static buildHistoricalExecutionNodes(
+    workflow: WorkflowDto | undefined,
+    executionDetail: WorkflowRunDetailDto | undefined,
+  ): ReadonlyArray<ExecutionNode> {
+    if (!workflow || !executionDetail) {
+      return [];
+    }
+    return executionDetail.executionInstances
+      .map((instance) => this.createHistoricalExecutionNode(workflow, instance))
+      .filter((entry): entry is ExecutionNode => entry !== undefined)
+      .sort((left, right) => this.compareExecutionNodes(left, right));
+  }
+
   /**
    * Required credential slots that are still unbound (excluding optional credential slots).
    */
@@ -687,6 +710,7 @@ export class WorkflowDetailPresenter {
   static buildExecutionTreeData(nodes: ReadonlyArray<ExecutionNode>): ReadonlyArray<ExecutionTreeNode> {
     const treeKeys = this.computeExecutionTreeStableKeys(nodes);
     const treeNodesByKey = new Map<string, ExecutionTreeNode>();
+    const parentReferenceToTreeKey = this.buildExecutionTreeParentReferenceRegistry(nodes, treeKeys);
     const rootNodes: ExecutionTreeNode[] = [];
 
     for (let i = 0; i < nodes.length; i++) {
@@ -702,15 +726,17 @@ export class WorkflowDetailPresenter {
     }
 
     for (let i = 0; i < nodes.length; i++) {
-      const { node } = nodes[i]!;
+      const { node, parentExecutionInstanceId } = nodes[i]!;
       const treeKey = treeKeys[i]!;
       const treeNode = treeNodesByKey.get(treeKey);
       if (!treeNode) continue;
-      if (!node.parentNodeId) {
+      const parentReference = parentExecutionInstanceId ?? node.parentNodeId;
+      if (!parentReference) {
         rootNodes.push(treeNode);
         continue;
       }
-      const parentTreeNode = treeNodesByKey.get(node.parentNodeId);
+      const parentTreeKey = parentReferenceToTreeKey.get(parentReference) ?? parentReference;
+      const parentTreeNode = treeNodesByKey.get(parentTreeKey);
       if (!parentTreeNode) {
         rootNodes.push(treeNode);
         continue;
@@ -724,6 +750,30 @@ export class WorkflowDetailPresenter {
     return rootNodes;
   }
 
+  /**
+   * Maps workflow connection ids to rc-tree keys. Invocation rows use {@link ExecutionNode#node}.id
+   * (per-invocation) as the tree key while {@link WorkflowNode#parentNodeId} references stable workflow
+   * connection node ids—so parent lookup must also index {@link ExecutionNode#workflowConnectionNodeId}.
+   */
+  private static buildExecutionTreeParentReferenceRegistry(
+    nodes: ReadonlyArray<ExecutionNode>,
+    treeKeys: ReadonlyArray<string>,
+  ): ReadonlyMap<string, string> {
+    const registry = new Map<string, string>();
+    for (let i = 0; i < nodes.length; i++) {
+      const treeKey = treeKeys[i]!;
+      const entry = nodes[i]!;
+      registry.set(entry.node.id, treeKey);
+      if (entry.executionInstanceId !== undefined) {
+        registry.set(entry.executionInstanceId, treeKey);
+      }
+      if (entry.workflowConnectionNodeId !== undefined) {
+        registry.set(entry.workflowConnectionNodeId, treeKey);
+      }
+    }
+    return registry;
+  }
+
   /** Resolves rc-tree selected key when tree keys use disambiguation suffixes for duplicate execution node ids. */
   static resolveExecutionTreeKeyForNodeId(
     executionNodes: ReadonlyArray<ExecutionNode>,
@@ -734,7 +784,11 @@ export class WorkflowDetailPresenter {
     }
     const treeKeys = this.computeExecutionTreeStableKeys(executionNodes);
     for (let i = executionNodes.length - 1; i >= 0; i--) {
-      if (executionNodes[i]!.node.id === selectedNodeId) {
+      const entry = executionNodes[i]!;
+      if (entry.node.id === selectedNodeId) {
+        return treeKeys[i]!;
+      }
+      if (entry.workflowConnectionNodeId === selectedNodeId) {
         return treeKeys[i]!;
       }
     }
@@ -766,6 +820,16 @@ export class WorkflowDetailPresenter {
     if (roleComparison !== 0) return roleComparison;
     return this.getNodeDisplayName(left.node, left.node.id).localeCompare(
       this.getNodeDisplayName(right.node, right.node.id),
+    );
+  }
+
+  private static resolveHistoricalInspectorNodeIdForCanvasPick(
+    canvasWorkflowNodeId: string,
+    executionDetail: WorkflowRunDetailDto | undefined,
+  ): string | null {
+    const slotState = executionDetail?.slotStates.find((entry) => entry.slotNodeId === canvasWorkflowNodeId);
+    return (
+      slotState?.latestRunningInstanceId ?? slotState?.latestTerminalInstanceId ?? slotState?.latestInstanceId ?? null
     );
   }
 
@@ -830,8 +894,9 @@ export class WorkflowDetailPresenter {
   private static getExecutionNodeRolePriority(role: string | undefined): number {
     if (role === "agent") return 0;
     if (role === "languageModel") return 1;
-    if (role === "tool") return 2;
-    return 3;
+    if (role === "nestedAgent") return 2;
+    if (role === "tool") return 3;
+    return 4;
   }
 
   private static isCompatibleWorkflowNodeId(workflowNodeIds: ReadonlySet<string>, nodeId: string): boolean {
@@ -865,7 +930,10 @@ export class WorkflowDetailPresenter {
     executionState: InspectableExecutionState | undefined,
   ): ReadonlyArray<ExecutionNode> {
     const invocations = (executionState?.connectionInvocations ?? []).filter((inv) => inv.connectionNodeId === node.id);
-    if ((node.role === "languageModel" || node.role === "tool") && invocations.length > 0) {
+    if (
+      (node.role === "languageModel" || node.role === "tool" || node.role === "nestedAgent") &&
+      invocations.length > 0
+    ) {
       const ordered = [...invocations].sort((left, right) => {
         const t = left.updatedAt.localeCompare(right.updatedAt);
         if (t !== 0) return t;
@@ -902,6 +970,29 @@ export class WorkflowDetailPresenter {
     };
   }
 
+  private static createHistoricalExecutionNode(
+    workflow: WorkflowDto,
+    instance: ExecutionInstanceDto,
+  ): ExecutionNode | undefined {
+    const baseNode =
+      workflow.nodes.find((node) => node.id === instance.slotNodeId) ??
+      workflow.nodes.find((node) => node.id === instance.workflowNodeId);
+    if (!baseNode) {
+      return undefined;
+    }
+    return {
+      node: {
+        ...baseNode,
+        id: instance.instanceId,
+      },
+      snapshot: this.snapshotFromExecutionInstance(instance),
+      executionInstanceId: instance.instanceId,
+      slotNodeId: instance.slotNodeId,
+      parentExecutionInstanceId: instance.parentInstanceId,
+      workflowConnectionNodeId: instance.kind === "connectionInvocation" ? instance.slotNodeId : undefined,
+    };
+  }
+
   private static snapshotFromConnectionInvocation(inv: ConnectionInvocationRecord): NodeExecutionSnapshot {
     const mainIn = this.jsonValueToMainItems(inv.managedInput);
     const mainOut = this.jsonValueToMainItems(inv.managedOutput);
@@ -922,6 +1013,23 @@ export class WorkflowDetailPresenter {
     };
   }
 
+  private static snapshotFromExecutionInstance(instance: ExecutionInstanceDto): NodeExecutionSnapshot {
+    return {
+      runId: "historical-run",
+      workflowId: "historical-workflow",
+      nodeId: instance.instanceId,
+      activationId: instance.activationId,
+      status: instance.status,
+      queuedAt: instance.queuedAt,
+      startedAt: instance.startedAt,
+      finishedAt: instance.finishedAt,
+      updatedAt: instance.finishedAt ?? instance.startedAt ?? instance.queuedAt ?? new Date(0).toISOString(),
+      inputsByPort: this.jsonValueToPortItems(instance.inputJson),
+      outputs: this.jsonValueToPortItems(instance.outputJson),
+      error: instance.error,
+    };
+  }
+
   private static jsonValueToMainItems(value: unknown | undefined): Items | undefined {
     if (value === undefined) {
       return undefined;
@@ -935,6 +1043,30 @@ export class WorkflowDetailPresenter {
     return [{ json: value as object }];
   }
 
+  private static jsonValueToPortItems(value: unknown | undefined): Readonly<Record<string, Items>> | undefined {
+    if (value === undefined || value === null || Array.isArray(value)) {
+      const main = this.jsonValueToMainItems(value);
+      return main ? { main } : undefined;
+    }
+    if (typeof value !== "object") {
+      return { main: [{ json: value as object }] };
+    }
+    const record = value as Record<string, unknown>;
+    const values = Object.values(record);
+    const looksLikePortMap = values.every((entry) => entry === undefined || entry === null || Array.isArray(entry));
+    if (!looksLikePortMap) {
+      return { main: [{ json: record as object }] };
+    }
+    const portMap: Record<string, Items> = {};
+    for (const [portName, portValue] of Object.entries(record)) {
+      const items = this.jsonValueToMainItems(portValue);
+      if (items) {
+        portMap[portName] = items;
+      }
+    }
+    return Object.keys(portMap).length > 0 ? portMap : undefined;
+  }
+
   private static resolveMatchingSnapshots(
     node: WorkflowNode,
     snapshots: ReadonlyArray<NodeExecutionSnapshot>,
@@ -943,7 +1075,7 @@ export class WorkflowDetailPresenter {
       if (node.role === "languageModel") {
         return snapshot.nodeId === node.id;
       }
-      if (node.role === "tool") {
+      if (node.role === "tool" || node.role === "nestedAgent") {
         return snapshot.nodeId === node.id;
       }
       return snapshot.nodeId === node.id;
@@ -954,7 +1086,7 @@ export class WorkflowDetailPresenter {
     node: WorkflowNode,
     snapshots: ReadonlyArray<NodeExecutionSnapshot>,
   ): boolean {
-    if (node.role !== "languageModel" && node.role !== "tool") {
+    if (node.role !== "languageModel" && node.role !== "tool" && node.role !== "nestedAgent") {
       return false;
     }
     return snapshots.some((snapshot) => snapshot.nodeId !== node.id);

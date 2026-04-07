@@ -16,6 +16,8 @@ const HANDLE_CENTERED_STYLE = {
 export function WorkflowCanvasCodemationNodeHandles(
   props: Readonly<{
     kind: string;
+    /** Nested agent-as-tool: wide agent chrome but only the attachment input from the parent (bottom LLM/tools sources are separate). */
+    isNestedAgentAttachment?: boolean;
     isAttachment: boolean;
     isAgent: boolean;
     /** When true, agent bottom LLM/tools handles are rendered on the shell (see WorkflowCanvasCodemationNodeAgentBottomSourceHandles). */
@@ -24,9 +26,17 @@ export function WorkflowCanvasCodemationNodeHandles(
     targetInputPorts: readonly string[];
   }>,
 ) {
-  const { isAgent, isAttachment, omitAgentBottomSourceHandles, sourceOutputPorts, targetInputPorts, kind } = props;
+  const {
+    isNestedAgentAttachment,
+    isAgent,
+    isAttachment,
+    omitAgentBottomSourceHandles,
+    sourceOutputPorts,
+    targetInputPorts,
+    kind,
+  } = props;
 
-  if (isAttachment) {
+  if (isNestedAgentAttachment || isAttachment) {
     return (
       <Handle
         type="target"

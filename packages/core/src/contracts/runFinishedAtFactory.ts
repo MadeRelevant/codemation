@@ -1,10 +1,13 @@
 import type { PersistedRunState } from "./runTypes";
 
-type RunFinishedAtSource = Pick<PersistedRunState, "status" | "nodeSnapshotsByNodeId">;
+type RunFinishedAtSource = Pick<PersistedRunState, "status" | "nodeSnapshotsByNodeId" | "finishedAt">;
 
-/** Derives workflow end time from node snapshots for run listings. */
+/** Derives workflow end time from persisted run root or node snapshots for run listings. */
 export class RunFinishedAtFactory {
   static resolveIso(state: RunFinishedAtSource): string | undefined {
+    if (state.finishedAt && state.status !== "running" && state.status !== "pending") {
+      return state.finishedAt;
+    }
     if (state.status === "running" || state.status === "pending") {
       return undefined;
     }

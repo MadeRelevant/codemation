@@ -1,5 +1,5 @@
 import type { NodeDefinition, WorkflowDefinition, WorkflowNodeConnection } from "@codemation/core";
-import { AgentConfigInspector, ConnectionNodeIdFactory } from "@codemation/core";
+import { AgentConfigInspector, AgentConnectionNodeCollector } from "@codemation/core";
 
 import { AIAgentNode } from "../nodes/AIAgentNode";
 import { ConnectionCredentialNode } from "../nodes/ConnectionCredentialNode";
@@ -12,65 +12,95 @@ export class AIAgentConnectionWorkflowExpander {
   constructor(private readonly connectionCredentialNodeConfigFactory: ConnectionCredentialNodeConfigFactory) {}
 
   expand(workflow: WorkflowDefinition): WorkflowDefinition {
-    const existingByParentAndName = new Map<string, WorkflowNodeConnection>();
-    for (const c of workflow.connections ?? []) {
-      existingByParentAndName.set(`${c.parentNodeId}\0${c.connectionName}`, c);
-    }
-
+    const existingChildIds = this.collectExistingChildIds(workflow);
+    const connectionsByParentAndName = this.createConnectionsByParentAndName(workflow);
     const extraNodes: NodeDefinition[] = [];
-    const extraConnections: WorkflowNodeConnection[] = [];
+    let connectionsChanged = false;
 
     for (const node of workflow.nodes) {
       if (node.type !== AIAgentNode || !AgentConfigInspector.isAgentNodeConfig(node.config)) {
         continue;
       }
-      const agentId = node.id;
-      const agentConfig = node.config;
-
-      if (!existingByParentAndName.has(`${agentId}\0llm`)) {
-        const llmId = ConnectionNodeIdFactory.languageModelConnectionNodeId(agentId);
-        this.assertNoIdCollision(workflow, extraNodes, llmId);
-        extraNodes.push({
-          id: llmId,
-          kind: "node",
-          type: ConnectionCredentialNode,
-          name: agentConfig.chatModel.presentation?.label ?? agentConfig.chatModel.name,
-          config: this.connectionCredentialNodeConfigFactory.create(agentConfig.chatModel.name, agentConfig.chatModel),
-        });
-        extraConnections.push({ parentNodeId: agentId, connectionName: "llm", childNodeIds: [llmId] });
-      }
-
-      if (!existingByParentAndName.has(`${agentId}\0tools`) && (agentConfig.tools?.length ?? 0) > 0) {
-        const toolIds: string[] = [];
-        for (const tool of agentConfig.tools ?? []) {
-          const toolId = ConnectionNodeIdFactory.toolConnectionNodeId(agentId, tool.name);
-          this.assertNoIdCollision(workflow, extraNodes, toolId);
-          toolIds.push(toolId);
+      for (const connectionNode of AgentConnectionNodeCollector.collect(node.id, node.config)) {
+        if (!existingChildIds.has(connectionNode.nodeId)) {
+          this.assertNoIdCollision(workflow, extraNodes, existingChildIds, connectionNode.nodeId);
           extraNodes.push({
-            id: toolId,
+            id: connectionNode.nodeId,
             kind: "node",
             type: ConnectionCredentialNode,
-            name: tool.presentation?.label ?? tool.name,
-            config: this.connectionCredentialNodeConfigFactory.create(tool.name, tool),
+            name: connectionNode.name,
+            config: this.connectionCredentialNodeConfigFactory.create(
+              connectionNode.typeName,
+              connectionNode.credentialSource,
+            ),
           });
         }
-        extraConnections.push({ parentNodeId: agentId, connectionName: "tools", childNodeIds: toolIds });
+        const connectionKey = this.connectionKey(connectionNode.parentNodeId, connectionNode.connectionName);
+        const existingConnection = connectionsByParentAndName.get(connectionKey);
+        if (!existingConnection) {
+          connectionsByParentAndName.set(connectionKey, {
+            parentNodeId: connectionNode.parentNodeId,
+            connectionName: connectionNode.connectionName,
+            childNodeIds: [connectionNode.nodeId],
+          });
+          connectionsChanged = true;
+          continue;
+        }
+        if (!existingConnection.childNodeIds.includes(connectionNode.nodeId)) {
+          connectionsByParentAndName.set(connectionKey, {
+            ...existingConnection,
+            childNodeIds: [...existingConnection.childNodeIds, connectionNode.nodeId],
+          });
+          connectionsChanged = true;
+        }
       }
     }
 
-    if (extraNodes.length === 0) {
+    if (extraNodes.length === 0 && !connectionsChanged) {
       return workflow;
     }
 
     return {
       ...workflow,
       nodes: [...workflow.nodes, ...extraNodes],
-      connections: [...(workflow.connections ?? []), ...extraConnections],
+      connections: [...connectionsByParentAndName.values()],
     };
   }
 
-  private assertNoIdCollision(workflow: WorkflowDefinition, pending: ReadonlyArray<NodeDefinition>, id: string): void {
-    if (workflow.nodes.some((n) => n.id === id) || pending.some((n) => n.id === id)) {
+  private createConnectionsByParentAndName(workflow: WorkflowDefinition): Map<string, WorkflowNodeConnection> {
+    const existingByParentAndName = new Map<string, WorkflowNodeConnection>();
+    for (const connection of workflow.connections ?? []) {
+      existingByParentAndName.set(this.connectionKey(connection.parentNodeId, connection.connectionName), connection);
+    }
+    return existingByParentAndName;
+  }
+
+  private collectExistingChildIds(workflow: WorkflowDefinition): ReadonlySet<string> {
+    const ids = new Set<string>();
+    for (const connection of workflow.connections ?? []) {
+      for (const childId of connection.childNodeIds) {
+        ids.add(childId);
+      }
+    }
+    return ids;
+  }
+
+  private connectionKey(parentNodeId: string, connectionName: string): string {
+    return `${parentNodeId}\0${connectionName}`;
+  }
+
+  private assertNoIdCollision(
+    workflow: WorkflowDefinition,
+    pending: ReadonlyArray<NodeDefinition>,
+    existingChildIds: ReadonlySet<string>,
+    id: string,
+  ): void {
+    if (pending.some((n) => n.id === id)) {
+      throw new Error(
+        `AIAgent connection expansion: node id "${id}" already exists. Rename the conflicting node or adjust the workflow.`,
+      );
+    }
+    if (workflow.nodes.some((n) => n.id === id) && !existingChildIds.has(id)) {
       throw new Error(
         `AIAgent connection expansion: node id "${id}" already exists. Rename the conflicting node or adjust the workflow.`,
       );

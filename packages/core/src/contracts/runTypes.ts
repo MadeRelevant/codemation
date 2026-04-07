@@ -228,10 +228,19 @@ export interface PendingNodeExecution {
   enqueuedAt: string;
 }
 
+export interface PersistedRunSchedulingState {
+  pending?: PendingNodeExecution;
+  queue: RunQueueEntry[];
+}
+
 export interface PersistedRunState {
   runId: RunId;
   workflowId: WorkflowId;
   startedAt: string;
+  /** Canonical terminal time for listings and retention when persisted on the run root. */
+  finishedAt?: string;
+  /** Optimistic concurrency / CAS on the run aggregate (repository may increment on save). */
+  revision?: number;
   parent?: ParentExecutionRef;
   executionOptions?: RunExecutionOptions;
   control?: PersistedRunControlState;
@@ -264,6 +273,7 @@ export interface WorkflowExecutionRepository {
     engineCounters?: EngineRunCounters;
   }): Promise<void>;
   load(runId: RunId): Promise<PersistedRunState | undefined>;
+  loadSchedulingState(runId: RunId): Promise<PersistedRunSchedulingState | undefined>;
   save(state: PersistedRunState): Promise<void>;
   deleteRun?(runId: RunId): Promise<void>;
 }

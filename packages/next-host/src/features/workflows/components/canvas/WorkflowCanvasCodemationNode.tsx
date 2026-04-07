@@ -23,6 +23,7 @@ export function CodemationNode({ data }: { data: WorkflowCanvasNodeData }) {
   const isSelected = data.selected;
   const isPropertiesTarget = data.propertiesTarget;
   const isAttachment = data.isAttachment;
+  const isNestedAgent = data.role === "nestedAgent";
   const isAgent = data.role === "agent";
   const isPinned = data.isPinned;
   const [isHovered, setIsHovered] = useState(false);
@@ -31,18 +32,22 @@ export function CodemationNode({ data }: { data: WorkflowCanvasNodeData }) {
   const showsCanvasControls = data.isLiveWorkflowView && !isAttachment;
   const isToolbarVisible = showsCanvasControls && (isHovered || hasToolbarFocus);
   const activityColor = isRunning ? "#2563eb" : "#7c3aed";
-  const cardHeightPx = isAttachment ? WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX : WORKFLOW_CANVAS_MAIN_NODE_CARD_PX;
-  const cardWidthPx = isAttachment
-    ? WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX
-    : isAgent
-      ? WORKFLOW_CANVAS_AGENT_NODE_CARD_WIDTH_PX
-      : WORKFLOW_CANVAS_MAIN_NODE_CARD_PX;
-  const fallbackWidthPx = isAttachment
-    ? WorkflowCanvasNodeGeometry.attachmentNodeWidthPx()
-    : WorkflowCanvasNodeGeometry.mainNodeWidthPx(isAgent);
-  const fallbackHeightPx = isAttachment
-    ? WorkflowCanvasNodeGeometry.attachmentNodeHeightPx(data.label)
-    : WorkflowCanvasNodeGeometry.mainNodeHeightPx(data.label, isAgent);
+  const cardHeightPx =
+    isAttachment && !isNestedAgent ? WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX : WORKFLOW_CANVAS_MAIN_NODE_CARD_PX;
+  const cardWidthPx =
+    isAttachment && !isNestedAgent
+      ? WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX
+      : isAgent || isNestedAgent
+        ? WORKFLOW_CANVAS_AGENT_NODE_CARD_WIDTH_PX
+        : WORKFLOW_CANVAS_MAIN_NODE_CARD_PX;
+  const fallbackWidthPx =
+    isAttachment && !isNestedAgent
+      ? WorkflowCanvasNodeGeometry.attachmentNodeWidthPx()
+      : WorkflowCanvasNodeGeometry.mainNodeWidthPx(isAgent || isNestedAgent);
+  const fallbackHeightPx =
+    isAttachment && !isNestedAgent
+      ? WorkflowCanvasNodeGeometry.attachmentNodeHeightPx(data.label)
+      : WorkflowCanvasNodeGeometry.mainNodeHeightPx(data.label, isAgent || isNestedAgent);
   const nodeWidthPx = data.layoutWidthPx > 0 ? data.layoutWidthPx : fallbackWidthPx;
   const nodeHeightPx = data.layoutHeightPx > 0 ? data.layoutHeightPx : fallbackHeightPx;
   const attachmentSourceOffsetFromNodeBottomPx = Math.max(0, Math.round(nodeHeightPx - cardHeightPx));
@@ -149,22 +154,23 @@ export function CodemationNode({ data }: { data: WorkflowCanvasNodeData }) {
           />
           <WorkflowCanvasCodemationNodeHandles
             kind={data.kind}
+            isNestedAgentAttachment={isNestedAgent}
             isAgent={isAgent}
-            isAttachment={isAttachment}
+            isAttachment={isAttachment && !isNestedAgent}
             omitAgentBottomSourceHandles={isAgent && !isAttachment}
             sourceOutputPorts={data.sourceOutputPorts}
             targetInputPorts={data.targetInputPorts}
           />
           <WorkflowCanvasCodemationNodeCard cardWidthPx={cardWidthPx} cardHeightPx={cardHeightPx} data={data} />
         </div>
-        {isAgent ? (
+        {(isAgent && !isAttachment) || isNestedAgent ? (
           <div style={{ marginTop: WORKFLOW_CANVAS_MAIN_NODE_LABEL_GAP_PX, width: "100%" }}>
             <WorkflowCanvasCodemationNodeAgentLabels />
           </div>
         ) : null}
         <WorkflowCanvasCodemationNodeLabelBelow data={data} maxWidthPx={cardWidthPx} />
       </div>
-      {isAgent && !isAttachment ? (
+      {(isAgent && !isAttachment) || isNestedAgent ? (
         <WorkflowCanvasCodemationNodeAgentBottomSourceHandles
           offsetFromNodeBottomPx={attachmentSourceOffsetFromNodeBottomPx}
         />

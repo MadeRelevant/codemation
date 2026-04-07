@@ -13,7 +13,12 @@ import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 
-import type { PersistedRunState, RunSummary, WorkflowDebuggerOverlayState } from "./realtimeDomainTypes";
+import type {
+  PersistedRunState,
+  RunSummary,
+  WorkflowDebuggerOverlayState,
+  WorkflowRunDetailDto,
+} from "./realtimeDomainTypes";
 
 export async function fetchWorkflows(): Promise<ReadonlyArray<WorkflowSummary>> {
   return await codemationApiClient.getJson<ReadonlyArray<WorkflowSummary>>(ApiPaths.workflows());
@@ -46,6 +51,14 @@ export async function fetchRun(
 ): Promise<PersistedRunState> {
   const init: RequestInit | undefined = options?.signal ? { signal: options.signal } : undefined;
   return await codemationApiClient.getJson<PersistedRunState>(ApiPaths.runState(runId), init);
+}
+
+export async function fetchRunDetail(
+  runId: string,
+  options?: Readonly<{ signal?: AbortSignal }>,
+): Promise<WorkflowRunDetailDto> {
+  const init: RequestInit | undefined = options?.signal ? { signal: options.signal } : undefined;
+  return await codemationApiClient.getJson<WorkflowRunDetailDto>(ApiPaths.runDetail(runId), init);
 }
 
 export async function fetchCredentialTypes(): Promise<ReadonlyArray<CredentialTypeDefinition>> {

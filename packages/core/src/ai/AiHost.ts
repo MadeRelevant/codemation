@@ -207,7 +207,7 @@ export interface AgentNodeConfig<TInputJson = unknown, TOutputJson = unknown> ex
   readonly guardrails?: AgentGuardrailConfig;
 }
 
-export type AgentAttachmentRole = "languageModel" | "tool";
+export type AgentAttachmentRole = "languageModel" | "tool" | "nestedAgent";
 
 export { NodeBackedToolConfig } from "./NodeBackedToolConfig";
 export { AgentToolFactory } from "./AgentToolFactory";

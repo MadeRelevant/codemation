@@ -5,6 +5,8 @@ import type {
   NodeId,
   NodeInputsByPort,
   NodeOutputs,
+  PendingNodeExecution,
+  PersistedRunSchedulingState,
   PersistedRunState,
   RunDataFactory,
   RunId,
@@ -31,7 +33,6 @@ import { NodeEventPublisher } from "../events/NodeEventPublisher";
 
 import { ActivationEnqueueService } from "../execution/ActivationEnqueueService";
 import { NodeExecutionSnapshotFactory } from "../execution/NodeExecutionSnapshotFactory";
-import { NodeInputsByPortFactory } from "../execution/NodeInputsByPortFactory";
 import { NodeRunStateWriterFactory } from "../execution/NodeRunStateWriterFactory";
 import { NodeActivationRequestComposer } from "../execution/NodeActivationRequestComposer";
 import { PersistedRunStateTerminalBuilder } from "../execution/PersistedRunStateTerminalBuilder";
@@ -65,9 +66,13 @@ export class RunContinuationService {
     nodeId: NodeId;
     inputsByPort: NodeInputsByPort;
   }): Promise<void> {
-    const state = await this.workflowExecutionRepository.load(args.runId);
-    if (!state?.pending) return;
-    if (state.pending.activationId !== args.activationId || state.pending.nodeId !== args.nodeId) return;
+    const [state, schedulingState] = await Promise.all([
+      this.workflowExecutionRepository.load(args.runId),
+      this.workflowExecutionRepository.loadSchedulingState(args.runId),
+    ]);
+    const pendingExecution = schedulingState?.pending;
+    if (!state || !pendingExecution) return;
+    if (pendingExecution.activationId !== args.activationId || pendingExecution.nodeId !== args.nodeId) return;
 
     const startedAt = new Date().toISOString();
     const previous = state.nodeSnapshotsByNodeId?.[args.nodeId];
@@ -98,12 +103,21 @@ export class RunContinuationService {
     nodeId: NodeId;
     outputs: NodeOutputs;
   }): Promise<RunResult> {
-    const state = await this.workflowExecutionRepository.load(args.runId);
+    const [state, schedulingState] = await Promise.all([
+      this.workflowExecutionRepository.load(args.runId),
+      this.workflowExecutionRepository.loadSchedulingState(args.runId),
+    ]);
     if (!state) throw new Error(`Unknown runId: ${args.runId}`);
-    if (state.status !== "pending" || !state.pending) throw new Error(`Run ${args.runId} is not pending`);
-    if (state.pending.activationId !== args.activationId)
+    const pendingExecution = this.requirePendingExecution(
+      args.runId,
+      args.activationId,
+      args.nodeId,
+      state,
+      schedulingState,
+    );
+    if (pendingExecution.activationId !== args.activationId)
       throw new Error(`activationId mismatch for run ${args.runId}`);
-    if (state.pending.nodeId !== args.nodeId) throw new Error(`nodeId mismatch for run ${args.runId}`);
+    if (pendingExecution.nodeId !== args.nodeId) throw new Error(`nodeId mismatch for run ${args.runId}`);
 
     const wf = this.resolvePersistedWorkflow(state);
     if (!wf) throw new Error(`Unknown workflowId: ${state.workflowId}`);
@@ -135,7 +149,7 @@ export class RunContinuationService {
       activationId: args.activationId,
       parent: state.parent,
       finishedAt: completedAt,
-      inputsByPort: state.pending.inputsByPort,
+      inputsByPort: pendingExecution.inputsByPort,
       outputs: args.outputs,
     });
 
@@ -154,6 +168,7 @@ export class RunContinuationService {
           ...(state.nodeSnapshotsByNodeId ?? {}),
           [args.nodeId]: completedSnapshot,
         },
+        finishedAtIso: completedAt,
       });
       await this.workflowExecutionRepository.save(completedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
@@ -174,8 +189,8 @@ export class RunContinuationService {
       return result;
     }
 
-    const batchId = state.pending.batchId ?? "batch_1";
-    const queue: RunQueueEntry[] = (state.queue ?? []).map((q) => ({ ...q, batchId: q.batchId ?? batchId }));
+    const batchId = pendingExecution.batchId ?? "batch_1";
+    const queue: RunQueueEntry[] = (schedulingState?.queue ?? []).map((q) => ({ ...q, batchId: q.batchId ?? batchId }));
     const nextNodeSnapshotsByNodeId = {
       ...(state.nodeSnapshotsByNodeId ?? {}),
       [args.nodeId]: completedSnapshot,
@@ -220,6 +235,7 @@ export class RunContinuationService {
         queue: [],
         outputsByNode: data.dump(),
         nodeSnapshotsByNodeId: nextNodeSnapshotsByNodeId,
+        finishedAtIso: completedAt,
       });
       await this.workflowExecutionRepository.save(completedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
@@ -250,6 +266,7 @@ export class RunContinuationService {
         queue: queue.map((q) => ({ ...q })),
         outputsByNode: data.dump(),
         nodeSnapshotsByNodeId: nextNodeSnapshotsByNodeId,
+        finishedAtIso: completedAt,
       });
       await this.workflowExecutionRepository.save(failedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
@@ -312,12 +329,21 @@ export class RunContinuationService {
     nodeId: NodeId;
     error: Error;
   }): Promise<RunResult> {
-    const state = await this.workflowExecutionRepository.load(args.runId);
+    const [state, schedulingState] = await Promise.all([
+      this.workflowExecutionRepository.load(args.runId),
+      this.workflowExecutionRepository.loadSchedulingState(args.runId),
+    ]);
     if (!state) throw new Error(`Unknown runId: ${args.runId}`);
-    if (state.status !== "pending" || !state.pending) throw new Error(`Run ${args.runId} is not pending`);
-    if (state.pending.activationId !== args.activationId)
+    const pendingExecution = this.requirePendingExecution(
+      args.runId,
+      args.activationId,
+      args.nodeId,
+      state,
+      schedulingState,
+    );
+    if (pendingExecution.activationId !== args.activationId)
       throw new Error(`activationId mismatch for run ${args.runId}`);
-    if (state.pending.nodeId !== args.nodeId) throw new Error(`nodeId mismatch for run ${args.runId}`);
+    if (pendingExecution.nodeId !== args.nodeId) throw new Error(`nodeId mismatch for run ${args.runId}`);
 
     const wf = this.resolvePersistedWorkflow(state);
     if (!wf) throw new Error(`Unknown workflowId: ${state.workflowId}`);
@@ -327,15 +353,28 @@ export class RunContinuationService {
         ? this.asWebhookControlSignal(args.error)
         : undefined;
     if (webhookControlSignal) {
-      return await this.resumeFromWebhookControl({ state, workflow: wf, args, signal: webhookControlSignal });
+      return await this.resumeFromWebhookControl({
+        state,
+        schedulingState,
+        pendingExecution,
+        workflow: wf,
+        args,
+        signal: webhookControlSignal,
+      });
     }
 
     if (failedDefinition && failedDefinition.kind === "node") {
       const nodeHandler = this.policyErrorServices.resolveNodeErrorHandler(failedDefinition.config.nodeErrorHandler);
       if (nodeHandler) {
         try {
-          const ctx = this.buildNodeExecutionContextForPending(state, wf, failedDefinition, args.nodeId);
-          const inputsByPort = state.pending.inputsByPort;
+          const ctx = this.buildNodeExecutionContextForPending(
+            state,
+            pendingExecution,
+            wf,
+            failedDefinition,
+            args.nodeId,
+          );
+          const inputsByPort = pendingExecution.inputsByPort;
           const portKeys = Object.keys(inputsByPort);
           const kind = portKeys.length === 1 && portKeys[0] === "in" ? ("single" as const) : ("multi" as const);
           const items = inputsByPort.in ?? [];
@@ -368,19 +407,20 @@ export class RunContinuationService {
       activationId: args.activationId,
       parent: state.parent,
       finishedAt,
-      inputsByPort: state.pending.inputsByPort,
+      inputsByPort: pendingExecution.inputsByPort,
       error: args.error,
     });
     const failedState = this.persistedRunStateTerminalBuilder.mergeTerminal({
       state,
       engineCounters: state.engineCounters ?? { completedNodeActivations: 0 },
       status: "failed",
-      queue: (state.queue ?? []).map((q) => ({ ...q })),
+      queue: (schedulingState?.queue ?? []).map((q) => ({ ...q })),
       outputsByNode: state.outputsByNode,
       nodeSnapshotsByNodeId: {
         ...(state.nodeSnapshotsByNodeId ?? {}),
         [args.nodeId]: failedSnapshot,
       },
+      finishedAtIso: finishedAt,
     });
     await this.workflowExecutionRepository.save(failedState);
     await this.nodeEventPublisher.publish("nodeFailed", failedSnapshot);
@@ -474,6 +514,8 @@ export class RunContinuationService {
 
   private async resumeFromWebhookControl(args: {
     state: NonNullable<Awaited<ReturnType<WorkflowExecutionRepository["load"]>>>;
+    schedulingState: PersistedRunSchedulingState | undefined;
+    pendingExecution: PendingNodeExecution;
     workflow: WorkflowDefinition;
     args: { runId: RunId; activationId: NodeActivationId; nodeId: NodeId; error: Error };
     signal: WebhookControlSignal;
@@ -495,7 +537,7 @@ export class RunContinuationService {
       activationId: args.args.activationId,
       parent: args.state.parent,
       finishedAt: new Date().toISOString(),
-      inputsByPort: args.state.pending?.inputsByPort ?? NodeInputsByPortFactory.empty(),
+      inputsByPort: args.pendingExecution.inputsByPort,
       outputs: triggerOutputs,
     });
 
@@ -514,6 +556,7 @@ export class RunContinuationService {
           ...(args.state.nodeSnapshotsByNodeId ?? {}),
           [args.args.nodeId]: completedSnapshot,
         },
+        finishedAtIso: completedSnapshot.finishedAt ?? completedSnapshot.updatedAt,
       });
       await this.workflowExecutionRepository.save(completedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
@@ -552,6 +595,7 @@ export class RunContinuationService {
           ...(args.state.nodeSnapshotsByNodeId ?? {}),
           [args.args.nodeId]: completedSnapshot,
         },
+        finishedAtIso: completedSnapshot.finishedAt ?? completedSnapshot.updatedAt,
       });
       await this.workflowExecutionRepository.save(completedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
@@ -580,8 +624,8 @@ export class RunContinuationService {
       return result;
     }
 
-    const batchId = args.state.pending?.batchId ?? "batch_1";
-    const queue: RunQueueEntry[] = (args.state.queue ?? []).map((entry) => ({
+    const batchId = args.pendingExecution.batchId ?? "batch_1";
+    const queue: RunQueueEntry[] = (args.schedulingState?.queue ?? []).map((entry) => ({
       ...entry,
       batchId: entry.batchId ?? batchId,
     }));
@@ -603,6 +647,7 @@ export class RunContinuationService {
           ...(args.state.nodeSnapshotsByNodeId ?? {}),
           [args.args.nodeId]: completedSnapshot,
         },
+        finishedAtIso: completedSnapshot.finishedAt ?? completedSnapshot.updatedAt,
       });
       await this.workflowExecutionRepository.save(completedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
@@ -643,6 +688,7 @@ export class RunContinuationService {
           ...(args.state.nodeSnapshotsByNodeId ?? {}),
           [args.args.nodeId]: completedSnapshot,
         },
+        finishedAtIso: completedSnapshot.finishedAt ?? completedSnapshot.updatedAt,
       });
       await this.workflowExecutionRepository.save(failedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
@@ -750,6 +796,7 @@ export class RunContinuationService {
 
   private buildNodeExecutionContextForPending(
     state: NonNullable<Awaited<ReturnType<WorkflowExecutionRepository["load"]>>>,
+    pendingExecution: PendingNodeExecution,
     wf: WorkflowDefinition,
     def: Readonly<{ id: NodeId; config: NodeExecutionContext["config"] }>,
     nodeId: NodeId,
@@ -767,7 +814,7 @@ export class RunContinuationService {
       data,
       nodeState: this.nodeStatePublisherFactory.create(state.runId, state.workflowId, state.parent),
     });
-    const activationId = state.pending!.activationId;
+    const activationId = pendingExecution.activationId;
     return {
       ...base,
       data,
@@ -777,6 +824,29 @@ export class RunContinuationService {
       binary: base.binary.forNode({ nodeId, activationId }),
       getCredential: this.credentialResolverFactory.create(wf.id, nodeId, def.config),
     };
+  }
+
+  private requirePendingExecution(
+    runId: RunId,
+    activationId: NodeActivationId,
+    nodeId: NodeId,
+    state: PersistedRunState,
+    schedulingState?: PersistedRunSchedulingState,
+  ): PendingNodeExecution {
+    if (state.status !== "pending") {
+      throw new Error(`Run ${runId} is not pending`);
+    }
+    const pendingExecution = schedulingState?.pending;
+    if (!pendingExecution) {
+      throw new Error(`Run ${runId} is not pending`);
+    }
+    if (pendingExecution.activationId !== activationId) {
+      throw new Error(`activationId mismatch for run ${runId}`);
+    }
+    if (pendingExecution.nodeId !== nodeId) {
+      throw new Error(`nodeId mismatch for run ${runId}`);
+    }
+    return pendingExecution;
   }
 
   private resolveEngineLimitsFromState(state: PersistedRunState): {

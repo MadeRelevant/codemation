@@ -14,7 +14,8 @@ export function WorkflowCanvasCodemationNodeLabelBelow(
   const { data, maxWidthPx } = props;
   const isAttachment = data.isAttachment;
   const isMainAgent = !isAttachment && data.role === "agent";
-  if (isMainAgent) {
+  const isNestedAgent = data.role === "nestedAgent";
+  if (isMainAgent || isNestedAgent) {
     return null;
   }
   const fontSize = isAttachment

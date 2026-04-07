@@ -11,6 +11,7 @@ export class RunHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
 
   register(app: Hono): void {
     app.get("/runs/:runId", (c) => this.handler.getRun(c.req.raw, { runId: c.req.param("runId") }));
+    app.get("/runs/:runId/detail", (c) => this.handler.getRunDetail(c.req.raw, { runId: c.req.param("runId") }));
     app.post("/runs", (c) => this.handler.postRuns(c.req.raw, {}));
     app.patch("/runs/:runId/workflow-snapshot", (c) =>
       this.handler.patchRunWorkflowSnapshot(c.req.raw, { runId: c.req.param("runId") }),

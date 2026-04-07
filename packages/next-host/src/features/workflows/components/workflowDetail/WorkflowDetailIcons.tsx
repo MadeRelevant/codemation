@@ -38,7 +38,7 @@ export function WorkflowStatusIcon(args: Readonly<{ status: string; size?: numbe
 export class WorkflowNodeIconResolver {
   static resolveFallback(type: string, role?: string, icon?: string): LucideIcon {
     if (icon?.toLowerCase() === "globe") return Globe;
-    if (role === "agent") return Bot;
+    if (role === "agent" || role === "nestedAgent") return Bot;
     if (role === "languageModel") return Brain;
     if (role === "tool") return Wrench;
     const normalizedType = type.toLowerCase();

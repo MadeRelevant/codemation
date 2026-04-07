@@ -33,17 +33,21 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
   ) {}
 
   async handleNodeExecutionRequest(request: NodeExecutionRequest): Promise<void> {
-    const state = await this.workflowExecutionRepository.load(request.runId);
+    const [state, schedulingState] = await Promise.all([
+      this.workflowExecutionRepository.load(request.runId),
+      this.workflowExecutionRepository.loadSchedulingState(request.runId),
+    ]);
     if (!state) {
       throw new Error(`Unknown runId: ${request.runId}`);
     }
     if (state.workflowId !== request.workflowId) {
       throw new Error(`workflowId mismatch for run ${request.runId}: ${state.workflowId} vs ${request.workflowId}`);
     }
-    if (state.status !== "pending" || !state.pending) {
+    const pendingExecution = schedulingState?.pending;
+    if (state.status !== "pending" || !pendingExecution) {
       return;
     }
-    if (state.pending.activationId !== request.activationId || state.pending.nodeId !== request.nodeId) {
+    if (pendingExecution.activationId !== request.activationId || pendingExecution.nodeId !== request.nodeId) {
       return;
     }
 
@@ -62,6 +66,7 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
     const resolvedParent = request.parent ?? state.parent;
     const data = this.runDataFactory.create(state.outputsByNode);
     const limits = this.resolveEngineLimitsFromState(state);
+    const persistedInput = pendingExecution.inputsByPort.in ?? request.input;
     const base = this.runExecutionContextFactory.create({
       runId: state.runId,
       workflowId: state.workflowId,
@@ -85,15 +90,15 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
         id: definition.id,
         config: definition.config,
       },
-      batchId: state.pending.batchId ?? "batch_1",
-      input: request.input,
+      batchId: pendingExecution.batchId ?? "batch_1",
+      input: persistedInput,
     });
 
     await this.continuation.markNodeRunning({
       runId: activationRequest.runId,
       activationId: activationRequest.activationId,
       nodeId: activationRequest.nodeId,
-      inputsByPort: { in: activationRequest.input },
+      inputsByPort: pendingExecution.inputsByPort,
     });
 
     let outputs;

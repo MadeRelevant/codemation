@@ -1,4 +1,4 @@
-import type { NodeDefinition, RetryPolicySpec, WorkflowDefinition } from "@codemation/core";
+import type { NodeDefinition, RetryPolicySpec, WorkflowDefinition } from "@codemation/core/browser";
 
 /** UI-facing policy labels derived from workflow/node definitions (live or hydrated snapshot). */
 export class WorkflowPolicyUiPresentationFactory {

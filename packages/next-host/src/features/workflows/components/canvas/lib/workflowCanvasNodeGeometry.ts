@@ -87,13 +87,18 @@ export class WorkflowCanvasNodeGeometry {
 
   /**
    * Delta Y from parent main-node **card center** to child attachment **card center** (siblings share one row).
+   * @param childAttachmentCardHalfHeightPx Half the child attachment card height (main card for nested agents, small card for tools/LLM).
    */
-  static attachmentCardCenterYDeltaFromParentCardCenter(parentLabel: string, parentIsAgent: boolean): number {
+  static attachmentCardCenterYDeltaFromParentCardCenter(
+    parentLabel: string,
+    parentIsAgent: boolean,
+    childAttachmentCardHalfHeightPx: number = WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX / 2,
+  ): number {
     return (
       WORKFLOW_CANVAS_MAIN_NODE_CARD_PX / 2 +
       this.verticalExtentBelowParentMainCard(parentLabel, parentIsAgent) +
       WORKFLOW_CANVAS_ATTACHMENT_STACK_GAP_PX +
-      WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX / 2
+      childAttachmentCardHalfHeightPx
     );
   }
 }

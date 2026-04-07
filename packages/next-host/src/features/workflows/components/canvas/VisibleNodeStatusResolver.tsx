@@ -47,7 +47,11 @@ export class VisibleNodeStatusResolver {
     for (const [connectionNodeId, invs] of invocationsByConnectionNodeId.entries()) {
       const aggregated = this.worstInvocationStatus(invs.map((entry) => entry.status));
       if (aggregated) {
-        result[connectionNodeId] = aggregated;
+        result[connectionNodeId] = this.worstInvocationStatus(
+          [result[connectionNodeId], aggregated].filter(
+            (value): value is NodeExecutionSnapshot["status"] => value !== undefined,
+          ),
+        );
       }
     }
     return result;

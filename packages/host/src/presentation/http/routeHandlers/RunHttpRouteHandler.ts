@@ -13,6 +13,7 @@ import type {
   UpdateRunWorkflowSnapshotRequest,
 } from "../../../application/contracts/RunContracts";
 import { GetRunStateQuery } from "../../../application/queries/GetRunStateQuery";
+import { GetWorkflowRunDetailQuery } from "../../../application/queries/GetWorkflowRunDetailQuery";
 import { ApplicationTokens } from "../../../applicationTokens";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 import type { ServerHttpRouteParams } from "../ServerHttpRouteParams";
@@ -33,6 +34,18 @@ export class RunHttpRouteHandler {
         return Response.json({ error: "Unknown runId" }, { status: 404 });
       }
       return Response.json(state);
+    } catch (error) {
+      return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  async getRunDetail(_: Request, params: ServerHttpRouteParams): Promise<Response> {
+    try {
+      const detail = await this.queryBus.execute(new GetWorkflowRunDetailQuery(params.runId!));
+      if (!detail) {
+        return Response.json({ error: "Unknown runId" }, { status: 404 });
+      }
+      return Response.json(detail);
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }

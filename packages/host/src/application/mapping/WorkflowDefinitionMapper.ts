@@ -1,12 +1,18 @@
-import type {
-  ChatModelConfig,
-  NodeDefinition,
-  ToolConfig,
-  WorkflowActivationPolicy,
-  WorkflowDefinition,
+import type { AgentNodeConfig, NodeDefinition, WorkflowActivationPolicy, WorkflowDefinition } from "@codemation/core";
+import {
+  AgentConfigInspector,
+  AgentConnectionNodeCollector,
+  CoreTokens,
+  inject,
+  injectable,
+  type AgentConnectionNodeDescriptor,
 } from "@codemation/core";
-import { AgentConfigInspector, ConnectionNodeIdFactory, CoreTokens, inject, injectable } from "@codemation/core";
-import type { WorkflowDto, WorkflowNodeDto, WorkflowSummary } from "../contracts/WorkflowViewContracts";
+import type {
+  WorkflowDto,
+  WorkflowEdgeDto,
+  WorkflowNodeDto,
+  WorkflowSummary,
+} from "../contracts/WorkflowViewContracts";
 import type { DataMapper } from "./DataMapper";
 import { WorkflowPolicyUiPresentationFactory } from "./WorkflowPolicyUiPresentationFactory";
 
@@ -55,17 +61,23 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
     return map;
   }
 
-  private agentHasConnectionMetadata(workflow: WorkflowDefinition, agentNodeId: string): boolean {
-    return (workflow.connections ?? []).some((c) => c.parentNodeId === agentNodeId);
-  }
-
   private toNodes(workflow: WorkflowDefinition): ReadonlyArray<WorkflowNodeDto> {
     const connectionChildMeta = this.buildConnectionChildMeta(workflow);
+    const materializedConnectionNodeIds = new Set(connectionChildMeta.keys());
     const nodes: WorkflowNodeDto[] = [];
     for (const node of workflow.nodes) {
       const conn = connectionChildMeta.get(node.id);
       if (conn) {
-        const role = conn.connectionName === "llm" ? "languageModel" : "tool";
+        const parentNode = workflow.nodes.find((n) => n.id === conn.parentNodeId);
+        let role: string = conn.connectionName === "llm" ? "languageModel" : "tool";
+        if (parentNode && AgentConfigInspector.isAgentNodeConfig(parentNode.config)) {
+          const descriptor = AgentConnectionNodeCollector.collect(conn.parentNodeId, parentNode.config).find(
+            (d) => d.nodeId === node.id,
+          );
+          if (descriptor) {
+            role = descriptor.role;
+          }
+        }
         nodes.push({
           id: node.id,
           kind: node.kind,
@@ -89,71 +101,98 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
         retryPolicySummary: this.policyUi.nodeRetrySummary(node.config),
         hasNodeErrorHandler: this.policyUi.nodeHasErrorHandler(node.config),
       });
-      if (AgentConfigInspector.isAgentNodeConfig(node.config) && !this.agentHasConnectionMetadata(workflow, node.id)) {
-        nodes.push(this.createLanguageModelNode(node, node.config.chatModel));
-        for (const toolConfig of node.config.tools ?? []) {
-          nodes.push(this.createToolNode(node, toolConfig));
-        }
+      if (AgentConfigInspector.isAgentNodeConfig(node.config)) {
+        this.appendVirtualConnectionNodes(node.id, node.config, materializedConnectionNodeIds, nodes);
       }
     }
     return nodes;
   }
 
   private toEdges(workflow: WorkflowDefinition): WorkflowDto["edges"] {
-    const edges = [...workflow.edges];
+    const connectionChildMeta = this.buildConnectionChildMeta(workflow);
+    const materializedConnectionNodeIds = new Set(connectionChildMeta.keys());
+    const edges: WorkflowEdgeDto[] = [...workflow.edges];
+    const edgeKeys = new Set(edges.map((edge) => this.edgeKey(edge.from.nodeId, edge.to.nodeId, edge.to.input)));
+    this.appendMaterializedConnectionEdges(workflow, edgeKeys, edges);
     for (const node of workflow.nodes) {
       if (!AgentConfigInspector.isAgentNodeConfig(node.config)) {
         continue;
       }
-      if (this.agentHasConnectionMetadata(workflow, node.id)) {
-        for (const c of workflow.connections ?? []) {
-          if (c.parentNodeId !== node.id) {
-            continue;
-          }
-          for (const childId of c.childNodeIds) {
-            edges.push({
-              from: { nodeId: node.id, output: "main" },
-              to: { nodeId: childId, input: "in" },
-            });
-          }
-        }
-        continue;
-      }
-      edges.push({
-        from: { nodeId: node.id, output: "main" },
-        to: { nodeId: ConnectionNodeIdFactory.languageModelConnectionNodeId(node.id), input: "in" },
-      });
-      for (const toolConfig of node.config.tools ?? []) {
-        edges.push({
-          from: { nodeId: node.id, output: "main" },
-          to: { nodeId: ConnectionNodeIdFactory.toolConnectionNodeId(node.id, toolConfig.name), input: "in" },
-        });
-      }
+      this.appendVirtualConnectionEdges(node.id, node.config, materializedConnectionNodeIds, edgeKeys, edges);
     }
     return edges;
   }
 
-  private createLanguageModelNode(node: NodeDefinition, chatModel: ChatModelConfig): WorkflowNodeDto {
-    return {
-      id: ConnectionNodeIdFactory.languageModelConnectionNodeId(node.id),
-      kind: "node",
-      name: chatModel.presentation?.label ?? chatModel.name,
-      type: chatModel.name,
-      role: "languageModel",
-      icon: chatModel.presentation?.icon,
-      parentNodeId: node.id,
-    };
+  private appendMaterializedConnectionEdges(
+    workflow: WorkflowDefinition,
+    edgeKeys: Set<string>,
+    edges: WorkflowEdgeDto[],
+  ): void {
+    for (const connection of workflow.connections ?? []) {
+      for (const childNodeId of connection.childNodeIds) {
+        const key = this.edgeKey(connection.parentNodeId, childNodeId, "in");
+        if (edgeKeys.has(key)) {
+          continue;
+        }
+        edges.push({
+          from: { nodeId: connection.parentNodeId, output: "main" },
+          to: { nodeId: childNodeId, input: "in" },
+        });
+        edgeKeys.add(key);
+      }
+    }
   }
 
-  private createToolNode(node: NodeDefinition, toolConfig: ToolConfig): WorkflowNodeDto {
+  private appendVirtualConnectionNodes(
+    rootAgentNodeId: string,
+    agentConfig: AgentNodeConfig<any, any>,
+    materializedConnectionNodeIds: ReadonlySet<string>,
+    nodes: WorkflowNodeDto[],
+  ): void {
+    for (const connectionNode of AgentConnectionNodeCollector.collect(rootAgentNodeId, agentConfig)) {
+      if (materializedConnectionNodeIds.has(connectionNode.nodeId)) {
+        continue;
+      }
+      nodes.push(this.createConnectionNode(connectionNode));
+    }
+  }
+
+  private appendVirtualConnectionEdges(
+    rootAgentNodeId: string,
+    agentConfig: AgentNodeConfig<any, any>,
+    materializedConnectionNodeIds: ReadonlySet<string>,
+    edgeKeys: Set<string>,
+    edges: WorkflowEdgeDto[],
+  ): void {
+    for (const connectionNode of AgentConnectionNodeCollector.collect(rootAgentNodeId, agentConfig)) {
+      if (materializedConnectionNodeIds.has(connectionNode.nodeId)) {
+        continue;
+      }
+      const key = this.edgeKey(connectionNode.parentNodeId, connectionNode.nodeId, "in");
+      if (edgeKeys.has(key)) {
+        continue;
+      }
+      edges.push({
+        from: { nodeId: connectionNode.parentNodeId, output: "main" },
+        to: { nodeId: connectionNode.nodeId, input: "in" },
+      });
+      edgeKeys.add(key);
+    }
+  }
+
+  private edgeKey(fromNodeId: string, toNodeId: string, toInput: string): string {
+    return `${fromNodeId}\0${toNodeId}\0${toInput}`;
+  }
+
+  private createConnectionNode(connectionNode: AgentConnectionNodeDescriptor): WorkflowNodeDto {
     return {
-      id: ConnectionNodeIdFactory.toolConnectionNodeId(node.id, toolConfig.name),
+      id: connectionNode.nodeId,
       kind: "node",
-      name: toolConfig.presentation?.label ?? toolConfig.name,
-      type: toolConfig.name,
-      role: "tool",
-      icon: toolConfig.presentation?.icon,
-      parentNodeId: node.id,
+      name: connectionNode.name,
+      type: connectionNode.typeName,
+      role: connectionNode.role,
+      icon: connectionNode.icon,
+      parentNodeId: connectionNode.parentNodeId,
     };
   }
 

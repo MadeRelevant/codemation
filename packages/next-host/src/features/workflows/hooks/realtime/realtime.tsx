@@ -15,19 +15,15 @@ export type {
 export * from "../../lib/realtime/realtimeDomainTypes";
 
 export { WorkflowRealtimeProvider } from "../../components/realtime/WorkflowRealtimeProvider";
+export {
+  useInviteUserMutation,
+  useRegenerateUserInviteMutation,
+  useUpdateUserAccountStatusMutation,
+} from "./userAccountMutations";
 
-import {
-  withInviteUserResponseLoginMethodsDefaults,
-  withUserAccountLoginMethodsDefaults,
-  type InviteUserResponseDto,
-  type UserAccountDto,
-  type UserAccountStatus,
-} from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
 import type { WorkflowDto, WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useContext, useEffect, useState } from "react";
-import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { RealtimeContext } from "../../components/realtime/RealtimeContext";
 import {
   fetchCredentialFieldEnvStatus,
@@ -35,6 +31,7 @@ import {
   fetchCredentialInstances,
   fetchCredentialTypes,
   fetchRun,
+  fetchRunDetail,
   fetchUserAccounts,
   fetchWorkflow,
   fetchWorkflowCredentialHealth,
@@ -49,6 +46,7 @@ import {
   credentialInstanceWithSecretsQueryKey,
   credentialInstancesQueryKey,
   credentialTypesQueryKey,
+  runDetailQueryKey,
   runQueryKey,
   userAccountsQueryKey,
   workflowCredentialHealthQueryKey,
@@ -58,7 +56,11 @@ import {
   workflowRunsQueryKey,
   workflowsQueryKey,
 } from "../../lib/realtime/realtimeQueryKeys";
-import type { PersistedRunState, WorkflowDevBuildState } from "../../lib/realtime/realtimeDomainTypes";
+import type {
+  PersistedRunState,
+  WorkflowDevBuildState,
+  WorkflowRunDetailDto,
+} from "../../lib/realtime/realtimeDomainTypes";
 import { WorkflowQueryRetryPolicy } from "../../lib/realtime/WorkflowQueryRetryPolicy";
 import { resolveFetchedRunState, resolveRunPollingIntervalMs } from "./runQueryPolling";
 
@@ -185,6 +187,18 @@ export function useRunQuery(
   });
 }
 
+export function useRunDetailQuery(
+  runId: string | null | undefined,
+  options: Readonly<{ disableFetch?: boolean }> = {},
+) {
+  return useQuery({
+    queryKey: runId ? runDetailQueryKey(runId) : ["run-detail", "disabled"],
+    queryFn: async ({ signal }): Promise<WorkflowRunDetailDto> => await fetchRunDetail(runId!, { signal }),
+    enabled: Boolean(runId) && !options.disableFetch,
+    staleTime: 30_000,
+  });
+}
+
 export function useCredentialTypesQuery() {
   return useQuery({
     queryKey: credentialTypesQueryKey,
@@ -229,46 +243,5 @@ export function useUserAccountsQuery() {
   return useQuery({
     queryKey: userAccountsQueryKey,
     queryFn: fetchUserAccounts,
-  });
-}
-
-export function useInviteUserMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (email: string): Promise<InviteUserResponseDto> => {
-      const body = await codemationApiClient.postJson<InviteUserResponseDto>(ApiPaths.userInvites(), { email });
-      return withInviteUserResponseLoginMethodsDefaults(body);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: userAccountsQueryKey });
-    },
-  });
-}
-
-export function useRegenerateUserInviteMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (userId: string): Promise<InviteUserResponseDto> => {
-      const body = await codemationApiClient.postJson<InviteUserResponseDto>(ApiPaths.userInviteRegenerate(userId));
-      return withInviteUserResponseLoginMethodsDefaults(body);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: userAccountsQueryKey });
-    },
-  });
-}
-
-export function useUpdateUserAccountStatusMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (args: Readonly<{ userId: string; status: UserAccountStatus }>): Promise<UserAccountDto> => {
-      const body = await codemationApiClient.patchJson<UserAccountDto>(ApiPaths.userStatus(args.userId), {
-        status: args.status,
-      });
-      return withUserAccountLoginMethodsDefaults(body);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: userAccountsQueryKey });
-    },
   });
 }

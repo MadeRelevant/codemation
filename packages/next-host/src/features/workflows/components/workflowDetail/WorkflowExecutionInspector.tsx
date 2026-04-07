@@ -24,6 +24,7 @@ export function WorkflowExecutionInspector(
     loadError,
     selectedNodeId,
     selectedRun,
+    selectedRunDetail,
     selectedWorkflowNode,
     viewContext,
   } = model;
@@ -62,7 +63,7 @@ export function WorkflowExecutionInspector(
     };
   }, [isTreePanelResizing]);
 
-  if (isLoading && viewContext === "historical-run" && !selectedRun)
+  if (isLoading && viewContext === "historical-run" && !selectedRun && !selectedRunDetail)
     return <div style={{ opacity: 0.7 }}>Loading execution details…</div>;
   if (isLoading && viewContext === "live-workflow" && !selectedWorkflowNode)
     return <div style={{ opacity: 0.7 }}>Loading live workflow state…</div>;

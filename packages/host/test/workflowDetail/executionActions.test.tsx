@@ -152,4 +152,33 @@ describe("workflow detail execution actions", () => {
     expect(screen.getByTestId("workflow-canvas-tab-live")).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByTestId("workflow-runs-sidebar")).not.toBeInTheDocument();
   });
+
+  it("keeps a clicked invocation row selected in historical runs instead of bouncing back to a workflow node", async () => {
+    const workflow = WorkflowDetailFixtureFactory.createNestedAgentCoordinatorWorkflowDetail();
+    const run = WorkflowDetailFixtureFactory.createNestedAgentCoordinatorCompletedRunState(workflow);
+    kit = WorkflowDetailScreenTestKit.create(workflow).install();
+    kit.seedRun(run);
+    kit.render();
+
+    await kit.waitForSocketConnection();
+    kit.openExecutionsPane();
+    await kit.waitForRunSummary(run.runId);
+
+    fireEvent.click(screen.getByTestId(`run-summary-${run.runId}`));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(`execution-tree-node-${WorkflowDetailFixtureFactory.nestedInnerLlmInvocationId}`),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByTestId(`execution-tree-node-${WorkflowDetailFixtureFactory.nestedInnerLlmInvocationId}`),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("selected-node-name")).toHaveTextContent("Mock LLM");
+      expect(screen.getByTestId("workflow-inspector-pane-output")).toHaveTextContent("inner_llm");
+    });
+  });
 });

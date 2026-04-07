@@ -1,5 +1,7 @@
+import { ConnectionNodeIdFactory } from "@codemation/core";
 import type { ConnectionInvocationRecord } from "@codemation/next-host/src/features/workflows/lib/realtime/realtimeDomainTypes";
 import { WorkflowDetailPresenter } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/WorkflowDetailPresenter";
+import type { ExecutionTreeNode } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/workflowDetailTypes";
 import { describe, expect, it } from "vitest";
 import { WorkflowDetailFixtureFactory } from "../workflowDetail/testkit";
 
@@ -326,6 +328,49 @@ describe("WorkflowDetailPresenter", () => {
     expect(
       WorkflowDetailPresenter.resolveCanvasWorkflowNodeIdForHighlight(null, workflow, connectionInvocations),
     ).toBeNull();
+  });
+
+  it("nests execution tree rows for deep agent connection chains (coordinator → nested agent → inner tool)", () => {
+    const workflow = WorkflowDetailFixtureFactory.createNestedAgentCoordinatorWorkflowDetail();
+    const run = WorkflowDetailFixtureFactory.createNestedAgentCoordinatorCompletedRunState(workflow);
+    const executionNodes = WorkflowDetailPresenter.buildExecutionNodes(workflow, run);
+    const tree = WorkflowDetailPresenter.buildExecutionTreeData(executionNodes);
+    const rootIds = tree.map((n) => n.workflowNode?.id);
+
+    expect(rootIds).toContain(WorkflowDetailFixtureFactory.triggerNodeId);
+    expect(rootIds).toContain(WorkflowDetailFixtureFactory.nestedCoordinatorAgentId);
+    expect(rootIds).not.toContain(WorkflowDetailFixtureFactory.nestedOuterLlmInvocationId);
+    expect(rootIds).not.toContain(WorkflowDetailFixtureFactory.nestedSpecialistInvocationId);
+    expect(rootIds).not.toContain(WorkflowDetailFixtureFactory.nestedInnerLlmInvocationId);
+    expect(rootIds).not.toContain(WorkflowDetailFixtureFactory.nestedInnerToolInvocationId);
+
+    const agentRoot = tree.find((n) => n.workflowNode?.id === WorkflowDetailFixtureFactory.nestedCoordinatorAgentId);
+    expect(agentRoot).toBeDefined();
+
+    const specialistChild = (agentRoot?.children as ExecutionTreeNode[] | undefined)?.find(
+      (c) => c.workflowNode?.id === WorkflowDetailFixtureFactory.nestedSpecialistInvocationId,
+    );
+    expect(specialistChild).toBeDefined();
+
+    const specialistChildren = (specialistChild?.children ?? []) as ExecutionTreeNode[];
+    expect(
+      specialistChildren.some((c) => c.workflowNode?.id === WorkflowDetailFixtureFactory.nestedInnerLlmInvocationId),
+    ).toBe(true);
+    expect(
+      specialistChildren.some((c) => c.workflowNode?.id === WorkflowDetailFixtureFactory.nestedInnerToolInvocationId),
+    ).toBe(true);
+
+    const specialistToolWorkflowId = ConnectionNodeIdFactory.toolConnectionNodeId(
+      WorkflowDetailFixtureFactory.nestedCoordinatorAgentId,
+      WorkflowDetailFixtureFactory.nestedResearchToolName,
+    );
+    const innerToolWorkflowId = ConnectionNodeIdFactory.toolConnectionNodeId(
+      specialistToolWorkflowId,
+      WorkflowDetailFixtureFactory.nestedInnerLookupToolName,
+    );
+    expect(WorkflowDetailPresenter.resolveExecutionTreeKeyForNodeId(executionNodes, innerToolWorkflowId)).toBe(
+      WorkflowDetailFixtureFactory.nestedInnerToolInvocationId,
+    );
   });
 
   it("places two distinct LLM invocations under the agent in the execution tree", () => {

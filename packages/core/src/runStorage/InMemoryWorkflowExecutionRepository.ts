@@ -3,6 +3,7 @@ import type {
   NodeId,
   NodeOutputs,
   ParentExecutionRef,
+  PersistedRunSchedulingState,
   PersistedRunState,
   RunId,
   RunSummary,
@@ -36,6 +37,7 @@ export class InMemoryWorkflowExecutionRepository
       runId: args.runId,
       workflowId: args.workflowId,
       startedAt: args.startedAt,
+      revision: 0,
       parent: args.parent,
       executionOptions: args.executionOptions,
       control: args.control,
@@ -55,8 +57,19 @@ export class InMemoryWorkflowExecutionRepository
     return this.runs.get(runId);
   }
 
+  async loadSchedulingState(runId: RunId): Promise<PersistedRunSchedulingState | undefined> {
+    const state = this.runs.get(runId);
+    if (!state) {
+      return undefined;
+    }
+    return {
+      pending: state.pending ? { ...state.pending } : undefined,
+      queue: state.queue.map((entry) => ({ ...entry })),
+    };
+  }
+
   async save(state: PersistedRunState): Promise<void> {
-    this.runs.set(state.runId, state);
+    this.runs.set(state.runId, { ...state, revision: (state.revision ?? 0) + 1 });
   }
 
   async deleteRun(runId: RunId): Promise<void> {

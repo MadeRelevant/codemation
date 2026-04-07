@@ -1,4 +1,5 @@
 import type {
+  PersistedRunSchedulingState,
   PersistedRunState,
   RunId,
   RunPruneCandidate,
@@ -32,6 +33,10 @@ export class EventPublishingWorkflowExecutionRepository
 
   async load(runId: RunId): Promise<PersistedRunState | undefined> {
     return await this.inner.load(runId);
+  }
+
+  async loadSchedulingState(runId: RunId): Promise<PersistedRunSchedulingState | undefined> {
+    return await this.inner.loadSchedulingState(runId);
   }
 
   async save(state: PersistedRunState): Promise<void> {

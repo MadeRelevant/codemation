@@ -298,6 +298,11 @@ export interface NodeActivationReceipt {
   queue?: string;
 }
 
+export interface PreparedNodeActivationDispatch {
+  readonly receipt: NodeActivationReceipt;
+  dispatch(): Promise<void>;
+}
+
 export interface NodeActivationContinuation {
   markNodeRunning(args: {
     runId: RunId;
@@ -321,8 +326,7 @@ export interface NodeActivationContinuation {
 
 export interface NodeActivationScheduler {
   setContinuation?(continuation: NodeActivationContinuation): void;
-  enqueue(request: NodeActivationRequest): Promise<NodeActivationReceipt>;
-  notifyPendingStatePersisted?(runId: RunId): void;
+  prepareDispatch(request: NodeActivationRequest): Promise<PreparedNodeActivationDispatch>;
   cancel?(receiptId: string): Promise<void>;
 }
 

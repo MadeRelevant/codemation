@@ -1,8 +1,7 @@
 import type { BinaryStorage, Clock, RunId, WorkflowId } from "@codemation/core";
-import { CoreTokens, RunFinishedAtFactory } from "@codemation/core";
+import { CoreTokens } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
 import type { Logger } from "../logging/Logger";
-import { RunStateBinaryStorageKeysCollector } from "../binary/RunStateBinaryStorageKeysCollector";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { AppConfig } from "../../presentation/config/AppConfig";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
@@ -17,7 +16,6 @@ import { ServerLoggerFactory } from "../../infrastructure/logging/ServerLoggerFa
 export class WorkflowRunRetentionPruneScheduler {
   private timer: ReturnType<typeof setInterval> | undefined;
   private readonly logger: Logger;
-  private readonly binaryKeysCollector = new RunStateBinaryStorageKeysCollector();
 
   constructor(
     @inject(ApplicationTokens.Clock) private readonly clock: Clock,
@@ -54,36 +52,24 @@ export class WorkflowRunRetentionPruneScheduler {
   /** Exposed for tests; production path is the interval started by {@link start}. */
   async runOnce(): Promise<void> {
     this.logger.debug("Run retention prune: starting check");
-
     const defaultRetentionSec = Number(this.appConfig.env.CODEMATION_RUN_RETENTION_DEFAULT_SECONDS ?? 86_400);
-    const summaries = await this.runs.listRuns({ limit: 500 });
-    const nowMs = this.clock.now().getTime();
+    const beforeIso = new Date(this.clock.now().getTime() - defaultRetentionSec * 1000).toISOString();
+    const summaries = await this.runs.listRunsOlderThan?.({ beforeIso, limit: 500 });
+    const candidates =
+      summaries ??
+      (await this.runs.listRuns({ limit: 500 })).filter(
+        (summary) => summary.status === "completed" || summary.status === "failed",
+      );
 
     let foundCount = 0;
     let prunedCount = 0;
-    for (const s of summaries) {
-      if (s.status !== "completed" && s.status !== "failed") {
-        continue;
-      }
-      const state = await this.runs.load(s.runId);
-      if (!state) {
-        continue;
-      }
-      const retentionSec = state.policySnapshot?.retentionSeconds ?? defaultRetentionSec;
-      const finishedAt = RunFinishedAtFactory.resolveIso(state) ?? s.finishedAt;
-      if (!finishedAt) {
-        continue;
-      }
-      const ageMs = nowMs - Date.parse(finishedAt);
-      if (ageMs <= retentionSec * 1000) {
-        continue;
-      }
-
-      const runId = s.runId as RunId;
-      const workflowId = s.workflowId as WorkflowId;
+    for (const candidate of candidates) {
+      const runId = candidate.runId as RunId;
+      const workflowId = candidate.workflowId as WorkflowId;
       foundCount += 1;
 
-      const storageKeys = this.binaryKeysCollector.collectFromRunState(state);
+      const storageKeys =
+        (await this.runs.listBinaryStorageKeys?.(runId)) ?? (await this.loadStorageKeysFromRunStateFallback(runId));
       for (const key of storageKeys) {
         await this.binaryStorage.delete(key);
       }
@@ -94,5 +80,44 @@ export class WorkflowRunRetentionPruneScheduler {
 
     this.logger.info(`Run retention prune: found ${foundCount} run(s) to prune`);
     this.logger.info(`Run retention prune: pruned ${prunedCount} run(s)`);
+  }
+
+  private async loadStorageKeysFromRunStateFallback(runId: RunId): Promise<ReadonlyArray<string>> {
+    const state = await this.runs.load(runId);
+    if (!state) {
+      return [];
+    }
+    const keys = new Set<string>();
+    this.collectStorageKeysFromValue(state.outputsByNode, keys);
+    this.collectStorageKeysFromValue(state.nodeSnapshotsByNodeId, keys);
+    this.collectStorageKeysFromValue(state.mutableState, keys);
+    return [...keys];
+  }
+
+  private collectStorageKeysFromValue(value: unknown, keys: Set<string>): void {
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        this.collectStorageKeysFromValue(entry, keys);
+      }
+      return;
+    }
+    if (!value || typeof value !== "object") {
+      return;
+    }
+    const record = value as Record<string, unknown>;
+    if (
+      typeof record.id === "string" &&
+      typeof record.storageKey === "string" &&
+      typeof record.mimeType === "string" &&
+      typeof record.size === "number"
+    ) {
+      if (record.storageKey.length > 0) {
+        keys.add(record.storageKey);
+      }
+      return;
+    }
+    for (const child of Object.values(record)) {
+      this.collectStorageKeysFromValue(child, keys);
+    }
   }
 }

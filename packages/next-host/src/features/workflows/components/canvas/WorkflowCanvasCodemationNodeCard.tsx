@@ -17,12 +17,14 @@ export function WorkflowCanvasCodemationNodeCard(
 ) {
   const { cardHeightPx, cardWidthPx, data } = props;
   const isAttachment = data.isAttachment;
-  const isAgentInlineTitle = !isAttachment && data.role === "agent";
+  const isNestedAgent = data.role === "nestedAgent";
+  const treatAsSmallAttachment = isAttachment && !isNestedAgent;
+  const isAgentInlineTitle = (!isAttachment && data.role === "agent") || isNestedAgent;
   const isActive = data.status === "queued" || data.status === "running";
   const isSelected = data.selected;
   const isPropertiesTarget = data.propertiesTarget;
   const isPinned = data.isPinned;
-  const iconPx = isAttachment ? WORKFLOW_CANVAS_ATTACHMENT_NODE_ICON_PX : WORKFLOW_CANVAS_MAIN_NODE_ICON_PX;
+  const iconPx = treatAsSmallAttachment ? WORKFLOW_CANVAS_ATTACHMENT_NODE_ICON_PX : WORKFLOW_CANVAS_MAIN_NODE_ICON_PX;
   const trailing = trailingIconForNode({ status: data.status, isPinned });
   const hasTopBadges =
     Boolean(data.retryPolicySummary) ||
@@ -64,14 +66,14 @@ export function WorkflowCanvasCodemationNodeCard(
                   ? "1px solid #7c3aed"
                   : "1px solid #e2e8f0",
           background: isSelected
-            ? isAttachment
+            ? treatAsSmallAttachment
               ? "#fffaf0"
               : "#fffdf5"
             : isPropertiesTarget
               ? "#faf5ff"
               : isPinned
                 ? "#f5f3ff"
-                : isAttachment
+                : treatAsSmallAttachment
                   ? "#f8fafc"
                   : "#ffffff",
           boxShadow: isActive
