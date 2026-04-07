@@ -2,10 +2,13 @@ import { RunFinishedAtFactory } from "@codemation/core";
 import type { WorkflowEvent } from "@codemation/next-host/src/features/workflows/lib/realtime/realtimeDomainTypes";
 import { reduceWorkflowEventIntoPersistedRunState } from "@codemation/next-host/src/features/workflows/lib/realtime/realtimeRunMutations";
 import type {
+  ExecutionInstanceDto,
   PersistedRunState,
   RunSummary,
+  SlotExecutionStateDto,
   WorkflowDebuggerOverlayState,
   WorkflowDto,
+  WorkflowRunDetailDto,
 } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
 import { expect } from "vitest";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
@@ -321,6 +324,15 @@ export class WorkflowDetailTestEnvironment {
       return Response.json(this.debuggerOverlay);
     }
 
+    if (method === "GET" && url.pathname === ApiPaths.runDetail(decodeURIComponent(url.pathname.split("/")[3] ?? ""))) {
+      const runId = decodeURIComponent(url.pathname.split("/")[3] ?? "");
+      const runState = this.runsById.get(runId);
+      if (!runState) {
+        throw new Error(`Unhandled run detail lookup: ${routeKey}`);
+      }
+      return Response.json(this.buildRunDetail(runState));
+    }
+
     if (method === "GET" && url.pathname.startsWith("/api/runs/")) {
       const runId = decodeURIComponent(url.pathname.split("/")[3] ?? "");
       const runState = this.runsById.get(runId);
@@ -481,6 +493,87 @@ export class WorkflowDetailTestEnvironment {
       },
     };
     return Response.json(this.debuggerOverlay);
+  }
+
+  private buildRunDetail(runState: PersistedRunState): WorkflowRunDetailDto {
+    const slotStates: SlotExecutionStateDto[] = Object.entries(runState.nodeSnapshotsByNodeId).map(
+      ([slotNodeId, snapshot]) => {
+        const instanceId = this.createWorkflowNodeInstanceId(runState.runId, slotNodeId, snapshot.activationId);
+        return {
+          slotNodeId,
+          latestInstanceId: instanceId,
+          latestTerminalInstanceId:
+            snapshot.status === "completed" || snapshot.status === "failed" ? instanceId : undefined,
+          latestRunningInstanceId:
+            snapshot.status === "queued" || snapshot.status === "running" ? instanceId : undefined,
+          status: snapshot.status,
+          invocationCount: (runState.connectionInvocations ?? []).filter((inv) => inv.connectionNodeId === slotNodeId)
+            .length,
+          runCount: 1,
+        };
+      },
+    );
+
+    const nodeExecutionInstances: ExecutionInstanceDto[] = Object.entries(runState.nodeSnapshotsByNodeId).map(
+      ([slotNodeId, snapshot]) => ({
+        instanceId: this.createWorkflowNodeInstanceId(runState.runId, slotNodeId, snapshot.activationId),
+        slotNodeId,
+        workflowNodeId: slotNodeId,
+        kind: "workflowNodeActivation",
+        runIndex: 1,
+        batchId: runState.pending?.batchId ?? "batch_1",
+        activationId: snapshot.activationId,
+        status: snapshot.status,
+        queuedAt: snapshot.queuedAt,
+        startedAt: snapshot.startedAt,
+        finishedAt: snapshot.finishedAt,
+        itemCount: Object.values(snapshot.inputsByPort ?? {}).reduce((count, items) => count + items.length, 0),
+        inputJson: snapshot.inputsByPort as never,
+        outputJson: snapshot.outputs as never,
+        error: snapshot.error,
+      }),
+    );
+
+    const invocationExecutionInstances: ExecutionInstanceDto[] = (runState.connectionInvocations ?? []).map(
+      (invocation, index) => ({
+        instanceId: invocation.invocationId,
+        slotNodeId: invocation.connectionNodeId,
+        workflowNodeId: invocation.parentAgentNodeId,
+        parentInstanceId: this.createWorkflowNodeInstanceId(
+          runState.runId,
+          invocation.parentAgentNodeId,
+          invocation.parentAgentActivationId,
+        ),
+        kind: "connectionInvocation",
+        runIndex: index + 1,
+        batchId: invocation.parentAgentActivationId ?? "batch_1",
+        activationId: invocation.parentAgentActivationId,
+        status: invocation.status,
+        queuedAt: invocation.queuedAt,
+        startedAt: invocation.startedAt,
+        finishedAt: invocation.finishedAt,
+        itemCount: 0,
+        inputJson: invocation.managedInput,
+        outputJson: invocation.managedOutput,
+        error: invocation.error,
+      }),
+    );
+
+    return {
+      runId: runState.runId,
+      workflowId: runState.workflowId,
+      startedAt: runState.startedAt,
+      finishedAt: RunFinishedAtFactory.resolveIso(runState),
+      status: runState.status,
+      workflowSnapshot: runState.workflowSnapshot,
+      mutableState: runState.mutableState,
+      slotStates,
+      executionInstances: [...nodeExecutionInstances, ...invocationExecutionInstances],
+    };
+  }
+
+  private createWorkflowNodeInstanceId(runId: string, slotNodeId: string, activationId?: string): string {
+    return `${runId}:node:${slotNodeId}:${activationId ?? "na"}`;
   }
 
   private prependWorkflowRun(runState: PersistedRunState): void {

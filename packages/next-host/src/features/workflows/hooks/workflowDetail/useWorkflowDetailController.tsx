@@ -499,9 +499,9 @@ export function useWorkflowDetailController(
   const executionNodes = useMemo(
     () =>
       viewContext === "historical-run"
-        ? WorkflowDetailPresenter.buildHistoricalExecutionNodes(displayedWorkflow, selectedRunDetail)
+        ? WorkflowDetailPresenter.buildHistoricalExecutionNodes(displayedWorkflow, selectedRunDetail, selectedRun)
         : WorkflowDetailPresenter.buildExecutionNodes(displayedWorkflow, currentExecutionState),
-    [currentExecutionState, displayedWorkflow, selectedRunDetail, viewContext],
+    [currentExecutionState, displayedWorkflow, selectedRun, selectedRunDetail, viewContext],
   );
   const executionTreeData = useMemo(
     () => WorkflowDetailPresenter.buildExecutionTreeData(executionNodes),

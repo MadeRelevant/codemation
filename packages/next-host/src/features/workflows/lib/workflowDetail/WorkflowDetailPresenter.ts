@@ -673,14 +673,24 @@ export class WorkflowDetailPresenter {
   static buildHistoricalExecutionNodes(
     workflow: WorkflowDto | undefined,
     executionDetail: WorkflowRunDetailDto | undefined,
+    historicalRunState?: PersistedRunState,
   ): ReadonlyArray<ExecutionNode> {
-    if (!workflow || !executionDetail) {
+    if (!workflow) {
       return [];
     }
-    return executionDetail.executionInstances
+    const historicalNodes = (executionDetail?.executionInstances ?? [])
       .map((instance) => this.createHistoricalExecutionNode(workflow, instance))
       .filter((entry): entry is ExecutionNode => entry !== undefined)
       .sort((left, right) => this.compareExecutionNodes(left, right));
+    if (!historicalRunState?.connectionInvocations?.length) {
+      return historicalNodes;
+    }
+    const fallbackInvocationNodes = this.buildFallbackHistoricalInvocationNodes(workflow, historicalRunState).filter(
+      (entry) => !historicalNodes.some((existing) => existing.node.id === entry.node.id),
+    );
+    return [...historicalNodes, ...fallbackInvocationNodes].sort((left, right) =>
+      this.compareExecutionNodes(left, right),
+    );
   }
 
   /**
@@ -991,6 +1001,17 @@ export class WorkflowDetailPresenter {
       parentExecutionInstanceId: instance.parentInstanceId,
       workflowConnectionNodeId: instance.kind === "connectionInvocation" ? instance.slotNodeId : undefined,
     };
+  }
+
+  private static buildFallbackHistoricalInvocationNodes(
+    workflow: WorkflowDto,
+    historicalRunState: PersistedRunState,
+  ): ReadonlyArray<ExecutionNode> {
+    return this.buildExecutionNodes(workflow, {
+      mutableState: historicalRunState.mutableState,
+      nodeSnapshotsByNodeId: {},
+      connectionInvocations: historicalRunState.connectionInvocations,
+    }).filter((entry) => entry.workflowConnectionNodeId !== undefined);
   }
 
   private static snapshotFromConnectionInvocation(inv: ConnectionInvocationRecord): NodeExecutionSnapshot {
