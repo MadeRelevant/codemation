@@ -1,3 +1,5 @@
+import type { ZodType } from "zod";
+
 import type { TypeToken } from "../di";
 import type { CredentialRequirement } from "./credentialTypes";
 import type { RetryPolicySpec } from "./retryPolicySpec.types";
@@ -86,10 +88,33 @@ export declare const runnableNodeInputType: unique symbol;
 export declare const runnableNodeOutputType: unique symbol;
 export declare const triggerNodeOutputType: unique symbol;
 
+/**
+ * Arguments for optional per-item input mapping applied by the engine before Zod validation.
+ * `ctx` is typed as `unknown` here to avoid a circular import with {@link NodeExecutionContext}.
+ */
+export interface ItemInputMapperArgs {
+  readonly item: Item;
+  readonly itemIndex: number;
+  readonly items: Items;
+  readonly ctx: unknown;
+}
+
+export type ItemInputMapper = (args: ItemInputMapperArgs) => unknown | Promise<unknown>;
+
 export interface RunnableNodeConfig<TInputJson = unknown, TOutputJson = unknown> extends NodeConfigBase {
   readonly kind: "node";
   readonly [runnableNodeInputType]?: TInputJson;
   readonly [runnableNodeOutputType]?: TOutputJson;
+  /**
+   * Optional Zod input contract for {@link ItemNode} when not set on the node class.
+   * Resolution order: node instance `inputSchema`, then config `inputSchema`, then `z.unknown()`.
+   */
+  readonly inputSchema?: ZodType<TInputJson>;
+  /**
+   * Optional per-item mapper: engine applies it before validating against the node’s `inputSchema`.
+   * When omitted, the engine validates `item.json` directly.
+   */
+  readonly mapInput?: ItemInputMapper;
 }
 
 export declare const triggerNodeSetupStateType: unique symbol;

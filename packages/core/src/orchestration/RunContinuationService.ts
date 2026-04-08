@@ -1,7 +1,10 @@
 import type {
   ActivationIdFactory,
+  EngineRunCounters,
   NodeActivationId,
+  NodeActivationRequest,
   NodeExecutionContext,
+  NodeExecutionSnapshot,
   NodeId,
   NodeInputsByPort,
   NodeOutputs,
@@ -32,6 +35,7 @@ import type { EngineWaiters } from "../orchestration/EngineWaiters";
 import { NodeEventPublisher } from "../events/NodeEventPublisher";
 
 import { ActivationEnqueueService } from "../execution/ActivationEnqueueService";
+import { NodeInputsByPortFactory } from "../execution/NodeInputsByPortFactory";
 import { NodeExecutionSnapshotFactory } from "../execution/NodeExecutionSnapshotFactory";
 import { NodeRunStateWriterFactory } from "../execution/NodeRunStateWriterFactory";
 import { NodeActivationRequestComposer } from "../execution/NodeActivationRequestComposer";
@@ -301,26 +305,43 @@ export class RunContinuationService {
       nodeDefinition: def,
     });
 
-    const { queuedSnapshot, result } = await this.activationEnqueueService.enqueueActivationWithSnapshot({
-      runId: state.runId,
-      workflowId: state.workflowId,
-      startedAt: state.startedAt,
-      parent: state.parent,
-      executionOptions: state.executionOptions,
-      control: state.control,
-      workflowSnapshot: state.workflowSnapshot,
-      mutableState: state.mutableState,
-      policySnapshot: state.policySnapshot,
-      pendingQueue: queue,
-      request,
-      previousNodeSnapshotsByNodeId: nextNodeSnapshotsByNodeId,
-      planner,
-      engineCounters,
-      connectionInvocations: state.connectionInvocations ?? [],
-    });
-    await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
-    await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);
-    return result;
+    try {
+      const { queuedSnapshot, result } = await this.activationEnqueueService.enqueueActivationWithSnapshot({
+        runId: state.runId,
+        workflowId: state.workflowId,
+        startedAt: state.startedAt,
+        parent: state.parent,
+        executionOptions: state.executionOptions,
+        control: state.control,
+        workflowSnapshot: state.workflowSnapshot,
+        mutableState: state.mutableState,
+        policySnapshot: state.policySnapshot,
+        pendingQueue: queue,
+        request,
+        previousNodeSnapshotsByNodeId: nextNodeSnapshotsByNodeId,
+        planner,
+        engineCounters,
+        connectionInvocations: state.connectionInvocations ?? [],
+      });
+      await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
+      await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);
+      return result;
+    } catch (cause) {
+      const error = cause instanceof Error ? cause : new Error(String(cause));
+      return await this.terminateRunAfterActivationEnqueueRejected({
+        wf,
+        state,
+        queue,
+        nextNodeId: next.nodeId,
+        request,
+        completedSnapshot,
+        nextNodeSnapshotsByNodeId,
+        outputsByNode: data.dump(),
+        engineCounters,
+        error,
+        completedAt,
+      });
+    }
   }
 
   async resumeFromNodeError(args: {
@@ -744,36 +765,64 @@ export class RunContinuationService {
       nodeDefinition: nextDefinition,
     });
 
-    const { queuedSnapshot, result } = await this.activationEnqueueService.enqueueActivationWithSnapshot({
-      runId: args.state.runId,
-      workflowId: args.state.workflowId,
-      startedAt: args.state.startedAt,
-      parent: args.state.parent,
-      executionOptions: args.state.executionOptions,
-      control: args.state.control,
-      workflowSnapshot: args.state.workflowSnapshot,
-      mutableState: args.state.mutableState,
-      policySnapshot: args.state.policySnapshot,
-      pendingQueue: queue,
-      request,
-      previousNodeSnapshotsByNodeId: {
-        ...(args.state.nodeSnapshotsByNodeId ?? {}),
-        [args.args.nodeId]: completedSnapshot,
-      },
-      planner,
-      engineCounters,
-      connectionInvocations: args.state.connectionInvocations ?? [],
-    });
-    await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
-    await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);
-    this.waiters.resolveWebhookResponse({
-      runId: args.state.runId,
-      workflowId: args.state.workflowId,
-      startedAt: args.state.startedAt,
-      runStatus: "pending",
-      response: args.signal.responseItems,
-    });
-    return result;
+    const mergedSnapshots = {
+      ...(args.state.nodeSnapshotsByNodeId ?? {}),
+      [args.args.nodeId]: completedSnapshot,
+    };
+
+    try {
+      const { queuedSnapshot, result } = await this.activationEnqueueService.enqueueActivationWithSnapshot({
+        runId: args.state.runId,
+        workflowId: args.state.workflowId,
+        startedAt: args.state.startedAt,
+        parent: args.state.parent,
+        executionOptions: args.state.executionOptions,
+        control: args.state.control,
+        workflowSnapshot: args.state.workflowSnapshot,
+        mutableState: args.state.mutableState,
+        policySnapshot: args.state.policySnapshot,
+        pendingQueue: queue,
+        request,
+        previousNodeSnapshotsByNodeId: mergedSnapshots,
+        planner,
+        engineCounters,
+        connectionInvocations: args.state.connectionInvocations ?? [],
+      });
+      await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
+      await this.nodeEventPublisher.publish("nodeQueued", queuedSnapshot);
+      this.waiters.resolveWebhookResponse({
+        runId: args.state.runId,
+        workflowId: args.state.workflowId,
+        startedAt: args.state.startedAt,
+        runStatus: "pending",
+        response: args.signal.responseItems,
+      });
+      return result;
+    } catch (cause) {
+      const error = cause instanceof Error ? cause : new Error(String(cause));
+      const finishedAt = completedSnapshot.finishedAt ?? completedSnapshot.updatedAt;
+      const result = await this.terminateRunAfterActivationEnqueueRejected({
+        wf: args.workflow,
+        state: args.state,
+        queue,
+        nextNodeId: next.nodeId,
+        request,
+        completedSnapshot,
+        nextNodeSnapshotsByNodeId: mergedSnapshots,
+        outputsByNode: data.dump(),
+        engineCounters,
+        error,
+        completedAt: finishedAt,
+      });
+      this.waiters.resolveWebhookResponse({
+        runId: args.state.runId,
+        workflowId: args.state.workflowId,
+        startedAt: args.state.startedAt,
+        runStatus: "pending",
+        response: args.signal.responseItems,
+      });
+      return result;
+    }
   }
 
   private asWebhookControlSignal(error: Error): WebhookControlSignal | undefined {
@@ -858,6 +907,88 @@ export class RunContinuationService {
       engineMaxNodeActivations: state.executionOptions?.maxNodeActivations ?? fb.maxNodeActivations!,
       engineMaxSubworkflowDepth: state.executionOptions?.maxSubworkflowDepth ?? fb.maxSubworkflowDepth!,
     };
+  }
+
+  /**
+   * Next activation could not be enqueued (e.g. input contract / mapping failed in the preparer).
+   * Marks the target node failed and terminates the run.
+   */
+  private async terminateRunAfterActivationEnqueueRejected(
+    args: Readonly<{
+      wf: WorkflowDefinition;
+      state: PersistedRunState;
+      queue: RunQueueEntry[];
+      nextNodeId: NodeId;
+      request: NodeActivationRequest;
+      completedSnapshot: NodeExecutionSnapshot;
+      nextNodeSnapshotsByNodeId: NonNullable<PersistedRunState["nodeSnapshotsByNodeId"]>;
+      outputsByNode: PersistedRunState["outputsByNode"];
+      engineCounters: EngineRunCounters;
+      error: Error;
+      completedAt: string;
+    }>,
+  ): Promise<RunResult> {
+    const finishedAt = args.completedAt;
+    const inputsByPort = NodeInputsByPortFactory.fromRequest(args.request);
+    const failedSnapshot = NodeExecutionSnapshotFactory.failed({
+      previous: undefined,
+      runId: args.state.runId,
+      workflowId: args.state.workflowId,
+      nodeId: args.nextNodeId,
+      activationId: args.request.activationId,
+      parent: args.state.parent,
+      finishedAt,
+      inputsByPort,
+      error: args.error,
+    });
+    const failedState = this.persistedRunStateTerminalBuilder.mergeTerminal({
+      state: args.state,
+      engineCounters: args.engineCounters,
+      status: "failed",
+      queue: args.queue.map((q) => ({ ...q })),
+      outputsByNode: args.outputsByNode,
+      nodeSnapshotsByNodeId: {
+        ...args.nextNodeSnapshotsByNodeId,
+        [args.nextNodeId]: failedSnapshot,
+      },
+      finishedAtIso: finishedAt,
+    });
+    await this.workflowExecutionRepository.save(failedState);
+    await this.nodeEventPublisher.publish("nodeCompleted", args.completedSnapshot);
+    await this.nodeEventPublisher.publish("nodeFailed", failedSnapshot);
+
+    const wfErr = this.policyErrorServices.resolveWorkflowErrorHandler(args.wf.workflowErrorHandler);
+    if (wfErr) {
+      await Promise.resolve(
+        wfErr.onError({
+          runId: args.state.runId,
+          workflowId: args.state.workflowId,
+          workflow: args.wf,
+          failedNodeId: args.nextNodeId,
+          error: args.error,
+          startedAt: args.state.startedAt,
+          finishedAt,
+        }),
+      );
+    }
+
+    await this.terminalPersistence.maybeDeleteAfterTerminalState({
+      workflow: args.wf,
+      state: failedState,
+      finalStatus: "failed",
+      finishedAt,
+    });
+
+    const message = args.error.message ?? String(args.error);
+    const result: RunResult = {
+      runId: args.state.runId,
+      workflowId: args.state.workflowId,
+      startedAt: args.state.startedAt,
+      status: "failed",
+      error: { message },
+    };
+    this.waiters.resolveRunCompletion(result);
+    return result;
   }
 
   private formatNodeLabel(args: {

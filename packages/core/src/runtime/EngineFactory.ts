@@ -5,6 +5,7 @@ import { MissingRuntimeExecutionMarker } from "../workflowSnapshots/MissingRunti
 import { WorkflowSnapshotCodec } from "../workflowSnapshots/WorkflowSnapshotCodec";
 import { WorkflowSnapshotResolver } from "../workflowSnapshots/WorkflowSnapshotResolver";
 import { ActivationEnqueueService } from "../execution/ActivationEnqueueService";
+import { NodeActivationRequestInputPreparer } from "../execution/NodeActivationRequestInputPreparer";
 import { NodeActivationRequestComposer } from "../execution/NodeActivationRequestComposer";
 import { PersistedRunStateTerminalBuilder } from "../execution/PersistedRunStateTerminalBuilder";
 import { NodeExecutionRequestHandlerService } from "../orchestration/NodeExecutionRequestHandlerService";
@@ -61,10 +62,12 @@ export class EngineFactory {
     );
 
     const semantics = new RunStateSemantics(new MissingRuntimeExecutionMarker());
+    const nodeActivationRequestInputPreparer = new NodeActivationRequestInputPreparer(deps.workflowNodeInstanceFactory);
     const activationEnqueueService = new ActivationEnqueueService(
       deps.activationScheduler,
       deps.workflowExecutionRepository,
       nodeEventPublisher,
+      nodeActivationRequestInputPreparer,
     );
     const runExecutionContextFactory = new WorkflowRunExecutionContextFactory(
       deps.executionContextFactory,

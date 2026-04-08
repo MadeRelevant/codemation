@@ -19,4 +19,6 @@ export {
   ThrowNode,
   ThrowNodeConfig,
 } from "./nodes.js";
+export { ItemHarnessNode } from "../../src/testing/ItemHarnessNode.ts";
+export { ItemHarnessNodeConfig } from "../../src/testing/ItemHarnessNodeConfig.ts";
 export { chain, dag } from "./workflow.js";

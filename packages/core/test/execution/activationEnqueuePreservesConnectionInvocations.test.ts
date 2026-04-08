@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import { ActivationEnqueueService } from "../../src/execution/ActivationEnqueueService.ts";
+import { NodeActivationRequestInputPreparer } from "../../src/execution/NodeActivationRequestInputPreparer.ts";
 import { NodeEventPublisher } from "../../src/events/NodeEventPublisher.ts";
 import { InMemoryWorkflowExecutionRepository } from "../../src/runStorage/InMemoryWorkflowExecutionRepository.ts";
 import { InMemoryRunDataFactory } from "../../src/runStorage/InMemoryRunDataFactory.ts";
@@ -10,6 +11,8 @@ import type {
   NodeActivationRequest,
   NodeExecutionContext,
   RunQueuePlanner,
+  WorkflowDefinition,
+  WorkflowNodeInstanceFactory,
 } from "../../src/index.ts";
 
 class StubActivationScheduler {
@@ -24,6 +27,16 @@ class StubActivationScheduler {
 class StubRunQueuePlanner {
   sumItemsByPort(): number {
     return 0;
+  }
+}
+
+class StubWorkflowNodeInstanceFactory implements WorkflowNodeInstanceFactory {
+  createNodes(_workflow: WorkflowDefinition): ReadonlyMap<string, unknown> {
+    return new Map();
+  }
+
+  createByType(): unknown {
+    return {};
   }
 }
 
@@ -52,8 +65,14 @@ test("enqueueActivationWithSnapshot keeps existing connection invocation history
     connectionInvocations: [prior],
   });
 
+  class ActivationEnqueueStubNodeToken {}
   const data = new InMemoryRunDataFactory().create();
-  const ctx = { data } as unknown as NodeExecutionContext;
+  const ctx = {
+    data,
+    nodeId: "node_after_agent",
+    activationId: "act_2",
+    config: { kind: "node" as const, type: ActivationEnqueueStubNodeToken },
+  } as unknown as NodeExecutionContext;
   const request = {
     kind: "single" as const,
     runId: "run_1",
@@ -69,6 +88,7 @@ test("enqueueActivationWithSnapshot keeps existing connection invocation history
     new StubActivationScheduler(),
     runStore,
     new NodeEventPublisher(undefined),
+    new NodeActivationRequestInputPreparer(new StubWorkflowNodeInstanceFactory()),
   );
 
   await service.enqueueActivationWithSnapshot({
