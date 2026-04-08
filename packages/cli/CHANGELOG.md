@@ -1,5 +1,13 @@
 # @codemation/cli
 
+## 0.0.27
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @codemation/host@0.1.5
+  - @codemation/next-host@0.1.5
+
 ## 0.0.26
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @codemation/core
 
+## 0.2.3
+
+### Patch Changes
+
+- [#50](https://github.com/MadeRelevant/codemation/pull/50) [`d3a4321`](https://github.com/MadeRelevant/codemation/commit/d3a4321dc178df51dfd61cc6eb872ccca36bbcdb) Thanks [@cblokland90](https://github.com/cblokland90)! - Release automation: GitHub Actions now dispatches `publish-npm.yml` after versioning so npm OIDC trusted publishing continues to match the publish workflow file (no `workflow_call` from the Changesets workflow).
+
 ## 0.2.2
 
 ### Patch Changes
