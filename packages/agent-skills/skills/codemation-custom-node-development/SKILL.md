@@ -17,7 +17,8 @@ Do not use this skill for pure workflow chaining questions unless the node imple
 1. Start with `defineNode(...)`.
 2. Keep the runtime behavior in `run(...)`.
 3. Give the node a stable key and a clear title.
-4. Promote callback-heavy logic into a node when the graph or tests need a stronger boundary.
+4. Optionally set **`icon`** on the `defineNode` definition so the workflow canvas shows a proper glyph (same string contract as `NodeConfigBase.icon`).
+5. Promote callback-heavy logic into a node when the graph or tests need a stronger boundary.
 
 ## Node rules
 

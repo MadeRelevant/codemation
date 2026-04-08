@@ -79,6 +79,11 @@ export interface DefineNodeOptions<
   readonly key: TKey;
   readonly title: string;
   readonly description?: string;
+  /**
+   * Canvas icon for this node (same contract as `NodeConfigBase.icon` on runnable configs).
+   * The Next host resolves Lucide (`lucide:…`), built-in SVGs (`builtin:…`), Simple Icons (`si:…`), and image URLs (`https:`, `data:`, `/…`).
+   */
+  readonly icon?: string;
   readonly input?: Readonly<Record<keyof TConfig & string, unknown>>;
   readonly configSchema?: z.ZodType<TConfig>;
   readonly credentials?: TBindings;
@@ -196,6 +201,7 @@ export function defineNode<
   const DefinedRunnableNodeConfig = class implements RunnableNodeConfig<TInputJson, TOutputJson> {
     readonly kind = "node" as const;
     readonly type: TypeToken<unknown> = DefinedNodeRuntime;
+    readonly icon = options.icon;
 
     constructor(
       public readonly name: string,

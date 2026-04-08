@@ -207,6 +207,7 @@ This gives high-signal coverage without fragile mocks.
 - Node must be deterministic and testable (injected deps; no hidden globals).
 - **`execute` returns produced payloads** on each port (`item.json` = output contract), not input wrapped with an extra “result” layer—see **Engine ↔ Node contract** above.
 - Provide at least one unit test for the node behavior (prefer in-memory deps).
+- For **`defineNode(...)`** plugins, set optional **`icon`** on the definition so the workflow canvas can show a glyph (same string contract as **`NodeConfigBase.icon`**: Lucide `lucide:…`, shipped **`builtin:…`** SVGs, **`si:…`**, or image URLs).
 
 ## `@codemation/host` package exports
 

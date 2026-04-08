@@ -73,4 +73,19 @@ describe("defineNode", () => {
       },
     ]);
   });
+
+  it("exposes icon on created configs when defineNode sets icon", () => {
+    const iconNode = defineNode({
+      key: "authoring.iconProbe",
+      title: "Icon probe",
+      icon: "lucide:braces",
+      input: {},
+      run(items) {
+        return items.map((item) => item);
+      },
+    });
+
+    const config = iconNode.create({} as Record<string, never>);
+    expect(config.icon).toBe("lucide:braces");
+  });
 });

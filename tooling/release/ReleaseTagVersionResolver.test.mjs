@@ -96,7 +96,7 @@ class ReleaseTagVersionResolverTest {
     }
   }
 
-  async shouldBreakVersionCountTiesWithTheHighestVersion() {
+  async shouldPreferTheHighestSemanticVersionWhenCountsWouldFavorALowerLine() {
     const workspaceDirectory = await this.#createWorkspaceDirectory();
 
     try {
@@ -110,19 +110,19 @@ class ReleaseTagVersionResolverTest {
         workspaceDirectory,
         directoryName: "host",
         packageName: "@codemation/host",
-        version: "0.2.0",
+        version: "0.0.21",
       });
       await this.#writePackage({
         workspaceDirectory,
         directoryName: "cli",
         packageName: "@codemation/cli",
-        version: "0.1.9",
+        version: "0.0.21",
       });
       await this.#writePackage({
         workspaceDirectory,
         directoryName: "node-example",
         packageName: "@codemation/node-example",
-        version: "0.1.9",
+        version: "0.0.21",
       });
 
       const resolver = new ReleaseTagVersionResolver({
@@ -182,6 +182,8 @@ test(
 );
 
 test(
-  "breaks release-version ties with the highest semantic version",
-  releaseTagVersionResolverTest.shouldBreakVersionCountTiesWithTheHighestVersion.bind(releaseTagVersionResolverTest),
+  "prefers the highest semantic version when a lower line has more packages",
+  releaseTagVersionResolverTest.shouldPreferTheHighestSemanticVersionWhenCountsWouldFavorALowerLine.bind(
+    releaseTagVersionResolverTest,
+  ),
 );

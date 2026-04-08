@@ -3,6 +3,7 @@ import { defineNode } from "@codemation/core";
 export const examplePluginUppercaseNode = defineNode({
   key: "example-plugin.uppercase",
   title: "Uppercase text",
+  icon: "lucide:languages",
   input: {
     field: "string",
   },
