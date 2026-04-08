@@ -19,6 +19,7 @@ const plugin = definePlugin({
       mode: "inline",
     },
     workflows: [
+      // Fluent DSL (`workflow` from `@codemation/host`); use `createWorkflowBuilder` for non-manual triggers.
       workflow("wf.plugin.hello")
         .name("Plugin Hello")
         .manualTrigger("Start", {

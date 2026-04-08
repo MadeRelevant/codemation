@@ -11,8 +11,8 @@ describe("Codemation authoring helpers", () => {
       input: {
         field: "string",
       },
-      run(items) {
-        return items;
+      executeOne({ input }, _context) {
+        return input;
       },
     });
     const helperCredential = defineCredential({
@@ -89,8 +89,8 @@ describe("Codemation authoring helpers", () => {
       input: {
         field: "string",
       },
-      run(items) {
-        return items;
+      executeOne({ input }, _context) {
+        return input;
       },
     });
     const helperCredential = defineCredential({

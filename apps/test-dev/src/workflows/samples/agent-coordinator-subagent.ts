@@ -1,5 +1,6 @@
 import { AgentToolFactory } from "@codemation/core";
-import { AIAgent, createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
+import { AIAgent } from "@codemation/core-nodes";
 import { z } from "zod";
 
 import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
@@ -67,19 +68,13 @@ const specialistTool = AgentToolFactory.asTool(specialistAgent, {
   }),
 });
 
-export default createWorkflowBuilder({
-  id: "wf.test-dev.agent.subagent",
-  name: "Agent coordinator + specialist (sub-agent)",
-})
-  .trigger(
-    new ManualTrigger<CoordinatorInputJson>("Start coordinator demo", [
-      {
-        json: {
-          topic: "When should a team prefer workflow orchestration vs a single monolithic agent?",
-        },
-      },
-    ]),
-  )
+export default workflow("wf.test-dev.agent.subagent")
+  .name("Agent coordinator + specialist (sub-agent)")
+  .manualTrigger<CoordinatorInputJson>("Start coordinator demo", [
+    {
+      topic: "When should a team prefer workflow orchestration vs a single monolithic agent?",
+    },
+  ])
   .then(
     new AIAgent<CoordinatorAgentInput, CoordinatorOutputJson, CoordinatorInputJson>({
       name: "Coordinator",

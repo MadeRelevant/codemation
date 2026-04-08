@@ -1,3 +1,4 @@
+/** See `webhook.normal.ts` — webhook triggers use `createWorkflowBuilder`. */
 import {
   createWorkflowBuilder,
   MapData,

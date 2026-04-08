@@ -25,7 +25,7 @@ If a project-local skill exists under `.agents/skills/` outside `extracted/`, tr
 
 ## Working Rules
 
-- Prefer `definePlugin(...)`, `defineNode(...)`, and `defineCredential(...)` before dropping to lower-level runtime APIs.
+- Prefer `definePlugin(...)`, `defineNode(...)` (implement **`executeOne`** per item), `defineBatchNode(...)` only when you need batch **`run(items, ...)`**, and `defineCredential(...)` before dropping to lower-level runtime APIs.
 - Keep plugin registration separate from node and credential implementation modules.
 - Use the sandbox app to verify plugin behavior quickly.
 - Follow any repo-root `AGENTS.md` or nested `AGENTS.md` files you find in subdirectories.

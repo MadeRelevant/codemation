@@ -1,4 +1,5 @@
-import { Aggregate, createWorkflowBuilder, Filter, ManualTrigger, Split } from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
+import { Aggregate, Filter, Split } from "@codemation/core-nodes";
 
 /**
  * Demonstrates built-in batch shaping nodes:
@@ -15,26 +16,20 @@ type SensorBatchJson = Readonly<{
   rows: readonly ReadingRow[];
 }>;
 
-export default createWorkflowBuilder({
-  id: "wf.samples.split-filter-aggregate",
-  name: "Split → filter → aggregate demo",
-})
-  .trigger(
-    new ManualTrigger<SensorBatchJson>("Manual trigger", [
-      {
-        json: {
-          rows: [
-            { site: "warehouse-7", c: 3 },
-            { site: "warehouse-7", c: 22 },
-            { site: "warehouse-7", c: 18 },
-            { site: "warehouse-7", c: 40 },
-            { site: "warehouse-7", c: 7 },
-            { site: "warehouse-7", c: 35 },
-          ],
-        },
-      },
-    ]),
-  )
+export default workflow("wf.samples.split-filter-aggregate")
+  .name("Split → filter → aggregate demo")
+  .manualTrigger<SensorBatchJson>("Manual trigger", [
+    {
+      rows: [
+        { site: "warehouse-7", c: 3 },
+        { site: "warehouse-7", c: 22 },
+        { site: "warehouse-7", c: 18 },
+        { site: "warehouse-7", c: 40 },
+        { site: "warehouse-7", c: 7 },
+        { site: "warehouse-7", c: 35 },
+      ],
+    },
+  ])
   .then(new Split<SensorBatchJson, ReadingRow>("Split rows", (item) => [...item.json.rows]))
   .then(new Filter<ReadingRow>("Keep warm (≥15°C)", (item) => item.json.c >= 15))
   .then(

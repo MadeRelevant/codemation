@@ -1,3 +1,7 @@
+/**
+ * Webhook-triggered workflow: the fluent `workflow()` helper starts from `manualTrigger` today; use
+ * `createWorkflowBuilder` with `WebhookTrigger` (or other non-manual triggers).
+ */
 import { createWorkflowBuilder, MapData, WebhookTrigger } from "@codemation/core-nodes";
 import { z } from "zod";
 

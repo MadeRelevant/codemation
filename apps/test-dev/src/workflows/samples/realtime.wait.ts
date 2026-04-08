@@ -1,10 +1,12 @@
-import { createWorkflowBuilder, ManualTrigger, MapData, Wait } from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
+import { MapData } from "@codemation/core-nodes";
 
 type RealtimeWaitJson = Readonly<Record<string, unknown>>;
 
-export default createWorkflowBuilder({ id: "wf.realtime.wait", name: "Realtime wait demo" })
-  .trigger(new ManualTrigger<RealtimeWaitJson>("Manual trigger"))
-  .then(new Wait<RealtimeWaitJson>("Wait 2 seconds", 2000, "wait.five.seconds"))
+export default workflow("wf.realtime.wait")
+  .name("Realtime wait demo")
+  .manualTrigger<RealtimeWaitJson>("Manual trigger")
+  .wait("Wait 2 seconds", 2000, "wait.five.seconds")
   .then(
     new MapData<RealtimeWaitJson, RealtimeWaitJson & { finished: true }>(
       "Finished",

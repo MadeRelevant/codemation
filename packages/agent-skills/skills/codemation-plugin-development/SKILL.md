@@ -29,7 +29,7 @@ Do not use this skill for ordinary consumer workflow-only changes unless the wor
 ## Common plugin pieces
 
 - `codemation.plugin.ts`: plugin registration and sandbox app
-- `src/nodes/*`: custom node definitions
+- `src/nodes/*`: custom node definitions (`defineNode` → **`executeOne`**; `defineBatchNode` → batch **`run`**)
 - `src/credentialTypes/*`: custom credential definitions
 - `src/index.ts`: package exports
 - `test/*.test.ts` (optional): Vitest + `WorkflowTestKit` from `@codemation/core/testing` for engine-backed unit tests without starting the full host (`pnpm test`)

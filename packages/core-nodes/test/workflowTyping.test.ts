@@ -100,16 +100,16 @@ test("workflow helper preserves inference across map, if, wait, agent, and helpe
     input: {
       field: "string",
     },
-    run(items, { config }) {
+    executeOne({ input }, { config }) {
       const _typedField: string = config.field;
       type FieldIsString = AssertTrue<IsExact<typeof _typedField, string>>;
       const fieldIsString: FieldIsString = true;
       void fieldIsString;
 
-      return items.map((item) => ({
-        ...item,
-        [config.field]: String(item[config.field as keyof typeof item] ?? "").toUpperCase(),
-      }));
+      return {
+        ...input,
+        [config.field]: String(input[config.field as keyof typeof input] ?? "").toUpperCase(),
+      };
     },
   });
 
