@@ -1,5 +1,11 @@
 # @codemation/agent-skills
 
+## 0.1.3
+
+### Patch Changes
+
+- [#41](https://github.com/MadeRelevant/codemation/pull/41) [`a72444e`](https://github.com/MadeRelevant/codemation/commit/a72444e25c4e744a9a90e231a59c93f8d90346e5) Thanks [@cblokland90](https://github.com/cblokland90)! - Add `WorkflowTestKit` and related engine test harness exports on `@codemation/core/testing`, with create-codemation templates and agent skills updated to document plugin unit tests.
+
 ## 0.1.2
 
 ### Patch Changes
