@@ -15,12 +15,8 @@ export class ReleaseTagVersionResolver {
       throw new Error("No published package versions were found under packages/.");
     }
 
-    const versionCounts = this.#countVersions(packageVersions);
-    const sortedVersions = Array.from(versionCounts.entries()).sort((left, right) =>
-      this.#compareVersionEntries(left, right),
-    );
-
-    return sortedVersions[0][0];
+    const uniqueVersions = [...new Set(packageVersions)];
+    return this.#maxSemanticVersion(uniqueVersions);
   }
 
   async #readReleasePackageVersions() {
@@ -110,26 +106,17 @@ export class ReleaseTagVersionResolver {
       .map((entry) => path.join(this.rootDirectory, entry));
   }
 
-  #countVersions(packageVersions) {
-    const counts = new Map();
+  #maxSemanticVersion(versions) {
+    let best = versions[0];
 
-    for (const version of packageVersions) {
-      const currentCount = counts.get(version) ?? 0;
-      counts.set(version, currentCount + 1);
+    for (let index = 1; index < versions.length; index += 1) {
+      const candidate = versions[index];
+      if (this.#compareSemanticVersions(candidate, best) > 0) {
+        best = candidate;
+      }
     }
 
-    return counts;
-  }
-
-  #compareVersionEntries(left, right) {
-    const [leftVersion, leftCount] = left;
-    const [rightVersion, rightCount] = right;
-
-    if (leftCount !== rightCount) {
-      return rightCount - leftCount;
-    }
-
-    return this.#compareSemanticVersions(rightVersion, leftVersion);
+    return best;
   }
 
   #compareSemanticVersions(leftVersion, rightVersion) {
