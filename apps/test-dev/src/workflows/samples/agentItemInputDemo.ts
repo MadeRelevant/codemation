@@ -1,4 +1,5 @@
-import { AIAgent, createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
+import { AIAgent } from "@codemation/core-nodes";
 import { z } from "zod";
 
 import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
@@ -24,19 +25,13 @@ type SeedJson = Readonly<{ topic: string }>;
 
 type AgentOutJson = Readonly<{ summary: string }>;
 
-export default createWorkflowBuilder({
-  id: "wf.samples.agent-item-input",
-  name: "AI agent: prompts from mapped input",
-})
-  .trigger(
-    new ManualTrigger<SeedJson>("Start", [
-      {
-        json: {
-          topic: "Why use a workflow engine for AI steps?",
-        },
-      },
-    ]),
-  )
+export default workflow("wf.samples.agent-item-input")
+  .name("AI agent: prompts from mapped input")
+  .manualTrigger<SeedJson>("Start", [
+    {
+      topic: "Why use a workflow engine for AI steps?",
+    },
+  ])
   .then(
     new AIAgent<AgentPromptInput, AgentOutJson, SeedJson>({
       name: "Summarize topic",

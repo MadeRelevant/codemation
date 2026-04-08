@@ -1,5 +1,6 @@
 import { branchRef } from "@codemation/core";
-import { createWorkflowBuilder, If, ManualTrigger, MapData, SubWorkflow } from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
+import { MapData, SubWorkflow } from "@codemation/core-nodes";
 
 export const ORDERS_CREATE_START = "orders.create.start";
 
@@ -12,27 +13,29 @@ type DemoOutcomeJson = Readonly<{
   note: string;
 }>;
 
-export default createWorkflowBuilder({ id: "wf.consumer.demo", name: "Consumer demo (no OpenAI)" })
-  .trigger(
-    new ManualTrigger<DemoSeedJson>("Manual trigger", [
-      {
-        json: {
-          subject: "RFQ: 1000 widgets",
-          from: "buyer@acme.com",
-        },
-      },
-    ]),
-  )
-  .then(new If<DemoSeedJson>("If RFQ?", (item) => item.json.subject.toUpperCase().includes("RFQ")))
-  .when({
-    true: [
-      new SubWorkflow<DemoSeedJson, DemoOutcomeJson>(
-        "Create order (subworkflow)",
-        "orders.create",
-        [branchRef(0)],
-        ORDERS_CREATE_START,
+export default workflow("wf.consumer.demo")
+  .name("Consumer demo (no OpenAI)")
+  .manualTrigger<DemoSeedJson>("Manual trigger", [
+    {
+      subject: "RFQ: 1000 widgets",
+      from: "buyer@acme.com",
+    },
+  ])
+  .if("If RFQ?", (item) => item.subject.toUpperCase().includes("RFQ"), {
+    true: (b) =>
+      b.then(
+        new SubWorkflow<DemoSeedJson, DemoOutcomeJson>(
+          "Create order (subworkflow)",
+          "orders.create",
+          [branchRef(0)],
+          ORDERS_CREATE_START,
+        ),
       ),
-    ],
-    false: [new MapData<DemoSeedJson, DemoOutcomeJson>("Not RFQ", () => ({ note: "Not an RFQ" }))],
+    false: (b) =>
+      b.then(
+        new MapData<DemoSeedJson, DemoOutcomeJson>("Not RFQ", () => ({
+          note: "Not an RFQ",
+        })),
+      ),
   })
   .build();

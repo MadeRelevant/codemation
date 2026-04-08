@@ -1,6 +1,7 @@
 import type { Items } from "@codemation/core";
 import { RetryPolicy } from "@codemation/core";
-import { Callback, createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
+import { Callback } from "@codemation/core-nodes";
 
 type SeedJson = Readonly<{ label: string }>;
 
@@ -32,13 +33,8 @@ class FlakyRetryCallback extends Callback<SeedJson, SeedJson> {
   }
 }
 
-export default createWorkflowBuilder({ id: "wf.samples.policy.demo.retry", name: "Demo: in-process retry" })
-  .trigger(
-    new ManualTrigger<SeedJson>("Manual trigger", [
-      {
-        json: { label: "retry-demo" },
-      },
-    ]),
-  )
+export default workflow("wf.samples.policy.demo.retry")
+  .name("Demo: in-process retry")
+  .manualTrigger<SeedJson>("Manual trigger", [{ label: "retry-demo" }])
   .then(new FlakyRetryCallback())
   .build();

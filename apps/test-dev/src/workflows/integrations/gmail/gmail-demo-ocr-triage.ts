@@ -1,4 +1,5 @@
 import type { CredentialRequirement, Item } from "@codemation/core";
+/** Gmail trigger: use `createWorkflowBuilder` + `OnNewGmailTrigger` (not `workflow().manualTrigger`). */
 import { AIAgent, createWorkflowBuilder, If, NoOp } from "@codemation/core-nodes";
 import {
   OnNewGmailTrigger,

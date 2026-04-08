@@ -1,6 +1,7 @@
 import type { WorkflowErrorHandler } from "@codemation/core";
 import { NoRetryPolicy } from "@codemation/core";
-import { Callback, createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
+import { Callback } from "@codemation/core-nodes";
 
 type SeedJson = Readonly<{ label: string }>;
 
@@ -24,17 +25,9 @@ class TerminalFailureCallback extends Callback<SeedJson, SeedJson> {
   }
 }
 
-const base = createWorkflowBuilder({
-  id: "wf.samples.policy.demo.workflowError",
-  name: "Demo: workflow onError (after retries)",
-})
-  .trigger(
-    new ManualTrigger<SeedJson>("Manual trigger", [
-      {
-        json: { label: "workflow-error-demo" },
-      },
-    ]),
-  )
+const base = workflow("wf.samples.policy.demo.workflowError")
+  .name("Demo: workflow onError (after retries)")
+  .manualTrigger<SeedJson>("Manual trigger", [{ label: "workflow-error-demo" }])
   .then(new TerminalFailureCallback())
   .build();
 

@@ -1,3 +1,4 @@
+/** See `webhook.normal.ts` — webhook triggers use `createWorkflowBuilder`. */
 import { createWorkflowBuilder, MapData, WebhookRespondNowError, WebhookTrigger } from "@codemation/core-nodes";
 
 export default createWorkflowBuilder({ id: "wf.webhook.respond-now", name: "Webhook respond now and stop" })

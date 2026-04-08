@@ -1,11 +1,6 @@
 import type { Item, NodeExecutionContext } from "@codemation/core";
-import {
-  Callback,
-  createWorkflowBuilder,
-  HttpRequest,
-  type HttpRequestOutputJson,
-  ManualTrigger,
-} from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
+import { Callback, HttpRequest, type HttpRequestOutputJson } from "@codemation/core-nodes";
 
 type MediaSeedJson = Readonly<{
   label: string;
@@ -85,41 +80,30 @@ class MediaPreviewGeneratedNoteFactory {
   }
 }
 
-export default createWorkflowBuilder({ id: "wf.media.preview", name: "Media preview demo" })
-  .trigger(
-    new ManualTrigger<MediaSeedJson>("Manual trigger", [
-      {
-        json: {
-          label: "Image sample",
-          url: "https://samplelib.com/lib/preview/png/sample-boat-400x300.png",
-        },
-      },
-      {
-        json: {
-          label: "Audio sample",
-          url: "https://samplelib.com/lib/preview/mp3/sample-3s.mp3",
-        },
-      },
-      {
-        json: {
-          label: "Video sample",
-          url: "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-        },
-      },
-      {
-        json: {
-          label: "PDF sample",
-          url: "data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrp/Og0MTGCjEgMCBvYmoKPDw+PgplbmRvYmoKdHJhaWxlcgo8PD4+CiUlRU9G",
-        },
-      },
-      {
-        json: {
-          label: "Text sample",
-          url: "data:text/plain;charset=utf-8,Codemation%20binary%20attachment%20demo",
-        },
-      },
-    ]),
-  )
+export default workflow("wf.media.preview")
+  .name("Media preview demo")
+  .manualTrigger<MediaSeedJson>("Manual trigger", [
+    {
+      label: "Image sample",
+      url: "https://samplelib.com/lib/preview/png/sample-boat-400x300.png",
+    },
+    {
+      label: "Audio sample",
+      url: "https://samplelib.com/lib/preview/mp3/sample-3s.mp3",
+    },
+    {
+      label: "Video sample",
+      url: "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+    },
+    {
+      label: "PDF sample",
+      url: "data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrp/Og0MTGCjEgMCBvYmoKPDw+PgplbmRvYmoKdHJhaWxlcgo8PD4+CiUlRU9G",
+    },
+    {
+      label: "Text sample",
+      url: "data:text/plain;charset=utf-8,Codemation%20binary%20attachment%20demo",
+    },
+  ])
   .then(
     new HttpRequest<MediaSeedJson>("Download media body", {
       downloadMode: "always",
