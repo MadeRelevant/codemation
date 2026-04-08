@@ -20,8 +20,11 @@ on:
         required: true
         type: string
 
+# One in-flight publish per release tag. Do **not** use `github.workflow` + `github.ref` here: when this
+# workflow runs via `workflow_call` from Changesets, `github.ref` is still `refs/heads/main`, which matches
+# the Changesets workflow concurrency group and can deadlock the parent run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: publish-npm-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
