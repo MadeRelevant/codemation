@@ -1,5 +1,11 @@
 # @codemation/core
 
+## 0.2.1
+
+### Patch Changes
+
+- [#44](https://github.com/MadeRelevant/codemation/pull/44) [`4989e9c`](https://github.com/MadeRelevant/codemation/commit/4989e9c7d97513c05904d47d2f85794ba716a4d3) Thanks [@cblokland90](https://github.com/cblokland90)! - Add optional `icon` to `defineNode(...)` so plugin nodes can set `NodeConfigBase.icon` for the workflow canvas (Lucide, `builtin:`, `si:`, or image URLs).
+
 ## 0.2.0
 
 ### Minor Changes

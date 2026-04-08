@@ -1,5 +1,12 @@
 # @codemation/core-nodes-gmail
 
+## 0.0.24
+
+### Patch Changes
+
+- Updated dependencies [[`4989e9c`](https://github.com/MadeRelevant/codemation/commit/4989e9c7d97513c05904d47d2f85794ba716a4d3)]:
+  - @codemation/core@0.2.1
+
 ## 0.0.23
 
 ### Patch Changes
