@@ -1,5 +1,12 @@
 # @codemation/node-example
 
+## 0.0.23
+
+### Patch Changes
+
+- Updated dependencies [[`74dc571`](https://github.com/MadeRelevant/codemation/commit/74dc571afb592bd7c05297b25f9f1fb06a46815f), [`74dc571`](https://github.com/MadeRelevant/codemation/commit/74dc571afb592bd7c05297b25f9f1fb06a46815f)]:
+  - @codemation/core@0.2.2
+
 ## 0.0.22
 
 ### Patch Changes
