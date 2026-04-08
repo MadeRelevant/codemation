@@ -5,24 +5,9 @@
 - **Do not push directly to `main`.** Open a **pull request** from a feature branch.
 - CI runs the full quality gates on each PR (format, full lint including duplicate detection and ast-grep rules, typecheck, the full test matrix, and **changeset status** when workspace packages change).
 - **Changesets:** If your PR should affect a published package version, add a changeset before merge: `pnpm changeset` (or add the `.changeset/*.md` entry by hand). Docs-only or other exceptions that truly need no release note are rare—when in doubt, add a patch changeset. If you run **`pnpm changeset version` locally**, set **`GITHUB_TOKEN`** (classic PAT with `repo`, or `gh auth token`) so **`@changesets/changelog-github`** can resolve PR links; CI already has a token.
-- **Branch protection (maintainers):** The `main` ruleset lists **required status checks** that must match the **job names** in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (the `name:` field for each job / matrix row). The ruleset bypass is **pull-request only**, so direct pushes to `main` are blocked even for maintainers. After changing CI job names, update the ruleset so contexts stay in sync.
+- **Branch protection (maintainers):** The `main` ruleset should list **one** required status check — the PR-only **`Merge requirements`** job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (workflow title is **`CI`**, so the check often appears as **`CI / Merge requirements`** in the GitHub UI). That job aggregates every other CI job: **feature PRs** must turn all of them **green**; **Changesets version-bump PRs** (`release/*`, `changeset-release/*` heads) intentionally **skip** the heavy jobs, and the gate still passes without admin bypass. Do **not** add each matrix row (`Format`, `Coverage — unit`, …) as separate required checks, or version PRs will be blocked again.
 
-  Current checks (copy the strings exactly, including `—` and `&`):
-
-  | Context                    |
-  | -------------------------- |
-  | `Format`                   |
-  | `Lint ESLint`              |
-  | `Lint repo`                |
-  | `Typecheck`                |
-  | `Template packaged smoke`  |
-  | `Coverage — unit`          |
-  | `Coverage — integration`   |
-  | `Coverage — UI`            |
-  | `Coverage — browser`       |
-  | `Coverage — e2e`           |
-  | `Merge coverage & Codecov` |
-  | `Verify changeset`         |
+  After changing the merge gate job name in `ci.yml`, update the ruleset to match (copy the string from a green PR’s checks list).
 
   Inspect the ruleset:
 
@@ -33,7 +18,7 @@
 
   Replace `RULESET_ID` with the id from the first command (or open **Settings → Rules → Rulesets → main** in the GitHub UI).
 
-- **Version bump PRs (Changesets):** The bot opens **`release/version-packages`** → `main` with version + changelog updates. Full **CI is skipped** on that PR (industry pattern: bot-only diffs, low risk). Merge those PRs through GitHub using the maintainer PR bypass when needed; do not push version bumps straight to `main`. Optionally configure **Vercel** (Ignored Build Step or ignore `release/**` previews) to avoid noisy deploys on those PRs.
+- **Version bump PRs (Changesets):** The bot opens a branch such as **`changeset-release/main`** (or `release/version-packages` if configured) → `main`. Heavy CI jobs are **skipped** on that PR; only **`CI / Merge requirements`** must be green for merge. Do not push version bumps straight to `main`. Optionally configure **Vercel** (Ignored Build Step or ignore `release/**` previews) to avoid noisy deploys on those PRs.
 
 - Keep PRs focused and reasonably small when possible.
 

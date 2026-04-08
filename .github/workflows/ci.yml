@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   # Skip full CI on Changesets "Version packages" PRs (release/*, legacy changeset-release/*).
-  # Merge those with maintainer bypass; see CONTRIBUTING.md.
+  # The PR-only `merge-gate` job is the single ruleset-required check; see CONTRIBUTING.md.
   static:
     if: ${{ github.event_name != 'pull_request' || (github.head_ref != '' && !startsWith(github.head_ref, 'release/') && !startsWith(github.head_ref, 'changeset-release/')) }}
     name: ${{ matrix.name }}
@@ -559,3 +559,70 @@ jobs:
       - name: Pass when not a pull request
         if: github.event_name != 'pull_request'
         run: echo "Changeset verification applies to pull requests only."
+
+  # Single status check for branch protection: require only this job on `main` PRs.
+  # Version-bump PR heads (`release/*`, `changeset-release/*`) skip upstream jobs; those jobs report
+  # `skipped` (success for GitHub). This gate accepts skipped only for those PRs; feature PRs must
+  # show `success` on every upstream job.
+  merge-gate:
+    name: Merge requirements
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - static
+      - template-release-smoke
+      - coverage-unit
+      - coverage-integration
+      - coverage-integration-sqlite
+      - coverage-ui
+      - coverage-browser
+      - coverage-e2e
+      - coverage-report
+      - changeset-verify
+    steps:
+      - name: Enforce merge requirements
+        env:
+          IS_VERSION_PR: ${{ github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'changeset-release/')) }}
+          R_STATIC: ${{ needs.static.result }}
+          R_TEMPLATE: ${{ needs.template-release-smoke.result }}
+          R_COV_UNIT: ${{ needs.coverage-unit.result }}
+          R_COV_INT: ${{ needs.coverage-integration.result }}
+          R_COV_SQLITE: ${{ needs.coverage-integration-sqlite.result }}
+          R_COV_UI: ${{ needs.coverage-ui.result }}
+          R_COV_BROWSER: ${{ needs.coverage-browser.result }}
+          R_COV_E2E: ${{ needs.coverage-e2e.result }}
+          R_COV_REPORT: ${{ needs.coverage-report.result }}
+          R_CHANGESET: ${{ needs.changeset-verify.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          results=(
+            "${R_STATIC}"
+            "${R_TEMPLATE}"
+            "${R_COV_UNIT}"
+            "${R_COV_INT}"
+            "${R_COV_SQLITE}"
+            "${R_COV_UI}"
+            "${R_COV_BROWSER}"
+            "${R_COV_E2E}"
+            "${R_COV_REPORT}"
+            "${R_CHANGESET}"
+          )
+          if [[ "${IS_VERSION_PR}" == "true" ]]; then
+            for r in "${results[@]}"; do
+              if [[ "${r}" != "success" && "${r}" != "skipped" ]]; then
+                echo "Merge gate: unexpected job result on version-packages PR head: ${r}"
+                exit 1
+              fi
+            done
+            echo "Version packages PR: upstream jobs skipped by policy; merge requirements satisfied."
+            exit 0
+          fi
+          for r in "${results[@]}"; do
+            if [[ "${r}" != "success" ]]; then
+              echo "Merge gate: required CI job did not succeed (${r})."
+              exit 1
+            fi
+          done
+          echo "All required CI jobs succeeded."
