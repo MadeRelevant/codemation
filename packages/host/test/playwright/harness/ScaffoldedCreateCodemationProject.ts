@@ -24,6 +24,10 @@ export class ScaffoldedCreateCodemationProject {
   private static readonly adminEmail = "playwright-auth@example.com";
   private static readonly adminPassword = "playwright12345";
   private static readonly packedDependencyPackageDirectories = [
+    "packages/core",
+    "packages/core-nodes",
+    "packages/core-nodes-gmail",
+    "packages/eventbus-redis",
     "packages/host",
     "packages/next-host",
     "packages/cli",
@@ -199,33 +203,35 @@ export class ScaffoldedCreateCodemationProject {
     const packageJsonPath = path.join(this.rootPath(), "package.json");
     const packageJson = await this.readPackageJson(packageJsonPath);
     packageJson.dependencies ??= {};
-    packageJson.dependencies["@codemation/cli"] = packedDependencies["@codemation/cli"]!;
-    packageJson.dependencies["@codemation/host"] = packedDependencies["@codemation/host"]!;
-    packageJson.dependencies["@codemation/next-host"] = packedDependencies["@codemation/next-host"]!;
+    packageJson.devDependencies ??= {};
+    for (const [dependencyName, dependencyValue] of Object.entries(packedDependencies)) {
+      if (packageJson.dependencies[dependencyName]) {
+        packageJson.dependencies[dependencyName] = dependencyValue;
+      }
+      if (packageJson.devDependencies[dependencyName]) {
+        packageJson.devDependencies[dependencyName] = dependencyValue;
+      }
+    }
     packageJson.pnpm ??= {};
     packageJson.pnpm.overrides = {
       ...(packageJson.pnpm.overrides ?? {}),
-      "@codemation/cli": packedDependencies["@codemation/cli"]!,
-      "@codemation/host": packedDependencies["@codemation/host"]!,
-      "@codemation/next-host": packedDependencies["@codemation/next-host"]!,
+      ...packedDependencies,
     };
     await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
   }
 
   private async packLocalDependencies(): Promise<Readonly<Record<string, string>>> {
     const artifactsRoot = await this.ensurePackedArtifactsRoot();
-    await this.runCommand("pnpm", ["--filter", "@codemation/host", "build"], {
-      cwd: this.repoRoot,
-      env: process.env,
-    });
-    await this.runCommand("pnpm", ["--filter", "@codemation/next-host", "build"], {
-      cwd: this.repoRoot,
-      env: process.env,
-    });
-    await this.runCommand("pnpm", ["--filter", "@codemation/cli", "build"], {
-      cwd: this.repoRoot,
-      env: process.env,
-    });
+    for (const relativeDirectory of ScaffoldedCreateCodemationProject.packedDependencyPackageDirectories) {
+      const packageDirectory = path.join(this.repoRoot, relativeDirectory);
+      const packageJson = JSON.parse(await readFile(path.join(packageDirectory, "package.json"), "utf8")) as {
+        name: string;
+      };
+      await this.runCommand("pnpm", ["--filter", packageJson.name, "build"], {
+        cwd: this.repoRoot,
+        env: process.env,
+      });
+    }
     const packedDependencies: Record<string, string> = {};
     for (const relativeDirectory of ScaffoldedCreateCodemationProject.packedDependencyPackageDirectories) {
       const packageDirectory = path.join(this.repoRoot, relativeDirectory);
