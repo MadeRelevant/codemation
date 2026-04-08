@@ -13,14 +13,14 @@ const testKitDefineNodeSample = defineNode({
   input: {
     field: "string",
   },
-  run(
-    items: ReadonlyArray<Readonly<Record<string, unknown>>>,
+  executeOne(
+    { input }: { readonly input: Readonly<Record<string, unknown>> },
     { config }: { readonly config: Readonly<{ field: string }> },
   ) {
-    return items.map((item) => ({
-      ...item,
-      [config.field]: String(item[config.field] ?? "").toUpperCase(),
-    }));
+    return {
+      ...input,
+      [config.field]: String(input[config.field] ?? "").toUpperCase(),
+    };
   },
 });
 

@@ -46,11 +46,14 @@ import { defineNode } from "@codemation/core";
 export const lookupCustomerNode = defineNode({
   key: "acme.lookupCustomer",
   title: "Lookup customer",
-  run(items) {
-    return items.map((item) => ({
-      customerName: `Customer ${item.customerId}`,
-      accountTier: "gold",
-    }));
+  input: {
+    customerId: "string",
+  },
+  executeOne({ input }) {
+    return {
+      customerName: `Customer ${input.customerId}`,
+      accountTier: "gold" as const,
+    };
   },
 });
 ```

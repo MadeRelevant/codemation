@@ -103,9 +103,12 @@ When implementing **`Node.execute`**, return **`NodeOutputs`** whose **`Items` a
 - **Pass-through** (`return { main: items }`) is fine for no-op / routing behavior only—not as a lazy default for transforms.
 - **Triggers follow the same contract**: emit **one `Item` per external event/record** (one email, one webhook request, one queue message). Do **not** hide many events inside `json: { results: [...] }`, `json: { foundItems: [...] }`, or similar wrapper objects. The batch is the array of `Items`; each `item.json` should be a single emitted domain record.
 
-### `defineNode(...)` presentation (plugins)
+### `defineNode(...)` / `defineBatchNode(...)` (plugins)
 
-- Optional **`icon`** on **`defineNode({ … })`** is forwarded to the generated runnable config as **`NodeConfigBase.icon`** (presentation only; no runtime effect). Values follow the Next host canvas resolver (e.g. **`lucide:…`**, **`builtin:…`**, **`si:…`**, **`https:`** / **`data:`** / **`/…`**).
+- **`defineNode({ … })`** generates an **`ItemNode`**: implement **`executeOne(args, context)`** once per item. **`args`** includes **`input`** (after **`mapInput`** + **`inputSchema`**), **`item`**, **`itemIndex`**, **`items`**, and **`ctx`**. **`context`** exposes **`config`**, **`credentials`**, and **`execution`**. Optional **`inputSchema`** and **`mapInput`** on the definition match the engine’s per-item pipeline; **`TWireJson`** (third generic on **`RunnableNodeConfig`**) types upstream **`item.json`** before mapping.
+- **`defineBatchNode({ … })`** keeps the legacy batch contract: **`run(items, context)`** and classic **`Node.execute`** when a plugin node must see the **entire batch** in one shot (same escape hatch as class-based batch nodes).
+- **Config vs inputs**: keep **credentials, retry policy, static options** on **config**; **per-item** query/API behavior belongs in **inputs** / wire JSON (and **`mapInput`**), not duplicated as “config that changes every item.”
+- Optional **`icon`** on either helper is forwarded to **`NodeConfigBase.icon`** (presentation only). Values follow the Next host canvas resolver (e.g. **`lucide:…`**, **`builtin:…`**, **`si:…`**, **`https:`** / **`data:`** / **`/…`**).
 
 ### `packages/core` (engine): Clean Architecture
 

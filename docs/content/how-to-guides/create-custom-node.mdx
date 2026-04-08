@@ -22,8 +22,10 @@ Imagine you want a node that uppercases a field called `subject`.
 The lightweight pattern is:
 
 1. define the node once with `defineNode(...)`
-2. keep the runtime logic in the helper `run(...)`
+2. implement **`executeOne(...)`** so the engine runs your logic **once per item** (optional **`mapInput`** / **`inputSchema`** match built-in item nodes)
 3. use the helper directly from a fluent workflow
+
+If you need legacy **batch** semantics (one function over the whole `Items` array), use **`defineBatchNode(...)`** with **`run(items, ...)`** instead.
 
 ## Step 1: define the node
 
@@ -36,11 +38,11 @@ export const uppercaseNode = defineNode({
   input: {
     field: "string",
   },
-  run(items, { config }) {
-    return items.map((item) => ({
-      ...item,
-      [config.field]: String(item[config.field as keyof typeof item] ?? "").toUpperCase(),
-    }));
+  executeOne({ input }, { config }) {
+    return {
+      ...input,
+      [config.field]: String(input[config.field as keyof typeof input] ?? "").toUpperCase(),
+    };
   },
 });
 ```

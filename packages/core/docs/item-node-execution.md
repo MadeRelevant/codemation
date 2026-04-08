@@ -34,6 +34,12 @@ These are **batch** nodes: they implement **`Node.execute(items, ctx)`**, not **
 
 **Sample workflow:** `apps/test-dev/src/workflows/samples/splitFilterAggregateDemo.ts`.
 
+## Plugin authoring (`defineNode` / `defineBatchNode`)
+
+- **`defineNode(...)`** from `@codemation/core` builds a helper-defined **`ItemNode`**: supply **`executeOne(args, context)`** (not **`run(items, …)`**). One **output object** per call becomes the next **`item.json`** on **`main`** for that item (the engine wraps lineage fields as for other item nodes).
+- Optional **`input`**, **`inputSchema`**, and **`mapInput`** on the definition follow the same rules as class-based **`RunnableNodeConfig`** / **`ItemNode`** (map + validate before enqueue; **`inputsByPort`** reflects effective input).
+- Use **`defineBatchNode(...)`** when the node must implement the old batch shape: **`run(items, context)`** and generated **`Node.execute`** over the full **`Items`** array—e.g. custom fan-in/fan-out that is not expressible as per-item work.
+
 ## Authoring (code workflows)
 
 ### Node implementation

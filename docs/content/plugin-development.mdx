@@ -111,6 +111,8 @@ For fast feedback without starting the full host, use **`WorkflowTestKit`** from
 - **`runNode({ node, items, workflowId?, workflowName? })`** — shortcut that builds a minimal workflow: a harness-only manual trigger → your runnable node, then runs it. Use this for single-node tests (for example `defineNode` plugins). It does **not** require `@codemation/core-nodes` for `ManualTrigger`.
 - **`registerDefinedNodes([...])`** — call once per suite (or per test) so `defineNode(...).register(...)` implementations are bound on the kit’s DI container, mirroring `plugin.register({ registerNode })` in the host.
 
+Helper-defined nodes from **`defineNode`** implement **`executeOne`** (per item); use **`defineBatchNode`** if the test subject needs batch **`run(items, ...)`**.
+
 Use **`pnpm dev` / `codemation dev:plugin`** when you need the operator UI, credentials, and persistence; use **`WorkflowTestKit`** in **Vitest** for deterministic node-level tests. The **plugin** starter template includes an example test under `test/`.
 
 ## Nodes and credentials

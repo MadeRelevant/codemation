@@ -8,7 +8,7 @@ Use `defineNode(...)` when:
 - the node belongs to one app or plugin package
 - helper-based credential slots are enough
 
-## Standard helper shape
+## Standard helper shape (`executeOne`)
 
 ```ts
 export const uppercaseNode = defineNode({
@@ -18,16 +18,20 @@ export const uppercaseNode = defineNode({
   input: {
     field: "string",
   },
-  run(items, { config }) {
-    return items.map((item) => ({
-      ...item,
-      [config.field]: String(item[config.field as keyof typeof item] ?? "").toUpperCase(),
-    }));
+  executeOne({ input }, { config }) {
+    return {
+      ...input,
+      [config.field]: String(input[config.field as keyof typeof input] ?? "").toUpperCase(),
+    };
   },
 });
 ```
 
 Optional **`icon`** is forwarded to the generated node config for the canvas (Lucide `lucide:…`, **`builtin:…`** / **`si:…`**, or image URLs). See `packages/core-nodes/src/canvasIconName.ts` and the Next host `WorkflowCanvasNodeIcon` resolver.
+
+## Batch helper shape (`defineBatchNode`)
+
+When the node must see **all items in one call**, use **`defineBatchNode`** and **`run(items, { config, credentials, execution })`** returning **`Items`** per port (same as class-based **`Node.execute`**).
 
 ## When a custom node pays off
 
@@ -48,6 +52,6 @@ Reach for class-based node APIs when:
 
 ## Runtime reminder
 
-- nodes process batches of items
-- keep them deterministic and testable
-- prefer real code paths or in-memory collaborators over heavy mocking
+- **`defineNode`** runs **`executeOne` once per item** (with optional **`mapInput`** / **`inputSchema`** before enqueue)
+- **`defineBatchNode`** runs **`run`** once per activation batch
+- keep nodes deterministic and testable; prefer real code paths or in-memory collaborators over heavy mocking

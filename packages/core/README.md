@@ -14,6 +14,8 @@ npm install @codemation/core@^0.0.0
 
 Use this package when you define workflows, implement **custom nodes** (config classes + `Node` implementations), or integrate with the engine in TypeScript. Consumer apps and node packages should depend on `@codemation/core`; they should not pull host or infrastructure code into engine-shaped modules.
 
+Plugin-style helpers: **`defineNode(...)`** generates an **`ItemNode`** — implement **`executeOne`**. Use **`defineBatchNode(...)`** for legacy batch **`run(items, ...)`**. See **`docs/item-node-execution.md`** in this package.
+
 ## Usage
 
 Main entry:

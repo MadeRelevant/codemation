@@ -1,4 +1,4 @@
-import type { Node, NodeExecutionContext } from "../../src/contracts/runtimeTypes";
+import type { ItemNode, NodeExecutionContext } from "../../src/contracts/runtimeTypes";
 import { describe, expect, it } from "vitest";
 import { defineCredential, defineNode } from "../../src";
 import { z } from "zod";
@@ -37,41 +37,48 @@ describe("defineNode", () => {
       credentials: {
         service: helperCredential,
       },
-      async run(items, { config, credentials }) {
+      async executeOne(args, { config, credentials }) {
         const session = await credentials.service();
-        return items.map((item) => ({
-          ...item,
-          [config.field]: `${session.baseUrl}:${String(item[config.field as keyof typeof item] ?? "").toUpperCase()}`,
-        }));
+        const row = args.input as Record<string, unknown>;
+        return {
+          ...row,
+          [config.field]: `${session.baseUrl}:${String(row[config.field] ?? "").toUpperCase()}`,
+        };
       },
     });
 
     const config = helperNode.create({ field: "subject" });
-    const runtime = new (config.type as new () => Node<typeof config>)();
-    const outputs = await runtime.execute(
-      [
-        {
-          json: {
-            subject: "hello",
-          },
-        },
-      ],
-      {
-        config,
-        getCredential: async () => ({
-          baseUrl: "api",
-          apiKey: "secret",
-        }),
-      } as NodeExecutionContext<typeof config>,
-    );
+    const runtime = new (config.type as new () => ItemNode<typeof config>)();
+    const itemJson = { subject: "hello" };
+    const ctx = {
+      config,
+      nodeId: "n1",
+      activationId: "a1",
+      runId: "r1",
+      workflowId: "w1",
+      subworkflowDepth: 0,
+      engineMaxNodeActivations: 10_000,
+      engineMaxSubworkflowDepth: 32,
+      now: () => new Date(),
+      data: { completedNodeOutputs: {} },
+      binary: {},
+      getCredential: async () => ({
+        baseUrl: "api",
+        apiKey: "secret",
+      }),
+    } as unknown as NodeExecutionContext<typeof config>;
 
-    expect(outputs.main).toEqual([
-      {
-        json: {
-          subject: "api:HELLO",
-        },
-      },
-    ]);
+    const out = await runtime.executeOne({
+      input: itemJson,
+      item: { json: itemJson },
+      itemIndex: 0,
+      items: [{ json: itemJson }],
+      ctx,
+    });
+
+    expect(out).toEqual({
+      subject: "api:HELLO",
+    });
   });
 
   it("exposes icon on created configs when defineNode sets icon", () => {
@@ -80,8 +87,8 @@ describe("defineNode", () => {
       title: "Icon probe",
       icon: "lucide:braces",
       input: {},
-      run(items) {
-        return items.map((item) => item);
+      executeOne({ input }, _context) {
+        return input;
       },
     });
 
