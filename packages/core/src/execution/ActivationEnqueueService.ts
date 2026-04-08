@@ -21,6 +21,7 @@ import type {
 import { RunQueuePlanner } from "../planning/RunQueuePlanner";
 
 import { NodeEventPublisher } from "../events/NodeEventPublisher";
+import type { NodeActivationRequestInputPreparer } from "./NodeActivationRequestInputPreparer";
 import { NodeExecutionSnapshotFactory } from "./NodeExecutionSnapshotFactory";
 import { NodeInputsByPortFactory } from "./NodeInputsByPortFactory";
 
@@ -51,6 +52,7 @@ export class ActivationEnqueueService {
     private readonly activationScheduler: ActivationSchedulerPort,
     private readonly workflowExecutionRepository: WorkflowExecutionRepository,
     private readonly nodeEventPublisher: NodeEventPublisher,
+    private readonly nodeActivationRequestInputPreparer: NodeActivationRequestInputPreparer,
   ) {}
 
   async enqueueActivation(args: ActivationEnqueueRequest): Promise<RunResult> {
@@ -62,12 +64,13 @@ export class ActivationEnqueueService {
   async enqueueActivationWithSnapshot(
     args: ActivationEnqueueRequest,
   ): Promise<{ result: RunResult; queuedSnapshot: NodeExecutionSnapshot }> {
-    const preparedDispatch = await this.activationScheduler.prepareDispatch(args.request);
-    const inputsByPort = NodeInputsByPortFactory.fromRequest(args.request);
+    const preparedRequest = await this.nodeActivationRequestInputPreparer.prepare(args.request);
+    const preparedDispatch = await this.activationScheduler.prepareDispatch(preparedRequest);
+    const inputsByPort = NodeInputsByPortFactory.fromRequest(preparedRequest);
     const itemsIn =
-      args.request.kind === "multi"
-        ? args.planner.sumItemsByPort(args.request.inputsByPort)
-        : args.request.input.length;
+      preparedRequest.kind === "multi"
+        ? args.planner.sumItemsByPort(preparedRequest.inputsByPort)
+        : preparedRequest.input.length;
     const enqueuedAt = new Date().toISOString();
     const pending: PendingNodeExecution = {
       runId: args.runId,

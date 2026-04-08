@@ -13,6 +13,8 @@ import type {
 } from "./runTypes";
 import type { WorkflowActivationPolicy } from "./workflowActivationPolicy";
 import type { TriggerInstanceId, WebhookTriggerMatcher } from "./webhookTypes";
+import type { ZodType } from "zod";
+
 import type {
   ActivationIdFactory,
   BinaryAttachment,
@@ -223,6 +225,30 @@ export interface Node<TConfig extends NodeConfigBase = NodeConfigBase> {
   kind: "node";
   outputPorts: ReadonlyArray<OutputPortKey>;
   execute(items: Items, ctx: NodeExecutionContext<TConfig>): Promise<NodeOutputs>;
+}
+
+/**
+ * Single-input runnable node with per-item execution on `main` only (1→1 default).
+ * Engine applies {@link RunnableNodeConfig.mapInput} (if any) + `inputSchema.parse` before `executeOne`.
+ */
+export interface ItemNode<
+  TConfig extends NodeConfigBase = NodeConfigBase,
+  TInputJson = unknown,
+  TOutputJson = unknown,
+> {
+  readonly kind: "node";
+  readonly outputPorts: readonly ["main"];
+  /** When omitted, engine uses {@link RunnableNodeConfig.inputSchema} or `z.unknown()`. */
+  readonly inputSchema?: ZodType<TInputJson>;
+  executeOne(
+    args: Readonly<{
+      input: TInputJson;
+      item: Item;
+      itemIndex: number;
+      items: Items;
+      ctx: NodeExecutionContext<TConfig>;
+    }>,
+  ): Promise<TOutputJson> | TOutputJson;
 }
 
 export interface MultiInputNode<TConfig extends NodeConfigBase = NodeConfigBase> {

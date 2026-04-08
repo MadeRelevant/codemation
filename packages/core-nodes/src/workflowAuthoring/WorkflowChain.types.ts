@@ -18,7 +18,7 @@ type BranchOutputMatch<TLeft, TRight> = [TLeft] extends [TRight] ? ([TRight] ext
 export class WorkflowChain<TCurrentJson> {
   constructor(private readonly chain: ChainCursor<TCurrentJson>) {}
 
-  then<TConfig extends RunnableNodeConfig<TCurrentJson, any>>(
+  then<TInputJson, TOutputJson, TConfig extends RunnableNodeConfig<TInputJson, TOutputJson, TCurrentJson>>(
     config: TConfig,
   ): WorkflowChain<RunnableNodeOutputJson<TConfig>> {
     return new WorkflowChain(this.chain.then(config));

@@ -1,4 +1,6 @@
 export { ActivationEnqueueService } from "./ActivationEnqueueService";
+export { NodeActivationRequestInputPreparer } from "./NodeActivationRequestInputPreparer";
+export { NodeInputContractError } from "./NodeInputContractError";
 export { CredentialResolverFactory } from "./CredentialResolverFactory";
 export { DefaultAsyncSleeper } from "./DefaultAsyncSleeper";
 export { DefaultExecutionContextFactory } from "./DefaultExecutionContextFactory";

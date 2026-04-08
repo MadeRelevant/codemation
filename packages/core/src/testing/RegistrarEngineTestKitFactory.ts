@@ -29,6 +29,7 @@ import { RejectingCredentialSessionService } from "./RejectingCredentialSessionS
 import { CapturingScheduler } from "./CapturingScheduler";
 import { PrefixedSequentialIdGenerator } from "./PrefixedSequentialIdGenerator";
 import type { RegistrarEngineTestKitHandle, RegistrarEngineTestKitOptions } from "./RegistrarEngineTestKit.types";
+import { ItemHarnessNode } from "./ItemHarnessNode";
 import { SubWorkflowRunnerNode } from "./SubWorkflowRunnerTestNode";
 import { WorkflowTestHarnessManualTriggerNode } from "./WorkflowTestHarnessManualTrigger";
 
@@ -108,6 +109,7 @@ export class RegistrarEngineTestKitFactory {
       SubWorkflowRunnerNode,
       new SubWorkflowRunnerNode(workflowRunner as WorkflowRunnerService),
     );
+    dependencyContainer.registerInstance(ItemHarnessNode, new ItemHarnessNode());
     dependencyContainer.registerInstance(
       WorkflowTestHarnessManualTriggerNode,
       new WorkflowTestHarnessManualTriggerNode(),

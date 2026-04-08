@@ -149,6 +149,17 @@ export class RunQueuePlanner {
     }
   }
 
+  /**
+   * Matches `CurrentStateFrontierPlanner.buildFrontierQueue`: anything that is not exactly one input
+   * port named `in` participates in multi-port collect (Merge after `If` branches, etc.). Routing must
+   * not depend solely on `nodeInstances.get(toNodeId)?.executeMulti`, or a Merge can be enqueued as a
+   * single-input job and `NodeExecutor` will call `execute` on a multi-input-only implementation.
+   */
+  private usesTopologyCollectMerge(toNodeId: NodeId): boolean {
+    const expectedInputs = this.topology.expectedInputsByNode.get(toNodeId) ?? [];
+    return expectedInputs.length !== 1 || expectedInputs[0] !== "in";
+  }
+
   private enqueueEdge(
     queue: RunQueueEntry[],
     args: Readonly<{
@@ -159,7 +170,7 @@ export class RunQueuePlanner {
     }>,
   ): void {
     const target = this.nodeInstances.get(args.to.nodeId);
-    const isMulti = this.isMultiInputNode(target);
+    const isMulti = this.usesTopologyCollectMerge(args.to.nodeId) || this.isMultiInputNode(target);
 
     if (!isMulti) {
       if (args.items.length === 0) {

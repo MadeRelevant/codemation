@@ -4,6 +4,8 @@
 export { InMemoryLiveWorkflowRepository } from "./runtime/InMemoryLiveWorkflowRepository";
 export { WorkflowSnapshotCodec as PersistedWorkflowSnapshotFactory } from "./workflowSnapshots/WorkflowSnapshotCodec";
 export { RejectingCredentialSessionService } from "./testing/RejectingCredentialSessionService";
+export { ItemHarnessNode } from "./testing/ItemHarnessNode";
+export { ItemHarnessNodeConfig } from "./testing/ItemHarnessNodeConfig";
 export { CapturingScheduler } from "./testing/CapturingScheduler";
 export { PrefixedSequentialIdGenerator } from "./testing/PrefixedSequentialIdGenerator";
 export {

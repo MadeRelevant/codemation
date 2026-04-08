@@ -3,10 +3,27 @@ import type {
   AgentMessageConfig,
   AgentMessageDto,
   AgentMessageLine,
+  AgentMessageRole,
   AgentNodeConfig,
 } from "./AiHost";
 
 export class AgentMessageConfigNormalizer {
+  /**
+   * Prefer {@code input.messages} when present (ItemNode / engine-mapped payloads); otherwise resolve from
+   * {@link AgentNodeConfig.messages} templates.
+   */
+  static resolveFromInputOrConfig<TInputJson, TOutputJson>(
+    input: unknown,
+    config: AgentNodeConfig<TInputJson, TOutputJson>,
+    args: AgentMessageBuildArgs<TInputJson>,
+  ): ReadonlyArray<AgentMessageDto> {
+    const fromInput = this.tryMessagesFromStructuredInput(input);
+    if (fromInput.length > 0) {
+      return fromInput;
+    }
+    return this.normalize(config, args);
+  }
+
   static normalize<TInputJson, TOutputJson>(
     config: AgentNodeConfig<TInputJson, TOutputJson>,
     args: AgentMessageBuildArgs<TInputJson>,
@@ -18,6 +35,32 @@ export class AgentMessageConfigNormalizer {
     throw new Error(
       "AIAgent messages must be a non-empty array, or an object with a non-empty prompt array and/or buildMessages that returns messages.",
     );
+  }
+
+  private static tryMessagesFromStructuredInput(input: unknown): ReadonlyArray<AgentMessageDto> {
+    if (!input || typeof input !== "object") {
+      return [];
+    }
+    const raw = (input as { messages?: unknown }).messages;
+    if (!Array.isArray(raw) || raw.length === 0) {
+      return [];
+    }
+    const out: AgentMessageDto[] = [];
+    for (const m of raw) {
+      if (!m || typeof m !== "object") {
+        continue;
+      }
+      const role = (m as { role?: unknown }).role;
+      const content = (m as { content?: unknown }).content;
+      if (role !== "system" && role !== "user" && role !== "assistant") {
+        continue;
+      }
+      if (typeof content !== "string") {
+        continue;
+      }
+      out.push({ role: role as AgentMessageRole, content });
+    }
+    return out;
   }
 
   private static normalizeRichMessages<TInputJson>(

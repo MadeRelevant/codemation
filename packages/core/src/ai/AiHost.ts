@@ -150,7 +150,7 @@ export interface ChatModelFactory<TConfig extends ChatModelConfig = ChatModelCon
 }
 
 export type NodeBackedToolInputMapperArgs<
-  TNodeConfig extends RunnableNodeConfig<any, any>,
+  TNodeConfig extends RunnableNodeConfig<any, any, any>,
   TToolInput = unknown,
 > = Readonly<{
   input: TToolInput;
@@ -162,7 +162,7 @@ export type NodeBackedToolInputMapperArgs<
 }>;
 
 export type NodeBackedToolOutputMapperArgs<
-  TNodeConfig extends RunnableNodeConfig<any, any>,
+  TNodeConfig extends RunnableNodeConfig<any, any, any>,
   TToolInput = unknown,
 > = Readonly<{
   input: TToolInput;
@@ -174,18 +174,18 @@ export type NodeBackedToolOutputMapperArgs<
   outputs: NodeOutputs;
 }>;
 
-export type NodeBackedToolInputMapper<TNodeConfig extends RunnableNodeConfig<any, any>, TToolInput = unknown> = (
+export type NodeBackedToolInputMapper<TNodeConfig extends RunnableNodeConfig<any, any, any>, TToolInput = unknown> = (
   args: NodeBackedToolInputMapperArgs<TNodeConfig, TToolInput>,
 ) => Item<RunnableNodeInputJson<TNodeConfig>> | RunnableNodeInputJson<TNodeConfig>;
 
 export type NodeBackedToolOutputMapper<
-  TNodeConfig extends RunnableNodeConfig<any, any>,
+  TNodeConfig extends RunnableNodeConfig<any, any, any>,
   TToolInput = unknown,
   TToolOutput = unknown,
 > = (args: NodeBackedToolOutputMapperArgs<TNodeConfig, TToolInput>) => TToolOutput;
 
 export type NodeBackedToolConfigOptions<
-  TNodeConfig extends RunnableNodeConfig<any, any>,
+  TNodeConfig extends RunnableNodeConfig<any, any, any>,
   TInputSchema extends ZodSchemaAny,
   TOutputSchema extends ZodSchemaAny,
 > = Readonly<{
@@ -197,10 +197,11 @@ export type NodeBackedToolConfigOptions<
   mapOutput?: NodeBackedToolOutputMapper<TNodeConfig, ZodInput<TInputSchema>, ZodOutput<TOutputSchema>>;
 }>;
 
-export interface AgentNodeConfig<TInputJson = unknown, TOutputJson = unknown> extends RunnableNodeConfig<
-  TInputJson,
-  TOutputJson
-> {
+export interface AgentNodeConfig<
+  TInputJson = unknown,
+  TOutputJson = unknown,
+  TWireJson = TInputJson,
+> extends RunnableNodeConfig<TInputJson, TOutputJson, TWireJson> {
   readonly messages: AgentMessageConfig<TInputJson>;
   readonly chatModel: ChatModelConfig;
   readonly tools?: ReadonlyArray<ToolConfig>;

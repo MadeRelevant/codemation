@@ -116,8 +116,9 @@ This document sets the “golden standard” for how we build and review changes
 
 ### Engine ↔ Node contract
 
-- Nodes receive **`items` as a batch** and must iterate internally:
-  - This is required so each node can control concurrency and batching semantics.
+- Activations are still **batch-shaped** (`Items` on `main`), but implementations differ:
+  - **Batch nodes** (`Node.execute`) receive **`items` as a batch** and iterate internally so each node can control concurrency and batching semantics. Examples in **`@codemation/core-nodes`**: **`Split`** (array or custom fan-out → one item per element), **`Filter`** (predicate), **`Aggregate`** (whole batch → one summarized **`json`** on **`main`**).
+  - **Per-item nodes** (`ItemNode`, `executeOne`)—for example built-in **`MapDataNode`** and **`AIAgentNode`**—let the engine iterate items and apply optional **`mapInput` / `inputSchema`** before enqueue so run snapshots show **effective inputs**. **`RunnableNodeConfig`** has **`TInputJson`** (after map), **`TOutputJson`**, and optional **`TWireJson`** (upstream `item.json` before map; defaults to **`TInputJson`**). **`mapInput`** receives **`ItemInputMapperContext`**: use **`ctx.data`** to read outputs from **any completed** upstream node in the run, not only the immediate **`item`**. See **`packages/core/docs/item-node-execution.md`**.
 - **`execute` must return what the node produces on each output port**, not a generic “input plus a wrapper”:
   - For each emitted `Item`, **`json` is the node’s output payload** for that step—the shape your `RunnableNodeConfig<…, TOutputJson>` (or documented contract) describes as **downstream data**, not the input object with an extra nested bag for “the real result”.
   - **Do not** default to `json: { ...inputJson, result: <actualOutput> }` or similar unless that **nested** shape is intentionally the public API of the node. Prefer `json: <actualOutput>` (and only spread or merge input fields when the node is explicitly an **enrichment** / **field update** step).

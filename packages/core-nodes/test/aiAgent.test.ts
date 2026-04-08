@@ -3,9 +3,9 @@ import type {
   ChatModelConfig,
   ChatModelFactory,
   CredentialSessionService,
+  Item,
   Items,
   LangChainChatModelLike,
-  Node,
   NodeExecutionContext,
   NodeExecutionStatePublisher,
   NodeInputsByPort,
@@ -333,7 +333,20 @@ class AgentTestRig {
       getCredential: async () => "",
     };
 
-    return await this.container.resolve(AIAgentNode).execute(itemsIn, ctx);
+    const node = this.container.resolve(AIAgentNode);
+    const out: Item[] = [];
+    for (let i = 0; i < itemsIn.length; i++) {
+      const item = itemsIn[i]!;
+      const json = await node.executeOne({
+        input: item.json,
+        item,
+        itemIndex: i,
+        items: itemsIn,
+        ctx,
+      });
+      out.push({ ...item, json });
+    }
+    return { main: out };
   }
 }
 
