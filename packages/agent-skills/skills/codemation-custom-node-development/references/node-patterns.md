@@ -14,6 +14,7 @@ Use `defineNode(...)` when:
 export const uppercaseNode = defineNode({
   key: "example.uppercase",
   title: "Uppercase field",
+  icon: "lucide:languages",
   input: {
     field: "string",
   },
@@ -25,6 +26,8 @@ export const uppercaseNode = defineNode({
   },
 });
 ```
+
+Optional **`icon`** is forwarded to the generated node config for the canvas (Lucide `lucide:…`, **`builtin:…`** / **`si:…`**, or image URLs). See `packages/core-nodes/src/canvasIconName.ts` and the Next host `WorkflowCanvasNodeIcon` resolver.
 
 ## When a custom node pays off
 

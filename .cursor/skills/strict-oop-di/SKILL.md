@@ -98,6 +98,10 @@ When implementing **`Node.execute`**, return **`NodeOutputs`** whose **`Items` a
 - **Pass-through** (`return { main: items }`) is fine for no-op / routing behavior only—not as a lazy default for transforms.
 - **Triggers follow the same contract**: emit **one `Item` per external event/record** (one email, one webhook request, one queue message). Do **not** hide many events inside `json: { results: [...] }`, `json: { foundItems: [...] }`, or similar wrapper objects. The batch is the array of `Items`; each `item.json` should be a single emitted domain record.
 
+### `defineNode(...)` presentation (plugins)
+
+- Optional **`icon`** on **`defineNode({ … })`** is forwarded to the generated runnable config as **`NodeConfigBase.icon`** (presentation only; no runtime effect). Values follow the Next host canvas resolver (e.g. **`lucide:…`**, **`builtin:…`**, **`si:…`**, **`https:`** / **`data:`** / **`/…`**).
+
 ### `packages/core` (engine): Clean Architecture
 
 - **Dependency rule (inward only)**: inner layers **must not** depend on outer layers. The engine’s **center** stays **framework-agnostic**: execution model, workflow DSL, stable **contracts** (types, ports), and orchestration that speaks in domain/engine terms—not HTTP, not UI, not persistence, not vendor SDKs, and not a concrete **node catalog** (nodes remain plugins).
