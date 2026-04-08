@@ -1,5 +1,14 @@
 # @codemation/host
 
+## 0.1.5
+
+### Patch Changes
+
+- Updated dependencies [[`d3a4321`](https://github.com/MadeRelevant/codemation/commit/d3a4321dc178df51dfd61cc6eb872ccca36bbcdb)]:
+  - @codemation/core@0.2.3
+  - @codemation/core-nodes@0.0.24
+  - @codemation/eventbus-redis@0.0.24
+
 ## 0.1.4
 
 ### Patch Changes
