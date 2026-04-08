@@ -88,7 +88,12 @@ For architectural boundaries and tooling, **`AGENTS.md`** remains the canonical 
 - Node implementations live in node packages (plugins).
 - Apps compose packages and wire the DI container.
 
-### Node `execute()` → `NodeOutputs` (agents: read this)
+### Node outputs: batch `execute` vs `ItemNode` / `executeOne`
+
+- **Batch nodes** implement **`Node.execute(items, ctx)`** (e.g. **`SplitNode`**, **`FilterNode`**, **`AggregateNode`**, merges, **`If`**, routers): you receive the batch and return **`NodeOutputs`** per port. Built-in **Split / Filter / Aggregate** reshape **`main`** (fan-out, predicate, batch→single summary)—see **`packages/core/docs/item-node-execution.md`**.
+- **Per-item nodes** implement **`ItemNode`** with **`executeOne`** (e.g. **`MapDataNode`**, **`AIAgentNode`**): the engine runs **`executeOne` once per item** (serial, stable order today) and applies optional **`mapInput` + `inputSchema`** **before enqueue** so persisted **`inputsByPort`** matches what the node sees—same doc.
+
+### Node `execute()` → `NodeOutputs` (batch nodes)
 
 When implementing **`Node.execute`**, return **`NodeOutputs`** whose **`Items` are what this node actually emits** on each port—not a standing pattern of “clone the input items and tuck the real output under an extra key”.
 

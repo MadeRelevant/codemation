@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
+import { AgentMessageConfigNormalizer } from "../../src/ai/AgentMessageConfigNormalizerFactory";
 import { AgentConnectionNodeCollector } from "../../src/ai/AgentConnectionNodeCollector";
 import { AgentToolFactory } from "../../src/ai/AgentToolFactory";
 import { NodeBackedToolConfig } from "../../src/ai/NodeBackedToolConfig";
@@ -111,4 +112,42 @@ test("AgentToolFactory merges parent item json into nested agent tool input by d
       question: "What should we do?",
     },
   });
+});
+
+test("AgentMessageConfigNormalizer prefers input.messages over config templates", () => {
+  const config = {
+    kind: "node" as const,
+    type: {} as never,
+    messages: [{ role: "user" as const, content: "from config" }],
+    chatModel: {} as never,
+  };
+  const args = {
+    item: { json: {} },
+    itemIndex: 0,
+    items: [{ json: {} }],
+    ctx: {} as never,
+  };
+  const fromInput = AgentMessageConfigNormalizer.resolveFromInputOrConfig(
+    { messages: [{ role: "system", content: "from input" }] },
+    config,
+    args,
+  );
+  assert.deepEqual(fromInput, [{ role: "system", content: "from input" }]);
+});
+
+test("AgentMessageConfigNormalizer falls back to config when input has no messages", () => {
+  const config = {
+    kind: "node" as const,
+    type: {} as never,
+    messages: [{ role: "user" as const, content: "fallback" }],
+    chatModel: {} as never,
+  };
+  const args = {
+    item: { json: { topic: "x" } },
+    itemIndex: 0,
+    items: [{ json: { topic: "x" } }],
+    ctx: {} as never,
+  };
+  const dtos = AgentMessageConfigNormalizer.resolveFromInputOrConfig({ topic: "ignored" }, config, args);
+  assert.deepEqual(dtos, [{ role: "user", content: "fallback" }]);
 });

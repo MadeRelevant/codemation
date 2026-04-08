@@ -4,13 +4,12 @@ import type {
   ChatModelConfig,
   ChatModelFactory,
   Item,
+  ItemNode,
   Items,
   JsonValue,
   LangChainChatModelLike,
-  Node,
   NodeExecutionContext,
   NodeInputsByPort,
-  NodeOutputs,
   Tool,
   ToolConfig,
   ZodSchemaAny,
@@ -30,6 +29,7 @@ import {
 } from "@codemation/core";
 
 import { AIMessage, type BaseMessage } from "@langchain/core/messages";
+import { z } from "zod";
 
 import type { AIAgent } from "./AIAgentConfig";
 import { AIAgentExecutionHelpersFactory } from "./AIAgentExecutionHelpersFactory";
@@ -49,7 +49,7 @@ import {
 type ResolvedGuardrails = Required<Pick<AgentGuardrailConfig, "maxTurns" | "onTurnLimitReached">> &
   Pick<AgentGuardrailConfig, "modelInvocationOptions">;
 
-/** Everything needed to run the agent loop for a workflow execution (one `execute` call). */
+/** Everything needed to run the agent loop for one item (shared across items in the same activation). */
 interface PreparedAgentExecution {
   readonly ctx: NodeExecutionContext<AIAgent<any, any>>;
   readonly model: LangChainChatModelLike;
@@ -59,11 +59,21 @@ interface PreparedAgentExecution {
 }
 
 @node({ packageName: "@codemation/core-nodes" })
-export class AIAgentNode implements Node<AIAgent<any, any>> {
+export class AIAgentNode implements ItemNode<AIAgent<any, any>, unknown, unknown> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
+  /**
+   * Engine applies {@link RunnableNodeConfig.mapInput} + parse before {@link #executeOne}. Prefer modeling
+   * prompts as {@code { messages: [{ role, content }, ...] }} so persisted inputs are visible in the UI.
+   */
+  readonly inputSchema = z.unknown();
 
   private readonly connectionCredentialExecutionContextFactory: ConnectionCredentialExecutionContextFactory;
+  /** One resolved model/tools bundle per activation context (same ctx across items in a batch). */
+  private readonly preparedByExecutionContext = new WeakMap<
+    NodeExecutionContext<AIAgent<any, any>>,
+    Promise<PreparedAgentExecution>
+  >();
 
   constructor(
     @inject(CoreTokens.NodeResolver)
@@ -79,17 +89,35 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
       this.executionHelpers.createConnectionCredentialExecutionContextFactory(credentialSessions);
   }
 
-  async execute(items: Items, ctx: NodeExecutionContext<AIAgent<any, any>>): Promise<NodeOutputs> {
-    const prepared = await this.prepareExecution(ctx);
-    const out: Item[] = [];
-    for (let i = 0; i < items.length; i++) {
-      out.push(await this.runAgentForItem(prepared, items[i]!, i, items));
+  async executeOne(args: {
+    input: unknown;
+    item: Item;
+    itemIndex: number;
+    items: Items;
+    ctx: NodeExecutionContext<AIAgent<any, any>>;
+  }): Promise<unknown> {
+    const prepared = await this.getOrPrepareExecution(args.ctx);
+    const itemWithMappedJson = { ...args.item, json: args.input };
+    const resultItem = await this.runAgentForItem(prepared, itemWithMappedJson, args.itemIndex, args.items);
+    return resultItem.json;
+  }
+
+  private async getOrPrepareExecution(ctx: NodeExecutionContext<AIAgent<any, any>>): Promise<PreparedAgentExecution> {
+    let pending = this.preparedByExecutionContext.get(ctx);
+    if (!pending) {
+      pending = this.prepareExecution(ctx);
+      this.preparedByExecutionContext.set(ctx, pending);
     }
-    return { main: out };
+    try {
+      return await pending;
+    } catch (error) {
+      this.preparedByExecutionContext.delete(ctx);
+      throw error;
+    }
   }
 
   /**
-   * Resolves the chat model and tools once, then returns shared state for every item in the batch.
+   * Resolves the chat model and tools once per activation, then reuses for every item in the batch.
    */
   private async prepareExecution(ctx: NodeExecutionContext<AIAgent<any, any>>): Promise<PreparedAgentExecution> {
     const chatModelFactory = this.nodeResolver.resolve(ctx.config.chatModel.type) as ChatModelFactory<ChatModelConfig>;
@@ -467,7 +495,7 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
     ctx: NodeExecutionContext<AIAgent<any, any>>,
   ): ReadonlyArray<BaseMessage> {
     return AgentMessageFactory.createPromptMessages(
-      AgentMessageConfigNormalizer.normalize(ctx.config, {
+      AgentMessageConfigNormalizer.resolveFromInputOrConfig(item.json, ctx.config, {
         item,
         itemIndex,
         items,

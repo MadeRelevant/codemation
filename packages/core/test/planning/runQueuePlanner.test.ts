@@ -86,6 +86,29 @@ test("planner enqueues a single-input node when the source opts into continueWhe
   assert.deepEqual(queue[0]?.input, []);
 });
 
+test("planner routes Merge inbound edges through collect using topology even when node instance map is empty", () => {
+  const builder = dag({ id: "wf.run-queue.merge-topology", name: "Merge topology" });
+  builder.add(new CallbackNodeConfig("A", () => {}, { id: "A" }));
+  builder.add(new CallbackNodeConfig("B", () => {}, { id: "B" }));
+  builder.add(new MergeNodeConfig("Merge", { mode: "append" }, { id: "merge" }));
+  builder.connect("A", "merge", "main", "left");
+  builder.connect("B", "merge", "main", "right");
+  const workflow = builder.build();
+  const planner = new RunQueuePlanner(WorkflowTopology.fromWorkflow(workflow), new Map());
+  const queue: RunQueueEntry[] = [];
+  planner.applyOutputs(queue, {
+    fromNodeId: "A",
+    outputs: { main: items([{ branch: "left" }]) },
+    batchId: "batch_1",
+  });
+
+  assert.equal(queue.length, 1);
+  const entry = queue[0]!;
+  assert.ok(entry.collect);
+  assert.equal(entry.nodeId, "merge");
+  assert.deepEqual(entry.collect?.received?.left, items([{ branch: "left" }]));
+});
+
 test("planner propagates empty output past single-input nodes when the source does not opt in", () => {
   const A = new CallbackNodeConfig("A", () => {}, { id: "A" });
   const B = new CallbackNodeConfig("B", () => {}, { id: "B" });

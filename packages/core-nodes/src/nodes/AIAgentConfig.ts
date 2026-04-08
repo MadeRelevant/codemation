@@ -4,11 +4,13 @@ import {
   type AgentMessageConfig,
   type AgentNodeConfig,
   type ChatModelConfig,
+  type ItemInputMapper,
   type RetryPolicySpec,
   type RunnableNodeConfig,
   type ToolConfig,
   type TypeToken,
 } from "@codemation/core";
+import type { ZodType } from "zod";
 
 import { AIAgentNode } from "./AIAgentNode";
 
@@ -20,6 +22,10 @@ export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown> {
   readonly id?: string;
   readonly retryPolicy?: RetryPolicySpec;
   readonly guardrails?: AgentGuardrailConfig;
+  /** Engine applies with {@link RunnableNodeConfig.inputSchema} before {@link AIAgentNode.executeOne}. */
+  readonly inputSchema?: ZodType<TInputJson>;
+  /** Per-item mapper before validation; use with {@link inputSchema} so persisted run inputs show the prompt payload. */
+  readonly mapInput?: ItemInputMapper;
 }
 
 /**
@@ -40,6 +46,8 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
   readonly id?: string;
   readonly retryPolicy: RetryPolicySpec;
   readonly guardrails?: AgentGuardrailConfig;
+  readonly inputSchema?: ZodType<TInputJson>;
+  readonly mapInput?: ItemInputMapper;
 
   constructor(options: AIAgentOptions<TInputJson, TOutputJson>) {
     this.name = options.name;
@@ -49,5 +57,7 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
     this.id = options.id;
     this.retryPolicy = options.retryPolicy ?? RetryPolicy.defaultForAiAgent;
     this.guardrails = options.guardrails;
+    this.inputSchema = options.inputSchema;
+    this.mapInput = options.mapInput;
   }
 }
