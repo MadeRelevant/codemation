@@ -5,6 +5,8 @@
 - **Activation** stays **batch-based**: `NodeActivationRequest` for single-input nodes carries `input: Items`.
 - **Default runnable behavior** for many nodes is **per-item** via `executeOne` on the **`ItemNode`** interface (`packages/core/src/contracts/runtimeTypes.ts`).
 - The engine applies optional **`RunnableNodeConfig.mapInput`** (per item) and validates with **`inputSchema`** (Zod on the node class and/or config) **before enqueue**, so persisted `inputsByPort` is the **mapped + validated** JSON the node will see.
+- **`RunnableNodeConfig`** is **`RunnableNodeConfig<TInputJson, TOutputJson, TWireJson>`** (third type defaults to **`TInputJson`**): **`TWireJson`** is **`item.json` from upstream before `mapInput`**; **`TInputJson`** is what **`executeOne`** receives after map + Zod. Use **`RunnableNodeWireJson<TConfig>`** to extract the wire type. **`ItemInputMapper<TWireJson, TInputJson>`** types **`mapInput`** accordingly (see `packages/core/src/contracts/workflowTypes.ts`).
+- **`mapInput` context:** **`ItemInputMapperArgs.ctx`** is **`ItemInputMapperContext`**. Use **`ctx.data.getOutputItems(nodeId, "main")`** (or **`getOutputItem`**) to read **any completed** upstream node in this run (e.g. A while mapping at D), not only the immediate predecessor’s **`item`**.
 - **`Node.execute(items)`** remains for **batch** nodes (routers, merges, multi-port collect, legacy nodes).
 
 ## AI agent (`@codemation/core-nodes`)
@@ -41,10 +43,10 @@ These are **batch** nodes: they implement **`Node.execute(items, ctx)`**, not **
 
 ### Workflow wiring
 
-- Put **`mapInput`** on the downstream **node config** when upstream `item.json` does not already satisfy the input schema.
+- Put **`mapInput`** on the downstream **node config** when upstream `item.json` does not already satisfy the input schema. To combine the **direct** wire with data from an **earlier** node, read **`ctx.data`** inside **`mapInput`** (see **Concepts** above).
 - **Inspector semantics**: the run store’s `nodeSnapshotsByNodeId[nodeId].inputsByPort` is the **post-map, post-parse** input. Raw upstream output remains visible on the **previous node’s** `outputs`.
 
 ## Tests
 
-- `packages/core/test/engine/engine.itemNode.test.ts` — ordering, mapping persistence, schema failures, batch legacy path, multi-input `executeMulti`.
+- `packages/core/test/engine/engine.itemNode.test.ts` — ordering, mapping persistence, **`ctx.data`** in **`mapInput`**, schema failures, batch legacy path, multi-input `executeMulti`.
 - `packages/core-nodes/test/splitFilterAggregate.test.ts` — **`SplitNode`**, **`FilterNode`**, **`AggregateNode`** batch behavior.

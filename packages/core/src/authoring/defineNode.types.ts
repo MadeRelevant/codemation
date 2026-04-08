@@ -145,7 +145,7 @@ const definedNodeCredentialRequirementFactory = {
 const definedNodeCredentialAccessorFactory = {
   create<TBindings extends DefinedNodeCredentialBindings | undefined>(
     bindings: TBindings,
-    ctx: NodeExecutionContext<RunnableNodeConfig<any, any>>,
+    ctx: NodeExecutionContext<RunnableNodeConfig<any, any, any>>,
   ): DefinedNodeCredentialAccessors<TBindings> {
     if (!bindings) {
       return {} as DefinedNodeCredentialAccessors<TBindings>;

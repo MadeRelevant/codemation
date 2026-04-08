@@ -38,7 +38,7 @@ export class ChainCursor<TCurrentJson> {
     private readonly cursorOutput: OutputPortKey,
   ) {}
 
-  then<TConfig extends RunnableNodeConfig<TCurrentJson, any>>(
+  then<TInputJson, TOutputJson, TConfig extends RunnableNodeConfig<TInputJson, TOutputJson, TCurrentJson>>(
     config: TConfig,
   ): ChainCursor<RunnableNodeOutputJson<TConfig>> {
     const next = (this.wf as any).add(config) as NodeRef;

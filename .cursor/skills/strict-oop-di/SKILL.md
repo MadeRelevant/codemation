@@ -91,13 +91,13 @@ For architectural boundaries and tooling, **`AGENTS.md`** remains the canonical 
 ### Node outputs: batch `execute` vs `ItemNode` / `executeOne`
 
 - **Batch nodes** implement **`Node.execute(items, ctx)`** (e.g. **`SplitNode`**, **`FilterNode`**, **`AggregateNode`**, merges, **`If`**, routers): you receive the batch and return **`NodeOutputs`** per port. Built-in **Split / Filter / Aggregate** reshape **`main`** (fan-out, predicate, batch→single summary)—see **`packages/core/docs/item-node-execution.md`**.
-- **Per-item nodes** implement **`ItemNode`** with **`executeOne`** (e.g. **`MapDataNode`**, **`AIAgentNode`**): the engine runs **`executeOne` once per item** (serial, stable order today) and applies optional **`mapInput` + `inputSchema`** **before enqueue** so persisted **`inputsByPort`** matches what the node sees—same doc.
+- **Per-item nodes** implement **`ItemNode`** with **`executeOne`** (e.g. **`MapDataNode`**, **`AIAgentNode`**): the engine runs **`executeOne` once per item** (serial, stable order today) and applies optional **`mapInput` + `inputSchema`** **before enqueue** so persisted **`inputsByPort`** matches what the node sees—same doc. **`RunnableNodeConfig<TIn, TOut, TWire>`** (third defaults to **`TIn`**) and **`ChainCursor.then`** tie **upstream** JSON (**`TWire`**) to **`ItemInputMapper<TWire, TIn>`** so **`mapInput`** can type **`item.json`** without casts. Inside **`mapInput`**, **`ctx.data`** (**`ItemInputMapperContext`**) can read **any completed** node’s outputs in the run, not only the direct **`item`**.
 
 ### Node `execute()` → `NodeOutputs` (batch nodes)
 
 When implementing **`Node.execute`**, return **`NodeOutputs`** whose **`Items` are what this node actually emits** on each port—not a standing pattern of “clone the input items and tuck the real output under an extra key”.
 
-- **Treat each output item’s `json` as the node’s output payload** for downstream workflow steps (the shape implied by `RunnableNodeConfig<TIn, TOut>` / your exported output type). Avoid `json: { ...input, result: produced }` unless that nesting is **deliberately** the node’s API.
+- **Treat each output item’s `json` as the node’s output payload** for downstream workflow steps (the shape implied by `RunnableNodeConfig<TIn, TOut>` / your exported output type; add **`TWire`** when **`mapInput`** changes the wire shape). Avoid `json: { ...input, result: produced }` unless that nesting is **deliberately** the node’s API.
 - **Enrichment nodes** may merge into a copy of input JSON (e.g. uppercase one field); **fetch / map / DTO nodes** should set **`json` to the produced value** (see **`HttpRequestOutputJson`** in core-nodes: metadata only, no pass-through of arbitrary input fields).
 - Preserve **`binary` / `meta` / `paired`** when the feature needs them; do not use that as an excuse to wrap **`json`** unnecessarily.
 - **Pass-through** (`return { main: items }`) is fine for no-op / routing behavior only—not as a lazy default for transforms.

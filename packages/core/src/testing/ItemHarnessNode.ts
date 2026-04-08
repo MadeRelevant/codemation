@@ -5,7 +5,7 @@ import type { ItemHarnessNodeConfig } from "./ItemHarnessNodeConfig";
 /**
  * Item-mode harness node for engine tests (see {@link ItemHarnessNodeConfig}).
  */
-export class ItemHarnessNode implements ItemNode<ItemHarnessNodeConfig<any, any>, unknown, unknown> {
+export class ItemHarnessNode implements ItemNode<ItemHarnessNodeConfig<any, any, any>, unknown, unknown> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
@@ -14,7 +14,7 @@ export class ItemHarnessNode implements ItemNode<ItemHarnessNodeConfig<any, any>
     item: Item;
     itemIndex: number;
     items: Items;
-    ctx: NodeExecutionContext<ItemHarnessNodeConfig<any, any>>;
+    ctx: NodeExecutionContext<ItemHarnessNodeConfig<any, any, any>>;
   }): Promise<unknown> {
     return await args.ctx.config.runOne({
       input: args.input as never,

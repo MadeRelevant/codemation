@@ -10,7 +10,7 @@ import { WorkflowDurationParser } from "./WorkflowDurationParser.types";
 export class WorkflowBranchBuilder<TCurrentJson> {
   constructor(private readonly steps: ReadonlyArray<AnyRunnableNodeConfig> = []) {}
 
-  then<TConfig extends RunnableNodeConfig<TCurrentJson, any>>(
+  then<TInputJson, TOutputJson, TConfig extends RunnableNodeConfig<TInputJson, TOutputJson, TCurrentJson>>(
     config: TConfig,
   ): WorkflowBranchBuilder<RunnableNodeOutputJson<TConfig>> {
     return new WorkflowBranchBuilder<RunnableNodeOutputJson<TConfig>>([...this.steps, config]);

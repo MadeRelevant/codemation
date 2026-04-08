@@ -9,7 +9,11 @@ import { ItemHarnessNode } from "./ItemHarnessNode";
  * Item-mode harness node config for engine tests: engine applies {@link RunnableNodeConfig.inputSchema} +
  * optional {@link RunnableNodeConfig.mapInput}, then {@link ItemHarnessNode.executeOne} per item.
  */
-export class ItemHarnessNodeConfig<TIn = unknown, TOut = unknown> implements RunnableNodeConfig<TIn, TOut> {
+export class ItemHarnessNodeConfig<TIn = unknown, TOut = unknown, TWire = TIn> implements RunnableNodeConfig<
+  TIn,
+  TOut,
+  TWire
+> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = ItemHarnessNode;
 
@@ -18,18 +22,18 @@ export class ItemHarnessNodeConfig<TIn = unknown, TOut = unknown> implements Run
     public readonly inputSchema: ZodType<TIn>,
     public readonly runOne: (args: {
       input: TIn;
-      item: Item;
+      item: Item<TWire>;
       itemIndex: number;
-      items: Items;
-      ctx: NodeExecutionContext<ItemHarnessNodeConfig<TIn, TOut>>;
+      items: Items<TWire>;
+      ctx: NodeExecutionContext<ItemHarnessNodeConfig<TIn, TOut, TWire>>;
     }) => TOut | Promise<TOut>,
     public readonly opts: Readonly<{
       id?: string;
-      mapInput?: ItemInputMapper;
+      mapInput?: ItemInputMapper<TWire, TIn>;
     }> = {},
   ) {}
 
-  get mapInput(): ItemInputMapper | undefined {
+  get mapInput(): ItemInputMapper<TWire, TIn> | undefined {
     return this.opts.mapInput;
   }
 

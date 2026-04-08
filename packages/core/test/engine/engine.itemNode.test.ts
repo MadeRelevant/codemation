@@ -62,6 +62,39 @@ test("item nodes preserve output order for multi-item batches", async () => {
   );
 });
 
+test("mapInput ctx.data can read non-immediate upstream node outputs", async () => {
+  const kit = createEngineTestKit();
+  const A = new CallbackNodeConfig("A", () => {}, { id: "A" });
+  const B = new CallbackNodeConfig("B", () => {}, { id: "B" });
+  const C = new ItemHarnessNodeConfig(
+    "C",
+    z.object({ fromB: z.number(), fromA: z.number() }),
+    async ({ input }) => ({ merged: input.fromA + input.fromB }),
+    {
+      id: "C",
+      mapInput: ({ item, ctx }) => {
+        const aJson = ctx.data.getOutputItem("A", 0, "main")?.json as { step: number };
+        const bJson = item.json as { step: number };
+        return { fromB: bJson.step, fromA: aJson.step };
+      },
+    },
+  );
+  const wf = chain({ id: "wf.item.cross", name: "cross-node mapInput" }).start(A).then(B).then(C).build();
+  await kit.start([wf]);
+
+  const r = await kit.runToCompletion({
+    wf,
+    startAt: "A",
+    items: items([{ step: 10 }, { step: 20 }]),
+  });
+  assert.equal(r.status, "completed");
+  const stored = await kit.runStore.load(r.runId);
+  assert.ok(stored);
+  const snapC = stored.nodeSnapshotsByNodeId.C;
+  assert.deepEqual(snapC?.inputsByPort?.in?.[0]?.json, { fromB: 10, fromA: 10 });
+  assert.deepEqual(snapC?.outputs?.main?.[0]?.json, { merged: 20 });
+});
+
 test("mapInput + schema: persisted inputsByPort shows mapped validated json", async () => {
   const kit = createEngineTestKit();
   const A = new CallbackNodeConfig("A", () => {}, { id: "A" });

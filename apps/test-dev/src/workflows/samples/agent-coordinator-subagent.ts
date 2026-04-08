@@ -9,6 +9,9 @@ import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
  * The coordinator uses a larger model; the embedded specialist uses a smaller one—matching the
  * “orchestrator + cheap sub-agent” pattern.
  *
+ * The coordinator uses **`mapInput` + `inputSchema`** (ItemNode) so persisted run inputs include the resolved
+ * **`messages`** array; wire type is the manual trigger payload (`topic` only).
+ *
  * Requires OpenAI credentials bound for both connection slots (coordinator LLM + specialist LLM).
  */
 type CoordinatorInputJson = Readonly<{
@@ -19,6 +22,20 @@ type CoordinatorOutputJson = Readonly<{
   summary: string;
   usedSpecialist: boolean;
 }>;
+
+/** Persisted + validated input for the coordinator ItemNode (`messages` built in `mapInput` from the trigger wire). */
+const coordinatorAgentInputSchema = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["system", "user", "assistant"]),
+        content: z.string(),
+      }),
+    )
+    .min(1),
+});
+
+type CoordinatorAgentInput = z.infer<typeof coordinatorAgentInputSchema>;
 
 const specialistAgent = new AIAgent<Readonly<{ topic?: string; question?: string }>, Readonly<{ answer: string }>>({
   name: "Specialist (sub-agent)",
@@ -64,17 +81,21 @@ export default createWorkflowBuilder({
     ]),
   )
   .then(
-    new AIAgent<CoordinatorInputJson, CoordinatorOutputJson>({
+    new AIAgent<CoordinatorAgentInput, CoordinatorOutputJson, CoordinatorInputJson>({
       name: "Coordinator",
-      messages: [
-        {
-          role: "system",
-          content:
-            'You are the coordinator. Decide whether to call the specialist tool for a focused sub-answer, then produce the final result. When you call `specialist`, you must provide a non-empty `question` string derived from the current `topic`. Respond with strict JSON only: {"summary": string, "usedSpecialist": boolean}.',
-        },
-        { role: "user", content: ({ item }) => JSON.stringify(item.json ?? {}) },
-      ],
+      messages: [{ role: "user", content: "Fallback when input.messages is not set." }],
       chatModel: openAiChatModelPresets.demoGpt4oMini,
+      inputSchema: coordinatorAgentInputSchema,
+      mapInput: ({ item }) => ({
+        messages: [
+          {
+            role: "system",
+            content:
+              'You are the coordinator. Decide whether to call the specialist tool for a focused sub-answer, then produce the final result. When you call `specialist`, you must provide a non-empty `question` string derived from the current `topic`. Respond with strict JSON only: {"summary": string, "usedSpecialist": boolean}.',
+          },
+          { role: "user", content: JSON.stringify({ topic: item.json.topic }) },
+        ],
+      }),
       tools: [specialistTool],
       guardrails: { maxTurns: 8 },
     }),

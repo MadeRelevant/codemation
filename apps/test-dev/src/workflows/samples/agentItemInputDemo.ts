@@ -38,7 +38,7 @@ export default createWorkflowBuilder({
     ]),
   )
   .then(
-    new AIAgent<AgentPromptInput, AgentOutJson>({
+    new AIAgent<AgentPromptInput, AgentOutJson, SeedJson>({
       name: "Summarize topic",
       messages: [{ role: "user", content: "Fallback when input.messages is not set." }],
       chatModel: openAiChatModelPresets.demoGpt4oMini,
@@ -49,7 +49,7 @@ export default createWorkflowBuilder({
             role: "system",
             content: 'Respond with strict JSON only: {"summary": string} — one short sentence summarizing the topic.',
           },
-          { role: "user", content: `Topic: ${(item.json as SeedJson).topic}` },
+          { role: "user", content: `Topic: ${item.json.topic}` },
         ],
       }),
       guardrails: { maxTurns: 4 },

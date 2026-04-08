@@ -14,7 +14,7 @@ import type {
 } from "./AiHost";
 
 export class NodeBackedToolConfig<
-  TNodeConfig extends RunnableNodeConfig<any, any>,
+  TNodeConfig extends RunnableNodeConfig<any, any, any>,
   TInputSchema extends ZodSchemaAny,
   TOutputSchema extends ZodSchemaAny,
 > implements ToolConfig {
