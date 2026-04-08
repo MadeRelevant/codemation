@@ -1,8 +1,8 @@
 name: Publish npm
 
-# After the Version Packages PR merges, changesets-version.yml tags main (e.g. v0.0.18) and calls this workflow.
-# Tag pushes from GITHUB_TOKEN do not trigger other workflows, so publish is invoked via workflow_call from Changesets.
-# Manual tag push (or workflow_dispatch) still works.
+# Triggered by: (1) push of a version tag v*, (2) workflow_dispatch, (3) `gh workflow run` from changesets-version.yml
+# after tagging. We use dispatch instead of `workflow_call` so this file is the top-level workflow for the run —
+# npm trusted publishing (OIDC) validates this workflow name, not the Changesets workflow (see npm docs).
 on:
   push:
     tags:
@@ -13,16 +13,7 @@ on:
         description: "Release tag to publish, for example v0.0.19"
         required: true
         type: string
-  workflow_call:
-    inputs:
-      tag:
-        description: "Release tag to publish (same as workflow_dispatch)"
-        required: true
-        type: string
 
-# One in-flight publish per release tag. Do **not** use `github.workflow` + `github.ref` here: when this
-# workflow runs via `workflow_call` from Changesets, `github.ref` is still `refs/heads/main`, which matches
-# the Changesets workflow concurrency group and can deadlock the parent run.
 concurrency:
   group: publish-npm-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: true
@@ -78,14 +69,13 @@ jobs:
       - name: Build
         run: pnpm exec turbo run build
 
-      # Trusted publishing (OIDC): each published package needs:
-      # - GitHub Actions trusted publisher on npmjs.com (Package → Settings → Trusted publishing): repo
-      #   MadeRelevant/codemation, workflow file publish-npm.yml (name must match exactly).
-      # - package.json "repository.url" must match provenance (canonical):
-      #   https://github.com/MadeRelevant/codemation (not git+https / .git variants).
-      # - Avoid legacy token auth when using OIDC; npm otherwise surfaces misleading 404 / ENEEDAUTH errors.
-      # 404 / ENEEDAUTH from the registry often means OIDC trust mismatch, not a missing tarball.
-      # Requires npm CLI ≥ 11.5.1 (Node 24 images satisfy this).
+      # Trusted publishing (OIDC): list workflow file **publish-npm.yml** on npm (Package → Trusted publishing).
+      # Do not invoke this workflow via `workflow_call` from another YAML — npm OIDC would validate the *caller*
+      # instead (https://docs.npmjs.org/trusted-publishers ). The Changesets workflow dispatches this run with
+      # `gh workflow run` so the executing workflow stays publish-npm.yml.
+      # - package.json "repository.url" must match provenance: https://github.com/MadeRelevant/codemation
+      # - 404 / ENEEDAUTH often mean OIDC trust mismatch, not a bad tarball.
+      # - Requires npm CLI ≥ 11.5.1 (Node 24 images satisfy this).
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ""
