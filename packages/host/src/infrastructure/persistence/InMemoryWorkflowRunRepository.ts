@@ -3,10 +3,14 @@ import {
   type NodeId,
   type NodeOutputs,
   type ParentExecutionRef,
+  type PersistedRunSchedulingState,
   type PersistedRunState,
   type RunId,
   type RunPruneCandidate,
   type RunSummary,
+  type ExecutionInstanceDto,
+  type SlotExecutionStateDto,
+  type WorkflowRunDetailDto,
   type WorkflowExecutionRepository,
   type WorkflowId,
 } from "@codemation/core";
@@ -34,6 +38,7 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Wor
       runId: args.runId,
       workflowId: args.workflowId,
       startedAt: args.startedAt,
+      revision: 0,
       parent: args.parent,
       executionOptions: args.executionOptions,
       control: args.control,
@@ -53,8 +58,90 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Wor
     return this.runs.get(decodeURIComponent(runId) as RunId);
   }
 
+  async loadSchedulingState(runId: string): Promise<PersistedRunSchedulingState | undefined> {
+    const state = await this.load(runId);
+    if (!state) {
+      return undefined;
+    }
+    return {
+      pending: state.pending ? { ...state.pending } : undefined,
+      queue: state.queue.map((entry) => ({ ...entry })),
+    };
+  }
+
   async save(state: PersistedRunState): Promise<void> {
-    this.runs.set(state.runId, state);
+    this.runs.set(state.runId, { ...state, revision: (state.revision ?? 0) + 1 });
+  }
+
+  async loadRunDetail(runId: string): Promise<WorkflowRunDetailDto | undefined> {
+    const state = await this.load(runId);
+    if (!state) {
+      return undefined;
+    }
+    const slotStates: SlotExecutionStateDto[] = Object.entries(state.nodeSnapshotsByNodeId).map(
+      ([slotNodeId, snapshot]) => ({
+        slotNodeId,
+        latestInstanceId: snapshot.activationId
+          ? `${state.runId}:node:${slotNodeId}:${snapshot.activationId}`
+          : undefined,
+        latestTerminalInstanceId:
+          snapshot.status === "completed" || snapshot.status === "failed"
+            ? snapshot.activationId
+              ? `${state.runId}:node:${slotNodeId}:${snapshot.activationId}`
+              : undefined
+            : undefined,
+        latestRunningInstanceId:
+          snapshot.status === "queued" || snapshot.status === "running"
+            ? snapshot.activationId
+              ? `${state.runId}:node:${slotNodeId}:${snapshot.activationId}`
+              : undefined
+            : undefined,
+        status: snapshot.status,
+        invocationCount: (state.connectionInvocations ?? []).filter((inv) => inv.connectionNodeId === slotNodeId)
+          .length,
+        runCount: 1,
+      }),
+    );
+    const executionInstances: ExecutionInstanceDto[] = Object.entries(state.nodeSnapshotsByNodeId).map(
+      ([slotNodeId, snapshot]) => ({
+        instanceId: `${state.runId}:node:${slotNodeId}:${snapshot.activationId ?? "na"}`,
+        slotNodeId,
+        workflowNodeId: slotNodeId,
+        kind: "workflowNodeActivation",
+        runIndex: 1,
+        batchId: state.pending?.batchId ?? "batch_1",
+        activationId: snapshot.activationId,
+        status: snapshot.status,
+        queuedAt: snapshot.queuedAt,
+        startedAt: snapshot.startedAt,
+        finishedAt: snapshot.finishedAt,
+        itemCount: Object.values(snapshot.inputsByPort ?? {}).reduce((count, items) => count + items.length, 0),
+        inputJson: snapshot.inputsByPort as never,
+        outputJson: snapshot.outputs as never,
+        error: snapshot.error,
+      }),
+    );
+    return {
+      runId: state.runId,
+      workflowId: state.workflowId,
+      startedAt: state.startedAt,
+      finishedAt: state.finishedAt,
+      status: state.status,
+      workflowSnapshot: state.workflowSnapshot,
+      mutableState: state.mutableState,
+      slotStates,
+      executionInstances,
+    };
+  }
+
+  async listBinaryStorageKeys(runId: RunId): Promise<ReadonlyArray<string>> {
+    const state = await this.load(runId);
+    if (!state) {
+      return [];
+    }
+    const keys = new Set<string>();
+    this.collectBinaryKeysFromRunState(state, keys);
+    return [...keys].sort((left, right) => left.localeCompare(right));
   }
 
   async deleteRun(runId: RunId): Promise<void> {
@@ -90,5 +177,40 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Wor
     }
     out.sort((a, b) => a.finishedAt.localeCompare(b.finishedAt));
     return out.slice(0, limit);
+  }
+
+  private collectBinaryKeysFromRunState(state: PersistedRunState, keys: Set<string>): void {
+    for (const outputs of Object.values(state.outputsByNode)) {
+      for (const items of Object.values(outputs)) {
+        this.collectBinaryKeysFromItems(items, keys);
+      }
+    }
+    for (const snapshot of Object.values(state.nodeSnapshotsByNodeId)) {
+      for (const items of Object.values(snapshot.inputsByPort ?? {})) {
+        this.collectBinaryKeysFromItems(items, keys);
+      }
+      for (const items of Object.values(snapshot.outputs ?? {})) {
+        this.collectBinaryKeysFromItems(items, keys);
+      }
+    }
+    for (const nodeState of Object.values(state.mutableState?.nodesById ?? {})) {
+      for (const items of Object.values(nodeState.pinnedOutputsByPort ?? {})) {
+        this.collectBinaryKeysFromItems(items, keys);
+      }
+      this.collectBinaryKeysFromItems(nodeState.lastDebugInput, keys);
+    }
+  }
+
+  private collectBinaryKeysFromItems(
+    items: PersistedRunState["outputsByNode"][string][string] | undefined,
+    keys: Set<string>,
+  ): void {
+    for (const item of items ?? []) {
+      for (const attachment of Object.values(item.binary ?? {})) {
+        if (attachment.storageKey.length > 0) {
+          keys.add(attachment.storageKey);
+        }
+      }
+    }
   }
 }

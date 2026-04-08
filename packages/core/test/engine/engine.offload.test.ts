@@ -138,6 +138,36 @@ test("engine can execute an offloaded node through the queued execution handler"
   assert.equal(storedDone.nodeSnapshotsByNodeId.n3?.status, "completed");
 });
 
+test("queued execution handler uses persisted work-item inputs over transport payloads", async () => {
+  const seenByWorker: unknown[] = [];
+  const n1 = new CallbackNodeConfig("n1", () => {}, { id: "n1" });
+  const n2 = new CallbackNodeConfig("n2", ({ items }) => seenByWorker.push(items[0]?.json), {
+    id: "n2",
+    execution: { hint: "worker", queue: "q.default" },
+  });
+  const wf = chain({ id: "wf.offload.persisted.input", name: "Offload persisted input" }).start(n1).then(n2).build();
+
+  const kit = createEngineTestKit();
+  await kit.start([wf]);
+
+  const started = await kit.engine.runWorkflow(wf, "n1", items([{ a: 1 }]), undefined);
+  assert.equal(started.status, "pending");
+  await pollRunStoreUntilPendingNode(kit.runStore, started.runId, "n2");
+
+  const scheduler = kit.scheduler as CapturingScheduler;
+  assert.ok(scheduler.lastRequest);
+  scheduler.lastRequest = {
+    ...scheduler.lastRequest,
+    input: items([{ a: 999 }]),
+  };
+
+  await kit.engine.handleNodeExecutionRequest(scheduler.lastRequest);
+  const completed = await kit.engine.waitForCompletion(started.runId);
+
+  assert.equal(completed.status, "completed");
+  assert.deepEqual(seenByWorker, [{ a: 1 }]);
+});
+
 test("engine persists workflow snapshots and execution mode metadata", async () => {
   const n1 = new CallbackNodeConfig("n1", () => {}, { id: "n1", execution: { hint: "worker" } });
   const n2 = new CallbackNodeConfig("n2", () => {}, { id: "n2" });

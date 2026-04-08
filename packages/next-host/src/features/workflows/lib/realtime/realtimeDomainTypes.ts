@@ -125,6 +125,48 @@ export type PersistedRunState = Readonly<{
   connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
 }>;
 
+export type SlotExecutionStateDto = Readonly<{
+  slotNodeId: string;
+  latestInstanceId?: string;
+  latestTerminalInstanceId?: string;
+  latestRunningInstanceId?: string;
+  status?: NodeExecutionSnapshot["status"];
+  invocationCount: number;
+  runCount: number;
+}>;
+
+export type ExecutionInstanceDto = Readonly<{
+  instanceId: string;
+  slotNodeId: string;
+  workflowNodeId: string;
+  parentInstanceId?: string;
+  kind: "workflowNodeActivation" | "connectionInvocation";
+  connectionKind?: "languageModel" | "tool" | "nestedAgent";
+  runIndex: number;
+  batchId: string;
+  activationId?: string;
+  status: NodeExecutionSnapshot["status"];
+  queuedAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  itemCount: number;
+  inputJson?: JsonValue;
+  outputJson?: JsonValue;
+  error?: NodeExecutionSnapshot["error"];
+}>;
+
+export type WorkflowRunDetailDto = Readonly<{
+  runId: string;
+  workflowId: string;
+  startedAt: string;
+  finishedAt?: string;
+  status: PersistedRunState["status"];
+  workflowSnapshot?: PersistedWorkflowSnapshot;
+  mutableState?: PersistedMutableRunState;
+  slotStates: ReadonlyArray<SlotExecutionStateDto>;
+  executionInstances: ReadonlyArray<ExecutionInstanceDto>;
+}>;
+
 export type RunCurrentState = Readonly<{
   outputsByNode: PersistedRunState["outputsByNode"];
   nodeSnapshotsByNodeId: PersistedRunState["nodeSnapshotsByNodeId"];

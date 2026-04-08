@@ -16,8 +16,32 @@ import {
   WorkflowCanvasNodeGeometry,
 } from "./workflowCanvasNodeGeometry";
 
+function isNestedAgentRole(role: string | undefined): boolean {
+  return role === "nestedAgent";
+}
+
 function mainWorkflowNodeWidthPx(role: string | undefined): number {
-  return WorkflowCanvasNodeGeometry.mainNodeWidthPx(role === "agent");
+  return WorkflowCanvasNodeGeometry.mainNodeWidthPx(role === "agent" || role === "nestedAgent");
+}
+
+function attachmentLayoutWidthPx(role: string | undefined): number {
+  return isNestedAgentRole(role)
+    ? WorkflowCanvasNodeGeometry.mainNodeWidthPx(true)
+    : WorkflowCanvasNodeGeometry.attachmentNodeWidthPx();
+}
+
+function attachmentLayoutHeightPx(label: string, role: string | undefined): number {
+  return isNestedAgentRole(role)
+    ? WorkflowCanvasNodeGeometry.mainNodeHeightPx(label, true)
+    : WorkflowCanvasNodeGeometry.attachmentNodeHeightPx(label);
+}
+
+function attachmentLayoutCardHeightPx(role: string | undefined): number {
+  return isNestedAgentRole(role) ? WORKFLOW_CANVAS_MAIN_NODE_CARD_PX : WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX;
+}
+
+function attachmentChildCardHalfHeightPx(role: string | undefined): number {
+  return attachmentLayoutCardHeightPx(role) / 2;
 }
 import { WorkflowCanvasOverlapResolver } from "./WorkflowCanvasOverlapResolver";
 import { WorkflowCanvasPortOrderResolver } from "./WorkflowCanvasPortOrderResolver";
@@ -46,8 +70,6 @@ export function layoutWorkflow(
   dagreGraph.setDefaultEdgeLabel(() => ({}));
   dagreGraph.setGraph({ rankdir: "LR", ranksep: 128, nodesep: 56, edgesep: 20 });
 
-  const attachmentNodeWidth = WorkflowCanvasNodeGeometry.attachmentNodeWidthPx();
-  const attachmentXSpacing = attachmentNodeWidth + 36;
   const layoutNodes = workflow.nodes.filter((node) => !node.parentNodeId);
   const layoutNodeIds = new Set(layoutNodes.map((node) => node.id));
   const layoutEdges = workflow.edges.filter(
@@ -84,18 +106,24 @@ export function layoutWorkflow(
     if (!parentPosition) continue;
     const parentMeta = layoutNodes.find((n) => n.id === parentNodeId);
     const parentLabel = parentMeta?.name ?? parentMeta?.type ?? parentNodeId;
-    const parentIsAgent = parentMeta?.role === "agent";
+    const parentIsAgent = parentMeta?.role === "agent" || parentMeta?.role === "nestedAgent";
     if (attachmentNodes.length === 0) {
       continue;
     }
+    const maxChildCardHalfPx = Math.max(...attachmentNodes.map((an) => attachmentChildCardHalfHeightPx(an.role)));
     const attachmentYOffset = WorkflowCanvasNodeGeometry.attachmentCardCenterYDeltaFromParentCardCenter(
       parentLabel,
       parentIsAgent,
+      maxChildCardHalfPx,
     );
+    const maxAttachmentStackWidthPx = Math.max(...attachmentNodes.map((an) => attachmentLayoutWidthPx(an.role)));
+    const attachmentXSpacing = maxAttachmentStackWidthPx + 36;
     const orderedAttachmentNodes = [...attachmentNodes].sort((left, right) => {
       if (left.role === right.role) return left.name?.localeCompare(right.name ?? "") ?? 0;
       if (left.role === "languageModel") return -1;
       if (right.role === "languageModel") return 1;
+      if (left.role === "nestedAgent") return -1;
+      if (right.role === "nestedAgent") return 1;
       return 0;
     });
     orderedAttachmentNodes.forEach((attachmentNode, index) => {
@@ -109,11 +137,14 @@ export function layoutWorkflow(
   const widthByNodeId = new Map<string, number>();
   const heightByNodeId = new Map<string, number>();
   for (const n of workflow.nodes) {
-    widthByNodeId.set(n.id, n.parentNodeId ? attachmentNodeWidth : mainWorkflowNodeWidthPx(n.role));
-    heightByNodeId.set(
-      n.id,
-      n.parentNodeId ? WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX : WORKFLOW_CANVAS_MAIN_NODE_CARD_PX,
-    );
+    const label = n.name ?? n.type ?? n.id;
+    if (n.parentNodeId) {
+      widthByNodeId.set(n.id, attachmentLayoutWidthPx(n.role));
+      heightByNodeId.set(n.id, attachmentLayoutHeightPx(label, n.role));
+    } else {
+      widthByNodeId.set(n.id, mainWorkflowNodeWidthPx(n.role));
+      heightByNodeId.set(n.id, WORKFLOW_CANVAS_MAIN_NODE_CARD_PX);
+    }
   }
   const resolvedPositions = WorkflowCanvasOverlapResolver.resolve({
     positionsByNodeId,
@@ -141,12 +172,12 @@ export function layoutWorkflow(
   const nodes: ReactFlowNode<WorkflowCanvasNodeData>[] = workflow.nodes.map((n) => {
     const pos = positionsByNodeId.get(n.id);
     const label = n.name ?? n.type ?? n.id;
-    const resolvedNodeWidth = n.parentNodeId ? attachmentNodeWidth : mainWorkflowNodeWidthPx(n.role);
+    const resolvedNodeWidth = n.parentNodeId ? attachmentLayoutWidthPx(n.role) : mainWorkflowNodeWidthPx(n.role);
     const resolvedNodeHeight = n.parentNodeId
-      ? WorkflowCanvasNodeGeometry.attachmentNodeHeightPx(label)
-      : WorkflowCanvasNodeGeometry.mainNodeHeightPx(label, n.role === "agent");
+      ? attachmentLayoutHeightPx(label, n.role)
+      : WorkflowCanvasNodeGeometry.mainNodeHeightPx(label, n.role === "agent" || n.role === "nestedAgent");
     const layoutCardHeightPx = n.parentNodeId
-      ? WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX
+      ? attachmentLayoutCardHeightPx(n.role)
       : WORKFLOW_CANVAS_MAIN_NODE_CARD_PX;
     const rawOut = outgoingOutputsByNodeId.get(n.id);
     const rawIn = incomingInputsByNodeId.get(n.id);
@@ -211,11 +242,12 @@ export function layoutWorkflow(
   const nodesById = new Map(workflow.nodes.map((node) => [node.id, node]));
   const edges: ReactFlowEdge[] = workflow.edges.map((e, i) => {
     const targetNode = nodesById.get(e.to.nodeId);
-    const isAttachmentEdge = targetNode?.role === "languageModel" || targetNode?.role === "tool";
+    const isAttachmentEdge =
+      targetNode?.role === "languageModel" || targetNode?.role === "tool" || targetNode?.role === "nestedAgent";
     const attachmentSourceHandle =
       targetNode?.role === "languageModel"
         ? "attachment-llm-source"
-        : targetNode?.role === "tool"
+        : targetNode?.role === "tool" || targetNode?.role === "nestedAgent"
           ? "attachment-tools-source"
           : undefined;
     const outgoingFromSourceCount = outgoingOutputsByNodeId.get(e.from.nodeId)?.size ?? 0;

@@ -11,11 +11,111 @@ model Run {
   runId                String  @id @map("run_id")
   workflowId           String  @map("workflow_id")
   startedAt            String  @map("started_at")
+  finishedAt           String? @map("finished_at")
   status               String
+  revision             Int     @default(0)
   parentJson           String? @map("parent_json")
   executionOptionsJson String? @map("execution_options_json")
+  controlJson          String? @map("control_json")
+  workflowSnapshotJson String? @map("workflow_snapshot_json")
+  policySnapshotJson   String? @map("policy_snapshot_json")
+  engineCountersJson   String? @map("engine_counters_json")
+  mutableStateJson     String? @map("mutable_state_json")
+  outputsByNodeJson    String  @map("outputs_by_node_json")
   updatedAt            String  @map("updated_at")
-  stateJson            String  @map("state_json")
+
+  workItems          RunWorkItem[]
+  executionInstances ExecutionInstance[]
+  slotProjection     RunSlotProjection?
+
+  @@index([workflowId, startedAt])
+  @@index([workflowId, status, finishedAt])
+}
+
+model RunWorkItem {
+  workItemId       String  @id @map("work_item_id")
+  runId            String  @map("run_id")
+  workflowId       String  @map("workflow_id")
+  status           String
+  targetNodeId     String  @map("target_node_id")
+  batchId          String  @map("batch_id")
+  queueName        String? @map("queue_name")
+  claimToken       String? @map("claim_token")
+  claimedBy        String? @map("claimed_by")
+  claimedAt        String? @map("claimed_at")
+  availableAt      String  @map("available_at")
+  enqueuedAt       String  @map("enqueued_at")
+  completedAt      String? @map("completed_at")
+  failedAt         String? @map("failed_at")
+  sourceInstanceId String? @map("source_instance_id")
+  parentInstanceId String? @map("parent_instance_id")
+  itemsIn          Int     @map("items_in")
+  inputsByPortJson String  @map("inputs_by_port_json")
+  errorJson        String? @map("error_json")
+
+  run Run @relation(fields: [runId], references: [runId], onDelete: Cascade)
+
+  @@index([runId, status, availableAt])
+  @@index([runId, targetNodeId, batchId])
+}
+
+model ExecutionInstance {
+  instanceId          String  @id @map("instance_id")
+  runId               String  @map("run_id")
+  workflowId          String  @map("workflow_id")
+  slotNodeId          String  @map("slot_node_id")
+  workflowNodeId      String  @map("workflow_node_id")
+  kind                String
+  connectionKind      String? @map("connection_kind")
+  activationId        String? @map("activation_id")
+  batchId             String  @map("batch_id")
+  runIndex            Int     @map("run_index")
+  parentInstanceId    String? @map("parent_instance_id")
+  parentRunId         String? @map("parent_run_id")
+  workerClaimToken    String? @map("worker_claim_token")
+  status              String
+  queuedAt            String? @map("queued_at")
+  startedAt           String? @map("started_at")
+  finishedAt          String? @map("finished_at")
+  updatedAt           String  @map("updated_at")
+  itemCount           Int     @map("item_count")
+  inputJson           String? @map("input_json")
+  outputJson          String? @map("output_json")
+  errorJson           String? @map("error_json")
+  inputItemIndicesJson String? @map("input_item_indices_json")
+  outputItemCount     Int?     @map("output_item_count")
+  successfulItemCount Int?     @map("successful_item_count")
+  failedItemCount     Int?     @map("failed_item_count")
+  inputStorageKind    String? @map("input_storage_kind")
+  outputStorageKind   String? @map("output_storage_kind")
+  inputBytes          Int?    @map("input_bytes")
+  outputBytes         Int?    @map("output_bytes")
+  inputPreviewJson    String? @map("input_preview_json")
+  outputPreviewJson   String? @map("output_preview_json")
+  inputPayloadRef     String? @map("input_payload_ref")
+  outputPayloadRef    String? @map("output_payload_ref")
+  inputTruncated      Boolean? @map("input_truncated")
+  outputTruncated     Boolean? @map("output_truncated")
+  usedPinnedOutput    Boolean? @map("used_pinned_output")
+
+  run Run @relation(fields: [runId], references: [runId], onDelete: Cascade)
+
+  @@index([runId, slotNodeId, updatedAt])
+  @@index([runId, parentInstanceId, updatedAt])
+  @@index([runId, kind, updatedAt])
+  @@unique([runId, slotNodeId, runIndex])
+}
+
+model RunSlotProjection {
+  runId          String  @id @map("run_id")
+  workflowId     String  @map("workflow_id")
+  revision       Int
+  updatedAt      String  @map("updated_at")
+  slotStatesJson String  @map("slot_states_json")
+
+  run Run @relation(fields: [runId], references: [runId], onDelete: Cascade)
+
+  @@index([workflowId, updatedAt])
 }
 
 model WorkflowDebuggerOverlay {

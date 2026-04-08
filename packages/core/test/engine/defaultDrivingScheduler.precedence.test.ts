@@ -24,12 +24,14 @@ class RecordingInlineScheduler {
 
   setContinuation(_continuation: NodeActivationContinuation): void {}
 
-  async enqueue(request: NodeActivationRequest): Promise<{ receiptId: string; mode: "local" }> {
-    this.requests.push(request);
-    return { receiptId: `inline_${this.requests.length}`, mode: "local" };
+  async prepareDispatch(request: NodeActivationRequest) {
+    return {
+      receipt: { receiptId: request.activationId, mode: "local" as const },
+      dispatch: async () => {
+        this.requests.push(request);
+      },
+    };
   }
-
-  notifyPendingStatePersisted(_runId: string): void {}
 }
 
 class ConfigAwareOffloadPolicy implements NodeOffloadPolicy {
@@ -75,14 +77,15 @@ test("run-intent localOnly override wins over worker node hints", async () => {
   const inline = new RecordingInlineScheduler();
   const scheduler = new DefaultDrivingScheduler(new ConfigAwareOffloadPolicy("worker"), worker, inline as never);
 
-  const receipt = await scheduler.enqueue(
+  const prepared = await scheduler.prepareDispatch(
     DefaultDrivingSchedulerRequestFactory.create({
       localOnly: true,
       execution: { hint: "worker", queue: "q.jobs" },
     }),
   );
+  await prepared.dispatch();
 
-  assert.equal(receipt.mode, "local");
+  assert.equal(prepared.receipt.mode, "local");
   assert.equal(inline.requests.length, 1);
   assert.equal(worker.requests.length, 0);
 });
@@ -92,14 +95,15 @@ test("node-level execution hints route through the worker scheduler when no over
   const inline = new RecordingInlineScheduler();
   const scheduler = new DefaultDrivingScheduler(new ConfigAwareOffloadPolicy("local"), worker, inline as never);
 
-  const receipt = await scheduler.enqueue(
+  const prepared = await scheduler.prepareDispatch(
     DefaultDrivingSchedulerRequestFactory.create({
       execution: { hint: "worker", queue: "q.hinted" },
     }),
   );
+  await prepared.dispatch();
 
-  assert.equal(receipt.mode, "worker");
-  assert.equal(receipt.queue, "q.hinted");
+  assert.equal(prepared.receipt.mode, "worker");
+  assert.equal(prepared.receipt.queue, "q.hinted");
   assert.equal(worker.requests.length, 1);
   assert.equal(inline.requests.length, 0);
 });
@@ -109,9 +113,10 @@ test("container-default scheduler policy applies when neither override nor node 
   const inline = new RecordingInlineScheduler();
   const scheduler = new DefaultDrivingScheduler(new ConfigAwareOffloadPolicy("worker"), worker, inline as never);
 
-  const receipt = await scheduler.enqueue(DefaultDrivingSchedulerRequestFactory.create());
+  const prepared = await scheduler.prepareDispatch(DefaultDrivingSchedulerRequestFactory.create());
+  await prepared.dispatch();
 
-  assert.equal(receipt.mode, "worker");
+  assert.equal(prepared.receipt.mode, "worker");
   assert.equal(worker.requests.length, 1);
   assert.equal(inline.requests.length, 0);
 });

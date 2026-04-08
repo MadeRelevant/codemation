@@ -170,6 +170,10 @@ export class ApiPaths {
     return `${this.runsBasePath}/${encodeURIComponent(runId)}`;
   }
 
+  static runDetail(runId: string): string {
+    return `${this.runState(runId)}/detail`;
+  }
+
   static runWorkflowSnapshot(runId: string): string {
     return `${this.runState(runId)}/workflow-snapshot`;
   }

@@ -3,6 +3,7 @@ export * from "../contracts/NoRetryPolicy";
 export * from "../contracts/RetryPolicy";
 export * from "../contracts/ExpRetryPolicy";
 export * from "../contracts/credentialTypes";
+export * from "../contracts/executionPersistenceContracts";
 export * from "../contracts/runtimeTypes";
 export * from "../contracts/runFinishedAtFactory";
 export * from "../contracts/runTypes";

@@ -1,21 +1,20 @@
 import type {
   NodeActivationContinuation,
+  PreparedNodeActivationDispatch,
   NodeActivationReceipt,
   NodeActivationRequest,
   NodeActivationScheduler,
-  RunId,
 } from "../types";
 import { NodeExecutor } from "../execution/NodeExecutor";
 
 export class InlineDrivingScheduler implements NodeActivationScheduler {
   private continuation: NodeActivationContinuation | undefined;
-  private readonly drainingRuns = new Set<RunId>();
+  private readonly drainingRuns = new Set<string>();
   private readonly queuesByRunId = new Map<
-    RunId,
+    string,
     Array<Readonly<{ request: NodeActivationRequest; receipt: NodeActivationReceipt }>>
   >();
-  private readonly scheduledRuns = new Set<RunId>();
-  private seq = 0;
+  private readonly scheduledRuns = new Set<string>();
 
   constructor(private readonly nodeExecutor: NodeExecutor) {}
 
@@ -23,23 +22,20 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
     this.continuation = continuation;
   }
 
-  async enqueue(request: NodeActivationRequest): Promise<NodeActivationReceipt> {
-    const receipt: NodeActivationReceipt = { receiptId: `inline_${++this.seq}`, mode: "local" };
-    const q = this.queuesByRunId.get(request.runId) ?? [];
-    q.push({ request, receipt });
-    this.queuesByRunId.set(request.runId, q);
-
-    return receipt;
+  async prepareDispatch(request: NodeActivationRequest): Promise<PreparedNodeActivationDispatch> {
+    const receipt: NodeActivationReceipt = { receiptId: request.activationId, mode: "local" };
+    return {
+      receipt,
+      dispatch: async () => {
+        const queue = this.queuesByRunId.get(request.runId) ?? [];
+        queue.push({ request, receipt });
+        this.queuesByRunId.set(request.runId, queue);
+        this.scheduleDrain(request.runId);
+      },
+    };
   }
 
-  notifyPendingStatePersisted(runId: RunId): void {
-    if ((this.queuesByRunId.get(runId)?.length ?? 0) === 0) {
-      return;
-    }
-    this.scheduleDrain(runId);
-  }
-
-  private async drainRun(runId: RunId): Promise<void> {
+  private async drainRun(runId: string): Promise<void> {
     if (this.drainingRuns.has(runId)) return;
     this.drainingRuns.add(runId);
     this.scheduledRuns.delete(runId);
@@ -78,7 +74,7 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
     }
   }
 
-  private scheduleDrain(runId: RunId): void {
+  private scheduleDrain(runId: string): void {
     if (this.drainingRuns.has(runId) || this.scheduledRuns.has(runId)) {
       return;
     }

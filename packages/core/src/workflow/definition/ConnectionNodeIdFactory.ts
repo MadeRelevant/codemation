@@ -24,6 +24,34 @@ export class ConnectionNodeIdFactory {
     return nodeId.includes(`${this.connectionSegment}tool${this.connectionSegment}`);
   }
 
+  static parseLanguageModelConnectionNodeId(nodeId: NodeId): Readonly<{ parentNodeId: NodeId }> | undefined {
+    if (!this.isLanguageModelConnectionNodeId(nodeId)) {
+      return undefined;
+    }
+    const suffix = `${this.connectionSegment}llm`;
+    const parentNodeId = nodeId.slice(0, -suffix.length);
+    return parentNodeId ? { parentNodeId } : undefined;
+  }
+
+  static parseToolConnectionNodeId(
+    nodeId: NodeId,
+  ): Readonly<{ parentNodeId: NodeId; normalizedToolName: string }> | undefined {
+    if (!this.isToolConnectionNodeId(nodeId)) {
+      return undefined;
+    }
+    const marker = `${this.connectionSegment}tool${this.connectionSegment}`;
+    const idx = nodeId.lastIndexOf(marker);
+    if (idx < 0) {
+      return undefined;
+    }
+    const parentNodeId = nodeId.slice(0, idx);
+    const normalizedToolName = nodeId.slice(idx + marker.length);
+    if (!parentNodeId || !normalizedToolName) {
+      return undefined;
+    }
+    return { parentNodeId, normalizedToolName };
+  }
+
   /** True when `nodeId` is a connection-owned child of `parentNodeId` (LLM or tool slot). */
   static isConnectionOwnedDescendantOf(parentNodeId: NodeId, nodeId: NodeId): boolean {
     return nodeId.startsWith(`${parentNodeId}${this.connectionSegment}`);

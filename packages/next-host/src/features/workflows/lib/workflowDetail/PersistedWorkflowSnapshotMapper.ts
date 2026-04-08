@@ -1,4 +1,4 @@
-import { ConnectionNodeIdFactory } from "@codemation/core/browser";
+import { AgentConnectionNodeCollector, ConnectionNodeIdFactory, type AgentNodeConfig } from "@codemation/core/browser";
 import { WorkflowPolicyUiPresentationFactory } from "@codemation/host-src/application/mapping/WorkflowPolicyUiPresentationFactory";
 import type { PersistedWorkflowSnapshot, WorkflowDto } from "../../hooks/realtime/realtime";
 import type { WorkflowNodeDto } from "../realtime/workflowTypes";
@@ -9,13 +9,14 @@ export class PersistedWorkflowSnapshotMapper {
   map(snapshot: PersistedWorkflowSnapshot): WorkflowDto {
     const nodesById = new Map(snapshot.nodes.map((node) => [node.id, node]));
     const connectionChildMeta = this.buildConnectionChildMeta(snapshot);
+    const materializedConnectionNodeIds = new Set(connectionChildMeta.keys());
     const nodes: WorkflowNodeDto[] = [];
     for (const node of snapshot.nodes) {
       if (connectionChildMeta.has(node.id)) {
-        nodes.push(this.toConnectionChildDto(node, connectionChildMeta.get(node.id)!));
+        nodes.push(this.toConnectionChildDto(node, connectionChildMeta.get(node.id)!, snapshot));
         continue;
       }
-      nodes.push(...this.toTopLevelNodes(node, snapshot, nodesById));
+      nodes.push(...this.toTopLevelNodes(node, snapshot, nodesById, materializedConnectionNodeIds));
     }
     return {
       id: snapshot.id,
@@ -23,7 +24,7 @@ export class PersistedWorkflowSnapshotMapper {
       active: false,
       hasWorkflowErrorHandler: snapshot.workflowErrorHandlerConfigured,
       nodes,
-      edges: [...snapshot.edges, ...this.toAttachmentEdges(nodes)],
+      edges: this.mergeAttachmentEdges(snapshot.edges, nodes),
     };
   }
 
@@ -66,6 +67,7 @@ export class PersistedWorkflowSnapshotMapper {
     node: PersistedWorkflowSnapshot["nodes"][number],
     snapshot: PersistedWorkflowSnapshot,
     nodesById: ReadonlyMap<string, PersistedWorkflowSnapshot["nodes"][number]>,
+    materializedConnectionNodeIds: ReadonlySet<string>,
   ): ReadonlyArray<WorkflowNodeDto> {
     const workflowNode: WorkflowNodeDto = {
       id: node.id,
@@ -87,17 +89,18 @@ export class PersistedWorkflowSnapshotMapper {
     }
 
     if (this.agentHasConnectionChildren(snapshot, node.id)) {
-      return [workflowNode, ...this.toAttachmentNodes(node)];
+      return [workflowNode, ...this.toAttachmentNodes(node.id, node.config, materializedConnectionNodeIds)];
     }
 
-    return [workflowNode, ...this.toAttachmentNodes(node)];
+    return [workflowNode, ...this.toAttachmentNodes(node.id, node.config, materializedConnectionNodeIds)];
   }
 
   private toConnectionChildDto(
     node: PersistedWorkflowSnapshot["nodes"][number],
     meta: Readonly<{ parentNodeId: string; connectionName: string }>,
+    snapshot: PersistedWorkflowSnapshot,
   ): WorkflowNodeDto {
-    const role = meta.connectionName === "llm" ? "languageModel" : "tool";
+    const role = meta.connectionName === "llm" ? "languageModel" : this.resolveToolConnectionRole(node, snapshot);
     return {
       id: node.id,
       kind: node.kind,
@@ -111,59 +114,121 @@ export class PersistedWorkflowSnapshotMapper {
     };
   }
 
-  private toAttachmentNodes(node: PersistedWorkflowSnapshot["nodes"][number]): ReadonlyArray<WorkflowNodeDto> {
-    const config = this.asRecord(node.config);
+  private toAttachmentNodes(
+    parentNodeId: string,
+    configValue: unknown,
+    materializedConnectionNodeIds: ReadonlySet<string>,
+  ): ReadonlyArray<WorkflowNodeDto> {
+    const config = this.asRecord(configValue);
+    const nodes: WorkflowNodeDto[] = [];
     const chatModel = this.asRecord(config.chatModel);
-    const languageModelNode = chatModel.name
-      ? [
-          {
-            id: ConnectionNodeIdFactory.languageModelConnectionNodeId(node.id),
-            kind: "node",
-            name: this.readAttachmentLabel(chatModel.presentation, chatModel.name),
-            type: chatModel.name,
-            role: "languageModel",
-            icon: this.readAttachmentIcon(chatModel.presentation),
-            parentNodeId: node.id,
-          } satisfies WorkflowNodeDto,
-        ]
-      : [];
+    if (chatModel.name) {
+      const languageModelNodeId = ConnectionNodeIdFactory.languageModelConnectionNodeId(parentNodeId);
+      if (!materializedConnectionNodeIds.has(languageModelNodeId)) {
+        nodes.push({
+          id: languageModelNodeId,
+          kind: "node",
+          name: this.readAttachmentLabel(chatModel.presentation, chatModel.name),
+          type: chatModel.name,
+          role: "languageModel",
+          icon: this.readAttachmentIcon(chatModel.presentation),
+          parentNodeId,
+        });
+      }
+    }
     const tools = Array.isArray(config.tools) ? config.tools : [];
-    const toolNodes = tools.flatMap((tool) => {
+    for (const tool of tools) {
       const toolConfig = this.asRecord(tool);
-      return toolConfig.name
-        ? [
-            {
-              id: ConnectionNodeIdFactory.toolConnectionNodeId(node.id, String(toolConfig.name)),
-              kind: "node",
-              name: this.readAttachmentLabel(toolConfig.presentation, toolConfig.name),
-              type: toolConfig.name,
-              role: "tool",
-              icon: this.readAttachmentIcon(toolConfig.presentation),
-              parentNodeId: node.id,
-            } satisfies WorkflowNodeDto,
-          ]
-        : [];
-    });
-    return [...languageModelNode, ...toolNodes];
+      if (!toolConfig.name) {
+        continue;
+      }
+      const toolNodeId = ConnectionNodeIdFactory.toolConnectionNodeId(parentNodeId, String(toolConfig.name));
+      if (!materializedConnectionNodeIds.has(toolNodeId)) {
+        nodes.push({
+          id: toolNodeId,
+          kind: "node",
+          name: this.readAttachmentLabel(toolConfig.presentation, toolConfig.name),
+          type: toolConfig.name,
+          role: this.isAgentConfig(toolConfig.node) ? "nestedAgent" : "tool",
+          icon: this.readAttachmentIcon(toolConfig.presentation),
+          parentNodeId,
+        });
+      }
+      if (this.isAgentConfig(toolConfig.node)) {
+        nodes.push(...this.toAttachmentNodes(toolNodeId, toolConfig.node, materializedConnectionNodeIds));
+      }
+    }
+    return nodes;
   }
 
-  private toAttachmentEdges(nodes: ReadonlyArray<WorkflowNodeDto>): WorkflowDto["edges"] {
-    return nodes.flatMap((node) => {
+  private mergeAttachmentEdges(
+    baseEdges: WorkflowDto["edges"],
+    nodes: ReadonlyArray<WorkflowNodeDto>,
+  ): WorkflowDto["edges"] {
+    const edges = [...baseEdges];
+    const edgeKeys = new Set(edges.map((edge) => this.edgeKey(edge.from.nodeId, edge.to.nodeId, edge.to.input)));
+    for (const node of nodes) {
       if (!node.parentNodeId) {
-        return [];
+        continue;
       }
-      return [
-        {
-          from: { nodeId: node.parentNodeId, output: "main" },
-          to: { nodeId: node.id, input: "in" },
-        },
-      ];
-    });
+      const key = this.edgeKey(node.parentNodeId, node.id, "in");
+      if (edgeKeys.has(key)) {
+        continue;
+      }
+      edges.push({
+        from: { nodeId: node.parentNodeId, output: "main" },
+        to: { nodeId: node.id, input: "in" },
+      });
+      edgeKeys.add(key);
+    }
+    return edges;
+  }
+
+  private edgeKey(fromNodeId: string, toNodeId: string, toInput: string): string {
+    return `${fromNodeId}\0${toNodeId}\0${toInput}`;
   }
 
   private isAgentConfig(value: unknown): boolean {
     const record = this.asRecord(value);
     return record.chatModel !== undefined && record.messages !== undefined;
+  }
+
+  /** Materialized tool-slot nodes may store the inner agent at top level or under `node` (node-backed tool). */
+  private isNestedAgentToolSnapshotNode(node: PersistedWorkflowSnapshot["nodes"][number]): boolean {
+    if (this.isAgentConfig(node.config)) {
+      return true;
+    }
+    return this.isAgentConfig(this.asRecord(node.config).node);
+  }
+
+  /**
+   * Resolves roles for materialized connection nodes (including expanded `ConnectionCredentialNode` children)
+   * by scanning each top-level agent config — nested attachment ids are only discoverable from the root agent.
+   */
+  private resolveToolConnectionRole(
+    node: PersistedWorkflowSnapshot["nodes"][number],
+    snapshot: PersistedWorkflowSnapshot,
+  ): string {
+    const connectionChildIds = new Set<string>();
+    for (const c of snapshot.connections ?? []) {
+      for (const childId of c.childNodeIds) {
+        connectionChildIds.add(childId);
+      }
+    }
+    for (const top of snapshot.nodes) {
+      if (connectionChildIds.has(top.id)) {
+        continue;
+      }
+      if (!this.isAgentConfig(top.config)) {
+        continue;
+      }
+      const descriptors = AgentConnectionNodeCollector.collect(top.id, top.config as AgentNodeConfig<any, any>);
+      const found = descriptors.find((d) => d.nodeId === node.id);
+      if (found) {
+        return found.role;
+      }
+    }
+    return this.isNestedAgentToolSnapshotNode(node) ? "nestedAgent" : "tool";
   }
 
   private readAttachmentLabel(presentation: unknown, fallback: string): string {
@@ -185,6 +250,7 @@ export class PersistedWorkflowSnapshotMapper {
     label?: string;
     icon?: string;
     chatModel?: unknown;
+    node?: unknown;
     tools?: ReadonlyArray<unknown>;
     messages?: unknown;
     presentation?: unknown;
@@ -197,6 +263,7 @@ export class PersistedWorkflowSnapshotMapper {
       label?: string;
       icon?: string;
       chatModel?: unknown;
+      node?: unknown;
       tools?: ReadonlyArray<unknown>;
       messages?: unknown;
       presentation?: unknown;

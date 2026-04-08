@@ -6,6 +6,7 @@ import type {
   NodeExecutionSnapshot,
   PersistedRunState,
   RunSummary,
+  WorkflowRunDetailDto,
   WorkflowDto,
 } from "../../hooks/realtime/realtime";
 
@@ -20,6 +21,9 @@ export type WorkflowDiagramNode = WorkflowDto["nodes"][number];
 export type ExecutionNode = Readonly<{
   node: WorkflowNode;
   snapshot?: NodeExecutionSnapshot;
+  executionInstanceId?: string;
+  slotNodeId?: string;
+  parentExecutionInstanceId?: string;
   /** Stable workflow attachment id when `node.id` is a synthetic per-invocation id. */
   workflowConnectionNodeId?: string;
 }>;
@@ -118,7 +122,10 @@ export type WorkflowExecutionInspectorModel = Readonly<{
   isLoading: boolean;
   loadError: string | null;
   selectedRun: PersistedRunState | undefined;
+  selectedRunDetail: WorkflowRunDetailDto | undefined;
   selectedNodeId: string | null;
+  /** When the selection is a connection invocation row, this matches {@link ConnectionInvocationRecord#invocationId}. */
+  selectedExecutionInstanceId: string | null;
   selectedNodeSnapshot: NodeExecutionSnapshot | undefined;
   selectedWorkflowNode: WorkflowNode | undefined;
   selectedPinnedOutput: Items | undefined;

@@ -38,7 +38,13 @@ export function WorkflowCanvasCodemationNodeMainGlyph(
           flex: isAgentInlineTitle ? undefined : "1 1 auto",
         }}
       >
-        <WorkflowCanvasNodeIcon icon={data.icon} sizePx={iconPx} strokeWidth={WORKFLOW_CANVAS_NODE_ICON_STROKE_WIDTH} />
+        <WorkflowCanvasNodeIcon
+          icon={data.icon}
+          sizePx={iconPx}
+          strokeWidth={WORKFLOW_CANVAS_NODE_ICON_STROKE_WIDTH}
+          fallbackType={data.type}
+          fallbackRole={data.role}
+        />
       </div>
       {isAgentInlineTitle ? (
         <span

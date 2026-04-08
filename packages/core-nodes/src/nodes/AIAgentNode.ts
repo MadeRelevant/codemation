@@ -477,19 +477,40 @@ export class AIAgentNode implements Node<AIAgent<any, any>> {
   }
 
   private resolveToolRuntime(config: ToolConfig): ResolvedTool["runtime"] {
-    if (config instanceof NodeBackedToolConfig) {
+    if (this.isNodeBackedToolConfig(config)) {
+      const inputSchema = config.getInputSchema();
+      if (inputSchema == null) {
+        throw new Error(
+          `AIAgent tool "${config.name}": node-backed tool is missing inputSchema (cannot build LangChain tool).`,
+        );
+      }
       return {
         defaultDescription: `Run workflow node "${config.node.name ?? config.name}" as an AI tool.`,
-        inputSchema: config.getInputSchema(),
+        inputSchema,
         execute: async (args) => await this.nodeBackedToolRuntime.execute(config, args),
       };
     }
     const tool = this.nodeResolver.resolve(config.type) as Tool<ToolConfig, ZodSchemaAny, ZodSchemaAny>;
+    if (tool.inputSchema == null) {
+      throw new Error(`AIAgent tool "${config.name}": plugin tool "${String(config.type)}" is missing inputSchema.`);
+    }
     return {
       defaultDescription: tool.defaultDescription,
       inputSchema: tool.inputSchema,
       execute: async (args) => await Promise.resolve(tool.execute(args)),
     };
+  }
+
+  /**
+   * Consumer apps can resolve two copies of `@codemation/core`, breaking `instanceof NodeBackedToolConfig` and
+   * sending node-backed tools down the plugin-tool branch with `inputSchema: undefined` (LangChain then crashes in
+   * json-schema validation). {@link NodeBackedToolConfig#toolKind} is stable across copies.
+   */
+  private isNodeBackedToolConfig(config: ToolConfig): config is NodeBackedToolConfig<any, any, any> {
+    return (
+      config instanceof NodeBackedToolConfig ||
+      (typeof config === "object" && config !== null && (config as { toolKind?: unknown }).toolKind === "nodeBacked")
+    );
   }
 
   private resolveGuardrails(guardrails: AgentGuardrailConfig | undefined): ResolvedGuardrails {

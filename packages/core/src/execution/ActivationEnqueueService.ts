@@ -1,6 +1,7 @@
 import type {
   ConnectionInvocationRecord,
   EngineRunCounters,
+  PreparedNodeActivationDispatch,
   NodeActivationRequest,
   NodeActivationScheduler,
   NodeExecutionSnapshot,
@@ -25,8 +26,7 @@ import { NodeInputsByPortFactory } from "./NodeInputsByPortFactory";
 
 type PersistedRunStateRecord = NonNullable<Awaited<ReturnType<WorkflowExecutionRepository["load"]>>>;
 
-type ActivationSchedulerPort = Pick<NodeActivationScheduler, "enqueue"> &
-  Pick<Partial<NodeActivationScheduler>, "notifyPendingStatePersisted">;
+type ActivationSchedulerPort = Pick<NodeActivationScheduler, "prepareDispatch">;
 
 export type ActivationEnqueueRequest = {
   runId: RunId;
@@ -62,7 +62,7 @@ export class ActivationEnqueueService {
   async enqueueActivationWithSnapshot(
     args: ActivationEnqueueRequest,
   ): Promise<{ result: RunResult; queuedSnapshot: NodeExecutionSnapshot }> {
-    const receipt = await this.activationScheduler.enqueue(args.request);
+    const preparedDispatch = await this.activationScheduler.prepareDispatch(args.request);
     const inputsByPort = NodeInputsByPortFactory.fromRequest(args.request);
     const itemsIn =
       args.request.kind === "multi"
@@ -76,8 +76,8 @@ export class ActivationEnqueueService {
       nodeId: args.request.nodeId,
       itemsIn,
       inputsByPort,
-      receiptId: receipt.receiptId,
-      queue: receipt.queue,
+      receiptId: preparedDispatch.receipt.receiptId,
+      queue: preparedDispatch.receipt.queue,
       batchId: args.request.batchId,
       enqueuedAt,
     };
@@ -112,14 +112,14 @@ export class ActivationEnqueueService {
         [args.request.nodeId]: queuedSnapshot,
       },
     });
-    this.notifyPendingStatePersisted(args.runId);
+    await this.dispatchPreparedActivation(preparedDispatch);
     return {
       result: { runId: args.runId, workflowId: args.workflowId, startedAt: args.startedAt, status: "pending", pending },
       queuedSnapshot,
     };
   }
 
-  private notifyPendingStatePersisted(runId: RunId): void {
-    this.activationScheduler.notifyPendingStatePersisted?.(runId);
+  private async dispatchPreparedActivation(preparedDispatch: PreparedNodeActivationDispatch): Promise<void> {
+    await preparedDispatch.dispatch();
   }
 }

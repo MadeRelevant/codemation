@@ -1,5 +1,6 @@
 import type {
   NodeActivationContinuation,
+  PreparedNodeActivationDispatch,
   NodeActivationReceipt,
   NodeActivationRequest,
   NodeActivationScheduler,
@@ -26,7 +27,7 @@ export class DefaultDrivingScheduler implements NodeActivationScheduler {
     this.inline.setContinuation(continuation);
   }
 
-  async enqueue(request: NodeActivationRequest): Promise<NodeActivationReceipt> {
+  async prepareDispatch(request: NodeActivationRequest): Promise<PreparedNodeActivationDispatch> {
     const selection = await this.selectScheduler(request);
     if (selection.mode === "worker") {
       if (request.kind === "multi") {
@@ -44,15 +45,19 @@ export class DefaultDrivingScheduler implements NodeActivationScheduler {
         executionOptions: request.executionOptions,
       };
 
-      const receipt = await this.workerScheduler.enqueue(workerRequest);
-      return { receiptId: receipt.receiptId, mode: "worker", queue: selection.queue };
+      return {
+        receipt: {
+          receiptId: request.activationId,
+          mode: "worker",
+          queue: selection.queue,
+        },
+        dispatch: async () => {
+          await this.workerScheduler.enqueue(workerRequest);
+        },
+      };
     }
 
-    return await this.enqueueInline(request);
-  }
-
-  notifyPendingStatePersisted(runId: string): void {
-    this.inline.notifyPendingStatePersisted(runId);
+    return await this.prepareInlineDispatch(request);
   }
 
   /**
@@ -93,8 +98,13 @@ export class DefaultDrivingScheduler implements NodeActivationScheduler {
     return request.ctx.config.execution?.hint !== undefined || request.ctx.config.execution?.queue !== undefined;
   }
 
-  private async enqueueInline(request: NodeActivationRequest): Promise<NodeActivationReceipt> {
-    const receipt = await this.inline.enqueue(request);
-    return { ...receipt, mode: "local" };
+  private async prepareInlineDispatch(request: NodeActivationRequest): Promise<PreparedNodeActivationDispatch> {
+    const prepared = await this.inline.prepareDispatch(request);
+    return {
+      receipt: { ...prepared.receipt, mode: "local" },
+      dispatch: async () => {
+        await prepared.dispatch();
+      },
+    };
   }
 }

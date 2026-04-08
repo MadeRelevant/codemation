@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WorkflowActivationHttpErrorFormat } from "../../lib/workflowDetail/WorkflowActivationHttpErrorFormat";
 import {
   useRunQuery,
+  useRunDetailQuery,
   useWorkflowCredentialHealthQuery,
   useWorkflowDebuggerOverlayQuery,
   useWorkflowDevBuildStateQuery,
@@ -168,7 +169,9 @@ export function useWorkflowDetailController(
   );
   const runs = runsQuery.data;
   const selectedRunQuery = useRunQuery(selectedRunId);
+  const selectedRunDetailQuery = useRunDetailQuery(selectedRunId);
   const selectedRun = selectedRunQuery.data;
+  const selectedRunDetail = selectedRunDetailQuery.data;
   const activeLiveRunQuery = useRunQuery(activeLiveRunId, { pollWhileNonTerminalMs: 250 });
   const activeLiveRun = activeLiveRunQuery.data;
   const debuggerOverlay = debuggerOverlayQuery.data;
@@ -311,7 +314,13 @@ export function useWorkflowDetailController(
     if (!nid || !displayedWorkflow) {
       return;
     }
-    if (displayedWorkflow.nodes.some((n) => n.id === nid)) {
+    if (
+      WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow(
+        nid,
+        displayedWorkflow,
+        normalizedConnectionInvocations,
+      )
+    ) {
       return;
     }
     navigateToLocation({
@@ -322,6 +331,7 @@ export function useWorkflowDetailController(
   }, [
     displayedWorkflow,
     navigateToLocation,
+    normalizedConnectionInvocations,
     urlLocation.isRunsPaneVisible,
     urlLocation.nodeId,
     urlLocation.selectedRunId,
@@ -487,8 +497,11 @@ export function useWorkflowDetailController(
   }, [isInspectorResizing]);
 
   const executionNodes = useMemo(
-    () => WorkflowDetailPresenter.buildExecutionNodes(displayedWorkflow, currentExecutionState),
-    [currentExecutionState, displayedWorkflow],
+    () =>
+      viewContext === "historical-run"
+        ? WorkflowDetailPresenter.buildHistoricalExecutionNodes(displayedWorkflow, selectedRunDetail, selectedRun)
+        : WorkflowDetailPresenter.buildExecutionNodes(displayedWorkflow, currentExecutionState),
+    [currentExecutionState, displayedWorkflow, selectedRun, selectedRunDetail, viewContext],
   );
   const executionTreeData = useMemo(
     () => WorkflowDetailPresenter.buildExecutionTreeData(executionNodes),
@@ -544,8 +557,14 @@ export function useWorkflowDetailController(
       WorkflowDetailPresenter.inspectorSelectionAnchorsDisplayedWorkflow(
         selectedNodeId,
         displayedWorkflow,
-        currentExecutionState?.connectionInvocations,
+        normalizedConnectionInvocations,
       )
+    ) {
+      return;
+    }
+    if (
+      selectedNodeId &&
+      (selectedRunDetail?.executionInstances.some((instance) => instance.instanceId === selectedNodeId) ?? false)
     ) {
       return;
     }
@@ -555,6 +574,7 @@ export function useWorkflowDetailController(
       return rightTimestamp.localeCompare(leftTimestamp);
     });
     const nextFocusedNodeId =
+      (viewContext === "historical-run" ? executionNodes[0]?.node.id : undefined) ??
       orderedSnapshots.find((snapshot) => snapshot.status === "running")?.nodeId ??
       orderedSnapshots.find((snapshot) => snapshot.status === "queued")?.nodeId ??
       orderedSnapshots[0]?.nodeId ??
@@ -569,7 +589,9 @@ export function useWorkflowDetailController(
     executionNodes,
     hasManuallySelectedNode,
     normalizedConnectionInvocations,
+    selectedRunDetail?.executionInstances,
     selectedNodeId,
+    viewContext,
   ]);
 
   const selectedExecutionNode = useMemo(() => {
@@ -591,7 +613,12 @@ export function useWorkflowDetailController(
     return selectedExecutionNode?.snapshot ?? currentExecutionState.nodeSnapshotsByNodeId[selectedNodeId];
   }, [currentExecutionState, selectedExecutionNode, selectedNodeId]);
   const selectedWorkflowNode = useMemo(
-    () => selectedExecutionNode?.node ?? displayedWorkflow?.nodes.find((node) => node.id === selectedNodeId),
+    () =>
+      displayedWorkflow?.nodes.find(
+        (node) =>
+          node.id ===
+          (selectedExecutionNode?.slotNodeId ?? selectedExecutionNode?.workflowConnectionNodeId ?? selectedNodeId),
+      ) ?? selectedExecutionNode?.node,
     [displayedWorkflow, selectedExecutionNode, selectedNodeId],
   );
   const selectedPropertiesWorkflowNode = useMemo(
@@ -1044,7 +1071,9 @@ export function useWorkflowDetailController(
     viewContext === "historical-run"
       ? selectedRunQuery.error instanceof Error
         ? selectedRunQuery.error.message
-        : null
+        : selectedRunDetailQuery.error instanceof Error
+          ? selectedRunDetailQuery.error.message
+          : null
       : debuggerOverlayQuery.error instanceof Error
         ? debuggerOverlayQuery.error.message
         : null;
@@ -1127,6 +1156,7 @@ export function useWorkflowDetailController(
         displayedWorkflow,
         currentExecutionState?.nodeSnapshotsByNodeId,
         normalizedConnectionInvocations,
+        selectedRunDetail,
       );
       setSelectedNodeId(resolved);
       navigateToLocation({
@@ -1140,6 +1170,7 @@ export function useWorkflowDetailController(
       displayedWorkflow,
       navigateToLocation,
       normalizedConnectionInvocations,
+      selectedRunDetail,
       urlLocation.isRunsPaneVisible,
       urlLocation.selectedRunId,
     ],
@@ -1206,10 +1237,21 @@ export function useWorkflowDetailController(
       workflowId,
       viewContext,
       selectedRunId,
-      isLoading: viewContext === "historical-run" ? selectedRunQuery.isLoading : debuggerOverlayQuery.isLoading,
+      isLoading:
+        viewContext === "historical-run"
+          ? selectedRunQuery.isLoading || selectedRunDetailQuery.isLoading
+          : debuggerOverlayQuery.isLoading,
       loadError: inspectorLoadError,
       selectedRun,
+      selectedRunDetail,
       selectedNodeId,
+      selectedExecutionInstanceId:
+        selectedNodeId &&
+        (selectedRunDetail?.executionInstances.some((instance) => instance.instanceId === selectedNodeId) ??
+          selectedRun?.connectionInvocations?.some((i) => i.invocationId === selectedNodeId) ??
+          false)
+          ? selectedNodeId
+          : null,
       selectedNodeSnapshot,
       selectedWorkflowNode,
       selectedPinnedOutput,

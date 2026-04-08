@@ -11,6 +11,8 @@ export class PersistedRunStateTerminalBuilder {
     queue: RunQueueEntry[];
     outputsByNode: PersistedRunState["outputsByNode"];
     nodeSnapshotsByNodeId: NonNullable<PersistedRunState["nodeSnapshotsByNodeId"]>;
+    /** When set, persisted on the run root for listings and retention pruning. */
+    finishedAtIso?: string;
   }): PersistedRunState {
     return {
       ...args.state,
@@ -20,6 +22,7 @@ export class PersistedRunStateTerminalBuilder {
       queue: args.queue,
       outputsByNode: args.outputsByNode,
       nodeSnapshotsByNodeId: args.nodeSnapshotsByNodeId,
+      finishedAt: args.finishedAtIso ?? args.state.finishedAt,
     };
   }
 }

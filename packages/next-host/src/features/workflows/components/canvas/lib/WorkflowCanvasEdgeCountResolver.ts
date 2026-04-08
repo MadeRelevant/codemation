@@ -13,7 +13,11 @@ export class WorkflowCanvasEdgeCountResolver {
       connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>;
     }>,
   ): number {
-    if (args.targetNodeRole === "languageModel" || args.targetNodeRole === "tool") {
+    if (
+      args.targetNodeRole === "languageModel" ||
+      args.targetNodeRole === "tool" ||
+      args.targetNodeRole === "nestedAgent"
+    ) {
       const attachmentInvocationCount = this.resolveAttachmentInvocationCount(
         args.targetNodeId,
         args.targetNodeRole,
@@ -42,7 +46,7 @@ export class WorkflowCanvasEdgeCountResolver {
       if (targetNodeRole === "languageModel") {
         return snapshot.nodeId === targetNodeId;
       }
-      if (targetNodeRole === "tool") {
+      if (targetNodeRole === "tool" || targetNodeRole === "nestedAgent") {
         return snapshot.nodeId === targetNodeId;
       }
       return false;

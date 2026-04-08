@@ -24,8 +24,9 @@ export interface Edge {
 export type NodeConnectionName = string;
 
 /**
- * Named connection from an executable parent node to child nodes that exist in {@link WorkflowDefinition.nodes}
- * but are not traversed by the main execution graph.
+ * Named connection from a parent node to child nodes that exist in {@link WorkflowDefinition.nodes}
+ * but are not traversed by the main execution graph. Parents are commonly executable nodes, but may
+ * also be connection-owned nodes for recursive agent attachments.
  */
 export interface WorkflowNodeConnection {
   readonly parentNodeId: NodeId;

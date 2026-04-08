@@ -64,9 +64,6 @@ export function WorkflowExecutionInspectorTreePanel(
               return (
                 <div
                   data-testid={`execution-tree-node-${String(treeNode.key)}`}
-                  onClick={() => {
-                    onSelectNode(node?.id ?? String(treeNode.key));
-                  }}
                   style={{
                     background: isSelected ? "#eff6ff" : "transparent",
                     padding: "6px 10px",

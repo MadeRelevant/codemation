@@ -4,6 +4,7 @@ import type {
   WorkflowExecutionInspectorActions,
   WorkflowExecutionInspectorFormatting,
   WorkflowExecutionInspectorModel,
+  WorkflowNode,
 } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/workflowDetailTypes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
@@ -74,6 +75,25 @@ describe("workflow execution inspector", () => {
     expect(inspector).toHaveStyle({
       gridTemplateColumns: "420px 8px minmax(0, 1fr)",
     });
+  });
+
+  it("invokes onSelectNode once when clicking an execution tree row", () => {
+    const actions = WorkflowExecutionInspectorFixture.createActions();
+    const model = WorkflowExecutionInspectorFixture.createModelWithTwoTreeNodes();
+    WorkflowExecutionInspectorFixture.render(
+      <div style={{ width: 900, height: 320 }}>
+        <WorkflowExecutionInspector
+          model={model}
+          formatting={WorkflowExecutionInspectorFixture.createFormatting()}
+          actions={actions}
+        />
+      </div>,
+    );
+
+    fireEvent.click(screen.getByTestId("execution-tree-node-node-2"));
+
+    expect(actions.onSelectNode).toHaveBeenCalledTimes(1);
+    expect(actions.onSelectNode).toHaveBeenCalledWith("node-2");
   });
 
   it("shows only the duration in the tree and keeps full timing details in the header", () => {
@@ -223,7 +243,9 @@ class WorkflowExecutionInspectorFixture {
       isLoading: false,
       loadError: null,
       selectedRun: {} as WorkflowExecutionInspectorModel["selectedRun"],
+      selectedRunDetail: undefined,
       selectedNodeId: "node-1",
+      selectedExecutionInstanceId: null,
       selectedExecutionTreeKey: "node-1",
       selectedNodeSnapshot,
       selectedWorkflowNode: undefined,
@@ -272,6 +294,39 @@ class WorkflowExecutionInspectorFixture {
         canEditOutput: false,
         canClearPinnedOutput: false,
       },
+    };
+  }
+
+  static createModelWithTwoTreeNodes(): WorkflowExecutionInspectorModel {
+    const base = this.createModel();
+    const snapshot1 = base.selectedNodeSnapshot!;
+    const snapshot2 = {
+      ...snapshot1,
+      nodeId: "node-2",
+    };
+    const minimalWorkflowNode = (id: string): WorkflowNode =>
+      ({
+        id,
+        name: `Node ${id}`,
+        kind: "node",
+        type: "Stub",
+      }) as WorkflowNode;
+
+    return {
+      ...base,
+      executionTreeData: [
+        {
+          key: "node-1",
+          snapshot: snapshot1,
+          workflowNode: minimalWorkflowNode("node-1"),
+        },
+        {
+          key: "node-2",
+          snapshot: snapshot2,
+          workflowNode: minimalWorkflowNode("node-2"),
+        },
+      ],
+      executionTreeExpandedKeys: ["node-1", "node-2"],
     };
   }
 

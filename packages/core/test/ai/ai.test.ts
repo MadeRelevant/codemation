@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
+import { AgentConnectionNodeCollector } from "../../src/ai/AgentConnectionNodeCollector";
+import { AgentToolFactory } from "../../src/ai/AgentToolFactory";
+import { NodeBackedToolConfig } from "../../src/ai/NodeBackedToolConfig";
+import type { AgentNodeConfig, ToolConfig } from "../../src/ai/AiHost";
 import { ConnectionNodeIdFactory } from "../../src/workflow/definition/ConnectionNodeIdFactory";
 
 test("ConnectionNodeIdFactory builds stable language model and tool connection node ids", () => {
@@ -20,4 +24,91 @@ test("ConnectionNodeIdFactory classifies connection-owned descendants", () => {
   assert.equal(ConnectionNodeIdFactory.isConnectionOwnedDescendantOf("agent_1", "agent_1__conn__llm"), true);
   assert.equal(ConnectionNodeIdFactory.isConnectionOwnedDescendantOf("agent_1", "agent_1__conn__tool__conn__x"), true);
   assert.equal(ConnectionNodeIdFactory.isConnectionOwnedDescendantOf("agent_1", "agent_1"), false);
+});
+
+test("ConnectionNodeIdFactory parses nested language model connection node ids", () => {
+  const nestedTool = ConnectionNodeIdFactory.toolConnectionNodeId("agent_1", "planner");
+  const nestedLlm = ConnectionNodeIdFactory.languageModelConnectionNodeId(nestedTool);
+
+  assert.deepEqual(ConnectionNodeIdFactory.parseLanguageModelConnectionNodeId(nestedLlm), {
+    parentNodeId: nestedTool,
+  });
+});
+
+test("ConnectionNodeIdFactory parses nested tool connection node ids from the rightmost tool segment", () => {
+  const nestedToolParent = ConnectionNodeIdFactory.toolConnectionNodeId("agent_1", "planner");
+  const nestedTool = ConnectionNodeIdFactory.toolConnectionNodeId(nestedToolParent, "lookup tool");
+
+  assert.deepEqual(ConnectionNodeIdFactory.parseToolConnectionNodeId(nestedTool), {
+    parentNodeId: nestedToolParent,
+    normalizedToolName: "lookup_tool",
+  });
+});
+
+test("AgentConnectionNodeCollector uses nestedAgent role for node-backed inner agents", () => {
+  const token = { name: "T" } as AgentNodeConfig<any, any>["type"];
+  const chatModelType = token as unknown as AgentNodeConfig<any, any>["chatModel"]["type"];
+  const inner: AgentNodeConfig<any, any> = {
+    kind: "node",
+    type: token,
+    messages: [{ role: "user", content: "inner" }],
+    chatModel: { name: "inner-llm", type: chatModelType },
+  };
+  const nestedTool = new NodeBackedToolConfig("specialist", inner, {
+    description: "nested",
+    inputSchema: {} as any,
+    outputSchema: {} as any,
+  });
+  const plainTool = {
+    name: "plain",
+    type: token,
+  } as unknown as ToolConfig;
+  const outer: AgentNodeConfig<any, any> = {
+    kind: "node",
+    type: token,
+    messages: [{ role: "user", content: "outer" }],
+    chatModel: { name: "outer-llm", type: chatModelType },
+    tools: [nestedTool, plainTool],
+  };
+  const collected = AgentConnectionNodeCollector.collect("root", outer);
+  const specialist = collected.find(
+    (c) => c.nodeId === ConnectionNodeIdFactory.toolConnectionNodeId("root", "specialist"),
+  );
+  const plain = collected.find((c) => c.nodeId === ConnectionNodeIdFactory.toolConnectionNodeId("root", "plain"));
+  assert.equal(specialist?.role, "nestedAgent");
+  assert.equal(plain?.role, "tool");
+});
+
+test("AgentToolFactory merges parent item json into nested agent tool input by default", () => {
+  const token = { name: "T" } as AgentNodeConfig<any, any>["type"];
+  const chatModelType = token as unknown as AgentNodeConfig<any, any>["chatModel"]["type"];
+  const inner: AgentNodeConfig<any, any> = {
+    kind: "node",
+    type: token,
+    name: "specialist",
+    messages: [{ role: "user", content: "inner" }],
+    chatModel: { name: "inner-llm", type: chatModelType },
+  };
+  const tool = AgentToolFactory.asTool(inner, {
+    name: "specialist",
+    description: "nested",
+    inputSchema: {} as any,
+    outputSchema: {} as any,
+  });
+
+  const mapped = tool.toNodeItem({
+    input: { question: "What should we do?" },
+    item: { json: { topic: "workflow orchestration" } },
+    itemIndex: 0,
+    items: [{ json: { topic: "workflow orchestration" } }],
+    ctx: {} as never,
+    node: inner,
+  });
+
+  assert.deepEqual(mapped, {
+    json: {
+      topic: "workflow orchestration",
+      question: "What should we do?",
+    },
+  });
 });
