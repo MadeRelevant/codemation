@@ -21,7 +21,7 @@ Use `codemation.plugin.ts` as the single place that:
 
 ## Node guidance
 
-- start with `defineNode(...)` and **`executeOne(...)`** for simple reusable nodes (per-item pipeline; optional **`mapInput`** / **`inputSchema`**)
+- start with `defineNode(...)` and **`execute(...)`** for simple reusable nodes (per-item pipeline; optional **`inputSchema`** and **`itemValue`** on config fields)
 - use `defineBatchNode(...)` only when the node must process the **whole activation batch** in one **`run(items, ...)`**
 - keep runtime logic close to the node definition
 - move to class-based node APIs when you need constructor-injected collaborators or deeper runtime metadata

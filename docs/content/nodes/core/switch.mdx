@@ -1,0 +1,76 @@
+---
+title: Switch
+description: Dynamic router that sends each item to one output port based on a resolved case key.
+---
+
+# Switch
+
+## Description
+
+`Switch` evaluates a **case key** for each item and routes that item to exactly one named output port. Port names come from the node configuration (`cases` plus `defaultCase`) and are exposed to the canvas via **`declaredOutputPorts`**.
+
+Use it when you have more than two branches (unlike If’s `true` / `false`) or when the branch is chosen from a string discriminator (e.g. event type, region, or status).
+
+For execution semantics (per-item `execute`, origin tagging for merge-by-origin), see [Execution model](/docs/concepts/execution).
+
+## Examples
+
+### Basic usage: route by a string field
+
+```ts
+new Switch("Route by kind", {
+  cases: ["order", "invoice"],
+  defaultCase: "other",
+  resolveCaseKey: (item) => item.json.kind ?? "other",
+});
+```
+
+Example input:
+
+```json
+{
+  "kind": "order",
+  "id": "ord_123"
+}
+```
+
+Example output (only the matching port carries the item):
+
+```json
+{
+  "order": [
+    {
+      "json": {
+        "kind": "order",
+        "id": "ord_123"
+      }
+    }
+  ],
+  "invoice": [],
+  "other": []
+}
+```
+
+### Advanced usage: async resolution
+
+```ts
+new Switch("Route by tenant", {
+  cases: ["a", "b"],
+  defaultCase: "other",
+  resolveCaseKey: async (item) => {
+    const tenant = await lookupTenant(item.json.accountId);
+    if (tenant === "a" || tenant === "b") return tenant;
+    return "other";
+  },
+});
+```
+
+Example input:
+
+```json
+{
+  "accountId": "acc_01"
+}
+```
+
+If `lookupTenant` resolves to `"b"`, the item appears on the `b` port; other ports remain empty arrays for that activation.

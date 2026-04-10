@@ -29,6 +29,7 @@
     "templates"
   ],
   "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
     "build": "tsdown src/bin.ts --out-dir dist",
     "dev": "tsdown src/bin.ts --out-dir dist --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",

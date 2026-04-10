@@ -1,6 +1,7 @@
 import type { InputPortKey, Items, NodeId, OutputPortKey, RunQueueEntry } from "../types";
 
 import { WorkflowTopology } from "./WorkflowTopologyPlanner";
+import type { TopologyOutgoingEdge } from "./WorkflowTopologyPlanner";
 
 export type PlannedActivation =
   | Readonly<{ kind: "single"; nodeId: NodeId; input: Items; batchId: string }>
@@ -25,9 +26,9 @@ export class RunQueuePlanner {
       }
 
       const inst = this.nodeInstances.get(toNodeId);
-      if (!this.isMultiInputNode(inst)) {
+      if (!this.isMultiInputNode(inst) && !this.supportsEngineFanInMerge(inst)) {
         throw new Error(
-          `Node ${toNodeId} has ${inputs.length} inbound edges. Insert a Merge node to combine branches.`,
+          `Node ${toNodeId} has ${inputs.length} inbound edges but does not support multi-input execution.`,
         );
       }
     }
@@ -39,7 +40,7 @@ export class RunQueuePlanner {
       if (e.output !== "main") continue;
       this.enqueueEdge(queue, {
         batchId: args.batchId,
-        to: e.to,
+        to: this.toEnqueueTarget(e),
         from: { nodeId: args.startNodeId, output: "main" },
         items: args.items,
       });
@@ -55,7 +56,7 @@ export class RunQueuePlanner {
       const outItems = (args.outputs as any)[e.output] ?? [];
       this.enqueueEdge(queue, {
         batchId: args.batchId,
-        to: e.to,
+        to: this.toEnqueueTarget(e),
         from: { nodeId: args.fromNodeId, output: e.output },
         items: outItems,
       });
@@ -157,40 +158,54 @@ export class RunQueuePlanner {
    */
   private usesTopologyCollectMerge(toNodeId: NodeId): boolean {
     const expectedInputs = this.topology.expectedInputsByNode.get(toNodeId) ?? [];
-    return expectedInputs.length !== 1 || expectedInputs[0] !== "in";
+    if (expectedInputs.length !== 1 || expectedInputs[0] !== "in") {
+      return true;
+    }
+    return (this.topology.incomingByNode.get(toNodeId) ?? []).length > 1;
+  }
+
+  private toEnqueueTarget(edge: TopologyOutgoingEdge): Readonly<{
+    nodeId: NodeId;
+    input: InputPortKey;
+    collectKey: InputPortKey;
+  }> {
+    return edge.to;
   }
 
   private enqueueEdge(
     queue: RunQueueEntry[],
     args: Readonly<{
       batchId: string;
-      to: { nodeId: NodeId; input: InputPortKey };
+      to: { nodeId: NodeId; input: InputPortKey; collectKey: InputPortKey };
       from: { nodeId: NodeId; output: OutputPortKey };
       items: Items;
     }>,
+    emptyPathSourceNodeId?: NodeId,
   ): void {
     const target = this.nodeInstances.get(args.to.nodeId);
     const isMulti = this.usesTopologyCollectMerge(args.to.nodeId) || this.isMultiInputNode(target);
 
     if (!isMulti) {
       if (args.items.length === 0) {
-        if (this.shouldContinueAfterEmptyOutputFromSource(args.from.nodeId)) {
+        const continueSourceNodeId = emptyPathSourceNodeId ?? args.from.nodeId;
+        if (this.shouldContinueAfterEmptyOutputFromSource(continueSourceNodeId)) {
           queue.push({
             nodeId: args.to.nodeId,
             input: args.items,
-            toInput: args.to.input,
+            toInput: args.to.collectKey,
             batchId: args.batchId,
             from: args.from,
           });
           return;
         }
-        this.propagateEmptyPath(queue, args.to.nodeId, args.batchId);
+        const source = emptyPathSourceNodeId ?? args.from.nodeId;
+        this.propagateEmptyPath(queue, args.to.nodeId, args.batchId, source);
         return;
       }
       queue.push({
         nodeId: args.to.nodeId,
         input: args.items,
-        toInput: args.to.input,
+        toInput: args.to.collectKey,
         batchId: args.batchId,
         from: args.from,
       });
@@ -212,7 +227,7 @@ export class RunQueuePlanner {
     }
 
     const received = (collect.collect as any).received as Record<InputPortKey, Items>;
-    received[args.to.input] = args.items;
+    received[args.to.collectKey] = args.items;
   }
 
   private shouldContinueAfterEmptyOutputFromSource(fromNodeId: NodeId): boolean {
@@ -223,19 +238,41 @@ export class RunQueuePlanner {
     return def.config.continueWhenEmptyOutput === true;
   }
 
-  private propagateEmptyPath(queue: RunQueueEntry[], nodeId: NodeId, batchId: string): void {
+  private propagateEmptyPath(
+    queue: RunQueueEntry[],
+    nodeId: NodeId,
+    batchId: string,
+    emptyPathSourceNodeId: NodeId,
+  ): void {
     for (const edge of this.topology.outgoingByNode.get(nodeId) ?? []) {
-      this.enqueueEdge(queue, {
-        batchId,
-        to: edge.to,
-        from: { nodeId, output: edge.output },
-        items: [],
-      });
+      this.enqueueEdge(
+        queue,
+        {
+          batchId,
+          to: edge.to,
+          from: { nodeId, output: edge.output },
+          items: [],
+        },
+        emptyPathSourceNodeId,
+      );
     }
   }
 
   private isMultiInputNode(n: unknown): boolean {
     return typeof (n as any)?.executeMulti === "function";
+  }
+
+  private hasRunnableExecute(n: unknown): boolean {
+    return (
+      typeof n === "object" &&
+      n !== null &&
+      (n as { kind?: string }).kind === "node" &&
+      typeof (n as { execute?: unknown }).execute === "function"
+    );
+  }
+
+  private supportsEngineFanInMerge(n: unknown): boolean {
+    return this.hasRunnableExecute(n) && !this.isMultiInputNode(n);
   }
 
   private describeUnsatisfiedCollect(queueEntry: RunQueueEntry): string {
@@ -287,7 +324,7 @@ export class RunQueuePlanner {
     const matches: string[] = [];
     for (const [sourceNodeId, edges] of this.topology.outgoingByNode.entries()) {
       for (const edge of edges) {
-        if (edge.to.nodeId === nodeId && edge.to.input === input) {
+        if (edge.to.nodeId === nodeId && edge.to.collectKey === input) {
           matches.push(this.formatNodeLabel(sourceNodeId));
         }
       }

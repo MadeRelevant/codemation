@@ -12,6 +12,9 @@ export type WorkflowNodeDto = Readonly<{
   hasNodeErrorHandler?: boolean;
   /** When true, downstream nodes may run even when this node outputs zero items. */
   continueWhenEmptyOutput?: boolean;
+  /** Declared I/O ports from node config (unioned with ports inferred from edges on the canvas). */
+  declaredOutputPorts?: ReadonlyArray<string>;
+  declaredInputPorts?: ReadonlyArray<string>;
 }>;
 
 export type WorkflowEdgeDto = Readonly<{

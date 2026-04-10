@@ -5,7 +5,7 @@ import { NodeBackedToolConfig } from "./NodeBackedToolConfig";
 
 class AgentToolFactoryImpl {
   asTool<
-    TNodeConfig extends RunnableNodeConfig<any, any, any>,
+    TNodeConfig extends RunnableNodeConfig<any, any>,
     TInputSchema extends ZodSchemaAny,
     TOutputSchema extends ZodSchemaAny,
   >(
@@ -20,7 +20,7 @@ class AgentToolFactoryImpl {
   }
 
   private withDefaultAgentInputMapper<
-    TNodeConfig extends RunnableNodeConfig<any, any, any>,
+    TNodeConfig extends RunnableNodeConfig<any, any>,
     TInputSchema extends ZodSchemaAny,
     TOutputSchema extends ZodSchemaAny,
   >(

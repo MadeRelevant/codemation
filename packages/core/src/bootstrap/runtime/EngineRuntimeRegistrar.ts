@@ -4,9 +4,11 @@ import { EngineExecutionLimitsPolicyFactory } from "../../policies/executionLimi
 import {
   DefaultAsyncSleeper,
   InProcessRetryRunnerFactory,
+  ItemValueResolver,
   NodeExecutor,
   NodeExecutorFactory,
   NodeInstanceFactoryFactory,
+  NodeOutputNormalizer,
 } from "../../execution";
 import {
   EngineFactory,
@@ -38,6 +40,12 @@ export class EngineRuntimeRegistrar {
   }
 
   private registerSupportFactories(container: DependencyContainer): void {
+    if (!container.isRegistered(ItemValueResolver, true)) {
+      container.registerSingleton(ItemValueResolver, ItemValueResolver);
+    }
+    if (!container.isRegistered(NodeOutputNormalizer, true)) {
+      container.registerSingleton(NodeOutputNormalizer, NodeOutputNormalizer);
+    }
     container.register(EngineExecutionLimitsPolicyFactory, { useClass: EngineExecutionLimitsPolicyFactory });
     container.register(NodeInstanceFactoryFactory, { useClass: NodeInstanceFactoryFactory });
     container.register(DefaultAsyncSleeper, { useClass: DefaultAsyncSleeper });

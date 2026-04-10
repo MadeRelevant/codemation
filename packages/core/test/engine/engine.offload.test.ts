@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import type { Items, Node, NodeOutputs, RunnableNodeConfig, TypeToken } from "../../src/index.ts";
+import type { RunnableNode, RunnableNodeConfig, RunnableNodeExecuteArgs, TypeToken } from "../../src/index.ts";
 import { node, tool } from "../../src/index.ts";
 import { PersistedWorkflowTokenRegistry } from "../../src/bootstrap/index.ts";
 import { InMemoryLiveWorkflowRepository, PersistedWorkflowSnapshotFactory } from "../../src/testing.ts";
@@ -45,12 +45,12 @@ class SnapshotTokenNodeConfig implements RunnableNodeConfig {
 }
 
 @node({ packageName: "@codemation/test" })
-class SnapshotTokenNode implements Node<SnapshotTokenNodeConfig> {
+class SnapshotTokenNode implements RunnableNode<SnapshotTokenNodeConfig> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items): Promise<NodeOutputs> {
-    return { main: items };
+  execute(args: RunnableNodeExecuteArgs<SnapshotTokenNodeConfig>): unknown {
+    return args.item;
   }
 }
 

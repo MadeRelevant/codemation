@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PostgresIntegrationDatabase } from "../../http/testkit/PostgresIntegrationDatabase";
@@ -20,6 +21,46 @@ export type CodemationPlaywrightPreparedEnvironment = Readonly<{
  * process exits before the web server is done (Ryuk / session cleanup).
  */
 export class CodemationPlaywrightEnvironmentPreparer {
+  private static async pickServerBaseUrl(): Promise<Readonly<{ baseUrl: string; port: string }>> {
+    const preferred = 3001;
+    const preferredAvailable = await this.isPortAvailable(preferred);
+    if (preferredAvailable) {
+      return { baseUrl: `http://localhost:${preferred}`, port: String(preferred) };
+    }
+    const ephemeral = await this.allocateEphemeralPort();
+    return { baseUrl: `http://localhost:${ephemeral}`, port: String(ephemeral) };
+  }
+
+  private static async isPortAvailable(port: number): Promise<boolean> {
+    const server = net.createServer();
+    return await new Promise<boolean>((resolve) => {
+      server.once("error", () => {
+        resolve(false);
+      });
+      server.listen(port, "127.0.0.1", () => {
+        server.close(() => resolve(true));
+      });
+    });
+  }
+
+  private static async allocateEphemeralPort(): Promise<number> {
+    const server = net.createServer();
+    return await new Promise<number>((resolve, reject) => {
+      server.once("error", (e) => {
+        reject(e instanceof Error ? e : new Error(String(e)));
+      });
+      server.listen(0, "127.0.0.1", () => {
+        const address = server.address();
+        if (!address || typeof address === "string") {
+          server.close(() => reject(new Error("Failed to allocate an ephemeral TCP port.")));
+          return;
+        }
+        const { port } = address;
+        server.close(() => resolve(port));
+      });
+    });
+  }
+
   static async prepare(): Promise<PostgresIntegrationDatabase> {
     const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
     const hostPackageRoot = path.resolve(scriptsDir, "..", "..", "..");
@@ -82,14 +123,15 @@ export class CodemationPlaywrightEnvironmentPreparer {
       throw new Error(`codemation build for browser E2E failed with exit code ${consumerBuild.status ?? "unknown"}.`);
     }
 
+    const { baseUrl, port } = await this.pickServerBaseUrl();
     const serverEnv: Record<string, string> = {
       DATABASE_URL: database.databaseUrl,
       AUTH_SECRET: authSecret,
       /** Must match Playwright `baseURL` so server-side URL resolution uses the browser origin. */
-      AUTH_URL: "http://localhost:3001",
-      NEXTAUTH_URL: "http://localhost:3001",
-      CODEMATION_PUBLIC_BASE_URL: "http://localhost:3001",
-      PORT: "3001",
+      AUTH_URL: baseUrl,
+      NEXTAUTH_URL: baseUrl,
+      CODEMATION_PUBLIC_BASE_URL: baseUrl,
+      PORT: port,
       REDIS_URL: "",
       CODEMATION_E2E_FORCE_LOCAL_RUNTIME: "1",
       CODEMATION_TSCONFIG_PATH: path.join(repoRoot, "tsconfig.base.json"),

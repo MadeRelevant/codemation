@@ -4,8 +4,8 @@ import type {
   CredentialRequirement,
   CredentialTypeId,
 } from "../contracts/credentialTypes";
-import type { ItemNode, Node, NodeExecutionContext } from "../contracts/runtimeTypes";
-import type { Item, ItemInputMapper, Items, NodeOutputs, RunnableNodeConfig } from "../contracts/workflowTypes";
+import type { RunnableNode, RunnableNodeExecuteArgs, NodeExecutionContext } from "../contracts/runtimeTypes";
+import type { Item, Items, RunnableNodeConfig } from "../contracts/workflowTypes";
 import type { TypeToken } from "../di";
 import { node as persistedNode } from "../runtime-types/runtimeTypeDecorators.types";
 import type { ZodType } from "zod";
@@ -56,15 +56,15 @@ export interface DefinedNodeRunContext<
 }
 
 /**
- * Arguments for {@link defineNode} `executeOne` (engine `ctx` matches {@link ItemNode.executeOne};
+ * Arguments for {@link defineNode} `execute` (engine `ctx` matches {@link RunnableNode.execute};
  * the second callback parameter adds {@link DefinedNodeRunContext} for credential accessors).
  */
-export type DefineNodeExecuteOneArgs<TConfig extends CredentialJsonRecord, TInputJson, TWireJson> = Readonly<{
+export type DefineNodeExecuteArgs<TConfig extends CredentialJsonRecord, TInputJson> = Readonly<{
   input: TInputJson;
   item: Item;
   itemIndex: number;
   items: Items;
-  ctx: NodeExecutionContext<RunnableNodeConfig<TInputJson, unknown, TWireJson> & Readonly<{ config: TConfig }>>;
+  ctx: NodeExecutionContext<RunnableNodeConfig<TInputJson, unknown> & Readonly<{ config: TConfig }>>;
 }>;
 
 export interface DefinedNode<
@@ -73,20 +73,17 @@ export interface DefinedNode<
   TInputJson,
   TOutputJson,
   _TBindings extends DefinedNodeCredentialBindings | undefined = undefined,
-  TWireJson = TInputJson,
 > {
   readonly kind: "defined-node";
   readonly key: TKey;
   readonly title: string;
   readonly description?: string;
-  create(config: TConfig, name?: string, id?: string): RunnableNodeConfig<TInputJson, TOutputJson, TWireJson>;
+  create(config: TConfig, name?: string, id?: string): RunnableNodeConfig<TInputJson, TOutputJson>;
   register(context: { registerNode<TValue>(token: TypeToken<TValue>, implementation?: TypeToken<TValue>): void }): void;
 }
 
 /**
- * Plugin / DSL-friendly node: **one item in, one item out** per engine activation step.
- * The engine applies {@link RunnableNodeConfig.mapInput} (if any) + {@link RunnableNodeConfig.inputSchema}
- * before `executeOne`. Use {@link defineBatchNode} for legacy batch `run(items, …)` semantics.
+ * Plugin / DSL-friendly node: per-item `execute` with optional {@link RunnableNodeConfig.inputSchema}.
  */
 export interface DefineNodeOptions<
   TKey extends string,
@@ -94,7 +91,6 @@ export interface DefineNodeOptions<
   TInputJson,
   TOutputJson,
   TBindings extends DefinedNodeCredentialBindings | undefined = undefined,
-  TWireJson = TInputJson,
 > {
   readonly key: TKey;
   readonly title: string;
@@ -109,21 +105,17 @@ export interface DefineNodeOptions<
   readonly configSchema?: z.ZodType<TConfig>;
   readonly credentials?: TBindings;
   /**
-   * Validates **`input`** after optional {@link mapInput} (engine also accepts `inputSchema` on the node class).
+   * Validates **`input`** (engine also accepts `inputSchema` on the node class).
    */
   readonly inputSchema?: ZodType<TInputJson>;
-  /**
-   * Maps wire JSON (`item.json` from upstream) to execute input before validation.
-   */
-  readonly mapInput?: ItemInputMapper<TWireJson, TInputJson>;
-  executeOne(
-    args: DefineNodeExecuteOneArgs<TConfig, TInputJson, TWireJson>,
+  execute(
+    args: DefineNodeExecuteArgs<TConfig, TInputJson>,
     context: DefinedNodeRunContext<TConfig, TBindings>,
   ): MaybePromise<TOutputJson>;
 }
 
 /**
- * Batch-oriented defined node (legacy): receives all items at once via `run`.
+ * Batch-oriented defined node: `run` receives all item JSON once (last item in activation); emits one output per input row.
  */
 export interface DefineBatchNodeOptions<
   TKey extends string,
@@ -197,7 +189,7 @@ const definedNodeCredentialRequirementFactory = {
 const definedNodeCredentialAccessorFactory = {
   create<TBindings extends DefinedNodeCredentialBindings | undefined>(
     bindings: TBindings,
-    ctx: NodeExecutionContext<RunnableNodeConfig<any, any, any>>,
+    ctx: NodeExecutionContext<RunnableNodeConfig<any, any>>,
   ): DefinedNodeCredentialAccessors<TBindings> {
     if (!bindings) {
       return {} as DefinedNodeCredentialAccessors<TBindings>;
@@ -213,28 +205,20 @@ export function defineNode<
   TInputJson,
   TOutputJson,
   TBindings extends DefinedNodeCredentialBindings | undefined = undefined,
-  TWireJson = TInputJson,
 >(
-  options: DefineNodeOptions<TKey, TConfig, TInputJson, TOutputJson, TBindings, TWireJson>,
-): DefinedNode<TKey, TConfig, TInputJson, TOutputJson, TBindings, TWireJson> {
+  options: DefineNodeOptions<TKey, TConfig, TInputJson, TOutputJson, TBindings>,
+): DefinedNode<TKey, TConfig, TInputJson, TOutputJson, TBindings> {
   const credentialRequirements = definedNodeCredentialRequirementFactory.create(options.credentials);
-  type DefinedRunnableNodeConfigShape = RunnableNodeConfig<TInputJson, TOutputJson, TWireJson> &
-    Readonly<{ config: TConfig }>;
+  type DefinedRunnableNodeConfigShape = RunnableNodeConfig<TInputJson, TOutputJson> & Readonly<{ config: TConfig }>;
 
-  const DefinedNodeRuntime = class implements ItemNode<DefinedRunnableNodeConfigShape, TInputJson, TOutputJson> {
+  const DefinedNodeRuntime = class implements RunnableNode<DefinedRunnableNodeConfigShape, TInputJson, TOutputJson> {
     readonly kind = "node" as const;
     readonly outputPorts = ["main"] as const;
     readonly inputSchema = options.inputSchema;
 
-    async executeOne(
-      args: Readonly<{
-        input: TInputJson;
-        item: Item;
-        itemIndex: number;
-        items: Items;
-        ctx: NodeExecutionContext<DefinedRunnableNodeConfigShape>;
-      }>,
-    ): Promise<TOutputJson> {
+    async execute(
+      args: Readonly<RunnableNodeExecuteArgs<DefinedRunnableNodeConfigShape, TInputJson>>,
+    ): Promise<unknown> {
       const ctx = args.ctx;
       const context: DefinedNodeRunContext<TConfig, TBindings> = {
         config: ctx.config.config,
@@ -244,25 +228,24 @@ export function defineNode<
         ) as DefinedNodeCredentialAccessors<TBindings>,
         execution: ctx as unknown as NodeExecutionContext<RunnableNodeConfig<TConfig, unknown>>,
       };
-      const payload: DefineNodeExecuteOneArgs<TConfig, TInputJson, TWireJson> = {
+      const payload: DefineNodeExecuteArgs<TConfig, TInputJson> = {
         input: args.input,
         item: args.item,
         itemIndex: args.itemIndex,
         items: args.items,
         ctx,
       };
-      return await options.executeOne(payload, context);
+      return await options.execute(payload, context);
     }
   };
 
   persistedNode({ name: options.key })(DefinedNodeRuntime);
 
-  const DefinedRunnableNodeConfig = class implements RunnableNodeConfig<TInputJson, TOutputJson, TWireJson> {
+  const DefinedRunnableNodeConfig = class implements RunnableNodeConfig<TInputJson, TOutputJson> {
     readonly kind = "node" as const;
     readonly type: TypeToken<unknown> = DefinedNodeRuntime;
     readonly icon = options.icon;
     readonly inputSchema = options.inputSchema;
-    readonly mapInput = options.mapInput;
 
     constructor(
       public readonly name: string,
@@ -275,7 +258,7 @@ export function defineNode<
     }
   };
 
-  const definition: DefinedNode<TKey, TConfig, TInputJson, TOutputJson, TBindings, TWireJson> = {
+  const definition: DefinedNode<TKey, TConfig, TInputJson, TOutputJson, TBindings> = {
     kind: "defined-node",
     key: options.key,
     title: options.title,
@@ -288,9 +271,7 @@ export function defineNode<
     },
   };
 
-  DefinedNodeRegistry.register(
-    definition as DefinedNode<string, Record<string, unknown>, unknown, unknown, undefined, unknown>,
-  );
+  DefinedNodeRegistry.register(definition as DefinedNode<string, Record<string, unknown>, unknown, unknown, undefined>);
 
   return definition;
 }
@@ -303,43 +284,40 @@ export function defineBatchNode<
   TBindings extends DefinedNodeCredentialBindings | undefined = undefined,
 >(
   options: DefineBatchNodeOptions<TKey, TConfig, TInputJson, TOutputJson, TBindings>,
-): DefinedNode<TKey, TConfig, TInputJson, TOutputJson, TBindings, TInputJson> {
+): DefinedNode<TKey, TConfig, TInputJson, TOutputJson, TBindings> {
   const credentialRequirements = definedNodeCredentialRequirementFactory.create(options.credentials);
-  type DefinedRunnableNodeConfigShape = RunnableNodeConfig<TInputJson, TOutputJson, TInputJson> &
-    Readonly<{ config: TConfig }>;
+  type DefinedRunnableNodeConfigShape = RunnableNodeConfig<TInputJson, TOutputJson> & Readonly<{ config: TConfig }>;
 
-  const DefinedNodeRuntime = class implements Node<DefinedRunnableNodeConfigShape> {
+  const DefinedNodeRuntime = class implements RunnableNode<DefinedRunnableNodeConfigShape, TInputJson, TOutputJson> {
     readonly kind = "node" as const;
     readonly outputPorts = ["main"] as const;
 
-    async execute(items: Items, ctx: NodeExecutionContext<DefinedRunnableNodeConfigShape>): Promise<NodeOutputs> {
-      const outputs = await options.run(
-        items.map((item) => item.json as TInputJson),
-        {
-          config: ctx.config.config,
-          credentials: definedNodeCredentialAccessorFactory.create(
-            options.credentials,
-            ctx,
-          ) as DefinedNodeCredentialAccessors<TBindings>,
-          execution: ctx as unknown as NodeExecutionContext<RunnableNodeConfig<TConfig, unknown>>,
-        },
-      );
-
-      return {
-        main: outputs.map((json, index) => {
-          const existing = items[index];
-          if (!existing) {
-            return { json };
-          }
-          return { ...existing, json };
-        }),
+    async execute(
+      args: Readonly<RunnableNodeExecuteArgs<DefinedRunnableNodeConfigShape, TInputJson>>,
+    ): Promise<unknown> {
+      if (args.itemIndex !== args.items.length - 1) {
+        return [];
+      }
+      const ctx = args.ctx;
+      const context: DefinedNodeRunContext<TConfig, TBindings> = {
+        config: ctx.config.config,
+        credentials: definedNodeCredentialAccessorFactory.create(
+          options.credentials,
+          ctx,
+        ) as DefinedNodeCredentialAccessors<TBindings>,
+        execution: ctx as unknown as NodeExecutionContext<RunnableNodeConfig<TConfig, unknown>>,
       };
+      const outputs = await options.run(
+        args.items.map((item) => item.json as TInputJson),
+        context,
+      );
+      return [...outputs];
     }
   };
 
   persistedNode({ name: options.key })(DefinedNodeRuntime);
 
-  const DefinedRunnableNodeConfig = class implements RunnableNodeConfig<TInputJson, TOutputJson, TInputJson> {
+  const DefinedRunnableNodeConfig = class implements RunnableNodeConfig<TInputJson, TOutputJson> {
     readonly kind = "node" as const;
     readonly type: TypeToken<unknown> = DefinedNodeRuntime;
     readonly icon = options.icon;
@@ -355,7 +333,7 @@ export function defineBatchNode<
     }
   };
 
-  const definition: DefinedNode<TKey, TConfig, TInputJson, TOutputJson, TBindings, TInputJson> = {
+  const definition: DefinedNode<TKey, TConfig, TInputJson, TOutputJson, TBindings> = {
     kind: "defined-node",
     key: options.key,
     title: options.title,
@@ -368,9 +346,7 @@ export function defineBatchNode<
     },
   };
 
-  DefinedNodeRegistry.register(
-    definition as DefinedNode<string, Record<string, unknown>, unknown, unknown, undefined, unknown>,
-  );
+  DefinedNodeRegistry.register(definition as DefinedNode<string, Record<string, unknown>, unknown, unknown, undefined>);
 
   return definition;
 }

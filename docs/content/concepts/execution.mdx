@@ -1,0 +1,34 @@
+---
+title: Execution model
+description: How runnable nodes run per-item execute, ports, fan-out, and fan-in merge-by-origin.
+---
+
+# Execution model
+
+<DocsExecutionFlowDiagram />
+
+## Runnable nodes (`execute`)
+
+Runnable workflow nodes implement a single **`execute(args)`** method. The engine calls it **once per input item** in an activation batch (triggers still emit batches of items).
+
+- **`args.input`** — result of `inputSchema.parse(item.json)`; **`item.json`** stays the persisted wire payload.
+- **`args.item`**, **`args.itemIndex`**, **`args.items`** — activation context.
+- **Return** — JSON (replaces `item.json` on outputs), a **non-empty JSON array** to fan out on `main`, **`emitPorts({ port: items })`** for multi-port routing, or an **item-shaped object** (with `json`) to carry binaries/lineage.
+
+## Routers (If, Switch)
+
+Branching nodes emit on **named output ports**. They tag items with **`meta._cm.originIndex`** (and `paired`) so downstream **Merge** nodes can align rows when branches reconverge.
+
+## Fan-in merge
+
+When multiple edges feed one input, the engine merges batches. With origin metadata it performs **merge-by-origin**; otherwise **merge-by-position**.
+
+## Empty batches
+
+Most nodes run **zero** times when an activation receives no items. **`Callback`**-style nodes set **`emptyBatchExecution: "runOnce"`** so `callback([], ctx)` still runs once.
+
+## Canvas ports
+
+Declared **`declaredOutputPorts`** / **`declaredInputPorts`** on configs are **unioned** with ports inferred from edges so dynamic routers show handles before edges exist.
+
+See also [Custom nodes](/docs/workflows/custom-nodes) and [Built-in nodes](/docs/workflows/built-in-nodes).

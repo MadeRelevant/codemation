@@ -20,6 +20,11 @@ export type CodemationConsumerConfigResolution = Readonly<{
   workflowSources: ReadonlyArray<string>;
 }>;
 
+type ConsumerImportSession = Readonly<{
+  shouldResetImporter: boolean;
+  resetCacheKeys: Set<string>;
+}>;
+
 export class CodemationConsumerConfigLoader {
   private static readonly importerRegistrationsByTsconfig = new Map<string, NamespacedUnregister>();
   private static readonly importerNamespaceVersionByTsconfig = new Map<string, number>();
@@ -38,10 +43,13 @@ export class CodemationConsumerConfigLoader {
   ): Promise<CodemationConsumerConfigResolution> {
     const loadStarted = performance.now();
     let mark = loadStarted;
+    const importSession = this.createImportSession();
+    const phaseDurations = new Map<string, number>();
     const phaseMs = (label: string): void => {
       const now = performance.now();
       const delta = now - mark;
       mark = now;
+      phaseDurations.set(label, delta);
       this.performanceDiagnosticsLogger.info(
         `load.${label} +${delta.toFixed(1)}ms (cumulative ${(now - loadStarted).toFixed(1)}ms)`,
       );
@@ -53,7 +61,7 @@ export class CodemationConsumerConfigLoader {
         'Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".',
       );
     }
-    const moduleExports = await this.importModule(bootstrapSource);
+    const moduleExports = await this.importModule(bootstrapSource, importSession);
     phaseMs("importConfigModule");
     const rawConfig = this.configExportsResolver.resolveConfig(moduleExports);
     if (!rawConfig) {
@@ -64,7 +72,7 @@ export class CodemationConsumerConfigLoader {
     phaseMs("resolveWorkflowSources");
     const workflows = this.mergeWorkflows(
       config.workflows ?? [],
-      await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources),
+      await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources, importSession),
     );
     phaseMs("loadDiscoveredWorkflows");
     const resolvedConfig: NormalizedCodemationConfig = {
@@ -125,6 +133,7 @@ export class CodemationConsumerConfigLoader {
     consumerRoot: string,
     config: CodemationConfig,
     workflowSources: ReadonlyArray<string>,
+    importSession: ConsumerImportSession,
   ): Promise<ReadonlyArray<WorkflowDefinition>> {
     const workflowDiscoveryDirectories = config.workflowDiscovery?.directories ?? [];
     const workflowsById = new Map<string, WorkflowDefinition>();
@@ -136,7 +145,7 @@ export class CodemationConsumerConfigLoader {
           workflowDiscoveryDirectories,
           absoluteWorkflowModulePath: workflowSource,
         }),
-        moduleExports: await this.importModule(workflowSource),
+        moduleExports: await this.importModule(workflowSource, importSession),
       })),
     );
     for (const loadedWorkflowModule of loadedWorkflowModules) {
@@ -168,13 +177,20 @@ export class CodemationConsumerConfigLoader {
     return [...workflowsById.values()];
   }
 
-  private async importModule(modulePath: string): Promise<Record<string, unknown>> {
+  private async importModule(
+    modulePath: string,
+    importSession: ConsumerImportSession,
+  ): Promise<Record<string, unknown>> {
     if (this.shouldUseNativeRuntimeImport()) {
       return await this.importModuleWithNativeRuntime(modulePath);
     }
     const tsconfigPath = await this.resolveTsconfigPath(modulePath);
-    if (this.shouldResetImporterBeforeImport()) {
+    const cacheKey = tsconfigPath || "default";
+    const shouldResetImporter = importSession.shouldResetImporter;
+    const didResetImporterForThisImport = shouldResetImporter && !importSession.resetCacheKeys.has(cacheKey);
+    if (didResetImporterForThisImport) {
       await this.resetImporter(tsconfigPath);
+      importSession.resetCacheKeys.add(cacheKey);
     }
     const importSpecifier = await this.createImportSpecifier(modulePath);
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -276,6 +292,13 @@ export class CodemationConsumerConfigLoader {
 
   private shouldResetImporterBeforeImport(): boolean {
     return (process.env.CODEMATION_DEV_SERVER_TOKEN?.trim().length ?? 0) > 0;
+  }
+
+  private createImportSession(): ConsumerImportSession {
+    return {
+      resetCacheKeys: new Set<string>(),
+      shouldResetImporter: this.shouldResetImporterBeforeImport(),
+    };
   }
 
   private isStoppedTransformServiceError(error: unknown): boolean {

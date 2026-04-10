@@ -1,3 +1,6 @@
+export * from "../contracts/emitPorts";
+export * from "../contracts/itemMeta";
+export * from "../contracts/itemValue";
 export * from "../contracts/retryPolicySpec.types";
 export * from "../contracts/NoRetryPolicy";
 export * from "../contracts/RetryPolicy";

@@ -76,6 +76,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
     "prisma:generate": "node ./scripts/generate-prisma-clients.mjs && node ./scripts/ensure-prisma-runtime-sourcemaps.mjs",
     "build": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap",
     "dev": "tsdown src/index.ts src/client.ts src/credentials.ts src/consumer.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap --watch",

@@ -18,6 +18,8 @@ export {
   DefaultAsyncSleeper,
   DefaultExecutionContextFactory,
   InProcessRetryRunner,
+  ItemValueResolver,
+  NodeOutputNormalizer,
 } from "./execution";
 export { EngineExecutionLimitsPolicy, type EngineExecutionLimitsPolicyConfig } from "./policies";
 export { InMemoryBinaryStorage, InMemoryRunDataFactory } from "./runStorage";

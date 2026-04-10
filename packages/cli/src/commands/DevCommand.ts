@@ -9,6 +9,7 @@ import type { ConsumerBuildArtifactsPublisher } from "../build/ConsumerBuildArti
 import type { ConsumerOutputBuilderFactory } from "../consumer/ConsumerOutputBuilderFactory";
 import type { DatabaseMigrationsApplyService } from "../database/DatabaseMigrationsApplyService";
 import type { DevApiRuntimeFactory, DevApiRuntimeServerHandle } from "../dev/DevApiRuntimeFactory";
+import type { DevNextColdPathTiming } from "../dev/DevHttpProbe";
 import type { DevBootstrapSummaryFetcher } from "../dev/DevBootstrapSummaryFetcher";
 import type { CliDevProxyServer } from "../dev/CliDevProxyServer";
 import type { CliDevProxyServerFactory } from "../dev/CliDevProxyServerFactory";
@@ -78,7 +79,7 @@ export class DevCommand {
     const devLock = this.devLockFactory.create();
     await devLock.acquire({
       consumerRoot: paths.consumerRoot,
-      nextPort: devMode === "watch-framework" ? nextPort : gatewayPort,
+      nextPort: gatewayPort,
     });
     const authSettings = await this.session.nextHostEdgeSeedLoader.loadForConsumer(paths.consumerRoot, {
       configPathOverride: args.configPathOverride,
@@ -115,7 +116,7 @@ export class DevCommand {
       this.bindShutdownSignalsToChildProcesses(processState, proxyServer);
       await this.spawnDevUiWhenNeeded(prepared, processState, gatewayBaseUrl);
       this.devCliBannerRenderer.renderGatewayListeningHint(
-        prepared.devMode === "watch-framework" ? prepared.nextPort : prepared.gatewayPort,
+        prepared.gatewayPort,
         commandName,
         prepared.devMode,
         prepared.devMode === "watch-framework" ? prepared.gatewayPort : undefined,
@@ -198,7 +199,7 @@ export class DevCommand {
     state: DevMutableProcessState,
   ): Promise<string> {
     if (prepared.devMode !== "packaged-ui") {
-      return "";
+      return `http://127.0.0.1:${prepared.nextPort}`;
     }
     const uiProxyBase =
       state.currentPackagedUiBaseUrl ?? `http://127.0.0.1:${await this.session.loopbackPortAllocator.allocate()}`;
@@ -260,6 +261,9 @@ export class DevCommand {
       state.stopReject?.(new Error(`next start (packaged UI) exited unexpectedly with code ${code ?? 0}.`));
     });
     await this.session.devHttpProbe.waitUntilUrlRespondsOk(`${uiProxyBase}/`);
+    await this.logNextDevColdPathWarmTimings(
+      await this.session.devHttpProbe.warmNextDevColdPaths(uiProxyBase.replace(/\/$/, "")),
+    );
   }
 
   private async startProxyServer(gatewayPort: number, uiProxyBase: string): Promise<CliDevProxyServer> {
@@ -351,6 +355,9 @@ export class DevCommand {
       websocketPort,
       runtimeDevUrl: gatewayBaseUrl,
     });
+
+    await this.session.nextHostPortAvailability.assertLoopbackPortAvailable(prepared.nextPort);
+
     state.currentDevUi = spawn("pnpm", ["exec", "next", "dev"], {
       cwd: nextHostRoot,
       ...this.devDetachedChildSpawnPipeOptions(),
@@ -378,6 +385,14 @@ export class DevCommand {
       state.stopReject?.(error instanceof Error ? error : new Error(String(error)));
     });
     await this.session.devHttpProbe.waitUntilUrlRespondsOk(`http://127.0.0.1:${prepared.nextPort}/`);
+    await this.logNextDevColdPathWarmTimings(
+      await this.session.devHttpProbe.warmNextDevColdPaths(`http://127.0.0.1:${prepared.nextPort}`),
+    );
+  }
+
+  private logNextDevColdPathWarmTimings(timings: ReadonlyArray<DevNextColdPathTiming>): void {
+    const parts = timings.map((t) => `${t.path}=${t.durationMs}ms`).join(" ");
+    process.stdout.write(`[codemation] Dev: precompiled Next routes — ${parts}\n`);
   }
 
   private async startWatcherForSourceRestart(
@@ -580,6 +595,7 @@ export class DevCommand {
       process.env,
       prepared.consumerEnv,
     );
+    const publicBaseUrl = `http://127.0.0.1:${prepared.gatewayPort}`;
     return await this.devApiRuntimeFactory.create({
       configPathOverride: prepared.configPathOverride,
       consumerRoot: prepared.paths.consumerRoot,
@@ -588,9 +604,14 @@ export class DevCommand {
         ...runtimeEnvironment,
         CODEMATION_DEV_SERVER_TOKEN: prepared.developmentServerToken,
         CODEMATION_SKIP_STARTUP_MIGRATIONS: "true",
-        NODE_OPTIONS: this.session.sourceMapNodeOptions.appendToNodeOptions(process.env.NODE_OPTIONS),
+        NODE_OPTIONS: this.session.developmentConditionNodeOptions.appendToNodeOptions(
+          this.session.sourceMapNodeOptions.appendToNodeOptions(process.env.NODE_OPTIONS),
+        ),
         WS_NO_BUFFER_UTIL: "1",
         WS_NO_UTF_8_VALIDATE: "1",
+        ...(runtimeEnvironment.AUTH_URL ? {} : { AUTH_URL: publicBaseUrl }),
+        ...(runtimeEnvironment.BETTER_AUTH_URL ? {} : { BETTER_AUTH_URL: publicBaseUrl }),
+        ...(runtimeEnvironment.CODEMATION_PUBLIC_BASE_URL ? {} : { CODEMATION_PUBLIC_BASE_URL: publicBaseUrl }),
       },
     });
   }

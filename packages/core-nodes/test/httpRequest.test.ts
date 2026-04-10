@@ -8,6 +8,8 @@ import { HttpRequest, HttpRequestNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
+import { runPerItemLikeEngine } from "./engineTestHelpers.ts";
+
 class HttpRequestNodeTestContextFactory {
   static create(config: HttpRequest<any>): NodeExecutionContext<HttpRequest<any>> {
     const binary = new DefaultExecutionBinaryService(
@@ -32,7 +34,8 @@ class HttpRequestNodeTestContextFactory {
 
 test("HttpRequestNode downloads media responses into binary attachments", async () => {
   const config = new HttpRequest("Fetch image", { downloadMode: "always" });
-  const outputs = await new HttpRequestNode().execute(
+  const outputs = await runPerItemLikeEngine(
+    new HttpRequestNode(),
     [
       {
         json: {
@@ -54,7 +57,8 @@ test("HttpRequestNode downloads media responses into binary attachments", async 
 
 test("HttpRequestNode keeps text responses JSON-only in auto mode", async () => {
   const config = new HttpRequest("Fetch text");
-  const outputs = await new HttpRequestNode().execute(
+  const outputs = await runPerItemLikeEngine(
+    new HttpRequestNode(),
     [
       {
         json: {
@@ -75,7 +79,8 @@ test("HttpRequestNode keeps text responses JSON-only in auto mode", async () => 
 
 test("HttpRequestNode stores pdf and text bodies as download attachments in always mode", async () => {
   const config = new HttpRequest("Fetch documents", { downloadMode: "always" });
-  const outputs = await new HttpRequestNode().execute(
+  const outputs = await runPerItemLikeEngine(
+    new HttpRequestNode(),
     [
       {
         json: {
@@ -112,7 +117,8 @@ test("HttpRequestNode stores pdf and text bodies as download attachments in alwa
 
 test("HttpRequestNode output replaces the item JSON and does not pass through input fields", async () => {
   const config = new HttpRequest("Fetch", { urlField: "profileUrl" });
-  const outputs = await new HttpRequestNode().execute(
+  const outputs = await runPerItemLikeEngine(
+    new HttpRequestNode(),
     [
       {
         json: {

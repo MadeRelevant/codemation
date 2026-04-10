@@ -20,9 +20,7 @@ export class WorkflowBuilder {
 
   constructor(
     private readonly meta: { id: WorkflowId; name: string },
-    private readonly options?: Readonly<{
-      makeMergeNode?: (name: string) => AnyRunnableNodeConfig;
-    }>,
+    private readonly options?: Readonly<Record<string, never>>,
   ) {}
 
   private add(config: NodeConfigBase): NodeRef {
@@ -38,12 +36,12 @@ export class WorkflowBuilder {
 
   trigger<TConfig extends AnyTriggerNodeConfig>(config: TConfig): ChainCursor<TriggerNodeOutputJson<TConfig>> {
     const ref = this.add(config);
-    return new ChainCursor<TriggerNodeOutputJson<TConfig>>(this, ref, "main");
+    return new ChainCursor<TriggerNodeOutputJson<TConfig>>(this, [{ node: ref, output: "main" }]);
   }
 
   start<TConfig extends AnyRunnableNodeConfig>(config: TConfig): ChainCursor<RunnableNodeOutputJson<TConfig>> {
     const ref = this.add(config);
-    return new ChainCursor<RunnableNodeOutputJson<TConfig>>(this, ref, "main");
+    return new ChainCursor<RunnableNodeOutputJson<TConfig>>(this, [{ node: ref, output: "main" }]);
   }
 
   build(): WorkflowDefinition {

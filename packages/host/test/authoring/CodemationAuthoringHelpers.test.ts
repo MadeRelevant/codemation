@@ -11,7 +11,7 @@ describe("Codemation authoring helpers", () => {
       input: {
         field: "string",
       },
-      executeOne({ input }, _context) {
+      execute({ input }, _context) {
         return input;
       },
     });
@@ -89,7 +89,7 @@ describe("Codemation authoring helpers", () => {
       input: {
         field: "string",
       },
-      executeOne({ input }, _context) {
+      execute({ input }, _context) {
         return input;
       },
     });

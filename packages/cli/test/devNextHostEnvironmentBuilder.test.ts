@@ -3,11 +3,16 @@ import { describe, expect, it } from "vitest";
 
 import { ConsumerEnvLoader } from "../src/consumer/ConsumerEnvLoader";
 import { DevNextHostEnvironmentBuilder } from "../src/dev/DevNextHostEnvironmentBuilder";
+import { DevelopmentConditionNodeOptions } from "../src/runtime/DevelopmentConditionNodeOptions";
 import { SourceMapNodeOptions } from "../src/runtime/SourceMapNodeOptions";
 
 describe("DevNextHostEnvironmentBuilder", () => {
   it("sets the direct consumer root and edge auth flag", () => {
-    const builder = new DevNextHostEnvironmentBuilder(new ConsumerEnvLoader(), new SourceMapNodeOptions());
+    const builder = new DevNextHostEnvironmentBuilder(
+      new ConsumerEnvLoader(),
+      new SourceMapNodeOptions(),
+      new DevelopmentConditionNodeOptions(),
+    );
     const consumerRoot = path.resolve("/tmp/my-consumer");
     const env = builder.build({
       consumerRoot,
@@ -19,10 +24,16 @@ describe("DevNextHostEnvironmentBuilder", () => {
     expect(env.CODEMATION_CONSUMER_ROOT).toBe(consumerRoot);
     expect(env.CODEMATION_UI_AUTH_ENABLED).toBe("false");
     expect(env.CODEMATION_PUBLIC_WS_PORT).toBe("3001");
+    expect(env.NODE_OPTIONS).toContain("--enable-source-maps");
+    expect(env.NODE_OPTIONS).toContain("--conditions=development");
   });
 
   it("allows overriding the config path for the Next host", () => {
-    const builder = new DevNextHostEnvironmentBuilder(new ConsumerEnvLoader(), new SourceMapNodeOptions());
+    const builder = new DevNextHostEnvironmentBuilder(
+      new ConsumerEnvLoader(),
+      new SourceMapNodeOptions(),
+      new DevelopmentConditionNodeOptions(),
+    );
     const override = path.resolve("/tmp", "custom.config.ts");
     const env = builder.build({
       consumerRoot: path.resolve("/tmp/my-consumer"),
@@ -36,7 +47,11 @@ describe("DevNextHostEnvironmentBuilder", () => {
   });
 
   it("buildConsumerUiProxy includes runtime proxy and auth secrets for packaged consumer mode", () => {
-    const builder = new DevNextHostEnvironmentBuilder(new ConsumerEnvLoader(), new SourceMapNodeOptions());
+    const builder = new DevNextHostEnvironmentBuilder(
+      new ConsumerEnvLoader(),
+      new SourceMapNodeOptions(),
+      new DevelopmentConditionNodeOptions(),
+    );
     const consumerRoot = path.resolve("/tmp/my-consumer");
     const env = builder.buildConsumerUiProxy({
       authSecret: "dev-secret",
@@ -51,6 +66,7 @@ describe("DevNextHostEnvironmentBuilder", () => {
 
     expect(env.PORT).toBe("4242");
     expect(env.AUTH_URL).toBe("http://127.0.0.1:3000");
+    expect(env.BETTER_AUTH_URL).toBe("http://127.0.0.1:3000");
     expect(env.CODEMATION_PUBLIC_BASE_URL).toBe("http://127.0.0.1:3000");
     expect(env.CODEMATION_CONSUMER_OUTPUT_MANIFEST_PATH).toBe(
       path.resolve(consumerRoot, ".codemation", "output", "current.json"),
@@ -63,5 +79,7 @@ describe("DevNextHostEnvironmentBuilder", () => {
     expect(env.CODEMATION_WS_PORT).toBe("3001");
     expect(env.NEXT_PUBLIC_CODEMATION_WS_PORT).toBe("3000");
     expect(env.HOSTNAME).toBe("127.0.0.1");
+    expect(env.NODE_OPTIONS).toContain("--enable-source-maps");
+    expect(env.NODE_OPTIONS).toContain("--conditions=development");
   });
 });

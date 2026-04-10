@@ -96,14 +96,14 @@ export class WorkflowSnapshotCodec {
     }
   }
 
-  private mergeValue(liveValue: unknown, snapshotValue: unknown): Record<string, unknown> {
+  private mergeValue(liveValue: unknown, snapshotValue: unknown): Record<PropertyKey, unknown> {
     const liveRecord = this.asRecord(liveValue);
     const snapshotRecord = this.asRecord(snapshotValue);
     const hydrated = Object.create(
       liveValue && typeof liveValue === "object"
         ? (Object.getPrototypeOf(liveValue) ?? Object.prototype)
         : Object.prototype,
-    ) as Record<string, unknown>;
+    ) as Record<PropertyKey, unknown>;
 
     for (const [key, value] of Object.entries(snapshotRecord)) {
       hydrated[key] = this.mergeNestedValue(liveRecord[key], value);
@@ -126,17 +126,21 @@ export class WorkflowSnapshotCodec {
   }
 
   private restoreNonSerializableProperties(
-    liveRecord: Record<string, unknown>,
-    hydrated: Record<string, unknown>,
+    liveRecord: Record<PropertyKey, unknown>,
+    hydrated: Record<PropertyKey, unknown>,
   ): void {
     for (const [key, value] of Object.entries(liveRecord)) {
       if (typeof value === "function" || typeof value === "symbol") {
         hydrated[key] = value;
       }
     }
+    // Preserve symbol-keyed brands (e.g. itemValue / emitPorts) and other runtime-only keys.
+    for (const sym of Object.getOwnPropertySymbols(liveRecord)) {
+      hydrated[sym] = liveRecord[sym];
+    }
   }
 
-  private restoreTypeProperty(record: Record<string, unknown>): void {
+  private restoreTypeProperty(record: Record<PropertyKey, unknown>): void {
     const tokenId = typeof record.tokenId === "string" ? record.tokenId : undefined;
     if (!tokenId) {
       return;
@@ -168,10 +172,15 @@ export class WorkflowSnapshotCodec {
     return undefined;
   }
 
-  private asRecord(value: unknown): Record<string, unknown> {
+  private asRecord(value: unknown): Record<PropertyKey, unknown> {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       return {};
     }
-    return { ...(value as Record<string, unknown>) };
+    const record = value as Record<PropertyKey, unknown>;
+    const out: Record<PropertyKey, unknown> = { ...(record as Record<string, unknown>) };
+    for (const sym of Object.getOwnPropertySymbols(value)) {
+      out[sym] = record[sym];
+    }
+    return out;
   }
 }

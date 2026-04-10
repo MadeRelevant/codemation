@@ -9,6 +9,7 @@ export * from "./nodes/httpRequest";
 export * from "./nodes/aggregate";
 export * from "./nodes/filter";
 export * from "./nodes/if";
+export * from "./nodes/switch";
 export * from "./nodes/split";
 export * from "./nodes/ManualTriggerFactory";
 export * from "./nodes/mapData";

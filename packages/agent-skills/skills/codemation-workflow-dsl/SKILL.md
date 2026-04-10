@@ -17,14 +17,14 @@ Do not use this skill for CLI-only troubleshooting or deep host architecture que
 1. A workflow definition describes how items move from a trigger through downstream steps.
 2. The fluent authoring chain is the normal starting point for Codemation apps.
 3. Finish fluent workflow definitions with `.build()`.
-4. Activations are **batch-shaped** (`Items`); many steps use **per-item** execution (`executeOne`, including helper **`defineNode`**) with optional **`mapInput`** / **`inputSchema`**. Batch reshape steps (split/filter/aggregate, **`defineBatchNode`**) work on the whole batch.
+4. Activations are **batch-shaped** (`Items`); many steps use **per-item** execution (`execute`, including helper **`defineNode`**) with optional **`inputSchema`** and **`itemValue`** on config fields. Batch reshape steps (split/filter/aggregate, **`defineBatchNode`**) work on the whole batch.
 
 ## Authoring rules
 
 1. Prefer the fluent `workflow(...)` chain for app-local workflow files.
 2. Keep workflow files focused on orchestration and named steps.
 3. Use custom nodes when a callback grows into reusable product logic.
-4. Distinguish **batch activations** from **per-item node bodies**: custom nodes from **`defineNode`** implement **`executeOne`** per item unless you chose **`defineBatchNode`** for batch **`run`**.
+4. Distinguish **batch activations** from **per-item node bodies**: custom nodes from **`defineNode`** implement **`execute`** per item unless you chose **`defineBatchNode`** for batch **`run`**.
 
 ## Typical flow
 

@@ -43,6 +43,7 @@ export type JsonEditorState = Readonly<
       value: string;
       workflowId: string;
       nodeId: string;
+      outputPort: string;
       binaryMapsByItemIndex: PinBinaryMapsByItemIndex;
     }
 >;

@@ -3,7 +3,7 @@
 This repo uses [Changesets](https://github.com/changesets/changesets) to record semver impact before merge.
 
 - **Changelog format:** [`@changesets/changelog-github`](https://github.com/changesets/changesets/tree/main/packages/changelog-github) enriches package `CHANGELOG.md` files with GitHub PR/commit links (configure in [`config.json`](./config.json)). Running `pnpm changeset version` **locally** needs a **`GITHUB_TOKEN`** with `repo` scope so the generator can call the GitHub API (`export GITHUB_TOKEN=…`).
-- **On a PR:** add a changeset when your change should drive a published package version (`pnpm changeset`). CI runs `changeset status` on pull requests.
+- **On a PR:** add a changeset when your change should drive a published package version (`pnpm changeset`). CI and the **pre-commit** hook run [`tooling/scripts/verify-changeset-coverage.sh`](../tooling/scripts/verify-changeset-coverage.sh) so releasable `packages/*` edits are not merged without a `.changeset/*.md` in the PR (see [`CONTRIBUTING.md`](../CONTRIBUTING.md)).
 - **On `main`:** the [Changesets workflow](../.github/workflows/changesets-version.yml) opens or updates the **Version Packages** PR on branch **`release/version-packages`** (not full CI on that PR; merge with maintainer bypass—see [`CONTRIBUTING.md`](../CONTRIBUTING.md)).
 - **Publishing:** npm releases follow [`publish-npm.yml`](../.github/workflows/publish-npm.yml) on `v*` tags after versions are merged. That workflow also creates a single **GitHub Release** for the tag by aggregating the matching version sections from every changed package `CHANGELOG.md` under [`packages/`](../packages/).
 

@@ -1,4 +1,4 @@
-import type { Items, Node, NodeExecutionContext, NodeOutputs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type { Items, RunnableNode, RunnableNodeConfig, RunnableNodeExecuteArgs, TypeToken } from "@codemation/core";
 import { defineNode } from "@codemation/core";
 import { Callback, If, ManualTrigger, MapData, Wait, createWorkflowBuilder, workflow } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
@@ -28,12 +28,12 @@ class RequiresExplicitInputNode<TItemJson> implements RunnableNodeConfig<TItemJs
   ) {}
 }
 
-class RequiresExplicitInputNodeRunner implements Node<RequiresExplicitInputNode<any>> {
+class RequiresExplicitInputNodeRunner implements RunnableNode<RequiresExplicitInputNode<any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items, _ctx: NodeExecutionContext<RequiresExplicitInputNode<any>>): Promise<NodeOutputs> {
-    return { main: items };
+  execute(args: RunnableNodeExecuteArgs<RequiresExplicitInputNode<any>>): unknown {
+    return args.item;
   }
 }
 
@@ -72,7 +72,7 @@ test("workflow builder preserves item json inference across then and when", () =
     .build();
 
   assert.equal(workflow.id, "wf.typing");
-  assert.equal(workflow.nodes.length, 8);
+  assert.equal(workflow.nodes.length, 7);
 });
 
 test("custom workflow nodes must declare the current item shape when inference is unavailable", () => {
@@ -100,7 +100,7 @@ test("workflow helper preserves inference across map, if, wait, agent, and helpe
     input: {
       field: "string",
     },
-    executeOne({ input }, { config }) {
+    execute({ input }, { config }) {
       const _typedField: string = config.field;
       type FieldIsString = AssertTrue<IsExact<typeof _typedField, string>>;
       const fieldIsString: FieldIsString = true;
@@ -152,5 +152,5 @@ test("workflow helper preserves inference across map, if, wait, agent, and helpe
     .build();
 
   assert.equal(built.id, "wf.helper.typing");
-  assert.equal(built.nodes.length, 10);
+  assert.equal(built.nodes.length, 9);
 });

@@ -96,3 +96,43 @@ describe("WorkflowDetailPresenter pin-output editor JSON", () => {
     expect(JSON.parse(WorkflowDetailPresenter.formatPinOutputJsonForSubmit(`null`))).toEqual([]);
   });
 });
+
+describe("WorkflowDetailPresenter multi-port pinned outputs", () => {
+  it("overlays pinned outputs by port without forcing everything through main", () => {
+    const entries = WorkflowDetailPresenter.sortPortEntries({
+      main: [{ json: { live: "main" } }],
+      error: [{ json: { live: "error" } }],
+    });
+
+    const merged = WorkflowDetailPresenter.applyPinnedOutputsToPortEntries(entries, {
+      error: [{ json: { pinned: true } }],
+      branchB: [{ json: { extra: true } }],
+    });
+
+    expect(merged.map(([portName]) => portName)).toEqual(["main", "branchB", "error"]);
+    expect(merged.find(([portName]) => portName === "main")?.[1]).toEqual([{ json: { live: "main" } }]);
+    expect(merged.find(([portName]) => portName === "error")?.[1]).toEqual([{ json: { pinned: true } }]);
+    expect(merged.find(([portName]) => portName === "branchB")?.[1]).toEqual([{ json: { extra: true } }]);
+  });
+
+  it("returns pinned output for the requested port", () => {
+    const pinned = WorkflowDetailPresenter.getPinnedOutputForPort(
+      {
+        nodeSnapshotsByNodeId: {},
+        mutableState: {
+          nodesById: {
+            node_1: {
+              pinnedOutputsByPort: {
+                error: [{ json: { problem: true } }],
+              },
+            },
+          },
+        },
+      },
+      "node_1",
+      "error",
+    );
+
+    expect(pinned).toEqual([{ json: { problem: true } }]);
+  });
+});

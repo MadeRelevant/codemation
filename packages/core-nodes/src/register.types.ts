@@ -12,6 +12,7 @@ import { ConnectionCredentialNode } from "./nodes/ConnectionCredentialNode";
 import { AggregateNode } from "./nodes/aggregate";
 import { FilterNode } from "./nodes/filter";
 import { SplitNode } from "./nodes/split";
+import { SwitchNode } from "./nodes/switch";
 
 /**
  * Registrar for built-in nodes. In a real project, this would use tsyringe's
@@ -40,4 +41,5 @@ export function registerCoreNodes(container: Container): void {
   void SplitNode;
   void FilterNode;
   void AggregateNode;
+  void SwitchNode;
 }

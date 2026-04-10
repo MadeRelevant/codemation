@@ -40,6 +40,7 @@
     }
   },
   "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
     "dev": "tsdown src/index.ts codemation.plugin.ts --out-dir dist --watch",
     "build": "tsdown src/index.ts codemation.plugin.ts --out-dir dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",

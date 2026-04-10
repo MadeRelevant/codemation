@@ -30,6 +30,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
     "dev:next": "next dev",
     "build": "next build && node ./scripts/prepare-standalone.mjs",
     "start": "next start",

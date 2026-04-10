@@ -4,7 +4,6 @@ import {
   type AgentMessageConfig,
   type AgentNodeConfig,
   type ChatModelConfig,
-  type ItemInputMapper,
   type RetryPolicySpec,
   type RunnableNodeConfig,
   type ToolConfig,
@@ -14,7 +13,7 @@ import type { ZodType } from "zod";
 
 import { AIAgentNode } from "./AIAgentNode";
 
-export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown, TWireJson = TInputJson> {
+export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown> {
   readonly name: string;
   readonly messages: AgentMessageConfig<TInputJson>;
   readonly chatModel: ChatModelConfig;
@@ -22,18 +21,16 @@ export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown, TW
   readonly id?: string;
   readonly retryPolicy?: RetryPolicySpec;
   readonly guardrails?: AgentGuardrailConfig;
-  /** Engine applies with {@link RunnableNodeConfig.inputSchema} before {@link AIAgentNode.executeOne}. */
+  /** Engine applies with {@link RunnableNodeConfig.inputSchema} before {@link AIAgentNode.execute}. */
   readonly inputSchema?: ZodType<TInputJson>;
-  /** Per-item mapper before validation; use with {@link inputSchema} so persisted run inputs show the prompt payload. */
-  readonly mapInput?: ItemInputMapper<TWireJson, TInputJson>;
 }
 
 /**
  * AI agent: credential bindings are keyed to connection-owned LLM/tool node ids (ConnectionNodeIdFactory),
  * not to the agent workflow node id.
  */
-export class AIAgent<TInputJson = unknown, TOutputJson = unknown, TWireJson = TInputJson>
-  implements RunnableNodeConfig<TInputJson, TOutputJson, TWireJson>, AgentNodeConfig<TInputJson, TOutputJson, TWireJson>
+export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
+  implements RunnableNodeConfig<TInputJson, TOutputJson>, AgentNodeConfig<TInputJson, TOutputJson>
 {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = AIAgentNode;
@@ -47,9 +44,8 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown, TWireJson = TI
   readonly retryPolicy: RetryPolicySpec;
   readonly guardrails?: AgentGuardrailConfig;
   readonly inputSchema?: ZodType<TInputJson>;
-  readonly mapInput?: ItemInputMapper<TWireJson, TInputJson>;
 
-  constructor(options: AIAgentOptions<TInputJson, TOutputJson, TWireJson>) {
+  constructor(options: AIAgentOptions<TInputJson, TOutputJson>) {
     this.name = options.name;
     this.messages = options.messages;
     this.chatModel = options.chatModel;
@@ -58,6 +54,5 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown, TWireJson = TI
     this.retryPolicy = options.retryPolicy ?? RetryPolicy.defaultForAiAgent;
     this.guardrails = options.guardrails;
     this.inputSchema = options.inputSchema;
-    this.mapInput = options.mapInput;
   }
 }

@@ -124,7 +124,7 @@ describe("LoginPageClient", () => {
       expect.objectContaining({
         email: "admin@example.com",
         password: "password-123",
-        callbackURL: "http://localhost:3000/dashboard",
+        callbackURL: "/dashboard",
       }),
     );
     await waitFor(() => {

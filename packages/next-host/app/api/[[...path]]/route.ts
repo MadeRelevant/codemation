@@ -2,9 +2,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function resolveRuntimeDevProxyPath(pathname: string): string {
-  if (pathname === "/api/dev" || pathname.startsWith("/api/dev/")) {
-    return pathname.slice(4);
-  }
   return pathname;
 }
 

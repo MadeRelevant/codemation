@@ -523,38 +523,10 @@ jobs:
 
       - name: Verify PR changeset coverage
         if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          BASE_REF="${{ github.base_ref }}"
-          CHANGED_FILES="$(git diff --name-only "origin/${BASE_REF}...HEAD")"
-
-          if [[ -z "${CHANGED_FILES}" ]]; then
-            echo "No changed files in PR diff."
-            exit 0
-          fi
-
-          RELEASABLE_PACKAGE_REGEX='^packages/(agent-skills|cli|core|core-nodes|core-nodes-gmail|eventbus-redis|host|next-host|node-example|create-codemation)/'
-          CHANGED_RELEASABLE_FILES="$(printf '%s\n' "${CHANGED_FILES}" | rg "${RELEASABLE_PACKAGE_REGEX}" || true)"
-
-          if [[ -z "${CHANGED_RELEASABLE_FILES}" ]]; then
-            echo "No releasable package files changed in this PR."
-            exit 0
-          fi
-
-          CHANGEDSET_FILES_IN_PR="$(printf '%s\n' "${CHANGED_FILES}" | rg '^\\.changeset/[^/]+\\.md$' || true)"
-
-          if [[ -n "${CHANGEDSET_FILES_IN_PR}" ]]; then
-            echo "PR includes changeset file(s):"
-            printf '%s\n' "${CHANGEDSET_FILES_IN_PR}"
-            exit 0
-          fi
-
-          echo "Releasable package changes detected without a changeset in this PR diff."
-          echo "Changed releasable files:"
-          printf '%s\n' "${CHANGED_RELEASABLE_FILES}"
-          exit 1
+        env:
+          CHANGESET_VERIFY_MODE: ci
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+        run: sh tooling/scripts/verify-changeset-coverage.sh
 
       - name: Pass when not a pull request
         if: github.event_name != 'pull_request'

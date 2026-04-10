@@ -420,6 +420,8 @@ export default [
       "**/*.d.ts",
       "**/test/**/*.{ts,tsx}",
       "**/*.test.{ts,tsx}",
+      // Config + harness node share a TypeToken pairing (same pattern as SubWorkflowRunnerTestNode).
+      "packages/core/src/testing/SwitchHarnessNode.ts",
     ],
     plugins: {
       codemation: architecturePlugin,
@@ -526,6 +528,10 @@ export default [
       "**/*.d.ts",
       "**/*Types.ts",
       "**/*types.ts",
+      // Pure contract helpers (emitPorts/itemValue): free functions by design; see AGENTS.md contracts.
+      "packages/core/src/contracts/emitPorts.ts",
+      "packages/core/src/contracts/itemMeta.ts",
+      "packages/core/src/contracts/itemValue.ts",
     ],
     rules: {
       "codemation/no-manual-di-new": "error",
@@ -668,6 +674,7 @@ export default [
       "packages/cli/src/database/DatabaseMigrationsApplyService.ts",
       "packages/cli/src/consumer/ConsumerCliTsconfigPreparation.ts",
       "packages/cli/src/user/UserAdminCliBootstrap.ts",
+      "packages/cli/src/bin.ts",
       "packages/create-codemation/src/NodeChildProcessRunner.ts",
       "apps/test-dev/codemation.config.ts",
       "apps/e2e/codemation.config.ts",
@@ -688,6 +695,7 @@ export default [
 
   {
     files: [
+      "packages/core/src/bootstrap/runtime/EngineRuntimeRegistrar.ts",
       "packages/core/src/engine/runtime/EngineRuntimeRegistrar.ts",
       "packages/core/src/engine/runtime/EngineRuntimeEngineBinding.ts",
       "packages/core/src/engine/runtime/EngineRuntimeExecutionLimitsRegistration.ts",
@@ -695,6 +703,16 @@ export default [
       "packages/core/src/engine/runtime/runtimeEngine.ts",
     ],
     rules: {
+      "codemation/no-manual-di-new": "off",
+    },
+  },
+  {
+    files: [
+      "packages/core/src/execution/NodeExecutor.ts",
+      "packages/core/src/execution/NodeActivationRequestInputPreparer.ts",
+    ],
+    rules: {
+      // Hot-path execution helpers construct stateless mergers/normalizers; DI is optional and would fan out all call sites.
       "codemation/no-manual-di-new": "off",
     },
   },

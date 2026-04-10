@@ -32,6 +32,7 @@ import type { RegistrarEngineTestKitHandle, RegistrarEngineTestKitOptions } from
 import { ItemHarnessNode } from "./ItemHarnessNode";
 import { SubWorkflowRunnerNode } from "./SubWorkflowRunnerTestNode";
 import { WorkflowTestHarnessManualTriggerNode } from "./WorkflowTestHarnessManualTrigger";
+import { SwitchHarnessNode } from "./SwitchHarnessNode";
 
 export class RegistrarEngineTestKitFactory {
   static create(options: RegistrarEngineTestKitOptions = {}): RegistrarEngineTestKitHandle {
@@ -110,6 +111,7 @@ export class RegistrarEngineTestKitFactory {
       new SubWorkflowRunnerNode(workflowRunner as WorkflowRunnerService),
     );
     dependencyContainer.registerInstance(ItemHarnessNode, new ItemHarnessNode());
+    dependencyContainer.registerInstance(SwitchHarnessNode, new SwitchHarnessNode());
     dependencyContainer.registerInstance(
       WorkflowTestHarnessManualTriggerNode,
       new WorkflowTestHarnessManualTriggerNode(),

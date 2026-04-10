@@ -121,7 +121,8 @@ export class CredentialHttpRouteHandler {
 
   async getWorkflowCredentialHealth(_: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      return Response.json(await this.queryBus.execute(new GetWorkflowCredentialHealthQuery(params.workflowId!)));
+      const health = await this.queryBus.execute(new GetWorkflowCredentialHealthQuery(params.workflowId!));
+      return Response.json(health);
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
