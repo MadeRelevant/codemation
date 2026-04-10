@@ -1,4 +1,5 @@
 import type {
+  InputPortKey,
   NodeRef,
   OutputPortKey,
   RunnableNodeConfig,
@@ -16,7 +17,7 @@ import type {
   StepSequenceOutput,
 } from "./workflowBuilderTypes";
 
-type ChainCursorEndpoint = Readonly<{ node: NodeRef; output: OutputPortKey }>;
+type ChainCursorEndpoint = Readonly<{ node: NodeRef; output: OutputPortKey; inputPortHint?: InputPortKey }>;
 
 type ChainCursorWhenOverloads<TCurrentJson> = BooleanWhenOverloads<TCurrentJson, WhenBuilder<TCurrentJson>> & {
   <
@@ -43,8 +44,21 @@ export class ChainCursor<TCurrentJson> {
     config: TConfig,
   ): ChainCursor<RunnableNodeOutputJson<TConfig>> {
     const next = (this.wf as any).add(config) as NodeRef;
+    const inputPortHint = this.resolveSharedInputPortHint();
     for (const e of this.endpoints) {
       (this.wf as any).connect(e.node, next, e.output);
+    }
+    return new ChainCursor<RunnableNodeOutputJson<TConfig>>(this.wf, [
+      { node: next, output: "main", ...(inputPortHint ? { inputPortHint } : {}) },
+    ]);
+  }
+
+  thenIntoInputHints<TOutputJson, TConfig extends RunnableNodeConfig<any, TOutputJson>>(
+    config: TConfig,
+  ): ChainCursor<RunnableNodeOutputJson<TConfig>> {
+    const next = (this.wf as any).add(config) as NodeRef;
+    for (const e of this.endpoints) {
+      (this.wf as any).connect(e.node, next, e.output, e.inputPortHint ?? "in");
     }
     return new ChainCursor<RunnableNodeOutputJson<TConfig>>(this.wf, [{ node: next, output: "main" }]);
   }
@@ -75,7 +89,7 @@ export class ChainCursor<TCurrentJson> {
     const buildBranch = (
       port: OutputPortKey,
       branchSteps: ReadonlyArray<AnyRunnableNodeConfig> | undefined,
-    ): Readonly<{ end: NodeRef; endOutput: OutputPortKey }> => {
+    ): Readonly<{ end: NodeRef; endOutput: OutputPortKey; inputPortHint: InputPortKey }> => {
       const list = branchSteps ?? [];
       let prev: NodeRef | null = null;
       for (const cfg of list) {
@@ -84,19 +98,51 @@ export class ChainCursor<TCurrentJson> {
         else wfAny.connect(prev, ref, "main", "in");
         prev = ref;
       }
-      if (!prev) return { end: cursor, endOutput: port };
-      return { end: prev, endOutput: "main" };
+      if (!prev) return { end: cursor, endOutput: port, inputPortHint: port };
+      return { end: prev, endOutput: "main", inputPortHint: port };
     };
 
     const t = buildBranch("true", branches.true);
     const f = buildBranch("false", branches.false);
     return new ChainCursor<TCurrentJson>(this.wf, [
-      { node: t.end, output: t.endOutput },
-      { node: f.end, output: f.endOutput },
+      { node: t.end, output: t.endOutput, inputPortHint: t.inputPortHint },
+      { node: f.end, output: f.endOutput, inputPortHint: f.inputPortHint },
     ]);
   }) as ChainCursorWhenOverloads<TCurrentJson>;
 
+  route<TNextJson>(
+    branches: Readonly<
+      Record<OutputPortKey, (branch: ChainCursor<TCurrentJson>) => ChainCursor<TNextJson> | undefined>
+    >,
+  ): ChainCursor<TNextJson> {
+    if (this.endpoints.length !== 1) {
+      throw new Error("ChainCursor.route(...) is only supported from a single cursor endpoint");
+    }
+    const cursor = this.endpoints[0]!;
+    const nextEndpoints: ChainCursorEndpoint[] = [];
+    for (const [port, branchFactory] of Object.entries(branches)) {
+      if (!branchFactory) {
+        continue;
+      }
+      const branch = new ChainCursor<TCurrentJson>(this.wf, [{ node: cursor.node, output: port, inputPortHint: port }]);
+      const builtBranch = branchFactory(branch);
+      if (!builtBranch) {
+        continue;
+      }
+      nextEndpoints.push(...builtBranch.endpoints);
+    }
+    return new ChainCursor<TNextJson>(this.wf, nextEndpoints);
+  }
+
   build(): WorkflowDefinition {
     return this.wf.build();
+  }
+
+  private resolveSharedInputPortHint(): InputPortKey | undefined {
+    const first = this.endpoints[0]?.inputPortHint;
+    if (!first) {
+      return undefined;
+    }
+    return this.endpoints.every((endpoint) => endpoint.inputPortHint === first) ? first : undefined;
   }
 }

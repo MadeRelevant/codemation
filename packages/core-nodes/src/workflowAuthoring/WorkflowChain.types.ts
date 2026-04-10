@@ -13,7 +13,9 @@ import { Aggregate } from "../nodes/aggregate";
 import { Filter } from "../nodes/filter";
 import { If } from "../nodes/if";
 import { MapData } from "../nodes/mapData";
+import { Merge, type MergeMode } from "../nodes/merge";
 import { Split } from "../nodes/split";
+import { Switch } from "../nodes/switch";
 import { Wait } from "../nodes/wait";
 import type { WorkflowAgentOptions } from "./WorkflowAuthoringOptions.types";
 import { WorkflowAgentNodeFactory } from "./WorkflowAgentNodeFactory.types";
@@ -24,6 +26,7 @@ import { WorkflowDurationParser } from "./WorkflowDurationParser.types";
 type BranchCallback<TCurrentJson, TNextJson> = (
   branch: WorkflowBranchBuilder<TCurrentJson>,
 ) => WorkflowBranchBuilder<TNextJson>;
+type RouteBranchCallback<TCurrentJson, TNextJson> = (branch: WorkflowChain<TCurrentJson>) => WorkflowChain<TNextJson>;
 type BranchOutputMatch<TLeft, TRight> = [TLeft] extends [TRight] ? ([TRight] extends [TLeft] ? true : false) : false;
 
 export class WorkflowChain<TCurrentJson> {
@@ -158,6 +161,29 @@ export class WorkflowChain<TCurrentJson> {
     return this.then(new Aggregate<TCurrentJson, TOut>(name, aggregateFn, id)) as WorkflowChain<TOut>;
   }
 
+  merge(): WorkflowChain<TCurrentJson>;
+  merge(cfg: Readonly<{ mode: MergeMode; prefer?: ReadonlyArray<string> }>, id?: string): WorkflowChain<TCurrentJson>;
+  merge(
+    name: string,
+    cfg?: Readonly<{ mode: MergeMode; prefer?: ReadonlyArray<string> }>,
+    id?: string,
+  ): WorkflowChain<TCurrentJson>;
+  merge(
+    nameOrCfg?: string | Readonly<{ mode: MergeMode; prefer?: ReadonlyArray<string> }>,
+    cfgOrId?: Readonly<{ mode: MergeMode; prefer?: ReadonlyArray<string> }> | string,
+    id?: string,
+  ): WorkflowChain<TCurrentJson> {
+    const name = typeof nameOrCfg === "string" ? nameOrCfg : "Merge";
+    const cfg =
+      typeof nameOrCfg === "string"
+        ? ((typeof cfgOrId === "string" ? undefined : cfgOrId) ?? { mode: "passThrough" as const })
+        : (nameOrCfg ?? { mode: "passThrough" as const });
+    const mergeId = typeof cfgOrId === "string" ? cfgOrId : id;
+    return new WorkflowChain(
+      this.chain.thenIntoInputHints(new Merge<TCurrentJson>(name, cfg, mergeId)),
+    ) as WorkflowChain<TCurrentJson>;
+  }
+
   if<TBranchJson>(
     predicate: (item: TCurrentJson) => boolean,
     branches: Readonly<{
@@ -199,6 +225,79 @@ export class WorkflowChain<TCurrentJson> {
         false: falseSteps,
       }),
     ) as WorkflowChain<BranchOutputMatch<TTrueJson, TFalseJson> extends true ? TTrueJson : never>;
+  }
+
+  route<TBranchJson>(
+    branches: Readonly<Record<string, RouteBranchCallback<TCurrentJson, TBranchJson> | undefined>>,
+  ): WorkflowChain<TBranchJson> {
+    const mappedBranches = Object.fromEntries(
+      Object.entries(branches).map(([port, branchFactory]) => [
+        port,
+        branchFactory
+          ? (branch: ChainCursor<TCurrentJson>) => branchFactory(new WorkflowChain(branch)).chain
+          : undefined,
+      ]),
+    ) as Readonly<
+      Record<string, ((branch: ChainCursor<TCurrentJson>) => ChainCursor<TBranchJson> | undefined) | undefined>
+    >;
+    return new WorkflowChain(
+      this.chain.route(
+        mappedBranches as Readonly<
+          Record<string, (branch: ChainCursor<TCurrentJson>) => ChainCursor<TBranchJson> | undefined>
+        >,
+      ),
+    ) as WorkflowChain<TBranchJson>;
+  }
+
+  switch<TBranchJson>(
+    cfg: Readonly<{
+      cases: readonly string[];
+      defaultCase: string;
+      resolveCaseKey: (item: TCurrentJson) => string | Promise<string>;
+      branches: Readonly<Record<string, RouteBranchCallback<TCurrentJson, TBranchJson> | undefined>>;
+    }>,
+  ): WorkflowChain<TBranchJson>;
+  switch<TBranchJson>(
+    name: string,
+    cfg: Readonly<{
+      cases: readonly string[];
+      defaultCase: string;
+      resolveCaseKey: (item: TCurrentJson) => string | Promise<string>;
+      branches: Readonly<Record<string, RouteBranchCallback<TCurrentJson, TBranchJson> | undefined>>;
+    }>,
+    id?: string,
+  ): WorkflowChain<TBranchJson>;
+  switch<TBranchJson>(
+    nameOrCfg:
+      | string
+      | Readonly<{
+          cases: readonly string[];
+          defaultCase: string;
+          resolveCaseKey: (item: TCurrentJson) => string | Promise<string>;
+          branches: Readonly<Record<string, RouteBranchCallback<TCurrentJson, TBranchJson> | undefined>>;
+        }>,
+    cfgOrUndefined?: Readonly<{
+      cases: readonly string[];
+      defaultCase: string;
+      resolveCaseKey: (item: TCurrentJson) => string | Promise<string>;
+      branches: Readonly<Record<string, RouteBranchCallback<TCurrentJson, TBranchJson> | undefined>>;
+    }>,
+    id?: string,
+  ): WorkflowChain<TBranchJson> {
+    const name = typeof nameOrCfg === "string" ? nameOrCfg : "Switch";
+    const cfg = (typeof nameOrCfg === "string" ? cfgOrUndefined : nameOrCfg)!;
+    const switched = this.then(
+      new Switch<TCurrentJson>(
+        name,
+        {
+          cases: cfg.cases,
+          defaultCase: cfg.defaultCase,
+          resolveCaseKey: (item) => cfg.resolveCaseKey(item.json as TCurrentJson),
+        },
+        id,
+      ),
+    ) as WorkflowChain<TCurrentJson>;
+    return switched.route(cfg.branches);
   }
 
   agent<TOutputSchema extends z.ZodTypeAny>(

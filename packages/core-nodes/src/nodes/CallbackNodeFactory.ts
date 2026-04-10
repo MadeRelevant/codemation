@@ -1,4 +1,12 @@
-import type { Items, NodeExecutionContext, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type {
+  Items,
+  NodeExecutionContext,
+  NodeErrorHandlerSpec,
+  PortsEmission,
+  RetryPolicySpec,
+  RunnableNodeConfig,
+  TypeToken,
+} from "@codemation/core";
 
 import { CallbackNode } from "./CallbackNode";
 
@@ -9,7 +17,14 @@ export type CallbackHandler<
 > = (
   items: Items<TInputJson>,
   ctx: NodeExecutionContext<TConfig>,
-) => Promise<Items<TOutputJson> | void> | Items<TOutputJson> | void;
+) => Promise<Items<TOutputJson> | PortsEmission | void> | Items<TOutputJson> | PortsEmission | void;
+
+export type CallbackOptions = Readonly<{
+  id?: string;
+  retryPolicy?: RetryPolicySpec;
+  nodeErrorHandler?: NodeErrorHandlerSpec;
+  declaredOutputPorts?: ReadonlyArray<string>;
+}>;
 
 export class Callback<TInputJson = unknown, TOutputJson = TInputJson> implements RunnableNodeConfig<
   TInputJson,
@@ -20,6 +35,10 @@ export class Callback<TInputJson = unknown, TOutputJson = TInputJson> implements
   readonly execution = { hint: "local" } as const;
   readonly icon = "lucide:braces" as const;
   readonly emptyBatchExecution = "runOnce" as const;
+  readonly id?: string;
+  readonly retryPolicy?: RetryPolicySpec;
+  readonly nodeErrorHandler?: NodeErrorHandlerSpec;
+  readonly declaredOutputPorts?: ReadonlyArray<string>;
 
   constructor(
     public readonly name: string = "Callback",
@@ -27,8 +46,15 @@ export class Callback<TInputJson = unknown, TOutputJson = TInputJson> implements
       TInputJson,
       TOutputJson
     >,
-    public readonly id?: string,
-  ) {}
+    idOrOptions?: string | CallbackOptions,
+    options?: CallbackOptions,
+  ) {
+    const resolvedOptions = typeof idOrOptions === "string" ? { ...options, id: idOrOptions } : idOrOptions;
+    this.id = resolvedOptions?.id;
+    this.retryPolicy = resolvedOptions?.retryPolicy;
+    this.nodeErrorHandler = resolvedOptions?.nodeErrorHandler;
+    this.declaredOutputPorts = resolvedOptions?.declaredOutputPorts;
+  }
 
   private static defaultCallback<TItemJson>(items: Items<TItemJson>): Items<TItemJson> {
     return items;

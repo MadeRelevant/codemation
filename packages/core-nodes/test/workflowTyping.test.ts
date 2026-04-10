@@ -1,4 +1,5 @@
 import type { Items, RunnableNode, RunnableNodeConfig, RunnableNodeExecuteArgs, TypeToken } from "@codemation/core";
+import { emitPorts } from "@codemation/core";
 import { defineNode } from "@codemation/core";
 import { Callback, If, ManualTrigger, MapData, Wait, createWorkflowBuilder, workflow } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
@@ -153,4 +154,91 @@ test("workflow helper preserves inference across map, if, wait, agent, and helpe
 
   assert.equal(built.id, "wf.helper.typing");
   assert.equal(built.nodes.length, 9);
+});
+
+test("workflow helper supports callback routing plus merge and switch core nodes", () => {
+  const built = workflow("wf.helper.route-merge-switch")
+    .name("Workflow helper route merge switch")
+    .manualTrigger({
+      subject: "hello",
+      count: 1,
+    })
+    .then(
+      new Callback<SeedJson>(
+        "Route review",
+        (items) =>
+          emitPorts({
+            main: items.filter((item) => item.json.count > 0),
+            error: items.filter((item) => item.json.count <= 0),
+          }),
+        {
+          id: "route_review",
+          declaredOutputPorts: ["main", "error"],
+        },
+      ),
+    )
+    .route({
+      error: (branch) => branch.wait("Ignore errors", 0, "ignore_errors"),
+      main: (branch) =>
+        branch
+          .if("Has count", (item) => item.count > 0, {
+            true: (trueBranch) =>
+              trueBranch.map(
+                "Route sales",
+                (item) => ({
+                  ...item,
+                  route: "sales" as const,
+                }),
+                "route_sales",
+              ),
+            false: (falseBranch) =>
+              falseBranch.map(
+                "Route support",
+                (item) => ({
+                  ...item,
+                  route: "support" as const,
+                }),
+                "route_support",
+              ),
+          })
+          .merge("Merge branches", { mode: "append", prefer: ["true", "false"] }, "merge_routes")
+          .switch(
+            "Route team",
+            {
+              cases: ["sales"],
+              defaultCase: "support",
+              resolveCaseKey: (item) => item.route,
+              branches: {
+                sales: (salesBranch) => salesBranch.wait("Sales wait", 1, "wait_sales"),
+                support: (supportBranch) => supportBranch.wait("Support wait", 0, "wait_support"),
+              },
+            },
+            "switch_route",
+          ),
+    })
+    .build();
+
+  assert.equal(built.id, "wf.helper.route-merge-switch");
+  assert.ok(built.edges.some((edge) => edge.from.output === "true" && edge.to.nodeId === "route_sales"));
+  assert.ok(
+    built.edges.some(
+      (edge) => edge.from.nodeId === "route_sales" && edge.to.nodeId === "merge_routes" && edge.to.input === "true",
+    ),
+  );
+  assert.ok(
+    built.edges.some(
+      (edge) => edge.from.nodeId === "route_support" && edge.to.nodeId === "merge_routes" && edge.to.input === "false",
+    ),
+  );
+  assert.ok(
+    built.edges.some(
+      (edge) => edge.from.nodeId === "switch_route" && edge.from.output === "sales" && edge.to.nodeId === "wait_sales",
+    ),
+  );
+  assert.ok(
+    built.edges.some(
+      (edge) =>
+        edge.from.nodeId === "switch_route" && edge.from.output === "support" && edge.to.nodeId === "wait_support",
+    ),
+  );
 });
