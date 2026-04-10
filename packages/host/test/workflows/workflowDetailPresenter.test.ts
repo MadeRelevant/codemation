@@ -51,9 +51,9 @@ describe("WorkflowDetailPresenter", () => {
     );
 
     expect(WorkflowDetailPresenter.getExecutionModeLabel(run)).toBe("Manual");
-    expect(WorkflowDetailPresenter.getPinnedOutput(run, WorkflowDetailFixtureFactory.triggerNodeId)).toEqual([
-      { json: { pinned: true } },
-    ]);
+    expect(
+      WorkflowDetailPresenter.getPinnedOutputForPort(run, WorkflowDetailFixtureFactory.triggerNodeId, "main"),
+    ).toEqual([{ json: { pinned: true } }]);
     expect(WorkflowDetailPresenter.toEditableJson([{ json: { pinned: true } }])).toContain('"pinned": true');
   });
 

@@ -8,6 +8,8 @@ import { Callback, CallbackNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
+import { runPerItemLikeEngine } from "./engineTestHelpers.ts";
+
 class CallbackNodeTestContextFactory {
   static create(config: Callback): NodeExecutionContext<Callback> {
     const binary = new DefaultExecutionBinaryService(
@@ -72,7 +74,7 @@ test("CallbackNode passes items through by default", async () => {
   const config = new Callback();
   const items = [{ json: { ok: true } }];
 
-  const outputs = await new CallbackNode().execute(items, CallbackNodeTestContextFactory.create(config));
+  const outputs = await runPerItemLikeEngine(new CallbackNode(), items, CallbackNodeTestContextFactory.create(config));
 
   assert.deepEqual(outputs, { main: items });
 });
@@ -81,7 +83,7 @@ test("CallbackNode lets inline callbacks transform items", async () => {
   const config = new Callback("Annotate", (items) => items.map((item) => CallbackNodeJson.withNote(item, "processed")));
   const items = [{ json: { subject: "RFQ" } }];
 
-  const outputs = await new CallbackNode().execute(items, CallbackNodeTestContextFactory.create(config));
+  const outputs = await runPerItemLikeEngine(new CallbackNode(), items, CallbackNodeTestContextFactory.create(config));
 
   assert.deepEqual(outputs, {
     main: [{ json: { subject: "RFQ", note: "processed" } }],
@@ -94,7 +96,7 @@ test("CallbackNode can return items that include both json and binary", async ()
   });
   const items = [{ json: { subject: "RFQ" } }];
 
-  const outputs = await new CallbackNode().execute(items, CallbackNodeTestContextFactory.create(config));
+  const outputs = await runPerItemLikeEngine(new CallbackNode(), items, CallbackNodeTestContextFactory.create(config));
 
   assert.equal(outputs.main?.[0]?.binary?.note?.mimeType, "text/plain");
   assert.equal(outputs.main?.[0]?.binary?.note?.previewKind, "download");

@@ -1,3 +1,4 @@
+import { itemValue } from "@codemation/core";
 import { workflow } from "@codemation/host";
 import { AIAgent } from "@codemation/core-nodes";
 import { z } from "zod";
@@ -5,48 +6,37 @@ import { z } from "zod";
 import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
 
 /**
- * Demonstrates AIAgent as an ItemNode (`executeOne`): `mapInput` + `inputSchema` run before enqueue, so persisted
- * run inputs include the resolved `messages` array (canvas I/O panel). Model, tools, and guardrails stay on config.
+ * Demonstrates AIAgent (`execute`): Zod `inputSchema` on the wire shape runs before enqueue;
+ * per-item **`itemValue`** on config builds the `messages` array the agent sees (canvas I/O panel). Model, tools, and
+ * guardrails stay on config.
  */
-const agentPromptInputSchema = z.object({
-  messages: z
-    .array(
-      z.object({
-        role: z.enum(["system", "user", "assistant"]),
-        content: z.string(),
-      }),
-    )
-    .min(1),
+const agentWireSchema = z.object({
+  topic: z.string(),
 });
 
-type AgentPromptInput = z.infer<typeof agentPromptInputSchema>;
-
-type SeedJson = Readonly<{ topic: string }>;
+type AgentWireJson = z.infer<typeof agentWireSchema>;
 
 type AgentOutJson = Readonly<{ summary: string }>;
 
 export default workflow("wf.samples.agent-item-input")
   .name("AI agent: prompts from mapped input")
-  .manualTrigger<SeedJson>("Start", [
+  .manualTrigger<AgentWireJson>("Start", [
     {
       topic: "Why use a workflow engine for AI steps?",
     },
   ])
   .then(
-    new AIAgent<AgentPromptInput, AgentOutJson, SeedJson>({
+    new AIAgent<AgentWireJson, AgentOutJson>({
       name: "Summarize topic",
-      messages: [{ role: "user", content: "Fallback when input.messages is not set." }],
+      messages: itemValue(({ item }) => [
+        {
+          role: "system",
+          content: 'Respond with strict JSON only: {"summary": string} — one short sentence summarizing the topic.',
+        },
+        { role: "user", content: `Topic: ${item.json.topic}` },
+      ]),
       chatModel: openAiChatModelPresets.demoGpt4oMini,
-      inputSchema: agentPromptInputSchema,
-      mapInput: ({ item }) => ({
-        messages: [
-          {
-            role: "system",
-            content: 'Respond with strict JSON only: {"summary": string} — one short sentence summarizing the topic.',
-          },
-          { role: "user", content: `Topic: ${item.json.topic}` },
-        ],
-      }),
+      inputSchema: agentWireSchema,
       guardrails: { maxTurns: 4 },
     }),
   )

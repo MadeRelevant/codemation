@@ -66,7 +66,8 @@ export class WorkflowHttpRouteHandler {
 
   async getWorkflowRuns(_: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      return Response.json(await this.queryBus.execute(new ListWorkflowRunsQuery(params.workflowId!)));
+      const runs = await this.queryBus.execute(new ListWorkflowRunsQuery(params.workflowId!));
+      return Response.json(runs);
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }
@@ -74,7 +75,8 @@ export class WorkflowHttpRouteHandler {
 
   async getWorkflowDebuggerOverlay(_: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
-      return Response.json(await this.queryBus.execute(new GetWorkflowDebuggerOverlayQuery(params.workflowId!)));
+      const overlay = await this.queryBus.execute(new GetWorkflowDebuggerOverlayQuery(params.workflowId!));
+      return Response.json(overlay);
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }

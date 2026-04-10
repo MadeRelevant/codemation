@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
+import { itemValue } from "../../src/contracts/itemValue";
+import { AgentConfigInspector } from "../../src/ai/AgentConfigInspectorFactory";
 import { AgentMessageConfigNormalizer } from "../../src/ai/AgentMessageConfigNormalizerFactory";
 import { AgentConnectionNodeCollector } from "../../src/ai/AgentConnectionNodeCollector";
 import { AgentToolFactory } from "../../src/ai/AgentToolFactory";
@@ -80,6 +82,19 @@ test("AgentConnectionNodeCollector uses nestedAgent role for node-backed inner a
   assert.equal(plain?.role, "tool");
 });
 
+test("AgentConfigInspector treats itemValue-based message templates as agent configs", () => {
+  const token = { name: "T" } as AgentNodeConfig<any, any>["type"];
+  const chatModelType = token as unknown as AgentNodeConfig<any, any>["chatModel"]["type"];
+  const agent: AgentNodeConfig<any, any> = {
+    kind: "node",
+    type: token,
+    messages: itemValue(() => [{ role: "user", content: "hello" }]),
+    chatModel: { name: "outer-llm", type: chatModelType },
+  };
+
+  assert.equal(AgentConfigInspector.isAgentNodeConfig(agent), true);
+});
+
 test("AgentToolFactory merges parent item json into nested agent tool input by default", () => {
   const token = { name: "T" } as AgentNodeConfig<any, any>["type"];
   const chatModelType = token as unknown as AgentNodeConfig<any, any>["chatModel"]["type"];
@@ -150,4 +165,23 @@ test("AgentMessageConfigNormalizer falls back to config when input has no messag
   };
   const dtos = AgentMessageConfigNormalizer.resolveFromInputOrConfig({ topic: "ignored" }, config, args);
   assert.deepEqual(dtos, [{ role: "user", content: "fallback" }]);
+});
+
+test("AgentMessageConfigNormalizer rejects raw itemValue in messages (must be resolved by engine)", () => {
+  const config = {
+    kind: "node" as const,
+    type: {} as never,
+    messages: itemValue(() => [{ role: "user" as const, content: "x" }]),
+    chatModel: {} as never,
+  };
+  const args = {
+    item: { json: {} },
+    itemIndex: 0,
+    items: [{ json: {} }],
+    ctx: {} as never,
+  };
+  assert.throws(
+    () => AgentMessageConfigNormalizer.resolveFromInputOrConfig({}, config, args),
+    /must be resolved by the engine before prompt normalization/,
+  );
 });

@@ -200,7 +200,7 @@ export class CurrentStateFrontierPlanner {
         continue;
       }
       const incomingEdges = this.topology.incomingByNode.get(nodeId) ?? [];
-      const isFrontier = incomingEdges.every((edge) => this.isEdgeSatisfied(currentState, nodeId, edge.input));
+      const isFrontier = incomingEdges.every((edge) => this.isEdgeSatisfied(currentState, nodeId, edge.collectKey));
       if (isFrontier) {
         frontierNodeIds.push(nodeId);
       }
@@ -235,7 +235,7 @@ export class CurrentStateFrontierPlanner {
     requiredNodeIds.add(nodeId);
     for (const edge of this.topology.incomingByNode.get(nodeId) ?? []) {
       if (
-        !this.isEdgeSatisfied(currentState, nodeId, edge.input) ||
+        !this.isEdgeSatisfied(currentState, nodeId, edge.collectKey) ||
         this.isNodeSatisfiedByOutputsOnly(currentState, edge.from.nodeId)
       ) {
         this.collectRequiredNode(requiredNodeIds, currentState, edge.from.nodeId);
@@ -249,7 +249,7 @@ export class CurrentStateFrontierPlanner {
       return [];
     }
     const expectedInputs = this.topology.expectedInputsByNode.get(nodeId) ?? [];
-    const usesCollect = expectedInputs.length !== 1 || expectedInputs[0] !== "in";
+    const usesCollect = this.usesCollect(nodeId);
     if (usesCollect) {
       const received: Record<InputPortKey, Items> = {};
       for (const input of expectedInputs) {
@@ -268,7 +268,7 @@ export class CurrentStateFrontierPlanner {
       ];
     }
     const input = expectedInputs[0] ?? "in";
-    const incomingEdge = incomingEdges.find((edge) => edge.input === input);
+    const incomingEdge = incomingEdges.find((edge) => edge.collectKey === input);
     return [
       {
         nodeId,
@@ -298,26 +298,31 @@ export class CurrentStateFrontierPlanner {
     return this.hasOutputs(currentState, nodeId) && !this.hasCompletedSnapshot(currentState, nodeId);
   }
 
-  private isEdgeSatisfied(currentState: RunCurrentState, nodeId: NodeId, input: InputPortKey): boolean {
-    const incomingEdge = (this.topology.incomingByNode.get(nodeId) ?? []).find((edge) => edge.input === input);
+  private isEdgeSatisfied(currentState: RunCurrentState, nodeId: NodeId, collectKey: InputPortKey): boolean {
+    const incomingEdge = (this.topology.incomingByNode.get(nodeId) ?? []).find(
+      (edge) => edge.collectKey === collectKey,
+    );
     if (!incomingEdge) {
       return false;
     }
-    if (!this.hasOutputPort(currentState, incomingEdge.from.nodeId, incomingEdge.from.output)) {
+    const fromNodeId = incomingEdge.from.nodeId;
+    if (!this.isNodeSatisfied(currentState, fromNodeId)) {
       return false;
     }
     if (this.usesCollect(nodeId)) {
       return true;
     }
-    const items = this.resolveOutputItems(currentState, incomingEdge.from.nodeId, incomingEdge.from.output);
+    const items = this.resolveOutputItems(currentState, fromNodeId, incomingEdge.from.output);
     if (items.length > 0) {
       return true;
     }
-    return this.shouldContinueAfterEmptyOutputFromSource(incomingEdge.from.nodeId);
+    return this.shouldContinueAfterEmptyOutputFromSource(fromNodeId);
   }
 
-  private resolveInput(currentState: RunCurrentState, nodeId: NodeId, input: InputPortKey): Items {
-    const incomingEdge = (this.topology.incomingByNode.get(nodeId) ?? []).find((edge) => edge.input === input);
+  private resolveInput(currentState: RunCurrentState, nodeId: NodeId, collectKey: InputPortKey): Items {
+    const incomingEdge = (this.topology.incomingByNode.get(nodeId) ?? []).find(
+      (edge) => edge.collectKey === collectKey,
+    );
     if (!incomingEdge) {
       return [];
     }
@@ -333,21 +338,16 @@ export class CurrentStateFrontierPlanner {
     return snapshot?.status === "completed" || snapshot?.status === "skipped";
   }
 
-  private hasOutputPort(currentState: RunCurrentState, nodeId: NodeId, output: OutputPortKey): boolean {
-    const outputs = currentState.outputsByNode[nodeId];
-    if (!outputs) {
-      return false;
-    }
-    return Object.prototype.hasOwnProperty.call(outputs, output);
-  }
-
   private resolveOutputItems(currentState: RunCurrentState, nodeId: NodeId, output: OutputPortKey): Items {
     return currentState.outputsByNode[nodeId]?.[output] ?? [];
   }
 
   private usesCollect(nodeId: NodeId): boolean {
     const expectedInputs = this.topology.expectedInputsByNode.get(nodeId) ?? [];
-    return expectedInputs.length !== 1 || expectedInputs[0] !== "in";
+    if (expectedInputs.length !== 1 || expectedInputs[0] !== "in") {
+      return true;
+    }
+    return (this.topology.incomingByNode.get(nodeId) ?? []).length > 1;
   }
 
   private shouldContinueAfterEmptyOutputFromSource(nodeId: NodeId): boolean {

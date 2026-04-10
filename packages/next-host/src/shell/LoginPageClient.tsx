@@ -91,11 +91,10 @@ export class LoginPageClient extends Component<LoginPageClientProps, LoginPageCl
     this.setState({ error: null, isSubmitting: true });
     try {
       const safeCallbackUrl = this.callbackUrlPolicy.resolveSafeRelativeCallbackUrl(this.props.callbackUrl);
-      const callbackUrl = new URL(safeCallbackUrl, window.location.origin).toString();
       const result = await this.authClient.signIn.email({
         email: this.state.email,
         password: this.state.password,
-        callbackURL: callbackUrl,
+        callbackURL: safeCallbackUrl,
       });
       const signInError = this.readBetterFetchError(result);
       if (signInError) {

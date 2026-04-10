@@ -159,6 +159,7 @@ export function CodemationNode({ data }: { data: WorkflowCanvasNodeData }) {
             isAttachment={isAttachment && !isNestedAgent}
             omitAgentBottomSourceHandles={isAgent && !isAttachment}
             sourceOutputPorts={data.sourceOutputPorts}
+            sourceOutputPortCounts={data.sourceOutputPortCounts}
             targetInputPorts={data.targetInputPorts}
           />
           <WorkflowCanvasCodemationNodeCard cardWidthPx={cardWidthPx} cardHeightPx={cardHeightPx} data={data} />

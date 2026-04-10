@@ -21,4 +21,8 @@ export {
 } from "./nodes.js";
 export { ItemHarnessNode } from "../../src/testing/ItemHarnessNode.ts";
 export { ItemHarnessNodeConfig } from "../../src/testing/ItemHarnessNodeConfig.ts";
+export {
+  SwitchHarnessNode as SwitchNode,
+  SwitchHarnessNodeConfig as SwitchNodeConfig,
+} from "../../src/testing/SwitchHarnessNode.ts";
 export { chain, dag } from "./workflow.js";

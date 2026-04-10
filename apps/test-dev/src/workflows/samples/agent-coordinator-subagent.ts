@@ -1,4 +1,4 @@
-import { AgentToolFactory } from "@codemation/core";
+import { AgentToolFactory, itemValue } from "@codemation/core";
 import { workflow } from "@codemation/host";
 import { AIAgent } from "@codemation/core-nodes";
 import { z } from "zod";
@@ -10,8 +10,8 @@ import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
  * The coordinator uses a larger model; the embedded specialist uses a smaller one—matching the
  * “orchestrator + cheap sub-agent” pattern.
  *
- * The coordinator uses **`mapInput` + `inputSchema`** (ItemNode) so persisted run inputs include the resolved
- * **`messages`** array; wire type is the manual trigger payload (`topic` only).
+ * The coordinator uses **`inputSchema`** on the wire (`topic` from the manual trigger) and **`itemValue`** on
+ * **`messages`** so persisted run inputs still show the resolved chat payload.
  *
  * Requires OpenAI credentials bound for both connection slots (coordinator LLM + specialist LLM).
  */
@@ -24,19 +24,9 @@ type CoordinatorOutputJson = Readonly<{
   usedSpecialist: boolean;
 }>;
 
-/** Persisted + validated input for the coordinator ItemNode (`messages` built in `mapInput` from the trigger wire). */
-const coordinatorAgentInputSchema = z.object({
-  messages: z
-    .array(
-      z.object({
-        role: z.enum(["system", "user", "assistant"]),
-        content: z.string(),
-      }),
-    )
-    .min(1),
+const coordinatorWireSchema = z.object({
+  topic: z.string(),
 });
-
-type CoordinatorAgentInput = z.infer<typeof coordinatorAgentInputSchema>;
 
 const specialistAgent = new AIAgent<Readonly<{ topic?: string; question?: string }>, Readonly<{ answer: string }>>({
   name: "Specialist (sub-agent)",
@@ -62,6 +52,7 @@ const specialistTool = AgentToolFactory.asTool(specialistAgent, {
   outputSchema: z.object({
     answer: z.string(),
   }),
+  /** Node-backed tool: maps tool args + current item into the specialist node's wire input (separate from runnable `itemValue`). */
   mapInput: ({ input, item }) => ({
     topic: String((item.json as { topic?: unknown }).topic ?? ""),
     question: input.question,
@@ -76,21 +67,18 @@ export default workflow("wf.test-dev.agent.subagent")
     },
   ])
   .then(
-    new AIAgent<CoordinatorAgentInput, CoordinatorOutputJson, CoordinatorInputJson>({
+    new AIAgent<CoordinatorInputJson, CoordinatorOutputJson>({
       name: "Coordinator",
-      messages: [{ role: "user", content: "Fallback when input.messages is not set." }],
+      messages: itemValue(({ item }) => [
+        {
+          role: "system",
+          content:
+            'You are the coordinator. Decide whether to call the specialist tool for a focused sub-answer, then produce the final result. When you call `specialist`, you must provide a non-empty `question` string derived from the current `topic`. Respond with strict JSON only: {"summary": string, "usedSpecialist": boolean}.',
+        },
+        { role: "user", content: JSON.stringify({ topic: item.json.topic }) },
+      ]),
       chatModel: openAiChatModelPresets.demoGpt4oMini,
-      inputSchema: coordinatorAgentInputSchema,
-      mapInput: ({ item }) => ({
-        messages: [
-          {
-            role: "system",
-            content:
-              'You are the coordinator. Decide whether to call the specialist tool for a focused sub-answer, then produce the final result. When you call `specialist`, you must provide a non-empty `question` string derived from the current `topic`. Respond with strict JSON only: {"summary": string, "usedSpecialist": boolean}.',
-          },
-          { role: "user", content: JSON.stringify({ topic: item.json.topic }) },
-        ],
-      }),
+      inputSchema: coordinatorWireSchema,
       tools: [specialistTool],
       guardrails: { maxTurns: 8 },
     }),

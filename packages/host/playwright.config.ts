@@ -16,10 +16,14 @@ if (!fs.existsSync(preparedPath)) {
 
 const prepared = JSON.parse(fs.readFileSync(preparedPath, "utf8")) as CodemationPlaywrightPreparedEnvironment;
 
-const webServerEnv: NodeJS.ProcessEnv = {
-  ...process.env,
-  ...prepared.serverEnv,
-};
+const webServerEnv: Record<string, string> = Object.fromEntries(
+  Object.entries({
+    ...process.env,
+    ...prepared.serverEnv,
+  }).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+);
+
+const baseUrl = String(prepared.serverEnv.AUTH_URL ?? "http://localhost:3001");
 
 export default defineConfig({
   /**
@@ -49,7 +53,7 @@ export default defineConfig({
   ],
   use: {
     /** Align with app URL and AUTH_URL so Auth.js cookies are not split across localhost vs 127.0.0.1. */
-    baseURL: "http://localhost:3001",
+    baseURL: baseUrl,
     trace: "retain-on-failure",
     video: "retain-on-failure",
   },
@@ -64,7 +68,7 @@ export default defineConfig({
     command: "pnpm run e2e:serve-web",
     cwd: repoRoot,
     env: webServerEnv,
-    url: "http://localhost:3001",
+    url: baseUrl,
     // Always start a fresh server so DATABASE_URL/AUTH_SECRET from `.e2e-prepared.json` match the DB that was provisioned for this run (reuse can leave a stale server on port 3001).
     reuseExistingServer: false,
     timeout: 180_000,

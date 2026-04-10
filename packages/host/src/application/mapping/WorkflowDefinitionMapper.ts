@@ -1,4 +1,4 @@
-import type { AgentNodeConfig, NodeDefinition, WorkflowActivationPolicy, WorkflowDefinition } from "@codemation/core";
+import type { NodeDefinition, WorkflowActivationPolicy, WorkflowDefinition } from "@codemation/core";
 import {
   AgentConfigInspector,
   AgentConnectionNodeCollector,
@@ -30,13 +30,14 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
   }
 
   mapSync(workflow: WorkflowDefinition): WorkflowDto {
+    const mapped = this.mapNodesAndEdges(workflow);
     return {
       id: workflow.id,
       name: workflow.name,
       active: this.workflowActivationPolicy.isActive(workflow.id),
       hasWorkflowErrorHandler: this.policyUi.workflowHasErrorHandler(workflow),
-      nodes: this.toNodes(workflow),
-      edges: this.toEdges(workflow),
+      nodes: mapped.nodes,
+      edges: mapped.edges,
     };
   }
 
@@ -61,19 +62,54 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
     return map;
   }
 
-  private toNodes(workflow: WorkflowDefinition): ReadonlyArray<WorkflowNodeDto> {
+  private mapNodesAndEdges(
+    workflow: WorkflowDefinition,
+  ): Readonly<{ nodes: ReadonlyArray<WorkflowNodeDto>; edges: WorkflowDto["edges"] }> {
     const connectionChildMeta = this.buildConnectionChildMeta(workflow);
     const materializedConnectionNodeIds = new Set(connectionChildMeta.keys());
+    const nodesById = new Map(workflow.nodes.map((node) => [node.id, node] as const));
+    const agentConnectionDescriptors = this.buildAgentConnectionDescriptorIndex(workflow);
+    return {
+      nodes: this.toNodes({
+        workflow,
+        connectionChildMeta,
+        materializedConnectionNodeIds,
+        nodesById,
+        agentConnectionDescriptors,
+      }),
+      edges: this.toEdges({
+        workflow,
+        materializedConnectionNodeIds,
+        agentConnectionDescriptors,
+      }),
+    };
+  }
+
+  private toNodes(
+    args: Readonly<{
+      workflow: WorkflowDefinition;
+      connectionChildMeta: ReadonlyMap<string, Readonly<{ parentNodeId: string; connectionName: string }>>;
+      materializedConnectionNodeIds: ReadonlySet<string>;
+      nodesById: ReadonlyMap<string, WorkflowDefinition["nodes"][number]>;
+      agentConnectionDescriptors: Readonly<{
+        byAgentNodeId: ReadonlyMap<string, ReadonlyArray<AgentConnectionNodeDescriptor>>;
+        byChildNodeIdByAgentNodeId: ReadonlyMap<string, ReadonlyMap<string, AgentConnectionNodeDescriptor>>;
+      }>;
+    }>,
+  ): ReadonlyArray<WorkflowNodeDto> {
+    const workflow = args.workflow;
+    const connectionChildMeta = args.connectionChildMeta;
+    const materializedConnectionNodeIds = args.materializedConnectionNodeIds;
+    const nodesById = args.nodesById;
+    const agentConnectionDescriptors = args.agentConnectionDescriptors;
     const nodes: WorkflowNodeDto[] = [];
     for (const node of workflow.nodes) {
       const conn = connectionChildMeta.get(node.id);
       if (conn) {
-        const parentNode = workflow.nodes.find((n) => n.id === conn.parentNodeId);
+        const parentNode = nodesById.get(conn.parentNodeId);
         let role: string = conn.connectionName === "llm" ? "languageModel" : "tool";
         if (parentNode && AgentConfigInspector.isAgentNodeConfig(parentNode.config)) {
-          const descriptor = AgentConnectionNodeCollector.collect(conn.parentNodeId, parentNode.config).find(
-            (d) => d.nodeId === node.id,
-          );
+          const descriptor = agentConnectionDescriptors.byChildNodeIdByAgentNodeId.get(conn.parentNodeId)?.get(node.id);
           if (descriptor) {
             role = descriptor.role;
           }
@@ -87,6 +123,7 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
           icon: node.config?.icon,
           retryPolicySummary: this.policyUi.nodeRetrySummary(node.config),
           hasNodeErrorHandler: this.policyUi.nodeHasErrorHandler(node.config),
+          ...this.nodePortFieldsFromConfig(node.config),
           parentNodeId: conn.parentNodeId,
         });
         continue;
@@ -100,17 +137,32 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
         icon: node.config?.icon,
         retryPolicySummary: this.policyUi.nodeRetrySummary(node.config),
         hasNodeErrorHandler: this.policyUi.nodeHasErrorHandler(node.config),
+        ...this.nodePortFieldsFromConfig(node.config),
       });
       if (AgentConfigInspector.isAgentNodeConfig(node.config)) {
-        this.appendVirtualConnectionNodes(node.id, node.config, materializedConnectionNodeIds, nodes);
+        this.appendVirtualConnectionNodes(
+          materializedConnectionNodeIds,
+          nodes,
+          agentConnectionDescriptors.byAgentNodeId.get(node.id) ?? [],
+        );
       }
     }
     return nodes;
   }
 
-  private toEdges(workflow: WorkflowDefinition): WorkflowDto["edges"] {
-    const connectionChildMeta = this.buildConnectionChildMeta(workflow);
-    const materializedConnectionNodeIds = new Set(connectionChildMeta.keys());
+  private toEdges(
+    args: Readonly<{
+      workflow: WorkflowDefinition;
+      materializedConnectionNodeIds: ReadonlySet<string>;
+      agentConnectionDescriptors: Readonly<{
+        byAgentNodeId: ReadonlyMap<string, ReadonlyArray<AgentConnectionNodeDescriptor>>;
+        byChildNodeIdByAgentNodeId: ReadonlyMap<string, ReadonlyMap<string, AgentConnectionNodeDescriptor>>;
+      }>;
+    }>,
+  ): WorkflowDto["edges"] {
+    const workflow = args.workflow;
+    const materializedConnectionNodeIds = args.materializedConnectionNodeIds;
+    const agentConnectionDescriptors = args.agentConnectionDescriptors;
     const edges: WorkflowEdgeDto[] = [...workflow.edges];
     const edgeKeys = new Set(edges.map((edge) => this.edgeKey(edge.from.nodeId, edge.to.nodeId, edge.to.input)));
     this.appendMaterializedConnectionEdges(workflow, edgeKeys, edges);
@@ -118,7 +170,12 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
       if (!AgentConfigInspector.isAgentNodeConfig(node.config)) {
         continue;
       }
-      this.appendVirtualConnectionEdges(node.id, node.config, materializedConnectionNodeIds, edgeKeys, edges);
+      this.appendVirtualConnectionEdges(
+        materializedConnectionNodeIds,
+        edgeKeys,
+        edges,
+        agentConnectionDescriptors.byAgentNodeId.get(node.id) ?? [],
+      );
     }
     return edges;
   }
@@ -143,13 +200,33 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
     }
   }
 
+  private buildAgentConnectionDescriptorIndex(workflow: WorkflowDefinition): Readonly<{
+    byAgentNodeId: ReadonlyMap<string, ReadonlyArray<AgentConnectionNodeDescriptor>>;
+    byChildNodeIdByAgentNodeId: ReadonlyMap<string, ReadonlyMap<string, AgentConnectionNodeDescriptor>>;
+  }> {
+    const byAgentNodeId = new Map<string, ReadonlyArray<AgentConnectionNodeDescriptor>>();
+    const byChildNodeIdByAgentNodeId = new Map<string, ReadonlyMap<string, AgentConnectionNodeDescriptor>>();
+    for (const node of workflow.nodes) {
+      if (!AgentConfigInspector.isAgentNodeConfig(node.config)) {
+        continue;
+      }
+      const descriptors = AgentConnectionNodeCollector.collect(node.id, node.config);
+      byAgentNodeId.set(node.id, descriptors);
+      const byChildId = new Map<string, AgentConnectionNodeDescriptor>();
+      for (const descriptor of descriptors) {
+        byChildId.set(descriptor.nodeId, descriptor);
+      }
+      byChildNodeIdByAgentNodeId.set(node.id, byChildId);
+    }
+    return { byAgentNodeId, byChildNodeIdByAgentNodeId };
+  }
+
   private appendVirtualConnectionNodes(
-    rootAgentNodeId: string,
-    agentConfig: AgentNodeConfig<any, any>,
     materializedConnectionNodeIds: ReadonlySet<string>,
     nodes: WorkflowNodeDto[],
+    descriptors: ReadonlyArray<AgentConnectionNodeDescriptor>,
   ): void {
-    for (const connectionNode of AgentConnectionNodeCollector.collect(rootAgentNodeId, agentConfig)) {
+    for (const connectionNode of descriptors) {
       if (materializedConnectionNodeIds.has(connectionNode.nodeId)) {
         continue;
       }
@@ -158,13 +235,12 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
   }
 
   private appendVirtualConnectionEdges(
-    rootAgentNodeId: string,
-    agentConfig: AgentNodeConfig<any, any>,
     materializedConnectionNodeIds: ReadonlySet<string>,
     edgeKeys: Set<string>,
     edges: WorkflowEdgeDto[],
+    descriptors: ReadonlyArray<AgentConnectionNodeDescriptor>,
   ): void {
-    for (const connectionNode of AgentConnectionNodeCollector.collect(rootAgentNodeId, agentConfig)) {
+    for (const connectionNode of descriptors) {
       if (materializedConnectionNodeIds.has(connectionNode.nodeId)) {
         continue;
       }
@@ -193,6 +269,28 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
       role: connectionNode.role,
       icon: connectionNode.icon,
       parentNodeId: connectionNode.parentNodeId,
+    };
+  }
+
+  /**
+   * Omit optional port fields when undefined so persisted snapshot DTOs (which never serialize
+   * undefined keys) stay aligned with live workflow mapping.
+   */
+  private nodePortFieldsFromConfig(
+    config: NodeDefinition["config"] | undefined,
+  ): Pick<WorkflowNodeDto, "continueWhenEmptyOutput" | "declaredOutputPorts" | "declaredInputPorts"> {
+    if (!config || typeof config !== "object") {
+      return {};
+    }
+    const c = config as {
+      continueWhenEmptyOutput?: boolean;
+      declaredOutputPorts?: readonly string[];
+      declaredInputPorts?: readonly string[];
+    };
+    return {
+      ...(c.continueWhenEmptyOutput !== undefined && { continueWhenEmptyOutput: c.continueWhenEmptyOutput }),
+      ...(c.declaredOutputPorts !== undefined && { declaredOutputPorts: c.declaredOutputPorts }),
+      ...(c.declaredInputPorts !== undefined && { declaredInputPorts: c.declaredInputPorts }),
     };
   }
 

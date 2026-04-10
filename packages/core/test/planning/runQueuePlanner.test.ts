@@ -3,7 +3,7 @@ import { test } from "vitest";
 
 import { RunQueuePlanner } from "../../src/planning/RunQueuePlanner.ts";
 import { WorkflowTopology } from "../../src/planning/WorkflowTopologyPlanner.ts";
-import type { RunQueueEntry } from "../../src/types.ts";
+import type { RunQueueEntry } from "../../src/types/index.ts";
 import { CallbackNode, CallbackNodeConfig, MergeNode, MergeNodeConfig, chain, dag, items } from "../harness/index.ts";
 
 test("planner seals a partially satisfied collect with empty inputs when no runnable work remains", () => {
@@ -121,6 +121,30 @@ test("planner propagates empty output past single-input nodes when the source do
     ]),
   );
   const queue: RunQueueEntry[] = [];
+  planner.applyOutputs(queue, { fromNodeId: "A", outputs: { main: [] }, batchId: "batch_1" });
+
+  assert.equal(queue.length, 0);
+});
+
+test("planner does not let a skipped node's continueWhenEmptyOutput resurrect downstream execution", () => {
+  const A = new CallbackNodeConfig("A", () => {}, { id: "A" });
+  const B = new CallbackNodeConfig("B", () => {}, { id: "B", continueWhenEmptyOutput: true });
+  const C = new CallbackNodeConfig("C", () => {}, { id: "C" });
+  const workflow = chain({ id: "wf.run-queue.empty-skip-resurrection", name: "Empty skip resurrection" })
+    .start(A)
+    .then(B)
+    .then(C)
+    .build();
+  const planner = new RunQueuePlanner(
+    WorkflowTopology.fromWorkflow(workflow),
+    new Map([
+      ["A", new CallbackNode()],
+      ["B", new CallbackNode()],
+      ["C", new CallbackNode()],
+    ]),
+  );
+  const queue: RunQueueEntry[] = [];
+
   planner.applyOutputs(queue, { fromNodeId: "A", outputs: { main: [] }, batchId: "batch_1" });
 
   assert.equal(queue.length, 0);

@@ -66,7 +66,6 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
     const resolvedParent = request.parent ?? state.parent;
     const data = this.runDataFactory.create(state.outputsByNode);
     const limits = this.resolveEngineLimitsFromState(state);
-    const persistedInput = pendingExecution.inputsByPort.in ?? request.input;
     const base = this.runExecutionContextFactory.create({
       runId: state.runId,
       workflowId: state.workflowId,
@@ -78,21 +77,43 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
       data,
       nodeState: this.nodeStatePublisherFactory.create(state.runId, state.workflowId, resolvedParent),
     });
-    const activationRequest = this.nodeActivationRequestComposer.createSingleFromDefinitionWithActivation({
-      activationId: request.activationId,
-      runId: request.runId,
-      workflowId: request.workflowId,
-      parent: resolvedParent,
-      executionOptions: request.executionOptions ?? state.executionOptions,
-      base,
-      data,
-      definition: {
-        id: definition.id,
-        config: definition.config,
-      },
-      batchId: pendingExecution.batchId ?? "batch_1",
-      input: persistedInput,
-    });
+
+    const inputsByPort = pendingExecution.inputsByPort;
+    const portKeys = Object.keys(inputsByPort);
+    const kind = portKeys.length === 1 && portKeys[0] === "in" ? ("single" as const) : ("multi" as const);
+    const batchId = pendingExecution.batchId ?? "batch_1";
+    const activationRequest =
+      kind === "multi"
+        ? this.nodeActivationRequestComposer.createMultiFromDefinitionWithActivation({
+            activationId: request.activationId,
+            runId: request.runId,
+            workflowId: request.workflowId,
+            parent: resolvedParent,
+            executionOptions: request.executionOptions ?? state.executionOptions,
+            base,
+            data,
+            definition: {
+              id: definition.id,
+              config: definition.config,
+            },
+            batchId,
+            inputsByPort,
+          })
+        : this.nodeActivationRequestComposer.createSingleFromDefinitionWithActivation({
+            activationId: request.activationId,
+            runId: request.runId,
+            workflowId: request.workflowId,
+            parent: resolvedParent,
+            executionOptions: request.executionOptions ?? state.executionOptions,
+            base,
+            data,
+            definition: {
+              id: definition.id,
+              config: definition.config,
+            },
+            batchId,
+            input: inputsByPort.in ?? request.input ?? [],
+          });
 
     await this.continuation.markNodeRunning({
       runId: activationRequest.runId,
@@ -131,7 +152,7 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
   }
 
   private async resumeAfterExecutionResult(
-    request: ReturnType<NodeActivationRequestComposer["createSingleFromDefinitionWithActivation"]>,
+    request: Readonly<{ runId: string; activationId: string; nodeId: string }>,
     outputs: unknown,
   ): Promise<void> {
     try {
@@ -147,7 +168,7 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
   }
 
   private async resumeAfterExecutionError(
-    request: ReturnType<NodeActivationRequestComposer["createSingleFromDefinitionWithActivation"]>,
+    request: Readonly<{ runId: string; activationId: string; nodeId: string }>,
     error: Error,
   ): Promise<void> {
     try {

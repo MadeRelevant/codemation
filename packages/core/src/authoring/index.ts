@@ -6,7 +6,7 @@ export type {
   DefinedNodeCredentialBindings,
   DefinedNodeRunContext,
   DefineBatchNodeOptions,
-  DefineNodeExecuteOneArgs,
+  DefineNodeExecuteArgs,
   DefineNodeOptions,
 } from "./defineNode.types";
 export { defineBatchNode, defineNode } from "./defineNode.types";

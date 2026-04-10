@@ -28,6 +28,7 @@
     }
   },
   "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
     "dev": "tsdown --watch",
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -43,6 +44,7 @@
   "devDependencies": {
     "@types/node": "^25.3.5",
     "eslint": "^10.0.3",
+    "reflect-metadata": "^0.2.2",
     "tsdown": "^0.15.5",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",

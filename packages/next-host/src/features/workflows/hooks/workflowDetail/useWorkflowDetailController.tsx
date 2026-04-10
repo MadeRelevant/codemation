@@ -217,8 +217,14 @@ export function useWorkflowDetailController(
     } satisfies NonNullable<NonNullable<typeof debuggerOverlay>["currentState"]>;
   }, [activeLiveRun, activeLiveRunId, debuggerOverlay, pendingTriggerFetchSnapshot, workflow]);
   const displayedWorkflow = useMemo(
-    () => WorkflowDetailPresenter.resolveViewedWorkflow({ selectedRun, liveWorkflow: workflow }),
-    [selectedRun, workflow],
+    () =>
+      WorkflowDetailPresenter.resolveViewedWorkflowForContext({
+        viewContext,
+        selectedRun,
+        activeLiveRun,
+        liveWorkflow: workflow,
+      }),
+    [activeLiveRun, selectedRun, viewContext, workflow],
   );
   const currentExecutionState = useMemo(
     () => (viewContext === "live-workflow" ? liveExecutionState : selectedRun),
@@ -243,15 +249,12 @@ export function useWorkflowDetailController(
   );
   const isRunning = isRunRequestPending || (viewContext === "live-workflow" && isActiveLiveRunPending);
 
-  const selectedPinnedOutput = useMemo(
-    () => WorkflowDetailPresenter.getPinnedOutput(currentExecutionState, selectedNodeId),
-    [currentExecutionState, selectedNodeId],
-  );
   const pinnedNodeIds = useMemo(
     () =>
       new Set(
-        Object.keys(currentExecutionState?.mutableState?.nodesById ?? {}).filter((nodeId) =>
-          Boolean(currentExecutionState?.mutableState?.nodesById?.[nodeId]?.pinnedOutputsByPort?.main),
+        Object.keys(currentExecutionState?.mutableState?.nodesById ?? {}).filter(
+          (nodeId) =>
+            Object.keys(currentExecutionState?.mutableState?.nodesById?.[nodeId]?.pinnedOutputsByPort ?? {}).length > 0,
         ),
       ),
     [currentExecutionState],
@@ -634,9 +637,13 @@ export function useWorkflowDetailController(
     () => WorkflowDetailPresenter.sortPortEntries(selectedNodeSnapshot?.outputs),
     [selectedNodeSnapshot],
   );
+  const selectedPinnedOutputsByPort = useMemo(
+    () => WorkflowDetailPresenter.getPinnedOutputsByPort(currentExecutionState, selectedNodeId),
+    [currentExecutionState, selectedNodeId],
+  );
   const visibleOutputPortEntries = useMemo(
-    () => WorkflowDetailPresenter.applyPinnedOutputToPortEntries(outputPortEntries, selectedPinnedOutput),
-    [outputPortEntries, selectedPinnedOutput],
+    () => WorkflowDetailPresenter.applyPinnedOutputsToPortEntries(outputPortEntries, selectedPinnedOutputsByPort),
+    [outputPortEntries, selectedPinnedOutputsByPort],
   );
 
   useEffect(() => {
@@ -646,6 +653,10 @@ export function useWorkflowDetailController(
   useEffect(() => {
     setSelectedOutputPort((current) => WorkflowDetailPresenter.resolveSelectedPort(visibleOutputPortEntries, current));
   }, [visibleOutputPortEntries]);
+  const selectedPinnedOutput = useMemo(
+    () => WorkflowDetailPresenter.getPinnedOutputForPort(currentExecutionState, selectedNodeId, selectedOutputPort),
+    [currentExecutionState, selectedNodeId, selectedOutputPort],
+  );
 
   useEffect(() => {
     const selectionKey = `${selectedRunId ?? ""}:${selectedNodeId ?? ""}`;
@@ -819,20 +830,89 @@ export function useWorkflowDetailController(
     [navigateToLocation, runExecution, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId, viewContext],
   );
 
+  const resolveOutputPortForNode = useCallback(
+    (nodeId: string): string | null => {
+      const snapshot = currentExecutionState?.nodeSnapshotsByNodeId?.[nodeId];
+      const workflowNode = displayedWorkflow?.nodes.find((node) => node.id === nodeId);
+      const pinnedOutputsByPort = WorkflowDetailPresenter.getPinnedOutputsByPort(currentExecutionState, nodeId);
+      const visibleEntries = WorkflowDetailPresenter.applyPinnedOutputsToPortEntries(
+        WorkflowDetailPresenter.sortPortEntries(snapshot?.outputs),
+        pinnedOutputsByPort,
+      );
+      const preferredPort = nodeId === selectedNodeId ? selectedOutputPort : null;
+      const resolved = WorkflowDetailPresenter.resolveSelectedPort(visibleEntries, preferredPort);
+      if (resolved) {
+        return resolved;
+      }
+      const edgePorts =
+        displayedWorkflow?.edges.filter((edge) => edge.from.nodeId === nodeId).map((edge) => edge.from.output) ?? [];
+      const declaredPorts = workflowNode?.declaredOutputPorts ?? [];
+      const base = [...new Set([...declaredPorts, ...edgePorts])];
+      const combined =
+        base.length > 0
+          ? [...new Set([...base, ...(workflowNode?.hasNodeErrorHandler ? ["error"] : [])])]
+          : workflowNode?.hasNodeErrorHandler
+            ? (["main", "error"] as const)
+            : (["main"] as const);
+      const ordered = [...combined].sort((left, right) => {
+        if (left === right) return 0;
+        if (left === "main") return -1;
+        if (right === "main") return 1;
+        return left.localeCompare(right);
+      });
+      if (preferredPort && ordered.includes(preferredPort)) {
+        return preferredPort;
+      }
+      return ordered[0] ?? null;
+    },
+    [currentExecutionState, displayedWorkflow?.edges, displayedWorkflow?.nodes, selectedNodeId, selectedOutputPort],
+  );
+
+  const createOverlayCurrentStateWithOutputPortPin = useCallback(
+    (nodeId: string, outputPort: string, items: Items | undefined) => {
+      const currentPinnedOutputs = {
+        ...(WorkflowDetailPresenter.getPinnedOutputsByPort(currentExecutionState, nodeId) ?? {}),
+      };
+      if (items === undefined) {
+        delete currentPinnedOutputs[outputPort];
+      } else {
+        currentPinnedOutputs[outputPort] = items;
+      }
+      return createOverlayCurrentStateWithNodeState(nodeId, {
+        pinnedOutputsByPort: Object.keys(currentPinnedOutputs).length > 0 ? currentPinnedOutputs : undefined,
+      });
+    },
+    [createOverlayCurrentStateWithNodeState, currentExecutionState],
+  );
+
   const onPinSelectedOutput = useCallback(() => {
     if (!selectedNodeId || viewContext !== "live-workflow") {
       return;
     }
-    const baseItems = selectedPinnedOutput ?? selectedNodeSnapshot?.outputs?.main;
+    const outputPort = resolveOutputPortForNode(selectedNodeId);
+    if (!outputPort) {
+      return;
+    }
+    const baseItems =
+      selectedPinnedOutput ?? visibleOutputPortEntries.find(([portName]) => portName === outputPort)?.[1];
     setJsonEditorState({
       mode: "pin-output",
-      title: `Pin output for ${WorkflowDetailPresenter.getNodeDisplayName(selectedWorkflowNode, selectedNodeId)}`,
+      title: `Pin output for ${WorkflowDetailPresenter.getNodeDisplayName(selectedWorkflowNode, selectedNodeId)} · ${outputPort}`,
       value: WorkflowDetailPresenter.toPinOutputEditorJson(baseItems),
       workflowId,
       nodeId: selectedNodeId,
+      outputPort,
       binaryMapsByItemIndex: WorkflowDetailPresenter.extractBinaryMapsFromItems(baseItems),
     });
-  }, [selectedNodeId, selectedNodeSnapshot, selectedPinnedOutput, selectedWorkflowNode, viewContext, workflowId]);
+  }, [
+    resolveOutputPortForNode,
+    selectedNodeId,
+    selectedPinnedOutput,
+    selectedWorkflowNode,
+    viewContext,
+    visibleOutputPortEntries,
+    workflowId,
+  ]);
 
   const openPinOutputEditor = useCallback(
     (nodeId: string) => {
@@ -841,10 +921,19 @@ export function useWorkflowDetailController(
       }
       const workflowNode = displayedWorkflow?.nodes.find((node) => node.id === nodeId);
       const snapshot = currentExecutionState?.nodeSnapshotsByNodeId?.[nodeId];
-      const pinnedOutput = WorkflowDetailPresenter.getPinnedOutput(currentExecutionState, nodeId);
-      const baseItems = pinnedOutput ?? snapshot?.outputs?.main;
+      const outputPort = resolveOutputPortForNode(nodeId);
+      if (!outputPort) {
+        return;
+      }
+      const pinnedOutput = WorkflowDetailPresenter.getPinnedOutputForPort(currentExecutionState, nodeId, outputPort);
+      const visibleEntries = WorkflowDetailPresenter.applyPinnedOutputsToPortEntries(
+        WorkflowDetailPresenter.sortPortEntries(snapshot?.outputs),
+        WorkflowDetailPresenter.getPinnedOutputsByPort(currentExecutionState, nodeId),
+      );
+      const baseItems = pinnedOutput ?? visibleEntries.find(([portName]) => portName === outputPort)?.[1];
       setHasManuallySelectedNode(true);
       setSelectedNodeId(nodeId);
+      setSelectedOutputPort(outputPort);
       navigateToLocation({
         selectedRunId: urlLocation.selectedRunId,
         isRunsPaneVisible: urlLocation.isRunsPaneVisible,
@@ -852,10 +941,11 @@ export function useWorkflowDetailController(
       });
       setJsonEditorState({
         mode: "pin-output",
-        title: `Edit output for ${WorkflowDetailPresenter.getNodeDisplayName(workflowNode, nodeId)}`,
+        title: `Edit output for ${WorkflowDetailPresenter.getNodeDisplayName(workflowNode, nodeId)} · ${outputPort}`,
         value: WorkflowDetailPresenter.toPinOutputEditorJson(baseItems),
         workflowId,
         nodeId,
+        outputPort,
         binaryMapsByItemIndex: WorkflowDetailPresenter.extractBinaryMapsFromItems(baseItems),
       });
     },
@@ -863,6 +953,8 @@ export function useWorkflowDetailController(
       currentExecutionState,
       displayedWorkflow,
       navigateToLocation,
+      resolveOutputPortForNode,
+      setSelectedOutputPort,
       urlLocation.isRunsPaneVisible,
       urlLocation.selectedRunId,
       viewContext,
@@ -871,27 +963,34 @@ export function useWorkflowDetailController(
   );
 
   const onClearPin = useCallback(() => {
-    if (!selectedNodeId || viewContext !== "live-workflow") {
+    if (!selectedNodeId || !selectedOutputPort || viewContext !== "live-workflow") {
       return;
     }
-    const nextCurrentState = createOverlayCurrentStateWithNodeState(selectedNodeId, {
-      pinnedOutputsByPort: undefined,
-    });
+    const nextCurrentState = createOverlayCurrentStateWithOutputPortPin(selectedNodeId, selectedOutputPort, undefined);
     void replaceDebuggerOverlay(nextCurrentState).catch((cause: unknown) =>
       setError(cause instanceof Error ? cause.message : String(cause)),
     );
-  }, [createOverlayCurrentStateWithNodeState, replaceDebuggerOverlay, selectedNodeId, viewContext]);
+  }, [
+    createOverlayCurrentStateWithOutputPortPin,
+    replaceDebuggerOverlay,
+    selectedNodeId,
+    selectedOutputPort,
+    viewContext,
+  ]);
 
   const clearPinnedOutputForNode = useCallback(
     (nodeId: string) => {
       if (viewContext !== "live-workflow") {
         return;
       }
-      const nextCurrentState = createOverlayCurrentStateWithNodeState(nodeId, {
-        pinnedOutputsByPort: undefined,
-      });
+      const outputPort = resolveOutputPortForNode(nodeId);
+      if (!outputPort) {
+        return;
+      }
+      const nextCurrentState = createOverlayCurrentStateWithOutputPortPin(nodeId, outputPort, undefined);
       setHasManuallySelectedNode(true);
       setSelectedNodeId(nodeId);
+      setSelectedOutputPort(outputPort);
       navigateToLocation({
         selectedRunId: urlLocation.selectedRunId,
         isRunsPaneVisible: urlLocation.isRunsPaneVisible,
@@ -902,9 +1001,11 @@ export function useWorkflowDetailController(
       );
     },
     [
-      createOverlayCurrentStateWithNodeState,
+      createOverlayCurrentStateWithOutputPortPin,
       navigateToLocation,
       replaceDebuggerOverlay,
+      resolveOutputPortForNode,
+      setSelectedOutputPort,
       urlLocation.isRunsPaneVisible,
       urlLocation.selectedRunId,
       viewContext,
@@ -916,41 +1017,46 @@ export function useWorkflowDetailController(
       if (viewContext !== "live-workflow") {
         return;
       }
-      const pinnedOutput = WorkflowDetailPresenter.getPinnedOutput(currentExecutionState, nodeId);
+      const outputPort = resolveOutputPortForNode(nodeId);
+      if (!outputPort) {
+        return;
+      }
+      const pinnedOutput = WorkflowDetailPresenter.getPinnedOutputForPort(currentExecutionState, nodeId, outputPort);
       setHasManuallySelectedNode(true);
       setSelectedNodeId(nodeId);
+      setSelectedOutputPort(outputPort);
       navigateToLocation({
         selectedRunId: urlLocation.selectedRunId,
         isRunsPaneVisible: urlLocation.isRunsPaneVisible,
         nodeId,
       });
       if (pinnedOutput) {
-        const nextCurrentState = createOverlayCurrentStateWithNodeState(nodeId, {
-          pinnedOutputsByPort: undefined,
-        });
+        const nextCurrentState = createOverlayCurrentStateWithOutputPortPin(nodeId, outputPort, undefined);
         void replaceDebuggerOverlay(nextCurrentState).catch((cause: unknown) =>
           setError(cause instanceof Error ? cause.message : String(cause)),
         );
         return;
       }
-      const outputToPin = currentExecutionState?.nodeSnapshotsByNodeId?.[nodeId]?.outputs?.main;
+      const outputToPin = currentExecutionState?.nodeSnapshotsByNodeId?.[nodeId]?.outputs?.[outputPort];
       if (!outputToPin) {
         return;
       }
-      const nextCurrentState = createOverlayCurrentStateWithNodeState(nodeId, {
-        pinnedOutputsByPort: {
-          main: JSON.parse(JSON.stringify(outputToPin)) as Items,
-        },
-      });
+      const nextCurrentState = createOverlayCurrentStateWithOutputPortPin(
+        nodeId,
+        outputPort,
+        JSON.parse(JSON.stringify(outputToPin)) as Items,
+      );
       void replaceDebuggerOverlay(nextCurrentState).catch((cause: unknown) =>
         setError(cause instanceof Error ? cause.message : String(cause)),
       );
     },
     [
-      createOverlayCurrentStateWithNodeState,
+      createOverlayCurrentStateWithOutputPortPin,
       currentExecutionState,
       navigateToLocation,
       replaceDebuggerOverlay,
+      resolveOutputPortForNode,
+      setSelectedOutputPort,
       urlLocation.isRunsPaneVisible,
       urlLocation.selectedRunId,
       viewContext,
@@ -1031,13 +1137,16 @@ export function useWorkflowDetailController(
       }
       if (jsonEditorState.mode === "pin-output") {
         const nodeIdForPin = jsonEditorState.nodeId;
+        const outputPortForPin = jsonEditorState.outputPort;
         const pinnedItems =
           binaryMaps !== undefined
             ? WorkflowDetailPresenter.mergePinOutputJsonWithBinaryMaps(value, binaryMaps)
             : WorkflowDetailPresenter.parseEditableItems(value);
-        const nextCurrentState = createOverlayCurrentStateWithNodeState(nodeIdForPin, {
-          pinnedOutputsByPort: { main: pinnedItems },
-        });
+        const nextCurrentState = createOverlayCurrentStateWithOutputPortPin(
+          nodeIdForPin,
+          outputPortForPin,
+          pinnedItems,
+        );
         void replaceDebuggerOverlay(nextCurrentState)
           .then(() => {
             setJsonEditorState(null);
@@ -1052,7 +1161,7 @@ export function useWorkflowDetailController(
     },
     [
       applyPendingRunResult,
-      createOverlayCurrentStateWithNodeState,
+      createOverlayCurrentStateWithOutputPortPin,
       jsonEditorState,
       persistWorkflowSnapshotUpdate,
       queryClient,

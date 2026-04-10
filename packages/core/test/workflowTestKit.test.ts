@@ -13,7 +13,7 @@ const testKitDefineNodeSample = defineNode({
   input: {
     field: "string",
   },
-  executeOne(
+  execute(
     { input }: { readonly input: Readonly<Record<string, unknown>> },
     { config }: { readonly config: Readonly<{ field: string }> },
   ) {

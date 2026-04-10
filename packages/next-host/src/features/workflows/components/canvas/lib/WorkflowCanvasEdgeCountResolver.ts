@@ -3,6 +3,7 @@ import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../..
 export class WorkflowCanvasEdgeCountResolver {
   static resolveCount(
     args: Readonly<{
+      sourceNodeId: string;
       targetNodeId: string;
       targetNodeRole: string | undefined;
       targetInput: string;
@@ -27,7 +28,9 @@ export class WorkflowCanvasEdgeCountResolver {
       if (attachmentInvocationCount > 0) return attachmentInvocationCount;
     }
 
-    const targetInputItems = args.targetSnapshot?.inputsByPort?.[args.targetInput];
+    const impliedCollectKey = `${args.sourceNodeId}:${args.sourceOutput}`;
+    const targetInputItems =
+      args.targetSnapshot?.inputsByPort?.[args.targetInput] ?? args.targetSnapshot?.inputsByPort?.[impliedCollectKey];
     const sourceOutputItems = args.sourceSnapshot?.outputs?.[args.sourceOutput];
     return targetInputItems?.length ?? sourceOutputItems?.length ?? 0;
   }

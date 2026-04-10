@@ -25,6 +25,7 @@
     }
   },
   "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
     "dev": "tsdown src/index.ts src/bin.ts --out-dir dist --watch",
     "build": "tsdown src/index.ts src/bin.ts --out-dir dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",

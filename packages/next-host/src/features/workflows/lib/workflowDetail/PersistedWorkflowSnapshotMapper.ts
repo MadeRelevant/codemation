@@ -78,6 +78,7 @@ export class PersistedWorkflowSnapshotMapper {
       icon: this.readNodeIcon(node.config),
       retryPolicySummary: this.policyUi.snapshotNodeRetrySummary(node.config),
       hasNodeErrorHandler: this.policyUi.snapshotNodeHasErrorHandler(node.config),
+      ...this.nodePortFieldsFromSnapshotConfig(node.config),
     };
 
     if (!this.isAgentConfig(node.config)) {
@@ -110,6 +111,7 @@ export class PersistedWorkflowSnapshotMapper {
       icon: this.readNodeIcon(node.config),
       retryPolicySummary: this.policyUi.snapshotNodeRetrySummary(node.config),
       hasNodeErrorHandler: this.policyUi.snapshotNodeHasErrorHandler(node.config),
+      ...this.nodePortFieldsFromSnapshotConfig(node.config),
       parentNodeId: meta.parentNodeId,
     };
   }
@@ -186,6 +188,22 @@ export class PersistedWorkflowSnapshotMapper {
 
   private edgeKey(fromNodeId: string, toNodeId: string, toInput: string): string {
     return `${fromNodeId}\0${toNodeId}\0${toInput}`;
+  }
+
+  private nodePortFieldsFromSnapshotConfig(
+    config: unknown,
+  ): Pick<WorkflowNodeDto, "continueWhenEmptyOutput" | "declaredOutputPorts" | "declaredInputPorts"> {
+    const c = this.asRecord(config) as Record<string, unknown>;
+    const continueWhenEmptyOutput = c.continueWhenEmptyOutput;
+    const declaredOutputPorts = c.declaredOutputPorts;
+    const declaredInputPorts = c.declaredInputPorts;
+    return {
+      ...(continueWhenEmptyOutput !== undefined && {
+        continueWhenEmptyOutput: continueWhenEmptyOutput as boolean,
+      }),
+      ...(declaredOutputPorts !== undefined && { declaredOutputPorts: declaredOutputPorts as readonly string[] }),
+      ...(declaredInputPorts !== undefined && { declaredInputPorts: declaredInputPorts as readonly string[] }),
+    };
   }
 
   private isAgentConfig(value: unknown): boolean {

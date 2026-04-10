@@ -25,6 +25,7 @@ import type {
   NodeConfigBase,
   NodeId,
   NodeOutputs,
+  RunnableNodeConfig,
   OutputPortKey,
   ParentExecutionRef,
   RunDataFactory,
@@ -221,39 +222,55 @@ export interface EngineHost {
   workflows?: WorkflowRunnerService;
 }
 
-export interface Node<TConfig extends NodeConfigBase = NodeConfigBase> {
-  kind: "node";
-  outputPorts: ReadonlyArray<OutputPortKey>;
-  execute(items: Items, ctx: NodeExecutionContext<TConfig>): Promise<NodeOutputs>;
+/**
+ * Per-item runnable node: return JSON, an array to fan-out on `main`, or {@link emitPorts} for multi-port emission.
+ * Engine applies `inputSchema.parse(item.json)` and passes the result as `args.input` (wire `item.json` is unchanged).
+ */
+export interface RunnableNodeExecuteArgs<
+  TConfig extends RunnableNodeConfig<any, any> = RunnableNodeConfig<any, any>,
+  TInputJson = unknown,
+> {
+  readonly input: TInputJson;
+  readonly item: Item;
+  readonly itemIndex: number;
+  readonly items: Items;
+  readonly ctx: NodeExecutionContext<TConfig>;
 }
 
-/**
- * Single-input runnable node with per-item execution on `main` only (1→1 default).
- * Engine applies {@link RunnableNodeConfig.mapInput} (if any) + `inputSchema.parse` before `executeOne`.
- */
-export interface ItemNode<
-  TConfig extends NodeConfigBase = NodeConfigBase,
+export interface RunnableNode<
+  TConfig extends RunnableNodeConfig<any, any> = RunnableNodeConfig<any, any>,
   TInputJson = unknown,
-  TOutputJson = unknown,
+  _TOutputJson = unknown,
 > {
   readonly kind: "node";
-  readonly outputPorts: readonly ["main"];
+  /**
+   * Declared output ports (e.g. `["main"]`).
+   *
+   * Prefer describing dynamic router ports (Switch) and fixed multi-ports (If true/false)
+   * via {@link NodeConfigBase.declaredOutputPorts}. Engine defaults to `["main"]` when omitted.
+   */
+  readonly outputPorts?: ReadonlyArray<OutputPortKey>;
   /** When omitted, engine uses {@link RunnableNodeConfig.inputSchema} or `z.unknown()`. */
   readonly inputSchema?: ZodType<TInputJson>;
-  executeOne(
-    args: Readonly<{
-      input: TInputJson;
-      item: Item;
-      itemIndex: number;
-      items: Items;
-      ctx: NodeExecutionContext<TConfig>;
-    }>,
-  ): Promise<TOutputJson> | TOutputJson;
+  execute(args: RunnableNodeExecuteArgs<TConfig, TInputJson>): Promise<unknown> | unknown;
 }
+
+/** @deprecated Use {@link RunnableNode} */
+export type ItemNode<
+  TConfig extends RunnableNodeConfig<any, any> = RunnableNodeConfig<any, any>,
+  TInputJson = unknown,
+  TOutputJson = unknown,
+> = RunnableNode<TConfig, TInputJson, TOutputJson>;
 
 export interface MultiInputNode<TConfig extends NodeConfigBase = NodeConfigBase> {
   kind: "node";
-  outputPorts: ReadonlyArray<OutputPortKey>;
+  /**
+   * Declared output ports (typically `["main"]`).
+   *
+   * Prefer describing ports for authoring/canvas via {@link NodeConfigBase.declaredOutputPorts}.
+   * Engine defaults to `["main"]` when omitted.
+   */
+  outputPorts?: ReadonlyArray<OutputPortKey>;
   executeMulti(inputsByPort: NodeInputsByPort, ctx: NodeExecutionContext<TConfig>): Promise<NodeOutputs>;
 }
 

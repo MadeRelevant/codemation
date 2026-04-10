@@ -335,7 +335,7 @@ export class RunContinuationService {
         nextNodeId: next.nodeId,
         request,
         completedSnapshot,
-        nextNodeSnapshotsByNodeId,
+        nextNodeSnapshotsByNodeId: nextNodeSnapshotsByNodeId,
         outputsByNode: data.dump(),
         engineCounters,
         error,
@@ -653,6 +653,12 @@ export class RunContinuationService {
     planner.applyOutputs(queue, { fromNodeId: args.args.nodeId, outputs: triggerOutputs as any, batchId });
     const next = planner.nextActivation(queue);
 
+    const finishedAt = completedSnapshot.finishedAt ?? completedSnapshot.updatedAt;
+    const mergedSnapshots = {
+      ...(args.state.nodeSnapshotsByNodeId ?? {}),
+      [args.args.nodeId]: completedSnapshot,
+    };
+
     if (!next) {
       const lastNodeId = WorkflowExecutableNodeClassifierFactory.create(
         args.workflow,
@@ -664,11 +670,8 @@ export class RunContinuationService {
         status: "completed",
         queue: [],
         outputsByNode: data.dump(),
-        nodeSnapshotsByNodeId: {
-          ...(args.state.nodeSnapshotsByNodeId ?? {}),
-          [args.args.nodeId]: completedSnapshot,
-        },
-        finishedAtIso: completedSnapshot.finishedAt ?? completedSnapshot.updatedAt,
+        nodeSnapshotsByNodeId: mergedSnapshots,
+        finishedAtIso: finishedAt,
       });
       await this.workflowExecutionRepository.save(completedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
@@ -705,11 +708,8 @@ export class RunContinuationService {
         status: "failed",
         queue: queue.map((q) => ({ ...q })),
         outputsByNode: data.dump(),
-        nodeSnapshotsByNodeId: {
-          ...(args.state.nodeSnapshotsByNodeId ?? {}),
-          [args.args.nodeId]: completedSnapshot,
-        },
-        finishedAtIso: completedSnapshot.finishedAt ?? completedSnapshot.updatedAt,
+        nodeSnapshotsByNodeId: mergedSnapshots,
+        finishedAtIso: finishedAt,
       });
       await this.workflowExecutionRepository.save(failedState);
       await this.nodeEventPublisher.publish("nodeCompleted", completedSnapshot);
@@ -765,11 +765,6 @@ export class RunContinuationService {
       nodeDefinition: nextDefinition,
     });
 
-    const mergedSnapshots = {
-      ...(args.state.nodeSnapshotsByNodeId ?? {}),
-      [args.args.nodeId]: completedSnapshot,
-    };
-
     try {
       const { queuedSnapshot, result } = await this.activationEnqueueService.enqueueActivationWithSnapshot({
         runId: args.state.runId,
@@ -800,7 +795,6 @@ export class RunContinuationService {
       return result;
     } catch (cause) {
       const error = cause instanceof Error ? cause : new Error(String(cause));
-      const finishedAt = completedSnapshot.finishedAt ?? completedSnapshot.updatedAt;
       const result = await this.terminateRunAfterActivationEnqueueRejected({
         wf: args.workflow,
         state: args.state,

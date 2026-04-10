@@ -181,11 +181,24 @@ export function layoutWorkflow(
       : WORKFLOW_CANVAS_MAIN_NODE_CARD_PX;
     const rawOut = outgoingOutputsByNodeId.get(n.id);
     const rawIn = incomingInputsByNodeId.get(n.id);
-    const sourceOutputPorts = WorkflowCanvasPortOrderResolver.sortSourceOutputs(
-      rawOut && rawOut.size > 0 ? [...rawOut] : ["main"],
+    const fromEdgesOut = rawOut && rawOut.size > 0 ? [...rawOut] : [];
+    const declaredOut = n.declaredOutputPorts ?? [];
+    const baseOut = [...new Set([...declaredOut, ...fromEdgesOut])];
+    const combinedOut =
+      baseOut.length > 0
+        ? [...new Set([...baseOut, ...(n.hasNodeErrorHandler ? ["error"] : [])])]
+        : n.hasNodeErrorHandler
+          ? (["main", "error"] as const)
+          : (["main"] as const);
+    const sourceOutputPorts = WorkflowCanvasPortOrderResolver.sortSourceOutputs(combinedOut);
+    const sourceOutputPortCounts = Object.fromEntries(
+      sourceOutputPorts.map((portName) => [portName, nodeSnapshotsByNodeId[n.id]?.outputs?.[portName]?.length ?? 0]),
     );
+    const fromEdgesIn = rawIn && rawIn.size > 0 ? [...rawIn] : [];
+    const declaredIn = n.declaredInputPorts ?? [];
+    const combinedIn = [...new Set([...declaredIn, ...fromEdgesIn])];
     const targetInputPorts = WorkflowCanvasPortOrderResolver.sortTargetInputs(
-      rawIn && rawIn.size > 0 ? [...rawIn] : ["in"],
+      combinedIn.length > 0 ? combinedIn : ["in"],
     );
     return {
       id: n.id,
@@ -210,7 +223,7 @@ export function layoutWorkflow(
         propertiesTarget: propertiesTargetNodeId === n.id,
         isAttachment: Boolean(n.parentNodeId),
         isPinned: pinnedNodeIds.has(n.id),
-        hasOutputData: Boolean(pinnedNodeIds.has(n.id) || nodeSnapshotsByNodeId[n.id]?.outputs?.main),
+        hasOutputData: Boolean(pinnedNodeIds.has(n.id) || nodeSnapshotsByNodeId[n.id]?.outputs !== undefined),
         isLiveWorkflowView,
         isRunning,
         retryPolicySummary: n.retryPolicySummary,
@@ -218,6 +231,7 @@ export function layoutWorkflow(
         continueWhenEmptyOutput: n.continueWhenEmptyOutput,
         credentialAttentionTooltip: credentialAttentionTooltipByNodeId.get(n.id),
         sourceOutputPorts,
+        sourceOutputPortCounts,
         targetInputPorts,
         onSelectNode,
         onOpenPropertiesNode,
@@ -252,7 +266,6 @@ export function layoutWorkflow(
           : undefined;
     const outgoingFromSourceCount = outgoingOutputsByNodeId.get(e.from.nodeId)?.size ?? 0;
     const incomingToTargetCount = incomingInputsByNodeId.get(e.to.nodeId)?.size ?? 0;
-    const useSharedBranchSourceHandle = !isAttachmentEdge && outgoingFromSourceCount > 1;
     const useSharedBranchTargetHandle = !isAttachmentEdge && incomingToTargetCount > 1;
     const sourcePosition = positionsByNodeId.get(e.from.nodeId);
     const targetPosition = positionsByNodeId.get(e.to.nodeId);
@@ -260,6 +273,7 @@ export function layoutWorkflow(
     const targetSnapshot = nodeSnapshotsByNodeId[e.to.nodeId];
     const sourceSnapshot = nodeSnapshotsByNodeId[e.from.nodeId];
     const edgeItemCount = WorkflowCanvasEdgeCountResolver.resolveCount({
+      sourceNodeId: e.from.nodeId,
       targetNodeId: e.to.nodeId,
       targetNodeRole: targetNode?.role,
       targetInput: e.to.input,
@@ -274,11 +288,7 @@ export function layoutWorkflow(
       edgeItemCount,
       isAttachmentEdge,
     });
-    const mainSourceHandle = isAttachmentEdge
-      ? attachmentSourceHandle
-      : useSharedBranchSourceHandle
-        ? undefined
-        : e.from.output;
+    const mainSourceHandle = isAttachmentEdge ? attachmentSourceHandle : e.from.output;
     const mainTargetHandle = isAttachmentEdge
       ? "attachment-target"
       : useSharedBranchTargetHandle

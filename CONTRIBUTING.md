@@ -27,7 +27,10 @@
 Husky runs a **fast pre-commit** hook:
 
 1. **lint-staged** — Prettier on staged files
-2. **`pnpm run precommit`** — ESLint (`turbo run lint`), **typecheck**, and **unit tests** only
+2. **`pnpm run changeset:verify`** — if you stage changes under a **publishable** `packages/*` path, a **`.changeset/*.md`** must be part of the same effective change (staged or already on your branch). Same rule as CI. Set **`SKIP_CHANGESET_VERIFY=1`** to bypass locally when appropriate.
+3. **`pnpm run precommit`** — ESLint (`turbo run lint`), **typecheck**, and **unit tests** only
+
+Each publishable package also exposes **`pnpm run changeset:verify`** (delegates to the workspace root) so you can run the check from a package directory without hunting for the script name.
 
 It does **not** run integration/UI/browser/e2e tests, full `pnpm test`, or repo-wide duplicate / antipattern scans. Those run in **CI** via `pnpm lint` (full), `pnpm typecheck`, and the test suites.
 

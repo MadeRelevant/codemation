@@ -142,14 +142,12 @@ export class CodemationPluginDiscovery {
   }
 
   private resolvePluginEntry(discoveredPackage: CodemationDiscoveredPluginPackage): string {
-    if (
+    const preferSource =
       process.env.CODEMATION_PREFER_PLUGIN_SOURCE_ENTRY === "true" &&
       typeof discoveredPackage.developmentEntry === "string" &&
-      discoveredPackage.developmentEntry.trim().length > 0
-    ) {
-      return discoveredPackage.developmentEntry;
-    }
-    return discoveredPackage.pluginEntry;
+      discoveredPackage.developmentEntry.trim().length > 0;
+    const selectedEntry = preferSource ? discoveredPackage.developmentEntry : discoveredPackage.pluginEntry;
+    return selectedEntry;
   }
 
   private async resolveDevelopmentPluginEntry(packageRoot: string): Promise<string | undefined> {

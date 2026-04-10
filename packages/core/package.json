@@ -50,6 +50,7 @@
     }
   },
   "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
     "dev": "tsdown --watch",
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",

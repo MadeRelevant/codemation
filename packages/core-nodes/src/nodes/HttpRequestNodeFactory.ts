@@ -1,4 +1,4 @@
-import type { Item, Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
+import type { Item, NodeExecutionContext, RunnableNode, RunnableNodeExecuteArgs } from "@codemation/core";
 
 import { node } from "@codemation/core";
 
@@ -6,16 +6,12 @@ import type { HttpRequestDownloadMode } from "./httpRequest";
 import { HttpRequest } from "./httpRequest";
 
 @node({ packageName: "@codemation/core-nodes" })
-export class HttpRequestNode implements Node<HttpRequest<any, any>> {
+export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<HttpRequest<any, any>>): Promise<NodeOutputs> {
-    const output: Item[] = [];
-    for (const item of items) {
-      output.push(await this.executeItem(item, ctx));
-    }
-    return { main: output };
+  async execute(args: RunnableNodeExecuteArgs<HttpRequest<any, any>>): Promise<unknown> {
+    return await this.executeItem(args.item, args.ctx);
   }
 
   private async executeItem(item: Item, ctx: NodeExecutionContext<HttpRequest<any, any>>): Promise<Item> {

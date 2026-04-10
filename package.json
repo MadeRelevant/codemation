@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.13.1",
   "scripts": {
-    "codemation": "tsx --tsconfig tsconfig.codemation-tsx.json packages/cli/src/bin.ts",
+    "codemation": "node tooling/scripts/run-codemation-tsx.mjs packages/cli/src/bin.ts tsconfig.codemation-tsx.json",
     "dev": "pnpm run dev:framework",
     "dev:docs": "pnpm --filter @codemation/docs dev",
     "dev:framework": "pnpm --filter @codemation/test-dev dev",
@@ -45,7 +45,8 @@
     "local-release:publish": "node tooling/verdaccio/publish-local-registry.mjs",
     "local-release:smoke": "pnpm --filter create-codemation test:verdaccio-smoke",
     "changeset": "changeset",
-    "changeset:version": "changeset version"
+    "changeset:version": "changeset version",
+    "changeset:verify": "sh tooling/scripts/verify-changeset-coverage.sh"
   },
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {

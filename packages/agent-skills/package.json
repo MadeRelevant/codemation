@@ -18,6 +18,7 @@
     "codemation-agent-skills": "./bin/codemation-agent-skills.mjs"
   },
   "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
     "test": "vitest run"
   },
   "keywords": [

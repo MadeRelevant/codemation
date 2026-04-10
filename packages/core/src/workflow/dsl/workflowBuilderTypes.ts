@@ -1,6 +1,6 @@
 import type { RunnableNodeConfig, RunnableNodeOutputJson, TriggerNodeConfig } from "../../types";
 
-export type AnyRunnableNodeConfig = RunnableNodeConfig<any, any, any>;
+export type AnyRunnableNodeConfig = RunnableNodeConfig<any, any>;
 
 export type AnyTriggerNodeConfig = TriggerNodeConfig<any>;
 
@@ -10,7 +10,7 @@ export type ValidStepSequence<
 > = TSteps extends readonly []
   ? readonly []
   : TSteps extends readonly [infer TFirst, ...infer TRest]
-    ? TFirst extends RunnableNodeConfig<infer _TIn, infer TNextJson, TCurrentJson>
+    ? TFirst extends RunnableNodeConfig<TCurrentJson, infer TNextJson>
       ? TRest extends ReadonlyArray<AnyRunnableNodeConfig>
         ? readonly [TFirst, ...ValidStepSequence<TNextJson, TRest>]
         : never
@@ -22,7 +22,7 @@ export type StepSequenceOutput<TCurrentJson, TSteps extends ReadonlyArray<AnyRun
     ? TSteps extends readonly []
       ? TCurrentJson
       : TSteps extends readonly [infer TFirst, ...infer TRest]
-        ? TFirst extends RunnableNodeConfig<infer _TIn, infer TNextJson, TCurrentJson>
+        ? TFirst extends RunnableNodeConfig<TCurrentJson, infer TNextJson>
           ? TRest extends ReadonlyArray<AnyRunnableNodeConfig>
             ? StepSequenceOutput<TNextJson, TRest>
             : never
@@ -46,7 +46,7 @@ export type BranchStepsArg<TCurrentJson, TSteps extends ReadonlyArray<AnyRunnabl
 
 export type BranchMoreArgs<
   TCurrentJson,
-  TFirstStep extends RunnableNodeConfig<any, any, TCurrentJson>,
+  TFirstStep extends RunnableNodeConfig<TCurrentJson, any>,
   TRestSteps extends ReadonlyArray<AnyRunnableNodeConfig>,
 > = TRestSteps & ValidStepSequence<RunnableNodeOutputJson<TFirstStep>, TRestSteps>;
 
@@ -55,10 +55,7 @@ export type BooleanWhenOverloads<TCurrentJson, TReturn> = {
     branch: boolean,
     steps: BranchStepsArg<TCurrentJson, TSteps>,
   ): TReturn;
-  <
-    TFirstStep extends RunnableNodeConfig<any, any, TCurrentJson>,
-    TRestSteps extends ReadonlyArray<AnyRunnableNodeConfig>,
-  >(
+  <TFirstStep extends RunnableNodeConfig<TCurrentJson, any>, TRestSteps extends ReadonlyArray<AnyRunnableNodeConfig>>(
     branch: boolean,
     step: TFirstStep,
     ...more: BranchMoreArgs<TCurrentJson, TFirstStep, TRestSteps>

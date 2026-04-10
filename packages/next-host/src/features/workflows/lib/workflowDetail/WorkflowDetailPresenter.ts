@@ -303,11 +303,17 @@ export class WorkflowDetailPresenter {
     return entries.find(([, items]) => items.length > 0)?.[0] ?? entries[0]![0];
   }
 
-  static applyPinnedOutputToPortEntries(entries: PortEntries, pinnedOutput: Items | undefined): PortEntries {
-    if (typeof pinnedOutput === "undefined") {
+  static applyPinnedOutputsToPortEntries(
+    entries: PortEntries,
+    pinnedOutputsByPort: Readonly<Record<string, Items>> | undefined,
+  ): PortEntries {
+    if (!pinnedOutputsByPort) {
       return entries;
     }
-    return [["main", pinnedOutput], ...entries.filter(([portName]) => portName !== "main")];
+    return this.sortPortEntries({
+      ...Object.fromEntries(entries),
+      ...pinnedOutputsByPort,
+    });
   }
 
   static toJsonValue(items: Items | undefined): unknown {
@@ -544,18 +550,41 @@ export class WorkflowDetailPresenter {
     return this.workflowFromSnapshot(args.selectedRun?.workflowSnapshot, args.liveWorkflow);
   }
 
+  static resolveViewedWorkflowForContext(
+    args: Readonly<{
+      viewContext: ViewedWorkflowContext;
+      selectedRun?: PersistedRunState;
+      activeLiveRun?: PersistedRunState;
+      liveWorkflow?: WorkflowDto;
+    }>,
+  ): WorkflowDto | undefined {
+    const run = args.viewContext === "live-workflow" ? (args.activeLiveRun ?? args.selectedRun) : args.selectedRun;
+    return this.workflowFromSnapshot(run?.workflowSnapshot, args.liveWorkflow);
+  }
+
   static createWorkflowStructureSignature(workflow: WorkflowDto | undefined): string {
     return JSON.stringify(workflow ?? null);
   }
 
-  static getPinnedOutput(
+  static getPinnedOutputsByPort(
     currentState: InspectableExecutionState | undefined,
     nodeId: string | null,
-  ): Items | undefined {
+  ): Readonly<Record<string, Items>> | undefined {
     if (!currentState || !nodeId) {
       return undefined;
     }
-    return currentState.mutableState?.nodesById?.[nodeId]?.pinnedOutputsByPort?.main;
+    return currentState.mutableState?.nodesById?.[nodeId]?.pinnedOutputsByPort;
+  }
+
+  static getPinnedOutputForPort(
+    currentState: InspectableExecutionState | undefined,
+    nodeId: string | null,
+    portName: string | null,
+  ): Items | undefined {
+    if (!portName) {
+      return undefined;
+    }
+    return this.getPinnedOutputsByPort(currentState, nodeId)?.[portName];
   }
 
   static reconcileCurrentStateWithWorkflow(

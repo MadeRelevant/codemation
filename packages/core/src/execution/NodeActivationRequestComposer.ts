@@ -6,6 +6,7 @@ import type {
   NodeActivationRequest,
   NodeExecutionContext,
   NodeId,
+  NodeInputsByPort,
   ParentExecutionRef,
   RunDataFactory,
   RunExecutionOptions,
@@ -32,6 +33,12 @@ export type SingleDefinitionActivationRequest = NodeActivationContextArgs & {
   definition: NodeExecutionDefinition;
   batchId: string;
   input: Items;
+};
+
+export type MultiDefinitionActivationRequest = NodeActivationContextArgs & {
+  definition: NodeExecutionDefinition;
+  batchId: string;
+  inputsByPort: NodeInputsByPort;
 };
 
 export type PlannedNodeActivationRequest = NodeActivationContextArgs & {
@@ -71,6 +78,24 @@ export class NodeActivationRequestComposer {
       executionOptions: args.executionOptions,
       batchId: args.batchId,
       input: args.input,
+      ctx,
+    };
+  }
+
+  createMultiFromDefinitionWithActivation(
+    args: MultiDefinitionActivationRequest & Readonly<{ activationId: NodeActivationId }>,
+  ): Extract<NodeActivationRequest, { kind: "multi" }> {
+    const ctx = this.createNodeExecutionContext(args, args.definition, args.activationId);
+    return {
+      kind: "multi",
+      runId: args.runId,
+      activationId: args.activationId,
+      workflowId: args.workflowId,
+      nodeId: args.definition.id,
+      parent: args.parent,
+      executionOptions: args.executionOptions,
+      batchId: args.batchId,
+      inputsByPort: args.inputsByPort,
       ctx,
     };
   }

@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
-# Fast gate: Prettier (staged) + ESLint + typecheck + unit tests.
+# Fast gate: Prettier (staged) + changeset coverage (releasable packages) + ESLint + typecheck + unit tests.
 # Full lint (dupcheck, antipatterns) and other suites run on PRs in CI.
 pnpm exec lint-staged
+pnpm run changeset:verify
 pnpm run precommit

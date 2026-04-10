@@ -16,6 +16,8 @@ import type {
   StepSequenceOutput,
 } from "./workflowBuilderTypes";
 
+type ChainCursorEndpoint = Readonly<{ node: NodeRef; output: OutputPortKey }>;
+
 type ChainCursorWhenOverloads<TCurrentJson> = BooleanWhenOverloads<TCurrentJson, WhenBuilder<TCurrentJson>> & {
   <
     TTrueSteps extends ReadonlyArray<AnyRunnableNodeConfig> | undefined,
@@ -34,16 +36,17 @@ type ChainCursorWhenOverloads<TCurrentJson> = BooleanWhenOverloads<TCurrentJson,
 export class ChainCursor<TCurrentJson> {
   constructor(
     private readonly wf: WorkflowBuilder,
-    private readonly cursor: NodeRef,
-    private readonly cursorOutput: OutputPortKey,
+    private readonly endpoints: ReadonlyArray<ChainCursorEndpoint>,
   ) {}
 
-  then<TInputJson, TOutputJson, TConfig extends RunnableNodeConfig<TInputJson, TOutputJson, TCurrentJson>>(
+  then<TOutputJson, TConfig extends RunnableNodeConfig<TCurrentJson, TOutputJson>>(
     config: TConfig,
   ): ChainCursor<RunnableNodeOutputJson<TConfig>> {
     const next = (this.wf as any).add(config) as NodeRef;
-    (this.wf as any).connect(this.cursor, next, this.cursorOutput);
-    return new ChainCursor<RunnableNodeOutputJson<TConfig>>(this.wf, next, "main");
+    for (const e of this.endpoints) {
+      (this.wf as any).connect(e.node, next, e.output);
+    }
+    return new ChainCursor<RunnableNodeOutputJson<TConfig>>(this.wf, [{ node: next, output: "main" }]);
   }
 
   readonly when: ChainCursorWhenOverloads<TCurrentJson> = ((
@@ -53,22 +56,20 @@ export class ChainCursor<TCurrentJson> {
     steps?: ReadonlyArray<AnyRunnableNodeConfig> | AnyRunnableNodeConfig,
     ...more: AnyRunnableNodeConfig[]
   ): WhenBuilder<TCurrentJson> | ChainCursor<TCurrentJson> => {
+    if (this.endpoints.length !== 1) {
+      throw new Error("ChainCursor.when(...) is only supported from a single cursor endpoint");
+    }
+    const cursor = this.endpoints[0]!.node;
+
     if (typeof arg1 === "boolean") {
       const list = Array.isArray(steps) ? steps : steps ? [steps, ...more] : more;
       const port: OutputPortKey = arg1 ? "true" : "false";
-      const b = new WhenBuilder<TCurrentJson>(this.wf, this.cursor, port);
+      const b = new WhenBuilder<TCurrentJson>(this.wf, cursor, port);
       b.addBranch(list);
       return b;
     }
 
     const branches = arg1;
-    const makeMerge = (this.wf as any).options?.makeMergeNode as ((name: string) => AnyRunnableNodeConfig) | undefined;
-    if (!makeMerge) {
-      throw new Error(
-        'WorkflowBuilder is missing options.makeMergeNode (required for when({true,false}). Use createWorkflowBuilder from "@codemation/core-nodes".',
-      );
-    }
-
     const wfAny = this.wf as any;
 
     const buildBranch = (
@@ -79,22 +80,20 @@ export class ChainCursor<TCurrentJson> {
       let prev: NodeRef | null = null;
       for (const cfg of list) {
         const ref = wfAny.add(cfg) as NodeRef;
-        if (!prev) wfAny.connect(this.cursor, ref, port, "in");
+        if (!prev) wfAny.connect(cursor, ref, port, "in");
         else wfAny.connect(prev, ref, "main", "in");
         prev = ref;
       }
-      if (!prev) return { end: this.cursor, endOutput: port };
+      if (!prev) return { end: cursor, endOutput: port };
       return { end: prev, endOutput: "main" };
     };
 
     const t = buildBranch("true", branches.true);
     const f = buildBranch("false", branches.false);
-
-    const merge = wfAny.add(makeMerge("Merge (auto)")) as NodeRef;
-    wfAny.connect(t.end, merge, t.endOutput, "true");
-    wfAny.connect(f.end, merge, f.endOutput, "false");
-
-    return new ChainCursor<TCurrentJson>(this.wf, merge, "main");
+    return new ChainCursor<TCurrentJson>(this.wf, [
+      { node: t.end, output: t.endOutput },
+      { node: f.end, output: f.endOutput },
+    ]);
   }) as ChainCursorWhenOverloads<TCurrentJson>;
 
   build(): WorkflowDefinition {

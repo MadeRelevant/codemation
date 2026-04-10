@@ -177,7 +177,7 @@ export function WorkflowExecutionInspectorPanes(
                   overflowY: "auto",
                 }}
               >
-                {pane.portEntries.map(([portName]) => {
+                {pane.portEntries.map(([portName, items]) => {
                   const isSelected = pane.selectedPort === portName;
                   return (
                     <button
@@ -198,7 +198,7 @@ export function WorkflowExecutionInspectorPanes(
                         cursor: "pointer",
                       }}
                     >
-                      {portName}
+                      {`${portName} (${items.length})`}
                     </button>
                   );
                 })}

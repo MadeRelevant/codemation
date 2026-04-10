@@ -1,6 +1,17 @@
-import type { AnyRunnableNodeConfig, DefinedNode, RunnableNodeConfig, RunnableNodeOutputJson } from "@codemation/core";
+import type {
+  AnyRunnableNodeConfig,
+  DefinedNode,
+  Item,
+  Items,
+  NodeExecutionContext,
+  RunnableNodeConfig,
+  RunnableNodeOutputJson,
+} from "@codemation/core";
 import { z } from "zod";
+import { Aggregate } from "../nodes/aggregate";
+import { Filter } from "../nodes/filter";
 import { MapData } from "../nodes/mapData";
+import { Split } from "../nodes/split";
 import { Wait } from "../nodes/wait";
 import type { WorkflowAgentOptions } from "./WorkflowAuthoringOptions.types";
 import { WorkflowAgentNodeFactory } from "./WorkflowAgentNodeFactory.types";
@@ -10,7 +21,7 @@ import { WorkflowDurationParser } from "./WorkflowDurationParser.types";
 export class WorkflowBranchBuilder<TCurrentJson> {
   constructor(private readonly steps: ReadonlyArray<AnyRunnableNodeConfig> = []) {}
 
-  then<TInputJson, TOutputJson, TConfig extends RunnableNodeConfig<TInputJson, TOutputJson, TCurrentJson>>(
+  then<TOutputJson, TConfig extends RunnableNodeConfig<TCurrentJson, TOutputJson>>(
     config: TConfig,
   ): WorkflowBranchBuilder<RunnableNodeOutputJson<TConfig>> {
     return new WorkflowBranchBuilder<RunnableNodeOutputJson<TConfig>>([...this.steps, config]);
@@ -46,6 +57,101 @@ export class WorkflowBranchBuilder<TCurrentJson> {
     return this.then(
       new Wait<TCurrentJson>(name, WorkflowDurationParser.parse(duration), id),
     ) as WorkflowBranchBuilder<TCurrentJson>;
+  }
+
+  split<TElem>(
+    getElements: (item: Item<TCurrentJson>, ctx: NodeExecutionContext<Split<TCurrentJson, TElem>>) => readonly TElem[],
+  ): WorkflowBranchBuilder<TElem>;
+  split<TElem>(
+    name: string,
+    getElements: (item: Item<TCurrentJson>, ctx: NodeExecutionContext<Split<TCurrentJson, TElem>>) => readonly TElem[],
+    id?: string,
+  ): WorkflowBranchBuilder<TElem>;
+  split<TElem>(
+    nameOrGetter:
+      | string
+      | ((item: Item<TCurrentJson>, ctx: NodeExecutionContext<Split<TCurrentJson, TElem>>) => readonly TElem[]),
+    getElementsOrUndefined?: (
+      item: Item<TCurrentJson>,
+      ctx: NodeExecutionContext<Split<TCurrentJson, TElem>>,
+    ) => readonly TElem[],
+    id?: string,
+  ): WorkflowBranchBuilder<TElem> {
+    const name = typeof nameOrGetter === "string" ? nameOrGetter : "Split";
+    const getElements = typeof nameOrGetter === "string" ? getElementsOrUndefined! : nameOrGetter;
+    return this.then(new Split<TCurrentJson, TElem>(name, getElements, id)) as WorkflowBranchBuilder<TElem>;
+  }
+
+  filter(
+    predicate: (
+      item: Item<TCurrentJson>,
+      index: number,
+      items: Items<TCurrentJson>,
+      ctx: NodeExecutionContext<Filter<TCurrentJson>>,
+    ) => boolean,
+  ): WorkflowBranchBuilder<TCurrentJson>;
+  filter(
+    name: string,
+    predicate: (
+      item: Item<TCurrentJson>,
+      index: number,
+      items: Items<TCurrentJson>,
+      ctx: NodeExecutionContext<Filter<TCurrentJson>>,
+    ) => boolean,
+    id?: string,
+  ): WorkflowBranchBuilder<TCurrentJson>;
+  filter(
+    nameOrPredicate:
+      | string
+      | ((
+          item: Item<TCurrentJson>,
+          index: number,
+          items: Items<TCurrentJson>,
+          ctx: NodeExecutionContext<Filter<TCurrentJson>>,
+        ) => boolean),
+    predicateOrUndefined?: (
+      item: Item<TCurrentJson>,
+      index: number,
+      items: Items<TCurrentJson>,
+      ctx: NodeExecutionContext<Filter<TCurrentJson>>,
+    ) => boolean,
+    id?: string,
+  ): WorkflowBranchBuilder<TCurrentJson> {
+    const name = typeof nameOrPredicate === "string" ? nameOrPredicate : "Filter";
+    const predicate = typeof nameOrPredicate === "string" ? predicateOrUndefined! : nameOrPredicate;
+    return this.then(new Filter<TCurrentJson>(name, predicate, id)) as WorkflowBranchBuilder<TCurrentJson>;
+  }
+
+  aggregate<TOut>(
+    aggregateFn: (
+      items: Items<TCurrentJson>,
+      ctx: NodeExecutionContext<Aggregate<TCurrentJson, TOut>>,
+    ) => TOut | Promise<TOut>,
+  ): WorkflowBranchBuilder<TOut>;
+  aggregate<TOut>(
+    name: string,
+    aggregateFn: (
+      items: Items<TCurrentJson>,
+      ctx: NodeExecutionContext<Aggregate<TCurrentJson, TOut>>,
+    ) => TOut | Promise<TOut>,
+    id?: string,
+  ): WorkflowBranchBuilder<TOut>;
+  aggregate<TOut>(
+    nameOrFn:
+      | string
+      | ((
+          items: Items<TCurrentJson>,
+          ctx: NodeExecutionContext<Aggregate<TCurrentJson, TOut>>,
+        ) => TOut | Promise<TOut>),
+    aggregateFnOrUndefined?: (
+      items: Items<TCurrentJson>,
+      ctx: NodeExecutionContext<Aggregate<TCurrentJson, TOut>>,
+    ) => TOut | Promise<TOut>,
+    id?: string,
+  ): WorkflowBranchBuilder<TOut> {
+    const name = typeof nameOrFn === "string" ? nameOrFn : "Aggregate";
+    const aggregateFn = typeof nameOrFn === "string" ? aggregateFnOrUndefined! : nameOrFn;
+    return this.then(new Aggregate<TCurrentJson, TOut>(name, aggregateFn, id)) as WorkflowBranchBuilder<TOut>;
   }
 
   agent<TOutputSchema extends z.ZodTypeAny>(

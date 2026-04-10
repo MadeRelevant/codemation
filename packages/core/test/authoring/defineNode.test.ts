@@ -1,4 +1,4 @@
-import type { ItemNode, NodeExecutionContext } from "../../src/contracts/runtimeTypes";
+import type { NodeExecutionContext, RunnableNode } from "../../src/contracts/runtimeTypes";
 import { describe, expect, it } from "vitest";
 import { defineCredential, defineNode } from "../../src";
 import { z } from "zod";
@@ -37,7 +37,7 @@ describe("defineNode", () => {
       credentials: {
         service: helperCredential,
       },
-      async executeOne(args, { config, credentials }) {
+      async execute(args, { config, credentials }) {
         const session = await credentials.service();
         const row = args.input as Record<string, unknown>;
         return {
@@ -48,7 +48,7 @@ describe("defineNode", () => {
     });
 
     const config = helperNode.create({ field: "subject" });
-    const runtime = new (config.type as new () => ItemNode<typeof config>)();
+    const runtime = new (config.type as new () => RunnableNode<typeof config>)();
     const itemJson = { subject: "hello" };
     const ctx = {
       config,
@@ -68,7 +68,7 @@ describe("defineNode", () => {
       }),
     } as unknown as NodeExecutionContext<typeof config>;
 
-    const out = await runtime.executeOne({
+    const out = await runtime.execute({
       input: itemJson,
       item: { json: itemJson },
       itemIndex: 0,
@@ -87,7 +87,7 @@ describe("defineNode", () => {
       title: "Icon probe",
       icon: "lucide:braces",
       input: {},
-      executeOne({ input }, _context) {
+      execute({ input }, _context) {
         return input;
       },
     });

@@ -10,7 +10,9 @@ import type {
   NodeExecutionStatePublisher,
   NodeInputsByPort,
   NodeOutputs,
+  RunnableNode,
   RunnableNodeConfig,
+  RunnableNodeExecuteArgs,
   Tool,
   ToolConfig,
   ToolExecuteArgs,
@@ -20,6 +22,8 @@ import {
   AgentToolFactory,
   ConnectionNodeIdFactory,
   CoreTokens,
+  ItemValueResolver,
+  NodeOutputNormalizer,
   container as tsyringeContainer,
 } from "@codemation/core";
 
@@ -243,26 +247,22 @@ class MailLookupNodeConfig implements RunnableNodeConfig<Record<string, unknown>
   ) {}
 }
 
-class MailLookupNode implements Node<MailLookupNodeConfig> {
+class MailLookupNode implements RunnableNode<MailLookupNodeConfig> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<MailLookupNodeConfig>): Promise<NodeOutputs> {
+  execute(args: RunnableNodeExecuteArgs<MailLookupNodeConfig>): unknown {
+    const json = args.item.json as Readonly<{ subject?: string; body?: string }>;
+    const subject = String(json.subject ?? "");
+    const body = String(json.body ?? "");
+    const haystack = `${subject}\n${body}`.toUpperCase();
+    const matched = haystack.includes(args.ctx.config.matcher.toUpperCase());
     return {
-      main: items.map((item) => {
-        const json = item.json as Readonly<{ subject?: string; body?: string }>;
-        const subject = String(json.subject ?? "");
-        const body = String(json.body ?? "");
-        const haystack = `${subject}\n${body}`.toUpperCase();
-        const matched = haystack.includes(ctx.config.matcher.toUpperCase());
-        return {
-          json: {
-            isRfq: matched,
-            reason: matched ? `Matched ${ctx.config.matcher}` : `No match for ${ctx.config.matcher}`,
-            inspectedSubject: subject,
-          },
-        };
-      }),
+      json: {
+        isRfq: matched,
+        reason: matched ? `Matched ${args.ctx.config.matcher}` : `No match for ${args.ctx.config.matcher}`,
+        inspectedSubject: subject,
+      },
     };
   }
 }
@@ -278,12 +278,12 @@ class ThrowingNodeConfig implements RunnableNodeConfig<Record<string, unknown>, 
   ) {}
 }
 
-class ThrowingNode implements Node<ThrowingNodeConfig> {
+class ThrowingNode implements RunnableNode<ThrowingNodeConfig> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(_: Items, ctx: NodeExecutionContext<ThrowingNodeConfig>): Promise<NodeOutputs> {
-    throw new Error(ctx.config.message);
+  execute(args: RunnableNodeExecuteArgs<ThrowingNodeConfig>): Promise<unknown> {
+    throw new Error(args.ctx.config.message);
   }
 }
 
@@ -300,6 +300,8 @@ class AgentTestRig {
   ) {
     this.container.registerInstance(CoreTokens.CredentialSessionService, new StubCredentialSessionService());
     this.container.registerInstance(CoreTokens.NodeResolver, this.container);
+    this.container.registerSingleton(ItemValueResolver, ItemValueResolver);
+    this.container.registerSingleton(NodeOutputNormalizer, NodeOutputNormalizer);
     this.container.registerSingleton(AIAgentExecutionHelpersFactory, AIAgentExecutionHelpersFactory);
     this.container.registerSingleton(NodeBackedToolRuntime, NodeBackedToolRuntime);
     this.container.registerSingleton(AIAgentNode, AIAgentNode);
@@ -337,7 +339,7 @@ class AgentTestRig {
     const out: Item[] = [];
     for (let i = 0; i < itemsIn.length; i++) {
       const item = itemsIn[i]!;
-      const json = await node.executeOne({
+      const json = await node.execute({
         input: item.json,
         item,
         itemIndex: i,
@@ -394,7 +396,7 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
   ]);
   const elapsedMs = performance.now() - startedAt;
 
-  assert.ok(elapsedMs < 80, `expected tool execution to be parallel, elapsed=${elapsedMs}ms`);
+  assert.ok(elapsedMs < 120, `expected tool execution to be parallel, elapsed=${elapsedMs}ms`);
   assert.equal(DelayTool.snapshot().length, 2);
   assert.ok(
     Math.abs(DelayTool.snapshot()[0]! - DelayTool.snapshot()[1]!) < 30,

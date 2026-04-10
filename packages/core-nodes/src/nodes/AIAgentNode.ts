@@ -4,12 +4,13 @@ import type {
   ChatModelConfig,
   ChatModelFactory,
   Item,
-  ItemNode,
   Items,
   JsonValue,
   LangChainChatModelLike,
   NodeExecutionContext,
   NodeInputsByPort,
+  RunnableNode,
+  RunnableNodeExecuteArgs,
   Tool,
   ToolConfig,
   ZodSchemaAny,
@@ -59,12 +60,13 @@ interface PreparedAgentExecution {
 }
 
 @node({ packageName: "@codemation/core-nodes" })
-export class AIAgentNode implements ItemNode<AIAgent<any, any>, unknown, unknown> {
+export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
   /**
-   * Engine applies {@link RunnableNodeConfig.mapInput} + parse before {@link #executeOne}. Prefer modeling
-   * prompts as {@code { messages: [{ role, content }, ...] }} so persisted inputs are visible in the UI.
+   * Engine validates {@link RunnableNodeConfig.inputSchema} (Zod) on {@code item.json} before enqueue, then resolves
+   * per-item **`itemValue`** leaves on config before {@link #execute}. Prefer modeling prompts as
+   * {@code { messages: [{ role, content }, ...] }} (on input or config) so persisted inputs are visible in the UI.
    */
   readonly inputSchema = z.unknown();
 
@@ -89,13 +91,7 @@ export class AIAgentNode implements ItemNode<AIAgent<any, any>, unknown, unknown
       this.executionHelpers.createConnectionCredentialExecutionContextFactory(credentialSessions);
   }
 
-  async executeOne(args: {
-    input: unknown;
-    item: Item;
-    itemIndex: number;
-    items: Items;
-    ctx: NodeExecutionContext<AIAgent<any, any>>;
-  }): Promise<unknown> {
+  async execute(args: RunnableNodeExecuteArgs<AIAgent<any, any>>): Promise<unknown> {
     const prepared = await this.getOrPrepareExecution(args.ctx);
     const itemWithMappedJson = { ...args.item, json: args.input };
     const resultItem = await this.runAgentForItem(prepared, itemWithMappedJson, args.itemIndex, args.items);

@@ -27,6 +27,8 @@ export function useWorkflowRealtimeInfrastructure(
 ): RealtimeContextValue {
   const { logger, websocketPort } = args;
   const queryClient = useQueryClient();
+  const [workflowSocketEnabled, setWorkflowSocketEnabled] = useState(false);
+  const hasLoggedWorkflowSocketEnabledRef = useRef(false);
   const desiredWorkflowCountsRef = useRef(new Map<string, number>());
   const pendingOutgoingMessagesRef = useRef<RealtimeClientMessage[]>([]);
   const activeStatusShownAtByNodeKeyRef = useRef(new Map<string, number>());
@@ -37,6 +39,7 @@ export function useWorkflowRealtimeInfrastructure(
   const readyStateRef = useRef<RealtimeReadyValue>(RealtimeReadyState.UNINSTANTIATED);
   const hasOpenedConnectionRef = useRef(false);
   const hasLoggedUnavailableTransportRef = useRef(false);
+  const hasLoggedPersistentTransportUnavailableRef = useRef(false);
   const pendingDisconnectReasonRef = useRef<string | null>(null);
   const [readyState, setReadyState] = useState<RealtimeReadyValue>(RealtimeReadyState.UNINSTANTIATED);
   const sendJsonMessageRef = useRef<(message: RealtimeClientMessage) => boolean>(() => false);
@@ -55,9 +58,67 @@ export function useWorkflowRealtimeInfrastructure(
     const host = `${window.location.hostname}${port !== undefined && port !== "" ? `:${port}` : ""}`;
     return `${protocol}://${host}${ApiPaths.devGatewaySocket()}`;
   }, [websocketPort]);
-  const shouldConnect = Boolean(websocketUrl);
+  const shouldConnect = Boolean(websocketUrl) && workflowSocketEnabled;
 
   readyStateRef.current = readyState;
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    let disposed = false;
+    let intervalId: number | null = null;
+    const check = async (): Promise<boolean> => {
+      try {
+        const response = await fetch("/api/dev/health", { cache: "no-store" });
+        if (response.status !== 200) {
+          setWorkflowSocketEnabled(true);
+          return true;
+        }
+        const json = (await response.json().catch(() => null)) as Readonly<{
+          runtime?: Readonly<{ status?: unknown }>;
+        }> | null;
+        const status = json?.runtime?.status;
+        if (status === "ready") {
+          setWorkflowSocketEnabled(true);
+          return true;
+        }
+        setWorkflowSocketEnabled(false);
+        return false;
+      } catch {
+        // Non-dev environments or transient failures should not disable realtime.
+        setWorkflowSocketEnabled(true);
+        return true;
+      }
+    };
+    void (async () => {
+      const ready = await check();
+      if (disposed || ready) {
+        return;
+      }
+      intervalId = window.setInterval(() => {
+        void (async () => {
+          const nextReady = await check();
+          if (!nextReady || disposed || intervalId === null) {
+            return;
+          }
+          window.clearInterval(intervalId);
+          intervalId = null;
+        })();
+      }, 500);
+    })();
+    return () => {
+      disposed = true;
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, []);
+  useEffect(() => {
+    if (workflowSocketEnabled && !hasLoggedWorkflowSocketEnabledRef.current) {
+      hasLoggedWorkflowSocketEnabledRef.current = true;
+      logger.info(`workflow websocket enabled port=${websocketPort ?? window.location.port}`);
+    }
+  }, [logger, websocketPort, workflowSocketEnabled]);
   const clearPendingDisconnectWarning = useCallback((): void => {
     if (disconnectWarningTimeoutRef.current === null) {
       return;
@@ -77,6 +138,10 @@ export function useWorkflowRealtimeInfrastructure(
           pendingDisconnectReasonRef.current = null;
           return;
         }
+        if (hasLoggedPersistentTransportUnavailableRef.current) {
+          return;
+        }
+        hasLoggedPersistentTransportUnavailableRef.current = true;
         logger.warn(
           `websocket transport is still unavailable after ${persistentRealtimeDisconnectWarningDelayMs}ms at ${websocketUrl}: ${pendingDisconnectReasonRef.current ?? reason}`,
         );
@@ -306,6 +371,7 @@ export function useWorkflowRealtimeInfrastructure(
         }
         hasOpenedConnectionRef.current = true;
         hasLoggedUnavailableTransportRef.current = false;
+        hasLoggedPersistentTransportUnavailableRef.current = false;
         pendingDisconnectReasonRef.current = null;
         clearPendingDisconnectWarning();
         setReadyState(RealtimeReadyState.OPEN);

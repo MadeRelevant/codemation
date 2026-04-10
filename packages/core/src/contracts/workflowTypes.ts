@@ -17,6 +17,8 @@ export interface JsonObject {
 }
 export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
 export type JsonArray = ReadonlyArray<JsonValue>;
+/** JSON value that is not a top-level array (nested arrays inside objects are allowed). */
+export type JsonNonArray = JsonPrimitive | JsonObject;
 
 export interface Edge {
   from: { nodeId: NodeId; output: OutputPortKey };
@@ -81,74 +83,45 @@ export interface NodeConfigBase {
    * main batches skip downstream execution and propagate the empty path.
    */
   readonly continueWhenEmptyOutput?: boolean;
+  /**
+   * Declared I/O port names for canvas authoring (unioned with ports inferred from edges).
+   * Use for dynamic routers (Switch) and future error ports.
+   */
+  readonly declaredOutputPorts?: ReadonlyArray<OutputPortKey>;
+  readonly declaredInputPorts?: ReadonlyArray<InputPortKey>;
   getCredentialRequirements?(): ReadonlyArray<CredentialRequirement>;
 }
 
 export declare const runnableNodeInputType: unique symbol;
 export declare const runnableNodeOutputType: unique symbol;
-/** Phantom: JSON shape on the wire from upstream before {@link RunnableNodeConfig.mapInput}. */
-export declare const runnableNodeWireType: unique symbol;
 export declare const triggerNodeOutputType: unique symbol;
 
-/**
- * Read-only execution slice passed to {@link RunnableNodeConfig.mapInput} (aligned with the engine’s
- * node execution context for `runId`, `data`, etc.). Use **`ctx.data`** to read **any completed** upstream
- * node’s outputs in this run (e.g. `ctx.data.getOutputItems(nodeIdA, "main")` while mapping at D), not only
- * the immediate predecessor’s {@link ItemInputMapperArgs.item}.
- */
-export interface ItemInputMapperContext {
-  readonly runId: RunId;
-  readonly workflowId: WorkflowId;
-  /** Node whose activation is being prepared (the consumer of `mapInput`). */
-  readonly nodeId: NodeId;
-  readonly activationId: NodeActivationId;
-  readonly parent?: ParentExecutionRef;
-  readonly data: RunDataSnapshot;
-}
+export type LineageCarryPolicy = "emitOnly" | "carryThrough";
 
 /**
- * Arguments for optional per-item input mapping applied by the engine before Zod validation.
+ * Runnable node: **`TInputJson`** is what **`inputSchema`** validates on **`item.json`** (the wire payload).
+ * **`TOutputJson`** is emitted `item.json` on outputs.
  */
-export interface ItemInputMapperArgs<TWireJson = unknown> {
-  readonly item: Item<TWireJson>;
-  readonly itemIndex: number;
-  readonly items: Items<TWireJson>;
-  readonly ctx: ItemInputMapperContext;
-}
-
-/**
- * Per-item mapper before Zod validation. Uses a **bivariant** method signature so concrete
- * `ItemInputMapper<SpecificWire, TIn>` remains assignable to `RunnableNodeConfig` fields typed as
- * `ItemInputMapper<unknown, unknown>` (same pattern as React-style callbacks).
- */
-export type ItemInputMapper<TWireJson = unknown, TInputJson = unknown> = {
-  bivarianceHack(args: ItemInputMapperArgs<TWireJson>): TInputJson | Promise<TInputJson>;
-}["bivarianceHack"];
-
-/**
- * Runnable node: **`TInputJson`** is the payload after `mapInput` (if any) + Zod validation — what {@link ItemNode}
- * `executeOne` receives. **`TOutputJson`** is emitted `item.json` on outputs. **`TWireJson`** is `item.json` from
- * upstream **before** `mapInput`; it defaults to **`TInputJson`** when there is no mapper or wire differs from execute input.
- */
-export interface RunnableNodeConfig<
-  TInputJson = unknown,
-  TOutputJson = unknown,
-  TWireJson = TInputJson,
-> extends NodeConfigBase {
+export interface RunnableNodeConfig<TInputJson = unknown, TOutputJson = unknown> extends NodeConfigBase {
   readonly kind: "node";
   readonly [runnableNodeInputType]?: TInputJson;
   readonly [runnableNodeOutputType]?: TOutputJson;
-  readonly [runnableNodeWireType]?: TWireJson;
   /**
-   * Optional Zod input contract for {@link ItemNode} when not set on the node class.
+   * Optional Zod input contract for {@link RunnableNode} when not set on the node class.
    * Resolution order: node instance `inputSchema`, then config `inputSchema`, then `z.unknown()`.
    */
   readonly inputSchema?: ZodType<TInputJson>;
   /**
-   * Optional per-item mapper: engine applies it before validating against the node’s `inputSchema`.
-   * When omitted, the engine validates `item.json` directly.
+   * Overrides default lineage propagation for `execute` outputs (binary/meta/paired).
+   * Routers with multiple {@link RunnableNode#outputPorts} default to **`carryThrough`**; others default to **`emitOnly`**.
    */
-  readonly mapInput?: ItemInputMapper<TWireJson, TInputJson>;
+  readonly lineageCarry?: LineageCarryPolicy;
+  /**
+   * When an activation receives **zero** input items, the engine normally runs `execute` zero times.
+   * Set to **`runOnce`** to run `execute` once with an empty `items` batch (and a synthetic wire item for schema parsing).
+   * Used by batch-style callback nodes (built-in `Callback`) so `callback([], ctx)` still runs.
+   */
+  readonly emptyBatchExecution?: "skip" | "runOnce";
 }
 
 export declare const triggerNodeSetupStateType: unique symbol;
@@ -162,14 +135,11 @@ export interface TriggerNodeConfig<
   readonly [triggerNodeSetupStateType]?: TSetupState;
 }
 
-export type RunnableNodeInputJson<TConfig extends RunnableNodeConfig<any, any, any>> =
-  TConfig extends RunnableNodeConfig<infer TInputJson, any, any> ? TInputJson : never;
+export type RunnableNodeInputJson<TConfig extends RunnableNodeConfig<any, any>> =
+  TConfig extends RunnableNodeConfig<infer TInputJson, any> ? TInputJson : never;
 
-export type RunnableNodeWireJson<TConfig extends RunnableNodeConfig<any, any, any>> =
-  TConfig extends RunnableNodeConfig<any, any, infer TWireJson> ? TWireJson : never;
-
-export type RunnableNodeOutputJson<TConfig extends RunnableNodeConfig<any, any, any>> =
-  TConfig extends RunnableNodeConfig<any, infer TOutputJson, any> ? TOutputJson : never;
+export type RunnableNodeOutputJson<TConfig extends RunnableNodeConfig<any, any>> =
+  TConfig extends RunnableNodeConfig<any, infer TOutputJson> ? TOutputJson : never;
 
 export type TriggerNodeOutputJson<TConfig extends TriggerNodeConfig<any, any>> =
   TConfig extends TriggerNodeConfig<infer TOutputJson, any> ? TOutputJson : never;

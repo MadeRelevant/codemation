@@ -79,11 +79,22 @@ class PinnedSkippedExecutionFixture {
   }
 
   static createPendingRunState(workflow: WorkflowDto): PersistedRunState {
-    return WorkflowDetailFixtureFactory.createInitialRunState({
-      mode: "manual",
+    return {
       runId: this.runId,
-      workflow,
-    });
+      workflowId: workflow.id,
+      startedAt: "2026-03-17T09:00:00.000Z",
+      status: "pending",
+      queue: [],
+      outputsByNode: {},
+      nodeSnapshotsByNodeId: {},
+      workflowSnapshot: undefined,
+      mutableState: undefined,
+      pending: undefined,
+      executionOptions: {
+        mode: "manual",
+        sourceWorkflowId: workflow.id,
+      },
+    };
   }
 
   private static createSnapshot(
@@ -341,6 +352,9 @@ describe("workflow detail mutable execution flows", () => {
     await kit.waitForSocketConnection();
     kit.selectCanvasNode("B");
 
+    await waitFor(() => {
+      expect(screen.getByTestId("edit-output-button")).toBeEnabled();
+    });
     fireEvent.click(screen.getByTestId("edit-output-button"));
     fireEvent.change(screen.getByTestId("workflow-json-editor-input"), {
       target: { value: JSON.stringify({ pinned: true }, null, 2) },
@@ -503,13 +517,13 @@ describe("workflow detail mutable execution flows", () => {
       },
       mutableState: { nodesById: {} },
     } satisfies PersistedRunState;
+    const runToAId = "run_frontend_restore_pinned_to_a";
     const runToAState = {
-      ...WorkflowDetailFixtureFactory.createInitialRunState({
-        workflow,
-        runId: "run_frontend_restore_pinned_to_a",
-        mode: "manual",
-      }),
+      runId: runToAId,
+      workflowId: workflow.id,
+      startedAt: "2026-03-17T09:00:00.000Z",
       status: "completed" as const,
+      queue: [],
       outputsByNode: {
         A: { main: [{ json: { emittedBy: "A" } }] },
         B: { main: [{ json: { pinned: true } }] },
@@ -517,10 +531,12 @@ describe("workflow detail mutable execution flows", () => {
       nodeSnapshotsByNodeId: {
         A: {
           ...PinnedSkippedExecutionFixture.createCompletedRunState().nodeSnapshotsByNodeId.A!,
-          runId: "run_frontend_restore_pinned_to_a",
+          runId: runToAId,
+          workflowId: workflow.id,
           outputs: { main: [{ json: { emittedBy: "A" } }] },
         },
       },
+      workflowSnapshot: undefined,
       mutableState: {
         nodesById: {
           B: {
@@ -529,6 +545,11 @@ describe("workflow detail mutable execution flows", () => {
             },
           },
         },
+      },
+      pending: undefined,
+      executionOptions: {
+        mode: "manual",
+        sourceWorkflowId: workflow.id,
       },
     } satisfies PersistedRunState;
     const runToCState = {
@@ -585,6 +606,9 @@ describe("workflow detail mutable execution flows", () => {
     await kit.copyToDebugger();
 
     kit.selectCanvasNode("B");
+    await waitFor(() => {
+      expect(screen.getByTestId("edit-output-button")).toBeEnabled();
+    });
     fireEvent.click(screen.getByTestId("edit-output-button"));
     fireEvent.change(screen.getByTestId("workflow-json-editor-input"), {
       target: { value: JSON.stringify({ pinned: true }, null, 2) },

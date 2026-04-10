@@ -1,24 +1,18 @@
-import type { Item, ItemNode, Items, NodeExecutionContext } from "../types";
+import type { Item, RunnableNode, RunnableNodeExecuteArgs } from "../types";
 
 import type { ItemHarnessNodeConfig } from "./ItemHarnessNodeConfig";
 
 /**
  * Item-mode harness node for engine tests (see {@link ItemHarnessNodeConfig}).
  */
-export class ItemHarnessNode implements ItemNode<ItemHarnessNodeConfig<any, any, any>, unknown, unknown> {
+export class ItemHarnessNode implements RunnableNode<ItemHarnessNodeConfig<any, any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async executeOne(args: {
-    input: unknown;
-    item: Item;
-    itemIndex: number;
-    items: Items;
-    ctx: NodeExecutionContext<ItemHarnessNodeConfig<any, any, any>>;
-  }): Promise<unknown> {
+  async execute(args: RunnableNodeExecuteArgs<ItemHarnessNodeConfig<any, any>>): Promise<unknown> {
     return await args.ctx.config.runOne({
       input: args.input as never,
-      item: args.item,
+      item: args.item as Item,
       itemIndex: args.itemIndex,
       items: args.items,
       ctx: args.ctx,

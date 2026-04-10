@@ -1,8 +1,8 @@
-import type { NodeConfigBase } from "../types";
+import type { RunnableNodeConfig } from "../types";
 
 import { MissingRuntimeNodeToken } from "./MissingRuntimeNodeToken";
 
-export class MissingRuntimeNodeConfig implements NodeConfigBase {
+export class MissingRuntimeNodeConfig implements RunnableNodeConfig<unknown, unknown> {
   readonly kind = "node" as const;
   readonly type = MissingRuntimeNodeToken;
 

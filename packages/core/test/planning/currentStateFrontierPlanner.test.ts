@@ -3,7 +3,7 @@ import { test } from "vitest";
 
 import { CurrentStateFrontierPlanner } from "../../src/planning/CurrentStateFrontierPlanner.ts";
 import { WorkflowTopology } from "../../src/planning/WorkflowTopologyPlanner.ts";
-import { CallbackNodeConfig, MergeNodeConfig, chain, dag, items } from "../harness/index.ts";
+import { CallbackNodeConfig, IfNodeConfig, MergeNodeConfig, chain, dag, items } from "../harness/index.ts";
 
 test("planner preserves pinned outputs when clearing from a pinned node", () => {
   const A = new CallbackNodeConfig("A", () => {}, { id: "A" });
@@ -81,4 +81,38 @@ test("planner emits a collect queue entry when merge inputs are already satisfie
     plan.queue[0]?.collect?.received.right.map((item) => item.json),
     [{ from: "B" }],
   );
+});
+
+test("planner treats missing output port keys as empty once the source node is satisfied", () => {
+  const gate = new IfNodeConfig("Gate", () => true, { id: "if", omitUnusedOutputKey: true });
+  const merge = new MergeNodeConfig("Merge", { mode: "append" }, { id: "merge" });
+  const X = new CallbackNodeConfig("X", () => {}, { id: "X" });
+  const builder = dag({ id: "wf.planner.missing-port-keys", name: "Missing port keys" });
+  builder.add(gate);
+  builder.add(merge);
+  builder.add(X);
+  builder.connect("if", "merge", "true", "true");
+  builder.connect("if", "merge", "false", "false");
+  builder.connect("merge", "X", "main", "in");
+  const workflow = builder.build();
+  const planner = new CurrentStateFrontierPlanner(WorkflowTopology.fromWorkflow(workflow));
+
+  const plan = planner.plan({
+    currentState: {
+      outputsByNode: {
+        if: { true: items([{ ok: true }]) }, // intentionally omit `false`
+      },
+      nodeSnapshotsByNodeId: {},
+    },
+    stopCondition: { kind: "workflowCompleted" },
+  });
+
+  assert.equal(plan.queue.length, 1);
+  assert.equal(plan.queue[0]?.nodeId, "merge");
+  assert.deepEqual(plan.queue[0]?.collect?.expectedInputs, ["true", "false"]);
+  assert.deepEqual(
+    plan.queue[0]?.collect?.received.true.map((i) => i.json),
+    [{ ok: true }],
+  );
+  assert.deepEqual(plan.queue[0]?.collect?.received.false, []);
 });

@@ -8,7 +8,7 @@ Use `defineNode(...)` when:
 - the node belongs to one app or plugin package
 - helper-based credential slots are enough
 
-## Standard helper shape (`executeOne`)
+## Standard helper shape (`execute`)
 
 ```ts
 export const uppercaseNode = defineNode({
@@ -18,7 +18,7 @@ export const uppercaseNode = defineNode({
   input: {
     field: "string",
   },
-  executeOne({ input }, { config }) {
+  execute({ input }, { config }) {
     return {
       ...input,
       [config.field]: String(input[config.field as keyof typeof input] ?? "").toUpperCase(),
@@ -31,7 +31,7 @@ Optional **`icon`** is forwarded to the generated node config for the canvas (Lu
 
 ## Batch helper shape (`defineBatchNode`)
 
-When the node must see **all items in one call**, use **`defineBatchNode`** and **`run(items, { config, credentials, execution })`** returning **`Items`** per port (same as class-based **`Node.execute`**).
+When the node must see **all items in one call**, use **`defineBatchNode`** and **`run(items, { config, credentials, execution })`** returning outputs for the batch (same contract as other batch-shaped nodes such as **Aggregate**).
 
 ## When a custom node pays off
 
@@ -52,6 +52,6 @@ Reach for class-based node APIs when:
 
 ## Runtime reminder
 
-- **`defineNode`** runs **`executeOne` once per item** (with optional **`mapInput`** / **`inputSchema`** before enqueue)
+- **`defineNode`** runs **`execute` once per item** (with optional **`inputSchema`** and **`itemValue`** on config fields before **`execute`**)
 - **`defineBatchNode`** runs **`run`** once per activation batch
 - keep nodes deterministic and testable; prefer real code paths or in-memory collaborators over heavy mocking

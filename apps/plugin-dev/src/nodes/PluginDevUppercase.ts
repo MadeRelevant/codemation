@@ -6,7 +6,7 @@ export const pluginDevUppercaseNode = defineNode({
   input: {
     field: "string",
   },
-  executeOne(
+  execute(
     { input }: { readonly input: Readonly<{ message: string }> },
     { config }: { readonly config: Readonly<{ field: string }> },
   ) {

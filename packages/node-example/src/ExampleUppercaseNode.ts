@@ -1,25 +1,18 @@
-import type { Item, Items, Node, NodeExecutionContext, NodeOutputs } from "@codemation/core";
+import type { Item, RunnableNode, RunnableNodeExecuteArgs } from "@codemation/core";
 
 import { node } from "@codemation/core";
 
 import { ExampleUppercase } from "./uppercase";
 
 @node({ packageName: "@codemation/node-example" })
-export class ExampleUppercaseNode implements Node<ExampleUppercase<Record<string, unknown>, string>> {
+export class ExampleUppercaseNode implements RunnableNode<ExampleUppercase<Record<string, unknown>, string>> {
   kind = "node" as const;
   outputPorts = ["main"] as const;
 
-  async execute(
-    items: Items,
-    ctx: NodeExecutionContext<ExampleUppercase<Record<string, unknown>, string>>,
-  ): Promise<NodeOutputs> {
-    const out: Item[] = [];
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]!;
-      const json = typeof item.json === "object" && item.json !== null ? (item.json as Record<string, unknown>) : {};
-      const value = String(json[ctx.config.cfg.field] ?? "");
-      out.push({ ...item, json: { ...json, [ctx.config.cfg.field]: value.toUpperCase() } });
-    }
-    return { main: out };
+  execute(args: RunnableNodeExecuteArgs<ExampleUppercase<Record<string, unknown>, string>>): unknown {
+    const item = args.item as Item;
+    const json = typeof item.json === "object" && item.json !== null ? (item.json as Record<string, unknown>) : {};
+    const value = String(json[args.ctx.config.cfg.field] ?? "");
+    return { ...item, json: { ...json, [args.ctx.config.cfg.field]: value.toUpperCase() } };
   }
 }

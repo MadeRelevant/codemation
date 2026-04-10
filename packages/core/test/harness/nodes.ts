@@ -3,14 +3,16 @@ import type {
   Item,
   Items,
   MultiInputNode,
-  Node,
   NodeConfigBase,
   NodeExecutionContext,
   NodeOutputs,
   RetryPolicySpec,
+  RunnableNode,
   RunnableNodeConfig,
+  RunnableNodeExecuteArgs,
   TypeToken,
 } from "../../src/index.ts";
+import { emitPorts } from "../../src/index.ts";
 
 export { SubWorkflowRunnerConfig, SubWorkflowRunnerNode } from "../../src/testing/SubWorkflowRunnerTestNode.ts";
 
@@ -22,6 +24,7 @@ export type CallbackExecuteArgs<TConfig extends NodeConfigBase> = Readonly<{
 export class CallbackNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = CallbackNode;
+  readonly emptyBatchExecution = "runOnce" as const;
 
   constructor(
     public readonly name: string,
@@ -51,13 +54,21 @@ export class CallbackNodeConfig<TItemJson = unknown> implements RunnableNodeConf
   }
 }
 
-export class CallbackNode implements Node<CallbackNodeConfig<any>> {
+export class CallbackNode implements RunnableNode<CallbackNodeConfig<any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<CallbackNodeConfig<any>>): Promise<NodeOutputs> {
-    ctx.config.onExecute({ items, ctx });
-    return { main: items };
+  async execute(args: RunnableNodeExecuteArgs<CallbackNodeConfig<any>>): Promise<unknown> {
+    const items = args.items ?? [];
+    if (items.length === 0) {
+      args.ctx.config.onExecute({ items, ctx: args.ctx });
+      return emitPorts({ main: items });
+    }
+    if (args.itemIndex !== items.length - 1) {
+      return [];
+    }
+    args.ctx.config.onExecute({ items, ctx: args.ctx });
+    return emitPorts({ main: items });
   }
 }
 
@@ -83,15 +94,18 @@ export class ThrowNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<
   }
 }
 
-export class ThrowNode implements Node<ThrowNodeConfig<any>> {
+export class ThrowNode implements RunnableNode<ThrowNodeConfig<any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<ThrowNodeConfig<any>>): Promise<NodeOutputs> {
-    const v = ctx.config.errorOrFactory;
-    if (typeof v === "function") throw v({ items, ctx });
-    if (v instanceof Error) throw v;
-    throw new Error(String(v ?? "ThrowNode error"));
+  async execute(args: RunnableNodeExecuteArgs<ThrowNodeConfig<any>>): Promise<unknown> {
+    if (args.itemIndex === 0) {
+      const v = args.ctx.config.errorOrFactory;
+      if (typeof v === "function") throw v({ items: args.items, ctx: args.ctx });
+      if (v instanceof Error) throw v;
+      throw new Error(String(v ?? "ThrowNode error"));
+    }
+    return args.item;
   }
 }
 
@@ -121,35 +135,34 @@ export class BranchNodeConfig<TItemJson = unknown> implements RunnableNodeConfig
   }
 }
 
-export class BranchNode implements Node<BranchNodeConfig<any>> {
+function tagHarnessRouterItem(item: Item, itemIndex: number, nodeId: string): Item {
+  const metaBase = (item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}) as Record<
+    string,
+    unknown
+  >;
+  const cmBase =
+    metaBase._cm && typeof metaBase._cm === "object"
+      ? (metaBase._cm as Record<string, unknown>)
+      : ({} as Record<string, unknown>);
+  const originIndex = typeof cmBase.originIndex === "number" ? (cmBase.originIndex as number) : itemIndex;
+  return {
+    ...item,
+    meta: { ...metaBase, _cm: { ...cmBase, originIndex } },
+    paired: [{ nodeId, output: "$in", itemIndex: originIndex }, ...(item.paired ?? [])],
+  };
+}
+
+export class BranchNode implements RunnableNode<BranchNodeConfig<any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["true", "false"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<BranchNodeConfig<any>>): Promise<NodeOutputs> {
-    const yes: Item[] = [];
-    const no: Item[] = [];
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]!;
-      const metaBase = (
-        item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}
-      ) as Record<string, unknown>;
-      const cmBase =
-        metaBase._cm && typeof metaBase._cm === "object"
-          ? (metaBase._cm as Record<string, unknown>)
-          : ({} as Record<string, unknown>);
-      const originIndex = typeof cmBase.originIndex === "number" ? (cmBase.originIndex as number) : i;
-      const tagged: Item = {
-        ...item,
-        meta: { ...metaBase, _cm: { ...cmBase, originIndex } },
-        paired: [{ nodeId: ctx.nodeId, output: "$in", itemIndex: originIndex }, ...(item.paired ?? [])],
-      };
-      const result = await ctx.config.decide(item, ctx, i);
-      if (result) yes.push(tagged);
-      else no.push(tagged);
-    }
-
-    return { true: yes, false: no } as unknown as NodeOutputs;
+  async execute(args: RunnableNodeExecuteArgs<BranchNodeConfig<any>>): Promise<unknown> {
+    const tagged = tagHarnessRouterItem(args.item, args.itemIndex, args.ctx.nodeId);
+    const result = await args.ctx.config.decide(args.item, args.ctx, args.itemIndex);
+    return emitPorts({
+      true: result ? [tagged] : [],
+      false: result ? [] : [tagged],
+    });
   }
 }
 
@@ -179,18 +192,13 @@ export class MapNodeConfig<TIn = unknown, TOut = unknown> implements RunnableNod
   }
 }
 
-export class MapNode implements Node<MapNodeConfig> {
+export class MapNode implements RunnableNode<MapNodeConfig> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<MapNodeConfig>): Promise<NodeOutputs> {
-    const out: Item[] = [];
-    for (let i = 0; i < items.length; i++) {
-      const current = items[i]!;
-      const json = await ctx.config.map(current as any, ctx as any, i);
-      out.push({ json, meta: current.meta, paired: current.paired });
-    }
-    return { main: out };
+  async execute(args: RunnableNodeExecuteArgs<MapNodeConfig>): Promise<unknown> {
+    const json = await args.ctx.config.map(args.item as Item, args.ctx as never, args.itemIndex);
+    return { json, meta: args.item.meta, paired: args.item.paired };
   }
 }
 
@@ -225,39 +233,20 @@ export class IfNodeConfig<TItemJson = unknown> implements RunnableNodeConfig<TIt
   }
 }
 
-export class IfNode implements Node<IfNodeConfig<any>> {
+export class IfNode implements RunnableNode<IfNodeConfig<any>> {
   readonly kind = "node" as const;
   readonly outputPorts = ["true", "false"] as const;
 
-  async execute(items: Items, ctx: NodeExecutionContext<IfNodeConfig<any>>): Promise<NodeOutputs> {
-    const yes: Item[] = [];
-    const no: Item[] = [];
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]!;
-      const metaBase = (
-        item.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {}
-      ) as Record<string, unknown>;
-      const cmBase =
-        metaBase._cm && typeof metaBase._cm === "object"
-          ? (metaBase._cm as Record<string, unknown>)
-          : ({} as Record<string, unknown>);
-      const originIndex = typeof cmBase.originIndex === "number" ? (cmBase.originIndex as number) : i;
-      const tagged: Item = {
-        ...item,
-        meta: { ...metaBase, _cm: { ...cmBase, originIndex } },
-        paired: [{ nodeId: ctx.nodeId, output: "$in", itemIndex: originIndex }, ...(item.paired ?? [])],
-      };
-      const result = await ctx.config.decide(item, ctx, i);
-      if (result) yes.push(tagged);
-      else no.push(tagged);
-    }
-
-    const omit = ctx.config.omitUnusedOutputKey;
-    const out: Record<string, Items> = {};
-    if (!omit || yes.length > 0) out.true = yes;
-    if (!omit || no.length > 0) out.false = no;
-    return out as unknown as NodeOutputs;
+  async execute(args: RunnableNodeExecuteArgs<IfNodeConfig<any>>): Promise<unknown> {
+    const tagged = tagHarnessRouterItem(args.item, args.itemIndex, args.ctx.nodeId);
+    const result = await args.ctx.config.decide(args.item, args.ctx, args.itemIndex);
+    const yes = result ? [tagged] : [];
+    const no = result ? [] : [tagged];
+    const omit = args.ctx.config.omitUnusedOutputKey;
+    const ports: Record<string, Items> = {};
+    if (!omit || yes.length > 0) ports.true = yes;
+    if (!omit || no.length > 0) ports.false = no;
+    return emitPorts(ports);
   }
 }
 
@@ -326,7 +315,7 @@ export class MergeNode implements MultiInputNode<MergeNodeConfig<any, any>> {
     const fallback: Item[] = [];
 
     const getOriginIndex = (item: Item): number | undefined => {
-      const meta = item.meta as any;
+      const meta = item.meta as { _cm?: { originIndex?: unknown } } | undefined;
       const v = meta?._cm?.originIndex;
       return typeof v === "number" && Number.isFinite(v) ? v : undefined;
     };

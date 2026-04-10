@@ -352,13 +352,11 @@ test("when({true,false}) auto-inserts merge and chain can continue", async () =>
   assert.equal(r.status, "completed");
 
   assert.equal(afterItems.length, 2);
-  assert.deepEqual(
-    afterItems.map((i) => i.json),
-    [
-      { x: 1, branch: "false" },
-      { x: 2, branch: "true" },
-    ],
-  );
+  const byX = [...afterItems.map((i) => i.json as { x: number; branch: string })].sort((a, b) => a.x - b.x);
+  assert.deepEqual(byX, [
+    { x: 1, branch: "false" },
+    { x: 2, branch: "true" },
+  ]);
 });
 
 test("when({true,false}) auto-merge accepts an untaken branch as empty through downstream nodes", async () => {

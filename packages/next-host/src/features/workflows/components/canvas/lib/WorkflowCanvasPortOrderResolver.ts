@@ -8,7 +8,8 @@ export class WorkflowCanvasPortOrderResolver {
       if (p === "true") return 0;
       if (p === "false") return 1;
       if (p === "main") return 2;
-      return 3;
+      if (p === "error") return 3;
+      return 4;
     };
     return [...new Set(ports)].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   }

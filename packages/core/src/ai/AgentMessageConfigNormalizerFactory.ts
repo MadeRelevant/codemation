@@ -1,3 +1,5 @@
+import { isItemValue } from "../contracts/itemValue";
+
 import type {
   AgentMessageBuildArgs,
   AgentMessageConfig,
@@ -67,6 +69,11 @@ export class AgentMessageConfigNormalizer {
     config: AgentMessageConfig<TInputJson>,
     args: AgentMessageBuildArgs<TInputJson>,
   ): ReadonlyArray<AgentMessageDto> {
+    if (isItemValue(config)) {
+      throw new Error(
+        "AIAgent messages wrapped in itemValue(...) must be resolved by the engine before prompt normalization.",
+      );
+    }
     if (Array.isArray(config)) {
       return config.map((line) => this.lineToDto(line, args));
     }

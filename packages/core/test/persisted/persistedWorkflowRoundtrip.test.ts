@@ -6,13 +6,11 @@ import { container as tsyringeContainer } from "tsyringe";
 import type {
   ChatModelConfig,
   ChatModelFactory,
-  Items,
   LangChainChatModelLike,
-  Node,
-  NodeExecutionContext,
-  NodeOutputs,
   NodeResolver,
+  RunnableNode,
   RunnableNodeConfig,
+  RunnableNodeExecuteArgs,
   Tool,
   ToolConfig,
   ToolExecuteArgs,
@@ -24,6 +22,8 @@ import { InMemoryLiveWorkflowRepository, PersistedWorkflowSnapshotFactory } from
 import { MissingRuntimeFallbacks } from "../../src/workflowSnapshots/MissingRuntimeFallbacksFactory";
 import { WorkflowSnapshotCodec } from "../../src/workflowSnapshots/WorkflowSnapshotCodec";
 import { WorkflowSnapshotResolver } from "../../src/workflowSnapshots/WorkflowSnapshotResolver";
+import { isItemValue, itemValue } from "../../src/contracts/itemValue";
+import type { NodeConfigBase } from "../../src/types";
 import { createEngineTestKit, items } from "../harness/index.ts";
 
 class StableChatModelConfig implements ChatModelConfig {
@@ -84,18 +84,16 @@ class StableToolNodeConfig implements RunnableNodeConfig<Record<string, unknown>
 }
 
 @node({ packageName: "@codemation/test" })
-class StableToolNode implements Node<StableToolNodeConfig> {
+class StableToolNode implements RunnableNode<StableToolNodeConfig> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(itemsIn: Items, _ctx: NodeExecutionContext<StableToolNodeConfig>): Promise<NodeOutputs> {
+  execute(args: RunnableNodeExecuteArgs<StableToolNodeConfig>): unknown {
     return {
-      main: itemsIn.map((item) => ({
-        json: {
-          echoed: (item.json as Record<string, unknown>).query ?? "missing",
-          fromNode: true,
-        },
-      })),
+      json: {
+        echoed: (args.item.json as Record<string, unknown>).query ?? "missing",
+        fromNode: true,
+      },
     };
   }
 }
@@ -113,29 +111,27 @@ class StableResolvableNodeConfig implements RunnableNodeConfig<Record<string, un
 }
 
 @node({ packageName: "@codemation/test" })
-class StableResolvableNode implements Node<StableResolvableNodeConfig> {
+class StableResolvableNode implements RunnableNode<StableResolvableNodeConfig> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
   constructor(private readonly nodeResolver: NodeResolver) {}
 
-  async execute(itemsIn: Items, ctx: NodeExecutionContext<StableResolvableNodeConfig>): Promise<NodeOutputs> {
-    const chatModelFactory = this.nodeResolver.resolve(ctx.config.chatModel.type) as StableChatModelFactory;
-    const resolvedToolNames = ctx.config.tools.map((toolConfig) => {
+  execute(args: RunnableNodeExecuteArgs<StableResolvableNodeConfig>): unknown {
+    const chatModelFactory = this.nodeResolver.resolve(args.ctx.config.chatModel.type) as StableChatModelFactory;
+    const resolvedToolNames = args.ctx.config.tools.map((toolConfig) => {
       assert.ok(this.nodeResolver.resolve(toolConfig.type));
       return toolConfig.name;
     });
 
     assert.ok(chatModelFactory instanceof StableChatModelFactory);
     return {
-      main: itemsIn.map((item) => ({
-        ...item,
-        json: {
-          ...(item.json as Record<string, unknown>),
-          resolvedChatModel: ctx.config.chatModel.name,
-          resolvedTools: resolvedToolNames,
-        },
-      })),
+      ...args.item,
+      json: {
+        ...(args.item.json as Record<string, unknown>),
+        resolvedChatModel: args.ctx.config.chatModel.name,
+        resolvedTools: resolvedToolNames,
+      },
     };
   }
 }
@@ -259,4 +255,53 @@ test("builder snapshot roundtrip preserves persisted workflow identity without d
   assert.equal(toolRecord.tokenId, "@codemation/test::StableTool");
   assert.equal(nodeBackedToolRecord.tokenId, "@codemation/test::StableToolNode");
   assert.equal(nestedNodeRecord.tokenId, "@codemation/test::StableToolNode");
+});
+
+class ItemValueBrandFixtureNode {}
+
+class ItemValueBrandFixtureConfig implements NodeConfigBase {
+  readonly kind = "node" as const;
+  readonly type = ItemValueBrandFixtureConfig;
+
+  constructor(
+    public readonly name: string,
+    public readonly messages: unknown,
+  ) {}
+}
+
+test("workflow snapshot hydration preserves itemValue symbol brands", () => {
+  const workflow = {
+    id: "wf.itemValue.brand.fixture",
+    name: "ItemValue brand fixture",
+    nodes: [
+      {
+        id: "n1",
+        kind: "node" as const,
+        type: ItemValueBrandFixtureNode,
+        config: new ItemValueBrandFixtureConfig(
+          "n1-config",
+          itemValue(() => [{ role: "user", content: "hello" }]),
+        ),
+      },
+    ],
+    edges: [],
+  };
+  const tokenRegistry = new PersistedWorkflowTokenRegistry();
+  tokenRegistry.registerFromWorkflows([workflow]);
+  const snapshot = new WorkflowSnapshotCodec(tokenRegistry).create(workflow);
+  const registry = new InMemoryLiveWorkflowRepository();
+  registry.setWorkflows([workflow]);
+
+  const resolved = new WorkflowSnapshotResolver(
+    registry,
+    tokenRegistry,
+    new WorkflowSnapshotCodec(tokenRegistry),
+    new MissingRuntimeFallbacks(),
+  ).resolve({ workflowId: workflow.id, workflowSnapshot: snapshot });
+  assert.ok(resolved);
+
+  const node = resolved.nodes[0];
+  assert.ok(node);
+  const hydratedConfig = node.config as unknown as { messages?: unknown };
+  assert.equal(isItemValue(hydratedConfig.messages), true);
 });

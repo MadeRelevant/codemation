@@ -1,12 +1,12 @@
-import type { Items, Node, NodeOutputs } from "../types";
+import type { RunnableNode, RunnableNodeExecuteArgs } from "../types";
 
 import { MissingRuntimeNodeConfig } from "./MissingRuntimeNodeConfig";
 
-export class MissingRuntimeNode implements Node<MissingRuntimeNodeConfig> {
+export class MissingRuntimeNode implements RunnableNode<MissingRuntimeNodeConfig> {
   readonly kind = "node" as const;
   readonly outputPorts = ["main"] as const;
 
-  async execute(items: Items): Promise<NodeOutputs> {
-    return { main: items };
+  execute(args: RunnableNodeExecuteArgs<MissingRuntimeNodeConfig>): unknown {
+    return args.item;
   }
 }
