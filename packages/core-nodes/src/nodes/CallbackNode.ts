@@ -1,5 +1,5 @@
 import type { RunnableNode, RunnableNodeExecuteArgs } from "@codemation/core";
-import { emitPorts, node } from "@codemation/core";
+import { node } from "@codemation/core";
 
 import { Callback } from "./CallbackNodeFactory";
 import { CallbackResultNormalizer } from "./CallbackResultNormalizerFactory";
@@ -18,12 +18,12 @@ export class CallbackNode implements RunnableNode<Callback<any, any>> {
     }
     if (items.length === 0) {
       const result = await config.callback(items, ctx);
-      return emitPorts(CallbackResultNormalizer.toNodeOutputs(result, items));
+      return CallbackResultNormalizer.toPortsEmission(result, items);
     }
     if (args.itemIndex !== items.length - 1) {
       return [];
     }
     const result = await config.callback(items, ctx);
-    return emitPorts(CallbackResultNormalizer.toNodeOutputs(result, items));
+    return CallbackResultNormalizer.toPortsEmission(result, items);
   }
 }

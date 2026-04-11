@@ -1,6 +1,7 @@
 import type { BinaryAttachment } from "@codemation/core/browser";
 import { describe, expect, it } from "vitest";
 import { WorkflowDetailPresenter } from "../../src/features/workflows/lib/workflowDetail/WorkflowDetailPresenter";
+import type { ExecutionNode } from "../../src/features/workflows/lib/workflowDetail/workflowDetailTypes";
 
 function createTestBinaryAttachment(overrides: Partial<BinaryAttachment> = {}): BinaryAttachment {
   return {
@@ -134,5 +135,55 @@ describe("WorkflowDetailPresenter multi-port pinned outputs", () => {
     );
 
     expect(pinned).toEqual([{ json: { problem: true } }]);
+  });
+});
+
+describe("WorkflowDetailPresenter execution tree", () => {
+  it("prefers snapshot.parent.nodeId over static node.parentNodeId for nesting", () => {
+    const coordinatorNode = {
+      id: "agent_root",
+      kind: "node",
+      type: "AIAgent",
+      name: "Coordinator",
+    };
+    const toolInvocationNode = {
+      id: "inv_tool_1",
+      kind: "node",
+      type: "tool",
+      name: "specialist",
+      // Intentionally wrong/missing static parent
+      parentNodeId: "WRONG_PARENT",
+    };
+
+    const coordinator: ExecutionNode = {
+      node: coordinatorNode as any,
+      snapshot: {
+        runId: "run-1",
+        workflowId: "wf-1",
+        nodeId: "agent_root",
+        activationId: "act-1",
+        status: "completed",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      } as any,
+    };
+    const toolInvocation: ExecutionNode = {
+      node: toolInvocationNode as any,
+      snapshot: {
+        runId: "run-1",
+        workflowId: "wf-1",
+        nodeId: "inv_tool_1",
+        activationId: "act-2",
+        status: "completed",
+        updatedAt: "2026-01-01T00:00:01.000Z",
+        parent: { runId: "run-1", workflowId: "wf-1", nodeId: "agent_root" },
+      } as any,
+    };
+
+    const tree = WorkflowDetailPresenter.buildExecutionTreeData([coordinator, toolInvocation]);
+    expect(tree).toHaveLength(1);
+    expect(tree[0]?.key).toBe("agent_root");
+    const children = (tree[0]?.children ?? []) as any[];
+    expect(children).toHaveLength(1);
+    expect(children[0]?.key).toBe("inv_tool_1");
   });
 });

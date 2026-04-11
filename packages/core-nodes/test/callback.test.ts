@@ -4,6 +4,7 @@ import {
   InMemoryBinaryStorage,
   InMemoryRunDataFactory,
 } from "@codemation/core/bootstrap";
+import { emitPorts } from "@codemation/core";
 import { Callback, CallbackNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
@@ -107,5 +108,27 @@ test("CallbackNode can return items that include both json and binary", async ()
       attachmentName: "note",
       hasBinary: true,
     },
+  });
+});
+
+test("CallbackNode can route items to named output ports via emitPorts", async () => {
+  const config = new Callback<{ status: string }>(
+    "Route by status",
+    (items) =>
+      emitPorts({
+        approved: items.filter((item) => item.json.status === "approved"),
+        rejected: items.filter((item) => item.json.status === "rejected"),
+      }),
+    {
+      declaredOutputPorts: ["approved", "rejected"],
+    },
+  );
+  const items = [{ json: { status: "approved" } }, { json: { status: "rejected" } }];
+
+  const outputs = await runPerItemLikeEngine(new CallbackNode(), items, CallbackNodeTestContextFactory.create(config));
+
+  assert.deepEqual(outputs, {
+    approved: [{ json: { status: "approved" } }],
+    rejected: [{ json: { status: "rejected" } }],
   });
 });

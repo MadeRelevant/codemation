@@ -765,11 +765,11 @@ export class WorkflowDetailPresenter {
     }
 
     for (let i = 0; i < nodes.length; i++) {
-      const { node, parentExecutionInstanceId } = nodes[i]!;
+      const { node, parentExecutionInstanceId, snapshot } = nodes[i]!;
       const treeKey = treeKeys[i]!;
       const treeNode = treeNodesByKey.get(treeKey);
       if (!treeNode) continue;
-      const parentReference = parentExecutionInstanceId ?? node.parentNodeId;
+      const parentReference = parentExecutionInstanceId ?? snapshot?.parent?.nodeId ?? node.parentNodeId;
       if (!parentReference) {
         rootNodes.push(treeNode);
         continue;
