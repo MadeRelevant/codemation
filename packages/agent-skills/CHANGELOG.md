@@ -1,5 +1,11 @@
 # @codemation/agent-skills
 
+## 0.1.6
+
+### Patch Changes
+
+- [#57](https://github.com/MadeRelevant/codemation/pull/57) [`3e882de`](https://github.com/MadeRelevant/codemation/commit/3e882de13103b6001d278b430791c380ee6771e1) Thanks [@cblokland90](https://github.com/cblokland90)! - Align discovered plugin loading with packaged JavaScript entries and keep framework watch mode rebuilding workspace plugin dist outputs.
+
 ## 0.1.5
 
 ### Patch Changes
