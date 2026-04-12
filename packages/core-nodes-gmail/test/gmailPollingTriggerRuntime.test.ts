@@ -84,6 +84,24 @@ class FakeGmailApiClient implements GmailApiClient {
       size: 0,
     };
   }
+
+  async sendMessage(): Promise<GmailMessageRecord> {
+    return this.messagesById["m2"]!;
+  }
+
+  async sendRawMessage(): Promise<GmailMessageRecord> {
+    return this.messagesById["m2"]!;
+  }
+
+  async replyToMessage(): Promise<GmailMessageRecord> {
+    return this.messagesById["m2"]!;
+  }
+
+  async modifyMessageLabels(): Promise<GmailMessageRecord> {
+    return this.messagesById["m2"]!;
+  }
+
+  async modifyThreadLabels(): Promise<void> {}
 }
 
 class NoopGmailLogger {

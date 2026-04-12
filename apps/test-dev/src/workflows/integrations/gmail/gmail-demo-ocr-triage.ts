@@ -4,7 +4,8 @@ import { AIAgent, createWorkflowBuilder, If, NoOp } from "@codemation/core-nodes
 import {
   OnNewGmailTrigger,
   type OnNewGmailTriggerItemJson,
-} from "@codemation/core-nodes-gmail/nodes/OnNewGmailTrigger";
+  GmailAttachmentMapping,
+} from "@codemation/core-nodes-gmail";
 
 import {
   AzureInvoiceOcrConsumer,
@@ -49,6 +50,7 @@ type TriageClassifyJson = Readonly<{
 }>;
 
 const ocrConsumer = new AzureInvoiceOcrConsumer();
+const gmailAttachmentMapping = new GmailAttachmentMapping();
 
 function supportsOcrMime(mimeType: string): boolean {
   const m = mimeType.toLowerCase();
@@ -94,11 +96,15 @@ export default createWorkflowBuilder({
         for (const item of items) {
           const j = item.json;
           const attachments: TriageAttachmentOcrJson[] = [];
-          for (const att of j.attachments ?? []) {
+          for (const mappedAttachment of gmailAttachmentMapping.toParseNodeAttachments(item)) {
+            const att = (j.attachments ?? []).find((candidate) => candidate.binaryName === mappedAttachment.binaryKey);
+            if (!att) {
+              continue;
+            }
             if (!supportsOcrMime(att.mimeType)) {
               continue;
             }
-            const bin = item.binary?.[att.binaryName];
+            const bin = item.binary?.[mappedAttachment.binaryKey];
             if (!bin) {
               continue;
             }
@@ -110,8 +116,8 @@ export default createWorkflowBuilder({
               contentType,
             });
             attachments.push({
-              filename: att.filename ?? att.binaryName,
-              mimetype: att.mimeType,
+              filename: mappedAttachment.filename,
+              mimetype: mappedAttachment.mimetype,
               content: analyzed.content,
               fields: analyzed.fields,
             });

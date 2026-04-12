@@ -9,6 +9,7 @@ import {
   CredentialFieldEnvOverlayService,
   CredentialInstanceService,
   CredentialMaterialResolver,
+  CredentialOAuth2ScopeResolver,
   CredentialRuntimeMaterialService,
   CredentialSecretCipher,
   CredentialTypeRegistryImpl,
@@ -47,6 +48,8 @@ export class OAuth2ConnectService {
     private readonly credentialMaterialResolver: CredentialMaterialResolver,
     @inject(CredentialSecretCipher)
     private readonly credentialSecretCipher: CredentialSecretCipher,
+    @inject(CredentialOAuth2ScopeResolver)
+    private readonly credentialOAuth2ScopeResolver: CredentialOAuth2ScopeResolver,
     @inject(OAuth2ProviderRegistry)
     private readonly oauth2ProviderRegistry: OAuth2ProviderRegistry,
     @inject(ApplicationTokens.AppConfig)
@@ -63,6 +66,10 @@ export class OAuth2ConnectService {
       material: emptyMaterial,
     });
     const provider = this.oauth2ProviderRegistry.resolve(credentialType.definition, resolvedPublicConfig);
+    const requestedScopes = this.credentialOAuth2ScopeResolver.resolveRequestedScopes(
+      credentialType.definition.auth!,
+      resolvedPublicConfig,
+    );
     const redirectUri = this.getRedirectUri(requestOrigin);
     const state = this.createOpaqueValue();
     const codeVerifier = this.createOpaqueValue();
@@ -74,7 +81,7 @@ export class OAuth2ConnectService {
       instanceId,
       codeVerifier,
       providerId: provider.providerId,
-      requestedScopes: credentialType.definition.auth!.scopes,
+      requestedScopes,
       createdAt: createdAt.toISOString(),
       expiresAt: expiresAt.toISOString(),
     });
@@ -85,7 +92,7 @@ export class OAuth2ConnectService {
       this.oauth2ProviderRegistry.resolveClientId(credentialType.definition.auth!, resolvedPublicConfig),
     );
     authorizeUrl.searchParams.set("redirect_uri", redirectUri);
-    authorizeUrl.searchParams.set("scope", credentialType.definition.auth!.scopes.join(" "));
+    authorizeUrl.searchParams.set("scope", requestedScopes.join(" "));
     authorizeUrl.searchParams.set("state", state);
     authorizeUrl.searchParams.set("code_challenge", codeChallenge);
     authorizeUrl.searchParams.set("code_challenge_method", "S256");

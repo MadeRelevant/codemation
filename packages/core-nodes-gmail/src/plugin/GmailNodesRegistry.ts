@@ -1,38 +1,26 @@
 import type { Container, CredentialType } from "@codemation/core";
 import type { CodemationPluginContext } from "@codemation/host";
+import {
+  GoogleGmailApiClientFactory,
+  GoogleGmailApiClientScopeCatalog,
+  GoogleGmailSessionFactory,
+} from "../adapters/google/GoogleGmailApiClientFactory";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
-import type { GmailOAuthCredential } from "../contracts/GmailOAuthCredential";
-import type { GmailServiceAccountCredential } from "../contracts/GmailServiceAccountCredential";
+import type {
+  GmailOAuthCredential,
+  GmailOAuthMaterial,
+  GmailOAuthPublicConfig,
+} from "../contracts/GmailOAuthCredential";
+import type { GmailSession } from "../contracts/GmailSession";
 import { GmailPollingTriggerRuntime } from "../runtime/GmailPollingTriggerRuntime";
-import type { GmailApiClient } from "../services/GmailApiClient";
 import { GmailConfiguredLabelService } from "../services/GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "../services/GmailMessageItemMapper";
 import { GmailPollingService } from "../services/GmailPollingService";
 import { GmailQueryMatcher } from "../services/GmailQueryMatcher";
 import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
 import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
-
-type GmailServiceAccountPublicConfig = Readonly<Record<string, never>>;
-
-type GmailServiceAccountMaterial = Readonly<{
-  clientEmail?: string;
-  privateKey?: string;
-  projectId?: string;
-  delegatedUser?: string;
-}>;
-
-type GmailOAuthPublicConfig = Readonly<{
-  clientId?: string;
-}>;
-
-type GmailOAuthMaterial = Readonly<{
-  clientSecret?: string;
-  access_token?: string;
-  refresh_token?: string;
-  expiry?: string;
-}>;
 
 export class GmailNodes {
   private readonly options: GmailNodesOptions;
@@ -59,6 +47,7 @@ export class GmailNodes {
         throw new Error("GmailApiClient must be supplied by the active Gmail runtime binding.");
       },
     });
+    container.register(GoogleGmailApiClientFactory, { useClass: GoogleGmailApiClientFactory });
     container.register(GmailConfiguredLabelService, { useClass: GmailConfiguredLabelService });
     container.register(GmailMessageItemMapper, { useClass: GmailMessageItemMapper });
     container.register(GmailQueryMatcher, { useClass: GmailQueryMatcher });
@@ -70,37 +59,12 @@ export class GmailNodes {
   }
 
   private registerCredentialTypes(context: CodemationPluginContext): void {
-    const serviceAccountType: CredentialType<
-      GmailServiceAccountPublicConfig,
-      GmailServiceAccountMaterial,
-      GmailApiClient
-    > = {
-      definition: {
-        typeId: GmailCredentialTypes.serviceAccount,
-        displayName: "Gmail service account",
-        description: "Google service account credentials that resolve to a Gmail trigger client.",
-        secretFields: [
-          { key: "clientEmail", label: "Client email", type: "string", required: true },
-          { key: "privateKey", label: "Private key", type: "textarea", required: true },
-          { key: "projectId", label: "Project id", type: "string", required: true },
-          { key: "delegatedUser", label: "Delegated user", type: "string", required: true },
-        ],
-        supportedSourceKinds: ["db", "env", "code"],
-      },
-      createSession: async (args) => {
-        return await this.createGoogleGmailApiClient(this.toServiceAccountCredential(args.material));
-      },
-      test: async (args) => {
-        const credential = this.toServiceAccountCredential(args.material);
-        return this.testGmailApiClient(await this.createGoogleGmailApiClient(credential), credential.delegatedUser);
-      },
-    };
-    context.registerCredentialType(serviceAccountType);
-    const oauthType: CredentialType<GmailOAuthPublicConfig, GmailOAuthMaterial, GmailApiClient> = {
+    const oauthType: CredentialType<GmailOAuthPublicConfig, GmailOAuthMaterial, GmailSession> = {
       definition: {
         typeId: GmailCredentialTypes.oauth,
         displayName: "Gmail OAuth",
-        description: "OAuth2 credentials for a Gmail account connection managed by the framework.",
+        description:
+          "OAuth2 credentials for a Gmail account connection managed by the framework, with default scopes that cover trigger, read, send, reply, and label actions.",
         publicFields: [
           {
             key: "clientId",
@@ -108,6 +72,22 @@ export class GmailNodes {
             type: "string",
             required: true,
             envVarName: "CODEMATION_GOOGLE_CLIENT_ID",
+          },
+          {
+            key: "scopePreset",
+            label: "Scope preset",
+            type: "string",
+            placeholder: GoogleGmailApiClientScopeCatalog.defaultPresetKey,
+            helpText:
+              'Use "automation" for trigger/read/send/reply/label, "readonly" for polling/read only, or "custom" to replace the default bundle with `customScopes`.',
+          },
+          {
+            key: "customScopes",
+            label: "Custom scopes",
+            type: "textarea",
+            placeholder: "https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send",
+            helpText:
+              'Only used when `scopePreset` is "custom". Values replace the default bundle and may be comma-, space-, or newline-separated.',
           },
         ],
         secretFields: [
@@ -123,33 +103,32 @@ export class GmailNodes {
         auth: {
           kind: "oauth2",
           providerId: "google",
-          scopes: ["https://www.googleapis.com/auth/gmail.readonly"],
+          scopes: GoogleGmailApiClientScopeCatalog.presetScopes[GoogleGmailApiClientScopeCatalog.defaultPresetKey],
+          scopesFromPublicConfig: {
+            presetFieldKey: "scopePreset",
+            presetScopes: GoogleGmailApiClientScopeCatalog.presetScopes,
+            customPresetKey: GoogleGmailApiClientScopeCatalog.customPresetKey,
+            customScopesFieldKey: "customScopes",
+          },
         },
       },
       createSession: async (args) => {
-        return await this.createGoogleGmailApiClient(this.toOAuthCredential(args.material, args.publicConfig));
+        return await this.createGoogleGmailSession(this.toOAuthCredential(args.material, args.publicConfig));
       },
       test: async (args) => {
-        return this.testGmailApiClient(
-          await this.createGoogleGmailApiClient(this.toOAuthCredential(args.material, args.publicConfig)),
-          "me",
+        return await this.testGmailApiClient(
+          await this.createGoogleGmailSession(this.toOAuthCredential(args.material, args.publicConfig)),
         );
       },
     };
     context.registerCredentialType(oauthType);
   }
 
-  private async createGoogleGmailApiClient(
-    credential: GmailServiceAccountCredential | GmailOAuthCredential,
-  ): Promise<GmailApiClient> {
-    const { GoogleGmailApiClient } = await import("../adapters/google/GoogleGmailApiClientFactory");
-    return new GoogleGmailApiClient(credential);
+  private async createGoogleGmailSession(credential: GmailOAuthCredential): Promise<GmailSession> {
+    return await new GoogleGmailSessionFactory().createSession(credential);
   }
 
-  private async testGmailApiClient(
-    client: GmailApiClient,
-    mailbox: string,
-  ): Promise<
+  private async testGmailApiClient(session: GmailSession): Promise<
     Readonly<{
       status: "healthy" | "failing";
       message?: string;
@@ -158,12 +137,13 @@ export class GmailNodes {
     }>
   > {
     try {
-      const historyId = await client.getCurrentHistoryId({ mailbox });
+      const client = new GoogleGmailApiClientFactory().create(session);
+      const historyId = await client.getCurrentHistoryId({ mailbox: session.userId });
       return {
         status: "healthy",
         message: "Connected to Gmail successfully.",
         testedAt: new Date().toISOString(),
-        details: { historyId },
+        details: { emailAddress: session.emailAddress, historyId, scopes: session.scopes },
       };
     } catch (error) {
       return {
@@ -174,28 +154,13 @@ export class GmailNodes {
     }
   }
 
-  private toServiceAccountCredential(material: GmailServiceAccountMaterial): GmailServiceAccountCredential {
-    const clientEmail = String(material.clientEmail ?? "");
-    const privateKey = String(material.privateKey ?? "");
-    const projectId = String(material.projectId ?? "");
-    const delegatedUser = String(material.delegatedUser ?? "");
-    if (!clientEmail || !privateKey || !projectId || !delegatedUser) {
-      throw new Error("Gmail service account material is incomplete.");
-    }
-    return {
-      clientEmail,
-      privateKey,
-      projectId,
-      delegatedUser,
-    };
-  }
-
   private toOAuthCredential(material: GmailOAuthMaterial, publicConfig: GmailOAuthPublicConfig): GmailOAuthCredential {
     const clientId = String(publicConfig.clientId ?? "");
     const clientSecret = String(material.clientSecret ?? "");
     const accessToken = String(material.access_token ?? "");
     const refreshToken = String(material.refresh_token ?? "");
     const expiry = String(material.expiry ?? "");
+    const scopeValue = String(material.scope ?? "");
     if (!clientId || !clientSecret || !accessToken) {
       throw new Error("Gmail OAuth material is incomplete.");
     }
@@ -205,6 +170,31 @@ export class GmailNodes {
       accessToken,
       refreshToken: refreshToken || undefined,
       expiry: expiry || undefined,
+      scopes: this.resolveCredentialScopes(scopeValue, publicConfig),
     };
+  }
+
+  private resolveCredentialScopes(scopeValue: string, publicConfig: GmailOAuthPublicConfig): ReadonlyArray<string> {
+    const grantedScopes = scopeValue
+      .split(/\s+/)
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+    if (grantedScopes.length > 0) {
+      return grantedScopes;
+    }
+    const preset = String(publicConfig.scopePreset ?? "").trim() || GoogleGmailApiClientScopeCatalog.defaultPresetKey;
+    if (preset === GoogleGmailApiClientScopeCatalog.customPresetKey) {
+      const customScopes = String(publicConfig.customScopes ?? "")
+        .split(/[\s,]+/)
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0);
+      if (customScopes.length > 0) {
+        return [...new Set(customScopes)];
+      }
+    }
+    return (
+      GoogleGmailApiClientScopeCatalog.presetScopes[preset] ??
+      GoogleGmailApiClientScopeCatalog.presetScopes[GoogleGmailApiClientScopeCatalog.defaultPresetKey]
+    );
   }
 }

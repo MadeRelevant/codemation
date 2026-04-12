@@ -72,10 +72,27 @@ describe("ConsumerProjectScaffolder", () => {
 
     await scaffolder.scaffold({ templateId: "plugin", targetDirectory: projectDir, force: false });
 
+    const packageJson = JSON.parse(await fs.readFile(path.join(projectDir, "package.json"), "utf8")) as {
+      main?: string;
+      module?: string;
+      types?: string;
+      codemation?: { plugin?: string };
+      exports?: Record<string, unknown>;
+    };
+    expect(packageJson.main).toBe("./dist/index.cjs");
+    expect(packageJson.module).toBe("./dist/index.js");
+    expect(packageJson.types).toBe("./dist/index.d.ts");
+    expect(packageJson.codemation?.plugin).toBe("./dist/codemation.plugin.js");
+    expect(packageJson.exports).toHaveProperty(".");
+
     const pluginEntry = await fs.readFile(path.join(projectDir, "codemation.plugin.ts"), "utf8");
     expect(pluginEntry).toContain("definePlugin");
     expect(pluginEntry).toContain("defineCodemationApp");
     expect(pluginEntry).toContain('workflow("wf.plugin.hello")');
+
+    await expect(fs.readFile(path.join(projectDir, "tsdown.config.ts"), "utf8")).resolves.toContain(
+      'index: "src/index.ts"',
+    );
 
     const credentialFile = await fs.readFile(
       path.join(projectDir, "src", "credentialTypes", "ExampleApiKeyCredentialType.ts"),
@@ -85,6 +102,9 @@ describe("ConsumerProjectScaffolder", () => {
 
     const nodeFile = await fs.readFile(path.join(projectDir, "src", "nodes", "ExamplePluginUppercase.ts"), "utf8");
     expect(nodeFile).toContain("defineNode");
+    await expect(fs.readFile(path.join(projectDir, "src", "index.ts"), "utf8")).resolves.toContain(
+      'export * from "./nodes/ExamplePluginUppercase";',
+    );
     await expect(fs.readFile(path.join(projectDir, "AGENTS.md"), "utf8")).resolves.toContain(
       "codemation-plugin-development",
     );

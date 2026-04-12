@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import type { NodeExecutionContext } from "@codemation/core";
 import { test } from "vitest";
+import { GoogleGmailApiClientFactory } from "../src/adapters/google/GoogleGmailApiClientFactory";
 import type { GmailLogger } from "../src/contracts/GmailLogger";
 import { OnNewGmailTrigger } from "../src/nodes/OnNewGmailTrigger";
 import { OnNewGmailTriggerNode } from "../src/nodes/OnNewGmailTriggerNode";
@@ -61,6 +62,76 @@ class FakeGmailApiClient implements GmailApiClient {
       size: 0,
     };
   }
+
+  async sendMessage(): Promise<GmailMessageRecord> {
+    return this.messagesById["message_1"]!;
+  }
+
+  async sendRawMessage(): Promise<GmailMessageRecord> {
+    return this.messagesById["message_1"]!;
+  }
+
+  async replyToMessage(): Promise<GmailMessageRecord> {
+    return this.messagesById["message_1"]!;
+  }
+
+  async modifyMessageLabels(): Promise<GmailMessageRecord> {
+    return this.messagesById["message_1"]!;
+  }
+
+  async modifyThreadLabels(): Promise<void> {}
+}
+
+class FakeGoogleGmailApiClientFactory {
+  constructor(private readonly client: GmailApiClient) {}
+
+  create(): GmailApiClient {
+    return this.client;
+  }
+}
+
+class FakeGmailPollingTriggerRuntime {
+  ensureStartedArgs: unknown;
+
+  async ensureStarted(args: unknown) {
+    this.ensureStartedArgs = args;
+    return {
+      mailbox: "sales@example.com",
+      processedMessageIds: ["message_1"],
+      baselineComplete: true,
+    };
+  }
+
+  async stop(): Promise<void> {}
+}
+
+class FakeAttachmentService {
+  attachArgs: unknown;
+
+  async attachForItems(items: unknown) {
+    this.attachArgs = items;
+    return items;
+  }
+}
+
+class FakeTestItemService {
+  createItemsArgs: unknown;
+
+  async createItems(args: unknown) {
+    this.createItemsArgs = args;
+    return [
+      {
+        json: {
+          mailbox: "sales@example.com",
+          historyId: "history_1",
+          messageId: "message_1",
+          labelIds: [],
+          headers: {},
+          attachments: [],
+        },
+      },
+    ];
+  }
 }
 
 class FakeGmailLogger implements GmailLogger {
@@ -105,9 +176,13 @@ class OnNewGmailTriggerNodeTestFixture {
   }
 
   static createNode(logger: GmailLogger): OnNewGmailTriggerNode {
+    const client = new FakeGmailApiClient();
     return new OnNewGmailTriggerNode(
       {} as never,
-      new GmailTriggerAttachmentService(),
+      new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
+      new GmailTriggerAttachmentService(
+        new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
+      ),
       this.createTestItemService(),
       logger,
     );
@@ -165,4 +240,72 @@ test("OnNewGmailTriggerNode.execute rejects manual execution without Gmail items
   }, /cannot be run manually without a pulled Gmail event/);
   assert.equal(logger.warnings.length, 1);
   assert.match(logger.warnings[0] ?? "", /manual execution attempted/);
+});
+
+test("OnNewGmailTriggerNode.setup adapts the Gmail session into the runtime client", async () => {
+  const logger = new FakeGmailLogger();
+  const runtime = new FakeGmailPollingTriggerRuntime();
+  const client = new FakeGmailApiClient();
+  const attachmentService = new FakeAttachmentService();
+  const testItemService = new FakeTestItemService();
+  const node = new OnNewGmailTriggerNode(
+    runtime as never,
+    new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
+    attachmentService as never,
+    testItemService as never,
+    logger,
+  );
+  let cleanupRegistered = false;
+  const setupState = await node.setup({
+    workflowId: "wf.gmail",
+    nodeId: "gmail_trigger",
+    trigger: { workflowId: "wf.gmail", nodeId: "gmail_trigger" },
+    config: OnNewGmailTriggerNodeTestFixture.createConfig(),
+    previousState: undefined,
+    getCredential: async () =>
+      ({
+        auth: {} as never,
+        client: {} as never,
+        userId: "me",
+        scopes: [],
+      }) as never,
+    registerCleanup: () => {
+      cleanupRegistered = true;
+    },
+    emit: async () => {},
+  } as never);
+  assert.equal(cleanupRegistered, true);
+  assert.deepEqual(setupState?.processedMessageIds, ["message_1"]);
+  const ensureStartedArgs = runtime.ensureStartedArgs as { client: GmailApiClient };
+  assert.equal(ensureStartedArgs.client, client);
+});
+
+test("OnNewGmailTriggerNode.getTestItems adapts the Gmail session into the preview service", async () => {
+  const logger = new FakeGmailLogger();
+  const client = new FakeGmailApiClient();
+  const testItemService = new FakeTestItemService();
+  const node = new OnNewGmailTriggerNode(
+    {} as never,
+    new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
+    new FakeAttachmentService() as never,
+    testItemService as never,
+    logger,
+  );
+  const items = await node.getTestItems({
+    workflowId: "wf.gmail",
+    nodeId: "gmail_trigger",
+    trigger: { workflowId: "wf.gmail", nodeId: "gmail_trigger" },
+    config: OnNewGmailTriggerNodeTestFixture.createConfig(),
+    previousState: undefined,
+    getCredential: async () =>
+      ({
+        auth: {} as never,
+        client: {} as never,
+        userId: "me",
+        scopes: [],
+      }) as never,
+  } as never);
+  assert.equal(items.length, 1);
+  const createItemsArgs = testItemService.createItemsArgs as { client: GmailApiClient };
+  assert.equal(createItemsArgs.client, client);
 });

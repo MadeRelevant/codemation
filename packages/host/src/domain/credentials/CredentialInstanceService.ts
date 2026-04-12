@@ -23,6 +23,7 @@ import { ApplicationTokens } from "../../applicationTokens";
 
 import { CredentialFieldEnvOverlayService } from "./CredentialFieldEnvOverlayService";
 import { CredentialMaterialResolver } from "./CredentialMaterialResolver";
+import { CredentialOAuth2ScopeResolver } from "./CredentialOAuth2ScopeResolver";
 import { CredentialSecretCipher } from "./CredentialSecretCipher";
 import type {
   CredentialInstanceRecord,
@@ -49,6 +50,8 @@ export class CredentialInstanceService {
     private readonly credentialFieldEnvOverlayService: CredentialFieldEnvOverlayService,
     @inject(CredentialMaterialResolver)
     private readonly credentialMaterialResolver: CredentialMaterialResolver,
+    @inject(CredentialOAuth2ScopeResolver)
+    private readonly credentialOAuth2ScopeResolver: CredentialOAuth2ScopeResolver,
     @inject(CoreTokens.CredentialSessionService)
     private readonly credentialSessionService: MutableCredentialSessionService,
   ) {}
@@ -373,10 +376,14 @@ export class CredentialInstanceService {
       "providerId" in credentialType.definition.auth ? credentialType.definition.auth.providerId : "custom";
     const material = await this.credentialStore.getOAuth2Material(instance.instanceId);
     if (!material) {
+      const requestedScopes = this.credentialOAuth2ScopeResolver.resolveRequestedScopes(
+        credentialType.definition.auth,
+        instance.publicConfig,
+      );
       return {
         status: "disconnected",
         providerId,
-        scopes: [...credentialType.definition.auth.scopes],
+        scopes: [...requestedScopes],
       };
     }
     return {

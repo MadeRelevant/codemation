@@ -61,11 +61,19 @@ export type OAuth2ProviderFromPublicConfig = Readonly<{
   userInfoUrlFieldKey?: string;
 }>;
 
+export type CredentialOAuth2ScopesFromPublicConfig = Readonly<{
+  presetFieldKey: string;
+  presetScopes: Readonly<Record<string, ReadonlyArray<string>>>;
+  customPresetKey?: string;
+  customScopesFieldKey?: string;
+}>;
+
 export type CredentialOAuth2AuthDefinition = Readonly<
   | {
       kind: "oauth2";
       providerId: string;
       scopes: ReadonlyArray<string>;
+      scopesFromPublicConfig?: CredentialOAuth2ScopesFromPublicConfig;
       clientIdFieldKey?: string;
       clientSecretFieldKey?: string;
     }
@@ -73,6 +81,7 @@ export type CredentialOAuth2AuthDefinition = Readonly<
       kind: "oauth2";
       providerFromPublicConfig: OAuth2ProviderFromPublicConfig;
       scopes: ReadonlyArray<string>;
+      scopesFromPublicConfig?: CredentialOAuth2ScopesFromPublicConfig;
       clientIdFieldKey?: string;
       clientSecretFieldKey?: string;
     }

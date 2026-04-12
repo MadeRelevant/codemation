@@ -23,7 +23,7 @@ export function DocsCodemationInTenLines() {
             {" { OnNewGmailTrigger } "}
             <span className="text-violet-400">from</span>
             {' "'}
-            <span className="text-emerald-400/95">@codemation/core-nodes-gmail/nodes/OnNewGmailTrigger</span>
+            <span className="text-emerald-400/95">@codemation/core-nodes-gmail</span>
             {'";\n\n'}
             <span className="text-violet-400">export default</span>
             {" createWorkflowBuilder({ id: "}

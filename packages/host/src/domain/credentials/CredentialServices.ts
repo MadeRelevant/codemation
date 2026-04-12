@@ -138,6 +138,7 @@ export { CredentialTypeRegistryImpl } from "./CredentialTypeRegistryImpl";
 export { CredentialBindingService } from "./CredentialBindingService";
 export { CredentialInstanceService } from "./CredentialInstanceService";
 export { CredentialMaterialResolver } from "./CredentialMaterialResolver";
+export { CredentialOAuth2ScopeResolver } from "./CredentialOAuth2ScopeResolver";
 export { CredentialRuntimeMaterialService } from "./CredentialRuntimeMaterialService";
 export { CredentialFieldEnvOverlayService } from "./CredentialFieldEnvOverlayService";
 export { CredentialSecretCipher } from "./CredentialSecretCipher";

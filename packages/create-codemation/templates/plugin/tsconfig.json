@@ -13,6 +13,6 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "include": ["codemation.plugin.ts", "src/**/*.ts", "test/**/*.ts", "vitest.config.ts"],
+  "include": ["codemation.plugin.ts", "src/**/*.ts", "test/**/*.ts", "vitest.config.ts", "tsdown.config.ts"],
   "exclude": ["node_modules"]
 }

@@ -27,6 +27,7 @@ If a project-local skill exists under `.agents/skills/` outside `extracted/`, tr
 
 - Prefer `definePlugin(...)`, `defineNode(...)` (implement **`executeOne`** per item), `defineBatchNode(...)` only when you need batch **`run(items, ...)`**, and `defineCredential(...)` before dropping to lower-level runtime APIs.
 - Keep plugin registration separate from node and credential implementation modules.
+- Keep `src/index.ts` as the canonical consumer import surface and make package metadata point at real built `dist/index.*` artifacts.
 - Use the sandbox app to verify plugin behavior quickly.
 - Follow any repo-root `AGENTS.md` or nested `AGENTS.md` files you find in subdirectories.
 
@@ -42,4 +43,4 @@ If a project-local skill exists under `.agents/skills/` outside `extracted/`, tr
 
 - Do not delete or rewrite `.agents/skills/extracted` unless the user explicitly asks.
 - Prefer changing plugin source files over editing vendored skill files.
-- Treat this package like a normal publishable npm package: keep entrypoints, exports, and plugin wiring intentional.
+- Treat this package like a normal publishable npm package: keep `exports`, `main` / `module` / `types`, and `package.json#codemation.plugin` aligned with real built files under `dist/`.

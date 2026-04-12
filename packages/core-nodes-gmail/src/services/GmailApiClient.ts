@@ -35,6 +35,52 @@ export type GmailMessageAttachmentContent = Readonly<{
   size?: number;
 }>;
 
+export type GmailOutgoingMessageAttachment = Readonly<{
+  filename: string;
+  mimeType: string;
+  body: Uint8Array | string;
+  contentId?: string;
+  contentTransferEncoding?: "base64" | "quoted-printable" | "7bit" | "8bit" | "binary";
+  disposition?: "attachment" | "inline";
+}>;
+
+export type GmailSendMessageArgs = Readonly<{
+  mailbox?: string;
+  to: ReadonlyArray<string>;
+  subject: string;
+  text?: string;
+  html?: string;
+  cc?: ReadonlyArray<string>;
+  bcc?: ReadonlyArray<string>;
+  replyTo?: string;
+  from?: string;
+  attachments?: ReadonlyArray<GmailOutgoingMessageAttachment>;
+  headers?: Readonly<Record<string, string>>;
+}>;
+
+export type GmailSendRawMessageArgs = Readonly<{
+  mailbox?: string;
+  raw: string;
+  threadId?: string;
+}>;
+
+export type GmailReplyToMessageArgs = Readonly<{
+  mailbox?: string;
+  messageId: string;
+  text?: string;
+  html?: string;
+  attachments?: ReadonlyArray<GmailOutgoingMessageAttachment>;
+  replyToSenderOnly?: boolean;
+  headers?: Readonly<Record<string, string>>;
+  subject?: string;
+}>;
+
+export type GmailModifyLabelsArgs = Readonly<{
+  mailbox?: string;
+  addLabelIds?: ReadonlyArray<string>;
+  removeLabelIds?: ReadonlyArray<string>;
+}>;
+
 export interface GmailApiClient {
   getCurrentHistoryId(args: Readonly<{ mailbox: string }>): Promise<string>;
   listMessageIds(
@@ -59,4 +105,23 @@ export interface GmailApiClient {
       attachment: GmailMessageAttachmentRecord;
     }>,
   ): Promise<GmailMessageAttachmentContent>;
+  sendMessage(args: GmailSendMessageArgs): Promise<GmailMessageRecord>;
+  sendRawMessage(args: GmailSendRawMessageArgs): Promise<GmailMessageRecord>;
+  replyToMessage(args: GmailReplyToMessageArgs): Promise<GmailMessageRecord>;
+  modifyMessageLabels(
+    args: Readonly<{
+      mailbox?: string;
+      messageId: string;
+      addLabelIds?: ReadonlyArray<string>;
+      removeLabelIds?: ReadonlyArray<string>;
+    }>,
+  ): Promise<GmailMessageRecord>;
+  modifyThreadLabels(
+    args: Readonly<{
+      mailbox?: string;
+      threadId: string;
+      addLabelIds?: ReadonlyArray<string>;
+      removeLabelIds?: ReadonlyArray<string>;
+    }>,
+  ): Promise<void>;
 }

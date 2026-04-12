@@ -26,12 +26,13 @@ Typical structure:
 
 ```text
 packages/node-my-feature/
+  codemation.plugin.ts
+  package.json
   src/
+    index.ts
     lookupCustomerNode.ts
     credentials/
       myCredentialType.ts
-    codemation.plugin.ts
-    index.ts
 ```
 
 Keep the package focused. A plugin should group related capabilities, not every unrelated node you happen to own.
@@ -145,7 +146,14 @@ A good plugin package exports:
 
 - the helper-defined node or class pair
 - any credential types that belong with the node
-- the default plugin export
+- the runtime-friendly helper classes and types consumers are expected to import
+
+Keep two entrypoints distinct:
+
+- `src/index.ts` is the canonical consumer import surface
+- `codemation.plugin.ts` is the repository composition root used to build the plugin discovery entry
+
+Consumers should import your package root, for example `@acme/codemation-plugin-foo`, not `dist/**` or unpublished source internals.
 
 The source plugin composition root can live in `codemation.plugin.ts`, but consumer projects discover and execute plugins through `package.json#codemation.plugin`, which should point at built JavaScript such as `./dist/codemation.plugin.js`. Do not assume a consumer runtime will TypeScript-load plugin files from `node_modules`.
 
@@ -154,7 +162,30 @@ Example barrel:
 ```ts
 export { lookupCustomerNode } from "./lookupCustomerNode";
 export { customerApiCredentialType } from "./credentials/customerApiCredentialType";
-export { default as codemationPlugin } from "./codemation.plugin";
+```
+
+Recommended package metadata:
+
+```json
+{
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "codemation": {
+    "plugin": "./dist/codemation.plugin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": {
+        "import": "./src/index.ts",
+        "require": "./dist/index.cjs"
+      },
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  }
+}
 ```
 
 ## Registration guidance
@@ -169,7 +200,7 @@ If your node needs collaborators, inject them through the constructor and keep t
 
 ## Publishing guardrail
 
-Treat `codemation.plugin.ts` as a repository authoring entry, not as the consumer runtime entry. Prefer publishing `dist/**` and package metadata only, or at minimum make sure the published `codemation.plugin` manifest field still points at the built JavaScript plugin module.
+Treat `codemation.plugin.ts` as a repository authoring entry, not as the consumer runtime entry. Prefer publishing `dist/**`, `src/**`, and package metadata only, or at minimum make sure the published `codemation.plugin` manifest field still points at the built JavaScript plugin module. Just as importantly, ensure the root `main` / `module` / `types` / `exports` fields point at real `dist/index.*` artifacts after build.
 
 ## Stability advice
 
