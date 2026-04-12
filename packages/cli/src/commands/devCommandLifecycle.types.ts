@@ -12,6 +12,7 @@ export type DevMutableProcessState = {
   currentPackagedUi: ChildProcess | null;
   currentPackagedUiBaseUrl: string | null;
   currentRuntime: DevApiRuntimeServerHandle | null;
+  currentWorkspacePluginBuilds: ReadonlyArray<ChildProcess>;
   isRestartingUi: boolean;
   stopRequested: boolean;
   stopResolve: (() => void) | null;

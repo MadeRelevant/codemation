@@ -34,6 +34,8 @@ Do not use this skill for workflow graph design, custom node implementation, or 
 2. Mention `.codemation/output` only when build artifacts or runtime bootstrap details matter.
 3. When the user is in the monorepo, distinguish framework-author mode from normal consumer mode explicitly.
 4. When Redis-backed execution is involved, mention the shared PostgreSQL requirement instead of assuming local SQLite still fits.
+5. In consumer mode, discovered plugins are loaded from the built JavaScript path declared in `package.json#codemation.plugin`, not from TypeScript source under `node_modules`.
+6. In plugin mode, the CLI TypeScript-loads only the current plugin repo through the generated `.codemation/plugin-dev/codemation.config.ts`.
 
 ## Read next when needed
 

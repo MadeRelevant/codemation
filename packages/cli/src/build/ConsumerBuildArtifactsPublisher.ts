@@ -16,6 +16,8 @@ export type ConsumerBuildManifest = Readonly<{
 }>;
 
 export class ConsumerBuildArtifactsPublisher {
+  private static readonly nonRuntimePluginEntryExtensions = new Set([".cts", ".mts", ".ts", ".tsx"]);
+
   async publish(
     snapshot: ConsumerOutputBuildSnapshot,
     discoveredPlugins: ReadonlyArray<CodemationDiscoveredPluginPackage>,
@@ -74,9 +76,16 @@ export class ConsumerBuildArtifactsPublisher {
   }
 
   private resolvePluginEntry(discoveredPlugin: CodemationDiscoveredPluginPackage): string {
-    if (typeof discoveredPlugin.developmentEntry === "string" && discoveredPlugin.developmentEntry.trim().length > 0) {
-      return discoveredPlugin.developmentEntry;
+    const pluginEntry = discoveredPlugin.pluginEntry;
+    const pluginEntryExtension = path.extname(pluginEntry).toLowerCase();
+    if (ConsumerBuildArtifactsPublisher.nonRuntimePluginEntryExtensions.has(pluginEntryExtension)) {
+      throw new Error(
+        [
+          `Plugin package "${discoveredPlugin.packageName}" points codemation.plugin at a TypeScript source entry (${pluginEntry}).`,
+          "Discovered plugins must expose a runnable JavaScript entry so consumer build artifacts can import them with Node.",
+        ].join(" "),
+      );
     }
-    return discoveredPlugin.pluginEntry;
+    return pluginEntry;
   }
 }

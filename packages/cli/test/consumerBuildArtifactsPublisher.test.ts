@@ -47,3 +47,38 @@ test("publish writes the current manifest and an empty discovered plugins module
   assert.equal(manifestJson.entryPath, manifest.entryPath);
   assert.match(await readFile(manifest.pluginEntryPath, "utf8"), /codemationDiscoveredPlugins/);
 });
+
+test("publish imports the packaged plugin entry even when a source plugin entry exists", async () => {
+  const consumerRoot = await mkdtemp(path.join(os.tmpdir(), "codemation-cli-publish-plugin-entry-"));
+  teardownRoot = consumerRoot;
+  const outputRoot = path.join(consumerRoot, ".codemation", "output");
+  const emitOutputRoot = path.join(outputRoot, "build");
+  const packageRoot = path.join(consumerRoot, "node_modules", "@codemation", "example-plugin");
+  await mkdir(emitOutputRoot, { recursive: true });
+  await mkdir(path.join(packageRoot, "dist"), { recursive: true });
+
+  const snapshot: ConsumerOutputBuildSnapshot = {
+    buildVersion: "2-456",
+    configSourcePath: null,
+    consumerRoot,
+    manifestPath: path.join(outputRoot, "current.json"),
+    outputEntryPath: path.join(emitOutputRoot, "index.js"),
+    outputRoot,
+    emitOutputRoot,
+    workflowSourcePaths: [],
+    workflowDiscoveryPathSegmentsList: [],
+  };
+
+  const manifest = await new ConsumerBuildArtifactsPublisher().publish(snapshot, [
+    {
+      packageName: "@codemation/example-plugin",
+      packageRoot,
+      pluginEntry: "./dist/codemation.plugin.js",
+      developmentEntry: "codemation.plugin.ts",
+    },
+  ]);
+  const pluginsSource = await readFile(manifest.pluginEntryPath, "utf8");
+
+  assert.match(pluginsSource, /dist\/codemation\.plugin\.js/);
+  assert.doesNotMatch(pluginsSource, /codemation\.plugin\.ts/);
+});

@@ -5,6 +5,8 @@ description: Scaffold a plugin package, run it against the real host, understand
 
 A **plugin** is an npm package that exports a default Codemation plugin object from `codemation.plugin.ts` (built to `dist/`). It registers nodes, credential types, and optional sandbox defaults so local development matches how a consumer app loads the same package from `node_modules`.
 
+`codemation.plugin.ts` is the **source composition root for the plugin repository itself**. Consumer apps do **not** execute that TypeScript file from `node_modules`; they discover the plugin through `package.json#codemation.plugin`, which should point at a runnable JavaScript file such as `./dist/codemation.plugin.js`.
+
 Use this page for the **end-to-end plugin workflow**. For reusable nodes and credentials themselves, follow the same guides as app-local extensions—see [Nodes and credentials](#nodes-and-credentials) below.
 
 ## Getting started
@@ -103,6 +105,12 @@ export default definePlugin({
 
 2. **Consumer apps** — When the CLI loads a consumer `codemation.config.ts`, it **merges** plugins from your config with plugins **discovered** under `node_modules` (see below). The host then runs registration, workflows, and the UI as usual.
 
+### Runtime loading policy
+
+- **Consumer projects** (`codemation dev`, `serve web`, packaged installs) TypeScript-load only the **current consumer project** (`codemation.config.ts` and discovered workflow sources).
+- **Plugin projects** (`codemation dev:plugin`) TypeScript-load only the **current plugin project** because the generated `.codemation/plugin-dev/codemation.config.ts` imports that local `codemation.plugin.ts`.
+- **Discovered plugins from `node_modules`** must therefore expose a runnable JavaScript plugin entry via `package.json#codemation.plugin`.
+
 ## Unit testing with `WorkflowTestKit`
 
 For fast feedback without starting the full host, use **`WorkflowTestKit`** from **`@codemation/core/testing`**. It wires the real engine (`Engine`, `EngineWorkflowRunnerService`, in-memory repositories, inline scheduler) the same way framework tests do.
@@ -162,6 +170,18 @@ Optional deeper reading:
 
 3. **Publish** to npm (or your private registry) as you would any TypeScript library. Ensure `files` / `exports` include `dist/` and that the plugin entry path is correct for consumers.
 
+### Publishing guardrail
+
+Do not rely on consumers executing `codemation.plugin.ts` from your published package. Prefer publishing only the built output and package metadata, for example:
+
+```json
+{
+  "files": ["dist/**", "package.json", "README.md", "LICENSE"]
+}
+```
+
+If you do publish `codemation.plugin.ts` for reference, treat it as source-only. The supported runtime entry for discovery remains `package.json#codemation.plugin` pointing at built JavaScript.
+
 ## Using a plugin in a project
 
 1. **Add the dependency** to your Codemation consumer app:
@@ -170,7 +190,7 @@ Optional deeper reading:
    pnpm add @acme/codemation-plugin-hello
    ```
 
-2. **Discovery** — The host scans `node_modules` for packages whose `package.json` includes `codemation.plugin` as a string path and loads that module. You do **not** have to duplicate that import in `codemation.config.ts` unless you want an explicit reference.
+2. **Discovery** — The host scans `node_modules` for packages whose `package.json` includes `codemation.plugin` as a string path and loads that built JavaScript module. You do **not** have to duplicate that import in `codemation.config.ts` unless you want an explicit reference.
 
 3. **Explicit `plugins`** — You can still add plugins to `codemation.config.ts` (for example a local file path while developing). Configured plugins are merged with discovered plugins; when the same published package appears both ways, the host dedupes by package identity.
 
