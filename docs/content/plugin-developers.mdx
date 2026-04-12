@@ -147,6 +147,8 @@ A good plugin package exports:
 - any credential types that belong with the node
 - the default plugin export
 
+The source plugin composition root can live in `codemation.plugin.ts`, but consumer projects discover and execute plugins through `package.json#codemation.plugin`, which should point at built JavaScript such as `./dist/codemation.plugin.js`. Do not assume a consumer runtime will TypeScript-load plugin files from `node_modules`.
+
 Example barrel:
 
 ```ts
@@ -164,6 +166,10 @@ Keep registration simple for consumers:
 - drop down to class-based nodes only when you need DI-heavy collaborators or finer runtime metadata control
 
 If your node needs collaborators, inject them through the constructor and keep the class-based config cheap and serializable.
+
+## Publishing guardrail
+
+Treat `codemation.plugin.ts` as a repository authoring entry, not as the consumer runtime entry. Prefer publishing `dist/**` and package metadata only, or at minimum make sure the published `codemation.plugin` manifest field still points at the built JavaScript plugin module.
 
 ## Stability advice
 

@@ -15,6 +15,7 @@ Use `codemation dev` for a standalone Codemation app.
 - The CLI starts the packaged `@codemation/next-host` UI.
 - The CLI owns a stable development gateway.
 - The CLI hot-swaps the in-process API runtime when consumer files change.
+- Discovered plugins are loaded from the built JavaScript entry declared in `package.json#codemation.plugin`.
 
 ### Framework-author mode
 
@@ -22,6 +23,7 @@ Use `codemation dev --watch-framework` when working inside the Codemation monore
 
 - The CLI starts `next dev` for `@codemation/next-host`.
 - The CLI still owns the stable gateway and runtime swapping.
+- Workspace plugin packages keep their `dist/` plugin entry fresh so runtime behavior stays aligned with packaged installs.
 - This mode is for framework package work, not normal consumer usage.
 
 ## Command responsibilities

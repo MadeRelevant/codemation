@@ -23,6 +23,8 @@ import { DevLockFactory } from "../dev/Factory";
 import { DevTrackedProcessTreeKiller } from "../dev/DevTrackedProcessTreeKiller";
 import { DevSourceWatcherFactory } from "../dev/Runner";
 import type { NextHostEdgeSeed } from "../dev/NextHostEdgeSeedLoader";
+import type { WorkspacePluginPackageResolver } from "../dev/WorkspacePluginPackageResolver";
+import { WorkspacePluginDevProcessCoordinator } from "../dev/WorkspacePluginDevProcessCoordinator";
 import { CliPathResolver, type CliPaths } from "../path/CliPathResolver";
 import { NextHostConsumerServerCommandFactory } from "../runtime/NextHostConsumerServerCommandFactory";
 import { TypeScriptRuntimeConfigurator } from "../runtime/TypeScriptRuntimeConfigurator";
@@ -47,6 +49,8 @@ export class DevCommand {
     private readonly devCliBannerRenderer: DevCliBannerRenderer,
     private readonly consumerEnvDotenvFilePredicate: ConsumerEnvDotenvFilePredicate,
     private readonly devTrackedProcessTreeKiller: DevTrackedProcessTreeKiller,
+    private readonly workspacePluginPackageResolver: WorkspacePluginPackageResolver,
+    private readonly workspacePluginDevProcessCoordinator: WorkspacePluginDevProcessCoordinator,
     private readonly nextHostConsumerServerCommandFactory: NextHostConsumerServerCommandFactory,
     private readonly devApiRuntimeFactory: DevApiRuntimeFactory,
     private readonly cliDevProxyServerFactory: CliDevProxyServerFactory,
@@ -96,6 +100,19 @@ export class DevCommand {
         authSettings,
         args.configPathOverride,
       );
+      if (prepared.devMode === "watch-framework") {
+        processState.currentWorkspacePluginBuilds = await this.workspacePluginDevProcessCoordinator.start({
+          env: process.env,
+          packages: await this.workspacePluginPackageResolver.resolve({
+            consumerRoot: prepared.paths.consumerRoot,
+            repoRoot: prepared.paths.repoRoot,
+          }),
+          repoRoot: prepared.paths.repoRoot,
+          onUnexpectedExit: (error: Error) => {
+            void this.failDevSessionAfterIrrecoverableSourceError(processState, proxyServer, error);
+          },
+        });
+      }
       if (prepared.devMode === "packaged-ui") {
         await this.publishConsumerArtifacts(prepared.paths, prepared.configPathOverride);
       }
@@ -176,6 +193,7 @@ export class DevCommand {
       currentPackagedUi: null,
       currentPackagedUiBaseUrl: null,
       currentRuntime: null,
+      currentWorkspacePluginBuilds: [],
       isRestartingUi: false,
       stopRequested: false,
       stopResolve: null,
@@ -413,7 +431,7 @@ export class DevCommand {
       },
     });
     await watcher.start({
-      roots: this.session.watchRootsResolver.resolve({
+      roots: await this.session.watchRootsResolver.resolve({
         consumerRoot: prepared.paths.consumerRoot,
         devMode,
         repoRoot: prepared.paths.repoRoot,
@@ -565,11 +583,12 @@ export class DevCommand {
   private async stopLiveProcesses(state: DevMutableProcessState, proxyServer: CliDevProxyServer | null): Promise<void> {
     await this.stopCurrentRuntime(state, proxyServer);
     const children: ChildProcess[] = [];
-    for (const child of [state.currentPackagedUi, state.currentDevUi]) {
+    for (const child of [state.currentPackagedUi, state.currentDevUi, ...state.currentWorkspacePluginBuilds]) {
       if (child && child.exitCode === null && child.signalCode === null) {
         children.push(child);
       }
     }
+    state.currentWorkspacePluginBuilds = [];
     await Promise.all(children.map((child) => this.devTrackedProcessTreeKiller.killProcessTreeRootedAt(child)));
     if (proxyServer) {
       await proxyServer.stop();

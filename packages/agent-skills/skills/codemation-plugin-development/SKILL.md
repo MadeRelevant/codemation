@@ -25,14 +25,21 @@ Do not use this skill for ordinary consumer workflow-only changes unless the wor
 2. Keep plugin registration separate from node and credential implementation modules.
 3. Use the sandbox app to exercise the plugin right away.
 4. Keep the package publishable like a normal npm package.
+5. Treat `codemation.plugin.ts` as the plugin repo's source composition root; consumer projects should load the built JavaScript entry declared in `package.json#codemation.plugin`.
 
 ## Common plugin pieces
 
-- `codemation.plugin.ts`: plugin registration and sandbox app
+- `codemation.plugin.ts`: plugin registration and sandbox app source, compiled to the published plugin entry in `dist/`
 - `src/nodes/*`: custom node definitions (`defineNode` → **`execute`**; `defineBatchNode` → batch **`run`**)
 - `src/credentialTypes/*`: custom credential definitions
 - `src/index.ts`: package exports
 - `test/*.test.ts` (optional): Vitest + `WorkflowTestKit` from `@codemation/core/testing` for engine-backed unit tests without starting the full host (`pnpm test`)
+
+## Packaging guardrail
+
+- `package.json#codemation.plugin` should point at runnable JavaScript such as `./dist/codemation.plugin.js`.
+- Do not rely on consumers TypeScript-loading plugin files from `node_modules`.
+- Prefer publishing `dist/**` plus package metadata/docs rather than shipping source-only plugin entry files as runtime dependencies.
 
 ## Unit tests (`WorkflowTestKit`)
 

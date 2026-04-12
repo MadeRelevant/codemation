@@ -32,6 +32,8 @@ import { DevLockFactory } from "./dev/Factory";
 import { ConsumerEnvDotenvFilePredicate } from "./dev/ConsumerEnvDotenvFilePredicate";
 import { DevTrackedProcessTreeKiller } from "./dev/DevTrackedProcessTreeKiller";
 import { DevSourceWatcherFactory } from "./dev/Runner";
+import { WorkspacePluginDevProcessCoordinator } from "./dev/WorkspacePluginDevProcessCoordinator";
+import { WorkspacePluginPackageResolver } from "./dev/WorkspacePluginPackageResolver";
 import { CliProgram } from "./Program";
 import { CliPathResolver } from "./path/CliPathResolver";
 import { ListenPortResolver } from "./runtime/ListenPortResolver";
@@ -83,6 +85,7 @@ export class CliProgramFactory {
     const buildOptionsParser = new ConsumerBuildOptionsParser();
     const consumerOutputBuilderFactory = new ConsumerOutputBuilderFactory();
     const consumerBuildArtifactsPublisher = new ConsumerBuildArtifactsPublisher();
+    const devTrackedProcessTreeKiller = new DevTrackedProcessTreeKiller();
     const devCommand = new DevCommand(
       pathResolver,
       tsRuntime,
@@ -97,7 +100,9 @@ export class CliProgramFactory {
       new DevBootstrapSummaryFetcher(),
       new DevCliBannerRenderer(),
       new ConsumerEnvDotenvFilePredicate(),
-      new DevTrackedProcessTreeKiller(),
+      devTrackedProcessTreeKiller,
+      new WorkspacePluginPackageResolver(),
+      new WorkspacePluginDevProcessCoordinator(devTrackedProcessTreeKiller),
       nextHostConsumerServerCommandFactory,
       new DevApiRuntimeFactory(devSessionServices.loopbackPortAllocator, appConfigLoader, pluginDiscovery),
       new CliDevProxyServerFactory(),
