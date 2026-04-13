@@ -1,10 +1,17 @@
 import type { Item, Items, NodeExecutionContext } from "@codemation/core";
-import { injectable } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
+import { GoogleGmailApiClientFactory } from "../adapters/google/GoogleGmailApiClientFactory";
+import type { GmailSession } from "../contracts/GmailSession";
 import type { OnNewGmailTrigger, OnNewGmailTriggerItemJson } from "../nodes/OnNewGmailTrigger";
-import type { GmailApiClient, GmailMessageAttachmentRecord } from "./GmailApiClient";
+import type { GmailMessageAttachmentRecord } from "./GmailApiClient";
 
 @injectable()
 export class GmailTriggerAttachmentService {
+  constructor(
+    @inject(GoogleGmailApiClientFactory)
+    private readonly googleGmailApiClientFactory: GoogleGmailApiClientFactory,
+  ) {}
+
   async attachForItems(
     items: Items<OnNewGmailTriggerItemJson>,
     ctx: NodeExecutionContext<OnNewGmailTrigger>,
@@ -31,7 +38,8 @@ export class GmailTriggerAttachmentService {
     attachment: GmailMessageAttachmentRecord,
     ctx: NodeExecutionContext<OnNewGmailTrigger>,
   ): Promise<Item<OnNewGmailTriggerItemJson>> {
-    const client = await ctx.getCredential<GmailApiClient>("auth");
+    const session = await ctx.getCredential<GmailSession>("auth");
+    const client = this.googleGmailApiClientFactory.create(session);
     const content = await client.getAttachmentContent({
       mailbox: ctx.config.cfg.mailbox,
       messageId: item.json.messageId,

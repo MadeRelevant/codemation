@@ -50,7 +50,7 @@ export class OnNewGmailTrigger implements TriggerNodeConfig<
       {
         slotKey: "auth",
         label: "Gmail account",
-        acceptedTypes: [GmailCredentialTypes.serviceAccount, GmailCredentialTypes.oauth],
+        acceptedTypes: [GmailCredentialTypes.oauth],
         helpText: "Bind a Gmail credential that resolves to an authenticated Gmail trigger client.",
       },
     ];

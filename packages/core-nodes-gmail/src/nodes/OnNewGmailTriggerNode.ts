@@ -7,11 +7,12 @@ import type {
   TriggerTestItemsContext,
 } from "@codemation/core";
 import { inject, node } from "@codemation/core";
+import { GoogleGmailApiClientFactory } from "../adapters/google/GoogleGmailApiClientFactory";
 import type { GmailLogger } from "../contracts/GmailLogger";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
+import type { GmailSession } from "../contracts/GmailSession";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import { GmailPollingTriggerRuntime } from "../runtime/GmailPollingTriggerRuntime";
-import type { GmailApiClient } from "../services/GmailApiClient";
 import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
 import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
 import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "./OnNewGmailTrigger";
@@ -23,6 +24,8 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
 
   constructor(
     @inject(GmailPollingTriggerRuntime) private readonly gmailPollingTriggerRuntime: GmailPollingTriggerRuntime,
+    @inject(GoogleGmailApiClientFactory)
+    private readonly googleGmailApiClientFactory: GoogleGmailApiClientFactory,
     @inject(GmailTriggerAttachmentService)
     private readonly gmailTriggerAttachmentService: GmailTriggerAttachmentService,
     @inject(GmailTriggerTestItemService) private readonly gmailTriggerTestItemService: GmailTriggerTestItemService,
@@ -47,7 +50,8 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
         await this.gmailPollingTriggerRuntime.stop(ctx.trigger);
       },
     });
-    const client = await ctx.getCredential<GmailApiClient>("auth");
+    const session = await ctx.getCredential<GmailSession>("auth");
+    const client = this.googleGmailApiClientFactory.create(session);
     const setupState = await this.gmailPollingTriggerRuntime.ensureStarted({
       trigger: ctx.trigger,
       client,
@@ -72,7 +76,8 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
   async getTestItems(
     ctx: TriggerTestItemsContext<OnNewGmailTrigger, GmailTriggerSetupState | undefined>,
   ): Promise<Items> {
-    const client = await ctx.getCredential<GmailApiClient>("auth");
+    const session = await ctx.getCredential<GmailSession>("auth");
+    const client = this.googleGmailApiClientFactory.create(session);
     const items = await this.gmailTriggerTestItemService.createItems({
       trigger: ctx.trigger,
       client,

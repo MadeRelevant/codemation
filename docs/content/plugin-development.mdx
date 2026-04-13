@@ -3,9 +3,16 @@ title: Plugin development
 description: Scaffold a plugin package, run it against the real host, understand sandbox config, publish, and consume it from an app.
 ---
 
-A **plugin** is an npm package that exports a default Codemation plugin object from `codemation.plugin.ts` (built to `dist/`). It registers nodes, credential types, and optional sandbox defaults so local development matches how a consumer app loads the same package from `node_modules`.
+A **plugin** is an npm package that exposes:
+
+- a consumer-facing root API from `src/index.ts`, built to `dist/index.*`
+- a Codemation discovery entry from `codemation.plugin.ts`, built to `dist/codemation.plugin.*`
+
+It registers nodes, credential types, and optional sandbox defaults so local development matches how a consumer app loads the same package from `node_modules`.
 
 `codemation.plugin.ts` is the **source composition root for the plugin repository itself**. Consumer apps do **not** execute that TypeScript file from `node_modules`; they discover the plugin through `package.json#codemation.plugin`, which should point at a runnable JavaScript file such as `./dist/codemation.plugin.js`.
+
+`src/index.ts` is the **canonical import surface** for consumers. Published packages should make `main` / `module` / `types` / `exports` resolve to built `dist/index.*` files that actually exist after `pnpm build`.
 
 Use this page for the **end-to-end plugin workflow**. For reusable nodes and credentials themselves, follow the same guides as app-local extensions—see [Nodes and credentials](#nodes-and-credentials) below.
 
@@ -93,6 +100,50 @@ export default definePlugin({
 - **`register`** — imperative registration: e.g. `context.registerNode(...)`, container bindings, and other host hooks.
 - **`sandbox`** — optional; used by the `dev:plugin` flow so the generated config can merge your sandbox config and append the plugin automatically.
 
+## Package layout and entrypoints
+
+The recommended publishable layout is:
+
+```text
+my-plugin/
+  codemation.plugin.ts
+  package.json
+  tsdown.config.ts
+  src/
+    index.ts
+    nodes/
+    credentialTypes/
+```
+
+Recommended package metadata:
+
+```json
+{
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "codemation": {
+    "plugin": "./dist/codemation.plugin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": {
+        "import": "./src/index.ts",
+        "require": "./dist/index.cjs"
+      },
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  }
+}
+```
+
+This keeps two contracts clear:
+
+- consumer code imports the package root
+- Codemation discovers the plugin through `package.json#codemation.plugin`
+
 ## Lifecycle with the host
 
 1. **Local plugin development** — `codemation dev:plugin` (usually via `pnpm dev` in the template) uses **`PluginDevConfigFactory`** to write **`.codemation/plugin-dev/codemation.config.ts`** beside your package. That file:
@@ -168,19 +219,19 @@ Optional deeper reading:
    }
    ```
 
-3. **Publish** to npm (or your private registry) as you would any TypeScript library. Ensure `files` / `exports` include `dist/` and that the plugin entry path is correct for consumers.
+3. **Publish** to npm (or your private registry) as you would any TypeScript library. Ensure `files` / `exports` include `dist/` and that both the root package entrypoints and the plugin discovery entry path are correct for consumers.
 
 ### Publishing guardrail
 
-Do not rely on consumers executing `codemation.plugin.ts` from your published package. Prefer publishing only the built output and package metadata, for example:
+Do not rely on consumers executing `codemation.plugin.ts` from your published package. Prefer publishing built output and metadata that line up with the runtime contract, for example:
 
 ```json
 {
-  "files": ["dist/**", "package.json", "README.md", "LICENSE"]
+  "files": ["dist", "src", "codemation.plugin.ts", "package.json", "README.md", "LICENSE"]
 }
 ```
 
-If you do publish `codemation.plugin.ts` for reference, treat it as source-only. The supported runtime entry for discovery remains `package.json#codemation.plugin` pointing at built JavaScript.
+If you do publish `codemation.plugin.ts` for reference, treat it as source-only. The supported runtime entry for discovery remains `package.json#codemation.plugin` pointing at built JavaScript, and the supported consumer import surface remains the package root backed by `dist/index.*`.
 
 ## Using a plugin in a project
 

@@ -1,5 +1,15 @@
 # @codemation/core-nodes-gmail
 
+## Unreleased
+
+### Minor Changes
+
+- Fix the published root entrypoints so `@codemation/core-nodes-gmail` resolves to real `dist/index.*` artifacts under Node ESM and consumer-style builds.
+- Make the package root the canonical public API for trigger types, Gmail session types, attachment helpers, and Google Gmail helper classes.
+- Remove Gmail service-account credential support and standardize on OAuth.
+- Expand the default Gmail OAuth scope bundle to cover trigger/read/send/reply/label workflows, with `scopePreset` plus full custom replacement via `customScopes`.
+- Return an authenticated official Gmail client session from the Gmail credential and add high-level helpers for send, reply, MIME composition, and label updates.
+
 ## 0.0.28
 
 ### Patch Changes
