@@ -1,5 +1,18 @@
 # @codemation/next-host
 
+## 0.1.9
+
+### Patch Changes
+
+- [#65](https://github.com/MadeRelevant/codemation/pull/65) [`261c240`](https://github.com/MadeRelevant/codemation/commit/261c240bccfd6e65bcd7cac439d501ef61b1f730) Thanks [@cblokland90](https://github.com/cblokland90)! - Fix live workflow binary links so run-backed attachments open from the run binary endpoint instead of the debugger overlay endpoint, which avoids 404s for Gmail and other real execution binaries.
+
+- [#64](https://github.com/MadeRelevant/codemation/pull/64) [`c44dad2`](https://github.com/MadeRelevant/codemation/commit/c44dad26529ac557f69ec986930389cc799aaefb) Thanks [@cblokland90](https://github.com/cblokland90)! - Fix manual run execution so trigger-started workflows synthesize trigger preview items when no upstream trigger data exists yet.
+
+  Add a lightweight `@codemation/host/authoring` entrypoint and update plugin sandbox imports so local dev no longer pulls heavy host server persistence modules into discovered plugin packages.
+
+- Updated dependencies [[`c44dad2`](https://github.com/MadeRelevant/codemation/commit/c44dad26529ac557f69ec986930389cc799aaefb)]:
+  - @codemation/host@0.2.1
+
 ## 0.1.8
 
 ### Patch Changes
