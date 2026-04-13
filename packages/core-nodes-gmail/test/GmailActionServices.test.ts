@@ -223,3 +223,161 @@ test("GmailModifyLabelsService returns thread mutation metadata for thread targe
   });
   assert.equal(client.threadLabelRequests.length, 1);
 });
+
+test("GmailSendMessageService rejects empty recipients and empty subject", async () => {
+  const client = new FakeGmailApiClient();
+  const service = new GmailSendMessageService(
+    new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
+  );
+  await assert.rejects(
+    () =>
+      service.send({
+        ...GmailActionServicesFixture.createExecutionContext(),
+        config: { cfg: { to: "  ", subject: "S" } },
+      } as never),
+    /cfg.to/,
+  );
+  await assert.rejects(
+    () =>
+      service.send({
+        ...GmailActionServicesFixture.createExecutionContext(),
+        config: { cfg: { to: "a@b.com", subject: "  " } },
+      } as never),
+    /cfg.subject/,
+  );
+  assert.equal(client.sendRequests.length, 0);
+});
+
+test("GmailSendMessageService forwards bcc, replyTo, from, array recipients, and attachment metadata", async () => {
+  const client = new FakeGmailApiClient();
+  const service = new GmailSendMessageService(
+    new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
+  );
+  await service.send({
+    ...GmailActionServicesFixture.createExecutionContext(),
+    config: {
+      cfg: {
+        to: ["one@b.com", "two@b.com"],
+        subject: "Subj",
+        text: "Hi",
+        bcc: "bcc@b.com",
+        replyTo: "reply@b.com",
+        from: "from@b.com",
+        attachments: [
+          {
+            filename: "x.bin",
+            mimeType: "application/octet-stream",
+            body: new Uint8Array([1]),
+            contentId: " cid ",
+            contentTransferEncoding: "8bit",
+            disposition: "inline",
+          },
+          {},
+          { filename: "", mimeType: "text/plain", body: "x" },
+        ],
+      },
+    },
+  } as never);
+  assert.equal(client.sendRequests.length, 1);
+  const request = GmailActionServicesFixture.asRecord(client.sendRequests[0]);
+  assert.deepEqual(request["to"], ["one@b.com", "two@b.com"]);
+  assert.deepEqual(request["bcc"], ["bcc@b.com"]);
+  assert.equal(request["replyTo"], "reply@b.com");
+  assert.equal(request["from"], "from@b.com");
+  const attachments = request["attachments"] as ReadonlyArray<Record<string, unknown>>;
+  assert.equal(attachments.length, 1);
+  assert.equal(attachments[0]?.["contentId"], "cid");
+  assert.equal(attachments[0]?.["contentTransferEncoding"], "8bit");
+  assert.equal(attachments[0]?.["disposition"], "inline");
+});
+
+test("GmailReplyToMessageService rejects empty messageId", async () => {
+  const client = new FakeGmailApiClient();
+  const service = new GmailReplyToMessageService(
+    new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
+  );
+  await assert.rejects(
+    () =>
+      service.reply({
+        ...GmailActionServicesFixture.createExecutionContext(),
+        config: { cfg: { messageId: "  " } },
+      } as never),
+    /cfg.messageId/,
+  );
+  assert.equal(client.replyRequests.length, 0);
+});
+
+test("GmailReplyToMessageService forwards html, mixed headers, and filters invalid attachment entries", async () => {
+  const client = new FakeGmailApiClient();
+  const service = new GmailReplyToMessageService(
+    new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
+  );
+  await service.reply({
+    ...GmailActionServicesFixture.createExecutionContext(),
+    config: {
+      cfg: {
+        messageId: "m1",
+        html: "<p>x</p>",
+        headers: { " ": "no", Valid: "yes", Drop: "" },
+        attachments: [
+          {
+            filename: "a.txt",
+            mimeType: "text/plain",
+            body: "x",
+            contentTransferEncoding: "base64",
+            disposition: "attachment",
+          },
+        ],
+      },
+    },
+  } as never);
+  assert.equal(client.replyRequests.length, 1);
+  const request = GmailActionServicesFixture.asRecord(client.replyRequests[0]);
+  assert.equal(request["html"], "<p>x</p>");
+  assert.deepEqual(request["headers"], { Valid: "yes" });
+  const attachments = request["attachments"] as ReadonlyArray<unknown>;
+  assert.equal(attachments?.length, 1);
+});
+
+test("GmailModifyLabelsService throws when no label operations are provided", async () => {
+  const client = new FakeGmailApiClient();
+  const service = new GmailModifyLabelsService(
+    new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
+    new GmailConfiguredLabelService(),
+  );
+  await assert.rejects(
+    () =>
+      service.modify({
+        ...GmailActionServicesFixture.createExecutionContext(),
+        config: {
+          target: "message",
+          cfg: {
+            messageId: "message_1",
+          },
+        },
+      } as never),
+    /at least one label/,
+  );
+});
+
+test("GmailModifyLabelsService rejects empty threadId for thread targets", async () => {
+  const client = new FakeGmailApiClient();
+  const service = new GmailModifyLabelsService(
+    new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
+    new GmailConfiguredLabelService(),
+  );
+  await assert.rejects(
+    () =>
+      service.modify({
+        ...GmailActionServicesFixture.createExecutionContext(),
+        config: {
+          target: "thread",
+          cfg: {
+            threadId: "  ",
+            addLabels: ["Done"],
+          },
+        },
+      } as never),
+    /cfg.threadId/,
+  );
+});

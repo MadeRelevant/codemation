@@ -44,3 +44,75 @@ test("CredentialOAuth2ScopeResolver resolves preset and custom replacement scope
     ["scope.alpha", "scope.beta"],
   );
 });
+
+test("CredentialOAuth2ScopeResolver falls back when preset is missing, unknown, or custom without scopes", () => {
+  const resolver = new CredentialOAuth2ScopeResolver();
+  const auth = {
+    kind: "oauth2" as const,
+    providerId: "google",
+    scopes: ["scope.default"],
+    scopesFromPublicConfig: {
+      presetFieldKey: "scopePreset",
+      presetScopes: {
+        automation: ["scope.read"],
+      },
+      customPresetKey: "custom",
+      customScopesFieldKey: "customScopes",
+    },
+  };
+  assert.deepEqual(resolver.resolveRequestedScopes(auth, { scopePreset: "" }), ["scope.default"]);
+  assert.deepEqual(resolver.resolveRequestedScopes(auth, { scopePreset: "unknown" }), ["scope.default"]);
+  assert.deepEqual(resolver.resolveRequestedScopes(auth, { scopePreset: "custom" }), ["scope.default"]);
+  assert.deepEqual(
+    resolver.resolveRequestedScopes(auth, {
+      scopePreset: "custom",
+      customScopes: "   \n\t  ",
+    }),
+    ["scope.default"],
+  );
+});
+
+test("CredentialOAuth2ScopeResolver resolves custom scopes from arrays and dedupes", () => {
+  const resolver = new CredentialOAuth2ScopeResolver();
+  const auth = {
+    kind: "oauth2" as const,
+    providerId: "google",
+    scopes: ["scope.default"],
+    scopesFromPublicConfig: {
+      presetFieldKey: "scopePreset",
+      presetScopes: {},
+      customPresetKey: "custom",
+      customScopesFieldKey: "customScopes",
+    },
+  };
+  assert.deepEqual(
+    resolver.resolveRequestedScopes(auth, {
+      scopePreset: "custom",
+      customScopes: [" scope.a ", "scope.b", "scope.a"],
+    }),
+    ["scope.a", "scope.b"],
+  );
+});
+
+test("CredentialOAuth2ScopeResolver uses non-default custom preset key", () => {
+  const resolver = new CredentialOAuth2ScopeResolver();
+  const auth = {
+    kind: "oauth2" as const,
+    providerId: "google",
+    scopes: ["scope.default"],
+    scopesFromPublicConfig: {
+      presetFieldKey: "scopePreset",
+      presetScopes: {},
+      customPresetKey: "other",
+      customScopesFieldKey: "scopesText",
+    },
+  };
+  assert.deepEqual(
+    resolver.resolveRequestedScopes(auth, {
+      scopePreset: "other",
+      scopesText: "scope.x scope.y",
+    }),
+    ["scope.x", "scope.y"],
+  );
+  assert.deepEqual(resolver.resolveRequestedScopes(auth, { scopePreset: "custom" }), ["scope.default"]);
+});
