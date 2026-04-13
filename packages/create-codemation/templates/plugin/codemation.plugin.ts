@@ -1,4 +1,4 @@
-import { defineCodemationApp, definePlugin, workflow } from "@codemation/host";
+import { defineCodemationApp, definePlugin, workflow } from "@codemation/host/authoring";
 import { exampleApiKeyCredentialType } from "./src/credentialTypes/ExampleApiKeyCredentialType";
 import { examplePluginUppercaseNode } from "./src/nodes/ExamplePluginUppercase";
 

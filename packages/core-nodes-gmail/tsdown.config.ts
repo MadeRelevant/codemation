@@ -6,7 +6,7 @@ export default defineConfig({
     "codemation.plugin": "codemation.plugin.ts",
   },
   outDir: "dist",
-  clean: true,
+  clean: false,
   dts: true,
   format: ["esm", "cjs"],
   sourcemap: true,
