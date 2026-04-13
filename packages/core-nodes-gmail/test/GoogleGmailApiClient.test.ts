@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import {
-  GmailMimeMessageFactory,
-  GoogleGmailApiClientFactory,
-} from "../src/adapters/google/GoogleGmailApiClientFactory";
+import { GmailMimeMessageFactory } from "../src/adapters/google/GmailMimeMessageFactory";
+import { GoogleGmailApiClientFactory } from "../src/adapters/google/GoogleGmailApiClientFactory";
 import type { GmailSession } from "../src/contracts/GmailSession";
 import type { GmailMessageRecord } from "../src/services/GmailApiClient";
 

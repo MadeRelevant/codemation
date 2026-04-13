@@ -1,11 +1,12 @@
 # `@codemation/core-nodes-gmail`
 
-Optional Gmail integration for Codemation. It provides:
+Optional Gmail integration for Codemation. The package is intentionally trigger-first:
 
 - a polling `OnNewGmailTrigger`
-- OAuth credential registration for Gmail
-- an authenticated official Gmail client session for custom nodes and apps
-- higher-level Gmail helpers for send, reply, label updates, MIME building, and attachment mapping
+- Gmail OAuth credential registration
+- an authenticated official Gmail client session for custom code and custom nodes
+- workflow-facing Gmail action nodes for send, reply, and label updates
+- attachment mapping for downstream OCR or parsing steps
 
 ## Install
 
@@ -13,7 +14,7 @@ Optional Gmail integration for Codemation. It provides:
 pnpm add @codemation/core-nodes-gmail
 ```
 
-The package exposes both a root library API and a `codemation.plugin.ts` discovery entry.
+The package exposes a root library API plus a `codemation.plugin.ts` discovery entry.
 
 ## Canonical imports
 
@@ -22,8 +23,10 @@ Use the package root:
 ```ts
 import {
   GmailAttachmentMapping,
-  GoogleGmailApiClient,
+  ModifyGmailLabels,
   OnNewGmailTrigger,
+  ReplyToGmailMessage,
+  SendGmailMessage,
   type GmailSession,
   type OnNewGmailTriggerItemJson,
 } from "@codemation/core-nodes-gmail";
@@ -32,8 +35,6 @@ import {
 ## Trigger behavior
 
 `OnNewGmailTrigger` polls Gmail and emits one workflow item per message. Each emitted `item.json` includes message metadata, headers, inline text/html bodies, and attachment descriptors. When `downloadAttachments: true` is enabled, binary attachments are attached to the same workflow item during trigger execution.
-
-Example:
 
 ```ts
 new OnNewGmailTrigger("On Inbox Mail", {
@@ -44,29 +45,38 @@ new OnNewGmailTrigger("On Inbox Mail", {
 });
 ```
 
-## OAuth scopes
+## Action nodes
 
-The default Gmail OAuth preset is `automation`. It requests the scopes needed for every feature this plugin currently supports:
+For workflow authors, the package now exposes dedicated Gmail action nodes instead of helper-centric client wrappers:
 
-- `https://www.googleapis.com/auth/gmail.modify`
-- `https://www.googleapis.com/auth/gmail.send`
-- `https://www.googleapis.com/auth/userinfo.email`
+- `SendGmailMessage`
+- `ReplyToGmailMessage`
+- `ModifyGmailLabels`
 
-Supported preset values:
+These nodes use the bound Gmail OAuth credential and keep the workflow graph declarative. Their config is designed to work well with `itemValue(...)`, so authors can map recipients, subjects, message ids, and labels directly from upstream items instead of building ad hoc input payload objects.
 
-- `automation`: trigger, read, download attachments, send, reply, and label changes
-- `readonly`: trigger, read, and attachment download only
-- `custom`: replace the default scope bundle entirely with `customScopes`
+```ts
+import { itemValue } from "@codemation/core";
 
-Credential public config fields:
+new SendGmailMessage("Send quote response", {
+  to: itemValue(({ item }) => String((item.json as Record<string, unknown>)["from"] ?? "")),
+  subject: itemValue(({ item }) => `Re: ${String((item.json as Record<string, unknown>)["subject"] ?? "")}`),
+  text: "Thanks for your message. We will respond shortly.",
+});
 
-- `clientId`
-- `scopePreset`
-- `customScopes`
+new ReplyToGmailMessage("Reply to incoming message", {
+  messageId: itemValue(({ item }) => String((item.json as Record<string, unknown>)["messageId"] ?? "")),
+  text: "Thanks, we received your request.",
+});
 
-`customScopes` is only used when `scopePreset` is set to `custom`. The value may be comma-, space-, or newline-separated and replaces the default bundle instead of merging with it.
+new ModifyGmailLabels("Mark Gmail thread done", {
+  target: "thread",
+  threadId: itemValue(({ item }) => String((item.json as Record<string, unknown>)["threadId"] ?? "")),
+  addLabels: ["Done"],
+});
+```
 
-When scopes change, reconnect the credential so Google can grant the new consent set.
+Each node resolves its config per item, so upstream mapping or AI nodes can feed Gmail actions without introducing a separate “compose input JSON for Gmail” step.
 
 ## Using the authenticated Gmail session
 
@@ -83,37 +93,31 @@ await session.client.users.messages.send({
 });
 ```
 
-For common automation, you can use the exported helper instead of hand-building MIME:
+This is the recommended extension surface for custom consumer logic. The plugin keeps Gmail-specific runtime plumbing internal and lets custom code work directly with the official `googleapis` client.
 
-```ts
-const session = await ctx.getCredential<GmailSession>("auth");
-const gmail = new GoogleGmailApiClientFactory().create(session);
+## OAuth scopes
 
-await gmail.sendMessage({
-  to: ["buyer@example.com"],
-  subject: "Quote response",
-  text: "Thanks for the RFQ. We will reply shortly.",
-});
+The default Gmail OAuth preset is `automation`. It requests the scopes needed for the trigger and the built-in Gmail action nodes:
 
-await gmail.replyToMessage({
-  messageId: "gmail-message-id",
-  text: "Thanks, we received your request.",
-});
+- `https://www.googleapis.com/auth/gmail.modify`
+- `https://www.googleapis.com/auth/gmail.send`
+- `https://www.googleapis.com/auth/userinfo.email`
 
-await gmail.modifyMessageLabels({
-  messageId: "gmail-message-id",
-  addLabelIds: ["Label_done"],
-  removeLabelIds: ["INBOX"],
-});
-```
+Supported preset values:
 
-`GoogleGmailApiClient` keeps the read surface used by the trigger and adds:
+- `automation`: trigger, read, attachment download, send, reply, and label changes
+- `readonly`: trigger, read, and attachment download only
+- `custom`: replace the default scope bundle entirely with `customScopes`
 
-- `sendMessage(...)`
-- `sendRawMessage(...)`
-- `replyToMessage(...)`
-- `modifyMessageLabels(...)`
-- `modifyThreadLabels(...)`
+Credential public config fields:
+
+- `clientId`
+- `scopePreset`
+- `customScopes`
+
+`customScopes` is only used when `scopePreset` is set to `custom`. The value may be comma-, space-, or newline-separated and replaces the default bundle instead of merging with it.
+
+When scopes change, reconnect the credential so Google can grant the new consent set.
 
 ## Attachment helper
 

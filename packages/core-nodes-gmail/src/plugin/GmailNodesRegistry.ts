@@ -1,10 +1,8 @@
 import type { Container, CredentialType } from "@codemation/core";
 import type { CodemationPluginContext } from "@codemation/host";
-import {
-  GoogleGmailApiClientFactory,
-  GoogleGmailApiClientScopeCatalog,
-  GoogleGmailSessionFactory,
-} from "../adapters/google/GoogleGmailApiClientFactory";
+import { GoogleGmailApiClientFactory } from "../adapters/google/GoogleGmailApiClientFactory";
+import { GoogleGmailApiClientScopeCatalog } from "../adapters/google/GoogleGmailApiClientScopeCatalog";
+import { GoogleGmailSessionFactory } from "../adapters/google/GoogleGmailSessionFactory";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
@@ -17,8 +15,11 @@ import type { GmailSession } from "../contracts/GmailSession";
 import { GmailPollingTriggerRuntime } from "../runtime/GmailPollingTriggerRuntime";
 import { GmailConfiguredLabelService } from "../services/GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "../services/GmailMessageItemMapper";
+import { GmailModifyLabelsService } from "../services/GmailModifyLabelsService";
 import { GmailPollingService } from "../services/GmailPollingService";
 import { GmailQueryMatcher } from "../services/GmailQueryMatcher";
+import { GmailReplyToMessageService } from "../services/GmailReplyToMessageService";
+import { GmailSendMessageService } from "../services/GmailSendMessageService";
 import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
 import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
 
@@ -42,15 +43,13 @@ export class GmailNodes {
   private registerServices(container: Container, context: CodemationPluginContext): void {
     container.registerInstance(GmailNodeTokens.TriggerLogger, context.loggerFactory.create("codemation-gmail.trigger"));
     container.registerInstance(GmailNodeTokens.RuntimeLogger, context.loggerFactory.create("codemation-gmail.runtime"));
-    container.register(GmailNodeTokens.GmailApiClient, {
-      useFactory: () => {
-        throw new Error("GmailApiClient must be supplied by the active Gmail runtime binding.");
-      },
-    });
     container.register(GoogleGmailApiClientFactory, { useClass: GoogleGmailApiClientFactory });
     container.register(GmailConfiguredLabelService, { useClass: GmailConfiguredLabelService });
     container.register(GmailMessageItemMapper, { useClass: GmailMessageItemMapper });
+    container.register(GmailModifyLabelsService, { useClass: GmailModifyLabelsService });
     container.register(GmailQueryMatcher, { useClass: GmailQueryMatcher });
+    container.register(GmailReplyToMessageService, { useClass: GmailReplyToMessageService });
+    container.register(GmailSendMessageService, { useClass: GmailSendMessageService });
     container.register(GmailTriggerAttachmentService, { useClass: GmailTriggerAttachmentService });
     container.register(GmailTriggerTestItemService, { useClass: GmailTriggerTestItemService });
     container.register(GmailPollingService, { useClass: GmailPollingService });
@@ -137,8 +136,8 @@ export class GmailNodes {
     }>
   > {
     try {
-      const client = new GoogleGmailApiClientFactory().create(session);
-      const historyId = await client.getCurrentHistoryId({ mailbox: session.userId });
+      const response = await session.client.users.getProfile({ userId: session.userId });
+      const historyId = response.data.historyId ?? undefined;
       return {
         status: "healthy",
         message: "Connected to Gmail successfully.",

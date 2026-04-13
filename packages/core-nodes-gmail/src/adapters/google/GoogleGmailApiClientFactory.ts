@@ -11,7 +11,3 @@ export class GoogleGmailApiClientFactory {
     return new GoogleGmailApiClient(session, new GmailMessagePayloadTextExtractor(), new GmailMimeMessageFactory());
   }
 }
-export { GmailMimeMessageFactory } from "./GmailMimeMessageFactory";
-export { GoogleGmailApiClient } from "./GoogleGmailApiClient";
-export { GoogleGmailSessionFactory } from "./GoogleGmailSessionFactory";
-export { GoogleGmailApiClientScopeCatalog } from "./GoogleGmailApiClientScopeCatalog";

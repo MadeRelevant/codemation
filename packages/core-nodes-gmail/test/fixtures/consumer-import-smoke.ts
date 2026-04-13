@@ -1,7 +1,10 @@
+import { itemValue, type Item } from "@codemation/core";
 import {
   GmailAttachmentMapping,
-  GoogleGmailApiClientFactory,
+  ModifyGmailLabels,
   OnNewGmailTrigger,
+  ReplyToGmailMessage,
+  SendGmailMessage,
   type GmailMessageAttachmentRecord,
   type GmailSession,
 } from "@codemation/core-nodes-gmail";
@@ -26,8 +29,28 @@ const session = {
   scopes: [],
 } satisfies GmailSession;
 
-const client = new GoogleGmailApiClientFactory().create(session);
+const send = new SendGmailMessage("Send Gmail", {
+  to: itemValue(({ item }: Readonly<{ item: Item }>) => String((item.json as Record<string, unknown>)["to"] ?? "")),
+  subject: itemValue(({ item }: Readonly<{ item: Item }>) =>
+    String((item.json as Record<string, unknown>)["subject"] ?? ""),
+  ),
+});
+const reply = new ReplyToGmailMessage("Reply Gmail", {
+  messageId: itemValue(({ item }: Readonly<{ item: Item }>) =>
+    String((item.json as Record<string, unknown>)["messageId"] ?? ""),
+  ),
+  text: "Thanks for your message.",
+});
+const labels = new ModifyGmailLabels("Label Gmail", {
+  messageId: itemValue(({ item }: Readonly<{ item: Item }>) =>
+    String((item.json as Record<string, unknown>)["messageId"] ?? ""),
+  ),
+  addLabels: ["Done"],
+});
 
 void trigger;
 void mapped;
-void client;
+void send;
+void reply;
+void labels;
+void session;

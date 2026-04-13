@@ -1,20 +1,15 @@
 export * from "./contracts/GmailCredentialTypes";
-export * from "./contracts/GmailLogger";
 export * from "./contracts/GmailNodesOptions";
-export * from "./contracts/GmailNodeTokens";
 export * from "./contracts/GmailOAuthCredential";
 export * from "./contracts/GmailSession";
-export * from "./adapters/google/GoogleGmailApiClientFactory";
-export * from "./contracts/GmailTriggerSetupState";
+export type {
+  GmailMessageAttachmentRecord,
+  GmailMessageRecord,
+  GmailOutgoingMessageAttachment,
+} from "./services/GmailApiClient";
 export * from "./nodes/OnNewGmailTrigger";
-export * from "./nodes/OnNewGmailTriggerNode";
+export * from "./nodes/ModifyGmailLabels";
+export * from "./nodes/ReplyToGmailMessage";
+export * from "./nodes/SendGmailMessage";
 export * from "./plugin/GmailNodesRegistry";
-export * from "./runtime/GmailPollingTriggerRuntime";
-export * from "./services/GmailApiClient";
 export * from "./services/GmailAttachmentMapping";
-export * from "./services/GmailConfiguredLabelService";
-export * from "./services/GmailMessageItemMapper";
-export * from "./services/GmailPollingService";
-export * from "./services/GmailQueryMatcher";
-export * from "./services/GmailTriggerAttachmentService";
-export * from "./services/GmailTriggerTestItemService";
