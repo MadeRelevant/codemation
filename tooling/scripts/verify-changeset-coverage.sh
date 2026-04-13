@@ -49,6 +49,9 @@ if [ -n "${CHANGEDSET_FILES}" ]; then
   fi
   CHANGESET_PARSE_MODULE_PATH="$1"
   printf '%s\n' "${CHANGEDSET_FILES}" | while IFS= read -r CHANGEDSET_FILE; do
+    if [ ! -f "${CHANGEDSET_FILE}" ]; then
+      continue
+    fi
     if ! node -e "const fs = require('node:fs'); const parse = require(process.argv[1]).default; parse(fs.readFileSync(process.argv[2], 'utf8'));" "${CHANGESET_PARSE_MODULE_PATH}" "${CHANGEDSET_FILE}" >/dev/null 2>&1; then
       echo "changeset-verify: changed .changeset/*.md files must be parseable by Changesets."
       echo "Run: pnpm exec changeset status"
