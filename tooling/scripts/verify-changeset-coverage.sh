@@ -16,7 +16,9 @@ if [ "${SKIP_CHANGESET_VERIFY:-}" = "1" ]; then
   exit 0
 fi
 
-if [ "${CHANGESET_VERIFY_MODE:-}" = "ci" ]; then
+if [ -n "${CHANGESET_VERIFY_CHANGED_FILES:-}" ]; then
+  CHANGED_FILES="${CHANGESET_VERIFY_CHANGED_FILES}"
+elif [ "${CHANGESET_VERIFY_MODE:-}" = "ci" ]; then
   BASE_REF="${GITHUB_BASE_REF:-main}"
   CHANGED_FILES="$(git diff --name-only "origin/${BASE_REF}...HEAD")"
 else
@@ -37,12 +39,23 @@ if [ -z "${CHANGED_FILES}" ]; then
   exit 0
 fi
 
+CHANGEDSET_FILES="$(printf '%s\n' "${CHANGED_FILES}" | grep -E '^\.changeset/[^/]+\.md$' || true)"
+if [ -n "${CHANGEDSET_FILES}" ]; then
+  printf '%s\n' "${CHANGEDSET_FILES}" | while IFS= read -r CHANGEDSET_FILE; do
+    if ! node -e "const fs = require('node:fs'); const parse = require('@changesets/parse').default; parse(fs.readFileSync(process.argv[1], 'utf8'));" "${CHANGEDSET_FILE}" >/dev/null 2>&1; then
+      echo "changeset-verify: changed .changeset/*.md files must be parseable by Changesets."
+      echo "Run: pnpm exec changeset status"
+      echo "Invalid changeset file: ${CHANGEDSET_FILE}"
+      exit 1
+    fi
+  done
+fi
+
 CHANGED_RELEASABLE="$(printf '%s\n' "${CHANGED_FILES}" | grep -E "${RELEASABLE_PACKAGE_REGEX}" || true)"
 if [ -z "${CHANGED_RELEASABLE}" ]; then
   exit 0
 fi
 
-CHANGEDSET_FILES="$(printf '%s\n' "${CHANGED_FILES}" | grep -E '^\.changeset/[^/]+\.md$' || true)"
 if [ -n "${CHANGEDSET_FILES}" ]; then
   exit 0
 fi
