@@ -1,8 +1,8 @@
+---
 "@codemation/core-nodes-gmail": patch
 "create-codemation": patch
 "@codemation/host": patch
 "@codemation/next-host": patch
-
 ---
 
 Fix manual run execution so trigger-started workflows synthesize trigger preview items when no upstream trigger data exists yet.
