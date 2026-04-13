@@ -1,6 +1,6 @@
 {
   "name": "@codemation/core-nodes-gmail",
-  "version": "0.0.28",
+  "version": "0.1.0",
   "publishConfig": {
     "access": "public"
   },
