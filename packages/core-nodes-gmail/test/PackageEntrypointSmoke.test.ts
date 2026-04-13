@@ -5,16 +5,27 @@ import { test } from "vitest";
 
 class PackageEntrypointSmokeFixture {
   static readonly packageRoot = new URL("../", import.meta.url);
+  /** Monorepo root (…/packages/core-nodes-gmail → repo root). */
+  static readonly workspaceRoot = new URL("../../", PackageEntrypointSmokeFixture.packageRoot);
   private static hasBuiltPackage = false;
 
   static resolvePath(relativePath: string): string {
     return new URL(relativePath, this.packageRoot).pathname;
   }
 
+  static resolveWorkspacePath(relativePath: string): string {
+    return new URL(relativePath, this.workspaceRoot).pathname;
+  }
+
   static ensurePackageBuild(): void {
     if (this.hasBuiltPackage) {
       return;
     }
+    // Built Gmail `dist` imports `@codemation/core` at runtime; Changesets runs tests without a full turbo build.
+    execFileSync("pnpm", ["--filter", "@codemation/core", "build"], {
+      cwd: this.resolveWorkspacePath("./"),
+      stdio: "pipe",
+    });
     execFileSync("pnpm", ["build"], {
       cwd: this.resolvePath("./"),
       stdio: "pipe",
