@@ -43,6 +43,17 @@ class VerifyChangesetCoverageHarness {
     });
   }
 
+  runWithChangedFiles(changedFiles: string) {
+    return spawnSync("sh", [VerifyChangesetCoverageHarness.scriptPath], {
+      cwd: VerifyChangesetCoverageHarness.repoRoot,
+      env: {
+        ...process.env,
+        CHANGESET_VERIFY_CHANGED_FILES: changedFiles,
+      },
+      encoding: "utf8",
+    });
+  }
+
   getRelativeChangesetPath(): string {
     return this.relativeChangesetPath;
   }
@@ -71,6 +82,21 @@ describe("verify-changeset-coverage.sh", () => {
     );
     try {
       const result = harness.run();
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe("");
+    } finally {
+      harness.dispose();
+    }
+  });
+
+  it("accepts deleted changeset files during version-package commits", () => {
+    const harness = VerifyChangesetCoverageHarness.createWithContent(
+      ["---", '"@codemation/next-host": patch', "---", "", "Deleted changeset fixture.", ""].join("\n"),
+    );
+    try {
+      harness.dispose();
+      const result = harness.runWithChangedFiles(harness.getRelativeChangesetPath());
       expect(result.status).toBe(0);
       expect(result.stdout).toBe("");
       expect(result.stderr).toBe("");
