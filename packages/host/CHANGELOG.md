@@ -1,5 +1,20 @@
 # @codemation/host
 
+## 0.2.0
+
+### Minor Changes
+
+- [#60](https://github.com/MadeRelevant/codemation/pull/60) [`056c045`](https://github.com/MadeRelevant/codemation/commit/056c045d7813e7e6b749f0dc03bb43855ff7f58c) Thanks [@cblokland90](https://github.com/cblokland90)! - Harden the Gmail plugin so it imports reliably from the package root, returns an authenticated official Gmail session, and supports trigger/read/send/reply/label workflows with one OAuth credential.
+
+  Add framework support for OAuth scope presets and custom per-credential scope replacement, and update the plugin starter/docs so future plugins scaffold the same publishable root-entrypoint conventions.
+
+### Patch Changes
+
+- Updated dependencies [[`056c045`](https://github.com/MadeRelevant/codemation/commit/056c045d7813e7e6b749f0dc03bb43855ff7f58c)]:
+  - @codemation/core@0.5.0
+  - @codemation/core-nodes@0.1.1
+  - @codemation/eventbus-redis@0.0.27
+
 ## 0.1.7
 
 ### Patch Changes
