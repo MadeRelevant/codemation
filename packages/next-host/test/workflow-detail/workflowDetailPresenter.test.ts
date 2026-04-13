@@ -55,12 +55,25 @@ describe("WorkflowDetailPresenter pin-output binary merge", () => {
   });
 
   it("resolves binary content URLs for live vs historical context", () => {
-    const att = createTestBinaryAttachment({ id: "x", runId: "run-1" });
-    expect(WorkflowDetailPresenter.resolveBinaryContentUrl("wf-1", "live-workflow", att)).toBe(
+    const overlayPinned = createTestBinaryAttachment({ id: "x", runId: "overlay-pin" });
+    expect(WorkflowDetailPresenter.resolveBinaryContentUrl("wf-1", "live-workflow", overlayPinned)).toBe(
       "/api/workflows/wf-1/debugger-overlay/binary/x/content",
     );
+    const att = createTestBinaryAttachment({ id: "x", runId: "run-1" });
     expect(WorkflowDetailPresenter.resolveBinaryContentUrl("wf-1", "historical-run", att)).toBe(
       "/api/runs/run-1/binary/x/content",
+    );
+  });
+
+  it("uses run-scoped URLs for run attachments, even in live-workflow view (regression)", () => {
+    const att = createTestBinaryAttachment({
+      id: "cfa36025-34c9-4f40-82f0-08b08c992f11",
+      runId: "run-123",
+      workflowId: "wf.erp.mailToRfq",
+    });
+
+    expect(WorkflowDetailPresenter.resolveBinaryContentUrl("wf.erp.mailToRfq", "live-workflow", att)).toBe(
+      "/api/runs/run-123/binary/cfa36025-34c9-4f40-82f0-08b08c992f11/content",
     );
   });
 
@@ -69,7 +82,7 @@ describe("WorkflowDetailPresenter pin-output binary merge", () => {
     const items = [{ json: { n: 1 }, binary: { f: att } }];
     const live = WorkflowDetailPresenter.toAttachmentModels(items, "wf-1", "live-workflow");
     expect(live).toHaveLength(1);
-    expect(live[0]?.contentUrl).toBe("/api/workflows/wf-1/debugger-overlay/binary/b1/content");
+    expect(live[0]?.contentUrl).toBe("/api/runs/run-9/binary/b1/content");
     const historical = WorkflowDetailPresenter.toAttachmentModels(items, "wf-1", "historical-run");
     expect(historical[0]?.contentUrl).toBe("/api/runs/run-9/binary/b1/content");
   });

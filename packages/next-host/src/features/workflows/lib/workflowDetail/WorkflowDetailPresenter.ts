@@ -327,7 +327,7 @@ export class WorkflowDetailPresenter {
     viewContext: ViewedWorkflowContext,
     attachment: BinaryAttachment,
   ): string {
-    if (viewContext === "live-workflow") {
+    if (viewContext === "live-workflow" && attachment.runId === "overlay-pin") {
       return ApiPaths.workflowOverlayBinaryContent(workflowId, attachment.id);
     }
     return ApiPaths.runBinaryContent(attachment.runId, attachment.id);
