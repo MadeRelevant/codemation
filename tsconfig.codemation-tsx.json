@@ -21,6 +21,7 @@
       "@codemation/core-nodes-gmail": ["packages/core-nodes-gmail/src/index.ts"],
       "@codemation/eventbus-redis": ["packages/eventbus-redis/src/index.ts"],
       "@codemation/host": ["packages/host/src/index.ts"],
+      "@codemation/host/authoring": ["packages/host/src/authoring.ts"],
       "@codemation/host/client": ["packages/host/src/client.ts"],
       "@codemation/host/credentials": ["packages/host/src/credentials.ts"],
       "@codemation/host/consumer": ["packages/host/src/consumer.ts"],

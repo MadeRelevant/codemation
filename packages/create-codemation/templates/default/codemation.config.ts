@@ -1,4 +1,4 @@
-import { defineCodemationApp } from "@codemation/host";
+import { defineCodemationApp } from "@codemation/host/authoring";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import starterHelloWorkflow from "./src/workflows/starter/hello";

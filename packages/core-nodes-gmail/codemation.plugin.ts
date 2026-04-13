@@ -1,4 +1,4 @@
-import { definePlugin, type CodemationConfig } from "@codemation/host";
+import { definePlugin, type CodemationConfig } from "@codemation/host/authoring";
 import { GmailNodes } from "./src/plugin/GmailNodesRegistry";
 
 const sandbox: CodemationConfig = {

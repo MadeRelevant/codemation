@@ -76,6 +76,13 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
       sourceState,
       debuggerOverlay,
     });
+    const synthesizeTriggerItems = this.resolveSynthesizeTriggerItems({
+      workflow,
+      mode: body.mode,
+      requestedItems,
+      requestedSynthesizeTriggerItems: body.synthesizeTriggerItems,
+      currentState,
+    });
     const result =
       legacyStartNodeId && this.hasReusableCurrentState(currentState) && !clearFromNodeId
         ? await this.runIntentService.rerunFromNode({
@@ -83,7 +90,7 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
             nodeId: legacyStartNodeId,
             currentState,
             items: requestedItems,
-            synthesizeTriggerItems: body.synthesizeTriggerItems,
+            synthesizeTriggerItems,
             executionOptions,
             workflowSnapshot: sourceState?.workflowSnapshot,
             mutableState: this.cloneMutableState(currentState.mutableState),
@@ -92,7 +99,7 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
             workflow,
             startAt: legacyStartNodeId && !body.sourceRunId && !body.stopAt ? legacyStartNodeId : undefined,
             items,
-            synthesizeTriggerItems: body.synthesizeTriggerItems,
+            synthesizeTriggerItems,
             executionOptions,
             workflowSnapshot: sourceState?.workflowSnapshot,
             mutableState: this.cloneMutableState(currentState.mutableState),
@@ -225,5 +232,60 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
       Object.keys(currentState.nodeSnapshotsByNodeId).length > 0 ||
       Object.keys(currentState.mutableState?.nodesById ?? {}).length > 0
     );
+  }
+
+  private resolveSynthesizeTriggerItems(
+    args: Readonly<{
+      workflow: WorkflowDefinition;
+      mode: CreateRunRequest["mode"];
+      requestedItems: Items | undefined;
+      requestedSynthesizeTriggerItems: boolean | undefined;
+      currentState: RunCurrentState;
+    }>,
+  ): boolean {
+    if (this.hasNonEmptyItems(args.requestedItems)) {
+      return false;
+    }
+    if (args.requestedSynthesizeTriggerItems === true) {
+      return true;
+    }
+    if (args.mode !== "manual") {
+      return args.requestedSynthesizeTriggerItems ?? false;
+    }
+    if (!this.workflowHasTrigger(args.workflow)) {
+      return args.requestedSynthesizeTriggerItems ?? false;
+    }
+    if (this.currentStateHasTriggerData(args.workflow, args.currentState)) {
+      return args.requestedSynthesizeTriggerItems ?? false;
+    }
+    return true;
+  }
+
+  private workflowHasTrigger(workflow: WorkflowDefinition): boolean {
+    return workflow.nodes.some((node) => node.kind === "trigger");
+  }
+
+  private currentStateHasTriggerData(workflow: WorkflowDefinition, currentState: RunCurrentState): boolean {
+    const triggerNodeIds = workflow.nodes.filter((node) => node.kind === "trigger").map((node) => node.id);
+    for (const triggerNodeId of triggerNodeIds) {
+      if (this.hasOutputItems(currentState.outputsByNode[triggerNodeId])) {
+        return true;
+      }
+      if (this.hasOutputItems(currentState.mutableState?.nodesById?.[triggerNodeId]?.pinnedOutputsByPort)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private hasOutputItems(outputsByPort: Readonly<Partial<Record<string, Items>>> | undefined): boolean {
+    if (!outputsByPort) {
+      return false;
+    }
+    return Object.values(outputsByPort).some((items) => this.hasNonEmptyItems(items));
+  }
+
+  private hasNonEmptyItems(items: Items | undefined): boolean {
+    return (items?.length ?? 0) > 0;
   }
 }
