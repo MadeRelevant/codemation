@@ -1,4 +1,6 @@
+import { execFile } from "node:child_process";
 import { readFile, readdir } from "node:fs/promises";
+import { promisify } from "node:util";
 import path from "node:path";
 
 export class GitHubReleaseNotesBuilder {
@@ -7,6 +9,7 @@ export class GitHubReleaseNotesBuilder {
     this.repository = repository;
     this.version = version;
     this.tag = tag;
+    this.execFileAsync = promisify(execFile);
   }
 
   async build() {
@@ -40,6 +43,15 @@ export class GitHubReleaseNotesBuilder {
   }
 
   async #readPackageReleaseNotes() {
+    const changedPackageDirectories = await this.#readChangedPackageDirectories();
+    if (changedPackageDirectories.length > 0) {
+      return await this.#readChangedPackageReleaseNotes(changedPackageDirectories);
+    }
+
+    if (!this.version) {
+      return [];
+    }
+
     const packagesDirectory = path.join(this.rootDirectory, "packages");
     const packageDirectories = await readdir(packagesDirectory, {
       withFileTypes: true,
@@ -76,6 +88,55 @@ export class GitHubReleaseNotesBuilder {
     return publishedPackages;
   }
 
+  async #readChangedPackageDirectories() {
+    let stdout;
+
+    try {
+      ({ stdout } = await this.execFileAsync(
+        "git",
+        ["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"],
+        {
+          cwd: this.rootDirectory,
+        },
+      ));
+    } catch {
+      return [];
+    }
+
+    return [
+      ...new Set(
+        stdout
+          .split("\n")
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0)
+          .map((entry) => path.join(this.rootDirectory, path.dirname(entry))),
+      ),
+    ].sort((left, right) => left.localeCompare(right));
+  }
+
+  async #readChangedPackageReleaseNotes(packageDirectories) {
+    const publishedPackages = [];
+
+    for (const packageDirectory of packageDirectories) {
+      const packageManifest = await this.#readPackageManifest(packageDirectory);
+      if (packageManifest === null) {
+        continue;
+      }
+
+      const notes = await this.#readVersionNotes(packageDirectory, packageManifest.version);
+      if (notes === null) {
+        continue;
+      }
+
+      publishedPackages.push({
+        packageName: packageManifest.name,
+        notes,
+      });
+    }
+
+    return publishedPackages.sort((left, right) => left.packageName.localeCompare(right.packageName));
+  }
+
   async #readPackageManifest(packageDirectory) {
     const packageJsonPath = path.join(packageDirectory, "package.json");
     let packageJsonContent;
@@ -93,16 +154,19 @@ export class GitHubReleaseNotesBuilder {
     return JSON.parse(packageJsonContent);
   }
 
-  async #readVersionNotes(packageDirectory) {
+  async #readVersionNotes(packageDirectory, version = this.version) {
     const changelogPath = path.join(packageDirectory, "CHANGELOG.md");
     const changelogContent = await readFile(changelogPath, "utf8");
 
-    return this.#extractVersionSection(changelogContent);
+    return this.#extractVersionSection(changelogContent, version);
   }
 
-  #extractVersionSection(changelogContent) {
+  #extractVersionSection(changelogContent, version) {
+    if (!version) {
+      return null;
+    }
     const lines = changelogContent.split("\n");
-    const versionHeading = `## ${this.version}`;
+    const versionHeading = `## ${version}`;
     const startIndex = lines.findIndex((line) => line.trim() === versionHeading);
 
     if (startIndex === -1) {

@@ -16,7 +16,17 @@ export class ReleaseTagVersionResolver {
     }
 
     const uniqueVersions = [...new Set(packageVersions)];
-    return this.#maxSemanticVersion(uniqueVersions);
+    const highestPackageVersion = this.#maxSemanticVersion(uniqueVersions);
+    const latestReleaseTagVersion = await this.#readLatestReleaseTagVersion();
+    if (latestReleaseTagVersion === null) {
+      return highestPackageVersion;
+    }
+
+    if (this.#compareSemanticVersions(highestPackageVersion, latestReleaseTagVersion) > 0) {
+      return highestPackageVersion;
+    }
+
+    return this.#incrementPatchVersion(latestReleaseTagVersion);
   }
 
   async #readReleasePackageVersions() {
@@ -106,6 +116,29 @@ export class ReleaseTagVersionResolver {
       .map((entry) => path.join(this.rootDirectory, entry));
   }
 
+  async #readLatestReleaseTagVersion() {
+    let stdout;
+
+    try {
+      ({ stdout } = await this.execFileAsync("git", ["tag", "--list", "v*"], {
+        cwd: this.rootDirectory,
+      }));
+    } catch {
+      return null;
+    }
+
+    const versions = stdout
+      .split("\n")
+      .map((entry) => entry.trim())
+      .filter((entry) => /^v\d+\.\d+\.\d+$/.test(entry))
+      .map((entry) => entry.slice(1));
+    if (versions.length === 0) {
+      return null;
+    }
+
+    return this.#maxSemanticVersion(versions);
+  }
+
   #maxSemanticVersion(versions) {
     let best = versions[0];
 
@@ -142,5 +175,10 @@ export class ReleaseTagVersionResolver {
     }
 
     return [Number(match.groups.major), Number(match.groups.minor), Number(match.groups.patch)];
+  }
+
+  #incrementPatchVersion(version) {
+    const [major, minor, patch] = this.#parseSemanticVersion(version);
+    return `${major}.${minor}.${patch + 1}`;
   }
 }
