@@ -5,13 +5,26 @@ import { test } from "vitest";
 
 class PackageEntrypointSmokeFixture {
   static readonly packageRoot = new URL("../", import.meta.url);
+  private static hasBuiltPackage = false;
 
   static resolvePath(relativePath: string): string {
     return new URL(relativePath, this.packageRoot).pathname;
   }
+
+  static ensurePackageBuild(): void {
+    if (this.hasBuiltPackage) {
+      return;
+    }
+    execFileSync("pnpm", ["build"], {
+      cwd: this.resolvePath("./"),
+      stdio: "pipe",
+    });
+    this.hasBuiltPackage = true;
+  }
 }
 
 test("build emits the declared root entrypoints", () => {
+  PackageEntrypointSmokeFixture.ensurePackageBuild();
   assert.equal(existsSync(PackageEntrypointSmokeFixture.resolvePath("dist/index.js")), true);
   assert.equal(existsSync(PackageEntrypointSmokeFixture.resolvePath("dist/index.cjs")), true);
   assert.equal(existsSync(PackageEntrypointSmokeFixture.resolvePath("dist/index.d.ts")), true);
@@ -19,6 +32,7 @@ test("build emits the declared root entrypoints", () => {
 });
 
 test("Node ESM can import the package root by name after build", () => {
+  PackageEntrypointSmokeFixture.ensurePackageBuild();
   const output = execFileSync(
     "node",
     [
@@ -35,6 +49,7 @@ test("Node ESM can import the package root by name after build", () => {
 });
 
 test("consumer-style typecheck resolves the package root exports", () => {
+  PackageEntrypointSmokeFixture.ensurePackageBuild();
   execFileSync("pnpm", ["exec", "tsc", "-p", "test/fixtures/consumer-tsconfig.json", "--noEmit"], {
     cwd: PackageEntrypointSmokeFixture.resolvePath("./"),
     stdio: "pipe",
