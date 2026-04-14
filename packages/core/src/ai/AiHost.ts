@@ -143,6 +143,21 @@ export interface ChatModelConfig {
 export interface LangChainChatModelLike {
   invoke(input: unknown, options?: unknown): Promise<unknown>;
   bindTools?(tools: ReadonlyArray<unknown>): LangChainChatModelLike;
+  withStructuredOutput?(
+    outputSchema: ZodSchemaAny,
+    config?: ChatModelStructuredOutputOptions,
+  ): LangChainStructuredOutputModelLike;
+}
+
+export interface LangChainStructuredOutputModelLike {
+  invoke(input: unknown, options?: unknown): Promise<unknown>;
+}
+
+export interface ChatModelStructuredOutputOptions {
+  readonly method?: "jsonSchema" | "functionCalling" | "jsonMode";
+  readonly strict?: boolean;
+  readonly includeRaw?: boolean;
+  readonly tools?: ReadonlyArray<unknown>;
 }
 
 export interface ChatModelFactory<TConfig extends ChatModelConfig = ChatModelConfig> {
@@ -207,6 +222,7 @@ export interface AgentNodeConfig<TInputJson = unknown, TOutputJson = unknown> ex
   readonly chatModel: ChatModelConfig;
   readonly tools?: ReadonlyArray<ToolConfig>;
   readonly guardrails?: AgentGuardrailConfig;
+  readonly outputSchema?: ZodType<TOutputJson>;
 }
 
 export type AgentAttachmentRole = "languageModel" | "tool" | "nestedAgent";

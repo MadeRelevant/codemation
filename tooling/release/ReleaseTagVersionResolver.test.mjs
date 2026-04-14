@@ -3,13 +3,15 @@ import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import process from "node:process";
 import { promisify } from "node:util";
 import { test } from "vitest";
 
 import { ReleaseTagVersionResolver } from "./ReleaseTagVersionResolver.mjs";
 
 class ReleaseTagVersionResolverTest {
-  constructor() {
+  constructor(runtimeProcess) {
+    this.runtimeProcess = runtimeProcess;
     this.execFileAsync = promisify(execFile);
   }
 
@@ -173,6 +175,51 @@ class ReleaseTagVersionResolverTest {
     }
   }
 
+  async shouldIgnoreInheritedGitEnvironmentWhenResolvingReleaseVersions() {
+    const workspaceDirectory = await this.#createWorkspaceDirectory();
+
+    try {
+      await this.#withTemporaryGitEnvironment(
+        {
+          GIT_DIR: path.join(workspaceDirectory, "outer.git"),
+          GIT_WORK_TREE: path.join(workspaceDirectory, "outer-worktree"),
+          GIT_INDEX_FILE: path.join(workspaceDirectory, "outer.index"),
+          GIT_OBJECT_DIRECTORY: path.join(workspaceDirectory, "outer-objects"),
+          GIT_ALTERNATE_OBJECT_DIRECTORIES: path.join(workspaceDirectory, "alternate-objects"),
+          GIT_COMMON_DIR: path.join(workspaceDirectory, "outer-common"),
+          GIT_PREFIX: "hooks/",
+        },
+        async () => {
+          await this.#initializeGitRepository(workspaceDirectory);
+          await this.#writePackage({
+            workspaceDirectory,
+            directoryName: "core",
+            packageName: "@codemation/core",
+            version: "0.5.0",
+          });
+          await this.#commitAll(workspaceDirectory, "initial release line");
+          await this.#createTag(workspaceDirectory, "v0.5.0");
+          await this.#writePackage({
+            workspaceDirectory,
+            directoryName: "host",
+            packageName: "@codemation/host",
+            version: "0.2.1",
+          });
+          await this.#commitAll(workspaceDirectory, "independent package release");
+
+          const resolver = new ReleaseTagVersionResolver({
+            rootDirectory: workspaceDirectory,
+            runtimeProcess: this.runtimeProcess,
+          });
+
+          assert.equal(await resolver.resolve(), "0.5.1");
+        },
+      );
+    } finally {
+      await rm(workspaceDirectory, { recursive: true, force: true });
+    }
+  }
+
   async #createWorkspaceDirectory() {
     const workspaceDirectory = await mkdtemp(path.join(os.tmpdir(), "codemation-release-tag-"));
     await mkdir(path.join(workspaceDirectory, "packages"), {
@@ -183,26 +230,18 @@ class ReleaseTagVersionResolverTest {
   }
 
   async #initializeGitRepository(workspaceDirectory) {
-    await this.execFileAsync("git", ["init"], this.#createGitExecutionOptions(workspaceDirectory));
-    await this.execFileAsync(
-      "git",
-      ["config", "user.name", "Codemation Tests"],
-      this.#createGitExecutionOptions(workspaceDirectory),
-    );
-    await this.execFileAsync(
-      "git",
-      ["config", "user.email", "tests@codemation.local"],
-      this.#createGitExecutionOptions(workspaceDirectory),
-    );
+    await this.#execGit(["init"], workspaceDirectory);
+    await this.#execGit(["config", "user.name", "Codemation Tests"], workspaceDirectory);
+    await this.#execGit(["config", "user.email", "tests@codemation.local"], workspaceDirectory);
   }
 
   async #commitAll(workspaceDirectory, message) {
-    await this.execFileAsync("git", ["add", "."], this.#createGitExecutionOptions(workspaceDirectory));
-    await this.execFileAsync("git", ["commit", "-m", message], this.#createGitExecutionOptions(workspaceDirectory));
+    await this.#execGit(["add", "."], workspaceDirectory);
+    await this.#execGit(["commit", "-m", message], workspaceDirectory);
   }
 
   async #createTag(workspaceDirectory, tagName) {
-    await this.execFileAsync("git", ["tag", tagName], this.#createGitExecutionOptions(workspaceDirectory));
+    await this.#execGit(["tag", tagName], workspaceDirectory);
   }
 
   async #writePackage({ workspaceDirectory, directoryName, packageName, version }) {
@@ -216,21 +255,51 @@ class ReleaseTagVersionResolverTest {
     );
   }
 
-  #createGitExecutionOptions(workspaceDirectory) {
-    const env = { ...process.env };
-    for (const key of Object.keys(env)) {
-      if (key.startsWith("GIT_")) {
-        delete env[key];
+  async #execGit(args, workspaceDirectory) {
+    await this.execFileAsync("git", args, {
+      cwd: workspaceDirectory,
+      env: this.#createGitEnvironment(),
+    });
+  }
+
+  #createGitEnvironment() {
+    const environment = { ...this.runtimeProcess.env };
+
+    for (const variableName of Object.keys(environment)) {
+      if (!variableName.startsWith("GIT_")) {
+        continue;
+      }
+
+      delete environment[variableName];
+    }
+
+    return environment;
+  }
+
+  async #withTemporaryGitEnvironment(overrides, callback) {
+    const originalValues = new Map();
+
+    for (const [variableName, value] of Object.entries(overrides)) {
+      originalValues.set(variableName, this.runtimeProcess.env[variableName]);
+      this.runtimeProcess.env[variableName] = value;
+    }
+
+    try {
+      await callback();
+    } finally {
+      for (const [variableName, value] of originalValues.entries()) {
+        if (value === undefined) {
+          delete this.runtimeProcess.env[variableName];
+          continue;
+        }
+
+        this.runtimeProcess.env[variableName] = value;
       }
     }
-    return {
-      cwd: workspaceDirectory,
-      env,
-    };
   }
 }
 
-const releaseTagVersionResolverTest = new ReleaseTagVersionResolverTest();
+const releaseTagVersionResolverTest = new ReleaseTagVersionResolverTest(process);
 
 test(
   "resolves the shared published version when all packages match",
@@ -254,6 +323,13 @@ test(
 test(
   "bumps past an existing release tag when package versions would reuse it",
   releaseTagVersionResolverTest.shouldBumpPastAnExistingReleaseTagWhenChangedPackageVersionsWouldCollide.bind(
+    releaseTagVersionResolverTest,
+  ),
+);
+
+test(
+  "ignores inherited git environment when resolving release versions",
+  releaseTagVersionResolverTest.shouldIgnoreInheritedGitEnvironmentWhenResolvingReleaseVersions.bind(
     releaseTagVersionResolverTest,
   ),
 );

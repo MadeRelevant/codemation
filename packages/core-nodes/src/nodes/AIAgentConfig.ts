@@ -23,6 +23,7 @@ export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown> {
   readonly guardrails?: AgentGuardrailConfig;
   /** Engine applies with {@link RunnableNodeConfig.inputSchema} before {@link AIAgentNode.execute}. */
   readonly inputSchema?: ZodType<TInputJson>;
+  readonly outputSchema?: ZodType<_TOutputJson>;
 }
 
 /**
@@ -44,6 +45,7 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
   readonly retryPolicy: RetryPolicySpec;
   readonly guardrails?: AgentGuardrailConfig;
   readonly inputSchema?: ZodType<TInputJson>;
+  readonly outputSchema?: ZodType<TOutputJson>;
 
   constructor(options: AIAgentOptions<TInputJson, TOutputJson>) {
     this.name = options.name;
@@ -54,5 +56,6 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
     this.retryPolicy = options.retryPolicy ?? RetryPolicy.defaultForAiAgent;
     this.guardrails = options.guardrails;
     this.inputSchema = options.inputSchema;
+    this.outputSchema = options.outputSchema;
   }
 }

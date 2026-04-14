@@ -1,6 +1,7 @@
 // @vitest-environment node
 
-import { createWorkflowBuilder, ManualTrigger } from "@codemation/core-nodes";
+import type { CredentialRequirement } from "@codemation/core";
+import { createWorkflowBuilder, ManualTrigger, MapData } from "@codemation/core-nodes";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type {
@@ -79,8 +80,21 @@ class TestCredentialRegistrar {
   }
 }
 
+class CredentialBindingProbeMap extends MapData<unknown, unknown> {
+  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
+    return [
+      {
+        slotKey: "api",
+        label: "API key",
+        acceptedTypes: [testCredentialTypeId],
+      },
+    ];
+  }
+}
+
 class CredentialIntegrationFixture {
   static readonly workflowId = "wf.credential.integration";
+  static readonly bindingWorkflowId = "wf.credential.binding";
 
   static createWorkflow() {
     return createWorkflowBuilder({
@@ -91,6 +105,16 @@ class CredentialIntegrationFixture {
       .build();
   }
 
+  static createWorkflowWithCredentialSlot() {
+    return createWorkflowBuilder({
+      id: this.bindingWorkflowId,
+      name: "Credential binding probe workflow",
+    })
+      .trigger(new ManualTrigger("Start", "trig"))
+      .then(new CredentialBindingProbeMap("Probe", (item) => item.json, { id: "probe-node-1" }))
+      .build();
+  }
+
   static async createHarness(
     database: IntegrationDatabase,
     transaction: PostgresRollbackTransaction,
@@ -98,7 +122,7 @@ class CredentialIntegrationFixture {
   ): Promise<FrontendHttpIntegrationHarness> {
     const config = mergeIntegrationDatabaseRuntime(
       {
-        workflows: [this.createWorkflow()],
+        workflows: [this.createWorkflow(), this.createWorkflowWithCredentialSlot()],
         runtime: {
           eventBus: { kind: "memory" as const },
           scheduler: { kind: "local" as const },
@@ -767,6 +791,44 @@ describe("credential instances http integration", () => {
     expect(testResponse.statusCode).toBe(200);
     const health = testResponse.json<{ status: string }>();
     expect(health.status).toBe("healthy");
+  });
+
+  it("upserts credential binding and reflects the instance on workflow credential health", async () => {
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
+
+    const created = await harness.requestJson<CredentialInstanceDto>({
+      method: "POST",
+      url: ApiPaths.credentialInstances(),
+      payload: {
+        typeId: testCredentialTypeId,
+        displayName: "Bound credential",
+        sourceKind: "db",
+        secretConfig: { apiKey: testSecretValue },
+      },
+    });
+
+    const bindResponse = await harness.request({
+      method: "PUT",
+      url: ApiPaths.credentialBindings(),
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({
+        workflowId: CredentialIntegrationFixture.bindingWorkflowId,
+        nodeId: "probe-node-1",
+        slotKey: "api",
+        instanceId: created.instanceId,
+      }),
+    });
+
+    expect(bindResponse.statusCode).toBe(200);
+
+    const healthResponse = await harness.request({
+      method: "GET",
+      url: ApiPaths.workflowCredentialHealth(CredentialIntegrationFixture.bindingWorkflowId),
+    });
+    expect(healthResponse.statusCode).toBe(200);
+    const dto = healthResponse.json<WorkflowCredentialHealthDto>();
+    const slot = dto.slots.find((s) => s.nodeId === "probe-node-1" && s.requirement.slotKey === "api");
+    expect(slot?.instance?.instanceId).toBe(created.instanceId);
   });
 
   it("rejects credential create when JSON body is invalid", async () => {

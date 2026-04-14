@@ -157,4 +157,38 @@ describe("workflow dto parity", () => {
     const { active: _snapActive, ...snapshotWithoutActivation } = snapshotDto;
     expect(snapshotWithoutActivation).toEqual(liveWithoutActivation);
   });
+
+  it("keeps persisted and live workflow dto shapes aligned for agent outputSchema", () => {
+    const workflow = createWorkflowBuilder({
+      id: "wf.frontend.parity.structured-output",
+      name: "Frontend structured output parity workflow",
+    })
+      .trigger(new ManualTrigger("Start", "trigger"))
+      .then(
+        new AIAgent({
+          name: "Structured coordinator",
+          messages: [{ role: "user", content: "Return a structured classification." }],
+          chatModel: new FrontendParityChatModelConfig("Coordinator LLM", { label: "Coordinator LLM" }),
+          outputSchema: new RecursiveParityPassthroughSchema<{
+            outcome: "rfq" | "other";
+            summary: string;
+          }>() as unknown as ZodSchemaAny,
+          id: "agent_structured",
+        }),
+      )
+      .build();
+
+    const liveDto = new WorkflowDefinitionMapper(
+      new WorkflowPolicyUiPresentationFactory(),
+      new AllWorkflowsActiveWorkflowActivationPolicy(),
+    ).mapSync(workflow);
+    const tokenRegistry = new PersistedWorkflowTokenRegistry();
+    tokenRegistry.registerFromWorkflows([workflow]);
+    const snapshot = new PersistedWorkflowSnapshotFactory(tokenRegistry).create(workflow);
+    const snapshotDto = new PersistedWorkflowSnapshotMapper().map(snapshot);
+
+    const { active: _liveActive, ...liveWithoutActivation } = liveDto;
+    const { active: _snapActive, ...snapshotWithoutActivation } = snapshotDto;
+    expect(snapshotWithoutActivation).toEqual(liveWithoutActivation);
+  });
 });

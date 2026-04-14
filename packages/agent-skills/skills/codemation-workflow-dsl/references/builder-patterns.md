@@ -48,3 +48,10 @@ Promote inline callbacks into custom nodes when:
 - import `callableTool` from `@codemation/core`
 - build tools with `callableTool({ name, inputSchema, outputSchema, execute, credentialRequirements? })` (equivalent to `CallableToolFactory.callableTool(...)`)
 - pass the result in `AIAgent` `tools: [...]` alongside other tool configs
+
+## Fluent agent steps
+
+- use `.agent(...)` for agent steps in fluent workflow definitions
+- define agent prompts with `messages`
+- use `itemValue(...)` when message content depends on `item.json`
+- use `outputSchema` when the workflow should expose typed structured agent output

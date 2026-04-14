@@ -1,4 +1,4 @@
-export type { WorkflowAgentOptions } from "./workflowAuthoring/WorkflowAuthoringOptions.types";
+export type { WorkflowAgentMessages, WorkflowAgentOptions } from "./workflowAuthoring/WorkflowAuthoringOptions.types";
 export { WorkflowAuthoringBuilder } from "./workflowAuthoring/WorkflowAuthoringBuilder.types";
 export { WorkflowBranchBuilder } from "./workflowAuthoring/WorkflowBranchBuilder.types";
 export { WorkflowChain } from "./workflowAuthoring/WorkflowChain.types";

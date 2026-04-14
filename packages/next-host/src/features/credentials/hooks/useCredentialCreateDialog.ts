@@ -8,7 +8,7 @@ import { useCredentialDialogSession } from "./useCredentialDialogSession";
 export function useCredentialCreateDialog(
   args: Readonly<{
     workflowId: string;
-    onCreated?: (instance: CredentialInstanceDto) => void;
+    onCreated?: (instance: CredentialInstanceDto) => void | Promise<void>;
   }>,
 ) {
   const { workflowId, onCreated } = args;

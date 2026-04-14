@@ -20,7 +20,7 @@ type DialogMode = "create" | "edit" | null;
 
 export type CredentialDialogSessionOptions = Readonly<{
   workflowId?: string;
-  onCredentialCreated?: (instance: CredentialInstanceDto) => void;
+  onCredentialCreated?: (instance: CredentialInstanceDto) => void | Promise<void>;
   closeAfterCreatePolicy: "always" | "unless_oauth2";
   oauthConnectedPolicy: "close_dialog" | "refresh_only";
   /** When true, build {@link CredentialDialogProps} for embedding; the credentials page passes props manually. */
@@ -217,7 +217,7 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
         setEditEnvRefValues({ ...envRefValues });
       }
       await refreshQueries();
-      onCredentialCreated?.(created);
+      await Promise.resolve(onCredentialCreated?.(created));
       return created;
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -240,20 +240,68 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
     sourceKind,
   ]);
 
+  const runCredentialInstanceTest = useCallback(
+    async (instanceId: string): Promise<boolean> => {
+      try {
+        setIsDialogTesting(true);
+        setDialogTestResult(null);
+        setErrorMessage(null);
+        const data = await codemationApiClient.postJson<{ status?: string; message?: string }>(
+          ApiPaths.credentialInstanceTest(instanceId),
+        );
+        const rawStatus = (data?.status ?? "healthy").toLowerCase();
+        setDialogTestResult({
+          status: data?.status ?? "healthy",
+          message: data?.message,
+        });
+        await refreshQueries();
+        return rawStatus === "healthy";
+      } catch (error) {
+        if (error instanceof CodemationApiHttpError) {
+          const parsed = parseCredentialInstanceTestPayload(error.bodyText);
+          setDialogTestResult({
+            status: "failing",
+            message: parsed.message ?? "Test failed",
+          });
+          return false;
+        }
+        setDialogTestResult({
+          status: "failing",
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return false;
+      } finally {
+        setIsDialogTesting(false);
+      }
+    },
+    [refreshQueries],
+  );
+
   const createCredentialInstance = useCallback(async (): Promise<void> => {
     const created = await ensureDialogCredentialInstance();
     if (!created) {
+      return;
+    }
+    const t = credentialTypesAll.find((type) => type.typeId === created.typeId);
+    const isOAuth2 = t?.auth?.kind === "oauth2";
+    const testPassed = await runCredentialInstanceTest(created.instanceId);
+    if (!testPassed) {
       return;
     }
     if (closeAfterCreatePolicy === "always") {
       closeDialog();
       return;
     }
-    const t = credentialTypesAll.find((type) => type.typeId === created.typeId);
-    if (t?.auth?.kind !== "oauth2") {
+    if (!isOAuth2) {
       closeDialog();
     }
-  }, [closeAfterCreatePolicy, closeDialog, credentialTypesAll, ensureDialogCredentialInstance]);
+  }, [
+    closeAfterCreatePolicy,
+    closeDialog,
+    credentialTypesAll,
+    ensureDialogCredentialInstance,
+    runCredentialInstanceTest,
+  ]);
 
   const updateCredentialInstance = useCallback(async (): Promise<void> => {
     if (!editingInstanceId || !editingType || !editingInstance) return;
@@ -303,6 +351,12 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
         if (envSecretRefs) updateBody.envSecretRefs = envSecretRefs;
       }
       await codemationApiClient.putJson(ApiPaths.credentialInstance(editingInstanceId), updateBody);
+      if (editingType.auth?.kind === "oauth2") {
+        const testPassed = await runCredentialInstanceTest(editingInstanceId);
+        if (!testPassed) {
+          return;
+        }
+      }
       closeDialog();
       await refreshQueries();
     } catch (error) {
@@ -320,6 +374,7 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
     editingType,
     credentialWithSecretsQuery.data,
     refreshQueries,
+    runCredentialInstanceTest,
   ]);
 
   const connectOAuth2Credential = useCallback(async (): Promise<void> => {
@@ -438,35 +493,8 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
     if (!targetInstance) {
       return;
     }
-    try {
-      setIsDialogTesting(true);
-      setDialogTestResult(null);
-      setErrorMessage(null);
-      const data = await codemationApiClient.postJson<{ status?: string; message?: string }>(
-        ApiPaths.credentialInstanceTest(targetInstance.instanceId),
-      );
-      setDialogTestResult({
-        status: data?.status ?? "healthy",
-        message: data?.message,
-      });
-      await refreshQueries();
-    } catch (error) {
-      if (error instanceof CodemationApiHttpError) {
-        const parsed = parseCredentialInstanceTestPayload(error.bodyText);
-        setDialogTestResult({
-          status: "failing",
-          message: parsed.message ?? "Test failed",
-        });
-        return;
-      }
-      setDialogTestResult({
-        status: "failing",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setIsDialogTesting(false);
-    }
-  }, [ensureDialogCredentialInstance, refreshQueries]);
+    await runCredentialInstanceTest(targetInstance.instanceId);
+  }, [ensureDialogCredentialInstance, runCredentialInstanceTest]);
 
   const typesLoading = credentialTypesQuery.isLoading;
   const typesError = credentialTypesQuery.isError;

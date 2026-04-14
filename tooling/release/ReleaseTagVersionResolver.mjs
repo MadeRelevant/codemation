@@ -2,10 +2,12 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
+import process from "node:process";
 
 export class ReleaseTagVersionResolver {
-  constructor({ rootDirectory }) {
+  constructor({ rootDirectory, runtimeProcess = process }) {
     this.rootDirectory = rootDirectory;
+    this.runtimeProcess = runtimeProcess;
     this.execFileAsync = promisify(execFile);
   }
 
@@ -98,11 +100,7 @@ export class ReleaseTagVersionResolver {
     let stdout;
 
     try {
-      ({ stdout } = await this.execFileAsync(
-        "git",
-        ["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"],
-        this.#createGitExecutionOptions(),
-      ));
+      ({ stdout } = await this.#execGit(["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"]));
     } catch {
       return [];
     }
@@ -118,7 +116,7 @@ export class ReleaseTagVersionResolver {
     let stdout;
 
     try {
-      ({ stdout } = await this.execFileAsync("git", ["tag", "--list", "v*"], this.#createGitExecutionOptions()));
+      ({ stdout } = await this.#execGit(["tag", "--list", "v*"]));
     } catch {
       return null;
     }
@@ -178,16 +176,24 @@ export class ReleaseTagVersionResolver {
     return `${major}.${minor}.${patch + 1}`;
   }
 
-  #createGitExecutionOptions() {
-    const env = { ...process.env };
-    for (const key of Object.keys(env)) {
-      if (key.startsWith("GIT_")) {
-        delete env[key];
-      }
-    }
-    return {
+  async #execGit(args) {
+    return await this.execFileAsync("git", args, {
       cwd: this.rootDirectory,
-      env,
-    };
+      env: this.#createGitEnvironment(),
+    });
+  }
+
+  #createGitEnvironment() {
+    const environment = { ...this.runtimeProcess.env };
+
+    for (const variableName of Object.keys(environment)) {
+      if (!variableName.startsWith("GIT_")) {
+        continue;
+      }
+
+      delete environment[variableName];
+    }
+
+    return environment;
   }
 }

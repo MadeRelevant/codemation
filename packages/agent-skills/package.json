@@ -14,6 +14,13 @@
   },
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./lib/agent-skills-extractor.d.ts",
+      "import": "./lib/agent-skills-extractor.mjs",
+      "default": "./lib/agent-skills-extractor.mjs"
+    }
+  },
   "bin": {
     "codemation-agent-skills": "./bin/codemation-agent-skills.mjs"
   },
@@ -38,6 +45,7 @@
     "README.md",
     "CHANGELOG.md",
     "bin",
+    "lib",
     "skills"
   ]
 }

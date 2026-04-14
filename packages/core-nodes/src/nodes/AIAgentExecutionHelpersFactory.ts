@@ -33,10 +33,10 @@ export class AIAgentExecutionHelpersFactory {
         `Cannot create LangChain tool "${entry.config.name}": missing inputSchema (broken tool runtime resolution).`,
       );
     }
-    const schemaForOpenAi = this.normalizeToolInputSchemaForOpenAiDynamicStructuredTool(
-      entry.config.name,
-      entry.runtime.inputSchema,
-    );
+    const schemaForOpenAi = this.createJsonSchemaRecord(entry.runtime.inputSchema, {
+      schemaName: entry.config.name,
+      requireObjectRoot: true,
+    });
     return new DynamicStructuredTool({
       name: entry.config.name,
       description: entry.config.description ?? entry.runtime.defaultDescription,
@@ -63,9 +63,12 @@ export class AIAgentExecutionHelpersFactory {
    *   (duplicate `zod` copies), fall back to Zod `toJSONSchema` with draft-07.
    * - Strip root `$schema` for OpenAI; normalize invalid `required` keywords for cfworker; ensure `properties`.
    */
-  private normalizeToolInputSchemaForOpenAiDynamicStructuredTool(
-    toolName: string,
+  createJsonSchemaRecord(
     inputSchema: ZodSchemaAny,
+    options: Readonly<{
+      schemaName: string;
+      requireObjectRoot: boolean;
+    }>,
   ): Record<string, unknown> {
     const draft07Params = { target: "draft-07" as const };
     let converted: unknown;
@@ -79,17 +82,21 @@ export class AIAgentExecutionHelpersFactory {
     }
     const record = converted as Record<string, unknown>;
     const { $schema: _draftSchemaOmitted, ...rest } = record;
-    if (rest.type !== "object") {
+    if (options.requireObjectRoot && rest.type !== "object") {
       throw new Error(
-        `Cannot create LangChain tool "${toolName}": tool input schema must be a JSON Schema object type (got type=${String(rest.type)}).`,
+        `Cannot create LangChain tool "${options.schemaName}": tool input schema must be a JSON Schema object type (got type=${String(rest.type)}).`,
       );
     }
-    if (rest.properties !== undefined && (typeof rest.properties !== "object" || Array.isArray(rest.properties))) {
+    if (
+      options.requireObjectRoot &&
+      rest.properties !== undefined &&
+      (typeof rest.properties !== "object" || Array.isArray(rest.properties))
+    ) {
       throw new Error(
-        `Cannot create LangChain tool "${toolName}": tool input schema "properties" must be an object (got ${JSON.stringify(rest.properties)}).`,
+        `Cannot create LangChain tool "${options.schemaName}": tool input schema "properties" must be an object (got ${JSON.stringify(rest.properties)}).`,
       );
     }
-    if (rest.properties === undefined) {
+    if (options.requireObjectRoot && rest.properties === undefined) {
       rest.properties = {};
     }
     this.sanitizeJsonSchemaRequiredKeywordsForCfworker(rest);

@@ -9,19 +9,26 @@ description: Run an LLM-backed workflow step with ordered messages, a chat model
 
 `AIAgent` runs a model against each workflow item. It is the main built-in node for classification, extraction, summarization, routing, and tool-enabled agent flows.
 
-Construct it with an **options object**: required `name`, `messages`, and `chatModel`; optional `tools`, `guardrails`, `id`, and `retryPolicy`. See the [AI Agent workflow guide](/docs/workflows/ai-agent) for message shapes, node-backed tools, and turn limits.
+Construct it with an **options object**: required `name`, `messages`, and `chatModel`; optional `tools`, `outputSchema`, `guardrails`, `id`, and `retryPolicy`. See the [AI Agent workflow guide](/docs/workflows/ai-agent) for message shapes, node-backed tools, and turn limits.
+
+`workflow().agent(...)` uses the same `messages` model. In fluent workflow definitions, use `itemValue(...)` when messages depend on the current item.
 
 ## Examples
 
 ### Basic usage: classify inbound mail into RFQ or other
 
 ```ts
-new AIAgent<{ subject: string; body: string }, { outcome: "rfq" | "other"; summary: string }>({
+const classifyMailOutputSchema = z.object({
+  outcome: z.enum(["rfq", "other"]),
+  summary: z.string(),
+});
+
+new AIAgent<{ subject: string; body: string }, z.output<typeof classifyMailOutputSchema>>({
   name: "Classify RFQ vs other",
   messages: [
     {
       role: "system",
-      content: 'Respond with strict JSON only. Shape: {"outcome":"rfq"|"other","summary":"..."}',
+      content: "Classify the current mail.",
     },
     {
       role: "user",
@@ -29,6 +36,7 @@ new AIAgent<{ subject: string; body: string }, { outcome: "rfq" | "other"; summa
     },
   ],
   chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
+  outputSchema: classifyMailOutputSchema,
 });
 ```
 
@@ -64,6 +72,11 @@ new AIAgent({
   ],
   chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
   tools: [new SearchDocsToolConfig(), new PricingLookupToolConfig()],
+  outputSchema: z.object({
+    answer: z.string(),
+    recommendedPlan: z.string(),
+    monthlyPrice: z.number(),
+  }),
 });
 ```
 
@@ -84,6 +97,12 @@ Example output:
   "monthlyPrice": 99
 }
 ```
+
+## Output behavior
+
+- Without `outputSchema`, the node keeps the legacy behavior: valid JSON is parsed when possible, otherwise plain text becomes `{ output: "..." }`.
+- With `outputSchema`, the node must emit validated structured JSON or fail.
+- Tool-enabled agents still plan and execute tools normally, then finalize the last answer against the schema.
 
 ## See also
 

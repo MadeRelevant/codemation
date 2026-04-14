@@ -1,7 +1,9 @@
 import type { Items, RunnableNode, RunnableNodeConfig, RunnableNodeExecuteArgs, TypeToken } from "@codemation/core";
 import { emitPorts } from "@codemation/core";
 import { defineNode } from "@codemation/core";
+import { itemValue } from "@codemation/core";
 import { Callback, If, ManualTrigger, MapData, Wait, createWorkflowBuilder, workflow } from "@codemation/core-nodes";
+import { AIAgent } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { z } from "zod";
@@ -143,7 +145,16 @@ test("workflow helper preserves inference across map, if, wait, agent, and helpe
         })),
     })
     .agent("Summarize", {
-      prompt: (item) => `${item.subject}:${item.route}`,
+      messages: itemValue(({ item }) => [
+        {
+          role: "system",
+          content: 'Return strict JSON only: {"summary": string}',
+        },
+        {
+          role: "user",
+          content: `${item.json.subject}:${item.json.route}`,
+        },
+      ]),
       model: "openai:gpt-4o-mini",
       outputSchema: z.object({
         summary: z.string(),
@@ -154,6 +165,33 @@ test("workflow helper preserves inference across map, if, wait, agent, and helpe
 
   assert.equal(built.id, "wf.helper.typing");
   assert.equal(built.nodes.length, 9);
+});
+
+test("workflow helper forwards agent outputSchema into the built AIAgent config", () => {
+  const outputSchema = z.object({
+    summary: z.string(),
+  });
+  const built = workflow("wf.helper.agent-output-schema")
+    .name("Workflow helper structured agent")
+    .manualTrigger({
+      subject: "hello",
+    })
+    .agent("Summarize", {
+      messages: itemValue(({ item }) => [
+        {
+          role: "user",
+          content: item.json.subject,
+        },
+      ]),
+      model: "openai:gpt-4o-mini",
+      outputSchema,
+    })
+    .build();
+
+  const agentNode = built.nodes.find((node) => node.config instanceof AIAgent);
+  assert.ok(agentNode);
+  const agentConfig = agentNode.config as AIAgent<{ subject: string }, { summary: string }>;
+  assert.ok(agentConfig.outputSchema === outputSchema);
 });
 
 test("workflow helper supports callback routing plus merge and switch core nodes", () => {
