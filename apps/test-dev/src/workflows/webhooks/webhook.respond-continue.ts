@@ -41,7 +41,7 @@ export default createWorkflowBuilder({ id: "wf.webhook.respond-continue", name: 
           request: item.json,
         };
       },
-      "continued_processing",
+      { id: "continued_processing" },
     ),
   )
   .build();

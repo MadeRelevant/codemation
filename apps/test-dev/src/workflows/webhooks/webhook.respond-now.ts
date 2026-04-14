@@ -31,7 +31,7 @@ export default createWorkflowBuilder({ id: "wf.webhook.respond-now", name: "Webh
           ok: false,
         };
       },
-      "never_reached",
+      { id: "never_reached" },
     ),
   )
   .build();

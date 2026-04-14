@@ -101,9 +101,7 @@ export class ReleaseTagVersionResolver {
       ({ stdout } = await this.execFileAsync(
         "git",
         ["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"],
-        {
-          cwd: this.rootDirectory,
-        },
+        this.#createGitExecutionOptions(),
       ));
     } catch {
       return [];
@@ -120,9 +118,7 @@ export class ReleaseTagVersionResolver {
     let stdout;
 
     try {
-      ({ stdout } = await this.execFileAsync("git", ["tag", "--list", "v*"], {
-        cwd: this.rootDirectory,
-      }));
+      ({ stdout } = await this.execFileAsync("git", ["tag", "--list", "v*"], this.#createGitExecutionOptions()));
     } catch {
       return null;
     }
@@ -180,5 +176,18 @@ export class ReleaseTagVersionResolver {
   #incrementPatchVersion(version) {
     const [major, minor, patch] = this.#parseSemanticVersion(version);
     return `${major}.${minor}.${patch + 1}`;
+  }
+
+  #createGitExecutionOptions() {
+    const env = { ...process.env };
+    for (const key of Object.keys(env)) {
+      if (key.startsWith("GIT_")) {
+        delete env[key];
+      }
+    }
+    return {
+      cwd: this.rootDirectory,
+      env,
+    };
   }
 }

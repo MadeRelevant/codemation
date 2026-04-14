@@ -11,7 +11,7 @@ export default createWorkflowBuilder({ id: "wf.e2e.ab", name: "E2E A to B" })
         ...item.json,
         a: true,
       }),
-      "A",
+      { id: "A" },
     ),
   )
   .then(
@@ -21,7 +21,7 @@ export default createWorkflowBuilder({ id: "wf.e2e.ab", name: "E2E A to B" })
         ...item.json,
         b: true,
       }),
-      "B",
+      { id: "B" },
     ),
   )
   .build();

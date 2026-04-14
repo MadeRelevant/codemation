@@ -183,18 +183,26 @@ class ReleaseTagVersionResolverTest {
   }
 
   async #initializeGitRepository(workspaceDirectory) {
-    await this.execFileAsync("git", ["init"], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["config", "user.name", "Codemation Tests"], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["config", "user.email", "tests@codemation.local"], { cwd: workspaceDirectory });
+    await this.execFileAsync("git", ["init"], this.#createGitExecutionOptions(workspaceDirectory));
+    await this.execFileAsync(
+      "git",
+      ["config", "user.name", "Codemation Tests"],
+      this.#createGitExecutionOptions(workspaceDirectory),
+    );
+    await this.execFileAsync(
+      "git",
+      ["config", "user.email", "tests@codemation.local"],
+      this.#createGitExecutionOptions(workspaceDirectory),
+    );
   }
 
   async #commitAll(workspaceDirectory, message) {
-    await this.execFileAsync("git", ["add", "."], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["commit", "-m", message], { cwd: workspaceDirectory });
+    await this.execFileAsync("git", ["add", "."], this.#createGitExecutionOptions(workspaceDirectory));
+    await this.execFileAsync("git", ["commit", "-m", message], this.#createGitExecutionOptions(workspaceDirectory));
   }
 
   async #createTag(workspaceDirectory, tagName) {
-    await this.execFileAsync("git", ["tag", tagName], { cwd: workspaceDirectory });
+    await this.execFileAsync("git", ["tag", tagName], this.#createGitExecutionOptions(workspaceDirectory));
   }
 
   async #writePackage({ workspaceDirectory, directoryName, packageName, version }) {
@@ -206,6 +214,19 @@ class ReleaseTagVersionResolverTest {
       JSON.stringify({ name: packageName, version }, null, 2),
       "utf8",
     );
+  }
+
+  #createGitExecutionOptions(workspaceDirectory) {
+    const env = { ...process.env };
+    for (const key of Object.keys(env)) {
+      if (key.startsWith("GIT_")) {
+        delete env[key];
+      }
+    }
+    return {
+      cwd: workspaceDirectory,
+      env,
+    };
   }
 }
 

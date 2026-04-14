@@ -95,9 +95,7 @@ export class GitHubReleaseNotesBuilder {
       ({ stdout } = await this.execFileAsync(
         "git",
         ["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"],
-        {
-          cwd: this.rootDirectory,
-        },
+        this.#createGitExecutionOptions(),
       ));
     } catch {
       return [];
@@ -190,5 +188,18 @@ export class GitHubReleaseNotesBuilder {
     }
 
     return section;
+  }
+
+  #createGitExecutionOptions() {
+    const env = { ...process.env };
+    for (const key of Object.keys(env)) {
+      if (key.startsWith("GIT_")) {
+        delete env[key];
+      }
+    }
+    return {
+      cwd: this.rootDirectory,
+      env,
+    };
   }
 }

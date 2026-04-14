@@ -11,7 +11,7 @@ export default workflow("wf.realtime.wait")
     new MapData<RealtimeWaitJson, RealtimeWaitJson & { finished: true }>(
       "Finished",
       (item) => ({ ...item.json, finished: true }),
-      "wait.finished",
+      { id: "wait.finished" },
     ),
   )
   .build();

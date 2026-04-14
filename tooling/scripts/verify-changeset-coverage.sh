@@ -39,7 +39,9 @@ if [ -z "${CHANGED_FILES}" ]; then
   exit 0
 fi
 
-CHANGEDSET_FILES="$(printf '%s\n' "${CHANGED_FILES}" | grep -E '^\.changeset/[^/]+\.md$' || true)"
+CHANGEDSET_FILES="$(
+  printf '%s\n' "${CHANGED_FILES}" | grep -E '^\.changeset/[^/]+\.md$' | grep -v '^\.changeset/README\.md$' || true
+)"
 if [ -n "${CHANGEDSET_FILES}" ]; then
   set -- ./node_modules/.pnpm/@changesets+parse@*/node_modules/@changesets/parse/dist/changesets-parse.cjs.js
   if [ ! -e "$1" ]; then

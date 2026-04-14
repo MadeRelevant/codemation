@@ -244,14 +244,22 @@ class GitHubReleaseNotesBuilderTest {
   }
 
   async #initializeGitRepository(workspaceDirectory) {
-    await this.execFileAsync("git", ["init"], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["config", "user.name", "Codemation Tests"], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["config", "user.email", "tests@codemation.local"], { cwd: workspaceDirectory });
+    await this.execFileAsync("git", ["init"], this.#createGitExecutionOptions(workspaceDirectory));
+    await this.execFileAsync(
+      "git",
+      ["config", "user.name", "Codemation Tests"],
+      this.#createGitExecutionOptions(workspaceDirectory),
+    );
+    await this.execFileAsync(
+      "git",
+      ["config", "user.email", "tests@codemation.local"],
+      this.#createGitExecutionOptions(workspaceDirectory),
+    );
   }
 
   async #commitAll(workspaceDirectory, message) {
-    await this.execFileAsync("git", ["add", "."], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["commit", "-m", message], { cwd: workspaceDirectory });
+    await this.execFileAsync("git", ["add", "."], this.#createGitExecutionOptions(workspaceDirectory));
+    await this.execFileAsync("git", ["commit", "-m", message], this.#createGitExecutionOptions(workspaceDirectory));
   }
 
   async #writePackage({ workspaceDirectory, directoryName, packageName, version, changelog }) {
@@ -264,6 +272,19 @@ class GitHubReleaseNotesBuilderTest {
       "utf8",
     );
     await writeFile(path.join(packageDirectory, "CHANGELOG.md"), changelog, "utf8");
+  }
+
+  #createGitExecutionOptions(workspaceDirectory) {
+    const env = { ...process.env };
+    for (const key of Object.keys(env)) {
+      if (key.startsWith("GIT_")) {
+        delete env[key];
+      }
+    }
+    return {
+      cwd: workspaceDirectory,
+      env,
+    };
   }
 }
 

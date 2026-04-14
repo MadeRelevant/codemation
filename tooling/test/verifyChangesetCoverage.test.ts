@@ -104,4 +104,20 @@ describe("verify-changeset-coverage.sh", () => {
       harness.dispose();
     }
   });
+
+  it("ignores .changeset README entries when validating changed files", () => {
+    const harness = VerifyChangesetCoverageHarness.createWithContent(
+      ["---", '"@codemation/next-host": patch', "---", "", "Valid changeset fixture.", ""].join("\n"),
+    );
+    try {
+      const result = harness.runWithChangedFiles(
+        [".changeset/README.md", harness.getRelativeChangesetPath()].join("\n"),
+      );
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe("");
+    } finally {
+      harness.dispose();
+    }
+  });
 });
