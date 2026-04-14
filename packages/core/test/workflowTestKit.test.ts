@@ -135,6 +135,9 @@ test("WorkflowTestKit.runNode preserves input binary for defineNode helpers with
   });
 
   assert.equal(result.status, "completed");
-  assert.deepEqual(result.outputs.map((o) => o.json), [{ message: "AB" }]);
+  assert.deepEqual(
+    result.outputs.map((o) => o.json),
+    [{ message: "AB" }],
+  );
   assert.deepEqual(result.outputs[0]?.binary, inputItem.binary);
 });

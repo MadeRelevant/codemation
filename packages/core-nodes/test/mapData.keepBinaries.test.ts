@@ -59,7 +59,10 @@ test("MapData keeps binaries by default", async () => {
     config.keepBinaries,
   );
 
-  assert.deepEqual(outputs.main?.map((item) => item.json), [{ message: "AB" }]);
+  assert.deepEqual(
+    outputs.main?.map((item) => item.json),
+    [{ message: "AB" }],
+  );
   assert.deepEqual(outputs.main?.[0]?.binary, inputItem.binary);
 });
 
@@ -80,7 +83,10 @@ test("MapData drops binaries when keepBinaries is disabled", async () => {
     config.keepBinaries,
   );
 
-  assert.deepEqual(outputs.main?.map((item) => item.json), [{ message: "AB" }]);
+  assert.deepEqual(
+    outputs.main?.map((item) => item.json),
+    [{ message: "AB" }],
+  );
   assert.equal(outputs.main?.[0]?.binary, undefined);
 });
 
@@ -103,6 +109,9 @@ test("MapData can explicitly clear binaries even when keepBinaries is enabled", 
     config.keepBinaries,
   );
 
-  assert.deepEqual(outputs.main?.map((item) => item.json), [{ message: "AB" }]);
+  assert.deepEqual(
+    outputs.main?.map((item) => item.json),
+    [{ message: "AB" }],
+  );
   assert.deepEqual(outputs.main?.[0]?.binary, {});
 });

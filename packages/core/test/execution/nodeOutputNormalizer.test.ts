@@ -157,7 +157,10 @@ test("NodeOutputNormalizer: fans out arrays to main and preserves binary when en
     ok.main?.map((i) => i.json),
     [{ n: 1 }, { n: 2 }],
   );
-  assert.deepEqual(ok.main?.map((i) => i.binary), [base.binary, base.binary]);
+  assert.deepEqual(
+    ok.main?.map((i) => i.binary),
+    [base.binary, base.binary],
+  );
 
   assert.throws(
     () =>

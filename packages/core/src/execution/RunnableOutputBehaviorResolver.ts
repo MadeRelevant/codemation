@@ -1,8 +1,9 @@
 import type { RunnableNodeConfig } from "../types";
 
-type BinaryKeepingRunnableNodeConfig = RunnableNodeConfig & Readonly<{
-  keepBinaries?: boolean;
-}>;
+type BinaryKeepingRunnableNodeConfig = RunnableNodeConfig &
+  Readonly<{
+    keepBinaries?: boolean;
+  }>;
 
 export type RunnableOutputBehavior = Readonly<{
   keepBinaries: boolean;
