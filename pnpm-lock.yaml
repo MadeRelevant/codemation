@@ -285,6 +285,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@codemation/agent-skills':
+        specifier: workspace:*
+        version: link:../agent-skills
       '@codemation/host':
         specifier: workspace:*
         version: link:../host

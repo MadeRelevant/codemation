@@ -6,11 +6,13 @@ import type { ConsumerOutputBuilderFactory } from "../consumer/ConsumerOutputBui
 import type { ConsumerBuildOptions } from "../consumer/consumerBuildOptions.types";
 import { CliPathResolver } from "../path/CliPathResolver";
 import { TypeScriptRuntimeConfigurator } from "../runtime/TypeScriptRuntimeConfigurator";
+import type { ConsumerAgentSkillsSyncService } from "../skills/ConsumerAgentSkillsSyncService";
 
 export class BuildCommand {
   constructor(
     private readonly cliLogger: Logger,
     private readonly pathResolver: CliPathResolver,
+    private readonly consumerAgentSkillsSyncService: ConsumerAgentSkillsSyncService,
     private readonly consumerOutputBuilderFactory: ConsumerOutputBuilderFactory,
     private readonly pluginDiscovery: CodemationPluginDiscovery,
     private readonly consumerBuildArtifactsPublisher: ConsumerBuildArtifactsPublisher,
@@ -19,6 +21,7 @@ export class BuildCommand {
 
   async execute(consumerRoot: string, buildOptions: ConsumerBuildOptions): Promise<void> {
     const paths = await this.pathResolver.resolve(consumerRoot);
+    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot);
     this.tsRuntime.configure(paths.repoRoot);
     const builder = this.consumerOutputBuilderFactory.create(paths.consumerRoot, { buildOptions });
     const snapshot = await builder.ensureBuilt();

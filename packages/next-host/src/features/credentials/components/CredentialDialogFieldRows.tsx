@@ -3,19 +3,15 @@
 import type { CredentialFieldSchema } from "@codemation/core/browser";
 import type { Dispatch, SetStateAction } from "react";
 
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { CredentialEnvFieldStatusRow } from "./CredentialEnvFieldStatusRow";
-import { CredentialFieldCopyButton } from "./CredentialFieldCopyButton";
-import { isCredentialFieldLockedByEnv, maskedDisplayValue } from "../lib/credentialFieldHelpers";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CredentialDialogFieldRowEntry, type CredentialDialogOrderedField } from "./CredentialDialogFieldRowEntry";
 
-export type CredentialDialogOrderedField =
-  | { kind: "public"; field: CredentialFieldSchema; order: number }
-  | { kind: "secret"; field: CredentialFieldSchema; order: number };
+export type { CredentialDialogOrderedField };
 
-export type CredentialDialogFieldRowsProps = {
-  orderedFields: ReadonlyArray<CredentialDialogOrderedField>;
+export type CredentialDialogFieldRowsProps = Readonly<{
+  orderedFields: readonly CredentialDialogOrderedField[];
   publicFieldValues: Record<string, string>;
   setPublicFieldValues: Dispatch<SetStateAction<Record<string, string>>>;
   secretFieldValues: Record<string, string>;
@@ -26,232 +22,112 @@ export type CredentialDialogFieldRowsProps = {
   isDbSecretSource: boolean;
   showSecrets: boolean;
   credentialFieldEnvStatus: Readonly<Record<string, boolean>>;
-};
+  advancedSection?: Readonly<{
+    /** Collapsible section title (default: "Advanced"). */
+    title?: string;
+    description?: string;
+    defaultOpen?: boolean;
+  }>;
+}>;
 
-function envVarNameTrimmed(field: CredentialFieldSchema): string | undefined {
-  const n = field.envVarName?.trim();
-  return n && n.length > 0 ? n : undefined;
+function fieldOrder(field: CredentialFieldSchema): number {
+  return typeof field.order === "number" && Number.isFinite(field.order) ? field.order : 0;
 }
 
-function isEnvMissingInHost(
-  field: CredentialFieldSchema,
-  credentialFieldEnvStatus: Readonly<Record<string, boolean>>,
-): boolean {
-  const name = envVarNameTrimmed(field);
-  if (!name) {
-    return false;
+function compareOrderedFields(a: CredentialDialogOrderedField, b: CredentialDialogOrderedField): number {
+  const ao = fieldOrder(a.field);
+  const bo = fieldOrder(b.field);
+  if (ao !== bo) {
+    return ao - bo;
   }
-  return credentialFieldEnvStatus[name] === false;
+  return a.field.key.localeCompare(b.field.key);
 }
 
-export function CredentialDialogFieldRows({
-  orderedFields,
-  publicFieldValues,
-  setPublicFieldValues,
-  secretFieldValues,
-  setSecretFieldValues,
-  envRefValues,
-  setEnvRefValues,
-  isEdit,
-  isDbSecretSource,
-  showSecrets,
-  credentialFieldEnvStatus,
-}: CredentialDialogFieldRowsProps) {
+export function CredentialDialogFieldRows(props: CredentialDialogFieldRowsProps) {
+  const {
+    orderedFields,
+    publicFieldValues,
+    setPublicFieldValues,
+    secretFieldValues,
+    setSecretFieldValues,
+    envRefValues,
+    setEnvRefValues,
+    isEdit,
+    isDbSecretSource,
+    showSecrets,
+    credentialFieldEnvStatus,
+    advancedSection,
+  } = props;
+
+  const advancedKeys = new Set<string>();
+  for (const entry of orderedFields) {
+    if (entry.field.visibility === "advanced") {
+      advancedKeys.add(entry.field.key);
+    }
+  }
+
+  const primaryEntries: CredentialDialogOrderedField[] = [];
+  const advancedEntries: CredentialDialogOrderedField[] = [];
+  for (const entry of orderedFields) {
+    if (advancedKeys.has(entry.field.key)) {
+      advancedEntries.push(entry);
+    } else {
+      primaryEntries.push(entry);
+    }
+  }
+
+  primaryEntries.sort(compareOrderedFields);
+  advancedEntries.sort(compareOrderedFields);
+
+  const entryProps = {
+    publicFieldValues,
+    setPublicFieldValues,
+    secretFieldValues,
+    setSecretFieldValues,
+    envRefValues,
+    setEnvRefValues,
+    isEdit,
+    isDbSecretSource,
+    showSecrets,
+    credentialFieldEnvStatus,
+  };
+
+  const renderEntries = (entries: readonly CredentialDialogOrderedField[]) =>
+    entries.map((entry) => (
+      <CredentialDialogFieldRowEntry key={`${entry.kind}-${entry.field.key}`} entry={entry} {...entryProps} />
+    ));
+
+  if (advancedEntries.length === 0) {
+    const flat = [...orderedFields].sort(compareOrderedFields);
+    return <div className="flex flex-col gap-4">{renderEntries(flat)}</div>;
+  }
+
+  const sectionTitle = advancedSection?.title ?? "Advanced";
+  const sectionDefaultOpen = advancedSection?.defaultOpen ?? false;
+  const sectionDescription = advancedSection?.description;
+
   return (
-    <>
-      {orderedFields.map(({ kind, field }) => {
-        const lockedByEnv = isCredentialFieldLockedByEnv(field, credentialFieldEnvStatus);
-        const envMissing = isEnvMissingInHost(field, credentialFieldEnvStatus);
-        /** Red "not set in host" notice is only relevant when editing an existing credential. */
-        const showEnvMissingNotice = isEdit && envMissing;
-        const showFieldInputs = !lockedByEnv;
-        const copyValue = field.copyValue?.trim();
-        const showCopy = Boolean(copyValue && showFieldInputs);
-
-        if (kind === "public") {
-          const id = `credential-public-${field.key}`;
-          return (
-            <div key={`public-${field.key}`} className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label htmlFor={showFieldInputs ? id : undefined}>
-                  {field.label}
-                  {field.required ? " *" : ""}
-                </Label>
-                {showCopy && copyValue ? (
-                  <CredentialFieldCopyButton
-                    value={copyValue}
-                    label={field.copyButtonLabel}
-                    testId={`credential-field-copy-${field.key}`}
-                  />
-                ) : null}
-              </div>
-              {lockedByEnv && envVarNameTrimmed(field) ? (
-                <div data-testid={`credential-public-${field.key}`}>
-                  <CredentialEnvFieldStatusRow
-                    kind="managed"
-                    envVarName={envVarNameTrimmed(field)!}
-                    fieldKey={field.key}
-                  />
-                </div>
-              ) : null}
-              {showEnvMissingNotice && envVarNameTrimmed(field) ? (
-                <CredentialEnvFieldStatusRow
-                  kind="missing"
-                  envVarName={envVarNameTrimmed(field)!}
-                  fieldKey={field.key}
-                />
-              ) : null}
-              {showFieldInputs ? (
-                field.type === "textarea" ? (
-                  <Textarea
-                    id={id}
-                    data-testid={`credential-public-${field.key}`}
-                    rows={4}
-                    value={publicFieldValues[field.key] ?? ""}
-                    onChange={(e) => setPublicFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                    placeholder={field.placeholder}
-                  />
-                ) : (
-                  <Input
-                    id={id}
-                    data-testid={`credential-public-${field.key}`}
-                    type={field.type === "password" ? "password" : "text"}
-                    value={publicFieldValues[field.key] ?? ""}
-                    onChange={(e) => setPublicFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                    placeholder={field.placeholder}
-                  />
-                )
-              ) : null}
-              {showFieldInputs && field.helpText ? (
-                <span className="text-xs text-muted-foreground">{field.helpText}</span>
-              ) : null}
-            </div>
-          );
-        }
-
-        if (isDbSecretSource) {
-          const raw = secretFieldValues[field.key] ?? "";
-          const isMasked = isEdit && field.type === "password" && !showSecrets && raw.length > 0;
-          const displayValue = isMasked ? maskedDisplayValue() : raw;
-          const id = `credential-secret-${field.key}`;
-          return (
-            <div key={`secret-${field.key}`} className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label htmlFor={showFieldInputs ? id : undefined}>
-                  {field.label}
-                  {field.required ? " *" : ""}
-                </Label>
-                {showCopy && copyValue ? (
-                  <CredentialFieldCopyButton
-                    value={copyValue}
-                    label={field.copyButtonLabel}
-                    testId={`credential-field-copy-${field.key}`}
-                  />
-                ) : null}
-              </div>
-              {lockedByEnv && envVarNameTrimmed(field) ? (
-                <div data-testid={`credential-secret-${field.key}`}>
-                  <CredentialEnvFieldStatusRow
-                    kind="managed"
-                    envVarName={envVarNameTrimmed(field)!}
-                    fieldKey={field.key}
-                  />
-                </div>
-              ) : null}
-              {showEnvMissingNotice && envVarNameTrimmed(field) ? (
-                <CredentialEnvFieldStatusRow
-                  kind="missing"
-                  envVarName={envVarNameTrimmed(field)!}
-                  fieldKey={field.key}
-                />
-              ) : null}
-              {showFieldInputs ? (
-                field.type === "textarea" ? (
-                  <Textarea
-                    id={id}
-                    data-testid={`credential-secret-${field.key}`}
-                    rows={4}
-                    value={displayValue}
-                    onChange={(e) => setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                    readOnly={isMasked}
-                    placeholder={isEdit ? undefined : field.placeholder}
-                  />
-                ) : (
-                  <Input
-                    id={id}
-                    data-testid={`credential-secret-${field.key}`}
-                    type={
-                      showSecrets && field.type === "password"
-                        ? "text"
-                        : field.type === "password"
-                          ? "password"
-                          : "text"
-                    }
-                    value={displayValue}
-                    onChange={(e) => setSecretFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                    readOnly={isMasked}
-                    placeholder={isEdit ? undefined : field.placeholder}
-                  />
-                )
-              ) : null}
-              {showFieldInputs && field.helpText ? (
-                <span className="text-xs text-muted-foreground">{field.helpText}</span>
-              ) : null}
-              {isEdit && showFieldInputs && !lockedByEnv && (
-                <span className="text-xs text-muted-foreground">Leave blank to keep existing value</span>
-              )}
-            </div>
-          );
-        }
-
-        const displayEnv = envRefValues[field.key] ?? "";
-        const id = `credential-env-${field.key}`;
-        return (
-          <div key={`env-${field.key}`} className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label htmlFor={showFieldInputs ? id : undefined}>
-                Env var for {field.label}
-                {field.required ? " *" : ""}
-              </Label>
-              {showCopy && copyValue ? (
-                <CredentialFieldCopyButton
-                  value={copyValue}
-                  label={field.copyButtonLabel}
-                  testId={`credential-field-copy-${field.key}`}
-                />
-              ) : null}
-            </div>
-            {lockedByEnv && envVarNameTrimmed(field) ? (
-              <div data-testid={`credential-env-${field.key}`}>
-                <CredentialEnvFieldStatusRow
-                  kind="managed"
-                  envVarName={envVarNameTrimmed(field)!}
-                  fieldKey={field.key}
-                />
-              </div>
-            ) : null}
-            {showEnvMissingNotice && envVarNameTrimmed(field) ? (
-              <CredentialEnvFieldStatusRow kind="missing" envVarName={envVarNameTrimmed(field)!} fieldKey={field.key} />
-            ) : null}
-            {showFieldInputs ? (
-              <Input
-                id={id}
-                data-testid={`credential-env-${field.key}`}
-                type="text"
-                value={displayEnv}
-                onChange={(e) => setEnvRefValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                placeholder={isEdit ? undefined : (field.placeholder ?? `e.g. GMAIL_${field.key.toUpperCase()}`)}
-              />
-            ) : null}
-            {showFieldInputs && field.helpText ? (
-              <span className="text-xs text-muted-foreground">{field.helpText}</span>
-            ) : null}
-            {isEdit && showFieldInputs && !lockedByEnv && (
-              <span className="text-xs text-muted-foreground">Leave blank to keep existing value</span>
-            )}
-          </div>
-        );
-      })}
-    </>
+    <div className="flex flex-col gap-4">
+      {renderEntries(primaryEntries)}
+      <Collapsible defaultOpen={sectionDefaultOpen}>
+        <CollapsibleTrigger
+          data-testid="credential-advanced-section-trigger"
+          className={cn(
+            "group flex w-full items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2 text-left text-sm font-medium",
+            "hover:bg-muted/50",
+          )}
+        >
+          <span>{sectionTitle}</span>
+          <ChevronDown
+            className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180"
+            aria-hidden
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent data-testid="credential-advanced-section" className="space-y-4 pt-3">
+          {sectionDescription ? <p className="text-xs text-muted-foreground">{sectionDescription}</p> : null}
+          {renderEntries(advancedEntries)}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
   );
 }

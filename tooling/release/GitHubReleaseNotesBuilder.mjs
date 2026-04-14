@@ -94,14 +94,7 @@ export class GitHubReleaseNotesBuilder {
     let stdout;
 
     try {
-      ({ stdout } = await this.#runGitCommand([
-        "diff",
-        "--name-only",
-        "HEAD^",
-        "HEAD",
-        "--",
-        "packages/*/package.json",
-      ]));
+      ({ stdout } = await this.#execGit(["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"]));
     } catch {
       return [];
     }
@@ -195,20 +188,22 @@ export class GitHubReleaseNotesBuilder {
     return section;
   }
 
-  async #runGitCommand(args) {
+  async #execGit(args) {
     return await this.execFileAsync("git", args, {
       cwd: this.rootDirectory,
-      env: this.#createIsolatedGitEnvironment(),
+      env: this.#createGitEnvironment(),
     });
   }
 
-  #createIsolatedGitEnvironment() {
+  #createGitEnvironment() {
     const environment = { ...this.runtimeProcess.env };
 
     for (const variableName of Object.keys(environment)) {
-      if (variableName.startsWith("GIT_")) {
-        delete environment[variableName];
+      if (!variableName.startsWith("GIT_")) {
+        continue;
       }
+
+      delete environment[variableName];
     }
 
     return environment;

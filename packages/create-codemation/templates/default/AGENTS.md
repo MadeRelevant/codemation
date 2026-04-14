@@ -16,6 +16,8 @@ Start with the skills under `.agents/skills/extracted/`:
 
 If a project-local skill exists under `.agents/skills/` outside `extracted/`, treat it as more specific guidance.
 
+After upgrading `@codemation/cli`, running `codemation dev`, `codemation build`, `codemation serve web`, `codemation dev:plugin`, or `codemation skills sync` refreshes the packaged skills under `extracted/` to match the new CLI.
+
 ## Project Shape
 
 - `codemation.config.ts` is the app composition root.

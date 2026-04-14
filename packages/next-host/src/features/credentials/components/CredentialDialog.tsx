@@ -166,9 +166,15 @@ export function CredentialDialog({
     else void onCreate();
   };
 
+  const dialogTitle = isEdit
+    ? (activeType?.displayName ?? "Edit credential")
+    : activeType?.displayName
+      ? `Add ${activeType.displayName}`
+      : "Add credential";
+
   return (
     <CodemationDialog onClose={onClose} testId="credential-dialog" size="wide">
-      <CodemationDialog.Title>{isEdit ? "Edit credential" : "Add credential"}</CodemationDialog.Title>
+      <CodemationDialog.Title>{dialogTitle}</CodemationDialog.Title>
       <CodemationDialog.Content>
         <CredentialDialogFormSections
           credentialTypes={credentialTypes}
@@ -197,6 +203,7 @@ export function CredentialDialog({
         />
         <CredentialDialogFieldRows
           orderedFields={orderedFields}
+          advancedSection={activeType?.advancedSection}
           publicFieldValues={publicFieldValues}
           setPublicFieldValues={setPublicFieldValues}
           secretFieldValues={secretFieldValues}

@@ -25,6 +25,7 @@ test("CliProgram forwards --watch-framework to the dev command", async () => {
     noopCommand,
     noopCommand,
     noopCommand,
+    noopCommand,
   );
 
   await program.run(["dev", "--watch-framework", "--consumer-root", "/tmp/my-automation"]);
@@ -45,9 +46,39 @@ test("CliProgram defaults dev to the packaged UI path", async () => {
     noopCommand,
     noopCommand,
     noopCommand,
+    noopCommand,
   );
 
   await program.run(["dev", "--consumer-root", "/tmp/my-automation"]);
 
   assert.deepEqual(devCommand.calls, [{ consumerRoot: "/tmp/my-automation", watchFramework: false }]);
+});
+
+class RecordingSkillsSyncCommand {
+  readonly roots: string[] = [];
+
+  async execute(consumerRoot: string): Promise<void> {
+    this.roots.push(consumerRoot);
+  }
+}
+
+test("CliProgram forwards skills sync --consumer-root", async () => {
+  const skillsSync = new RecordingSkillsSyncCommand();
+  const noopCommand = { execute: async () => undefined } as never;
+  const program = new CliProgram(
+    new ConsumerBuildOptionsParser(),
+    noopCommand,
+    noopCommand as never,
+    noopCommand,
+    noopCommand,
+    noopCommand,
+    skillsSync as never,
+    noopCommand,
+    noopCommand,
+    noopCommand,
+  );
+
+  await program.run(["skills", "sync", "--consumer-root", "/tmp/skills-consumer"]);
+
+  assert.deepEqual(skillsSync.roots, ["/tmp/skills-consumer"]);
 });

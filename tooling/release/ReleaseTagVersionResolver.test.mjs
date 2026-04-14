@@ -230,18 +230,18 @@ class ReleaseTagVersionResolverTest {
   }
 
   async #initializeGitRepository(workspaceDirectory) {
-    await this.#runGitCommand(workspaceDirectory, ["init"]);
-    await this.#runGitCommand(workspaceDirectory, ["config", "user.name", "Codemation Tests"]);
-    await this.#runGitCommand(workspaceDirectory, ["config", "user.email", "tests@codemation.local"]);
+    await this.#execGit(["init"], workspaceDirectory);
+    await this.#execGit(["config", "user.name", "Codemation Tests"], workspaceDirectory);
+    await this.#execGit(["config", "user.email", "tests@codemation.local"], workspaceDirectory);
   }
 
   async #commitAll(workspaceDirectory, message) {
-    await this.#runGitCommand(workspaceDirectory, ["add", "."]);
-    await this.#runGitCommand(workspaceDirectory, ["commit", "-m", message]);
+    await this.#execGit(["add", "."], workspaceDirectory);
+    await this.#execGit(["commit", "-m", message], workspaceDirectory);
   }
 
   async #createTag(workspaceDirectory, tagName) {
-    await this.#runGitCommand(workspaceDirectory, ["tag", tagName]);
+    await this.#execGit(["tag", tagName], workspaceDirectory);
   }
 
   async #writePackage({ workspaceDirectory, directoryName, packageName, version }) {
@@ -255,20 +255,22 @@ class ReleaseTagVersionResolverTest {
     );
   }
 
-  async #runGitCommand(workspaceDirectory, args) {
+  async #execGit(args, workspaceDirectory) {
     await this.execFileAsync("git", args, {
       cwd: workspaceDirectory,
-      env: this.#createIsolatedGitEnvironment(),
+      env: this.#createGitEnvironment(),
     });
   }
 
-  #createIsolatedGitEnvironment() {
+  #createGitEnvironment() {
     const environment = { ...this.runtimeProcess.env };
 
     for (const variableName of Object.keys(environment)) {
-      if (variableName.startsWith("GIT_")) {
-        delete environment[variableName];
+      if (!variableName.startsWith("GIT_")) {
+        continue;
       }
+
+      delete environment[variableName];
     }
 
     return environment;
