@@ -13,6 +13,7 @@ Runnable workflow nodes implement a single **`execute(args)`** method. The engin
 
 - **`args.input`** — result of `inputSchema.parse(item.json)`; **`item.json`** stays the persisted wire payload.
 - **`args.item`**, **`args.itemIndex`**, **`args.items`** — activation context.
+- **`itemValue(...)` config fields** — resolved per item before execution, including runnable config like agent `messages`.
 - **Return** — JSON (replaces `item.json` on outputs), a **non-empty JSON array** to fan out on `main`, **`emitPorts({ port: items })`** for multi-port routing, or an **item-shaped object** (with `json`) to carry binaries/lineage.
 
 ## Routers (If, Switch)

@@ -1,10 +1,16 @@
-import type { AgentGuardrailConfig, ChatModelConfig, RunnableNodeConfig, ToolConfig } from "@codemation/core";
+import type {
+  AgentGuardrailConfig,
+  AgentMessageConfig,
+  ChatModelConfig,
+  RunnableNodeConfig,
+  ToolConfig,
+} from "@codemation/core";
 import { z } from "zod";
 
-export type WorkflowAgentPrompt<TCurrentJson> = string | ((item: TCurrentJson) => string);
+export type WorkflowAgentMessages<TCurrentJson> = AgentMessageConfig<TCurrentJson>;
 
 export interface WorkflowAgentOptions<TCurrentJson, TOutputSchema extends z.ZodTypeAny | undefined = undefined> {
-  readonly prompt: WorkflowAgentPrompt<TCurrentJson>;
+  readonly messages: WorkflowAgentMessages<TCurrentJson>;
   readonly model: string | ChatModelConfig;
   readonly tools?: ReadonlyArray<ToolConfig>;
   readonly outputSchema?: TOutputSchema;

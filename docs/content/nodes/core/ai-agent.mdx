@@ -11,6 +11,8 @@ description: Run an LLM-backed workflow step with ordered messages, a chat model
 
 Construct it with an **options object**: required `name`, `messages`, and `chatModel`; optional `tools`, `guardrails`, `id`, and `retryPolicy`. See the [AI Agent workflow guide](/docs/workflows/ai-agent) for message shapes, node-backed tools, and turn limits.
 
+`workflow().agent(...)` uses the same `messages` model. In fluent workflow definitions, use `itemValue(...)` when messages depend on the current item.
+
 ## Examples
 
 ### Basic usage: classify inbound mail into RFQ or other

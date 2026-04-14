@@ -39,6 +39,14 @@ Do not use this skill for CLI-only troubleshooting or deep host architecture que
 - For **inline** agent tools in workflow files (no separate `@tool()` class), use **`callableTool(...)`** from `@codemation/core`: supply `name`, Zod `inputSchema` / `outputSchema`, and `execute({ input, item, ctx, ... })`. **`CallableToolFactory.callableTool(...)`** is the same implementation if you prefer the factory style.
 - Prefer **plugin `Tool` classes** when the tool is reusable across packages; use **`AgentToolFactory.asTool(...)`** when exposing an existing runnable node to the agent.
 
+## Workflow agent authoring
+
+- Use `.agent(...)` for fluent workflow-defined agent steps.
+- Define agent messages with `messages`, not a workflow-specific prompt shortcut.
+- Use a static `messages` array for fixed prompts.
+- Use `itemValue(...)` when agent messages depend on the current item.
+- `model` may be a provider string such as `"openai:gpt-4o-mini"` or a `ChatModelConfig`.
+
 ## Read next when needed
 
 - Read `references/builder-patterns.md` for item-flow rules and fluent authoring patterns.
