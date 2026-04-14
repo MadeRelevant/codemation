@@ -97,29 +97,34 @@ export function CredentialDialogFieldRows(props: CredentialDialogFieldRowsProps)
       <CredentialDialogFieldRowEntry key={`${entry.kind}-${entry.field.key}`} entry={entry} {...entryProps} />
     ));
 
-  if (advancedEntries.length === 0 || !advancedSection) {
+  if (advancedEntries.length === 0) {
     const flat = [...orderedFields].sort(compareOrderedFields);
     return <div className="flex flex-col gap-4">{renderEntries(flat)}</div>;
   }
 
+  const sectionTitle = advancedSection?.title ?? "Advanced";
+  const sectionDefaultOpen = advancedSection?.defaultOpen ?? false;
+  const sectionDescription = advancedSection?.description;
+
   return (
     <div className="flex flex-col gap-4">
       {renderEntries(primaryEntries)}
-      <Collapsible defaultOpen={advancedSection.defaultOpen ?? false}>
+      <Collapsible defaultOpen={sectionDefaultOpen}>
         <CollapsibleTrigger
           data-testid="credential-advanced-section-trigger"
           className={cn(
-            "flex w-full items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2 text-left text-sm font-medium",
+            "group flex w-full items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2 text-left text-sm font-medium",
             "hover:bg-muted/50",
           )}
         >
-          <span>{advancedSection.title ?? "Advanced"}</span>
-          <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+          <span>{sectionTitle}</span>
+          <ChevronDown
+            className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180"
+            aria-hidden
+          />
         </CollapsibleTrigger>
         <CollapsibleContent data-testid="credential-advanced-section" className="space-y-4 pt-3">
-          {advancedSection.description ? (
-            <p className="text-xs text-muted-foreground">{advancedSection.description}</p>
-          ) : null}
+          {sectionDescription ? <p className="text-xs text-muted-foreground">{sectionDescription}</p> : null}
           {renderEntries(advancedEntries)}
         </CollapsibleContent>
       </Collapsible>

@@ -98,6 +98,8 @@ export type CredentialAuthDefinition = CredentialOAuth2AuthDefinition;
 export type CredentialAdvancedSectionPresentation = Readonly<{
   /** Collapsible section title (default: "Advanced"). */
   title?: string;
+  /** Optional short helper text shown inside the section (above the fields). */
+  description?: string;
   /** When true, the advanced section starts expanded. Default: false (collapsed). */
   defaultOpen?: boolean;
 }>;
@@ -109,8 +111,8 @@ export type CredentialTypeDefinition = Readonly<{
   publicFields?: ReadonlyArray<CredentialFieldSchema>;
   secretFields?: ReadonlyArray<CredentialFieldSchema>;
   /**
-   * Presentation for the collapsible block that contains every field with `visibility: "advanced"`.
-   * Omit when the type has no advanced fields.
+   * Optional labels for the collapsible block that contains every field with `visibility: "advanced"`.
+   * If omitted, the UI still shows that block with defaults (title "Advanced", collapsed).
    */
   advancedSection?: CredentialAdvancedSectionPresentation;
   supportedSourceKinds?: ReadonlyArray<CredentialMaterialSourceKind>;

@@ -18,11 +18,12 @@ Use this for optional or power-user options (extra OAuth scopes, custom endpoint
 
    Omit `visibility` or use `"default"` for normal fields.
 
-2. On the **`CredentialTypeDefinition`**, configure the section (only needed if you have at least one advanced field):
+2. Optionally on **`CredentialTypeDefinition`**, set **`advancedSection`** to customize the collapsible header (defaults apply if you skip it):
 
    ```ts
    advancedSection: {
      title: "OAuth scopes", // optional; default label is "Advanced"
+     description: "…", // optional helper line under the header
      defaultOpen: false, // optional; default is collapsed
    },
    ```

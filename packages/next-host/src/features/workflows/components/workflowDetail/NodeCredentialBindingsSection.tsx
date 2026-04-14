@@ -13,6 +13,7 @@ import { useCredentialInstancesQuery, useWorkflowCredentialHealthQuery } from ".
 import { credentialInstancesQueryKey, workflowCredentialHealthQueryKey } from "../../lib/realtime/realtimeQueryKeys";
 import { NodeCredentialBindingRow } from "./NodeCredentialBindingRow";
 import type { WorkflowDiagramNode } from "../../lib/workflowDetail/workflowDetailTypes";
+import { tryAutoBindUnboundWorkflowSlot } from "./tryAutoBindUnboundWorkflowSlot";
 
 export function NodeCredentialBindingsSection(
   args: Readonly<{
@@ -49,13 +50,6 @@ export function NodeCredentialBindingsSection(
       }
     },
     [queryClient, workflowId],
-  );
-
-  const bindCredential = useCallback(
-    (request: UpsertCredentialBindingRequest) => {
-      void bindCredentialImpl(request);
-    },
-    [bindCredentialImpl],
   );
 
   const {
@@ -205,13 +199,11 @@ export function NodeCredentialBindingsSection(
                   allCredentialInstances={allInstances}
                   selectedInstanceId={selectedInstanceId}
                   isBinding={activeBindingSlotKey === bindingKey}
-                  onSelectInstance={(instanceId) =>
-                    setBindingInstanceIdBySlotKey((current) => ({
-                      ...current,
-                      [bindingKey]: instanceId,
-                    }))
-                  }
-                  onBind={bindCredential}
+                  onSelectInstance={(instanceId) => {
+                    setBindingInstanceIdBySlotKey((current) => ({ ...current, [bindingKey]: instanceId }));
+                    tryAutoBindUnboundWorkflowSlot(slot, instanceId, bindCredentialImpl, workflowId);
+                  }}
+                  onBind={(request) => void bindCredentialImpl(request)}
                   onEditCredential={openEditDialog}
                   onRequestNewCredential={() => {
                     pendingCreateSlotBindingKeyRef.current = bindingKey;

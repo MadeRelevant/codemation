@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 
-import type { CredentialTypeDefinition } from "@codemation/core/browser";
 import type { WorkflowCredentialHealthDto } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
 import { ApiPaths } from "../../../host/src/presentation/http/ApiPaths";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NodeCredentialBindingsSection } from "../../src/features/workflows/components/workflowDetail/NodeCredentialBindingsSection";
 import {
@@ -14,37 +13,22 @@ import {
   credentialTypesQueryKey,
   workflowCredentialHealthQueryKey,
 } from "../../src/features/workflows/lib/realtime/realtimeQueryKeys";
-import type { WorkflowDiagramNode } from "../../src/features/workflows/lib/workflowDetail/workflowDetailTypes";
+import { installCredentialsJsdomPolyfills } from "./credentialsJsdomPolyfills";
+import {
+  testCredentialInstanceDto,
+  testGmailOAuthCredentialType,
+  testWorkflowCredentialHealthDto,
+  testWorkflowCredentialHealthSlot,
+  testWorkflowDiagramNode,
+} from "./factories/credentialUiTestFactories";
 
-beforeAll(() => {
-  if (typeof Element.prototype.hasPointerCapture !== "function") {
-    Element.prototype.hasPointerCapture = (): boolean => false;
-  }
-  if (typeof Element.prototype.setPointerCapture !== "function") {
-    Element.prototype.setPointerCapture = (): void => {};
-  }
-  if (typeof Element.prototype.releasePointerCapture !== "function") {
-    Element.prototype.releasePointerCapture = (): void => {};
-  }
-  if (typeof Element.prototype.scrollIntoView !== "function") {
-    Element.prototype.scrollIntoView = (): void => {};
-  }
-});
+installCredentialsJsdomPolyfills();
 
-const gmailType = {
-  typeId: "gmail-oauth",
-  displayName: "Gmail OAuth",
-  secretFields: [{ key: "token", label: "Token", type: "password" as const, required: true as const }],
-} as unknown as CredentialTypeDefinition;
+const gmailType = testGmailOAuthCredentialType();
 
 describe("NodeCredentialBindingsSection", () => {
   const workflowId = "wf-bind-ui";
-  const node: WorkflowDiagramNode = {
-    id: "node-1",
-    kind: "node",
-    name: "Step",
-    type: "MapData",
-  };
+  const node = testWorkflowDiagramNode();
 
   let fetchMock: ReturnType<typeof vi.fn>;
   let priorFetch: typeof globalThis.fetch;
@@ -60,14 +44,20 @@ describe("NodeCredentialBindingsSection", () => {
     globalThis.fetch = priorFetch;
   });
 
-  function renderSection(args: Readonly<{ health: WorkflowCredentialHealthDto }>) {
+  function renderSection(
+    args: Readonly<{
+      health: WorkflowCredentialHealthDto;
+      credentialInstances?: ReadonlyArray<ReturnType<typeof testCredentialInstanceDto>>;
+    }>,
+  ) {
+    const instances = args.credentialInstances ?? [];
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
       },
     });
     queryClient.setQueryData(credentialTypesQueryKey, [gmailType]);
-    queryClient.setQueryData(credentialInstancesQueryKey, []);
+    queryClient.setQueryData(credentialInstancesQueryKey, instances);
     queryClient.setQueryData(credentialFieldEnvStatusQueryKey, {});
     queryClient.setQueryData(workflowCredentialHealthQueryKey(workflowId), args.health);
 
@@ -78,7 +68,7 @@ describe("NodeCredentialBindingsSection", () => {
         return { ok: true, json: async () => [gmailType] };
       }
       if (url === ApiPaths.credentialInstances() && method === "GET") {
-        return { ok: true, json: async () => [] };
+        return { ok: true, json: async () => instances };
       }
       if (url === ApiPaths.credentialsEnvStatus() && method === "GET") {
         return { ok: true, json: async () => ({}) };
@@ -149,22 +139,56 @@ describe("NodeCredentialBindingsSection", () => {
     return { wasBindingPut: () => putBindingCalled };
   }
 
-  it("PUTs credential binding after creating a credential from an empty slot", async () => {
-    const health: WorkflowCredentialHealthDto = {
-      workflowId,
-      slots: [
-        {
-          workflowId,
-          nodeId: "node-1",
-          requirement: {
+  it("PUTs credential binding when selecting an existing credential on an unbound slot", async () => {
+    const health = testWorkflowCredentialHealthDto(workflowId, [
+      testWorkflowCredentialHealthSlot({
+        workflowId,
+        nodeId: "node-1",
+        slotKey: "mail",
+        acceptedTypes: ["gmail-oauth"],
+        health: { status: "unbound" },
+      }),
+    ]);
+
+    const existingInstance = testCredentialInstanceDto({
+      instanceId: "pick-me",
+      typeId: "gmail-oauth",
+      displayName: "Work Gmail",
+    });
+
+    const { wasBindingPut } = renderSection({ health, credentialInstances: [existingInstance] });
+
+    fireEvent.click(screen.getByTestId("node-properties-credential-slot-select-node-1-mail"));
+    const option = await screen.findByRole("option", { name: "Work Gmail" });
+    fireEvent.click(option);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        ApiPaths.credentialBindings(),
+        expect.objectContaining({
+          method: "PUT",
+          body: JSON.stringify({
+            workflowId,
+            nodeId: "node-1",
             slotKey: "mail",
-            label: "Mail",
-            acceptedTypes: ["gmail-oauth"],
-          },
-          health: { status: "unbound" },
-        },
-      ],
-    };
+            instanceId: "pick-me",
+          }),
+        }),
+      );
+    });
+    expect(wasBindingPut()).toBe(true);
+  });
+
+  it("PUTs credential binding after creating a credential from an empty slot", async () => {
+    const health = testWorkflowCredentialHealthDto(workflowId, [
+      testWorkflowCredentialHealthSlot({
+        workflowId,
+        nodeId: "node-1",
+        slotKey: "mail",
+        acceptedTypes: ["gmail-oauth"],
+        health: { status: "unbound" },
+      }),
+    ]);
 
     const { wasBindingPut } = renderSection({ health });
 
@@ -201,27 +225,21 @@ describe("NodeCredentialBindingsSection", () => {
   });
 
   it("does not PUT credential binding when the slot already has an instance", async () => {
-    const health: WorkflowCredentialHealthDto = {
-      workflowId,
-      slots: [
-        {
-          workflowId,
-          nodeId: "node-1",
-          requirement: {
-            slotKey: "mail",
-            label: "Mail",
-            acceptedTypes: ["gmail-oauth"],
-          },
-          instance: {
-            instanceId: "existing-inst",
-            typeId: "gmail-oauth",
-            displayName: "Existing",
-            setupStatus: "ready",
-          },
-          health: { status: "healthy" },
+    const health = testWorkflowCredentialHealthDto(workflowId, [
+      testWorkflowCredentialHealthSlot({
+        workflowId,
+        nodeId: "node-1",
+        slotKey: "mail",
+        acceptedTypes: ["gmail-oauth"],
+        health: { status: "healthy" },
+        instance: {
+          instanceId: "existing-inst",
+          typeId: "gmail-oauth",
+          displayName: "Existing",
+          setupStatus: "ready",
         },
-      ],
-    };
+      }),
+    ]);
 
     renderSection({ health });
 

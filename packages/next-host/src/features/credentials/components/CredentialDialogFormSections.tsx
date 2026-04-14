@@ -68,31 +68,33 @@ export function CredentialDialogFormSections({
 }: CredentialDialogFormSectionsProps) {
   return (
     <>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="credential-type-select">Credential type</Label>
-        <Select
-          value={selectedTypeId || TYPE_PLACEHOLDER}
-          onValueChange={(v) => setSelectedTypeId(v === TYPE_PLACEHOLDER ? "" : v)}
-          disabled={typesLoading || isTypeLocked}
-        >
-          <SelectTrigger id="credential-type-select" className="w-full" data-testid="credential-type-select">
-            <SelectValue placeholder="Select a credential type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TYPE_PLACEHOLDER}>Select a credential type</SelectItem>
-            {credentialTypes.map((type) => (
-              <SelectItem key={type.typeId} value={type.typeId}>
-                {type.displayName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {typesLoading && <span className="text-xs text-muted-foreground">Loading…</span>}
-        {typesError && <span className="text-sm text-destructive">Failed to load credential types.</span>}
-        {!typesLoading && !typesError && typesEmpty && (
-          <span className="text-xs text-muted-foreground">No credential types available.</span>
-        )}
-      </div>
+      {!isTypeLocked ? (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="credential-type-select">Credential type</Label>
+          <Select
+            value={selectedTypeId || TYPE_PLACEHOLDER}
+            onValueChange={(v) => setSelectedTypeId(v === TYPE_PLACEHOLDER ? "" : v)}
+            disabled={typesLoading}
+          >
+            <SelectTrigger id="credential-type-select" className="w-full" data-testid="credential-type-select">
+              <SelectValue placeholder="Select a credential type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TYPE_PLACEHOLDER}>Select a credential type</SelectItem>
+              {credentialTypes.map((type) => (
+                <SelectItem key={type.typeId} value={type.typeId}>
+                  {type.displayName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {typesLoading && <span className="text-xs text-muted-foreground">Loading…</span>}
+          {typesError && <span className="text-sm text-destructive">Failed to load credential types.</span>}
+          {!typesLoading && !typesError && typesEmpty && (
+            <span className="text-xs text-muted-foreground">No credential types available.</span>
+          )}
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="credential-display-name">Display name</Label>
