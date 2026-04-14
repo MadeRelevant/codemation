@@ -2,10 +2,12 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
+import process from "node:process";
 
 export class ReleaseTagVersionResolver {
-  constructor({ rootDirectory }) {
+  constructor({ rootDirectory, runtimeProcess = process }) {
     this.rootDirectory = rootDirectory;
+    this.runtimeProcess = runtimeProcess;
     this.execFileAsync = promisify(execFile);
   }
 
@@ -98,13 +100,14 @@ export class ReleaseTagVersionResolver {
     let stdout;
 
     try {
-      ({ stdout } = await this.execFileAsync(
-        "git",
-        ["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"],
-        {
-          cwd: this.rootDirectory,
-        },
-      ));
+      ({ stdout } = await this.#runGitCommand([
+        "diff",
+        "--name-only",
+        "HEAD^",
+        "HEAD",
+        "--",
+        "packages/*/package.json",
+      ]));
     } catch {
       return [];
     }
@@ -120,9 +123,7 @@ export class ReleaseTagVersionResolver {
     let stdout;
 
     try {
-      ({ stdout } = await this.execFileAsync("git", ["tag", "--list", "v*"], {
-        cwd: this.rootDirectory,
-      }));
+      ({ stdout } = await this.#runGitCommand(["tag", "--list", "v*"]));
     } catch {
       return null;
     }
@@ -180,5 +181,24 @@ export class ReleaseTagVersionResolver {
   #incrementPatchVersion(version) {
     const [major, minor, patch] = this.#parseSemanticVersion(version);
     return `${major}.${minor}.${patch + 1}`;
+  }
+
+  async #runGitCommand(args) {
+    return await this.execFileAsync("git", args, {
+      cwd: this.rootDirectory,
+      env: this.#createIsolatedGitEnvironment(),
+    });
+  }
+
+  #createIsolatedGitEnvironment() {
+    const environment = { ...this.runtimeProcess.env };
+
+    for (const variableName of Object.keys(environment)) {
+      if (variableName.startsWith("GIT_")) {
+        delete environment[variableName];
+      }
+    }
+
+    return environment;
   }
 }

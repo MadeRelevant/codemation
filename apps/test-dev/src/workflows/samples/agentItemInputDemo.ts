@@ -8,11 +8,9 @@ import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
  * Demonstrates `workflow().agent(...)`: per-item **`itemValue`** builds the same `messages`
  * contract used by `AIAgent`, while model and guardrails stay on config.
  */
-const agentWireSchema = z.object({
-  topic: z.string(),
-});
-
-type AgentWireJson = z.infer<typeof agentWireSchema>;
+type AgentWireJson = {
+  topic: string;
+};
 
 export default workflow("wf.samples.agent-item-input")
   .name("AI agent: prompts from mapped input")

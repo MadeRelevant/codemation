@@ -2,13 +2,15 @@ import { execFile } from "node:child_process";
 import { readFile, readdir } from "node:fs/promises";
 import { promisify } from "node:util";
 import path from "node:path";
+import process from "node:process";
 
 export class GitHubReleaseNotesBuilder {
-  constructor({ rootDirectory, repository, version, tag }) {
+  constructor({ rootDirectory, repository, version, tag, runtimeProcess = process }) {
     this.rootDirectory = rootDirectory;
     this.repository = repository;
     this.version = version;
     this.tag = tag;
+    this.runtimeProcess = runtimeProcess;
     this.execFileAsync = promisify(execFile);
   }
 
@@ -92,13 +94,14 @@ export class GitHubReleaseNotesBuilder {
     let stdout;
 
     try {
-      ({ stdout } = await this.execFileAsync(
-        "git",
-        ["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"],
-        {
-          cwd: this.rootDirectory,
-        },
-      ));
+      ({ stdout } = await this.#runGitCommand([
+        "diff",
+        "--name-only",
+        "HEAD^",
+        "HEAD",
+        "--",
+        "packages/*/package.json",
+      ]));
     } catch {
       return [];
     }
@@ -190,5 +193,24 @@ export class GitHubReleaseNotesBuilder {
     }
 
     return section;
+  }
+
+  async #runGitCommand(args) {
+    return await this.execFileAsync("git", args, {
+      cwd: this.rootDirectory,
+      env: this.#createIsolatedGitEnvironment(),
+    });
+  }
+
+  #createIsolatedGitEnvironment() {
+    const environment = { ...this.runtimeProcess.env };
+
+    for (const variableName of Object.keys(environment)) {
+      if (variableName.startsWith("GIT_")) {
+        delete environment[variableName];
+      }
+    }
+
+    return environment;
   }
 }
