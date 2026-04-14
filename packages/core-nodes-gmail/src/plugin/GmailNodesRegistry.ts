@@ -64,6 +64,10 @@ export class GmailNodes {
         displayName: "Gmail OAuth",
         description:
           "OAuth2 credentials for a Gmail account connection managed by the framework, with default scopes that cover trigger, read, send, reply, and label actions.",
+        advancedSection: {
+          title: "OAuth scopes",
+          defaultOpen: false,
+        },
         publicFields: [
           {
             key: "clientId",
@@ -71,6 +75,7 @@ export class GmailNodes {
             type: "string",
             required: true,
             envVarName: "CODEMATION_GOOGLE_CLIENT_ID",
+            order: 0,
           },
           {
             key: "scopePreset",
@@ -79,6 +84,8 @@ export class GmailNodes {
             placeholder: GoogleGmailApiClientScopeCatalog.defaultPresetKey,
             helpText:
               'Use "automation" for trigger/read/send/reply/label, "readonly" for polling/read only, or "custom" to replace the default bundle with `customScopes`.',
+            order: 2,
+            visibility: "advanced",
           },
           {
             key: "customScopes",
@@ -87,6 +94,8 @@ export class GmailNodes {
             placeholder: "https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send",
             helpText:
               'Only used when `scopePreset` is "custom". Values replace the default bundle and may be comma-, space-, or newline-separated.',
+            order: 3,
+            visibility: "advanced",
           },
         ],
         secretFields: [
@@ -96,6 +105,7 @@ export class GmailNodes {
             type: "password",
             required: true,
             envVarName: "CODEMATION_GOOGLE_CLIENT_SECRET",
+            order: 1,
           },
         ],
         supportedSourceKinds: ["db", "env", "code"],

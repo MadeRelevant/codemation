@@ -12,26 +12,6 @@ export class GitHubReleaseNotesBuilder {
     this.execFileAsync = promisify(execFile);
   }
 
-  #createSanitizedGitEnvironment() {
-    const sanitizedEnvironment = {};
-
-    for (const [key, value] of Object.entries(process.env)) {
-      if (key.startsWith("GIT_")) {
-        continue;
-      }
-      sanitizedEnvironment[key] = value;
-    }
-
-    return sanitizedEnvironment;
-  }
-
-  async #runGit(args) {
-    return await this.execFileAsync("git", args, {
-      cwd: this.rootDirectory,
-      env: this.#createSanitizedGitEnvironment(),
-    });
-  }
-
   async build() {
     const packageReleaseNotes = await this.#readPackageReleaseNotes();
 
@@ -112,7 +92,7 @@ export class GitHubReleaseNotesBuilder {
     let stdout;
 
     try {
-      ({ stdout } = await this.#runGit(["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"]));
+      ({ stdout } = await this.#execGit(["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"]));
     } catch {
       return [];
     }
@@ -204,5 +184,26 @@ export class GitHubReleaseNotesBuilder {
     }
 
     return section;
+  }
+
+  async #execGit(args) {
+    return await this.execFileAsync("git", args, {
+      cwd: this.rootDirectory,
+      env: this.#createGitEnvironment(),
+    });
+  }
+
+  #createGitEnvironment() {
+    const environment = { ...process.env };
+
+    for (const key of Object.keys(environment)) {
+      if (!key.startsWith("GIT_")) {
+        continue;
+      }
+
+      delete environment[key];
+    }
+
+    return environment;
   }
 }

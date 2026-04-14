@@ -13,26 +13,6 @@ class GitHubReleaseNotesBuilderTest {
     this.execFileAsync = promisify(execFile);
   }
 
-  #createSanitizedGitEnvironment() {
-    const sanitizedEnvironment = {};
-
-    for (const [key, value] of Object.entries(process.env)) {
-      if (key.startsWith("GIT_")) {
-        continue;
-      }
-      sanitizedEnvironment[key] = value;
-    }
-
-    return sanitizedEnvironment;
-  }
-
-  async #runGit(args, workspaceDirectory) {
-    await this.execFileAsync("git", args, {
-      cwd: workspaceDirectory,
-      env: this.#createSanitizedGitEnvironment(),
-    });
-  }
-
   async shouldAggregateChangedPackages() {
     const workspaceDirectory = await this.#createWorkspaceDirectory();
 
@@ -264,14 +244,14 @@ class GitHubReleaseNotesBuilderTest {
   }
 
   async #initializeGitRepository(workspaceDirectory) {
-    await this.#runGit(["init"], workspaceDirectory);
-    await this.#runGit(["config", "user.name", "Codemation Tests"], workspaceDirectory);
-    await this.#runGit(["config", "user.email", "tests@codemation.local"], workspaceDirectory);
+    await this.#execGit(["init"], workspaceDirectory);
+    await this.#execGit(["config", "user.name", "Codemation Tests"], workspaceDirectory);
+    await this.#execGit(["config", "user.email", "tests@codemation.local"], workspaceDirectory);
   }
 
   async #commitAll(workspaceDirectory, message) {
-    await this.#runGit(["add", "."], workspaceDirectory);
-    await this.#runGit(["commit", "-m", message], workspaceDirectory);
+    await this.#execGit(["add", "."], workspaceDirectory);
+    await this.#execGit(["commit", "-m", message], workspaceDirectory);
   }
 
   async #writePackage({ workspaceDirectory, directoryName, packageName, version, changelog }) {
@@ -284,6 +264,27 @@ class GitHubReleaseNotesBuilderTest {
       "utf8",
     );
     await writeFile(path.join(packageDirectory, "CHANGELOG.md"), changelog, "utf8");
+  }
+
+  async #execGit(args, workspaceDirectory) {
+    await this.execFileAsync("git", args, {
+      cwd: workspaceDirectory,
+      env: this.#createGitEnvironment(),
+    });
+  }
+
+  #createGitEnvironment() {
+    const environment = { ...process.env };
+
+    for (const key of Object.keys(environment)) {
+      if (!key.startsWith("GIT_")) {
+        continue;
+      }
+
+      delete environment[key];
+    }
+
+    return environment;
   }
 }
 

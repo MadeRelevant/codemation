@@ -11,12 +11,14 @@ import { ListenPortResolver } from "../runtime/ListenPortResolver";
 import { NextHostConsumerServerCommandFactory } from "../runtime/NextHostConsumerServerCommandFactory";
 import { SourceMapNodeOptions } from "../runtime/SourceMapNodeOptions";
 import { TypeScriptRuntimeConfigurator } from "../runtime/TypeScriptRuntimeConfigurator";
+import type { ConsumerAgentSkillsSyncService } from "../skills/ConsumerAgentSkillsSyncService";
 
 export class ServeWebCommand {
   private readonly require = createRequire(import.meta.url);
 
   constructor(
     private readonly pathResolver: CliPathResolver,
+    private readonly consumerAgentSkillsSyncService: ConsumerAgentSkillsSyncService,
     private readonly configLoader: CodemationConsumerConfigLoader,
     private readonly tsRuntime: TypeScriptRuntimeConfigurator,
     private readonly sourceMapNodeOptions: SourceMapNodeOptions,
@@ -28,6 +30,7 @@ export class ServeWebCommand {
   async execute(consumerRoot: string, buildOptions: ConsumerBuildOptions): Promise<void> {
     void buildOptions;
     const paths = await this.pathResolver.resolve(consumerRoot);
+    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot);
     this.tsRuntime.configure(paths.repoRoot);
     const nextHostRoot = path.dirname(this.require.resolve("@codemation/next-host/package.json"));
     const nextHostCommand = await this.nextHostConsumerServerCommandFactory.create({ nextHostRoot });

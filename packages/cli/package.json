@@ -33,6 +33,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@codemation/agent-skills": "workspace:*",
     "@codemation/host": "workspace:*",
     "@codemation/next-host": "workspace:*",
     "@hono/node-server": "^1.19.9",
