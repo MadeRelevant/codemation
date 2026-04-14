@@ -1,5 +1,16 @@
 # @codemation/cli
 
+## 0.0.33
+
+### Patch Changes
+
+- [#77](https://github.com/MadeRelevant/codemation/pull/77) [`525a311`](https://github.com/MadeRelevant/codemation/commit/525a311fe7868772c923f92e268730dab422cf97) Thanks [@cblokland90](https://github.com/cblokland90)! - Expose the packaged agent skills extractor as an importable module and refresh `.agents/skills/extracted` automatically when running `codemation dev`, `codemation build`, `codemation serve web`, or `codemation dev:plugin`. Add `codemation skills sync` for manual or CI refreshes after upgrading the CLI.
+
+- Updated dependencies [[`525a311`](https://github.com/MadeRelevant/codemation/commit/525a311fe7868772c923f92e268730dab422cf97), [`3044e73`](https://github.com/MadeRelevant/codemation/commit/3044e73fd3cfb33f8e2cbc579c10baf97ed94658), [`418434a`](https://github.com/MadeRelevant/codemation/commit/418434a6a2ad88a6254a94cb70e6f14b886df348), [`26ebe63`](https://github.com/MadeRelevant/codemation/commit/26ebe6346db0e9133a2133435a463c3dcd2dc537)]:
+  - @codemation/agent-skills@0.1.7
+  - @codemation/next-host@0.1.10
+  - @codemation/host@0.2.2
+
 ## 0.0.32
 
 ### Patch Changes

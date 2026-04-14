@@ -1,5 +1,32 @@
 # @codemation/agent-skills
 
+## 0.1.7
+
+### Patch Changes
+
+- [#77](https://github.com/MadeRelevant/codemation/pull/77) [`525a311`](https://github.com/MadeRelevant/codemation/commit/525a311fe7868772c923f92e268730dab422cf97) Thanks [@cblokland90](https://github.com/cblokland90)! - Expose the packaged agent skills extractor as an importable module and refresh `.agents/skills/extracted` automatically when running `codemation dev`, `codemation build`, `codemation serve web`, or `codemation dev:plugin`. Add `codemation skills sync` for manual or CI refreshes after upgrading the CLI.
+
+- [#71](https://github.com/MadeRelevant/codemation/pull/71) [`3044e73`](https://github.com/MadeRelevant/codemation/commit/3044e73fd3cfb33f8e2cbc579c10baf97ed94658) Thanks [@cblokland90](https://github.com/cblokland90)! - Add inline callable agent tools to the workflow DSL.
+
+  This introduces `callableTool(...)` as a workflow-friendly helper for app-local agent tools, keeps
+  `CallableToolFactory.callableTool(...)` as a compatible factory entry point, teaches `AIAgentNode`
+  to execute callable tools with the same tracing and validation model as other tool kinds, and
+  updates docs, skills, and the test-dev sample to show the new path.
+
+- [#73](https://github.com/MadeRelevant/codemation/pull/73) [`418434a`](https://github.com/MadeRelevant/codemation/commit/418434a6a2ad88a6254a94cb70e6f14b886df348) Thanks [@cblokland90](https://github.com/cblokland90)! - Improve credential UX and add extensible advanced field presentation.
+  - Run automatic credential health tests after create/save (including OAuth) and keep the dialog open when the test fails; auto-bind newly created credentials to empty workflow slots; auto-bind when picking an existing credential from the workflow slot dropdown while the slot is unbound.
+  - Add `CredentialFieldSchema.visibility` (`default` | `advanced`) and optional `CredentialTypeDefinition.advancedSection` (advanced fields always render in a collapsible block; section labels default when omitted). Next host uses stable test ids and fixes collapsible chevron styling.
+  - Credential dialog: title uses the credential type name (e.g. **Add …** / type display name on edit); hide the redundant type dropdown in edit mode.
+  - Gmail OAuth: group Client ID with Client secret, move scope preset and custom scopes under an **OAuth scopes** advanced section (collapsed by default).
+  - Documentation: `packages/core/docs/credential-ui-fields.md`, AGENTS.md, and credential development skill reference.
+
+- [#74](https://github.com/MadeRelevant/codemation/pull/74) [`26ebe63`](https://github.com/MadeRelevant/codemation/commit/26ebe6346db0e9133a2133435a463c3dcd2dc537) Thanks [@cblokland90](https://github.com/cblokland90)! - Unify `workflow().agent()` message authoring with `AIAgent`.
+
+  `WorkflowAgentOptions` now takes `messages` (the same `AgentMessageConfig` as `AIAgent`) instead of
+  `prompt`. The workflow helper passes `messages` through unchanged. Docs, workflow DSL skills, and the
+  test-dev sample use `itemValue(...)` for per-item prompts; execution docs note `itemValue` on agent
+  `messages`.
+
 ## Unreleased
 
 ### Patch Changes

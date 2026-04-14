@@ -1,5 +1,32 @@
 # @codemation/core
 
+## 0.6.0
+
+### Minor Changes
+
+- [#71](https://github.com/MadeRelevant/codemation/pull/71) [`3044e73`](https://github.com/MadeRelevant/codemation/commit/3044e73fd3cfb33f8e2cbc579c10baf97ed94658) Thanks [@cblokland90](https://github.com/cblokland90)! - Add inline callable agent tools to the workflow DSL.
+
+  This introduces `callableTool(...)` as a workflow-friendly helper for app-local agent tools, keeps
+  `CallableToolFactory.callableTool(...)` as a compatible factory entry point, teaches `AIAgentNode`
+  to execute callable tools with the same tracing and validation model as other tool kinds, and
+  updates docs, skills, and the test-dev sample to show the new path.
+
+- [#73](https://github.com/MadeRelevant/codemation/pull/73) [`418434a`](https://github.com/MadeRelevant/codemation/commit/418434a6a2ad88a6254a94cb70e6f14b886df348) Thanks [@cblokland90](https://github.com/cblokland90)! - Improve credential UX and add extensible advanced field presentation.
+  - Run automatic credential health tests after create/save (including OAuth) and keep the dialog open when the test fails; auto-bind newly created credentials to empty workflow slots; auto-bind when picking an existing credential from the workflow slot dropdown while the slot is unbound.
+  - Add `CredentialFieldSchema.visibility` (`default` | `advanced`) and optional `CredentialTypeDefinition.advancedSection` (advanced fields always render in a collapsible block; section labels default when omitted). Next host uses stable test ids and fixes collapsible chevron styling.
+  - Credential dialog: title uses the credential type name (e.g. **Add …** / type display name on edit); hide the redundant type dropdown in edit mode.
+  - Gmail OAuth: group Client ID with Client secret, move scope preset and custom scopes under an **OAuth scopes** advanced section (collapsed by default).
+  - Documentation: `packages/core/docs/credential-ui-fields.md`, AGENTS.md, and credential development skill reference.
+
+- [#76](https://github.com/MadeRelevant/codemation/pull/76) [`3774fd8`](https://github.com/MadeRelevant/codemation/commit/3774fd80bc357c7eb39957f6963c692f322c38eb) Thanks [@cblokland90](https://github.com/cblokland90)! - Preserve binaries for runnable node outputs and make workflow authoring APIs accept explicit output behavior options.
+
+  This adds `keepBinaries` support across runnable execution paths, updates `MapData` and related workflow authoring helpers to use an options object for node ids and output behavior, and refreshes tests and docs around the new contract.
+
+- [#75](https://github.com/MadeRelevant/codemation/pull/75) [`00bc135`](https://github.com/MadeRelevant/codemation/commit/00bc1351e2dd6222d5101dbff3602a76ead33ce1) Thanks [@cblokland90](https://github.com/cblokland90)! - Add structured-output schemas to AI agents and choose the safer OpenAI response mode per model snapshot.
+
+  This exposes `outputSchema` on agent configs, teaches `AIAgentNode` to validate and repair structured outputs, and
+  avoids opting older OpenAI snapshots into `json_schema` when only function calling is safe.
+
 ## Unreleased
 
 ### Minor Changes

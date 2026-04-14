@@ -1,5 +1,37 @@
 # @codemation/core-nodes
 
+## 0.2.0
+
+### Minor Changes
+
+- [#76](https://github.com/MadeRelevant/codemation/pull/76) [`3774fd8`](https://github.com/MadeRelevant/codemation/commit/3774fd80bc357c7eb39957f6963c692f322c38eb) Thanks [@cblokland90](https://github.com/cblokland90)! - Preserve binaries for runnable node outputs and make workflow authoring APIs accept explicit output behavior options.
+
+  This adds `keepBinaries` support across runnable execution paths, updates `MapData` and related workflow authoring helpers to use an options object for node ids and output behavior, and refreshes tests and docs around the new contract.
+
+- [#75](https://github.com/MadeRelevant/codemation/pull/75) [`00bc135`](https://github.com/MadeRelevant/codemation/commit/00bc1351e2dd6222d5101dbff3602a76ead33ce1) Thanks [@cblokland90](https://github.com/cblokland90)! - Add structured-output schemas to AI agents and choose the safer OpenAI response mode per model snapshot.
+
+  This exposes `outputSchema` on agent configs, teaches `AIAgentNode` to validate and repair structured outputs, and
+  avoids opting older OpenAI snapshots into `json_schema` when only function calling is safe.
+
+- [#74](https://github.com/MadeRelevant/codemation/pull/74) [`26ebe63`](https://github.com/MadeRelevant/codemation/commit/26ebe6346db0e9133a2133435a463c3dcd2dc537) Thanks [@cblokland90](https://github.com/cblokland90)! - Unify `workflow().agent()` message authoring with `AIAgent`.
+
+  `WorkflowAgentOptions` now takes `messages` (the same `AgentMessageConfig` as `AIAgent`) instead of
+  `prompt`. The workflow helper passes `messages` through unchanged. Docs, workflow DSL skills, and the
+  test-dev sample use `itemValue(...)` for per-item prompts; execution docs note `itemValue` on agent
+  `messages`.
+
+### Patch Changes
+
+- [#71](https://github.com/MadeRelevant/codemation/pull/71) [`3044e73`](https://github.com/MadeRelevant/codemation/commit/3044e73fd3cfb33f8e2cbc579c10baf97ed94658) Thanks [@cblokland90](https://github.com/cblokland90)! - Add inline callable agent tools to the workflow DSL.
+
+  This introduces `callableTool(...)` as a workflow-friendly helper for app-local agent tools, keeps
+  `CallableToolFactory.callableTool(...)` as a compatible factory entry point, teaches `AIAgentNode`
+  to execute callable tools with the same tracing and validation model as other tool kinds, and
+  updates docs, skills, and the test-dev sample to show the new path.
+
+- Updated dependencies [[`3044e73`](https://github.com/MadeRelevant/codemation/commit/3044e73fd3cfb33f8e2cbc579c10baf97ed94658), [`418434a`](https://github.com/MadeRelevant/codemation/commit/418434a6a2ad88a6254a94cb70e6f14b886df348), [`3774fd8`](https://github.com/MadeRelevant/codemation/commit/3774fd80bc357c7eb39957f6963c692f322c38eb), [`00bc135`](https://github.com/MadeRelevant/codemation/commit/00bc1351e2dd6222d5101dbff3602a76ead33ce1)]:
+  - @codemation/core@0.6.0
+
 ## Unreleased
 
 ### Patch Changes
