@@ -37,8 +37,8 @@ describe("ConsumerAgentSkillsSyncService", () => {
     await service.sync(consumerRoot);
 
     await expect(readFile(path.join(localSkill, "SKILL.md"), "utf8")).resolves.toContain("local-skill");
-    await expect(readFile(path.join(extracted, "codemation-framework-concepts", "SKILL.md"), "utf8")).resolves.toContain(
-      "name: codemation-framework-concepts",
-    );
+    await expect(
+      readFile(path.join(extracted, "codemation-framework-concepts", "SKILL.md"), "utf8"),
+    ).resolves.toContain("name: codemation-framework-concepts");
   });
 });

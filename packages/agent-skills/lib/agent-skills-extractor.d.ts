@@ -26,9 +26,7 @@ export class SkillExtractor {
 export class CommandLineParser {
   constructor(argv: ReadonlyArray<string>);
 
-  parse():
-    | { command: "help" }
-    | { command: "extract"; output: string };
+  parse(): { command: "help" } | { command: "extract"; output: string };
 }
 
 export class CodemationAgentSkillsCli {

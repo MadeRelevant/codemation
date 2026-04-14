@@ -350,6 +350,7 @@ class CreateCodemationSmoke {
   static adminPassword = "smoke12345";
 
   static workspaceDependencyNames = [
+    "@codemation/agent-skills",
     "@codemation/cli",
     "@codemation/core",
     "@codemation/core-nodes",
@@ -357,6 +358,7 @@ class CreateCodemationSmoke {
   ];
 
   static tarballPackageSpecs = [
+    { name: "@codemation/agent-skills", relativeDirectory: "packages/agent-skills" },
     { name: "@codemation/cli", relativeDirectory: "packages/cli" },
     { name: "@codemation/core", relativeDirectory: "packages/core" },
     { name: "@codemation/core-nodes", relativeDirectory: "packages/core-nodes" },

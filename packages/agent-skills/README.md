@@ -24,11 +24,7 @@ The directory `.agents/skills/extracted` is **framework-managed**: Codemation ov
 ## Programmatic use
 
 ```js
-import {
-  FileSystemGateway,
-  SkillExtractor,
-  resolveAgentSkillsPackageRoot,
-} from "@codemation/agent-skills";
+import { FileSystemGateway, SkillExtractor, resolveAgentSkillsPackageRoot } from "@codemation/agent-skills";
 
 const consumerRoot = process.cwd();
 const extractor = new SkillExtractor(
