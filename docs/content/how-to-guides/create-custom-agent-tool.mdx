@@ -7,6 +7,8 @@ This guide shows how to build a standalone custom tool that an `AIAgent` can cal
 
 If you already have a runnable node and just want to expose it to the agent, use [Use a Node as an Agent Tool](/docs/how-to-guides/use-node-as-agent-tool) instead. That path usually avoids writing a second adapter class.
 
+For small app-local helpers without a separate `@tool()` class, use **`callableTool(...)`** from `@codemation/core` (Zod `inputSchema` / `outputSchema`, `execute`, optional `credentialRequirements`). The legacy **`CallableToolFactory.callableTool(...)`** entry point remains equivalent. See [AI Agent](/docs/workflows/ai-agent#when-to-use-a-callable-tool-inline-dsl).
+
 ## Use this guide when
 
 Reach for a custom agent tool when:

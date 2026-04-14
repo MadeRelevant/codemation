@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import "reflect-metadata";
+import { z } from "zod";
 
 import { container as tsyringeContainer } from "tsyringe";
 import type {
@@ -17,7 +18,16 @@ import type {
   TypeToken,
 } from "../../src/index.ts";
 import { PersistedWorkflowTokenRegistry } from "../../src/bootstrap/index.ts";
-import { AgentToolFactory, WorkflowBuilder, chatModel, node, tool } from "../../src/index.ts";
+import type { CallableToolConfig } from "../../src/index.ts";
+import {
+  AgentToolFactory,
+  CallableToolKindToken,
+  WorkflowBuilder,
+  callableTool,
+  chatModel,
+  node,
+  tool,
+} from "../../src/index.ts";
 import { InMemoryLiveWorkflowRepository, PersistedWorkflowSnapshotFactory } from "../../src/testing.ts";
 import { MissingRuntimeFallbacks } from "../../src/workflowSnapshots/MissingRuntimeFallbacksFactory";
 import { WorkflowSnapshotCodec } from "../../src/workflowSnapshots/WorkflowSnapshotCodec";
@@ -159,6 +169,12 @@ class StableWorkflowFixtureFactory {
                 },
               } as Tool<StableToolConfig>["outputSchema"],
             }),
+            callableTool({
+              name: "callable_smoke",
+              inputSchema: z.object({ ping: z.string() }),
+              outputSchema: z.object({ pong: z.string() }),
+              execute: async ({ input }) => ({ pong: input.ping }),
+            }),
           ],
           "resolve",
         ),
@@ -184,6 +200,7 @@ test("workflow builder produces a compiled workflow whose node and nested depend
     [StableChatModelFactory, new StableChatModelFactory()],
     [StableTool, new StableTool()],
     [StableToolNode, new StableToolNode()],
+    [CallableToolKindToken, {}],
   ]);
   const kit = createEngineTestKit({ container, providers });
 
@@ -196,6 +213,7 @@ test("workflow builder produces a compiled workflow whose node and nested depend
   const config = compiledNode.config as StableResolvableNodeConfig;
   assert.ok(container.resolve(config.chatModel.type) instanceof StableChatModelFactory);
   assert.ok(container.resolve(config.tools[0]!.type) instanceof StableTool);
+  assert.ok(container.resolve(config.tools[2]!.type) === container.resolve(CallableToolKindToken));
 
   const result = await kit.runToCompletion({
     wf: workflow,
@@ -210,7 +228,7 @@ test("workflow builder produces a compiled workflow whose node and nested depend
       {
         hello: "world",
         resolvedChatModel: "Stable chat model",
-        resolvedTools: ["lookup_tool", "node_lookup_tool"],
+        resolvedTools: ["lookup_tool", "node_lookup_tool", "callable_smoke"],
       },
     ],
   );
@@ -251,10 +269,82 @@ test("builder snapshot roundtrip preserves persisted workflow identity without d
     (configRecord.tools as ReadonlyArray<unknown> | undefined)?.[1],
   );
   const nestedNodeRecord = SnapshotConfigReader.asRecord(nodeBackedToolRecord.node);
+  const callableToolRecord = SnapshotConfigReader.asRecord(
+    (configRecord.tools as ReadonlyArray<unknown> | undefined)?.[2],
+  );
   assert.equal(chatModelRecord.tokenId, "@codemation/test::StableChatModelFactory");
   assert.equal(toolRecord.tokenId, "@codemation/test::StableTool");
   assert.equal(nodeBackedToolRecord.tokenId, "@codemation/test::StableToolNode");
   assert.equal(nestedNodeRecord.tokenId, "@codemation/test::StableToolNode");
+  assert.equal(callableToolRecord.toolKind, "callable");
+  assert.equal(callableToolRecord.tokenId, "CallableToolKindToken");
+});
+
+test("hydrated workflow callable tool still runs executeTool after snapshot round-trip", async () => {
+  const workflow = StableWorkflowFixtureFactory.createWorkflow();
+  const tokenRegistry = new PersistedWorkflowTokenRegistry();
+  tokenRegistry.registerFromWorkflows([workflow]);
+  const snapshotFactory = new PersistedWorkflowSnapshotFactory(tokenRegistry);
+  const originalSnapshot = snapshotFactory.create(workflow);
+  const registry = new InMemoryLiveWorkflowRepository();
+  registry.setWorkflows([workflow]);
+
+  const resolvedWorkflow = new WorkflowSnapshotResolver(
+    registry,
+    tokenRegistry,
+    new WorkflowSnapshotCodec(tokenRegistry),
+    new MissingRuntimeFallbacks(),
+  ).resolve({
+    workflowId: workflow.id,
+    workflowSnapshot: originalSnapshot,
+  });
+  assert.ok(resolvedWorkflow);
+
+  const hydratedConfig = resolvedWorkflow.nodes[0]?.config as StableResolvableNodeConfig;
+  const hydratedCallable = hydratedConfig.tools[2] as CallableToolConfig;
+  assert.ok(typeof hydratedCallable.executeTool === "function");
+
+  const executed = await hydratedCallable.executeTool({
+    config: hydratedCallable,
+    input: { ping: "roundtrip" },
+    item: { json: {} },
+    itemIndex: 0,
+    items: [{ json: {} }],
+    ctx: {} as never,
+  });
+  assert.deepEqual(executed, { pong: "roundtrip" });
+
+  const container = tsyringeContainer.createChildContainer();
+  const providers = new Map<TypeToken<unknown>, unknown>([
+    [StableResolvableNode, new StableResolvableNode(container)],
+    [StableChatModelFactory, new StableChatModelFactory()],
+    [StableTool, new StableTool()],
+    [StableToolNode, new StableToolNode()],
+    [CallableToolKindToken, {}],
+  ]);
+  const kit = createEngineTestKit({ container, providers });
+
+  await kit.start([resolvedWorkflow]);
+
+  const compiledNode = resolvedWorkflow.nodes[0];
+  assert.ok(compiledNode);
+  const result = await kit.runToCompletion({
+    wf: resolvedWorkflow,
+    startAt: compiledNode.id,
+    items: items([{ hello: "hydrated" }]),
+  });
+
+  assert.equal(result.status, "completed");
+  assert.deepEqual(
+    result.outputs.map((item) => item.json),
+    [
+      {
+        hello: "hydrated",
+        resolvedChatModel: "Stable chat model",
+        resolvedTools: ["lookup_tool", "node_lookup_tool", "callable_smoke"],
+      },
+    ],
+  );
 });
 
 class ItemValueBrandFixtureNode {}

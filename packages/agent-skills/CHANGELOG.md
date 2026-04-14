@@ -1,5 +1,11 @@
 # @codemation/agent-skills
 
+## Unreleased
+
+### Patch Changes
+
+- Workflow DSL skill: document **`callableTool(...)`** for inline agent tools (with **`CallableToolFactory.callableTool(...)`** as the equivalent factory entry point).
+
 ## 0.1.6
 
 ### Patch Changes

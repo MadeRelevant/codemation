@@ -42,3 +42,9 @@ Promote inline callbacks into custom nodes when:
 - the fluent DSL is the friendly authoring surface
 - `@codemation/core` still owns planning, execution, continuation, and runtime contracts
 - host and node packages add the surrounding product capabilities
+
+## Inline callable agent tools
+
+- import `callableTool` from `@codemation/core`
+- build tools with `callableTool({ name, inputSchema, outputSchema, execute, credentialRequirements? })` (equivalent to `CallableToolFactory.callableTool(...)`)
+- pass the result in `AIAgent` `tools: [...]` alongside other tool configs

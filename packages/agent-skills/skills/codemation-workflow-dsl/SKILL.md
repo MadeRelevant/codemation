@@ -34,6 +34,11 @@ Do not use this skill for CLI-only troubleshooting or deep host architecture que
 4. Add transformations or nodes in execution order.
 5. End with `.build()`.
 
+## Agent tools (callable helpers)
+
+- For **inline** agent tools in workflow files (no separate `@tool()` class), use **`callableTool(...)`** from `@codemation/core`: supply `name`, Zod `inputSchema` / `outputSchema`, and `execute({ input, item, ctx, ... })`. **`CallableToolFactory.callableTool(...)`** is the same implementation if you prefer the factory style.
+- Prefer **plugin `Tool` classes** when the tool is reusable across packages; use **`AgentToolFactory.asTool(...)`** when exposing an existing runnable node to the agent.
+
 ## Read next when needed
 
 - Read `references/builder-patterns.md` for item-flow rules and fluent authoring patterns.

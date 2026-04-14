@@ -20,6 +20,7 @@ import type { CredentialSessionService } from "@codemation/core";
 import {
   AgentGuardrailDefaults,
   AgentMessageConfigNormalizer,
+  CallableToolConfig,
   ConnectionInvocationIdFactory,
   ConnectionNodeIdFactory,
   CoreTokens,
@@ -514,6 +515,20 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         execute: async (args) => await this.nodeBackedToolRuntime.execute(config, args),
       };
     }
+    if (this.isCallableToolConfig(config)) {
+      const inputSchema = config.getInputSchema();
+      if (inputSchema == null) {
+        throw new Error(
+          `AIAgent tool "${config.name}": callable tool is missing inputSchema (cannot build LangChain tool).`,
+        );
+      }
+      return {
+        defaultDescription: config.description ?? `Callable tool "${config.name}".`,
+        inputSchema,
+        execute: async (args) =>
+          await config.executeTool({ ...args, config: config as CallableToolConfig<ZodSchemaAny, ZodSchemaAny> }),
+      };
+    }
     const tool = this.nodeResolver.resolve(config.type) as Tool<ToolConfig, ZodSchemaAny, ZodSchemaAny>;
     if (tool.inputSchema == null) {
       throw new Error(`AIAgent tool "${config.name}": plugin tool "${String(config.type)}" is missing inputSchema.`);
@@ -534,6 +549,16 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     return (
       config instanceof NodeBackedToolConfig ||
       (typeof config === "object" && config !== null && (config as { toolKind?: unknown }).toolKind === "nodeBacked")
+    );
+  }
+
+  /**
+   * Callable tools use {@link CallableToolConfig#toolKind} for cross-package / JSON round-trip safety.
+   */
+  private isCallableToolConfig(config: ToolConfig): config is CallableToolConfig<ZodSchemaAny, ZodSchemaAny> {
+    return (
+      config instanceof CallableToolConfig ||
+      (typeof config === "object" && config !== null && (config as { toolKind?: unknown }).toolKind === "callable")
     );
   }
 
