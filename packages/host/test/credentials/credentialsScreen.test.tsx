@@ -540,6 +540,184 @@ describe("CredentialsScreen", () => {
     expect(await screen.findByTestId("credential-dialog-test-result")).toHaveTextContent("Healthy");
   });
 
+  it("automatically tests a new non-OAuth credential when create is saved and closes the dialog on success", async () => {
+    renderCredentialsScreen({
+      credentialTypes: [credentialType],
+      credentialInstances: [],
+    });
+
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === ApiPaths.credentialInstances() && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({
+            ...credentialInstance,
+            displayName: "Draft credential",
+          }),
+        };
+      }
+      if (url === ApiPaths.credentialInstanceTest("inst-1") && init?.method === "POST") {
+        return {
+          ok: true,
+          text: async () => JSON.stringify({ status: "healthy", message: "OK" }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => [],
+      };
+    });
+
+    fireEvent.click(screen.getByTestId("credential-add-button"));
+    selectCredentialTypeOption("Test API key");
+    fireEvent.change(screen.getByTestId("credential-display-name-input"), {
+      target: { value: "Draft credential" },
+    });
+    fireEvent.change(await screen.findByTestId("credential-secret-apiKey"), {
+      target: { value: "secret-value" },
+    });
+
+    fireEvent.click(screen.getByTestId("credential-create-button"));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        ApiPaths.credentialInstances(),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        ApiPaths.credentialInstanceTest("inst-1"),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId("credential-dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("automatically tests a new OAuth credential when create is saved and closes the dialog on success", async () => {
+    renderCredentialsScreen({
+      credentialTypes: [oauthCredentialType],
+      credentialInstances: [],
+    });
+
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === ApiPaths.oauth2RedirectUri()) {
+        return {
+          ok: true,
+          json: async () => ({ redirectUri: "http://localhost:3000/api/oauth2/callback" }),
+        };
+      }
+      if (url === ApiPaths.credentialInstances() && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({
+            ...oauthCredentialInstance,
+            displayName: "OAuth draft",
+            oauth2Connection: {
+              status: "disconnected" as const,
+              providerId: "google",
+              scopes: ["scope.one"],
+            },
+          }),
+        };
+      }
+      if (url === ApiPaths.credentialInstanceTest("oauth-inst-1") && init?.method === "POST") {
+        return {
+          ok: true,
+          text: async () => JSON.stringify({ status: "healthy", message: "OK" }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => [],
+      };
+    });
+
+    fireEvent.click(screen.getByTestId("credential-add-button"));
+    selectCredentialTypeOption("Test OAuth");
+    fireEvent.change(screen.getByTestId("credential-display-name-input"), {
+      target: { value: "OAuth draft" },
+    });
+    fireEvent.change(await screen.findByTestId("credential-public-clientId"), {
+      target: { value: "client-id-123" },
+    });
+    fireEvent.click(screen.getByTestId("credential-show-secrets-toggle"));
+    fireEvent.change(await screen.findByTestId("credential-secret-clientSecret"), {
+      target: { value: "client-secret-123" },
+    });
+
+    fireEvent.click(screen.getByTestId("credential-create-button"));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        ApiPaths.credentialInstances(),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        ApiPaths.credentialInstanceTest("oauth-inst-1"),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId("credential-dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("keeps the create dialog open and shows failing test result when automatic test fails after save", async () => {
+    renderCredentialsScreen({
+      credentialTypes: [credentialType],
+      credentialInstances: [],
+    });
+
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === ApiPaths.credentialInstances() && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({
+            ...credentialInstance,
+            displayName: "Draft credential",
+          }),
+        };
+      }
+      if (url === ApiPaths.credentialInstanceTest("inst-1") && init?.method === "POST") {
+        return {
+          ok: false,
+          status: 422,
+          text: async () => JSON.stringify({ message: "Invalid API key" }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => [],
+      };
+    });
+
+    fireEvent.click(screen.getByTestId("credential-add-button"));
+    selectCredentialTypeOption("Test API key");
+    fireEvent.change(screen.getByTestId("credential-display-name-input"), {
+      target: { value: "Draft credential" },
+    });
+    fireEvent.change(await screen.findByTestId("credential-secret-apiKey"), {
+      target: { value: "secret-value" },
+    });
+
+    fireEvent.click(screen.getByTestId("credential-create-button"));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        ApiPaths.credentialInstanceTest("inst-1"),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    expect(await screen.findByTestId("credential-dialog-test-result")).toHaveTextContent("Failing");
+    expect(await screen.findByTestId("credential-dialog-test-result")).toHaveTextContent("Invalid API key");
+    expect(screen.getByTestId("credential-dialog")).toBeInTheDocument();
+  });
+
   it("creates and opens OAuth2 connect from the create dialog", async () => {
     renderCredentialsScreen({
       credentialTypes: [oauthCredentialType],
