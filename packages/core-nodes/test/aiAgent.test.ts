@@ -379,7 +379,10 @@ class AgentTestRig {
     this.container.registerSingleton(ItemValueResolver, ItemValueResolver);
     this.container.registerSingleton(NodeOutputNormalizer, NodeOutputNormalizer);
     this.container.registerSingleton(AIAgentExecutionHelpersFactory, AIAgentExecutionHelpersFactory);
-    this.container.registerSingleton(AgentStructuredOutputRepairPromptFactory, AgentStructuredOutputRepairPromptFactory);
+    this.container.registerSingleton(
+      AgentStructuredOutputRepairPromptFactory,
+      AgentStructuredOutputRepairPromptFactory,
+    );
     this.container.registerSingleton(OpenAIStructuredOutputMethodFactory, OpenAIStructuredOutputMethodFactory);
     this.container.registerSingleton(AgentStructuredOutputRunner, AgentStructuredOutputRunner);
     this.container.registerSingleton(NodeBackedToolRuntime, NodeBackedToolRuntime);
@@ -903,10 +906,14 @@ test("AIAgentNode retries with a repair prompt when structured output parsing fa
   const capture = new ScriptedChatModelCapture();
   const config = new AIAgent({
     name: "Structured repair",
-    chatModel: new ScriptedChatModelConfig("Scripted model", [
-      { content: "plain text result" },
-      { content: JSON.stringify(AgentStructuredOutputFixtureFactory.createValidOutput({ summary: "Recovered" })) },
-    ], capture),
+    chatModel: new ScriptedChatModelConfig(
+      "Scripted model",
+      [
+        { content: "plain text result" },
+        { content: JSON.stringify(AgentStructuredOutputFixtureFactory.createValidOutput({ summary: "Recovered" })) },
+      ],
+      capture,
+    ),
     messages: [
       { role: "system", content: "Return structured output." },
       { role: "user", content: "Classify this mail." },
@@ -923,8 +930,14 @@ test("AIAgentNode retries with a repair prompt when structured output parsing fa
   });
   assert.equal(capture.invocations.length, 2);
   const repairMessages = MessageInspection.contents(capture.invocations[1]?.messages);
-  assert.equal(repairMessages.some((message) => message.includes("validationError")), true);
-  assert.equal(repairMessages.some((message) => message.includes("requiredSchema")), true);
+  assert.equal(
+    repairMessages.some((message) => message.includes("validationError")),
+    true,
+  );
+  assert.equal(
+    repairMessages.some((message) => message.includes("requiredSchema")),
+    true,
+  );
 });
 
 test("AIAgentNode throws instead of returning legacy string output when outputSchema is set", async () => {
@@ -965,7 +978,9 @@ test("AIAgentNode finalizes tool-enabled runs into validated structured output",
       [
         ToolCallResponseFactory.toolCall("c1", "double_n", { n: 3 }),
         { content: "tool finished" },
-        { content: JSON.stringify(AgentStructuredOutputFixtureFactory.createValidOutput({ summary: "Tool verified" })) },
+        {
+          content: JSON.stringify(AgentStructuredOutputFixtureFactory.createValidOutput({ summary: "Tool verified" })),
+        },
       ],
       capture,
     ),

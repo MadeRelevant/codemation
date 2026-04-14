@@ -13,6 +13,26 @@ class ReleaseTagVersionResolverTest {
     this.execFileAsync = promisify(execFile);
   }
 
+  #createSanitizedGitEnvironment() {
+    const sanitizedEnvironment = {};
+
+    for (const [key, value] of Object.entries(process.env)) {
+      if (key.startsWith("GIT_")) {
+        continue;
+      }
+      sanitizedEnvironment[key] = value;
+    }
+
+    return sanitizedEnvironment;
+  }
+
+  async #runGit(args, workspaceDirectory) {
+    await this.execFileAsync("git", args, {
+      cwd: workspaceDirectory,
+      env: this.#createSanitizedGitEnvironment(),
+    });
+  }
+
   async shouldResolveTheSinglePublishedVersion() {
     const workspaceDirectory = await this.#createWorkspaceDirectory();
 
@@ -183,18 +203,18 @@ class ReleaseTagVersionResolverTest {
   }
 
   async #initializeGitRepository(workspaceDirectory) {
-    await this.execFileAsync("git", ["init"], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["config", "user.name", "Codemation Tests"], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["config", "user.email", "tests@codemation.local"], { cwd: workspaceDirectory });
+    await this.#runGit(["init"], workspaceDirectory);
+    await this.#runGit(["config", "user.name", "Codemation Tests"], workspaceDirectory);
+    await this.#runGit(["config", "user.email", "tests@codemation.local"], workspaceDirectory);
   }
 
   async #commitAll(workspaceDirectory, message) {
-    await this.execFileAsync("git", ["add", "."], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["commit", "-m", message], { cwd: workspaceDirectory });
+    await this.#runGit(["add", "."], workspaceDirectory);
+    await this.#runGit(["commit", "-m", message], workspaceDirectory);
   }
 
   async #createTag(workspaceDirectory, tagName) {
-    await this.execFileAsync("git", ["tag", tagName], { cwd: workspaceDirectory });
+    await this.#runGit(["tag", tagName], workspaceDirectory);
   }
 
   async #writePackage({ workspaceDirectory, directoryName, packageName, version }) {

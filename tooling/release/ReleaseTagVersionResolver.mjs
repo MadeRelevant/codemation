@@ -9,6 +9,26 @@ export class ReleaseTagVersionResolver {
     this.execFileAsync = promisify(execFile);
   }
 
+  #createSanitizedGitEnvironment() {
+    const sanitizedEnvironment = {};
+
+    for (const [key, value] of Object.entries(process.env)) {
+      if (key.startsWith("GIT_")) {
+        continue;
+      }
+      sanitizedEnvironment[key] = value;
+    }
+
+    return sanitizedEnvironment;
+  }
+
+  async #runGit(args) {
+    return await this.execFileAsync("git", args, {
+      cwd: this.rootDirectory,
+      env: this.#createSanitizedGitEnvironment(),
+    });
+  }
+
   async resolve() {
     const packageVersions = await this.#readReleasePackageVersions();
     if (packageVersions.length === 0) {
@@ -98,13 +118,7 @@ export class ReleaseTagVersionResolver {
     let stdout;
 
     try {
-      ({ stdout } = await this.execFileAsync(
-        "git",
-        ["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"],
-        {
-          cwd: this.rootDirectory,
-        },
-      ));
+      ({ stdout } = await this.#runGit(["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"]));
     } catch {
       return [];
     }
@@ -120,9 +134,7 @@ export class ReleaseTagVersionResolver {
     let stdout;
 
     try {
-      ({ stdout } = await this.execFileAsync("git", ["tag", "--list", "v*"], {
-        cwd: this.rootDirectory,
-      }));
+      ({ stdout } = await this.#runGit(["tag", "--list", "v*"]));
     } catch {
       return null;
     }

@@ -14,11 +14,13 @@ export class AgentStructuredOutputRepairPromptFactory {
     private readonly executionHelpers: AIAgentExecutionHelpersFactory,
   ) {}
 
-  create(args: Readonly<{
-    schema: ZodSchemaAny;
-    invalidContent: string;
-    validationError: string;
-  }>): ReadonlyArray<AgentMessageDto> {
+  create(
+    args: Readonly<{
+      schema: ZodSchemaAny;
+      invalidContent: string;
+      validationError: string;
+    }>,
+  ): ReadonlyArray<AgentMessageDto> {
     return [
       {
         role: "system",

@@ -38,20 +38,22 @@ export class AgentStructuredOutputRunner {
     private readonly openAiStructuredOutputMethodFactory: OpenAIStructuredOutputMethodFactory,
   ) {}
 
-  async resolve<TOutput>(args: Readonly<{
-    model: LangChainChatModelLike;
-    chatModelConfig: ChatModelConfig;
-    schema: ZodSchemaAny;
-    conversation: ReadonlyArray<BaseMessage>;
-    rawFinalResponse?: AIMessage;
-    agentName: string;
-    nodeId: string;
-    invokeTextModel: (messages: ReadonlyArray<BaseMessage>) => Promise<AIMessage>;
-    invokeStructuredModel: (
-      model: LangChainStructuredOutputModelLike,
-      messages: ReadonlyArray<BaseMessage>,
-    ) => Promise<unknown>;
-  }>): Promise<TOutput> {
+  async resolve<TOutput>(
+    args: Readonly<{
+      model: LangChainChatModelLike;
+      chatModelConfig: ChatModelConfig;
+      schema: ZodSchemaAny;
+      conversation: ReadonlyArray<BaseMessage>;
+      rawFinalResponse?: AIMessage;
+      agentName: string;
+      nodeId: string;
+      invokeTextModel: (messages: ReadonlyArray<BaseMessage>) => Promise<AIMessage>;
+      invokeStructuredModel: (
+        model: LangChainStructuredOutputModelLike,
+        messages: ReadonlyArray<BaseMessage>,
+      ) => Promise<unknown>;
+    }>,
+  ): Promise<TOutput> {
     let lastFailure: ParsedStructuredOutputFailure | undefined;
 
     if (args.rawFinalResponse) {
@@ -65,7 +67,10 @@ export class AgentStructuredOutputRunner {
       lastFailure = directResult;
     } else if (!this.supportsNativeStructuredOutput(args.model)) {
       const rawResponse = await args.invokeTextModel(args.conversation);
-      const directResult = this.tryParseAndValidate<TOutput>(AgentMessageFactory.extractContent(rawResponse), args.schema);
+      const directResult = this.tryParseAndValidate<TOutput>(
+        AgentMessageFactory.extractContent(rawResponse),
+        args.schema,
+      );
       if (directResult.ok) {
         return directResult.value;
       }
@@ -104,14 +109,16 @@ export class AgentStructuredOutputRunner {
     });
   }
 
-  private async retryWithRepairPrompt<TOutput>(args: Readonly<{
-    schema: ZodSchemaAny;
-    conversation: ReadonlyArray<BaseMessage>;
-    lastFailure: ParsedStructuredOutputFailure;
-    agentName: string;
-    nodeId: string;
-    invokeTextModel: (messages: ReadonlyArray<BaseMessage>) => Promise<AIMessage>;
-  }>): Promise<TOutput> {
+  private async retryWithRepairPrompt<TOutput>(
+    args: Readonly<{
+      schema: ZodSchemaAny;
+      conversation: ReadonlyArray<BaseMessage>;
+      lastFailure: ParsedStructuredOutputFailure;
+      agentName: string;
+      nodeId: string;
+      invokeTextModel: (messages: ReadonlyArray<BaseMessage>) => Promise<AIMessage>;
+    }>,
+  ): Promise<TOutput> {
     let failure = args.lastFailure;
     for (let attempt = 1; attempt <= AgentStructuredOutputRunner.repairAttemptCount; attempt++) {
       const repairMessages = [
@@ -155,9 +162,7 @@ export class AgentStructuredOutputRunner {
     return this.openAiStructuredOutputMethodFactory.create(chatModelConfig) ?? { strict: true };
   }
 
-  private supportsNativeStructuredOutput(
-    model: LangChainChatModelLike,
-  ): model is LangChainChatModelLike & {
+  private supportsNativeStructuredOutput(model: LangChainChatModelLike): model is LangChainChatModelLike & {
     withStructuredOutput: (
       outputSchema: ZodSchemaAny,
       config?: ChatModelStructuredOutputOptions,
@@ -166,10 +171,7 @@ export class AgentStructuredOutputRunner {
     return typeof model.withStructuredOutput === "function";
   }
 
-  private tryParseAndValidate<TOutput>(
-    content: string,
-    schema: ZodSchemaAny,
-  ): ParsedStructuredOutputResult<TOutput> {
+  private tryParseAndValidate<TOutput>(content: string, schema: ZodSchemaAny): ParsedStructuredOutputResult<TOutput> {
     try {
       return this.tryValidateStructuredValue<TOutput>(JSON.parse(content) as unknown, schema, content);
     } catch (error) {
@@ -202,9 +204,7 @@ export class AgentStructuredOutputRunner {
 
   private summarizeError(error: unknown): string {
     if (error instanceof ZodError) {
-      return error.issues
-        .map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
-        .join("; ");
+      return error.issues.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`).join("; ");
     }
     if (error instanceof Error) {
       return error.message;

@@ -5,6 +5,8 @@ import { OpenAIChatModelFactory } from "./OpenAIChatModelFactory";
 
 @injectable()
 export class OpenAIStructuredOutputMethodFactory {
+  private static readonly isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+
   create(chatModelConfig: ChatModelConfig): ChatModelStructuredOutputOptions | undefined {
     if (chatModelConfig.type !== OpenAIChatModelFactory) {
       return undefined;
@@ -25,11 +27,20 @@ export class OpenAIStructuredOutputMethodFactory {
   }
 
   private supportsJsonSchema(model: string): boolean {
+    if (model === "gpt-4o" || model === "gpt-4o-mini") {
+      return true;
+    }
     return (
-      model === "gpt-4o" ||
-      model.startsWith("gpt-4o-") ||
-      model === "gpt-4o-mini" ||
-      model.startsWith("gpt-4o-mini-")
+      this.supportsSnapshotAtOrAfter(model, "gpt-4o-", "2024-08-06") ||
+      this.supportsSnapshotAtOrAfter(model, "gpt-4o-mini-", "2024-07-18")
     );
+  }
+
+  private supportsSnapshotAtOrAfter(model: string, prefix: string, minimumSnapshotDate: string): boolean {
+    if (!model.startsWith(prefix)) {
+      return false;
+    }
+    const snapshotDate = model.slice(prefix.length);
+    return OpenAIStructuredOutputMethodFactory.isoDatePattern.test(snapshotDate) && snapshotDate >= minimumSnapshotDate;
   }
 }

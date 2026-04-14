@@ -1,7 +1,16 @@
 import type { Items, RunnableNode, RunnableNodeConfig, RunnableNodeExecuteArgs, TypeToken } from "@codemation/core";
 import { emitPorts } from "@codemation/core";
 import { defineNode } from "@codemation/core";
-import { AIAgent, Callback, If, ManualTrigger, MapData, Wait, createWorkflowBuilder, workflow } from "@codemation/core-nodes";
+import {
+  AIAgent,
+  Callback,
+  If,
+  ManualTrigger,
+  MapData,
+  Wait,
+  createWorkflowBuilder,
+  workflow,
+} from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { z } from "zod";

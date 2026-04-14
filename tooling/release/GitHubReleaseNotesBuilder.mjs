@@ -12,6 +12,26 @@ export class GitHubReleaseNotesBuilder {
     this.execFileAsync = promisify(execFile);
   }
 
+  #createSanitizedGitEnvironment() {
+    const sanitizedEnvironment = {};
+
+    for (const [key, value] of Object.entries(process.env)) {
+      if (key.startsWith("GIT_")) {
+        continue;
+      }
+      sanitizedEnvironment[key] = value;
+    }
+
+    return sanitizedEnvironment;
+  }
+
+  async #runGit(args) {
+    return await this.execFileAsync("git", args, {
+      cwd: this.rootDirectory,
+      env: this.#createSanitizedGitEnvironment(),
+    });
+  }
+
   async build() {
     const packageReleaseNotes = await this.#readPackageReleaseNotes();
 
@@ -92,13 +112,7 @@ export class GitHubReleaseNotesBuilder {
     let stdout;
 
     try {
-      ({ stdout } = await this.execFileAsync(
-        "git",
-        ["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"],
-        {
-          cwd: this.rootDirectory,
-        },
-      ));
+      ({ stdout } = await this.#runGit(["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"]));
     } catch {
       return [];
     }
