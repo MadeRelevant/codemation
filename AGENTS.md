@@ -59,7 +59,7 @@ This document sets the “golden standard” for how we build and review changes
 ### Credential types (`@codemation/core`)
 
 - **`CredentialType<TPublic, TMaterial, TSession>`** — full registration: `definition`, `createSession`, and `test` (typed like node `execute` / `config`). Use `satisfies CredentialType<…>` on object literals when defining custom credentials.
-- **`CredentialTypeDefinition`** — schema/UI only (what the credentials screen lists); not a session factory.
+- **`CredentialTypeDefinition`** — schema/UI only (what the credentials screen lists); not a session factory. Field entries support **`order`**, **`visibility: "default" | "advanced"`**, and optional **`advancedSection`** on the definition for the collapsible “advanced” block (see [`packages/core/docs/credential-ui-fields.md`](packages/core/docs/credential-ui-fields.md)).
 - **`AnyCredentialType`** (`CredentialType<any, any, unknown>`) — type for heterogeneous lists: `CodemationConfig.credentialTypes`, the host registry, and packaged exports like **`openAiApiKeyCredentialType`**. Typed `CredentialType<Specific…>` values assign here without casts.
 - Host API: `AppContainerFactory.create`, `CredentialTypeRegistryImpl.getCredentialType`, `OpenAiApiKeyCredentialTypeFactory.createCredentialType`, export **`openAiApiKeyCredentialType`** from `@codemation/host/credentials`.
 

@@ -13,6 +13,12 @@ export type CredentialFieldSchema = Readonly<{
   type: "string" | "password" | "textarea" | "json" | "boolean";
   required?: true;
   order?: number;
+  /**
+   * Where this field appears in the credential dialog. Use `"advanced"` for optional or
+   * power-user fields; they render inside a collapsible section (see `CredentialTypeDefinition.advancedSection`).
+   * Defaults to `"default"` when omitted.
+   */
+  visibility?: "default" | "advanced";
   placeholder?: string;
   helpText?: string;
   /** When set, host resolves this field from process.env at runtime; env wins over stored values. */
@@ -89,12 +95,24 @@ export type CredentialOAuth2AuthDefinition = Readonly<
 
 export type CredentialAuthDefinition = CredentialOAuth2AuthDefinition;
 
+export type CredentialAdvancedSectionPresentation = Readonly<{
+  /** Collapsible section title (default: "Advanced"). */
+  title?: string;
+  /** When true, the advanced section starts expanded. Default: false (collapsed). */
+  defaultOpen?: boolean;
+}>;
+
 export type CredentialTypeDefinition = Readonly<{
   typeId: CredentialTypeId;
   displayName: string;
   description?: string;
   publicFields?: ReadonlyArray<CredentialFieldSchema>;
   secretFields?: ReadonlyArray<CredentialFieldSchema>;
+  /**
+   * Presentation for the collapsible block that contains every field with `visibility: "advanced"`.
+   * Omit when the type has no advanced fields.
+   */
+  advancedSection?: CredentialAdvancedSectionPresentation;
   supportedSourceKinds?: ReadonlyArray<CredentialMaterialSourceKind>;
   auth?: CredentialAuthDefinition;
 }>;

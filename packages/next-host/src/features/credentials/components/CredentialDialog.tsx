@@ -197,6 +197,7 @@ export function CredentialDialog({
         />
         <CredentialDialogFieldRows
           orderedFields={orderedFields}
+          advancedSection={activeType?.advancedSection}
           publicFieldValues={publicFieldValues}
           setPublicFieldValues={setPublicFieldValues}
           secretFieldValues={secretFieldValues}

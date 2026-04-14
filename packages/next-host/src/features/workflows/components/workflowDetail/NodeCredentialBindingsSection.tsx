@@ -1,12 +1,16 @@
-import type { UpsertCredentialBindingRequest } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+import type {
+  UpsertCredentialBindingRequest,
+  WorkflowCredentialHealthDto,
+} from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
 import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { CredentialConfirmDialog } from "../../../credentials/components/CredentialConfirmDialog";
 import { CredentialDialog } from "../../../credentials/components/CredentialDialog";
 import { useCredentialCreateDialog } from "../../../credentials/hooks/useCredentialCreateDialog";
 import { useCredentialInstancesQuery, useWorkflowCredentialHealthQuery } from "../../hooks/realtime/realtime";
+import { credentialInstancesQueryKey, workflowCredentialHealthQueryKey } from "../../lib/realtime/realtimeQueryKeys";
 import { NodeCredentialBindingRow } from "./NodeCredentialBindingRow";
 import type { WorkflowDiagramNode } from "../../lib/workflowDetail/workflowDetailTypes";
 
@@ -26,6 +30,34 @@ export function NodeCredentialBindingsSection(
   const [credentialError, setCredentialError] = useState<string | null>(null);
   const [bindingInstanceIdBySlotKey, setBindingInstanceIdBySlotKey] = useState<Readonly<Record<string, string>>>({});
   const [activeBindingSlotKey, setActiveBindingSlotKey] = useState<string | null>(null);
+
+  const bindCredentialImpl = useCallback(
+    async (request: UpsertCredentialBindingRequest): Promise<void> => {
+      const activeKey = `${request.nodeId}:${request.slotKey}`;
+      try {
+        setActiveBindingSlotKey(activeKey);
+        setCredentialError(null);
+        await codemationApiClient.putJson<void>(ApiPaths.credentialBindings(), request);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: workflowCredentialHealthQueryKey(workflowId) }),
+          queryClient.invalidateQueries({ queryKey: credentialInstancesQueryKey }),
+        ]);
+      } catch (error) {
+        setCredentialError(error instanceof Error ? error.message : String(error));
+      } finally {
+        setActiveBindingSlotKey(null);
+      }
+    },
+    [queryClient, workflowId],
+  );
+
+  const bindCredential = useCallback(
+    (request: UpsertCredentialBindingRequest) => {
+      void bindCredentialImpl(request);
+    },
+    [bindCredentialImpl],
+  );
+
   const {
     isDialogOpen,
     dialogProps,
@@ -36,7 +68,7 @@ export function NodeCredentialBindingsSection(
     cancelOAuthDisconnect,
   } = useCredentialCreateDialog({
     workflowId,
-    onCreated: (instance) => {
+    onCreated: async (instance) => {
       const key = pendingCreateSlotBindingKeyRef.current;
       if (key) {
         setBindingInstanceIdBySlotKey((current) => ({
@@ -44,6 +76,24 @@ export function NodeCredentialBindingsSection(
           [key]: instance.instanceId,
         }));
         pendingCreateSlotBindingKeyRef.current = null;
+        const firstColon = key.indexOf(":");
+        const nodeId = firstColon >= 0 ? key.slice(0, firstColon) : "";
+        const slotKey = firstColon >= 0 ? key.slice(firstColon + 1) : "";
+        if (nodeId.length > 0 && slotKey.length > 0) {
+          await queryClient.refetchQueries({ queryKey: workflowCredentialHealthQueryKey(workflowId) });
+          const health = queryClient.getQueryData<WorkflowCredentialHealthDto>(
+            workflowCredentialHealthQueryKey(workflowId),
+          );
+          const slot = health?.slots?.find((s) => s.nodeId === nodeId && s.requirement.slotKey === slotKey);
+          if (!slot?.instance?.instanceId) {
+            await bindCredentialImpl({
+              workflowId,
+              nodeId,
+              slotKey,
+              instanceId: instance.instanceId,
+            });
+          }
+        }
       }
     },
   });
@@ -107,25 +157,6 @@ export function NodeCredentialBindingsSection(
     setCredentialError(null);
     setActiveBindingSlotKey(null);
   }, [node.id]);
-
-  const bindCredential = (request: UpsertCredentialBindingRequest) => {
-    void (async () => {
-      const activeKey = `${request.nodeId}:${request.slotKey}`;
-      try {
-        setActiveBindingSlotKey(activeKey);
-        setCredentialError(null);
-        await codemationApiClient.putJson<void>(ApiPaths.credentialBindings(), request);
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["workflow-credential-health", workflowId] }),
-          queryClient.invalidateQueries({ queryKey: ["credential-instances"] }),
-        ]);
-      } catch (error) {
-        setCredentialError(error instanceof Error ? error.message : String(error));
-      } finally {
-        setActiveBindingSlotKey(null);
-      }
-    })();
-  };
 
   return (
     <section data-testid="node-properties-credential-section" style={{ padding: "10px 12px 14px" }}>

@@ -31,6 +31,15 @@ credentials: {
 
 Then the runtime can supply a typed session through the named slot.
 
+## Advanced fields in the credential dialog
+
+Optional or power-user fields (for example custom OAuth scopes) can be tucked behind a single collapsible section:
+
+- Set `visibility: "advanced"` on each relevant `CredentialFieldSchema` entry in `publicFields` / `secretFields`.
+- Set `advancedSection: { title?: string; defaultOpen?: boolean }` on `CredentialTypeDefinition` (title defaults to `"Advanced"`; section defaults to collapsed).
+
+See **`packages/core/docs/credential-ui-fields.md`** in the repository root layout.
+
 ## Health and activation
 
 - deploy the workflow and credential type
