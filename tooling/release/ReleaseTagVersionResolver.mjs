@@ -2,10 +2,12 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
+import process from "node:process";
 
 export class ReleaseTagVersionResolver {
-  constructor({ rootDirectory }) {
+  constructor({ rootDirectory, runtimeProcess = process }) {
     this.rootDirectory = rootDirectory;
+    this.runtimeProcess = runtimeProcess;
     this.execFileAsync = promisify(execFile);
   }
 
@@ -182,14 +184,14 @@ export class ReleaseTagVersionResolver {
   }
 
   #createGitEnvironment() {
-    const environment = { ...process.env };
+    const environment = { ...this.runtimeProcess.env };
 
-    for (const key of Object.keys(environment)) {
-      if (!key.startsWith("GIT_")) {
+    for (const variableName of Object.keys(environment)) {
+      if (!variableName.startsWith("GIT_")) {
         continue;
       }
 
-      delete environment[key];
+      delete environment[variableName];
     }
 
     return environment;

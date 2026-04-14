@@ -2,13 +2,15 @@ import { execFile } from "node:child_process";
 import { readFile, readdir } from "node:fs/promises";
 import { promisify } from "node:util";
 import path from "node:path";
+import process from "node:process";
 
 export class GitHubReleaseNotesBuilder {
-  constructor({ rootDirectory, repository, version, tag }) {
+  constructor({ rootDirectory, repository, version, tag, runtimeProcess = process }) {
     this.rootDirectory = rootDirectory;
     this.repository = repository;
     this.version = version;
     this.tag = tag;
+    this.runtimeProcess = runtimeProcess;
     this.execFileAsync = promisify(execFile);
   }
 
@@ -194,14 +196,14 @@ export class GitHubReleaseNotesBuilder {
   }
 
   #createGitEnvironment() {
-    const environment = { ...process.env };
+    const environment = { ...this.runtimeProcess.env };
 
-    for (const key of Object.keys(environment)) {
-      if (!key.startsWith("GIT_")) {
+    for (const variableName of Object.keys(environment)) {
+      if (!variableName.startsWith("GIT_")) {
         continue;
       }
 
-      delete environment[key];
+      delete environment[variableName];
     }
 
     return environment;

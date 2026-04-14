@@ -1,16 +1,9 @@
 import type { Items, RunnableNode, RunnableNodeConfig, RunnableNodeExecuteArgs, TypeToken } from "@codemation/core";
 import { emitPorts } from "@codemation/core";
 import { defineNode } from "@codemation/core";
-import {
-  AIAgent,
-  Callback,
-  If,
-  ManualTrigger,
-  MapData,
-  Wait,
-  createWorkflowBuilder,
-  workflow,
-} from "@codemation/core-nodes";
+import { itemValue } from "@codemation/core";
+import { Callback, If, ManualTrigger, MapData, Wait, createWorkflowBuilder, workflow } from "@codemation/core-nodes";
+import { AIAgent } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { z } from "zod";
@@ -152,7 +145,16 @@ test("workflow helper preserves inference across map, if, wait, agent, and helpe
         })),
     })
     .agent("Summarize", {
-      prompt: (item) => `${item.subject}:${item.route}`,
+      messages: itemValue(({ item }) => [
+        {
+          role: "system",
+          content: 'Return strict JSON only: {"summary": string}',
+        },
+        {
+          role: "user",
+          content: `${item.json.subject}:${item.json.route}`,
+        },
+      ]),
       model: "openai:gpt-4o-mini",
       outputSchema: z.object({
         summary: z.string(),
@@ -175,7 +177,12 @@ test("workflow helper forwards agent outputSchema into the built AIAgent config"
       subject: "hello",
     })
     .agent("Summarize", {
-      prompt: (item) => item.subject,
+      messages: itemValue(({ item }) => [
+        {
+          role: "user",
+          content: item.json.subject,
+        },
+      ]),
       model: "openai:gpt-4o-mini",
       outputSchema,
     })

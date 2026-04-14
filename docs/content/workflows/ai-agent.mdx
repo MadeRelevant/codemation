@@ -15,6 +15,45 @@ Use it when a workflow item needs:
 
 The agent still runs once per workflow item, with explicit message authoring, multi-turn tool use, and optional turn limits.
 
+## Using `workflow().agent(...)`
+
+`workflow().agent(...)` accepts `messages` and passes them to the agent node.
+
+Message authoring follows the agent message model:
+
+- use a static array for fixed messages
+- use `itemValue(...)` for per-item message generation
+- use the object form when you need `prompt` plus `buildMessages`
+
+```ts
+workflow("wf.example")
+  .manualTrigger<{ subject: string; route: string }>("Start", [
+    {
+      subject: "hello",
+      route: "sales",
+    },
+  ])
+  .agent("Summarize", {
+    messages: itemValue(({ item }) => [
+      {
+        role: "system",
+        content: 'Return strict JSON only: {"summary": string}',
+      },
+      {
+        role: "user",
+        content: `Subject: ${item.json.subject}\nRoute: ${item.json.route}`,
+      },
+    ]),
+    model: "openai:gpt-4o-mini",
+    outputSchema: z.object({
+      summary: z.string(),
+    }),
+  })
+  .build();
+```
+
+`workflow().agent(...)` is the fluent workflow authoring form of the agent step. `new AIAgent(...)` exposes the same message model as a direct node config.
+
 ## Configuration
 
 `AIAgent` is constructed with an options object. You always supply `name`, `messages`, and `chatModel`; optional fields include `tools`, `outputSchema`, `guardrails`, `id`, and `retryPolicy`.
@@ -98,6 +137,8 @@ new AIAgent({
 ```
 
 Use a plain array when everything fits one list. Use the object form when you want callback-built messages appended after `prompt`.
+
+For workflow-defined agents, prefer `itemValue(...)` when messages depend on the current item.
 
 ## Recommended output pattern
 

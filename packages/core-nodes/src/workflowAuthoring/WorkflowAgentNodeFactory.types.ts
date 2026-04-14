@@ -10,14 +10,6 @@ export class WorkflowAgentNodeFactory {
   ): AIAgent<TCurrentJson, TOutputSchema extends z.ZodTypeAny ? z.output<TOutputSchema> : Record<string, unknown>> {
     const options = typeof nameOrOptions === "string" ? optionsOrUndefined! : nameOrOptions;
     const name = typeof nameOrOptions === "string" ? nameOrOptions : "AI agent";
-    const prompt = options.prompt;
-    const messages = [
-      {
-        role: "user" as const,
-        content:
-          typeof prompt === "function" ? ({ item }: { item: { json: TCurrentJson } }) => prompt(item.json) : prompt,
-      },
-    ] as const;
     const outputSchema = options.outputSchema as
       | z.ZodType<TOutputSchema extends z.ZodTypeAny ? z.output<TOutputSchema> : Record<string, unknown>>
       | undefined;
@@ -26,7 +18,7 @@ export class WorkflowAgentNodeFactory {
       TOutputSchema extends z.ZodTypeAny ? z.output<TOutputSchema> : Record<string, unknown>
     >({
       name,
-      messages,
+      messages: options.messages,
       chatModel: WorkflowChatModelFactory.create(options.model),
       tools: options.tools,
       outputSchema,
