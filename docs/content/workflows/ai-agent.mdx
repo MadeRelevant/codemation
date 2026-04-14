@@ -17,15 +17,20 @@ The agent still runs once per workflow item, with explicit message authoring, mu
 
 ## Configuration
 
-`AIAgent` is constructed with an options object. You always supply `name`, `messages`, and `chatModel`; optional fields include `tools`, `guardrails`, `id`, and `retryPolicy`.
+`AIAgent` is constructed with an options object. You always supply `name`, `messages`, and `chatModel`; optional fields include `tools`, `outputSchema`, `guardrails`, `id`, and `retryPolicy`.
 
 ```ts
-new AIAgent<{ subject: string; body: string }, { outcome: "rfq" | "other"; summary: string }>({
+const classifyMailOutputSchema = z.object({
+  outcome: z.enum(["rfq", "other"]),
+  summary: z.string(),
+});
+
+new AIAgent<{ subject: string; body: string }, z.output<typeof classifyMailOutputSchema>>({
   name: "Classify RFQ vs other",
   messages: [
     {
       role: "system",
-      content: 'You triage incoming mail. Return strict JSON only with shape {"outcome":"rfq"|"other","summary":"..."}',
+      content: "You triage incoming mail.",
     },
     {
       role: "user",
@@ -33,10 +38,27 @@ new AIAgent<{ subject: string; body: string }, { outcome: "rfq" | "other"; summa
     },
   ],
   chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
+  outputSchema: classifyMailOutputSchema,
   guardrails: {
     maxTurns: 10,
   },
 });
+```
+
+The workflow helper forwards the same runtime contract:
+
+```ts
+workflow("wf.mail")
+  .name("Mail classifier")
+  .manualTrigger({ subject: "RFQ", body: "Need quote" })
+  .agent("Classify", {
+    prompt: (item) => JSON.stringify(item),
+    model: "openai:gpt-4o-mini",
+    outputSchema: z.object({
+      outcome: z.enum(["rfq", "other"]),
+      summary: z.string(),
+    }),
+  });
 ```
 
 ## Message authoring
@@ -88,6 +110,19 @@ Good examples:
 - `{ "customerName": "...", "invoiceNumber": "..." }`
 
 This keeps downstream `If`, `MapData`, `HttpRequest`, and custom nodes deterministic.
+
+## Structured output enforcement
+
+Use `outputSchema` when the agent result must be a validated runtime contract rather than a best-effort prompt convention.
+
+With `outputSchema` set:
+
+- the final agent result must validate against the schema
+- supported models use native structured output for the final answer when possible
+- unsupported models fall back to parse, validate, and repair retries
+- invalid final output raises an error instead of silently returning text
+
+Without `outputSchema`, the legacy behavior remains unchanged.
 
 ## Tools
 
@@ -259,6 +294,11 @@ new AIAgent({
   ],
   chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini"),
   tools: [lookupCustomerTool, searchDocsTool],
+  outputSchema: z.object({
+    answer: z.string(),
+    recommendedPlan: z.string(),
+    monthlyPrice: z.number(),
+  }),
   guardrails: {
     maxTurns: 3,
   },
@@ -271,9 +311,9 @@ The agent still emits workflow items on `main`.
 
 In practice:
 
-- plain text becomes `{ output: "..." }`
-- valid JSON content is parsed into structured workflow JSON
-- tool-enabled flows still end with one final agent response
+- without `outputSchema`, plain text becomes `{ output: "..." }` and valid JSON is parsed when possible
+- with `outputSchema`, the node emits validated structured JSON or throws
+- tool-enabled flows still end with one final agent response, but structured finalization now runs after the tool loop completes
 
 ## Good defaults
 

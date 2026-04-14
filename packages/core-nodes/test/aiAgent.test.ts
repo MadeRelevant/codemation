@@ -6,6 +6,7 @@ import type {
   Item,
   Items,
   LangChainChatModelLike,
+  LangChainStructuredOutputModelLike,
   NodeExecutionContext,
   NodeExecutionStatePublisher,
   NodeInputsByPort,
@@ -33,7 +34,15 @@ import {
   InMemoryBinaryStorage,
   InMemoryRunDataFactory,
 } from "@codemation/core/bootstrap";
-import { AIAgent, AIAgentExecutionHelpersFactory, AIAgentNode } from "@codemation/core-nodes";
+import {
+  AIAgent,
+  AIAgentExecutionHelpersFactory,
+  AIAgentNode,
+  AgentStructuredOutputRepairPromptFactory,
+  AgentStructuredOutputRunner,
+  OpenAIChatModelConfig,
+  OpenAIStructuredOutputMethodFactory,
+} from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { test } from "vitest";
@@ -87,6 +96,8 @@ class CapturingNodeStatePublisher implements NodeExecutionStatePublisher {
 class ScriptedChatModelCapture {
   readonly invocations: Array<Readonly<{ messages: unknown; options: unknown }>> = [];
   readonly boundToolNames: ReadonlyArray<ReadonlyArray<string>> = [];
+  readonly structuredInvocations: Array<Readonly<{ messages: unknown; options: unknown }>> = [];
+  readonly structuredBindings: Array<Readonly<{ outputSchema: unknown; config: unknown }>> = [];
 
   constructor(private readonly mutableBoundToolNames: string[][] = []) {}
 
@@ -105,6 +116,14 @@ class ScriptedChatModelCapture {
     );
   }
 
+  recordStructuredInvocation(messages: unknown, options: unknown): void {
+    this.structuredInvocations.push({ messages, options });
+  }
+
+  recordStructuredBinding(outputSchema: unknown, config: unknown): void {
+    this.structuredBindings.push({ outputSchema, config });
+  }
+
   snapshotBoundToolNames(): ReadonlyArray<ReadonlyArray<string>> {
     return this.mutableBoundToolNames.map((entry) => [...entry]);
   }
@@ -117,6 +136,7 @@ class ScriptedChatModelConfig implements ChatModelConfig {
     public readonly name: string,
     public readonly responses: ReadonlyArray<unknown>,
     public readonly capture: ScriptedChatModelCapture = new ScriptedChatModelCapture(),
+    public readonly structuredResponses?: ReadonlyArray<unknown>,
   ) {}
 }
 
@@ -124,8 +144,8 @@ class ScriptedLangChainChatModel implements LangChainChatModelLike {
   private invocationCount = 0;
 
   constructor(
-    private readonly responses: ReadonlyArray<unknown>,
-    private readonly capture: ScriptedChatModelCapture,
+    protected readonly responses: ReadonlyArray<unknown>,
+    protected readonly capture: ScriptedChatModelCapture,
   ) {}
 
   bindTools(tools: ReadonlyArray<unknown>): LangChainChatModelLike {
@@ -141,9 +161,64 @@ class ScriptedLangChainChatModel implements LangChainChatModelLike {
   }
 }
 
+class StructuredScriptedRunnable implements LangChainStructuredOutputModelLike {
+  private invocationCount = 0;
+
+  constructor(
+    private readonly responses: ReadonlyArray<unknown>,
+    private readonly capture: ScriptedChatModelCapture,
+  ) {}
+
+  async invoke(messages: unknown, options?: unknown): Promise<unknown> {
+    this.capture.recordStructuredInvocation(messages, options);
+    const response = this.responses[this.invocationCount] ?? this.responses[this.responses.length - 1];
+    this.invocationCount += 1;
+    return response ?? {};
+  }
+}
+
+class StructuredScriptedLangChainChatModel extends ScriptedLangChainChatModel {
+  constructor(
+    responses: ReadonlyArray<unknown>,
+    capture: ScriptedChatModelCapture,
+    private readonly structuredResponses: ReadonlyArray<unknown>,
+  ) {
+    super(responses, capture);
+  }
+
+  withStructuredOutput(outputSchema: unknown, config?: unknown): LangChainStructuredOutputModelLike {
+    this.capture.recordStructuredBinding(outputSchema, config);
+    return new StructuredScriptedRunnable(this.structuredResponses, this.capture);
+  }
+}
+
 class ScriptedChatModelFactory implements ChatModelFactory<ScriptedChatModelConfig> {
   create(args: Readonly<{ config: ScriptedChatModelConfig; ctx: NodeExecutionContext<any> }>): LangChainChatModelLike {
+    if (args.config.structuredResponses) {
+      return new StructuredScriptedLangChainChatModel(
+        args.config.responses,
+        args.config.capture,
+        args.config.structuredResponses,
+      );
+    }
     return new ScriptedLangChainChatModel(args.config.responses, args.config.capture);
+  }
+}
+
+class AgentStructuredOutputFixtureFactory {
+  static readonly schema = z.object({
+    outcome: z.enum(["rfq", "other"]),
+    summary: z.string(),
+  });
+
+  static createValidOutput(
+    overrides?: Partial<z.output<typeof AgentStructuredOutputFixtureFactory.schema>>,
+  ): z.output<typeof AgentStructuredOutputFixtureFactory.schema> {
+    return {
+      outcome: "rfq",
+      summary: "RFQ detected",
+      ...overrides,
+    };
   }
 }
 
@@ -304,6 +379,9 @@ class AgentTestRig {
     this.container.registerSingleton(ItemValueResolver, ItemValueResolver);
     this.container.registerSingleton(NodeOutputNormalizer, NodeOutputNormalizer);
     this.container.registerSingleton(AIAgentExecutionHelpersFactory, AIAgentExecutionHelpersFactory);
+    this.container.registerSingleton(AgentStructuredOutputRepairPromptFactory, AgentStructuredOutputRepairPromptFactory);
+    this.container.registerSingleton(OpenAIStructuredOutputMethodFactory, OpenAIStructuredOutputMethodFactory);
+    this.container.registerSingleton(AgentStructuredOutputRunner, AgentStructuredOutputRunner);
     this.container.registerSingleton(NodeBackedToolRuntime, NodeBackedToolRuntime);
     this.container.registerSingleton(AIAgentNode, AIAgentNode);
     for (const registration of registrations) {
@@ -772,4 +850,152 @@ test("AIAgentNode marks tool connection failures when a callable tool execute th
     ),
     true,
   );
+});
+
+test("AIAgentNode returns validated structured output when final content already matches outputSchema", async () => {
+  const config = new AIAgent({
+    name: "Structured direct parse",
+    chatModel: new ScriptedChatModelConfig("Scripted model", [
+      { content: JSON.stringify(AgentStructuredOutputFixtureFactory.createValidOutput()) },
+    ]),
+    messages: [
+      { role: "system", content: "Return structured output." },
+      { role: "user", content: "Classify this mail." },
+    ],
+    outputSchema: AgentStructuredOutputFixtureFactory.schema,
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  const outputs = await rig.execute([{ json: { subject: "RFQ", body: "Need quote" } }], "run_structured_direct");
+
+  assert.deepEqual(outputs.main?.[0]?.json, AgentStructuredOutputFixtureFactory.createValidOutput());
+});
+
+test("AIAgentNode uses native structured output when the model supports it", async () => {
+  const capture = new ScriptedChatModelCapture();
+  const config = new AIAgent({
+    name: "Structured native",
+    chatModel: new ScriptedChatModelConfig(
+      "Scripted native model",
+      [{ content: "unstructured final answer" }],
+      capture,
+      [AgentStructuredOutputFixtureFactory.createValidOutput({ summary: "Native structured result" })],
+    ),
+    messages: [
+      { role: "system", content: "Return structured output." },
+      { role: "user", content: "Classify this mail." },
+    ],
+    outputSchema: AgentStructuredOutputFixtureFactory.schema,
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  const outputs = await rig.execute([{ json: { subject: "RFQ", body: "Need quote" } }], "run_structured_native");
+
+  assert.deepEqual(outputs.main?.[0]?.json, {
+    outcome: "rfq",
+    summary: "Native structured result",
+  });
+  assert.equal(capture.structuredInvocations.length, 1);
+  assert.equal(capture.structuredBindings.length, 1);
+});
+
+test("AIAgentNode retries with a repair prompt when structured output parsing fails", async () => {
+  const capture = new ScriptedChatModelCapture();
+  const config = new AIAgent({
+    name: "Structured repair",
+    chatModel: new ScriptedChatModelConfig("Scripted model", [
+      { content: "plain text result" },
+      { content: JSON.stringify(AgentStructuredOutputFixtureFactory.createValidOutput({ summary: "Recovered" })) },
+    ], capture),
+    messages: [
+      { role: "system", content: "Return structured output." },
+      { role: "user", content: "Classify this mail." },
+    ],
+    outputSchema: AgentStructuredOutputFixtureFactory.schema,
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  const outputs = await rig.execute([{ json: { subject: "RFQ", body: "Need quote" } }], "run_structured_repair");
+
+  assert.deepEqual(outputs.main?.[0]?.json, {
+    outcome: "rfq",
+    summary: "Recovered",
+  });
+  assert.equal(capture.invocations.length, 2);
+  const repairMessages = MessageInspection.contents(capture.invocations[1]?.messages);
+  assert.equal(repairMessages.some((message) => message.includes("validationError")), true);
+  assert.equal(repairMessages.some((message) => message.includes("requiredSchema")), true);
+});
+
+test("AIAgentNode throws instead of returning legacy string output when outputSchema is set", async () => {
+  const config = new AIAgent({
+    name: "Structured failure",
+    chatModel: new ScriptedChatModelConfig("Scripted model", [
+      { content: "plain text result" },
+      { content: "still plain text" },
+      { content: "still plain text" },
+    ]),
+    messages: [
+      { role: "system", content: "Return structured output." },
+      { role: "user", content: "Classify this mail." },
+    ],
+    outputSchema: AgentStructuredOutputFixtureFactory.schema,
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  await assert.rejects(
+    async () => await rig.execute([{ json: { subject: "RFQ", body: "Need quote" } }], "run_structured_fail"),
+    /Structured output required/,
+  );
+});
+
+test("AIAgentNode finalizes tool-enabled runs into validated structured output", async () => {
+  const capture = new ScriptedChatModelCapture();
+  const callable = callableTool({
+    name: "double_n",
+    description: "Doubles n",
+    inputSchema: z.object({ n: z.number() }),
+    outputSchema: z.object({ doubled: z.number() }),
+    execute: async ({ input }) => ({ doubled: input.n * 2 }),
+  });
+  const config = new AIAgent({
+    name: "Structured tool finalize",
+    chatModel: new ScriptedChatModelConfig(
+      "Scripted model",
+      [
+        ToolCallResponseFactory.toolCall("c1", "double_n", { n: 3 }),
+        { content: "tool finished" },
+        { content: JSON.stringify(AgentStructuredOutputFixtureFactory.createValidOutput({ summary: "Tool verified" })) },
+      ],
+      capture,
+    ),
+    messages: [
+      { role: "system", content: "Call the tool then return structured output." },
+      { role: "user", content: "Go." },
+    ],
+    tools: [callable],
+    outputSchema: AgentStructuredOutputFixtureFactory.schema,
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  const outputs = await rig.execute([{ json: { seed: 1 } }], "run_structured_tool", "agent_structured_tool");
+
+  assert.deepEqual(outputs.main?.[0]?.json, {
+    outcome: "rfq",
+    summary: "Tool verified",
+  });
+  assert.equal(capture.snapshotBoundToolNames()[0]?.[0], "double_n");
+});
+
+test("OpenAIStructuredOutputMethodFactory prefers jsonSchema for supported 4o models", () => {
+  const factory = new OpenAIStructuredOutputMethodFactory();
+
+  assert.deepEqual(factory.create(new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini")), {
+    method: "jsonSchema",
+    strict: true,
+  });
+  assert.deepEqual(factory.create(new OpenAIChatModelConfig("OpenAI", "gpt-4-turbo")), {
+    method: "functionCalling",
+    strict: true,
+  });
 });
