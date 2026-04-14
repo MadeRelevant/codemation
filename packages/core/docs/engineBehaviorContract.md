@@ -42,13 +42,16 @@ This section locks **current** engine semantics for runnable nodes that execute 
 
 1. **Single JSON object / primitive / null** (`JsonNonArray`) → **one** output item on `main` (unless multi-port emission below).
 2. **Top-level array** of `JsonNonArray` → **many** items on `main`, one per element.
-3. **Multi-port emission** — use **`emitPorts({ portName: [...] })`** so plain object outputs never collide with “special” shapes. Each port value is **`Items`** or **`JsonNonArray[]`** (arrays of payloads are expanded to items using lineage policy).
+3. **Multi-port emission** — use **`emitPorts({ portName: [...] })`** so plain object outputs never collide with “special” shapes. Each port value is **`Items`** or **`JsonNonArray[]`** (arrays of payloads are expanded to items using the same binary-preservation rules below).
 
-### Lineage carry (`binary` / `meta` / `paired`)
+### Output preservation (`binary` / `meta` / `paired`)
 
-- **Default — emit-only:** emitted items contain **only** the new `json` payload (plus any fields the node explicitly sets). **`binary` / `meta` / `paired`** from the inbound item are **not** copied forward.
-- **Default — router-style nodes** (multiple `outputPorts`, e.g. `If`, `Switch`): **carry-through** — propagate **`binary` / `meta` / `paired`** when emitting, consistent with routing nodes tagging lineage.
-- **Override:** `RunnableNodeConfig.lineageCarry?: "emitOnly" | "carryThrough"` wins over defaults.
+- **No public lineage policy:** runnable node configs no longer expose a generic carry flag.
+- **Plain JSON return:** emitted items always get fresh `json`. Inbound **`binary`** is copied only when the node opts into binary preservation (for example `MapData` or `defineNode({ keepBinaries: true })`).
+- **Inbound `meta` / `paired`:** never auto-copy from plain JSON returns. Preserve them by returning explicit `Item` objects instead.
+- **Explicit item return:** fields on the returned item win. Returning an item without `binary` still inherits inbound binary when binary preservation is enabled; returning `binary: {}` explicitly clears binaries.
+- **Router / pass-through nodes:** preserve full item state by returning the original items (or explicit item-shaped results), not via topology-based defaults.
+- **MapData default:** `MapData` keeps inbound binaries unless `keepBinaries: false` is set.
 
 ### Fan-in (multi-inbound edges)
 

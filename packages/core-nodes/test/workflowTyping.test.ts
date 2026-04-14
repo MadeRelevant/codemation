@@ -189,7 +189,7 @@ test("workflow helper supports callback routing plus merge and switch core nodes
                   ...item,
                   route: "sales" as const,
                 }),
-                "route_sales",
+                { id: "route_sales", keepBinaries: true },
               ),
             false: (falseBranch) =>
               falseBranch.map(
@@ -198,7 +198,7 @@ test("workflow helper supports callback routing plus merge and switch core nodes
                   ...item,
                   route: "support" as const,
                 }),
-                "route_support",
+                { id: "route_support" },
               ),
           })
           .merge("Merge branches", { mode: "append", prefer: ["true", "false"] }, "merge_routes")

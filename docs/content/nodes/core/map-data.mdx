@@ -9,6 +9,8 @@ description: Transform each workflow item into a new JSON shape.
 
 `MapData` maps each input item to a new output JSON value. Use it to normalize payloads, add derived fields, or prepare data for the next node.
 
+`MapData` keeps inbound binaries by default. That makes it a good fit for JSON reshaping steps that still need to preserve attachments such as uploaded files, OCR inputs, or email attachments.
+
 ## Examples
 
 ### Basic usage: add a derived status field
@@ -49,6 +51,25 @@ new MapData("Prepare CRM payload", (item) => ({
   currency: item.json.invoice.currency,
 }));
 ```
+
+The reshaped JSON becomes the new `item.json`, while inbound binaries still flow through by default.
+
+### Disable binary preservation
+
+```ts
+new MapData(
+  "Prepare API payload",
+  (item) => ({
+    documentId: item.json.id,
+    filename: item.json.filename,
+  }),
+  {
+    keepBinaries: false,
+  },
+);
+```
+
+Use `keepBinaries: false` when the mapped output should intentionally drop attachments and continue with JSON only.
 
 Example input:
 

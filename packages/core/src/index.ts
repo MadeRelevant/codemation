@@ -20,6 +20,7 @@ export {
   InProcessRetryRunner,
   ItemValueResolver,
   NodeOutputNormalizer,
+  RunnableOutputBehaviorResolver,
 } from "./execution";
 export { EngineExecutionLimitsPolicy, type EngineExecutionLimitsPolicyConfig } from "./policies";
 export { InMemoryBinaryStorage, InMemoryRunDataFactory } from "./runStorage";

@@ -223,8 +223,10 @@ export interface EngineHost {
 }
 
 /**
- * Per-item runnable node: return JSON, an array to fan-out on `main`, or {@link emitPorts} for multi-port emission.
- * Engine applies `inputSchema.parse(item.json)` and passes the result as `args.input` (wire `item.json` is unchanged).
+ * Per-item runnable node: return JSON, an array to fan-out on `main`, an explicit `Item`, or {@link emitPorts}
+ * for multi-port emission. Engine applies `inputSchema.parse(item.json)` and passes the result as `args.input`
+ * (wire `item.json` is unchanged). Transform helpers may opt into binary preservation, while routers and
+ * pass-through nodes should return explicit items when they need to preserve full item state.
  */
 export interface RunnableNodeExecuteArgs<
   TConfig extends RunnableNodeConfig<any, any> = RunnableNodeConfig<any, any>,

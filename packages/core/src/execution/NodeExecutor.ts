@@ -3,10 +3,8 @@ import { isPortsEmission, isUnbrandedPortsEmissionShape } from "../contracts/emi
 
 import type {
   Item,
-  LineageCarryPolicy,
   MultiInputNode,
   NodeActivationRequest,
-  NodeConfigBase,
   NodeExecutionContext,
   NodeOutputs,
   RunnableNode,
@@ -20,18 +18,22 @@ import { FanInMergeByOriginMerger } from "./FanInMergeByOriginMerger";
 import { ItemValueResolver } from "./ItemValueResolver";
 import { InProcessRetryRunner } from "./InProcessRetryRunner";
 import { NodeOutputNormalizer } from "./NodeOutputNormalizer";
+import { RunnableOutputBehaviorResolver } from "./RunnableOutputBehaviorResolver";
 
 export class NodeExecutor {
   private readonly fanInMerger = new FanInMergeByOriginMerger();
   private readonly outputNormalizer = new NodeOutputNormalizer();
   private readonly itemValueResolver: ItemValueResolver;
+  private readonly outputBehaviorResolver: RunnableOutputBehaviorResolver;
 
   constructor(
     private readonly nodeInstanceFactory: WorkflowNodeInstanceFactory,
     private readonly retryRunner: InProcessRetryRunner,
     itemValueResolver?: ItemValueResolver,
+    outputBehaviorResolver?: RunnableOutputBehaviorResolver,
   ) {
     this.itemValueResolver = itemValueResolver ?? new ItemValueResolver();
+    this.outputBehaviorResolver = outputBehaviorResolver ?? new RunnableOutputBehaviorResolver();
   }
 
   async execute(request: NodeActivationRequest): Promise<NodeOutputs> {
@@ -126,7 +128,7 @@ export class NodeExecutor {
     node: RunnableNode,
   ): Promise<NodeOutputs> {
     const runnableConfig = request.ctx.config as RunnableNodeConfig;
-    const carry = this.resolveLineageCarry(node, runnableConfig);
+    const behavior = this.outputBehaviorResolver.resolve(runnableConfig);
     const inputSchema = this.resolveInputSchema(node, runnableConfig);
     const inputBatch = request.input ?? [];
     if (inputBatch.length === 0 && runnableConfig.emptyBatchExecution === "runOnce") {
@@ -146,7 +148,7 @@ export class NodeExecutor {
       return this.outputNormalizer.normalizeExecuteResult({
         baseItem: syntheticItem,
         raw,
-        carry,
+        behavior,
       }) as NodeOutputs;
     }
     const byPort: Partial<Record<string, Item[]>> = {};
@@ -168,7 +170,7 @@ export class NodeExecutor {
       const normalized = this.outputNormalizer.normalizeExecuteResult({
         baseItem: item,
         raw,
-        carry,
+        behavior,
       });
       for (const [port, batch] of Object.entries(normalized)) {
         if (!batch || batch.length === 0) {
@@ -227,23 +229,4 @@ export class NodeExecutor {
     }
   }
 
-  private resolveLineageCarry(node: unknown, config: RunnableNodeConfig): LineageCarryPolicy {
-    if (config.lineageCarry) {
-      return config.lineageCarry;
-    }
-
-    const base = config as NodeConfigBase;
-    const declared = base.declaredOutputPorts;
-    const ports =
-      declared && declared.length > 0
-        ? [...new Set([...(declared as readonly string[]), ...(base.nodeErrorHandler ? ["error"] : [])])]
-        : base.nodeErrorHandler
-          ? (["main", "error"] as const)
-          : (["main"] as const);
-
-    if (ports.length > 1) {
-      return "carryThrough";
-    }
-    return "emitOnly";
-  }
 }

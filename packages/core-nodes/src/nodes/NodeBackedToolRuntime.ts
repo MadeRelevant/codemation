@@ -10,7 +10,14 @@ import type {
   ToolExecuteArgs,
   ZodSchemaAny,
 } from "@codemation/core";
-import { CoreTokens, inject, injectable, ItemValueResolver, NodeOutputNormalizer } from "@codemation/core";
+import {
+  CoreTokens,
+  inject,
+  injectable,
+  ItemValueResolver,
+  NodeOutputNormalizer,
+  RunnableOutputBehaviorResolver,
+} from "@codemation/core";
 import { z } from "zod";
 
 @injectable()
@@ -22,6 +29,8 @@ export class NodeBackedToolRuntime {
     private readonly itemValueResolver: ItemValueResolver,
     @inject(NodeOutputNormalizer)
     private readonly outputNormalizer: NodeOutputNormalizer,
+    @inject(RunnableOutputBehaviorResolver)
+    private readonly outputBehaviorResolver: RunnableOutputBehaviorResolver,
   ) {}
 
   async execute(
@@ -64,7 +73,7 @@ export class NodeBackedToolRuntime {
     if (this.isRunnableNode(resolvedNode)) {
       const runnable = resolvedNode;
       const runnableConfig = ctx.config;
-      const carry = runnableConfig.lineageCarry ?? "emitOnly";
+      const behavior = this.outputBehaviorResolver.resolve(runnableConfig);
       const inputSchema = runnable.inputSchema ?? runnableConfig.inputSchema ?? z.unknown();
       const parsed = inputSchema.parse(nodeInput.json);
       const items = [nodeInput];
@@ -80,7 +89,7 @@ export class NodeBackedToolRuntime {
       return this.outputNormalizer.normalizeExecuteResult({
         baseItem: nodeInput,
         raw,
-        carry,
+        behavior,
       });
     }
     throw new Error(`Node-backed tool expected a runnable node instance for "${ctx.config.name ?? ctx.nodeId}".`);

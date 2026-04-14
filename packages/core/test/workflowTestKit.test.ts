@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import "reflect-metadata";
 
+import type { Item } from "../src/index.ts";
 import { defineNode } from "../src/index.ts";
 import { WorkflowBuilder } from "../src/workflow/dsl/WorkflowBuilder";
 import { CallbackNodeConfig, items } from "./harness/index.ts";
@@ -23,6 +24,30 @@ const testKitDefineNodeSample = defineNode({
     };
   },
 });
+
+class WorkflowTestBinaryFactory {
+  static itemWithBinary(): Item<Readonly<{ message: string }>> {
+    return {
+      json: { message: "ab" },
+      binary: {
+        attachment: {
+          id: "att-1",
+          storageKey: "storage/att-1",
+          mimeType: "text/plain",
+          size: 2,
+          storageDriver: "memory",
+          previewKind: "download",
+          createdAt: new Date().toISOString(),
+          runId: "run-1",
+          workflowId: "wf-1",
+          nodeId: "n0",
+          activationId: "a0",
+          filename: "note.txt",
+        },
+      } as never,
+    };
+  }
+}
 
 test("WorkflowTestKit.run executes a multi-node workflow to completion", async () => {
   const events: string[] = [];
@@ -78,4 +103,38 @@ test("WorkflowTestKit.runNode runs a single runnable node after the harness trig
     [{ x: "a" }],
   );
   assert.deepEqual(events, ["run"]);
+});
+
+test("WorkflowTestKit.runNode preserves input binary for defineNode helpers with keepBinaries enabled", async () => {
+  const binaryKeepingNode = defineNode({
+    key: "testkit.workflow.keepBinaries",
+    title: "Keep binaries",
+    input: {
+      field: "string",
+    },
+    keepBinaries: true,
+    execute(
+      { input }: { readonly input: Readonly<Record<string, unknown>> },
+      { config }: { readonly config: Readonly<{ field: string }> },
+    ) {
+      return {
+        [config.field]: String(input.message ?? "").toUpperCase(),
+      };
+    },
+  });
+
+  const kit = new WorkflowTestKit();
+  kit.registerDefinedNodes([binaryKeepingNode]);
+  const node = binaryKeepingNode.create({ field: "message" }, "Keep binaries", "n-keep");
+  const inputItem = WorkflowTestBinaryFactory.itemWithBinary();
+  const result = await kit.runNode({
+    node,
+    items: [inputItem],
+    workflowId: "wf.testkit.keep-binaries",
+    workflowName: "keep binaries",
+  });
+
+  assert.equal(result.status, "completed");
+  assert.deepEqual(result.outputs.map((o) => o.json), [{ message: "AB" }]);
+  assert.deepEqual(result.outputs[0]?.binary, inputItem.binary);
 });

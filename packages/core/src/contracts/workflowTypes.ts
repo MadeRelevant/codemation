@@ -96,8 +96,6 @@ export declare const runnableNodeInputType: unique symbol;
 export declare const runnableNodeOutputType: unique symbol;
 export declare const triggerNodeOutputType: unique symbol;
 
-export type LineageCarryPolicy = "emitOnly" | "carryThrough";
-
 /**
  * Runnable node: **`TInputJson`** is what **`inputSchema`** validates on **`item.json`** (the wire payload).
  * **`TOutputJson`** is emitted `item.json` on outputs.
@@ -111,11 +109,6 @@ export interface RunnableNodeConfig<TInputJson = unknown, TOutputJson = unknown>
    * Resolution order: node instance `inputSchema`, then config `inputSchema`, then `z.unknown()`.
    */
   readonly inputSchema?: ZodType<TInputJson>;
-  /**
-   * Overrides default lineage propagation for `execute` outputs (binary/meta/paired).
-   * Routers with multiple {@link RunnableNode#outputPorts} default to **`carryThrough`**; others default to **`emitOnly`**.
-   */
-  readonly lineageCarry?: LineageCarryPolicy;
   /**
    * When an activation receives **zero** input items, the engine normally runs `execute` zero times.
    * Set to **`runOnce`** to run `execute` once with an empty `items` batch (and a synthetic wire item for schema parsing).

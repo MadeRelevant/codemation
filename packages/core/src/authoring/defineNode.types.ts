@@ -108,6 +108,8 @@ export interface DefineNodeOptions<
    * Validates **`input`** (engine also accepts `inputSchema` on the node class).
    */
   readonly inputSchema?: ZodType<TInputJson>;
+  /** Preserve inbound `item.binary` when `execute` returns plain JSON or item-shaped results without `binary`. */
+  readonly keepBinaries?: boolean;
   execute(
     args: DefineNodeExecuteArgs<TConfig, TInputJson>,
     context: DefinedNodeRunContext<TConfig, TBindings>,
@@ -246,6 +248,7 @@ export function defineNode<
     readonly type: TypeToken<unknown> = DefinedNodeRuntime;
     readonly icon = options.icon;
     readonly inputSchema = options.inputSchema;
+    readonly keepBinaries = options.keepBinaries ?? false;
 
     constructor(
       public readonly name: string,

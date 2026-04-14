@@ -113,13 +113,13 @@ export default workflow("wf.samples.if-switch-split-filter-aggregate-error")
             trueBranch.map(
               "Tag parity=even",
               (item) => ({ ...(item as ReadingRow), parity: "even" as ParityRow["parity"] }),
-              "tag_even",
+              { id: "tag_even" },
             ),
           false: (falseBranch) =>
             falseBranch.map(
               "Tag parity=odd",
               (item) => ({ ...(item as ReadingRow), parity: "odd" as ParityRow["parity"] }),
-              "tag_odd",
+              { id: "tag_odd" },
             ),
         })
         .merge("Merge parity branches (append)", { mode: "append", prefer: ["true", "false"] }, "merge")

@@ -28,7 +28,6 @@ export class SwitchHarnessNode implements RunnableNode<SwitchHarnessNodeConfig<a
 export class SwitchHarnessNodeConfig<TInputJson = unknown> implements RunnableNodeConfig<TInputJson, TInputJson> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = SwitchHarnessNode;
-  readonly lineageCarry = "carryThrough" as const;
   readonly declaredOutputPorts: ReadonlyArray<string>;
 
   constructor(

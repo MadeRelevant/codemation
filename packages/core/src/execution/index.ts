@@ -7,6 +7,7 @@ export { DefaultExecutionContextFactory } from "./DefaultExecutionContextFactory
 export { InProcessRetryRunner } from "./InProcessRetryRunner";
 export { ItemValueResolver } from "./ItemValueResolver";
 export { NodeOutputNormalizer } from "./NodeOutputNormalizer";
+export { RunnableOutputBehaviorResolver } from "./RunnableOutputBehaviorResolver";
 export { InProcessRetryRunnerFactory } from "./InProcessRetryRunnerFactory";
 export { NodeActivationRequestComposer } from "./NodeActivationRequestComposer";
 export { NodeExecutionSnapshotFactory } from "./NodeExecutionSnapshotFactory";

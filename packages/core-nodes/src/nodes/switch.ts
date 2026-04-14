@@ -14,7 +14,6 @@ export class Switch<TInputJson = unknown> implements RunnableNodeConfig<TInputJs
   readonly type: TypeToken<unknown> = SwitchNode;
   readonly execution = { hint: "local" } as const;
   readonly icon = "lucide:git-branch-plus" as const;
-  readonly lineageCarry = "carryThrough" as const;
   readonly declaredOutputPorts: ReadonlyArray<string>;
 
   constructor(

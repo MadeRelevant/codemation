@@ -12,6 +12,7 @@ import { z } from "zod";
 import { Aggregate } from "../nodes/aggregate";
 import { Filter } from "../nodes/filter";
 import { If } from "../nodes/if";
+import type { MapDataOptions } from "../nodes/mapData";
 import { MapData } from "../nodes/mapData";
 import { Merge, type MergeMode } from "../nodes/merge";
 import { Split } from "../nodes/split";
@@ -39,16 +40,20 @@ export class WorkflowChain<TCurrentJson> {
   }
 
   map<TNextJson>(mapper: (item: TCurrentJson) => TNextJson): WorkflowChain<TNextJson>;
-  map<TNextJson>(name: string, mapper: (item: TCurrentJson) => TNextJson, id?: string): WorkflowChain<TNextJson>;
+  map<TNextJson>(
+    name: string,
+    mapper: (item: TCurrentJson) => TNextJson,
+    options?: MapDataOptions,
+  ): WorkflowChain<TNextJson>;
   map<TNextJson>(
     nameOrMapper: string | ((item: TCurrentJson) => TNextJson),
     mapperOrUndefined?: (item: TCurrentJson) => TNextJson,
-    id?: string,
+    options?: MapDataOptions,
   ): WorkflowChain<TNextJson> {
     const name = typeof nameOrMapper === "string" ? nameOrMapper : "Map data";
     const mapper = typeof nameOrMapper === "string" ? mapperOrUndefined! : nameOrMapper;
     return this.then(
-      new MapData<TCurrentJson, TNextJson>(name, (item) => mapper(item.json as TCurrentJson), id),
+      new MapData<TCurrentJson, TNextJson>(name, (item) => mapper(item.json as TCurrentJson), options),
     ) as WorkflowChain<TNextJson>;
   }
 

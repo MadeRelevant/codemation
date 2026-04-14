@@ -95,4 +95,35 @@ describe("defineNode", () => {
     const config = iconNode.create({} as Record<string, never>);
     expect(config.icon).toBe("lucide:braces");
   });
+
+  it("stores keepBinaries on created configs when defineNode enables it", () => {
+    const binaryKeepingNode = defineNode({
+      key: "authoring.keepBinaries",
+      title: "Keep binaries",
+      input: {},
+      keepBinaries: true,
+      execute({ input }, _context) {
+        return input;
+      },
+    });
+
+    const config = binaryKeepingNode.create({} as Record<string, never>) as Readonly<{ keepBinaries?: boolean }>;
+
+    expect(config.keepBinaries).toBe(true);
+  });
+
+  it("defaults keepBinaries to false for helper-defined nodes", () => {
+    const defaultNode = defineNode({
+      key: "authoring.defaultKeepBinaries",
+      title: "Default keep binaries",
+      input: {},
+      execute({ input }, _context) {
+        return input;
+      },
+    });
+
+    const config = defaultNode.create({} as Record<string, never>) as Readonly<{ keepBinaries?: boolean }>;
+
+    expect(config.keepBinaries).toBe(false);
+  });
 });

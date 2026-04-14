@@ -45,11 +45,11 @@ class WorkflowDebugSessionIntegrationFixture {
       name: "HTTP debug session workflow",
     })
       .trigger(new ManualTrigger("Node 1", [{ json: {} }], this.nodeIds[0]))
-      .then(new MapData("Node 2", (item) => item.json, this.nodeIds[1]))
-      .then(new MapData("Node 3", (item) => item.json, this.nodeIds[2]))
-      .then(new MapData("Node 4", (item) => item.json, this.nodeIds[3]))
-      .then(new MapData("Node 5", (item) => item.json, this.nodeIds[4]))
-      .then(new MapData("Node 6", (item) => item.json, this.nodeIds[5]))
+      .then(new MapData("Node 2", (item) => item.json, { id: this.nodeIds[1] }))
+      .then(new MapData("Node 3", (item) => item.json, { id: this.nodeIds[2] }))
+      .then(new MapData("Node 4", (item) => item.json, { id: this.nodeIds[3] }))
+      .then(new MapData("Node 5", (item) => item.json, { id: this.nodeIds[4] }))
+      .then(new MapData("Node 6", (item) => item.json, { id: this.nodeIds[5] }))
       .build();
   }
 
