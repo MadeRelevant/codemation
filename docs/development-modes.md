@@ -48,6 +48,10 @@ Framework UI HMR is opt-in via `codemation dev --watch-framework` (as in `apps/t
 - Repo root `pnpm run dev:framework`: explicit alias for that same source-first framework-author workflow.
 - Repo root `pnpm run dev:framework:warm`: compatibility alias to `dev:framework` (no extra warm build step).
 
+## Packaged agent skills
+
+The directory `.agents/skills/extracted` holds **framework-managed** Codemation skills (`codemation-*` skill folders) shipped with `@codemation/agent-skills`. When you run `codemation dev`, `codemation build`, `codemation serve web`, or `codemation dev:plugin`, the CLI refreshes that folder from the version of `@codemation/agent-skills` that your installed `@codemation/cli` depends on—so upgrading the CLI and running one of those commands updates skills without copying files by hand. Use `codemation skills sync` to refresh skills only. Keep project-local skills outside `extracted` (for example as sibling folders under `.agents/skills`).
+
 ## Tests
 
 See [dev-tooling-tests.md](./dev-tooling-tests.md) for CLI and runtime tests.

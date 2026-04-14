@@ -30,12 +30,14 @@ import { NextHostConsumerServerCommandFactory } from "../runtime/NextHostConsume
 import { TypeScriptRuntimeConfigurator } from "../runtime/TypeScriptRuntimeConfigurator";
 
 import type { DevMode, DevMutableProcessState, DevPreparedRuntime } from "./devCommandLifecycle.types";
+import type { ConsumerAgentSkillsSyncService } from "../skills/ConsumerAgentSkillsSyncService";
 
 export class DevCommand {
   private readonly require = createRequire(import.meta.url);
 
   constructor(
     private readonly pathResolver: CliPathResolver,
+    private readonly consumerAgentSkillsSyncService: ConsumerAgentSkillsSyncService,
     private readonly tsRuntime: TypeScriptRuntimeConfigurator,
     private readonly devLockFactory: DevLockFactory,
     private readonly devSourceWatcherFactory: DevSourceWatcherFactory,
@@ -67,6 +69,7 @@ export class DevCommand {
     }>,
   ): Promise<void> {
     const paths = await this.pathResolver.resolve(args.consumerRoot);
+    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot);
     const commandName = args.commandName ?? "dev";
     const previousDevelopmentServerToken = process.env.CODEMATION_DEV_SERVER_TOKEN;
     this.devCliBannerRenderer.renderBrandHeader();

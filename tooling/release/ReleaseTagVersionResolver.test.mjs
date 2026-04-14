@@ -183,18 +183,18 @@ class ReleaseTagVersionResolverTest {
   }
 
   async #initializeGitRepository(workspaceDirectory) {
-    await this.execFileAsync("git", ["init"], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["config", "user.name", "Codemation Tests"], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["config", "user.email", "tests@codemation.local"], { cwd: workspaceDirectory });
+    await this.#execGit(["init"], workspaceDirectory);
+    await this.#execGit(["config", "user.name", "Codemation Tests"], workspaceDirectory);
+    await this.#execGit(["config", "user.email", "tests@codemation.local"], workspaceDirectory);
   }
 
   async #commitAll(workspaceDirectory, message) {
-    await this.execFileAsync("git", ["add", "."], { cwd: workspaceDirectory });
-    await this.execFileAsync("git", ["commit", "-m", message], { cwd: workspaceDirectory });
+    await this.#execGit(["add", "."], workspaceDirectory);
+    await this.#execGit(["commit", "-m", message], workspaceDirectory);
   }
 
   async #createTag(workspaceDirectory, tagName) {
-    await this.execFileAsync("git", ["tag", tagName], { cwd: workspaceDirectory });
+    await this.#execGit(["tag", tagName], workspaceDirectory);
   }
 
   async #writePackage({ workspaceDirectory, directoryName, packageName, version }) {
@@ -206,6 +206,27 @@ class ReleaseTagVersionResolverTest {
       JSON.stringify({ name: packageName, version }, null, 2),
       "utf8",
     );
+  }
+
+  async #execGit(args, workspaceDirectory) {
+    await this.execFileAsync("git", args, {
+      cwd: workspaceDirectory,
+      env: this.#createGitEnvironment(),
+    });
+  }
+
+  #createGitEnvironment() {
+    const environment = { ...process.env };
+
+    for (const key of Object.keys(environment)) {
+      if (!key.startsWith("GIT_")) {
+        continue;
+      }
+
+      delete environment[key];
+    }
+
+    return environment;
   }
 }
 

@@ -10,6 +10,7 @@ import { DevCommand } from "./commands/DevCommand";
 import { DevPluginCommand } from "./commands/DevPluginCommand";
 import { ServeWebCommand } from "./commands/ServeWebCommand";
 import { ServeWorkerCommand } from "./commands/ServeWorkerCommand";
+import { SkillsSyncCommand } from "./commands/SkillsSyncCommand";
 import { UserCreateCommand } from "./commands/UserCreateCommand";
 import { UserListCommand } from "./commands/UserListCommand";
 import { ConsumerCliTsconfigPreparation } from "./consumer/ConsumerCliTsconfigPreparation";
@@ -45,6 +46,8 @@ import { CliDatabaseUrlDescriptor } from "./user/CliDatabaseUrlDescriptor";
 import { UserAdminCliBootstrap } from "./user/UserAdminCliBootstrap";
 import { UserAdminCliOptionsParser } from "./user/UserAdminCliOptionsParser";
 import { UserAdminConsumerDotenvLoader } from "./user/UserAdminConsumerDotenvLoader";
+import { AgentSkillsExtractorFactory } from "./skills/AgentSkillsExtractorFactory";
+import { ConsumerAgentSkillsSyncService } from "./skills/ConsumerAgentSkillsSyncService";
 
 const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
 
@@ -86,8 +89,10 @@ export class CliProgramFactory {
     const consumerOutputBuilderFactory = new ConsumerOutputBuilderFactory();
     const consumerBuildArtifactsPublisher = new ConsumerBuildArtifactsPublisher();
     const devTrackedProcessTreeKiller = new DevTrackedProcessTreeKiller();
+    const consumerAgentSkillsSyncService = new ConsumerAgentSkillsSyncService(new AgentSkillsExtractorFactory());
     const devCommand = new DevCommand(
       pathResolver,
+      consumerAgentSkillsSyncService,
       tsRuntime,
       new DevLockFactory(),
       new DevSourceWatcherFactory(),
@@ -114,15 +119,17 @@ export class CliProgramFactory {
       new BuildCommand(
         cliLogger,
         pathResolver,
+        consumerAgentSkillsSyncService,
         consumerOutputBuilderFactory,
         pluginDiscovery,
         consumerBuildArtifactsPublisher,
         tsRuntime,
       ),
       devCommand,
-      new DevPluginCommand(new PluginDevConfigFactory(), devCommand),
+      new DevPluginCommand(pathResolver, consumerAgentSkillsSyncService, new PluginDevConfigFactory(), devCommand),
       new ServeWebCommand(
         pathResolver,
+        consumerAgentSkillsSyncService,
         new CodemationConsumerConfigLoader(),
         tsRuntime,
         sourceMapNodeOptions,
@@ -131,6 +138,7 @@ export class CliProgramFactory {
         nextHostConsumerServerCommandFactory,
       ),
       new ServeWorkerCommand(pathResolver, appConfigLoader, new AppContainerFactory()),
+      new SkillsSyncCommand(consumerAgentSkillsSyncService),
       new DbMigrateCommand(databaseMigrationsApplyService),
       new UserCreateCommand(new LocalUserCreator(userAdminBootstrap), userAdminCliOptionsParser),
       new UserListCommand(cliLogger, userAdminBootstrap, new CliDatabaseUrlDescriptor(), userAdminCliOptionsParser),

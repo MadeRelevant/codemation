@@ -24,6 +24,7 @@ export class ScaffoldedCreateCodemationProject {
   private static readonly adminEmail = "playwright-auth@example.com";
   private static readonly adminPassword = "playwright12345";
   private static readonly packedDependencyPackageDirectories = [
+    "packages/agent-skills",
     "packages/core",
     "packages/core-nodes",
     "packages/core-nodes-gmail",
@@ -33,6 +34,7 @@ export class ScaffoldedCreateCodemationProject {
     "packages/cli",
   ] as const;
   private static readonly workspaceDependencyNames = [
+    "@codemation/agent-skills",
     "@codemation/cli",
     "@codemation/core",
     "@codemation/core-nodes",
@@ -205,17 +207,23 @@ export class ScaffoldedCreateCodemationProject {
     packageJson.dependencies ??= {};
     packageJson.devDependencies ??= {};
     for (const [dependencyName, dependencyValue] of Object.entries(packedDependencies)) {
+      const relativeDependencyValue = this.toRelativeTarballSpecifier(dependencyValue);
       if (packageJson.dependencies[dependencyName]) {
-        packageJson.dependencies[dependencyName] = dependencyValue;
+        packageJson.dependencies[dependencyName] = relativeDependencyValue;
       }
       if (packageJson.devDependencies[dependencyName]) {
-        packageJson.devDependencies[dependencyName] = dependencyValue;
+        packageJson.devDependencies[dependencyName] = relativeDependencyValue;
       }
     }
     packageJson.pnpm ??= {};
     packageJson.pnpm.overrides = {
       ...(packageJson.pnpm.overrides ?? {}),
-      ...packedDependencies,
+      ...Object.fromEntries(
+        Object.entries(packedDependencies).map(([dependencyName, dependencyValue]) => [
+          dependencyName,
+          this.toRelativeTarballSpecifier(dependencyValue),
+        ]),
+      ),
     };
     await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
   }
@@ -263,6 +271,11 @@ export class ScaffoldedCreateCodemationProject {
 
   private tarballFileName(packageName: string, version: string): string {
     return `${packageName.replace(/^@/, "").replace(/\//g, "-")}-${version}.tgz`;
+  }
+
+  private toRelativeTarballSpecifier(tarballPath: string): string {
+    const normalizedTarballPath = tarballPath.startsWith("file:") ? tarballPath.slice("file:".length) : tarballPath;
+    return `file:${path.relative(this.rootPath(), normalizedTarballPath).replaceAll(path.sep, "/")}`;
   }
 
   private async readPackageJson(packageJsonPath: string): Promise<{

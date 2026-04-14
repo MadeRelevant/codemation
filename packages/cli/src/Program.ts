@@ -11,6 +11,7 @@ import { DevCommand } from "./commands/DevCommand";
 import type { DevPluginCommand } from "./commands/DevPluginCommand";
 import { ServeWebCommand } from "./commands/ServeWebCommand";
 import { ServeWorkerCommand } from "./commands/ServeWorkerCommand";
+import { SkillsSyncCommand } from "./commands/SkillsSyncCommand";
 import { UserCreateCommand } from "./commands/UserCreateCommand";
 import { UserListCommand } from "./commands/UserListCommand";
 
@@ -22,6 +23,7 @@ export class CliProgram {
     private readonly devPluginCommand: DevPluginCommand,
     private readonly serveWebCommand: ServeWebCommand,
     private readonly serveWorkerCommand: ServeWorkerCommand,
+    private readonly skillsSyncCommand: SkillsSyncCommand,
     private readonly dbMigrateCommand: DbMigrateCommand,
     private readonly userCreateCommand: UserCreateCommand,
     private readonly userListCommand: UserListCommand,
@@ -78,6 +80,18 @@ export class CliProgram {
         await this.devPluginCommand.execute({
           pluginRoot: resolveConsumerRoot(opts.pluginRoot),
         });
+      });
+
+    const skills = program.command("skills").description("Codemation packaged agent skills.");
+
+    skills
+      .command("sync")
+      .description(
+        "Refresh packaged skills under `.agents/skills/extracted` (framework-managed; overwrites packaged codemation-* skills).",
+      )
+      .option("--consumer-root <path>", "Path to the consumer or plugin project root (defaults to cwd)")
+      .action(async (opts: Readonly<{ consumerRoot?: string }>) => {
+        await this.skillsSyncCommand.execute(resolveConsumerRoot(opts.consumerRoot));
       });
 
     const serve = program.command("serve").description("Run production web or worker processes (no dev watchers).");
