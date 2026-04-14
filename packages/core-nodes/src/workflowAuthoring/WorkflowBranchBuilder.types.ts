@@ -10,6 +10,7 @@ import type {
 import { z } from "zod";
 import { Aggregate } from "../nodes/aggregate";
 import { Filter } from "../nodes/filter";
+import type { MapDataOptions } from "../nodes/mapData";
 import { MapData } from "../nodes/mapData";
 import { Split } from "../nodes/split";
 import { Wait } from "../nodes/wait";
@@ -31,17 +32,17 @@ export class WorkflowBranchBuilder<TCurrentJson> {
   map<TNextJson>(
     name: string,
     mapper: (item: TCurrentJson) => TNextJson,
-    id?: string,
+    options?: MapDataOptions,
   ): WorkflowBranchBuilder<TNextJson>;
   map<TNextJson>(
     nameOrMapper: string | ((item: TCurrentJson) => TNextJson),
     mapperOrUndefined?: (item: TCurrentJson) => TNextJson,
-    id?: string,
+    options?: MapDataOptions,
   ): WorkflowBranchBuilder<TNextJson> {
     const name = typeof nameOrMapper === "string" ? nameOrMapper : "Map data";
     const mapper = typeof nameOrMapper === "string" ? mapperOrUndefined! : nameOrMapper;
     return this.then(
-      new MapData<TCurrentJson, TNextJson>(name, (item) => mapper(item.json as TCurrentJson), id),
+      new MapData<TCurrentJson, TNextJson>(name, (item) => mapper(item.json as TCurrentJson), options),
     ) as WorkflowBranchBuilder<TNextJson>;
   }
 

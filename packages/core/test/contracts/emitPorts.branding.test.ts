@@ -22,7 +22,7 @@ describe("emitPorts branding", () => {
     const out = normalizer.normalizeExecuteResult({
       baseItem: { json: {} },
       raw: emitted,
-      carry: "emitOnly",
+      behavior: { keepBinaries: false },
     });
 
     assert.deepEqual(out, { main: [{ json: { ok: true } }] });

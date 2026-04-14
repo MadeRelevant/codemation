@@ -25,7 +25,7 @@ class AuthEnforcementFixture {
       name: "Auth enforcement",
     })
       .trigger(new ManualTrigger("t", "trigger"))
-      .then(new MapData("m", (item) => item.json, "map"))
+      .then(new MapData("m", (item) => item.json, { id: "map" }))
       .build();
   }
 

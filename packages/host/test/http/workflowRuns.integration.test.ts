@@ -65,7 +65,7 @@ class WorkflowRunsIntegrationFixture {
       name: "HTTP integration workflow",
     })
       .trigger(new ManualTrigger("Manual trigger", this.triggerNodeId))
-      .then(new MapData("Return payload", (item) => item.json, this.mapNodeId))
+      .then(new MapData("Return payload", (item) => item.json, { id: this.mapNodeId }))
       .build();
   }
 

@@ -14,11 +14,20 @@ Runnable workflow nodes implement a single **`execute(args)`** method. The engin
 - **`args.input`** — result of `inputSchema.parse(item.json)`; **`item.json`** stays the persisted wire payload.
 - **`args.item`**, **`args.itemIndex`**, **`args.items`** — activation context.
 - **`itemValue(...)` config fields** — resolved per item before execution, including runnable config like agent `messages`.
-- **Return** — JSON (replaces `item.json` on outputs), a **non-empty JSON array** to fan out on `main`, **`emitPorts({ port: items })`** for multi-port routing, or an **item-shaped object** (with `json`) to carry binaries/lineage.
+- **Return** — JSON (replaces `item.json` on outputs), a **non-empty JSON array** to fan out on `main`, **`emitPorts({ port: items })`** for multi-port routing, or an **item-shaped object** (with `json`) when you need explicit control over `binary`, `meta`, or `paired`.
 
 ## Routers (If, Switch)
 
-Branching nodes emit on **named output ports**. They tag items with **`meta._cm.originIndex`** (and `paired`) so downstream **Merge** nodes can align rows when branches reconverge.
+Branching nodes emit on **named output ports**. They preserve item state by returning explicit items, and they tag items with **`meta._cm.originIndex`** (and `paired`) so downstream **Merge** nodes can align rows when branches reconverge.
+
+## Binary preservation
+
+Transform nodes replace **`item.json`** by default. They only preserve inbound **`binary`** when the node opts into it, such as:
+
+- `new MapData(..., { keepBinaries: true })` — this is the default for `MapData`
+- `defineNode({ ..., keepBinaries: true })`
+
+If you need precise control over **`binary`**, **`meta`**, or **`paired`**, return explicit item-shaped results instead of relying on a generic carry policy.
 
 ## Fan-in merge
 

@@ -37,7 +37,7 @@ export default createWorkflowBuilder({ id: "wf.webhook.normal", name: "Webhook n
           amount: payload.json?.amount,
         };
       },
-      "format_response",
+      { id: "format_response" },
     ),
   )
   .build();

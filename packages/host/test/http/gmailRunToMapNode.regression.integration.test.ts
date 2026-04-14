@@ -131,7 +131,7 @@ class GmailRunToMapNodeRegressionFixture {
           this.gmailTriggerNodeId,
         ),
       )
-      .then(new MapData("Map data", (item) => item.json, this.mapNodeId))
+      .then(new MapData("Map data", (item) => item.json, { id: this.mapNodeId }))
       .build();
   }
 

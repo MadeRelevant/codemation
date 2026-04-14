@@ -1,10 +1,4 @@
-import type {
-  Item,
-  LineageCarryPolicy,
-  NodeExecutionContext,
-  NodeOutputs,
-  RunnableNodeExecuteArgs,
-} from "@codemation/core";
+import type { Item, NodeExecutionContext, NodeOutputs, RunnableNodeExecuteArgs } from "@codemation/core";
 import { NodeOutputNormalizer } from "../../core/src/execution/NodeOutputNormalizer.ts";
 import { z } from "zod";
 
@@ -17,7 +11,7 @@ export async function runPerItemLikeEngine<TConfig extends { name: string }>(
   },
   batchItems: Item[],
   ctx: NodeExecutionContext<TConfig>,
-  carry: LineageCarryPolicy = "emitOnly",
+  keepBinaries = false,
 ): Promise<NodeOutputs> {
   const norm = new NodeOutputNormalizer();
   const byPort: Partial<Record<string, Item[]>> = {};
@@ -33,7 +27,7 @@ export async function runPerItemLikeEngine<TConfig extends { name: string }>(
         ctx,
       }),
     );
-    const normalized = norm.normalizeExecuteResult({ baseItem: item, raw, carry });
+    const normalized = norm.normalizeExecuteResult({ baseItem: item, raw, behavior: { keepBinaries } });
     for (const [port, batch] of Object.entries(normalized)) {
       if (!batch || batch.length === 0) {
         continue;

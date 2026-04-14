@@ -9,6 +9,7 @@ import {
   NodeExecutorFactory,
   NodeInstanceFactoryFactory,
   NodeOutputNormalizer,
+  RunnableOutputBehaviorResolver,
 } from "../../execution";
 import {
   EngineFactory,
@@ -45,6 +46,9 @@ export class EngineRuntimeRegistrar {
     }
     if (!container.isRegistered(NodeOutputNormalizer, true)) {
       container.registerSingleton(NodeOutputNormalizer, NodeOutputNormalizer);
+    }
+    if (!container.isRegistered(RunnableOutputBehaviorResolver, true)) {
+      container.registerSingleton(RunnableOutputBehaviorResolver, RunnableOutputBehaviorResolver);
     }
     container.register(EngineExecutionLimitsPolicyFactory, { useClass: EngineExecutionLimitsPolicyFactory });
     container.register(NodeInstanceFactoryFactory, { useClass: NodeInstanceFactoryFactory });
@@ -101,7 +105,11 @@ export class EngineRuntimeRegistrar {
           .create(dependencyContainer.resolve(DefaultAsyncSleeper));
         return dependencyContainer
           .resolve(NodeExecutorFactory)
-          .create(dependencyContainer.resolve(CoreTokens.WorkflowNodeInstanceFactory), retryRunner);
+          .create(
+            dependencyContainer.resolve(CoreTokens.WorkflowNodeInstanceFactory),
+            retryRunner,
+            dependencyContainer.resolve(RunnableOutputBehaviorResolver),
+          );
       }),
     });
   }

@@ -111,7 +111,7 @@ class CredentialIntegrationFixture {
       name: "Credential binding probe workflow",
     })
       .trigger(new ManualTrigger("Start", "trig"))
-      .then(new CredentialBindingProbeMap("Probe", (item) => item.json, "probe-node-1"))
+      .then(new CredentialBindingProbeMap("Probe", (item) => item.json, { id: "probe-node-1" }))
       .build();
   }
 

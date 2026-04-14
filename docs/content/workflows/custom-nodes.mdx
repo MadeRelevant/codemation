@@ -93,8 +93,30 @@ Downstream nodes read **`item.json`** on each output port. That value should be 
 
 - **Prefer** setting `json` to the **actual output DTO** for that step (same idea as built-in **`HttpRequest`**: its output type is response metadata only; it does not pass arbitrary input fields through).
 - **Avoid** the recurring anti-pattern of returning `{ ...item, json: { ...inputJson, result: <actual> } }` when downstream only needs `<actual>`. Use `json: <actual>` (and only merge or spread input when the node is intentionally an **enrichment** that keeps the same top-level schema).
-- You may still forward **`binary`**, **`meta`**, or **`paired`** from the input item when you need attachments or lineage; that is independent of keeping **`json`** honest.
+- Use **`keepBinaries: true`** on transform helpers such as `defineNode(...)` when you want plain JSON returns to inherit inbound binaries.
+- Return an explicit item-shaped object when you need precise control over **`binary`**, **`meta`**, or **`paired`**.
 - **Pass-through** (`return { main: items }`) is valid for **merge / route / no-op** nodes, not as a default for every transform.
+
+### `defineNode(...)` with binary preservation
+
+```ts
+const normalizeInvoiceNode = defineNode({
+  key: "invoice.normalize",
+  title: "Normalize invoice",
+  keepBinaries: true,
+  input: {
+    source: "string",
+  },
+  execute({ input }, { config }) {
+    return {
+      source: config.source,
+      invoiceId: String(input["id"] ?? ""),
+    };
+  },
+});
+```
+
+That node returns plain JSON, but inbound binaries are still preserved because `keepBinaries` is enabled. If you need to replace or clear binaries, return an explicit item-shaped result instead.
 
 ## Trigger item shape
 

@@ -49,7 +49,7 @@ export class WorkflowDetailRuntimeFixtureFactory {
     }).trigger(new ManualTrigger(nodeIds[0] ?? "Trigger", [{ json: {} }], nodeIds[0] ?? "Trigger"));
     for (const [index, nodeId] of nodeIds.slice(1).entries()) {
       builder = builder.then(
-        new MapData(nodeId, (item) => this.createNodeOutput(item.json, nodeId, index + 1), nodeId),
+        new MapData(nodeId, (item) => this.createNodeOutput(item.json, nodeId, index + 1), { id: nodeId }),
       );
     }
     return builder.build();
