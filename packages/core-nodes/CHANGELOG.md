@@ -1,5 +1,11 @@
 # @codemation/core-nodes
 
+## Unreleased
+
+### Patch Changes
+
+- **`AIAgentNode`**: resolve **`CallableToolConfig`** (`toolKind: "callable"`) alongside node-backed and plugin tools; validate outputs with the configured Zod schemas.
+
 ## 0.1.1
 
 ### Patch Changes

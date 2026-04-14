@@ -1,5 +1,11 @@
 # @codemation/core
 
+## Unreleased
+
+### Minor Changes
+
+- Add **`callableTool(...)`** (exported from authoring; same behavior as **`CallableToolFactory.callableTool(...)`**), **`CallableToolConfig`**, and **`CallableToolKindToken`** for inline Zod-typed agent tools (optional **`credentialRequirements`**, structural **`toolKind: "callable"`** for snapshots). Same runtime contract as other agent tools; no implicit merge of workflow **`item.json`** into tool input.
+
 ## 0.5.0
 
 ### Minor Changes

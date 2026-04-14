@@ -212,6 +212,10 @@ export interface AgentNodeConfig<TInputJson = unknown, TOutputJson = unknown> ex
 export type AgentAttachmentRole = "languageModel" | "tool" | "nestedAgent";
 
 export { NodeBackedToolConfig } from "./NodeBackedToolConfig";
+export { CallableToolConfig } from "./CallableToolConfig";
+export type { CallableToolConfigOptions, CallableToolExecuteHandler } from "./CallableToolConfig";
+export { CallableToolFactory } from "./CallableToolFactory";
+export { CallableToolKindToken } from "./CallableToolKindToken";
 export { AgentToolFactory } from "./AgentToolFactory";
 export { AgentMessageConfigNormalizer } from "./AgentMessageConfigNormalizerFactory";
 export { AgentConfigInspector } from "./AgentConfigInspectorFactory";

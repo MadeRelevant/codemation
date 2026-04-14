@@ -12,3 +12,4 @@ export type {
 export { defineBatchNode, defineNode } from "./defineNode.types";
 export type { DefineCredentialOptions } from "./defineCredential.types";
 export { defineCredential } from "./defineCredential.types";
+export { callableTool } from "./callableTool.types";

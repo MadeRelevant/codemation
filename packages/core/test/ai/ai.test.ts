@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
+import { z } from "zod";
 
 import { itemValue } from "../../src/contracts/itemValue";
 import { AgentConfigInspector } from "../../src/ai/AgentConfigInspectorFactory";
 import { AgentMessageConfigNormalizer } from "../../src/ai/AgentMessageConfigNormalizerFactory";
 import { AgentConnectionNodeCollector } from "../../src/ai/AgentConnectionNodeCollector";
 import { AgentToolFactory } from "../../src/ai/AgentToolFactory";
+import { CallableToolFactory } from "../../src/ai/CallableToolFactory";
+import { callableTool } from "../../src/authoring/callableTool.types";
+import { CallableToolKindToken } from "../../src/ai/CallableToolKindToken";
 import { NodeBackedToolConfig } from "../../src/ai/NodeBackedToolConfig";
 import type { AgentNodeConfig, ToolConfig } from "../../src/ai/AiHost";
 import { ConnectionNodeIdFactory } from "../../src/workflow/definition/ConnectionNodeIdFactory";
@@ -165,6 +169,139 @@ test("AgentMessageConfigNormalizer falls back to config when input has no messag
   };
   const dtos = AgentMessageConfigNormalizer.resolveFromInputOrConfig({ topic: "ignored" }, config, args);
   assert.deepEqual(dtos, [{ role: "user", content: "fallback" }]);
+});
+
+test("CallableToolKindToken is a stable class token", () => {
+  assert.equal(typeof CallableToolKindToken, "function");
+});
+
+test("callableTool matches CallableToolFactory.callableTool for compatibility", () => {
+  const options = {
+    name: "alias_check",
+    inputSchema: z.object({ n: z.number() }),
+    outputSchema: z.object({ doubled: z.number() }),
+    execute: async ({ input }) => ({ doubled: input.n * 2 }),
+  };
+  const fromHelper = callableTool(options);
+  const fromFactory = CallableToolFactory.callableTool(options);
+  assert.equal(fromHelper.name, fromFactory.name);
+  assert.equal(fromHelper.toolKind, fromFactory.toolKind);
+  assert.ok(fromHelper.type === fromFactory.type);
+});
+
+test("CallableToolConfig getInputSchema and getOutputSchema return configured Zod schemas", () => {
+  const inputSchema = z.object({ a: z.number() });
+  const outputSchema = z.object({ b: z.string() });
+  const tool = callableTool({
+    name: "getters",
+    inputSchema,
+    outputSchema,
+    execute: async () => ({ b: "ok" }),
+  });
+  assert.ok(tool.getInputSchema() === inputSchema);
+  assert.ok(tool.getOutputSchema() === outputSchema);
+});
+
+test("callableTool builds CallableToolConfig with stable toolKind and token", () => {
+  const tool = callableTool({
+    name: "demo",
+    inputSchema: z.object({ n: z.number() }),
+    outputSchema: z.object({ doubled: z.number() }),
+    execute: async ({ input }) => ({ doubled: input.n * 2 }),
+  });
+  assert.equal(tool.toolKind, "callable");
+  assert.ok(tool.type === CallableToolKindToken);
+  assert.deepEqual(tool.getCredentialRequirements(), []);
+});
+
+test("CallableToolConfig exposes credential slots", () => {
+  const tool = callableTool({
+    name: "with_creds",
+    description: "API helper",
+    presentation: { label: "With creds", icon: "lucide:key" as const },
+    inputSchema: z.object({}),
+    outputSchema: z.object({ ok: z.boolean() }),
+    credentialRequirements: [{ slotKey: "api", label: "API", acceptedTypes: ["openai_api_key"] }],
+    execute: async () => ({ ok: true }),
+  });
+  assert.equal(tool.getCredentialRequirements().length, 1);
+  assert.equal(tool.getCredentialRequirements()[0]?.slotKey, "api");
+  assert.equal(tool.description, "API helper");
+  assert.equal(tool.presentation?.label, "With creds");
+});
+
+test("CallableToolConfig.executeTool parses input and output schemas", async () => {
+  const tool = callableTool({
+    name: "math",
+    inputSchema: z.object({ a: z.number() }),
+    outputSchema: z.object({ sum: z.number() }),
+    execute: async ({ input }) => ({ sum: input.a + 1 }),
+  });
+  const out = await tool.executeTool({
+    config: tool,
+    input: { a: 2 },
+    item: { json: {} },
+    itemIndex: 0,
+    items: [{ json: {} }],
+    ctx: {} as never,
+  });
+  assert.deepEqual(out, { sum: 3 });
+});
+
+test("CallableToolConfig.executeTool rejects output that fails outputSchema", async () => {
+  const tool = callableTool({
+    name: "bad_out",
+    inputSchema: z.object({}),
+    outputSchema: z.object({ out: z.string() }),
+    execute: async () => ({ out: 123 }) as unknown as { out: string },
+  });
+  await assert.rejects(
+    async () =>
+      await tool.executeTool({
+        config: tool,
+        input: {},
+        item: { json: {} },
+        itemIndex: 0,
+        items: [{ json: {} }],
+        ctx: {} as never,
+      }),
+    /Invalid/,
+  );
+});
+
+test("structural detection: plain-object callable tool matches toolKind callable", () => {
+  const live = callableTool({
+    name: "plain",
+    inputSchema: z.object({ x: z.string() }),
+    outputSchema: z.object({ y: z.string() }),
+    execute: async ({ input }) => ({ y: input.x }),
+  });
+  const plain = JSON.parse(JSON.stringify(live)) as Record<string, unknown>;
+  assert.equal(plain.toolKind, "callable");
+  assert.equal(plain.name, "plain");
+});
+
+test("AgentConnectionNodeCollector treats callable tools as tool role not nestedAgent", () => {
+  const token = { name: "T" } as AgentNodeConfig<any, any>["type"];
+  const chatModelType = token as unknown as AgentNodeConfig<any, any>["chatModel"]["type"];
+  const callable = callableTool({
+    name: "inline_tool",
+    inputSchema: z.object({ q: z.string() }),
+    outputSchema: z.object({ a: z.string() }),
+    execute: async ({ input }) => ({ a: input.q }),
+  });
+  const agent: AgentNodeConfig<any, any> = {
+    kind: "node",
+    type: token,
+    messages: [{ role: "user", content: "hi" }],
+    chatModel: { name: "llm", type: chatModelType },
+    tools: [callable],
+  };
+  const collected = AgentConnectionNodeCollector.collect("root", agent);
+  const toolDesc = collected.find(
+    (c) => c.nodeId === ConnectionNodeIdFactory.toolConnectionNodeId("root", "inline_tool"),
+  );
+  assert.equal(toolDesc?.role, "tool");
 });
 
 test("AgentMessageConfigNormalizer rejects raw itemValue in messages (must be resolved by engine)", () => {

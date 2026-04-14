@@ -106,6 +106,16 @@ Use a normal `ToolConfig` + `Tool` implementation when:
 - the input and output shape is tool-specific
 - the runtime does not naturally belong in a reusable workflow node
 
+### When to use a callable tool (inline DSL)
+
+Use `callableTool(...)` from `@codemation/core` when:
+
+- the logic is **app-local** and small (deterministic helpers, formatting, merging fields)
+- you want **one object** with `inputSchema`, `outputSchema`, and `execute` without a separate `@tool()` class
+- you may still declare **`credentialRequirements`** on the callable config for credential slots
+
+Callable tools are **not** nested agents: they always attach as normal tools. They do **not** auto-merge the current workflow item into tool input (unlike the default `AgentToolFactory.asTool(...)` behavior for nested agent nodes). Use `execute({ input, item, ctx, ... })` and merge explicitly when needed.
+
 ### When to use a node-backed tool
 
 Use a node-backed tool when you already have a runnable node and want to expose it to the agent without writing a second adapter class.

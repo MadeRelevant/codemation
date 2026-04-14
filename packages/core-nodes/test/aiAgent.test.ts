@@ -24,6 +24,7 @@ import {
   CoreTokens,
   ItemValueResolver,
   NodeOutputNormalizer,
+  callableTool,
   container as tsyringeContainer,
 } from "@codemation/core";
 
@@ -428,6 +429,107 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
   assert.deepEqual(capture.snapshotBoundToolNames(), [["subject_tool", "body_tool"]]);
 });
 
+test("AIAgentNode executes callable tools and emits synthetic tool connection states", async () => {
+  const capture = new ScriptedChatModelCapture();
+  const callable = callableTool({
+    name: "double_n",
+    description: "Doubles n",
+    inputSchema: z.object({ n: z.number() }),
+    outputSchema: z.object({ doubled: z.number() }),
+    execute: async ({ input }) => ({ doubled: input.n * 2 }),
+  });
+  const config = new AIAgent({
+    name: "Callable tool agent",
+    chatModel: new ScriptedChatModelConfig(
+      "Scripted model",
+      [
+        ToolCallResponseFactory.toolCall("c1", "double_n", { n: 3 }),
+        {
+          content: JSON.stringify({
+            doubledFromTool: 6,
+            done: true,
+          }),
+        },
+      ],
+      capture,
+    ),
+    messages: [
+      { role: "system", content: "Call double_n once then return strict JSON only." },
+      { role: "user", content: ({ item }) => JSON.stringify(item.json ?? {}) },
+    ],
+    tools: [callable],
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  const outputs = await rig.execute([{ json: { seed: 1 } }], "run_callable", "agent_callable", "act_callable");
+
+  assert.deepEqual(outputs.main?.[0]?.json, {
+    doubledFromTool: 6,
+    done: true,
+  });
+  const toolNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("agent_callable", "double_n");
+  assert.deepEqual(rig.nodeState.queuedInputsByNodeId.get(toolNodeId)?.in?.[0]?.json, { n: 3 });
+  assert.ok(rig.nodeState.events.includes(`completed:${toolNodeId}`));
+  assert.equal(capture.snapshotBoundToolNames()[0]?.[0], "double_n");
+});
+
+test("AIAgentNode callable tool uses item only when execute reads it explicitly", async () => {
+  const capture = new ScriptedChatModelCapture();
+  const callable = callableTool({
+    name: "merge_explicit",
+    inputSchema: z.object({ hint: z.string() }),
+    outputSchema: z.object({ combined: z.string() }),
+    execute: async ({ input, item }) => ({
+      combined: `${String((item.json as { topic?: unknown }).topic ?? "")}:${input.hint}`,
+    }),
+  });
+  const config = new AIAgent({
+    name: "Explicit merge",
+    chatModel: new ScriptedChatModelConfig(
+      "Scripted model",
+      [ToolCallResponseFactory.toolCall("m1", "merge_explicit", { hint: "x" }), { content: '{"ok":true}' }],
+      capture,
+    ),
+    messages: [
+      { role: "system", content: "Use merge_explicit." },
+      { role: "user", content: "go" },
+    ],
+    tools: [callable],
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  await rig.execute([{ json: { topic: "T1" } }], "run_merge", "agent_merge", "act_merge");
+
+  const toolNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("agent_merge", "merge_explicit");
+  assert.deepEqual(rig.nodeState.completedOutputsByNodeId.get(toolNodeId)?.main?.[0]?.json, {
+    combined: "T1:x",
+  });
+});
+
+test("AIAgentNode fails callable tool when outputSchema validation fails", async () => {
+  const config = new AIAgent({
+    name: "Bad callable output",
+    chatModel: new ScriptedChatModelConfig("Scripted model", [ToolCallResponseFactory.toolCall("b1", "bad_out", {})]),
+    messages: [
+      { role: "system", content: "Use tool." },
+      { role: "user", content: "x" },
+    ],
+    tools: [
+      callableTool({
+        name: "bad_out",
+        inputSchema: z.object({}),
+        outputSchema: z.object({ out: z.string() }),
+        execute: async () => ({ out: 123 }) as { out: string },
+      }),
+    ],
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  await assert.rejects(async () => await rig.execute([{ json: {} }], "run_bad", "agent_bad", "act_bad"), /Invalid/);
+  const toolNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("agent_bad", "bad_out");
+  assert.ok(rig.nodeState.events.includes(`failed:${toolNodeId}`));
+});
+
 test("AIAgentNode executes node-backed tools with default output mapping and current-item input merging", async () => {
   const capture = new ScriptedChatModelCapture();
   const config = new AIAgent({
@@ -621,6 +723,52 @@ test("AIAgentNode marks tool connection failures when a node-backed tool throws"
         entry.connectionNodeId === toolNodeId &&
         entry.status === "failed" &&
         (entry.error as { message?: string } | undefined)?.message === "tool exploded",
+    ),
+    true,
+  );
+});
+
+test("AIAgentNode marks tool connection failures when a callable tool execute throws", async () => {
+  const config = new AIAgent({
+    name: "Failing callable tool",
+    chatModel: new ScriptedChatModelConfig("Scripted model", [
+      ToolCallResponseFactory.toolCall("fail_1", "explode_callable", { any: "value" }),
+    ]),
+    messages: [
+      { role: "system", content: "Use the tool." },
+      { role: "user", content: "Trigger failure." },
+    ],
+    tools: [
+      callableTool({
+        name: "explode_callable",
+        description: "Always fails.",
+        inputSchema: z.object({
+          any: z.string(),
+        }),
+        outputSchema: z.object({
+          ok: z.boolean(),
+        }),
+        execute: async () => {
+          throw new Error("callable exploded");
+        },
+      }),
+    ],
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  await assert.rejects(
+    async () => await rig.execute([{ json: { body: "failure" } }], "run_callable_fail"),
+    /callable exploded/,
+  );
+
+  const toolNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("agent_1", "explode_callable");
+  assert.ok(rig.nodeState.events.includes(`failed:${toolNodeId}`));
+  assert.equal(
+    rig.nodeState.connectionInvocations.some(
+      (entry) =>
+        entry.connectionNodeId === toolNodeId &&
+        entry.status === "failed" &&
+        (entry.error as { message?: string } | undefined)?.message === "callable exploded",
     ),
     true,
   );
