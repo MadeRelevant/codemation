@@ -13,6 +13,7 @@ import type {
   RunnableNodeExecuteArgs,
   Tool,
   ToolConfig,
+  LangChainStructuredOutputModelLike,
   ZodSchemaAny,
 } from "@codemation/core";
 
@@ -38,6 +39,7 @@ import { AIAgentExecutionHelpersFactory } from "./AIAgentExecutionHelpersFactory
 import { ConnectionCredentialExecutionContextFactory } from "./ConnectionCredentialExecutionContextFactory";
 import { AgentMessageFactory } from "./AgentMessageFactory";
 import { AgentOutputFactory } from "./AgentOutputFactory";
+import { AgentStructuredOutputRunner } from "./AgentStructuredOutputRunner";
 import { AgentToolCallPortMap } from "./AgentToolCallPortMapFactory";
 import { NodeBackedToolRuntime } from "./NodeBackedToolRuntime";
 import {
@@ -87,6 +89,8 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     private readonly nodeBackedToolRuntime: NodeBackedToolRuntime,
     @inject(AIAgentExecutionHelpersFactory)
     private readonly executionHelpers: AIAgentExecutionHelpersFactory,
+    @inject(AgentStructuredOutputRunner)
+    private readonly structuredOutputRunner: AgentStructuredOutputRunner,
   ) {
     this.connectionCredentialExecutionContextFactory =
       this.executionHelpers.createConnectionCredentialExecutionContextFactory(credentialSessions);
@@ -147,6 +151,35 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     const itemInputsByPort = AgentItemPortMap.fromItem(item);
     const itemScopedTools = this.createItemScopedTools(prepared.resolvedTools, ctx, item, itemIndex, items);
     const conversation: BaseMessage[] = [...this.createPromptMessages(item, itemIndex, items, ctx)];
+    if (ctx.config.outputSchema && itemScopedTools.length === 0) {
+      const structuredOutput = await this.structuredOutputRunner.resolve({
+        model: prepared.model,
+        chatModelConfig: ctx.config.chatModel,
+        schema: ctx.config.outputSchema,
+        conversation,
+        agentName: this.getAgentDisplayName(ctx),
+        nodeId: ctx.nodeId,
+        invokeTextModel: async (messages) =>
+          await this.invokeModel(
+            prepared.model,
+            prepared.languageModelConnectionNodeId,
+            messages,
+            ctx,
+            itemInputsByPort,
+            prepared.guardrails.modelInvocationOptions,
+          ),
+        invokeStructuredModel: async (structuredModel, messages) =>
+          await this.invokeStructuredModel(
+            structuredModel,
+            prepared.languageModelConnectionNodeId,
+            messages,
+            ctx,
+            itemInputsByPort,
+            prepared.guardrails.modelInvocationOptions,
+          ),
+      });
+      return this.buildOutputItem(item, structuredOutput);
+    }
     const modelWithTools = this.bindToolsToModel(prepared.model, itemScopedTools);
     const finalResponse = await this.runTurnLoopUntilFinalAnswer({
       prepared,
@@ -155,7 +188,14 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       conversation,
       modelWithTools,
     });
-    return this.buildOutputItem(item, finalResponse);
+    const outputJson = await this.resolveFinalOutputJson(
+      prepared,
+      itemInputsByPort,
+      conversation,
+      finalResponse,
+      itemScopedTools.length > 0,
+    );
+    return this.buildOutputItem(item, outputJson);
   }
 
   /**
@@ -235,11 +275,47 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     );
   }
 
-  private buildOutputItem(item: Item, finalResponse: AIMessage): Item {
-    return AgentOutputFactory.replaceJson(
-      item,
-      AgentOutputFactory.fromAgentContent(AgentMessageFactory.extractContent(finalResponse)),
-    );
+  private async resolveFinalOutputJson(
+    prepared: PreparedAgentExecution,
+    itemInputsByPort: NodeInputsByPort,
+    conversation: ReadonlyArray<BaseMessage>,
+    finalResponse: AIMessage,
+    wasToolEnabledRun: boolean,
+  ): Promise<unknown> {
+    if (!prepared.ctx.config.outputSchema) {
+      return AgentOutputFactory.fromAgentContent(AgentMessageFactory.extractContent(finalResponse));
+    }
+    return await this.structuredOutputRunner.resolve({
+      model: prepared.model,
+      chatModelConfig: prepared.ctx.config.chatModel,
+      schema: prepared.ctx.config.outputSchema,
+      conversation: wasToolEnabledRun ? [...conversation, finalResponse] : conversation,
+      rawFinalResponse: finalResponse,
+      agentName: this.getAgentDisplayName(prepared.ctx),
+      nodeId: prepared.ctx.nodeId,
+      invokeTextModel: async (messages) =>
+        await this.invokeModel(
+          prepared.model,
+          prepared.languageModelConnectionNodeId,
+          messages,
+          prepared.ctx,
+          itemInputsByPort,
+          prepared.guardrails.modelInvocationOptions,
+        ),
+      invokeStructuredModel: async (structuredModel, messages) =>
+        await this.invokeStructuredModel(
+          structuredModel,
+          prepared.languageModelConnectionNodeId,
+          messages,
+          prepared.ctx,
+          itemInputsByPort,
+          prepared.guardrails.modelInvocationOptions,
+        ),
+    });
+  }
+
+  private buildOutputItem(item: Item, outputJson: unknown): Item {
+    return AgentOutputFactory.replaceJson(item, outputJson);
   }
 
   private bindToolsToModel(
@@ -319,6 +395,40 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         status: "completed",
         managedInput: this.summarizeLlmMessages(messages),
         managedOutput: content,
+        finishedAt: new Date().toISOString(),
+      });
+      return response;
+    } catch (error) {
+      throw await this.failTrackedNodeInvocation(error, nodeId, ctx, inputsByPort, this.summarizeLlmMessages(messages));
+    }
+  }
+
+  private async invokeStructuredModel(
+    model: LangChainStructuredOutputModelLike,
+    nodeId: string,
+    messages: ReadonlyArray<BaseMessage>,
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
+    inputsByPort: NodeInputsByPort,
+    options?: AgentGuardrailConfig["modelInvocationOptions"],
+  ): Promise<unknown> {
+    await ctx.nodeState?.markQueued({ nodeId, activationId: ctx.activationId, inputsByPort });
+    await ctx.nodeState?.markRunning({ nodeId, activationId: ctx.activationId, inputsByPort });
+    try {
+      const response = await model.invoke(messages, options);
+      await ctx.nodeState?.markCompleted({
+        nodeId,
+        activationId: ctx.activationId,
+        inputsByPort,
+        outputs: AgentOutputFactory.fromUnknown(response),
+      });
+      await ctx.nodeState?.appendConnectionInvocation({
+        invocationId: ConnectionInvocationIdFactory.create(),
+        connectionNodeId: nodeId,
+        parentAgentNodeId: ctx.nodeId,
+        parentAgentActivationId: ctx.activationId,
+        status: "completed",
+        managedInput: this.summarizeLlmMessages(messages),
+        managedOutput: this.resultToJsonValue(response),
         finishedAt: new Date().toISOString(),
       });
       return response;
@@ -572,5 +682,9 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       onTurnLimitReached: guardrails?.onTurnLimitReached ?? AgentGuardrailDefaults.onTurnLimitReached,
       modelInvocationOptions: guardrails?.modelInvocationOptions,
     };
+  }
+
+  private getAgentDisplayName(ctx: NodeExecutionContext<AIAgent<any, any>>): string {
+    return ctx.config.name ?? ctx.nodeId;
   }
 }

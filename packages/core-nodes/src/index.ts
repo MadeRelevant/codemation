@@ -1,5 +1,6 @@
 export * from "./canvasIconName";
 export * from "./chatModels/OpenAIChatModelFactory";
+export * from "./chatModels/OpenAIStructuredOutputMethodFactory";
 export * from "./chatModels/OpenAiCredentialSession";
 export * from "./chatModels/openAiChatModelConfig";
 export * from "./chatModels/OpenAiChatModelPresetsFactory";
