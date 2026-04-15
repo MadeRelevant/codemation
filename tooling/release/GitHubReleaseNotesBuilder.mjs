@@ -91,23 +91,41 @@ export class GitHubReleaseNotesBuilder {
   }
 
   async #readChangedPackageDirectories() {
+    const changedManifestPaths = await this.#readChangedPackageManifestPaths();
+    return [...new Set(changedManifestPaths.map((entry) => path.join(this.rootDirectory, path.dirname(entry))))].sort(
+      (left, right) => left.localeCompare(right),
+    );
+  }
+
+  async #readChangedPackageManifestPaths() {
+    const changedInHeadCommit = await this.#readGitFileList([
+      "show",
+      "--name-only",
+      "--format=",
+      "HEAD",
+      "--",
+      "packages/*/package.json",
+    ]);
+    if (changedInHeadCommit.length > 0) {
+      return changedInHeadCommit;
+    }
+
+    return await this.#readGitFileList(["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"]);
+  }
+
+  async #readGitFileList(args) {
     let stdout;
 
     try {
-      ({ stdout } = await this.#execGit(["diff", "--name-only", "HEAD^", "HEAD", "--", "packages/*/package.json"]));
+      ({ stdout } = await this.#execGit(args));
     } catch {
       return [];
     }
 
-    return [
-      ...new Set(
-        stdout
-          .split("\n")
-          .map((entry) => entry.trim())
-          .filter((entry) => entry.length > 0)
-          .map((entry) => path.join(this.rootDirectory, path.dirname(entry))),
-      ),
-    ].sort((left, right) => left.localeCompare(right));
+    return stdout
+      .split("\n")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
   }
 
   async #readChangedPackageReleaseNotes(packageDirectories) {

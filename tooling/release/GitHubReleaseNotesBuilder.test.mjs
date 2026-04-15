@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { test } from "vitest";
 
@@ -291,6 +292,106 @@ class GitHubReleaseNotesBuilderTest {
     }
   }
 
+  async shouldAggregateChangedPackageNotesFromShallowCheckout() {
+    const sourceWorkspaceDirectory = await this.#createWorkspaceDirectory();
+    const shallowWorkspaceDirectory = await this.#createWorkspaceDirectory();
+
+    try {
+      await this.#initializeGitRepository(sourceWorkspaceDirectory);
+      await this.#writePackage({
+        workspaceDirectory: sourceWorkspaceDirectory,
+        directoryName: "host",
+        packageName: "@codemation/host",
+        version: "0.2.0",
+        changelog: ["# @codemation/host", "", "## 0.2.0", "", "### Patch Changes", "", "- Older host entry.", ""].join(
+          "\n",
+        ),
+      });
+      await this.#writePackage({
+        workspaceDirectory: sourceWorkspaceDirectory,
+        directoryName: "next-host",
+        packageName: "@codemation/next-host",
+        version: "0.1.8",
+        changelog: [
+          "# @codemation/next-host",
+          "",
+          "## 0.1.8",
+          "",
+          "### Patch Changes",
+          "",
+          "- Older next-host entry.",
+          "",
+        ].join("\n"),
+      });
+      await this.#commitAll(sourceWorkspaceDirectory, "initial packages");
+
+      await this.#writePackage({
+        workspaceDirectory: sourceWorkspaceDirectory,
+        directoryName: "host",
+        packageName: "@codemation/host",
+        version: "0.2.1",
+        changelog: [
+          "# @codemation/host",
+          "",
+          "## 0.2.1",
+          "",
+          "### Patch Changes",
+          "",
+          "- Publish host fixes.",
+          "",
+          "## 0.2.0",
+          "",
+          "### Patch Changes",
+          "",
+          "- Older host entry.",
+          "",
+        ].join("\n"),
+      });
+      await this.#writePackage({
+        workspaceDirectory: sourceWorkspaceDirectory,
+        directoryName: "next-host",
+        packageName: "@codemation/next-host",
+        version: "0.1.9",
+        changelog: [
+          "# @codemation/next-host",
+          "",
+          "## 0.1.9",
+          "",
+          "### Patch Changes",
+          "",
+          "- Publish next-host fixes.",
+          "",
+          "## 0.1.8",
+          "",
+          "### Patch Changes",
+          "",
+          "- Older next-host entry.",
+          "",
+        ].join("\n"),
+      });
+      await this.#commitAll(sourceWorkspaceDirectory, "release packages");
+      await this.#cloneShallowRepository(sourceWorkspaceDirectory, shallowWorkspaceDirectory);
+
+      await assert.rejects(this.#execGit(["rev-parse", "HEAD^"], shallowWorkspaceDirectory));
+
+      const builder = new GitHubReleaseNotesBuilder({
+        rootDirectory: shallowWorkspaceDirectory,
+        repository: "MadeRelevant/codemation",
+        tag: "v0.5.1",
+      });
+
+      const releaseNotes = await builder.build();
+
+      assert.match(releaseNotes, /Publish host fixes/);
+      assert.match(releaseNotes, /Publish next-host fixes/);
+      assert.doesNotMatch(releaseNotes, /Older host entry/);
+      assert.doesNotMatch(releaseNotes, /Older next-host entry/);
+    } finally {
+      await rm(sourceWorkspaceDirectory, { recursive: true, force: true });
+      await rm(shallowWorkspaceDirectory, { recursive: true, force: true });
+    }
+  }
+
   async shouldFailWhenNoPackageHasReleaseNotes() {
     const workspaceDirectory = await this.#createWorkspaceDirectory();
 
@@ -348,6 +449,16 @@ class GitHubReleaseNotesBuilderTest {
       cwd: workspaceDirectory,
       env: this.#createGitEnvironment(),
     });
+  }
+
+  async #cloneShallowRepository(sourceWorkspaceDirectory, targetWorkspaceDirectory) {
+    await this.execFileAsync(
+      "git",
+      ["clone", "--depth", "1", pathToFileURL(sourceWorkspaceDirectory).href, targetWorkspaceDirectory],
+      {
+        env: this.#createGitEnvironment(),
+      },
+    );
   }
 
   #createGitEnvironment() {
@@ -409,6 +520,13 @@ test(
 test(
   "ignores inherited git environment when reading changed package release notes",
   gitHubReleaseNotesBuilderTest.shouldIgnoreInheritedGitEnvironmentWhenReadingChangedPackageReleaseNotes.bind(
+    gitHubReleaseNotesBuilderTest,
+  ),
+);
+
+test(
+  "aggregates changed package notes from shallow checkouts",
+  gitHubReleaseNotesBuilderTest.shouldAggregateChangedPackageNotesFromShallowCheckout.bind(
     gitHubReleaseNotesBuilderTest,
   ),
 );
