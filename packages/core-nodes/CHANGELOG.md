@@ -1,5 +1,19 @@
 # @codemation/core-nodes
 
+## 0.4.0
+
+### Minor Changes
+
+- [#81](https://github.com/MadeRelevant/codemation/pull/81) [`88844f7`](https://github.com/MadeRelevant/codemation/commit/88844f75a48fe051e4cb895c710408855de14da4) Thanks [@cblokland90](https://github.com/cblokland90)! - Improve workflow DSL typing for helper-defined nodes.
+  - allow `.node(...)` and branch `.node(...)` calls to accept helper-node params that use `itemExpr(...)`
+  - preserve type safety when the current workflow item is a superset of the helper node's declared input shape
+  - remove the need for common casts around empty-config helper nodes
+
+### Patch Changes
+
+- Updated dependencies [[`88844f7`](https://github.com/MadeRelevant/codemation/commit/88844f75a48fe051e4cb895c710408855de14da4)]:
+  - @codemation/core@0.7.0
+
 ## 0.3.0
 
 ### Minor Changes
