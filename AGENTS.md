@@ -245,9 +245,23 @@ Per-package `pnpm test` remains useful for iterating on one package; the canonic
 - Tooling Vitest configs use **`maxWorkers: 2`** and **`fileParallelism: true`**. **Integration** (and **unit** / **e2e**) use **`isolate: true`** so parallel files do not share a polluted module graph. **UI** (`*.test.tsx`, jsdom) uses **`isolate: false`** to reuse the module graph—keep tests **clean**: save/restore any overridden globals in **`afterEach`** or **`try`/`finally`**; ESLint forbids **`vi.stubGlobal`**, **`vi.unstubAllGlobals`**, and **`vi.stubEnv`** in tests. Integration harnesses must still bring **their own** Postgres DB (**`PostgresIntegrationDatabase`**), **ephemeral HTTP/WS ports** (**`FrontendHttpIntegrationHarness`**), and **unique external resource keys** (e.g. BullMQ **Redis** queue prefix per run).
 - Root **`pnpm test`** / **`pnpm run coverage`** run the four suite processes with **`concurrently -m 2`** so machine load stays bounded while unit + integration + UI + e2e still overlap.
 
+### Local verification before handoff
+
+- Do not wait for CI or `git commit` hooks to reveal basic repo-rule violations. While iterating, run the affected package **lint**, **typecheck**, and targeted tests locally.
+- Before declaring a substantive change “done”, run the closest realistic final gate:
+  - at minimum, affected package **lint** + **typecheck** + targeted tests
+  - for broad or cross-package changes, prefer the repo-level sequence **`pnpm run lint:eslint && pnpm typecheck && pnpm run test:unit`**
+- Treat editor diagnostics as advisory only. If command output disagrees with the editor, trust the command output.
+
 ### ESLint architecture rules (`packages/**/src`)
 
 Workspace ESLint enforces DI-friendly patterns: no arbitrary `new PascalCase` outside “composition root” filenames, no `static` methods in the same scope, and no exported free functions—except where the config explicitly ignores `**/index.ts`, `**/*Types.ts`, or `**/*types.ts`. Prefer renaming a module so its basename ends with an allowed suffix from [`tooling/eslint-config/index.mjs`](tooling/eslint-config/index.mjs) (`Factory`, `Builder`, `Registry`, `Planner`, …), or place small contract helpers in a `*.types.ts` file when that matches the module’s role.
+
+Additional rules to keep in mind when changing `packages/**/src`:
+
+- **One class per implementation file** unless the filename is in an explicit ESLint exception path. If a helper/no-op/value-object would introduce a second class, split it into its own file.
+- In **tsyringe-managed** code, do **not** hide dependency construction in constructor defaults such as `private readonly dep: Dep = new Dep()`. Inject the dependency explicitly or build it in a composition root / test harness.
+- When tsyringe metadata can be ambiguous, prefer explicit **`@inject(...)`** annotations instead of relying on emitted design types.
 
 ## Build & dev conventions
 

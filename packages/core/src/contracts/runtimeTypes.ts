@@ -2,6 +2,7 @@ import type { ReadableStream as BinaryReadableStream } from "node:stream/web";
 import type { TypeToken } from "../di";
 import type { RunEventBus } from "../events/runEvents";
 import type { CredentialSessionService } from "./credentialTypes";
+import type { ExecutionTelemetry, ExecutionTelemetryFactory, NodeExecutionTelemetry } from "./telemetryTypes";
 import type {
   ConnectionInvocationAppendArgs,
   NodeInputsByPort,
@@ -28,6 +29,7 @@ import type {
   RunnableNodeConfig,
   OutputPortKey,
   ParentExecutionRef,
+  PersistedRunPolicySnapshot,
   RunDataFactory,
   RunDataSnapshot,
   RunId,
@@ -149,6 +151,7 @@ export interface ExecutionContext {
   now: () => Date;
   data: RunDataSnapshot;
   nodeState?: NodeExecutionStatePublisher;
+  telemetry: ExecutionTelemetry;
   binary: ExecutionBinaryService;
   getCredential<TSession = unknown>(slotKey: string): Promise<TSession>;
 }
@@ -158,11 +161,13 @@ export interface ExecutionContextFactory {
     runId: RunId;
     workflowId: WorkflowId;
     parent?: ParentExecutionRef;
+    policySnapshot?: PersistedRunPolicySnapshot;
     subworkflowDepth: number;
     engineMaxNodeActivations: number;
     engineMaxSubworkflowDepth: number;
     data: RunDataSnapshot;
     nodeState?: NodeExecutionStatePublisher;
+    telemetry?: ExecutionTelemetry;
     getCredential<TSession = unknown>(slotKey: string): Promise<TSession>;
   }): ExecutionContext;
 }
@@ -171,6 +176,7 @@ export interface NodeExecutionContext<TConfig extends NodeConfigBase = NodeConfi
   nodeId: NodeId;
   activationId: NodeActivationId;
   config: TConfig;
+  telemetry: NodeExecutionTelemetry;
   binary: NodeBinaryAttachmentService;
 }
 
@@ -416,6 +422,7 @@ export interface EngineDeps {
   activationScheduler: NodeActivationScheduler;
   runDataFactory: RunDataFactory;
   executionContextFactory: ExecutionContextFactory;
+  executionTelemetryFactory?: ExecutionTelemetryFactory;
   nodeExecutor: NodeExecutor;
   eventBus?: RunEventBus;
   tokenRegistry: PersistedWorkflowTokenRegistryLike;

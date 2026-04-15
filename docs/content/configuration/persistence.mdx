@@ -7,6 +7,8 @@ This page covers **`app.database`**: where the host stores **application data** 
 
 It is **not** about file or blob storage (S3, uploads, attachments). Those are usually workflow or node concerns, not this config surface.
 
+It also covers the storage backing for framework observability data such as traces, span artifacts, and metric points. Codemation stores those in the same database engine as the rest of the host state.
+
 Codemation supports two database modes for consumer apps:
 
 - `sqlite` for embedded local development
@@ -92,6 +94,28 @@ That gives one simple progression:
 1. local SQLite while you are building
 2. PostgreSQL when the app becomes shared
 3. PostgreSQL plus Redis when you add queue-backed workers
+
+## Run retention vs telemetry retention
+
+Run persistence and telemetry retention are related, but they are **not the same policy**.
+
+You can configure the runtime so:
+
+- debugger-friendly run state expires quickly
+- telemetry spans and artifacts live longer for incident review
+- aggregate metric points live longest for dashboards and usage trends
+
+That separation works in both SQLite and PostgreSQL, so you can keep local development simple without designing yourself into a corner for production.
+
+The host-level defaults come from environment variables:
+
+- `CODEMATION_RUN_RETENTION_DEFAULT_SECONDS`
+- `CODEMATION_BINARY_RETENTION_DEFAULT_SECONDS`
+- `CODEMATION_TELEMETRY_SPAN_RETENTION_DEFAULT_SECONDS`
+- `CODEMATION_TELEMETRY_ARTIFACT_RETENTION_DEFAULT_SECONDS`
+- `CODEMATION_TELEMETRY_METRIC_RETENTION_DEFAULT_SECONDS`
+
+Workflows can still override the defaults with their own prune policy when a specific automation needs different retention windows.
 
 ## Environment overrides
 

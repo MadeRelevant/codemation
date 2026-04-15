@@ -9,7 +9,9 @@ export interface WorkflowRunRepository {
 
   listRuns(args: Readonly<{ workflowId?: string; limit?: number }>): Promise<ReadonlyArray<RunSummary>>;
 
-  listRunsOlderThan?(args: Readonly<{ beforeIso: string; limit?: number }>): Promise<ReadonlyArray<RunPruneCandidate>>;
+  listRunsOlderThan?(
+    args: Readonly<{ nowIso: string; defaultRetentionSeconds: number; limit?: number }>,
+  ): Promise<ReadonlyArray<RunPruneCandidate>>;
 
   listBinaryStorageKeys?(runId: RunId): Promise<ReadonlyArray<string>>;
 

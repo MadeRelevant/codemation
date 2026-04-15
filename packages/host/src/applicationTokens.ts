@@ -12,6 +12,13 @@ import type { QueryHandler } from "./application/bus/QueryHandler";
 import type { Logger, LoggerFactory } from "./application/logging/Logger";
 import type { WorkflowWebsocketPublisher } from "./application/websocket/WorkflowWebsocketPublisher";
 import type { CredentialStore } from "./domain/credentials/CredentialServices";
+import type {
+  RunTraceContextRepository,
+  TelemetryArtifactStore,
+  TelemetryExporter,
+  TelemetryMetricPointStore,
+  TelemetrySpanStore,
+} from "./domain/telemetry/TelemetryContracts";
 import type { WorkflowRunRepository } from "./domain/runs/WorkflowRunRepository";
 import type { WorkflowDebuggerOverlayRepository } from "./domain/workflows/WorkflowDebuggerOverlayRepository";
 import type { WorkflowDefinitionRepository } from "./domain/workflows/WorkflowDefinitionRepository";
@@ -66,6 +73,17 @@ export const ApplicationTokens = {
    */
   PerformanceDiagnosticsLogger: Symbol.for("codemation.application.PerformanceDiagnosticsLogger") as TypeToken<Logger>,
   CredentialStore: Symbol.for("codemation.application.CredentialStore") as TypeToken<CredentialStore>,
+  RunTraceContextRepository: Symbol.for(
+    "codemation.application.RunTraceContextRepository",
+  ) as TypeToken<RunTraceContextRepository>,
+  TelemetrySpanStore: Symbol.for("codemation.application.TelemetrySpanStore") as TypeToken<TelemetrySpanStore>,
+  TelemetryArtifactStore: Symbol.for(
+    "codemation.application.TelemetryArtifactStore",
+  ) as TypeToken<TelemetryArtifactStore>,
+  TelemetryMetricPointStore: Symbol.for(
+    "codemation.application.TelemetryMetricPointStore",
+  ) as TypeToken<TelemetryMetricPointStore>,
+  TelemetryExporter: Symbol.for("codemation.application.TelemetryExporter") as TypeToken<TelemetryExporter>,
   PrismaClient: Symbol.for("codemation.application.PrismaClient") as TypeToken<PrismaDatabaseClient>,
   SessionVerifier: Symbol.for("codemation.application.SessionVerifier") as TypeToken<SessionVerifier>,
   Clock: Symbol.for("codemation.application.Clock") as TypeToken<Clock>,

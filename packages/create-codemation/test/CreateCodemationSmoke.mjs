@@ -34,11 +34,28 @@ class SmokeProcessRunner {
   }
 
   static spawn(command, args, options) {
-    return spawn(command, args, {
+    const child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env,
       stdio: ["ignore", "pipe", "pipe"],
+      detached: options.detached === true,
     });
+    child.codemationKillProcessGroup = options.detached === true;
+    return child;
+  }
+
+  static kill(child, signal) {
+    if (child.exitCode !== null || typeof child.pid !== "number") {
+      return;
+    }
+    const targetPid = child.codemationKillProcessGroup ? -child.pid : child.pid;
+    try {
+      process.kill(targetPid, signal);
+    } catch (error) {
+      if (error?.code !== "ESRCH") {
+        throw error;
+      }
+    }
   }
 }
 
@@ -308,10 +325,10 @@ class SmokeVerdaccioServer {
   async stop() {
     try {
       if (this.child.exitCode === null) {
-        this.child.kill("SIGTERM");
+        SmokeProcessRunner.kill(this.child, "SIGTERM");
         const exitCode = await this.output.waitForExit(5000);
         if (exitCode === null && this.child.exitCode === null) {
-          this.child.kill("SIGKILL");
+          SmokeProcessRunner.kill(this.child, "SIGKILL");
         }
       }
     } finally {
@@ -467,6 +484,7 @@ class CreateCodemationSmoke {
       const child = SmokeProcessRunner.spawn(codemationBin, [templateId === "plugin" ? "dev:plugin" : "dev"], {
         cwd: appRoot,
         env: commandEnv,
+        detached: true,
       });
       const output = new SmokeOutputBuffer(child);
       try {
@@ -475,14 +493,14 @@ class CreateCodemationSmoke {
         if (child.exitCode !== null) {
           throw new Error(`Smoke dev server exited during stability window.\n\n${output.toString()}`);
         }
-        child.kill("SIGINT");
+        SmokeProcessRunner.kill(child, "SIGINT");
         await output.waitForExit(5000);
       } finally {
         if (child.exitCode === null) {
-          child.kill("SIGTERM");
+          SmokeProcessRunner.kill(child, "SIGTERM");
           const exitCode = await output.waitForExit(5000);
           if (exitCode === null && child.exitCode === null) {
-            child.kill("SIGKILL");
+            SmokeProcessRunner.kill(child, "SIGKILL");
           }
         }
       }

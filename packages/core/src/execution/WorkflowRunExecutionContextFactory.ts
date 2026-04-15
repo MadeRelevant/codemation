@@ -24,6 +24,7 @@ export class WorkflowRunExecutionContextFactory {
     workflowId: WorkflowId;
     nodeId: NodeId;
     parent?: ParentExecutionRef;
+    policySnapshot?: import("../types").PersistedRunPolicySnapshot;
     subworkflowDepth: number;
     engineMaxNodeActivations: number;
     engineMaxSubworkflowDepth: number;
@@ -34,6 +35,7 @@ export class WorkflowRunExecutionContextFactory {
       runId: args.runId,
       workflowId: args.workflowId,
       parent: args.parent,
+      policySnapshot: args.policySnapshot,
       subworkflowDepth: args.subworkflowDepth,
       engineMaxNodeActivations: args.engineMaxNodeActivations,
       engineMaxSubworkflowDepth: args.engineMaxSubworkflowDepth,

@@ -5,12 +5,19 @@ import type { Logger } from "../logging/Logger";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { AppConfig } from "../../presentation/config/AppConfig";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
+import type {
+  TelemetryArtifactStore,
+  TelemetryMetricPointStore,
+  TelemetrySpanStore,
+} from "../../domain/telemetry/TelemetryContracts";
 import { ServerLoggerFactory } from "../../infrastructure/logging/ServerLoggerFactory";
 
 /**
  * Periodically deletes terminal workflow runs whose age exceeds the effective retention
  * (`policySnapshot.retentionSeconds` or `CODEMATION_RUN_RETENTION_DEFAULT_SECONDS`),
- * and removes binary blobs referenced from run state via {@link BinaryStorage}.
+ * removes binary blobs referenced from run state via {@link BinaryStorage}, and
+ * independently prunes spans, artifacts, and metric points once their own retention
+ * timestamps expire.
  */
 @injectable()
 export class WorkflowRunRetentionPruneScheduler {
@@ -21,6 +28,10 @@ export class WorkflowRunRetentionPruneScheduler {
     @inject(ApplicationTokens.Clock) private readonly clock: Clock,
     @inject(ApplicationTokens.WorkflowRunRepository) private readonly runs: WorkflowRunRepository,
     @inject(CoreTokens.BinaryStorage) private readonly binaryStorage: BinaryStorage,
+    @inject(ApplicationTokens.TelemetrySpanStore) private readonly telemetrySpanStore: TelemetrySpanStore,
+    @inject(ApplicationTokens.TelemetryArtifactStore) private readonly telemetryArtifactStore: TelemetryArtifactStore,
+    @inject(ApplicationTokens.TelemetryMetricPointStore)
+    private readonly telemetryMetricPointStore: TelemetryMetricPointStore,
     @inject(ApplicationTokens.AppConfig) private readonly appConfig: AppConfig,
     @inject(ServerLoggerFactory) loggerFactory: ServerLoggerFactory,
   ) {
@@ -28,7 +39,10 @@ export class WorkflowRunRetentionPruneScheduler {
   }
 
   start(): void {
-    if (this.appConfig.env.CODEMATION_RUN_PRUNE_ENABLED === "false") {
+    if (
+      this.appConfig.env.CODEMATION_RUN_PRUNE_ENABLED === "false" &&
+      this.appConfig.env.CODEMATION_TELEMETRY_PRUNE_ENABLED === "false"
+    ) {
       return;
     }
     if (this.timer) {
@@ -53,33 +67,51 @@ export class WorkflowRunRetentionPruneScheduler {
   async runOnce(): Promise<void> {
     this.logger.debug("Run retention prune: starting check");
     const defaultRetentionSec = Number(this.appConfig.env.CODEMATION_RUN_RETENTION_DEFAULT_SECONDS ?? 86_400);
-    const beforeIso = new Date(this.clock.now().getTime() - defaultRetentionSec * 1000).toISOString();
-    const summaries = await this.runs.listRunsOlderThan?.({ beforeIso, limit: 500 });
-    const candidates =
-      summaries ??
-      (await this.runs.listRuns({ limit: 500 })).filter(
-        (summary) => summary.status === "completed" || summary.status === "failed",
-      );
-
+    const nowIso = this.clock.now().toISOString();
     let foundCount = 0;
     let prunedCount = 0;
-    for (const candidate of candidates) {
-      const runId = candidate.runId as RunId;
-      const workflowId = candidate.workflowId as WorkflowId;
-      foundCount += 1;
+    if (this.appConfig.env.CODEMATION_RUN_PRUNE_ENABLED !== "false") {
+      const summaries = await this.runs.listRunsOlderThan?.({
+        nowIso,
+        defaultRetentionSeconds: defaultRetentionSec,
+        limit: 500,
+      });
+      const candidates =
+        summaries ??
+        (await this.runs.listRuns({ limit: 500 })).filter(
+          (summary) => summary.status === "completed" || summary.status === "failed",
+        );
+      for (const candidate of candidates) {
+        const runId = candidate.runId as RunId;
+        const workflowId = candidate.workflowId as WorkflowId;
+        foundCount += 1;
 
-      const storageKeys =
-        (await this.runs.listBinaryStorageKeys?.(runId)) ?? (await this.loadStorageKeysFromRunStateFallback(runId));
-      for (const key of storageKeys) {
-        await this.binaryStorage.delete(key);
+        const storageKeys =
+          (await this.runs.listBinaryStorageKeys?.(runId)) ?? (await this.loadStorageKeysFromRunStateFallback(runId));
+        for (const key of storageKeys) {
+          await this.binaryStorage.delete(key);
+        }
+        await this.runs.deleteRun(runId);
+        prunedCount += 1;
+        this.logger.debug(`Run retention prune: pruned run ${runId} for workflow ${workflowId}`);
       }
-      await this.runs.deleteRun(runId);
-      prunedCount += 1;
-      this.logger.debug(`Run retention prune: pruned run ${runId} for workflow ${workflowId}`);
+    }
+
+    let prunedSpanCount = 0;
+    let prunedArtifactCount = 0;
+    let prunedMetricCount = 0;
+    if (this.appConfig.env.CODEMATION_TELEMETRY_PRUNE_ENABLED !== "false") {
+      const telemetryLimit = Number(this.appConfig.env.CODEMATION_TELEMETRY_PRUNE_LIMIT ?? 2_000);
+      prunedSpanCount = await this.telemetrySpanStore.pruneExpired({ nowIso, limit: telemetryLimit });
+      prunedArtifactCount = await this.telemetryArtifactStore.pruneExpired({ nowIso, limit: telemetryLimit });
+      prunedMetricCount = await this.telemetryMetricPointStore.pruneExpired({ nowIso, limit: telemetryLimit });
     }
 
     this.logger.info(`Run retention prune: found ${foundCount} run(s) to prune`);
     this.logger.info(`Run retention prune: pruned ${prunedCount} run(s)`);
+    this.logger.info(`Run retention prune: pruned ${prunedSpanCount} telemetry span(s)`);
+    this.logger.info(`Run retention prune: pruned ${prunedArtifactCount} telemetry artifact(s)`);
+    this.logger.info(`Run retention prune: pruned ${prunedMetricCount} telemetry metric point(s)`);
   }
 
   private async loadStorageKeysFromRunStateFallback(runId: RunId): Promise<ReadonlyArray<string>> {

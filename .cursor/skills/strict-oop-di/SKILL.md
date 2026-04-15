@@ -30,7 +30,12 @@ For architectural boundaries and tooling, **`AGENTS.md`** remains the canonical 
   - No importing concrete infrastructure inside core logic.
   - No `new`ing dependencies inside service/domain classes; dependencies arrive via **constructor injection**.
   - Prefer **class tokens** or **stable symbols** for DI resolution; avoid runtime string names.
+  - In **tsyringe-managed** packages, do **not** hide fallback construction in constructor defaults such as `private readonly dep: Dep = new Dep()`. Inject the dependency explicitly, or build it only in a composition root / test harness.
+  - When tsyringe metadata can be ambiguous (concrete classes, symbols/tokens, or anything that has previously produced `TypeInfo not known`), add explicit **`@inject(...)`** annotations instead of relying on emitted design types.
   - Constructors should be cheap and side-effect free; do work in explicit methods (e.g. `execute`, `run`, `handle`).
+- **One class per file in `src`**:
+  - If a helper/no-op/value-object class would make a second class in the file, split it into its own file.
+  - For small shared contracts or helper types, prefer a `*.types.ts` file rather than stacking multiple classes into one implementation module.
 - **Packages that do not use tsyringe** (thin entrypoints such as **`@codemation/cli`**):
   - **No** requirement to mirror the host’s container: wire collaborators in **one composition-root module** (repo ESLint treats `*Factory.ts`, `Program.ts`, `*Bootstrap.ts`, `bin/*`, etc. as composition roots).
   - Keep **constructor injection** on commands, coordinators, and services; **do not** embed large default-parameter object graphs on the program class—**centralize** `new` wiring in that composition root.
@@ -135,6 +140,16 @@ When implementing **`Node.execute`**, return **`NodeOutputs`** whose **`Items` a
 6. **Write or update tests first** (TDD), then implement; finish with **coverage** and **outcome-level assertions**.
 7. **Reuse factories, testkits, and harnesses** for arrange/setup; add new shared helpers when duplication appears.
 
+## Pre-commit alignment (required)
+
+Before you present substantive work as done, verify it against the same kinds of gates the repo will run on commit/CI:
+
+- Run **package-scoped lint/typecheck/tests while iterating** so repo rules such as **single-class-per-file** and **no-manual-di-new** fail early, not during final commit.
+- Before final handoff on meaningful code changes, run the closest realistic final gate:
+  - at minimum, affected package **`lint`** + **`typecheck`** + targeted tests
+  - for broad or cross-package changes, prefer the repo-level sequence **`pnpm run lint:eslint && pnpm typecheck && pnpm run test:unit`**
+- Do not rely only on editor diagnostics. If local lints and the real commands disagree, trust the actual command output and fix that.
+
 ## Minimal templates (copy + adapt)
 
 ### Service with injected ports (no module-level functions)
@@ -230,3 +245,4 @@ For more detailed guidance and examples, see `gof.md`.
 - **`packages/core`**: **Clean Architecture** dependency rule preserved—no outer-layer or infrastructure leaks into the engine.
 - **`packages/next-host`**: **DDD** naming/cohesion and **CQRS**-style **command vs query** separation are respected for new or refactored features.
 - **Node `execute`**: output **`json`** is the **produced payload** for downstream steps, not a redundant wrapper around input + result (unless that nested shape is the intentional API)—see **Node `execute()` → `NodeOutputs`** above.
+- **Pre-commit parity**: the change has been checked with the relevant lint/typecheck/test commands, not only by reading code or trusting editor diagnostics.

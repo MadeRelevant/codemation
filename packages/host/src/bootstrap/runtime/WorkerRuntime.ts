@@ -11,6 +11,8 @@ import { RuntimeWorkflowActivationPolicy } from "../../infrastructure/persistenc
 import type { WorkflowActivationRepository } from "../../domain/workflows/WorkflowActivationRepository";
 import { DatabaseMigrations } from "./DatabaseMigrations";
 import { AppContainerLifecycle } from "../AppContainerLifecycle";
+import { RunEventBusTelemetryReporter } from "../../application/telemetry/RunEventBusTelemetryReporter";
+import { WorkflowRunRetentionPruneScheduler } from "../../application/runs/WorkflowRunRetentionPruneScheduler";
 
 @injectable()
 export class WorkerRuntime {
@@ -27,6 +29,10 @@ export class WorkerRuntime {
     private readonly workflowRepository: WorkflowRepository,
     @inject(Engine)
     private readonly engine: Engine,
+    @inject(RunEventBusTelemetryReporter)
+    private readonly runEventBusTelemetryReporter: RunEventBusTelemetryReporter,
+    @inject(WorkflowRunRetentionPruneScheduler)
+    private readonly workflowRunRetentionPruneScheduler: WorkflowRunRetentionPruneScheduler,
     @inject(ApplicationTokens.WorkerRuntimeScheduler)
     private readonly scheduler: WorkerRuntimeScheduler,
     @inject(AppContainerLifecycle)
@@ -40,6 +46,8 @@ export class WorkerRuntime {
     await this.runtimeWorkflowActivationPolicy.hydrateFromRepository(this.workflowActivationRepository);
     const workflows = [...this.workflowRepository.list()];
     await this.engine.start(workflows);
+    await this.runEventBusTelemetryReporter.start();
+    this.workflowRunRetentionPruneScheduler.start();
     const worker = this.scheduler.createWorker({
       queues,
       requestHandler: this.engine,

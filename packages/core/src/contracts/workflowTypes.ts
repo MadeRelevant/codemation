@@ -269,11 +269,17 @@ export interface WorkflowStoragePolicyDecisionArgs {
 export interface WorkflowPrunePolicySpec {
   readonly runDataRetentionSeconds?: number;
   readonly binaryRetentionSeconds?: number;
+  readonly telemetrySpanRetentionSeconds?: number;
+  readonly telemetryArtifactRetentionSeconds?: number;
+  readonly telemetryMetricRetentionSeconds?: number;
 }
 
 export interface PersistedRunPolicySnapshot {
   readonly retentionSeconds?: number;
   readonly binaryRetentionSeconds?: number;
+  readonly telemetrySpanRetentionSeconds?: number;
+  readonly telemetryArtifactRetentionSeconds?: number;
+  readonly telemetryMetricRetentionSeconds?: number;
   readonly storagePolicy: WorkflowStoragePolicyMode;
 }
 
@@ -311,5 +317,8 @@ export type NodeErrorHandlerSpec = TypeToken<NodeErrorHandler> | NodeErrorHandle
 export interface WorkflowPolicyRuntimeDefaults {
   readonly retentionSeconds?: number;
   readonly binaryRetentionSeconds?: number;
+  readonly telemetrySpanRetentionSeconds?: number;
+  readonly telemetryArtifactRetentionSeconds?: number;
+  readonly telemetryMetricRetentionSeconds?: number;
   readonly storagePolicy?: WorkflowStoragePolicyMode;
 }

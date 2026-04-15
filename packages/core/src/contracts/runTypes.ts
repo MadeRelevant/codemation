@@ -291,7 +291,9 @@ export interface RunPruneCandidate {
 }
 
 export interface WorkflowExecutionPruneRepository {
-  listRunsOlderThan(args: Readonly<{ beforeIso: string; limit?: number }>): Promise<ReadonlyArray<RunPruneCandidate>>;
+  listRunsOlderThan(
+    args: Readonly<{ nowIso: string; defaultRetentionSeconds: number; limit?: number }>,
+  ): Promise<ReadonlyArray<RunPruneCandidate>>;
 }
 
 export type RunResult =

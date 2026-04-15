@@ -2,6 +2,7 @@ import type { DependencyContainer } from "../../di";
 import type { WebhookTriggerMatcher } from "../../types";
 import type { WebhookTriggerRoutingDiagnostics } from "../../contracts/webhookTypes";
 import type { TriggerRuntimeDiagnostics } from "../../contracts/runtimeTypes";
+import type { WorkflowPolicyRuntimeDefaults } from "../../contracts/workflowTypes";
 import type { EngineExecutionLimitsPolicyConfig } from "../../policies/executionLimits/EngineExecutionLimitsPolicy";
 
 /**
@@ -40,4 +41,6 @@ export interface EngineRuntimeRegistrationOptions {
   webhookTriggerMatcherProvider?: WebhookTriggerMatcherProvider;
   /** Overrides default trigger diagnostics (undefined when omitted). */
   triggerRuntimeDiagnosticsProvider?: TriggerRuntimeDiagnosticsProvider;
+  /** Runtime retention/storage defaults used when workflows omit prune/storage policy fields. */
+  workflowPolicyRuntimeDefaults?: WorkflowPolicyRuntimeDefaults;
 }

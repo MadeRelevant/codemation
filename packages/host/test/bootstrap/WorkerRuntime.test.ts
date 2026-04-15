@@ -15,6 +15,8 @@ import { ApplicationTokens } from "../../src/applicationTokens";
 import { AppContainerLifecycle } from "../../src/bootstrap/AppContainerLifecycle";
 import { WorkerRuntime } from "../../src/bootstrap/runtime/WorkerRuntime";
 import { DatabaseMigrations } from "../../src/bootstrap/runtime/DatabaseMigrations";
+import { RunEventBusTelemetryReporter } from "../../src/application/telemetry/RunEventBusTelemetryReporter";
+import { WorkflowRunRetentionPruneScheduler } from "../../src/application/runs/WorkflowRunRetentionPruneScheduler";
 import type { AppConfig } from "../../src/presentation/config/AppConfig";
 import { InMemoryWorkflowActivationRepository } from "../../src/infrastructure/persistence/InMemoryWorkflowActivationRepository";
 import { RuntimeWorkflowActivationPolicy } from "../../src/infrastructure/persistence/RuntimeWorkflowActivationPolicy";
@@ -68,6 +70,26 @@ class RecordingAppContainerLifecycle {
   }
 }
 
+class RecordingRunEventBusTelemetryReporter {
+  startCalls = 0;
+
+  async start(): Promise<void> {
+    this.startCalls += 1;
+  }
+
+  async stop(): Promise<void> {}
+}
+
+class RecordingWorkflowRunRetentionPruneScheduler {
+  startCalls = 0;
+
+  start(): void {
+    this.startCalls += 1;
+  }
+
+  stop(): void {}
+}
+
 function buildMinimalAppConfig(overrides?: Readonly<{ env?: NodeJS.ProcessEnv }>): AppConfig {
   return {
     consumerRoot: "/tmp/codemation-worker-runtime-test",
@@ -97,6 +119,8 @@ describe("WorkerRuntime", () => {
     const workflowRepository = new InMemoryLiveWorkflowRepository();
     const scheduler = new RecordingWorkerRuntimeScheduler();
     const lifecycle = new RecordingAppContainerLifecycle();
+    const telemetryReporter = new RecordingRunEventBusTelemetryReporter();
+    const retentionScheduler = new RecordingWorkflowRunRetentionPruneScheduler();
     const engine: Pick<Engine, "start" | "stop"> = {
       async start() {},
       async stop() {},
@@ -121,6 +145,11 @@ describe("WorkerRuntime", () => {
     child.registerInstance(CoreTokens.EngineExecutionLimitsPolicy, new EngineExecutionLimitsPolicy());
     child.registerInstance(ApplicationTokens.WorkerRuntimeScheduler, scheduler);
     child.registerInstance(AppContainerLifecycle, lifecycle as unknown as AppContainerLifecycle);
+    child.registerInstance(RunEventBusTelemetryReporter, telemetryReporter as unknown as RunEventBusTelemetryReporter);
+    child.registerInstance(
+      WorkflowRunRetentionPruneScheduler,
+      retentionScheduler as unknown as WorkflowRunRetentionPruneScheduler,
+    );
     child.register(WorkerRuntime, { useClass: WorkerRuntime });
 
     const runtime = child.resolve(WorkerRuntime);
@@ -128,6 +157,8 @@ describe("WorkerRuntime", () => {
 
     expect(migrations.migrateCalls).toBe(0);
     expect(scheduler.createWorkerCalls).toBe(1);
+    expect(telemetryReporter.startCalls).toBe(1);
+    expect(retentionScheduler.startCalls).toBe(1);
 
     await handle.stop();
 
@@ -146,6 +177,8 @@ describe("WorkerRuntime", () => {
     const workflowRepository = new InMemoryLiveWorkflowRepository();
     const scheduler = new RecordingWorkerRuntimeScheduler();
     const lifecycle = new RecordingAppContainerLifecycle();
+    const telemetryReporter = new RecordingRunEventBusTelemetryReporter();
+    const retentionScheduler = new RecordingWorkflowRunRetentionPruneScheduler();
     const engine: Pick<Engine, "start" | "stop"> = {
       async start() {},
       async stop() {},
@@ -170,6 +203,11 @@ describe("WorkerRuntime", () => {
     child.registerInstance(CoreTokens.EngineExecutionLimitsPolicy, new EngineExecutionLimitsPolicy());
     child.registerInstance(ApplicationTokens.WorkerRuntimeScheduler, scheduler);
     child.registerInstance(AppContainerLifecycle, lifecycle as unknown as AppContainerLifecycle);
+    child.registerInstance(RunEventBusTelemetryReporter, telemetryReporter as unknown as RunEventBusTelemetryReporter);
+    child.registerInstance(
+      WorkflowRunRetentionPruneScheduler,
+      retentionScheduler as unknown as WorkflowRunRetentionPruneScheduler,
+    );
     child.register(WorkerRuntime, { useClass: WorkerRuntime });
 
     const runtime = child.resolve(WorkerRuntime);
@@ -177,5 +215,7 @@ describe("WorkerRuntime", () => {
     await handle.stop();
 
     expect(migrations.migrateCalls).toBe(1);
+    expect(telemetryReporter.startCalls).toBe(1);
+    expect(retentionScheduler.startCalls).toBe(1);
   });
 });

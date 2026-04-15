@@ -7,6 +7,7 @@ import type {
   Items,
   LangChainChatModelLike,
   LangChainStructuredOutputModelLike,
+  NodeExecutionTelemetry,
   NodeExecutionContext,
   NodeExecutionStatePublisher,
   NodeInputsByPort,
@@ -17,6 +18,12 @@ import type {
   Tool,
   ToolConfig,
   ToolExecuteArgs,
+  TelemetryArtifactAttachment,
+  TelemetryArtifactReference,
+  TelemetryMetricRecord,
+  TelemetrySpanEnd,
+  TelemetrySpanEventRecord,
+  TelemetrySpanScope,
   TypeToken,
 } from "@codemation/core";
 import {
@@ -90,6 +97,63 @@ class CapturingNodeStatePublisher implements NodeExecutionStatePublisher {
 
   async appendConnectionInvocation(args: Record<string, unknown>): Promise<void> {
     this.connectionInvocations.push(args);
+  }
+}
+
+class CapturingTelemetrySpanScope implements TelemetrySpanScope {
+  readonly metrics: TelemetryMetricRecord[] = [];
+  readonly events: TelemetrySpanEventRecord[] = [];
+  readonly artifacts: TelemetryArtifactAttachment[] = [];
+  readonly ended: TelemetrySpanEnd[] = [];
+  protected readonly children: CapturingTelemetrySpanScope[];
+
+  constructor(
+    public readonly traceId: string,
+    public readonly spanId: string,
+    childSpans: CapturingTelemetrySpanScope[],
+  ) {
+    this.children = childSpans;
+  }
+
+  addSpanEvent(args: TelemetrySpanEventRecord): void {
+    this.events.push(args);
+  }
+
+  recordMetric(args: TelemetryMetricRecord): void {
+    this.metrics.push(args);
+  }
+
+  attachArtifact(args: TelemetryArtifactAttachment): TelemetryArtifactReference {
+    this.artifacts.push(args);
+    return { artifactId: `${this.spanId}:artifact` };
+  }
+
+  end(args: TelemetrySpanEnd = {}): void {
+    this.ended.push(args);
+  }
+
+  createChild(spanId: string): CapturingTelemetrySpanScope {
+    const child = new CapturingTelemetrySpanScope(this.traceId, spanId, this.children);
+    this.children.push(child);
+    return child;
+  }
+}
+
+class CapturingNodeTelemetry extends CapturingTelemetrySpanScope implements NodeExecutionTelemetry {
+  constructor(traceId = "trace-1", spanId = "node-span-1") {
+    super(traceId, spanId, []);
+  }
+
+  forNode(): NodeExecutionTelemetry {
+    return this;
+  }
+
+  startChildSpan(): TelemetrySpanScope {
+    return this.createChild(`child-${this.metrics.length}-${this.events.length}-${this.artifacts.length}`);
+  }
+
+  childSpans(): ReadonlyArray<CapturingTelemetrySpanScope> {
+    return [...this.children];
   }
 }
 
@@ -366,6 +430,7 @@ class ThrowingNode implements RunnableNode<ThrowingNodeConfig> {
 class AgentTestRig {
   readonly data = new InMemoryRunDataFactory().create();
   readonly nodeState = new CapturingNodeStatePublisher();
+  readonly telemetry = new CapturingNodeTelemetry();
   readonly container = tsyringeContainer.createChildContainer();
 
   constructor(
@@ -410,6 +475,7 @@ class AgentTestRig {
       now: () => new Date(),
       data: this.data,
       nodeState: this.nodeState,
+      telemetry: this.telemetry,
       nodeId,
       activationId,
       config: this.config,
@@ -1000,6 +1066,46 @@ test("AIAgentNode finalizes tool-enabled runs into validated structured output",
     summary: "Tool verified",
   });
   assert.equal(capture.snapshotBoundToolNames()[0]?.[0], "double_n");
+});
+
+test("AIAgentNode records telemetry for turns, tokens, and child invocation artifacts", async () => {
+  const config = new AIAgent({
+    name: "Telemetry agent",
+    chatModel: new ScriptedChatModelConfig("demo-gpt", [
+      {
+        content: "All done",
+        usage_metadata: {
+          input_tokens: 11,
+          output_tokens: 7,
+          total_tokens: 18,
+        },
+      },
+    ]),
+    messages: [{ role: "user", content: "Summarize" }],
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  const outputs = await rig.execute([{ json: { topic: "telemetry" } }]);
+
+  assert.deepEqual(outputs.main?.[0]?.json, { output: "All done" });
+  assert.deepEqual(
+    rig.telemetry.metrics.map((metric) => [metric.name, metric.value]),
+    [
+      ["codemation.ai.turns", 1],
+      ["codemation.ai.tool_calls", 0],
+    ],
+  );
+  assert.equal(rig.telemetry.childSpans().length, 1);
+  assert.deepEqual(
+    rig.telemetry.childSpans()[0]?.metrics.map((metric) => [metric.name, metric.value]),
+    [
+      ["gen_ai.usage.input_tokens", 11],
+      ["gen_ai.usage.output_tokens", 7],
+      ["gen_ai.usage.total_tokens", 18],
+    ],
+  );
+  assert.equal(rig.telemetry.childSpans()[0]?.artifacts.length, 2);
+  assert.equal(rig.telemetry.childSpans()[0]?.ended[0]?.status, "ok");
 });
 
 test("OpenAIStructuredOutputMethodFactory prefers jsonSchema for supported 4o models", () => {

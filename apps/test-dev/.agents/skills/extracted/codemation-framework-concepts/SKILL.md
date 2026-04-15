@@ -1,6 +1,6 @@
 ---
 name: codemation-framework-concepts
-description: Explains Codemation package boundaries, runtime concepts, and the normal consumer mental model. Use when the user asks where code belongs across `@codemation/core`, `@codemation/host`, `@codemation/next-host`, `@codemation/cli`, workflows, plugins, credentials, activation, or runtime modes.
+description: Explains Codemation package boundaries, runtime concepts, observability shape, and the normal consumer mental model. Use when the user asks where code belongs across `@codemation/core`, `@codemation/host`, `@codemation/next-host`, `@codemation/cli`, workflows, plugins, credentials, activation, telemetry, or runtime modes.
 compatibility: Designed for Codemation apps, plugins, and framework contributors.
 ---
 
@@ -8,7 +8,7 @@ compatibility: Designed for Codemation apps, plugins, and framework contributors
 
 ## Use this skill when
 
-Use this skill to explain package ownership, runtime shape, and the boundary between consumer code and framework code.
+Use this skill to explain package ownership, runtime shape, observability boundaries, and the boundary between consumer code and framework code.
 
 Do not use this skill as a substitute for detailed CLI, workflow DSL, or plugin implementation guidance when the user already knows the concept they need.
 
@@ -28,12 +28,15 @@ Do not use this skill as a substitute for detailed CLI, workflow DSL, or plugin 
 - items carry workflow data
 - credentials provide typed runtime resources
 - activation is framework-managed and happens in the UI
+- telemetry is observability-first: traces, spans, artifacts, and metric points are framework-owned runtime data
+- run retention and telemetry retention can differ, so trend data can outlive raw run state
 
 ## Runtime rule of thumb
 
 1. Start with the minimum setup.
 2. Move to shared PostgreSQL and Redis when execution needs separate worker infrastructure.
 3. Keep workflow code stable while the runtime shape grows around it.
+4. Treat telemetry as part of the runtime contract, not as ad-hoc node-local logging.
 
 ## Read next when needed
 

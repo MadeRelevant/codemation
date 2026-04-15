@@ -1,5 +1,7 @@
 import type { Container } from "@codemation/core";
 import { Engine } from "@codemation/core/bootstrap";
+import { RunEventBusTelemetryReporter } from "../application/telemetry/RunEventBusTelemetryReporter";
+import { WorkflowRunRetentionPruneScheduler } from "../application/runs/WorkflowRunRetentionPruneScheduler";
 import type { PrismaDatabaseClient } from "../infrastructure/persistence/PrismaDatabaseClient";
 import { WorkflowRunEventWebsocketRelay } from "../application/websocket/WorkflowRunEventWebsocketRelay";
 import { WorkflowWebsocketServer } from "../presentation/websocket/WorkflowWebsocketServer";
@@ -16,6 +18,12 @@ export class AppContainerLifecycle {
     }
     if (this.container.isRegistered(WorkflowRunEventWebsocketRelay, true)) {
       await this.container.resolve(WorkflowRunEventWebsocketRelay).stop();
+    }
+    if (this.container.isRegistered(RunEventBusTelemetryReporter, true)) {
+      await this.container.resolve(RunEventBusTelemetryReporter).stop();
+    }
+    if (this.container.isRegistered(WorkflowRunRetentionPruneScheduler, true)) {
+      this.container.resolve(WorkflowRunRetentionPruneScheduler).stop();
     }
     if (args?.stopWebsocketServer !== false && this.container.isRegistered(WorkflowWebsocketServer, true)) {
       await this.container.resolve(WorkflowWebsocketServer).stop();

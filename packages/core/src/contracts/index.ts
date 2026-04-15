@@ -5,6 +5,7 @@ export * from "./itemMeta";
 export * from "./params";
 export * from "./itemExpr";
 export * from "./runtimeTypes";
+export * from "./telemetryTypes";
 export * from "./runFinishedAtFactory";
 export * from "./runTypes";
 export * from "./webhookTypes";

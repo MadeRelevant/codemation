@@ -87,14 +87,16 @@ export class InMemoryWorkflowExecutionRepository
   }
 
   async listRunsOlderThan(
-    args: Readonly<{ beforeIso: string; limit?: number }>,
+    args: Readonly<{ nowIso: string; defaultRetentionSeconds: number; limit?: number }>,
   ): Promise<ReadonlyArray<RunPruneCandidate>> {
     const limit = args.limit ?? 100;
     const out: RunPruneCandidate[] = [];
     for (const s of this.runs.values()) {
       if (s.status !== "completed" && s.status !== "failed") continue;
       const finishedAt = RunFinishedAtFactory.resolveIso(s);
-      if (!finishedAt || finishedAt >= args.beforeIso) continue;
+      const retentionSeconds = s.policySnapshot?.retentionSeconds ?? args.defaultRetentionSeconds;
+      const cutoffIso = new Date(new Date(args.nowIso).getTime() - retentionSeconds * 1000).toISOString();
+      if (!finishedAt || finishedAt >= cutoffIso) continue;
       out.push({
         runId: s.runId,
         workflowId: s.workflowId,

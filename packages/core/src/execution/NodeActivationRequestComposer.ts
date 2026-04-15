@@ -142,6 +142,7 @@ export class NodeActivationRequestComposer {
       nodeId: definition.id,
       activationId,
       config: definition.config,
+      telemetry: args.base.telemetry.forNode({ nodeId: definition.id, activationId }),
       binary: args.base.binary.forNode({ nodeId: definition.id, activationId }),
       getCredential: this.credentialResolverFactory.create(args.workflowId, definition.id, definition.config),
     };
