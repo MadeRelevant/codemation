@@ -6,6 +6,7 @@ export class Split<TIn = unknown, TElem = unknown> implements RunnableNodeConfig
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = SplitNode;
   readonly execution = { hint: "local" } as const;
+  readonly keepBinaries = true as const;
   /**
    * When splitting yields zero items for a batch, downstream single-input nodes still run once with an empty batch.
    * Mirrors {@link MapData}'s empty-output behavior.

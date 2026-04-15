@@ -42,6 +42,38 @@ test("SplitNode expands each item into one output item per returned element", as
   );
 });
 
+test("SplitNode keeps input binaries on each emitted item by default", async () => {
+  const config = new Split<{ batch: readonly number[] }, number>("Split batches", (item) => [...item.json.batch]);
+  const binary = {
+    attachment: {
+      id: "att-1",
+      storageKey: "storage/att-1",
+      mimeType: "text/plain",
+      size: 2,
+      storageDriver: "memory",
+      previewKind: "download",
+      createdAt: new Date().toISOString(),
+      runId: "run_test",
+      workflowId: "wf_test",
+      nodeId: "node_test",
+      activationId: "act_test",
+      filename: "payload.txt",
+    },
+  } as never;
+  const out = await runPerItemLikeEngine(
+    new SplitNode(),
+    [{ json: { batch: [1, 2] }, binary }],
+    CoreNodesTestContextFactory.create(config),
+    config.keepBinaries,
+  );
+
+  assert.equal(out.main?.length, 2);
+  assert.deepEqual(
+    out.main?.map((item) => item.binary),
+    [binary, binary],
+  );
+});
+
 test("SplitNode yields an empty main batch when every split is empty", async () => {
   const config = new Split<unknown, never>("Empty splits", () => []);
   const out = await runPerItemLikeEngine(new SplitNode(), [{ json: {} }], CoreNodesTestContextFactory.create(config));
@@ -76,6 +108,37 @@ test("AggregateNode reduces the batch to a single item on main", async () => {
   const out = await runPerItemLikeEngine(new AggregateNode(), batchItems, CoreNodesTestContextFactory.create(config));
   assert.equal(out.main?.length, 1);
   assert.deepEqual(out.main?.[0]?.json, { sum: 6 });
+});
+
+test("AggregateNode keeps binaries from the aggregated item by default", async () => {
+  const config = new Aggregate<{ v: number }, { sum: number }>("Sum values", (items) => ({
+    sum: items.reduce((acc, i) => acc + i.json.v, 0),
+  }));
+  const binary = {
+    attachment: {
+      id: "att-1",
+      storageKey: "storage/att-1",
+      mimeType: "text/plain",
+      size: 2,
+      storageDriver: "memory",
+      previewKind: "download",
+      createdAt: new Date().toISOString(),
+      runId: "run_test",
+      workflowId: "wf_test",
+      nodeId: "node_test",
+      activationId: "act_test",
+      filename: "payload.txt",
+    },
+  } as never;
+  const out = await runPerItemLikeEngine(
+    new AggregateNode(),
+    [{ json: { v: 1 } }, { json: { v: 2 }, binary }],
+    CoreNodesTestContextFactory.create(config),
+    config.keepBinaries,
+  );
+
+  assert.equal(out.main?.length, 1);
+  assert.deepEqual(out.main?.[0]?.binary, binary);
 });
 
 test("AggregateNode returns an empty main batch when the input batch is empty", async () => {
