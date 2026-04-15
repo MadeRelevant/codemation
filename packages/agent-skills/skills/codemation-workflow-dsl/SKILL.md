@@ -18,6 +18,7 @@ Do not use this skill for CLI-only troubleshooting or deep host architecture que
 2. The fluent authoring chain is the normal starting point for Codemation apps.
 3. Finish fluent workflow definitions with `.build()`.
 4. Activations are **batch-shaped** (`Items`); many steps use **per-item** execution (`execute`, including helper **`defineNode`**) with optional **`inputSchema`** and **`itemValue`** on config fields. Batch reshape steps (split/filter/aggregate, **`defineBatchNode`**) work on the whole batch.
+5. Fluent callback helpers follow the runtime item contract: `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` receive `(item, ctx)`, so row fields live under `item.json` and earlier completed outputs are available through `ctx.data`.
 
 ## Authoring rules
 
@@ -45,6 +46,7 @@ Do not use this skill for CLI-only troubleshooting or deep host architecture que
 - Define agent messages with `messages`, not a workflow-specific prompt shortcut.
 - Use a static `messages` array for fixed prompts.
 - Use `itemValue(...)` when agent messages depend on the current item.
+- Use fluent `.map((item, ctx) => ...)` when workflow data itself needs reshaping before the agent step.
 - `model` may be a provider string such as `"openai:gpt-4o-mini"` or a `ChatModelConfig`.
 
 ## Read next when needed

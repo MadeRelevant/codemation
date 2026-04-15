@@ -20,7 +20,7 @@ test("canvasLayoutStress: full workflow executes deep taken branches", async () 
     .then(
       new MapData<StressJson>("Ingest payload", (item) => pass(item, { stage: "ingested", version: 1 } as StressJson)),
     )
-    .if("Primary gate (score ≥ 40)?", (item) => Number((item as StressJson).score ?? 0) >= 40, {
+    .if("Primary gate (score ≥ 40)?", (item, _ctx) => Number((item.json as StressJson).score ?? 0) >= 40, {
       true: (b) =>
         b
           .then(new MapData<StressJson>("High lane: tag", (item) => pass(item, { lane: "high" } as StressJson)))
@@ -31,7 +31,7 @@ test("canvasLayoutStress: full workflow executes deep taken branches", async () 
           .then(new MapData<StressJson>("Low lane: enrich", (item) => pass(item, { enriched: true } as StressJson)))
           .then(new Wait<StressJson>("Low lane: short wait", 1)),
     })
-    .if("Route by lane (high)?", (item) => String((item as StressJson).lane ?? "") === "high", {
+    .if("Route by lane (high)?", (item, _ctx) => String((item.json as StressJson).lane ?? "") === "high", {
       true: (b) =>
         b
           .then(new MapData<StressJson>("High fork: branch A", (item) => pass(item, { fork: "A" } as StressJson)))
@@ -42,7 +42,7 @@ test("canvasLayoutStress: full workflow executes deep taken branches", async () 
           .then(new MapData<StressJson>("Low fork: branch B2", (item) => pass(item, { fork: "B2" } as StressJson)))
           .then(new Wait<StressJson>("Low fork: settle", 1)),
     })
-    .if("Region EU?", (item) => String((item as StressJson).region ?? "").startsWith("eu"), {
+    .if("Region EU?", (item, _ctx) => String((item.json as StressJson).region ?? "").startsWith("eu"), {
       true: (b) =>
         b
           .then(new MapData<StressJson>("EU: compliance tag", (item) => pass(item, { compliance: "eu" } as StressJson)))
@@ -51,7 +51,7 @@ test("canvasLayoutStress: full workflow executes deep taken branches", async () 
       false: (b) =>
         b.then(new MapData<StressJson>("Non-EU: tag", (item) => pass(item, { compliance: "other" } as StressJson))),
     })
-    .if("Asymmetric split (fork A)?", (item) => String((item as StressJson).fork ?? "") === "A", {
+    .if("Asymmetric split (fork A)?", (item, _ctx) => String((item.json as StressJson).fork ?? "") === "A", {
       true: (b) =>
         b
           .then(new MapData<StressJson>("A: step 1", (item) => pass(item, { path: "A1" } as StressJson)))
@@ -63,7 +63,7 @@ test("canvasLayoutStress: full workflow executes deep taken branches", async () 
           .then(new MapData<StressJson>("B-merge: shortcut", (item) => pass(item, { path: "B-short" } as StressJson)))
           .then(new Wait<StressJson>("B-merge: wait", 1)),
     })
-    .if("Final dispatch (audit queued)?", (item) => String((item as StressJson).audit ?? "") === "queued", {
+    .if("Final dispatch (audit queued)?", (item, _ctx) => String((item.json as StressJson).audit ?? "") === "queued", {
       true: (b) =>
         b
           .then(

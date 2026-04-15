@@ -21,7 +21,7 @@ export default workflow("wf.consumer.demo")
       from: "buyer@acme.com",
     },
   ])
-  .if("If RFQ?", (item) => item.subject.toUpperCase().includes("RFQ"), {
+  .if("If RFQ?", (item, _ctx) => item.json.subject.toUpperCase().includes("RFQ"), {
     true: (b) =>
       b.then(
         new SubWorkflow<DemoSeedJson, DemoOutcomeJson>(

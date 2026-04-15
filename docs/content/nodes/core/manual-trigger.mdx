@@ -17,7 +17,7 @@ description: Start a workflow manually and optionally seed the run with test ite
 workflow("wf.starter.hello")
   .name("Starter Hello")
   .manualTrigger("Start", { step: "start" })
-  .map("Mark ready", (item) => ({ ...item, ready: true }))
+  .map("Mark ready", (item, _ctx) => ({ ...item.json, ready: true }))
   .build();
 ```
 
@@ -42,9 +42,11 @@ workflow("wf.demo.batch")
     { orderId: "ord_1", total: 120 },
     { orderId: "ord_2", total: 450 },
   ])
-  .map("Summarize batch", (item) => item)
+  .map("Summarize batch", (item, _ctx) => item.json)
   .build();
 ```
+
+Fluent helper callbacks such as `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` receive the full workflow `item` plus execution `ctx`. Read row fields from `item.json`, and use `ctx.data` when you need outputs from earlier completed steps.
 
 Example output:
 

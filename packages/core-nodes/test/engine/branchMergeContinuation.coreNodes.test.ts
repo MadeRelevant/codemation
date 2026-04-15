@@ -19,7 +19,7 @@ test("workflow continues past auto-merge after If (core-nodes)", async () => {
     .name("core-nodes branch merge continuation")
     .manualTrigger("Trigger", [{ score: 42 }], "trigger")
     .then(new MapData<StressJson>("Ingest", (item) => pass(item, { stage: "ingested" } as StressJson), "ingest"))
-    .if("Gate", (item) => Number((item as StressJson).score ?? 0) >= 40, {
+    .if("Gate", (item, _ctx) => Number((item.json as StressJson).score ?? 0) >= 40, {
       true: (b) =>
         b
           .then(new MapData<StressJson>("High lane: tag", (item) => pass(item, { lane: "high" } as StressJson), "B"))
@@ -57,4 +57,44 @@ test("workflow continues past auto-merge after If (core-nodes)", async () => {
   assert.equal(out.lane, "high");
   assert.equal(out.afterMerge, true);
   assert.equal(out.enriched, undefined);
+});
+
+test("workflow helper map callbacks can read ctx.data from prior fluent steps", async () => {
+  const wf = workflow("wf.coreNodes.mapContextAccess")
+    .name("core-nodes fluent map ctx.data access")
+    .manualTrigger("Trigger", [{ score: 42 }], "trigger")
+    .map(
+      "Annotate source",
+      (item, _ctx) => ({
+        ...item.json,
+        stage: "annotated" as const,
+      }),
+      { id: "annotate_source" },
+    )
+    .map(
+      "Read prior output",
+      (item, ctx) => {
+        const priorItem = ctx.data.getOutputItem("annotate_source", 0, "main");
+        const priorJson = (priorItem?.json ?? {}) as Readonly<{ stage?: string }>;
+        return {
+          ...item.json,
+          copiedStage: priorJson.stage ?? "missing",
+        };
+      },
+      { id: "read_prior_output" },
+    )
+    .build();
+
+  const kit = RegistrarEngineTestKitFactory.create();
+  await kit.start([wf]);
+
+  const result = await kit.runToCompletion({ wf, startAt: "trigger", items: [] });
+
+  assert.equal(result.status, "completed");
+  assert.equal(result.outputs.length, 1);
+  assert.deepEqual(result.outputs[0]?.json, {
+    score: 42,
+    stage: "annotated",
+    copiedStage: "annotated",
+  });
 });

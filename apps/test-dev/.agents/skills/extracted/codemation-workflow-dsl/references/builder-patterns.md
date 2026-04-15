@@ -8,8 +8,8 @@ export default workflow("wf.example.id")
   .manualTrigger("Start", {
     step: "start",
   })
-  .map("Transform", (item) => ({
-    ...item,
+  .map("Transform", (item, _ctx) => ({
+    ...item.json,
     transformed: true,
   }))
   .build();
@@ -27,6 +27,8 @@ export default workflow("wf.example.id")
 - items usually carry `json` data and optional `binary` data
 - runtime nodes receive batches of items, not just one record
 - author workflow steps with batching in mind
+- fluent `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` callbacks receive `(item, ctx)`
+- read row fields from `item.json` and earlier completed outputs from `ctx.data`
 
 ## When to move beyond callbacks
 

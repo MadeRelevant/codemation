@@ -92,6 +92,7 @@ For architectural boundaries and tooling, **`AGENTS.md`** remains the canonical 
 
 - **Batch nodes** implement **`Node.execute(items, ctx)`** (e.g. **`SplitNode`**, **`FilterNode`**, **`AggregateNode`**, merges, **`If`**, routers): you receive the batch and return **`NodeOutputs`** per port. Built-in **Split / Filter / Aggregate** reshape **`main`** (fan-out, predicate, batch→single summary)—see **`packages/core/docs/item-node-execution.md`**.
 - **Per-item nodes** implement **`ItemNode`** with **`executeOne`** (e.g. **`MapDataNode`**, **`AIAgentNode`**): the engine runs **`executeOne` once per item** (serial, stable order today). **`inputSchema`** validates **`item.json` before enqueue**; optional **`itemValue`** on config fields resolves **per item** before **`executeOne`** so templates can use **`item`** / **`ctx.data`**—same doc. **`RunnableNodeConfig<TIn, TOut, TWire>`** (third defaults to **`TIn`**) and **`ChainCursor.then`** type upstream wire JSON (**`TWire`**). Inside **`itemValue`** callbacks, **`ctx.data`** (**`RunDataSnapshot`**) can read **any completed** node’s outputs in the run, not only the direct **`item`**.
+- **Fluent DSL callback sugar** follows the same item contract for authoring: `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` receive **`(item, ctx)`**, so workflow rows live under **`item.json`** and prior completed outputs stay available through **`ctx.data`**.
 
 ### Node `execute()` → `NodeOutputs` (batch nodes)
 

@@ -29,6 +29,18 @@ type BranchCallback<TCurrentJson, TNextJson> = (
 ) => WorkflowBranchBuilder<TNextJson>;
 type RouteBranchCallback<TCurrentJson, TNextJson> = (branch: WorkflowChain<TCurrentJson>) => WorkflowChain<TNextJson>;
 type BranchOutputMatch<TLeft, TRight> = [TLeft] extends [TRight] ? ([TRight] extends [TLeft] ? true : false) : false;
+type WorkflowMapCallback<TCurrentJson, TNextJson> = (
+  item: Item<TCurrentJson>,
+  ctx: NodeExecutionContext<MapData<TCurrentJson, TNextJson>>,
+) => TNextJson;
+type WorkflowIfPredicate<TCurrentJson> = (
+  item: Item<TCurrentJson>,
+  ctx: NodeExecutionContext<If<TCurrentJson>>,
+) => boolean;
+type WorkflowSwitchCaseKeyResolver<TCurrentJson> = (
+  item: Item<TCurrentJson>,
+  ctx: NodeExecutionContext<Switch<TCurrentJson>>,
+) => string | Promise<string>;
 
 export class WorkflowChain<TCurrentJson> {
   constructor(private readonly chain: ChainCursor<TCurrentJson>) {}
@@ -39,22 +51,20 @@ export class WorkflowChain<TCurrentJson> {
     return new WorkflowChain(this.chain.then(config));
   }
 
-  map<TNextJson>(mapper: (item: TCurrentJson) => TNextJson): WorkflowChain<TNextJson>;
+  map<TNextJson>(mapper: WorkflowMapCallback<TCurrentJson, TNextJson>): WorkflowChain<TNextJson>;
   map<TNextJson>(
     name: string,
-    mapper: (item: TCurrentJson) => TNextJson,
+    mapper: WorkflowMapCallback<TCurrentJson, TNextJson>,
     options?: MapDataOptions,
   ): WorkflowChain<TNextJson>;
   map<TNextJson>(
-    nameOrMapper: string | ((item: TCurrentJson) => TNextJson),
-    mapperOrUndefined?: (item: TCurrentJson) => TNextJson,
+    nameOrMapper: string | WorkflowMapCallback<TCurrentJson, TNextJson>,
+    mapperOrUndefined?: WorkflowMapCallback<TCurrentJson, TNextJson>,
     options?: MapDataOptions,
   ): WorkflowChain<TNextJson> {
     const name = typeof nameOrMapper === "string" ? nameOrMapper : "Map data";
     const mapper = typeof nameOrMapper === "string" ? mapperOrUndefined! : nameOrMapper;
-    return this.then(
-      new MapData<TCurrentJson, TNextJson>(name, (item) => mapper(item.json as TCurrentJson), options),
-    ) as WorkflowChain<TNextJson>;
+    return this.then(new MapData<TCurrentJson, TNextJson>(name, mapper, options)) as WorkflowChain<TNextJson>;
   }
 
   wait(duration: number | string): WorkflowChain<TCurrentJson>;
@@ -190,7 +200,7 @@ export class WorkflowChain<TCurrentJson> {
   }
 
   if<TBranchJson>(
-    predicate: (item: TCurrentJson) => boolean,
+    predicate: WorkflowIfPredicate<TCurrentJson>,
     branches: Readonly<{
       true?: BranchCallback<TCurrentJson, TBranchJson>;
       false?: BranchCallback<TCurrentJson, TBranchJson>;
@@ -198,16 +208,16 @@ export class WorkflowChain<TCurrentJson> {
   ): WorkflowChain<TBranchJson>;
   if<TBranchJson>(
     name: string,
-    predicate: (item: TCurrentJson) => boolean,
+    predicate: WorkflowIfPredicate<TCurrentJson>,
     branches: Readonly<{
       true?: BranchCallback<TCurrentJson, TBranchJson>;
       false?: BranchCallback<TCurrentJson, TBranchJson>;
     }>,
   ): WorkflowChain<TBranchJson>;
   if<TTrueJson, TFalseJson>(
-    nameOrPredicate: string | ((item: TCurrentJson) => boolean),
+    nameOrPredicate: string | WorkflowIfPredicate<TCurrentJson>,
     predicateOrBranches:
-      | ((item: TCurrentJson) => boolean)
+      | WorkflowIfPredicate<TCurrentJson>
       | Readonly<{ true?: BranchCallback<TCurrentJson, TTrueJson>; false?: BranchCallback<TCurrentJson, TFalseJson> }>,
     branchesOrUndefined?: Readonly<{
       true?: BranchCallback<TCurrentJson, TTrueJson>;
@@ -216,12 +226,14 @@ export class WorkflowChain<TCurrentJson> {
   ): WorkflowChain<BranchOutputMatch<TTrueJson, TFalseJson> extends true ? TTrueJson : never> {
     const name = typeof nameOrPredicate === "string" ? nameOrPredicate : "If";
     const predicate =
-      typeof nameOrPredicate === "string" ? (predicateOrBranches as (item: TCurrentJson) => boolean) : nameOrPredicate;
+      typeof nameOrPredicate === "string"
+        ? (predicateOrBranches as WorkflowIfPredicate<TCurrentJson>)
+        : nameOrPredicate;
     const branches = (typeof nameOrPredicate === "string" ? branchesOrUndefined : predicateOrBranches) as Readonly<{
       true?: BranchCallback<TCurrentJson, TTrueJson>;
       false?: BranchCallback<TCurrentJson, TFalseJson>;
     }>;
-    const cursor = this.chain.then(new If<TCurrentJson>(name, (item) => predicate(item.json as TCurrentJson)));
+    const cursor = this.chain.then(new If<TCurrentJson>(name, (item, _index, _items, ctx) => predicate(item, ctx)));
     const trueSteps = branches.true?.(new WorkflowBranchBuilder<TCurrentJson>()).getSteps();
     const falseSteps = branches.false?.(new WorkflowBranchBuilder<TCurrentJson>()).getSteps();
     return new WorkflowChain(
@@ -258,7 +270,7 @@ export class WorkflowChain<TCurrentJson> {
     cfg: Readonly<{
       cases: readonly string[];
       defaultCase: string;
-      resolveCaseKey: (item: TCurrentJson) => string | Promise<string>;
+      resolveCaseKey: WorkflowSwitchCaseKeyResolver<TCurrentJson>;
       branches: Readonly<Record<string, RouteBranchCallback<TCurrentJson, TBranchJson> | undefined>>;
     }>,
   ): WorkflowChain<TBranchJson>;
@@ -267,7 +279,7 @@ export class WorkflowChain<TCurrentJson> {
     cfg: Readonly<{
       cases: readonly string[];
       defaultCase: string;
-      resolveCaseKey: (item: TCurrentJson) => string | Promise<string>;
+      resolveCaseKey: WorkflowSwitchCaseKeyResolver<TCurrentJson>;
       branches: Readonly<Record<string, RouteBranchCallback<TCurrentJson, TBranchJson> | undefined>>;
     }>,
     id?: string,
@@ -278,13 +290,13 @@ export class WorkflowChain<TCurrentJson> {
       | Readonly<{
           cases: readonly string[];
           defaultCase: string;
-          resolveCaseKey: (item: TCurrentJson) => string | Promise<string>;
+          resolveCaseKey: WorkflowSwitchCaseKeyResolver<TCurrentJson>;
           branches: Readonly<Record<string, RouteBranchCallback<TCurrentJson, TBranchJson> | undefined>>;
         }>,
     cfgOrUndefined?: Readonly<{
       cases: readonly string[];
       defaultCase: string;
-      resolveCaseKey: (item: TCurrentJson) => string | Promise<string>;
+      resolveCaseKey: WorkflowSwitchCaseKeyResolver<TCurrentJson>;
       branches: Readonly<Record<string, RouteBranchCallback<TCurrentJson, TBranchJson> | undefined>>;
     }>,
     id?: string,
@@ -297,7 +309,7 @@ export class WorkflowChain<TCurrentJson> {
         {
           cases: cfg.cases,
           defaultCase: cfg.defaultCase,
-          resolveCaseKey: (item) => cfg.resolveCaseKey(item.json as TCurrentJson),
+          resolveCaseKey: (item, _index, _items, ctx) => cfg.resolveCaseKey(item, ctx),
         },
         id,
       ),

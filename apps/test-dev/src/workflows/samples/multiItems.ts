@@ -36,7 +36,7 @@ export default workflow("wf.multi-item-race")
       };
     }),
   )
-  .if("Take shortcut?", (item) => Boolean((item as { takesShortcut?: boolean })?.takesShortcut), {
+  .if("Take shortcut?", (item, _ctx) => Boolean((item.json as { takesShortcut?: boolean })?.takesShortcut), {
     true: (b) =>
       b
         .then(

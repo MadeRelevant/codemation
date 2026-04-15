@@ -1,8 +1,24 @@
-import type { Items, RunnableNode, RunnableNodeConfig, RunnableNodeExecuteArgs, TypeToken } from "@codemation/core";
+import type {
+  Items,
+  NodeExecutionContext,
+  RunnableNode,
+  RunnableNodeConfig,
+  RunnableNodeExecuteArgs,
+  TypeToken,
+} from "@codemation/core";
 import { emitPorts } from "@codemation/core";
 import { defineNode } from "@codemation/core";
 import { itemValue } from "@codemation/core";
-import { Callback, If, ManualTrigger, MapData, Wait, createWorkflowBuilder, workflow } from "@codemation/core-nodes";
+import {
+  Callback,
+  If,
+  ManualTrigger,
+  MapData,
+  Switch,
+  Wait,
+  createWorkflowBuilder,
+  workflow,
+} from "@codemation/core-nodes";
 import { AIAgent } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
@@ -122,28 +138,48 @@ test("workflow helper preserves inference across map, if, wait, agent, and helpe
       subject: "hello",
       count: 1,
     })
-    .map("Enrich", (item) => {
-      const _typedSubject: string = item.subject;
+    .map("Enrich", (item, ctx) => {
+      const _typedSubject: string = item.json.subject;
       type SubjectIsString = AssertTrue<IsExact<typeof _typedSubject, string>>;
       const subjectIsString: SubjectIsString = true;
       void subjectIsString;
+      const _typedMapCtx: NodeExecutionContext<MapData<SeedJson, EnrichedJson>> = ctx;
+      type MapCtxIsTyped = AssertTrue<
+        IsExact<typeof _typedMapCtx, NodeExecutionContext<MapData<SeedJson, EnrichedJson>>>
+      >;
+      const mapCtxIsTyped: MapCtxIsTyped = true;
+      void mapCtxIsTyped;
       return {
-        ...item,
-        upperSubject: item.subject.toUpperCase(),
+        ...item.json,
+        upperSubject: item.json.subject.toUpperCase(),
       };
     })
-    .if("Has count", (item) => item.count > 0, {
-      true: (branch) =>
-        branch.wait("2s").map((item) => ({
-          ...item,
-          route: "sales" as const,
-        })),
-      false: (branch) =>
-        branch.wait("Skip", 0).map((item) => ({
-          ...item,
-          route: "sales" as const,
-        })),
-    })
+    .if(
+      "Has count",
+      (item, ctx) => {
+        const _typedCount: number = item.json.count;
+        type CountIsNumber = AssertTrue<IsExact<typeof _typedCount, number>>;
+        const countIsNumber: CountIsNumber = true;
+        void countIsNumber;
+        const _typedIfCtx: NodeExecutionContext<If<EnrichedJson>> = ctx;
+        type IfCtxIsTyped = AssertTrue<IsExact<typeof _typedIfCtx, NodeExecutionContext<If<EnrichedJson>>>>;
+        const ifCtxIsTyped: IfCtxIsTyped = true;
+        void ifCtxIsTyped;
+        return item.json.count > 0;
+      },
+      {
+        true: (branch) =>
+          branch.wait("2s").map((item, _ctx) => ({
+            ...item.json,
+            route: "sales" as const,
+          })),
+        false: (branch) =>
+          branch.wait("Skip", 0).map((item, _ctx) => ({
+            ...item.json,
+            route: "sales" as const,
+          })),
+      },
+    )
     .agent("Summarize", {
       messages: itemValue(({ item }) => [
         {
@@ -219,12 +255,12 @@ test("workflow helper supports callback routing plus merge and switch core nodes
       error: (branch) => branch.wait("Ignore errors", 0, "ignore_errors"),
       main: (branch) =>
         branch
-          .if("Has count", (item) => item.count > 0, {
+          .if("Has count", (item, _ctx) => item.json.count > 0, {
             true: (trueBranch) =>
               trueBranch.map(
                 "Route sales",
-                (item) => ({
-                  ...item,
+                (item, _ctx) => ({
+                  ...item.json,
                   route: "sales" as const,
                 }),
                 { id: "route_sales", keepBinaries: true },
@@ -232,8 +268,8 @@ test("workflow helper supports callback routing plus merge and switch core nodes
             false: (falseBranch) =>
               falseBranch.map(
                 "Route support",
-                (item) => ({
-                  ...item,
+                (item, _ctx) => ({
+                  ...item.json,
                   route: "support" as const,
                 }),
                 { id: "route_support" },
@@ -245,7 +281,23 @@ test("workflow helper supports callback routing plus merge and switch core nodes
             {
               cases: ["sales"],
               defaultCase: "support",
-              resolveCaseKey: (item) => item.route,
+              resolveCaseKey: (item, ctx) => {
+                const _typedRoute: "sales" | "support" = item.json.route;
+                type RouteIsTyped = AssertTrue<IsExact<typeof _typedRoute, "sales" | "support">>;
+                const routeIsTyped: RouteIsTyped = true;
+                void routeIsTyped;
+                const _typedSwitchCtx: NodeExecutionContext<
+                  Switch<
+                    Readonly<{
+                      subject: string;
+                      count: number;
+                      route: "sales" | "support";
+                    }>
+                  >
+                > = ctx;
+                void _typedSwitchCtx;
+                return item.json.route;
+              },
               branches: {
                 sales: (salesBranch) => salesBranch.wait("Sales wait", 1, "wait_sales"),
                 support: (supportBranch) => supportBranch.wait("Support wait", 0, "wait_support"),
