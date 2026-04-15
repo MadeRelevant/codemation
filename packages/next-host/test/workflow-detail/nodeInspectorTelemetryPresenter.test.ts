@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { TelemetryRunTraceViewDto } from "@codemation/host-src/application/contracts/TelemetryRunTraceContracts";
 import type {
   ConnectionInvocationRecord,
   NodeExecutionSnapshot,
 } from "../../src/features/workflows/hooks/realtime/realtime";
+import type { TelemetryRunTraceViewDto } from "../../src/features/workflows/hooks/realtime/realtime";
 import { NodeInspectorTelemetryPresenter } from "../../src/features/workflows/lib/workflowDetail/NodeInspectorTelemetryPresenter";
 
 describe("NodeInspectorTelemetryPresenter", () => {

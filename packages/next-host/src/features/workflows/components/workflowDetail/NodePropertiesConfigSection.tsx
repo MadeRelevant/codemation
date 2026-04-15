@@ -1,6 +1,9 @@
 import type { JSX } from "react";
-import type { TelemetryRunTraceViewDto } from "@codemation/host-src/application/contracts/TelemetryRunTraceContracts";
-import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../hooks/realtime/realtime";
+import type {
+  ConnectionInvocationRecord,
+  NodeExecutionSnapshot,
+  TelemetryRunTraceViewDto,
+} from "../../hooks/realtime/realtime";
 import {
   NodeInspectorTelemetryPresenter,
   type NodeInspectorJsonBlockModel,

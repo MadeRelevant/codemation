@@ -5,7 +5,6 @@ export type {
   CredentialInstanceWithSecretsDto,
   WorkflowCredentialHealthDto,
 } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
-export type { TelemetryRunTraceViewDto } from "@codemation/host-src/application/contracts/TelemetryRunTraceContracts";
 export type { WorkflowDto, WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
 export type {
   InviteUserResponseDto,

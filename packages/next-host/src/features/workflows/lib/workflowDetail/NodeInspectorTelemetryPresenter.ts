@@ -1,6 +1,8 @@
-import type { TelemetryRunTraceViewDto } from "@codemation/host-src/application/contracts/TelemetryRunTraceContracts";
-import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../hooks/realtime/realtime";
-import { CodemationTelemetryMetricNames, GenAiTelemetryAttributeNames } from "@codemation/core";
+import type {
+  ConnectionInvocationRecord,
+  NodeExecutionSnapshot,
+  TelemetryRunTraceViewDto,
+} from "../../hooks/realtime/realtime";
 
 import type { WorkflowDiagramNode } from "./workflowDetailTypes";
 
@@ -50,6 +52,22 @@ export type NodeInspectorTelemetryModel = Readonly<{
 
 type TelemetrySpan = TelemetryRunTraceViewDto["spans"][number];
 type TelemetryMetricPoint = TelemetryRunTraceViewDto["metricPoints"][number];
+
+const InspectorTelemetryMetricNames = {
+  agentTurns: "codemation.ai.turns",
+  agentToolCalls: "codemation.ai.tool_calls",
+  gmailMessagesEmitted: "codemation.gmail.messages_emitted",
+  gmailAttachments: "codemation.gmail.attachments",
+  gmailAttachmentBytes: "codemation.gmail.attachment_bytes",
+} as const;
+
+const InspectorGenAiAttributeNames = {
+  usageInputTokens: "gen_ai.usage.input_tokens",
+  usageOutputTokens: "gen_ai.usage.output_tokens",
+  usageTotalTokens: "gen_ai.usage.total_tokens",
+  usageCacheReadInputTokens: "gen_ai.usage.cache_read.input_tokens",
+  usageReasoningTokens: "codemation.gen_ai.usage.reasoning_tokens",
+} as const;
 
 export class NodeInspectorTelemetryPresenter {
   static create(
@@ -138,20 +156,20 @@ export class NodeInspectorTelemetryPresenter {
       id: "agent-metrics",
       title: "AI metrics",
       pills: [
-        { label: "Turns", value: this.sumMetrics(metricPoints, CodemationTelemetryMetricNames.agentTurns) },
-        { label: "Tool calls", value: this.sumMetrics(metricPoints, CodemationTelemetryMetricNames.agentToolCalls) },
-        { label: "Input tokens", value: this.sumMetrics(metricPoints, GenAiTelemetryAttributeNames.usageInputTokens) },
+        { label: "Turns", value: this.sumMetrics(metricPoints, InspectorTelemetryMetricNames.agentTurns) },
+        { label: "Tool calls", value: this.sumMetrics(metricPoints, InspectorTelemetryMetricNames.agentToolCalls) },
+        { label: "Input tokens", value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageInputTokens) },
         {
           label: "Output tokens",
-          value: this.sumMetrics(metricPoints, GenAiTelemetryAttributeNames.usageOutputTokens),
+          value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageOutputTokens),
         },
         {
           label: "Cached tokens",
-          value: this.sumMetrics(metricPoints, GenAiTelemetryAttributeNames.usageCacheReadInputTokens),
+          value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageCacheReadInputTokens),
         },
         {
           label: "Reasoning tokens",
-          value: this.sumMetrics(metricPoints, GenAiTelemetryAttributeNames.usageReasoningTokens),
+          value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageReasoningTokens),
         },
         {
           label: "Models",
@@ -195,12 +213,12 @@ export class NodeInspectorTelemetryPresenter {
       title: "Chat model metrics",
       pills: [
         { label: "Invocations", value: String(spanIds.size) },
-        { label: "Input tokens", value: this.sumMetrics(metricPoints, GenAiTelemetryAttributeNames.usageInputTokens) },
+        { label: "Input tokens", value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageInputTokens) },
         {
           label: "Output tokens",
-          value: this.sumMetrics(metricPoints, GenAiTelemetryAttributeNames.usageOutputTokens),
+          value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageOutputTokens),
         },
-        { label: "Total tokens", value: this.sumMetrics(metricPoints, GenAiTelemetryAttributeNames.usageTotalTokens) },
+        { label: "Total tokens", value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageTotalTokens) },
         {
           label: "Model",
           value: this.joinUnique(
@@ -277,12 +295,12 @@ export class NodeInspectorTelemetryPresenter {
       pills: [
         {
           label: "Messages emitted",
-          value: this.sumMetrics(metricPoints, CodemationTelemetryMetricNames.gmailMessagesEmitted),
+          value: this.sumMetrics(metricPoints, InspectorTelemetryMetricNames.gmailMessagesEmitted),
         },
-        { label: "Attachments", value: this.sumMetrics(metricPoints, CodemationTelemetryMetricNames.gmailAttachments) },
+        { label: "Attachments", value: this.sumMetrics(metricPoints, InspectorTelemetryMetricNames.gmailAttachments) },
         {
           label: "Attachment bytes",
-          value: this.sumMetrics(metricPoints, CodemationTelemetryMetricNames.gmailAttachmentBytes),
+          value: this.sumMetrics(metricPoints, InspectorTelemetryMetricNames.gmailAttachmentBytes),
         },
       ],
     };

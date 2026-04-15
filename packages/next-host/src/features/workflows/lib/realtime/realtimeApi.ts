@@ -4,7 +4,6 @@ import type {
   CredentialInstanceWithSecretsDto,
   WorkflowCredentialHealthDto,
 } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
-import type { TelemetryRunTraceViewDto } from "@codemation/host-src/application/contracts/TelemetryRunTraceContracts";
 import {
   withUserAccountLoginMethodsDefaults,
   type UserAccountDto,
@@ -17,6 +16,7 @@ import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import type {
   PersistedRunState,
   RunSummary,
+  TelemetryRunTraceViewDto,
   WorkflowDebuggerOverlayState,
   WorkflowRunDetailDto,
 } from "./realtimeDomainTypes";
