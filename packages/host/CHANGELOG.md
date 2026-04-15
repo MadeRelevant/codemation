@@ -1,5 +1,12 @@
 # @codemation/host
 
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies [[`f451b1b`](https://github.com/MadeRelevant/codemation/commit/f451b1b4657b59406e15ce5f50b243e487ff99ed)]:
+  - @codemation/core-nodes@0.3.0
+
 ## 0.2.2
 
 ### Patch Changes

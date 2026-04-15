@@ -1,5 +1,12 @@
 # create-codemation
 
+## 0.0.29
+
+### Patch Changes
+
+- Updated dependencies [[`f451b1b`](https://github.com/MadeRelevant/codemation/commit/f451b1b4657b59406e15ce5f50b243e487ff99ed)]:
+  - @codemation/agent-skills@0.1.8
+
 ## 0.0.28
 
 ### Patch Changes
