@@ -9,6 +9,7 @@ import {
   SystemClock,
   container as tsyringeContainer,
   type WorkflowDefinition,
+  type WorkflowPolicyRuntimeDefaults,
 } from "@codemation/core";
 import {
   ConfigDrivenOffloadPolicy,
@@ -72,6 +73,16 @@ import { OpenAiApiKeyCredentialHealthTester } from "../infrastructure/credential
 import { OpenAiApiKeyCredentialTypeFactory } from "../infrastructure/credentials/OpenAiApiKeyCredentialTypeFactory";
 import { CodemationPluginRegistrar } from "../infrastructure/config/CodemationPluginRegistrar";
 import { WorkflowRunEventWebsocketRelay } from "../application/websocket/WorkflowRunEventWebsocketRelay";
+import { CompositeTelemetryExporter } from "../application/telemetry/CompositeTelemetryExporter";
+import { LazyExecutionTelemetryFactory } from "../application/telemetry/LazyExecutionTelemetryFactory";
+import { NoOpTelemetryExporter } from "../application/telemetry/NoOpTelemetryExporter";
+import { OtelExecutionTelemetryFactory } from "../application/telemetry/OtelExecutionTelemetryFactory";
+import { OtelIdentityFactory } from "../application/telemetry/OtelIdentityFactory";
+import { RunEventBusTelemetryReporter } from "../application/telemetry/RunEventBusTelemetryReporter";
+import { TelemetryEnricherChain } from "../application/telemetry/TelemetryEnricherChain";
+import { TelemetryPrivacyPolicy } from "../application/telemetry/TelemetryPrivacyPolicy";
+import { TelemetryQueryService } from "../application/telemetry/TelemetryQueryService";
+import { TelemetryRetentionTimestampFactory } from "../application/telemetry/TelemetryRetentionTimestampFactory";
 import { ApplicationTokens } from "../applicationTokens";
 import type { CredentialType } from "../domain/credentials/CredentialServices";
 import {
@@ -145,6 +156,10 @@ import {
   PrismaCredentialStore,
 } from "../infrastructure/persistence/CredentialPersistenceStore";
 import { InMemoryTriggerSetupStateRepository } from "../infrastructure/persistence/InMemoryTriggerSetupStateRepository";
+import { InMemoryRunTraceContextRepository } from "../infrastructure/persistence/InMemoryRunTraceContextRepository";
+import { InMemoryTelemetryArtifactStore } from "../infrastructure/persistence/InMemoryTelemetryArtifactStore";
+import { InMemoryTelemetryMetricPointStore } from "../infrastructure/persistence/InMemoryTelemetryMetricPointStore";
+import { InMemoryTelemetrySpanStore } from "../infrastructure/persistence/InMemoryTelemetrySpanStore";
 import { InMemoryWorkflowActivationRepository } from "../infrastructure/persistence/InMemoryWorkflowActivationRepository";
 import { InMemoryWorkflowDebuggerOverlayRepository } from "../infrastructure/persistence/InMemoryWorkflowDebuggerOverlayRepository";
 import { InMemoryWorkflowRunRepository } from "../infrastructure/persistence/InMemoryWorkflowRunRepository";
@@ -154,6 +169,10 @@ import {
 } from "../infrastructure/persistence/PrismaDatabaseClient";
 import { PrismaClientFactory } from "../infrastructure/persistence/PrismaClientFactory";
 import { PrismaTriggerSetupStateRepository } from "../infrastructure/persistence/PrismaTriggerSetupStateRepository";
+import { PrismaRunTraceContextRepository } from "../infrastructure/persistence/PrismaRunTraceContextRepository";
+import { PrismaTelemetryArtifactStore } from "../infrastructure/persistence/PrismaTelemetryArtifactStore";
+import { PrismaTelemetryMetricPointStore } from "../infrastructure/persistence/PrismaTelemetryMetricPointStore";
+import { PrismaTelemetrySpanStore } from "../infrastructure/persistence/PrismaTelemetrySpanStore";
 import { PrismaWorkflowActivationRepository } from "../infrastructure/persistence/PrismaWorkflowActivationRepository";
 import { PrismaWorkflowDebuggerOverlayRepository } from "../infrastructure/persistence/PrismaWorkflowDebuggerOverlayRepository";
 import { PrismaWorkflowRunRepository } from "../infrastructure/persistence/PrismaWorkflowRunRepository";
@@ -169,6 +188,7 @@ import { LocalFilesystemBinaryStorage } from "../infrastructure/binary/LocalFile
 import { InMemoryBinaryStorage } from "@codemation/core/bootstrap";
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
 import { AppContainerLifecycle } from "./AppContainerLifecycle";
+import { WorkflowRunRetentionPruneScheduler } from "../application/runs/WorkflowRunRetentionPruneScheduler";
 import { DatabaseMigrations } from "./runtime/DatabaseMigrations";
 import { FrontendRuntime } from "./runtime/FrontendRuntime";
 import { WorkerRuntime } from "./runtime/WorkerRuntime";
@@ -356,6 +376,7 @@ export class AppContainerFactory {
     container.registerInstance(CoreTokens.WorkflowActivationPolicy, runtimeWorkflowActivationPolicy);
     new EngineRuntimeRegistrar().register(container, {
       resolveEngineExecutionLimits: () => inputs.appConfig.engineExecutionLimits,
+      workflowPolicyRuntimeDefaults: this.createWorkflowPolicyRuntimeDefaults(inputs.appConfig),
       webhookTriggerMatcherProvider: {
         createMatcher: (dependencyContainer) => {
           const webhookRoutingLogger = dependencyContainer
@@ -528,6 +549,26 @@ export class AppContainerFactory {
   }
 
   private registerRepositoriesAndBuses(container: Container): void {
+    container.register(OtelIdentityFactory, { useClass: OtelIdentityFactory });
+    container.register(TelemetryPrivacyPolicy, { useClass: TelemetryPrivacyPolicy });
+    container.register(TelemetryEnricherChain, { useClass: TelemetryEnricherChain });
+    container.register(TelemetryRetentionTimestampFactory, { useClass: TelemetryRetentionTimestampFactory });
+    container.register(TelemetryQueryService, { useClass: TelemetryQueryService });
+    container.register(NoOpTelemetryExporter, { useClass: NoOpTelemetryExporter });
+    container.register(CompositeTelemetryExporter, {
+      useFactory: instanceCachingFactory(
+        (dependencyContainer) => new CompositeTelemetryExporter([dependencyContainer.resolve(NoOpTelemetryExporter)]),
+      ),
+    });
+    container.register(OtelExecutionTelemetryFactory, { useClass: OtelExecutionTelemetryFactory });
+    container.register(InMemoryRunTraceContextRepository, { useClass: InMemoryRunTraceContextRepository });
+    container.register(InMemoryTelemetrySpanStore, { useClass: InMemoryTelemetrySpanStore });
+    container.register(InMemoryTelemetryArtifactStore, { useClass: InMemoryTelemetryArtifactStore });
+    container.register(InMemoryTelemetryMetricPointStore, { useClass: InMemoryTelemetryMetricPointStore });
+    container.register(PrismaRunTraceContextRepository, { useClass: PrismaRunTraceContextRepository });
+    container.register(PrismaTelemetrySpanStore, { useClass: PrismaTelemetrySpanStore });
+    container.register(PrismaTelemetryArtifactStore, { useClass: PrismaTelemetryArtifactStore });
+    container.register(PrismaTelemetryMetricPointStore, { useClass: PrismaTelemetryMetricPointStore });
     container.register(WorkflowDefinitionRepositoryAdapter, { useClass: WorkflowDefinitionRepositoryAdapter });
     container.register(InMemoryWorkflowRunRepository, { useClass: InMemoryWorkflowRunRepository });
     container.register(InMemoryTriggerSetupStateRepository, { useClass: InMemoryTriggerSetupStateRepository });
@@ -565,6 +606,11 @@ export class AppContainerFactory {
     container.register(ApplicationTokens.DomainEventBus, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(InMemoryDomainEventBus)),
     });
+    container.register(ApplicationTokens.TelemetryExporter, {
+      useFactory: instanceCachingFactory((dependencyContainer) =>
+        dependencyContainer.resolve(CompositeTelemetryExporter),
+      ),
+    });
   }
 
   private registerApplicationServicesAndRoutes(container: Container): void {
@@ -585,6 +631,8 @@ export class AppContainerFactory {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(WorkflowWebsocketServer)),
     });
     container.register(WorkflowRunEventWebsocketRelay, { useClass: WorkflowRunEventWebsocketRelay });
+    container.register(RunEventBusTelemetryReporter, { useClass: RunEventBusTelemetryReporter });
+    container.register(WorkflowRunRetentionPruneScheduler, { useClass: WorkflowRunRetentionPruneScheduler });
   }
 
   private async registerRuntimeInfrastructure(container: Container, appConfig: AppConfig): Promise<PrismaOwnership> {
@@ -597,7 +645,6 @@ export class AppContainerFactory {
     const binaryStorage = this.createBinaryStorage(appConfig.repoRoot);
     container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
     container.registerInstance(CoreTokens.BinaryStorage, binaryStorage);
-    container.registerInstance(CoreTokens.ExecutionContextFactory, new DefaultExecutionContextFactory(binaryStorage));
     container.registerInstance(ApplicationTokens.Clock, new SystemClock());
 
     if (appConfig.persistence.kind === "none") {
@@ -620,6 +667,26 @@ export class AppContainerFactory {
         container.resolve(InMemoryWorkflowActivationRepository),
       );
       container.registerInstance(ApplicationTokens.CredentialStore, container.resolve(InMemoryCredentialStore));
+      container.registerInstance(
+        ApplicationTokens.RunTraceContextRepository,
+        container.resolve(InMemoryRunTraceContextRepository),
+      );
+      container.registerInstance(ApplicationTokens.TelemetrySpanStore, container.resolve(InMemoryTelemetrySpanStore));
+      container.registerInstance(
+        ApplicationTokens.TelemetryArtifactStore,
+        container.resolve(InMemoryTelemetryArtifactStore),
+      );
+      container.registerInstance(
+        ApplicationTokens.TelemetryMetricPointStore,
+        container.resolve(InMemoryTelemetryMetricPointStore),
+      );
+      container.registerInstance(
+        CoreTokens.ExecutionContextFactory,
+        new DefaultExecutionContextFactory(
+          binaryStorage,
+          new LazyExecutionTelemetryFactory(() => container.resolve(OtelExecutionTelemetryFactory)),
+        ),
+      );
       this.registerRuntimeNodeActivationScheduler(container);
       return {
         ownedPrismaClient: null,
@@ -632,6 +699,10 @@ export class AppContainerFactory {
     const workflowRunRepository = childContainer.resolve(PrismaWorkflowRunRepository);
     const triggerSetupStateRepository = childContainer.resolve(PrismaTriggerSetupStateRepository);
     const workflowDebuggerOverlayRepository = childContainer.resolve(PrismaWorkflowDebuggerOverlayRepository);
+    const runTraceContextRepository = childContainer.resolve(PrismaRunTraceContextRepository);
+    const telemetrySpanStore = childContainer.resolve(PrismaTelemetrySpanStore);
+    const telemetryArtifactStore = childContainer.resolve(PrismaTelemetryArtifactStore);
+    const telemetryMetricPointStore = childContainer.resolve(PrismaTelemetryMetricPointStore);
     container.registerInstance(PrismaDatabaseClientToken, prismaOwnership.prismaClient);
     container.registerInstance(ApplicationTokens.PrismaClient, prismaOwnership.prismaClient);
     container.registerInstance(
@@ -649,6 +720,17 @@ export class AppContainerFactory {
       container.resolve(PrismaWorkflowActivationRepository),
     );
     container.registerInstance(ApplicationTokens.CredentialStore, container.resolve(PrismaCredentialStore));
+    container.registerInstance(ApplicationTokens.RunTraceContextRepository, runTraceContextRepository);
+    container.registerInstance(ApplicationTokens.TelemetrySpanStore, telemetrySpanStore);
+    container.registerInstance(ApplicationTokens.TelemetryArtifactStore, telemetryArtifactStore);
+    container.registerInstance(ApplicationTokens.TelemetryMetricPointStore, telemetryMetricPointStore);
+    container.registerInstance(
+      CoreTokens.ExecutionContextFactory,
+      new DefaultExecutionContextFactory(
+        binaryStorage,
+        new LazyExecutionTelemetryFactory(() => container.resolve(OtelExecutionTelemetryFactory)),
+      ),
+    );
     if (appConfig.scheduler.kind === "bullmq") {
       container.registerInstance(
         ApplicationTokens.WorkerRuntimeScheduler,
@@ -705,6 +787,22 @@ export class AppContainerFactory {
     });
   }
 
+  private createWorkflowPolicyRuntimeDefaults(appConfig: AppConfig): WorkflowPolicyRuntimeDefaults {
+    return {
+      retentionSeconds: this.readPositiveInteger(appConfig.env.CODEMATION_RUN_RETENTION_DEFAULT_SECONDS),
+      binaryRetentionSeconds: this.readPositiveInteger(appConfig.env.CODEMATION_BINARY_RETENTION_DEFAULT_SECONDS),
+      telemetrySpanRetentionSeconds: this.readPositiveInteger(
+        appConfig.env.CODEMATION_TELEMETRY_SPAN_RETENTION_DEFAULT_SECONDS,
+      ),
+      telemetryArtifactRetentionSeconds: this.readPositiveInteger(
+        appConfig.env.CODEMATION_TELEMETRY_ARTIFACT_RETENTION_DEFAULT_SECONDS,
+      ),
+      telemetryMetricRetentionSeconds: this.readPositiveInteger(
+        appConfig.env.CODEMATION_TELEMETRY_METRIC_RETENTION_DEFAULT_SECONDS,
+      ),
+    };
+  }
+
   private createBinaryStorage(repoRoot: string): InMemoryBinaryStorage | LocalFilesystemBinaryStorage {
     if (!repoRoot) {
       return new InMemoryBinaryStorage();
@@ -728,6 +826,14 @@ export class AppContainerFactory {
       throw new Error("Redis-backed runtime requires runtime.eventBus.redisUrl or REDIS_URL.");
     }
     return redisUrl;
+  }
+
+  private readPositiveInteger(value: string | undefined): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
   }
 
   private synchronizeLiveWorkflowRepository(container: Container, workflows: ReadonlyArray<WorkflowDefinition>): void {

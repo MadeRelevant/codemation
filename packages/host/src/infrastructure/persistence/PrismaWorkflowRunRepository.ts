@@ -402,21 +402,34 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
   }
 
   async listRunsOlderThan(
-    args: Readonly<{ beforeIso: string; limit?: number }>,
+    args: Readonly<{ nowIso: string; defaultRetentionSeconds: number; limit?: number }>,
   ): Promise<ReadonlyArray<RunPruneCandidate>> {
     const limit = args.limit ?? 100;
     const rows = await this.prisma.run.findMany({
       where: {
         status: { in: ["completed", "failed"] },
-        OR: [
-          { AND: [{ finishedAt: { not: null } }, { finishedAt: { lt: args.beforeIso } }] },
-          { AND: [{ finishedAt: null }, { updatedAt: { lt: args.beforeIso } }] },
-        ],
+      },
+      select: {
+        runId: true,
+        workflowId: true,
+        startedAt: true,
+        finishedAt: true,
+        updatedAt: true,
+        policySnapshotJson: true,
       },
       orderBy: { updatedAt: "asc" },
-      take: limit,
+      take: limit * 4,
     });
-    return rows.map((r) => this.rowToPruneCandidate(r));
+    return rows
+      .filter((row) => {
+        const finishedAt = row.finishedAt ?? row.updatedAt;
+        const policySnapshot = this.parseJson<PersistedRunState["policySnapshot"]>(row.policySnapshotJson);
+        const retentionSeconds = policySnapshot?.retentionSeconds ?? args.defaultRetentionSeconds;
+        const cutoffIso = new Date(new Date(args.nowIso).getTime() - retentionSeconds * 1000).toISOString();
+        return finishedAt < cutoffIso;
+      })
+      .slice(0, limit)
+      .map((row) => this.rowToPruneCandidate(row));
   }
 
   private instancesToDomain(

@@ -27,7 +27,6 @@ model Run {
   workItems          RunWorkItem[]
   executionInstances ExecutionInstance[]
   slotProjection     RunSlotProjection?
-
   @@index([workflowId, startedAt])
   @@index([workflowId, status, finishedAt])
 }
@@ -137,6 +136,106 @@ model TriggerSetupState {
   stateJson  String @map("state_json")
 
   @@id([workflowId, nodeId])
+}
+
+model RunTraceContext {
+  runId       String  @id @map("run_id")
+  workflowId  String  @map("workflow_id")
+  traceId     String  @unique @map("trace_id")
+  rootSpanId  String  @map("root_span_id")
+  serviceName String? @map("service_name")
+  createdAt   String  @map("created_at")
+  expiresAt   String? @map("expires_at")
+
+  @@index([workflowId, createdAt])
+}
+
+model TelemetrySpan {
+  telemetrySpanId           String  @id @map("telemetry_span_id")
+  traceId                   String  @map("trace_id")
+  spanId                    String  @map("span_id")
+  parentSpanId              String? @map("parent_span_id")
+  runId                     String  @map("run_id")
+  workflowId                String  @map("workflow_id")
+  nodeId                    String? @map("node_id")
+  activationId              String? @map("activation_id")
+  connectionInvocationId    String? @map("connection_invocation_id")
+  name                      String
+  kind                      String
+  status                    String?
+  statusMessage             String? @map("status_message")
+  startTime                 String? @map("start_time")
+  endTime                   String? @map("end_time")
+  workflowFolder            String? @map("workflow_folder")
+  nodeType                  String? @map("node_type")
+  nodeRole                  String? @map("node_role")
+  modelName                 String? @map("model_name")
+  attributesJson            String? @map("attributes_json")
+  eventsJson                String? @map("events_json")
+  retentionExpiresAt        String? @map("retention_expires_at")
+  updatedAt                 String  @map("updated_at")
+
+  @@unique([traceId, spanId])
+  @@index([traceId, startTime])
+  @@index([workflowId, endTime])
+  @@index([workflowId, status, endTime])
+  @@index([runId, endTime])
+  @@index([modelName, endTime])
+  @@index([connectionInvocationId])
+  @@index([retentionExpiresAt])
+}
+
+model TelemetryArtifact {
+  artifactId    String  @id @map("artifact_id")
+  traceId       String  @map("trace_id")
+  spanId        String  @map("span_id")
+  runId         String  @map("run_id")
+  workflowId    String  @map("workflow_id")
+  nodeId        String? @map("node_id")
+  activationId  String? @map("activation_id")
+  kind          String
+  contentType   String  @map("content_type")
+  previewText   String? @map("preview_text")
+  previewJson   String? @map("preview_json")
+  payloadText   String? @map("payload_text")
+  payloadJson   String? @map("payload_json")
+  bytes         Int?
+  truncated     Boolean?
+  createdAt     String  @map("created_at")
+  expiresAt     String? @map("expires_at")
+  retentionExpiresAt String? @map("retention_expires_at")
+
+  @@index([traceId, createdAt])
+  @@index([spanId, createdAt])
+  @@index([runId, createdAt])
+  @@index([retentionExpiresAt])
+}
+
+model TelemetryMetricPoint {
+  metricPointId      String  @id @map("metric_point_id")
+  traceId            String? @map("trace_id")
+  spanId             String? @map("span_id")
+  runId              String? @map("run_id")
+  workflowId         String  @map("workflow_id")
+  nodeId             String? @map("node_id")
+  activationId       String? @map("activation_id")
+  metricName         String  @map("metric_name")
+  value              Float
+  unit               String?
+  observedAt         String  @map("observed_at")
+  workflowFolder     String? @map("workflow_folder")
+  nodeType           String? @map("node_type")
+  nodeRole           String? @map("node_role")
+  modelName          String? @map("model_name")
+  dimensionsJson     String? @map("dimensions_json")
+  retentionExpiresAt String? @map("retention_expires_at")
+
+  @@index([workflowId, observedAt])
+  @@index([workflowId, metricName, observedAt])
+  @@index([runId, observedAt])
+  @@index([traceId, observedAt])
+  @@index([modelName, observedAt])
+  @@index([retentionExpiresAt])
 }
 
 model CredentialInstance {

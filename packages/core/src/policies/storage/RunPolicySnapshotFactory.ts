@@ -10,6 +10,12 @@ export class RunPolicySnapshotFactory {
     const prune = workflow.prunePolicy;
     const retentionSeconds = prune?.runDataRetentionSeconds ?? defaults?.retentionSeconds;
     const binaryRetentionSeconds = prune?.binaryRetentionSeconds ?? defaults?.binaryRetentionSeconds;
+    const telemetrySpanRetentionSeconds =
+      prune?.telemetrySpanRetentionSeconds ?? defaults?.telemetrySpanRetentionSeconds;
+    const telemetryArtifactRetentionSeconds =
+      prune?.telemetryArtifactRetentionSeconds ?? defaults?.telemetryArtifactRetentionSeconds;
+    const telemetryMetricRetentionSeconds =
+      prune?.telemetryMetricRetentionSeconds ?? defaults?.telemetryMetricRetentionSeconds;
     const storagePolicy: WorkflowStoragePolicyMode =
       typeof workflow.storagePolicy === "string"
         ? (workflow.storagePolicy as WorkflowStoragePolicyMode)
@@ -17,6 +23,9 @@ export class RunPolicySnapshotFactory {
     return {
       retentionSeconds,
       binaryRetentionSeconds,
+      telemetrySpanRetentionSeconds,
+      telemetryArtifactRetentionSeconds,
+      telemetryMetricRetentionSeconds,
       storagePolicy,
     };
   }

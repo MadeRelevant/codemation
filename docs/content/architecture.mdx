@@ -66,6 +66,25 @@ Use it when:
 - you need a shared staging or production environment
 - queued execution is a better fit than an inline local scheduler
 
+## Observability and retention
+
+Codemation stores two related but different kinds of operational data:
+
+- **run data** for replay, debugger views, node snapshots, and persisted outputs
+- **telemetry data** for traces, spans, artifacts, and metric points
+
+Those lifecycles are intentionally separate. You can keep raw run data for a short window while retaining telemetry for longer-term trend analysis and compliance reporting.
+
+That means a setup such as "delete runs after 14 days but keep telemetry for 90 days" is a supported runtime shape, not a migration you need to invent later.
+
+Telemetry also uses a split model on purpose:
+
+- canonical span fields stay on spans
+- node-specific measurements go into metric points
+- larger drill-down payloads live as artifacts
+
+This keeps the schema stable as new node types report new metrics, while still working in both local SQLite and shared PostgreSQL deployments.
+
 ## Engine layer
 
 ![Engine architecture overview](/architecture/engine-overview.svg)

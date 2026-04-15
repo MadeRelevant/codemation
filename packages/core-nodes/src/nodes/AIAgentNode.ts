@@ -22,9 +22,12 @@ import {
   AgentGuardrailDefaults,
   AgentMessageConfigNormalizer,
   CallableToolConfig,
+  CodemationTelemetryAttributeNames,
+  CodemationTelemetryMetricNames,
   ConnectionInvocationIdFactory,
   ConnectionNodeIdFactory,
   CoreTokens,
+  GenAiTelemetryAttributeNames,
   NodeBackedToolConfig,
   inject,
   node,
@@ -178,21 +181,28 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
             prepared.guardrails.modelInvocationOptions,
           ),
       });
+      await ctx.telemetry.recordMetric({ name: CodemationTelemetryMetricNames.agentTurns, value: 1 });
+      await ctx.telemetry.recordMetric({ name: CodemationTelemetryMetricNames.agentToolCalls, value: 0 });
       return this.buildOutputItem(item, structuredOutput);
     }
     const modelWithTools = this.bindToolsToModel(prepared.model, itemScopedTools);
-    const finalResponse = await this.runTurnLoopUntilFinalAnswer({
+    const loopResult = await this.runTurnLoopUntilFinalAnswer({
       prepared,
       itemInputsByPort,
       itemScopedTools,
       conversation,
       modelWithTools,
     });
+    await ctx.telemetry.recordMetric({ name: CodemationTelemetryMetricNames.agentTurns, value: loopResult.turnCount });
+    await ctx.telemetry.recordMetric({
+      name: CodemationTelemetryMetricNames.agentToolCalls,
+      value: loopResult.toolCallCount,
+    });
     const outputJson = await this.resolveFinalOutputJson(
       prepared,
       itemInputsByPort,
       conversation,
-      finalResponse,
+      loopResult.finalResponse,
       itemScopedTools.length > 0,
     );
     return this.buildOutputItem(item, outputJson);
@@ -207,13 +217,16 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     itemScopedTools: ReadonlyArray<ItemScopedToolBinding>;
     conversation: BaseMessage[];
     modelWithTools: LangChainChatModelLike;
-  }): Promise<AIMessage> {
+  }): Promise<Readonly<{ finalResponse: AIMessage; turnCount: number; toolCallCount: number }>> {
     const { prepared, itemInputsByPort, itemScopedTools, conversation, modelWithTools } = args;
     const { ctx, guardrails, languageModelConnectionNodeId } = prepared;
 
     let finalResponse: AIMessage | undefined;
+    let toolCallCount = 0;
+    let turnCount = 0;
 
     for (let turn = 1; turn <= guardrails.maxTurns; turn++) {
+      turnCount = turn;
       const response = await this.invokeModel(
         modelWithTools,
         languageModelConnectionNodeId,
@@ -235,6 +248,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       }
 
       const plannedToolCalls = this.planToolCalls(itemScopedTools, toolCalls, ctx.nodeId);
+      toolCallCount += plannedToolCalls.length;
       await this.markQueuedTools(plannedToolCalls, ctx);
       const executedToolCalls = await this.executeToolCalls(plannedToolCalls, ctx);
       this.appendAssistantAndToolMessages(conversation, response, executedToolCalls);
@@ -243,7 +257,11 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     if (!finalResponse) {
       throw new Error(`AIAgent "${ctx.config.name ?? ctx.nodeId}" did not produce a model response.`);
     }
-    return finalResponse;
+    return {
+      finalResponse,
+      turnCount,
+      toolCallCount,
+    };
   }
 
   private cannotExecuteAnotherToolRound(turn: number, guardrails: ResolvedGuardrails): boolean {
@@ -374,10 +392,15 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     inputsByPort: NodeInputsByPort,
     options?: AgentGuardrailConfig["modelInvocationOptions"],
   ): Promise<AIMessage> {
+    const invocationId = ConnectionInvocationIdFactory.create();
+    const startedAt = new Date();
+    const summarizedInput = this.summarizeLlmMessages(messages);
+    const span = this.createModelInvocationSpan(ctx, invocationId, startedAt);
     await ctx.nodeState?.markQueued({ nodeId, activationId: ctx.activationId, inputsByPort });
     await ctx.nodeState?.markRunning({ nodeId, activationId: ctx.activationId, inputsByPort });
     try {
       const response = (await model.invoke(messages, options)) as AIMessage;
+      const finishedAt = new Date();
       await ctx.nodeState?.markCompleted({
         nodeId,
         activationId: ctx.activationId,
@@ -387,18 +410,37 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         }),
       });
       const content = AgentMessageFactory.extractContent(response);
+      await span.attachArtifact({
+        kind: "ai.messages",
+        contentType: "application/json",
+        previewJson: summarizedInput,
+      });
+      await span.attachArtifact({
+        kind: "ai.response",
+        contentType: "application/json",
+        previewJson: content,
+      });
+      await this.recordModelUsageMetrics(span, response);
+      await span.end({ status: "ok", endedAt: finishedAt });
       await ctx.nodeState?.appendConnectionInvocation({
-        invocationId: ConnectionInvocationIdFactory.create(),
+        invocationId,
         connectionNodeId: nodeId,
         parentAgentNodeId: ctx.nodeId,
         parentAgentActivationId: ctx.activationId,
         status: "completed",
-        managedInput: this.summarizeLlmMessages(messages),
+        managedInput: summarizedInput,
         managedOutput: content,
-        finishedAt: new Date().toISOString(),
+        queuedAt: startedAt.toISOString(),
+        startedAt: startedAt.toISOString(),
+        finishedAt: finishedAt.toISOString(),
       });
       return response;
     } catch (error) {
+      await span.end({
+        status: "error",
+        statusMessage: error instanceof Error ? error.message : String(error),
+        endedAt: new Date(),
+      });
       throw await this.failTrackedNodeInvocation(error, nodeId, ctx, inputsByPort, this.summarizeLlmMessages(messages));
     }
   }
@@ -411,30 +453,168 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     inputsByPort: NodeInputsByPort,
     options?: AgentGuardrailConfig["modelInvocationOptions"],
   ): Promise<unknown> {
+    const invocationId = ConnectionInvocationIdFactory.create();
+    const startedAt = new Date();
+    const summarizedInput = this.summarizeLlmMessages(messages);
+    const span = this.createModelInvocationSpan(ctx, invocationId, startedAt);
     await ctx.nodeState?.markQueued({ nodeId, activationId: ctx.activationId, inputsByPort });
     await ctx.nodeState?.markRunning({ nodeId, activationId: ctx.activationId, inputsByPort });
     try {
       const response = await model.invoke(messages, options);
+      const finishedAt = new Date();
       await ctx.nodeState?.markCompleted({
         nodeId,
         activationId: ctx.activationId,
         inputsByPort,
         outputs: AgentOutputFactory.fromUnknown(response),
       });
+      await span.attachArtifact({
+        kind: "ai.messages",
+        contentType: "application/json",
+        previewJson: summarizedInput,
+      });
+      await span.attachArtifact({
+        kind: "ai.response.structured",
+        contentType: "application/json",
+        previewJson: this.resultToJsonValue(response),
+      });
+      await this.recordModelUsageMetrics(span, response);
+      await span.end({ status: "ok", endedAt: finishedAt });
       await ctx.nodeState?.appendConnectionInvocation({
-        invocationId: ConnectionInvocationIdFactory.create(),
+        invocationId,
         connectionNodeId: nodeId,
         parentAgentNodeId: ctx.nodeId,
         parentAgentActivationId: ctx.activationId,
         status: "completed",
-        managedInput: this.summarizeLlmMessages(messages),
+        managedInput: summarizedInput,
         managedOutput: this.resultToJsonValue(response),
-        finishedAt: new Date().toISOString(),
+        queuedAt: startedAt.toISOString(),
+        startedAt: startedAt.toISOString(),
+        finishedAt: finishedAt.toISOString(),
       });
       return response;
     } catch (error) {
+      await span.end({
+        status: "error",
+        statusMessage: error instanceof Error ? error.message : String(error),
+        endedAt: new Date(),
+      });
       throw await this.failTrackedNodeInvocation(error, nodeId, ctx, inputsByPort, this.summarizeLlmMessages(messages));
     }
+  }
+
+  private createModelInvocationSpan(
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
+    invocationId: string,
+    startedAt: Date,
+  ) {
+    return ctx.telemetry.startChildSpan({
+      name: "gen_ai.chat.completion",
+      kind: "client",
+      startedAt,
+      attributes: {
+        [CodemationTelemetryAttributeNames.connectionInvocationId]: invocationId,
+        [GenAiTelemetryAttributeNames.operationName]: "chat",
+        [GenAiTelemetryAttributeNames.requestModel]: ctx.config.chatModel.name,
+      },
+    });
+  }
+
+  private async recordModelUsageMetrics(
+    span: ReturnType<NodeExecutionContext["telemetry"]["startChildSpan"]>,
+    response: unknown,
+  ) {
+    const usage = this.extractModelUsageMetrics(response);
+    for (const [name, value] of Object.entries(usage)) {
+      if (value === undefined) {
+        continue;
+      }
+      await span.recordMetric({ name, value });
+    }
+  }
+
+  private extractModelUsageMetrics(response: unknown): Readonly<Record<string, number | undefined>> {
+    const usage = this.extractUsageObject(response);
+    const inputTokens = this.readUsageNumber(usage, ["input_tokens", "inputTokens", "prompt_tokens", "promptTokens"]);
+    const outputTokens = this.readUsageNumber(usage, [
+      "output_tokens",
+      "outputTokens",
+      "completion_tokens",
+      "completionTokens",
+    ]);
+    const totalTokens =
+      this.readUsageNumber(usage, ["total_tokens", "totalTokens"]) ??
+      (inputTokens !== undefined && outputTokens !== undefined ? inputTokens + outputTokens : undefined);
+    const cachedInputTokens = this.readUsageNumber(usage, [
+      "cache_read_input_tokens",
+      "cacheReadInputTokens",
+      "input_token_details.cached_tokens",
+    ]);
+    const reasoningTokens = this.readUsageNumber(usage, [
+      "reasoning_tokens",
+      "reasoningTokens",
+      "output_token_details.reasoning_tokens",
+    ]);
+    return {
+      [GenAiTelemetryAttributeNames.usageInputTokens]: inputTokens,
+      [GenAiTelemetryAttributeNames.usageOutputTokens]: outputTokens,
+      [GenAiTelemetryAttributeNames.usageTotalTokens]: totalTokens,
+      [GenAiTelemetryAttributeNames.usageCacheReadInputTokens]: cachedInputTokens,
+      [GenAiTelemetryAttributeNames.usageReasoningTokens]: reasoningTokens,
+    };
+  }
+
+  private extractUsageObject(response: unknown): Readonly<Record<string, unknown>> | undefined {
+    if (!this.isRecord(response)) {
+      return undefined;
+    }
+    const usageMetadata = response["usage_metadata"];
+    if (this.isRecord(usageMetadata)) {
+      return usageMetadata;
+    }
+    const responseMetadata = response["response_metadata"];
+    if (this.isRecord(responseMetadata)) {
+      const tokenUsage = responseMetadata["tokenUsage"];
+      if (this.isRecord(tokenUsage)) {
+        return tokenUsage;
+      }
+      const usage = responseMetadata["usage"];
+      if (this.isRecord(usage)) {
+        return usage;
+      }
+    }
+    return undefined;
+  }
+
+  private readUsageNumber(
+    source: Readonly<Record<string, unknown>> | undefined,
+    keys: ReadonlyArray<string>,
+  ): number | undefined {
+    for (const key of keys) {
+      const value = this.readNestedUsageValue(source, key);
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+      }
+    }
+    return undefined;
+  }
+
+  private readNestedUsageValue(source: Readonly<Record<string, unknown>> | undefined, dottedKey: string): unknown {
+    if (!source) {
+      return undefined;
+    }
+    let current: unknown = source;
+    for (const segment of dottedKey.split(".")) {
+      if (!this.isRecord(current)) {
+        return undefined;
+      }
+      current = current[segment];
+    }
+    return current;
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
   }
 
   private async markQueuedTools(
@@ -457,6 +637,17 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     const results = await Promise.allSettled(
       plannedToolCalls.map(async (plannedToolCall) => {
         const toolCallInputsByPort = AgentToolCallPortMap.fromInput(plannedToolCall.toolCall.input ?? {});
+        const invocationId = ConnectionInvocationIdFactory.create();
+        const startedAt = new Date();
+        const span = ctx.telemetry.startChildSpan({
+          name: "agent.tool.call",
+          kind: "client",
+          startedAt,
+          attributes: {
+            [CodemationTelemetryAttributeNames.connectionInvocationId]: invocationId,
+            [CodemationTelemetryAttributeNames.toolName]: plannedToolCall.binding.config.name,
+          },
+        });
         await ctx.nodeState?.markRunning({
           nodeId: plannedToolCall.nodeId,
           activationId: ctx.activationId,
@@ -465,21 +656,35 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         try {
           const serialized = await plannedToolCall.binding.langChainTool.invoke(plannedToolCall.toolCall.input ?? {});
           const result = this.parseToolOutput(serialized);
+          const finishedAt = new Date();
           await ctx.nodeState?.markCompleted({
             nodeId: plannedToolCall.nodeId,
             activationId: ctx.activationId,
             inputsByPort: toolCallInputsByPort,
             outputs: AgentOutputFactory.fromUnknown(result),
           });
+          await span.attachArtifact({
+            kind: "tool.input",
+            contentType: "application/json",
+            previewJson: this.toolCallInputToJson(plannedToolCall.toolCall.input),
+          });
+          await span.attachArtifact({
+            kind: "tool.output",
+            contentType: "application/json",
+            previewJson: this.resultToJsonValue(result),
+          });
+          await span.end({ status: "ok", endedAt: finishedAt });
           await ctx.nodeState?.appendConnectionInvocation({
-            invocationId: ConnectionInvocationIdFactory.create(),
+            invocationId,
             connectionNodeId: plannedToolCall.nodeId,
             parentAgentNodeId: ctx.nodeId,
             parentAgentActivationId: ctx.activationId,
             status: "completed",
             managedInput: this.toolCallInputToJson(plannedToolCall.toolCall.input),
             managedOutput: this.resultToJsonValue(result),
-            finishedAt: new Date().toISOString(),
+            queuedAt: startedAt.toISOString(),
+            startedAt: startedAt.toISOString(),
+            finishedAt: finishedAt.toISOString(),
           });
           return {
             toolName: plannedToolCall.binding.config.name,
@@ -488,6 +693,11 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
             result,
           } satisfies ExecutedToolCall;
         } catch (error) {
+          await span.end({
+            status: "error",
+            statusMessage: error instanceof Error ? error.message : String(error),
+            endedAt: new Date(),
+          });
           throw await this.failTrackedNodeInvocation(
             error,
             plannedToolCall.nodeId,

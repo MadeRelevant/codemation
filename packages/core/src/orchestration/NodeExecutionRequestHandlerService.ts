@@ -71,6 +71,7 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
       workflowId: state.workflowId,
       nodeId: request.nodeId,
       parent: resolvedParent,
+      policySnapshot: state.policySnapshot,
       subworkflowDepth: state.executionOptions?.subworkflowDepth ?? 0,
       engineMaxNodeActivations: limits.engineMaxNodeActivations,
       engineMaxSubworkflowDepth: limits.engineMaxSubworkflowDepth,

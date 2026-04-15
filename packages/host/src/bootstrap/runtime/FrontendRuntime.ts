@@ -3,10 +3,12 @@ import { Engine } from "@codemation/core/bootstrap";
 import { ApplicationTokens } from "../../applicationTokens";
 import type { AppConfig } from "../../presentation/config/AppConfig";
 import { RuntimeWorkflowActivationPolicy } from "../../infrastructure/persistence/RuntimeWorkflowActivationPolicy";
+import { RunEventBusTelemetryReporter } from "../../application/telemetry/RunEventBusTelemetryReporter";
 import { WorkflowRunEventWebsocketRelay } from "../../application/websocket/WorkflowRunEventWebsocketRelay";
 import { WorkflowWebsocketServer } from "../../presentation/websocket/WorkflowWebsocketServer";
 import { DatabaseMigrations } from "./DatabaseMigrations";
 import type { WorkflowActivationRepository } from "../../domain/workflows/WorkflowActivationRepository";
+import { WorkflowRunRetentionPruneScheduler } from "../../application/runs/WorkflowRunRetentionPruneScheduler";
 
 @injectable()
 export class FrontendRuntime {
@@ -25,6 +27,10 @@ export class FrontendRuntime {
     private readonly workflowWebsocketServer: WorkflowWebsocketServer,
     @inject(WorkflowRunEventWebsocketRelay)
     private readonly workflowRunEventWebsocketRelay: WorkflowRunEventWebsocketRelay,
+    @inject(RunEventBusTelemetryReporter)
+    private readonly runEventBusTelemetryReporter: RunEventBusTelemetryReporter,
+    @inject(WorkflowRunRetentionPruneScheduler)
+    private readonly workflowRunRetentionPruneScheduler: WorkflowRunRetentionPruneScheduler,
     @inject(Engine)
     private readonly engine: Engine,
   ) {}
@@ -39,6 +45,8 @@ export class FrontendRuntime {
     }
     await this.engine.start([...this.workflowRepository.list()]);
     await this.workflowWebsocketServer.start();
+    await this.runEventBusTelemetryReporter.start();
+    this.workflowRunRetentionPruneScheduler.start();
     await this.workflowRunEventWebsocketRelay.start();
   }
 }

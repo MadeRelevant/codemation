@@ -63,7 +63,7 @@ export class EventPublishingWorkflowExecutionRepository
   }
 
   async listRunsOlderThan(
-    args: Readonly<{ beforeIso: string; limit?: number }>,
+    args: Readonly<{ nowIso: string; defaultRetentionSeconds: number; limit?: number }>,
   ): Promise<ReadonlyArray<RunPruneCandidate>> {
     const pruneRepository = this.inner as unknown as Partial<WorkflowExecutionPruneRepository>;
     if (!pruneRepository.listRunsOlderThan) return [];

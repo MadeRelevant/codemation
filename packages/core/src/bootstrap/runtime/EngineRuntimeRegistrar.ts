@@ -163,6 +163,7 @@ export class EngineRuntimeRegistrar {
           tokenRegistry: tokenRegistryLike,
           workflowNodeInstanceFactory,
           executionLimitsPolicy: dependencyContainer.resolve(CoreTokens.EngineExecutionLimitsPolicy),
+          workflowPolicyRuntimeDefaults: options?.workflowPolicyRuntimeDefaults,
           triggerRuntimeDiagnostics,
         });
       }),
