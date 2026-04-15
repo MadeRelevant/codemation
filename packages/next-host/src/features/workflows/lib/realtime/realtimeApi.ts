@@ -4,6 +4,7 @@ import type {
   CredentialInstanceWithSecretsDto,
   WorkflowCredentialHealthDto,
 } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+import type { TelemetryRunTraceViewDto } from "@codemation/host-src/application/contracts/TelemetryRunTraceContracts";
 import {
   withUserAccountLoginMethodsDefaults,
   type UserAccountDto,
@@ -59,6 +60,14 @@ export async function fetchRunDetail(
 ): Promise<WorkflowRunDetailDto> {
   const init: RequestInit | undefined = options?.signal ? { signal: options.signal } : undefined;
   return await codemationApiClient.getJson<WorkflowRunDetailDto>(ApiPaths.runDetail(runId), init);
+}
+
+export async function fetchTelemetryRunTrace(
+  runId: string,
+  options?: Readonly<{ signal?: AbortSignal }>,
+): Promise<TelemetryRunTraceViewDto> {
+  const init: RequestInit | undefined = options?.signal ? { signal: options.signal } : undefined;
+  return await codemationApiClient.getJson<TelemetryRunTraceViewDto>(ApiPaths.telemetryRunTrace(runId), init);
 }
 
 export async function fetchCredentialTypes(): Promise<ReadonlyArray<CredentialTypeDefinition>> {

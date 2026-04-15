@@ -5,12 +5,12 @@ import type {
   TelemetryDashboardTimeseriesBucketDto,
   TelemetryDashboardTimeseriesDto,
 } from "../contracts/TelemetryDashboardContracts";
+import type { TelemetryRunTraceViewDto } from "../contracts/TelemetryRunTraceContracts";
 import { ApplicationTokens } from "../../applicationTokens";
 import type {
   RunTraceContextRepository,
-  TelemetryArtifactRecord,
-  TelemetryMetricPointRecord,
   TelemetryArtifactStore,
+  TelemetryMetricPointRecord,
   TelemetryMetricPointStore,
   TelemetrySpanRecord,
   TelemetrySpanStatus,
@@ -41,13 +41,6 @@ export interface TelemetryAiAggregate {
   readonly totalTokens: number;
   readonly cachedInputTokens: number;
   readonly reasoningTokens: number;
-}
-
-export interface TelemetryRunTraceView {
-  readonly traceId: string;
-  readonly runId: string;
-  readonly spans: ReadonlyArray<TelemetrySpanRecord>;
-  readonly artifacts: ReadonlyArray<TelemetryArtifactRecord>;
 }
 
 @injectable()
@@ -195,18 +188,25 @@ export class TelemetryQueryService {
     };
   }
 
-  async loadRunTrace(runId: string): Promise<TelemetryRunTraceView> {
+  async loadRunTrace(runId: string): Promise<TelemetryRunTraceViewDto> {
     const trace = await this.runTraceContextRepository.load(runId);
     const traceId = trace?.traceId ?? this.otelIdentityFactory.createTraceId(runId);
-    const [spans, artifacts] = await Promise.all([
+    const [spans, artifacts, metricPoints] = await Promise.all([
       this.telemetrySpanStore.listByTraceId(traceId),
       this.telemetryArtifactStore.listByTraceId(traceId),
+      this.telemetryMetricPointStore.list({
+        runId,
+        traceId,
+        limit: TelemetryQueryService.queryScanLimit + 1,
+      }),
     ]);
+    this.throwWhenQueryLimitExceeded(metricPoints.length);
     return {
       traceId,
       runId,
       spans,
       artifacts,
+      metricPoints,
     };
   }
 

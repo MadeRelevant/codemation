@@ -5,6 +5,7 @@ export type {
   CredentialInstanceWithSecretsDto,
   WorkflowCredentialHealthDto,
 } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+export type { TelemetryRunTraceViewDto } from "@codemation/host-src/application/contracts/TelemetryRunTraceContracts";
 export type { WorkflowDto, WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
 export type {
   InviteUserResponseDto,
@@ -32,6 +33,7 @@ import {
   fetchCredentialTypes,
   fetchRun,
   fetchRunDetail,
+  fetchTelemetryRunTrace,
   fetchUserAccounts,
   fetchWorkflow,
   fetchWorkflowCredentialHealth,
@@ -48,6 +50,7 @@ import {
   credentialTypesQueryKey,
   runDetailQueryKey,
   runQueryKey,
+  telemetryRunTraceQueryKey,
   userAccountsQueryKey,
   workflowCredentialHealthQueryKey,
   workflowDebuggerOverlayQueryKey,
@@ -195,6 +198,19 @@ export function useRunDetailQuery(
     queryKey: runId ? runDetailQueryKey(runId) : ["run-detail", "disabled"],
     queryFn: async ({ signal }): Promise<WorkflowRunDetailDto> => await fetchRunDetail(runId!, { signal }),
     enabled: Boolean(runId) && !options.disableFetch,
+    staleTime: 30_000,
+  });
+}
+
+export function useTelemetryRunTraceQuery(
+  runId: string | null | undefined,
+  options: Readonly<{ disableFetch?: boolean }> = {},
+) {
+  return useQuery({
+    queryKey: runId ? telemetryRunTraceQueryKey(runId) : ["telemetry-run-trace", "disabled"],
+    queryFn: async ({ signal }) => await fetchTelemetryRunTrace(runId!, { signal }),
+    enabled: Boolean(runId) && !options.disableFetch,
+    retry: false,
     staleTime: 30_000,
   });
 }

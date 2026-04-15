@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import type { NodeExecutionContext } from "@codemation/core";
+import type {
+  NodeExecutionContext,
+  NodeExecutionTelemetry,
+  TelemetryArtifactAttachment,
+  TelemetryMetricRecord,
+} from "@codemation/core";
+import { CodemationTelemetryMetricNames, NoOpTelemetryArtifactReference } from "@codemation/core";
 import { test } from "vitest";
 import { GoogleGmailApiClientFactory } from "../src/adapters/google/GoogleGmailApiClientFactory";
 import type { GmailLogger } from "../src/contracts/GmailLogger";
@@ -148,6 +154,34 @@ class FakeGmailLogger implements GmailLogger {
   debug(_message: string, _exception?: Error): void {}
 }
 
+class FakeNodeExecutionTelemetry implements NodeExecutionTelemetry {
+  readonly traceId = "trace_1";
+  readonly spanId = "span_1";
+  readonly metrics: TelemetryMetricRecord[] = [];
+  readonly artifacts: TelemetryArtifactAttachment[] = [];
+
+  addSpanEvent(): void {}
+
+  recordMetric(args: TelemetryMetricRecord): void {
+    this.metrics.push(args);
+  }
+
+  attachArtifact(args: TelemetryArtifactAttachment) {
+    this.artifacts.push(args);
+    return NoOpTelemetryArtifactReference.value;
+  }
+
+  forNode(): NodeExecutionTelemetry {
+    return this;
+  }
+
+  startChildSpan(): NodeExecutionTelemetry {
+    return this;
+  }
+
+  end(): void {}
+}
+
 class OnNewGmailTriggerNodeTestFixture {
   static createConfig(
     overrides: Partial<{
@@ -278,6 +312,65 @@ test("OnNewGmailTriggerNode.setup adapts the Gmail session into the runtime clie
   assert.deepEqual(setupState?.processedMessageIds, ["message_1"]);
   const ensureStartedArgs = runtime.ensureStartedArgs as { client: GmailApiClient };
   assert.equal(ensureStartedArgs.client, client);
+});
+
+test("OnNewGmailTriggerNode.execute records Gmail metrics and message preview telemetry", async () => {
+  const logger = new FakeGmailLogger();
+  const telemetry = new FakeNodeExecutionTelemetry();
+  const node = OnNewGmailTriggerNodeTestFixture.createNode(logger);
+  const items = [
+    {
+      json: {
+        mailbox: "sales@example.com",
+        historyId: "history_1",
+        messageId: "message_1",
+        labelIds: ["IMPORTANT"],
+        headers: {},
+        subject: "Quote request",
+        from: "buyer@example.com",
+        snippet: "Need a quote",
+        attachments: [
+          {
+            attachmentId: "attachment_1",
+            binaryName: "quote-pdf",
+            mimeType: "application/pdf",
+            size: 42,
+          },
+        ],
+      },
+    },
+  ] as const;
+
+  const outputs = await node.execute(items, {
+    workflowId: "wf.gmail",
+    nodeId: "gmail_trigger",
+    config: OnNewGmailTriggerNodeTestFixture.createConfig(),
+    telemetry,
+  } as unknown as NodeExecutionContext<OnNewGmailTrigger>);
+
+  assert.deepEqual(outputs.main, items);
+  assert.deepEqual(
+    telemetry.metrics.map((metric) => ({ name: metric.name, value: metric.value })),
+    [
+      { name: CodemationTelemetryMetricNames.gmailMessagesEmitted, value: 1 },
+      { name: CodemationTelemetryMetricNames.gmailAttachments, value: 1 },
+      { name: CodemationTelemetryMetricNames.gmailAttachmentBytes, value: 42 },
+    ],
+  );
+  assert.equal(telemetry.artifacts.length, 1);
+  assert.equal(telemetry.artifacts[0]?.kind, "gmail.messages");
+  assert.deepEqual(telemetry.artifacts[0]?.previewJson, [
+    {
+      mailbox: "sales@example.com",
+      messageId: "message_1",
+      subject: "Quote request",
+      from: "buyer@example.com",
+      snippet: "Need a quote",
+      attachmentCount: 1,
+      attachmentBytes: 42,
+      labelIds: ["IMPORTANT"],
+    },
+  ]);
 });
 
 test("OnNewGmailTriggerNode.getTestItems adapts the Gmail session into the preview service", async () => {

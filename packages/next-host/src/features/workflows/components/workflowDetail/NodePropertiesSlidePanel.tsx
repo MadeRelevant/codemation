@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
 
 import { cn } from "@/lib/utils";
 
+import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../hooks/realtime/realtime";
+import { useTelemetryRunTraceQuery } from "../../hooks/realtime/realtime";
 import { NodeCredentialBindingsSection } from "./NodeCredentialBindingsSection";
 import { NodePropertiesConfigSection } from "./NodePropertiesConfigSection";
 import { NodePropertiesPanelHeader } from "./NodePropertiesPanelHeader";
@@ -35,13 +37,27 @@ export function NodePropertiesSlidePanel(
     workflowId: string;
     isOpen: boolean;
     node: WorkflowDiagramNode | undefined;
+    telemetryRunId: string | null;
+    nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
+    connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>;
     onClose: () => void;
     pendingCredentialEditForNodeId: string | null;
     onConsumedPendingCredentialEdit: () => void;
   }>,
 ) {
-  const { isOpen, node, onClose, workflowId, pendingCredentialEditForNodeId, onConsumedPendingCredentialEdit } = args;
+  const {
+    isOpen,
+    node,
+    onClose,
+    workflowId,
+    telemetryRunId,
+    nodeSnapshotsByNodeId,
+    connectionInvocations,
+    pendingCredentialEditForNodeId,
+    onConsumedPendingCredentialEdit,
+  } = args;
   const isVisible = isOpen && Boolean(node);
+  const telemetryRunTraceQuery = useTelemetryRunTraceQuery(telemetryRunId, { disableFetch: !isVisible });
   const [panelWidthPx, setPanelWidthPx] = useState(DEFAULT_PANEL_WIDTH_PX);
   const [isResizing, setIsResizing] = useState(false);
   const panelWidthRef = useRef(DEFAULT_PANEL_WIDTH_PX);
@@ -118,7 +134,17 @@ export function NodePropertiesSlidePanel(
               onClose={onClose}
             />
             <div className="min-h-0 flex-1 overflow-auto">
-              <NodePropertiesConfigSection node={node} />
+              <NodePropertiesConfigSection
+                node={node}
+                telemetryRunId={telemetryRunId}
+                nodeSnapshotsByNodeId={nodeSnapshotsByNodeId}
+                connectionInvocations={connectionInvocations}
+                telemetryRunTrace={telemetryRunTraceQuery.data}
+                telemetryIsLoading={telemetryRunTraceQuery.isLoading}
+                telemetryLoadError={
+                  telemetryRunTraceQuery.error instanceof Error ? telemetryRunTraceQuery.error.message : null
+                }
+              />
               <NodeCredentialBindingsSection
                 workflowId={workflowId}
                 node={node}
