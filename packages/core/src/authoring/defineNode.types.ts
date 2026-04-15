@@ -4,6 +4,7 @@ import type {
   CredentialRequirement,
   CredentialTypeId,
 } from "../contracts/credentialTypes";
+import type { ParamDeep } from "../contracts/params";
 import type { RunnableNode, RunnableNodeExecuteArgs, NodeExecutionContext } from "../contracts/runtimeTypes";
 import type { Item, Items, RunnableNodeConfig } from "../contracts/workflowTypes";
 import type { TypeToken } from "../di";
@@ -67,6 +68,11 @@ export type DefineNodeExecuteArgs<TConfig extends CredentialJsonRecord, TInputJs
   ctx: NodeExecutionContext<RunnableNodeConfig<TInputJson, unknown> & Readonly<{ config: TConfig }>>;
 }>;
 
+export type DefinedNodeConfigInput<TConfigResolved extends CredentialJsonRecord, TItemJson> = ParamDeep<
+  TConfigResolved,
+  TItemJson
+>;
+
 export interface DefinedNode<
   TKey extends string,
   TConfig extends CredentialJsonRecord,
@@ -78,7 +84,11 @@ export interface DefinedNode<
   readonly key: TKey;
   readonly title: string;
   readonly description?: string;
-  create(config: TConfig, name?: string, id?: string): RunnableNodeConfig<TInputJson, TOutputJson>;
+  create<TConfigItemJson = TInputJson>(
+    config: DefinedNodeConfigInput<TConfig, TConfigItemJson>,
+    name?: string,
+    id?: string,
+  ): RunnableNodeConfig<TInputJson, TOutputJson>;
   register(context: { registerNode<TValue>(token: TypeToken<TValue>, implementation?: TypeToken<TValue>): void }): void;
 }
 
@@ -252,9 +262,13 @@ export function defineNode<
 
     constructor(
       public readonly name: string,
-      public readonly config: TConfig,
+      config: DefinedNodeConfigInput<TConfig, unknown>,
       public readonly id?: string,
-    ) {}
+    ) {
+      this.config = config as unknown as TConfig;
+    }
+
+    public readonly config: TConfig;
 
     getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
       return credentialRequirements;
@@ -266,8 +280,12 @@ export function defineNode<
     key: options.key,
     title: options.title,
     description: options.description,
-    create(config, name = options.title, id) {
-      return new DefinedRunnableNodeConfig(name, config, id);
+    create<TConfigItemJson = TInputJson>(
+      config: DefinedNodeConfigInput<TConfig, TConfigItemJson>,
+      name = options.title,
+      id?: string,
+    ) {
+      return new DefinedRunnableNodeConfig(name, config as DefinedNodeConfigInput<TConfig, unknown>, id);
     },
     register(context) {
       context.registerNode(DefinedNodeRuntime);
@@ -327,9 +345,13 @@ export function defineBatchNode<
 
     constructor(
       public readonly name: string,
-      public readonly config: TConfig,
+      config: DefinedNodeConfigInput<TConfig, unknown>,
       public readonly id?: string,
-    ) {}
+    ) {
+      this.config = config as unknown as TConfig;
+    }
+
+    public readonly config: TConfig;
 
     getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
       return credentialRequirements;
@@ -341,8 +363,12 @@ export function defineBatchNode<
     key: options.key,
     title: options.title,
     description: options.description,
-    create(config, name = options.title, id) {
-      return new DefinedRunnableNodeConfig(name, config, id);
+    create<TConfigItemJson = TInputJson>(
+      config: DefinedNodeConfigInput<TConfig, TConfigItemJson>,
+      name = options.title,
+      id?: string,
+    ) {
+      return new DefinedRunnableNodeConfig(name, config as DefinedNodeConfigInput<TConfig, unknown>, id);
     },
     register(context) {
       context.registerNode(DefinedNodeRuntime);

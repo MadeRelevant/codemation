@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import type { NodeExecutionContext, RunnableNodeConfig } from "../../src/index.ts";
-import { ItemValueResolver } from "../../src/execution/ItemValueResolver.ts";
+import { ItemExprResolver } from "../../src/execution/ItemExprResolver.ts";
 
 class GetterConfig implements RunnableNodeConfig<Readonly<{ url: string }>, Readonly<{ ok: boolean }>> {
   readonly kind = "node" as const;
@@ -19,16 +19,16 @@ class GetterConfig implements RunnableNodeConfig<Readonly<{ url: string }>, Read
   }
 }
 
-test("ItemValueResolver rejects missing ctx", async () => {
-  const resolver = new ItemValueResolver();
+test("ItemExprResolver rejects missing ctx", async () => {
+  const resolver = new ItemExprResolver();
   await assert.rejects(
     () => resolver.resolveConfigForItem(null as unknown as NodeExecutionContext, { json: {} }, 0, []),
     (e) => e instanceof Error && (e as Error).message.includes("ctx is required"),
   );
 });
 
-test("ItemValueResolver preserves config object when resolveItemValuesForExecution returns undefined", async () => {
-  const resolver = new ItemValueResolver();
+test("ItemExprResolver preserves config object when resolveItemExprsForExecution returns undefined", async () => {
+  const resolver = new ItemExprResolver();
   const cfg = { kind: "node" as const, name: "keep", marker: "original" } as unknown as RunnableNodeConfig;
   const ctx: NodeExecutionContext<RunnableNodeConfig> = {
     runId: "r1",
@@ -42,8 +42,8 @@ test("ItemValueResolver preserves config object when resolveItemValuesForExecuti
   assert.equal((out.config as { marker?: string }).marker, "original");
 });
 
-test("ItemValueResolver preserves prototype getters for runnable config instances without itemValue leaves", async () => {
-  const resolver = new ItemValueResolver();
+test("ItemExprResolver preserves prototype getters for runnable config instances without itemExpr leaves", async () => {
+  const resolver = new ItemExprResolver();
   const cfg = new GetterConfig("getter");
   const ctx: NodeExecutionContext<GetterConfig> = {
     runId: "r1",
@@ -62,9 +62,9 @@ test("ItemValueResolver preserves prototype getters for runnable config instance
   assert.equal(out.config.urlField, "url");
 });
 
-test('ItemValueResolver resolves legacy Symbol("codemation.itemValue") leaves (duplicate module graphs)', async () => {
-  const resolver = new ItemValueResolver();
-  const legacyBrand = Symbol("codemation.itemValue");
+test('ItemExprResolver resolves legacy Symbol("codemation.itemExpr") leaves (duplicate module graphs)', async () => {
+  const resolver = new ItemExprResolver();
+  const legacyBrand = Symbol("codemation.itemExpr");
   const legacy = {
     [legacyBrand]: true,
     fn: () => [{ role: "system", content: "hello" }],
@@ -88,8 +88,8 @@ test('ItemValueResolver resolves legacy Symbol("codemation.itemValue") leaves (d
   assert.deepEqual(resolved.messages, [{ role: "system", content: "hello" }]);
 });
 
-test("ItemValueResolver resolves snapshot-hydrated itemValue wrappers missing symbol brands", async () => {
-  const resolver = new ItemValueResolver();
+test("ItemExprResolver resolves snapshot-hydrated itemExpr wrappers missing symbol brands", async () => {
+  const resolver = new ItemExprResolver();
   const unbranded = {
     fn: () => [{ role: "system", content: "hello" }],
   } as unknown as { messages: unknown };

@@ -32,7 +32,7 @@ import { InMemoryLiveWorkflowRepository, PersistedWorkflowSnapshotFactory } from
 import { MissingRuntimeFallbacks } from "../../src/workflowSnapshots/MissingRuntimeFallbacksFactory";
 import { WorkflowSnapshotCodec } from "../../src/workflowSnapshots/WorkflowSnapshotCodec";
 import { WorkflowSnapshotResolver } from "../../src/workflowSnapshots/WorkflowSnapshotResolver";
-import { isItemValue, itemValue } from "../../src/contracts/itemValue";
+import { isItemExpr, itemExpr } from "../../src/contracts/itemExpr";
 import type { NodeConfigBase } from "../../src/types";
 import { createEngineTestKit, items } from "../harness/index.ts";
 
@@ -359,10 +359,10 @@ class ItemValueBrandFixtureConfig implements NodeConfigBase {
   ) {}
 }
 
-test("workflow snapshot hydration preserves itemValue symbol brands", () => {
+test("workflow snapshot hydration preserves itemExpr symbol brands", () => {
   const workflow = {
-    id: "wf.itemValue.brand.fixture",
-    name: "ItemValue brand fixture",
+    id: "wf.itemExpr.brand.fixture",
+    name: "ItemExpr brand fixture",
     nodes: [
       {
         id: "n1",
@@ -370,7 +370,7 @@ test("workflow snapshot hydration preserves itemValue symbol brands", () => {
         type: ItemValueBrandFixtureNode,
         config: new ItemValueBrandFixtureConfig(
           "n1-config",
-          itemValue(() => [{ role: "user", content: "hello" }]),
+          itemExpr(() => [{ role: "user", content: "hello" }]),
         ),
       },
     ],
@@ -393,5 +393,5 @@ test("workflow snapshot hydration preserves itemValue symbol brands", () => {
   const node = resolved.nodes[0];
   assert.ok(node);
   const hydratedConfig = node.config as unknown as { messages?: unknown };
-  assert.equal(isItemValue(hydratedConfig.messages), true);
+  assert.equal(isItemExpr(hydratedConfig.messages), true);
 });

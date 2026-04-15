@@ -134,7 +134,7 @@ export class WorkflowSnapshotCodec {
         hydrated[key] = value;
       }
     }
-    // Preserve symbol-keyed brands (e.g. itemValue / emitPorts) and other runtime-only keys.
+    // Preserve symbol-keyed brands (e.g. itemExpr / emitPorts) and other runtime-only keys.
     for (const sym of Object.getOwnPropertySymbols(liveRecord)) {
       hydrated[sym] = liveRecord[sym];
     }

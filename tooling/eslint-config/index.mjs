@@ -528,10 +528,10 @@ export default [
       "**/*.d.ts",
       "**/*Types.ts",
       "**/*types.ts",
-      // Pure contract helpers (emitPorts/itemValue): free functions by design; see AGENTS.md contracts.
+      // Pure contract helpers (emitPorts/itemExpr): free functions by design; see AGENTS.md contracts.
       "packages/core/src/contracts/emitPorts.ts",
       "packages/core/src/contracts/itemMeta.ts",
-      "packages/core/src/contracts/itemValue.ts",
+      "packages/core/src/contracts/itemExpr.ts",
     ],
     rules: {
       "codemation/no-manual-di-new": "error",

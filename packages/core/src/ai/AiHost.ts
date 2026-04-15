@@ -1,7 +1,7 @@
 import type { TypeToken } from "../di";
 
 import type { CredentialRequirement } from "../contracts/credentialTypes";
-import type { ItemValue } from "../contracts/itemValue";
+import type { Expr } from "../contracts/params";
 
 import type {
   Item,
@@ -92,7 +92,7 @@ export type AgentMessageLine<TInputJson = unknown> = AgentMessageDto | AgentMess
  * Use the object form only when you need `buildMessages` to append messages after optional `prompt` lines.
  */
 export type AgentMessageConfig<TInputJson = unknown> =
-  | ItemValue<ReadonlyArray<AgentMessageLine<TInputJson>>, TInputJson>
+  | Expr<ReadonlyArray<AgentMessageLine<TInputJson>>, TInputJson>
   | ReadonlyArray<AgentMessageLine<TInputJson>>
   | {
       readonly prompt?: ReadonlyArray<AgentMessageLine<TInputJson>>;

@@ -53,25 +53,25 @@ For workflow authors, the package now exposes dedicated Gmail action nodes inste
 - `ReplyToGmailMessage`
 - `ModifyGmailLabels`
 
-These nodes use the bound Gmail OAuth credential and keep the workflow graph declarative. Their config is designed to work well with `itemValue(...)`, so authors can map recipients, subjects, message ids, and labels directly from upstream items instead of building ad hoc input payload objects.
+These nodes use the bound Gmail OAuth credential and keep the workflow graph declarative. Their config is designed to work well with `itemExpr(...)`, so authors can map recipients, subjects, message ids, and labels directly from upstream items instead of building ad hoc input payload objects.
 
 ```ts
-import { itemValue } from "@codemation/core";
+import { itemExpr } from "@codemation/core";
 
 new SendGmailMessage("Send quote response", {
-  to: itemValue(({ item }) => String((item.json as Record<string, unknown>)["from"] ?? "")),
-  subject: itemValue(({ item }) => `Re: ${String((item.json as Record<string, unknown>)["subject"] ?? "")}`),
+  to: itemExpr(({ item }) => String((item.json as Record<string, unknown>)["from"] ?? "")),
+  subject: itemExpr(({ item }) => `Re: ${String((item.json as Record<string, unknown>)["subject"] ?? "")}`),
   text: "Thanks for your message. We will respond shortly.",
 });
 
 new ReplyToGmailMessage("Reply to incoming message", {
-  messageId: itemValue(({ item }) => String((item.json as Record<string, unknown>)["messageId"] ?? "")),
+  messageId: itemExpr(({ item }) => String((item.json as Record<string, unknown>)["messageId"] ?? "")),
   text: "Thanks, we received your request.",
 });
 
 new ModifyGmailLabels("Mark Gmail thread done", {
   target: "thread",
-  threadId: itemValue(({ item }) => String((item.json as Record<string, unknown>)["threadId"] ?? "")),
+  threadId: itemExpr(({ item }) => String((item.json as Record<string, unknown>)["threadId"] ?? "")),
   addLabels: ["Done"],
 });
 ```

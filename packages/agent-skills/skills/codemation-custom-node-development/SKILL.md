@@ -26,7 +26,7 @@ Do not use this skill for pure workflow chaining questions unless the node imple
 1. Prefer helper-based nodes first.
 2. Keep nodes deterministic and focused.
 3. Request credentials through named slots instead of hard-coded secrets.
-4. Put **static** options (credentials, retry policy, labels) on **config**; put **per-item** behavior in **inputs** / wire JSON and optional **`itemValue`** on config fields (consistent with built-in nodes).
+4. Put **static** options (credentials, retry policy, labels) on **config**; put **per-item** behavior in **inputs** / wire JSON and optional **`itemExpr`** on config fields (consistent with built-in nodes).
 5. Drop to class-based node APIs only when you need constructor-injected collaborators, decorators, or deeper runtime metadata.
 
 ## Testing with `WorkflowTestKit`

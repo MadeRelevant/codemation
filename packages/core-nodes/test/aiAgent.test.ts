@@ -23,7 +23,7 @@ import {
   AgentToolFactory,
   ConnectionNodeIdFactory,
   CoreTokens,
-  ItemValueResolver,
+  ItemExprResolver,
   NodeOutputNormalizer,
   callableTool,
   container as tsyringeContainer,
@@ -376,7 +376,7 @@ class AgentTestRig {
   ) {
     this.container.registerInstance(CoreTokens.CredentialSessionService, new StubCredentialSessionService());
     this.container.registerInstance(CoreTokens.NodeResolver, this.container);
-    this.container.registerSingleton(ItemValueResolver, ItemValueResolver);
+    this.container.registerSingleton(ItemExprResolver, ItemExprResolver);
     this.container.registerSingleton(NodeOutputNormalizer, NodeOutputNormalizer);
     this.container.registerSingleton(AIAgentExecutionHelpersFactory, AIAgentExecutionHelpersFactory);
     this.container.registerSingleton(

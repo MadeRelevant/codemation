@@ -10,4 +10,4 @@ This file is retained as a pointer so older links keep resolving; detailed seman
 
 - Activations are still **batch-shaped** (`Items` on `main`); runnables use **`RunnableNode.execute(args)`** per item.
 - **`inputSchema.parse(item.json)`** feeds **`args.input`**; **`item.json`** is not rewritten by the engine.
-- **`itemValue`** on config is resolved per item before `execute` (see `ItemValueResolver`).
+- **`itemExpr`** on config is resolved per item before `execute` (see `ItemExprResolver`).

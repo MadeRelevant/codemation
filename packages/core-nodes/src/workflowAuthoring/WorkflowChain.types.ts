@@ -1,5 +1,7 @@
 import type {
+  CredentialJsonRecord,
   DefinedNode,
+  DefinedNodeConfigInput,
   Item,
   Items,
   NodeExecutionContext,
@@ -334,18 +336,18 @@ export class WorkflowChain<TCurrentJson> {
     >;
   }
 
-  node<TConfig extends Record<string, unknown>, TOutputJson>(
-    definitionOrKey: DefinedNode<string, TConfig, TCurrentJson, TOutputJson> | string,
-    config: TConfig,
+  node<TConfig extends CredentialJsonRecord, TInputJson, TOutputJson>(
+    definitionOrKey: DefinedNode<string, TConfig, TInputJson, TOutputJson> | string,
+    config: DefinedNodeConfigInput<TConfig, TCurrentJson>,
     name?: string,
     id?: string,
-  ): WorkflowChain<TOutputJson> {
+  ): TCurrentJson extends TInputJson ? WorkflowChain<TOutputJson> : never {
     const definition = WorkflowDefinedNodeResolver.resolve(
       definitionOrKey as DefinedNode<string, Record<string, unknown>, unknown, unknown> | string,
-    ) as DefinedNode<string, TConfig, TCurrentJson, TOutputJson>;
+    ) as DefinedNode<string, TConfig, TInputJson, TOutputJson>;
     return this.then(
-      definition.create(config, name, id) as RunnableNodeConfig<TCurrentJson, TOutputJson>,
-    ) as WorkflowChain<TOutputJson>;
+      definition.create(config, name, id) as unknown as RunnableNodeConfig<TCurrentJson, TOutputJson>,
+    ) as TCurrentJson extends TInputJson ? WorkflowChain<TOutputJson> : never;
   }
 
   build(): WorkflowDefinition {

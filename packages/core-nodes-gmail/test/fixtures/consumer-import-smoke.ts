@@ -1,4 +1,4 @@
-import { itemValue, type Item } from "@codemation/core";
+import { itemExpr, type Item } from "@codemation/core";
 import {
   GmailAttachmentMapping,
   ModifyGmailLabels,
@@ -30,19 +30,19 @@ const session = {
 } satisfies GmailSession;
 
 const send = new SendGmailMessage("Send Gmail", {
-  to: itemValue(({ item }: Readonly<{ item: Item }>) => String((item.json as Record<string, unknown>)["to"] ?? "")),
-  subject: itemValue(({ item }: Readonly<{ item: Item }>) =>
+  to: itemExpr(({ item }: Readonly<{ item: Item }>) => String((item.json as Record<string, unknown>)["to"] ?? "")),
+  subject: itemExpr(({ item }: Readonly<{ item: Item }>) =>
     String((item.json as Record<string, unknown>)["subject"] ?? ""),
   ),
 });
 const reply = new ReplyToGmailMessage("Reply Gmail", {
-  messageId: itemValue(({ item }: Readonly<{ item: Item }>) =>
+  messageId: itemExpr(({ item }: Readonly<{ item: Item }>) =>
     String((item.json as Record<string, unknown>)["messageId"] ?? ""),
   ),
   text: "Thanks for your message.",
 });
 const labels = new ModifyGmailLabels("Label Gmail", {
-  messageId: itemValue(({ item }: Readonly<{ item: Item }>) =>
+  messageId: itemExpr(({ item }: Readonly<{ item: Item }>) =>
     String((item.json as Record<string, unknown>)["messageId"] ?? ""),
   ),
   addLabels: ["Done"],

@@ -65,7 +65,7 @@ flowchart TD
   A[Inbound Items / inputsByPort] --> B{executeMulti?}
   B -->|yes| M[executeMulti - Merge etc.]
   B -->|no + executeOne| F[Fan-in merge by origin]
-  F --> P[Zod + itemValue resolve]
+  F --> P[Zod + itemExpr resolve]
   P --> E[executeOne]
   E --> R{Return shape}
   R -->|JsonNonArray| O1[1 item on main]
@@ -75,6 +75,6 @@ flowchart TD
 
 ### Examples
 
-- **Per-item config:** use **`itemValue(({ item, ctx }) => ...)`** on config fields; the engine resolves these **per item** before `executeOne`. Use **`ctx.data`** when you need outputs from **any** completed upstream node (same idea as the former `mapInput` context, without a separate mapper stage).
+- **Per-item config:** use **`itemExpr(({ item, ctx }) => ...)`** on config fields; the engine resolves these **per item** before `executeOne`. Use **`ctx.data`** when you need outputs from **any** completed upstream node (same idea as the former `mapInput` context, without a separate mapper stage).
 - **Fan-out without Split:** `return [{ id: 1 }, { id: 2 }]` emits two downstream items.
 - **Switch:** `return emitPorts({ even: [...], odd: [...] })` routes items to ports without wrapping payloads in ad-hoc JSON bags.

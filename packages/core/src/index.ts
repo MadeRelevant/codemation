@@ -18,7 +18,7 @@ export {
   DefaultAsyncSleeper,
   DefaultExecutionContextFactory,
   InProcessRetryRunner,
-  ItemValueResolver,
+  ItemExprResolver,
   NodeOutputNormalizer,
   RunnableOutputBehaviorResolver,
 } from "./execution";

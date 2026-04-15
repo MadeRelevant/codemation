@@ -1,4 +1,4 @@
-import type { CredentialRequirement, ItemValueArgs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type { CredentialRequirement, ItemExprArgs, RunnableNodeConfig, TypeToken } from "@codemation/core";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailMessageRecord } from "../services/GmailApiClient";
 import { ModifyGmailLabelsNode } from "./ModifyGmailLabelsNode";
@@ -7,7 +7,7 @@ export type ModifyGmailLabelsTarget = "message" | "thread";
 
 export type GmailLabelConfigValue<T, TItemJson = unknown> =
   | T
-  | Readonly<{ fn: (args: ItemValueArgs<TItemJson>) => T | Promise<T> }>;
+  | Readonly<{ fn: (args: ItemExprArgs<TItemJson>) => T | Promise<T> }>;
 
 export type ModifyGmailLabelsOptions<TItemJson = unknown> = Readonly<{
   target?: ModifyGmailLabelsTarget;

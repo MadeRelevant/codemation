@@ -1,4 +1,4 @@
-import { isItemValue, itemValue, type ToolConfig } from "@codemation/core";
+import { isItemExpr, itemExpr, type ToolConfig } from "@codemation/core";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import { OpenAIChatModelConfig } from "../src/chatModels/openAiChatModelConfig";
@@ -47,8 +47,8 @@ test("WorkflowAgentNodeFactory preserves static messages and forwards agent opti
   assert.equal(agent.chatModel.model, "gpt-4o-mini");
 });
 
-test("WorkflowAgentNodeFactory preserves itemValue-based messages without wrapping them", () => {
-  const messages = itemValue<ReadonlyArray<{ role: "system" | "user"; content: string }>, { subject: string }>(
+test("WorkflowAgentNodeFactory preserves itemExpr-based messages without wrapping them", () => {
+  const messages = itemExpr<ReadonlyArray<{ role: "system" | "user"; content: string }>, { subject: string }>(
     ({ item }) => [
       { role: "system", content: 'Return strict JSON only: {"summary": string}' },
       { role: "user", content: `Subject: ${item.json.subject}` },
@@ -62,5 +62,5 @@ test("WorkflowAgentNodeFactory preserves itemValue-based messages without wrappi
 
   assert.equal(agent.name, "AI agent");
   assert.strictEqual(agent.messages, messages);
-  assert.equal(isItemValue(agent.messages), true);
+  assert.equal(isItemExpr(agent.messages), true);
 });

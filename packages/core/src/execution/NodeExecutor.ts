@@ -15,7 +15,7 @@ import type {
 } from "../types";
 
 import { FanInMergeByOriginMerger } from "./FanInMergeByOriginMerger";
-import { ItemValueResolver } from "./ItemValueResolver";
+import { ItemExprResolver } from "./ItemExprResolver";
 import { InProcessRetryRunner } from "./InProcessRetryRunner";
 import { NodeOutputNormalizer } from "./NodeOutputNormalizer";
 import { RunnableOutputBehaviorResolver } from "./RunnableOutputBehaviorResolver";
@@ -23,16 +23,16 @@ import { RunnableOutputBehaviorResolver } from "./RunnableOutputBehaviorResolver
 export class NodeExecutor {
   private readonly fanInMerger = new FanInMergeByOriginMerger();
   private readonly outputNormalizer = new NodeOutputNormalizer();
-  private readonly itemValueResolver: ItemValueResolver;
+  private readonly itemExprResolver: ItemExprResolver;
   private readonly outputBehaviorResolver: RunnableOutputBehaviorResolver;
 
   constructor(
     private readonly nodeInstanceFactory: WorkflowNodeInstanceFactory,
     private readonly retryRunner: InProcessRetryRunner,
-    itemValueResolver?: ItemValueResolver,
+    itemExprResolver?: ItemExprResolver,
     outputBehaviorResolver?: RunnableOutputBehaviorResolver,
   ) {
-    this.itemValueResolver = itemValueResolver ?? new ItemValueResolver();
+    this.itemExprResolver = itemExprResolver ?? new ItemExprResolver();
     this.outputBehaviorResolver = outputBehaviorResolver ?? new RunnableOutputBehaviorResolver();
   }
 
@@ -135,7 +135,7 @@ export class NodeExecutor {
       const syntheticItem: Item = { json: {} };
       const parsed = inputSchema.parse(syntheticItem.json);
       const runnableCtx = request.ctx as NodeExecutionContext<RunnableNodeConfig>;
-      const resolvedCtx = await this.itemValueResolver.resolveConfigForItem(runnableCtx, syntheticItem, 0, inputBatch);
+      const resolvedCtx = await this.itemExprResolver.resolveConfigForItem(runnableCtx, syntheticItem, 0, inputBatch);
       const ctx = this.pickExecutionContext(runnableCtx, resolvedCtx);
       const args: RunnableNodeExecuteArgs = {
         input: parsed,
@@ -157,7 +157,7 @@ export class NodeExecutor {
       this.assertItemJsonNotTopLevelArray(request.nodeId, item);
       const parsed = inputSchema.parse(item.json);
       const runnableCtx = request.ctx as NodeExecutionContext<RunnableNodeConfig>;
-      const resolvedCtx = await this.itemValueResolver.resolveConfigForItem(runnableCtx, item, i, inputBatch);
+      const resolvedCtx = await this.itemExprResolver.resolveConfigForItem(runnableCtx, item, i, inputBatch);
       const ctx = this.pickExecutionContext(runnableCtx, resolvedCtx);
       const args: RunnableNodeExecuteArgs = {
         input: parsed,

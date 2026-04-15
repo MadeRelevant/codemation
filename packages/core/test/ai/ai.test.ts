@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import { z } from "zod";
 
-import { itemValue } from "../../src/contracts/itemValue";
+import { itemExpr } from "../../src/contracts/itemExpr";
 import { AgentConfigInspector } from "../../src/ai/AgentConfigInspectorFactory";
 import { AgentMessageConfigNormalizer } from "../../src/ai/AgentMessageConfigNormalizerFactory";
 import { AgentConnectionNodeCollector } from "../../src/ai/AgentConnectionNodeCollector";
@@ -86,13 +86,13 @@ test("AgentConnectionNodeCollector uses nestedAgent role for node-backed inner a
   assert.equal(plain?.role, "tool");
 });
 
-test("AgentConfigInspector treats itemValue-based message templates as agent configs", () => {
+test("AgentConfigInspector treats itemExpr-based message templates as agent configs", () => {
   const token = { name: "T" } as AgentNodeConfig<any, any>["type"];
   const chatModelType = token as unknown as AgentNodeConfig<any, any>["chatModel"]["type"];
   const agent: AgentNodeConfig<any, any> = {
     kind: "node",
     type: token,
-    messages: itemValue(() => [{ role: "user", content: "hello" }]),
+    messages: itemExpr(() => [{ role: "user", content: "hello" }]),
     chatModel: { name: "outer-llm", type: chatModelType },
   };
 
@@ -304,11 +304,11 @@ test("AgentConnectionNodeCollector treats callable tools as tool role not nested
   assert.equal(toolDesc?.role, "tool");
 });
 
-test("AgentMessageConfigNormalizer rejects raw itemValue in messages (must be resolved by engine)", () => {
+test("AgentMessageConfigNormalizer rejects raw itemExpr in messages (must be resolved by engine)", () => {
   const config = {
     kind: "node" as const,
     type: {} as never,
-    messages: itemValue(() => [{ role: "user" as const, content: "x" }]),
+    messages: itemExpr(() => [{ role: "user" as const, content: "x" }]),
     chatModel: {} as never,
   };
   const args = {

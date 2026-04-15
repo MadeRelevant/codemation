@@ -17,8 +17,10 @@ Do not use this skill for CLI-only troubleshooting or deep host architecture que
 1. A workflow definition describes how items move from a trigger through downstream steps.
 2. The fluent authoring chain is the normal starting point for Codemation apps.
 3. Finish fluent workflow definitions with `.build()`.
-4. Activations are **batch-shaped** (`Items`); many steps use **per-item** execution (`execute`, including helper **`defineNode`**) with optional **`inputSchema`** and **`itemValue`** on config fields. Batch reshape steps (split/filter/aggregate, **`defineBatchNode`**) work on the whole batch.
-5. Fluent callback helpers follow the runtime item contract: `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` receive `(item, ctx)`, so row fields live under `item.json` and earlier completed outputs are available through `ctx.data`.
+4. Activations are **batch-shaped** (`Items`); many steps use **per-item** execution (`execute`, including helper **`defineNode`**) with optional **`inputSchema`** and **`itemExpr`** on config fields. Batch reshape steps (split/filter/aggregate, **`defineBatchNode`**) work on the whole batch.
+5. Helper-node params accept either literals or `itemExpr(...)` expressions. Treat workflow `.node(...)` config as the place where upstream data is mapped into reusable node params; inside `execute(...)`, `context.config` is already resolved.
+6. Fluent callback helpers follow the runtime item contract: `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` receive `(item, ctx)`, so row fields live under `item.json` and earlier completed outputs are available through `ctx.data`.
+7. When a workflow callback needs typed data from an earlier named node, prefer `nodeRef<TJson>("node-id")` plus `ctx.data.getOutputItems(ref)` over manual `as SomeType` casts.
 
 ## Authoring rules
 
