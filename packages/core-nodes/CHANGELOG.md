@@ -1,5 +1,13 @@
 # @codemation/core-nodes
 
+## 0.4.1
+
+### Patch Changes
+
+- [#83](https://github.com/MadeRelevant/codemation/pull/83) [`1c74067`](https://github.com/MadeRelevant/codemation/commit/1c74067a474b54a8d6c73f55db4c3d8d3e20e2ae) Thanks [@cblokland90](https://github.com/cblokland90)! - Preserve input binaries by default for `Split` and `Aggregate`.
+  - keep `binary` attachments on split fan-out items so downstream nodes do not silently lose files
+  - keep `binary` attachments on aggregate output items so batch reductions preserve the originating payload
+
 ## 0.4.0
 
 ### Minor Changes
