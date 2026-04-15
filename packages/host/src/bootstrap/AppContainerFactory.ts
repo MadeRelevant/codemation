@@ -61,6 +61,9 @@ import {
 } from "../application/queries/UserAccountQueryHandlers";
 import {
   GetRunBinaryAttachmentQueryHandler,
+  GetTelemetryDashboardDimensionsQueryHandler,
+  GetTelemetryDashboardSummaryQueryHandler,
+  GetTelemetryDashboardTimeseriesQueryHandler,
   GetRunStateQueryHandler,
   GetWorkflowDebuggerOverlayQueryHandler,
   GetWorkflowDetailQueryHandler,
@@ -128,6 +131,7 @@ import { CredentialHonoApiRouteRegistrar } from "../presentation/http/hono/regis
 import { DevHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/DevHonoApiRouteRegistrar";
 import { OAuth2HonoApiRouteRegistrar } from "../presentation/http/hono/registrars/OAuth2HonoApiRouteRegistrar";
 import { RunHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/RunHonoApiRouteRegistrar";
+import { TelemetryHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/TelemetryHonoApiRouteRegistrar";
 import { UserHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/UserHonoApiRouteRegistrar";
 import { WebhookHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/WebhookHonoApiRouteRegistrar";
 import { WhitelabelHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/WhitelabelHonoApiRouteRegistrar";
@@ -214,6 +218,9 @@ export class AppContainerFactory {
     ListUserAccountsQueryHandler,
     VerifyUserInviteQueryHandler,
     GetRunBinaryAttachmentQueryHandler,
+    GetTelemetryDashboardDimensionsQueryHandler,
+    GetTelemetryDashboardSummaryQueryHandler,
+    GetTelemetryDashboardTimeseriesQueryHandler,
     GetRunStateQueryHandler,
     GetWorkflowRunDetailQueryHandler,
     GetWorkflowDebuggerOverlayQueryHandler,
@@ -251,6 +258,7 @@ export class AppContainerFactory {
     DevHonoApiRouteRegistrar,
     OAuth2HonoApiRouteRegistrar,
     RunHonoApiRouteRegistrar,
+    TelemetryHonoApiRouteRegistrar,
     UserHonoApiRouteRegistrar,
     WebhookHonoApiRouteRegistrar,
     WhitelabelHonoApiRouteRegistrar,

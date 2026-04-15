@@ -68,6 +68,7 @@ export class PrismaTelemetryMetricPointStore implements TelemetryMetricPointStor
         ...(args.runId ? { runId: args.runId } : {}),
         ...(args.runIds && args.runIds.length > 0 ? { runId: { in: [...args.runIds] } } : {}),
         ...(args.workflowId ? { workflowId: args.workflowId } : {}),
+        ...(args.workflowIds && args.workflowIds.length > 0 ? { workflowId: { in: [...args.workflowIds] } } : {}),
         ...(args.nodeId ? { nodeId: args.nodeId } : {}),
         ...(args.metricNames && args.metricNames.length > 0 ? { metricName: { in: [...args.metricNames] } } : {}),
         ...(args.modelNames && args.modelNames.length > 0 ? { modelName: { in: [...args.modelNames] } } : {}),
