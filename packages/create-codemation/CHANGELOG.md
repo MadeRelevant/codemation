@@ -1,5 +1,13 @@
 # create-codemation
 
+## 0.0.30
+
+### Patch Changes
+
+- [#81](https://github.com/MadeRelevant/codemation/pull/81) [`88844f7`](https://github.com/MadeRelevant/codemation/commit/88844f75a48fe051e4cb895c710408855de14da4) Thanks [@cblokland90](https://github.com/cblokland90)! - Refresh the plugin template to reflect the current helper-node authoring model.
+  - simplify the example helper node to rely on `defineNode(...)` inference
+  - show template tests using `itemExpr(...)` for helper-node params so scaffolded code matches current workflow ergonomics
+
 ## 0.0.29
 
 ### Patch Changes

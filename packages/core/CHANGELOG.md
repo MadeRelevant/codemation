@@ -1,5 +1,14 @@
 # @codemation/core
 
+## 0.7.0
+
+### Minor Changes
+
+- [#81](https://github.com/MadeRelevant/codemation/pull/81) [`88844f7`](https://github.com/MadeRelevant/codemation/commit/88844f75a48fe051e4cb895c710408855de14da4) Thanks [@cblokland90](https://github.com/cblokland90)! - Add typed workflow authoring helpers for reusable node params and run-data reads.
+  - export `Expr`, `Param`, and `ParamDeep` so helper-defined node params can accept literals or `itemExpr(...)`
+  - export `nodeRef<TJson>()` plus generic `RunDataSnapshot` item accessors for typed `ctx.data` reads
+  - keep helper-node runtime config resolved while expanding the public authoring surface for expression-style params
+
 ## 0.6.0
 
 ### Minor Changes
