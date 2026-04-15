@@ -1,5 +1,12 @@
 # @codemation/next-host
 
+## 0.1.11
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @codemation/host@0.2.3
+
 ## 0.1.10
 
 ### Patch Changes

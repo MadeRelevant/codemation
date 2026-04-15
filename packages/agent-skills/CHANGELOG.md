@@ -1,5 +1,13 @@
 # @codemation/agent-skills
 
+## 0.1.8
+
+### Patch Changes
+
+- [#78](https://github.com/MadeRelevant/codemation/pull/78) [`f451b1b`](https://github.com/MadeRelevant/codemation/commit/f451b1b4657b59406e15ce5f50b243e487ff99ed) Thanks [@cblokland90](https://github.com/cblokland90)! - Normalize fluent workflow DSL callback helpers around the runtime item contract.
+
+  `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` now receive `(item, ctx)` so workflow authors can use `item.json` consistently and read prior completed outputs through `ctx.data` without dropping down to direct node configs.
+
 ## 0.1.7
 
 ### Patch Changes
