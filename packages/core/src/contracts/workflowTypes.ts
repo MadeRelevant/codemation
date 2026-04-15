@@ -6,6 +6,7 @@ import type { RetryPolicySpec } from "./retryPolicySpec.types";
 
 export type WorkflowId = string;
 export type NodeId = string;
+export type NodeIdRef<TJson = unknown> = NodeId & Readonly<{ __codemationNodeJson?: TJson }>;
 export type OutputPortKey = string;
 export type InputPortKey = string;
 export type PersistedTokenId = string;
@@ -154,6 +155,10 @@ export interface NodeRef {
   name?: string;
 }
 
+export function nodeRef<TJson>(nodeId: NodeId): NodeIdRef<TJson> {
+  return nodeId as NodeIdRef<TJson>;
+}
+
 export type PairedItemRef = Readonly<{ nodeId: NodeId; output: OutputPortKey; itemIndex: number }>;
 
 export type BinaryPreviewKind = "image" | "audio" | "video" | "download";
@@ -204,8 +209,12 @@ export interface ParentExecutionRef {
 
 export interface RunDataSnapshot {
   getOutputs(nodeId: NodeId): NodeOutputs | undefined;
-  getOutputItems(nodeId: NodeId, output?: OutputPortKey): Items;
-  getOutputItem(nodeId: NodeId, itemIndex: number, output?: OutputPortKey): Item | undefined;
+  getOutputItems<TJson = unknown>(nodeId: NodeId | NodeIdRef<TJson>, output?: OutputPortKey): Items<TJson>;
+  getOutputItem<TJson = unknown>(
+    nodeId: NodeId | NodeIdRef<TJson>,
+    itemIndex: number,
+    output?: OutputPortKey,
+  ): Item<TJson> | undefined;
 }
 
 export interface MutableRunData extends RunDataSnapshot {

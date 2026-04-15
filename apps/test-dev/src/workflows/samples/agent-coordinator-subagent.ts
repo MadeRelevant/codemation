@@ -1,4 +1,4 @@
-import { AgentToolFactory, itemValue } from "@codemation/core";
+import { AgentToolFactory, itemExpr } from "@codemation/core";
 import { workflow } from "@codemation/host";
 import { AIAgent } from "@codemation/core-nodes";
 import { z } from "zod";
@@ -10,7 +10,7 @@ import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
  * The coordinator uses a larger model; the embedded specialist uses a smaller one—matching the
  * “orchestrator + cheap sub-agent” pattern.
  *
- * The coordinator uses **`inputSchema`** on the wire (`topic` from the manual trigger) and **`itemValue`** on
+ * The coordinator uses **`inputSchema`** on the wire (`topic` from the manual trigger) and **`itemExpr`** on
  * **`messages`** so persisted run inputs still show the resolved chat payload.
  *
  * Requires OpenAI credentials bound for both connection slots (coordinator LLM + specialist LLM).
@@ -52,7 +52,7 @@ const specialistTool = AgentToolFactory.asTool(specialistAgent, {
   outputSchema: z.object({
     answer: z.string(),
   }),
-  /** Node-backed tool: maps tool args + current item into the specialist node's wire input (separate from runnable `itemValue`). */
+  /** Node-backed tool: maps tool args + current item into the specialist node's wire input (separate from runnable `itemExpr`). */
   mapInput: ({ input, item }) => ({
     topic: String((item.json as { topic?: unknown }).topic ?? ""),
     question: input.question,
@@ -69,7 +69,7 @@ export default workflow("wf.test-dev.agent.subagent")
   .then(
     new AIAgent<CoordinatorInputJson, CoordinatorOutputJson>({
       name: "Coordinator",
-      messages: itemValue(({ item }) => [
+      messages: itemExpr(({ item }) => [
         {
           role: "system",
           content:

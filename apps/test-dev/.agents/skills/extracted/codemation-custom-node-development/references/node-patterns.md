@@ -52,6 +52,6 @@ Reach for class-based node APIs when:
 
 ## Runtime reminder
 
-- **`defineNode`** runs **`execute` once per item** (with optional **`inputSchema`** and **`itemValue`** on config fields before **`execute`**)
+- **`defineNode`** runs **`execute` once per item** (with optional **`inputSchema`** and **`itemExpr`** on config fields before **`execute`**)
 - **`defineBatchNode`** runs **`run`** once per activation batch
 - keep nodes deterministic and testable; prefer real code paths or in-memory collaborators over heavy mocking

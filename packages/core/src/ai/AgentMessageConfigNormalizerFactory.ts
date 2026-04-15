@@ -1,4 +1,4 @@
-import { isItemValue } from "../contracts/itemValue";
+import { isItemExpr } from "../contracts/itemExpr";
 
 import type {
   AgentMessageBuildArgs,
@@ -69,9 +69,9 @@ export class AgentMessageConfigNormalizer {
     config: AgentMessageConfig<TInputJson>,
     args: AgentMessageBuildArgs<TInputJson>,
   ): ReadonlyArray<AgentMessageDto> {
-    if (isItemValue(config)) {
+    if (isItemExpr(config)) {
       throw new Error(
-        "AIAgent messages wrapped in itemValue(...) must be resolved by the engine before prompt normalization.",
+        "AIAgent messages wrapped in itemExpr(...) must be resolved by the engine before prompt normalization.",
       );
     }
     if (Array.isArray(config)) {

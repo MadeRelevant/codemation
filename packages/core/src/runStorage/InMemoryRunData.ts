@@ -1,4 +1,4 @@
-import type { Items, MutableRunData, NodeId, NodeOutputs, OutputPortKey } from "../types";
+import type { Items, MutableRunData, NodeId, NodeIdRef, NodeOutputs, OutputPortKey, Item } from "../types";
 
 export class InMemoryRunData implements MutableRunData {
   private readonly byNode = new Map<NodeId, NodeOutputs>();
@@ -17,12 +17,16 @@ export class InMemoryRunData implements MutableRunData {
     return this.byNode.get(nodeId);
   }
 
-  getOutputItems(nodeId: NodeId, output: OutputPortKey = "main"): Items {
-    return this.byNode.get(nodeId)?.[output] ?? [];
+  getOutputItems<TJson = unknown>(nodeId: NodeId | NodeIdRef<TJson>, output: OutputPortKey = "main"): Items<TJson> {
+    return (this.byNode.get(nodeId)?.[output] ?? []) as Items<TJson>;
   }
 
-  getOutputItem(nodeId: NodeId, itemIndex: number, output: OutputPortKey = "main") {
-    return this.getOutputItems(nodeId, output)[itemIndex];
+  getOutputItem<TJson = unknown>(
+    nodeId: NodeId | NodeIdRef<TJson>,
+    itemIndex: number,
+    output: OutputPortKey = "main",
+  ): Item<TJson> | undefined {
+    return this.getOutputItems<TJson>(nodeId, output)[itemIndex];
   }
 
   dump(): Record<NodeId, NodeOutputs> {

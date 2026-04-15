@@ -1,11 +1,11 @@
-import type { CredentialRequirement, ItemValueArgs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type { CredentialRequirement, ItemExprArgs, RunnableNodeConfig, TypeToken } from "@codemation/core";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailMessageRecord, GmailOutgoingMessageAttachment } from "../services/GmailApiClient";
 import { SendGmailMessageNode } from "./SendGmailMessageNode";
 
 export type GmailConfigValue<T, TItemJson = unknown> =
   | T
-  | Readonly<{ fn: (args: ItemValueArgs<TItemJson>) => T | Promise<T> }>;
+  | Readonly<{ fn: (args: ItemExprArgs<TItemJson>) => T | Promise<T> }>;
 
 export type SendGmailMessageOptions<TItemJson = unknown> = Readonly<{
   to: GmailConfigValue<string | ReadonlyArray<string>, TItemJson>;

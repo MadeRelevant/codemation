@@ -22,8 +22,9 @@ Imagine you want a node that uppercases a field called `subject`.
 The lightweight pattern is:
 
 1. define the node once with `defineNode(...)`
-2. implement **`executeOne(...)`** so the engine runs your logic **once per item** (optional **`mapInput`** / **`inputSchema`** match built-in item nodes)
-3. use the helper directly from a fluent workflow
+2. implement **`execute(args, context)`** so the engine runs your logic **once per item**
+3. keep reusable node params on **config** and let workflows map those params with literals or `itemExpr(...)`
+4. use the helper directly from a fluent workflow
 
 If you need legacy **batch** semantics (one function over the whole `Items` array), use **`defineBatchNode(...)`** with **`run(items, ...)`** instead.
 
@@ -38,7 +39,7 @@ export const uppercaseNode = defineNode({
   input: {
     field: "string",
   },
-  executeOne({ input }, { config }) {
+  execute({ input }, { config }) {
     return {
       ...input,
       [config.field]: String(input[config.field as keyof typeof input] ?? "").toUpperCase(),
@@ -58,6 +59,34 @@ export default workflow("wf.uppercase.subject")
   .node(uppercaseNode, { field: "subject" })
   .build();
 ```
+
+## Params can be expressions
+
+`defineNode(...)` config is the node's parameter surface. Workflows can pass either:
+
+- literal values such as `{ field: "subject" }`
+- per-item expressions such as `itemExpr(({ item }) => ...)`
+
+The engine resolves `itemExpr(...)` before `execute(...)` runs, so node code still sees plain resolved values:
+
+```ts
+export const invoiceNode = defineNode({
+  key: "example.invoice",
+  title: "Invoice OCR",
+  input: {
+    binaryField: "data",
+  },
+  execute({ item }, { config }) {
+    const attachment = item.binary?.[config.binaryField];
+    if (!attachment) {
+      throw new Error(`Missing binary attachment at key "${config.binaryField}".`);
+    }
+    return { attachmentId: attachment.id };
+  },
+});
+```
+
+That keeps reusable nodes independent from the surrounding workflow item shape while still letting each workflow map upstream data into the node's params.
 
 ## When to drop down to classes
 

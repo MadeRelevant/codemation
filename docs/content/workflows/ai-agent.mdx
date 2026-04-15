@@ -22,10 +22,10 @@ The agent still runs once per workflow item, with explicit message authoring, mu
 Message authoring follows the agent message model:
 
 - use a static array for fixed messages
-- use `itemValue(...)` for per-item message generation
+- use `itemExpr(...)` for per-item message generation
 - use the object form when you need `prompt` plus `buildMessages`
 
-If you want to reshape workflow data before the agent runs, use fluent DSL helpers such as `.map((item, ctx) => ...)`: read the current row from `item.json`, and use `ctx.data` when prompt preparation depends on earlier completed steps. Keep `itemValue(...)` for agent config fields like `messages`.
+If you want to reshape workflow data before the agent runs, use fluent DSL helpers such as `.map((item, ctx) => ...)`: read the current row from `item.json`, and use `ctx.data` when prompt preparation depends on earlier completed steps. Keep `itemExpr(...)` for agent config fields like `messages`.
 
 ```ts
 workflow("wf.example")
@@ -36,7 +36,7 @@ workflow("wf.example")
     },
   ])
   .agent("Summarize", {
-    messages: itemValue(({ item }) => [
+    messages: itemExpr(({ item }) => [
       {
         role: "system",
         content: 'Return strict JSON only: {"summary": string}',
@@ -140,7 +140,7 @@ new AIAgent({
 
 Use a plain array when everything fits one list. Use the object form when you want callback-built messages appended after `prompt`.
 
-For workflow-defined agents, prefer `itemValue(...)` when messages depend on the current item.
+For workflow-defined agents, prefer `itemExpr(...)` when messages depend on the current item.
 
 ## Recommended output pattern
 

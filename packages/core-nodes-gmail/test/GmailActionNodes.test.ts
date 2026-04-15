@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { itemValue } from "@codemation/core";
+import { itemExpr } from "@codemation/core";
 import { test } from "vitest";
 import { GmailCredentialTypes } from "../src/contracts/GmailCredentialTypes";
 import { ModifyGmailLabels } from "../src/nodes/ModifyGmailLabels";
@@ -131,10 +131,10 @@ test("ModifyGmailLabelsNode returns the service output as item json", async () =
   assert.equal(service.calls.length, 1);
 });
 
-test("SendGmailMessage config supports itemValue-driven fields", () => {
+test("SendGmailMessage config supports itemExpr-driven fields", () => {
   const config = new SendGmailMessage("Send Gmail", {
-    to: itemValue(({ item }) => String((item.json as Record<string, unknown>)["recipient"] ?? "")),
-    subject: itemValue(({ item }) => String((item.json as Record<string, unknown>)["subject"] ?? "")),
+    to: itemExpr(({ item }) => String((item.json as Record<string, unknown>)["recipient"] ?? "")),
+    subject: itemExpr(({ item }) => String((item.json as Record<string, unknown>)["subject"] ?? "")),
   });
   assert.equal(typeof config.cfg.to, "object");
   assert.equal(typeof config.cfg.subject, "object");

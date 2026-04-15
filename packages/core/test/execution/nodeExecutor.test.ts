@@ -17,7 +17,7 @@ import {
   NodeInstanceFactory,
 } from "../../src/bootstrap/index.ts";
 import { emitPorts } from "../../src/index.ts";
-import { ItemValueResolver } from "../../src/execution/ItemValueResolver.ts";
+import { ItemExprResolver } from "../../src/execution/ItemExprResolver.ts";
 import { CallbackNode, CallbackNodeConfig } from "../harness/nodes.ts";
 import { z } from "zod";
 
@@ -76,7 +76,7 @@ class StaticNodeResolver implements NodeResolver {
   }
 }
 
-class ResolverReturnsUndefined extends ItemValueResolver {
+class ResolverReturnsUndefined extends ItemExprResolver {
   override async resolveConfigForItem<TConfig extends RunnableNodeConfig<any, any>>(
     ctx: NodeExecutionContext<TConfig>,
   ): Promise<NodeExecutionContext<TConfig>> {
@@ -85,7 +85,7 @@ class ResolverReturnsUndefined extends ItemValueResolver {
   }
 }
 
-class ResolverReturnsCtxWithUndefinedConfig extends ItemValueResolver {
+class ResolverReturnsCtxWithUndefinedConfig extends ItemExprResolver {
   override async resolveConfigForItem<TConfig extends RunnableNodeConfig<any, any>>(
     ctx: NodeExecutionContext<TConfig>,
   ): Promise<NodeExecutionContext<TConfig>> {
@@ -293,7 +293,7 @@ test("node executor passes parsed input as args.input without rewriting item.jso
   assert.deepEqual(result, { main: [{ json: { n: 21, doubled: 42 } }] });
 });
 
-test("node executor falls back to request ctx when ItemValueResolver returns undefined", async () => {
+test("node executor falls back to request ctx when ItemExprResolver returns undefined", async () => {
   let seenCtx: NodeExecutionContext<CallbackNodeConfig> | undefined;
   const callbackConfig = new CallbackNodeConfig(
     "Cb",
@@ -329,7 +329,7 @@ test("node executor falls back to request ctx when ItemValueResolver returns und
   assert.equal(seenCtx?.config, callbackConfig);
 });
 
-test("node executor falls back to request ctx when ItemValueResolver returns ctx with config undefined", async () => {
+test("node executor falls back to request ctx when ItemExprResolver returns ctx with config undefined", async () => {
   let seenCtx: NodeExecutionContext<CallbackNodeConfig> | undefined;
   const callbackConfig = new CallbackNodeConfig(
     "Cb",

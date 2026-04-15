@@ -14,7 +14,7 @@ import {
   CoreTokens,
   inject,
   injectable,
-  ItemValueResolver,
+  ItemExprResolver,
   NodeOutputNormalizer,
   RunnableOutputBehaviorResolver,
 } from "@codemation/core";
@@ -25,8 +25,8 @@ export class NodeBackedToolRuntime {
   constructor(
     @inject(CoreTokens.NodeResolver)
     private readonly nodeResolver: NodeResolver,
-    @inject(ItemValueResolver)
-    private readonly itemValueResolver: ItemValueResolver,
+    @inject(ItemExprResolver)
+    private readonly itemExprResolver: ItemExprResolver,
     @inject(NodeOutputNormalizer)
     private readonly outputNormalizer: NodeOutputNormalizer,
     @inject(RunnableOutputBehaviorResolver)
@@ -77,7 +77,7 @@ export class NodeBackedToolRuntime {
       const inputSchema = runnable.inputSchema ?? runnableConfig.inputSchema ?? z.unknown();
       const parsed = inputSchema.parse(nodeInput.json);
       const items = [nodeInput];
-      const resolvedCtx = await this.itemValueResolver.resolveConfigForItem(ctx, nodeInput, 0, items);
+      const resolvedCtx = await this.itemExprResolver.resolveConfigForItem(ctx, nodeInput, 0, items);
       const execArgs: RunnableNodeExecuteArgs = {
         input: parsed,
         item: nodeInput,

@@ -8,7 +8,8 @@ import type {
 } from "@codemation/core";
 import { emitPorts } from "@codemation/core";
 import { defineNode } from "@codemation/core";
-import { itemValue } from "@codemation/core";
+import { itemExpr } from "@codemation/core";
+import { nodeRef } from "@codemation/core";
 import {
   Callback,
   If,
@@ -181,7 +182,7 @@ test("workflow helper preserves inference across map, if, wait, agent, and helpe
       },
     )
     .agent("Summarize", {
-      messages: itemValue(({ item }) => [
+      messages: itemExpr(({ item }) => [
         {
           role: "system",
           content: 'Return strict JSON only: {"summary": string}',
@@ -203,6 +204,69 @@ test("workflow helper preserves inference across map, if, wait, agent, and helpe
   assert.equal(built.nodes.length, 9);
 });
 
+test("workflow helper accepts resolvable config inputs for helper-defined nodes", () => {
+  const helperNode = defineNode({
+    key: "workflowTyping.helperPrefix",
+    title: "Helper prefix",
+    input: {
+      prefix: "",
+    },
+    execute({ input }, { config }) {
+      const _typedPrefix: string = config.prefix;
+      type PrefixIsString = AssertTrue<IsExact<typeof _typedPrefix, string>>;
+      const prefixIsString: PrefixIsString = true;
+      void prefixIsString;
+      return {
+        ...input,
+        prefixed: `${config.prefix}:${String(input.subject)}`,
+      };
+    },
+  });
+
+  const built = workflow("wf.helper.resolvable-config")
+    .name("Workflow helper resolvable config")
+    .manualTrigger({
+      subject: "hello",
+    })
+    .node(
+      helperNode,
+      {
+        prefix: itemExpr(({ item }) => item.json.subject),
+      },
+      "Prefix subject",
+    )
+    .build();
+
+  assert.equal(built.id, "wf.helper.resolvable-config");
+});
+
+test("workflow helper supports empty config nodes with narrower declared input shapes", () => {
+  const subsetNode = defineNode({
+    key: "workflowTyping.subsetInput",
+    title: "Subset input",
+    input: {},
+    inputSchema: z.object({
+      subject: z.string(),
+    }),
+    execute({ input }) {
+      return {
+        normalized: input.subject.toUpperCase(),
+      };
+    },
+  });
+
+  const built = workflow("wf.helper.subset-node")
+    .name("Workflow helper subset node")
+    .manualTrigger({
+      subject: "hello",
+      count: 1,
+    })
+    .node(subsetNode, {}, "Subset input node")
+    .build();
+
+  assert.equal(built.id, "wf.helper.subset-node");
+});
+
 test("workflow helper forwards agent outputSchema into the built AIAgent config", () => {
   const outputSchema = z.object({
     summary: z.string(),
@@ -213,7 +277,7 @@ test("workflow helper forwards agent outputSchema into the built AIAgent config"
       subject: "hello",
     })
     .agent("Summarize", {
-      messages: itemValue(({ item }) => [
+      messages: itemExpr(({ item }) => [
         {
           role: "user",
           content: item.json.subject,
@@ -331,4 +395,31 @@ test("workflow helper supports callback routing plus merge and switch core nodes
         edge.from.nodeId === "switch_route" && edge.from.output === "support" && edge.to.nodeId === "wait_support",
     ),
   );
+});
+
+test("workflow callbacks can read typed upstream outputs via nodeRef handles", () => {
+  const MailData = nodeRef<SeedJson>("mail_data");
+
+  const built = workflow("wf.helper.node-ref")
+    .name("Workflow helper node ref typing")
+    .manualTrigger({
+      subject: "hello",
+      count: 1,
+    })
+    .map("Mail data", (item) => item.json, {
+      id: "mail_data",
+    })
+    .map("Read typed mail data", (_item, ctx) => {
+      const typedItems = ctx.data.getOutputItems(MailData);
+      type TypedItemsMatch = AssertTrue<IsExact<typeof typedItems, Items<SeedJson>>>;
+      const typedItemsMatch: TypedItemsMatch = true;
+      void typedItemsMatch;
+      const firstSubject = typedItems[0]?.json.subject ?? "";
+      return {
+        firstSubject,
+      };
+    })
+    .build();
+
+  assert.equal(built.id, "wf.helper.node-ref");
 });

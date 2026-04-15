@@ -1,9 +1,9 @@
 import type { NodeExecutionContext } from "./runtimeTypes";
 import type { Item, Items, NodeActivationId, NodeId, RunDataSnapshot, RunId, WorkflowId } from "./workflowTypes";
 
-const ITEM_VALUE_BRAND = Symbol.for("codemation.itemValue");
+const ITEM_EXPR_BRAND = Symbol.for("codemation.itemExpr");
 
-export type ItemValueResolvedContext = Readonly<{
+export type ItemExprResolvedContext = Readonly<{
   runId: RunId;
   workflowId: WorkflowId;
   nodeId: NodeId;
@@ -14,52 +14,51 @@ export type ItemValueResolvedContext = Readonly<{
 /**
  * Context aligned with former {@link ItemInputMapperContext} — use **`data`** to read any completed upstream node.
  */
-export type ItemValueContext = ItemValueResolvedContext;
+export type ItemExprContext = ItemExprResolvedContext;
 
-export type ItemValueArgs<TItemJson = unknown> = Readonly<{
+export type ItemExprArgs<TItemJson = unknown> = Readonly<{
   item: Item<TItemJson>;
   itemIndex: number;
   items: Items<TItemJson>;
-  ctx: ItemValueContext;
+  ctx: ItemExprContext;
 }>;
 
-export type ItemValueCallback<T, TItemJson = unknown> = (args: ItemValueArgs<TItemJson>) => T | Promise<T>;
+export type ItemExprCallback<T, TItemJson = unknown> = (args: ItemExprArgs<TItemJson>) => T | Promise<T>;
 
-export type ItemValue<T, TItemJson = unknown> = Readonly<{
-  readonly [ITEM_VALUE_BRAND]: true;
-  readonly fn: ItemValueCallback<T, TItemJson>;
+export type ItemExpr<T, TItemJson = unknown> = Readonly<{
+  readonly [ITEM_EXPR_BRAND]: true;
+  readonly fn: ItemExprCallback<T, TItemJson>;
 }>;
 
-export function itemValue<T, TItemJson = unknown>(fn: ItemValueCallback<T, TItemJson>): ItemValue<T, TItemJson> {
-  return { [ITEM_VALUE_BRAND]: true, fn };
+export function itemExpr<T, TItemJson = unknown>(fn: ItemExprCallback<T, TItemJson>): ItemExpr<T, TItemJson> {
+  return { [ITEM_EXPR_BRAND]: true, fn };
 }
 
-export function isItemValue<T, TItemJson = unknown>(value: unknown): value is ItemValue<T, TItemJson> {
+export function isItemExpr<T, TItemJson = unknown>(value: unknown): value is ItemExpr<T, TItemJson> {
   if (typeof value !== "object" || value === null) {
     return false;
   }
   const v = value as Record<PropertyKey, unknown>;
-  if (v[ITEM_VALUE_BRAND] === true) {
+  if (v[ITEM_EXPR_BRAND] === true) {
     return true;
   }
-  // Support snapshot-hydrated itemValue wrappers where the symbol brand was lost but the callback survived.
+  // Support snapshot-hydrated itemExpr wrappers where the symbol brand was lost but the callback survived.
   // Workflow snapshot hydration currently restores function-valued fields (like `fn`) but may drop symbol-keyed brands.
-  // We treat the minimal `{ fn: Function }` shape as an itemValue wrapper to keep runnable configs working.
+  // We treat the minimal `{ fn: Function }` shape as an itemExpr wrapper to keep runnable configs working.
   const keys = Object.keys(v);
   if (keys.length === 1 && keys[0] === "fn" && typeof (v as { fn?: unknown }).fn === "function") {
     return true;
   }
-  // Support legacy module-local Symbol("codemation.itemValue") brands (e.g. duplicate module graphs).
   for (const sym of Object.getOwnPropertySymbols(v)) {
-    if (sym.description === "codemation.itemValue" && v[sym] === true) {
+    if (sym.description === "codemation.itemExpr" && v[sym] === true) {
       return true;
     }
   }
   return false;
 }
 
-function containsItemValueInUnknown(value: unknown, seen: WeakSet<object> = new WeakSet()): boolean {
-  if (isItemValue(value)) {
+function containsItemExprInUnknown(value: unknown, seen: WeakSet<object> = new WeakSet()): boolean {
+  if (isItemExpr(value)) {
     return true;
   }
   if (value === null || typeof value !== "object") {
@@ -70,10 +69,10 @@ function containsItemValueInUnknown(value: unknown, seen: WeakSet<object> = new 
   }
   seen.add(value as object);
   if (Array.isArray(value)) {
-    return value.some((entry) => containsItemValueInUnknown(entry, seen));
+    return value.some((entry) => containsItemExprInUnknown(entry, seen));
   }
   for (const entry of Object.values(value as Record<string, unknown>)) {
-    if (containsItemValueInUnknown(entry, seen)) {
+    if (containsItemExprInUnknown(entry, seen)) {
       return true;
     }
   }
@@ -81,14 +80,14 @@ function containsItemValueInUnknown(value: unknown, seen: WeakSet<object> = new 
 }
 
 /**
- * Deep-resolves {@link itemValue} leaves. Returns a new graph (does not mutate the original config object).
+ * Deep-resolves {@link itemExpr} leaves. Returns a new graph (does not mutate the original config object).
  */
-export async function resolveItemValuesInUnknown(
+export async function resolveItemExprsInUnknown(
   value: unknown,
-  args: ItemValueArgs,
+  args: ItemExprArgs,
   seen: WeakSet<object> = new WeakSet(),
 ): Promise<unknown> {
-  if (isItemValue(value)) {
+  if (isItemExpr(value)) {
     return await Promise.resolve(value.fn(args));
   }
   if (value === null || typeof value !== "object") {
@@ -101,7 +100,7 @@ export async function resolveItemValuesInUnknown(
   if (Array.isArray(value)) {
     const out: unknown[] = [];
     for (let i = 0; i < value.length; i++) {
-      out.push(await resolveItemValuesInUnknown(value[i], args, seen));
+      out.push(await resolveItemExprsInUnknown(value[i], args, seen));
     }
     return out;
   }
@@ -113,22 +112,22 @@ export async function resolveItemValuesInUnknown(
   }
   const out = Object.create(proto) as Record<string, unknown>;
   for (const [k, v] of entries) {
-    out[k] = await resolveItemValuesInUnknown(v, args, seen);
+    out[k] = await resolveItemExprsInUnknown(v, args, seen);
   }
   return out;
 }
 
 /**
- * Clones runnable config (best-effort) so per-item {@link itemValue} resolution never mutates shared instances.
+ * Clones runnable config (best-effort) so per-item {@link itemExpr} resolution never mutates shared instances.
  */
-export async function resolveItemValuesForExecution(
+export async function resolveItemExprsForExecution(
   config: unknown,
   nodeCtx: NodeExecutionContext,
   item: Item,
   itemIndex: number,
   items: Items,
 ): Promise<unknown | undefined> {
-  const ivArgs: ItemValueArgs = {
+  const exprArgs: ItemExprArgs = {
     item,
     itemIndex,
     items,
@@ -140,8 +139,8 @@ export async function resolveItemValuesForExecution(
       data: nodeCtx.data,
     },
   };
-  if (!containsItemValueInUnknown(config)) {
+  if (!containsItemExprInUnknown(config)) {
     return undefined;
   }
-  return await resolveItemValuesInUnknown(config, ivArgs);
+  return await resolveItemExprsInUnknown(config, exprArgs);
 }

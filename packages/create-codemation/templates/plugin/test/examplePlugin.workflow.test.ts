@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import "reflect-metadata";
 
+import { itemExpr } from "@codemation/core";
 import { WorkflowTestKit } from "@codemation/core/testing";
 
 import { examplePluginUppercaseNode } from "../src/nodes/ExamplePluginUppercase";
@@ -9,7 +10,13 @@ import { examplePluginUppercaseNode } from "../src/nodes/ExamplePluginUppercase"
 test("example uppercase node uppercases the configured field", async () => {
   const kit = new WorkflowTestKit();
   kit.registerDefinedNodes([examplePluginUppercaseNode]);
-  const node = examplePluginUppercaseNode.create({ field: "message" }, "Uppercase", "upper");
+  const node = examplePluginUppercaseNode.create(
+    {
+      field: itemExpr(() => "message"),
+    },
+    "Uppercase",
+    "upper",
+  );
   const result = await kit.runNode({
     node,
     items: [{ json: { message: "hello" } }],

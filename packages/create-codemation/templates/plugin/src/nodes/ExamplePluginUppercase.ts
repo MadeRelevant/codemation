@@ -7,10 +7,7 @@ export const examplePluginUppercaseNode = defineNode({
   input: {
     field: "string",
   },
-  execute(
-    { input }: { readonly input: Readonly<{ message: string }> },
-    { config }: { readonly config: Readonly<{ field: string }> },
-  ) {
+  execute({ input }, { config }) {
     return {
       ...input,
       [config.field]: String(input[config.field as keyof typeof input] ?? "").toUpperCase(),

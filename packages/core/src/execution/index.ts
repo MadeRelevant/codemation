@@ -5,7 +5,7 @@ export { CredentialResolverFactory } from "./CredentialResolverFactory";
 export { DefaultAsyncSleeper } from "./DefaultAsyncSleeper";
 export { DefaultExecutionContextFactory } from "./DefaultExecutionContextFactory";
 export { InProcessRetryRunner } from "./InProcessRetryRunner";
-export { ItemValueResolver } from "./ItemValueResolver";
+export { ItemExprResolver } from "./ItemExprResolver";
 export { NodeOutputNormalizer } from "./NodeOutputNormalizer";
 export { RunnableOutputBehaviorResolver } from "./RunnableOutputBehaviorResolver";
 export { InProcessRetryRunnerFactory } from "./InProcessRetryRunnerFactory";

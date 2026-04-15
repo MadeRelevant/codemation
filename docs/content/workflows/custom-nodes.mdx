@@ -118,6 +118,17 @@ const normalizeInvoiceNode = defineNode({
 
 That node returns plain JSON, but inbound binaries are still preserved because `keepBinaries` is enabled. If you need to replace or clear binaries, return an explicit item-shaped result instead.
 
+## Params belong to the node, mapping belongs to the workflow
+
+For reusable helper-defined nodes, treat **config** as the node's parameter surface:
+
+- the node should read **resolved config values** plus the current `item`
+- the workflow should map upstream data into those params with literals or `itemExpr(...)`
+
+That keeps the node reusable across workflows because it does not need to know the exact `item.json` shape produced by surrounding steps.
+
+Reach for `inputSchema` only when the node intentionally depends on a specific wire payload shape and should fail fast when the current item does not match that contract.
+
 ## Trigger item shape
 
 Trigger nodes should follow the same contract, with one extra rule:

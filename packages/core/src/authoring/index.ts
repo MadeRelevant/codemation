@@ -1,6 +1,7 @@
 export { DefinedNodeRegistry } from "./DefinedNodeRegistry";
 export type {
   DefinedNode,
+  DefinedNodeConfigInput,
   DefinedNodeCredentialAccessors,
   DefinedNodeCredentialBinding,
   DefinedNodeCredentialBindings,

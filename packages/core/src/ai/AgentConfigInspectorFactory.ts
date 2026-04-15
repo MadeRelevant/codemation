@@ -1,5 +1,5 @@
 import type { NodeConfigBase } from "../types";
-import { isItemValue } from "../contracts/itemValue";
+import { isItemExpr } from "../contracts/itemExpr";
 import type { AgentNodeConfig } from "./AiHost";
 
 export class AgentConfigInspector {
@@ -18,7 +18,7 @@ export class AgentConfigInspector {
       return messages.length > 0;
     }
     if (typeof messages === "object") {
-      if (isItemValue(messages)) {
+      if (isItemExpr(messages)) {
         return true;
       }
       const o = messages as { prompt?: unknown; buildMessages?: unknown };

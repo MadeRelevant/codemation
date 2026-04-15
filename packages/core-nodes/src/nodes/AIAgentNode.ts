@@ -68,7 +68,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
   outputPorts = ["main"] as const;
   /**
    * Engine validates {@link RunnableNodeConfig.inputSchema} (Zod) on {@code item.json} before enqueue, then resolves
-   * per-item **`itemValue`** leaves on config before {@link #execute}. Prefer modeling prompts as
+   * per-item **`itemExpr`** leaves on config before {@link #execute}. Prefer modeling prompts as
    * {@code { messages: [{ role, content }, ...] }} (on input or config) so persisted inputs are visible in the UI.
    */
   readonly inputSchema = z.unknown();

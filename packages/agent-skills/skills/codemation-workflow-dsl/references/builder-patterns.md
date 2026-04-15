@@ -55,5 +55,5 @@ Promote inline callbacks into custom nodes when:
 
 - use `.agent(...)` for agent steps in fluent workflow definitions
 - define agent prompts with `messages`
-- use `itemValue(...)` when message content depends on `item.json`
+- use `itemExpr(...)` when message content depends on `item.json`
 - use `outputSchema` when the workflow should expose typed structured agent output
