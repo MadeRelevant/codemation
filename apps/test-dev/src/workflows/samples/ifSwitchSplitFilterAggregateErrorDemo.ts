@@ -108,17 +108,17 @@ export default workflow("wf.samples.if-switch-split-filter-aggregate-error")
     error: (branch) => branch.then(new NoOp("NoOp (error sink)", "noop_error")),
     main: (branch) =>
       branch
-        .if<ParityRow>("If even?", (item) => (item as ReadingRow).c % 2 === 0, {
+        .if<ParityRow>("If even?", (item, _ctx) => (item.json as ReadingRow).c % 2 === 0, {
           true: (trueBranch) =>
             trueBranch.map(
               "Tag parity=even",
-              (item) => ({ ...(item as ReadingRow), parity: "even" as ParityRow["parity"] }),
+              (item, _ctx) => ({ ...(item.json as ReadingRow), parity: "even" as ParityRow["parity"] }),
               { id: "tag_even" },
             ),
           false: (falseBranch) =>
             falseBranch.map(
               "Tag parity=odd",
-              (item) => ({ ...(item as ReadingRow), parity: "odd" as ParityRow["parity"] }),
+              (item, _ctx) => ({ ...(item.json as ReadingRow), parity: "odd" as ParityRow["parity"] }),
               { id: "tag_odd" },
             ),
         })
@@ -128,7 +128,7 @@ export default workflow("wf.samples.if-switch-split-filter-aggregate-error")
           {
             cases: ["even"],
             defaultCase: "odd",
-            resolveCaseKey: (item) => String((item as ParityRow).parity ?? ""),
+            resolveCaseKey: (item, _ctx) => String((item.json as ParityRow).parity ?? ""),
             branches: {
               even: (evenBranch) =>
                 evenBranch

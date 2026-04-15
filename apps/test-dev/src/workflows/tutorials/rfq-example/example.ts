@@ -51,7 +51,7 @@ export default workflow("wf.example")
       ],
     }),
   )
-  .if("If RFQ?", (item) => (item as ExampleAgentJson).isRfq, {
+  .if("If RFQ?", (item, _ctx) => (item.json as ExampleAgentJson).isRfq, {
     true: (b) =>
       b.then(
         new Callback<ExampleAgentJson, ExampleOutcomeJson>("Create order (callback)", (items) =>

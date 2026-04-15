@@ -19,6 +19,11 @@ import { WorkflowAgentNodeFactory } from "./WorkflowAgentNodeFactory.types";
 import { WorkflowDefinedNodeResolver } from "./WorkflowDefinedNodeResolver.types";
 import { WorkflowDurationParser } from "./WorkflowDurationParser.types";
 
+type WorkflowMapCallback<TCurrentJson, TNextJson> = (
+  item: Item<TCurrentJson>,
+  ctx: NodeExecutionContext<MapData<TCurrentJson, TNextJson>>,
+) => TNextJson;
+
 export class WorkflowBranchBuilder<TCurrentJson> {
   constructor(private readonly steps: ReadonlyArray<AnyRunnableNodeConfig> = []) {}
 
@@ -28,22 +33,20 @@ export class WorkflowBranchBuilder<TCurrentJson> {
     return new WorkflowBranchBuilder<RunnableNodeOutputJson<TConfig>>([...this.steps, config]);
   }
 
-  map<TNextJson>(mapper: (item: TCurrentJson) => TNextJson): WorkflowBranchBuilder<TNextJson>;
+  map<TNextJson>(mapper: WorkflowMapCallback<TCurrentJson, TNextJson>): WorkflowBranchBuilder<TNextJson>;
   map<TNextJson>(
     name: string,
-    mapper: (item: TCurrentJson) => TNextJson,
+    mapper: WorkflowMapCallback<TCurrentJson, TNextJson>,
     options?: MapDataOptions,
   ): WorkflowBranchBuilder<TNextJson>;
   map<TNextJson>(
-    nameOrMapper: string | ((item: TCurrentJson) => TNextJson),
-    mapperOrUndefined?: (item: TCurrentJson) => TNextJson,
+    nameOrMapper: string | WorkflowMapCallback<TCurrentJson, TNextJson>,
+    mapperOrUndefined?: WorkflowMapCallback<TCurrentJson, TNextJson>,
     options?: MapDataOptions,
   ): WorkflowBranchBuilder<TNextJson> {
     const name = typeof nameOrMapper === "string" ? nameOrMapper : "Map data";
     const mapper = typeof nameOrMapper === "string" ? mapperOrUndefined! : nameOrMapper;
-    return this.then(
-      new MapData<TCurrentJson, TNextJson>(name, (item) => mapper(item.json as TCurrentJson), options),
-    ) as WorkflowBranchBuilder<TNextJson>;
+    return this.then(new MapData<TCurrentJson, TNextJson>(name, mapper, options)) as WorkflowBranchBuilder<TNextJson>;
   }
 
   wait(duration: number | string): WorkflowBranchBuilder<TCurrentJson>;

@@ -25,6 +25,8 @@ Message authoring follows the agent message model:
 - use `itemValue(...)` for per-item message generation
 - use the object form when you need `prompt` plus `buildMessages`
 
+If you want to reshape workflow data before the agent runs, use fluent DSL helpers such as `.map((item, ctx) => ...)`: read the current row from `item.json`, and use `ctx.data` when prompt preparation depends on earlier completed steps. Keep `itemValue(...)` for agent config fields like `messages`.
+
 ```ts
 workflow("wf.example")
   .manualTrigger<{ subject: string; route: string }>("Start", [

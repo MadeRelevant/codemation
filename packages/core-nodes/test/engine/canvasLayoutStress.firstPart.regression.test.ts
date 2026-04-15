@@ -20,7 +20,7 @@ test("canvasLayoutStress first part: consecutive If diamonds execute taken path"
     .then(
       new MapData<StressJson>("Ingest payload", (item) => pass(item, { stage: "ingested", version: 1 } as StressJson)),
     )
-    .if("Primary gate (score ≥ 40)?", (item) => Number((item as StressJson).score ?? 0) >= 40, {
+    .if("Primary gate (score ≥ 40)?", (item, _ctx) => Number((item.json as StressJson).score ?? 0) >= 40, {
       true: (b) =>
         b
           .then(new MapData<StressJson>("High lane: tag", (item) => pass(item, { lane: "high" } as StressJson)))
@@ -31,7 +31,7 @@ test("canvasLayoutStress first part: consecutive If diamonds execute taken path"
           .then(new MapData<StressJson>("Low lane: enrich", (item) => pass(item, { enriched: true } as StressJson)))
           .then(new Wait<StressJson>("Low lane: short wait", 1)),
     })
-    .if("Route by lane (high)?", (item) => String((item as StressJson).lane ?? "") === "high", {
+    .if("Route by lane (high)?", (item, _ctx) => String((item.json as StressJson).lane ?? "") === "high", {
       true: (b) =>
         b
           .then(new MapData<StressJson>("High fork: branch A", (item) => pass(item, { fork: "A" } as StressJson)))

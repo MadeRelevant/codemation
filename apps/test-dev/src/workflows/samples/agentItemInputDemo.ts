@@ -6,7 +6,8 @@ import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
 
 /**
  * Demonstrates `workflow().agent(...)`: per-item **`itemValue`** builds the same `messages`
- * contract used by `AIAgent`, while model and guardrails stay on config.
+ * contract used by `AIAgent`, while fluent `.map(...)` uses the same `item` / `ctx`
+ * shape as runtime nodes before the agent runs.
  */
 type AgentWireJson = {
   topic: string;
@@ -19,6 +20,9 @@ export default workflow("wf.samples.agent-item-input")
       topic: "Why use a workflow engine for AI steps?",
     },
   ])
+  .map<AgentWireJson>("Normalize topic", (item, _ctx) => ({
+    topic: item.json.topic.trim(),
+  }))
   .agent("Summarize topic", {
     messages: itemValue(({ item }) => [
       {
