@@ -1,4 +1,5 @@
 import type {
+  JsonValue,
   NodeActivationId,
   NodeExecutionSnapshot,
   NodeId,
@@ -146,6 +147,7 @@ export class NodeExecutionSnapshotFactory {
         message: args.error.message,
         name: args.error.name,
         stack: args.error.stack,
+        details: (args.error as Error & { details?: JsonValue }).details,
       },
     };
   }

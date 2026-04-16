@@ -45,6 +45,9 @@ import {
   AIAgent,
   AIAgentExecutionHelpersFactory,
   AIAgentNode,
+  AgentToolErrorClassifier,
+  AgentToolExecutionCoordinator,
+  AgentToolRepairPolicy,
   AgentStructuredOutputRepairPromptFactory,
   AgentStructuredOutputRunner,
   OpenAIChatModelConfig,
@@ -450,6 +453,9 @@ class AgentTestRig {
     );
     this.container.registerSingleton(OpenAIStructuredOutputMethodFactory, OpenAIStructuredOutputMethodFactory);
     this.container.registerSingleton(AgentStructuredOutputRunner, AgentStructuredOutputRunner);
+    this.container.registerSingleton(AgentToolErrorClassifier, AgentToolErrorClassifier);
+    this.container.registerSingleton(AgentToolRepairPolicy, AgentToolRepairPolicy);
+    this.container.registerSingleton(AgentToolExecutionCoordinator, AgentToolExecutionCoordinator);
     this.container.registerSingleton(NodeBackedToolRuntime, NodeBackedToolRuntime);
     this.container.registerSingleton(AIAgentNode, AIAgentNode);
     for (const registration of registrations) {
@@ -618,6 +624,175 @@ test("AIAgentNode executes callable tools and emits synthetic tool connection st
   assert.deepEqual(rig.nodeState.queuedInputsByNodeId.get(toolNodeId)?.in?.[0]?.json, { n: 3 });
   assert.ok(rig.nodeState.events.includes(`completed:${toolNodeId}`));
   assert.equal(capture.snapshotBoundToolNames()[0]?.[0], "double_n");
+});
+
+test("AIAgentNode repairs malformed callable tool args inside the same agent loop", async () => {
+  const capture = new ScriptedChatModelCapture();
+  const callable = callableTool({
+    name: "double_n",
+    description: "Doubles n",
+    inputSchema: z.object({ n: z.number() }),
+    outputSchema: z.object({ doubled: z.number() }),
+    execute: async ({ input }) => ({ doubled: input.n * 2 }),
+  });
+  const config = new AIAgent({
+    name: "Callable repair agent",
+    chatModel: new ScriptedChatModelConfig(
+      "Scripted model",
+      [
+        ToolCallResponseFactory.toolCall("repair_1", "double_n", {}),
+        ToolCallResponseFactory.toolCall("repair_2", "double_n", { n: 3 }),
+        { content: "repaired final answer" },
+      ],
+      capture,
+    ),
+    messages: [
+      { role: "system", content: "Call double_n correctly." },
+      { role: "user", content: "Go." },
+    ],
+    tools: [callable],
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  const outputs = await rig.execute([{ json: {} }], "run_repair", "agent_repair", "act_repair");
+
+  assert.deepEqual(outputs.main?.[0]?.json, { output: "repaired final answer" });
+  assert.equal(capture.invocations.length, 3);
+  const repairMessages = MessageInspection.contents(capture.invocations[1]?.messages);
+  assert.equal(
+    repairMessages.some((message) => message.includes('"errorType":"validation"')),
+    true,
+  );
+  assert.equal(
+    repairMessages.some((message) => message.includes("requiredSchemaReminder")),
+    true,
+  );
+  const toolNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("agent_repair", "double_n");
+  const failedInvocation = rig.nodeState.connectionInvocations.find(
+    (entry) => entry.connectionNodeId === toolNodeId && entry.status === "failed",
+  ) as { error?: { details?: { repair?: { attempt?: number; nextAction?: string } } } } | undefined;
+  const completedInvocation = rig.nodeState.connectionInvocations.find(
+    (entry) => entry.connectionNodeId === toolNodeId && entry.status === "completed",
+  ) as { managedOutput?: unknown } | undefined;
+  assert.equal(failedInvocation?.error?.details?.repair?.attempt, 1);
+  assert.equal(failedInvocation?.error?.details?.repair?.nextAction, "model_retry_with_tool_error_message");
+  assert.deepEqual(completedInvocation?.managedOutput, { doubled: 6 });
+  assert.ok(rig.nodeState.events.includes(`failed:${toolNodeId}`));
+  assert.ok(rig.nodeState.events.includes(`completed:${toolNodeId}`));
+});
+
+test("AIAgentNode fails with an explicit repair exhaustion error after repeated malformed tool args", async () => {
+  const capture = new ScriptedChatModelCapture();
+  const callable = callableTool({
+    name: "double_n",
+    description: "Doubles n",
+    inputSchema: z.object({ n: z.number() }),
+    outputSchema: z.object({ doubled: z.number() }),
+    execute: async ({ input }) => ({ doubled: input.n * 2 }),
+  });
+  const config = new AIAgent({
+    name: "Callable repair exhaust",
+    chatModel: new ScriptedChatModelConfig(
+      "Scripted model",
+      [
+        ToolCallResponseFactory.toolCall("repair_fail_1", "double_n", {}),
+        ToolCallResponseFactory.toolCall("repair_fail_2", "double_n", {}),
+      ],
+      capture,
+    ),
+    messages: [
+      { role: "system", content: "Call double_n correctly." },
+      { role: "user", content: "Go." },
+    ],
+    tools: [callable],
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  await assert.rejects(
+    async () => await rig.execute([{ json: {} }], "run_repair_exhaust", "agent_repair_exhaust", "act_repair_exhaust"),
+    /could not recover from invalid tool calls/,
+  );
+
+  assert.equal(capture.invocations.length, 2);
+  const toolNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("agent_repair_exhaust", "double_n");
+  const failedInvocations = rig.nodeState.connectionInvocations.filter(
+    (entry) => entry.connectionNodeId === toolNodeId && entry.status === "failed",
+  ) as Array<{ error?: { message?: string; details?: { maxAttempts?: number } } }>;
+  assert.equal(failedInvocations.length, 2);
+  assert.equal(
+    failedInvocations.some((entry) => entry.error?.message?.includes("could not recover from invalid tool calls")),
+    true,
+  );
+  assert.equal(failedInvocations[1]?.error?.details?.maxAttempts, 2);
+});
+
+test("AIAgentNode keeps successful parallel tool results while repairing malformed sibling calls", async () => {
+  const capture = new ScriptedChatModelCapture();
+  const doubleTool = callableTool({
+    name: "double_n",
+    description: "Doubles n",
+    inputSchema: z.object({ n: z.number() }),
+    outputSchema: z.object({ doubled: z.number() }),
+    execute: async ({ input }) => ({ doubled: input.n * 2 }),
+  });
+  const echoTool = callableTool({
+    name: "echo_word",
+    description: "Echoes a word",
+    inputSchema: z.object({ word: z.string() }),
+    outputSchema: z.object({ echoed: z.string() }),
+    execute: async ({ input }) => ({ echoed: input.word }),
+  });
+  const config = new AIAgent({
+    name: "Parallel repair agent",
+    chatModel: new ScriptedChatModelConfig(
+      "Scripted model",
+      [
+        {
+          content: "planning",
+          tool_calls: [
+            { id: "parallel_1", name: "double_n", args: {} },
+            { id: "parallel_2", name: "echo_word", args: { word: "hello" } },
+          ],
+        },
+        ToolCallResponseFactory.toolCall("parallel_3", "double_n", { n: 4 }),
+        { content: "parallel repaired final answer" },
+      ],
+      capture,
+    ),
+    messages: [
+      { role: "system", content: "Use tools." },
+      { role: "user", content: "Go." },
+    ],
+    tools: [doubleTool, echoTool],
+  });
+  const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
+
+  const outputs = await rig.execute([{ json: {} }], "run_parallel_repair", "agent_parallel_repair", "act_parallel");
+
+  assert.deepEqual(outputs.main?.[0]?.json, { output: "parallel repaired final answer" });
+  const doubleNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("agent_parallel_repair", "double_n");
+  const echoNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("agent_parallel_repair", "echo_word");
+  const echoCompleted = rig.nodeState.connectionInvocations.find(
+    (entry) => entry.connectionNodeId === echoNodeId && entry.status === "completed",
+  ) as { managedOutput?: unknown } | undefined;
+  const doubleFailed = rig.nodeState.connectionInvocations.find(
+    (entry) => entry.connectionNodeId === doubleNodeId && entry.status === "failed",
+  ) as { error?: { details?: { repair?: { attempt?: number } } } } | undefined;
+  const doubleCompleted = rig.nodeState.connectionInvocations.find(
+    (entry) => entry.connectionNodeId === doubleNodeId && entry.status === "completed",
+  ) as { managedOutput?: unknown } | undefined;
+  assert.deepEqual(echoCompleted?.managedOutput, { echoed: "hello" });
+  assert.equal(doubleFailed?.error?.details?.repair?.attempt, 1);
+  assert.deepEqual(doubleCompleted?.managedOutput, { doubled: 8 });
+  const secondTurnMessages = MessageInspection.contents(capture.invocations[1]?.messages);
+  assert.equal(
+    secondTurnMessages.some((message) => message.includes('"echoed":"hello"')),
+    true,
+  );
+  assert.equal(
+    secondTurnMessages.some((message) => message.includes('"errorType":"validation"')),
+    true,
+  );
 });
 
 test("AIAgentNode callable tool uses item only when execute reads it explicitly", async () => {

@@ -1,7 +1,7 @@
 import type { CredentialRequirement } from "../contracts/credentialTypes";
 import type { TypeToken } from "../di";
 import type { AgentCanvasPresentation, ToolConfig, ToolExecuteArgs, ZodSchemaAny } from "./AiHost";
-import type { input as ZodInput, output as ZodOutput } from "zod";
+import { ZodError, type input as ZodInput, type output as ZodOutput } from "zod";
 
 import { CallableToolKindToken } from "./CallableToolKindToken";
 
@@ -71,7 +71,7 @@ export class CallableToolConfig<
   async executeTool(
     args: ToolExecuteArgs<CallableToolConfig<TInputSchema, TOutputSchema>, ZodInput<TInputSchema>>,
   ): Promise<ZodOutput<TOutputSchema>> {
-    const parsedInput = this.inputSchemaValue.parse(args.input) as ZodInput<TInputSchema>;
+    const parsedInput = this.parseInput(args.input);
     const raw = await Promise.resolve(
       this.executeHandler({
         ...args,
@@ -79,6 +79,31 @@ export class CallableToolConfig<
         input: parsedInput,
       }),
     );
-    return this.outputSchemaValue.parse(raw) as ZodOutput<TOutputSchema>;
+    return this.parseOutput(raw);
+  }
+
+  private parseInput(input: unknown): ZodInput<TInputSchema> {
+    try {
+      return this.inputSchemaValue.parse(input) as ZodInput<TInputSchema>;
+    } catch (error) {
+      throw this.decorateValidationError(error, "input");
+    }
+  }
+
+  private parseOutput(output: unknown): ZodOutput<TOutputSchema> {
+    try {
+      return this.outputSchemaValue.parse(output) as ZodOutput<TOutputSchema>;
+    } catch (error) {
+      throw this.decorateValidationError(error, "output");
+    }
+  }
+
+  private decorateValidationError(error: unknown, stage: "input" | "output"): Error {
+    if (error instanceof ZodError) {
+      (error as ZodError & { codemationToolValidationStage?: "input" | "output" }).codemationToolValidationStage =
+        stage;
+      return error;
+    }
+    return error instanceof Error ? error : new Error(String(error));
   }
 }

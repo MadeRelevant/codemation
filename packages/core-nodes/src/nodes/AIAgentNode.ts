@@ -39,6 +39,7 @@ import { z } from "zod";
 
 import type { AIAgent } from "./AIAgentConfig";
 import { AIAgentExecutionHelpersFactory } from "./AIAgentExecutionHelpersFactory";
+import { AgentToolExecutionCoordinator } from "./AgentToolExecutionCoordinator";
 import { ConnectionCredentialExecutionContextFactory } from "./ConnectionCredentialExecutionContextFactory";
 import { AgentMessageFactory } from "./AgentMessageFactory";
 import { AgentOutputFactory } from "./AgentOutputFactory";
@@ -94,6 +95,8 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     private readonly executionHelpers: AIAgentExecutionHelpersFactory,
     @inject(AgentStructuredOutputRunner)
     private readonly structuredOutputRunner: AgentStructuredOutputRunner,
+    @inject(AgentToolExecutionCoordinator)
+    private readonly toolExecutionCoordinator: AgentToolExecutionCoordinator,
   ) {
     this.connectionCredentialExecutionContextFactory =
       this.executionHelpers.createConnectionCredentialExecutionContextFactory(credentialSessions);
@@ -224,6 +227,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     let finalResponse: AIMessage | undefined;
     let toolCallCount = 0;
     let turnCount = 0;
+    const repairAttemptsByToolName = new Map<string, number>();
 
     for (let turn = 1; turn <= guardrails.maxTurns; turn++) {
       turnCount = turn;
@@ -250,7 +254,12 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       const plannedToolCalls = this.planToolCalls(itemScopedTools, toolCalls, ctx.nodeId);
       toolCallCount += plannedToolCalls.length;
       await this.markQueuedTools(plannedToolCalls, ctx);
-      const executedToolCalls = await this.executeToolCalls(plannedToolCalls, ctx);
+      const executedToolCalls = await this.toolExecutionCoordinator.execute({
+        plannedToolCalls,
+        ctx,
+        agentName: this.getAgentDisplayName(ctx),
+        repairAttemptsByToolName,
+      });
       this.appendAssistantAndToolMessages(conversation, response, executedToolCalls);
     }
 
@@ -441,7 +450,15 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         statusMessage: error instanceof Error ? error.message : String(error),
         endedAt: new Date(),
       });
-      throw await this.failTrackedNodeInvocation(error, nodeId, ctx, inputsByPort, this.summarizeLlmMessages(messages));
+      throw await this.failTrackedNodeInvocation({
+        error,
+        invocationId,
+        startedAt,
+        nodeId,
+        ctx,
+        inputsByPort,
+        managedInput: this.summarizeLlmMessages(messages),
+      });
     }
   }
 
@@ -499,7 +516,15 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         statusMessage: error instanceof Error ? error.message : String(error),
         endedAt: new Date(),
       });
-      throw await this.failTrackedNodeInvocation(error, nodeId, ctx, inputsByPort, this.summarizeLlmMessages(messages));
+      throw await this.failTrackedNodeInvocation({
+        error,
+        invocationId,
+        startedAt,
+        nodeId,
+        ctx,
+        inputsByPort,
+        managedInput: this.summarizeLlmMessages(messages),
+      });
     }
   }
 
@@ -630,95 +655,6 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     }
   }
 
-  private async executeToolCalls(
-    plannedToolCalls: ReadonlyArray<PlannedToolCall>,
-    ctx: NodeExecutionContext<AIAgent<any, any>>,
-  ): Promise<ReadonlyArray<ExecutedToolCall>> {
-    const results = await Promise.allSettled(
-      plannedToolCalls.map(async (plannedToolCall) => {
-        const toolCallInputsByPort = AgentToolCallPortMap.fromInput(plannedToolCall.toolCall.input ?? {});
-        const invocationId = ConnectionInvocationIdFactory.create();
-        const startedAt = new Date();
-        const span = ctx.telemetry.startChildSpan({
-          name: "agent.tool.call",
-          kind: "client",
-          startedAt,
-          attributes: {
-            [CodemationTelemetryAttributeNames.connectionInvocationId]: invocationId,
-            [CodemationTelemetryAttributeNames.toolName]: plannedToolCall.binding.config.name,
-          },
-        });
-        await ctx.nodeState?.markRunning({
-          nodeId: plannedToolCall.nodeId,
-          activationId: ctx.activationId,
-          inputsByPort: toolCallInputsByPort,
-        });
-        try {
-          const serialized = await plannedToolCall.binding.langChainTool.invoke(plannedToolCall.toolCall.input ?? {});
-          const result = this.parseToolOutput(serialized);
-          const finishedAt = new Date();
-          await ctx.nodeState?.markCompleted({
-            nodeId: plannedToolCall.nodeId,
-            activationId: ctx.activationId,
-            inputsByPort: toolCallInputsByPort,
-            outputs: AgentOutputFactory.fromUnknown(result),
-          });
-          await span.attachArtifact({
-            kind: "tool.input",
-            contentType: "application/json",
-            previewJson: this.toolCallInputToJson(plannedToolCall.toolCall.input),
-          });
-          await span.attachArtifact({
-            kind: "tool.output",
-            contentType: "application/json",
-            previewJson: this.resultToJsonValue(result),
-          });
-          await span.end({ status: "ok", endedAt: finishedAt });
-          await ctx.nodeState?.appendConnectionInvocation({
-            invocationId,
-            connectionNodeId: plannedToolCall.nodeId,
-            parentAgentNodeId: ctx.nodeId,
-            parentAgentActivationId: ctx.activationId,
-            status: "completed",
-            managedInput: this.toolCallInputToJson(plannedToolCall.toolCall.input),
-            managedOutput: this.resultToJsonValue(result),
-            queuedAt: startedAt.toISOString(),
-            startedAt: startedAt.toISOString(),
-            finishedAt: finishedAt.toISOString(),
-          });
-          return {
-            toolName: plannedToolCall.binding.config.name,
-            toolCallId: plannedToolCall.toolCall.id ?? plannedToolCall.binding.config.name,
-            serialized,
-            result,
-          } satisfies ExecutedToolCall;
-        } catch (error) {
-          await span.end({
-            status: "error",
-            statusMessage: error instanceof Error ? error.message : String(error),
-            endedAt: new Date(),
-          });
-          throw await this.failTrackedNodeInvocation(
-            error,
-            plannedToolCall.nodeId,
-            ctx,
-            toolCallInputsByPort,
-            this.toolCallInputToJson(plannedToolCall.toolCall.input),
-          );
-        }
-      }),
-    );
-
-    const rejected = results.find((result) => result.status === "rejected");
-    if (rejected?.status === "rejected") {
-      throw rejected.reason instanceof Error ? rejected.reason : new Error(String(rejected.reason));
-    }
-
-    return results
-      .filter((result): result is PromiseFulfilledResult<ExecutedToolCall> => result.status === "fulfilled")
-      .map((result) => result.value);
-  }
-
   private planToolCalls(
     bindings: ReadonlyArray<ItemScopedToolBinding>,
     toolCalls: ReadonlyArray<AgentToolCall>,
@@ -739,42 +675,41 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     });
   }
 
-  private parseToolOutput(serialized: unknown): unknown {
-    if (typeof serialized !== "string") return serialized;
-    try {
-      return JSON.parse(serialized);
-    } catch {
-      return serialized;
-    }
-  }
-
   private async failTrackedNodeInvocation(
-    error: unknown,
-    nodeId: string,
-    ctx: NodeExecutionContext<AIAgent<any, any>>,
-    inputsByPort: NodeInputsByPort,
-    managedInput?: JsonValue,
+    args: Readonly<{
+      error: unknown;
+      invocationId: string;
+      startedAt: Date;
+      nodeId: string;
+      ctx: NodeExecutionContext<AIAgent<any, any>>;
+      inputsByPort: NodeInputsByPort;
+      managedInput?: JsonValue;
+    }>,
   ): Promise<Error> {
-    const effectiveError = error instanceof Error ? error : new Error(String(error));
-    await ctx.nodeState?.markFailed({
-      nodeId,
-      activationId: ctx.activationId,
-      inputsByPort,
+    const effectiveError = args.error instanceof Error ? args.error : new Error(String(args.error));
+    const finishedAt = new Date();
+    await args.ctx.nodeState?.markFailed({
+      nodeId: args.nodeId,
+      activationId: args.ctx.activationId,
+      inputsByPort: args.inputsByPort,
       error: effectiveError,
     });
-    await ctx.nodeState?.appendConnectionInvocation({
-      invocationId: ConnectionInvocationIdFactory.create(),
-      connectionNodeId: nodeId,
-      parentAgentNodeId: ctx.nodeId,
-      parentAgentActivationId: ctx.activationId,
+    await args.ctx.nodeState?.appendConnectionInvocation({
+      invocationId: args.invocationId,
+      connectionNodeId: args.nodeId,
+      parentAgentNodeId: args.ctx.nodeId,
+      parentAgentActivationId: args.ctx.activationId,
       status: "failed",
-      managedInput,
+      managedInput: args.managedInput,
       error: {
         message: effectiveError.message,
         name: effectiveError.name,
         stack: effectiveError.stack,
+        details: this.extractErrorDetails(effectiveError),
       },
-      finishedAt: new Date().toISOString(),
+      queuedAt: args.startedAt.toISOString(),
+      startedAt: args.startedAt.toISOString(),
+      finishedAt: finishedAt.toISOString(),
     });
     return effectiveError;
   }
@@ -791,10 +726,6 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       messageCount: messages.length,
       lastMessagePreview: preview.slice(0, 4000),
     };
-  }
-
-  private toolCallInputToJson(input: unknown): JsonValue | undefined {
-    return this.resultToJsonValue(input);
   }
 
   private resultToJsonValue(value: unknown): JsonValue | undefined {
@@ -896,5 +827,10 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
 
   private getAgentDisplayName(ctx: NodeExecutionContext<AIAgent<any, any>>): string {
     return ctx.config.name ?? ctx.nodeId;
+  }
+
+  private extractErrorDetails(error: Error): JsonValue | undefined {
+    const candidate = error as Error & { details?: JsonValue };
+    return candidate.details;
   }
 }

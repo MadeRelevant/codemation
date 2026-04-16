@@ -449,7 +449,7 @@ export class WorkflowDetailPresenter {
 
   static getErrorClipboardText(error: NodeExecutionError | undefined): string {
     if (!error) return "";
-    return [this.getErrorHeadline(error), this.getErrorStack(error)]
+    return [this.getErrorHeadline(error), this.getErrorDetails(error), this.getErrorStack(error)]
       .filter((value): value is string => Boolean(value))
       .join("\n\n");
   }
@@ -496,6 +496,13 @@ export class WorkflowDetailPresenter {
 
   static isMutableExecution(run: Pick<PersistedRunState, "executionOptions"> | undefined): boolean {
     return Boolean(run?.executionOptions?.isMutable);
+  }
+
+  private static getErrorDetails(error: NodeExecutionError | undefined): string | null {
+    if (!error?.details) {
+      return null;
+    }
+    return JSON.stringify(error.details, null, 2);
   }
 
   private static getSnapshotDurationMs(snapshot: NodeExecutionSnapshot | undefined): number | null {

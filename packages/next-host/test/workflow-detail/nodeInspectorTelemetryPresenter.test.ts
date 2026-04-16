@@ -202,4 +202,61 @@ describe("NodeInspectorTelemetryPresenter", () => {
       },
     ]);
   });
+
+  it("falls back to persisted tool invocations when trace spans are absent", () => {
+    const model = NodeInspectorTelemetryPresenter.create({
+      node: {
+        id: "tool_lookup",
+        kind: "node",
+        type: "ToolConnection",
+        name: "Lookup tool",
+        role: "tool",
+      },
+      nodeSnapshotsByNodeId: {},
+      connectionInvocations: [
+        {
+          invocationId: "inv_tool_1",
+          runId: "run_1",
+          workflowId: "wf.telemetry",
+          connectionNodeId: "tool_lookup",
+          parentAgentNodeId: "agent_main",
+          parentAgentActivationId: "act_1",
+          status: "failed",
+          managedInput: {},
+          error: {
+            message: "Invalid input for tool",
+            name: "ZodError",
+            details: {
+              errorType: "validation",
+              repair: {
+                attempt: 1,
+                maxAttempts: 2,
+                nextAction: "model_retry_with_tool_error_message",
+              },
+            },
+          },
+          queuedAt: "2026-01-01T00:00:00.000Z",
+          startedAt: "2026-01-01T00:00:00.000Z",
+          finishedAt: "2026-01-01T00:00:01.000Z",
+          updatedAt: "2026-01-01T00:00:01.000Z",
+        } satisfies ConnectionInvocationRecord,
+      ],
+      traceView: {
+        traceId: "trace_1",
+        runId: "run_1",
+        spans: [],
+        artifacts: [],
+        metricPoints: [],
+      } satisfies TelemetryRunTraceViewDto,
+    });
+
+    const metrics = model.sections.find((section) => section.id === "tool-metrics");
+    expect(metrics?.pills).toEqual(
+      expect.arrayContaining([expect.objectContaining({ label: "Repair loops", value: "1" })]),
+    );
+    const timeline = model.sections.find((section) => section.id === "tool-timeline");
+    expect(timeline?.timeline?.[0]?.jsonBlocks).toEqual(
+      expect.arrayContaining([expect.objectContaining({ label: "tool.error" })]),
+    );
+  });
 });

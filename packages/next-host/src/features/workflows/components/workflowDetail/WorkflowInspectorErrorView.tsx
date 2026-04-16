@@ -25,9 +25,18 @@ export function WorkflowInspectorErrorView(
 
   const headline = getErrorHeadline(error);
   const stack = getErrorStack(error);
+  const details = error.details ? JSON.stringify(error.details, null, 2) : null;
 
   return (
-    <div style={{ height: "100%", minHeight: 0, display: "grid", gridTemplateRows: "auto auto 1fr", gap: 10 }}>
+    <div
+      style={{
+        height: "100%",
+        minHeight: 0,
+        display: "grid",
+        gridTemplateRows: details ? "auto auto auto 1fr" : "auto auto 1fr",
+        gap: 10,
+      }}
+    >
       <div style={{ display: "grid", gap: 8, border: "1px solid #fecaca", background: "#fef2f2", padding: 12 }}>
         <div
           style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", color: "#991b1b" }}
@@ -78,6 +87,37 @@ export function WorkflowInspectorErrorView(
           {copyState === "copied" ? "Copied" : "Copy stacktrace"}
         </button>
       </div>
+      {details ? (
+        <div
+          style={{
+            minWidth: 0,
+            overflowX: "hidden",
+            overflowY: "auto",
+            border: "1px solid #d1d5db",
+            background: "#f8fafc",
+            color: "#111827",
+            padding: 12,
+          }}
+        >
+          <div
+            style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", color: "#374151" }}
+          >
+            Structured details
+          </div>
+          <pre
+            style={{
+              margin: "8px 0 0",
+              fontSize: 12,
+              lineHeight: 1.65,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            }}
+          >
+            {details}
+          </pre>
+        </div>
+      ) : null}
       <div
         style={{
           minWidth: 0,

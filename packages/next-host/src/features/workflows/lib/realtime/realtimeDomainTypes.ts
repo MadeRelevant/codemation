@@ -75,7 +75,7 @@ export type NodeExecutionSnapshot = Readonly<{
   updatedAt: string;
   inputsByPort?: Readonly<Record<string, Items>>;
   outputs?: Readonly<Record<string, Items>>;
-  error?: Readonly<{ message: string; name?: string; stack?: string }>;
+  error?: Readonly<{ message: string; name?: string; stack?: string; details?: JsonValue }>;
 }>;
 
 /** One LLM/tool invocation under an agent; mirrors core {@link ConnectionInvocationRecord}. */

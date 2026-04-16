@@ -112,6 +112,7 @@ export interface NodeExecutionError {
   message: string;
   name?: string;
   stack?: string;
+  details?: JsonValue;
 }
 
 export interface NodeExecutionSnapshot {

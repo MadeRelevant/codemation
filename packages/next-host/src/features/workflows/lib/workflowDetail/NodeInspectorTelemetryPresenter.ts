@@ -263,6 +263,20 @@ export class NodeInspectorTelemetryPresenter {
           value: String(invocations.filter((invocation) => invocation.status === "completed").length),
         },
         { label: "Failed", value: String(invocations.filter((invocation) => invocation.status === "failed").length) },
+        {
+          label: "Repair loops",
+          value: String(
+            invocations.filter(
+              (invocation) =>
+                invocation.error &&
+                typeof invocation.error === "object" &&
+                invocation.error.details &&
+                typeof invocation.error.details === "object" &&
+                invocation.error.details !== null &&
+                "repair" in invocation.error.details,
+            ).length,
+          ),
+        },
       ],
     };
   }
@@ -272,14 +286,36 @@ export class NodeInspectorTelemetryPresenter {
     connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>,
     traceView: TelemetryRunTraceViewDto | undefined,
   ): NodeInspectorSectionModel {
+    const invocations = connectionInvocations
+      .filter((invocation) => invocation.connectionNodeId === node.id)
+      .sort((left, right) => this.compareIso(left.updatedAt, right.updatedAt));
     const spanIds = this.getConnectionSpanIds(node, connectionInvocations, traceView, "agent.tool.call");
     const spans = (traceView?.spans ?? []).filter((span) => spanIds.has(span.spanId));
+    const spansByInvocationId = new Map(
+      spans
+        .filter((span) => typeof span.connectionInvocationId === "string")
+        .map((span) => [span.connectionInvocationId as string, span]),
+    );
+    const spanOnlyEntries = spans
+      .filter(
+        (span) =>
+          !span.connectionInvocationId ||
+          !invocations.some((entry) => entry.invocationId === span.connectionInvocationId),
+      )
+      .sort((left, right) => this.compareIso(left.startTime, right.startTime))
+      .map((span) => this.createTimelineEntry(span, traceView));
     return {
       id: "tool-timeline",
       title: "Tool inputs and outputs",
-      timeline: spans
-        .sort((left, right) => this.compareIso(left.startTime, right.startTime))
-        .map((span) => this.createTimelineEntry(span, traceView)),
+      timeline: [
+        ...invocations.map((invocation) => {
+          const span = spansByInvocationId.get(invocation.invocationId);
+          return span
+            ? this.createTimelineEntry(span, traceView)
+            : this.createConnectionInvocationTimelineEntry(invocation);
+        }),
+        ...spanOnlyEntries,
+      ],
       emptyLabel: "No tool calls captured for this run yet.",
     };
   }
@@ -364,6 +400,27 @@ export class NodeInspectorTelemetryPresenter {
       span.connectionInvocationId ? `Invocation ${span.connectionInvocationId}` : undefined,
     ].filter((value): value is string => Boolean(value));
     return segments.length > 0 ? segments.join(" · ") : undefined;
+  }
+
+  private static createConnectionInvocationTimelineEntry(
+    invocation: ConnectionInvocationRecord,
+  ): NodeInspectorTimelineEntryModel {
+    return {
+      key: invocation.invocationId,
+      title: "Tool call",
+      subtitle: [this.formatWhen(invocation.updatedAt), `Invocation ${invocation.invocationId}`].join(" · "),
+      pills: [
+        { label: "Status", value: invocation.status },
+        ...(invocation.startedAt && invocation.finishedAt
+          ? [{ label: "Duration", value: this.formatDuration(invocation.startedAt, invocation.finishedAt) }]
+          : []),
+      ],
+      jsonBlocks: [
+        ...(invocation.managedInput !== undefined ? [{ label: "tool.input", value: invocation.managedInput }] : []),
+        ...(invocation.managedOutput !== undefined ? [{ label: "tool.output", value: invocation.managedOutput }] : []),
+        ...(invocation.error !== undefined ? [{ label: "tool.error", value: invocation.error }] : []),
+      ],
+    };
   }
 
   private static getMetricPointsForNode(
