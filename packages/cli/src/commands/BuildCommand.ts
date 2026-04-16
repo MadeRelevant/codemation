@@ -21,7 +21,10 @@ export class BuildCommand {
 
   async execute(consumerRoot: string, buildOptions: ConsumerBuildOptions): Promise<void> {
     const paths = await this.pathResolver.resolve(consumerRoot);
-    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot);
+    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot, {
+      mode: "automatic",
+      repoRoot: paths.repoRoot,
+    });
     this.tsRuntime.configure(paths.repoRoot);
     const builder = this.consumerOutputBuilderFactory.create(paths.consumerRoot, { buildOptions });
     const snapshot = await builder.ensureBuilt();

@@ -50,7 +50,9 @@ export function DashboardMultiSelect(
         <DropdownMenuLabel>{props.label}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {props.options.length === 0 ? (
-          <div className="px-2 py-1.5 text-sm text-muted-foreground">{props.emptyLabel ?? "No options available"}</div>
+          <div className="px-2 py-1.5 text-sm text-muted-foreground" data-testid={`${props.testId}-empty`}>
+            {props.emptyLabel ?? "No options available"}
+          </div>
         ) : (
           props.options.map((option) => (
             <DropdownMenuCheckboxItem

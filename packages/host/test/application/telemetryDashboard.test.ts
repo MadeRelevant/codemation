@@ -278,4 +278,91 @@ describe("telemetry dashboard query service", () => {
       modelNames: ["gpt-4o-mini"],
     });
   });
+
+  it("rejects invalid dashboard timeseries ranges and loads empty traces with a derived trace id", async () => {
+    const context = new TelemetryDashboardTestContext();
+
+    await expect(
+      context.queryService.summarizeRunsTimeseries(
+        {
+          endTimeLte: "2026-04-14T12:00:00.000Z",
+        },
+        "hour",
+      ),
+    ).rejects.toThrow("Dashboard timeseries requires startTimeGte and endTimeLte.");
+    await expect(
+      context.queryService.summarizeAiUsageTimeseries(
+        {
+          startTimeGte: "2026-04-14T12:00:00.000Z",
+          endTimeLte: "2026-04-14T10:00:00.000Z",
+        },
+        "hour",
+      ),
+    ).rejects.toThrow("Dashboard timeseries requires a valid date range.");
+    await expect(context.queryService.loadRunTrace("run-without-context")).resolves.toEqual({
+      traceId: new OtelIdentityFactory().createTraceId("run-without-context"),
+      runId: "run-without-context",
+      spans: [],
+      artifacts: [],
+      metricPoints: [],
+    });
+  });
+
+  it("filters in-memory span and metric stores by workflow id collections", async () => {
+    const spanStore = new InMemoryTelemetrySpanStore();
+    const metricPointStore = new InMemoryTelemetryMetricPointStore(new OtelIdentityFactory());
+    await spanStore.upsert({
+      traceId: "trace-a",
+      spanId: "span-a",
+      runId: "run-a",
+      workflowId: "wf-a",
+      name: "workflow.run",
+      kind: "internal",
+      startTime: "2026-04-14T10:00:00.000Z",
+      endTime: "2026-04-14T10:05:00.000Z",
+      status: "completed",
+    });
+    await spanStore.upsert({
+      traceId: "trace-b",
+      spanId: "span-b",
+      runId: "run-b",
+      workflowId: "wf-b",
+      name: "workflow.run",
+      kind: "internal",
+      startTime: "2026-04-14T11:00:00.000Z",
+      endTime: "2026-04-14T11:05:00.000Z",
+      status: "failed",
+    });
+    await metricPointStore.save({
+      traceId: "trace-a",
+      spanId: "span-a",
+      runId: "run-a",
+      workflowId: "wf-a",
+      name: "gen_ai.usage.total_tokens",
+      value: 11,
+      observedAt: "2026-04-14T10:05:00.000Z",
+    });
+    await metricPointStore.save({
+      traceId: "trace-b",
+      spanId: "span-b",
+      runId: "run-b",
+      workflowId: "wf-b",
+      name: "gen_ai.usage.total_tokens",
+      value: 22,
+      observedAt: "2026-04-14T11:05:00.000Z",
+    });
+
+    await expect(spanStore.list({ workflowIds: ["wf-b"] })).resolves.toMatchObject([
+      {
+        workflowId: "wf-b",
+        spanId: "span-b",
+      },
+    ]);
+    await expect(metricPointStore.list({ workflowIds: ["wf-b"] })).resolves.toMatchObject([
+      {
+        workflowId: "wf-b",
+        value: 22,
+      },
+    ]);
+  });
 });

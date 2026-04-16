@@ -13,7 +13,10 @@ export class DevPluginCommand {
 
   async execute(args: Readonly<{ pluginRoot: string; watchFramework?: boolean }>): Promise<void> {
     const paths = await this.pathResolver.resolve(args.pluginRoot);
-    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot);
+    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot, {
+      mode: "automatic",
+      repoRoot: paths.repoRoot,
+    });
     const pluginConfig = await this.pluginDevConfigFactory.prepare(paths.consumerRoot);
     await this.devCommand.execute({
       commandName: "dev:plugin",

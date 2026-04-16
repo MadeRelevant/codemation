@@ -45,14 +45,30 @@ export function DashboardFilterCard(
               <SelectValue placeholder="Select range" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="yesterday">Yesterday</SelectItem>
-              <SelectItem value="this_week">This week</SelectItem>
-              <SelectItem value="last_2_weeks">Last 2 weeks</SelectItem>
-              <SelectItem value="this_month">This month</SelectItem>
-              <SelectItem value="this_quarter">This quarter</SelectItem>
-              <SelectItem value="this_year">This year</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
+              <SelectItem value="today" data-testid="dashboard-time-range-today">
+                Today
+              </SelectItem>
+              <SelectItem value="yesterday" data-testid="dashboard-time-range-yesterday">
+                Yesterday
+              </SelectItem>
+              <SelectItem value="this_week" data-testid="dashboard-time-range-this-week">
+                This week
+              </SelectItem>
+              <SelectItem value="last_2_weeks" data-testid="dashboard-time-range-last-2-weeks">
+                Last 2 weeks
+              </SelectItem>
+              <SelectItem value="this_month" data-testid="dashboard-time-range-this-month">
+                This month
+              </SelectItem>
+              <SelectItem value="this_quarter" data-testid="dashboard-time-range-this-quarter">
+                This quarter
+              </SelectItem>
+              <SelectItem value="this_year" data-testid="dashboard-time-range-this-year">
+                This year
+              </SelectItem>
+              <SelectItem value="custom" data-testid="dashboard-time-range-custom">
+                Custom
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
