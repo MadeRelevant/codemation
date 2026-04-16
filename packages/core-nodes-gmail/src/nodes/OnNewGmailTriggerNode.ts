@@ -1,4 +1,6 @@
 import type {
+  TelemetryArtifactAttachment,
+  JsonValue,
   Items,
   NodeExecutionContext,
   NodeOutputs,
@@ -6,7 +8,7 @@ import type {
   TriggerSetupContext,
   TriggerTestItemsContext,
 } from "@codemation/core";
-import { inject, node } from "@codemation/core";
+import { CodemationTelemetryMetricNames, inject, node } from "@codemation/core";
 import { GoogleGmailApiClientFactory } from "../adapters/google/GoogleGmailApiClientFactory";
 import type { GmailLogger } from "../contracts/GmailLogger";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
@@ -90,17 +92,65 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
 
   async execute(
     items: Items<OnNewGmailTriggerItemJson>,
-    _ctx: NodeExecutionContext<OnNewGmailTrigger>,
+    ctx: NodeExecutionContext<OnNewGmailTrigger>,
   ): Promise<NodeOutputs> {
     if (items.length === 0) {
-      this.logger.warn(`manual execution attempted for trigger ${_ctx.workflowId}.${_ctx.nodeId} without Gmail items`);
+      this.logger.warn(`manual execution attempted for trigger ${ctx.workflowId}.${ctx.nodeId} without Gmail items`);
       throw new Error(
-        `Gmail trigger "${_ctx.config.name}" cannot be run manually without a pulled Gmail event. Check the boot logs for setup errors, credential problems, or missing Gmail configuration.`,
+        `Gmail trigger "${ctx.config.name}" cannot be run manually without a pulled Gmail event. Check the boot logs for setup errors, credential problems, or missing Gmail configuration.`,
       );
     }
-    const outputItems = await this.gmailTriggerAttachmentService.attachForItems(items, _ctx);
+    const outputItems = await this.gmailTriggerAttachmentService.attachForItems(items, ctx);
+    await ctx.telemetry.recordMetric({
+      name: CodemationTelemetryMetricNames.gmailMessagesEmitted,
+      value: items.length,
+    });
+    const attachmentCount = this.countAttachments(items);
+    await ctx.telemetry.recordMetric({
+      name: CodemationTelemetryMetricNames.gmailAttachments,
+      value: attachmentCount,
+    });
+    await ctx.telemetry.recordMetric({
+      name: CodemationTelemetryMetricNames.gmailAttachmentBytes,
+      value: this.countAttachmentBytes(items),
+      unit: "By",
+    });
+    await ctx.telemetry.attachArtifact(this.createMessagePreviewArtifact(items));
     return {
       main: outputItems,
     };
+  }
+
+  private countAttachments(items: Items<OnNewGmailTriggerItemJson>): number {
+    return items.reduce((sum, item) => sum + item.json.attachments.length, 0);
+  }
+
+  private countAttachmentBytes(items: Items<OnNewGmailTriggerItemJson>): number {
+    return items.reduce(
+      (sum, item) =>
+        sum + item.json.attachments.reduce((attachmentSum, attachment) => attachmentSum + (attachment.size ?? 0), 0),
+      0,
+    );
+  }
+
+  private createMessagePreviewArtifact(items: Items<OnNewGmailTriggerItemJson>): TelemetryArtifactAttachment {
+    return {
+      kind: "gmail.messages",
+      contentType: "application/json",
+      previewJson: items.map((item) => this.toMessagePreview(item.json)),
+    };
+  }
+
+  private toMessagePreview(item: OnNewGmailTriggerItemJson): JsonValue {
+    return {
+      mailbox: item.mailbox,
+      messageId: item.messageId,
+      subject: item.subject ?? null,
+      from: item.from ?? null,
+      snippet: item.snippet ?? null,
+      attachmentCount: item.attachments.length,
+      attachmentBytes: item.attachments.reduce((sum, attachment) => sum + (attachment.size ?? 0), 0),
+      labelIds: [...item.labelIds],
+    } satisfies JsonValue;
   }
 }

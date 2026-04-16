@@ -16,6 +16,7 @@ import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import type {
   PersistedRunState,
   RunSummary,
+  TelemetryRunTraceViewDto,
   WorkflowDebuggerOverlayState,
   WorkflowRunDetailDto,
 } from "./realtimeDomainTypes";
@@ -59,6 +60,14 @@ export async function fetchRunDetail(
 ): Promise<WorkflowRunDetailDto> {
   const init: RequestInit | undefined = options?.signal ? { signal: options.signal } : undefined;
   return await codemationApiClient.getJson<WorkflowRunDetailDto>(ApiPaths.runDetail(runId), init);
+}
+
+export async function fetchTelemetryRunTrace(
+  runId: string,
+  options?: Readonly<{ signal?: AbortSignal }>,
+): Promise<TelemetryRunTraceViewDto> {
+  const init: RequestInit | undefined = options?.signal ? { signal: options.signal } : undefined;
+  return await codemationApiClient.getJson<TelemetryRunTraceViewDto>(ApiPaths.telemetryRunTrace(runId), init);
 }
 
 export async function fetchCredentialTypes(): Promise<ReadonlyArray<CredentialTypeDefinition>> {

@@ -5,6 +5,7 @@ import type {
 } from "../../../application/contracts/TelemetryDashboardContracts";
 import type { QueryBus } from "../../../application/bus/QueryBus";
 import { GetTelemetryDashboardDimensionsQuery } from "../../../application/queries/GetTelemetryDashboardDimensionsQuery";
+import { GetTelemetryRunTraceQuery } from "../../../application/queries/GetTelemetryRunTraceQuery";
 import { GetTelemetryDashboardSummaryQuery } from "../../../application/queries/GetTelemetryDashboardSummaryQuery";
 import { GetTelemetryDashboardTimeseriesQuery } from "../../../application/queries/GetTelemetryDashboardTimeseriesQuery";
 import { ApplicationTokens } from "../../../applicationTokens";
@@ -46,6 +47,20 @@ export class TelemetryHttpRouteHandler {
     try {
       const filters = this.parseFilters(request);
       return Response.json(await this.queryBus.execute(new GetTelemetryDashboardDimensionsQuery(filters)));
+    } catch (error) {
+      if (error instanceof TelemetryDashboardRequestError) {
+        return Response.json({ error: error.message }, { status: 400 });
+      }
+      return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  async getRunTrace(runId: string): Promise<Response> {
+    try {
+      if (!runId.trim()) {
+        throw new TelemetryDashboardRequestError("Run trace request requires a run id.");
+      }
+      return Response.json(await this.queryBus.execute(new GetTelemetryRunTraceQuery(runId)));
     } catch (error) {
       if (error instanceof TelemetryDashboardRequestError) {
         return Response.json({ error: error.message }, { status: 400 });

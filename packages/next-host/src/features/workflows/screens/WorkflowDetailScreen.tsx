@@ -144,6 +144,9 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                   workflowId={args.workflowId}
                   isOpen={controller.isPropertiesPanelOpen}
                   node={controller.selectedPropertiesWorkflowNode}
+                  telemetryRunId={controller.propertiesPanelTelemetryRunId}
+                  nodeSnapshotsByNodeId={controller.displayedNodeSnapshotsByNodeId}
+                  connectionInvocations={controller.displayedConnectionInvocations}
                   onClose={controller.closePropertiesPanel}
                   pendingCredentialEditForNodeId={controller.pendingCredentialEditForNodeId}
                   onConsumedPendingCredentialEdit={controller.consumePendingCredentialEditRequest}

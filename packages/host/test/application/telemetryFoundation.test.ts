@@ -22,8 +22,8 @@ import {
   TelemetryQueryService,
   type TelemetryAiAggregate,
   type TelemetryRunAggregate,
-  type TelemetryRunTraceView,
 } from "../../src/application/telemetry/TelemetryQueryService";
+import type { TelemetryRunTraceViewDto } from "../../src/application/contracts/TelemetryRunTraceContracts";
 import { AppContainerFactory } from "../../src/bootstrap/AppContainerFactory";
 import { AppContainerLifecycle } from "../../src/bootstrap/AppContainerLifecycle";
 import type { AppConfig } from "../../src/presentation/config/AppConfig";
@@ -34,7 +34,7 @@ type TelemetryOutcomeResult = Readonly<{
   runResult: CompletedRunResult;
   runAggregate: TelemetryRunAggregate;
   aiAggregate: TelemetryAiAggregate;
-  traceView: TelemetryRunTraceView;
+  traceView: TelemetryRunTraceViewDto;
 }>;
 
 interface TelemetryLookupInput {
@@ -265,7 +265,7 @@ class TelemetryAppConfigFactory {
 class TelemetryEventually {
   constructor(private readonly queryService: TelemetryQueryService) {}
 
-  async waitForObservedTelemetry(runId: string): Promise<TelemetryRunTraceView> {
+  async waitForObservedTelemetry(runId: string): Promise<TelemetryRunTraceViewDto> {
     for (let attempt = 0; attempt < 50; attempt += 1) {
       const traceView = await this.queryService.loadRunTrace(runId);
       const hasWorkflowRunSpan = traceView.spans.some((span) => span.name === "workflow.run");
@@ -382,5 +382,6 @@ describe("telemetry foundation", () => {
     expect(outcome.traceView.artifacts.map((artifact) => artifact.kind)).toEqual(
       expect.arrayContaining(["ai.messages", "ai.response", "tool.input", "tool.output"]),
     );
+    expect(outcome.traceView.metricPoints.some((point) => point.metricName === "gen_ai.usage.total_tokens")).toBe(true);
   });
 });

@@ -304,6 +304,7 @@ describe("telemetry dashboard query service", () => {
       runId: "run-without-context",
       spans: [],
       artifacts: [],
+      metricPoints: [],
     });
   });
 

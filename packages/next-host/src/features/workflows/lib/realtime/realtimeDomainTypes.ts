@@ -189,6 +189,81 @@ export type WorkflowDevBuildState = Readonly<{
   awaitingWorkflowRefreshAt?: string;
 }>;
 
+export type TelemetryAttributesDto = Readonly<Record<string, JsonValue>>;
+
+export type TelemetrySpanRecordDto = Readonly<{
+  traceId: string;
+  spanId: string;
+  parentSpanId?: string;
+  runId: string;
+  workflowId: string;
+  nodeId?: string;
+  activationId?: string;
+  connectionInvocationId?: string;
+  name: string;
+  kind: "internal" | "client";
+  status?: "running" | "completed" | "failed";
+  statusMessage?: string;
+  startTime?: string;
+  endTime?: string;
+  workflowFolder?: string;
+  nodeType?: string;
+  nodeRole?: string;
+  modelName?: string;
+  attributes?: TelemetryAttributesDto;
+  events?: ReadonlyArray<unknown>;
+  retentionExpiresAt?: string;
+}>;
+
+export type TelemetryArtifactRecordDto = Readonly<{
+  artifactId: string;
+  traceId: string;
+  spanId: string;
+  runId: string;
+  workflowId: string;
+  nodeId?: string;
+  activationId?: string;
+  kind: string;
+  contentType: string;
+  previewText?: string;
+  previewJson?: unknown;
+  payloadText?: string;
+  payloadJson?: unknown;
+  bytes?: number;
+  truncated?: boolean;
+  createdAt: string;
+  expiresAt?: string;
+  retentionExpiresAt?: string;
+}>;
+
+export type TelemetryMetricPointRecordDto = Readonly<{
+  metricPointId: string;
+  traceId?: string;
+  spanId?: string;
+  runId?: string;
+  workflowId: string;
+  nodeId?: string;
+  activationId?: string;
+  metricName: string;
+  value: number;
+  unit?: string;
+  observedAt: string;
+  workflowFolder?: string;
+  nodeType?: string;
+  nodeRole?: string;
+  modelName?: string;
+  dimensions?: TelemetryAttributesDto;
+  retentionExpiresAt?: string;
+}>;
+
+export type TelemetryRunTraceViewDto = Readonly<{
+  traceId: string;
+  runId: string;
+  spans: ReadonlyArray<TelemetrySpanRecordDto>;
+  artifacts: ReadonlyArray<TelemetryArtifactRecordDto>;
+  metricPoints: ReadonlyArray<TelemetryMetricPointRecordDto>;
+}>;
+
 export type WorkflowEvent =
   | Readonly<{ kind: "runCreated"; runId: string; workflowId: string; parent?: ParentExecutionRef; at: string }>
   | Readonly<{

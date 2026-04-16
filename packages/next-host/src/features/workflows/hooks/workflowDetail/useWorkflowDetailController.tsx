@@ -60,6 +60,7 @@ export type WorkflowDetailControllerResult = Readonly<{
   /** Nodes that have at least one bound credential instance (canvas toolbar can open edit). */
   workflowNodeIdsWithBoundCredential: ReadonlySet<string>;
   selectedRun: PersistedRunState | undefined;
+  propertiesPanelTelemetryRunId: string | null;
   sidebarModel: WorkflowRunsSidebarModel;
   sidebarFormatting: WorkflowRunsSidebarFormatting;
   sidebarActions: WorkflowRunsSidebarActions;
@@ -230,6 +231,22 @@ export function useWorkflowDetailController(
     () => (viewContext === "live-workflow" ? liveExecutionState : selectedRun),
     [liveExecutionState, selectedRun, viewContext],
   );
+  const propertiesPanelTelemetryRunId = useMemo(() => {
+    if (selectedRunId) {
+      return selectedRunId;
+    }
+    if (activeLiveRun?.runId) {
+      return activeLiveRun.runId;
+    }
+    if (activeLiveRunId) {
+      return activeLiveRunId;
+    }
+    const snapshotRunId = Object.values(currentExecutionState?.nodeSnapshotsByNodeId ?? {})[0]?.runId;
+    if (snapshotRunId) {
+      return snapshotRunId;
+    }
+    return currentExecutionState?.connectionInvocations?.[0]?.runId ?? null;
+  }, [activeLiveRun?.runId, activeLiveRunId, currentExecutionState, selectedRunId]);
   const normalizedConnectionInvocations = useMemo(
     () => WorkflowDetailPresenter.normalizeConnectionInvocations(currentExecutionState?.connectionInvocations),
     [currentExecutionState?.connectionInvocations],
@@ -1322,6 +1339,7 @@ export function useWorkflowDetailController(
     credentialAttentionTooltipByNodeId,
     workflowNodeIdsWithBoundCredential,
     selectedRun,
+    propertiesPanelTelemetryRunId,
     sidebarModel: {
       workflowId,
       displayedWorkflow,

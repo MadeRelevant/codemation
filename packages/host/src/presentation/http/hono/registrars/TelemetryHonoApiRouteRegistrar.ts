@@ -13,5 +13,6 @@ export class TelemetryHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
     app.get("/telemetry/dashboard/summary", (c) => this.handler.getDashboardSummary(c.req.raw));
     app.get("/telemetry/dashboard/timeseries", (c) => this.handler.getDashboardTimeseries(c.req.raw));
     app.get("/telemetry/dashboard/dimensions", (c) => this.handler.getDashboardDimensions(c.req.raw));
+    app.get("/telemetry/runs/:runId/trace", (c) => this.handler.getRunTrace(c.req.param("runId")));
   }
 }
