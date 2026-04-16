@@ -47,6 +47,7 @@ import { UserAdminCliBootstrap } from "./user/UserAdminCliBootstrap";
 import { UserAdminCliOptionsParser } from "./user/UserAdminCliOptionsParser";
 import { UserAdminConsumerDotenvLoader } from "./user/UserAdminConsumerDotenvLoader";
 import { AgentSkillsExtractorFactory } from "./skills/AgentSkillsExtractorFactory";
+import { ConsumerAgentSkillsAutoSyncPolicy } from "./skills/ConsumerAgentSkillsAutoSyncPolicy";
 import { ConsumerAgentSkillsSyncService } from "./skills/ConsumerAgentSkillsSyncService";
 
 const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
@@ -89,7 +90,10 @@ export class CliProgramFactory {
     const consumerOutputBuilderFactory = new ConsumerOutputBuilderFactory();
     const consumerBuildArtifactsPublisher = new ConsumerBuildArtifactsPublisher();
     const devTrackedProcessTreeKiller = new DevTrackedProcessTreeKiller();
-    const consumerAgentSkillsSyncService = new ConsumerAgentSkillsSyncService(new AgentSkillsExtractorFactory());
+    const consumerAgentSkillsSyncService = new ConsumerAgentSkillsSyncService(
+      new AgentSkillsExtractorFactory(),
+      new ConsumerAgentSkillsAutoSyncPolicy(),
+    );
     const devCommand = new DevCommand(
       pathResolver,
       consumerAgentSkillsSyncService,

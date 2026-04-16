@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
-import { ApiPaths } from "@codemation/host";
+import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardFilterCard } from "../../src/features/dashboard/components/DashboardFilterCard";
 import { DashboardScreen } from "../../src/features/dashboard/screens/DashboardScreen";
+import { TelemetryDashboardTimeRangeFactory } from "../../src/features/dashboard/lib/TelemetryDashboardTimeRangeFactory";
 
 class ResizeObserverMock {
   observe(): void {}
@@ -17,8 +18,13 @@ describe("DashboardScreen", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
   let priorFetch: typeof globalThis.fetch;
   let priorResizeObserver: typeof globalThis.ResizeObserver | undefined;
+  let priorHasPointerCapture: typeof HTMLElement.prototype.hasPointerCapture | undefined;
+  let priorSetPointerCapture: typeof HTMLElement.prototype.setPointerCapture | undefined;
+  let priorReleasePointerCapture: typeof HTMLElement.prototype.releasePointerCapture | undefined;
+  let summaryErrorText: string | null;
 
   beforeEach(() => {
+    summaryErrorText = null;
     fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url === ApiPaths.workflows()) {
@@ -41,6 +47,12 @@ describe("DashboardScreen", () => {
         } as Response;
       }
       if (url.startsWith(ApiPaths.telemetryDashboardSummary())) {
+        if (summaryErrorText) {
+          return {
+            ok: false,
+            text: async () => summaryErrorText ?? "Unknown summary error",
+          } as Response;
+        }
         return {
           ok: true,
           json: async () => ({
@@ -116,6 +128,12 @@ describe("DashboardScreen", () => {
     globalThis.fetch = fetchMock as typeof fetch;
     priorResizeObserver = globalThis.ResizeObserver;
     globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+    priorHasPointerCapture = HTMLElement.prototype.hasPointerCapture;
+    priorSetPointerCapture = HTMLElement.prototype.setPointerCapture;
+    priorReleasePointerCapture = HTMLElement.prototype.releasePointerCapture;
+    HTMLElement.prototype.hasPointerCapture = () => false;
+    HTMLElement.prototype.setPointerCapture = () => undefined;
+    HTMLElement.prototype.releasePointerCapture = () => undefined;
   });
 
   afterEach(() => {
@@ -124,6 +142,27 @@ describe("DashboardScreen", () => {
       globalThis.ResizeObserver = priorResizeObserver;
     } else {
       delete (globalThis as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver;
+    }
+    if (priorHasPointerCapture) {
+      HTMLElement.prototype.hasPointerCapture = priorHasPointerCapture;
+    } else {
+      delete (HTMLElement.prototype as { hasPointerCapture?: typeof HTMLElement.prototype.hasPointerCapture })
+        .hasPointerCapture;
+    }
+    if (priorSetPointerCapture) {
+      HTMLElement.prototype.setPointerCapture = priorSetPointerCapture;
+    } else {
+      delete (HTMLElement.prototype as { setPointerCapture?: typeof HTMLElement.prototype.setPointerCapture })
+        .setPointerCapture;
+    }
+    if (priorReleasePointerCapture) {
+      HTMLElement.prototype.releasePointerCapture = priorReleasePointerCapture;
+    } else {
+      delete (
+        HTMLElement.prototype as {
+          releasePointerCapture?: typeof HTMLElement.prototype.releasePointerCapture;
+        }
+      ).releasePointerCapture;
     }
   });
 
@@ -150,6 +189,28 @@ describe("DashboardScreen", () => {
     expect(screen.getByTestId("dashboard-metric-total-tokens")).toHaveTextContent("1,840");
     expect(screen.getByTestId("dashboard-run-status-chart")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-token-chart")).toBeInTheDocument();
+  });
+
+  it("shows a destructive alert when the dashboard query fails", async () => {
+    summaryErrorText = "summary request failed";
+
+    renderScreen();
+
+    expect(await screen.findByTestId("dashboard-load-error")).toHaveTextContent("summary request failed");
+  });
+
+  it("shows the invalid custom range alert when custom mode is selected without both timestamps", async () => {
+    const priorCreateRange = TelemetryDashboardTimeRangeFactory.createRange;
+    TelemetryDashboardTimeRangeFactory.createRange = () => null;
+    try {
+      renderScreen();
+
+      await expect(screen.findByTestId("dashboard-invalid-range")).resolves.toHaveTextContent(
+        "Custom range incomplete",
+      );
+    } finally {
+      TelemetryDashboardTimeRangeFactory.createRange = priorCreateRange;
+    }
   });
 
   it("renders custom range inputs and forwards their changes", () => {

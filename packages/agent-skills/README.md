@@ -19,7 +19,13 @@ The starter templates call the extractor automatically after `pnpm install`.
 
 ## Framework-managed copy
 
-The directory `.agents/skills/extracted` is **framework-managed**: Codemation overwrites packaged `codemation-*` skill folders there and removes stale packaged skill directories when you run `codemation dev`, `codemation build`, `codemation serve web`, or `codemation dev:plugin` (or `codemation skills sync`). Put project-local skills in sibling folders under `.agents/skills`, not inside `extracted`, unless you accept them being replaced.
+The directory `.agents/skills/extracted` is **framework-managed**:
+
+- In consumer projects, Codemation overwrites packaged `codemation-*` skill folders there and removes stale packaged skill directories when you run `codemation dev`, `codemation build`, `codemation serve web`, `codemation dev:plugin`, or `codemation skills sync`.
+- Inside the Codemation framework monorepo, the automatic refresh path is disabled to avoid polluting the local git worktree during framework development.
+- After upgrading `@codemation/cli` or `@codemation/agent-skills` while working in the monorepo, run `codemation skills sync` intentionally if you want the extracted copy refreshed.
+
+Put project-local skills in sibling folders under `.agents/skills`, not inside `extracted`, unless you accept them being replaced.
 
 ## Programmatic use
 
