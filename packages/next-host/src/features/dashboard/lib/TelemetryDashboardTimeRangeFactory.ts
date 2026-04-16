@@ -1,4 +1,6 @@
 import {
+  subHours,
+  subMinutes,
   endOfDay,
   endOfMonth,
   endOfQuarter,
@@ -18,6 +20,12 @@ import type {
 } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
 
 export type TelemetryDashboardTimePreset =
+  | "last_5_minutes"
+  | "last_15_minutes"
+  | "last_30_minutes"
+  | "last_hour"
+  | "last_4_hours"
+  | "last_8_hours"
   | "today"
   | "yesterday"
   | "this_week"
@@ -84,6 +92,24 @@ export class TelemetryDashboardTimeRangeFactory {
     preset: Exclude<TelemetryDashboardTimePreset, "custom">,
     now: Date,
   ): readonly [Date, Date, TelemetryDashboardBucketIntervalDto] {
+    if (preset === "last_5_minutes") {
+      return [subMinutes(now, 5), now, "minute_5"] as const;
+    }
+    if (preset === "last_15_minutes") {
+      return [subMinutes(now, 15), now, "minute_5"] as const;
+    }
+    if (preset === "last_30_minutes") {
+      return [subMinutes(now, 30), now, "minute_5"] as const;
+    }
+    if (preset === "last_hour") {
+      return [subHours(now, 1), now, "minute_15"] as const;
+    }
+    if (preset === "last_4_hours") {
+      return [subHours(now, 4), now, "minute_15"] as const;
+    }
+    if (preset === "last_8_hours") {
+      return [subHours(now, 8), now, "hour"] as const;
+    }
     if (preset === "today") {
       return [startOfDay(now), endOfDay(now), "hour"] as const;
     }
@@ -108,7 +134,14 @@ export class TelemetryDashboardTimeRangeFactory {
 
   private static resolveInterval(start: Date, end: Date): TelemetryDashboardBucketIntervalDto {
     const durationMs = end.getTime() - start.getTime();
+    const durationHours = durationMs / (1000 * 60 * 60);
     const durationDays = durationMs / (1000 * 60 * 60 * 24);
+    if (durationHours <= 2) {
+      return "minute_5";
+    }
+    if (durationHours <= 12) {
+      return "minute_15";
+    }
     if (durationDays <= 2) {
       return "hour";
     }

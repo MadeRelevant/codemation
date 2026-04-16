@@ -62,6 +62,7 @@ import {
 import {
   GetRunBinaryAttachmentQueryHandler,
   GetTelemetryDashboardDimensionsQueryHandler,
+  GetTelemetryDashboardRunsQueryHandler,
   GetTelemetryRunTraceQueryHandler,
   GetTelemetryDashboardSummaryQueryHandler,
   GetTelemetryDashboardTimeseriesQueryHandler,
@@ -220,6 +221,7 @@ export class AppContainerFactory {
     VerifyUserInviteQueryHandler,
     GetRunBinaryAttachmentQueryHandler,
     GetTelemetryDashboardDimensionsQueryHandler,
+    GetTelemetryDashboardRunsQueryHandler,
     GetTelemetryRunTraceQueryHandler,
     GetTelemetryDashboardSummaryQueryHandler,
     GetTelemetryDashboardTimeseriesQueryHandler,

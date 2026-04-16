@@ -12,12 +12,12 @@ export function DashboardChartCard(
   }>,
 ) {
   return (
-    <Card data-testid={props.testId} className="border-border/60 bg-card/95 shadow-sm">
+    <Card data-testid={props.testId} className="min-w-0 border-border/60 bg-card/95 shadow-sm">
       <CardHeader>
         <CardTitle>{props.title}</CardTitle>
         {props.description ? <CardDescription>{props.description}</CardDescription> : null}
       </CardHeader>
-      <CardContent>{props.children}</CardContent>
+      <CardContent className="min-w-0">{props.children}</CardContent>
     </Card>
   );
 }

@@ -25,6 +25,7 @@ describe("DashboardScreen", () => {
 
   beforeEach(() => {
     summaryErrorText = null;
+    window.localStorage.clear();
     fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url === ApiPaths.workflows()) {
@@ -119,6 +120,26 @@ describe("DashboardScreen", () => {
           }),
         } as Response;
       }
+      if (url.startsWith(ApiPaths.telemetryDashboardRuns())) {
+        return {
+          ok: true,
+          json: async () => ({
+            items: [
+              {
+                runId: "run-1",
+                workflowId: "wf.gmail",
+                status: "failed",
+                origin: "triggered",
+                startedAt: "2026-04-14T10:00:00.000Z",
+                finishedAt: "2026-04-14T10:02:00.000Z",
+              },
+            ],
+            totalCount: 1,
+            page: 1,
+            pageSize: 10,
+          }),
+        } as Response;
+      }
       return {
         ok: false,
         text: async () => `Unhandled URL: ${url}`,
@@ -137,6 +158,7 @@ describe("DashboardScreen", () => {
   });
 
   afterEach(() => {
+    window.localStorage.clear();
     globalThis.fetch = priorFetch;
     if (priorResizeObserver) {
       globalThis.ResizeObserver = priorResizeObserver;
@@ -189,6 +211,8 @@ describe("DashboardScreen", () => {
     expect(screen.getByTestId("dashboard-metric-total-tokens")).toHaveTextContent("1,840");
     expect(screen.getByTestId("dashboard-run-status-chart")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-token-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-workflow-runs-table")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-run-row-run-1")).toBeInTheDocument();
   });
 
   it("shows a destructive alert when the dashboard query fails", async () => {
@@ -213,9 +237,35 @@ describe("DashboardScreen", () => {
     }
   });
 
+  it("restores persisted filters from local storage", async () => {
+    window.localStorage.setItem(
+      "codemation.telemetry.dashboard.filters.v1",
+      JSON.stringify({
+        timePreset: "last_hour",
+        customStart: "",
+        customEnd: "",
+        selectedWorkflowIds: [],
+        selectedFolders: [],
+        selectedStatuses: [],
+        selectedRunOrigins: ["manual"],
+        selectedModelNames: [],
+      }),
+    );
+
+    renderScreen();
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+    const requestedUrls = fetchMock.mock.calls.map(([input]) => (typeof input === "string" ? input : input.toString()));
+    expect(requestedUrls.some((url) => url.includes("runOrigin=manual"))).toBe(true);
+  });
+
   it("renders custom range inputs and forwards their changes", () => {
     const handleCustomStartChange = vi.fn();
     const handleCustomEndChange = vi.fn();
+    const handleToggleStatus = vi.fn();
+    const handleToggleRunOrigin = vi.fn();
 
     render(
       <DashboardFilterCard
@@ -228,21 +278,30 @@ describe("DashboardScreen", () => {
         workflowOptions={[]}
         selectedWorkflowIds={[]}
         onToggleWorkflowId={vi.fn()}
+        onClearWorkflowIds={vi.fn()}
         folderOptions={[]}
         selectedFolders={[]}
         onToggleFolder={vi.fn()}
+        onClearFolders={vi.fn()}
         selectedStatuses={[]}
-        onToggleStatus={vi.fn()}
+        onToggleStatus={handleToggleStatus}
+        selectedRunOrigins={["triggered"]}
+        onToggleRunOrigin={handleToggleRunOrigin}
         modelOptions={[]}
         selectedModelNames={[]}
         onToggleModelName={vi.fn()}
+        onClearModelNames={vi.fn()}
       />,
     );
 
     fireEvent.change(screen.getByTestId("dashboard-custom-start"), { target: { value: "2026-04-14T09:00" } });
     fireEvent.change(screen.getByTestId("dashboard-custom-end"), { target: { value: "2026-04-14T10:00" } });
+    fireEvent.click(screen.getByTestId("dashboard-status-pill-failed"));
+    fireEvent.click(screen.getByTestId("dashboard-run-origin-pill-manual"));
 
     expect(handleCustomStartChange).toHaveBeenCalledWith("2026-04-14T09:00");
     expect(handleCustomEndChange).toHaveBeenCalledWith("2026-04-14T10:00");
+    expect(handleToggleStatus).toHaveBeenCalledWith("failed");
+    expect(handleToggleRunOrigin).toHaveBeenCalledWith("manual");
   });
 });

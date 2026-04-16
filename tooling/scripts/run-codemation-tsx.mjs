@@ -22,6 +22,7 @@ class CodemationTsxRunner {
       stdio: "inherit",
       env,
     });
+    this.bindTerminationSignals(child);
     child.on("exit", (code, signal) => {
       if (signal) {
         process.kill(process.pid, signal);
@@ -40,6 +41,16 @@ class CodemationTsxRunner {
       options.push("--conditions=development");
     }
     return options.join(" ").trim();
+  }
+
+  bindTerminationSignals(child) {
+    for (const signal of ["SIGINT", "SIGTERM", "SIGQUIT"]) {
+      process.on(signal, () => {
+        if (child.exitCode === null) {
+          child.kill(signal);
+        }
+      });
+    }
   }
 }
 

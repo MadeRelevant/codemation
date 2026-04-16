@@ -136,6 +136,10 @@ export class ApiPaths {
     return `${this.telemetryBasePath}/dashboard/dimensions`;
   }
 
+  static telemetryDashboardRuns(): string {
+    return `${this.telemetryBasePath}/dashboard/runs`;
+  }
+
   static telemetryRunTrace(runId: string): string {
     return `${this.telemetryBasePath}/runs/${runId}/trace`;
   }

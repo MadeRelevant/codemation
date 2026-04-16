@@ -4,12 +4,13 @@ import type { TelemetryDashboardTimeseriesDto } from "@codemation/host-src/appli
 import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DashboardDateTimeFormatter } from "../lib/DashboardDateTimeFormatter";
 import { DashboardChartCard } from "./DashboardChartCard";
 
 export function DashboardTokenChart(props: Readonly<{ series: TelemetryDashboardTimeseriesDto }>) {
   const [mode, setMode] = useState<"total" | "breakdown">("total");
   const data = props.series.buckets.map((bucket) => ({
-    label: bucket.bucketStartIso.slice(0, 10),
+    label: DashboardDateTimeFormatter.formatBucketLabel(props.series.interval, bucket.bucketStartIso),
     inputTokens: bucket.inputTokens,
     outputTokens: bucket.outputTokens,
     totalTokens: bucket.totalTokens,
@@ -34,8 +35,8 @@ export function DashboardTokenChart(props: Readonly<{ series: TelemetryDashboard
           </TabsList>
         </Tabs>
       </div>
-      <div className="h-[280px] w-full" data-testid="dashboard-token-chart">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="min-h-[280px] min-w-0 h-[280px] w-full" data-testid="dashboard-token-chart">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={280}>
           <AreaChart data={data}>
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
             <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />

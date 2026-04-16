@@ -6,3 +6,5 @@ export const telemetryDashboardTimeseriesQueryKey = (signature: string) =>
 
 export const telemetryDashboardDimensionsQueryKey = (signature: string) =>
   ["telemetry-dashboard-dimensions", signature] as const;
+
+export const telemetryDashboardRunsQueryKey = (signature: string) => ["telemetry-dashboard-runs", signature] as const;

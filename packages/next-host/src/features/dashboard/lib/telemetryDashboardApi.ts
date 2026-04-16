@@ -1,6 +1,8 @@
 import type {
   TelemetryDashboardDimensionsDto,
   TelemetryDashboardFiltersDto,
+  TelemetryDashboardRunsDto,
+  TelemetryDashboardRunsRequestDto,
   TelemetryDashboardSummaryDto,
   TelemetryDashboardTimeseriesRequestDto,
   TelemetryDashboardTimeseriesDto,
@@ -30,6 +32,14 @@ export class TelemetryDashboardApi {
     );
   }
 
+  static async fetchRuns(request: TelemetryDashboardRunsRequestDto): Promise<TelemetryDashboardRunsDto> {
+    const url = new URL(ApiPaths.telemetryDashboardRuns(), "http://localhost");
+    this.appendFilters(url, request.filters);
+    url.searchParams.set("page", String(request.page));
+    url.searchParams.set("pageSize", String(request.pageSize));
+    return await codemationApiClient.getJson<TelemetryDashboardRunsDto>(this.toRelativeUrl(url));
+  }
+
   private static withFilters(path: string, filters: TelemetryDashboardFiltersDto): string {
     const url = new URL(path, "http://localhost");
     this.appendFilters(url, filters);
@@ -42,6 +52,9 @@ export class TelemetryDashboardApi {
     }
     for (const status of filters.statuses ?? []) {
       url.searchParams.append("status", status);
+    }
+    for (const runOrigin of filters.runOrigins ?? []) {
+      url.searchParams.append("runOrigin", runOrigin);
     }
     for (const modelName of filters.modelNames ?? []) {
       url.searchParams.append("modelName", modelName);

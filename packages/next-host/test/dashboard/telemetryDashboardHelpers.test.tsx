@@ -9,6 +9,7 @@ import type { WorkflowSummary } from "../../src/features/workflows/hooks/realtim
 import { DashboardMetricGrid } from "../../src/features/dashboard/components/DashboardMetricGrid";
 import { DashboardRunStatusChart } from "../../src/features/dashboard/components/DashboardRunStatusChart";
 import { DashboardTokenChart } from "../../src/features/dashboard/components/DashboardTokenChart";
+import { DashboardWorkflowOptionsBuilder } from "../../src/features/dashboard/lib/DashboardWorkflowOptionsBuilder";
 import { TelemetryDashboardFolderResolver } from "../../src/features/dashboard/lib/TelemetryDashboardFolderResolver";
 import { TelemetryDashboardApi } from "../../src/features/dashboard/lib/telemetryDashboardApi";
 import { TelemetryDashboardTimeRangeFactory } from "../../src/features/dashboard/lib/TelemetryDashboardTimeRangeFactory";
@@ -34,24 +35,26 @@ describe("telemetry dashboard api", () => {
         json: async () =>
           url.startsWith(ApiPaths.telemetryDashboardDimensions())
             ? { modelNames: ["gpt-4o-mini"] }
-            : url.startsWith(ApiPaths.telemetryDashboardTimeseries())
-              ? { interval: "day", buckets: [] }
-              : {
-                  runs: {
-                    totalRuns: 1,
-                    completedRuns: 1,
-                    failedRuns: 0,
-                    runningRuns: 0,
-                    averageDurationMs: 1000,
+            : url.startsWith(ApiPaths.telemetryDashboardRuns())
+              ? { items: [], totalCount: 0, page: 2, pageSize: 5 }
+              : url.startsWith(ApiPaths.telemetryDashboardTimeseries())
+                ? { interval: "day", buckets: [] }
+                : {
+                    runs: {
+                      totalRuns: 1,
+                      completedRuns: 1,
+                      failedRuns: 0,
+                      runningRuns: 0,
+                      averageDurationMs: 1000,
+                    },
+                    ai: {
+                      inputTokens: 4,
+                      outputTokens: 2,
+                      totalTokens: 6,
+                      cachedInputTokens: 1,
+                      reasoningTokens: 0,
+                    },
                   },
-                  ai: {
-                    inputTokens: 4,
-                    outputTokens: 2,
-                    totalTokens: 6,
-                    cachedInputTokens: 1,
-                    reasoningTokens: 0,
-                  },
-                },
       } as Response;
     }) as typeof fetch;
 
@@ -59,6 +62,7 @@ describe("telemetry dashboard api", () => {
       TelemetryDashboardApi.fetchSummary({
         workflowIds: ["wf-a", "wf-b"],
         statuses: ["completed"],
+        runOrigins: ["triggered"],
         modelNames: ["gpt-4o-mini"],
         startTimeGte: "2026-04-01T00:00:00.000Z",
         endTimeLte: "2026-04-02T00:00:00.000Z",
@@ -73,6 +77,7 @@ describe("telemetry dashboard api", () => {
         filters: {
           workflowIds: ["wf-a"],
           statuses: ["failed"],
+          runOrigins: ["manual"],
           modelNames: ["gpt-4.1-mini"],
           startTimeGte: "2026-04-03T00:00:00.000Z",
           endTimeLte: "2026-04-04T00:00:00.000Z",
@@ -82,13 +87,30 @@ describe("telemetry dashboard api", () => {
       interval: "day",
       buckets: [],
     });
+    await expect(
+      TelemetryDashboardApi.fetchRuns({
+        filters: {
+          workflowIds: ["wf-a"],
+          statuses: ["failed"],
+          runOrigins: ["triggered"],
+        },
+        page: 2,
+        pageSize: 5,
+      }),
+    ).resolves.toEqual({
+      items: [],
+      totalCount: 0,
+      page: 2,
+      pageSize: 5,
+    });
     await expect(TelemetryDashboardApi.fetchDimensions({})).resolves.toEqual({
       modelNames: ["gpt-4o-mini"],
     });
 
     expect(requests).toEqual([
-      "/api/telemetry/dashboard/summary?workflowId=wf-a&workflowId=wf-b&status=completed&modelName=gpt-4o-mini&startTimeGte=2026-04-01T00%3A00%3A00.000Z&endTimeLte=2026-04-02T00%3A00%3A00.000Z",
-      "/api/telemetry/dashboard/timeseries?workflowId=wf-a&status=failed&modelName=gpt-4.1-mini&startTimeGte=2026-04-03T00%3A00%3A00.000Z&endTimeLte=2026-04-04T00%3A00%3A00.000Z&interval=day",
+      "/api/telemetry/dashboard/summary?workflowId=wf-a&workflowId=wf-b&status=completed&runOrigin=triggered&modelName=gpt-4o-mini&startTimeGte=2026-04-01T00%3A00%3A00.000Z&endTimeLte=2026-04-02T00%3A00%3A00.000Z",
+      "/api/telemetry/dashboard/timeseries?workflowId=wf-a&status=failed&runOrigin=manual&modelName=gpt-4.1-mini&startTimeGte=2026-04-03T00%3A00%3A00.000Z&endTimeLte=2026-04-04T00%3A00%3A00.000Z&interval=day",
+      "/api/telemetry/dashboard/runs?workflowId=wf-a&status=failed&runOrigin=triggered&page=2&pageSize=5",
       "/api/telemetry/dashboard/dimensions",
     ]);
   });
@@ -108,7 +130,31 @@ describe("dashboard helpers", () => {
     expect(TelemetryDashboardFolderResolver.listFolders([workflowSummary("wf.root", "Root", ["root"])])).toEqual([]);
   });
 
+  it("builds nested workflow options from the folder tree", () => {
+    const workflows = [
+      workflowSummary("wf.root", "Root workflow", []),
+      workflowSummary("wf.gmail", "Gmail triage", ["integrations", "gmail", "gmail-triage"]),
+      workflowSummary("wf.sales", "Sales follow-up", ["sales", "sales-follow-up"]),
+    ];
+
+    expect(DashboardWorkflowOptionsBuilder.buildOptions(workflows)).toEqual([
+      { kind: "option", value: "wf.root", label: "Root workflow", depth: 0 },
+      { kind: "heading", label: "integrations", depth: 0 },
+      { kind: "heading", label: "gmail", depth: 1 },
+      { kind: "option", value: "wf.gmail", label: "Gmail triage", depth: 2 },
+      { kind: "heading", label: "sales", depth: 0 },
+      { kind: "option", value: "wf.sales", label: "Sales follow-up", depth: 1 },
+    ]);
+  });
+
   it("builds preset and custom telemetry ranges", () => {
+    expect(
+      TelemetryDashboardTimeRangeFactory.createRange(
+        { preset: "last_15_minutes" },
+        new Date("2026-04-14T10:00:00.000Z"),
+      )?.interval,
+    ).toBe("minute_5");
+
     const todayRange = TelemetryDashboardTimeRangeFactory.createRange(
       { preset: "today" },
       new Date("2026-04-14T10:00:00.000Z"),
@@ -138,11 +184,11 @@ describe("dashboard helpers", () => {
         {
           preset: "custom",
           customStart: "2026-04-01T00:00:00.000Z",
-          customEnd: "2026-04-20T00:00:00.000Z",
+          customEnd: "2026-04-01T01:30:00.000Z",
         },
         new Date("2026-04-14T10:00:00.000Z"),
       )?.interval,
-    ).toBe("day");
+    ).toBe("minute_5");
     expect(
       TelemetryDashboardTimeRangeFactory.createRange({
         preset: "custom",
@@ -235,6 +281,7 @@ describe("dashboard helpers", () => {
           ]}
           selectedValues={["gpt-4o-mini", "gpt-4.1-mini"]}
           onToggleValue={vi.fn()}
+          onClearSelection={vi.fn()}
           testId="dashboard-models"
         />
         <DashboardMultiSelect
@@ -248,7 +295,38 @@ describe("dashboard helpers", () => {
       </>,
     );
 
-    expect(screen.getByTestId("dashboard-models")).toHaveTextContent("Models: 2 selected");
-    expect(screen.getByTestId("dashboard-folders")).toHaveTextContent("Folders: All");
+    expect(screen.getByTestId("dashboard-models")).toHaveTextContent("2 selected");
+    expect(screen.getByTestId("dashboard-folders")).toHaveTextContent("All");
+  });
+
+  it("shows a clear selection action only when values are selected", () => {
+    const handleClearSelection = vi.fn();
+    render(
+      <>
+        <DashboardMultiSelect
+          label="Workflows"
+          options={[{ value: "wf-1", label: "Workflow one" }]}
+          selectedValues={["wf-1"]}
+          onToggleValue={vi.fn()}
+          onClearSelection={handleClearSelection}
+          testId="dashboard-workflows"
+          defaultOpen
+        />
+        <DashboardMultiSelect
+          label="Folders"
+          options={[{ value: "sales", label: "Sales" }]}
+          selectedValues={[]}
+          onToggleValue={vi.fn()}
+          onClearSelection={vi.fn()}
+          testId="dashboard-empty-selection"
+          defaultOpen
+        />
+      </>,
+    );
+
+    fireEvent.click(screen.getByTestId("dashboard-workflows-clear"));
+    expect(handleClearSelection).toHaveBeenCalledTimes(1);
+
+    expect(screen.queryByTestId("dashboard-empty-selection-clear")).not.toBeInTheDocument();
   });
 });

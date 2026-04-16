@@ -2,12 +2,14 @@
 
 import type {
   TelemetryDashboardFiltersDto,
+  TelemetryDashboardRunsRequestDto,
   TelemetryDashboardTimeseriesRequestDto,
 } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
 import { useQuery } from "@tanstack/react-query";
 import { TelemetryDashboardApi } from "../lib/telemetryDashboardApi";
 import {
   telemetryDashboardDimensionsQueryKey,
+  telemetryDashboardRunsQueryKey,
   telemetryDashboardSummaryQueryKey,
   telemetryDashboardTimeseriesQueryKey,
 } from "../lib/telemetryDashboardQueryKeys";
@@ -44,6 +46,16 @@ export function useTelemetryDashboardDimensionsQuery(filters: TelemetryDashboard
   });
 }
 
+export function useTelemetryDashboardRunsQuery(request: TelemetryDashboardRunsRequestDto, enabled: boolean) {
+  const signature = JSON.stringify(TelemetryDashboardFilterSignature.normalizeRunsRequest(request));
+  return useQuery({
+    queryKey: telemetryDashboardRunsQueryKey(signature),
+    queryFn: async () =>
+      await TelemetryDashboardApi.fetchRuns(TelemetryDashboardFilterSignature.normalizeRunsRequest(request)),
+    enabled,
+  });
+}
+
 class TelemetryDashboardFilterSignature {
   static create(filters: TelemetryDashboardFiltersDto): string {
     return JSON.stringify(this.normalize(filters));
@@ -53,6 +65,7 @@ class TelemetryDashboardFilterSignature {
     return {
       workflowIds: this.sort(filters.workflowIds),
       statuses: this.sort(filters.statuses),
+      runOrigins: this.sort(filters.runOrigins),
       modelNames: this.sort(filters.modelNames),
       startTimeGte: filters.startTimeGte,
       endTimeLte: filters.endTimeLte,
@@ -62,6 +75,14 @@ class TelemetryDashboardFilterSignature {
   static normalizeRequest(request: TelemetryDashboardTimeseriesRequestDto): TelemetryDashboardTimeseriesRequestDto {
     return {
       interval: request.interval,
+      filters: this.normalize(request.filters),
+    };
+  }
+
+  static normalizeRunsRequest(request: TelemetryDashboardRunsRequestDto): TelemetryDashboardRunsRequestDto {
+    return {
+      page: request.page,
+      pageSize: request.pageSize,
       filters: this.normalize(request.filters),
     };
   }

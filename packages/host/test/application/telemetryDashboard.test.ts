@@ -3,8 +3,11 @@ import { InMemoryRunTraceContextRepository } from "../../src/infrastructure/pers
 import { InMemoryTelemetryArtifactStore } from "../../src/infrastructure/persistence/InMemoryTelemetryArtifactStore";
 import { InMemoryTelemetryMetricPointStore } from "../../src/infrastructure/persistence/InMemoryTelemetryMetricPointStore";
 import { InMemoryTelemetrySpanStore } from "../../src/infrastructure/persistence/InMemoryTelemetrySpanStore";
+import { InMemoryWorkflowRunRepository } from "../../src/infrastructure/persistence/InMemoryWorkflowRunRepository";
 import { GetTelemetryDashboardDimensionsQuery } from "../../src/application/queries/GetTelemetryDashboardDimensionsQuery";
 import { GetTelemetryDashboardDimensionsQueryHandler } from "../../src/application/queries/GetTelemetryDashboardDimensionsQueryHandler";
+import { GetTelemetryDashboardRunsQuery } from "../../src/application/queries/GetTelemetryDashboardRunsQuery";
+import { GetTelemetryDashboardRunsQueryHandler } from "../../src/application/queries/GetTelemetryDashboardRunsQueryHandler";
 import { GetTelemetryDashboardSummaryQuery } from "../../src/application/queries/GetTelemetryDashboardSummaryQuery";
 import { GetTelemetryDashboardSummaryQueryHandler } from "../../src/application/queries/GetTelemetryDashboardSummaryQueryHandler";
 import { GetTelemetryDashboardTimeseriesQuery } from "../../src/application/queries/GetTelemetryDashboardTimeseriesQuery";
@@ -17,10 +20,12 @@ class TelemetryDashboardTestContext {
   readonly spanStore = new InMemoryTelemetrySpanStore();
   readonly artifactStore = new InMemoryTelemetryArtifactStore(new OtelIdentityFactory());
   readonly metricPointStore = new InMemoryTelemetryMetricPointStore(new OtelIdentityFactory());
+  readonly workflowRunRepository = new InMemoryWorkflowRunRepository();
   readonly queryService = new TelemetryQueryService(
     this.spanStore,
     this.artifactStore,
     this.metricPointStore,
+    this.workflowRunRepository,
     this.traceContextRepository,
     new OtelIdentityFactory(),
   );
@@ -36,8 +41,20 @@ class TelemetryDashboardTestContext {
       endTime?: string;
       modelName?: string;
       totalTokens?: number;
+      origin?: "triggered" | "manual";
     }>,
   ): Promise<void> {
+    await this.workflowRunRepository.createRun({
+      runId: args.runId,
+      workflowId: args.workflowId,
+      startedAt: args.startTime,
+      executionOptions: args.origin === "manual" ? { mode: "manual" } : undefined,
+    });
+    await this.workflowRunRepository.save({
+      ...(await this.workflowRunRepository.load(args.runId))!,
+      status: args.status,
+      finishedAt: args.endTime,
+    });
     await this.spanStore.upsert({
       traceId: args.traceId,
       spanId: args.rootSpanId,
@@ -232,6 +249,7 @@ describe("telemetry dashboard query service", () => {
     const summaryHandler = new GetTelemetryDashboardSummaryQueryHandler(context.queryService);
     const timeseriesHandler = new GetTelemetryDashboardTimeseriesQueryHandler(context.queryService);
     const dimensionsHandler = new GetTelemetryDashboardDimensionsQueryHandler(context.queryService);
+    const runsHandler = new GetTelemetryDashboardRunsQueryHandler(context.queryService);
 
     await expect(
       summaryHandler.execute(
@@ -276,6 +294,76 @@ describe("telemetry dashboard query service", () => {
       ),
     ).resolves.toEqual({
       modelNames: ["gpt-4o-mini"],
+    });
+
+    await expect(
+      runsHandler.execute(
+        new GetTelemetryDashboardRunsQuery({
+          filters: {
+            workflowIds: ["wf-hour"],
+            startTimeGte: "2026-04-14T10:00:00.000Z",
+            endTimeLte: "2026-04-14T12:00:00.000Z",
+          },
+          page: 1,
+          pageSize: 10,
+        }),
+      ),
+    ).resolves.toMatchObject({
+      totalCount: 1,
+      items: [{ runId: "run-hour", origin: "triggered" }],
+    });
+  });
+
+  it("excludes manual runs unless they are explicitly selected", async () => {
+    const context = new TelemetryDashboardTestContext();
+    await context.seedRun({
+      traceId: "trace-triggered",
+      rootSpanId: "span-triggered",
+      runId: "run-triggered",
+      workflowId: "wf-a",
+      status: "completed",
+      startTime: "2026-04-14T09:00:00.000Z",
+      endTime: "2026-04-14T09:01:00.000Z",
+      origin: "triggered",
+    });
+    await context.seedRun({
+      traceId: "trace-manual",
+      rootSpanId: "span-manual",
+      runId: "run-manual",
+      workflowId: "wf-a",
+      status: "failed",
+      startTime: "2026-04-14T10:00:00.000Z",
+      endTime: "2026-04-14T10:01:00.000Z",
+      origin: "manual",
+    });
+
+    await expect(
+      context.queryService.summarizeRuns({
+        workflowIds: ["wf-a"],
+        runOrigins: ["triggered"],
+        startTimeGte: "2026-04-14T00:00:00.000Z",
+        endTimeLte: "2026-04-15T00:00:00.000Z",
+      }),
+    ).resolves.toMatchObject({
+      totalRuns: 1,
+      completedRuns: 1,
+      failedRuns: 0,
+    });
+
+    await expect(
+      context.queryService.listRuns({
+        filters: {
+          workflowIds: ["wf-a"],
+          runOrigins: ["manual"],
+          startTimeGte: "2026-04-14T00:00:00.000Z",
+          endTimeLte: "2026-04-15T00:00:00.000Z",
+        },
+        page: 1,
+        pageSize: 10,
+      }),
+    ).resolves.toMatchObject({
+      totalCount: 1,
+      items: [{ runId: "run-manual", origin: "manual" }],
     });
   });
 

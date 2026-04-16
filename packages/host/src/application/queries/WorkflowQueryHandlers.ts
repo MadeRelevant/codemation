@@ -1,6 +1,7 @@
 export { GetRunBinaryAttachmentQueryHandler } from "./GetRunBinaryAttachmentQueryHandler";
 export { GetRunStateQueryHandler } from "./GetRunStateQueryHandler";
 export { GetTelemetryDashboardDimensionsQueryHandler } from "./GetTelemetryDashboardDimensionsQueryHandler";
+export { GetTelemetryDashboardRunsQueryHandler } from "./GetTelemetryDashboardRunsQueryHandler";
 export { GetTelemetryRunTraceQueryHandler } from "./GetTelemetryRunTraceQueryHandler";
 export { GetTelemetryDashboardSummaryQueryHandler } from "./GetTelemetryDashboardSummaryQueryHandler";
 export { GetTelemetryDashboardTimeseriesQueryHandler } from "./GetTelemetryDashboardTimeseriesQueryHandler";

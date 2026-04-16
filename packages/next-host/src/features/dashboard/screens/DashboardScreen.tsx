@@ -1,16 +1,22 @@
 "use client";
 
-import type { TelemetryDashboardFiltersDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
-import { Activity, Sparkles, Workflow } from "lucide-react";
-import { useMemo, useState } from "react";
+import type {
+  TelemetryDashboardFiltersDto,
+  TelemetryDashboardRunOriginDto,
+} from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import { Activity } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { DashboardAiUsageSummaryCard } from "../components/DashboardAiUsageSummaryCard";
 import { DashboardFilterCard } from "../components/DashboardFilterCard";
-import { DashboardMetricGrid } from "../components/DashboardMetricGrid";
+import { DashboardRunSummaryCard } from "../components/DashboardRunSummaryCard";
 import { DashboardRunStatusChart } from "../components/DashboardRunStatusChart";
 import { DashboardTokenChart } from "../components/DashboardTokenChart";
+import { DashboardWorkflowRunsTable } from "../components/DashboardWorkflowRunsTable";
+import { useDashboardFilterPersistence } from "../hooks/useDashboardFilterPersistence";
 import {
   useTelemetryDashboardDimensionsQuery,
+  useTelemetryDashboardRunsQuery,
   useTelemetryDashboardSummaryQuery,
   useTelemetryDashboardTimeseriesQuery,
 } from "../hooks/useTelemetryDashboard";
@@ -19,6 +25,7 @@ import {
   TelemetryDashboardTimeRangeFactory,
   type TelemetryDashboardTimePreset,
 } from "../lib/TelemetryDashboardTimeRangeFactory";
+import { DashboardWorkflowOptionsBuilder } from "../lib/DashboardWorkflowOptionsBuilder";
 import { useWorkflowsQuery } from "../../workflows/hooks/realtime/realtime";
 
 export function DashboardScreen() {
@@ -30,7 +37,12 @@ export function DashboardScreen() {
   const [selectedWorkflowIds, setSelectedWorkflowIds] = useState<ReadonlyArray<string>>([]);
   const [selectedFolders, setSelectedFolders] = useState<ReadonlyArray<string>>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<ReadonlyArray<"running" | "completed" | "failed">>([]);
+  const [selectedRunOrigins, setSelectedRunOrigins] = useState<ReadonlyArray<TelemetryDashboardRunOriginDto>>([
+    "triggered",
+  ]);
   const [selectedModelNames, setSelectedModelNames] = useState<ReadonlyArray<string>>([]);
+  const [runsPage, setRunsPage] = useState(1);
+  const [hasLoadedStoredFilters, setHasLoadedStoredFilters] = useState(false);
 
   const folderOptions = useMemo(
     () =>
@@ -40,12 +52,10 @@ export function DashboardScreen() {
       })),
     [workflows],
   );
-  const workflowOptions = useMemo(
+  const workflowOptions = useMemo(() => DashboardWorkflowOptionsBuilder.buildOptions(workflows), [workflows]);
+  const workflowNamesById = useMemo(
     () =>
-      workflows.map((workflow) => ({
-        value: workflow.id,
-        label: workflow.name,
-      })),
+      Object.fromEntries(workflows.map((workflow) => [workflow.id, workflow.name])) as Readonly<Record<string, string>>,
     [workflows],
   );
   const resolvedWorkflowIds = useMemo(
@@ -65,20 +75,29 @@ export function DashboardScreen() {
     () => ({
       workflowIds: resolvedWorkflowIds,
       statuses: selectedStatuses.length > 0 ? selectedStatuses : undefined,
+      runOrigins: selectedRunOrigins.length > 0 ? selectedRunOrigins : undefined,
       modelNames: selectedModelNames.length > 0 ? selectedModelNames : undefined,
       startTimeGte: range?.startTimeGte,
       endTimeLte: range?.endTimeLte,
     }),
-    [range?.endTimeLte, range?.startTimeGte, resolvedWorkflowIds, selectedModelNames, selectedStatuses],
+    [
+      range?.endTimeLte,
+      range?.startTimeGte,
+      resolvedWorkflowIds,
+      selectedModelNames,
+      selectedRunOrigins,
+      selectedStatuses,
+    ],
   );
   const dimensionsFilters = useMemo<TelemetryDashboardFiltersDto>(
     () => ({
       workflowIds: resolvedWorkflowIds,
       statuses: selectedStatuses.length > 0 ? selectedStatuses : undefined,
+      runOrigins: selectedRunOrigins.length > 0 ? selectedRunOrigins : undefined,
       startTimeGte: range?.startTimeGte,
       endTimeLte: range?.endTimeLte,
     }),
-    [range?.endTimeLte, range?.startTimeGte, resolvedWorkflowIds, selectedStatuses],
+    [range?.endTimeLte, range?.startTimeGte, resolvedWorkflowIds, selectedRunOrigins, selectedStatuses],
   );
   const timeseriesRequest = useMemo(
     () =>
@@ -91,15 +110,25 @@ export function DashboardScreen() {
         {
           workflowIds: resolvedWorkflowIds,
           statuses: selectedStatuses.length > 0 ? selectedStatuses : undefined,
+          runOrigins: selectedRunOrigins.length > 0 ? selectedRunOrigins : undefined,
           modelNames: selectedModelNames.length > 0 ? selectedModelNames : undefined,
         },
       ),
-    [customEnd, customStart, resolvedWorkflowIds, selectedModelNames, selectedStatuses, timePreset],
+    [customEnd, customStart, resolvedWorkflowIds, selectedModelNames, selectedRunOrigins, selectedStatuses, timePreset],
   );
-  const queryEnabled = range !== null;
+  const runsRequest = useMemo(
+    () => ({
+      filters,
+      page: runsPage,
+      pageSize: 10,
+    }),
+    [filters, runsPage],
+  );
+  const queryEnabled = hasLoadedStoredFilters && range !== null;
   const summaryQuery = useTelemetryDashboardSummaryQuery(filters, queryEnabled);
   const timeseriesQuery = useTelemetryDashboardTimeseriesQuery(timeseriesRequest, queryEnabled);
   const dimensionsQuery = useTelemetryDashboardDimensionsQuery(dimensionsFilters, queryEnabled);
+  const runsQuery = useTelemetryDashboardRunsQuery(runsRequest, queryEnabled);
 
   const modelOptions = useMemo(
     () =>
@@ -113,96 +142,116 @@ export function DashboardScreen() {
     (summaryQuery.error instanceof Error ? summaryQuery.error.message : null) ??
     (timeseriesQuery.error instanceof Error ? timeseriesQuery.error.message : null) ??
     (dimensionsQuery.error instanceof Error ? dimensionsQuery.error.message : null) ??
+    (runsQuery.error instanceof Error ? runsQuery.error.message : null) ??
     (workflowsQuery.error instanceof Error ? workflowsQuery.error.message : null);
   const summary = summaryQuery.data;
   const timeseries = timeseriesQuery.data;
+  const runs = runsQuery.data;
+
+  useDashboardFilterPersistence({
+    current: {
+      timePreset,
+      customStart,
+      customEnd,
+      selectedWorkflowIds,
+      selectedFolders,
+      selectedStatuses,
+      selectedRunOrigins,
+      selectedModelNames,
+    },
+    hasLoadedStoredFilters,
+    setHasLoadedStoredFilters,
+    setTimePreset,
+    setCustomStart,
+    setCustomEnd,
+    setSelectedWorkflowIds,
+    setSelectedFolders,
+    setSelectedStatuses,
+    setSelectedRunOrigins,
+    setSelectedModelNames,
+  });
+
+  useEffect(() => {
+    setRunsPage(1);
+  }, [JSON.stringify(filters)]);
 
   return (
-    <main className="mx-auto flex max-w-[1400px] flex-col gap-6 px-6 py-6" data-testid="dashboard-screen">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-2">
-          <div className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">
-            Codemation telemetry
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Dashboard</h1>
-          <p className="max-w-3xl text-sm text-muted-foreground">
-            Track workflow health, AI usage, and model activity from the same telemetry pipeline that powers deeper
-            drilldowns.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="gap-1.5 px-2.5 py-1 text-xs">
-            <Workflow className="size-3.5" />
-            {`${String(workflows.length)} workflows`}
-          </Badge>
-          <Badge variant="outline" className="gap-1.5 px-2.5 py-1 text-xs">
-            <Sparkles className="size-3.5" />
-            Telemetry-backed
-          </Badge>
-        </div>
-      </header>
-
-      <DashboardFilterCard
-        timePreset={timePreset}
-        onTimePresetChange={setTimePreset}
-        customStart={customStart}
-        customEnd={customEnd}
-        onCustomStartChange={setCustomStart}
-        onCustomEndChange={setCustomEnd}
-        workflowOptions={workflowOptions}
-        selectedWorkflowIds={selectedWorkflowIds}
-        onToggleWorkflowId={(value) =>
-          setSelectedWorkflowIds((current) =>
-            current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value],
-          )
-        }
-        folderOptions={folderOptions}
-        selectedFolders={selectedFolders}
-        onToggleFolder={(value) =>
-          setSelectedFolders((current) =>
-            current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value],
-          )
-        }
-        selectedStatuses={selectedStatuses}
-        onToggleStatus={(value) =>
-          setSelectedStatuses((current) =>
-            current.includes(value as "running" | "completed" | "failed")
-              ? current.filter((entry) => entry !== value)
-              : [...current, value as "running" | "completed" | "failed"],
-          )
-        }
-        modelOptions={modelOptions}
-        selectedModelNames={selectedModelNames}
-        onToggleModelName={(value) =>
-          setSelectedModelNames((current) =>
-            current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value],
-          )
-        }
-      />
-
-      {range === null ? (
-        <Alert data-testid="dashboard-invalid-range">
-          <Activity className="size-4" />
-          <AlertTitle>Custom range incomplete</AlertTitle>
-          <AlertDescription>Pick both a start and end timestamp to query dashboard telemetry.</AlertDescription>
-        </Alert>
-      ) : null}
-      {loadError ? (
-        <Alert variant="destructive" data-testid="dashboard-load-error">
-          <Activity className="size-4" />
-          <AlertTitle>Failed to load dashboard telemetry</AlertTitle>
-          <AlertDescription>{loadError}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      <DashboardMetricGrid summary={summary} />
-
-      {timeseries ? (
-        <section className="grid gap-4 xl:grid-cols-2">
-          <DashboardRunStatusChart series={timeseries} />
-          <DashboardTokenChart series={timeseries} />
+    <main className="w-full px-6 py-6" data-testid="dashboard-screen">
+      <div className="grid items-start gap-6 md:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="min-w-0 self-start md:sticky md:top-6">
+          <DashboardFilterCard
+            timePreset={timePreset}
+            onTimePresetChange={setTimePreset}
+            customStart={customStart}
+            customEnd={customEnd}
+            onCustomStartChange={setCustomStart}
+            onCustomEndChange={setCustomEnd}
+            workflowOptions={workflowOptions}
+            selectedWorkflowIds={selectedWorkflowIds}
+            onToggleWorkflowId={(value) =>
+              setSelectedWorkflowIds((current) =>
+                current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value],
+              )
+            }
+            onClearWorkflowIds={() => setSelectedWorkflowIds([])}
+            folderOptions={folderOptions}
+            selectedFolders={selectedFolders}
+            onToggleFolder={(value) =>
+              setSelectedFolders((current) =>
+                current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value],
+              )
+            }
+            onClearFolders={() => setSelectedFolders([])}
+            selectedStatuses={selectedStatuses}
+            onToggleStatus={(value) =>
+              setSelectedStatuses((current) =>
+                current.includes(value as "running" | "completed" | "failed")
+                  ? current.filter((entry) => entry !== value)
+                  : [...current, value as "running" | "completed" | "failed"],
+              )
+            }
+            selectedRunOrigins={selectedRunOrigins}
+            onToggleRunOrigin={(value) =>
+              setSelectedRunOrigins((current) =>
+                current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value],
+              )
+            }
+            modelOptions={modelOptions}
+            selectedModelNames={selectedModelNames}
+            onToggleModelName={(value) =>
+              setSelectedModelNames((current) =>
+                current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value],
+              )
+            }
+            onClearModelNames={() => setSelectedModelNames([])}
+          />
+        </aside>
+        <section className="flex min-w-0 flex-col gap-6">
+          {range === null ? (
+            <Alert data-testid="dashboard-invalid-range">
+              <Activity className="size-4" />
+              <AlertTitle>Custom range incomplete</AlertTitle>
+              <AlertDescription>Pick both a start and end timestamp to query dashboard telemetry.</AlertDescription>
+            </Alert>
+          ) : null}
+          {loadError ? (
+            <Alert variant="destructive" data-testid="dashboard-load-error">
+              <Activity className="size-4" />
+              <AlertTitle>Failed to load dashboard telemetry</AlertTitle>
+              <AlertDescription>{loadError}</AlertDescription>
+            </Alert>
+          ) : null}
+          <section className="grid items-stretch gap-4 md:grid-cols-[340px_minmax(0,1fr)]">
+            <DashboardRunSummaryCard summary={summary} />
+            {timeseries ? <DashboardRunStatusChart series={timeseries} /> : null}
+          </section>
+          <section className="grid items-stretch gap-4 md:grid-cols-[340px_minmax(0,1fr)]">
+            <DashboardAiUsageSummaryCard summary={summary} />
+            {timeseries ? <DashboardTokenChart series={timeseries} /> : null}
+          </section>
+          <DashboardWorkflowRunsTable runs={runs} workflowNamesById={workflowNamesById} onPageChange={setRunsPage} />
         </section>
-      ) : null}
+      </div>
     </main>
   );
 }

@@ -1,10 +1,12 @@
 import { inject, injectable } from "@codemation/core";
 import type {
   TelemetryDashboardFiltersDto,
+  TelemetryDashboardRunsRequestDto,
   TelemetryDashboardTimeseriesRequestDto,
 } from "../../../application/contracts/TelemetryDashboardContracts";
 import type { QueryBus } from "../../../application/bus/QueryBus";
 import { GetTelemetryDashboardDimensionsQuery } from "../../../application/queries/GetTelemetryDashboardDimensionsQuery";
+import { GetTelemetryDashboardRunsQuery } from "../../../application/queries/GetTelemetryDashboardRunsQuery";
 import { GetTelemetryRunTraceQuery } from "../../../application/queries/GetTelemetryRunTraceQuery";
 import { GetTelemetryDashboardSummaryQuery } from "../../../application/queries/GetTelemetryDashboardSummaryQuery";
 import { GetTelemetryDashboardTimeseriesQuery } from "../../../application/queries/GetTelemetryDashboardTimeseriesQuery";
@@ -55,6 +57,18 @@ export class TelemetryHttpRouteHandler {
     }
   }
 
+  async getDashboardRuns(request: Request): Promise<Response> {
+    try {
+      const parsed = this.parseRunsRequest(request);
+      return Response.json(await this.queryBus.execute(new GetTelemetryDashboardRunsQuery(parsed)));
+    } catch (error) {
+      if (error instanceof TelemetryDashboardRequestError) {
+        return Response.json({ error: error.message }, { status: 400 });
+      }
+      return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
   async getRunTrace(runId: string): Promise<Response> {
     try {
       if (!runId.trim()) {
@@ -72,12 +86,27 @@ export class TelemetryHttpRouteHandler {
   private parseTimeseriesRequest(request: Request): TelemetryDashboardTimeseriesRequestDto {
     const url = new URL(request.url);
     const interval = url.searchParams.get("interval");
-    if (interval !== "hour" && interval !== "day" && interval !== "week") {
-      throw new TelemetryDashboardRequestError("Query string must include interval=hour|day|week.");
+    if (
+      interval !== "minute_5" &&
+      interval !== "minute_15" &&
+      interval !== "hour" &&
+      interval !== "day" &&
+      interval !== "week"
+    ) {
+      throw new TelemetryDashboardRequestError("Query string must include interval=minute_5|minute_15|hour|day|week.");
     }
     return {
       interval,
       filters: this.parseFilters(request),
+    };
+  }
+
+  private parseRunsRequest(request: Request): TelemetryDashboardRunsRequestDto {
+    const url = new URL(request.url);
+    return {
+      filters: this.parseFilters(request),
+      page: this.readPositiveInt(url, "page", 1),
+      pageSize: this.readPositiveInt(url, "pageSize", 10),
     };
   }
 
@@ -86,6 +115,7 @@ export class TelemetryHttpRouteHandler {
     return {
       workflowIds: this.readMany(url, "workflowId"),
       statuses: this.readStatuses(url),
+      runOrigins: this.readRunOrigins(url),
       modelNames: this.readMany(url, "modelName"),
       startTimeGte: this.readIso(url, "startTimeGte"),
       endTimeLte: this.readIso(url, "endTimeLte"),
@@ -113,6 +143,19 @@ export class TelemetryHttpRouteHandler {
     return values as TelemetryDashboardFiltersDto["statuses"];
   }
 
+  private readRunOrigins(url: URL): TelemetryDashboardFiltersDto["runOrigins"] {
+    const values = this.readMany(url, "runOrigin");
+    if (!values) {
+      return undefined;
+    }
+    for (const value of values) {
+      if (value !== "triggered" && value !== "manual") {
+        throw new TelemetryDashboardRequestError(`Unsupported telemetry run origin filter: ${value}`);
+      }
+    }
+    return values as TelemetryDashboardFiltersDto["runOrigins"];
+  }
+
   private readIso(url: URL, key: string): string | undefined {
     const value = url.searchParams.get(key)?.trim();
     if (!value) {
@@ -120,6 +163,18 @@ export class TelemetryHttpRouteHandler {
     }
     if (Number.isNaN(new Date(value).getTime())) {
       throw new TelemetryDashboardRequestError(`Invalid ISO timestamp for ${key}.`);
+    }
+    return value;
+  }
+
+  private readPositiveInt(url: URL, key: string, fallback: number): number {
+    const raw = url.searchParams.get(key)?.trim();
+    if (!raw) {
+      return fallback;
+    }
+    const value = Number(raw);
+    if (!Number.isInteger(value) || value <= 0) {
+      throw new TelemetryDashboardRequestError(`${key} must be a positive integer.`);
     }
     return value;
   }
