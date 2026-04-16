@@ -119,16 +119,21 @@ export class AppLayout extends Component<AppLayoutProps, AppLayoutState> {
           </nav>
           {!sidebarCollapsed && (
             <div
-              className={cn(
-                "absolute top-0 right-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-primary/30",
-                isResizing && "bg-primary/30",
-              )}
+              className={cn("group absolute top-0 -right-1 h-full w-3 cursor-col-resize bg-transparent")}
               onMouseDown={this.handleResizeStart}
               role="separator"
               aria-orientation="vertical"
               aria-label="Resize sidebar"
               data-testid="sidebar-resize-handle"
-            />
+            >
+              <div
+                data-testid="sidebar-resize-handle-visual"
+                className={cn(
+                  "pointer-events-none absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2 rounded-full bg-transparent transition-colors duration-150 group-hover:bg-primary/40",
+                  isResizing && "bg-primary/50",
+                )}
+              />
+            </div>
           )}
         </aside>
         <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">

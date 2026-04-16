@@ -16,11 +16,15 @@ export function WorkflowDetailScreenInspectorPanel(props: Readonly<{ controller:
       )}
     >
       <div
+        data-testid="workflow-detail-inspector-resize-handle"
         className={cn(
           "flex cursor-ns-resize select-none items-center justify-between gap-3 bg-card px-3 py-0",
           !controller.isPanelCollapsed && "border-b border-border",
         )}
-        onMouseDown={(event) => controller.startInspectorResize(event.clientY)}
+        onMouseDown={(event) => {
+          event.preventDefault();
+          controller.startInspectorResize(event.clientY);
+        }}
       >
         <div className="text-xs font-extrabold tracking-wide text-muted-foreground uppercase">Execution inspector</div>
         <Button

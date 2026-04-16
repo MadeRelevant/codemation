@@ -30,6 +30,7 @@ export type NodeInspectorTimelineEntryModel = Readonly<{
   key: string;
   title: string;
   subtitle?: string;
+  kind: "agent" | "tool";
   pills?: ReadonlyArray<NodeInspectorPillModel>;
   jsonBlocks?: ReadonlyArray<NodeInspectorJsonBlockModel>;
 }>;
@@ -79,11 +80,9 @@ export class NodeInspectorTelemetryPresenter {
     }>,
   ): NodeInspectorTelemetryModel {
     const sections: NodeInspectorSectionModel[] = [
-      this.createIdentitySection(args.node),
-      this.createExecutionSection(args.node, args.nodeSnapshotsByNodeId, args.connectionInvocations),
+      this.createOverviewSection(args.node, args.nodeSnapshotsByNodeId, args.connectionInvocations, args.traceView),
     ];
     if (this.isAiAgentNode(args.node)) {
-      sections.push(this.createAgentMetricsSection(args.node, args.traceView));
       sections.push(this.createAgentTimelineSection(args.node, args.traceView));
     } else if (this.isLanguageModelNode(args.node)) {
       sections.push(this.createLanguageModelMetricsSection(args.node, args.connectionInvocations, args.traceView));
@@ -100,64 +99,48 @@ export class NodeInspectorTelemetryPresenter {
     };
   }
 
-  private static createIdentitySection(node: WorkflowDiagramNode): NodeInspectorSectionModel {
-    return {
-      id: "identity",
-      title: "Overview",
-      pills: [
-        { label: "Kind", value: node.kind },
-        { label: "Type", value: node.type },
-        ...(node.role ? [{ label: "Role", value: node.role }] : []),
-      ],
-      keyValues: [
-        { label: "Retry", value: node.retryPolicySummary ?? "None" },
-        { label: "Node error handler", value: node.hasNodeErrorHandler ? "Configured" : "Not configured" },
-        ...(node.parentNodeId ? [{ label: "Parent node", value: node.parentNodeId }] : []),
-      ],
-    };
-  }
-
-  private static createExecutionSection(
+  private static createOverviewSection(
     node: WorkflowDiagramNode,
     nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>,
     connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>,
+    traceView: TelemetryRunTraceViewDto | undefined,
   ): NodeInspectorSectionModel {
     const snapshot = nodeSnapshotsByNodeId[node.id];
     const latestInvocation = this.getLatestConnectionInvocation(node, connectionInvocations);
     const status = snapshot?.status ?? latestInvocation?.status ?? "idle";
-    const updatedAt = snapshot?.updatedAt ?? latestInvocation?.updatedAt;
     const startedAt =
       snapshot?.startedAt ?? latestInvocation?.startedAt ?? snapshot?.queuedAt ?? latestInvocation?.queuedAt;
     const finishedAt = snapshot?.finishedAt ?? latestInvocation?.finishedAt;
-    const inputsCount = this.countPortItems(snapshot?.inputsByPort);
-    const outputsCount = this.countPortItems(snapshot?.outputs);
     return {
-      id: "execution",
-      title: "Execution",
+      id: "overview",
+      title: "Overview",
       pills: [
         { label: "Status", value: status },
         ...(startedAt && finishedAt ? [{ label: "Duration", value: this.formatDuration(startedAt, finishedAt) }] : []),
+        ...(node.role ? [{ label: "Role", value: node.role }] : []),
       ],
       keyValues: [
-        ...(updatedAt ? [{ label: "Last updated", value: this.formatWhen(updatedAt) }] : []),
-        ...(inputsCount !== null ? [{ label: "Input items", value: String(inputsCount) }] : []),
-        ...(outputsCount !== null ? [{ label: "Output items", value: String(outputsCount) }] : []),
+        { label: "Kind", value: node.kind },
+        { label: "Type", value: node.type },
+        { label: "Retry", value: node.retryPolicySummary ?? "None" },
+        { label: "Node error handler", value: node.hasNodeErrorHandler ? "Configured" : "Not configured" },
+        ...(node.parentNodeId ? [{ label: "Parent node", value: node.parentNodeId }] : []),
+        ...this.createOverviewTelemetryKeyValues(node, connectionInvocations, traceView),
       ],
     };
   }
 
-  private static createAgentMetricsSection(
+  private static createOverviewTelemetryKeyValues(
     node: WorkflowDiagramNode,
+    connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>,
     traceView: TelemetryRunTraceViewDto | undefined,
-  ): NodeInspectorSectionModel {
-    const metricPoints = this.getMetricPointsForNode(node, traceView);
-    const spans = this.getSpansForNode(node, traceView).filter((span) => span.name === "gen_ai.chat.completion");
-    return {
-      id: "agent-metrics",
-      title: "AI metrics",
-      pills: [
-        { label: "Turns", value: this.sumMetrics(metricPoints, InspectorTelemetryMetricNames.agentTurns) },
-        { label: "Tool calls", value: this.sumMetrics(metricPoints, InspectorTelemetryMetricNames.agentToolCalls) },
+  ): ReadonlyArray<NodeInspectorKeyValueModel> {
+    if (this.isAiAgentNode(node)) {
+      const metricPoints = this.getMetricPointsForNode(node, traceView);
+      if (metricPoints.length === 0) {
+        return [];
+      }
+      return [
         { label: "Input tokens", value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageInputTokens) },
         {
           label: "Output tokens",
@@ -171,28 +154,50 @@ export class NodeInspectorTelemetryPresenter {
           label: "Reasoning tokens",
           value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageReasoningTokens),
         },
+      ];
+    }
+    if (this.isLanguageModelNode(node)) {
+      const spanIds = this.getConnectionSpanIds(node, connectionInvocations, traceView, "gen_ai.chat.completion");
+      const metricPoints = (traceView?.metricPoints ?? []).filter((point) => spanIds.has(point.spanId ?? ""));
+      if (metricPoints.length === 0) {
+        return [];
+      }
+      return [
+        { label: "Input tokens", value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageInputTokens) },
         {
-          label: "Models",
-          value: this.joinUnique(
-            spans
-              .map((span) => span.modelName)
-              .filter((value): value is string => typeof value === "string" && value.length > 0),
-          ),
+          label: "Output tokens",
+          value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageOutputTokens),
         },
-      ],
-    };
+        { label: "Total tokens", value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageTotalTokens) },
+      ];
+    }
+    return [];
   }
 
   private static createAgentTimelineSection(
     node: WorkflowDiagramNode,
     traceView: TelemetryRunTraceViewDto | undefined,
   ): NodeInspectorSectionModel {
+    const metricPoints = this.getMetricPointsForNode(node, traceView);
     const spans = this.getSpansForNode(node, traceView).filter(
       (span) => span.name === "gen_ai.chat.completion" || span.name === "agent.tool.call",
     );
     return {
       id: "agent-timeline",
       title: "Conversation and tool timeline",
+      pills: [
+        { label: "Turns", value: this.sumMetrics(metricPoints, InspectorTelemetryMetricNames.agentTurns) },
+        { label: "Tool calls", value: this.sumMetrics(metricPoints, InspectorTelemetryMetricNames.agentToolCalls) },
+        {
+          label: "Models",
+          value: this.joinUnique(
+            spans
+              .filter((span) => span.name === "gen_ai.chat.completion")
+              .map((span) => span.modelName)
+              .filter((value): value is string => typeof value === "string" && value.length > 0),
+          ),
+        },
+      ],
       timeline: spans
         .sort((left, right) => this.compareIso(left.startTime, right.startTime))
         .map((span) => this.createTimelineEntry(span, traceView)),
@@ -206,19 +211,12 @@ export class NodeInspectorTelemetryPresenter {
     traceView: TelemetryRunTraceViewDto | undefined,
   ): NodeInspectorSectionModel {
     const spanIds = this.getConnectionSpanIds(node, connectionInvocations, traceView, "gen_ai.chat.completion");
-    const metricPoints = (traceView?.metricPoints ?? []).filter((point) => spanIds.has(point.spanId ?? ""));
     const spans = (traceView?.spans ?? []).filter((span) => spanIds.has(span.spanId));
     return {
       id: "language-model-metrics",
       title: "Chat model metrics",
       pills: [
         { label: "Invocations", value: String(spanIds.size) },
-        { label: "Input tokens", value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageInputTokens) },
-        {
-          label: "Output tokens",
-          value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageOutputTokens),
-        },
-        { label: "Total tokens", value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageTotalTokens) },
         {
           label: "Model",
           value: this.joinUnique(
@@ -371,6 +369,7 @@ export class NodeInspectorTelemetryPresenter {
     const artifacts = (traceView?.artifacts ?? []).filter((artifact) => artifact.spanId === span.spanId);
     return {
       key: span.spanId,
+      kind: span.name === "gen_ai.chat.completion" ? "agent" : "tool",
       title:
         span.name === "gen_ai.chat.completion"
           ? `Model call${span.modelName ? ` · ${span.modelName}` : ""}`
@@ -395,11 +394,7 @@ export class NodeInspectorTelemetryPresenter {
   }
 
   private static buildSpanSubtitle(span: TelemetrySpan): string | undefined {
-    const segments = [
-      span.startTime ? this.formatWhen(span.startTime) : undefined,
-      span.connectionInvocationId ? `Invocation ${span.connectionInvocationId}` : undefined,
-    ].filter((value): value is string => Boolean(value));
-    return segments.length > 0 ? segments.join(" · ") : undefined;
+    return span.startTime ? this.formatWhen(span.startTime) : undefined;
   }
 
   private static createConnectionInvocationTimelineEntry(
@@ -407,6 +402,7 @@ export class NodeInspectorTelemetryPresenter {
   ): NodeInspectorTimelineEntryModel {
     return {
       key: invocation.invocationId,
+      kind: "tool",
       title: "Tool call",
       subtitle: [this.formatWhen(invocation.updatedAt), `Invocation ${invocation.invocationId}`].join(" · "),
       pills: [
@@ -491,13 +487,6 @@ export class NodeInspectorTelemetryPresenter {
   private static joinUnique(values: ReadonlyArray<string>): string {
     const unique = [...new Set(values.filter((value) => value.length > 0))];
     return unique.length > 0 ? unique.join(", ") : "—";
-  }
-
-  private static countPortItems(ports: Readonly<Record<string, ReadonlyArray<unknown>>> | undefined): number | null {
-    if (!ports) {
-      return null;
-    }
-    return Object.values(ports).reduce((sum, items) => sum + items.length, 0);
   }
 
   private static formatWhen(value: string): string {

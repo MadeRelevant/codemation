@@ -121,12 +121,17 @@ export function NodePropertiesSlidePanel(
             aria-orientation="vertical"
             aria-label="Resize properties panel"
             data-testid="node-properties-panel-resize-handle"
-            className={cn(
-              "absolute top-0 bottom-0 left-0 z-[1] w-1 cursor-col-resize bg-transparent hover:bg-primary/30",
-              isResizing && "bg-primary/30",
-            )}
+            className={cn("group absolute top-0 bottom-0 -left-1 z-[1] w-3 cursor-col-resize bg-transparent")}
             onMouseDown={handleResizeMouseDown}
-          />
+          >
+            <div
+              data-testid="node-properties-panel-resize-handle-visual"
+              className={cn(
+                "pointer-events-none absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2 rounded-full bg-transparent transition-colors duration-150 group-hover:bg-primary/40",
+                isResizing && "bg-primary/50",
+              )}
+            />
+          </div>
           <div className="flex h-full min-h-0 w-full min-w-0 flex-col pl-1">
             <NodePropertiesPanelHeader
               title={WorkflowDetailPresenter.getNodeDisplayName(node, node.id)}

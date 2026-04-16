@@ -176,13 +176,16 @@ export function WorkflowCanvas(args: {
       return;
     }
     const resizeObserver = new ResizeObserver(() => {
+      if (isInitialViewportReady) {
+        return;
+      }
       scheduleFitView();
     });
     resizeObserver.observe(canvasContainer);
     return () => {
       resizeObserver.disconnect();
     };
-  }, [scheduleFitView]);
+  }, [isInitialViewportReady, scheduleFitView]);
 
   useEffect(() => {
     return () => {

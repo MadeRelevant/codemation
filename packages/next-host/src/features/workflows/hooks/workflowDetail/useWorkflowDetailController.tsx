@@ -507,10 +507,16 @@ export function useWorkflowDetailController(
     const handleMouseUp = () => {
       setIsInspectorResizing(false);
       resizeStartYRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
     };
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };

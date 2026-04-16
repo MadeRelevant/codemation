@@ -139,6 +139,14 @@ describe("NodeCredentialBindingsSection", () => {
     return { wasBindingPut: () => putBindingCalled };
   }
 
+  it("does not render a credentials section when the node has no credential slots", () => {
+    const health = testWorkflowCredentialHealthDto(workflowId, []);
+
+    renderSection({ health });
+
+    expect(screen.queryByTestId("node-properties-credential-section")).not.toBeInTheDocument();
+  });
+
   it("PUTs credential binding when selecting an existing credential on an unbound slot", async () => {
     const health = testWorkflowCredentialHealthDto(workflowId, [
       testWorkflowCredentialHealthSlot({
