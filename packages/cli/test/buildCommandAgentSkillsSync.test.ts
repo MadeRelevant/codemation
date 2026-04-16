@@ -21,9 +21,11 @@ const silentLogger: Logger = {
 
 class RecordingAgentSkillsSync {
   public readonly consumerRoots: string[] = [];
+  public readonly options: unknown[] = [];
 
-  async sync(consumerRoot: string): Promise<void> {
+  async sync(consumerRoot: string, options?: unknown): Promise<void> {
     this.consumerRoots.push(consumerRoot);
+    this.options.push(options);
   }
 }
 
@@ -54,4 +56,10 @@ test("BuildCommand syncs packaged agent skills before resolving the build", asyn
   await assert.rejects(() => buildCommand.execute(consumerRoot, buildOptions), /build-stop/);
 
   assert.deepEqual(recording.consumerRoots, [consumerRoot]);
+  assert.deepEqual(recording.options, [
+    {
+      mode: "automatic",
+      repoRoot: consumerRoot,
+    },
+  ]);
 });

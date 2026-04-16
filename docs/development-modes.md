@@ -50,7 +50,13 @@ Framework UI HMR is opt-in via `codemation dev --watch-framework` (as in `apps/t
 
 ## Packaged agent skills
 
-The directory `.agents/skills/extracted` holds **framework-managed** Codemation skills (`codemation-*` skill folders) shipped with `@codemation/agent-skills`. When you run `codemation dev`, `codemation build`, `codemation serve web`, or `codemation dev:plugin`, the CLI refreshes that folder from the version of `@codemation/agent-skills` that your installed `@codemation/cli` depends on—so upgrading the CLI and running one of those commands updates skills without copying files by hand. Use `codemation skills sync` to refresh skills only. Keep project-local skills outside `extracted` (for example as sibling folders under `.agents/skills`).
+The directory `.agents/skills/extracted` holds **framework-managed** Codemation skills (`codemation-*` skill folders) shipped with `@codemation/agent-skills`.
+
+- In normal consumer projects, `codemation dev`, `codemation build`, `codemation serve web`, and `codemation dev:plugin` refresh that folder automatically from the version bundled with your installed `@codemation/cli`.
+- Inside the Codemation framework monorepo, that automatic refresh is intentionally disabled so local framework work does not keep dirtying the git worktree.
+- After upgrading `@codemation/cli` or `@codemation/agent-skills` in monorepo work, run `codemation skills sync` intentionally when you want refreshed extracted skills.
+
+Keep project-local skills outside `extracted` (for example as sibling folders under `.agents/skills`).
 
 ## Tests
 

@@ -68,6 +68,7 @@ export class PrismaTelemetrySpanStore implements TelemetrySpanStore {
         ...(args.runId ? { runId: args.runId } : {}),
         ...(args.runIds && args.runIds.length > 0 ? { runId: { in: [...args.runIds] } } : {}),
         ...(args.workflowId ? { workflowId: args.workflowId } : {}),
+        ...(args.workflowIds && args.workflowIds.length > 0 ? { workflowId: { in: [...args.workflowIds] } } : {}),
         ...(args.statuses && args.statuses.length > 0 ? { status: { in: [...args.statuses] } } : {}),
         ...(args.names && args.names.length > 0 ? { name: { in: [...args.names] } } : {}),
         ...(args.modelNames && args.modelNames.length > 0 ? { modelName: { in: [...args.modelNames] } } : {}),

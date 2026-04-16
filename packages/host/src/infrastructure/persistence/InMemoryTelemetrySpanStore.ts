@@ -79,6 +79,9 @@ export class InMemoryTelemetrySpanStore implements TelemetrySpanStore {
     if (args.workflowId && row.workflowId !== args.workflowId) {
       return false;
     }
+    if (args.workflowIds && args.workflowIds.length > 0 && !args.workflowIds.includes(row.workflowId)) {
+      return false;
+    }
     if (args.statuses && args.statuses.length > 0 && (!row.status || !args.statuses.includes(row.status))) {
       return false;
     }

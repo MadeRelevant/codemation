@@ -74,6 +74,9 @@ export class InMemoryTelemetryMetricPointStore implements TelemetryMetricPointSt
     if (args.workflowId && row.workflowId !== args.workflowId) {
       return false;
     }
+    if (args.workflowIds && args.workflowIds.length > 0 && !args.workflowIds.includes(row.workflowId)) {
+      return false;
+    }
     if (args.nodeId && row.nodeId !== args.nodeId) {
       return false;
     }

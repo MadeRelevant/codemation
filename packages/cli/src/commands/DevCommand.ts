@@ -69,7 +69,10 @@ export class DevCommand {
     }>,
   ): Promise<void> {
     const paths = await this.pathResolver.resolve(args.consumerRoot);
-    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot);
+    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot, {
+      mode: "automatic",
+      repoRoot: paths.repoRoot,
+    });
     const commandName = args.commandName ?? "dev";
     const previousDevelopmentServerToken = process.env.CODEMATION_DEV_SERVER_TOKEN;
     this.devCliBannerRenderer.renderBrandHeader();

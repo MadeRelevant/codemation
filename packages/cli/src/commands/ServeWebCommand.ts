@@ -30,7 +30,10 @@ export class ServeWebCommand {
   async execute(consumerRoot: string, buildOptions: ConsumerBuildOptions): Promise<void> {
     void buildOptions;
     const paths = await this.pathResolver.resolve(consumerRoot);
-    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot);
+    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot, {
+      mode: "automatic",
+      repoRoot: paths.repoRoot,
+    });
     this.tsRuntime.configure(paths.repoRoot);
     const nextHostRoot = path.dirname(this.require.resolve("@codemation/next-host/package.json"));
     const nextHostCommand = await this.nextHostConsumerServerCommandFactory.create({ nextHostRoot });

@@ -13,6 +13,8 @@ export class ApiPaths {
 
   private static readonly usersBasePath = `${this.apiBasePath}/users`;
 
+  private static readonly telemetryBasePath = `${this.apiBasePath}/telemetry`;
+
   private static readonly whitelabelBasePath = `${this.apiBasePath}/whitelabel`;
 
   private static readonly bootstrapBasePath = `${this.apiBasePath}/bootstrap`;
@@ -120,6 +122,18 @@ export class ApiPaths {
 
   static users(): string {
     return this.usersBasePath;
+  }
+
+  static telemetryDashboardSummary(): string {
+    return `${this.telemetryBasePath}/dashboard/summary`;
+  }
+
+  static telemetryDashboardTimeseries(): string {
+    return `${this.telemetryBasePath}/dashboard/timeseries`;
+  }
+
+  static telemetryDashboardDimensions(): string {
+    return `${this.telemetryBasePath}/dashboard/dimensions`;
   }
 
   static authSession(): string {

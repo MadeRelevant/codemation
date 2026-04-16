@@ -137,6 +137,7 @@ export interface TelemetrySpanListQuery {
   readonly runId?: string;
   readonly runIds?: ReadonlyArray<string>;
   readonly workflowId?: string;
+  readonly workflowIds?: ReadonlyArray<string>;
   readonly statuses?: ReadonlyArray<TelemetrySpanStatus>;
   readonly names?: ReadonlyArray<string>;
   readonly modelNames?: ReadonlyArray<string>;
@@ -150,6 +151,7 @@ export interface TelemetryMetricPointListQuery {
   readonly runId?: string;
   readonly runIds?: ReadonlyArray<string>;
   readonly workflowId?: string;
+  readonly workflowIds?: ReadonlyArray<string>;
   readonly nodeId?: string;
   readonly metricNames?: ReadonlyArray<string>;
   readonly modelNames?: ReadonlyArray<string>;
