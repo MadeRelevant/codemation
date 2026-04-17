@@ -1,5 +1,27 @@
 # @codemation/core
 
+## 0.8.0
+
+### Minor Changes
+
+- [`782e934`](https://github.com/MadeRelevant/codemation/commit/782e93469ea6eee701d976b8f1dc18649d045c79) Thanks [@cblokland90](https://github.com/cblokland90)! - Add catalog-backed cost tracking contracts and wire AI/OCR usage into telemetry so hosts can aggregate provider-native execution costs.
+
+  Improve the telemetry dashboard and workflow detail experience with cost breakdowns, richer inspector data, workflow run cost totals, and credential rebinding fixes.
+
+### Patch Changes
+
+- [#85](https://github.com/MadeRelevant/codemation/pull/85) [`a250ab8`](https://github.com/MadeRelevant/codemation/commit/a250ab8b973429cdfe708526a205e2565b004868) Thanks [@cblokland90](https://github.com/cblokland90)! - Decouple telemetry retention from run deletion and move node-specific measurements onto metric points.
+  - allow telemetry spans, artifacts, and metrics to outlive raw run state through explicit retention timestamps
+  - narrow telemetry spans to canonical span fields and persist extensible node-specific measurements as metric points
+  - update telemetry queries, docs, and regression coverage around real workflow execution plus agent/tool observability
+
+- [#88](https://github.com/MadeRelevant/codemation/pull/88) [`052aba1`](https://github.com/MadeRelevant/codemation/commit/052aba17c9a4faf557bdfaa1a9644a1987ecc25e) Thanks [@cblokland90](https://github.com/cblokland90)! - Add a telemetry-backed node inspector slice for workflow detail and expose run-trace telemetry needed to power it.
+
+- [`1a356af`](https://github.com/MadeRelevant/codemation/commit/1a356afae50bd3f982e92c3e9f931e3adbcd131f) - Repair malformed AI tool calls inside the agent loop instead of replaying the whole agent node, and surface clearer debugging details when recovery succeeds or is exhausted.
+  - classify repairable validation failures separately from non-repairable tool errors and preserve stable invocation correlation for failed calls
+  - persist structured validation details and expose them in next-host inspector fallbacks, timelines, and error views
+  - add regression coverage for repaired tool calls, exhaustion behavior, and mixed parallel tool rounds
+
 ## 0.7.0
 
 ### Minor Changes

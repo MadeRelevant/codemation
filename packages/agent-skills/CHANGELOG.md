@@ -1,5 +1,13 @@
 # @codemation/agent-skills
 
+## 0.1.9
+
+### Patch Changes
+
+- [#87](https://github.com/MadeRelevant/codemation/pull/87) [`4c50f29`](https://github.com/MadeRelevant/codemation/commit/4c50f29763ad7bc1e39723a6711ca3cf9add5014) Thanks [@cblokland90](https://github.com/cblokland90)! - Disable automatic packaged skill refreshes inside the Codemation framework monorepo so framework-author workflows stop dirtying the local worktree.
+  - keep `codemation skills sync` as the explicit refresh path after upgrading `@codemation/cli` or `@codemation/agent-skills`
+  - document the monorepo behavior in the packaged CLI skill and agent-skills README
+
 ## 0.1.8
 
 ### Patch Changes
