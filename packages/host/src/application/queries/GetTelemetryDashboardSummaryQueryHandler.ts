@@ -15,13 +15,15 @@ export class GetTelemetryDashboardSummaryQueryHandler extends QueryHandler<
   }
 
   async execute(query: GetTelemetryDashboardSummaryQuery): Promise<TelemetryDashboardSummaryDto> {
-    const [runs, ai] = await Promise.all([
+    const [runs, ai, costs] = await Promise.all([
       this.telemetryQueryService.summarizeRuns(query.filters),
       this.telemetryQueryService.summarizeAiUsage(query.filters),
+      this.telemetryQueryService.summarizeCosts(query.filters),
     ]);
     return {
       runs,
       ai,
+      costs,
     };
   }
 }

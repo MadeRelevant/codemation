@@ -121,6 +121,22 @@ describe("NodeInspectorTelemetryPresenter", () => {
             value: 21,
             observedAt: "2026-01-01T00:00:01.000Z",
           },
+          {
+            metricPointId: "metric_cost",
+            traceId: "trace_1",
+            spanId: "span_model",
+            runId: "run_1",
+            workflowId: "wf.telemetry",
+            nodeId: "agent_main",
+            metricName: "codemation.cost.estimated",
+            value: 39_000,
+            unit: "USD",
+            dimensions: {
+              "cost.currency": "USD",
+              "cost.currency_scale": 1_000_000_000,
+            },
+            observedAt: "2026-01-01T00:00:01.000Z",
+          },
         ],
       } satisfies TelemetryRunTraceViewDto,
     });
@@ -135,13 +151,17 @@ describe("NodeInspectorTelemetryPresenter", () => {
       ]),
     );
     expect(overview?.keyValues).toEqual(
-      expect.arrayContaining([expect.objectContaining({ label: "Input tokens", value: "21" })]),
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Input tokens", value: "21" }),
+        expect.objectContaining({ label: "Estimated cost (USD)", value: "$0.000039" }),
+      ]),
     );
     const timelineSection = model.sections.find((section) => section.id === "agent-timeline");
     expect(timelineSection?.pills).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: "Turns", value: "2" }),
         expect.objectContaining({ label: "Tool calls", value: "0" }),
+        expect.objectContaining({ label: "Cost (USD)", value: "$0.000039" }),
         expect.objectContaining({ label: "Models", value: "demo-gpt" }),
       ]),
     );
@@ -314,6 +334,21 @@ describe("NodeInspectorTelemetryPresenter", () => {
             value: 21,
             observedAt: "2026-01-01T00:00:01.250Z",
           },
+          {
+            metricPointId: "metric_cost",
+            traceId: "trace_1",
+            spanId: "span_model_1",
+            runId: "run_1",
+            workflowId: "wf.telemetry",
+            metricName: "codemation.cost.estimated",
+            value: 9_000,
+            unit: "USD",
+            dimensions: {
+              "cost.currency": "USD",
+              "cost.currency_scale": 1_000_000_000,
+            },
+            observedAt: "2026-01-01T00:00:01.250Z",
+          },
         ],
       } satisfies TelemetryRunTraceViewDto,
     });
@@ -333,6 +368,7 @@ describe("NodeInspectorTelemetryPresenter", () => {
         expect.objectContaining({ label: "Input tokens", value: "8" }),
         expect.objectContaining({ label: "Output tokens", value: "13" }),
         expect.objectContaining({ label: "Total tokens", value: "21" }),
+        expect.objectContaining({ label: "Estimated cost (USD)", value: "$0.000009" }),
       ]),
     );
 
@@ -340,6 +376,7 @@ describe("NodeInspectorTelemetryPresenter", () => {
     expect(metrics?.pills).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: "Invocations", value: "1" }),
+        expect.objectContaining({ label: "Cost (USD)", value: "$0.000009" }),
         expect.objectContaining({ label: "Model", value: "gpt-4o-mini" }),
       ]),
     );

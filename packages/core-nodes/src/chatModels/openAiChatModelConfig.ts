@@ -6,6 +6,8 @@ import { OpenAIChatModelFactory } from "./OpenAIChatModelFactory";
 export class OpenAIChatModelConfig implements ChatModelConfig {
   readonly type = OpenAIChatModelFactory;
   readonly presentation: AgentCanvasPresentation<CanvasIconName>;
+  readonly provider = "openai";
+  readonly modelName: string;
 
   constructor(
     public readonly name: string,
@@ -17,6 +19,7 @@ export class OpenAIChatModelConfig implements ChatModelConfig {
       maxTokens?: number;
     }>,
   ) {
+    this.modelName = model;
     this.presentation = presentationIn ?? { icon: "builtin:openai", label: name };
   }
 

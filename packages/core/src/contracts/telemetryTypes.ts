@@ -7,6 +7,7 @@ import type {
   RunId,
   WorkflowId,
 } from "./workflowTypes";
+import type { CostTrackingTelemetry } from "./CostTrackingTelemetryContract";
 
 export type TelemetryAttributePrimitive = string | number | boolean | null;
 
@@ -62,6 +63,7 @@ export interface TelemetryChildSpanStart {
 export interface TelemetryScope {
   readonly traceId?: string;
   readonly spanId?: string;
+  readonly costTracking?: CostTrackingTelemetry;
   addSpanEvent(args: TelemetrySpanEventRecord): Promise<void> | void;
   recordMetric(args: TelemetryMetricRecord): Promise<void> | void;
   attachArtifact(args: TelemetryArtifactAttachment): Promise<TelemetryArtifactReference> | TelemetryArtifactReference;

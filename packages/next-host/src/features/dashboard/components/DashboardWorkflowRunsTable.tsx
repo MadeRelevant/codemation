@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { HumanFriendlyTimestampFormatter } from "../../lib/HumanFriendlyTimestampFormatter";
+import { DashboardCostAmountFormatter } from "../lib/DashboardCostAmountFormatter";
 import { DashboardDateTimeFormatter } from "../lib/DashboardDateTimeFormatter";
 import { DashboardStatusPresentation } from "../lib/DashboardStatusPresentation";
 import { DashboardChartCard } from "./DashboardChartCard";
@@ -36,22 +38,31 @@ export function DashboardWorkflowRunsTable(
               <TableHead>Status</TableHead>
               <TableHead>Origin</TableHead>
               <TableHead>Duration</TableHead>
-              <TableHead>Run ID</TableHead>
-              <TableHead className="text-right">Open</TableHead>
+              <TableHead>Total cost</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {props.runs === undefined ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
                   Loading workflow runs…
                 </TableCell>
               </TableRow>
             ) : props.runs.items.length ? (
               props.runs.items.map((run) => (
                 <TableRow key={run.runId} data-testid={`dashboard-run-row-${run.runId}`}>
-                  <TableCell>{DashboardDateTimeFormatter.formatTimestamp(run.startedAt)}</TableCell>
-                  <TableCell>{props.workflowNamesById[run.workflowId] ?? run.workflowId}</TableCell>
+                  <TableCell title={DashboardDateTimeFormatter.formatTimestamp(run.startedAt)}>
+                    {HumanFriendlyTimestampFormatter.formatRunListWhen(run.startedAt)}
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/workflows/${encodeURIComponent(run.workflowId)}?runId=${encodeURIComponent(run.runId)}`}
+                      className="font-medium text-foreground underline-offset-4 hover:underline"
+                      data-testid={`dashboard-run-link-${run.runId}`}
+                    >
+                      {props.workflowNamesById[run.workflowId] ?? run.workflowId}
+                    </Link>
+                  </TableCell>
                   <TableCell>
                     <Badge
                       className="text-white"
@@ -64,21 +75,14 @@ export function DashboardWorkflowRunsTable(
                     <Badge variant="outline">{DashboardStatusPresentation.labelForOrigin(run.origin)}</Badge>
                   </TableCell>
                   <TableCell>{DashboardDateTimeFormatter.formatDuration(run.startedAt, run.finishedAt)}</TableCell>
-                  <TableCell className="font-mono text-xs">{run.runId}</TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild size="sm" variant="outline">
-                      <Link
-                        href={`/workflows/${encodeURIComponent(run.workflowId)}?runId=${encodeURIComponent(run.runId)}`}
-                      >
-                        Open run
-                      </Link>
-                    </Button>
+                  <TableCell data-testid={`dashboard-run-total-cost-${run.runId}`}>
+                    {DashboardCostAmountFormatter.formatTotals(run.costs)}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
                   No workflow runs match the current filters.
                 </TableCell>
               </TableRow>

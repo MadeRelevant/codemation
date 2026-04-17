@@ -190,6 +190,18 @@ export function NodeCredentialBindingsSection(
                 isBinding={activeBindingSlotKey === bindingKey}
                 onSelectInstance={(instanceId) => {
                   setBindingInstanceIdBySlotKey((current) => ({ ...current, [bindingKey]: instanceId }));
+                  if (instanceId.length === 0 || instanceId === slot.instance?.instanceId) {
+                    return;
+                  }
+                  if (slot.instance?.instanceId) {
+                    void bindCredentialImpl({
+                      workflowId,
+                      nodeId: slot.nodeId,
+                      slotKey: slot.requirement.slotKey,
+                      instanceId,
+                    });
+                    return;
+                  }
                   tryAutoBindUnboundWorkflowSlot(slot, instanceId, bindCredentialImpl, workflowId);
                 }}
                 onBind={(request) => void bindCredentialImpl(request)}

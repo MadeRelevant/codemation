@@ -136,6 +136,8 @@ export type AgentToolCallPlanner<_TNodeConfig = unknown> = (
 export interface ChatModelConfig {
   readonly type: TypeToken<ChatModelFactory<ChatModelConfig>>;
   readonly name: string;
+  readonly provider?: string;
+  readonly modelName?: string;
   readonly presentation?: AgentCanvasPresentation;
   getCredentialRequirements?(): ReadonlyArray<CredentialRequirement>;
 }

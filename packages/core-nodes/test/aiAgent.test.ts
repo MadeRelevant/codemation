@@ -2,6 +2,9 @@ import type {
   AgentMessageDto,
   ChatModelConfig,
   ChatModelFactory,
+  CostTrackingPriceQuote,
+  CostTrackingTelemetry,
+  CostTrackingUsageRecord,
   CredentialSessionService,
   Item,
   Items,
@@ -20,6 +23,7 @@ import type {
   ToolExecuteArgs,
   TelemetryArtifactAttachment,
   TelemetryArtifactReference,
+  TelemetryChildSpanStart,
   TelemetryMetricRecord,
   TelemetrySpanEnd,
   TelemetrySpanEventRecord,
@@ -108,12 +112,14 @@ class CapturingTelemetrySpanScope implements TelemetrySpanScope {
   readonly events: TelemetrySpanEventRecord[] = [];
   readonly artifacts: TelemetryArtifactAttachment[] = [];
   readonly ended: TelemetrySpanEnd[] = [];
+  costTracking?: CostTrackingTelemetry;
   protected readonly children: CapturingTelemetrySpanScope[];
 
   constructor(
     public readonly traceId: string,
     public readonly spanId: string,
     childSpans: CapturingTelemetrySpanScope[],
+    public readonly initialAttributes?: Record<string, unknown>,
   ) {
     this.children = childSpans;
   }
@@ -135,8 +141,8 @@ class CapturingTelemetrySpanScope implements TelemetrySpanScope {
     this.ended.push(args);
   }
 
-  createChild(spanId: string): CapturingTelemetrySpanScope {
-    const child = new CapturingTelemetrySpanScope(this.traceId, spanId, this.children);
+  createChild(spanId: string, initialAttributes?: Record<string, unknown>): CapturingTelemetrySpanScope {
+    const child = new CapturingTelemetrySpanScope(this.traceId, spanId, this.children, initialAttributes);
     this.children.push(child);
     return child;
   }
@@ -151,12 +157,49 @@ class CapturingNodeTelemetry extends CapturingTelemetrySpanScope implements Node
     return this;
   }
 
-  startChildSpan(): TelemetrySpanScope {
-    return this.createChild(`child-${this.metrics.length}-${this.events.length}-${this.artifacts.length}`);
+  startChildSpan(args?: TelemetryChildSpanStart): TelemetrySpanScope {
+    const child = this.createChild(
+      `child-${this.metrics.length}-${this.events.length}-${this.artifacts.length}`,
+      (args?.attributes as Record<string, unknown> | undefined) ?? undefined,
+    );
+    child.costTracking = this.costTracking?.forScope(child);
+    return child;
   }
 
   childSpans(): ReadonlyArray<CapturingTelemetrySpanScope> {
     return [...this.children];
+  }
+}
+
+class CapturingCostTrackingTelemetry implements CostTrackingTelemetry {
+  constructor(
+    private readonly scope: TelemetrySpanScope,
+    private readonly capturedUsages: CostTrackingUsageRecord[],
+  ) {}
+
+  async captureUsage(args: CostTrackingUsageRecord): Promise<CostTrackingPriceQuote | undefined> {
+    this.capturedUsages.push(args);
+    const estimatedAmountMinor = args.operation === "completion.output" ? args.quantity * 2_000 : args.quantity * 1_000;
+    await this.scope.recordMetric({
+      name: "codemation.cost.estimated",
+      value: estimatedAmountMinor,
+      unit: "USD",
+      attributes: {
+        "cost.component": args.component,
+        "cost.currency": "USD",
+        "cost.currency_scale": 1_000_000_000,
+      },
+    });
+    return {
+      currency: "USD",
+      currencyScale: 1_000_000_000,
+      estimatedAmountMinor,
+      estimateKind: "catalog",
+    };
+  }
+
+  forScope(scope: TelemetrySpanScope): CostTrackingTelemetry {
+    return new CapturingCostTrackingTelemetry(scope, this.capturedUsages);
   }
 }
 
@@ -434,6 +477,7 @@ class AgentTestRig {
   readonly data = new InMemoryRunDataFactory().create();
   readonly nodeState = new CapturingNodeStatePublisher();
   readonly telemetry = new CapturingNodeTelemetry();
+  readonly costTrackingUsages: CostTrackingUsageRecord[] = [];
   readonly container = tsyringeContainer.createChildContainer();
 
   constructor(
@@ -442,6 +486,7 @@ class AgentTestRig {
       Readonly<{ token: unknown; value?: unknown; useClass?: new (...args: unknown[]) => unknown }>
     >,
   ) {
+    this.telemetry.costTracking = new CapturingCostTrackingTelemetry(this.telemetry, this.costTrackingUsages);
     this.container.registerInstance(CoreTokens.CredentialSessionService, new StubCredentialSessionService());
     this.container.registerInstance(CoreTokens.NodeResolver, this.container);
     this.container.registerSingleton(ItemExprResolver, ItemExprResolver);
@@ -1246,16 +1291,19 @@ test("AIAgentNode finalizes tool-enabled runs into validated structured output",
 test("AIAgentNode records telemetry for turns, tokens, and child invocation artifacts", async () => {
   const config = new AIAgent({
     name: "Telemetry agent",
-    chatModel: new ScriptedChatModelConfig("demo-gpt", [
-      {
-        content: "All done",
-        usage_metadata: {
-          input_tokens: 11,
-          output_tokens: 7,
-          total_tokens: 18,
+    chatModel: Object.assign(
+      new ScriptedChatModelConfig("OpenAI", [
+        {
+          content: "All done",
+          usage_metadata: {
+            input_tokens: 11,
+            output_tokens: 7,
+            total_tokens: 18,
+          },
         },
-      },
-    ]),
+      ]),
+      { provider: "openai", modelName: "gpt-4.1-nano" },
+    ),
     messages: [{ role: "user", content: "Summarize" }],
   });
   const rig = new AgentTestRig(config, [{ token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory }]);
@@ -1277,8 +1325,31 @@ test("AIAgentNode records telemetry for turns, tokens, and child invocation arti
       ["gen_ai.usage.input_tokens", 11],
       ["gen_ai.usage.output_tokens", 7],
       ["gen_ai.usage.total_tokens", 18],
+      ["codemation.cost.estimated", 11_000],
+      ["codemation.cost.estimated", 14_000],
     ],
   );
+  assert.equal(rig.telemetry.childSpans()[0]?.initialAttributes?.["gen_ai.request.model"], "gpt-4.1-nano");
+  assert.deepEqual(rig.costTrackingUsages, [
+    {
+      component: "chat",
+      provider: "openai",
+      operation: "completion.input",
+      pricingKey: "gpt-4.1-nano",
+      usageUnit: "input_tokens",
+      quantity: 11,
+      modelName: "gpt-4.1-nano",
+    },
+    {
+      component: "chat",
+      provider: "openai",
+      operation: "completion.output",
+      pricingKey: "gpt-4.1-nano",
+      usageUnit: "output_tokens",
+      quantity: 7,
+      modelName: "gpt-4.1-nano",
+    },
+  ]);
   assert.equal(rig.telemetry.childSpans()[0]?.artifacts.length, 2);
   assert.equal(rig.telemetry.childSpans()[0]?.ended[0]?.status, "ok");
 });

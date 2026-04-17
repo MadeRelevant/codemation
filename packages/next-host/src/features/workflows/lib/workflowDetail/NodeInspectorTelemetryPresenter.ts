@@ -57,6 +57,7 @@ type TelemetryMetricPoint = TelemetryRunTraceViewDto["metricPoints"][number];
 const InspectorTelemetryMetricNames = {
   agentTurns: "codemation.ai.turns",
   agentToolCalls: "codemation.ai.tool_calls",
+  billingEstimatedCost: "codemation.cost.estimated",
   gmailMessagesEmitted: "codemation.gmail.messages_emitted",
   gmailAttachments: "codemation.gmail.attachments",
   gmailAttachmentBytes: "codemation.gmail.attachment_bytes",
@@ -68,6 +69,11 @@ const InspectorGenAiAttributeNames = {
   usageTotalTokens: "gen_ai.usage.total_tokens",
   usageCacheReadInputTokens: "gen_ai.usage.cache_read.input_tokens",
   usageReasoningTokens: "codemation.gen_ai.usage.reasoning_tokens",
+} as const;
+
+const InspectorCostAttributeNames = {
+  currency: "cost.currency",
+  currencyScale: "cost.currency_scale",
 } as const;
 
 export class NodeInspectorTelemetryPresenter {
@@ -154,6 +160,7 @@ export class NodeInspectorTelemetryPresenter {
           label: "Reasoning tokens",
           value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageReasoningTokens),
         },
+        ...this.createCostKeyValues(metricPoints),
       ];
     }
     if (this.isLanguageModelNode(node)) {
@@ -169,6 +176,7 @@ export class NodeInspectorTelemetryPresenter {
           value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageOutputTokens),
         },
         { label: "Total tokens", value: this.sumMetrics(metricPoints, InspectorGenAiAttributeNames.usageTotalTokens) },
+        ...this.createCostKeyValues(metricPoints),
       ];
     }
     return [];
@@ -188,6 +196,7 @@ export class NodeInspectorTelemetryPresenter {
       pills: [
         { label: "Turns", value: this.sumMetrics(metricPoints, InspectorTelemetryMetricNames.agentTurns) },
         { label: "Tool calls", value: this.sumMetrics(metricPoints, InspectorTelemetryMetricNames.agentToolCalls) },
+        ...this.createCostPills(metricPoints),
         {
           label: "Models",
           value: this.joinUnique(
@@ -217,6 +226,7 @@ export class NodeInspectorTelemetryPresenter {
       title: "Chat model metrics",
       pills: [
         { label: "Invocations", value: String(spanIds.size) },
+        ...this.createCostPills((traceView?.metricPoints ?? []).filter((point) => spanIds.has(point.spanId ?? ""))),
         {
           label: "Model",
           value: this.joinUnique(
@@ -482,6 +492,71 @@ export class NodeInspectorTelemetryPresenter {
     return String(
       points.filter((point) => point.metricName === metricName).reduce((sum, point) => sum + point.value, 0),
     );
+  }
+
+  private static createCostKeyValues(
+    points: ReadonlyArray<TelemetryMetricPoint>,
+  ): ReadonlyArray<NodeInspectorKeyValueModel> {
+    return this.summarizeCosts(points).map((entry) => ({
+      label: `Estimated cost (${entry.currency})`,
+      value: this.formatCostAmount(entry.currency, entry.amountMinor, entry.currencyScale),
+    }));
+  }
+
+  private static createCostPills(points: ReadonlyArray<TelemetryMetricPoint>): ReadonlyArray<NodeInspectorPillModel> {
+    return this.summarizeCosts(points).map((entry) => ({
+      label: `Cost (${entry.currency})`,
+      value: this.formatCostAmount(entry.currency, entry.amountMinor, entry.currencyScale),
+    }));
+  }
+
+  private static summarizeCosts(
+    points: ReadonlyArray<TelemetryMetricPoint>,
+  ): ReadonlyArray<Readonly<{ currency: string; currencyScale: number; amountMinor: number }>> {
+    const totals = new Map<string, { currency: string; currencyScale: number; amountMinor: number }>();
+    for (const point of points) {
+      if (point.metricName !== InspectorTelemetryMetricNames.billingEstimatedCost) {
+        continue;
+      }
+      const currency = this.readCostCurrency(point);
+      const currencyScale = this.readCostCurrencyScale(point);
+      if (!currency || currencyScale === undefined) {
+        continue;
+      }
+      const key = `${currency}::${String(currencyScale)}`;
+      const existing = totals.get(key);
+      if (existing) {
+        existing.amountMinor += point.value;
+        continue;
+      }
+      totals.set(key, {
+        currency,
+        currencyScale,
+        amountMinor: point.value,
+      });
+    }
+    return [...totals.values()].sort((left, right) => left.currency.localeCompare(right.currency));
+  }
+
+  private static readCostCurrency(point: TelemetryMetricPoint): string | undefined {
+    const value = point.dimensions?.[InspectorCostAttributeNames.currency];
+    return typeof value === "string" && value.length > 0 ? value : point.unit;
+  }
+
+  private static readCostCurrencyScale(point: TelemetryMetricPoint): number | undefined {
+    const value = point.dimensions?.[InspectorCostAttributeNames.currencyScale];
+    return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  }
+
+  private static formatCostAmount(currency: string, amountMinor: number, currencyScale: number): string {
+    const normalizedAmount = currencyScale > 0 ? amountMinor / currencyScale : amountMinor;
+    const fractionDigits = currencyScale > 1 ? Math.min(9, Math.max(2, String(currencyScale).length - 1)) : 2;
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: fractionDigits,
+    }).format(normalizedAmount);
   }
 
   private static joinUnique(values: ReadonlyArray<string>): string {

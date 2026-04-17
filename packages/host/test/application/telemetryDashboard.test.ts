@@ -41,6 +41,10 @@ class TelemetryDashboardTestContext {
       endTime?: string;
       modelName?: string;
       totalTokens?: number;
+      billingCostMinor?: number;
+      billingCurrency?: string;
+      billingCurrencyScale?: number;
+      billingComponent?: "chat" | "ocr" | "rag";
       origin?: "triggered" | "manual";
     }>,
   ): Promise<void> {
@@ -93,6 +97,25 @@ class TelemetryDashboardTestContext {
         modelName: args.modelName,
       });
     }
+    if (args.billingCostMinor !== undefined) {
+      await this.metricPointStore.save({
+        traceId: args.traceId,
+        spanId: `${args.rootSpanId}-ai`,
+        runId: args.runId,
+        workflowId: args.workflowId,
+        name: "codemation.cost.estimated",
+        value: args.billingCostMinor,
+        unit: args.billingCurrency ?? "USD",
+        observedAt: args.endTime ?? args.startTime,
+        modelName: args.modelName,
+        attributes: {
+          "cost.component": args.billingComponent ?? "chat",
+          "cost.pricing_key": args.modelName ?? args.billingComponent ?? "chat",
+          "cost.currency": args.billingCurrency ?? "USD",
+          "cost.currency_scale": args.billingCurrencyScale ?? 1_000_000_000,
+        },
+      });
+    }
   }
 }
 
@@ -109,6 +132,7 @@ describe("telemetry dashboard query service", () => {
       endTime: "2026-04-10T08:10:00.000Z",
       modelName: "gpt-4o-mini",
       totalTokens: 10,
+      billingCostMinor: 1_500,
     });
     await context.seedRun({
       traceId: "trace-b",
@@ -120,6 +144,7 @@ describe("telemetry dashboard query service", () => {
       endTime: "2026-04-11T09:05:00.000Z",
       modelName: "gpt-4.1-mini",
       totalTokens: 20,
+      billingCostMinor: 4_000,
     });
 
     await expect(
@@ -134,6 +159,26 @@ describe("telemetry dashboard query service", () => {
       failedRuns: 1,
       runningRuns: 0,
       averageDurationMs: 450000,
+    });
+
+    await expect(
+      context.queryService.summarizeCosts({
+        workflowIds: ["wf-a", "wf-b"],
+        startTimeGte: "2026-04-10T00:00:00.000Z",
+        endTimeLte: "2026-04-12T00:00:00.000Z",
+      }),
+    ).resolves.toMatchObject({
+      currencies: [
+        {
+          currency: "USD",
+          estimatedCostMinor: 5_500,
+          averageCostPerRunMinor: 2_750,
+          costKeys: [
+            { costKey: "gpt-4.1-mini", estimatedCostMinor: 4_000 },
+            { costKey: "gpt-4o-mini", estimatedCostMinor: 1_500 },
+          ],
+        },
+      ],
     });
 
     await expect(
@@ -168,6 +213,94 @@ describe("telemetry dashboard query service", () => {
         { bucketStartIso: "2026-04-10T00:00:00.000Z", totalTokens: 10 },
         { bucketStartIso: "2026-04-11T00:00:00.000Z", totalTokens: 20 },
         { bucketStartIso: "2026-04-12T00:00:00.000Z", totalTokens: 0 },
+      ],
+    });
+
+    await expect(
+      context.queryService.summarizeCostsTimeseries(
+        {
+          workflowIds: ["wf-a", "wf-b"],
+          startTimeGte: "2026-04-10T00:00:00.000Z",
+          endTimeLte: "2026-04-12T00:00:00.000Z",
+        },
+        "day",
+      ),
+    ).resolves.toMatchObject({
+      buckets: [
+        {
+          bucketStartIso: "2026-04-10T00:00:00.000Z",
+          costs: [{ currency: "USD", estimatedCostMinor: 1_500, component: "chat", costKey: "gpt-4o-mini" }],
+        },
+        {
+          bucketStartIso: "2026-04-11T00:00:00.000Z",
+          costs: [{ currency: "USD", estimatedCostMinor: 4_000, component: "chat", costKey: "gpt-4.1-mini" }],
+        },
+        { bucketStartIso: "2026-04-12T00:00:00.000Z", costs: [] },
+      ],
+    });
+  });
+
+  it("recovers model cost keys from telemetry spans for legacy cost points", async () => {
+    const context = new TelemetryDashboardTestContext();
+    await context.seedRun({
+      traceId: "trace-legacy",
+      rootSpanId: "span-legacy",
+      runId: "run-legacy",
+      workflowId: "wf-legacy",
+      status: "completed",
+      startTime: "2026-04-14T10:00:00.000Z",
+      endTime: "2026-04-14T10:01:00.000Z",
+      modelName: "gpt-4o-mini",
+    });
+    await context.metricPointStore.save({
+      traceId: "trace-legacy",
+      spanId: "span-legacy-ai",
+      runId: "run-legacy",
+      workflowId: "wf-legacy",
+      name: "codemation.cost.estimated",
+      value: 1_200,
+      unit: "USD",
+      observedAt: "2026-04-14T10:01:00.000Z",
+      attributes: {
+        "cost.component": "chat",
+        "cost.currency": "USD",
+        "cost.currency_scale": 1_000_000_000,
+      },
+    });
+
+    await expect(
+      context.queryService.summarizeCosts({
+        workflowIds: ["wf-legacy"],
+        startTimeGte: "2026-04-14T00:00:00.000Z",
+        endTimeLte: "2026-04-15T00:00:00.000Z",
+      }),
+    ).resolves.toMatchObject({
+      currencies: [
+        {
+          currency: "USD",
+          estimatedCostMinor: 1_200,
+          costKeys: [{ costKey: "gpt-4o-mini", estimatedCostMinor: 1_200 }],
+        },
+      ],
+    });
+
+    await expect(
+      context.queryService.summarizeCostsTimeseries(
+        {
+          workflowIds: ["wf-legacy"],
+          startTimeGte: "2026-04-14T10:00:00.000Z",
+          endTimeLte: "2026-04-14T12:00:00.000Z",
+        },
+        "hour",
+      ),
+    ).resolves.toMatchObject({
+      buckets: [
+        {
+          bucketStartIso: "2026-04-14T10:00:00.000Z",
+          costs: [{ currency: "USD", estimatedCostMinor: 1_200, component: "chat", costKey: "gpt-4o-mini" }],
+        },
+        { bucketStartIso: "2026-04-14T11:00:00.000Z", costs: [] },
+        { bucketStartIso: "2026-04-14T12:00:00.000Z", costs: [] },
       ],
     });
   });
@@ -245,6 +378,7 @@ describe("telemetry dashboard query service", () => {
       startTime: "2026-04-14T10:15:00.000Z",
       modelName: "gpt-4o-mini",
       totalTokens: 7,
+      billingCostMinor: 700,
     });
     const summaryHandler = new GetTelemetryDashboardSummaryQueryHandler(context.queryService);
     const timeseriesHandler = new GetTelemetryDashboardTimeseriesQueryHandler(context.queryService);
@@ -262,6 +396,7 @@ describe("telemetry dashboard query service", () => {
     ).resolves.toMatchObject({
       runs: { totalRuns: 1, runningRuns: 1 },
       ai: { totalTokens: 7 },
+      costs: { currencies: [{ currency: "USD", estimatedCostMinor: 700 }] },
     });
 
     await expect(
@@ -278,9 +413,14 @@ describe("telemetry dashboard query service", () => {
     ).resolves.toMatchObject({
       interval: "hour",
       buckets: [
-        { bucketStartIso: "2026-04-14T10:00:00.000Z", runningRuns: 1, totalTokens: 7 },
-        { bucketStartIso: "2026-04-14T11:00:00.000Z", runningRuns: 0, totalTokens: 0 },
-        { bucketStartIso: "2026-04-14T12:00:00.000Z", runningRuns: 0, totalTokens: 0 },
+        {
+          bucketStartIso: "2026-04-14T10:00:00.000Z",
+          runningRuns: 1,
+          totalTokens: 7,
+          costs: [{ currency: "USD", estimatedCostMinor: 700, component: "chat", costKey: "gpt-4o-mini" }],
+        },
+        { bucketStartIso: "2026-04-14T11:00:00.000Z", runningRuns: 0, totalTokens: 0, costs: [] },
+        { bucketStartIso: "2026-04-14T12:00:00.000Z", runningRuns: 0, totalTokens: 0, costs: [] },
       ],
     });
 
@@ -310,7 +450,7 @@ describe("telemetry dashboard query service", () => {
       ),
     ).resolves.toMatchObject({
       totalCount: 1,
-      items: [{ runId: "run-hour", origin: "triggered" }],
+      items: [{ runId: "run-hour", origin: "triggered", costs: [{ currency: "USD", estimatedCostMinor: 700 }] }],
     });
   });
 

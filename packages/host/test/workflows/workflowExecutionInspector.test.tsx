@@ -1,6 +1,7 @@
 import type { BinaryAttachment } from "@codemation/core";
 import { WorkflowExecutionInspector } from "@codemation/next-host/src/features/workflows/components/workflowDetail/WorkflowExecutionInspector";
 import type {
+  ExecutionTreeNode,
   WorkflowExecutionInspectorActions,
   WorkflowExecutionInspectorFormatting,
   WorkflowExecutionInspectorModel,
@@ -93,7 +94,47 @@ describe("workflow execution inspector", () => {
     fireEvent.click(screen.getByTestId("execution-tree-node-node-2"));
 
     expect(actions.onSelectNode).toHaveBeenCalledTimes(1);
-    expect(actions.onSelectNode).toHaveBeenCalledWith("node-2");
+    expect(actions.onSelectNode).toHaveBeenCalledWith({
+      inspectorNodeId: "node-2",
+      canvasNodeId: "node-2",
+    });
+  });
+
+  it("collapses a branch and keeps it collapsed across rerenders", () => {
+    const model = WorkflowExecutionInspectorFixture.createModelWithNestedTree();
+    const view = WorkflowExecutionInspectorFixture.render(
+      <div style={{ width: 900, height: 320 }}>
+        <WorkflowExecutionInspector
+          model={model}
+          formatting={WorkflowExecutionInspectorFixture.createFormatting()}
+          actions={WorkflowExecutionInspectorFixture.createActions()}
+        />
+      </div>,
+    );
+
+    expect(screen.getByTestId("execution-tree-node-agent-root")).toBeInTheDocument();
+    expect(screen.getByTestId("execution-tree-node-specialist")).toBeInTheDocument();
+    expect(screen.getByTestId("execution-tree-node-openai-call")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("execution-tree-toggle-agent-root"));
+
+    expect(screen.queryByTestId("execution-tree-node-specialist")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("execution-tree-node-openai-call")).not.toBeInTheDocument();
+
+    view.rerender(
+      <QueryClientProvider client={WorkflowExecutionInspectorFixture.createQueryClient()}>
+        <div style={{ width: 900, height: 320 }}>
+          <WorkflowExecutionInspector
+            model={model}
+            formatting={WorkflowExecutionInspectorFixture.createFormatting()}
+            actions={WorkflowExecutionInspectorFixture.createActions()}
+          />
+        </div>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.queryByTestId("execution-tree-node-specialist")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("execution-tree-node-openai-call")).not.toBeInTheDocument();
   });
 
   it("shows only the duration in the tree and keeps full timing details in the header", () => {
@@ -214,15 +255,37 @@ describe("workflow execution inspector", () => {
 });
 
 class WorkflowExecutionInspectorFixture {
-  static render(node: ReactNode) {
-    const queryClient = new QueryClient({
+  static createQueryClient(): QueryClient {
+    return new QueryClient({
       defaultOptions: {
         queries: {
           retry: false,
         },
       },
     });
-    return render(<QueryClientProvider client={queryClient}>{node}</QueryClientProvider>);
+  }
+
+  static render(node: ReactNode) {
+    return render(<QueryClientProvider client={this.createQueryClient()}>{node}</QueryClientProvider>);
+  }
+
+  static createTreeNode(args: {
+    key: string;
+    snapshot?: ExecutionTreeNode["snapshot"];
+    workflowNode?: WorkflowNode;
+    children?: ReadonlyArray<ExecutionTreeNode>;
+    inspectorNodeId?: string;
+    canvasNodeId?: string | null;
+  }): ExecutionTreeNode {
+    return {
+      key: args.key,
+      snapshot: args.snapshot,
+      workflowNode: args.workflowNode,
+      inspectorNodeId: args.inspectorNodeId ?? args.key,
+      canvasNodeId: args.canvasNodeId ?? args.workflowNode?.id ?? args.key,
+      children: args.children ?? [],
+      isLeaf: (args.children?.length ?? 0) === 0,
+    };
   }
 
   static createModel(): WorkflowExecutionInspectorModel {
@@ -282,10 +345,10 @@ class WorkflowExecutionInspectorFixture {
         showsError: false,
       },
       executionTreeData: [
-        {
+        this.createTreeNode({
           key: "node-1",
           snapshot: selectedNodeSnapshot,
-        },
+        }),
       ],
       executionTreeExpandedKeys: ["node-1"],
       nodeActions: {
@@ -315,18 +378,63 @@ class WorkflowExecutionInspectorFixture {
     return {
       ...base,
       executionTreeData: [
-        {
+        this.createTreeNode({
           key: "node-1",
           snapshot: snapshot1,
           workflowNode: minimalWorkflowNode("node-1"),
-        },
-        {
+        }),
+        this.createTreeNode({
           key: "node-2",
           snapshot: snapshot2,
           workflowNode: minimalWorkflowNode("node-2"),
-        },
+        }),
       ],
       executionTreeExpandedKeys: ["node-1", "node-2"],
+    };
+  }
+
+  static createModelWithNestedTree(): WorkflowExecutionInspectorModel {
+    const base = this.createModel();
+    const createSnapshot = (nodeId: string) =>
+      ({
+        ...base.selectedNodeSnapshot,
+        nodeId,
+      }) as NonNullable<WorkflowExecutionInspectorModel["selectedNodeSnapshot"]>;
+    const minimalWorkflowNode = (id: string, name: string): WorkflowNode =>
+      ({
+        id,
+        name,
+        kind: "node",
+        type: "Stub",
+      }) as WorkflowNode;
+
+    return {
+      ...base,
+      selectedNodeId: "agent-root",
+      selectedExecutionTreeKey: "agent-root",
+      selectedNodeSnapshot: createSnapshot("agent-root"),
+      executionTreeData: [
+        this.createTreeNode({
+          key: "agent-root",
+          snapshot: createSnapshot("agent-root"),
+          workflowNode: minimalWorkflowNode("agent-root", "Coordinator"),
+          children: [
+            this.createTreeNode({
+              key: "specialist",
+              snapshot: createSnapshot("specialist"),
+              workflowNode: minimalWorkflowNode("specialist", "Specialist"),
+              children: [
+                this.createTreeNode({
+                  key: "openai-call",
+                  snapshot: createSnapshot("openai-call"),
+                  workflowNode: minimalWorkflowNode("openai-call", "OpenAI"),
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+      executionTreeExpandedKeys: ["agent-root", "specialist"],
     };
   }
 

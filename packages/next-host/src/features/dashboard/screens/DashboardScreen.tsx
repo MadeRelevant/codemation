@@ -8,6 +8,8 @@ import { Activity } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DashboardAiUsageSummaryCard } from "../components/DashboardAiUsageSummaryCard";
+import { DashboardCostChart } from "../components/DashboardCostChart";
+import { DashboardCostSummaryCard } from "../components/DashboardCostSummaryCard";
 import { DashboardFilterCard } from "../components/DashboardFilterCard";
 import { DashboardRunSummaryCard } from "../components/DashboardRunSummaryCard";
 import { DashboardRunStatusChart } from "../components/DashboardRunStatusChart";
@@ -45,11 +47,7 @@ export function DashboardScreen() {
   const [hasLoadedStoredFilters, setHasLoadedStoredFilters] = useState(false);
 
   const folderOptions = useMemo(
-    () =>
-      TelemetryDashboardFolderResolver.listFolders(workflows).map((folder) => ({
-        value: folder,
-        label: folder,
-      })),
+    () => TelemetryDashboardFolderResolver.listFolders(workflows).map((folder) => ({ value: folder, label: folder })),
     [workflows],
   );
   const workflowOptions = useMemo(() => DashboardWorkflowOptionsBuilder.buildOptions(workflows), [workflows]);
@@ -131,11 +129,7 @@ export function DashboardScreen() {
   const runsQuery = useTelemetryDashboardRunsQuery(runsRequest, queryEnabled);
 
   const modelOptions = useMemo(
-    () =>
-      (dimensionsQuery.data?.modelNames ?? []).map((modelName) => ({
-        value: modelName,
-        label: modelName,
-      })),
+    () => (dimensionsQuery.data?.modelNames ?? []).map((modelName) => ({ value: modelName, label: modelName })),
     [dimensionsQuery.data?.modelNames],
   );
   const loadError =
@@ -248,6 +242,10 @@ export function DashboardScreen() {
           <section className="grid items-stretch gap-4 md:grid-cols-[340px_minmax(0,1fr)]">
             <DashboardAiUsageSummaryCard summary={summary} />
             {timeseries ? <DashboardTokenChart series={timeseries} /> : null}
+          </section>
+          <section className="grid items-stretch gap-4 md:grid-cols-[340px_minmax(0,1fr)]">
+            <DashboardCostSummaryCard summary={summary} />
+            {timeseries ? <DashboardCostChart series={timeseries} /> : null}
           </section>
           <DashboardWorkflowRunsTable runs={runs} workflowNamesById={workflowNamesById} onPageChange={setRunsPage} />
         </section>

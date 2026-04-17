@@ -35,6 +35,7 @@ import type {
   WorkflowExecutionInspectorActions,
   WorkflowExecutionInspectorFormatting,
   WorkflowExecutionInspectorModel,
+  WorkflowExecutionInspectorTreeSelection,
   WorkflowRunsSidebarActions,
   WorkflowRunsSidebarFormatting,
   WorkflowRunsSidebarModel,
@@ -68,6 +69,7 @@ export type WorkflowDetailControllerResult = Readonly<{
   inspectorFormatting: WorkflowExecutionInspectorFormatting;
   inspectorActions: WorkflowExecutionInspectorActions;
   selectedNodeId: string | null;
+  selectedCanvasNodeId: string | null;
   propertiesPanelNodeId: string | null;
   isPropertiesPanelOpen: boolean;
   selectedPropertiesWorkflowNode: WorkflowDto["nodes"][number] | undefined;
@@ -137,9 +139,11 @@ export function useWorkflowDetailController(
   const [activeLiveRunId, setActiveLiveRunId] = useState<string | null>(null);
   const [pendingSelectedRun, setPendingSelectedRun] = useState<RunSummary | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedCanvasNodeId, setSelectedCanvasNodeId] = useState<string | null>(null);
   const [hasManuallySelectedNode, setHasManuallySelectedNode] = useState(false);
   const [propertiesPanelNodeId, setPropertiesPanelNodeId] = useState<string | null>(null);
   const [isPropertiesPanelOpen, setIsPropertiesPanelOpen] = useState(false);
+  const [hasManuallyClosedPropertiesPanel, setHasManuallyClosedPropertiesPanel] = useState(false);
   const [selectedMode, setSelectedMode] = useState<InspectorMode>("output");
   const [inspectorFormatByTab, setInspectorFormatByTab] = useState<Readonly<Record<InspectorTab, InspectorFormat>>>({
     input: "json",
@@ -379,9 +383,11 @@ export function useWorkflowDetailController(
     setActiveLiveRunId(null);
     setPendingSelectedRun(null);
     setSelectedNodeId(null);
+    setSelectedCanvasNodeId(null);
     setHasManuallySelectedNode(false);
     setPropertiesPanelNodeId(null);
     setIsPropertiesPanelOpen(false);
+    setHasManuallyClosedPropertiesPanel(false);
     setSelectedMode("output");
     setInspectorFormatByTab({
       input: "json",
@@ -441,12 +447,17 @@ export function useWorkflowDetailController(
     if (propertiesPanelNodeId && !workflow.nodes.some((node) => node.id === propertiesPanelNodeId)) {
       setPropertiesPanelNodeId(null);
       setIsPropertiesPanelOpen(false);
+      setHasManuallyClosedPropertiesPanel(false);
+    }
+    if (selectedCanvasNodeId && !workflow.nodes.some((node) => node.id === selectedCanvasNodeId)) {
+      setSelectedCanvasNodeId(null);
     }
   }, [
     debuggerOverlay,
     liveWorkflowSignature,
     propertiesPanelNodeId,
     queryClient,
+    selectedCanvasNodeId,
     selectedNodeId,
     selectedRunId,
     workflow,
@@ -1268,21 +1279,34 @@ export function useWorkflowDetailController(
   };
 
   const selectNode = useCallback(
-    (nodeId: string) => {
+    (selection: WorkflowExecutionInspectorTreeSelection) => {
+      const { inspectorNodeId, canvasNodeId } = selection;
       setHasManuallySelectedNode(true);
-      setSelectedNodeId(nodeId);
+      setSelectedNodeId(inspectorNodeId);
+      setSelectedCanvasNodeId(canvasNodeId);
+      if (canvasNodeId && (isPropertiesPanelOpen || !hasManuallyClosedPropertiesPanel)) {
+        setPropertiesPanelNodeId(canvasNodeId);
+        setIsPropertiesPanelOpen(true);
+      }
       navigateToLocation({
         selectedRunId: urlLocation.selectedRunId,
         isRunsPaneVisible: urlLocation.isRunsPaneVisible,
-        nodeId,
+        nodeId: inspectorNodeId,
       });
     },
-    [navigateToLocation, urlLocation.isRunsPaneVisible, urlLocation.selectedRunId],
+    [
+      hasManuallyClosedPropertiesPanel,
+      isPropertiesPanelOpen,
+      navigateToLocation,
+      urlLocation.isRunsPaneVisible,
+      urlLocation.selectedRunId,
+    ],
   );
 
   const selectCanvasNode = useCallback(
     (nodeId: string) => {
       setHasManuallySelectedNode(true);
+      setSelectedCanvasNodeId(nodeId);
       const resolved = WorkflowDetailPresenter.resolveInspectorNodeIdForCanvasPick(
         nodeId,
         displayedWorkflow,
@@ -1309,12 +1333,14 @@ export function useWorkflowDetailController(
   );
 
   const openPropertiesPanelForNode = useCallback((nodeId: string) => {
+    setHasManuallyClosedPropertiesPanel(false);
     setPropertiesPanelNodeId(nodeId);
     setIsPropertiesPanelOpen(true);
   }, []);
 
   const requestOpenCredentialEditForNode = useCallback((nodeId: string) => {
     setPendingCredentialEditForNodeId(nodeId);
+    setHasManuallyClosedPropertiesPanel(false);
     setPropertiesPanelNodeId(nodeId);
     setIsPropertiesPanelOpen(true);
   }, []);
@@ -1324,6 +1350,7 @@ export function useWorkflowDetailController(
   }, []);
 
   const closePropertiesPanel = useCallback(() => {
+    setHasManuallyClosedPropertiesPanel(true);
     setIsPropertiesPanelOpen(false);
     setPropertiesPanelNodeId(null);
     setPendingCredentialEditForNodeId(null);
@@ -1425,6 +1452,7 @@ export function useWorkflowDetailController(
       onSelectOutputPort: setSelectedOutputPort,
     },
     selectedNodeId,
+    selectedCanvasNodeId,
     propertiesPanelNodeId,
     isPropertiesPanelOpen,
     selectedPropertiesWorkflowNode,

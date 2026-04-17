@@ -4,6 +4,7 @@ import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { format, isToday, isYesterday } from "date-fns";
 import prettyMilliseconds from "pretty-ms";
+import { HumanFriendlyTimestampFormatter } from "../../../lib/HumanFriendlyTimestampFormatter";
 import type {
   ConnectionInvocationRecord,
   ExecutionInstanceDto,
@@ -18,6 +19,7 @@ import type {
   WorkflowDto,
 } from "../../hooks/realtime/realtime";
 import { PersistedWorkflowSnapshotMapper } from "./PersistedWorkflowSnapshotMapper";
+import { WorkflowExecutionTreeBuilder } from "./WorkflowExecutionTreeBuilder";
 import type { BinaryAttachment } from "@codemation/core/browser";
 import type {
   ExecutionNode,
@@ -151,13 +153,7 @@ export class WorkflowDetailPresenter {
 
   /** Primary label for run list rows: clearer date + time than {@link formatDateTime}. */
   static formatRunListWhen(value: string | undefined): string {
-    if (!value) return "—";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "—";
-    const time = format(date, "HH:mm");
-    if (isToday(date)) return `Today · ${time}`;
-    if (isYesterday(date)) return `Yesterday · ${time}`;
-    return format(date, "EEE d MMM yyyy · HH:mm");
+    return HumanFriendlyTimestampFormatter.formatRunListWhen(value);
   }
 
   static formatRunListDurationLine(run: Pick<RunSummary, "startedAt" | "finishedAt" | "status">): string {
@@ -754,105 +750,19 @@ export class WorkflowDetailPresenter {
   }
 
   static buildExecutionTreeData(nodes: ReadonlyArray<ExecutionNode>): ReadonlyArray<ExecutionTreeNode> {
-    const treeKeys = this.computeExecutionTreeStableKeys(nodes);
-    const treeNodesByKey = new Map<string, ExecutionTreeNode>();
-    const parentReferenceToTreeKey = this.buildExecutionTreeParentReferenceRegistry(nodes, treeKeys);
-    const rootNodes: ExecutionTreeNode[] = [];
-
-    for (let i = 0; i < nodes.length; i++) {
-      const { node, snapshot } = nodes[i]!;
-      const treeKey = treeKeys[i]!;
-      treeNodesByKey.set(treeKey, {
-        key: treeKey,
-        title: node.name ?? node.type ?? node.id,
-        workflowNode: node,
-        snapshot,
-        children: [],
-      });
-    }
-
-    for (let i = 0; i < nodes.length; i++) {
-      const { node, parentExecutionInstanceId, snapshot } = nodes[i]!;
-      const treeKey = treeKeys[i]!;
-      const treeNode = treeNodesByKey.get(treeKey);
-      if (!treeNode) continue;
-      const parentReference = parentExecutionInstanceId ?? snapshot?.parent?.nodeId ?? node.parentNodeId;
-      if (!parentReference) {
-        rootNodes.push(treeNode);
-        continue;
-      }
-      const parentTreeKey = parentReferenceToTreeKey.get(parentReference) ?? parentReference;
-      const parentTreeNode = treeNodesByKey.get(parentTreeKey);
-      if (!parentTreeNode) {
-        rootNodes.push(treeNode);
-        continue;
-      }
-      const existingChildren = Array.isArray(parentTreeNode.children) ? [...parentTreeNode.children] : [];
-      existingChildren.push(treeNode);
-      parentTreeNode.children = existingChildren;
-    }
-
-    this.sortExecutionTree(rootNodes);
-    return rootNodes;
+    return WorkflowExecutionTreeBuilder.build(nodes);
   }
 
-  /**
-   * Maps workflow connection ids to rc-tree keys. Invocation rows use {@link ExecutionNode#node}.id
-   * (per-invocation) as the tree key while {@link WorkflowNode#parentNodeId} references stable workflow
-   * connection node ids—so parent lookup must also index {@link ExecutionNode#workflowConnectionNodeId}.
-   */
-  private static buildExecutionTreeParentReferenceRegistry(
-    nodes: ReadonlyArray<ExecutionNode>,
-    treeKeys: ReadonlyArray<string>,
-  ): ReadonlyMap<string, string> {
-    const registry = new Map<string, string>();
-    for (let i = 0; i < nodes.length; i++) {
-      const treeKey = treeKeys[i]!;
-      const entry = nodes[i]!;
-      registry.set(entry.node.id, treeKey);
-      if (entry.executionInstanceId !== undefined) {
-        registry.set(entry.executionInstanceId, treeKey);
-      }
-      if (entry.workflowConnectionNodeId !== undefined) {
-        registry.set(entry.workflowConnectionNodeId, treeKey);
-      }
-    }
-    return registry;
-  }
-
-  /** Resolves rc-tree selected key when tree keys use disambiguation suffixes for duplicate execution node ids. */
+  /** Resolves the selected rendered tree key when execution row ids need disambiguation. */
   static resolveExecutionTreeKeyForNodeId(
     executionNodes: ReadonlyArray<ExecutionNode>,
     selectedNodeId: string | null,
   ): string | null {
-    if (!selectedNodeId) {
-      return null;
-    }
-    const treeKeys = this.computeExecutionTreeStableKeys(executionNodes);
-    for (let i = executionNodes.length - 1; i >= 0; i--) {
-      const entry = executionNodes[i]!;
-      if (entry.node.id === selectedNodeId) {
-        return treeKeys[i]!;
-      }
-      if (entry.workflowConnectionNodeId === selectedNodeId) {
-        return treeKeys[i]!;
-      }
-    }
-    return selectedNodeId;
+    return WorkflowExecutionTreeBuilder.resolveSelectionKey(executionNodes, selectedNodeId);
   }
 
   static collectExecutionTreeKeys(nodes: ReadonlyArray<ExecutionTreeNode>): ReadonlyArray<string> {
-    const keys: string[] = [];
-    this.collectExecutionTreeKeysRecursive(nodes, keys);
-    return keys;
-  }
-
-  private static collectExecutionTreeKeysRecursive(nodes: ReadonlyArray<ExecutionTreeNode>, keys: string[]): void {
-    for (const node of nodes) {
-      keys.push(String(node.key));
-      const children = Array.isArray(node.children) ? (node.children as ExecutionTreeNode[]) : [];
-      this.collectExecutionTreeKeysRecursive(children, keys);
-    }
+    return WorkflowExecutionTreeBuilder.collectBranchKeys(nodes);
   }
 
   private static compareExecutionNodes(left: ExecutionNode, right: ExecutionNode): number {
@@ -877,33 +787,6 @@ export class WorkflowDetailPresenter {
     return (
       slotState?.latestRunningInstanceId ?? slotState?.latestTerminalInstanceId ?? slotState?.latestInstanceId ?? null
     );
-  }
-
-  private static computeExecutionTreeStableKeys(nodes: ReadonlyArray<ExecutionNode>): ReadonlyArray<string> {
-    const keyCounts = new Map<string, number>();
-    for (const { node } of nodes) {
-      keyCounts.set(node.id, (keyCounts.get(node.id) ?? 0) + 1);
-    }
-    const hasCollision = [...keyCounts.values()].some((count) => count > 1);
-    if (!hasCollision) {
-      return nodes.map(({ node }) => node.id);
-    }
-    const used = new Set<string>();
-    const keys: string[] = [];
-    for (let i = 0; i < nodes.length; i++) {
-      const { node } = nodes[i]!;
-      let key = node.id;
-      if (used.has(key)) {
-        let suffix = 1;
-        while (used.has(`${node.id}__${suffix}`)) {
-          suffix += 1;
-        }
-        key = `${node.id}__${suffix}`;
-      }
-      used.add(key);
-      keys.push(key);
-    }
-    return keys;
   }
 
   /**
@@ -949,27 +832,6 @@ export class WorkflowDetailPresenter {
     return workflowNodeIds.has(nodeId);
   }
 
-  private static sortExecutionTree(nodes: ExecutionTreeNode[]): void {
-    nodes.sort((left, right) => {
-      return this.compareExecutionNodes(
-        {
-          node: left.workflowNode!,
-          snapshot: left.snapshot,
-        },
-        {
-          node: right.workflowNode!,
-          snapshot: right.snapshot,
-        },
-      );
-    });
-    for (const node of nodes) {
-      const children = Array.isArray(node.children) ? (node.children as ExecutionTreeNode[]) : [];
-      this.sortExecutionTree(children);
-      node.children = children;
-      node.isLeaf = children.length === 0;
-    }
-  }
-
   private static createExecutionNodesForWorkflowNode(
     node: WorkflowNode,
     snapshots: ReadonlyArray<NodeExecutionSnapshot>,
@@ -988,6 +850,7 @@ export class WorkflowDetailPresenter {
       return ordered.map((inv) => ({
         node: this.createInvocationExecutionNode(node, inv.invocationId),
         snapshot: this.snapshotFromConnectionInvocation(inv),
+        workflowNodeId: node.id,
         workflowConnectionNodeId: node.id,
       }));
     }
@@ -999,6 +862,7 @@ export class WorkflowDetailPresenter {
       return matchingSnapshots.map((snapshot) => ({
         node: snapshot.nodeId === node.id ? node : this.createSyntheticExecutionNode(node, snapshot),
         snapshot,
+        workflowNodeId: node.id,
       }));
     }
     return matchingSnapshots
@@ -1006,6 +870,7 @@ export class WorkflowDetailPresenter {
       .map((snapshot) => ({
         node: this.createSyntheticExecutionNode(node, snapshot),
         snapshot,
+        workflowNodeId: node.id,
       }));
   }
 
@@ -1035,6 +900,7 @@ export class WorkflowDetailPresenter {
       executionInstanceId: instance.instanceId,
       slotNodeId: instance.slotNodeId,
       parentExecutionInstanceId: instance.parentInstanceId,
+      workflowNodeId: baseNode.id,
       workflowConnectionNodeId: instance.kind === "connectionInvocation" ? instance.slotNodeId : undefined,
     };
   }

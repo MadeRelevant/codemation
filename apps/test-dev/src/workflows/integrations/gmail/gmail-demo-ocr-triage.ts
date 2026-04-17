@@ -110,6 +110,14 @@ export default createWorkflowBuilder({
             }
             const body = await ocrConsumer.readBinaryBody(ctx, bin);
             const contentType = att.mimeType.trim().length > 0 ? att.mimeType : "application/octet-stream";
+            await ctx.telemetry.costTracking?.captureUsage({
+              component: "ocr",
+              provider: "azure_document_intelligence",
+              operation: "analyze_document",
+              pricingKey: "prebuilt_read",
+              usageUnit: "pages",
+              quantity: 1,
+            });
             const analyzed = await ocrConsumer.analyzePrebuiltInvoiceWithRetry({
               session,
               body,

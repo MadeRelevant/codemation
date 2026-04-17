@@ -7,12 +7,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DashboardMultiSelect } from "../../src/features/dashboard/components/DashboardMultiSelect";
 import type { WorkflowSummary } from "../../src/features/workflows/hooks/realtime/realtime";
 import { DashboardMetricGrid } from "../../src/features/dashboard/components/DashboardMetricGrid";
+import { DashboardCostChart } from "../../src/features/dashboard/components/DashboardCostChart";
 import { DashboardRunStatusChart } from "../../src/features/dashboard/components/DashboardRunStatusChart";
 import { DashboardTokenChart } from "../../src/features/dashboard/components/DashboardTokenChart";
 import { DashboardWorkflowOptionsBuilder } from "../../src/features/dashboard/lib/DashboardWorkflowOptionsBuilder";
 import { TelemetryDashboardFolderResolver } from "../../src/features/dashboard/lib/TelemetryDashboardFolderResolver";
 import { TelemetryDashboardApi } from "../../src/features/dashboard/lib/telemetryDashboardApi";
 import { TelemetryDashboardTimeRangeFactory } from "../../src/features/dashboard/lib/TelemetryDashboardTimeRangeFactory";
+import { HumanFriendlyTimestampFormatter } from "../../src/features/lib/HumanFriendlyTimestampFormatter";
 
 function workflowSummary(id: string, name: string, discoveryPathSegments: ReadonlyArray<string>): WorkflowSummary {
   return { id, name, active: true, discoveryPathSegments };
@@ -54,6 +56,17 @@ describe("telemetry dashboard api", () => {
                       cachedInputTokens: 1,
                       reasoningTokens: 0,
                     },
+                    costs: {
+                      currencies: [
+                        {
+                          currency: "USD",
+                          currencyScale: 1_000_000_000,
+                          estimatedCostMinor: 600,
+                          averageCostPerRunMinor: 600,
+                          costKeys: [{ costKey: "gpt-4o-mini", estimatedCostMinor: 600 }],
+                        },
+                      ],
+                    },
                   },
       } as Response;
     }) as typeof fetch;
@@ -70,6 +83,7 @@ describe("telemetry dashboard api", () => {
     ).resolves.toMatchObject({
       runs: { totalRuns: 1 },
       ai: { totalTokens: 6 },
+      costs: { currencies: [{ currency: "USD", estimatedCostMinor: 600 }] },
     });
     await expect(
       TelemetryDashboardApi.fetchTimeseries({
@@ -218,7 +232,7 @@ describe("dashboard helpers", () => {
     });
   });
 
-  it("renders metrics and token chart modes", () => {
+  it("renders metrics, token chart modes, and the cost chart", () => {
     const series = {
       interval: "day",
       buckets: [
@@ -235,6 +249,15 @@ describe("dashboard helpers", () => {
           totalTokens: 150,
           cachedInputTokens: 20,
           reasoningTokens: 5,
+          costs: [
+            {
+              currency: "USD",
+              currencyScale: 1_000_000_000,
+              estimatedCostMinor: 2_000,
+              component: "chat",
+              costKey: "gpt-4o-mini",
+            },
+          ],
         },
       ],
     } satisfies TelemetryDashboardTimeseriesDto;
@@ -256,10 +279,22 @@ describe("dashboard helpers", () => {
               cachedInputTokens: 20,
               reasoningTokens: 5,
             },
+            costs: {
+              currencies: [
+                {
+                  currency: "USD",
+                  currencyScale: 1_000_000_000,
+                  estimatedCostMinor: 2000,
+                  averageCostPerRunMinor: 500,
+                  costKeys: [{ costKey: "gpt-4o-mini", estimatedCostMinor: 2000 }],
+                },
+              ],
+            },
           }}
         />
         <DashboardRunStatusChart series={series} />
         <DashboardTokenChart series={series} />
+        <DashboardCostChart series={series} />
       </>,
     );
 
@@ -268,6 +303,15 @@ describe("dashboard helpers", () => {
     expect(screen.getByTestId("dashboard-run-status-chart")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("dashboard-token-chart-breakdown"));
     expect(screen.getByTestId("dashboard-token-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-cost-chart")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("dashboard-cost-chart-breakdown"));
+    expect(screen.getByTestId("dashboard-cost-chart")).toBeInTheDocument();
+  });
+
+  it("formats human-friendly run timestamps for dashboard and workflow detail reuse", () => {
+    expect(HumanFriendlyTimestampFormatter.formatRunListWhen(undefined)).toBe("—");
+    expect(HumanFriendlyTimestampFormatter.formatRunListWhen("not-a-date")).toBe("—");
+    expect(HumanFriendlyTimestampFormatter.formatRunListWhen("2026-04-14T10:00:00.000Z")).toContain("2026");
   });
 
   it("renders multiselect summaries for all and selected states", () => {

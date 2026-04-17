@@ -15,9 +15,10 @@ export class GetTelemetryDashboardTimeseriesQueryHandler extends QueryHandler<
   }
 
   async execute(query: GetTelemetryDashboardTimeseriesQuery): Promise<TelemetryDashboardTimeseriesDto> {
-    const [runSeries, aiSeries] = await Promise.all([
+    const [runSeries, aiSeries, costSeries] = await Promise.all([
       this.telemetryQueryService.summarizeRunsTimeseries(query.request.filters, query.request.interval),
       this.telemetryQueryService.summarizeAiUsageTimeseries(query.request.filters, query.request.interval),
+      this.telemetryQueryService.summarizeCostsTimeseries(query.request.filters, query.request.interval),
     ]);
     return {
       interval: query.request.interval,
@@ -28,6 +29,7 @@ export class GetTelemetryDashboardTimeseriesQueryHandler extends QueryHandler<
         totalTokens: aiSeries.buckets[index]?.totalTokens ?? 0,
         cachedInputTokens: aiSeries.buckets[index]?.cachedInputTokens ?? 0,
         reasoningTokens: aiSeries.buckets[index]?.reasoningTokens ?? 0,
+        costs: costSeries.buckets[index]?.costs ?? [],
       })),
     };
   }
