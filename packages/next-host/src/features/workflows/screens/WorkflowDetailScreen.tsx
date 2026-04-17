@@ -126,7 +126,7 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                     connectionInvocations={controller.displayedConnectionInvocations}
                     credentialAttentionTooltipByNodeId={controller.credentialAttentionTooltipByNodeId}
                     pinnedNodeIds={controller.pinnedNodeIds}
-                    selectedNodeId={controller.selectedNodeId}
+                    selectedNodeId={controller.selectedCanvasNodeId}
                     propertiesTargetNodeId={controller.propertiesPanelNodeId}
                     isLiveWorkflowView={controller.isLiveWorkflowView}
                     isRunning={controller.isRunning}

@@ -21,6 +21,7 @@ import { ServerLoggerFactory } from "../../infrastructure/logging/ServerLoggerFa
  */
 @injectable()
 export class WorkflowRunRetentionPruneScheduler {
+  private static readonly defaultIntervalMs = 60 * 60 * 1_000;
   private timer: ReturnType<typeof setInterval> | undefined;
   private readonly logger: Logger;
 
@@ -48,11 +49,12 @@ export class WorkflowRunRetentionPruneScheduler {
     if (this.timer) {
       return;
     }
-    const intervalMs = Number(this.appConfig.env.CODEMATION_RUN_PRUNE_INTERVAL_MS ?? 60_000);
+    const intervalMs = Number(
+      this.appConfig.env.CODEMATION_RUN_PRUNE_INTERVAL_MS ?? WorkflowRunRetentionPruneScheduler.defaultIntervalMs,
+    );
+    void this.runScheduledTick();
     this.timer = setInterval(() => {
-      void this.runOnce().catch((error: unknown) => {
-        this.logger.warn(`Run retention prune tick failed: ${error instanceof Error ? error.message : String(error)}`);
-      });
+      void this.runScheduledTick();
     }, intervalMs);
   }
 
@@ -65,7 +67,6 @@ export class WorkflowRunRetentionPruneScheduler {
 
   /** Exposed for tests; production path is the interval started by {@link start}. */
   async runOnce(): Promise<void> {
-    this.logger.debug("Run retention prune: starting check");
     const defaultRetentionSec = Number(this.appConfig.env.CODEMATION_RUN_RETENTION_DEFAULT_SECONDS ?? 86_400);
     const nowIso = this.clock.now().toISOString();
     let foundCount = 0;
@@ -107,11 +108,23 @@ export class WorkflowRunRetentionPruneScheduler {
       prunedMetricCount = await this.telemetryMetricPointStore.pruneExpired({ nowIso, limit: telemetryLimit });
     }
 
+    const totalPruned = foundCount + prunedCount + prunedSpanCount + prunedArtifactCount + prunedMetricCount;
+    if (totalPruned === 0) {
+      return;
+    }
     this.logger.info(`Run retention prune: found ${foundCount} run(s) to prune`);
     this.logger.info(`Run retention prune: pruned ${prunedCount} run(s)`);
     this.logger.info(`Run retention prune: pruned ${prunedSpanCount} telemetry span(s)`);
     this.logger.info(`Run retention prune: pruned ${prunedArtifactCount} telemetry artifact(s)`);
     this.logger.info(`Run retention prune: pruned ${prunedMetricCount} telemetry metric point(s)`);
+  }
+
+  private async runScheduledTick(): Promise<void> {
+    try {
+      await this.runOnce();
+    } catch (error) {
+      this.logger.warn(`Run retention prune tick failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   private async loadStorageKeysFromRunStateFallback(runId: RunId): Promise<ReadonlyArray<string>> {

@@ -26,7 +26,12 @@ export {
   WorkflowRepositoryWebhookTriggerMatcher,
 } from "../runtime";
 export { DefaultExecutionBinaryService, UnavailableBinaryStorage } from "../binaries";
-export { DefaultExecutionContextFactory, CredentialResolverFactory } from "../execution";
+export {
+  CatalogBackedCostTrackingTelemetryFactory,
+  CredentialResolverFactory,
+  DefaultExecutionContextFactory,
+  StaticCostCatalog,
+} from "../execution";
 export {
   InMemoryBinaryStorage,
   InMemoryRunDataFactory,

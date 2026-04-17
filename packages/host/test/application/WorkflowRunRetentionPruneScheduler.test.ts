@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { BinaryStorage, Clock, RunId, RunPruneCandidate } from "@codemation/core";
 
@@ -17,19 +17,29 @@ import { OtelIdentityFactory } from "../../src/application/telemetry/OtelIdentit
 import type { AppConfig } from "../../src/presentation/config/AppConfig";
 
 class TestLogger implements Logger {
+  readonly infos: string[] = [];
+  readonly warns: string[] = [];
   info(): void {}
-  warn(): void {}
+  warn(message: string): void {
+    this.warns.push(message);
+  }
   error(): void {}
   debug(): void {}
 }
 
 class TestLoggerFactory implements LoggerFactory {
+  readonly logger = new TestLogger();
+
   create(): Logger {
-    return new TestLogger();
+    return this.logger;
   }
 }
 
 describe("WorkflowRunRetentionPruneScheduler", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("prunes using normalized candidates and binary keys without loading full run state", async () => {
     const deletedBinaryKeys: string[] = [];
     const deletedRuns: string[] = [];
@@ -212,5 +222,74 @@ describe("WorkflowRunRetentionPruneScheduler", () => {
     await expect(spanStore.listByTraceId("trace-1")).resolves.toHaveLength(1);
     await expect(artifactStore.listByTraceId("trace-1")).resolves.toHaveLength(1);
     await expect(metricPointStore.list({ runId: "run-keep-telemetry" })).resolves.toHaveLength(1);
+  });
+
+  it("runs once immediately on start and does not log when nothing is pruned", async () => {
+    vi.useFakeTimers();
+    const clock: Clock = {
+      now: () => new Date("2026-04-20T00:00:00.000Z"),
+    };
+    const loggerFactory = new TestLoggerFactory();
+    let listRunsOlderThanCalls = 0;
+    const scheduler = new WorkflowRunRetentionPruneScheduler(
+      clock,
+      {
+        load: async () => undefined,
+        save: async () => undefined,
+        listRuns: async () => [],
+        listRunsOlderThan: async () => {
+          listRunsOlderThanCalls += 1;
+          return [];
+        },
+        listBinaryStorageKeys: async () => [],
+        deleteRun: async () => undefined,
+      },
+      {
+        driverName: "test",
+        write: async () => {
+          throw new Error("not used");
+        },
+        openReadStream: async () => {
+          throw new Error("not used");
+        },
+        stat: async () => ({ exists: false }),
+        delete: async () => undefined,
+      },
+      {
+        upsert: async () => undefined,
+        list: async () => [],
+        listByTraceId: async () => [],
+        pruneExpired: async () => 0,
+      },
+      {
+        save: async () => {
+          throw new Error("not used");
+        },
+        listByTraceId: async () => [],
+        pruneExpired: async () => 0,
+      },
+      {
+        save: async () => {
+          throw new Error("not used");
+        },
+        list: async () => [],
+        pruneExpired: async () => 0,
+      },
+      {
+        env: {
+          CODEMATION_RUN_PRUNE_ENABLED: "true",
+          CODEMATION_TELEMETRY_PRUNE_ENABLED: "true",
+        },
+      } as unknown as AppConfig,
+      loggerFactory as never,
+    );
+
+    scheduler.start();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(listRunsOlderThanCalls).toBe(1);
+    expect(loggerFactory.logger.infos).toEqual([]);
+    expect(loggerFactory.logger.warns).toEqual([]);
+    scheduler.stop();
   });
 });

@@ -62,6 +62,7 @@ test("NodeActivationRequestComposer.createSingleFromDefinition wires kind, ids, 
   const executionContextFactory = new DefaultExecutionContextFactory(
     binaryStorage,
     undefined,
+    undefined,
     () => new Date("2026-03-27T00:00:00.000Z"),
   );
   const runCtxFactory = new WorkflowRunExecutionContextFactory(

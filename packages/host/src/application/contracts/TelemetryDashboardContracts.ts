@@ -28,9 +28,35 @@ export interface TelemetryDashboardAiAggregateDto {
   readonly reasoningTokens: number;
 }
 
+export interface TelemetryDashboardCostKeyTotalDto {
+  readonly costKey: string;
+  readonly estimatedCostMinor: number;
+}
+
+export interface TelemetryDashboardCostCurrencyTotalDto {
+  readonly currency: string;
+  readonly currencyScale: number;
+  readonly estimatedCostMinor: number;
+  readonly averageCostPerRunMinor: number;
+  readonly costKeys: ReadonlyArray<TelemetryDashboardCostKeyTotalDto>;
+}
+
+export interface TelemetryDashboardCostAggregateDto {
+  readonly currencies: ReadonlyArray<TelemetryDashboardCostCurrencyTotalDto>;
+}
+
 export interface TelemetryDashboardSummaryDto {
   readonly runs: TelemetryDashboardRunAggregateDto;
   readonly ai: TelemetryDashboardAiAggregateDto;
+  readonly costs: TelemetryDashboardCostAggregateDto;
+}
+
+export interface TelemetryDashboardBucketCostDto {
+  readonly currency: string;
+  readonly currencyScale: number;
+  readonly estimatedCostMinor: number;
+  readonly component?: string;
+  readonly costKey?: string;
 }
 
 export interface TelemetryDashboardTimeseriesBucketDto {
@@ -46,6 +72,7 @@ export interface TelemetryDashboardTimeseriesBucketDto {
   readonly totalTokens: number;
   readonly cachedInputTokens: number;
   readonly reasoningTokens: number;
+  readonly costs: ReadonlyArray<TelemetryDashboardBucketCostDto>;
 }
 
 export interface TelemetryDashboardTimeseriesDto {
@@ -75,6 +102,7 @@ export interface TelemetryDashboardRunListItemDto {
   readonly origin: TelemetryDashboardRunOriginDto;
   readonly startedAt: string;
   readonly finishedAt?: string;
+  readonly costs?: ReadonlyArray<TelemetryDashboardBucketCostDto>;
 }
 
 export interface TelemetryDashboardRunsDto {

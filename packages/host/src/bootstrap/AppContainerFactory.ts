@@ -12,6 +12,7 @@ import {
   type WorkflowPolicyRuntimeDefaults,
 } from "@codemation/core";
 import {
+  CatalogBackedCostTrackingTelemetryFactory,
   ConfigDrivenOffloadPolicy,
   DefaultDrivingScheduler,
   DefaultExecutionContextFactory,
@@ -19,6 +20,7 @@ import {
   InMemoryRunDataFactory,
   InlineDrivingScheduler,
   PersistedWorkflowTokenRegistry,
+  StaticCostCatalog,
   WorkflowRepositoryWebhookTriggerMatcher,
 } from "@codemation/core/bootstrap";
 import { AIAgentConnectionWorkflowExpander, ConnectionCredentialNodeConfigFactory } from "@codemation/core-nodes";
@@ -78,6 +80,7 @@ import { OpenAiApiKeyCredentialHealthTester } from "../infrastructure/credential
 import { OpenAiApiKeyCredentialTypeFactory } from "../infrastructure/credentials/OpenAiApiKeyCredentialTypeFactory";
 import { CodemationPluginRegistrar } from "../infrastructure/config/CodemationPluginRegistrar";
 import { WorkflowRunEventWebsocketRelay } from "../application/websocket/WorkflowRunEventWebsocketRelay";
+import { FrameworkCostCatalogEntries } from "../application/cost/FrameworkCostCatalogEntries";
 import { CompositeTelemetryExporter } from "../application/telemetry/CompositeTelemetryExporter";
 import { LazyExecutionTelemetryFactory } from "../application/telemetry/LazyExecutionTelemetryFactory";
 import { NoOpTelemetryExporter } from "../application/telemetry/NoOpTelemetryExporter";
@@ -697,6 +700,7 @@ export class AppContainerFactory {
         new DefaultExecutionContextFactory(
           binaryStorage,
           new LazyExecutionTelemetryFactory(() => container.resolve(OtelExecutionTelemetryFactory)),
+          new CatalogBackedCostTrackingTelemetryFactory(new StaticCostCatalog(FrameworkCostCatalogEntries)),
         ),
       );
       this.registerRuntimeNodeActivationScheduler(container);
@@ -741,6 +745,7 @@ export class AppContainerFactory {
       new DefaultExecutionContextFactory(
         binaryStorage,
         new LazyExecutionTelemetryFactory(() => container.resolve(OtelExecutionTelemetryFactory)),
+        new CatalogBackedCostTrackingTelemetryFactory(new StaticCostCatalog(FrameworkCostCatalogEntries)),
       ),
     );
     if (appConfig.scheduler.kind === "bullmq") {

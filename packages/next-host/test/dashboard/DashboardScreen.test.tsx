@@ -71,6 +71,20 @@ describe("DashboardScreen", () => {
               cachedInputTokens: 180,
               reasoningTokens: 55,
             },
+            costs: {
+              currencies: [
+                {
+                  currency: "USD",
+                  currencyScale: 1_000_000_000,
+                  estimatedCostMinor: 612_000,
+                  averageCostPerRunMinor: 51_000,
+                  costKeys: [
+                    { costKey: "gpt-4o-mini", estimatedCostMinor: 402_000 },
+                    { costKey: "prebuilt_read", estimatedCostMinor: 210_000 },
+                  ],
+                },
+              ],
+            },
           }),
         } as Response;
       }
@@ -93,6 +107,22 @@ describe("DashboardScreen", () => {
                 totalTokens: 480,
                 cachedInputTokens: 40,
                 reasoningTokens: 8,
+                costs: [
+                  {
+                    currency: "USD",
+                    currencyScale: 1_000_000_000,
+                    estimatedCostMinor: 120_000,
+                    component: "chat",
+                    costKey: "gpt-4o-mini",
+                  },
+                  {
+                    currency: "USD",
+                    currencyScale: 1_000_000_000,
+                    estimatedCostMinor: 60_000,
+                    component: "ocr",
+                    costKey: "prebuilt_read",
+                  },
+                ],
               },
               {
                 bucketStartIso: "2026-04-02T00:00:00.000Z",
@@ -107,6 +137,15 @@ describe("DashboardScreen", () => {
                 totalTokens: 1360,
                 cachedInputTokens: 140,
                 reasoningTokens: 47,
+                costs: [
+                  {
+                    currency: "USD",
+                    currencyScale: 1_000_000_000,
+                    estimatedCostMinor: 432_000,
+                    component: "ocr",
+                    costKey: "prebuilt_read",
+                  },
+                ],
               },
             ],
           }),
@@ -132,6 +171,7 @@ describe("DashboardScreen", () => {
                 origin: "triggered",
                 startedAt: "2026-04-14T10:00:00.000Z",
                 finishedAt: "2026-04-14T10:02:00.000Z",
+                costs: [{ currency: "USD", currencyScale: 1_000_000_000, estimatedCostMinor: 55_000 }],
               },
             ],
             totalCount: 1,
@@ -211,8 +251,15 @@ describe("DashboardScreen", () => {
     expect(screen.getByTestId("dashboard-metric-total-tokens")).toHaveTextContent("1,840");
     expect(screen.getByTestId("dashboard-run-status-chart")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-token-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-cost-summary-card")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-cost-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-cost-currency-USD")).toHaveTextContent("$0.000612");
+    expect(screen.getByTestId("dashboard-cost-key-USD-gpt-4o-mini")).toHaveTextContent("gpt-4o-mini");
+    expect(screen.getByTestId("dashboard-cost-key-USD-prebuilt_read")).toHaveTextContent("prebuilt_read");
     expect(screen.getByTestId("dashboard-workflow-runs-table")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-run-row-run-1")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-run-link-run-1")).toHaveTextContent("Gmail triage");
+    expect(screen.getByTestId("dashboard-run-total-cost-run-1")).toHaveTextContent("$0.000055");
   });
 
   it("shows a destructive alert when the dashboard query fails", async () => {
@@ -221,6 +268,74 @@ describe("DashboardScreen", () => {
     renderScreen();
 
     expect(await screen.findByTestId("dashboard-load-error")).toHaveTextContent("summary request failed");
+  });
+
+  it("renders legacy cost component summaries without crashing", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === ApiPaths.workflows()) {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              id: "wf.gmail",
+              name: "Gmail triage",
+              active: true,
+              discoveryPathSegments: ["integrations", "gmail", "gmail-triage"],
+            },
+          ],
+        } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardSummary())) {
+        return {
+          ok: true,
+          json: async () => ({
+            runs: {
+              totalRuns: 1,
+              completedRuns: 1,
+              failedRuns: 0,
+              runningRuns: 0,
+              averageDurationMs: 1000,
+            },
+            ai: {
+              inputTokens: 10,
+              outputTokens: 5,
+              totalTokens: 15,
+              cachedInputTokens: 0,
+              reasoningTokens: 0,
+            },
+            costs: {
+              currencies: [
+                {
+                  currency: "USD",
+                  currencyScale: 1_000_000_000,
+                  estimatedCostMinor: 1_200,
+                  averageCostPerRunMinor: 1_200,
+                  components: [{ component: "chat", estimatedCostMinor: 1_200 }],
+                },
+              ],
+            },
+          }),
+        } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardTimeseries())) {
+        return { ok: true, json: async () => ({ interval: "day", buckets: [] }) } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardDimensions())) {
+        return { ok: true, json: async () => ({ modelNames: [] }) } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardRuns())) {
+        return { ok: true, json: async () => ({ items: [], totalCount: 0, page: 1, pageSize: 10 }) } as Response;
+      }
+      return { ok: false, text: async () => `Unhandled URL: ${url}` } as Response;
+    });
+
+    renderScreen();
+
+    expect(await screen.findByTestId("dashboard-cost-summary-card")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-cost-currency-USD")).toHaveTextContent("$0.0000012");
+    });
   });
 
   it("shows the invalid custom range alert when custom mode is selected without both timestamps", async () => {

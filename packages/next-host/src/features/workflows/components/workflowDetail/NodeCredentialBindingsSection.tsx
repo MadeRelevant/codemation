@@ -152,70 +152,70 @@ export function NodeCredentialBindingsSection(
     setActiveBindingSlotKey(null);
   }, [node.id]);
 
+  if (workflowCredentialHealthQuery.isLoading || nodeCredentialSlots.length === 0) {
+    return null;
+  }
+
   return (
     <section data-testid="node-properties-credential-section" style={{ padding: "10px 12px 14px" }}>
       <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", opacity: 0.64 }}>
         Credentials
       </div>
-      {nodeCredentialSlots.length === 0 ? (
-        <div
-          style={{
-            marginTop: 10,
-            padding: 10,
-            border: "1px solid #e5e7eb",
-            background: "#f8fafc",
-            fontSize: 12,
-            lineHeight: 1.5,
-            color: "#475569",
-          }}
-        >
-          No credential slots declared for this node.
-        </div>
-      ) : (
-        <div
-          style={{
-            marginTop: 10,
-            padding: "0 10px",
-            border: "1px solid #e5e7eb",
-            background: "#ffffff",
-            display: "flex",
-            flexDirection: "column",
-            gap: 0,
-          }}
-        >
-          {nodeCredentialSlots.map((slot, index) => {
-            const compatibleInstances =
-              credentialInstancesQuery.data?.filter((instance) =>
-                slot.requirement.acceptedTypes.includes(instance.typeId),
-              ) ?? [];
-            const allInstances = credentialInstancesQuery.data ?? [];
-            const bindingKey = `${slot.nodeId}:${slot.requirement.slotKey}`;
-            const selectedInstanceId = bindingInstanceIdBySlotKey[bindingKey] ?? slot.instance?.instanceId ?? "";
-            return (
-              <div key={bindingKey} style={{ borderTop: index > 0 ? "1px solid #f1f5f9" : "none" }}>
-                <NodeCredentialBindingRow
-                  slot={slot}
-                  compatibleInstances={compatibleInstances}
-                  allCredentialInstances={allInstances}
-                  selectedInstanceId={selectedInstanceId}
-                  isBinding={activeBindingSlotKey === bindingKey}
-                  onSelectInstance={(instanceId) => {
-                    setBindingInstanceIdBySlotKey((current) => ({ ...current, [bindingKey]: instanceId }));
-                    tryAutoBindUnboundWorkflowSlot(slot, instanceId, bindCredentialImpl, workflowId);
-                  }}
-                  onBind={(request) => void bindCredentialImpl(request)}
-                  onEditCredential={openEditDialog}
-                  onRequestNewCredential={() => {
-                    pendingCreateSlotBindingKeyRef.current = bindingKey;
-                    const accepted = slot.requirement.acceptedTypes;
-                    openCreateDialog(accepted.length > 0 ? accepted : undefined);
-                  }}
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div
+        style={{
+          marginTop: 10,
+          padding: "0 10px",
+          border: "1px solid #e5e7eb",
+          background: "#ffffff",
+          display: "flex",
+          flexDirection: "column",
+          gap: 0,
+        }}
+      >
+        {nodeCredentialSlots.map((slot, index) => {
+          const compatibleInstances =
+            credentialInstancesQuery.data?.filter((instance) =>
+              slot.requirement.acceptedTypes.includes(instance.typeId),
+            ) ?? [];
+          const allInstances = credentialInstancesQuery.data ?? [];
+          const bindingKey = `${slot.nodeId}:${slot.requirement.slotKey}`;
+          const selectedInstanceId = bindingInstanceIdBySlotKey[bindingKey] ?? slot.instance?.instanceId ?? "";
+          return (
+            <div key={bindingKey} style={{ borderTop: index > 0 ? "1px solid #f1f5f9" : "none" }}>
+              <NodeCredentialBindingRow
+                slot={slot}
+                compatibleInstances={compatibleInstances}
+                allCredentialInstances={allInstances}
+                selectedInstanceId={selectedInstanceId}
+                isBinding={activeBindingSlotKey === bindingKey}
+                onSelectInstance={(instanceId) => {
+                  setBindingInstanceIdBySlotKey((current) => ({ ...current, [bindingKey]: instanceId }));
+                  if (instanceId.length === 0 || instanceId === slot.instance?.instanceId) {
+                    return;
+                  }
+                  if (slot.instance?.instanceId) {
+                    void bindCredentialImpl({
+                      workflowId,
+                      nodeId: slot.nodeId,
+                      slotKey: slot.requirement.slotKey,
+                      instanceId,
+                    });
+                    return;
+                  }
+                  tryAutoBindUnboundWorkflowSlot(slot, instanceId, bindCredentialImpl, workflowId);
+                }}
+                onBind={(request) => void bindCredentialImpl(request)}
+                onEditCredential={openEditDialog}
+                onRequestNewCredential={() => {
+                  pendingCreateSlotBindingKeyRef.current = bindingKey;
+                  const accepted = slot.requirement.acceptedTypes;
+                  openCreateDialog(accepted.length > 0 ? accepted : undefined);
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
       {credentialError ? (
         <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c", lineHeight: 1.35 }}>{credentialError}</div>
       ) : null}

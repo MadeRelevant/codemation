@@ -31,7 +31,8 @@ describe("workflow detail node properties panel", () => {
     expect(panel).toBeInTheDocument();
     expect(screen.getByTestId("node-properties-panel-title")).toHaveTextContent(target.displayName);
     expect(screen.getByTestId("node-properties-config-section")).toBeInTheDocument();
-    expect(screen.getByTestId("node-properties-credential-section")).toBeInTheDocument();
+    expect(screen.getByTestId("node-properties-panel-resize-handle")).toHaveClass("w-3");
+    expect(screen.getByTestId("node-properties-panel-resize-handle-visual")).toBeInTheDocument();
     expect(targetCard).toHaveAttribute("data-codemation-properties-target", "true");
 
     await waitFor(() => {

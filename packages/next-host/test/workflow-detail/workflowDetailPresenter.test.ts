@@ -199,4 +199,96 @@ describe("WorkflowDetailPresenter execution tree", () => {
     expect(children).toHaveLength(1);
     expect(children[0]?.key).toBe("inv_tool_1");
   });
+
+  it("nests historical execution instances by parentExecutionInstanceId", () => {
+    const coordinator: ExecutionNode = {
+      node: {
+        id: "instance-agent",
+        kind: "node",
+        type: "AIAgent",
+        name: "Coordinator",
+      } as any,
+      executionInstanceId: "instance-agent",
+      snapshot: {
+        runId: "run-1",
+        workflowId: "wf-1",
+        nodeId: "instance-agent",
+        status: "completed",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      } as any,
+    };
+    const specialist: ExecutionNode = {
+      node: {
+        id: "instance-specialist",
+        kind: "node",
+        type: "AIAgent",
+        name: "Specialist",
+      } as any,
+      executionInstanceId: "instance-specialist",
+      parentExecutionInstanceId: "instance-agent",
+      snapshot: {
+        runId: "run-1",
+        workflowId: "wf-1",
+        nodeId: "instance-specialist",
+        status: "completed",
+        updatedAt: "2026-01-01T00:00:01.000Z",
+      } as any,
+    };
+    const openAiCall: ExecutionNode = {
+      node: {
+        id: "instance-openai",
+        kind: "node",
+        type: "OpenAI",
+        name: "OpenAI",
+      } as any,
+      executionInstanceId: "instance-openai",
+      parentExecutionInstanceId: "instance-specialist",
+      snapshot: {
+        runId: "run-1",
+        workflowId: "wf-1",
+        nodeId: "instance-openai",
+        status: "completed",
+        updatedAt: "2026-01-01T00:00:02.000Z",
+      } as any,
+    };
+
+    const tree = WorkflowDetailPresenter.buildExecutionTreeData([coordinator, specialist, openAiCall]);
+
+    expect(tree).toHaveLength(1);
+    expect(tree[0]?.key).toBe("instance-agent");
+    const specialistChildren = tree[0]?.children as any[];
+    expect(specialistChildren).toHaveLength(1);
+    expect(specialistChildren[0]?.key).toBe("instance-specialist");
+    const openAiChildren = specialistChildren[0]?.children as any[];
+    expect(openAiChildren).toHaveLength(1);
+    expect(openAiChildren[0]?.key).toBe("instance-openai");
+  });
+
+  it("resolves the latest synthetic invocation row for a workflow connection selection", () => {
+    const selectedKey = WorkflowDetailPresenter.resolveExecutionTreeKeyForNodeId(
+      [
+        {
+          node: {
+            id: "invocation-1",
+            kind: "node",
+            type: "OpenAI",
+            name: "OpenAI",
+          } as any,
+          workflowConnectionNodeId: "llm-node",
+        },
+        {
+          node: {
+            id: "invocation-2",
+            kind: "node",
+            type: "OpenAI",
+            name: "OpenAI",
+          } as any,
+          workflowConnectionNodeId: "llm-node",
+        },
+      ],
+      "llm-node",
+    );
+
+    expect(selectedKey).toBe("invocation-2");
+  });
 });

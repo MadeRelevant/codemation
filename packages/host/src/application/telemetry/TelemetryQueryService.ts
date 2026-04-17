@@ -1,6 +1,16 @@
-import { GenAiTelemetryAttributeNames, inject, injectable } from "@codemation/core";
+import {
+  CostTrackingTelemetryAttributeNames,
+  CostTrackingTelemetryMetricNames,
+  GenAiTelemetryAttributeNames,
+  inject,
+  injectable,
+} from "@codemation/core";
 import type {
+  TelemetryDashboardCostAggregateDto,
+  TelemetryDashboardCostCurrencyTotalDto,
+  TelemetryDashboardCostKeyTotalDto,
   TelemetryDashboardBucketIntervalDto,
+  TelemetryDashboardBucketCostDto,
   TelemetryDashboardDimensionsDto,
   TelemetryDashboardRunOriginDto,
   TelemetryDashboardRunsDto,
@@ -46,6 +56,18 @@ export interface TelemetryAiAggregate {
   readonly totalTokens: number;
   readonly cachedInputTokens: number;
   readonly reasoningTokens: number;
+}
+
+export interface TelemetryCostCurrencyAggregate {
+  readonly currency: string;
+  readonly currencyScale: number;
+  readonly estimatedCostMinor: number;
+  readonly averageCostPerRunMinor: number;
+  readonly costKeys: ReadonlyArray<TelemetryDashboardCostKeyTotalDto>;
+}
+
+export interface TelemetryCostAggregate {
+  readonly currencies: ReadonlyArray<TelemetryCostCurrencyAggregate>;
 }
 
 @injectable()
@@ -103,6 +125,24 @@ export class TelemetryQueryService {
       totalTokens: this.sumMetric(points, GenAiTelemetryAttributeNames.usageTotalTokens),
       cachedInputTokens: this.sumMetric(points, GenAiTelemetryAttributeNames.usageCacheReadInputTokens),
       reasoningTokens: this.sumMetric(points, GenAiTelemetryAttributeNames.usageReasoningTokens),
+    };
+  }
+
+  async summarizeCosts(filters: TelemetryAggregateFilters = {}): Promise<TelemetryDashboardCostAggregateDto> {
+    const spans = await this.resolveFilteredWorkflowRunSpans(filters);
+    if (spans.length === 0) {
+      return { currencies: [] };
+    }
+    const costModelNamesBySpanId = await this.loadCostModelNamesBySpanId(
+      filters,
+      spans.map((span) => span.runId),
+    );
+    const points = await this.listCostMetricPoints(
+      filters,
+      spans.map((span) => span.runId),
+    );
+    return {
+      currencies: this.buildCostCurrencyTotals(points, spans.length, costModelNamesBySpanId),
     };
   }
 
@@ -173,6 +213,39 @@ export class TelemetryQueryService {
     };
   }
 
+  async summarizeCostsTimeseries(
+    filters: TelemetryAggregateFilters,
+    interval: TelemetryDashboardBucketIntervalDto,
+  ): Promise<TelemetryDashboardTimeseriesDto> {
+    const buckets = this.createBuckets(filters, interval);
+    const spans = await this.resolveFilteredWorkflowRunSpans(filters);
+    if (spans.length === 0) {
+      return {
+        interval,
+        buckets: buckets.map((bucket) => this.toTimeseriesBucketDto(bucket)),
+      };
+    }
+    const costModelNamesBySpanId = await this.loadCostModelNamesBySpanId(
+      filters,
+      spans.map((span) => span.runId),
+    );
+    const points = await this.listCostMetricPoints(
+      filters,
+      spans.map((span) => span.runId),
+    );
+    for (const point of points) {
+      const bucket = this.findBucket(buckets, point.observedAt);
+      if (!bucket) {
+        continue;
+      }
+      this.addCostPointToBucket(bucket, point, costModelNamesBySpanId);
+    }
+    return {
+      interval,
+      buckets: buckets.map((bucket) => this.toTimeseriesBucketDto(bucket)),
+    };
+  }
+
   async listModelNames(filters: TelemetryAggregateFilters = {}): Promise<TelemetryDashboardDimensionsDto> {
     const spans = await this.resolveFilteredWorkflowRunSpans(filters);
     if (spans.length === 0) {
@@ -197,6 +270,10 @@ export class TelemetryQueryService {
   async listRuns(request: TelemetryDashboardRunsRequestDto): Promise<TelemetryDashboardRunsDto> {
     const spans = await this.resolveFilteredWorkflowRunSpans(request.filters);
     const originByRunId = await this.loadRunOrigins(spans.map((span) => span.runId));
+    const costsByRunId = await this.loadCostsByRunId(
+      request.filters,
+      spans.map((span) => span.runId),
+    );
     const items = spans
       .slice()
       .sort((left, right) => right.startTime!.localeCompare(left.startTime!))
@@ -207,6 +284,7 @@ export class TelemetryQueryService {
         origin: originByRunId.get(span.runId) ?? "triggered",
         startedAt: span.startTime ?? span.endTime ?? new Date(0).toISOString(),
         finishedAt: span.endTime,
+        costs: costsByRunId.get(span.runId) ?? [],
       }));
     const offset = (request.page - 1) * request.pageSize;
     return {
@@ -376,6 +454,83 @@ export class TelemetryQueryService {
     return points;
   }
 
+  private async listCostMetricPoints(
+    filters: TelemetryAggregateFilters,
+    runIds: ReadonlyArray<string>,
+  ): Promise<ReadonlyArray<TelemetryMetricPointRecord>> {
+    const points = await this.telemetryMetricPointStore.list({
+      workflowId: filters.workflowId,
+      workflowIds: filters.workflowIds,
+      runIds: runIds.length > 0 ? runIds : undefined,
+      modelNames: filters.modelNames,
+      metricNames: [CostTrackingTelemetryMetricNames.estimatedCost],
+      observedAtGte: filters.startTimeGte,
+      observedAtLte: filters.endTimeLte,
+      limit: TelemetryQueryService.queryScanLimit + 1,
+    });
+    this.throwWhenQueryLimitExceeded(points.length);
+    return points;
+  }
+
+  private async loadCostsByRunId(
+    filters: TelemetryAggregateFilters,
+    runIds: ReadonlyArray<string>,
+  ): Promise<Map<string, ReadonlyArray<TelemetryDashboardBucketCostDto>>> {
+    if (runIds.length === 0) {
+      return new Map();
+    }
+    const points = await this.listCostMetricPoints(filters, runIds);
+    const totalsByRunId = new Map<string, Map<string, CostCurrencyAccumulator>>();
+    for (const point of points) {
+      if (!point.runId) {
+        continue;
+      }
+      const currency = this.readCostCurrency(point);
+      const currencyScale = this.readCostCurrencyScale(point);
+      if (!currency || currencyScale === undefined) {
+        continue;
+      }
+      const totals = this.getOrCreateRunCostTotals(totalsByRunId, point.runId);
+      this.accumulateCostTotal(totals, currency, currencyScale, point.value);
+    }
+    return new Map([...totalsByRunId.entries()].map(([runId, totals]) => [runId, this.toCostDtos(totals)]));
+  }
+
+  private buildCostCurrencyTotals(
+    points: ReadonlyArray<TelemetryMetricPointRecord>,
+    runCount: number,
+    costModelNamesBySpanId: ReadonlyMap<string, string>,
+  ): ReadonlyArray<TelemetryDashboardCostCurrencyTotalDto> {
+    const totals = new Map<string, CostCurrencyAggregateAccumulator>();
+    for (const point of points) {
+      const currency = this.readCostCurrency(point);
+      const currencyScale = this.readCostCurrencyScale(point);
+      if (!currency || currencyScale === undefined) {
+        continue;
+      }
+      const costKey = this.readCostKey(point, costModelNamesBySpanId);
+      const aggregate = this.getOrCreateCostAggregate(totals, currency, currencyScale);
+      aggregate.estimatedCostMinor += point.value;
+      if (costKey) {
+        aggregate.costKeyTotals.set(costKey, (aggregate.costKeyTotals.get(costKey) ?? 0) + point.value);
+      }
+    }
+    return [...totals.values()]
+      .map((aggregate) => ({
+        currency: aggregate.currency,
+        currencyScale: aggregate.currencyScale,
+        estimatedCostMinor: aggregate.estimatedCostMinor,
+        averageCostPerRunMinor: runCount === 0 ? 0 : Math.round(aggregate.estimatedCostMinor / runCount),
+        costKeys: [...aggregate.costKeyTotals.entries()]
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([costKey, estimatedCostMinor]) => ({
+            costKey,
+            estimatedCostMinor,
+          })),
+      }))
+      .sort((left, right) => left.currency.localeCompare(right.currency));
+  }
+
   private createBuckets(
     filters: TelemetryAggregateFilters,
     interval: TelemetryDashboardBucketIntervalDto,
@@ -406,6 +561,7 @@ export class TelemetryQueryService {
         totalTokens: 0,
         cachedInputTokens: 0,
         reasoningTokens: 0,
+        costs: new Map(),
       });
       cursor.setTime(bucketEnd.getTime());
       if (buckets.length > TelemetryQueryService.maxBucketCount) {
@@ -470,7 +626,156 @@ export class TelemetryQueryService {
       totalTokens: bucket.totalTokens,
       cachedInputTokens: bucket.cachedInputTokens,
       reasoningTokens: bucket.reasoningTokens,
+      costs: this.toCostDtos(bucket.costs),
     };
+  }
+
+  private addCostPointToBucket(
+    bucket: TelemetryTimeseriesBucket,
+    point: TelemetryMetricPointRecord,
+    costModelNamesBySpanId: ReadonlyMap<string, string>,
+  ): void {
+    const currency = this.readCostCurrency(point);
+    const currencyScale = this.readCostCurrencyScale(point);
+    if (!currency || currencyScale === undefined) {
+      return;
+    }
+    this.accumulateCostTotal(
+      bucket.costs,
+      currency,
+      currencyScale,
+      point.value,
+      this.readCostComponent(point),
+      this.readCostKey(point, costModelNamesBySpanId),
+    );
+  }
+
+  private toCostDtos(
+    totals: ReadonlyMap<string, CostCurrencyAccumulator>,
+  ): ReadonlyArray<TelemetryDashboardBucketCostDto> {
+    return [...totals.values()]
+      .map((entry) => ({
+        currency: entry.currency,
+        currencyScale: entry.currencyScale,
+        estimatedCostMinor: entry.estimatedCostMinor,
+        component: entry.component,
+        costKey: entry.costKey,
+      }))
+      .sort((left, right) => left.currency.localeCompare(right.currency));
+  }
+
+  private accumulateCostTotal(
+    totals: Map<string, CostCurrencyAccumulator>,
+    currency: string,
+    currencyScale: number,
+    value: number,
+    component?: string,
+    costKey?: string,
+  ): void {
+    const key = this.createCostCurrencyKey(currency, currencyScale, component, costKey);
+    const existing = totals.get(key);
+    if (existing) {
+      existing.estimatedCostMinor += value;
+      return;
+    }
+    totals.set(key, {
+      currency,
+      currencyScale,
+      estimatedCostMinor: value,
+      component,
+      costKey,
+    });
+  }
+
+  private getOrCreateRunCostTotals(
+    totalsByRunId: Map<string, Map<string, CostCurrencyAccumulator>>,
+    runId: string,
+  ): Map<string, CostCurrencyAccumulator> {
+    const existing = totalsByRunId.get(runId);
+    if (existing) {
+      return existing;
+    }
+    const totals = new Map<string, CostCurrencyAccumulator>();
+    totalsByRunId.set(runId, totals);
+    return totals;
+  }
+
+  private getOrCreateCostAggregate(
+    totals: Map<string, CostCurrencyAggregateAccumulator>,
+    currency: string,
+    currencyScale: number,
+  ): CostCurrencyAggregateAccumulator {
+    const key = this.createCostCurrencyKey(currency, currencyScale);
+    const existing = totals.get(key);
+    if (existing) {
+      return existing;
+    }
+    const aggregate: CostCurrencyAggregateAccumulator = {
+      currency,
+      currencyScale,
+      estimatedCostMinor: 0,
+      costKeyTotals: new Map(),
+    };
+    totals.set(key, aggregate);
+    return aggregate;
+  }
+
+  private createCostCurrencyKey(currency: string, currencyScale: number, component?: string, costKey?: string): string {
+    return `${currency}::${String(currencyScale)}::${component ?? ""}::${costKey ?? ""}`;
+  }
+
+  private readCostComponent(point: TelemetryMetricPointRecord): string | undefined {
+    return this.readStringDimension(point, CostTrackingTelemetryAttributeNames.component);
+  }
+
+  private readCostKey(
+    point: TelemetryMetricPointRecord,
+    costModelNamesBySpanId: ReadonlyMap<string, string>,
+  ): string | undefined {
+    return (
+      point.modelName ??
+      (point.spanId ? costModelNamesBySpanId.get(point.spanId) : undefined) ??
+      this.readStringDimension(point, CostTrackingTelemetryAttributeNames.pricingKey) ??
+      this.readStringDimension(point, CostTrackingTelemetryAttributeNames.provider) ??
+      this.readStringDimension(point, CostTrackingTelemetryAttributeNames.component)
+    );
+  }
+
+  private async loadCostModelNamesBySpanId(
+    filters: TelemetryAggregateFilters,
+    runIds: ReadonlyArray<string>,
+  ): Promise<ReadonlyMap<string, string>> {
+    if (runIds.length === 0) {
+      return new Map();
+    }
+    const spans = await this.telemetrySpanStore.list({
+      workflowId: filters.workflowId,
+      workflowIds: filters.workflowIds,
+      runIds: [...new Set(runIds)],
+      startTimeGte: filters.startTimeGte,
+      endTimeLte: filters.endTimeLte,
+      limit: TelemetryQueryService.queryScanLimit + 1,
+    });
+    this.throwWhenQueryLimitExceeded(spans.length);
+    return new Map(
+      spans
+        .filter((span): span is TelemetrySpanRecord & { modelName: string } => typeof span.modelName === "string")
+        .map((span) => [span.spanId, span.modelName] as const),
+    );
+  }
+
+  private readCostCurrency(point: TelemetryMetricPointRecord): string | undefined {
+    return this.readStringDimension(point, CostTrackingTelemetryAttributeNames.currency) ?? point.unit;
+  }
+
+  private readCostCurrencyScale(point: TelemetryMetricPointRecord): number | undefined {
+    const value = point.dimensions?.[CostTrackingTelemetryAttributeNames.currencyScale];
+    return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  }
+
+  private readStringDimension(point: TelemetryMetricPointRecord, key: string): string | undefined {
+    const value = point.dimensions?.[key];
+    return typeof value === "string" && value.length > 0 ? value : undefined;
   }
 
   private throwWhenQueryLimitExceeded(rowCount: number): void {
@@ -494,4 +799,17 @@ interface TelemetryTimeseriesBucket {
   totalTokens: number;
   cachedInputTokens: number;
   reasoningTokens: number;
+  costs: Map<string, CostCurrencyAccumulator>;
+}
+
+interface CostCurrencyAccumulator {
+  readonly currency: string;
+  readonly currencyScale: number;
+  estimatedCostMinor: number;
+  readonly component?: string;
+  readonly costKey?: string;
+}
+
+interface CostCurrencyAggregateAccumulator extends CostCurrencyAccumulator {
+  readonly costKeyTotals: Map<string, number>;
 }

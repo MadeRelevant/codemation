@@ -1,6 +1,5 @@
 import "@xyflow/react/dist/style.css";
 import { League_Spartan } from "next/font/google";
-import "rc-tree/assets/index.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";

@@ -1,5 +1,4 @@
 import type { BinaryAttachment } from "@codemation/core/browser";
-import type { FieldDataNode } from "rc-tree";
 import type { ReactNode } from "react";
 import type {
   Items,
@@ -24,6 +23,8 @@ export type ExecutionNode = Readonly<{
   executionInstanceId?: string;
   slotNodeId?: string;
   parentExecutionInstanceId?: string;
+  /** Stable workflow node id used to sync inspector selection to the canvas. */
+  workflowNodeId?: string;
   /** Stable workflow attachment id when `node.id` is a synthetic per-invocation id. */
   workflowConnectionNodeId?: string;
 }>;
@@ -47,14 +48,29 @@ export type JsonEditorState = Readonly<
       binaryMapsByItemIndex: PinBinaryMapsByItemIndex;
     }
 >;
-export type ExecutionTreeNode = FieldDataNode<
-  Readonly<{
-    key: string;
-    title?: ReactNode;
-    workflowNode?: WorkflowNode;
-    snapshot?: NodeExecutionSnapshot;
-  }>
->;
+export type ExecutionTreeNode = Readonly<{
+  key: string;
+  title?: ReactNode;
+  workflowNode?: WorkflowNode;
+  snapshot?: NodeExecutionSnapshot;
+  inspectorNodeId: string;
+  canvasNodeId: string | null;
+  children: ReadonlyArray<ExecutionTreeNode>;
+  isLeaf: boolean;
+}>;
+export type ExecutionTreeItemData = Readonly<{
+  key: string;
+  title?: ReactNode;
+  workflowNode?: WorkflowNode;
+  snapshot?: NodeExecutionSnapshot;
+  childKeys: ReadonlyArray<string>;
+  inspectorNodeId: string;
+  canvasNodeId: string | null;
+}>;
+export type WorkflowExecutionInspectorTreeSelection = Readonly<{
+  inspectorNodeId: string;
+  canvasNodeId: string | null;
+}>;
 export type WorkflowRunsSidebarSelectedRun =
   | Pick<PersistedRunState, "workflowSnapshot" | "executionOptions">
   | undefined;
@@ -136,7 +152,7 @@ export type WorkflowExecutionInspectorModel = Readonly<{
   outputPane: WorkflowExecutionInspectorPaneModel;
   executionTreeData: ReadonlyArray<ExecutionTreeNode>;
   executionTreeExpandedKeys: ReadonlyArray<string>;
-  /** rc-tree key for the selected execution row (may differ from {@link selectedNodeId} when keys are disambiguated). */
+  /** Stable rendered tree key for the selected execution row (may differ from {@link selectedNodeId} when keys are disambiguated). */
   selectedExecutionTreeKey: string | null;
   nodeActions: WorkflowExecutionInspectorNodeActionsModel;
 }>;
@@ -150,7 +166,7 @@ export type WorkflowExecutionInspectorFormatting = Readonly<{
   getErrorClipboardText: (error: NodeExecutionError | undefined) => string;
 }>;
 export type WorkflowExecutionInspectorActions = Readonly<{
-  onSelectNode: (nodeId: string) => void;
+  onSelectNode: (selection: WorkflowExecutionInspectorTreeSelection) => void;
   onEditSelectedOutput: () => void;
   onClearPinnedOutput: () => void;
   onSelectMode: (mode: InspectorMode) => void;

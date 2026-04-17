@@ -429,7 +429,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         contentType: "application/json",
         previewJson: content,
       });
-      await this.recordModelUsageMetrics(span, response);
+      await this.recordModelUsageMetrics(span, response, ctx);
       await span.end({ status: "ok", endedAt: finishedAt });
       await ctx.nodeState?.appendConnectionInvocation({
         invocationId,
@@ -495,7 +495,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         contentType: "application/json",
         previewJson: this.resultToJsonValue(response),
       });
-      await this.recordModelUsageMetrics(span, response);
+      await this.recordModelUsageMetrics(span, response, ctx);
       await span.end({ status: "ok", endedAt: finishedAt });
       await ctx.nodeState?.appendConnectionInvocation({
         invocationId,
@@ -540,7 +540,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       attributes: {
         [CodemationTelemetryAttributeNames.connectionInvocationId]: invocationId,
         [GenAiTelemetryAttributeNames.operationName]: "chat",
-        [GenAiTelemetryAttributeNames.requestModel]: ctx.config.chatModel.name,
+        [GenAiTelemetryAttributeNames.requestModel]: this.resolveChatModelName(ctx.config.chatModel),
       },
     });
   }
@@ -548,6 +548,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
   private async recordModelUsageMetrics(
     span: ReturnType<NodeExecutionContext["telemetry"]["startChildSpan"]>,
     response: unknown,
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
   ) {
     const usage = this.extractModelUsageMetrics(response);
     for (const [name, value] of Object.entries(usage)) {
@@ -556,6 +557,51 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       }
       await span.recordMetric({ name, value });
     }
+    await this.captureCostTrackingUsage(span, ctx, usage);
+  }
+
+  private async captureCostTrackingUsage(
+    span: ReturnType<NodeExecutionContext["telemetry"]["startChildSpan"]>,
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
+    usage: Readonly<Record<string, number | undefined>>,
+  ): Promise<void> {
+    const costTracking = span.costTracking;
+    if (!costTracking) {
+      return;
+    }
+    const provider = ctx.config.chatModel.provider;
+    const pricingKey = ctx.config.chatModel.modelName;
+    if (!provider || !pricingKey) {
+      return;
+    }
+    const inputTokens = usage[GenAiTelemetryAttributeNames.usageInputTokens];
+    const outputTokens = usage[GenAiTelemetryAttributeNames.usageOutputTokens];
+    if (inputTokens !== undefined) {
+      await costTracking.captureUsage({
+        component: "chat",
+        provider,
+        operation: "completion.input",
+        pricingKey,
+        usageUnit: "input_tokens",
+        quantity: inputTokens,
+        modelName: pricingKey,
+      });
+    }
+    if (outputTokens !== undefined) {
+      await costTracking.captureUsage({
+        component: "chat",
+        provider,
+        operation: "completion.output",
+        pricingKey,
+        usageUnit: "output_tokens",
+        quantity: outputTokens,
+        modelName: pricingKey,
+      });
+    }
+  }
+
+  private resolveChatModelName(chatModel: ChatModelConfig): string {
+    return chatModel.modelName ?? chatModel.name;
   }
 
   private extractModelUsageMetrics(response: unknown): Readonly<Record<string, number | undefined>> {

@@ -373,6 +373,59 @@ test("OnNewGmailTriggerNode.execute records Gmail metrics and message preview te
   ]);
 });
 
+test("OnNewGmailTriggerNode.execute treats missing attachment sizes and preview fields as zero-or-null values", async () => {
+  const logger = new FakeGmailLogger();
+  const telemetry = new FakeNodeExecutionTelemetry();
+  const node = OnNewGmailTriggerNodeTestFixture.createNode(logger);
+  const items = [
+    {
+      json: {
+        mailbox: "sales@example.com",
+        historyId: "history_1",
+        messageId: "message_1",
+        labelIds: ["IMPORTANT"],
+        headers: {},
+        attachments: [
+          {
+            attachmentId: "attachment_1",
+            binaryName: "quote-pdf",
+            mimeType: "application/pdf",
+          },
+        ],
+      },
+    },
+  ] as const;
+
+  const outputs = await node.execute(items, {
+    workflowId: "wf.gmail",
+    nodeId: "gmail_trigger",
+    config: OnNewGmailTriggerNodeTestFixture.createConfig(),
+    telemetry,
+  } as unknown as NodeExecutionContext<OnNewGmailTrigger>);
+
+  assert.deepEqual(outputs.main, items);
+  assert.deepEqual(
+    telemetry.metrics.map((metric) => ({ name: metric.name, value: metric.value })),
+    [
+      { name: CodemationTelemetryMetricNames.gmailMessagesEmitted, value: 1 },
+      { name: CodemationTelemetryMetricNames.gmailAttachments, value: 1 },
+      { name: CodemationTelemetryMetricNames.gmailAttachmentBytes, value: 0 },
+    ],
+  );
+  assert.deepEqual(telemetry.artifacts[0]?.previewJson, [
+    {
+      mailbox: "sales@example.com",
+      messageId: "message_1",
+      subject: null,
+      from: null,
+      snippet: null,
+      attachmentCount: 1,
+      attachmentBytes: 0,
+      labelIds: ["IMPORTANT"],
+    },
+  ]);
+});
+
 test("OnNewGmailTriggerNode.getTestItems adapts the Gmail session into the preview service", async () => {
   const logger = new FakeGmailLogger();
   const client = new FakeGmailApiClient();

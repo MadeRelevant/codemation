@@ -49,6 +49,17 @@ describe("TelemetryHttpRouteHandler", () => {
         cachedInputTokens: 2,
         reasoningTokens: 1,
       },
+      costs: {
+        currencies: [
+          {
+            currency: "USD",
+            currencyScale: 1_000_000_000,
+            estimatedCostMinor: 1_200,
+            averageCostPerRunMinor: 600,
+            costKeys: [{ costKey: "gpt-4o-mini", estimatedCostMinor: 1_200 }],
+          },
+        ],
+      },
     }));
     const handler = new TelemetryHttpRouteHandler(queryBus);
     const request = new TelemetryHttpRouteHandlerTestRequestFactory().create(
@@ -61,6 +72,7 @@ describe("TelemetryHttpRouteHandler", () => {
     await expect(response.json()).resolves.toMatchObject({
       runs: { totalRuns: 2 },
       ai: { totalTokens: 16 },
+      costs: { currencies: [{ currency: "USD", estimatedCostMinor: 1_200 }] },
     });
     expect(queryBus.executedQueries).toHaveLength(1);
     expect(queryBus.executedQueries[0]).toBeInstanceOf(GetTelemetryDashboardSummaryQuery);

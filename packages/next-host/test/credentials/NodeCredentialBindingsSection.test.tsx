@@ -139,6 +139,14 @@ describe("NodeCredentialBindingsSection", () => {
     return { wasBindingPut: () => putBindingCalled };
   }
 
+  it("does not render a credentials section when the node has no credential slots", () => {
+    const health = testWorkflowCredentialHealthDto(workflowId, []);
+
+    renderSection({ health });
+
+    expect(screen.queryByTestId("node-properties-credential-section")).not.toBeInTheDocument();
+  });
+
   it("PUTs credential binding when selecting an existing credential on an unbound slot", async () => {
     const health = testWorkflowCredentialHealthDto(workflowId, [
       testWorkflowCredentialHealthSlot({
@@ -269,5 +277,55 @@ describe("NodeCredentialBindingsSection", () => {
       ([u, init]) => u === ApiPaths.credentialBindings() && (init as RequestInit | undefined)?.method === "PUT",
     );
     expect(putCalls).toHaveLength(0);
+  });
+
+  it("PUTs credential binding when selecting a different credential on an already-bound slot", async () => {
+    const health = testWorkflowCredentialHealthDto(workflowId, [
+      testWorkflowCredentialHealthSlot({
+        workflowId,
+        nodeId: "node-1",
+        slotKey: "mail",
+        acceptedTypes: ["gmail-oauth"],
+        health: { status: "healthy" },
+        instance: {
+          instanceId: "existing-inst",
+          typeId: "gmail-oauth",
+          displayName: "Existing",
+          setupStatus: "ready",
+        },
+      }),
+    ]);
+
+    const existingInstance = testCredentialInstanceDto({
+      instanceId: "existing-inst",
+      typeId: "gmail-oauth",
+      displayName: "Existing",
+    });
+    const replacementInstance = testCredentialInstanceDto({
+      instanceId: "replacement-inst",
+      typeId: "gmail-oauth",
+      displayName: "Replacement",
+    });
+
+    renderSection({ health, credentialInstances: [existingInstance, replacementInstance] });
+
+    fireEvent.click(screen.getByTestId("node-properties-credential-slot-select-node-1-mail"));
+    const option = await screen.findByRole("option", { name: "Replacement" });
+    fireEvent.click(option);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        ApiPaths.credentialBindings(),
+        expect.objectContaining({
+          method: "PUT",
+          body: JSON.stringify({
+            workflowId,
+            nodeId: "node-1",
+            slotKey: "mail",
+            instanceId: "replacement-inst",
+          }),
+        }),
+      );
+    });
   });
 });

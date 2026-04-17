@@ -85,9 +85,16 @@ describe("WorkflowDetailPresenter", () => {
     expect(
       executionNodes.some((entry) => entry.node.id === WorkflowDetailFixtureFactory.toolFirstInvocationNodeId),
     ).toBe(true);
-    expect(executionKeys).toContain(WorkflowDetailFixtureFactory.llmFirstInvocationNodeId);
-    expect(executionKeys).toContain(WorkflowDetailFixtureFactory.toolFirstInvocationNodeId);
-    expect(executionKeys).toContain(WorkflowDetailFixtureFactory.llmSecondInvocationNodeId);
+    expect(executionKeys).toContain(WorkflowDetailFixtureFactory.agentNodeId);
+    const agentBranch = executionTree.find(
+      (node) => node.workflowNode?.id === WorkflowDetailFixtureFactory.agentNodeId,
+    );
+    expect(
+      agentBranch?.children.some((child) => child.workflowNode?.id === WorkflowDetailFixtureFactory.llmNodeId),
+    ).toBe(true);
+    expect(
+      agentBranch?.children.some((child) => child.workflowNode?.id === WorkflowDetailFixtureFactory.toolNodeId),
+    ).toBe(true);
   });
 
   it("prefers workflow snapshot over live workflow when rendering historical runs", () => {

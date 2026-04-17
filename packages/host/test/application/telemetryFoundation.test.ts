@@ -34,6 +34,7 @@ type TelemetryOutcomeResult = Readonly<{
   runResult: CompletedRunResult;
   runAggregate: TelemetryRunAggregate;
   aiAggregate: TelemetryAiAggregate;
+  billingAggregate: Readonly<{ currencies: ReadonlyArray<Readonly<{ currency: string; estimatedCostMinor: number }>> }>;
   traceView: TelemetryRunTraceViewDto;
 }>;
 
@@ -97,11 +98,15 @@ class TelemetryScriptedChatModelFactory implements ChatModelFactory<ChatModelCon
 
 class TelemetryScriptedChatModelConfig implements ChatModelConfig {
   readonly type = TelemetryScriptedChatModelFactory as CoreChatModelConfig["type"];
+  readonly provider = "openai";
+  readonly modelName: string;
 
   constructor(
     public readonly name: string,
     public readonly responses: ReadonlyArray<unknown>,
-  ) {}
+  ) {
+    this.modelName = name;
+  }
 }
 
 class TelemetryScriptedChatModel implements LangChainChatModelLike {
@@ -305,11 +310,15 @@ class TelemetryOutcomeHarness {
       const aiAggregate = await queryService.summarizeAiUsage({
         workflowId: TelemetryWorkflowFixtureFactory.workflowId,
       });
+      const costAggregate = await queryService.summarizeCosts({
+        workflowId: TelemetryWorkflowFixtureFactory.workflowId,
+      });
 
       return {
         runResult,
         runAggregate,
         aiAggregate,
+        billingAggregate: costAggregate,
         traceView,
       };
     } finally {
@@ -361,6 +370,10 @@ describe("telemetry foundation", () => {
       cachedInputTokens: 5,
       reasoningTokens: 2,
     });
+    expect(outcome.billingAggregate).toMatchObject({
+      currencies: [{ currency: "USD", estimatedCostMinor: 39_000 }],
+    });
+    expect(outcome.traceView.metricPoints.some((point) => point.metricName === "codemation.cost.estimated")).toBe(true);
     expect(outcome.traceView.spans.some((span) => span.name === "workflow.run" && span.status === "completed")).toBe(
       true,
     );
