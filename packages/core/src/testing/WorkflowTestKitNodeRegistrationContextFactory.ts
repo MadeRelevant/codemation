@@ -8,9 +8,7 @@ export class WorkflowTestKitNodeRegistrationContextFactory {
   create(dependencyContainer: DependencyContainer): DefinedNodeRegistrationContext {
     return {
       registerNode<TValue>(token: TypeToken<TValue>, implementation?: TypeToken<TValue>) {
-        dependencyContainer.register(token, {
-          useClass: (implementation ?? token) as never,
-        });
+        dependencyContainer.registerSingleton(token as never, (implementation ?? token) as never);
       },
     };
   }

@@ -50,19 +50,18 @@ export class EngineRuntimeRegistrar {
     if (!container.isRegistered(RunnableOutputBehaviorResolver, true)) {
       container.registerSingleton(RunnableOutputBehaviorResolver, RunnableOutputBehaviorResolver);
     }
-    container.register(EngineExecutionLimitsPolicyFactory, { useClass: EngineExecutionLimitsPolicyFactory });
-    container.register(NodeInstanceFactoryFactory, { useClass: NodeInstanceFactoryFactory });
-    container.register(DefaultAsyncSleeper, { useClass: DefaultAsyncSleeper });
-    container.register(InProcessRetryRunnerFactory, { useClass: InProcessRetryRunnerFactory });
-    container.register(NodeExecutorFactory, { useClass: NodeExecutorFactory });
-    container.register(InlineDrivingSchedulerFactory, { useClass: InlineDrivingSchedulerFactory });
-    container.register(RunIntentServiceFactory, { useClass: RunIntentServiceFactory });
-    container.register(EngineWorkflowRunnerServiceFactory, {
-      useClass: EngineWorkflowRunnerServiceFactory,
-    });
-    container.register(WorkflowRepositoryWebhookTriggerMatcherFactory, {
-      useClass: WorkflowRepositoryWebhookTriggerMatcherFactory,
-    });
+    container.registerSingleton(EngineExecutionLimitsPolicyFactory, EngineExecutionLimitsPolicyFactory);
+    container.registerSingleton(NodeInstanceFactoryFactory, NodeInstanceFactoryFactory);
+    container.registerSingleton(DefaultAsyncSleeper, DefaultAsyncSleeper);
+    container.registerSingleton(InProcessRetryRunnerFactory, InProcessRetryRunnerFactory);
+    container.registerSingleton(NodeExecutorFactory, NodeExecutorFactory);
+    container.registerSingleton(InlineDrivingSchedulerFactory, InlineDrivingSchedulerFactory);
+    container.registerSingleton(RunIntentServiceFactory, RunIntentServiceFactory);
+    container.registerSingleton(EngineWorkflowRunnerServiceFactory, EngineWorkflowRunnerServiceFactory);
+    container.registerSingleton(
+      WorkflowRepositoryWebhookTriggerMatcherFactory,
+      WorkflowRepositoryWebhookTriggerMatcherFactory,
+    );
   }
 
   private registerExecutionLimitsPolicy(
@@ -133,7 +132,7 @@ export class EngineRuntimeRegistrar {
   }
 
   private registerEngine(container: DependencyContainer, options: EngineRuntimeRegistrationOptions | undefined): void {
-    container.register(EngineFactory, { useClass: EngineFactory });
+    container.registerSingleton(EngineFactory, EngineFactory);
     const matcherProvider = this.resolveMatcherProvider(options);
     container.register(Engine, {
       useFactory: instanceCachingFactory((dependencyContainer) => {

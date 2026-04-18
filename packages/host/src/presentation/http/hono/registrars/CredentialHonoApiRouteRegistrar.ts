@@ -1,11 +1,9 @@
-import { inject, injectable, registry } from "@codemation/core";
+import { inject, injectable } from "@codemation/core";
 import { Hono } from "hono";
-import { ApplicationTokens } from "../../../../applicationTokens";
 import { CredentialHttpRouteHandler } from "../../routeHandlers/CredentialHttpRouteHandler";
 import type { HonoApiRouteRegistrar } from "../HonoApiRouteRegistrar";
 
 @injectable()
-@registry([{ token: ApplicationTokens.HonoApiRouteRegistrar, useClass: CredentialHonoApiRouteRegistrar }])
 export class CredentialHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
   constructor(@inject(CredentialHttpRouteHandler) private readonly handler: CredentialHttpRouteHandler) {}
 

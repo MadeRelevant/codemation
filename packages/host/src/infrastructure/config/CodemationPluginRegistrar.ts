@@ -27,17 +27,13 @@ export class CodemationPluginRegistrar {
         loggerFactory: args.loggerFactory,
         registerCredentialType: (type) => args.registerCredentialType(type),
         registerNode: (token, implementation) => {
-          args.container.register(token, {
-            useClass: (implementation ?? token) as never,
-          });
+          args.container.registerSingleton(token as never, (implementation ?? token) as never);
         },
         registerValue: (token, value) => {
           args.container.registerInstance(token, value);
         },
         registerClass: (token, implementation) => {
-          args.container.register(token, {
-            useClass: implementation as never,
-          });
+          args.container.registerSingleton(token as never, implementation as never);
         },
         registerFactory: (token, factory) => {
           args.container.register(token, {

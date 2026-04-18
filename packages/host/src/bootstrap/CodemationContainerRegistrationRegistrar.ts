@@ -18,9 +18,7 @@ export class CodemationContainerRegistrationRegistrar {
       return;
     }
     if (this.isClassRegistration(registration)) {
-      container.register(registration.token, {
-        useClass: registration.useClass as never,
-      });
+      container.registerSingleton(registration.token as never, registration.useClass as never);
       return;
     }
     container.register(registration.token, {

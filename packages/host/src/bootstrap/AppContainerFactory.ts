@@ -365,7 +365,7 @@ export class AppContainerFactory {
         dependencyContainer.resolve(CredentialTypeRegistryImpl),
       ),
     });
-    container.register(CodemationIdFactory, { useClass: CodemationIdFactory });
+    container.registerSingleton(CodemationIdFactory, CodemationIdFactory);
     container.register(CoreTokens.RunIdFactory, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(CodemationIdFactory)),
     });
@@ -420,7 +420,7 @@ export class AppContainerFactory {
       },
     });
     container.registerInstance(LogLevelPolicyFactory, logLevelPolicyFactory);
-    container.register(ServerLoggerFactory, { useClass: ServerLoggerFactory });
+    container.registerSingleton(ServerLoggerFactory, ServerLoggerFactory);
     container.register(ApplicationTokens.LoggerFactory, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(ServerLoggerFactory)),
     });
@@ -441,43 +441,41 @@ export class AppContainerFactory {
         );
       }),
     });
-    container.register(PrismaClientFactory, { useClass: PrismaClientFactory });
-    container.register(WorkflowPolicyUiPresentationFactory, { useClass: WorkflowPolicyUiPresentationFactory });
-    container.register(WorkflowDefinitionMapper, { useClass: WorkflowDefinitionMapper });
-    container.register(RequestToWebhookItemMapper, { useClass: RequestToWebhookItemMapper });
-    container.register(WebhookEndpointPathValidator, { useClass: WebhookEndpointPathValidator });
-    container.register(CredentialSecretCipher, { useClass: CredentialSecretCipher });
-    container.register(CredentialMaterialResolver, { useClass: CredentialMaterialResolver });
-    container.register(CredentialFieldEnvOverlayService, { useClass: CredentialFieldEnvOverlayService });
-    container.register(CredentialRuntimeMaterialService, { useClass: CredentialRuntimeMaterialService });
-    container.register(WorkflowCredentialNodeResolver, { useClass: WorkflowCredentialNodeResolver });
-    container.register(CredentialInstanceService, { useClass: CredentialInstanceService });
-    container.register(CredentialBindingService, { useClass: CredentialBindingService });
-    container.register(WorkflowActivationPreflightRules, { useClass: WorkflowActivationPreflightRules });
-    container.register(WorkflowActivationPreflight, { useClass: WorkflowActivationPreflight });
-    container.register(CredentialTestService, { useClass: CredentialTestService });
-    container.register(CredentialSessionServiceImpl, { useClass: CredentialSessionServiceImpl });
+    container.registerSingleton(PrismaClientFactory, PrismaClientFactory);
+    container.registerSingleton(WorkflowPolicyUiPresentationFactory, WorkflowPolicyUiPresentationFactory);
+    container.registerSingleton(WorkflowDefinitionMapper, WorkflowDefinitionMapper);
+    container.registerSingleton(RequestToWebhookItemMapper, RequestToWebhookItemMapper);
+    container.registerSingleton(WebhookEndpointPathValidator, WebhookEndpointPathValidator);
+    container.registerSingleton(CredentialSecretCipher, CredentialSecretCipher);
+    container.registerSingleton(CredentialMaterialResolver, CredentialMaterialResolver);
+    container.registerSingleton(CredentialFieldEnvOverlayService, CredentialFieldEnvOverlayService);
+    container.registerSingleton(CredentialRuntimeMaterialService, CredentialRuntimeMaterialService);
+    container.registerSingleton(WorkflowCredentialNodeResolver, WorkflowCredentialNodeResolver);
+    container.registerSingleton(CredentialInstanceService, CredentialInstanceService);
+    container.registerSingleton(CredentialBindingService, CredentialBindingService);
+    container.registerSingleton(WorkflowActivationPreflightRules, WorkflowActivationPreflightRules);
+    container.registerSingleton(WorkflowActivationPreflight, WorkflowActivationPreflight);
+    container.registerSingleton(CredentialTestService, CredentialTestService);
+    container.registerSingleton(CredentialSessionServiceImpl, CredentialSessionServiceImpl);
     if (!inputs.appConfig.hasConfiguredCredentialSessionServiceRegistration) {
       container.register(CoreTokens.CredentialSessionService, { useToken: CredentialSessionServiceImpl });
     }
-    container.register(OAuth2ProviderRegistry, { useClass: OAuth2ProviderRegistry });
-    container.register(OAuth2ConnectService, { useClass: OAuth2ConnectService });
-    container.register(CodemationFrontendAuthSnapshotFactory, { useClass: CodemationFrontendAuthSnapshotFactory });
-    container.register(FrontendAppConfigFactory, { useClass: FrontendAppConfigFactory });
-    container.register(PublicFrontendBootstrapFactory, { useClass: PublicFrontendBootstrapFactory });
-    container.register(InternalAuthBootstrapFactory, { useClass: InternalAuthBootstrapFactory });
-    container.register(DatabaseMigrations, { useClass: DatabaseMigrations });
-    container.register(FrontendRuntime, { useClass: FrontendRuntime });
-    container.register(WorkerRuntime, { useClass: WorkerRuntime });
-    container.register(DevelopmentSessionBypassVerifier, { useClass: DevelopmentSessionBypassVerifier });
-    container.register(SecureRequestDetector, { useClass: SecureRequestDetector });
-    container.register(InAppCallbackUrlPolicy, { useClass: InAppCallbackUrlPolicy });
-    container.register(AuthSessionCookieFactory, { useClass: AuthSessionCookieFactory });
-    container.register(CodemationBetterAuthBcryptPasswordCodec, { useClass: CodemationBetterAuthBcryptPasswordCodec });
-    container.register(CodemationBetterAuthDatabaseOptionsFactory, {
-      useClass: CodemationBetterAuthDatabaseOptionsFactory,
-    });
-    container.register(UserAccountSessionPolicy, { useClass: UserAccountSessionPolicy });
+    container.registerSingleton(OAuth2ProviderRegistry, OAuth2ProviderRegistry);
+    container.registerSingleton(OAuth2ConnectService, OAuth2ConnectService);
+    container.registerSingleton(CodemationFrontendAuthSnapshotFactory, CodemationFrontendAuthSnapshotFactory);
+    container.registerSingleton(FrontendAppConfigFactory, FrontendAppConfigFactory);
+    container.registerSingleton(PublicFrontendBootstrapFactory, PublicFrontendBootstrapFactory);
+    container.registerSingleton(InternalAuthBootstrapFactory, InternalAuthBootstrapFactory);
+    container.registerSingleton(DatabaseMigrations, DatabaseMigrations);
+    container.registerSingleton(FrontendRuntime, FrontendRuntime);
+    container.registerSingleton(WorkerRuntime, WorkerRuntime);
+    container.registerSingleton(DevelopmentSessionBypassVerifier, DevelopmentSessionBypassVerifier);
+    container.registerSingleton(SecureRequestDetector, SecureRequestDetector);
+    container.registerSingleton(InAppCallbackUrlPolicy, InAppCallbackUrlPolicy);
+    container.registerSingleton(AuthSessionCookieFactory, AuthSessionCookieFactory);
+    container.registerSingleton(CodemationBetterAuthBcryptPasswordCodec, CodemationBetterAuthBcryptPasswordCodec);
+    container.registerSingleton(CodemationBetterAuthDatabaseOptionsFactory, CodemationBetterAuthDatabaseOptionsFactory);
+    container.registerSingleton(UserAccountSessionPolicy, UserAccountSessionPolicy);
     container.register(CodemationBetterAuthBaseUrlPolicy, {
       useFactory: instanceCachingFactory(
         (dependencyContainer) =>
@@ -524,7 +522,7 @@ export class AppContainerFactory {
         return new BetterAuthApiSessionVerifier(runtime, eligibility);
       }),
     });
-    container.register(CodemationSessionVerifier, { useClass: CodemationSessionVerifier });
+    container.registerSingleton(CodemationSessionVerifier, CodemationSessionVerifier);
     container.register(ApplicationTokens.SessionVerifier, {
       useFactory: instanceCachingFactory((dependencyContainer) => {
         const appConfig = dependencyContainer.resolve<AppConfig>(ApplicationTokens.AppConfig);
@@ -564,53 +562,51 @@ export class AppContainerFactory {
   }
 
   private registerRepositoriesAndBuses(container: Container): void {
-    container.register(OtelIdentityFactory, { useClass: OtelIdentityFactory });
-    container.register(TelemetryPrivacyPolicy, { useClass: TelemetryPrivacyPolicy });
-    container.register(TelemetryEnricherChain, { useClass: TelemetryEnricherChain });
-    container.register(TelemetryRetentionTimestampFactory, { useClass: TelemetryRetentionTimestampFactory });
-    container.register(TelemetryQueryService, { useClass: TelemetryQueryService });
-    container.register(NoOpTelemetryExporter, { useClass: NoOpTelemetryExporter });
+    container.registerSingleton(OtelIdentityFactory, OtelIdentityFactory);
+    container.registerSingleton(TelemetryPrivacyPolicy, TelemetryPrivacyPolicy);
+    container.registerSingleton(TelemetryEnricherChain, TelemetryEnricherChain);
+    container.registerSingleton(TelemetryRetentionTimestampFactory, TelemetryRetentionTimestampFactory);
+    container.registerSingleton(TelemetryQueryService, TelemetryQueryService);
+    container.registerSingleton(NoOpTelemetryExporter, NoOpTelemetryExporter);
     container.register(CompositeTelemetryExporter, {
       useFactory: instanceCachingFactory(
         (dependencyContainer) => new CompositeTelemetryExporter([dependencyContainer.resolve(NoOpTelemetryExporter)]),
       ),
     });
-    container.register(OtelExecutionTelemetryFactory, { useClass: OtelExecutionTelemetryFactory });
-    container.register(InMemoryRunTraceContextRepository, { useClass: InMemoryRunTraceContextRepository });
-    container.register(InMemoryTelemetrySpanStore, { useClass: InMemoryTelemetrySpanStore });
-    container.register(InMemoryTelemetryArtifactStore, { useClass: InMemoryTelemetryArtifactStore });
-    container.register(InMemoryTelemetryMetricPointStore, { useClass: InMemoryTelemetryMetricPointStore });
-    container.register(PrismaRunTraceContextRepository, { useClass: PrismaRunTraceContextRepository });
-    container.register(PrismaTelemetrySpanStore, { useClass: PrismaTelemetrySpanStore });
-    container.register(PrismaTelemetryArtifactStore, { useClass: PrismaTelemetryArtifactStore });
-    container.register(PrismaTelemetryMetricPointStore, { useClass: PrismaTelemetryMetricPointStore });
-    container.register(WorkflowDefinitionRepositoryAdapter, { useClass: WorkflowDefinitionRepositoryAdapter });
-    container.register(InMemoryWorkflowRunRepository, { useClass: InMemoryWorkflowRunRepository });
-    container.register(InMemoryTriggerSetupStateRepository, { useClass: InMemoryTriggerSetupStateRepository });
-    container.register(InMemoryCredentialStore, { useClass: InMemoryCredentialStore });
-    container.register(SqlWorkflowRunRepository, { useClass: SqlWorkflowRunRepository });
-    container.register(InMemoryWorkflowDebuggerOverlayRepository, {
-      useClass: InMemoryWorkflowDebuggerOverlayRepository,
-    });
-    container.register(PrismaTriggerSetupStateRepository, { useClass: PrismaTriggerSetupStateRepository });
-    container.register(PrismaWorkflowDebuggerOverlayRepository, { useClass: PrismaWorkflowDebuggerOverlayRepository });
-    container.register(PrismaWorkflowActivationRepository, { useClass: PrismaWorkflowActivationRepository });
-    container.register(InMemoryWorkflowActivationRepository, { useClass: InMemoryWorkflowActivationRepository });
-    container.register(PrismaCredentialStore, { useClass: PrismaCredentialStore });
+    container.registerSingleton(OtelExecutionTelemetryFactory, OtelExecutionTelemetryFactory);
+    container.registerSingleton(InMemoryRunTraceContextRepository, InMemoryRunTraceContextRepository);
+    container.registerSingleton(InMemoryTelemetrySpanStore, InMemoryTelemetrySpanStore);
+    container.registerSingleton(InMemoryTelemetryArtifactStore, InMemoryTelemetryArtifactStore);
+    container.registerSingleton(InMemoryTelemetryMetricPointStore, InMemoryTelemetryMetricPointStore);
+    container.registerSingleton(PrismaRunTraceContextRepository, PrismaRunTraceContextRepository);
+    container.registerSingleton(PrismaTelemetrySpanStore, PrismaTelemetrySpanStore);
+    container.registerSingleton(PrismaTelemetryArtifactStore, PrismaTelemetryArtifactStore);
+    container.registerSingleton(PrismaTelemetryMetricPointStore, PrismaTelemetryMetricPointStore);
+    container.registerSingleton(WorkflowDefinitionRepositoryAdapter, WorkflowDefinitionRepositoryAdapter);
+    container.registerSingleton(InMemoryWorkflowRunRepository, InMemoryWorkflowRunRepository);
+    container.registerSingleton(InMemoryTriggerSetupStateRepository, InMemoryTriggerSetupStateRepository);
+    container.registerSingleton(InMemoryCredentialStore, InMemoryCredentialStore);
+    container.registerSingleton(SqlWorkflowRunRepository, SqlWorkflowRunRepository);
+    container.registerSingleton(InMemoryWorkflowDebuggerOverlayRepository, InMemoryWorkflowDebuggerOverlayRepository);
+    container.registerSingleton(PrismaTriggerSetupStateRepository, PrismaTriggerSetupStateRepository);
+    container.registerSingleton(PrismaWorkflowDebuggerOverlayRepository, PrismaWorkflowDebuggerOverlayRepository);
+    container.registerSingleton(PrismaWorkflowActivationRepository, PrismaWorkflowActivationRepository);
+    container.registerSingleton(InMemoryWorkflowActivationRepository, InMemoryWorkflowActivationRepository);
+    container.registerSingleton(PrismaCredentialStore, PrismaCredentialStore);
     container.register(ApplicationTokens.WorkflowDefinitionRepository, {
       useFactory: instanceCachingFactory(
         (dependencyContainer) =>
           dependencyContainer.resolve(WorkflowDefinitionRepositoryAdapter) as unknown as WorkflowDefinitionRepository,
       ),
     });
-    container.register(InMemoryQueryBus, { useClass: InMemoryQueryBus });
-    container.register(InMemoryCommandBus, { useClass: InMemoryCommandBus });
-    container.register(InMemoryDomainEventBus, { useClass: InMemoryDomainEventBus });
+    container.registerSingleton(InMemoryQueryBus, InMemoryQueryBus);
+    container.registerSingleton(InMemoryCommandBus, InMemoryCommandBus);
+    container.registerSingleton(InMemoryDomainEventBus, InMemoryDomainEventBus);
     for (const handler of AppContainerFactory.queryHandlers) {
-      container.register(ApplicationTokens.QueryHandler, { useClass: handler });
+      container.registerSingleton(ApplicationTokens.QueryHandler, handler);
     }
     for (const handler of AppContainerFactory.commandHandlers) {
-      container.register(ApplicationTokens.CommandHandler, { useClass: handler });
+      container.registerSingleton(ApplicationTokens.CommandHandler, handler);
     }
     container.register(ApplicationTokens.QueryBus, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(InMemoryQueryBus)),
@@ -629,25 +625,25 @@ export class AppContainerFactory {
   }
 
   private registerApplicationServicesAndRoutes(container: Container): void {
-    container.register(DevBootstrapSummaryAssembler, { useClass: DevBootstrapSummaryAssembler });
-    container.register(DevBootstrapSummaryHttpRouteHandler, { useClass: DevBootstrapSummaryHttpRouteHandler });
-    container.register(AuthHttpRouteHandler, { useClass: AuthHttpRouteHandler });
-    container.register(PublicFrontendBootstrapHttpRouteHandler, { useClass: PublicFrontendBootstrapHttpRouteHandler });
-    container.register(InternalAuthBootstrapHttpRouteHandler, { useClass: InternalAuthBootstrapHttpRouteHandler });
-    container.register(WhitelabelLogoHttpRouteHandler, { useClass: WhitelabelLogoHttpRouteHandler });
+    container.registerSingleton(DevBootstrapSummaryAssembler, DevBootstrapSummaryAssembler);
+    container.registerSingleton(DevBootstrapSummaryHttpRouteHandler, DevBootstrapSummaryHttpRouteHandler);
+    container.registerSingleton(AuthHttpRouteHandler, AuthHttpRouteHandler);
+    container.registerSingleton(PublicFrontendBootstrapHttpRouteHandler, PublicFrontendBootstrapHttpRouteHandler);
+    container.registerSingleton(InternalAuthBootstrapHttpRouteHandler, InternalAuthBootstrapHttpRouteHandler);
+    container.registerSingleton(WhitelabelLogoHttpRouteHandler, WhitelabelLogoHttpRouteHandler);
     for (const registrar of AppContainerFactory.honoRouteRegistrars) {
-      container.register(ApplicationTokens.HonoApiRouteRegistrar, { useClass: registrar });
+      container.registerSingleton(ApplicationTokens.HonoApiRouteRegistrar, registrar);
     }
-    container.register(CodemationHonoApiApp, { useClass: CodemationHonoApiApp });
+    container.registerSingleton(CodemationHonoApiApp, CodemationHonoApiApp);
   }
 
   private registerOperationalInfrastructure(container: Container): void {
     container.register(ApplicationTokens.WorkflowWebsocketPublisher, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(WorkflowWebsocketServer)),
     });
-    container.register(WorkflowRunEventWebsocketRelay, { useClass: WorkflowRunEventWebsocketRelay });
-    container.register(RunEventBusTelemetryReporter, { useClass: RunEventBusTelemetryReporter });
-    container.register(WorkflowRunRetentionPruneScheduler, { useClass: WorkflowRunRetentionPruneScheduler });
+    container.registerSingleton(WorkflowRunEventWebsocketRelay, WorkflowRunEventWebsocketRelay);
+    container.registerSingleton(RunEventBusTelemetryReporter, RunEventBusTelemetryReporter);
+    container.registerSingleton(WorkflowRunRetentionPruneScheduler, WorkflowRunRetentionPruneScheduler);
   }
 
   private async registerRuntimeInfrastructure(container: Container, appConfig: AppConfig): Promise<PrismaOwnership> {
