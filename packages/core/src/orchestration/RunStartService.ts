@@ -229,10 +229,17 @@ export class RunStartService {
     currentState: RunCurrentState | undefined,
     mutableState: NonNullable<Awaited<ReturnType<WorkflowExecutionRepository["load"]>>>["mutableState"],
   ): RunCurrentState {
+    // Each `ConnectionInvocationRecord` represents a single, auditable LLM/tool call
+    // that must belong to exactly one run. Reruns start from a fresh invocation
+    // ledger so the new run only records what it actually invokes. The prior run's
+    // invocations remain queryable on that run's persisted state (their true owner).
+    // Carrying them over here would write duplicate `ExecutionInstance` rows whose
+    // primary key (`invocationId`) already exists under the previous run, causing a
+    // `Unique constraint failed on the fields: (instance_id)` violation on first save.
     return {
       outputsByNode: { ...(currentState?.outputsByNode ?? {}) },
       nodeSnapshotsByNodeId: { ...(currentState?.nodeSnapshotsByNodeId ?? {}) },
-      connectionInvocations: currentState?.connectionInvocations ? [...currentState.connectionInvocations] : undefined,
+      connectionInvocations: [],
       mutableState: mutableState ?? currentState?.mutableState,
     };
   }

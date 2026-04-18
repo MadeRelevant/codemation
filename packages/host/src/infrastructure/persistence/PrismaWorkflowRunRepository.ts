@@ -611,6 +611,14 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
     }
     let cIdx = 0;
     for (const inv of state.connectionInvocations ?? []) {
+      if (inv.runId !== state.runId) {
+        // Defense-in-depth: `invocationId` is a global primary key in `ExecutionInstance`.
+        // A record whose `runId` differs from the current run belongs to another run and
+        // would collide on insert. `RunStartService.createRunCurrentState` already prevents
+        // carry-over; we skip here so any other accidental carry-over path self-heals
+        // instead of crashing the save.
+        continue;
+      }
       rows.push({
         instanceId: inv.invocationId,
         runId: state.runId,
