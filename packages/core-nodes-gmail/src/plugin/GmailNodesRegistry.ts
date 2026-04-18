@@ -43,17 +43,17 @@ export class GmailNodes {
   private registerServices(container: Container, context: CodemationPluginContext): void {
     container.registerInstance(GmailNodeTokens.TriggerLogger, context.loggerFactory.create("codemation-gmail.trigger"));
     container.registerInstance(GmailNodeTokens.RuntimeLogger, context.loggerFactory.create("codemation-gmail.runtime"));
-    container.register(GoogleGmailApiClientFactory, { useClass: GoogleGmailApiClientFactory });
-    container.register(GmailConfiguredLabelService, { useClass: GmailConfiguredLabelService });
-    container.register(GmailMessageItemMapper, { useClass: GmailMessageItemMapper });
-    container.register(GmailModifyLabelsService, { useClass: GmailModifyLabelsService });
-    container.register(GmailQueryMatcher, { useClass: GmailQueryMatcher });
-    container.register(GmailReplyToMessageService, { useClass: GmailReplyToMessageService });
-    container.register(GmailSendMessageService, { useClass: GmailSendMessageService });
-    container.register(GmailTriggerAttachmentService, { useClass: GmailTriggerAttachmentService });
-    container.register(GmailTriggerTestItemService, { useClass: GmailTriggerTestItemService });
-    container.register(GmailPollingService, { useClass: GmailPollingService });
-    container.register(GmailPollingTriggerRuntime, { useClass: GmailPollingTriggerRuntime });
+    container.registerSingleton(GoogleGmailApiClientFactory, GoogleGmailApiClientFactory);
+    container.registerSingleton(GmailConfiguredLabelService, GmailConfiguredLabelService);
+    container.registerSingleton(GmailMessageItemMapper, GmailMessageItemMapper);
+    container.registerSingleton(GmailModifyLabelsService, GmailModifyLabelsService);
+    container.registerSingleton(GmailQueryMatcher, GmailQueryMatcher);
+    container.registerSingleton(GmailReplyToMessageService, GmailReplyToMessageService);
+    container.registerSingleton(GmailSendMessageService, GmailSendMessageService);
+    container.registerSingleton(GmailTriggerAttachmentService, GmailTriggerAttachmentService);
+    container.registerSingleton(GmailTriggerTestItemService, GmailTriggerTestItemService);
+    container.registerSingleton(GmailPollingService, GmailPollingService);
+    container.registerSingleton(GmailPollingTriggerRuntime, GmailPollingTriggerRuntime);
     void context.appConfig;
   }
 

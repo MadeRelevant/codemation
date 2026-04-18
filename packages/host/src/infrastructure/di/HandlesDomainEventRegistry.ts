@@ -1,4 +1,4 @@
-import { injectable, registry } from "@codemation/core";
+import { container as tsyringeContainer, injectable } from "@codemation/core";
 import type { DomainEvent } from "../../application/bus/DomainEvent";
 import type { DomainEventHandler } from "../../application/bus/DomainEventHandler";
 import { ApplicationTokens } from "../../applicationTokens";
@@ -13,12 +13,10 @@ export class HandlesDomainEvent {
     return (target) => {
       Reflect.defineMetadata(domainEventHandlerMetadataKey, eventType, target);
       injectable()(target as never);
-      registry([
-        {
-          token: ApplicationTokens.DomainEventHandler,
-          useClass: target as unknown as ConcreteType<DomainEventHandler<DomainEvent>>,
-        },
-      ])(target as never);
+      tsyringeContainer.registerSingleton(
+        ApplicationTokens.DomainEventHandler as never,
+        target as unknown as ConcreteType<DomainEventHandler<DomainEvent>>,
+      );
     };
   }
 }

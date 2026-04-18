@@ -246,6 +246,109 @@ const architecturePlugin = {
         };
       },
     },
+    "no-transient-container-register": {
+      meta: {
+        type: "problem",
+        docs: {
+          description:
+            "forbid transient tsyringe registrations `.register(token, { useClass: Class })` and `@registry([{ useClass }])`; use `registerSingleton(token, Class)` so lifecycle hooks act on the owning instance.",
+        },
+        schema: [],
+      },
+      create(context) {
+        function hasUseClassProperty(objectExpression) {
+          if (!objectExpression || objectExpression.type !== "ObjectExpression") {
+            return false;
+          }
+          return objectExpression.properties.some((property) => {
+            if (property.type !== "Property" || property.computed) {
+              return false;
+            }
+            if (property.key.type === "Identifier" && property.key.name === "useClass") {
+              return true;
+            }
+            if (property.key.type === "Literal" && property.key.value === "useClass") {
+              return true;
+            }
+            return false;
+          });
+        }
+
+        function reportCallExpression(node) {
+          const callee = node.callee;
+          if (callee.type !== "MemberExpression" || callee.computed) {
+            return;
+          }
+          if (callee.property.type !== "Identifier") {
+            return;
+          }
+          if (callee.property.name !== "register") {
+            return;
+          }
+          const secondArg = node.arguments[1];
+          if (!hasUseClassProperty(secondArg)) {
+            return;
+          }
+          context.report({
+            node,
+            message:
+              "Transient `.register(token, { useClass: Class })` is a footgun: `stop()` / `dispose()` / `flush()` hooks resolve a *fresh* instance and leave the state-owning one running. Use `container.registerSingleton(token, Class)` instead.",
+          });
+        }
+
+        function reportRegistryDecorator(node) {
+          const expression = node.expression;
+          if (expression.type !== "CallExpression") {
+            return;
+          }
+          if (expression.callee.type !== "Identifier" || expression.callee.name !== "registry") {
+            return;
+          }
+          const firstArg = expression.arguments[0];
+          if (!firstArg || firstArg.type !== "ArrayExpression") {
+            return;
+          }
+          const hasUseClassEntry = firstArg.elements.some((element) => element && hasUseClassProperty(element));
+          if (!hasUseClassEntry) {
+            return;
+          }
+          context.report({
+            node,
+            message:
+              "`@registry([{ useClass: Class }])` registers a transient binding (and on the root container, not the app container). Register the class in the composition root with `container.registerSingleton(token, Class)` instead.",
+          });
+        }
+
+        function reportRegistryCall(node) {
+          if (node.callee.type !== "Identifier" || node.callee.name !== "registry") {
+            return;
+          }
+          const firstArg = node.arguments[0];
+          if (!firstArg || firstArg.type !== "ArrayExpression") {
+            return;
+          }
+          const hasUseClassEntry = firstArg.elements.some((element) => element && hasUseClassProperty(element));
+          if (!hasUseClassEntry) {
+            return;
+          }
+          context.report({
+            node,
+            message:
+              "`registry([{ useClass: Class }])` registers a transient binding (and on the root container, not the app container). Register the class in the composition root with `container.registerSingleton(token, Class)` instead.",
+          });
+        }
+
+        return {
+          CallExpression(node) {
+            reportCallExpression(node);
+            reportRegistryCall(node);
+          },
+          Decorator(node) {
+            reportRegistryDecorator(node);
+          },
+        };
+      },
+    },
     "no-static-methods": {
       meta: {
         type: "problem",
@@ -428,6 +531,19 @@ export default [
     },
     rules: {
       "codemation/single-class-per-file": "error",
+    },
+  },
+
+  // Forbid transient container registrations everywhere tsyringe is used (src + tests) so lifecycle
+  // hooks (stop/dispose/flush/close) always target the singleton that owns the state.
+  {
+    files: ["packages/**/*.{ts,tsx}", "apps/**/*.{ts,tsx}"],
+    ignores: ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/*.d.ts"],
+    plugins: {
+      codemation: architecturePlugin,
+    },
+    rules: {
+      "codemation/no-transient-container-register": "error",
     },
   },
 

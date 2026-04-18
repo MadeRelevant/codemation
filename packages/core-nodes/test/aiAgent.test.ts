@@ -509,7 +509,7 @@ class AgentTestRig {
         continue;
       }
       if (registration.useClass) {
-        this.container.register(registration.token as never, { useClass: registration.useClass as never });
+        this.container.registerSingleton(registration.token as never, registration.useClass as never);
       }
     }
   }

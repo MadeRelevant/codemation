@@ -10,8 +10,8 @@ describe("WorkflowDefinitionMapper (tsyringe)", () => {
   it("resolves when constructor params use explicit @inject (no emitDecoratorMetadata from bundlers)", () => {
     const child = container.createChildContainer();
     child.registerInstance(CoreTokens.WorkflowActivationPolicy, new AllWorkflowsActiveWorkflowActivationPolicy());
-    child.register(WorkflowPolicyUiPresentationFactory, { useClass: WorkflowPolicyUiPresentationFactory });
-    child.register(WorkflowDefinitionMapper, { useClass: WorkflowDefinitionMapper });
+    child.registerSingleton(WorkflowPolicyUiPresentationFactory, WorkflowPolicyUiPresentationFactory);
+    child.registerSingleton(WorkflowDefinitionMapper, WorkflowDefinitionMapper);
     const mapper = child.resolve(WorkflowDefinitionMapper);
     expect(mapper).toBeInstanceOf(WorkflowDefinitionMapper);
   });

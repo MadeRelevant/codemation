@@ -133,7 +133,7 @@ describe("WorkerRuntime", () => {
 
     child.registerInstance(ApplicationTokens.AppConfig, appConfig);
     child.registerInstance(DatabaseMigrations, migrations as unknown as DatabaseMigrations);
-    child.register(RuntimeWorkflowActivationPolicy, { useClass: RuntimeWorkflowActivationPolicy });
+    child.registerSingleton(RuntimeWorkflowActivationPolicy, RuntimeWorkflowActivationPolicy);
     child.registerInstance(ApplicationTokens.WorkflowActivationRepository, activationRepository);
     child.registerInstance(CoreTokens.WorkflowRepository, workflowRepository);
     child.registerInstance(Engine, engine as Engine);
@@ -150,7 +150,7 @@ describe("WorkerRuntime", () => {
       WorkflowRunRetentionPruneScheduler,
       retentionScheduler as unknown as WorkflowRunRetentionPruneScheduler,
     );
-    child.register(WorkerRuntime, { useClass: WorkerRuntime });
+    child.registerSingleton(WorkerRuntime, WorkerRuntime);
 
     const runtime = child.resolve(WorkerRuntime);
     const handle = await runtime.start(["default"]);
@@ -191,7 +191,7 @@ describe("WorkerRuntime", () => {
 
     child.registerInstance(ApplicationTokens.AppConfig, appConfig);
     child.registerInstance(DatabaseMigrations, migrations as unknown as DatabaseMigrations);
-    child.register(RuntimeWorkflowActivationPolicy, { useClass: RuntimeWorkflowActivationPolicy });
+    child.registerSingleton(RuntimeWorkflowActivationPolicy, RuntimeWorkflowActivationPolicy);
     child.registerInstance(ApplicationTokens.WorkflowActivationRepository, activationRepository);
     child.registerInstance(CoreTokens.WorkflowRepository, workflowRepository);
     child.registerInstance(Engine, engine as Engine);
@@ -208,7 +208,7 @@ describe("WorkerRuntime", () => {
       WorkflowRunRetentionPruneScheduler,
       retentionScheduler as unknown as WorkflowRunRetentionPruneScheduler,
     );
-    child.register(WorkerRuntime, { useClass: WorkerRuntime });
+    child.registerSingleton(WorkerRuntime, WorkerRuntime);
 
     const runtime = child.resolve(WorkerRuntime);
     const handle = await runtime.start(["q1"]);
