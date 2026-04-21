@@ -71,8 +71,8 @@ export class AgentToolExecutionCoordinator {
     });
 
     try {
-      const serialized = await plannedToolCall.binding.langChainTool.invoke(plannedToolCall.toolCall.input ?? {});
-      const result = this.parseToolOutput(serialized);
+      const result = await plannedToolCall.binding.execute(plannedToolCall.toolCall.input ?? {});
+      const serialized = typeof result === "string" ? result : JSON.stringify(result);
       const finishedAt = new Date();
       await ctx.nodeState?.markCompleted({
         nodeId: plannedToolCall.nodeId,
@@ -113,7 +113,7 @@ export class AgentToolExecutionCoordinator {
       const classification = this.errorClassifier.classify({
         error,
         toolName: plannedToolCall.binding.config.name,
-        schema: plannedToolCall.binding.langChainTool.schema,
+        schema: plannedToolCall.binding.inputSchema,
       });
 
       if (classification.kind !== "repairable_validation_error") {
@@ -322,17 +322,6 @@ export class AgentToolExecutionCoordinator {
     }
     const fieldPath = firstIssue.path.length > 0 ? firstIssue.path.join(".") : "<root>";
     return `Your previous tool call for "${toolName}" was invalid because field "${fieldPath}" failed validation: ${firstIssue.message}`;
-  }
-
-  private parseToolOutput(serialized: unknown): unknown {
-    if (typeof serialized !== "string") {
-      return serialized;
-    }
-    try {
-      return JSON.parse(serialized) as unknown;
-    } catch {
-      return serialized;
-    }
   }
 
   private toJsonValue(value: unknown): JsonValue | undefined {

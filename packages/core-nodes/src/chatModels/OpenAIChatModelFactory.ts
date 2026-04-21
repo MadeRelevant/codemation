@@ -1,6 +1,8 @@
-import type { ChatModelFactory, LangChainChatModelLike, NodeExecutionContext } from "@codemation/core";
+import type { ChatLanguageModel, ChatModelFactory, NodeExecutionContext } from "@codemation/core";
 import { chatModel } from "@codemation/core";
-import { ChatOpenAI } from "@langchain/openai";
+
+import { createOpenAI } from "@ai-sdk/openai";
+
 import type { OpenAiCredentialSession } from "./OpenAiCredentialSession";
 import type { OpenAIChatModelConfig } from "./openAiChatModelConfig";
 
@@ -8,14 +10,21 @@ import type { OpenAIChatModelConfig } from "./openAiChatModelConfig";
 export class OpenAIChatModelFactory implements ChatModelFactory<OpenAIChatModelConfig> {
   async create(
     args: Readonly<{ config: OpenAIChatModelConfig; ctx: NodeExecutionContext<any> }>,
-  ): Promise<LangChainChatModelLike> {
+  ): Promise<ChatLanguageModel> {
     const session = await args.ctx.getCredential<OpenAiCredentialSession>(args.config.credentialSlotKey);
-    return new ChatOpenAI({
+    const provider = createOpenAI({
       apiKey: session.apiKey,
-      model: args.config.model,
-      temperature: args.config.options?.temperature,
-      maxTokens: args.config.options?.maxTokens,
-      configuration: session.baseUrl ? { baseURL: session.baseUrl } : undefined,
+      baseURL: session.baseUrl,
     });
+    const languageModel = provider.chat(args.config.model);
+    return {
+      languageModel,
+      modelName: args.config.model,
+      provider: "openai",
+      defaultCallOptions: {
+        maxOutputTokens: args.config.options?.maxTokens,
+        temperature: args.config.options?.temperature,
+      },
+    };
   }
 }
