@@ -1,5 +1,12 @@
 # @codemation/node-example
 
+## 0.0.32
+
+### Patch Changes
+
+- Updated dependencies [[`640e303`](https://github.com/MadeRelevant/codemation/commit/640e3032b1386568df725980a27761b6e230302c), [`640e303`](https://github.com/MadeRelevant/codemation/commit/640e3032b1386568df725980a27761b6e230302c)]:
+  - @codemation/core@1.0.0
+
 ## 0.0.31
 
 ### Patch Changes
