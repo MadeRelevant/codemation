@@ -1,17 +1,30 @@
-import type { CredentialSessionService, Item, Items, NodeExecutionContext, ZodSchemaAny } from "@codemation/core";
+import type { CredentialSessionService, ZodSchemaAny } from "@codemation/core";
 import { injectable } from "@codemation/core";
 
-import { isInteropZodSchema } from "@langchain/core/utils/types";
-import { toJsonSchema } from "@langchain/core/utils/json_schema";
-import { DynamicStructuredTool } from "@langchain/core/tools";
-import { toJSONSchema } from "zod/v4/core";
+import { toJSONSchema as frameworkToJSONSchema } from "zod/v4/core";
 
 import { ConnectionCredentialExecutionContextFactory } from "./ConnectionCredentialExecutionContextFactory";
-import type { ResolvedTool } from "./aiAgentSupport.types";
 
 /**
- * LangChain adapters and credential context wiring for {@link AIAgentNode}.
- * Lives in a `*Factory.ts` composition-root module so construction stays explicit and testable.
+ * Shape of the instance-level `toJSONSchema` method that Zod v4 schemas expose. Conversions must go
+ * through this instance method (see {@link AIAgentExecutionHelpersFactory#createJsonSchemaRecord})
+ * rather than the module-level `toJSONSchema` import because the consumer's workflow-loader (see
+ * `CodemationConsumerConfigLoader.toNamespace`) can load Zod under a separate tsx namespace. That
+ * produces two runtime copies of Zod whose internal class / symbol identities don't overlap, so the
+ * framework-side module-level `toJSONSchema` throws "Cannot read properties of undefined (reading
+ * 'def')" on consumer-created schemas. The instance method is bound inside the schema's own module
+ * and therefore uses the matching Zod internals.
+ */
+type ZodInstanceToJsonSchema = (params?: Readonly<{ target: "draft-07" | "draft-7" | "draft-2020-12" }>) => unknown;
+
+/**
+ * Helper utilities shared by {@link AIAgentNode} and supporting runners.
+ *
+ * Responsibilities:
+ * - {@link #createConnectionCredentialExecutionContextFactory} centralizes credential-context wiring.
+ * - {@link #createJsonSchemaRecord} is a pure Zod → draft-07 converter used by both
+ *   `OpenAiStrictJsonSchemaFactory` (to feed OpenAI-strict structured output) and the
+ *   `AgentStructuredOutputRepairPromptFactory` (to show a required-schema reminder).
  */
 @injectable()
 export class AIAgentExecutionHelpersFactory {
@@ -21,47 +34,14 @@ export class AIAgentExecutionHelpersFactory {
     return new ConnectionCredentialExecutionContextFactory(credentialSessions);
   }
 
-  createDynamicStructuredTool(
-    entry: ResolvedTool,
-    toolCredentialContext: NodeExecutionContext<any>,
-    item: Item,
-    itemIndex: number,
-    items: Items,
-  ): DynamicStructuredTool {
-    if (entry.runtime.inputSchema == null) {
-      throw new Error(
-        `Cannot create LangChain tool "${entry.config.name}": missing inputSchema (broken tool runtime resolution).`,
-      );
-    }
-    const schemaForOpenAi = this.createJsonSchemaRecord(entry.runtime.inputSchema, {
-      schemaName: entry.config.name,
-      requireObjectRoot: true,
-    });
-    return new DynamicStructuredTool({
-      name: entry.config.name,
-      description: entry.config.description ?? entry.runtime.defaultDescription,
-      schema: schemaForOpenAi as unknown as ZodSchemaAny,
-      func: async (input) => {
-        const result = await entry.runtime.execute({
-          config: entry.config,
-          input,
-          ctx: toolCredentialContext,
-          item,
-          itemIndex,
-          items,
-        });
-        return JSON.stringify(result);
-      },
-    });
-  }
-
   /**
-   * Produces a plain JSON Schema object for OpenAI tool parameters and LangChain tool invocation:
-   * - **Zod** → `toJSONSchema(..., { target: "draft-07" })` so shapes match what `@cfworker/json-schema`
-   *   expects (`required` must be an array; draft 2020-12 output can break validation).
-   * - Otherwise LangChain `toJsonSchema` (Standard Schema + JSON passthrough); if the result is still Zod
-   *   (duplicate `zod` copies), fall back to Zod `toJSONSchema` with draft-07.
-   * - Strip root `$schema` for OpenAI; normalize invalid `required` keywords for cfworker; ensure `properties`.
+   * Produces a plain JSON Schema object (`draft-07`) from a Zod schema, as needed by
+   * OpenAI tool-parameter schemas and the structured-output repair prompt.
+   * - Prefers the schema's **instance** `toJSONSchema(...)` method so we stay inside the Zod
+   *   instance that created the schema (works across consumer/framework tsx namespaces — see
+   *   {@link ZodInstanceToJsonSchema}). Falls back to the framework-imported module function.
+   * - Strips root `$schema` (OpenAI ignores it).
+   * - Sanitizes `required` for cfworker json-schema compatibility (must be a string array or absent).
    */
   createJsonSchemaRecord(
     inputSchema: ZodSchemaAny,
@@ -71,20 +51,12 @@ export class AIAgentExecutionHelpersFactory {
     }>,
   ): Record<string, unknown> {
     const draft07Params = { target: "draft-07" as const };
-    let converted: unknown;
-    if (isInteropZodSchema(inputSchema)) {
-      converted = toJSONSchema(inputSchema as unknown as Parameters<typeof toJSONSchema>[0], draft07Params);
-    } else {
-      converted = toJsonSchema(inputSchema);
-      if (isInteropZodSchema(converted)) {
-        converted = toJSONSchema(inputSchema as unknown as Parameters<typeof toJSONSchema>[0], draft07Params);
-      }
-    }
+    const converted = this.convertZodSchemaToJsonSchema(inputSchema, draft07Params);
     const record = converted as Record<string, unknown>;
     const { $schema: _draftSchemaOmitted, ...rest } = record;
     if (options.requireObjectRoot && rest.type !== "object") {
       throw new Error(
-        `Cannot create LangChain tool "${options.schemaName}": tool input schema must be a JSON Schema object type (got type=${String(rest.type)}).`,
+        `Cannot create tool "${options.schemaName}": tool input schema must be a JSON Schema object type (got type=${String(rest.type)}).`,
       );
     }
     if (
@@ -93,7 +65,7 @@ export class AIAgentExecutionHelpersFactory {
       (typeof rest.properties !== "object" || Array.isArray(rest.properties))
     ) {
       throw new Error(
-        `Cannot create LangChain tool "${options.schemaName}": tool input schema "properties" must be an object (got ${JSON.stringify(rest.properties)}).`,
+        `Cannot create tool "${options.schemaName}": tool input schema "properties" must be an object (got ${JSON.stringify(rest.properties)}).`,
       );
     }
     if (options.requireObjectRoot && rest.properties === undefined) {
@@ -101,6 +73,20 @@ export class AIAgentExecutionHelpersFactory {
     }
     this.sanitizeJsonSchemaRequiredKeywordsForCfworker(rest);
     return rest;
+  }
+
+  /**
+   * Runs Zod's `toJSONSchema` via the schema's own instance method when available, so consumer
+   * schemas loaded under a different tsx namespace still convert correctly. If the caller handed us
+   * a payload that lacks that method (e.g. a plain JSON Schema record or a Zod instance whose
+   * prototype was stripped), we fall back to the framework-bundled module function.
+   */
+  private convertZodSchemaToJsonSchema(inputSchema: ZodSchemaAny, params: Readonly<{ target: "draft-07" }>): unknown {
+    const candidate = (inputSchema as unknown as { toJSONSchema?: ZodInstanceToJsonSchema }).toJSONSchema;
+    if (typeof candidate === "function") {
+      return candidate.call(inputSchema, params);
+    }
+    return frameworkToJSONSchema(inputSchema as unknown as Parameters<typeof frameworkToJSONSchema>[0], params);
   }
 
   /**

@@ -1,17 +1,23 @@
 import {
   type TelemetryArtifactAttachment,
   CoreTokens,
+  type ChatLanguageModel,
   type ChatModelConfig as CoreChatModelConfig,
   chatModel,
   tool,
   type ChatModelConfig,
   type ChatModelFactory,
-  type LangChainChatModelLike,
   type RunResult,
   type Tool,
   type ToolConfig,
   type ToolExecuteArgs,
 } from "@codemation/core";
+import type {
+  LanguageModelV3CallOptions,
+  LanguageModelV3Content,
+  LanguageModelV3GenerateResult,
+} from "@ai-sdk/provider";
+import { MockLanguageModelV3 } from "ai/test";
 import { Engine } from "@codemation/core/bootstrap";
 import { AIAgent, ManualTrigger, MapData, createWorkflowBuilder } from "@codemation/core-nodes";
 import { describe, expect, it } from "vitest";
@@ -90,9 +96,23 @@ class TelemetryLookupToolConfig implements ToolConfig {
 
 @chatModel({ packageName: "@codemation/host-test" })
 class TelemetryScriptedChatModelFactory implements ChatModelFactory<ChatModelConfig> {
-  create(args: Readonly<{ config: ChatModelConfig }>): LangChainChatModelLike {
+  create(args: Readonly<{ config: ChatModelConfig }>): ChatLanguageModel {
     const config = args.config as TelemetryScriptedChatModelConfig;
-    return new TelemetryScriptedChatModel(config.responses);
+    let invocationCount = 0;
+    const languageModel = new MockLanguageModelV3({
+      provider: "openai",
+      modelId: config.modelName,
+      doGenerate: async (_options: LanguageModelV3CallOptions): Promise<LanguageModelV3GenerateResult> => {
+        const response = config.responses[invocationCount] ?? config.responses[config.responses.length - 1];
+        invocationCount += 1;
+        return TelemetryResponseConverter.toGenerateResult(response);
+      },
+    });
+    return {
+      languageModel,
+      modelName: config.modelName,
+      provider: "openai",
+    };
   }
 }
 
@@ -109,19 +129,48 @@ class TelemetryScriptedChatModelConfig implements ChatModelConfig {
   }
 }
 
-class TelemetryScriptedChatModel implements LangChainChatModelLike {
-  private invocationCount = 0;
-
-  constructor(private readonly responses: ReadonlyArray<unknown>) {}
-
-  bindTools(): LangChainChatModelLike {
-    return this;
-  }
-
-  async invoke(): Promise<unknown> {
-    const response = this.responses[this.invocationCount] ?? this.responses[this.responses.length - 1];
-    this.invocationCount += 1;
-    return response ?? { content: "" };
+class TelemetryResponseConverter {
+  static toGenerateResult(response: unknown): LanguageModelV3GenerateResult {
+    const payload = (response ?? {}) as Readonly<{
+      content?: string;
+      tool_calls?: ReadonlyArray<{ id?: string; name: string; args: unknown }>;
+      usage_metadata?: Readonly<{
+        input_tokens?: number;
+        output_tokens?: number;
+        input_token_details?: { cached_tokens?: number };
+        output_token_details?: { reasoning_tokens?: number };
+      }>;
+    }>;
+    const content: LanguageModelV3Content[] = [];
+    if (typeof payload.content === "string" && payload.content.length > 0) {
+      content.push({ type: "text", text: payload.content });
+    }
+    for (const call of payload.tool_calls ?? []) {
+      content.push({
+        type: "tool-call",
+        toolCallId: call.id ?? `tool-call-${content.length}`,
+        toolName: call.name,
+        input: JSON.stringify(call.args ?? {}),
+      });
+    }
+    const finishReason: LanguageModelV3GenerateResult["finishReason"] =
+      (payload.tool_calls?.length ?? 0) > 0
+        ? { unified: "tool-calls", raw: "tool-calls" }
+        : { unified: "stop", raw: "stop" };
+    const usage: LanguageModelV3GenerateResult["usage"] = {
+      inputTokens: {
+        total: payload.usage_metadata?.input_tokens,
+        noCache: undefined,
+        cacheRead: payload.usage_metadata?.input_token_details?.cached_tokens,
+        cacheWrite: undefined,
+      },
+      outputTokens: {
+        total: payload.usage_metadata?.output_tokens,
+        text: payload.usage_metadata?.output_tokens,
+        reasoning: payload.usage_metadata?.output_token_details?.reasoning_tokens,
+      },
+    };
+    return { content, finishReason, usage, warnings: [] };
   }
 }
 

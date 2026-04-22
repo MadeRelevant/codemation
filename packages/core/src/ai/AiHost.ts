@@ -142,30 +142,49 @@ export interface ChatModelConfig {
   getCredentialRequirements?(): ReadonlyArray<CredentialRequirement>;
 }
 
-export interface LangChainChatModelLike {
-  invoke(input: unknown, options?: unknown): Promise<unknown>;
-  bindTools?(tools: ReadonlyArray<unknown>): LangChainChatModelLike;
-  withStructuredOutput?(
-    outputSchema: ZodSchemaAny,
-    config?: ChatModelStructuredOutputOptions,
-  ): LangChainStructuredOutputModelLike;
+/**
+ * Provider-neutral chat language model wrapper returned by a {@link ChatModelFactory}.
+ *
+ * Thin adapter around an AI SDK `LanguageModelV2` (from `@ai-sdk/provider`) plus the call-site
+ * defaults Codemation needs at every generate/stream: the provider label, the model name used for
+ * pricing / telemetry, and the default invocation options (max output tokens, temperature,
+ * provider-specific overrides).
+ *
+ * The consumer (AIAgentNode / AgentStructuredOutputRunner) passes `languageModel` directly into
+ * `generateText({ model, ... })` from the `ai` package.
+ */
+export interface ChatLanguageModel {
+  /** AI SDK `LanguageModelV2` instance (kept `unknown` to avoid leaking the SDK type into `@codemation/core`). */
+  readonly languageModel: unknown;
+  /** Stable pricing/telemetry key — e.g. `"gpt-4.1-nano"`. */
+  readonly modelName: string;
+  /** Provider label — e.g. `"openai"`. Used for cost tracking. */
+  readonly provider?: string;
+  /** Defaults merged into every call. Consumers may override per-invocation. */
+  readonly defaultCallOptions?: ChatLanguageModelCallOptions;
 }
 
-export interface LangChainStructuredOutputModelLike {
-  invoke(input: unknown, options?: unknown): Promise<unknown>;
+export interface ChatLanguageModelCallOptions {
+  readonly maxOutputTokens?: number;
+  readonly temperature?: number;
+  readonly providerOptions?: Readonly<Record<string, Readonly<Record<string, JsonValue>>>>;
 }
 
-export interface ChatModelStructuredOutputOptions {
-  readonly method?: "jsonSchema" | "functionCalling" | "jsonMode";
+/**
+ * Options for a structured-output generate call. Mirrors
+ * `generateText({ output: Output.object(...) })` from the `ai` package.
+ */
+export interface StructuredOutputOptions {
+  /** Optional schema name — used by some providers as the JSON schema name attribute. */
+  readonly schemaName?: string;
+  /** When `true`, the consumer should pass a strict-mode-compatible JSON Schema record. */
   readonly strict?: boolean;
-  readonly includeRaw?: boolean;
-  readonly tools?: ReadonlyArray<unknown>;
 }
 
 export interface ChatModelFactory<TConfig extends ChatModelConfig = ChatModelConfig> {
   create(
     args: Readonly<{ config: TConfig; ctx: NodeExecutionContext<any> }>,
-  ): Promise<LangChainChatModelLike> | LangChainChatModelLike;
+  ): Promise<ChatLanguageModel> | ChatLanguageModel;
 }
 
 export type NodeBackedToolInputMapperArgs<

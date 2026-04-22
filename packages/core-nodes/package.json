@@ -36,9 +36,10 @@
     "test": "pnpm --filter @codemation/core build && pnpm build && vitest run"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.53",
+    "@ai-sdk/provider": "^3.0.8",
     "@codemation/core": "workspace:*",
-    "@langchain/core": "^1.1.31",
-    "@langchain/openai": "^1.2.12",
+    "ai": "^6.0.168",
     "lucide-react": "^0.577.0"
   },
   "devDependencies": {

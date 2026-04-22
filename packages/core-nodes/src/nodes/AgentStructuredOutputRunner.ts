@@ -1,18 +1,13 @@
-import type {
-  ChatModelConfig,
-  ChatModelStructuredOutputOptions,
-  LangChainChatModelLike,
-  LangChainStructuredOutputModelLike,
-  ZodSchemaAny,
-} from "@codemation/core";
+import type { ChatLanguageModel, ChatModelConfig, StructuredOutputOptions, ZodSchemaAny } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
 
-import { AIMessage, type BaseMessage } from "@langchain/core/messages";
+import type { ModelMessage } from "ai";
 import { ZodError } from "zod";
 
-import { OpenAIStructuredOutputMethodFactory } from "../chatModels/OpenAIStructuredOutputMethodFactory";
-import { AgentMessageFactory } from "./AgentMessageFactory";
+import { OpenAIChatModelFactory } from "../chatModels/OpenAIChatModelFactory";
+import { OpenAiStrictJsonSchemaFactory } from "../chatModels/OpenAiStrictJsonSchemaFactory";
 import { AgentStructuredOutputRepairPromptFactory } from "./AgentStructuredOutputRepairPromptFactory";
+import { AgentMessageFactory } from "./AgentMessageFactory";
 
 interface ParsedStructuredOutputSuccess<TValue> {
   readonly ok: true;
@@ -27,50 +22,54 @@ interface ParsedStructuredOutputFailure {
 
 type ParsedStructuredOutputResult<TValue> = ParsedStructuredOutputSuccess<TValue> | ParsedStructuredOutputFailure;
 
+export type StructuredOutputSchemaForModel = ZodSchemaAny | Readonly<Record<string, unknown>>;
+
+/**
+ * Orchestrates a 2-attempt repair loop on top of `generateText({ output: Output.object(...) })`.
+ *
+ * Strategy:
+ * 1. If the caller already has a raw final text (from a prior tool-calling turn), try parsing it
+ *    directly against the schema — fast path for models that already emit strict JSON.
+ * 2. Otherwise, run a native structured-output call via {@link invokeStructuredModel}. For the
+ *    OpenAI-strict path, a {@link OpenAiStrictJsonSchemaFactory}-built JSON Schema record is
+ *    handed to AI SDK's `jsonSchema(...)` wrapper (preserves `additionalProperties: false` at
+ *    every object depth).
+ * 3. If the structured call fails (AI_NoObjectGeneratedError / ZodError / schema reject), run a
+ *    text-mode repair prompt with the validation error appended, up to 2 attempts.
+ */
 @injectable()
 export class AgentStructuredOutputRunner {
   private static readonly repairAttemptCount = 2;
+  private static readonly structuredOutputSchemaName = "agent_output";
 
   constructor(
     @inject(AgentStructuredOutputRepairPromptFactory)
     private readonly repairPromptFactory: AgentStructuredOutputRepairPromptFactory,
-    @inject(OpenAIStructuredOutputMethodFactory)
-    private readonly openAiStructuredOutputMethodFactory: OpenAIStructuredOutputMethodFactory,
+    @inject(OpenAiStrictJsonSchemaFactory)
+    private readonly openAiStrictJsonSchemaFactory: OpenAiStrictJsonSchemaFactory,
   ) {}
 
   async resolve<TOutput>(
     args: Readonly<{
-      model: LangChainChatModelLike;
+      model: ChatLanguageModel;
       chatModelConfig: ChatModelConfig;
       schema: ZodSchemaAny;
-      conversation: ReadonlyArray<BaseMessage>;
-      rawFinalResponse?: AIMessage;
+      conversation: ReadonlyArray<ModelMessage>;
+      rawFinalText?: string;
       agentName: string;
       nodeId: string;
-      invokeTextModel: (messages: ReadonlyArray<BaseMessage>) => Promise<AIMessage>;
+      invokeTextModel: (messages: ReadonlyArray<ModelMessage>) => Promise<{ text: string }>;
       invokeStructuredModel: (
-        model: LangChainStructuredOutputModelLike,
-        messages: ReadonlyArray<BaseMessage>,
+        schema: StructuredOutputSchemaForModel,
+        messages: ReadonlyArray<ModelMessage>,
+        options: StructuredOutputOptions | undefined,
       ) => Promise<unknown>;
     }>,
   ): Promise<TOutput> {
     let lastFailure: ParsedStructuredOutputFailure | undefined;
 
-    if (args.rawFinalResponse) {
-      const directResult = this.tryParseAndValidate<TOutput>(
-        AgentMessageFactory.extractContent(args.rawFinalResponse),
-        args.schema,
-      );
-      if (directResult.ok) {
-        return directResult.value;
-      }
-      lastFailure = directResult;
-    } else if (!this.supportsNativeStructuredOutput(args.model)) {
-      const rawResponse = await args.invokeTextModel(args.conversation);
-      const directResult = this.tryParseAndValidate<TOutput>(
-        AgentMessageFactory.extractContent(rawResponse),
-        args.schema,
-      );
+    if (args.rawFinalText !== undefined) {
+      const directResult = this.tryParseAndValidate<TOutput>(args.rawFinalText, args.schema);
       if (directResult.ok) {
         return directResult.value;
       }
@@ -78,19 +77,18 @@ export class AgentStructuredOutputRunner {
     }
 
     try {
-      const nativeStructuredModel = this.createStructuredOutputModel(args.model, args.chatModelConfig, args.schema);
-      if (nativeStructuredModel) {
-        const nativeResult = this.tryValidateStructuredValue<TOutput>(
-          await args.invokeStructuredModel(nativeStructuredModel, args.conversation),
-          args.schema,
-        );
-        if (nativeResult.ok) {
-          return nativeResult.value;
-        }
-        lastFailure = nativeResult;
+      const structuredOptions = this.resolveStructuredOutputOptions(args.chatModelConfig);
+      const schemaForModel = this.resolveOutputSchemaForModel(args.schema, structuredOptions);
+      const nativeResult = this.tryValidateStructuredValue<TOutput>(
+        await args.invokeStructuredModel(schemaForModel, args.conversation, structuredOptions),
+        args.schema,
+      );
+      if (nativeResult.ok) {
+        return nativeResult.value;
       }
+      lastFailure = nativeResult;
     } catch (error) {
-      lastFailure = {
+      lastFailure = lastFailure ?? {
         ok: false,
         invalidContent: "",
         validationError: `Native structured output failed: ${this.summarizeError(error)}`,
@@ -112,16 +110,16 @@ export class AgentStructuredOutputRunner {
   private async retryWithRepairPrompt<TOutput>(
     args: Readonly<{
       schema: ZodSchemaAny;
-      conversation: ReadonlyArray<BaseMessage>;
+      conversation: ReadonlyArray<ModelMessage>;
       lastFailure: ParsedStructuredOutputFailure;
       agentName: string;
       nodeId: string;
-      invokeTextModel: (messages: ReadonlyArray<BaseMessage>) => Promise<AIMessage>;
+      invokeTextModel: (messages: ReadonlyArray<ModelMessage>) => Promise<{ text: string }>;
     }>,
   ): Promise<TOutput> {
     let failure = args.lastFailure;
     for (let attempt = 1; attempt <= AgentStructuredOutputRunner.repairAttemptCount; attempt++) {
-      const repairMessages = [
+      const repairMessages: ReadonlyArray<ModelMessage> = [
         ...args.conversation,
         ...AgentMessageFactory.createPromptMessages(
           this.repairPromptFactory.create({
@@ -132,10 +130,7 @@ export class AgentStructuredOutputRunner {
         ),
       ];
       const repairResponse = await args.invokeTextModel(repairMessages);
-      const repairResult = this.tryParseAndValidate<TOutput>(
-        AgentMessageFactory.extractContent(repairResponse),
-        args.schema,
-      );
+      const repairResult = this.tryParseAndValidate<TOutput>(repairResponse.text, args.schema);
       if (repairResult.ok) {
         return repairResult.value;
       }
@@ -146,29 +141,27 @@ export class AgentStructuredOutputRunner {
     );
   }
 
-  private createStructuredOutputModel(
-    model: LangChainChatModelLike,
-    chatModelConfig: ChatModelConfig,
-    schema: ZodSchemaAny,
-  ): LangChainStructuredOutputModelLike | undefined {
-    if (!this.supportsNativeStructuredOutput(model)) {
+  /**
+   * Chooses strict mode for OpenAI chat-model configs, off otherwise.  Extendable in future for
+   * other providers that adopt the same "supply a JSON Schema record directly" contract.
+   */
+  private resolveStructuredOutputOptions(chatModelConfig: ChatModelConfig): StructuredOutputOptions | undefined {
+    if (chatModelConfig.type !== OpenAIChatModelFactory) {
       return undefined;
     }
-    const options = this.getStructuredOutputOptions(chatModelConfig);
-    return model.withStructuredOutput(schema, options);
+    return { strict: true, schemaName: AgentStructuredOutputRunner.structuredOutputSchemaName };
   }
 
-  private getStructuredOutputOptions(chatModelConfig: ChatModelConfig): ChatModelStructuredOutputOptions | undefined {
-    return this.openAiStructuredOutputMethodFactory.create(chatModelConfig) ?? { strict: true };
-  }
-
-  private supportsNativeStructuredOutput(model: LangChainChatModelLike): model is LangChainChatModelLike & {
-    withStructuredOutput: (
-      outputSchema: ZodSchemaAny,
-      config?: ChatModelStructuredOutputOptions,
-    ) => LangChainStructuredOutputModelLike;
-  } {
-    return typeof model.withStructuredOutput === "function";
+  private resolveOutputSchemaForModel(
+    schema: ZodSchemaAny,
+    options: StructuredOutputOptions | undefined,
+  ): StructuredOutputSchemaForModel {
+    if (!options?.strict) {
+      return schema;
+    }
+    return this.openAiStrictJsonSchemaFactory.createStructuredOutputRecord(schema, {
+      schemaName: options.schemaName ?? AgentStructuredOutputRunner.structuredOutputSchemaName,
+    });
   }
 
   private tryParseAndValidate<TOutput>(content: string, schema: ZodSchemaAny): ParsedStructuredOutputResult<TOutput> {
@@ -214,7 +207,8 @@ export class AgentStructuredOutputRunner {
 
   private toJson(value: unknown): string {
     try {
-      return JSON.stringify(value);
+      const serialized = JSON.stringify(value);
+      return serialized ?? String(value);
     } catch (error) {
       return `<<unserializable: ${this.summarizeError(error)}>>`;
     }

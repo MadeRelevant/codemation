@@ -1,5 +1,6 @@
 import type {
   AgentMessageDto,
+  ChatLanguageModel,
   ChatModelConfig,
   ChatModelFactory,
   CostTrackingPriceQuote,
@@ -8,8 +9,6 @@ import type {
   CredentialSessionService,
   Item,
   Items,
-  LangChainChatModelLike,
-  LangChainStructuredOutputModelLike,
   NodeExecutionTelemetry,
   NodeExecutionContext,
   NodeExecutionStatePublisher,
@@ -54,13 +53,19 @@ import {
   AgentToolRepairPolicy,
   AgentStructuredOutputRepairPromptFactory,
   AgentStructuredOutputRunner,
-  OpenAIChatModelConfig,
-  OpenAIStructuredOutputMethodFactory,
+  OpenAiStrictJsonSchemaFactory,
 } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { test } from "vitest";
 import { z } from "zod";
+import { MockLanguageModelV3 } from "ai/test";
+import type {
+  LanguageModelV3CallOptions,
+  LanguageModelV3GenerateResult,
+  LanguageModelV3Message,
+  LanguageModelV3Prompt,
+} from "@ai-sdk/provider";
 import { NodeBackedToolRuntime } from "../src/nodes/NodeBackedToolRuntime";
 
 class CapturingNodeStatePublisher implements NodeExecutionStatePublisher {
@@ -250,68 +255,160 @@ class ScriptedChatModelConfig implements ChatModelConfig {
   ) {}
 }
 
-class ScriptedLangChainChatModel implements LangChainChatModelLike {
-  private invocationCount = 0;
-
-  constructor(
-    protected readonly responses: ReadonlyArray<unknown>,
-    protected readonly capture: ScriptedChatModelCapture,
-  ) {}
-
-  bindTools(tools: ReadonlyArray<unknown>): LangChainChatModelLike {
-    this.capture.recordBoundTools(tools);
-    return this;
+/**
+ * Normalizes the AI SDK V3 prompt (`Array<LanguageModelV3Message>`) to a flat
+ * `{ role, content: string }[]` shape used by the scripted-model test assertions below. Text parts
+ * are concatenated; non-text content is kept as-is.
+ */
+class ScriptedPromptNormalizer {
+  static normalize(prompt: LanguageModelV3Prompt): ReadonlyArray<{ role: string; content: unknown }> {
+    return prompt.map((message) => this.normalizeMessage(message));
   }
 
-  async invoke(messages: unknown, options?: unknown): Promise<unknown> {
-    this.capture.recordInvocation(messages, options);
-    const response = this.responses[this.invocationCount] ?? this.responses[this.responses.length - 1];
-    this.invocationCount += 1;
-    return response ?? { content: "" };
-  }
-}
-
-class StructuredScriptedRunnable implements LangChainStructuredOutputModelLike {
-  private invocationCount = 0;
-
-  constructor(
-    private readonly responses: ReadonlyArray<unknown>,
-    private readonly capture: ScriptedChatModelCapture,
-  ) {}
-
-  async invoke(messages: unknown, options?: unknown): Promise<unknown> {
-    this.capture.recordStructuredInvocation(messages, options);
-    const response = this.responses[this.invocationCount] ?? this.responses[this.responses.length - 1];
-    this.invocationCount += 1;
-    return response ?? {};
+  private static normalizeMessage(message: LanguageModelV3Message): { role: string; content: unknown } {
+    if (message.role === "system") {
+      return { role: "system", content: message.content };
+    }
+    if (message.role === "user" || message.role === "assistant") {
+      const textParts = message.content
+        .filter((part): part is { type: "text"; text: string } => part.type === "text")
+        .map((part) => part.text);
+      const hasNonText = message.content.some((part) => part.type !== "text");
+      if (!hasNonText && textParts.length > 0) {
+        return { role: message.role, content: textParts.join("") };
+      }
+      return { role: message.role, content: message.content };
+    }
+    return { role: message.role, content: message.content };
   }
 }
 
-class StructuredScriptedLangChainChatModel extends ScriptedLangChainChatModel {
-  constructor(
-    responses: ReadonlyArray<unknown>,
-    capture: ScriptedChatModelCapture,
-    private readonly structuredResponses: ReadonlyArray<unknown>,
-  ) {
-    super(responses, capture);
+/**
+ * Builds an AI-SDK-V3 `LanguageModelV3GenerateResult` from the scripted-model test DSL
+ * `{ content, tool_calls?, usage_metadata? }`. This concise shape keeps test fixtures readable; the
+ * converter adapts it to the AI SDK's provider result so the real agent runtime runs end-to-end.
+ */
+class ScriptedResponseConverter {
+  static toGenerateResult(response: unknown): LanguageModelV3GenerateResult {
+    const r = (response as Record<string, unknown>) ?? {};
+    const content: LanguageModelV3GenerateResult["content"] = [];
+    if (typeof r["content"] === "string" && r["content"].length > 0) {
+      content.push({ type: "text", text: r["content"] });
+    }
+    const toolCalls = Array.isArray(r["tool_calls"]) ? r["tool_calls"] : [];
+    for (const toolCall of toolCalls) {
+      const tc = toolCall as Record<string, unknown>;
+      content.push({
+        type: "tool-call",
+        toolCallId: typeof tc["id"] === "string" ? tc["id"] : `call_${content.length}`,
+        toolName: String(tc["name"] ?? ""),
+        input: JSON.stringify(tc["args"] ?? {}),
+      });
+    }
+    const usageMeta = r["usage_metadata"] as Record<string, unknown> | undefined;
+    const usage: LanguageModelV3GenerateResult["usage"] = {
+      inputTokens: {
+        total: this.coerceNumber(usageMeta?.["input_tokens"]),
+        noCache: undefined,
+        cacheRead: undefined,
+        cacheWrite: undefined,
+      },
+      outputTokens: {
+        total: this.coerceNumber(usageMeta?.["output_tokens"]),
+        text: undefined,
+        reasoning: undefined,
+      },
+    };
+    const finishReason: LanguageModelV3GenerateResult["finishReason"] =
+      toolCalls.length > 0 ? { unified: "tool-calls", raw: "tool-calls" } : { unified: "stop", raw: "stop" };
+    return { content, finishReason, usage, warnings: [] };
   }
 
-  withStructuredOutput(outputSchema: unknown, config?: unknown): LangChainStructuredOutputModelLike {
-    this.capture.recordStructuredBinding(outputSchema, config);
-    return new StructuredScriptedRunnable(this.structuredResponses, this.capture);
+  private static coerceNumber(value: unknown): number | undefined {
+    return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  }
+}
+
+/**
+ * Routes `doGenerate` calls to either the general-purpose `responses` script or, when the AI SDK
+ * requests a JSON response via `experimental_output`, the `structuredResponses` script. Records
+ * all invocations (messages + options + bound tools) on the supplied {@link ScriptedChatModelCapture}
+ * so test assertions can inspect what the agent produced.
+ */
+class ScriptedDoGenerateFactory {
+  static create(
+    args: Readonly<{
+      responses: ReadonlyArray<unknown>;
+      structuredResponses?: ReadonlyArray<unknown>;
+      capture: ScriptedChatModelCapture;
+    }>,
+  ): (options: LanguageModelV3CallOptions) => Promise<LanguageModelV3GenerateResult> {
+    let textIndex = 0;
+    let structuredIndex = 0;
+    return async (options: LanguageModelV3CallOptions): Promise<LanguageModelV3GenerateResult> => {
+      const messages = ScriptedPromptNormalizer.normalize(options.prompt);
+      const normalizedOptions = ScriptedCallOptionsNormalizer.normalize(options);
+      const toolNames = (options.tools ?? []).map((tool) => tool.name);
+      args.capture.recordBoundTools(toolNames.map((name) => ({ name })));
+      const isStructuredCall = options.responseFormat?.type === "json" && args.structuredResponses !== undefined;
+      if (isStructuredCall) {
+        args.capture.recordStructuredInvocation(messages, normalizedOptions);
+        args.capture.recordStructuredBinding(options.responseFormat, options.responseFormat);
+        const structuredResponse =
+          args.structuredResponses?.[structuredIndex] ??
+          args.structuredResponses?.[args.structuredResponses.length - 1];
+        structuredIndex += 1;
+        return {
+          content: [{ type: "text", text: JSON.stringify(structuredResponse ?? {}) }],
+          finishReason: { unified: "stop", raw: "stop" },
+          usage: {
+            inputTokens: { total: undefined, noCache: undefined, cacheRead: undefined, cacheWrite: undefined },
+            outputTokens: { total: undefined, text: undefined, reasoning: undefined },
+          },
+          warnings: [],
+        };
+      }
+      args.capture.recordInvocation(messages, normalizedOptions);
+      const response = args.responses[textIndex] ?? args.responses[args.responses.length - 1];
+      textIndex += 1;
+      return ScriptedResponseConverter.toGenerateResult(response);
+    };
+  }
+}
+
+class ScriptedCallOptionsNormalizer {
+  static normalize(options: LanguageModelV3CallOptions): Record<string, unknown> {
+    const normalized: Record<string, unknown> = {};
+    if (options.maxOutputTokens !== undefined) {
+      normalized["maxTokens"] = options.maxOutputTokens;
+    }
+    if (options.temperature !== undefined) {
+      normalized["temperature"] = options.temperature;
+    }
+    if (options.providerOptions !== undefined) {
+      normalized["providerOptions"] = options.providerOptions;
+    }
+    return normalized;
   }
 }
 
 class ScriptedChatModelFactory implements ChatModelFactory<ScriptedChatModelConfig> {
-  create(args: Readonly<{ config: ScriptedChatModelConfig; ctx: NodeExecutionContext<any> }>): LangChainChatModelLike {
-    if (args.config.structuredResponses) {
-      return new StructuredScriptedLangChainChatModel(
-        args.config.responses,
-        args.config.capture,
-        args.config.structuredResponses,
-      );
-    }
-    return new ScriptedLangChainChatModel(args.config.responses, args.config.capture);
+  create(args: Readonly<{ config: ScriptedChatModelConfig; ctx: NodeExecutionContext<any> }>): ChatLanguageModel {
+    const doGenerate = ScriptedDoGenerateFactory.create({
+      responses: args.config.responses,
+      structuredResponses: args.config.structuredResponses,
+      capture: args.config.capture,
+    });
+    const mock = new MockLanguageModelV3({
+      provider: args.config.provider ?? "scripted",
+      modelId: args.config.modelName ?? args.config.name,
+      doGenerate,
+    });
+    return {
+      languageModel: mock,
+      modelName: args.config.modelName ?? args.config.name,
+      provider: args.config.provider,
+    };
   }
 }
 
@@ -496,7 +593,7 @@ class AgentTestRig {
       AgentStructuredOutputRepairPromptFactory,
       AgentStructuredOutputRepairPromptFactory,
     );
-    this.container.registerSingleton(OpenAIStructuredOutputMethodFactory, OpenAIStructuredOutputMethodFactory);
+    this.container.registerSingleton(OpenAiStrictJsonSchemaFactory, OpenAiStrictJsonSchemaFactory);
     this.container.registerSingleton(AgentStructuredOutputRunner, AgentStructuredOutputRunner);
     this.container.registerSingleton(AgentToolErrorClassifier, AgentToolErrorClassifier);
     this.container.registerSingleton(AgentToolRepairPolicy, AgentToolRepairPolicy);
@@ -624,7 +721,10 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
   assert.ok(rig.nodeState.events.includes(`completed:${subjectToolNodeId}`));
   assert.ok(rig.nodeState.events.includes(`queued:${bodyToolNodeId}`));
   assert.ok(rig.nodeState.events.includes(`completed:${bodyToolNodeId}`));
-  assert.deepEqual(capture.snapshotBoundToolNames(), [["subject_tool", "body_tool"]]);
+  assert.deepEqual(capture.snapshotBoundToolNames(), [
+    ["subject_tool", "body_tool"],
+    ["subject_tool", "body_tool"],
+  ]);
 });
 
 test("AIAgentNode executes callable tools and emits synthetic tool connection states", async () => {
@@ -1352,17 +1452,4 @@ test("AIAgentNode records telemetry for turns, tokens, and child invocation arti
   ]);
   assert.equal(rig.telemetry.childSpans()[0]?.artifacts.length, 2);
   assert.equal(rig.telemetry.childSpans()[0]?.ended[0]?.status, "ok");
-});
-
-test("OpenAIStructuredOutputMethodFactory prefers jsonSchema for supported 4o models", () => {
-  const factory = new OpenAIStructuredOutputMethodFactory();
-
-  assert.deepEqual(factory.create(new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini")), {
-    method: "jsonSchema",
-    strict: true,
-  });
-  assert.deepEqual(factory.create(new OpenAIChatModelConfig("OpenAI", "gpt-4-turbo")), {
-    method: "functionCalling",
-    strict: true,
-  });
 });

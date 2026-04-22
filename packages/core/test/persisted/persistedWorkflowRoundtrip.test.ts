@@ -5,9 +5,9 @@ import { z } from "zod";
 
 import { container as tsyringeContainer } from "tsyringe";
 import type {
+  ChatLanguageModel,
   ChatModelConfig,
   ChatModelFactory,
-  LangChainChatModelLike,
   NodeResolver,
   RunnableNode,
   RunnableNodeConfig,
@@ -44,14 +44,12 @@ class StableChatModelConfig implements ChatModelConfig {
 
 @chatModel({ packageName: "@codemation/test" })
 class StableChatModelFactory implements ChatModelFactory<StableChatModelConfig> {
-  create(): LangChainChatModelLike {
-    return new StableLangChainChatModel();
-  }
-}
-
-class StableLangChainChatModel implements LangChainChatModelLike {
-  async invoke(): Promise<unknown> {
-    return { content: "ok" };
+  create(): ChatLanguageModel {
+    return {
+      languageModel: {},
+      modelName: "stable-test-model",
+      provider: "stable-test",
+    };
   }
 }
 

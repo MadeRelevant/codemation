@@ -6,7 +6,6 @@ import type {
   ToolExecuteArgs,
   ZodSchemaAny,
 } from "@codemation/core";
-import type { DynamicStructuredTool } from "@langchain/core/tools";
 
 export class AgentItemPortMap {
   static fromItem(item: Item): NodeInputsByPort {
@@ -23,9 +22,15 @@ export type ResolvedTool = Readonly<{
   }>;
 }>;
 
+/**
+ * Per-item binding of a tool: the user config plus the resolved runtime and a snapshot of the
+ * original Zod `inputSchema` used to convert to AI SDK `Tool` + OpenAI-strict JSON Schema for
+ * repair prompts.
+ */
 export type ItemScopedToolBinding = Readonly<{
   config: ToolConfig;
-  langChainTool: DynamicStructuredTool;
+  inputSchema: ZodSchemaAny;
+  execute(input: unknown): Promise<unknown>;
 }>;
 
 export type PlannedToolCall = Readonly<{
