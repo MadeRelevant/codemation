@@ -6,12 +6,13 @@ import { AIAgentExecutionHelpersFactory } from "../nodes/AIAgentExecutionHelpers
 /**
  * Produces an OpenAI **strict mode**–compliant JSON Schema for an AIAgent `outputSchema`.
  *
- * Why this exists: LangChain's default Zod → JSON Schema conversion only auto-strictifies when
- * the root is a `ZodObject` (and, for Zod v4, may emit `unevaluatedProperties: false` instead of
- * `additionalProperties: false`). OpenAI's strict-mode validator rejects anything missing
- * `additionalProperties: false` at `context=()` (the root) and requires **all properties** in
- * `required`. We convert here — not in LangChain — so all legal Zod root shapes work
- * (object, union, discriminated union, nullable-object wrapper, array, intersection, …).
+ * Why this exists: AI SDK's default Zod → JSON Schema conversion (Zod v4's `toJSONSchema`) can
+ * emit `unevaluatedProperties: false` or skip `additionalProperties: false` on object branches.
+ * OpenAI's strict-mode validator rejects anything missing `additionalProperties: false` at
+ * `context=()` (the root) and requires **all properties** in `required`. We convert here so all
+ * legal Zod root shapes work (object, union, discriminated union, nullable-object wrapper, array,
+ * intersection, …) and hand AI SDK a pre-tagged `jsonSchema(...)` record that passes straight
+ * through to the provider.
  *
  * Rules enforced on the produced JSON Schema record:
  * - Every `type: "object"` node (root and nested under `allOf`/`anyOf`/`oneOf`/`items`/`prefixItems`/`$defs`):

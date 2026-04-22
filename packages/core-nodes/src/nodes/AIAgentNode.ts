@@ -80,7 +80,6 @@ interface TurnResult {
   readonly text: string;
   readonly toolCalls: ReadonlyArray<AgentToolCall>;
   readonly usage: ModelUsage;
-  readonly finishReason: string | undefined;
 }
 
 interface ModelUsage {
@@ -592,8 +591,8 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
 
   private extractTurnResult(result: AnyGenerateTextResult): TurnResult {
     const usage = this.extractUsageFromResult(result);
-    const text = typeof result.text === "string" ? result.text : "";
-    const toolCalls: ReadonlyArray<AgentToolCall> = (result.toolCalls ?? []).map((toolCall) => ({
+    const text = result.text;
+    const toolCalls: ReadonlyArray<AgentToolCall> = result.toolCalls.map((toolCall) => ({
       id: toolCall.toolCallId,
       name: toolCall.toolName,
       input: (toolCall as { input?: unknown }).input,
@@ -604,29 +603,24 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       text,
       toolCalls,
       usage,
-      finishReason: typeof result.finishReason === "string" ? result.finishReason : undefined,
     };
   }
 
   private extractAssistantMessage(result: AnyGenerateTextResult): AssistantModelMessage | undefined {
-    const responseMessages = (result as unknown as { response?: { messages?: ReadonlyArray<ModelMessage> } }).response
-      ?.messages;
-    if (!responseMessages) return undefined;
+    const responseMessages: ReadonlyArray<ModelMessage> = result.response.messages;
     const assistantMessages = responseMessages.filter((m) => m.role === "assistant");
-    const last = assistantMessages[assistantMessages.length - 1];
-    if (!last) return undefined;
-    return last as AssistantModelMessage;
+    return assistantMessages[assistantMessages.length - 1];
   }
 
   private extractUsageFromResult(result: AnyGenerateTextResult): ModelUsage {
-    const usage = (result as unknown as { usage?: Record<string, unknown> }).usage ?? {};
-    const inputTokens = this.toFiniteNumber(usage["inputTokens"] ?? usage["promptTokens"]);
-    const outputTokens = this.toFiniteNumber(usage["outputTokens"] ?? usage["completionTokens"]);
+    const usage = result.usage;
+    const inputTokens = this.toFiniteNumber(usage.inputTokens);
+    const outputTokens = this.toFiniteNumber(usage.outputTokens);
     const totalTokens =
-      this.toFiniteNumber(usage["totalTokens"]) ??
+      this.toFiniteNumber(usage.totalTokens) ??
       (inputTokens !== undefined && outputTokens !== undefined ? inputTokens + outputTokens : undefined);
-    const cachedInputTokens = this.toFiniteNumber(usage["cachedInputTokens"]);
-    const reasoningTokens = this.toFiniteNumber(usage["reasoningTokens"]);
+    const cachedInputTokens = this.toFiniteNumber(usage.cachedInputTokens);
+    const reasoningTokens = this.toFiniteNumber(usage.reasoningTokens);
     return { inputTokens, outputTokens, totalTokens, cachedInputTokens, reasoningTokens };
   }
 

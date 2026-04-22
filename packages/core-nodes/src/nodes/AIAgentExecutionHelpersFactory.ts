@@ -20,12 +20,11 @@ type ZodInstanceToJsonSchema = (params?: Readonly<{ target: "draft-07" | "draft-
 /**
  * Helper utilities shared by {@link AIAgentNode} and supporting runners.
  *
- * Kept because:
+ * Responsibilities:
  * - {@link #createConnectionCredentialExecutionContextFactory} centralizes credential-context wiring.
  * - {@link #createJsonSchemaRecord} is a pure Zod → draft-07 converter used by both
  *   `OpenAiStrictJsonSchemaFactory` (to feed OpenAI-strict structured output) and the
- *   `AgentStructuredOutputRepairPromptFactory` (to show a required-schema reminder). No LangChain
- *   dependency is needed here.
+ *   `AgentStructuredOutputRepairPromptFactory` (to show a required-schema reminder).
  */
 @injectable()
 export class AIAgentExecutionHelpersFactory {

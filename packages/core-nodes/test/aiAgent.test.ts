@@ -256,9 +256,9 @@ class ScriptedChatModelConfig implements ChatModelConfig {
 }
 
 /**
- * Normalizes the AI SDK V3 prompt (`Array<LanguageModelV3Message>`) back to a flat
- * `{ role, content: string }[]` shape that existing test assertions expect (they were originally
- * written against LangChain messages). Text parts are concatenated; non-text content is kept as-is.
+ * Normalizes the AI SDK V3 prompt (`Array<LanguageModelV3Message>`) to a flat
+ * `{ role, content: string }[]` shape used by the scripted-model test assertions below. Text parts
+ * are concatenated; non-text content is kept as-is.
  */
 class ScriptedPromptNormalizer {
   static normalize(prompt: LanguageModelV3Prompt): ReadonlyArray<{ role: string; content: unknown }> {
@@ -284,8 +284,9 @@ class ScriptedPromptNormalizer {
 }
 
 /**
- * Builds an AI-SDK-V3 `LanguageModelV3GenerateResult` from a legacy LangChain-shaped response
- * `{ content, tool_calls?, usage_metadata? }`. Keeps our test DSL stable across the migration.
+ * Builds an AI-SDK-V3 `LanguageModelV3GenerateResult` from the scripted-model test DSL
+ * `{ content, tool_calls?, usage_metadata? }`. This concise shape keeps test fixtures readable; the
+ * converter adapts it to the AI SDK's provider result so the real agent runtime runs end-to-end.
  */
 class ScriptedResponseConverter {
   static toGenerateResult(response: unknown): LanguageModelV3GenerateResult {
