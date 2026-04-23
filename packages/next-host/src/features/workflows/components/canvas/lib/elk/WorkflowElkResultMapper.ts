@@ -1,10 +1,7 @@
 import type { ElkNode } from "elkjs/lib/elk.bundled.js";
 import { MarkerType, Position, type Edge as ReactFlowEdge, type Node as ReactFlowNode } from "@xyflow/react";
 
-import type {
-  ConnectionInvocationRecord,
-  NodeExecutionSnapshot,
-} from "../../../../lib/realtime/realtimeDomainTypes";
+import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../../../lib/realtime/realtimeDomainTypes";
 import type { WorkflowDto } from "../../../../lib/realtime/workflowTypes";
 import { WorkflowCanvasEdgeCountResolver } from "../WorkflowCanvasEdgeCountResolver";
 import { WorkflowCanvasEdgeStyleResolver } from "../WorkflowCanvasEdgeStyleResolver";
@@ -25,7 +22,6 @@ import type { WorkflowElkPortInfo } from "./WorkflowElkPortInfoResolver";
 const ATTACHMENT_SOURCE_HANDLE_LLM = "attachment-source-llm";
 /** Source handle id for all tool / nested-agent attachment edges. */
 const ATTACHMENT_SOURCE_HANDLE_TOOLS = "attachment-source-tools";
-
 
 export type WorkflowElkMapperInput = Readonly<{
   workflow: WorkflowDto;

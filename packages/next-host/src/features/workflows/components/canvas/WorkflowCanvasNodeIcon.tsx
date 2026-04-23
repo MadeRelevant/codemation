@@ -52,11 +52,7 @@ function parseIconToken(raw: string): Readonly<{ body: string; rotate?: CanvasIc
   return rotate ? { body, rotate } : { body };
 }
 
-function renderInSlot(
-  sizePx: number,
-  rotate: CanvasIconRotate | undefined,
-  children: ReactNode,
-): ReactNode {
+function renderInSlot(sizePx: number, rotate: CanvasIconRotate | undefined, children: ReactNode): ReactNode {
   return (
     <CanvasNodeIconSlot sizePx={sizePx} rotate={rotate}>
       {children}
@@ -132,7 +128,9 @@ export function WorkflowCanvasNodeIcon(
     }
     return renderInSlot(sizePx, rotate, <Boxes size={sizePx} strokeWidth={strokeWidth} />);
   }
-  const lucideName = body.startsWith("lucide:") ? body.slice("lucide:".length).trim().toLowerCase() : body.toLowerCase();
+  const lucideName = body.startsWith("lucide:")
+    ? body.slice("lucide:".length).trim().toLowerCase()
+    : body.toLowerCase();
   return renderInSlot(
     sizePx,
     rotate,

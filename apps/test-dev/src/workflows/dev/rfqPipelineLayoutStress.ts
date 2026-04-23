@@ -64,7 +64,10 @@ const highlightKeywordTool = callableTool({
 });
 
 /** Nested retrieval sub-agent: returns verbatim snippets per query. */
-const searchInMailAgent = new AIAgent<Readonly<{ queries: readonly string[] }>, Readonly<{ evidence: readonly string[] }>>({
+const searchInMailAgent = new AIAgent<
+  Readonly<{ queries: readonly string[] }>,
+  Readonly<{ evidence: readonly string[] }>
+>({
   name: "searchInMail",
   messages: [
     {
@@ -161,15 +164,9 @@ export default workflow("wf.dev.rfqPipelineLayoutStress")
       attachmentsSummary: "rfq.pdf (2 pages), line-items.xlsx (12 rows)",
     },
   ])
-  .then(
-    new MapData<MailJson>("Mail data", (item) => ({ ...item.json })),
-  )
-  .then(
-    new Split<MailJson, string>("One per attachment", (item) => [...item.json.attachments]),
-  )
-  .then(
-    new Callback<string>("OCR attachment (stub)", (items) => items),
-  )
+  .then(new MapData<MailJson>("Mail data", (item) => ({ ...item.json })))
+  .then(new Split<MailJson, string>("One per attachment", (item) => [...item.json.attachments]))
+  .then(new Callback<string>("OCR attachment (stub)", (items) => items))
   .agent("Classify attachment", {
     messages: itemExpr(({ item }) => [
       { role: "system" as const, content: "Classify the attachment (rfq, line-items, other). JSON only." },
@@ -179,20 +176,15 @@ export default workflow("wf.dev.rfqPipelineLayoutStress")
     outputSchema: z.object({ classification: z.string() }),
   })
   .then(
-    new Aggregate<Readonly<{ classification: string }>, StitchedMailJson>(
-      "Stitch mail + OCR",
-      (items) => ({
-        messageId: "msg-stress-1",
-        attachments: ["rfq.pdf", "line-items.xlsx"],
-        mailThreadWithHeaders: "stitched-thread",
-        attachmentsSummary: `classified=${items.map((i) => i.json.classification).join(",")}`,
-        ocrSnippets: items.map((i) => i.json.classification),
-      }),
-    ),
+    new Aggregate<Readonly<{ classification: string }>, StitchedMailJson>("Stitch mail + OCR", (items) => ({
+      messageId: "msg-stress-1",
+      attachments: ["rfq.pdf", "line-items.xlsx"],
+      mailThreadWithHeaders: "stitched-thread",
+      attachmentsSummary: `classified=${items.map((i) => i.json.classification).join(",")}`,
+      ocrSnippets: items.map((i) => i.json.classification),
+    })),
   )
-  .then(
-    new Split<StitchedMailJson, StitchedMailJson>("One per stitched mail", (item) => [item.json]),
-  )
+  .then(new Split<StitchedMailJson, StitchedMailJson>("One per stitched mail", (item) => [item.json]))
   .agent("Classify mail (gatekeeper)", {
     messages: itemExpr(({ item }) => [
       {

@@ -24,14 +24,8 @@ export function WorkflowCanvasCodemationNodeHandles(
     targetInputPorts: readonly string[];
   }>,
 ) {
-  const {
-    isNestedAgentAttachment,
-    isAttachment,
-    sourceOutputPorts,
-    sourceOutputPortCounts,
-    targetInputPorts,
-    kind,
-  } = props;
+  const { isNestedAgentAttachment, isAttachment, sourceOutputPorts, sourceOutputPortCounts, targetInputPorts, kind } =
+    props;
 
   if (isNestedAgentAttachment || isAttachment) {
     return (

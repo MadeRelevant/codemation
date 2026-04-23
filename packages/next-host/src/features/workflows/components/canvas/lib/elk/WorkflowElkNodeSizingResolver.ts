@@ -55,8 +55,7 @@ export class WorkflowElkNodeSizingResolver {
         continue;
       }
       const cardHeightPx = WORKFLOW_CANVAS_MAIN_NODE_CARD_PX;
-      const heightPx =
-        cardHeightPx + WORKFLOW_CANVAS_MAIN_NODE_LABEL_GAP_PX + WORKFLOW_CANVAS_MAIN_NODE_LABEL_SLOT_PX;
+      const heightPx = cardHeightPx + WORKFLOW_CANVAS_MAIN_NODE_LABEL_GAP_PX + WORKFLOW_CANVAS_MAIN_NODE_LABEL_SLOT_PX;
       out.set(node.id, {
         widthPx: WORKFLOW_CANVAS_MAIN_NODE_CARD_PX,
         heightPx,

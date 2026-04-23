@@ -148,9 +148,7 @@ describe("layoutWorkflow rendering rules", () => {
       const { nodes } = await LayoutWorkflowTestKit.run(workflow);
       const byId = new Map(nodes.map((n) => [n.id, n]));
       const router = byId.get("router")!;
-      const leafYs = ["leaf_one", "leaf_two", "leaf_three"]
-        .map((id) => byId.get(id)!.position.y)
-        .sort((a, b) => a - b);
+      const leafYs = ["leaf_one", "leaf_two", "leaf_three"].map((id) => byId.get(id)!.position.y).sort((a, b) => a - b);
 
       const [topY, midY, botY] = leafYs as [number, number, number];
 

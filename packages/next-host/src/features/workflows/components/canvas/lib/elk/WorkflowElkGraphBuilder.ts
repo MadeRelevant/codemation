@@ -194,15 +194,11 @@ export class WorkflowElkGraphBuilder {
       };
     }
 
-    const childElkNodes = attachmentChildren.map((childNode) =>
-      this.buildElkNode({ ...args, node: childNode }),
-    );
+    const childElkNodes = attachmentChildren.map((childNode) => this.buildElkNode({ ...args, node: childNode }));
     const compoundTopPaddingPx =
       cardHeightPx + WorkflowCanvasNodeGeometry.agentShellBelowCardPx() + COMPOUND_ATTACHMENT_BREATHING_PX;
     const isNestedAgent = Boolean(node.parentNodeId);
-    const aspectRatio = isNestedAgent
-      ? NESTED_COMPOUND_CHILDREN_ASPECT_RATIO
-      : ROOT_COMPOUND_CHILDREN_ASPECT_RATIO;
+    const aspectRatio = isNestedAgent ? NESTED_COMPOUND_CHILDREN_ASPECT_RATIO : ROOT_COMPOUND_CHILDREN_ASPECT_RATIO;
 
     return {
       id: node.id,

@@ -58,9 +58,7 @@ function renderChip(visual: ChipVisual) {
  * vertical slot (`WORKFLOW_CANVAS_AGENT_BADGE_ROW_PX`), matching the
  * shell height that the ELK sizing resolver reserves under the card.
  */
-export function WorkflowCanvasCodemationNodeAgentLabels(
-  props: Readonly<{ agentAttachments: AgentAttachmentFlags }>,
-) {
+export function WorkflowCanvasCodemationNodeAgentLabels(props: Readonly<{ agentAttachments: AgentAttachmentFlags }>) {
   const { hasLanguageModel, hasTools } = props.agentAttachments;
   return (
     <div

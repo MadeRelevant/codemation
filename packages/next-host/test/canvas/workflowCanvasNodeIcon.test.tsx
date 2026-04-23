@@ -44,9 +44,7 @@ describe("WorkflowCanvasNodeIcon", () => {
     });
 
     it("keeps URLs containing '@' intact (basic-auth URL without a @rot suffix)", () => {
-      const { container } = render(
-        <WorkflowCanvasNodeIcon icon="https://user@host.example/icon.svg" sizePx={16} />,
-      );
+      const { container } = render(<WorkflowCanvasNodeIcon icon="https://user@host.example/icon.svg" sizePx={16} />);
       const img = container.querySelector<HTMLImageElement>("img");
       expect(img?.getAttribute("src")).toBe("https://user@host.example/icon.svg");
       expect(getRotationTransform(container)).toBe("");
