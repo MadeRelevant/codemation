@@ -1,5 +1,5 @@
 import type { Edge as ReactFlowEdge, Node as ReactFlowNode } from "@xyflow/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { layoutWorkflow } from "../../components/canvas/lib/layoutWorkflow";
 import type { WorkflowCanvasNodeData } from "../../components/canvas/lib/workflowCanvasNodeData";
@@ -16,6 +16,12 @@ import type { WorkflowDto } from "../../lib/realtime/workflowTypes";
  * First-paint returns empty arrays; `WorkflowCanvas` already gates viewport-fit
  * on `isInitialViewportReady`, so the canvas stays blank until ELK resolves
  * instead of flashing stale positions.
+ *
+ * Callback props are routed through refs so their identity change does not
+ * retrigger the async ELK layout. This guarantees that whenever a caller's
+ * `onRunNode` closure is recreated (e.g. after `currentExecutionState` updates
+ * post-pin), the canvas toolbar invokes the **latest** closure without waiting
+ * for a relayout round-trip.
  */
 export function useAsyncWorkflowLayout(args: {
   workflow: WorkflowDto;
@@ -57,6 +63,43 @@ export function useAsyncWorkflowLayout(args: {
     onEditNodeOutput,
     onClearPinnedOutput,
   } = args;
+
+  const onSelectNodeRef = useRef(onSelectNode);
+  const onOpenPropertiesNodeRef = useRef(onOpenPropertiesNode);
+  const onRequestOpenCredentialEditForNodeRef = useRef(onRequestOpenCredentialEditForNode);
+  const onRunNodeRef = useRef(onRunNode);
+  const onTogglePinnedOutputRef = useRef(onTogglePinnedOutput);
+  const onEditNodeOutputRef = useRef(onEditNodeOutput);
+  const onClearPinnedOutputRef = useRef(onClearPinnedOutput);
+  useEffect(() => {
+    onSelectNodeRef.current = onSelectNode;
+    onOpenPropertiesNodeRef.current = onOpenPropertiesNode;
+    onRequestOpenCredentialEditForNodeRef.current = onRequestOpenCredentialEditForNode;
+    onRunNodeRef.current = onRunNode;
+    onTogglePinnedOutputRef.current = onTogglePinnedOutput;
+    onEditNodeOutputRef.current = onEditNodeOutput;
+    onClearPinnedOutputRef.current = onClearPinnedOutput;
+  }, [
+    onClearPinnedOutput,
+    onEditNodeOutput,
+    onOpenPropertiesNode,
+    onRequestOpenCredentialEditForNode,
+    onRunNode,
+    onSelectNode,
+    onTogglePinnedOutput,
+  ]);
+
+  const stableOnSelectNode = useCallback((nodeId: string) => onSelectNodeRef.current(nodeId), []);
+  const stableOnOpenPropertiesNode = useCallback((nodeId: string) => onOpenPropertiesNodeRef.current(nodeId), []);
+  const stableOnRequestOpenCredentialEditForNode = useCallback(
+    (nodeId: string) => onRequestOpenCredentialEditForNodeRef.current(nodeId),
+    [],
+  );
+  const stableOnRunNode = useCallback((nodeId: string) => onRunNodeRef.current(nodeId), []);
+  const stableOnTogglePinnedOutput = useCallback((nodeId: string) => onTogglePinnedOutputRef.current(nodeId), []);
+  const stableOnEditNodeOutput = useCallback((nodeId: string) => onEditNodeOutputRef.current(nodeId), []);
+  const stableOnClearPinnedOutput = useCallback((nodeId: string) => onClearPinnedOutputRef.current(nodeId), []);
+
   const [layoutResult, setLayoutResult] = useState<{
     nodes: ReactFlowNode<WorkflowCanvasNodeData>[];
     edges: ReactFlowEdge[];
@@ -75,13 +118,13 @@ export function useAsyncWorkflowLayout(args: {
       isLiveWorkflowView,
       isRunning,
       workflowNodeIdsWithBoundCredential,
-      onSelectNode,
-      onOpenPropertiesNode,
-      onRequestOpenCredentialEditForNode,
-      onRunNode,
-      onTogglePinnedOutput,
-      onEditNodeOutput,
-      onClearPinnedOutput,
+      stableOnSelectNode,
+      stableOnOpenPropertiesNode,
+      stableOnRequestOpenCredentialEditForNode,
+      stableOnRunNode,
+      stableOnTogglePinnedOutput,
+      stableOnEditNodeOutput,
+      stableOnClearPinnedOutput,
     ).then((resolved) => {
       if (cancelled) return;
       setLayoutResult({ nodes: [...resolved.nodes], edges: [...resolved.edges] });
@@ -95,16 +138,16 @@ export function useAsyncWorkflowLayout(args: {
     isLiveWorkflowView,
     isRunning,
     nodeSnapshotsByNodeId,
-    onClearPinnedOutput,
-    onEditNodeOutput,
-    onOpenPropertiesNode,
-    onRequestOpenCredentialEditForNode,
-    onRunNode,
-    onSelectNode,
-    onTogglePinnedOutput,
     pinnedNodeIds,
     propertiesTargetNodeId,
     selectedNodeId,
+    stableOnClearPinnedOutput,
+    stableOnEditNodeOutput,
+    stableOnOpenPropertiesNode,
+    stableOnRequestOpenCredentialEditForNode,
+    stableOnRunNode,
+    stableOnSelectNode,
+    stableOnTogglePinnedOutput,
     visibleNodeStatusesByNodeId,
     workflow,
     workflowNodeIdsWithBoundCredential,
