@@ -163,6 +163,7 @@ export class WorkflowDetailScreenTestKit {
     await waitFor(() => {
       expect(environment.socketConnections.length).toBeGreaterThanOrEqual(expectedCount);
     });
+    await this.waitForCanvasReady();
     return this.latestSocket();
   }
 
