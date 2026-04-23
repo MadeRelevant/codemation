@@ -1,5 +1,45 @@
 # @codemation/next-host
 
+## 0.2.3
+
+### Patch Changes
+
+- [#95](https://github.com/MadeRelevant/codemation/pull/95) [`328c975`](https://github.com/MadeRelevant/codemation/commit/328c9759d45b711c177ea9a360ed4960ffdf5ffa) Thanks [@cblokland90](https://github.com/cblokland90)! - Migrate the workflow canvas to an ELK-based auto-layout pipeline so complex workflows—especially AI agent hierarchies and parallel `if` / `switch` branches—lay out reliably without manual node repositioning.
+
+  Users cannot move nodes around on the canvas, so the framework must place them well by default. The previous Dagre-backed pipeline produced overlap, asymmetric branches, and "orphaned" LLM / tool connections on nested agents.
+
+  **What changed**
+  - **Engine**: replaced Dagre + bespoke overlap resolver with ELK (`elkjs`). Root graph uses ELK Layered (`elk.layered.layering.strategy: LONGEST_PATH`, `elk.layered.nodePlacement.strategy: BRANDES_KOEPF` with `fixedAlignment: BALANCED`) so parallel branches distribute symmetrically around the fork axis and terminal nodes align before merges. Agent compounds use ELK Box with role-aware aspect ratios (root compound 2.6, nested compound 2.0) so nested 1-LLM + 1-tool agents lay out side-by-side.
+  - **Agent attachments**: two fixed, card-anchored source handles (`attachment-source-llm` at 30%, `attachment-source-tools` at 70%) on the bottom edge of every agent card, matched by LLM / TOOLS chips at the same percentages. Attachment edges render as bezier (React Flow `default`) so overlapping LLM + single-tool fan-outs each take their own arc instead of collapsing onto a shared horizontal segment.
+  - **Spacing**: reduced default node-node (56 → 45 px) and between-layer (224 → 180 px) spacing by ~20% based on visual tuning.
+  - **Deleted**: `WorkflowCanvasOverlapResolver` (and its tests) — the ELK pipeline places nodes without post-hoc overlap correction.
+  - **Added**: `useAsyncWorkflowLayout` hook, `WorkflowElkGraphBuilder` / `WorkflowElkResultMapper`, and a shared `LayoutWorkflowTestKit` harness under `test/canvas/testkit/` that runs the real layout path with in-memory boilerplate.
+  - **Pinned behaviour**: `test/canvas/layoutWorkflow.renderingRules.test.ts` groups 11 tests across 5 describe blocks (parallel branch merge alignment, symmetric fork placement, agent attachment edges, agent card dimensions, nested agent child packing), asserting on relative deltas rather than hardcoded pixel values.
+
+  Dependency: adds `elkjs` to `@codemation/next-host`.
+
+- [#95](https://github.com/MadeRelevant/codemation/pull/95) [`328c975`](https://github.com/MadeRelevant/codemation/commit/328c9759d45b711c177ea9a360ed4960ffdf5ffa) Thanks [@cblokland90](https://github.com/cblokland90)! - Workflow-canvas icon system redesign: LTR-oriented control-flow icons, pixel-perfect Split / Aggregate SVGs, and a single icon renderer shared by the canvas and the execution tree panel.
+
+  **Why**
+
+  The canvas reads left-to-right, but Lucide's `split`, `merge`, and `git-*` family are oriented vertically (top-to-bottom git-graph convention), so `If` and `Merge` nodes rendered 90° off from the flow direction. The execution-tree panel also ran a parallel icon-rendering path that only understood Lucide names — every time a plugin node set an icon as `builtin:<id>`, `si:<slug>`, or a URL, the tree panel silently fell back to a type-substring-guessed Lucide glyph (e.g. `"wait".includes("ai")` → the agent Bot icon). That duplication is gone.
+
+  **What changed**
+  - **Rotation suffix**: `NodeConfigBase.icon` now accepts an optional `@rot=<0|90|180|270>` tail modifier on any icon token (`lucide:`, `builtin:`, `si:`, or URL). Parsed by a strict tail regex so URLs with `@` (for example `http://user@host/icon.svg`) are unaffected, and non-orthogonal angles are rejected so glyphs stay pixel-crisp.
+  - **LTR control-flow icons**:
+    - `If`: `lucide:split@rot=90` — Y-fork with the single leg on the left and two arms fanning right.
+    - `Merge`: `lucide:merge@rot=90` — chevron pointing right, two arms merging from the left.
+  - **Pixel-perfect builtin SVGs** shipped under `packages/next-host/public/canvas-icons/builtin/`:
+    - `builtin:split-rows`: 1 source square on the left, tree trunk / spine, 3 output lines on the right.
+    - `builtin:aggregate-rows`: mirror — 3 input lines on the left converging through a spine into 1 summary square on the right.
+    - Stroke-based SVGs (matching Lucide stroke weight next to them on the canvas).
+  - **`@codemation/core-nodes` built-in node icon updates** that plug into the above: `If` (rotated split), `Merge` (rotated merge), `Split` (`builtin:split-rows`), `Aggregate` (`builtin:aggregate-rows`), `Wait` (`lucide:hourglass`), `MapData` (`lucide:square-pen`), `HttpRequest` (`lucide:globe`), `WebhookTrigger` (`lucide:webhook`), `NoOp` (`lucide:circle-dashed`).
+  - **One renderer, role-only fallback**: `WorkflowExecutionInspectorTreePanelContent` now renders `<WorkflowCanvasNodeIcon />` so `builtin:`, `si:`, URLs, and `@rot=…` resolve identically in the execution tree panel and on the canvas. `WorkflowNodeIconResolver.resolveFallback` shrank from 11 branches of type-substring guessing to 4 role mappings (`agent` / `nestedAgent` → `Bot`, `languageModel` → `Brain`, `tool` → `Wrench`, else → `Boxes`). Plugin nodes that forget to set an icon now get a generic `Boxes` — a clear visual signal rather than a silent substring mismatch.
+  - **New test file** `test/canvas/workflowCanvasNodeIcon.test.tsx` pins 12 behaviours across the rotation parser and the role-only fallback, including a regression case that the pre-fix `"wait".includes("ai")` mis-mapping is impossible now.
+
+- Updated dependencies []:
+  - @codemation/host@1.0.1
+
 ## 0.2.2
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @codemation/cli
 
+## 0.0.40
+
+### Patch Changes
+
+- Updated dependencies [[`328c975`](https://github.com/MadeRelevant/codemation/commit/328c9759d45b711c177ea9a360ed4960ffdf5ffa), [`328c975`](https://github.com/MadeRelevant/codemation/commit/328c9759d45b711c177ea9a360ed4960ffdf5ffa)]:
+  - @codemation/next-host@0.2.3
+  - @codemation/host@1.0.1
+
 ## 0.0.39
 
 ### Patch Changes
