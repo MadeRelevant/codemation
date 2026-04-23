@@ -364,42 +364,50 @@ describe("workflow detail mutable execution flows", () => {
     await waitFor(() => {
       expect(screen.getByTestId("selected-node-pinned-badge")).toHaveTextContent("Pinned");
     });
+    // Wait for the async ELK relayout to republish B with the new pinned
+    // state so the canvas toolbar's `onRunNode` closure captures the
+    // post-pin `currentExecutionState` before we fire the run.
+    await waitFor(() => {
+      expect(screen.getByTestId("canvas-node-card-B")).toHaveAttribute("data-codemation-node-pinned", "true");
+    });
 
     fireEvent.click(screen.getByTestId("canvas-node-run-button-C"));
 
-    expect(
-      kit.latestRequestBody<
-        Readonly<{
-          currentState?: PersistedRunState["mutableState"] | PersistedRunState | unknown;
-          stopAt?: string;
-          clearFromNodeId?: string;
-        }>
-      >("POST /api/runs"),
-    ).toEqual(
-      expect.objectContaining({
-        workflowId: workflow.id,
-        items: [],
-        synthesizeTriggerItems: false,
-        currentState: expect.objectContaining({
-          mutableState: expect.objectContaining({
-            nodesById: expect.objectContaining({
-              B: expect.objectContaining({
-                pinnedOutputsByPort: expect.objectContaining({
-                  main: expect.arrayContaining([
-                    expect.objectContaining({
-                      json: { pinned: true },
-                    }),
-                  ]),
+    await waitFor(() => {
+      expect(
+        kit!.latestRequestBody<
+          Readonly<{
+            currentState?: PersistedRunState["mutableState"] | PersistedRunState | unknown;
+            stopAt?: string;
+            clearFromNodeId?: string;
+          }>
+        >("POST /api/runs"),
+      ).toEqual(
+        expect.objectContaining({
+          workflowId: workflow.id,
+          items: [],
+          synthesizeTriggerItems: false,
+          currentState: expect.objectContaining({
+            mutableState: expect.objectContaining({
+              nodesById: expect.objectContaining({
+                B: expect.objectContaining({
+                  pinnedOutputsByPort: expect.objectContaining({
+                    main: expect.arrayContaining([
+                      expect.objectContaining({
+                        json: { pinned: true },
+                      }),
+                    ]),
+                  }),
                 }),
               }),
             }),
           }),
+          stopAt: "C",
+          clearFromNodeId: "C",
+          mode: "manual",
         }),
-        stopAt: "C",
-        clearFromNodeId: "C",
-        mode: "manual",
-      }),
-    );
+      );
+    });
 
     await kit.waitForWorkflowSubscription(workflow.id);
 

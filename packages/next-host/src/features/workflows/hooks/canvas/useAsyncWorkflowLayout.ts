@@ -1,5 +1,5 @@
 import type { Edge as ReactFlowEdge, Node as ReactFlowNode } from "@xyflow/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { layoutWorkflow } from "../../components/canvas/lib/layoutWorkflow";
 import type { WorkflowCanvasNodeData } from "../../components/canvas/lib/workflowCanvasNodeData";
@@ -16,13 +16,6 @@ import type { WorkflowDto } from "../../lib/realtime/workflowTypes";
  * First-paint returns empty arrays; `WorkflowCanvas` already gates viewport-fit
  * on `isInitialViewportReady`, so the canvas stays blank until ELK resolves
  * instead of flashing stale positions.
- *
- * Callback props drive the ELK relayout effect *and* are projected onto the
- * stored node data synchronously on each render. The projection guarantees
- * that whenever a caller's handler closure is rebound (e.g. `onRunNode` after
- * `currentExecutionState` updates post-pin), the canvas toolbar invokes the
- * latest closure immediately — without waiting for the asynchronous ELK
- * round-trip to republish new node data.
  */
 export function useAsyncWorkflowLayout(args: {
   workflow: WorkflowDto;
@@ -116,33 +109,5 @@ export function useAsyncWorkflowLayout(args: {
     workflow,
     workflowNodeIdsWithBoundCredential,
   ]);
-  const nodesWithLatestHandlers = useMemo(
-    () =>
-      layoutResult.nodes.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          onSelectNode,
-          onOpenPropertiesNode,
-          onRunNode,
-          onTogglePinnedOutput,
-          onEditNodeOutput,
-          onClearPinnedOutput,
-          onOpenCredentialEditFromCanvas: node.data.showCredentialEditToolbar
-            ? () => onRequestOpenCredentialEditForNode(node.data.nodeId)
-            : node.data.onOpenCredentialEditFromCanvas,
-        } satisfies WorkflowCanvasNodeData,
-      })),
-    [
-      layoutResult.nodes,
-      onClearPinnedOutput,
-      onEditNodeOutput,
-      onOpenPropertiesNode,
-      onRequestOpenCredentialEditForNode,
-      onRunNode,
-      onSelectNode,
-      onTogglePinnedOutput,
-    ],
-  );
-  return { nodes: nodesWithLatestHandlers, edges: layoutResult.edges };
+  return layoutResult;
 }
