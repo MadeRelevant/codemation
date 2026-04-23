@@ -12,7 +12,7 @@ export class Split<TIn = unknown, TElem = unknown> implements RunnableNodeConfig
    * Mirrors {@link MapData}'s empty-output behavior.
    */
   readonly continueWhenEmptyOutput = true as const;
-  readonly icon = "lucide:ungroup" as const;
+  readonly icon = "builtin:split-rows" as const;
 
   constructor(
     public readonly name: string,

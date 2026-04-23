@@ -4,6 +4,8 @@ import { WorkflowCanvasLabelLayoutEstimator } from "./WorkflowCanvasLabelLayoutE
 export const WORKFLOW_CANVAS_MAIN_NODE_CARD_PX = 92;
 /** AI Agent: wider card with the node title inline next to the icon (no separate label strip below the card). */
 export const WORKFLOW_CANVAS_AGENT_NODE_CARD_WIDTH_PX = 220;
+/** Nested agent (agent-as-tool): a narrower variant of the agent card so sub-agents don't visually compete with their orchestrator. */
+export const WORKFLOW_CANVAS_NESTED_AGENT_NODE_CARD_WIDTH_PX = 160;
 export const WORKFLOW_CANVAS_MAIN_NODE_LABEL_GAP_PX = 5;
 export const WORKFLOW_CANVAS_MAIN_NODE_ICON_PX = 22;
 /** Unified stroke for Lucide canvas glyphs (matches visual weight of filled brand marks). */
@@ -28,9 +30,23 @@ export const WORKFLOW_CANVAS_AGENT_BADGE_ROW_PX = 24;
 /** Vertical gap between main node bottom and attachment row center line (layout). Extra slack so edges clear agent labels/badges. */
 export const WORKFLOW_CANVAS_ATTACHMENT_STACK_GAP_PX = 50;
 
+/** Fixed vertical slot reserved under a main card for its wrapped label (enough for 2 lines at 13px / 1.25 line-height). */
+export const WORKFLOW_CANVAS_MAIN_NODE_LABEL_SLOT_PX = 34;
+/** Fixed vertical slot reserved under an attachment card for its single-line label. */
+export const WORKFLOW_CANVAS_ATTACHMENT_NODE_LABEL_SLOT_PX = 22;
+
 export class WorkflowCanvasNodeGeometry {
   static mainNodeWidthPx(isAgent: boolean): number {
     return isAgent ? WORKFLOW_CANVAS_AGENT_NODE_CARD_WIDTH_PX : WORKFLOW_CANVAS_MAIN_NODE_CARD_PX;
+  }
+
+  static nestedAgentNodeWidthPx(): number {
+    return WORKFLOW_CANVAS_NESTED_AGENT_NODE_CARD_WIDTH_PX;
+  }
+
+  /** Height of what sits directly under an agent card: the small LLM / TOOLS chip row. */
+  static agentShellBelowCardPx(): number {
+    return WORKFLOW_CANVAS_MAIN_NODE_LABEL_GAP_PX + WORKFLOW_CANVAS_AGENT_BADGE_ROW_PX;
   }
 
   static mainNodeLabelBlockHeightPx(label: string): number {

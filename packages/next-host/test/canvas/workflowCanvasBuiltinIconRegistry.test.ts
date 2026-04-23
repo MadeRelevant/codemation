@@ -20,4 +20,13 @@ describe("WorkflowCanvasBuiltinIconRegistry", () => {
   it("exposes a stable URL map for registration review", () => {
     expect(BUILTIN_CANVAS_ICON_URLS.openai).toContain("openai.svg");
   });
+
+  it("registers pixel-perfect control-flow glyphs (split-rows, aggregate-rows)", () => {
+    expect(WorkflowCanvasBuiltinIconRegistry.resolveUrl("split-rows")).toBe("/canvas-icons/builtin/split-rows.svg");
+    expect(WorkflowCanvasBuiltinIconRegistry.resolveUrl("aggregate-rows")).toBe(
+      "/canvas-icons/builtin/aggregate-rows.svg",
+    );
+    expect(WorkflowCanvasBuiltinIconRegistry.has("split-rows")).toBe(true);
+    expect(WorkflowCanvasBuiltinIconRegistry.has("aggregate-rows")).toBe(true);
+  });
 });

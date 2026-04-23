@@ -4,7 +4,7 @@ import type { IconName } from "lucide-react/dynamic";
 import { Suspense, type CSSProperties, type ReactNode } from "react";
 
 import { WorkflowNodeIconResolver } from "../workflowDetail/WorkflowDetailIcons";
-import { CanvasNodeIconSlot } from "./CanvasNodeIconSlot";
+import { CanvasNodeIconSlot, type CanvasIconRotate } from "./CanvasNodeIconSlot";
 import { WorkflowCanvasBuiltinIconRegistry } from "./lib/WorkflowCanvasBuiltinIconRegistry";
 import { WorkflowCanvasSiIconRegistry } from "./lib/WorkflowCanvasSiIconRegistry";
 import { WorkflowCanvasSimpleIconGlyph } from "./WorkflowCanvasSimpleIconGlyph";
@@ -26,10 +26,40 @@ function isHttpOrDataUrl(value: string): boolean {
   return v.startsWith("http://") || v.startsWith("https://") || v.startsWith("data:") || v.startsWith("/");
 }
 
-function builtinAssetImg(url: string, sizePx: number): ReactNode {
+/**
+ * Parse an optional trailing modifier group `@key=value[,key=value…]` off an icon token.
+ * Uses a strict tail match (not the first `@`) so `http://user@host/icon.svg` stays intact.
+ * Only `rot=0|90|180|270` is recognised today; unknown keys are ignored.
+ */
+const ICON_MODIFIER_SUFFIX_RE = /@([a-z]+=[a-z0-9]+(?:,[a-z]+=[a-z0-9]+)*)$/i;
+
+function parseIconToken(raw: string): Readonly<{ body: string; rotate?: CanvasIconRotate }> {
+  const match = raw.match(ICON_MODIFIER_SUFFIX_RE);
+  if (!match) {
+    return { body: raw };
+  }
+  const body = raw.slice(0, match.index ?? 0).trim();
+  let rotate: CanvasIconRotate | undefined;
+  for (const part of match[1].split(",")) {
+    const [key, value] = part.split("=").map((s) => s.trim().toLowerCase());
+    if (key === "rot" && value !== undefined) {
+      const n = Number.parseInt(value, 10);
+      if (n === 0 || n === 90 || n === 180 || n === 270) {
+        rotate = n;
+      }
+    }
+  }
+  return rotate ? { body, rotate } : { body };
+}
+
+function renderInSlot(
+  sizePx: number,
+  rotate: CanvasIconRotate | undefined,
+  children: ReactNode,
+): ReactNode {
   return (
-    <CanvasNodeIconSlot sizePx={sizePx}>
-      <img src={url} alt="" style={{ ...IMG_STYLE, width: "100%", height: "100%" }} />
+    <CanvasNodeIconSlot sizePx={sizePx} rotate={rotate}>
+      {children}
     </CanvasNodeIconSlot>
   );
 }
@@ -41,6 +71,9 @@ function builtinAssetImg(url: string, sizePx: number): ReactNode {
  * - **`si:<slug>`** — cherry-picked Simple Icons, or same builtin asset when slug matches a registered builtin (e.g. `si:openai`)
  * - **`lucide:<name>`** or legacy kebab name — Lucide dynamic icon
  *
+ * Any of the above may be suffixed with `@rot=<0|90|180|270>` (and future modifiers)
+ * to rotate the glyph so vertically-oriented source art reads in LTR workflow flow.
+ *
  * Node configs set {@link import("@codemation/core").NodeConfigBase.icon}.
  */
 export function WorkflowCanvasNodeIcon(
@@ -48,66 +81,63 @@ export function WorkflowCanvasNodeIcon(
     icon?: string;
     sizePx: number;
     strokeWidth?: number;
-    /** When `icon` is unset, Lucide fallback from node type + role (e.g. nested agent → Bot, not Boxes). */
+    /** When `icon` is unset, Lucide fallback from node role (e.g. nested agent → Bot, not Boxes). */
     fallbackType?: string;
     fallbackRole?: string;
   }>,
 ) {
-  const { icon, sizePx, strokeWidth = 2, fallbackType, fallbackRole } = props;
+  const { icon, sizePx, strokeWidth = 2, fallbackRole } = props;
   const raw = icon?.trim();
   if (!raw) {
-    const FallbackIcon = WorkflowNodeIconResolver.resolveFallback(fallbackType ?? "", fallbackRole, undefined);
-    return (
-      <CanvasNodeIconSlot sizePx={sizePx}>
-        <FallbackIcon size={sizePx} strokeWidth={strokeWidth} />
-      </CanvasNodeIconSlot>
+    const FallbackIcon = WorkflowNodeIconResolver.resolveFallback(fallbackRole);
+    return renderInSlot(sizePx, undefined, <FallbackIcon size={sizePx} strokeWidth={strokeWidth} />);
+  }
+  const { body, rotate } = parseIconToken(raw);
+  if (isHttpOrDataUrl(body)) {
+    return renderInSlot(
+      sizePx,
+      rotate,
+      <img src={body} alt="" style={{ ...IMG_STYLE, width: "100%", height: "100%" }} />,
     );
   }
-  if (isHttpOrDataUrl(raw)) {
-    return (
-      <CanvasNodeIconSlot sizePx={sizePx}>
-        <img src={raw} alt="" style={{ ...IMG_STYLE, width: "100%", height: "100%" }} />
-      </CanvasNodeIconSlot>
-    );
-  }
-  if (raw.startsWith("builtin:")) {
-    const id = raw.slice("builtin:".length).trim().toLowerCase();
+  if (body.startsWith("builtin:")) {
+    const id = body.slice("builtin:".length).trim().toLowerCase();
     const url = WorkflowCanvasBuiltinIconRegistry.resolveUrl(id);
     if (url) {
-      return builtinAssetImg(url, sizePx);
+      return renderInSlot(
+        sizePx,
+        rotate,
+        <img src={url} alt="" style={{ ...IMG_STYLE, width: "100%", height: "100%" }} />,
+      );
     }
-    return (
-      <CanvasNodeIconSlot sizePx={sizePx}>
-        <Boxes size={sizePx} strokeWidth={strokeWidth} />
-      </CanvasNodeIconSlot>
-    );
+    return renderInSlot(sizePx, rotate, <Boxes size={sizePx} strokeWidth={strokeWidth} />);
   }
-  if (raw.startsWith("si:")) {
-    const slug = raw.slice("si:".length).trim().toLowerCase();
+  if (body.startsWith("si:")) {
+    const slug = body.slice("si:".length).trim().toLowerCase();
     const builtinUrl = WorkflowCanvasBuiltinIconRegistry.resolveUrl(slug);
     if (builtinUrl) {
-      return builtinAssetImg(builtinUrl, sizePx);
+      return renderInSlot(
+        sizePx,
+        rotate,
+        <img src={builtinUrl} alt="" style={{ ...IMG_STYLE, width: "100%", height: "100%" }} />,
+      );
     }
     const data = WorkflowCanvasSiIconRegistry.resolve(slug);
     if (data) {
-      return (
-        <CanvasNodeIconSlot sizePx={sizePx}>
-          <WorkflowCanvasSimpleIconGlyph title={data.title} path={data.path} hex={data.hex} sizePx={sizePx} />
-        </CanvasNodeIconSlot>
+      return renderInSlot(
+        sizePx,
+        rotate,
+        <WorkflowCanvasSimpleIconGlyph title={data.title} path={data.path} hex={data.hex} sizePx={sizePx} />,
       );
     }
-    return (
-      <CanvasNodeIconSlot sizePx={sizePx}>
-        <Boxes size={sizePx} strokeWidth={strokeWidth} />
-      </CanvasNodeIconSlot>
-    );
+    return renderInSlot(sizePx, rotate, <Boxes size={sizePx} strokeWidth={strokeWidth} />);
   }
-  const lucideName = raw.startsWith("lucide:") ? raw.slice("lucide:".length).trim().toLowerCase() : raw.toLowerCase();
-  return (
-    <CanvasNodeIconSlot sizePx={sizePx}>
-      <Suspense fallback={<Boxes size={sizePx} strokeWidth={strokeWidth} />}>
-        <DynamicIcon name={lucideName as IconName} size={sizePx} strokeWidth={strokeWidth} />
-      </Suspense>
-    </CanvasNodeIconSlot>
+  const lucideName = body.startsWith("lucide:") ? body.slice("lucide:".length).trim().toLowerCase() : body.toLowerCase();
+  return renderInSlot(
+    sizePx,
+    rotate,
+    <Suspense fallback={<Boxes size={sizePx} strokeWidth={strokeWidth} />}>
+      <DynamicIcon name={lucideName as IconName} size={sizePx} strokeWidth={strokeWidth} />
+    </Suspense>,
   );
 }

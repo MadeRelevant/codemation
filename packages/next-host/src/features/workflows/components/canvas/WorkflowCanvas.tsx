@@ -12,9 +12,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../hooks/realtime/realtime";
 import type { WorkflowDto } from "../../lib/realtime/workflowTypes";
-import { layoutWorkflow } from "./lib/layoutWorkflow";
 import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
 import { workflowCanvasEdgeTypes, workflowCanvasNodeTypes } from "./lib/workflowCanvasFlowTypes";
+import { useAsyncWorkflowLayout } from "../../hooks/canvas/useAsyncWorkflowLayout";
 import { useWorkflowCanvasVisibleNodeStatuses } from "../../hooks/canvas/useWorkflowCanvasVisibleNodeStatuses";
 import { WORKFLOW_CANVAS_EMBEDDED_STYLES } from "./lib/workflowCanvasEmbeddedStyles";
 import { WorkflowCanvasLoadingPlaceholder } from "./WorkflowCanvasLoadingPlaceholder";
@@ -65,49 +65,26 @@ export function WorkflowCanvas(args: {
     nodeSnapshotsByNodeId,
     connectionInvocations,
   );
-  const { nodes, edges } = useMemo(
-    () =>
-      layoutWorkflow(
-        workflow,
-        nodeSnapshotsByNodeId,
-        connectionInvocations,
-        visibleNodeStatusesByNodeId,
-        credentialAttentionTooltipByNodeId,
-        selectedNodeId,
-        propertiesTargetNodeId,
-        pinnedNodeIds,
-        isLiveWorkflowView,
-        isRunning,
-        workflowNodeIdsWithBoundCredential,
-        onSelectNode,
-        onOpenPropertiesNode,
-        onRequestOpenCredentialEditForNode,
-        onRunNode,
-        onTogglePinnedOutput,
-        onEditNodeOutput,
-        onClearPinnedOutput,
-      ),
-    [
-      connectionInvocations,
-      credentialAttentionTooltipByNodeId,
-      isLiveWorkflowView,
-      isRunning,
-      nodeSnapshotsByNodeId,
-      onClearPinnedOutput,
-      onEditNodeOutput,
-      onOpenPropertiesNode,
-      onRequestOpenCredentialEditForNode,
-      onRunNode,
-      onSelectNode,
-      onTogglePinnedOutput,
-      pinnedNodeIds,
-      propertiesTargetNodeId,
-      selectedNodeId,
-      visibleNodeStatusesByNodeId,
-      workflow,
-      workflowNodeIdsWithBoundCredential,
-    ],
-  );
+  const { nodes, edges } = useAsyncWorkflowLayout({
+    workflow,
+    nodeSnapshotsByNodeId,
+    connectionInvocations,
+    visibleNodeStatusesByNodeId,
+    credentialAttentionTooltipByNodeId,
+    selectedNodeId,
+    propertiesTargetNodeId,
+    pinnedNodeIds,
+    isLiveWorkflowView,
+    isRunning,
+    workflowNodeIdsWithBoundCredential,
+    onSelectNode,
+    onOpenPropertiesNode,
+    onRequestOpenCredentialEditForNode,
+    onRunNode,
+    onTogglePinnedOutput,
+    onEditNodeOutput,
+    onClearPinnedOutput,
+  });
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const reactFlowInstanceRef = useRef<ReactFlowInstance<ReactFlowNode<WorkflowCanvasNodeData>, ReactFlowEdge> | null>(
     null,

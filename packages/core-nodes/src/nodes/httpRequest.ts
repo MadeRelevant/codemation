@@ -23,6 +23,7 @@ export class HttpRequest<
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = HttpRequestNode;
   readonly execution = { hint: "local" } as const;
+  readonly icon = "lucide:globe" as const;
 
   constructor(
     public readonly name: string,

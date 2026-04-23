@@ -5,7 +5,8 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { Tree, TreeItem } from "@/components/reui/tree";
 import { cn } from "@/lib/utils";
 
-import { WorkflowNodeIconResolver, WorkflowStatusIcon } from "./WorkflowDetailIcons";
+import { WorkflowStatusIcon } from "./WorkflowDetailIcons";
+import { WorkflowCanvasNodeIcon } from "../canvas/WorkflowCanvasNodeIcon";
 import type { WorkflowExecutionTreeDataLoaderModel } from "../../lib/workflowDetail/WorkflowExecutionTreeDataLoaderAdapter";
 import type {
   ExecutionTreeItemData,
@@ -78,7 +79,6 @@ export function WorkflowExecutionInspectorTreePanelContent(
           const status = snapshot?.status ?? "pending";
           const durationLabel = formatDurationLabel(snapshot);
           const isSelected = item.getId() === selectedExecutionTreeKey;
-          const FallbackIcon = WorkflowNodeIconResolver.resolveFallback(node?.type ?? "", node?.role, node?.icon);
           return (
             <TreeItem<ExecutionTreeItemData> key={item.getId()} item={item} asChild>
               <div className="min-w-0">
@@ -119,7 +119,13 @@ export function WorkflowExecutionInspectorTreePanelContent(
                     <div className="flex min-w-0 items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
                         <div className="flex size-5 shrink-0 items-center justify-center rounded-sm text-foreground/90">
-                          <FallbackIcon size={13} strokeWidth={1.9} />
+                          <WorkflowCanvasNodeIcon
+                            icon={node?.icon}
+                            sizePx={13}
+                            strokeWidth={1.9}
+                            fallbackType={node?.type}
+                            fallbackRole={node?.role}
+                          />
                         </div>
                         <WorkflowStatusIcon status={status} size={14} />
                         <div className="min-w-0">

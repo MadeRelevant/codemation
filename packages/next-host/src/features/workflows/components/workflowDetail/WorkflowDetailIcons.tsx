@@ -5,12 +5,7 @@ import {
   CircleAlert,
   CircleCheckBig,
   Clock3,
-  GitBranch,
-  Globe,
   LoaderCircle,
-  PlaySquare,
-  SquareStack,
-  Workflow,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -35,18 +30,21 @@ export function WorkflowStatusIcon(args: Readonly<{ status: string; size?: numbe
   return <Clock3 size={size} style={{ color: "#6b7280" }} strokeWidth={2.1} />;
 }
 
+/**
+ * Role-only Lucide fallback for a node when no explicit `icon` is set.
+ *
+ * The previous implementation also guessed by `type` substring (`"wait".includes("ai")` etc.)
+ * and duplicated the icon pipeline for the execution tree panel. Both are gone:
+ * - Canvas + tree panel now render via {@link WorkflowCanvasNodeIcon}, so `builtin:`,
+ *   `si:`, URL and rotated icons all resolve the same way everywhere.
+ * - Plugin nodes that forget to set `icon` fall through to `Boxes`, a clear visual
+ *   signal to add one — no more silent substring guesses.
+ */
 export class WorkflowNodeIconResolver {
-  static resolveFallback(type: string, role?: string, icon?: string): LucideIcon {
-    if (icon?.toLowerCase() === "globe") return Globe;
+  static resolveFallback(role?: string): LucideIcon {
     if (role === "agent" || role === "nestedAgent") return Bot;
     if (role === "languageModel") return Brain;
     if (role === "tool") return Wrench;
-    const normalizedType = type.toLowerCase();
-    if (normalizedType.includes("if")) return GitBranch;
-    if (normalizedType.includes("subworkflow")) return Workflow;
-    if (normalizedType.includes("map")) return SquareStack;
-    if (normalizedType.includes("trigger")) return PlaySquare;
-    if (normalizedType.includes("agent") || normalizedType.includes("ai")) return Bot;
     return Boxes;
   }
 }
