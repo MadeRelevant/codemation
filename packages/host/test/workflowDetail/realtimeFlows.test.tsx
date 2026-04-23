@@ -23,6 +23,7 @@ describe("workflow detail realtime flows", () => {
     await kit.waitForSocketConnection();
     await kit.waitForWorkflowSubscription();
     kit.emitJson(WorkflowDetailRealtimeFixtureFactory.subscribed());
+    await kit.waitForCanvasReady();
 
     WorkflowStatusAssertions.expectStatuses(kit.container, {
       [WorkflowDetailFixtureFactory.triggerNodeId]: "pending",

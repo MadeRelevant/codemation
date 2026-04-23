@@ -98,11 +98,10 @@ describe("workflow canvas toolbar", () => {
     render(<WorkflowCanvasHarness initialPinned={false} />);
 
     const canvas = await screen.findByTestId("rf__wrapper");
-    const strongArrowMarker = canvas.querySelector('marker[id*="#111827"]');
-    const fadedArrowMarker = canvas.querySelector('marker[id*="#9ca3af"]');
-
-    expect(strongArrowMarker).not.toBeNull();
-    expect(fadedArrowMarker).not.toBeNull();
+    await waitFor(() => {
+      expect(canvas.querySelector('marker[id*="#111827"]')).not.toBeNull();
+      expect(canvas.querySelector('marker[id*="#9ca3af"]')).not.toBeNull();
+    });
   });
 
   it("refreshes the canvas when the workflow structure changes without changing node or edge counts", async () => {
