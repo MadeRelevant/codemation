@@ -163,6 +163,7 @@ export class WorkflowDetailScreenTestKit {
     await waitFor(() => {
       expect(environment.socketConnections.length).toBeGreaterThanOrEqual(expectedCount);
     });
+    await this.waitForCanvasReady();
     return this.latestSocket();
   }
 
@@ -186,15 +187,26 @@ export class WorkflowDetailScreenTestKit {
     });
   }
 
+  /**
+   * Wait until the async ELK-based canvas layout has rendered at least one
+   * workflow node into the DOM. Call after `render()` (or after any
+   * structural change) before relying on synchronous canvas queries.
+   */
+  async waitForCanvasReady(): Promise<void> {
+    await waitFor(() => {
+      expect(this.container.querySelector(`[data-codemation-node-id]`)).not.toBeNull();
+    });
+  }
+
   async startRun(): Promise<void> {
-    fireEvent.click(screen.getByTestId("canvas-run-workflow-button"));
+    fireEvent.click(await screen.findByTestId("canvas-run-workflow-button"));
     await waitFor(() => {
       expect(this.environment.workflowRuns).toHaveLength(1);
     });
   }
 
   async runToHere(): Promise<void> {
-    fireEvent.click(screen.getByTestId(`canvas-node-run-button-${WorkflowDetailFixtureFactory.agentNodeId}`));
+    fireEvent.click(await screen.findByTestId(`canvas-node-run-button-${WorkflowDetailFixtureFactory.agentNodeId}`));
     await waitFor(() => {
       expect(this.environment.workflowRuns).toHaveLength(1);
     });
@@ -231,7 +243,17 @@ export class WorkflowDetailScreenTestKit {
     );
   }
 
-  selectCanvasNode(nodeId: string): void {
+  async selectCanvasNode(nodeId: string): Promise<void> {
+    await waitFor(() => {
+      const anyReference =
+        this.container.querySelector<HTMLElement>(`[data-testid="execution-tree-node-${nodeId}"]`) ??
+        this.container.querySelector<HTMLElement>(`[data-testid="canvas-node-card-${nodeId}"]`) ??
+        this.container.querySelector<HTMLElement>(`[data-testid="rf__node-${nodeId}"]`) ??
+        this.container.querySelector<HTMLElement>(`[data-codemation-node-id="${nodeId}"]`);
+      if (!anyReference) {
+        throw new Error(`Expected canvas node ${nodeId} to exist.`);
+      }
+    });
     let clicked = false;
     const inspectorTreeNode = this.container.querySelector<HTMLElement>(
       `[data-testid="execution-tree-node-${nodeId}"]`,

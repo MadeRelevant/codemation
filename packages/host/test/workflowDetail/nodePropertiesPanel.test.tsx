@@ -33,7 +33,12 @@ describe("workflow detail node properties panel", () => {
     expect(screen.getByTestId("node-properties-config-section")).toBeInTheDocument();
     expect(screen.getByTestId("node-properties-panel-resize-handle")).toHaveClass("w-3");
     expect(screen.getByTestId("node-properties-panel-resize-handle-visual")).toBeInTheDocument();
-    expect(targetCard).toHaveAttribute("data-codemation-properties-target", "true");
+    await waitFor(() => {
+      expect(screen.getByTestId(`canvas-node-card-${target.nodeId}`)).toHaveAttribute(
+        "data-codemation-properties-target",
+        "true",
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId("selected-node-name")).toHaveTextContent(target.displayName);
@@ -44,6 +49,11 @@ describe("workflow detail node properties panel", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("node-properties-panel")).not.toBeInTheDocument();
     });
-    expect(targetCard).toHaveAttribute("data-codemation-properties-target", "false");
+    await waitFor(() => {
+      expect(screen.getByTestId(`canvas-node-card-${target.nodeId}`)).toHaveAttribute(
+        "data-codemation-properties-target",
+        "false",
+      );
+    });
   });
 });

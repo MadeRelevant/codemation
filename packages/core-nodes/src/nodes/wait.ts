@@ -8,6 +8,7 @@ export class Wait<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, 
   readonly execution = { hint: "local" } as const;
   /** Pass-through empty batches should still advance to downstream nodes. */
   readonly continueWhenEmptyOutput = true as const;
+  readonly icon = "lucide:hourglass" as const;
 
   constructor(
     public readonly name: string,

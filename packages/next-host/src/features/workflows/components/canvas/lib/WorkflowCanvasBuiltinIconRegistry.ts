@@ -10,6 +10,8 @@ const CANVAS_BUILTIN_ICON_BASE = "/canvas-icons/builtin";
 
 export const BUILTIN_CANVAS_ICON_URLS: Readonly<Record<string, string>> = {
   openai: `${CANVAS_BUILTIN_ICON_BASE}/openai.svg`,
+  "split-rows": `${CANVAS_BUILTIN_ICON_BASE}/split-rows.svg`,
+  "aggregate-rows": `${CANVAS_BUILTIN_ICON_BASE}/aggregate-rows.svg`,
 } as const;
 
 export type BuiltinCanvasIconId = keyof typeof BUILTIN_CANVAS_ICON_URLS;

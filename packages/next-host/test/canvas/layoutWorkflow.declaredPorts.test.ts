@@ -4,7 +4,7 @@ import type { WorkflowDto } from "../../src/features/workflows/lib/realtime/work
 import { layoutWorkflow } from "../../src/features/workflows/components/canvas/lib/layoutWorkflow";
 
 describe("layoutWorkflow declared port union", () => {
-  it("unions declared output ports with edge-derived ports (keeps declared ports even without edges)", () => {
+  it("unions declared output ports with edge-derived ports (keeps declared ports even without edges)", async () => {
     const wf: WorkflowDto = {
       id: "wf.test.declared-ports",
       name: "Declared ports",
@@ -21,7 +21,7 @@ describe("layoutWorkflow declared port union", () => {
       edges: [],
     };
 
-    const { nodes } = layoutWorkflow(
+    const { nodes } = await layoutWorkflow(
       wf,
       {},
       [],

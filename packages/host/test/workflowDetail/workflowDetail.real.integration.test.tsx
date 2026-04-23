@@ -90,7 +90,7 @@ class WorkflowDetailRealIntegrationFixture {
     nodeId: string,
     value: Readonly<Record<string, unknown>>,
   ): Promise<void> {
-    kit.selectCanvasNode(nodeId);
+    await kit.selectCanvasNode(nodeId);
     await waitFor(() => {
       expect(screen.getByTestId("selected-node-name")).toHaveTextContent(nodeId);
     });

@@ -7,7 +7,7 @@ export class Aggregate<TIn = unknown, TOut = unknown> implements RunnableNodeCon
   readonly type: TypeToken<unknown> = AggregateNode;
   readonly execution = { hint: "local" } as const;
   readonly keepBinaries = true as const;
-  readonly icon = "lucide:layers" as const;
+  readonly icon = "builtin:aggregate-rows" as const;
 
   constructor(
     public readonly name: string,

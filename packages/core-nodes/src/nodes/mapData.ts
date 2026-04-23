@@ -16,6 +16,7 @@ export class MapData<TInputJson = unknown, TOutputJson = unknown> implements Run
   readonly execution = { hint: "local" } as const;
   /** Zero mapped items should still allow downstream nodes to run. */
   readonly continueWhenEmptyOutput = true as const;
+  readonly icon = "lucide:square-pen" as const;
   readonly keepBinaries: boolean;
 
   constructor(

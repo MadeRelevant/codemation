@@ -19,24 +19,13 @@ export function WorkflowCanvasCodemationNodeHandles(
     /** Nested agent-as-tool: wide agent chrome but only the attachment input from the parent (bottom LLM/tools sources are separate). */
     isNestedAgentAttachment?: boolean;
     isAttachment: boolean;
-    isAgent: boolean;
-    /** When true, agent bottom LLM/tools handles are rendered on the shell (see WorkflowCanvasCodemationNodeAgentBottomSourceHandles). */
-    omitAgentBottomSourceHandles: boolean;
     sourceOutputPorts: readonly string[];
     sourceOutputPortCounts: Readonly<Record<string, number>>;
     targetInputPorts: readonly string[];
   }>,
 ) {
-  const {
-    isNestedAgentAttachment,
-    isAgent,
-    isAttachment,
-    omitAgentBottomSourceHandles,
-    sourceOutputPorts,
-    sourceOutputPortCounts,
-    targetInputPorts,
-    kind,
-  } = props;
+  const { isNestedAgentAttachment, isAttachment, sourceOutputPorts, sourceOutputPortCounts, targetInputPorts, kind } =
+    props;
 
   if (isNestedAgentAttachment || isAttachment) {
     return (
@@ -130,28 +119,17 @@ export function WorkflowCanvasCodemationNodeHandles(
       </>
     );
 
+  // Agent bottom source handles (LLM / TOOLS → attachment children) are
+  // rendered as two fixed slots on the card by
+  // {@link WorkflowCanvasCodemationNodeAgentBottomSourceHandles} at the
+  // agent node's shell level, not here. Keeping the split lets that
+  // component consume the agent-specific attachment flags
+  // (`agentAttachments`) without threading them through every generic
+  // node render.
   return (
     <>
       {targetHandles}
       {sourceHandlesRight}
-      {isAgent && !omitAgentBottomSourceHandles ? (
-        <>
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="attachment-llm-source"
-            style={{ left: "34%", width: 8, height: 8, background: "#2563eb", border: "1px solid white" }}
-            data-testid="canvas-handle-source-attachment-llm"
-          />
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="attachment-tools-source"
-            style={{ left: "66%", width: 8, height: 8, background: "#7c3aed", border: "1px solid white" }}
-            data-testid="canvas-handle-source-attachment-tools"
-          />
-        </>
-      ) : null}
     </>
   );
 }

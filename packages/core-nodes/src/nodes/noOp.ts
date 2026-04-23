@@ -6,6 +6,7 @@ export class NoOp<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, 
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = NoOpNode;
   readonly execution = { hint: "local" } as const;
+  readonly icon = "lucide:circle-dashed" as const;
 
   constructor(
     public readonly name: string = "NoOp",

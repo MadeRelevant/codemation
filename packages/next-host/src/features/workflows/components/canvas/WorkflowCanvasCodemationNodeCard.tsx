@@ -47,6 +47,7 @@ export function WorkflowCanvasCodemationNodeCard(
       data-codemation-properties-target={isPropertiesTarget ? "true" : "false"}
       data-codemation-node-status={data.status ?? "pending"}
       data-codemation-node-role={data.role ?? "workflowNode"}
+      data-codemation-node-pinned={isPinned ? "true" : "false"}
       aria-label={`${data.label} (${data.status ?? "pending"})`}
     >
       <div

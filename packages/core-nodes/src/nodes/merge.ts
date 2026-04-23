@@ -10,7 +10,7 @@ export class Merge<TInputJson = unknown, TOutputJson = TInputJson> implements Ru
 > {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = MergeNode;
-  readonly icon = "lucide:git-merge" as const;
+  readonly icon = "lucide:merge@rot=90" as const;
 
   constructor(
     public readonly name: string,

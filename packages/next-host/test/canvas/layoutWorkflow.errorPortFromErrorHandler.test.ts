@@ -4,7 +4,7 @@ import type { WorkflowDto } from "../../src/features/workflows/lib/realtime/work
 import { layoutWorkflow } from "../../src/features/workflows/components/canvas/lib/layoutWorkflow";
 
 describe("layoutWorkflow error port from node error handler", () => {
-  it("adds error output port when hasNodeErrorHandler is true (keeps main default)", () => {
+  it("adds error output port when hasNodeErrorHandler is true (keeps main default)", async () => {
     const wf: WorkflowDto = {
       id: "wf.test.error-port-from-handler",
       name: "Error port from handler",
@@ -20,7 +20,7 @@ describe("layoutWorkflow error port from node error handler", () => {
       edges: [],
     };
 
-    const { nodes } = layoutWorkflow(
+    const { nodes } = await layoutWorkflow(
       wf,
       {},
       [],

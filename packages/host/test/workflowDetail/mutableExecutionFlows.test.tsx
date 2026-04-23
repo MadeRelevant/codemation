@@ -311,7 +311,7 @@ describe("workflow detail mutable execution flows", () => {
     });
     await kit.copyToDebugger();
 
-    kit.selectCanvasNode(WorkflowDetailFixtureFactory.agentNodeId);
+    await kit.selectCanvasNode(WorkflowDetailFixtureFactory.agentNodeId);
 
     await waitFor(() => {
       expect(screen.getByTestId("selected-node-name")).toHaveTextContent("Agent");
@@ -350,7 +350,7 @@ describe("workflow detail mutable execution flows", () => {
     kit.render();
 
     await kit.waitForSocketConnection();
-    kit.selectCanvasNode("B");
+    await kit.selectCanvasNode("B");
 
     await waitFor(() => {
       expect(screen.getByTestId("edit-output-button")).toBeEnabled();
@@ -364,42 +364,50 @@ describe("workflow detail mutable execution flows", () => {
     await waitFor(() => {
       expect(screen.getByTestId("selected-node-pinned-badge")).toHaveTextContent("Pinned");
     });
+    // Wait for the async ELK relayout to republish B with the new pinned
+    // state so the canvas toolbar's `onRunNode` closure captures the
+    // post-pin `currentExecutionState` before we fire the run.
+    await waitFor(() => {
+      expect(screen.getByTestId("canvas-node-card-B")).toHaveAttribute("data-codemation-node-pinned", "true");
+    });
 
     fireEvent.click(screen.getByTestId("canvas-node-run-button-C"));
 
-    expect(
-      kit.latestRequestBody<
-        Readonly<{
-          currentState?: PersistedRunState["mutableState"] | PersistedRunState | unknown;
-          stopAt?: string;
-          clearFromNodeId?: string;
-        }>
-      >("POST /api/runs"),
-    ).toEqual(
-      expect.objectContaining({
-        workflowId: workflow.id,
-        items: [],
-        synthesizeTriggerItems: false,
-        currentState: expect.objectContaining({
-          mutableState: expect.objectContaining({
-            nodesById: expect.objectContaining({
-              B: expect.objectContaining({
-                pinnedOutputsByPort: expect.objectContaining({
-                  main: expect.arrayContaining([
-                    expect.objectContaining({
-                      json: { pinned: true },
-                    }),
-                  ]),
+    await waitFor(() => {
+      expect(
+        kit!.latestRequestBody<
+          Readonly<{
+            currentState?: PersistedRunState["mutableState"] | PersistedRunState | unknown;
+            stopAt?: string;
+            clearFromNodeId?: string;
+          }>
+        >("POST /api/runs"),
+      ).toEqual(
+        expect.objectContaining({
+          workflowId: workflow.id,
+          items: [],
+          synthesizeTriggerItems: false,
+          currentState: expect.objectContaining({
+            mutableState: expect.objectContaining({
+              nodesById: expect.objectContaining({
+                B: expect.objectContaining({
+                  pinnedOutputsByPort: expect.objectContaining({
+                    main: expect.arrayContaining([
+                      expect.objectContaining({
+                        json: { pinned: true },
+                      }),
+                    ]),
+                  }),
                 }),
               }),
             }),
           }),
+          stopAt: "C",
+          clearFromNodeId: "C",
+          mode: "manual",
         }),
-        stopAt: "C",
-        clearFromNodeId: "C",
-        mode: "manual",
-      }),
-    );
+      );
+    });
 
     await kit.waitForWorkflowSubscription(workflow.id);
 
@@ -440,14 +448,14 @@ describe("workflow detail mutable execution flows", () => {
     });
     await kit.copyToDebugger();
 
-    kit.selectCanvasNode("B");
+    await kit.selectCanvasNode("B");
     fireEvent.click(screen.getByTestId("edit-output-button"));
     fireEvent.change(screen.getByTestId("workflow-json-editor-input"), {
       target: { value: JSON.stringify({ pinned: "B" }, null, 2) },
     });
     fireEvent.click(screen.getByTestId("workflow-json-editor-save"));
 
-    kit.selectCanvasNode("Agent");
+    await kit.selectCanvasNode("Agent");
     fireEvent.click(screen.getByTestId("edit-output-button"));
     fireEvent.change(screen.getByTestId("workflow-json-editor-input"), {
       target: { value: JSON.stringify({ pinned: "Agent" }, null, 2) },
@@ -605,7 +613,7 @@ describe("workflow detail mutable execution flows", () => {
     });
     await kit.copyToDebugger();
 
-    kit.selectCanvasNode("B");
+    await kit.selectCanvasNode("B");
     await waitFor(() => {
       expect(screen.getByTestId("edit-output-button")).toBeEnabled();
     });
@@ -677,7 +685,7 @@ describe("workflow detail mutable execution flows", () => {
     });
     await kit.copyToDebugger();
 
-    kit.selectCanvasNode(WorkflowDetailFixtureFactory.nodeOneId);
+    await kit.selectCanvasNode(WorkflowDetailFixtureFactory.nodeOneId);
     fireEvent.click(screen.getByTestId("edit-output-button"));
     fireEvent.change(screen.getByTestId("workflow-json-editor-input"), {
       target: { value: JSON.stringify({ pinned: "node-one" }, null, 2) },
@@ -688,7 +696,7 @@ describe("workflow detail mutable execution flows", () => {
       expect(screen.getByTestId("selected-node-pinned-badge")).toHaveTextContent("Pinned");
     });
 
-    kit.selectCanvasNode(WorkflowDetailFixtureFactory.nodeTwoId);
+    await kit.selectCanvasNode(WorkflowDetailFixtureFactory.nodeTwoId);
     fireEvent.click(screen.getByTestId("edit-output-button"));
     fireEvent.change(screen.getByTestId("workflow-json-editor-input"), {
       target: { value: JSON.stringify({ pinned: "node-two" }, null, 2) },
@@ -717,7 +725,7 @@ describe("workflow detail mutable execution flows", () => {
       ).not.toBeInTheDocument();
     });
 
-    kit.selectCanvasNode(WorkflowDetailFixtureFactory.nodeOneId);
+    await kit.selectCanvasNode(WorkflowDetailFixtureFactory.nodeOneId);
     await waitFor(() => {
       expect(screen.getByTestId("selected-node-name")).toHaveTextContent("Node 1");
       expect(screen.getByTestId("selected-node-pinned-badge")).toHaveTextContent("Pinned");

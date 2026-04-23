@@ -6,7 +6,7 @@ export class If<TInputJson = unknown> implements RunnableNodeConfig<TInputJson, 
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = IfNode;
   readonly execution = { hint: "local" } as const;
-  readonly icon = "lucide:split" as const;
+  readonly icon = "lucide:split@rot=90" as const;
   readonly declaredOutputPorts = ["true", "false"] as const;
   constructor(
     public readonly name: string,
