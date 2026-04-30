@@ -23,10 +23,32 @@ export type ExecutionNode = Readonly<{
   executionInstanceId?: string;
   slotNodeId?: string;
   parentExecutionInstanceId?: string;
+  /**
+   * Specific invocation row id this execution node nests under. Set for connection invocations
+   * whose parent agent is itself a tool-call invocation row (e.g. a sub-agent's LLM/tool
+   * invocations should appear under the orchestrator's specific tool-call row that triggered
+   * them, not under the static tool-connection node id which would collapse all sibling rows).
+   */
+  parentInvocationId?: string;
   /** Stable workflow node id used to sync inspector selection to the canvas. */
   workflowNodeId?: string;
   /** Stable workflow attachment id when `node.id` is a synthetic per-invocation id. */
   workflowConnectionNodeId?: string;
+  /**
+   * Per-item identity carried by connection-invocation rows. Used by the inspector tree to
+   * group multiple invocations of the same agent activation under a synthetic "Item N" parent
+   * row when an agent emits 2+ items, so the tree shows items as siblings (with each item's
+   * LLM/tool calls nested) instead of one flat list.
+   */
+  iterationId?: string;
+  /** 0-based item index from the engine's per-item loop; used to sort items deterministically. */
+  itemIndex?: number;
+  /** Set on synthetic "Item N" rows so the renderer can pick a different glyph and label. */
+  isItemGroup?: boolean;
+  /** Parent agent's activation id for invocation rows (used to scope synthetic Item parents). */
+  parentAgentActivationId?: string;
+  /** Parent agent's node id for invocation rows (used to scope synthetic Item parents). */
+  parentAgentNodeId?: string;
 }>;
 export type NodeExecutionError = NonNullable<NodeExecutionSnapshot["error"]>;
 export type JsonEditorMode = "pin-output" | "workflow-snapshot";

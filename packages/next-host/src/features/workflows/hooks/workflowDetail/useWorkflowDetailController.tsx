@@ -62,6 +62,9 @@ export type WorkflowDetailControllerResult = Readonly<{
   workflowNodeIdsWithBoundCredential: ReadonlySet<string>;
   selectedRun: PersistedRunState | undefined;
   propertiesPanelTelemetryRunId: string | null;
+  propertiesPanelTelemetryRunStatus: PersistedRunState["status"] | undefined;
+  focusedInvocationIdInPropertiesPanel: string | null;
+  selectInvocationInPropertiesPanel: (invocationId: string) => void;
   sidebarModel: WorkflowRunsSidebarModel;
   sidebarFormatting: WorkflowRunsSidebarFormatting;
   sidebarActions: WorkflowRunsSidebarActions;
@@ -177,7 +180,11 @@ export function useWorkflowDetailController(
   const selectedRunDetailQuery = useRunDetailQuery(selectedRunId);
   const selectedRun = selectedRunQuery.data;
   const selectedRunDetail = selectedRunDetailQuery.data;
-  const activeLiveRunQuery = useRunQuery(activeLiveRunId, { pollWhileNonTerminalMs: 250 });
+  // Run state changes are pushed via the realtime workflow event bus (`runSaved`,
+  // `nodeMarkedRunning/Completed/Failed`, `connectionInvocationStarted/Completed/Failed`); the
+  // periodic refetch is now only a backstop for missed/late events, so we keep it conservative
+  // (~5s) instead of hammering the API every 250ms while a run is live.
+  const activeLiveRunQuery = useRunQuery(activeLiveRunId, { pollWhileNonTerminalMs: 5000 });
   const activeLiveRun = activeLiveRunQuery.data;
   const debuggerOverlay = debuggerOverlayQuery.data;
   const viewContext = selectedRunId ? "historical-run" : "live-workflow";
@@ -251,10 +258,22 @@ export function useWorkflowDetailController(
     }
     return currentExecutionState?.connectionInvocations?.[0]?.runId ?? null;
   }, [activeLiveRun?.runId, activeLiveRunId, currentExecutionState, selectedRunId]);
+  const propertiesPanelTelemetryRunStatus = useMemo<PersistedRunState["status"] | undefined>(() => {
+    if (selectedRunId) return selectedRun?.status;
+    if (activeLiveRunId) return activeLiveRun?.status;
+    return undefined;
+  }, [activeLiveRun?.status, activeLiveRunId, selectedRun?.status, selectedRunId]);
   const normalizedConnectionInvocations = useMemo(
     () => WorkflowDetailPresenter.normalizeConnectionInvocations(currentExecutionState?.connectionInvocations),
     [currentExecutionState?.connectionInvocations],
   );
+  const focusedInvocationIdInPropertiesPanel = useMemo<string | null>(() => {
+    if (!propertiesPanelNodeId || !selectedNodeId) return null;
+    const matched = normalizedConnectionInvocations.find(
+      (inv) => inv.invocationId === selectedNodeId && inv.connectionNodeId === propertiesPanelNodeId,
+    );
+    return matched ? selectedNodeId : null;
+  }, [normalizedConnectionInvocations, propertiesPanelNodeId, selectedNodeId]);
   const isActiveLiveRunPending = useMemo(
     () =>
       Boolean(
@@ -1356,6 +1375,14 @@ export function useWorkflowDetailController(
     setPendingCredentialEditForNodeId(null);
   }, []);
 
+  const selectInvocationInPropertiesPanel = useCallback(
+    (invocationId: string) => {
+      if (!propertiesPanelNodeId) return;
+      selectNode({ inspectorNodeId: invocationId, canvasNodeId: propertiesPanelNodeId });
+    },
+    [propertiesPanelNodeId, selectNode],
+  );
+
   return {
     displayedWorkflow,
     displayedNodeSnapshotsByNodeId: currentExecutionState?.nodeSnapshotsByNodeId ?? {},
@@ -1373,6 +1400,9 @@ export function useWorkflowDetailController(
     workflowNodeIdsWithBoundCredential,
     selectedRun,
     propertiesPanelTelemetryRunId,
+    propertiesPanelTelemetryRunStatus,
+    focusedInvocationIdInPropertiesPanel,
+    selectInvocationInPropertiesPanel,
     sidebarModel: {
       workflowId,
       displayedWorkflow,

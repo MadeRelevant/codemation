@@ -2,6 +2,7 @@ import { instanceCachingFactory, type DependencyContainer } from "../../di";
 import { CoreTokens } from "../../di";
 import { EngineExecutionLimitsPolicyFactory } from "../../policies/executionLimits/EngineExecutionLimitsPolicyFactory";
 import {
+  ChildExecutionScopeFactory,
   DefaultAsyncSleeper,
   InProcessRetryRunnerFactory,
   ItemExprResolver,
@@ -49,6 +50,9 @@ export class EngineRuntimeRegistrar {
     }
     if (!container.isRegistered(RunnableOutputBehaviorResolver, true)) {
       container.registerSingleton(RunnableOutputBehaviorResolver, RunnableOutputBehaviorResolver);
+    }
+    if (!container.isRegistered(ChildExecutionScopeFactory, true)) {
+      container.registerSingleton(ChildExecutionScopeFactory, ChildExecutionScopeFactory);
     }
     container.registerSingleton(EngineExecutionLimitsPolicyFactory, EngineExecutionLimitsPolicyFactory);
     container.registerSingleton(NodeInstanceFactoryFactory, NodeInstanceFactoryFactory);

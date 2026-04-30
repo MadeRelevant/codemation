@@ -40,6 +40,9 @@ export interface TelemetrySpanRecord {
   readonly attributes?: TelemetryAttributes;
   readonly events?: ReadonlyArray<TelemetrySpanEventRecord>;
   readonly retentionExpiresAt?: string;
+  readonly iterationId?: string;
+  readonly itemIndex?: number;
+  readonly parentInvocationId?: string;
 }
 
 export interface TelemetrySpanUpsert {
@@ -64,6 +67,9 @@ export interface TelemetrySpanUpsert {
   readonly attributes?: TelemetryAttributes;
   readonly events?: ReadonlyArray<TelemetrySpanEventRecord>;
   readonly retentionExpiresAt?: string;
+  readonly iterationId?: string;
+  readonly itemIndex?: number;
+  readonly parentInvocationId?: string;
 }
 
 export interface TelemetryArtifactRecord {
@@ -115,6 +121,9 @@ export interface TelemetryMetricPointRecord {
   readonly modelName?: string;
   readonly dimensions?: TelemetryAttributes;
   readonly retentionExpiresAt?: string;
+  readonly iterationId?: string;
+  readonly itemIndex?: number;
+  readonly parentInvocationId?: string;
 }
 
 export interface TelemetryMetricPointWrite extends TelemetryMetricRecord {
@@ -130,6 +139,9 @@ export interface TelemetryMetricPointWrite extends TelemetryMetricRecord {
   readonly nodeRole?: string;
   readonly modelName?: string;
   readonly retentionExpiresAt?: string;
+  readonly iterationId?: string;
+  readonly itemIndex?: number;
+  readonly parentInvocationId?: string;
 }
 
 export interface TelemetrySpanListQuery {

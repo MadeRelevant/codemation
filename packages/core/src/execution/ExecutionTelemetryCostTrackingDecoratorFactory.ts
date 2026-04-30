@@ -62,6 +62,15 @@ export class ExecutionTelemetryCostTrackingDecoratorFactory {
           costTracking: args.costTracking.forScope(nodeTelemetry),
         });
       },
+      asNodeTelemetry: (
+        rescope: Readonly<{ nodeId: NodeId; activationId: NodeActivationId }>,
+      ): NodeExecutionTelemetry => {
+        const nodeTelemetry = args.telemetry.asNodeTelemetry(rescope);
+        return this.decorateNodeExecutionTelemetry({
+          telemetry: nodeTelemetry,
+          costTracking: args.costTracking.forScope(nodeTelemetry),
+        });
+      },
     };
   }
 
@@ -79,6 +88,15 @@ export class ExecutionTelemetryCostTrackingDecoratorFactory {
         artifact: TelemetryArtifactAttachment,
       ): Promise<TelemetryArtifactReference> | TelemetryArtifactReference => args.scope.attachArtifact(artifact),
       end: (endArgs?: TelemetrySpanEnd) => args.scope.end(endArgs),
+      asNodeTelemetry: (
+        rescope: Readonly<{ nodeId: NodeId; activationId: NodeActivationId }>,
+      ): NodeExecutionTelemetry => {
+        const nodeTelemetry = args.scope.asNodeTelemetry(rescope);
+        return this.decorateNodeExecutionTelemetry({
+          telemetry: nodeTelemetry,
+          costTracking: args.costTracking.forScope(nodeTelemetry),
+        });
+      },
     };
   }
 }

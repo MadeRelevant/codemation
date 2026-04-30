@@ -95,12 +95,16 @@ model ExecutionInstance {
   inputTruncated      Boolean? @map("input_truncated")
   outputTruncated     Boolean? @map("output_truncated")
   usedPinnedOutput    Boolean? @map("used_pinned_output")
+  iterationId         String?  @map("iteration_id")
+  itemIndex           Int?     @map("item_index")
+  parentInvocationId  String?  @map("parent_invocation_id")
 
   run Run @relation(fields: [runId], references: [runId], onDelete: Cascade)
 
   @@index([runId, slotNodeId, updatedAt])
   @@index([runId, parentInstanceId, updatedAt])
   @@index([runId, kind, updatedAt])
+  @@index([iterationId])
   @@unique([runId, slotNodeId, runIndex])
 }
 
@@ -173,6 +177,9 @@ model TelemetrySpan {
   attributesJson            String? @map("attributes_json")
   eventsJson                String? @map("events_json")
   retentionExpiresAt        String? @map("retention_expires_at")
+  iterationId               String? @map("iteration_id")
+  itemIndex                 Int?    @map("item_index")
+  parentInvocationId        String? @map("parent_invocation_id")
   updatedAt                 String  @map("updated_at")
 
   @@unique([traceId, spanId])
@@ -182,6 +189,7 @@ model TelemetrySpan {
   @@index([runId, endTime])
   @@index([modelName, endTime])
   @@index([connectionInvocationId])
+  @@index([iterationId])
   @@index([retentionExpiresAt])
 }
 
@@ -229,12 +237,16 @@ model TelemetryMetricPoint {
   modelName          String? @map("model_name")
   dimensionsJson     String? @map("dimensions_json")
   retentionExpiresAt String? @map("retention_expires_at")
+  iterationId        String? @map("iteration_id")
+  itemIndex          Int?    @map("item_index")
+  parentInvocationId String? @map("parent_invocation_id")
 
   @@index([workflowId, observedAt])
   @@index([workflowId, metricName, observedAt])
   @@index([runId, observedAt])
   @@index([traceId, observedAt])
   @@index([modelName, observedAt])
+  @@index([iterationId])
   @@index([retentionExpiresAt])
 }
 

@@ -4,6 +4,7 @@ import type {
   NodeExecutionSnapshot,
 } from "../../src/features/workflows/hooks/realtime/realtime";
 import type { TelemetryRunTraceViewDto } from "../../src/features/workflows/hooks/realtime/realtime";
+import type { NodeInspectorTimelineEntryModel } from "../../src/features/workflows/lib/workflowDetail/NodeInspectorTelemetryPresenter";
 import { NodeInspectorTelemetryPresenter } from "../../src/features/workflows/lib/workflowDetail/NodeInspectorTelemetryPresenter";
 
 describe("NodeInspectorTelemetryPresenter", () => {
@@ -59,6 +60,7 @@ describe("NodeInspectorTelemetryPresenter", () => {
           {
             traceId: "trace_1",
             spanId: "span_tool",
+            parentSpanId: "span_model",
             runId: "run_1",
             workflowId: "wf.telemetry",
             nodeId: "agent_main",
@@ -165,12 +167,99 @@ describe("NodeInspectorTelemetryPresenter", () => {
         expect.objectContaining({ label: "Models", value: "demo-gpt" }),
       ]),
     );
-    expect(
-      timelineSection?.timeline?.some((entry) => entry.title.includes("Model call") && entry.kind === "agent"),
-    ).toBe(true);
-    expect(timelineSection?.timeline?.some((entry) => entry.title.includes("Tool call") && entry.kind === "tool")).toBe(
-      true,
-    );
+    const flattenTimeline = (
+      entries: ReadonlyArray<NodeInspectorTimelineEntryModel> | undefined,
+    ): ReadonlyArray<NodeInspectorTimelineEntryModel> => {
+      if (!entries) return [];
+      return entries.flatMap((entry) => [entry, ...flattenTimeline(entry.children)]);
+    };
+    const flat = flattenTimeline(timelineSection?.timeline);
+    const modelEntry = flat.find((entry) => entry.title.includes("Model call") && entry.kind === "agent");
+    const toolEntry = flat.find((entry) => entry.title.includes("Tool call") && entry.kind === "tool");
+    expect(modelEntry).toBeDefined();
+    expect(toolEntry).toBeDefined();
+    expect(modelEntry?.children?.some((child) => child.title.includes("Tool call"))).toBe(true);
+  });
+
+  it("groups multiple tool calls under the LLM round that emitted them in the agent timeline", () => {
+    const model = NodeInspectorTelemetryPresenter.create({
+      node: {
+        id: "agent_main",
+        kind: "node",
+        type: "AIAgentNode",
+        name: "Mail orchestrator",
+        role: "agent",
+      },
+      nodeSnapshotsByNodeId: {},
+      connectionInvocations: [],
+      traceView: {
+        traceId: "trace_fanout",
+        runId: "run_fanout",
+        spans: [
+          {
+            traceId: "trace_fanout",
+            spanId: "span_llm_round_1",
+            runId: "run_fanout",
+            workflowId: "wf.fanout",
+            nodeId: "agent_main",
+            name: "gen_ai.chat.completion",
+            kind: "client",
+            status: "completed",
+            startTime: "2026-01-01T00:00:00.000Z",
+            endTime: "2026-01-01T00:00:01.000Z",
+            modelName: "demo-gpt",
+          },
+          {
+            traceId: "trace_fanout",
+            spanId: "span_tool_a",
+            parentSpanId: "span_llm_round_1",
+            runId: "run_fanout",
+            workflowId: "wf.fanout",
+            nodeId: "agent_main",
+            name: "agent.tool.call",
+            kind: "client",
+            status: "completed",
+            startTime: "2026-01-01T00:00:01.100Z",
+            endTime: "2026-01-01T00:00:01.500Z",
+            attributes: { "codemation.tool.name": "searchInMail" },
+          },
+          {
+            traceId: "trace_fanout",
+            spanId: "span_tool_b",
+            parentSpanId: "span_llm_round_1",
+            runId: "run_fanout",
+            workflowId: "wf.fanout",
+            nodeId: "agent_main",
+            name: "agent.tool.call",
+            kind: "client",
+            status: "completed",
+            startTime: "2026-01-01T00:00:01.200Z",
+            endTime: "2026-01-01T00:00:01.600Z",
+            attributes: { "codemation.tool.name": "searchInMail" },
+          },
+          {
+            traceId: "trace_fanout",
+            spanId: "span_llm_round_2",
+            runId: "run_fanout",
+            workflowId: "wf.fanout",
+            nodeId: "agent_main",
+            name: "gen_ai.chat.completion",
+            kind: "client",
+            status: "completed",
+            startTime: "2026-01-01T00:00:02.000Z",
+            endTime: "2026-01-01T00:00:02.500Z",
+            modelName: "demo-gpt",
+          },
+        ],
+        artifacts: [],
+        metricPoints: [],
+      } satisfies TelemetryRunTraceViewDto,
+    });
+
+    const timeline = model.sections.find((section) => section.id === "agent-timeline")?.timeline ?? [];
+    expect(timeline.map((entry) => entry.key)).toEqual(["span_llm_round_1", "span_llm_round_2"]);
+    expect(timeline[0]?.children?.map((child) => child.key)).toEqual(["span_tool_a", "span_tool_b"]);
+    expect(timeline[1]?.children).toBeUndefined();
   });
 
   it("builds Gmail metrics and latest-message sections from trace telemetry", () => {
@@ -382,8 +471,12 @@ describe("NodeInspectorTelemetryPresenter", () => {
     );
 
     const timeline = model.sections.find((section) => section.id === "language-model-timeline");
+    // After the invocation-grouping refactor the timeline wraps invocations under "Item N" entries.
+    // One invocation → one group ("Item 1") with one child (the span entry).
     expect(timeline?.timeline).toHaveLength(1);
-    expect(timeline?.timeline?.[0]).toEqual(
+    expect(timeline?.timeline?.[0]).toEqual(expect.objectContaining({ title: "Item 1", kind: "agent" }));
+    expect(timeline?.timeline?.[0]?.children).toHaveLength(1);
+    expect(timeline?.timeline?.[0]?.children?.[0]).toEqual(
       expect.objectContaining({
         kind: "agent",
         title: "Model call · gpt-4o-mini",
@@ -444,11 +537,12 @@ describe("NodeInspectorTelemetryPresenter", () => {
       expect.arrayContaining([expect.objectContaining({ label: "Repair loops", value: "1" })]),
     );
     const timeline = model.sections.find((section) => section.id === "tool-timeline");
-    expect(timeline?.timeline?.[0]?.jsonBlocks).toEqual(
-      expect.arrayContaining([expect.objectContaining({ label: "tool.error" })]),
-    );
-    expect(timeline?.timeline?.[0]?.kind).toBe("tool");
-    expect(timeline?.timeline?.[0]?.subtitle).toContain("Invocation inv_tool_1");
+    // After the invocation-grouping refactor, invocations are nested under "Item N" group entries.
+    // One invocation → "Item 1" wrapper; the actual invocation entry is the single child.
+    const child = timeline?.timeline?.[0]?.children?.[0];
+    expect(child?.jsonBlocks).toEqual(expect.arrayContaining([expect.objectContaining({ label: "tool.error" })]));
+    expect(child?.kind).toBe("tool");
+    expect(child?.subtitle).toContain("Invocation inv_tool_1");
   });
 
   it("builds tool sections with fallback labels and keeps empty Gmail sections visible", () => {
@@ -537,7 +631,11 @@ describe("NodeInspectorTelemetryPresenter", () => {
     );
 
     const toolTimeline = toolModel.sections.find((section) => section.id === "tool-timeline");
-    expect(toolTimeline?.timeline).toEqual(
+    // After the invocation-grouping refactor, both invocations (same act_1) are nested under one
+    // "Item 1" group entry. The actual leaf entries are the children of that group.
+    expect(toolTimeline?.timeline).toHaveLength(1);
+    expect(toolTimeline?.timeline?.[0]?.title).toBe("Item 1");
+    expect(toolTimeline?.timeline?.[0]?.children).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           kind: "tool",

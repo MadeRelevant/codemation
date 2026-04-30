@@ -611,4 +611,127 @@ describe("PrismaWorkflowRunRepository", () => {
       activationId: "act-2",
     });
   });
+
+  /**
+   * Regression: connection invocations carry per-item identity (`iterationId`, `itemIndex`,
+   * `parentInvocationId`) stamped by the engine inside per-item runnable loops. The bottom
+   * execution tree groups invocations by `iterationId` to render synthetic "Item N" parent rows;
+   * losing these fields on a Prisma round trip silently flattens the tree on cold reload.
+   */
+  it("round-trips connection invocation iterationId / itemIndex / parentInvocationId", async () => {
+    const createdInstances: Array<Record<string, unknown>> = [];
+    const prisma: FakePrisma = {
+      run: {
+        findUnique: async () => ({
+          runId: "run-iter",
+          workflowId: "wf-iter",
+          startedAt: "2026-04-30T10:00:00.000Z",
+          finishedAt: null,
+          revision: 1,
+          status: "pending",
+          parentJson: null,
+          executionOptionsJson: null,
+          controlJson: null,
+          workflowSnapshotJson: null,
+          policySnapshotJson: null,
+          engineCountersJson: JSON.stringify({ completedNodeActivations: 0 }),
+          mutableStateJson: JSON.stringify({ nodesById: {} }),
+          outputsByNodeJson: JSON.stringify({}),
+        }),
+        updateMany: async () => ({ count: 1 }),
+      },
+      runWorkItem: {
+        findMany: async () => [],
+        deleteMany: async () => undefined,
+        createMany: async () => undefined,
+      },
+      executionInstance: {
+        findMany: async (args) => {
+          if ((args as { select?: unknown }).select) return [];
+          return [
+            {
+              instanceId: "inv-iter-1",
+              runId: "run-iter",
+              workflowId: "wf-iter",
+              slotNodeId: "llm-slot",
+              workflowNodeId: "agent-1",
+              kind: "connectionInvocation",
+              connectionKind: "languageModel",
+              activationId: "act-orch-1",
+              batchId: "batch-1",
+              runIndex: 1,
+              parentInstanceId: null,
+              status: "completed",
+              queuedAt: null,
+              startedAt: "2026-04-30T10:00:01.000Z",
+              finishedAt: "2026-04-30T10:00:02.000Z",
+              updatedAt: "2026-04-30T10:00:02.000Z",
+              itemCount: 0,
+              inputJson: JSON.stringify({ prompt: "hi" }),
+              outputJson: JSON.stringify({ text: "ok" }),
+              errorJson: null,
+              inputItemIndicesJson: null,
+              outputItemCount: null,
+              successfulItemCount: null,
+              failedItemCount: null,
+              usedPinnedOutput: null,
+              iterationId: "iter_a",
+              itemIndex: 0,
+              parentInvocationId: null,
+            },
+          ];
+        },
+        update: async () => undefined,
+        create: async (args) => {
+          createdInstances.push((args as { data: Record<string, unknown> }).data);
+        },
+      },
+      runSlotProjection: {
+        upsert: async () => undefined,
+      },
+    };
+    prisma.$transaction = async (work) => await work(prisma);
+
+    const repository = new PrismaWorkflowRunRepository(prisma as never);
+
+    const loaded = await repository.load("run-iter");
+    expect(loaded?.connectionInvocations?.[0]).toMatchObject({
+      invocationId: "inv-iter-1",
+      iterationId: "iter_a",
+      itemIndex: 0,
+    });
+
+    await repository.save({
+      runId: "run-iter",
+      workflowId: "wf-iter",
+      startedAt: "2026-04-30T10:00:00.000Z",
+      revision: 1,
+      status: "pending",
+      queue: [],
+      outputsByNode: {},
+      nodeSnapshotsByNodeId: {},
+      connectionInvocations: [
+        {
+          invocationId: "inv-iter-2",
+          runId: "run-iter",
+          workflowId: "wf-iter",
+          connectionNodeId: "llm-slot",
+          parentAgentNodeId: "agent-1",
+          parentAgentActivationId: "act-orch-1",
+          status: "completed",
+          updatedAt: "2026-04-30T10:00:03.000Z",
+          iterationId: "iter_b",
+          itemIndex: 1,
+          parentInvocationId: "tool-call-row-1",
+        },
+      ],
+    } satisfies PersistedRunState);
+
+    const persisted = createdInstances.find((row) => row.instanceId === "inv-iter-2");
+    expect(persisted).toMatchObject({
+      iterationId: "iter_b",
+      itemIndex: 1,
+      parentInvocationId: "tool-call-row-1",
+    });
+  });
 });

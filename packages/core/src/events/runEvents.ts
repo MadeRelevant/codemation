@@ -1,3 +1,4 @@
+import type { ConnectionInvocationRecord } from "../contracts/runTypes";
 import type { NodeExecutionSnapshot, ParentExecutionRef, PersistedRunState, RunId, WorkflowId } from "../types";
 
 export type RunEvent =
@@ -41,6 +42,30 @@ export type RunEvent =
       parent?: ParentExecutionRef;
       at: string;
       snapshot: NodeExecutionSnapshot;
+    }>
+  | Readonly<{
+      kind: "connectionInvocationStarted";
+      runId: RunId;
+      workflowId: WorkflowId;
+      parent?: ParentExecutionRef;
+      at: string;
+      record: ConnectionInvocationRecord;
+    }>
+  | Readonly<{
+      kind: "connectionInvocationCompleted";
+      runId: RunId;
+      workflowId: WorkflowId;
+      parent?: ParentExecutionRef;
+      at: string;
+      record: ConnectionInvocationRecord;
+    }>
+  | Readonly<{
+      kind: "connectionInvocationFailed";
+      runId: RunId;
+      workflowId: WorkflowId;
+      parent?: ParentExecutionRef;
+      at: string;
+      record: ConnectionInvocationRecord;
     }>;
 
 export interface RunEventSubscription {

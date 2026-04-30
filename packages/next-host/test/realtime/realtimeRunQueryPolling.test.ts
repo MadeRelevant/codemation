@@ -3,6 +3,7 @@ import type { PersistedRunState } from "../../src/features/workflows/lib/realtim
 import {
   resolveFetchedRunState,
   resolveRunPollingIntervalMs,
+  resolveTelemetryTraceRefetchIntervalMs,
 } from "../../src/features/workflows/hooks/realtime/runQueryPolling";
 
 function createRunState(status: PersistedRunState["status"]): PersistedRunState {
@@ -34,6 +35,34 @@ describe("resolveRunPollingIntervalMs", () => {
       resolveRunPollingIntervalMs({ runState: createRunState("pending"), pollWhileNonTerminalMs: undefined }),
     ).toBe(false);
     expect(resolveRunPollingIntervalMs({ runState: undefined, pollWhileNonTerminalMs: 250 })).toBe(false);
+  });
+});
+
+describe("resolveTelemetryTraceRefetchIntervalMs", () => {
+  it("polls when run status is non-terminal and pollWhileNonTerminalMs is set", () => {
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "pending", pollWhileNonTerminalMs: 500 })).toBe(500);
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "running", pollWhileNonTerminalMs: 500 })).toBe(500);
+  });
+
+  it("polls when runStatus is undefined (run query not yet hydrated) and pollWhileNonTerminalMs is set", () => {
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: undefined, pollWhileNonTerminalMs: 500 })).toBe(500);
+  });
+
+  it("stops polling when run status is terminal", () => {
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "completed", pollWhileNonTerminalMs: 500 })).toBe(false);
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "failed", pollWhileNonTerminalMs: 500 })).toBe(false);
+  });
+
+  it("returns false when pollWhileNonTerminalMs is undefined even if status is non-terminal", () => {
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "pending", pollWhileNonTerminalMs: undefined })).toBe(
+      false,
+    );
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "running", pollWhileNonTerminalMs: undefined })).toBe(
+      false,
+    );
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: undefined, pollWhileNonTerminalMs: undefined })).toBe(
+      false,
+    );
   });
 });
 

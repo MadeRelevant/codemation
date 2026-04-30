@@ -5,6 +5,7 @@ export * from "./dsl/workflowBuilderTypes";
 
 export { ConnectionInvocationIdFactory } from "./definition/ConnectionInvocationIdFactory";
 export { ConnectionNodeIdFactory } from "./definition/ConnectionNodeIdFactory";
+export { NodeIterationIdFactory } from "./definition/NodeIterationIdFactory";
 export { WorkflowExecutableNodeClassifier } from "./definition/WorkflowExecutableNodeClassifier";
 export * from "./definition/WorkflowExecutableNodeClassifierFactory";
 

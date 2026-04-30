@@ -7,6 +7,7 @@ import type {
   JsonValue,
   NodeActivationId,
   NodeId,
+  NodeIterationId,
   NodeKind,
   NodeOutputs,
   OutputPortKey,
@@ -154,6 +155,12 @@ export interface ConnectionInvocationRecord {
   readonly startedAt?: string;
   readonly finishedAt?: string;
   readonly updatedAt: string;
+  /** Per-item iteration id minted by the engine when this invocation occurred inside a runnable node's per-item loop. */
+  readonly iterationId?: NodeIterationId;
+  /** Item index (0-based) of the iteration that produced this invocation. */
+  readonly itemIndex?: number;
+  /** When set, this invocation was produced inside a sub-agent triggered by the named parent invocation. */
+  readonly parentInvocationId?: ConnectionInvocationId;
 }
 
 /** Arguments for appending a {@link ConnectionInvocationRecord} (engine fills run/workflow ids and timestamps). */
@@ -169,6 +176,9 @@ export type ConnectionInvocationAppendArgs = Readonly<{
   queuedAt?: string;
   startedAt?: string;
   finishedAt?: string;
+  iterationId?: NodeIterationId;
+  itemIndex?: number;
+  parentInvocationId?: ConnectionInvocationId;
 }>;
 
 export interface RunCurrentState {

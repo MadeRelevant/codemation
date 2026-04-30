@@ -17,6 +17,8 @@ export function NodePropertiesConfigSection(
     telemetryRunTrace: TelemetryRunTraceViewDto | undefined;
     telemetryIsLoading: boolean;
     telemetryLoadError: string | null;
+    focusedInvocationId?: string | null;
+    onSelectInvocation?: (invocationId: string) => void;
   }>,
 ) {
   const {
@@ -27,12 +29,15 @@ export function NodePropertiesConfigSection(
     telemetryRunTrace,
     telemetryIsLoading,
     telemetryLoadError,
+    focusedInvocationId,
+    onSelectInvocation,
   } = args;
   const model = NodeInspectorTelemetryPresenter.create({
     node,
     nodeSnapshotsByNodeId,
     connectionInvocations,
     traceView: telemetryRunTrace,
+    focusedInvocationId,
   });
   const sectionIdsKey = useMemo(() => model.sections.map((section) => section.id).join("|"), [model.sections]);
   const [openSectionIds, setOpenSectionIds] = useState<ReadonlySet<string>>(
@@ -89,6 +94,7 @@ export function NodePropertiesConfigSection(
               });
             },
             isLastSection: index === model.sections.length - 1,
+            onSelectInvocation,
           }),
         )}
       </div>

@@ -5,6 +5,7 @@ export { GetTelemetryDashboardRunsQueryHandler } from "./GetTelemetryDashboardRu
 export { GetTelemetryRunTraceQueryHandler } from "./GetTelemetryRunTraceQueryHandler";
 export { GetTelemetryDashboardSummaryQueryHandler } from "./GetTelemetryDashboardSummaryQueryHandler";
 export { GetTelemetryDashboardTimeseriesQueryHandler } from "./GetTelemetryDashboardTimeseriesQueryHandler";
+export { GetIterationCostQueryHandler } from "./GetIterationCostQueryHandler";
 export { GetWorkflowRunDetailQueryHandler } from "./GetWorkflowRunDetailQueryHandler";
 export { GetWorkflowDebuggerOverlayQueryHandler } from "./GetWorkflowDebuggerOverlayQueryHandler";
 export { GetWorkflowDetailQueryHandler } from "./GetWorkflowDetailQueryHandler";

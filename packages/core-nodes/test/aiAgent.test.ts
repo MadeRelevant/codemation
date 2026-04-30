@@ -31,6 +31,7 @@ import type {
 } from "@codemation/core";
 import {
   AgentToolFactory,
+  ChildExecutionScopeFactory,
   ConnectionNodeIdFactory,
   CoreTokens,
   ItemExprResolver,
@@ -599,6 +600,11 @@ class AgentTestRig {
     this.container.registerSingleton(AgentToolRepairPolicy, AgentToolRepairPolicy);
     this.container.registerSingleton(AgentToolExecutionCoordinator, AgentToolExecutionCoordinator);
     this.container.registerSingleton(NodeBackedToolRuntime, NodeBackedToolRuntime);
+    this.container.registerSingleton(ChildExecutionScopeFactory, ChildExecutionScopeFactory);
+    let counter = 0;
+    this.container.registerInstance(CoreTokens.ActivationIdFactory, {
+      makeActivationId: () => `act_test_${++counter}`,
+    });
     this.container.registerSingleton(AIAgentNode, AIAgentNode);
     for (const registration of registrations) {
       if (registration.value !== undefined) {
@@ -725,6 +731,119 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
     ["subject_tool", "body_tool"],
     ["subject_tool", "body_tool"],
   ]);
+});
+
+test("AIAgentNode appends queued -> running -> completed connection invocation rows for the LLM and each tool call", async () => {
+  DelayTool.reset();
+  const capture = new ScriptedChatModelCapture();
+  const config = new AIAgent({
+    name: "Tracker",
+    messages: [
+      { role: "system", content: "Use the tool when relevant." },
+      { role: "user", content: ({ item }) => JSON.stringify(item.json ?? {}) },
+    ],
+    chatModel: new ScriptedChatModelConfig(
+      "Fake Chat Model",
+      [
+        {
+          content: "planning",
+          tool_calls: [{ id: "tool_1", name: "subject_tool", args: { subject: "RFQ" } }],
+        },
+        { content: "final" },
+      ],
+      capture,
+    ),
+    tools: [new DelayToolConfig("subject_tool", 5, "subject", "RFQ")],
+    id: "agent_invocation_rows",
+  });
+  const rig = new AgentTestRig(config, [
+    { token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory },
+    { token: DelayTool, useClass: DelayTool },
+  ]);
+
+  await rig.execute([{ json: { subject: "RFQ", body: "quote 100 widgets" } }]);
+
+  const llmNodeId = ConnectionNodeIdFactory.languageModelConnectionNodeId("agent_1");
+  const toolNodeId = ConnectionNodeIdFactory.toolConnectionNodeId("agent_1", "subject_tool");
+
+  const llmRows = rig.nodeState.connectionInvocations.filter((entry) => entry.connectionNodeId === llmNodeId) as Array<{
+    invocationId: string;
+    status: string;
+  }>;
+  const llmRowsByInvocationId = new Map<string, string[]>();
+  for (const row of llmRows) {
+    const list = llmRowsByInvocationId.get(row.invocationId) ?? [];
+    list.push(row.status);
+    llmRowsByInvocationId.set(row.invocationId, list);
+  }
+  for (const [invocationId, statuses] of llmRowsByInvocationId) {
+    assert.deepEqual(
+      statuses,
+      ["queued", "running", "completed"],
+      `expected LLM invocation ${invocationId} to transition queued -> running -> completed (got ${statuses.join(",")})`,
+    );
+  }
+  assert.equal(llmRowsByInvocationId.size, 2, "expected one row group per LLM round (turn 1 + turn 2)");
+
+  const toolRows = rig.nodeState.connectionInvocations.filter(
+    (entry) => entry.connectionNodeId === toolNodeId,
+  ) as Array<{ invocationId: string; status: string }>;
+  assert.equal(toolRows.length, 3, "expected the tool to emit queued -> running -> completed rows");
+  const toolInvocationIds = new Set(toolRows.map((row) => row.invocationId));
+  assert.equal(
+    toolInvocationIds.size,
+    1,
+    "expected the same invocationId to be reused across queued / running / completed for the tool call",
+  );
+  assert.deepEqual(
+    toolRows.map((row) => row.status),
+    ["queued", "running", "completed"],
+  );
+});
+
+test("AIAgentNode surfaces planned tool calls in the LLM completed managedOutput when the model emits no text", async () => {
+  DelayTool.reset();
+  const capture = new ScriptedChatModelCapture();
+  const config = new AIAgent({
+    name: "ToolOnly",
+    messages: [
+      { role: "system", content: "Use the tool when relevant." },
+      { role: "user", content: ({ item }) => JSON.stringify(item.json ?? {}) },
+    ],
+    chatModel: new ScriptedChatModelConfig(
+      "Fake Chat Model",
+      [
+        {
+          content: "",
+          tool_calls: [{ id: "tool_only_1", name: "subject_tool", args: { subject: "RFQ" } }],
+        },
+        { content: "done" },
+      ],
+      capture,
+    ),
+    tools: [new DelayToolConfig("subject_tool", 0, "subject", "RFQ")],
+    id: "agent_tool_only_round",
+  });
+  const rig = new AgentTestRig(config, [
+    { token: ScriptedChatModelFactory, useClass: ScriptedChatModelFactory },
+    { token: DelayTool, useClass: DelayTool },
+  ]);
+
+  await rig.execute([{ json: { subject: "RFQ" } }]);
+
+  const llmNodeId = ConnectionNodeIdFactory.languageModelConnectionNodeId("agent_1");
+  const completedLlmRows = rig.nodeState.connectionInvocations.filter(
+    (entry) => entry.connectionNodeId === llmNodeId && entry.status === "completed",
+  ) as Array<{ managedOutput?: unknown }>;
+  const firstRound = completedLlmRows[0]?.managedOutput as
+    | { content?: string; toolCalls?: ReadonlyArray<{ name: string; args: unknown }> }
+    | undefined;
+  assert.equal(firstRound?.content, "", "tool-only round should still expose an empty content string");
+  assert.deepEqual(firstRound?.toolCalls, [{ name: "subject_tool", args: { subject: "RFQ" } }]);
+  const finalRound = completedLlmRows[completedLlmRows.length - 1]?.managedOutput as
+    | { content?: string; toolCalls?: ReadonlyArray<unknown> }
+    | undefined;
+  assert.deepEqual(finalRound, { content: "done" }, "text-only rounds should not advertise an empty toolCalls array");
 });
 
 test("AIAgentNode executes callable tools and emits synthetic tool connection states", async () => {

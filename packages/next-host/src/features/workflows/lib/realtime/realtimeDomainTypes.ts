@@ -94,6 +94,35 @@ export type ConnectionInvocationRecord = Readonly<{
   startedAt?: string;
   finishedAt?: string;
   updatedAt: string;
+  /** Per-item iteration that produced this invocation (set by the engine inside runnable per-item loops). */
+  iterationId?: string;
+  /** Item index (0-based) of the iteration within the activation. */
+  itemIndex?: number;
+  /** When set, this invocation was produced inside a sub-agent triggered by the named parent invocation. */
+  parentInvocationId?: string;
+}>;
+
+/**
+ * One per-item iteration projected from the connection invocations for a run.
+ *
+ * Each iteration represents a single item processed by an agent within an activation. Multiple
+ * invocations (LLM rounds, tool calls) belonging to the same iteration share the iterationId.
+ */
+export type RunIterationRecord = Readonly<{
+  iterationId: string;
+  agentNodeId: string;
+  activationId: string;
+  itemIndex: number;
+  itemSummary?: string;
+  status: NodeExecutionSnapshot["status"];
+  startedAt?: string;
+  finishedAt?: string;
+  invocationIds: ReadonlyArray<string>;
+  parentInvocationId?: string;
+  /** Estimated cost (rolled up from `codemation.cost.estimated`) keyed by ISO currency code. Values are minor units per `cost.currency_scale`. */
+  estimatedCostMinorByCurrency?: Readonly<Record<string, number>>;
+  /** Currency scale (denominator) per currency, when present on the metric points. */
+  estimatedCostCurrencyScaleByCurrency?: Readonly<Record<string, number>>;
 }>;
 
 export type PendingNodeExecution = Readonly<{
@@ -165,6 +194,8 @@ export type WorkflowRunDetailDto = Readonly<{
   mutableState?: PersistedMutableRunState;
   slotStates: ReadonlyArray<SlotExecutionStateDto>;
   executionInstances: ReadonlyArray<ExecutionInstanceDto>;
+  iterations?: ReadonlyArray<RunIterationRecord>;
+  connectionInvocations?: ReadonlyArray<ConnectionInvocationRecord>;
 }>;
 
 export type RunCurrentState = Readonly<{
@@ -213,6 +244,9 @@ export type TelemetrySpanRecordDto = Readonly<{
   attributes?: TelemetryAttributesDto;
   events?: ReadonlyArray<unknown>;
   retentionExpiresAt?: string;
+  iterationId?: string;
+  itemIndex?: number;
+  parentInvocationId?: string;
 }>;
 
 export type TelemetryArtifactRecordDto = Readonly<{
@@ -254,6 +288,9 @@ export type TelemetryMetricPointRecordDto = Readonly<{
   modelName?: string;
   dimensions?: TelemetryAttributesDto;
   retentionExpiresAt?: string;
+  iterationId?: string;
+  itemIndex?: number;
+  parentInvocationId?: string;
 }>;
 
 export type TelemetryRunTraceViewDto = Readonly<{
@@ -305,4 +342,28 @@ export type WorkflowEvent =
       parent?: ParentExecutionRef;
       at: string;
       snapshot: NodeExecutionSnapshot;
+    }>
+  | Readonly<{
+      kind: "connectionInvocationStarted";
+      runId: string;
+      workflowId: string;
+      parent?: ParentExecutionRef;
+      at: string;
+      record: ConnectionInvocationRecord;
+    }>
+  | Readonly<{
+      kind: "connectionInvocationCompleted";
+      runId: string;
+      workflowId: string;
+      parent?: ParentExecutionRef;
+      at: string;
+      record: ConnectionInvocationRecord;
+    }>
+  | Readonly<{
+      kind: "connectionInvocationFailed";
+      runId: string;
+      workflowId: string;
+      parent?: ParentExecutionRef;
+      at: string;
+      record: ConnectionInvocationRecord;
     }>;

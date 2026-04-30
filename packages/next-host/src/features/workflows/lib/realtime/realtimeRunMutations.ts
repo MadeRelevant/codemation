@@ -2,7 +2,13 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { RunFinishedAtFactory } from "@codemation/core/browser";
 
-import type { Items, PersistedRunState, RunSummary, WorkflowEvent } from "./realtimeDomainTypes";
+import type {
+  ConnectionInvocationRecord,
+  Items,
+  PersistedRunState,
+  RunSummary,
+  WorkflowEvent,
+} from "./realtimeDomainTypes";
 import { runQueryKey, workflowRunsQueryKey } from "./realtimeQueryKeys";
 
 function countItems(inputsByPort: Readonly<Record<string, Items>> | undefined): number {
@@ -60,10 +66,77 @@ export function reduceWorkflowEventIntoPersistedRunState(
   if (event.kind === "runSaved") {
     return event.state;
   }
+  if (
+    event.kind === "connectionInvocationStarted" ||
+    event.kind === "connectionInvocationCompleted" ||
+    event.kind === "connectionInvocationFailed"
+  ) {
+    return mergeConnectionInvocationIntoRunState(
+      current,
+      event as Extract<
+        WorkflowEvent,
+        {
+          kind: "connectionInvocationStarted" | "connectionInvocationCompleted" | "connectionInvocationFailed";
+        }
+      >,
+    );
+  }
   return mergeSnapshotIntoRunState(
     current,
     event as Extract<WorkflowEvent, { kind: "nodeQueued" | "nodeStarted" | "nodeCompleted" | "nodeFailed" }>,
   );
+}
+
+/**
+ * Applies a per-invocation event onto the run state, deduplicating by `invocationId`.
+ *
+ * Surgical events let the timeline reflect each LLM round / tool call as it transitions
+ * from running → completed without waiting for a coarse `runSaved` snapshot.
+ */
+function mergeConnectionInvocationIntoRunState(
+  current: PersistedRunState | undefined,
+  event: Extract<
+    WorkflowEvent,
+    {
+      kind: "connectionInvocationStarted" | "connectionInvocationCompleted" | "connectionInvocationFailed";
+    }
+  >,
+): PersistedRunState {
+  const base =
+    current ??
+    ({
+      runId: event.runId,
+      workflowId: event.workflowId,
+      startedAt: event.at,
+      parent: event.parent,
+      executionOptions: undefined,
+      workflowSnapshot: undefined,
+      mutableState: undefined,
+      status: "pending",
+      pending: undefined,
+      queue: [],
+      outputsByNode: {},
+      nodeSnapshotsByNodeId: {},
+    } satisfies PersistedRunState);
+  const existing: ReadonlyArray<ConnectionInvocationRecord> = base.connectionInvocations ?? [];
+  const next: ConnectionInvocationRecord[] = [];
+  let replaced = false;
+  for (const inv of existing) {
+    if (inv.invocationId === event.record.invocationId) {
+      next.push(event.record);
+      replaced = true;
+    } else {
+      next.push(inv);
+    }
+  }
+  if (!replaced) {
+    next.push(event.record);
+  }
+  return {
+    ...base,
+    parent: base.parent ?? event.parent,
+    connectionInvocations: next,
+  };
 }
 
 function mergeSnapshotIntoRunState(
@@ -161,7 +234,13 @@ export function applyWorkflowEvent(queryClient: QueryClient, event: WorkflowEven
   const current = queryClient.getQueryData<PersistedRunState>(key);
   const nextRunState = reduceWorkflowEventIntoPersistedRunState(current, event);
   queryClient.setQueryData(key, nextRunState);
-  queryClient.setQueryData(runsKey, (existing: ReadonlyArray<RunSummary> | undefined) =>
-    mergeRunSummaryList(existing, toRunSummary(nextRunState)),
-  );
+  if (
+    event.kind !== "connectionInvocationStarted" &&
+    event.kind !== "connectionInvocationCompleted" &&
+    event.kind !== "connectionInvocationFailed"
+  ) {
+    queryClient.setQueryData(runsKey, (existing: ReadonlyArray<RunSummary> | undefined) =>
+      mergeRunSummaryList(existing, toRunSummary(nextRunState)),
+    );
+  }
 }

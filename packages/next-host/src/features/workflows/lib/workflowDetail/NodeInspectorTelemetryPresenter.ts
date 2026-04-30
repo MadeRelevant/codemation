@@ -4,6 +4,7 @@ import type {
   TelemetryRunTraceViewDto,
 } from "../../hooks/realtime/realtime";
 
+import { FocusedInvocationModelFactory } from "./FocusedInvocationModelFactory";
 import type { WorkflowDiagramNode } from "./workflowDetailTypes";
 
 export type NodeInspectorPillModel = Readonly<{
@@ -33,6 +34,24 @@ export type NodeInspectorTimelineEntryModel = Readonly<{
   kind: "agent" | "tool";
   pills?: ReadonlyArray<NodeInspectorPillModel>;
   jsonBlocks?: ReadonlyArray<NodeInspectorJsonBlockModel>;
+  /**
+   * Tool calls produced by an LLM round are rendered as children under their parent model entry
+   * so the right-side panel mirrors the nested structure already used by the execution-tree
+   * inspector (one row per tool call, grouped under the LLM turn that emitted them).
+   */
+  children?: ReadonlyArray<NodeInspectorTimelineEntryModel>;
+}>;
+
+export type NodeInspectorBreadcrumbModel = Readonly<{
+  /** Already concatenated, ready to render — e.g. "Item 2 of 3" in focused-item mode. */
+  text: string;
+}>;
+
+export type NodeInspectorSectionNavigationModel = Readonly<{
+  prev: Readonly<{ invocationId: string }> | null;
+  next: Readonly<{ invocationId: string }> | null;
+  /** The invocation currently in focus. Lets the renderer wire a "clear focus" affordance. */
+  focusedInvocationId: string;
 }>;
 
 export type NodeInspectorSectionModel = Readonly<{
@@ -45,6 +64,8 @@ export type NodeInspectorSectionModel = Readonly<{
   jsonBlocks?: ReadonlyArray<NodeInspectorJsonBlockModel>;
   timeline?: ReadonlyArray<NodeInspectorTimelineEntryModel>;
   emptyLabel?: string;
+  breadcrumb?: NodeInspectorBreadcrumbModel;
+  navigation?: NodeInspectorSectionNavigationModel;
 }>;
 
 export type NodeInspectorTelemetryModel = Readonly<{
@@ -83,19 +104,41 @@ export class NodeInspectorTelemetryPresenter {
       nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
       connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>;
       traceView?: TelemetryRunTraceViewDto;
+      focusedInvocationId?: string | null;
     }>,
   ): NodeInspectorTelemetryModel {
     const sections: NodeInspectorSectionModel[] = [
       this.createOverviewSection(args.node, args.nodeSnapshotsByNodeId, args.connectionInvocations, args.traceView),
     ];
     if (this.isAiAgentNode(args.node)) {
-      sections.push(this.createAgentTimelineSection(args.node, args.traceView));
+      sections.push(
+        this.createAgentTimelineSection(
+          args.node,
+          args.connectionInvocations,
+          args.traceView,
+          args.focusedInvocationId ?? null,
+        ),
+      );
     } else if (this.isLanguageModelNode(args.node)) {
       sections.push(this.createLanguageModelMetricsSection(args.node, args.connectionInvocations, args.traceView));
-      sections.push(this.createLanguageModelTimelineSection(args.node, args.connectionInvocations, args.traceView));
+      sections.push(
+        this.createLanguageModelTimelineSection(
+          args.node,
+          args.connectionInvocations,
+          args.traceView,
+          args.focusedInvocationId ?? null,
+        ),
+      );
     } else if (this.isToolNode(args.node)) {
       sections.push(this.createToolMetricsSection(args.node, args.connectionInvocations));
-      sections.push(this.createToolTimelineSection(args.node, args.connectionInvocations, args.traceView));
+      sections.push(
+        this.createToolTimelineSection(
+          args.node,
+          args.connectionInvocations,
+          args.traceView,
+          args.focusedInvocationId ?? null,
+        ),
+      );
     } else if (this.isGmailTriggerNode(args.node)) {
       sections.push(this.createGmailMetricsSection(args.node, args.traceView));
       sections.push(this.createGmailMessagesSection(args.node, args.traceView));
@@ -184,13 +227,19 @@ export class NodeInspectorTelemetryPresenter {
 
   private static createAgentTimelineSection(
     node: WorkflowDiagramNode,
+    connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>,
     traceView: TelemetryRunTraceViewDto | undefined,
+    focusedInvocationId: string | null,
   ): NodeInspectorSectionModel {
     const metricPoints = this.getMetricPointsForNode(node, traceView);
-    const spans = this.getSpansForNode(node, traceView).filter(
-      (span) => span.name === "gen_ai.chat.completion" || span.name === "agent.tool.call",
-    );
-    return {
+    const agentSpans = this.getSpansForNode(node, traceView);
+    const llmSpans = agentSpans
+      .filter((span) => span.name === "gen_ai.chat.completion")
+      .sort((left, right) => this.compareIso(left.startTime, right.startTime));
+    const toolSpans = agentSpans
+      .filter((span) => span.name === "agent.tool.call")
+      .sort((left, right) => this.compareIso(left.startTime, right.startTime));
+    const base = {
       id: "agent-timeline",
       title: "Conversation and tool timeline",
       pills: [
@@ -200,18 +249,252 @@ export class NodeInspectorTelemetryPresenter {
         {
           label: "Models",
           value: this.joinUnique(
-            spans
-              .filter((span) => span.name === "gen_ai.chat.completion")
+            llmSpans
               .map((span) => span.modelName)
               .filter((value): value is string => typeof value === "string" && value.length > 0),
           ),
         },
       ],
-      timeline: spans
-        .sort((left, right) => this.compareIso(left.startTime, right.startTime))
-        .map((span) => this.createTimelineEntry(span, traceView)),
       emptyLabel: "Run this agent to inspect model turns and tool calls.",
     };
+    const itemEntries = this.buildAgentTimelineByItem(llmSpans, toolSpans, traceView);
+    const focused = focusedInvocationId
+      ? this.buildFocusedAgentTimelineSection({
+          base,
+          itemEntries,
+          agentNodeId: node.id,
+          connectionInvocations,
+          focusedInvocationId,
+        })
+      : undefined;
+    if (focused) return focused;
+    return {
+      ...base,
+      timeline: itemEntries,
+    };
+  }
+
+  /**
+   * Resolves the agent timeline payload for "focused item" mode.
+   *
+   * The user clicks a single invocation in the bottom execution tree; we look up the
+   * `iterationId` of that invocation among the agent's child connection invocations and surface
+   * only the matching Item N subtree. Prev/next navigates between items the same way the LLM and
+   * tool sections do.
+   */
+  private static buildFocusedAgentTimelineSection(
+    args: Readonly<{
+      base: Pick<NodeInspectorSectionModel, "id" | "title" | "emptyLabel" | "pills">;
+      itemEntries: ReadonlyArray<NodeInspectorTimelineEntryModel>;
+      agentNodeId: string;
+      connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>;
+      focusedInvocationId: string;
+    }>,
+  ): NodeInspectorSectionModel | undefined {
+    if (args.itemEntries.length === 0) return undefined;
+    const childInvocations = args.connectionInvocations.filter((inv) => inv.parentAgentNodeId === args.agentNodeId);
+    const nav = FocusedInvocationModelFactory.create({
+      nodeInvocations: childInvocations,
+      focusedInvocationId: args.focusedInvocationId,
+    });
+    if (!nav) return undefined;
+    const focusedEntry = args.itemEntries.find((entry) => entry.key === nav.itemBucketKey);
+    if (!focusedEntry) return undefined;
+    return {
+      ...args.base,
+      timeline: [focusedEntry],
+      breadcrumb: { text: `Item ${String(nav.itemNumber)} of ${String(nav.totalItems)}` },
+      navigation:
+        nav.totalItems > 1
+          ? {
+              prev: nav.prevItemFirstInvocationId ? { invocationId: nav.prevItemFirstInvocationId } : null,
+              next: nav.nextItemFirstInvocationId ? { invocationId: nav.nextItemFirstInvocationId } : null,
+              focusedInvocationId: args.focusedInvocationId,
+            }
+          : undefined,
+    };
+  }
+
+  /**
+   * Groups the agent's LLM and tool spans by `iterationId` (per-item identity stamped onto the
+   * underlying telemetry by the engine) and returns one parent "Item N" entry per item.
+   *
+   * Each Item N entry's children are LLM round entries with their tool calls already nested under
+   * them via {@link buildAgentTimelineEntriesForItem} (parent-span chain walk). When fewer than
+   * two distinct iteration ids are present (single-item agents, legacy traces without iteration
+   * ids) we fall back to the original flat layout so nothing regresses.
+   */
+  private static buildAgentTimelineByItem(
+    llmSpans: ReadonlyArray<TelemetrySpan>,
+    toolSpans: ReadonlyArray<TelemetrySpan>,
+    traceView: TelemetryRunTraceViewDto | undefined,
+  ): ReadonlyArray<NodeInspectorTimelineEntryModel> {
+    const grouped = this.partitionAgentSpansByIteration(llmSpans, toolSpans);
+    if (grouped.length < 2) {
+      return this.buildAgentTimelineEntries(llmSpans, toolSpans, traceView);
+    }
+    const iterationCostPoints = this.collectIterationCostPoints(traceView);
+    return grouped.map((bucket, index) => {
+      const children = this.buildAgentTimelineEntries(bucket.llmSpans, bucket.toolSpans, traceView);
+      const itemNumber = bucket.itemIndex !== undefined ? bucket.itemIndex + 1 : index + 1;
+      const costPills = bucket.iterationId
+        ? this.createCostPills(iterationCostPoints.get(bucket.iterationId) ?? [])
+        : [];
+      const childCount = bucket.llmSpans.length + bucket.toolSpans.length;
+      return {
+        key: bucket.iterationId ?? `agent-item-${String(index)}`,
+        kind: "agent" as const,
+        title: `Item ${String(itemNumber)}`,
+        pills: [
+          { label: "Turns", value: String(bucket.llmSpans.length) },
+          { label: "Tool calls", value: String(bucket.toolSpans.length) },
+          ...costPills,
+          ...(childCount === 0 ? [] : []),
+        ],
+        children,
+      } satisfies NodeInspectorTimelineEntryModel;
+    });
+  }
+
+  private static partitionAgentSpansByIteration(
+    llmSpans: ReadonlyArray<TelemetrySpan>,
+    toolSpans: ReadonlyArray<TelemetrySpan>,
+  ): ReadonlyArray<
+    Readonly<{
+      iterationId: string | undefined;
+      itemIndex: number | undefined;
+      llmSpans: TelemetrySpan[];
+      toolSpans: TelemetrySpan[];
+    }>
+  > {
+    type Bucket = {
+      iterationId: string | undefined;
+      itemIndex: number | undefined;
+      llmSpans: TelemetrySpan[];
+      toolSpans: TelemetrySpan[];
+      earliestStart: string;
+    };
+    const buckets = new Map<string, Bucket>();
+    const fallbackKey = "__no_iteration__";
+    const accumulate = (spans: ReadonlyArray<TelemetrySpan>, kind: "llm" | "tool"): void => {
+      for (const span of spans) {
+        const iterationId = span.iterationId;
+        const key = iterationId && iterationId.length > 0 ? iterationId : fallbackKey;
+        let bucket = buckets.get(key);
+        if (!bucket) {
+          bucket = {
+            iterationId: iterationId && iterationId.length > 0 ? iterationId : undefined,
+            itemIndex: typeof span.itemIndex === "number" ? span.itemIndex : undefined,
+            llmSpans: [],
+            toolSpans: [],
+            earliestStart: span.startTime ?? "",
+          };
+          buckets.set(key, bucket);
+        }
+        if (typeof span.itemIndex === "number" && bucket.itemIndex === undefined) {
+          bucket.itemIndex = span.itemIndex;
+        }
+        if (span.startTime && (bucket.earliestStart === "" || span.startTime < bucket.earliestStart)) {
+          bucket.earliestStart = span.startTime;
+        }
+        if (kind === "llm") {
+          bucket.llmSpans.push(span);
+        } else {
+          bucket.toolSpans.push(span);
+        }
+      }
+    };
+    accumulate(llmSpans, "llm");
+    accumulate(toolSpans, "tool");
+    if (buckets.size === 1 && buckets.has(fallbackKey)) {
+      return [];
+    }
+    buckets.delete(fallbackKey);
+    return [...buckets.values()].sort((left, right) => {
+      if (left.itemIndex !== right.itemIndex) {
+        if (left.itemIndex === undefined) return 1;
+        if (right.itemIndex === undefined) return -1;
+        return left.itemIndex - right.itemIndex;
+      }
+      return left.earliestStart.localeCompare(right.earliestStart);
+    });
+  }
+
+  /**
+   * Groups tool-call spans under the LLM round that produced them by walking `parentSpanId`.
+   *
+   * Each tool-call span's parent chain is walked upward; the first ancestor that matches one of
+   * the agent's LLM spans owns the tool call. This is robust under parallelism — temporal grouping
+   * (the previous heuristic) misattributed tool calls when items processed concurrently.
+   *
+   * Tool spans whose parent chain doesn't reach any of the agent's LLM spans surface as top-level
+   * entries so nothing is silently dropped.
+   */
+  private static buildAgentTimelineEntries(
+    llmSpans: ReadonlyArray<TelemetrySpan>,
+    toolSpans: ReadonlyArray<TelemetrySpan>,
+    traceView: TelemetryRunTraceViewDto | undefined,
+  ): ReadonlyArray<NodeInspectorTimelineEntryModel> {
+    if (llmSpans.length === 0) {
+      return toolSpans.map((span) => this.createTimelineEntry(span, traceView));
+    }
+    const spansById = new Map<string, TelemetrySpan>();
+    for (const span of traceView?.spans ?? []) {
+      spansById.set(span.spanId, span);
+    }
+    const llmSpanIds = new Set(llmSpans.map((span) => span.spanId));
+    const childrenByLlmSpanId = new Map<string, TelemetrySpan[]>();
+    const orphanToolSpans: TelemetrySpan[] = [];
+    for (const toolSpan of toolSpans) {
+      const ancestorLlmSpanId = this.findAncestorSpanId(toolSpan, spansById, llmSpanIds);
+      if (ancestorLlmSpanId) {
+        const existing = childrenByLlmSpanId.get(ancestorLlmSpanId);
+        if (existing) {
+          existing.push(toolSpan);
+        } else {
+          childrenByLlmSpanId.set(ancestorLlmSpanId, [toolSpan]);
+        }
+      } else {
+        orphanToolSpans.push(toolSpan);
+      }
+    }
+    const llmEntries = llmSpans.map((llmSpan) => {
+      const baseEntry = this.createTimelineEntry(llmSpan, traceView);
+      const startTime = llmSpan.startTime ?? "";
+      const children = (childrenByLlmSpanId.get(llmSpan.spanId) ?? []).map((toolSpan) =>
+        this.createTimelineEntry(toolSpan, traceView),
+      );
+      if (children.length === 0) return { entry: baseEntry, startTime };
+      return { entry: { ...baseEntry, children }, startTime };
+    });
+    const orphanToolEntries = orphanToolSpans.map((toolSpan) => ({
+      entry: this.createTimelineEntry(toolSpan, traceView),
+      startTime: toolSpan.startTime ?? "",
+    }));
+    // Interleave LLM rounds and orphan tool calls in chronological order so the timeline reads
+    // top-to-bottom the way the agent actually executed (e.g. "request → tool calls → response")
+    // even when telemetry didn't link tool spans to a parent LLM via `parentSpanId`.
+    return [...llmEntries, ...orphanToolEntries]
+      .sort((left, right) => left.startTime.localeCompare(right.startTime))
+      .map((wrapped) => wrapped.entry);
+  }
+
+  private static findAncestorSpanId(
+    span: TelemetrySpan,
+    spansById: ReadonlyMap<string, TelemetrySpan>,
+    targetSpanIds: ReadonlySet<string>,
+  ): string | undefined {
+    let cursor: TelemetrySpan | undefined = span;
+    const visited = new Set<string>();
+    while (cursor) {
+      if (visited.has(cursor.spanId)) return undefined;
+      visited.add(cursor.spanId);
+      const parentSpanId = cursor.parentSpanId;
+      if (typeof parentSpanId !== "string" || parentSpanId.length === 0) return undefined;
+      if (targetSpanIds.has(parentSpanId)) return parentSpanId;
+      cursor = spansById.get(parentSpanId);
+    }
+    return undefined;
   }
 
   private static createLanguageModelMetricsSection(
@@ -243,16 +526,36 @@ export class NodeInspectorTelemetryPresenter {
     node: WorkflowDiagramNode,
     connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>,
     traceView: TelemetryRunTraceViewDto | undefined,
+    focusedInvocationId: string | null,
   ): NodeInspectorSectionModel {
-    const spanIds = this.getConnectionSpanIds(node, connectionInvocations, traceView, "gen_ai.chat.completion");
-    const spans = (traceView?.spans ?? []).filter((span) => spanIds.has(span.spanId));
-    return {
+    const invocations = connectionInvocations.filter((inv) => inv.connectionNodeId === node.id);
+    const spansByInvocationId = this.buildSpansByInvocationId(traceView, "gen_ai.chat.completion");
+    const base = {
       id: "language-model-timeline",
       title: "Model responses",
-      timeline: spans
-        .sort((left, right) => this.compareIso(left.startTime, right.startTime))
-        .map((span) => this.createTimelineEntry(span, traceView)),
       emptyLabel: "No model invocations captured for this run yet.",
+    };
+    const focused = focusedInvocationId
+      ? this.buildFocusedItemSection({
+          base,
+          invocations,
+          spansByInvocationId,
+          traceView,
+          focusedInvocationId,
+          childCountPillLabel: "Rounds",
+        })
+      : undefined;
+    if (focused) {
+      return focused;
+    }
+    return {
+      ...base,
+      timeline: this.buildInvocationItemEntries({
+        invocations,
+        spansByInvocationId,
+        traceView,
+        childCountPillLabel: "Rounds",
+      }),
     };
   }
 
@@ -293,38 +596,55 @@ export class NodeInspectorTelemetryPresenter {
     node: WorkflowDiagramNode,
     connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>,
     traceView: TelemetryRunTraceViewDto | undefined,
+    focusedInvocationId: string | null,
   ): NodeInspectorSectionModel {
-    const invocations = connectionInvocations
-      .filter((invocation) => invocation.connectionNodeId === node.id)
-      .sort((left, right) => this.compareIso(left.updatedAt, right.updatedAt));
-    const spanIds = this.getConnectionSpanIds(node, connectionInvocations, traceView, "agent.tool.call");
-    const spans = (traceView?.spans ?? []).filter((span) => spanIds.has(span.spanId));
-    const spansByInvocationId = new Map(
-      spans
-        .filter((span) => typeof span.connectionInvocationId === "string")
-        .map((span) => [span.connectionInvocationId as string, span]),
-    );
-    const spanOnlyEntries = spans
+    const invocations = connectionInvocations.filter((inv) => inv.connectionNodeId === node.id);
+    const invocationIdSet = new Set(invocations.map((inv) => inv.invocationId));
+    // Global set to exclude spans that are claimed by other nodes' invocations
+    const allInvocationIds = new Set(connectionInvocations.map((inv) => inv.invocationId));
+    const spansByInvocationId = this.buildSpansByInvocationId(traceView, "agent.tool.call");
+    const base = {
+      id: "tool-timeline",
+      title: "Tool inputs and outputs",
+      emptyLabel: "No tool calls captured for this run yet.",
+    };
+    const focused = focusedInvocationId
+      ? this.buildFocusedItemSection({
+          base,
+          invocations,
+          spansByInvocationId,
+          traceView,
+          focusedInvocationId,
+          childCountPillLabel: "Calls",
+        })
+      : undefined;
+    if (focused) {
+      return focused;
+    }
+    // Spans with a connectionInvocationId that doesn't appear in any known invocation: these are
+    // telemetry records that arrived before (or without) their corresponding invocation persistence.
+    // They appear at the bottom of the timeline so nothing is silently dropped.
+    const spanOnlyEntries = (traceView?.spans ?? [])
       .filter(
         (span) =>
-          !span.connectionInvocationId ||
-          !invocations.some((entry) => entry.invocationId === span.connectionInvocationId),
+          span.name === "agent.tool.call" &&
+          typeof span.connectionInvocationId === "string" &&
+          !invocationIdSet.has(span.connectionInvocationId) &&
+          !allInvocationIds.has(span.connectionInvocationId),
       )
       .sort((left, right) => this.compareIso(left.startTime, right.startTime))
       .map((span) => this.createTimelineEntry(span, traceView));
     return {
-      id: "tool-timeline",
-      title: "Tool inputs and outputs",
+      ...base,
       timeline: [
-        ...invocations.map((invocation) => {
-          const span = spansByInvocationId.get(invocation.invocationId);
-          return span
-            ? this.createTimelineEntry(span, traceView)
-            : this.createConnectionInvocationTimelineEntry(invocation);
+        ...this.buildInvocationItemEntries({
+          invocations,
+          spansByInvocationId,
+          traceView,
+          childCountPillLabel: "Calls",
         }),
         ...spanOnlyEntries,
       ],
-      emptyLabel: "No tool calls captured for this run yet.",
     };
   }
 
@@ -441,6 +761,187 @@ export class NodeInspectorTelemetryPresenter {
     traceView: TelemetryRunTraceViewDto | undefined,
   ): ReadonlyArray<TelemetrySpan> {
     return (traceView?.spans ?? []).filter((span) => span.nodeId === node.id);
+  }
+
+  /**
+   * Groups `invocations` by `iterationId` (the per-item identity minted by the engine inside
+   * `NodeExecutor.executeRunnableActivation`), sorts groups by `itemIndex` first, then by earliest
+   * invocation start, and returns one parent "Item N" entry per group whose `children` are the
+   * leaf timeline entries.
+   *
+   * Falls back to grouping by `parentAgentActivationId` for runs persisted before iteration ids
+   * existed, so the presenter never regresses on legacy data. Invocations missing both fields land
+   * in a shared "unscoped" bucket and surface as a final unindexed group.
+   */
+  private static buildInvocationItemEntries(
+    args: Readonly<{
+      invocations: ReadonlyArray<ConnectionInvocationRecord>;
+      spansByInvocationId: ReadonlyMap<string, TelemetrySpan>;
+      traceView: TelemetryRunTraceViewDto | undefined;
+      childCountPillLabel: "Rounds" | "Calls";
+    }>,
+  ): ReadonlyArray<NodeInspectorTimelineEntryModel> {
+    const unscopedBucketKey = "__unscoped__";
+    const groups = new Map<string, ConnectionInvocationRecord[]>();
+    for (const invocation of args.invocations) {
+      const bucketKey = this.iterationBucketKey(invocation, unscopedBucketKey);
+      const existing = groups.get(bucketKey);
+      if (existing) {
+        existing.push(invocation);
+      } else {
+        groups.set(bucketKey, [invocation]);
+      }
+    }
+    if (groups.size === 0) {
+      return [];
+    }
+    const getInvocationTime = (inv: ConnectionInvocationRecord): string =>
+      inv.startedAt ?? inv.queuedAt ?? inv.updatedAt;
+    const earliestStart = (group: ReadonlyArray<ConnectionInvocationRecord>): string =>
+      [...group].map(getInvocationTime).sort((a, b) => this.compareIso(a, b))[0] ?? "";
+    const groupItemIndex = (group: ReadonlyArray<ConnectionInvocationRecord>): number | undefined => {
+      for (const inv of group) {
+        if (typeof inv.itemIndex === "number") return inv.itemIndex;
+      }
+      return undefined;
+    };
+    const sortedGroups = [...groups.entries()].sort(([, leftInvocations], [, rightInvocations]) => {
+      const leftIndex = groupItemIndex(leftInvocations);
+      const rightIndex = groupItemIndex(rightInvocations);
+      if (leftIndex !== rightIndex) {
+        if (leftIndex === undefined) return 1;
+        if (rightIndex === undefined) return -1;
+        return leftIndex - rightIndex;
+      }
+      return this.compareIso(earliestStart(leftInvocations), earliestStart(rightInvocations));
+    });
+    const iterationCostPoints = this.collectIterationCostPoints(args.traceView);
+    return sortedGroups.map(([bucketKey, groupInvocations], groupIndex) => {
+      const sortedInvocations = [...groupInvocations].sort((left, right) =>
+        this.compareIso(getInvocationTime(left), getInvocationTime(right)),
+      );
+      const children = sortedInvocations.map((invocation) => {
+        const span = args.spansByInvocationId.get(invocation.invocationId);
+        return span
+          ? this.createTimelineEntry(span, args.traceView)
+          : this.createConnectionInvocationTimelineEntry(invocation);
+      });
+      const stableKey = bucketKey !== unscopedBucketKey ? bucketKey : `unscoped-${String(groupIndex)}`;
+      const itemIndex = groupItemIndex(groupInvocations);
+      const itemNumber = typeof itemIndex === "number" ? itemIndex + 1 : groupIndex + 1;
+      const iterationId = bucketKey !== unscopedBucketKey && !bucketKey.startsWith("legacy::") ? bucketKey : undefined;
+      const costPills = iterationId ? this.createCostPills(iterationCostPoints.get(iterationId) ?? []) : [];
+      return {
+        key: stableKey,
+        kind: "agent" as const,
+        title: `Item ${String(itemNumber)}`,
+        pills: [{ label: args.childCountPillLabel, value: String(groupInvocations.length) }, ...costPills],
+        children,
+      };
+    });
+  }
+
+  /**
+   * Resolves the section payload for the inspector's "focused item" mode.
+   *
+   * The user selects an invocation in the bottom execution tree, but the inspector renders the
+   * entire **item** (per-trigger iteration) it belongs to as a single subtree — exactly the same
+   * `Item N` accordion entry that the all-items view produces, including children, cost pills, and
+   * the round/call count pill. Prev/next navigates between **items** (not individual invocations);
+   * when the node only has one item the navigation is omitted entirely so the chevrons disappear.
+   *
+   * Returns `undefined` when the focused id does not belong to any of `invocations` so the caller
+   * falls back to the all-items grouped accordion.
+   */
+  private static buildFocusedItemSection(
+    args: Readonly<{
+      base: Pick<NodeInspectorSectionModel, "id" | "title" | "emptyLabel">;
+      invocations: ReadonlyArray<ConnectionInvocationRecord>;
+      spansByInvocationId: ReadonlyMap<string, TelemetrySpan>;
+      traceView: TelemetryRunTraceViewDto | undefined;
+      focusedInvocationId: string;
+      childCountPillLabel: "Rounds" | "Calls";
+    }>,
+  ): NodeInspectorSectionModel | undefined {
+    const nav = FocusedInvocationModelFactory.create({
+      nodeInvocations: args.invocations,
+      focusedInvocationId: args.focusedInvocationId,
+    });
+    if (!nav) {
+      return undefined;
+    }
+    const itemEntries = this.buildInvocationItemEntries({
+      invocations: nav.itemInvocations,
+      spansByInvocationId: args.spansByInvocationId,
+      traceView: args.traceView,
+      childCountPillLabel: args.childCountPillLabel,
+    });
+    return {
+      ...args.base,
+      timeline: itemEntries,
+      breadcrumb: {
+        text: `Item ${String(nav.itemNumber)} of ${String(nav.totalItems)}`,
+      },
+      navigation:
+        nav.totalItems > 1
+          ? {
+              prev: nav.prevItemFirstInvocationId ? { invocationId: nav.prevItemFirstInvocationId } : null,
+              next: nav.nextItemFirstInvocationId ? { invocationId: nav.nextItemFirstInvocationId } : null,
+              focusedInvocationId: args.focusedInvocationId,
+            }
+          : undefined,
+    };
+  }
+
+  /**
+   * Indexes cost metric points (`codemation.cost.estimated`) by `iterationId` so each Item N
+   * accordion can show the cost without a second pass over the trace view.
+   */
+  private static collectIterationCostPoints(
+    traceView: TelemetryRunTraceViewDto | undefined,
+  ): ReadonlyMap<string, ReadonlyArray<TelemetryMetricPoint>> {
+    const result = new Map<string, TelemetryMetricPoint[]>();
+    for (const point of traceView?.metricPoints ?? []) {
+      if (point.metricName !== InspectorTelemetryMetricNames.billingEstimatedCost) {
+        continue;
+      }
+      const iterationId = point.iterationId;
+      if (!iterationId || iterationId.length === 0) {
+        continue;
+      }
+      const bucket = result.get(iterationId);
+      if (bucket) {
+        bucket.push(point);
+      } else {
+        result.set(iterationId, [point]);
+      }
+    }
+    return result;
+  }
+
+  private static iterationBucketKey(invocation: ConnectionInvocationRecord, unscopedKey: string): string {
+    if (typeof invocation.iterationId === "string" && invocation.iterationId.length > 0) {
+      return invocation.iterationId;
+    }
+    if (typeof invocation.parentAgentActivationId === "string" && invocation.parentAgentActivationId.length > 0) {
+      return `legacy::${invocation.parentAgentActivationId}::${invocation.itemIndex ?? 0}`;
+    }
+    return unscopedKey;
+  }
+
+  /**
+   * Builds a `Map<connectionInvocationId, TelemetrySpan>` for spans of the given `spanName`
+   * so callers can resolve a span for a given invocation in O(1).
+   */
+  private static buildSpansByInvocationId(
+    traceView: TelemetryRunTraceViewDto | undefined,
+    spanName: string,
+  ): ReadonlyMap<string, TelemetrySpan> {
+    return new Map(
+      (traceView?.spans ?? [])
+        .filter((span) => span.name === spanName && typeof span.connectionInvocationId === "string")
+        .map((span) => [span.connectionInvocationId as string, span]),
+    );
   }
 
   private static getConnectionSpanIds(

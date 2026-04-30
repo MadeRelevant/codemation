@@ -38,6 +38,9 @@ export class PrismaTelemetryMetricPointStore implements TelemetryMetricPointStor
         modelName: record.modelName ?? null,
         dimensionsJson: record.attributes ? JSON.stringify(record.attributes) : null,
         retentionExpiresAt: record.retentionExpiresAt ?? null,
+        iterationId: record.iterationId ?? null,
+        itemIndex: record.itemIndex ?? null,
+        parentInvocationId: record.parentInvocationId ?? null,
       },
     });
     return {
@@ -58,6 +61,9 @@ export class PrismaTelemetryMetricPointStore implements TelemetryMetricPointStor
       modelName: record.modelName,
       dimensions: record.attributes,
       retentionExpiresAt: record.retentionExpiresAt,
+      iterationId: record.iterationId,
+      itemIndex: record.itemIndex,
+      parentInvocationId: record.parentInvocationId,
     };
   }
 
@@ -96,6 +102,9 @@ export class PrismaTelemetryMetricPointStore implements TelemetryMetricPointStor
       modelName: row.modelName ?? undefined,
       dimensions: this.parseJson<TelemetryAttributes>(row.dimensionsJson),
       retentionExpiresAt: row.retentionExpiresAt ?? undefined,
+      iterationId: row.iterationId ?? undefined,
+      itemIndex: row.itemIndex ?? undefined,
+      parentInvocationId: row.parentInvocationId ?? undefined,
     }));
   }
 

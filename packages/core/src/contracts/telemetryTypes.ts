@@ -73,6 +73,14 @@ export interface TelemetrySpanScope extends TelemetryScope {
   readonly traceId: string;
   readonly spanId: string;
   end(args?: TelemetrySpanEnd): Promise<void> | void;
+  /**
+   * Lift this span into a {@link NodeExecutionTelemetry} scoped to a different (nodeId, activationId).
+   * Children created via the returned telemetry's `startChildSpan` get this span as their parent.
+   *
+   * Used at the sub-agent boundary so that nested runtime telemetry parents under the agent.tool.call
+   * span instead of the orchestrator's node-level span.
+   */
+  asNodeTelemetry(args: Readonly<{ nodeId: NodeId; activationId: NodeActivationId }>): NodeExecutionTelemetry;
 }
 
 export interface NodeExecutionTelemetry extends ExecutionTelemetry, TelemetrySpanScope {

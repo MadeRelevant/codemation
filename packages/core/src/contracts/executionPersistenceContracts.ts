@@ -148,6 +148,30 @@ export interface WorkflowRunDetailDto {
   readonly mutableState?: PersistedMutableRunState;
   readonly slotStates: ReadonlyArray<SlotExecutionStateDto>;
   readonly executionInstances: ReadonlyArray<ExecutionInstanceDto>;
+  readonly iterations?: ReadonlyArray<RunIterationDto>;
+}
+
+/**
+ * Per-item iteration projected from connection invocations and node activations.
+ *
+ * One iteration = one item processed by an agent within an activation. Multiple invocations
+ * (LLM rounds, tool calls) belonging to the same iteration share the iterationId.
+ */
+export interface RunIterationDto {
+  readonly iterationId: string;
+  readonly agentNodeId: NodeId;
+  readonly activationId: NodeActivationId;
+  readonly itemIndex: number;
+  readonly itemSummary?: string;
+  readonly status: NodeExecutionStatus;
+  readonly startedAt?: string;
+  readonly finishedAt?: string;
+  readonly invocationIds: ReadonlyArray<string>;
+  readonly parentInvocationId?: string;
+  /** Estimated cost rolled up from telemetry cost metric points, keyed by ISO currency code (e.g. "USD"). Values are minor units (cents-of-cents per the metric's `cost.currency_scale`). */
+  readonly estimatedCostMinorByCurrency?: Readonly<Record<string, number>>;
+  /** Currency scale (denominator) per currency, when present on the metric points. Joined with `estimatedCostMinorByCurrency` to format human-readable amounts. */
+  readonly estimatedCostCurrencyScaleByCurrency?: Readonly<Record<string, number>>;
 }
 
 export interface SlotExecutionStateDto {
@@ -178,6 +202,12 @@ export interface ExecutionInstanceDto {
   readonly inputJson?: JsonValue;
   readonly outputJson?: JsonValue;
   readonly error?: Readonly<NodeExecutionError>;
+  /** Per-item iteration that produced this instance. Set on connectionInvocation rows produced inside per-item runnable loops. */
+  readonly iterationId?: string;
+  /** Item index (0-based) of the iteration. */
+  readonly itemIndex?: number;
+  /** Parent invocation id when this instance was emitted by a sub-agent triggered by an outer LLM/tool call. */
+  readonly parentInvocationId?: string;
 }
 
 export interface WorkflowDetailSelectionState {

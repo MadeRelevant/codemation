@@ -1,4 +1,5 @@
 export { ActivationEnqueueService } from "./ActivationEnqueueService";
+export { ChildExecutionScopeFactory } from "./ChildExecutionScopeFactory";
 export { NodeActivationRequestInputPreparer } from "./NodeActivationRequestInputPreparer";
 export { NodeInputContractError } from "./NodeInputContractError";
 export { CredentialResolverFactory } from "./CredentialResolverFactory";

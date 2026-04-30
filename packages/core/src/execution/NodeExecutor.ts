@@ -13,6 +13,7 @@ import type {
   TriggerNode,
   WorkflowNodeInstanceFactory,
 } from "../types";
+import { NodeIterationIdFactory } from "../workflow/definition/NodeIterationIdFactory";
 
 import { FanInMergeByOriginMerger } from "./FanInMergeByOriginMerger";
 import { ItemExprResolver } from "./ItemExprResolver";
@@ -158,13 +159,20 @@ export class NodeExecutor {
       const parsed = inputSchema.parse(item.json);
       const runnableCtx = request.ctx as NodeExecutionContext<RunnableNodeConfig>;
       const resolvedCtx = await this.itemExprResolver.resolveConfigForItem(runnableCtx, item, i, inputBatch);
-      const ctx = this.pickExecutionContext(runnableCtx, resolvedCtx);
+      const baseCtx = this.pickExecutionContext(runnableCtx, resolvedCtx);
+      // Mint a per-item iteration id and stamp it (with the item index) onto the ctx so connection
+      // invocations and telemetry written from inside `node.execute` carry the per-item identity.
+      const iterationCtx = {
+        ...baseCtx,
+        iterationId: NodeIterationIdFactory.create(),
+        itemIndex: i,
+      } as NodeExecutionContext<RunnableNodeConfig>;
       const args: RunnableNodeExecuteArgs = {
         input: parsed,
         item,
         itemIndex: i,
         items: inputBatch,
-        ctx,
+        ctx: iterationCtx,
       };
       const raw = await Promise.resolve(node.execute(args));
       const normalized = this.outputNormalizer.normalizeExecuteResult({

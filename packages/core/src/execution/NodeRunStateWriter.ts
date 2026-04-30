@@ -28,6 +28,7 @@ export class NodeRunStateWriter implements NodeExecutionStatePublisher {
       kind: "nodeQueued" | "nodeStarted" | "nodeCompleted" | "nodeFailed",
       snapshot: NodeExecutionSnapshot,
     ) => Promise<void>,
+    private readonly publishConnectionInvocationEvent?: (record: ConnectionInvocationRecord) => Promise<void>,
   ) {}
 
   markQueued(args: {
@@ -148,11 +149,17 @@ export class NodeRunStateWriter implements NodeExecutionStatePublisher {
         startedAt: args.startedAt,
         finishedAt: args.finishedAt,
         updatedAt,
+        iterationId: args.iterationId,
+        itemIndex: args.itemIndex,
+        parentInvocationId: args.parentInvocationId,
       };
       await this.workflowExecutionRepository.save({
         ...state,
         connectionInvocations: [...(state.connectionInvocations ?? []), record],
       });
+      if (this.publishConnectionInvocationEvent) {
+        await this.publishConnectionInvocationEvent(record);
+      }
     });
   }
 

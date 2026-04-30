@@ -32,6 +32,9 @@ export class InMemoryTelemetryMetricPointStore implements TelemetryMetricPointSt
       modelName: record.modelName,
       dimensions: record.attributes,
       retentionExpiresAt: record.retentionExpiresAt,
+      iterationId: record.iterationId,
+      itemIndex: record.itemIndex,
+      parentInvocationId: record.parentInvocationId,
     };
     this.rows.set(created.metricPointId, created);
     return created;

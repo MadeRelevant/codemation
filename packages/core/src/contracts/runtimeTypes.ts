@@ -5,6 +5,7 @@ import type { CredentialSessionService } from "./credentialTypes";
 import type { ExecutionTelemetry, ExecutionTelemetryFactory, NodeExecutionTelemetry } from "./telemetryTypes";
 import type {
   ConnectionInvocationAppendArgs,
+  ConnectionInvocationId,
   NodeInputsByPort,
   PersistedWorkflowSnapshot,
   PersistedWorkflowTokenRegistryLike,
@@ -25,6 +26,7 @@ import type {
   NodeActivationId,
   NodeConfigBase,
   NodeId,
+  NodeIterationId,
   NodeOutputs,
   RunnableNodeConfig,
   OutputPortKey,
@@ -154,6 +156,12 @@ export interface ExecutionContext {
   telemetry: ExecutionTelemetry;
   binary: ExecutionBinaryService;
   getCredential<TSession = unknown>(slotKey: string): Promise<TSession>;
+  /** Per-item iteration id, set by {@link NodeExecutor} on the ctx passed into runnable `execute`. */
+  iterationId?: NodeIterationId;
+  /** Item index (0-based) within the current activation's batch; set alongside {@link iterationId}. */
+  itemIndex?: number;
+  /** When set, this ctx is executing inside a sub-agent triggered by the named parent invocation. */
+  parentInvocationId?: ConnectionInvocationId;
 }
 
 export interface ExecutionContextFactory {

@@ -49,6 +49,9 @@ export class PrismaTelemetrySpanStore implements TelemetrySpanStore {
       attributesJson: attributes ? JSON.stringify(attributes) : null,
       eventsJson: events.length > 0 ? JSON.stringify(events) : null,
       retentionExpiresAt: record.retentionExpiresAt ?? existing?.retentionExpiresAt ?? null,
+      iterationId: record.iterationId ?? existing?.iterationId ?? null,
+      itemIndex: record.itemIndex ?? existing?.itemIndex ?? null,
+      parentInvocationId: record.parentInvocationId ?? existing?.parentInvocationId ?? null,
       updatedAt: new Date().toISOString(),
     };
     await this.prisma.telemetrySpan.upsert({
@@ -100,6 +103,9 @@ export class PrismaTelemetrySpanStore implements TelemetrySpanStore {
       attributes: this.parseJson<TelemetryAttributes>(row.attributesJson),
       events: this.parseJson<ReadonlyArray<TelemetrySpanEventRecord>>(row.eventsJson) ?? [],
       retentionExpiresAt: row.retentionExpiresAt ?? undefined,
+      iterationId: row.iterationId ?? undefined,
+      itemIndex: row.itemIndex ?? undefined,
+      parentInvocationId: row.parentInvocationId ?? undefined,
     }));
   }
 

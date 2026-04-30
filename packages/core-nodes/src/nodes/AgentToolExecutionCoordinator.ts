@@ -1,5 +1,5 @@
 import type { JsonValue, NodeExecutionContext } from "@codemation/core";
-import { CodemationTelemetryAttributeNames, ConnectionInvocationIdFactory, inject, injectable } from "@codemation/core";
+import { CodemationTelemetryAttributeNames, inject, injectable } from "@codemation/core";
 
 import type { AIAgent } from "./AIAgentConfig";
 import { AgentOutputFactory } from "./AgentOutputFactory";
@@ -53,7 +53,7 @@ export class AgentToolExecutionCoordinator {
   ): Promise<ExecutedToolCall> {
     const { plannedToolCall, ctx } = args;
     const toolCallInputsByPort = AgentToolCallPortMap.fromInput(plannedToolCall.toolCall.input ?? {});
-    const invocationId = ConnectionInvocationIdFactory.create();
+    const invocationId = plannedToolCall.invocationId;
     const startedAt = new Date();
     const span = ctx.telemetry.startChildSpan({
       name: "agent.tool.call",
@@ -62,6 +62,13 @@ export class AgentToolExecutionCoordinator {
       attributes: {
         [CodemationTelemetryAttributeNames.connectionInvocationId]: invocationId,
         [CodemationTelemetryAttributeNames.toolName]: plannedToolCall.binding.config.name,
+        ...(ctx.iterationId ? { [CodemationTelemetryAttributeNames.iterationId]: ctx.iterationId } : {}),
+        ...(typeof ctx.itemIndex === "number"
+          ? { [CodemationTelemetryAttributeNames.iterationIndex]: ctx.itemIndex }
+          : {}),
+        ...(ctx.parentInvocationId
+          ? { [CodemationTelemetryAttributeNames.parentInvocationId]: ctx.parentInvocationId }
+          : {}),
       },
     });
     await ctx.nodeState?.markRunning({
@@ -69,9 +76,24 @@ export class AgentToolExecutionCoordinator {
       activationId: ctx.activationId,
       inputsByPort: toolCallInputsByPort,
     });
+    await ctx.nodeState?.appendConnectionInvocation({
+      invocationId,
+      connectionNodeId: plannedToolCall.nodeId,
+      parentAgentNodeId: ctx.nodeId,
+      parentAgentActivationId: ctx.activationId,
+      status: "running",
+      managedInput: this.toJsonValue(plannedToolCall.toolCall.input),
+      queuedAt: startedAt.toISOString(),
+      startedAt: startedAt.toISOString(),
+      iterationId: ctx.iterationId,
+      parentInvocationId: ctx.parentInvocationId,
+    });
 
     try {
-      const result = await plannedToolCall.binding.execute(plannedToolCall.toolCall.input ?? {});
+      const result = await plannedToolCall.binding.execute(plannedToolCall.toolCall.input ?? {}, {
+        parentSpan: span,
+        parentInvocationId: invocationId,
+      });
       const serialized = typeof result === "string" ? result : JSON.stringify(result);
       const finishedAt = new Date();
       await ctx.nodeState?.markCompleted({
@@ -102,6 +124,8 @@ export class AgentToolExecutionCoordinator {
         queuedAt: startedAt.toISOString(),
         startedAt: startedAt.toISOString(),
         finishedAt: finishedAt.toISOString(),
+        iterationId: ctx.iterationId,
+        parentInvocationId: ctx.parentInvocationId,
       });
       return {
         toolName: plannedToolCall.binding.config.name,
@@ -262,6 +286,8 @@ export class AgentToolExecutionCoordinator {
       queuedAt: args.startedAt.toISOString(),
       startedAt: args.startedAt.toISOString(),
       finishedAt: finishedAt.toISOString(),
+      iterationId: args.ctx.iterationId,
+      parentInvocationId: args.ctx.parentInvocationId,
     });
   }
 

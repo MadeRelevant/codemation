@@ -49,6 +49,9 @@ type ExecutionInstanceRow = {
   successfulItemCount: number | null;
   failedItemCount: number | null;
   usedPinnedOutput: boolean | null;
+  iterationId: string | null;
+  itemIndex: number | null;
+  parentInvocationId: string | null;
 };
 
 type RunWorkItemRecord = {
@@ -513,6 +516,9 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       startedAt: row.startedAt ?? undefined,
       finishedAt: row.finishedAt ?? undefined,
       updatedAt: row.updatedAt,
+      iterationId: row.iterationId ?? undefined,
+      itemIndex: row.itemIndex ?? undefined,
+      parentInvocationId: row.parentInvocationId ?? undefined,
     };
   }
 
@@ -535,6 +541,9 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       inputJson: row.inputJson ? (JSON.parse(row.inputJson) as ExecutionInstanceDto["inputJson"]) : undefined,
       outputJson: row.outputJson ? (JSON.parse(row.outputJson) as ExecutionInstanceDto["outputJson"]) : undefined,
       error: row.errorJson ? (JSON.parse(row.errorJson) as ExecutionInstanceDto["error"]) : undefined,
+      iterationId: row.iterationId ?? undefined,
+      itemIndex: row.itemIndex ?? undefined,
+      parentInvocationId: row.parentInvocationId ?? undefined,
     };
   }
 
@@ -645,6 +654,9 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
         failedItemCount: null,
         inputStorageKind: "inline",
         outputStorageKind: "inline",
+        iterationId: inv.iterationId ?? null,
+        itemIndex: inv.itemIndex ?? null,
+        parentInvocationId: inv.parentInvocationId ?? null,
       });
       cIdx += 1;
     }

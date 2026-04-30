@@ -49,6 +49,7 @@ export class EngineFactory {
     const nodeStatePublisherFactory = new NodeRunStateWriterFactory(
       deps.workflowExecutionRepository,
       nodeEventPublisher,
+      deps.eventBus,
     );
     const planningFactory = new EngineWorkflowPlanningFactory(deps.workflowNodeInstanceFactory);
     const executionLimitsPolicy = deps.executionLimitsPolicy ?? new EngineExecutionLimitsPolicy();

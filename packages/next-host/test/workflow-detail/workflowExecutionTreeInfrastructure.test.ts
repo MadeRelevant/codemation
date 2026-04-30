@@ -98,6 +98,84 @@ describe("WorkflowExecutionTreeBuilder", () => {
     expect(WorkflowExecutionTreeBuilder.collectBranchKeys(tree)).toEqual(["agent-root"]);
   });
 
+  it("nests sub-agent connection invocations under the specific tool-call row that triggered them", () => {
+    const orchestratorAgent = {
+      node: {
+        id: "orchestrator",
+        kind: "node",
+        type: "AIAgent",
+        name: "Orchestrator",
+      } as any,
+      snapshot: {
+        runId: "run-1",
+        workflowId: "wf-1",
+        nodeId: "orchestrator",
+        status: "completed",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      } as any,
+      workflowNodeId: "orchestrator",
+    } satisfies ExecutionNode;
+
+    const buildToolCallRow = (invocationId: string, updatedAt: string): ExecutionNode => ({
+      node: {
+        id: invocationId,
+        kind: "node",
+        type: "ToolConnection",
+        name: "searchInMail",
+        parentNodeId: "orchestrator",
+      } as any,
+      snapshot: {
+        runId: "run-1",
+        workflowId: "wf-1",
+        nodeId: invocationId,
+        status: "completed",
+        updatedAt,
+      } as any,
+      workflowNodeId: "tool-search",
+      workflowConnectionNodeId: "tool-search",
+      parentInvocationId: "orchestrator-activation",
+    });
+
+    const buildSubAgentLlmRow = (
+      invocationId: string,
+      parentToolInvocationId: string,
+      updatedAt: string,
+    ): ExecutionNode => ({
+      node: {
+        id: invocationId,
+        kind: "node",
+        type: "OpenAIChatModel",
+        name: "OpenAI",
+        parentNodeId: "tool-search",
+      } as any,
+      snapshot: {
+        runId: "run-1",
+        workflowId: "wf-1",
+        nodeId: invocationId,
+        status: "completed",
+        updatedAt,
+      } as any,
+      workflowNodeId: "subagent-llm",
+      workflowConnectionNodeId: "subagent-llm",
+      parentInvocationId: parentToolInvocationId,
+    });
+
+    const tree = WorkflowExecutionTreeBuilder.build([
+      orchestratorAgent,
+      buildToolCallRow("tool-call-1", "2026-01-01T00:00:01.000Z"),
+      buildToolCallRow("tool-call-2", "2026-01-01T00:00:01.500Z"),
+      buildSubAgentLlmRow("subagent-llm-2", "tool-call-2", "2026-01-01T00:00:02.000Z"),
+      buildSubAgentLlmRow("subagent-llm-1", "tool-call-1", "2026-01-01T00:00:01.800Z"),
+    ]);
+
+    const orchestratorRow = tree.find((row) => row.key === "orchestrator");
+    const toolCallOne = orchestratorRow?.children.find((row) => row.key === "tool-call-1");
+    const toolCallTwo = orchestratorRow?.children.find((row) => row.key === "tool-call-2");
+
+    expect(toolCallOne?.children.map((row) => row.key)).toEqual(["subagent-llm-1"]);
+    expect(toolCallTwo?.children.map((row) => row.key)).toEqual(["subagent-llm-2"]);
+  });
+
   it("resolves selection keys for workflow attachment ids even when execution ids collide", () => {
     const executionNodes = [
       {

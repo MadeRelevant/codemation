@@ -23,10 +23,6 @@ export function WorkflowExecutionInspectorTreePanel(
     () => WorkflowExecutionTreeDataLoaderAdapter.create(executionTreeData),
     [executionTreeData],
   );
-  const treeTopologyKey = useMemo(
-    () => WorkflowExecutionTreeDataLoaderAdapter.createTopologyKey(executionTreeData),
-    [executionTreeData],
-  );
 
   return (
     <div
@@ -50,7 +46,6 @@ export function WorkflowExecutionInspectorTreePanel(
           </div>
         ) : (
           <WorkflowExecutionInspectorTreePanelContent
-            key={treeTopologyKey}
             treeModel={treeModel}
             executionTreeExpandedKeys={executionTreeExpandedKeys}
             selectedExecutionTreeKey={selectedExecutionTreeKey}

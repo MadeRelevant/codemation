@@ -38,4 +38,7 @@ export type StoredSpanScopeArgs = StoredExecutionTelemetryDeps &
     initialStartTime?: Date;
     connectionInvocationId?: string;
     modelName?: string;
+    iterationId?: string;
+    itemIndex?: number;
+    parentInvocationId?: string;
   }>;

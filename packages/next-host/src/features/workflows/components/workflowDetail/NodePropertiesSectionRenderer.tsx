@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import { ArrowDown, Bot, ChevronDown, CircleCheckBig, Clock3, LoaderCircle, Wrench, X } from "lucide-react";
+import { ChevronDown, CircleCheckBig, Clock3, LoaderCircle, X } from "lucide-react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,8 @@ import type {
   NodeInspectorTableModel,
   NodeInspectorTimelineEntryModel,
 } from "../../lib/workflowDetail/NodeInspectorTelemetryPresenter";
+import { NodePropertiesSectionNavigationButtons } from "./NodePropertiesSectionNavigationButtons";
+import { NodePropertiesTimelineRenderer } from "./NodePropertiesTimelineRenderer";
 
 export class NodePropertiesSectionRenderer {
   static renderPill(pill: Readonly<{ label: string; value: string }>, key: string): JSX.Element {
@@ -114,54 +116,11 @@ export class NodePropertiesSectionRenderer {
   }
 
   static renderTimelineEntry(entry: NodeInspectorTimelineEntryModel, args: Readonly<{ isLast: boolean }>): JSX.Element {
-    return (
-      <div
-        key={entry.key}
-        data-testid={`node-properties-timeline-entry-${entry.key}`}
-        className={cn("flex gap-3", !args.isLast && "pb-5")}
-      >
-        <div className="relative flex w-5 shrink-0 justify-center">
-          <div className="mt-1 size-2.5 rounded-full bg-primary/45" />
-          {!args.isLast ? (
-            <>
-              <div className="absolute top-4 bottom-0 w-px bg-border/80" />
-              <ArrowDown className="absolute bottom-0 size-3 bg-card text-muted-foreground/70" />
-            </>
-          ) : null}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <span
-                data-testid={`node-properties-timeline-entry-icon-${entry.key}-${entry.kind}`}
-                className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted/30"
-              >
-                {entry.kind === "agent" ? (
-                  <Bot className="size-3.5 text-primary" strokeWidth={2.2} />
-                ) : (
-                  <Wrench className="size-3.5 text-muted-foreground" strokeWidth={2.2} />
-                )}
-              </span>
-              <div className="min-w-0 text-xs font-semibold text-foreground">{entry.title}</div>
-            </div>
-            {entry.pills?.length ? (
-              <div
-                data-testid={`node-properties-timeline-entry-pills-${entry.key}`}
-                className="ml-auto flex shrink-0 flex-wrap justify-end gap-2"
-              >
-                {entry.pills.map((pill) => this.renderPill(pill, `${entry.key}-${pill.label}`))}
-              </div>
-            ) : null}
-          </div>
-          {entry.subtitle ? <div className="mt-1 text-[11px] text-muted-foreground">{entry.subtitle}</div> : null}
-          {entry.jsonBlocks?.length ? (
-            <div className="mt-3 grid gap-3">
-              {entry.jsonBlocks.map((block, index) => this.renderJsonBlock(block, index))}
-            </div>
-          ) : null}
-        </div>
-      </div>
-    );
+    return NodePropertiesTimelineRenderer.render(entry, {
+      isLast: args.isLast,
+      renderPill: (pill, key) => this.renderPill(pill, key),
+      renderJsonBlock: (block, index) => this.renderJsonBlock(block, index),
+    });
   }
 
   static render(
@@ -170,9 +129,10 @@ export class NodePropertiesSectionRenderer {
       isOpen: boolean;
       onToggle: (isOpen: boolean) => void;
       isLastSection: boolean;
+      onSelectInvocation?: (invocationId: string) => void;
     }>,
   ): JSX.Element {
-    const { section, isOpen, onToggle, isLastSection } = props;
+    const { section, isOpen, onToggle, isLastSection, onSelectInvocation } = props;
     return (
       <div
         key={section.id}
@@ -180,24 +140,41 @@ export class NodePropertiesSectionRenderer {
         className={cn(!isLastSection && "border-b border-border/60")}
       >
         <Collapsible open={isOpen} onOpenChange={onToggle}>
-          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 py-3 text-left">
-            <div className="min-w-0">
-              <div className="text-[11px] font-extrabold tracking-wide text-muted-foreground uppercase">
-                {section.title}
+          <div className="flex w-full items-center gap-1">
+            <CollapsibleTrigger className="group flex min-w-0 flex-1 items-center justify-between gap-3 py-3 text-left">
+              <div className="min-w-0">
+                <div className="text-[11px] font-extrabold tracking-wide text-muted-foreground uppercase">
+                  {section.title}
+                </div>
               </div>
-            </div>
-            <ChevronDown
-              className={cn(
-                "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
-                isOpen && "rotate-180",
-              )}
-            />
-          </CollapsibleTrigger>
+              <ChevronDown
+                className={cn(
+                  "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                  isOpen && "rotate-180",
+                )}
+              />
+            </CollapsibleTrigger>
+            {section.navigation
+              ? NodePropertiesSectionNavigationButtons.render({
+                  sectionId: section.id,
+                  navigation: section.navigation,
+                  onSelectInvocation,
+                })
+              : null}
+          </div>
           <CollapsibleContent
             forceMount
             className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out data-[state=closed]:grid-rows-[0fr] data-[state=closed]:opacity-0 data-[state=open]:grid-rows-[1fr] data-[state=open]:opacity-100"
           >
             <div className="overflow-hidden pb-4">
+              {section.breadcrumb ? (
+                <p
+                  data-testid={`node-properties-section-breadcrumb-${section.id}`}
+                  className="mb-3 text-[11px] font-semibold text-muted-foreground"
+                >
+                  {section.breadcrumb.text}
+                </p>
+              ) : null}
               {section.description ? (
                 <p className="mb-3 text-xs leading-5 text-muted-foreground">{section.description}</p>
               ) : null}

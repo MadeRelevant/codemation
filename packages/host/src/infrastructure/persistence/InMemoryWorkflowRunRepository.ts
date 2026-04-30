@@ -121,6 +121,29 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Wor
         error: snapshot.error,
       }),
     );
+    const invocationInstances: ExecutionInstanceDto[] = (state.connectionInvocations ?? []).map(
+      (invocation, index) => ({
+        instanceId: invocation.invocationId,
+        slotNodeId: invocation.connectionNodeId,
+        workflowNodeId: invocation.parentAgentNodeId,
+        kind: "connectionInvocation",
+        runIndex: index,
+        batchId: state.pending?.batchId ?? "batch_1",
+        activationId: invocation.parentAgentActivationId,
+        status: invocation.status,
+        queuedAt: invocation.queuedAt,
+        startedAt: invocation.startedAt,
+        finishedAt: invocation.finishedAt,
+        itemCount: 0,
+        inputJson: invocation.managedInput as never,
+        outputJson: invocation.managedOutput as never,
+        error: invocation.error,
+        iterationId: invocation.iterationId,
+        itemIndex: invocation.itemIndex,
+        parentInvocationId: invocation.parentInvocationId,
+      }),
+    );
+    executionInstances.push(...invocationInstances);
     return {
       runId: state.runId,
       workflowId: state.workflowId,

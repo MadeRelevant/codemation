@@ -18,6 +18,7 @@ import type {
   WorkflowDebuggerOverlayState,
   WorkflowDto,
 } from "../../hooks/realtime/realtime";
+import { ExecutionTreeItemGroupInjector } from "./ExecutionTreeItemGroupInjector";
 import { PersistedWorkflowSnapshotMapper } from "./PersistedWorkflowSnapshotMapper";
 import { WorkflowExecutionTreeBuilder } from "./WorkflowExecutionTreeBuilder";
 import type { BinaryAttachment } from "@codemation/core/browser";
@@ -697,9 +698,11 @@ export class WorkflowDetailPresenter {
             ...executionState,
             connectionInvocations: this.normalizeConnectionInvocations(executionState.connectionInvocations),
           };
-    return workflow.nodes
-      .flatMap((node) => this.createExecutionNodesForWorkflowNode(node, snapshots, executionStateForInvocations))
-      .sort((left, right) => this.compareExecutionNodes(left, right));
+    const flat = workflow.nodes.flatMap((node) =>
+      this.createExecutionNodesForWorkflowNode(node, snapshots, executionStateForInvocations),
+    );
+    const withItemGroups = ExecutionTreeItemGroupInjector.inject(flat);
+    return [...withItemGroups].sort((left, right) => this.compareExecutionNodes(left, right));
   }
 
   static buildHistoricalExecutionNodes(
@@ -852,6 +855,13 @@ export class WorkflowDetailPresenter {
         snapshot: this.snapshotFromConnectionInvocation(inv),
         workflowNodeId: node.id,
         workflowConnectionNodeId: node.id,
+        // The DTO already carries `parentInvocationId` for sub-agent invocations; falling back to
+        // `parentAgentActivationId` keeps the previous behaviour for legacy persisted runs.
+        parentInvocationId: inv.parentInvocationId ?? inv.parentAgentActivationId,
+        iterationId: inv.iterationId,
+        itemIndex: inv.itemIndex,
+        parentAgentActivationId: inv.parentAgentActivationId,
+        parentAgentNodeId: inv.parentAgentNodeId,
       }));
     }
     const matchingSnapshots = this.resolveMatchingSnapshots(node, snapshots);

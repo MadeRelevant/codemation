@@ -11,6 +11,8 @@ import type {
   ZodSchemaAny,
 } from "@codemation/core";
 import {
+  AgentConfigInspector,
+  ChildExecutionScopeFactory,
   CoreTokens,
   inject,
   injectable,
@@ -31,6 +33,8 @@ export class NodeBackedToolRuntime {
     private readonly outputNormalizer: NodeOutputNormalizer,
     @inject(RunnableOutputBehaviorResolver)
     private readonly outputBehaviorResolver: RunnableOutputBehaviorResolver,
+    @inject(ChildExecutionScopeFactory)
+    private readonly childExecutionScopeFactory: ChildExecutionScopeFactory,
   ) {}
 
   async execute(
@@ -45,10 +49,7 @@ export class NodeBackedToolRuntime {
       ctx: args.ctx,
       node: config.node,
     });
-    const nodeCtx = {
-      ...args.ctx,
-      config: config.node,
-    } as NodeExecutionContext<RunnableNodeConfig>;
+    const nodeCtx = this.resolveNodeCtx(config, args);
     const resolvedNode = this.nodeResolver.resolve(config.node.type);
     const outputs = await this.executeResolvedNode(resolvedNode, nodeInput, nodeCtx);
     return config.toToolOutput({
@@ -59,6 +60,41 @@ export class NodeBackedToolRuntime {
       ctx: args.ctx,
       node: config.node,
       outputs,
+    });
+  }
+
+  /**
+   * Returns a re-rooted child ctx for nested-agent tools (so their LLM/tool connection ids derive
+   * from the tool connection node, telemetry parents under the tool-call span, and connection
+   * invocations carry `parentInvocationId`). Plain runnable tools (non-agent) keep the orchestrator
+   * ctx with only `config` swapped — no nesting concern.
+   *
+   * The caller (`AIAgentNode.createItemScopedTools`) already wraps the orchestrator ctx via
+   * `ConnectionCredentialExecutionContextFactory.forConnectionNode`, so `args.ctx.nodeId` is the
+   * tool's own connection node id (e.g. `AIAgentNode:2__conn__tool__searchInMail`). We pass that
+   * through as the sub-agent's `nodeId`; deriving another `toolConnectionNodeId(args.ctx.nodeId,
+   * config.name)` here would prepend a duplicate `__conn__tool__<name>` segment and exponentially
+   * deepen ids on each invocation, which also breaks credential resolution because user-provided
+   * bindings sit on the single-level connection node id.
+   */
+  private resolveNodeCtx(
+    config: NodeBackedToolConfig<any, ZodSchemaAny, ZodSchemaAny>,
+    args: ToolExecuteArgs,
+  ): NodeExecutionContext<RunnableNodeConfig> {
+    const isNestedAgent = AgentConfigInspector.isAgentNodeConfig(config.node);
+    const hooks = args.hooks;
+    if (!isNestedAgent || !hooks?.parentSpan || !hooks.parentInvocationId) {
+      return {
+        ...args.ctx,
+        config: config.node,
+      } as NodeExecutionContext<RunnableNodeConfig>;
+    }
+    return this.childExecutionScopeFactory.forSubAgent({
+      parentCtx: args.ctx as NodeExecutionContext<RunnableNodeConfig>,
+      childNodeId: args.ctx.nodeId,
+      childConfig: config.node as unknown as RunnableNodeConfig,
+      parentInvocationId: hooks.parentInvocationId,
+      parentSpan: hooks.parentSpan,
     });
   }
 

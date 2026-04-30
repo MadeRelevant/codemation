@@ -14,6 +14,7 @@ export * from "./runtime-types/runtimeTypeDecorators.types";
 export * from "./serialization/ItemsInputNormalizer";
 export { DefaultExecutionBinaryService, UnavailableBinaryStorage } from "./binaries";
 export {
+  ChildExecutionScopeFactory,
   CredentialResolverFactory,
   DefaultAsyncSleeper,
   DefaultExecutionContextFactory,

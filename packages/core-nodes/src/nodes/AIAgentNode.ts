@@ -356,7 +356,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       return {
         config: entry.config,
         inputSchema: entry.runtime.inputSchema,
-        execute: async (input: unknown): Promise<unknown> => {
+        execute: async (input, hooks): Promise<unknown> => {
           const validated = entry.runtime.inputSchema.parse(input) as unknown;
           return await entry.runtime.execute({
             config: entry.config,
@@ -365,6 +365,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
             item,
             itemIndex,
             items,
+            hooks,
           });
         },
       } satisfies ItemScopedToolBinding;
@@ -421,10 +422,35 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       activationId: ctx.activationId,
       inputsByPort: itemInputsByPort,
     });
+    await ctx.nodeState?.appendConnectionInvocation({
+      invocationId,
+      connectionNodeId: languageModelConnectionNodeId,
+      parentAgentNodeId: ctx.nodeId,
+      parentAgentActivationId: ctx.activationId,
+      status: "queued",
+      managedInput: summarizedInput,
+      queuedAt: startedAt.toISOString(),
+      iterationId: ctx.iterationId,
+      itemIndex: ctx.itemIndex,
+      parentInvocationId: ctx.parentInvocationId,
+    });
     await ctx.nodeState?.markRunning({
       nodeId: languageModelConnectionNodeId,
       activationId: ctx.activationId,
       inputsByPort: itemInputsByPort,
+    });
+    await ctx.nodeState?.appendConnectionInvocation({
+      invocationId,
+      connectionNodeId: languageModelConnectionNodeId,
+      parentAgentNodeId: ctx.nodeId,
+      parentAgentActivationId: ctx.activationId,
+      status: "running",
+      managedInput: summarizedInput,
+      queuedAt: startedAt.toISOString(),
+      startedAt: startedAt.toISOString(),
+      iterationId: ctx.iterationId,
+      itemIndex: ctx.itemIndex,
+      parentInvocationId: ctx.parentInvocationId,
     });
     try {
       const tools = this.buildToolSet(itemScopedTools);
@@ -441,11 +467,12 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       });
       const turnResult = this.extractTurnResult(result as AnyGenerateTextResult);
       const finishedAt = new Date();
+      const managedOutput = this.summarizeTurnOutput(turnResult);
       await ctx.nodeState?.markCompleted({
         nodeId: languageModelConnectionNodeId,
         activationId: ctx.activationId,
         inputsByPort: itemInputsByPort,
-        outputs: AgentOutputFactory.fromUnknown({ content: turnResult.text }),
+        outputs: AgentOutputFactory.fromUnknown(managedOutput),
       });
       await span.attachArtifact({ kind: "ai.messages", contentType: "application/json", previewJson: summarizedInput });
       await span.attachArtifact({ kind: "ai.response", contentType: "application/json", previewJson: turnResult.text });
@@ -458,10 +485,13 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         parentAgentActivationId: ctx.activationId,
         status: "completed",
         managedInput: summarizedInput,
-        managedOutput: turnResult.text,
+        managedOutput,
         queuedAt: startedAt.toISOString(),
         startedAt: startedAt.toISOString(),
         finishedAt: finishedAt.toISOString(),
+        iterationId: ctx.iterationId,
+        itemIndex: ctx.itemIndex,
+        parentInvocationId: ctx.parentInvocationId,
       });
       return turnResult;
     } catch (error) {
@@ -504,10 +534,35 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       activationId: ctx.activationId,
       inputsByPort: itemInputsByPort,
     });
+    await ctx.nodeState?.appendConnectionInvocation({
+      invocationId,
+      connectionNodeId: languageModelConnectionNodeId,
+      parentAgentNodeId: ctx.nodeId,
+      parentAgentActivationId: ctx.activationId,
+      status: "queued",
+      managedInput: summarizedInput,
+      queuedAt: startedAt.toISOString(),
+      iterationId: ctx.iterationId,
+      itemIndex: ctx.itemIndex,
+      parentInvocationId: ctx.parentInvocationId,
+    });
     await ctx.nodeState?.markRunning({
       nodeId: languageModelConnectionNodeId,
       activationId: ctx.activationId,
       inputsByPort: itemInputsByPort,
+    });
+    await ctx.nodeState?.appendConnectionInvocation({
+      invocationId,
+      connectionNodeId: languageModelConnectionNodeId,
+      parentAgentNodeId: ctx.nodeId,
+      parentAgentActivationId: ctx.activationId,
+      status: "running",
+      managedInput: summarizedInput,
+      queuedAt: startedAt.toISOString(),
+      startedAt: startedAt.toISOString(),
+      iterationId: ctx.iterationId,
+      itemIndex: ctx.itemIndex,
+      parentInvocationId: ctx.parentInvocationId,
     });
     try {
       const callOptions = this.resolveCallOptions(model, guardrails.modelInvocationOptions);
@@ -551,6 +606,9 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         queuedAt: startedAt.toISOString(),
         startedAt: startedAt.toISOString(),
         finishedAt: finishedAt.toISOString(),
+        iterationId: ctx.iterationId,
+        itemIndex: ctx.itemIndex,
+        parentInvocationId: ctx.parentInvocationId,
       });
       return result.experimental_output;
     } catch (error) {
@@ -587,6 +645,22 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       providerOptions: (overrides?.providerOptions ??
         defaults.providerOptions) as ChatLanguageModelCallOptions["providerOptions"],
     };
+  }
+
+  /**
+   * Build a no-code-friendly output payload for an LLM round.
+   *
+   * Always includes `content` (matching the canvas snapshot shape used elsewhere) and adds a
+   * `toolCalls` array when the round produced tool calls so the execution inspector surfaces the
+   * planned calls instead of just an empty `""` for tool-only rounds.
+   */
+  private summarizeTurnOutput(turnResult: TurnResult): JsonValue {
+    if (turnResult.toolCalls.length === 0) return { content: turnResult.text };
+    const toolCalls = turnResult.toolCalls.map((toolCall) => ({
+      name: toolCall.name,
+      args: this.resultToJsonValue(toolCall.input) ?? null,
+    }));
+    return { content: turnResult.text, toolCalls };
   }
 
   private extractTurnResult(result: AnyGenerateTextResult): TurnResult {
@@ -642,6 +716,13 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         [CodemationTelemetryAttributeNames.connectionInvocationId]: invocationId,
         [GenAiTelemetryAttributeNames.operationName]: "chat",
         [GenAiTelemetryAttributeNames.requestModel]: this.resolveChatModelName(ctx.config.chatModel),
+        ...(ctx.iterationId ? { [CodemationTelemetryAttributeNames.iterationId]: ctx.iterationId } : {}),
+        ...(typeof ctx.itemIndex === "number"
+          ? { [CodemationTelemetryAttributeNames.iterationIndex]: ctx.itemIndex }
+          : {}),
+        ...(ctx.parentInvocationId
+          ? { [CodemationTelemetryAttributeNames.parentInvocationId]: ctx.parentInvocationId }
+          : {}),
       },
     });
   }
@@ -707,11 +788,24 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     plannedToolCalls: ReadonlyArray<PlannedToolCall>,
     ctx: NodeExecutionContext<AIAgent<any, any>>,
   ): Promise<void> {
+    const queuedAt = new Date().toISOString();
     for (const plannedToolCall of plannedToolCalls) {
       await ctx.nodeState?.markQueued({
         nodeId: plannedToolCall.nodeId,
         activationId: ctx.activationId,
         inputsByPort: AgentToolCallPortMap.fromInput(plannedToolCall.toolCall.input ?? {}),
+      });
+      await ctx.nodeState?.appendConnectionInvocation({
+        invocationId: plannedToolCall.invocationId,
+        connectionNodeId: plannedToolCall.nodeId,
+        parentAgentNodeId: ctx.nodeId,
+        parentAgentActivationId: ctx.activationId,
+        status: "queued",
+        managedInput: this.resultToJsonValue(plannedToolCall.toolCall.input),
+        queuedAt,
+        iterationId: ctx.iterationId,
+        itemIndex: ctx.itemIndex,
+        parentInvocationId: ctx.parentInvocationId,
       });
     }
   }
@@ -732,6 +826,7 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
         toolCall,
         invocationIndex,
         nodeId: ConnectionNodeIdFactory.toolConnectionNodeId(parentNodeId, binding.config.name),
+        invocationId: ConnectionInvocationIdFactory.create(),
       } satisfies PlannedToolCall;
     });
   }
@@ -771,6 +866,9 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       queuedAt: args.startedAt.toISOString(),
       startedAt: args.startedAt.toISOString(),
       finishedAt: finishedAt.toISOString(),
+      iterationId: args.ctx.iterationId,
+      itemIndex: args.ctx.itemIndex,
+      parentInvocationId: args.ctx.parentInvocationId,
     });
     return effectiveError;
   }

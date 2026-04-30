@@ -9,6 +9,7 @@ export type {
 } from "./ai/AgentConnectionNodeCollector";
 export type { AgentNodeConfig } from "./ai/AiHost";
 export { ConnectionNodeIdFactory } from "./workflow/definition/ConnectionNodeIdFactory";
+export { NodeIterationIdFactory } from "./workflow/definition/NodeIterationIdFactory";
 export * from "./contracts/credentialTypes";
 export * from "./contracts/runtimeTypes";
 export * from "./contracts/runFinishedAtFactory";

@@ -194,6 +194,12 @@ export type NodeOutputs = Partial<Record<OutputPortKey, Items>>;
 
 export type RunId = string;
 export type NodeActivationId = string;
+/**
+ * One per-item iteration of a runnable node's execute loop. Refines `NodeActivationId` for
+ * per-item connection invocations and telemetry. Undefined when the executing node is a batch
+ * node or trigger that does not iterate items.
+ */
+export type NodeIterationId = string;
 
 export interface ParentExecutionRef {
   runId: RunId;

@@ -62,6 +62,7 @@ import {
   VerifyUserInviteQueryHandler,
 } from "../application/queries/UserAccountQueryHandlers";
 import {
+  GetIterationCostQueryHandler,
   GetRunBinaryAttachmentQueryHandler,
   GetTelemetryDashboardDimensionsQueryHandler,
   GetTelemetryDashboardRunsQueryHandler,
@@ -76,6 +77,7 @@ import {
   GetWorkflowSummariesQueryHandler,
   ListWorkflowRunsQueryHandler,
 } from "../application/queries/WorkflowQueryHandlers";
+import { RunIterationProjectionFactory } from "../application/queries/RunIterationProjectionFactory";
 import { OpenAiApiKeyCredentialHealthTester } from "../infrastructure/credentials/OpenAiApiKeyCredentialHealthTester";
 import { OpenAiApiKeyCredentialTypeFactory } from "../infrastructure/credentials/OpenAiApiKeyCredentialTypeFactory";
 import { CodemationPluginRegistrar } from "../infrastructure/config/CodemationPluginRegistrar";
@@ -222,6 +224,7 @@ export class AppContainerFactory {
     ListCredentialTypesQueryHandler,
     ListUserAccountsQueryHandler,
     VerifyUserInviteQueryHandler,
+    GetIterationCostQueryHandler,
     GetRunBinaryAttachmentQueryHandler,
     GetTelemetryDashboardDimensionsQueryHandler,
     GetTelemetryDashboardRunsQueryHandler,
@@ -442,6 +445,8 @@ export class AppContainerFactory {
       }),
     });
     container.registerSingleton(PrismaClientFactory, PrismaClientFactory);
+    container.registerSingleton(RunIterationProjectionFactory, RunIterationProjectionFactory);
+    container.registerSingleton(GetIterationCostQueryHandler, GetIterationCostQueryHandler);
     container.registerSingleton(WorkflowPolicyUiPresentationFactory, WorkflowPolicyUiPresentationFactory);
     container.registerSingleton(WorkflowDefinitionMapper, WorkflowDefinitionMapper);
     container.registerSingleton(RequestToWebhookItemMapper, RequestToWebhookItemMapper);

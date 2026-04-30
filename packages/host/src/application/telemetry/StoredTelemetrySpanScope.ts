@@ -1,4 +1,7 @@
 import type {
+  NodeActivationId,
+  NodeExecutionTelemetry,
+  NodeId,
   TelemetryArtifactAttachment,
   TelemetryArtifactReference,
   TelemetryAttributes,
@@ -25,6 +28,9 @@ export class StoredTelemetrySpanScope implements TelemetrySpanScope {
   private readonly initialStartTime: Date | undefined;
   private readonly connectionInvocationId: string | undefined;
   private readonly modelName: string | undefined;
+  protected readonly iterationId: string | undefined;
+  protected readonly itemIndex: number | undefined;
+  protected readonly parentInvocationId: string | undefined;
 
   constructor(args: StoredSpanScopeArgs) {
     this.deps = args;
@@ -39,6 +45,9 @@ export class StoredTelemetrySpanScope implements TelemetrySpanScope {
     this.initialStartTime = args.initialStartTime;
     this.connectionInvocationId = args.connectionInvocationId;
     this.modelName = args.modelName;
+    this.iterationId = args.iterationId;
+    this.itemIndex = args.itemIndex;
+    this.parentInvocationId = args.parentInvocationId;
   }
 
   async addSpanEvent(args: TelemetrySpanEventRecord): Promise<void> {
@@ -66,6 +75,9 @@ export class StoredTelemetrySpanScope implements TelemetrySpanScope {
       nodeType: enrichment.nodeType,
       nodeRole: enrichment.nodeRole,
       modelName: this.modelName,
+      iterationId: this.iterationId,
+      itemIndex: this.itemIndex,
+      parentInvocationId: this.parentInvocationId,
       retentionExpiresAt: this.deps.telemetryRetentionTimestampFactory.createMetricExpiry(
         this.deps.policySnapshot,
         observedAt,
@@ -121,14 +133,91 @@ export class StoredTelemetrySpanScope implements TelemetrySpanScope {
     });
   }
 
+  asNodeTelemetry(args: Readonly<{ nodeId: NodeId; activationId: NodeActivationId }>): NodeExecutionTelemetry {
+    return this.buildNodeTelemetryView(args);
+  }
+
+  private buildNodeTelemetryView(
+    args: Readonly<{ nodeId: NodeId; activationId: NodeActivationId }>,
+  ): NodeExecutionTelemetry {
+    // Returns a NodeExecutionTelemetry view of THIS span: children created via the returned
+    // telemetry's `startChildSpan` parent under this span (e.g. agent.tool.call) and inherit the
+    // child execution scope's nodeId/activationId. Used at the sub-agent boundary so nested
+    // runtime telemetry parents under the tool-call span instead of the orchestrator's node span.
+    const buildChildScope = (
+      childName: string,
+      childKind: "internal" | "client",
+      childAttrs?: TelemetryAttributes,
+      childStart?: Date,
+    ): StoredTelemetrySpanScope => {
+      // eslint-disable-next-line codemation/no-manual-di-new
+      const child = new StoredTelemetrySpanScope({
+        ...this.deps,
+        spanId: this.deps.otelIdentityFactory.createEphemeralSpanId(),
+        parentSpanId: this.spanId,
+        nodeId: args.nodeId,
+        activationId: args.activationId,
+        spanName: childName,
+        spanKind: childKind,
+        initialAttributes: childAttrs,
+        initialStartTime: childStart,
+        connectionInvocationId: this.toStringAttribute(
+          childAttrs?.["codemation.connection.invocation_id"] ?? childAttrs?.["connection.invocation_id"],
+        ),
+        modelName: this.toStringAttribute(childAttrs?.["gen_ai.request.model"]),
+        iterationId: this.iterationId,
+        itemIndex: this.itemIndex,
+        parentInvocationId: this.parentInvocationId,
+      });
+      void child.markStarted();
+      return child;
+    };
+    const view: NodeExecutionTelemetry = {
+      traceId: this.traceId,
+      spanId: this.spanId,
+      addSpanEvent: (event) => this.addSpanEvent(event),
+      recordMetric: (metric) => this.recordMetric(metric),
+      attachArtifact: (artifact) => this.attachArtifact(artifact),
+      end: (endArgs) => this.end(endArgs),
+      asNodeTelemetry: (rescope) => this.asNodeTelemetry(rescope),
+      forNode: () => view,
+      startChildSpan: (childArgs) =>
+        buildChildScope(childArgs.name, childArgs.kind ?? "internal", childArgs.attributes, childArgs.startedAt),
+    };
+    return view;
+  }
+
   async markStarted(): Promise<void> {
     await this.upsert({
       status: "running",
       startTime: (this.initialStartTime ?? new Date()).toISOString(),
-      attributes: this.initialAttributes,
+      attributes: this.attributesWithIdentity(this.initialAttributes),
       modelName: this.modelName,
       connectionInvocationId: this.connectionInvocationId,
+      iterationId: this.iterationId,
+      itemIndex: this.itemIndex,
+      parentInvocationId: this.parentInvocationId,
     });
+  }
+
+  /**
+   * Stamps `codemation.iteration.id`, `codemation.iteration.index`, and
+   * `codemation.parent.invocation_id` onto the attribute bag so dashboards/queries can filter by
+   * iteration without joining on the dedicated columns. The dedicated columns are still the
+   * authoritative source — these attributes are convenience for downstream consumers.
+   */
+  protected attributesWithIdentity(attrs: TelemetryAttributes | undefined): TelemetryAttributes | undefined {
+    const base: Record<string, TelemetryAttributes[string]> = { ...(attrs ?? {}) };
+    if (typeof this.iterationId === "string" && this.iterationId.length > 0) {
+      base["codemation.iteration.id"] = this.iterationId;
+    }
+    if (typeof this.itemIndex === "number") {
+      base["codemation.iteration.index"] = this.itemIndex;
+    }
+    if (typeof this.parentInvocationId === "string" && this.parentInvocationId.length > 0) {
+      base["codemation.parent.invocation_id"] = this.parentInvocationId;
+    }
+    return Object.keys(base).length > 0 ? base : undefined;
   }
 
   protected async upsert(update: Partial<TelemetrySpanUpsert>): Promise<void> {

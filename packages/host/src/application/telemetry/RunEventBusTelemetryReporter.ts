@@ -67,6 +67,13 @@ export class RunEventBusTelemetryReporter {
       case "nodeFailed":
         await this.handleNodeSnapshot(event);
         return;
+      case "connectionInvocationStarted":
+      case "connectionInvocationCompleted":
+      case "connectionInvocationFailed":
+        // Per-invocation events are surfaced to the realtime UI via the websocket bridge;
+        // they do not need additional span/metric persistence here because the underlying
+        // child spans are already produced by the engine's telemetry scopes.
+        return;
     }
   }
 

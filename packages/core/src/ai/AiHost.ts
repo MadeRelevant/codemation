@@ -37,6 +37,15 @@ export type ToolExecuteArgs<TConfig extends ToolConfig = ToolConfig, TInput = un
   item: Item;
   itemIndex: number;
   items: Items;
+  /**
+   * Optional sub-agent boundary hooks: when present, the live `agent.tool.call` span and the
+   * planned tool-call invocationId are forwarded so node-backed runtimes can re-root their child
+   * execution scope. Plain function tools may safely ignore these hooks.
+   */
+  hooks?: Readonly<{
+    parentSpan?: import("../contracts/telemetryTypes").TelemetrySpanScope;
+    parentInvocationId?: import("../contracts/runTypes").ConnectionInvocationId;
+  }>;
 }>;
 
 export interface Tool<

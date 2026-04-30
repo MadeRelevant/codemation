@@ -179,6 +179,10 @@ class FakeNodeExecutionTelemetry implements NodeExecutionTelemetry {
     return this;
   }
 
+  asNodeTelemetry(): NodeExecutionTelemetry {
+    return this;
+  }
+
   end(): void {}
 }
 

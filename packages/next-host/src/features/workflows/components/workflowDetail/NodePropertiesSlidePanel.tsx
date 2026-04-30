@@ -4,7 +4,11 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
 
 import { cn } from "@/lib/utils";
 
-import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../hooks/realtime/realtime";
+import type {
+  ConnectionInvocationRecord,
+  NodeExecutionSnapshot,
+  PersistedRunState,
+} from "../../hooks/realtime/realtime";
 import { useTelemetryRunTraceQuery } from "../../hooks/realtime/realtime";
 import { NodeCredentialBindingsSection } from "./NodeCredentialBindingsSection";
 import { NodePropertiesConfigSection } from "./NodePropertiesConfigSection";
@@ -38,11 +42,14 @@ export function NodePropertiesSlidePanel(
     isOpen: boolean;
     node: WorkflowDiagramNode | undefined;
     telemetryRunId: string | null;
+    telemetryRunStatus: PersistedRunState["status"] | undefined;
     nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
     connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>;
     onClose: () => void;
     pendingCredentialEditForNodeId: string | null;
     onConsumedPendingCredentialEdit: () => void;
+    focusedInvocationId?: string | null;
+    onSelectInvocation?: (invocationId: string) => void;
   }>,
 ) {
   const {
@@ -51,13 +58,20 @@ export function NodePropertiesSlidePanel(
     onClose,
     workflowId,
     telemetryRunId,
+    telemetryRunStatus,
     nodeSnapshotsByNodeId,
     connectionInvocations,
     pendingCredentialEditForNodeId,
     onConsumedPendingCredentialEdit,
+    focusedInvocationId,
+    onSelectInvocation,
   } = args;
   const isVisible = isOpen && Boolean(node);
-  const telemetryRunTraceQuery = useTelemetryRunTraceQuery(telemetryRunId, { disableFetch: !isVisible });
+  const telemetryRunTraceQuery = useTelemetryRunTraceQuery(telemetryRunId, {
+    disableFetch: !isVisible,
+    pollWhileNonTerminalMs: 2000,
+    runStatus: telemetryRunStatus,
+  });
   const [panelWidthPx, setPanelWidthPx] = useState(DEFAULT_PANEL_WIDTH_PX);
   const [isResizing, setIsResizing] = useState(false);
   const panelWidthRef = useRef(DEFAULT_PANEL_WIDTH_PX);
@@ -149,6 +163,8 @@ export function NodePropertiesSlidePanel(
                 telemetryLoadError={
                   telemetryRunTraceQuery.error instanceof Error ? telemetryRunTraceQuery.error.message : null
                 }
+                focusedInvocationId={focusedInvocationId}
+                onSelectInvocation={onSelectInvocation}
               />
               <NodeCredentialBindingsSection
                 workflowId={workflowId}

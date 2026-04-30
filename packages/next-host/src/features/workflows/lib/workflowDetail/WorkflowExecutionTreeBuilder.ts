@@ -40,14 +40,7 @@ export class WorkflowExecutionTreeBuilder {
       if (!treeNode) {
         continue;
       }
-      const parentReference =
-        entry.parentExecutionInstanceId ?? entry.snapshot?.parent?.nodeId ?? entry.node.parentNodeId;
-      if (!parentReference) {
-        rootNodes.push(treeNode);
-        continue;
-      }
-      const parentTreeKey = parentReferenceToTreeKey.get(parentReference) ?? parentReference;
-      const parentTreeNode = treeNodesByKey.get(parentTreeKey);
+      const parentTreeNode = this.resolveParentTreeNode(entry, parentReferenceToTreeKey, treeNodesByKey);
       if (!parentTreeNode) {
         rootNodes.push(treeNode);
         continue;
@@ -58,6 +51,33 @@ export class WorkflowExecutionTreeBuilder {
     }
 
     return rootNodes;
+  }
+
+  /**
+   * Tries each of the candidate parent references in priority order. The first reference that
+   * resolves to a registered tree node wins. We deliberately fall through unresolved candidates
+   * (e.g. a `parentInvocationId` set to an agent's runtime activationId that is _not_ a
+   * connection-invocation row id) so that a static `node.parentNodeId` can still anchor the
+   * branch instead of orphaning the row to root.
+   */
+  private static resolveParentTreeNode(
+    entry: ExecutionNode,
+    parentReferenceToTreeKey: ReadonlyMap<string, string>,
+    treeNodesByKey: ReadonlyMap<string, MutableExecutionTreeNode>,
+  ): MutableExecutionTreeNode | undefined {
+    const parentReferences: ReadonlyArray<string | undefined> = [
+      entry.parentInvocationId,
+      entry.parentExecutionInstanceId,
+      entry.snapshot?.parent?.nodeId,
+      entry.node.parentNodeId,
+    ];
+    for (const parentReference of parentReferences) {
+      if (!parentReference) continue;
+      const parentTreeKey = parentReferenceToTreeKey.get(parentReference) ?? parentReference;
+      const parentTreeNode = treeNodesByKey.get(parentTreeKey);
+      if (parentTreeNode) return parentTreeNode;
+    }
+    return undefined;
   }
 
   static collectBranchKeys(nodes: ReadonlyArray<ExecutionTreeNode>): ReadonlyArray<string> {

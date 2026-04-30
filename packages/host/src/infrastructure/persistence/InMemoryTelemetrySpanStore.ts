@@ -63,6 +63,9 @@ export class InMemoryTelemetrySpanStore implements TelemetrySpanStore {
       },
       events: [...(existing?.events ?? []), ...(update.events ?? [])],
       retentionExpiresAt: update.retentionExpiresAt ?? existing?.retentionExpiresAt,
+      iterationId: update.iterationId ?? existing?.iterationId,
+      itemIndex: update.itemIndex ?? existing?.itemIndex,
+      parentInvocationId: update.parentInvocationId ?? existing?.parentInvocationId,
     };
   }
 
