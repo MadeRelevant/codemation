@@ -13,6 +13,7 @@ import type {
 } from "../contracts/GmailOAuthCredential";
 import type { GmailSession } from "../contracts/GmailSession";
 import { GmailPollingTriggerRuntime } from "../runtime/GmailPollingTriggerRuntime";
+import { BinaryStreamCollector } from "../services/BinaryStreamCollector";
 import { GmailConfiguredLabelService } from "../services/GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "../services/GmailMessageItemMapper";
 import { GmailModifyLabelsService } from "../services/GmailModifyLabelsService";
@@ -43,6 +44,7 @@ export class GmailNodes {
   private registerServices(container: Container, context: CodemationPluginContext): void {
     container.registerInstance(GmailNodeTokens.TriggerLogger, context.loggerFactory.create("codemation-gmail.trigger"));
     container.registerInstance(GmailNodeTokens.RuntimeLogger, context.loggerFactory.create("codemation-gmail.runtime"));
+    container.registerSingleton(BinaryStreamCollector, BinaryStreamCollector);
     container.registerSingleton(GoogleGmailApiClientFactory, GoogleGmailApiClientFactory);
     container.registerSingleton(GmailConfiguredLabelService, GmailConfiguredLabelService);
     container.registerSingleton(GmailMessageItemMapper, GmailMessageItemMapper);

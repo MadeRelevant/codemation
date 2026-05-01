@@ -38,6 +38,7 @@ import {
   NodeOutputNormalizer,
   callableTool,
   container as tsyringeContainer,
+  instanceCachingFactory,
 } from "@codemation/core";
 
 import {
@@ -600,10 +601,14 @@ class AgentTestRig {
     this.container.registerSingleton(AgentToolRepairPolicy, AgentToolRepairPolicy);
     this.container.registerSingleton(AgentToolExecutionCoordinator, AgentToolExecutionCoordinator);
     this.container.registerSingleton(NodeBackedToolRuntime, NodeBackedToolRuntime);
-    this.container.registerSingleton(ChildExecutionScopeFactory, ChildExecutionScopeFactory);
     let counter = 0;
     this.container.registerInstance(CoreTokens.ActivationIdFactory, {
       makeActivationId: () => `act_test_${++counter}`,
+    });
+    this.container.register(ChildExecutionScopeFactory, {
+      useFactory: instanceCachingFactory(
+        (c) => new ChildExecutionScopeFactory(c.resolve(CoreTokens.ActivationIdFactory)),
+      ),
     });
     this.container.registerSingleton(AIAgentNode, AIAgentNode);
     for (const registration of registrations) {

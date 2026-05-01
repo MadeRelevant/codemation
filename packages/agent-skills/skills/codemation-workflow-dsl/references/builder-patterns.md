@@ -24,7 +24,7 @@ export default workflow("wf.example.id")
 ## Item rules
 
 - workflow data flows as items
-- items usually carry `json` data and optional `binary` data
+- items usually carry `json` data and optional `binary` data (**storage-backed attachments** via node **`ctx.binary.attach`**, not huge base64 strings in **`json`** — base64 in **`json`** inflates the persisted run payload in the DB; binaries stay as **references**)
 - runtime nodes receive batches of items, not just one record
 - author workflow steps with batching in mind
 - fluent `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` callbacks receive `(item, ctx)`
