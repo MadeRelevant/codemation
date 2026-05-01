@@ -1,4 +1,3 @@
-import { itemExpr, type Item } from "@codemation/core";
 import {
   GmailAttachmentMapping,
   ModifyGmailLabels,
@@ -29,24 +28,9 @@ const session = {
   scopes: [],
 } satisfies GmailSession;
 
-const send = new SendGmailMessage("Send Gmail", {
-  to: itemExpr(({ item }: Readonly<{ item: Item }>) => String((item.json as Record<string, unknown>)["to"] ?? "")),
-  subject: itemExpr(({ item }: Readonly<{ item: Item }>) =>
-    String((item.json as Record<string, unknown>)["subject"] ?? ""),
-  ),
-});
-const reply = new ReplyToGmailMessage("Reply Gmail", {
-  messageId: itemExpr(({ item }: Readonly<{ item: Item }>) =>
-    String((item.json as Record<string, unknown>)["messageId"] ?? ""),
-  ),
-  text: "Thanks for your message.",
-});
-const labels = new ModifyGmailLabels("Label Gmail", {
-  messageId: itemExpr(({ item }: Readonly<{ item: Item }>) =>
-    String((item.json as Record<string, unknown>)["messageId"] ?? ""),
-  ),
-  addLabels: ["Done"],
-});
+const send = new SendGmailMessage("Send Gmail");
+const reply = new ReplyToGmailMessage("Reply Gmail");
+const labels = new ModifyGmailLabels("Label Gmail");
 
 void trigger;
 void mapped;

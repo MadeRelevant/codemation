@@ -1,34 +1,48 @@
-import type { CredentialRequirement, ItemExprArgs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type { CredentialRequirement, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import { z } from "zod";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
-import type { GmailMessageRecord, GmailOutgoingMessageAttachment } from "../services/GmailApiClient";
+import type { GmailMessageRecord } from "../services/GmailApiClient";
 import { SendGmailMessageNode } from "./SendGmailMessageNode";
 
-export type GmailConfigValue<T, TItemJson = unknown> =
-  | T
-  | Readonly<{ fn: (args: ItemExprArgs<TItemJson>) => T | Promise<T> }>;
+export const gmailOutgoingAttachmentInputSchema = z.object({
+  binaryName: z.string().trim().min(1),
+  filename: z.string().trim().min(1).optional(),
+  mimeType: z.string().trim().min(1).optional(),
+  contentId: z.string().trim().min(1).optional(),
+  contentTransferEncoding: z.enum(["base64", "quoted-printable", "7bit", "8bit", "binary"]).optional(),
+  disposition: z.enum(["attachment", "inline"]).optional(),
+});
 
-export type SendGmailMessageOptions<TItemJson = unknown> = Readonly<{
-  to: GmailConfigValue<string | ReadonlyArray<string>, TItemJson>;
-  subject: GmailConfigValue<string, TItemJson>;
-  text?: GmailConfigValue<string | undefined, TItemJson>;
-  html?: GmailConfigValue<string | undefined, TItemJson>;
-  cc?: GmailConfigValue<string | ReadonlyArray<string> | undefined, TItemJson>;
-  bcc?: GmailConfigValue<string | ReadonlyArray<string> | undefined, TItemJson>;
-  replyTo?: GmailConfigValue<string | undefined, TItemJson>;
-  from?: GmailConfigValue<string | undefined, TItemJson>;
-  headers?: GmailConfigValue<Readonly<Record<string, string>> | undefined, TItemJson>;
-  attachments?: GmailConfigValue<ReadonlyArray<GmailOutgoingMessageAttachment> | undefined, TItemJson>;
-}>;
+const gmailRecipientsSchema = z.union([
+  z.string().trim().min(1),
+  z.array(z.string().trim().min(1)).nonempty().readonly(),
+]);
+
+export const sendGmailMessageInputSchema = z.object({
+  to: gmailRecipientsSchema,
+  subject: z.string().trim().min(1),
+  text: z.string().optional(),
+  html: z.string().optional(),
+  cc: gmailRecipientsSchema.optional(),
+  bcc: gmailRecipientsSchema.optional(),
+  replyTo: z.string().optional(),
+  from: z.string().optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  attachments: z.array(gmailOutgoingAttachmentInputSchema).readonly().optional(),
+});
+
+export type GmailOutgoingAttachmentInputJson = z.infer<typeof gmailOutgoingAttachmentInputSchema>;
+export type SendGmailMessageInputJson = z.infer<typeof sendGmailMessageInputSchema>;
 
 export type SendGmailMessageOutputJson = GmailMessageRecord;
 
-export class SendGmailMessage implements RunnableNodeConfig<unknown, SendGmailMessageOutputJson> {
+export class SendGmailMessage implements RunnableNodeConfig<SendGmailMessageInputJson, SendGmailMessageOutputJson> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = SendGmailMessageNode;
+  readonly inputSchema = sendGmailMessageInputSchema;
 
   constructor(
     public readonly name: string,
-    public readonly cfg: SendGmailMessageOptions,
     public readonly id?: string,
   ) {}
 

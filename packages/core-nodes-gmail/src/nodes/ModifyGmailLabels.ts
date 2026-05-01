@@ -1,23 +1,27 @@
-import type { CredentialRequirement, ItemExprArgs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type { CredentialRequirement, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import { z } from "zod";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailMessageRecord } from "../services/GmailApiClient";
 import { ModifyGmailLabelsNode } from "./ModifyGmailLabelsNode";
 
 export type ModifyGmailLabelsTarget = "message" | "thread";
 
-export type GmailLabelConfigValue<T, TItemJson = unknown> =
-  | T
-  | Readonly<{ fn: (args: ItemExprArgs<TItemJson>) => T | Promise<T> }>;
+const gmailLabelListSchema = z.union([
+  z.string().trim().min(1),
+  z.array(z.string().trim().min(1)).nonempty().readonly(),
+]);
 
-export type ModifyGmailLabelsOptions<TItemJson = unknown> = Readonly<{
-  target?: ModifyGmailLabelsTarget;
-  messageId?: GmailLabelConfigValue<string | undefined, TItemJson>;
-  threadId?: GmailLabelConfigValue<string | undefined, TItemJson>;
-  addLabelIds?: GmailLabelConfigValue<string | ReadonlyArray<string> | undefined, TItemJson>;
-  removeLabelIds?: GmailLabelConfigValue<string | ReadonlyArray<string> | undefined, TItemJson>;
-  addLabels?: GmailLabelConfigValue<string | ReadonlyArray<string> | undefined, TItemJson>;
-  removeLabels?: GmailLabelConfigValue<string | ReadonlyArray<string> | undefined, TItemJson>;
-}>;
+export const modifyGmailLabelsInputSchema = z.object({
+  target: z.enum(["message", "thread"]).optional(),
+  messageId: z.string().optional(),
+  threadId: z.string().optional(),
+  addLabelIds: gmailLabelListSchema.optional(),
+  removeLabelIds: gmailLabelListSchema.optional(),
+  addLabels: gmailLabelListSchema.optional(),
+  removeLabels: gmailLabelListSchema.optional(),
+});
+
+export type ModifyGmailLabelsInputJson = z.infer<typeof modifyGmailLabelsInputSchema>;
 
 export type GmailThreadLabelMutationResult = Readonly<{
   target: "thread";
@@ -28,19 +32,15 @@ export type GmailThreadLabelMutationResult = Readonly<{
 
 export type ModifyGmailLabelsOutputJson = GmailMessageRecord | GmailThreadLabelMutationResult;
 
-export class ModifyGmailLabels implements RunnableNodeConfig<unknown, ModifyGmailLabelsOutputJson> {
+export class ModifyGmailLabels implements RunnableNodeConfig<ModifyGmailLabelsInputJson, ModifyGmailLabelsOutputJson> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = ModifyGmailLabelsNode;
+  readonly inputSchema = modifyGmailLabelsInputSchema;
 
   constructor(
     public readonly name: string,
-    public readonly cfg: ModifyGmailLabelsOptions = {},
     public readonly id?: string,
   ) {}
-
-  get target(): ModifyGmailLabelsTarget {
-    return this.cfg.target ?? "message";
-  }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
     return [
