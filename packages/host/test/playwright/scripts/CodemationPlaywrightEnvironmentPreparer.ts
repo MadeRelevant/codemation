@@ -21,6 +21,29 @@ export type CodemationPlaywrightPreparedEnvironment = Readonly<{
  * process exits before the web server is done (Ryuk / session cleanup).
  */
 export class CodemationPlaywrightEnvironmentPreparer {
+  /**
+   * Playwright browser tests are bootstrapped via {@code run-codemation-tsx.mjs}, which appends
+   * {@code --conditions=development} to {@code NODE_OPTIONS} for tsx. Turbo / consumer builds must
+   * not inherit that flag or resolution can diverge from CI and fail the preparer build step.
+   */
+  private static toolingProcessEnv(): NodeJS.ProcessEnv {
+    const env = { ...process.env };
+    const raw = env.NODE_OPTIONS;
+    if (typeof raw === "string" && raw.trim().length > 0) {
+      const cleaned = raw
+        .split(/\s+/u)
+        .filter((token) => token.length > 0 && !token.startsWith("--conditions="))
+        .join(" ")
+        .trim();
+      if (cleaned.length > 0) {
+        env.NODE_OPTIONS = cleaned;
+      } else {
+        delete env.NODE_OPTIONS;
+      }
+    }
+    return env;
+  }
+
   private static async pickServerBaseUrl(): Promise<Readonly<{ baseUrl: string; port: string }>> {
     const preferred = 3001;
     const preferredAvailable = await this.isPortAvailable(preferred);
@@ -73,7 +96,7 @@ export class CodemationPlaywrightEnvironmentPreparer {
     fs.writeFileSync(snapshotPath, JSON.stringify(database.serialize()), "utf8");
 
     const buildEnv = {
-      ...process.env,
+      ...CodemationPlaywrightEnvironmentPreparer.toolingProcessEnv(),
       DATABASE_URL: database.databaseUrl,
       AUTH_SECRET: authSecret,
       REDIS_URL: "",
