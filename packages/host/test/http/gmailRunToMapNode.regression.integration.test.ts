@@ -138,7 +138,11 @@ class GmailRunToMapNodeRegressionFixture {
   static createConfig(): CodemationConfig {
     return {
       workflows: [this.createWorkflow()],
-      plugins: [new GmailNodes()],
+      // GmailNodes ships from a separate package whose types come from a different host-types
+      // resolution path (via core-nodes-gmail's compiled dist re-export of host/authoring),
+      // so structural-but-not-identical CodemationPluginContext copies don't unify under tsc.
+      // The shape is identical at runtime — cast through unknown to bridge the duplicate type.
+      plugins: [{ register: (ctx) => new GmailNodes().register(ctx as unknown as never) }],
       register: (context) => {
         context.registerValue(CoreTokens.CredentialSessionService, new FakeGmailCredentialSessionService());
       },

@@ -250,6 +250,18 @@ Per-package `pnpm test` remains useful for iterating on one package; the canonic
 
 - Generated Prisma `runtime/*.js` files reference `*.map` files that Prisma does not emit; Vite would otherwise log **ENOENT** on every load. After **`prisma generate`**, run **`pnpm --filter @codemation/host prisma:generate`** (or **`node packages/host/scripts/ensure-prisma-runtime-sourcemaps.mjs`**) so stub maps exist. Host **integration** Vitest config also runs this via **`globalSetup`** before tests.
 
+### Prisma schema changes — **always create both Postgres AND SQLite migrations**
+
+The host package keeps **two parallel schemas** (`packages/host/prisma/schema.postgresql.prisma`, `packages/host/prisma/schema.sqlite.prisma`) and **two parallel migration directories** (`packages/host/prisma/migrations/` for Postgres, `packages/host/prisma/migrations.sqlite/` for SQLite). The `prisma.config.ts` selects one set per `CODEMATION_PRISMA_PROVIDER` (default Postgres). When making any schema change:
+
+1. **Edit BOTH schema files**: keep models in lockstep, accounting for SQLite's lack of native arrays / enums (use `String?` with `@map(...)` for short enum-shaped fields; the in-app types stay strict).
+2. **Generate migrations under BOTH directories**, with **timestamped folder names** (e.g. `20260503105000_my_change`, never `add_my_change/`). The simplest path: write the migration SQL by hand and place identical (or provider-equivalent) files in both `migrations/` and `migrations.sqlite/`.
+   - Postgres: `ALTER TABLE "Run" ADD COLUMN "test_case_status" TEXT;`
+   - SQLite: usually identical for additive changes; for nullability changes / column drops, SQLite needs the table-rebuild idiom (CREATE \*\_new + INSERT + DROP + RENAME).
+3. **Regenerate clients**: `pnpm --filter @codemation/host prisma:generate` (this runs Prisma generate for both providers — see `packages/host/scripts/generate-prisma-clients.mjs`).
+4. **Apply migrations to the dev SQLite DB** (the runtime auto-migrates on startup, but it'll error if you start the runtime against a DB whose schema is older than the column the runtime tries to read). If you hit a "no such column" error from `apps/test-dev/.codemation/codemation.sqlite`, deleting that file is fine — it'll be recreated by the next dev runtime startup against the current migrations.
+5. **Don't commit a migration that lives only in one of the two directories** — pre-commit doesn't catch the asymmetry today, and dev-server boot will fail at runtime against the missing-migration provider.
+
 ### Parallel, non-interfering tests
 
 - Tooling Vitest configs use **`maxWorkers: 2`** and **`fileParallelism: true`**. **Integration** (and **unit** / **e2e**) use **`isolate: true`** so parallel files do not share a polluted module graph. **UI** (`*.test.tsx`, jsdom) uses **`isolate: false`** to reuse the module graph—keep tests **clean**: save/restore any overridden globals in **`afterEach`** or **`try`/`finally`**; ESLint forbids **`vi.stubGlobal`**, **`vi.unstubAllGlobals`**, and **`vi.stubEnv`** in tests. Integration harnesses must still bring **their own** Postgres DB (**`PostgresIntegrationDatabase`**), **ephemeral HTTP/WS ports** (**`FrontendHttpIntegrationHarness`**), and **unique external resource keys** (e.g. BullMQ **Redis** queue prefix per run).

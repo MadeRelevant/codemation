@@ -52,13 +52,13 @@ export default createWorkflowBuilder({
       assertions: (item) => [
         {
           name: "doubled matches expected",
-          status: item.json.doubled === item.json.expected ? "pass" : "fail",
+          score: item.json.doubled === item.json.expected ? 1 : 0,
           expected: item.json.expected,
           actual: item.json.doubled,
         },
         {
           name: "doubled is even",
-          status: item.json.doubled % 2 === 0 ? "pass" : "fail",
+          score: item.json.doubled % 2 === 0 ? 1 : 0,
           actual: item.json.doubled,
         },
       ],

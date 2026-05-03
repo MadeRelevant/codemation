@@ -96,7 +96,7 @@ const assertionNode = new Assertion<ProcessedCase>({
   assertions: (item) => [
     {
       name: "computedSum matches expectedSum",
-      status: item.json.computedSum === item.json.expectedSum ? "pass" : "fail",
+      score: item.json.computedSum === item.json.expectedSum ? 1 : 0,
       expected: item.json.expectedSum,
       actual: item.json.computedSum,
       message: item.json.succeeded ? undefined : `Process produced wrong output for idx=${item.json.idx}`,

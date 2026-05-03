@@ -282,12 +282,10 @@ export class TestSuiteOrchestrator {
       terminal = await this.engine.waitForCompletion(runId);
     }
 
-    const status: TestCaseRunStatus =
-      terminal.status === "completed" ? "succeeded" :
-      terminal.status === "failed" ? "failed" :
-      terminal.status === "errored" ? "errored" :
-      terminal.status === "cancelled" ? "cancelled" :
-      "failed"; // fallback
+    // RunResult.status from the engine narrows to "completed" | "failed" here; widening to
+    // "errored" / "cancelled" happens outside this code path (tracker downgrade for assertion
+    // failures; outer abort handling for cancelled).
+    const status: TestCaseRunStatus = terminal.status === "completed" ? "succeeded" : "failed";
     await this.publish({
       kind: "testCaseCompleted",
       testSuiteRunId: args.testSuiteRunId,

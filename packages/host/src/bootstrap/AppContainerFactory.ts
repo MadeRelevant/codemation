@@ -166,7 +166,6 @@ import {
   TestAssertionRepositoryToken,
   TestSuiteRunRepositoryToken,
   TestSuiteRunTrackerFactory,
-  WorkflowRunRepositoryToken,
 } from "../application/runs/TestSuiteRunTrackerFactory";
 import { TestAssertionAggregator } from "../application/runs/TestAssertionAggregator";
 import { TestAssertionMapper } from "../application/runs/TestAssertionMapper";
@@ -174,7 +173,6 @@ import { TestSuiteChildRunMapper } from "../application/runs/TestSuiteChildRunMa
 import { TestSuiteRunSummaryMapper } from "../application/runs/TestSuiteRunSummaryMapper";
 import type { TestAssertionRepository } from "../domain/runs/TestAssertionRepository";
 import type { TestSuiteRunRepository } from "../domain/runs/TestSuiteRunRepository";
-import type { WorkflowRunRepository } from "../domain/runs/WorkflowRunRepository";
 import { ApiPaths } from "../presentation/http/ApiPaths";
 import { RequestToWebhookItemMapper } from "../infrastructure/webhooks/RequestToWebhookItemMapper";
 import { WebhookEndpointPathValidator } from "../application/workflows/WebhookEndpointPathValidator";
@@ -743,7 +741,6 @@ export class AppContainerFactory {
         container.resolve(InMemoryTriggerSetupStateRepository),
       );
       container.registerInstance(ApplicationTokens.WorkflowRunRepository, workflowRunRepository);
-      container.registerInstance<WorkflowRunRepository>(WorkflowRunRepositoryToken, workflowRunRepository);
       container.registerInstance<TestSuiteRunRepository>(
         TestSuiteRunRepositoryToken,
         container.resolve(InMemoryTestSuiteRunRepository),
