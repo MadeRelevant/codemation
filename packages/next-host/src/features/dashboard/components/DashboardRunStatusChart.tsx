@@ -1,6 +1,6 @@
 "use client";
 
-import type { TelemetryDashboardTimeseriesDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import type { TelemetryDashboardTimeseriesDto } from "@codemation/host/dto";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { DashboardDateTimeFormatter } from "../lib/DashboardDateTimeFormatter";
 import { DashboardStatusPresentation } from "../lib/DashboardStatusPresentation";

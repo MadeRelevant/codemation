@@ -1,5 +1,14 @@
 /** Composition-root engine graph and advanced runtime wiring. Not part of the main `@codemation/core` barrel. */
 export { Engine } from "../orchestration/Engine";
+export {
+  AbortControllerFactory,
+  TestSuiteOrchestrator,
+  TestSuiteRunIdFactory,
+  type RunTestSuiteArgs,
+  type TestSuiteCaseOutcome,
+  type TestSuiteOrchestratorEngine,
+  type TestSuiteRunResult,
+} from "../orchestration";
 export { EngineFactory, type EngineCompositionDeps } from "../runtime/EngineFactory";
 export {
   EngineRuntimeRegistrar,

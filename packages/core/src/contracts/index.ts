@@ -1,3 +1,5 @@
+export * from "./baseTypes";
+export * from "./assertionTypes";
 export * from "./credentialTypes";
 export * from "./emitPorts";
 export * from "./executionPersistenceContracts";
@@ -6,6 +8,7 @@ export * from "./params";
 export * from "./itemExpr";
 export * from "./runtimeTypes";
 export * from "./telemetryTypes";
+export * from "./testTriggerTypes";
 export * from "./runFinishedAtFactory";
 export * from "./runTypes";
 export * from "./webhookTypes";

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import type { TelemetryDashboardTimeseriesDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import type { TelemetryDashboardTimeseriesDto } from "@codemation/host/dto";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import { ApiPaths } from "@codemation/host/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DashboardMultiSelect } from "../../src/features/dashboard/components/DashboardMultiSelect";
 import type { WorkflowSummary } from "../../src/features/workflows/hooks/realtime/realtime";

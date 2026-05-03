@@ -9,8 +9,8 @@ import type { ConsumerBuildArtifactsPublisher } from "../build/ConsumerBuildArti
 import type { ConsumerOutputBuilderFactory } from "../consumer/ConsumerOutputBuilderFactory";
 import type { DatabaseMigrationsApplyService } from "../database/DatabaseMigrationsApplyService";
 import type { DevApiRuntimeFactory, DevApiRuntimeServerHandle } from "../dev/DevApiRuntimeFactory";
-import type { DevNextColdPathTiming } from "../dev/DevHttpProbe";
 import type { DevBootstrapSummaryFetcher } from "../dev/DevBootstrapSummaryFetcher";
+import { ConsumerSourceErrorParser } from "../dev/ConsumerSourceErrorParser";
 import type { CliDevProxyServer } from "../dev/CliDevProxyServer";
 import type { CliDevProxyServerFactory } from "../dev/CliDevProxyServerFactory";
 import type { DevCliBannerRenderer } from "../dev/DevCliBannerRenderer";
@@ -58,6 +58,7 @@ export class DevCommand {
     private readonly cliDevProxyServerFactory: CliDevProxyServerFactory,
     private readonly devRebuildQueueFactory: DevRebuildQueueFactory,
     private readonly devNextChildProcessOutputFilter: DevNextChildProcessOutputFilter,
+    private readonly consumerSourceErrorParser: ConsumerSourceErrorParser,
   ) {}
 
   async execute(
@@ -107,17 +108,23 @@ export class DevCommand {
         args.configPathOverride,
       );
       if (prepared.devMode === "watch-framework") {
-        processState.currentWorkspacePluginBuilds = await this.workspacePluginDevProcessCoordinator.start({
-          env: process.env,
-          packages: await this.workspacePluginPackageResolver.resolve({
-            consumerRoot: prepared.paths.consumerRoot,
+        if (prepared.watchWorkspacePlugins) {
+          processState.currentWorkspacePluginBuilds = await this.workspacePluginDevProcessCoordinator.start({
+            env: process.env,
+            packages: await this.workspacePluginPackageResolver.resolve({
+              consumerRoot: prepared.paths.consumerRoot,
+              repoRoot: prepared.paths.repoRoot,
+            }),
             repoRoot: prepared.paths.repoRoot,
-          }),
-          repoRoot: prepared.paths.repoRoot,
-          onUnexpectedExit: (error: Error) => {
-            void this.failDevSessionAfterIrrecoverableSourceError(processState, proxyServer, error);
-          },
-        });
+            onUnexpectedExit: (error: Error) => {
+              void this.failDevSessionAfterIrrecoverableSourceError(processState, proxyServer, error);
+            },
+          });
+        } else {
+          process.stdout.write(
+            "[codemation] Workspace-plugin live rebuild is OFF. The runtime will load each plugin's existing dist/ output. Set CODEMATION_DEV_WATCH_PLUGINS=true to spawn `tsdown --watch` for each workspace plugin (≈500 MB extra; tight on 8-GB boxes).\n",
+          );
+        }
       }
       if (prepared.devMode === "packaged-ui") {
         await this.publishConsumerArtifacts(prepared.paths, prepared.configPathOverride);
@@ -181,6 +188,11 @@ export class DevCommand {
       process.env.CODEMATION_DEV_SERVER_TOKEN,
     );
     const consumerEnv = this.session.consumerEnvLoader.load(paths.consumerRoot);
+    // Default OFF: workspace-plugin tsdown watchers and their dist/ watch roots cost ~500 MB
+    // baseline (esbuild service + tsdown V8 heap + plugin module graph) and stack with
+    // next-server's compile spike to OOM-kill the dev session on 8-GB WSL boxes. Opt in via
+    // CODEMATION_DEV_WATCH_PLUGINS=true when actively editing a workspace plugin's source.
+    const watchWorkspacePlugins = this.parseBooleanEnv(process.env.CODEMATION_DEV_WATCH_PLUGINS);
     return {
       paths,
       configPathOverride,
@@ -190,7 +202,14 @@ export class DevCommand {
       authSettings,
       developmentServerToken,
       consumerEnv,
+      watchWorkspacePlugins,
     };
+  }
+
+  private parseBooleanEnv(value: string | undefined): boolean {
+    if (value === undefined) return false;
+    const normalized = value.trim().toLowerCase();
+    return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
   }
 
   private createInitialProcessState(): DevMutableProcessState {
@@ -216,6 +235,14 @@ export class DevCommand {
 
   private gatewayBaseHttpUrl(gatewayPort: number): string {
     return `http://127.0.0.1:${gatewayPort}`;
+  }
+
+  private parsePortFromBaseUrl(baseUrl: string): number {
+    const port = Number.parseInt(new URL(baseUrl).port, 10);
+    if (!Number.isFinite(port) || port <= 0) {
+      throw new Error(`Cannot extract port from base URL: ${baseUrl}`);
+    }
+    return port;
   }
 
   private async preparePackagedUiBaseUrlWhenNeeded(
@@ -284,10 +311,7 @@ export class DevCommand {
       state.stopRequested = true;
       state.stopReject?.(new Error(`next start (packaged UI) exited unexpectedly with code ${code ?? 0}.`));
     });
-    await this.session.devHttpProbe.waitUntilUrlRespondsOk(`${uiProxyBase}/`);
-    await this.logNextDevColdPathWarmTimings(
-      await this.session.devHttpProbe.warmNextDevColdPaths(uiProxyBase.replace(/\/$/, "")),
-    );
+    await this.session.devHttpProbe.waitUntilTcpListenerReady("127.0.0.1", this.parsePortFromBaseUrl(uiProxyBase));
   }
 
   private async startProxyServer(gatewayPort: number, uiProxyBase: string): Promise<CliDevProxyServer> {
@@ -303,13 +327,20 @@ export class DevCommand {
     state: DevMutableProcessState,
     proxyServer: CliDevProxyServer,
   ): Promise<void> {
-    const runtime = await this.createRuntime(prepared);
-    state.currentRuntime = runtime;
-    await proxyServer.activateRuntime({
-      httpPort: runtime.httpPort,
-      workflowWebSocketPort: runtime.workflowWebSocketPort,
-    });
-    proxyServer.setBuildStatus("idle");
+    try {
+      const runtime = await this.createRuntime(prepared);
+      state.currentRuntime = runtime;
+      await proxyServer.activateRuntime({
+        httpPort: runtime.httpPort,
+        workflowWebSocketPort: runtime.workflowWebSocketPort,
+      });
+      proxyServer.setBuildStatus("idle");
+    } catch (error) {
+      const details = this.consumerSourceErrorParser.parse(error);
+      proxyServer.broadcastBuildFailed(details);
+      proxyServer.setBuildStatus("errored");
+      // Leave the proxy running. Do NOT rethrow.
+    }
   }
 
   /**
@@ -408,15 +439,7 @@ export class DevCommand {
       state.stopRequested = true;
       state.stopReject?.(error instanceof Error ? error : new Error(String(error)));
     });
-    await this.session.devHttpProbe.waitUntilUrlRespondsOk(`http://127.0.0.1:${prepared.nextPort}/`);
-    await this.logNextDevColdPathWarmTimings(
-      await this.session.devHttpProbe.warmNextDevColdPaths(`http://127.0.0.1:${prepared.nextPort}`),
-    );
-  }
-
-  private logNextDevColdPathWarmTimings(timings: ReadonlyArray<DevNextColdPathTiming>): void {
-    const parts = timings.map((t) => `${t.path}=${t.durationMs}ms`).join(" ");
-    process.stdout.write(`[codemation] Dev: precompiled Next routes — ${parts}\n`);
+    await this.session.devHttpProbe.waitUntilTcpListenerReady("127.0.0.1", prepared.nextPort);
   }
 
   private async startWatcherForSourceRestart(
@@ -441,6 +464,7 @@ export class DevCommand {
         consumerRoot: prepared.paths.consumerRoot,
         devMode,
         repoRoot: prepared.paths.repoRoot,
+        watchWorkspacePlugins: prepared.watchWorkspacePlugins,
       }),
       onChange: async ({ changedPaths }) => {
         if (changedPaths.length > 0 && changedPaths.every((p) => this.consumerEnvDotenvFilePredicate.matches(p))) {
@@ -456,8 +480,8 @@ export class DevCommand {
           });
           process.stdout.write(
             shouldRestartUi
-              ? `\n[codemation] Source change detected — rebuilding for \`${options.commandName}\`, restarting the runtime, and restarting the UI…\n`
-              : `\n[codemation] Source change detected — rebuilding for \`${options.commandName}\` and restarting the runtime…\n`,
+              ? `\n[codemation] Source change detected — rebuilding for \`${options.commandName}\`, restarting the runtime, and restarting the UI… [paths=${changedPaths.slice(0, 5).join(", ")}${changedPaths.length > 5 ? ` (+${changedPaths.length - 5} more)` : ""}]\n`
+              : `\n[codemation] Source change detected — rebuilding for \`${options.commandName}\` and restarting the runtime… [paths=${changedPaths.slice(0, 5).join(", ")}${changedPaths.length > 5 ? ` (+${changedPaths.length - 5} more)` : ""}]\n`,
           );
           await rebuildQueue.enqueue({
             changedPaths,
@@ -485,19 +509,56 @@ export class DevCommand {
     void request.changedPaths;
     proxyServer.setBuildStatus("building");
     proxyServer.broadcastBuildStarted();
+    // Stop the old runtime BEFORE creating the new one. The runtime is in-process — keeping both
+    // alive doubles the framework + Prisma + plugin module footprint (~1–2 GB) and on a 4-CPU /
+    // 8-GB WSL box this OOM-kills next-server (whose dev compile already sits around 2.7 GB).
+    // Trade-off: the gateway returns 503 ("Runtime is rebuilding") for the swap window. Consumer
+    // errors are still non-fatal — we land in `errored` build status and the session stays up.
+    if (state.currentRuntime) {
+      const previousRuntime = state.currentRuntime;
+      state.currentRuntime = null;
+      await proxyServer.activateRuntime(null);
+      try {
+        await previousRuntime.stop();
+      } catch {
+        // Ignore stop errors — we're discarding this runtime regardless.
+      }
+    }
     try {
       if (prepared.devMode === "packaged-ui") {
         await this.publishConsumerArtifacts(prepared.paths, request.configPathOverride);
       }
-      await this.stopCurrentRuntime(state, proxyServer);
       process.stdout.write("[codemation] Waiting for runtime to accept traffic…\n");
-      const runtime = await this.createRuntime(prepared);
+      let runtime: DevApiRuntimeServerHandle;
+      try {
+        runtime = await this.createRuntime(prepared);
+      } catch (error) {
+        const details = this.consumerSourceErrorParser.parse(error);
+        proxyServer.broadcastBuildFailed(details);
+        proxyServer.setBuildStatus("errored");
+        // Old runtime is already stopped; gateway will 503 until the next save fixes the build.
+        return;
+      }
       state.currentRuntime = runtime;
       await proxyServer.activateRuntime({
         httpPort: runtime.httpPort,
         workflowWebSocketPort: runtime.workflowWebSocketPort,
       });
-      await this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl);
+      try {
+        await this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl);
+      } catch (error) {
+        const details = this.consumerSourceErrorParser.parse(error);
+        proxyServer.broadcastBuildFailed(details);
+        proxyServer.setBuildStatus("errored");
+        try {
+          await runtime.stop();
+        } catch {
+          // Ignore cleanup errors
+        }
+        state.currentRuntime = null;
+        await proxyServer.activateRuntime(null);
+        return;
+      }
       const json = await this.devBootstrapSummaryFetcher.fetch(gatewayBaseUrl);
       if (json) {
         this.devCliBannerRenderer.renderCompact(json);
@@ -513,7 +574,9 @@ export class DevCommand {
       process.stdout.write("[codemation] Runtime ready.\n");
     } catch (error) {
       proxyServer.setBuildStatus("idle");
-      proxyServer.broadcastBuildFailed(error instanceof Error ? error.message : String(error));
+      proxyServer.broadcastBuildFailed({
+        message: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }

@@ -1,5 +1,5 @@
 import { AgentConnectionNodeCollector, ConnectionNodeIdFactory, type AgentNodeConfig } from "@codemation/core/browser";
-import { WorkflowPolicyUiPresentationFactory } from "@codemation/host-src/application/mapping/WorkflowPolicyUiPresentationFactory";
+import { WorkflowPolicyUiPresentationFactory } from "@codemation/host/mapping";
 import type { PersistedWorkflowSnapshot, WorkflowDto } from "../../hooks/realtime/realtime";
 import type { WorkflowNodeDto } from "../realtime/workflowTypes";
 
@@ -69,6 +69,11 @@ export class PersistedWorkflowSnapshotMapper {
     nodesById: ReadonlyMap<string, PersistedWorkflowSnapshot["nodes"][number]>,
     materializedConnectionNodeIds: ReadonlySet<string>,
   ): ReadonlyArray<WorkflowNodeDto> {
+    const triggerKind =
+      node.kind === "trigger"
+        ? ((this.asRecord(node.config) as { triggerKind?: "live" | "test" }).triggerKind ?? "live")
+        : undefined;
+    const description = (this.asRecord(node.config) as { description?: string }).description;
     const workflowNode: WorkflowNodeDto = {
       id: node.id,
       kind: node.kind,
@@ -79,6 +84,8 @@ export class PersistedWorkflowSnapshotMapper {
       retryPolicySummary: this.policyUi.snapshotNodeRetrySummary(node.config),
       hasNodeErrorHandler: this.policyUi.snapshotNodeHasErrorHandler(node.config),
       ...this.nodePortFieldsFromSnapshotConfig(node.config),
+      ...(triggerKind ? { triggerKind } : {}),
+      ...(typeof description === "string" && description.trim().length > 0 ? { description } : {}),
     };
 
     if (!this.isAgentConfig(node.config)) {

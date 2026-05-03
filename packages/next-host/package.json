@@ -34,6 +34,7 @@
     "dev:next": "next dev",
     "build": "next build && node ./scripts/prepare-standalone.mjs",
     "start": "next start",
+    "analyze": "ANALYZE=true next build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
@@ -75,6 +76,7 @@
   },
   "devDependencies": {
     "@codemation/eslint-config": "workspace:*",
+    "@next/bundle-analyzer": "^16.2.4",
     "@tailwindcss/postcss": "^4.2.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

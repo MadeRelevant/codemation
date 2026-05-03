@@ -1,4 +1,4 @@
-import type { Prisma } from "../../../src/infrastructure/persistence/generated/prisma-postgresql-client/client.js";
+import type { Prisma } from "../../../prisma-generated/prisma-postgresql-client/client.js";
 import type { PrismaDatabaseClient } from "../../../src/infrastructure/persistence/PrismaDatabaseClient";
 
 export class PostgresRollbackTransaction {

@@ -1,9 +1,8 @@
 "use client";
 
-import type { Logger } from "@codemation/host-src/application/logging/Logger";
+import type { Logger } from "@codemation/host/client";
 
-import { BrowserLoggerFactory } from "@codemation/host-src/infrastructure/logging/BrowserLoggerFactory";
-import { logLevelPolicyFactory } from "@codemation/host-src/infrastructure/logging/LogLevelPolicyFactory";
+import { BrowserLoggerFactory, logLevelPolicyFactory } from "@codemation/host/client";
 
 import type { DehydratedState } from "@tanstack/react-query";
 import { HydrationBoundary, QueryClient, QueryClientProvider } from "@tanstack/react-query";

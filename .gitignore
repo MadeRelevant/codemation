@@ -16,7 +16,7 @@ out
 **/node_modules
 .jscpd-report
 apps/test-dev/.tanstack
-packages/host/src/infrastructure/persistence/generated
+packages/host/prisma-generated
 **/coverage
 packages/host/test/playwright/.e2e-prepared.json
 packages/host/test/playwright/.e2e-db-snapshot.json
@@ -24,3 +24,4 @@ packages/host/test-results/
 packages/cli/test/integration-sandbox/
 packages/host/.cache/
 .verdaccio/wbso-hours.tsv
+.verdaccio/storage/

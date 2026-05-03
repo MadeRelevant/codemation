@@ -28,7 +28,9 @@ export default defineConfig({
     conditions: ["development", "import", "module", "default"],
     alias: {
       "@": path.resolve(dirname, "./src"),
-      "@codemation/host-src": path.resolve(dirname, "../host/src"),
+      "@codemation/host/dto": path.resolve(dirname, "../host/src/dto.ts"),
+      "@codemation/host/client": path.resolve(dirname, "../host/src/client.ts"),
+      "@codemation/host/mapping": path.resolve(dirname, "../host/src/mapping.ts"),
     },
   },
 });

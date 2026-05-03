@@ -20,7 +20,7 @@ import type {
 } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
-import type { Prisma } from "./generated/prisma-postgresql-client/client.js";
+import type { Prisma } from "../../../prisma-generated/prisma-postgresql-client/client.js";
 import { PrismaDatabaseClientToken, type PrismaDatabaseClient } from "./PrismaDatabaseClient";
 
 type ExecutionInstanceRow = {
@@ -94,6 +94,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
     engineCounters?: PersistedRunState["engineCounters"];
   }): Promise<void> {
     const now = new Date().toISOString();
+    const testContext = args.executionOptions?.testContext;
     await this.prisma.run.create({
       data: {
         runId: args.runId,
@@ -110,6 +111,12 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
         policySnapshotJson: args.policySnapshot ? JSON.stringify(args.policySnapshot) : null,
         engineCountersJson: args.engineCounters ? JSON.stringify(args.engineCounters) : null,
         mutableStateJson: args.mutableState ? JSON.stringify(args.mutableState) : null,
+        // Denormalize testContext into indexed columns so the Tests UI can join Run → TestSuiteRun
+        // without parsing JSON. `testCaseLabel` is also denormalized so the tree-table can render
+        // a readable label without loading the full `executionOptionsJson` blob.
+        testSuiteRunId: testContext?.testSuiteRunId ?? null,
+        testCaseIndex: testContext?.testCaseIndex ?? null,
+        testCaseLabel: testContext?.testCaseLabel ?? null,
       },
     });
   }

@@ -1,6 +1,5 @@
 import path from "node:path";
 
-const hostSrc = path.resolve(import.meta.dirname, "./src");
 const nextHostSrc = path.resolve(import.meta.dirname, "../next-host/src");
 
 export const hostVitestSharedConfig = {
@@ -11,9 +10,10 @@ export const hostVitestSharedConfig = {
   resolve: {
     alias: [
       { find: "@codemation/core/browser", replacement: path.resolve(import.meta.dirname, "../core/src/browser.ts") },
-      { find: /^@codemation\/host-src\/(.+)$/, replacement: `${hostSrc}/$1` },
       { find: /^@codemation\/next-host\/src\/(.+)$/, replacement: `${nextHostSrc}/$1` },
       { find: "@codemation/host/client", replacement: path.resolve(import.meta.dirname, "./src/client.ts") },
+      { find: "@codemation/host/dto", replacement: path.resolve(import.meta.dirname, "./src/dto.ts") },
+      { find: "@codemation/host/mapping", replacement: path.resolve(import.meta.dirname, "./src/mapping.ts") },
       { find: "@codemation/host/server", replacement: path.resolve(import.meta.dirname, "./src/server.ts") },
       {
         find: "@codemation/host/persistence",

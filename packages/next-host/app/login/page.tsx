@@ -1,4 +1,4 @@
-import { InAppCallbackUrlPolicy } from "@codemation/host-src/infrastructure/auth/InAppCallbackUrlPolicy";
+import { InAppCallbackUrlPolicy } from "@codemation/host/client";
 import { CodemationRuntimeBootstrapClient } from "../../src/bootstrap/CodemationRuntimeBootstrapClient";
 import { LoginPageClient } from "../../src/shell/LoginPageClient";
 

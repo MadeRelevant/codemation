@@ -4,13 +4,9 @@ export type {
   CredentialInstanceDto,
   CredentialInstanceWithSecretsDto,
   WorkflowCredentialHealthDto,
-} from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
-export type { WorkflowDto, WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
-export type {
-  InviteUserResponseDto,
-  UserAccountDto,
-  UserAccountStatus,
-} from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
+} from "@codemation/host/dto";
+export type { WorkflowDto, WorkflowSummary } from "@codemation/host/dto";
+export type { InviteUserResponseDto, UserAccountDto, UserAccountStatus } from "@codemation/host/dto";
 
 export * from "../../lib/realtime/realtimeDomainTypes";
 
@@ -21,7 +17,7 @@ export {
   useUpdateUserAccountStatusMutation,
 } from "./userAccountMutations";
 
-import type { WorkflowDto, WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
+import type { WorkflowDto, WorkflowSummary } from "@codemation/host/dto";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useContext, useEffect, useState } from "react";
 import { RealtimeContext } from "../../components/realtime/RealtimeContext";

@@ -1,6 +1,6 @@
 "use client";
 
-import type { TelemetryDashboardSummaryDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import type { TelemetryDashboardSummaryDto } from "@codemation/host/dto";
 import { Clock3, PlayCircle, Workflow } from "lucide-react";
 import prettyMs from "pretty-ms";
 import { Badge } from "@/components/ui/badge";

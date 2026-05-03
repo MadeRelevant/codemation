@@ -1,4 +1,4 @@
-import type { TelemetryDashboardRunOriginDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import type { TelemetryDashboardRunOriginDto } from "@codemation/host/dto";
 import type { TelemetryDashboardTimePreset } from "./TelemetryDashboardTimeRangeFactory";
 
 export interface DashboardPersistedFilters {

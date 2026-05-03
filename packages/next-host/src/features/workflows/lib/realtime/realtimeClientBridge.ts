@@ -7,7 +7,14 @@ export type RealtimeServerMessage =
   | Readonly<{ kind: "workflowChanged"; workflowId: string }>
   | Readonly<{ kind: "devBuildStarted"; workflowId: string; buildVersion?: string }>
   | Readonly<{ kind: "devBuildCompleted"; workflowId: string; buildVersion: string }>
-  | Readonly<{ kind: "devBuildFailed"; workflowId: string; message: string }>
+  | Readonly<{
+      kind: "devBuildFailed";
+      workflowId: string;
+      message: string;
+      file?: string;
+      line?: number;
+      column?: number;
+    }>
   | Readonly<{ kind: "event"; event: WorkflowEvent }>
   | Readonly<{ kind: "error"; message: string }>;
 

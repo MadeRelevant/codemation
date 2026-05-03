@@ -1,7 +1,4 @@
-import type {
-  UpsertCredentialBindingRequest,
-  WorkflowCredentialHealthSlotDto,
-} from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+import type { UpsertCredentialBindingRequest, WorkflowCredentialHealthSlotDto } from "@codemation/host/dto";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";

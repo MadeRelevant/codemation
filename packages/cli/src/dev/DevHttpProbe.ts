@@ -1,14 +1,22 @@
-import { performance } from "node:perf_hooks";
+import { connect, type Socket } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 
-export type DevNextColdPathTiming = Readonly<{
-  path: string;
-  durationMs: number;
-}>;
+/**
+ * Per-route polling ceiling. 60 seconds per probe is generous on purpose: cold Turbopack
+ * compiles of large App Router pages on resource-constrained machines (e.g. WSL capped at
+ * 4 cpu / 8 GB) routinely take 15–30s. The previous 10s ceiling triggered a CLI exit
+ * cascade on otherwise-healthy boots.
+ *
+ * Each probe loops `MAX_PROBE_ATTEMPTS × PROBE_DELAY_MS` and each fetch can also itself block
+ * for the route's compile time, so the effective ceiling is well above 60 wall-clock seconds.
+ */
+const MAX_PROBE_ATTEMPTS = 1200;
+const PROBE_DELAY_MS = 50;
+const TCP_CONNECT_TIMEOUT_MS = 1000;
 
 export class DevHttpProbe {
   async waitUntilUrlRespondsOk(url: string): Promise<void> {
-    for (let attempt = 0; attempt < 200; attempt += 1) {
+    for (let attempt = 0; attempt < MAX_PROBE_ATTEMPTS; attempt += 1) {
       try {
         const response = await fetch(url, { redirect: "manual" });
         if (response.ok || response.status === 404 || this.isRedirectStatus(response.status)) {
@@ -17,14 +25,56 @@ export class DevHttpProbe {
       } catch {
         // not listening yet
       }
-      await delay(50);
+      await delay(PROBE_DELAY_MS);
     }
     throw new Error(`Timed out waiting for HTTP response from ${url}`);
   }
 
+  /**
+   * Wait until the given TCP port accepts a connection on the loopback host. Used after spawning
+   * Next dev to confirm the child process bound its port — we deliberately do NOT wait for an HTTP
+   * response, because Next's first cold compile (the catch-all API route's import graph alone can
+   * take 30–90s on a 4-CPU WSL box) would otherwise trip the probe ceiling and SIGTERM the dev
+   * tree. Cold compile happens on the first browser request, which is the standard Next-dev UX.
+   */
+  async waitUntilTcpListenerReady(host: string, port: number): Promise<void> {
+    for (let attempt = 0; attempt < MAX_PROBE_ATTEMPTS; attempt += 1) {
+      if (await this.tryConnect(host, port)) {
+        return;
+      }
+      await delay(PROBE_DELAY_MS);
+    }
+    throw new Error(`Timed out waiting for ${host}:${port} to accept a TCP connection.`);
+  }
+
+  private async tryConnect(host: string, port: number): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      let socket: Socket | null = null;
+      let settled = false;
+      const finish = (ok: boolean): void => {
+        if (settled) return;
+        settled = true;
+        if (socket) {
+          socket.removeAllListeners();
+          socket.destroy();
+        }
+        resolve(ok);
+      };
+      try {
+        socket = connect({ host, port });
+        socket.setTimeout(TCP_CONNECT_TIMEOUT_MS);
+        socket.once("connect", () => finish(true));
+        socket.once("error", () => finish(false));
+        socket.once("timeout", () => finish(false));
+      } catch {
+        finish(false);
+      }
+    });
+  }
+
   async waitUntilGatewayHealthy(gatewayBaseUrl: string): Promise<void> {
     const normalizedBase = gatewayBaseUrl.replace(/\/$/, "");
-    for (let attempt = 0; attempt < 200; attempt += 1) {
+    for (let attempt = 0; attempt < MAX_PROBE_ATTEMPTS; attempt += 1) {
       try {
         const response = await fetch(`${normalizedBase}/api/dev/health`);
         if (response.ok) {
@@ -33,53 +83,9 @@ export class DevHttpProbe {
       } catch {
         // Server not listening yet.
       }
-      await delay(50);
+      await delay(PROBE_DELAY_MS);
     }
     throw new Error("Timed out waiting for the stable dev HTTP health check.");
-  }
-
-  /**
-   * After `/` responds, Turbopack may still need to compile the `/api/*` catch-all, other API paths,
-   * and App Router pages. Hitting each once during CLI startup moves that cost off the first browser interaction.
-   * Any HTTP status (401, 302, 200, …) means Next returned a response for that URL.
-   *
-   * Includes `api/auth/session` (often a multi-second first compile) and a workflow detail URL so the
-   * `(shell)/workflows/[workflowId]` tree is built — list-only warms miss that (e.g. apps/test-dev’s `wf.hot-reload-probe`).
-   */
-  async warmNextDevColdPaths(nextOrigin: string): Promise<ReadonlyArray<DevNextColdPathTiming>> {
-    const normalized = nextOrigin.replace(/\/$/, "");
-    const relativePaths = [
-      "/api/auth/session",
-      "/api/workflows",
-      "/api/users",
-      "/workflows",
-      "/users",
-      "/login",
-      "/workflows/wf.hot-reload-probe",
-    ];
-    const timings: DevNextColdPathTiming[] = [];
-    for (const relativePath of relativePaths) {
-      const url = `${normalized}${relativePath}`;
-      const started = performance.now();
-      await this.waitUntilUrlReturnsHttpStatus(url);
-      timings.push({ path: relativePath, durationMs: Math.round(performance.now() - started) });
-    }
-    return timings;
-  }
-
-  private async waitUntilUrlReturnsHttpStatus(url: string): Promise<void> {
-    for (let attempt = 0; attempt < 200; attempt += 1) {
-      try {
-        const response = await fetch(url, { redirect: "manual" });
-        if (response.status > 0) {
-          return;
-        }
-      } catch {
-        // Next not accepting connections yet, or still compiling.
-      }
-      await delay(50);
-    }
-    throw new Error(`Timed out waiting for Next to respond at ${url}`);
   }
 
   /**
@@ -88,7 +94,7 @@ export class DevHttpProbe {
   async waitUntilBootstrapSummaryReady(gatewayBaseUrl: string): Promise<void> {
     const normalizedBase = gatewayBaseUrl.replace(/\/$/, "");
     const url = `${normalizedBase}/api/dev/bootstrap-summary`;
-    for (let attempt = 0; attempt < 200; attempt += 1) {
+    for (let attempt = 0; attempt < MAX_PROBE_ATTEMPTS; attempt += 1) {
       try {
         const response = await fetch(url);
         if (response.ok) {
@@ -97,7 +103,7 @@ export class DevHttpProbe {
       } catch {
         // Runtime child restarting or not listening yet.
       }
-      await delay(50);
+      await delay(PROBE_DELAY_MS);
     }
     throw new Error("Timed out waiting for dev runtime bootstrap summary.");
   }

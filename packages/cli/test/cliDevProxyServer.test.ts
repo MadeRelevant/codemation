@@ -380,7 +380,7 @@ test("dev socket clients receive broadcast build lifecycle payloads", async () =
 
   harness.proxyServer.broadcastBuildStarted();
   harness.proxyServer.broadcastBuildCompleted("build-42");
-  harness.proxyServer.broadcastBuildFailed("compile error");
+  harness.proxyServer.broadcastBuildFailed({ message: "compile error" });
 
   await waitFor(() => payloads.length >= 3);
   assert.equal(JSON.parse(payloads[0] ?? "{}").kind, "devBuildStarted");

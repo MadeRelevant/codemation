@@ -4,7 +4,7 @@ import type {
   TelemetryDashboardFiltersDto,
   TelemetryDashboardRunsRequestDto,
   TelemetryDashboardTimeseriesRequestDto,
-} from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+} from "@codemation/host/dto";
 import { useQuery } from "@tanstack/react-query";
 import { TelemetryDashboardApi } from "../lib/telemetryDashboardApi";
 import {

@@ -1,4 +1,4 @@
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import { ApiPaths } from "@codemation/host/client";
 
 import { CodemationRuntimeUrlResolver } from "../../../bootstrap/CodemationRuntimeUrlResolver";
 

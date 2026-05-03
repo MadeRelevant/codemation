@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { WorkflowCredentialHealthDto } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+import type { WorkflowCredentialHealthDto } from "@codemation/host/dto";
 import { ApiPaths } from "../../../host/src/presentation/http/ApiPaths";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";

@@ -32,7 +32,7 @@ export class DevSessionServicesBuilder {
       loopbackPortAllocator,
       new DevHttpProbe(),
       new NextHostEdgeSeedLoader(new CodemationConsumerConfigLoader(), consumerEnvLoader),
-      new DevNextHostEnvironmentBuilder(consumerEnvLoader, sourceMapNodeOptions, developmentConditionNodeOptions),
+      new DevNextHostEnvironmentBuilder(consumerEnvLoader, sourceMapNodeOptions),
       new NextHostPortAvailabilityGuard(portConflictDescriber),
       new WatchRootsResolver(),
       new DevSourceChangeClassifier(),

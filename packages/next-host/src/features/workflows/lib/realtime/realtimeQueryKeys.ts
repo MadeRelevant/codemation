@@ -15,3 +15,11 @@ export const credentialInstanceWithSecretsQueryKey = (instanceId: string) =>
 export const workflowCredentialHealthQueryKey = (workflowId: string) =>
   ["workflow-credential-health", workflowId] as const;
 export const userAccountsQueryKey = ["user-accounts"] as const;
+export const workflowTestSuiteRunsQueryKey = (workflowId: string) => ["workflow-test-suite-runs", workflowId] as const;
+export const testSuiteRunDetailQueryKey = (testSuiteRunId: string) =>
+  ["test-suite-run-detail", testSuiteRunId] as const;
+export const testSuiteRunAssertionsQueryKey = (testSuiteRunId: string) =>
+  ["test-suite-run-assertions", testSuiteRunId] as const;
+export const testSuiteRunChildRunsQueryKey = (testSuiteRunId: string) =>
+  ["test-suite-run-child-runs", testSuiteRunId] as const;
+export const runAssertionsQueryKey = (runId: string) => ["run-assertions", runId] as const;

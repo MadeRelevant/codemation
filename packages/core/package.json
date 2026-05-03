@@ -30,6 +30,10 @@
       "types": "./src/browser.ts",
       "import": "./src/browser.ts"
     },
+    "./contracts": {
+      "types": "./src/contracts.ts",
+      "import": "./src/contracts.ts"
+    },
     "./testing": {
       "types": "./dist/testing.d.ts",
       "development": {

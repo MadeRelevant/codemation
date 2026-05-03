@@ -23,7 +23,7 @@ test("DevSourceWatcher emits changes from an explicitly watched dist root", asyn
   await mkdir(distRoot, { recursive: true });
   await writeFile(watchedFile, "export default {};\n", "utf8");
 
-  const watcher = new DevSourceWatcher();
+  const watcher = new DevSourceWatcher({ startupGracePeriodMs: 0, debounceMs: 50 });
   let resolveChangedPaths: ((value: ReadonlyArray<string>) => void) | null = null;
   let rejectChangedPaths: ((reason?: unknown) => void) | null = null;
   const changedPathsPromise = new Promise<ReadonlyArray<string>>((resolve, reject) => {

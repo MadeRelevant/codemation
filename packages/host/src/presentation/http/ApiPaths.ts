@@ -37,6 +37,26 @@ export class ApiPaths {
     return `${this.workflow(workflowId)}/runs`;
   }
 
+  static workflowTestSuiteRuns(workflowId: string): string {
+    return `${this.workflow(workflowId)}/test-suite-runs`;
+  }
+
+  static testSuiteRun(testSuiteRunId: string): string {
+    return `${this.apiBasePath}/test-suite-runs/${encodeURIComponent(testSuiteRunId)}`;
+  }
+
+  static testSuiteRunAssertions(testSuiteRunId: string): string {
+    return `${this.testSuiteRun(testSuiteRunId)}/assertions`;
+  }
+
+  static testSuiteRunChildRuns(testSuiteRunId: string): string {
+    return `${this.testSuiteRun(testSuiteRunId)}/runs`;
+  }
+
+  static runAssertions(runId: string): string {
+    return `${this.runState(runId)}/assertions`;
+  }
+
   static workflowCredentialHealth(workflowId: string): string {
     return `${this.workflow(workflowId)}/credential-health`;
   }

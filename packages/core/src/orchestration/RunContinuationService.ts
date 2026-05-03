@@ -141,6 +141,7 @@ export class RunContinuationService {
       engineMaxSubworkflowDepth: limits.engineMaxSubworkflowDepth,
       data,
       nodeState: this.nodeStatePublisherFactory.create(state.runId, state.workflowId, state.parent),
+      testContext: state.executionOptions?.testContext,
     });
 
     data.setOutputs(args.nodeId, args.outputs);
@@ -755,6 +756,7 @@ export class RunContinuationService {
       engineMaxSubworkflowDepth: webhookLimits.engineMaxSubworkflowDepth,
       data,
       nodeState: this.nodeStatePublisherFactory.create(args.state.runId, args.state.workflowId, args.state.parent),
+      testContext: args.state.executionOptions?.testContext,
     });
     const request = this.nodeActivationRequestComposer.createFromPlannedActivation({
       next,
@@ -859,6 +861,7 @@ export class RunContinuationService {
       engineMaxSubworkflowDepth: limits.engineMaxSubworkflowDepth,
       data,
       nodeState: this.nodeStatePublisherFactory.create(state.runId, state.workflowId, state.parent),
+      testContext: state.executionOptions?.testContext,
     });
     const activationId = pendingExecution.activationId;
     return {

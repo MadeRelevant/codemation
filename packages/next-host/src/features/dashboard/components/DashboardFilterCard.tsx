@@ -1,6 +1,6 @@
 "use client";
 
-import type { TelemetryDashboardRunOriginDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import type { TelemetryDashboardRunOriginDto } from "@codemation/host/dto";
 import type { TelemetryDashboardTimePreset } from "../lib/TelemetryDashboardTimeRangeFactory";
 import { CalendarRange } from "lucide-react";
 import { Input } from "@/components/ui/input";

@@ -1,6 +1,6 @@
 "use client";
 
-import type { TelemetryDashboardRunsDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import type { TelemetryDashboardRunsDto } from "@codemation/host/dto";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

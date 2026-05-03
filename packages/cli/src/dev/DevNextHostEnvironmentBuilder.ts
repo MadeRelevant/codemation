@@ -2,14 +2,12 @@ import path from "node:path";
 import process from "node:process";
 
 import { ConsumerEnvLoader } from "../consumer/ConsumerEnvLoader";
-import { DevelopmentConditionNodeOptions } from "../runtime/DevelopmentConditionNodeOptions";
 import { SourceMapNodeOptions } from "../runtime/SourceMapNodeOptions";
 
 export class DevNextHostEnvironmentBuilder {
   constructor(
     private readonly consumerEnvLoader: ConsumerEnvLoader,
     private readonly sourceMapNodeOptions: SourceMapNodeOptions,
-    private readonly developmentConditionNodeOptions: DevelopmentConditionNodeOptions,
   ) {}
 
   buildConsumerUiProxy(
@@ -83,9 +81,16 @@ export class DevNextHostEnvironmentBuilder {
       NEXT_PUBLIC_CODEMATION_WS_PORT: String(args.websocketPort),
       CODEMATION_DEV_SERVER_TOKEN: args.developmentServerToken,
       CODEMATION_SKIP_STARTUP_MIGRATIONS: "true",
-      NODE_OPTIONS: this.developmentConditionNodeOptions.appendToNodeOptions(
-        this.sourceMapNodeOptions.appendToNodeOptions(process.env.NODE_OPTIONS),
-      ),
+      // NOTE: deliberately NOT adding `--conditions=development` to Next's NODE_OPTIONS.
+      // That condition makes package.json `exports` resolve `@codemation/core` /
+      // `@codemation/host` to their *TypeScript source* (the full `src/index.ts` barrels);
+      // combined with `transpilePackages` in `next.config.ts`, Turbopack then walks the entire
+      // core + host source tree to compile any UI route, peaking at ~5 GB RSS on the workflow
+      // detail page and OOM-killing next-server on 8-GB WSL boxes. The disposable runtime
+      // child still gets `--conditions=development` (set in DevCommand.createRuntime), so
+      // consumer-source edits to workflows / plugins still hot-reload via the runtime swap.
+      // UI-side packages now resolve to their compiled `dist/` output.
+      NODE_OPTIONS: this.sourceMapNodeOptions.appendToNodeOptions(process.env.NODE_OPTIONS),
       WS_NO_BUFFER_UTIL: "1",
       WS_NO_UTF_8_VALIDATE: "1",
       // Better Auth cannot infer its base URL reliably in monorepo dev; set a deterministic loopback URL.

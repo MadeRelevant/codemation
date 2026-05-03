@@ -459,7 +459,10 @@ export default [
       "**/.next/**",
       "**/node_modules/**",
       // Generated Prisma client ships .js artifacts; do not lint with TS-oriented rules.
+      // Phase 1.1 moved the generated clients out of `host/src/infrastructure/persistence/generated/`
+      // into `packages/host/prisma-generated/`. Keep the old pattern for safety, add the new one.
       "**/infrastructure/persistence/generated/**",
+      "**/prisma-generated/**",
       "**/.codemation/**",
     ],
   },
@@ -885,6 +888,52 @@ export default [
         },
       ],
       "codemation/no-native-tooltip-title-attribute": "error",
+    },
+  },
+
+  // Phase 1 architectural invariants: next-host must use slim subpath exports, not root barrels or internal paths.
+  {
+    files: ["packages/next-host/src/**/*.{ts,tsx}"],
+    ignores: ["packages/next-host/src/server/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@codemation/host-src/*"],
+              message:
+                "Do not import @codemation/host-src/*. Use slim @codemation/host/<subpath> exports (e.g., @codemation/host/dto, @codemation/host/client, @codemation/host/mapping) instead. See Phase 1.2 in CLAUDE.md.",
+            },
+            {
+              group: ["@codemation/host"],
+              importNames: ["*"],
+              message:
+                "Do not import from the root @codemation/host barrel. Use slim subpath exports like @codemation/host/dto, @codemation/host/client, @codemation/host/mapping, or @codemation/host/credentials. See Phase 1.2 in CLAUDE.md.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // Generated Prisma clients are private to host infrastructure persistence layer.
+  {
+    files: ["packages/**/*.{ts,tsx}"],
+    ignores: ["packages/host/src/infrastructure/persistence/**", "**/test/**", "**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/prisma-generated/**"],
+              message:
+                "Generated Prisma clients (prisma-generated/*) are private to @codemation/host infrastructure. Import types from @codemation/host/persistence if needed for public contracts.",
+            },
+          ],
+        },
+      ],
     },
   },
 ];

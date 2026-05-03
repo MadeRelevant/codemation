@@ -212,6 +212,16 @@ This gives high-signal coverage without fragile mocks.
 - Provide at least one unit test for the node behavior (prefer in-memory deps).
 - For **`defineNode(...)`** plugins, set optional **`icon`** on the definition so the workflow canvas can show a glyph (same string contract as **`NodeConfigBase.icon`**: Lucide `lucide:…`, shipped **`builtin:…`** SVGs, **`si:…`**, or image URLs). Implement **`executeOne`** (not batch **`run`**); use **`defineBatchNode`** only when the node must process the activation batch as a whole.
 
+## Cross-package imports
+
+Strict import discipline prevents bundle bloat and maintains architectural boundaries.
+
+- **Always import via published subpath exports**: Use `@codemation/host/dto`, `@codemation/host/client`, `@codemation/host/mapping`, `@codemation/host/credentials`, etc. Never use internal paths like `@codemation/host-src/*` or the root barrel `@codemation/host` (except in **composition root** files like `AppContainerFactory`). Root barrel re-exports pull entire dependency graphs (Prisma, Hono, node catalog) into client bundles. Workflow detail page SSR Turbopack RSS dropped from 5.25 GB to 2.7 GB after Phase 1 cleanup—this discipline has measurable impact.
+- **Generated Prisma clients stay private**: `packages/host/prisma-generated/*` clients are internal to persistence infrastructure. Do not import them outside `packages/host/src/infrastructure/persistence/`. Use `@codemation/host/persistence` interfaces if app code needs to reference database schemas.
+- **Adding new symbols to `@codemation/host` or `@codemation/core`?** Choose the appropriate slim subpath export and add the symbol there, not the root barrel. If unsure, ask in review or consider whether it's truly public API.
+
+ESLint (`no-restricted-imports`) and dependency-cruiser rules enforce these boundaries in CI.
+
 ## `@codemation/host` package exports
 
 The package exposes **multiple subpath entry points** on purpose:

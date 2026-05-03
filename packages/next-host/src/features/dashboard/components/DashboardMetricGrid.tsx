@@ -1,6 +1,6 @@
 "use client";
 
-import type { TelemetryDashboardSummaryDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import type { TelemetryDashboardSummaryDto } from "@codemation/host/dto";
 import { DashboardAiUsageSummaryCard } from "./DashboardAiUsageSummaryCard";
 import { DashboardRunSummaryCard } from "./DashboardRunSummaryCard";
 

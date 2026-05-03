@@ -1,6 +1,6 @@
 import { ItemsInputNormalizer, RunFinishedAtFactory } from "@codemation/core/browser";
-import type { WorkflowCredentialHealthSlotDto } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import type { WorkflowCredentialHealthSlotDto } from "@codemation/host/dto";
+import { ApiPaths } from "@codemation/host/client";
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { format, isToday, isYesterday } from "date-fns";
 import prettyMilliseconds from "pretty-ms";
@@ -485,6 +485,10 @@ export class WorkflowDetailPresenter {
   static getExecutionModeLabel(
     run: Pick<RunSummary, "executionOptions"> | Pick<PersistedRunState, "executionOptions"> | undefined,
   ): string | null {
+    // testContext takes precedence over `mode` — a run can have `mode: "manual"` AND a
+    // testContext if a manual one-off test was kicked off, but the user wants to see TEST.
+    if (run?.executionOptions?.testContext) return "Test";
+    if (run?.executionOptions?.webhook) return "Webhook";
     const mode = run?.executionOptions?.mode;
     if (mode === "manual") return "Manual";
     if (mode === "debug") return "Debug";

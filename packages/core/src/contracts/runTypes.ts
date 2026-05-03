@@ -20,6 +20,23 @@ import type {
   WorkflowNodeConnection,
 } from "./workflowTypes";
 
+/**
+ * Test-suite linkage for a run. When set, this run was started by a TestSuiteOrchestrator
+ * as one test case inside a TestSuiteRun. The `IsTestRun` node and host-side persisters key
+ * off the presence of this field. Subworkflow runs inherit it from their parent run.
+ */
+export interface RunTestContext {
+  readonly testSuiteRunId: string;
+  readonly testCaseIndex: number;
+  /**
+   * Optional human-friendly label for this test case (e.g. an email subject when fixtures
+   * are loaded from a mailbox). Resolved per item by `TestTrigger.caseLabel(item)` if set,
+   * persisted on `Run.test_case_label` so the Tests-tab tree-table can show "RFQ for batch 14"
+   * instead of "run_1777755971399_bbb86beac1396".
+   */
+  readonly testCaseLabel?: string;
+}
+
 export interface RunExecutionOptions {
   /** Run-intent override: force the inline scheduler and bypass node-level offload decisions. */
   localOnly?: boolean;
@@ -36,6 +53,8 @@ export interface RunExecutionOptions {
   maxNodeActivations?: number;
   /** Effective cap after engine policy merge (subworkflow nesting). */
   maxSubworkflowDepth?: number;
+  /** Present iff started by a TestSuiteOrchestrator; propagates to subworkflow runs via {@link ParentExecutionRef.testContext}. */
+  testContext?: RunTestContext;
 }
 
 /** Engine-owned counters persisted with the run (worker-safe). */

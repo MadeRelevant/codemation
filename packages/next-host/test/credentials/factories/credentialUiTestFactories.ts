@@ -1,8 +1,5 @@
 import type { CredentialFieldSchema, CredentialTypeDefinition } from "@codemation/core/browser";
-import type {
-  WorkflowCredentialHealthDto,
-  WorkflowCredentialHealthSlotDto,
-} from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+import type { WorkflowCredentialHealthDto, WorkflowCredentialHealthSlotDto } from "@codemation/host/dto";
 
 import type { CredentialInstanceDto } from "../../../src/features/workflows/hooks/realtime/realtime";
 import type { CredentialDialogOrderedField } from "../../../src/features/credentials/components/CredentialDialogFieldRowEntry";

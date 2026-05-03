@@ -1,4 +1,4 @@
-import type { UserAccountStatus } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
+import type { UserAccountStatus } from "@codemation/host/dto";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";

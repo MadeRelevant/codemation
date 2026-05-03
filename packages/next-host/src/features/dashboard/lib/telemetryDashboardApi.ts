@@ -6,8 +6,8 @@ import type {
   TelemetryDashboardSummaryDto,
   TelemetryDashboardTimeseriesRequestDto,
   TelemetryDashboardTimeseriesDto,
-} from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+} from "@codemation/host/dto";
+import { ApiPaths } from "@codemation/host/client";
 import { codemationApiClient } from "../../../api/CodemationApiClient";
 
 export class TelemetryDashboardApi {

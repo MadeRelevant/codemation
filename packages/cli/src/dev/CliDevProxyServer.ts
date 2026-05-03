@@ -14,7 +14,7 @@ type ProxyRuntimeTarget = Readonly<{
   workflowWebSocketPort: number;
 }>;
 
-type BuildStatus = "idle" | "building";
+type BuildStatus = "idle" | "building" | "errored";
 
 export class CliDevProxyServer {
   private readonly proxy = httpProxy.createProxyServer({ ws: true, xfwd: true });
@@ -126,12 +126,19 @@ export class CliDevProxyServer {
     }));
   }
 
-  broadcastBuildFailed(message: string): void {
-    this.broadcastDev({ kind: "devBuildFailed", message });
+  broadcastBuildFailed(
+    error: Readonly<{
+      message: string;
+      file?: string;
+      line?: number;
+      column?: number;
+    }>,
+  ): void {
+    this.broadcastDev({ kind: "devBuildFailed", ...error });
     this.broadcastWorkflowLifecycleToSubscribedRooms((roomId: string) => ({
       kind: "devBuildFailed",
       workflowId: roomId,
-      message,
+      ...error,
     }));
   }
 
@@ -176,9 +183,10 @@ export class CliDevProxyServer {
         });
         return;
       }
-      if (this.activeBuildStatus === "building" || !runtimeTarget) {
+      if (this.activeBuildStatus === "building" || this.activeBuildStatus === "errored" || !runtimeTarget) {
         res.writeHead(503, { "content-type": "text/plain" });
-        res.end("Runtime is rebuilding.");
+        const message = this.activeBuildStatus === "errored" ? "Build failed." : "Runtime is rebuilding.";
+        res.end(message);
         return;
       }
       this.proxy.web(req, res, {

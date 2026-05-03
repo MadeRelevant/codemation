@@ -15,6 +15,14 @@ export type WorkflowNodeDto = Readonly<{
   /** Declared I/O ports from node config (unioned with ports inferred from edges on the canvas). */
   declaredOutputPorts?: ReadonlyArray<string>;
   declaredInputPorts?: ReadonlyArray<string>;
+  /** When `kind === "trigger"`, distinguishes a live trigger from a TestTrigger. */
+  triggerKind?: "live" | "test";
+  /**
+   * Author-supplied description (when present on the node config). Surfaced in the node
+   * properties panel so authors revisiting a TestTrigger six months later remember which
+   * mailbox / fixture file / data source the test cases originate from.
+   */
+  description?: string;
 }>;
 
 export type WorkflowEdgeDto = Readonly<{

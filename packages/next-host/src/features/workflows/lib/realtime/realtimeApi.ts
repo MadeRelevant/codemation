@@ -3,13 +3,10 @@ import type {
   CredentialInstanceDto,
   CredentialInstanceWithSecretsDto,
   WorkflowCredentialHealthDto,
-} from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
-import {
-  withUserAccountLoginMethodsDefaults,
-  type UserAccountDto,
-} from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
-import type { WorkflowDto, WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+} from "@codemation/host/dto";
+import { withUserAccountLoginMethodsDefaults, type UserAccountDto } from "@codemation/host/dto";
+import type { WorkflowDto, WorkflowSummary } from "@codemation/host/dto";
+import { ApiPaths } from "@codemation/host/client";
 
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 
@@ -97,4 +94,58 @@ export async function fetchWorkflowCredentialHealth(workflowId: string): Promise
 export async function fetchUserAccounts(): Promise<ReadonlyArray<UserAccountDto>> {
   const rows = await codemationApiClient.getJson<ReadonlyArray<UserAccountDto>>(ApiPaths.users());
   return rows.map((u) => withUserAccountLoginMethodsDefaults(u));
+}
+
+import type {
+  StartTestSuiteRunRequest,
+  StartTestSuiteRunResponse,
+  TestAssertionDto,
+  TestSuiteChildRunDto,
+  TestSuiteRunDetailDto,
+  TestSuiteRunSummaryDto,
+} from "@codemation/host/dto";
+
+export type {
+  StartTestSuiteRunRequest,
+  StartTestSuiteRunResponse,
+  TestAssertionDto,
+  TestSuiteChildRunDto,
+  TestSuiteRunDetailDto,
+  TestSuiteRunSummaryDto,
+};
+
+export async function fetchWorkflowTestSuiteRuns(workflowId: string): Promise<ReadonlyArray<TestSuiteRunSummaryDto>> {
+  return await codemationApiClient.getJson<ReadonlyArray<TestSuiteRunSummaryDto>>(
+    ApiPaths.workflowTestSuiteRuns(workflowId),
+  );
+}
+
+export async function fetchTestSuiteRunDetail(testSuiteRunId: string): Promise<TestSuiteRunDetailDto> {
+  return await codemationApiClient.getJson<TestSuiteRunDetailDto>(ApiPaths.testSuiteRun(testSuiteRunId));
+}
+
+export async function fetchTestSuiteRunAssertions(testSuiteRunId: string): Promise<ReadonlyArray<TestAssertionDto>> {
+  return await codemationApiClient.getJson<ReadonlyArray<TestAssertionDto>>(
+    ApiPaths.testSuiteRunAssertions(testSuiteRunId),
+  );
+}
+
+export async function fetchRunAssertions(runId: string): Promise<ReadonlyArray<TestAssertionDto>> {
+  return await codemationApiClient.getJson<ReadonlyArray<TestAssertionDto>>(ApiPaths.runAssertions(runId));
+}
+
+export async function fetchTestSuiteRunChildRuns(testSuiteRunId: string): Promise<ReadonlyArray<TestSuiteChildRunDto>> {
+  return await codemationApiClient.getJson<ReadonlyArray<TestSuiteChildRunDto>>(
+    ApiPaths.testSuiteRunChildRuns(testSuiteRunId),
+  );
+}
+
+export async function postStartTestSuiteRun(
+  workflowId: string,
+  body: StartTestSuiteRunRequest,
+): Promise<StartTestSuiteRunResponse> {
+  return await codemationApiClient.postJson<StartTestSuiteRunResponse>(
+    ApiPaths.workflowTestSuiteRuns(workflowId),
+    body,
+  );
 }

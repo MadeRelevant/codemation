@@ -1,6 +1,6 @@
 "use client";
 
-import type { TelemetryDashboardSummaryDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import type { TelemetryDashboardSummaryDto } from "@codemation/host/dto";
 import { Bot, DatabaseZap, Sparkles, WandSparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

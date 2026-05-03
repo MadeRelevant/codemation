@@ -33,6 +33,13 @@ Do not use this skill for pure workflow chaining questions unless the node imple
 
 For engine-backed tests without the host, use **`WorkflowTestKit`** from **`@codemation/core/testing`**: **`registerDefinedNodes([...])`**, then **`runNode`** or **`run`**. See the plugin development doc and `@codemation/core` tests for examples.
 
+## Custom assertion + test nodes
+
+When building **assertion** nodes that should record results into the framework's TestSuiteRun infrastructure, set **`emitsAssertions: true`** on the node config. The host's `TestSuiteRunTracker` listens for `nodeCompleted` events from runs with `ctx.testContext` set and persists each emitted item (matching the `AssertionResult` shape) as a `TestAssertion` row. Drop in a `defineNode` with a per-item `execute` that returns `AssertionResult[]` and you're done — no service injection required.
+
+Custom **per-item nodes** can also read **`ctx.testContext?.{testSuiteRunId, testCaseIndex}`** to branch on test mode without an `IsTestRun` upstream — useful for synthetic outputs or skipping irreversible side effects when running tests.
+
 ## Read next when needed
 
 - Read `references/node-patterns.md` for `defineNode(...)` patterns and packaging guidance.
+- Use the `codemation-workflow-dsl` skill's `references/workflow-testing.md` for the full TestTrigger / IsTestRun / Assertion authoring story.

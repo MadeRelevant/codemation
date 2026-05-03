@@ -128,6 +128,11 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
         });
         continue;
       }
+      const triggerKind =
+        node.kind === "trigger"
+          ? ((node.config as { triggerKind?: "live" | "test" }).triggerKind ?? "live")
+          : undefined;
+      const description = (node.config as { description?: string }).description;
       nodes.push({
         id: node.id,
         kind: node.kind,
@@ -138,6 +143,8 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
         retryPolicySummary: this.policyUi.nodeRetrySummary(node.config),
         hasNodeErrorHandler: this.policyUi.nodeHasErrorHandler(node.config),
         ...this.nodePortFieldsFromConfig(node.config),
+        ...(triggerKind ? { triggerKind } : {}),
+        ...(typeof description === "string" && description.trim().length > 0 ? { description } : {}),
       });
       if (AgentConfigInspector.isAgentNodeConfig(node.config)) {
         this.appendVirtualConnectionNodes(

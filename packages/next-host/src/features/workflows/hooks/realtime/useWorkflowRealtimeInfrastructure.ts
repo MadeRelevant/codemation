@@ -1,10 +1,15 @@
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
-import type { Logger } from "@codemation/host-src/application/logging/Logger";
+import { ApiPaths } from "@codemation/host/client";
+import type { Logger } from "@codemation/host/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { RealtimeContextValue } from "../../components/realtime/RealtimeContext";
 import { applyWorkflowEvent } from "../../lib/realtime/realtimeRunMutations";
+import {
+  applyRunEventForTestSuite,
+  applyTestSuiteEvent,
+  isTestSuiteRealtimeEvent,
+} from "../../lib/realtime/realtimeTestSuiteMutations";
 import {
   getRealtimeBridge,
   minimumRealtimeActiveVisibilityMs,
@@ -41,7 +46,15 @@ export function useWorkflowRealtimeInfrastructure(
   const hasLoggedUnavailableTransportRef = useRef(false);
   const hasLoggedPersistentTransportUnavailableRef = useRef(false);
   const pendingDisconnectReasonRef = useRef<string | null>(null);
+  const buildStateLastChangedAtRef = useRef<number>(Date.now());
   const [readyState, setReadyState] = useState<RealtimeReadyValue>(RealtimeReadyState.UNINSTANTIATED);
+  const [buildState, setBuildState] = useState<"idle" | "building" | "errored">("idle");
+  const [lastBuildError, setLastBuildError] = useState<{
+    message: string;
+    file?: string;
+    line?: number;
+    column?: number;
+  } | null>(null);
   const sendJsonMessageRef = useRef<(message: RealtimeClientMessage) => boolean>(() => false);
   const [, setActiveWorkflowIds] = useState<ReadonlyArray<string>>([]);
   const websocketUrl = useMemo(() => {
@@ -180,6 +193,14 @@ export function useWorkflowRealtimeInfrastructure(
           logger.info(`realtime snapshot event node=${message.event.snapshot.nodeId} kind=${message.event.kind}`);
         }
         logger.debug(`received websocket event ${message.event.kind}:${message.event.workflowId}${eventDetails}`);
+        // Test-suite lifecycle events (testSuiteStarted/testCaseStarted/testCaseCompleted/
+        // testSuiteFinished) feed the Tests tab queries. Other run-level events (nodeCompleted,
+        // runSaved) also nudge the Tests tab if the run is part of a tracked test suite.
+        if (isTestSuiteRealtimeEvent(message.event)) {
+          applyTestSuiteEvent(queryClient, message.event);
+          return;
+        }
+        applyRunEventForTestSuite(queryClient, message.event as { kind: string; runId?: string });
         if (message.event.kind === "runSaved") {
           clearRunRealtimeDelays(message.event.runId);
           applyWorkflowEvent(queryClient, message.event);
@@ -466,8 +487,22 @@ export function useWorkflowRealtimeInfrastructure(
         return;
       }
       try {
-        const parsed = JSON.parse(event.data) as { kind?: string; message?: string };
+        const parsed = JSON.parse(event.data) as {
+          kind?: string;
+          message?: string;
+          file?: string;
+          line?: number;
+          column?: number;
+        };
+        if (parsed.kind === "devBuildStarted") {
+          buildStateLastChangedAtRef.current = Date.now();
+          setBuildState("building");
+          setLastBuildError(null);
+        }
         if (parsed.kind === "devBuildCompleted") {
+          buildStateLastChangedAtRef.current = Date.now();
+          setBuildState("idle");
+          setLastBuildError(null);
           void queryClient.invalidateQueries({ queryKey: workflowsQueryKey });
           void queryClient.invalidateQueries({
             predicate: (q) =>
@@ -484,6 +519,14 @@ export function useWorkflowRealtimeInfrastructure(
           }
         }
         if (parsed.kind === "devBuildFailed" && typeof parsed.message === "string") {
+          buildStateLastChangedAtRef.current = Date.now();
+          setBuildState("errored");
+          setLastBuildError({
+            message: parsed.message,
+            ...(parsed.file ? { file: parsed.file } : {}),
+            ...(typeof parsed.line === "number" ? { line: parsed.line } : {}),
+            ...(typeof parsed.column === "number" ? { column: parsed.column } : {}),
+          });
           logger.error(`consumer rebuild failed: ${parsed.message}`);
         }
       } catch {
@@ -583,8 +626,12 @@ export function useWorkflowRealtimeInfrastructure(
       retainWorkflowSubscription,
       isConnected: readyState === RealtimeReadyState.OPEN,
       showDisconnectedBadge: readyState === RealtimeReadyState.CLOSED,
+      readyState,
+      buildState,
+      lastBuildError,
+      buildStateLastChangedAt: buildStateLastChangedAtRef.current,
     }),
-    [readyState, retainWorkflowSubscription],
+    [buildState, lastBuildError, readyState, retainWorkflowSubscription],
   );
 
   useEffect(() => {

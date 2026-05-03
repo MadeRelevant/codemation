@@ -17,7 +17,7 @@ import type {
   TelemetryDashboardBucketIntervalDto,
   TelemetryDashboardFiltersDto,
   TelemetryDashboardTimeseriesRequestDto,
-} from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+} from "@codemation/host/dto";
 
 export type TelemetryDashboardTimePreset =
   | "last_5_minutes"

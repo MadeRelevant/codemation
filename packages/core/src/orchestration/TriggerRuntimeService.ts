@@ -124,6 +124,7 @@ export class TriggerRuntimeService {
   private async startTriggersForWorkflow(wf: WorkflowDefinition): Promise<void> {
     for (const def of wf.nodes) {
       if (def.kind !== "trigger") continue;
+      if ((def.config as TriggerNodeConfig).triggerKind === "test") continue;
       const node = this.nodeResolver.resolve(def.type) as TriggerNode;
       const data = this.runDataFactory.create();
       const triggerRunId = this.runIdFactory.makeRunId();
@@ -170,6 +171,9 @@ export class TriggerRuntimeService {
   private async stopTriggersForWorkflow(workflow: WorkflowDefinition): Promise<void> {
     for (const node of workflow.nodes) {
       if (node.kind !== "trigger") {
+        continue;
+      }
+      if ((node.config as TriggerNodeConfig).triggerKind === "test") {
         continue;
       }
       await this.stopTrigger({
@@ -224,6 +228,9 @@ export class TriggerRuntimeService {
     const out: string[] = [];
     for (const def of wf.nodes) {
       if (def.kind !== "trigger") {
+        continue;
+      }
+      if ((def.config as TriggerNodeConfig).triggerKind === "test") {
         continue;
       }
       out.push(this.describeTriggerNode(def));

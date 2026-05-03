@@ -49,6 +49,19 @@ Do not use this skill for CLI-only troubleshooting or deep host architecture que
 - Use fluent `.map((item, ctx) => ...)` when workflow data itself needs reshaping before the agent step.
 - `model` may be a provider string such as `"openai:gpt-4o-mini"` or a `ChatModelConfig`.
 
+## Workflow testing nodes
+
+Codemation ships first-class **workflow tests**: each test case is one full workflow run, persisted with assertion records. Three nodes from `@codemation/core-nodes`:
+
+1. **`TestTrigger`** — drop alongside live triggers. Author callback `generateItems(ctx)` returns an `AsyncIterable<Item>`; the orchestrator dispatches one workflow run per yielded item with `executionOptions.testContext` set. `triggerKind: "test"` is set automatically — live activation skips it.
+2. **`IsTestRun`** — per-item router with `true` / `false` ports. Routes `true` iff `ctx.testContext` is set. Use it to skip side-effects in tests (don't actually send a real reply).
+3. **`Assertion`** — generic callback emitter; returns `AssertionResult[]`. Each result becomes one emitted item on `main` and one persisted `TestAssertion` row when running inside a test. Sets `emitsAssertions: true` so the host persister identifies it.
+
+Authors invoke a TestSuiteRun from the canvas **Tests tab** or via `POST /api/workflows/:id/test-suite-runs`. The orchestrator caps concurrency (default 4, configurable per trigger) and aggregates results into `succeeded | failed | partial | cancelled | errored`.
+
+Custom nodes can also read `ctx.testContext?.{testSuiteRunId, testCaseIndex}` directly — useful for synthetic outputs in test mode without `IsTestRun` branching.
+
 ## Read next when needed
 
 - Read `references/builder-patterns.md` for item-flow rules and fluent authoring patterns.
+- Read `references/workflow-testing.md` for TestTrigger / IsTestRun / Assertion authoring with full examples.

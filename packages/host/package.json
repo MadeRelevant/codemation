@@ -38,6 +38,20 @@
       },
       "import": "./dist/client.js"
     },
+    "./dto": {
+      "types": "./dist/dto.d.ts",
+      "development": {
+        "import": "./src/dto.ts"
+      },
+      "import": "./dist/dto.js"
+    },
+    "./mapping": {
+      "types": "./dist/mapping.d.ts",
+      "development": {
+        "import": "./src/mapping.ts"
+      },
+      "import": "./dist/mapping.js"
+    },
     "./credentials": {
       "types": "./dist/credentials.d.ts",
       "development": {
@@ -85,8 +99,8 @@
   "scripts": {
     "changeset:verify": "pnpm --workspace-root run changeset:verify",
     "prisma:generate": "node ./scripts/generate-prisma-clients.mjs && node ./scripts/ensure-prisma-runtime-sourcemaps.mjs",
-    "build": "tsdown src/index.ts src/authoring.ts src/client.ts src/credentials.ts src/consumer.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap",
-    "dev": "tsdown src/index.ts src/authoring.ts src/client.ts src/credentials.ts src/consumer.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap --watch",
+    "build": "tsdown src/index.ts src/authoring.ts src/client.ts src/credentials.ts src/consumer.ts src/dto.ts src/mapping.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap",
+    "dev": "tsdown src/index.ts src/authoring.ts src/client.ts src/credentials.ts src/consumer.ts src/dto.ts src/mapping.ts src/nextServer.ts src/server.ts src/devServerSidecar.ts src/persistenceServer.ts --out-dir dist --sourcemap --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "pnpm -w exec concurrently -m 5 -c auto -n unit,integration,ui,browser,e2e \"pnpm run test:unit\" \"pnpm run test:integration\" \"pnpm run test:ui\" \"pnpm run test:browser\" \"pnpm run test:e2e\"",

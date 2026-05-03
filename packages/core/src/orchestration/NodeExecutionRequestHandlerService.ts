@@ -77,6 +77,7 @@ export class NodeExecutionRequestHandlerService implements NodeExecutionRequestH
       engineMaxSubworkflowDepth: limits.engineMaxSubworkflowDepth,
       data,
       nodeState: this.nodeStatePublisherFactory.create(state.runId, state.workflowId, resolvedParent),
+      testContext: state.executionOptions?.testContext,
     });
 
     const inputsByPort = pendingExecution.inputsByPort;

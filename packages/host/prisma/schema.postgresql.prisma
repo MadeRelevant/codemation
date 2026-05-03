@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/infrastructure/persistence/generated/prisma-postgresql-client"
+  output   = "../prisma-generated/prisma-postgresql-client"
 }
 
 datasource db {
@@ -23,12 +23,18 @@ model Run {
   mutableStateJson     String? @map("mutable_state_json")
   outputsByNodeJson    String  @map("outputs_by_node_json")
   updatedAt            String  @map("updated_at")
+  testSuiteRunId       String? @map("test_suite_run_id")
+  testCaseIndex        Int?    @map("test_case_index")
+  testCaseLabel        String? @map("test_case_label")
 
   workItems          RunWorkItem[]
   executionInstances ExecutionInstance[]
   slotProjection     RunSlotProjection?
+  testSuiteRun       TestSuiteRun? @relation(fields: [testSuiteRunId], references: [id])
+  testAssertions     TestAssertion[]
   @@index([workflowId, startedAt])
   @@index([workflowId, status, finishedAt])
+  @@index([testSuiteRunId, testCaseIndex])
 }
 
 model RunWorkItem {
@@ -118,6 +124,62 @@ model RunSlotProjection {
   run Run @relation(fields: [runId], references: [runId], onDelete: Cascade)
 
   @@index([workflowId, updatedAt])
+}
+
+/// One execution of a TestTrigger node — orchestrator fans one Run per yielded test-case item.
+/// `triggerNodeId` is *not* a foreign key — workflows live in code, not in DB. `triggerNodeName`
+/// is snapshotted so historical viewing survives renames/deletions of the trigger node.
+model TestSuiteRun {
+  id                String  @id
+  workflowId        String  @map("workflow_id")
+  triggerNodeId     String  @map("trigger_node_id")
+  triggerNodeName   String? @map("trigger_node_name")
+  status            String
+  concurrency       Int
+  startedAt         String  @map("started_at")
+  finishedAt        String? @map("finished_at")
+  totalCases        Int     @default(0) @map("total_cases")
+  passedCases       Int     @default(0) @map("passed_cases")
+  failedCases       Int     @default(0) @map("failed_cases")
+  /// Set of nodeIds executed across all child Runs in this suite (JSON array of strings).
+  nodeCoverageJson  String? @map("node_coverage_json")
+  errorMessage      String? @map("error_message")
+  updatedAt         String  @map("updated_at")
+
+  runs       Run[]
+  assertions TestAssertion[]
+
+  @@index([workflowId, startedAt])
+  @@index([workflowId, triggerNodeId, startedAt])
+  @@index([status, finishedAt])
+}
+
+/// One assertion record persisted by the host-side TestAssertionPersister whenever a node with
+/// `emitsAssertions: true` completes inside a test-context run. Each assertion item emitted on
+/// `main` becomes one row.
+model TestAssertion {
+  id                  String  @id
+  runId               String  @map("run_id")
+  testSuiteRunId      String  @map("test_suite_run_id")
+  workflowId          String  @map("workflow_id")
+  nodeId              String  @map("node_id")
+  iterationId         String? @map("iteration_id")
+  itemIndex           Int?    @map("item_index")
+  name                String
+  status              String
+  score               Float?
+  expectedJson        String? @map("expected_json")
+  actualJson          String? @map("actual_json")
+  message             String?
+  detailsJson         String? @map("details_json")
+  createdAt           String  @map("created_at")
+
+  run          Run          @relation(fields: [runId], references: [runId], onDelete: Cascade)
+  testSuiteRun TestSuiteRun @relation(fields: [testSuiteRunId], references: [id], onDelete: Cascade)
+
+  @@index([testSuiteRunId, createdAt])
+  @@index([runId, createdAt])
+  @@index([nodeId])
 }
 
 model WorkflowDebuggerOverlay {

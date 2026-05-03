@@ -210,7 +210,15 @@ function mergeSnapshotIntoRunState(
 }
 
 export function applyWorkflowEvent(queryClient: QueryClient, event: WorkflowEvent): void {
-  const key = runQueryKey(event.runId);
+  // Suite-level test events (`testSuiteStarted`, `testSuiteFinished`) carry `testSuiteRunId`
+  // and `workflowId` but no `runId` — they describe the SUITE, not a specific child run, so
+  // ignore them here and let the Tests-tab queries pick them up. (The per-case `testCaseStarted`
+  // / `testCaseCompleted` events DO have `runId` and flow through normally.)
+  const eventRunId = (event as { runId?: string }).runId;
+  if (typeof eventRunId !== "string" || eventRunId.length === 0) {
+    return;
+  }
+  const key = runQueryKey(eventRunId);
   const runsKey = workflowRunsQueryKey(event.workflowId);
 
   if (event.kind === "runCreated") {

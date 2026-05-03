@@ -185,7 +185,8 @@ class WorkflowWebsocketCaptureClient {
 
   getRunEvents(runId: string): ReadonlyArray<CapturedWorkflowEventMessage> {
     return this.messages.filter(
-      (message): message is CapturedWorkflowEventMessage => message.kind === "event" && message.event.runId === runId,
+      (message): message is CapturedWorkflowEventMessage =>
+        message.kind === "event" && "runId" in message.event && message.event.runId === runId,
     );
   }
 
