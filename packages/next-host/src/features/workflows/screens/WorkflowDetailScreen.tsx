@@ -17,6 +17,8 @@ import { WorkflowDetailScreenInspectorPanel } from "./WorkflowDetailScreenInspec
 import { useWorkflowDetailChromeDispatch } from "../../../shell/WorkflowDetailChromeContext";
 import { useWorkflowRealtimeBadgeState } from "../hooks/realtime/useWorkflowRealtimeShowDisconnectedBadge";
 import { resolveWorkflowRealtimeBadge } from "./workflowDetailScreenRealtimeBadge";
+import { WorkflowCanvasRunButton } from "../components/workflowDetail/WorkflowCanvasRunButton";
+import { useWorkflowCanvasRunButton } from "../hooks/useWorkflowCanvasRunButton";
 
 // Lazy-load Tests view (recharts + test-suite component tree) and JSON editor (Monaco).
 // Both are conditionally rendered and would otherwise dominate Turbopack's module work for
@@ -39,10 +41,24 @@ const WorkflowJsonEditorDialog = dynamic(
 export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initialWorkflow?: WorkflowDto }>) {
   const controller = useWorkflowDetailController(args);
   const [isTestsViewActive, setIsTestsViewActive] = useState(false);
+  const [autoStartTestTriggerNodeId, setAutoStartTestTriggerNodeId] = useState<string | undefined>();
   const workflowNodes = controller.displayedWorkflow?.nodes ?? [];
   const setChrome = useWorkflowDetailChromeDispatch();
   const controllerRef = useRef(controller);
   controllerRef.current = controller;
+
+  const handleRunTestTrigger = (nodeId: string) => {
+    setAutoStartTestTriggerNodeId(nodeId);
+    setIsTestsViewActive(true);
+  };
+
+  const runButtonState = useWorkflowCanvasRunButton({
+    workflowId: args.workflowId,
+    workflowNodes,
+    isRunning: controller.isRunning,
+    onRunLiveTrigger: (nodeId) => controller.runCanvasNode(nodeId),
+    onRunTestTrigger: handleRunTestTrigger,
+  });
 
   const activationAlertKey = (controller.workflowActivationAlertLines ?? []).join("\u0000");
   const credentialAttentionKey = controller.credentialAttentionSummaryLines.join("\u0000");
@@ -104,12 +120,15 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
         workflowNodes={workflowNodes}
         onSwitchToLive={() => {
           setIsTestsViewActive(false);
+          setAutoStartTestTriggerNodeId(undefined);
           controller.openLiveWorkflow();
         }}
         onSwitchToExecutions={() => {
           setIsTestsViewActive(false);
+          setAutoStartTestTriggerNodeId(undefined);
           controller.openExecutionsPane();
         }}
+        autoStartTriggerNodeId={autoStartTestTriggerNodeId}
       />
     );
   }
@@ -199,18 +218,17 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                 </Button>
               ) : null}
             </div>
-            {controller.isLiveWorkflowView && !controller.isRunsPaneVisible ? (
+            {controller.isLiveWorkflowView && !controller.isRunsPaneVisible && runButtonState.triggers.length > 0 ? (
               <div className="pointer-events-auto absolute bottom-3 left-1/2 z-[6] -translate-x-1/2">
-                <Button
-                  type="button"
-                  data-testid="canvas-run-workflow-button"
-                  size="sm"
-                  className="h-8 px-3 text-xs font-extrabold"
-                  onClick={controller.runWorkflowFromCanvas}
-                  disabled={controller.isRunning}
-                >
-                  {controller.isRunning ? "Running..." : "Run workflow"}
-                </Button>
+                <WorkflowCanvasRunButton
+                  triggers={runButtonState.triggers}
+                  selectedTriggerNodeId={runButtonState.selectedTriggerNodeId}
+                  isRunning={controller.isRunning}
+                  disabled={runButtonState.isDisabled}
+                  onSelect={runButtonState.handleSelectTrigger}
+                  onRunLive={runButtonState.handleRunLiveTrigger}
+                  onRunTest={runButtonState.handleRunTestTrigger}
+                />
               </div>
             ) : null}
             <div className="pointer-events-none absolute top-3 right-3 z-[6] flex max-w-[min(22rem,calc(100%-1.5rem))] flex-col items-end gap-2">

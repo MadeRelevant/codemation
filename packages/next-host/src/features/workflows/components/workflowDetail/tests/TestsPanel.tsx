@@ -1,7 +1,7 @@
 "use client";
 
 import type { WorkflowNodeDto } from "@codemation/host/dto";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,6 +21,7 @@ import { TestSuiteRunsList } from "./TestSuiteRunsList";
 interface TestsPanelProps {
   readonly workflowId: string;
   readonly workflowNodes: ReadonlyArray<WorkflowNodeDto>;
+  readonly autoStartTriggerNodeId?: string;
 }
 
 /**
@@ -30,7 +31,7 @@ interface TestsPanelProps {
  * HTTP route. Charts/labels intentionally call out **rolling-input** Phase 1 semantics.
  */
 export function TestsPanel(props: TestsPanelProps) {
-  const { workflowId, workflowNodes } = props;
+  const { workflowId, workflowNodes, autoStartTriggerNodeId } = props;
   const testTriggers = useMemo(
     () => workflowNodes.filter((n) => n.kind === "trigger" && n.triggerKind === "test"),
     [workflowNodes],
@@ -43,6 +44,22 @@ export function TestsPanel(props: TestsPanelProps) {
   const assertionsQuery = useTestSuiteRunAssertionsQuery(selectedSuiteRunId);
   const childRunsQuery = useTestSuiteRunChildRunsQuery(selectedSuiteRunId);
   const startMutation = useStartTestSuiteRunMutation(workflowId);
+
+  // Auto-start a test suite run if autoStartTriggerNodeId is provided (from canvas run button)
+  useEffect(() => {
+    if (!autoStartTriggerNodeId) {
+      return;
+    }
+    const trigger = testTriggers.find((t) => t.id === autoStartTriggerNodeId);
+    if (!trigger) {
+      return;
+    }
+    setSelectedTriggerNodeId(autoStartTriggerNodeId);
+    void (async () => {
+      const result = await startMutation.mutateAsync({ triggerNodeId: autoStartTriggerNodeId });
+      setSelectedSuiteRunId(result.testSuiteRunId);
+    })();
+  }, [autoStartTriggerNodeId, startMutation, testTriggers]);
 
   const onRunTests = async (): Promise<void> => {
     if (!selectedTriggerNodeId) return;

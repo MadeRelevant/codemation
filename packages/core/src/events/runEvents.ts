@@ -4,9 +4,12 @@ import type { NodeExecutionSnapshot, ParentExecutionRef, PersistedRunState, RunI
 
 /**
  * Outcome of a single test case (one workflow run dispatched by the test-suite orchestrator).
- * Matches `RunResult.status` for terminal cases.
+ * - `running`: workflow still in flight
+ * - `succeeded`: workflow completed AND all assertions passed (or no assertions)
+ * - `failed`: workflow failed OR (workflow completed but ≥1 assertion failed)
+ * - `errored` / `cancelled`: workflow itself errored or was cancelled
  */
-export type TestCaseRunStatus = "completed" | "failed";
+export type TestCaseRunStatus = "running" | "succeeded" | "failed" | "errored" | "cancelled";
 /** Aggregate outcome of a TestSuiteRun. */
 export type TestSuiteRunStatus = "succeeded" | "failed" | "partial" | "errored" | "cancelled";
 

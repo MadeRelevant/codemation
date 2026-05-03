@@ -3,6 +3,10 @@
 
 export type * from "./contracts/baseTypes";
 export type * from "./contracts/assertionTypes";
+// assertionTypes also exports a runtime helper for deriving pass/fail from a score+threshold.
+// We keep the type-only re-export above and surface the helper explicitly here so UI consumers
+// (next-host) don't need to re-implement the comparison.
+export { deriveAssertionPassed, DEFAULT_ASSERTION_PASS_THRESHOLD } from "./contracts/assertionTypes";
 export type * from "./contracts/params";
 export type * from "./contracts/retryPolicySpec.types";
 export type * from "./contracts/CostCatalogContract";

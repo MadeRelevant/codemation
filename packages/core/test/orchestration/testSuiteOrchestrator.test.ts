@@ -170,6 +170,9 @@ test("TestSuiteOrchestrator marks suite as 'partial' when some cases fail and ot
   assert.equal(result.status, "partial");
   assert.equal(result.passedCases, 2);
   assert.equal(result.failedCases, 1);
+  const succeeded = result.cases.find((c) => c.status === "succeeded");
+  assert.ok(succeeded);
+  assert.equal(succeeded!.testCaseIndex, 0);
   const failed = result.cases.find((c) => c.status === "failed");
   assert.ok(failed);
   assert.equal(failed!.testCaseIndex, 1);

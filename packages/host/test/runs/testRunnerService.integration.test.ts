@@ -29,6 +29,7 @@ import { CredentialResolverFactory } from "@codemation/core/bootstrap";
 
 import { InMemoryTestAssertionRepository } from "../../src/infrastructure/persistence/InMemoryTestAssertionRepository";
 import { InMemoryTestSuiteRunRepository } from "../../src/infrastructure/persistence/InMemoryTestSuiteRunRepository";
+import { InMemoryWorkflowRunRepository } from "../../src/infrastructure/persistence/InMemoryWorkflowRunRepository";
 import { AssertionResultGuard } from "../../src/application/runs/AssertionResultGuard";
 import { TestAssertionIdFactory } from "../../src/application/runs/TestAssertionIdFactory";
 import { TestRunnerService, type TestRunnerWorkflowLookup } from "../../src/application/runs/TestRunnerService";
@@ -98,7 +99,7 @@ class FakeAssertingEngine implements TestSuiteOrchestratorEngine {
       },
     });
 
-    const allPass = assertions.every((a) => a.status === "pass");
+    const allPass = assertions.every((a) => !a.errored && a.score >= (a.passThreshold ?? 0.5));
     if (!allPass && assertions.length > 0) {
       return {
         runId,
@@ -185,10 +186,10 @@ test("TestRunnerService persists TestSuiteRun, finalizes counters, and records a
 
   const assertionsByCase: ReadonlyArray<ReadonlyArray<AssertionResult>> = [
     [
-      { name: "case0:a", status: "pass", expected: 1, actual: 1 },
-      { name: "case0:b", status: "pass" },
+      { name: "case0:a", score: 1, expected: 1, actual: 1 },
+      { name: "case0:b", score: 1 },
     ],
-    [{ name: "case1:a", status: "fail", expected: 2, actual: 99, message: "off" }],
+    [{ name: "case1:a", score: 0, expected: 2, actual: 99, message: "off" }],
   ];
   const fakeEngine = new FakeAssertingEngine(bus, assertionsByCase, assertionNodeId);
 
@@ -201,9 +202,11 @@ test("TestRunnerService persists TestSuiteRun, finalizes counters, and records a
     () => new Date("2026-05-02T12:00:00.000Z"),
   );
 
+  const runRepo = new InMemoryWorkflowRunRepository();
   const trackerFactory = new TestSuiteRunTrackerFactory(
     suiteRepo,
     assertionRepo,
+    runRepo,
     new TestAssertionIdFactory(),
     new AssertionResultGuard(),
   );
@@ -235,8 +238,11 @@ test("TestRunnerService persists TestSuiteRun, finalizes counters, and records a
 
   const allAssertions = await assertionRepo.listByTestSuiteRun(result.testSuiteRunId);
   assert.equal(allAssertions.length, 3, "expected 2 from case 0 + 1 from case 1");
-  assert.equal(allAssertions.filter((a) => a.status === "pass").length, 2);
-  assert.equal(allAssertions.filter((a) => a.status === "fail").length, 1);
+  // Pass/fail is derived: score >= 0.5 (default threshold) and not errored.
+  const passing = allAssertions.filter((a) => !a.errored && a.score >= (a.passThreshold ?? 0.5));
+  const failing = allAssertions.filter((a) => a.errored || a.score < (a.passThreshold ?? 0.5));
+  assert.equal(passing.length, 2);
+  assert.equal(failing.length, 1);
 
   const case0Assertions = await assertionRepo.listByRun("run_0");
   assert.equal(case0Assertions.length, 2);
@@ -282,9 +288,11 @@ test("TestRunnerService rejects non-test triggers (defensive guard)", async () =
     new AbortControllerFactory(),
     bus,
   );
+  const runRepo = new InMemoryWorkflowRunRepository();
   const trackerFactory = new TestSuiteRunTrackerFactory(
     suiteRepo,
     assertionRepo,
+    runRepo,
     new TestAssertionIdFactory(),
     new AssertionResultGuard(),
   );

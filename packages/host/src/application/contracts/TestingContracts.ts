@@ -1,4 +1,4 @@
-import type { AssertionStatus, JsonValue, RunStatus, TestSuiteRunStatus } from "@codemation/core";
+import type { JsonValue, RunStatus, TestSuiteRunStatus } from "@codemation/core";
 
 /** Body of `POST /api/workflows/:workflowId/test-suite-runs`. */
 export interface StartTestSuiteRunRequest {
@@ -53,7 +53,11 @@ export interface TestSuiteRunDetailDto extends TestSuiteRunSummaryDto {
   readonly updatedAt: string;
 }
 
-/** One row returned from the per-run assertions endpoint. */
+/**
+ * One row returned from the per-run assertions endpoint. The pass/fail decision is **derived**
+ * from `score >= (passThreshold ?? 0.5)` (or hard-fail when `errored` is true) — UIs should call
+ * `deriveAssertionPassed` from `@codemation/core/contracts` rather than store/recompute it here.
+ */
 export interface TestAssertionDto {
   readonly id: string;
   readonly runId: string;
@@ -63,8 +67,9 @@ export interface TestAssertionDto {
   readonly iterationId?: string;
   readonly itemIndex?: number;
   readonly name: string;
-  readonly status: AssertionStatus;
-  readonly score?: number;
+  readonly score: number;
+  readonly passThreshold?: number;
+  readonly errored?: true;
   readonly expected?: JsonValue;
   readonly actual?: JsonValue;
   readonly message?: string;

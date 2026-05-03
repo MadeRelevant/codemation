@@ -113,8 +113,8 @@ test("AssertionNode emits one item per AssertionResult on `main`", async () => {
   const config = new Assertion<{ value: number }>({
     name: "checks",
     assertions: (item): ReadonlyArray<AssertionResult> => [
-      { name: "positive", status: item.json.value > 0 ? "pass" : "fail", expected: ">0", actual: item.json.value },
-      { name: "is integer", status: Number.isInteger(item.json.value) ? "pass" : "fail" },
+      { name: "positive", score: item.json.value > 0 ? 1 : 0, expected: ">0", actual: item.json.value },
+      { name: "is integer", score: Number.isInteger(item.json.value) ? 1 : 0 },
     ],
   });
   const ctx = TestNodeContextFactory.create(config);
@@ -131,9 +131,34 @@ test("AssertionNode emits one item per AssertionResult on `main`", async () => {
   const result = (await node.execute(args)) as ReadonlyArray<AssertionResult>;
   assert.equal(result.length, 2);
   assert.equal(result[0]!.name, "positive");
-  assert.equal(result[0]!.status, "pass");
+  assert.equal(result[0]!.score, 1);
   assert.equal(result[1]!.name, "is integer");
-  assert.equal(result[1]!.status, "pass");
+  assert.equal(result[1]!.score, 1);
+});
+
+test("AssertionNode emits a single errored result when the author callback throws", async () => {
+  const node = new AssertionNode();
+  const config = new Assertion<{ value: number }>({
+    name: "throws-asserter",
+    assertions: () => {
+      throw new Error("judge call failed");
+    },
+  });
+  const ctx = TestNodeContextFactory.create(config);
+  const item = { json: { value: 1 } };
+  const args: RunnableNodeExecuteArgs<Assertion<{ value: number }>, { value: number }> = {
+    input: item.json,
+    item,
+    itemIndex: 0,
+    items: [item],
+    ctx,
+  };
+  const result = (await node.execute(args)) as ReadonlyArray<AssertionResult>;
+  assert.equal(result.length, 1);
+  assert.equal(result[0]!.name, "throws-asserter");
+  assert.equal(result[0]!.score, 0);
+  assert.equal(result[0]!.errored, true);
+  assert.equal(result[0]!.message, "judge call failed");
 });
 
 test("Assertion config sets emitsAssertions=true so host persisters can identify it", () => {

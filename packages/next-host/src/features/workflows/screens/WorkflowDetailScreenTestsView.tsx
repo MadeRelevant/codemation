@@ -11,6 +11,7 @@ interface WorkflowDetailScreenTestsViewProps {
   readonly workflowNodes: ReadonlyArray<WorkflowNodeDto>;
   readonly onSwitchToLive: () => void;
   readonly onSwitchToExecutions: () => void;
+  readonly autoStartTriggerNodeId?: string;
 }
 
 /**
@@ -56,7 +57,11 @@ export function WorkflowDetailScreenTestsView(props: WorkflowDetailScreenTestsVi
             </Button>
           </div>
         </div>
-        <TestsPanel workflowId={props.workflowId} workflowNodes={props.workflowNodes} />
+        <TestsPanel
+          workflowId={props.workflowId}
+          workflowNodes={props.workflowNodes}
+          autoStartTriggerNodeId={props.autoStartTriggerNodeId}
+        />
       </section>
     </main>
   );

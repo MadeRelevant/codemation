@@ -48,6 +48,9 @@ export interface UpdateTestSuiteRunPatch {
  * Compact projection of a Run row for the Tests-tab tree-table — just enough to render the
  * case header (status icon, label, case index, link to the run inspector). The tree-table
  * fetches assertions separately (per-suite) and joins them client-side.
+ *
+ * `testCaseStatus` is the per-case result status (running/succeeded/failed/errored/cancelled),
+ * reflecting workflow result + assertion outcomes. If null, defaults to the run's status.
  */
 export interface TestSuiteChildRunSummary {
   readonly runId: string;
@@ -55,6 +58,7 @@ export interface TestSuiteChildRunSummary {
   readonly testCaseIndex: number;
   readonly testCaseLabel?: string;
   readonly status: RunStatus;
+  readonly testCaseStatus?: string;
   readonly startedAt: string;
   readonly finishedAt?: string;
 }

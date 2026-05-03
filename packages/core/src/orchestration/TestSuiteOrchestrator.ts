@@ -203,7 +203,7 @@ export class TestSuiteOrchestrator {
 
     cases.sort((a, b) => a.testCaseIndex - b.testCaseIndex);
     const totalCases = cases.length;
-    const passedCases = cases.filter((c) => c.status === "completed").length;
+    const passedCases = cases.filter((c) => c.status === "succeeded").length;
     const failedCases = cases.filter((c) => c.status === "failed").length;
     const status: TestSuiteRunStatus = this.deriveSuiteStatus({
       generationError,
@@ -282,7 +282,12 @@ export class TestSuiteOrchestrator {
       terminal = await this.engine.waitForCompletion(runId);
     }
 
-    const status: TestCaseRunStatus = terminal.status === "completed" ? "completed" : "failed";
+    const status: TestCaseRunStatus =
+      terminal.status === "completed" ? "succeeded" :
+      terminal.status === "failed" ? "failed" :
+      terminal.status === "errored" ? "errored" :
+      terminal.status === "cancelled" ? "cancelled" :
+      "failed"; // fallback
     await this.publish({
       kind: "testCaseCompleted",
       testSuiteRunId: args.testSuiteRunId,

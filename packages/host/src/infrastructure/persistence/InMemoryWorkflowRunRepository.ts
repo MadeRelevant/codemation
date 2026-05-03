@@ -171,6 +171,11 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Wor
     this.runs.delete(runId);
   }
 
+  async updateTestCaseStatus(_runId: RunId, _status: string): Promise<void> {
+    // In-memory implementation: no-op since we don't track test case status
+    // This is used by TestSuiteRunTracker, which already uses testCaseStatus on the Run entity
+  }
+
   async listRuns(args: Readonly<{ workflowId?: string; limit?: number }>): Promise<ReadonlyArray<RunSummary>> {
     const limit = args?.limit ?? 50;
     const workflowId = args?.workflowId ? decodeURIComponent(args.workflowId) : undefined;

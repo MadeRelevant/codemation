@@ -1,5 +1,6 @@
 "use client";
 
+import { deriveAssertionPassed } from "@codemation/core/contracts";
 import type { TestAssertionDto } from "@codemation/host/dto";
 
 import { TestAssertionRow } from "./TestAssertionRow";
@@ -35,7 +36,7 @@ export function TestAssertionsList(props: TestAssertionsListProps) {
           <div className="mb-2 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="font-mono">run: {runId.slice(0, 12)}…</span>
             <span>
-              {runAssertions.filter((a) => a.status === "pass").length}/{runAssertions.length} passed
+              {runAssertions.filter((a) => deriveAssertionPassed(a)).length}/{runAssertions.length} passed
             </span>
           </div>
           <ul className="divide-y divide-border rounded-md border border-border">

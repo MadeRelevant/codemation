@@ -17,8 +17,9 @@ interface PrismaTestAssertionRow {
   iterationId: string | null;
   itemIndex: number | null;
   name: string;
-  status: string;
-  score: number | null;
+  score: number;
+  passThreshold: number | null;
+  errored: boolean;
   expectedJson: string | null;
   actualJson: string | null;
   message: string | null;
@@ -41,8 +42,9 @@ export class PrismaTestAssertionRepository implements TestAssertionRepository {
         iterationId: args.iterationId ?? null,
         itemIndex: args.itemIndex ?? null,
         name: args.name,
-        status: args.status,
-        score: args.score ?? null,
+        score: args.score,
+        passThreshold: args.passThreshold ?? null,
+        errored: args.errored === true,
         expectedJson: args.expected !== undefined ? JSON.stringify(args.expected) : null,
         actualJson: args.actual !== undefined ? JSON.stringify(args.actual) : null,
         message: args.message ?? null,
@@ -82,8 +84,9 @@ export class PrismaTestAssertionRepository implements TestAssertionRepository {
       iterationId: row.iterationId ?? undefined,
       itemIndex: row.itemIndex ?? undefined,
       name: row.name,
-      status: row.status as TestAssertionRecord["status"],
-      score: row.score ?? undefined,
+      score: row.score,
+      passThreshold: row.passThreshold ?? undefined,
+      ...(row.errored ? { errored: true as const } : {}),
       expected: row.expectedJson ? (JSON.parse(row.expectedJson) as JsonValue) : undefined,
       actual: row.actualJson ? (JSON.parse(row.actualJson) as JsonValue) : undefined,
       message: row.message ?? undefined,

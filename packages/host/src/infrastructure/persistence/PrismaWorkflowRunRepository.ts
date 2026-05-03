@@ -411,6 +411,14 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
     await this.prisma.run.delete({ where: { runId: id } });
   }
 
+  async updateTestCaseStatus(runId: RunId, status: string): Promise<void> {
+    const id = decodeURIComponent(runId);
+    await this.prisma.run.update({
+      where: { runId: id },
+      data: { testCaseStatus: status },
+    });
+  }
+
   async listRunsOlderThan(
     args: Readonly<{ nowIso: string; defaultRetentionSeconds: number; limit?: number }>,
   ): Promise<ReadonlyArray<RunPruneCandidate>> {

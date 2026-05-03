@@ -26,6 +26,7 @@ model Run {
   testSuiteRunId       String? @map("test_suite_run_id")
   testCaseIndex        Int?    @map("test_case_index")
   testCaseLabel        String? @map("test_case_label")
+  testCaseStatus       String? @map("test_case_status")
 
   workItems          RunWorkItem[]
   executionInstances ExecutionInstance[]
@@ -167,8 +168,9 @@ model TestAssertion {
   iterationId         String? @map("iteration_id")
   itemIndex           Int?    @map("item_index")
   name                String
-  status              String
-  score               Float?
+  score               Float
+  passThreshold       Float?  @map("pass_threshold")
+  errored             Boolean @default(false)
   expectedJson        String? @map("expected_json")
   actualJson          String? @map("actual_json")
   message             String?

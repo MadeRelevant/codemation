@@ -93,6 +93,7 @@ export class PrismaTestSuiteRunRepository implements TestSuiteRunRepository {
         testCaseIndex: true,
         testCaseLabel: true,
         status: true,
+        testCaseStatus: true,
         startedAt: true,
         finishedAt: true,
       },
@@ -102,6 +103,7 @@ export class PrismaTestSuiteRunRepository implements TestSuiteRunRepository {
       testCaseIndex: number | null;
       testCaseLabel: string | null;
       status: string;
+      testCaseStatus: string | null;
       startedAt: string;
       finishedAt: string | null;
     }>;
@@ -111,6 +113,7 @@ export class PrismaTestSuiteRunRepository implements TestSuiteRunRepository {
       testCaseIndex: row.testCaseIndex ?? 0,
       ...(row.testCaseLabel !== null ? { testCaseLabel: row.testCaseLabel } : {}),
       status: row.status as RunStatus,
+      ...(row.testCaseStatus !== null ? { testCaseStatus: row.testCaseStatus } : {}),
       startedAt: row.startedAt,
       ...(row.finishedAt !== null ? { finishedAt: row.finishedAt } : {}),
     }));

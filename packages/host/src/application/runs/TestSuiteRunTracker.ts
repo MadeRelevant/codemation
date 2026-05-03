@@ -5,13 +5,16 @@ import type {
   NodeId,
   RunEvent,
   RunId,
+  TestCaseRunStatus,
   WorkflowDefinition,
 } from "@codemation/core";
+import { deriveAssertionPassed } from "@codemation/core";
 
 import type { TestSuiteRunResult } from "@codemation/core/bootstrap";
 
 import type { TestAssertionRepository } from "../../domain/runs/TestAssertionRepository";
 import type { TestSuiteRunRepository } from "../../domain/runs/TestSuiteRunRepository";
+import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import type { AssertionResultGuard } from "./AssertionResultGuard";
 import type { TestAssertionIdFactory } from "./TestAssertionIdFactory";
 
@@ -20,6 +23,7 @@ export interface TestSuiteRunTrackerArgs {
   readonly assertionIdFactory: TestAssertionIdFactory;
   readonly assertionRepo: TestAssertionRepository;
   readonly suiteRepo: TestSuiteRunRepository;
+  readonly runRepo: WorkflowRunRepository;
   readonly assertionResultGuard: AssertionResultGuard;
 }
 
@@ -43,6 +47,8 @@ export class TestSuiteRunTracker {
   private readonly nodeCoverage = new Set<NodeId>();
   private readonly pendingEvents: RunEvent[] = [];
   private readonly pendingByRunId = new Map<RunId, RunEvent[]>();
+  /** Track whether any assertion failed for each case run. */
+  private readonly failedAssertionsByRunId = new Map<RunId, boolean>();
 
   constructor(private readonly args: TestSuiteRunTrackerArgs) {}
 
@@ -63,12 +69,16 @@ export class TestSuiteRunTracker {
       case "testCaseStarted":
         if (event.testSuiteRunId !== this.adoptedId) return;
         this.testRunCaseIndex.set(event.runId, event.testCaseIndex);
+        this.failedAssertionsByRunId.set(event.runId, false);
+        await this.persistCaseStarted(event);
         await this.drainPendingForRun(event.runId);
         return;
       case "testCaseCompleted":
         if (event.testSuiteRunId !== this.adoptedId) return;
         await this.drainPendingForRun(event.runId);
+        await this.persistCaseCompleted(event);
         this.testRunCaseIndex.delete(event.runId);
+        this.failedAssertionsByRunId.delete(event.runId);
         this.pendingByRunId.delete(event.runId);
         return;
       case "nodeCompleted":
@@ -88,12 +98,38 @@ export class TestSuiteRunTracker {
 
   async finalize(orchestratorResult: TestSuiteRunResult): Promise<void> {
     if (this.adoptedId === undefined) return;
+
+    // The orchestrator's pass/fail counts are pre-assertion-rollup. Since the tracker
+    // may have downgraded some "succeeded" cases to "failed" based on assertion failures,
+    // we need to recount from the child runs. This ensures the suite-level counters reflect
+    // the final case statuses.
+    //
+    // When `listChildRuns` returns nothing (in-memory unit-test adapter, by design — see
+    // InMemoryTestSuiteRunRepository), fall back to the orchestrator's own counts adjusted by
+    // our local `failedAssertionsByRunId` accumulator. Without this fallback, suites driven by
+    // a stub engine + in-memory repos would always see `passedCases=0, failedCases=0`.
+    const childRuns = await this.args.suiteRepo.listChildRuns(this.adoptedId);
+    let passedCases: number;
+    let failedCases: number;
+    if (childRuns.length > 0) {
+      passedCases = childRuns.filter((r) => r.testCaseStatus === "succeeded").length;
+      failedCases = childRuns.filter((r) => r.testCaseStatus === "failed").length;
+    } else {
+      const failedFromAssertions = [...this.failedAssertionsByRunId.values()].filter(Boolean).length;
+      // failed = orchestrator-reported fails ∪ assertion-rollup downgrades. The orchestrator-
+      // failed runs may already overlap with assertion-failed runs, but in the in-memory path
+      // we don't have per-run status, so we approximate by taking the max — a downgrade can
+      // only push a "passed" case to "failed", never the reverse.
+      failedCases = Math.max(orchestratorResult.failedCases, failedFromAssertions);
+      passedCases = Math.max(0, orchestratorResult.totalCases - failedCases);
+    }
+
     await this.args.suiteRepo.update(this.adoptedId, {
       status: orchestratorResult.status,
       finishedAt: new Date().toISOString(),
       totalCases: orchestratorResult.totalCases,
-      passedCases: orchestratorResult.passedCases,
-      failedCases: orchestratorResult.failedCases,
+      passedCases,
+      failedCases,
       nodeCoverage: [...this.nodeCoverage],
     });
   }
@@ -108,6 +144,35 @@ export class TestSuiteRunTracker {
         await this.persistAssertionsForCompletedNode(event);
       }
     }
+  }
+
+  private async persistCaseStarted(event: Extract<RunEvent, { kind: "testCaseStarted" }>): Promise<void> {
+    if (this.adoptedId === undefined) return;
+    if (!this.args.runRepo.updateTestCaseStatus) return;
+    try {
+      await this.args.runRepo.updateTestCaseStatus(event.runId, "running");
+    } catch {
+      // If the run doesn't exist yet, that's okay — it will be created by the engine
+      // and this is just a best-effort write for early visibility.
+    }
+  }
+
+  private async persistCaseCompleted(event: Extract<RunEvent, { kind: "testCaseCompleted" }>): Promise<void> {
+    if (this.adoptedId === undefined) return;
+    if (!this.args.runRepo.updateTestCaseStatus) return;
+
+    // Determine final case status: assertion rollup overrides the orchestrator's status
+    let finalStatus: TestCaseRunStatus = event.status;
+
+    // If orchestrator says "succeeded" but we saw a failed assertion, downgrade to "failed"
+    if (event.status === "succeeded" && this.failedAssertionsByRunId.get(event.runId)) {
+      finalStatus = "failed";
+    }
+
+    // Preserve "errored" and "cancelled" states as-is (higher priority than assertions)
+    // "failed" from orchestrator is already correct
+
+    await this.args.runRepo.updateTestCaseStatus(event.runId, finalStatus);
   }
 
   private async persistAssertionsForCompletedNode(event: Extract<RunEvent, { kind: "nodeCompleted" }>): Promise<void> {
@@ -127,6 +192,13 @@ export class TestSuiteRunTracker {
       if (!this.args.assertionResultGuard.isAssertionResult(result)) {
         continue;
       }
+
+      // Track if any assertion failed (or errored) for this run. Pass/fail derives from
+      // score + threshold; an `errored: true` flag is treated as a hard fail regardless of score.
+      if (!deriveAssertionPassed(result)) {
+        this.failedAssertionsByRunId.set(event.runId, true);
+      }
+
       await this.args.assertionRepo.record({
         id: this.args.assertionIdFactory.makeAssertionId(),
         runId: event.runId,
@@ -134,8 +206,9 @@ export class TestSuiteRunTracker {
         workflowId: event.workflowId,
         nodeId: event.snapshot.nodeId,
         name: result.name,
-        status: result.status,
-        ...(result.score !== undefined ? { score: result.score } : {}),
+        score: result.score,
+        ...(result.passThreshold !== undefined ? { passThreshold: result.passThreshold } : {}),
+        ...(result.errored === true ? { errored: true as const } : {}),
         ...(result.expected !== undefined ? { expected: result.expected as JsonValue } : {}),
         ...(result.actual !== undefined ? { actual: result.actual as JsonValue } : {}),
         ...(result.message !== undefined ? { message: result.message } : {}),

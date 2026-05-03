@@ -1,5 +1,6 @@
 "use client";
 
+import { deriveAssertionPassed } from "@codemation/core/contracts";
 import type { TestAssertionDto, TestSuiteChildRunDto } from "@codemation/host/dto";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
@@ -30,11 +31,12 @@ interface TestSuiteCaseRowProps {
  */
 export function TestSuiteCaseRow(props: TestSuiteCaseRowProps) {
   const { workflowId, run, assertions } = props;
-  const passCount = assertions.filter((a) => a.status === "pass").length;
-  const failCount = assertions.filter((a) => a.status === "fail").length;
-  const errorCount = assertions.filter((a) => a.status === "error").length;
+  // Pass/fail derives from `score >= (passThreshold ?? 0.5)`; `errored` is its own bucket.
+  const erroredCount = assertions.filter((a) => a.errored === true).length;
+  const passCount = assertions.filter((a) => deriveAssertionPassed(a)).length;
+  const failCount = assertions.length - passCount - erroredCount;
   const total = assertions.length;
-  const shouldAutoOpen = run.status === "failed" || failCount > 0 || errorCount > 0;
+  const shouldAutoOpen = run.status === "failed" || failCount > 0 || erroredCount > 0;
   const [open, setOpen] = useState(shouldAutoOpen);
   const runHref = buildRunInspectorHref(workflowId, run.runId);
 
@@ -69,7 +71,7 @@ export function TestSuiteCaseRow(props: TestSuiteCaseRowProps) {
           ) : (
             <>
               {passCount}/{total}
-              {errorCount > 0 ? <span className="ml-1 text-purple-700">·{errorCount}err</span> : null}
+              {erroredCount > 0 ? <span className="ml-1 text-purple-700">·{erroredCount}err</span> : null}
             </>
           )}
         </span>

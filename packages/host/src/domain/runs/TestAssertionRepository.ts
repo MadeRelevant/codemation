@@ -1,8 +1,12 @@
-import type { AssertionStatus, JsonValue } from "@codemation/core";
+import type { JsonValue } from "@codemation/core";
 
 /**
  * Persistence-facing record for a TestAssertion. One row per assertion item emitted by an
  * `emitsAssertions: true` node during a run with `executionOptions.testContext` set.
+ *
+ * Pass/fail is **derived** at read-time from `score >= (passThreshold ?? 0.5)` (with `errored`
+ * always counting as fail). The persisted shape stores the inputs to that derivation, not its
+ * result, so the threshold can be tuned (or re-applied to historical rows) without re-running.
  */
 export interface TestAssertionRecord {
   readonly id: string;
@@ -13,8 +17,9 @@ export interface TestAssertionRecord {
   readonly iterationId?: string;
   readonly itemIndex?: number;
   readonly name: string;
-  readonly status: AssertionStatus;
-  readonly score?: number;
+  readonly score: number;
+  readonly passThreshold?: number;
+  readonly errored?: true;
   readonly expected?: JsonValue;
   readonly actual?: JsonValue;
   readonly message?: string;
@@ -32,8 +37,9 @@ export interface RecordTestAssertionArgs {
   readonly iterationId?: string;
   readonly itemIndex?: number;
   readonly name: string;
-  readonly status: AssertionStatus;
-  readonly score?: number;
+  readonly score: number;
+  readonly passThreshold?: number;
+  readonly errored?: true;
   readonly expected?: JsonValue;
   readonly actual?: JsonValue;
   readonly message?: string;
