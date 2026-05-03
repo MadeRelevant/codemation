@@ -47,9 +47,37 @@ export interface RecordTestAssertionArgs {
   readonly createdAt: string;
 }
 
+/**
+ * Aggregation row produced by {@link TestAssertionRepository.aggregateMeanScoreByNameAndSuiteRun}:
+ * one row per `(testSuiteRunId, name)` pair, carrying the **mean** of `score` across the matching
+ * assertion records and the count of contributing rows. Used by the trends endpoint to plot mean
+ * score over time per assertion metric.
+ */
+export interface TestAssertionMeanScoreAggregation {
+  readonly testSuiteRunId: string;
+  readonly name: string;
+  readonly meanScore: number;
+  readonly sampleCount: number;
+}
+
 export interface TestAssertionRepository {
   record(args: RecordTestAssertionArgs): Promise<void>;
   listByRun(runId: string): Promise<ReadonlyArray<TestAssertionRecord>>;
   listByTestSuiteRun(testSuiteRunId: string): Promise<ReadonlyArray<TestAssertionRecord>>;
   deleteByTestSuiteRun(testSuiteRunId: string): Promise<void>;
+  /**
+   * Returns the distinct assertion names recorded for `workflowId` (ordered by name asc).
+   * Drives the metric-multi-select dropdown in the Tests panel without paying the price of
+   * fetching every assertion row.
+   */
+  listDistinctNamesByWorkflow(workflowId: string): Promise<ReadonlyArray<string>>;
+  /**
+   * Mean-score aggregation grouped by `(testSuiteRunId, name)` for one workflow, optionally
+   * narrowed to a subset of assertion `names`. Suite-run start-time is **not** joined here —
+   * callers that need it should pair this with the suite-run repository.
+   */
+  aggregateMeanScoreByNameAndSuiteRun(args: {
+    readonly workflowId: string;
+    readonly names?: ReadonlyArray<string>;
+  }): Promise<ReadonlyArray<TestAssertionMeanScoreAggregation>>;
 }

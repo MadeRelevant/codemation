@@ -168,6 +168,7 @@ import {
   TestSuiteRunTrackerFactory,
   WorkflowRunRepositoryToken,
 } from "../application/runs/TestSuiteRunTrackerFactory";
+import { TestAssertionAggregator } from "../application/runs/TestAssertionAggregator";
 import { TestAssertionMapper } from "../application/runs/TestAssertionMapper";
 import { TestSuiteChildRunMapper } from "../application/runs/TestSuiteChildRunMapper";
 import { TestSuiteRunSummaryMapper } from "../application/runs/TestSuiteRunSummaryMapper";
@@ -679,6 +680,7 @@ export class AppContainerFactory {
     container.registerSingleton(TestSuiteRunSummaryMapper, TestSuiteRunSummaryMapper);
     container.registerSingleton(TestAssertionMapper, TestAssertionMapper);
     container.registerSingleton(TestSuiteChildRunMapper, TestSuiteChildRunMapper);
+    container.registerSingleton(TestAssertionAggregator, TestAssertionAggregator);
     container.registerSingleton(TestRunnerWorkflowLookupAdapter, TestRunnerWorkflowLookupAdapter);
     container.register(TestRunnerWorkflowLookupToken, {
       useFactory: instanceCachingFactory((dc) => dc.resolve(TestRunnerWorkflowLookupAdapter)),

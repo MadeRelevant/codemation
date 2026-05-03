@@ -2,6 +2,7 @@ import { inject, injectable, type JsonValue } from "@codemation/core";
 
 import type {
   RecordTestAssertionArgs,
+  TestAssertionMeanScoreAggregation,
   TestAssertionRecord,
   TestAssertionRepository,
 } from "../../domain/runs/TestAssertionRepository";
@@ -72,6 +73,48 @@ export class PrismaTestAssertionRepository implements TestAssertionRepository {
 
   async deleteByTestSuiteRun(testSuiteRunId: string): Promise<void> {
     await this.prisma.testAssertion.deleteMany({ where: { testSuiteRunId } });
+  }
+
+  async listDistinctNamesByWorkflow(workflowId: string): Promise<ReadonlyArray<string>> {
+    const rows = (await this.prisma.testAssertion.findMany({
+      where: { workflowId },
+      distinct: ["name"],
+      select: { name: true },
+      orderBy: { name: "asc" },
+    })) as ReadonlyArray<{ name: string }>;
+    return rows.map((r) => r.name);
+  }
+
+  async aggregateMeanScoreByNameAndSuiteRun(args: {
+    readonly workflowId: string;
+    readonly names?: ReadonlyArray<string>;
+  }): Promise<ReadonlyArray<TestAssertionMeanScoreAggregation>> {
+    // Prisma's generated `name.in` is `string[]` (mutable), so copy out of the readonly input.
+    const where: { workflowId: string; name?: { in: string[] } } = { workflowId: args.workflowId };
+    if (args.names && args.names.length > 0) {
+      where.name = { in: [...args.names] };
+    }
+    // Prisma's `groupBy` is heavily overloaded — its returned type is a discriminated tuple
+    // shape that TypeScript can't infer through the readonly-array adjustments above. The
+    // assertion-record schema is fixed (workflowId/name/score/etc. — see schema.*.prisma) so
+    // we explicitly type the call arguments to bypass the overload intersection trip-up.
+    const groups = (await (this.prisma.testAssertion.groupBy as unknown as (input: unknown) => Promise<unknown>)({
+      by: ["testSuiteRunId", "name"],
+      where,
+      _avg: { score: true },
+      _count: { _all: true },
+    })) as ReadonlyArray<{
+      testSuiteRunId: string;
+      name: string;
+      _avg: { score: number | null };
+      _count: { _all: number };
+    }>;
+    return groups.map((row) => ({
+      testSuiteRunId: row.testSuiteRunId,
+      name: row.name,
+      meanScore: row._avg.score ?? 0,
+      sampleCount: row._count._all,
+    }));
   }
 
   private toRecord(row: PrismaTestAssertionRow): TestAssertionRecord {

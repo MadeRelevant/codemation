@@ -6,7 +6,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import { useSelectedAssertionMetrics } from "../../../hooks/useSelectedAssertionMetrics";
 import {
+  useAssertionMetricTrendsQuery,
   useStartTestSuiteRunMutation,
   useTestSuiteRunAssertionsQuery,
   useTestSuiteRunChildRunsQuery,
@@ -14,6 +16,7 @@ import {
   useWorkflowTestSuiteRunsQuery,
 } from "../../../hooks/realtime/testSuiteHooks";
 
+import { MetricSelector } from "./MetricSelector";
 import { TestSuitePassRateChart } from "./TestSuitePassRateChart";
 import { TestSuiteRunDetailPanel } from "./TestSuiteRunDetailPanel";
 import { TestSuiteRunsList } from "./TestSuiteRunsList";
@@ -44,6 +47,14 @@ export function TestsPanel(props: TestsPanelProps) {
   const assertionsQuery = useTestSuiteRunAssertionsQuery(selectedSuiteRunId);
   const childRunsQuery = useTestSuiteRunChildRunsQuery(selectedSuiteRunId);
   const startMutation = useStartTestSuiteRunMutation(workflowId);
+
+  // Multi-metric chart wiring: hit the trends endpoint twice — once without a names filter
+  // (drives the dropdown's available list), once with the user's current selection (drives the
+  // extra chart lines). Both calls are cheap (server-side groupBy).
+  const [selectedMetrics, setSelectedMetrics] = useSelectedAssertionMetrics(workflowId);
+  const selectedMetricsArray = useMemo(() => [...selectedMetrics].sort(), [selectedMetrics]);
+  const allMetricsQuery = useAssertionMetricTrendsQuery(workflowId, []);
+  const selectedMetricsQuery = useAssertionMetricTrendsQuery(workflowId, selectedMetricsArray);
 
   // Auto-start a test suite run if autoStartTriggerNodeId is provided (from canvas run button)
   useEffect(() => {
@@ -136,11 +147,23 @@ export function TestsPanel(props: TestsPanelProps) {
           ) : null}
         </header>
         <div className="border-b border-border px-4 py-3">
-          <div className="mb-1 flex items-center justify-between text-xs">
+          <div className="mb-1 flex items-center justify-between gap-2 text-xs">
             <span className="font-semibold uppercase tracking-wide text-muted-foreground">Pass rate over time</span>
-            <span className="text-[10px] text-muted-foreground">rolling-input</span>
+            <div className="flex items-center gap-2">
+              <MetricSelector
+                availableMetrics={allMetricsQuery.data ?? []}
+                selected={selectedMetrics}
+                onChange={setSelectedMetrics}
+                isLoading={allMetricsQuery.isLoading}
+              />
+              <span className="text-[10px] text-muted-foreground">rolling-input</span>
+            </div>
           </div>
-          <TestSuitePassRateChart suiteRuns={suitesQuery.data ?? []} />
+          <TestSuitePassRateChart
+            suiteRuns={suitesQuery.data ?? []}
+            selectedMetrics={selectedMetricsArray}
+            metricTrends={selectedMetricsQuery.data ?? []}
+          />
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
           {suitesQuery.isLoading ? (

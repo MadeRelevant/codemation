@@ -41,6 +41,8 @@ export type {
   TestSuiteRunSummaryDto,
   TestSuiteRunDetailDto,
   TestAssertionDto,
+  AssertionMetricTrendDto,
+  AssertionMetricTrendPointDto,
 } from "./application/contracts/TestingContracts";
 
 export type {

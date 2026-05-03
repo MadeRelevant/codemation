@@ -97,6 +97,8 @@ export async function fetchUserAccounts(): Promise<ReadonlyArray<UserAccountDto>
 }
 
 import type {
+  AssertionMetricTrendDto,
+  AssertionMetricTrendPointDto,
   StartTestSuiteRunRequest,
   StartTestSuiteRunResponse,
   TestAssertionDto,
@@ -106,6 +108,8 @@ import type {
 } from "@codemation/host/dto";
 
 export type {
+  AssertionMetricTrendDto,
+  AssertionMetricTrendPointDto,
   StartTestSuiteRunRequest,
   StartTestSuiteRunResponse,
   TestAssertionDto,
@@ -147,5 +151,14 @@ export async function postStartTestSuiteRun(
   return await codemationApiClient.postJson<StartTestSuiteRunResponse>(
     ApiPaths.workflowTestSuiteRuns(workflowId),
     body,
+  );
+}
+
+export async function fetchAssertionMetricTrends(
+  workflowId: string,
+  names?: ReadonlyArray<string>,
+): Promise<ReadonlyArray<AssertionMetricTrendDto>> {
+  return await codemationApiClient.getJson<ReadonlyArray<AssertionMetricTrendDto>>(
+    ApiPaths.workflowAssertionMetricTrends(workflowId, names),
   );
 }

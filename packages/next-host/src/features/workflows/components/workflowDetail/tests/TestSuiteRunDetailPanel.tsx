@@ -1,8 +1,15 @@
 "use client";
 
 import type { TestAssertionDto, TestSuiteChildRunDto, TestSuiteRunDetailDto } from "@codemation/host/dto";
+import { useMemo } from "react";
+
+import {
+  useTestSuiteRunAssertionsQuery,
+  useWorkflowTestSuiteRunsQuery,
+} from "../../../hooks/realtime/testSuiteHooks";
 
 import { TestSuiteRunDetailTreeTable } from "./TestSuiteRunDetailTreeTable";
+import { TestSuiteRunMetricsComparison } from "./TestSuiteRunMetricsComparison";
 import { TestSuiteRunStatusBadge } from "./TestSuiteRunStatusBadge";
 
 interface TestSuiteRunDetailPanelProps {
@@ -18,6 +25,25 @@ export function TestSuiteRunDetailPanel(props: TestSuiteRunDetailPanelProps) {
   const suite = props.suiteRun;
   const passRatePct = suite.totalCases > 0 ? (suite.passedCases / suite.totalCases) * 100 : 0;
   const coverageCount = suite.nodeCoverage?.length ?? 0;
+
+  // The "previous run" for the metric comparison is the workflow's second-most-recent suite
+  // run *strictly older than this one* by `startedAt`. We rely on the suite-runs list query
+  // (already cached by the parent panel) so opening the drilldown costs at most one extra
+  // round-trip — for the previous run's assertions.
+  const suiteRunsQuery = useWorkflowTestSuiteRunsQuery(props.workflowId);
+  const previousSuiteRunId = useMemo<string | null>(() => {
+    const list = suiteRunsQuery.data ?? [];
+    let candidate: { readonly id: string; readonly startedAt: string } | null = null;
+    for (const row of list) {
+      if (row.id === suite.id) continue;
+      if (row.startedAt >= suite.startedAt) continue;
+      if (!candidate || row.startedAt > candidate.startedAt) {
+        candidate = { id: row.id, startedAt: row.startedAt };
+      }
+    }
+    return candidate?.id ?? null;
+  }, [suiteRunsQuery.data, suite.id, suite.startedAt]);
+  const previousAssertionsQuery = useTestSuiteRunAssertionsQuery(previousSuiteRunId);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -53,6 +79,11 @@ export function TestSuiteRunDetailPanel(props: TestSuiteRunDetailPanelProps) {
           </div>
         ) : null}
       </header>
+      <TestSuiteRunMetricsComparison
+        currentAssertions={props.assertions}
+        previousAssertions={previousSuiteRunId !== null ? previousAssertionsQuery.data ?? null : null}
+        previousLoading={previousSuiteRunId !== null && previousAssertionsQuery.isLoading}
+      />
       <div className="min-h-0 flex-1 overflow-auto">
         {props.childRunsLoading && props.childRuns.length === 0 ? (
           <div className="px-6 py-3 text-sm text-muted-foreground">Loading test cases…</div>

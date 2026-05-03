@@ -6,6 +6,7 @@ import {
   TestSuiteRunRepositoryToken,
 } from "../../../application/runs/TestSuiteRunTrackerFactory";
 import type { TestSuiteRunRepository } from "../../../domain/runs/TestSuiteRunRepository";
+import { TestAssertionAggregator } from "../../../application/runs/TestAssertionAggregator";
 import { TestRunnerService } from "../../../application/runs/TestRunnerService";
 import { TestAssertionMapper } from "../../../application/runs/TestAssertionMapper";
 import { TestSuiteChildRunMapper } from "../../../application/runs/TestSuiteChildRunMapper";
@@ -24,6 +25,7 @@ export class TestSuiteHttpRouteHandler {
     @inject(TestRunnerService) private readonly testRunner: TestRunnerService,
     @inject(TestSuiteRunRepositoryToken) private readonly suiteRepo: TestSuiteRunRepository,
     @inject(TestAssertionRepositoryToken) private readonly assertionRepo: TestAssertionRepository,
+    @inject(TestAssertionAggregator) private readonly assertionAggregator: TestAssertionAggregator,
     @inject(TestSuiteRunSummaryMapper) private readonly summaryMapper: TestSuiteRunSummaryMapper,
     @inject(TestAssertionMapper) private readonly assertionMapper: TestAssertionMapper,
     @inject(TestSuiteChildRunMapper) private readonly childRunMapper: TestSuiteChildRunMapper,
@@ -99,6 +101,32 @@ export class TestSuiteHttpRouteHandler {
     try {
       const assertions = await this.assertionRepo.listByRun(params.runId!);
       return Response.json(assertions.map((a) => this.assertionMapper.toDto(a)));
+    } catch (error) {
+      return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  /**
+   * Trends endpoint backing the multi-metric chart in the Tests panel. `?names=foo,bar`
+   * narrows to a subset (and preserves caller order); without it, returns one row per
+   * distinct assertion name on the workflow so the dropdown can populate.
+   */
+  async getAssertionMetricTrends(request: Request, params: ServerHttpRouteParams): Promise<Response> {
+    try {
+      const url = new URL(request.url);
+      const namesParam = url.searchParams.get("names");
+      const names =
+        namesParam !== null && namesParam.length > 0
+          ? namesParam
+              .split(",")
+              .map((n) => n.trim())
+              .filter((n) => n.length > 0)
+          : undefined;
+      const trends = await this.assertionAggregator.getAssertionMetricTrends({
+        workflowId: params.workflowId!,
+        ...(names ? { names } : {}),
+      });
+      return Response.json(trends);
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
     }

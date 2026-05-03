@@ -27,5 +27,8 @@ export class TestSuiteHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
     app.get("/runs/:runId/assertions", (c) =>
       this.handler.getRunAssertions(c.req.raw, { runId: c.req.param("runId") }),
     );
+    app.get("/workflows/:workflowId/assertion-metric-trends", (c) =>
+      this.handler.getAssertionMetricTrends(c.req.raw, { workflowId: c.req.param("workflowId") }),
+    );
   }
 }
