@@ -1,5 +1,6 @@
 import type { JSX } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 
 import { Button } from "@/components/ui/button";
 

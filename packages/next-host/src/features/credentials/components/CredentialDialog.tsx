@@ -1,11 +1,14 @@
+/* eslint-disable max-lines */
 "use client";
 
 import type { CredentialFieldSchema, CredentialTypeDefinition } from "@codemation/core/browser";
 import { useEffect, useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
-import { FlaskConical, PlusCircle, Save, X } from "lucide-react";
-
+import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
+import PlusCircle from "lucide-react/dist/esm/icons/plus-circle";
+import Save from "lucide-react/dist/esm/icons/save";
+import X from "lucide-react/dist/esm/icons/x";
 import { Button } from "@/components/ui/button";
 import { CodemationDialog } from "@/components/CodemationDialog";
 import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 
-import { ChevronRight, Folder } from "lucide-react";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
+import Folder from "lucide-react/dist/esm/icons/folder";
 import type { ReactNode } from "react";
 
 import type { WorkflowSummary } from "../features/workflows/hooks/realtime/realtime";

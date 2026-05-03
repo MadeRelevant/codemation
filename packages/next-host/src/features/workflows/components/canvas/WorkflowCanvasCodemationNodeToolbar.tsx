@@ -1,4 +1,8 @@
-import { KeyRound, Pencil, Pin, PinOff, Play } from "lucide-react";
+import KeyRound from "lucide-react/dist/esm/icons/key-round";
+import Pencil from "lucide-react/dist/esm/icons/pencil";
+import Pin from "lucide-react/dist/esm/icons/pin";
+import PinOff from "lucide-react/dist/esm/icons/pin-off";
+import Play from "lucide-react/dist/esm/icons/play";
 
 import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
 import { WorkflowCanvasToolbarIconButton } from "./WorkflowCanvasToolbarIconButton";

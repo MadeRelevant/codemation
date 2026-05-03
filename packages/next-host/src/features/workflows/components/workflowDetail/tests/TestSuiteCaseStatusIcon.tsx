@@ -1,7 +1,10 @@
 "use client";
 
 import type { TestSuiteChildRunDto } from "@codemation/host/dto";
-import { CheckCircle2, CircleDashed, Loader2, XCircle } from "lucide-react";
+import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
+import CircleDashed from "lucide-react/dist/esm/icons/circle-dashed";
+import Loader2 from "lucide-react/dist/esm/icons/loader-2";
+import XCircle from "lucide-react/dist/esm/icons/x-circle";
 
 /**
  * One icon per run status. Visually distinct + colorblind-safe enough that the test-case

@@ -1,6 +1,7 @@
 import { hotkeysCoreFeature, syncDataLoaderFeature } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Tree, TreeItem } from "@/components/reui/tree";

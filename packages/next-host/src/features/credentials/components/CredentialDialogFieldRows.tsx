@@ -4,7 +4,7 @@ import type { CredentialFieldSchema } from "@codemation/core/browser";
 import type { Dispatch, SetStateAction } from "react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import { cn } from "@/lib/utils";
 import { CredentialDialogFieldRowEntry, type CredentialDialogOrderedField } from "./CredentialDialogFieldRowEntry";
 

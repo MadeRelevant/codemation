@@ -1,4 +1,5 @@
-import { PanelBottomClose, PanelBottomOpen } from "lucide-react";
+import PanelBottomClose from "lucide-react/dist/esm/icons/panel-bottom-close";
+import PanelBottomOpen from "lucide-react/dist/esm/icons/panel-bottom-open";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

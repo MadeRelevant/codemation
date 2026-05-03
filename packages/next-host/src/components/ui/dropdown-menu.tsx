@@ -4,7 +4,8 @@ import * as React from "react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
-import { CheckIcon, ChevronRightIcon } from "lucide-react";
+import CheckIcon from "lucide-react/dist/esm/icons/check";
+import ChevronRightIcon from "lucide-react/dist/esm/icons/chevron-right";
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
   return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;

@@ -1,14 +1,12 @@
-import {
-  Bot,
-  Boxes,
-  Brain,
-  CircleAlert,
-  CircleCheckBig,
-  Clock3,
-  LoaderCircle,
-  Wrench,
-  type LucideIcon,
-} from "lucide-react";
+import Bot from "lucide-react/dist/esm/icons/bot";
+import Boxes from "lucide-react/dist/esm/icons/boxes";
+import Brain from "lucide-react/dist/esm/icons/brain";
+import CircleAlert from "lucide-react/dist/esm/icons/circle-alert";
+import CircleCheckBig from "lucide-react/dist/esm/icons/circle-check-big";
+import Clock3 from "lucide-react/dist/esm/icons/clock-3";
+import LoaderCircle from "lucide-react/dist/esm/icons/loader-circle";
+import Wrench from "lucide-react/dist/esm/icons/wrench";
+import type { LucideIcon } from "lucide-react";
 
 export function WorkflowStatusIcon(args: Readonly<{ status: string; size?: number }>) {
   const { status, size = 16 } = args;

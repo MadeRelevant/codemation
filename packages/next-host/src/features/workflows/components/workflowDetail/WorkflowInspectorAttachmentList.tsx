@@ -1,4 +1,4 @@
-import { Download } from "lucide-react";
+import Download from "lucide-react/dist/esm/icons/download";
 
 import { WorkflowInspectorAttachmentGroupingPresenter } from "./WorkflowInspectorAttachmentGroupingPresenter";
 import type { WorkflowExecutionInspectorAttachmentModel } from "../../lib/workflowDetail/workflowDetailTypes";

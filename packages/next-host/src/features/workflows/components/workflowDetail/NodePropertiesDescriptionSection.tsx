@@ -1,4 +1,4 @@
-import { FlaskConical } from "lucide-react";
+import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
 
 import type { WorkflowDiagramNode } from "../../lib/workflowDetail/workflowDetailTypes";
 

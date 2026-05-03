@@ -5,7 +5,15 @@ import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, Sele
 import { cn } from "@/lib/utils";
 
 import { CanvasNodeChromeTooltip } from "../canvas/CanvasNodeChromeTooltip";
-import { AlertCircle, CheckCircle2, HelpCircle, Link2, Loader2, MinusCircle, Pencil, Plus, Unplug } from "lucide-react";
+import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
+import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
+import HelpCircle from "lucide-react/dist/esm/icons/help-circle";
+import Link2 from "lucide-react/dist/esm/icons/link-2";
+import Loader2 from "lucide-react/dist/esm/icons/loader-2";
+import MinusCircle from "lucide-react/dist/esm/icons/minus-circle";
+import Pencil from "lucide-react/dist/esm/icons/pencil";
+import Plus from "lucide-react/dist/esm/icons/plus";
+import Unplug from "lucide-react/dist/esm/icons/unplug";
 import type { ReactNode } from "react";
 import type { CredentialInstanceDto } from "../../hooks/realtime/realtime";
 

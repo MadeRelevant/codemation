@@ -1,5 +1,9 @@
 import type { JSX } from "react";
-import { ChevronDown, CircleCheckBig, Clock3, LoaderCircle, X } from "lucide-react";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import CircleCheckBig from "lucide-react/dist/esm/icons/circle-check-big";
+import Clock3 from "lucide-react/dist/esm/icons/clock-3";
+import LoaderCircle from "lucide-react/dist/esm/icons/loader-circle";
+import X from "lucide-react/dist/esm/icons/x";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";

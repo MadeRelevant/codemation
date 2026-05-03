@@ -1,7 +1,8 @@
 "use client";
 
 import type { TestAssertionDto, TestSuiteChildRunDto } from "@codemation/host/dto";
-import { ChevronRight, ExternalLink } from "lucide-react";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
+import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import { useState } from "react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";

@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 
 import type { ReactNode } from "react";
 
-import { AlertCircle } from "lucide-react";
+import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
 
 import { CanvasNodeChromeTooltip } from "../features/workflows/components/canvas/CanvasNodeChromeTooltip";
 import { WorkflowActivationErrorDialog } from "../features/workflows/components/workflowDetail/WorkflowActivationErrorDialog";
