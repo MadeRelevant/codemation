@@ -72,6 +72,9 @@ describe("SQLite CollectionStore round-trips", () => {
   });
 
   afterEach(async () => {
+    // CI shares one SQLite file across the whole suite via DATABASE_URL — purge our
+    // table between cases so per-test row counts don't leak from earlier inserts.
+    await prismaClient.$executeRawUnsafe(`DELETE FROM "collections_users"`);
     await db.close();
   });
 
