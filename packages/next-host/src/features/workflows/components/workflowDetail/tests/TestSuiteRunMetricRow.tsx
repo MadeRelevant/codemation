@@ -23,10 +23,7 @@ export function TestSuiteRunMetricRow(props: TestSuiteRunMetricRowProps) {
   const { row } = props;
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3 py-1.5 text-xs">
-      <span
-        className={`truncate font-medium ${row.currentFailing ? "text-destructive" : ""}`}
-        title={row.name}
-      >
+      <span className={`truncate font-medium ${row.currentFailing ? "text-destructive" : ""}`} title={row.name}>
         {row.name}
       </span>
       <span className="font-mono text-muted-foreground" title="Current run mean score">

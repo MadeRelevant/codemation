@@ -2,10 +2,7 @@ import { inject, injectable, type WorkflowId } from "@codemation/core";
 
 import type { TestAssertionRepository } from "../../domain/runs/TestAssertionRepository";
 import type { TestSuiteRunRepository } from "../../domain/runs/TestSuiteRunRepository";
-import type {
-  AssertionMetricTrendDto,
-  AssertionMetricTrendPointDto,
-} from "../contracts/TestingContracts";
+import type { AssertionMetricTrendDto, AssertionMetricTrendPointDto } from "../contracts/TestingContracts";
 
 import { TestAssertionRepositoryToken, TestSuiteRunRepositoryToken } from "./TestSuiteRunTrackerFactory";
 
@@ -34,8 +31,7 @@ export class TestAssertionAggregator {
     readonly workflowId: WorkflowId;
     readonly names?: ReadonlyArray<string>;
   }): Promise<ReadonlyArray<AssertionMetricTrendDto>> {
-    const filterNames =
-      args.names && args.names.length > 0 ? args.names.filter((n) => n.trim().length > 0) : undefined;
+    const filterNames = args.names && args.names.length > 0 ? args.names.filter((n) => n.trim().length > 0) : undefined;
 
     const [aggregations, suiteRuns, distinctNames] = await Promise.all([
       this.assertionRepo.aggregateMeanScoreByNameAndSuiteRun({

@@ -14,7 +14,10 @@ function formatJsonValue(value: unknown): string {
   }
 }
 
-function truncateValue(value: unknown, maxLength: number): {
+function truncateValue(
+  value: unknown,
+  maxLength: number,
+): {
   full: string;
   truncated: string;
   shouldExpand: boolean;
@@ -42,11 +45,7 @@ export function ExpandableJsonValue(props: Readonly<{ value: unknown }>) {
         className="inline-flex w-fit items-center gap-1 rounded px-1 py-0.5 text-xs text-muted-foreground hover:bg-muted/40 transition-colors"
         type="button"
       >
-        <ChevronRight
-          size={12}
-          strokeWidth={2}
-          className={`transition-transform ${expanded ? "rotate-90" : ""}`}
-        />
+        <ChevronRight size={12} strokeWidth={2} className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
         <span className="underline">{expanded ? "hide" : "show more"}</span>
       </button>
       <pre className="overflow-x-auto rounded bg-muted/40 px-2 py-1 text-xs">{expanded ? full : truncated}</pre>
