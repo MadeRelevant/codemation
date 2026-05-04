@@ -25,3 +25,4 @@ packages/cli/test/integration-sandbox/
 packages/host/.cache/
 .verdaccio/wbso-hours.tsv
 .verdaccio/storage/
+.claude/scheduled_tasks.lock

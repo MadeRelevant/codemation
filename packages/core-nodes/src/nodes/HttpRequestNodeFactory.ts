@@ -1,7 +1,10 @@
 import type { Item, NodeExecutionContext, RunnableNode, RunnableNodeExecuteArgs } from "@codemation/core";
 
 import { node } from "@codemation/core";
-
+import type { CredentialSession, HttpRequestSpec } from "../http/httpRequest.types";
+import { HttpRequestExecutor } from "../http/HttpRequestExecutor";
+import { HttpBodyBuilder } from "../http/HttpBodyBuilder";
+import { HttpUrlBuilder } from "../http/HttpUrlBuilder";
 import type { HttpRequestDownloadMode } from "./httpRequest";
 import { HttpRequest } from "./httpRequest";
 
@@ -16,44 +19,113 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
 
   private async executeItem(item: Item, ctx: NodeExecutionContext<HttpRequest<any, any>>): Promise<Item> {
     const url = this.resolveUrl(item, ctx);
-    const response = await fetch(url, {
+    const credential = await this.resolveCredential(ctx);
+
+    const spec: HttpRequestSpec = {
+      url,
       method: ctx.config.method,
-    });
+      headers: ctx.config.args.headers,
+      query: ctx.config.args.query,
+      body: ctx.config.args.body,
+      credential,
+      download: {
+        mode: ctx.config.downloadMode,
+        binaryName: ctx.config.binaryName,
+      },
+      ctx: ctx as unknown as HttpRequestSpec["ctx"],
+    };
+
+    // Build the request (headers, body encoding, URL query merge) once,
+    // then make a SINGLE fetch call and decide what to do with the response.
+    // This avoids a double-fetch regression for auto-mode binary responses.
+    const executor = new HttpRequestExecutor(globalThis.fetch, new HttpBodyBuilder(), new HttpUrlBuilder());
+    const { url: resolvedUrl, init } = await executor.buildRequest(spec, item);
+
+    const response = await globalThis.fetch(resolvedUrl, init);
+
     const headers = this.readHeaders(response.headers);
     const mimeType = this.resolveMimeType(headers);
-    const bodyBinaryName = ctx.config.binaryName;
-    const shouldAttachBody = this.shouldAttachBody(ctx.config.downloadMode, mimeType);
+    const binaryName = ctx.config.binaryName;
+    const shouldAttach = this.shouldAttachBody(ctx.config.downloadMode, mimeType);
+
+    if (shouldAttach) {
+      const outputJson: Readonly<Record<string, unknown>> = {
+        url: resolvedUrl,
+        method: ctx.config.method,
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        mimeType,
+        headers,
+        bodyBinaryName: binaryName,
+      };
+
+      const attachment = await ctx.binary.attach({
+        name: binaryName,
+        body: response.body
+          ? (response.body as unknown as Parameters<typeof ctx.binary.attach>[0]["body"])
+          : new Uint8Array(await response.arrayBuffer()),
+        mimeType,
+        filename: this.resolveFilename(resolvedUrl, headers),
+      });
+
+      let outputItem: Item = { json: outputJson };
+      outputItem = ctx.binary.withAttachment(outputItem, binaryName, attachment);
+      return outputItem;
+    }
+
+    // Non-binary path: parse JSON or read text.
+    const isJson = this.isJsonMimeType(mimeType);
+    let json: unknown | undefined;
+    let text: string | undefined;
+
+    if (isJson) {
+      try {
+        json = await response.json();
+      } catch {
+        text = await response.text();
+      }
+    } else {
+      text = await response.text();
+    }
+
     const outputJson: Readonly<Record<string, unknown>> = {
-      url,
+      url: resolvedUrl,
       method: ctx.config.method,
       ok: response.ok,
       status: response.status,
       statusText: response.statusText,
       mimeType,
       headers,
-      ...(shouldAttachBody ? { bodyBinaryName } : {}),
+      ...(json !== undefined ? { json } : {}),
+      ...(text !== undefined ? { text } : {}),
     };
 
-    let outputItem: Item = {
-      json: outputJson,
-    };
-    if (!shouldAttachBody) {
-      return outputItem;
+    return { json: outputJson };
+  }
+
+  private async resolveCredential(
+    ctx: NodeExecutionContext<HttpRequest<any, any>>,
+  ): Promise<CredentialSession | undefined> {
+    const slotKey = ctx.config.args.credentialSlot;
+    if (!slotKey) {
+      return undefined;
     }
-
-    const attachment = await ctx.binary.attach({
-      name: bodyBinaryName,
-      body: response.body
-        ? (response.body as unknown as Parameters<typeof ctx.binary.attach>[0]["body"])
-        : new Uint8Array(await response.arrayBuffer()),
-      mimeType,
-      filename: this.resolveFilename(url, headers),
-    });
-    outputItem = ctx.binary.withAttachment(outputItem, bodyBinaryName, attachment);
-    return outputItem;
+    try {
+      return await ctx.getCredential<CredentialSession>(slotKey);
+    } catch {
+      // Credential slot configured but not bound — treat as no credential.
+      return undefined;
+    }
   }
 
   private resolveUrl(item: Item, ctx: NodeExecutionContext<HttpRequest<any, any>>): string {
+    // Literal URL in args takes precedence over the legacy urlField approach.
+    const literalUrl = ctx.config.args.url;
+    if (literalUrl && literalUrl.trim().length > 0) {
+      return literalUrl.trim();
+    }
+
     const json = this.asRecord(item.json);
     const candidate = json[ctx.config.urlField];
     if (typeof candidate !== "string" || candidate.trim() === "") {
@@ -83,6 +155,10 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
       return "application/octet-stream";
     }
     return contentType.split(";")[0]?.trim() || "application/octet-stream";
+  }
+
+  private isJsonMimeType(mimeType: string): boolean {
+    return mimeType === "application/json" || mimeType.endsWith("+json");
   }
 
   private shouldAttachBody(mode: HttpRequestDownloadMode, mimeType: string): boolean {

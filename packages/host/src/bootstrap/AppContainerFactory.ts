@@ -23,7 +23,14 @@ import {
   StaticCostCatalog,
   WorkflowRepositoryWebhookTriggerMatcher,
 } from "@codemation/core/bootstrap";
-import { AIAgentConnectionWorkflowExpander, ConnectionCredentialNodeConfigFactory } from "@codemation/core-nodes";
+import {
+  AIAgentConnectionWorkflowExpander,
+  ConnectionCredentialNodeConfigFactory,
+  apiKeyCredentialType,
+  basicAuthCredentialType,
+  bearerTokenCredentialType,
+  oauth2ClientCredentialsType,
+} from "@codemation/core-nodes";
 import {
   CreateCredentialInstanceCommandHandler,
   DeleteCredentialInstanceCommandHandler,
@@ -369,6 +376,17 @@ export class AppContainerFactory {
     ).createCredentialType();
     if (!credentialTypes.some((entry) => entry.definition.typeId === openAiCredentialType.definition.typeId)) {
       credentialTypes.push(openAiCredentialType);
+    }
+    // Register the four generic HTTP credential types shipped with core-nodes.
+    for (const builtIn of [
+      bearerTokenCredentialType,
+      apiKeyCredentialType,
+      basicAuthCredentialType,
+      oauth2ClientCredentialsType,
+    ]) {
+      if (!credentialTypes.some((entry) => entry.definition.typeId === builtIn.definition.typeId)) {
+        credentialTypes.push(builtIn);
+      }
     }
     return credentialTypes;
   }
