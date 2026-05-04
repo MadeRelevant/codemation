@@ -2,8 +2,17 @@ import type { NodeExecutionContext } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
 import { GoogleGmailApiClientFactory } from "../adapters/google/GoogleGmailApiClientFactory";
 import type { GmailSession } from "../contracts/GmailSession";
-import type { ModifyGmailLabels, ModifyGmailLabelsOutputJson } from "../nodes/ModifyGmailLabels";
+import type {
+  ModifyGmailLabels,
+  ModifyGmailLabelsInputJson,
+  ModifyGmailLabelsOutputJson,
+} from "../nodes/ModifyGmailLabels";
 import { GmailConfiguredLabelService } from "./GmailConfiguredLabelService";
+
+export type GmailModifyLabelsServiceArgs = Readonly<{
+  input: ModifyGmailLabelsInputJson;
+  ctx: NodeExecutionContext<ModifyGmailLabels>;
+}>;
 
 @injectable()
 export class GmailModifyLabelsService {
@@ -14,27 +23,22 @@ export class GmailModifyLabelsService {
     private readonly gmailConfiguredLabelService: GmailConfiguredLabelService,
   ) {}
 
-  async modify(ctx: NodeExecutionContext<ModifyGmailLabels>): Promise<ModifyGmailLabelsOutputJson> {
-    const session = await ctx.getCredential<GmailSession>("auth");
+  async modify(args: GmailModifyLabelsServiceArgs): Promise<ModifyGmailLabelsOutputJson> {
+    const session = await args.ctx.getCredential<GmailSession>("auth");
     const client = this.googleGmailApiClientFactory.create(session);
     const mailbox = session.emailAddress ?? session.userId;
-    const addLabelIds = await this.resolveLabelIds(
-      client,
-      mailbox,
-      ctx.config.cfg.addLabelIds,
-      ctx.config.cfg.addLabels,
-    );
+    const addLabelIds = await this.resolveLabelIds(client, mailbox, args.input.addLabelIds, args.input.addLabels);
     const removeLabelIds = await this.resolveLabelIds(
       client,
       mailbox,
-      ctx.config.cfg.removeLabelIds,
-      ctx.config.cfg.removeLabels,
+      args.input.removeLabelIds,
+      args.input.removeLabels,
     );
     if (addLabelIds.length === 0 && removeLabelIds.length === 0) {
       throw new Error("ModifyGmailLabels expected at least one label id or label name to add or remove.");
     }
-    if (ctx.config.target === "thread") {
-      const threadId = this.resolveRequiredString(ctx.config.cfg.threadId, "cfg.threadId");
+    if ((args.input.target ?? "message") === "thread") {
+      const threadId = this.resolveRequiredString(args.input.threadId, "threadId");
       await client.modifyThreadLabels({
         threadId,
         addLabelIds,
@@ -48,13 +52,13 @@ export class GmailModifyLabelsService {
       };
     }
     return await client.modifyMessageLabels({
-      messageId: this.resolveRequiredString(ctx.config.cfg.messageId, "cfg.messageId"),
+      messageId: this.resolveRequiredString(args.input.messageId, "messageId"),
       addLabelIds,
       removeLabelIds,
     });
   }
 
-  private resolveRequiredString(value: unknown, fieldName: string): string {
+  private resolveRequiredString(value: string | undefined, fieldName: string): string {
     if (typeof value !== "string" || value.trim().length === 0) {
       throw new Error(`ModifyGmailLabels expected input.${fieldName} to be a non-empty string.`);
     }
@@ -64,8 +68,8 @@ export class GmailModifyLabelsService {
   private async resolveLabelIds(
     client: Parameters<GmailConfiguredLabelService["resolveLabelIds"]>[0]["client"],
     mailbox: string,
-    idValue: unknown,
-    labelValue: unknown,
+    idValue: string | ReadonlyArray<string> | undefined,
+    labelValue: string | ReadonlyArray<string> | undefined,
   ): Promise<ReadonlyArray<string>> {
     const directIds = this.resolveStringList(idValue);
     const labelNames = this.resolveStringList(labelValue);
@@ -81,7 +85,7 @@ export class GmailModifyLabelsService {
     return [...directIds, ...resolvedIds];
   }
 
-  private resolveStringList(value: unknown): ReadonlyArray<string> {
+  private resolveStringList(value: string | ReadonlyArray<string> | undefined): ReadonlyArray<string> {
     if (typeof value === "string") {
       return value
         .split(",")

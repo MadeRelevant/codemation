@@ -1,5 +1,3 @@
-import { CoreTokens } from "../di/CoreTokens";
-import { inject, injectable } from "../di";
 import type {
   ActivationIdFactory,
   ConnectionInvocationId,
@@ -18,13 +16,12 @@ import type {
  * - `telemetry` parents children under the tool-call span (not the orchestrator's node span),
  * - `binary` is scoped to the new (nodeId, activationId),
  * - `parentInvocationId` points back to the tool-call invocation for downstream lineage.
+ *
+ * Registered via factory in {@link EngineRuntimeRegistrar} so constructors stay free of parameter
+ * decorators (Next/SWC and coverage tooling cannot parse them on in-repo sources).
  */
-@injectable()
 export class ChildExecutionScopeFactory {
-  constructor(
-    @inject(CoreTokens.ActivationIdFactory)
-    private readonly activationIdFactory: ActivationIdFactory,
-  ) {}
+  constructor(private readonly activationIdFactory: ActivationIdFactory) {}
 
   forSubAgent<TConfig extends RunnableNodeConfig<any, any>>(
     args: Readonly<{

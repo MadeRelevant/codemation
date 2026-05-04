@@ -27,7 +27,8 @@ Do not use this skill for pure workflow chaining questions unless the node imple
 2. Keep nodes deterministic and focused.
 3. Request credentials through named slots instead of hard-coded secrets.
 4. Put **static** options (credentials, retry policy, labels) on **config**; put **per-item** behavior in **inputs** / wire JSON and optional **`itemExpr`** on config fields (consistent with built-in nodes).
-5. Drop to class-based node APIs only when you need constructor-injected collaborators, decorators, or deeper runtime metadata.
+5. **Emit files with `ctx.binary`, not base64 in `json`:** use **`attach`** + **`withAttachment`** on **`args.ctx.binary`** (`defineNode`) or **`ctx.binary`** (class nodes). Base64 in **`item.json`** bloats persisted run JSON in the database; binaries use **storage + references** only. See `references/node-patterns.md` and repo docs **Concepts → Execution model** / **Custom nodes**.
+6. Drop to class-based node APIs only when you need constructor-injected collaborators, decorators, or deeper runtime metadata.
 
 ## Testing with `WorkflowTestKit`
 

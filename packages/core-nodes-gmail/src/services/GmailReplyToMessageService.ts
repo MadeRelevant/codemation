@@ -1,40 +1,42 @@
-import type { NodeExecutionContext } from "@codemation/core";
+import type { Item, NodeExecutionContext } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
 import { GoogleGmailApiClientFactory } from "../adapters/google/GoogleGmailApiClientFactory";
 import type { GmailSession } from "../contracts/GmailSession";
 import type { GmailMessageRecord, GmailOutgoingMessageAttachment } from "./GmailApiClient";
-import type { ReplyToGmailMessage } from "../nodes/ReplyToGmailMessage";
+import type { ReplyToGmailMessage, ReplyToGmailMessageInputJson } from "../nodes/ReplyToGmailMessage";
+import type { GmailOutgoingAttachmentInputJson } from "../nodes/SendGmailMessage";
+import { BinaryStreamCollector } from "./BinaryStreamCollector";
+
+export type GmailReplyToMessageServiceArgs = Readonly<{
+  input: ReplyToGmailMessageInputJson;
+  item: Item;
+  ctx: NodeExecutionContext<ReplyToGmailMessage>;
+}>;
 
 @injectable()
 export class GmailReplyToMessageService {
   constructor(
     @inject(GoogleGmailApiClientFactory)
     private readonly googleGmailApiClientFactory: GoogleGmailApiClientFactory,
+    @inject(BinaryStreamCollector)
+    private readonly binaryStreamCollector: BinaryStreamCollector,
   ) {}
 
-  async reply(ctx: NodeExecutionContext<ReplyToGmailMessage>): Promise<GmailMessageRecord> {
-    const session = await ctx.getCredential<GmailSession>("auth");
+  async reply(args: GmailReplyToMessageServiceArgs): Promise<GmailMessageRecord> {
+    const session = await args.ctx.getCredential<GmailSession>("auth");
     const client = this.googleGmailApiClientFactory.create(session);
     return await client.replyToMessage({
-      messageId: this.resolveRequiredString(ctx.config.cfg.messageId, "cfg.messageId"),
-      text: this.resolveOptionalString(ctx.config.cfg.text),
-      html: this.resolveOptionalString(ctx.config.cfg.html),
-      attachments: this.resolveAttachments(ctx.config.cfg.attachments),
-      replyToSenderOnly:
-        typeof ctx.config.cfg.replyToSenderOnly === "boolean" ? ctx.config.cfg.replyToSenderOnly : undefined,
-      headers: this.resolveHeaders(ctx.config.cfg.headers),
-      subject: this.resolveOptionalString(ctx.config.cfg.subject),
+      messageId: args.input.messageId.trim(),
+      text: this.resolveOptionalString(args.input.text),
+      html: this.resolveOptionalString(args.input.html),
+      attachments: await this.resolveAttachments(args),
+      replyToSenderOnly: args.input.replyToSenderOnly,
+      headers: this.resolveHeaders(args.input.headers),
+      subject: this.resolveOptionalString(args.input.subject),
     });
   }
 
-  private resolveRequiredString(value: unknown, fieldName: string): string {
-    if (typeof value !== "string" || value.trim().length === 0) {
-      throw new Error(`ReplyToGmailMessage expected input.${fieldName} to be a non-empty string.`);
-    }
-    return value.trim();
-  }
-
-  private resolveOptionalString(value: unknown): string | undefined {
+  private resolveOptionalString(value: string | undefined): string | undefined {
     if (typeof value !== "string") {
       return undefined;
     }
@@ -42,7 +44,9 @@ export class GmailReplyToMessageService {
     return normalized.length > 0 ? normalized : undefined;
   }
 
-  private resolveHeaders(value: unknown): Readonly<Record<string, string>> | undefined {
+  private resolveHeaders(
+    value: Readonly<Record<string, string>> | undefined,
+  ): Readonly<Record<string, string>> | undefined {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       return undefined;
     }
@@ -61,62 +65,43 @@ export class GmailReplyToMessageService {
     return Object.keys(headers).length > 0 ? headers : undefined;
   }
 
-  private resolveAttachments(value: unknown): ReadonlyArray<GmailOutgoingMessageAttachment> | undefined {
-    if (!Array.isArray(value) || value.length === 0) {
+  private async resolveAttachments(
+    args: GmailReplyToMessageServiceArgs,
+  ): Promise<ReadonlyArray<GmailOutgoingMessageAttachment> | undefined> {
+    if (!args.input.attachments || args.input.attachments.length === 0) {
       return undefined;
     }
-    const attachments = value
-      .map((entry) => this.resolveAttachment(entry))
-      .filter((entry): entry is GmailOutgoingMessageAttachment => entry !== undefined);
-    return attachments.length > 0 ? attachments : undefined;
+    const attachments: GmailOutgoingMessageAttachment[] = [];
+    for (const [index, attachment] of args.input.attachments.entries()) {
+      attachments.push(await this.resolveAttachment(args, attachment, index));
+    }
+    return attachments;
   }
 
-  private resolveAttachment(value: unknown): GmailOutgoingMessageAttachment | undefined {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-      return undefined;
+  private async resolveAttachment(
+    args: GmailReplyToMessageServiceArgs,
+    attachment: GmailOutgoingAttachmentInputJson,
+    index: number,
+  ): Promise<GmailOutgoingMessageAttachment> {
+    const binaryAttachment = args.item.binary?.[attachment.binaryName];
+    if (!binaryAttachment) {
+      throw new Error(
+        `ReplyToGmailMessage attachments[${index}].binaryName "${attachment.binaryName}" was not found on item.binary.`,
+      );
     }
-    const candidate = value as Readonly<Record<string, unknown>>;
-    if (
-      typeof candidate["filename"] !== "string" ||
-      candidate["filename"].trim().length === 0 ||
-      typeof candidate["mimeType"] !== "string" ||
-      candidate["mimeType"].trim().length === 0
-    ) {
-      return undefined;
-    }
-    const body = candidate["body"];
-    if (!(typeof body === "string" || body instanceof Uint8Array)) {
-      return undefined;
+    const binary = await args.ctx.binary.openReadStream(binaryAttachment);
+    if (!binary) {
+      throw new Error(
+        `ReplyToGmailMessage attachments[${index}].binaryName "${attachment.binaryName}" could not be opened from binary storage.`,
+      );
     }
     return {
-      filename: candidate["filename"].trim(),
-      mimeType: candidate["mimeType"].trim(),
-      body,
-      contentId: this.resolveOptionalString(candidate["contentId"]),
-      contentTransferEncoding: this.resolveTransferEncoding(candidate["contentTransferEncoding"]),
-      disposition: this.resolveDisposition(candidate["disposition"]),
+      filename: attachment.filename?.trim() || binaryAttachment.filename || attachment.binaryName,
+      mimeType: attachment.mimeType?.trim() || binaryAttachment.mimeType,
+      body: await this.binaryStreamCollector.collect(binary.body),
+      contentId: this.resolveOptionalString(attachment.contentId),
+      contentTransferEncoding: attachment.contentTransferEncoding,
+      disposition: attachment.disposition,
     };
-  }
-
-  private resolveTransferEncoding(
-    value: unknown,
-  ): GmailOutgoingMessageAttachment["contentTransferEncoding"] | undefined {
-    if (
-      value === "base64" ||
-      value === "quoted-printable" ||
-      value === "7bit" ||
-      value === "8bit" ||
-      value === "binary"
-    ) {
-      return value;
-    }
-    return undefined;
-  }
-
-  private resolveDisposition(value: unknown): GmailOutgoingMessageAttachment["disposition"] | undefined {
-    if (value === "attachment" || value === "inline") {
-      return value;
-    }
-    return undefined;
   }
 }

@@ -52,6 +52,7 @@ This section locks **current** engine semantics for runnable nodes that execute 
 - **Explicit item return:** fields on the returned item win. Returning an item without `binary` still inherits inbound binary when binary preservation is enabled; returning `binary: {}` explicitly clears binaries.
 - **Router / pass-through nodes:** preserve full item state by returning the original items (or explicit item-shaped results), not via topology-based defaults.
 - **MapData default:** `MapData` keeps inbound binaries unless `keepBinaries: false` is set.
+- **New bytes vs `item.json`:** File content must be attached via **`ctx.binary.attach`** (storage-backed **`BinaryAttachment`** on **`item.binary`**). **Do not** embed large **base64** (or similar) strings in **`json`** for “attachments”—that persists inside run JSON and **inflates the database**; binaries persist as **references** plus blob storage.
 
 ### Fan-in (multi-inbound edges)
 

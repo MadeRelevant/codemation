@@ -118,6 +118,39 @@ const normalizeInvoiceNode = defineNode({
 
 That node returns plain JSON, but inbound binaries are still preserved because `keepBinaries` is enabled. If you need to replace or clear binaries, return an explicit item-shaped result instead.
 
+### Emit new files: use `ctx.binary`, not base64 in `json`
+
+Run state persists **`item.json`** as JSON. If you put **base64 or other large strings** in `json`, that payload is stored **inline** in the database and **grows with the file size**. **Binary attachments** are written to **binary storage**; only **small reference metadata** stays on the item, so runs stay lean and scalable.
+
+Inside **`execute`**, use the **`ctx.binary`** service from **`NodeExecutionContext`** (class-based nodes) or **`args.ctx.binary`** / **`context.execution.binary`** with **`defineNode`**:
+
+1. **`await ctx.binary.attach({ name, body, mimeType, filename? })`** — uploads bytes. **`body`** may be `Uint8Array`, `ArrayBuffer`, a **`ReadableStream`**, or an async iterable of `Uint8Array` chunks (same idea as **`HttpRequestNode`** streaming a download).
+2. **`ctx.binary.withAttachment(baseItem, name, attachment)`** — returns an item whose **`binary[name]`** points at storage.
+
+Minimal sketch:
+
+```ts
+async execute(items, ctx) {
+  const out: Item[] = [];
+  for (const item of items) {
+    const bytes = ...; // from API, disk, decode only if unavoidable
+    const attachment = await ctx.binary.attach({
+      name: "report",
+      body: bytes,
+      mimeType: "application/pdf",
+      filename: "report.pdf",
+    });
+    const next: Item = {
+      json: { ok: true, reportBinaryName: "report" },
+    };
+    out.push(ctx.binary.withAttachment(next, "report", attachment));
+  }
+  return { main: out };
+}
+```
+
+Put **identifiers, content types, and filenames** in **`json`** if downstream needs them; put **raw bytes** through **`attach`**. Only reserve base64 in **`json`** for tiny payloads (for example a short data-URL preview you accept as a product tradeoff—not bulk files).
+
 ## Params belong to the node, mapping belongs to the workflow
 
 For reusable helper-defined nodes, treat **config** as the node's parameter surface:

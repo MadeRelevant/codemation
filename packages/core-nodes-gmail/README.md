@@ -53,30 +53,27 @@ For workflow authors, the package now exposes dedicated Gmail action nodes inste
 - `ReplyToGmailMessage`
 - `ModifyGmailLabels`
 
-These nodes use the bound Gmail OAuth credential and keep the workflow graph declarative. Their config is designed to work well with `itemExpr(...)`, so authors can map recipients, subjects, message ids, and labels directly from upstream items instead of building ad hoc input payload objects.
+These nodes use the bound Gmail OAuth credential and keep the workflow graph declarative. They validate the current workflow item's `json` with node-specific `inputSchema`, so authors compose the Gmail payload in the normal workflow graph and then plug the action node in directly.
 
 ```ts
-import { itemExpr } from "@codemation/core";
+workflow
+  .map("Build Gmail reply", (item) => ({
+    messageId: item.json.messageId,
+    text: "Thanks, we received your request.",
+    attachments: [{ binaryName: "invoice_pdf" }],
+  }))
+  .then(new ReplyToGmailMessage("Reply to incoming message"));
 
-new SendGmailMessage("Send quote response", {
-  to: itemExpr(({ item }) => String((item.json as Record<string, unknown>)["from"] ?? "")),
-  subject: itemExpr(({ item }) => `Re: ${String((item.json as Record<string, unknown>)["subject"] ?? "")}`),
-  text: "Thanks for your message. We will respond shortly.",
-});
-
-new ReplyToGmailMessage("Reply to incoming message", {
-  messageId: itemExpr(({ item }) => String((item.json as Record<string, unknown>)["messageId"] ?? "")),
-  text: "Thanks, we received your request.",
-});
-
-new ModifyGmailLabels("Mark Gmail thread done", {
-  target: "thread",
-  threadId: itemExpr(({ item }) => String((item.json as Record<string, unknown>)["threadId"] ?? "")),
-  addLabels: ["Done"],
-});
+workflow
+  .map("Build label update", (item) => ({
+    target: "thread",
+    threadId: item.json.threadId,
+    addLabels: ["Done"],
+  }))
+  .then(new ModifyGmailLabels("Mark Gmail thread done"));
 ```
 
-Each node resolves its config per item, so upstream mapping or AI nodes can feed Gmail actions without introducing a separate “compose input JSON for Gmail” step.
+Outgoing attachments are referenced by `binaryName` and read from `item.binary`; do not put file bytes or base64 bodies in `item.json`. Upstream Gmail triggers with `downloadAttachments: true` and custom nodes that call `ctx.binary.attach(...)` both produce the binary references these action nodes expect.
 
 ## Using the authenticated Gmail session
 

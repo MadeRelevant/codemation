@@ -52,7 +52,11 @@ export class EngineRuntimeRegistrar {
       container.registerSingleton(RunnableOutputBehaviorResolver, RunnableOutputBehaviorResolver);
     }
     if (!container.isRegistered(ChildExecutionScopeFactory, true)) {
-      container.registerSingleton(ChildExecutionScopeFactory, ChildExecutionScopeFactory);
+      container.register(ChildExecutionScopeFactory, {
+        useFactory: instanceCachingFactory((dependencyContainer) => {
+          return new ChildExecutionScopeFactory(dependencyContainer.resolve(CoreTokens.ActivationIdFactory));
+        }),
+      });
     }
     container.registerSingleton(EngineExecutionLimitsPolicyFactory, EngineExecutionLimitsPolicyFactory);
     container.registerSingleton(NodeInstanceFactoryFactory, NodeInstanceFactoryFactory);

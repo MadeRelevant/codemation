@@ -1,31 +1,34 @@
-import type { CredentialRequirement, ItemExprArgs, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type { CredentialRequirement, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import { z } from "zod";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
-import type { GmailMessageRecord, GmailOutgoingMessageAttachment } from "../services/GmailApiClient";
+import type { GmailMessageRecord } from "../services/GmailApiClient";
+import { gmailOutgoingAttachmentInputSchema } from "./SendGmailMessage";
 import { ReplyToGmailMessageNode } from "./ReplyToGmailMessageNode";
 
-export type GmailReplyConfigValue<T, TItemJson = unknown> =
-  | T
-  | Readonly<{ fn: (args: ItemExprArgs<TItemJson>) => T | Promise<T> }>;
+export const replyToGmailMessageInputSchema = z.object({
+  messageId: z.string().trim().min(1),
+  text: z.string().optional(),
+  html: z.string().optional(),
+  attachments: z.array(gmailOutgoingAttachmentInputSchema).readonly().optional(),
+  replyToSenderOnly: z.boolean().optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  subject: z.string().optional(),
+});
 
-export type ReplyToGmailMessageOptions<TItemJson = unknown> = Readonly<{
-  messageId: GmailReplyConfigValue<string, TItemJson>;
-  text?: GmailReplyConfigValue<string | undefined, TItemJson>;
-  html?: GmailReplyConfigValue<string | undefined, TItemJson>;
-  attachments?: GmailReplyConfigValue<ReadonlyArray<GmailOutgoingMessageAttachment> | undefined, TItemJson>;
-  replyToSenderOnly?: GmailReplyConfigValue<boolean | undefined, TItemJson>;
-  headers?: GmailReplyConfigValue<Readonly<Record<string, string>> | undefined, TItemJson>;
-  subject?: GmailReplyConfigValue<string | undefined, TItemJson>;
-}>;
+export type ReplyToGmailMessageInputJson = z.infer<typeof replyToGmailMessageInputSchema>;
 
 export type ReplyToGmailMessageOutputJson = GmailMessageRecord;
 
-export class ReplyToGmailMessage implements RunnableNodeConfig<unknown, ReplyToGmailMessageOutputJson> {
+export class ReplyToGmailMessage implements RunnableNodeConfig<
+  ReplyToGmailMessageInputJson,
+  ReplyToGmailMessageOutputJson
+> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = ReplyToGmailMessageNode;
+  readonly inputSchema = replyToGmailMessageInputSchema;
 
   constructor(
     public readonly name: string,
-    public readonly cfg: ReplyToGmailMessageOptions,
     public readonly id?: string,
   ) {}
 

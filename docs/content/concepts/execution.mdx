@@ -17,6 +17,18 @@ Runnable workflow nodes implement a single **`execute(args)`** method. The engin
 - **Fluent DSL callbacks** — helpers such as `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` receive the same full `item` plus execution `ctx`, so use `item.json` for row fields and `ctx.data` for outputs from earlier completed steps.
 - **Return** — JSON (replaces `item.json` on outputs), a **non-empty JSON array** to fan out on `main`, **`emitPorts({ port: items })`** for multi-port routing, or an **item-shaped object** (with `json`) when you need explicit control over `binary`, `meta`, or `paired`.
 
+## Emitting items and binaries (important for node authors)
+
+**Batch vs item:** The engine still passes **batches** of items into each step; each activation produces **one output item per return value** (or **many** if you return a **top-level JSON array** for fan-out). Downstream steps always read **`item.json`** as the wire payload for that row.
+
+**Do not put file bytes in `item.json`:** Avoid fields like `contentBase64`, `data: "<long string>"`, or huge string blobs. That data is persisted **inside run / step JSON** in the database and **grows roughly with the encoded size** (base64 is ~4/3 of raw bytes). It also hurts snapshot replay, logs, and UI.
+
+**Prefer `item.binary` + storage-backed attachments:** Binary payloads should go through **`ctx.binary.attach(...)`** (see [Custom nodes](/docs/workflows/custom-nodes)). The engine stores **opaque bytes in binary storage** and only **`BinaryAttachment` references** (metadata + storage keys) ride along on **`item.binary`**. Persisted run state stays small; the framework resolves downloads when needed.
+
+**Typical pattern:** `const attachment = await ctx.binary.attach({ name, body, mimeType, filename })`, then merge onto the outgoing item with **`ctx.binary.withAttachment(item, name, attachment)`**, or return an explicit `{ json, binary }` item shape. **`body`** can be `Uint8Array`, `ArrayBuffer`, `ReadableStream`, or async iterable chunks—same contract as built-in **`HttpRequest`** when downloading a response body.
+
+**Triggers:** When an external source yields many records, emit **many items** (one `Item` per record). Attach per-record files to **`binary`** on that item; do not fold multiple files into one giant JSON field.
+
 ## Routers (If, Switch)
 
 Branching nodes emit on **named output ports**. They preserve item state by returning explicit items, and they tag items with **`meta._cm.originIndex`** (and `paired`) so downstream **Merge** nodes can align rows when branches reconverge.
@@ -29,6 +41,8 @@ Transform nodes replace **`item.json`** by default. They only preserve inbound *
 - `defineNode({ ..., keepBinaries: true })`
 
 If you need precise control over **`binary`**, **`meta`**, or **`paired`**, return explicit item-shaped results instead of relying on a generic carry policy.
+
+Preservation only applies to **attachments already on `item.binary`**. New bytes still need **`ctx.binary.attach`**; stuffing base64 into **`json`** bypasses binary storage entirely and bloats persisted runs—see **Emitting items and binaries** above.
 
 ## Fan-in merge
 
