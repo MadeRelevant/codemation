@@ -7,6 +7,7 @@ export type { UpsertLocalBootstrapUserResultDto } from "./application/contracts/
 export { AppContainerFactory } from "./bootstrap/AppContainerFactory";
 export { AppContainerLifecycle } from "./bootstrap/AppContainerLifecycle";
 export { DatabaseMigrations } from "./bootstrap/runtime/DatabaseMigrations";
+export { CollectionSchemaSyncerHolder } from "./infrastructure/collections/CollectionSchemaSyncerHolder";
 export { FrontendRuntime } from "./bootstrap/runtime/FrontendRuntime";
 export { WorkerRuntime } from "./bootstrap/runtime/WorkerRuntime";
 export { AppConfigFactory } from "./bootstrap/runtime/AppConfigFactory";

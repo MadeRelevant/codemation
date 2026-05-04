@@ -4,6 +4,7 @@ import {
   AppContainerFactory,
   AppContainerLifecycle,
   type AppConfig,
+  CollectionSchemaSyncerHolder,
   DatabaseMigrations,
   type PrismaClient,
   type CommandBus,
@@ -28,6 +29,7 @@ export class CodemationCliApplicationSession {
     });
     if (args.appConfig.env.CODEMATION_SKIP_STARTUP_MIGRATIONS !== "true") {
       await container.resolve(DatabaseMigrations).migrate();
+      await container.resolve(CollectionSchemaSyncerHolder).syncIfAvailable();
     }
     return new CodemationCliApplicationSession(container);
   }
