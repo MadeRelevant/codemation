@@ -24,6 +24,11 @@ export class CreateCodemationProgram {
     program.argument("[directory]", "Target directory (default: codemation-app)");
     program.option("-t, --template <id>", "Template id", "default");
     program.option("--force", "Allow writing into a non-empty directory", false);
+    program.option(
+      "--workspace",
+      "Rewrite @codemation/* dependency ranges to workspace:* in the generated package.json",
+      false,
+    );
     program.option("--list-templates", "Print available template ids and exit", false);
     program.option(
       "--non-interactive",
@@ -42,6 +47,7 @@ export class CreateCodemationProgram {
     const opts = program.opts<{
       template: string;
       force: boolean;
+      workspace: boolean;
       listTemplates: boolean;
       nonInteractive: boolean;
       yes: boolean;
@@ -60,6 +66,7 @@ export class CreateCodemationProgram {
       templateId: opts.template,
       targetDirectory,
       force: opts.force,
+      workspace: opts.workspace,
     });
     const noInteraction = argvNoInteraction || opts.nonInteractive || opts.yes;
     await this.onboarding.runAfterScaffold({

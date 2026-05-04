@@ -53,10 +53,13 @@ class RecordingScaffolder {
         templateId: string;
         targetDirectory: string;
         force: boolean;
+        workspace?: boolean;
       }>
     | undefined;
 
-  async scaffold(args: Readonly<{ templateId: string; targetDirectory: string; force: boolean }>): Promise<void> {
+  async scaffold(
+    args: Readonly<{ templateId: string; targetDirectory: string; force: boolean; workspace?: boolean }>,
+  ): Promise<void> {
     this.last = args;
   }
 }
@@ -213,6 +216,7 @@ describe("CreateCodemationProgram", () => {
       templateId: "default",
       targetDirectory: path.resolve("forced-app"),
       force: true,
+      workspace: false,
     });
   });
 });
