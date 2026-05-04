@@ -45,6 +45,7 @@ export function CollectionsScreen() {
           columns={[
             { key: "name", header: "Name" },
             { key: "fields", header: "Fields" },
+            { key: "rows", header: "Rows" },
             { key: "actions", header: "" },
           ]}
         >
@@ -58,6 +59,11 @@ export function CollectionsScreen() {
               <TableCell>
                 <Badge variant="outline" data-testid={`collection-field-count-${col.name}`}>
                   {col.fieldCount} fields
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline" data-testid={`collection-row-count-${col.name}`}>
+                  {col.rowCount.toLocaleString()}
                 </Badge>
               </TableCell>
               <TableCell>

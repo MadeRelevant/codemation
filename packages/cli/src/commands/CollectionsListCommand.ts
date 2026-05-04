@@ -37,8 +37,12 @@ export class CollectionsListCommand {
   }
 
   private formatTable(collections: ReadonlyArray<CollectionSummaryDto>): string {
-    const headers = ["Name", "Fields"] as const;
-    const rows: ReadonlyArray<ReadonlyArray<string>> = collections.map((c) => [c.name, String(c.fieldCount)]);
+    const headers = ["Name", "Fields", "Rows"] as const;
+    const rows: ReadonlyArray<ReadonlyArray<string>> = collections.map((c) => [
+      c.name,
+      String(c.fieldCount),
+      c.rowCount.toLocaleString(),
+    ]);
     return CliAsciiTableBuilder.build([...headers], rows);
   }
 }

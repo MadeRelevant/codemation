@@ -18,6 +18,7 @@ export interface CollectionIndexDto {
 export interface CollectionSummaryDto {
   readonly name: string;
   readonly fieldCount: number;
+  readonly rowCount: number;
 }
 
 export interface CollectionDetailDto {

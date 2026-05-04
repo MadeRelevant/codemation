@@ -51,8 +51,8 @@ export function CollectionRowsTable({ detail, rows, onEdit, onDelete }: Collecti
             <span className="text-xs text-muted-foreground">{new Date(row.updated_at).toLocaleString()}</span>
           </TableCell>
           {detail.fields.map((f) => (
-            <TableCell key={f.name} data-testid={`collection-row-field-${row.id}-${f.name}`}>
-              <span className="max-w-[200px] truncate text-sm">
+            <TableCell key={f.name} data-testid={`collection-row-field-${row.id}-${f.name}`} className="align-top">
+              <span className="block whitespace-pre-wrap break-words text-sm">
                 {row.data[f.name] !== undefined && row.data[f.name] !== null
                   ? typeof row.data[f.name] === "object"
                     ? JSON.stringify(row.data[f.name])
