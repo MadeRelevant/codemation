@@ -242,7 +242,18 @@ import { CollectionRegistry } from "../infrastructure/collections/CollectionRegi
 import { CollectionsTokens } from "../infrastructure/collections/CollectionsTokens";
 import { CollectionSchemaSyncerFactory } from "../infrastructure/collections/CollectionSchemaSyncerFactory";
 import { CollectionSchemaSyncerHolder } from "../infrastructure/collections/CollectionSchemaSyncerHolder";
+import { CollectionStoreRegistry } from "../infrastructure/collections/CollectionStoreRegistry";
 import { CollectionStoreRegistryBuilderFactory } from "../infrastructure/collections/CollectionStoreRegistryBuilderFactory";
+import { DeleteCollectionRowCommandHandler } from "../application/collections/DeleteCollectionRowCommandHandler";
+import { InsertCollectionRowCommandHandler } from "../application/collections/InsertCollectionRowCommandHandler";
+import { SyncCollectionsCommandHandler } from "../application/collections/SyncCollectionsCommandHandler";
+import { UpdateCollectionRowCommandHandler } from "../application/collections/UpdateCollectionRowCommandHandler";
+import { GetCollectionQueryHandler } from "../application/collections/GetCollectionQueryHandler";
+import { GetCollectionRowQueryHandler } from "../application/collections/GetCollectionRowQueryHandler";
+import { ListCollectionRowsQueryHandler } from "../application/collections/ListCollectionRowsQueryHandler";
+import { ListCollectionsQueryHandler } from "../application/collections/ListCollectionsQueryHandler";
+import { CollectionHttpRouteHandler } from "../presentation/http/routeHandlers/CollectionHttpRouteHandlerFactory";
+import { CollectionHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/CollectionHonoApiRouteRegistrar";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -277,6 +288,10 @@ export class AppContainerFactory {
     GetWorkflowOverlayBinaryAttachmentQueryHandler,
     GetWorkflowSummariesQueryHandler,
     ListWorkflowRunsQueryHandler,
+    ListCollectionsQueryHandler,
+    GetCollectionQueryHandler,
+    ListCollectionRowsQueryHandler,
+    GetCollectionRowQueryHandler,
   ] as const;
   private static readonly commandHandlers = [
     CreateCredentialInstanceCommandHandler,
@@ -298,6 +313,10 @@ export class AppContainerFactory {
     SetWorkflowActivationCommandHandler,
     StartWorkflowRunCommandHandler,
     UploadOverlayPinnedBinaryCommandHandler,
+    InsertCollectionRowCommandHandler,
+    UpdateCollectionRowCommandHandler,
+    DeleteCollectionRowCommandHandler,
+    SyncCollectionsCommandHandler,
   ] as const;
   private static readonly honoRouteRegistrars = [
     AuthHonoApiRouteRegistrar,
@@ -313,6 +332,7 @@ export class AppContainerFactory {
     TestSuiteHonoApiRouteRegistrar,
     WhitelabelHonoApiRouteRegistrar,
     WorkflowHonoApiRouteRegistrar,
+    CollectionHonoApiRouteRegistrar,
   ] as const;
 
   constructor(
@@ -398,8 +418,10 @@ export class AppContainerFactory {
     container.registerSingleton(CollectionRegistry, CollectionRegistry);
 
     if (appConfig.collections.length === 0) {
-      // No collections declared — register an empty holder so runtimes can always @inject it
+      // No collections declared — register an empty holder and an empty store registry
+      // so HTTP handlers can always @inject these tokens without resolution errors.
       container.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(null));
+      container.registerInstance(CollectionsTokens.CollectionStoreRegistry, new CollectionStoreRegistry(new Map()));
       return;
     }
 
@@ -418,6 +440,7 @@ export class AppContainerFactory {
       : undefined;
     if (!prismaClient) {
       container.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(null));
+      container.registerInstance(CollectionsTokens.CollectionStoreRegistry, new CollectionStoreRegistry(new Map()));
       return;
     }
 
@@ -766,6 +789,7 @@ export class AppContainerFactory {
     container.registerSingleton(TestSuiteRunTrackerFactory, TestSuiteRunTrackerFactory);
     container.registerSingleton(TestRunnerService, TestRunnerService);
     container.registerSingleton(TestSuiteHttpRouteHandler, TestSuiteHttpRouteHandler);
+    container.registerSingleton(CollectionHttpRouteHandler, CollectionHttpRouteHandler);
     for (const registrar of AppContainerFactory.honoRouteRegistrars) {
       container.registerSingleton(ApplicationTokens.HonoApiRouteRegistrar, registrar);
     }

@@ -21,6 +21,28 @@ export class ApiPaths {
 
   private static readonly authBasePath = `${this.apiBasePath}/auth`;
 
+  private static readonly collectionsBasePath = `${this.apiBasePath}/collections`;
+
+  static collections(): string {
+    return this.collectionsBasePath;
+  }
+
+  static collection(name: string): string {
+    return `${this.collectionsBasePath}/${encodeURIComponent(name)}`;
+  }
+
+  static collectionRows(name: string): string {
+    return `${this.collection(name)}/rows`;
+  }
+
+  static collectionRow(name: string, id: string): string {
+    return `${this.collectionRows(name)}/${encodeURIComponent(id)}`;
+  }
+
+  static syncCollections(): string {
+    return `${this.collectionsBasePath}/sync`;
+  }
+
   static workflows(): string {
     return this.workflowsBasePath;
   }
