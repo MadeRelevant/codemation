@@ -13,6 +13,7 @@ import { DatabaseMigrations } from "./DatabaseMigrations";
 import { AppContainerLifecycle } from "../AppContainerLifecycle";
 import { RunEventBusTelemetryReporter } from "../../application/telemetry/RunEventBusTelemetryReporter";
 import { WorkflowRunRetentionPruneScheduler } from "../../application/runs/WorkflowRunRetentionPruneScheduler";
+import { CollectionSchemaSyncerHolder } from "../../infrastructure/collections/CollectionSchemaSyncerHolder";
 
 @injectable()
 export class WorkerRuntime {
@@ -37,11 +38,14 @@ export class WorkerRuntime {
     private readonly scheduler: WorkerRuntimeScheduler,
     @inject(AppContainerLifecycle)
     private readonly lifecycle: AppContainerLifecycle,
+    @inject(CollectionSchemaSyncerHolder)
+    private readonly collectionSchemaSyncerHolder: CollectionSchemaSyncerHolder,
   ) {}
 
   async start(queues: ReadonlyArray<string>): Promise<WorkerRuntimeHandle> {
     if (this.appConfig.env.CODEMATION_SKIP_STARTUP_MIGRATIONS !== "true") {
       await this.databaseMigrations.migrate();
+      await this.collectionSchemaSyncerHolder.syncIfAvailable();
     }
     await this.runtimeWorkflowActivationPolicy.hydrateFromRepository(this.workflowActivationRepository);
     const workflows = [...this.workflowRepository.list()];

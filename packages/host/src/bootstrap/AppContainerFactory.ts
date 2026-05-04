@@ -241,6 +241,7 @@ import { BullmqScheduler } from "../infrastructure/scheduler/bullmq/BullmqSchedu
 import { CollectionRegistry } from "../infrastructure/collections/CollectionRegistry";
 import { CollectionsTokens } from "../infrastructure/collections/CollectionsTokens";
 import { CollectionSchemaSyncerFactory } from "../infrastructure/collections/CollectionSchemaSyncerFactory";
+import { CollectionSchemaSyncerHolder } from "../infrastructure/collections/CollectionSchemaSyncerHolder";
 import { CollectionStoreRegistryBuilderFactory } from "../infrastructure/collections/CollectionStoreRegistryBuilderFactory";
 
 type AppContainerInputs = Readonly<{
@@ -397,15 +398,18 @@ export class AppContainerFactory {
     container.registerSingleton(CollectionRegistry, CollectionRegistry);
 
     if (appConfig.collections.length === 0) {
+      // No collections declared — register an empty holder so runtimes can always @inject it
+      container.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(null));
       return;
     }
 
     const collectionRegistry = container.resolve(CollectionRegistry);
 
     if (appConfig.persistence.kind === "none") {
-      // No DB — build an empty store registry so collections context is at least present
+      // No DB — empty store registry and no syncer
       const storeRegistry = CollectionStoreRegistryBuilderFactory.create(appConfig, collectionRegistry, null!);
       container.registerInstance(CollectionsTokens.CollectionStoreRegistry, storeRegistry);
+      container.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(null));
       return;
     }
 
@@ -413,12 +417,14 @@ export class AppContainerFactory {
       ? container.resolve(PrismaDatabaseClientToken)
       : undefined;
     if (!prismaClient) {
+      container.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(null));
       return;
     }
 
     const logger = container.resolve(ServerLoggerFactory).create("codemation.collections.sync");
     const syncer = CollectionSchemaSyncerFactory.create(appConfig, collectionRegistry, prismaClient, logger);
     container.registerInstance(CollectionsTokens.CollectionSchemaSyncer, syncer);
+    container.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(syncer));
 
     const storeRegistry = CollectionStoreRegistryBuilderFactory.create(appConfig, collectionRegistry, prismaClient);
     container.registerInstance(CollectionsTokens.CollectionStoreRegistry, storeRegistry);
