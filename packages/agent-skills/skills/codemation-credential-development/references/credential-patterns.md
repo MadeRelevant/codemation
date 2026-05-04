@@ -1,5 +1,20 @@
 # Credential Patterns
 
+## Node id and binding stability
+
+A credential binding is stored as `(workflowId, nodeId, slotKey)`. The `nodeId` for each workflow node defaults to a slug of its `name` label. Changing the label changes the id, and the previously configured binding appears unbound.
+
+For production workflows with credential-using nodes, prefer an explicit `id:` on the node config:
+
+```ts
+.node("Fetch from API", MyApiNodeConfig, {
+  id: "fetch-from-api", // stable across label renames
+  credentials: { apiKey: myApiCredential },
+})
+```
+
+Without an explicit `id:`, keep the node's label constant or plan to re-bind after a rename.
+
 ## Standard shape
 
 Use `defineCredential(...)` to declare:

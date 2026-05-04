@@ -27,6 +27,21 @@ Do not use this skill for CLI-only troubleshooting or deep host architecture que
 3. Use custom nodes when a callback grows into reusable product logic.
 4. Distinguish **batch activations** from **per-item node bodies**: custom nodes from **`defineNode`** implement **`execute`** per item unless you chose **`defineBatchNode`** for batch **`run`**.
 
+## Node ids and stability
+
+Every node in a workflow definition has an `id`. When no explicit `id:` is given, `WorkflowBuilder` derives one by slugifying the node's `name` label: lowercase, non-alphanumeric runs replaced with `-`, trimmed. `"Send Email"` becomes `"send-email"`.
+
+`.build()` throws `WorkflowDefinitionError` if any node ends up with an empty id (blank label and no explicit `id`) or if two nodes share the same id. The check covers agent connection children (model + tools) as well.
+
+For nodes that hold credential bindings, the binding is keyed by `(workflowId, nodeId, slotKey)`. Renaming a node's label changes its slug-derived id and orphans the binding — the operator must re-attach the credential in the UI. Prefer stable labels or set an explicit `id:` on credential-using nodes:
+
+```ts
+.node("Send notification", SendEmailNodeConfig, {
+  id: "send-notification", // stable even if the label is later renamed
+  // ...
+})
+```
+
 ## Typical flow
 
 1. Start with `workflow("wf.example.id")`.
