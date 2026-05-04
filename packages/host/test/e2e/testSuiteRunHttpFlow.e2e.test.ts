@@ -243,9 +243,7 @@ describe("Workflow Testing — HTTP-driven test-suite-run lifecycle (e2e)", () =
         outputsByNode?: Record<string, { main?: ReadonlyArray<unknown> }>;
         nodeSnapshotsByNodeId?: Record<string, { outputs?: { main?: ReadonlyArray<unknown> } }>;
       }>();
-      // eslint-disable-next-line no-console
       console.log("TRIGGER outputs (outputsByNode):", JSON.stringify(state.outputsByNode?.[TRIGGER_NODE_ID]));
-      // eslint-disable-next-line no-console
       console.log("TRIGGER snapshot:", JSON.stringify(state.nodeSnapshotsByNodeId?.[TRIGGER_NODE_ID]));
     }
     expect(childRuns).toHaveLength(3);

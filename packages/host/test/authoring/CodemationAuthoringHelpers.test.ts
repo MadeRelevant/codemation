@@ -1,4 +1,4 @@
-import { defineCredential, defineNode } from "@codemation/core";
+import { c, defineCollection, defineCredential, defineNode } from "@codemation/core";
 import { describe, expect, it } from "vitest";
 import { defineCodemationApp, definePlugin } from "../../src/presentation/config/CodemationAuthoring.types";
 import { CodemationConfigNormalizer } from "../../src/presentation/config/CodemationConfigNormalizer";
@@ -138,6 +138,7 @@ describe("Codemation authoring helpers", () => {
       registerCredentialType(type) {
         registeredCredentials.push(type);
       },
+      registerCollection() {},
       registerValue() {},
       registerClass() {},
       registerFactory() {},
@@ -145,5 +146,25 @@ describe("Codemation authoring helpers", () => {
 
     expect(registeredNodes).toHaveLength(1);
     expect(registeredCredentials).toEqual([helperCredential]);
+  });
+
+  it("surfaces collections registered via defineCodemationApp onto normalized config", () => {
+    const userCollection = defineCollection({
+      name: "test_users",
+      fields: {
+        email: c.text().notNull(),
+        age: c.int(),
+      },
+    });
+
+    const config = defineCodemationApp({
+      collections: [userCollection],
+      workflows: [],
+    });
+
+    const normalized = new CodemationConfigNormalizer().normalize(config);
+
+    expect(normalized.collections).toBeDefined();
+    expect(normalized.collections!.some((col) => col.name === "test_users")).toBe(true);
   });
 });

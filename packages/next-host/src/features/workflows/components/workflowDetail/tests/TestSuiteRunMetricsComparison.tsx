@@ -60,14 +60,9 @@ export function TestSuiteRunMetricsComparison(props: TestSuiteRunMetricsComparis
   }
 
   return (
-    <section
-      data-testid="test-suite-run-metrics-comparison"
-      className="border-b border-border px-6 py-3"
-    >
+    <section data-testid="test-suite-run-metrics-comparison" className="border-b border-border px-6 py-3">
       <header className="mb-2 flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Metrics vs previous run
-        </h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Metrics vs previous run</h3>
         {props.previousAssertions === null && !props.previousLoading ? (
           <span className="text-[10px] text-muted-foreground">No previous run yet for comparison</span>
         ) : null}

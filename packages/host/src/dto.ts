@@ -68,3 +68,13 @@ export {
   withUserAccountLoginMethodsDefaults,
   withInviteUserResponseLoginMethodsDefaults,
 } from "./application/contracts/userDirectoryContracts.types";
+
+export type {
+  CollectionFieldDto,
+  CollectionIndexDto,
+  CollectionSummaryDto,
+  CollectionDetailDto,
+  CollectionRowDto,
+  ListCollectionRowsResponseDto,
+  SyncCollectionsResponseDto,
+} from "./application/contracts/CollectionContracts.types";

@@ -238,6 +238,22 @@ import { DatabaseMigrations } from "./runtime/DatabaseMigrations";
 import { FrontendRuntime } from "./runtime/FrontendRuntime";
 import { WorkerRuntime } from "./runtime/WorkerRuntime";
 import { BullmqScheduler } from "../infrastructure/scheduler/bullmq/BullmqScheduler";
+import { CollectionRegistry } from "../infrastructure/collections/CollectionRegistry";
+import { CollectionsTokens } from "../infrastructure/collections/CollectionsTokens";
+import { CollectionSchemaSyncerFactory } from "../infrastructure/collections/CollectionSchemaSyncerFactory";
+import { CollectionSchemaSyncerHolder } from "../infrastructure/collections/CollectionSchemaSyncerHolder";
+import { CollectionStoreRegistry } from "../infrastructure/collections/CollectionStoreRegistry";
+import { CollectionStoreRegistryBuilderFactory } from "../infrastructure/collections/CollectionStoreRegistryBuilderFactory";
+import { DeleteCollectionRowCommandHandler } from "../application/collections/DeleteCollectionRowCommandHandler";
+import { InsertCollectionRowCommandHandler } from "../application/collections/InsertCollectionRowCommandHandler";
+import { SyncCollectionsCommandHandler } from "../application/collections/SyncCollectionsCommandHandler";
+import { UpdateCollectionRowCommandHandler } from "../application/collections/UpdateCollectionRowCommandHandler";
+import { GetCollectionQueryHandler } from "../application/collections/GetCollectionQueryHandler";
+import { GetCollectionRowQueryHandler } from "../application/collections/GetCollectionRowQueryHandler";
+import { ListCollectionRowsQueryHandler } from "../application/collections/ListCollectionRowsQueryHandler";
+import { ListCollectionsQueryHandler } from "../application/collections/ListCollectionsQueryHandler";
+import { CollectionHttpRouteHandler } from "../presentation/http/routeHandlers/CollectionHttpRouteHandlerFactory";
+import { CollectionHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/CollectionHonoApiRouteRegistrar";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -272,6 +288,10 @@ export class AppContainerFactory {
     GetWorkflowOverlayBinaryAttachmentQueryHandler,
     GetWorkflowSummariesQueryHandler,
     ListWorkflowRunsQueryHandler,
+    ListCollectionsQueryHandler,
+    GetCollectionQueryHandler,
+    ListCollectionRowsQueryHandler,
+    GetCollectionRowQueryHandler,
   ] as const;
   private static readonly commandHandlers = [
     CreateCredentialInstanceCommandHandler,
@@ -293,6 +313,10 @@ export class AppContainerFactory {
     SetWorkflowActivationCommandHandler,
     StartWorkflowRunCommandHandler,
     UploadOverlayPinnedBinaryCommandHandler,
+    InsertCollectionRowCommandHandler,
+    UpdateCollectionRowCommandHandler,
+    DeleteCollectionRowCommandHandler,
+    SyncCollectionsCommandHandler,
   ] as const;
   private static readonly honoRouteRegistrars = [
     AuthHonoApiRouteRegistrar,
@@ -308,6 +332,7 @@ export class AppContainerFactory {
     TestSuiteHonoApiRouteRegistrar,
     WhitelabelHonoApiRouteRegistrar,
     WorkflowHonoApiRouteRegistrar,
+    CollectionHonoApiRouteRegistrar,
   ] as const;
 
   constructor(
@@ -326,6 +351,7 @@ export class AppContainerFactory {
     const credentialTypes = this.collectCredentialTypes(inputs.appConfig);
     await this.applyPlugins(container, inputs.appConfig, credentialTypes);
     const ownership = await this.registerRuntimeInfrastructure(container, inputs.appConfig);
+    this.registerCollectionsInfrastructure(container, inputs.appConfig);
     this.registerCredentialTypes(container, credentialTypes);
     this.synchronizeLiveWorkflowRepository(container, inputs.appConfig.workflows);
     container.resolve(BootRuntimeSnapshotHolder).set(this.createRuntimeSummary(inputs.appConfig));
@@ -361,6 +387,12 @@ export class AppContainerFactory {
           credentialTypes.push(type);
         }
       },
+      registerCollection: (_definition) => {
+        // Plugin-registered collections are already handled by CodemationConfigNormalizer
+        // during config assembly (before AppConfig is built). Collections registered here
+        // during plugin.register() are accepted silently — Phase 6 store wiring will
+        // pick them up once collection infrastructure can reload from a mutable registry.
+      },
       loggerFactory: container.resolve(ApplicationTokens.LoggerFactory),
     });
   }
@@ -380,6 +412,60 @@ export class AppContainerFactory {
       return;
     }
     this.containerRegistrationRegistrar.apply(container, appConfig.containerRegistrations);
+  }
+
+  private registerCollectionsInfrastructure(container: Container, appConfig: AppConfig): void {
+    container.registerSingleton(CollectionRegistry, CollectionRegistry);
+
+    if (appConfig.collections.length === 0) {
+      // No collections declared — register an empty holder and an empty store registry
+      // so HTTP handlers can always @inject these tokens without resolution errors.
+      container.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(null));
+      container.registerInstance(CollectionsTokens.CollectionStoreRegistry, new CollectionStoreRegistry(new Map()));
+      return;
+    }
+
+    const collectionRegistry = container.resolve(CollectionRegistry);
+
+    if (appConfig.persistence.kind === "none") {
+      // No DB — empty store registry and no syncer
+      const storeRegistry = CollectionStoreRegistryBuilderFactory.create(appConfig, collectionRegistry, null!);
+      container.registerInstance(CollectionsTokens.CollectionStoreRegistry, storeRegistry);
+      container.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(null));
+      return;
+    }
+
+    const prismaClient = container.isRegistered(PrismaDatabaseClientToken, true)
+      ? container.resolve(PrismaDatabaseClientToken)
+      : undefined;
+    if (!prismaClient) {
+      container.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(null));
+      container.registerInstance(CollectionsTokens.CollectionStoreRegistry, new CollectionStoreRegistry(new Map()));
+      return;
+    }
+
+    const logger = container.resolve(ServerLoggerFactory).create("codemation.collections.sync");
+    const syncer = CollectionSchemaSyncerFactory.create(appConfig, collectionRegistry, prismaClient, logger);
+    container.registerInstance(CollectionsTokens.CollectionSchemaSyncer, syncer);
+    container.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(syncer));
+
+    const storeRegistry = CollectionStoreRegistryBuilderFactory.create(appConfig, collectionRegistry, prismaClient);
+    container.registerInstance(CollectionsTokens.CollectionStoreRegistry, storeRegistry);
+
+    // Re-register the ExecutionContextFactory with the collection stores wired in
+    const existingFactory = container.isRegistered(CoreTokens.ExecutionContextFactory, true)
+      ? container.resolve(CoreTokens.ExecutionContextFactory)
+      : undefined;
+    if (existingFactory) {
+      const collectionsContext = storeRegistry.toRecord();
+      const wrappedFactory: typeof existingFactory = {
+        create: (args) => {
+          const ctx = existingFactory.create(args);
+          return { ...ctx, collections: collectionsContext };
+        },
+      };
+      container.registerInstance(CoreTokens.ExecutionContextFactory, wrappedFactory);
+    }
   }
 
   private registerCoreInfrastructure(container: Container, inputs: AppContainerInputs): void {
@@ -703,6 +789,7 @@ export class AppContainerFactory {
     container.registerSingleton(TestSuiteRunTrackerFactory, TestSuiteRunTrackerFactory);
     container.registerSingleton(TestRunnerService, TestRunnerService);
     container.registerSingleton(TestSuiteHttpRouteHandler, TestSuiteHttpRouteHandler);
+    container.registerSingleton(CollectionHttpRouteHandler, CollectionHttpRouteHandler);
     for (const registrar of AppContainerFactory.honoRouteRegistrars) {
       container.registerSingleton(ApplicationTokens.HonoApiRouteRegistrar, registrar);
     }

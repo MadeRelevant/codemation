@@ -9,6 +9,7 @@ import { WorkflowWebsocketServer } from "../../presentation/websocket/WorkflowWe
 import { DatabaseMigrations } from "./DatabaseMigrations";
 import type { WorkflowActivationRepository } from "../../domain/workflows/WorkflowActivationRepository";
 import { WorkflowRunRetentionPruneScheduler } from "../../application/runs/WorkflowRunRetentionPruneScheduler";
+import { CollectionSchemaSyncerHolder } from "../../infrastructure/collections/CollectionSchemaSyncerHolder";
 
 @injectable()
 export class FrontendRuntime {
@@ -33,11 +34,14 @@ export class FrontendRuntime {
     private readonly workflowRunRetentionPruneScheduler: WorkflowRunRetentionPruneScheduler,
     @inject(Engine)
     private readonly engine: Engine,
+    @inject(CollectionSchemaSyncerHolder)
+    private readonly collectionSchemaSyncerHolder: CollectionSchemaSyncerHolder,
   ) {}
 
   async start(args?: Readonly<{ skipPresentationServers?: boolean }>): Promise<void> {
     if (this.appConfig.env.CODEMATION_SKIP_STARTUP_MIGRATIONS !== "true") {
       await this.databaseMigrations.migrate();
+      await this.collectionSchemaSyncerHolder.syncIfAvailable();
     }
     await this.runtimeWorkflowActivationPolicy.hydrateFromRepository(this.workflowActivationRepository);
     if (args?.skipPresentationServers === true) {

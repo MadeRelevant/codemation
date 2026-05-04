@@ -1,4 +1,4 @@
-import type { AnyCredentialType, DefinedNode, WorkflowDefinition } from "@codemation/core";
+import type { AnyCredentialType, DefinedCollection, DefinedNode } from "@codemation/core";
 import type { CodemationAppContext } from "./CodemationAppContext";
 import type {
   CodemationAppDefinition,
@@ -24,13 +24,14 @@ export interface FriendlyCodemationExecutionConfig {
 
 export interface DefineCodemationAppOptions extends Omit<
   CodemationConfig,
-  "app" | "credentialTypes" | "register" | "whitelabel" | "auth"
+  "app" | "credentialTypes" | "register" | "whitelabel" | "auth" | "collections"
 > {
   readonly name?: string;
   readonly auth?: CodemationConfig["auth"];
   readonly database?: FriendlyCodemationDatabaseConfig;
   readonly execution?: FriendlyCodemationExecutionConfig;
   readonly nodes?: ReadonlyArray<DefinedNode<string, Record<string, unknown>, unknown, unknown>>;
+  readonly collections?: ReadonlyArray<DefinedCollection>;
   readonly credentialTypes?: ReadonlyArray<AnyCredentialType>;
   readonly credentials?: ReadonlyArray<AnyCredentialType>;
   readonly register?: (context: CodemationAppContext) => void;
@@ -41,16 +42,17 @@ export interface DefinePluginOptions {
   readonly name?: string;
   readonly pluginPackageId?: string;
   readonly nodes?: ReadonlyArray<DefinedNode<string, Record<string, unknown>, unknown, unknown>>;
+  readonly collections?: ReadonlyArray<DefinedCollection>;
   readonly credentials?: ReadonlyArray<AnyCredentialType>;
   readonly register?: (context: CodemationPluginContext) => void | Promise<void>;
-  readonly sandbox?: DefineCodemationAppOptions & Readonly<{ workflows?: ReadonlyArray<WorkflowDefinition> }>;
+  readonly sandbox?: CodemationConfig;
 }
 
 class CodemationAuthoringConfigFactory {
   static createApp(options: DefineCodemationAppOptions): CodemationConfig {
     const appDefinition = this.createAppDefinition(options);
     const credentialTypes = [...(options.credentialTypes ?? []), ...(options.credentials ?? [])];
-    const register = this.composeAppRegister(options.register, options.nodes);
+    const register = this.composeAppRegister(options.register, options.nodes, options.collections);
     const { workflows, workflowDiscovery, plugins, runtime, log } = options;
     return {
       workflows,
@@ -64,15 +66,16 @@ class CodemationAuthoringConfigFactory {
     };
   }
 
-  static createPlugin(
-    options: DefinePluginOptions,
-  ): CodemationPlugin & Readonly<{ sandbox?: DefinePluginOptions["sandbox"] }> {
+  static createPlugin(options: DefinePluginOptions): CodemationPlugin & Readonly<{ sandbox?: CodemationConfig }> {
     return {
       pluginPackageId: options.pluginPackageId,
       sandbox: options.sandbox,
       async register(context: CodemationPluginContext): Promise<void> {
         for (const nodeDefinition of options.nodes ?? []) {
           nodeDefinition.register(context);
+        }
+        for (const collection of options.collections ?? []) {
+          collection.register(context);
         }
         for (const credential of options.credentials ?? []) {
           context.registerCredentialType(credential);
@@ -145,13 +148,17 @@ class CodemationAuthoringConfigFactory {
   private static composeAppRegister(
     register: ((context: CodemationAppContext) => void) | undefined,
     nodes: ReadonlyArray<DefinedNode<string, Record<string, unknown>, unknown, unknown>> | undefined,
+    collections: ReadonlyArray<DefinedCollection> | undefined,
   ): ((context: CodemationAppContext) => void) | undefined {
-    if (!register && (!nodes || nodes.length === 0)) {
+    if (!register && (!nodes || nodes.length === 0) && (!collections || collections.length === 0)) {
       return undefined;
     }
     return (context: CodemationAppContext) => {
       for (const nodeDefinition of nodes ?? []) {
         nodeDefinition.register(context);
+      }
+      for (const collection of collections ?? []) {
+        collection.register(context);
       }
       register?.(context);
     };
@@ -164,6 +171,6 @@ export function defineCodemationApp(options: DefineCodemationAppOptions): Codema
 
 export function definePlugin(
   options: DefinePluginOptions,
-): CodemationPlugin & Readonly<{ sandbox?: DefinePluginOptions["sandbox"] }> {
+): CodemationPlugin & Readonly<{ sandbox?: CodemationConfig }> {
   return CodemationAuthoringConfigFactory.createPlugin(options);
 }

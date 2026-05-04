@@ -4,9 +4,7 @@ import { useCallback, useState } from "react";
  * Hook for persisting the last manually-chosen trigger per workflow in localStorage.
  * Tolerates SSR by lazy-init; returns [lastTriggerNodeId, setLastTriggerNodeId].
  */
-export function useLastRunTrigger(
-  workflowId: string,
-): readonly [string | null, (nodeId: string | null) => void] {
+export function useLastRunTrigger(workflowId: string): readonly [string | null, (nodeId: string | null) => void] {
   const [lastTriggerNodeId, setLastTriggerNodeIdState] = useState<string | null>(() => {
     if (typeof window === "undefined") {
       return null;

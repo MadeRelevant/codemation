@@ -26,7 +26,8 @@ function minimalWorkflowSource(): string {
 `;
 }
 
-it(
+// Hardcodes runtime.database.kind = "postgresql"; skip when DATABASE_URL points at SQLite.
+it.skipIf(process.env.DATABASE_URL?.startsWith("file:"))(
   "loads transpiled consumer config and opens a CodemationCliApplicationSession without errors",
   { timeout: 180_000 },
   async () => {

@@ -1,4 +1,10 @@
-import type { AnyCredentialType, EngineExecutionLimitsPolicyConfig, WorkflowDefinition } from "@codemation/core";
+import type {
+  AnyCredentialType,
+  CollectionDefinition,
+  DefinedCollection,
+  EngineExecutionLimitsPolicyConfig,
+  WorkflowDefinition,
+} from "@codemation/core";
 import type { CodemationAuthConfig } from "./CodemationAuthConfig";
 import type { CodemationAppContext } from "./CodemationAppContext";
 import type { CodemationPlugin } from "./CodemationPlugin";
@@ -74,6 +80,8 @@ export interface CodemationConfig {
   readonly plugins?: ReadonlyArray<CodemationPlugin>;
   /** Consumer-defined `CredentialType` entries (see `@codemation/core`), applied when the host loads config. */
   readonly credentialTypes?: ReadonlyArray<AnyCredentialType>;
+  /** Declared collections available at runtime via `ctx.collections`. Accepts either raw `CollectionDefinition` or `DefinedCollection` (the result of `defineCollection(...)`). */
+  readonly collections?: ReadonlyArray<CollectionDefinition | DefinedCollection>;
   /** Optional shell whitelabel (product name, logo path). */
   readonly whitelabel?: CodemationWhitelabelConfig;
   /** Required for production hosts; optional only when using development bypass (never in production). */

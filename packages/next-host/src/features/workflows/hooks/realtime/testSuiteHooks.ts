@@ -70,7 +70,8 @@ export function useTestSuiteRunChildRunsQuery(testSuiteRunId: string | null) {
 export function useAssertionMetricTrendsQuery(workflowId: string, selectedNames: ReadonlyArray<string>) {
   return useQuery({
     queryKey: assertionMetricTrendsQueryKey(workflowId, selectedNames),
-    queryFn: async () => await fetchAssertionMetricTrends(workflowId, selectedNames.length > 0 ? selectedNames : undefined),
+    queryFn: async () =>
+      await fetchAssertionMetricTrends(workflowId, selectedNames.length > 0 ? selectedNames : undefined),
     enabled: Boolean(workflowId),
   });
 }

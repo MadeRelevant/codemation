@@ -2,6 +2,7 @@ import "reflect-metadata";
 
 import type { NodeExecutionRequest, NodeResolver, WorkflowRunnerService } from "@codemation/core";
 import { CoreTokens, container } from "@codemation/core";
+import { CollectionSchemaSyncerHolder } from "../../src/infrastructure/collections/CollectionSchemaSyncerHolder";
 import {
   Engine,
   EngineExecutionLimitsPolicy,
@@ -99,6 +100,7 @@ function buildMinimalAppConfig(overrides?: Readonly<{ env?: NodeJS.ProcessEnv }>
     workflows: [],
     containerRegistrations: [],
     credentialTypes: [],
+    collections: [],
     plugins: [],
     hasConfiguredCredentialSessionServiceRegistration: false,
     persistence: { kind: "none" },
@@ -150,6 +152,7 @@ describe("WorkerRuntime", () => {
       WorkflowRunRetentionPruneScheduler,
       retentionScheduler as unknown as WorkflowRunRetentionPruneScheduler,
     );
+    child.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(null));
     child.registerSingleton(WorkerRuntime, WorkerRuntime);
 
     const runtime = child.resolve(WorkerRuntime);
@@ -208,6 +211,7 @@ describe("WorkerRuntime", () => {
       WorkflowRunRetentionPruneScheduler,
       retentionScheduler as unknown as WorkflowRunRetentionPruneScheduler,
     );
+    child.registerInstance(CollectionSchemaSyncerHolder, new CollectionSchemaSyncerHolder(null));
     child.registerSingleton(WorkerRuntime, WorkerRuntime);
 
     const runtime = child.resolve(WorkerRuntime);

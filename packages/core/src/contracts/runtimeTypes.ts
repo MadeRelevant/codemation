@@ -2,6 +2,7 @@ import type { ReadableStream as BinaryReadableStream } from "node:stream/web";
 import type { TypeToken } from "../di";
 import type { RunEventBus } from "../events/runEvents";
 import type { CredentialSessionService } from "./credentialTypes";
+import type { CollectionsContext } from "./collectionTypes";
 import type { ExecutionTelemetry, ExecutionTelemetryFactory, NodeExecutionTelemetry } from "./telemetryTypes";
 import type {
   ConnectionInvocationAppendArgs,
@@ -168,6 +169,10 @@ export interface ExecutionContext {
    * branches on this; assertion-emitting nodes use it to decide whether to record results.
    */
   testContext?: RunTestContext;
+  /**
+   * Collections registered in the codemation config, keyed by collection name.
+   */
+  readonly collections?: CollectionsContext;
 }
 
 export interface ExecutionContextFactory {

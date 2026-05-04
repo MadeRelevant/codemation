@@ -1,8 +1,7 @@
-import type { Container } from "@codemation/core";
+import type { AnyCredentialType, CollectionDefinition, Container } from "@codemation/core";
 import type { LoggerFactory } from "../../application/logging/Logger";
 import type { AppConfig } from "../../presentation/config/AppConfig";
 import type { CodemationPlugin } from "../../presentation/config/CodemationPlugin";
-import type { AnyCredentialType } from "@codemation/core";
 
 export class CodemationPluginRegistrar {
   async apply(
@@ -11,6 +10,7 @@ export class CodemationPluginRegistrar {
       container: Container;
       appConfig: AppConfig;
       registerCredentialType: (type: AnyCredentialType) => void;
+      registerCollection: (definition: CollectionDefinition) => void;
       loggerFactory: LoggerFactory;
     }>,
   ): Promise<void> {
@@ -26,6 +26,7 @@ export class CodemationPluginRegistrar {
         appConfig: args.appConfig,
         loggerFactory: args.loggerFactory,
         registerCredentialType: (type) => args.registerCredentialType(type),
+        registerCollection: (definition) => args.registerCollection(definition),
         registerNode: (token, implementation) => {
           args.container.registerSingleton(token as never, (implementation ?? token) as never);
         },

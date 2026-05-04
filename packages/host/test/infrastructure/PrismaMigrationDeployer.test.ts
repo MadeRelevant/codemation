@@ -201,32 +201,39 @@ class PrismaMigrationDeployerTestFixture {
   }
 }
 
+// All tests in this suite run real Prisma migrations; allow 30 s per test on slow systems.
+const MIGRATION_TIMEOUT = 30000;
+
 describe("PrismaMigrationDeployer", () => {
-  it("creates the parent directory and normalized runtime schema for a new SQLite database file", async () => {
-    const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-sqlite-parent-");
-    try {
-      const databaseFilePath = fixture.resolve(".codemation", "codemation.sqlite");
-      const deployer = new PrismaMigrationDeployer();
-      await deployer.deployPersistence({ kind: "sqlite", databaseFilePath }, process.env);
-      await access(fixture.resolve(".codemation"));
-      await access(databaseFilePath);
-      const client = createClient({ url: `file:${databaseFilePath}` });
-      const runColumnsResult = await client.execute('PRAGMA table_info("Run")');
-      const tableNamesResult = await client.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('RunWorkItem', 'ExecutionInstance', 'RunSlotProjection', 'Run_legacy') ORDER BY name",
-      );
-      const runColumns = runColumnsResult.rows.map((row) => String(row.name));
-      const tableNames = tableNamesResult.rows.map((row) => String(row.name));
-      expect(runColumns).toContain("finished_at");
-      expect(runColumns).toContain("revision");
-      expect(runColumns).toContain("outputs_by_node_json");
-      expect(runColumns).not.toContain("state_json");
-      expect(tableNames).toEqual(["ExecutionInstance", "RunSlotProjection", "RunWorkItem"]);
-      client.close();
-    } finally {
-      await fixture.dispose();
-    }
-  });
+  it(
+    "creates the parent directory and normalized runtime schema for a new SQLite database file",
+    async () => {
+      const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-sqlite-parent-");
+      try {
+        const databaseFilePath = fixture.resolve(".codemation", "codemation.sqlite");
+        const deployer = new PrismaMigrationDeployer();
+        await deployer.deployPersistence({ kind: "sqlite", databaseFilePath }, process.env);
+        await access(fixture.resolve(".codemation"));
+        await access(databaseFilePath);
+        const client = createClient({ url: `file:${databaseFilePath}` });
+        const runColumnsResult = await client.execute('PRAGMA table_info("Run")');
+        const tableNamesResult = await client.execute(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('RunWorkItem', 'ExecutionInstance', 'RunSlotProjection', 'Run_legacy') ORDER BY name",
+        );
+        const runColumns = runColumnsResult.rows.map((row) => String(row.name));
+        const tableNames = tableNamesResult.rows.map((row) => String(row.name));
+        expect(runColumns).toContain("finished_at");
+        expect(runColumns).toContain("revision");
+        expect(runColumns).toContain("outputs_by_node_json");
+        expect(runColumns).not.toContain("state_json");
+        expect(tableNames).toEqual(["ExecutionInstance", "RunSlotProjection", "RunWorkItem"]);
+        client.close();
+      } finally {
+        await fixture.dispose();
+      }
+    },
+    MIGRATION_TIMEOUT,
+  );
 
   it("passes the PostgreSQL provider and database URL to the Prisma CLI", async () => {
     const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-postgres-deploy-");
@@ -314,6 +321,7 @@ describe("PrismaMigrationDeployer", () => {
     }
   });
 
+  // Two full Prisma SQLite migrations run sequentially; allow extra time on slow systems.
   it("drops lingering Run_legacy tables on a subsequent SQLite startup", async () => {
     const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-sqlite-legacy-cleanup-");
     try {
@@ -339,7 +347,7 @@ describe("PrismaMigrationDeployer", () => {
     } finally {
       await fixture.dispose();
     }
-  });
+  }, 30000);
 
   it("repairs a partially applied normalized SQLite migration and retries deploy", async () => {
     const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-sqlite-recovery-");

@@ -1,4 +1,4 @@
-import type { AnyCredentialType, WorkflowDefinition } from "@codemation/core";
+import type { AnyCredentialType, CollectionDefinition, WorkflowDefinition } from "@codemation/core";
 import type { CodemationContainerRegistration } from "../../bootstrap/CodemationContainerRegistration";
 import type { CodemationPlugin } from "./CodemationPlugin";
 import type {
@@ -29,6 +29,7 @@ export interface AppConfig {
   readonly workflows: ReadonlyArray<WorkflowDefinition>;
   readonly containerRegistrations: ReadonlyArray<CodemationContainerRegistration<unknown>>;
   readonly credentialTypes: ReadonlyArray<AnyCredentialType>;
+  readonly collections: ReadonlyArray<CollectionDefinition>;
   readonly plugins: ReadonlyArray<CodemationPlugin>;
   readonly pluginLoadSummary?: ReadonlyArray<AppPluginLoadSummary>;
   readonly hasConfiguredCredentialSessionServiceRegistration: boolean;

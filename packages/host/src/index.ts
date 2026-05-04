@@ -7,6 +7,7 @@ export type { UpsertLocalBootstrapUserResultDto } from "./application/contracts/
 export { AppContainerFactory } from "./bootstrap/AppContainerFactory";
 export { AppContainerLifecycle } from "./bootstrap/AppContainerLifecycle";
 export { DatabaseMigrations } from "./bootstrap/runtime/DatabaseMigrations";
+export { CollectionSchemaSyncerHolder } from "./infrastructure/collections/CollectionSchemaSyncerHolder";
 export { FrontendRuntime } from "./bootstrap/runtime/FrontendRuntime";
 export { WorkerRuntime } from "./bootstrap/runtime/WorkerRuntime";
 export { AppConfigFactory } from "./bootstrap/runtime/AppConfigFactory";
@@ -47,6 +48,15 @@ export type {
   CodemationAppContext,
   CodemationRegistrationContextBase,
 } from "./presentation/config/CodemationAppContext";
+export { ListCollectionsQuery } from "./application/collections/ListCollectionsQuery";
+export { GetCollectionQuery } from "./application/collections/GetCollectionQuery";
+export { ListCollectionRowsQuery } from "./application/collections/ListCollectionRowsQuery";
+export { GetCollectionRowQuery } from "./application/collections/GetCollectionRowQuery";
+export { InsertCollectionRowCommand } from "./application/collections/InsertCollectionRowCommand";
+export { UpdateCollectionRowCommand } from "./application/collections/UpdateCollectionRowCommand";
+export { DeleteCollectionRowCommand } from "./application/collections/DeleteCollectionRowCommand";
+export { SyncCollectionsCommand } from "./application/collections/SyncCollectionsCommand";
+
 export type {
   CodemationFrontendAuthProviderSnapshot,
   CodemationFrontendAuthSnapshot,

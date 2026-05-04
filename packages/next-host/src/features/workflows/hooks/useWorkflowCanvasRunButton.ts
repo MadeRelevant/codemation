@@ -29,9 +29,7 @@ export interface UseWorkflowCanvasRunButtonResult {
  * Hook for managing the split run button state and handlers.
  * Handles trigger persistence, default selection, and live/test trigger dispatch.
  */
-export function useWorkflowCanvasRunButton(
-  args: UseWorkflowCanvasRunButtonArgs,
-): UseWorkflowCanvasRunButtonResult {
+export function useWorkflowCanvasRunButton(args: UseWorkflowCanvasRunButtonArgs): UseWorkflowCanvasRunButtonResult {
   const { workflowId, workflowNodes, isRunning, onRunLiveTrigger, onRunTestTrigger } = args;
   const [lastRunTriggerNodeId, setLastRunTriggerNodeId] = useLastRunTrigger(workflowId);
 

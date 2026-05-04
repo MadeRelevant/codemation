@@ -33,3 +33,4 @@ export * from "./nodes/ConnectionCredentialNode";
 export * from "./nodes/ConnectionCredentialNodeConfig";
 export * from "./nodes/ConnectionCredentialNodeConfigFactory";
 export * from "./nodes/ConnectionCredentialExecutionContextFactory";
+export * from "./nodes/collections";
