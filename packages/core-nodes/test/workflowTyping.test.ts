@@ -170,12 +170,12 @@ test("workflow helper preserves inference across map, if, wait, agent, and helpe
       },
       {
         true: (branch) =>
-          branch.wait("2s").map((item, _ctx) => ({
+          branch.wait("2s").map("Route true", (item, _ctx) => ({
             ...item.json,
             route: "sales" as const,
           })),
         false: (branch) =>
-          branch.wait("Skip", 0).map((item, _ctx) => ({
+          branch.wait("Skip", 0).map("Route false", (item, _ctx) => ({
             ...item.json,
             route: "sales" as const,
           })),

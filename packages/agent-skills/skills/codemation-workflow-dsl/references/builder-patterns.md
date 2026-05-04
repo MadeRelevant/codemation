@@ -30,6 +30,19 @@ export default workflow("wf.example.id")
 - fluent `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` callbacks receive `(item, ctx)`
 - read row fields from `item.json` and earlier completed outputs from `ctx.data`
 
+## Node id assignment
+
+When no `id:` is provided, the builder slugifies the node's `name` label: lowercase, non-alphanumeric runs replaced with `-`, leading/trailing `-` stripped. Two nodes with the same effective label produce the same slug and `.build()` throws `WorkflowDefinitionError`. Fix: provide a unique `id:` on the colliding node configs.
+
+Credential bindings are stored as `(workflowId, nodeId, slotKey)`. Changing a node's label changes its slug-derived id and the binding appears unbound. For credential-using nodes, either keep the label stable or set an explicit `id:`:
+
+```ts
+.node("Send email", SendEmailNodeConfig, {
+  id: "send-email", // stable even after a label rename
+  credentials: { smtp: mySmtpCredential },
+})
+```
+
 ## When to move beyond callbacks
 
 Promote inline callbacks into custom nodes when:
