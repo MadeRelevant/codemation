@@ -30,8 +30,11 @@
       "@codemation/next-host": ["./src/index.ts"],
       "@codemation/next-host/src/*": ["./src/*"],
       "@codemation/node-example": ["../../packages/node-example/src/index.ts"],
+      "@codemation/core": ["../../packages/core/src/index.ts"],
       "@codemation/core/contracts": ["../../packages/core/src/contracts.ts"],
-      "@codemation/core/browser": ["../../packages/core/src/browser.ts"]
+      "@codemation/core/browser": ["../../packages/core/src/browser.ts"],
+      "@codemation/core/testing": ["../../packages/core/src/testing.ts"],
+      "@codemation/core/bootstrap": ["../../packages/core/src/bootstrap/index.ts"]
     }
   },
   "include": ["next-env.d.ts", "app/**/*.ts", "app/**/*.tsx", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],

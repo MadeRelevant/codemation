@@ -7,6 +7,12 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@codemation/core": ["../core/src/index.ts"],
+      "@codemation/core/contracts": ["../core/src/contracts.ts"],
+      "@codemation/core/browser": ["../core/src/browser.ts"],
+      "@codemation/core/testing": ["../core/src/testing.ts"],
+      "@codemation/core/bootstrap": ["../core/src/bootstrap/index.ts"],
+      "@codemation/core-nodes": ["../core-nodes/src/index.ts"],
       "@codemation/host/client": ["./src/client.ts"],
       "@codemation/host/dto": ["./src/dto.ts"],
       "@codemation/host/mapping": ["./src/mapping.ts"],
