@@ -1,3 +1,4 @@
+import { defineCollection, c } from "@codemation/core";
 import type { CredentialType } from "@codemation/core";
 import type { CodemationAppContext, CodemationConfig } from "@codemation/host";
 import { config as loadDotenv } from "dotenv";
@@ -86,7 +87,18 @@ const odooDemoCredentialType = {
   }),
 } satisfies CredentialType<OdooDemoPublicConfig, OdooDemoMaterial, OdooDemoSession>;
 
+const messagesCollection = defineCollection({
+  name: "messages",
+  fields: {
+    sender_email: c.text().notNull(),
+    body: c.text().notNull(),
+    sent_at: c.timestamptz(),
+  },
+  indexes: [{ on: ["sender_email"] }],
+});
+
 export const codemationHost = {
+  collections: [messagesCollection.definition],
   app: {
     auth: {
       kind: "local" as const,
