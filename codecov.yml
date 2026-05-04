@@ -19,9 +19,7 @@ coverage:
         threshold: 10%
     patch:
       default:
-        target: auto
-        # Diff-only gate is noisy on wide refactors; project + full suite still enforce quality.
-        informational: true
+        target: 100%
 
 comment:
   layout: "reach,diff,flags,files,footer"
