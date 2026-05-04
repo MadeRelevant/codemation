@@ -447,6 +447,7 @@ describe("credential instances http integration", () => {
         workflows: [],
         containerRegistrations: [],
         credentialTypes: [],
+        collections: [],
         plugins: [],
         hasConfiguredCredentialSessionServiceRegistration: false,
         persistence: { kind: "none" },

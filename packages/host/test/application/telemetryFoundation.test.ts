@@ -300,6 +300,7 @@ class TelemetryAppConfigFactory {
         { token: TelemetryPrivacyPolicy, useClass: CapturingTelemetryPrivacyPolicy },
       ],
       credentialTypes: [],
+      collections: [],
       plugins: [],
       hasConfiguredCredentialSessionServiceRegistration: false,
       persistence: { kind: "none" },

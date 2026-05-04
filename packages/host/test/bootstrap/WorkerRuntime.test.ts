@@ -99,6 +99,7 @@ function buildMinimalAppConfig(overrides?: Readonly<{ env?: NodeJS.ProcessEnv }>
     workflows: [],
     containerRegistrations: [],
     credentialTypes: [],
+    collections: [],
     plugins: [],
     hasConfiguredCredentialSessionServiceRegistration: false,
     persistence: { kind: "none" },

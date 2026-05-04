@@ -18,6 +18,7 @@ class AppContainerFactoryFixture {
       workflows: [],
       containerRegistrations: [],
       credentialTypes: [],
+      collections: [],
       plugins: [],
       hasConfiguredCredentialSessionServiceRegistration: false,
       persistence: { kind: "none" },

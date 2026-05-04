@@ -361,6 +361,12 @@ export class AppContainerFactory {
           credentialTypes.push(type);
         }
       },
+      registerCollection: (_definition) => {
+        // Plugin-registered collections are already handled by CodemationConfigNormalizer
+        // during config assembly (before AppConfig is built). Collections registered here
+        // during plugin.register() are accepted silently — Phase 6 store wiring will
+        // pick them up once collection infrastructure can reload from a mutable registry.
+      },
       loggerFactory: container.resolve(ApplicationTokens.LoggerFactory),
     });
   }

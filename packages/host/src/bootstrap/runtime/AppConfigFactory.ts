@@ -43,6 +43,7 @@ export class AppConfigFactory {
       workflows: [...(args.config.workflows ?? [])],
       containerRegistrations: [...args.config.containerRegistrations],
       credentialTypes: [...(args.config.credentialTypes ?? [])],
+      collections: [...(args.config.collections ?? [])],
       plugins,
       pluginLoadSummary: this.createConfiguredPluginLoadSummary(plugins),
       hasConfiguredCredentialSessionServiceRegistration,

@@ -1,4 +1,10 @@
-import type { AnyCredentialType, Container, TypeToken, WorkflowDefinition } from "@codemation/core";
+import type {
+  AnyCredentialType,
+  CollectionDefinition,
+  Container,
+  TypeToken,
+  WorkflowDefinition,
+} from "@codemation/core";
 import type { CodemationContainerRegistration } from "../../bootstrap/CodemationContainerRegistration";
 import type { CodemationAppContext } from "./CodemationAppContext";
 import type { CodemationClassToken } from "./CodemationClassToken";
@@ -29,6 +35,7 @@ export class CodemationConfigNormalizer {
       auth: config.app?.auth ?? config.auth,
       containerRegistrations: collected.containerRegistrations,
       credentialTypes: [...(config.credentialTypes ?? []), ...collected.credentialTypes],
+      collections: [...(config.collections ?? []), ...collected.collections],
       log: config.app?.log ?? config.log,
       runtime: normalizedRuntime,
       whitelabel: config.app?.whitelabel ?? config.whitelabel,
@@ -43,6 +50,7 @@ export class CodemationConfigNormalizer {
   private collectRegistration(config: CodemationConfig): Readonly<{
     containerRegistrations: ReadonlyArray<CodemationContainerRegistration<unknown>>;
     credentialTypes: ReadonlyArray<AnyCredentialType>;
+    collections: ReadonlyArray<CollectionDefinition>;
     workflows: ReadonlyArray<WorkflowDefinition>;
     workflowDirectories: ReadonlyArray<string>;
   }> {
@@ -50,6 +58,7 @@ export class CodemationConfigNormalizer {
       return {
         containerRegistrations: [],
         credentialTypes: [],
+        collections: [],
         workflows: [],
         workflowDirectories: [],
       };
@@ -57,12 +66,16 @@ export class CodemationConfigNormalizer {
 
     const containerRegistrations: Array<CodemationContainerRegistration<unknown>> = [];
     const credentialTypes: Array<AnyCredentialType> = [];
+    const collections: Array<CollectionDefinition> = [];
     const workflows: Array<WorkflowDefinition> = [];
     const workflowDirectories: Array<string> = [];
 
     const context: CodemationAppContext = {
       registerCredentialType(type) {
         credentialTypes.push(type);
+      },
+      registerCollection(definition) {
+        collections.push(definition);
       },
       registerNode<TValue>(token: TypeToken<TValue>, implementation?: CodemationClassToken<TValue>) {
         containerRegistrations.push({
@@ -95,6 +108,7 @@ export class CodemationConfigNormalizer {
     return {
       containerRegistrations,
       credentialTypes,
+      collections,
       workflows,
       workflowDirectories,
     };
