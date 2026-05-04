@@ -47,119 +47,123 @@ const userCollection = defineCollection({
   indexes: [{ on: ["email"], unique: true }],
 });
 
-describe("Postgres CollectionStore round-trips", () => {
-  let db: PostgresIntegrationDatabase;
-  let prismaClient: PrismaDatabaseClient;
-  let store: PostgresCollectionStore;
+describe.skipIf(process.env.DATABASE_URL?.startsWith("file:"))(
+  "Postgres CollectionStore round-trips",
+  () => {
+    let db: PostgresIntegrationDatabase;
+    let prismaClient: PrismaDatabaseClient;
+    let store: PostgresCollectionStore;
 
-  beforeEach(async () => {
-    db = await PostgresIntegrationDatabase.create();
-    prismaClient = db.getPrismaClient();
+    beforeEach(async () => {
+      db = await PostgresIntegrationDatabase.create();
+      prismaClient = db.getPrismaClient();
 
-    const appConfig = makeAppConfig(db.databaseUrl);
-    const registry = new CollectionRegistry({ ...appConfig, collections: [userCollection.definition] });
-    const logger = new SilentLogger();
-    const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
-    await syncer.sync();
+      const appConfig = makeAppConfig(db.databaseUrl);
+      const registry = new CollectionRegistry({ ...appConfig, collections: [userCollection.definition] });
+      const logger = new SilentLogger();
+      const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
+      await syncer.sync();
 
-    store = new PostgresCollectionStore(userCollection.definition, prismaClient);
-  });
+      store = new PostgresCollectionStore(userCollection.definition, prismaClient);
+    });
 
-  afterEach(async () => {
-    await db.close();
-  });
+    afterEach(async () => {
+      await db.close();
+    });
 
-  it("insert and get by id", async () => {
-    const inserted = await store.insert({ email: "alice@example.com", name: "Alice", age: 30 });
+    it("insert and get by id", async () => {
+      const inserted = await store.insert({ email: "alice@example.com", name: "Alice", age: 30 });
 
-    expect(inserted.id).toBeTruthy();
-    expect(inserted.email).toBe("alice@example.com");
-    expect(inserted.name).toBe("Alice");
-    expect(inserted.age).toBe(30);
-    expect(inserted.created_at).toBeInstanceOf(Date);
-    expect(inserted.updated_at).toBeInstanceOf(Date);
+      expect(inserted.id).toBeTruthy();
+      expect(inserted.email).toBe("alice@example.com");
+      expect(inserted.name).toBe("Alice");
+      expect(inserted.age).toBe(30);
+      expect(inserted.created_at).toBeInstanceOf(Date);
+      expect(inserted.updated_at).toBeInstanceOf(Date);
 
-    const fetched = await store.get(inserted.id);
-    expect(fetched).not.toBeNull();
-    expect(fetched!.email).toBe("alice@example.com");
-  });
+      const fetched = await store.get(inserted.id);
+      expect(fetched).not.toBeNull();
+      expect(fetched!.email).toBe("alice@example.com");
+    });
 
-  it("returns null for unknown id", async () => {
-    const result = await store.get("00000000-0000-0000-0000-000000000000");
-    expect(result).toBeNull();
-  });
+    it("returns null for unknown id", async () => {
+      const result = await store.get("00000000-0000-0000-0000-000000000000");
+      expect(result).toBeNull();
+    });
 
-  it("findOne by filter", async () => {
-    await store.insert({ email: "bob@example.com", name: "Bob" });
+    it("findOne by filter", async () => {
+      await store.insert({ email: "bob@example.com", name: "Bob" });
 
-    const found = await store.findOne({ email: "bob@example.com" });
-    expect(found).not.toBeNull();
-    expect(found!.name).toBe("Bob");
-  });
+      const found = await store.findOne({ email: "bob@example.com" });
+      expect(found).not.toBeNull();
+      expect(found!.name).toBe("Bob");
+    });
 
-  it("list with pagination", async () => {
-    await store.insert({ email: "a@example.com", name: "A" });
-    await store.insert({ email: "b@example.com", name: "B" });
-    await store.insert({ email: "c@example.com", name: "C" });
+    it("list with pagination", async () => {
+      await store.insert({ email: "a@example.com", name: "A" });
+      await store.insert({ email: "b@example.com", name: "B" });
+      await store.insert({ email: "c@example.com", name: "C" });
 
-    const page1 = await store.list({ limit: 2, offset: 0 });
-    expect(page1.total).toBe(3);
-    expect(page1.rows).toHaveLength(2);
+      const page1 = await store.list({ limit: 2, offset: 0 });
+      expect(page1.total).toBe(3);
+      expect(page1.rows).toHaveLength(2);
 
-    const page2 = await store.list({ limit: 2, offset: 2 });
-    expect(page2.total).toBe(3);
-    expect(page2.rows).toHaveLength(1);
-  });
+      const page2 = await store.list({ limit: 2, offset: 2 });
+      expect(page2.total).toBe(3);
+      expect(page2.rows).toHaveLength(1);
+    });
 
-  it("list with where filter", async () => {
-    await store.insert({ email: "x@example.com", name: "X" });
-    await store.insert({ email: "y@example.com", name: "Y" });
+    it("list with where filter", async () => {
+      await store.insert({ email: "x@example.com", name: "X" });
+      await store.insert({ email: "y@example.com", name: "Y" });
 
-    const result = await store.list({ where: { name: "X" } });
-    expect(result.rows).toHaveLength(1);
-    expect(result.rows[0].email).toBe("x@example.com");
-  });
+      const result = await store.list({ where: { name: "X" } });
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0].email).toBe("x@example.com");
+    });
 
-  it("update bumps updated_at", async () => {
-    const inserted = await store.insert({ email: "cu@example.com", name: "Cu" });
-    const originalUpdatedAt = inserted.updated_at;
+    it("update bumps updated_at", async () => {
+      const inserted = await store.insert({ email: "cu@example.com", name: "Cu" });
+      const originalUpdatedAt = inserted.updated_at;
 
-    await new Promise((r) => setTimeout(r, 10));
-    const updated = await store.update(inserted.id, { name: "Updated" });
+      await new Promise((r) => setTimeout(r, 10));
+      const updated = await store.update(inserted.id, { name: "Updated" });
 
-    expect(updated.name).toBe("Updated");
-    expect(updated.updated_at.getTime()).toBeGreaterThanOrEqual(originalUpdatedAt.getTime());
-  });
+      expect(updated.name).toBe("Updated");
+      expect(updated.updated_at.getTime()).toBeGreaterThanOrEqual(originalUpdatedAt.getTime());
+    });
 
-  it("delete returns deleted: true", async () => {
-    const inserted = await store.insert({ email: "del@example.com" });
-    const result = await store.delete(inserted.id);
+    it("delete returns deleted: true", async () => {
+      const inserted = await store.insert({ email: "del@example.com" });
+      const result = await store.delete(inserted.id);
 
-    expect(result.deleted).toBe(true);
-    const fetched = await store.get(inserted.id);
-    expect(fetched).toBeNull();
-  });
+      expect(result.deleted).toBe(true);
+      const fetched = await store.get(inserted.id);
+      expect(fetched).toBeNull();
+    });
 
-  it("auto-generates UUID id when not provided", async () => {
-    const row1 = await store.insert({ email: "uuid1@example.com" });
-    const row2 = await store.insert({ email: "uuid2@example.com" });
+    it("auto-generates UUID id when not provided", async () => {
+      const row1 = await store.insert({ email: "uuid1@example.com" });
+      const row2 = await store.insert({ email: "uuid2@example.com" });
 
-    expect(row1.id).toBeTruthy();
-    expect(row2.id).toBeTruthy();
-    expect(row1.id).not.toBe(row2.id);
-    // UUIDs match the standard pattern
-    expect(row1.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
-  });
+      expect(row1.id).toBeTruthy();
+      expect(row2.id).toBeTruthy();
+      expect(row1.id).not.toBe(row2.id);
+      // UUIDs match the standard pattern
+      expect(row1.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    });
 
-  it("serializes and deserializes jsonb fields", async () => {
-    const meta = { tags: ["a", "b"], count: 42 };
-    const inserted = await store.insert({ email: "json@example.com", meta });
-    const fetched = await store.get(inserted.id);
+    it("serializes and deserializes jsonb fields", async () => {
+      const meta = { tags: ["a", "b"], count: 42 };
+      const inserted = await store.insert({ email: "json@example.com", meta });
+      const fetched = await store.get(inserted.id);
 
-    expect(fetched!.meta).toEqual(meta);
-  });
+      expect(fetched!.meta).toEqual(meta);
+    });
 
-  it("rejects where keys not in declared fields", async () => {
-    await expect(store.findOne({ nonexistent_field: "value" } as never)).rejects.toThrow("nonexistent_field");
-  });
-}, 60000);
+    it("rejects where keys not in declared fields", async () => {
+      await expect(store.findOne({ nonexistent_field: "value" } as never)).rejects.toThrow("nonexistent_field");
+    });
+  },
+  60000,
+);

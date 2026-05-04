@@ -56,185 +56,189 @@ async function indexNamesForTable(prismaClient: PrismaDatabaseClient, tableName:
   return rows.map((r) => r.index_name);
 }
 
-describe("Postgres collection schema sync", () => {
-  let db: PostgresIntegrationDatabase;
-  let prismaClient: PrismaDatabaseClient;
-  let databaseUrl: string;
+describe.skipIf(process.env.DATABASE_URL?.startsWith("file:"))(
+  "Postgres collection schema sync",
+  () => {
+    let db: PostgresIntegrationDatabase;
+    let prismaClient: PrismaDatabaseClient;
+    let databaseUrl: string;
 
-  beforeEach(async () => {
-    db = await PostgresIntegrationDatabase.create();
-    prismaClient = db.getPrismaClient();
-    databaseUrl = db.databaseUrl;
-  });
-
-  afterEach(async () => {
-    await db.close();
-  });
-
-  it("creates tables and indexes in collections schema", async () => {
-    const col = defineCollection({
-      name: "pg_tasks",
-      fields: {
-        title: c.text().notNull(),
-        done: c.bool(),
-      },
-      indexes: [{ on: ["title"], unique: false }],
+    beforeEach(async () => {
+      db = await PostgresIntegrationDatabase.create();
+      prismaClient = db.getPrismaClient();
+      databaseUrl = db.databaseUrl;
     });
 
-    const appConfig = makeAppConfig(databaseUrl);
-    const registry = new CollectionRegistry({ ...appConfig, collections: [col.definition] });
-    const logger = new SilentLogger();
-    const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
-
-    const result = await syncer.sync();
-
-    expect(result.planned).toHaveLength(1);
-    expect(result.applied).toHaveLength(1);
-
-    const columns = await tableColumnNames(prismaClient, "pg_tasks");
-    expect(columns).toContain("id");
-    expect(columns).toContain("title");
-    expect(columns).toContain("done");
-    expect(columns).toContain("created_at");
-    expect(columns).toContain("updated_at");
-
-    const idxs = await indexNamesForTable(prismaClient, "pg_tasks");
-    expect(idxs).toContain("idx_pg_tasks_title");
-  });
-
-  it("is idempotent — second sync produces no changes", async () => {
-    const col = defineCollection({
-      name: "pg_idem",
-      fields: { title: c.text().notNull() },
+    afterEach(async () => {
+      await db.close();
     });
 
-    const appConfig = makeAppConfig(databaseUrl);
-    const registry = new CollectionRegistry({ ...appConfig, collections: [col.definition] });
-    const logger = new SilentLogger();
-    const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
+    it("creates tables and indexes in collections schema", async () => {
+      const col = defineCollection({
+        name: "pg_tasks",
+        fields: {
+          title: c.text().notNull(),
+          done: c.bool(),
+        },
+        indexes: [{ on: ["title"], unique: false }],
+      });
 
-    await syncer.sync();
-    const second = await syncer.sync();
+      const appConfig = makeAppConfig(databaseUrl);
+      const registry = new CollectionRegistry({ ...appConfig, collections: [col.definition] });
+      const logger = new SilentLogger();
+      const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
 
-    expect(second.planned).toHaveLength(0);
-    expect(second.applied).toHaveLength(0);
-  });
+      const result = await syncer.sync();
 
-  it("adds new columns on subsequent sync", async () => {
-    const collName = "pg_evolving";
-    const v1 = defineCollection({
-      name: collName,
-      fields: { title: c.text().notNull() },
+      expect(result.planned).toHaveLength(1);
+      expect(result.applied).toHaveLength(1);
+
+      const columns = await tableColumnNames(prismaClient, "pg_tasks");
+      expect(columns).toContain("id");
+      expect(columns).toContain("title");
+      expect(columns).toContain("done");
+      expect(columns).toContain("created_at");
+      expect(columns).toContain("updated_at");
+
+      const idxs = await indexNamesForTable(prismaClient, "pg_tasks");
+      expect(idxs).toContain("idx_pg_tasks_title");
     });
 
-    const appConfig = makeAppConfig(databaseUrl);
-    const logger = new SilentLogger();
+    it("is idempotent — second sync produces no changes", async () => {
+      const col = defineCollection({
+        name: "pg_idem",
+        fields: { title: c.text().notNull() },
+      });
 
-    const registry1 = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
-    const syncer1 = CollectionSchemaSyncerFactory.create(appConfig, registry1, prismaClient, logger);
-    await syncer1.sync();
+      const appConfig = makeAppConfig(databaseUrl);
+      const registry = new CollectionRegistry({ ...appConfig, collections: [col.definition] });
+      const logger = new SilentLogger();
+      const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
 
-    const v2 = defineCollection({
-      name: collName,
-      fields: {
-        title: c.text().notNull(),
-        priority: c.int(),
-      },
-    });
-    const registry2 = new CollectionRegistry({ ...appConfig, collections: [v2.definition] });
-    const syncer2 = CollectionSchemaSyncerFactory.create(appConfig, registry2, prismaClient, logger);
-    const result = await syncer2.sync();
+      await syncer.sync();
+      const second = await syncer.sync();
 
-    expect(result.applied).toHaveLength(1);
-    expect(result.applied[0].addColumns).toHaveLength(1);
-    expect(result.applied[0].addColumns[0].name).toBe("priority");
-
-    const columns = await tableColumnNames(prismaClient, collName);
-    expect(columns).toContain("priority");
-  });
-
-  it("blocks destructive changes without env opt-in", async () => {
-    const collName = "pg_drop_test";
-    const v1 = defineCollection({
-      name: collName,
-      fields: {
-        title: c.text().notNull(),
-        legacy: c.text(),
-      },
+      expect(second.planned).toHaveLength(0);
+      expect(second.applied).toHaveLength(0);
     });
 
-    const appConfig = makeAppConfig(databaseUrl);
-    const logger = new SilentLogger();
+    it("adds new columns on subsequent sync", async () => {
+      const collName = "pg_evolving";
+      const v1 = defineCollection({
+        name: collName,
+        fields: { title: c.text().notNull() },
+      });
 
-    const registry1 = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
-    const syncer1 = CollectionSchemaSyncerFactory.create(appConfig, registry1, prismaClient, logger);
-    await syncer1.sync();
+      const appConfig = makeAppConfig(databaseUrl);
+      const logger = new SilentLogger();
 
-    const v2 = defineCollection({
-      name: collName,
-      fields: { title: c.text().notNull() },
-    });
-    const registry2 = new CollectionRegistry({ ...appConfig, collections: [v2.definition] });
-    const syncer2 = CollectionSchemaSyncerFactory.create(appConfig, registry2, prismaClient, logger);
+      const registry1 = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
+      const syncer1 = CollectionSchemaSyncerFactory.create(appConfig, registry1, prismaClient, logger);
+      await syncer1.sync();
 
-    await expect(syncer2.sync()).rejects.toThrow("CODEMATION_COLLECTIONS_ALLOW_DESTRUCTIVE");
-  });
+      const v2 = defineCollection({
+        name: collName,
+        fields: {
+          title: c.text().notNull(),
+          priority: c.int(),
+        },
+      });
+      const registry2 = new CollectionRegistry({ ...appConfig, collections: [v2.definition] });
+      const syncer2 = CollectionSchemaSyncerFactory.create(appConfig, registry2, prismaClient, logger);
+      const result = await syncer2.sync();
 
-  it("allows destructive changes with CODEMATION_COLLECTIONS_ALLOW_DESTRUCTIVE=1", async () => {
-    const collName = "pg_drop_allowed";
-    const v1 = defineCollection({
-      name: collName,
-      fields: {
-        title: c.text().notNull(),
-        legacy: c.text(),
-      },
-    });
+      expect(result.applied).toHaveLength(1);
+      expect(result.applied[0].addColumns).toHaveLength(1);
+      expect(result.applied[0].addColumns[0].name).toBe("priority");
 
-    const appConfig = makeAppConfig(databaseUrl);
-    const logger = new SilentLogger();
-
-    const registry1 = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
-    const syncer1 = CollectionSchemaSyncerFactory.create(appConfig, registry1, prismaClient, logger);
-    await syncer1.sync();
-
-    const v2 = defineCollection({
-      name: collName,
-      fields: { title: c.text().notNull() },
-    });
-    const registry2 = new CollectionRegistry({ ...appConfig, collections: [v2.definition] });
-    const syncer2 = CollectionSchemaSyncerFactory.create(
-      { ...appConfig, env: { CODEMATION_COLLECTIONS_ALLOW_DESTRUCTIVE: "1" } },
-      registry2,
-      prismaClient,
-      logger,
-    );
-
-    const result = await syncer2.sync();
-    expect(result.applied).toHaveLength(1);
-    expect(result.applied[0].dropColumns).toContain("legacy");
-
-    const columns = await tableColumnNames(prismaClient, collName);
-    expect(columns).not.toContain("legacy");
-  });
-
-  it("dry-run returns planned ops but does not apply changes", async () => {
-    const collName = "pg_dry_run";
-    const col = defineCollection({
-      name: collName,
-      fields: { title: c.text().notNull() },
+      const columns = await tableColumnNames(prismaClient, collName);
+      expect(columns).toContain("priority");
     });
 
-    const appConfig = makeAppConfig(databaseUrl);
-    const registry = new CollectionRegistry({ ...appConfig, collections: [col.definition] });
-    const logger = new SilentLogger();
-    const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
+    it("blocks destructive changes without env opt-in", async () => {
+      const collName = "pg_drop_test";
+      const v1 = defineCollection({
+        name: collName,
+        fields: {
+          title: c.text().notNull(),
+          legacy: c.text(),
+        },
+      });
 
-    const result = await syncer.sync({ dryRun: true });
+      const appConfig = makeAppConfig(databaseUrl);
+      const logger = new SilentLogger();
 
-    expect(result.planned).toHaveLength(1);
-    expect(result.applied).toHaveLength(0);
+      const registry1 = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
+      const syncer1 = CollectionSchemaSyncerFactory.create(appConfig, registry1, prismaClient, logger);
+      await syncer1.sync();
 
-    const columns = await tableColumnNames(prismaClient, collName);
-    expect(columns).toHaveLength(0);
-  });
-}, 60000);
+      const v2 = defineCollection({
+        name: collName,
+        fields: { title: c.text().notNull() },
+      });
+      const registry2 = new CollectionRegistry({ ...appConfig, collections: [v2.definition] });
+      const syncer2 = CollectionSchemaSyncerFactory.create(appConfig, registry2, prismaClient, logger);
+
+      await expect(syncer2.sync()).rejects.toThrow("CODEMATION_COLLECTIONS_ALLOW_DESTRUCTIVE");
+    });
+
+    it("allows destructive changes with CODEMATION_COLLECTIONS_ALLOW_DESTRUCTIVE=1", async () => {
+      const collName = "pg_drop_allowed";
+      const v1 = defineCollection({
+        name: collName,
+        fields: {
+          title: c.text().notNull(),
+          legacy: c.text(),
+        },
+      });
+
+      const appConfig = makeAppConfig(databaseUrl);
+      const logger = new SilentLogger();
+
+      const registry1 = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
+      const syncer1 = CollectionSchemaSyncerFactory.create(appConfig, registry1, prismaClient, logger);
+      await syncer1.sync();
+
+      const v2 = defineCollection({
+        name: collName,
+        fields: { title: c.text().notNull() },
+      });
+      const registry2 = new CollectionRegistry({ ...appConfig, collections: [v2.definition] });
+      const syncer2 = CollectionSchemaSyncerFactory.create(
+        { ...appConfig, env: { CODEMATION_COLLECTIONS_ALLOW_DESTRUCTIVE: "1" } },
+        registry2,
+        prismaClient,
+        logger,
+      );
+
+      const result = await syncer2.sync();
+      expect(result.applied).toHaveLength(1);
+      expect(result.applied[0].dropColumns).toContain("legacy");
+
+      const columns = await tableColumnNames(prismaClient, collName);
+      expect(columns).not.toContain("legacy");
+    });
+
+    it("dry-run returns planned ops but does not apply changes", async () => {
+      const collName = "pg_dry_run";
+      const col = defineCollection({
+        name: collName,
+        fields: { title: c.text().notNull() },
+      });
+
+      const appConfig = makeAppConfig(databaseUrl);
+      const registry = new CollectionRegistry({ ...appConfig, collections: [col.definition] });
+      const logger = new SilentLogger();
+      const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
+
+      const result = await syncer.sync({ dryRun: true });
+
+      expect(result.planned).toHaveLength(1);
+      expect(result.applied).toHaveLength(0);
+
+      const columns = await tableColumnNames(prismaClient, collName);
+      expect(columns).toHaveLength(0);
+    });
+  },
+  60000,
+);
