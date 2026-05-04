@@ -19,21 +19,17 @@ import { useWorkflowRealtimeBadgeState } from "../hooks/realtime/useWorkflowReal
 import { resolveWorkflowRealtimeBadge } from "./workflowDetailScreenRealtimeBadge";
 import { WorkflowCanvasRunButton } from "../components/workflowDetail/WorkflowCanvasRunButton";
 import { useWorkflowCanvasRunButton } from "../hooks/useWorkflowCanvasRunButton";
+import { WorkflowJsonEditorDialog } from "../components/workflowDetail/WorkflowJsonEditorDialog";
 
-// Lazy-load Tests view (recharts + test-suite component tree) and JSON editor (Monaco).
-// Both are conditionally rendered and would otherwise dominate Turbopack's module work for
-// this route, pushing Next dev's RSS over the 8-GB-WSL OOM threshold on cold compile.
+// Lazy-load the Tests view only: it pulls in recharts + the test-suite component tree which is
+// conditionally rendered and would otherwise dominate Turbopack's module work for this route.
+// WorkflowJsonEditorDialog is NOT lazy-loaded here: its Monaco dependency loads lazily on its
+// own via @monaco-editor/react, and wrapping the dialog in next/dynamic breaks jsdom integration
+// tests (the dynamic wrapper delays the dialog mount past the test-suite's waitFor window).
 const WorkflowDetailScreenTestsView = dynamic(
   () =>
     import("./WorkflowDetailScreenTestsView").then((mod) => ({
       default: mod.WorkflowDetailScreenTestsView,
-    })),
-  { ssr: false },
-);
-const WorkflowJsonEditorDialog = dynamic(
-  () =>
-    import("../components/workflowDetail/WorkflowJsonEditorDialog").then((mod) => ({
-      default: mod.WorkflowJsonEditorDialog,
     })),
   { ssr: false },
 );
@@ -56,7 +52,10 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
     workflowId: args.workflowId,
     workflowNodes,
     isRunning: controller.isRunning,
-    onRunLiveTrigger: (nodeId) => controller.runCanvasNode(nodeId),
+    // TODO(multi-trigger): thread `nodeId` into runExecution as `startAt` once the backend
+    // honours startAt alongside currentState. Until then a full-workflow run is correct — the
+    // backend picks the trigger via synthesizeTriggerItems.
+    onRunLiveTrigger: () => controller.runWorkflowFromCanvas(),
     onRunTestTrigger: handleRunTestTrigger,
   });
 
