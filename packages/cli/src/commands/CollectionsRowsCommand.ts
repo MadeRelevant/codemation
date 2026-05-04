@@ -7,6 +7,7 @@ import type {
   CollectionsCliCommandOptionsRaw,
   CollectionsCliOptionsParser,
 } from "../collections/CollectionsCliOptionsParser";
+import { CliAsciiTableBuilder } from "../util/CliAsciiTableBuilder";
 
 export type CollectionsRowsCommandOptionsRaw = CollectionsCliCommandOptionsRaw &
   Readonly<{
@@ -72,21 +73,6 @@ export class CollectionsRowsCommand {
       r.updated_at,
       JSON.stringify(r.data),
     ]);
-    return this.buildAsciiTable([...headers], tableRows);
-  }
-
-  private buildAsciiTable(headers: ReadonlyArray<string>, rows: ReadonlyArray<ReadonlyArray<string>>): string {
-    const columnCount = headers.length;
-    const widths: number[] = [];
-    for (let i = 0; i < columnCount; i += 1) {
-      const headerWidth = headers[i]?.length ?? 0;
-      const cellWidths = rows.map((row) => row[i]?.length ?? 0);
-      widths.push(Math.max(headerWidth, ...cellWidths, 3));
-    }
-    const padCell = (text: string, index: number): string => text.padEnd(widths[index] ?? text.length);
-    const horizontal = `+${widths.map((w) => "-".repeat(w + 2)).join("+")}+`;
-    const formatRow = (cells: ReadonlyArray<string>): string =>
-      `| ${cells.map((cell, index) => padCell(cell, index)).join(" | ")} |`;
-    return [horizontal, formatRow(headers), horizontal, ...rows.map(formatRow), horizontal].join("\n");
+    return CliAsciiTableBuilder.build([...headers], tableRows);
   }
 }

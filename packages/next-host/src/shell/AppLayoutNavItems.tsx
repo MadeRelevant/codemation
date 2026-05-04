@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { IconCredentials, IconDashboard, IconUsers, IconWorkflow } from "./appLayoutSidebarIcons";
+import { IconCollections, IconCredentials, IconDashboard, IconUsers, IconWorkflow } from "./appLayoutSidebarIcons";
 import { WorkflowSidebarNavTree } from "./WorkflowSidebarNavTree";
 import { useWorkflowsQuery } from "../features/workflows/hooks/realtime/realtime";
 
@@ -69,6 +69,7 @@ export function AppLayoutNavItems({ collapsed }: AppLayoutNavItemsProps): ReactN
   return (
     <>
       {navItem("/dashboard", "Dashboard", <IconDashboard />, true)}
+      {navItem("/collections", "Collections", <IconCollections />)}
       {navItem("/credentials", "Credentials", <IconCredentials />)}
       {navItem("/users", "Users", <IconUsers />)}
       {collapsed ? (
