@@ -1,16 +1,17 @@
 "use client";
 
 import type { CollectionDetailDto, CollectionRowDto } from "@codemation/host/dto";
-import Pencil from "lucide-react/dist/esm/icons/pencil";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import { Button } from "@/components/ui/button";
-import { TableCell, TableRow } from "@/components/ui/table";
-import { HumanFriendlyTimestampFormatter } from "../../lib/HumanFriendlyTimestampFormatter";
-import { CodemationDataTable } from "../../../components/CodemationDataTable";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CodemationFormattedDateTime } from "../../../components/CodemationFormattedDateTime";
 
 type CollectionRowsTableProps = Readonly<{
   detail: CollectionDetailDto;
   rows: ReadonlyArray<CollectionRowDto>;
+  selectedIds: ReadonlySet<string>;
+  onToggleRow: (id: string, checked: boolean) => void;
+  onToggleAllOnPage: (checked: boolean) => void;
   onEdit: (row: CollectionRowDto) => void;
   onDelete: (row: CollectionRowDto) => void;
 }>;
@@ -27,18 +28,15 @@ function formatCellValue(value: unknown): string {
   return String(value);
 }
 
-export function CollectionRowsTable({ detail, rows, onEdit, onDelete }: CollectionRowsTableProps) {
-  const fixedColumns = [
-    { key: "id", header: "ID" },
-    { key: "created_at", header: "Created" },
-    { key: "updated_at", header: "Updated" },
-  ] as const;
-
-  const dataColumns = detail.fields.map((f) => ({ key: f.name, header: humanizeFieldName(f.name) }));
-  const actionsColumn = { key: "actions", header: "" } as const;
-
-  const columns = [...fixedColumns, ...dataColumns, actionsColumn];
-
+export function CollectionRowsTable({
+  detail,
+  rows,
+  selectedIds,
+  onToggleRow,
+  onToggleAllOnPage,
+  onEdit,
+  onDelete,
+}: CollectionRowsTableProps) {
   if (rows.length === 0) {
     return (
       <div
@@ -50,11 +48,47 @@ export function CollectionRowsTable({ detail, rows, onEdit, onDelete }: Collecti
     );
   }
 
+  const selectedOnPageCount = rows.reduce((acc, r) => acc + (selectedIds.has(r.id) ? 1 : 0), 0);
+  const headerCheckedState: boolean | "indeterminate" =
+    selectedOnPageCount === 0 ? false : selectedOnPageCount === rows.length ? true : "indeterminate";
+
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <CodemationDataTable tableTestId="collection-rows-table" columns={columns}>
+    <Table data-testid="collection-rows-table">
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-[2.5rem]">
+            <Checkbox
+              checked={headerCheckedState}
+              onCheckedChange={(value) => onToggleAllOnPage(value === true)}
+              aria-label="Select all rows on this page"
+              data-testid="collection-rows-select-all"
+            />
+          </TableHead>
+          <TableHead>ID</TableHead>
+          <TableHead>Created</TableHead>
+          <TableHead>Updated</TableHead>
+          {detail.fields.map((f) => (
+            <TableHead key={f.name}>{humanizeFieldName(f.name)}</TableHead>
+          ))}
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {rows.map((row) => (
-          <TableRow key={row.id} data-testid={`collection-row-${row.id}`} className="align-top">
+          <TableRow
+            key={row.id}
+            data-testid={`collection-row-${row.id}`}
+            data-state={selectedIds.has(row.id) ? "selected" : undefined}
+            className="align-top"
+          >
+            <TableCell className="w-[2.5rem] align-top">
+              <Checkbox
+                checked={selectedIds.has(row.id)}
+                onCheckedChange={(value) => onToggleRow(row.id, value === true)}
+                aria-label={`Select row ${row.id}`}
+                data-testid={`collection-row-select-${row.id}`}
+              />
+            </TableCell>
             <TableCell className="w-[14rem] align-top">
               <span
                 className="block break-all font-mono text-xs text-muted-foreground"
@@ -64,14 +98,18 @@ export function CollectionRowsTable({ detail, rows, onEdit, onDelete }: Collecti
               </span>
             </TableCell>
             <TableCell className="whitespace-nowrap align-top">
-              <span className="text-xs text-muted-foreground" title={new Date(row.created_at).toISOString()}>
-                {HumanFriendlyTimestampFormatter.formatRunListWhen(row.created_at)}
-              </span>
+              <CodemationFormattedDateTime
+                isoUtc={row.created_at}
+                dataTestId={`collection-row-created-${row.id}`}
+                className="text-xs text-muted-foreground"
+              />
             </TableCell>
             <TableCell className="whitespace-nowrap align-top">
-              <span className="text-xs text-muted-foreground" title={new Date(row.updated_at).toISOString()}>
-                {HumanFriendlyTimestampFormatter.formatRunListWhen(row.updated_at)}
-              </span>
+              <CodemationFormattedDateTime
+                isoUtc={row.updated_at}
+                dataTestId={`collection-row-updated-${row.id}`}
+                className="text-xs text-muted-foreground"
+              />
             </TableCell>
             {detail.fields.map((f) => (
               <TableCell key={f.name} className="align-top" data-testid={`collection-row-field-${row.id}-${f.name}`}>
@@ -80,36 +118,32 @@ export function CollectionRowsTable({ detail, rows, onEdit, onDelete }: Collecti
                 </span>
               </TableCell>
             ))}
-            <TableCell className="w-[6rem] whitespace-nowrap align-top text-right">
-              <div className="flex items-center justify-end gap-1">
+            <TableCell className="whitespace-nowrap align-top">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
-                  size="icon"
-                  variant="ghost"
+                  size="sm"
+                  variant="outline"
                   onClick={() => onEdit(row)}
-                  aria-label="Edit row"
-                  title="Edit row"
                   data-testid={`collection-row-edit-${row.id}`}
                 >
-                  <Pencil className="h-4 w-4" aria-hidden />
+                  Edit
                 </Button>
                 <Button
                   type="button"
-                  size="icon"
-                  variant="ghost"
+                  size="sm"
+                  variant="outline"
                   onClick={() => onDelete(row)}
-                  aria-label="Delete row"
-                  title="Delete row"
                   data-testid={`collection-row-delete-${row.id}`}
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  className="text-destructive hover:text-destructive"
                 >
-                  <Trash2 className="h-4 w-4" aria-hidden />
+                  Delete
                 </Button>
               </div>
             </TableCell>
           </TableRow>
         ))}
-      </CodemationDataTable>
-    </div>
+      </TableBody>
+    </Table>
   );
 }

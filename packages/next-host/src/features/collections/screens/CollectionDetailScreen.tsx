@@ -1,16 +1,9 @@
 "use client";
 
 import type { CollectionRowDto } from "@codemation/host/dto";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCollectionDetailQuery } from "../hooks/useCollectionDetailQuery";
 import { useCollectionRowsQuery } from "../hooks/useCollectionRowsQuery";
 import {
@@ -21,6 +14,8 @@ import {
 import { CollectionRowForm } from "../components/CollectionRowForm";
 import { CollectionRowsTable } from "../components/CollectionRowsTable";
 import { CollectionRowsPagination } from "../components/CollectionRowsPagination";
+import { CollectionDeleteRowDialog } from "../components/CollectionDeleteRowDialog";
+import { CollectionBulkDeleteDialog } from "../components/CollectionBulkDeleteDialog";
 
 const PAGE_SIZE = 20;
 
@@ -31,6 +26,9 @@ export function CollectionDetailScreen({ name }: CollectionDetailScreenProps) {
   const [newRowOpen, setNewRowOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<CollectionRowDto | null>(null);
   const [deletingRow, setDeletingRow] = useState<CollectionRowDto | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -43,9 +41,22 @@ export function CollectionDetailScreen({ name }: CollectionDetailScreenProps) {
 
   const detail = detailQuery.data ?? null;
   const rowsResult = rowsQuery.data;
-  const rows = rowsResult?.rows ?? [];
+  const rows = useMemo(() => rowsResult?.rows ?? [], [rowsResult]);
   const total = rowsResult?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Drop selections that no longer exist on the current page (after delete or page change).
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const onPage = new Set(rows.map((r) => r.id));
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (onPage.has(id)) next.add(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [rows]);
 
   const handleInsert = useCallback(
     async (data: Readonly<Record<string, unknown>>) => {
@@ -64,11 +75,48 @@ export function CollectionDetailScreen({ name }: CollectionDetailScreenProps) {
     [editingRow, updateMutation],
   );
 
-  const handleDelete = useCallback(async () => {
+  const handleDeleteOne = useCallback(async () => {
     if (!deletingRow) return;
     await deleteMutation.mutateAsync(deletingRow.id);
     setDeletingRow(null);
   }, [deletingRow, deleteMutation]);
+
+  const handleToggleRow = useCallback((id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const handleToggleAllOnPage = useCallback(
+    (checked: boolean) => {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (checked) for (const r of rows) next.add(r.id);
+        else for (const r of rows) next.delete(r.id);
+        return next;
+      });
+    },
+    [rows],
+  );
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      // Sequential delete keeps the optimistic-style UX simple and avoids hammering
+      // the API with parallel mutations on the same query key.
+      for (const id of [...selectedIds]) {
+        await deleteMutation.mutateAsync(id);
+      }
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }, [deleteMutation, selectedIds]);
 
   if (detailQuery.isLoading) {
     return (
@@ -90,6 +138,8 @@ export function CollectionDetailScreen({ name }: CollectionDetailScreenProps) {
     );
   }
 
+  const selectedCount = selectedIds.size;
+
   return (
     <div data-testid="collection-detail-screen" className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -99,9 +149,22 @@ export function CollectionDetailScreen({ name }: CollectionDetailScreenProps) {
           </h1>
           <p className="text-sm text-muted-foreground">{detail.fields.length} fields</p>
         </div>
-        <Button type="button" onClick={() => setNewRowOpen(true)} data-testid="collection-new-row-button">
-          New row
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedCount > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setBulkDeleteOpen(true)}
+              data-testid="collection-bulk-delete-button"
+            >
+              Delete selected ({selectedCount})
+            </Button>
+          )}
+          <Button type="button" onClick={() => setNewRowOpen(true)} data-testid="collection-new-row-button">
+            New row
+          </Button>
+        </div>
       </div>
 
       {rowsQuery.isLoading ? (
@@ -113,6 +176,9 @@ export function CollectionDetailScreen({ name }: CollectionDetailScreenProps) {
           <CollectionRowsTable
             detail={detail}
             rows={rows}
+            selectedIds={selectedIds}
+            onToggleRow={handleToggleRow}
+            onToggleAllOnPage={handleToggleAllOnPage}
             onEdit={(row) => setEditingRow(row)}
             onDelete={(row) => setDeletingRow(row)}
           />
@@ -128,7 +194,6 @@ export function CollectionDetailScreen({ name }: CollectionDetailScreenProps) {
         </>
       )}
 
-      {/* New row dialog */}
       <Dialog open={newRowOpen} onOpenChange={setNewRowOpen}>
         <DialogContent data-testid="collection-new-row-dialog">
           <DialogHeader>
@@ -143,7 +208,6 @@ export function CollectionDetailScreen({ name }: CollectionDetailScreenProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Edit row dialog */}
       <Dialog
         open={editingRow !== null}
         onOpenChange={(open) => {
@@ -166,36 +230,21 @@ export function CollectionDetailScreen({ name }: CollectionDetailScreenProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation dialog */}
-      <Dialog
-        open={deletingRow !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeletingRow(null);
-        }}
-      >
-        <DialogContent data-testid="collection-delete-row-dialog">
-          <DialogHeader>
-            <DialogTitle>Delete row?</DialogTitle>
-            <DialogDescription>
-              This will permanently delete row <code>{deletingRow?.id}</code>. This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeletingRow(null)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => void handleDelete()}
-              data-testid="collection-delete-row-confirm"
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CollectionDeleteRowDialog
+        row={deletingRow}
+        isPending={deleteMutation.isPending}
+        onCancel={() => setDeletingRow(null)}
+        onConfirm={() => void handleDeleteOne()}
+      />
+
+      <CollectionBulkDeleteDialog
+        open={bulkDeleteOpen}
+        collectionName={detail.name}
+        selectedCount={selectedCount}
+        isPending={bulkDeleting}
+        onCancel={() => setBulkDeleteOpen(false)}
+        onConfirm={() => void handleBulkDelete()}
+      />
     </div>
   );
 }

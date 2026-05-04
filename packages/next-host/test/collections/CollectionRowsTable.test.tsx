@@ -29,15 +29,37 @@ function makeRow(overrides: Partial<CollectionRowDto> = {}): CollectionRowDto {
   };
 }
 
+const noopSelectionProps = {
+  selectedIds: new Set<string>(),
+  onToggleRow: () => {},
+  onToggleAllOnPage: () => {},
+};
+
 describe("CollectionRowsTable", () => {
   it("shows empty state when no rows", () => {
-    render(<CollectionRowsTable detail={makeDetail()} rows={[]} onEdit={() => {}} onDelete={() => {}} />);
+    render(
+      <CollectionRowsTable
+        detail={makeDetail()}
+        rows={[]}
+        {...noopSelectionProps}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
     expect(screen.getByTestId("collection-rows-empty")).toBeTruthy();
   });
 
   it("renders rows with dynamic field columns", () => {
     const row = makeRow();
-    render(<CollectionRowsTable detail={makeDetail()} rows={[row]} onEdit={() => {}} onDelete={() => {}} />);
+    render(
+      <CollectionRowsTable
+        detail={makeDetail()}
+        rows={[row]}
+        {...noopSelectionProps}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
     expect(screen.getByTestId("collection-rows-table")).toBeTruthy();
     expect(screen.getByTestId(`collection-row-${row.id}`)).toBeTruthy();
     expect(screen.getByTestId(`collection-row-field-${row.id}-sender_email`).textContent).toContain("test@example.com");
@@ -47,7 +69,13 @@ describe("CollectionRowsTable", () => {
     const row = makeRow();
     const editCalls: CollectionRowDto[] = [];
     render(
-      <CollectionRowsTable detail={makeDetail()} rows={[row]} onEdit={(r) => editCalls.push(r)} onDelete={() => {}} />,
+      <CollectionRowsTable
+        detail={makeDetail()}
+        rows={[row]}
+        {...noopSelectionProps}
+        onEdit={(r) => editCalls.push(r)}
+        onDelete={() => {}}
+      />,
     );
     const editBtn = screen.getByTestId(`collection-row-edit-${row.id}`);
     fireEvent.click(editBtn);
@@ -62,6 +90,7 @@ describe("CollectionRowsTable", () => {
       <CollectionRowsTable
         detail={makeDetail()}
         rows={[row]}
+        {...noopSelectionProps}
         onEdit={() => {}}
         onDelete={(r) => deleteCalls.push(r)}
       />,
@@ -70,6 +99,24 @@ describe("CollectionRowsTable", () => {
     fireEvent.click(deleteBtn);
     expect(deleteCalls).toHaveLength(1);
     expect(deleteCalls[0]?.id).toBe(row.id);
+  });
+
+  it("calls onToggleRow when a row checkbox is toggled", () => {
+    const row = makeRow();
+    const toggles: Array<[string, boolean]> = [];
+    render(
+      <CollectionRowsTable
+        detail={makeDetail()}
+        rows={[row]}
+        selectedIds={new Set()}
+        onToggleRow={(id, checked) => toggles.push([id, checked])}
+        onToggleAllOnPage={() => {}}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByTestId(`collection-row-select-${row.id}`));
+    expect(toggles).toEqual([[row.id, true]]);
   });
 });
 
