@@ -31,9 +31,7 @@ function makeArgs<TPublic extends Record<string, unknown>, TMaterial extends Rec
 
 describe("BearerTokenCredentialType", () => {
   test("createSession injects Authorization Bearer header", async () => {
-    const session = await bearerTokenCredentialType.createSession(
-      makeArgs({}, { token: "secret-123" }),
-    );
+    const session = await bearerTokenCredentialType.createSession(makeArgs({}, { token: "secret-123" }));
     const delta = session.applyToRequest({} as any);
     assert.equal(delta.headers?.authorization, "Bearer secret-123");
     assert.equal(delta.query, undefined);

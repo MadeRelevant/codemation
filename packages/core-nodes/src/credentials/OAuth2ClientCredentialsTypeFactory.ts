@@ -62,9 +62,7 @@ export const oauth2ClientCredentialsType = defineCredential({
     const clientSecret = String(args.material.clientSecret ?? "");
 
     if (!tokenUrl || !clientId || !clientSecret) {
-      throw new Error(
-        "OAuth2 client credentials are incomplete: tokenUrl, clientId, and clientSecret are required.",
-      );
+      throw new Error("OAuth2 client credentials are incomplete: tokenUrl, clientId, and clientSecret are required.");
     }
 
     // Fetch the token eagerly so any failure surfaces at session creation time.
@@ -117,4 +115,3 @@ export const oauth2ClientCredentialsType = defineCredential({
     }
   },
 });
-

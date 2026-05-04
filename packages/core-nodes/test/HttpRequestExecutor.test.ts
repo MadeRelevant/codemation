@@ -20,9 +20,15 @@ function makeFakeCtx(): NodeExecutionContext<RunnableNodeConfig<unknown, unknown
     data: {} as NodeExecutionContext<RunnableNodeConfig<unknown, unknown>>["data"],
     binary: {
       openReadStream: async () => undefined,
-      attach: async () => { throw new Error("not implemented"); },
-      withAttachment: () => { throw new Error("not implemented"); },
-      forNode: () => { throw new Error("not implemented"); },
+      attach: async () => {
+        throw new Error("fake ctx for unit test does not support this binary op");
+      },
+      withAttachment: () => {
+        throw new Error("fake ctx for unit test does not support this binary op");
+      },
+      forNode: () => {
+        throw new Error("fake ctx for unit test does not support this binary op");
+      },
     } as unknown as NodeExecutionContext<RunnableNodeConfig<unknown, unknown>>["binary"],
   };
 }
@@ -49,7 +55,10 @@ describe("HttpRequestExecutor", () => {
   test("returns basic GET result with JSON body", async () => {
     const ctx = makeFakeCtx();
     const executor = new HttpRequestExecutor(
-      makeFetch({ body: '{"hello":"world"}', contentType: "application/json" }), new HttpBodyBuilder(), new HttpUrlBuilder());
+      makeFetch({ body: '{"hello":"world"}', contentType: "application/json" }),
+      new HttpBodyBuilder(),
+      new HttpUrlBuilder(),
+    );
     const spec: HttpRequestSpec = {
       url: "https://api.example.com/data",
       method: "GET",
@@ -141,7 +150,15 @@ describe("HttpRequestExecutor", () => {
   test("returns non-ok result for 4xx status", async () => {
     const ctx = makeFakeCtx();
     const executor = new HttpRequestExecutor(
-      makeFetch({ status: 404, statusText: "Not Found", body: '{"error":"not found"}', contentType: "application/json" }), new HttpBodyBuilder(), new HttpUrlBuilder());
+      makeFetch({
+        status: 404,
+        statusText: "Not Found",
+        body: '{"error":"not found"}',
+        contentType: "application/json",
+      }),
+      new HttpBodyBuilder(),
+      new HttpUrlBuilder(),
+    );
     const spec: HttpRequestSpec = {
       url: "https://api.example.com/missing",
       method: "GET",
@@ -156,7 +173,10 @@ describe("HttpRequestExecutor", () => {
   test("marks bodyBinaryName for auto-download mode with image content-type", async () => {
     const ctx = makeFakeCtx();
     const executor = new HttpRequestExecutor(
-      makeFetch({ contentType: "image/png", body: "binary-data" }), new HttpBodyBuilder(), new HttpUrlBuilder());
+      makeFetch({ contentType: "image/png", body: "binary-data" }),
+      new HttpBodyBuilder(),
+      new HttpUrlBuilder(),
+    );
     const spec: HttpRequestSpec = {
       url: "https://example.com/image.png",
       method: "GET",
@@ -170,7 +190,10 @@ describe("HttpRequestExecutor", () => {
   test("does not mark bodyBinaryName for never download mode", async () => {
     const ctx = makeFakeCtx();
     const executor = new HttpRequestExecutor(
-      makeFetch({ contentType: "image/png", body: "binary-data" }), new HttpBodyBuilder(), new HttpUrlBuilder());
+      makeFetch({ contentType: "image/png", body: "binary-data" }),
+      new HttpBodyBuilder(),
+      new HttpUrlBuilder(),
+    );
     const spec: HttpRequestSpec = {
       url: "https://example.com/image.png",
       method: "GET",

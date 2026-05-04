@@ -29,10 +29,7 @@ export class HttpRequestExecutor {
    * returning both the resolved URL and the RequestInit so callers can make the
    * actual fetch call themselves (useful for streaming / binary attach).
    */
-  async buildRequest(
-    spec: HttpRequestSpec,
-    item: Item,
-  ): Promise<Readonly<{ url: string; init: RequestInit }>> {
+  async buildRequest(spec: HttpRequestSpec, item: Item): Promise<Readonly<{ url: string; init: RequestInit }>> {
     const credentialDelta = spec.credential?.applyToRequest(spec) ?? {};
 
     const mergedHeaders: Record<string, string> = {

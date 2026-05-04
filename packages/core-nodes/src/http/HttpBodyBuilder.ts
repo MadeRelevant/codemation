@@ -3,7 +3,7 @@ import type { RunnableNodeConfig } from "@codemation/core";
 import type { HttpBodySpec } from "./httpRequest.types";
 
 export type EncodedBody = Readonly<{
-  body: string | FormData | URLSearchParams | Uint8Array | ArrayBuffer;
+  body: NonNullable<RequestInit["body"]>;
   /**
    * Desired Content-Type header. Empty string means `fetch` should set it automatically
    * (used for multipart/form-data so the boundary is set correctly by the browser/Node runtime).

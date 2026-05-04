@@ -1,8 +1,5 @@
 import { defineNode } from "@codemation/core";
-import type {
-  DefinedNode,
-  DefinedNodeCredentialBindings,
-} from "@codemation/core";
+import type { DefinedNode, DefinedNodeCredentialBindings } from "@codemation/core";
 import type { ZodType } from "zod";
 import type { HttpBodySpec } from "../http/httpRequest.types";
 import { HttpRequestExecutor } from "../http/HttpRequestExecutor";
@@ -181,9 +178,7 @@ export function defineRestNode<
       );
 
       if (errorPolicy === "throw" && !result.ok) {
-        throw new Error(
-          `HTTP ${result.status} ${result.statusText} for ${result.method} ${result.url}`,
-        );
+        throw new Error(`HTTP ${result.status} ${result.statusText} for ${result.method} ${result.url}`);
       }
 
       const responseCtx: RestNodeResponseContext = {

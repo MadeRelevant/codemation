@@ -5,9 +5,9 @@ import assert from "node:assert/strict";
 import { describe, test } from "vitest";
 
 /** Minimal fake for ctx that only supports openReadStream. */
-function makeFakeCtx(binaryData?: Readonly<Record<string, Uint8Array>>): NodeExecutionContext<
-  RunnableNodeConfig<unknown, unknown>
-> {
+function makeFakeCtx(
+  binaryData?: Readonly<Record<string, Uint8Array>>,
+): NodeExecutionContext<RunnableNodeConfig<unknown, unknown>> {
   return {
     runId: "run_test",
     workflowId: "wf_test",
@@ -38,7 +38,7 @@ function makeFakeCtx(binaryData?: Readonly<Record<string, Uint8Array>>): NodeExe
         binary: { ...((item as Item).binary ?? {}), [name]: attachment },
       }),
       forNode: () => {
-        throw new Error("not implemented");
+        throw new Error("fake ctx for unit test does not support this binary op");
       },
       openReadStream: async (attachment) => {
         const key = attachment.storageKey;
@@ -95,11 +95,7 @@ describe("HttpBodyBuilder", () => {
 
   test("encodes multipart body with text fields", async () => {
     const ctx = makeFakeCtx();
-    const result = await builder.build(
-      { kind: "multipart", fields: { title: "test-title" } },
-      { json: {} },
-      ctx,
-    );
+    const result = await builder.build({ kind: "multipart", fields: { title: "test-title" } }, { json: {} }, ctx);
     assert.ok(result);
     // Empty contentType = FormData sets boundary automatically
     assert.equal(result.contentType, "");
