@@ -217,6 +217,8 @@ class DevModeProcessHarness {
           CODEMATION_CREDENTIALS_MASTER_KEY: "codemation-dev-hot-reload-master-key",
           CODEMATION_LOG_LEVEL: "warn",
           CHOKIDAR_USEPOLLING: "1",
+          // Disable DevSourceWatcher's 20s startup grace; the test edits ~2s after boot.
+          CODEMATION_DEV_WATCH_GRACE_MS: "0",
           NODE_OPTIONS: new NodeOptionsDevelopmentCondition().append(process.env.NODE_OPTIONS),
         },
         stdio: "pipe",
