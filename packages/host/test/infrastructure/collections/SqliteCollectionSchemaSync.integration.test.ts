@@ -46,155 +46,159 @@ async function indexNamesForTable(prismaClient: PrismaDatabaseClient, tableName:
   return rows.filter((r) => r.origin !== "pk").map((r) => r.name);
 }
 
-describe("SQLite collection schema sync", () => {
-  let db: SqliteIntegrationDatabase;
-  let prismaClient: PrismaDatabaseClient;
-  let databaseFilePath: string;
+describe.skipIf(!process.env.DATABASE_URL?.startsWith("file:"))(
+  "SQLite collection schema sync",
+  () => {
+    let db: SqliteIntegrationDatabase;
+    let prismaClient: PrismaDatabaseClient;
+    let databaseFilePath: string;
 
-  beforeEach(async () => {
-    db = await SqliteIntegrationDatabase.create();
-    prismaClient = db.getPrismaClient();
-    // Extract file path from the codemationRuntimeDatabase config
-    const dbConfig = db.codemationRuntimeDatabase;
-    if (dbConfig.kind !== "sqlite" || !dbConfig.sqliteFilePath) {
-      throw new Error("Expected SQLite database config");
-    }
-    databaseFilePath = dbConfig.sqliteFilePath;
-  });
-
-  afterEach(async () => {
-    await db.close();
-  });
-
-  it("creates tables and indexes for declared collections", async () => {
-    const taskCollection = defineCollection({
-      name: "tasks",
-      fields: {
-        title: c.text().notNull(),
-        done: c.bool(),
-      },
-      indexes: [{ on: ["title"], unique: false }],
+    beforeEach(async () => {
+      db = await SqliteIntegrationDatabase.create();
+      prismaClient = db.getPrismaClient();
+      // Extract file path from the codemationRuntimeDatabase config
+      const dbConfig = db.codemationRuntimeDatabase;
+      if (dbConfig.kind !== "sqlite" || !dbConfig.sqliteFilePath) {
+        throw new Error("Expected SQLite database config");
+      }
+      databaseFilePath = dbConfig.sqliteFilePath;
     });
 
-    const appConfig = makeAppConfig(databaseFilePath);
-    const registry = new CollectionRegistry({ ...appConfig, collections: [taskCollection.definition] });
-    const logger = new SilentLogger();
-    const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
-
-    const result = await syncer.sync();
-
-    expect(result.planned).toHaveLength(1);
-    expect(result.applied).toHaveLength(1);
-
-    const columns = await tableColumnNames(prismaClient, "collections_tasks");
-    expect(columns).toContain("id");
-    expect(columns).toContain("title");
-    expect(columns).toContain("done");
-    expect(columns).toContain("created_at");
-    expect(columns).toContain("updated_at");
-
-    const idxs = await indexNamesForTable(prismaClient, "collections_tasks");
-    expect(idxs).toContain("idx_tasks_title");
-  });
-
-  it("is idempotent — second sync produces no changes", async () => {
-    const taskCollection = defineCollection({
-      name: "tasks_idem",
-      fields: { title: c.text().notNull() },
+    afterEach(async () => {
+      await db.close();
     });
 
-    const appConfig = makeAppConfig(databaseFilePath);
-    const registry = new CollectionRegistry({ ...appConfig, collections: [taskCollection.definition] });
-    const logger = new SilentLogger();
-    const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
+    it("creates tables and indexes for declared collections", async () => {
+      const taskCollection = defineCollection({
+        name: "tasks",
+        fields: {
+          title: c.text().notNull(),
+          done: c.bool(),
+        },
+        indexes: [{ on: ["title"], unique: false }],
+      });
 
-    await syncer.sync();
-    const second = await syncer.sync();
+      const appConfig = makeAppConfig(databaseFilePath);
+      const registry = new CollectionRegistry({ ...appConfig, collections: [taskCollection.definition] });
+      const logger = new SilentLogger();
+      const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
 
-    expect(second.planned).toHaveLength(0);
-    expect(second.applied).toHaveLength(0);
-  });
+      const result = await syncer.sync();
 
-  it("adds new columns on subsequent sync", async () => {
-    const collName = "evolving_tasks";
-    const v1 = defineCollection({
-      name: collName,
-      fields: { title: c.text().notNull() },
+      expect(result.planned).toHaveLength(1);
+      expect(result.applied).toHaveLength(1);
+
+      const columns = await tableColumnNames(prismaClient, "collections_tasks");
+      expect(columns).toContain("id");
+      expect(columns).toContain("title");
+      expect(columns).toContain("done");
+      expect(columns).toContain("created_at");
+      expect(columns).toContain("updated_at");
+
+      const idxs = await indexNamesForTable(prismaClient, "collections_tasks");
+      expect(idxs).toContain("idx_tasks_title");
     });
 
-    const appConfig = makeAppConfig(databaseFilePath);
-    const logger = new SilentLogger();
+    it("is idempotent — second sync produces no changes", async () => {
+      const taskCollection = defineCollection({
+        name: "tasks_idem",
+        fields: { title: c.text().notNull() },
+      });
 
-    const registry1 = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
-    const syncer1 = CollectionSchemaSyncerFactory.create(appConfig, registry1, prismaClient, logger);
-    await syncer1.sync();
+      const appConfig = makeAppConfig(databaseFilePath);
+      const registry = new CollectionRegistry({ ...appConfig, collections: [taskCollection.definition] });
+      const logger = new SilentLogger();
+      const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
 
-    const v2 = defineCollection({
-      name: collName,
-      fields: {
-        title: c.text().notNull(),
-        priority: c.int(),
-      },
-    });
-    const registry2 = new CollectionRegistry({ ...appConfig, collections: [v2.definition] });
-    const syncer2 = CollectionSchemaSyncerFactory.create(appConfig, registry2, prismaClient, logger);
-    const result = await syncer2.sync();
+      await syncer.sync();
+      const second = await syncer.sync();
 
-    expect(result.applied).toHaveLength(1);
-    expect(result.applied[0].addColumns).toHaveLength(1);
-    expect(result.applied[0].addColumns[0].name).toBe("priority");
-
-    const columns = await tableColumnNames(prismaClient, `collections_${collName}`);
-    expect(columns).toContain("priority");
-  });
-
-  it("blocks destructive changes without env opt-in", async () => {
-    const collName = "drop_test_sqlite";
-    const v1 = defineCollection({
-      name: collName,
-      fields: {
-        title: c.text().notNull(),
-        legacy: c.text(),
-      },
+      expect(second.planned).toHaveLength(0);
+      expect(second.applied).toHaveLength(0);
     });
 
-    const appConfig = makeAppConfig(databaseFilePath);
-    const logger = new SilentLogger();
+    it("adds new columns on subsequent sync", async () => {
+      const collName = "evolving_tasks";
+      const v1 = defineCollection({
+        name: collName,
+        fields: { title: c.text().notNull() },
+      });
 
-    const registry1 = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
-    const syncer1 = CollectionSchemaSyncerFactory.create(appConfig, registry1, prismaClient, logger);
-    await syncer1.sync();
+      const appConfig = makeAppConfig(databaseFilePath);
+      const logger = new SilentLogger();
 
-    const v2 = defineCollection({
-      name: collName,
-      fields: { title: c.text().notNull() },
+      const registry1 = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
+      const syncer1 = CollectionSchemaSyncerFactory.create(appConfig, registry1, prismaClient, logger);
+      await syncer1.sync();
+
+      const v2 = defineCollection({
+        name: collName,
+        fields: {
+          title: c.text().notNull(),
+          priority: c.int(),
+        },
+      });
+      const registry2 = new CollectionRegistry({ ...appConfig, collections: [v2.definition] });
+      const syncer2 = CollectionSchemaSyncerFactory.create(appConfig, registry2, prismaClient, logger);
+      const result = await syncer2.sync();
+
+      expect(result.applied).toHaveLength(1);
+      expect(result.applied[0].addColumns).toHaveLength(1);
+      expect(result.applied[0].addColumns[0].name).toBe("priority");
+
+      const columns = await tableColumnNames(prismaClient, `collections_${collName}`);
+      expect(columns).toContain("priority");
     });
-    const registry2 = new CollectionRegistry({ ...appConfig, collections: [v2.definition] });
-    const syncer2 = CollectionSchemaSyncerFactory.create(appConfig, registry2, prismaClient, logger);
 
-    await expect(syncer2.sync()).rejects.toThrow("CODEMATION_COLLECTIONS_ALLOW_DESTRUCTIVE");
-  });
+    it("blocks destructive changes without env opt-in", async () => {
+      const collName = "drop_test_sqlite";
+      const v1 = defineCollection({
+        name: collName,
+        fields: {
+          title: c.text().notNull(),
+          legacy: c.text(),
+        },
+      });
 
-  it("dry-run returns planned ops but does not apply changes", async () => {
-    const collName = "dry_run_sqlite";
-    const v1 = defineCollection({
-      name: collName,
-      fields: { title: c.text().notNull() },
+      const appConfig = makeAppConfig(databaseFilePath);
+      const logger = new SilentLogger();
+
+      const registry1 = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
+      const syncer1 = CollectionSchemaSyncerFactory.create(appConfig, registry1, prismaClient, logger);
+      await syncer1.sync();
+
+      const v2 = defineCollection({
+        name: collName,
+        fields: { title: c.text().notNull() },
+      });
+      const registry2 = new CollectionRegistry({ ...appConfig, collections: [v2.definition] });
+      const syncer2 = CollectionSchemaSyncerFactory.create(appConfig, registry2, prismaClient, logger);
+
+      await expect(syncer2.sync()).rejects.toThrow("CODEMATION_COLLECTIONS_ALLOW_DESTRUCTIVE");
     });
 
-    const appConfig = makeAppConfig(databaseFilePath);
-    const registry = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
-    const logger = new SilentLogger();
-    const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
+    it("dry-run returns planned ops but does not apply changes", async () => {
+      const collName = "dry_run_sqlite";
+      const v1 = defineCollection({
+        name: collName,
+        fields: { title: c.text().notNull() },
+      });
 
-    const result = await syncer.sync({ dryRun: true });
+      const appConfig = makeAppConfig(databaseFilePath);
+      const registry = new CollectionRegistry({ ...appConfig, collections: [v1.definition] });
+      const logger = new SilentLogger();
+      const syncer = CollectionSchemaSyncerFactory.create(appConfig, registry, prismaClient, logger);
 
-    expect(result.planned).toHaveLength(1);
-    expect(result.applied).toHaveLength(0);
+      const result = await syncer.sync({ dryRun: true });
 
-    const rows = await prismaClient.$queryRaw<{ name: string }[]>`
+      expect(result.planned).toHaveLength(1);
+      expect(result.applied).toHaveLength(0);
+
+      const rows = await prismaClient.$queryRaw<{ name: string }[]>`
         SELECT name FROM sqlite_master WHERE type='table' AND name=${"collections_" + collName}
       `;
-    expect(rows).toHaveLength(0);
-  });
-}, 30000);
+      expect(rows).toHaveLength(0);
+    });
+  },
+  30000,
+);
