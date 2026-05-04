@@ -1,4 +1,7 @@
 export * from "./canvasIconName";
+export * from "./credentials/index";
+export * from "./http/httpRequest.types";
+export * from "./authoring/defineRestNode.types";
 export * from "./chatModels/OpenAIChatModelFactory";
 export * from "./chatModels/OpenAiStrictJsonSchemaFactory";
 export * from "./chatModels/OpenAiCredentialSession";
