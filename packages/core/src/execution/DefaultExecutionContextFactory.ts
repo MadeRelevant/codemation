@@ -1,5 +1,6 @@
 import type {
   BinaryStorage,
+  CollectionsContext,
   CostTrackingTelemetryFactory,
   ExecutionContext,
   ExecutionContextFactory,
@@ -27,6 +28,7 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
     private readonly telemetryFactory: ExecutionTelemetryFactory = new NoOpExecutionTelemetryFactory(),
     private readonly costTrackingFactory: CostTrackingTelemetryFactory = new NoOpCostTrackingTelemetryFactory(),
     private readonly currentDate: () => Date = () => new Date(),
+    private readonly collections?: CollectionsContext,
   ) {}
 
   create(args: {
@@ -69,6 +71,7 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
       binary: new DefaultExecutionBinaryService(this.binaryStorage, args.workflowId, args.runId, this.currentDate),
       getCredential: args.getCredential,
       testContext: args.testContext,
+      collections: this.collections,
     };
   }
 }

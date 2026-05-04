@@ -1,5 +1,6 @@
 // Re-export pure-type contracts first (available via @codemation/core/contracts subpath)
 export * from "../contracts";
+export type { CollectionStore, CollectionsContext } from "../contracts/collectionTypes";
 
 // Additional runtime exports not included in contracts (factory classes, DSL builders, etc.)
 export * from "../contracts/emitPorts";

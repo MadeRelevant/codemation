@@ -241,6 +241,7 @@ import { BullmqScheduler } from "../infrastructure/scheduler/bullmq/BullmqSchedu
 import { CollectionRegistry } from "../infrastructure/collections/CollectionRegistry";
 import { CollectionsTokens } from "../infrastructure/collections/CollectionsTokens";
 import { CollectionSchemaSyncerFactory } from "../infrastructure/collections/CollectionSchemaSyncerFactory";
+import { CollectionStoreRegistryBuilderFactory } from "../infrastructure/collections/CollectionStoreRegistryBuilderFactory";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -394,19 +395,48 @@ export class AppContainerFactory {
 
   private registerCollectionsInfrastructure(container: Container, appConfig: AppConfig): void {
     container.registerSingleton(CollectionRegistry, CollectionRegistry);
-    if (appConfig.persistence.kind === "none" || appConfig.collections.length === 0) {
+
+    if (appConfig.collections.length === 0) {
       return;
     }
+
     const collectionRegistry = container.resolve(CollectionRegistry);
+
+    if (appConfig.persistence.kind === "none") {
+      // No DB — build an empty store registry so collections context is at least present
+      const storeRegistry = CollectionStoreRegistryBuilderFactory.create(appConfig, collectionRegistry, null!);
+      container.registerInstance(CollectionsTokens.CollectionStoreRegistry, storeRegistry);
+      return;
+    }
+
     const prismaClient = container.isRegistered(PrismaDatabaseClientToken, true)
       ? container.resolve(PrismaDatabaseClientToken)
       : undefined;
     if (!prismaClient) {
       return;
     }
+
     const logger = container.resolve(ServerLoggerFactory).create("codemation.collections.sync");
     const syncer = CollectionSchemaSyncerFactory.create(appConfig, collectionRegistry, prismaClient, logger);
     container.registerInstance(CollectionsTokens.CollectionSchemaSyncer, syncer);
+
+    const storeRegistry = CollectionStoreRegistryBuilderFactory.create(appConfig, collectionRegistry, prismaClient);
+    container.registerInstance(CollectionsTokens.CollectionStoreRegistry, storeRegistry);
+
+    // Re-register the ExecutionContextFactory with the collection stores wired in
+    const existingFactory = container.isRegistered(CoreTokens.ExecutionContextFactory, true)
+      ? container.resolve(CoreTokens.ExecutionContextFactory)
+      : undefined;
+    if (existingFactory) {
+      const collectionsContext = storeRegistry.toRecord();
+      const wrappedFactory: typeof existingFactory = {
+        create: (args) => {
+          const ctx = existingFactory.create(args);
+          return { ...ctx, collections: collectionsContext };
+        },
+      };
+      container.registerInstance(CoreTokens.ExecutionContextFactory, wrappedFactory);
+    }
   }
 
   private registerCoreInfrastructure(container: Container, inputs: AppContainerInputs): void {
