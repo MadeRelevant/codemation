@@ -1,4 +1,6 @@
 export { WorkflowBuilder } from "./dsl/WorkflowBuilder";
+export { WorkflowDefinitionError } from "./dsl/WorkflowDefinitionError";
+export { NodeIdSlugifier } from "./dsl/NodeIdSlugifier";
 export { ChainCursor } from "./dsl/ChainCursorResolver";
 export { WhenBuilder } from "./dsl/WhenBuilder";
 export * from "./dsl/workflowBuilderTypes";
