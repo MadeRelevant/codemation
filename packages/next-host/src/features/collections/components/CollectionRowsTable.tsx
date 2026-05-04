@@ -39,9 +39,12 @@ export function CollectionRowsTable({ detail, rows, onEdit, onDelete }: Collecti
     <CodemationDataTable tableTestId="collection-rows-table" columns={columns}>
       {rows.map((row) => (
         <TableRow key={row.id} data-testid={`collection-row-${row.id}`}>
-          <TableCell>
-            <span className="font-mono text-xs" title={row.id} data-testid={`collection-row-id-${row.id}`}>
-              {row.id.slice(0, 8)}…
+          <TableCell className="align-top">
+            <span
+              className="block whitespace-pre-wrap break-all font-mono text-xs"
+              data-testid={`collection-row-id-${row.id}`}
+            >
+              {row.id}
             </span>
           </TableCell>
           <TableCell>
