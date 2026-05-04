@@ -200,6 +200,24 @@ export interface NodeExecutionContext<TConfig extends NodeConfigBase = NodeConfi
   binary: NodeBinaryAttachmentService;
 }
 
+export interface PollingTriggerHandle {
+  /**
+   * Start the polling loop. The runtime registers its own cleanup handle so callers do not need to
+   * call {@link TriggerSetupContext.registerCleanup} for the loop.
+   * @returns The state returned by the first cycle (or `undefined` when the overlap guard fired).
+   */
+  start<TState, TItem>(args: {
+    intervalMs: number;
+    seedState?: TState;
+    runCycle: (cycleCtx: {
+      previousState: TState | undefined;
+      signal: AbortSignal;
+    }) => Promise<{ items: Items<TItem>; nextState: TState }>;
+  }): Promise<TState | undefined>;
+  /** Convenience dedup-window helper. */
+  readonly dedup: import("../triggers/polling/PollingTriggerDedupWindow").PollingTriggerDedupWindow;
+}
+
 export interface TriggerSetupContext<
   TConfig extends TriggerNodeConfig<any, any> = TriggerNodeConfig<any, any>,
   TSetupState extends JsonValue | undefined = TriggerNodeSetupState<TConfig>,
@@ -209,6 +227,8 @@ export interface TriggerSetupContext<
   previousState: TSetupState;
   registerCleanup(cleanup: TriggerCleanupHandle): void;
   emit(items: Items): Promise<void>;
+  /** Generic polling-trigger surface. Pre-binds trigger id, emit, and registerCleanup. */
+  readonly polling: PollingTriggerHandle;
 }
 
 export interface TriggerTestItemsContext<
@@ -451,4 +471,6 @@ export interface EngineDeps {
   workflowPolicyRuntimeDefaults?: WorkflowPolicyRuntimeDefaults;
   /** When set, logs inactive-workflow skips at boot and trigger start/stop on activation changes. */
   triggerRuntimeDiagnostics?: TriggerRuntimeDiagnostics;
+  /** When set, the polling-trigger runtime uses this logger for cycle info/debug/error. */
+  pollingTriggerLogger?: import("../triggers/polling/PollingTriggerLogger").PollingTriggerLogger;
 }

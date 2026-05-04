@@ -1,29 +1,17 @@
+/**
+ * Tests for GmailPollingService.runCycle — gmail-specific baseline-skip, dedup integration, and
+ * message-fetch+filter ordering. The generic loop/overlap-guard/persistence behavior moved to
+ * packages/core/test/PollingTriggerRuntime.test.ts.
+ */
 import { test } from "vitest";
-import type { PersistedTriggerSetupState, TriggerInstanceId, TriggerSetupStateRepository } from "@codemation/core";
 import assert from "node:assert/strict";
+import { PollingTriggerDedupWindow } from "@codemation/core";
 import { OnNewGmailTrigger } from "../src/nodes/OnNewGmailTrigger";
-import { GmailPollingTriggerRuntime } from "../src/runtime/GmailPollingTriggerRuntime";
 import type { GmailApiClient, GmailMessageAttachmentContent, GmailMessageRecord } from "../src/services/GmailApiClient";
 import { GmailConfiguredLabelService } from "../src/services/GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "../src/services/GmailMessageItemMapper";
 import { GmailPollingService } from "../src/services/GmailPollingService";
 import { GmailQueryMatcher } from "../src/services/GmailQueryMatcher";
-
-class InMemoryTriggerSetupStateRepository implements TriggerSetupStateRepository {
-  private readonly statesByKey = new Map<string, PersistedTriggerSetupState>();
-
-  async load(trigger: TriggerInstanceId): Promise<PersistedTriggerSetupState | undefined> {
-    return this.statesByKey.get(`${trigger.workflowId}:${trigger.nodeId}`);
-  }
-
-  async save(state: PersistedTriggerSetupState): Promise<void> {
-    this.statesByKey.set(`${state.trigger.workflowId}:${state.trigger.nodeId}`, state);
-  }
-
-  async delete(trigger: TriggerInstanceId): Promise<void> {
-    this.statesByKey.delete(`${trigger.workflowId}:${trigger.nodeId}`);
-  }
-}
 
 class FakeGmailApiClient implements GmailApiClient {
   labels = [
@@ -104,156 +92,83 @@ class FakeGmailApiClient implements GmailApiClient {
   async modifyThreadLabels(): Promise<void> {}
 }
 
-class NoopGmailLogger {
-  info(): void {}
-  warn(): void {}
-  error(): void {}
-  debug(): void {}
+function createConfig(
+  overrides: Partial<{
+    mailbox: string;
+    labelIds: ReadonlyArray<string>;
+    query: string;
+  }> = {},
+): OnNewGmailTrigger {
+  return new OnNewGmailTrigger(
+    "On Gmail",
+    {
+      mailbox: overrides.mailbox ?? "sales@example.com",
+      labelIds: overrides.labelIds ?? ["IMPORTANT"],
+      query: overrides.query ?? "quote",
+    },
+    "gmail_trigger",
+  );
 }
 
-class GmailPollingTriggerRuntimeFixture {
-  static createConfig(
-    overrides: Partial<{
-      mailbox: string;
-      labelIds: ReadonlyArray<string>;
-      query: string;
-    }> = {},
-  ): OnNewGmailTrigger {
-    return new OnNewGmailTrigger(
-      "On Gmail",
-      {
-        mailbox: overrides.mailbox ?? "sales@example.com",
-        labelIds: overrides.labelIds ?? ["IMPORTANT"],
-        query: overrides.query ?? "quote",
-      },
-      "gmail_trigger",
-    );
-  }
-
-  static async waitFor(assertion: () => void): Promise<void> {
-    const deadline = performance.now() + 3_000;
-    while (performance.now() < deadline) {
-      try {
-        assertion();
-        return;
-      } catch {
-        await new Promise((resolve) => setTimeout(resolve, 25));
-      }
-    }
-    assertion();
-  }
+function createPollingService(): GmailPollingService {
+  return new GmailPollingService(
+    new PollingTriggerDedupWindow(),
+    new GmailConfiguredLabelService(),
+    new GmailMessageItemMapper(),
+    new GmailQueryMatcher(),
+  );
 }
 
-test("GmailPollingTriggerRuntime baselines on first poll then emits new messages", async () => {
-  const store = new InMemoryTriggerSetupStateRepository();
-  const configuredLabelService = new GmailConfiguredLabelService();
-  const pollingService = new GmailPollingService(
-    store,
-    configuredLabelService,
-    new GmailMessageItemMapper(),
-    new GmailQueryMatcher(),
-  );
-  const runtime = new GmailPollingTriggerRuntime(
-    { pollIntervalMs: 25, maxMessagesPerPoll: 20 },
-    new NoopGmailLogger(),
-    pollingService,
-  );
-  const gmailApiClient = new FakeGmailApiClient();
-  const emitted: unknown[] = [];
-  const trigger = { workflowId: "wf.gmail", nodeId: "gmail_trigger" };
-  await runtime.ensureStarted({
-    trigger,
-    client: gmailApiClient,
-    config: GmailPollingTriggerRuntimeFixture.createConfig(),
-    previousState: undefined,
-    emit: async (items) => {
-      emitted.push(...items);
-    },
-  });
-  assert.equal(emitted.length, 0);
-  await GmailPollingTriggerRuntimeFixture.waitFor(() => {
-    assert.ok(emitted.length >= 1);
-  });
-  assert.ok(
-    emitted.some(
-      (row) =>
-        typeof row === "object" &&
-        row !== null &&
-        "json" in row &&
-        (row as { json: { messageId?: string } }).json.messageId === "m2",
-    ),
-  );
-  await runtime.stop(trigger);
+test("GmailPollingService.runCycle baselines on first call (no previousState) then returns items on second", async () => {
+  const service = createPollingService();
+  const client = new FakeGmailApiClient();
+  const config = createConfig();
+  const maxMessagesPerPoll = 20;
+
+  // First call with no prior state → baseline, no items
+  const first = await service.runCycle({ previousState: undefined, client, config, maxMessagesPerPoll });
+  assert.equal(first.items.length, 0);
+  assert.equal(first.nextState.baselineComplete, true);
+  assert.deepEqual(first.nextState.processedMessageIds, ["m1"]);
+
+  // Second call with the state from the first → m2 is new, m1 is deduped
+  const second = await service.runCycle({ previousState: first.nextState, client, config, maxMessagesPerPoll });
+  assert.equal(second.items.length, 1);
+  assert.equal((second.items[0]?.json as { messageId: string }).messageId, "m2");
+  assert.ok(second.nextState.processedMessageIds.includes("m2"));
+  assert.ok(second.nextState.processedMessageIds.includes("m1"));
 });
 
-test("GmailPollingTriggerRuntime emits new messages for Gmail search syntax queries", async () => {
-  const store = new InMemoryTriggerSetupStateRepository();
-  const configuredLabelService = new GmailConfiguredLabelService();
-  const pollingService = new GmailPollingService(
-    store,
-    configuredLabelService,
-    new GmailMessageItemMapper(),
-    new GmailQueryMatcher(),
-  );
-  const runtime = new GmailPollingTriggerRuntime(
-    { pollIntervalMs: 25, maxMessagesPerPoll: 20 },
-    new NoopGmailLogger(),
-    pollingService,
-  );
-  const gmailApiClient = new FakeGmailApiClient();
-  const emitted: unknown[] = [];
-  const trigger = { workflowId: "wf.gmail", nodeId: "gmail_trigger" };
-  await runtime.ensureStarted({
-    trigger,
-    client: gmailApiClient,
-    config: GmailPollingTriggerRuntimeFixture.createConfig({
-      query: "from:buyer@example.com has:attachment newer_than:7d",
-    }),
-    previousState: undefined,
-    emit: async (items) => {
-      emitted.push(...items);
-    },
+test("GmailPollingService.runCycle applies Gmail search syntax query filter", async () => {
+  const service = createPollingService();
+  const client = new FakeGmailApiClient();
+  const config = createConfig({
+    query: "from:buyer@example.com has:attachment newer_than:7d",
   });
-  await GmailPollingTriggerRuntimeFixture.waitFor(() => {
-    assert.ok(emitted.length >= 1);
-  });
-  assert.ok(
-    emitted.some(
-      (row) =>
-        typeof row === "object" &&
-        row !== null &&
-        "json" in row &&
-        (row as { json: { messageId?: string } }).json.messageId === "m2",
-    ),
-  );
-  await runtime.stop(trigger);
+  const maxMessagesPerPoll = 20;
+
+  // Baseline pass
+  const first = await service.runCycle({ previousState: undefined, client, config, maxMessagesPerPoll });
+  assert.equal(first.items.length, 0);
+
+  // Second pass picks up m2 which matches the from: buyer@example.com query
+  const second = await service.runCycle({ previousState: first.nextState, client, config, maxMessagesPerPoll });
+  assert.equal(second.items.length, 1);
+  assert.equal((second.items[0]?.json as { messageId: string }).messageId, "m2");
 });
 
-test("GmailPollingTriggerRuntime stop clears the poll loop", async () => {
-  const store = new InMemoryTriggerSetupStateRepository();
-  const configuredLabelService = new GmailConfiguredLabelService();
-  const pollingService = new GmailPollingService(
-    store,
-    configuredLabelService,
-    new GmailMessageItemMapper(),
-    new GmailQueryMatcher(),
-  );
-  const runtime = new GmailPollingTriggerRuntime(
-    { pollIntervalMs: 25, maxMessagesPerPoll: 20 },
-    new NoopGmailLogger(),
-    pollingService,
-  );
-  const gmailApiClient = new FakeGmailApiClient();
-  const trigger = { workflowId: "wf.gmail", nodeId: "gmail_trigger" };
-  await runtime.ensureStarted({
-    trigger,
-    client: gmailApiClient,
-    config: GmailPollingTriggerRuntimeFixture.createConfig(),
-    previousState: undefined,
-    emit: async () => {},
-  });
-  await runtime.stop(trigger);
-  const callsAfterStop = gmailApiClient.listCallCount;
-  await new Promise((resolve) => setTimeout(resolve, 80));
-  assert.equal(gmailApiClient.listCallCount, callsAfterStop);
+test("GmailPollingService.runCycle dedup window prevents re-emitting known message ids", async () => {
+  const service = createPollingService();
+  const client = new FakeGmailApiClient();
+  const config = createConfig();
+  const maxMessagesPerPoll = 20;
+
+  // Baseline
+  const first = await service.runCycle({ previousState: undefined, client, config, maxMessagesPerPoll });
+  // Second — emits m2
+  const second = await service.runCycle({ previousState: first.nextState, client, config, maxMessagesPerPoll });
+  assert.equal(second.items.length, 1);
+  // Third — same list, m2 is now deduped
+  const third = await service.runCycle({ previousState: second.nextState, client, config, maxMessagesPerPoll });
+  assert.equal(third.items.length, 0);
 });

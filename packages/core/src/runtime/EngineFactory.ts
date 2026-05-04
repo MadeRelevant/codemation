@@ -1,5 +1,8 @@
 import type { EngineDeps } from "../types";
 
+import { PollingTriggerDedupWindow } from "../triggers/polling/PollingTriggerDedupWindow";
+import { PollingTriggerRuntime } from "../triggers/polling/PollingTriggerRuntime";
+import { NoOpPollingTriggerLogger } from "../triggers/polling/PollingTriggerLogger";
 import { MissingRuntimeFallbacks } from "../workflowSnapshots/MissingRuntimeFallbacksFactory";
 import { MissingRuntimeExecutionMarker } from "../workflowSnapshots/MissingRuntimeExecutionMarker";
 import { WorkflowSnapshotCodec } from "../workflowSnapshots/WorkflowSnapshotCodec";
@@ -132,6 +135,10 @@ export class EngineFactory {
       executionLimitsPolicy,
     );
 
+    const pollingTriggerLogger = deps.pollingTriggerLogger ?? new NoOpPollingTriggerLogger();
+    const pollingTriggerDedupWindow = new PollingTriggerDedupWindow();
+    const pollingTriggerRuntime = new PollingTriggerRuntime(deps.triggerSetupStateRepository, pollingTriggerLogger);
+
     const triggerRuntime = new TriggerRuntimeService(
       deps.workflowRepository,
       deps.workflowActivationPolicy,
@@ -149,6 +156,8 @@ export class EngineFactory {
       },
       executionLimitsPolicy,
       deps.triggerRuntimeDiagnostics,
+      pollingTriggerRuntime,
+      pollingTriggerDedupWindow,
     );
 
     const engine = new Engine({

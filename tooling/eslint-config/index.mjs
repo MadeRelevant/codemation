@@ -5,6 +5,7 @@ import globals from "globals";
 import noOnlyTests from "eslint-plugin-no-only-tests";
 
 const allowedConstructorNames = new Set([
+  "AbortController",
   "Date",
   "Error",
   "Map",

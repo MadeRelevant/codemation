@@ -96,11 +96,11 @@ class FakeGoogleGmailApiClientFactory {
   }
 }
 
-class FakeGmailPollingTriggerRuntime {
-  ensureStartedArgs: unknown;
+class FakePollingHandle {
+  startArgs: unknown;
 
-  async ensureStarted(args: unknown) {
-    this.ensureStartedArgs = args;
+  async start(args: unknown) {
+    this.startArgs = args;
     return {
       mailbox: "sales@example.com",
       processedMessageIds: ["message_1"],
@@ -108,7 +108,15 @@ class FakeGmailPollingTriggerRuntime {
     };
   }
 
-  async stop(): Promise<void> {}
+  readonly dedup = {
+    merge: (previous: ReadonlyArray<string>, incoming: ReadonlyArray<string>) => [...previous, ...incoming],
+  };
+}
+
+class FakeGmailPollingService {
+  async runCycle() {
+    return { items: [], nextState: { mailbox: "sales@example.com", processedMessageIds: [], baselineComplete: true } };
+  }
 }
 
 class FakeAttachmentService {
@@ -216,12 +224,13 @@ class OnNewGmailTriggerNodeTestFixture {
   static createNode(logger: GmailLogger): OnNewGmailTriggerNode {
     const client = new FakeGmailApiClient();
     return new OnNewGmailTriggerNode(
-      {} as never,
+      { pollIntervalMs: 60_000, maxMessagesPerPoll: 20 },
       new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
       new GmailTriggerAttachmentService(
         new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
       ),
       this.createTestItemService(),
+      new FakeGmailPollingService() as never,
       logger,
     );
   }
@@ -280,17 +289,18 @@ test("OnNewGmailTriggerNode.execute rejects manual execution without Gmail items
   assert.match(logger.warnings[0] ?? "", /manual execution attempted/);
 });
 
-test("OnNewGmailTriggerNode.setup adapts the Gmail session into the runtime client", async () => {
+test("OnNewGmailTriggerNode.setup delegates to ctx.polling and returns the polling state", async () => {
   const logger = new FakeGmailLogger();
-  const runtime = new FakeGmailPollingTriggerRuntime();
+  const pollingHandle = new FakePollingHandle();
   const client = new FakeGmailApiClient();
   const attachmentService = new FakeAttachmentService();
   const testItemService = new FakeTestItemService();
   const node = new OnNewGmailTriggerNode(
-    runtime as never,
+    { pollIntervalMs: 60_000, maxMessagesPerPoll: 20 },
     new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
     attachmentService as never,
     testItemService as never,
+    new FakeGmailPollingService() as never,
     logger,
   );
   let cleanupRegistered = false;
@@ -311,11 +321,15 @@ test("OnNewGmailTriggerNode.setup adapts the Gmail session into the runtime clie
       cleanupRegistered = true;
     },
     emit: async () => {},
+    polling: pollingHandle as never,
   } as never);
-  assert.equal(cleanupRegistered, true);
+  // cleanup is NOT registered directly by the node — the polling runtime registers its own
+  assert.equal(cleanupRegistered, false);
   assert.deepEqual(setupState?.processedMessageIds, ["message_1"]);
-  const ensureStartedArgs = runtime.ensureStartedArgs as { client: GmailApiClient };
-  assert.equal(ensureStartedArgs.client, client);
+  // Verify the polling handle's start() was called with intervalMs and runCycle
+  const startArgs = pollingHandle.startArgs as { intervalMs: number; runCycle: unknown };
+  assert.ok(typeof startArgs.intervalMs === "number");
+  assert.ok(typeof startArgs.runCycle === "function");
 });
 
 test("OnNewGmailTriggerNode.execute records Gmail metrics and message preview telemetry", async () => {
@@ -435,10 +449,11 @@ test("OnNewGmailTriggerNode.getTestItems adapts the Gmail session into the previ
   const client = new FakeGmailApiClient();
   const testItemService = new FakeTestItemService();
   const node = new OnNewGmailTriggerNode(
-    {} as never,
+    {},
     new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
     new FakeAttachmentService() as never,
     testItemService as never,
+    new FakeGmailPollingService() as never,
     logger,
   );
   const items = await node.getTestItems({

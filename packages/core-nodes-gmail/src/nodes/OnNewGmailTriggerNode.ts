@@ -12,11 +12,12 @@ import { CodemationTelemetryMetricNames, inject, node } from "@codemation/core";
 import { GoogleGmailApiClientFactory } from "../adapters/google/GoogleGmailApiClientFactory";
 import type { GmailLogger } from "../contracts/GmailLogger";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
+import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import type { GmailSession } from "../contracts/GmailSession";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
-import { GmailPollingTriggerRuntime } from "../runtime/GmailPollingTriggerRuntime";
 import { GmailTriggerAttachmentService } from "../services/GmailTriggerAttachmentService";
 import { GmailTriggerTestItemService } from "../services/GmailTriggerTestItemService";
+import { GmailPollingService } from "../services/GmailPollingService";
 import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "./OnNewGmailTrigger";
 
 @node({ packageName: "@codemation/core-nodes-gmail" })
@@ -25,12 +26,13 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
   readonly outputPorts = ["main"] as const;
 
   constructor(
-    @inject(GmailPollingTriggerRuntime) private readonly gmailPollingTriggerRuntime: GmailPollingTriggerRuntime,
+    @inject(GmailNodeTokens.GmailNodesOptions) private readonly options: GmailNodesOptions,
     @inject(GoogleGmailApiClientFactory)
     private readonly googleGmailApiClientFactory: GoogleGmailApiClientFactory,
     @inject(GmailTriggerAttachmentService)
     private readonly gmailTriggerAttachmentService: GmailTriggerAttachmentService,
     @inject(GmailTriggerTestItemService) private readonly gmailTriggerTestItemService: GmailTriggerTestItemService,
+    @inject(GmailPollingService) private readonly gmailPollingService: GmailPollingService,
     @inject(GmailNodeTokens.TriggerLogger) private readonly logger: GmailLogger,
   ) {}
 
@@ -47,21 +49,19 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
     this.logger.info(
       `Gmail trigger setup starting: ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} (mailbox "${ctx.config.cfg.mailbox}")`,
     );
-    ctx.registerCleanup({
-      stop: async () => {
-        await this.gmailPollingTriggerRuntime.stop(ctx.trigger);
-      },
-    });
     const session = await ctx.getCredential<GmailSession>("auth");
     const client = this.googleGmailApiClientFactory.create(session);
-    const setupState = await this.gmailPollingTriggerRuntime.ensureStarted({
-      trigger: ctx.trigger,
-      client,
-      config: ctx.config,
-      previousState: ctx.previousState,
-      emit: async (items) => {
-        await ctx.emit(items);
-      },
+    const maxMessagesPerPoll = Math.max(this.options.maxMessagesPerPoll ?? 20, 1);
+    const setupState = await ctx.polling.start<GmailTriggerSetupState, OnNewGmailTriggerItemJson>({
+      intervalMs: Math.max(this.options.pollIntervalMs ?? 60_000, 25),
+      seedState: ctx.previousState ?? undefined,
+      runCycle: ({ previousState }) =>
+        this.gmailPollingService.runCycle({
+          previousState,
+          client,
+          config: ctx.config,
+          maxMessagesPerPoll,
+        }),
     });
     if (setupState) {
       this.logger.info(
@@ -69,7 +69,7 @@ export class OnNewGmailTriggerNode implements TestableTriggerNode<OnNewGmailTrig
       );
     } else {
       this.logger.debug(
-        `Gmail trigger inactive: ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} (no runtime state; see codemation-gmail.runtime warnings if this was unexpected)`,
+        `Gmail trigger inactive: ${ctx.trigger.workflowId}.${ctx.trigger.nodeId} (no runtime state; see codemation-gmail.trigger warnings if this was unexpected)`,
       );
     }
     return setupState;
