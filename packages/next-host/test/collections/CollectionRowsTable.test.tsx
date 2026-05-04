@@ -74,24 +74,30 @@ describe("CollectionRowsTable", () => {
 });
 
 describe("CollectionRowsPagination", () => {
-  it("renders page info", () => {
-    render(<CollectionRowsPagination page={2} pageCount={5} onPageChange={() => {}} />);
+  it("renders page info and range summary", () => {
+    render(<CollectionRowsPagination page={2} pageCount={5} pageSize={20} total={92} onPageChange={() => {}} />);
     expect(screen.getByTestId("collection-rows-pagination-label").textContent).toBe("Page 2 of 5");
+    const summary = screen.getByTestId("collection-rows-pagination-summary").textContent ?? "";
+    expect(summary).toContain("21");
+    expect(summary).toContain("40");
+    expect(summary).toContain("92");
   });
 
   it("disables Previous on first page", () => {
-    render(<CollectionRowsPagination page={1} pageCount={3} onPageChange={() => {}} />);
+    render(<CollectionRowsPagination page={1} pageCount={3} pageSize={20} total={50} onPageChange={() => {}} />);
     expect((screen.getByTestId("collection-rows-pagination-prev") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("disables Next on last page", () => {
-    render(<CollectionRowsPagination page={3} pageCount={3} onPageChange={() => {}} />);
+    render(<CollectionRowsPagination page={3} pageCount={3} pageSize={20} total={50} onPageChange={() => {}} />);
     expect((screen.getByTestId("collection-rows-pagination-next") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("calls onPageChange with correct page", () => {
     const pages: number[] = [];
-    render(<CollectionRowsPagination page={2} pageCount={5} onPageChange={(p) => pages.push(p)} />);
+    render(
+      <CollectionRowsPagination page={2} pageCount={5} pageSize={20} total={92} onPageChange={(p) => pages.push(p)} />,
+    );
     fireEvent.click(screen.getByTestId("collection-rows-pagination-next"));
     expect(pages).toEqual([3]);
     fireEvent.click(screen.getByTestId("collection-rows-pagination-prev"));

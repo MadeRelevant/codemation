@@ -116,7 +116,15 @@ export function CollectionDetailScreen({ name }: CollectionDetailScreenProps) {
             onEdit={(row) => setEditingRow(row)}
             onDelete={(row) => setDeletingRow(row)}
           />
-          {total > PAGE_SIZE && <CollectionRowsPagination page={page} pageCount={pageCount} onPageChange={setPage} />}
+          {total > 0 && (
+            <CollectionRowsPagination
+              page={page}
+              pageCount={pageCount}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onPageChange={setPage}
+            />
+          )}
         </>
       )}
 
