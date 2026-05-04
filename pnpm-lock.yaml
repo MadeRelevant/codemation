@@ -230,9 +230,6 @@ importers:
       '@codemation/core-nodes':
         specifier: workspace:*
         version: link:../../packages/core-nodes
-      '@codemation/core-nodes-gmail':
-        specifier: workspace:*
-        version: link:../../packages/core-nodes-gmail
       '@codemation/eventbus-redis':
         specifier: workspace:*
         version: link:../../packages/eventbus-redis
@@ -457,6 +454,12 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@azure/ai-content-understanding':
+        specifier: ^1.0.0
+        version: 1.0.0
+      '@azure/core-auth':
+        specifier: ^1.10.1
+        version: 1.10.1
       '@codemation/core-nodes':
         specifier: workspace:*
         version: link:../core-nodes

@@ -5,5 +5,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["codemation.plugin.ts", "src/**/*.ts", "test/**/*.ts", "dev/**/*.ts"]
 }

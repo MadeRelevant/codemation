@@ -53,6 +53,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@azure/ai-content-understanding": "^1.0.0",
+    "@azure/core-auth": "^1.10.1",
     "@codemation/core-nodes": "workspace:*",
     "@types/node": "^25.3.5",
     "eslint": "^10.0.3",
