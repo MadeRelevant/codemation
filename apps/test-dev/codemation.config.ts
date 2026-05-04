@@ -98,7 +98,7 @@ const messagesCollection = defineCollection({
 });
 
 export const codemationHost = {
-  collections: [messagesCollection.definition],
+  collections: [messagesCollection],
   app: {
     auth: {
       kind: "local" as const,

@@ -2,6 +2,7 @@ import type {
   AnyCredentialType,
   CollectionDefinition,
   Container,
+  DefinedCollection,
   TypeToken,
   WorkflowDefinition,
 } from "@codemation/core";
@@ -16,9 +17,10 @@ import type {
   CodemationSchedulerConfig,
 } from "./CodemationConfig";
 
-export type NormalizedCodemationConfig = CodemationConfig &
+export type NormalizedCodemationConfig = Omit<CodemationConfig, "collections"> &
   Readonly<{
     containerRegistrations: ReadonlyArray<CodemationContainerRegistration<unknown>>;
+    collections: ReadonlyArray<CollectionDefinition>;
   }>;
 
 export class CodemationConfigNormalizer {
@@ -35,7 +37,7 @@ export class CodemationConfigNormalizer {
       auth: config.app?.auth ?? config.auth,
       containerRegistrations: collected.containerRegistrations,
       credentialTypes: [...(config.credentialTypes ?? []), ...collected.credentialTypes],
-      collections: [...(config.collections ?? []), ...collected.collections],
+      collections: [...this.unwrapCollections(config.collections), ...collected.collections],
       log: config.app?.log ?? config.log,
       runtime: normalizedRuntime,
       whitelabel: config.app?.whitelabel ?? config.whitelabel,
@@ -112,6 +114,17 @@ export class CodemationConfigNormalizer {
       workflows,
       workflowDirectories,
     };
+  }
+
+  private unwrapCollections(
+    entries: ReadonlyArray<CollectionDefinition | DefinedCollection> | undefined,
+  ): ReadonlyArray<CollectionDefinition> {
+    if (!entries) return [];
+    return entries.map((entry) => (this.isDefinedCollection(entry) ? entry.definition : entry));
+  }
+
+  private isDefinedCollection(entry: CollectionDefinition | DefinedCollection): entry is DefinedCollection {
+    return "kind" in entry && entry.kind === "defined-collection";
   }
 
   private normalizeRuntimeConfig(config: CodemationConfig): CodemationApplicationRuntimeConfig | undefined {

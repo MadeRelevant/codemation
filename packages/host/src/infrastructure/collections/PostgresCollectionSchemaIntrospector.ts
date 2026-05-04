@@ -34,7 +34,7 @@ export class PostgresCollectionSchemaIntrospector implements CollectionSchemaInt
       SELECT
         t.relname AS table_name,
         i.relname AS index_name,
-        string_agg(a.attname, ',' ORDER BY ix.indkey_pos) AS column_names,
+        string_agg(a.attname, ',' ORDER BY u.indkey_pos) AS column_names,
         ix.indisunique AS is_unique
       FROM
         pg_index ix
