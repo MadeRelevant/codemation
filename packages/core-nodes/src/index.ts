@@ -14,6 +14,8 @@ export * from "./nodes/if";
 export * from "./nodes/isTestRun";
 export * from "./nodes/switch";
 export * from "./nodes/split";
+export * from "./nodes/CronTriggerFactory";
+export * from "./nodes/CronTriggerNode";
 export * from "./nodes/ManualTriggerFactory";
 export * from "./nodes/mapData";
 export * from "./nodes/merge";

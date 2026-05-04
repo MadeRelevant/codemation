@@ -1,5 +1,20 @@
 # Credential Patterns
 
+## Node id and binding stability
+
+A credential binding is stored as `(workflowId, nodeId, slotKey)`. The `nodeId` for each workflow node defaults to a slug of its `name` label. Changing the label changes the id, and the previously configured binding appears unbound.
+
+For production workflows with credential-using nodes, prefer an explicit `id:` on the node config:
+
+```ts
+.node("Fetch from API", MyApiNodeConfig, {
+  id: "fetch-from-api", // stable across label renames
+  credentials: { apiKey: myApiCredential },
+})
+```
+
+Without an explicit `id:`, keep the node's label constant or plan to re-bind after a rename.
+
 ## Standard shape
 
 Use `defineCredential(...)` to declare:
@@ -30,6 +45,15 @@ credentials: {
 ```
 
 Then the runtime can supply a typed session through the named slot.
+
+## Advanced fields in the credential dialog
+
+Optional or power-user fields (for example custom OAuth scopes) can be tucked behind a single collapsible section:
+
+- Set `visibility: "advanced"` on each relevant `CredentialFieldSchema` entry in `publicFields` / `secretFields`.
+- Optionally set `advancedSection: { title?, description?, defaultOpen? }` on `CredentialTypeDefinition` to customize the collapsible header (if omitted, the UI still wraps advanced fields in a collapsed section titled **Advanced**).
+
+See **`packages/core/docs/credential-ui-fields.md`** in the repository root layout.
 
 ## Health and activation
 

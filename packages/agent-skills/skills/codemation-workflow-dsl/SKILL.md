@@ -46,9 +46,15 @@ For nodes that hold credential bindings, the binding is keyed by `(workflowId, n
 
 1. Start with `workflow("wf.example.id")`.
 2. Name the workflow with `.name(...)`.
-3. Add a trigger such as `.manualTrigger(...)`.
+3. Add a trigger such as `.manualTrigger(...)` or `builder.trigger(new CronTrigger(...))`.
 4. Add transformations or nodes in execution order.
 5. End with `.build()`.
+
+## Built-in triggers
+
+- **`ManualTrigger`** — one-shot manual run, optionally seeded with default items. Use `.manualTrigger(name, items?)` on the fluent builder.
+- **`WebhookTrigger`** — fires on an incoming HTTP request. Construct with `new WebhookTrigger(name, { endpointKey, methods })` and attach with `builder.trigger(...)`.
+- **`CronTrigger`** — fires on a cron schedule. Construct with `new CronTrigger(name, { schedule, timezone? })` and attach with `builder.trigger(...)`. The expression is validated at workflow build time. Each tick emits one item: `{ firedAt: string, scheduledFor: string }` (both ISO-8601). Defaults to UTC — always supply `timezone` for DST-sensitive schedules.
 
 ## Agent tools (callable helpers)
 

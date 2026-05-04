@@ -30,6 +30,7 @@ Do not use this skill as a substitute for detailed CLI, workflow DSL, or plugin 
 - activation is framework-managed and happens in the UI
 - telemetry is observability-first: traces, spans, artifacts, and metric points are framework-owned runtime data
 - run retention and telemetry retention can differ, so trend data can outlive raw run state
+- **workflow testing** is a first-class primitive: a `TestTrigger` node yields one item per test case, the orchestrator dispatches a workflow run per case with `executionOptions.testContext` set, and `Assertion` nodes (`emitsAssertions: true`) record per-run results into `TestAssertion` rows; the canvas exposes a Tests tab parallel to Live and Executions
 
 ## Runtime rule of thumb
 
@@ -41,3 +42,4 @@ Do not use this skill as a substitute for detailed CLI, workflow DSL, or plugin 
 ## Read next when needed
 
 - Read `references/architecture-map.md` for package ownership and runtime-mode guidance.
+- Use the `codemation-workflow-dsl` skill (and its `references/workflow-testing.md`) for hands-on test authoring with TestTrigger / IsTestRun / Assertion.
