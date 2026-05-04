@@ -529,6 +529,8 @@ export default [
       "**/*.test.{ts,tsx}",
       // Config + harness node share a TypeToken pairing (same pattern as SubWorkflowRunnerTestNode).
       "packages/core/src/testing/SwitchHarnessNode.ts",
+      // Plugin packages (third-party-style integrations) prefer flat modules over one-class-per-file.
+      "packages/core-nodes-*/src/**",
     ],
     plugins: {
       codemation: architecturePlugin,
@@ -684,6 +686,19 @@ export default [
           message: "Exported functions are not allowed. Export classes/tokens and use DI instead.",
         },
       ],
+    },
+  },
+
+  // Plugin packages (`packages/core-nodes-*`) opt out of the framework's DI-heavy architecture rules.
+  // Plugins are thin wrappers around external APIs/SDKs; readability and a flat module layout matter
+  // more than one-class-per-file or token-based DI. General TS hygiene, logger discipline, and
+  // process.env restrictions still apply.
+  {
+    files: ["packages/core-nodes-*/src/**/*.{ts,tsx}"],
+    rules: {
+      "codemation/no-manual-di-new": "off",
+      "codemation/no-static-methods": "off",
+      "no-restricted-syntax": "off",
     },
   },
 

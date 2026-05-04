@@ -286,6 +286,10 @@ Additional rules to keep in mind when changing `packages/**/src`:
 - In **tsyringe-managed** code, do **not** hide dependency construction in constructor defaults such as `private readonly dep: Dep = new Dep()`. Inject the dependency explicitly or build it in a composition root / test harness.
 - When tsyringe metadata can be ambiguous, prefer explicit **`@inject(...)`** annotations instead of relying on emitted design types.
 
+#### Plugin packages (`packages/core-nodes-*`) are exempt
+
+Plugin packages — third-party-style integrations like `@codemation/core-nodes-gmail`, `@codemation/core-nodes-msgraph`, and any future `core-nodes-<vendor>` — opt out of the DI-heavy architecture rules above. The `single-class-per-file`, `no-manual-di-new`, `no-static-methods`, and root-level/exported-function bans are disabled for `packages/core-nodes-*/src/**`. Plugins are thin wrappers around external SDKs and should read that way: prefer plain modules of functions, group code by API surface (e.g. `src/mail/`, `src/drive/`), and use classes only when state genuinely belongs together. General TS hygiene, logger discipline (no `console.log`), and `process.env` restrictions still apply.
+
 ## Build & dev conventions
 
 - Monorepo uses **pnpm workspaces** and **Turborepo**.
