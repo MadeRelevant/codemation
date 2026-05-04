@@ -238,6 +238,9 @@ import { DatabaseMigrations } from "./runtime/DatabaseMigrations";
 import { FrontendRuntime } from "./runtime/FrontendRuntime";
 import { WorkerRuntime } from "./runtime/WorkerRuntime";
 import { BullmqScheduler } from "../infrastructure/scheduler/bullmq/BullmqScheduler";
+import { CollectionRegistry } from "../infrastructure/collections/CollectionRegistry";
+import { CollectionsTokens } from "../infrastructure/collections/CollectionsTokens";
+import { CollectionSchemaSyncerFactory } from "../infrastructure/collections/CollectionSchemaSyncerFactory";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -326,6 +329,7 @@ export class AppContainerFactory {
     const credentialTypes = this.collectCredentialTypes(inputs.appConfig);
     await this.applyPlugins(container, inputs.appConfig, credentialTypes);
     const ownership = await this.registerRuntimeInfrastructure(container, inputs.appConfig);
+    this.registerCollectionsInfrastructure(container, inputs.appConfig);
     this.registerCredentialTypes(container, credentialTypes);
     this.synchronizeLiveWorkflowRepository(container, inputs.appConfig.workflows);
     container.resolve(BootRuntimeSnapshotHolder).set(this.createRuntimeSummary(inputs.appConfig));
@@ -386,6 +390,23 @@ export class AppContainerFactory {
       return;
     }
     this.containerRegistrationRegistrar.apply(container, appConfig.containerRegistrations);
+  }
+
+  private registerCollectionsInfrastructure(container: Container, appConfig: AppConfig): void {
+    container.registerSingleton(CollectionRegistry, CollectionRegistry);
+    if (appConfig.persistence.kind === "none" || appConfig.collections.length === 0) {
+      return;
+    }
+    const collectionRegistry = container.resolve(CollectionRegistry);
+    const prismaClient = container.isRegistered(PrismaDatabaseClientToken, true)
+      ? container.resolve(PrismaDatabaseClientToken)
+      : undefined;
+    if (!prismaClient) {
+      return;
+    }
+    const logger = container.resolve(ServerLoggerFactory).create("codemation.collections.sync");
+    const syncer = CollectionSchemaSyncerFactory.create(appConfig, collectionRegistry, prismaClient, logger);
+    container.registerInstance(CollectionsTokens.CollectionSchemaSyncer, syncer);
   }
 
   private registerCoreInfrastructure(container: Container, inputs: AppContainerInputs): void {
