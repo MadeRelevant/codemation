@@ -3,13 +3,18 @@ import type { ZodType } from "zod";
 import type { TypeToken } from "../di";
 import type { CredentialRequirement } from "./credentialTypes";
 import type { RetryPolicySpec } from "./retryPolicySpec.types";
+import type { InputPortKey, NodeConnectionName, NodeId, OutputPortKey, WorkflowId } from "./baseTypes";
 
-export type WorkflowId = string;
-export type NodeId = string;
+export type {
+  InputPortKey,
+  NodeConnectionName,
+  NodeId,
+  OutputPortKey,
+  PersistedTokenId,
+  WorkflowId,
+} from "./baseTypes";
+
 export type NodeIdRef<TJson = unknown> = NodeId & Readonly<{ __codemationNodeJson?: TJson }>;
-export type OutputPortKey = string;
-export type InputPortKey = string;
-export type PersistedTokenId = string;
 
 export type NodeKind = "trigger" | "node";
 export type JsonPrimitive = string | number | boolean | null;
@@ -25,8 +30,6 @@ export interface Edge {
   from: { nodeId: NodeId; output: OutputPortKey };
   to: { nodeId: NodeId; input: InputPortKey };
 }
-
-export type NodeConnectionName = string;
 
 /**
  * Named connection from a parent node to child nodes that exist in {@link WorkflowDefinition.nodes}
@@ -91,6 +94,14 @@ export interface NodeConfigBase {
   readonly declaredOutputPorts?: ReadonlyArray<OutputPortKey>;
   readonly declaredInputPorts?: ReadonlyArray<InputPortKey>;
   getCredentialRequirements?(): ReadonlyArray<CredentialRequirement>;
+  /**
+   * Marker: this node emits {@link import("./assertionTypes").AssertionResult}-shaped items on its
+   * `main` port. The TestSuiteOrchestrator (and host-side TestAssertionPersister) listen for
+   * `nodeCompleted` events from nodes with this flag set, and persist their output items as
+   * TestAssertion records (only when the run carries a `testContext`). Set on assertion node
+   * configs (e.g. `AssertionNodeConfig`, `StringEqualsAssertionNodeConfig`).
+   */
+  readonly emitsAssertions?: true;
 }
 
 export declare const runnableNodeInputType: unique symbol;
@@ -127,6 +138,12 @@ export interface TriggerNodeConfig<
   readonly kind: "trigger";
   readonly [triggerNodeOutputType]?: TOutputJson;
   readonly [triggerNodeSetupStateType]?: TSetupState;
+  /**
+   * Distinguishes triggers driven by the live activation policy (webhooks, cron, polling) from
+   * triggers driven only by the {@link TestSuiteOrchestrator}. `WorkflowActivation` skips
+   * `"test"` triggers; the orchestrator skips `"live"` triggers. Defaults to `"live"` when omitted.
+   */
+  readonly triggerKind?: "live" | "test";
 }
 
 export type RunnableNodeInputJson<TConfig extends RunnableNodeConfig<any, any>> =
@@ -211,6 +228,12 @@ export interface ParentExecutionRef {
   engineMaxNodeActivations?: number;
   /** Effective max subworkflow depth from the parent run (propagated to child policy merge). */
   engineMaxSubworkflowDepth?: number;
+  /**
+   * Test-suite linkage inherited by the child subworkflow run. Set by whichever node
+   * spawns the subworkflow when its own `ctx.testContext` is present, so assertions
+   * emitted inside a subworkflow land under the correct parent test case.
+   */
+  testContext?: import("./runTypes").RunTestContext;
 }
 
 export interface RunDataSnapshot {

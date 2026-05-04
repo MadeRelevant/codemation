@@ -230,7 +230,11 @@ export class CodemationNextHost {
     if (!container.isRegistered(ApplicationTokens.PrismaClient, true)) {
       return null;
     }
-    return container.resolve(ApplicationTokens.PrismaClient);
+    // `PrismaClient` (re-exported from `@codemation/host`) and `ApplicationTokens.PrismaClient`'s
+    // resolved type both ultimately point at the postgres-client's generated `PrismaClient`, but
+    // the host's tsdown rollup splits them across separate chunks with distinct generic-arg
+    // shapes, so tsc treats them as nominal duplicates. Identical at runtime.
+    return container.resolve(ApplicationTokens.PrismaClient) as unknown as PrismaClient;
   }
 
   private async detectWorkspaceRoot(startDirectory: string): Promise<string> {

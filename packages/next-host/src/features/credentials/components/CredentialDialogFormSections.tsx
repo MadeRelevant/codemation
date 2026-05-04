@@ -3,7 +3,12 @@
 import type { CredentialTypeDefinition } from "@codemation/core/browser";
 import type { Dispatch, SetStateAction } from "react";
 
-import { Eye, EyeOff, LogIn, Plug, RefreshCw, Unplug } from "lucide-react";
+import Eye from "lucide-react/dist/esm/icons/eye";
+import EyeOff from "lucide-react/dist/esm/icons/eye-off";
+import LogIn from "lucide-react/dist/esm/icons/log-in";
+import Plug from "lucide-react/dist/esm/icons/plug";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import Unplug from "lucide-react/dist/esm/icons/unplug";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

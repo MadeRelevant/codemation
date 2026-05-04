@@ -1,7 +1,8 @@
 "use client";
 
 import { CanvasNodeChromeTooltip } from "../../workflows/components/canvas/CanvasNodeChromeTooltip";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
+import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
 
 export function CredentialEnvFieldStatusRow(
   args: Readonly<

@@ -1,7 +1,4 @@
-import type {
-  UpsertCredentialBindingRequest,
-  WorkflowCredentialHealthSlotDto,
-} from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
+import type { UpsertCredentialBindingRequest, WorkflowCredentialHealthSlotDto } from "@codemation/host/dto";
 
 export function tryAutoBindUnboundWorkflowSlot(
   slot: WorkflowCredentialHealthSlotDto,

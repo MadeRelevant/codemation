@@ -1,10 +1,7 @@
 "use client";
 
-import type {
-  TelemetryDashboardFiltersDto,
-  TelemetryDashboardRunOriginDto,
-} from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
-import { Activity } from "lucide-react";
+import type { TelemetryDashboardFiltersDto, TelemetryDashboardRunOriginDto } from "@codemation/host/dto";
+import Activity from "lucide-react/dist/esm/icons/activity";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DashboardAiUsageSummaryCard } from "../components/DashboardAiUsageSummaryCard";

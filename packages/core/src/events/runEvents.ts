@@ -1,5 +1,17 @@
+import type { TestSuiteRunId } from "../contracts/testTriggerTypes";
 import type { ConnectionInvocationRecord } from "../contracts/runTypes";
 import type { NodeExecutionSnapshot, ParentExecutionRef, PersistedRunState, RunId, WorkflowId } from "../types";
+
+/**
+ * Outcome of a single test case (one workflow run dispatched by the test-suite orchestrator).
+ * - `running`: workflow still in flight
+ * - `succeeded`: workflow completed AND all assertions passed (or no assertions)
+ * - `failed`: workflow failed OR (workflow completed but ≥1 assertion failed)
+ * - `errored` / `cancelled`: workflow itself errored or was cancelled
+ */
+export type TestCaseRunStatus = "running" | "succeeded" | "failed" | "errored" | "cancelled";
+/** Aggregate outcome of a TestSuiteRun. */
+export type TestSuiteRunStatus = "succeeded" | "failed" | "partial" | "errored" | "cancelled";
 
 export type RunEvent =
   | Readonly<{ kind: "runCreated"; runId: RunId; workflowId: WorkflowId; parent?: ParentExecutionRef; at: string }>
@@ -66,6 +78,43 @@ export type RunEvent =
       parent?: ParentExecutionRef;
       at: string;
       record: ConnectionInvocationRecord;
+    }>
+  | Readonly<{
+      kind: "testSuiteStarted";
+      testSuiteRunId: TestSuiteRunId;
+      workflowId: WorkflowId;
+      triggerNodeId: string;
+      triggerNodeName?: string;
+      concurrency: number;
+      at: string;
+    }>
+  | Readonly<{
+      kind: "testSuiteFinished";
+      testSuiteRunId: TestSuiteRunId;
+      workflowId: WorkflowId;
+      status: TestSuiteRunStatus;
+      totalCases: number;
+      passedCases: number;
+      failedCases: number;
+      at: string;
+    }>
+  | Readonly<{
+      kind: "testCaseStarted";
+      testSuiteRunId: TestSuiteRunId;
+      testCaseIndex: number;
+      runId: RunId;
+      workflowId: WorkflowId;
+      testCaseLabel?: string;
+      at: string;
+    }>
+  | Readonly<{
+      kind: "testCaseCompleted";
+      testSuiteRunId: TestSuiteRunId;
+      testCaseIndex: number;
+      runId: RunId;
+      workflowId: WorkflowId;
+      status: TestCaseRunStatus;
+      at: string;
     }>;
 
 export interface RunEventSubscription {

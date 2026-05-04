@@ -142,7 +142,37 @@ import { TelemetryHonoApiRouteRegistrar } from "../presentation/http/hono/regist
 import { UserHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/UserHonoApiRouteRegistrar";
 import { WebhookHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/WebhookHonoApiRouteRegistrar";
 import { WhitelabelHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/WhitelabelHonoApiRouteRegistrar";
+import { TestSuiteHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/TestSuiteHonoApiRouteRegistrar";
+import { TestSuiteHttpRouteHandler } from "../presentation/http/routeHandlers/TestSuiteHttpRouteHandler";
 import { WorkflowHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/WorkflowHonoApiRouteRegistrar";
+import {
+  AbortControllerFactory,
+  TestSuiteOrchestrator,
+  TestSuiteRunIdFactory,
+  type TestSuiteOrchestratorEngine,
+} from "@codemation/core/bootstrap";
+import type { RunEventBus } from "@codemation/core";
+import { CredentialResolverFactory } from "@codemation/core/bootstrap";
+import { Engine } from "@codemation/core/bootstrap";
+import { TestAssertionIdFactory } from "../application/runs/TestAssertionIdFactory";
+import { AssertionResultGuard } from "../application/runs/AssertionResultGuard";
+import {
+  TestRunnerService,
+  TestRunnerEventBusToken,
+  TestRunnerWorkflowLookupToken,
+} from "../application/runs/TestRunnerService";
+import { TestRunnerWorkflowLookupAdapter } from "../application/runs/TestRunnerWorkflowLookupAdapter";
+import {
+  TestAssertionRepositoryToken,
+  TestSuiteRunRepositoryToken,
+  TestSuiteRunTrackerFactory,
+} from "../application/runs/TestSuiteRunTrackerFactory";
+import { TestAssertionAggregator } from "../application/runs/TestAssertionAggregator";
+import { TestAssertionMapper } from "../application/runs/TestAssertionMapper";
+import { TestSuiteChildRunMapper } from "../application/runs/TestSuiteChildRunMapper";
+import { TestSuiteRunSummaryMapper } from "../application/runs/TestSuiteRunSummaryMapper";
+import type { TestAssertionRepository } from "../domain/runs/TestAssertionRepository";
+import type { TestSuiteRunRepository } from "../domain/runs/TestSuiteRunRepository";
 import { ApiPaths } from "../presentation/http/ApiPaths";
 import { RequestToWebhookItemMapper } from "../infrastructure/webhooks/RequestToWebhookItemMapper";
 import { WebhookEndpointPathValidator } from "../application/workflows/WebhookEndpointPathValidator";
@@ -172,6 +202,8 @@ import { InMemoryTelemetryArtifactStore } from "../infrastructure/persistence/In
 import { InMemoryTelemetryMetricPointStore } from "../infrastructure/persistence/InMemoryTelemetryMetricPointStore";
 import { InMemoryTelemetrySpanStore } from "../infrastructure/persistence/InMemoryTelemetrySpanStore";
 import { InMemoryWorkflowActivationRepository } from "../infrastructure/persistence/InMemoryWorkflowActivationRepository";
+import { InMemoryTestAssertionRepository } from "../infrastructure/persistence/InMemoryTestAssertionRepository";
+import { InMemoryTestSuiteRunRepository } from "../infrastructure/persistence/InMemoryTestSuiteRunRepository";
 import { InMemoryWorkflowDebuggerOverlayRepository } from "../infrastructure/persistence/InMemoryWorkflowDebuggerOverlayRepository";
 import { InMemoryWorkflowRunRepository } from "../infrastructure/persistence/InMemoryWorkflowRunRepository";
 import {
@@ -184,6 +216,8 @@ import { PrismaRunTraceContextRepository } from "../infrastructure/persistence/P
 import { PrismaTelemetryArtifactStore } from "../infrastructure/persistence/PrismaTelemetryArtifactStore";
 import { PrismaTelemetryMetricPointStore } from "../infrastructure/persistence/PrismaTelemetryMetricPointStore";
 import { PrismaTelemetrySpanStore } from "../infrastructure/persistence/PrismaTelemetrySpanStore";
+import { PrismaTestAssertionRepository } from "../infrastructure/persistence/PrismaTestAssertionRepository";
+import { PrismaTestSuiteRunRepository } from "../infrastructure/persistence/PrismaTestSuiteRunRepository";
 import { PrismaWorkflowActivationRepository } from "../infrastructure/persistence/PrismaWorkflowActivationRepository";
 import { PrismaWorkflowDebuggerOverlayRepository } from "../infrastructure/persistence/PrismaWorkflowDebuggerOverlayRepository";
 import { PrismaWorkflowRunRepository } from "../infrastructure/persistence/PrismaWorkflowRunRepository";
@@ -271,6 +305,7 @@ export class AppContainerFactory {
     TelemetryHonoApiRouteRegistrar,
     UserHonoApiRouteRegistrar,
     WebhookHonoApiRouteRegistrar,
+    TestSuiteHonoApiRouteRegistrar,
     WhitelabelHonoApiRouteRegistrar,
     WorkflowHonoApiRouteRegistrar,
   ] as const;
@@ -591,6 +626,8 @@ export class AppContainerFactory {
     container.registerSingleton(InMemoryWorkflowRunRepository, InMemoryWorkflowRunRepository);
     container.registerSingleton(InMemoryTriggerSetupStateRepository, InMemoryTriggerSetupStateRepository);
     container.registerSingleton(InMemoryCredentialStore, InMemoryCredentialStore);
+    container.registerSingleton(InMemoryTestSuiteRunRepository, InMemoryTestSuiteRunRepository);
+    container.registerSingleton(InMemoryTestAssertionRepository, InMemoryTestAssertionRepository);
     container.registerSingleton(SqlWorkflowRunRepository, SqlWorkflowRunRepository);
     container.registerSingleton(InMemoryWorkflowDebuggerOverlayRepository, InMemoryWorkflowDebuggerOverlayRepository);
     container.registerSingleton(PrismaTriggerSetupStateRepository, PrismaTriggerSetupStateRepository);
@@ -636,6 +673,36 @@ export class AppContainerFactory {
     container.registerSingleton(PublicFrontendBootstrapHttpRouteHandler, PublicFrontendBootstrapHttpRouteHandler);
     container.registerSingleton(InternalAuthBootstrapHttpRouteHandler, InternalAuthBootstrapHttpRouteHandler);
     container.registerSingleton(WhitelabelLogoHttpRouteHandler, WhitelabelLogoHttpRouteHandler);
+    container.registerSingleton(TestAssertionIdFactory, TestAssertionIdFactory);
+    container.registerSingleton(AssertionResultGuard, AssertionResultGuard);
+    container.registerSingleton(TestSuiteRunSummaryMapper, TestSuiteRunSummaryMapper);
+    container.registerSingleton(TestAssertionMapper, TestAssertionMapper);
+    container.registerSingleton(TestSuiteChildRunMapper, TestSuiteChildRunMapper);
+    container.registerSingleton(TestAssertionAggregator, TestAssertionAggregator);
+    container.registerSingleton(TestRunnerWorkflowLookupAdapter, TestRunnerWorkflowLookupAdapter);
+    container.register(TestRunnerWorkflowLookupToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve(TestRunnerWorkflowLookupAdapter)),
+    });
+    container.register(TestRunnerEventBusToken, {
+      useFactory: instanceCachingFactory((dc) => dc.resolve<RunEventBus>(CoreTokens.RunEventBus)),
+    });
+    container.register(TestSuiteOrchestrator, {
+      useFactory: instanceCachingFactory(
+        (dc) =>
+          new TestSuiteOrchestrator(
+            dc.resolve(Engine) as unknown as TestSuiteOrchestratorEngine,
+            dc.resolve(TestSuiteRunIdFactory),
+            new CredentialResolverFactory(dc.resolve(CoreTokens.CredentialSessionService)),
+            dc.resolve(AbortControllerFactory),
+            dc.resolve<RunEventBus>(CoreTokens.RunEventBus),
+          ),
+      ),
+    });
+    container.registerSingleton(TestSuiteRunIdFactory, TestSuiteRunIdFactory);
+    container.registerSingleton(AbortControllerFactory, AbortControllerFactory);
+    container.registerSingleton(TestSuiteRunTrackerFactory, TestSuiteRunTrackerFactory);
+    container.registerSingleton(TestRunnerService, TestRunnerService);
+    container.registerSingleton(TestSuiteHttpRouteHandler, TestSuiteHttpRouteHandler);
     for (const registrar of AppContainerFactory.honoRouteRegistrars) {
       container.registerSingleton(ApplicationTokens.HonoApiRouteRegistrar, registrar);
     }
@@ -674,6 +741,14 @@ export class AppContainerFactory {
         container.resolve(InMemoryTriggerSetupStateRepository),
       );
       container.registerInstance(ApplicationTokens.WorkflowRunRepository, workflowRunRepository);
+      container.registerInstance<TestSuiteRunRepository>(
+        TestSuiteRunRepositoryToken,
+        container.resolve(InMemoryTestSuiteRunRepository),
+      );
+      container.registerInstance<TestAssertionRepository>(
+        TestAssertionRepositoryToken,
+        container.resolve(InMemoryTestAssertionRepository),
+      );
       container.registerInstance(
         ApplicationTokens.WorkflowDebuggerOverlayRepository,
         container.resolve(InMemoryWorkflowDebuggerOverlayRepository) as unknown as WorkflowDebuggerOverlayRepository,
@@ -720,6 +795,8 @@ export class AppContainerFactory {
     const telemetrySpanStore = childContainer.resolve(PrismaTelemetrySpanStore);
     const telemetryArtifactStore = childContainer.resolve(PrismaTelemetryArtifactStore);
     const telemetryMetricPointStore = childContainer.resolve(PrismaTelemetryMetricPointStore);
+    const testSuiteRunRepository = childContainer.resolve(PrismaTestSuiteRunRepository);
+    const testAssertionRepository = childContainer.resolve(PrismaTestAssertionRepository);
     container.registerInstance(PrismaDatabaseClientToken, prismaOwnership.prismaClient);
     container.registerInstance(ApplicationTokens.PrismaClient, prismaOwnership.prismaClient);
     container.registerInstance(
@@ -741,6 +818,8 @@ export class AppContainerFactory {
     container.registerInstance(ApplicationTokens.TelemetrySpanStore, telemetrySpanStore);
     container.registerInstance(ApplicationTokens.TelemetryArtifactStore, telemetryArtifactStore);
     container.registerInstance(ApplicationTokens.TelemetryMetricPointStore, telemetryMetricPointStore);
+    container.registerInstance<TestSuiteRunRepository>(TestSuiteRunRepositoryToken, testSuiteRunRepository);
+    container.registerInstance<TestAssertionRepository>(TestAssertionRepositoryToken, testAssertionRepository);
     container.registerInstance(
       CoreTokens.ExecutionContextFactory,
       new DefaultExecutionContextFactory(

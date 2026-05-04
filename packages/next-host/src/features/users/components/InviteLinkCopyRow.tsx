@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ClipboardCopy } from "lucide-react";
+import ClipboardCopy from "lucide-react/dist/esm/icons/clipboard-copy";
 
 type InviteLinkCopyRowProps = Readonly<{
   url: string;

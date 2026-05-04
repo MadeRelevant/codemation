@@ -5,6 +5,21 @@ import { cn } from "@/lib/utils";
 
 import { WorkflowStatusIcon } from "./WorkflowDetailIcons";
 
+/**
+ * Resolves the status the executions list should show. For test-case runs the engine reports
+ * `completed` even when assertions failed (the workflow itself didn't throw); the orchestrator
+ * persists the corrected outcome onto `testCaseStatus`. Surface that here so failed test runs
+ * don't hide as green checkmarks in the list. Returns the engine status verbatim for non-test
+ * runs (no `testCaseStatus`).
+ */
+function resolveRunListDisplayedStatus(run: RunSummary): string {
+  const tcs = run.testCaseStatus;
+  if (tcs === undefined) return run.status;
+  if (tcs === "succeeded") return "completed";
+  if (tcs === "failed" || tcs === "errored" || tcs === "cancelled") return "failed";
+  return tcs; // "running"
+}
+
 export function WorkflowRunsList(
   args: Readonly<{
     displayedRuns: ReadonlyArray<RunSummary> | undefined;
@@ -37,12 +52,13 @@ export function WorkflowRunsList(
         const durationLine = formatRunListDurationLine(run);
         const modeLabel = getExecutionModeLabel(run);
         const selected = selectedRunId === run.runId;
+        const displayedStatus = resolveRunListDisplayedStatus(run);
         return (
           <li key={run.runId}>
             <button
               type="button"
               data-testid={`run-summary-${run.runId}`}
-              aria-label={`${run.status}, ${whenLabel}`}
+              aria-label={`${displayedStatus}, ${whenLabel}`}
               onClick={() => onSelectRun(run.runId)}
               className={cn(
                 "block w-full cursor-pointer border bg-card p-2.5 text-left font-inherit",
@@ -50,11 +66,11 @@ export function WorkflowRunsList(
               )}
             >
               <span className="visually-hidden" data-testid={`run-status-${run.runId}`}>
-                {run.status}
+                {displayedStatus}
               </span>
               <div className="flex items-start gap-2.5">
                 <div className="shrink-0 pt-0.5">
-                  <WorkflowStatusIcon status={run.status} />
+                  <WorkflowStatusIcon status={displayedStatus} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div

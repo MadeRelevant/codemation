@@ -1,6 +1,6 @@
 import { ItemsInputNormalizer, RunFinishedAtFactory } from "@codemation/core/browser";
-import type { WorkflowCredentialHealthSlotDto } from "@codemation/host-src/application/contracts/CredentialContractsRegistry";
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import type { WorkflowCredentialHealthSlotDto } from "@codemation/host/dto";
+import { ApiPaths } from "@codemation/host/client";
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { format, isToday, isYesterday } from "date-fns";
 import prettyMilliseconds from "pretty-ms";
@@ -8,6 +8,7 @@ import { HumanFriendlyTimestampFormatter } from "../../../lib/HumanFriendlyTimes
 import type {
   ConnectionInvocationRecord,
   ExecutionInstanceDto,
+  Item,
   Items,
   NodeExecutionSnapshot,
   PersistedRunState,
@@ -485,6 +486,10 @@ export class WorkflowDetailPresenter {
   static getExecutionModeLabel(
     run: Pick<RunSummary, "executionOptions"> | Pick<PersistedRunState, "executionOptions"> | undefined,
   ): string | null {
+    // testContext takes precedence over `mode` — a run can have `mode: "manual"` AND a
+    // testContext if a manual one-off test was kicked off, but the user wants to see TEST.
+    if (run?.executionOptions?.testContext) return "Test";
+    if (run?.executionOptions?.webhook) return "Webhook";
     const mode = run?.executionOptions?.mode;
     if (mode === "manual") return "Manual";
     if (mode === "debug") return "Debug";
@@ -971,9 +976,17 @@ export class WorkflowDetailPresenter {
       return [{ json: {} }];
     }
     if (Array.isArray(value)) {
-      return value.map((json) => ({ json: json as object }));
+      // Trigger outputs are persisted as already-Item-shaped (`[{ json: {...} }]`); runnable
+      // outputs may be persisted as raw JSON values (`[{...}]`). Without this branch we'd
+      // re-wrap the Item shapes into `{ json: { json: {...} } }` and the inspector would
+      // surface the engine's internal Item wrapper as user-visible `"json"` keys.
+      return value.map((entry) => (this.isItemShape(entry) ? (entry as Item) : { json: entry as object }));
     }
     return [{ json: value as object }];
+  }
+
+  private static isItemShape(value: unknown): boolean {
+    return typeof value === "object" && value !== null && "json" in value;
   }
 
   private static jsonValueToPortItems(value: unknown | undefined): Readonly<Record<string, Items>> | undefined {

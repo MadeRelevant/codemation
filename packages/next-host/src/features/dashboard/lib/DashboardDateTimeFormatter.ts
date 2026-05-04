@@ -1,4 +1,4 @@
-import type { TelemetryDashboardBucketIntervalDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import type { TelemetryDashboardBucketIntervalDto } from "@codemation/host/dto";
 import prettyMs from "pretty-ms";
 
 export class DashboardDateTimeFormatter {

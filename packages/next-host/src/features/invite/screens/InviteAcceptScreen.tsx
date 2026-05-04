@@ -1,7 +1,7 @@
 "use client";
 
-import type { VerifyUserInviteResponseDto } from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import type { VerifyUserInviteResponseDto } from "@codemation/host/dto";
+import { ApiPaths } from "@codemation/host/client";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";

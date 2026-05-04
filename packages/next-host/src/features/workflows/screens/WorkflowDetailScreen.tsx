@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,17 +10,55 @@ import { WorkflowCanvas } from "../components/canvas/WorkflowCanvas";
 import type { WorkflowDto } from "../hooks/realtime/realtime";
 import { NodePropertiesSlidePanel } from "../components/workflowDetail/NodePropertiesSlidePanel";
 import { useWorkflowDetailController } from "../hooks/workflowDetail/useWorkflowDetailController";
-import { WorkflowJsonEditorDialog } from "../components/workflowDetail/WorkflowJsonEditorDialog";
 import { WorkflowRunsSidebar } from "../components/workflowDetail/WorkflowRunsSidebar";
 import { WORKFLOW_DETAIL_TREE_STYLES } from "../lib/workflowDetailTreeStyles";
+import { WorkflowDetailScreenCanvasTabs } from "./WorkflowDetailScreenCanvasTabs";
 import { WorkflowDetailScreenInspectorPanel } from "./WorkflowDetailScreenInspectorPanel";
 import { useWorkflowDetailChromeDispatch } from "../../../shell/WorkflowDetailChromeContext";
+import { useWorkflowRealtimeBadgeState } from "../hooks/realtime/useWorkflowRealtimeShowDisconnectedBadge";
+import { resolveWorkflowRealtimeBadge } from "./workflowDetailScreenRealtimeBadge";
+import { WorkflowCanvasRunButton } from "../components/workflowDetail/WorkflowCanvasRunButton";
+import { useWorkflowCanvasRunButton } from "../hooks/useWorkflowCanvasRunButton";
+
+// Lazy-load Tests view (recharts + test-suite component tree) and JSON editor (Monaco).
+// Both are conditionally rendered and would otherwise dominate Turbopack's module work for
+// this route, pushing Next dev's RSS over the 8-GB-WSL OOM threshold on cold compile.
+const WorkflowDetailScreenTestsView = dynamic(
+  () =>
+    import("./WorkflowDetailScreenTestsView").then((mod) => ({
+      default: mod.WorkflowDetailScreenTestsView,
+    })),
+  { ssr: false },
+);
+const WorkflowJsonEditorDialog = dynamic(
+  () =>
+    import("../components/workflowDetail/WorkflowJsonEditorDialog").then((mod) => ({
+      default: mod.WorkflowJsonEditorDialog,
+    })),
+  { ssr: false },
+);
 
 export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initialWorkflow?: WorkflowDto }>) {
   const controller = useWorkflowDetailController(args);
+  const [isTestsViewActive, setIsTestsViewActive] = useState(false);
+  const [autoStartTestTriggerNodeId, setAutoStartTestTriggerNodeId] = useState<string | undefined>();
+  const workflowNodes = controller.displayedWorkflow?.nodes ?? [];
   const setChrome = useWorkflowDetailChromeDispatch();
   const controllerRef = useRef(controller);
   controllerRef.current = controller;
+
+  const handleRunTestTrigger = (nodeId: string) => {
+    setAutoStartTestTriggerNodeId(nodeId);
+    setIsTestsViewActive(true);
+  };
+
+  const runButtonState = useWorkflowCanvasRunButton({
+    workflowId: args.workflowId,
+    workflowNodes,
+    isRunning: controller.isRunning,
+    onRunLiveTrigger: (nodeId) => controller.runCanvasNode(nodeId),
+    onRunTestTrigger: handleRunTestTrigger,
+  });
 
   const activationAlertKey = (controller.workflowActivationAlertLines ?? []).join("\u0000");
   const credentialAttentionKey = controller.credentialAttentionSummaryLines.join("\u0000");
@@ -68,29 +107,31 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
     };
   }, [setChrome]);
 
-  const activeCanvasTab = controller.isRunsPaneVisible ? "executions" : "live";
-  const shouldShowRealtimeBadge = controller.isLiveWorkflowView && !controller.isRunsPaneVisible;
-  const realtimeBadge =
-    controller.workflowDevBuildState.state === "failed"
-      ? {
-          className: "border-destructive/40 bg-destructive/10 text-destructive shadow-md ring-1 ring-foreground/10",
-          label: "Rebuild failed. Latest code is not live yet.",
-          testId: "workflow-dev-build-failed-indicator",
-        }
-      : controller.showRealtimeDisconnectedBadge
-        ? {
-            className:
-              "border-amber-400/60 bg-amber-50 text-amber-950 shadow-md ring-1 ring-foreground/10 dark:bg-amber-950/20 dark:text-amber-100",
-            label: "Realtime disconnected. Workflow edits won't auto-refresh.",
-            testId: "workflow-realtime-disconnected-indicator",
-          }
-        : controller.workflowDevBuildState.state === "building"
-          ? {
-              className: "border-primary/40 bg-primary/10 text-primary shadow-md ring-1 ring-foreground/10",
-              label: "Rebuilding workflow...",
-              testId: "workflow-dev-build-started-indicator",
-            }
-          : null;
+  const activeCanvasTab = isTestsViewActive ? "tests" : controller.isRunsPaneVisible ? "executions" : "live";
+  const shouldShowRealtimeBadge = !isTestsViewActive && controller.isLiveWorkflowView && !controller.isRunsPaneVisible;
+  const badgeState = useWorkflowRealtimeBadgeState();
+
+  const realtimeBadge = resolveWorkflowRealtimeBadge(badgeState);
+
+  if (isTestsViewActive) {
+    return (
+      <WorkflowDetailScreenTestsView
+        workflowId={args.workflowId}
+        workflowNodes={workflowNodes}
+        onSwitchToLive={() => {
+          setIsTestsViewActive(false);
+          setAutoStartTestTriggerNodeId(undefined);
+          controller.openLiveWorkflow();
+        }}
+        onSwitchToExecutions={() => {
+          setIsTestsViewActive(false);
+          setAutoStartTestTriggerNodeId(undefined);
+          controller.openExecutionsPane();
+        }}
+        autoStartTriggerNodeId={autoStartTestTriggerNodeId}
+      />
+    );
+  }
 
   return (
     <main className="h-full w-full min-h-0 overflow-hidden bg-muted/40">
@@ -159,30 +200,12 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
               <div className="p-4 text-sm text-muted-foreground">Loading diagram…</div>
             )}
             <div className="pointer-events-none absolute top-3 left-1/2 z-[6] flex -translate-x-1/2 items-center gap-2">
-              <div className="pointer-events-auto flex overflow-hidden rounded-lg border border-border bg-card/95 shadow-md ring-1 ring-foreground/10">
-                <Button
-                  type="button"
-                  data-testid="workflow-canvas-tab-live"
-                  variant={activeCanvasTab === "live" ? "default" : "ghost"}
-                  size="sm"
-                  className="h-8 rounded-none border-r border-border px-3 text-xs font-extrabold"
-                  onClick={controller.openLiveWorkflow}
-                  aria-pressed={activeCanvasTab === "live"}
-                >
-                  Live workflow
-                </Button>
-                <Button
-                  type="button"
-                  data-testid="workflow-canvas-tab-executions"
-                  variant={activeCanvasTab === "executions" ? "default" : "ghost"}
-                  size="sm"
-                  className="h-8 rounded-none px-3 text-xs font-extrabold"
-                  onClick={controller.openExecutionsPane}
-                  aria-pressed={activeCanvasTab === "executions"}
-                >
-                  Executions
-                </Button>
-              </div>
+              <WorkflowDetailScreenCanvasTabs
+                activeCanvasTab={activeCanvasTab}
+                onSelectLive={controller.openLiveWorkflow}
+                onSelectExecutions={controller.openExecutionsPane}
+                onSelectTests={() => setIsTestsViewActive(true)}
+              />
               {controller.canCopySelectedRunToLive ? (
                 <Button
                   type="button"
@@ -195,18 +218,17 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
                 </Button>
               ) : null}
             </div>
-            {controller.isLiveWorkflowView && !controller.isRunsPaneVisible ? (
+            {controller.isLiveWorkflowView && !controller.isRunsPaneVisible && runButtonState.triggers.length > 0 ? (
               <div className="pointer-events-auto absolute bottom-3 left-1/2 z-[6] -translate-x-1/2">
-                <Button
-                  type="button"
-                  data-testid="canvas-run-workflow-button"
-                  size="sm"
-                  className="h-8 px-3 text-xs font-extrabold"
-                  onClick={controller.runWorkflowFromCanvas}
-                  disabled={controller.isRunning}
-                >
-                  {controller.isRunning ? "Running..." : "Run workflow"}
-                </Button>
+                <WorkflowCanvasRunButton
+                  triggers={runButtonState.triggers}
+                  selectedTriggerNodeId={runButtonState.selectedTriggerNodeId}
+                  isRunning={controller.isRunning}
+                  disabled={runButtonState.isDisabled}
+                  onSelect={runButtonState.handleSelectTrigger}
+                  onRunLive={runButtonState.handleRunLiveTrigger}
+                  onRunTest={runButtonState.handleRunTestTrigger}
+                />
               </div>
             ) : null}
             <div className="pointer-events-none absolute top-3 right-3 z-[6] flex max-w-[min(22rem,calc(100%-1.5rem))] flex-col items-end gap-2">

@@ -12,10 +12,30 @@ export class DevSourceWatcher {
     "node_modules",
   ]);
 
+  /**
+   * Suppress watch events for the first `startupGracePeriodMs` so that workspace plugins
+   * built by `tsdown --watch` (which on dev start rewrites their entire `dist/` whether or
+   * not the source actually changed) don't spuriously trigger a full runtime swap before
+   * the dev session has even reached steady state. The runtime already loaded the latest
+   * dist on boot; reloading it again with the same content just spends 1–2 GB of memory we
+   * don't have on an 8-GB WSL box, where it stacks with next-server's compile spike to OOM.
+   * Tests pass `0` to disable the grace period.
+   */
+  private static readonly DEFAULT_STARTUP_GRACE_PERIOD_MS = 20_000;
+  private static readonly DEFAULT_DEBOUNCE_MS = 750;
+
+  private readonly startupGracePeriodMs: number;
+  private readonly debounceMs: number;
   private watcher: FSWatcher | null = null;
   private debounceTimeout: NodeJS.Timeout | null = null;
   private readonly changedPathsBuffer = new Set<string>();
   private explicitIgnoredRoots = new Set<string>();
+  private startedAtMs = 0;
+
+  constructor(options: Readonly<{ startupGracePeriodMs?: number; debounceMs?: number }> = {}) {
+    this.startupGracePeriodMs = options.startupGracePeriodMs ?? DevSourceWatcher.DEFAULT_STARTUP_GRACE_PERIOD_MS;
+    this.debounceMs = options.debounceMs ?? DevSourceWatcher.DEFAULT_DEBOUNCE_MS;
+  }
 
   async start(
     args: Readonly<{
@@ -26,6 +46,7 @@ export class DevSourceWatcher {
     if (this.watcher) {
       return;
     }
+    this.startedAtMs = Date.now();
     this.explicitIgnoredRoots = new Set(
       args.roots
         .map((rootPath) => path.resolve(rootPath))
@@ -40,7 +61,15 @@ export class DevSourceWatcher {
       if (typeof watchPath !== "string" || watchPath.length === 0) {
         return;
       }
+      if (this.isIgnoredPath(watchPath)) {
+        return;
+      }
       if (!this.isRelevantPath(watchPath)) {
+        return;
+      }
+      // Drop events that arrive in the startup grace period. After the grace period a real
+      // user edit still triggers a normal source-change → runtime swap.
+      if (Date.now() - this.startedAtMs < this.startupGracePeriodMs) {
         return;
       }
       this.changedPathsBuffer.add(path.resolve(watchPath));
@@ -66,10 +95,13 @@ export class DevSourceWatcher {
     if (this.debounceTimeout) {
       clearTimeout(this.debounceTimeout);
     }
+    // Default 750 ms (was 75): a single `tsdown --watch` rebuild writes a dozen-plus
+    // `dist/` files (entry, chunks, .d.ts, .map) over several hundred ms — collapsing those
+    // into ONE runtime swap, not a dozen, prevents memory spikes that OOM-kill next-server.
     this.debounceTimeout = setTimeout(() => {
       this.debounceTimeout = null;
       void this.flushPendingChange(onChange);
-    }, 75);
+    }, this.debounceMs);
   }
 
   private async flushPendingChange(

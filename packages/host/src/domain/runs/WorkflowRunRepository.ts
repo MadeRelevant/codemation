@@ -1,4 +1,4 @@
-import type { PersistedRunState, RunId, RunPruneCandidate, RunSummary, WorkflowRunDetailDto } from "@codemation/core";
+import type { PersistedRunState, RunId, RunPruneCandidate, RunSummary, TestCaseRunStatus, WorkflowRunDetailDto } from "@codemation/core";
 
 export interface WorkflowRunRepository {
   load(runId: string): Promise<PersistedRunState | undefined>;
@@ -16,4 +16,7 @@ export interface WorkflowRunRepository {
   listBinaryStorageKeys?(runId: RunId): Promise<ReadonlyArray<string>>;
 
   deleteRun(runId: RunId): Promise<void>;
+
+  /** Update the testCaseStatus field for a test-suite child run. Used by TestSuiteRunTracker. */
+  updateTestCaseStatus?(runId: RunId, status: TestCaseRunStatus): Promise<void>;
 }

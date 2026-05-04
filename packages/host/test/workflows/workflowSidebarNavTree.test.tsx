@@ -1,5 +1,5 @@
 import { WorkflowSidebarNavTree } from "@codemation/next-host/src/shell/WorkflowSidebarNavTree";
-import type { WorkflowSummary } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
+import type { WorkflowSummary } from "@codemation/host/dto";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 

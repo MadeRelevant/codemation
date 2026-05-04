@@ -1,6 +1,6 @@
 "use client";
 
-import type { TelemetryDashboardTimeseriesDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import type { TelemetryDashboardTimeseriesDto } from "@codemation/host/dto";
 import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";

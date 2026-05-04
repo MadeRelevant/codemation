@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import { ApiPaths } from "@codemation/host/client";
 
 import { codemationApiClient } from "../../../api/CodemationApiClient";
 import { CodemationApiHttpError } from "../../../api/CodemationApiHttpError";

@@ -87,10 +87,11 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
     }
     if (message.kind === "event") {
       const event = message.event;
+      const runIdPart = "runId" in event ? event.runId : "testSuiteRunId" in event ? event.testSuiteRunId : "?";
       const eventLabel =
         "snapshot" in event && event.snapshot
-          ? `${event.kind}:${event.runId}:${event.snapshot.nodeId}:${event.snapshot.status}`
-          : `${event.kind}:${event.runId}`;
+          ? `${event.kind}:${runIdPart}:${event.snapshot.nodeId}:${event.snapshot.status}`
+          : `${event.kind}:${runIdPart}`;
       this.logger.debug(`published room=${roomId} sockets=${deliveredSocketCount} event=${eventLabel}`);
       return;
     }

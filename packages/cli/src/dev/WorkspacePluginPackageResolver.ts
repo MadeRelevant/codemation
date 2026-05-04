@@ -108,7 +108,15 @@ export class WorkspacePluginPackageResolver implements WorkspacePluginPackageLoo
       packageName: packageJson.name,
       packageRoot,
       pluginEntryPath,
-      watchRoot: path.dirname(pluginEntryPath),
+      // Watch the plugin entry FILE rather than its parent directory. Workspace plugins are
+      // typically built by `tsdown --watch`, which on every rebuild rewrites a dozen+ files
+      // in `dist/` (CJS entry + ESM entry + chunks + .d.ts + .d.cts + .map…) over several
+      // seconds. Watching the directory amplifies one logical rebuild into N source-change
+      // events, each kicking off a full runtime swap — and on a 4-cpu / 8-GB WSL box the
+      // memory footprint of even one in-process swap on top of next-server's ~2.7 GB compile
+      // is enough to trigger the OOM-killer. The entry file is rewritten exactly once per
+      // build, so a single watch fires a single event.
+      watchRoot: pluginEntryPath,
     };
   }
 

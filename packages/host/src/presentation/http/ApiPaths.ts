@@ -37,6 +37,39 @@ export class ApiPaths {
     return `${this.workflow(workflowId)}/runs`;
   }
 
+  static workflowTestSuiteRuns(workflowId: string): string {
+    return `${this.workflow(workflowId)}/test-suite-runs`;
+  }
+
+  /**
+   * `GET` returns per-assertion-metric trends across the workflow's recent suite runs. With
+   * no `names` arg, every distinct assertion name is returned (so the multi-select can populate);
+   * with `names`, only the requested subset is returned (order preserved).
+   */
+  static workflowAssertionMetricTrends(workflowId: string, names?: ReadonlyArray<string>): string {
+    const base = `${this.workflow(workflowId)}/assertion-metric-trends`;
+    if (!names || names.length === 0) {
+      return base;
+    }
+    return `${base}?names=${names.map((n) => encodeURIComponent(n)).join(",")}`;
+  }
+
+  static testSuiteRun(testSuiteRunId: string): string {
+    return `${this.apiBasePath}/test-suite-runs/${encodeURIComponent(testSuiteRunId)}`;
+  }
+
+  static testSuiteRunAssertions(testSuiteRunId: string): string {
+    return `${this.testSuiteRun(testSuiteRunId)}/assertions`;
+  }
+
+  static testSuiteRunChildRuns(testSuiteRunId: string): string {
+    return `${this.testSuiteRun(testSuiteRunId)}/runs`;
+  }
+
+  static runAssertions(runId: string): string {
+    return `${this.runState(runId)}/assertions`;
+  }
+
   static workflowCredentialHealth(workflowId: string): string {
     return `${this.workflow(workflowId)}/credential-health`;
   }

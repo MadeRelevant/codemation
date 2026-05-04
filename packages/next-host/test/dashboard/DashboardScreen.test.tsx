@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import { ApiPaths } from "@codemation/host/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

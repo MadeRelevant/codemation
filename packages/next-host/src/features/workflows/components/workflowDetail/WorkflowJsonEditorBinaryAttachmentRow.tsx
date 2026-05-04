@@ -1,7 +1,7 @@
 "use client";
 
 import type { BinaryAttachment } from "@codemation/core/browser";
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import { ApiPaths } from "@codemation/host/client";
 import { useRef, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";

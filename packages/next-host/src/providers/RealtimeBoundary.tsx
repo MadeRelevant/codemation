@@ -1,4 +1,4 @@
-import type { Logger } from "@codemation/host-src/application/logging/Logger";
+import type { Logger } from "@codemation/host/client";
 
 import type { ReactNode } from "react";
 

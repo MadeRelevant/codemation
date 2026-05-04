@@ -20,7 +20,7 @@ import type {
 } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
-import type { Prisma } from "./generated/prisma-postgresql-client/client.js";
+import type { Prisma } from "../../../prisma-generated/prisma-postgresql-client/client.js";
 import { PrismaDatabaseClientToken, type PrismaDatabaseClient } from "./PrismaDatabaseClient";
 
 type ExecutionInstanceRow = {
@@ -94,6 +94,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
     engineCounters?: PersistedRunState["engineCounters"];
   }): Promise<void> {
     const now = new Date().toISOString();
+    const testContext = args.executionOptions?.testContext;
     await this.prisma.run.create({
       data: {
         runId: args.runId,
@@ -110,6 +111,17 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
         policySnapshotJson: args.policySnapshot ? JSON.stringify(args.policySnapshot) : null,
         engineCountersJson: args.engineCounters ? JSON.stringify(args.engineCounters) : null,
         mutableStateJson: args.mutableState ? JSON.stringify(args.mutableState) : null,
+        // Denormalize testContext into indexed columns so the Tests UI can join Run → TestSuiteRun
+        // without parsing JSON. `testCaseLabel` is also denormalized so the tree-table can render
+        // a readable label without loading the full `executionOptionsJson` blob. `testCaseStatus`
+        // is initialized to "running" at creation time so the suite-detail page actually sees the
+        // case transition through "running" — relying on `TestSuiteRunTracker.persistCaseStarted`
+        // to write it raced against the engine inserting this row, so the catch silently swallowed
+        // P2025 and the row went straight from queued → terminal.
+        testSuiteRunId: testContext?.testSuiteRunId ?? null,
+        testCaseIndex: testContext?.testCaseIndex ?? null,
+        testCaseLabel: testContext?.testCaseLabel ?? null,
+        testCaseStatus: testContext ? "running" : null,
       },
     });
   }
@@ -404,6 +416,14 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
     await this.prisma.run.delete({ where: { runId: id } });
   }
 
+  async updateTestCaseStatus(runId: RunId, status: string): Promise<void> {
+    const id = decodeURIComponent(runId);
+    await this.prisma.run.update({
+      where: { runId: id },
+      data: { testCaseStatus: status },
+    });
+  }
+
   async listRunsOlderThan(
     args: Readonly<{ nowIso: string; defaultRetentionSeconds: number; limit?: number }>,
   ): Promise<ReadonlyArray<RunPruneCandidate>> {
@@ -688,20 +708,41 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
     executionOptionsJson: string | null;
     updatedAt: string;
     finishedAt: string | null;
+    testCaseStatus?: string | null;
   }): RunSummary {
     const status = row.status as RunSummary["status"];
     const finishedAt = status === "completed" || status === "failed" ? (row.finishedAt ?? row.updatedAt) : undefined;
+    // `testCaseStatus` lets the executions list show the assertion-rollup-corrected outcome
+    // for test-case runs (without touching engine semantics — the engine still reports
+    // `completed` for runs whose workflow itself didn't throw). Narrow to the public union;
+    // unrecognized values fall through to `undefined` so the UI fallback uses engine status.
+    const testCaseStatus = this.narrowTestCaseStatus(row.testCaseStatus ?? undefined);
     return {
       runId: row.runId as RunId,
       workflowId: row.workflowId as WorkflowId,
       startedAt: row.startedAt,
       status,
+      ...(testCaseStatus !== undefined ? { testCaseStatus } : {}),
       finishedAt,
       parent: row.parentJson ? (JSON.parse(row.parentJson) as ParentExecutionRef) : undefined,
       executionOptions: row.executionOptionsJson
         ? (JSON.parse(row.executionOptionsJson) as RunSummary["executionOptions"])
         : undefined,
     };
+  }
+
+  private narrowTestCaseStatus(value: string | undefined): RunSummary["testCaseStatus"] {
+    if (value === undefined) return undefined;
+    if (
+      value === "running" ||
+      value === "succeeded" ||
+      value === "failed" ||
+      value === "errored" ||
+      value === "cancelled"
+    ) {
+      return value;
+    }
+    return undefined;
   }
 
   private parseJson<T>(value: string | null): T | undefined {

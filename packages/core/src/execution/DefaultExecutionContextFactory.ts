@@ -8,6 +8,7 @@ import type {
   ParentExecutionRef,
   RunDataSnapshot,
   RunId,
+  RunTestContext,
   WorkflowId,
 } from "../types";
 import { NoOpCostTrackingTelemetryFactory, NoOpExecutionTelemetryFactory } from "../types";
@@ -40,6 +41,7 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
     nodeState?: NodeExecutionStatePublisher;
     telemetry?: ExecutionContext["telemetry"];
     getCredential<TSession = unknown>(slotKey: string): Promise<TSession>;
+    testContext?: RunTestContext;
   }): ExecutionContext {
     const baseTelemetry =
       args.telemetry ??
@@ -66,6 +68,7 @@ export class DefaultExecutionContextFactory implements ExecutionContextFactory {
       telemetry,
       binary: new DefaultExecutionBinaryService(this.binaryStorage, args.workflowId, args.runId, this.currentDate),
       getCredential: args.getCredential,
+      testContext: args.testContext,
     };
   }
 }

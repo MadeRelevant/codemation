@@ -1,6 +1,8 @@
 "use client";
 
-import { MinusIcon, PlusIcon, ChevronDownIcon } from "lucide-react";
+import ChevronDownIcon from "lucide-react/dist/esm/icons/chevron-down";
+import MinusIcon from "lucide-react/dist/esm/icons/minus";
+import PlusIcon from "lucide-react/dist/esm/icons/plus";
 import { Slot } from "radix-ui";
 import { Fragment, useContext, type HTMLAttributes } from "react";
 

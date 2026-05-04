@@ -1,4 +1,7 @@
-import { AlertCircle, FastForward, RefreshCw, ShieldAlert } from "lucide-react";
+import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
+import FastForward from "lucide-react/dist/esm/icons/fast-forward";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import ShieldAlert from "lucide-react/dist/esm/icons/shield-alert";
 
 import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
 import {

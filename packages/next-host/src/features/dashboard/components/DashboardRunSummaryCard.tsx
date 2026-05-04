@@ -1,7 +1,9 @@
 "use client";
 
-import type { TelemetryDashboardSummaryDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
-import { Clock3, PlayCircle, Workflow } from "lucide-react";
+import type { TelemetryDashboardSummaryDto } from "@codemation/host/dto";
+import Clock3 from "lucide-react/dist/esm/icons/clock-3";
+import PlayCircle from "lucide-react/dist/esm/icons/play-circle";
+import Workflow from "lucide-react/dist/esm/icons/workflow";
 import prettyMs from "pretty-ms";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import Check from "lucide-react/dist/esm/icons/check";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 

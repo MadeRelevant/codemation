@@ -12,6 +12,7 @@ import type {
 import { useTelemetryRunTraceQuery } from "../../hooks/realtime/realtime";
 import { NodeCredentialBindingsSection } from "./NodeCredentialBindingsSection";
 import { NodePropertiesConfigSection } from "./NodePropertiesConfigSection";
+import { NodePropertiesDescriptionSection } from "./NodePropertiesDescriptionSection";
 import { NodePropertiesPanelHeader } from "./NodePropertiesPanelHeader";
 import { WorkflowDetailPresenter } from "../../lib/workflowDetail/WorkflowDetailPresenter";
 import type { WorkflowDiagramNode } from "../../lib/workflowDetail/workflowDetailTypes";
@@ -153,6 +154,7 @@ export function NodePropertiesSlidePanel(
               onClose={onClose}
             />
             <div className="min-h-0 flex-1 overflow-auto">
+              <NodePropertiesDescriptionSection node={node} />
               <NodePropertiesConfigSection
                 node={node}
                 telemetryRunId={telemetryRunId}

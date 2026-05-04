@@ -20,6 +20,7 @@ import { ConsumerDatabaseConnectionResolver } from "./database/ConsumerDatabaseC
 import { DatabaseMigrationsApplyService } from "./database/DatabaseMigrationsApplyService";
 import { HostPackageRootResolver } from "./database/HostPackageRootResolver";
 import { PrismaMigrationDeployer } from "@codemation/host/persistence";
+import { ConsumerSourceErrorParser } from "./dev/ConsumerSourceErrorParser";
 import { DevBootstrapSummaryFetcher } from "./dev/DevBootstrapSummaryFetcher";
 import { DevCliBannerRenderer } from "./dev/DevCliBannerRenderer";
 import { DevNextChildProcessOutputFilter } from "./dev/DevNextChildProcessOutputFilter";
@@ -117,6 +118,7 @@ export class CliProgramFactory {
       new CliDevProxyServerFactory(),
       new DevRebuildQueueFactory(),
       new DevNextChildProcessOutputFilter(new DevNextStartupBannerLineFilter()),
+      new ConsumerSourceErrorParser(),
     );
     return new CliProgram(
       buildOptionsParser,

@@ -6,8 +6,8 @@ import {
   type InviteUserResponseDto,
   type UserAccountDto,
   type UserAccountStatus,
-} from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+} from "@codemation/host/dto";
+import { ApiPaths } from "@codemation/host/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { codemationApiClient } from "../../../../api/CodemationApiClient";
 import { userAccountsQueryKey } from "../../lib/realtime/realtimeQueryKeys";

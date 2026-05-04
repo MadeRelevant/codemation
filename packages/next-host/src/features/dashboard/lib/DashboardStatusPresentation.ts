@@ -1,4 +1,4 @@
-import type { TelemetryDashboardRunOriginDto } from "@codemation/host-src/application/contracts/TelemetryDashboardContracts";
+import type { TelemetryDashboardRunOriginDto } from "@codemation/host/dto";
 
 export class DashboardStatusPresentation {
   static readonly completedColor = "#16a34a";

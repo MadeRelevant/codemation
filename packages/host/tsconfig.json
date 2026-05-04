@@ -3,8 +3,25 @@
   "compilerOptions": {
     "types": ["node"],
     "jsx": "react-jsx",
-    "noEmit": true
+    "noEmit": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@codemation/host/client": ["./src/client.ts"],
+      "@codemation/host/dto": ["./src/dto.ts"],
+      "@codemation/host/mapping": ["./src/mapping.ts"],
+      "@codemation/next-host/src/*": ["../next-host/src/*"],
+      "@/*": ["../next-host/src/*"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx", "vitest*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "test/**/*.ts",
+    "test/**/*.tsx",
+    "vitest*.ts",
+    "prisma-generated/**/*",
+    "../next-host/src/lucide-react-icons.d.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

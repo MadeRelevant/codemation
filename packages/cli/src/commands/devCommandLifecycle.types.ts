@@ -29,4 +29,5 @@ export type DevPreparedRuntime = Readonly<{
   authSettings: NextHostEdgeSeed;
   developmentServerToken: string;
   consumerEnv: Readonly<Record<string, string>>;
+  watchWorkspacePlugins: boolean;
 }>;

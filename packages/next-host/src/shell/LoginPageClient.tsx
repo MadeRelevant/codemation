@@ -1,7 +1,6 @@
 "use client";
 
-import { InAppCallbackUrlPolicy } from "@codemation/host-src/infrastructure/auth/InAppCallbackUrlPolicy";
-import { ApiPaths } from "@codemation/host-src/presentation/http/ApiPaths";
+import { InAppCallbackUrlPolicy, ApiPaths } from "@codemation/host/client";
 import { Component, type ReactNode } from "react";
 
 import { CodemationBetterAuthBrowserClientFactory } from "../auth/CodemationBetterAuthBrowserClientFactory";

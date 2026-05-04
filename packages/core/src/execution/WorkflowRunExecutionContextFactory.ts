@@ -5,6 +5,7 @@ import type {
   ParentExecutionRef,
   RunDataFactory,
   RunId,
+  RunTestContext,
   WorkflowId,
 } from "../types";
 
@@ -30,6 +31,7 @@ export class WorkflowRunExecutionContextFactory {
     engineMaxSubworkflowDepth: number;
     data: ReturnType<RunDataFactory["create"]>;
     nodeState?: NodeExecutionStatePublisher;
+    testContext?: RunTestContext;
   }) {
     return this.executionContextFactory.create({
       runId: args.runId,
@@ -42,6 +44,7 @@ export class WorkflowRunExecutionContextFactory {
       data: args.data,
       nodeState: args.nodeState,
       getCredential: this.credentialResolverFactory.create(args.workflowId, args.nodeId),
+      testContext: args.testContext,
     });
   }
 }

@@ -1,5 +1,5 @@
 import type { Item as WorkflowItem, JsonValue } from "@codemation/core/browser";
-import type { WorkflowDto } from "@codemation/host-src/application/contracts/WorkflowViewContracts";
+import type { WorkflowDto } from "@codemation/host/dto";
 
 export type Item = WorkflowItem;
 export type Items = ReadonlyArray<Item>;
@@ -12,6 +12,12 @@ export type RunExecutionOptions = Readonly<{
   sourceRunId?: string;
   derivedFromRunId?: string;
   isMutable?: boolean;
+  /**
+   * Present iff the run was started by a TestSuiteOrchestrator. Mirrors the engine-side
+   * `RunTestContext` so the runs list can render a "TEST" mode badge symmetrically with
+   * the existing "MANUAL" / "WEBHOOK" badges.
+   */
+  testContext?: Readonly<{ testSuiteRunId: string; testCaseIndex: number }>;
 }>;
 
 export type PersistedWorkflowConnection = Readonly<{
@@ -56,6 +62,12 @@ export type RunSummary = Readonly<{
   workflowId: string;
   startedAt: string;
   status: string;
+  /**
+   * Assertion-rollup-corrected outcome for runs dispatched as test cases. Mirrors
+   * `RunSummary.testCaseStatus` from `@codemation/core` — kept locally because the host
+   * realtime types were duplicated structurally rather than re-exported.
+   */
+  testCaseStatus?: "running" | "succeeded" | "failed" | "errored" | "cancelled";
   finishedAt?: string;
   parent?: ParentExecutionRef;
   executionOptions?: RunExecutionOptions;

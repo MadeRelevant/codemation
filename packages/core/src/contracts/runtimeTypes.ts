@@ -11,6 +11,7 @@ import type {
   PersistedWorkflowTokenRegistryLike,
   RunExecutionOptions,
   RunResult,
+  RunTestContext,
   WorkflowExecutionRepository,
 } from "./runTypes";
 import type { WorkflowActivationPolicy } from "./workflowActivationPolicy";
@@ -162,6 +163,11 @@ export interface ExecutionContext {
   itemIndex?: number;
   /** When set, this ctx is executing inside a sub-agent triggered by the named parent invocation. */
   parentInvocationId?: ConnectionInvocationId;
+  /**
+   * Present iff the run was started by a TestSuiteOrchestrator. The {@link IsTestRunNode}
+   * branches on this; assertion-emitting nodes use it to decide whether to record results.
+   */
+  testContext?: RunTestContext;
 }
 
 export interface ExecutionContextFactory {
@@ -177,6 +183,7 @@ export interface ExecutionContextFactory {
     nodeState?: NodeExecutionStatePublisher;
     telemetry?: ExecutionTelemetry;
     getCredential<TSession = unknown>(slotKey: string): Promise<TSession>;
+    testContext?: RunTestContext;
   }): ExecutionContext;
 }
 

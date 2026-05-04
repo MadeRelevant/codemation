@@ -107,7 +107,7 @@ test("WorkspacePluginPackageResolver returns only plugin workspace packages refe
       packageName: "@codemation/core-nodes-gmail",
       packageRoot: path.join(fixture.repoRoot(), "packages", "core-nodes-gmail"),
       pluginEntryPath: path.join(fixture.repoRoot(), "packages", "core-nodes-gmail", "dist", "codemation.plugin.js"),
-      watchRoot: path.join(fixture.repoRoot(), "packages", "core-nodes-gmail", "dist"),
+      watchRoot: path.join(fixture.repoRoot(), "packages", "core-nodes-gmail", "dist", "codemation.plugin.js"),
     },
   ]);
 });

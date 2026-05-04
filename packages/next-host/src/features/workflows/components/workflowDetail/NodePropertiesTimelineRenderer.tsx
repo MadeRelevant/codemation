@@ -1,5 +1,7 @@
 import type { JSX } from "react";
-import { ArrowDown, Bot, Wrench } from "lucide-react";
+import ArrowDown from "lucide-react/dist/esm/icons/arrow-down";
+import Bot from "lucide-react/dist/esm/icons/bot";
+import Wrench from "lucide-react/dist/esm/icons/wrench";
 
 import { cn } from "@/lib/utils";
 

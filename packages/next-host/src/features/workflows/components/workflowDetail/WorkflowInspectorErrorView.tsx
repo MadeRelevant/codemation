@@ -1,4 +1,5 @@
-import { Check, Copy } from "lucide-react";
+import Check from "lucide-react/dist/esm/icons/check";
+import Copy from "lucide-react/dist/esm/icons/copy";
 import { useState } from "react";
 
 import type { CopyState, NodeExecutionError } from "../../lib/workflowDetail/workflowDetailTypes";

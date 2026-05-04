@@ -3,16 +3,11 @@ import { describe, expect, it } from "vitest";
 
 import { ConsumerEnvLoader } from "../src/consumer/ConsumerEnvLoader";
 import { DevNextHostEnvironmentBuilder } from "../src/dev/DevNextHostEnvironmentBuilder";
-import { DevelopmentConditionNodeOptions } from "../src/runtime/DevelopmentConditionNodeOptions";
 import { SourceMapNodeOptions } from "../src/runtime/SourceMapNodeOptions";
 
 describe("DevNextHostEnvironmentBuilder", () => {
   it("sets the direct consumer root and edge auth flag", () => {
-    const builder = new DevNextHostEnvironmentBuilder(
-      new ConsumerEnvLoader(),
-      new SourceMapNodeOptions(),
-      new DevelopmentConditionNodeOptions(),
-    );
+    const builder = new DevNextHostEnvironmentBuilder(new ConsumerEnvLoader(), new SourceMapNodeOptions());
     const consumerRoot = path.resolve("/tmp/my-consumer");
     const env = builder.build({
       consumerRoot,
@@ -25,15 +20,13 @@ describe("DevNextHostEnvironmentBuilder", () => {
     expect(env.CODEMATION_UI_AUTH_ENABLED).toBe("false");
     expect(env.CODEMATION_PUBLIC_WS_PORT).toBe("3001");
     expect(env.NODE_OPTIONS).toContain("--enable-source-maps");
-    expect(env.NODE_OPTIONS).toContain("--conditions=development");
+    // The Next dev process must NOT inherit `--conditions=development` — that resolves
+    // `@codemation/{core,host}` to source and explodes Turbopack's compile graph.
+    expect(env.NODE_OPTIONS).not.toContain("--conditions=development");
   });
 
   it("allows overriding the config path for the Next host", () => {
-    const builder = new DevNextHostEnvironmentBuilder(
-      new ConsumerEnvLoader(),
-      new SourceMapNodeOptions(),
-      new DevelopmentConditionNodeOptions(),
-    );
+    const builder = new DevNextHostEnvironmentBuilder(new ConsumerEnvLoader(), new SourceMapNodeOptions());
     const override = path.resolve("/tmp", "custom.config.ts");
     const env = builder.build({
       consumerRoot: path.resolve("/tmp/my-consumer"),
@@ -47,11 +40,7 @@ describe("DevNextHostEnvironmentBuilder", () => {
   });
 
   it("buildConsumerUiProxy includes runtime proxy and auth secrets for packaged consumer mode", () => {
-    const builder = new DevNextHostEnvironmentBuilder(
-      new ConsumerEnvLoader(),
-      new SourceMapNodeOptions(),
-      new DevelopmentConditionNodeOptions(),
-    );
+    const builder = new DevNextHostEnvironmentBuilder(new ConsumerEnvLoader(), new SourceMapNodeOptions());
     const consumerRoot = path.resolve("/tmp/my-consumer");
     const env = builder.buildConsumerUiProxy({
       authSecret: "dev-secret",
@@ -80,6 +69,8 @@ describe("DevNextHostEnvironmentBuilder", () => {
     expect(env.NEXT_PUBLIC_CODEMATION_WS_PORT).toBe("3000");
     expect(env.HOSTNAME).toBe("127.0.0.1");
     expect(env.NODE_OPTIONS).toContain("--enable-source-maps");
-    expect(env.NODE_OPTIONS).toContain("--conditions=development");
+    // The Next dev process must NOT inherit `--conditions=development` — that resolves
+    // `@codemation/{core,host}` to source and explodes Turbopack's compile graph.
+    expect(env.NODE_OPTIONS).not.toContain("--conditions=development");
   });
 });

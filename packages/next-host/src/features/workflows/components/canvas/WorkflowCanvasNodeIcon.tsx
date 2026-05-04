@@ -1,11 +1,10 @@
-import { Boxes } from "lucide-react";
-import { DynamicIcon } from "lucide-react/dynamic";
-import type { IconName } from "lucide-react/dynamic";
-import { Suspense, type CSSProperties, type ReactNode } from "react";
+import Boxes from "lucide-react/dist/esm/icons/boxes";
+import type { CSSProperties, ReactNode } from "react";
 
 import { WorkflowNodeIconResolver } from "../workflowDetail/WorkflowDetailIcons";
 import { CanvasNodeIconSlot, type CanvasIconRotate } from "./CanvasNodeIconSlot";
 import { WorkflowCanvasBuiltinIconRegistry } from "./lib/WorkflowCanvasBuiltinIconRegistry";
+import { WorkflowCanvasLucideIconRegistry } from "./lib/WorkflowCanvasLucideIconRegistry";
 import { WorkflowCanvasSiIconRegistry } from "./lib/WorkflowCanvasSiIconRegistry";
 import { WorkflowCanvasSimpleIconGlyph } from "./WorkflowCanvasSimpleIconGlyph";
 
@@ -65,7 +64,9 @@ function renderInSlot(sizePx: number, rotate: CanvasIconRotate | undefined, chil
  * - **URLs** — `http(s):`, `data:`, or root-relative `/…`
  * - **`builtin:<id>`** — SVG under `public/canvas-icons/builtin/` (see {@link WorkflowCanvasBuiltinIconRegistry})
  * - **`si:<slug>`** — cherry-picked Simple Icons, or same builtin asset when slug matches a registered builtin (e.g. `si:openai`)
- * - **`lucide:<name>`** or legacy kebab name — Lucide dynamic icon
+ * - **`lucide:<name>`** or legacy kebab name — Lucide icon from a curated registry (only icons used
+ *   by core node plugins). Unknown names fall back to the `Boxes` icon and emit a one-time warning.
+ *   Plugin authors needing custom icons should ship SVG via `builtin:` / `si:` / URL.
  *
  * Any of the above may be suffixed with `@rot=<0|90|180|270>` (and future modifiers)
  * to rotate the glyph so vertically-oriented source art reads in LTR workflow flow.
@@ -131,11 +132,10 @@ export function WorkflowCanvasNodeIcon(
   const lucideName = body.startsWith("lucide:")
     ? body.slice("lucide:".length).trim().toLowerCase()
     : body.toLowerCase();
+  const Icon = WorkflowCanvasLucideIconRegistry.resolve(lucideName);
   return renderInSlot(
     sizePx,
     rotate,
-    <Suspense fallback={<Boxes size={sizePx} strokeWidth={strokeWidth} />}>
-      <DynamicIcon name={lucideName as IconName} size={sizePx} strokeWidth={strokeWidth} />
-    </Suspense>,
+    Icon ? <Icon size={sizePx} strokeWidth={strokeWidth} /> : <Boxes size={sizePx} strokeWidth={strokeWidth} />,
   );
 }

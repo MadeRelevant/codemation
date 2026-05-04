@@ -17,12 +17,18 @@ test("WatchRootsResolver keeps packaged UI mode scoped to the consumer root", as
   const consumerRoot = "/tmp/my-automation";
   const repoRoot = "/workspace/codemation";
 
-  assert.deepEqual(await new WatchRootsResolver().resolve({ consumerRoot, devMode: "packaged-ui", repoRoot }), [
-    consumerRoot,
-  ]);
+  assert.deepEqual(
+    await new WatchRootsResolver().resolve({
+      consumerRoot,
+      devMode: "packaged-ui",
+      repoRoot,
+      watchWorkspacePlugins: false,
+    }),
+    [consumerRoot],
+  );
 });
 
-test("WatchRootsResolver includes framework source packages plus plugin dist roots when watch-framework is enabled", async () => {
+test("WatchRootsResolver omits workspace plugin watch roots when watchWorkspacePlugins is false", async () => {
   const consumerRoot = "/tmp/my-automation";
   const repoRoot = "/workspace/codemation";
   const resolver = new FakeWorkspacePluginPackageResolver([
@@ -30,12 +36,17 @@ test("WatchRootsResolver includes framework source packages plus plugin dist roo
       packageName: "@codemation/core-nodes-gmail",
       packageRoot: path.resolve(repoRoot, "packages", "core-nodes-gmail"),
       pluginEntryPath: path.resolve(repoRoot, "packages", "core-nodes-gmail", "dist", "codemation.plugin.js"),
-      watchRoot: path.resolve(repoRoot, "packages", "core-nodes-gmail", "dist"),
+      watchRoot: path.resolve(repoRoot, "packages", "core-nodes-gmail", "dist", "codemation.plugin.js"),
     },
   ]);
 
   assert.deepEqual(
-    await new WatchRootsResolver(resolver).resolve({ consumerRoot, devMode: "watch-framework", repoRoot }),
+    await new WatchRootsResolver(resolver).resolve({
+      consumerRoot,
+      devMode: "watch-framework",
+      repoRoot,
+      watchWorkspacePlugins: false,
+    }),
     [
       consumerRoot,
       path.resolve(repoRoot, "packages", "cli"),
@@ -44,7 +55,39 @@ test("WatchRootsResolver includes framework source packages plus plugin dist roo
       path.resolve(repoRoot, "packages", "eventbus-redis"),
       path.resolve(repoRoot, "packages", "host"),
       path.resolve(repoRoot, "packages", "node-example"),
-      path.resolve(repoRoot, "packages", "core-nodes-gmail", "dist"),
+    ],
+  );
+});
+
+test("WatchRootsResolver includes plugin entry-file watch roots when watchWorkspacePlugins is true", async () => {
+  const consumerRoot = "/tmp/my-automation";
+  const repoRoot = "/workspace/codemation";
+  const pluginEntryPath = path.resolve(repoRoot, "packages", "core-nodes-gmail", "dist", "codemation.plugin.js");
+  const resolver = new FakeWorkspacePluginPackageResolver([
+    {
+      packageName: "@codemation/core-nodes-gmail",
+      packageRoot: path.resolve(repoRoot, "packages", "core-nodes-gmail"),
+      pluginEntryPath,
+      watchRoot: pluginEntryPath,
+    },
+  ]);
+
+  assert.deepEqual(
+    await new WatchRootsResolver(resolver).resolve({
+      consumerRoot,
+      devMode: "watch-framework",
+      repoRoot,
+      watchWorkspacePlugins: true,
+    }),
+    [
+      consumerRoot,
+      path.resolve(repoRoot, "packages", "cli"),
+      path.resolve(repoRoot, "packages", "core"),
+      path.resolve(repoRoot, "packages", "core-nodes"),
+      path.resolve(repoRoot, "packages", "eventbus-redis"),
+      path.resolve(repoRoot, "packages", "host"),
+      path.resolve(repoRoot, "packages", "node-example"),
+      pluginEntryPath,
     ],
   );
 });

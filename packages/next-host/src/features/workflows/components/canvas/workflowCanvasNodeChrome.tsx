@@ -1,4 +1,7 @@
-import { CircleAlert, CircleCheckBig, Clock3, Pin } from "lucide-react";
+import CircleAlert from "lucide-react/dist/esm/icons/circle-alert";
+import CircleCheckBig from "lucide-react/dist/esm/icons/circle-check-big";
+import Clock3 from "lucide-react/dist/esm/icons/clock-3";
+import Pin from "lucide-react/dist/esm/icons/pin";
 
 import type { NodeExecutionSnapshot } from "../../hooks/realtime/realtime";
 

@@ -3,8 +3,8 @@ import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaPg } from "@prisma/adapter-pg";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { PrismaClient as PostgresqlPrismaClient } from "./generated/prisma-postgresql-client/client.js";
-import { PrismaClient as SqlitePrismaClient } from "./generated/prisma-sqlite-client/client.js";
+import { PrismaClient as PostgresqlPrismaClient } from "../../../prisma-generated/prisma-postgresql-client/client.js";
+import { PrismaClient as SqlitePrismaClient } from "../../../prisma-generated/prisma-sqlite-client/client.js";
 import type { PrismaDatabaseClient } from "./PrismaDatabaseClient";
 
 @injectable()

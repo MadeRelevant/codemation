@@ -96,6 +96,7 @@ export class RunStartService {
       engineMaxSubworkflowDepth: mergedExecutionOptions.maxSubworkflowDepth!,
       data,
       nodeState: this.nodeStatePublisherFactory.create(runId, workflow.id, parent),
+      testContext: mergedExecutionOptions.testContext,
     });
     const { topology, planner } = this.planningFactory.create(workflow);
     const startDefinition = topology.defsById.get(startAt);
@@ -206,6 +207,7 @@ export class RunStartService {
       engineMaxSubworkflowDepth: mergedExecutionOptions.maxSubworkflowDepth!,
       data,
       nodeState: this.nodeStatePublisherFactory.create(runId, request.workflow.id, request.parent),
+      testContext: mergedExecutionOptions.testContext,
     });
 
     return await this.scheduleInitialPlan({

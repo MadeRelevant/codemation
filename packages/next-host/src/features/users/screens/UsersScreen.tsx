@@ -1,9 +1,6 @@
 "use client";
 
-import type {
-  UserAccountDto,
-  UserAccountStatus,
-} from "@codemation/host-src/application/contracts/userDirectoryContracts.types";
+import type { UserAccountDto, UserAccountStatus } from "@codemation/host/dto";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
