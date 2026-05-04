@@ -25,6 +25,8 @@ export class ScaffoldedBrowserRuntimeEnvironment {
       CODEMATION_CREDENTIALS_MASTER_KEY: "codemation-scaffolded-browser-e2e-master-key",
       CODEMATION_LOG_LEVEL: "info",
       CHOKIDAR_USEPOLLING: "1",
+      // Disable DevSourceWatcher's 20s startup grace; the spec edits the source ~seconds after boot.
+      CODEMATION_DEV_WATCH_GRACE_MS: "0",
     };
   }
 
