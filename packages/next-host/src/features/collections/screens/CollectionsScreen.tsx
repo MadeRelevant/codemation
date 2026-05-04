@@ -46,34 +46,36 @@ export function CollectionsScreen() {
             { key: "name", header: "Name" },
             { key: "fields", header: "Fields" },
             { key: "rows", header: "Rows" },
-            { key: "actions", header: "" },
           ]}
         >
           {collections.map((col) => (
             <TableRow key={col.name} data-testid={`collection-row-${col.name}`}>
               <TableCell>
-                <span className="font-medium" data-testid={`collection-name-${col.name}`}>
+                <Link
+                  href={`/collections/${encodeURIComponent(col.name)}`}
+                  className="cursor-pointer font-medium text-primary underline-offset-4 hover:underline"
+                  data-testid={`collection-name-${col.name}`}
+                >
                   {col.name}
-                </span>
+                </Link>
               </TableCell>
               <TableCell>
-                <Badge variant="outline" data-testid={`collection-field-count-${col.name}`}>
+                <Badge
+                  variant="outline"
+                  className="text-muted-foreground"
+                  data-testid={`collection-field-count-${col.name}`}
+                >
                   {col.fieldCount} fields
                 </Badge>
               </TableCell>
               <TableCell>
-                <Badge variant="outline" data-testid={`collection-row-count-${col.name}`}>
+                <Badge
+                  variant="outline"
+                  className="text-muted-foreground"
+                  data-testid={`collection-row-count-${col.name}`}
+                >
                   {col.rowCount.toLocaleString()}
                 </Badge>
-              </TableCell>
-              <TableCell>
-                <Link
-                  href={`/collections/${encodeURIComponent(col.name)}`}
-                  className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
-                  data-testid={`collection-detail-link-${col.name}`}
-                >
-                  View rows
-                </Link>
               </TableCell>
             </TableRow>
           ))}
