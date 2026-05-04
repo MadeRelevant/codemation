@@ -6,6 +6,14 @@ import { fileURLToPath } from "node:url";
 
 import { ConsumerBuildOptionsParser } from "./build/ConsumerBuildOptionsParser";
 import { BuildCommand } from "./commands/BuildCommand";
+import type { CollectionsDeleteCommand } from "./commands/CollectionsDeleteCommand";
+import type { CollectionsGetCommand } from "./commands/CollectionsGetCommand";
+import type { CollectionsInsertCommand } from "./commands/CollectionsInsertCommand";
+import type { CollectionsListCommand } from "./commands/CollectionsListCommand";
+import type { CollectionsRowsCommand } from "./commands/CollectionsRowsCommand";
+import type { CollectionsShowCommand } from "./commands/CollectionsShowCommand";
+import type { CollectionsSyncCommand } from "./commands/CollectionsSyncCommand";
+import type { CollectionsUpdateCommand } from "./commands/CollectionsUpdateCommand";
 import type { DbMigrateCommand } from "./commands/DbMigrateCommand";
 import { DevCommand } from "./commands/DevCommand";
 import type { DevPluginCommand } from "./commands/DevPluginCommand";
@@ -27,6 +35,14 @@ export class CliProgram {
     private readonly dbMigrateCommand: DbMigrateCommand,
     private readonly userCreateCommand: UserCreateCommand,
     private readonly userListCommand: UserListCommand,
+    private readonly collectionsListCommand: CollectionsListCommand,
+    private readonly collectionsShowCommand: CollectionsShowCommand,
+    private readonly collectionsRowsCommand: CollectionsRowsCommand,
+    private readonly collectionsGetCommand: CollectionsGetCommand,
+    private readonly collectionsInsertCommand: CollectionsInsertCommand,
+    private readonly collectionsUpdateCommand: CollectionsUpdateCommand,
+    private readonly collectionsDeleteCommand: CollectionsDeleteCommand,
+    private readonly collectionsSyncCommand: CollectionsSyncCommand,
   ) {}
 
   async run(argv: ReadonlyArray<string>): Promise<void> {
@@ -170,6 +186,152 @@ export class CliProgram {
       .option("--config <path>", "Override path to codemation.config.ts / .js")
       .action(async (opts: Readonly<{ consumerRoot?: string; config?: string }>) => {
         await this.userListCommand.execute(opts);
+      });
+
+    const collections = program.command("collections").description("Data collections CRUD and schema sync.");
+
+    collections
+      .command("list")
+      .description("List all registered collections.")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .option("--format <table|json>", "Output format (table or json)", "table")
+      .action(async (opts: Readonly<{ consumerRoot?: string; config?: string; format?: "table" | "json" }>) => {
+        await this.collectionsListCommand.execute(opts);
+      });
+
+    collections
+      .command("show")
+      .description("Show schema and index info for a collection.")
+      .argument("<name>", "Collection name")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .option("--format <table|json>", "Output format (table or json)", "table")
+      .action(
+        async (name: string, opts: Readonly<{ consumerRoot?: string; config?: string; format?: "table" | "json" }>) => {
+          await this.collectionsShowCommand.execute({ ...opts, name });
+        },
+      );
+
+    collections
+      .command("rows")
+      .description("List rows in a collection.")
+      .argument("<name>", "Collection name")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .option("--limit <n>", "Max rows to return (default: 20)")
+      .option("--offset <n>", "Skip this many rows (default: 0)")
+      .option(
+        "--where <field=value>",
+        "Filter by field value (repeatable)",
+        (val, acc: string[]) => {
+          acc.push(val);
+          return acc;
+        },
+        [] as string[],
+      )
+      .option("--format <table|json>", "Output format (table or json)", "table")
+      .action(
+        async (
+          name: string,
+          opts: Readonly<{
+            consumerRoot?: string;
+            config?: string;
+            limit?: string;
+            offset?: string;
+            where?: string[];
+            format?: "table" | "json";
+          }>,
+        ) => {
+          await this.collectionsRowsCommand.execute({ ...opts, name });
+        },
+      );
+
+    collections
+      .command("get")
+      .description("Get a single row by ID.")
+      .argument("<name>", "Collection name")
+      .argument("<id>", "Row ID")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .option("--format <table|json>", "Output format (table or json)", "table")
+      .action(
+        async (
+          name: string,
+          id: string,
+          opts: Readonly<{ consumerRoot?: string; config?: string; format?: "table" | "json" }>,
+        ) => {
+          await this.collectionsGetCommand.execute({ ...opts, name, id });
+        },
+      );
+
+    collections
+      .command("insert")
+      .description("Insert a new row into a collection.")
+      .argument("<name>", "Collection name")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .option("--data <json>", "Row data as a JSON string")
+      .option(
+        "--field <key=value>",
+        "Set a field value (repeatable)",
+        (val, acc: string[]) => {
+          acc.push(val);
+          return acc;
+        },
+        [] as string[],
+      )
+      .action(
+        async (
+          name: string,
+          opts: Readonly<{
+            consumerRoot?: string;
+            config?: string;
+            data?: string;
+            field?: string[];
+          }>,
+        ) => {
+          await this.collectionsInsertCommand.execute({ ...opts, name });
+        },
+      );
+
+    collections
+      .command("update")
+      .description("Update an existing row by ID.")
+      .argument("<name>", "Collection name")
+      .argument("<id>", "Row ID")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .option("--patch <json>", "Partial update as a JSON string")
+      .action(
+        async (
+          name: string,
+          id: string,
+          opts: Readonly<{ consumerRoot?: string; config?: string; patch?: string }>,
+        ) => {
+          await this.collectionsUpdateCommand.execute({ ...opts, name, id });
+        },
+      );
+
+    collections
+      .command("delete")
+      .description("Delete a row by ID.")
+      .argument("<name>", "Collection name")
+      .argument("<id>", "Row ID")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .action(async (name: string, id: string, opts: Readonly<{ consumerRoot?: string; config?: string }>) => {
+        await this.collectionsDeleteCommand.execute({ ...opts, name, id });
+      });
+
+    collections
+      .command("sync")
+      .description("Run collection schema sync (apply pending column/table changes).")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .option("--dry-run", "Print planned changes without applying them")
+      .action(async (opts: Readonly<{ consumerRoot?: string; config?: string; dryRun?: boolean }>) => {
+        await this.collectionsSyncCommand.execute(opts);
       });
 
     await program.parseAsync(argv as string[], { from: "user" });

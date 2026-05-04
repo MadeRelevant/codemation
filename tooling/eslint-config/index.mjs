@@ -793,6 +793,7 @@ export default [
       "packages/cli/src/database/DatabaseMigrationsApplyService.ts",
       "packages/cli/src/consumer/ConsumerCliTsconfigPreparation.ts",
       "packages/cli/src/user/UserAdminCliBootstrap.ts",
+      "packages/cli/src/collections/CollectionsCliBootstrap.ts",
       "packages/cli/src/bin.ts",
       "packages/create-codemation/src/NodeChildProcessRunner.ts",
       "apps/test-dev/codemation.config.ts",

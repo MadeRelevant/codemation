@@ -50,6 +50,16 @@ import { UserAdminConsumerDotenvLoader } from "./user/UserAdminConsumerDotenvLoa
 import { AgentSkillsExtractorFactory } from "./skills/AgentSkillsExtractorFactory";
 import { ConsumerAgentSkillsAutoSyncPolicy } from "./skills/ConsumerAgentSkillsAutoSyncPolicy";
 import { ConsumerAgentSkillsSyncService } from "./skills/ConsumerAgentSkillsSyncService";
+import { CollectionsCliBootstrap } from "./collections/CollectionsCliBootstrap";
+import { CollectionsCliOptionsParser } from "./collections/CollectionsCliOptionsParser";
+import { CollectionsListCommand } from "./commands/CollectionsListCommand";
+import { CollectionsShowCommand } from "./commands/CollectionsShowCommand";
+import { CollectionsRowsCommand } from "./commands/CollectionsRowsCommand";
+import { CollectionsGetCommand } from "./commands/CollectionsGetCommand";
+import { CollectionsInsertCommand } from "./commands/CollectionsInsertCommand";
+import { CollectionsUpdateCommand } from "./commands/CollectionsUpdateCommand";
+import { CollectionsDeleteCommand } from "./commands/CollectionsDeleteCommand";
+import { CollectionsSyncCommand } from "./commands/CollectionsSyncCommand";
 
 const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
 
@@ -120,6 +130,14 @@ export class CliProgramFactory {
       new DevNextChildProcessOutputFilter(new DevNextStartupBannerLineFilter()),
       new ConsumerSourceErrorParser(),
     );
+    const collectionsBootstrap = new CollectionsCliBootstrap(
+      appConfigLoader,
+      pathResolver,
+      new UserAdminConsumerDotenvLoader(),
+      tsconfigPreparation,
+    );
+    const collectionsOptionsParser = new CollectionsCliOptionsParser();
+
     return new CliProgram(
       buildOptionsParser,
       new BuildCommand(
@@ -148,6 +166,14 @@ export class CliProgramFactory {
       new DbMigrateCommand(databaseMigrationsApplyService),
       new UserCreateCommand(new LocalUserCreator(userAdminBootstrap), userAdminCliOptionsParser),
       new UserListCommand(cliLogger, userAdminBootstrap, new CliDatabaseUrlDescriptor(), userAdminCliOptionsParser),
+      new CollectionsListCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
+      new CollectionsShowCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
+      new CollectionsRowsCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
+      new CollectionsGetCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
+      new CollectionsInsertCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
+      new CollectionsUpdateCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
+      new CollectionsDeleteCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
+      new CollectionsSyncCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
     );
   }
 }
