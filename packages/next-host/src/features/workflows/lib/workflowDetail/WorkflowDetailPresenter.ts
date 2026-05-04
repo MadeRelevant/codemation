@@ -8,6 +8,7 @@ import { HumanFriendlyTimestampFormatter } from "../../../lib/HumanFriendlyTimes
 import type {
   ConnectionInvocationRecord,
   ExecutionInstanceDto,
+  Item,
   Items,
   NodeExecutionSnapshot,
   PersistedRunState,
@@ -975,9 +976,17 @@ export class WorkflowDetailPresenter {
       return [{ json: {} }];
     }
     if (Array.isArray(value)) {
-      return value.map((json) => ({ json: json as object }));
+      // Trigger outputs are persisted as already-Item-shaped (`[{ json: {...} }]`); runnable
+      // outputs may be persisted as raw JSON values (`[{...}]`). Without this branch we'd
+      // re-wrap the Item shapes into `{ json: { json: {...} } }` and the inspector would
+      // surface the engine's internal Item wrapper as user-visible `"json"` keys.
+      return value.map((entry) => (this.isItemShape(entry) ? (entry as Item) : { json: entry as object }));
     }
     return [{ json: value as object }];
+  }
+
+  private static isItemShape(value: unknown): boolean {
+    return typeof value === "object" && value !== null && "json" in value;
   }
 
   private static jsonValueToPortItems(value: unknown | undefined): Readonly<Record<string, Items>> | undefined {

@@ -4,17 +4,19 @@ import { deriveAssertionPassed } from "@codemation/core/contracts";
 import type { TestAssertionDto, TestSuiteChildRunDto } from "@codemation/host/dto";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
-import { useState } from "react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { TestAssertionRow } from "./TestAssertionRow";
-import { TestSuiteCaseStatusIcon, statusLabelFor } from "./TestSuiteCaseStatusIcon";
+import { TestSuiteCaseStatusIcon, resolveDisplayedCaseStatus, statusLabelFor } from "./TestSuiteCaseStatusIcon";
 
 interface TestSuiteCaseRowProps {
   readonly workflowId: string;
   readonly run: TestSuiteChildRunDto;
   readonly assertions: ReadonlyArray<TestAssertionDto>;
+  /** Controlled-by-parent expansion state so Collapse all / Expand all on the tree-table can broadcast. */
+  readonly isOpen: boolean;
+  readonly onToggle: () => void;
 }
 
 /**
@@ -22,26 +24,25 @@ interface TestSuiteCaseRowProps {
  * up immediately, before any assertion has been emitted), with assertion rows nested
  * underneath as they arrive.
  *
- * Rules of thumb:
- *   - Auto-opens for `failed` runs and runs with at least one fail/error assertion — that's
- *     where the user wants to look first.
- *   - The label header reads "[Stress case #14] (#15)": the author-supplied label when present,
- *     plus the canonical case index for power-user cross-reference.
- *   - "Open run ↗" link opens the full run inspector in a new tab.
+ * Expansion state is controlled by the parent {@link TestSuiteRunDetailTreeTable} so the
+ * Collapse all / Expand all controls and the auto-open-on-failure heuristic share one source
+ * of truth.
  */
 export function TestSuiteCaseRow(props: TestSuiteCaseRowProps) {
-  const { workflowId, run, assertions } = props;
+  const { workflowId, run, assertions, isOpen, onToggle } = props;
   // Pass/fail derives from `score >= (passThreshold ?? 0.5)`; `errored` is its own bucket.
   const erroredCount = assertions.filter((a) => a.errored === true).length;
   const passCount = assertions.filter((a) => deriveAssertionPassed(a)).length;
-  const failCount = assertions.length - passCount - erroredCount;
   const total = assertions.length;
-  const shouldAutoOpen = run.status === "failed" || failCount > 0 || erroredCount > 0;
-  const [open, setOpen] = useState(shouldAutoOpen);
+  // `displayedStatus` is the assertion-rollup-corrected status (preferred); `run.status` is
+  // the engine status which reports `completed` even for cases with failed assertions.
+  const displayedStatus = resolveDisplayedCaseStatus(run);
+  const isInFlight = displayedStatus === "running" || displayedStatus === "queued";
+  const isTerminal = !isInFlight;
   const runHref = buildRunInspectorHref(workflowId, run.runId);
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={isOpen} onOpenChange={() => onToggle()}>
       <div
         className="grid items-center gap-3 px-6 py-2 text-sm transition-colors hover:bg-muted/30"
         style={{ gridTemplateColumns: "auto minmax(0,1fr) auto auto auto" }}
@@ -49,25 +50,25 @@ export function TestSuiteCaseRow(props: TestSuiteCaseRowProps) {
         <CollapsibleTrigger
           data-testid={`test-case-row-${run.runId}`}
           className="flex shrink-0 cursor-pointer items-center"
-          aria-label={open ? "Collapse case" : "Expand case"}
+          aria-label={isOpen ? "Collapse case" : "Expand case"}
         >
           <ChevronRight
             size={14}
             strokeWidth={2}
-            className={`text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
+            className={`text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`}
           />
         </CollapsibleTrigger>
         <div className="flex min-w-0 items-center gap-2">
-          <TestSuiteCaseStatusIcon status={run.status} className="size-4 shrink-0" />
+          <TestSuiteCaseStatusIcon status={displayedStatus} className="size-4 shrink-0" />
           <span className="truncate font-semibold" title={run.testCaseLabel ?? `Case #${run.testCaseIndex + 1}`}>
             {run.testCaseLabel ?? `Case #${run.testCaseIndex + 1}`}
           </span>
           <span className="shrink-0 font-mono text-[10px] text-muted-foreground">#{run.testCaseIndex + 1}</span>
         </div>
-        <span className="text-xs text-muted-foreground">{statusLabelFor(run.status)}</span>
+        <span className="text-xs text-muted-foreground">{statusLabelFor(displayedStatus)}</span>
         <span className="font-mono text-xs">
           {total === 0 ? (
-            <span className="text-muted-foreground">{run.status === "running" ? "…" : "—"}</span>
+            <span className="text-muted-foreground">{isInFlight ? "…" : "—"}</span>
           ) : (
             <>
               {passCount}/{total}
@@ -92,7 +93,7 @@ export function TestSuiteCaseRow(props: TestSuiteCaseRowProps) {
       <CollapsibleContent>
         {assertions.length === 0 ? (
           <div className="px-12 py-2 text-xs text-muted-foreground">
-            {run.status === "completed" || run.status === "failed"
+            {isTerminal
               ? "No assertions emitted (the run finished without reaching an Assertion node)."
               : "Waiting for assertions to arrive…"}
           </div>

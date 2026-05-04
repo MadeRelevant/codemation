@@ -62,6 +62,12 @@ export type RunSummary = Readonly<{
   workflowId: string;
   startedAt: string;
   status: string;
+  /**
+   * Assertion-rollup-corrected outcome for runs dispatched as test cases. Mirrors
+   * `RunSummary.testCaseStatus` from `@codemation/core` — kept locally because the host
+   * realtime types were duplicated structurally rather than re-exported.
+   */
+  testCaseStatus?: "running" | "succeeded" | "failed" | "errored" | "cancelled";
   finishedAt?: string;
   parent?: ParentExecutionRef;
   executionOptions?: RunExecutionOptions;

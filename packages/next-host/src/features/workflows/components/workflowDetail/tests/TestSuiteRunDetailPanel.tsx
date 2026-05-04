@@ -1,13 +1,12 @@
 "use client";
 
 import type { TestAssertionDto, TestSuiteChildRunDto, TestSuiteRunDetailDto } from "@codemation/host/dto";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
-import {
-  useTestSuiteRunAssertionsQuery,
-  useWorkflowTestSuiteRunsQuery,
-} from "../../../hooks/realtime/testSuiteHooks";
+import { useTestSuiteRunAssertionsQuery, useWorkflowTestSuiteRunsQuery } from "../../../hooks/realtime/testSuiteHooks";
 
+import { type TestSuiteCaseFilter, TestSuiteCaseFilterEngine } from "./TestSuiteCaseFilter";
+import { TestSuiteCaseFilterStrip } from "./TestSuiteCaseFilterStrip";
 import { TestSuiteRunDetailTreeTable } from "./TestSuiteRunDetailTreeTable";
 import { TestSuiteRunMetricsComparison } from "./TestSuiteRunMetricsComparison";
 import { TestSuiteRunStatusBadge } from "./TestSuiteRunStatusBadge";
@@ -45,6 +44,16 @@ export function TestSuiteRunDetailPanel(props: TestSuiteRunDetailPanelProps) {
   }, [suiteRunsQuery.data, suite.id, suite.startedAt]);
   const previousAssertionsQuery = useTestSuiteRunAssertionsQuery(previousSuiteRunId);
 
+  const [caseFilter, setCaseFilter] = useState<TestSuiteCaseFilter>("all");
+  const filterCounts = useMemo(
+    () => TestSuiteCaseFilterEngine.counts(props.childRuns, props.assertions),
+    [props.childRuns, props.assertions],
+  );
+  const filteredChildRuns = useMemo(
+    () => TestSuiteCaseFilterEngine.apply(props.childRuns, props.assertions, caseFilter),
+    [props.childRuns, props.assertions, caseFilter],
+  );
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="border-b border-border px-6 py-4">
@@ -81,16 +90,22 @@ export function TestSuiteRunDetailPanel(props: TestSuiteRunDetailPanelProps) {
       </header>
       <TestSuiteRunMetricsComparison
         currentAssertions={props.assertions}
-        previousAssertions={previousSuiteRunId !== null ? previousAssertionsQuery.data ?? null : null}
+        previousAssertions={previousSuiteRunId !== null ? (previousAssertionsQuery.data ?? null) : null}
         previousLoading={previousSuiteRunId !== null && previousAssertionsQuery.isLoading}
       />
+      <TestSuiteCaseFilterStrip value={caseFilter} onChange={setCaseFilter} counts={filterCounts} />
       <div className="min-h-0 flex-1 overflow-auto">
         {props.childRunsLoading && props.childRuns.length === 0 ? (
           <div className="px-6 py-3 text-sm text-muted-foreground">Loading test cases…</div>
+        ) : props.childRuns.length > 0 && filteredChildRuns.length === 0 ? (
+          <div className="px-6 py-6 text-sm text-muted-foreground">
+            No cases match the <strong>{caseFilter}</strong> filter. Try <strong>All</strong> to see every dispatched
+            case.
+          </div>
         ) : (
           <TestSuiteRunDetailTreeTable
             workflowId={props.workflowId}
-            childRuns={props.childRuns}
+            childRuns={filteredChildRuns}
             assertions={props.assertions}
           />
         )}

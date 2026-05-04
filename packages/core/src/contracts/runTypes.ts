@@ -1,5 +1,5 @@
 import type { TypeToken } from "../di";
-import type { RunEventBus } from "../events/runEvents";
+import type { RunEventBus, TestCaseRunStatus } from "../events/runEvents";
 import type {
   Edge,
   InputPortKey,
@@ -239,6 +239,13 @@ export interface RunSummary {
   workflowId: WorkflowId;
   startedAt: string;
   status: RunStatus;
+  /**
+   * Test-case status for runs dispatched as part of a TestSuiteRun. Carries the
+   * assertion-rollup-corrected outcome the test orchestrator persists onto the row, so the
+   * executions list can show "failed" for a run whose workflow completed cleanly but whose
+   * assertions caught regressions. Absent for non-test runs and legacy rows.
+   */
+  testCaseStatus?: TestCaseRunStatus;
   /** ISO timestamp when the run finished (derived from node snapshots or store `updatedAt`); omit while running/pending. */
   finishedAt?: string;
   parent?: ParentExecutionRef;

@@ -44,6 +44,45 @@ interface DataPoint {
 }
 
 /**
+ * Pick X-axis ticks so the axis shows ~5 evenly-spaced labels regardless of how many runs are
+ * plotted. Without this, recharts crowds one label per data point — three runs on the same day
+ * end up reading "5/4 5/4 5/4" with overlapping text. Returns the `idx` values to render ticks
+ * for; recharts maps them through `tickFormatter` for display strings.
+ */
+function pickEvenlySpacedTickIndices(pointCount: number, maxTicks = 5): ReadonlyArray<number> {
+  if (pointCount <= 1) return pointCount === 1 ? [0] : [];
+  if (pointCount <= maxTicks) return Array.from({ length: pointCount }, (_, i) => i);
+  const step = (pointCount - 1) / (maxTicks - 1);
+  const indices: number[] = [];
+  for (let i = 0; i < maxTicks; i++) {
+    indices.push(Math.round(i * step));
+  }
+  return Array.from(new Set(indices));
+}
+
+/**
+ * Render the timestamp for an axis tick. When the suite-runs span more than one day, show
+ * `M/D HH:MM`; when they're all on the same day (the common case for an active dev session),
+ * drop the date and just show `HH:MM`. Uses the data context to decide.
+ */
+function buildTickLabel(allStartedAt: ReadonlyArray<string>): (idx: number) => string {
+  if (allStartedAt.length === 0) return () => "";
+  const dates = allStartedAt.map((iso) => new Date(iso));
+  const firstDay = dates[0]!.toDateString();
+  const allSameDay = dates.every((d) => d.toDateString() === firstDay);
+  return (idx: number): string => {
+    const date = dates[idx];
+    if (!date) return "";
+    if (allSameDay) {
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    }
+    const md = `${date.getMonth() + 1}/${date.getDate()}`;
+    const hm = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    return `${md} ${hm}`;
+  };
+}
+
+/**
  * Chart for the Tests panel's left rail. Renders the workflow's pass-rate over time as the
  * primary line, plus an optional multi-metric overlay where each selected assertion name maps
  * to a `<Line>` plotting **mean score across all cases × 100** for that name within each suite
@@ -92,19 +131,35 @@ export function TestSuitePassRateChart(props: TestSuitePassRateChartProps) {
     );
   }
 
+  // X-axis: numeric `idx` so points are evenly spaced regardless of timestamp clustering, with
+  // ticks subsampled to ~5 labels and formatted as time-only when all runs share a day. Without
+  // this, two runs a minute apart and one a day later would crowd left and the labels would
+  // overlap into illegibility.
+  const tickIndices = pickEvenlySpacedTickIndices(data.length);
+  const tickLabel = buildTickLabel(data.map((p) => p.startedAt));
+
   return (
     <div className="h-48 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={[...data]} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
+        <LineChart data={data as DataPoint[]} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
-            dataKey="startedAt"
-            tickFormatter={(value: string) => new Date(value).toLocaleDateString()}
+            dataKey="idx"
+            type="number"
+            domain={[0, Math.max(0, data.length - 1)]}
+            ticks={tickIndices.length > 0 ? [...tickIndices] : undefined}
+            tickFormatter={(value: number) => tickLabel(value)}
+            tickMargin={6}
+            minTickGap={20}
             fontSize={11}
           />
           <YAxis domain={[0, 100]} tickFormatter={(value: number) => `${value}%`} fontSize={11} />
           <Tooltip
-            labelFormatter={(label) => (typeof label === "string" ? new Date(label).toLocaleString() : "")}
+            labelFormatter={(label, payload) => {
+              const point = (payload as ReadonlyArray<{ payload?: DataPoint }> | undefined)?.[0]?.payload;
+              if (point?.startedAt) return new Date(point.startedAt).toLocaleString();
+              return typeof label === "number" ? `Run #${label + 1}` : "";
+            }}
             formatter={(value, name, ctx) => {
               const numeric = typeof value === "number" ? value : 0;
               const point = (ctx as { payload?: DataPoint } | undefined)?.payload;

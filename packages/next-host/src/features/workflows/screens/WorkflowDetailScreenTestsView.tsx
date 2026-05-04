@@ -22,9 +22,15 @@ interface WorkflowDetailScreenTestsViewProps {
 export function WorkflowDetailScreenTestsView(props: WorkflowDetailScreenTestsViewProps) {
   return (
     <main className="h-full w-full min-h-0 overflow-hidden bg-muted/40">
-      <section className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
-        <div className="pointer-events-none absolute top-3 left-1/2 z-[6] flex -translate-x-1/2 items-center gap-2">
-          <div className="pointer-events-auto flex overflow-hidden rounded-lg border border-border bg-card/95 shadow-md ring-1 ring-foreground/10">
+      <section className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+        {/*
+         * Tabs sit in flow at the top of the column rather than `absolute` like the canvas tabs.
+         * The canvas tabs float over the empty top of the workflow diagram (no content to cover);
+         * the Tests view's panel has its own header (trigger picker + Run tests) directly under
+         * these tabs, so absolutely-positioned tabs ended up overlapping the panel header.
+         */}
+        <div className="flex shrink-0 items-center justify-center px-3 pt-3 pb-2">
+          <div className="flex overflow-hidden rounded-lg border border-border bg-card/95 shadow-md ring-1 ring-foreground/10">
             <Button
               type="button"
               data-testid="workflow-canvas-tab-live"
@@ -57,11 +63,13 @@ export function WorkflowDetailScreenTestsView(props: WorkflowDetailScreenTestsVi
             </Button>
           </div>
         </div>
-        <TestsPanel
-          workflowId={props.workflowId}
-          workflowNodes={props.workflowNodes}
-          autoStartTriggerNodeId={props.autoStartTriggerNodeId}
-        />
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <TestsPanel
+            workflowId={props.workflowId}
+            workflowNodes={props.workflowNodes}
+            autoStartTriggerNodeId={props.autoStartTriggerNodeId}
+          />
+        </div>
       </section>
     </main>
   );

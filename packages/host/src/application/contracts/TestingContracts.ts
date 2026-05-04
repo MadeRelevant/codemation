@@ -1,4 +1,4 @@
-import type { JsonValue, RunStatus, TestSuiteRunStatus } from "@codemation/core";
+import type { JsonValue, RunStatus, TestCaseRunStatus, TestSuiteRunStatus } from "@codemation/core";
 
 /** Body of `POST /api/workflows/:workflowId/test-suite-runs`. */
 export interface StartTestSuiteRunRequest {
@@ -26,7 +26,19 @@ export interface TestSuiteChildRunDto {
   readonly testSuiteRunId: string;
   readonly testCaseIndex: number;
   readonly testCaseLabel?: string;
+  /**
+   * Engine-level run status (`pending` / `running` / `completed` / `failed`). For UI display
+   * prefer {@link testCaseStatus} when present — the engine reports `completed` even for
+   * cases whose assertions failed, since the workflow itself didn't throw.
+   */
   readonly status: RunStatus;
+  /**
+   * Test-case status: the assertion-rollup-corrected status the suite-detail UI should show.
+   * `running` while the case is in flight, then `succeeded` / `failed` / `errored` /
+   * `cancelled`. Optional only because legacy rows persisted before the engine started
+   * stamping it at row creation may have it as null — new rows always have it set.
+   */
+  readonly testCaseStatus?: TestCaseRunStatus;
   readonly startedAt: string;
   readonly finishedAt?: string;
 }

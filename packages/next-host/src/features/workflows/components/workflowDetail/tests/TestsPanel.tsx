@@ -1,7 +1,13 @@
 "use client";
 
-import type { WorkflowNodeDto } from "@codemation/host/dto";
-import { useEffect, useMemo, useState } from "react";
+import type { AssertionMetricTrendDto, TestSuiteRunSummaryDto, WorkflowNodeDto } from "@codemation/host/dto";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+// Module-scoped stable empties so passing `query.data ?? EMPTY_*` doesn't churn referential
+// identity on every render — recharts (and any deps-based memoization downstream) loops
+// otherwise. NEVER inline these to `[]` at the call site.
+const EMPTY_SUITE_RUNS: ReadonlyArray<TestSuiteRunSummaryDto> = [];
+const EMPTY_METRIC_TRENDS: ReadonlyArray<AssertionMetricTrendDto> = [];
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -56,21 +62,30 @@ export function TestsPanel(props: TestsPanelProps) {
   const allMetricsQuery = useAssertionMetricTrendsQuery(workflowId, []);
   const selectedMetricsQuery = useAssertionMetricTrendsQuery(workflowId, selectedMetricsArray);
 
-  // Auto-start a test suite run if autoStartTriggerNodeId is provided (from canvas run button)
+  // Auto-start a test suite run if autoStartTriggerNodeId is provided (from the canvas
+  // play-dropdown). Use a ref to remember which trigger we already auto-started for, so
+  // re-renders don't re-fire the mutation. CRITICAL: do NOT add `startMutation` to the deps
+  // array — react-query mutation results have unstable identity per render, and including
+  // them caused a setState/rerender loop that locked the page (the "Maximum update depth
+  // exceeded" / chart-error storm users hit when entering tests via the canvas dropdown).
+  // Reset the ref when the prop clears so a subsequent click re-arms the auto-start.
+  const autoStartedForRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!autoStartTriggerNodeId) {
+      autoStartedForRef.current = undefined;
       return;
     }
+    if (autoStartedForRef.current === autoStartTriggerNodeId) return;
     const trigger = testTriggers.find((t) => t.id === autoStartTriggerNodeId);
-    if (!trigger) {
-      return;
-    }
+    if (!trigger) return;
+    autoStartedForRef.current = autoStartTriggerNodeId;
     setSelectedTriggerNodeId(autoStartTriggerNodeId);
     void (async () => {
       const result = await startMutation.mutateAsync({ triggerNodeId: autoStartTriggerNodeId });
       setSelectedSuiteRunId(result.testSuiteRunId);
     })();
-  }, [autoStartTriggerNodeId, startMutation, testTriggers]);
+    // startMutation intentionally omitted (unstable per render — see comment above).
+  }, [autoStartTriggerNodeId, testTriggers]);
 
   const onRunTests = async (): Promise<void> => {
     if (!selectedTriggerNodeId) return;
@@ -151,7 +166,7 @@ export function TestsPanel(props: TestsPanelProps) {
             <span className="font-semibold uppercase tracking-wide text-muted-foreground">Pass rate over time</span>
             <div className="flex items-center gap-2">
               <MetricSelector
-                availableMetrics={allMetricsQuery.data ?? []}
+                availableMetrics={allMetricsQuery.data ?? EMPTY_METRIC_TRENDS}
                 selected={selectedMetrics}
                 onChange={setSelectedMetrics}
                 isLoading={allMetricsQuery.isLoading}
@@ -160,9 +175,9 @@ export function TestsPanel(props: TestsPanelProps) {
             </div>
           </div>
           <TestSuitePassRateChart
-            suiteRuns={suitesQuery.data ?? []}
+            suiteRuns={suitesQuery.data ?? EMPTY_SUITE_RUNS}
             selectedMetrics={selectedMetricsArray}
-            metricTrends={selectedMetricsQuery.data ?? []}
+            metricTrends={selectedMetricsQuery.data ?? EMPTY_METRIC_TRENDS}
           />
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
@@ -170,7 +185,7 @@ export function TestsPanel(props: TestsPanelProps) {
             <div className="px-4 py-6 text-sm text-muted-foreground">Loading test suite runs…</div>
           ) : (
             <TestSuiteRunsList
-              suiteRuns={suitesQuery.data ?? []}
+              suiteRuns={suitesQuery.data ?? EMPTY_SUITE_RUNS}
               selectedTestSuiteRunId={selectedSuiteRunId}
               onSelect={setSelectedSuiteRunId}
             />

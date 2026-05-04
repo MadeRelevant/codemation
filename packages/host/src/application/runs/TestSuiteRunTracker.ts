@@ -6,6 +6,7 @@ import type {
   RunEvent,
   RunId,
   TestCaseRunStatus,
+  TestSuiteRunStatus,
   WorkflowDefinition,
 } from "@codemation/core";
 import { deriveAssertionPassed } from "@codemation/core";
@@ -49,6 +50,15 @@ export class TestSuiteRunTracker {
   private readonly pendingByRunId = new Map<RunId, RunEvent[]>();
   /** Track whether any assertion failed for each case run. */
   private readonly failedAssertionsByRunId = new Map<RunId, boolean>();
+  /**
+   * Tail of the per-tracker event-processing chain. The bus invokes our subscriber as
+   * `void tracker.onEvent(event)` (fire-and-forget), so without serialization, finalize()
+   * could read `listChildRuns` BEFORE the last `testCaseCompleted` had finished its
+   * `updateTestCaseStatus` write — leaving one row stuck on `"running"` and the suite
+   * counters off by one. We chain every `processEvent` onto this tail and `finalize` awaits
+   * it, draining all in-flight handlers before computing the rollup.
+   */
+  private processingTail: Promise<void> = Promise.resolve();
 
   constructor(private readonly args: TestSuiteRunTrackerArgs) {}
 
@@ -60,7 +70,22 @@ export class TestSuiteRunTracker {
     }
   }
 
-  async onEvent(event: RunEvent): Promise<void> {
+  /**
+   * Public entry-point invoked by the bus subscriber. Serializes handlers through
+   * `processingTail` so `finalize` can await all of them. Handlers themselves stay in
+   * `processEvent` and don't see the tail bookkeeping.
+   */
+  onEvent(event: RunEvent): Promise<void> {
+    const next = this.processingTail.then(async () => {
+      await this.processEvent(event);
+    });
+    // Swallow rejections at the tail so a single handler failure doesn't poison subsequent
+    // events (or wedge `finalize` on a rejected promise). Real handlers shouldn't throw.
+    this.processingTail = next.catch(() => undefined);
+    return next;
+  }
+
+  private async processEvent(event: RunEvent): Promise<void> {
     if (this.adoptedId === undefined) {
       this.pendingEvents.push(event);
       return;
@@ -78,8 +103,11 @@ export class TestSuiteRunTracker {
         await this.drainPendingForRun(event.runId);
         await this.persistCaseCompleted(event);
         this.testRunCaseIndex.delete(event.runId);
-        this.failedAssertionsByRunId.delete(event.runId);
         this.pendingByRunId.delete(event.runId);
+        // KEEP `failedAssertionsByRunId.get(event.runId)` — `finalize` reads it to derive the
+        // suite-level pass/fail counters in the in-memory fallback path (when `listChildRuns`
+        // returns empty for stub-engine unit tests). The map is per-suite (one tracker per
+        // suite run) so retaining ~one boolean per case is bounded growth.
         return;
       case "nodeCompleted":
         if (!this.testRunCaseIndex.has(event.runId)) {
@@ -98,6 +126,12 @@ export class TestSuiteRunTracker {
 
   async finalize(orchestratorResult: TestSuiteRunResult): Promise<void> {
     if (this.adoptedId === undefined) return;
+
+    // Drain any in-flight event handlers — the bus invokes us fire-and-forget, so the last
+    // `testCaseCompleted` may still be writing `testCaseStatus` when the orchestrator's
+    // `runSuite` resolves. Without this await, `listChildRuns` below races and one row
+    // stays pinned on `"running"`.
+    await this.processingTail;
 
     // The orchestrator's pass/fail counts are pre-assertion-rollup. Since the tracker
     // may have downgraded some "succeeded" cases to "failed" based on assertion failures,
@@ -124,8 +158,19 @@ export class TestSuiteRunTracker {
       passedCases = Math.max(0, orchestratorResult.totalCases - failedCases);
     }
 
+    // The orchestrator derives suite status against its OWN pre-rollup pass/fail counts —
+    // so a 16/14 split that the tracker re-counted from corrected case statuses would still
+    // show as "succeeded" if the orchestrator never saw a workflow-run-level failure.
+    // Re-derive here against the corrected counts, but preserve the orchestrator's terminal
+    // status when it carries information the counts can't (errored from generateItems throwing,
+    // cancelled from an AbortSignal — neither shows up as "failed cases").
+    const status: TestSuiteRunStatus =
+      orchestratorResult.status === "errored" || orchestratorResult.status === "cancelled"
+        ? orchestratorResult.status
+        : this.deriveSuiteStatusFromCounts(orchestratorResult.totalCases, passedCases, failedCases);
+
     await this.args.suiteRepo.update(this.adoptedId, {
-      status: orchestratorResult.status,
+      status,
       finishedAt: new Date().toISOString(),
       totalCases: orchestratorResult.totalCases,
       passedCases,
@@ -216,5 +261,21 @@ export class TestSuiteRunTracker {
         createdAt: event.at,
       });
     }
+  }
+
+  /**
+   * Mirrors `TestSuiteOrchestrator.deriveSuiteStatus` but operates on the corrected
+   * (post-assertion-rollup) pass/fail counts. Preserves the orchestrator's `errored`
+   * and `cancelled` decisions upstream — those carry information the counts can't.
+   */
+  private deriveSuiteStatusFromCounts(
+    totalCases: number,
+    passedCases: number,
+    failedCases: number,
+  ): TestSuiteRunStatus {
+    if (totalCases === 0) return "succeeded";
+    if (failedCases === 0) return "succeeded";
+    if (passedCases === 0) return "failed";
+    return "partial";
   }
 }

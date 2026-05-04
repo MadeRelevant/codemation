@@ -70,6 +70,13 @@ class FakeAssertingEngine implements TestSuiteOrchestratorEngine {
     private readonly bus: FanOutBus,
     private readonly assertionsByCase: ReadonlyArray<ReadonlyArray<AssertionResult>>,
     private readonly assertionNodeId: NodeId,
+    /**
+     * When `false`, the workflow run always terminates with status `"completed"` regardless of
+     * assertion outcomes — mirroring the real-world case where a workflow can complete cleanly
+     * but emit one or more failed assertions. The tracker's assertion-rollup logic is what
+     * downgrades the case (and the suite) to `"failed"` / `"partial"` in that flow.
+     */
+    private readonly failWorkflowOnAssertionFail: boolean = true,
   ) {}
 
   async runWorkflow(
@@ -100,7 +107,7 @@ class FakeAssertingEngine implements TestSuiteOrchestratorEngine {
     });
 
     const allPass = assertions.every((a) => !a.errored && a.score >= (a.passThreshold ?? 0.5));
-    if (!allPass && assertions.length > 0) {
+    if (!allPass && assertions.length > 0 && this.failWorkflowOnAssertionFail) {
       return {
         runId,
         workflowId: wf.id,
@@ -256,6 +263,73 @@ test("TestRunnerService persists TestSuiteRun, finalizes counters, and records a
   assert.equal(case1Assertions[0]!.message, "off");
   assert.equal(case1Assertions[0]!.expected, 2);
   assert.equal(case1Assertions[0]!.actual, 99);
+});
+
+test("TestRunnerService re-derives suite status from corrected counts (workflow completes, assertion fails)", async () => {
+  // Regression for: suite reported "succeeded" with 16/30 cases passing because the orchestrator
+  // derives status against its own pass/fail counters before the tracker's assertion-rollup
+  // downgrade. The fake engine here ALWAYS reports `status: "completed"` (real-world: a workflow
+  // can finish cleanly even when the assertion node it ran emits a failed result), so the
+  // orchestrator initially sees 2 pass / 0 fail and emits suite status `succeeded`. The tracker
+  // must then re-derive against the post-rollup counts (1 pass / 1 fail) and write `partial`.
+  const bus = new FanOutBus();
+  const suiteRepo = new InMemoryTestSuiteRunRepository();
+  const assertionRepo = new InMemoryTestAssertionRepository();
+  const runRepo = new InMemoryWorkflowRunRepository();
+
+  const { workflow, triggerNodeId, assertionNodeId } = buildWorkflow(async function* (): AsyncIterable<
+    Item<{ idx: number }>
+  > {
+    yield { json: { idx: 0 } };
+    yield { json: { idx: 1 } };
+  });
+
+  const assertionsByCase: ReadonlyArray<ReadonlyArray<AssertionResult>> = [
+    [{ name: "case0:passes", score: 1.0 }],
+    [{ name: "case1:fails", score: 0.0, message: "score below threshold" }],
+  ];
+  // failWorkflowOnAssertionFail=false: workflow always returns "completed" — only the assertion
+  // result distinguishes pass/fail. This is the production scenario the bug surfaced in.
+  const fakeEngine = new FakeAssertingEngine(bus, assertionsByCase, assertionNodeId, false);
+
+  const orchestrator = new TestSuiteOrchestrator(
+    fakeEngine,
+    new TestSuiteRunIdFactory(),
+    new CredentialResolverFactory(new StubCredentialSessionService() as never),
+    new AbortControllerFactory(),
+    bus,
+    () => new Date("2026-05-04T12:00:00.000Z"),
+  );
+
+  const trackerFactory = new TestSuiteRunTrackerFactory(
+    suiteRepo,
+    assertionRepo,
+    runRepo,
+    new TestAssertionIdFactory(),
+    new AssertionResultGuard(),
+  );
+  const service = new TestRunnerService(
+    orchestrator,
+    new StaticWorkflowLookup(workflow),
+    bus,
+    suiteRepo,
+    trackerFactory,
+  );
+
+  const result = await service.startTestSuiteRun({ workflowId: workflow.id, triggerNodeId });
+  await waitForSuiteFinish(suiteRepo, result.testSuiteRunId);
+
+  const persisted = await suiteRepo.findById(result.testSuiteRunId);
+  assert.ok(persisted);
+  assert.equal(persisted!.totalCases, 2);
+  assert.equal(persisted!.passedCases, 1);
+  assert.equal(persisted!.failedCases, 1);
+  assert.equal(
+    persisted!.status,
+    "partial",
+    "expected suite to re-derive to `partial` after assertion-rollup downgraded one case to failed, " +
+      "even though the workflow itself completed cleanly and the orchestrator initially saw 2/0",
+  );
 });
 
 test("TestRunnerService rejects non-test triggers (defensive guard)", async () => {

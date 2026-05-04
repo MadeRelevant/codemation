@@ -55,7 +55,7 @@ Codemation ships first-class **workflow tests**: each test case is one full work
 
 1. **`TestTrigger`** — drop alongside live triggers. Author callback `generateItems(ctx)` returns an `AsyncIterable<Item>`; the orchestrator dispatches one workflow run per yielded item with `executionOptions.testContext` set. `triggerKind: "test"` is set automatically — live activation skips it.
 2. **`IsTestRun`** — per-item router with `true` / `false` ports. Routes `true` iff `ctx.testContext` is set. Use it to skip side-effects in tests (don't actually send a real reply).
-3. **`Assertion`** — generic callback emitter; returns `AssertionResult[]`. Each result becomes one emitted item on `main` and one persisted `TestAssertion` row when running inside a test. Sets `emitsAssertions: true` so the host persister identifies it.
+3. **`Assertion`** — generic callback emitter; returns `AssertionResult[]`. Each result is `{ name, score: 0..1, passThreshold?, errored?, expected?, actual?, message?, details? }` — pass/fail derives from `score >= (passThreshold ?? 0.5)` (use `score: 1`/`0` for boolean checks, set `passThreshold` for continuous metrics, `errored: true` for assertion-code crashes). Each result becomes one emitted item on `main` and one persisted `TestAssertion` row when running inside a test. Sets `emitsAssertions: true` so the host persister identifies it.
 
 Authors invoke a TestSuiteRun from the canvas **Tests tab** or via `POST /api/workflows/:id/test-suite-runs`. The orchestrator caps concurrency (default 4, configurable per trigger) and aggregates results into `succeeded | failed | partial | cancelled | errored`.
 
