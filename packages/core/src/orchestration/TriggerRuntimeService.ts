@@ -136,9 +136,7 @@ export class TriggerRuntimeService {
       const trigger = { workflowId: wf.id, nodeId: def.id } as const;
       await this.stopTrigger(trigger);
       const previousState = await this.triggerSetupStateRepository.load(trigger);
-      const emit = async (items: Items): Promise<void> => {
-        await this.emitHandler.emit(wf, def.id, items);
-      };
+      const emit = this.emitHandler.emit.bind(this.emitHandler, wf, def.id);
       const registerCleanup = this.registerTriggerCleanupHandle.bind(this, trigger);
       const polling = this.buildPollingHandle(trigger, emit);
       let nextState: unknown;
