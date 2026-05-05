@@ -332,6 +332,58 @@ test("OnNewGmailTriggerNode.setup delegates to ctx.polling and returns the polli
   assert.ok(typeof startArgs.runCycle === "function");
 });
 
+test("OnNewGmailTriggerNode.setup defaults intervalMs/maxMessagesPerPoll when GmailNodesOptions omits them, and forwards a runCycle that delegates to GmailPollingService", async () => {
+  const logger = new FakeGmailLogger();
+  const pollingHandle = new FakePollingHandle();
+  const client = new FakeGmailApiClient();
+  const pollingService = new FakeGmailPollingService();
+  const runCycleSpy: { calls: number } = { calls: 0 };
+  const wrappedPolling = new (class extends FakeGmailPollingService {
+    async runCycle() {
+      runCycleSpy.calls++;
+      return super.runCycle();
+    }
+  })();
+  Object.assign(pollingService, wrappedPolling);
+  const node = new OnNewGmailTriggerNode(
+    {}, // empty options — exercises the ?? 60_000 and ?? 20 branches
+    new FakeGoogleGmailApiClientFactory(client) as unknown as GoogleGmailApiClientFactory,
+    new FakeAttachmentService() as never,
+    new FakeTestItemService() as never,
+    wrappedPolling as never,
+    logger,
+  );
+  await node.setup({
+    workflowId: "wf.gmail",
+    nodeId: "gmail_trigger",
+    trigger: { workflowId: "wf.gmail", nodeId: "gmail_trigger" },
+    config: OnNewGmailTriggerNodeTestFixture.createConfig(),
+    // previousState defined — exercises the `?? undefined` falsy branch on seedState
+    previousState: { mailbox: "sales@example.com", processedMessageIds: ["seed_id"], baselineComplete: true },
+    getCredential: async () => ({ auth: {} as never, client: {} as never, userId: "me", scopes: [] }) as never,
+    registerCleanup: () => {},
+    emit: async () => {},
+    polling: pollingHandle as never,
+  } as never);
+
+  const startArgs = pollingHandle.startArgs as {
+    intervalMs: number;
+    seedState: unknown;
+    runCycle: (args: { previousState: unknown }) => Promise<unknown>;
+  };
+  // Defaults: 60_000 and 20 (post-Math.max).
+  assert.equal(startArgs.intervalMs, 60_000);
+  // seedState is the previousState we passed.
+  assert.deepEqual(startArgs.seedState, {
+    mailbox: "sales@example.com",
+    processedMessageIds: ["seed_id"],
+    baselineComplete: true,
+  });
+  // Invoke the runCycle the node passed, exercising its closure body.
+  await startArgs.runCycle({ previousState: undefined });
+  assert.equal(runCycleSpy.calls, 1);
+});
+
 test("OnNewGmailTriggerNode.execute records Gmail metrics and message preview telemetry", async () => {
   const logger = new FakeGmailLogger();
   const telemetry = new FakeNodeExecutionTelemetry();

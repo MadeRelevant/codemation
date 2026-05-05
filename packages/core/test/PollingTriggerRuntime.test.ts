@@ -263,3 +263,67 @@ test("PollingTriggerDedupWindow.merge deduplicates across previous and incoming"
   const merged = dedup.merge(previous, incoming);
   assert.deepEqual([...merged].sort(), ["a", "b", "c", "d"]);
 });
+
+test("PollingTriggerRuntime second start() for same trigger short-circuits the already-active branch", async () => {
+  const runtime = makeRuntime();
+  const trigger = makeTrigger();
+  let cycles = 0;
+  const args = {
+    trigger,
+    intervalMs: 60_000,
+    runCycle: async () => {
+      cycles++;
+      return { items: [], nextState: { count: cycles } };
+    },
+    emit: async () => {},
+  };
+  await runtime.start(args);
+  // Second start with the same trigger must not register another setInterval.
+  await runtime.start(args);
+  await runtime.stop(trigger);
+  // First-cycle ran on each start() call (2), but no extra interval was scheduled.
+  assert.equal(cycles, 2);
+});
+
+test("PollingTriggerRuntime catches errors thrown by an interval-driven cycle without crashing the loop", async () => {
+  const runtime = makeRuntime();
+  const trigger = makeTrigger();
+  let intervalCycles = 0;
+  await runtime.start({
+    trigger,
+    intervalMs: 25,
+    // First cycle (immediate) succeeds; subsequent interval cycles throw — caught by catch on line 70.
+    runCycle: async () => {
+      intervalCycles++;
+      if (intervalCycles > 1) {
+        throw new Error("interval cycle boom");
+      }
+      return { items: [], nextState: { count: intervalCycles } };
+    },
+    emit: async () => {},
+  });
+  await waitFor(() => {
+    assert.ok(intervalCycles >= 3, `intervalCycles=${intervalCycles}`);
+  });
+  await runtime.stop(trigger);
+});
+
+test("PollingTriggerRuntime stop() is a no-op when no interval was registered for the trigger", async () => {
+  const runtime = makeRuntime();
+  await runtime.stop(makeTrigger("never_started"));
+});
+
+test("PollingTriggerRuntime logError handles non-Error thrown values in initial cycle", async () => {
+  const runtime = makeRuntime();
+  const trigger = makeTrigger();
+  await runtime.start({
+    trigger,
+    intervalMs: 60_000,
+    // Throw a non-Error so PollingTriggerRuntime.logError takes the `String(error)` branch.
+    runCycle: async () => {
+      throw "string-failure";
+    },
+    emit: async () => {},
+  });
+  await runtime.stop(trigger);
+});

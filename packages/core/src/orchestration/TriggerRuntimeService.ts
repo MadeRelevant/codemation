@@ -48,9 +48,9 @@ export class TriggerRuntimeService {
     private readonly triggerSetupStateRepository: TriggerSetupStateRepository,
     private readonly emitHandler: TriggerEmitHandler,
     private readonly executionLimitsPolicy: EngineExecutionLimitsPolicy,
-    private readonly diagnostics?: TriggerRuntimeDiagnostics,
-    private readonly pollingTriggerRuntime?: PollingTriggerRuntime,
-    private readonly pollingTriggerDedupWindow?: PollingTriggerDedupWindow,
+    private readonly diagnostics: TriggerRuntimeDiagnostics | undefined,
+    private readonly pollingTriggerRuntime: PollingTriggerRuntime,
+    private readonly pollingTriggerDedupWindow: PollingTriggerDedupWindow,
   ) {
     this.credentialResolverFactory = credentialResolverFactory;
   }
@@ -276,14 +276,9 @@ export class TriggerRuntimeService {
     registerCleanup: (cleanup: TriggerCleanupHandle) => void,
   ): PollingTriggerHandle {
     const runtime = this.pollingTriggerRuntime;
-    // pollingTriggerDedupWindow is always provided by EngineFactory when pollingTriggerRuntime is present.
-    const dedup = this.pollingTriggerDedupWindow;
     return {
-      dedup: dedup as PollingTriggerDedupWindow,
+      dedup: this.pollingTriggerDedupWindow,
       start: async (args) => {
-        if (!runtime) {
-          throw new Error("PollingTriggerRuntime is not available in this engine configuration.");
-        }
         registerCleanup({
           stop: async () => {
             await runtime.stop(trigger);
