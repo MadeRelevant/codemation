@@ -53,13 +53,13 @@ new OnNewMsGraphMailTrigger(
 
 ## Configuration
 
-| Field                 | Type      | Default     | Notes                                                                                                          |
-| --------------------- | --------- | ----------- | -------------------------------------------------------------------------------------------------------------- |
-| `mailbox`             | `string`  | _required_  | `"me"` / `""` / `"self"` for the connected user's mailbox; full UPN for a shared mailbox.                      |
-| `folderId`            | `string`  | `"inbox"`   | Graph well-known folder name (`inbox`, `drafts`, `sentitems`, `archive`, …) or a folder id.                    |
-| `filter`              | `string`  | _none_      | Server-side OData `$filter` expression (e.g. `"hasAttachments eq true"`).                                      |
-| `downloadAttachments` | `boolean` | `false`     | Include base64 `contentBytes` for each attachment in the emitted item.                                         |
-| `pollIntervalMs`      | `number`  | `60_000`    | Polling cadence in milliseconds (minimum 25ms, enforced by the polling runtime).                               |
+| Field                 | Type      | Default    | Notes                                                                                       |
+| --------------------- | --------- | ---------- | ------------------------------------------------------------------------------------------- |
+| `mailbox`             | `string`  | _required_ | `"me"` / `""` / `"self"` for the connected user's mailbox; full UPN for a shared mailbox.   |
+| `folderId`            | `string`  | `"inbox"`  | Graph well-known folder name (`inbox`, `drafts`, `sentitems`, `archive`, …) or a folder id. |
+| `filter`              | `string`  | _none_     | Server-side OData `$filter` expression (e.g. `"hasAttachments eq true"`).                   |
+| `downloadAttachments` | `boolean` | `false`    | Include base64 `contentBytes` for each attachment in the emitted item.                      |
+| `pollIntervalMs`      | `number`  | `60_000`   | Polling cadence in milliseconds (minimum 25ms, enforced by the polling runtime).            |
 
 ## Item shape
 
