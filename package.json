@@ -23,7 +23,7 @@
     "lint": "pnpm run lint:eslint && pnpm run lint:repo && pnpm run lint:circular",
     "depcruise": "pnpm exec depcruise --config .dependency-cruiser.cjs packages/next-host/src",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
-    "precommit": "pnpm run lint:eslint && pnpm typecheck && pnpm run test:unit",
+    "precommit": "pnpm run lint:eslint && pnpm typecheck && pnpm exec turbo run test:unit ${TURBO_FILTER:-}",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "turbo run build && pnpm run test:suites",

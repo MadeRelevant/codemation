@@ -30,7 +30,9 @@
     "build": "tsdown src/index.ts src/bin.ts --out-dir dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@codemation/agent-skills": "workspace:*",

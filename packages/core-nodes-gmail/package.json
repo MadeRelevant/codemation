@@ -47,7 +47,8 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "pnpm build && vitest run"
+    "test": "pnpm build && vitest run",
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "@codemation/core": "workspace:*",

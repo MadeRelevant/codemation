@@ -1,6 +1,14 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "concurrency": "12",
+  "globalDependencies": [
+    "pnpm-lock.yaml",
+    "turbo.json",
+    "tooling/vitest/**",
+    "tooling/eslint-config/**",
+    "tooling/tsconfig/**",
+    ".github/workflows/**"
+  ],
   "tasks": {
     "dev": {
       "cache": false,
@@ -8,6 +16,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "tsconfig*.json"],
       "outputs": ["dist/**"]
     },
     "prisma:generate": {
@@ -16,10 +25,42 @@
     },
     "typecheck": {
       "dependsOn": ["^typecheck", "@codemation/host#prisma:generate"],
+      "inputs": ["$TURBO_DEFAULT$", "tsconfig*.json"],
       "outputs": []
     },
     "lint": {
+      "inputs": ["$TURBO_DEFAULT$", "tsconfig*.json"],
       "outputs": []
+    },
+    "test:unit": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "vitest*.config.ts"],
+      "outputs": [],
+      "cache": false
+    },
+    "test:integration": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "vitest*.config.ts"],
+      "outputs": [],
+      "cache": false
+    },
+    "test:ui": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "vitest*.config.ts"],
+      "outputs": [],
+      "cache": false
+    },
+    "test:browser": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "vitest*.config.ts"],
+      "outputs": [],
+      "cache": false
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "vitest*.config.ts"],
+      "outputs": [],
+      "cache": false
     }
   }
 }

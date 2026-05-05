@@ -35,6 +35,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:unit": "vitest run",
     "test:smoke": "node ./test/CreateCodemationSmoke.mjs",
     "test:packaged-smoke": "node ./test/CreateCodemationPackagedSmoke.mjs",
     "test:verdaccio-smoke": "node ./test/CreateCodemationVerdaccioSmoke.mjs",

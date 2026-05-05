@@ -3,4 +3,4 @@
 # Full lint (dupcheck, antipatterns) and other suites run on PRs in CI.
 pnpm exec lint-staged
 pnpm run changeset:verify
-pnpm run precommit
+TURBO_FILTER='--filter=...[HEAD]' pnpm run precommit
