@@ -15,6 +15,22 @@ export default workflow("wf.example.id")
   .build();
 ```
 
+## Cron-triggered workflow
+
+```ts
+import { CronTrigger } from "@codemation/core-nodes";
+
+export default workflow("wf.nightly.id")
+  .name("Nightly job")
+  .trigger(new CronTrigger("Nightly", { schedule: "0 3 * * *", timezone: "Europe/Amsterdam" }))
+  .map("Process tick", (item, _ctx) => ({
+    firedAt: (item.json as { firedAt: string }).firedAt,
+  }))
+  .build();
+```
+
+The cron expression is validated at workflow build time. Each tick emits one item with `{ firedAt, scheduledFor }` ISO-8601 strings. Always supply `timezone` for DST-sensitive schedules — defaults to UTC.
+
 ## Use the fluent DSL by default
 
 - import `workflow` from `@codemation/host`
@@ -24,11 +40,24 @@ export default workflow("wf.example.id")
 ## Item rules
 
 - workflow data flows as items
-- items usually carry `json` data and optional `binary` data
+- items usually carry `json` data and optional `binary` data (**storage-backed attachments** via node **`ctx.binary.attach`**, not huge base64 strings in **`json`** — base64 in **`json`** inflates the persisted run payload in the DB; binaries stay as **references**)
 - runtime nodes receive batches of items, not just one record
 - author workflow steps with batching in mind
 - fluent `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` callbacks receive `(item, ctx)`
 - read row fields from `item.json` and earlier completed outputs from `ctx.data`
+
+## Node id assignment
+
+When no `id:` is provided, the builder slugifies the node's `name` label: lowercase, non-alphanumeric runs replaced with `-`, leading/trailing `-` stripped. Two nodes with the same effective label produce the same slug and `.build()` throws `WorkflowDefinitionError`. Fix: provide a unique `id:` on the colliding node configs.
+
+Credential bindings are stored as `(workflowId, nodeId, slotKey)`. Changing a node's label changes its slug-derived id and the binding appears unbound. For credential-using nodes, either keep the label stable or set an explicit `id:`:
+
+```ts
+.node("Send email", SendEmailNodeConfig, {
+  id: "send-email", // stable even after a label rename
+  credentials: { smtp: mySmtpCredential },
+})
+```
 
 ## When to move beyond callbacks
 
@@ -44,3 +73,16 @@ Promote inline callbacks into custom nodes when:
 - the fluent DSL is the friendly authoring surface
 - `@codemation/core` still owns planning, execution, continuation, and runtime contracts
 - host and node packages add the surrounding product capabilities
+
+## Inline callable agent tools
+
+- import `callableTool` from `@codemation/core`
+- build tools with `callableTool({ name, inputSchema, outputSchema, execute, credentialRequirements? })` (equivalent to `CallableToolFactory.callableTool(...)`)
+- pass the result in `AIAgent` `tools: [...]` alongside other tool configs
+
+## Fluent agent steps
+
+- use `.agent(...)` for agent steps in fluent workflow definitions
+- define agent prompts with `messages`
+- use `itemExpr(...)` when message content depends on `item.json`
+- use `outputSchema` when the workflow should expose typed structured agent output

@@ -12,6 +12,12 @@ Use this skill for defining new credential types, wiring them into apps or plugi
 
 Do not use this skill for general workflow authoring unless credential slots or runtime sessions are the core problem.
 
+## Credential binding stability
+
+Credentials bind to a node via `(workflowId, nodeId, slotKey)`. The `nodeId` defaults to a slug of the node's `name` label (lowercase, non-alphanumeric runs replaced with `-`). Renaming a credential-using node's label silently changes its id and the binding appears unbound in the UI — the operator must re-attach manually.
+
+To prevent this: either keep the node's label stable across edits, or set an explicit `id:` on the node config so the id is decoupled from the label.
+
 ## Core mental model
 
 1. A credential type defines public config, secret material, session creation, and health testing.

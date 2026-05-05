@@ -40,6 +40,16 @@ That usually means:
 - Redis for queue-backed execution
 - BullMQ-backed scheduling
 
+## Observability data
+
+Codemation stores observability data in the host runtime alongside other application state:
+
+- traces and spans for execution correlation
+- artifacts for drill-down payloads such as AI messages or tool I/O
+- metric points for node-specific measurements without widening the span schema
+
+Run retention and telemetry retention are intentionally separate so operators can keep trend data longer than raw run state.
+
 ## Activation flow
 
 - deploy the workflow definition and any supporting plugin changes

@@ -55,3 +55,22 @@ Reach for class-based node APIs when:
 - **`defineNode`** runs **`execute` once per item** (with optional **`inputSchema`** and **`itemExpr`** on config fields before **`execute`**)
 - **`defineBatchNode`** runs **`run`** once per activation batch
 - keep nodes deterministic and testable; prefer real code paths or in-memory collaborators over heavy mocking
+
+## Emitting items, fan-out, and binaries (for AI codegen)
+
+**Return shapes**
+
+- Return **plain JSON** → one output item with that **`json`** (unless the value is a **top-level array**, which **fans out** to one item per element).
+- Return **`emitPorts({ portName: [...] })`** for multi-port routing.
+- Return an **item-shaped** `{ json, binary?, meta?, paired? }` when you need explicit **`binary`** / **`meta`** / **`paired`** control.
+
+**Never put bulk file content in `item.json`**
+
+- Fields like `contentBase64`, `data`, or multi-megabyte strings are stored **inside persisted run / step JSON** in the database. That **scales poorly** (base64 is larger than raw bytes) and hurts snapshots and tooling.
+- **Correct:** `const attachment = await args.ctx.binary.attach({ name: "file", body: bytesOrStream, mimeType, filename })` then `return args.ctx.binary.withAttachment({ json: { ok: true } }, "file", attachment)` (or build `{ json, binary }` by hand).
+- **`body`** types match **`BinaryBody`**: `Uint8Array`, `ArrayBuffer`, `ReadableStream`, or async iterable of chunks (same idea as **`HttpRequest`** downloading a body).
+- **`keepBinaries: true`** only **preserves existing** **`item.binary`** through a plain JSON return; it does **not** convert base64 strings in **`json`** into attachments.
+
+**Triggers**
+
+- Emit **one `Item` per external record**; use **`item.binary`** per record for files—not one item whose **`json`** contains an array of embedded files.

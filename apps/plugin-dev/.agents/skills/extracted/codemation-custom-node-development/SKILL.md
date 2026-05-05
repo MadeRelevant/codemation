@@ -26,15 +26,21 @@ Do not use this skill for pure workflow chaining questions unless the node imple
 1. Prefer helper-based nodes first.
 2. Keep nodes deterministic and focused.
 3. Request credentials through named slots instead of hard-coded secrets.
-4. Treat **config** as the node's reusable parameter surface. Workflow authors may pass literals or `itemExpr(...)` expressions for those params; by the time `execute(...)` runs, `context.config` is already resolved to plain values.
-5. Use `inputSchema` only when the node intentionally depends on a specific wire payload shape and should reject incompatible `item.json` at runtime.
-6. When node examples or tests need typed reads from earlier nodes, prefer `nodeRef<TJson>("node-id")` with `ctx.data.getOutputItems(ref)` instead of string ids plus manual casts.
-7. Drop to class-based node APIs only when you need constructor-injected collaborators, decorators, or deeper runtime metadata.
+4. Put **static** options (credentials, retry policy, labels) on **config**; put **per-item** behavior in **inputs** / wire JSON and optional **`itemExpr`** on config fields (consistent with built-in nodes).
+5. **Emit files with `ctx.binary`, not base64 in `json`:** use **`attach`** + **`withAttachment`** on **`args.ctx.binary`** (`defineNode`) or **`ctx.binary`** (class nodes). Base64 in **`item.json`** bloats persisted run JSON in the database; binaries use **storage + references** only. See `references/node-patterns.md` and repo docs **Concepts → Execution model** / **Custom nodes**.
+6. Drop to class-based node APIs only when you need constructor-injected collaborators, decorators, or deeper runtime metadata.
 
 ## Testing with `WorkflowTestKit`
 
 For engine-backed tests without the host, use **`WorkflowTestKit`** from **`@codemation/core/testing`**: **`registerDefinedNodes([...])`**, then **`runNode`** or **`run`**. See the plugin development doc and `@codemation/core` tests for examples.
 
+## Custom assertion + test nodes
+
+When building **assertion** nodes that should record results into the framework's TestSuiteRun infrastructure, set **`emitsAssertions: true`** on the node config. The host's `TestSuiteRunTracker` listens for `nodeCompleted` events from runs with `ctx.testContext` set and persists each emitted item (matching the `AssertionResult` shape) as a `TestAssertion` row. Drop in a `defineNode` with a per-item `execute` that returns `AssertionResult[]` and you're done — no service injection required.
+
+Custom **per-item nodes** can also read **`ctx.testContext?.{testSuiteRunId, testCaseIndex}`** to branch on test mode without an `IsTestRun` upstream — useful for synthetic outputs or skipping irreversible side effects when running tests.
+
 ## Read next when needed
 
 - Read `references/node-patterns.md` for `defineNode(...)` patterns and packaging guidance.
+- Use the `codemation-workflow-dsl` skill's `references/workflow-testing.md` for the full TestTrigger / IsTestRun / Assertion authoring story.

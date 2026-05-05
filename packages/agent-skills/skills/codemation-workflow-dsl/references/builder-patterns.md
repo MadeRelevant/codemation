@@ -15,6 +15,22 @@ export default workflow("wf.example.id")
   .build();
 ```
 
+## Cron-triggered workflow
+
+```ts
+import { CronTrigger } from "@codemation/core-nodes";
+
+export default workflow("wf.nightly.id")
+  .name("Nightly job")
+  .trigger(new CronTrigger("Nightly", { schedule: "0 3 * * *", timezone: "Europe/Amsterdam" }))
+  .map("Process tick", (item, _ctx) => ({
+    firedAt: (item.json as { firedAt: string }).firedAt,
+  }))
+  .build();
+```
+
+The cron expression is validated at workflow build time. Each tick emits one item with `{ firedAt, scheduledFor }` ISO-8601 strings. Always supply `timezone` for DST-sensitive schedules — defaults to UTC.
+
 ## Use the fluent DSL by default
 
 - import `workflow` from `@codemation/host`
