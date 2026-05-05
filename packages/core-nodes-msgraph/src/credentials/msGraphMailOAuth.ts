@@ -1,6 +1,9 @@
 import type { AnyCredentialType, CredentialSessionFactoryArgs } from "@codemation/core";
+import { MsGraphOAuthFieldsBuilder } from "./MsGraphOAuthFieldsBuilder";
 import { MAIL_SCOPE_PRESETS, resolveMailScopes, type MailScopePreset } from "./scopes";
-import { createGraphClient, type MsGraphSession } from "./session";
+import { createGraphClient, createMsGraphOAuthSession, type MsGraphSession } from "./session";
+
+const fields = new MsGraphOAuthFieldsBuilder();
 
 // ---------------------------------------------------------------------------
 // Credential field shape
@@ -34,7 +37,7 @@ async function createSession(args: CredentialSessionFactoryArgs<PublicConfig, Se
     (args.publicConfig.scopePreset as MailScopePreset | undefined) ?? "read-mail",
     args.publicConfig.customScopes ?? "",
   );
-  return createMsGraphMailSession({
+  return createMsGraphOAuthSession({
     clientId: args.publicConfig.clientId,
     tenantId: args.publicConfig.tenantId ?? "common",
     clientSecret: args.material.clientSecret,
@@ -48,55 +51,12 @@ export const msGraphMailOAuthCredentialType: AnyCredentialType = {
     typeId: MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID,
     displayName: "Microsoft Graph Mail (OAuth)",
     description: "OAuth credentials for Microsoft 365 Outlook/mail.",
-    publicFields: [
-      {
-        key: "clientId",
-        label: "Client ID",
-        type: "string",
-        required: true,
-        order: 0,
-        envVarName: "CODEMATION_MSGRAPH_CLIENT_ID",
-      },
-      {
-        key: "tenantId",
-        label: "Tenant ID",
-        type: "string",
-        required: true,
-        placeholder: "common",
-        helpText: 'Use "common" for multi-tenant apps, or your Azure AD tenant GUID for single-tenant.',
-        order: 1,
-        envVarName: "CODEMATION_MSGRAPH_TENANT_ID",
-      },
-      {
-        key: "scopePreset",
-        label: "Scope preset",
-        type: "string",
-        placeholder: "read-mail",
-        helpText:
-          "Pick the permission set: read-mail, read-write-mail, send-mail, or mail-all. Use customScopes to add extras.",
-        order: 2,
-        visibility: "advanced" as const,
-      },
-      {
-        key: "customScopes",
-        label: "Additional scopes",
-        type: "textarea",
-        placeholder: "Calendars.Read Teams.ReadBasic.All",
-        helpText: "Space-separated extra Graph scopes appended to the preset. Optional.",
-        order: 3,
-        visibility: "advanced" as const,
-      },
-    ],
-    secretFields: [
-      {
-        key: "clientSecret",
-        label: "Client secret",
-        type: "password",
-        required: true,
-        order: 4,
-        envVarName: "CODEMATION_MSGRAPH_CLIENT_SECRET",
-      },
-    ],
+    publicFields: fields.buildPublicFields({
+      scopePresetPlaceholder: "read-mail",
+      scopePresetHelpText:
+        "Pick the permission set: read-mail, read-write-mail, send-mail, or mail-all. Use customScopes to add extras.",
+    }),
+    secretFields: fields.buildSecretFields(),
     supportedSourceKinds: ["db", "env", "code"],
     auth: {
       kind: "oauth2",
@@ -130,53 +90,3 @@ export const msGraphMailOAuthCredentialType: AnyCredentialType = {
     }
   },
 };
-
-// ---------------------------------------------------------------------------
-// Internal session factory
-// ---------------------------------------------------------------------------
-
-async function createMsGraphMailSession(args: {
-  clientId: string;
-  tenantId: string;
-  clientSecret: string;
-  scopes: ReadonlyArray<string>;
-  refreshToken: string;
-}): Promise<MsGraphSession> {
-  // Lazy import to avoid loading MSAL at module-load time.
-  const { ConfidentialClientApplication } = await import("@azure/msal-node");
-
-  const msal = new ConfidentialClientApplication({
-    auth: {
-      clientId: args.clientId,
-      clientSecret: args.clientSecret,
-      authority: `https://login.microsoftonline.com/${args.tenantId}`,
-    },
-  });
-
-  const mutableScopes = [...args.scopes];
-  let cachedAccessToken = "";
-  let tokenExpiresAt = 0;
-
-  async function refresh(): Promise<string> {
-    if (cachedAccessToken && Date.now() < tokenExpiresAt - 30_000) {
-      return cachedAccessToken;
-    }
-    const result = await msal.acquireTokenByRefreshToken({
-      refreshToken: args.refreshToken,
-      scopes: mutableScopes,
-    });
-    if (!result?.accessToken) {
-      throw new Error("Microsoft Graph: token refresh returned no access token");
-    }
-    cachedAccessToken = result.accessToken;
-    tokenExpiresAt = result.expiresOn?.getTime() ?? Date.now() + 3600_000;
-    return cachedAccessToken;
-  }
-
-  // Eagerly fetch a token so callers get an early error if credentials are wrong.
-  if (args.refreshToken) {
-    cachedAccessToken = await refresh();
-  }
-
-  return { accessToken: cachedAccessToken, refresh };
-}
