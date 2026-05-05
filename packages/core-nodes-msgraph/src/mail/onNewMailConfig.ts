@@ -39,6 +39,28 @@ export class OnNewMsGraphMailTrigger implements TriggerNodeConfig<
     public readonly id?: string,
   ) {}
 
+  /**
+   * Human-readable summary of what this trigger does, surfaced in the workflow UI's
+   * properties panel so authors revisiting the workflow see the live configuration at a glance.
+   */
+  get description(): string {
+    const mailbox = this.cfg.mailbox?.trim();
+    const mailboxLabel = !mailbox || mailbox.toLowerCase() === "me" ? "the connected user" : mailbox;
+    const folder = (this.cfg.folderId ?? "inbox").trim();
+    const intervalSec = Math.round((this.cfg.pollIntervalMs ?? 60_000) / 1000);
+    const lines = [`Polls Microsoft Graph for new mail in **${folder}** of **${mailboxLabel}** every ${intervalSec}s.`];
+    if (this.cfg.filter) {
+      lines.push(`Server-side filter: \`${this.cfg.filter}\``);
+    }
+    if (this.cfg.downloadAttachments) {
+      lines.push("Includes attachment payloads (base64) on each message.");
+    }
+    lines.push(
+      "First poll baseline-skips the existing mailbox (no flood); only mails arriving after setup are emitted. Use the Test button to preview live messages without waiting.",
+    );
+    return lines.join("\n\n");
+  }
+
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
     return [
       {
