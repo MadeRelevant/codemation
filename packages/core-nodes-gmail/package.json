@@ -41,7 +41,9 @@
   },
   "scripts": {
     "changeset:verify": "pnpm --workspace-root run changeset:verify",
-    "dev": "tsdown --watch",
+    "codemation": "node ../../tooling/scripts/run-codemation-tsx.mjs ../../packages/cli/src/bin.ts ../../tsconfig.codemation-tsx.json",
+    "dev": "turbo run build --filter='@codemation/next-host' && pnpm codemation dev:plugin --plugin-root .",
+    "dev:watch-bundle": "tsdown --watch",
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
@@ -53,6 +55,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@azure/ai-content-understanding": "^1.0.0",
+    "@azure/core-auth": "^1.10.1",
     "@codemation/core-nodes": "workspace:*",
     "@types/node": "^25.3.5",
     "eslint": "^10.0.3",

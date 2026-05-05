@@ -116,6 +116,41 @@ describe("ConsumerProjectScaffolder", () => {
     ).resolves.toContain("name: codemation-plugin-development");
   });
 
+  it("rewrites @codemation/* deps to workspace:* when --workspace is set", async () => {
+    const resolver = new TemplateDirectoryResolver(import.meta.url);
+    const nodeFs = new NodeFileSystem();
+    const templateCatalog = new TemplateCatalog(resolver, nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      new ProjectNameSanitizer(),
+      nodeFs,
+    );
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-workspace-"));
+    tmpDirs.push(target);
+    const projectDir = path.join(target, "my-workspace-plugin");
+
+    await scaffolder.scaffold({ templateId: "plugin", targetDirectory: projectDir, force: false, workspace: true });
+
+    const pkg = JSON.parse(await fs.readFile(path.join(projectDir, "package.json"), "utf8")) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+
+    // All @codemation/* deps become workspace:*
+    for (const deps of [pkg.dependencies ?? {}, pkg.devDependencies ?? {}]) {
+      for (const [name, version] of Object.entries(deps)) {
+        if (name.startsWith("@codemation/")) {
+          expect(version, `${name} should be workspace:*`).toBe("workspace:*");
+        } else {
+          // Non-@codemation deps must remain unchanged (should still be a real range)
+          expect(version, `${name} should keep its original range`).not.toBe("workspace:*");
+        }
+      }
+    }
+  });
+
   it("overwrites matching template files when --force is set", async () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();

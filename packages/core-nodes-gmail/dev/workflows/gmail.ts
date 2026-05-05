@@ -1,8 +1,8 @@
 /** Gmail trigger: use `createWorkflowBuilder` + `OnNewGmailTrigger` (not `workflow().manualTrigger`). */
 import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
-import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "@codemation/core-nodes-gmail";
+import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson } from "../../src/index";
 
-import { GmailTriggerEnvReader } from "../../../gmail/GmailTriggerEnvReader";
+import { GmailTriggerEnvReader } from "../lib/GmailTriggerEnvReader";
 
 const gmailTriggerConfiguration = new GmailTriggerEnvReader().readTriggerConfiguration();
 

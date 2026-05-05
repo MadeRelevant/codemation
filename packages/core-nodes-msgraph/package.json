@@ -1,0 +1,71 @@
+{
+  "name": "@codemation/core-nodes-msgraph",
+  "version": "0.0.1",
+  "description": "Microsoft Graph (O365) plugin for Codemation — starting with an On New Mail polling trigger",
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Made Relevant B.V.",
+  "homepage": "https://www.maderelevant.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MadeRelevant/codemation",
+    "directory": "packages/core-nodes-msgraph"
+  },
+  "type": "module",
+  "packageManager": "pnpm@10.13.1",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "codemation": {
+    "plugin": "./dist/codemation.plugin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": {
+        "import": "./src/index.ts",
+        "require": "./dist/index.cjs"
+      },
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "codemation.plugin.ts",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "codemation": "node ../../tooling/scripts/run-codemation-tsx.mjs ../../packages/cli/src/bin.ts ../../tsconfig.codemation-tsx.json",
+    "dev": "turbo run build --filter='@codemation/next-host' && pnpm codemation dev:plugin --plugin-root .",
+    "dev:watch-bundle": "tsdown --watch",
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "pnpm build && vitest run",
+    "test:unit": "vitest run",
+    "changeset:verify": "pnpm --workspace-root run changeset:verify"
+  },
+  "dependencies": {
+    "@codemation/core": "workspace:*",
+    "@codemation/host": "workspace:*",
+    "@azure/msal-node": "^3.0.0",
+    "@microsoft/microsoft-graph-client": "^3.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@codemation/core-nodes": "workspace:*",
+    "@types/node": "^25.3.5",
+    "eslint": "^10.0.3",
+    "reflect-metadata": "^0.2.2",
+    "tsdown": "^0.15.5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
+  }
+}

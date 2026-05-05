@@ -18,6 +18,7 @@ const sandbox: CodemationConfig = {
       productName: "Gmail plugin sandbox",
     },
   },
+  workflowDiscovery: { directories: ["./dev/workflows"] },
 };
 
 const plugin = definePlugin({

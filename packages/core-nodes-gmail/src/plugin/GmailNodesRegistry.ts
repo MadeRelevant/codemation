@@ -1,4 +1,5 @@
 import type { Container, CredentialType } from "@codemation/core";
+import { PollingTriggerDedupWindow } from "@codemation/core";
 import type { CodemationPluginContext } from "@codemation/host";
 import { GoogleGmailApiClientFactory } from "../adapters/google/GoogleGmailApiClientFactory";
 import { GoogleGmailApiClientScopeCatalog } from "../adapters/google/GoogleGmailApiClientScopeCatalog";
@@ -12,7 +13,6 @@ import type {
   GmailOAuthPublicConfig,
 } from "../contracts/GmailOAuthCredential";
 import type { GmailSession } from "../contracts/GmailSession";
-import { GmailPollingTriggerRuntime } from "../runtime/GmailPollingTriggerRuntime";
 import { BinaryStreamCollector } from "../services/BinaryStreamCollector";
 import { GmailConfiguredLabelService } from "../services/GmailConfiguredLabelService";
 import { GmailMessageItemMapper } from "../services/GmailMessageItemMapper";
@@ -43,7 +43,6 @@ export class GmailNodes {
 
   private registerServices(container: Container, context: CodemationPluginContext): void {
     container.registerInstance(GmailNodeTokens.TriggerLogger, context.loggerFactory.create("codemation-gmail.trigger"));
-    container.registerInstance(GmailNodeTokens.RuntimeLogger, context.loggerFactory.create("codemation-gmail.runtime"));
     container.registerSingleton(BinaryStreamCollector, BinaryStreamCollector);
     container.registerSingleton(GoogleGmailApiClientFactory, GoogleGmailApiClientFactory);
     container.registerSingleton(GmailConfiguredLabelService, GmailConfiguredLabelService);
@@ -54,8 +53,8 @@ export class GmailNodes {
     container.registerSingleton(GmailSendMessageService, GmailSendMessageService);
     container.registerSingleton(GmailTriggerAttachmentService, GmailTriggerAttachmentService);
     container.registerSingleton(GmailTriggerTestItemService, GmailTriggerTestItemService);
+    container.registerInstance(PollingTriggerDedupWindow, new PollingTriggerDedupWindow());
     container.registerSingleton(GmailPollingService, GmailPollingService);
-    container.registerSingleton(GmailPollingTriggerRuntime, GmailPollingTriggerRuntime);
     void context.appConfig;
   }
 

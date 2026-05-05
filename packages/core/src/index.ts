@@ -27,3 +27,10 @@ export { EngineExecutionLimitsPolicy, type EngineExecutionLimitsPolicyConfig } f
 export { InMemoryBinaryStorage, InMemoryRunDataFactory } from "./runStorage";
 export { InMemoryLiveWorkflowRepository, RunIntentService } from "./runtime";
 export * from "./types";
+export { PollingTriggerRuntime, PollingTriggerDedupWindow, NoOpPollingTriggerLogger } from "./triggers/polling";
+export type {
+  PollingTriggerLogger,
+  PollingRunCycleArgs,
+  PollingRunCycleResult,
+  PollingTriggerStartArgs,
+} from "./triggers/polling";

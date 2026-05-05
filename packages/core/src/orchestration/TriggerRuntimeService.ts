@@ -24,6 +24,9 @@ import type {
 import { CredentialResolverFactory } from "../execution/CredentialResolverFactory";
 import type { NodeRunStateWriterFactory } from "../execution/NodeRunStateWriterFactory";
 import type { EngineExecutionLimitsPolicy } from "../policies/executionLimits/EngineExecutionLimitsPolicy";
+import type { PollingTriggerRuntime } from "../triggers/polling/PollingTriggerRuntime";
+import type { PollingTriggerDedupWindow } from "../triggers/polling/PollingTriggerDedupWindow";
+import type { PollingTriggerHandle } from "../contracts/runtimeTypes";
 
 export interface TriggerEmitHandler {
   emit(workflow: WorkflowDefinition, triggerNodeId: NodeId, items: Items): Promise<void>;
@@ -45,7 +48,9 @@ export class TriggerRuntimeService {
     private readonly triggerSetupStateRepository: TriggerSetupStateRepository,
     private readonly emitHandler: TriggerEmitHandler,
     private readonly executionLimitsPolicy: EngineExecutionLimitsPolicy,
-    private readonly diagnostics?: TriggerRuntimeDiagnostics,
+    private readonly diagnostics: TriggerRuntimeDiagnostics | undefined,
+    private readonly pollingTriggerRuntime: PollingTriggerRuntime,
+    private readonly pollingTriggerDedupWindow: PollingTriggerDedupWindow,
   ) {
     this.credentialResolverFactory = credentialResolverFactory;
   }
@@ -131,6 +136,9 @@ export class TriggerRuntimeService {
       const trigger = { workflowId: wf.id, nodeId: def.id } as const;
       await this.stopTrigger(trigger);
       const previousState = await this.triggerSetupStateRepository.load(trigger);
+      const emit = this.emitHandler.emit.bind(this.emitHandler, wf, def.id);
+      const registerCleanup = this.registerTriggerCleanupHandle.bind(this, trigger);
+      const polling = this.buildPollingHandle(trigger, emit);
       let nextState: unknown;
       try {
         nextState = await node.setup({
@@ -143,12 +151,9 @@ export class TriggerRuntimeService {
           trigger,
           config: def.config as TriggerNodeConfig,
           previousState: previousState?.state as never,
-          registerCleanup: (cleanup) => {
-            this.registerTriggerCleanupHandle(trigger, cleanup);
-          },
-          emit: async (items) => {
-            await this.emitHandler.emit(wf, def.id, items);
-          },
+          registerCleanup,
+          emit,
+          polling,
         } satisfies TriggerSetupContext<TriggerNodeConfig>);
       } catch (triggerError: unknown) {
         await this.stopTrigger(trigger);
@@ -259,6 +264,21 @@ export class TriggerRuntimeService {
     } else {
       console.warn(`[engine] ${message}`);
     }
+  }
+
+  private buildPollingHandle(trigger: TriggerInstanceId, emit: (items: Items) => Promise<void>): PollingTriggerHandle {
+    const runtime = this.pollingTriggerRuntime;
+    return {
+      dedup: this.pollingTriggerDedupWindow,
+      start: async (args) => {
+        this.registerTriggerCleanupHandle(trigger, {
+          stop: async () => {
+            await runtime.stop(trigger);
+          },
+        });
+        return runtime.start({ trigger, emit, ...args });
+      },
+    };
   }
 
   private isTestableTriggerNode(node: TriggerNode): node is TestableTriggerNode<TriggerNodeConfig> {

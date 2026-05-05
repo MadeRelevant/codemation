@@ -15,7 +15,9 @@ export class ConsumerProjectScaffolder {
     private readonly fs: FileSystemPort,
   ) {}
 
-  async scaffold(args: Readonly<{ templateId: string; targetDirectory: string; force: boolean }>): Promise<void> {
+  async scaffold(
+    args: Readonly<{ templateId: string; targetDirectory: string; force: boolean; workspace?: boolean }>,
+  ): Promise<void> {
     await this.templateCatalog.assertTemplateExists(args.templateId);
     const templateDirectory = this.resolver.resolveTemplateDirectory(args.templateId);
     const resolvedTarget = path.resolve(args.targetDirectory);
@@ -26,6 +28,9 @@ export class ConsumerProjectScaffolder {
     await this.copyPackagedAgentSkills(resolvedTarget);
     const projectName = this.projectNameSanitizer.sanitizeFromTargetPath(resolvedTarget);
     await this.applyPackageName(resolvedTarget, projectName);
+    if (args.workspace) {
+      await this.applyWorkspaceDeps(resolvedTarget);
+    }
   }
 
   private async ensureTargetIsUsable(resolvedTarget: string, force: boolean): Promise<void> {
@@ -66,6 +71,23 @@ export class ConsumerProjectScaffolder {
     } catch {
       // Some templates may not ship .env.example.
     }
+  }
+
+  private async applyWorkspaceDeps(projectRoot: string): Promise<void> {
+    const packageJsonPath = path.join(projectRoot, "package.json");
+    const raw = await this.fs.readFile(packageJsonPath, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    for (const depField of ["dependencies", "devDependencies", "peerDependencies"] as const) {
+      const deps = parsed[depField];
+      if (deps && typeof deps === "object" && !Array.isArray(deps)) {
+        const updated: Record<string, string> = {};
+        for (const [pkg, version] of Object.entries(deps as Record<string, string>)) {
+          updated[pkg] = pkg.startsWith("@codemation/") ? "workspace:*" : version;
+        }
+        parsed[depField] = updated;
+      }
+    }
+    await this.fs.writeFile(packageJsonPath, `${JSON.stringify(parsed, null, 2)}\n`);
   }
 
   private async copyPackagedAgentSkills(projectRoot: string): Promise<void> {

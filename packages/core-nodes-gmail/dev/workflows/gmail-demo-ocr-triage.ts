@@ -1,20 +1,16 @@
 import type { CredentialRequirement, Item } from "@codemation/core";
 /** Gmail trigger: use `createWorkflowBuilder` + `OnNewGmailTrigger` (not `workflow().manualTrigger`). */
 import { AIAgent, createWorkflowBuilder, If, NoOp } from "@codemation/core-nodes";
-import {
-  OnNewGmailTrigger,
-  type OnNewGmailTriggerItemJson,
-  GmailAttachmentMapping,
-} from "@codemation/core-nodes-gmail";
+import { OnNewGmailTrigger, type OnNewGmailTriggerItemJson, GmailAttachmentMapping } from "../../src/index";
 
 import {
   AzureInvoiceOcrConsumer,
   type AzureContentUnderstandingSession,
   type OcrStructuredFields,
-} from "../../../gmail/AzureInvoiceOcrConsumer";
-import { CredentialAwareCallback } from "../../../gmail/CredentialAwareCallback";
-import { GmailTriggerEnvReader } from "../../../gmail/GmailTriggerEnvReader";
-import { openAiChatModelPresets } from "../../../lib/openAiChatModelPresets";
+} from "../lib/AzureInvoiceOcrConsumer";
+import { CredentialAwareCallback } from "../lib/CredentialAwareCallback";
+import { GmailTriggerEnvReader } from "../lib/GmailTriggerEnvReader";
+import { openAiChatModelPresets } from "../lib/openAiChatModelPresets";
 
 const gmailTriggerConfiguration = new GmailTriggerEnvReader().readTriggerConfiguration();
 

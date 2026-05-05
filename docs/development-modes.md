@@ -37,9 +37,28 @@ There is **no** `next dev` in consumer mode (no framework HMR).
 
 Framework UI HMR is opt-in via `codemation dev --watch-framework` (as in `apps/test-dev`).
 
+## 3. Plugin author mode (per-plugin `pnpm dev`)
+
+Use this when you're iterating on a single plugin package (e.g. `@codemation/core-nodes-gmail`, `@codemation/core-nodes-msgraph`) and don't need the full framework dev loop.
+
+```bash
+cd packages/core-nodes-msgraph
+pnpm dev
+```
+
+What it does:
+
+1. Builds the framework **once** via `turbo run build --filter='@codemation/next-host'`. Turbo's `dependsOn: ["^build"]` pulls in `host`, `core`, `core-nodes`, `eventbus-redis`, etc. transitively. Subsequent runs hit Turbo's cache, so the warm-up cost is paid once per upstream change.
+2. Starts `codemation dev:plugin --plugin-root .`, which loads the plugin's `codemation.plugin.ts` (its `definePlugin({ register, sandbox })`) and boots the dev gateway with the plugin's sandbox `CodemationConfig` (sqlite, inline scheduler, dev auth, and any `workflowDiscovery: { directories: ["./dev/workflows"] }` you've wired).
+
+There are **no watchers on the framework** — only the plugin's own sources are picked up by the next plugin reload. If you also want the plugin's `dist/` rebuilt on save (e.g. another package consumes it as `workspace:*`), run `pnpm dev:watch-bundle` (`tsdown --watch`) in a side terminal.
+
+Plugin-author mode is the recommended path for single-plugin work. The cross-plugin sandbox at `apps/plugin-dev` (root `pnpm run dev:plugin`) remains for scenarios that need multiple plugins loaded together.
+
 ## Rule of thumb
 
 - Monorepo framework work: `codemation dev --watch-framework` + Next dev + stable CLI-owned runtime swapping.
+- Single-plugin work: `cd packages/core-nodes-<vendor> && pnpm dev`.
 - External consumer: `codemation dev` — one command, packaged UI + stable CLI-owned runtime swapping.
 
 ## Root scripts

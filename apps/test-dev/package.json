@@ -7,7 +7,7 @@
     "codemation": "node ../../tooling/scripts/run-codemation-tsx.mjs ../../packages/cli/src/bin.ts ../../tsconfig.codemation-tsx.json",
     "dev": "pnpm codemation dev --watch-framework",
     "worker": "pnpm codemation serve worker",
-    "build": "pnpm --filter @codemation/core-nodes-gmail build && pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js build",
+    "build": "pnpm --filter @codemation/cli build && node ../../packages/cli/bin/codemation.js build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "echo \"(test placeholder)\""
@@ -16,7 +16,6 @@
     "@codemation/cli": "workspace:*",
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
-    "@codemation/core-nodes-gmail": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",
     "@codemation/host": "workspace:*",
     "@codemation/node-example": "workspace:*",

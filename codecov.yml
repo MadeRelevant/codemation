@@ -32,3 +32,13 @@ ignore:
   - "**/vitest*.config.ts"
   - "apps/**"
   - "tooling/**"
+  # Plugin sandbox/dev fixtures and entry points are exercised manually via
+  # `pnpm dev` against live external APIs, not in unit tests.
+  - "packages/core-nodes-*/codemation.plugin.ts"
+  - "packages/core-nodes-*/dev/**"
+  - "packages/core-nodes-*/src/index.ts"
+  # MS Graph credential session uses MSAL ConfidentialClientApplication +
+  # the Graph SDK auth provider; the OAuth refresh path requires a real
+  # Azure AD tenant to exercise meaningfully.
+  - "packages/core-nodes-msgraph/src/credentials/msGraphOAuth.ts"
+  - "packages/core-nodes-msgraph/src/credentials/session.ts"
