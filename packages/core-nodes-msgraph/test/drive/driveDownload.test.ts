@@ -6,6 +6,7 @@ import {
   type DriveDownloadOutput,
   type GraphClient,
   downloadItem,
+  makeProductionDownloadHttp,
 } from "../../src/drive/driveDownloadNode";
 
 // ---------------------------------------------------------------------------
@@ -257,5 +258,86 @@ describe("DriveDownloadNode", () => {
     const creds = cfg.getCredentialRequirements();
     expect(creds).toHaveLength(1);
     expect(creds[0]!.slotKey).toBe("auth");
+  });
+
+  // -------------------------------------------------------------------------
+  // 7. Regression #4: makeProductionDownloadHttp handles Web ReadableStream
+  //    (Graph SDK 3.x returns a Web ReadableStream on Node 20+, not Node Readable)
+  // -------------------------------------------------------------------------
+  it("makeProductionDownloadHttp: handles Web ReadableStream from getStream()", async () => {
+    const expected = Buffer.from("web-readable-stream-data");
+
+    // Build a Web ReadableStream containing the expected bytes
+    const webStream = new ReadableStream<Uint8Array>({
+      start(ctrl) {
+        ctrl.enqueue(new Uint8Array(expected));
+        ctrl.close();
+      },
+    });
+
+    const req = {
+      getStream: vi.fn().mockResolvedValue(webStream),
+    };
+    const streamClient: GraphClient & { api: ReturnType<typeof vi.fn> } = {
+      api: vi.fn().mockReturnValue(req),
+    };
+
+    const session = { accessToken: "tok", refresh: vi.fn().mockResolvedValue("tok") };
+
+    const mod = await import("../../src/credentials/session");
+    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(streamClient as never);
+    try {
+      const http = makeProductionDownloadHttp();
+      const result = await http.downloadContent({ driveId: "drive-1", itemId: "item-1", session });
+      expect(result.body).toEqual(expected);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("makeProductionDownloadHttp: handles Node.js Readable from getStream()", async () => {
+    const expected = Buffer.from("node-readable-data");
+
+    // Build a minimal Node.js Readable-like object (event-based API)
+    const nodeReadable = {
+      on(event: string, cb: (...args: unknown[]) => void) {
+        if (event === "data") {
+          // Emit data synchronously on next tick to simulate a Readable
+          Promise.resolve()
+            .then(() => cb(expected))
+            .catch(() => undefined);
+        }
+        if (event === "end") {
+          // Emit end after data
+          Promise.resolve()
+            .then(() => Promise.resolve())
+            .then(() => cb())
+            .catch(() => undefined);
+        }
+        if (event === "error") {
+          // no-op
+        }
+        return nodeReadable;
+      },
+    };
+
+    const req = {
+      getStream: vi.fn().mockResolvedValue(nodeReadable),
+    };
+    const streamClient: GraphClient & { api: ReturnType<typeof vi.fn> } = {
+      api: vi.fn().mockReturnValue(req),
+    };
+
+    const session = { accessToken: "tok", refresh: vi.fn().mockResolvedValue("tok") };
+
+    const mod = await import("../../src/credentials/session");
+    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(streamClient as never);
+    try {
+      const http = makeProductionDownloadHttp();
+      const result = await http.downloadContent({ driveId: "drive-1", itemId: "item-1", session });
+      expect(result.body).toEqual(expected);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

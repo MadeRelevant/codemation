@@ -8,7 +8,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import type { MsGraphSession } from "../credentials/session";
 import type { WorkbookHandle } from "./session";
 import { workbookFetch } from "./session";
@@ -135,8 +135,7 @@ type ExcelReadRangeInput = z.infer<typeof ExcelReadRangeInputSchema>;
 // Output shape
 // ---------------------------------------------------------------------------
 
-export type ExcelReadRangeOutput = {
-  handle: WorkbookHandle;
+export type ExcelReadRangeOutput = WorkbookHandle & {
   values: unknown[][];
   address: string;
   rowCount: number;
@@ -149,7 +148,7 @@ export type ExcelReadRangeOutput = {
 // ---------------------------------------------------------------------------
 
 export type ExcelReadRangeOptions = Readonly<{
-  handle: WorkbookHandle;
+  handle?: WorkbookHandle;
   sheet: string;
   range?: string;
   valuesOnly?: boolean;
@@ -171,7 +170,7 @@ export type ExcelReadRangeOptions = Readonly<{
 export class ExcelReadRange implements RunnableNodeConfig<ExcelReadRangeOptions, ExcelReadRangeOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = ExcelReadRangeNode;
-  readonly icon = "si:microsoftexcel" as const;
+  readonly icon = "builtin:microsoft-excel" as const;
 
   constructor(
     public readonly name: string,
@@ -180,8 +179,12 @@ export class ExcelReadRange implements RunnableNodeConfig<ExcelReadRangeOptions,
   ) {}
 
   get description(): string {
-    const rangeDesc = this.cfg.range ?? "usedRange";
-    return `Read range \`${rangeDesc}\` from worksheet \`${this.cfg.sheet}\`.`;
+    const sheet = this.cfg.sheet?.trim();
+    const range = this.cfg.range?.trim() || "usedRange";
+    const formulasSuffix = this.cfg.includeFormulas ? " (with formulas)" : "";
+    return sheet
+      ? `Read range \`${sheet}!${range}\` from the open workbook${formulasSuffix}.`
+      : `Read range \`${range}\` from the open workbook (sheet from upstream)${formulasSuffix}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -189,7 +192,7 @@ export class ExcelReadRange implements RunnableNodeConfig<ExcelReadRangeOptions,
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];
@@ -211,8 +214,22 @@ export class ExcelReadRangeNode implements RunnableNode<ExcelReadRange> {
 
     const session = await ctx.getCredential<MsGraphSession>("auth");
 
+    // Fall back to item.json so ExcelOpenWorkbook → ExcelReadRange chains without UI handle wiring.
+    // Discriminate a real WorkbookHandle (has sessionId) from plain item.json (e.g. DriveResolve output).
+    const fromItem = args.item.json as Partial<WorkbookHandle> | undefined;
+    const candidateFromItem: WorkbookHandle | undefined =
+      fromItem && typeof fromItem.sessionId === "string" && fromItem.sessionId.length > 0
+        ? (fromItem as WorkbookHandle)
+        : undefined;
+    const resolvedHandle = cfg.handle ?? candidateFromItem;
+    if (!resolvedHandle) {
+      throw new Error(
+        "ExcelReadRangeNode: requires `handle` in cfg or upstream item.json (flat WorkbookHandle) from ExcelOpenWorkbookNode.",
+      );
+    }
+
     const input: ExcelReadRangeInput = ExcelReadRangeInputSchema.parse({
-      handle: cfg.handle,
+      handle: resolvedHandle,
       sheet: cfg.sheet,
       range: cfg.range,
       valuesOnly: cfg.valuesOnly,
@@ -251,7 +268,7 @@ export class ExcelReadRangeNode implements RunnableNode<ExcelReadRange> {
       !effectiveValuesOnly && body.numberFormat ? decodeDateSerials(rawValues, body.numberFormat) : rawValues;
 
     const output: ExcelReadRangeOutput = {
-      handle: result.handle,
+      ...result.handle,
       values: decodedValues,
       address: body.address,
       rowCount: body.rowCount,

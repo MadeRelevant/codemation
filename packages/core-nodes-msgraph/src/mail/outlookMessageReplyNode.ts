@@ -9,7 +9,7 @@ import type {
   TypeToken,
 } from "@codemation/core";
 import { node } from "@codemation/core";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphMailOAuth";
 import { createGraphClient, type MsGraphSession } from "../credentials/session";
 import type { Recipient } from "../lib/filterMailRecipients";
 import { mailboxPathPrefix } from "../lib/graphPaths";
@@ -101,7 +101,7 @@ export type OutlookMessageReplyOutput = Readonly<{
 export class OutlookMessageReply implements RunnableNodeConfig<OutlookMessageReplyOptions, OutlookMessageReplyOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = OutlookMessageReplyNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-outlook" as const;
 
   constructor(
     public readonly name: string,
@@ -110,9 +110,11 @@ export class OutlookMessageReply implements RunnableNodeConfig<OutlookMessageRep
   ) {}
 
   get description(): string {
-    const mode = this.cfg.forward ? "forward" : this.cfg.replyAll ? "reply-all" : "reply";
-    const send = this.cfg.draftOnly ? "(draft only)" : "(send)";
-    return `${mode} to message \`${this.cfg.messageId}\` ${send}.`;
+    const mode = this.cfg.forward ? "Forward" : this.cfg.replyAll ? "Reply-all to" : "Reply to";
+    const draftSuffix = this.cfg.draftOnly ? " (draft only)" : "";
+    const msgId = this.cfg.messageId?.trim();
+    const msgPart = msgId ? ` message \`${msgId}\`` : " message (id from upstream)";
+    return `${mode}${msgPart}${draftSuffix}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -120,7 +122,7 @@ export class OutlookMessageReply implements RunnableNodeConfig<OutlookMessageRep
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential for the mailbox you want to access.",
       },
     ];

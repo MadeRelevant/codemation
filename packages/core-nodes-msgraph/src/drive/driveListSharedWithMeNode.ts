@@ -1,13 +1,12 @@
 import type {
   CredentialRequirement,
-  Item,
   RunnableNode,
   RunnableNodeConfig,
   RunnableNodeExecuteArgs,
   TypeToken,
 } from "@codemation/core";
 import { node } from "@codemation/core";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import { createGraphClient, type MsGraphSession } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 
@@ -69,10 +68,6 @@ export type SharedWithMeItem = {
   isFolder: boolean;
 };
 
-export type DriveListSharedWithMeOutput = {
-  items: SharedWithMeItem[];
-};
-
 // ---------------------------------------------------------------------------
 // Mapper
 // ---------------------------------------------------------------------------
@@ -112,7 +107,7 @@ function toSharedItem(raw: RawSharedItem): SharedWithMeItem | undefined {
 // Core list function (exported for testing)
 // ---------------------------------------------------------------------------
 
-export async function listSharedWithMe(client: GraphClient): Promise<DriveListSharedWithMeOutput> {
+export async function listSharedWithMe(client: GraphClient): Promise<SharedWithMeItem[]> {
   const items: SharedWithMeItem[] = [];
   let nextLink: string | undefined = undefined;
   let isFirstPage = true;
@@ -133,7 +128,7 @@ export async function listSharedWithMe(client: GraphClient): Promise<DriveListSh
     isFirstPage = false;
   }
 
-  return { items };
+  return items;
 }
 
 // ---------------------------------------------------------------------------
@@ -142,13 +137,10 @@ export async function listSharedWithMe(client: GraphClient): Promise<DriveListSh
 
 export type DriveListSharedWithMeOptions = Readonly<Record<string, never>>;
 
-export class DriveListSharedWithMe implements RunnableNodeConfig<
-  DriveListSharedWithMeOptions,
-  DriveListSharedWithMeOutput
-> {
+export class DriveListSharedWithMe implements RunnableNodeConfig<DriveListSharedWithMeOptions, SharedWithMeItem> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = DriveListSharedWithMeNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-onedrive" as const;
 
   constructor(
     public readonly name: string,
@@ -157,7 +149,7 @@ export class DriveListSharedWithMe implements RunnableNodeConfig<
   ) {}
 
   get description(): string {
-    return "List all drive items shared with the authenticated user, using canonical remote ids.";
+    return "List items shared with the connected user, emitting canonical remote driveId + itemId.";
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -165,7 +157,7 @@ export class DriveListSharedWithMe implements RunnableNodeConfig<
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];
@@ -187,8 +179,9 @@ export class DriveListSharedWithMeNode implements RunnableNode<DriveListSharedWi
     const session = await ctx.getCredential<MsGraphSession>("auth");
     const client = createGraphClient(session) as unknown as GraphClient;
 
-    const output = await listSharedWithMe(client);
+    const shared = await listSharedWithMe(client);
 
-    return { ...(args.item as Item), json: output };
+    // Engine's NodeOutputNormalizer wraps each array element as { json: el }.
+    return shared;
   }
 }

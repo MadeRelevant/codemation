@@ -8,7 +8,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import { type MsGraphSession } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 import { toCanonicalFull, type DriveItemFull } from "./driveItemMapper";
@@ -263,7 +263,7 @@ export type DriveCopyOptions = Readonly<{
 export class DriveCopy implements RunnableNodeConfig<DriveCopyOptions, DriveCopyOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = DriveCopyNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-onedrive" as const;
 
   constructor(
     public readonly name: string,
@@ -272,7 +272,14 @@ export class DriveCopy implements RunnableNodeConfig<DriveCopyOptions, DriveCopy
   ) {}
 
   get description(): string {
-    return `Copy drive item \`${this.cfg.sourceItemId}\` from drive \`${this.cfg.sourceDriveId}\` to drive \`${this.cfg.targetDriveId}\`.`;
+    const hasSource = this.cfg.sourceDriveId?.trim() && this.cfg.sourceItemId?.trim();
+    const hasTarget = this.cfg.targetDriveId?.trim() && this.cfg.targetParentItemId?.trim();
+    const nameSuffix = this.cfg.name ? ` as \`${this.cfg.name}\`` : "";
+    const awaitSuffix = this.cfg.awaitCompletion === false ? " (fire-and-forget)" : "";
+    if (hasSource && hasTarget) {
+      return `Copy \`${this.cfg.sourceItemId}\` to target drive \`${this.cfg.targetDriveId}\`${nameSuffix}${awaitSuffix}.`;
+    }
+    return `Copy drive item between drives (ids from upstream)${nameSuffix}${awaitSuffix}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -280,7 +287,7 @@ export class DriveCopy implements RunnableNodeConfig<DriveCopyOptions, DriveCopy
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];

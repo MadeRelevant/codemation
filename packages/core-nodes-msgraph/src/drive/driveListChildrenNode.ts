@@ -1,6 +1,5 @@
 import type {
   CredentialRequirement,
-  Item,
   RunnableNode,
   RunnableNodeConfig,
   RunnableNodeExecuteArgs,
@@ -8,7 +7,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import { createGraphClient, type MsGraphSession } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 import { toCanonicalChild, type DriveChildItem, type RawChildItem } from "./driveItemMapper";
@@ -62,27 +61,10 @@ export const DriveListChildrenInputSchema = z.object({
 export type DriveListChildrenInput = z.infer<typeof DriveListChildrenInputSchema>;
 
 // ---------------------------------------------------------------------------
-// Output shape
-// ---------------------------------------------------------------------------
-
-export type DriveListChildrenOutput = {
-  /** The collected child items. */
-  items: DriveChildItem[];
-  /**
-   * True when the fetch stopped early because `maxItems` was reached and
-   * more pages were still available.
-   */
-  truncated: boolean;
-};
-
-// ---------------------------------------------------------------------------
 // Core list function (exported for testing)
 // ---------------------------------------------------------------------------
 
-export async function listChildren(
-  client: GraphClient,
-  input: DriveListChildrenInput,
-): Promise<DriveListChildrenOutput> {
+export async function listChildren(client: GraphClient, input: DriveListChildrenInput): Promise<DriveChildItem[]> {
   const { driveId, itemId, filter, orderBy, top, maxItems } = input;
 
   // Build the initial URL: root shorthand or regular items path
@@ -126,7 +108,7 @@ export async function listChildren(
     currentReq = null;
   }
 
-  return { items: collected, truncated };
+  return collected;
 }
 
 // ---------------------------------------------------------------------------
@@ -142,10 +124,10 @@ export type DriveListChildrenOptions = Readonly<{
   maxItems?: number;
 }>;
 
-export class DriveListChildren implements RunnableNodeConfig<DriveListChildrenOptions, DriveListChildrenOutput> {
+export class DriveListChildren implements RunnableNodeConfig<DriveListChildrenOptions, DriveChildItem> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = DriveListChildrenNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-onedrive" as const;
 
   constructor(
     public readonly name: string,
@@ -154,7 +136,14 @@ export class DriveListChildren implements RunnableNodeConfig<DriveListChildrenOp
   ) {}
 
   get description(): string {
-    return `List children of folder \`${this.cfg.itemId}\` in drive \`${this.cfg.driveId}\`.`;
+    const hasDrive = this.cfg.driveId?.trim();
+    const hasItem = this.cfg.itemId?.trim();
+    const maxItems = this.cfg.maxItems ?? 1000;
+    const filterPart = this.cfg.filter ? `, filter: \`${this.cfg.filter}\`` : "";
+    if (hasDrive && hasItem) {
+      return `List up to ${maxItems} children of folder \`${hasItem}\` in drive \`${hasDrive}\`${filterPart}.`;
+    }
+    return `List up to ${maxItems} children of folder (driveId + itemId from upstream)${filterPart}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -162,7 +151,7 @@ export class DriveListChildren implements RunnableNodeConfig<DriveListChildrenOp
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];
@@ -181,22 +170,27 @@ export class DriveListChildrenNode implements RunnableNode<DriveListChildren> {
   async execute(args: RunnableNodeExecuteArgs<DriveListChildren>): Promise<unknown> {
     const { ctx } = args;
     const cfg = ctx.config.cfg;
+    // Fall back to item.json so DriveResolve → DriveListChildren chains without UI wiring.
+    const fromItem = (args.item.json ?? {}) as { driveId?: string; itemId?: string };
 
     const session = await ctx.getCredential<MsGraphSession>("auth");
     const client = createGraphClient(session) as unknown as GraphClient;
 
     // Parse and validate input (apply defaults)
     const input = DriveListChildrenInputSchema.parse({
-      driveId: cfg.driveId,
-      itemId: cfg.itemId,
+      driveId: cfg.driveId || fromItem.driveId,
+      itemId: cfg.itemId || fromItem.itemId,
       filter: cfg.filter,
       orderBy: cfg.orderBy,
       top: cfg.top,
       maxItems: cfg.maxItems,
     });
 
-    const output = await listChildren(client, input);
+    const children = await listChildren(client, input);
 
-    return { ...(args.item as Item), json: output };
+    // Engine's NodeOutputNormalizer wraps each array element as { json: el }.
+    // Truncation (when maxItems was reached) is implicit: consumers can compare
+    // the output count to cfg.maxItems if they need to detect it.
+    return children;
   }
 }

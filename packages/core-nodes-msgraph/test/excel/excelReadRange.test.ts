@@ -232,9 +232,9 @@ describe("ExcelReadRangeNode", () => {
     const args = makeArgs({ handle, sheet: "Sheet1" }, () => Promise.resolve(makeSession()));
 
     const result = await node.execute(args);
-    const output = (result as { json: { handle: WorkbookHandle } }).json;
+    const output = (result as { json: WorkbookHandle }).json;
 
-    expect(output.handle.sessionId).toBe("SESS-EXACT");
+    expect(output.sessionId).toBe("SESS-EXACT");
   });
 
   it("date serial decoding — decodes date cells when valuesOnly=false and numberFormat present", async () => {

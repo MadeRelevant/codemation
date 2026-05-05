@@ -1,4 +1,8 @@
-export { msGraphOAuthCredentialType } from "./credentials/msGraphOAuth";
+export { msGraphMailOAuthCredentialType, MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID } from "./credentials/msGraphMailOAuth";
+export {
+  msGraphDriveOAuthCredentialType,
+  MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID,
+} from "./credentials/msGraphDriveOAuth";
 export type { MsGraphSession } from "./credentials/session";
 export { OnNewMsGraphMailTrigger } from "./mail/onNewMailConfig";
 export type { OnNewMsGraphMailOptions } from "./mail/onNewMailConfig";
@@ -32,11 +36,7 @@ export type { DriveResolveInput, DriveResolveOptions, DriveResolveOutput } from 
 
 // --- PR B2–B5: Drive list/get/download/upload nodes ---
 export { DriveListChildren, DriveListChildrenInputSchema } from "./drive/driveListChildrenNode";
-export type {
-  DriveListChildrenOptions,
-  DriveListChildrenInput,
-  DriveListChildrenOutput,
-} from "./drive/driveListChildrenNode";
+export type { DriveListChildrenOptions, DriveListChildrenInput } from "./drive/driveListChildrenNode";
 
 export { DriveItemGet, DriveItemGetInputSchema } from "./drive/driveItemGetNode";
 export type { DriveItemGetOptions, DriveItemGetInput } from "./drive/driveItemGetNode";
@@ -58,14 +58,10 @@ export type {
 } from "./drive/driveCopyNode";
 
 export { DriveListMyDrives } from "./drive/driveListMyDrivesNode";
-export type { DriveListMyDrivesOptions, DriveListMyDrivesOutput, DriveInfo } from "./drive/driveListMyDrivesNode";
+export type { DriveListMyDrivesOptions, DriveInfo } from "./drive/driveListMyDrivesNode";
 
 export { DriveListSharedWithMe } from "./drive/driveListSharedWithMeNode";
-export type {
-  DriveListSharedWithMeOptions,
-  DriveListSharedWithMeOutput,
-  SharedWithMeItem,
-} from "./drive/driveListSharedWithMeNode";
+export type { DriveListSharedWithMeOptions, SharedWithMeItem } from "./drive/driveListSharedWithMeNode";
 
 // Shared mapper types
 export type { DriveChildItem, DriveItemFull } from "./drive/driveItemMapper";
@@ -83,8 +79,8 @@ export type { ExcelCloseWorkbookOptions, ExcelCloseWorkbookOutput } from "./exce
 export { ExcelListWorksheets } from "./excel/excelListWorksheetsNode";
 export type {
   ExcelListWorksheetsOptions,
-  ExcelListWorksheetsOutput,
   WorksheetInfo,
+  WorksheetInfoWithHandle,
 } from "./excel/excelListWorksheetsNode";
 
 export { ExcelReadRange } from "./excel/excelReadRangeNode";

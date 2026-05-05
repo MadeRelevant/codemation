@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   DriveListSharedWithMe,
   DriveListSharedWithMeNode,
-  type DriveListSharedWithMeOutput,
+  type SharedWithMeItem,
   type GraphClient,
   listSharedWithMe,
 } from "../../src/drive/driveListSharedWithMeNode";
@@ -116,13 +116,13 @@ describe("DriveListSharedWithMeNode", () => {
 
     const result = await listSharedWithMe(client);
 
-    expect(result.items).toHaveLength(2);
+    expect(result).toHaveLength(2);
     // Must use remote ids, NOT the local stub id
-    expect(result.items[0]!.driveId).toBe("rd1");
-    expect(result.items[0]!.itemId).toBe("r1");
-    expect(result.items[0]!.name).toBe("alpha.xlsx");
-    expect(result.items[1]!.driveId).toBe("rd2");
-    expect(result.items[1]!.itemId).toBe("r2");
+    expect(result[0]!.driveId).toBe("rd1");
+    expect(result[0]!.itemId).toBe("r1");
+    expect(result[0]!.name).toBe("alpha.xlsx");
+    expect(result[1]!.driveId).toBe("rd2");
+    expect(result[1]!.itemId).toBe("r2");
   });
 
   // -------------------------------------------------------------------------
@@ -138,9 +138,9 @@ describe("DriveListSharedWithMeNode", () => {
 
     const result = await listSharedWithMe(client);
 
-    expect(result.items).toHaveLength(2);
-    expect(result.items[0]!.itemId).toBe("r1");
-    expect(result.items[1]!.itemId).toBe("r3");
+    expect(result).toHaveLength(2);
+    expect(result[0]!.itemId).toBe("r1");
+    expect(result[1]!.itemId).toBe("r3");
   });
 
   // -------------------------------------------------------------------------
@@ -156,9 +156,9 @@ describe("DriveListSharedWithMeNode", () => {
 
     const result = await listSharedWithMe(client);
 
-    expect(result.items[0]!.itemId).toBe("real-remote-id");
-    expect(result.items[0]!.driveId).toBe("real-remote-drive");
-    expect(result.items[0]!.itemId).not.toBe("local-stub-id-9999");
+    expect(result[0]!.itemId).toBe("real-remote-id");
+    expect(result[0]!.driveId).toBe("real-remote-drive");
+    expect(result[0]!.itemId).not.toBe("local-stub-id-9999");
   });
 
   // -------------------------------------------------------------------------
@@ -173,10 +173,10 @@ describe("DriveListSharedWithMeNode", () => {
 
     const result = await listSharedWithMe(client);
 
-    expect(result.items[0]!.isFolder).toBe(true);
-    expect(result.items[0]!.mimeType).toBeUndefined();
-    expect(result.items[1]!.isFolder).toBe(false);
-    expect(result.items[1]!.mimeType).toBe("application/vnd.ms-excel");
+    expect(result[0]!.isFolder).toBe(true);
+    expect(result[0]!.mimeType).toBeUndefined();
+    expect(result[1]!.isFolder).toBe(false);
+    expect(result[1]!.mimeType).toBe("application/vnd.ms-excel");
   });
 
   // -------------------------------------------------------------------------
@@ -197,9 +197,9 @@ describe("DriveListSharedWithMeNode", () => {
 
     const result = await listSharedWithMe(client);
 
-    expect(result.items).toHaveLength(2);
-    expect(result.items[0]!.itemId).toBe("r1");
-    expect(result.items[1]!.itemId).toBe("r2");
+    expect(result).toHaveLength(2);
+    expect(result[0]!.itemId).toBe("r1");
+    expect(result[1]!.itemId).toBe("r2");
     // Second call uses the nextLink URL
     expect(client.api).toHaveBeenCalledWith("https://graph.microsoft.com/v1.0/me/drive/sharedWithMe?$skiptoken=xyz");
   });
@@ -218,8 +218,8 @@ describe("DriveListSharedWithMeNode", () => {
 
     const result = await listSharedWithMe(client);
 
-    expect(result.items[0]!.sharedBy?.displayName).toBe("Dave Wilson");
-    expect(result.items[0]!.sharedBy?.email).toBe("dave@example.com");
+    expect(result[0]!.sharedBy?.displayName).toBe("Dave Wilson");
+    expect(result[0]!.sharedBy?.email).toBe("dave@example.com");
   });
 
   // -------------------------------------------------------------------------
@@ -243,7 +243,7 @@ describe("DriveListSharedWithMeNode", () => {
       const result = await resultPromise;
 
       expect(getMock).toHaveBeenCalledTimes(2);
-      expect(result.items[0]!.itemId).toBe("retry-remote");
+      expect(result[0]!.itemId).toBe("retry-remote");
     } finally {
       vi.useRealTimers();
     }
@@ -252,17 +252,17 @@ describe("DriveListSharedWithMeNode", () => {
   // -------------------------------------------------------------------------
   // 8. Node execute — integration via withClientSpy
   // -------------------------------------------------------------------------
-  it("node execute returns item with json output", async () => {
+  it("node execute returns one item per shared item", async () => {
     const items = [rawSharedItem({ remoteId: "exec-remote", remoteDriveId: "exec-drive" })];
     const client = makeClient([{ value: items }]);
 
     const node = new DriveListSharedWithMeNode();
     const result = await withClientSpy(client, () => node.execute(makeArgs()));
 
-    const out = (result as { json: DriveListSharedWithMeOutput }).json;
-    expect(out.items).toHaveLength(1);
-    expect(out.items[0]!.itemId).toBe("exec-remote");
-    expect(out.items[0]!.driveId).toBe("exec-drive");
+    const emitted = result as SharedWithMeItem[];
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0]!.itemId).toBe("exec-remote");
+    expect(emitted[0]!.driveId).toBe("exec-drive");
   });
 
   // -------------------------------------------------------------------------
@@ -281,6 +281,6 @@ describe("DriveListSharedWithMeNode", () => {
   it("returns empty items array when Graph returns no shared items", async () => {
     const client = makeClient([{ value: [] }]);
     const result = await listSharedWithMe(client);
-    expect(result.items).toHaveLength(0);
+    expect(result).toHaveLength(0);
   });
 });

@@ -177,6 +177,31 @@ describe("runCycle", () => {
     expect(capturedExpandOn).not.toContain("contentBytes");
   });
 
+  // Regression #7: $expand must use the type-cast prefix for contentId
+  // (microsoft.graph.fileAttachment/contentId, not bare contentId)
+  // Without the fix: OData $select=...contentId on base Attachment type → 400
+  // "Could not find a property named 'contentId'"
+  it("$expand attachments uses microsoft.graph.fileAttachment/contentId type-cast prefix", async () => {
+    let capturedExpand: string | undefined;
+    const client = makeFakeClient([], undefined, undefined, (e) => {
+      capturedExpand = e;
+    });
+
+    await runCycle({
+      client,
+      cfg: { mailbox: "user@contoso.com" },
+      previousState: undefined,
+      dedup,
+    });
+
+    expect(capturedExpand).toBeDefined();
+    // Must contain the type-cast prefix form
+    expect(capturedExpand).toContain("microsoft.graph.fileAttachment/contentId");
+    // Must NOT contain bare contentId without the type-cast prefix:
+    // a bare ',contentId' or '(contentId' would indicate the regression
+    expect(capturedExpand).not.toMatch(/[,(]contentId[,)]/);
+  });
+
   it("omits $orderby when a $filter is set (avoids Graph 'restriction or sort order is too complex')", async () => {
     let capturedOrderby: string | undefined;
     let capturedFilter: string | undefined;

@@ -7,7 +7,7 @@ import type {
   TypeToken,
 } from "@codemation/core";
 import { node } from "@codemation/core";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphMailOAuth";
 import { createGraphClient, type MsGraphSession } from "../credentials/session";
 import { mailboxPathPrefix } from "../lib/graphPaths";
 import { withGraphRetry } from "../lib/graphRetry";
@@ -49,7 +49,7 @@ export type OutlookMessagePatchOutput = Readonly<{
 export class OutlookMessagePatch implements RunnableNodeConfig<OutlookMessagePatchOptions, OutlookMessagePatchOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = OutlookMessagePatchNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-outlook" as const;
 
   constructor(
     public readonly name: string,
@@ -58,11 +58,13 @@ export class OutlookMessagePatch implements RunnableNodeConfig<OutlookMessagePat
   ) {}
 
   get description(): string {
-    const parts: string[] = [];
-    if (this.cfg.isRead !== undefined) parts.push(this.cfg.isRead ? "mark read" : "mark unread");
-    if (this.cfg.categories) parts.push("set categories");
-    if (this.cfg.move) parts.push(`move to ${this.cfg.move.folderId}`);
-    return `Patch message \`${this.cfg.messageId}\`${parts.length ? ": " + parts.join(", ") : ""}.`;
+    const ops: string[] = [];
+    if (this.cfg.isRead !== undefined) ops.push(this.cfg.isRead ? "mark read" : "mark unread");
+    if (this.cfg.categories && this.cfg.categories.length > 0) ops.push("set categories");
+    if (this.cfg.move?.folderId) ops.push(`move to \`${this.cfg.move.folderId}\``);
+    const opPart = ops.length ? `: ${ops.join(", ")}` : "";
+    const msgId = this.cfg.messageId?.trim();
+    return msgId ? `Patch message \`${msgId}\`${opPart}.` : `Patch message (id from upstream)${opPart}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -70,7 +72,7 @@ export class OutlookMessagePatch implements RunnableNodeConfig<OutlookMessagePat
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential for the mailbox you want to access.",
       },
     ];

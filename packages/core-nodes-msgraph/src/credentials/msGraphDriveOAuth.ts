@@ -1,5 +1,5 @@
 import type { AnyCredentialType, CredentialSessionFactoryArgs } from "@codemation/core";
-import { SCOPE_PRESETS, resolveScopes, type ScopePreset } from "./scopes";
+import { DRIVE_SCOPE_PRESETS, resolveDriveScopes, type DriveScopePreset } from "./scopes";
 import { createGraphClient, type MsGraphSession } from "./session";
 
 // ---------------------------------------------------------------------------
@@ -9,7 +9,7 @@ import { createGraphClient, type MsGraphSession } from "./session";
 type PublicConfig = Readonly<{
   clientId: string;
   tenantId: string;
-  scopePreset: ScopePreset;
+  scopePreset: DriveScopePreset;
   customScopes: string;
 }>;
 
@@ -26,15 +26,15 @@ type OAuthMaterial = SecretConfig & Readonly<{ refresh_token?: string; access_to
 // Credential type definition
 // ---------------------------------------------------------------------------
 
-export const MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID = "msgraph-oauth";
+export const MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID = "msgraph-drive-oauth";
 
 async function createSession(args: CredentialSessionFactoryArgs<PublicConfig, SecretConfig>): Promise<MsGraphSession> {
   const material = args.material as OAuthMaterial;
-  const scopes = resolveScopes(
-    (args.publicConfig.scopePreset as ScopePreset | undefined) ?? "read-mail",
+  const scopes = resolveDriveScopes(
+    (args.publicConfig.scopePreset as DriveScopePreset | undefined) ?? "files-readwrite",
     args.publicConfig.customScopes ?? "",
   );
-  return createMsGraphSession({
+  return createMsGraphDriveSession({
     clientId: args.publicConfig.clientId,
     tenantId: args.publicConfig.tenantId ?? "common",
     clientSecret: args.material.clientSecret,
@@ -43,12 +43,11 @@ async function createSession(args: CredentialSessionFactoryArgs<PublicConfig, Se
   });
 }
 
-export const msGraphOAuthCredentialType: AnyCredentialType = {
+export const msGraphDriveOAuthCredentialType: AnyCredentialType = {
   definition: {
-    typeId: MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID,
-    displayName: "Microsoft Graph OAuth",
-    description:
-      "OAuth2 credentials for a Microsoft 365 account. Supports mail, files, calendar, and other Graph API surfaces.",
+    typeId: MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID,
+    displayName: "Microsoft Graph Drive (OAuth)",
+    description: "OAuth credentials for OneDrive, SharePoint files, and Excel workbooks.",
     publicFields: [
       {
         key: "clientId",
@@ -72,9 +71,8 @@ export const msGraphOAuthCredentialType: AnyCredentialType = {
         key: "scopePreset",
         label: "Scope preset",
         type: "string",
-        placeholder: "read-mail",
-        helpText:
-          "Pick the permission set: read-mail, read-write-mail, send-mail, files-read, or files-readwrite. Use customScopes to add extras.",
+        placeholder: "files-readwrite",
+        helpText: "Pick the permission set: files-read, files-readwrite, or drive-all. Use customScopes to add extras.",
         order: 2,
         visibility: "advanced" as const,
       },
@@ -82,7 +80,7 @@ export const msGraphOAuthCredentialType: AnyCredentialType = {
         key: "customScopes",
         label: "Additional scopes",
         type: "textarea",
-        placeholder: "Calendars.Read Teams.ReadBasic.All",
+        placeholder: "Sites.Read.All Tasks.Read",
         helpText: "Space-separated extra Graph scopes appended to the preset. Optional.",
         order: 3,
         visibility: "advanced" as const,
@@ -104,10 +102,10 @@ export const msGraphOAuthCredentialType: AnyCredentialType = {
       providerId: "microsoft",
       authorizeUrl: "https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize",
       tokenUrl: "https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token",
-      scopes: SCOPE_PRESETS["read-mail"] as ReadonlyArray<string>,
+      scopes: DRIVE_SCOPE_PRESETS["files-readwrite"] as ReadonlyArray<string>,
       scopesFromPublicConfig: {
         presetFieldKey: "scopePreset",
-        presetScopes: SCOPE_PRESETS as unknown as Readonly<Record<string, ReadonlyArray<string>>>,
+        presetScopes: DRIVE_SCOPE_PRESETS as unknown as Readonly<Record<string, ReadonlyArray<string>>>,
         customScopesFieldKey: "customScopes",
       },
     },
@@ -136,7 +134,7 @@ export const msGraphOAuthCredentialType: AnyCredentialType = {
 // Internal session factory
 // ---------------------------------------------------------------------------
 
-async function createMsGraphSession(args: {
+async function createMsGraphDriveSession(args: {
   clientId: string;
   tenantId: string;
   clientSecret: string;

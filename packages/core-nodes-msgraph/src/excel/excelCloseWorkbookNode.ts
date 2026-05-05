@@ -7,7 +7,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import type { MsGraphSession } from "../credentials/session";
 import type { WorkbookHandle } from "./session";
 import { closeWorkbookSession } from "./session";
@@ -43,7 +43,7 @@ export type ExcelCloseWorkbookOutput = {
 // ---------------------------------------------------------------------------
 
 export type ExcelCloseWorkbookOptions = Readonly<{
-  handle: WorkbookHandle;
+  handle?: WorkbookHandle;
 }>;
 
 // ---------------------------------------------------------------------------
@@ -60,7 +60,7 @@ export type ExcelCloseWorkbookOptions = Readonly<{
 export class ExcelCloseWorkbook implements RunnableNodeConfig<ExcelCloseWorkbookOptions, ExcelCloseWorkbookOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = ExcelCloseWorkbookNode;
-  readonly icon = "si:microsoftexcel" as const;
+  readonly icon = "builtin:microsoft-excel" as const;
 
   constructor(
     public readonly name: string,
@@ -69,7 +69,7 @@ export class ExcelCloseWorkbook implements RunnableNodeConfig<ExcelCloseWorkbook
   ) {}
 
   get description(): string {
-    return "Close the Excel workbook session. Idempotent — safe to call even if the session has already expired.";
+    return "Close the open Excel workbook session (idempotent).";
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -77,7 +77,7 @@ export class ExcelCloseWorkbook implements RunnableNodeConfig<ExcelCloseWorkbook
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];
@@ -99,7 +99,21 @@ export class ExcelCloseWorkbookNode implements RunnableNode<ExcelCloseWorkbook> 
 
     const session = await ctx.getCredential<MsGraphSession>("auth");
 
-    const { handle } = ExcelCloseWorkbookInputSchema.parse({ handle: cfg.handle });
+    // Fall back to item.json so ExcelOpenWorkbook → ExcelCloseWorkbook chains without UI handle wiring.
+    // Discriminate a real WorkbookHandle (has sessionId) from plain item.json (e.g. DriveResolve output).
+    const fromItem = args.item.json as Partial<WorkbookHandle> | undefined;
+    const candidateFromItem: WorkbookHandle | undefined =
+      fromItem && typeof fromItem.sessionId === "string" && fromItem.sessionId.length > 0
+        ? (fromItem as WorkbookHandle)
+        : undefined;
+    const resolvedHandle = cfg.handle ?? candidateFromItem;
+    if (!resolvedHandle) {
+      throw new Error(
+        "ExcelCloseWorkbookNode: requires `handle` in cfg or upstream item.json (flat WorkbookHandle) from ExcelOpenWorkbookNode.",
+      );
+    }
+
+    const { handle } = ExcelCloseWorkbookInputSchema.parse({ handle: resolvedHandle });
 
     await closeWorkbookSession({ session, handle });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OnNewMsGraphMailTrigger } from "../src/mail/onNewMailConfig";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../src/credentials/msGraphOAuth";
+import { MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID } from "../src/credentials/msGraphMailOAuth";
 
 describe("OnNewMsGraphMailTrigger", () => {
   it("declares trigger kind, icon, and stores config + id", () => {
@@ -10,7 +10,7 @@ describe("OnNewMsGraphMailTrigger", () => {
       "msgraph_trigger",
     );
     expect(trigger.kind).toBe("trigger");
-    expect(trigger.icon).toBe("si:microsoft");
+    expect(trigger.icon).toBe("builtin:microsoft-outlook");
     expect(trigger.name).toBe("Watch inbox");
     expect(trigger.cfg.mailbox).toBe("alice@contoso.com");
     expect(trigger.id).toBe("msgraph_trigger");
@@ -22,7 +22,7 @@ describe("OnNewMsGraphMailTrigger", () => {
     expect(requirements).toHaveLength(1);
     expect(requirements[0]).toMatchObject({
       slotKey: "auth",
-      acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+      acceptedTypes: [MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID],
     });
   });
 });

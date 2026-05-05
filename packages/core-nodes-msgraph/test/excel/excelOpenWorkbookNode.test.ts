@@ -76,15 +76,15 @@ describe("ExcelOpenWorkbookNode", () => {
 
       const result = await node.execute(args);
 
-      const output = (result as { json: { handle: WorkbookHandle } }).json;
-      expect(output.handle.sessionId).toBe("SESSION-XYZ");
-      expect(output.handle.driveId).toBe("drive-1");
-      expect(output.handle.itemId).toBe("item-1");
-      expect(output.handle.persistChanges).toBe(true); // default
-      expect(Array.isArray(output.handle.cookies)).toBe(true);
+      const output = (result as { json: WorkbookHandle }).json;
+      expect(output.sessionId).toBe("SESSION-XYZ");
+      expect(output.driveId).toBe("drive-1");
+      expect(output.itemId).toBe("item-1");
+      expect(output.persistChanges).toBe(true); // default
+      expect(Array.isArray(output.cookies)).toBe(true);
       // expiresAt = now + 7 min - 30s = now + 390_000ms
       const fakeNow = new Date("2026-01-01T00:00:00.000Z").getTime();
-      expect(output.handle.expiresAt).toBe(fakeNow + 7 * 60_000 - 30_000);
+      expect(output.expiresAt).toBe(fakeNow + 7 * 60_000 - 30_000);
     } finally {
       vi.useRealTimers();
     }
@@ -126,5 +126,40 @@ describe("ExcelOpenWorkbookNode", () => {
     await node.execute(args);
 
     expect(getCredential).toHaveBeenCalledWith("auth");
+  });
+
+  // Regression #5: empty cfg driveId/itemId must fall back to item.json
+  it("falls back to item.json driveId and itemId when cfg values are empty strings", async () => {
+    let capturedFetchUrl: string | undefined;
+
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+      capturedFetchUrl = url;
+      return makeCreateSessionResponse("SESSION-FALLBACK");
+    });
+
+    const node = new ExcelOpenWorkbookNode();
+    // Pass empty cfg ids — the node must pick up item.json values instead
+    const config = new ExcelOpenWorkbook("open", { driveId: "", itemId: "" });
+    const args = {
+      // Upstream DriveResolve emits { driveId, itemId } in item.json
+      item: { json: { driveId: "DR1", itemId: "I1" }, binary: {} },
+      ctx: {
+        config,
+        getCredential: vi.fn().mockResolvedValue(makeSession()),
+        binary: {},
+      },
+    } as unknown as Parameters<typeof node.execute>[0];
+
+    const result = await node.execute(args);
+
+    // The fetch URL must contain the item.json driveId and itemId (not empty strings)
+    expect(capturedFetchUrl).toContain("DR1");
+    expect(capturedFetchUrl).toContain("I1");
+
+    // The returned handle must reflect the resolved ids
+    const handle = (result as { json: WorkbookHandle }).json;
+    expect(handle.driveId).toBe("DR1");
+    expect(handle.itemId).toBe("I1");
+    expect(handle.sessionId).toBe("SESSION-FALLBACK");
   });
 });

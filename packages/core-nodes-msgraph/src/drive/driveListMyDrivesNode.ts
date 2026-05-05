@@ -1,13 +1,12 @@
 import type {
   CredentialRequirement,
-  Item,
   RunnableNode,
   RunnableNodeConfig,
   RunnableNodeExecuteArgs,
   TypeToken,
 } from "@codemation/core";
 import { node } from "@codemation/core";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import { createGraphClient, type MsGraphSession } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 
@@ -67,10 +66,6 @@ export type DriveInfo = {
   };
 };
 
-export type DriveListMyDrivesOutput = {
-  drives: DriveInfo[];
-};
-
 // ---------------------------------------------------------------------------
 // Mapper
 // ---------------------------------------------------------------------------
@@ -101,7 +96,7 @@ function toDriveInfo(raw: RawDrive): DriveInfo {
 // Core list function (exported for testing)
 // ---------------------------------------------------------------------------
 
-export async function listMyDrives(client: GraphClient): Promise<DriveListMyDrivesOutput> {
+export async function listMyDrives(client: GraphClient): Promise<DriveInfo[]> {
   const drives: DriveInfo[] = [];
   let nextLink: string | undefined = undefined;
   let isFirstPage = true;
@@ -119,7 +114,7 @@ export async function listMyDrives(client: GraphClient): Promise<DriveListMyDriv
     isFirstPage = false;
   }
 
-  return { drives };
+  return drives;
 }
 
 // ---------------------------------------------------------------------------
@@ -128,10 +123,10 @@ export async function listMyDrives(client: GraphClient): Promise<DriveListMyDriv
 
 export type DriveListMyDrivesOptions = Readonly<Record<string, never>>;
 
-export class DriveListMyDrives implements RunnableNodeConfig<DriveListMyDrivesOptions, DriveListMyDrivesOutput> {
+export class DriveListMyDrives implements RunnableNodeConfig<DriveListMyDrivesOptions, DriveInfo> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = DriveListMyDrivesNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-onedrive" as const;
 
   constructor(
     public readonly name: string,
@@ -140,7 +135,7 @@ export class DriveListMyDrives implements RunnableNodeConfig<DriveListMyDrivesOp
   ) {}
 
   get description(): string {
-    return "List all drives accessible to the authenticated user (personal and business).";
+    return "List all drives (personal and business) accessible to the connected user.";
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -148,7 +143,7 @@ export class DriveListMyDrives implements RunnableNodeConfig<DriveListMyDrivesOp
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];
@@ -170,8 +165,9 @@ export class DriveListMyDrivesNode implements RunnableNode<DriveListMyDrives> {
     const session = await ctx.getCredential<MsGraphSession>("auth");
     const client = createGraphClient(session) as unknown as GraphClient;
 
-    const output = await listMyDrives(client);
+    const drives = await listMyDrives(client);
 
-    return { ...(args.item as Item), json: output };
+    // Engine's NodeOutputNormalizer wraps each array element as { json: el }.
+    return drives;
   }
 }

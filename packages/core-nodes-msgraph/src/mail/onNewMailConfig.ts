@@ -1,5 +1,5 @@
 import type { CredentialRequirement, TriggerNodeConfig, TypeToken } from "@codemation/core";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphMailOAuth";
 import { OnNewMsGraphMailTriggerNode } from "./onNewMailNode";
 import type { MsGraphMailItem, MsGraphMailTriggerState } from "./types";
 
@@ -41,7 +41,7 @@ export class OnNewMsGraphMailTrigger implements TriggerNodeConfig<
 > {
   readonly kind = "trigger" as const;
   readonly type: TypeToken<unknown> = OnNewMsGraphMailTriggerNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-outlook" as const;
 
   constructor(
     public readonly name: string,
@@ -55,20 +55,14 @@ export class OnNewMsGraphMailTrigger implements TriggerNodeConfig<
    */
   get description(): string {
     const mailbox = this.cfg.mailbox?.trim();
-    const mailboxLabel = !mailbox || mailbox.toLowerCase() === "me" ? "the connected user" : mailbox;
-    const folder = (this.cfg.folderId ?? "inbox").trim();
+    const mailboxLabel = !mailbox || mailbox.toLowerCase() === "me" ? "me" : mailbox;
+    const folder = this.cfg.folderId?.trim() || "inbox";
     const intervalSec = Math.round((this.cfg.pollIntervalMs ?? 60_000) / 1000);
-    const lines = [`Polls Microsoft Graph for new mail in **${folder}** of **${mailboxLabel}** every ${intervalSec}s.`];
-    if (this.cfg.filter) {
-      lines.push(`Server-side filter: \`${this.cfg.filter}\``);
-    }
-    if (this.cfg.downloadAttachments) {
-      lines.push("Includes attachment payloads (base64) on each message.");
-    }
-    lines.push(
-      "First poll baseline-skips the existing mailbox (no flood); only mails arriving after setup are emitted. Use the Test button to preview live messages without waiting.",
-    );
-    return lines.join("\n\n");
+    const extras: string[] = [];
+    if (this.cfg.filter) extras.push(`filter: ${this.cfg.filter}`);
+    if (this.cfg.downloadAttachments) extras.push("fetch attachments");
+    const suffix = extras.length ? `, ${extras.join(", ")}` : "";
+    return `Watch mailbox \`${mailboxLabel}\` (folder \`${folder}\`) for new mail every ${intervalSec}s${suffix}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -76,7 +70,7 @@ export class OnNewMsGraphMailTrigger implements TriggerNodeConfig<
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential for the mailbox you want to monitor.",
       },
     ];

@@ -8,7 +8,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import { createGraphClient, type MsGraphSession } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 import { toCanonicalFull, type DriveItemFull, type RawChildItem } from "./driveItemMapper";
@@ -85,7 +85,7 @@ export type DriveItemGetOptions = Readonly<{
 export class DriveItemGet implements RunnableNodeConfig<DriveItemGetOptions, DriveItemFull> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = DriveItemGetNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-onedrive" as const;
 
   constructor(
     public readonly name: string,
@@ -94,7 +94,13 @@ export class DriveItemGet implements RunnableNodeConfig<DriveItemGetOptions, Dri
   ) {}
 
   get description(): string {
-    return `Get metadata for driveId \`${this.cfg.driveId}\` / itemId \`${this.cfg.itemId}\`.`;
+    const hasDrive = this.cfg.driveId?.trim();
+    const hasItem = this.cfg.itemId?.trim();
+    const expandPart = this.cfg.expand && this.cfg.expand.length > 0 ? ` (expand: ${this.cfg.expand.join(", ")})` : "";
+    if (hasDrive && hasItem) {
+      return `Get metadata for driveId \`${hasDrive}\` / itemId \`${hasItem}\`${expandPart}.`;
+    }
+    return `Look up drive item metadata (driveId + itemId from upstream)${expandPart}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -102,7 +108,7 @@ export class DriveItemGet implements RunnableNodeConfig<DriveItemGetOptions, Dri
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.Read.All.",
       },
     ];

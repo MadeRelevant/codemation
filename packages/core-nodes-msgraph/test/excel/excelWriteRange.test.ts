@@ -222,9 +222,9 @@ describe("ExcelWriteRangeNode", () => {
     );
 
     const result = await node.execute(args);
-    const output = (result as { json: { handle: WorkbookHandle } }).json;
+    const output = (result as { json: WorkbookHandle }).json;
 
-    expect(output.handle.sessionId).toBe("SESS-WRITE");
+    expect(output.sessionId).toBe("SESS-WRITE");
   });
 
   it("single PATCH body shape — values wrapped correctly", async () => {

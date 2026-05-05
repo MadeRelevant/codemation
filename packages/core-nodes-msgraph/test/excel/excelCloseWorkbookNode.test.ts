@@ -48,7 +48,7 @@ function makeCloseSessionResponse(status: number, json?: unknown): Response {
 function makeArgs(handle: WorkbookHandle, getCredentialImpl: () => Promise<unknown>) {
   const config = new ExcelCloseWorkbook("close", { handle });
   return {
-    item: { json: { handle }, binary: {} },
+    item: { json: handle, binary: {} },
     ctx: {
       config,
       getCredential: vi.fn().mockImplementation(getCredentialImpl),
@@ -110,7 +110,7 @@ describe("ExcelCloseWorkbookNode", () => {
     const config = new ExcelCloseWorkbook("close", { handle });
 
     const args = {
-      item: { json: { handle }, binary: {} },
+      item: { json: handle, binary: {} },
       ctx: { config, getCredential, binary: {} },
     } as unknown as Parameters<typeof node.execute>[0];
 

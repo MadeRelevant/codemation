@@ -7,7 +7,7 @@ import type {
   TypeToken,
 } from "@codemation/core";
 import { node } from "@codemation/core";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphMailOAuth";
 import { createGraphClient, type MsGraphSession } from "../credentials/session";
 import { mailboxPathPrefix } from "../lib/graphPaths";
 import { withGraphRetry } from "../lib/graphRetry";
@@ -48,7 +48,7 @@ export class OutlookFolderResolve implements RunnableNodeConfig<
 > {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = OutlookFolderResolveNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-outlook" as const;
 
   constructor(
     public readonly name: string,
@@ -57,7 +57,12 @@ export class OutlookFolderResolve implements RunnableNodeConfig<
   ) {}
 
   get description(): string {
-    return `Resolve Outlook folder path \`${this.cfg.folderPath}\` in mailbox \`${this.cfg.mailbox || "me"}\` to a folder id.`;
+    const path = this.cfg.folderPath?.trim();
+    const mailbox = this.cfg.mailbox?.trim() || "me";
+    const createSuffix = this.cfg.createIfMissing ? ", creating missing segments" : "";
+    return path
+      ? `Resolve mail folder \`${path}\` in mailbox \`${mailbox}\` to a folder id${createSuffix}.`
+      : `Resolve mail folder (path from upstream) to a folder id${createSuffix}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -65,7 +70,7 @@ export class OutlookFolderResolve implements RunnableNodeConfig<
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential for the mailbox you want to access.",
       },
     ];

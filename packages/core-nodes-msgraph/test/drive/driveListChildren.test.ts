@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   DriveListChildren,
   DriveListChildrenNode,
-  type DriveListChildrenOutput,
   type GraphClient,
   listChildren,
 } from "../../src/drive/driveListChildrenNode";
+import type { DriveChildItem } from "../../src/drive/driveItemMapper";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -106,12 +106,11 @@ describe("DriveListChildrenNode", () => {
       maxItems: 1000,
     });
 
-    expect(result.truncated).toBe(false);
-    expect(result.items).toHaveLength(2);
-    expect(result.items[0]!.itemId).toBe("a");
-    expect(result.items[0]!.name).toBe("alpha.xlsx");
-    expect(result.items[0]!.isFolder).toBe(false);
-    expect(result.items[1]!.itemId).toBe("b");
+    expect(result).toHaveLength(2);
+    expect(result[0]!.itemId).toBe("a");
+    expect(result[0]!.name).toBe("alpha.xlsx");
+    expect(result[0]!.isFolder).toBe(false);
+    expect(result[1]!.itemId).toBe("b");
   });
 
   // -------------------------------------------------------------------------
@@ -202,10 +201,9 @@ describe("DriveListChildrenNode", () => {
       maxItems: 1000,
     });
 
-    expect(result.truncated).toBe(false);
-    expect(result.items).toHaveLength(3);
-    expect(result.items[0]!.itemId).toBe("p1-a");
-    expect(result.items[2]!.itemId).toBe("p2-a");
+    expect(result).toHaveLength(3);
+    expect(result[0]!.itemId).toBe("p1-a");
+    expect(result[2]!.itemId).toBe("p2-a");
     // Second call must use the nextLink URL
     expect(client.api).toHaveBeenCalledWith(
       "https://graph.microsoft.com/v1.0/drives/d1/items/f1/children?$skiptoken=abc",
@@ -215,7 +213,7 @@ describe("DriveListChildrenNode", () => {
   // -------------------------------------------------------------------------
   // 6. maxItems truncation
   // -------------------------------------------------------------------------
-  it("stops collecting and sets truncated=true when maxItems is reached", async () => {
+  it("stops collecting when maxItems is reached", async () => {
     const page1Items = [rawItem({ id: "a" }), rawItem({ id: "b" }), rawItem({ id: "c" })];
     const page1Response = {
       value: page1Items,
@@ -231,10 +229,9 @@ describe("DriveListChildrenNode", () => {
       maxItems: 2,
     });
 
-    expect(result.truncated).toBe(true);
-    expect(result.items).toHaveLength(2);
-    expect(result.items[0]!.itemId).toBe("a");
-    expect(result.items[1]!.itemId).toBe("b");
+    expect(result).toHaveLength(2);
+    expect(result[0]!.itemId).toBe("a");
+    expect(result[1]!.itemId).toBe("b");
   });
 
   // -------------------------------------------------------------------------
@@ -251,8 +248,8 @@ describe("DriveListChildrenNode", () => {
       maxItems: 1000,
     });
 
-    expect(result.items[0]!.isFolder).toBe(true);
-    expect(result.items[1]!.isFolder).toBe(false);
+    expect(result[0]!.isFolder).toBe(true);
+    expect(result[1]!.isFolder).toBe(false);
   });
 
   // -------------------------------------------------------------------------
@@ -286,7 +283,7 @@ describe("DriveListChildrenNode", () => {
       const result = await resultPromise;
 
       expect(getMock).toHaveBeenCalledTimes(2);
-      expect(result.items[0]!.itemId).toBe("retry-item");
+      expect(result[0]!.itemId).toBe("retry-item");
     } finally {
       vi.useRealTimers();
     }
@@ -295,7 +292,7 @@ describe("DriveListChildrenNode", () => {
   // -------------------------------------------------------------------------
   // 9. Node execute — integration via withClientSpy
   // -------------------------------------------------------------------------
-  it("node execute returns item with json output", async () => {
+  it("node execute returns one item per child", async () => {
     const items = [rawItem({ id: "node-item" })];
     const client = makeClient({ value: items });
 
@@ -304,10 +301,9 @@ describe("DriveListChildrenNode", () => {
       node.execute(makeArgs({ driveId: "drive-1", itemId: "folder-1" })),
     );
 
-    const out = (result as { json: DriveListChildrenOutput }).json;
-    expect(out.items).toHaveLength(1);
-    expect(out.items[0]!.itemId).toBe("node-item");
-    expect(out.truncated).toBe(false);
+    const emitted = result as DriveChildItem[];
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0]!.itemId).toBe("node-item");
   });
 
   // -------------------------------------------------------------------------
@@ -334,6 +330,6 @@ describe("DriveListChildrenNode", () => {
       maxItems: 1000,
     });
 
-    expect(result.items[0]!.driveId).toBe("fallback-drive");
+    expect(result[0]!.driveId).toBe("fallback-drive");
   });
 });

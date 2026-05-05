@@ -1,6 +1,17 @@
+/**
+ * ExcelListWorksheetsNode — emits one item per worksheet.
+ *
+ * Handle threading: `workbookFetch` performs a one-shot session renewal on
+ * session-expired errors and returns the renewed handle. Because a GET to
+ * /worksheets can therefore yield a *different* handle than it received, we
+ * spread the (possibly renewed) handle fields into every emitted item's json.
+ * This ensures downstream Excel nodes always receive a valid handle regardless of
+ * whether a transparent renewal happened during the list call.
+ *
+ * Per-item shape: { id, name, position, visibility, driveId, itemId, sessionId, expiresAt, cookies, persistChanges }
+ */
 import type {
   CredentialRequirement,
-  Item,
   RunnableNode,
   RunnableNodeConfig,
   RunnableNodeExecuteArgs,
@@ -8,7 +19,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import type { MsGraphSession } from "../credentials/session";
 import type { WorkbookHandle } from "./session";
 import { workbookFetch } from "./session";
@@ -30,7 +41,7 @@ type WorksheetsResponse = {
 };
 
 // ---------------------------------------------------------------------------
-// Output shape
+// Output shape (per-item)
 // ---------------------------------------------------------------------------
 
 export type WorksheetInfo = {
@@ -40,10 +51,7 @@ export type WorksheetInfo = {
   visibility: "Visible" | "Hidden" | "VeryHidden";
 };
 
-export type ExcelListWorksheetsOutput = {
-  handle: WorkbookHandle;
-  worksheets: WorksheetInfo[];
-};
+export type WorksheetInfoWithHandle = WorksheetInfo & WorkbookHandle;
 
 // ---------------------------------------------------------------------------
 // Input schema (validated from cfg)
@@ -66,20 +74,21 @@ const ExcelListWorksheetsInputSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export type ExcelListWorksheetsOptions = Readonly<{
-  handle: WorkbookHandle;
+  handle?: WorkbookHandle;
 }>;
 
 /**
  * List all worksheets in an open Excel workbook.
  *
- * Requires a `WorkbookHandle` from `ExcelOpenWorkbookNode`. The returned handle
- * should be used for subsequent Excel operations — it may differ from the input
- * handle if the session was renewed transparently.
+ * Requires a `WorkbookHandle` from `ExcelOpenWorkbookNode`. Emits one item per
+ * worksheet. Each item's json contains the worksheet fields spread together with
+ * the handle fields — the handle may differ from the input if the session was
+ * renewed transparently.
  */
-export class ExcelListWorksheets implements RunnableNodeConfig<ExcelListWorksheetsOptions, ExcelListWorksheetsOutput> {
+export class ExcelListWorksheets implements RunnableNodeConfig<ExcelListWorksheetsOptions, WorksheetInfoWithHandle> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = ExcelListWorksheetsNode;
-  readonly icon = "si:microsoftexcel" as const;
+  readonly icon = "builtin:microsoft-excel" as const;
 
   constructor(
     public readonly name: string,
@@ -88,7 +97,7 @@ export class ExcelListWorksheets implements RunnableNodeConfig<ExcelListWorkshee
   ) {}
 
   get description(): string {
-    return "List all worksheets in an open Excel workbook.";
+    return "List all worksheets in the open workbook, emitting one item per sheet.";
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -96,7 +105,7 @@ export class ExcelListWorksheets implements RunnableNodeConfig<ExcelListWorkshee
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];
@@ -117,7 +126,21 @@ export class ExcelListWorksheetsNode implements RunnableNode<ExcelListWorksheets
     const cfg = ctx.config.cfg;
 
     const session = await ctx.getCredential<MsGraphSession>("auth");
-    const { handle } = ExcelListWorksheetsInputSchema.parse({ handle: cfg.handle });
+
+    // Fall back to item.json so ExcelOpenWorkbook → ExcelListWorksheets chains without UI handle wiring.
+    // Discriminate a real WorkbookHandle (has sessionId) from plain item.json (e.g. DriveResolve output).
+    const fromItem = args.item.json as Partial<WorkbookHandle> | undefined;
+    const candidateFromItem: WorkbookHandle | undefined =
+      fromItem && typeof fromItem.sessionId === "string" && fromItem.sessionId.length > 0
+        ? (fromItem as WorkbookHandle)
+        : undefined;
+    const resolvedHandle = cfg.handle ?? candidateFromItem;
+    if (!resolvedHandle) {
+      throw new Error(
+        "ExcelListWorksheetsNode: requires `handle` in cfg or upstream item.json (flat WorkbookHandle) from ExcelOpenWorkbookNode.",
+      );
+    }
+    const { handle } = ExcelListWorksheetsInputSchema.parse({ handle: resolvedHandle });
 
     const path = worksheetsCollectionPath(handle);
 
@@ -129,18 +152,18 @@ export class ExcelListWorksheetsNode implements RunnableNode<ExcelListWorksheets
     });
 
     const body = result.json as WorksheetsResponse;
-    const worksheets: WorksheetInfo[] = (body.value ?? []).map((ws) => ({
+    // Spread the (possibly renewed) handle fields into every worksheet item so
+    // downstream Excel nodes always have a valid flat handle, even after renewal.
+    const renewedHandle = result.handle;
+    const items: WorksheetInfoWithHandle[] = (body.value ?? []).map((ws) => ({
       id: ws.id,
       name: ws.name,
       position: ws.position,
       visibility: ws.visibility,
+      ...renewedHandle,
     }));
 
-    const output: ExcelListWorksheetsOutput = {
-      handle: result.handle,
-      worksheets,
-    };
-
-    return { ...(args.item as Item), json: output };
+    // Engine's NodeOutputNormalizer wraps each array element as { json: el }.
+    return items;
   }
 }

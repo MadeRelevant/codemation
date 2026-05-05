@@ -4,7 +4,11 @@
  * fetch is stubbed by saving/restoring globalThis.fetch manually.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ExcelListWorksheets, ExcelListWorksheetsNode } from "../../src/excel/excelListWorksheetsNode";
+import {
+  ExcelListWorksheets,
+  ExcelListWorksheetsNode,
+  type WorksheetInfoWithHandle,
+} from "../../src/excel/excelListWorksheetsNode";
 import type { WorkbookHandle } from "../../src/excel/session";
 
 // ---------------------------------------------------------------------------
@@ -80,7 +84,7 @@ describe("ExcelListWorksheetsNode", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("happy path — returns worksheets list with correct URL", async () => {
+  it("happy path — returns one item per worksheet with correct URL", async () => {
     const worksheetsResponse = {
       value: [
         { id: "ws1", name: "Sheet1", position: 0, visibility: "Visible" },
@@ -100,20 +104,26 @@ describe("ExcelListWorksheetsNode", () => {
     const args = makeArgs({ handle }, () => Promise.resolve(makeSession()));
 
     const result = await node.execute(args);
-    const output = (result as { json: { handle: WorkbookHandle; worksheets: unknown[] } }).json;
+    const items = result as WorksheetInfoWithHandle[];
 
     // Correct URL
     expect(capturedUrl).toBe("https://graph.microsoft.com/v1.0/drives/driveA/items/itemB/workbook/worksheets");
 
-    // Worksheets content
-    expect(output.worksheets).toHaveLength(3);
-    expect(output.worksheets[0]).toEqual({ id: "ws1", name: "Sheet1", position: 0, visibility: "Visible" });
-    expect(output.worksheets[1]).toEqual({ id: "ws2", name: "Sheet2", position: 1, visibility: "Hidden" });
-    expect(output.worksheets[2]).toEqual({ id: "ws3", name: "VHSheet", position: 2, visibility: "VeryHidden" });
+    // One item per worksheet
+    expect(items).toHaveLength(3);
+    expect(items[0]!.id).toBe("ws1");
+    expect(items[0]!.name).toBe("Sheet1");
+    expect(items[0]!.position).toBe(0);
+    expect(items[0]!.visibility).toBe("Visible");
+    expect(items[1]!.id).toBe("ws2");
+    expect(items[2]!.id).toBe("ws3");
+    expect(items[2]!.visibility).toBe("VeryHidden");
   });
 
-  it("passes handle through to output when no session renewal", async () => {
-    const worksheetsResponse = { value: [] };
+  it("passes handle through to each item when no session renewal", async () => {
+    const worksheetsResponse = {
+      value: [{ id: "ws1", name: "Sheet1", position: 0, visibility: "Visible" }],
+    };
     globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse({ json: worksheetsResponse }));
 
     const handle = makeHandle({ sessionId: "MY-SESSION" });
@@ -121,13 +131,13 @@ describe("ExcelListWorksheetsNode", () => {
     const args = makeArgs({ handle }, () => Promise.resolve(makeSession()));
 
     const result = await node.execute(args);
-    const output = (result as { json: { handle: WorkbookHandle } }).json;
+    const items = result as WorksheetInfoWithHandle[];
 
-    // Same handle reference (no renewal)
-    expect(output.handle.sessionId).toBe("MY-SESSION");
+    // Same handle fields flat on item (no renewal)
+    expect(items[0]!.sessionId).toBe("MY-SESSION");
   });
 
-  it("passes updated handle through when session was renewed", async () => {
+  it("passes updated handle to each item when session was renewed", async () => {
     const sessionExpiredBody = {
       error: { code: "WACSessionExpired", message: "Session expired." },
     };
@@ -175,9 +185,9 @@ describe("ExcelListWorksheetsNode", () => {
     const args = makeArgs({ handle }, () => Promise.resolve(makeSession()));
 
     const result = await node.execute(args);
-    const output = (result as { json: { handle: WorkbookHandle } }).json;
+    const items = result as WorksheetInfoWithHandle[];
 
-    expect(output.handle.sessionId).toBe("NEW-SESSION-999");
+    expect(items[0]!.sessionId).toBe("NEW-SESSION-999");
   });
 
   it("visibility passthrough — all three visibility values are preserved", async () => {
@@ -195,10 +205,22 @@ describe("ExcelListWorksheetsNode", () => {
     const args = makeArgs({ handle: makeHandle() }, () => Promise.resolve(makeSession()));
 
     const result = await node.execute(args);
-    const output = (result as { json: { worksheets: Array<{ visibility: string }> } }).json;
+    const items = result as WorksheetInfoWithHandle[];
 
-    const visibilities = output.worksheets.map((ws) => ws.visibility);
+    const visibilities = items.map((item) => item.visibility);
     expect(visibilities).toEqual(["Visible", "Hidden", "VeryHidden"]);
+  });
+
+  it("returns empty array when workbook has no worksheets", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse({ json: { value: [] } }));
+
+    const node = new ExcelListWorksheetsNode();
+    const args = makeArgs({ handle: makeHandle() }, () => Promise.resolve(makeSession()));
+
+    const result = await node.execute(args);
+    const items = result as WorksheetInfoWithHandle[];
+
+    expect(items).toHaveLength(0);
   });
 
   it("calls ctx.getCredential with 'auth'", async () => {

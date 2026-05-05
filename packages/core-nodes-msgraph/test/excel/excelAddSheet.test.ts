@@ -104,16 +104,16 @@ describe("ExcelAddSheetNode", () => {
     const args = makeArgs({ handle: makeHandle(), name: "NewSheet" }, () => Promise.resolve(makeSession()));
 
     const result = await node.execute(args);
-    const output = (result as { json: { worksheet: { id: string; name: string; position: number } } }).json;
+    const output = (result as { json: { id: string; name: string; position: number } }).json;
 
     expect(capturedRequests).toHaveLength(1);
     expect(capturedRequests[0].method).toBe("POST");
     expect(capturedRequests[0].url).toContain("/worksheets/add");
     expect(capturedRequests[0].body).toEqual({ name: "NewSheet" });
 
-    expect(output.worksheet.id).toBe("ws-new");
-    expect(output.worksheet.name).toBe("NewSheet");
-    expect(output.worksheet.position).toBe(3);
+    expect(output.id).toBe("ws-new");
+    expect(output.name).toBe("NewSheet");
+    expect(output.position).toBe(3);
   });
 
   it("simple add — handle pass-through", async () => {
@@ -126,9 +126,9 @@ describe("ExcelAddSheetNode", () => {
     const args = makeArgs({ handle, name: "Sheet1" }, () => Promise.resolve(makeSession()));
 
     const result = await node.execute(args);
-    const output = (result as { json: { handle: WorkbookHandle } }).json;
+    const output = (result as { json: WorkbookHandle }).json;
 
-    expect(output.handle.sessionId).toBe("ADD-SESS");
+    expect(output.sessionId).toBe("ADD-SESS");
   });
 
   // -------------------------------------------------------------------------
@@ -157,7 +157,7 @@ describe("ExcelAddSheetNode", () => {
     );
 
     const result = await node.execute(args);
-    const output = (result as { json: { worksheet: { id: string; name: string } } }).json;
+    const output = (result as { json: { id: string; name: string } }).json;
 
     // ONE request — copy honored the name
     expect(capturedRequests).toHaveLength(1);
@@ -165,8 +165,8 @@ describe("ExcelAddSheetNode", () => {
     expect(capturedRequests[0].url).toContain("worksheets('Template')/copy");
     expect(capturedRequests[0].body).toMatchObject({ positionType: "End", name: "NewCopy" });
 
-    expect(output.worksheet.id).toBe("ws-copy");
-    expect(output.worksheet.name).toBe("NewCopy");
+    expect(output.id).toBe("ws-copy");
+    expect(output.name).toBe("NewCopy");
   });
 
   it("copyFrom — rename-after-copy fallback when initial copy response doesn't carry requested name", async () => {
@@ -198,7 +198,7 @@ describe("ExcelAddSheetNode", () => {
     );
 
     const result = await node.execute(args);
-    const output = (result as { json: { worksheet: { name: string } } }).json;
+    const output = (result as { json: { name: string } }).json;
 
     // Two requests: POST copy + PATCH rename
     expect(capturedRequests).toHaveLength(2);
@@ -211,7 +211,7 @@ describe("ExcelAddSheetNode", () => {
     expect(capturedRequests[1].url).toContain("Template%20(2)");
     expect(capturedRequests[1].body).toEqual({ name: "FinalName" });
 
-    expect(output.worksheet.name).toBe("FinalName");
+    expect(output.name).toBe("FinalName");
   });
 
   it("sheet names with spaces are URL-encoded in copy path", async () => {

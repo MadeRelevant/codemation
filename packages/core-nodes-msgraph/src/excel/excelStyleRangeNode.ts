@@ -8,7 +8,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import type { MsGraphSession } from "../credentials/session";
 import type { WorkbookHandle } from "./session";
 import { workbookFetch } from "./session";
@@ -112,8 +112,7 @@ type ExcelStyleRangeInput = z.infer<typeof ExcelStyleRangeInputSchema>;
 // Output shape
 // ---------------------------------------------------------------------------
 
-export type ExcelStyleRangeOutput = {
-  handle: WorkbookHandle;
+export type ExcelStyleRangeOutput = WorkbookHandle & {
   address: string;
   /** Names of the format properties that were actually applied in the PATCH. */
   appliedFormatProps: string[];
@@ -126,7 +125,7 @@ export type ExcelStyleRangeOutput = {
 // ---------------------------------------------------------------------------
 
 export type ExcelStyleRangeOptions = Readonly<{
-  handle: WorkbookHandle;
+  handle?: WorkbookHandle;
   sheet: string;
   range: string;
   font?: {
@@ -169,7 +168,7 @@ export type ExcelStyleRangeOptions = Readonly<{
 export class ExcelStyleRange implements RunnableNodeConfig<ExcelStyleRangeOptions, ExcelStyleRangeOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = ExcelStyleRangeNode;
-  readonly icon = "si:microsoftexcel" as const;
+  readonly icon = "builtin:microsoft-excel" as const;
 
   constructor(
     public readonly name: string,
@@ -178,7 +177,21 @@ export class ExcelStyleRange implements RunnableNodeConfig<ExcelStyleRangeOption
   ) {}
 
   get description(): string {
-    return `Apply formatting to range \`${this.cfg.range}\` in worksheet \`${this.cfg.sheet}\`.`;
+    const sheet = this.cfg.sheet?.trim();
+    const range = this.cfg.range?.trim();
+    const fmtParts: string[] = [];
+    if (this.cfg.font && Object.keys(this.cfg.font).length > 0) fmtParts.push("font");
+    if (this.cfg.fill && Object.keys(this.cfg.fill).length > 0) fmtParts.push("fill");
+    if (this.cfg.alignment && Object.keys(this.cfg.alignment).length > 0) fmtParts.push("alignment");
+    if (this.cfg.borders && Object.keys(this.cfg.borders).length > 0) fmtParts.push("borders");
+    if (this.cfg.numberFormat !== undefined) fmtParts.push("numberFormat");
+    if (this.cfg.merge) fmtParts.push("merge");
+    if (this.cfg.autofitColumns) fmtParts.push("autofit");
+    const fmtSuffix = fmtParts.length > 0 ? `: ${fmtParts.join(", ")}` : "";
+    if (sheet && range) {
+      return `Style range \`${sheet}!${range}\`${fmtSuffix}.`;
+    }
+    return `Style worksheet range (sheet/range from upstream or cfg)${fmtSuffix}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -186,7 +199,7 @@ export class ExcelStyleRange implements RunnableNodeConfig<ExcelStyleRangeOption
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];
@@ -201,31 +214,21 @@ export class ExcelStyleRange implements RunnableNodeConfig<ExcelStyleRangeOption
  * Build the format PATCH body from the input, including only the sub-objects
  * that were actually provided. Returns the body and the list of applied prop names.
  */
+/**
+ * Graph's PATCH on `/range(...)/format` does NOT accept `font` or `fill` as nested
+ * sub-objects — they live at separate sub-resources `/format/font` and `/format/fill`
+ * and must be PATCHed there directly. Only alignment/wrapText/numberFormat go on the
+ * top-level `/format` PATCH.
+ */
 function buildFormatBody(input: ExcelStyleRangeInput): { body: Record<string, unknown>; appliedFormatProps: string[] } {
   const body: Record<string, unknown> = {};
   const appliedFormatProps: string[] = [];
 
-  if (input.font && Object.keys(input.font).length > 0) {
-    body["font"] = input.font;
-    appliedFormatProps.push("font");
-  }
-
-  if (input.fill && Object.keys(input.fill).length > 0) {
-    // Graph expects fill.color under the "fill" sub-object
-    body["fill"] = input.fill;
-    appliedFormatProps.push("fill");
-  }
-
   if (input.alignment && Object.keys(input.alignment).length > 0) {
-    body["horizontalAlignment"] = input.alignment.horizontal;
-    body["verticalAlignment"] = input.alignment.vertical;
-    if (input.alignment.wrapText !== undefined) {
-      body["wrapText"] = input.alignment.wrapText;
-    }
-    // Remove undefined keys
-    if (body["horizontalAlignment"] === undefined) delete body["horizontalAlignment"];
-    if (body["verticalAlignment"] === undefined) delete body["verticalAlignment"];
-    appliedFormatProps.push("alignment");
+    if (input.alignment.horizontal !== undefined) body["horizontalAlignment"] = input.alignment.horizontal;
+    if (input.alignment.vertical !== undefined) body["verticalAlignment"] = input.alignment.vertical;
+    if (input.alignment.wrapText !== undefined) body["wrapText"] = input.alignment.wrapText;
+    if (Object.keys(body).length > 0) appliedFormatProps.push("alignment");
   }
 
   if (input.numberFormat !== undefined) {
@@ -251,8 +254,22 @@ export class ExcelStyleRangeNode implements RunnableNode<ExcelStyleRange> {
 
     const session = await ctx.getCredential<MsGraphSession>("auth");
 
+    // Fall back to item.json so ExcelOpenWorkbook → ExcelStyleRange chains without UI handle wiring.
+    // Discriminate a real WorkbookHandle (has sessionId) from plain item.json (e.g. DriveResolve output).
+    const fromItem = args.item.json as Partial<WorkbookHandle> | undefined;
+    const candidateFromItem: WorkbookHandle | undefined =
+      fromItem && typeof fromItem.sessionId === "string" && fromItem.sessionId.length > 0
+        ? (fromItem as WorkbookHandle)
+        : undefined;
+    const resolvedHandle = cfg.handle ?? candidateFromItem;
+    if (!resolvedHandle) {
+      throw new Error(
+        "ExcelStyleRangeNode: requires `handle` in cfg or upstream item.json (flat WorkbookHandle) from ExcelOpenWorkbookNode.",
+      );
+    }
+
     const input: ExcelStyleRangeInput = ExcelStyleRangeInputSchema.parse({
-      handle: cfg.handle,
+      handle: resolvedHandle,
       sheet: cfg.sheet,
       range: cfg.range,
       font: cfg.font,
@@ -285,6 +302,31 @@ export class ExcelStyleRangeNode implements RunnableNode<ExcelStyleRange> {
       });
       handle = formatResult.handle;
       appliedFormatProps.push(...formatProps);
+    }
+
+    // font and fill are sub-resources of `/format`, not nested fields. PATCH them separately.
+    if (input.font && Object.keys(input.font).length > 0) {
+      const fontResult = await workbookFetch({
+        session,
+        handle,
+        method: "PATCH",
+        path: `${rangeFormatPath(handle, sheet, range)}/font`,
+        body: input.font,
+      });
+      handle = fontResult.handle;
+      appliedFormatProps.push("font");
+    }
+
+    if (input.fill && Object.keys(input.fill).length > 0) {
+      const fillResult = await workbookFetch({
+        session,
+        handle,
+        method: "PATCH",
+        path: `${rangeFormatPath(handle, sheet, range)}/fill`,
+        body: input.fill,
+      });
+      handle = fillResult.handle;
+      appliedFormatProps.push("fill");
     }
 
     // -------------------------------------------------------------------------
@@ -355,7 +397,7 @@ export class ExcelStyleRangeNode implements RunnableNode<ExcelStyleRange> {
     }
 
     const output: ExcelStyleRangeOutput = {
-      handle,
+      ...handle,
       address: range,
       appliedFormatProps,
       mergedApplied,

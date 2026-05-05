@@ -7,7 +7,7 @@ import type {
   TypeToken,
 } from "@codemation/core";
 import { node } from "@codemation/core";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphMailOAuth";
 import { createGraphClient, type MsGraphSession } from "../credentials/session";
 import { mailboxPathPrefix } from "../lib/graphPaths";
 import { withGraphRetry } from "../lib/graphRetry";
@@ -37,7 +37,7 @@ const ATTACHMENT_METADATA_EXPAND = `attachments($select=${ATTACHMENT_METADATA_SE
 export class OutlookMessageGet implements RunnableNodeConfig<OutlookMessageGetOptions, MsGraphMailItem> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = OutlookMessageGetNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-outlook" as const;
 
   constructor(
     public readonly name: string,
@@ -46,7 +46,12 @@ export class OutlookMessageGet implements RunnableNodeConfig<OutlookMessageGetOp
   ) {}
 
   get description(): string {
-    return `Fetch Microsoft Graph message \`${this.cfg.messageId}\` from mailbox \`${this.cfg.mailbox || "me"}\`.`;
+    const msgId = this.cfg.messageId?.trim();
+    const mailbox = this.cfg.mailbox?.trim() || "me";
+    const attachSuffix = this.cfg.expandAttachments ? " (with attachment metadata)" : "";
+    return msgId
+      ? `Fetch message \`${msgId}\` from mailbox \`${mailbox}\`${attachSuffix}.`
+      : `Fetch message (id from upstream) from mailbox \`${mailbox}\`${attachSuffix}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -54,7 +59,7 @@ export class OutlookMessageGet implements RunnableNodeConfig<OutlookMessageGetOp
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential for the mailbox you want to access.",
       },
     ];

@@ -26,7 +26,9 @@ const DEFAULT_INTERVAL_MS = 60_000;
 // Metadata-only $expand: keeps payloads small and never returns base64 contentBytes.
 // Bytes are fetched separately in execute() when downloadAttachments is true.
 // isInline and contentId are included so inline attachments can be tagged correctly.
-const ATTACHMENT_METADATA_EXPAND = "attachments($select=id,name,contentType,size,isInline,contentId)";
+// contentId lives on the derived type microsoft.graph.fileAttachment — OData $select needs the type-cast prefix.
+const ATTACHMENT_METADATA_EXPAND =
+  "attachments($select=id,name,contentType,size,isInline,microsoft.graph.fileAttachment/contentId)";
 // Default size cap for attachment binary fetch: 25 MiB.
 const DEFAULT_ATTACHMENT_SIZE_CAP_BYTES = 25 * 1024 * 1024;
 // Default OData filter: only unread messages. Callers can override via cfg.filter.

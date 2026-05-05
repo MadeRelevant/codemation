@@ -85,7 +85,7 @@ describe("ExcelStyleRangeNode", () => {
   // Coalesced PATCH: font + fill + alignment + numberFormat
   // -------------------------------------------------------------------------
 
-  it("coalesces font + fill + alignment + numberFormat into ONE PATCH on range/format", async () => {
+  it("PATCHes font, fill, and format separately — Graph rejects nested font/fill on /format", async () => {
     const capturedRequests: Array<{ url: string; method: string; body: unknown }> = [];
 
     globalThis.fetch = vi.fn().mockImplementation(async (url: string, init: RequestInit) => {
@@ -114,18 +114,26 @@ describe("ExcelStyleRangeNode", () => {
     const result = await node.execute(args);
     const output = (result as { json: { appliedFormatProps: string[] } }).json;
 
-    // Exactly ONE format PATCH (no borders)
-    expect(capturedRequests).toHaveLength(1);
-    expect(capturedRequests[0].method).toBe("PATCH");
-    expect(capturedRequests[0].url).toContain("range(address='A1:C3')/format");
+    // Three PATCHes: top-level /format (alignment + numberFormat), /format/font, /format/fill.
+    expect(capturedRequests).toHaveLength(3);
+    expect(capturedRequests.every((r) => r.method === "PATCH")).toBe(true);
 
-    // Body must contain font, fill, alignment mapping, numberFormat
-    const body = capturedRequests[0].body as Record<string, unknown>;
-    expect(body["font"]).toEqual({ bold: true, color: "#FF0000" });
-    expect(body["fill"]).toEqual({ color: "#FFFFFF" });
-    expect(body["horizontalAlignment"]).toBe("Center");
-    expect(body["wrapText"]).toBe(true);
-    expect(body["numberFormat"]).toBe("0.00");
+    const formatReq = capturedRequests.find((r) => r.url.endsWith("/format"));
+    const fontReq = capturedRequests.find((r) => r.url.endsWith("/format/font"));
+    const fillReq = capturedRequests.find((r) => r.url.endsWith("/format/fill"));
+    expect(formatReq).toBeDefined();
+    expect(fontReq).toBeDefined();
+    expect(fillReq).toBeDefined();
+
+    const formatBody = formatReq!.body as Record<string, unknown>;
+    expect(formatBody["horizontalAlignment"]).toBe("Center");
+    expect(formatBody["wrapText"]).toBe(true);
+    expect(formatBody["numberFormat"]).toBe("0.00");
+    expect(formatBody["font"]).toBeUndefined();
+    expect(formatBody["fill"]).toBeUndefined();
+
+    expect(fontReq!.body).toEqual({ bold: true, color: "#FF0000" });
+    expect(fillReq!.body).toEqual({ color: "#FFFFFF" });
 
     expect(output.appliedFormatProps).toContain("font");
     expect(output.appliedFormatProps).toContain("fill");
@@ -359,11 +367,13 @@ describe("ExcelStyleRangeNode", () => {
       }
     ).json;
 
-    // 1 format PATCH
+    // 3 format-family PATCHes: top-level /format (alignment+numberFormat), /format/font, /format/fill.
     const formatPatch = capturedRequests.filter(
       (r) => r.method === "PATCH" && r.url.includes("/format") && !r.url.includes("/borders/"),
     );
-    expect(formatPatch).toHaveLength(1);
+    expect(formatPatch).toHaveLength(3);
+    expect(formatPatch.some((r) => r.url.endsWith("/format/font"))).toBe(true);
+    expect(formatPatch.some((r) => r.url.endsWith("/format/fill"))).toBe(true);
 
     // 4 border PATCHes
     const borderPatch = capturedRequests.filter((r) => r.url.includes("/borders/"));
@@ -400,9 +410,87 @@ describe("ExcelStyleRangeNode", () => {
     );
 
     const result = await node.execute(args);
-    const output = (result as { json: { handle: WorkbookHandle } }).json;
+    const output = (result as { json: WorkbookHandle }).json;
 
-    expect(output.handle.sessionId).toBe("STYLE-SESS");
+    expect(output.sessionId).toBe("STYLE-SESS");
+  });
+
+  // -------------------------------------------------------------------------
+  // Regression #6: font-only run goes to /format/font, NOT coalesced into /format
+  // (guards against future refactors coalescing font/fill back into the top-level body)
+  // -------------------------------------------------------------------------
+
+  it("font-only: issues PATCH to /format/font, not /format; fill PATCH not issued", async () => {
+    const capturedRequests: Array<{ url: string; body: unknown }> = [];
+
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string, init: RequestInit) => {
+      capturedRequests.push({
+        url,
+        body: init.body ? JSON.parse(init.body as string) : undefined,
+      });
+      return makeFetchResponse({ json: {} });
+    });
+
+    const node = new ExcelStyleRangeNode();
+    const args = makeArgs(
+      {
+        handle: makeHandle(),
+        sheet: "Sheet1",
+        range: "B2:D4",
+        // font only — no fill, alignment, numberFormat, borders
+        font: { bold: true, color: "#FF0000" },
+      },
+      () => Promise.resolve(makeSession()),
+    );
+
+    await node.execute(args);
+
+    const fontReq = capturedRequests.find((r) => r.url.endsWith("/format/font"));
+    const fillReq = capturedRequests.find((r) => r.url.endsWith("/format/fill"));
+    // Top-level /format PATCH may be skipped (nothing in alignment/numberFormat to send)
+    const topFormatReq = capturedRequests.find((r) => r.url.endsWith("/format"));
+
+    // /format/font MUST have been PATCHed with the right body
+    expect(fontReq).toBeDefined();
+    expect(fontReq!.body).toEqual({ bold: true, color: "#FF0000" });
+
+    // /format/fill must NOT have been called (no fill given)
+    expect(fillReq).toBeUndefined();
+
+    // If a top-level /format PATCH was issued it must NOT carry a 'font' key —
+    // font belongs to the sub-resource only, never the top-level body
+    if (topFormatReq) {
+      expect((topFormatReq.body as Record<string, unknown>)["font"]).toBeUndefined();
+    }
+  });
+
+  it("fill-only: issues PATCH to /format/fill, not /format; font PATCH not issued", async () => {
+    const capturedRequests: Array<{ url: string }> = [];
+
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+      capturedRequests.push({ url });
+      return makeFetchResponse({ json: {} });
+    });
+
+    const node = new ExcelStyleRangeNode();
+    const args = makeArgs(
+      {
+        handle: makeHandle(),
+        sheet: "Sheet1",
+        range: "A1:C3",
+        // fill only
+        fill: { color: "#EEEEEE" },
+      },
+      () => Promise.resolve(makeSession()),
+    );
+
+    await node.execute(args);
+
+    const hasFillPatch = capturedRequests.some((r) => r.url.endsWith("/format/fill"));
+    const hasFontPatch = capturedRequests.some((r) => r.url.endsWith("/format/font"));
+
+    expect(hasFillPatch).toBe(true);
+    expect(hasFontPatch).toBe(false);
   });
 
   it("no requests issued when no style properties provided", async () => {

@@ -9,7 +9,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import { createGraphClient, type MsGraphSession } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 import type { RawChildItem } from "./driveItemMapper";
@@ -55,23 +55,36 @@ export type DownloadHttp = {
  * Uses the Graph SDK client's `.getStream()` which follows the Graph 302 redirect
  * to the pre-authenticated download URL transparently.
  */
-function makeProductionDownloadHttp(): DownloadHttp {
+export function makeProductionDownloadHttp(): DownloadHttp {
   return {
     async downloadContent({ driveId, itemId, session }) {
       const client = createGraphClient(session) as unknown as GraphClient;
       const url = `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}/content`;
 
-      const stream = await withGraphRetry(() => client.api(url).getStream());
+      const stream = (await withGraphRetry(() => client.api(url).getStream())) as unknown;
 
-      // Drain the Node.js readable stream into a Buffer
+      // Graph SDK 3.x returns either a Node.js Readable or a Web ReadableStream depending on
+      // the runtime. Handle both — the Web case turned up in our local dev (Node 20+).
       const chunks: Buffer[] = [];
-      await new Promise<void>((resolve, reject) => {
-        (stream as NodeJS.ReadableStream).on("data", (chunk: Buffer | Uint8Array) => {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      if (stream && typeof (stream as NodeJS.ReadableStream).on === "function") {
+        await new Promise<void>((resolve, reject) => {
+          const s = stream as NodeJS.ReadableStream;
+          s.on("data", (chunk: Buffer | Uint8Array) => {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          });
+          s.on("end", () => resolve());
+          s.on("error", reject);
         });
-        (stream as NodeJS.ReadableStream).on("end", resolve);
-        (stream as NodeJS.ReadableStream).on("error", reject);
-      });
+      } else if (stream && typeof (stream as ReadableStream<Uint8Array>).getReader === "function") {
+        const reader = (stream as ReadableStream<Uint8Array>).getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) chunks.push(Buffer.from(value));
+        }
+      } else {
+        throw new Error("DriveDownload: unexpected stream type returned by Graph client.getStream()");
+      }
 
       return { body: Buffer.concat(chunks) };
     },
@@ -189,7 +202,7 @@ export type DriveDownloadOptions = Readonly<{
 export class DriveDownload implements RunnableNodeConfig<DriveDownloadOptions, DriveDownloadOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = DriveDownloadNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-onedrive" as const;
 
   constructor(
     public readonly name: string,
@@ -198,7 +211,15 @@ export class DriveDownload implements RunnableNodeConfig<DriveDownloadOptions, D
   ) {}
 
   get description(): string {
-    return `Download file \`${this.cfg.itemId}\` from drive \`${this.cfg.driveId}\` to binary storage.`;
+    const hasItem = this.cfg.itemId?.trim();
+    const sizeCap = this.cfg.sizeCapBytes;
+    const capPart =
+      sizeCap !== undefined && sizeCap !== DEFAULT_SIZE_CAP_BYTES
+        ? ` (cap: ${Math.round(sizeCap / 1024 / 1024)} MiB)`
+        : "";
+    return hasItem
+      ? `Download \`${hasItem}\` to binary slot${capPart}.`
+      : `Download drive item to binary slot (driveId + itemId from upstream)${capPart}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -206,7 +227,7 @@ export class DriveDownload implements RunnableNodeConfig<DriveDownloadOptions, D
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.Read.All.",
       },
     ];
@@ -236,9 +257,11 @@ export class DriveDownloadNode implements RunnableNode<DriveDownload> {
     const metadataClient = createGraphClient(session) as unknown as GraphClient;
     const binary = ctx.binary as NodeBinaryAttachmentService;
 
+    // Fall back to item.json so DriveUpload → DriveDownload chains without UI wiring.
+    const fromItem = (args.item.json ?? {}) as { driveId?: string; itemId?: string };
     const input = DriveDownloadInputSchema.parse({
-      driveId: cfg.driveId,
-      itemId: cfg.itemId,
+      driveId: cfg.driveId || fromItem.driveId,
+      itemId: cfg.itemId || fromItem.itemId,
       sizeCapBytes: cfg.sizeCapBytes,
     });
 

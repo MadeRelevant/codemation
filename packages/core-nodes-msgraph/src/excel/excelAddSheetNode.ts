@@ -8,7 +8,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import type { MsGraphSession } from "../credentials/session";
 import type { WorkbookHandle } from "./session";
 import { workbookFetch } from "./session";
@@ -53,17 +53,14 @@ export type WorksheetDetails = {
   position: number;
 };
 
-export type ExcelAddSheetOutput = {
-  handle: WorkbookHandle;
-  worksheet: WorksheetDetails;
-};
+export type ExcelAddSheetOutput = WorksheetDetails & WorkbookHandle;
 
 // ---------------------------------------------------------------------------
 // Options / Config
 // ---------------------------------------------------------------------------
 
 export type ExcelAddSheetOptions = Readonly<{
-  handle: WorkbookHandle;
+  handle?: WorkbookHandle;
   name: string;
   copyFrom?: { sheetName: string };
 }>;
@@ -81,7 +78,7 @@ export type ExcelAddSheetOptions = Readonly<{
 export class ExcelAddSheet implements RunnableNodeConfig<ExcelAddSheetOptions, ExcelAddSheetOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = ExcelAddSheetNode;
-  readonly icon = "si:microsoftexcel" as const;
+  readonly icon = "builtin:microsoft-excel" as const;
 
   constructor(
     public readonly name: string,
@@ -90,10 +87,10 @@ export class ExcelAddSheet implements RunnableNodeConfig<ExcelAddSheetOptions, E
   ) {}
 
   get description(): string {
-    if (this.cfg.copyFrom) {
-      return `Copy worksheet \`${this.cfg.copyFrom.sheetName}\` to \`${this.cfg.name}\`.`;
+    if (this.cfg.copyFrom?.sheetName) {
+      return `Copy worksheet \`${this.cfg.copyFrom.sheetName}\` to new sheet \`${this.cfg.name}\`.`;
     }
-    return `Add new worksheet \`${this.cfg.name}\`.`;
+    return `Create or reuse worksheet \`${this.cfg.name}\` in the open workbook.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -101,7 +98,7 @@ export class ExcelAddSheet implements RunnableNodeConfig<ExcelAddSheetOptions, E
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];
@@ -123,8 +120,22 @@ export class ExcelAddSheetNode implements RunnableNode<ExcelAddSheet> {
 
     const session = await ctx.getCredential<MsGraphSession>("auth");
 
+    // Fall back to item.json so ExcelOpenWorkbook → ExcelAddSheet chains without UI handle wiring.
+    // Discriminate a real WorkbookHandle (has sessionId) from plain item.json (e.g. DriveResolve output).
+    const fromItem = args.item.json as Partial<WorkbookHandle> | undefined;
+    const candidateFromItem: WorkbookHandle | undefined =
+      fromItem && typeof fromItem.sessionId === "string" && fromItem.sessionId.length > 0
+        ? (fromItem as WorkbookHandle)
+        : undefined;
+    const resolvedHandle = cfg.handle ?? candidateFromItem;
+    if (!resolvedHandle) {
+      throw new Error(
+        "ExcelAddSheetNode: requires `handle` in cfg or upstream item.json (flat WorkbookHandle) from ExcelOpenWorkbookNode.",
+      );
+    }
+
     const input: ExcelAddSheetInput = ExcelAddSheetInputSchema.parse({
-      handle: cfg.handle,
+      handle: resolvedHandle,
       name: cfg.name,
       copyFrom: cfg.copyFrom,
     });
@@ -186,30 +197,38 @@ export class ExcelAddSheetNode implements RunnableNode<ExcelAddSheet> {
         };
       }
     } else {
-      // Simple add: POST /workbook/worksheets/add
+      // Idempotent simple add: try POST; if Graph rejects the name (already exists),
+      // look up the existing worksheet by name and return that instead. Saves workflow
+      // authors from having to gate this with an `if exists` branch on the canvas.
       const addPath = `${workbookPath(handle)}/worksheets/add`;
 
-      const addResult = await workbookFetch({
-        session,
-        handle,
-        method: "POST",
-        path: addPath,
-        body: { name },
-      });
+      try {
+        const addResult = await workbookFetch({
+          session,
+          handle,
+          method: "POST",
+          path: addPath,
+          body: { name },
+        });
 
-      handle = addResult.handle;
-      const addBody = addResult.json as RawWorksheetInfo;
+        handle = addResult.handle;
+        const addBody = addResult.json as RawWorksheetInfo;
+        worksheet = { id: addBody.id, name: addBody.name, position: addBody.position };
+      } catch (err) {
+        const status = (err as { statusCode?: number }).statusCode;
+        if (status !== 400 && status !== 409) throw err;
 
-      worksheet = {
-        id: addBody.id,
-        name: addBody.name,
-        position: addBody.position,
-      };
+        const lookupPath = `${workbookPath(handle)}/worksheets('${encodeURIComponent(name)}')`;
+        const lookupResult = await workbookFetch({ session, handle, method: "GET", path: lookupPath });
+        handle = lookupResult.handle;
+        const lookupBody = lookupResult.json as RawWorksheetInfo;
+        worksheet = { id: lookupBody.id, name: lookupBody.name, position: lookupBody.position };
+      }
     }
 
     const output: ExcelAddSheetOutput = {
-      handle,
-      worksheet,
+      ...worksheet,
+      ...handle,
     };
 
     return { ...(args.item as Item), json: output };

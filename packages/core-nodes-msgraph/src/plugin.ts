@@ -1,5 +1,6 @@
 import type { CodemationPluginContext } from "@codemation/host";
-import { msGraphOAuthCredentialType } from "./credentials/msGraphOAuth";
+import { msGraphDriveOAuthCredentialType } from "./credentials/msGraphDriveOAuth";
+import { msGraphMailOAuthCredentialType } from "./credentials/msGraphMailOAuth";
 import { DriveCopyNode } from "./drive/driveCopyNode";
 import { DriveDownloadNode } from "./drive/driveDownloadNode";
 import { DriveItemGetNode } from "./drive/driveItemGetNode";
@@ -27,7 +28,8 @@ import { OnNewMsGraphMailTriggerNode } from "./mail/onNewMailNode";
  * Called by codemation.plugin.ts and can also be used in custom host setups.
  */
 export function register(ctx: CodemationPluginContext): void {
-  ctx.registerCredentialType(msGraphOAuthCredentialType);
+  ctx.registerCredentialType(msGraphMailOAuthCredentialType);
+  ctx.registerCredentialType(msGraphDriveOAuthCredentialType);
   ctx.registerNode(OnNewMsGraphMailTriggerNode);
   ctx.registerNode(OutlookMessageGetNode);
   ctx.registerNode(OutlookMessageReplyNode);
@@ -38,10 +40,13 @@ export function register(ctx: CodemationPluginContext): void {
   // PR B2–B5: Drive nodes
   ctx.registerNode(DriveListChildrenNode);
   ctx.registerNode(DriveItemGetNode);
-  ctx.registerNode(DriveDownloadNode);
-  ctx.registerNode(DriveUploadNode);
+  // These three have optional interface-typed constructor params (UploadHttp/DownloadHttp/CopyHttp)
+  // for test seams. Interfaces erase at runtime, so tsyringe can't introspect the params and
+  // throws "TypeInfo not known" — register via factory to bypass DI param resolution.
+  ctx.registerFactory(DriveDownloadNode, () => new DriveDownloadNode());
+  ctx.registerFactory(DriveUploadNode, () => new DriveUploadNode());
   // PR B6–B7: Drive copy + enumeration
-  ctx.registerNode(DriveCopyNode);
+  ctx.registerFactory(DriveCopyNode, () => new DriveCopyNode());
   ctx.registerNode(DriveListMyDrivesNode);
   ctx.registerNode(DriveListSharedWithMeNode);
   // PR C0+C1: Excel session open/close

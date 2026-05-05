@@ -8,7 +8,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import type { MsGraphSession } from "../credentials/session";
 import type { WorkbookHandle } from "./session";
 import { workbookFetch } from "./session";
@@ -57,8 +57,7 @@ type ExcelWriteRangeInput = z.infer<typeof ExcelWriteRangeInputSchema>;
 // Output shape
 // ---------------------------------------------------------------------------
 
-export type ExcelWriteRangeOutput = {
-  handle: WorkbookHandle;
+export type ExcelWriteRangeOutput = WorkbookHandle & {
   address: string;
   rowCount: number;
   columnCount: number;
@@ -69,7 +68,7 @@ export type ExcelWriteRangeOutput = {
 // ---------------------------------------------------------------------------
 
 export type ExcelWriteRangeOptions = Readonly<{
-  handle: WorkbookHandle;
+  handle?: WorkbookHandle;
   sheet: string;
   range?: string;
   values: unknown[][];
@@ -86,7 +85,7 @@ export type ExcelWriteRangeOptions = Readonly<{
 export class ExcelWriteRange implements RunnableNodeConfig<ExcelWriteRangeOptions, ExcelWriteRangeOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = ExcelWriteRangeNode;
-  readonly icon = "si:microsoftexcel" as const;
+  readonly icon = "builtin:microsoft-excel" as const;
 
   constructor(
     public readonly name: string,
@@ -95,10 +94,20 @@ export class ExcelWriteRange implements RunnableNodeConfig<ExcelWriteRangeOption
   ) {}
 
   get description(): string {
+    const sheet = this.cfg.sheet?.trim();
+    const rows = this.cfg.values?.length ?? 0;
+    const cols = this.cfg.values?.[0]?.length ?? 0;
+    const dimPart = rows > 0 && cols > 0 ? `${rows}×${cols} values` : "values";
     if (this.cfg.appendBelow) {
-      return `Append rows below used range in worksheet \`${this.cfg.sheet}\`.`;
+      return sheet
+        ? `Append ${dimPart} below used range in worksheet \`${sheet}\`.`
+        : `Append ${dimPart} below used range (sheet from upstream).`;
     }
-    return `Write to range \`${this.cfg.range ?? "?"}\` in worksheet \`${this.cfg.sheet}\`.`;
+    const range = this.cfg.range?.trim();
+    if (sheet && range) {
+      return `Write ${dimPart} to \`${sheet}!${range}\`.`;
+    }
+    return `Write ${dimPart} to worksheet range (sheet/range from upstream or cfg).`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -106,7 +115,7 @@ export class ExcelWriteRange implements RunnableNodeConfig<ExcelWriteRangeOption
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];
@@ -128,8 +137,22 @@ export class ExcelWriteRangeNode implements RunnableNode<ExcelWriteRange> {
 
     const session = await ctx.getCredential<MsGraphSession>("auth");
 
+    // Fall back to item.json so ExcelOpenWorkbook → ExcelWriteRange chains without UI handle wiring.
+    // Discriminate a real WorkbookHandle (has sessionId) from plain item.json (e.g. DriveResolve output).
+    const fromItem = args.item.json as Partial<WorkbookHandle> | undefined;
+    const candidateFromItem: WorkbookHandle | undefined =
+      fromItem && typeof fromItem.sessionId === "string" && fromItem.sessionId.length > 0
+        ? (fromItem as WorkbookHandle)
+        : undefined;
+    const resolvedHandle = cfg.handle ?? candidateFromItem;
+    if (!resolvedHandle) {
+      throw new Error(
+        "ExcelWriteRangeNode: requires `handle` in cfg or upstream item.json (flat WorkbookHandle) from ExcelOpenWorkbookNode.",
+      );
+    }
+
     const input: ExcelWriteRangeInput = ExcelWriteRangeInputSchema.parse({
-      handle: cfg.handle,
+      handle: resolvedHandle,
       sheet: cfg.sheet,
       range: cfg.range,
       values: cfg.values,
@@ -184,7 +207,7 @@ export class ExcelWriteRangeNode implements RunnableNode<ExcelWriteRange> {
     const writeBody = writeResult.json as WriteRangeResponse;
 
     const output: ExcelWriteRangeOutput = {
-      handle: writeResult.handle,
+      ...writeResult.handle,
       address: writeBody.address ?? targetRange,
       rowCount: writeBody.rowCount ?? values.length,
       columnCount: writeBody.columnCount ?? values[0]?.length ?? 0,

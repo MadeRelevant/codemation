@@ -7,7 +7,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import type { MsGraphSession } from "../credentials/session";
 import type { WorkbookHandle } from "./session";
 import { openWorkbookSession } from "./session";
@@ -35,9 +35,7 @@ export type ExcelOpenWorkbookInput = z.infer<typeof ExcelOpenWorkbookInputSchema
 // Output shape
 // ---------------------------------------------------------------------------
 
-export type ExcelOpenWorkbookOutput = {
-  handle: WorkbookHandle;
-};
+export type ExcelOpenWorkbookOutput = WorkbookHandle;
 
 // ---------------------------------------------------------------------------
 // Options
@@ -70,7 +68,7 @@ export type ExcelOpenWorkbookOptions = Readonly<{
 export class ExcelOpenWorkbook implements RunnableNodeConfig<ExcelOpenWorkbookOptions, ExcelOpenWorkbookOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = ExcelOpenWorkbookNode;
-  readonly icon = "si:microsoftexcel" as const;
+  readonly icon = "builtin:microsoft-excel" as const;
 
   constructor(
     public readonly name: string,
@@ -79,12 +77,11 @@ export class ExcelOpenWorkbook implements RunnableNodeConfig<ExcelOpenWorkbookOp
   ) {}
 
   get description(): string {
-    return (
-      "Open an Excel workbook session for `" +
-      this.cfg.itemId +
-      "`. " +
-      "Pair with ExcelCloseWorkbookNode — there is no auto-cleanup."
-    );
+    const hasItem = this.cfg.itemId?.trim();
+    const readOnly = this.cfg.persistChanges === false ? ", read-only session" : "";
+    return hasItem
+      ? `Open Excel session for workbook \`${hasItem}\`${readOnly}.`
+      : `Open Excel session for workbook (driveId + itemId from upstream)${readOnly}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -92,7 +89,7 @@ export class ExcelOpenWorkbook implements RunnableNodeConfig<ExcelOpenWorkbookOp
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];
@@ -114,9 +111,11 @@ export class ExcelOpenWorkbookNode implements RunnableNode<ExcelOpenWorkbook> {
 
     const session = await ctx.getCredential<MsGraphSession>("auth");
 
+    // Fall back to item.json so DriveResolve(workbook) → ExcelOpenWorkbook chains without UI wiring.
+    const fromItem = (args.item.json ?? {}) as { driveId?: string; itemId?: string };
     const input = ExcelOpenWorkbookInputSchema.parse({
-      driveId: cfg.driveId,
-      itemId: cfg.itemId,
+      driveId: cfg.driveId || fromItem.driveId,
+      itemId: cfg.itemId || fromItem.itemId,
       persistChanges: cfg.persistChanges,
     });
 
@@ -127,7 +126,6 @@ export class ExcelOpenWorkbookNode implements RunnableNode<ExcelOpenWorkbook> {
       persistChanges: input.persistChanges,
     });
 
-    const output: ExcelOpenWorkbookOutput = { handle };
-    return { ...args.item, json: output };
+    return { ...args.item, json: handle };
   }
 }

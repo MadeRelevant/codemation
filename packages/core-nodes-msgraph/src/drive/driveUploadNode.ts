@@ -10,7 +10,7 @@ import type {
 } from "@codemation/core";
 import { node } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
 import { createGraphClient, type MsGraphSession } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 
@@ -318,7 +318,7 @@ export type DriveUploadOptions = Readonly<{
 export class DriveUpload implements RunnableNodeConfig<DriveUploadOptions, DriveUploadOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = DriveUploadNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-onedrive" as const;
 
   constructor(
     public readonly name: string,
@@ -327,7 +327,13 @@ export class DriveUpload implements RunnableNodeConfig<DriveUploadOptions, Drive
   ) {}
 
   get description(): string {
-    return `Upload file \`${this.cfg.name}\` from binary slot \`${this.cfg.binarySlot}\` to drive \`${this.cfg.driveId}\`.`;
+    const name = this.cfg.name?.trim();
+    const slot = this.cfg.binarySlot?.trim();
+    const hasParent = this.cfg.driveId?.trim() && this.cfg.parentItemId?.trim();
+    const destPart = hasParent ? "to configured folder" : "to folder (driveId + parentItemId from upstream)";
+    const namePart = name ? `\`${name}\`` : "file";
+    const slotPart = slot ? ` from slot \`${slot}\`` : "";
+    return `Upload ${namePart}${slotPart} ${destPart}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -335,7 +341,7 @@ export class DriveUpload implements RunnableNodeConfig<DriveUploadOptions, Drive
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
       },
     ];
@@ -365,9 +371,12 @@ export class DriveUploadNode implements RunnableNode<DriveUpload> {
     const session = await ctx.getCredential<MsGraphSession>("auth");
     const binary = ctx.binary as NodeBinaryAttachmentService;
 
+    // Fall back to item.json so DriveResolve(folder) → DriveUpload chains without UI wiring.
+    // DriveResolve emits { driveId, itemId } where itemId is the resolved folder — that's the parent.
+    const fromItem = (item.json ?? {}) as { driveId?: string; itemId?: string };
     const input = DriveUploadInputSchema.parse({
-      driveId: cfg.driveId,
-      parentItemId: cfg.parentItemId,
+      driveId: cfg.driveId || fromItem.driveId,
+      parentItemId: cfg.parentItemId || fromItem.itemId,
       name: cfg.name,
       binarySlot: cfg.binarySlot,
       conflictBehavior: cfg.conflictBehavior,

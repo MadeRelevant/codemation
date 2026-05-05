@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   DriveListMyDrives,
   DriveListMyDrivesNode,
-  type DriveListMyDrivesOutput,
+  type DriveInfo,
   type GraphClient,
   listMyDrives,
 } from "../../src/drive/driveListMyDrivesNode";
@@ -100,12 +100,12 @@ describe("DriveListMyDrivesNode", () => {
 
     const result = await listMyDrives(client);
 
-    expect(result.drives).toHaveLength(2);
-    expect(result.drives[0]!.driveId).toBe("d1");
-    expect(result.drives[0]!.driveType).toBe("business");
-    expect(result.drives[0]!.name).toBe("Business Drive");
-    expect(result.drives[1]!.driveId).toBe("d2");
-    expect(result.drives[1]!.driveType).toBe("personal");
+    expect(result).toHaveLength(2);
+    expect(result[0]!.driveId).toBe("d1");
+    expect(result[0]!.driveType).toBe("business");
+    expect(result[0]!.name).toBe("Business Drive");
+    expect(result[1]!.driveId).toBe("d2");
+    expect(result[1]!.driveType).toBe("personal");
   });
 
   // -------------------------------------------------------------------------
@@ -126,9 +126,9 @@ describe("DriveListMyDrivesNode", () => {
 
     const result = await listMyDrives(client);
 
-    expect(result.drives).toHaveLength(3);
-    expect(result.drives[0]!.driveId).toBe("d1");
-    expect(result.drives[2]!.driveId).toBe("d3");
+    expect(result).toHaveLength(3);
+    expect(result[0]!.driveId).toBe("d1");
+    expect(result[2]!.driveId).toBe("d3");
     // Second call uses the nextLink URL
     expect(client.api).toHaveBeenCalledWith("https://graph.microsoft.com/v1.0/me/drives?$skiptoken=abc");
   });
@@ -149,7 +149,7 @@ describe("DriveListMyDrivesNode", () => {
 
     const result = await listMyDrives(client);
 
-    const out = result.drives[0]!;
+    const out = result[0]!;
     expect(out.quota?.total).toBe(2_000_000);
     expect(out.quota?.used).toBe(800_000);
     expect(out.quota?.remaining).toBe(1_200_000);
@@ -163,7 +163,7 @@ describe("DriveListMyDrivesNode", () => {
   it("returns empty drives array when Graph returns no drives", async () => {
     const client = makeClient([{ value: [] }]);
     const result = await listMyDrives(client);
-    expect(result.drives).toHaveLength(0);
+    expect(result).toHaveLength(0);
   });
 
   // -------------------------------------------------------------------------
@@ -185,7 +185,7 @@ describe("DriveListMyDrivesNode", () => {
       const result = await resultPromise;
 
       expect(getMock).toHaveBeenCalledTimes(2);
-      expect(result.drives[0]!.driveId).toBe("retry-drive");
+      expect(result[0]!.driveId).toBe("retry-drive");
     } finally {
       vi.useRealTimers();
     }
@@ -200,22 +200,22 @@ describe("DriveListMyDrivesNode", () => {
 
     const result = await listMyDrives(client);
 
-    expect(result.drives[0]!.driveType).toBe("documentLibrary");
+    expect(result[0]!.driveType).toBe("documentLibrary");
   });
 
   // -------------------------------------------------------------------------
   // 7. Node execute — integration via withClientSpy
   // -------------------------------------------------------------------------
-  it("node execute returns item with json output", async () => {
+  it("node execute returns one item per drive", async () => {
     const drives = [rawDrive({ id: "exec-drive" })];
     const client = makeClient([{ value: drives }]);
 
     const node = new DriveListMyDrivesNode();
     const result = await withClientSpy(client, () => node.execute(makeArgs()));
 
-    const out = (result as { json: DriveListMyDrivesOutput }).json;
-    expect(out.drives).toHaveLength(1);
-    expect(out.drives[0]!.driveId).toBe("exec-drive");
+    const items = result as DriveInfo[];
+    expect(items).toHaveLength(1);
+    expect(items[0]!.driveId).toBe("exec-drive");
   });
 
   // -------------------------------------------------------------------------

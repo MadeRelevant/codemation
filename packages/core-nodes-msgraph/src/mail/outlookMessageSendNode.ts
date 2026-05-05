@@ -9,7 +9,7 @@ import type {
   TypeToken,
 } from "@codemation/core";
 import { node } from "@codemation/core";
-import { MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphOAuth";
+import { MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphMailOAuth";
 import { createGraphClient, type MsGraphSession } from "../credentials/session";
 import { mailboxPathPrefix } from "../lib/graphPaths";
 import { withGraphRetry } from "../lib/graphRetry";
@@ -64,7 +64,7 @@ export type OutlookMessageSendOutput = Readonly<{
 export class OutlookMessageSend implements RunnableNodeConfig<OutlookMessageSendOptions, OutlookMessageSendOutput> {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = OutlookMessageSendNode;
-  readonly icon = "si:microsoft" as const;
+  readonly icon = "builtin:microsoft-outlook" as const;
 
   constructor(
     public readonly name: string,
@@ -73,9 +73,13 @@ export class OutlookMessageSend implements RunnableNodeConfig<OutlookMessageSend
   ) {}
 
   get description(): string {
-    const mode = this.cfg.draftOnly ? "Create draft to" : "Send to";
-    const recipients = this.cfg.to.join(", ") || "(no recipients)";
-    return `${mode} ${recipients}: ${this.cfg.subject || "(no subject)"}`;
+    const allRecipients = [...(this.cfg.to ?? []), ...(this.cfg.cc ?? []), ...(this.cfg.bcc ?? [])];
+    const count = allRecipients.length;
+    const recipientPart = count > 0 ? `${count} recipient${count === 1 ? "" : "s"}` : "recipients from upstream";
+    const subject = this.cfg.subject?.trim();
+    const subjectPart = subject ? ` with subject \`${subject}\`` : "";
+    const mode = this.cfg.draftOnly ? "Create draft" : "Send mail";
+    return `${mode} to ${recipientPart}${subjectPart}.`;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
@@ -83,7 +87,7 @@ export class OutlookMessageSend implements RunnableNodeConfig<OutlookMessageSend
       {
         slotKey: "auth",
         label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_OAUTH_CREDENTIAL_TYPE_ID],
+        acceptedTypes: [MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID],
         helpText: "Bind a Microsoft Graph OAuth credential for the mailbox you want to access.",
       },
     ];
