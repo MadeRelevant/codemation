@@ -33,6 +33,14 @@ That file is the plugin repository's source composition root. Consumers should d
 - start with `defineCredential(...)`
 - build typed sessions in `createSession(...)`
 - implement `test(...)` so operators can validate configuration before activation
+- for OAuth2 redirect flows, use the URL-template variant (`auth: { kind: "oauth2", providerId, authorizeUrl, tokenUrl, scopes }`) with `{publicFieldKey}` placeholders — no core or host edits needed per provider. See the credential-development skill for details.
+
+## Polling-trigger guidance
+
+- the engine ships a generic polling-trigger runtime in `@codemation/core` exposed via `ctx.polling` on the trigger setup context
+- call `ctx.polling.start({ intervalMs, runCycle })` from your trigger node's `setup()` — the runtime handles the loop, overlap guard, dedup window (`ctx.polling.dedup.merge(...)`), state persistence, and cleanup
+- on the first cycle, baseline-skip (record current ids, emit nothing) so the workflow does not flood with the existing backlog when the trigger is first set up
+- implement `TestableTriggerNode.getTestItems(ctx)` to power the workflow UI's **Test** button — return the most recent N items without consulting or mutating polling state, so users can preview live data without waiting
 
 ## Publishability
 
