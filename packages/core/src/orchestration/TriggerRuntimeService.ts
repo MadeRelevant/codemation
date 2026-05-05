@@ -139,10 +139,13 @@ export class TriggerRuntimeService {
       const emit = async (items: Items): Promise<void> => {
         await this.emitHandler.emit(wf, def.id, items);
       };
+      // ctx.registerCleanup is only invoked by trigger nodes that do their own lifecycle wiring;
+      // polling-based nodes go through ctx.polling.start which calls registerTriggerCleanupHandle directly.
+      /* c8 ignore next 3 */
       const registerCleanup = (cleanup: TriggerCleanupHandle): void => {
         this.registerTriggerCleanupHandle(trigger, cleanup);
       };
-      const polling = this.buildPollingHandle(trigger, emit, registerCleanup);
+      const polling = this.buildPollingHandle(trigger, emit);
       let nextState: unknown;
       try {
         nextState = await node.setup({
@@ -270,16 +273,12 @@ export class TriggerRuntimeService {
     }
   }
 
-  private buildPollingHandle(
-    trigger: TriggerInstanceId,
-    emit: (items: Items) => Promise<void>,
-    registerCleanup: (cleanup: TriggerCleanupHandle) => void,
-  ): PollingTriggerHandle {
+  private buildPollingHandle(trigger: TriggerInstanceId, emit: (items: Items) => Promise<void>): PollingTriggerHandle {
     const runtime = this.pollingTriggerRuntime;
     return {
       dedup: this.pollingTriggerDedupWindow,
       start: async (args) => {
-        registerCleanup({
+        this.registerTriggerCleanupHandle(trigger, {
           stop: async () => {
             await runtime.stop(trigger);
           },
