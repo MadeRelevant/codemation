@@ -139,12 +139,7 @@ export class TriggerRuntimeService {
       const emit = async (items: Items): Promise<void> => {
         await this.emitHandler.emit(wf, def.id, items);
       };
-      // ctx.registerCleanup is only invoked by trigger nodes that do their own lifecycle wiring;
-      // polling-based nodes go through ctx.polling.start which calls registerTriggerCleanupHandle directly.
-      /* c8 ignore next 3 */
-      const registerCleanup = (cleanup: TriggerCleanupHandle): void => {
-        this.registerTriggerCleanupHandle(trigger, cleanup);
-      };
+      const registerCleanup = this.registerTriggerCleanupHandle.bind(this, trigger);
       const polling = this.buildPollingHandle(trigger, emit);
       let nextState: unknown;
       try {
