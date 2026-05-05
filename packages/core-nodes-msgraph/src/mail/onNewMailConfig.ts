@@ -4,6 +4,12 @@ import { OnNewMsGraphMailTriggerNode } from "./onNewMailNode";
 import type { MsGraphMailItem, MsGraphMailTriggerState } from "./types";
 
 export type OnNewMsGraphMailOptions = Readonly<{
+  /**
+   * Mailbox to monitor. Use `"me"` (or leave empty) to monitor the credential owner's own mailbox
+   * via `/me/mailFolders/...` (works with the default `Mail.Read` scope). Use a full email/UPN to
+   * monitor someone else's mailbox via `/users/{mailbox}/...` — that requires `Mail.Read.Shared`
+   * (delegated, must be granted by the target mailbox owner) or `Mail.Read` application permission.
+   */
   mailbox: string;
   /** Folder to monitor. Defaults to "Inbox". */
   folderId?: string;

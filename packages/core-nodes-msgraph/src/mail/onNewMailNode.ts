@@ -1,4 +1,11 @@
-import type { Item, Items, NodeOutputs, TriggerSetupContext, TriggerNode } from "@codemation/core";
+import type {
+  Item,
+  Items,
+  NodeOutputs,
+  TestableTriggerNode,
+  TriggerSetupContext,
+  TriggerTestItemsContext,
+} from "@codemation/core";
 import { node } from "@codemation/core";
 import { createGraphClient } from "../credentials/session";
 import type { MsGraphSession } from "../credentials/session";
@@ -8,8 +15,23 @@ import type { OnNewMsGraphMailTrigger, OnNewMsGraphMailOptions } from "./onNewMa
 import type { MsGraphMailItem, MsGraphMailTriggerState } from "./types";
 
 const TOP_PER_POLL = 25;
-const DEFAULT_FOLDER = "Inbox";
+const TOP_PER_TEST = 5;
+// MS Graph well-known folder names are lowercase (`inbox`, `drafts`, `sentitems`, ...).
+const DEFAULT_FOLDER = "inbox";
 const DEFAULT_INTERVAL_MS = 60_000;
+
+/**
+ * Build the Graph API path prefix for the configured mailbox. `/me/...` for the credential owner's
+ * own mailbox (works with default `Mail.Read` scope) or `/users/{upn}/...` for shared mailboxes.
+ * Empty / "me" / "self" all map to the credential-owner shortcut.
+ */
+function mailboxPathPrefix(mailbox: string): string {
+  const trimmed = mailbox.trim().toLowerCase();
+  if (trimmed === "" || trimmed === "me" || trimmed === "self") {
+    return "/me";
+  }
+  return `/users/${encodeURIComponent(mailbox.trim())}`;
+}
 
 // ---------------------------------------------------------------------------
 // runCycle — pure function, fully unit-testable without DI
@@ -54,7 +76,7 @@ export async function runCycle(args: {
 
   // Build Graph API request
   let request = client
-    .api(`/users/${encodeURIComponent(cfg.mailbox)}/mailFolders/${encodeURIComponent(folderId)}/messages`)
+    .api(`${mailboxPathPrefix(cfg.mailbox)}/mailFolders/${encodeURIComponent(folderId)}/messages`)
     .top(TOP_PER_POLL)
     .orderby("receivedDateTime desc")
     .select(
@@ -103,7 +125,7 @@ export async function runCycle(args: {
 // ---------------------------------------------------------------------------
 
 @node({ packageName: "@codemation/core-nodes-msgraph" })
-export class OnNewMsGraphMailTriggerNode implements TriggerNode<OnNewMsGraphMailTrigger> {
+export class OnNewMsGraphMailTriggerNode implements TestableTriggerNode<OnNewMsGraphMailTrigger> {
   readonly kind = "trigger" as const;
   readonly outputPorts = ["main"] as const;
 
@@ -121,7 +143,44 @@ export class OnNewMsGraphMailTriggerNode implements TriggerNode<OnNewMsGraphMail
     });
   }
 
+  // The "Test" button in the workflow UI calls this — returns the most recent
+  // mails in the configured folder without consulting/mutating polling state,
+  // so users can see real data without waiting for a new mail to arrive.
+  async getTestItems(
+    ctx: TriggerTestItemsContext<OnNewMsGraphMailTrigger, MsGraphMailTriggerState | undefined>,
+  ): Promise<Items> {
+    const cfg = ctx.config.cfg;
+    const session = await ctx.getCredential<MsGraphSession>("auth");
+    const client = createGraphClient(session);
+    return fetchRecentMessages({ client, cfg, top: TOP_PER_TEST });
+  }
+
   async execute(items: Items<MsGraphMailItem>, _ctx: unknown): Promise<NodeOutputs> {
     return { main: items };
   }
+}
+
+async function fetchRecentMessages(args: {
+  client: GraphClient;
+  cfg: OnNewMsGraphMailOptions;
+  top: number;
+}): Promise<Items<MsGraphMailItem>> {
+  const { client, cfg, top } = args;
+  const folderId = cfg.folderId ?? DEFAULT_FOLDER;
+  let request = client
+    .api(`${mailboxPathPrefix(cfg.mailbox)}/mailFolders/${encodeURIComponent(folderId)}/messages`)
+    .top(top)
+    .orderby("receivedDateTime desc")
+    .select(
+      "id,conversationId,receivedDateTime,internetMessageId,from,toRecipients,ccRecipients,bccRecipients,subject,body,attachments,internetMessageHeaders",
+    );
+  if (cfg.filter) {
+    request = request.filter(cfg.filter);
+  }
+  if (cfg.downloadAttachments) {
+    request = request.expand("attachments");
+  }
+  const response = (await request.get()) as { value?: ReadonlyArray<GraphMessageRaw> };
+  const messages = response.value ?? [];
+  return messages.map((raw) => ({ json: mapGraphMessage(raw) })) as Items<MsGraphMailItem>;
 }
