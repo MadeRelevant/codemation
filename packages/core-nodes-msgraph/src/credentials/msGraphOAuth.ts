@@ -17,8 +17,10 @@ type SecretConfig = Readonly<{
   clientSecret: string;
 }>;
 
-// Material from the OAuth callback carries the refresh token.
-type OAuthMaterial = SecretConfig & Readonly<{ refreshToken?: string; accessToken?: string }>;
+// Material from the OAuth callback carries the refresh + access tokens.
+// Host stores OAuth2 material in snake_case (matching the OAuth2 spec field names),
+// not camelCase — see packages/host/src/domain/credentials/OAuth2ConnectServiceFactory.ts.
+type OAuthMaterial = SecretConfig & Readonly<{ refresh_token?: string; access_token?: string }>;
 
 // ---------------------------------------------------------------------------
 // Credential type definition
@@ -37,7 +39,7 @@ async function createSession(args: CredentialSessionFactoryArgs<PublicConfig, Se
     tenantId: args.publicConfig.tenantId ?? "common",
     clientSecret: args.material.clientSecret,
     scopes,
-    refreshToken: material.refreshToken ?? material.accessToken ?? "",
+    refreshToken: material.refresh_token ?? "",
   });
 }
 
@@ -60,6 +62,7 @@ export const msGraphOAuthCredentialType: AnyCredentialType = {
         key: "tenantId",
         label: "Tenant ID",
         type: "string",
+        required: true,
         placeholder: "common",
         helpText: 'Use "common" for multi-tenant apps, or your Azure AD tenant GUID for single-tenant.',
         order: 1,
@@ -99,6 +102,8 @@ export const msGraphOAuthCredentialType: AnyCredentialType = {
     auth: {
       kind: "oauth2",
       providerId: "microsoft",
+      authorizeUrl: "https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize",
+      tokenUrl: "https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token",
       scopes: SCOPE_PRESETS["read-mail"] as ReadonlyArray<string>,
       scopesFromPublicConfig: {
         presetFieldKey: "scopePreset",

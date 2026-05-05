@@ -63,7 +63,7 @@ describe("OnNewMsGraphMailTriggerNode", () => {
     await expect(capturedRunCycle!({ previousState: undefined })).rejects.toBeDefined();
   });
 
-  it("execute() returns items unchanged on the main port", async () => {
+  it("execute() returns items unchanged on the main port when downloadAttachments is false", async () => {
     const node = new OnNewMsGraphMailTriggerNode();
     const items = [
       {
@@ -79,7 +79,70 @@ describe("OnNewMsGraphMailTriggerNode", () => {
       },
     ] as Parameters<typeof node.execute>[0];
 
-    const out = await node.execute(items, undefined);
+    const ctx = {
+      config: { cfg: { mailbox: "alice@contoso.com", downloadAttachments: false } },
+      getCredential: vi.fn(),
+      binary: { attach: vi.fn(), withAttachment: vi.fn() },
+    } as unknown as Parameters<typeof node.execute>[1];
+
+    const out = await node.execute(items, ctx);
     expect(out).toEqual({ main: items });
+  });
+
+  it("execute() registers attachment bytes via ctx.binary.attach when downloadAttachments is true", async () => {
+    const node = new OnNewMsGraphMailTriggerNode();
+    const items = [
+      {
+        json: {
+          messageId: "msg-1",
+          conversationId: "c",
+          receivedDateTime: "2026-05-01T00:00:00Z",
+          internetMessageId: "<a@b>",
+          from: { name: "", address: "x@y" },
+          to: [],
+          subject: "s",
+          attachments: [{ id: "att-1", name: "report.pdf", contentType: "application/pdf", size: 1234 }],
+        },
+      },
+    ] as Parameters<typeof node.execute>[0];
+
+    // Stub Graph client returns base64 contentBytes for the per-attachment fetch.
+    const get = vi.fn().mockResolvedValue({ contentBytes: Buffer.from("hello").toString("base64") });
+    const apiRequest = { get };
+    const client = { api: vi.fn().mockReturnValue(apiRequest) };
+    const session = { accessToken: "tok", refresh: vi.fn() };
+    const attachedBinary = { id: "binary-1", storageKey: "k" };
+    const binary = {
+      attach: vi.fn().mockResolvedValue(attachedBinary),
+      withAttachment: vi.fn((item, name, attachment) => ({
+        ...item,
+        binary: { ...(item.binary ?? {}), [name]: attachment },
+      })),
+    };
+
+    // createGraphClient(session) is invoked inside execute(); use vi.spyOn via dynamic import path.
+    const mod = await import("../src/credentials/session");
+    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
+
+    try {
+      const ctx = {
+        config: { cfg: { mailbox: "alice@contoso.com", downloadAttachments: true } },
+        getCredential: vi.fn().mockResolvedValue(session),
+        binary,
+      } as unknown as Parameters<typeof node.execute>[1];
+
+      const out = await node.execute(items, ctx);
+
+      expect(binary.attach).toHaveBeenCalledTimes(1);
+      const attachArg = binary.attach.mock.calls[0]![0] as { name: string; mimeType: string; filename: string };
+      expect(attachArg.name).toBe("report.pdf");
+      expect(attachArg.mimeType).toBe("application/pdf");
+      expect(attachArg.filename).toBe("report.pdf");
+      const main = out.main as ReadonlyArray<{ binary?: Record<string, unknown> }>;
+      expect(main).toHaveLength(1);
+      expect(main[0]!.binary?.["report.pdf"]).toBe(attachedBinary);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

@@ -74,3 +74,7 @@ Reach for class-based node APIs when:
 **Triggers**
 
 - Emit **one `Item` per external record**; use **`item.binary`** per record for files—not one item whose **`json`** contains an array of embedded files.
+- For polling triggers that fetch records carrying file payloads (mail attachments, message media, etc.), do this in two phases:
+  1. In `runCycle` (the polling step), fetch only the **metadata** (id, name, contentType, size). The result is persisted into the trigger's setup state and into emitted item JSON, so it must stay small.
+  2. In `execute(items, ctx)`, when the cfg opts into downloads, fetch each blob's bytes from the source API and register them via `ctx.binary.attach(...)`. Then return items via `ctx.binary.withAttachment(item, slot, stored)`.
+- **Do not** request the full payload in the polling fetch (e.g. Microsoft Graph `$expand=attachments` returns base64 `contentBytes` inline; use `$expand=attachments($select=id,name,contentType,size)` to keep the response light). Large polling responses bloat the run state on every cycle, even when no item is emitted.

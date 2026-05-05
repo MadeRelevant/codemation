@@ -183,7 +183,15 @@ export class OAuth2ConnectService {
     }
     const baseUrl = this.ensureAbsoluteUrlForOAuth2Base(rawBase);
     try {
-      return new URL("/api/oauth2/callback", this.normalizeBaseUrl(baseUrl)).toString();
+      const callback = new URL("/api/oauth2/callback", this.normalizeBaseUrl(baseUrl));
+      // Several OAuth2 providers (notably Azure AD / Microsoft) reject raw loopback IPs in redirect
+      // URIs and only allow the `localhost` hostname. 127.0.0.1 / [::1] are equivalent to localhost
+      // by definition, so rewriting is lossless and avoids developer-hostile AADSTS50011 errors.
+      const loopbackHostnames = new Set(["127.0.0.1", "[::1]"]);
+      if (loopbackHostnames.has(callback.hostname)) {
+        callback.hostname = "localhost";
+      }
+      return callback.toString();
     } catch {
       throw new ApplicationRequestError(
         500,

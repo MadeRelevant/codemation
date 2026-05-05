@@ -1,0 +1,96 @@
+---
+title: On New Microsoft Graph Mail Trigger
+description: Start a workflow when new Outlook / Microsoft 365 messages arrive in a monitored mailbox folder.
+---
+
+# On New Microsoft Graph Mail Trigger
+
+## Description
+
+`OnNewMsGraphMailTrigger` (from `@codemation/core-nodes-msgraph`) polls Microsoft Graph for new mail and emits each message as a workflow item with metadata, body content, and optional attachment payloads. Use it for inbound mail automation across Office 365 / Exchange Online inboxes.
+
+The trigger uses the generic polling-trigger runtime in `@codemation/core` — it baseline-skips on first poll (so an existing mailbox of mail is not flooded into the workflow), then emits only mails arriving after setup. Use the workflow UI's **Test** button to preview live messages without waiting for new mail.
+
+## Credential
+
+Bind a `msgraph-oauth` credential to the trigger's `auth` slot. The credential stores Azure app-registration values (client id, tenant id, client secret) and runs the OAuth2 redirect flow when the user clicks **Connect**.
+
+The default scope preset is `read-mail` (`Mail.Read` + `offline_access` + `openid` + `User.Read`).
+
+## Examples
+
+### Basic usage: watch the connected user's inbox
+
+```ts
+import { OnNewMsGraphMailTrigger } from "@codemation/core-nodes-msgraph";
+
+new OnNewMsGraphMailTrigger("On New Mail", {
+  mailbox: "me", // or "" / "self" — uses /me/... and only needs Mail.Read
+});
+```
+
+`mailbox: "me"` (or empty / `"self"`) routes to `/me/mailFolders/inbox/messages`, which works with the default `Mail.Read` scope. Set `mailbox` to a full UPN to monitor a shared mailbox — that path uses `/users/{upn}/...` and requires `Mail.Read.Shared` (delegated, granted by the target mailbox owner) or admin-consented application permissions.
+
+### Advanced usage: only mails with attachments, download payloads
+
+```ts
+new OnNewMsGraphMailTrigger(
+  "On New Mail With Attachment",
+  {
+    mailbox: "me",
+    folderId: "inbox",
+    filter: "hasAttachments eq true",
+    downloadAttachments: true,
+    pollIntervalMs: 60_000,
+  },
+  "msgraph_mail_trigger",
+);
+```
+
+`filter` accepts any Microsoft Graph OData `$filter` expression — the trigger does not pre-bake common predicates into separate config fields, so authors can compose any condition Graph supports (`isRead eq false`, sender filters, time-window filters, etc.).
+
+When `filter` is set, the trigger omits `$orderby` from the Graph request to avoid the "_The restriction or sort order is too complex for this operation_" 400. Graph already returns `/messages` in `receivedDateTime desc` order by default, so the behavior is unchanged.
+
+`downloadAttachments: true` causes the node's `execute()` step to fetch each attachment's bytes and register them via the framework's binary storage (`ctx.binary.attach`). The bytes never live on the workflow item's JSON payload — only a `BinaryAttachment` reference under `item.binary[<sanitized-name>]`. This keeps run-state rows small even with multi-megabyte attachments. Attachment metadata (`id`, `name`, `contentType`, `size`) is always included in the item JSON so workflows can branch on attachments without a second Graph round-trip.
+
+## Configuration
+
+| Field                 | Type      | Default    | Notes                                                                                       |
+| --------------------- | --------- | ---------- | ------------------------------------------------------------------------------------------- |
+| `mailbox`             | `string`  | _required_ | `"me"` / `""` / `"self"` for the connected user's mailbox; full UPN for a shared mailbox.   |
+| `folderId`            | `string`  | `"inbox"`  | Graph well-known folder name (`inbox`, `drafts`, `sentitems`, `archive`, …) or a folder id. |
+| `filter`              | `string`  | _none_     | Server-side OData `$filter` expression (e.g. `"hasAttachments eq true"`).                   |
+| `downloadAttachments` | `boolean` | `false`    | Include base64 `contentBytes` for each attachment in the emitted item.                      |
+| `pollIntervalMs`      | `number`  | `60_000`   | Polling cadence in milliseconds (minimum 25ms, enforced by the polling runtime).            |
+
+## Item shape
+
+Each emitted item carries a typed `MsGraphMailItem`:
+
+```ts
+type MsGraphMailItem = Readonly<{
+  messageId: string;
+  conversationId?: string;
+  receivedDateTime: string;
+  internetMessageId?: string;
+  from?: { name?: string; address?: string };
+  to: ReadonlyArray<{ name?: string; address?: string }>;
+  cc?: ReadonlyArray<{ name?: string; address?: string }>;
+  bcc?: ReadonlyArray<{ name?: string; address?: string }>;
+  subject?: string;
+  bodyText?: string;
+  bodyHtml?: string;
+  // Metadata only. Bytes (when downloadAttachments: true) live on item.binary, not here.
+  attachments?: ReadonlyArray<{
+    id: string;
+    name: string;
+    contentType: string;
+    size: number;
+  }>;
+  headers?: Readonly<Record<string, string>>;
+}>;
+```
+
+## Properties panel
+
+The trigger exposes a live `description` getter that summarizes the runtime configuration in the workflow UI's properties panel — mailbox label (`me` resolves to "the connected user"), folder, polling interval, server-side filter (if set), attachment opt-in, and the baseline-skip note. The text updates automatically when the cfg changes.

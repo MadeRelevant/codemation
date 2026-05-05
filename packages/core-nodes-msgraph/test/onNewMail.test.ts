@@ -146,33 +146,66 @@ describe("runCycle", () => {
     expect(capturedFilter).toBe("isRead eq false");
   });
 
-  it("does NOT expand attachments when downloadAttachments is false/omitted", async () => {
-    let capturedExpand: string | undefined;
-    const client = makeFakeClient([], undefined, undefined, (e) => {
-      capturedExpand = e;
+  it("always expands attachment metadata (cheap, no contentBytes) regardless of downloadAttachments", async () => {
+    // Attachment metadata is included on every message so workflow authors can branch on
+    // attachments without a second Graph round-trip; bytes are downloaded in execute() only
+    // when cfg.downloadAttachments is true (and they go through ctx.binary, not the JSON payload).
+    let capturedExpandOff: string | undefined;
+    const clientOff = makeFakeClient([], undefined, undefined, (e) => {
+      capturedExpandOff = e;
     });
     await runCycle({
-      client,
+      client: clientOff,
       cfg: { mailbox: "user@contoso.com", downloadAttachments: false },
       previousState: undefined,
       dedup,
     });
+    expect(capturedExpandOff).toMatch(/attachments\(\$select=/);
+    expect(capturedExpandOff).not.toContain("contentBytes");
 
-    expect(capturedExpand).toBeUndefined();
-  });
-
-  it("expands attachments when downloadAttachments is true", async () => {
-    let capturedExpand = "";
-    const client = makeFakeClient([], undefined, undefined, (e) => {
-      capturedExpand = e;
+    let capturedExpandOn: string | undefined;
+    const clientOn = makeFakeClient([], undefined, undefined, (e) => {
+      capturedExpandOn = e;
     });
     await runCycle({
-      client,
+      client: clientOn,
       cfg: { mailbox: "user@contoso.com", downloadAttachments: true },
       previousState: undefined,
       dedup,
     });
+    expect(capturedExpandOn).toMatch(/attachments\(\$select=/);
+    expect(capturedExpandOn).not.toContain("contentBytes");
+  });
 
-    expect(capturedExpand).toBeTruthy();
+  it("omits $orderby when a $filter is set (avoids Graph 'restriction or sort order is too complex')", async () => {
+    let capturedOrderby: string | undefined;
+    let capturedFilter: string | undefined;
+    const client: GraphClient = {
+      api() {
+        const req: GraphApiRequest = {
+          top: () => req,
+          orderby: (field: string) => {
+            capturedOrderby = field;
+            return req;
+          },
+          select: () => req,
+          expand: () => req,
+          filter: (expr: string) => {
+            capturedFilter = expr;
+            return req;
+          },
+          get: async () => ({ value: [] }),
+        };
+        return req;
+      },
+    };
+    await runCycle({
+      client,
+      cfg: { mailbox: "user@contoso.com", filter: "hasAttachments eq true" },
+      previousState: undefined,
+      dedup,
+    });
+    expect(capturedFilter).toBe("hasAttachments eq true");
+    expect(capturedOrderby).toBeUndefined();
   });
 });

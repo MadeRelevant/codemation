@@ -3,12 +3,17 @@ export type MsGraphMailAddress = Readonly<{
   address?: string;
 }>;
 
+/**
+ * Attachment metadata only — never carries the raw payload (`contentBytes`) on the workflow item
+ * to avoid bloating run state in the database. Set the trigger's `downloadAttachments: true` and
+ * the execute() step registers the actual bytes via `ctx.binary.attach(...)`, which puts them in
+ * the framework's binary storage; consumers read the bytes on demand through `item.binary[name]`.
+ */
 export type MsGraphMailAttachment = Readonly<{
   id: string;
   name: string;
   contentType: string;
   size: number;
-  contentBytes?: string;
 }>;
 
 export type MsGraphMailItem = Readonly<{

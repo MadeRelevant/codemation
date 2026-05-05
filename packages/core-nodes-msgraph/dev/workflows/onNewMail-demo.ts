@@ -2,7 +2,8 @@
  * Minimal demo workflow for the MS Graph "On new mail" trigger.
  * Requires a Microsoft Graph OAuth credential named "auth" bound to the trigger node.
  *
- * Set the mailbox to your Office 365 mailbox address (e.g. user@contoso.com).
+ * Default uses the connected user's own inbox (mailbox: "me"). To monitor a shared mailbox,
+ * set MSGRAPH_MAILBOX to the target UPN — that path requires Mail.Read.Shared scope.
  */
 import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
 import { OnNewMsGraphMailTrigger, type MsGraphMailItem } from "../../src/index";
@@ -22,8 +23,8 @@ export default createWorkflowBuilder({
     new OnNewMsGraphMailTrigger(
       "On new mail",
       {
-        mailbox: process.env["MSGRAPH_MAILBOX"] ?? "user@contoso.com",
-        folderId: "Inbox",
+        mailbox: process.env["MSGRAPH_MAILBOX"] ?? "me",
+        folderId: "inbox",
         pollIntervalMs: 60_000,
       },
       "msgraph_mail_trigger",

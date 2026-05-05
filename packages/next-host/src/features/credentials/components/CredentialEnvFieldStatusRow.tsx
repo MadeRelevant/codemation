@@ -1,8 +1,8 @@
 "use client";
 
 import { CanvasNodeChromeTooltip } from "../../workflows/components/canvas/CanvasNodeChromeTooltip";
-import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
 import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
+import Info from "lucide-react/dist/esm/icons/info";
 
 export function CredentialEnvFieldStatusRow(
   args: Readonly<
@@ -44,22 +44,22 @@ export function CredentialEnvFieldStatusRow(
   }
 
   const tooltip =
-    "This variable is not set (or is empty) in the host process environment. Enter a value below to store it in the database, or set the variable on the host to centralize secrets.";
+    "Optional: set this variable on the host to centralize the secret across deployments. The value entered below is stored in the database and works on its own.";
   return (
     <div
-      className="flex items-start gap-2 rounded-md border border-destructive/25 bg-destructive/5 px-2.5 py-2 text-xs leading-snug text-destructive dark:border-destructive/40 dark:bg-destructive/10"
+      className="text-muted-foreground bg-muted/40 dark:bg-muted/20 flex items-start gap-2 rounded-md border border-border/60 px-2.5 py-2 text-xs leading-snug"
       data-testid={`credential-field-env-missing-${fieldKey}`}
     >
       <CanvasNodeChromeTooltip
         testId={`credential-field-env-missing-icon-${fieldKey}`}
-        ariaLabel="Host environment not set"
+        ariaLabel="Host environment override available"
         tooltip={tooltip}
       >
-        <span className="inline-flex shrink-0 text-destructive">
-          <AlertCircle className="size-4" aria-hidden />
+        <span className="inline-flex shrink-0 text-muted-foreground">
+          <Info className="size-4" aria-hidden />
         </span>
       </CanvasNodeChromeTooltip>
-      <span>Not set in host env: {mono}</span>
+      <span>Tip: this field can also be supplied via host env {mono} to keep the secret out of the database.</span>
     </div>
   );
 }

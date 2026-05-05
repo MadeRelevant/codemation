@@ -865,7 +865,9 @@ describe("credential instances http integration", () => {
     expect(body.redirectUri).toMatch(/\/api\/oauth2\/callback$/);
   });
 
-  it("returns OAuth2 redirect URI when CODEMATION_PUBLIC_BASE_URL omits http scheme", async () => {
+  it("returns OAuth2 redirect URI when CODEMATION_PUBLIC_BASE_URL omits http scheme, rewriting loopback IP to localhost", async () => {
+    // 127.0.0.1 is rewritten to localhost because Azure AD (and several other providers) reject
+    // raw loopback IPs in registered redirect URIs, only allowing the `localhost` hostname.
     const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!, {
       CODEMATION_PUBLIC_BASE_URL: "127.0.0.1:5555",
     });
@@ -877,7 +879,37 @@ describe("credential instances http integration", () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json<{ redirectUri: string }>();
-    expect(body.redirectUri).toBe("http://127.0.0.1:5555/api/oauth2/callback");
+    expect(body.redirectUri).toBe("http://localhost:5555/api/oauth2/callback");
+  });
+
+  it("preserves non-loopback hosts in OAuth2 redirect URI (no rewrite)", async () => {
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!, {
+      CODEMATION_PUBLIC_BASE_URL: "https://app.example.com",
+    });
+
+    const response = await harness.request({
+      method: "GET",
+      url: ApiPaths.oauth2RedirectUri(),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{ redirectUri: string }>();
+    expect(body.redirectUri).toBe("https://app.example.com/api/oauth2/callback");
+  });
+
+  it("rewrites IPv6 loopback [::1] to localhost in OAuth2 redirect URI", async () => {
+    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!, {
+      CODEMATION_PUBLIC_BASE_URL: "http://[::1]:5555",
+    });
+
+    const response = await harness.request({
+      method: "GET",
+      url: ApiPaths.oauth2RedirectUri(),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{ redirectUri: string }>();
+    expect(body.redirectUri).toBe("http://localhost:5555/api/oauth2/callback");
   });
 
   it("returns OAuth2 callback error HTML when code and state are missing (no fetch)", async () => {

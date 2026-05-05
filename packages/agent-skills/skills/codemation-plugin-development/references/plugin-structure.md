@@ -33,6 +33,37 @@ That file is the plugin repository's source composition root. Consumers should d
 - start with `defineCredential(...)`
 - build typed sessions in `createSession(...)`
 - implement `test(...)` so operators can validate configuration before activation
+- for OAuth2 redirect flows, use the URL-template variant (`auth: { kind: "oauth2", providerId, authorizeUrl, tokenUrl, scopes }`) with `{publicFieldKey}` placeholders — no core or host edits needed per provider. See the credential-development skill for details.
+
+## Binary payloads — never put bytes on the item JSON
+
+**Rule:** if a node produces or fetches binary content (file attachments, image bytes, audio, PDFs, downloads, etc.), the bytes go through the framework's binary storage via `ctx.binary.attach(...)`. They MUST NOT be placed on the item's JSON payload.
+
+The runtime persists each item's JSON into the runs table for telemetry, replay, and debugging. Putting megabyte-scale base64 strings in there bloats the database, slows queries, and makes telemetry unreadable. The binary system exists exactly for this: blobs live in object storage; the item JSON only carries a `BinaryAttachment` reference (`{ id, storageKey, mimeType, size, ... }`) under `item.binary[<slot-name>]`.
+
+```ts
+// Inside execute(items, ctx) on a node that has fetched a file:
+const stored = await ctx.binary.attach({
+  name: "report.pdf", // slot name (also the key under item.binary)
+  body: Buffer.from(bytes), // Buffer / Uint8Array / Readable
+  mimeType: "application/pdf",
+  filename: "report.pdf", // hint for downloads
+});
+const enriched = ctx.binary.withAttachment(item, "report.pdf", stored);
+```
+
+Notes:
+
+- Attachment **metadata** (id, name, contentType, size) belongs on the item JSON — it is small and useful for branching. Only the **bytes** must go through `ctx.binary`.
+- For triggers, fetch metadata cheaply in `runCycle` (e.g. Graph's `$expand=attachments($select=id,name,contentType,size)`) and defer the byte download to `execute()` so persisted run state stays tiny on every poll.
+- Two attachments with the same filename within one item collide on `item.binary[name]`; suffix the slot name (`report-2.pdf`) to keep both.
+
+## Polling-trigger guidance
+
+- the engine ships a generic polling-trigger runtime in `@codemation/core` exposed via `ctx.polling` on the trigger setup context
+- call `ctx.polling.start({ intervalMs, runCycle })` from your trigger node's `setup()` — the runtime handles the loop, overlap guard, dedup window (`ctx.polling.dedup.merge(...)`), state persistence, and cleanup
+- on the first cycle, baseline-skip (record current ids, emit nothing) so the workflow does not flood with the existing backlog when the trigger is first set up
+- implement `TestableTriggerNode.getTestItems(ctx)` to power the workflow UI's **Test** button — return the most recent N items without consulting or mutating polling state, so users can preview live data without waiting
 
 ## Publishability
 
