@@ -1,0 +1,23 @@
+name: Setup pnpm + turbo cache
+description: Install pnpm, set up Node.js, install dependencies, and enable turbo remote cache via GitHub Actions cache.
+
+runs:
+  using: composite
+  steps:
+    - name: Install pnpm
+      uses: pnpm/action-setup@v5
+      with:
+        version: 10.13.1
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: "24"
+        cache: pnpm
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Enable turbo remote cache (GitHub Actions)
+      uses: dtinth/setup-github-actions-caching-for-turbo@v1

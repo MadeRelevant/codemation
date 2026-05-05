@@ -37,7 +37,8 @@
     "analyze": "ANALYZE=true next build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",

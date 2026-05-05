@@ -42,19 +42,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v5
-        with:
-          version: 10.13.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
 
       - name: Generate Prisma client (@codemation/host)
         if: ${{ matrix.name != 'Format' }}
@@ -102,7 +90,73 @@ jobs:
       - name: Run ${{ matrix.name }}
         run: pnpm --filter create-codemation run ${{ matrix.command }}
 
+  # --- Path-filter gate: compute force_full once and share via outputs ---
+  # force_full=true when pushing to main/master or when tooling/workflow/lock files change.
+  # When force_full=true, all coverage jobs run regardless of which packages changed.
+  path-filter:
+    if: ${{ github.event_name != 'pull_request' || (github.head_ref != '' && !startsWith(github.head_ref, 'release/') && !startsWith(github.head_ref, 'changeset-release/')) }}
+    name: Compute path filters
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      force_full: ${{ steps.force.outputs.force_full }}
+      core: ${{ steps.filter.outputs.core }}
+      host: ${{ steps.filter.outputs.host }}
+      next_host: ${{ steps.filter.outputs.next_host }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Determine force_full
+        id: force
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "force_full=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "force_full=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute package-level filters
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            core:
+              - 'packages/core/**'
+              - 'packages/core-nodes/**'
+              - 'packages/core-nodes-gmail/**'
+              - 'packages/core-nodes-msgraph/**'
+              - 'packages/agent-skills/**'
+              - 'packages/cli/**'
+              - 'packages/create-codemation/**'
+              - 'packages/eventbus-redis/**'
+              - 'tooling/**'
+              - 'turbo.json'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/**'
+            host:
+              - 'packages/host/**'
+              - 'packages/core/**'
+              - 'packages/core-nodes/**'
+              - 'packages/eventbus-redis/**'
+              - 'tooling/**'
+              - 'turbo.json'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/**'
+            next_host:
+              - 'packages/next-host/**'
+              - 'packages/host/**'
+              - 'packages/core/**'
+              - 'tooling/**'
+              - 'turbo.json'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/**'
+
   # --- Coverage: one job per suite (parallel runners); merge + Codecov in coverage-report ---
+  # coverage-unit always runs (no path filter) — cheap, broad coverage of pure logic.
   coverage-unit:
     if: ${{ github.event_name != 'pull_request' || (github.head_ref != '' && !startsWith(github.head_ref, 'release/') && !startsWith(github.head_ref, 'changeset-release/')) }}
     name: Coverage — unit
@@ -113,20 +167,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v5
         with:
-          version: 10.13.1
+          fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
 
       - name: Generate Prisma client (@codemation/host)
         run: pnpm --filter @codemation/host prisma:generate
@@ -149,6 +193,8 @@ jobs:
     name: Coverage — integration
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    needs: [path-filter]
+    # Run when forced-full OR when host/core packages changed
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
       REDIS_URL: redis://127.0.0.1:6379
@@ -176,33 +222,39 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
+      - name: Check if job should run
+        id: should_run
+        shell: bash
+        run: |
+          if [[ "${{ needs.path-filter.outputs.force_full }}" == "true" || "${{ needs.path-filter.outputs.host }}" == "true" || "${{ needs.path-filter.outputs.core }}" == "true" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/checkout@v6
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v5
         with:
-          version: 10.13.1
+          fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
+        if: steps.should_run.outputs.run == 'true'
 
       - name: Generate Prisma client (@codemation/host)
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm --filter @codemation/host prisma:generate
 
       - name: Build
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm exec turbo run build
 
       - name: Coverage (integration)
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm run coverage:integration
 
       - name: Upload lcov (integration)
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: lcov-integration
@@ -214,37 +266,44 @@ jobs:
     name: Coverage — integration (sqlite)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    needs: [path-filter]
     env:
       CODEMATION_DATABASE_KIND: sqlite
       DATABASE_URL: file:/tmp/codemation-integration.sqlite
     steps:
+      - name: Check if job should run
+        id: should_run
+        shell: bash
+        run: |
+          if [[ "${{ needs.path-filter.outputs.force_full }}" == "true" || "${{ needs.path-filter.outputs.host }}" == "true" || "${{ needs.path-filter.outputs.core }}" == "true" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/checkout@v6
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v5
         with:
-          version: 10.13.1
+          fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
+        if: steps.should_run.outputs.run == 'true'
 
       - name: Generate Prisma client (@codemation/host)
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm --filter @codemation/host prisma:generate
 
       - name: Build
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm exec turbo run build
 
       - name: Coverage (integration, sqlite)
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm run coverage:integration
 
       - name: Upload lcov (integration, sqlite)
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: lcov-integration-sqlite
@@ -256,36 +315,43 @@ jobs:
     name: Coverage — UI
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    needs: [path-filter]
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
     steps:
+      - name: Check if job should run
+        id: should_run
+        shell: bash
+        run: |
+          if [[ "${{ needs.path-filter.outputs.force_full }}" == "true" || "${{ needs.path-filter.outputs.next_host }}" == "true" || "${{ needs.path-filter.outputs.host }}" == "true" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/checkout@v6
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v5
         with:
-          version: 10.13.1
+          fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
+        if: steps.should_run.outputs.run == 'true'
 
       - name: Generate Prisma client (@codemation/host)
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm --filter @codemation/host prisma:generate
 
       - name: Build
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm exec turbo run build
 
       - name: Coverage (UI)
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm run coverage:ui
 
       - name: Upload lcov (ui)
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: lcov-ui
@@ -297,6 +363,7 @@ jobs:
     name: Coverage — browser
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    needs: [path-filter]
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
       REDIS_URL: redis://127.0.0.1:6379
@@ -324,33 +391,39 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
+      - name: Check if job should run
+        id: should_run
+        shell: bash
+        run: |
+          if [[ "${{ needs.path-filter.outputs.force_full }}" == "true" || "${{ needs.path-filter.outputs.next_host }}" == "true" || "${{ needs.path-filter.outputs.host }}" == "true" || "${{ needs.path-filter.outputs.core }}" == "true" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/checkout@v6
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v5
         with:
-          version: 10.13.1
+          fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
+        if: steps.should_run.outputs.run == 'true'
 
       - name: Generate Prisma client (@codemation/host)
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm --filter @codemation/host prisma:generate
 
       - name: Install Playwright (Chromium)
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm --filter @codemation/host exec playwright install chromium --with-deps
 
       - name: Build
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm exec turbo run build
 
       - name: Coverage (browser)
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm run coverage:browser
 
       - name: Upload browser failure artifacts
@@ -368,6 +441,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload lcov (browser)
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: lcov-browser
@@ -379,6 +453,7 @@ jobs:
     name: Coverage — e2e
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: [path-filter]
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
     services:
@@ -396,33 +471,39 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
+      - name: Check if job should run
+        id: should_run
+        shell: bash
+        run: |
+          if [[ "${{ needs.path-filter.outputs.force_full }}" == "true" || "${{ needs.path-filter.outputs.host }}" == "true" || "${{ needs.path-filter.outputs.core }}" == "true" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/checkout@v6
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v5
         with:
-          version: 10.13.1
+          fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
+        if: steps.should_run.outputs.run == 'true'
 
       - name: Generate Prisma client (@codemation/host)
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm --filter @codemation/host prisma:generate
 
       - name: Build
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm exec turbo run build
 
       - name: Coverage (e2e)
+        if: steps.should_run.outputs.run == 'true'
         run: pnpm run coverage:e2e
 
       - name: Upload lcov (e2e)
+        if: steps.should_run.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: lcov-e2e
@@ -430,7 +511,6 @@ jobs:
           if-no-files-found: error
 
   coverage-report:
-    if: ${{ github.event_name != 'pull_request' || (github.head_ref != '' && !startsWith(github.head_ref, 'release/') && !startsWith(github.head_ref, 'changeset-release/')) }}
     name: Merge coverage & Codecov
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -441,23 +521,23 @@ jobs:
       - coverage-ui
       - coverage-browser
       - coverage-e2e
+    # Run when at least coverage-unit succeeded (always runs), none of the others failed,
+    # and the branch is not a version-bump PR.
+    if: >-
+      ${{
+        (github.event_name != 'pull_request' || (github.head_ref != '' && !startsWith(github.head_ref, 'release/') && !startsWith(github.head_ref, 'changeset-release/'))) &&
+        needs.coverage-unit.result == 'success' &&
+        (needs.coverage-integration.result == 'success' || needs.coverage-integration.result == 'skipped') &&
+        (needs.coverage-integration-sqlite.result == 'success' || needs.coverage-integration-sqlite.result == 'skipped') &&
+        (needs.coverage-ui.result == 'success' || needs.coverage-ui.result == 'skipped') &&
+        (needs.coverage-browser.result == 'success' || needs.coverage-browser.result == 'skipped') &&
+        (needs.coverage-e2e.result == 'success' || needs.coverage-e2e.result == 'skipped')
+      }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v5
-        with:
-          version: 10.13.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
 
       - name: Download all lcov artifacts
         uses: actions/download-artifact@v4
@@ -469,23 +549,31 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p coverage/raw/unit coverage/raw/integration coverage/raw/integration-sqlite coverage/raw/ui coverage/raw/browser coverage/raw/e2e
-          copy_one() {
+
+          copy_if_exists() {
             local artifact="$1"
             local dest="$2"
             local src
-            src=$(find "coverage-artifacts/$artifact" -name lcov.info -print -quit)
-            if [ -z "${src:-}" ] || [ ! -f "$src" ]; then
-              echo "Missing lcov.info under coverage-artifacts/$artifact" >&2
-              exit 1
+            src=$(find "coverage-artifacts/$artifact" -name lcov.info -print -quit 2>/dev/null || true)
+            if [ -n "${src:-}" ] && [ -f "$src" ]; then
+              cp -f "$src" "$dest"
+            else
+              echo "No lcov.info found under coverage-artifacts/$artifact — skipping (suite may have been filtered out)."
             fi
-            cp -f "$src" "$dest"
           }
-          copy_one lcov-unit coverage/raw/unit/lcov.info
-          copy_one lcov-integration coverage/raw/integration/lcov.info
-          copy_one lcov-integration-sqlite coverage/raw/integration-sqlite/lcov.info
-          copy_one lcov-ui coverage/raw/ui/lcov.info
-          copy_one lcov-browser coverage/raw/browser/lcov.info
-          copy_one lcov-e2e coverage/raw/e2e/lcov.info
+
+          copy_if_exists lcov-unit coverage/raw/unit/lcov.info
+          copy_if_exists lcov-integration coverage/raw/integration/lcov.info
+          copy_if_exists lcov-integration-sqlite coverage/raw/integration-sqlite/lcov.info
+          copy_if_exists lcov-ui coverage/raw/ui/lcov.info
+          copy_if_exists lcov-browser coverage/raw/browser/lcov.info
+          copy_if_exists lcov-e2e coverage/raw/e2e/lcov.info
+
+          # lcov-unit is always required
+          if [ ! -f coverage/raw/unit/lcov.info ]; then
+            echo "Missing required coverage/raw/unit/lcov.info" >&2
+            exit 1
+          fi
 
       - name: Merge coverage
         run: pnpm run coverage:merge
@@ -548,8 +636,8 @@ jobs:
 
   # Single status check for branch protection: require only this job on `main` PRs.
   # Version-bump PR heads (`release/*`, `changeset-release/*`) skip upstream jobs; those jobs report
-  # `skipped` (success for GitHub). This gate accepts skipped only for those PRs; feature PRs must
-  # show `success` on every upstream job.
+  # `skipped` (success for GitHub). For feature PRs, jobs that were filtered out (skipped by path-filter)
+  # also count as success — the path-filter ensures correctness by running on force_full.
   merge-gate:
     name: Merge requirements
     if: ${{ always() && github.event_name == 'pull_request' }}
@@ -558,6 +646,7 @@ jobs:
     needs:
       - static
       - template-release-smoke
+      - path-filter
       - coverage-unit
       - coverage-integration
       - coverage-integration-sqlite
@@ -569,9 +658,10 @@ jobs:
     steps:
       - name: Enforce merge requirements
         env:
-          IS_VERSION_PR: ${{ github.event_name == 'pull_request' && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'changeset-release/')) }}
+          IS_VERSION_PR: ${{ startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'changeset-release/') }}
           R_STATIC: ${{ needs.static.result }}
           R_TEMPLATE: ${{ needs.template-release-smoke.result }}
+          R_PATH_FILTER: ${{ needs.path-filter.result }}
           R_COV_UNIT: ${{ needs.coverage-unit.result }}
           R_COV_INT: ${{ needs.coverage-integration.result }}
           R_COV_SQLITE: ${{ needs.coverage-integration-sqlite.result }}
@@ -583,20 +673,31 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          results=(
+
+          # Jobs that must be success (never skipped) — they always run on feature PRs.
+          required_success=(
             "${R_STATIC}"
             "${R_TEMPLATE}"
+            "${R_PATH_FILTER}"
             "${R_COV_UNIT}"
+            "${R_COV_REPORT}"
+            "${R_CHANGESET}"
+          )
+          # Jobs that may be skipped by path-filter (but must not fail).
+          filterable=(
             "${R_COV_INT}"
             "${R_COV_SQLITE}"
             "${R_COV_UI}"
             "${R_COV_BROWSER}"
             "${R_COV_E2E}"
-            "${R_COV_REPORT}"
-            "${R_CHANGESET}"
           )
+
           if [[ "${IS_VERSION_PR}" == "true" ]]; then
-            for r in "${results[@]}"; do
+            all_results=(
+              "${required_success[@]}"
+              "${filterable[@]}"
+            )
+            for r in "${all_results[@]}"; do
               if [[ "${r}" != "success" && "${r}" != "skipped" ]]; then
                 echo "Merge gate: unexpected job result on version-packages PR head: ${r}"
                 exit 1
@@ -605,10 +706,19 @@ jobs:
             echo "Version packages PR: upstream jobs skipped by policy; merge requirements satisfied."
             exit 0
           fi
-          for r in "${results[@]}"; do
+
+          for r in "${required_success[@]}"; do
             if [[ "${r}" != "success" ]]; then
               echo "Merge gate: required CI job did not succeed (${r})."
               exit 1
             fi
           done
-          echo "All required CI jobs succeeded."
+
+          for r in "${filterable[@]}"; do
+            if [[ "${r}" != "success" && "${r}" != "skipped" ]]; then
+              echo "Merge gate: filterable CI job neither succeeded nor was skipped (${r})."
+              exit 1
+            fi
+          done
+
+          echo "All required CI jobs succeeded (filterable jobs: success or skipped)."
