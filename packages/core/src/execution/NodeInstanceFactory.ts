@@ -4,6 +4,7 @@ import type { NodeId, NodeResolver, WorkflowDefinition, WorkflowNodeInstanceFact
 import { MissingRuntimeNode, MissingRuntimeTrigger } from "../workflowSnapshots";
 import { MissingRuntimeNodeToken } from "../workflowSnapshots/MissingRuntimeNodeToken";
 import { MissingRuntimeTriggerToken } from "../workflowSnapshots/MissingRuntimeTriggerToken";
+import { NodeInstantiationError } from "./NodeInstantiationError";
 
 export class NodeInstanceFactory implements WorkflowNodeInstanceFactory {
   constructor(private readonly nodeResolver: NodeResolver) {}
@@ -11,7 +12,18 @@ export class NodeInstanceFactory implements WorkflowNodeInstanceFactory {
   createNodes(workflow: WorkflowDefinition): Map<NodeId, unknown> {
     const nodeInstances = new Map<NodeId, unknown>();
     for (const definition of workflow.nodes) {
-      nodeInstances.set(definition.id, this.createNode(definition));
+      try {
+        nodeInstances.set(definition.id, this.createNode(definition));
+      } catch (err) {
+        if (err instanceof NodeInstantiationError) {
+          throw err;
+        }
+        throw new NodeInstantiationError(
+          definition.id,
+          typeof definition.type === "function" ? definition.type.name : String(definition.type),
+          err instanceof Error ? err : new Error(String(err)),
+        );
+      }
     }
     return nodeInstances;
   }

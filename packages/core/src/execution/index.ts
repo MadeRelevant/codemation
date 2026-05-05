@@ -2,6 +2,7 @@ export { ActivationEnqueueService } from "./ActivationEnqueueService";
 export { ChildExecutionScopeFactory } from "./ChildExecutionScopeFactory";
 export { NodeActivationRequestInputPreparer } from "./NodeActivationRequestInputPreparer";
 export { NodeInputContractError } from "./NodeInputContractError";
+export { NodeInstantiationError } from "./NodeInstantiationError";
 export { CredentialResolverFactory } from "./CredentialResolverFactory";
 export { DefaultAsyncSleeper } from "./DefaultAsyncSleeper";
 export { DefaultExecutionContextFactory } from "./DefaultExecutionContextFactory";
