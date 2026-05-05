@@ -91,6 +91,28 @@ export type CredentialOAuth2AuthDefinition = Readonly<
       clientIdFieldKey?: string;
       clientSecretFieldKey?: string;
     }
+  | {
+      kind: "oauth2";
+      /**
+       * Free-form provider identifier for telemetry, DB rows, and Better Auth provider naming.
+       * Not used for any registry lookup — URLs come from {@link authorizeUrl} / {@link tokenUrl}.
+       */
+      providerId: string;
+      /**
+       * Authorization endpoint. May contain `{publicFieldKey}` placeholders that the runtime
+       * substitutes from the credential's resolved public config (URL-encoded).
+       * Example: `https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize`
+       */
+      authorizeUrl: string;
+      /** Token endpoint. Same templating rules as {@link authorizeUrl}. */
+      tokenUrl: string;
+      /** Optional userinfo endpoint. Same templating rules as {@link authorizeUrl}. */
+      userInfoUrl?: string;
+      scopes: ReadonlyArray<string>;
+      scopesFromPublicConfig?: CredentialOAuth2ScopesFromPublicConfig;
+      clientIdFieldKey?: string;
+      clientSecretFieldKey?: string;
+    }
 >;
 
 export type CredentialAuthDefinition = CredentialOAuth2AuthDefinition;

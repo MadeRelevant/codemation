@@ -60,6 +60,7 @@ export const msGraphOAuthCredentialType: AnyCredentialType = {
         key: "tenantId",
         label: "Tenant ID",
         type: "string",
+        required: true,
         placeholder: "common",
         helpText: 'Use "common" for multi-tenant apps, or your Azure AD tenant GUID for single-tenant.',
         order: 1,
@@ -99,6 +100,8 @@ export const msGraphOAuthCredentialType: AnyCredentialType = {
     auth: {
       kind: "oauth2",
       providerId: "microsoft",
+      authorizeUrl: "https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize",
+      tokenUrl: "https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token",
       scopes: SCOPE_PRESETS["read-mail"] as ReadonlyArray<string>,
       scopesFromPublicConfig: {
         presetFieldKey: "scopePreset",

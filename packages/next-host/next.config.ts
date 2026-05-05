@@ -18,13 +18,7 @@ const nextConfig: NextConfig = {
    * loading prebuilt `dist` at runtime (no `development` condition for externals) instead of
    * bundling sources here.
    */
-  serverExternalPackages: [
-    "@libsql/client",
-    "@prisma/adapter-libsql",
-    "@codemation/core",
-    "@codemation/core-nodes",
-    "@codemation/core-nodes-gmail",
-  ],
+  serverExternalPackages: ["@libsql/client", "@prisma/adapter-libsql", "@codemation/core", "@codemation/core-nodes"],
   transpilePackages: ["@codemation/eventbus-redis", "@codemation/host", "@codemation/node-example"],
   experimental: {
     externalDir: true,

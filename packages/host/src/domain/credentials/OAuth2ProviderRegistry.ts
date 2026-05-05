@@ -24,6 +24,9 @@ export class OAuth2ProviderRegistry {
     if (auth?.kind !== "oauth2") {
       throw new Error(`Credential type ${definition.typeId} does not use OAuth2.`);
     }
+    if ("authorizeUrl" in auth && "tokenUrl" in auth) {
+      return this.resolveTemplateProvider(auth, publicConfig);
+    }
     if ("providerId" in auth) {
       return this.resolveBuiltInProvider(auth);
     }
@@ -49,7 +52,33 @@ export class OAuth2ProviderRegistry {
     if (auth.providerId === "google") {
       return OAuth2ProviderRegistry.googleProvider;
     }
-    throw new Error(`Unsupported OAuth2 provider id: ${auth.providerId}`);
+    throw new Error(
+      `Unsupported OAuth2 provider id: ${auth.providerId}. ` +
+        `Plugin credential types should declare authorizeUrl and tokenUrl directly ` +
+        `(supports {publicFieldKey} templates) instead of relying on a built-in provider id.`,
+    );
+  }
+
+  private resolveTemplateProvider(
+    auth: Extract<CredentialOAuth2AuthDefinition, { authorizeUrl: string; tokenUrl: string }>,
+    publicConfig: JsonRecord,
+  ): OAuth2ResolvedProvider {
+    return {
+      providerId: auth.providerId,
+      authorizeUrl: this.expandTemplate(auth.authorizeUrl, publicConfig),
+      tokenUrl: this.expandTemplate(auth.tokenUrl, publicConfig),
+      userInfoUrl: auth.userInfoUrl ? this.expandTemplate(auth.userInfoUrl, publicConfig) : undefined,
+    };
+  }
+
+  private expandTemplate(template: string, publicConfig: JsonRecord): string {
+    return template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, fieldKey: string) => {
+      const value = publicConfig[fieldKey];
+      if (value === undefined || value === null || value === "") {
+        throw new Error(`OAuth2 URL template references public field "${fieldKey}" but no value was provided.`);
+      }
+      return encodeURIComponent(String(value));
+    });
   }
 
   private resolvePublicConfigProvider(

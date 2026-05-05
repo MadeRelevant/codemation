@@ -707,9 +707,6 @@ importers:
         specifier: ^4.4.2
         version: 4.4.2
     devDependencies:
-      '@codemation/core-nodes-gmail':
-        specifier: workspace:*
-        version: link:../core-nodes-gmail
       '@playwright/test':
         specifier: ^1.58.2
         version: 1.58.2
