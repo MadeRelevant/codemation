@@ -13,10 +13,20 @@ export type OnNewMsGraphMailOptions = Readonly<{
   mailbox: string;
   /** Folder to monitor. Defaults to "Inbox". */
   folderId?: string;
-  /** Graph $filter expression (e.g. `"isRead eq false"`). Optional. */
+  /**
+   * Graph OData `$filter` expression applied server-side when polling.
+   * Defaults to `"isRead eq false"` when omitted. Pass an empty string `""` to disable
+   * filtering entirely (retrieve all messages regardless of read status).
+   */
   filter?: string;
-  /** When true, fetches attachment content (base64) for each new message. Default: false. */
+  /** When true, fetches attachment content for each new message and stores via ctx.binary. Default: false. */
   downloadAttachments?: boolean;
+  /**
+   * Maximum size in bytes for an individual attachment binary fetch.
+   * Attachments exceeding this cap are skipped (not fetched) and recorded in
+   * `item.json.skippedAttachments`. Default: 25 * 1024 * 1024 (25 MiB).
+   */
+  attachmentSizeCapBytes?: number;
   /** Polling interval in milliseconds. Default: 60_000. */
   pollIntervalMs?: number;
 }>;

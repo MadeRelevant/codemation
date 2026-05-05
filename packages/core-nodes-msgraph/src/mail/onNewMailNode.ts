@@ -11,10 +11,12 @@ import type {
 import { node } from "@codemation/core";
 import { createGraphClient } from "../credentials/session";
 import type { MsGraphSession } from "../credentials/session";
+import { mailboxPathPrefix } from "../lib/graphPaths";
+import { withGraphRetry } from "../lib/graphRetry";
 import type { GraphMessageRaw } from "./messageMapper";
 import { mapGraphMessage } from "./messageMapper";
 import type { OnNewMsGraphMailTrigger, OnNewMsGraphMailOptions } from "./onNewMailConfig";
-import type { MsGraphMailItem, MsGraphMailTriggerState } from "./types";
+import type { MsGraphMailItem, MsGraphMailSkippedAttachment, MsGraphMailTriggerState } from "./types";
 
 const TOP_PER_POLL = 25;
 const TOP_PER_TEST = 5;
@@ -23,20 +25,15 @@ const DEFAULT_FOLDER = "inbox";
 const DEFAULT_INTERVAL_MS = 60_000;
 // Metadata-only $expand: keeps payloads small and never returns base64 contentBytes.
 // Bytes are fetched separately in execute() when downloadAttachments is true.
-const ATTACHMENT_METADATA_EXPAND = "attachments($select=id,name,contentType,size)";
-
-/**
- * Build the Graph API path prefix for the configured mailbox. `/me/...` for the credential owner's
- * own mailbox (works with default `Mail.Read` scope) or `/users/{upn}/...` for shared mailboxes.
- * Empty / "me" / "self" all map to the credential-owner shortcut.
- */
-function mailboxPathPrefix(mailbox: string): string {
-  const trimmed = mailbox.trim().toLowerCase();
-  if (trimmed === "" || trimmed === "me" || trimmed === "self") {
-    return "/me";
-  }
-  return `/users/${encodeURIComponent(mailbox.trim())}`;
-}
+// isInline and contentId are included so inline attachments can be tagged correctly.
+const ATTACHMENT_METADATA_EXPAND = "attachments($select=id,name,contentType,size,isInline,contentId)";
+// Default size cap for attachment binary fetch: 25 MiB.
+const DEFAULT_ATTACHMENT_SIZE_CAP_BYTES = 25 * 1024 * 1024;
+// Default OData filter: only unread messages. Callers can override via cfg.filter.
+// Note: when a filter is active, $orderby is omitted (Graph returns HTTP 400 if the
+// filter and sort properties are not co-indexed). Graph's implicit message order is
+// receivedDateTime desc, which matches the previous explicit orderby — no behaviour change.
+const DEFAULT_FILTER = "isRead eq false";
 
 // ---------------------------------------------------------------------------
 // runCycle — pure function, fully unit-testable without DI
@@ -79,11 +76,14 @@ function buildMessagesRequest(args: {
     // Always pull attachment metadata (id/name/contentType/size). Cheap; lets workflows decide
     // whether to download bytes in execute() without re-querying.
     .expand(ATTACHMENT_METADATA_EXPAND);
-  if (cfg.filter) {
-    // When $filter is set, omit $orderby. Graph's "restriction or sort order is too complex"
-    // (HTTP 400) fires when the filter and orderby properties are not co-indexed; the default
-    // /messages order is already receivedDateTime desc, so dropping orderby is lossless.
-    request = request.filter(cfg.filter);
+  // Apply the configured filter, defaulting to "isRead eq false" when unset.
+  // An explicit empty string means "no filter" — only undefined triggers the default.
+  // When a filter is active, $orderby is omitted (Graph returns HTTP 400 if the filter
+  // and sort properties are not co-indexed). Graph's implicit message order is already
+  // receivedDateTime desc, so this is lossless.
+  const effectiveFilter = cfg.filter !== undefined ? cfg.filter : DEFAULT_FILTER;
+  if (effectiveFilter) {
+    request = request.filter(effectiveFilter);
   } else {
     request = request.orderby("receivedDateTime desc");
   }
@@ -107,7 +107,7 @@ export async function runCycle(args: {
   };
 
   const request = buildMessagesRequest({ client, cfg, top: TOP_PER_POLL });
-  const response = (await request.get()) as { value?: ReadonlyArray<GraphMessageRaw> };
+  const response = (await withGraphRetry(() => request.get())) as { value?: ReadonlyArray<GraphMessageRaw> };
   const messages = response.value ?? [];
   const messageIds = messages.map((m) => m.id);
 
@@ -170,7 +170,7 @@ export class OnNewMsGraphMailTriggerNode implements TestableTriggerNode<OnNewMsG
     const session = await ctx.getCredential<MsGraphSession>("auth");
     const client = createGraphClient(session);
     const request = buildMessagesRequest({ client, cfg, top: TOP_PER_TEST });
-    const response = (await request.get()) as { value?: ReadonlyArray<GraphMessageRaw> };
+    const response = (await withGraphRetry(() => request.get())) as { value?: ReadonlyArray<GraphMessageRaw> };
     const messages = response.value ?? [];
     return messages.map((raw) => ({ json: mapGraphMessage(raw) })) as Items<MsGraphMailItem>;
   }
@@ -190,10 +190,24 @@ export class OnNewMsGraphMailTriggerNode implements TestableTriggerNode<OnNewMsG
 }
 
 /**
+ * Sanitize a contentId value for use as a binary slot name.
+ * Strips angle-bracket wrapping (RFC 2822), then replaces any characters that
+ * could cause issues in slot names (non-alphanumeric except `-`, `.`, `_`, `@`).
+ */
+function sanitizeContentId(contentId: string): string {
+  const stripped = contentId.trim().replace(/^<|>$/g, "");
+  return stripped.replace(/[^A-Za-z0-9._@-]/g, "_");
+}
+
+/**
  * For each attachment on the message, fetch the bytes from Graph and register them via the
  * framework's binary storage (`ctx.binary.attach`). The bytes never live on the workflow item's
- * JSON payload — only a `BinaryAttachment` reference under `item.binary[<sanitized-name>]`,
+ * JSON payload — only a `BinaryAttachment` reference under `item.binary[<slot>]`,
  * so persisted run state stays small even with multi-megabyte attachments.
+ *
+ * Inline attachments (isInline === true + contentId) use slot name `"inline:{contentId}"`.
+ * Attachments exceeding `attachmentSizeCapBytes` are skipped; their metadata is collected
+ * in `item.json.skippedAttachments`.
  */
 async function attachAttachmentBinaries(
   item: Item<MsGraphMailItem>,
@@ -205,22 +219,43 @@ async function attachAttachmentBinaries(
     return item;
   }
   const cfg = ctx.config.cfg;
+  const sizeCap = cfg.attachmentSizeCapBytes ?? DEFAULT_ATTACHMENT_SIZE_CAP_BYTES;
   const binary = ctx.binary as NodeBinaryAttachmentService;
   let result = item;
   const seen = new Map<string, number>();
+  const skipped: MsGraphMailSkippedAttachment[] = [];
+
   for (const att of attachments) {
+    // Skip oversized attachments before fetching bytes
+    if (att.size > sizeCap) {
+      skipped.push({ name: att.name, size: att.size, reason: "size-cap" });
+      continue;
+    }
+
     // Fetch the full attachment representation: this includes contentBytes (base64) for
     // FileAttachment kinds. Item attachments / reference attachments don't return bytes —
     // we skip those gracefully.
-    const raw = (await client
-      .api(
-        `${mailboxPathPrefix(cfg.mailbox)}/messages/${encodeURIComponent(item.json.messageId)}/attachments/${encodeURIComponent(att.id)}`,
-      )
-      .get()) as { contentBytes?: string };
+    const raw = (await withGraphRetry(() =>
+      client
+        .api(
+          `${mailboxPathPrefix(cfg.mailbox)}/messages/${encodeURIComponent(item.json.messageId)}/attachments/${encodeURIComponent(att.id)}`,
+        )
+        .get(),
+    )) as { contentBytes?: string };
+
     if (typeof raw.contentBytes !== "string" || raw.contentBytes.length === 0) {
       continue;
     }
-    const slot = uniqueSlotName(seen, att.name || `attachment-${att.id}`);
+
+    // Determine slot name: inline attachments use "inline:{contentId}", regular use filename
+    let slotBase: string;
+    if (att.isInline && att.contentId) {
+      slotBase = `inline:${sanitizeContentId(att.contentId)}`;
+    } else {
+      slotBase = att.name || `attachment-${att.id}`;
+    }
+    const slot = uniqueSlotName(seen, slotBase);
+
     const stored = await binary.attach({
       name: slot,
       body: Buffer.from(raw.contentBytes, "base64"),
@@ -229,6 +264,15 @@ async function attachAttachmentBinaries(
     });
     result = binary.withAttachment(result, slot, stored);
   }
+
+  // Attach skipped metadata to the item JSON if any were skipped
+  if (skipped.length > 0) {
+    result = {
+      ...result,
+      json: { ...result.json, skippedAttachments: skipped },
+    };
+  }
+
   return result;
 }
 

@@ -1,5 +1,25 @@
 import type { CodemationPluginContext } from "@codemation/host";
 import { msGraphOAuthCredentialType } from "./credentials/msGraphOAuth";
+import { DriveCopyNode } from "./drive/driveCopyNode";
+import { DriveDownloadNode } from "./drive/driveDownloadNode";
+import { DriveItemGetNode } from "./drive/driveItemGetNode";
+import { DriveListChildrenNode } from "./drive/driveListChildrenNode";
+import { DriveListMyDrivesNode } from "./drive/driveListMyDrivesNode";
+import { DriveListSharedWithMeNode } from "./drive/driveListSharedWithMeNode";
+import { DriveResolveNode } from "./drive/driveResolveNode";
+import { DriveUploadNode } from "./drive/driveUploadNode";
+import { ExcelCloseWorkbookNode } from "./excel/excelCloseWorkbookNode";
+import { ExcelOpenWorkbookNode } from "./excel/excelOpenWorkbookNode";
+import { ExcelListWorksheetsNode } from "./excel/excelListWorksheetsNode";
+import { ExcelReadRangeNode } from "./excel/excelReadRangeNode";
+import { ExcelWriteRangeNode } from "./excel/excelWriteRangeNode";
+import { ExcelAddSheetNode } from "./excel/excelAddSheetNode";
+import { ExcelStyleRangeNode } from "./excel/excelStyleRangeNode";
+import { OutlookFolderResolveNode } from "./mail/outlookFolderResolveNode";
+import { OutlookMessageGetNode } from "./mail/outlookMessageGetNode";
+import { OutlookMessagePatchNode } from "./mail/outlookMessagePatchNode";
+import { OutlookMessageReplyNode } from "./mail/outlookMessageReplyNode";
+import { OutlookMessageSendNode } from "./mail/outlookMessageSendNode";
 import { OnNewMsGraphMailTriggerNode } from "./mail/onNewMailNode";
 
 /**
@@ -9,4 +29,28 @@ import { OnNewMsGraphMailTriggerNode } from "./mail/onNewMailNode";
 export function register(ctx: CodemationPluginContext): void {
   ctx.registerCredentialType(msGraphOAuthCredentialType);
   ctx.registerNode(OnNewMsGraphMailTriggerNode);
+  ctx.registerNode(OutlookMessageGetNode);
+  ctx.registerNode(OutlookMessageReplyNode);
+  ctx.registerNode(OutlookMessageSendNode);
+  ctx.registerNode(OutlookMessagePatchNode);
+  ctx.registerNode(OutlookFolderResolveNode);
+  ctx.registerNode(DriveResolveNode);
+  // PR B2–B5: Drive nodes
+  ctx.registerNode(DriveListChildrenNode);
+  ctx.registerNode(DriveItemGetNode);
+  ctx.registerNode(DriveDownloadNode);
+  ctx.registerNode(DriveUploadNode);
+  // PR B6–B7: Drive copy + enumeration
+  ctx.registerNode(DriveCopyNode);
+  ctx.registerNode(DriveListMyDrivesNode);
+  ctx.registerNode(DriveListSharedWithMeNode);
+  // PR C0+C1: Excel session open/close
+  ctx.registerNode(ExcelOpenWorkbookNode);
+  ctx.registerNode(ExcelCloseWorkbookNode);
+  // PR C2–C6: Excel workbook nodes
+  ctx.registerNode(ExcelListWorksheetsNode);
+  ctx.registerNode(ExcelReadRangeNode);
+  ctx.registerNode(ExcelWriteRangeNode);
+  ctx.registerNode(ExcelAddSheetNode);
+  ctx.registerNode(ExcelStyleRangeNode);
 }

@@ -32,4 +32,22 @@ describe("resolveScopes", () => {
     const scopes = resolveScopes("totally-unknown" as unknown as "read-mail", "");
     expect(scopes).toEqual(SCOPE_PRESETS["read-mail"]);
   });
+
+  it("graph-all preset includes Mail.ReadWrite, Mail.Send, Files.ReadWrite.All, Sites.ReadWrite.All", () => {
+    const scopes = resolveScopes("graph-all", "");
+    expect(scopes).toContain("Mail.ReadWrite");
+    expect(scopes).toContain("Mail.Send");
+    expect(scopes).toContain("Files.ReadWrite.All");
+    expect(scopes).toContain("Sites.ReadWrite.All");
+    // Base scopes must also be present
+    expect(scopes).toContain("openid");
+    expect(scopes).toContain("offline_access");
+    expect(scopes).toContain("User.Read");
+  });
+
+  it("graph-all preset is a valid ScopePreset key", () => {
+    // Type-level assertion: SCOPE_PRESETS["graph-all"] must exist
+    expect(SCOPE_PRESETS["graph-all"]).toBeDefined();
+    expect(Array.isArray(SCOPE_PRESETS["graph-all"])).toBe(true);
+  });
 });

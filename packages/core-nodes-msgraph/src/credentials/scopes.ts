@@ -8,6 +8,12 @@ export const SCOPE_PRESETS = {
   "send-mail": [...BASE_SCOPES, "Mail.Send"],
   "files-read": [...BASE_SCOPES, "Files.Read"],
   "files-readwrite": [...BASE_SCOPES, "Files.ReadWrite"],
+  /**
+   * All-in-one preset covering Outlook, OneDrive/SharePoint, and Excel.
+   * Use this when a single credential needs to perform actions across all three families
+   * (the recommended operating model for multi-step automations).
+   */
+  "graph-all": [...BASE_SCOPES, "Mail.ReadWrite", "Mail.Send", "Files.ReadWrite.All", "Sites.ReadWrite.All"],
 } as const satisfies Record<string, ReadonlyArray<string>>;
 
 export type ScopePreset = keyof typeof SCOPE_PRESETS;
