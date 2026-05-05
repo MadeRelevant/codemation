@@ -87,7 +87,9 @@ describe("mapGraphMessage", () => {
     expect(att.name).toBe("report.pdf");
     expect(att.contentType).toBe("application/pdf");
     expect(att.size).toBe(12345);
-    expect(att.contentBytes).toBe("base64data==");
+    // Note: contentBytes is intentionally not on the trigger item (avoids bloating run state).
+    // Bytes flow through ctx.binary.attach in execute() when downloadAttachments: true.
+    expect((att as { contentBytes?: string }).contentBytes).toBeUndefined();
   });
 
   it("maps internet message headers", () => {

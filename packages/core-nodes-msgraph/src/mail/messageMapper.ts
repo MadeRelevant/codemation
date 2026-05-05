@@ -47,7 +47,6 @@ function toAttachments(list: ReadonlyArray<GraphAttachmentRaw> | undefined): Rea
     name: a.name ?? "",
     contentType: a.contentType ?? "application/octet-stream",
     size: a.size ?? 0,
-    contentBytes: a.contentBytes,
   }));
 }
 
