@@ -42,7 +42,7 @@
     "test:interactive-verdaccio-smoke": "node ./test/CreateCodemationInteractiveVerdaccioSmoke.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "dependencies": {
     "@codemation/agent-skills": "workspace:*",
