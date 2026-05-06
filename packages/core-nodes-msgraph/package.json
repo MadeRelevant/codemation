@@ -1,6 +1,6 @@
 {
   "name": "@codemation/core-nodes-msgraph",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Microsoft Graph (O365) plugin for Codemation — starting with an On New Mail polling trigger",
   "publishConfig": {
     "access": "public"
