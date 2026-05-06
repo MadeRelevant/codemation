@@ -19,7 +19,9 @@
       "types": "./lib/agent-skills-extractor.d.ts",
       "import": "./lib/agent-skills-extractor.mjs",
       "default": "./lib/agent-skills-extractor.mjs"
-    }
+    },
+    "./package.json": "./package.json",
+    "./skills/*": "./skills/*"
   },
   "bin": {
     "codemation-agent-skills": "./bin/codemation-agent-skills.mjs"
