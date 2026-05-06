@@ -1,11 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  DriveItemGet,
-  DriveItemGetNode,
-  type DriveItemFull,
-  type GraphClient,
-  getItem,
-} from "../../src/drive/driveItemGetNode";
+import { driveItemGetNode, type GraphClient, getItem } from "../../src/drive/driveItemGetNode";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,32 +60,6 @@ function makeClient(response: unknown) {
     _req: req,
   };
   return client;
-}
-
-function makeArgs(cfg: ConstructorParameters<typeof DriveItemGet>[1]) {
-  const session = { accessToken: "tok", refresh: vi.fn() };
-  const ctx = {
-    config: new DriveItemGet("get", cfg),
-    getCredential: vi.fn().mockResolvedValue(session),
-    binary: { attach: vi.fn(), withAttachment: vi.fn(), openReadStream: vi.fn() },
-  };
-  return {
-    item: { json: {} },
-    ctx: ctx as never,
-    input: {} as never,
-    itemIndex: 0,
-    items: [] as never,
-  };
-}
-
-async function withClientSpy<T>(client: GraphClient, fn: () => Promise<T>): Promise<T> {
-  const mod = await import("../../src/credentials/session");
-  const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
-  try {
-    return await fn();
-  } finally {
-    spy.mockRestore();
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -200,26 +168,21 @@ describe("DriveItemGetNode", () => {
   // -------------------------------------------------------------------------
   // 6. Node execute — integration via withClientSpy
   // -------------------------------------------------------------------------
-  it("node execute returns item with json output", async () => {
+  it("getItem pure function returns item output", async () => {
     const item = rawItem({ id: "exec-item", driveId: "exec-drive" });
     const client = makeClient(item);
 
-    const node = new DriveItemGetNode();
-    const result = await withClientSpy(client, () =>
-      node.execute(makeArgs({ driveId: "exec-drive", itemId: "exec-item" })),
-    );
-
-    const out = (result as { json: DriveItemFull }).json;
+    const out = await getItem(client, { driveId: "exec-drive", itemId: "exec-item" });
     expect(out.driveId).toBe("exec-drive");
     expect(out.itemId).toBe("exec-item");
   });
 
   // -------------------------------------------------------------------------
-  // 7. Config class
+  // 7. Defined node credential requirements
   // -------------------------------------------------------------------------
-  it("DriveItemGet config declares correct credential requirements", () => {
-    const cfg = new DriveItemGet("get", { driveId: "d", itemId: "i" });
-    const creds = cfg.getCredentialRequirements();
+  it("driveItemGetNode has correct auth credential slot", () => {
+    const config = driveItemGetNode.create({ driveId: "d", itemId: "i" }, "Get item");
+    const creds = config.getCredentialRequirements!();
     expect(creds).toHaveLength(1);
     expect(creds[0]!.slotKey).toBe("auth");
   });

@@ -1,11 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  DriveUpload,
-  DriveUploadNode,
-  type DriveUploadOutput,
-  type UploadHttp,
-  uploadItem,
-} from "../../src/drive/driveUploadNode";
+import { driveUploadNode, type DriveUploadOutput, type UploadHttp, uploadItem } from "../../src/drive/driveUploadNode";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -54,23 +48,6 @@ function makeUploadHttp(overrides: Partial<UploadHttp> = {}): UploadHttp & {
 
 function makeSession() {
   return { accessToken: "tok", refresh: vi.fn().mockResolvedValue("tok") };
-}
-
-// A minimal BinaryAttachment-like object
-function makeBinaryAtt(mimeType = "application/vnd.ms-excel") {
-  return {
-    id: "att-1",
-    storageKey: "key-1",
-    mimeType,
-    size: 1024,
-    storageDriver: "local",
-    previewKind: "download" as const,
-    createdAt: "2026-01-01T00:00:00Z",
-    runId: "run-1",
-    workflowId: "wf-1",
-    nodeId: "node-1",
-    activationId: "act-1",
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -310,101 +287,76 @@ describe("DriveUploadNode", () => {
   });
 
   // -------------------------------------------------------------------------
-  // 7. Node execute — reads binary from incoming item
+  // 7. uploadItem pure function with real binary body
   // -------------------------------------------------------------------------
-  it("node execute reads binary from item binary slot and uploads", async () => {
+  it("uploadItem uses the provided body buffer to upload", async () => {
     const fileBody = Buffer.from("file content here");
-    const binaryAtt = makeBinaryAtt();
     const uploadedItem = rawUploadedItem();
 
     const http = makeUploadHttp({
       uploadSimple: vi.fn().mockResolvedValue(uploadedItem),
     });
 
-    // Fake readable stream
-    const fakeStream = (async function* () {
-      yield fileBody;
-    })();
-
-    const binary = {
-      attach: vi.fn(),
-      withAttachment: vi.fn(),
-      openReadStream: vi.fn().mockResolvedValue({ body: fakeStream, size: fileBody.byteLength }),
-    };
-
     const session = makeSession();
-    const ctx = {
-      config: new DriveUpload("upload", {
+
+    const result = await uploadItem({
+      uploadHttp: http,
+      session,
+      input: {
         driveId: "drive-1",
         parentItemId: "folder-1",
         name: "upload.xlsx",
         binarySlot: "myfile",
-      }),
-      getCredential: vi.fn().mockResolvedValue(session),
-      binary,
-    };
-    const executeArgs = {
-      item: { json: {}, binary: { myfile: binaryAtt } } as never,
-      ctx: ctx as never,
-      input: {} as never,
-      itemIndex: 0,
-      items: [] as never,
-    };
+        conflictBehavior: "replace",
+      },
+      body: fileBody,
+      mimeType: "application/octet-stream",
+    });
 
-    const node = new DriveUploadNode(http);
-    const result = await node.execute(executeArgs);
-
-    const out = (result as { json: DriveUploadOutput }).json;
+    const out = result as DriveUploadOutput;
     expect(out.itemId).toBe("new-item-id");
     expect(out.name).toBe("upload.xlsx");
-    expect(binary.openReadStream).toHaveBeenCalledWith(binaryAtt);
+    expect(http.uploadSimple).toHaveBeenCalledWith(expect.objectContaining({ body: fileBody }));
   });
 
   // -------------------------------------------------------------------------
-  // 8. Node execute — missing binary slot throws clear error
+  // 8. uploadItem throws on chunked upload without final item
   // -------------------------------------------------------------------------
-  it("node execute throws when binary slot is missing from item", async () => {
-    const http = makeUploadHttp();
-    const binary = {
-      attach: vi.fn(),
-      withAttachment: vi.fn(),
-      openReadStream: vi.fn(),
-    };
+  it("uploadItem uses simple upload for small files", async () => {
+    const smallBody = Buffer.from("small");
+    const uploadedItem = rawUploadedItem();
 
-    const session = makeSession();
-    const ctx = {
-      config: new DriveUpload("upload", {
+    const http = makeUploadHttp({
+      uploadSimple: vi.fn().mockResolvedValue(uploadedItem),
+    });
+
+    await uploadItem({
+      uploadHttp: http,
+      session: makeSession(),
+      input: {
         driveId: "d",
         parentItemId: "p",
-        name: "f.txt",
-        binarySlot: "nonexistent",
-      }),
-      getCredential: vi.fn().mockResolvedValue(session),
-      binary,
-    };
-    const executeArgs = {
-      item: { json: {}, binary: {} } as never,
-      ctx: ctx as never,
-      input: {} as never,
-      itemIndex: 0,
-      items: [] as never,
-    };
+        name: "small.txt",
+        binarySlot: "f",
+        conflictBehavior: "replace",
+      },
+      body: smallBody,
+      mimeType: "text/plain",
+    });
 
-    const node = new DriveUploadNode(http);
-    await expect(node.execute(executeArgs)).rejects.toThrow(/no binary attachment found/);
+    expect(http.uploadSimple).toHaveBeenCalled();
+    expect(http.createUploadSession).not.toHaveBeenCalled();
   });
 
   // -------------------------------------------------------------------------
-  // 9. Config class
+  // 9. Defined node credential requirements
   // -------------------------------------------------------------------------
-  it("DriveUpload config declares correct credential requirements", () => {
-    const cfg = new DriveUpload("upload", {
-      driveId: "d",
-      parentItemId: "p",
-      name: "f.txt",
-      binarySlot: "file",
-    });
-    const creds = cfg.getCredentialRequirements();
+  it("driveUploadNode has correct auth credential slot", () => {
+    const config = driveUploadNode.create(
+      { driveId: "d", parentItemId: "p", name: "f.txt", binarySlot: "file" },
+      "Upload",
+    );
+    const creds = config.getCredentialRequirements!();
     expect(creds).toHaveLength(1);
     expect(creds[0]!.slotKey).toBe("auth");
   });

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { OutlookMessageSend, OutlookMessageSendNode } from "../../src/mail/outlookMessageSendNode";
+import { sendMessage } from "../../src/mail/outlookMessageSendNode";
+import type { OutlookMessageSendOptions } from "../../src/mail/outlookMessageSendNode";
+import type { BinaryAttachment, NodeBinaryAttachmentService } from "@codemation/core";
 
 type GraphApiRequest = {
   post(body: unknown): Promise<unknown>;
@@ -17,7 +19,7 @@ function makeClient(draftId = "draft-send-1"): { client: GraphClient; req: Graph
   return { client, req };
 }
 
-function makeBinary(fakeBytes = Buffer.from("attachment data")) {
+function makeBinary(fakeBytes = Buffer.from("attachment data")): NodeBinaryAttachmentService {
   const readableStream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(new Uint8Array(fakeBytes));
@@ -28,297 +30,189 @@ function makeBinary(fakeBytes = Buffer.from("attachment data")) {
     openReadStream: vi.fn().mockResolvedValue({ body: readableStream, size: fakeBytes.length }),
     attach: vi.fn(),
     withAttachment: vi.fn(),
-  };
+  } as unknown as NodeBinaryAttachmentService;
 }
 
-function makeItem(binarySlots: Record<string, { mimeType: string }> = {}) {
-  return {
-    json: {},
-    binary: Object.fromEntries(
-      Object.entries(binarySlots).map(([slot, meta]) => [
-        slot,
-        {
-          id: `bin-${slot}`,
-          storageKey: `key-${slot}`,
-          mimeType: meta.mimeType,
-          size: 100,
-          storageDriver: "mem",
-          previewKind: "download" as const,
-          createdAt: "2026-01-01T00:00:00Z",
-          runId: "r1",
-          workflowId: "w1",
-          nodeId: "n1",
-          activationId: "a1",
-        },
-      ]),
-    ),
-  };
+function makeItemBinary(slots: Record<string, { mimeType: string }> = {}): Record<string, BinaryAttachment> {
+  return Object.fromEntries(
+    Object.entries(slots).map(([slot, meta]) => [
+      slot,
+      {
+        id: `bin-${slot}`,
+        storageKey: `key-${slot}`,
+        mimeType: meta.mimeType,
+        size: 100,
+        storageDriver: "mem",
+        previewKind: "download" as const,
+        createdAt: "2026-01-01T00:00:00Z",
+        runId: "r1",
+        workflowId: "w1",
+        nodeId: "n1",
+        activationId: "a1",
+      } as BinaryAttachment,
+    ]),
+  );
 }
 
-function makeCtx(cfg: ConstructorParameters<typeof OutlookMessageSend>[1], binary = makeBinary()) {
-  const session = { accessToken: "tok", refresh: vi.fn() };
-  return {
-    config: new OutlookMessageSend("send", cfg),
-    getCredential: vi.fn().mockResolvedValue(session),
-    binary,
-  };
-}
-
-describe("OutlookMessageSendNode", () => {
+describe("sendMessage (outlookMessageSendNode helper)", () => {
   it("happy path (draftOnly: false): calls /sendMail and returns messageId: ''", async () => {
     const { client, req } = makeClient();
-    // /sendMail returns 202 No Content (undefined)
     (req.post as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    const binary = makeBinary();
 
-    const mod = await import("../../src/credentials/session");
-    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
+    const cfg: OutlookMessageSendOptions = {
+      mailbox: "me",
+      to: ["recipient@example.com"],
+      subject: "Hello",
+      body: "World",
+      bodyType: "text",
+    };
 
-    try {
-      const ctx = makeCtx({
-        mailbox: "me",
-        to: ["recipient@example.com"],
-        subject: "Hello",
-        body: "World",
-        bodyType: "text",
-      });
+    const result = await sendMessage(client as never, binary, {}, cfg);
 
-      const result = await new OutlookMessageSendNode().execute({
-        item: { json: {} },
-        ctx: ctx as never,
-        input: {} as never,
-        itemIndex: 0,
-        items: [] as never,
-      });
+    expect(client.api).toHaveBeenCalledWith("/me/sendMail");
+    const postArg = (req.post as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Record<string, unknown>;
+    expect(postArg["saveToSentItems"]).toBe(true);
+    const msg = postArg["message"] as Record<string, unknown>;
+    expect(msg["subject"]).toBe("Hello");
+    expect((msg["toRecipients"] as Array<{ emailAddress: { address: string } }>)[0]!.emailAddress.address).toBe(
+      "recipient@example.com",
+    );
 
-      expect(client.api).toHaveBeenCalledWith("/me/sendMail");
-      const postArg = (req.post as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Record<string, unknown>;
-      expect(postArg["saveToSentItems"]).toBe(true);
-      const msg = postArg["message"] as Record<string, unknown>;
-      expect(msg["subject"]).toBe("Hello");
-      expect((msg["toRecipients"] as Array<{ emailAddress: { address: string } }>)[0]!.emailAddress.address).toBe(
-        "recipient@example.com",
-      );
-
-      const out = result as { json: { messageId: string; isDraft: boolean } };
-      expect(out.json.messageId).toBe("");
-      expect(out.json.isDraft).toBe(false);
-    } finally {
-      spy.mockRestore();
-    }
+    expect(result.messageId).toBe("");
+    expect(result.isDraft).toBe(false);
   });
 
   it("draftOnly: true creates draft via /messages and returns draft id", async () => {
     const { client } = makeClient("my-draft-id");
-    const mod = await import("../../src/credentials/session");
-    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
+    const binary = makeBinary();
 
-    try {
-      const ctx = makeCtx({
-        mailbox: "me",
-        to: ["a@b.com"],
-        subject: "Draft",
-        body: "Content",
-        bodyType: "html",
-        draftOnly: true,
-      });
+    const cfg: OutlookMessageSendOptions = {
+      mailbox: "me",
+      to: ["a@b.com"],
+      subject: "Draft",
+      body: "Content",
+      bodyType: "html",
+      draftOnly: true,
+    };
 
-      const result = await new OutlookMessageSendNode().execute({
-        item: { json: {} },
-        ctx: ctx as never,
-        input: {} as never,
-        itemIndex: 0,
-        items: [] as never,
-      });
+    const result = await sendMessage(client as never, binary, {}, cfg);
 
-      expect(client.api).toHaveBeenCalledWith("/me/messages");
-      const out = result as { json: { messageId: string; isDraft: boolean } };
-      expect(out.json.messageId).toBe("my-draft-id");
-      expect(out.json.isDraft).toBe(true);
-    } finally {
-      spy.mockRestore();
-    }
+    expect(client.api).toHaveBeenCalledWith("/me/messages");
+    expect(result.messageId).toBe("my-draft-id");
+    expect(result.isDraft).toBe(true);
   });
 
   it("sends with cc and bcc recipients", async () => {
     const { client, req } = makeClient();
     (req.post as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    const binary = makeBinary();
 
-    const mod = await import("../../src/credentials/session");
-    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
+    const cfg: OutlookMessageSendOptions = {
+      mailbox: "me",
+      to: ["to@example.com"],
+      cc: ["cc@example.com"],
+      bcc: ["bcc@example.com"],
+      subject: "Test",
+      body: "Body",
+      bodyType: "text",
+    };
 
-    try {
-      const ctx = makeCtx({
-        mailbox: "me",
-        to: ["to@example.com"],
-        cc: ["cc@example.com"],
-        bcc: ["bcc@example.com"],
-        subject: "Test",
-        body: "Body",
-        bodyType: "text",
-      });
+    await sendMessage(client as never, binary, {}, cfg);
 
-      await new OutlookMessageSendNode().execute({
-        item: { json: {} },
-        ctx: ctx as never,
-        input: {} as never,
-        itemIndex: 0,
-        items: [] as never,
-      });
-
-      const postArg = (req.post as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Record<string, unknown>;
-      const msg = postArg["message"] as Record<string, unknown>;
-      expect(Array.isArray(msg["ccRecipients"])).toBe(true);
-      expect(Array.isArray(msg["bccRecipients"])).toBe(true);
-    } finally {
-      spy.mockRestore();
-    }
+    const postArg = (req.post as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Record<string, unknown>;
+    const msg = postArg["message"] as Record<string, unknown>;
+    expect(Array.isArray(msg["ccRecipients"])).toBe(true);
+    expect(Array.isArray(msg["bccRecipients"])).toBe(true);
   });
 
   it("attaches binary as base64 fileAttachment in message body (not on item JSON)", async () => {
     const binary = makeBinary(Buffer.from("binary-content"));
-    const item = makeItem({ "file.txt": { mimeType: "text/plain" } });
+    const itemBinary = makeItemBinary({ "file.txt": { mimeType: "text/plain" } });
 
     const { client, req } = makeClient();
     (req.post as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
-    const mod = await import("../../src/credentials/session");
-    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
+    const cfg: OutlookMessageSendOptions = {
+      mailbox: "me",
+      to: ["x@y.com"],
+      subject: "Attached",
+      body: "See file",
+      bodyType: "text",
+      attachments: [{ slot: "file.txt", name: "file.txt" }],
+    };
 
-    try {
-      const ctx = {
-        config: new OutlookMessageSend("send", {
-          mailbox: "me",
-          to: ["x@y.com"],
-          subject: "Attached",
-          body: "See file",
-          bodyType: "text",
-          attachments: [{ slot: "file.txt", name: "file.txt" }],
-        }),
-        getCredential: vi.fn().mockResolvedValue({ accessToken: "tok", refresh: vi.fn() }),
-        binary,
-      };
+    await sendMessage(client as never, binary, itemBinary, cfg);
 
-      await new OutlookMessageSendNode().execute({
-        item,
-        ctx: ctx as never,
-        input: {} as never,
-        itemIndex: 0,
-        items: [] as never,
-      });
-
-      const postArg = (req.post as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Record<string, unknown>;
-      const msg = postArg["message"] as Record<string, unknown>;
-      const attachments = msg["attachments"] as Array<Record<string, unknown>>;
-      expect(attachments).toHaveLength(1);
-      expect(attachments[0]!["@odata.type"]).toBe("#microsoft.graph.fileAttachment");
-      expect(Buffer.from(attachments[0]!["contentBytes"] as string, "base64").toString()).toBe("binary-content");
-    } finally {
-      spy.mockRestore();
-    }
+    const postArg = (req.post as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Record<string, unknown>;
+    const msg = postArg["message"] as Record<string, unknown>;
+    const attachments = msg["attachments"] as Array<Record<string, unknown>>;
+    expect(attachments).toHaveLength(1);
+    expect(attachments[0]!["@odata.type"]).toBe("#microsoft.graph.fileAttachment");
+    expect(Buffer.from(attachments[0]!["contentBytes"] as string, "base64").toString()).toBe("binary-content");
   });
 
   it("inline attachments set isInline: true and contentId", async () => {
     const binary = makeBinary(Buffer.from("img"));
-    const item = makeItem({ "logo.png": { mimeType: "image/png" } });
+    const itemBinary = makeItemBinary({ "logo.png": { mimeType: "image/png" } });
 
     const { client, req } = makeClient();
     (req.post as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
-    const mod = await import("../../src/credentials/session");
-    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
+    const cfg: OutlookMessageSendOptions = {
+      mailbox: "me",
+      to: ["x@y.com"],
+      subject: "Inline",
+      body: '<img src="cid:logo@corp">',
+      bodyType: "html",
+      inlineAttachments: [{ slot: "logo.png", name: "logo.png", contentId: "logo@corp" }],
+    };
 
-    try {
-      const ctx = {
-        config: new OutlookMessageSend("send", {
-          mailbox: "me",
-          to: ["x@y.com"],
-          subject: "Inline",
-          body: '<img src="cid:logo@corp">',
-          bodyType: "html",
-          inlineAttachments: [{ slot: "logo.png", name: "logo.png", contentId: "logo@corp" }],
-        }),
-        getCredential: vi.fn().mockResolvedValue({ accessToken: "tok", refresh: vi.fn() }),
-        binary,
-      };
+    await sendMessage(client as never, binary, itemBinary, cfg);
 
-      await new OutlookMessageSendNode().execute({
-        item,
-        ctx: ctx as never,
-        input: {} as never,
-        itemIndex: 0,
-        items: [] as never,
-      });
-
-      const postArg = (req.post as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Record<string, unknown>;
-      const msg = postArg["message"] as Record<string, unknown>;
-      const attachments = msg["attachments"] as Array<Record<string, unknown>>;
-      expect(attachments[0]!["isInline"]).toBe(true);
-      expect(attachments[0]!["contentId"]).toBe("logo@corp");
-    } finally {
-      spy.mockRestore();
-    }
+    const postArg = (req.post as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Record<string, unknown>;
+    const msg = postArg["message"] as Record<string, unknown>;
+    const attachments = msg["attachments"] as Array<Record<string, unknown>>;
+    expect(attachments[0]!["isInline"]).toBe(true);
+    expect(attachments[0]!["contentId"]).toBe("logo@corp");
   });
 
   it("sets importance on the message body when provided", async () => {
     const { client, req } = makeClient();
     (req.post as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    const binary = makeBinary();
 
-    const mod = await import("../../src/credentials/session");
-    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
+    const cfg: OutlookMessageSendOptions = {
+      mailbox: "me",
+      to: ["x@y.com"],
+      subject: "Urgent",
+      body: "Read now",
+      bodyType: "text",
+      importance: "high",
+    };
 
-    try {
-      const ctx = makeCtx({
-        mailbox: "me",
-        to: ["x@y.com"],
-        subject: "Urgent",
-        body: "Read now",
-        bodyType: "text",
-        importance: "high",
-      });
+    await sendMessage(client as never, binary, {}, cfg);
 
-      await new OutlookMessageSendNode().execute({
-        item: { json: {} },
-        ctx: ctx as never,
-        input: {} as never,
-        itemIndex: 0,
-        items: [] as never,
-      });
-
-      const postArg = (req.post as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Record<string, unknown>;
-      const msg = postArg["message"] as Record<string, unknown>;
-      expect(msg["importance"]).toBe("high");
-    } finally {
-      spy.mockRestore();
-    }
+    const postArg = (req.post as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Record<string, unknown>;
+    const msg = postArg["message"] as Record<string, unknown>;
+    expect(msg["importance"]).toBe("high");
   });
 
   it("uses /users/{mailbox} prefix for non-me mailboxes", async () => {
     const { client, req } = makeClient();
     (req.post as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    const binary = makeBinary();
 
-    const mod = await import("../../src/credentials/session");
-    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
+    const cfg: OutlookMessageSendOptions = {
+      mailbox: "shared@contoso.com",
+      to: ["x@y.com"],
+      subject: "s",
+      body: "b",
+      bodyType: "text",
+    };
 
-    try {
-      const ctx = makeCtx({
-        mailbox: "shared@contoso.com",
-        to: ["x@y.com"],
-        subject: "s",
-        body: "b",
-        bodyType: "text",
-      });
+    await sendMessage(client as never, binary, {}, cfg);
 
-      await new OutlookMessageSendNode().execute({
-        item: { json: {} },
-        ctx: ctx as never,
-        input: {} as never,
-        itemIndex: 0,
-        items: [] as never,
-      });
-
-      expect(client.api).toHaveBeenCalledWith(expect.stringContaining("/users/shared%40contoso.com/sendMail"));
-    } finally {
-      spy.mockRestore();
-    }
+    expect(client.api).toHaveBeenCalledWith(expect.stringContaining("/users/shared%40contoso.com/sendMail"));
   });
 });

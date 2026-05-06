@@ -20,13 +20,13 @@
  */
 import { ManualTrigger, createWorkflowBuilder } from "@codemation/core-nodes";
 import {
-  DriveResolve,
-  ExcelAddSheet,
-  ExcelCloseWorkbook,
-  ExcelOpenWorkbook,
-  ExcelReadRange,
-  ExcelStyleRange,
-  ExcelWriteRange,
+  driveResolveNode,
+  excelAddSheetNode,
+  excelCloseWorkbookNode,
+  excelOpenWorkbookNode,
+  excelReadRangeNode,
+  excelStyleRangeNode,
+  excelWriteRangeNode,
 } from "../../src/index";
 
 export default createWorkflowBuilder({
@@ -47,46 +47,45 @@ export default createWorkflowBuilder({
   )
   // Step 1: resolve workbook path → { driveId, itemId } on item.json.
   .then(
-    new DriveResolve(
-      "Resolve workbook path",
+    driveResolveNode.create(
       {
         input: {
           kind: "personalPath",
           path: "/codemation-test.xlsx",
         },
       },
+      "Resolve workbook path",
       "msgraph_excel_resolve",
     ),
   )
   // Step 2: open a workbook session.
   // driveId/itemId fall back to item.json from DriveResolve when left empty.
   .then(
-    new ExcelOpenWorkbook(
-      "Open workbook session",
+    excelOpenWorkbookNode.create(
       {
         driveId: "",
         itemId: "",
         persistChanges: true,
       },
+      "Open workbook session",
       "msgraph_excel_open",
-    ),
+    ) as never,
   )
   // Step 3: add a demo worksheet.
   // handle falls back to item.json (flat WorkbookHandle) from ExcelOpenWorkbook.
   .then(
-    new ExcelAddSheet(
-      "Add demo sheet",
+    excelAddSheetNode.create(
       {
         name: "codemation-demo",
       },
+      "Add demo sheet",
       "msgraph_excel_add_sheet",
-    ),
+    ) as never,
   )
   // Step 4: write header + data rows.
   // handle falls back to item.json (renewed by ExcelAddSheet).
   .then(
-    new ExcelWriteRange(
-      "Write demo data",
+    excelWriteRangeNode.create(
       {
         sheet: "codemation-demo",
         range: "A1:B2",
@@ -95,26 +94,26 @@ export default createWorkflowBuilder({
           [new Date(0).toISOString(), "Codemation Excel demo"],
         ],
       },
+      "Write demo data",
       "msgraph_excel_write",
-    ),
+    ) as never,
   )
   // Step 5: read back the written range.
   // handle falls back to item.json (renewed by ExcelWriteRange).
   .then(
-    new ExcelReadRange(
-      "Read demo data",
+    excelReadRangeNode.create(
       {
         sheet: "codemation-demo",
         range: "A1:B2",
       },
+      "Read demo data",
       "msgraph_excel_read",
-    ),
+    ) as never,
   )
   // Step 6: bold + highlight the header row.
   // handle falls back to item.json (renewed by ExcelReadRange).
   .then(
-    new ExcelStyleRange(
-      "Style header row",
+    excelStyleRangeNode.create(
       {
         sheet: "codemation-demo",
         range: "A1:B1",
@@ -122,11 +121,12 @@ export default createWorkflowBuilder({
         fill: { color: "#D9EAF7" },
         autofitColumns: true,
       },
+      "Style header row",
       "msgraph_excel_style",
-    ),
+    ) as never,
   )
   // Step 7: close the session.
   // handle falls back to item.json (renewed by ExcelStyleRange).
   // Note: CloseWorkbook does not emit handle fields — post-close the handle is moot.
-  .then(new ExcelCloseWorkbook("Close workbook session", {}, "msgraph_excel_close"))
+  .then(excelCloseWorkbookNode.create({}, "Close workbook session", "msgraph_excel_close") as never)
   .build();

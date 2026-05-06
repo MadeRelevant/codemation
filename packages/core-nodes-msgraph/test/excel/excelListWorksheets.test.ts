@@ -4,11 +4,7 @@
  * fetch is stubbed by saving/restoring globalThis.fetch manually.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  ExcelListWorksheets,
-  ExcelListWorksheetsNode,
-  type WorksheetInfoWithHandle,
-} from "../../src/excel/excelListWorksheetsNode";
+import { executeExcelListWorksheets, type WorksheetInfoWithHandle } from "../../src/excel/excelListWorksheetsNode";
 import type { WorkbookHandle } from "../../src/excel/session";
 
 // ---------------------------------------------------------------------------
@@ -57,23 +53,11 @@ function makeFetchResponse(opts: { status?: number; json?: unknown }): Response 
   } as unknown as Response;
 }
 
-function makeArgs(cfg: { handle: WorkbookHandle }, getCredentialImpl: () => Promise<unknown>) {
-  const config = new ExcelListWorksheets("listSheets", cfg);
-  return {
-    item: { json: {}, binary: {} },
-    ctx: {
-      config,
-      getCredential: vi.fn().mockImplementation(getCredentialImpl),
-      binary: {},
-    },
-  } as unknown as Parameters<ExcelListWorksheetsNode["execute"]>[0];
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("ExcelListWorksheetsNode", () => {
+describe("executeExcelListWorksheets", () => {
   let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
@@ -100,16 +84,12 @@ describe("ExcelListWorksheetsNode", () => {
     });
 
     const handle = makeHandle();
-    const node = new ExcelListWorksheetsNode();
-    const args = makeArgs({ handle }, () => Promise.resolve(makeSession()));
+    const session = makeSession();
 
-    const result = await node.execute(args);
+    const result = await executeExcelListWorksheets(session as never, { handle }, {});
     const items = result as WorksheetInfoWithHandle[];
 
-    // Correct URL
     expect(capturedUrl).toBe("https://graph.microsoft.com/v1.0/drives/driveA/items/itemB/workbook/worksheets");
-
-    // One item per worksheet
     expect(items).toHaveLength(3);
     expect(items[0]!.id).toBe("ws1");
     expect(items[0]!.name).toBe("Sheet1");
@@ -127,13 +107,11 @@ describe("ExcelListWorksheetsNode", () => {
     globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse({ json: worksheetsResponse }));
 
     const handle = makeHandle({ sessionId: "MY-SESSION" });
-    const node = new ExcelListWorksheetsNode();
-    const args = makeArgs({ handle }, () => Promise.resolve(makeSession()));
+    const session = makeSession();
 
-    const result = await node.execute(args);
+    const result = await executeExcelListWorksheets(session as never, { handle }, {});
     const items = result as WorksheetInfoWithHandle[];
 
-    // Same handle fields flat on item (no renewal)
     expect(items[0]!.sessionId).toBe("MY-SESSION");
   });
 
@@ -181,10 +159,9 @@ describe("ExcelListWorksheetsNode", () => {
     });
 
     const handle = makeHandle({ sessionId: "OLD-SESSION" });
-    const node = new ExcelListWorksheetsNode();
-    const args = makeArgs({ handle }, () => Promise.resolve(makeSession()));
+    const session = makeSession();
 
-    const result = await node.execute(args);
+    const result = await executeExcelListWorksheets(session as never, { handle }, {});
     const items = result as WorksheetInfoWithHandle[];
 
     expect(items[0]!.sessionId).toBe("NEW-SESSION-999");
@@ -201,10 +178,7 @@ describe("ExcelListWorksheetsNode", () => {
 
     globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse({ json: worksheetsResponse }));
 
-    const node = new ExcelListWorksheetsNode();
-    const args = makeArgs({ handle: makeHandle() }, () => Promise.resolve(makeSession()));
-
-    const result = await node.execute(args);
+    const result = await executeExcelListWorksheets(makeSession() as never, { handle: makeHandle() }, {});
     const items = result as WorksheetInfoWithHandle[];
 
     const visibilities = items.map((item) => item.visibility);
@@ -214,28 +188,18 @@ describe("ExcelListWorksheetsNode", () => {
   it("returns empty array when workbook has no worksheets", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse({ json: { value: [] } }));
 
-    const node = new ExcelListWorksheetsNode();
-    const args = makeArgs({ handle: makeHandle() }, () => Promise.resolve(makeSession()));
-
-    const result = await node.execute(args);
+    const result = await executeExcelListWorksheets(makeSession() as never, { handle: makeHandle() }, {});
     const items = result as WorksheetInfoWithHandle[];
 
     expect(items).toHaveLength(0);
   });
 
-  it("calls ctx.getCredential with 'auth'", async () => {
+  it("falls back to item.json handle when cfg.handle is undefined", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse({ json: { value: [] } }));
 
-    const node = new ExcelListWorksheetsNode();
-    const getCredential = vi.fn().mockResolvedValue(makeSession());
-    const config = new ExcelListWorksheets("ls", { handle: makeHandle() });
-    const args = {
-      item: { json: {}, binary: {} },
-      ctx: { config, getCredential, binary: {} },
-    } as unknown as Parameters<typeof node.execute>[0];
-
-    await node.execute(args);
-
-    expect(getCredential).toHaveBeenCalledWith("auth");
+    const handle = makeHandle({ sessionId: "ITEM-SESSION" });
+    // Pass undefined handle in cfg, but provide handle in itemJson
+    const result = await executeExcelListWorksheets(makeSession() as never, {}, handle);
+    expect(result).toHaveLength(0); // just checking it resolves without error
   });
 });

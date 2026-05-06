@@ -1,31 +1,16 @@
-import type {
-  BinaryAttachment,
-  CredentialRequirement,
-  Item,
-  NodeBinaryAttachmentService,
-  RunnableNode,
-  RunnableNodeConfig,
-  RunnableNodeExecuteArgs,
-  TypeToken,
-} from "@codemation/core";
-import { node } from "@codemation/core";
+import { defineNode } from "@codemation/core";
+import type { BinaryAttachment, NodeBinaryAttachmentService } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
-import { createGraphClient, type MsGraphSession } from "../credentials/session";
+import { msGraphDriveOAuthCredentialType } from "../credentials/msGraphDriveOAuth";
+import { createGraphClient } from "../credentials/session";
+import type { MsGraphSession } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Files at or below this threshold use a simple PUT. */
 const SIMPLE_UPLOAD_MAX_BYTES = 4 * 1024 * 1024; // 4 MiB
-
-/**
- * Chunk size for large-file upload sessions.
- * Must be a multiple of 320 KiB per Graph API requirements.
- * 5 × 320 KiB = 1.6 MiB is a reasonable starting point.
- */
 const CHUNK_SIZE_BYTES = 5 * 320 * 1024; // 1,638,400 bytes
 
 // ---------------------------------------------------------------------------
@@ -55,7 +40,7 @@ type RawUploadedDriveItem = {
 };
 
 // ---------------------------------------------------------------------------
-// Isolated HTTP interface — allows test stubbing without touching the real SDK
+// Isolated HTTP interface
 // ---------------------------------------------------------------------------
 
 export type UploadSessionResponse = {
@@ -63,17 +48,10 @@ export type UploadSessionResponse = {
 };
 
 export type ChunkUploadResult = {
-  /** HTTP status returned by Graph for this chunk (202 = in progress, 200/201 = complete). */
   status: number;
-  /** Present on the final chunk (status 200 or 201). */
   item?: RawUploadedDriveItem;
 };
 
-/**
- * Minimal interface isolating the Graph upload HTTP calls.
- * Production: backed by the Graph SDK.
- * Tests: inject a stub without network I/O.
- */
 export type UploadHttp = {
   uploadSimple(args: {
     driveId: string;
@@ -109,7 +87,7 @@ export type UploadHttp = {
  * must NOT be sent on those requests (Graph rejects it). Only createUploadSession
  * needs the bearer, via the SDK client.
  */
-function makeProductionUploadHttp(): UploadHttp {
+export function makeProductionUploadHttp(): UploadHttp {
   return {
     async uploadSimple({ driveId, parentItemId, name, body, mimeType, conflictBehavior, session }) {
       const url =
@@ -117,7 +95,6 @@ function makeProductionUploadHttp(): UploadHttp {
         `?@microsoft.graph.conflictBehavior=${encodeURIComponent(conflictBehavior)}`;
 
       const result = await withGraphRetry(async () => {
-        // We need to set Content-Type; use fetch directly since SDK .put() may not support it cleanly
         const accessToken = await session.refresh();
         const response = await fetch(`https://graph.microsoft.com/v1.0${url}`, {
           method: "PUT",
@@ -125,8 +102,6 @@ function makeProductionUploadHttp(): UploadHttp {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": mimeType,
           },
-          // Buffer is a Uint8Array subclass but fetch's BodyInit type doesn't always
-          // accept it directly in strict TS environments — use Uint8Array explicitly.
           body: new Uint8Array(body),
         });
         if (!response.ok) {
@@ -194,15 +169,10 @@ const CONFLICT_BEHAVIORS = ["replace", "rename", "fail"] as const;
 type ConflictBehavior = (typeof CONFLICT_BEHAVIORS)[number];
 
 export const DriveUploadInputSchema = z.object({
-  /** Canonical drive id. */
   driveId: z.string().min(1),
-  /** Canonical item id of the parent folder to upload into. */
   parentItemId: z.string().min(1),
-  /** Filename to use in OneDrive/SharePoint. */
   name: z.string().min(1),
-  /** Name of the binary slot on the incoming item that carries the file bytes. */
   binarySlot: z.string().min(1),
-  /** How to handle a name collision. Default: "replace". */
   conflictBehavior: z.enum(CONFLICT_BEHAVIORS).default("replace"),
 });
 
@@ -222,7 +192,7 @@ export type DriveUploadOutput = {
 };
 
 // ---------------------------------------------------------------------------
-// Mapper from raw Graph response
+// Mapper
 // ---------------------------------------------------------------------------
 
 function toUploadOutput(raw: RawUploadedDriveItem, fallbackDriveId: string): DriveUploadOutput {
@@ -253,7 +223,6 @@ export async function uploadItem(args: {
   const totalBytes = Buffer.byteLength(body);
 
   if (totalBytes <= SIMPLE_UPLOAD_MAX_BYTES) {
-    // Simple PUT — single request
     const raw = await uploadHttp.uploadSimple({
       driveId,
       parentItemId,
@@ -284,7 +253,6 @@ export async function uploadItem(args: {
     const rangeStart = offset;
     const rangeEnd = end - 1;
 
-    // Retry each chunk individually — upload session lets you retry an individual range
     const result = await withGraphRetry(() =>
       uploadHttp.uploadChunk({ uploadUrl, chunk, rangeStart, rangeEnd, total: totalBytes }),
     );
@@ -304,7 +272,7 @@ export async function uploadItem(args: {
 }
 
 // ---------------------------------------------------------------------------
-// Config
+// Types
 // ---------------------------------------------------------------------------
 
 export type DriveUploadOptions = Readonly<{
@@ -315,75 +283,38 @@ export type DriveUploadOptions = Readonly<{
   conflictBehavior?: ConflictBehavior;
 }>;
 
-export class DriveUpload implements RunnableNodeConfig<DriveUploadOptions, DriveUploadOutput> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = DriveUploadNode;
-  readonly icon = "builtin:microsoft-onedrive" as const;
-
-  constructor(
-    public readonly name: string,
-    public readonly cfg: DriveUploadOptions,
-    public readonly id?: string,
-  ) {}
-
-  get description(): string {
-    const name = this.cfg.name?.trim();
-    const slot = this.cfg.binarySlot?.trim();
-    const hasParent = this.cfg.driveId?.trim() && this.cfg.parentItemId?.trim();
-    const destPart = hasParent ? "to configured folder" : "to folder (driveId + parentItemId from upstream)";
-    const namePart = name ? `\`${name}\`` : "file";
-    const slotPart = slot ? ` from slot \`${slot}\`` : "";
-    return `Upload ${namePart}${slotPart} ${destPart}.`;
-  }
-
-  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
-    return [
-      {
-        slotKey: "auth",
-        label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
-        helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
-      },
-    ];
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Node
+// Node definition
 // ---------------------------------------------------------------------------
 
-@node({ packageName: "@codemation/core-nodes-msgraph" })
-export class DriveUploadNode implements RunnableNode<DriveUpload> {
-  readonly kind = "node" as const;
-  readonly outputPorts = ["main"] as const;
-
-  readonly #uploadHttp: UploadHttp;
-
-  constructor(uploadHttp?: UploadHttp) {
-    this.#uploadHttp = uploadHttp ?? makeProductionUploadHttp();
-  }
-
-  async execute(args: RunnableNodeExecuteArgs<DriveUpload>): Promise<unknown> {
-    const { ctx } = args;
-    const cfg = ctx.config.cfg;
-    const item = args.item as Item;
-
-    const session = await ctx.getCredential<MsGraphSession>("auth");
-    const binary = ctx.binary as NodeBinaryAttachmentService;
+export const driveUploadNode = defineNode({
+  key: "msgraph-drive.upload",
+  title: "Upload to OneDrive",
+  description: "Upload a file from a binary slot to OneDrive/SharePoint. Falls back to item.json ids.",
+  icon: "builtin:microsoft-onedrive",
+  credentials: {
+    auth: {
+      type: msGraphDriveOAuthCredentialType,
+      label: "Microsoft 365 account",
+      helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
+    },
+  },
+  async execute({ item }, { config, credentials, execution }) {
+    const session = (await credentials.auth()) as MsGraphSession;
+    const binary = execution.binary as NodeBinaryAttachmentService;
 
     // Fall back to item.json so DriveResolve(folder) → DriveUpload chains without UI wiring.
-    // DriveResolve emits { driveId, itemId } where itemId is the resolved folder — that's the parent.
     const fromItem = (item.json ?? {}) as { driveId?: string; itemId?: string };
     const input = DriveUploadInputSchema.parse({
-      driveId: cfg.driveId || fromItem.driveId,
-      parentItemId: cfg.parentItemId || fromItem.itemId,
-      name: cfg.name,
-      binarySlot: cfg.binarySlot,
-      conflictBehavior: cfg.conflictBehavior,
+      driveId: config.driveId || fromItem.driveId,
+      parentItemId: config.parentItemId || fromItem.itemId,
+      name: config.name,
+      binarySlot: config.binarySlot,
+      conflictBehavior: config.conflictBehavior,
     });
 
     // Read the binary attachment from the incoming item
-    const attachment = item.binary?.[input.binarySlot] as BinaryAttachment | undefined;
+    const attachment = (item.binary as Record<string, BinaryAttachment> | undefined)?.[input.binarySlot];
     if (!attachment) {
       throw new Error(
         `DriveUploadNode: no binary attachment found at slot "${input.binarySlot}". ` +
@@ -405,14 +336,12 @@ export class DriveUploadNode implements RunnableNode<DriveUpload> {
     }
     const body = Buffer.concat(chunks);
 
-    const output = await uploadItem({
-      uploadHttp: this.#uploadHttp,
+    return await uploadItem({
+      uploadHttp: makeProductionUploadHttp(),
       session,
       input,
       body,
       mimeType,
     });
-
-    return { ...(args.item as Item), json: output };
-  }
-}
+  },
+});

@@ -3,10 +3,10 @@
  * NOT /me/drive/root:/ which Graph rejects with 404.
  */
 import { describe, expect, it, vi } from "vitest";
-import { DriveResolve, DriveResolveNode, type GraphClient } from "../../src/drive/driveResolveNode";
+import { resolvePersonalPath, type GraphClient } from "../../src/drive/driveResolveNode";
 
 // ---------------------------------------------------------------------------
-// Helpers (mirrors driveResolveNode.test.ts)
+// Helpers
 // ---------------------------------------------------------------------------
 
 function makeClient(response: unknown) {
@@ -34,32 +34,6 @@ function rawItem(driveId = "drive-root", id = "root-item") {
   };
 }
 
-function makeArgs(path: string) {
-  const session = { accessToken: "tok", refresh: vi.fn() };
-  const ctx = {
-    config: new DriveResolve("resolve", { input: { kind: "personalPath", path } }),
-    getCredential: vi.fn().mockResolvedValue(session),
-    binary: { attach: vi.fn(), withAttachment: vi.fn(), openReadStream: vi.fn() },
-  };
-  return {
-    item: { json: {} },
-    ctx: ctx as never,
-    input: {} as never,
-    itemIndex: 0,
-    items: [] as never,
-  };
-}
-
-async function withClientSpy<T>(client: GraphClient, fn: () => Promise<T>): Promise<T> {
-  const mod = await import("../../src/credentials/session");
-  const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
-  try {
-    return await fn();
-  } finally {
-    spy.mockRestore();
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -67,10 +41,9 @@ async function withClientSpy<T>(client: GraphClient, fn: () => Promise<T>): Prom
 describe("DriveResolveNode root path regression", () => {
   // Regression #2a: path "/" → exact URL "/me/drive/root" (no trailing colon)
   it('personalPath "/" uses exact URL /me/drive/root (not /me/drive/root:/)', async () => {
-    const node = new DriveResolveNode();
     const client = makeClient(rawItem());
 
-    await withClientSpy(client, () => node.execute(makeArgs("/")));
+    await resolvePersonalPath(client, "/");
 
     // Must have been called with exactly /me/drive/root
     expect(client.api).toHaveBeenCalledWith("/me/drive/root");
@@ -81,10 +54,9 @@ describe("DriveResolveNode root path regression", () => {
 
   // Regression #2b: path "/Documents" → URL with colon syntax (not bare root)
   it('personalPath "/Documents" uses /me/drive/root:/Documents (colon-path syntax)', async () => {
-    const node = new DriveResolveNode();
     const client = makeClient(rawItem("drive-1", "docs-id"));
 
-    await withClientSpy(client, () => node.execute(makeArgs("/Documents")));
+    await resolvePersonalPath(client, "/Documents");
 
     // Should NOT hit bare root — path is non-empty so colon-syntax applies
     expect(client.api).toHaveBeenCalledWith("/me/drive/root:/Documents");
@@ -93,10 +65,9 @@ describe("DriveResolveNode root path regression", () => {
 
   // Sanity: path with spaces is URL-encoded
   it('personalPath "/My Folder/foo.xlsx" encodes spaces in URL', async () => {
-    const node = new DriveResolveNode();
     const client = makeClient(rawItem("drive-2", "file-id"));
 
-    await withClientSpy(client, () => node.execute(makeArgs("/My Folder/foo.xlsx")));
+    await resolvePersonalPath(client, "/My Folder/foo.xlsx");
 
     expect(client.api).toHaveBeenCalledWith("/me/drive/root:/My%20Folder/foo.xlsx");
   });

@@ -1,13 +1,6 @@
-import type {
-  CredentialRequirement,
-  RunnableNode,
-  RunnableNodeConfig,
-  RunnableNodeExecuteArgs,
-  TypeToken,
-} from "@codemation/core";
-import { node } from "@codemation/core";
-import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
-import { createGraphClient, type MsGraphSession } from "../credentials/session";
+import { defineNode } from "@codemation/core";
+import { msGraphDriveOAuthCredentialType } from "../credentials/msGraphDriveOAuth";
+import { createGraphClient } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 
 // ---------------------------------------------------------------------------
@@ -118,56 +111,25 @@ export async function listMyDrives(client: GraphClient): Promise<DriveInfo[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Config
+// Node definition
 // ---------------------------------------------------------------------------
 
-export type DriveListMyDrivesOptions = Readonly<Record<string, never>>;
-
-export class DriveListMyDrives implements RunnableNodeConfig<DriveListMyDrivesOptions, DriveInfo> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = DriveListMyDrivesNode;
-  readonly icon = "builtin:microsoft-onedrive" as const;
-
-  constructor(
-    public readonly name: string,
-    public readonly cfg: DriveListMyDrivesOptions = {},
-    public readonly id?: string,
-  ) {}
-
-  get description(): string {
-    return "List all drives (personal and business) accessible to the connected user.";
-  }
-
-  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
-    return [
-      {
-        slotKey: "auth",
-        label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
-        helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
-      },
-    ];
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Node
-// ---------------------------------------------------------------------------
-
-@node({ packageName: "@codemation/core-nodes-msgraph" })
-export class DriveListMyDrivesNode implements RunnableNode<DriveListMyDrives> {
-  readonly kind = "node" as const;
-  readonly outputPorts = ["main"] as const;
-
-  async execute(args: RunnableNodeExecuteArgs<DriveListMyDrives>): Promise<unknown> {
-    const { ctx } = args;
-
-    const session = await ctx.getCredential<MsGraphSession>("auth");
+export const driveListMyDrivesNode = defineNode({
+  key: "msgraph-drive.list-my-drives",
+  title: "List my drives",
+  description: "List all drives (personal and business) accessible to the connected user.",
+  icon: "builtin:microsoft-onedrive",
+  credentials: {
+    auth: {
+      type: msGraphDriveOAuthCredentialType,
+      label: "Microsoft 365 account",
+      helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
+    },
+  },
+  async execute(_, { credentials }) {
+    const session = (await credentials.auth()) as import("../credentials/session").MsGraphSession;
     const client = createGraphClient(session) as unknown as GraphClient;
-
-    const drives = await listMyDrives(client);
-
-    // Engine's NodeOutputNormalizer wraps each array element as { json: el }.
-    return drives;
-  }
-}
+    // Engine wraps each array element as { json: el }
+    return await listMyDrives(client);
+  },
+});

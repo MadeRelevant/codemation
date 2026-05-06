@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  DriveDownload,
-  DriveDownloadNode,
+  driveDownloadNode,
   type DownloadHttp,
   type DriveDownloadOutput,
   type GraphClient,
@@ -78,16 +77,6 @@ function makeBinary() {
     withAttachment: vi.fn().mockImplementation((item: unknown) => item),
     openReadStream: vi.fn(),
   };
-}
-
-async function withClientSpy<T>(client: GraphClient, fn: () => Promise<T>): Promise<T> {
-  const mod = await import("../../src/credentials/session");
-  const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
-  try {
-    return await fn();
-  } finally {
-    spy.mockRestore();
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -219,9 +208,9 @@ describe("DriveDownloadNode", () => {
   });
 
   // -------------------------------------------------------------------------
-  // 5. Node execute — integration via withClientSpy (injects downloadHttp)
+  // 5. downloadItem pure function integration — with injected downloadHttp
   // -------------------------------------------------------------------------
-  it("node execute invokes downloadHttp and attaches binary", async () => {
+  it("downloadItem invokes downloadHttp and attaches binary", async () => {
     const meta = rawMeta({ size: 100 });
     const client = makeMetaClient(meta);
     const fileBody = Buffer.from("content");
@@ -229,33 +218,27 @@ describe("DriveDownloadNode", () => {
     const binary = makeBinary();
 
     const session = { accessToken: "tok", refresh: vi.fn().mockResolvedValue("tok") };
-    const ctx = {
-      config: new DriveDownload("dl", { driveId: "drive-1", itemId: "item-1" }),
-      getCredential: vi.fn().mockResolvedValue(session),
-      binary,
-    };
-    const executeArgs = {
-      item: { json: {}, binary: {} },
-      ctx: ctx as never,
-      input: {} as never,
-      itemIndex: 0,
-      items: [] as never,
-    };
 
-    const node = new DriveDownloadNode(downloadHttp);
-    const result = await withClientSpy(client, () => node.execute(executeArgs));
+    const result = await downloadItem({
+      metadataClient: client,
+      downloadHttp,
+      session,
+      input: { driveId: "drive-1", itemId: "item-1", sizeCapBytes: 100 * 1024 * 1024 },
+      binary: binary as never,
+      item: { json: {}, binary: {} } as never,
+    });
 
-    const out = (result as { json: DriveDownloadOutput }).json;
+    const out = result.json as DriveDownloadOutput;
     expect(out.name).toBe("report.pdf");
     expect(binary.attach).toHaveBeenCalled();
   });
 
   // -------------------------------------------------------------------------
-  // 6. Config class
+  // 6. Defined node credential requirements
   // -------------------------------------------------------------------------
-  it("DriveDownload config declares correct credential requirements", () => {
-    const cfg = new DriveDownload("dl", { driveId: "d", itemId: "i" });
-    const creds = cfg.getCredentialRequirements();
+  it("driveDownloadNode has correct auth credential slot", () => {
+    const config = driveDownloadNode.create({ driveId: "d", itemId: "i" }, "Download");
+    const creds = config.getCredentialRequirements!();
     expect(creds).toHaveLength(1);
     expect(creds[0]!.slotKey).toBe("auth");
   });

@@ -19,9 +19,9 @@
  */
 import { Callback, ManualTrigger, createWorkflowBuilder } from "@codemation/core-nodes";
 import {
-  DriveDownload,
-  DriveResolve,
-  DriveUpload,
+  driveDownloadNode,
+  driveResolveNode,
+  driveUploadNode,
   type DriveDownloadOutput,
   type DriveResolveOutput,
   type DriveUploadOutput,
@@ -65,12 +65,12 @@ export default createWorkflowBuilder({
     ),
   )
   .then(
-    new DriveResolve(
-      "Resolve folder path",
+    driveResolveNode.create(
       {
         // Default: drive root (/). Change in the UI without code edits.
         input: { kind: "personalPath", path: "/" },
       },
+      "Resolve folder path",
       "msgraph_drive_resolve_folder",
     ),
   )
@@ -94,8 +94,7 @@ export default createWorkflowBuilder({
     }),
   )
   .then(
-    new DriveUpload(
-      "Upload to OneDrive",
+    driveUploadNode.create(
       {
         // Empty cfg ids → node falls back to item.json.{driveId, itemId} (the resolved folder).
         driveId: "",
@@ -104,6 +103,7 @@ export default createWorkflowBuilder({
         binarySlot: BINARY_SLOT,
         conflictBehavior: "replace",
       },
+      "Upload to OneDrive",
       "msgraph_drive_upload",
     ),
   )
@@ -138,13 +138,13 @@ export default createWorkflowBuilder({
     ),
   )
   .then(
-    new DriveDownload(
-      "Download from OneDrive",
+    driveDownloadNode.create(
       {
         driveId: "",
         itemId: "",
         sizeCapBytes: 1 * 1024 * 1024,
       },
+      "Download from OneDrive",
       "msgraph_drive_download",
     ),
   )

@@ -1,44 +1,21 @@
-import type {
-  CredentialRequirement,
-  Item,
-  RunnableNode,
-  RunnableNodeConfig,
-  RunnableNodeExecuteArgs,
-  TypeToken,
-} from "@codemation/core";
-import { node } from "@codemation/core";
+import { defineNode } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
-import { createGraphClient, type MsGraphSession } from "../credentials/session";
+import { msGraphDriveOAuthCredentialType } from "../credentials/msGraphDriveOAuth";
+import { createGraphClient } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 
 // ---------------------------------------------------------------------------
 // Pure helpers
 // ---------------------------------------------------------------------------
 
-/**
- * RFC 4648 §5 base64url encoding (no padding).
- * Used by the sharedLink variant to build the `u!{base64url(url)}` share token.
- */
 function toBase64Url(str: string): string {
   return Buffer.from(str, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/**
- * Escape a string value for OData $filter single-quote delimiters.
- * Single quotes become two consecutive single quotes.
- */
 function escapeOData(value: string): string {
   return value.replace(/'/g, "''");
 }
 
-/**
- * Encode a drive path for the Graph "root:{path}" syntax.
- * Slashes are preserved as path separators; all other characters are percent-encoded
- * segment-by-segment so spaces and non-ASCII are safe.
- *
- * Accepts paths with or without a leading `/`; always returns one starting with `/`.
- */
 function encodeDrivePath(rawPath: string): string {
   const segments = rawPath.split("/").filter(Boolean);
   return "/" + segments.map(encodeURIComponent).join("/");
@@ -51,33 +28,25 @@ function encodeDrivePath(rawPath: string): string {
 export const DriveResolveInputSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("personalPath"),
-    /** Absolute path under the user's drive root, e.g. "/Documents/foo.xlsx". */
     path: z.string().min(1),
   }),
   z.object({
     kind: z.literal("sharedLink"),
-    /** SharePoint / OneDrive sharing URL. */
     url: z.string().min(1),
   }),
   z.object({
     kind: z.literal("driveItem"),
-    /** Drive id (from a previous resolve or enumeration). */
     driveId: z.string().min(1),
-    /** Item id within that drive. */
     itemId: z.string().min(1),
   }),
   z.object({
     kind: z.literal("sharedWithMe"),
-    /** Display name of the shared item (case-insensitive match). */
     name: z.string().min(1),
   }),
   z.object({
     kind: z.literal("byName"),
-    /** Drive containing the parent folder. */
     driveId: z.string().min(1),
-    /** Item id of the parent folder to search within. */
     parentItemId: z.string().min(1),
-    /** Display name to match (exact, case-sensitive per Graph). */
     name: z.string().min(1),
   }),
 ]);
@@ -89,24 +58,13 @@ export type DriveResolveInput = z.infer<typeof DriveResolveInputSchema>;
 // ---------------------------------------------------------------------------
 
 export type DriveResolveOutput = {
-  /** Canonical drive id (always valid with /drives/{driveId}/... addressing). */
   driveId: string;
-  /** Canonical item id within that drive. */
   itemId: string;
-  /** Display name of the resolved item. */
   name: string;
-  /** Web URL for the item in the browser. */
   webUrl: string;
-  /**
-   * True for variants that resolve a link or shared-with-me entry;
-   * false for personalPath, driveItem, and byName.
-   */
   isShared: boolean;
-  /** MIME type from `file.mimeType`, absent for folders. */
   mimeType?: string;
-  /** Size in bytes; absent for folders and when Graph omits it. */
   size?: number;
-  /** ISO-8601 last-modified timestamp. */
   lastModifiedDateTime?: string;
 };
 
@@ -160,10 +118,6 @@ type ChildrenResponse = {
 // Canonical mapper
 // ---------------------------------------------------------------------------
 
-/**
- * Map a raw Graph driveItem response to the canonical DriveResolveOutput shape.
- * Always produces all optional fields (possibly undefined) so the key set is stable.
- */
 function toCanonical(item: RawDriveItem, opts: { isShared: boolean; driveIdOverride?: string }): DriveResolveOutput {
   const driveId = opts.driveIdOverride ?? item.parentReference?.driveId ?? "";
   return {
@@ -179,10 +133,10 @@ function toCanonical(item: RawDriveItem, opts: { isShared: boolean; driveIdOverr
 }
 
 // ---------------------------------------------------------------------------
-// Per-variant resolvers
+// Per-variant resolvers (exported for testing)
 // ---------------------------------------------------------------------------
 
-async function resolvePersonalPath(client: GraphClient, path: string): Promise<DriveResolveOutput> {
+export async function resolvePersonalPath(client: GraphClient, path: string): Promise<DriveResolveOutput> {
   const encoded = encodeDrivePath(path);
   // Graph's trailing-colon syntax (`/me/drive/root:/foo`) only works for non-empty paths.
   // For "/" (drive root) call the bare `/me/drive/root` endpoint instead.
@@ -193,7 +147,7 @@ async function resolvePersonalPath(client: GraphClient, path: string): Promise<D
   return toCanonical({ ...raw, id: raw.id }, { isShared: false, driveIdOverride: driveId });
 }
 
-async function resolveSharedLink(client: GraphClient, url: string): Promise<DriveResolveOutput> {
+export async function resolveSharedLink(client: GraphClient, url: string): Promise<DriveResolveOutput> {
   const token = `u!${toBase64Url(url)}`;
   const raw = (await withGraphRetry(() => client.api(`/shares/${token}/driveItem`).get())) as RawDriveItem;
 
@@ -201,7 +155,11 @@ async function resolveSharedLink(client: GraphClient, url: string): Promise<Driv
   return toCanonical({ ...raw }, { isShared: true, driveIdOverride: driveId });
 }
 
-async function resolveDriveItem(client: GraphClient, driveId: string, itemId: string): Promise<DriveResolveOutput> {
+export async function resolveDriveItem(
+  client: GraphClient,
+  driveId: string,
+  itemId: string,
+): Promise<DriveResolveOutput> {
   const raw = (await withGraphRetry(() =>
     client.api(`/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}`).get(),
   )) as RawDriveItem;
@@ -209,7 +167,7 @@ async function resolveDriveItem(client: GraphClient, driveId: string, itemId: st
   return toCanonical({ ...raw }, { isShared: false, driveIdOverride: driveId });
 }
 
-async function resolveSharedWithMe(client: GraphClient, name: string): Promise<DriveResolveOutput> {
+export async function resolveSharedWithMe(client: GraphClient, name: string): Promise<DriveResolveOutput> {
   const resp = (await withGraphRetry(() => client.api("/me/drive/sharedWithMe").get())) as SharedWithMeResponse;
 
   const entries = resp.value ?? [];
@@ -238,7 +196,6 @@ async function resolveSharedWithMe(client: GraphClient, name: string): Promise<D
     );
   }
 
-  // Use remote ids — NOT the local stub's ids. This is the n8n footgun we're fixing.
   return toCanonical(
     {
       id: remote.id,
@@ -252,7 +209,7 @@ async function resolveSharedWithMe(client: GraphClient, name: string): Promise<D
   );
 }
 
-async function resolveByName(
+export async function resolveByName(
   client: GraphClient,
   driveId: string,
   parentItemId: string,
@@ -276,91 +233,47 @@ async function resolveByName(
 }
 
 // ---------------------------------------------------------------------------
-// Config
+// Types
 // ---------------------------------------------------------------------------
 
 export type DriveResolveOptions = Readonly<{
-  /** Discriminated-union input describing how to locate the drive item. */
   input: DriveResolveInput;
 }>;
 
-export class DriveResolve implements RunnableNodeConfig<DriveResolveOptions, DriveResolveOutput> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = DriveResolveNode;
-  readonly icon = "builtin:microsoft-onedrive" as const;
-
-  constructor(
-    public readonly name: string,
-    public readonly cfg: DriveResolveOptions,
-    public readonly id?: string,
-  ) {}
-
-  get description(): string {
-    const { input } = this.cfg;
-    switch (input.kind) {
-      case "personalPath":
-        return `Resolve OneDrive personal path \`${input.path}\` to canonical driveId + itemId.`;
-      case "sharedLink":
-        return `Resolve shared link to canonical driveId + itemId.`;
-      case "driveItem":
-        return `Look up metadata for driveId \`${input.driveId}\` / itemId \`${input.itemId}\`.`;
-      case "sharedWithMe":
-        return `Find shared item \`${input.name}\` and return canonical driveId + itemId.`;
-      case "byName":
-        return `Look up \`${input.name}\` by name in parent folder (driveId + parentItemId configured).`;
-      default:
-        return "Resolve a drive item to canonical driveId + itemId.";
-    }
-  }
-
-  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
-    return [
-      {
-        slotKey: "auth",
-        label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
-        helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
-      },
-    ];
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Node
+// Node definition
 // ---------------------------------------------------------------------------
 
-@node({ packageName: "@codemation/core-nodes-msgraph" })
-export class DriveResolveNode implements RunnableNode<DriveResolve> {
-  readonly kind = "node" as const;
-  readonly outputPorts = ["main"] as const;
-
-  async execute(args: RunnableNodeExecuteArgs<DriveResolve>): Promise<unknown> {
-    const { ctx } = args;
-    const { input } = ctx.config.cfg;
-
-    const session = await ctx.getCredential<MsGraphSession>("auth");
+export const driveResolveNode = defineNode({
+  key: "msgraph-drive.resolve",
+  title: "Resolve drive item",
+  description:
+    "Resolve a OneDrive/SharePoint item by path, shared link, drive+item ids, or name search to canonical driveId + itemId.",
+  icon: "builtin:microsoft-onedrive",
+  credentials: {
+    auth: {
+      type: msGraphDriveOAuthCredentialType,
+      label: "Microsoft 365 account",
+      helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
+    },
+  },
+  async execute(_, { config, credentials }) {
+    const session = (await credentials.auth()) as import("../credentials/session").MsGraphSession;
     const client = createGraphClient(session) as unknown as GraphClient;
-
-    let output: DriveResolveOutput;
+    const typedConfig = config as unknown as DriveResolveOptions;
+    const { input } = typedConfig;
 
     switch (input.kind) {
       case "personalPath":
-        output = await resolvePersonalPath(client, input.path);
-        break;
+        return await resolvePersonalPath(client, input.path);
       case "sharedLink":
-        output = await resolveSharedLink(client, input.url);
-        break;
+        return await resolveSharedLink(client, input.url);
       case "driveItem":
-        output = await resolveDriveItem(client, input.driveId, input.itemId);
-        break;
+        return await resolveDriveItem(client, input.driveId, input.itemId);
       case "sharedWithMe":
-        output = await resolveSharedWithMe(client, input.name);
-        break;
+        return await resolveSharedWithMe(client, input.name);
       case "byName":
-        output = await resolveByName(client, input.driveId, input.parentItemId, input.name);
-        break;
+        return await resolveByName(client, input.driveId, input.parentItemId, input.name);
     }
-
-    return { ...(args.item as Item), json: output };
-  }
-}
+  },
+});

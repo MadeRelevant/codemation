@@ -1,24 +1,11 @@
-import type {
-  CredentialRequirement,
-  Item,
-  NodeBinaryAttachmentService,
-  RunnableNode,
-  RunnableNodeConfig,
-  RunnableNodeExecuteArgs,
-  TypeToken,
-} from "@codemation/core";
-import { node } from "@codemation/core";
+import { defineNode } from "@codemation/core";
+import type { Item, NodeBinaryAttachmentService } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
-import { createGraphClient, type MsGraphSession } from "../credentials/session";
+import { msGraphDriveOAuthCredentialType } from "../credentials/msGraphDriveOAuth";
+import { createGraphClient } from "../credentials/session";
+import type { MsGraphSession } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 import type { RawChildItem } from "./driveItemMapper";
-
-// ---------------------------------------------------------------------------
-// Default constants
-// ---------------------------------------------------------------------------
-
-const DEFAULT_SIZE_CAP_BYTES = 100 * 1024 * 1024; // 100 MiB
 
 // ---------------------------------------------------------------------------
 // Narrow GraphClient interface for testability
@@ -95,16 +82,11 @@ export function makeProductionDownloadHttp(): DownloadHttp {
 // Input schema
 // ---------------------------------------------------------------------------
 
+const DEFAULT_SIZE_CAP_BYTES = 100 * 1024 * 1024; // 100 MiB
+
 export const DriveDownloadInputSchema = z.object({
-  /** Canonical drive id. */
   driveId: z.string().min(1),
-  /** Canonical item id. */
   itemId: z.string().min(1),
-  /**
-   * Maximum file size in bytes. Files larger than this will cause the node to
-   * throw with a clear error including both the actual size and the cap.
-   * Default: 100 MiB.
-   */
   sizeCapBytes: z.number().int().min(1).default(DEFAULT_SIZE_CAP_BYTES),
 });
 
@@ -126,12 +108,7 @@ export type DriveDownloadOutput = {
 // Slot name sanitizer
 // ---------------------------------------------------------------------------
 
-/**
- * Sanitize a file name for use as a binary slot identifier.
- * Removes characters that are invalid in binary slot names.
- */
 function sanitizeSlotName(name: string): string {
-  // Replace slashes and control chars; collapse runs of spaces/dots; trim.
   return (
     name
       .replace(/[/\\:*?"<>|]/g, "_")
@@ -190,7 +167,7 @@ export async function downloadItem(args: {
 }
 
 // ---------------------------------------------------------------------------
-// Config
+// Types
 // ---------------------------------------------------------------------------
 
 export type DriveDownloadOptions = Readonly<{
@@ -199,81 +176,45 @@ export type DriveDownloadOptions = Readonly<{
   sizeCapBytes?: number;
 }>;
 
-export class DriveDownload implements RunnableNodeConfig<DriveDownloadOptions, DriveDownloadOutput> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = DriveDownloadNode;
-  readonly icon = "builtin:microsoft-onedrive" as const;
-
-  constructor(
-    public readonly name: string,
-    public readonly cfg: DriveDownloadOptions,
-    public readonly id?: string,
-  ) {}
-
-  get description(): string {
-    const hasItem = this.cfg.itemId?.trim();
-    const sizeCap = this.cfg.sizeCapBytes;
-    const capPart =
-      sizeCap !== undefined && sizeCap !== DEFAULT_SIZE_CAP_BYTES
-        ? ` (cap: ${Math.round(sizeCap / 1024 / 1024)} MiB)`
-        : "";
-    return hasItem
-      ? `Download \`${hasItem}\` to binary slot${capPart}.`
-      : `Download drive item to binary slot (driveId + itemId from upstream)${capPart}.`;
-  }
-
-  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
-    return [
-      {
-        slotKey: "auth",
-        label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
-        helpText: "Bind a Microsoft Graph OAuth credential covering Files.Read.All.",
-      },
-    ];
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Node
+// Node definition
 // ---------------------------------------------------------------------------
 
-@node({ packageName: "@codemation/core-nodes-msgraph" })
-export class DriveDownloadNode implements RunnableNode<DriveDownload> {
-  readonly kind = "node" as const;
-  readonly outputPorts = ["main"] as const;
-
-  readonly #downloadHttp: DownloadHttp;
-
-  constructor(downloadHttp?: DownloadHttp) {
-    this.#downloadHttp = downloadHttp ?? makeProductionDownloadHttp();
-  }
-
-  async execute(args: RunnableNodeExecuteArgs<DriveDownload>): Promise<unknown> {
-    const { ctx } = args;
-    const cfg = ctx.config.cfg;
-
-    const session = await ctx.getCredential<MsGraphSession>("auth");
+export const driveDownloadNode = defineNode({
+  key: "msgraph-drive.download",
+  title: "Download drive item",
+  description: "Download a drive item's content to a binary slot (never on JSON). Falls back to item.json ids.",
+  icon: "builtin:microsoft-onedrive",
+  keepBinaries: true,
+  credentials: {
+    auth: {
+      type: msGraphDriveOAuthCredentialType,
+      label: "Microsoft 365 account",
+      helpText: "Bind a Microsoft Graph OAuth credential covering Files.Read.All.",
+    },
+  },
+  async execute({ item }, { config, credentials, execution }) {
+    const session = (await credentials.auth()) as MsGraphSession;
     const metadataClient = createGraphClient(session) as unknown as GraphClient;
-    const binary = ctx.binary as NodeBinaryAttachmentService;
+    const binary = execution.binary as NodeBinaryAttachmentService;
 
     // Fall back to item.json so DriveUpload → DriveDownload chains without UI wiring.
-    const fromItem = (args.item.json ?? {}) as { driveId?: string; itemId?: string };
+    const fromItem = (item.json ?? {}) as { driveId?: string; itemId?: string };
     const input = DriveDownloadInputSchema.parse({
-      driveId: cfg.driveId || fromItem.driveId,
-      itemId: cfg.itemId || fromItem.itemId,
-      sizeCapBytes: cfg.sizeCapBytes,
+      driveId: config.driveId || fromItem.driveId,
+      itemId: config.itemId || fromItem.itemId,
+      sizeCapBytes: config.sizeCapBytes,
     });
 
     const result = await downloadItem({
       metadataClient,
-      downloadHttp: this.#downloadHttp,
+      downloadHttp: makeProductionDownloadHttp(),
       session,
       input,
       binary,
-      item: args.item as Item,
+      item: item as Item,
     });
 
-    return result;
-  }
-}
+    return result.json;
+  },
+});

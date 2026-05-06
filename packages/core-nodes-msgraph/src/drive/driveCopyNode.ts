@@ -1,15 +1,7 @@
-import type {
-  CredentialRequirement,
-  Item,
-  RunnableNode,
-  RunnableNodeConfig,
-  RunnableNodeExecuteArgs,
-  TypeToken,
-} from "@codemation/core";
-import { node } from "@codemation/core";
+import { defineNode } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
-import { type MsGraphSession } from "../credentials/session";
+import { msGraphDriveOAuthCredentialType } from "../credentials/msGraphDriveOAuth";
+import type { MsGraphSession } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 import { toCanonicalFull, type DriveItemFull } from "./driveItemMapper";
 
@@ -40,14 +32,10 @@ type MonitorResponse = {
 };
 
 // ---------------------------------------------------------------------------
-// Injectable HTTP interface — allows test stubbing without network I/O
+// Injectable HTTP interface
 // ---------------------------------------------------------------------------
 
 export type CopyHttp = {
-  /**
-   * POST to the copy endpoint. Returns the monitor URL from the Location header
-   * plus the HTTP status (expected 202).
-   */
   postCopy(args: {
     sourceDriveId: string;
     sourceItemId: string;
@@ -57,25 +45,14 @@ export type CopyHttp = {
     session: MsGraphSession;
   }): Promise<{ monitorUrl: string }>;
 
-  /**
-   * Fetch the current status from the monitor URL.
-   * Internally wraps in withGraphRetry.
-   */
   fetchMonitor(args: { monitorUrl: string; session: MsGraphSession }): Promise<MonitorResponse>;
 
-  /**
-   * Fetch full driveItem metadata after the copy completes.
-   * Internally wraps in withGraphRetry.
-   */
   fetchMetadata(args: { driveId: string; itemId: string; session: MsGraphSession }): Promise<unknown>;
 };
 
 const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Production implementation of CopyHttp backed by fetch + the Graph REST API.
- */
-function makeProductionCopyHttp(): CopyHttp {
+export function makeProductionCopyHttp(): CopyHttp {
   return {
     async postCopy({ sourceDriveId, sourceItemId, targetDriveId, targetParentItemId, name, session }) {
       const url = `https://graph.microsoft.com/v1.0/drives/${encodeURIComponent(sourceDriveId)}/items/${encodeURIComponent(sourceItemId)}/copy`;
@@ -246,7 +223,7 @@ export const DriveCopyInputSchema = z.object({
 export type DriveCopyInput = z.infer<typeof DriveCopyInputSchema>;
 
 // ---------------------------------------------------------------------------
-// Config
+// Types
 // ---------------------------------------------------------------------------
 
 export type DriveCopyOptions = Readonly<{
@@ -260,78 +237,39 @@ export type DriveCopyOptions = Readonly<{
   timeoutMs?: number;
 }>;
 
-export class DriveCopy implements RunnableNodeConfig<DriveCopyOptions, DriveCopyOutput> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = DriveCopyNode;
-  readonly icon = "builtin:microsoft-onedrive" as const;
-
-  constructor(
-    public readonly name: string,
-    public readonly cfg: DriveCopyOptions,
-    public readonly id?: string,
-  ) {}
-
-  get description(): string {
-    const hasSource = this.cfg.sourceDriveId?.trim() && this.cfg.sourceItemId?.trim();
-    const hasTarget = this.cfg.targetDriveId?.trim() && this.cfg.targetParentItemId?.trim();
-    const nameSuffix = this.cfg.name ? ` as \`${this.cfg.name}\`` : "";
-    const awaitSuffix = this.cfg.awaitCompletion === false ? " (fire-and-forget)" : "";
-    if (hasSource && hasTarget) {
-      return `Copy \`${this.cfg.sourceItemId}\` to target drive \`${this.cfg.targetDriveId}\`${nameSuffix}${awaitSuffix}.`;
-    }
-    return `Copy drive item between drives (ids from upstream)${nameSuffix}${awaitSuffix}.`;
-  }
-
-  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
-    return [
-      {
-        slotKey: "auth",
-        label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
-        helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
-      },
-    ];
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Node
+// Node definition
 // ---------------------------------------------------------------------------
 
-@node({ packageName: "@codemation/core-nodes-msgraph" })
-export class DriveCopyNode implements RunnableNode<DriveCopy> {
-  readonly kind = "node" as const;
-  readonly outputPorts = ["main"] as const;
-
-  readonly #copyHttp: CopyHttp;
-  readonly #sleep?: (ms: number) => Promise<void>;
-  readonly #now?: () => number;
-
-  constructor(copyHttp?: CopyHttp, opts?: { sleep?: (ms: number) => Promise<void>; now?: () => number }) {
-    this.#copyHttp = copyHttp ?? makeProductionCopyHttp();
-    this.#sleep = opts?.sleep;
-    this.#now = opts?.now;
-  }
-
-  async execute(args: RunnableNodeExecuteArgs<DriveCopy>): Promise<unknown> {
-    const { ctx } = args;
-    const cfg = ctx.config.cfg;
-
-    const session = await ctx.getCredential<MsGraphSession>("auth");
+export const driveCopyNode = defineNode({
+  key: "msgraph-drive.copy",
+  title: "Copy drive item",
+  description:
+    "Copy a drive item to another drive/folder. Optionally awaits completion and returns the new item metadata.",
+  icon: "builtin:microsoft-onedrive",
+  credentials: {
+    auth: {
+      type: msGraphDriveOAuthCredentialType,
+      label: "Microsoft 365 account",
+      helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
+    },
+  },
+  async execute(_, { config, credentials }) {
+    const session = (await credentials.auth()) as MsGraphSession;
 
     const input = DriveCopyInputSchema.parse({
-      sourceDriveId: cfg.sourceDriveId,
-      sourceItemId: cfg.sourceItemId,
-      targetDriveId: cfg.targetDriveId,
-      targetParentItemId: cfg.targetParentItemId,
-      name: cfg.name,
-      awaitCompletion: cfg.awaitCompletion,
-      pollIntervalMs: cfg.pollIntervalMs,
-      timeoutMs: cfg.timeoutMs,
+      sourceDriveId: config.sourceDriveId,
+      sourceItemId: config.sourceItemId,
+      targetDriveId: config.targetDriveId,
+      targetParentItemId: config.targetParentItemId,
+      name: config.name,
+      awaitCompletion: config.awaitCompletion,
+      pollIntervalMs: config.pollIntervalMs,
+      timeoutMs: config.timeoutMs,
     });
 
-    const output = await copyItem({
-      copyHttp: this.#copyHttp,
+    return await copyItem({
+      copyHttp: makeProductionCopyHttp(),
       session,
       sourceDriveId: input.sourceDriveId,
       sourceItemId: input.sourceItemId,
@@ -341,10 +279,6 @@ export class DriveCopyNode implements RunnableNode<DriveCopy> {
       awaitCompletion: input.awaitCompletion,
       pollIntervalMs: input.pollIntervalMs,
       timeoutMs: input.timeoutMs,
-      sleep: this.#sleep,
-      now: this.#now,
     });
-
-    return { ...(args.item as Item), json: output };
-  }
-}
+  },
+});

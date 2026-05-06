@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DriveCopy, DriveCopyNode, type CopyHttp, type DriveCopyOutput, copyItem } from "../../src/drive/driveCopyNode";
+import { driveCopyNode, type CopyHttp, type DriveCopyOutput, copyItem } from "../../src/drive/driveCopyNode";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -45,22 +45,6 @@ function makeCopyHttp(overrides: Partial<CopyHttp> = {}): CopyHttp {
     fetchMonitor: vi.fn().mockResolvedValue({ status: "completed", resourceId: "copied-item-1" }),
     fetchMetadata: vi.fn().mockResolvedValue(rawMetadata()),
     ...overrides,
-  };
-}
-
-function makeArgs(cfg: ConstructorParameters<typeof DriveCopy>[1]) {
-  const session = makeSession();
-  const ctx = {
-    config: new DriveCopy("copy", cfg),
-    getCredential: vi.fn().mockResolvedValue(session),
-    binary: { attach: vi.fn(), withAttachment: vi.fn(), openReadStream: vi.fn() },
-  };
-  return {
-    item: { json: {} },
-    ctx: ctx as never,
-    input: {} as never,
-    itemIndex: 0,
-    items: [] as never,
   };
 }
 
@@ -297,37 +281,42 @@ describe("DriveCopyNode", () => {
   });
 
   // -------------------------------------------------------------------------
-  // 8. Node execute — integration
+  // 8. copyItem pure function integration
   // -------------------------------------------------------------------------
-  it("node execute returns item with json output", async () => {
+  it("copyItem returns completed status", async () => {
     const copyHttp = makeCopyHttp();
-    const node = new DriveCopyNode(copyHttp, { sleep: async () => {} });
 
-    const result = await node.execute(
-      makeArgs({
-        sourceDriveId: "src",
-        sourceItemId: "si",
-        targetDriveId: "tgt",
-        targetParentItemId: "tf",
-        awaitCompletion: true,
-      }),
-    );
+    const result = await copyItem({
+      copyHttp,
+      session: makeSession(),
+      sourceDriveId: "src",
+      sourceItemId: "si",
+      targetDriveId: "tgt",
+      targetParentItemId: "tf",
+      awaitCompletion: true,
+      pollIntervalMs: 1000,
+      timeoutMs: 60_000,
+      sleep: async () => {},
+    });
 
-    const out = (result as { json: DriveCopyOutput }).json;
+    const out = result as DriveCopyOutput;
     expect(out.status).toBe("completed");
   });
 
   // -------------------------------------------------------------------------
-  // 9. Config class
+  // 9. Defined node credential requirements
   // -------------------------------------------------------------------------
-  it("DriveCopy config declares correct credential requirements", () => {
-    const cfg = new DriveCopy("copy", {
-      sourceDriveId: "s",
-      sourceItemId: "si",
-      targetDriveId: "t",
-      targetParentItemId: "tf",
-    });
-    const creds = cfg.getCredentialRequirements();
+  it("driveCopyNode has correct auth credential slot", () => {
+    const config = driveCopyNode.create(
+      {
+        sourceDriveId: "s",
+        sourceItemId: "si",
+        targetDriveId: "t",
+        targetParentItemId: "tf",
+      },
+      "Copy item",
+    );
+    const creds = config.getCredentialRequirements!();
     expect(creds).toHaveLength(1);
     expect(creds[0]!.slotKey).toBe("auth");
   });

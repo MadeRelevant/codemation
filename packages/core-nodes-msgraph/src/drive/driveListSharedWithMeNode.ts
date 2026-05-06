@@ -1,13 +1,6 @@
-import type {
-  CredentialRequirement,
-  RunnableNode,
-  RunnableNodeConfig,
-  RunnableNodeExecuteArgs,
-  TypeToken,
-} from "@codemation/core";
-import { node } from "@codemation/core";
-import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
-import { createGraphClient, type MsGraphSession } from "../credentials/session";
+import { defineNode } from "@codemation/core";
+import { msGraphDriveOAuthCredentialType } from "../credentials/msGraphDriveOAuth";
+import { createGraphClient } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 
 // ---------------------------------------------------------------------------
@@ -72,16 +65,10 @@ export type SharedWithMeItem = {
 // Mapper
 // ---------------------------------------------------------------------------
 
-/**
- * Map a raw sharedWithMe entry to the canonical output shape.
- * Returns undefined when the entry has no remoteItem — these entries cannot
- * be addressed canonically and are skipped rather than failing the whole list.
- */
 function toSharedItem(raw: RawSharedItem): SharedWithMeItem | undefined {
   const remote = raw.remoteItem;
   if (!remote) return undefined;
 
-  // Always use the remote item's ids — NOT the local stub's ids.
   const driveId = remote.parentReference?.driveId;
   const itemId = remote.id;
 
@@ -132,56 +119,25 @@ export async function listSharedWithMe(client: GraphClient): Promise<SharedWithM
 }
 
 // ---------------------------------------------------------------------------
-// Config
+// Node definition
 // ---------------------------------------------------------------------------
 
-export type DriveListSharedWithMeOptions = Readonly<Record<string, never>>;
-
-export class DriveListSharedWithMe implements RunnableNodeConfig<DriveListSharedWithMeOptions, SharedWithMeItem> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = DriveListSharedWithMeNode;
-  readonly icon = "builtin:microsoft-onedrive" as const;
-
-  constructor(
-    public readonly name: string,
-    public readonly cfg: DriveListSharedWithMeOptions = {},
-    public readonly id?: string,
-  ) {}
-
-  get description(): string {
-    return "List items shared with the connected user, emitting canonical remote driveId + itemId.";
-  }
-
-  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
-    return [
-      {
-        slotKey: "auth",
-        label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
-        helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
-      },
-    ];
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Node
-// ---------------------------------------------------------------------------
-
-@node({ packageName: "@codemation/core-nodes-msgraph" })
-export class DriveListSharedWithMeNode implements RunnableNode<DriveListSharedWithMe> {
-  readonly kind = "node" as const;
-  readonly outputPorts = ["main"] as const;
-
-  async execute(args: RunnableNodeExecuteArgs<DriveListSharedWithMe>): Promise<unknown> {
-    const { ctx } = args;
-
-    const session = await ctx.getCredential<MsGraphSession>("auth");
+export const driveListSharedWithMeNode = defineNode({
+  key: "msgraph-drive.list-shared-with-me",
+  title: "List shared with me",
+  description: "List items shared with the connected user, emitting canonical remote driveId + itemId.",
+  icon: "builtin:microsoft-onedrive",
+  credentials: {
+    auth: {
+      type: msGraphDriveOAuthCredentialType,
+      label: "Microsoft 365 account",
+      helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
+    },
+  },
+  async execute(_, { credentials }) {
+    const session = (await credentials.auth()) as import("../credentials/session").MsGraphSession;
     const client = createGraphClient(session) as unknown as GraphClient;
-
-    const shared = await listSharedWithMe(client);
-
-    // Engine's NodeOutputNormalizer wraps each array element as { json: el }.
-    return shared;
-  }
-}
+    // Engine wraps each array element as { json: el }
+    return await listSharedWithMe(client);
+  },
+});

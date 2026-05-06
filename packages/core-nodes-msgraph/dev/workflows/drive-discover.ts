@@ -8,7 +8,7 @@
  * formats them for display.
  */
 import { Callback, ManualTrigger, createWorkflowBuilder } from "@codemation/core-nodes";
-import { DriveListMyDrives, type DriveInfo } from "../../src/index";
+import { driveListMyDrivesNode, type DriveInfo } from "../../src/index";
 
 type DriveSummary = Readonly<{
   driveId: string;
@@ -23,7 +23,7 @@ export default createWorkflowBuilder({
   name: "MS Graph — Discover drives (start here)",
 })
   .trigger(new ManualTrigger("Manual trigger", { message: "Discover drives" }, "msgraph_drive_discover_trigger"))
-  .then(new DriveListMyDrives("List my drives", {}, "msgraph_drive_list_my_drives"))
+  .then(driveListMyDrivesNode.create({}, "List my drives", "msgraph_drive_list_my_drives"))
   .then(
     new Callback<DriveInfo, DriveSummary>("Summarize drives", (items) =>
       items.map((item) => ({

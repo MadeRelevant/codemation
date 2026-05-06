@@ -9,7 +9,7 @@
  * the OutlookMessageSend node.
  */
 import { Callback, ManualTrigger, createWorkflowBuilder } from "@codemation/core-nodes";
-import { OutlookMessageSend, type OutlookMessageSendOutput } from "../../src/index";
+import { outlookMessageSendNode, type OutlookMessageSendOutput } from "../../src/index";
 
 type SendPayload = Readonly<{
   to: string;
@@ -43,8 +43,7 @@ export default createWorkflowBuilder({
     // Send a test email. The static cfg mirrors the trigger's default payload so the
     // workflow works out-of-the-box. In the UI you can wire expressions (e.g.
     // {{item.json.to}}) to pick up whatever was emitted by the trigger at runtime.
-    new OutlookMessageSend(
-      "Send test email",
+    outlookMessageSendNode.create(
       {
         mailbox: "me",
         to: ["chris@maderelevant.com"],
@@ -55,6 +54,7 @@ export default createWorkflowBuilder({
         // draftOnly: true returns a messageId you can pass to OutlookMessageReply.
         // Graph /sendMail (draftOnly: false, the default) returns 202 No Content — no id.
       },
+      "Send test email",
       "msgraph_send_node",
     ),
   )

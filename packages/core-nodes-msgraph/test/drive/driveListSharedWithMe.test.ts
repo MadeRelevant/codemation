@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  DriveListSharedWithMe,
-  DriveListSharedWithMeNode,
-  type SharedWithMeItem,
+  driveListSharedWithMeNode,
   type GraphClient,
   listSharedWithMe,
 } from "../../src/drive/driveListSharedWithMeNode";
@@ -71,32 +69,6 @@ function makeClient(pages: unknown[]): GraphClient {
       }),
     })),
   };
-}
-
-function makeArgs() {
-  const session = { accessToken: "tok", refresh: vi.fn() };
-  const ctx = {
-    config: new DriveListSharedWithMe("shared"),
-    getCredential: vi.fn().mockResolvedValue(session),
-    binary: { attach: vi.fn(), withAttachment: vi.fn(), openReadStream: vi.fn() },
-  };
-  return {
-    item: { json: {} },
-    ctx: ctx as never,
-    input: {} as never,
-    itemIndex: 0,
-    items: [] as never,
-  };
-}
-
-async function withClientSpy<T>(client: GraphClient, fn: () => Promise<T>): Promise<T> {
-  const mod = await import("../../src/credentials/session");
-  const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
-  try {
-    return await fn();
-  } finally {
-    spy.mockRestore();
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -252,25 +224,23 @@ describe("DriveListSharedWithMeNode", () => {
   // -------------------------------------------------------------------------
   // 8. Node execute — integration via withClientSpy
   // -------------------------------------------------------------------------
-  it("node execute returns one item per shared item", async () => {
+  it("listSharedWithMe returns one item per shared entry (pure function integration)", async () => {
     const items = [rawSharedItem({ remoteId: "exec-remote", remoteDriveId: "exec-drive" })];
     const client = makeClient([{ value: items }]);
 
-    const node = new DriveListSharedWithMeNode();
-    const result = await withClientSpy(client, () => node.execute(makeArgs()));
+    const result = await listSharedWithMe(client);
 
-    const emitted = result as SharedWithMeItem[];
-    expect(emitted).toHaveLength(1);
-    expect(emitted[0]!.itemId).toBe("exec-remote");
-    expect(emitted[0]!.driveId).toBe("exec-drive");
+    expect(result).toHaveLength(1);
+    expect(result[0]!.itemId).toBe("exec-remote");
+    expect(result[0]!.driveId).toBe("exec-drive");
   });
 
   // -------------------------------------------------------------------------
-  // 9. Config class
+  // 9. Defined node has correct credential requirements
   // -------------------------------------------------------------------------
-  it("DriveListSharedWithMe config declares correct credential requirements", () => {
-    const cfg = new DriveListSharedWithMe("shared");
-    const creds = cfg.getCredentialRequirements();
+  it("driveListSharedWithMeNode has correct auth credential slot", () => {
+    const config = driveListSharedWithMeNode.create({}, "List shared with me");
+    const creds = config.getCredentialRequirements!();
     expect(creds).toHaveLength(1);
     expect(creds[0]!.slotKey).toBe("auth");
   });

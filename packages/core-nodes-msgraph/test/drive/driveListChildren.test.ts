@@ -1,11 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  DriveListChildren,
-  DriveListChildrenNode,
-  type GraphClient,
-  listChildren,
-} from "../../src/drive/driveListChildrenNode";
-import type { DriveChildItem } from "../../src/drive/driveItemMapper";
+import { driveListChildrenNode, type GraphClient, listChildren } from "../../src/drive/driveListChildrenNode";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,32 +53,6 @@ function makeClient(response: unknown) {
     _req: req,
   };
   return client;
-}
-
-function makeArgs(cfg: ConstructorParameters<typeof DriveListChildren>[1]) {
-  const session = { accessToken: "tok", refresh: vi.fn() };
-  const ctx = {
-    config: new DriveListChildren("list", cfg),
-    getCredential: vi.fn().mockResolvedValue(session),
-    binary: { attach: vi.fn(), withAttachment: vi.fn(), openReadStream: vi.fn() },
-  };
-  return {
-    item: { json: {} },
-    ctx: ctx as never,
-    input: {} as never,
-    itemIndex: 0,
-    items: [] as never,
-  };
-}
-
-async function withClientSpy<T>(client: GraphClient, fn: () => Promise<T>): Promise<T> {
-  const mod = await import("../../src/credentials/session");
-  const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
-  try {
-    return await fn();
-  } finally {
-    spy.mockRestore();
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -290,28 +258,24 @@ describe("DriveListChildrenNode", () => {
   });
 
   // -------------------------------------------------------------------------
-  // 9. Node execute — integration via withClientSpy
+  // 9. listChildren pure function integration
   // -------------------------------------------------------------------------
-  it("node execute returns one item per child", async () => {
+  it("listChildren returns one item per child", async () => {
     const items = [rawItem({ id: "node-item" })];
     const client = makeClient({ value: items });
 
-    const node = new DriveListChildrenNode();
-    const result = await withClientSpy(client, () =>
-      node.execute(makeArgs({ driveId: "drive-1", itemId: "folder-1" })),
-    );
+    const result = await listChildren(client, { driveId: "drive-1", itemId: "folder-1", top: 200, maxItems: 1000 });
 
-    const emitted = result as DriveChildItem[];
-    expect(emitted).toHaveLength(1);
-    expect(emitted[0]!.itemId).toBe("node-item");
+    expect(result).toHaveLength(1);
+    expect(result[0]!.itemId).toBe("node-item");
   });
 
   // -------------------------------------------------------------------------
-  // 10. Config class
+  // 10. Defined node credential requirements
   // -------------------------------------------------------------------------
-  it("DriveListChildren config declares correct credential requirements", () => {
-    const cfg = new DriveListChildren("list", { driveId: "d", itemId: "f" });
-    const creds = cfg.getCredentialRequirements();
+  it("driveListChildrenNode has correct auth credential slot", () => {
+    const config = driveListChildrenNode.create({ driveId: "d", itemId: "f" }, "List children");
+    const creds = config.getCredentialRequirements!();
     expect(creds).toHaveLength(1);
     expect(creds[0]!.slotKey).toBe("auth");
   });

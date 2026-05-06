@@ -1,64 +1,76 @@
-import { describe, expect, it, vi } from "vitest";
-import { register } from "../src/plugin";
-import { DriveDownloadNode } from "../src/drive/driveDownloadNode";
-import { DriveUploadNode } from "../src/drive/driveUploadNode";
-import { DriveCopyNode } from "../src/drive/driveCopyNode";
+import { describe, expect, it } from "vitest";
+import {
+  msGraphMailOAuthCredentialType,
+  MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID,
+  msGraphDriveOAuthCredentialType,
+  MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID,
+  onNewMsGraphMailTrigger,
+  outlookMessageGetNode,
+  outlookMessageReplyNode,
+  outlookMessageSendNode,
+  outlookMessagePatchNode,
+  outlookFolderResolveNode,
+  driveResolveNode,
+  driveListChildrenNode,
+  driveItemGetNode,
+  driveDownloadNode,
+  driveUploadNode,
+  driveCopyNode,
+  driveListMyDrivesNode,
+  driveListSharedWithMeNode,
+  excelOpenWorkbookNode,
+  excelCloseWorkbookNode,
+  excelListWorksheetsNode,
+  excelReadRangeNode,
+  excelWriteRangeNode,
+  excelAddSheetNode,
+  excelStyleRangeNode,
+} from "../src/index";
 
-describe("register", () => {
-  it("registers both msgraph oauth credential types and all nodes", () => {
-    const registerCredentialType = vi.fn();
-    const registerNode = vi.fn();
-    const registerFactory = vi.fn();
-    const ctx = { registerCredentialType, registerNode, registerFactory } as unknown as Parameters<typeof register>[0];
+const ALL_NODES = [
+  onNewMsGraphMailTrigger,
+  outlookMessageGetNode,
+  outlookMessageReplyNode,
+  outlookMessageSendNode,
+  outlookMessagePatchNode,
+  outlookFolderResolveNode,
+  driveResolveNode,
+  driveListChildrenNode,
+  driveItemGetNode,
+  driveDownloadNode,
+  driveUploadNode,
+  driveCopyNode,
+  driveListMyDrivesNode,
+  driveListSharedWithMeNode,
+  excelOpenWorkbookNode,
+  excelCloseWorkbookNode,
+  excelListWorksheetsNode,
+  excelReadRangeNode,
+  excelWriteRangeNode,
+  excelAddSheetNode,
+  excelStyleRangeNode,
+] as const;
 
-    register(ctx);
-
-    expect(registerCredentialType).toHaveBeenCalledTimes(2);
-    //        OutlookMessagePatchNode, OutlookFolderResolveNode
-    //            (DriveDownloadNode, DriveUploadNode registered via registerFactory)
-    //            (DriveCopyNode registered via registerFactory)
-    //            ExcelAddSheetNode, ExcelStyleRangeNode
-    expect(registerNode).toHaveBeenCalledTimes(18);
-    expect(registerFactory).toHaveBeenCalledTimes(3);
+describe("core-nodes-msgraph plugin", () => {
+  it("exports exactly 21 nodes with unique keys", () => {
+    expect(ALL_NODES).toHaveLength(21);
+    const keys = ALL_NODES.map((n) => n.key);
+    const uniqueKeys = new Set(keys);
+    expect(uniqueKeys.size).toBe(21);
   });
 
-  // Regression #1: DriveUploadNode, DriveDownloadNode, DriveCopyNode must use registerFactory
-  // (not registerNode) because their interface-typed optional ctor params erase at runtime,
-  // causing tsyringe to throw "TypeInfo not known" during workflow planning.
-  it("registers DriveUploadNode, DriveDownloadNode, DriveCopyNode via registerFactory (not registerNode)", () => {
-    const registerCredentialType = vi.fn();
-    const registerNode = vi.fn();
-    const registerFactory = vi.fn();
-    const ctx = { registerCredentialType, registerNode, registerFactory } as unknown as Parameters<typeof register>[0];
-
-    register(ctx);
-
-    // Each of these three must appear in registerFactory calls
-    expect(registerFactory).toHaveBeenCalledWith(DriveUploadNode, expect.any(Function));
-    expect(registerFactory).toHaveBeenCalledWith(DriveDownloadNode, expect.any(Function));
-    expect(registerFactory).toHaveBeenCalledWith(DriveCopyNode, expect.any(Function));
-
-    // And must NOT appear in registerNode calls (that's the bug path)
-    const registerNodeCalls = (registerNode as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
-    expect(registerNodeCalls).not.toContain(DriveUploadNode);
-    expect(registerNodeCalls).not.toContain(DriveDownloadNode);
-    expect(registerNodeCalls).not.toContain(DriveCopyNode);
+  it("credential type ids are correct", () => {
+    expect(MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID).toBe("msgraph-mail-oauth");
+    expect(MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID).toBe("msgraph-drive-oauth");
   });
 
-  // Factory functions must produce working instances (not undefined/null)
-  it("registerFactory callbacks produce DriveDownloadNode/DriveUploadNode/DriveCopyNode instances", () => {
-    const factories = new Map<unknown, () => unknown>();
-    const registerCredentialType = vi.fn();
-    const registerNode = vi.fn();
-    const registerFactory = vi.fn().mockImplementation((cls: unknown, factory: () => unknown) => {
-      factories.set(cls, factory);
-    });
-    const ctx = { registerCredentialType, registerNode, registerFactory } as unknown as Parameters<typeof register>[0];
+  it("credential types expose both expected type ids", () => {
+    expect(msGraphMailOAuthCredentialType.definition.typeId).toBe("msgraph-mail-oauth");
+    expect(msGraphDriveOAuthCredentialType.definition.typeId).toBe("msgraph-drive-oauth");
+  });
 
-    register(ctx);
-
-    expect(factories.get(DriveDownloadNode)!()).toBeInstanceOf(DriveDownloadNode);
-    expect(factories.get(DriveUploadNode)!()).toBeInstanceOf(DriveUploadNode);
-    expect(factories.get(DriveCopyNode)!()).toBeInstanceOf(DriveCopyNode);
+  it("credential types are built with defineCredential (have a .key property)", () => {
+    expect(msGraphMailOAuthCredentialType.key).toBe("msgraph-mail-oauth");
+    expect(msGraphDriveOAuthCredentialType.key).toBe("msgraph-drive-oauth");
   });
 });

@@ -1,15 +1,7 @@
-import type {
-  CredentialRequirement,
-  Item,
-  RunnableNode,
-  RunnableNodeConfig,
-  RunnableNodeExecuteArgs,
-  TypeToken,
-} from "@codemation/core";
-import { node } from "@codemation/core";
+import { defineNode } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
-import { createGraphClient, type MsGraphSession } from "../credentials/session";
+import { msGraphDriveOAuthCredentialType } from "../credentials/msGraphDriveOAuth";
+import { createGraphClient } from "../credentials/session";
 import { withGraphRetry } from "../lib/graphRetry";
 import { toCanonicalFull, type DriveItemFull, type RawChildItem } from "./driveItemMapper";
 
@@ -34,14 +26,8 @@ const VALID_EXPAND = ["listItem", "permissions", "thumbnails"] as const;
 type ExpandField = (typeof VALID_EXPAND)[number];
 
 export const DriveItemGetInputSchema = z.object({
-  /** Canonical drive id. */
   driveId: z.string().min(1),
-  /** Canonical item id. */
   itemId: z.string().min(1),
-  /**
-   * Optional sub-resources to $expand. Pass-through to Graph.
-   * Valid values: "listItem", "permissions", "thumbnails".
-   */
   expand: z.array(z.enum(VALID_EXPAND)).optional(),
 });
 
@@ -73,7 +59,7 @@ export async function getItem(client: GraphClient, input: DriveItemGetInput): Pr
 }
 
 // ---------------------------------------------------------------------------
-// Config
+// Types
 // ---------------------------------------------------------------------------
 
 export type DriveItemGetOptions = Readonly<{
@@ -82,63 +68,32 @@ export type DriveItemGetOptions = Readonly<{
   expand?: ExpandField[];
 }>;
 
-export class DriveItemGet implements RunnableNodeConfig<DriveItemGetOptions, DriveItemFull> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = DriveItemGetNode;
-  readonly icon = "builtin:microsoft-onedrive" as const;
-
-  constructor(
-    public readonly name: string,
-    public readonly cfg: DriveItemGetOptions,
-    public readonly id?: string,
-  ) {}
-
-  get description(): string {
-    const hasDrive = this.cfg.driveId?.trim();
-    const hasItem = this.cfg.itemId?.trim();
-    const expandPart = this.cfg.expand && this.cfg.expand.length > 0 ? ` (expand: ${this.cfg.expand.join(", ")})` : "";
-    if (hasDrive && hasItem) {
-      return `Get metadata for driveId \`${hasDrive}\` / itemId \`${hasItem}\`${expandPart}.`;
-    }
-    return `Look up drive item metadata (driveId + itemId from upstream)${expandPart}.`;
-  }
-
-  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
-    return [
-      {
-        slotKey: "auth",
-        label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
-        helpText: "Bind a Microsoft Graph OAuth credential covering Files.Read.All.",
-      },
-    ];
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Node
+// Node definition
 // ---------------------------------------------------------------------------
 
-@node({ packageName: "@codemation/core-nodes-msgraph" })
-export class DriveItemGetNode implements RunnableNode<DriveItemGet> {
-  readonly kind = "node" as const;
-  readonly outputPorts = ["main"] as const;
-
-  async execute(args: RunnableNodeExecuteArgs<DriveItemGet>): Promise<unknown> {
-    const { ctx } = args;
-    const cfg = ctx.config.cfg;
-
-    const session = await ctx.getCredential<MsGraphSession>("auth");
+export const driveItemGetNode = defineNode({
+  key: "msgraph-drive.item-get",
+  title: "Get drive item",
+  description: "Fetch full metadata for a drive item by driveId and itemId.",
+  icon: "builtin:microsoft-onedrive",
+  credentials: {
+    auth: {
+      type: msGraphDriveOAuthCredentialType,
+      label: "Microsoft 365 account",
+      helpText: "Bind a Microsoft Graph OAuth credential covering Files.Read.All.",
+    },
+  },
+  async execute(_, { config, credentials }) {
+    const session = (await credentials.auth()) as import("../credentials/session").MsGraphSession;
     const client = createGraphClient(session) as unknown as GraphClient;
 
     const input = DriveItemGetInputSchema.parse({
-      driveId: cfg.driveId,
-      itemId: cfg.itemId,
-      expand: cfg.expand,
+      driveId: config.driveId,
+      itemId: config.itemId,
+      expand: config.expand,
     });
 
-    const output = await getItem(client, input);
-
-    return { ...(args.item as Item), json: output };
-  }
-}
+    return await getItem(client, input);
+  },
+});

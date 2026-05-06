@@ -1,11 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  DriveListMyDrives,
-  DriveListMyDrivesNode,
-  type DriveInfo,
-  type GraphClient,
-  listMyDrives,
-} from "../../src/drive/driveListMyDrivesNode";
+import { driveListMyDrivesNode, type GraphClient, listMyDrives } from "../../src/drive/driveListMyDrivesNode";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -55,32 +49,6 @@ function makeClient(pages: unknown[]): GraphClient {
       }),
     })),
   };
-}
-
-function makeArgs() {
-  const session = { accessToken: "tok", refresh: vi.fn() };
-  const ctx = {
-    config: new DriveListMyDrives("mydrives"),
-    getCredential: vi.fn().mockResolvedValue(session),
-    binary: { attach: vi.fn(), withAttachment: vi.fn(), openReadStream: vi.fn() },
-  };
-  return {
-    item: { json: {} },
-    ctx: ctx as never,
-    input: {} as never,
-    itemIndex: 0,
-    items: [] as never,
-  };
-}
-
-async function withClientSpy<T>(client: GraphClient, fn: () => Promise<T>): Promise<T> {
-  const mod = await import("../../src/credentials/session");
-  const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
-  try {
-    return await fn();
-  } finally {
-    spy.mockRestore();
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -204,26 +172,24 @@ describe("DriveListMyDrivesNode", () => {
   });
 
   // -------------------------------------------------------------------------
-  // 7. Node execute — integration via withClientSpy
+  // 7. Node execute — integration via listMyDrives (pure function)
   // -------------------------------------------------------------------------
-  it("node execute returns one item per drive", async () => {
+  it("listMyDrives returns one item per drive (pure function integration)", async () => {
     const drives = [rawDrive({ id: "exec-drive" })];
     const client = makeClient([{ value: drives }]);
 
-    const node = new DriveListMyDrivesNode();
-    const result = await withClientSpy(client, () => node.execute(makeArgs()));
+    const result = await listMyDrives(client);
 
-    const items = result as DriveInfo[];
-    expect(items).toHaveLength(1);
-    expect(items[0]!.driveId).toBe("exec-drive");
+    expect(result).toHaveLength(1);
+    expect(result[0]!.driveId).toBe("exec-drive");
   });
 
   // -------------------------------------------------------------------------
-  // 8. Config class
+  // 8. Defined node has correct credential requirements
   // -------------------------------------------------------------------------
-  it("DriveListMyDrives config declares correct credential requirements", () => {
-    const cfg = new DriveListMyDrives("mydrives");
-    const creds = cfg.getCredentialRequirements();
+  it("driveListMyDrivesNode has correct auth credential slot", () => {
+    const config = driveListMyDrivesNode.create({}, "List my drives");
+    const creds = config.getCredentialRequirements!();
     expect(creds).toHaveLength(1);
     expect(creds[0]!.slotKey).toBe("auth");
   });

@@ -1,98 +1,30 @@
-import type {
-  BinaryAttachment,
-  CredentialRequirement,
-  Item,
-  NodeBinaryAttachmentService,
-  RunnableNode,
-  RunnableNodeConfig,
-  RunnableNodeExecuteArgs,
-  TypeToken,
-} from "@codemation/core";
-import { node } from "@codemation/core";
-import { MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphMailOAuth";
-import { createGraphClient, type MsGraphSession } from "../credentials/session";
+import { defineNode } from "@codemation/core";
+import type { BinaryAttachment, NodeBinaryAttachmentService } from "@codemation/core";
+import { msGraphMailOAuthCredentialType } from "../credentials/msGraphMailOAuth";
+import { createGraphClient } from "../credentials/session";
 import { mailboxPathPrefix } from "../lib/graphPaths";
 import { withGraphRetry } from "../lib/graphRetry";
-import { buildGraphFileAttachment } from "./attachmentHelpers";
-import type { BinaryRef, InlineBinaryRef } from "./outlookMessageReplyNode";
+import { collectGraphAttachments } from "./attachmentHelpers";
 
 // ---------------------------------------------------------------------------
-// Config
+// Shared types (re-exported so workflow DSL can import them from here)
 // ---------------------------------------------------------------------------
 
-export type OutlookMessageSendOptions = Readonly<{
-  /** Mailbox: `"me"` / `""` / `"self"` → /me; any other value → /users/{mailbox}. */
-  mailbox: string;
-  /** To recipients (email address strings). */
-  to: ReadonlyArray<string>;
-  /** CC recipients (email strings). */
-  cc?: ReadonlyArray<string>;
-  /** BCC recipients (email strings). */
-  bcc?: ReadonlyArray<string>;
-  /** Email subject line. */
-  subject: string;
-  /** Body content. */
-  body: string;
-  /** Whether `body` is HTML or plain text. */
-  bodyType: "html" | "text";
-  /** Regular (non-inline) attachments to add from item binary slots. */
-  attachments?: ReadonlyArray<BinaryRef>;
-  /** Inline attachments (CID-referenced in HTML body). */
-  inlineAttachments?: ReadonlyArray<InlineBinaryRef>;
-  /** Message importance. */
-  importance?: "low" | "normal" | "high";
-  /**
-   * When true: POST to `${mailboxPathPrefix}/messages` to create a draft and return its id.
-   * When false (default): POST to `${mailboxPathPrefix}/sendMail` and emit `messageId: ""`.
-   *
-   * Note: Graph's `/sendMail` returns HTTP 202 No Content — there is no message id to return.
-   * When `draftOnly: false`, the output carries `messageId: ""` and `isDraft: false`.
-   */
-  draftOnly?: boolean;
+export type BinaryRef = Readonly<{
+  /** The binary slot key on the item (i.e. the key under `item.binary`). */
+  slot: string;
+  /** Filename to use in the Graph attachment body. */
+  name: string;
 }>;
 
-export type OutlookMessageSendOutput = Readonly<{
-  /**
-   * Draft message id when `draftOnly: true`.
-   * Empty string (`""`) when `draftOnly: false` — Graph's `/sendMail` returns no id.
-   */
-  messageId: string;
-  /** True when the message is a draft; false when it was sent via /sendMail. */
-  isDraft: boolean;
+export type InlineBinaryRef = Readonly<{
+  /** The binary slot key on the item. */
+  slot: string;
+  /** Filename to use in the Graph attachment body. */
+  name: string;
+  /** Content-ID value (without angle brackets) matching the `cid:` reference in the HTML body. */
+  contentId: string;
 }>;
-
-export class OutlookMessageSend implements RunnableNodeConfig<OutlookMessageSendOptions, OutlookMessageSendOutput> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = OutlookMessageSendNode;
-  readonly icon = "builtin:microsoft-outlook" as const;
-
-  constructor(
-    public readonly name: string,
-    public readonly cfg: OutlookMessageSendOptions,
-    public readonly id?: string,
-  ) {}
-
-  get description(): string {
-    const allRecipients = [...(this.cfg.to ?? []), ...(this.cfg.cc ?? []), ...(this.cfg.bcc ?? [])];
-    const count = allRecipients.length;
-    const recipientPart = count > 0 ? `${count} recipient${count === 1 ? "" : "s"}` : "recipients from upstream";
-    const subject = this.cfg.subject?.trim();
-    const subjectPart = subject ? ` with subject \`${subject}\`` : "";
-    const mode = this.cfg.draftOnly ? "Create draft" : "Send mail";
-    return `${mode} to ${recipientPart}${subjectPart}.`;
-  }
-
-  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
-    return [
-      {
-        slotKey: "auth",
-        label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_MAIL_OAUTH_CREDENTIAL_TYPE_ID],
-        helpText: "Bind a Microsoft Graph OAuth credential for the mailbox you want to access.",
-      },
-    ];
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -100,29 +32,6 @@ export class OutlookMessageSend implements RunnableNodeConfig<OutlookMessageSend
 
 function toGraphRecipients(emails: ReadonlyArray<string>): ReadonlyArray<unknown> {
   return emails.map((address) => ({ emailAddress: { address } }));
-}
-
-async function collectAttachments(
-  binary: NodeBinaryAttachmentService,
-  item: Item,
-  regularRefs: ReadonlyArray<BinaryRef> | undefined,
-  inlineRefs: ReadonlyArray<InlineBinaryRef> | undefined,
-): Promise<ReadonlyArray<unknown>> {
-  const result: unknown[] = [];
-
-  for (const ref of regularRefs ?? []) {
-    const binaryAttachment = (item.binary as Record<string, BinaryAttachment> | undefined)?.[ref.slot];
-    if (!binaryAttachment) continue;
-    result.push(await buildGraphFileAttachment(binary, binaryAttachment, ref.name));
-  }
-
-  for (const ref of inlineRefs ?? []) {
-    const binaryAttachment = (item.binary as Record<string, BinaryAttachment> | undefined)?.[ref.slot];
-    if (!binaryAttachment) continue;
-    result.push(await buildGraphFileAttachment(binary, binaryAttachment, ref.name, true, ref.contentId));
-  }
-
-  return result;
 }
 
 function buildMessageBody(
@@ -155,46 +64,78 @@ function buildMessageBody(
 }
 
 // ---------------------------------------------------------------------------
-// Node
+// Types
 // ---------------------------------------------------------------------------
 
-@node({ packageName: "@codemation/core-nodes-msgraph" })
-export class OutlookMessageSendNode implements RunnableNode<OutlookMessageSend> {
-  readonly kind = "node" as const;
-  readonly outputPorts = ["main"] as const;
+export type OutlookMessageSendOptions = Readonly<{
+  mailbox: string;
+  to: ReadonlyArray<string>;
+  cc?: ReadonlyArray<string>;
+  bcc?: ReadonlyArray<string>;
+  subject: string;
+  body: string;
+  bodyType: "html" | "text";
+  attachments?: ReadonlyArray<BinaryRef>;
+  inlineAttachments?: ReadonlyArray<InlineBinaryRef>;
+  importance?: "low" | "normal" | "high";
+  /**
+   * When true: POST to `${mailboxPathPrefix}/messages` to create a draft and return its id.
+   * When false (default): POST to `${mailboxPathPrefix}/sendMail` and emit `messageId: ""`.
+   */
+  draftOnly?: boolean;
+}>;
 
-  async execute(args: RunnableNodeExecuteArgs<OutlookMessageSend>): Promise<unknown> {
-    const { ctx } = args;
-    const { cfg } = ctx.config;
-    const session = await ctx.getCredential<MsGraphSession>("auth");
-    const client = createGraphClient(session);
-    const binary = ctx.binary;
-    const prefix = mailboxPathPrefix(cfg.mailbox);
+export type OutlookMessageSendOutput = Readonly<{
+  messageId: string;
+  isDraft: boolean;
+}>;
 
-    // Read attachment bytes from binary storage (never from item JSON)
-    const attachments = await collectAttachments(binary, args.item as Item, cfg.attachments, cfg.inlineAttachments);
-    const message = buildMessageBody(cfg, attachments);
+// ---------------------------------------------------------------------------
+// Pure execute function (exported for testing)
+// ---------------------------------------------------------------------------
 
-    let output: OutlookMessageSendOutput;
+export async function sendMessage(
+  client: ReturnType<typeof createGraphClient>,
+  binary: NodeBinaryAttachmentService,
+  itemBinary: Record<string, BinaryAttachment>,
+  config: OutlookMessageSendOptions,
+): Promise<OutlookMessageSendOutput> {
+  const prefix = mailboxPathPrefix(config.mailbox);
+  const attachments = await collectGraphAttachments(binary, itemBinary, config.attachments, config.inlineAttachments);
+  const message = buildMessageBody(config, attachments);
 
-    if (cfg.draftOnly) {
-      // Create a draft message — returns the draft with its id
-      const draft = (await withGraphRetry(() => client.api(`${prefix}/messages`).post(message))) as { id?: string };
-
-      const draftId = draft?.id ?? "";
-      output = { messageId: draftId, isDraft: true };
-    } else {
-      // Send immediately via /sendMail — Graph returns 202 No Content (no message id)
-      await withGraphRetry(() =>
-        client.api(`${prefix}/sendMail`).post({
-          message,
-          saveToSentItems: true,
-        }),
-      );
-      // Graph /sendMail returns no id — emit empty string as documented
-      output = { messageId: "", isDraft: false };
-    }
-
-    return { ...(args.item as Item), json: output };
+  if (config.draftOnly) {
+    const draft = (await withGraphRetry(() => client.api(`${prefix}/messages`).post(message))) as { id?: string };
+    return { messageId: draft?.id ?? "", isDraft: true };
   }
+
+  await withGraphRetry(() => client.api(`${prefix}/sendMail`).post({ message, saveToSentItems: true }));
+  return { messageId: "", isDraft: false };
 }
+
+// ---------------------------------------------------------------------------
+// Node definition
+// ---------------------------------------------------------------------------
+
+export const outlookMessageSendNode = defineNode({
+  key: "msgraph-mail.outlook-message-send",
+  title: "Send Outlook message",
+  description: "Send or draft a message via Microsoft Graph Outlook, with optional file attachments.",
+  icon: "builtin:microsoft-outlook",
+  keepBinaries: true,
+  credentials: {
+    auth: {
+      type: msGraphMailOAuthCredentialType,
+      label: "Microsoft 365 account",
+      helpText: "Bind a Microsoft Graph OAuth credential for the mailbox you want to access.",
+    },
+  },
+  async execute({ item }, { config: rawConfig, credentials, execution }) {
+    const session = (await credentials.auth()) as import("../credentials/session").MsGraphSession;
+    const client = createGraphClient(session);
+    const binary = execution.binary as NodeBinaryAttachmentService;
+    const itemBinary = (item.binary ?? {}) as Record<string, BinaryAttachment>;
+    const config = rawConfig as unknown as OutlookMessageSendOptions;
+    return sendMessage(client, binary, itemBinary, config);
+  },
+});

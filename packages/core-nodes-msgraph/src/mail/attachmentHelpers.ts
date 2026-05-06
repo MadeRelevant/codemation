@@ -7,6 +7,7 @@
  */
 
 import type { BinaryAttachment, NodeBinaryAttachmentService } from "@codemation/core";
+import type { BinaryRef, InlineBinaryRef } from "./outlookMessageSendNode";
 
 /** Shape accepted by the Graph API for file attachments on messages. */
 export type GraphFileAttachment = Readonly<{
@@ -62,6 +63,33 @@ async function readBinaryToBuffer(binary: NodeBinaryAttachmentService, attachmen
  * @param isInline    - When true, sets `isInline: true` on the attachment.
  * @param contentId   - CID value for inline attachments (e.g. `"img001@example.com"`).
  */
+/**
+ * Collect regular and inline binary attachments into Graph API attachment objects.
+ * Shared by OutlookMessageSend and OutlookMessageReply.
+ */
+export async function collectGraphAttachments(
+  binary: NodeBinaryAttachmentService,
+  itemBinary: Record<string, BinaryAttachment> | undefined,
+  regularRefs: ReadonlyArray<BinaryRef> | undefined,
+  inlineRefs: ReadonlyArray<InlineBinaryRef> | undefined,
+): Promise<ReadonlyArray<unknown>> {
+  const result: unknown[] = [];
+
+  for (const ref of regularRefs ?? []) {
+    const binaryAttachment = itemBinary?.[ref.slot];
+    if (!binaryAttachment) continue;
+    result.push(await buildGraphFileAttachment(binary, binaryAttachment, ref.name));
+  }
+
+  for (const ref of inlineRefs ?? []) {
+    const binaryAttachment = itemBinary?.[ref.slot];
+    if (!binaryAttachment) continue;
+    result.push(await buildGraphFileAttachment(binary, binaryAttachment, ref.name, true, ref.contentId));
+  }
+
+  return result;
+}
+
 export async function buildGraphFileAttachment(
   binary: NodeBinaryAttachmentService,
   attachment: BinaryAttachment,

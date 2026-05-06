@@ -5,7 +5,8 @@
  * ESLint forbids vi.mock/vi.stubGlobal/vi.stubEnv — we save/restore manually.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ExcelStyleRange, ExcelStyleRangeNode } from "../../src/excel/excelStyleRangeNode";
+import { executeExcelStyleRange } from "../../src/excel/excelStyleRangeNode";
+import type { ExcelStyleRangeOptions } from "../../src/excel/excelStyleRangeNode";
 import type { WorkbookHandle } from "../../src/excel/session";
 
 // ---------------------------------------------------------------------------
@@ -42,7 +43,6 @@ function makeFetchResponse(opts: { status?: number; json?: unknown }): Response 
         if (json !== undefined && name.toLowerCase() === "content-type") {
           return "application/json";
         }
-        // Return null for 204-style responses
         return null;
       },
       getSetCookie(): string[] {
@@ -54,23 +54,11 @@ function makeFetchResponse(opts: { status?: number; json?: unknown }): Response 
   } as unknown as Response;
 }
 
-function makeArgs(cfg: ExcelStyleRange["cfg"], getCredentialImpl: () => Promise<unknown>) {
-  const config = new ExcelStyleRange("style", cfg);
-  return {
-    item: { json: {}, binary: {} },
-    ctx: {
-      config,
-      getCredential: vi.fn().mockImplementation(getCredentialImpl),
-      binary: {},
-    },
-  } as unknown as Parameters<ExcelStyleRangeNode["execute"]>[0];
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("ExcelStyleRangeNode", () => {
+describe("executeExcelStyleRange", () => {
   let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
@@ -97,22 +85,17 @@ describe("ExcelStyleRangeNode", () => {
       return makeFetchResponse({ json: {} });
     });
 
-    const node = new ExcelStyleRangeNode();
-    const args = makeArgs(
-      {
-        handle: makeHandle(),
-        sheet: "Sheet1",
-        range: "A1:C3",
-        font: { bold: true, color: "#FF0000" },
-        fill: { color: "#FFFFFF" },
-        alignment: { horizontal: "Center", wrapText: true },
-        numberFormat: "0.00",
-      },
-      () => Promise.resolve(makeSession()),
-    );
+    const cfg: ExcelStyleRangeOptions = {
+      handle: makeHandle(),
+      sheet: "Sheet1",
+      range: "A1:C3",
+      font: { bold: true, color: "#FF0000" },
+      fill: { color: "#FFFFFF" },
+      alignment: { horizontal: "Center", wrapText: true },
+      numberFormat: "0.00",
+    };
 
-    const result = await node.execute(args);
-    const output = (result as { json: { appliedFormatProps: string[] } }).json;
+    const result = await executeExcelStyleRange(makeSession() as never, cfg, {});
 
     // Three PATCHes: top-level /format (alignment + numberFormat), /format/font, /format/fill.
     expect(capturedRequests).toHaveLength(3);
@@ -135,10 +118,10 @@ describe("ExcelStyleRangeNode", () => {
     expect(fontReq!.body).toEqual({ bold: true, color: "#FF0000" });
     expect(fillReq!.body).toEqual({ color: "#FFFFFF" });
 
-    expect(output.appliedFormatProps).toContain("font");
-    expect(output.appliedFormatProps).toContain("fill");
-    expect(output.appliedFormatProps).toContain("alignment");
-    expect(output.appliedFormatProps).toContain("numberFormat");
+    expect(result.appliedFormatProps).toContain("font");
+    expect(result.appliedFormatProps).toContain("fill");
+    expect(result.appliedFormatProps).toContain("alignment");
+    expect(result.appliedFormatProps).toContain("numberFormat");
   });
 
   // -------------------------------------------------------------------------
@@ -157,24 +140,18 @@ describe("ExcelStyleRangeNode", () => {
       return makeFetchResponse({ json: {} });
     });
 
-    const node = new ExcelStyleRangeNode();
-    const args = makeArgs(
-      {
-        handle: makeHandle(),
-        sheet: "Sheet1",
-        range: "A1:B2",
-        borders: {
-          EdgeTop: { style: "Continuous", color: "#000000", weight: "Thin" },
-          EdgeBottom: { style: "Continuous", color: "#000000", weight: "Thin" },
-        },
+    const cfg: ExcelStyleRangeOptions = {
+      handle: makeHandle(),
+      sheet: "Sheet1",
+      range: "A1:B2",
+      borders: {
+        EdgeTop: { style: "Continuous", color: "#000000", weight: "Thin" },
+        EdgeBottom: { style: "Continuous", color: "#000000", weight: "Thin" },
       },
-      () => Promise.resolve(makeSession()),
-    );
+    };
 
-    const result = await node.execute(args);
-    const output = (result as { json: { appliedFormatProps: string[] } }).json;
+    const result = await executeExcelStyleRange(makeSession() as never, cfg, {});
 
-    // No format PATCH (no font/fill/alignment/numberFormat), but 2 border PATCHes
     const borderRequests = capturedRequests.filter((r) => r.url.includes("/borders/"));
     expect(borderRequests).toHaveLength(2);
 
@@ -186,7 +163,7 @@ describe("ExcelStyleRangeNode", () => {
     const edgeBottomReq = borderRequests.find((r) => r.url.includes("EdgeBottom"));
     expect(edgeBottomReq).toBeDefined();
 
-    expect(output.appliedFormatProps).toContain("borders");
+    expect(result.appliedFormatProps).toContain("borders");
   });
 
   it("borders use correct URL path with /format/borders/{edge}", async () => {
@@ -197,27 +174,22 @@ describe("ExcelStyleRangeNode", () => {
       return makeFetchResponse({ json: {} });
     });
 
-    const node = new ExcelStyleRangeNode();
-    const args = makeArgs(
-      {
-        handle: makeHandle(),
-        sheet: "Sheet1",
-        range: "D4:F6",
-        borders: {
-          EdgeLeft: { style: "Dash" },
-          InsideVertical: { style: "Dot" },
-        },
+    const cfg: ExcelStyleRangeOptions = {
+      handle: makeHandle(),
+      sheet: "Sheet1",
+      range: "D4:F6",
+      borders: {
+        EdgeLeft: { style: "Dash" },
+        InsideVertical: { style: "Dot" },
       },
-      () => Promise.resolve(makeSession()),
-    );
+    };
 
-    await node.execute(args);
+    await executeExcelStyleRange(makeSession() as never, cfg, {});
 
     const borderUrls = capturedUrls.filter((u) => u.includes("/borders/"));
     expect(borderUrls).toHaveLength(2);
     expect(borderUrls.some((u) => u.includes("/borders/EdgeLeft"))).toBe(true);
     expect(borderUrls.some((u) => u.includes("/borders/InsideVertical"))).toBe(true);
-    // Border path must go through /format/borders/
     expect(borderUrls[0]).toContain("range(address='D4:F6')/format/borders/");
   });
 
@@ -237,28 +209,23 @@ describe("ExcelStyleRangeNode", () => {
       return makeFetchResponse({ json: {} });
     });
 
-    const node = new ExcelStyleRangeNode();
-    const args = makeArgs(
-      {
-        handle: makeHandle(),
-        sheet: "Sheet1",
-        range: "A1:C1",
-        font: { bold: true },
-        merge: true,
-      },
-      () => Promise.resolve(makeSession()),
-    );
+    const cfg: ExcelStyleRangeOptions = {
+      handle: makeHandle(),
+      sheet: "Sheet1",
+      range: "A1:C1",
+      font: { bold: true },
+      merge: true,
+    };
 
-    const result = await node.execute(args);
-    const output = (result as { json: { mergedApplied: boolean } }).json;
+    const result = await executeExcelStyleRange(makeSession() as never, cfg, {});
 
     const mergeReqs = capturedRequests.filter((r) => r.url.includes("/merge"));
     expect(mergeReqs).toHaveLength(1);
-    expect(mergeReqs[0].method).toBe("POST");
-    expect(mergeReqs[0].body).toEqual({ across: false });
-    expect(mergeReqs[0].url).toContain("range(address='A1:C1')/merge");
+    expect(mergeReqs[0]!.method).toBe("POST");
+    expect(mergeReqs[0]!.body).toEqual({ across: false });
+    expect(mergeReqs[0]!.url).toContain("range(address='A1:C1')/merge");
 
-    expect(output.mergedApplied).toBe(true);
+    expect(result.mergedApplied).toBe(true);
   });
 
   it("merge=false — no merge POST issued", async () => {
@@ -269,23 +236,18 @@ describe("ExcelStyleRangeNode", () => {
       return makeFetchResponse({ json: {} });
     });
 
-    const node = new ExcelStyleRangeNode();
-    const args = makeArgs(
-      {
-        handle: makeHandle(),
-        sheet: "Sheet1",
-        range: "A1:B2",
-        font: { bold: true },
-        merge: false,
-      },
-      () => Promise.resolve(makeSession()),
-    );
+    const cfg: ExcelStyleRangeOptions = {
+      handle: makeHandle(),
+      sheet: "Sheet1",
+      range: "A1:B2",
+      font: { bold: true },
+      merge: false,
+    };
 
-    const result = await node.execute(args);
-    const output = (result as { json: { mergedApplied: boolean } }).json;
+    const result = await executeExcelStyleRange(makeSession() as never, cfg, {});
 
     expect(capturedUrls.some((u) => u.includes("/merge"))).toBe(false);
-    expect(output.mergedApplied).toBe(false);
+    expect(result.mergedApplied).toBe(false);
   });
 
   // -------------------------------------------------------------------------
@@ -300,26 +262,21 @@ describe("ExcelStyleRangeNode", () => {
       return makeFetchResponse({ json: {} });
     });
 
-    const node = new ExcelStyleRangeNode();
-    const args = makeArgs(
-      {
-        handle: makeHandle(),
-        sheet: "Sheet1",
-        range: "A1:D10",
-        autofitColumns: true,
-      },
-      () => Promise.resolve(makeSession()),
-    );
+    const cfg: ExcelStyleRangeOptions = {
+      handle: makeHandle(),
+      sheet: "Sheet1",
+      range: "A1:D10",
+      autofitColumns: true,
+    };
 
-    const result = await node.execute(args);
-    const output = (result as { json: { autofitApplied: boolean } }).json;
+    const result = await executeExcelStyleRange(makeSession() as never, cfg, {});
 
     const autofitReqs = capturedRequests.filter((r) => r.url.includes("autofitColumns"));
     expect(autofitReqs).toHaveLength(1);
-    expect(autofitReqs[0].method).toBe("POST");
-    expect(autofitReqs[0].url).toContain("range(address='A1:D10')/format/autofitColumns");
+    expect(autofitReqs[0]!.method).toBe("POST");
+    expect(autofitReqs[0]!.url).toContain("range(address='A1:D10')/format/autofitColumns");
 
-    expect(output.autofitApplied).toBe(true);
+    expect(result.autofitApplied).toBe(true);
   });
 
   // -------------------------------------------------------------------------
@@ -334,40 +291,26 @@ describe("ExcelStyleRangeNode", () => {
       return makeFetchResponse({ json: {} });
     });
 
-    const node = new ExcelStyleRangeNode();
-    const args = makeArgs(
-      {
-        handle: makeHandle(),
-        sheet: "Data",
-        range: "B2:D4",
-        font: { bold: true, size: 12 },
-        fill: { color: "#EEEEEE" },
-        alignment: { horizontal: "Left" },
-        numberFormat: "#,##0",
-        borders: {
-          EdgeTop: { style: "Continuous", weight: "Thin" },
-          EdgeBottom: { style: "Continuous", weight: "Thin" },
-          EdgeLeft: { style: "Continuous", weight: "Thin" },
-          EdgeRight: { style: "Continuous", weight: "Thin" },
-        },
-        merge: true,
-        autofitColumns: true,
+    const cfg: ExcelStyleRangeOptions = {
+      handle: makeHandle(),
+      sheet: "Data",
+      range: "B2:D4",
+      font: { bold: true, size: 12 },
+      fill: { color: "#EEEEEE" },
+      alignment: { horizontal: "Left" },
+      numberFormat: "#,##0",
+      borders: {
+        EdgeTop: { style: "Continuous", weight: "Thin" },
+        EdgeBottom: { style: "Continuous", weight: "Thin" },
+        EdgeLeft: { style: "Continuous", weight: "Thin" },
+        EdgeRight: { style: "Continuous", weight: "Thin" },
       },
-      () => Promise.resolve(makeSession()),
-    );
+      merge: true,
+      autofitColumns: true,
+    };
 
-    const result = await node.execute(args);
-    const output = (
-      result as {
-        json: {
-          appliedFormatProps: string[];
-          mergedApplied: boolean;
-          autofitApplied: boolean;
-        };
-      }
-    ).json;
+    const result = await executeExcelStyleRange(makeSession() as never, cfg, {});
 
-    // 3 format-family PATCHes: top-level /format (alignment+numberFormat), /format/font, /format/fill.
     const formatPatch = capturedRequests.filter(
       (r) => r.method === "PATCH" && r.url.includes("/format") && !r.url.includes("/borders/"),
     );
@@ -375,25 +318,22 @@ describe("ExcelStyleRangeNode", () => {
     expect(formatPatch.some((r) => r.url.endsWith("/format/font"))).toBe(true);
     expect(formatPatch.some((r) => r.url.endsWith("/format/fill"))).toBe(true);
 
-    // 4 border PATCHes
     const borderPatch = capturedRequests.filter((r) => r.url.includes("/borders/"));
     expect(borderPatch).toHaveLength(4);
 
-    // 1 merge POST
     const mergePatch = capturedRequests.filter((r) => r.url.includes("/merge"));
     expect(mergePatch).toHaveLength(1);
 
-    // 1 autofit POST
     const autofitPatch = capturedRequests.filter((r) => r.url.includes("autofitColumns"));
     expect(autofitPatch).toHaveLength(1);
 
-    expect(output.appliedFormatProps).toContain("font");
-    expect(output.appliedFormatProps).toContain("fill");
-    expect(output.appliedFormatProps).toContain("alignment");
-    expect(output.appliedFormatProps).toContain("numberFormat");
-    expect(output.appliedFormatProps).toContain("borders");
-    expect(output.mergedApplied).toBe(true);
-    expect(output.autofitApplied).toBe(true);
+    expect(result.appliedFormatProps).toContain("font");
+    expect(result.appliedFormatProps).toContain("fill");
+    expect(result.appliedFormatProps).toContain("alignment");
+    expect(result.appliedFormatProps).toContain("numberFormat");
+    expect(result.appliedFormatProps).toContain("borders");
+    expect(result.mergedApplied).toBe(true);
+    expect(result.autofitApplied).toBe(true);
   });
 
   // -------------------------------------------------------------------------
@@ -404,20 +344,15 @@ describe("ExcelStyleRangeNode", () => {
     globalThis.fetch = vi.fn().mockResolvedValue(makeFetchResponse({ json: {} }));
 
     const handle = makeHandle({ sessionId: "STYLE-SESS" });
-    const node = new ExcelStyleRangeNode();
-    const args = makeArgs({ handle, sheet: "Sheet1", range: "A1", font: { bold: true } }, () =>
-      Promise.resolve(makeSession()),
-    );
+    const cfg: ExcelStyleRangeOptions = { handle, sheet: "Sheet1", range: "A1", font: { bold: true } };
 
-    const result = await node.execute(args);
-    const output = (result as { json: WorkbookHandle }).json;
+    const result = await executeExcelStyleRange(makeSession() as never, cfg, {});
 
-    expect(output.sessionId).toBe("STYLE-SESS");
+    expect(result.sessionId).toBe("STYLE-SESS");
   });
 
   // -------------------------------------------------------------------------
   // Regression #6: font-only run goes to /format/font, NOT coalesced into /format
-  // (guards against future refactors coalescing font/fill back into the top-level body)
   // -------------------------------------------------------------------------
 
   it("font-only: issues PATCH to /format/font, not /format; fill PATCH not issued", async () => {
@@ -431,34 +366,24 @@ describe("ExcelStyleRangeNode", () => {
       return makeFetchResponse({ json: {} });
     });
 
-    const node = new ExcelStyleRangeNode();
-    const args = makeArgs(
-      {
-        handle: makeHandle(),
-        sheet: "Sheet1",
-        range: "B2:D4",
-        // font only — no fill, alignment, numberFormat, borders
-        font: { bold: true, color: "#FF0000" },
-      },
-      () => Promise.resolve(makeSession()),
-    );
+    const cfg: ExcelStyleRangeOptions = {
+      handle: makeHandle(),
+      sheet: "Sheet1",
+      range: "B2:D4",
+      font: { bold: true, color: "#FF0000" },
+    };
 
-    await node.execute(args);
+    await executeExcelStyleRange(makeSession() as never, cfg, {});
 
     const fontReq = capturedRequests.find((r) => r.url.endsWith("/format/font"));
     const fillReq = capturedRequests.find((r) => r.url.endsWith("/format/fill"));
-    // Top-level /format PATCH may be skipped (nothing in alignment/numberFormat to send)
     const topFormatReq = capturedRequests.find((r) => r.url.endsWith("/format"));
 
-    // /format/font MUST have been PATCHed with the right body
     expect(fontReq).toBeDefined();
     expect(fontReq!.body).toEqual({ bold: true, color: "#FF0000" });
 
-    // /format/fill must NOT have been called (no fill given)
     expect(fillReq).toBeUndefined();
 
-    // If a top-level /format PATCH was issued it must NOT carry a 'font' key —
-    // font belongs to the sub-resource only, never the top-level body
     if (topFormatReq) {
       expect((topFormatReq.body as Record<string, unknown>)["font"]).toBeUndefined();
     }
@@ -472,19 +397,14 @@ describe("ExcelStyleRangeNode", () => {
       return makeFetchResponse({ json: {} });
     });
 
-    const node = new ExcelStyleRangeNode();
-    const args = makeArgs(
-      {
-        handle: makeHandle(),
-        sheet: "Sheet1",
-        range: "A1:C3",
-        // fill only
-        fill: { color: "#EEEEEE" },
-      },
-      () => Promise.resolve(makeSession()),
-    );
+    const cfg: ExcelStyleRangeOptions = {
+      handle: makeHandle(),
+      sheet: "Sheet1",
+      range: "A1:C3",
+      fill: { color: "#EEEEEE" },
+    };
 
-    await node.execute(args);
+    await executeExcelStyleRange(makeSession() as never, cfg, {});
 
     const hasFillPatch = capturedRequests.some((r) => r.url.endsWith("/format/fill"));
     const hasFontPatch = capturedRequests.some((r) => r.url.endsWith("/format/font"));
@@ -501,14 +421,11 @@ describe("ExcelStyleRangeNode", () => {
       return makeFetchResponse({ json: {} });
     });
 
-    const node = new ExcelStyleRangeNode();
-    const args = makeArgs({ handle: makeHandle(), sheet: "Sheet1", range: "A1" }, () => Promise.resolve(makeSession()));
+    const cfg: ExcelStyleRangeOptions = { handle: makeHandle(), sheet: "Sheet1", range: "A1" };
 
-    const result = await node.execute(args);
-    const output = (result as { json: { appliedFormatProps: string[] } }).json;
+    const result = await executeExcelStyleRange(makeSession() as never, cfg, {});
 
-    // No style properties → no requests
     expect(capturedRequests).toHaveLength(0);
-    expect(output.appliedFormatProps).toHaveLength(0);
+    expect(result.appliedFormatProps).toHaveLength(0);
   });
 });

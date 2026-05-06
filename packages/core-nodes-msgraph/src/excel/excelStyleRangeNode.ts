@@ -1,14 +1,6 @@
-import type {
-  CredentialRequirement,
-  Item,
-  RunnableNode,
-  RunnableNodeConfig,
-  RunnableNodeExecuteArgs,
-  TypeToken,
-} from "@codemation/core";
-import { node } from "@codemation/core";
+import { defineNode } from "@codemation/core";
 import { z } from "zod";
-import { MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID } from "../credentials/msGraphDriveOAuth";
+import { msGraphDriveOAuthCredentialType } from "../credentials/msGraphDriveOAuth";
 import type { MsGraphSession } from "../credentials/session";
 import type { WorkbookHandle } from "./session";
 import { workbookFetch } from "./session";
@@ -86,23 +78,10 @@ const ExcelStyleRangeInputSchema = z.object({
     })
     .optional(),
 
-  /**
-   * Single string for whole range, or per-row-of-cells matrix.
-   */
   numberFormat: z.union([z.string(), z.array(z.array(z.string()))]).optional(),
 
-  /**
-   * Merge the range cells. Issues a separate POST request since Graph's merge
-   * is on a different endpoint than the format PATCH.
-   */
   merge: z.boolean().optional(),
 
-  /**
-   * Auto-fit column widths to content. Issues a separate POST request.
-   * Endpoint: POST /range(address='{range}')/format/autofitColumns
-   * (This is the documented Graph callable for auto-fitting columns from a
-   * range's format resource — distinct from the column collection endpoint.)
-   */
   autofitColumns: z.boolean().optional(),
 });
 
@@ -114,14 +93,13 @@ type ExcelStyleRangeInput = z.infer<typeof ExcelStyleRangeInputSchema>;
 
 export type ExcelStyleRangeOutput = WorkbookHandle & {
   address: string;
-  /** Names of the format properties that were actually applied in the PATCH. */
   appliedFormatProps: string[];
   mergedApplied: boolean;
   autofitApplied: boolean;
 };
 
 // ---------------------------------------------------------------------------
-// Options / Config
+// Types
 // ---------------------------------------------------------------------------
 
 export type ExcelStyleRangeOptions = Readonly<{
@@ -148,72 +126,10 @@ export type ExcelStyleRangeOptions = Readonly<{
   autofitColumns?: boolean;
 }>;
 
-/**
- * Apply formatting to a range of cells in an Excel worksheet.
- *
- * **Coalescing**: `font`, `fill`, `alignment`, and `numberFormat` are coalesced
- * into a SINGLE PATCH on `range/format` — Graph charges per request, not per
- * cell. Nicomet calls this 50+ times per generated sheet.
- *
- * **Borders**: The Graph REST API does not accept all borders in a single PATCH
- * on `range/format` — borders live at `/format/borders/{edgeName}` and require
- * per-edge requests. All edge PATCHes are issued concurrently via Promise.all
- * to minimise wall-clock time.
- *
- * **Merge**: Separate POST to `/range/merge` (required by Graph API design).
- *
- * **autofitColumns**: Separate POST to `/range/format/autofitColumns`
- * (Graph documented callable on the rangeFormat resource).
- */
-export class ExcelStyleRange implements RunnableNodeConfig<ExcelStyleRangeOptions, ExcelStyleRangeOutput> {
-  readonly kind = "node" as const;
-  readonly type: TypeToken<unknown> = ExcelStyleRangeNode;
-  readonly icon = "builtin:microsoft-excel" as const;
-
-  constructor(
-    public readonly name: string,
-    public readonly cfg: ExcelStyleRangeOptions,
-    public readonly id?: string,
-  ) {}
-
-  get description(): string {
-    const sheet = this.cfg.sheet?.trim();
-    const range = this.cfg.range?.trim();
-    const fmtParts: string[] = [];
-    if (this.cfg.font && Object.keys(this.cfg.font).length > 0) fmtParts.push("font");
-    if (this.cfg.fill && Object.keys(this.cfg.fill).length > 0) fmtParts.push("fill");
-    if (this.cfg.alignment && Object.keys(this.cfg.alignment).length > 0) fmtParts.push("alignment");
-    if (this.cfg.borders && Object.keys(this.cfg.borders).length > 0) fmtParts.push("borders");
-    if (this.cfg.numberFormat !== undefined) fmtParts.push("numberFormat");
-    if (this.cfg.merge) fmtParts.push("merge");
-    if (this.cfg.autofitColumns) fmtParts.push("autofit");
-    const fmtSuffix = fmtParts.length > 0 ? `: ${fmtParts.join(", ")}` : "";
-    if (sheet && range) {
-      return `Style range \`${sheet}!${range}\`${fmtSuffix}.`;
-    }
-    return `Style worksheet range (sheet/range from upstream or cfg)${fmtSuffix}.`;
-  }
-
-  getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
-    return [
-      {
-        slotKey: "auth",
-        label: "Microsoft 365 account",
-        acceptedTypes: [MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID],
-        helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
-      },
-    ];
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Build the format PATCH body from the input, including only the sub-objects
- * that were actually provided. Returns the body and the list of applied prop names.
- */
 /**
  * Graph's PATCH on `/range(...)/format` does NOT accept `font` or `fill` as nested
  * sub-objects — they live at separate sub-resources `/format/font` and `/format/fill`
@@ -240,170 +156,151 @@ function buildFormatBody(input: ExcelStyleRangeInput): { body: Record<string, un
 }
 
 // ---------------------------------------------------------------------------
-// Node
+// Node definition
 // ---------------------------------------------------------------------------
 
-@node({ packageName: "@codemation/core-nodes-msgraph" })
-export class ExcelStyleRangeNode implements RunnableNode<ExcelStyleRange> {
-  readonly kind = "node" as const;
-  readonly outputPorts = ["main"] as const;
+// ---------------------------------------------------------------------------
+// Pure execute function
+// ---------------------------------------------------------------------------
 
-  async execute(args: RunnableNodeExecuteArgs<ExcelStyleRange>): Promise<unknown> {
-    const { ctx } = args;
-    const cfg = ctx.config.cfg;
-
-    const session = await ctx.getCredential<MsGraphSession>("auth");
-
-    // Fall back to item.json so ExcelOpenWorkbook → ExcelStyleRange chains without UI handle wiring.
-    // Discriminate a real WorkbookHandle (has sessionId) from plain item.json (e.g. DriveResolve output).
-    const fromItem = args.item.json as Partial<WorkbookHandle> | undefined;
-    const candidateFromItem: WorkbookHandle | undefined =
-      fromItem && typeof fromItem.sessionId === "string" && fromItem.sessionId.length > 0
-        ? (fromItem as WorkbookHandle)
-        : undefined;
-    const resolvedHandle = cfg.handle ?? candidateFromItem;
-    if (!resolvedHandle) {
-      throw new Error(
-        "ExcelStyleRangeNode: requires `handle` in cfg or upstream item.json (flat WorkbookHandle) from ExcelOpenWorkbookNode.",
-      );
-    }
-
-    const input: ExcelStyleRangeInput = ExcelStyleRangeInputSchema.parse({
-      handle: resolvedHandle,
-      sheet: cfg.sheet,
-      range: cfg.range,
-      font: cfg.font,
-      fill: cfg.fill,
-      alignment: cfg.alignment,
-      borders: cfg.borders,
-      numberFormat: cfg.numberFormat,
-      merge: cfg.merge,
-      autofitColumns: cfg.autofitColumns,
-    });
-
-    let { handle } = input;
-    const { sheet, range, borders, merge, autofitColumns } = input;
-
-    const appliedFormatProps: string[] = [];
-
-    // -------------------------------------------------------------------------
-    // Step 1: Coalesced PATCH on range/format (font + fill + alignment + numberFormat)
-    // -------------------------------------------------------------------------
-    const { body: formatBody, appliedFormatProps: formatProps } = buildFormatBody(input);
-
-    if (Object.keys(formatBody).length > 0) {
-      const formatPath = rangeFormatPath(handle, sheet, range);
-      const formatResult = await workbookFetch({
-        session,
-        handle,
-        method: "PATCH",
-        path: formatPath,
-        body: formatBody,
-      });
-      handle = formatResult.handle;
-      appliedFormatProps.push(...formatProps);
-    }
-
-    // font and fill are sub-resources of `/format`, not nested fields. PATCH them separately.
-    if (input.font && Object.keys(input.font).length > 0) {
-      const fontResult = await workbookFetch({
-        session,
-        handle,
-        method: "PATCH",
-        path: `${rangeFormatPath(handle, sheet, range)}/font`,
-        body: input.font,
-      });
-      handle = fontResult.handle;
-      appliedFormatProps.push("font");
-    }
-
-    if (input.fill && Object.keys(input.fill).length > 0) {
-      const fillResult = await workbookFetch({
-        session,
-        handle,
-        method: "PATCH",
-        path: `${rangeFormatPath(handle, sheet, range)}/fill`,
-        body: input.fill,
-      });
-      handle = fillResult.handle;
-      appliedFormatProps.push("fill");
-    }
-
-    // -------------------------------------------------------------------------
-    // Step 2: Border PATCHes — per-edge by Graph API design.
-    // The PATCH on `range/format` does NOT accept borders as a sub-object;
-    // borders live at `/format/borders/{edgeName}`. All edges are issued
-    // concurrently via Promise.all to minimise wall-clock time.
-    // -------------------------------------------------------------------------
-    if (borders && Object.keys(borders).length > 0) {
-      const borderEntries = (Object.entries(borders) as Array<[BorderEdge, BorderStyle | undefined]>).filter(
-        (entry): entry is [BorderEdge, BorderStyle] => entry[1] !== undefined,
-      );
-
-      const borderResults = await Promise.all(
-        borderEntries.map(([edge, borderStyle]) => {
-          const borderPath = rangeBorderPath(handle, sheet, range, edge);
-          return workbookFetch({
-            session,
-            handle,
-            method: "PATCH",
-            path: borderPath,
-            body: borderStyle,
-          });
-        }),
-      );
-
-      // Use the last handle (they should all be the same session unless renewal happened)
-      const lastBorderResult = borderResults[borderResults.length - 1];
-      if (lastBorderResult) {
-        handle = lastBorderResult.handle;
-      }
-
-      appliedFormatProps.push("borders");
-    }
-
-    // -------------------------------------------------------------------------
-    // Step 3: Merge (separate POST — required by Graph API design)
-    // -------------------------------------------------------------------------
-    let mergedApplied = false;
-    if (merge === true) {
-      const mergePath = `${rangePath(handle, sheet, range)}/merge`;
-      const mergeResult = await workbookFetch({
-        session,
-        handle,
-        method: "POST",
-        path: mergePath,
-        body: { across: false },
-      });
-      handle = mergeResult.handle;
-      mergedApplied = true;
-    }
-
-    // -------------------------------------------------------------------------
-    // Step 4: autofitColumns (separate POST — required by Graph API design)
-    // Endpoint: POST /range(address='{range}')/format/autofitColumns
-    // -------------------------------------------------------------------------
-    let autofitApplied = false;
-    if (autofitColumns === true) {
-      const autofitPath = `${rangeFormatPath(handle, sheet, range)}/autofitColumns`;
-      const autofitResult = await workbookFetch({
-        session,
-        handle,
-        method: "POST",
-        path: autofitPath,
-      });
-      handle = autofitResult.handle;
-      autofitApplied = true;
-    }
-
-    const output: ExcelStyleRangeOutput = {
-      ...handle,
-      address: range,
-      appliedFormatProps,
-      mergedApplied,
-      autofitApplied,
-    };
-
-    return { ...(args.item as Item), json: output };
+export async function executeExcelStyleRange(
+  session: MsGraphSession,
+  cfg: ExcelStyleRangeOptions,
+  itemJson: unknown,
+): Promise<ExcelStyleRangeOutput> {
+  const fromItem = itemJson as Partial<WorkbookHandle> | undefined;
+  const candidateFromItem: WorkbookHandle | undefined =
+    fromItem && typeof fromItem.sessionId === "string" && fromItem.sessionId.length > 0
+      ? (fromItem as WorkbookHandle)
+      : undefined;
+  const resolvedHandle = cfg.handle ?? candidateFromItem;
+  if (!resolvedHandle) {
+    throw new Error(
+      "ExcelStyleRangeNode: requires `handle` in cfg or upstream item.json (flat WorkbookHandle) from ExcelOpenWorkbookNode.",
+    );
   }
+
+  const input = ExcelStyleRangeInputSchema.parse({
+    handle: resolvedHandle,
+    sheet: cfg.sheet,
+    range: cfg.range,
+    font: cfg.font,
+    fill: cfg.fill,
+    alignment: cfg.alignment,
+    borders: cfg.borders,
+    numberFormat: cfg.numberFormat,
+    merge: cfg.merge,
+    autofitColumns: cfg.autofitColumns,
+  });
+
+  let { handle } = input;
+  const { sheet, range, borders, merge, autofitColumns } = input;
+  const appliedFormatProps: string[] = [];
+
+  // Step 1: Coalesced PATCH on range/format (alignment + numberFormat)
+  const { body: formatBody, appliedFormatProps: formatProps } = buildFormatBody(input);
+  if (Object.keys(formatBody).length > 0) {
+    const formatResult = await workbookFetch({
+      session,
+      handle,
+      method: "PATCH",
+      path: rangeFormatPath(handle, sheet, range),
+      body: formatBody,
+    });
+    handle = formatResult.handle;
+    appliedFormatProps.push(...formatProps);
+  }
+
+  if (input.font && Object.keys(input.font).length > 0) {
+    const fontResult = await workbookFetch({
+      session,
+      handle,
+      method: "PATCH",
+      path: `${rangeFormatPath(handle, sheet, range)}/font`,
+      body: input.font,
+    });
+    handle = fontResult.handle;
+    appliedFormatProps.push("font");
+  }
+
+  if (input.fill && Object.keys(input.fill).length > 0) {
+    const fillResult = await workbookFetch({
+      session,
+      handle,
+      method: "PATCH",
+      path: `${rangeFormatPath(handle, sheet, range)}/fill`,
+      body: input.fill,
+    });
+    handle = fillResult.handle;
+    appliedFormatProps.push("fill");
+  }
+
+  // Step 2: Border PATCHes
+  if (borders && Object.keys(borders).length > 0) {
+    const borderEntries = (Object.entries(borders) as Array<[BorderEdge, BorderStyle | undefined]>).filter(
+      (entry): entry is [BorderEdge, BorderStyle] => entry[1] !== undefined,
+    );
+    const borderResults = await Promise.all(
+      borderEntries.map(([edge, borderStyle]) =>
+        workbookFetch({
+          session,
+          handle,
+          method: "PATCH",
+          path: rangeBorderPath(handle, sheet, range, edge),
+          body: borderStyle,
+        }),
+      ),
+    );
+    const lastBorderResult = borderResults[borderResults.length - 1];
+    if (lastBorderResult) handle = lastBorderResult.handle;
+    appliedFormatProps.push("borders");
+  }
+
+  // Step 3: Merge
+  let mergedApplied = false;
+  if (merge === true) {
+    const mergeResult = await workbookFetch({
+      session,
+      handle,
+      method: "POST",
+      path: `${rangePath(handle, sheet, range)}/merge`,
+      body: { across: false },
+    });
+    handle = mergeResult.handle;
+    mergedApplied = true;
+  }
+
+  // Step 4: autofitColumns
+  let autofitApplied = false;
+  if (autofitColumns === true) {
+    const autofitResult = await workbookFetch({
+      session,
+      handle,
+      method: "POST",
+      path: `${rangeFormatPath(handle, sheet, range)}/autofitColumns`,
+    });
+    handle = autofitResult.handle;
+    autofitApplied = true;
+  }
+
+  return { ...handle, address: range, appliedFormatProps, mergedApplied, autofitApplied };
 }
+
+export const excelStyleRangeNode = defineNode({
+  key: "msgraph-excel.style-range",
+  title: "Style Excel range",
+  description:
+    "Apply formatting (font, fill, alignment, borders, numberFormat, merge, autofit) to a worksheet range. Issues separate PATCHes per sub-resource as required by Graph.",
+  icon: "builtin:microsoft-excel",
+  credentials: {
+    auth: {
+      type: msGraphDriveOAuthCredentialType,
+      label: "Microsoft 365 account",
+      helpText: "Bind a Microsoft Graph OAuth credential covering Files.ReadWrite.All.",
+    },
+  },
+  async execute({ item }, { config, credentials }) {
+    const session = (await credentials.auth()) as MsGraphSession;
+    return executeExcelStyleRange(session, config as unknown as ExcelStyleRangeOptions, item.json);
+  },
+});

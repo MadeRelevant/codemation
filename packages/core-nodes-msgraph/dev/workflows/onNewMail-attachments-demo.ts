@@ -13,7 +13,7 @@
  * Requires a Microsoft Graph OAuth credential bound to the trigger's `auth` slot.
  */
 import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
-import { OnNewMsGraphMailTrigger, type MsGraphMailItem } from "../../src/index";
+import { onNewMsGraphMailTrigger, type MsGraphMailItem } from "../../src/index";
 
 type AttachmentSummary = Readonly<{
   messageId: string;
@@ -29,8 +29,7 @@ export default createWorkflowBuilder({
   name: "MS Graph — On new mail with attachments",
 })
   .trigger(
-    new OnNewMsGraphMailTrigger(
-      "On new mail with attachment",
+    onNewMsGraphMailTrigger.create(
       {
         mailbox: process.env["MSGRAPH_MAILBOX"] ?? "me",
         folderId: "inbox",
@@ -40,6 +39,7 @@ export default createWorkflowBuilder({
         downloadAttachments: true,
         pollIntervalMs: 60_000,
       },
+      "On new mail with attachment",
       "msgraph_mail_attachments_trigger",
     ),
   )
