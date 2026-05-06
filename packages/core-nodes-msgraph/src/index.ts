@@ -4,6 +4,11 @@ export {
   MSGRAPH_DRIVE_OAUTH_CREDENTIAL_TYPE_ID,
 } from "./credentials/msGraphDriveOAuth";
 export type { MsGraphSession } from "./credentials/session";
+// Escape hatch: workflow authors can call this inside a Callback (or any custom node)
+// after `ctx.getCredential<MsGraphSession>("auth")` to get a fully-authenticated Graph SDK
+// client when no built-in node covers their case. Pair with either credential type id —
+// the runtime contract is the same; only granted scopes differ.
+export { createGraphClient } from "./credentials/session";
 export { OnNewMsGraphMailTrigger } from "./mail/onNewMailConfig";
 export type { OnNewMsGraphMailOptions } from "./mail/onNewMailConfig";
 export type { MsGraphMailItem, MsGraphMailTriggerState, MsGraphMailAddress, MsGraphMailAttachment } from "./mail/types";
