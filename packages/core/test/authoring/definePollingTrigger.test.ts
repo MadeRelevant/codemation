@@ -513,6 +513,141 @@ describe("definePollingTrigger", () => {
   // Credential accessor: poll receives credentials.<slot>() async getters
   // -------------------------------------------------------------------------
 
+  // -------------------------------------------------------------------------
+  // setup() coverage: intervalMs resolution + seedWrapped fallback + dedup cap
+  // -------------------------------------------------------------------------
+
+  function buildSetupHarness<TItemJson, TState>(
+    defined: ReturnType<typeof definePollingTrigger<string, never, TItemJson, TState, undefined>>,
+    cfg: Record<string, unknown> = {},
+    triggerInstance: TriggerInstanceId = makeTrigger("wf-h", "n-h"),
+  ): {
+    runtimeInstance: { setup(ctx: unknown): Promise<unknown> };
+    setupCtx: Record<string, unknown> & {
+      polling: { start: (args: { intervalMs: number; [k: string]: unknown }) => Promise<unknown> };
+    };
+    capturedIntervals: number[];
+    emittedJsonPayloads: unknown[];
+    repo: InMemoryTriggerSetupStateRepository;
+    pollingRuntime: PollingTriggerRuntime;
+  } {
+    const emittedJsonPayloads: unknown[] = [];
+    const capturedIntervals: number[] = [];
+    const repo = new InMemoryTriggerSetupStateRepository();
+    const pollingRuntime = makeRuntime(repo);
+    const config = defined.create(cfg as never);
+    const RuntimeClass = config.type as new () => { setup(ctx: unknown): Promise<unknown> };
+    const runtimeInstance = new RuntimeClass();
+    const setupCtx = {
+      trigger: triggerInstance,
+      config,
+      previousState: undefined,
+      registerCleanup: () => {},
+      emit: async (items: unknown[]) => {
+        for (const item of items) {
+          emittedJsonPayloads.push((item as { json: unknown }).json);
+        }
+      },
+      getCredential: async () => undefined,
+      now: () => new Date(),
+      runId: "r1",
+      workflowId: triggerInstance.workflowId,
+      nodeId: triggerInstance.nodeId,
+      activationId: "a1",
+      subworkflowDepth: 0,
+      engineMaxNodeActivations: 1000,
+      engineMaxSubworkflowDepth: 10,
+      data: {},
+      binary: {},
+      telemetry: {},
+      polling: {
+        dedup: { merge: (a: string[], b: string[]) => [...new Set([...a, ...b])] },
+        start: (args: {
+          intervalMs: number;
+          seedState?: unknown;
+          runCycle: (cycleCtx: { previousState: unknown; signal: AbortSignal }) => Promise<{
+            items: unknown[];
+            nextState: unknown;
+          }>;
+        }) => {
+          capturedIntervals.push(args.intervalMs);
+          return pollingRuntime.start({
+            trigger: triggerInstance,
+            intervalMs: args.intervalMs,
+            seedState: args.seedState,
+            runCycle: args.runCycle as never,
+            emit: setupCtx.emit as never,
+          });
+        },
+      },
+    };
+    return { runtimeInstance, setupCtx, capturedIntervals, emittedJsonPayloads, repo, pollingRuntime };
+  }
+
+  it("setup() falls back to DEFAULT_INTERVAL_MS when neither cfg nor options set pollIntervalMs", async () => {
+    const defined = definePollingTrigger({
+      key: "test.default-interval",
+      title: "Default interval",
+      poll: async () => ({ items: [] }),
+    });
+    const trigger = makeTrigger("wf-def", "n-def");
+    const h = buildSetupHarness(defined, {}, trigger);
+    await h.runtimeInstance.setup(h.setupCtx);
+    expect(h.capturedIntervals).toEqual([60_000]);
+    await h.pollingRuntime.stop(trigger);
+  });
+
+  it("setup() prefers cfg.pollIntervalMs over options.pollIntervalMs", async () => {
+    const defined = definePollingTrigger({
+      key: "test.cfg-interval-wins",
+      title: "Cfg interval wins",
+      pollIntervalMs: 99_999,
+      poll: async () => ({ items: [] }),
+    });
+    const trigger = makeTrigger("wf-cfg-wins", "n-cfg-wins");
+    const h = buildSetupHarness(defined, { pollIntervalMs: 5_555 }, trigger);
+    await h.runtimeInstance.setup(h.setupCtx);
+    expect(h.capturedIntervals).toEqual([5_555]);
+    await h.pollingRuntime.stop(trigger);
+  });
+
+  it("setup() seeds wrapped state with undefined userState when initialState is not provided", async () => {
+    const defined = definePollingTrigger({
+      key: "test.no-initial-state",
+      title: "No initial state",
+      pollIntervalMs: 60_000,
+      poll: async ({ state }) => ({
+        items: [{ json: { observedState: (state as unknown) ?? null } }],
+      }),
+    });
+    const trigger = makeTrigger("wf-no-init", "n-no-init");
+    const h = buildSetupHarness(defined, {}, trigger);
+    await h.runtimeInstance.setup(h.setupCtx);
+    expect(h.emittedJsonPayloads).toHaveLength(1);
+    expect((h.emittedJsonPayloads[0] as { observedState: unknown }).observedState).toBeNull();
+    await h.pollingRuntime.stop(trigger);
+  });
+
+  it("setup() caps the dedup window at 2000 keys to bound persisted state size", async () => {
+    const defined = definePollingTrigger({
+      key: "test.dedup-cap",
+      title: "Dedup cap",
+      pollIntervalMs: 60_000,
+      poll: async () => ({
+        items: Array.from({ length: 2100 }, (_, i) => ({ json: { idx: i }, dedupKey: `key-${i}` })),
+      }),
+    });
+    const trigger = makeTrigger("wf-cap", "n-cap");
+    const h = buildSetupHarness(defined, {}, trigger);
+    await h.runtimeInstance.setup(h.setupCtx);
+    const persisted = await h.repo.load(trigger);
+    const state = persisted?.state as { seenKeys: string[] };
+    expect(state.seenKeys).toHaveLength(2000);
+    expect(state.seenKeys[0]).toBe("key-100");
+    expect(state.seenKeys[1999]).toBe("key-2099");
+    await h.pollingRuntime.stop(trigger);
+  });
+
   it("poll() forwards declared credential accessors when caller supplies them", async () => {
     const trigger = definePollingTrigger({
       key: "test.cred-accessor",
