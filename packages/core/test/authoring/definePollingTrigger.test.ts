@@ -450,6 +450,89 @@ describe("definePollingTrigger", () => {
 
     expect(registered).toHaveLength(1);
   });
+
+  // -------------------------------------------------------------------------
+  // Credential binding shape coverage (object-form, array-of-types, label/help)
+  // -------------------------------------------------------------------------
+
+  it("getCredentialRequirements supports object-form bindings (single type, label, helpText, helpUrl, optional)", () => {
+    const trigger = definePollingTrigger({
+      key: "test.cred-object-form",
+      title: "Cred object form",
+      credentials: {
+        auth: {
+          type: "test.api-key",
+          label: "Custom auth label",
+          helpText: "Bind a test API key here",
+          helpUrl: "https://example.com/docs",
+          optional: true,
+        },
+      },
+      initialState: () => ({}),
+      poll: async () => ({ items: [] }),
+    });
+    const reqs = trigger.create({}).getCredentialRequirements!();
+
+    expect(reqs).toHaveLength(1);
+    expect(reqs[0]).toEqual({
+      slotKey: "auth",
+      label: "Custom auth label",
+      acceptedTypes: ["test.api-key"],
+      optional: true,
+      helpText: "Bind a test API key here",
+      helpUrl: "https://example.com/docs",
+    });
+  });
+
+  it("getCredentialRequirements supports array-of-types bindings (humanizes slotKey when label omitted)", () => {
+    const trigger = definePollingTrigger({
+      key: "test.cred-array-types",
+      title: "Cred array types",
+      credentials: {
+        primary_auth_slot: {
+          type: ["type-a", "type-b"],
+        },
+      },
+      initialState: () => ({}),
+      poll: async () => ({ items: [] }),
+    });
+    const reqs = trigger.create({}).getCredentialRequirements!();
+
+    expect(reqs).toHaveLength(1);
+    expect(reqs[0]).toEqual({
+      slotKey: "primary_auth_slot",
+      label: "Primary auth slot",
+      acceptedTypes: ["type-a", "type-b"],
+      optional: undefined,
+      helpText: undefined,
+      helpUrl: undefined,
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Credential accessor: poll receives credentials.<slot>() async getters
+  // -------------------------------------------------------------------------
+
+  it("poll() forwards declared credential accessors when caller supplies them", async () => {
+    const trigger = definePollingTrigger({
+      key: "test.cred-accessor",
+      title: "Cred accessor",
+      credentials: { auth: "test.api-key" },
+      initialState: () => ({}),
+      poll: async ({ credentials }) => {
+        const session = await credentials.auth();
+        return { items: [{ json: { session } }] };
+      },
+    });
+
+    const result = await trigger.poll({
+      config: {},
+      state: {},
+      credentials: { auth: async () => ({ token: "token-for-auth" }) },
+    });
+    expect(result.items).toHaveLength(1);
+    expect((result.items[0] as { json: { session: { token: string } } }).json.session.token).toBe("token-for-auth");
+  });
 });
 
 // ---------------------------------------------------------------------------
