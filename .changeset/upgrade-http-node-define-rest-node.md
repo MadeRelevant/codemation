@@ -1,7 +1,7 @@
 ---
 "@codemation/core-nodes": minor
 "@codemation/host": patch
-"@codemation/create-codemation": patch
+"create-codemation": patch
 ---
 
 Upgrade `HttpRequest` node + ship `defineRestNode` for plugin API-wrapper nodes.
