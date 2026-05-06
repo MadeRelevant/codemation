@@ -13,7 +13,6 @@ export { OnNewMsGraphMailTrigger } from "./mail/onNewMailConfig";
 export type { OnNewMsGraphMailOptions } from "./mail/onNewMailConfig";
 export type { MsGraphMailItem, MsGraphMailTriggerState, MsGraphMailAddress, MsGraphMailAttachment } from "./mail/types";
 
-// --- PR A: Outlook mail nodes ---
 export { OutlookMessageGet } from "./mail/outlookMessageGetNode";
 export type { OutlookMessageGetOptions } from "./mail/outlookMessageGetNode";
 
@@ -34,12 +33,10 @@ export type { OutlookMessagePatchOptions, OutlookMessagePatchOutput } from "./ma
 export { OutlookFolderResolve } from "./mail/outlookFolderResolveNode";
 export type { OutlookFolderResolveOptions, OutlookFolderResolveOutput } from "./mail/outlookFolderResolveNode";
 
-// --- PR B1: Drive resolve node ---
 export { DriveResolve } from "./drive/driveResolveNode";
 export { DriveResolveInputSchema } from "./drive/driveResolveNode";
 export type { DriveResolveInput, DriveResolveOptions, DriveResolveOutput } from "./drive/driveResolveNode";
 
-// --- PR B2–B5: Drive list/get/download/upload nodes ---
 export { DriveListChildren, DriveListChildrenInputSchema } from "./drive/driveListChildrenNode";
 export type { DriveListChildrenOptions, DriveListChildrenInput } from "./drive/driveListChildrenNode";
 
@@ -52,7 +49,6 @@ export type { DriveDownloadOptions, DriveDownloadInput, DriveDownloadOutput } fr
 export { DriveUpload, DriveUploadInputSchema } from "./drive/driveUploadNode";
 export type { DriveUploadOptions, DriveUploadInput, DriveUploadOutput } from "./drive/driveUploadNode";
 
-// --- PR B6–B7: Drive copy + enumeration ---
 export { DriveCopy, DriveCopyInputSchema } from "./drive/driveCopyNode";
 export type {
   DriveCopyOptions,
@@ -71,7 +67,6 @@ export type { DriveListSharedWithMeOptions, SharedWithMeItem } from "./drive/dri
 // Shared mapper types
 export type { DriveChildItem, DriveItemFull } from "./drive/driveItemMapper";
 
-// --- PR C0+C1: Excel session open/close ---
 export type { WorkbookHandle } from "./excel/session";
 
 export { ExcelOpenWorkbook } from "./excel/excelOpenWorkbookNode";
@@ -80,7 +75,6 @@ export type { ExcelOpenWorkbookOptions, ExcelOpenWorkbookOutput } from "./excel/
 export { ExcelCloseWorkbook } from "./excel/excelCloseWorkbookNode";
 export type { ExcelCloseWorkbookOptions, ExcelCloseWorkbookOutput } from "./excel/excelCloseWorkbookNode";
 
-// --- PR C2–C6: Excel workbook nodes ---
 export { ExcelListWorksheets } from "./excel/excelListWorksheetsNode";
 export type {
   ExcelListWorksheetsOptions,

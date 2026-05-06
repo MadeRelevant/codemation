@@ -37,7 +37,6 @@ export function register(ctx: CodemationPluginContext): void {
   ctx.registerNode(OutlookMessagePatchNode);
   ctx.registerNode(OutlookFolderResolveNode);
   ctx.registerNode(DriveResolveNode);
-  // PR B2–B5: Drive nodes
   ctx.registerNode(DriveListChildrenNode);
   ctx.registerNode(DriveItemGetNode);
   // These three have optional interface-typed constructor params (UploadHttp/DownloadHttp/CopyHttp)
@@ -45,14 +44,11 @@ export function register(ctx: CodemationPluginContext): void {
   // throws "TypeInfo not known" — register via factory to bypass DI param resolution.
   ctx.registerFactory(DriveDownloadNode, () => new DriveDownloadNode());
   ctx.registerFactory(DriveUploadNode, () => new DriveUploadNode());
-  // PR B6–B7: Drive copy + enumeration
   ctx.registerFactory(DriveCopyNode, () => new DriveCopyNode());
   ctx.registerNode(DriveListMyDrivesNode);
   ctx.registerNode(DriveListSharedWithMeNode);
-  // PR C0+C1: Excel session open/close
   ctx.registerNode(ExcelOpenWorkbookNode);
   ctx.registerNode(ExcelCloseWorkbookNode);
-  // PR C2–C6: Excel workbook nodes
   ctx.registerNode(ExcelListWorksheetsNode);
   ctx.registerNode(ExcelReadRangeNode);
   ctx.registerNode(ExcelWriteRangeNode);

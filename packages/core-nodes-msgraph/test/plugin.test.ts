@@ -14,16 +14,9 @@ describe("register", () => {
     register(ctx);
 
     expect(registerCredentialType).toHaveBeenCalledTimes(2);
-    // PR 0: OnNewMsGraphMailTriggerNode
-    // PR A: OutlookMessageGetNode, OutlookMessageReplyNode, OutlookMessageSendNode,
     //        OutlookMessagePatchNode, OutlookFolderResolveNode
-    // PR B1: DriveResolveNode
-    // PR B2–B5: DriveListChildrenNode, DriveItemGetNode
     //            (DriveDownloadNode, DriveUploadNode registered via registerFactory)
-    // PR B6–B7: DriveListMyDrivesNode, DriveListSharedWithMeNode
     //            (DriveCopyNode registered via registerFactory)
-    // PR C0+C1: ExcelOpenWorkbookNode, ExcelCloseWorkbookNode
-    // PR C2–C6: ExcelListWorksheetsNode, ExcelReadRangeNode, ExcelWriteRangeNode,
     //            ExcelAddSheetNode, ExcelStyleRangeNode
     expect(registerNode).toHaveBeenCalledTimes(18);
     expect(registerFactory).toHaveBeenCalledTimes(3);
