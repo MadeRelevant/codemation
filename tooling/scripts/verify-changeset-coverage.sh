@@ -61,6 +61,34 @@ if [ -n "${CHANGEDSET_FILES}" ]; then
       exit 1
     fi
   done
+
+  # Guard against silent major-version bumps. A `: major` line in a changeset
+  # without explicit author intent has caused 0.x → 1.x and 1.x → 2.x jumps that
+  # were buried under unrelated work. Refuse them unless one of:
+  #   - filename starts with `breaking-`  (visible at a glance in `ls .changeset/`)
+  #   - env CHANGESET_ALLOW_MAJOR=1       (one-off escape hatch)
+  if [ "${CHANGESET_ALLOW_MAJOR:-}" != "1" ]; then
+    MAJOR_VIOLATIONS=""
+    for CHANGEDSET_FILE in ${CHANGEDSET_FILES}; do
+      if [ ! -f "${CHANGEDSET_FILE}" ]; then
+        continue
+      fi
+      base=$(basename "${CHANGEDSET_FILE}")
+      case "${base}" in
+        breaking-*) continue ;;
+      esac
+      if grep -qE '^"[^"]+":\s*major\s*$' "${CHANGEDSET_FILE}"; then
+        MAJOR_VIOLATIONS="${MAJOR_VIOLATIONS}${CHANGEDSET_FILE}\n"
+      fi
+    done
+    if [ -n "${MAJOR_VIOLATIONS}" ]; then
+      echo "changeset-verify: major-version bump found in changesets without explicit intent:"
+      printf '  %b' "${MAJOR_VIOLATIONS}"
+      echo "Either rename the file(s) to start with 'breaking-' (e.g. mv .changeset/foo.md .changeset/breaking-foo.md),"
+      echo "or set CHANGESET_ALLOW_MAJOR=1 for a one-off bypass."
+      exit 1
+    fi
+  fi
 fi
 
 CHANGED_RELEASABLE="$(printf '%s\n' "${CHANGED_FILES}" | grep -E "${RELEASABLE_PACKAGE_REGEX}" || true)"
