@@ -24,3 +24,12 @@ export type {
   DefineCollectionOptions,
 } from "./defineCollection.types";
 export { defineCollection, c } from "./defineCollection.types";
+export type {
+  DefinePollingTriggerOptions,
+  DefinePollingTriggerPollContext,
+  DefinePollingTriggerPollResult,
+  DefinePollingTriggerExecuteContext,
+  DefinePollingTriggerTestItemsContext,
+  DefinedPollingTrigger,
+} from "./definePollingTrigger.types";
+export { definePollingTrigger, DefinedPollingTriggerConfig } from "./definePollingTrigger.types";

@@ -6,7 +6,7 @@
  * set MSGRAPH_MAILBOX to the target UPN — that path requires Mail.Read.Shared scope.
  */
 import { Callback, createWorkflowBuilder } from "@codemation/core-nodes";
-import { OnNewMsGraphMailTrigger, type MsGraphMailItem } from "../../src/index";
+import { onNewMsGraphMailTrigger, type MsGraphMailItem } from "../../src/index";
 
 type MailSummary = Readonly<{
   messageId: string;
@@ -20,13 +20,13 @@ export default createWorkflowBuilder({
   name: "MS Graph — On new mail demo",
 })
   .trigger(
-    new OnNewMsGraphMailTrigger(
-      "On new mail",
+    onNewMsGraphMailTrigger.create(
       {
         mailbox: process.env["MSGRAPH_MAILBOX"] ?? "me",
         folderId: "inbox",
         pollIntervalMs: 60_000,
       },
+      "On new mail",
       "msgraph_mail_trigger",
     ),
   )

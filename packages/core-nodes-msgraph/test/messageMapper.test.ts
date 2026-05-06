@@ -120,4 +120,60 @@ describe("mapGraphMessage", () => {
     const result = mapGraphMessage({ id: "msg-x" });
     expect(result.receivedDateTime).toBe(new Date(0).toISOString());
   });
+
+  it("extracts replyToMessageId from In-Reply-To header (case-insensitive)", () => {
+    const result = mapGraphMessage({
+      ...baseMessage,
+      internetMessageHeaders: [
+        { name: "In-Reply-To", value: "<original-msg-id@example.com>" },
+        { name: "Subject", value: "Re: test" },
+      ],
+    });
+    expect(result.replyToMessageId).toBe("<original-msg-id@example.com>");
+  });
+
+  it("extracts replyToMessageId from lowercase in-reply-to header", () => {
+    const result = mapGraphMessage({
+      ...baseMessage,
+      internetMessageHeaders: [{ name: "in-reply-to", value: "<abc@example.com>" }],
+    });
+    expect(result.replyToMessageId).toBe("<abc@example.com>");
+  });
+
+  it("omits replyToMessageId when no In-Reply-To header is present", () => {
+    const result = mapGraphMessage({
+      ...baseMessage,
+      internetMessageHeaders: [{ name: "X-Mailer", value: "Outlook" }],
+    });
+    expect(result.replyToMessageId).toBeUndefined();
+  });
+
+  it("maps inline attachment with isInline and stripped contentId", () => {
+    const result = mapGraphMessage({
+      ...baseMessage,
+      attachments: [
+        {
+          id: "att-inline-1",
+          name: "image001.png",
+          contentType: "image/png",
+          size: 5000,
+          isInline: true,
+          contentId: "<image001@example.com>",
+        },
+      ],
+    });
+    const att = result.attachments![0]!;
+    expect(att.isInline).toBe(true);
+    expect(att.contentId).toBe("image001@example.com"); // brackets stripped
+  });
+
+  it("omits isInline and contentId for regular attachments", () => {
+    const result = mapGraphMessage({
+      ...baseMessage,
+      attachments: [{ id: "att-1", name: "file.pdf", contentType: "application/pdf", size: 100 }],
+    });
+    const att = result.attachments![0]!;
+    expect(att.isInline).toBeUndefined();
+    expect(att.contentId).toBeUndefined();
+  });
 });

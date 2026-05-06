@@ -12,6 +12,9 @@ export const BUILTIN_CANVAS_ICON_URLS: Readonly<Record<string, string>> = {
   openai: `${CANVAS_BUILTIN_ICON_BASE}/openai.svg`,
   "split-rows": `${CANVAS_BUILTIN_ICON_BASE}/split-rows.svg`,
   "aggregate-rows": `${CANVAS_BUILTIN_ICON_BASE}/aggregate-rows.svg`,
+  "microsoft-outlook": `${CANVAS_BUILTIN_ICON_BASE}/microsoft-outlook.svg`,
+  "microsoft-onedrive": `${CANVAS_BUILTIN_ICON_BASE}/microsoft-onedrive.svg`,
+  "microsoft-excel": `${CANVAS_BUILTIN_ICON_BASE}/microsoft-excel.svg`,
 } as const;
 
 export type BuiltinCanvasIconId = keyof typeof BUILTIN_CANVAS_ICON_URLS;

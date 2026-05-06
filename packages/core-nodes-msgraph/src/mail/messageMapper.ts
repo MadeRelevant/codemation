@@ -1,4 +1,4 @@
-import type { MsGraphMailAddress, MsGraphMailAttachment, MsGraphMailItem } from "./types";
+import type { MsGraphMailAddress, MsGraphMailAttachment, MsGraphMailItem, MsGraphMailSkippedAttachment } from "./types";
 
 // ---------------------------------------------------------------------------
 // Raw Graph API response shapes (minimal — only fields we use)
@@ -25,7 +25,12 @@ export type GraphAttachmentRaw = Readonly<{
   contentType?: string;
   size?: number;
   contentBytes?: string;
+  isInline?: boolean;
+  contentId?: string;
 }>;
+
+/** Re-export for callers that need to build skipped-attachment lists. */
+export type { MsGraphMailSkippedAttachment };
 
 // ---------------------------------------------------------------------------
 // Mapping helpers
@@ -41,12 +46,23 @@ function toAddresses(
   return (list ?? []).map((r) => toAddress(r.emailAddress));
 }
 
+/** Strip RFC 2822 angle-bracket wrapping from a Content-ID value, e.g. `<img001@example.com>` → `img001@example.com`. */
+function stripContentIdBrackets(contentId: string): string {
+  const trimmed = contentId.trim();
+  if (trimmed.startsWith("<") && trimmed.endsWith(">")) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
 function toAttachments(list: ReadonlyArray<GraphAttachmentRaw> | undefined): ReadonlyArray<MsGraphMailAttachment> {
   return (list ?? []).map((a) => ({
     id: a.id ?? "",
     name: a.name ?? "",
     contentType: a.contentType ?? "application/octet-stream",
     size: a.size ?? 0,
+    ...(a.isInline ? { isInline: true as const } : {}),
+    ...(a.contentId ? { contentId: stripContentIdBrackets(a.contentId) } : {}),
   }));
 }
 
@@ -62,6 +78,16 @@ function toHeaders(
   return headers;
 }
 
+/** Extract the `In-Reply-To` header value (case-insensitive). Returns undefined if absent. */
+function extractInReplyTo(list: ReadonlyArray<{ name?: string; value?: string }> | undefined): string | undefined {
+  for (const h of list ?? []) {
+    if (h.name?.toLowerCase() === "in-reply-to" && h.value) {
+      return h.value;
+    }
+  }
+  return undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Public mapper
 // ---------------------------------------------------------------------------
@@ -69,12 +95,14 @@ function toHeaders(
 export function mapGraphMessage(raw: GraphMessageRaw): MsGraphMailItem {
   const body = raw.body;
   const isHtml = body?.contentType === "html";
+  const replyToMessageId = extractInReplyTo(raw.internetMessageHeaders);
 
   return {
     messageId: raw.id,
     conversationId: raw.conversationId,
     receivedDateTime: raw.receivedDateTime ?? new Date(0).toISOString(),
     internetMessageId: raw.internetMessageId,
+    ...(replyToMessageId !== undefined ? { replyToMessageId } : {}),
     from: raw.from?.emailAddress ? toAddress(raw.from.emailAddress) : undefined,
     to: toAddresses(raw.toRecipients),
     cc: raw.ccRecipients && raw.ccRecipients.length > 0 ? toAddresses(raw.ccRecipients) : undefined,
