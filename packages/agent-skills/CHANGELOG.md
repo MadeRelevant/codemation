@@ -1,5 +1,15 @@
 # @codemation/agent-skills
 
+## 0.1.10
+
+### Patch Changes
+
+- [#114](https://github.com/MadeRelevant/codemation/pull/114) [`ec985a3`](https://github.com/MadeRelevant/codemation/commit/ec985a3264696b421e8be7c84c7cead6a85cbe6c) Thanks [@cblokland90](https://github.com/cblokland90)! - Fix `pnpm create codemation <name>` failing with `ENOENT … node_modules/agent-skills/skills` when dlx'd from npm.
+
+  `@codemation/agent-skills`'s `exports` field only declared `.`, so `require.resolve("@codemation/agent-skills/package.json")` was blocked by Node's exports gate. `create-codemation`'s resolver fell back to a workspace-only relative path that doesn't exist outside the monorepo. Adds `./package.json` and `./skills/*` to the exports map so subpath access works for consumers — and bumps `create-codemation` patch so the next release pins the fixed agent-skills version.
+
+- [#110](https://github.com/MadeRelevant/codemation/pull/110) [`4902978`](https://github.com/MadeRelevant/codemation/commit/49029782243ece59ab6aa5bb46396db445cad47c) Thanks [@cblokland90](https://github.com/cblokland90)! - Add per-package `test:unit` scripts so Turbo can address each package individually for affected-only filtering. No runtime changes — dev-tooling only.
+
 ## 0.1.9
 
 ### Patch Changes

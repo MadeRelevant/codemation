@@ -1,5 +1,36 @@
 # @codemation/core-nodes-gmail
 
+## 0.2.1
+
+### Patch Changes
+
+- [#110](https://github.com/MadeRelevant/codemation/pull/110) [`4902978`](https://github.com/MadeRelevant/codemation/commit/49029782243ece59ab6aa5bb46396db445cad47c) Thanks [@cblokland90](https://github.com/cblokland90)! - Add per-package `test:unit` scripts so Turbo can address each package individually for affected-only filtering. No runtime changes — dev-tooling only.
+
+- [#108](https://github.com/MadeRelevant/codemation/pull/108) [`781c146`](https://github.com/MadeRelevant/codemation/commit/781c146eb9d8bb8bdbc1963ea2a4b9abe4b7bfbf) Thanks [@cblokland90](https://github.com/cblokland90)! - Migrate gmail dev workflows from `apps/test-dev` into `packages/core-nodes-gmail/dev/`. The plugin's sandbox now discovers `./dev/workflows`, so `cd packages/core-nodes-gmail && pnpm dev` boots the gmail demos directly. `apps/test-dev` no longer depends on `@codemation/core-nodes-gmail`.
+
+- [#108](https://github.com/MadeRelevant/codemation/pull/108) [`781c146`](https://github.com/MadeRelevant/codemation/commit/781c146eb9d8bb8bdbc1963ea2a4b9abe4b7bfbf) Thanks [@cblokland90](https://github.com/cblokland90)! - Plugin-author `pnpm dev` mode. Each plugin package now ships a `dev` script that builds the framework once via `turbo run build --filter='@codemation/next-host'` (Turbo caches subsequent runs) and then starts `codemation dev:plugin --plugin-root .` against the plugin's `codemation.plugin.ts`. No watchers on the framework. The previous `tsdown --watch` script is preserved as `dev:watch-bundle` for the rare case a downstream consumer needs the plugin's `dist/` rebuilt on save.
+
+  Documented in `docs/development-modes.md` as "Plugin author mode". Recommended path for single-plugin work; `apps/plugin-dev` remains for cross-plugin scenarios.
+
+- [#108](https://github.com/MadeRelevant/codemation/pull/108) [`781c146`](https://github.com/MadeRelevant/codemation/commit/781c146eb9d8bb8bdbc1963ea2a4b9abe4b7bfbf) Thanks [@cblokland90](https://github.com/cblokland90)! - Extract generic polling-trigger machinery from gmail into core and expose it via setup context.
+
+  **`@codemation/core`** — new polling-trigger API
+  - New `PollingTriggerRuntime` class: owns the set-interval loop, overlap guard, and state persistence via `TriggerSetupStateRepository`. Plugin authors no longer need to implement these themselves.
+  - New `PollingTriggerDedupWindow` class: merges processed-ID sets with a configurable cap (default 2000). Prevents unbounded memory growth across polling cycles.
+  - New `PollingTriggerHandle` interface exposed on `TriggerSetupContext.polling`: pre-binds trigger id, emit, and registerCleanup so plugin code only supplies `intervalMs` and `runCycle`. The handle also carries a `.dedup` reference for message-level deduplication.
+  - `EngineDeps.pollingTriggerLogger` optional field: hosts may wire a real logger; defaults to a no-op.
+  - `PollingTriggerRuntime`, `PollingTriggerDedupWindow`, and `NoOpPollingTriggerLogger` are exported from the main `@codemation/core` barrel.
+  - ESLint `allowedConstructorNames` extended to include `AbortController` (a global built-in, not a DI-managed class).
+
+  **`@codemation/core-nodes-gmail`** — internal refactor, no external API change
+  - `GmailPollingTriggerRuntime` deleted; loop/overlap-guard/persistence now come from the core runtime.
+  - `GmailPollingService.poll` renamed to `runCycle`; repo injection and `persist()` method removed; dedup delegated to `PollingTriggerDedupWindow`.
+  - `OnNewGmailTriggerNode.setup` now calls `ctx.polling.start(...)` instead of `gmailPollingTriggerRuntime.ensureStarted(...)`.
+  - `GmailNodeTokens.RuntimeLogger` token removed (no longer needed).
+
+- Updated dependencies [[`4902978`](https://github.com/MadeRelevant/codemation/commit/49029782243ece59ab6aa5bb46396db445cad47c), [`6566d55`](https://github.com/MadeRelevant/codemation/commit/6566d55c829f6631357ac95052b0852e86092ac5), [`a77505f`](https://github.com/MadeRelevant/codemation/commit/a77505f331d7d3892f3c1c8f19dc37952b4d96bd), [`11616ae`](https://github.com/MadeRelevant/codemation/commit/11616aefb91d4b96b7eb9af4b935eec055a8a7bb), [`2c0723f`](https://github.com/MadeRelevant/codemation/commit/2c0723fb1670e842c272939b5db73d4b95b25535), [`fb9f7fe`](https://github.com/MadeRelevant/codemation/commit/fb9f7fed9bf5a3d6b0c5f78a30027be3ab7bcaca), [`2c0723f`](https://github.com/MadeRelevant/codemation/commit/2c0723fb1670e842c272939b5db73d4b95b25535), [`6fc7d3f`](https://github.com/MadeRelevant/codemation/commit/6fc7d3fe95f8d88386c16971fffa8dd3faa7704f), [`781c146`](https://github.com/MadeRelevant/codemation/commit/781c146eb9d8bb8bdbc1963ea2a4b9abe4b7bfbf), [`11616ae`](https://github.com/MadeRelevant/codemation/commit/11616aefb91d4b96b7eb9af4b935eec055a8a7bb), [`11616ae`](https://github.com/MadeRelevant/codemation/commit/11616aefb91d4b96b7eb9af4b935eec055a8a7bb)]:
+  - @codemation/core@2.0.0
+
 ## 0.2.0
 
 ### Minor Changes
