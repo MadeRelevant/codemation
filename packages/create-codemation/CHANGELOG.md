@@ -1,5 +1,42 @@
 # create-codemation
 
+## 0.1.0
+
+### Minor Changes
+
+- [#108](https://github.com/MadeRelevant/codemation/pull/108) [`781c146`](https://github.com/MadeRelevant/codemation/commit/781c146eb9d8bb8bdbc1963ea2a4b9abe4b7bfbf) Thanks [@cblokland90](https://github.com/cblokland90)! - Add `--workspace` flag to `create-codemation` (rewrites `@codemation/*` dep ranges to `workspace:*` for in-monorepo plugin scaffolding).
+
+- [#113](https://github.com/MadeRelevant/codemation/pull/113) [`57271be`](https://github.com/MadeRelevant/codemation/commit/57271be41c02f00249b96fd1f6fbad4b08f0f326) Thanks [@cblokland90](https://github.com/cblokland90)! - Bump minimum Node.js to 24 (latest LTS). CI workflows already run on Node 24; this aligns the published `engines.node` field. Also upgrade `dorny/paths-filter` from v3 to v4 to drop the deprecated Node 20 runtime.
+
+### Patch Changes
+
+- [#114](https://github.com/MadeRelevant/codemation/pull/114) [`ec985a3`](https://github.com/MadeRelevant/codemation/commit/ec985a3264696b421e8be7c84c7cead6a85cbe6c) Thanks [@cblokland90](https://github.com/cblokland90)! - Fix `pnpm create codemation <name>` failing with `ENOENT … node_modules/agent-skills/skills` when dlx'd from npm.
+
+  `@codemation/agent-skills`'s `exports` field only declared `.`, so `require.resolve("@codemation/agent-skills/package.json")` was blocked by Node's exports gate. `create-codemation`'s resolver fell back to a workspace-only relative path that doesn't exist outside the monorepo. Adds `./package.json` and `./skills/*` to the exports map so subpath access works for consumers — and bumps `create-codemation` patch so the next release pins the fixed agent-skills version.
+
+- [#110](https://github.com/MadeRelevant/codemation/pull/110) [`4902978`](https://github.com/MadeRelevant/codemation/commit/49029782243ece59ab6aa5bb46396db445cad47c) Thanks [@cblokland90](https://github.com/cblokland90)! - Add per-package `test:unit` scripts so Turbo can address each package individually for affected-only filtering. No runtime changes — dev-tooling only.
+
+- [#114](https://github.com/MadeRelevant/codemation/pull/114) [`ec985a3`](https://github.com/MadeRelevant/codemation/commit/ec985a3264696b421e8be7c84c7cead6a85cbe6c) Thanks [@cblokland90](https://github.com/cblokland90)! - Bump scaffolder template dependency ranges to track the current 1.x major: `@codemation/core`, `@codemation/core-nodes`, and `@codemation/host` were pinned to pre-1.0 ranges (`0.0.x` / `0.1.x`), so freshly scaffolded projects pulled in stale pre-1.0 builds whose exports maps lacked `./authoring` etc. Reproduced as `pnpm create codemation foo` → `Package subpath './authoring' is not defined by "exports"`.
+
+- [#107](https://github.com/MadeRelevant/codemation/pull/107) [`3fe4213`](https://github.com/MadeRelevant/codemation/commit/3fe4213292bd0dd45af8de96d63e403dbc373b6b) Thanks [@cblokland90](https://github.com/cblokland90)! - Upgrade `HttpRequest` node + ship `defineRestNode` for plugin API-wrapper nodes.
+
+  **`@codemation/core-nodes`**
+  - `HttpRequest` args extended with `url` (literal/templated), `headers`, `query`, `body`, and `credentialSlot`. Existing workflows using only `method` + `urlField` keep working unchanged.
+  - New shared HTTP engine: `HttpRequestExecutor` (single request, injected `fetch`), `HttpBodyBuilder` (JSON / form-urlencoded / multipart with binary), `HttpUrlBuilder` (query merge with arrays).
+  - Four generic HTTP credential types auto-registered in every Codemation app:
+    - `bearerTokenCredentialType` — `Authorization: Bearer <token>`
+    - `apiKeyCredentialType` — header or query-param key injection
+    - `basicAuthCredentialType` — `Authorization: Basic <base64>`
+    - `oauth2ClientCredentialsType` — machine-to-machine token exchange (client_credentials grant; per-session token caching)
+  - `defineRestNode(...)` — declarative helper wrapping `defineNode` for thin API-wrapper nodes: declare endpoint, credentials, input schema, request shape, and response mapper in one call. Path `{placeholder}` substitution from input. Configurable `errorPolicy` (`"throw"` | `"passthrough"`).
+
+  **`@codemation/host`** — auto-registers the four new credential types alongside OpenAI so they appear in the credentials UI without consumer config changes.
+
+  **`@codemation/create-codemation`** — plugin template gains an `ExampleRestNode.ts` demonstrating the `defineRestNode` pattern.
+
+- Updated dependencies [[`ec985a3`](https://github.com/MadeRelevant/codemation/commit/ec985a3264696b421e8be7c84c7cead6a85cbe6c), [`4902978`](https://github.com/MadeRelevant/codemation/commit/49029782243ece59ab6aa5bb46396db445cad47c)]:
+  - @codemation/agent-skills@0.1.10
+
 ## 0.0.31
 
 ### Patch Changes
