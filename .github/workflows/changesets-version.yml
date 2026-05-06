@@ -43,7 +43,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # When a version-packages PR has just merged, all changesets are consumed and the
+      # next push to main has nothing for changesets/action to do. Without this guard
+      # the action force-pushes an empty `changeset-release/main` and errors with
+      # "No commits between main and changeset-release/main", which fails the workflow
+      # and skips the downstream tag-release + publish-release jobs.
+      - name: Detect unconsumed changesets
+        id: check
+        shell: bash
+        run: |
+          unconsumed=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' | wc -l)
+          if [ "$unconsumed" -gt 0 ]; then
+            echo "has_changesets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changesets=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create or update Version Packages PR
+        if: steps.check.outputs.has_changesets == 'true'
         uses: changesets/action@v1
         with:
           title: "chore: version packages"
