@@ -34,8 +34,12 @@ import { RunPolicySnapshotFactory } from "../policies/storage/RunPolicySnapshotF
 import { ActivationEnqueueService } from "../execution/ActivationEnqueueService";
 import { NodeRunStateWriterFactory } from "../execution/NodeRunStateWriterFactory";
 import { NodeActivationRequestComposer } from "../execution/NodeActivationRequestComposer";
+import { NodeExecutionSnapshotFactory } from "../execution/NodeExecutionSnapshotFactory";
+import { NodeInstantiationError } from "../execution/NodeInstantiationError";
+import { PersistedRunStateTerminalBuilder } from "../execution/PersistedRunStateTerminalBuilder";
 import { RunStateSemantics } from "../execution/RunStateSemantics";
 import { WorkflowRunExecutionContextFactory } from "../execution/WorkflowRunExecutionContextFactory";
+import { NodeEventPublisher } from "../events/NodeEventPublisher";
 
 export class RunStartService {
   constructor(
@@ -52,6 +56,8 @@ export class RunStartService {
     private readonly waiters: EngineWaiters,
     private readonly workflowPolicyRuntimeDefaults: WorkflowPolicyRuntimeDefaults | undefined,
     private readonly executionLimitsPolicy: EngineExecutionLimitsPolicy,
+    private readonly nodeEventPublisher: NodeEventPublisher,
+    private readonly persistedRunStateTerminalBuilder: PersistedRunStateTerminalBuilder,
   ) {}
 
   async runWorkflow(
@@ -98,7 +104,27 @@ export class RunStartService {
       nodeState: this.nodeStatePublisherFactory.create(runId, workflow.id, parent),
       testContext: mergedExecutionOptions.testContext,
     });
-    const { topology, planner } = this.planningFactory.create(workflow);
+    let planning: Readonly<ReturnType<EngineWorkflowPlanningFactory["create"]>>;
+    try {
+      planning = this.planningFactory.create(workflow);
+    } catch (err) {
+      if (err instanceof NodeInstantiationError) {
+        return await this.failRunDuringPlanning({
+          runId,
+          workflowId: workflow.id,
+          startedAt,
+          parent,
+          executionOptions: mergedExecutionOptions,
+          control: undefined,
+          workflowSnapshot,
+          mutableState,
+          policySnapshot,
+          err,
+        });
+      }
+      throw err;
+    }
+    const { topology, planner } = planning;
     const startDefinition = topology.defsById.get(startAt);
     if (!startDefinition) {
       throw new Error(`Unknown start nodeId: ${startAt}`);
@@ -184,7 +210,27 @@ export class RunStartService {
       engineCounters: { completedNodeActivations: 0 },
     });
 
-    const { topology, planner } = this.planningFactory.create(request.workflow);
+    let planningFromState: Readonly<ReturnType<EngineWorkflowPlanningFactory["create"]>>;
+    try {
+      planningFromState = this.planningFactory.create(request.workflow);
+    } catch (err) {
+      if (err instanceof NodeInstantiationError) {
+        return await this.failRunDuringPlanning({
+          runId,
+          workflowId: request.workflow.id,
+          startedAt,
+          parent: request.parent,
+          executionOptions: mergedExecutionOptions,
+          control,
+          workflowSnapshot,
+          mutableState,
+          policySnapshot,
+          err,
+        });
+      }
+      throw err;
+    }
+    const { topology, planner } = planningFromState;
     const plan = CurrentStateFrontierPlanner.createFromTopology(topology).plan({
       currentState: this.createRunCurrentState(request.currentState, mutableState),
       stopCondition: control.stopCondition,
@@ -453,6 +499,70 @@ export class RunStartService {
         args.control?.stopCondition,
         args.data.dump() as Record<NodeId, NodeOutputs>,
       ),
+    };
+    this.waiters.resolveRunCompletion(result);
+    return result;
+  }
+
+  private async failRunDuringPlanning(args: {
+    runId: RunId;
+    workflowId: WorkflowId;
+    startedAt: string;
+    parent?: ParentExecutionRef;
+    executionOptions?: RunExecutionOptions;
+    control?: PersistedRunControlState;
+    workflowSnapshot: NonNullable<Awaited<ReturnType<WorkflowExecutionRepository["load"]>>>["workflowSnapshot"];
+    mutableState: NonNullable<Awaited<ReturnType<WorkflowExecutionRepository["load"]>>>["mutableState"];
+    policySnapshot: NonNullable<Awaited<ReturnType<WorkflowExecutionRepository["load"]>>>["policySnapshot"];
+    err: NodeInstantiationError;
+  }): Promise<RunResult> {
+    const finishedAt = new Date().toISOString();
+    const failedSnapshot = NodeExecutionSnapshotFactory.failed({
+      previous: undefined,
+      runId: args.runId,
+      workflowId: args.workflowId,
+      nodeId: args.err.nodeId,
+      activationId: "planning_failure",
+      parent: args.parent,
+      finishedAt,
+      inputsByPort: {},
+      error: args.err,
+    });
+    const failedState = this.persistedRunStateTerminalBuilder.mergeTerminal({
+      state: {
+        runId: args.runId,
+        workflowId: args.workflowId,
+        startedAt: args.startedAt,
+        parent: args.parent,
+        executionOptions: args.executionOptions,
+        control: args.control,
+        workflowSnapshot: args.workflowSnapshot,
+        mutableState: args.mutableState,
+        policySnapshot: args.policySnapshot,
+        engineCounters: { completedNodeActivations: 0 },
+        status: "pending",
+        pending: undefined,
+        queue: [],
+        outputsByNode: {},
+        nodeSnapshotsByNodeId: {},
+        connectionInvocations: [],
+      },
+      engineCounters: { completedNodeActivations: 0 },
+      status: "failed",
+      queue: [],
+      outputsByNode: {},
+      nodeSnapshotsByNodeId: { [args.err.nodeId]: failedSnapshot },
+      finishedAtIso: finishedAt,
+    });
+    await this.workflowExecutionRepository.save(failedState);
+    await this.nodeEventPublisher.publish("nodeFailed", failedSnapshot);
+
+    const result: RunResult = {
+      runId: args.runId,
+      workflowId: args.workflowId,
+      startedAt: args.startedAt,
+      status: "failed",
+      error: { message: args.err.message },
     };
     this.waiters.resolveRunCompletion(result);
     return result;

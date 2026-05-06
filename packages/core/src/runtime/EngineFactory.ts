@@ -103,6 +103,8 @@ export class EngineFactory {
       waiters,
       deps.workflowPolicyRuntimeDefaults,
       executionLimitsPolicy,
+      nodeEventPublisher,
+      persistedRunStateTerminalBuilder,
     );
     const runContinuationService = new RunContinuationService(
       deps.activationIdFactory,
