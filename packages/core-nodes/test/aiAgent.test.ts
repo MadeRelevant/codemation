@@ -692,7 +692,6 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
     { token: DelayTool, useClass: DelayTool },
   ]);
 
-  const startedAt = performance.now();
   const outputs = await rig.execute([
     {
       json: {
@@ -701,9 +700,10 @@ test("AIAgentNode resolves config tokens, runs tools in parallel, and emits synt
       },
     },
   ]);
-  const elapsedMs = performance.now() - startedAt;
 
-  assert.ok(elapsedMs < 120, `expected tool execution to be parallel, elapsed=${elapsedMs}ms`);
+  // Parallelism is asserted by the tool start-time delta below — a deterministic check
+  // independent of CI wall-clock load (a previous wall-clock `elapsedMs < 120` assertion
+  // here was flaky on slow runners).
   assert.equal(DelayTool.snapshot().length, 2);
   assert.ok(
     Math.abs(DelayTool.snapshot()[0]! - DelayTool.snapshot()[1]!) < 30,
