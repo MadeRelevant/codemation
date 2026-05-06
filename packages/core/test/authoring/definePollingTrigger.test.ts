@@ -628,6 +628,33 @@ describe("definePollingTrigger", () => {
     await h.pollingRuntime.stop(trigger);
   });
 
+  it("setup() resumes from existing wrapped state when previousState is supplied", async () => {
+    const defined = definePollingTrigger({
+      key: "test.resume-state",
+      title: "Resume state",
+      pollIntervalMs: 60_000,
+      initialState: () => ({ count: 0 }),
+      poll: async ({ state }) => ({
+        items: [{ json: { observedCount: (state as { count: number }).count } }],
+        nextState: { count: (state as { count: number }).count + 1 },
+      }),
+    });
+    const trigger = makeTrigger("wf-resume", "n-resume");
+    const h = buildSetupHarness(defined, {}, trigger);
+
+    // Seed the harness with previously-persisted wrapped state — exercises the
+    // `existingWrapped ? persisted : undefined` true branch + `previousState ?? seedWrapped` LHS.
+    (h.setupCtx as { previousState: unknown }).previousState = {
+      userState: { count: 7 },
+      seenKeys: ["already-seen"],
+    };
+
+    await h.runtimeInstance.setup(h.setupCtx);
+    expect(h.emittedJsonPayloads).toHaveLength(1);
+    expect((h.emittedJsonPayloads[0] as { observedCount: number }).observedCount).toBe(7);
+    await h.pollingRuntime.stop(trigger);
+  });
+
   it("setup() caps the dedup window at 2000 keys to bound persisted state size", async () => {
     const defined = definePollingTrigger({
       key: "test.dedup-cap",
