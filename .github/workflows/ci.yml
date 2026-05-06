@@ -101,6 +101,7 @@ jobs:
     outputs:
       force_full: ${{ steps.force.outputs.force_full }}
       core: ${{ steps.filter.outputs.core }}
+      core_nodes: ${{ steps.filter.outputs.core_nodes }}
       host: ${{ steps.filter.outputs.host }}
       next_host: ${{ steps.filter.outputs.next_host }}
     steps:
@@ -126,6 +127,11 @@ jobs:
           filters: |
             core:
               - 'packages/core/**'
+              - 'tooling/**'
+              - 'turbo.json'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/**'
+            core_nodes:
               - 'packages/core-nodes/**'
               - 'packages/core-nodes-gmail/**'
               - 'packages/core-nodes-msgraph/**'
@@ -133,15 +139,9 @@ jobs:
               - 'packages/cli/**'
               - 'packages/create-codemation/**'
               - 'packages/eventbus-redis/**'
-              - 'tooling/**'
-              - 'turbo.json'
-              - 'pnpm-lock.yaml'
-              - '.github/workflows/**'
             host:
               - 'packages/host/**'
               - 'packages/core/**'
-              - 'packages/core-nodes/**'
-              - 'packages/eventbus-redis/**'
               - 'tooling/**'
               - 'turbo.json'
               - 'pnpm-lock.yaml'
@@ -226,7 +226,7 @@ jobs:
         id: should_run
         shell: bash
         run: |
-          if [[ "${{ needs.path-filter.outputs.force_full }}" == "true" || "${{ needs.path-filter.outputs.host }}" == "true" || "${{ needs.path-filter.outputs.core }}" == "true" ]]; then
+          if [[ "${{ needs.path-filter.outputs.force_full }}" == "true" || "${{ needs.path-filter.outputs.host }}" == "true" || "${{ needs.path-filter.outputs.core }}" == "true" || "${{ needs.path-filter.outputs.core_nodes }}" == "true" ]]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -275,7 +275,7 @@ jobs:
         id: should_run
         shell: bash
         run: |
-          if [[ "${{ needs.path-filter.outputs.force_full }}" == "true" || "${{ needs.path-filter.outputs.host }}" == "true" || "${{ needs.path-filter.outputs.core }}" == "true" ]]; then
+          if [[ "${{ needs.path-filter.outputs.force_full }}" == "true" || "${{ needs.path-filter.outputs.host }}" == "true" || "${{ needs.path-filter.outputs.core }}" == "true" || "${{ needs.path-filter.outputs.core_nodes }}" == "true" ]]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"

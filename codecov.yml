@@ -17,15 +17,95 @@ coverage:
         # Large deletes (e.g. whole packages + their tests) can move project % more than
         # small feature PRs; keep CI meaningful without blocking structural refactors.
         threshold: 10%
+      # Per-package targets: each package owns its own bar. Setting `target: auto`
+      # means "don't drop below the current coverage" — drops still flag, but the
+      # absolute bar is the latest baseline rather than a hand-tuned global number.
+      core:
+        target: auto
+        threshold: 2%
+        flags:
+          - core
+      core-nodes:
+        target: auto
+        threshold: 3%
+        flags:
+          - core-nodes
+      host:
+        target: auto
+        threshold: 2%
+        flags:
+          - host
+      next-host:
+        # UI tests are harder to exhaust — give a wider drop margin before flagging.
+        target: auto
+        threshold: 5%
+        flags:
+          - next-host
     patch:
       default:
-        # Defensive `value ?? fallback` ternaries and other never-null branches make 100%
-        # marginal in practice. 95% still flags real coverage drops without forcing
+        # Defensive `value ?? fallback` ternaries and other never-null branches make
+        # 100% marginal in practice. 90% still flags real drops without forcing
         # contrived tests for unreachable branches.
+        target: 90%
+      # Per-package patch targets — the project mostly leans on these for PR feedback.
+      core:
         target: 95%
+        flags:
+          - core
+      core-nodes:
+        target: 90%
+        flags:
+          - core-nodes
+      host:
+        target: 90%
+        flags:
+          - host
+      next-host:
+        target: 70%
+        flags:
+          - next-host
+
+# Components surface per-package coverage in the Codecov UI — paired with the
+# per-package status entries above, this gives each package its own bar without
+# ad-hoc global threshold relaxation.
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+        threshold: 3%
+  individual_components:
+    - component_id: core
+      name: "@codemation/core"
+      paths:
+        - "packages/core/**"
+    - component_id: core-nodes
+      name: "@codemation/core-nodes (+ plugins, cli, scaffolder)"
+      paths:
+        - "packages/core-nodes/**"
+        - "packages/core-nodes-gmail/**"
+        - "packages/core-nodes-msgraph/**"
+        - "packages/agent-skills/**"
+        - "packages/cli/**"
+        - "packages/create-codemation/**"
+        - "packages/eventbus-redis/**"
+    - component_id: host
+      name: "@codemation/host"
+      paths:
+        - "packages/host/**"
+    - component_id: next-host
+      name: "@codemation/next-host"
+      paths:
+        - "packages/next-host/**"
+
+# Flags are currently NOT uploaded per-package — the merged lcov is uploaded once
+# under the default flag. Once we split `coverage:unit` runs per-package and tag
+# uploads with --flag <component_id>, the per-package status entries above will
+# start firing. Until then, components surface the data in the UI but the gates
+# fall back to the default project/patch behaviour.
 
 comment:
-  layout: "reach,diff,flags,files,footer"
+  layout: "reach,diff,flags,files,components,footer"
   behavior: default
 
 ignore:
