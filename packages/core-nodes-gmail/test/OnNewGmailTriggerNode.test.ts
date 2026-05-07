@@ -62,7 +62,9 @@ class FakeGmailApiClient implements GmailApiClient {
   ): Promise<GmailMessageAttachmentContent> {
     return {
       attachmentId: "attachment_1",
-      body: new Uint8Array(),
+      body: (async function* () {
+        yield new Uint8Array();
+      })(),
       mimeType: "text/plain",
       filename: "note.txt",
       size: 0,

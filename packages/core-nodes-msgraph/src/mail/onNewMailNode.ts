@@ -37,6 +37,7 @@ export type GraphApiRequest = {
   filter(expr: string): GraphApiRequest;
   expand(rel: string): GraphApiRequest;
   get(): Promise<unknown>;
+  getStream(): Promise<unknown>;
 };
 
 /**
@@ -146,15 +147,13 @@ export async function attachAttachmentBinaries(
       continue;
     }
 
-    const raw = (await withGraphRetry(() =>
-      client
-        .api(
-          `${mailboxPathPrefix(cfg.mailbox)}/messages/${encodeURIComponent(item.json.messageId)}/attachments/${encodeURIComponent(att.id)}`,
-        )
-        .get(),
-    )) as { contentBytes?: string };
+    // Two-phase: metadata already in `att` from the $expand on the message poll.
+    // Fetch raw bytes via /$value (streaming) — avoids base64-in-JSON round-trip
+    // that would materialise the entire payload twice in memory.
+    const valueUrl = `${mailboxPathPrefix(cfg.mailbox)}/messages/${encodeURIComponent(item.json.messageId)}/attachments/${encodeURIComponent(att.id)}/$value`;
+    const valueStream = await withGraphRetry(() => client.api(valueUrl).getStream());
 
-    if (typeof raw.contentBytes !== "string" || raw.contentBytes.length === 0) {
+    if (!valueStream) {
       continue;
     }
 
@@ -168,7 +167,7 @@ export async function attachAttachmentBinaries(
 
     const stored = await binary.attach({
       name: slot,
-      body: Buffer.from(raw.contentBytes, "base64"),
+      body: valueStream as unknown as Parameters<typeof binary.attach>[0]["body"],
       mimeType: att.contentType,
       filename: att.name,
     });

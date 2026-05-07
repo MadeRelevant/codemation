@@ -187,13 +187,17 @@ test("responseFormat binary: filename comes from Content-Disposition header when
   const savedFetch = globalThis.fetch;
   try {
     globalThis.fetch = async () =>
-      new Response(Buffer.from(pdfBase64, "base64"), {
-        status: 200,
-        headers: {
-          "content-type": "application/pdf",
-          "content-disposition": 'attachment; filename="quarterly-report.pdf"',
+      new Response(
+        // eslint-disable-next-line codemation/no-buffer-everything -- 12-byte test fixture; bounded literal, not a runtime payload.
+        Buffer.from(pdfBase64, "base64"),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/pdf",
+            "content-disposition": 'attachment; filename="quarterly-report.pdf"',
+          },
         },
-      });
+      );
 
     const config = new HttpRequest("Fetch PDF", { responseFormat: "binary" });
     const outputs = await runPerItemLikeEngine(
@@ -219,10 +223,14 @@ test("responseFormat binary: filename falls back to URL pathname tail when Conte
   const savedFetch = globalThis.fetch;
   try {
     globalThis.fetch = async () =>
-      new Response(Buffer.from(pdfBase64, "base64"), {
-        status: 200,
-        headers: { "content-type": "application/pdf" },
-      });
+      new Response(
+        // eslint-disable-next-line codemation/no-buffer-everything -- 12-byte test fixture; bounded literal, not a runtime payload.
+        Buffer.from(pdfBase64, "base64"),
+        {
+          status: 200,
+          headers: { "content-type": "application/pdf" },
+        },
+      );
 
     const config = new HttpRequest("Fetch PDF", { responseFormat: "binary" });
     const outputs = await runPerItemLikeEngine(

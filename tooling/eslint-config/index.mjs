@@ -3,6 +3,7 @@ import tsParser from "@typescript-eslint/parser";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 import globals from "globals";
 import noOnlyTests from "eslint-plugin-no-only-tests";
+import noBufferEverything from "./rules/no-buffer-everything.mjs";
 
 const allowedConstructorNames = new Set([
   "AbortController",
@@ -167,6 +168,7 @@ function collectTopLevelReactComponents(program) {
 
 const architecturePlugin = {
   rules: {
+    "no-buffer-everything": noBufferEverything,
     "single-react-component-per-file": {
       meta: {
         type: "suggestion",
@@ -475,6 +477,20 @@ export default [
     files: ["**/*.{ts,tsx,js,mjs,cjs}"],
     rules: {
       "no-alert": "error",
+    },
+  },
+
+  // Streaming hygiene: flag patterns that silently load entire binary payloads
+  // into RAM (Buffer.from(x,"base64"), .arrayBuffer(), Buffer.concat()).
+  // Use response.body / ctx.binary.attach streams instead, or suppress with
+  // // eslint-disable-next-line codemation/no-buffer-everything -- <reason>
+  {
+    files: ["**/*.{ts,tsx,js,mjs,cjs}"],
+    plugins: {
+      codemation: architecturePlugin,
+    },
+    rules: {
+      "codemation/no-buffer-everything": "error",
     },
   },
 

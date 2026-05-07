@@ -1,9 +1,26 @@
 import assert from "node:assert/strict";
+import { Readable } from "node:stream";
 import { test } from "vitest";
 import { GmailMimeMessageFactory } from "../src/adapters/google/GmailMimeMessageFactory";
 import { GoogleGmailApiClientFactory } from "../src/adapters/google/GoogleGmailApiClientFactory";
 import type { GmailSession } from "../src/contracts/GmailSession";
 import type { GmailMessageAttachmentRecord, GmailMessageRecord } from "../src/services/GmailApiClient";
+
+async function collectAsyncIterable(iterable: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for await (const chunk of iterable) {
+    chunks.push(chunk);
+    total += chunk.byteLength;
+  }
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output;
+}
 
 class FakeGoogleGmailClient {
   readonly sentRequests: unknown[] = [];
@@ -49,12 +66,16 @@ class FakeGoogleGmailClient {
         };
       },
       attachments: {
-        get: async () => ({
-          data: {
-            data: Buffer.from("attachment body").toString("base64url"),
+        get: async (_params: unknown, options?: Readonly<{ responseType?: string }>) => {
+          const envelope = JSON.stringify({
             size: 15,
-          },
-        }),
+            data: Buffer.from("attachment body").toString("base64url"),
+          });
+          if (options?.responseType === "stream") {
+            return { data: Readable.from([envelope]) };
+          }
+          return { data: { data: Buffer.from("attachment body").toString("base64url"), size: 15 } };
+        },
       },
     },
     labels: {
@@ -245,8 +266,15 @@ class ConfigurableFakeGoogleGmailClient {
         return { data: { id: "message_1" } };
       },
       attachments: {
-        get: async (args: unknown) => {
+        get: async (args: unknown, options?: Readonly<{ responseType?: string }>) => {
           this.attachmentCalls.push(args);
+          if (options?.responseType === "stream") {
+            const envelope = JSON.stringify({
+              size: this.attachmentResponse.size ?? null,
+              data: this.attachmentResponse.data ?? null,
+            });
+            return { data: Readable.from([envelope]) };
+          }
           return { data: this.attachmentResponse };
         },
       },
@@ -315,7 +343,7 @@ test("GoogleGmailApiClient.listLabels maps label ids and optional types", async 
   ]);
 });
 
-test("GoogleGmailApiClient.getAttachmentContent decodes base64url bodies", async () => {
+test("GoogleGmailApiClient.getAttachmentContent decodes base64url bodies via streaming", async () => {
   const gmailClient = new ConfigurableFakeGoogleGmailClient({});
   const client = new GoogleGmailApiClientFactory().create(sessionWithClient(gmailClient));
   const attachment: GmailMessageAttachmentRecord = {
@@ -331,13 +359,25 @@ test("GoogleGmailApiClient.getAttachmentContent decodes base64url bodies", async
     attachment,
   });
   assert.equal(content.attachmentId, "att_1");
-  assert.equal(Buffer.from(content.body).toString("utf8"), "attachment body");
+  // body is an AsyncIterable<Uint8Array> — collect and verify the decoded bytes
+  const bytes = await collectAsyncIterable(content.body);
+  assert.equal(Buffer.from(bytes).toString("utf8"), "attachment body");
   assert.equal(gmailClient.attachmentCalls.length, 1);
 });
 
-test("GoogleGmailApiClient.getAttachmentContent throws when Gmail omits attachment bytes", async () => {
+test("GoogleGmailApiClient.getAttachmentContent throws when Gmail returns a non-stream response", async () => {
   const gmailClient = new ConfigurableFakeGoogleGmailClient({});
-  gmailClient.attachmentResponse = { data: undefined, size: undefined };
+  // Override to return null data (simulates a broken SDK response with no Readable)
+  const originalGet = gmailClient.users.messages.attachments.get.bind(gmailClient.users.messages.attachments);
+  (gmailClient.users.messages.attachments as Record<string, unknown>)["get"] = async (
+    args: unknown,
+    options?: Readonly<{ responseType?: string }>,
+  ) => {
+    void options;
+    void args;
+    return { data: null };
+  };
+  void originalGet;
   const client = new GoogleGmailApiClientFactory().create(sessionWithClient(gmailClient));
   const attachment: GmailMessageAttachmentRecord = {
     attachmentId: "att_1",
@@ -351,7 +391,7 @@ test("GoogleGmailApiClient.getAttachmentContent throws when Gmail omits attachme
         messageId: "message_1",
         attachment,
       }),
-    /did not return attachment content/,
+    /readable stream/,
   );
 });
 
@@ -473,4 +513,54 @@ test("GoogleGmailApiClient collects nested attachments and stable binary names",
   assert.equal(message.attachments[0]?.binaryName, "a.txt");
   assert.equal(message.attachments[1]?.binaryName, "a.txt_2");
   assert.equal(message.attachments[2]?.binaryName, "weird_name_.pdf");
+});
+
+test("GoogleGmailApiClient.getAttachmentContent handles chunked JSON and base64 across boundaries", async () => {
+  // Build a 10KB payload so the base64 string spans many chunks
+  const originalBytes = Buffer.alloc(10 * 1024);
+  for (let i = 0; i < originalBytes.length; i++) {
+    originalBytes[i] = i % 256;
+  }
+  const base64UrlEncoded = originalBytes.toString("base64url");
+  const envelope = JSON.stringify({ size: originalBytes.length, data: base64UrlEncoded });
+
+  // Split the JSON envelope into small chunks of 47 bytes each to stress
+  // both the JSON token parser and the base64 carry-buffer decoder
+  const chunkSize = 47;
+  const rawChunks: string[] = [];
+  for (let offset = 0; offset < envelope.length; offset += chunkSize) {
+    rawChunks.push(envelope.slice(offset, offset + chunkSize));
+  }
+
+  const gmailClient = new ConfigurableFakeGoogleGmailClient({});
+  // Override attachments.get to return a Readable that yields the envelope in small chunks
+  (gmailClient.users.messages.attachments as Record<string, unknown>)["get"] = async (
+    _params: unknown,
+    options?: Readonly<{ responseType?: string }>,
+  ) => {
+    if (options?.responseType === "stream") {
+      return { data: Readable.from(rawChunks) };
+    }
+    throw new Error("expected stream mode");
+  };
+
+  const client = new GoogleGmailApiClientFactory().create(sessionWithClient(gmailClient));
+  const attachment: GmailMessageAttachmentRecord = {
+    attachmentId: "att_big",
+    mimeType: "application/octet-stream",
+    binaryName: "big",
+  };
+
+  const content = await client.getAttachmentContent({
+    mailbox: "me",
+    messageId: "msg_big",
+    attachment,
+  });
+
+  // body must be an AsyncIterable
+  assert.ok(typeof (content.body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator] === "function");
+
+  const decoded = await collectAsyncIterable(content.body);
+  assert.equal(decoded.byteLength, originalBytes.length);
+  assert.deepEqual(Buffer.from(decoded), originalBytes);
 });

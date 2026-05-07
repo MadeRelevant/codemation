@@ -26,9 +26,11 @@ export class CredentialSecretCipher {
     const iv = randomBytes(CredentialSecretCipher.ivLength);
     const cipher = createCipheriv(CredentialSecretCipher.algorithm, this.resolveKeyMaterial(), iv);
     const plaintext = Buffer.from(JSON.stringify(value), "utf8");
+    // eslint-disable-next-line codemation/no-buffer-everything -- AES-GCM credential cipher operates on bounded KB-sized JSON payloads; streaming crypto is not applicable here.
     const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
     const authTag = cipher.getAuthTag();
     return {
+      // eslint-disable-next-line codemation/no-buffer-everything -- AES-GCM credential cipher operates on bounded KB-sized JSON payloads; streaming crypto is not applicable here.
       encryptedJson: Buffer.concat([iv, authTag, encrypted]).toString("base64"),
       encryptionKeyId: this.resolveKeyId(),
       schemaVersion: CredentialSecretCipher.schemaVersion,
@@ -42,12 +44,14 @@ export class CredentialSecretCipher {
       schemaVersion: number;
     }>,
   ): JsonRecord {
+    // eslint-disable-next-line codemation/no-buffer-everything -- AES-GCM credential cipher operates on bounded KB-sized JSON payloads; streaming crypto is not applicable here.
     const packed = Buffer.from(record.encryptedJson, "base64");
     const iv = packed.subarray(0, CredentialSecretCipher.ivLength);
     const authTag = packed.subarray(CredentialSecretCipher.ivLength, CredentialSecretCipher.ivLength + 16);
     const encrypted = packed.subarray(CredentialSecretCipher.ivLength + 16);
     const decipher = createDecipheriv(CredentialSecretCipher.algorithm, this.resolveKeyMaterial(), iv);
     decipher.setAuthTag(authTag);
+    // eslint-disable-next-line codemation/no-buffer-everything -- AES-GCM credential cipher operates on bounded KB-sized JSON payloads; streaming crypto is not applicable here.
     const plaintext = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
     return JSON.parse(plaintext) as JsonRecord;
   }

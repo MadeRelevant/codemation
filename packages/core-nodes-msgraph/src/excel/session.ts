@@ -202,6 +202,7 @@ async function rawWorkbookFetch(args: {
   }
 
   if (expectsBinary) {
+    // eslint-disable-next-line codemation/no-buffer-everything -- Excel workbook API returns bounded JSON/binary blobs (cell data, not file streams); payload is capped by the workbook session protocol.
     const ab = await response.arrayBuffer();
     return { status: response.status, bytes: Buffer.from(ab) };
   }

@@ -6,7 +6,7 @@ export default defineConfig({
     name: "tooling",
     root: path.resolve(import.meta.dirname, ".."),
     environment: "node",
-    include: ["test/**/*.test.ts", "release/*.test.mjs"],
+    include: ["test/**/*.test.ts", "release/*.test.mjs", "eslint-config/rules/*.test.mjs"],
     pool: "threads",
     testTimeout: 120_000,
   },

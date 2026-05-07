@@ -1,3 +1,4 @@
+import type { Readable } from "node:stream";
 import type { gmail_v1 } from "googleapis";
 import type { GmailSession } from "../../contracts/GmailSession";
 import type {
@@ -9,6 +10,7 @@ import type {
   GmailSendMessageArgs,
   GmailSendRawMessageArgs,
 } from "../../services/GmailApiClient";
+import { GmailAttachmentStreamDecoder } from "./GmailAttachmentStreamDecoder";
 import { GmailMessagePayloadTextExtractor } from "./GmailMessagePayloadTextExtractor";
 import { GmailMimeMessageFactory } from "./GmailMimeMessageFactory";
 
@@ -25,6 +27,7 @@ export class GoogleGmailApiClient implements GmailApiClient {
     private readonly session: GmailSession,
     private readonly messagePayloadTextExtractor: GmailMessagePayloadTextExtractor,
     private readonly mimeMessageFactory: GmailMimeMessageFactory,
+    private readonly attachmentStreamDecoder: GmailAttachmentStreamDecoder = new GmailAttachmentStreamDecoder(),
   ) {}
 
   async getCurrentHistoryId(args: Readonly<{ mailbox: string }>): Promise<string> {
@@ -93,23 +96,29 @@ export class GoogleGmailApiClient implements GmailApiClient {
       attachment: GmailMessageAttachmentRecord;
     }>,
   ): Promise<GmailMessageAttachmentContent> {
-    const response = await this.session.client.users.messages.attachments.get({
-      userId: this.resolveUserId(args.mailbox),
-      messageId: args.messageId,
-      id: args.attachment.attachmentId,
-    });
-    const encodedData = response.data.data;
-    if (!encodedData) {
+    const response = await this.session.client.users.messages.attachments.get(
+      {
+        userId: this.resolveUserId(args.mailbox),
+        messageId: args.messageId,
+        id: args.attachment.attachmentId,
+      },
+      { responseType: "stream" },
+    );
+    // The SDK returns a Node Readable of the raw JSON envelope when responseType is "stream".
+    // We use a streaming JSON parser + chunked base64url decoder to forward the attachment
+    // bytes as an AsyncIterable<Uint8Array> without ever materialising the full base64 string.
+    const responseReadable = response.data as unknown as Readable;
+    if (!responseReadable || typeof responseReadable.pipe !== "function") {
       throw new Error(
-        `Gmail did not return attachment content for ${args.attachment.attachmentId} on message ${args.messageId}.`,
+        `Gmail did not return a readable stream for attachment ${args.attachment.attachmentId} on message ${args.messageId}.`,
       );
     }
     return {
       attachmentId: args.attachment.attachmentId,
-      body: this.decodeBase64Url(encodedData),
+      body: this.attachmentStreamDecoder.decodeResponseStream(responseReadable),
       mimeType: args.attachment.mimeType,
       filename: args.attachment.filename,
-      size: response.data.size ?? args.attachment.size,
+      size: args.attachment.size,
     };
   }
 
@@ -371,10 +380,5 @@ export class GoogleGmailApiClient implements GmailApiClient {
       .replace(/[^a-zA-Z0-9._-]+/g, "_")
       .replace(/^_+|_+$/g, "");
     return normalized.length > 0 ? normalized : "attachment";
-  }
-
-  private decodeBase64Url(value: string): Uint8Array {
-    const base64Value = value.replace(/-/g, "+").replace(/_/g, "/");
-    return Uint8Array.from(Buffer.from(base64Value, "base64"));
   }
 }

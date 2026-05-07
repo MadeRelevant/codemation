@@ -45,6 +45,7 @@ export class GmailMessagePayloadTextExtractor {
 
   private decodeBase64UrlToUtf8(encoded: string): string {
     const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    // eslint-disable-next-line codemation/no-buffer-everything -- Gmail API returns message text as base64url strings in JSON; no stream endpoint exists for inline text parts.
     return Buffer.from(base64, "base64").toString("utf8");
   }
 }

@@ -450,6 +450,9 @@ importers:
       googleapis:
         specifier: ^163.0.0
         version: 163.0.0
+      stream-json:
+        specifier: ^2.1.0
+        version: 2.1.0
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -466,6 +469,9 @@ importers:
       '@types/node':
         specifier: ^25.3.5
         version: 25.3.5
+      '@types/stream-json':
+        specifier: ^1.7.8
+        version: 1.7.8
       eslint:
         specifier: ^10.0.3
         version: 10.0.3(jiti@2.6.1)
@@ -964,6 +970,10 @@ importers:
       globals:
         specifier: ^17.4.0
         version: 17.4.0
+    devDependencies:
+      eslint:
+        specifier: ^10.0.1
+        version: 10.0.3(jiti@2.6.1)
 
   tooling/tsconfig: {}
 
@@ -3956,6 +3966,12 @@ packages:
 
   '@types/statuses@2.0.6':
     resolution: {integrity: sha512-xMAgYwceFhRA2zY+XbEA7mxYbA093wdiW8Vu6gZPGWy9cmOyU9XesH1tNcEWsKFd5Vzrqx5T3D38PWx1FIIXkA==}
+
+  '@types/stream-chain@2.1.0':
+    resolution: {integrity: sha512-guDyAl6s/CAzXUOWpGK2bHvdiopLIwpGu8v10+lb9hnQOyo4oj/ZUQFOvqFjKGsE3wJP1fpIesCcMvbXuWsqOg==}
+
+  '@types/stream-json@1.7.8':
+    resolution: {integrity: sha512-MU1OB1eFLcYWd1LjwKXrxdoPtXSRzRmAnnxs4Js/ayB5O/NvHraWwuOaqMWIebpYwM6khFlsJOHEhI9xK/ab4Q==}
 
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
@@ -8746,6 +8762,12 @@ packages:
   steno@0.4.4:
     resolution: {integrity: sha512-EEHMVYHNXFHfGtgjNITnka0aHhiAlo93F7z2/Pwd+g0teG9CnM3JIINM7hVVB5/rhw9voufD7Wukwgtw2uqh6w==}
 
+  stream-chain@3.6.2:
+    resolution: {integrity: sha512-MRUXdH/Fcv2I95WSkPthvpxGsuKeBpr50UXcP5Z3ncWafYxrWelMTVI3G7vJFABCs1ipoTPCN3J13ZcLpymrtA==}
+
+  stream-json@2.1.0:
+    resolution: {integrity: sha512-9gV/ywtebMn3DdKnNKYCb9iESvgR1dHbucNV+bRGvdvy+jV4c9FFgYKmENhpKv58jSwvs90Wk80RhfKk1KxHPg==}
+
   stream-shift@1.0.3:
     resolution: {integrity: sha512-76ORR0DO1o1hlKwTbi/DM3EXWGf3ZJYO8cXX5RJwnul2DEg2oyoZyjLNoQM8WsvZiFKCRfC1O0J7iCvie3RZmQ==}
 
@@ -9278,6 +9300,7 @@ packages:
 
   uuid@10.0.0:
     resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@11.1.0:
@@ -12630,6 +12653,15 @@ snapshots:
       '@types/node': 18.19.130
 
   '@types/statuses@2.0.6': {}
+
+  '@types/stream-chain@2.1.0':
+    dependencies:
+      '@types/node': 25.3.5
+
+  '@types/stream-json@1.7.8':
+    dependencies:
+      '@types/node': 25.3.5
+      '@types/stream-chain': 2.1.0
 
   '@types/trusted-types@2.0.7':
     optional: true
@@ -18342,6 +18374,12 @@ snapshots:
   steno@0.4.4:
     dependencies:
       graceful-fs: 4.2.11
+
+  stream-chain@3.6.2: {}
+
+  stream-json@2.1.0:
+    dependencies:
+      stream-chain: 3.6.2
 
   stream-shift@1.0.3: {}
 
