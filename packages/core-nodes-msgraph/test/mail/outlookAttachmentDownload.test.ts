@@ -45,9 +45,22 @@ function makeFileAttachmentResponse(
 }
 
 function makeGraphClient(
-  response: unknown,
-): GraphClient & { _req: { get: ReturnType<typeof vi.fn> }; api: ReturnType<typeof vi.fn> } {
-  const req = { get: vi.fn().mockResolvedValue(response) };
+  metaResponse: unknown,
+  streamBody?: Uint8Array,
+): GraphClient & {
+  _req: { get: ReturnType<typeof vi.fn>; getStream: ReturnType<typeof vi.fn> };
+  api: ReturnType<typeof vi.fn>;
+} {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      if (streamBody) controller.enqueue(streamBody);
+      controller.close();
+    },
+  });
+  const req = {
+    get: vi.fn().mockResolvedValue(metaResponse),
+    getStream: vi.fn().mockResolvedValue(stream),
+  };
   const client = { api: vi.fn().mockReturnValue(req), _req: req };
   return client;
 }
@@ -100,7 +113,7 @@ describe("OutlookAttachmentDownload", () => {
       size: rawBytes.length,
       contentBytes: rawBytes.toString("base64"),
     });
-    const client = makeGraphClient(attachment);
+    const client = makeGraphClient(attachment, rawBytes);
     const binary = makeBinary();
 
     const result = await downloadAttachment({
@@ -124,15 +137,22 @@ describe("OutlookAttachmentDownload", () => {
     expect(result.json).not.toHaveProperty("contentBytes");
     expect(result.json).not.toHaveProperty("body");
 
-    // binary.attach called with decoded buffer
+    // binary.attach called with a stream (not buffered into memory)
     expect(binary.attach).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "attachment",
-        body: rawBytes,
         mimeType: "application/pdf",
         filename: "resume.pdf",
       }),
     );
+    const attachCall = (binary.attach as ReturnType<typeof vi.fn>).mock.calls[0]![0] as { body: unknown };
+    expect(attachCall.body).toBeInstanceOf(ReadableStream);
+
+    // Two-phase: metadata via .get() then bytes via .getStream() — never base64 in JSON.
+    expect(client._req.get).toHaveBeenCalledTimes(1);
+    expect(client._req.getStream).toHaveBeenCalledTimes(1);
+    expect(client.api).toHaveBeenCalledWith(expect.stringContaining("$select="));
+    expect(client.api).toHaveBeenCalledWith(expect.stringMatching(/\/\$value$/));
 
     // withAttachment called to link binary to item
     expect(binary.withAttachment).toHaveBeenCalled();

@@ -13,6 +13,9 @@ import { withGraphRetry } from "../lib/graphRetry";
 
 type GraphApiRequest = {
   get(): Promise<unknown>;
+  // Returns either a Web ReadableStream (Node 20+ Graph SDK 3.x) or a Node Readable.
+  // ctx.binary.attach accepts both via the BinaryBody union, so we don't need a narrower type.
+  getStream(): Promise<unknown>;
 };
 
 export type GraphClient = {
@@ -79,12 +82,15 @@ export async function downloadAttachment(args: {
   const { mailbox, messageId, attachmentId, binarySlot, sizeCapBytes } = input;
 
   const prefix = mailboxPathPrefix(mailbox);
-  const url = `${prefix}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`;
+  const baseUrl = `${prefix}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`;
 
-  const raw = (await withGraphRetry(() => client.api(url).get())) as RawFileAttachment;
+  // Step 1: small metadata-only request — validate type + enforce size cap BEFORE
+  // pulling any bytes. Keeps the round-trip cheap when the attachment is the
+  // wrong type or oversized.
+  const metaUrl = `${baseUrl}?$select=id,name,contentType,size,isInline,contentId`;
+  const meta = (await withGraphRetry(() => client.api(metaUrl).get())) as RawFileAttachment;
 
-  // Validate OData type — only fileAttachment carries inline bytes
-  const odataType = raw["@odata.type"] ?? "";
+  const odataType = meta["@odata.type"] ?? "";
   if (odataType !== "#microsoft.graph.fileAttachment") {
     throw new Error(
       `OutlookAttachmentDownload: attachment "${attachmentId}" is of type "${odataType}", ` +
@@ -93,29 +99,27 @@ export async function downloadAttachment(args: {
     );
   }
 
-  // Guard size cap BEFORE decoding to avoid allocating a giant buffer
-  const size = raw.size ?? 0;
+  const size = meta.size ?? 0;
   if (size > sizeCapBytes) {
     throw new Error(
-      `OutlookAttachmentDownload: attachment "${raw.name ?? attachmentId}" is ${size} bytes, ` +
+      `OutlookAttachmentDownload: attachment "${meta.name ?? attachmentId}" is ${size} bytes, ` +
         `which exceeds the size cap of ${sizeCapBytes} bytes. ` +
         `Increase sizeCapBytes or skip this attachment.`,
     );
   }
 
-  if (typeof raw.contentBytes !== "string" || raw.contentBytes.length === 0) {
-    throw new Error(
-      `OutlookAttachmentDownload: attachment "${raw.name ?? attachmentId}" has no contentBytes in the Graph response.`,
-    );
-  }
+  const filename = meta.name ?? attachmentId;
+  const contentType = meta.contentType ?? "application/octet-stream";
 
-  const buffer = Buffer.from(raw.contentBytes, "base64");
-  const filename = raw.name ?? attachmentId;
-  const contentType = raw.contentType ?? "application/octet-stream";
+  // Step 2: stream the raw bytes from the /$value endpoint straight into
+  // binary storage. Avoids the base64-in-JSON round-trip (which would
+  // materialise the entire payload twice in memory: as a string, then as a
+  // decoded Buffer).
+  const valueStream = await withGraphRetry(() => client.api(`${baseUrl}/$value`).getStream());
 
   const stored = await binary.attach({
     name: binarySlot,
-    body: buffer,
+    body: valueStream as unknown as Parameters<typeof binary.attach>[0]["body"],
     mimeType: contentType,
     filename,
   });
@@ -126,8 +130,8 @@ export async function downloadAttachment(args: {
     filename,
     contentType,
     size,
-    isInline: raw.isInline ?? false,
-    contentId: raw.contentId ?? null,
+    isInline: meta.isInline ?? false,
+    contentId: meta.contentId ?? null,
     binarySlot,
   };
 
