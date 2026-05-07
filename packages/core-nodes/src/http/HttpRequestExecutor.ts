@@ -46,7 +46,10 @@ export class HttpRequestExecutor {
 
     // Only set Content-Type from the encoded body when it is non-empty
     // (empty string = FormData will set it automatically).
-    if (encodedBody && encodedBody.contentType) {
+    // Explicit headers always win — only apply the body-derived content-type
+    // when the caller has not already set one (case-insensitive check).
+    const hasExplicitContentType = Object.keys(mergedHeaders).some((k) => k.toLowerCase() === "content-type");
+    if (encodedBody && encodedBody.contentType && !hasExplicitContentType) {
       mergedHeaders["content-type"] = encodedBody.contentType;
     }
 

@@ -140,4 +140,45 @@ describe("HttpBodyBuilder", () => {
     assert.ok(fileEntry instanceof Blob);
     assert.equal((fileEntry as Blob).type, "text/plain");
   });
+
+  test("kind binary: throws when the named slot has no attachment on the item", async () => {
+    const builder = new HttpBodyBuilder();
+    const ctx = makeFakeCtx();
+    const item: Item = { json: {}, binary: {} };
+
+    await assert.rejects(
+      builder.build({ kind: "binary", slot: "missing-slot" }, item, ctx),
+      /no binary attachment found at slot "missing-slot"/,
+    );
+  });
+
+  test("kind binary: throws when openReadStream returns undefined", async () => {
+    const builder = new HttpBodyBuilder();
+    // makeFakeCtx returns undefined for any storageKey not in binaryData; passing
+    // an empty binaryData simulates a storage adapter that has lost the bytes.
+    const ctx = makeFakeCtx({});
+    const item: Item = {
+      json: {},
+      binary: {
+        orphan: {
+          id: "att_orphan",
+          storageKey: "missing_key",
+          mimeType: "application/octet-stream",
+          size: 0,
+          storageDriver: "memory",
+          previewKind: "download",
+          createdAt: new Date().toISOString(),
+          runId: "run_test",
+          workflowId: "wf_test",
+          nodeId: "node_test",
+          activationId: "act_test",
+        },
+      },
+    };
+
+    await assert.rejects(
+      builder.build({ kind: "binary", slot: "orphan" }, item, ctx),
+      /could not open read stream for slot "orphan"/,
+    );
+  });
 });
