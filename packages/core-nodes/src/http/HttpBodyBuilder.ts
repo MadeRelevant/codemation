@@ -83,9 +83,11 @@ export class HttpBodyBuilder {
       if (!readResult) {
         throw new Error(`HttpRequest bodyFormat "binary": could not open read stream for slot "${spec.slot}".`);
       }
-      const merged = await this.readStreamToBuffer(readResult.body);
+      // Pass the stream straight to fetch — no buffering. fetch's BodyInit
+      // accepts a ReadableStream natively, so big attachments upload without
+      // ever materialising the full payload in memory.
       return {
-        body: merged,
+        body: readResult.body as unknown as NonNullable<RequestInit["body"]>,
         contentType: attachment.mimeType,
       };
     }

@@ -136,12 +136,17 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
     }
 
     const filename = this.resolveFilename(resolvedUrl, headers);
-    const arrayBuffer = await response.arrayBuffer();
-    const bytes = Buffer.from(arrayBuffer);
 
+    // Stream response.body straight into binary storage — never load the
+    // whole payload into memory. ctx.binary.attach accepts ReadableStream
+    // natively. Falls back to arrayBuffer only when response.body is null
+    // (rare; 204/304-style responses where the cap-check above already
+    // covers the meaningful size case).
     const attachment = await ctx.binary.attach({
       name: slotName,
-      body: bytes,
+      body: response.body
+        ? (response.body as unknown as Parameters<typeof ctx.binary.attach>[0]["body"])
+        : new Uint8Array(await response.arrayBuffer()),
       mimeType,
       filename,
     });
@@ -155,7 +160,8 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
       headers,
       binarySlot: slotName,
       contentType: mimeType,
-      size: bytes.byteLength,
+      // Reported by the binary storage adapter after streaming completes.
+      size: attachment.size,
       ...(filename !== undefined ? { filename } : {}),
     };
 

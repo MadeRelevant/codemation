@@ -294,7 +294,28 @@ test("bodyFormat binary: outgoing fetch uses bytes from binary slot and Content-
     const outputItem = outputs.main?.[0];
     assert.ok(outputItem, "expected an output item");
 
-    assert.ok(capturedBody instanceof Uint8Array, "fetch body should be Uint8Array bytes");
+    // The body is streamed straight from the binary store — not buffered into
+    // memory — so fetch receives a ReadableStream (Web). Reading it should
+    // produce the original bytes.
+    assert.ok(
+      capturedBody !== undefined && capturedBody !== null && typeof (capturedBody as ReadableStream).getReader === "function",
+      "fetch body should be a ReadableStream (streaming, not buffered)",
+    );
+    const reader = (capturedBody as ReadableStream<Uint8Array>).getReader();
+    const chunks: Uint8Array[] = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    assert.deepEqual(Buffer.from(merged), pdfBytes, "streamed body should match the attachment bytes");
     assert.equal(capturedContentType, "application/pdf", "Content-Type should come from attachment mimeType");
   } finally {
     globalThis.fetch = savedFetch;
