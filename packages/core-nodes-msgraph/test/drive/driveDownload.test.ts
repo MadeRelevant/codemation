@@ -401,7 +401,7 @@ describe("DriveDownloadNode", () => {
       const nodeConfig = driveDownloadNode.create(
         { driveId: "", itemId: "" },
         "DriveDownload",
-      ) as { type: new () => { execute(args: unknown): Promise<unknown> }; config: unknown };
+      ) as unknown as { type: new () => { execute(args: unknown): Promise<unknown> }; config: unknown };
 
       const RuntimeClass = nodeConfig.type;
       const runtime = new RuntimeClass();
