@@ -24,10 +24,7 @@ import { test } from "vitest";
 import { z } from "zod";
 import "reflect-metadata";
 
-import {
-  DefaultExecutionContextFactory,
-  InMemoryBinaryStorage,
-} from "../../src/index.ts";
+import { DefaultExecutionContextFactory, InMemoryBinaryStorage } from "../../src/index.ts";
 import { WorkflowBuilder } from "../../src/workflow/dsl/WorkflowBuilder.ts";
 import { createEngineTestKit } from "../harness/index.ts";
 import { CallbackNodeConfig, SubWorkflowRunnerConfig, items } from "../harness/index.ts";
@@ -288,9 +285,7 @@ test("pre-existing binary slot on item travels through subworkflow (both directi
     { id: "child-check" },
   );
 
-  const child = new WorkflowBuilder({ id: "wf.pre-binary.child", name: "Pre-binary child" })
-    .start(childCheck)
-    .build();
+  const child = new WorkflowBuilder({ id: "wf.pre-binary.child", name: "Pre-binary child" }).start(childCheck).build();
 
   const sub = new SubWorkflowRunnerConfig("SubPre", {
     workflowId: "wf.pre-binary.child",
