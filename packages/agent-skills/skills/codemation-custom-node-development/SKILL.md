@@ -155,7 +155,7 @@ export default workflow("wf.download-pdf")
   .then(
     new HttpRequest("DownloadResume", {
       responseFormat: "binary",
-      responseBinarySlot: "resume",  // default is "response"
+      responseBinarySlot: "resume", // default is "response"
       responseSizeCapBytes: 10 * 1024 * 1024, // 10 MiB cap (default 100 MiB)
     }),
   )
@@ -174,7 +174,7 @@ new HttpRequest("UploadResume", {
   body: { kind: "binary", slot: "resume" },
   // Content-Type defaults to the attachment's mimeType.
   // Override with headers: { "content-type": "application/octet-stream" }.
-})
+});
 ```
 
 ### Download then upload (full round-trip)
@@ -203,6 +203,7 @@ export default workflow("wf.mirror-pdf")
 ```
 
 Key rules:
+
 - Never put bytes or base64 in `item.json` — always use `ctx.binary`.
 - `responseSizeCapBytes` is checked against `Content-Length` before reading the body; set it for untrusted sources.
 - Explicit `headers["content-type"]` always overrides the attachment's mimeType for uploads.
