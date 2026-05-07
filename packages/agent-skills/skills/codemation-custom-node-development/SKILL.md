@@ -40,6 +40,66 @@ When building **assertion** nodes that should record results into the framework'
 
 Custom **per-item nodes** can also read **`ctx.testContext?.{testSuiteRunId, testCaseIndex}`** to branch on test mode without an `IsTestRun` upstream — useful for synthetic outputs or skipping irreversible side effects when running tests.
 
+## Binary payloads in sub-workflow chains
+
+Binary slots attached inside a node survive SubWorkflow boundaries with no extra work. The shared `BinaryStorage` DI singleton means `ctx.binary.openReadStream` works regardless of which run originally stored the bytes.
+
+### Pattern: attach in a node, read in the parent after SubWorkflow
+
+```ts
+// Child node — attaches a slot and returns the modified item.
+// Works with defineNode or class-based nodes.
+export const parseAndStoreNode = defineNode({
+  key: "example.parse-store",
+  title: "Parse and Store",
+  inputSchema: z.object({ filename: z.string() }),
+  async execute({ input, item }, { binary }) {
+    const bytes = Buffer.from("...parsed content...");
+    const att = await binary.attach({
+      name: "parsed",
+      body: bytes,
+      mimeType: "text/plain",
+      filename: `${input.filename}.txt`,
+    });
+    return binary.withAttachment(item, "parsed", att);
+  },
+});
+```
+
+After `SubWorkflowNode` returns, the parent's continuation nodes see `item.binary["parsed"]` and can call `ctx.binary.openReadStream(item.binary["parsed"])` to read the bytes.
+
+### Testing binary across SubWorkflow with `WorkflowTestKit`
+
+```ts
+import { DefaultExecutionContextFactory, InMemoryBinaryStorage } from "@codemation/core";
+import { createEngineTestKit } from "@codemation/core/testing";
+import { ItemHarnessNodeConfig } from "@codemation/core/testing";
+
+const storage = new InMemoryBinaryStorage();
+const kit = createEngineTestKit({
+  executionContextFactory: new DefaultExecutionContextFactory(storage),
+});
+
+// Use ItemHarnessNodeConfig (NOT CallbackNodeConfig) for nodes that must modify items:
+const attachNode = new ItemHarnessNodeConfig(
+  "Attach",
+  z.unknown(),
+  async ({ item, ctx }) => {
+    const att = await ctx.binary.attach({
+      name: "doc",
+      body: Buffer.from("content"),
+      mimeType: "application/pdf",
+      filename: "doc.pdf",
+    });
+    return ctx.binary.withAttachment(item as Item, "doc", att);
+  },
+  { id: "attach" },
+);
+// CallbackNodeConfig is fine for assertion-only (observe) nodes — it echoes input unchanged.
+```
+
+Important: `CallbackNodeConfig` discards its callback return value and always echoes input items. Never use it for nodes that must attach binary or transform items.
+
 ## Read next when needed
 
 - Read `references/node-patterns.md` for `defineNode(...)` patterns and packaging guidance.

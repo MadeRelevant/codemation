@@ -82,6 +82,41 @@ Authors invoke a TestSuiteRun from the canvas **Tests tab** or via `POST /api/wo
 
 Custom nodes can also read `ctx.testContext?.{testSuiteRunId, testCaseIndex}` directly — useful for synthetic outputs in test mode without `IsTestRun` branching.
 
+## Binary slots across SubWorkflow boundaries
+
+`item.binary` (the map of named `BinaryAttachment` records) is carried transparently through SubWorkflow boundaries in both directions:
+
+- **Parent → child**: binary slots attached before the SubWorkflow node are visible inside the child run. `ctx.binary.openReadStream(attachment)` works in the child because both runs share the same `BinaryStorage`.
+- **Child → parent**: slots attached inside the child are returned with the item and visible in the parent's continuation nodes.
+
+This requires no special configuration in production — the shared `BinaryStorage` DI singleton is what makes cross-run byte reads possible.
+
+### SubWorkflow + binary example
+
+```ts
+import { workflow } from "@codemation/host";
+import { Callback } from "@codemation/core-nodes";
+import { SubWorkflow } from "@codemation/core-nodes"; // SubWorkflowNodeConfig
+
+export default workflow("wf.parent")
+  .manualTrigger<{ url: string }>("Start", { url: "" })
+  // Attach a binary slot before the sub-workflow:
+  .map(async (item, ctx) => {
+    const att = await ctx.binary.attach({
+      name: "doc",
+      body: Buffer.from("..."),
+      mimeType: "application/pdf",
+      filename: "doc.pdf",
+    });
+    return ctx.binary.withAttachment(item, "doc", att);
+  })
+  // Sub-workflow receives item with binary["doc"] populated:
+  .then(new SubWorkflow("ParseDoc", { workflowId: "wf.child" }))
+  // Continuation: both parent "doc" slot and any child-added slots are visible here.
+  .map((item) => item)
+  .build();
+```
+
 ## Read next when needed
 
 - Read `references/builder-patterns.md` for item-flow rules and fluent authoring patterns.

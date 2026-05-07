@@ -239,6 +239,62 @@ Under `scheduler/` you will find:
 
 ---
 
+## Binary attachments across sub-workflows
+
+`item.binary` is a map of named `BinaryAttachment` records. Each record is a lightweight metadata object containing a `storageKey`; the actual bytes live in the shared `BinaryStorage` instance (injected via DI). Because binary is pure metadata on the item wire format, it survives SubWorkflow boundaries transparently — there is no additional marshalling step.
+
+### How it works end-to-end
+
+1. **Parent attaches a binary slot** — a node calls `ctx.binary.attach(...)` which writes bytes to `BinaryStorage` and returns a `BinaryAttachment`. The node calls `ctx.binary.withAttachment(item, slotName, attachment)` to place the reference on `item.binary`.
+
+2. **SubWorkflowNode passes the item to the child run** — both the production `SubWorkflowNode` and the test harness `SubWorkflowRunnerTestNode` pass the full current item (including `item.binary`) as input to the child run.
+
+3. **Child sees parent slots** — nodes inside the child workflow can read `item.binary["parent-slot"]` and call `ctx.binary.openReadStream(attachment)` because the shared `BinaryStorage` holds the bytes under the original `storageKey`.
+
+4. **Child attaches new slots** — child nodes may attach their own binary slots via `ctx.binary.attach(...)`. The returned `BinaryAttachment` is stored in the same `BinaryStorage` instance.
+
+5. **SubWorkflowNode spreads child output back to parent** — the produced item (with child-added binary slots) is spread on return. `NodeOutputNormalizer.applyOutput` preserves `next.binary` when it is not `undefined`, so both parent-side and child-side slots survive the boundary.
+
+### Requirements for binary to work in tests
+
+```ts
+import { DefaultExecutionContextFactory, InMemoryBinaryStorage } from "@codemation/core";
+import { createEngineTestKit } from "@codemation/core/testing";
+
+// Both parent and child runs must share the same BinaryStorage instance.
+const storage = new InMemoryBinaryStorage();
+const executionContextFactory = new DefaultExecutionContextFactory(storage);
+const kit = createEngineTestKit({ executionContextFactory });
+```
+
+Without an explicit `executionContextFactory`, the kit defaults to `UnavailableBinaryStorage` and `ctx.binary.attach` will throw at runtime.
+
+### Item-modifying test nodes must use `ItemHarnessNodeConfig`
+
+The harness `CallbackNodeConfig` ignores its callback's return value and always echoes input items unchanged — it is only useful for side-effect observations. For any node that must attach binary or transform items in tests, use `ItemHarnessNodeConfig`:
+
+```ts
+import { ItemHarnessNodeConfig } from "@codemation/core/testing";
+import { z } from "zod";
+
+const attachNode = new ItemHarnessNodeConfig(
+  "Attach",
+  z.unknown(),
+  async ({ item, ctx }) => {
+    const att = await ctx.binary.attach({
+      name: "doc",
+      body: Buffer.from("content"),
+      mimeType: "application/pdf",
+      filename: "doc.pdf",
+    });
+    return ctx.binary.withAttachment(item as Item, "doc", att);
+  },
+  { id: "attach" },
+);
+```
+
+---
+
 ## Testing strategy (mental model)
 
 - **Unit tests** in `packages/core/test/` exercise the engine with **real small nodes** and in-memory repositories—minimal mocking (per repo testing standards).
