@@ -1,3 +1,5 @@
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
+
 import type { Item, NodeExecutionContext } from "@codemation/core";
 import type { RunnableNodeConfig } from "@codemation/core";
 import type { HttpBodySpec } from "./httpRequest.types";
@@ -54,23 +56,7 @@ export class HttpBodyBuilder {
           if (attachment) {
             const readResult = await ctx.binary.openReadStream(attachment);
             if (readResult) {
-              const reader = readResult.body.getReader();
-              const chunks: Uint8Array[] = [];
-              let done = false;
-              while (!done) {
-                const result = await reader.read();
-                done = result.done;
-                if (result.value) {
-                  chunks.push(result.value);
-                }
-              }
-              const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-              const merged = new Uint8Array(totalLength);
-              let offset = 0;
-              for (const chunk of chunks) {
-                merged.set(chunk, offset);
-                offset += chunk.length;
-              }
+              const merged = await this.readStreamToBuffer(readResult.body);
               const blob = new Blob([merged], { type: attachment.mimeType });
               formData.append(fieldName, blob, attachment.filename ?? binaryRef);
             }
@@ -85,6 +71,46 @@ export class HttpBodyBuilder {
       };
     }
 
+    if (spec.kind === "binary") {
+      const attachment = item.binary?.[spec.slot];
+      if (!attachment) {
+        throw new Error(
+          `HttpRequest bodyFormat "binary": no binary attachment found at slot "${spec.slot}". ` +
+            `Ensure a previous node attached binary data at that slot.`,
+        );
+      }
+      const readResult = await ctx.binary.openReadStream(attachment);
+      if (!readResult) {
+        throw new Error(`HttpRequest bodyFormat "binary": could not open read stream for slot "${spec.slot}".`);
+      }
+      const merged = await this.readStreamToBuffer(readResult.body);
+      return {
+        body: merged,
+        contentType: attachment.mimeType,
+      };
+    }
+
     return undefined;
+  }
+
+  private async readStreamToBuffer(stream: NodeReadableStream<Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
+    const reader = stream.getReader();
+    const chunks: Uint8Array[] = [];
+    let done = false;
+    while (!done) {
+      const result = await reader.read();
+      done = result.done;
+      if (result.value) {
+        chunks.push(result.value);
+      }
+    }
+    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+    const merged = new Uint8Array(new ArrayBuffer(totalLength));
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return merged;
   }
 }

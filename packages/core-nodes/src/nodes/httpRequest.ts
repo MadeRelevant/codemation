@@ -29,6 +29,14 @@ export type HttpRequestOutputJson = Readonly<{
   json?: unknown;
   text?: string;
   bodyBinaryName?: string;
+  /** Set when `responseFormat === "binary"`. Name of the binary slot the response was stored in. */
+  binarySlot?: string;
+  /** Set when `responseFormat === "binary"`. MIME type of the stored response. */
+  contentType?: string;
+  /** Set when `responseFormat === "binary"`. Size in bytes of the stored response. */
+  size?: number;
+  /** Set when `responseFormat === "binary"`. Filename inferred from URL or Content-Disposition. */
+  filename?: string;
 }>;
 
 /**
@@ -41,6 +49,9 @@ export const HTTP_REQUEST_ACCEPTED_CREDENTIAL_TYPES: ReadonlyArray<string> = [
   basicAuthCredentialType.definition.typeId,
   oauth2ClientCredentialsType.definition.typeId,
 ] as const;
+
+/** Default maximum response size for binary mode: 100 MiB. */
+const DEFAULT_RESPONSE_SIZE_CAP_BYTES = 100 * 1024 * 1024;
 
 export class HttpRequest<
   TInputJson = Readonly<{ url?: string }>,
@@ -77,6 +88,27 @@ export class HttpRequest<
       credentialSlot?: string;
       binaryName?: string;
       downloadMode?: HttpRequestDownloadMode;
+      /**
+       * Controls how the response body is handled.
+       * - `"json"` / `"text"`: existing behaviour (parse + emit on `item.json`).
+       * - `"binary"`: read the response as raw bytes and store via `ctx.binary.attach`.
+       *   The output JSON contains `{ status, headers, binarySlot, contentType, size, filename }`
+       *   but NOT the raw bytes. Use `responseBinarySlot` to name the slot (default `"response"`).
+       *
+       * When omitted, the existing `downloadMode` logic applies (backward-compatible).
+       */
+      responseFormat?: "json" | "text" | "binary";
+      /**
+       * Name of the binary slot to write the response body into when `responseFormat === "binary"`.
+       * Defaults to `"response"`.
+       */
+      responseBinarySlot?: string;
+      /**
+       * Maximum response size in bytes for binary mode. Checked against the `Content-Length`
+       * response header before allocating memory. Defaults to 100 MiB (104857600).
+       * Requests whose `Content-Length` exceeds this cap are rejected before the body is read.
+       */
+      responseSizeCapBytes?: number;
       id?: string;
     }> = {},
     public readonly retryPolicy: RetryPolicySpec = RetryPolicy.defaultForHttp,
@@ -100,6 +132,18 @@ export class HttpRequest<
 
   get downloadMode(): HttpRequestDownloadMode {
     return this.args.downloadMode ?? "auto";
+  }
+
+  get responseFormat(): "json" | "text" | "binary" | undefined {
+    return this.args.responseFormat;
+  }
+
+  get responseBinarySlot(): string {
+    return this.args.responseBinarySlot ?? "response";
+  }
+
+  get responseSizeCapBytes(): number {
+    return this.args.responseSizeCapBytes ?? DEFAULT_RESPONSE_SIZE_CAP_BYTES;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {

@@ -32,6 +32,9 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
         mode: ctx.config.downloadMode,
         binaryName: ctx.config.binaryName,
       },
+      responseFormat: ctx.config.responseFormat,
+      responseBinarySlot: ctx.config.responseBinarySlot,
+      responseSizeCapBytes: ctx.config.responseSizeCapBytes,
       ctx: ctx as unknown as HttpRequestSpec["ctx"],
     };
 
@@ -45,6 +48,12 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
 
     const headers = this.readHeaders(response.headers);
     const mimeType = this.resolveMimeType(headers);
+
+    // New explicit responseFormat="binary" path — takes precedence over downloadMode.
+    if (ctx.config.responseFormat === "binary") {
+      return await this.handleBinaryResponse(response, resolvedUrl, headers, mimeType, ctx);
+    }
+
     const binaryName = ctx.config.binaryName;
     const shouldAttach = this.shouldAttachBody(ctx.config.downloadMode, mimeType);
 
@@ -102,6 +111,57 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
     };
 
     return { json: outputJson };
+  }
+
+  private async handleBinaryResponse(
+    response: Response,
+    resolvedUrl: string,
+    headers: Readonly<Record<string, string>>,
+    mimeType: string,
+    ctx: NodeExecutionContext<HttpRequest<any, any>>,
+  ): Promise<Item> {
+    const slotName = ctx.config.responseBinarySlot;
+    const sizeCap = ctx.config.responseSizeCapBytes;
+
+    // Check Content-Length against size cap before allocating.
+    const contentLengthHeader = headers["content-length"];
+    if (contentLengthHeader) {
+      const declaredSize = parseInt(contentLengthHeader, 10);
+      if (!isNaN(declaredSize) && declaredSize > sizeCap) {
+        throw new Error(
+          `HttpRequest responseFormat "binary": response Content-Length (${declaredSize} bytes) ` +
+            `exceeds responseSizeCapBytes (${sizeCap} bytes).`,
+        );
+      }
+    }
+
+    const filename = this.resolveFilename(resolvedUrl, headers);
+    const arrayBuffer = await response.arrayBuffer();
+    const bytes = Buffer.from(arrayBuffer);
+
+    const attachment = await ctx.binary.attach({
+      name: slotName,
+      body: bytes,
+      mimeType,
+      filename,
+    });
+
+    const outputJson: Readonly<Record<string, unknown>> = {
+      url: resolvedUrl,
+      method: ctx.config.method,
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+      binarySlot: slotName,
+      contentType: mimeType,
+      size: bytes.byteLength,
+      ...(filename !== undefined ? { filename } : {}),
+    };
+
+    let outputItem: Item = { json: outputJson };
+    outputItem = ctx.binary.withAttachment(outputItem, slotName, attachment);
+    return outputItem;
   }
 
   private async resolveCredential(

@@ -1,4 +1,4 @@
-import type { NodeExecutionContext } from "@codemation/core";
+import type { Item, NodeExecutionContext } from "@codemation/core";
 import {
   DefaultExecutionBinaryService,
   InMemoryBinaryStorage,
@@ -138,4 +138,225 @@ test("HttpRequestNode output replaces the item JSON and does not pass through in
   assert.equal("extra" in json, false);
   assert.equal(json.status, 200);
   assert.equal(typeof json.url, "string");
+});
+
+// ---------------------------------------------------------------------------
+// responseFormat: "binary" tests
+// ---------------------------------------------------------------------------
+
+test("responseFormat binary: PDF bytes are stored in ctx.binary with correct slot, mimeType; output json has binarySlot not body/text", async () => {
+  // Minimal PDF bytes — enough to check the binary round-trip.
+  const pdfBase64 = "JVBERi0xLjQKJcTl8uXrp/Og0MTGCjEgMCBvYmoKPDw+PgplbmRvYmoKdHJhaWxlcgo8PD4+CiUlRU9G";
+  const config = new HttpRequest("Fetch PDF", {
+    responseFormat: "binary",
+    responseBinarySlot: "resume",
+  });
+  const outputs = await runPerItemLikeEngine(
+    new HttpRequestNode(),
+    [
+      {
+        json: {
+          url: `data:application/pdf;base64,${pdfBase64}`,
+        },
+      },
+    ],
+    HttpRequestNodeTestContextFactory.create(config),
+  );
+
+  const item = outputs.main?.[0];
+  assert.ok(item, "expected an output item");
+
+  const json = item.json as Record<string, unknown>;
+  // Output json must have binarySlot but NOT body/text/mimeType fields
+  assert.equal(json["binarySlot"], "resume", "binarySlot should be the configured slot name");
+  assert.equal(json["contentType"], "application/pdf", "contentType should be the response MIME");
+  assert.equal("body" in json, false, "json must not contain raw body bytes");
+  assert.equal("text" in json, false, "json must not contain raw text");
+  assert.ok(typeof json["size"] === "number" && (json["size"] as number) > 0, "size should be positive");
+  assert.equal(json["status"], 200);
+
+  // Binary slot on the item
+  assert.ok(item.binary?.["resume"], "binary slot 'resume' should be attached");
+  assert.equal(item.binary?.["resume"]?.mimeType, "application/pdf");
+  assert.ok((item.binary?.["resume"]?.size ?? 0) > 0, "binary slot should have non-zero size");
+});
+
+test("responseFormat binary: default slot name is 'response' when responseBinarySlot not set", async () => {
+  const config = new HttpRequest("Fetch image", { responseFormat: "binary" });
+  const outputs = await runPerItemLikeEngine(
+    new HttpRequestNode(),
+    [
+      {
+        json: {
+          url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zl4kAAAAASUVORK5CYII=",
+        },
+      },
+    ],
+    HttpRequestNodeTestContextFactory.create(config),
+  );
+
+  const item = outputs.main?.[0];
+  assert.ok(item);
+  const json = item.json as Record<string, unknown>;
+  assert.equal(json["binarySlot"], "response");
+  assert.ok(item.binary?.["response"], "binary slot 'response' should be attached by default");
+});
+
+test("responseFormat binary: throws before allocating when Content-Length exceeds responseSizeCapBytes", async () => {
+  // Mock fetch to return a response with a large Content-Length header
+  const savedFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (_url: string | URL | Request, _init?: RequestInit) => {
+      return new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: {
+          "content-type": "application/octet-stream",
+          "content-length": "5000",
+        },
+      });
+    };
+
+    const config = new HttpRequest("Fetch large file", {
+      responseFormat: "binary",
+      responseSizeCapBytes: 100,
+    });
+    const ctx = HttpRequestNodeTestContextFactory.create(config);
+
+    await assert.rejects(
+      () => runPerItemLikeEngine(new HttpRequestNode(), [{ json: { url: "https://example.com/large-file.bin" } }], ctx),
+      (err: Error) => {
+        assert.ok(err.message.includes("responseSizeCapBytes"), `Expected size cap message, got: ${err.message}`);
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = savedFetch;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// bodyFormat: "binary" tests
+// ---------------------------------------------------------------------------
+
+test("bodyFormat binary: outgoing fetch uses bytes from binary slot and Content-Type from attachment mimeType", async () => {
+  const pdfBytes = Buffer.from("fake-pdf-content");
+
+  // First, attach the PDF to an item using the binary service so we have a real BinaryAttachment.
+  const binaryStorage = new InMemoryBinaryStorage();
+  const binaryService = new DefaultExecutionBinaryService(
+    binaryStorage,
+    "wf_http_request",
+    "run_http_request",
+    () => new Date("2026-03-17T12:00:00.000Z"),
+  );
+  const nodeService = binaryService.forNode({ nodeId: "node_http_request", activationId: "act_http_request" });
+  const attachment = await nodeService.attach({
+    name: "pdf",
+    body: pdfBytes,
+    mimeType: "application/pdf",
+    filename: "test.pdf",
+  });
+  const inputItem: Item = nodeService.withAttachment({ json: {} }, "pdf", attachment);
+
+  let capturedBody: BodyInit | null | undefined;
+  let capturedContentType: string | undefined;
+
+  const savedFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (_url: string | URL | Request, init?: RequestInit) => {
+      capturedBody = init?.body as BodyInit;
+      capturedContentType = (init?.headers as Record<string, string>)?.["content-type"];
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+
+    const config = new HttpRequest("Upload PDF", {
+      method: "POST",
+      url: "https://example.com/upload",
+      body: { kind: "binary", slot: "pdf" },
+    });
+    const ctx: NodeExecutionContext<HttpRequest<any>> = {
+      runId: "run_http_request",
+      workflowId: "wf_http_request",
+      parent: undefined,
+      now: () => new Date("2026-03-17T12:00:00.000Z"),
+      data: new InMemoryRunDataFactory().create(),
+      nodeId: "node_http_request",
+      activationId: "act_http_request",
+      config,
+      binary: nodeService,
+    };
+
+    const outputs = await runPerItemLikeEngine(new HttpRequestNode(), [inputItem], ctx);
+
+    const outputItem = outputs.main?.[0];
+    assert.ok(outputItem, "expected an output item");
+
+    assert.ok(capturedBody instanceof Uint8Array, "fetch body should be Uint8Array bytes");
+    assert.equal(capturedContentType, "application/pdf", "Content-Type should come from attachment mimeType");
+  } finally {
+    globalThis.fetch = savedFetch;
+  }
+});
+
+test("bodyFormat binary: explicit Content-Type header wins over attachment mimeType", async () => {
+  const pdfBytes = Buffer.from("fake-pdf-content");
+
+  const binaryStorage = new InMemoryBinaryStorage();
+  const binaryService = new DefaultExecutionBinaryService(
+    binaryStorage,
+    "wf_http_request",
+    "run_http_request",
+    () => new Date("2026-03-17T12:00:00.000Z"),
+  );
+  const nodeService = binaryService.forNode({ nodeId: "node_http_request", activationId: "act_http_request" });
+  const attachment = await nodeService.attach({
+    name: "file",
+    body: pdfBytes,
+    mimeType: "application/pdf",
+  });
+  const inputItem: Item = nodeService.withAttachment({ json: {} }, "file", attachment);
+
+  let capturedContentType: string | undefined;
+
+  const savedFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (_url: string | URL | Request, init?: RequestInit) => {
+      capturedContentType = (init?.headers as Record<string, string>)?.["content-type"];
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+
+    const config = new HttpRequest("Upload with custom type", {
+      method: "POST",
+      url: "https://example.com/upload",
+      headers: { "content-type": "application/x-custom" },
+      body: { kind: "binary", slot: "file" },
+    });
+    const ctx: NodeExecutionContext<HttpRequest<any>> = {
+      runId: "run_http_request",
+      workflowId: "wf_http_request",
+      parent: undefined,
+      now: () => new Date("2026-03-17T12:00:00.000Z"),
+      data: new InMemoryRunDataFactory().create(),
+      nodeId: "node_http_request",
+      activationId: "act_http_request",
+      config,
+      binary: nodeService,
+    };
+
+    await runPerItemLikeEngine(new HttpRequestNode(), [inputItem], ctx);
+
+    assert.equal(
+      capturedContentType,
+      "application/x-custom",
+      "Explicit Content-Type header should win over attachment mimeType",
+    );
+  } finally {
+    globalThis.fetch = savedFetch;
+  }
 });

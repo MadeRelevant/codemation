@@ -17,6 +17,16 @@ export type HttpBodySpec =
       kind: "multipart";
       fields: Readonly<Record<string, string>>;
       binaries?: Readonly<Record<string, BinaryRef>>;
+    }>
+  | Readonly<{
+      /**
+       * Send raw bytes from a binary slot as the request body.
+       * The binary attachment's `mimeType` is used as `Content-Type` unless
+       * the request `headers` map already contains `content-type`.
+       */
+      kind: "binary";
+      /** Key into `item.binary` to read the request body bytes from. */
+      slot: string;
     }>;
 
 /**
@@ -48,6 +58,15 @@ export type HttpRequestSpec = Readonly<{
   body?: HttpBodySpec;
   credential?: CredentialSession;
   download?: Readonly<{ mode: "auto" | "always" | "never"; binaryName: string }>;
+  /**
+   * When set to `"binary"`, the response body is written to a binary slot
+   * instead of being parsed as JSON/text. Overrides `download` mode.
+   */
+  responseFormat?: "json" | "text" | "binary";
+  /** Binary slot name for the response body when `responseFormat === "binary"`. Defaults to `"response"`. */
+  responseBinarySlot?: string;
+  /** Maximum allowed response size in bytes (checked against Content-Length before allocating). Defaults to 100 MiB. */
+  responseSizeCapBytes?: number;
   /** Execution context — needed for binary attach. */
   ctx: NodeExecutionContext<RunnableNodeConfig<unknown, unknown>>;
 }>;
@@ -66,4 +85,12 @@ export type HttpRequestResult = Readonly<{
   json?: unknown;
   text?: string;
   bodyBinaryName?: string;
+  /** Set when `responseFormat === "binary"`. Name of the binary slot the response body was written to. */
+  binarySlot?: string;
+  /** Set when `responseFormat === "binary"`. The MIME type of the stored response. */
+  contentType?: string;
+  /** Set when `responseFormat === "binary"`. Size in bytes of the stored response. */
+  size?: number;
+  /** Set when `responseFormat === "binary"`. Filename inferred from URL or Content-Disposition. */
+  filename?: string;
 }>;

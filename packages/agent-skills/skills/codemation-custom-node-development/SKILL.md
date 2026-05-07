@@ -136,6 +136,78 @@ Key constraints:
 - Set `keepBinaries: true` on any downstream node that needs to pass the binary slot forward.
 - The credential is `msGraphMailOAuthCredentialType`; `Mail.Read` scope is sufficient.
 
+## HTTP + binary: download to a slot, then upload from a slot
+
+`HttpRequest` (from `@codemation/core-nodes`) natively handles binary response and request bodies
+without a `Callback` shim.
+
+### Download a PDF to a binary slot
+
+```ts
+import { HttpRequest } from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
+
+export default workflow("wf.download-pdf")
+  .manualTrigger<{ url: string }>("Start", { url: "" })
+  // responseFormat:"binary" reads the response as raw bytes and stores them via ctx.binary.
+  // item.json gets: { status, headers, binarySlot, contentType, size, filename? }
+  // item.binary["resume"] holds the BinaryAttachment reference — never base64.
+  .then(
+    new HttpRequest("DownloadResume", {
+      responseFormat: "binary",
+      responseBinarySlot: "resume",  // default is "response"
+      responseSizeCapBytes: 10 * 1024 * 1024, // 10 MiB cap (default 100 MiB)
+    }),
+  )
+  .build();
+```
+
+### Upload binary bytes from a slot
+
+```ts
+import { HttpRequest } from "@codemation/core-nodes";
+
+// After a previous node stored bytes in item.binary["resume"]:
+new HttpRequest("UploadResume", {
+  method: "POST",
+  url: "https://api.example.com/files",
+  body: { kind: "binary", slot: "resume" },
+  // Content-Type defaults to the attachment's mimeType.
+  // Override with headers: { "content-type": "application/octet-stream" }.
+})
+```
+
+### Download then upload (full round-trip)
+
+```ts
+import { HttpRequest } from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
+
+export default workflow("wf.mirror-pdf")
+  .manualTrigger<{ sourceUrl: string; targetUrl: string }>("Start", { sourceUrl: "", targetUrl: "" })
+  .then(
+    new HttpRequest("Download", {
+      urlField: "sourceUrl",
+      responseFormat: "binary",
+      responseBinarySlot: "file",
+    }),
+  )
+  .then(
+    new HttpRequest("Upload", {
+      urlField: "targetUrl",
+      method: "PUT",
+      body: { kind: "binary", slot: "file" },
+    }),
+  )
+  .build();
+```
+
+Key rules:
+- Never put bytes or base64 in `item.json` — always use `ctx.binary`.
+- `responseSizeCapBytes` is checked against `Content-Length` before reading the body; set it for untrusted sources.
+- Explicit `headers["content-type"]` always overrides the attachment's mimeType for uploads.
+- Use `keepBinaries: true` on downstream nodes that must forward the slot.
+
 ## Read next when needed
 
 - Read `references/node-patterns.md` for `defineNode(...)` patterns and packaging guidance.
