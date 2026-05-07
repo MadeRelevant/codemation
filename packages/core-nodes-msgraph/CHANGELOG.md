@@ -1,5 +1,13 @@
 # @codemation/core-nodes-msgraph
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [[`d283b48`](https://github.com/MadeRelevant/codemation/commit/d283b481f01a1a259d38d25c1482006eff963384), [`5b509e8`](https://github.com/MadeRelevant/codemation/commit/5b509e83e1e963e0c03cb0cbad018dc1fb0a04c5)]:
+  - @codemation/core@0.10.2
+  - @codemation/host@0.6.0
+
 ## 0.2.0
 
 ### Minor Changes

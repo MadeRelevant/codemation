@@ -1,5 +1,14 @@
 # @codemation/core-nodes
 
+## 0.7.1
+
+### Patch Changes
+
+- [#130](https://github.com/MadeRelevant/codemation/pull/130) [`e8e3935`](https://github.com/MadeRelevant/codemation/commit/e8e39358a4282e0a780efb428ae0d71d105afd5f) Thanks [@cblokland90](https://github.com/cblokland90)! - `SubWorkflow` nodes now render with the Lucide `workflow` glyph by default, so they read at a glance on the canvas. Nodes that don't set an explicit `icon` (and have no semantic role like agent / model / tool) now fall back to a question-mark glyph instead of `Boxes` — a clearer "missing icon" signal for plugin authors. Unknown icon tokens (`builtin:`, `si:`, `lucide:` lookups that don't resolve) also fall back to the same question-mark glyph for consistency.
+
+- Updated dependencies [[`d283b48`](https://github.com/MadeRelevant/codemation/commit/d283b481f01a1a259d38d25c1482006eff963384)]:
+  - @codemation/core@0.10.2
+
 ## 0.7.0
 
 ### Minor Changes
