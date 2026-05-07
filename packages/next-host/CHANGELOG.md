@@ -1,5 +1,40 @@
 # @codemation/next-host
 
+## 0.4.0
+
+### Minor Changes
+
+- [#133](https://github.com/MadeRelevant/codemation/pull/133) [`d283b48`](https://github.com/MadeRelevant/codemation/commit/d283b481f01a1a259d38d25c1482006eff963384) Thanks [@cblokland90](https://github.com/cblokland90)! - feat: deep-link from parent run to specific subworkflow execution
+
+  Adds `childRunId` to `NodeExecutionSnapshot` so the UI can navigate directly to the
+  child run when a `SubWorkflow` node is selected in the execution inspector, instead of
+  only linking to the child workflow's editor. Fixes the gap from PR [#131](https://github.com/MadeRelevant/codemation/issues/131).
+  - `@codemation/core` (patch): `NodeExecutionSnapshot` gains `childRunId?: RunId`;
+    `ExecutionInstanceDto` gains `childRunId?: string`;
+    `NodeExecutionStatePublisher` gains optional `setChildRunId` method;
+    `NodeExecutionSnapshotFactory` propagates `previous.childRunId` through
+    `completed`, `failed`, and `skipped` transitions.
+  - `@codemation/host` (minor): `ExecutionInstance` table gains `child_run_id` column
+    (nullable, backward-compatible); `PrismaWorkflowRunRepository` persists and reads
+    `childRunId` on node-activation snapshots.
+  - `@codemation/next-host` (minor): `NodeExecutionSnapshot` type gains `childRunId`;
+    `WorkflowExecutionInspectorDetailBody` renders "Open subworkflow run" (with
+    `?run=<childRunId>`) when a child run id is present, falling back to
+    "Open subworkflow editor" for pre-existing snapshots.
+
+- [#131](https://github.com/MadeRelevant/codemation/pull/131) [`5b509e8`](https://github.com/MadeRelevant/codemation/commit/5b509e83e1e963e0c03cb0cbad018dc1fb0a04c5) Thanks [@cblokland90](https://github.com/cblokland90)! - feat: SubWorkflow editor link, workflow info popover, and child-run navigation
+  - **2.3a** — SubWorkflow nodes in the node-properties panel now show an "Open in editor" link that navigates to the referenced workflow. Requires the new `referencedWorkflowId` field added to `WorkflowNodeDto` (populated from `SubWorkflow.workflowId` in `WorkflowDefinitionMapper` and `PersistedWorkflowSnapshotMapper`).
+  - **2.3b** — A workflow info popover (ⓘ icon) appears in the detail-page header, showing workflow id, discovery-path segments, trigger type, and active status.
+  - **2.4** — When a SubWorkflow node is selected in the execution inspector, an "Open workflow" link appears navigating to that child workflow's editor. Note: jump to the _specific child run_ is not yet possible because the parent's node execution snapshot does not carry the child `runId`; this is a backend follow-up item.
+
+### Patch Changes
+
+- [#130](https://github.com/MadeRelevant/codemation/pull/130) [`e8e3935`](https://github.com/MadeRelevant/codemation/commit/e8e39358a4282e0a780efb428ae0d71d105afd5f) Thanks [@cblokland90](https://github.com/cblokland90)! - `SubWorkflow` nodes now render with the Lucide `workflow` glyph by default, so they read at a glance on the canvas. Nodes that don't set an explicit `icon` (and have no semantic role like agent / model / tool) now fall back to a question-mark glyph instead of `Boxes` — a clearer "missing icon" signal for plugin authors. Unknown icon tokens (`builtin:`, `si:`, `lucide:` lookups that don't resolve) also fall back to the same question-mark glyph for consistency.
+
+- Updated dependencies [[`d283b48`](https://github.com/MadeRelevant/codemation/commit/d283b481f01a1a259d38d25c1482006eff963384), [`5b509e8`](https://github.com/MadeRelevant/codemation/commit/5b509e83e1e963e0c03cb0cbad018dc1fb0a04c5)]:
+  - @codemation/core@0.10.2
+  - @codemation/host@0.6.0
+
 ## 0.3.2
 
 ### Patch Changes

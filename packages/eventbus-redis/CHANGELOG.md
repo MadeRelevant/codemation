@@ -1,5 +1,12 @@
 # @codemation/eventbus-redis
 
+## 0.0.37
+
+### Patch Changes
+
+- Updated dependencies [[`d283b48`](https://github.com/MadeRelevant/codemation/commit/d283b481f01a1a259d38d25c1482006eff963384)]:
+  - @codemation/core@0.10.2
+
 ## 0.0.36
 
 ### Patch Changes
