@@ -19,6 +19,13 @@ export type { MsGraphMailItem, MsGraphMailTriggerState, MsGraphMailAddress, MsGr
 export { outlookMessageGetNode } from "./mail/outlookMessageGetNode";
 export type { OutlookMessageGetOptions } from "./mail/outlookMessageGetNode";
 
+export { outlookAttachmentDownloadNode } from "./mail/outlookAttachmentDownloadNode";
+export type {
+  OutlookAttachmentDownloadOptions,
+  OutlookAttachmentDownloadOutput,
+  OutlookAttachmentDownloadInput,
+} from "./mail/outlookAttachmentDownloadNode";
+
 export { outlookMessageReplyNode } from "./mail/outlookMessageReplyNode";
 export type {
   OutlookMessageReplyOptions,
@@ -117,6 +124,7 @@ export { runCycle, attachAttachmentBinaries } from "./mail/onNewMailNode";
 
 // Exported pure helpers for mail node testing
 export { fetchMessage } from "./mail/outlookMessageGetNode";
+export { downloadAttachment } from "./mail/outlookAttachmentDownloadNode";
 export { patchMessage } from "./mail/outlookMessagePatchNode";
 export { sendMessage } from "./mail/outlookMessageSendNode";
 export { replyToMessage } from "./mail/outlookMessageReplyNode";
