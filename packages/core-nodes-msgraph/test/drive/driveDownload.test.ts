@@ -49,7 +49,16 @@ function makeMetaClient(response: unknown) {
   return client;
 }
 
-function makeDownloadHttp(body: Buffer, mimeType?: string): DownloadHttp {
+function makeReadableStream(bytes: Uint8Array): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(bytes);
+      controller.close();
+    },
+  });
+}
+
+function makeDownloadHttp(body: ReadableStream<Uint8Array> | Uint8Array, mimeType?: string): DownloadHttp {
   return {
     downloadContent: vi.fn().mockResolvedValue({ body, mimeType }),
   };
@@ -87,11 +96,12 @@ describe("DriveDownloadNode", () => {
   // -------------------------------------------------------------------------
   // 1. Happy path — downloads file and attaches binary
   // -------------------------------------------------------------------------
-  it("downloads file and attaches bytes via binary service (not on item JSON)", async () => {
+  it("downloads file and attaches stream via binary service (not on item JSON)", async () => {
     const meta = rawMeta({ name: "report.pdf", size: 500 });
     const metaClient = makeMetaClient(meta);
-    const fileBody = Buffer.from("PDF content bytes");
-    const downloadHttp = makeDownloadHttp(fileBody, "application/pdf");
+    const fileBytes = new Uint8Array(Buffer.from("PDF content bytes"));
+    const fileStream = makeReadableStream(fileBytes);
+    const downloadHttp = makeDownloadHttp(fileStream, "application/pdf");
     const binary = makeBinary();
 
     const result = await downloadItem({
@@ -115,14 +125,15 @@ describe("DriveDownloadNode", () => {
     expect(jsonOut.driveId).toBe("drive-1");
     expect(jsonOut.itemId).toBe("item-1");
 
-    // binary.attach was called with the Buffer body
+    // binary.attach was called with a stream (not a Buffer) — never buffered into memory
     expect(binary.attach).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: fileBody,
         mimeType: "application/pdf",
         filename: "report.pdf",
       }),
     );
+    const attachCall = (binary.attach as ReturnType<typeof vi.fn>).mock.calls[0]![0] as { body: unknown };
+    expect(attachCall.body).toBeInstanceOf(ReadableStream);
     // withAttachment was called to link the binary to the item
     expect(binary.withAttachment).toHaveBeenCalled();
   });
@@ -133,7 +144,7 @@ describe("DriveDownloadNode", () => {
   it("throws a clear error when file size exceeds the cap", async () => {
     const meta = rawMeta({ name: "huge.zip", size: 200 * 1024 * 1024 });
     const metaClient = makeMetaClient(meta);
-    const downloadHttp = makeDownloadHttp(Buffer.alloc(0));
+    const downloadHttp = makeDownloadHttp(makeReadableStream(new Uint8Array(0)));
     const binary = makeBinary();
 
     await expect(
@@ -157,7 +168,7 @@ describe("DriveDownloadNode", () => {
   it("sanitizes filename for use as binary slot name (no path-separator chars)", async () => {
     const meta = rawMeta({ name: "file/with:special<chars>.pdf", size: 100 });
     const metaClient = makeMetaClient(meta);
-    const downloadHttp = makeDownloadHttp(Buffer.from("data"), "application/pdf");
+    const downloadHttp = makeDownloadHttp(makeReadableStream(new Uint8Array(Buffer.from("data"))), "application/pdf");
     const binary = makeBinary();
 
     await downloadItem({
@@ -191,7 +202,7 @@ describe("DriveDownloadNode", () => {
 
       const resultPromise = downloadItem({
         metadataClient: metaClient,
-        downloadHttp: makeDownloadHttp(Buffer.from("data"), "application/pdf"),
+        downloadHttp: makeDownloadHttp(makeReadableStream(new Uint8Array(Buffer.from("data"))), "application/pdf"),
         session: { accessToken: "tok", refresh: vi.fn().mockResolvedValue("tok") },
         input: { driveId: "d", itemId: "i", sizeCapBytes: 100 * 1024 * 1024 },
         binary: binary as never,
@@ -213,8 +224,8 @@ describe("DriveDownloadNode", () => {
   it("downloadItem invokes downloadHttp and attaches binary", async () => {
     const meta = rawMeta({ size: 100 });
     const client = makeMetaClient(meta);
-    const fileBody = Buffer.from("content");
-    const downloadHttp = makeDownloadHttp(fileBody, "application/pdf");
+    const fileStream = makeReadableStream(new Uint8Array(Buffer.from("content")));
+    const downloadHttp = makeDownloadHttp(fileStream, "application/pdf");
     const binary = makeBinary();
 
     const session = { accessToken: "tok", refresh: vi.fn().mockResolvedValue("tok") };
@@ -244,16 +255,13 @@ describe("DriveDownloadNode", () => {
   });
 
   // -------------------------------------------------------------------------
-  // 7. Regression #4: makeProductionDownloadHttp handles Web ReadableStream
-  //    (Graph SDK 3.x returns a Web ReadableStream on Node 20+, not Node Readable)
+  // 7. makeProductionDownloadHttp passes streams directly without buffering
+  //    (Graph SDK 3.x returns a Web ReadableStream on Node 20+, or Node Readable)
   // -------------------------------------------------------------------------
-  it("makeProductionDownloadHttp: handles Web ReadableStream from getStream()", async () => {
-    const expected = Buffer.from("web-readable-stream-data");
-
-    // Build a Web ReadableStream containing the expected bytes
+  it("makeProductionDownloadHttp: passes Web ReadableStream directly to caller without buffering", async () => {
     const webStream = new ReadableStream<Uint8Array>({
       start(ctrl) {
-        ctrl.enqueue(new Uint8Array(expected));
+        ctrl.enqueue(new Uint8Array(Buffer.from("web-readable-stream-data")));
         ctrl.close();
       },
     });
@@ -272,34 +280,17 @@ describe("DriveDownloadNode", () => {
     try {
       const http = makeProductionDownloadHttp();
       const result = await http.downloadContent({ driveId: "drive-1", itemId: "item-1", session });
-      expect(result.body).toEqual(expected);
+      // The stream is passed through directly, not buffered
+      expect(result.body).toBe(webStream);
     } finally {
       spy.mockRestore();
     }
   });
 
-  it("makeProductionDownloadHttp: handles Node.js Readable from getStream()", async () => {
-    const expected = Buffer.from("node-readable-data");
-
+  it("makeProductionDownloadHttp: passes Node.js Readable directly to caller without buffering", async () => {
     // Build a minimal Node.js Readable-like object (event-based API)
     const nodeReadable = {
-      on(event: string, cb: (...args: unknown[]) => void) {
-        if (event === "data") {
-          // Emit data synchronously on next tick to simulate a Readable
-          Promise.resolve()
-            .then(() => cb(expected))
-            .catch(() => undefined);
-        }
-        if (event === "end") {
-          // Emit end after data
-          Promise.resolve()
-            .then(() => Promise.resolve())
-            .then(() => cb())
-            .catch(() => undefined);
-        }
-        if (event === "error") {
-          // no-op
-        }
+      on(_event: string, _cb: (...args: unknown[]) => void) {
         return nodeReadable;
       },
     };
@@ -318,7 +309,8 @@ describe("DriveDownloadNode", () => {
     try {
       const http = makeProductionDownloadHttp();
       const result = await http.downloadContent({ driveId: "drive-1", itemId: "item-1", session });
-      expect(result.body).toEqual(expected);
+      // The stream is passed through directly, not buffered
+      expect(result.body).toBe(nodeReadable);
     } finally {
       spy.mockRestore();
     }

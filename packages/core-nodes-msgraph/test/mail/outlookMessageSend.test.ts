@@ -149,6 +149,7 @@ describe("sendMessage (outlookMessageSendNode helper)", () => {
     const attachments = msg["attachments"] as Array<Record<string, unknown>>;
     expect(attachments).toHaveLength(1);
     expect(attachments[0]!["@odata.type"]).toBe("#microsoft.graph.fileAttachment");
+    // eslint-disable-next-line codemation/no-buffer-everything -- test assertion decoding base64 contentBytes to verify round-trip correctness; bounded string in test data.
     expect(Buffer.from(attachments[0]!["contentBytes"] as string, "base64").toString()).toBe("binary-content");
   });
 

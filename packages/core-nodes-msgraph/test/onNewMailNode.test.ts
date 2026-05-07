@@ -5,16 +5,28 @@ import type { GraphApiRequest, GraphClient } from "../src/mail/onNewMailNode";
 import type { MsGraphMailItem } from "../src/mail/types";
 import type { Item } from "@codemation/core";
 
+// ---------------------------------------------------------------------------
+// Shared helper: build a GraphApiRequest stub (includes getStream for typing)
+// ---------------------------------------------------------------------------
+
+function makeGraphApiRequest(overrides: Partial<GraphApiRequest> = {}): GraphApiRequest {
+  return {
+    top: vi.fn().mockReturnThis(),
+    orderby: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    filter: vi.fn().mockReturnThis(),
+    expand: vi.fn().mockReturnThis(),
+    get: vi.fn().mockResolvedValue({}),
+    getStream: vi.fn().mockResolvedValue(null),
+    ...overrides,
+  };
+}
+
 describe("onNewMsGraphMailTrigger", () => {
   it("poll() resolves credential and returns polling state (baseline cycle)", async () => {
-    const request: GraphApiRequest = {
-      top: vi.fn().mockReturnThis(),
-      orderby: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
-      filter: vi.fn().mockReturnThis(),
-      expand: vi.fn().mockReturnThis(),
+    const request = makeGraphApiRequest({
       get: vi.fn().mockResolvedValue({ value: [{ id: "msg-1" }] }),
-    };
+    });
     const client: GraphClient = { api: vi.fn().mockReturnValue(request) };
 
     const mod = await import("../src/credentials/session");
@@ -38,12 +50,7 @@ describe("onNewMsGraphMailTrigger", () => {
   });
 
   it("poll() emits new messages after baseline is complete", async () => {
-    const request: GraphApiRequest = {
-      top: vi.fn().mockReturnThis(),
-      orderby: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
-      filter: vi.fn().mockReturnThis(),
-      expand: vi.fn().mockReturnThis(),
+    const request = makeGraphApiRequest({
       get: vi.fn().mockResolvedValue({
         value: [
           {
@@ -54,7 +61,7 @@ describe("onNewMsGraphMailTrigger", () => {
           },
         ],
       }),
-    };
+    });
     const client: GraphClient = { api: vi.fn().mockReturnValue(request) };
 
     const mod = await import("../src/credentials/session");
@@ -94,20 +101,17 @@ describe("runCycle — filter behavior", () => {
   it("applies 'isRead eq false' filter by default when cfg.filter is undefined", async () => {
     let capturedFilter: string | undefined;
     let capturedOrderby: string | undefined;
-    const request: GraphApiRequest = {
-      top: vi.fn().mockReturnThis(),
+    const request = makeGraphApiRequest({
       orderby: vi.fn().mockImplementation((v: string) => {
         capturedOrderby = v;
         return request;
       }),
-      select: vi.fn().mockReturnThis(),
       filter: vi.fn().mockImplementation((v: string) => {
         capturedFilter = v;
         return request;
       }),
-      expand: vi.fn().mockReturnThis(),
       get: vi.fn().mockResolvedValue({ value: [] }),
-    };
+    });
     const client: GraphClient = { api: vi.fn().mockReturnValue(request) };
     const dedup = {
       merge: vi.fn().mockImplementation((_prev: ReadonlyArray<string>, incoming: ReadonlyArray<string>) => incoming),
@@ -127,20 +131,17 @@ describe("runCycle — filter behavior", () => {
   it("does not apply a filter when cfg.filter is an empty string, uses orderby instead", async () => {
     let capturedFilter: string | undefined;
     let capturedOrderby: string | undefined;
-    const request: GraphApiRequest = {
-      top: vi.fn().mockReturnThis(),
+    const request = makeGraphApiRequest({
       orderby: vi.fn().mockImplementation((v: string) => {
         capturedOrderby = v;
         return request;
       }),
-      select: vi.fn().mockReturnThis(),
       filter: vi.fn().mockImplementation((v: string) => {
         capturedFilter = v;
         return request;
       }),
-      expand: vi.fn().mockReturnThis(),
       get: vi.fn().mockResolvedValue({ value: [] }),
-    };
+    });
     const client: GraphClient = { api: vi.fn().mockReturnValue(request) };
     const dedup = {
       merge: vi.fn().mockImplementation((_prev: ReadonlyArray<string>, incoming: ReadonlyArray<string>) => incoming),
@@ -159,17 +160,13 @@ describe("runCycle — filter behavior", () => {
 
   it("passes a custom filter expression through unchanged", async () => {
     let capturedFilter: string | undefined;
-    const request: GraphApiRequest = {
-      top: vi.fn().mockReturnThis(),
-      orderby: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
+    const request = makeGraphApiRequest({
       filter: vi.fn().mockImplementation((v: string) => {
         capturedFilter = v;
         return request;
       }),
-      expand: vi.fn().mockReturnThis(),
       get: vi.fn().mockResolvedValue({ value: [] }),
-    };
+    });
     const client: GraphClient = { api: vi.fn().mockReturnValue(request) };
     const dedup = {
       merge: vi.fn().mockImplementation((_prev: ReadonlyArray<string>, incoming: ReadonlyArray<string>) => incoming),
@@ -185,6 +182,33 @@ describe("runCycle — filter behavior", () => {
     expect(capturedFilter).toBe("from/emailAddress/address eq 'x@y'");
   });
 });
+
+// ---------------------------------------------------------------------------
+// attachAttachmentBinaries helpers
+// ---------------------------------------------------------------------------
+
+function makeAttachmentStream(data?: Uint8Array): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      if (data) controller.enqueue(data);
+      controller.close();
+    },
+  });
+}
+
+function makeAttachmentClient(stream?: ReadableStream<Uint8Array>) {
+  const getStreamMock = vi.fn().mockResolvedValue(stream ?? makeAttachmentStream());
+  const apiRequest = {
+    get: vi.fn().mockResolvedValue({}),
+    getStream: getStreamMock,
+    top: vi.fn().mockReturnThis(),
+    orderby: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    filter: vi.fn().mockReturnThis(),
+    expand: vi.fn().mockReturnThis(),
+  };
+  return { api: vi.fn().mockReturnValue(apiRequest), _req: apiRequest };
+}
 
 describe("attachAttachmentBinaries", () => {
   it("skips oversized attachments and emits skippedAttachments[] on the item", async () => {
@@ -204,9 +228,7 @@ describe("attachAttachmentBinaries", () => {
       } as MsGraphMailItem,
     };
 
-    const get = vi.fn().mockResolvedValue({ contentBytes: Buffer.from("data").toString("base64") });
-    const apiRequest = { get };
-    const client = { api: vi.fn().mockReturnValue(apiRequest) };
+    const client = makeAttachmentClient();
     const attachedBinary = { id: "binary-x", storageKey: "k" };
     const binary = {
       attach: vi.fn().mockResolvedValue(attachedBinary),
@@ -229,7 +251,7 @@ describe("attachAttachmentBinaries", () => {
       binary as never,
     );
 
-    expect(client.api).toHaveBeenCalledTimes(1); // only small attachment fetched
+    expect(client.api).toHaveBeenCalledTimes(1); // only small attachment fetched (getStream call)
     expect(binary.attach).toHaveBeenCalledTimes(1);
     expect(
       (result.json as { skippedAttachments?: Array<{ name: string; size: number; reason: string }> })
@@ -250,8 +272,7 @@ describe("attachAttachmentBinaries", () => {
       } as MsGraphMailItem,
     };
 
-    const get = vi.fn().mockResolvedValue({ contentBytes: Buffer.from("x").toString("base64") });
-    const client = { api: vi.fn().mockReturnValue({ get }) };
+    const client = makeAttachmentClient();
     const binary = {
       attach: vi.fn().mockResolvedValue({ id: "b", storageKey: "k" }),
       withAttachment: vi.fn(
@@ -295,8 +316,7 @@ describe("attachAttachmentBinaries", () => {
       } as MsGraphMailItem,
     };
 
-    const get = vi.fn().mockResolvedValue({ contentBytes: Buffer.from("imgdata").toString("base64") });
-    const client = { api: vi.fn().mockReturnValue({ get }) };
+    const client = makeAttachmentClient();
     const attachedBinary = { id: "bin-img", storageKey: "k" };
     const binary = {
       attach: vi.fn().mockResolvedValue(attachedBinary),
@@ -331,8 +351,7 @@ describe("attachAttachmentBinaries", () => {
       } as MsGraphMailItem,
     };
 
-    const get = vi.fn().mockResolvedValue({ contentBytes: Buffer.from("pdf").toString("base64") });
-    const client = { api: vi.fn().mockReturnValue({ get }) };
+    const client = makeAttachmentClient();
     const binary = {
       attach: vi.fn().mockResolvedValue({ id: "b", storageKey: "k" }),
       withAttachment: vi.fn(
@@ -354,7 +373,7 @@ describe("attachAttachmentBinaries", () => {
     expect(attachArg.name).toBe("document.pdf");
   });
 
-  it("registers attachment bytes via binary.attach when downloadAttachments is true", async () => {
+  it("registers attachment stream via binary.attach (not buffered bytes) when downloadAttachments is true", async () => {
     const item: Item<MsGraphMailItem> = {
       json: {
         messageId: "msg-1",
@@ -367,9 +386,8 @@ describe("attachAttachmentBinaries", () => {
       } as MsGraphMailItem,
     };
 
-    const get = vi.fn().mockResolvedValue({ contentBytes: Buffer.from("hello").toString("base64") });
-    const apiRequest = { get };
-    const client = { api: vi.fn().mockReturnValue(apiRequest) };
+    const stream = makeAttachmentStream(new Uint8Array(Buffer.from("hello")));
+    const client = makeAttachmentClient(stream);
     const attachedBinary = { id: "binary-1", storageKey: "k" };
     const binary = {
       attach: vi.fn().mockResolvedValue(attachedBinary),
@@ -387,10 +405,20 @@ describe("attachAttachmentBinaries", () => {
     );
 
     expect(binary.attach).toHaveBeenCalledTimes(1);
-    const attachArg = binary.attach.mock.calls[0]![0] as { name: string; mimeType: string; filename: string };
+    const attachArg = binary.attach.mock.calls[0]![0] as {
+      name: string;
+      mimeType: string;
+      filename: string;
+      body: unknown;
+    };
     expect(attachArg.name).toBe("report.pdf");
     expect(attachArg.mimeType).toBe("application/pdf");
     expect(attachArg.filename).toBe("report.pdf");
+    // Verify stream is passed through — not a Buffer
+    expect(attachArg.body).toBeInstanceOf(ReadableStream);
+    // Two-phase: getStream() called for /$value, not get() for JSON attachment
+    expect(client._req.getStream).toHaveBeenCalledTimes(1);
+    expect(client.api).toHaveBeenCalledWith(expect.stringMatching(/\/\$value$/));
     expect((result as { binary?: Record<string, unknown> }).binary?.["report.pdf"]).toBe(attachedBinary);
   });
 });

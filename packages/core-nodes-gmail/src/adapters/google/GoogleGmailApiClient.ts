@@ -375,6 +375,7 @@ export class GoogleGmailApiClient implements GmailApiClient {
 
   private decodeBase64Url(value: string): Uint8Array {
     const base64Value = value.replace(/-/g, "+").replace(/_/g, "/");
+    // eslint-disable-next-line codemation/no-buffer-everything -- Gmail Attachments API returns base64-encoded bytes in JSON; no streaming download endpoint exists for this path.
     return Uint8Array.from(Buffer.from(base64Value, "base64"));
   }
 }

@@ -27,20 +27,27 @@ export type GraphClient = {
 /**
  * Minimal interface isolating the Graph binary-download HTTP call.
  * Production: backed by the Graph SDK's `.getStream()`.
- * Tests: inject a stub that returns a Buffer without network I/O.
+ * Tests: inject a stub that returns a ReadableStream or Uint8Array without network I/O.
+ *
+ * `body` is typed as `unknown` and cast at the call site to the BinaryBody union
+ * (ReadableStream | AsyncIterable | Uint8Array | ArrayBuffer) so the Graph SDK's
+ * runtime-dependent stream type does not leak into the interface contract.
  */
 export type DownloadHttp = {
   downloadContent(args: {
     driveId: string;
     itemId: string;
     session: MsGraphSession;
-  }): Promise<{ body: Buffer; mimeType?: string }>;
+  }): Promise<{ body: unknown; mimeType?: string }>;
 };
 
 /**
  * Production implementation of DownloadHttp.
  * Uses the Graph SDK client's `.getStream()` which follows the Graph 302 redirect
  * to the pre-authenticated download URL transparently.
+ *
+ * Returns the stream directly without buffering — the Graph SDK returns either a
+ * Web ReadableStream or a Node.js Readable (both satisfy BinaryBody via AsyncIterable).
  */
 export function makeProductionDownloadHttp(): DownloadHttp {
   return {
@@ -48,32 +55,14 @@ export function makeProductionDownloadHttp(): DownloadHttp {
       const client = createGraphClient(session) as unknown as GraphClient;
       const url = `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}/content`;
 
-      const stream = (await withGraphRetry(() => client.api(url).getStream())) as unknown;
+      const stream = await withGraphRetry(() => client.api(url).getStream());
 
-      // Graph SDK 3.x returns either a Node.js Readable or a Web ReadableStream depending on
-      // the runtime. Handle both — the Web case turned up in our local dev (Node 20+).
-      const chunks: Buffer[] = [];
-      if (stream && typeof (stream as NodeJS.ReadableStream).on === "function") {
-        await new Promise<void>((resolve, reject) => {
-          const s = stream as NodeJS.ReadableStream;
-          s.on("data", (chunk: Buffer | Uint8Array) => {
-            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-          });
-          s.on("end", () => resolve());
-          s.on("error", reject);
-        });
-      } else if (stream && typeof (stream as ReadableStream<Uint8Array>).getReader === "function") {
-        const reader = (stream as ReadableStream<Uint8Array>).getReader();
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (value) chunks.push(Buffer.from(value));
-        }
-      } else {
+      const streamAsAny = stream as unknown as Record<string, unknown>;
+      if (!stream || (typeof streamAsAny["on"] !== "function" && typeof streamAsAny["getReader"] !== "function")) {
         throw new Error("DriveDownload: unexpected stream type returned by Graph client.getStream()");
       }
 
-      return { body: Buffer.concat(chunks) };
+      return { body: stream };
     },
   };
 }
@@ -147,14 +136,15 @@ export async function downloadItem(args: {
     );
   }
 
-  // Step 2: download the content bytes
+  // Step 2: download the content — stream flows directly into binary storage (never buffered).
   const { body } = await downloadHttp.downloadContent({ driveId, itemId, session });
 
-  // Step 3: attach bytes via binary service (NEVER put bytes on item JSON)
+  // Step 3: attach stream via binary service (NEVER put bytes on item JSON).
+  // body is cast to the BinaryBody union; both Node.js Readable and Web ReadableStream satisfy it.
   const slot = sanitizeSlotName(name);
   const stored = await binary.attach({
     name: slot,
-    body,
+    body: body as Parameters<typeof binary.attach>[0]["body"],
     mimeType: mimeType ?? "application/octet-stream",
     filename: name,
   });

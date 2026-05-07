@@ -61,6 +61,7 @@ test("parent binary slot is visible in child, child slot is visible in parent af
       for await (const chunk of stream.body) {
         chunks.push(chunk as Uint8Array);
       }
+      // eslint-disable-next-line codemation/no-buffer-everything -- test-only assertion reassembling bounded stream chunks to verify byte content.
       const text = Buffer.concat(chunks.map((c) => Buffer.from(c))).toString("utf-8");
       assert.equal(text, "parent-bytes");
       parentBytesReadableFromChild = true;
@@ -130,6 +131,7 @@ test("parent binary slot is visible in child, child slot is visible in parent af
       for await (const chunk of stream.body) {
         chunks.push(chunk as Uint8Array);
       }
+      // eslint-disable-next-line codemation/no-buffer-everything -- test-only assertion reassembling bounded stream chunks to verify byte content.
       const text = Buffer.concat(chunks.map((c) => Buffer.from(c))).toString("utf-8");
       assert.equal(text, "child-bytes");
       childBytesReadableFromParent = true;

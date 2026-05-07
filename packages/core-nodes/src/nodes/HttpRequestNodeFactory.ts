@@ -73,7 +73,8 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
         name: binaryName,
         body: response.body
           ? (response.body as unknown as Parameters<typeof ctx.binary.attach>[0]["body"])
-          : new Uint8Array(await response.arrayBuffer()),
+          : // eslint-disable-next-line codemation/no-buffer-everything -- response.body is null (e.g. 204/304); fallback path is intentional and bounded.
+            new Uint8Array(await response.arrayBuffer()),
         mimeType,
         filename: this.resolveFilename(resolvedUrl, headers),
       });

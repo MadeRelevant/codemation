@@ -334,6 +334,7 @@ export const driveUploadNode = defineNode({
     for await (const chunk of readResult.body) {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
+    // eslint-disable-next-line codemation/no-buffer-everything -- Graph SDK resumable upload requires a materialised Buffer with known Content-Length; streaming multipart PUT to Graph is not supported.
     const body = Buffer.concat(chunks);
 
     return await uploadItem({

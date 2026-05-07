@@ -29,6 +29,7 @@ function makeFakeClient(
         return req;
       },
       get: async () => ({ value: messages }),
+      getStream: async () => null,
     };
     return req;
   }
@@ -220,6 +221,7 @@ describe("runCycle", () => {
             return req;
           },
           get: async () => ({ value: [] }),
+          getStream: async () => null,
         };
         return req;
       },

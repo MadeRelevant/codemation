@@ -170,6 +170,7 @@ describe("replyToMessage (outlookMessageReplyNode helper)", () => {
     expect(attachmentPost).toBeDefined();
     const att = attachmentPost![0] as Record<string, unknown>;
     expect(typeof att["contentBytes"]).toBe("string");
+    // eslint-disable-next-line codemation/no-buffer-everything -- test assertion decoding base64 contentBytes to verify round-trip correctness; bounded string in test data.
     expect(Buffer.from(att["contentBytes"] as string, "base64").toString()).toBe("pdf-content");
   });
 

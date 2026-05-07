@@ -100,6 +100,7 @@ class WorkflowRealtimeBridgeClient {
       return Buffer.from(data).toString("utf8");
     }
     if (Array.isArray(data)) {
+      // eslint-disable-next-line codemation/no-buffer-everything -- WebSocket message chunks in test infrastructure are always small/bounded string frames; not binary attachment streams.
       return Buffer.concat(
         data.map((entry) => (typeof entry === "string" ? Buffer.from(entry) : Buffer.from(entry))),
       ).toString("utf8");
