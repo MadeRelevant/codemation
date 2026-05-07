@@ -137,33 +137,36 @@ class ReleaseTagVersionResolverTest {
     }
   }
 
-  async shouldBumpPastAnExistingReleaseTagWhenChangedPackageVersionsWouldCollide() {
+  async shouldIgnoreExistingReleaseTagsWhenResolvingFromPackageManifests() {
     const workspaceDirectory = await this.#createWorkspaceDirectory();
 
     try {
       await this.#initializeGitRepository(workspaceDirectory);
+      // Tags from a stale or failed-publish past (e.g. a reverted major bump)
+      // must not drag the next release into the wrong major. Package manifests
+      // on the current commit are the source of truth.
       await this.#writePackage({
         workspaceDirectory,
         directoryName: "core",
         packageName: "@codemation/core",
-        version: "0.5.0",
+        version: "2.0.0",
       });
-      await this.#commitAll(workspaceDirectory, "initial release line");
-      await this.#createTag(workspaceDirectory, "v0.5.0");
+      await this.#commitAll(workspaceDirectory, "stale major-bumped line");
+      await this.#createTag(workspaceDirectory, "v2.0.0");
 
+      await this.#writePackage({
+        workspaceDirectory,
+        directoryName: "core",
+        packageName: "@codemation/core",
+        version: "0.5.1",
+      });
       await this.#writePackage({
         workspaceDirectory,
         directoryName: "host",
         packageName: "@codemation/host",
         version: "0.2.1",
       });
-      await this.#writePackage({
-        workspaceDirectory,
-        directoryName: "next-host",
-        packageName: "@codemation/next-host",
-        version: "0.1.9",
-      });
-      await this.#commitAll(workspaceDirectory, "independent package release");
+      await this.#commitAll(workspaceDirectory, "release after major reset");
 
       const resolver = new ReleaseTagVersionResolver({
         rootDirectory: workspaceDirectory,
@@ -212,7 +215,7 @@ class ReleaseTagVersionResolverTest {
             runtimeProcess: this.runtimeProcess,
           });
 
-          assert.equal(await resolver.resolve(), "0.5.1");
+          assert.equal(await resolver.resolve(), "0.2.1");
         },
       );
     } finally {
@@ -321,8 +324,8 @@ test(
 );
 
 test(
-  "bumps past an existing release tag when package versions would reuse it",
-  releaseTagVersionResolverTest.shouldBumpPastAnExistingReleaseTagWhenChangedPackageVersionsWouldCollide.bind(
+  "ignores existing release tags when resolving from package manifests",
+  releaseTagVersionResolverTest.shouldIgnoreExistingReleaseTagsWhenResolvingFromPackageManifests.bind(
     releaseTagVersionResolverTest,
   ),
 );

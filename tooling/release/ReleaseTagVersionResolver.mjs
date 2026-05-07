@@ -17,18 +17,13 @@ export class ReleaseTagVersionResolver {
       throw new Error("No published package versions were found under packages/.");
     }
 
+    // Package manifests on main are the source of truth. Tags are derived from
+    // them, not the other way around — falling back to "latest tag + patch" lets
+    // a stale or failed-publish tag (e.g. a reverted major bump) drag the next
+    // release into the wrong major. The publish workflow already skips when the
+    // resolved tag exists, so collisions are harmless.
     const uniqueVersions = [...new Set(packageVersions)];
-    const highestPackageVersion = this.#maxSemanticVersion(uniqueVersions);
-    const latestReleaseTagVersion = await this.#readLatestReleaseTagVersion();
-    if (latestReleaseTagVersion === null) {
-      return highestPackageVersion;
-    }
-
-    if (this.#compareSemanticVersions(highestPackageVersion, latestReleaseTagVersion) > 0) {
-      return highestPackageVersion;
-    }
-
-    return this.#incrementPatchVersion(latestReleaseTagVersion);
+    return this.#maxSemanticVersion(uniqueVersions);
   }
 
   async #readReleasePackageVersions() {
@@ -112,27 +107,6 @@ export class ReleaseTagVersionResolver {
       .map((entry) => path.join(this.rootDirectory, entry));
   }
 
-  async #readLatestReleaseTagVersion() {
-    let stdout;
-
-    try {
-      ({ stdout } = await this.#execGit(["tag", "--list", "v*"]));
-    } catch {
-      return null;
-    }
-
-    const versions = stdout
-      .split("\n")
-      .map((entry) => entry.trim())
-      .filter((entry) => /^v\d+\.\d+\.\d+$/.test(entry))
-      .map((entry) => entry.slice(1));
-    if (versions.length === 0) {
-      return null;
-    }
-
-    return this.#maxSemanticVersion(versions);
-  }
-
   #maxSemanticVersion(versions) {
     let best = versions[0];
 
@@ -169,11 +143,6 @@ export class ReleaseTagVersionResolver {
     }
 
     return [Number(match.groups.major), Number(match.groups.minor), Number(match.groups.patch)];
-  }
-
-  #incrementPatchVersion(version) {
-    const [major, minor, patch] = this.#parseSemanticVersion(version);
-    return `${major}.${minor}.${patch + 1}`;
   }
 
   async #execGit(args) {
