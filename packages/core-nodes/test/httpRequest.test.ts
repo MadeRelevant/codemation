@@ -181,6 +181,65 @@ test("responseFormat binary: PDF bytes are stored in ctx.binary with correct slo
   assert.ok((item.binary?.["resume"]?.size ?? 0) > 0, "binary slot should have non-zero size");
 });
 
+test("responseFormat binary: filename comes from Content-Disposition header when present (overrides URL pathname)", async () => {
+  const pdfBase64 = "JVBERi0xLjQK";
+
+  const savedFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () =>
+      new Response(Buffer.from(pdfBase64, "base64"), {
+        status: 200,
+        headers: {
+          "content-type": "application/pdf",
+          "content-disposition": 'attachment; filename="quarterly-report.pdf"',
+        },
+      });
+
+    const config = new HttpRequest("Fetch PDF", { responseFormat: "binary" });
+    const outputs = await runPerItemLikeEngine(
+      new HttpRequestNode(),
+      [{ json: { url: "https://example.com/d?id=42" } }],
+      HttpRequestNodeTestContextFactory.create(config),
+    );
+
+    const item = outputs.main?.[0];
+    assert.ok(item);
+    const json = item.json as Record<string, unknown>;
+    // filename comes from Content-Disposition, not the URL's path tail.
+    assert.equal(json["filename"], "quarterly-report.pdf");
+    assert.equal(item.binary?.response?.filename, "quarterly-report.pdf");
+  } finally {
+    globalThis.fetch = savedFetch;
+  }
+});
+
+test("responseFormat binary: filename falls back to URL pathname tail when Content-Disposition is absent", async () => {
+  const pdfBase64 = "JVBERi0xLjQK";
+
+  const savedFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () =>
+      new Response(Buffer.from(pdfBase64, "base64"), {
+        status: 200,
+        headers: { "content-type": "application/pdf" },
+      });
+
+    const config = new HttpRequest("Fetch PDF", { responseFormat: "binary" });
+    const outputs = await runPerItemLikeEngine(
+      new HttpRequestNode(),
+      [{ json: { url: "https://example.com/files/spec.pdf" } }],
+      HttpRequestNodeTestContextFactory.create(config),
+    );
+
+    const item = outputs.main?.[0];
+    assert.ok(item);
+    const json = item.json as Record<string, unknown>;
+    assert.equal(json["filename"], "spec.pdf");
+  } finally {
+    globalThis.fetch = savedFetch;
+  }
+});
+
 test("responseFormat binary: default slot name is 'response' when responseBinarySlot not set", async () => {
   const config = new HttpRequest("Fetch image", { responseFormat: "binary" });
   const outputs = await runPerItemLikeEngine(
