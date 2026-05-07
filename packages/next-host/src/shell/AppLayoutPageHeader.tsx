@@ -13,7 +13,8 @@ import { useWhitelabel } from "../providers/WhitelabelProvider";
 import { getPageTitle } from "./appLayoutPageTitle";
 import { AppShellHeaderActions } from "./AppShellHeaderActions";
 import { useWorkflowDetailChrome } from "./WorkflowDetailChromeContext";
-import { useWorkflowsQuery } from "../features/workflows/hooks/realtime/realtime";
+import { useWorkflowsQuery, useWorkflowQuery } from "../features/workflows/hooks/realtime/realtime";
+import { WorkflowInfoPopover } from "./WorkflowInfoPopover";
 
 export function AppLayoutPageHeader(): ReactNode {
   const pathname = usePathname();
@@ -24,6 +25,14 @@ export function AppLayoutPageHeader(): ReactNode {
   const chrome = useWorkflowDetailChrome();
   const isWorkflowDetail = /^\/workflows\/[^/]+$/.test(pathname);
   const showChromeRow = isWorkflowDetail && chrome !== null;
+  const workflowDetailMatch = pathname.match(/^\/workflows\/([^/]+)/);
+  const currentWorkflowId = workflowDetailMatch ? decodeURIComponent(workflowDetailMatch[1]) : null;
+  const currentWorkflowSummary = currentWorkflowId ? workflows.find((w) => w.id === currentWorkflowId) : undefined;
+  // Reads from query cache; the workflow detail page always warms this key.
+  const workflowDetailQuery = useWorkflowQuery(currentWorkflowId ?? "");
+  const workflowDetailDto = workflowDetailQuery.data;
+  const triggerNode = workflowDetailDto?.nodes.find((n) => n.kind === "trigger");
+  const triggerType = triggerNode?.type ?? triggerNode?.name;
   const credentialLines = chrome?.credentialAttentionSummaryLines ?? [];
   const activationAlertLines = chrome?.workflowActivationAlertLines ?? null;
 
@@ -37,6 +46,9 @@ export function AppLayoutPageHeader(): ReactNode {
           >
             {title}
           </h1>
+          {isWorkflowDetail && currentWorkflowSummary ? (
+            <WorkflowInfoPopover workflow={currentWorkflowSummary} triggerType={triggerType} />
+          ) : null}
           {showChromeRow && credentialLines.length > 0 ? (
             <CanvasNodeChromeTooltip
               testId="workflow-credential-attention-indicator"

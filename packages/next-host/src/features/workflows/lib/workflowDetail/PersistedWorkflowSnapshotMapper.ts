@@ -74,6 +74,7 @@ export class PersistedWorkflowSnapshotMapper {
         ? ((this.asRecord(node.config) as { triggerKind?: "live" | "test" }).triggerKind ?? "live")
         : undefined;
     const description = (this.asRecord(node.config) as { description?: string }).description;
+    const referencedWorkflowId = (this.asRecord(node.config) as { workflowId?: string }).workflowId;
     const workflowNode: WorkflowNodeDto = {
       id: node.id,
       kind: node.kind,
@@ -86,6 +87,9 @@ export class PersistedWorkflowSnapshotMapper {
       ...this.nodePortFieldsFromSnapshotConfig(node.config),
       ...(triggerKind ? { triggerKind } : {}),
       ...(typeof description === "string" && description.trim().length > 0 ? { description } : {}),
+      ...(typeof referencedWorkflowId === "string" && referencedWorkflowId.trim().length > 0
+        ? { referencedWorkflowId }
+        : {}),
     };
 
     if (!this.isAgentConfig(node.config)) {
@@ -279,6 +283,7 @@ export class PersistedWorkflowSnapshotMapper {
     tools?: ReadonlyArray<unknown>;
     messages?: unknown;
     presentation?: unknown;
+    workflowId?: string;
   }> {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       return {};
@@ -292,6 +297,7 @@ export class PersistedWorkflowSnapshotMapper {
       tools?: ReadonlyArray<unknown>;
       messages?: unknown;
       presentation?: unknown;
+      workflowId?: string;
     }>;
   }
 }

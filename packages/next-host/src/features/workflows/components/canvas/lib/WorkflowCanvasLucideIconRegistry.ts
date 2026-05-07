@@ -4,12 +4,14 @@ import Braces from "lucide-react/dist/esm/icons/braces";
 import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
 import CircleDashed from "lucide-react/dist/esm/icons/circle-dashed";
 import CircleHelp from "lucide-react/dist/esm/icons/circle-help";
+import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import Filter from "lucide-react/dist/esm/icons/filter";
 import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
 import GitBranchPlus from "lucide-react/dist/esm/icons/git-branch-plus";
 import GitMerge from "lucide-react/dist/esm/icons/git-merge";
 import Globe from "lucide-react/dist/esm/icons/globe";
 import Hourglass from "lucide-react/dist/esm/icons/hourglass";
+import Info from "lucide-react/dist/esm/icons/info";
 import Layers from "lucide-react/dist/esm/icons/layers";
 import Merge from "lucide-react/dist/esm/icons/merge";
 import Play from "lucide-react/dist/esm/icons/play";
@@ -42,12 +44,14 @@ export class WorkflowCanvasLucideIconRegistry {
     "check-circle": CheckCircle,
     "circle-dashed": CircleDashed,
     "circle-help": CircleHelp,
+    "external-link": ExternalLink,
     filter: Filter,
     "flask-conical": FlaskConical,
     "git-branch-plus": GitBranchPlus,
     "git-merge": GitMerge,
     globe: Globe,
     hourglass: Hourglass,
+    info: Info,
     layers: Layers,
     merge: Merge,
     play: Play,

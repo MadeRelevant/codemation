@@ -23,6 +23,11 @@ export type WorkflowNodeDto = Readonly<{
    * mailbox / fixture file / data source the test cases originate from.
    */
   description?: string;
+  /**
+   * When present, the node is a SubWorkflow invocation targeting this workflow id. Surfaced in
+   * the properties panel as an "Open in editor" navigation link.
+   */
+  referencedWorkflowId?: string;
 }>;
 
 export type WorkflowEdgeDto = Readonly<{
