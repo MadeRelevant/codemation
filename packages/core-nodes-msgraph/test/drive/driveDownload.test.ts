@@ -398,10 +398,10 @@ describe("DriveDownloadNode", () => {
 
     try {
       // Access the runtime class via the config's type token
-      const nodeConfig = driveDownloadNode.create(
-        { driveId: "", itemId: "" },
-        "DriveDownload",
-      ) as unknown as { type: new () => { execute(args: unknown): Promise<unknown> }; config: unknown };
+      const nodeConfig = driveDownloadNode.create({ driveId: "", itemId: "" }, "DriveDownload") as unknown as {
+        type: new () => { execute(args: unknown): Promise<unknown> };
+        config: unknown;
+      };
 
       const RuntimeClass = nodeConfig.type;
       const runtime = new RuntimeClass();
