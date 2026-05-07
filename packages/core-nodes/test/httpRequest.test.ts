@@ -298,7 +298,9 @@ test("bodyFormat binary: outgoing fetch uses bytes from binary slot and Content-
     // memory — so fetch receives a ReadableStream (Web). Reading it should
     // produce the original bytes.
     assert.ok(
-      capturedBody !== undefined && capturedBody !== null && typeof (capturedBody as ReadableStream).getReader === "function",
+      capturedBody !== undefined &&
+        capturedBody !== null &&
+        typeof (capturedBody as ReadableStream).getReader === "function",
       "fetch body should be a ReadableStream (streaming, not buffered)",
     );
     const reader = (capturedBody as ReadableStream<Uint8Array>).getReader();
