@@ -52,6 +52,7 @@ type ExecutionInstanceRow = {
   iterationId: string | null;
   itemIndex: number | null;
   parentInvocationId: string | null;
+  childRunId: string | null;
 };
 
 type RunWorkItemRecord = {
@@ -345,6 +346,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
               inputTruncated: instance.inputTruncated,
               outputTruncated: instance.outputTruncated,
               usedPinnedOutput: instance.usedPinnedOutput,
+              childRunId: instance.childRunId,
             },
           });
           continue;
@@ -510,6 +512,9 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       inputsByPort,
       outputs,
       error,
+      ...(row.childRunId !== null && row.childRunId !== undefined
+        ? { childRunId: row.childRunId as NodeExecutionSnapshot["childRunId"] }
+        : {}),
     };
   }
 
@@ -564,6 +569,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       iterationId: row.iterationId ?? undefined,
       itemIndex: row.itemIndex ?? undefined,
       parentInvocationId: row.parentInvocationId ?? undefined,
+      ...(row.childRunId !== null && row.childRunId !== undefined ? { childRunId: row.childRunId } : {}),
     };
   }
 
@@ -636,6 +642,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
         inputStorageKind: "inline",
         outputStorageKind: "inline",
         usedPinnedOutput: snap.usedPinnedOutput ?? null,
+        childRunId: snap.childRunId ?? null,
       });
     }
     let cIdx = 0;

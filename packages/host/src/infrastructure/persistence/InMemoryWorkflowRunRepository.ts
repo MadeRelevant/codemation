@@ -119,6 +119,7 @@ export class InMemoryWorkflowRunRepository implements WorkflowRunRepository, Wor
         inputJson: snapshot.inputsByPort as never,
         outputJson: snapshot.outputs as never,
         error: snapshot.error,
+        ...(snapshot.childRunId !== undefined ? { childRunId: snapshot.childRunId } : {}),
       }),
     );
     const invocationInstances: ExecutionInstanceDto[] = (state.connectionInvocations ?? []).map(

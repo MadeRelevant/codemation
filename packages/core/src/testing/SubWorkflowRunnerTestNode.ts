@@ -60,6 +60,7 @@ export class SubWorkflowRunnerNode implements RunnableNode<SubWorkflowRunnerConf
         engineMaxSubworkflowDepth: args.ctx.engineMaxSubworkflowDepth,
       },
     });
+    await args.ctx.nodeState?.setChildRunId?.({ nodeId: args.ctx.nodeId, childRunId: result.runId });
     if (result.status !== "completed") {
       throw new Error(`Subworkflow ${args.ctx.config.workflowId} did not complete (status=${result.status})`);
     }

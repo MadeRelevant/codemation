@@ -208,6 +208,11 @@ export interface ExecutionInstanceDto {
   readonly itemIndex?: number;
   /** Parent invocation id when this instance was emitted by a sub-agent triggered by an outer LLM/tool call. */
   readonly parentInvocationId?: string;
+  /**
+   * When this instance is a SubWorkflow node activation, the run id of the child run it spawned.
+   * Used by the UI to deep-link directly to the child execution.
+   */
+  readonly childRunId?: string;
 }
 
 export interface WorkflowDetailSelectionState {

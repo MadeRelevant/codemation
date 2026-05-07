@@ -88,6 +88,7 @@ export class NodeExecutionSnapshotFactory {
       outputs: args.outputs,
       usedPinnedOutput: fromPinnedOutput,
       error: undefined,
+      ...(args.previous?.childRunId !== undefined ? { childRunId: args.previous.childRunId } : {}),
     };
   }
 
@@ -116,6 +117,7 @@ export class NodeExecutionSnapshotFactory {
       inputsByPort: args.inputsByPort,
       outputs: args.outputs,
       error: undefined,
+      ...(args.previous?.childRunId !== undefined ? { childRunId: args.previous.childRunId } : {}),
     };
   }
 
@@ -149,6 +151,7 @@ export class NodeExecutionSnapshotFactory {
         stack: args.error.stack,
         details: (args.error as Error & { details?: JsonValue }).details,
       },
+      ...(args.previous?.childRunId !== undefined ? { childRunId: args.previous.childRunId } : {}),
     };
   }
 }

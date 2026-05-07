@@ -150,6 +150,11 @@ export interface NodeExecutionSnapshot {
   inputsByPort?: NodeInputsByPort;
   outputs?: NodeOutputs;
   error?: NodeExecutionError;
+  /**
+   * When the node is a SubWorkflow invocation, the run id of the child run it spawned.
+   * Populated after the child run completes so the UI can deep-link to that specific execution.
+   */
+  childRunId?: RunId;
 }
 
 /** Stable id for a single connection invocation row in {@link ConnectionInvocationRecord}. */

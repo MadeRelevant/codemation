@@ -37,6 +37,10 @@ export class SubWorkflowNode implements RunnableNode<SubWorkflow<any, any>> {
         engineMaxSubworkflowDepth: args.ctx.engineMaxSubworkflowDepth,
       },
     });
+    // Annotate the parent node's snapshot with the child run id so the UI can deep-link to
+    // the specific child execution. The engine's subsequent markCompleted preserves this via
+    // NodeExecutionSnapshotFactory.completed which carries forward previous.childRunId.
+    await args.ctx.nodeState?.setChildRunId?.({ nodeId: args.ctx.nodeId, childRunId: result.runId });
     if (result.status !== "completed") {
       throw new Error(`Subworkflow ${args.ctx.config.workflowId} did not complete (status=${result.status})`);
     }

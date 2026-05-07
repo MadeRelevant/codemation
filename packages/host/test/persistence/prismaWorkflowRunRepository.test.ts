@@ -734,4 +734,264 @@ describe("PrismaWorkflowRunRepository", () => {
       parentInvocationId: "tool-call-row-1",
     });
   });
+
+  it("round-trips childRunId through rowToNodeSnapshot and buildExecutionInstances", async () => {
+    const createdInstances: Array<Record<string, unknown>> = [];
+
+    const prisma: FakePrisma = {
+      run: {
+        findUnique: async () => ({
+          runId: "run-child-id",
+          workflowId: "wf-parent",
+          startedAt: "2026-05-07T10:00:00.000Z",
+          finishedAt: null,
+          revision: 1,
+          status: "pending",
+          parentJson: null,
+          executionOptionsJson: null,
+          controlJson: null,
+          workflowSnapshotJson: null,
+          policySnapshotJson: null,
+          engineCountersJson: JSON.stringify({ completedNodeActivations: 1 }),
+          mutableStateJson: JSON.stringify({ nodesById: {} }),
+          outputsByNodeJson: JSON.stringify({}),
+        }),
+        updateMany: async () => ({ count: 1 }),
+      },
+      runWorkItem: {
+        findMany: async () => [],
+        deleteMany: async () => undefined,
+        createMany: async () => undefined,
+      },
+      executionInstance: {
+        findMany: async (args) => {
+          if ((args as { select?: unknown }).select) return [];
+          return [
+            {
+              instanceId: "run-child-id:node:sub-node:act-1",
+              runId: "run-child-id",
+              workflowId: "wf-parent",
+              slotNodeId: "sub-node",
+              workflowNodeId: "sub-node",
+              kind: "workflowNodeActivation",
+              connectionKind: null,
+              activationId: "act-1",
+              batchId: "batch-1",
+              runIndex: 1,
+              parentInstanceId: null,
+              status: "completed",
+              queuedAt: "2026-05-07T10:00:01.000Z",
+              startedAt: "2026-05-07T10:00:02.000Z",
+              finishedAt: "2026-05-07T10:00:03.000Z",
+              updatedAt: "2026-05-07T10:00:03.000Z",
+              itemCount: 1,
+              inputJson: JSON.stringify({ in: [{ json: { x: 1 } }] }),
+              outputJson: JSON.stringify({ main: [{ json: { x: 1 } }] }),
+              errorJson: null,
+              inputItemIndicesJson: null,
+              outputItemCount: 1,
+              successfulItemCount: 1,
+              failedItemCount: null,
+              usedPinnedOutput: null,
+              iterationId: null,
+              itemIndex: null,
+              parentInvocationId: null,
+              childRunId: "child-run-abc",
+            },
+          ];
+        },
+        update: async () => undefined,
+        create: async (args) => {
+          createdInstances.push((args as { data: Record<string, unknown> }).data);
+        },
+      },
+      runSlotProjection: {
+        upsert: async () => undefined,
+      },
+    };
+    prisma.$transaction = async (work) => await work(prisma);
+
+    const repository = new PrismaWorkflowRunRepository(prisma as never);
+
+    // load() should surface childRunId on the node snapshot.
+    const loaded = await repository.load("run-child-id");
+    expect(loaded?.nodeSnapshotsByNodeId["sub-node"]?.childRunId).toBe("child-run-abc");
+
+    // save() should persist childRunId on the execution instance row.
+    await repository.save({
+      runId: "run-child-id",
+      workflowId: "wf-parent",
+      startedAt: "2026-05-07T10:00:00.000Z",
+      revision: 1,
+      status: "completed",
+      finishedAt: "2026-05-07T10:00:05.000Z",
+      pending: undefined,
+      queue: [],
+      outputsByNode: {},
+      nodeSnapshotsByNodeId: {
+        "sub-node": {
+          runId: "run-child-id",
+          workflowId: "wf-parent",
+          nodeId: "sub-node",
+          activationId: "act-1",
+          status: "completed",
+          queuedAt: "2026-05-07T10:00:01.000Z",
+          startedAt: "2026-05-07T10:00:02.000Z",
+          finishedAt: "2026-05-07T10:00:03.000Z",
+          updatedAt: "2026-05-07T10:00:03.000Z",
+          childRunId: "child-run-abc",
+        },
+      },
+      connectionInvocations: [],
+    } satisfies import("@codemation/core").PersistedRunState);
+
+    const saved = createdInstances.find((row) => row.slotNodeId === "sub-node");
+    expect(saved).toMatchObject({ childRunId: "child-run-abc" });
+  });
+
+  it("rowToNodeSnapshot omits childRunId when the db column is null (backward compat)", async () => {
+    const prisma: FakePrisma = {
+      run: {
+        findUnique: async () => ({
+          runId: "run-no-child",
+          workflowId: "wf-parent",
+          startedAt: "2026-05-07T10:00:00.000Z",
+          finishedAt: null,
+          revision: 1,
+          status: "pending",
+          parentJson: null,
+          executionOptionsJson: null,
+          controlJson: null,
+          workflowSnapshotJson: null,
+          policySnapshotJson: null,
+          engineCountersJson: null,
+          mutableStateJson: JSON.stringify({ nodesById: {} }),
+          outputsByNodeJson: JSON.stringify({}),
+        }),
+      },
+      runWorkItem: { findMany: async () => [] },
+      executionInstance: {
+        findMany: async (args) => {
+          if ((args as { select?: unknown }).select) return [];
+          return [
+            {
+              instanceId: "run-no-child:node:node-a:act-1",
+              runId: "run-no-child",
+              workflowId: "wf-parent",
+              slotNodeId: "node-a",
+              workflowNodeId: "node-a",
+              kind: "workflowNodeActivation",
+              connectionKind: null,
+              activationId: "act-1",
+              batchId: "batch-1",
+              runIndex: 1,
+              parentInstanceId: null,
+              status: "completed",
+              queuedAt: null,
+              startedAt: null,
+              finishedAt: null,
+              updatedAt: "2026-05-07T10:00:01.000Z",
+              itemCount: 1,
+              inputJson: null,
+              outputJson: null,
+              errorJson: null,
+              inputItemIndicesJson: null,
+              outputItemCount: null,
+              successfulItemCount: null,
+              failedItemCount: null,
+              usedPinnedOutput: null,
+              iterationId: null,
+              itemIndex: null,
+              parentInvocationId: null,
+              childRunId: null,
+            },
+          ];
+        },
+      },
+    };
+
+    const repository = new PrismaWorkflowRunRepository(prisma as never);
+    const loaded = await repository.load("run-no-child");
+
+    expect(loaded?.nodeSnapshotsByNodeId["node-a"]).toBeDefined();
+    expect(loaded?.nodeSnapshotsByNodeId["node-a"]).not.toHaveProperty("childRunId");
+  });
+
+  it("toExecutionInstanceDto surfaces childRunId for loadRunDetail and omits it when null", async () => {
+    const makeRunRow = () => ({
+      runId: "run-detail",
+      workflowId: "wf-parent",
+      startedAt: "2026-05-07T10:00:00.000Z",
+      finishedAt: "2026-05-07T10:00:10.000Z",
+      status: "completed",
+      revision: 1,
+      parentJson: null,
+      executionOptionsJson: null,
+      controlJson: null,
+      workflowSnapshotJson: null,
+      policySnapshotJson: null,
+      engineCountersJson: null,
+      mutableStateJson: JSON.stringify({ nodesById: {} }),
+      outputsByNodeJson: JSON.stringify({}),
+    });
+
+    const makeInstanceRows = (withChildRunId: boolean) => [
+      {
+        instanceId: "run-detail:node:sub:act-1",
+        runId: "run-detail",
+        workflowId: "wf-parent",
+        slotNodeId: "sub",
+        workflowNodeId: "sub",
+        kind: "workflowNodeActivation",
+        connectionKind: null,
+        activationId: "act-1",
+        batchId: "batch-1",
+        runIndex: 1,
+        parentInstanceId: null,
+        status: "completed",
+        queuedAt: null,
+        startedAt: null,
+        finishedAt: null,
+        updatedAt: "2026-05-07T10:00:05.000Z",
+        itemCount: 1,
+        inputJson: null,
+        outputJson: null,
+        errorJson: null,
+        inputItemIndicesJson: null,
+        outputItemCount: null,
+        successfulItemCount: null,
+        failedItemCount: null,
+        usedPinnedOutput: null,
+        iterationId: null,
+        itemIndex: null,
+        parentInvocationId: null,
+        childRunId: withChildRunId ? "child-run-xyz" : null,
+      },
+    ];
+
+    const buildPrisma = (withChildRunId: boolean): FakePrisma => ({
+      run: { findUnique: async () => makeRunRow() },
+      runSlotProjection: {
+        findUnique: async () => null,
+      },
+      executionInstance: {
+        findMany: async (args) => {
+          if ((args as { select?: unknown }).select) return [];
+          return makeInstanceRows(withChildRunId);
+        },
+      },
+      runWorkItem: {},
+    });
+
+    const repoWith = new PrismaWorkflowRunRepository(buildPrisma(true) as never);
+    const detailWith = await repoWith.loadRunDetail("run-detail");
+    expect(detailWith?.executionInstances[0]).toMatchObject({
+      instanceId: "run-detail:node:sub:act-1",
+      childRunId: "child-run-xyz",
+    });
+
+    const repoWithout = new PrismaWorkflowRunRepository(buildPrisma(false) as never);
+    const detailWithout = await repoWithout.loadRunDetail("run-detail");
+    expect(detailWithout?.executionInstances[0]).not.toHaveProperty("childRunId");
+  });
 });
