@@ -1,8 +1,8 @@
 import Bot from "lucide-react/dist/esm/icons/bot";
-import Boxes from "lucide-react/dist/esm/icons/boxes";
 import Brain from "lucide-react/dist/esm/icons/brain";
 import CircleAlert from "lucide-react/dist/esm/icons/circle-alert";
 import CircleCheckBig from "lucide-react/dist/esm/icons/circle-check-big";
+import CircleHelp from "lucide-react/dist/esm/icons/circle-help";
 import Clock3 from "lucide-react/dist/esm/icons/clock-3";
 import LoaderCircle from "lucide-react/dist/esm/icons/loader-circle";
 import Wrench from "lucide-react/dist/esm/icons/wrench";
@@ -35,14 +35,15 @@ export function WorkflowStatusIcon(args: Readonly<{ status: string; size?: numbe
  * and duplicated the icon pipeline for the execution tree panel. Both are gone:
  * - Canvas + tree panel now render via {@link WorkflowCanvasNodeIcon}, so `builtin:`,
  *   `si:`, URL and rotated icons all resolve the same way everywhere.
- * - Plugin nodes that forget to set `icon` fall through to `Boxes`, a clear visual
- *   signal to add one — no more silent substring guesses.
+ * - Plugin nodes that forget to set `icon` fall through to a question mark — a loud
+ *   visual signal to add one. Roles with a meaningful default (agent / model / tool)
+ *   still render their semantic icon.
  */
 export class WorkflowNodeIconResolver {
   static resolveFallback(role?: string): LucideIcon {
     if (role === "agent" || role === "nestedAgent") return Bot;
     if (role === "languageModel") return Brain;
     if (role === "tool") return Wrench;
-    return Boxes;
+    return CircleHelp;
   }
 }
