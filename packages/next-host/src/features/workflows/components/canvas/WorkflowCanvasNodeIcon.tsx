@@ -1,4 +1,4 @@
-import Boxes from "lucide-react/dist/esm/icons/boxes";
+import CircleHelp from "lucide-react/dist/esm/icons/circle-help";
 import type { CSSProperties, ReactNode } from "react";
 
 import { WorkflowNodeIconResolver } from "../workflowDetail/WorkflowDetailIcons";
@@ -65,7 +65,7 @@ function renderInSlot(sizePx: number, rotate: CanvasIconRotate | undefined, chil
  * - **`builtin:<id>`** — SVG under `public/canvas-icons/builtin/` (see {@link WorkflowCanvasBuiltinIconRegistry})
  * - **`si:<slug>`** — cherry-picked Simple Icons, or same builtin asset when slug matches a registered builtin (e.g. `si:openai`)
  * - **`lucide:<name>`** or legacy kebab name — Lucide icon from a curated registry (only icons used
- *   by core node plugins). Unknown names fall back to the `Boxes` icon and emit a one-time warning.
+ *   by core node plugins). Unknown names fall back to a question-mark glyph and emit a one-time warning.
  *   Plugin authors needing custom icons should ship SVG via `builtin:` / `si:` / URL.
  *
  * Any of the above may be suffixed with `@rot=<0|90|180|270>` (and future modifiers)
@@ -78,7 +78,7 @@ export function WorkflowCanvasNodeIcon(
     icon?: string;
     sizePx: number;
     strokeWidth?: number;
-    /** When `icon` is unset, Lucide fallback from node role (e.g. nested agent → Bot, not Boxes). */
+    /** When `icon` is unset, Lucide fallback from node role (e.g. nested agent → Bot, otherwise question mark). */
     fallbackType?: string;
     fallbackRole?: string;
   }>,
@@ -107,7 +107,7 @@ export function WorkflowCanvasNodeIcon(
         <img src={url} alt="" style={{ ...IMG_STYLE, width: "100%", height: "100%" }} />,
       );
     }
-    return renderInSlot(sizePx, rotate, <Boxes size={sizePx} strokeWidth={strokeWidth} />);
+    return renderInSlot(sizePx, rotate, <CircleHelp size={sizePx} strokeWidth={strokeWidth} />);
   }
   if (body.startsWith("si:")) {
     const slug = body.slice("si:".length).trim().toLowerCase();
@@ -127,7 +127,7 @@ export function WorkflowCanvasNodeIcon(
         <WorkflowCanvasSimpleIconGlyph title={data.title} path={data.path} hex={data.hex} sizePx={sizePx} />,
       );
     }
-    return renderInSlot(sizePx, rotate, <Boxes size={sizePx} strokeWidth={strokeWidth} />);
+    return renderInSlot(sizePx, rotate, <CircleHelp size={sizePx} strokeWidth={strokeWidth} />);
   }
   const lucideName = body.startsWith("lucide:")
     ? body.slice("lucide:".length).trim().toLowerCase()
@@ -136,6 +136,6 @@ export function WorkflowCanvasNodeIcon(
   return renderInSlot(
     sizePx,
     rotate,
-    Icon ? <Icon size={sizePx} strokeWidth={strokeWidth} /> : <Boxes size={sizePx} strokeWidth={strokeWidth} />,
+    Icon ? <Icon size={sizePx} strokeWidth={strokeWidth} /> : <CircleHelp size={sizePx} strokeWidth={strokeWidth} />,
   );
 }

@@ -3,6 +3,7 @@ import Boxes from "lucide-react/dist/esm/icons/boxes";
 import Braces from "lucide-react/dist/esm/icons/braces";
 import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
 import CircleDashed from "lucide-react/dist/esm/icons/circle-dashed";
+import CircleHelp from "lucide-react/dist/esm/icons/circle-help";
 import Filter from "lucide-react/dist/esm/icons/filter";
 import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
 import GitBranchPlus from "lucide-react/dist/esm/icons/git-branch-plus";
@@ -16,6 +17,7 @@ import Split from "lucide-react/dist/esm/icons/split";
 import SquarePen from "lucide-react/dist/esm/icons/square-pen";
 import Ungroup from "lucide-react/dist/esm/icons/ungroup";
 import Webhook from "lucide-react/dist/esm/icons/webhook";
+import Workflow from "lucide-react/dist/esm/icons/workflow";
 
 import type { ComponentType, SVGProps } from "react";
 
@@ -39,6 +41,7 @@ export class WorkflowCanvasLucideIconRegistry {
     braces: Braces,
     "check-circle": CheckCircle,
     "circle-dashed": CircleDashed,
+    "circle-help": CircleHelp,
     filter: Filter,
     "flask-conical": FlaskConical,
     "git-branch-plus": GitBranchPlus,
@@ -52,6 +55,7 @@ export class WorkflowCanvasLucideIconRegistry {
     "square-pen": SquarePen,
     ungroup: Ungroup,
     webhook: Webhook,
+    workflow: Workflow,
   };
 
   private static readonly warnedUnknown = new Set<string>();

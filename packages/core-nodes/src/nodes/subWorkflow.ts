@@ -8,6 +8,7 @@ export class SubWorkflow<TInputJson = unknown, TOutputJson = unknown> implements
 > {
   readonly kind = "node" as const;
   readonly type: TypeToken<unknown> = SubWorkflowNode;
+  readonly icon = "lucide:workflow";
   constructor(
     public readonly name: string,
     public readonly workflowId: string,

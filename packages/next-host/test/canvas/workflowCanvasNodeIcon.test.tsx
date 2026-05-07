@@ -87,11 +87,11 @@ describe("WorkflowNodeIconResolver.resolveFallback (role-only)", () => {
     expect(WorkflowNodeIconResolver.resolveFallback("tool").displayName).toBe("Wrench");
   });
 
-  it("returns a generic Boxes icon for unknown or missing roles (no substring-based guesses)", () => {
-    expect(WorkflowNodeIconResolver.resolveFallback().displayName).toBe("Boxes");
-    expect(WorkflowNodeIconResolver.resolveFallback("").displayName).toBe("Boxes");
+  it("returns a question-mark icon for unknown or missing roles (no substring-based guesses)", () => {
+    expect(WorkflowNodeIconResolver.resolveFallback().displayName).toBe("CircleQuestionMark");
+    expect(WorkflowNodeIconResolver.resolveFallback("").displayName).toBe("CircleQuestionMark");
     // Pre-fix bug: `"wait".includes("ai")` silently returned Bot. Role-only fallback makes this impossible.
-    expect(WorkflowNodeIconResolver.resolveFallback("wait").displayName).toBe("Boxes");
-    expect(WorkflowNodeIconResolver.resolveFallback("filter").displayName).toBe("Boxes");
+    expect(WorkflowNodeIconResolver.resolveFallback("wait").displayName).toBe("CircleQuestionMark");
+    expect(WorkflowNodeIconResolver.resolveFallback("filter").displayName).toBe("CircleQuestionMark");
   });
 });
