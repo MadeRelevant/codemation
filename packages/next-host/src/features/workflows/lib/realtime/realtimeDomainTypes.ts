@@ -199,6 +199,11 @@ export type ExecutionInstanceDto = Readonly<{
   inputJson?: JsonValue;
   outputJson?: JsonValue;
   error?: NodeExecutionSnapshot["error"];
+  /**
+   * When this instance is a SubWorkflow node activation, the run id of the child run it spawned.
+   * Used by the UI to deep-link directly to the child execution.
+   */
+  childRunId?: string;
 }>;
 
 export type WorkflowRunDetailDto = Readonly<{

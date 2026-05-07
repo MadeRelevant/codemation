@@ -11,6 +11,7 @@ child run when a `SubWorkflow` node is selected in the execution inspector, inst
 only linking to the child workflow's editor. Fixes the gap from PR #131.
 
 - `@codemation/core` (patch): `NodeExecutionSnapshot` gains `childRunId?: RunId`;
+  `ExecutionInstanceDto` gains `childRunId?: string`;
   `NodeExecutionStatePublisher` gains optional `setChildRunId` method;
   `NodeExecutionSnapshotFactory` propagates `previous.childRunId` through
   `completed`, `failed`, and `skipped` transitions.

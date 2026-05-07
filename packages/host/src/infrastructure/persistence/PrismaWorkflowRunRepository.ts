@@ -569,6 +569,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       iterationId: row.iterationId ?? undefined,
       itemIndex: row.itemIndex ?? undefined,
       parentInvocationId: row.parentInvocationId ?? undefined,
+      ...(row.childRunId !== null && row.childRunId !== undefined ? { childRunId: row.childRunId } : {}),
     };
   }
 

@@ -965,6 +965,7 @@ export class WorkflowDetailPresenter {
       inputsByPort: this.jsonValueToPortItems(instance.inputJson),
       outputs: this.jsonValueToPortItems(instance.outputJson),
       error: instance.error,
+      ...(instance.childRunId !== undefined ? { childRunId: instance.childRunId } : {}),
     };
   }
 
