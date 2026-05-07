@@ -147,7 +147,8 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
       name: slotName,
       body: response.body
         ? (response.body as unknown as Parameters<typeof ctx.binary.attach>[0]["body"])
-        : new Uint8Array(await response.arrayBuffer()),
+        : // eslint-disable-next-line codemation/no-buffer-everything -- response.body is null on 204/304-style empty responses; the size-cap check above already gates large bodies, so buffering an empty payload here is bounded and unavoidable.
+          new Uint8Array(await response.arrayBuffer()),
       mimeType,
       filename,
     });
