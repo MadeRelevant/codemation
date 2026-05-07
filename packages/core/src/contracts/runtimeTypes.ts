@@ -91,6 +91,12 @@ export interface NodeExecutionStatePublisher {
     error: Error;
   }): Promise<void>;
   appendConnectionInvocation(args: ConnectionInvocationAppendArgs): Promise<void>;
+  /**
+   * Annotates the current snapshot for `nodeId` with the id of the child run spawned by a
+   * SubWorkflow invocation. Called from `SubWorkflowNode.execute` after `runById` resolves.
+   * The engine's subsequent `markCompleted` call preserves the value via `previous.childRunId`.
+   */
+  setChildRunId?(args: { nodeId: NodeId; childRunId: RunId }): Promise<void>;
 }
 
 export type BinaryBody = BinaryReadableStream<Uint8Array> | AsyncIterable<Uint8Array> | Uint8Array | ArrayBuffer;

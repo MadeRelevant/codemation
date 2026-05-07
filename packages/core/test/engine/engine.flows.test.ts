@@ -241,6 +241,16 @@ test("engine can run a subworkflow node", async () => {
 
   // Subworkflow runs inside the sub node execution.
   assert.equal(events.join(","), "parentA,childA,childB,parentD");
+
+  // The parent run's snapshot for the SubWorkflow node must carry the child run id.
+  const parentRunId = r.runId;
+  const parentState = await runStore.load(parentRunId);
+  const subSnapshot = parentState?.nodeSnapshotsByNodeId?.["sub"];
+  assert.ok(subSnapshot, "sub snapshot must exist");
+  assert.ok(subSnapshot.childRunId, "sub snapshot must carry childRunId");
+  // The child run id must be distinct from the parent run id.
+  assert.notEqual(subSnapshot.childRunId, parentRunId);
+
   await busSubscription.close();
 });
 

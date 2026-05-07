@@ -88,6 +88,11 @@ export type NodeExecutionSnapshot = Readonly<{
   inputsByPort?: Readonly<Record<string, Items>>;
   outputs?: Readonly<Record<string, Items>>;
   error?: Readonly<{ message: string; name?: string; stack?: string; details?: JsonValue }>;
+  /**
+   * When the node is a SubWorkflow invocation, the run id of the child run it spawned.
+   * Used by the UI to deep-link directly to that execution instead of just the workflow editor.
+   */
+  childRunId?: string;
 }>;
 
 /** One LLM/tool invocation under an agent; mirrors core {@link ConnectionInvocationRecord}. */

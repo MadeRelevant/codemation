@@ -154,7 +154,11 @@ export function WorkflowExecutionInspectorDetailBody(
           <div style={{ display: "flex", minWidth: 0, flexWrap: "wrap", justifyContent: "flex-end", gap: 8 }}>
             {selectedWorkflowNode?.referencedWorkflowId ? (
               <Link
-                href={`/workflows/${encodeURIComponent(selectedWorkflowNode.referencedWorkflowId)}`}
+                href={
+                  selectedNodeSnapshot?.childRunId
+                    ? `/workflows/${encodeURIComponent(selectedWorkflowNode.referencedWorkflowId)}?run=${encodeURIComponent(selectedNodeSnapshot.childRunId)}`
+                    : `/workflows/${encodeURIComponent(selectedWorkflowNode.referencedWorkflowId)}`
+                }
                 data-testid="execution-inspector-subworkflow-link"
                 style={{
                   display: "inline-flex",
@@ -170,7 +174,7 @@ export function WorkflowExecutionInspectorDetailBody(
                 }}
               >
                 <ExternalLink size={11} strokeWidth={2.2} />
-                Open workflow
+                {selectedNodeSnapshot?.childRunId ? "Open subworkflow run" : "Open subworkflow editor"}
               </Link>
             ) : null}
             <div style={{ display: "flex", gap: 8 }}>

@@ -106,6 +106,7 @@ model ExecutionInstance {
   iterationId         String?  @map("iteration_id")
   itemIndex           Int?     @map("item_index")
   parentInvocationId  String?  @map("parent_invocation_id")
+  childRunId          String?  @map("child_run_id")
 
   run Run @relation(fields: [runId], references: [runId], onDelete: Cascade)
 

@@ -130,6 +130,18 @@ export class NodeRunStateWriter implements NodeExecutionStatePublisher {
     });
   }
 
+  setChildRunId(args: { nodeId: NodeId; childRunId: RunId }): Promise<void> {
+    return this.enqueue(async () => {
+      const state = await this.loadState();
+      const previous = state.nodeSnapshotsByNodeId?.[args.nodeId];
+      if (!previous) {
+        return;
+      }
+      const updated: NodeExecutionSnapshot = { ...previous, childRunId: args.childRunId };
+      await this.saveSnapshot(state, updated);
+    });
+  }
+
   appendConnectionInvocation(args: ConnectionInvocationAppendArgs): Promise<void> {
     return this.enqueue(async () => {
       const state = await this.loadState();
