@@ -133,6 +133,7 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
           ? ((node.config as { triggerKind?: "live" | "test" }).triggerKind ?? "live")
           : undefined;
       const description = (node.config as { description?: string }).description;
+      const referencedWorkflowId = (node.config as { workflowId?: string }).workflowId;
       nodes.push({
         id: node.id,
         kind: node.kind,
@@ -145,6 +146,9 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
         ...this.nodePortFieldsFromConfig(node.config),
         ...(triggerKind ? { triggerKind } : {}),
         ...(typeof description === "string" && description.trim().length > 0 ? { description } : {}),
+        ...(typeof referencedWorkflowId === "string" && referencedWorkflowId.trim().length > 0
+          ? { referencedWorkflowId }
+          : {}),
       });
       if (AgentConfigInspector.isAgentNodeConfig(node.config)) {
         this.appendVirtualConnectionNodes(

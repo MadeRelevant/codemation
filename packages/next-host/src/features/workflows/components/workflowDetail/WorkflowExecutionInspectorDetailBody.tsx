@@ -1,3 +1,6 @@
+import Link from "next/link";
+import ExternalLink from "lucide-react/dist/esm/icons/external-link";
+
 import { WorkflowStatusIcon } from "./WorkflowDetailIcons";
 import { WorkflowExecutionInspectorPanes } from "./WorkflowExecutionInspectorPanes";
 import type {
@@ -149,6 +152,27 @@ export function WorkflowExecutionInspectorDetailBody(
             </div>
           </div>
           <div style={{ display: "flex", minWidth: 0, flexWrap: "wrap", justifyContent: "flex-end", gap: 8 }}>
+            {selectedWorkflowNode?.referencedWorkflowId ? (
+              <Link
+                href={`/workflows/${encodeURIComponent(selectedWorkflowNode.referencedWorkflowId)}`}
+                data-testid="execution-inspector-subworkflow-link"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  border: "1px solid #d1d5db",
+                  background: "white",
+                  color: "#374151",
+                  padding: "5px 10px",
+                  fontWeight: 700,
+                  fontSize: 11,
+                  textDecoration: "none",
+                }}
+              >
+                <ExternalLink size={11} strokeWidth={2.2} />
+                Open workflow
+              </Link>
+            ) : null}
             <div style={{ display: "flex", gap: 8 }}>
               {[
                 { tab: "input" as const, isSelected: isInputVisible, hasError: false },

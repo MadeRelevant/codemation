@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 
+import Link from "next/link";
+import ExternalLink from "lucide-react/dist/esm/icons/external-link";
+
 import { cn } from "@/lib/utils";
 
 import type {
@@ -155,6 +158,24 @@ export function NodePropertiesSlidePanel(
             />
             <div className="min-h-0 flex-1 overflow-auto">
               <NodePropertiesDescriptionSection node={node} />
+              {node.referencedWorkflowId ? (
+                <section
+                  data-testid="node-properties-subworkflow-section"
+                  className="border-b border-border bg-muted/20 px-3 py-3"
+                >
+                  <div className="text-[11px] font-extrabold tracking-wide text-muted-foreground uppercase opacity-80">
+                    Sub-workflow
+                  </div>
+                  <Link
+                    href={`/workflows/${encodeURIComponent(node.referencedWorkflowId)}`}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                    data-testid="node-properties-subworkflow-open-link"
+                  >
+                    <ExternalLink size={12} strokeWidth={2.2} />
+                    Open in editor
+                  </Link>
+                </section>
+              ) : null}
               <NodePropertiesConfigSection
                 node={node}
                 telemetryRunId={telemetryRunId}
