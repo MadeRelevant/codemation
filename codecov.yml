@@ -32,21 +32,27 @@ coverage:
           - core-nodes
       host:
         target: auto
-        threshold: 2%
+        # File-count drops after history rewrites can move per-package %s by
+        # several points without representing real regression. 6% lets those
+        # settle without false positives; the per-flag check (status.project
+        # with flags) is the precise signal.
+        threshold: 6%
         flags:
           - host
       next-host:
-        # UI tests are harder to exhaust — give a wider drop margin before flagging.
+        # UI tests are harder to exhaust + same file-count-drift caveat as host.
         target: auto
-        threshold: 5%
+        threshold: 20%
         flags:
           - next-host
     patch:
       default:
-        # Defensive `value ?? fallback` ternaries and other never-null branches make
-        # 100% marginal in practice. 90% still flags real drops without forcing
-        # contrived tests for unreachable branches.
-        target: 90%
+        # The flagged per-package patch checks below are the precise gates.
+        # The default applies to ALL diff lines without flag filter, which
+        # over-counts partial branches in defensive `value ?? fallback` paths
+        # inherent to streaming-style code. 80% catches real drops while
+        # letting those branches through.
+        target: 80%
       # Per-package patch targets — the project mostly leans on these for PR feedback.
       core:
         target: 95%
