@@ -100,6 +100,42 @@ const attachNode = new ItemHarnessNodeConfig(
 
 Important: `CallbackNodeConfig` discards its callback return value and always echoes input items. Never use it for nodes that must attach binary or transform items.
 
+## MS Graph: selective attachment download
+
+Use `OutlookAttachmentDownload` from `@codemation/core-nodes-msgraph` when you have already
+obtained attachment metadata (filename, contentType, id) and want to download only specific
+attachments — e.g. after classifying them with an LLM step.
+
+```ts
+import { onNewMsGraphMailTrigger, outlookAttachmentDownloadNode } from "@codemation/core-nodes-msgraph";
+
+// Trigger → filter in workflow DSL, then download only selected attachments:
+workflow("wf.download-resumes")
+  .trigger(onNewMsGraphMailTrigger, { mailbox: "me", folderId: "inbox" })
+  // ... classify attachments upstream, pass messageId + attachmentId on item.json ...
+  .then(
+    outlookAttachmentDownloadNode.create(
+      {
+        // messageId / attachmentId fall back to item.json when left empty:
+        messageId: "",
+        attachmentId: "",
+        binarySlot: "resume",
+        sizeCapBytes: 10 * 1024 * 1024,
+      },
+      "DownloadResume",
+    ),
+  )
+  // bytes are in item.binary["resume"]; item.json carries metadata:
+  // { messageId, attachmentId, filename, contentType, size, isInline, contentId, binarySlot }
+  .build();
+```
+
+Key constraints:
+
+- Only `#microsoft.graph.fileAttachment` is supported — `itemAttachment` / `referenceAttachment` throw immediately.
+- Set `keepBinaries: true` on any downstream node that needs to pass the binary slot forward.
+- The credential is `msGraphMailOAuthCredentialType`; `Mail.Read` scope is sufficient.
+
 ## Read next when needed
 
 - Read `references/node-patterns.md` for `defineNode(...)` patterns and packaging guidance.
