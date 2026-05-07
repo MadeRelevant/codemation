@@ -421,4 +421,214 @@ describe("attachAttachmentBinaries", () => {
     expect(client.api).toHaveBeenCalledWith(expect.stringMatching(/\/\$value$/));
     expect((result as { binary?: Record<string, unknown> }).binary?.["report.pdf"]).toBe(attachedBinary);
   });
+
+  // -------------------------------------------------------------------------
+  // Line 137: returns item unchanged when attachments array is empty
+  // -------------------------------------------------------------------------
+  it("returns item unchanged when attachments array is empty (L137 early return)", async () => {
+    const item: Item<MsGraphMailItem> = {
+      json: {
+        messageId: "msg-empty",
+        to: [],
+        receivedDateTime: "2026-05-01T00:00:00Z",
+        attachments: [],
+      } as MsGraphMailItem,
+    };
+
+    const client = makeAttachmentClient();
+    const binary = {
+      attach: vi.fn(),
+      withAttachment: vi.fn(),
+    };
+
+    const result = await attachAttachmentBinaries(
+      item,
+      client as never,
+      { mailbox: "me", downloadAttachments: true },
+      binary as never,
+    );
+
+    expect(result).toBe(item); // same reference returned — no modifications
+    expect(binary.attach).not.toHaveBeenCalled();
+    expect(client.api).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // Line 157: silently skips attachment when getStream() returns null/falsy
+  // -------------------------------------------------------------------------
+  it("silently skips attachment when getStream() returns null (L157 continue branch)", async () => {
+    const item: Item<MsGraphMailItem> = {
+      json: {
+        messageId: "msg-null-stream",
+        to: [],
+        receivedDateTime: "2026-05-01T00:00:00Z",
+        attachments: [{ id: "att-x", name: "file.txt", contentType: "text/plain", size: 50 }],
+      } as MsGraphMailItem,
+    };
+
+    // getStream returns null — the continue branch at L157 should be taken
+    const client = makeAttachmentClient(undefined);
+    const nullStreamReq = {
+      ...client._req,
+      getStream: vi.fn().mockResolvedValue(null),
+    };
+    const nullClient = { api: vi.fn().mockReturnValue(nullStreamReq), _req: nullStreamReq };
+
+    const binary = {
+      attach: vi.fn(),
+      withAttachment: vi.fn(),
+    };
+
+    const result = await attachAttachmentBinaries(
+      item,
+      nullClient as never,
+      { mailbox: "me", downloadAttachments: true },
+      binary as never,
+    );
+
+    // Attachment was silently skipped — binary.attach never called
+    expect(binary.attach).not.toHaveBeenCalled();
+    // Item JSON has no skippedAttachments (that's only for size-cap)
+    expect((result.json as { skippedAttachments?: unknown }).skippedAttachments).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// onNewMsGraphMailTrigger.execute() and .testItems() — lines 264-284
+// ---------------------------------------------------------------------------
+
+describe("onNewMsGraphMailTrigger execute() and testItems()", () => {
+  it("execute() returns items unchanged when downloadAttachments is false", async () => {
+    const triggerConfig = onNewMsGraphMailTrigger.create({ mailbox: "me" } as never);
+    const RuntimeClass = triggerConfig.type as new () => {
+      execute(items: unknown[], ctx: unknown): Promise<{ main: unknown[] }>;
+    };
+    const runtime = new RuntimeClass();
+
+    const items = [{ json: { messageId: "m1", to: [], receivedDateTime: "2026-05-01T00:00:00Z" } }];
+    const ctx = {
+      config: { cfg: { mailbox: "me", downloadAttachments: false } },
+      getCredential: vi.fn(),
+      binary: {},
+    };
+
+    const result = await runtime.execute(items, ctx);
+    expect(result.main).toBe(items);
+    expect(ctx.getCredential).not.toHaveBeenCalled();
+  });
+
+  it("execute() returns items unchanged when items array is empty", async () => {
+    const triggerConfig = onNewMsGraphMailTrigger.create({ mailbox: "me" } as never);
+    const RuntimeClass = triggerConfig.type as new () => {
+      execute(items: unknown[], ctx: unknown): Promise<{ main: unknown[] }>;
+    };
+    const runtime = new RuntimeClass();
+
+    const ctx = {
+      config: { cfg: { mailbox: "me", downloadAttachments: true } },
+      getCredential: vi.fn(),
+      binary: {},
+    };
+
+    const result = await runtime.execute([], ctx);
+    expect(result.main).toEqual([]);
+    expect(ctx.getCredential).not.toHaveBeenCalled();
+  });
+
+  it("execute() fetches attachment binaries when downloadAttachments is true with non-empty items", async () => {
+    const triggerConfig = onNewMsGraphMailTrigger.create({ mailbox: "me" } as never);
+    const RuntimeClass = triggerConfig.type as new () => {
+      execute(items: unknown[], ctx: unknown): Promise<{ main: unknown[] }>;
+    };
+    const runtime = new RuntimeClass();
+
+    const apiRequest = {
+      get: vi.fn().mockResolvedValue({}),
+      getStream: vi.fn().mockResolvedValue(null), // null → attachment silently skipped
+      top: vi.fn().mockReturnThis(),
+      orderby: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      filter: vi.fn().mockReturnThis(),
+      expand: vi.fn().mockReturnThis(),
+    };
+    const client = { api: vi.fn().mockReturnValue(apiRequest) };
+
+    const session = { accessToken: "tok" };
+
+    const mod = await import("../src/credentials/session");
+    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
+
+    try {
+      const items = [
+        {
+          json: {
+            messageId: "m1",
+            to: [],
+            receivedDateTime: "2026-05-01T00:00:00Z",
+            attachments: [{ id: "a1", name: "file.pdf", contentType: "application/pdf", size: 100 }],
+          },
+        },
+      ];
+
+      const binary = {
+        attach: vi.fn().mockResolvedValue({ id: "b1" }),
+        withAttachment: vi.fn((item: unknown) => item),
+      };
+
+      const ctx = {
+        config: { cfg: { mailbox: "me", downloadAttachments: true } },
+        getCredential: vi.fn().mockResolvedValue(session),
+        binary,
+      };
+
+      const result = await runtime.execute(items, ctx);
+      expect(result.main).toHaveLength(1);
+      expect(ctx.getCredential).toHaveBeenCalledWith("auth");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("testItems() calls buildMessagesRequest and maps raw messages (lines 277-284)", async () => {
+    const rawMessage = {
+      id: "msg-test",
+      receivedDateTime: "2026-05-01T00:00:00Z",
+      body: { contentType: "text", content: "hello" },
+      toRecipients: [],
+    };
+
+    const apiRequest = {
+      get: vi.fn().mockResolvedValue({ value: [rawMessage] }),
+      top: vi.fn().mockReturnThis(),
+      orderby: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      filter: vi.fn().mockReturnThis(),
+      expand: vi.fn().mockReturnThis(),
+    };
+    const client = { api: vi.fn().mockReturnValue(apiRequest) };
+    const session = { accessToken: "tok" };
+
+    const mod = await import("../src/credentials/session");
+    const spy = vi.spyOn(mod, "createGraphClient").mockReturnValue(client as never);
+
+    try {
+      const triggerConfig = onNewMsGraphMailTrigger.create({ mailbox: "me" } as never);
+      const RuntimeClass = triggerConfig.type as new () => {
+        getTestItems(ctx: unknown): Promise<Array<{ json: unknown }>>;
+      };
+      const runtime = new RuntimeClass();
+
+      const ctx = {
+        config: { cfg: { mailbox: "me" } },
+        getCredential: vi.fn().mockResolvedValue(session),
+        binary: {},
+      };
+
+      const items = await runtime.getTestItems(ctx);
+      expect(items).toHaveLength(1);
+      expect((items[0] as { json: { messageId?: string } }).json.messageId).toBe("msg-test");
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });
