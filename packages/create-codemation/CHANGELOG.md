@@ -1,5 +1,11 @@
 # create-codemation
 
+## 0.1.1
+
+### Patch Changes
+
+- [#121](https://github.com/MadeRelevant/codemation/pull/121) [`0ab1050`](https://github.com/MadeRelevant/codemation/commit/0ab105084c3777f5551d9bb74855da8cc5de5b69) Thanks [@cblokland90](https://github.com/cblokland90)! - Ship the previously-merged template dependency fix (`@codemation/core`, `@codemation/core-nodes`, `@codemation/host` ranges flipped from `1.x` → `0.x`) as a published version. The fix landed in the source tree but `create-codemation` itself wasn't included in that release's changeset frontmatter, so npm still serves the stale template pins on `create-codemation@0.1.0`.
+
 ## 0.1.0
 
 ### Minor Changes

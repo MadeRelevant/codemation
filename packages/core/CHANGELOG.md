@@ -1,5 +1,11 @@
 # @codemation/core
 
+## 0.10.1
+
+### Patch Changes
+
+- [#127](https://github.com/MadeRelevant/codemation/pull/127) [`1f10121`](https://github.com/MadeRelevant/codemation/commit/1f10121a093ef0612a33c873419b032709c9964d) Thanks [@cblokland90](https://github.com/cblokland90)! - Add regression test suite confirming `item.binary` slots survive SubWorkflow boundaries in both directions (parent→child and child→parent), including stream readback of bytes across run boundaries. Document the shared-BinaryStorage pattern required for tests that call `ctx.binary.attach`.
+
 ## 0.10.0
 
 ### Minor Changes

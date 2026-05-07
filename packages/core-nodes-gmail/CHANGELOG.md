@@ -1,5 +1,14 @@
 # @codemation/core-nodes-gmail
 
+## 0.2.3
+
+### Patch Changes
+
+- [#126](https://github.com/MadeRelevant/codemation/pull/126) [`d0f2bd9`](https://github.com/MadeRelevant/codemation/commit/d0f2bd9a670ff80c2e2e12f7c410c63d14c94b55) Thanks [@cblokland90](https://github.com/cblokland90)! - Stream Gmail attachment downloads via `responseType: "stream"` + streaming JSON parser (`stream-json`) + chunked base64url decoder instead of materialising the full base64 string and decoded buffer in memory. `GmailMessageAttachmentContent.body` is now `AsyncIterable<Uint8Array>` (compatible with the `BinaryBody` union accepted by `ctx.binary.attach`).
+
+- Updated dependencies [[`1f10121`](https://github.com/MadeRelevant/codemation/commit/1f10121a093ef0612a33c873419b032709c9964d)]:
+  - @codemation/core@0.10.1
+
 ## 0.2.2
 
 ### Patch Changes

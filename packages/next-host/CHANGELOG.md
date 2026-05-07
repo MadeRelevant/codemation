@@ -1,5 +1,13 @@
 # @codemation/next-host
 
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies [[`1f10121`](https://github.com/MadeRelevant/codemation/commit/1f10121a093ef0612a33c873419b032709c9964d)]:
+  - @codemation/core@0.10.1
+  - @codemation/host@0.5.1
+
 ## 0.3.1
 
 ### Patch Changes

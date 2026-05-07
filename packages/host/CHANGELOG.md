@@ -1,5 +1,14 @@
 # @codemation/host
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [[`1f10121`](https://github.com/MadeRelevant/codemation/commit/1f10121a093ef0612a33c873419b032709c9964d), [`c191557`](https://github.com/MadeRelevant/codemation/commit/c19155783a012d293568f55427ae36b31171af11), [`d0f2bd9`](https://github.com/MadeRelevant/codemation/commit/d0f2bd9a670ff80c2e2e12f7c410c63d14c94b55)]:
+  - @codemation/core@0.10.1
+  - @codemation/core-nodes@0.7.0
+  - @codemation/eventbus-redis@0.0.36
+
 ## 0.5.0
 
 ### Minor Changes

@@ -1,5 +1,27 @@
 # @codemation/core-nodes
 
+## 0.7.0
+
+### Minor Changes
+
+- [#123](https://github.com/MadeRelevant/codemation/pull/123) [`c191557`](https://github.com/MadeRelevant/codemation/commit/c19155783a012d293568f55427ae36b31171af11) Thanks [@cblokland90](https://github.com/cblokland90)! - feat(core-nodes): HttpRequest body and response support binary slots
+  - Add `responseFormat: "binary"` config field to store response bytes directly in `ctx.binary` rather than parsing as JSON/text. Output JSON carries `{ status, headers, binarySlot, contentType, size, filename }`.
+  - Add `responseBinarySlot?: string` (default `"response"`) and `responseSizeCapBytes?: number` (default 100 MiB, checked against `Content-Length` before allocating).
+  - Add `body: { kind: "binary", slot: string }` body spec to send raw bytes from a binary attachment slot as the request body. The attachment's `mimeType` is used as `Content-Type` unless an explicit header overrides it.
+  - Fix: explicit `headers["content-type"]` now correctly wins over the body-derived content type for all body kinds (was previously overwritten).
+  - Extract `HttpBodyBuilder.readStreamToBuffer` private helper to deduplicate stream-reading code shared between multipart and binary body kinds.
+
+### Patch Changes
+
+- [#126](https://github.com/MadeRelevant/codemation/pull/126) [`d0f2bd9`](https://github.com/MadeRelevant/codemation/commit/d0f2bd9a670ff80c2e2e12f7c410c63d14c94b55) Thanks [@cblokland90](https://github.com/cblokland90)! - DriveDownload and OnNewMail now stream binary attachments directly into binary storage instead of buffering the entire payload in RAM (`Buffer.concat` / `Buffer.from(x, "base64")`). Functionally equivalent — only the memory profile improves (critical for multi-GB files).
+
+  Adds `codemation/no-buffer-everything` ESLint rule (error severity) to prevent future regressions: flags `Buffer.from(x,"base64")`, `.arrayBuffer()`, and `Buffer.concat()` with guidance on streaming alternatives. Genuine constraints (AES-GCM cipher, Graph upload requiring Content-Length, Excel workbook responses) are suppressed with justified `-- <reason>` comments.
+
+  Follow-up: support streaming multipart upload via the form-data package to remove the suppression in `HttpBodyBuilder`.
+
+- Updated dependencies [[`1f10121`](https://github.com/MadeRelevant/codemation/commit/1f10121a093ef0612a33c873419b032709c9964d)]:
+  - @codemation/core@0.10.1
+
 ## 0.6.0
 
 ### Minor Changes
