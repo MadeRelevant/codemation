@@ -7,6 +7,7 @@ import { outlookMessageReplyNode } from "./src/mail/outlookMessageReplyNode";
 import { outlookMessageSendNode } from "./src/mail/outlookMessageSendNode";
 import { outlookMessagePatchNode } from "./src/mail/outlookMessagePatchNode";
 import { outlookFolderResolveNode } from "./src/mail/outlookFolderResolveNode";
+import { outlookAttachmentDownloadNode } from "./src/mail/outlookAttachmentDownloadNode";
 import { driveResolveNode } from "./src/drive/driveResolveNode";
 import { driveListChildrenNode } from "./src/drive/driveListChildrenNode";
 import { driveItemGetNode } from "./src/drive/driveItemGetNode";
@@ -27,6 +28,7 @@ const plugin = definePlugin({
   credentials: [msGraphMailOAuthCredentialType, msGraphDriveOAuthCredentialType],
   nodes: [
     outlookMessageGetNode,
+    outlookAttachmentDownloadNode,
     outlookMessageReplyNode,
     outlookMessageSendNode,
     outlookMessagePatchNode,
