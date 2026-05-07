@@ -27,7 +27,9 @@ class FakeGmailApiClient implements GmailApiClient {
     this.attachmentRequests.push(args);
     return {
       attachmentId: "attachment_1",
-      body: new Uint8Array([1, 2, 3]),
+      body: (async function* () {
+        yield new Uint8Array([1, 2, 3]);
+      })(),
       mimeType: "application/pdf",
       filename: "invoice.pdf",
       size: 3,

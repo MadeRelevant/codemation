@@ -29,7 +29,7 @@ export type GmailMessageAttachmentRecord = Readonly<{
 
 export type GmailMessageAttachmentContent = Readonly<{
   attachmentId: string;
-  body: Uint8Array;
+  body: AsyncIterable<Uint8Array>;
   mimeType: string;
   filename?: string;
   size?: number;
