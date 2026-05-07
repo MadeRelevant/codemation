@@ -578,11 +578,93 @@ jobs:
       - name: Merge coverage
         run: pnpm run coverage:merge
 
+      # Slice the merged lcov into per-package files so each flag upload only
+      # carries data for its own paths. An empty slice (flag's packages weren't
+      # exercised this run) is skipped — codecov then applies carryforward from
+      # the prior commit rather than recording a fake zero.
+      - name: Slice lcov per flag
+        run: |
+          set -euo pipefail
+
+          # Extract all SF: lines that start with a given path prefix into a
+          # standalone lcov file. Outputs nothing if no matching sources exist.
+          slice_lcov() {
+            local prefix="$1"
+            local output="$2"
+            # Include the record block (from SF: to end_of_record) when the SF: line
+            # starts with the given prefix.
+            awk -v prefix="$prefix" '
+              /^SF:/ { in_block = (substr($0, 4, length(prefix)) == prefix) }
+              in_block { print }
+            ' coverage/lcov.info > "$output"
+          }
+
+          # core — packages/core only (host/next-host have their own flags)
+          slice_lcov "packages/core/" coverage/lcov-core.info
+
+          # core-nodes — all plugin/cli/scaffolder packages that share the flag
+          {
+            for pkg in packages/core-nodes packages/core-nodes-gmail packages/core-nodes-msgraph \
+                       packages/agent-skills packages/cli packages/create-codemation packages/eventbus-redis; do
+              awk -v prefix="$pkg/" '
+                /^SF:/ { in_block = (substr($0, 4, length(prefix)) == prefix) }
+                in_block { print }
+              ' coverage/lcov.info
+            done
+          } > coverage/lcov-core-nodes.info
+
+          slice_lcov "packages/host/"      coverage/lcov-host.info
+          slice_lcov "packages/next-host/" coverage/lcov-next-host.info
+
+          # Remove empty slices — hashFiles() on non-existent files returns ''
+          # which the upload steps use to skip. Empty-but-present files would
+          # give a non-empty hash and trigger an upload of zero data.
+          for f in coverage/lcov-core.info coverage/lcov-core-nodes.info \
+                   coverage/lcov-host.info coverage/lcov-next-host.info; do
+            if [ ! -s "$f" ]; then
+              echo "Empty slice $f — removing so upload step is skipped (carryforward will apply)."
+              rm -f "$f"
+            else
+              echo "Slice $f: $(wc -l < "$f") lines"
+            fi
+          done
+
       # Optional: add CODECOV_TOKEN secret if uploads fail (public repos often work without it).
-      - name: Upload coverage to Codecov
+      # Four separate uploads — one per flag — so codecov can apply carryforward
+      # independently for each package when a PR's path-filter skips its suite.
+      - name: Upload coverage — core
+        if: ${{ hashFiles('coverage/lcov-core.info') != '' }}
         uses: codecov/codecov-action@v5
         with:
-          files: coverage/lcov.info
+          files: coverage/lcov-core.info
+          flags: core
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload coverage — core-nodes
+        if: ${{ hashFiles('coverage/lcov-core-nodes.info') != '' }}
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/lcov-core-nodes.info
+          flags: core-nodes
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload coverage — host
+        if: ${{ hashFiles('coverage/lcov-host.info') != '' }}
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/lcov-host.info
+          flags: host
+          fail_ci_if_error: true
+          verbose: true
+
+      - name: Upload coverage — next-host
+        if: ${{ hashFiles('coverage/lcov-next-host.info') != '' }}
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/lcov-next-host.info
+          flags: next-host
           fail_ci_if_error: true
           verbose: true
 

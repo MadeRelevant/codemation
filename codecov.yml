@@ -98,11 +98,33 @@ component_management:
       paths:
         - "packages/next-host/**"
 
-# Flags are currently NOT uploaded per-package — the merged lcov is uploaded once
-# under the default flag. Once we split `coverage:unit` runs per-package and tag
-# uploads with --flag <component_id>, the per-package status entries above will
-# start firing. Until then, components surface the data in the UI but the gates
-# fall back to the default project/patch behaviour.
+# Per-flag carryforward: when a PR only touches one package and the path-filter
+# skips the other coverage suites, codecov carries the prior commit's data
+# forward for the unuploaded flags so component-level project checks don't show
+# phantom drops. Each flag maps to the same path set as its component_management
+# counterpart above; keep them in sync when adding new packages.
+flag_management:
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: core
+      paths:
+        - "packages/core/"
+    - name: core-nodes
+      paths:
+        - "packages/core-nodes/"
+        - "packages/core-nodes-gmail/"
+        - "packages/core-nodes-msgraph/"
+        - "packages/agent-skills/"
+        - "packages/cli/"
+        - "packages/create-codemation/"
+        - "packages/eventbus-redis/"
+    - name: host
+      paths:
+        - "packages/host/"
+    - name: next-host
+      paths:
+        - "packages/next-host/"
 
 comment:
   layout: "reach,diff,flags,files,components,footer"
