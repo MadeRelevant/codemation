@@ -1,5 +1,23 @@
 # @codemation/core-nodes-msgraph
 
+## 0.2.0
+
+### Minor Changes
+
+- [`946bd2c`](https://github.com/MadeRelevant/codemation/commit/946bd2c7492470c05e1771d89d2a0c35256c6594) - Add `OutlookAttachmentDownload` node: downloads a single Outlook `fileAttachment` by id and stores its bytes in a named binary slot via `ctx.binary`. Falls back to `item.json.messageId`/`attachmentId` for zero-config chaining. Refuses `itemAttachment`/`referenceAttachment` with a clear error. Size cap (default 25 MiB) checked before decoding.
+
+### Patch Changes
+
+- [#126](https://github.com/MadeRelevant/codemation/pull/126) [`d0f2bd9`](https://github.com/MadeRelevant/codemation/commit/d0f2bd9a670ff80c2e2e12f7c410c63d14c94b55) Thanks [@cblokland90](https://github.com/cblokland90)! - DriveDownload and OnNewMail now stream binary attachments directly into binary storage instead of buffering the entire payload in RAM (`Buffer.concat` / `Buffer.from(x, "base64")`). Functionally equivalent — only the memory profile improves (critical for multi-GB files).
+
+  Adds `codemation/no-buffer-everything` ESLint rule (error severity) to prevent future regressions: flags `Buffer.from(x,"base64")`, `.arrayBuffer()`, and `Buffer.concat()` with guidance on streaming alternatives. Genuine constraints (AES-GCM cipher, Graph upload requiring Content-Length, Excel workbook responses) are suppressed with justified `-- <reason>` comments.
+
+  Follow-up: support streaming multipart upload via the form-data package to remove the suppression in `HttpBodyBuilder`.
+
+- Updated dependencies [[`1f10121`](https://github.com/MadeRelevant/codemation/commit/1f10121a093ef0612a33c873419b032709c9964d)]:
+  - @codemation/core@0.10.1
+  - @codemation/host@0.5.1
+
 ## 0.1.1
 
 ### Patch Changes
