@@ -88,6 +88,8 @@ export interface PersistedWorkflowSnapshotNode {
   tokenName?: string;
   configTokenName?: string;
   config: unknown;
+  /** Pre-computed static configuration summary; populated by WorkflowSnapshotCodec. */
+  inspectorSummary?: ReadonlyArray<Readonly<{ label: string; value: string }>>;
 }
 
 export interface PersistedWorkflowSnapshot {

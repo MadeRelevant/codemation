@@ -1,4 +1,10 @@
-import type { Item, NodeExecutionContext, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type {
+  Item,
+  NodeExecutionContext,
+  NodeInspectorSummaryRow,
+  RunnableNodeConfig,
+  TypeToken,
+} from "@codemation/core";
 
 import { SplitNode } from "./SplitNode";
 
@@ -19,6 +25,12 @@ export class Split<TIn = unknown, TElem = unknown> implements RunnableNodeConfig
     public readonly getElements: (item: Item<TIn>, ctx: NodeExecutionContext<Split<TIn, TElem>>) => readonly TElem[],
     public readonly id?: string,
   ) {}
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> | undefined {
+    const fnName = this.getElements.name;
+    if (!fnName) return undefined;
+    return [{ label: "Split by", value: fnName }];
+  }
 }
 
 export { SplitNode } from "./SplitNode";

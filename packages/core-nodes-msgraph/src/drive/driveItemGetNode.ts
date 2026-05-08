@@ -77,6 +77,16 @@ export const driveItemGetNode = defineNode({
   title: "Get drive item",
   description: "Fetch full metadata for a drive item by driveId and itemId.",
   icon: "builtin:microsoft-onedrive",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as DriveItemGetOptions;
+    const rows = [];
+    if (cfg.driveId) rows.push({ label: "Drive ID", value: cfg.driveId.slice(0, 80) });
+    if (cfg.itemId) rows.push({ label: "Item ID", value: cfg.itemId.slice(0, 80) });
+    if (cfg.expand && cfg.expand.length > 0) {
+      rows.push({ label: "Expand", value: cfg.expand.join(", ") });
+    }
+    return rows.length > 0 ? rows : undefined;
+  },
   credentials: {
     auth: {
       type: msGraphDriveOAuthCredentialType,

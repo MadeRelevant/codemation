@@ -155,6 +155,14 @@ export const excelReadRangeNode = defineNode({
   title: "Read Excel range",
   description: "Read values (and optionally formulas) from a worksheet range. Defaults to usedRange(valuesOnly=true).",
   icon: "builtin:microsoft-excel",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as ExcelReadRangeOptions;
+    const rows = [];
+    if (cfg.sheet) rows.push({ label: "Sheet", value: cfg.sheet });
+    rows.push({ label: "Range", value: cfg.range ?? "usedRange" });
+    if (cfg.includeFormulas) rows.push({ label: "Include formulas", value: "yes" });
+    return rows.length > 0 ? rows : undefined;
+  },
   credentials: {
     auth: {
       type: msGraphDriveOAuthCredentialType,

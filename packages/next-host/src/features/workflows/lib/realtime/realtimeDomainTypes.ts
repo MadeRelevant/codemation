@@ -41,6 +41,8 @@ export type PersistedWorkflowSnapshot = Readonly<{
       tokenName?: string;
       configTokenName?: string;
       config: unknown;
+      /** Pre-computed static configuration summary; populated by WorkflowSnapshotCodec. */
+      inspectorSummary?: ReadonlyArray<Readonly<{ label: string; value: string }>>;
     }>
   >;
   edges: WorkflowDto["edges"];

@@ -2,6 +2,7 @@ import type {
   Items,
   NodeExecutionContext,
   NodeErrorHandlerSpec,
+  NodeInspectorSummaryRow,
   PortsEmission,
   RetryPolicySpec,
   RunnableNodeConfig,
@@ -58,6 +59,12 @@ export class Callback<TInputJson = unknown, TOutputJson = TInputJson> implements
 
   private static defaultCallback<TItemJson>(items: Items<TItemJson>): Items<TItemJson> {
     return items;
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> | undefined {
+    const fnName = this.callback.name;
+    if (!fnName || fnName === "defaultCallback") return undefined;
+    return [{ label: "Handler", value: fnName }];
   }
 }
 

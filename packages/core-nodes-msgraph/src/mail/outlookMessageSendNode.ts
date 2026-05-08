@@ -123,6 +123,16 @@ export const outlookMessageSendNode = defineNode({
   description: "Send or draft a message via Microsoft Graph Outlook, with optional file attachments.",
   icon: "builtin:microsoft-outlook",
   keepBinaries: true,
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as OutlookMessageSendOptions;
+    const rows = [{ label: "Mailbox", value: String(cfg.mailbox ?? "me") }];
+    if (cfg.to && cfg.to.length > 0) {
+      rows.push({ label: "To", value: cfg.to.join(", ").slice(0, 80) });
+    }
+    if (cfg.draftOnly) rows.push({ label: "Draft only", value: "yes" });
+    if (cfg.bodyType) rows.push({ label: "Body type", value: cfg.bodyType });
+    return rows;
+  },
   credentials: {
     auth: {
       type: msGraphMailOAuthCredentialType,

@@ -4,6 +4,7 @@ import {
   type AgentMessageConfig,
   type AgentNodeConfig,
   type ChatModelConfig,
+  type NodeInspectorSummaryRow,
   type RetryPolicySpec,
   type RunnableNodeConfig,
   type ToolConfig,
@@ -57,5 +58,41 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
     this.guardrails = options.guardrails;
     this.inputSchema = options.inputSchema;
     this.outputSchema = options.outputSchema;
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {
+    const rows: NodeInspectorSummaryRow[] = [];
+
+    if (this.chatModel.modelName) {
+      rows.push({ label: "Model", value: this.chatModel.modelName });
+    } else if (this.chatModel.name) {
+      rows.push({ label: "Model", value: this.chatModel.name });
+    }
+
+    const messages = Array.isArray(this.messages)
+      ? this.messages
+      : typeof this.messages === "object" && this.messages !== null && "prompt" in (this.messages as object)
+        ? (this.messages as { prompt?: unknown }).prompt
+        : undefined;
+    if (Array.isArray(messages)) {
+      const systemMsg = messages.find(
+        (m: unknown) => m !== null && typeof m === "object" && (m as { role?: string }).role === "system",
+      ) as { content?: unknown } | undefined;
+      if (systemMsg?.content !== undefined) {
+        const content = typeof systemMsg.content === "function" ? "(dynamic)" : String(systemMsg.content);
+        const truncated = content.length > 80 ? `${content.slice(0, 79)}…` : content;
+        rows.push({ label: "System prompt", value: truncated });
+      }
+    }
+
+    if (this.tools.length > 0) {
+      rows.push({ label: "Tools", value: String(this.tools.length) });
+    }
+
+    if (this.guardrails?.maxTurns !== undefined) {
+      rows.push({ label: "Max turns", value: String(this.guardrails.maxTurns) });
+    }
+
+    return rows;
   }
 }

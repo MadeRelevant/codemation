@@ -292,6 +292,15 @@ export const driveUploadNode = defineNode({
   title: "Upload to OneDrive",
   description: "Upload a file from a binary slot to OneDrive/SharePoint. Falls back to item.json ids.",
   icon: "builtin:microsoft-onedrive",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as DriveUploadOptions;
+    const rows = [];
+    if (cfg.driveId) rows.push({ label: "Drive ID", value: cfg.driveId.slice(0, 80) });
+    if (cfg.parentItemId) rows.push({ label: "Parent item", value: cfg.parentItemId.slice(0, 80) });
+    if (cfg.binarySlot) rows.push({ label: "Binary slot", value: cfg.binarySlot });
+    if (cfg.conflictBehavior) rows.push({ label: "On conflict", value: cfg.conflictBehavior });
+    return rows.length > 0 ? rows : undefined;
+  },
   credentials: {
     auth: {
       type: msGraphDriveOAuthCredentialType,

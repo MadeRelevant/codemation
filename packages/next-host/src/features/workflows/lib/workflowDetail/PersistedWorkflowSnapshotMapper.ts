@@ -75,6 +75,7 @@ export class PersistedWorkflowSnapshotMapper {
         : undefined;
     const description = (this.asRecord(node.config) as { description?: string }).description;
     const referencedWorkflowId = (this.asRecord(node.config) as { workflowId?: string }).workflowId;
+    const inspectorSummary = node.inspectorSummary;
     const workflowNode: WorkflowNodeDto = {
       id: node.id,
       kind: node.kind,
@@ -90,6 +91,7 @@ export class PersistedWorkflowSnapshotMapper {
       ...(typeof referencedWorkflowId === "string" && referencedWorkflowId.trim().length > 0
         ? { referencedWorkflowId }
         : {}),
+      ...(inspectorSummary ? { inspectorSummary } : {}),
     };
 
     if (!this.isAgentConfig(node.config)) {

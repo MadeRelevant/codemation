@@ -163,6 +163,17 @@ export const outlookAttachmentDownloadNode = defineNode({
     "Falls back to item.json.messageId / item.json.attachmentId when cfg ids are empty.",
   icon: "builtin:microsoft-outlook",
   keepBinaries: true,
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as OutlookAttachmentDownloadOptions;
+    const rows = [{ label: "Mailbox", value: String(cfg.mailbox || "me") }];
+    if (cfg.binarySlot) {
+      rows.push({ label: "Binary slot", value: cfg.binarySlot });
+    }
+    if (cfg.sizeCapBytes !== undefined) {
+      rows.push({ label: "Size cap", value: `${Math.round(cfg.sizeCapBytes / (1024 * 1024))}MiB` });
+    }
+    return rows;
+  },
   credentials: {
     auth: {
       type: msGraphMailOAuthCredentialType,

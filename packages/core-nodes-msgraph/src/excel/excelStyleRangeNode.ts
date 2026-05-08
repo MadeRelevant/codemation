@@ -292,6 +292,13 @@ export const excelStyleRangeNode = defineNode({
   description:
     "Apply formatting (font, fill, alignment, borders, numberFormat, merge, autofit) to a worksheet range. Issues separate PATCHes per sub-resource as required by Graph.",
   icon: "builtin:microsoft-excel",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as ExcelStyleRangeOptions;
+    const rows = [];
+    if (cfg.sheet) rows.push({ label: "Sheet", value: cfg.sheet });
+    if (cfg.range) rows.push({ label: "Range", value: cfg.range });
+    return rows.length > 0 ? rows : undefined;
+  },
   credentials: {
     auth: {
       type: msGraphDriveOAuthCredentialType,

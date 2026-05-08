@@ -129,6 +129,46 @@ describe("definePollingTrigger", () => {
     expect(reqs[0]?.acceptedTypes).toContain("my-cred-type-id");
   });
 
+  it("inspectorSummary() forwards rows from the inspectorSummary option to the runtime config", () => {
+    const trigger = definePollingTrigger<
+      "test.inspect",
+      Readonly<{ mailbox: string; pollIntervalMs: number }>,
+      Record<string, unknown>,
+      undefined
+    >({
+      key: "test.inspect",
+      title: "Inspectable polling trigger",
+      input: { mailbox: "me", pollIntervalMs: 30_000 },
+      initialState: () => ({}),
+      inspectorSummary({ config }) {
+        return [
+          { label: "Mailbox", value: config.mailbox },
+          { label: "Poll", value: `${config.pollIntervalMs / 1000}s` },
+        ];
+      },
+      poll: async ({ state }) => ({ items: [], nextState: state }),
+    });
+
+    const config = trigger.create({ mailbox: "ops@example.com", pollIntervalMs: 60_000 });
+
+    expect(config.inspectorSummary?.()).toEqual([
+      { label: "Mailbox", value: "ops@example.com" },
+      { label: "Poll", value: "60s" },
+    ]);
+  });
+
+  it("inspectorSummary() returns undefined when the option is not provided", () => {
+    const trigger = definePollingTrigger({
+      key: "test.no-inspect",
+      title: "No inspect",
+      initialState: () => ({}),
+      poll: async ({ state }) => ({ items: [], nextState: state }),
+    });
+
+    const config = trigger.create({});
+    expect(config.inspectorSummary?.()).toBeUndefined();
+  });
+
   it("round-trip: setup() delegates to PollingTriggerRuntime, emits items, and persists wrapped state", async () => {
     interface CountState {
       count: number;

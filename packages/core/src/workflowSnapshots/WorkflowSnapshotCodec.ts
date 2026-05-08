@@ -19,16 +19,20 @@ export class WorkflowSnapshotCodec {
       ...(workflow.connections !== undefined && workflow.connections.length > 0
         ? { connections: workflow.connections }
         : {}),
-      nodes: workflow.nodes.map((node) => ({
-        id: node.id,
-        kind: node.kind,
-        name: node.name,
-        nodeTokenId: this.resolveTokenId(node.type),
-        configTokenId: this.resolveTokenId(node.config.type),
-        tokenName: this.resolveTokenName(node.type),
-        configTokenName: this.resolveTokenName(node.config.type),
-        config: this.serializeConfig(node.config),
-      })),
+      nodes: workflow.nodes.map((node) => {
+        const inspectorSummaryRows = this.safeInspectorSummary(node.config);
+        return {
+          id: node.id,
+          kind: node.kind,
+          name: node.name,
+          nodeTokenId: this.resolveTokenId(node.type),
+          configTokenId: this.resolveTokenId(node.config.type),
+          tokenName: this.resolveTokenName(node.type),
+          configTokenName: this.resolveTokenName(node.config.type),
+          config: this.serializeConfig(node.config),
+          ...(inspectorSummaryRows !== undefined ? { inspectorSummary: inspectorSummaryRows } : {}),
+        };
+      }),
       edges: workflow.edges.map((edge) => ({
         from: { nodeId: edge.from.nodeId, output: edge.from.output },
         to: { nodeId: edge.to.nodeId, input: edge.to.input },
@@ -65,6 +69,34 @@ export class WorkflowSnapshotCodec {
       this.injectTokenIds(fallback, config as unknown as Record<string, unknown>);
       return fallback;
     }
+  }
+
+  /**
+   * Safely call `config.inspectorSummary()` and return a plain JSON-safe array, or undefined.
+   * Returns undefined if the method is absent, throws, or produces no valid rows.
+   */
+  private safeInspectorSummary(
+    config: NodeConfigBase,
+  ): ReadonlyArray<Readonly<{ label: string; value: string }>> | undefined {
+    const fn = (config as { inspectorSummary?: () => unknown }).inspectorSummary;
+    if (typeof fn !== "function") return undefined;
+    let raw: unknown;
+    try {
+      raw = fn.call(config);
+    } catch {
+      return undefined;
+    }
+    if (!Array.isArray(raw)) return undefined;
+    const rows: Array<Readonly<{ label: string; value: string }>> = [];
+    for (const entry of raw) {
+      if (!entry || typeof entry !== "object") continue;
+      const { label, value } = entry as { label?: unknown; value?: unknown };
+      if (typeof label !== "string" || typeof value !== "string") continue;
+      const trimmedLabel = label.trim();
+      if (trimmedLabel.length === 0) continue;
+      rows.push({ label: trimmedLabel, value });
+    }
+    return rows.length > 0 ? rows : undefined;
   }
 
   private injectTokenIds(target: Record<string, unknown>, source: Record<string, unknown>): void {

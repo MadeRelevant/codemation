@@ -200,6 +200,24 @@ export const onNewMsGraphMailTrigger = definePollingTrigger({
   title: "On new mail",
   description: "Poll an Outlook mailbox folder and emit new messages on each cycle.",
   icon: "builtin:microsoft-outlook",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as OnNewMsGraphMailOptions;
+    const rows = [
+      { label: "Mailbox", value: String(cfg.mailbox ?? "me") },
+      { label: "Folder", value: cfg.folderId ?? DEFAULT_FOLDER },
+    ];
+    if (cfg.filter !== undefined && cfg.filter !== DEFAULT_FILTER) {
+      const filter = cfg.filter.length > 80 ? `${cfg.filter.slice(0, 79)}…` : cfg.filter;
+      rows.push({ label: "Filter", value: filter });
+    }
+    if (cfg.pollIntervalMs !== undefined) {
+      rows.push({ label: "Poll interval", value: `${cfg.pollIntervalMs / 1000}s` });
+    }
+    if (cfg.downloadAttachments) {
+      rows.push({ label: "Download attachments", value: "yes" });
+    }
+    return rows;
+  },
   credentials: {
     auth: {
       type: msGraphMailOAuthCredentialType,

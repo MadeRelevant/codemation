@@ -46,6 +46,14 @@ export const outlookMessageGetNode = defineNode({
   title: "Get Outlook message",
   description: "Fetch a single message by id from Microsoft Graph Outlook.",
   icon: "builtin:microsoft-outlook",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as OutlookMessageGetOptions;
+    const rows = [{ label: "Mailbox", value: String(cfg.mailbox ?? "me") }];
+    if (cfg.expandAttachments) {
+      rows.push({ label: "Expand attachments", value: "yes" });
+    }
+    return rows;
+  },
   credentials: {
     auth: {
       type: msGraphMailOAuthCredentialType,

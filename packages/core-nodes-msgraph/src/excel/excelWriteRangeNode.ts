@@ -138,6 +138,14 @@ export const excelWriteRangeNode = defineNode({
   title: "Write Excel range",
   description: "Write values into a worksheet range. Supports append-below mode.",
   icon: "builtin:microsoft-excel",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as ExcelWriteRangeOptions;
+    const rows = [];
+    if (cfg.sheet) rows.push({ label: "Sheet", value: cfg.sheet });
+    if (cfg.range) rows.push({ label: "Range", value: cfg.range });
+    if (cfg.appendBelow) rows.push({ label: "Append below", value: "yes" });
+    return rows.length > 0 ? rows : undefined;
+  },
   credentials: {
     auth: {
       type: msGraphDriveOAuthCredentialType,

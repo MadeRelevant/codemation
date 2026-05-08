@@ -176,6 +176,16 @@ export const driveDownloadNode = defineNode({
   description: "Download a drive item's content to a binary slot (never on JSON). Falls back to item.json ids.",
   icon: "builtin:microsoft-onedrive",
   keepBinaries: true,
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as DriveDownloadOptions;
+    const rows = [];
+    if (cfg.driveId) rows.push({ label: "Drive ID", value: cfg.driveId.slice(0, 80) });
+    if (cfg.itemId) rows.push({ label: "Item ID", value: cfg.itemId.slice(0, 80) });
+    if (cfg.sizeCapBytes !== undefined) {
+      rows.push({ label: "Size cap", value: `${Math.round(cfg.sizeCapBytes / (1024 * 1024))}MiB` });
+    }
+    return rows.length > 0 ? rows : undefined;
+  },
   credentials: {
     auth: {
       type: msGraphDriveOAuthCredentialType,

@@ -1,4 +1,10 @@
-import type { Item, NodeExecutionContext, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type {
+  Item,
+  NodeExecutionContext,
+  NodeInspectorSummaryRow,
+  RunnableNodeConfig,
+  TypeToken,
+} from "@codemation/core";
 
 import { MapDataNode } from "./MapDataNode";
 
@@ -32,6 +38,12 @@ export class MapData<TInputJson = unknown, TOutputJson = unknown> implements Run
 
   get id(): string | undefined {
     return this.options.id;
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> | undefined {
+    const fnName = this.map.name;
+    if (!fnName) return undefined;
+    return [{ label: "Mapper", value: fnName }];
   }
 }
 

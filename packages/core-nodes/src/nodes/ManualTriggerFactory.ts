@@ -1,4 +1,4 @@
-import type { Items, TriggerNodeConfig, TypeToken } from "@codemation/core";
+import type { Items, NodeInspectorSummaryRow, TriggerNodeConfig, TypeToken } from "@codemation/core";
 
 import { ItemsInputNormalizer } from "@codemation/core";
 
@@ -41,6 +41,21 @@ export class ManualTrigger<TOutputJson = unknown> implements TriggerNodeConfig<T
     id: string | undefined,
   ): string | undefined {
     return typeof value === "string" ? value : id;
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {
+    const rows: NodeInspectorSummaryRow[] = [{ label: "Trigger", value: "manual" }];
+    if (this.defaultItems && this.defaultItems.length > 0) {
+      const firstItem = this.defaultItems[0];
+      if (firstItem && typeof firstItem.json === "object" && firstItem.json !== null) {
+        const keys = Object.keys(firstItem.json as object);
+        if (keys.length > 0) {
+          rows.push({ label: "Initial input keys", value: keys.join(", ").slice(0, 80) });
+        }
+      }
+      rows.push({ label: "Default items", value: String(this.defaultItems.length) });
+    }
+    return rows;
   }
 }
 

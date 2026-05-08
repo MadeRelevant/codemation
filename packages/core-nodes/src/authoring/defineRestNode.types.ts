@@ -1,5 +1,5 @@
 import { defineNode } from "@codemation/core";
-import type { DefinedNode, DefinedNodeCredentialBindings } from "@codemation/core";
+import type { DefinedNode, DefinedNodeCredentialBindings, NodeInspectorSummaryRow } from "@codemation/core";
 import type { ZodType } from "zod";
 import type { HttpBodySpec } from "../http/httpRequest.types";
 import { HttpRequestExecutor } from "../http/HttpRequestExecutor";
@@ -96,6 +96,14 @@ export interface DefineRestNodeOptions<
    * @default "throw"
    */
   readonly errorPolicy?: RestNodeErrorPolicy;
+  /**
+   * Static configuration summary surfaced in the workflow inspector.
+   * Receives the static config (empty record for defineRestNode — config lives on item input).
+   * Most callers return rows based on the static `api` descriptor instead.
+   */
+  readonly inspectorSummary?: (
+    args: Readonly<{ config: Record<string, never> }>,
+  ) => ReadonlyArray<NodeInspectorSummaryRow> | undefined;
 }
 
 /**
@@ -149,6 +157,7 @@ export function defineRestNode<
     icon: options.icon,
     credentials: options.credentials,
     inputSchema: options.inputSchema,
+    inspectorSummary: options.inspectorSummary,
     async execute({ input, item, ctx }, { credentials }) {
       // Resolve credential if one is bound.
       const credentialSlot = options.credentials ? Object.keys(options.credentials)[0] : undefined;

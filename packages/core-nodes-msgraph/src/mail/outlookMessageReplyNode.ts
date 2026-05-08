@@ -104,6 +104,18 @@ export const outlookMessageReplyNode = defineNode({
   description: "Reply, reply-all, or forward a message via Microsoft Graph Outlook.",
   icon: "builtin:microsoft-outlook",
   keepBinaries: true,
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as OutlookMessageReplyOptions;
+    const rows = [
+      { label: "Mailbox", value: String(cfg.mailbox ?? "me") },
+      { label: "Body type", value: cfg.bodyType ?? "text" },
+    ];
+    if (cfg.forward) rows.push({ label: "Action", value: "forward" });
+    else if (cfg.replyAll) rows.push({ label: "Action", value: "reply-all" });
+    else rows.push({ label: "Action", value: "reply" });
+    if (cfg.draftOnly) rows.push({ label: "Draft only", value: "yes" });
+    return rows;
+  },
   credentials: {
     auth: {
       type: msGraphMailOAuthCredentialType,

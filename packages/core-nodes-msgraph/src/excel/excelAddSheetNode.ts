@@ -173,6 +173,13 @@ export const excelAddSheetNode = defineNode({
   description:
     "Add a new worksheet to an open workbook (idempotent — returns existing sheet if name already exists). Optionally copies from another sheet.",
   icon: "builtin:microsoft-excel",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as ExcelAddSheetOptions;
+    const rows = [];
+    if (cfg.name) rows.push({ label: "Sheet name", value: cfg.name });
+    if (cfg.copyFrom?.sheetName) rows.push({ label: "Copy from", value: cfg.copyFrom.sheetName });
+    return rows.length > 0 ? rows : undefined;
+  },
   credentials: {
     auth: {
       type: msGraphDriveOAuthCredentialType,

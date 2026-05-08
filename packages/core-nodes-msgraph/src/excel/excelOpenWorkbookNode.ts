@@ -67,6 +67,14 @@ export const excelOpenWorkbookNode = defineNode({
   description:
     "Open a Microsoft Graph Excel workbook session. Pair with ExcelCloseWorkbook. Falls back to item.json driveId/itemId.",
   icon: "builtin:microsoft-excel",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as ExcelOpenWorkbookOptions;
+    const rows = [];
+    if (cfg.driveId) rows.push({ label: "Drive ID", value: cfg.driveId.slice(0, 80) });
+    if (cfg.itemId) rows.push({ label: "Item ID", value: cfg.itemId.slice(0, 80) });
+    rows.push({ label: "Persist changes", value: cfg.persistChanges === false ? "no" : "yes" });
+    return rows.length > 0 ? rows : undefined;
+  },
   credentials: {
     auth: {
       type: msGraphDriveOAuthCredentialType,
