@@ -59,6 +59,7 @@
     "hono": "^4.12.8",
     "jose": "^6.2.2",
     "lucide-react": "^0.577.0",
+    "lucide-static": "^1.14.0",
     "monaco-editor": "^0.55.1",
     "next": "^16.2.0",
     "pretty-ms": "^9.3.0",
