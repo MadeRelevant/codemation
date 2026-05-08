@@ -148,6 +148,17 @@ export const outlookFolderResolveNode = defineNode({
   title: "Resolve Outlook folder",
   description: "Resolve a mail folder path to its Graph folder id, optionally creating missing segments.",
   icon: "builtin:microsoft-outlook",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as OutlookFolderResolveOptions;
+    const rows = [{ label: "Mailbox", value: String(cfg.mailbox ?? "me") }];
+    if (cfg.folderPath) {
+      rows.push({ label: "Folder path", value: cfg.folderPath.slice(0, 80) });
+    }
+    if (cfg.createIfMissing) {
+      rows.push({ label: "Create if missing", value: "yes" });
+    }
+    return rows;
+  },
   credentials: {
     auth: {
       type: msGraphMailOAuthCredentialType,

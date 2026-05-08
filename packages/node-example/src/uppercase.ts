@@ -1,4 +1,4 @@
-import type { RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type { NodeInspectorSummaryRow, RunnableNodeConfig, TypeToken } from "@codemation/core";
 
 import { ExampleUppercaseNode } from "./ExampleUppercaseNode";
 
@@ -13,6 +13,10 @@ export class ExampleUppercase<
     public readonly cfg: { field: TField },
     public readonly id?: string,
   ) {}
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {
+    return [{ label: "Field", value: this.cfg.field }];
+  }
 }
 
 export { ExampleUppercaseNode } from "./ExampleUppercaseNode";

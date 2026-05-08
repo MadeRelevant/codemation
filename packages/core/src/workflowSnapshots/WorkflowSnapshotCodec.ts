@@ -50,9 +50,15 @@ export class WorkflowSnapshotCodec {
   }
 
   private serializeConfig(config: NodeConfigBase): unknown {
+    // Pre-compute inspectorSummary so it is available to the browser-side
+    // PersistedWorkflowSnapshotMapper even though methods are not JSON-serialisable.
+    const inspectorSummaryRows = this.safeInspectorSummary(config);
     try {
       const cloned = JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
       this.injectTokenIds(cloned, config as unknown as Record<string, unknown>);
+      if (inspectorSummaryRows !== undefined) {
+        cloned._inspectorSummary = inspectorSummaryRows;
+      }
       return cloned;
     } catch {
       const fallback: Record<string, unknown> = {
@@ -63,8 +69,39 @@ export class WorkflowSnapshotCodec {
         execution: config.execution,
       };
       this.injectTokenIds(fallback, config as unknown as Record<string, unknown>);
+      if (inspectorSummaryRows !== undefined) {
+        fallback._inspectorSummary = inspectorSummaryRows;
+      }
       return fallback;
     }
+  }
+
+  /**
+   * Safely call `config.inspectorSummary()` and return a plain JSON-safe array, or undefined.
+   * Returns undefined if the method is absent, throws, or produces no valid rows.
+   */
+  private safeInspectorSummary(
+    config: NodeConfigBase,
+  ): ReadonlyArray<Readonly<{ label: string; value: string }>> | undefined {
+    const fn = (config as { inspectorSummary?: () => unknown }).inspectorSummary;
+    if (typeof fn !== "function") return undefined;
+    let raw: unknown;
+    try {
+      raw = fn.call(config);
+    } catch {
+      return undefined;
+    }
+    if (!Array.isArray(raw)) return undefined;
+    const rows: Array<Readonly<{ label: string; value: string }>> = [];
+    for (const entry of raw) {
+      if (!entry || typeof entry !== "object") continue;
+      const { label, value } = entry as { label?: unknown; value?: unknown };
+      if (typeof label !== "string" || typeof value !== "string") continue;
+      const trimmedLabel = label.trim();
+      if (trimmedLabel.length === 0) continue;
+      rows.push({ label: trimmedLabel, value });
+    }
+    return rows.length > 0 ? rows : undefined;
   }
 
   private injectTokenIds(target: Record<string, unknown>, source: Record<string, unknown>): void {

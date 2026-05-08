@@ -1,4 +1,4 @@
-import type { CredentialRequirement, TriggerNodeConfig, TypeToken } from "@codemation/core";
+import type { CredentialRequirement, NodeInspectorSummaryRow, TriggerNodeConfig, TypeToken } from "@codemation/core";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import type { GmailMessageAttachmentRecord } from "../services/GmailApiClient";
@@ -66,5 +66,20 @@ export class OnNewGmailTrigger implements TriggerNodeConfig<
       missingFields.push("mailbox");
     }
     return missingFields;
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {
+    const rows: NodeInspectorSummaryRow[] = [{ label: "Mailbox", value: this.cfg.mailbox }];
+    if (this.cfg.labelIds && this.cfg.labelIds.length > 0) {
+      rows.push({ label: "Labels", value: this.cfg.labelIds.join(", ").slice(0, 80) });
+    }
+    if (this.cfg.query) {
+      const query = this.cfg.query.length > 80 ? `${this.cfg.query.slice(0, 79)}…` : this.cfg.query;
+      rows.push({ label: "Query", value: query });
+    }
+    if (this.cfg.downloadAttachments) {
+      rows.push({ label: "Download attachments", value: "yes" });
+    }
+    return rows;
   }
 }

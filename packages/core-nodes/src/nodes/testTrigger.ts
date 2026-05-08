@@ -1,6 +1,7 @@
 import type {
   CredentialRequirement,
   Item,
+  NodeInspectorSummaryRow,
   TestTriggerNodeConfig,
   TestTriggerSetupContext,
   TypeToken,
@@ -66,6 +67,18 @@ export class TestTrigger<TOutputJson = unknown> implements TestTriggerNodeConfig
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
     return this.credentialRequirements;
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> | undefined {
+    const rows: NodeInspectorSummaryRow[] = [];
+    if (this.description) {
+      const desc = this.description.length > 80 ? `${this.description.slice(0, 79)}…` : this.description;
+      rows.push({ label: "Description", value: desc });
+    }
+    if (this.concurrency !== undefined) {
+      rows.push({ label: "Concurrency", value: String(this.concurrency) });
+    }
+    return rows.length > 0 ? rows : undefined;
   }
 }
 

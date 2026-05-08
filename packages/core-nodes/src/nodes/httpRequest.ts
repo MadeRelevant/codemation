@@ -1,6 +1,7 @@
 import {
   RetryPolicy,
   type CredentialRequirement,
+  type NodeInspectorSummaryRow,
   type RetryPolicySpec,
   type RunnableNodeConfig,
   type TypeToken,
@@ -159,6 +160,23 @@ export class HttpRequest<
         helpText: "Optional credential for authenticating the HTTP request.",
       },
     ];
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {
+    const rows: NodeInspectorSummaryRow[] = [{ label: "Method", value: this.method }];
+    if (this.args.url) {
+      const url = this.args.url.length > 80 ? `${this.args.url.slice(0, 79)}…` : this.args.url;
+      rows.push({ label: "URL", value: url });
+    } else if (this.args.urlField) {
+      rows.push({ label: "URL field", value: this.args.urlField });
+    }
+    if (this.args.responseFormat) {
+      rows.push({ label: "Response format", value: this.args.responseFormat });
+    }
+    if (this.args.body && this.args.body.kind !== "none") {
+      rows.push({ label: "Body", value: this.args.body.kind });
+    }
+    return rows;
   }
 }
 

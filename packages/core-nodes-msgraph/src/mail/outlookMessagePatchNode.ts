@@ -55,6 +55,20 @@ export const outlookMessagePatchNode = defineNode({
   title: "Patch Outlook message",
   description: "Update message properties (isRead, categories) and optionally move to a folder.",
   icon: "builtin:microsoft-outlook",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as OutlookMessagePatchOptions;
+    const rows = [{ label: "Mailbox", value: String(cfg.mailbox ?? "me") }];
+    if (cfg.categories && cfg.categories.length > 0) {
+      rows.push({ label: "Categories", value: cfg.categories.join(", ").slice(0, 80) });
+    }
+    if (cfg.isRead !== undefined) {
+      rows.push({ label: "Mark as read", value: cfg.isRead ? "yes" : "no" });
+    }
+    if (cfg.move?.folderId) {
+      rows.push({ label: "Move to folder", value: cfg.move.folderId.slice(0, 80) });
+    }
+    return rows;
+  },
   credentials: {
     auth: {
       type: msGraphMailOAuthCredentialType,

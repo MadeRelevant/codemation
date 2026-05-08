@@ -1,4 +1,4 @@
-import type { InputPortKey, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type { InputPortKey, NodeInspectorSummaryRow, RunnableNodeConfig, TypeToken } from "@codemation/core";
 
 import { MergeNode } from "./MergeNode";
 
@@ -24,6 +24,14 @@ export class Merge<TInputJson = unknown, TOutputJson = TInputJson> implements Ru
     }> = { mode: "passThrough" },
     public readonly id?: string,
   ) {}
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {
+    const rows: NodeInspectorSummaryRow[] = [{ label: "Mode", value: this.cfg.mode }];
+    if (this.cfg.prefer && this.cfg.prefer.length > 0) {
+      rows.push({ label: "Input order", value: this.cfg.prefer.join(", ").slice(0, 80) });
+    }
+    return rows;
+  }
 }
 
 export { MergeNode } from "./MergeNode";

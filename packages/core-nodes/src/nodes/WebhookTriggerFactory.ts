@@ -1,4 +1,11 @@
-import type { HttpMethod, Items, NodeExecutionContext, TriggerNodeConfig, TypeToken } from "@codemation/core";
+import type {
+  HttpMethod,
+  Items,
+  NodeExecutionContext,
+  NodeInspectorSummaryRow,
+  TriggerNodeConfig,
+  TypeToken,
+} from "@codemation/core";
 import type { ZodType } from "zod";
 import { WebhookTriggerNode } from "./webhookTriggerNode";
 
@@ -47,5 +54,12 @@ export class WebhookTrigger<
 
   private static defaultHandler(items: Items): Items {
     return items;
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {
+    return [
+      { label: "Endpoint key", value: this.args.endpointKey },
+      { label: "Methods", value: this.args.methods.join(", ") },
+    ];
   }
 }

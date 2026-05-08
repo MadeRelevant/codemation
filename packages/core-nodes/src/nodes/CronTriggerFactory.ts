@@ -1,4 +1,4 @@
-import type { TriggerNodeConfig, TypeToken } from "@codemation/core";
+import type { NodeInspectorSummaryRow, TriggerNodeConfig, TypeToken } from "@codemation/core";
 
 import { Cron } from "croner";
 import type { CronCallback } from "croner";
@@ -41,5 +41,13 @@ export class CronTrigger implements TriggerNodeConfig<CronTickJson> {
 
   createJob(callback: CronCallback): Cron {
     return new Cron(this.args.schedule, { timezone: this.args.timezone, protect: true }, callback);
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {
+    const rows: NodeInspectorSummaryRow[] = [{ label: "Schedule", value: this.args.schedule }];
+    if (this.args.timezone) {
+      rows.push({ label: "Timezone", value: this.args.timezone });
+    }
+    return rows;
   }
 }

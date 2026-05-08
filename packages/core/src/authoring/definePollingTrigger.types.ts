@@ -11,6 +11,7 @@ import type {
   Items,
   JsonValue,
   NodeExecutionContext,
+  NodeInspectorSummaryRow,
   NodeOutputs,
   TestableTriggerNode,
   TriggerNodeConfig,
@@ -99,6 +100,15 @@ export interface DefinePollingTriggerOptions<
   readonly configSchema?: ZodType<TConfig>;
   /** Credential bindings keyed by slot (same format as `defineNode`). */
   readonly credentials?: TBindings;
+  /**
+   * Static configuration summary surfaced in the workflow inspector — see
+   * {@link import("../contracts/workflowTypes").NodeConfigBase.inspectorSummary}.
+   *
+   * Receives the static config; returns 2–6 short label/value pairs (or `undefined` to skip).
+   */
+  readonly inspectorSummary?: (
+    args: Readonly<{ config: TConfig }>,
+  ) => ReadonlyArray<NodeInspectorSummaryRow> | undefined;
   /**
    * Called once when the trigger arms (or re-arms after a server restart) to provide the
    * initial value for `state` when no persisted state exists.
@@ -201,6 +211,9 @@ export class DefinedPollingTriggerConfig<TConfig extends CredentialJsonRecord, T
     icon: string | undefined,
     private readonly credentialRequirements: ReadonlyArray<CredentialRequirement>,
     public readonly id?: string,
+    private readonly inspectorSummaryFn?: (
+      args: Readonly<{ config: TConfig }>,
+    ) => ReadonlyArray<NodeInspectorSummaryRow> | undefined,
   ) {
     this.type = typeToken;
     this.icon = icon;
@@ -208,6 +221,10 @@ export class DefinedPollingTriggerConfig<TConfig extends CredentialJsonRecord, T
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
     return this.credentialRequirements;
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> | undefined {
+    return this.inspectorSummaryFn?.({ config: this.cfg });
   }
 }
 
@@ -376,6 +393,9 @@ export function definePollingTrigger<
         options.icon,
         credentialRequirements,
         id,
+        options.inspectorSummary as
+          | ((args: Readonly<{ config: TConfig }>) => ReadonlyArray<NodeInspectorSummaryRow> | undefined)
+          | undefined,
       );
     },
 

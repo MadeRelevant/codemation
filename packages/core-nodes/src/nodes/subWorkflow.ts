@@ -1,4 +1,10 @@
-import type { NodeId, RunnableNodeConfig, TypeToken, UpstreamRefPlaceholder } from "@codemation/core";
+import type {
+  NodeId,
+  NodeInspectorSummaryRow,
+  RunnableNodeConfig,
+  TypeToken,
+  UpstreamRefPlaceholder,
+} from "@codemation/core";
 
 import { SubWorkflowNode } from "./SubWorkflowNode";
 
@@ -16,6 +22,14 @@ export class SubWorkflow<TInputJson = unknown, TOutputJson = unknown> implements
     public readonly startAt?: NodeId,
     public readonly id?: string,
   ) {}
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {
+    const rows: NodeInspectorSummaryRow[] = [{ label: "Workflow", value: this.workflowId }];
+    if (this.startAt) {
+      rows.push({ label: "Start at", value: this.startAt });
+    }
+    return rows;
+  }
 }
 
 export { SubWorkflowNode } from "./SubWorkflowNode";

@@ -1,4 +1,10 @@
-import type { Items, NodeExecutionContext, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type {
+  Items,
+  NodeExecutionContext,
+  NodeInspectorSummaryRow,
+  RunnableNodeConfig,
+  TypeToken,
+} from "@codemation/core";
 
 import { AggregateNode } from "./AggregateNode";
 
@@ -17,6 +23,12 @@ export class Aggregate<TIn = unknown, TOut = unknown> implements RunnableNodeCon
     ) => TOut | Promise<TOut>,
     public readonly id?: string,
   ) {}
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> | undefined {
+    const fnName = this.aggregate.name;
+    if (!fnName) return undefined;
+    return [{ label: "Aggregator", value: fnName }];
+  }
 }
 
 export { AggregateNode } from "./AggregateNode";

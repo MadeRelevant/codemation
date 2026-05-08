@@ -247,6 +247,15 @@ export const driveCopyNode = defineNode({
   description:
     "Copy a drive item to another drive/folder. Optionally awaits completion and returns the new item metadata.",
   icon: "builtin:microsoft-onedrive",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as DriveCopyOptions;
+    const rows = [];
+    if (cfg.sourceDriveId) rows.push({ label: "Source drive", value: cfg.sourceDriveId.slice(0, 80) });
+    if (cfg.targetDriveId) rows.push({ label: "Target drive", value: cfg.targetDriveId.slice(0, 80) });
+    if (cfg.name) rows.push({ label: "New name", value: cfg.name.slice(0, 80) });
+    if (cfg.awaitCompletion) rows.push({ label: "Await completion", value: "yes" });
+    return rows.length > 0 ? rows : undefined;
+  },
   credentials: {
     auth: {
       type: msGraphDriveOAuthCredentialType,

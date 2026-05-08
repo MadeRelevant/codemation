@@ -1,4 +1,11 @@
-import type { AssertionResult, Item, NodeExecutionContext, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type {
+  AssertionResult,
+  Item,
+  NodeExecutionContext,
+  NodeInspectorSummaryRow,
+  RunnableNodeConfig,
+  TypeToken,
+} from "@codemation/core";
 
 import { AssertionNode } from "./AssertionNode";
 
@@ -36,6 +43,12 @@ export class Assertion<TInputJson = unknown> implements RunnableNodeConfig<TInpu
     this.id = options.id;
     this.icon = options.icon ?? "lucide:check-circle";
     this.assertions = options.assertions;
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> | undefined {
+    const fnName = this.assertions.name;
+    if (!fnName) return undefined;
+    return [{ label: "Assertions fn", value: fnName }];
   }
 }
 

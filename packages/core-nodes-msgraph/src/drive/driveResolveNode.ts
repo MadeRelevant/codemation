@@ -250,6 +250,22 @@ export const driveResolveNode = defineNode({
   description:
     "Resolve a OneDrive/SharePoint item by path, shared link, drive+item ids, or name search to canonical driveId + itemId.",
   icon: "builtin:microsoft-onedrive",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as DriveResolveOptions;
+    if (!cfg.input) return undefined;
+    const { input } = cfg;
+    const kindValue: string = input.kind;
+    const rows: Array<{ label: string; value: string }> = [{ label: "Kind", value: kindValue }];
+    if (input.kind === "personalPath") rows.push({ label: "Path", value: input.path.slice(0, 80) });
+    else if (input.kind === "sharedLink") rows.push({ label: "URL", value: input.url.slice(0, 80) });
+    else if (input.kind === "driveItem") {
+      rows.push({ label: "Drive ID", value: input.driveId.slice(0, 80) });
+      rows.push({ label: "Item ID", value: input.itemId.slice(0, 80) });
+    } else if (input.kind === "sharedWithMe" || input.kind === "byName") {
+      rows.push({ label: "Name", value: input.name.slice(0, 80) });
+    }
+    return rows;
+  },
   credentials: {
     auth: {
       type: msGraphDriveOAuthCredentialType,

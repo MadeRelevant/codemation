@@ -1,4 +1,11 @@
-import type { Item, Items, NodeExecutionContext, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type {
+  Item,
+  Items,
+  NodeExecutionContext,
+  NodeInspectorSummaryRow,
+  RunnableNodeConfig,
+  TypeToken,
+} from "@codemation/core";
 
 import { FilterNode } from "./FilterNode";
 
@@ -18,6 +25,12 @@ export class Filter<TIn = unknown> implements RunnableNodeConfig<TIn, TIn> {
     ) => boolean,
     public readonly id?: string,
   ) {}
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> | undefined {
+    const fnName = this.predicate.name;
+    if (!fnName) return undefined;
+    return [{ label: "Predicate", value: fnName }];
+  }
 }
 
 export { FilterNode } from "./FilterNode";

@@ -1,4 +1,11 @@
-import type { Item, Items, NodeExecutionContext, RunnableNodeConfig, TypeToken } from "@codemation/core";
+import type {
+  Item,
+  Items,
+  NodeExecutionContext,
+  NodeInspectorSummaryRow,
+  RunnableNodeConfig,
+  TypeToken,
+} from "@codemation/core";
 
 import { SwitchNode } from "./SwitchNode";
 
@@ -26,6 +33,13 @@ export class Switch<TInputJson = unknown> implements RunnableNodeConfig<TInputJs
     public readonly id?: string,
   ) {
     this.declaredOutputPorts = [...new Set([...cfg.cases, cfg.defaultCase])].sort();
+  }
+
+  inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {
+    return [
+      { label: "Cases", value: this.cfg.cases.join(", ").slice(0, 80) || "(none)" },
+      { label: "Default", value: this.cfg.defaultCase },
+    ];
   }
 }
 

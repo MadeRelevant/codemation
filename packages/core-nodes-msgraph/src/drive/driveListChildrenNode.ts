@@ -113,6 +113,14 @@ export const driveListChildrenNode = defineNode({
   title: "List drive folder children",
   description: "List children of a drive folder, with optional OData filtering and paging.",
   icon: "builtin:microsoft-onedrive",
+  inspectorSummary({ config }) {
+    const cfg = config as unknown as DriveListChildrenOptions;
+    const rows = [];
+    if (cfg.driveId) rows.push({ label: "Drive ID", value: cfg.driveId.slice(0, 80) });
+    if (cfg.itemId) rows.push({ label: "Item ID", value: cfg.itemId === "root" ? "(root)" : cfg.itemId.slice(0, 80) });
+    if (cfg.filter) rows.push({ label: "Filter", value: cfg.filter.slice(0, 80) });
+    return rows.length > 0 ? rows : undefined;
+  },
   credentials: {
     auth: {
       type: msGraphDriveOAuthCredentialType,
