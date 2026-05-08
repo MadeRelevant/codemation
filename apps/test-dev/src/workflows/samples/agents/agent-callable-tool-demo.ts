@@ -3,7 +3,7 @@ import { workflow } from "@codemation/host";
 import { AIAgent } from "@codemation/core-nodes";
 import { z } from "zod";
 
-import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
+import { openAiChatModelPresets } from "../../../lib/openAiChatModelPresets";
 
 /**
  * Minimal demo: manual trigger → AIAgent with one inline callable tool.

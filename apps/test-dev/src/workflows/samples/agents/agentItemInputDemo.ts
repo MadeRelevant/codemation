@@ -2,7 +2,7 @@ import { itemExpr } from "@codemation/core";
 import { workflow } from "@codemation/host";
 import { z } from "zod";
 
-import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
+import { openAiChatModelPresets } from "../../../lib/openAiChatModelPresets";
 
 /**
  * Demonstrates `workflow().agent(...)`: per-item **`itemExpr`** builds the same `messages`
