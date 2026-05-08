@@ -19,16 +19,20 @@ export class WorkflowSnapshotCodec {
       ...(workflow.connections !== undefined && workflow.connections.length > 0
         ? { connections: workflow.connections }
         : {}),
-      nodes: workflow.nodes.map((node) => ({
-        id: node.id,
-        kind: node.kind,
-        name: node.name,
-        nodeTokenId: this.resolveTokenId(node.type),
-        configTokenId: this.resolveTokenId(node.config.type),
-        tokenName: this.resolveTokenName(node.type),
-        configTokenName: this.resolveTokenName(node.config.type),
-        config: this.serializeConfig(node.config),
-      })),
+      nodes: workflow.nodes.map((node) => {
+        const inspectorSummaryRows = this.safeInspectorSummary(node.config);
+        return {
+          id: node.id,
+          kind: node.kind,
+          name: node.name,
+          nodeTokenId: this.resolveTokenId(node.type),
+          configTokenId: this.resolveTokenId(node.config.type),
+          tokenName: this.resolveTokenName(node.type),
+          configTokenName: this.resolveTokenName(node.config.type),
+          config: this.serializeConfig(node.config),
+          ...(inspectorSummaryRows !== undefined ? { inspectorSummary: inspectorSummaryRows } : {}),
+        };
+      }),
       edges: workflow.edges.map((edge) => ({
         from: { nodeId: edge.from.nodeId, output: edge.from.output },
         to: { nodeId: edge.to.nodeId, input: edge.to.input },
@@ -50,15 +54,9 @@ export class WorkflowSnapshotCodec {
   }
 
   private serializeConfig(config: NodeConfigBase): unknown {
-    // Pre-compute inspectorSummary so it is available to the browser-side
-    // PersistedWorkflowSnapshotMapper even though methods are not JSON-serialisable.
-    const inspectorSummaryRows = this.safeInspectorSummary(config);
     try {
       const cloned = JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
       this.injectTokenIds(cloned, config as unknown as Record<string, unknown>);
-      if (inspectorSummaryRows !== undefined) {
-        cloned._inspectorSummary = inspectorSummaryRows;
-      }
       return cloned;
     } catch {
       const fallback: Record<string, unknown> = {
@@ -69,9 +67,6 @@ export class WorkflowSnapshotCodec {
         execution: config.execution,
       };
       this.injectTokenIds(fallback, config as unknown as Record<string, unknown>);
-      if (inspectorSummaryRows !== undefined) {
-        fallback._inspectorSummary = inspectorSummaryRows;
-      }
       return fallback;
     }
   }

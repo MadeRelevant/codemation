@@ -75,7 +75,7 @@ export class PersistedWorkflowSnapshotMapper {
         : undefined;
     const description = (this.asRecord(node.config) as { description?: string }).description;
     const referencedWorkflowId = (this.asRecord(node.config) as { workflowId?: string }).workflowId;
-    const inspectorSummary = this.readSerializedInspectorSummary(node.config);
+    const inspectorSummary = node.inspectorSummary;
     const workflowNode: WorkflowNodeDto = {
       id: node.id,
       kind: node.kind,
@@ -274,29 +274,6 @@ export class PersistedWorkflowSnapshotMapper {
   private readNodeIcon(config: unknown): string | undefined {
     const c = this.asRecord(config);
     return typeof c.icon === "string" ? c.icon : undefined;
-  }
-
-  /**
-   * Read the pre-serialized `_inspectorSummary` that WorkflowSnapshotCodec bakes into
-   * the config JSON during snapshot creation (methods are not JSON-serialisable; this
-   * ensures the browser-side mapper has the same rows as the live WorkflowDefinitionMapper).
-   */
-  private readSerializedInspectorSummary(
-    config: unknown,
-  ): ReadonlyArray<Readonly<{ label: string; value: string }>> | undefined {
-    if (!config || typeof config !== "object") return undefined;
-    const c = config as Record<string, unknown>;
-    const raw = c["_inspectorSummary"];
-    if (!Array.isArray(raw) || raw.length === 0) return undefined;
-    const rows: Array<Readonly<{ label: string; value: string }>> = [];
-    for (const entry of raw) {
-      if (!entry || typeof entry !== "object") continue;
-      const { label, value } = entry as { label?: unknown; value?: unknown };
-      if (typeof label === "string" && typeof value === "string") {
-        rows.push({ label, value });
-      }
-    }
-    return rows.length > 0 ? rows : undefined;
   }
 
   private asRecord(value: unknown): Readonly<{
