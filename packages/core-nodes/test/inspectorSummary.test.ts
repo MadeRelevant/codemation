@@ -124,6 +124,12 @@ describe("AIAgent inspectorSummary", () => {
     });
     expect(agent.inspectorSummary()).toContainEqual({ label: "Max turns", value: "5" });
   });
+
+  it("falls back to chatModel.name when modelName is unset (covers the model-resolution else-branch)", () => {
+    const nameOnlyModel = { type: class {}, name: "claude-sonnet-4" } as never;
+    const agent = new AIAgent({ name: "Agent", messages: [], chatModel: nameOnlyModel });
+    expect(agent.inspectorSummary()).toContainEqual({ label: "Model", value: "claude-sonnet-4" });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -332,6 +338,16 @@ describe("TestTrigger inspectorSummary", () => {
     expect(trigger.inspectorSummary()).toBeUndefined();
   });
 
+  it("truncates long descriptions at 80 chars with ellipsis", () => {
+    const longDescription = "a".repeat(120);
+    const trigger = new TestTrigger({ description: longDescription, cases: [] as never });
+    const rows = trigger.inspectorSummary();
+    const desc = rows?.find((r) => r.label === "Description");
+    expect(desc).toBeDefined();
+    expect(desc?.value.length).toBeLessThanOrEqual(80);
+    expect(desc?.value.endsWith("…")).toBe(true);
+  });
+
   it("includes concurrency when set", () => {
     const trigger = new TestTrigger({ concurrency: 8, generateItems: async function* () {} });
     expect(trigger.inspectorSummary()).toContainEqual({ label: "Concurrency", value: "8" });
@@ -377,5 +393,75 @@ describe("Assertion inspectorSummary", () => {
     }
     const node = new Assertion({ assertions: checkOutput as never });
     expect(node.inspectorSummary()).toContainEqual({ label: "Assertions fn", value: "checkOutput" });
+  });
+
+  it("returns undefined for an anonymous assertions function (no surfaceable label)", () => {
+    // Strip the property-key inferred name so the function reports name === "" — mirrors a
+    // hand-rolled `(item) => [...]` passed without const-binding it first.
+    const anonymous: never = ((_item: never) => [{ passed: true, label: "ok", actual: "", expected: "" }]) as never;
+    Object.defineProperty(anonymous as object, "name", { value: "" });
+    const node = new Assertion({ assertions: anonymous });
+    expect(node.inspectorSummary()).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Anonymous-fn fallthroughs (cover the `if (!fnName) return undefined` branches)
+// ---------------------------------------------------------------------------
+
+describe("Aggregate / MapData / Filter / Split / If — anonymous function fallthrough", () => {
+  it("Aggregate returns undefined for an anonymous aggregator", () => {
+    const node = new Aggregate("agg", ((items: never[]) => items) as never);
+    expect(node.inspectorSummary()).toBeUndefined();
+  });
+
+  it("MapData returns undefined for an anonymous mapper", () => {
+    const node = new MapData("map", ((item: never) => item) as never);
+    expect(node.inspectorSummary()).toBeUndefined();
+  });
+
+  it("Filter returns undefined for an anonymous predicate", () => {
+    const node = new Filter("filter", ((_item: never) => true) as never);
+    expect(node.inspectorSummary()).toBeUndefined();
+  });
+
+  it("Split returns undefined for an anonymous split-by", () => {
+    const node = new Split("split", ((item: never) => [item]) as never);
+    expect(node.inspectorSummary()).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Switch — no default case (covers the conditional default-row branch)
+// ---------------------------------------------------------------------------
+
+describe("Switch inspectorSummary — no default case", () => {
+  it("omits the Default row when defaultCase is absent", () => {
+    const node = new Switch("sw", {
+      cases: ["a", "b"],
+      resolveCaseKey: () => "a",
+    });
+    const rows = node.inspectorSummary();
+    expect(rows).toContainEqual({ label: "Cases", value: "a, b" });
+    expect(rows?.some((r) => r.label === "Default")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Callback — anonymous + named handler (covers the name-fallback branch)
+// ---------------------------------------------------------------------------
+
+describe("Callback inspectorSummary", () => {
+  it("returns undefined for an anonymous Callback handler", () => {
+    const node = new Callback("cb", async (items) => items as never);
+    expect(node.inspectorSummary()).toBeUndefined();
+  });
+
+  it("returns the handler function name when named", () => {
+    async function transformBatch(items: never[]) {
+      return items as never;
+    }
+    const node = new Callback("cb", transformBatch as never);
+    expect(node.inspectorSummary()).toContainEqual({ label: "Handler", value: "transformBatch" });
   });
 });

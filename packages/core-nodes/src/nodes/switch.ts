@@ -36,10 +36,13 @@ export class Switch<TInputJson = unknown> implements RunnableNodeConfig<TInputJs
   }
 
   inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {
-    return [
+    const rows: NodeInspectorSummaryRow[] = [
       { label: "Cases", value: this.cfg.cases.join(", ").slice(0, 80) || "(none)" },
-      { label: "Default", value: this.cfg.defaultCase },
     ];
+    if (this.cfg.defaultCase) {
+      rows.push({ label: "Default", value: this.cfg.defaultCase });
+    }
+    return rows;
   }
 }
 
