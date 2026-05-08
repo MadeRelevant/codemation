@@ -91,6 +91,33 @@ describe("WorkflowDefinitionMapper inspectorSummary", () => {
     expect(Object.prototype.hasOwnProperty.call(node, "inspectorSummary")).toBe(false);
   });
 
+  it("ignores inspectorSummary when the hook returns a non-array (e.g. an object) — defensive against accidental misuse", () => {
+    const dto = mapper.mapSync(
+      workflowWithNode({
+        inspectorSummary: () => ({ label: "Oops", value: "not in an array" }) as unknown as ReadonlyArray<unknown>,
+      }),
+    );
+    const node = dto.nodes.find((n) => n.id === "node_1");
+    expect(Object.prototype.hasOwnProperty.call(node, "inspectorSummary")).toBe(false);
+  });
+
+  it("filters out non-object row entries (string / number / null) without crashing", () => {
+    const dto = mapper.mapSync(
+      workflowWithNode({
+        inspectorSummary() {
+          return [
+            "stringy" as unknown as { label: string; value: string },
+            42 as unknown as { label: string; value: string },
+            null as unknown as { label: string; value: string },
+            { label: "Valid", value: "ok" },
+          ];
+        },
+      }),
+    );
+    const node = dto.nodes.find((n) => n.id === "node_1");
+    expect(node?.inspectorSummary).toEqual([{ label: "Valid", value: "ok" }]);
+  });
+
   it("trims label whitespace but preserves value as-is (multi-line system prompts allowed)", () => {
     const dto = mapper.mapSync(
       workflowWithNode({
