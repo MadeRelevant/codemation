@@ -130,6 +130,25 @@ describe("AIAgent inspectorSummary", () => {
     const agent = new AIAgent({ name: "Agent", messages: [], chatModel: nameOnlyModel });
     expect(agent.inspectorSummary()).toContainEqual({ label: "Model", value: "claude-sonnet-4" });
   });
+
+  it("extracts the system prompt from a `{ prompt: [...] }` object (legacy messages shape)", () => {
+    const agent = new AIAgent({
+      name: "Agent",
+      messages: { prompt: [{ role: "system", content: "Wrapped prompt." }] } as never,
+      chatModel,
+    });
+    expect(agent.inspectorSummary()).toContainEqual({ label: "System prompt", value: "Wrapped prompt." });
+  });
+
+  it("renders a (dynamic) placeholder when system content is a function (per-item itemExpr)", () => {
+    const dynamicContent = (() => "computed at runtime") as unknown as string;
+    const agent = new AIAgent({
+      name: "Agent",
+      messages: [{ role: "system", content: dynamicContent }] as never,
+      chatModel,
+    });
+    expect(agent.inspectorSummary()).toContainEqual({ label: "System prompt", value: "(dynamic)" });
+  });
 });
 
 // ---------------------------------------------------------------------------
