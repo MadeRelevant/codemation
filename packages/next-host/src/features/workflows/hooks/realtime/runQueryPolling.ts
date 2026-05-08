@@ -1,16 +1,19 @@
 import type { PersistedRunState } from "../../lib/realtime/realtimeDomainTypes";
 
-export function resolveRunPollingIntervalMs(args: {
-  runState: PersistedRunState | undefined;
-  pollWhileNonTerminalMs: number | undefined;
-}): number | false {
-  if (!args.runState || !args.pollWhileNonTerminalMs) {
-    return false;
-  }
-  if (args.runState.status === "completed" || args.runState.status === "failed") {
-    return false;
-  }
-  return args.pollWhileNonTerminalMs;
+/**
+ * @deprecated No-op. Run state is now streamed over WebSocket via
+ * `WorkflowRunEventWebsocketRelay` and spliced into the query cache by
+ * `applyWorkflowEvent`. HTTP polling at 5 s while non-terminal was redundant
+ * with the WS push and added a stale tail to every run; an HTTP refetch on
+ * WS reconnect handles catch-up after a transient disconnect. Returns `false`
+ * unconditionally so legacy callers passing `pollWhileNonTerminalMs` get the
+ * new behaviour without an API churn.
+ */
+export function resolveRunPollingIntervalMs(_args: {
+  runState?: PersistedRunState | undefined;
+  pollWhileNonTerminalMs?: number | undefined;
+}): false {
+  return false;
 }
 
 /**

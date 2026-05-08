@@ -19,12 +19,15 @@ function createRunState(status: PersistedRunState["status"]): PersistedRunState 
 }
 
 describe("resolveRunPollingIntervalMs", () => {
-  it("polls while the run is non-terminal", () => {
-    expect(resolveRunPollingIntervalMs({ runState: createRunState("pending"), pollWhileNonTerminalMs: 250 })).toBe(250);
-    expect(resolveRunPollingIntervalMs({ runState: createRunState("running"), pollWhileNonTerminalMs: 250 })).toBe(250);
-  });
-
-  it("stops polling once the run is terminal or polling is disabled", () => {
+  // Run-state polling was replaced by WebSocket streaming (WorkflowRunEventWebsocketRelay).
+  // The function is now a no-op that always returns false regardless of arguments.
+  it("always returns false (polling replaced by WS streaming)", () => {
+    expect(resolveRunPollingIntervalMs({ runState: createRunState("pending"), pollWhileNonTerminalMs: 250 })).toBe(
+      false,
+    );
+    expect(resolveRunPollingIntervalMs({ runState: createRunState("running"), pollWhileNonTerminalMs: 250 })).toBe(
+      false,
+    );
     expect(resolveRunPollingIntervalMs({ runState: createRunState("completed"), pollWhileNonTerminalMs: 250 })).toBe(
       false,
     );
@@ -35,6 +38,7 @@ describe("resolveRunPollingIntervalMs", () => {
       resolveRunPollingIntervalMs({ runState: createRunState("pending"), pollWhileNonTerminalMs: undefined }),
     ).toBe(false);
     expect(resolveRunPollingIntervalMs({ runState: undefined, pollWhileNonTerminalMs: 250 })).toBe(false);
+    expect(resolveRunPollingIntervalMs({})).toBe(false);
   });
 });
 

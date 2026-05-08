@@ -19,8 +19,9 @@ export {
 
 import type { WorkflowDto, WorkflowSummary } from "@codemation/host/dto";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { RealtimeContext } from "../../components/realtime/RealtimeContext";
+import { RealtimeReadyState } from "../../lib/realtime/realtimeClientBridge";
 import {
   fetchCredentialFieldEnvStatus,
   fetchCredentialInstanceWithSecrets,
@@ -58,7 +59,7 @@ import type {
   WorkflowRunDetailDto,
 } from "../../lib/realtime/realtimeDomainTypes";
 import { WorkflowQueryRetryPolicy } from "../../lib/realtime/WorkflowQueryRetryPolicy";
-import { resolveFetchedRunState, resolveRunPollingIntervalMs } from "./runQueryPolling";
+import { resolveFetchedRunState } from "./runQueryPolling";
 export { useTelemetryRunTraceQuery } from "./useTelemetryRunTraceQuery";
 
 export function useWorkflowRealtimeSubscription(workflowId: string | null | undefined): void {
@@ -164,10 +165,20 @@ export function useWorkflowDevBuildStateQuery(workflowId: string) {
 }
 export function useRunQuery(
   runId: string | null | undefined,
-  options: Readonly<{ disableFetch?: boolean; pollWhileNonTerminalMs?: number }> = {},
+  options: Readonly<{
+    disableFetch?: boolean;
+    /**
+     * @deprecated Was used for HTTP polling. Now a no-op — run state is streamed over
+     * WebSocket via WorkflowRunEventWebsocketRelay and spliced into the cache by
+     * applyWorkflowEvent. The query refetches on mount and after a WS reconnect for
+     * catch-up; the option is retained so callers can be migrated without API churn.
+     */
+    pollWhileNonTerminalMs?: number;
+  }> = {},
 ) {
   const queryClient = useQueryClient();
-  return useQuery({
+  const realtimeContext = useContext(RealtimeContext);
+  const query = useQuery({
     queryKey: runId ? runQueryKey(runId) : ["run", "disabled"],
     queryFn: async ({ signal }) => {
       const incoming = await fetchRun(runId!, { signal });
@@ -175,13 +186,30 @@ export function useRunQuery(
       return resolveFetchedRunState({ incoming, previous });
     },
     enabled: Boolean(runId) && !options.disableFetch,
-    refetchInterval: (query) =>
-      resolveRunPollingIntervalMs({
-        runState: query.state.data as PersistedRunState | undefined,
-        pollWhileNonTerminalMs: options.pollWhileNonTerminalMs,
-      }),
+    // No polling: run state changes arrive via WS. resolveRunPollingIntervalMs is now a no-op.
+    refetchInterval: false,
     staleTime: 30_000,
   });
+
+  // Refetch once when WS reconnects after a previous disconnect, to catch up on any state
+  // changes that happened during the disconnection window. Same shape as
+  // useTelemetryRunTraceQuery's reconnect-catchup effect.
+  const previousReadyStateRef = useRef(realtimeContext?.readyState);
+  useEffect(() => {
+    const previousReadyState = previousReadyStateRef.current;
+    const currentReadyState = realtimeContext?.readyState;
+    previousReadyStateRef.current = currentReadyState;
+
+    const wasDisconnected =
+      previousReadyState === RealtimeReadyState.CLOSED || previousReadyState === RealtimeReadyState.CLOSING;
+    const isNowOpen = currentReadyState === RealtimeReadyState.OPEN;
+
+    if (wasDisconnected && isNowOpen && runId && !options.disableFetch) {
+      void queryClient.invalidateQueries({ queryKey: runQueryKey(runId) });
+    }
+  }, [realtimeContext?.readyState, runId, options.disableFetch, queryClient]);
+
+  return query;
 }
 
 export function useRunDetailQuery(
