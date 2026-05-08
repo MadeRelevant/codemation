@@ -2,10 +2,15 @@
 
 import { createContext } from "react";
 
-import type { RetainWorkflowSubscription, RealtimeReadyValue } from "../../lib/realtime/realtimeClientBridge";
+import type {
+  RetainRunSubscription,
+  RetainWorkflowSubscription,
+  RealtimeReadyValue,
+} from "../../lib/realtime/realtimeClientBridge";
 
 export type RealtimeContextValue = Readonly<{
   retainWorkflowSubscription: RetainWorkflowSubscription;
+  retainRunSubscription: RetainRunSubscription;
   isConnected: boolean;
   /** True when the workflow websocket transport is closed (not while connecting or before the first socket opens). */
   showDisconnectedBadge: boolean;

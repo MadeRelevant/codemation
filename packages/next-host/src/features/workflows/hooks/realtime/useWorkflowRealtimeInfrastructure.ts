@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { RealtimeContextValue } from "../../components/realtime/RealtimeContext";
 import { applyWorkflowEvent } from "../../lib/realtime/realtimeRunMutations";
+import { applyTelemetrySpanEvent } from "../../lib/realtime/realtimeTelemetryMutations";
 import {
   applyRunEventForTestSuite,
   applyTestSuiteEvent,
@@ -27,6 +28,9 @@ import {
 } from "../../lib/realtime/realtimeQueryKeys";
 import type { PersistedRunState, WorkflowDevBuildState } from "../../lib/realtime/realtimeDomainTypes";
 
+/** How long the tab must be hidden before we auto-unsubscribe from run rooms (5 minutes). */
+const runRoomHiddenUnsubscribeMs = 5 * 60 * 1000;
+
 export function useWorkflowRealtimeInfrastructure(
   args: Readonly<{ logger: Logger; websocketPort?: string }>,
 ): RealtimeContextValue {
@@ -35,6 +39,8 @@ export function useWorkflowRealtimeInfrastructure(
   const [workflowSocketEnabled, setWorkflowSocketEnabled] = useState(false);
   const hasLoggedWorkflowSocketEnabledRef = useRef(false);
   const desiredWorkflowCountsRef = useRef(new Map<string, number>());
+  const desiredRunCountsRef = useRef(new Map<string, number>());
+  const runRoomHiddenTimeoutRef = useRef<number | null>(null);
   const pendingOutgoingMessagesRef = useRef<RealtimeClientMessage[]>([]);
   const activeStatusShownAtByNodeKeyRef = useRef(new Map<string, number>());
   const terminalEventTimeoutIdByNodeKeyRef = useRef(new Map<string, number>());
@@ -336,6 +342,12 @@ export function useWorkflowRealtimeInfrastructure(
         return;
       }
 
+      if (message.kind === "telemetryEvent") {
+        logger.debug(`received telemetry span run=${message.runId} spanId=${message.span.spanId}`);
+        applyTelemetrySpanEvent(queryClient, message.runId, message.span);
+        return;
+      }
+
       if (message.kind === "error") {
         logger.error(`websocket error message: ${message.message}`);
         return;
@@ -570,6 +582,11 @@ export function useWorkflowRealtimeInfrastructure(
       const sent = sendJsonMessage({ kind: "subscribe", roomId: workflowId } satisfies RealtimeClientMessage);
       logger.debug(`${sent ? "sent" : "queued"} subscribe for workflow ${workflowId}`);
     }
+    for (const runId of desiredRunCountsRef.current.keys()) {
+      const roomId = `run:${runId}`;
+      const sent = sendJsonMessage({ kind: "subscribe", roomId } satisfies RealtimeClientMessage);
+      logger.debug(`${sent ? "sent" : "queued"} subscribe for run ${runId}`);
+    }
   }, [logger, readyState, sendJsonMessage]);
 
   const retainWorkflowSubscription = useCallback(
@@ -621,9 +638,87 @@ export function useWorkflowRealtimeInfrastructure(
     [canSendJsonMessage, logger],
   );
 
+  const retainRunSubscription = useCallback(
+    (runId: string) => {
+      const roomId = `run:${runId}`;
+      const nextCount = (desiredRunCountsRef.current.get(runId) ?? 0) + 1;
+      desiredRunCountsRef.current.set(runId, nextCount);
+      if (nextCount === 1 && readyStateRef.current === RealtimeReadyState.OPEN && canSendJsonMessage()) {
+        const sent = sendJsonMessageRef.current({ kind: "subscribe", roomId } satisfies RealtimeClientMessage);
+        logger.debug(`${sent ? "sent" : "queued"} retain subscription for run ${runId}`);
+      }
+
+      return () => {
+        const currentCount = desiredRunCountsRef.current.get(runId) ?? 0;
+        if (currentCount <= 1) {
+          desiredRunCountsRef.current.delete(runId);
+          if (readyStateRef.current === RealtimeReadyState.OPEN && canSendJsonMessage()) {
+            const sent = sendJsonMessageRef.current({
+              kind: "unsubscribe",
+              roomId,
+            } satisfies RealtimeClientMessage);
+            logger.debug(`${sent ? "sent" : "queued"} unsubscribe for run ${runId}`);
+          }
+          return;
+        }
+        desiredRunCountsRef.current.set(runId, currentCount - 1);
+      };
+    },
+    [canSendJsonMessage, logger],
+  );
+
+  // Auto-unsubscribe run rooms when the tab is hidden for longer than runRoomHiddenUnsubscribeMs.
+  // On visibility return, re-subscribe to any desired rooms (the subscription re-emit on OPEN
+  // handles reconnects; this handles the case where the socket is still OPEN but the tab was hidden).
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const handleVisibilityChange = (): void => {
+      if (document.visibilityState === "hidden") {
+        runRoomHiddenTimeoutRef.current = window.setTimeout(() => {
+          runRoomHiddenTimeoutRef.current = null;
+          // Unsubscribe all run rooms while still tracking desired counts so we can re-subscribe.
+          if (readyStateRef.current !== RealtimeReadyState.OPEN) return;
+          for (const runId of desiredRunCountsRef.current.keys()) {
+            const sent = sendJsonMessageRef.current({
+              kind: "unsubscribe",
+              roomId: `run:${runId}`,
+            } satisfies RealtimeClientMessage);
+            logger.debug(`${sent ? "sent" : "queued"} auto-unsubscribe (hidden) run ${runId}`);
+          }
+        }, runRoomHiddenUnsubscribeMs);
+      } else {
+        // Tab became visible again — cancel pending auto-unsubscribe and re-subscribe.
+        if (runRoomHiddenTimeoutRef.current !== null) {
+          window.clearTimeout(runRoomHiddenTimeoutRef.current);
+          runRoomHiddenTimeoutRef.current = null;
+        } else if (readyStateRef.current === RealtimeReadyState.OPEN) {
+          // Timeout already fired — re-subscribe.
+          for (const runId of desiredRunCountsRef.current.keys()) {
+            const sent = sendJsonMessageRef.current({
+              kind: "subscribe",
+              roomId: `run:${runId}`,
+            } satisfies RealtimeClientMessage);
+            logger.debug(`${sent ? "sent" : "queued"} re-subscribe (visible) run ${runId}`);
+          }
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (runRoomHiddenTimeoutRef.current !== null) {
+        window.clearTimeout(runRoomHiddenTimeoutRef.current);
+        runRoomHiddenTimeoutRef.current = null;
+      }
+    };
+  }, [logger]);
+
   const value = useMemo<RealtimeContextValue>(
     () => ({
       retainWorkflowSubscription,
+      retainRunSubscription,
       isConnected: readyState === RealtimeReadyState.OPEN,
       showDisconnectedBadge: readyState === RealtimeReadyState.CLOSED,
       readyState,
@@ -631,12 +726,13 @@ export function useWorkflowRealtimeInfrastructure(
       lastBuildError,
       buildStateLastChangedAt: buildStateLastChangedAtRef.current,
     }),
-    [buildState, lastBuildError, readyState, retainWorkflowSubscription],
+    [buildState, lastBuildError, readyState, retainWorkflowSubscription, retainRunSubscription],
   );
 
   useEffect(() => {
     const bridge = getRealtimeBridge();
     bridge.retainWorkflowSubscription = retainWorkflowSubscription;
+    bridge.retainRunSubscription = retainRunSubscription;
     for (const listener of bridge.listeners) {
       listener();
     }
@@ -644,11 +740,14 @@ export function useWorkflowRealtimeInfrastructure(
       if (bridge.retainWorkflowSubscription === retainWorkflowSubscription) {
         bridge.retainWorkflowSubscription = null;
       }
+      if (bridge.retainRunSubscription === retainRunSubscription) {
+        bridge.retainRunSubscription = null;
+      }
       for (const listener of bridge.listeners) {
         listener();
       }
     };
-  }, [retainWorkflowSubscription]);
+  }, [retainWorkflowSubscription, retainRunSubscription]);
 
   return value;
 }

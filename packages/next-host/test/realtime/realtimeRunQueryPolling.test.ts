@@ -39,30 +39,15 @@ describe("resolveRunPollingIntervalMs", () => {
 });
 
 describe("resolveTelemetryTraceRefetchIntervalMs", () => {
-  it("polls when run status is non-terminal and pollWhileNonTerminalMs is set", () => {
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "pending", pollWhileNonTerminalMs: 500 })).toBe(500);
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "running", pollWhileNonTerminalMs: 500 })).toBe(500);
-  });
-
-  it("polls when runStatus is undefined (run query not yet hydrated) and pollWhileNonTerminalMs is set", () => {
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: undefined, pollWhileNonTerminalMs: 500 })).toBe(500);
-  });
-
-  it("stops polling when run status is terminal", () => {
+  // Telemetry polling was replaced by WebSocket streaming (TelemetrySpanWebsocketRelay).
+  // The function is now a no-op that always returns false regardless of arguments.
+  it("always returns false (polling replaced by WS streaming)", () => {
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "pending", pollWhileNonTerminalMs: 500 })).toBe(false);
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "running", pollWhileNonTerminalMs: 500 })).toBe(false);
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: undefined, pollWhileNonTerminalMs: 500 })).toBe(false);
     expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "completed", pollWhileNonTerminalMs: 500 })).toBe(false);
     expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "failed", pollWhileNonTerminalMs: 500 })).toBe(false);
-  });
-
-  it("returns false when pollWhileNonTerminalMs is undefined even if status is non-terminal", () => {
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "pending", pollWhileNonTerminalMs: undefined })).toBe(
-      false,
-    );
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "running", pollWhileNonTerminalMs: undefined })).toBe(
-      false,
-    );
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: undefined, pollWhileNonTerminalMs: undefined })).toBe(
-      false,
-    );
+    expect(resolveTelemetryTraceRefetchIntervalMs({})).toBe(false);
   });
 });
 

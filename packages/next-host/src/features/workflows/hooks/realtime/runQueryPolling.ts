@@ -14,19 +14,19 @@ export function resolveRunPollingIntervalMs(args: {
 }
 
 /**
- * Telemetry trace data is fetched independently from the run-state stream, so we keep its query
- * polling in lockstep with the run lifecycle: while the run is non-terminal (or unknown, e.g. the
- * run query has not yet hydrated) we poll at `pollWhileNonTerminalMs`, and we stop the moment the
- * run reaches a terminal state. Without this the right-side properties panel keeps showing the
- * first snapshot of spans (often "running" rows) even after the run has completed.
+ * @deprecated No-op. Telemetry trace data is now streamed over WebSocket via
+ * `TelemetrySpanWebsocketRelay` and spliced into the query cache by
+ * `applyTelemetrySpanEvent`. HTTP polling was replaced by WS streaming to eliminate
+ * redundant round-trips during short-lived runs (the previous implementation issued
+ * ~4 HTTP trace GETs for a 16 ms run). The query still refetches on initial mount
+ * and after WS reconnects for catch-up. This function is retained for callers that
+ * have not been updated yet and always returns `false`.
  */
-export function resolveTelemetryTraceRefetchIntervalMs(args: {
-  runStatus: PersistedRunState["status"] | undefined;
-  pollWhileNonTerminalMs: number | undefined;
-}): number | false {
-  if (!args.pollWhileNonTerminalMs) return false;
-  if (args.runStatus === "completed" || args.runStatus === "failed") return false;
-  return args.pollWhileNonTerminalMs;
+export function resolveTelemetryTraceRefetchIntervalMs(_args: {
+  runStatus?: PersistedRunState["status"] | undefined;
+  pollWhileNonTerminalMs?: number | undefined;
+}): false {
+  return false;
 }
 
 export function resolveFetchedRunState(args: {

@@ -1,4 +1,4 @@
-import type { WorkflowEvent } from "./realtimeDomainTypes";
+import type { TelemetrySpanRecordDto, WorkflowEvent } from "./realtimeDomainTypes";
 
 export type RealtimeServerMessage =
   | Readonly<{ kind: "ready" }>
@@ -16,6 +16,7 @@ export type RealtimeServerMessage =
       column?: number;
     }>
   | Readonly<{ kind: "event"; event: WorkflowEvent }>
+  | Readonly<{ kind: "telemetryEvent"; runId: string; span: TelemetrySpanRecordDto }>
   | Readonly<{ kind: "error"; message: string }>;
 
 export type RealtimeClientMessage =
@@ -27,9 +28,11 @@ export const minimumRealtimeActiveVisibilityMs = 300;
 export const persistentRealtimeDisconnectWarningDelayMs = 5000;
 
 export type RetainWorkflowSubscription = (workflowId: string) => () => void;
+export type RetainRunSubscription = (runId: string) => () => void;
 
 export type RealtimeBridgeState = {
   retainWorkflowSubscription: RetainWorkflowSubscription | null;
+  retainRunSubscription: RetainRunSubscription | null;
   listeners: Set<() => void>;
 };
 
@@ -52,6 +55,7 @@ export function getRealtimeBridge(): RealtimeBridgeState {
   if (!realtimeGlobal.__codemationRealtimeBridge__) {
     realtimeGlobal.__codemationRealtimeBridge__ = {
       retainWorkflowSubscription: null,
+      retainRunSubscription: null,
       listeners: new Set(),
     };
   }

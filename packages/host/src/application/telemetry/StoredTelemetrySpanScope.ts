@@ -12,6 +12,7 @@ import type {
 } from "@codemation/core";
 import { NoOpTelemetryArtifactReference } from "@codemation/core";
 import type { TelemetrySpanUpsert } from "../../domain/telemetry/TelemetryContracts";
+import { NoOpTelemetrySpanPublisher } from "./TelemetrySpanPublisher";
 import type { StoredSpanScopeArgs } from "./OtelExecutionTelemetry.types";
 
 export class StoredTelemetrySpanScope implements TelemetrySpanScope {
@@ -226,7 +227,7 @@ export class StoredTelemetrySpanScope implements TelemetrySpanScope {
     const retentionExpiresAt =
       update.retentionExpiresAt ??
       this.deps.telemetryRetentionTimestampFactory.createSpanExpiry(this.deps.policySnapshot, observedAt);
-    await this.deps.telemetrySpanStore.upsert({
+    const upsertRecord: TelemetrySpanUpsert = {
       traceId: this.traceId,
       spanId: this.spanId,
       parentSpanId: this.parentSpanId,
@@ -241,7 +242,10 @@ export class StoredTelemetrySpanScope implements TelemetrySpanScope {
       nodeRole: enrichment.nodeRole,
       retentionExpiresAt,
       ...update,
-    });
+    };
+    await this.deps.telemetrySpanStore.upsert(upsertRecord);
+    const publisher = this.deps.telemetrySpanPublisher ?? NoOpTelemetrySpanPublisher;
+    await publisher.publishSpan(upsertRecord);
     await this.touchTraceContextExpiry(
       this.deps.telemetryRetentionTimestampFactory.createTraceContextExpiry(this.deps.policySnapshot, observedAt),
     );

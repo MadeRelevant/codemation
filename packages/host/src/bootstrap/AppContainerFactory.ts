@@ -89,6 +89,8 @@ import { OpenAiApiKeyCredentialHealthTester } from "../infrastructure/credential
 import { OpenAiApiKeyCredentialTypeFactory } from "../infrastructure/credentials/OpenAiApiKeyCredentialTypeFactory";
 import { CodemationPluginRegistrar } from "../infrastructure/config/CodemationPluginRegistrar";
 import { WorkflowRunEventWebsocketRelay } from "../application/websocket/WorkflowRunEventWebsocketRelay";
+import { TelemetrySpanWebsocketRelay } from "../application/websocket/TelemetrySpanWebsocketRelay";
+import { NoOpTelemetrySpanPublisher } from "../application/telemetry/TelemetrySpanPublisher";
 import { FrameworkCostCatalogEntries } from "../application/cost/FrameworkCostCatalogEntries";
 import { CompositeTelemetryExporter } from "../application/telemetry/CompositeTelemetryExporter";
 import { LazyExecutionTelemetryFactory } from "../application/telemetry/LazyExecutionTelemetryFactory";
@@ -350,6 +352,9 @@ export class AppContainerFactory {
   async create(inputs: AppContainerInputs): Promise<Container> {
     const container = tsyringeContainer.createChildContainer();
     container.registerInstance(ApplicationTokens.AppConfig, inputs.appConfig);
+    // Register the no-op publisher as a fallback so OtelExecutionTelemetryFactory can always
+    // resolve the token. registerOperationalInfrastructure overrides this with the WS relay.
+    container.registerInstance(ApplicationTokens.TelemetrySpanPublisher, NoOpTelemetrySpanPublisher);
     this.registerCoreInfrastructure(container, inputs);
     this.registerRepositoriesAndBuses(container);
     this.registerApplicationServicesAndRoutes(container);
@@ -819,6 +824,12 @@ export class AppContainerFactory {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(WorkflowWebsocketServer)),
     });
     container.registerSingleton(WorkflowRunEventWebsocketRelay, WorkflowRunEventWebsocketRelay);
+    container.registerSingleton(TelemetrySpanWebsocketRelay, TelemetrySpanWebsocketRelay);
+    container.register(ApplicationTokens.TelemetrySpanPublisher, {
+      useFactory: instanceCachingFactory((dependencyContainer) =>
+        dependencyContainer.resolve(TelemetrySpanWebsocketRelay),
+      ),
+    });
     container.registerSingleton(RunEventBusTelemetryReporter, RunEventBusTelemetryReporter);
     container.registerSingleton(WorkflowRunRetentionPruneScheduler, WorkflowRunRetentionPruneScheduler);
   }
