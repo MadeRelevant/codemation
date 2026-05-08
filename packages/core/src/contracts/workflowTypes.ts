@@ -102,6 +102,27 @@ export interface NodeConfigBase {
    * configs (e.g. `AssertionNodeConfig`, `StringEqualsAssertionNodeConfig`).
    */
   readonly emitsAssertions?: true;
+  /**
+   * Static configuration summary surfaced in the workflow inspector — the design-time
+   * "what does this node do" panel that renders before any run telemetry exists.
+   *
+   * Return 2–6 short label/value pairs derived from this config (method + url for an HTTP
+   * call, model + tool list for an agent, schedule + timezone for a cron trigger, etc.).
+   * Values are truncated by the UI; aim for one line each. Return `undefined` to opt out
+   * — the inspector hides the section when no rows are produced.
+   *
+   * Implement on the config class instance so the function can read sibling config fields.
+   * `defineNode({ inspectorSummary })` plumbs through to this.
+   */
+  inspectorSummary?(): ReadonlyArray<NodeInspectorSummaryRow> | undefined;
+}
+
+/**
+ * One row of a node's static configuration summary. See {@link NodeConfigBase.inspectorSummary}.
+ */
+export interface NodeInspectorSummaryRow {
+  readonly label: string;
+  readonly value: string;
 }
 
 export declare const runnableNodeInputType: unique symbol;

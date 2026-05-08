@@ -6,7 +6,7 @@ import type {
 } from "../contracts/credentialTypes";
 import type { ParamDeep } from "../contracts/params";
 import type { RunnableNode, RunnableNodeExecuteArgs, NodeExecutionContext } from "../contracts/runtimeTypes";
-import type { Item, Items, RunnableNodeConfig } from "../contracts/workflowTypes";
+import type { Item, Items, NodeInspectorSummaryRow, RunnableNodeConfig } from "../contracts/workflowTypes";
 import type { TypeToken } from "../di";
 import { node as persistedNode } from "../runtime-types/runtimeTypeDecorators.types";
 import type { ZodType } from "zod";
@@ -120,6 +120,15 @@ export interface DefineNodeOptions<
   readonly inputSchema?: ZodType<TInputJson>;
   /** Preserve inbound `item.binary` when `execute` returns plain JSON or item-shaped results without `binary`. */
   readonly keepBinaries?: boolean;
+  /**
+   * Static configuration summary surfaced in the workflow inspector — see
+   * {@link import("../contracts/workflowTypes").NodeConfigBase.inspectorSummary}.
+   *
+   * Receives the static config; returns 2–6 short label/value pairs (or `undefined` to skip).
+   */
+  readonly inspectorSummary?: (
+    args: Readonly<{ config: TConfig }>,
+  ) => ReadonlyArray<NodeInspectorSummaryRow> | undefined;
   execute(
     args: DefineNodeExecuteArgs<TConfig, TInputJson>,
     context: DefinedNodeRunContext<TConfig, TBindings>,
@@ -143,6 +152,9 @@ export interface DefineBatchNodeOptions<
   readonly input?: Readonly<Record<keyof TConfig & string, unknown>>;
   readonly configSchema?: z.ZodType<TConfig>;
   readonly credentials?: TBindings;
+  readonly inspectorSummary?: (
+    args: Readonly<{ config: TConfig }>,
+  ) => ReadonlyArray<NodeInspectorSummaryRow> | undefined;
   run(
     items: ReadonlyArray<TInputJson>,
     context: DefinedNodeRunContext<TConfig, TBindings>,
@@ -273,6 +285,10 @@ export function defineNode<
     getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
       return credentialRequirements;
     }
+
+    inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> | undefined {
+      return options.inspectorSummary?.({ config: this.config });
+    }
   };
 
   const definition: DefinedNode<TKey, TConfig, TInputJson, TOutputJson, TBindings> = {
@@ -355,6 +371,10 @@ export function defineBatchNode<
 
     getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
       return credentialRequirements;
+    }
+
+    inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> | undefined {
+      return options.inspectorSummary?.({ config: this.config });
     }
   };
 

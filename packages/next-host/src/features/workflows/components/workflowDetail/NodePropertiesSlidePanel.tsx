@@ -14,6 +14,7 @@ import type {
 } from "../../hooks/realtime/realtime";
 import { useTelemetryRunTraceQuery } from "../../hooks/realtime/realtime";
 import { NodeCredentialBindingsSection } from "./NodeCredentialBindingsSection";
+import { NodeInspectorSummarySection } from "./NodeInspectorSummarySection";
 import { NodePropertiesConfigSection } from "./NodePropertiesConfigSection";
 import { NodePropertiesDescriptionSection } from "./NodePropertiesDescriptionSection";
 import { NodePropertiesPanelHeader } from "./NodePropertiesPanelHeader";
@@ -158,6 +159,7 @@ export function NodePropertiesSlidePanel(
             />
             <div className="min-h-0 flex-1 overflow-auto">
               <NodePropertiesDescriptionSection node={node} />
+              <NodeInspectorSummarySection node={node} />
               {node.referencedWorkflowId ? (
                 <section
                   data-testid="node-properties-subworkflow-section"
