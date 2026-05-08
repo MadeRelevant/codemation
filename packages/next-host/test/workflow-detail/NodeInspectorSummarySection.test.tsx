@@ -3,6 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { NodeInspectorSummaryRow } from "../../src/features/workflows/components/workflowDetail/NodeInspectorSummaryRow";
 import { NodeInspectorSummarySection } from "../../src/features/workflows/components/workflowDetail/NodeInspectorSummarySection";
 import type { WorkflowDiagramNode } from "../../src/features/workflows/lib/workflowDetail/workflowDetailTypes";
 
@@ -48,5 +49,40 @@ describe("NodeInspectorSummarySection", () => {
     );
     const dd = container.querySelector("dd");
     expect(dd?.textContent).toBe("Line one\nLine two");
+  });
+
+  it("renders a single row when only one is provided (no extra wrappers)", () => {
+    const { container } = render(
+      <NodeInspectorSummarySection node={nodeWithSummary([{ label: "Method", value: "GET" }])} />,
+    );
+    const dts = container.querySelectorAll("dt");
+    const dds = container.querySelectorAll("dd");
+    expect(dts.length).toBe(1);
+    expect(dds.length).toBe(1);
+    expect(dts[0]?.textContent).toBe("Method");
+    expect(dds[0]?.textContent).toBe("GET");
+  });
+
+  it("emits stable keys per row (label + index) — duplicate labels do not collide", () => {
+    const { container } = render(
+      <NodeInspectorSummarySection
+        node={nodeWithSummary([
+          { label: "Header", value: "Authorization: Bearer ..." },
+          { label: "Header", value: "Content-Type: application/json" },
+        ])}
+      />,
+    );
+    expect(container.querySelectorAll("dt").length).toBe(2);
+    expect(container.querySelectorAll("dd").length).toBe(2);
+  });
+});
+
+describe("NodeInspectorSummaryRow", () => {
+  it("renders the label in a <dt> and the value in a <dd>", () => {
+    const { container } = render(<NodeInspectorSummaryRow label="URL" value="https://api.example.com" />);
+    const dt = container.querySelector("dt");
+    const dd = container.querySelector("dd");
+    expect(dt?.textContent).toBe("URL");
+    expect(dd?.textContent).toBe("https://api.example.com");
   });
 });
