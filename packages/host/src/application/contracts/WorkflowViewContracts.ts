@@ -28,6 +28,12 @@ export type WorkflowNodeDto = Readonly<{
    * the properties panel as an "Open in editor" navigation link.
    */
   referencedWorkflowId?: string;
+  /**
+   * Static configuration summary for the inspector — short label/value pairs that describe
+   * what this node will do at a glance, before any run telemetry exists. Pulled from the
+   * node config's optional `inspectorSummary()` hook (`NodeConfigBase.inspectorSummary`).
+   */
+  inspectorSummary?: ReadonlyArray<Readonly<{ label: string; value: string }>>;
 }>;
 
 export type WorkflowEdgeDto = Readonly<{

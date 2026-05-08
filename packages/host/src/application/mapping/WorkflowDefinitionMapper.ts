@@ -134,6 +134,7 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
           : undefined;
       const description = (node.config as { description?: string }).description;
       const referencedWorkflowId = (node.config as { workflowId?: string }).workflowId;
+      const inspectorSummary = this.readInspectorSummary(node.config);
       nodes.push({
         id: node.id,
         kind: node.kind,
@@ -149,6 +150,7 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
         ...(typeof referencedWorkflowId === "string" && referencedWorkflowId.trim().length > 0
           ? { referencedWorkflowId }
           : {}),
+        ...(inspectorSummary ? { inspectorSummary } : {}),
       });
       if (AgentConfigInspector.isAgentNodeConfig(node.config)) {
         this.appendVirtualConnectionNodes(
@@ -287,6 +289,38 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
    * Omit optional port fields when undefined so persisted snapshot DTOs (which never serialize
    * undefined keys) stay aligned with live workflow mapping.
    */
+  private readInspectorSummary(
+    config: NodeDefinition["config"] | undefined,
+  ): ReadonlyArray<Readonly<{ label: string; value: string }>> | undefined {
+    if (!config || typeof config !== "object") {
+      return undefined;
+    }
+    const fn = (config as { inspectorSummary?: () => unknown }).inspectorSummary;
+    if (typeof fn !== "function") {
+      return undefined;
+    }
+    let raw: unknown;
+    try {
+      raw = fn.call(config);
+    } catch {
+      // A misbehaving inspectorSummary must not break workflow loading; skip silently.
+      return undefined;
+    }
+    if (!Array.isArray(raw)) {
+      return undefined;
+    }
+    const rows: Array<Readonly<{ label: string; value: string }>> = [];
+    for (const entry of raw) {
+      if (!entry || typeof entry !== "object") continue;
+      const { label, value } = entry as { label?: unknown; value?: unknown };
+      if (typeof label !== "string" || typeof value !== "string") continue;
+      const trimmedLabel = label.trim();
+      if (trimmedLabel.length === 0) continue;
+      rows.push({ label: trimmedLabel, value });
+    }
+    return rows.length > 0 ? rows : undefined;
+  }
+
   private nodePortFieldsFromConfig(
     config: NodeDefinition["config"] | undefined,
   ): Pick<WorkflowNodeDto, "continueWhenEmptyOutput" | "declaredOutputPorts" | "declaredInputPorts"> {

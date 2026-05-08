@@ -126,4 +126,49 @@ describe("defineNode", () => {
 
     expect(config.keepBinaries).toBe(false);
   });
+
+  it("plumbs inspectorSummary option into a method that reads sibling config fields", () => {
+    type SummaryConfig = Readonly<{ method: string; url: string }>;
+    const httpishNode = defineNode<"authoring.summary", SummaryConfig, unknown, unknown, undefined>({
+      key: "authoring.summary",
+      title: "Summary",
+      input: { method: "GET", url: "" },
+      inspectorSummary({ config }) {
+        return [
+          { label: "Method", value: config.method },
+          { label: "URL", value: config.url },
+        ];
+      },
+      execute({ input }) {
+        return input;
+      },
+    });
+
+    const instance = httpishNode.create({ method: "POST", url: "https://api.example.com/x" }) as Readonly<{
+      inspectorSummary?: () => ReadonlyArray<{ label: string; value: string }> | undefined;
+    }>;
+
+    expect(typeof instance.inspectorSummary).toBe("function");
+    expect(instance.inspectorSummary?.()).toEqual([
+      { label: "Method", value: "POST" },
+      { label: "URL", value: "https://api.example.com/x" },
+    ]);
+  });
+
+  it("inspectorSummary() returns undefined when the option is not provided", () => {
+    const noSummaryNode = defineNode({
+      key: "authoring.noSummary",
+      title: "No summary",
+      input: {},
+      execute({ input }) {
+        return input;
+      },
+    });
+
+    const instance = noSummaryNode.create({} as Record<string, never>) as Readonly<{
+      inspectorSummary?: () => unknown;
+    }>;
+
+    expect(instance.inspectorSummary?.()).toBeUndefined();
+  });
 });
