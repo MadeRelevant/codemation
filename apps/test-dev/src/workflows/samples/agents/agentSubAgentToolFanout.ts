@@ -3,7 +3,7 @@ import { workflow } from "@codemation/host";
 import { AIAgent } from "@codemation/core-nodes";
 import { z } from "zod";
 
-import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
+import { openAiChatModelPresets } from "../../../lib/openAiChatModelPresets";
 
 /**
  * Manual reproducer for the execution-inspector tool-call rendering and tree auto-follow flows,
