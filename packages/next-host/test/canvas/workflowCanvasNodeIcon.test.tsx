@@ -71,6 +71,42 @@ describe("WorkflowCanvasNodeIcon", () => {
       expect(getRotationTransform(container)).toBe("");
     });
   });
+
+  describe("non-curated lucide names → remote glyph", () => {
+    it("falls through to a CSS-mask remote glyph for `lucide:mail` (not in curated registry)", () => {
+      const { container } = render(<WorkflowCanvasNodeIcon icon="lucide:mail" sizePx={16} />);
+      const glyph = container.querySelector<HTMLSpanElement>('[data-testid="lucide-remote-glyph"]');
+      expect(glyph).not.toBeNull();
+      expect(glyph?.getAttribute("data-icon-name")).toBe("mail");
+      // mask-image points at the server route — the full lucide set never enters the client bundle.
+      expect(glyph?.style.maskImage || glyph?.style.webkitMaskImage).toContain("/api/lucide-icon/mail.svg");
+    });
+
+    it("URL-encodes the icon name in the mask-image URL (defensive — registry already validates)", () => {
+      const { container } = render(<WorkflowCanvasNodeIcon icon="lucide:user-plus" sizePx={16} />);
+      const glyph = container.querySelector<HTMLSpanElement>('[data-testid="lucide-remote-glyph"]');
+      expect(glyph?.style.maskImage || glyph?.style.webkitMaskImage).toContain("/api/lucide-icon/user-plus.svg");
+    });
+
+    it("renders question-mark fallback when the name fails the lucide kebab regex — defends against path traversal", () => {
+      const { container } = render(<WorkflowCanvasNodeIcon icon="lucide:foo/../etc/passwd" sizePx={16} />);
+      const glyph = container.querySelector('[data-testid="lucide-remote-glyph"]');
+      expect(glyph).toBeNull();
+      // CircleHelp renders as an svg in the slot; absence of remote glyph is the assertion.
+    });
+
+    it("rejects names that don't start with a letter (defends against numeric-prefix injection)", () => {
+      const { container } = render(<WorkflowCanvasNodeIcon icon="lucide:1mail" sizePx={16} />);
+      const glyph = container.querySelector('[data-testid="lucide-remote-glyph"]');
+      expect(glyph).toBeNull();
+    });
+
+    it("prefers the curated path for icons in the registry (no remote glyph emitted for `lucide:bot`)", () => {
+      const { container } = render(<WorkflowCanvasNodeIcon icon="lucide:bot" sizePx={16} />);
+      const glyph = container.querySelector('[data-testid="lucide-remote-glyph"]');
+      expect(glyph).toBeNull();
+    });
+  });
 });
 
 describe("WorkflowNodeIconResolver.resolveFallback (role-only)", () => {

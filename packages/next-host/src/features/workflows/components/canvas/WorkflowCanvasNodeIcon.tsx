@@ -5,8 +5,11 @@ import { WorkflowNodeIconResolver } from "../workflowDetail/WorkflowDetailIcons"
 import { CanvasNodeIconSlot, type CanvasIconRotate } from "./CanvasNodeIconSlot";
 import { WorkflowCanvasBuiltinIconRegistry } from "./lib/WorkflowCanvasBuiltinIconRegistry";
 import { WorkflowCanvasLucideIconRegistry } from "./lib/WorkflowCanvasLucideIconRegistry";
+import { WorkflowCanvasLucideRemoteGlyph } from "./WorkflowCanvasLucideRemoteGlyph";
 import { WorkflowCanvasSiIconRegistry } from "./lib/WorkflowCanvasSiIconRegistry";
 import { WorkflowCanvasSimpleIconGlyph } from "./WorkflowCanvasSimpleIconGlyph";
+
+const LUCIDE_NAME_RE = /^[a-z][a-z0-9-]*$/;
 
 /** Main node glyph: always contained in the slot, no opaque backing (card paints the tile). */
 const IMG_STYLE: CSSProperties = {
@@ -64,9 +67,12 @@ function renderInSlot(sizePx: number, rotate: CanvasIconRotate | undefined, chil
  * - **URLs** — `http(s):`, `data:`, or root-relative `/…`
  * - **`builtin:<id>`** — SVG under `public/canvas-icons/builtin/` (see {@link WorkflowCanvasBuiltinIconRegistry})
  * - **`si:<slug>`** — cherry-picked Simple Icons, or same builtin asset when slug matches a registered builtin (e.g. `si:openai`)
- * - **`lucide:<name>`** or legacy kebab name — Lucide icon from a curated registry (only icons used
- *   by core node plugins). Unknown names fall back to a question-mark glyph and emit a one-time warning.
- *   Plugin authors needing custom icons should ship SVG via `builtin:` / `si:` / URL.
+ * - **`lucide:<name>`** or legacy kebab name — Lucide icon. Names used by core node plugins
+ *   render via the curated `WorkflowCanvasLucideIconRegistry` (sync, no HTTP). Any other valid
+ *   lucide kebab name renders via {@link WorkflowCanvasLucideRemoteGlyph} — a CSS `mask-image`
+ *   pointing at `/api/lucide-icon/<name>.svg`, served from `lucide-static` server-side. The full
+ *   lucide set is therefore reachable without bloating the client bundle (commit ddaa265f).
+ *   Names that don't match the lucide kebab pattern fall back to a question-mark glyph.
  *
  * Any of the above may be suffixed with `@rot=<0|90|180|270>` (and future modifiers)
  * to rotate the glyph so vertically-oriented source art reads in LTR workflow flow.
@@ -133,9 +139,11 @@ export function WorkflowCanvasNodeIcon(
     ? body.slice("lucide:".length).trim().toLowerCase()
     : body.toLowerCase();
   const Icon = WorkflowCanvasLucideIconRegistry.resolve(lucideName);
-  return renderInSlot(
-    sizePx,
-    rotate,
-    Icon ? <Icon size={sizePx} strokeWidth={strokeWidth} /> : <CircleHelp size={sizePx} strokeWidth={strokeWidth} />,
-  );
+  if (Icon) {
+    return renderInSlot(sizePx, rotate, <Icon size={sizePx} strokeWidth={strokeWidth} />);
+  }
+  if (LUCIDE_NAME_RE.test(lucideName)) {
+    return renderInSlot(sizePx, rotate, <WorkflowCanvasLucideRemoteGlyph name={lucideName} sizePx={sizePx} />);
+  }
+  return renderInSlot(sizePx, rotate, <CircleHelp size={sizePx} strokeWidth={strokeWidth} />);
 }
