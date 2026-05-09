@@ -9,6 +9,7 @@ import { OtelIdentityFactory } from "./OtelIdentityFactory";
 import { TelemetryEnricherChain } from "./TelemetryEnricherChain";
 import { TelemetryPrivacyPolicy } from "./TelemetryPrivacyPolicy";
 import { TelemetryRetentionTimestampFactory } from "./TelemetryRetentionTimestampFactory";
+import { NoOpTelemetrySpanPublisher, type TelemetrySpanPublisher } from "./TelemetrySpanPublisher";
 
 export type StoredExecutionTelemetryDeps = Readonly<{
   traceId: string;
@@ -24,7 +25,11 @@ export type StoredExecutionTelemetryDeps = Readonly<{
   telemetryPrivacyPolicy: TelemetryPrivacyPolicy;
   telemetryRetentionTimestampFactory: TelemetryRetentionTimestampFactory;
   otelIdentityFactory: OtelIdentityFactory;
+  /** Optional publisher for streaming span upserts over WebSocket. Defaults to no-op. */
+  telemetrySpanPublisher?: TelemetrySpanPublisher;
 }>;
+
+export { NoOpTelemetrySpanPublisher };
 
 export type StoredSpanScopeArgs = StoredExecutionTelemetryDeps &
   Readonly<{

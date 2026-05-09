@@ -19,50 +19,39 @@ function createRunState(status: PersistedRunState["status"]): PersistedRunState 
 }
 
 describe("resolveRunPollingIntervalMs", () => {
-  it("polls while the run is non-terminal", () => {
+  it("returns the interval for non-terminal runs when pollWhileNonTerminalMs is provided", () => {
     expect(resolveRunPollingIntervalMs({ runState: createRunState("pending"), pollWhileNonTerminalMs: 250 })).toBe(250);
     expect(resolveRunPollingIntervalMs({ runState: createRunState("running"), pollWhileNonTerminalMs: 250 })).toBe(250);
+    expect(resolveRunPollingIntervalMs({ runState: undefined, pollWhileNonTerminalMs: 250 })).toBe(250);
   });
 
-  it("stops polling once the run is terminal or polling is disabled", () => {
+  it("returns false for terminal runs (poll self-cancels)", () => {
     expect(resolveRunPollingIntervalMs({ runState: createRunState("completed"), pollWhileNonTerminalMs: 250 })).toBe(
       false,
     );
     expect(resolveRunPollingIntervalMs({ runState: createRunState("failed"), pollWhileNonTerminalMs: 250 })).toBe(
       false,
     );
+  });
+
+  it("returns false when pollWhileNonTerminalMs is not provided", () => {
     expect(
       resolveRunPollingIntervalMs({ runState: createRunState("pending"), pollWhileNonTerminalMs: undefined }),
     ).toBe(false);
-    expect(resolveRunPollingIntervalMs({ runState: undefined, pollWhileNonTerminalMs: 250 })).toBe(false);
+    expect(resolveRunPollingIntervalMs({})).toBe(false);
   });
 });
 
 describe("resolveTelemetryTraceRefetchIntervalMs", () => {
-  it("polls when run status is non-terminal and pollWhileNonTerminalMs is set", () => {
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "pending", pollWhileNonTerminalMs: 500 })).toBe(500);
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "running", pollWhileNonTerminalMs: 500 })).toBe(500);
-  });
-
-  it("polls when runStatus is undefined (run query not yet hydrated) and pollWhileNonTerminalMs is set", () => {
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: undefined, pollWhileNonTerminalMs: 500 })).toBe(500);
-  });
-
-  it("stops polling when run status is terminal", () => {
+  // Telemetry polling was replaced by WebSocket streaming (TelemetrySpanWebsocketRelay).
+  // The function is now a no-op that always returns false regardless of arguments.
+  it("always returns false (polling replaced by WS streaming)", () => {
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "pending", pollWhileNonTerminalMs: 500 })).toBe(false);
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "running", pollWhileNonTerminalMs: 500 })).toBe(false);
+    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: undefined, pollWhileNonTerminalMs: 500 })).toBe(false);
     expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "completed", pollWhileNonTerminalMs: 500 })).toBe(false);
     expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "failed", pollWhileNonTerminalMs: 500 })).toBe(false);
-  });
-
-  it("returns false when pollWhileNonTerminalMs is undefined even if status is non-terminal", () => {
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "pending", pollWhileNonTerminalMs: undefined })).toBe(
-      false,
-    );
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: "running", pollWhileNonTerminalMs: undefined })).toBe(
-      false,
-    );
-    expect(resolveTelemetryTraceRefetchIntervalMs({ runStatus: undefined, pollWhileNonTerminalMs: undefined })).toBe(
-      false,
-    );
+    expect(resolveTelemetryTraceRefetchIntervalMs({})).toBe(false);
   });
 });
 

@@ -11,6 +11,7 @@ import type { QueryBus } from "./application/bus/QueryBus";
 import type { QueryHandler } from "./application/bus/QueryHandler";
 import type { Logger, LoggerFactory } from "./application/logging/Logger";
 import type { WorkflowWebsocketPublisher } from "./application/websocket/WorkflowWebsocketPublisher";
+import type { TelemetrySpanPublisher } from "./application/telemetry/TelemetrySpanPublisher";
 import type { CredentialStore } from "./domain/credentials/CredentialServices";
 import type {
   RunTraceContextRepository,
@@ -54,6 +55,9 @@ export const ApplicationTokens = {
   WorkflowWebsocketPublisher: Symbol.for(
     "codemation.application.WorkflowWebsocketPublisher",
   ) as TypeToken<WorkflowWebsocketPublisher>,
+  TelemetrySpanPublisher: Symbol.for(
+    "codemation.application.TelemetrySpanPublisher",
+  ) as TypeToken<TelemetrySpanPublisher>,
   WorkerRuntimeScheduler: Symbol.for(
     "codemation.application.WorkerRuntimeScheduler",
   ) as TypeToken<WorkerRuntimeScheduler>,

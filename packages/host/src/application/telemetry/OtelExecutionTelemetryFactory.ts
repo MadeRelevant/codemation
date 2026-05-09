@@ -12,6 +12,7 @@ import { StoredExecutionTelemetry } from "./StoredExecutionTelemetry";
 import { TelemetryEnricherChain } from "./TelemetryEnricherChain";
 import { TelemetryPrivacyPolicy } from "./TelemetryPrivacyPolicy";
 import { TelemetryRetentionTimestampFactory } from "./TelemetryRetentionTimestampFactory";
+import type { TelemetrySpanPublisher } from "./TelemetrySpanPublisher";
 
 @injectable()
 export class OtelExecutionTelemetryFactory implements ExecutionTelemetryFactory {
@@ -32,6 +33,8 @@ export class OtelExecutionTelemetryFactory implements ExecutionTelemetryFactory 
     private readonly telemetryRetentionTimestampFactory: TelemetryRetentionTimestampFactory,
     @inject(OtelIdentityFactory)
     private readonly otelIdentityFactory: OtelIdentityFactory,
+    @inject(ApplicationTokens.TelemetrySpanPublisher)
+    private readonly telemetrySpanPublisher: TelemetrySpanPublisher,
   ) {}
 
   create(
@@ -51,6 +54,7 @@ export class OtelExecutionTelemetryFactory implements ExecutionTelemetryFactory 
       telemetryPrivacyPolicy: this.telemetryPrivacyPolicy,
       telemetryRetentionTimestampFactory: this.telemetryRetentionTimestampFactory,
       otelIdentityFactory: this.otelIdentityFactory,
+      telemetrySpanPublisher: this.telemetrySpanPublisher,
     });
   }
 }

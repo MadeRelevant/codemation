@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { RealtimeContextValue } from "../../components/realtime/RealtimeContext";
 import { applyWorkflowEvent } from "../../lib/realtime/realtimeRunMutations";
+import { applyTelemetrySpanEvent } from "../../lib/realtime/realtimeTelemetryMutations";
 import {
   applyRunEventForTestSuite,
   applyTestSuiteEvent,
@@ -26,6 +27,11 @@ import {
   workflowsQueryKey,
 } from "../../lib/realtime/realtimeQueryKeys";
 import type { PersistedRunState, WorkflowDevBuildState } from "../../lib/realtime/realtimeDomainTypes";
+import { PageVisibilityIdleTimer } from "../../lib/realtime/PageVisibilityIdleTimer";
+import { RunRoomSubscriptionTracker } from "../../lib/realtime/RunRoomSubscriptionTracker";
+
+/** How long the tab must be hidden before we auto-unsubscribe from run rooms (5 minutes). */
+const runRoomHiddenUnsubscribeMs = 5 * 60 * 1000;
 
 export function useWorkflowRealtimeInfrastructure(
   args: Readonly<{ logger: Logger; websocketPort?: string }>,
@@ -35,6 +41,9 @@ export function useWorkflowRealtimeInfrastructure(
   const [workflowSocketEnabled, setWorkflowSocketEnabled] = useState(false);
   const hasLoggedWorkflowSocketEnabledRef = useRef(false);
   const desiredWorkflowCountsRef = useRef(new Map<string, number>());
+  // Run room subscriptions tracked by a ref-counted tracker.
+  // Initialised lazily inside a ref so it's stable across renders.
+  const runTrackerRef = useRef<RunRoomSubscriptionTracker | null>(null);
   const pendingOutgoingMessagesRef = useRef<RealtimeClientMessage[]>([]);
   const activeStatusShownAtByNodeKeyRef = useRef(new Map<string, number>());
   const terminalEventTimeoutIdByNodeKeyRef = useRef(new Map<string, number>());
@@ -336,6 +345,12 @@ export function useWorkflowRealtimeInfrastructure(
         return;
       }
 
+      if (message.kind === "telemetryEvent") {
+        logger.debug(`received telemetry span run=${message.runId} spanId=${message.span.spanId}`);
+        applyTelemetrySpanEvent(queryClient, message.runId, message.span);
+        return;
+      }
+
       if (message.kind === "error") {
         logger.error(`websocket error message: ${message.message}`);
         return;
@@ -358,6 +373,33 @@ export function useWorkflowRealtimeInfrastructure(
   }, []);
   const canSendJsonMessage = useCallback((): boolean => socketRef.current?.readyState === WebSocket.OPEN, []);
   sendJsonMessageRef.current = sendJsonMessage;
+
+  /**
+   * Lazily creates the run-room subscription tracker on first call so that the callbacks close
+   * over stable refs rather than stale values.  The tracker instance lives inside `runTrackerRef`
+   * and is stable for the lifetime of the hook.
+   */
+  const getRunTracker = (): RunRoomSubscriptionTracker => {
+    if (runTrackerRef.current === null) {
+      runTrackerRef.current = new RunRoomSubscriptionTracker({
+        onRoomActivated: (runId) => {
+          if (readyStateRef.current === RealtimeReadyState.OPEN && canSendJsonMessage()) {
+            const roomId = `run:${runId}`;
+            const sent = sendJsonMessageRef.current({ kind: "subscribe", roomId } satisfies RealtimeClientMessage);
+            logger.debug(`${sent ? "sent" : "queued"} retain subscription for run ${runId}`);
+          }
+        },
+        onRoomDeactivated: (runId) => {
+          if (readyStateRef.current === RealtimeReadyState.OPEN && canSendJsonMessage()) {
+            const roomId = `run:${runId}`;
+            const sent = sendJsonMessageRef.current({ kind: "unsubscribe", roomId } satisfies RealtimeClientMessage);
+            logger.debug(`${sent ? "sent" : "queued"} unsubscribe for run ${runId}`);
+          }
+        },
+      });
+    }
+    return runTrackerRef.current;
+  };
 
   useEffect(() => {
     if (!shouldConnect || !websocketUrl) {
@@ -570,6 +612,11 @@ export function useWorkflowRealtimeInfrastructure(
       const sent = sendJsonMessage({ kind: "subscribe", roomId: workflowId } satisfies RealtimeClientMessage);
       logger.debug(`${sent ? "sent" : "queued"} subscribe for workflow ${workflowId}`);
     }
+    for (const runId of getRunTracker().activeRunIds()) {
+      const roomId = `run:${runId}`;
+      const sent = sendJsonMessage({ kind: "subscribe", roomId } satisfies RealtimeClientMessage);
+      logger.debug(`${sent ? "sent" : "queued"} subscribe for run ${runId}`);
+    }
   }, [logger, readyState, sendJsonMessage]);
 
   const retainWorkflowSubscription = useCallback(
@@ -621,9 +668,58 @@ export function useWorkflowRealtimeInfrastructure(
     [canSendJsonMessage, logger],
   );
 
+  const retainRunSubscription = useCallback((runId: string) => {
+    getRunTracker().retain(runId);
+    // The tracker's onRoomActivated callback handles the subscribe frame when the socket is OPEN.
+
+    return () => {
+      getRunTracker().release(runId);
+      // The tracker's onRoomDeactivated callback handles the unsubscribe frame when the socket is OPEN.
+    };
+  }, []);
+
+  // Auto-unsubscribe run rooms when the tab is hidden for longer than runRoomHiddenUnsubscribeMs.
+  // On visibility return, re-subscribe to any desired rooms (the subscription re-emit on OPEN
+  // handles reconnects; this handles the case where the socket is still OPEN but the tab was hidden).
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const timer = new PageVisibilityIdleTimer({
+      documentRef: document,
+      windowRef: window,
+      idleMs: runRoomHiddenUnsubscribeMs,
+      onIdle: () => {
+        // Unsubscribe all run rooms while still tracking desired counts so we can re-subscribe.
+        if (readyStateRef.current !== RealtimeReadyState.OPEN) return;
+        for (const runId of getRunTracker().activeRunIds()) {
+          const sent = sendJsonMessageRef.current({
+            kind: "unsubscribe",
+            roomId: `run:${runId}`,
+          } satisfies RealtimeClientMessage);
+          logger.debug(`${sent ? "sent" : "queued"} auto-unsubscribe (hidden) run ${runId}`);
+        }
+      },
+      onActive: () => {
+        if (readyStateRef.current !== RealtimeReadyState.OPEN) return;
+        for (const runId of getRunTracker().activeRunIds()) {
+          const sent = sendJsonMessageRef.current({
+            kind: "subscribe",
+            roomId: `run:${runId}`,
+          } satisfies RealtimeClientMessage);
+          logger.debug(`${sent ? "sent" : "queued"} re-subscribe (visible) run ${runId}`);
+        }
+      },
+    });
+    timer.start();
+    return () => {
+      timer.stop();
+    };
+  }, [logger]);
+
   const value = useMemo<RealtimeContextValue>(
     () => ({
       retainWorkflowSubscription,
+      retainRunSubscription,
       isConnected: readyState === RealtimeReadyState.OPEN,
       showDisconnectedBadge: readyState === RealtimeReadyState.CLOSED,
       readyState,
@@ -631,12 +727,13 @@ export function useWorkflowRealtimeInfrastructure(
       lastBuildError,
       buildStateLastChangedAt: buildStateLastChangedAtRef.current,
     }),
-    [buildState, lastBuildError, readyState, retainWorkflowSubscription],
+    [buildState, lastBuildError, readyState, retainWorkflowSubscription, retainRunSubscription],
   );
 
   useEffect(() => {
     const bridge = getRealtimeBridge();
     bridge.retainWorkflowSubscription = retainWorkflowSubscription;
+    bridge.retainRunSubscription = retainRunSubscription;
     for (const listener of bridge.listeners) {
       listener();
     }
@@ -644,11 +741,14 @@ export function useWorkflowRealtimeInfrastructure(
       if (bridge.retainWorkflowSubscription === retainWorkflowSubscription) {
         bridge.retainWorkflowSubscription = null;
       }
+      if (bridge.retainRunSubscription === retainRunSubscription) {
+        bridge.retainRunSubscription = null;
+      }
       for (const listener of bridge.listeners) {
         listener();
       }
     };
-  }, [retainWorkflowSubscription]);
+  }, [retainWorkflowSubscription, retainRunSubscription]);
 
   return value;
 }
