@@ -26,3 +26,4 @@ packages/host/.cache/
 .verdaccio/wbso-hours.tsv
 .verdaccio/storage/
 .claude/scheduled_tasks.lock
+epic-planning/

@@ -59,7 +59,7 @@ import type {
   WorkflowRunDetailDto,
 } from "../../lib/realtime/realtimeDomainTypes";
 import { WorkflowQueryRetryPolicy } from "../../lib/realtime/WorkflowQueryRetryPolicy";
-import { resolveFetchedRunState } from "./runQueryPolling";
+import { resolveFetchedRunState, resolveRunPollingIntervalMs } from "./runQueryPolling";
 export { useTelemetryRunTraceQuery } from "./useTelemetryRunTraceQuery";
 
 export function useWorkflowRealtimeSubscription(workflowId: string | null | undefined): void {
@@ -186,8 +186,15 @@ export function useRunQuery(
       return resolveFetchedRunState({ incoming, previous });
     },
     enabled: Boolean(runId) && !options.disableFetch,
-    // No polling: run state changes arrive via WS. resolveRunPollingIntervalMs is now a no-op.
-    refetchInterval: false,
+    // WS events (via WorkflowRunEventWebsocketRelay → applyWorkflowEvent) are the primary path.
+    // The poll is a safety net: InlineDrivingScheduler defers execution via setTimeout(0), so
+    // the HTTP trigger response carries only the initial queued snapshot, not the final state.
+    // Self-cancels once the run is terminal.
+    refetchInterval: (query) =>
+      resolveRunPollingIntervalMs({
+        runState: query.state.data as PersistedRunState | undefined,
+        pollWhileNonTerminalMs: options.pollWhileNonTerminalMs,
+      }),
     staleTime: 30_000,
   });
 

@@ -1,19 +1,22 @@
 import type { PersistedRunState } from "../../lib/realtime/realtimeDomainTypes";
 
 /**
- * @deprecated No-op. Run state is now streamed over WebSocket via
- * `WorkflowRunEventWebsocketRelay` and spliced into the query cache by
- * `applyWorkflowEvent`. HTTP polling at 5 s while non-terminal was redundant
- * with the WS push and added a stale tail to every run; an HTTP refetch on
- * WS reconnect handles catch-up after a transient disconnect. Returns `false`
- * unconditionally so legacy callers passing `pollWhileNonTerminalMs` get the
- * new behaviour without an API churn.
+ * Returns the polling interval for non-terminal runs, or `false` to disable polling.
+ *
+ * WS events (via `WorkflowRunEventWebsocketRelay`) are the primary path for run-state
+ * updates, but the `InlineDrivingScheduler` defers node execution via `setTimeout(0)`,
+ * so the HTTP trigger response carries only the initial queued snapshot. The poll here
+ * acts as a catch-up safety net for cases where WS events are missed or delayed.
+ * Returns `false` once the run is terminal so the poll self-cancels.
  */
-export function resolveRunPollingIntervalMs(_args: {
+export function resolveRunPollingIntervalMs(args: {
   runState?: PersistedRunState | undefined;
   pollWhileNonTerminalMs?: number | undefined;
-}): false {
-  return false;
+}): number | false {
+  const { runState, pollWhileNonTerminalMs } = args;
+  if (!pollWhileNonTerminalMs) return false;
+  const isTerminal = runState?.status === "completed" || runState?.status === "failed";
+  return isTerminal ? false : pollWhileNonTerminalMs;
 }
 
 /**
