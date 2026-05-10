@@ -20,6 +20,7 @@ import { resolveWorkflowRealtimeBadge } from "./workflowDetailScreenRealtimeBadg
 import { WorkflowCanvasRunButton } from "../components/workflowDetail/WorkflowCanvasRunButton";
 import { useWorkflowCanvasRunButton } from "../hooks/useWorkflowCanvasRunButton";
 import { WorkflowJsonEditorDialog } from "../components/workflowDetail/WorkflowJsonEditorDialog";
+import { WorkflowActivationErrorDialog } from "../components/workflowDetail/WorkflowActivationErrorDialog";
 
 // Lazy-load the Tests view only: it pulls in recharts + the test-suite component tree which is
 // conditionally rendered and would otherwise dominate Turbopack's module work for this route.
@@ -255,6 +256,14 @@ export function WorkflowDetailScreen(args: Readonly<{ workflowId: string; initia
           onSave={(value, binaryMaps) => {
             controller.saveJsonEditor(value, binaryMaps);
           }}
+        />
+      ) : null}
+      {controller.runErrorAlertLines && controller.runErrorAlertLines.length > 0 ? (
+        <WorkflowActivationErrorDialog
+          open
+          title="Could not start run"
+          alertLines={controller.runErrorAlertLines}
+          onDismiss={controller.dismissRunErrorAlert}
         />
       ) : null}
       <style>{WORKFLOW_DETAIL_TREE_STYLES}</style>

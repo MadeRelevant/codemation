@@ -1,12 +1,18 @@
 import assert from "node:assert/strict";
 import "reflect-metadata";
-import type { Item } from "@codemation/core";
+import type { CredentialSessionService, Item } from "@codemation/core";
 import { WorkflowTestKit } from "@codemation/core/testing";
 import { MapData, MapDataNode, WorkflowChain, createWorkflowBuilder } from "@codemation/core-nodes";
 import { test } from "vitest";
 import { SendGmailMessage, type SendGmailMessageInputJson } from "../src/nodes/SendGmailMessage";
 import { SendGmailMessageNode } from "../src/nodes/SendGmailMessageNode";
 import { GmailSendMessageService } from "../src/services/GmailSendMessageService";
+
+class AcceptingCredentialSessionService implements CredentialSessionService {
+  async getSession<TSession>(): Promise<TSession> {
+    return {} as TSession;
+  }
+}
 
 class RecordingGmailSendMessageService {
   readonly calls: unknown[] = [];
@@ -46,7 +52,7 @@ class GmailComposableWorkflowFixture {
 }
 
 test("SendGmailMessage composes after a standard map step", async () => {
-  const kit = new WorkflowTestKit();
+  const kit = new WorkflowTestKit({ credentialSessions: new AcceptingCredentialSessionService() });
   const service = new RecordingGmailSendMessageService();
   kit.dependencyContainer.registerSingleton(MapDataNode, MapDataNode);
   kit.dependencyContainer.registerSingleton(SendGmailMessageNode, SendGmailMessageNode);

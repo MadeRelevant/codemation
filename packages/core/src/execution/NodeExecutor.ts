@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isPortsEmission, isUnbrandedPortsEmissionShape } from "../contracts/emitPorts";
+import { CredentialUnboundError } from "../contracts/credentialTypes";
 
 import type {
   Item,
@@ -38,14 +39,33 @@ export class NodeExecutor {
   }
 
   async execute(request: NodeActivationRequest): Promise<NodeOutputs> {
+    await this.assertRequiredCredentialsBound(request);
     const policy = request.ctx.config.retryPolicy;
-    return await this.retryRunner.run(policy, async () => {
-      const nodeInstance = this.nodeInstanceFactory.createByType(request.ctx.config.type);
-      if (request.kind === "multi") {
-        return await this.executeMultiInputActivation(request, nodeInstance);
-      }
-      return await this.executeSingleInputNode(request, nodeInstance);
-    });
+    return await this.retryRunner.run(
+      policy,
+      async () => {
+        const nodeInstance = this.nodeInstanceFactory.createByType(request.ctx.config.type);
+        if (request.kind === "multi") {
+          return await this.executeMultiInputActivation(request, nodeInstance);
+        }
+        return await this.executeSingleInputNode(request, nodeInstance);
+      },
+      (error) => !this.isCredentialError(error),
+    );
+  }
+
+  private async assertRequiredCredentialsBound(request: NodeActivationRequest): Promise<void> {
+    if (!request.ctx.getCredential) return;
+    for (const req of request.ctx.config.getCredentialRequirements?.() ?? []) {
+      if (req.optional) continue;
+      await request.ctx.getCredential(req.slotKey);
+    }
+  }
+
+  private isCredentialError(e: unknown): boolean {
+    if (e instanceof CredentialUnboundError) return true;
+    const cause = e instanceof Error ? (e as { cause?: unknown }).cause : undefined;
+    return cause instanceof CredentialUnboundError;
   }
 
   private async executeMultiInputActivation(

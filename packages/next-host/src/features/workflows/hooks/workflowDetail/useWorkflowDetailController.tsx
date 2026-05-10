@@ -21,6 +21,7 @@ import {
   type WorkflowDto,
 } from "../realtime/realtime";
 import { useWorkflowRealtimeShowDisconnectedBadge } from "../realtime/useWorkflowRealtimeShowDisconnectedBadge";
+import { resolveFetchedRunState } from "../realtime/runQueryPolling";
 import { WorkflowDetailPresenter, type RunWorkflowRequest } from "../../lib/workflowDetail/WorkflowDetailPresenter";
 import {
   WorkflowDetailUrlCodec,
@@ -103,6 +104,8 @@ export type WorkflowDetailControllerResult = Readonly<{
   workflowActivationAlertLines: ReadonlyArray<string> | null;
   dismissWorkflowActivationAlert: () => void;
   setWorkflowActive: (active: boolean) => void;
+  runErrorAlertLines: ReadonlyArray<string> | null;
+  dismissRunErrorAlert: () => void;
 }>;
 
 export function useWorkflowDetailController(
@@ -134,6 +137,7 @@ export function useWorkflowDetailController(
 
   const workflowActivationErrorFormat = useMemo(() => new WorkflowActivationHttpErrorFormat(), []);
   const [workflowActivationAlertLines, setWorkflowActivationAlertLines] = useState<ReadonlyArray<string> | null>(null);
+  const [runErrorAlertLines, setRunErrorAlertLines] = useState<ReadonlyArray<string> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunRequestPending, setIsRunRequestPending] = useState(false);
   const [pendingTriggerFetchSnapshot, setPendingTriggerFetchSnapshot] = useState<NodeExecutionSnapshot | null>(null);
@@ -418,6 +422,7 @@ export function useWorkflowDetailController(
     setInspectorHeight(320);
     setIsInspectorResizing(false);
     setPendingTriggerFetchSnapshot(null);
+    setRunErrorAlertLines(null);
     setJsonEditorState(null);
     resizeStartYRef.current = null;
     resizeStartHeightRef.current = 320;
@@ -740,7 +745,12 @@ export function useWorkflowDetailController(
           (existing: ReadonlyArray<RunSummary> | undefined) =>
             WorkflowDetailPresenter.mergeRunSummaryList(existing, WorkflowDetailPresenter.toRunSummary(result.state!)),
         );
-        queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(result.runId), result.state);
+        // Merge with any WS-updated state so we don't regress from "completed" back to "queued".
+        queryClient.setQueryData(
+          WorkflowDetailPresenter.getRunQueryKey(result.runId),
+          (existing: PersistedRunState | undefined) =>
+            resolveFetchedRunState({ incoming: result.state!, previous: existing }),
+        );
       }
       if (options.keepLiveWorkflow) {
         setActiveLiveRunId(result.runId);
@@ -781,6 +791,7 @@ export function useWorkflowDetailController(
       runRequestInFlightRef.current = true;
       setIsRunRequestPending(true);
       setError(null);
+      setRunErrorAlertLines(null);
       const nextRequest: RunWorkflowRequest = options.keepLiveWorkflow
         ? {
             ...request,
@@ -799,7 +810,7 @@ export function useWorkflowDetailController(
         })
         .catch((cause: unknown) => {
           setPendingTriggerFetchSnapshot(null);
-          setError(cause instanceof Error ? cause.message : String(cause));
+          setRunErrorAlertLines(workflowActivationErrorFormat.extractMessages(cause));
         })
         .finally(() => {
           runRequestInFlightRef.current = false;
@@ -1517,6 +1528,10 @@ export function useWorkflowDetailController(
     workflowActivationAlertLines,
     dismissWorkflowActivationAlert: () => {
       setWorkflowActivationAlertLines(null);
+    },
+    runErrorAlertLines,
+    dismissRunErrorAlert: () => {
+      setRunErrorAlertLines(null);
     },
     setWorkflowActive: (active: boolean) => {
       setWorkflowActivationAlertLines(null);

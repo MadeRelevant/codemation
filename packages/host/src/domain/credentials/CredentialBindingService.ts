@@ -63,6 +63,45 @@ export class CredentialBindingService {
     return binding;
   }
 
+  async assertRequiredCredentialsBound(workflowId: string): Promise<void> {
+    const workflow = this.requireWorkflow(workflowId);
+    const bindings = await this.credentialStore.listBindingsByWorkflowId(workflowId);
+    const boundKeys = new Set(bindings.map((b) => this.toBindingKeyString(b.key)));
+    const unboundByDb = this.workflowCredentialNodeResolver
+      .listSlots(workflow)
+      .filter((slot) => !slot.requirement.optional)
+      .filter(
+        (slot) =>
+          !boundKeys.has(
+            this.toBindingKeyString({ workflowId, nodeId: slot.nodeId, slotKey: slot.requirement.slotKey }),
+          ),
+      );
+    if (unboundByDb.length === 0) return;
+    // Confirm each apparently-unbound slot by attempting session resolution. A custom
+    // CredentialSessionService (e.g. a test harness) can satisfy slots that have no DB
+    // binding row; only slots that still fail are truly unresolvable.
+    const confirmed = [];
+    for (const slot of unboundByDb) {
+      try {
+        await this.credentialSessionService.getSession({
+          workflowId,
+          nodeId: slot.nodeId,
+          slotKey: slot.requirement.slotKey,
+        });
+      } catch {
+        confirmed.push(slot);
+      }
+    }
+    if (confirmed.length === 0) return;
+    const descriptions = confirmed
+      .map((slot) => `"${slot.requirement.label}" on ${slot.nodeName ?? slot.nodeId}`)
+      .join(", ");
+    throw new ApplicationRequestError(
+      400,
+      `Cannot run workflow: required credential slot${confirmed.length > 1 ? "s" : ""} not bound: ${descriptions}`,
+    );
+  }
+
   async listWorkflowHealth(workflowId: string): Promise<WorkflowCredentialHealthDto> {
     const workflow = this.requireWorkflow(workflowId);
     const bindings = await this.credentialStore.listBindingsByWorkflowId(workflowId);
