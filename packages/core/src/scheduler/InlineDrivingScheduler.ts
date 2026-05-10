@@ -41,30 +41,32 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
     this.scheduledRuns.delete(runId);
     try {
       const q = this.queuesByRunId.get(runId) ?? [];
-      while (q.length > 0) {
-        const next = q.shift()!;
-        const { request } = next;
+      // Process exactly one activation per drain so the event loop gets a full cycle
+      // (poll phase → I/O) between activations. Synchronous SQLite writes otherwise
+      // block HTTP responses and WS frames for the entire run duration.
+      if (q.length === 0) return;
+      const next = q.shift()!;
+      const { request } = next;
 
-        const cont = this.continuation;
-        if (!cont) throw new Error("InlineDrivingScheduler is missing a continuation (setContinuation was not called)");
+      const cont = this.continuation;
+      if (!cont) throw new Error("InlineDrivingScheduler is missing a continuation (setContinuation was not called)");
 
-        await cont.markNodeRunning({
-          runId: request.runId,
-          activationId: request.activationId,
-          nodeId: request.nodeId,
-          inputsByPort: request.kind === "multi" ? request.inputsByPort : { in: request.input },
-        });
+      await cont.markNodeRunning({
+        runId: request.runId,
+        activationId: request.activationId,
+        nodeId: request.nodeId,
+        inputsByPort: request.kind === "multi" ? request.inputsByPort : { in: request.input },
+      });
 
-        let outputs;
-        try {
-          outputs = await this.nodeExecutor.execute(request);
-        } catch (e) {
-          await this.resumeAfterExecutionError(cont, request, this.asError(e));
-          continue;
-        }
-
-        await this.resumeAfterExecutionResult(cont, request, outputs ?? {});
+      let outputs;
+      try {
+        outputs = await this.nodeExecutor.execute(request);
+      } catch (e) {
+        await this.resumeAfterExecutionError(cont, request, this.asError(e));
+        return;
       }
+
+      await this.resumeAfterExecutionResult(cont, request, outputs ?? {});
     } finally {
       if ((this.queuesByRunId.get(runId)?.length ?? 0) === 0) this.queuesByRunId.delete(runId);
       this.drainingRuns.delete(runId);
@@ -79,10 +81,12 @@ export class InlineDrivingScheduler implements NodeActivationScheduler {
       return;
     }
     this.scheduledRuns.add(runId);
-    setTimeout(() => {
+    // Use setImmediate so the activation fires in the check phase (after poll/I/O),
+    // giving queued HTTP writes and WS frames a chance to flush between activations.
+    setImmediate(() => {
       this.scheduledRuns.delete(runId);
       void this.drainRun(runId);
-    }, 0);
+    });
   }
 
   private async resumeAfterExecutionResult(
