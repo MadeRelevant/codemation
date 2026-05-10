@@ -110,6 +110,9 @@ export class CliDevProxyServer {
 
   setBuildStatus(status: BuildStatus): void {
     this.activeBuildStatus = status;
+    if (status === "idle" && !this.childWorkflowSocket) {
+      this.scheduleChildReconnect();
+    }
   }
 
   broadcastBuildStarted(): void {
@@ -391,7 +394,13 @@ export class CliDevProxyServer {
     if (!this.activeRuntime || this.activeBuildStatus === "building") {
       return;
     }
-    const childWorkflowSocket = await this.openChildWorkflowSocket(this.activeRuntime.workflowWebSocketPort);
+    let childWorkflowSocket: WebSocket;
+    try {
+      childWorkflowSocket = await this.openChildWorkflowSocket(this.activeRuntime.workflowWebSocketPort);
+    } catch {
+      this.scheduleChildReconnect();
+      return;
+    }
     this.childWorkflowSocket = childWorkflowSocket;
     childWorkflowSocket.on("message", (rawData) => {
       this.handleChildWorkflowSocketMessage(rawData);
