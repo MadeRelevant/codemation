@@ -21,6 +21,7 @@ import {
   type WorkflowDto,
 } from "../realtime/realtime";
 import { useWorkflowRealtimeShowDisconnectedBadge } from "../realtime/useWorkflowRealtimeShowDisconnectedBadge";
+import { resolveFetchedRunState } from "../realtime/runQueryPolling";
 import { WorkflowDetailPresenter, type RunWorkflowRequest } from "../../lib/workflowDetail/WorkflowDetailPresenter";
 import {
   WorkflowDetailUrlCodec,
@@ -740,7 +741,12 @@ export function useWorkflowDetailController(
           (existing: ReadonlyArray<RunSummary> | undefined) =>
             WorkflowDetailPresenter.mergeRunSummaryList(existing, WorkflowDetailPresenter.toRunSummary(result.state!)),
         );
-        queryClient.setQueryData(WorkflowDetailPresenter.getRunQueryKey(result.runId), result.state);
+        // Merge with any WS-updated state so we don't regress from "completed" back to "queued".
+        queryClient.setQueryData(
+          WorkflowDetailPresenter.getRunQueryKey(result.runId),
+          (existing: PersistedRunState | undefined) =>
+            resolveFetchedRunState({ incoming: result.state!, previous: existing }),
+        );
       }
       if (options.keepLiveWorkflow) {
         setActiveLiveRunId(result.runId);

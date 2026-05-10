@@ -27,6 +27,7 @@ export class CliDevProxyServer {
   private activeRuntime: ProxyRuntimeTarget | null = null;
   private activeBuildStatus: BuildStatus = "idle";
   private childWorkflowSocket: WebSocket | null = null;
+  private childReconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private server: HttpServer | null = null;
   private uiProxyTarget: string | null = null;
 
@@ -68,6 +69,7 @@ export class CliDevProxyServer {
   }
 
   async stop(): Promise<void> {
+    this.cancelChildReconnect();
     await this.disconnectChildWorkflowSocket();
     this.activeRuntime = null;
     const server = this.server;
@@ -101,6 +103,7 @@ export class CliDevProxyServer {
   }
 
   async activateRuntime(target: ProxyRuntimeTarget | null): Promise<void> {
+    this.cancelChildReconnect();
     this.activeRuntime = target;
     await this.connectChildWorkflowSocket();
   }
@@ -393,16 +396,14 @@ export class CliDevProxyServer {
     childWorkflowSocket.on("message", (rawData) => {
       this.handleChildWorkflowSocketMessage(rawData);
     });
-    childWorkflowSocket.on("close", () => {
-      if (this.childWorkflowSocket === childWorkflowSocket) {
-        this.childWorkflowSocket = null;
-      }
-    });
-    childWorkflowSocket.on("error", () => {
-      if (this.childWorkflowSocket === childWorkflowSocket) {
-        this.childWorkflowSocket = null;
-      }
-    });
+    const onUnexpectedClose = () => {
+      if (this.childWorkflowSocket !== childWorkflowSocket) return;
+      this.childWorkflowSocket = null;
+      // Schedule reconnect — only if the runtime is still the same one that opened this socket.
+      this.scheduleChildReconnect();
+    };
+    childWorkflowSocket.on("close", onUnexpectedClose);
+    childWorkflowSocket.on("error", onUnexpectedClose);
     for (const roomId of this.workflowClientCountByRoomId.keys()) {
       this.sendToChildWorkflowSocket({ kind: "subscribe", roomId });
     }
@@ -423,6 +424,7 @@ export class CliDevProxyServer {
   }
 
   private async disconnectChildWorkflowSocket(): Promise<void> {
+    this.cancelChildReconnect();
     if (!this.childWorkflowSocket) {
       return;
     }
@@ -446,10 +448,15 @@ export class CliDevProxyServer {
         event?: Readonly<{ workflowId?: unknown }>;
         kind?: unknown;
         message?: unknown;
+        runId?: unknown;
         workflowId?: unknown;
       }>;
       if (message.kind === "event" && typeof message.event?.workflowId === "string") {
         this.broadcastWorkflowTextToRoom(message.event.workflowId, text);
+        return;
+      }
+      if (message.kind === "telemetryEvent" && typeof message.runId === "string") {
+        this.broadcastWorkflowTextToRoom(`run:${message.runId}`, text);
         return;
       }
       if (
@@ -468,6 +475,22 @@ export class CliDevProxyServer {
     } catch {
       // Ignore malformed runtime workflow websocket messages.
     }
+  }
+
+  private scheduleChildReconnect(): void {
+    if (this.childReconnectTimeoutId !== null || !this.activeRuntime || this.activeBuildStatus === "building") {
+      return;
+    }
+    this.childReconnectTimeoutId = setTimeout(() => {
+      this.childReconnectTimeoutId = null;
+      void this.connectChildWorkflowSocket();
+    }, 1000);
+  }
+
+  private cancelChildReconnect(): void {
+    if (this.childReconnectTimeoutId === null) return;
+    clearTimeout(this.childReconnectTimeoutId);
+    this.childReconnectTimeoutId = null;
   }
 
   private broadcastWorkflowTextToRoom(roomId: string, text: string): void {
