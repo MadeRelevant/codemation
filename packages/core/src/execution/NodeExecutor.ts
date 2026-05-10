@@ -38,6 +38,7 @@ export class NodeExecutor {
   }
 
   async execute(request: NodeActivationRequest): Promise<NodeOutputs> {
+    await this.assertRequiredCredentialsBound(request);
     const policy = request.ctx.config.retryPolicy;
     return await this.retryRunner.run(policy, async () => {
       const nodeInstance = this.nodeInstanceFactory.createByType(request.ctx.config.type);
@@ -46,6 +47,14 @@ export class NodeExecutor {
       }
       return await this.executeSingleInputNode(request, nodeInstance);
     });
+  }
+
+  private async assertRequiredCredentialsBound(request: NodeActivationRequest): Promise<void> {
+    if (!request.ctx.getCredential) return;
+    for (const req of request.ctx.config.getCredentialRequirements?.() ?? []) {
+      if (req.optional) continue;
+      await request.ctx.getCredential(req.slotKey);
+    }
   }
 
   private async executeMultiInputActivation(
