@@ -22,7 +22,11 @@ type NormalizedPolicy =
 export class InProcessRetryRunner {
   constructor(private readonly sleeper: AsyncSleeper) {}
 
-  async run<T>(policy: RetryPolicySpec | undefined, work: () => Promise<T>): Promise<T> {
+  async run<T>(
+    policy: RetryPolicySpec | undefined,
+    work: () => Promise<T>,
+    shouldRetry?: (error: unknown) => boolean,
+  ): Promise<T> {
     const spec = InProcessRetryRunner.normalizePolicy(policy);
     let lastError: unknown;
     for (let attempt = 1; attempt <= spec.maxAttempts; attempt++) {
@@ -31,6 +35,9 @@ export class InProcessRetryRunner {
       } catch (error) {
         lastError = error;
         if (attempt >= spec.maxAttempts) {
+          break;
+        }
+        if (shouldRetry !== undefined && !shouldRetry(error)) {
           break;
         }
         const delayMs = InProcessRetryRunner.delayAfterFailureMs(spec, attempt);

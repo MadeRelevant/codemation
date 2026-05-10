@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
+import { CredentialUnboundError } from "../../src/contracts/credentialTypes.ts";
 
 import type {
   MultiInputNode,
@@ -413,6 +414,95 @@ test("node executor skips pre-flight for optional credential slots", async () =>
   } satisfies NodeActivationRequest);
 
   assert.equal(executeCallCount, 1);
+});
+
+test("node executor does not retry when a CredentialUnboundError is thrown inside execute", async () => {
+  let executeCallCount = 0;
+  const credentialError = new CredentialUnboundError({ workflowId: "wf_1", nodeId: "node_1", slotKey: "auth" }, [
+    "test.cred",
+  ]);
+
+  class FailsWithCredentialErrorNode {
+    readonly kind = "node" as const;
+    readonly outputPorts = ["main"] as const;
+    execute(): unknown {
+      executeCallCount++;
+      throw credentialError;
+    }
+  }
+
+  const executor = new NodeExecutor(
+    new NodeInstanceFactory(new StaticNodeResolver(new FailsWithCredentialErrorNode())),
+    new InProcessRetryRunner(new DefaultAsyncSleeper()),
+  );
+
+  await assert.rejects(() =>
+    executor.execute({
+      kind: "single",
+      runId: "run_1",
+      activationId: "act_1",
+      workflowId: "wf_1",
+      nodeId: "node_1",
+      input: [{ json: {} }],
+      ctx: {
+        runId: "run_1",
+        workflowId: "wf_1",
+        nodeId: "node_1",
+        activationId: "act_1",
+        config: {
+          type: "test.node",
+          retryPolicy: { kind: "fixed", maxAttempts: 3, delayMs: 0 },
+        },
+        data: {} as never,
+      },
+    } satisfies NodeActivationRequest),
+  );
+
+  assert.equal(executeCallCount, 1, "must not retry on CredentialUnboundError");
+});
+
+test("node executor does not retry when execute throws an Error wrapping a CredentialUnboundError cause", async () => {
+  let executeCallCount = 0;
+
+  class FailsWithWrappedCredentialErrorNode {
+    readonly kind = "node" as const;
+    readonly outputPorts = ["main"] as const;
+    execute(): unknown {
+      executeCallCount++;
+      throw new Error("outer", {
+        cause: new CredentialUnboundError({ workflowId: "wf_1", nodeId: "node_1", slotKey: "auth" }, ["test.cred"]),
+      });
+    }
+  }
+
+  const executor = new NodeExecutor(
+    new NodeInstanceFactory(new StaticNodeResolver(new FailsWithWrappedCredentialErrorNode())),
+    new InProcessRetryRunner(new DefaultAsyncSleeper()),
+  );
+
+  await assert.rejects(() =>
+    executor.execute({
+      kind: "single",
+      runId: "run_1",
+      activationId: "act_1",
+      workflowId: "wf_1",
+      nodeId: "node_1",
+      input: [{ json: {} }],
+      ctx: {
+        runId: "run_1",
+        workflowId: "wf_1",
+        nodeId: "node_1",
+        activationId: "act_1",
+        config: {
+          type: "test.node",
+          retryPolicy: { kind: "fixed", maxAttempts: 3, delayMs: 0 },
+        },
+        data: {} as never,
+      },
+    } satisfies NodeActivationRequest),
+  );
+
+  assert.equal(executeCallCount, 1, "must not retry when cause is CredentialUnboundError");
 });
 
 test("node executor falls back to request ctx when ItemExprResolver returns ctx with config undefined", async () => {
