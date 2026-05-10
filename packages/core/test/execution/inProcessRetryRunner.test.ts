@@ -98,6 +98,74 @@ test("RetryPolicy and ExpRetryPolicy constructors validate inputs", () => {
   assert.throws(() => new ExpRetryPolicy(1, 1, 0.5));
 });
 
+test("InProcessRetryRunner shouldRetry=false halts retries immediately on first failure", async () => {
+  const sleeper = new RecordingAsyncSleeper();
+  const runner = new InProcessRetryRunner(sleeper);
+  let calls = 0;
+
+  await assert.rejects(
+    () =>
+      runner.run(
+        new RetryPolicy(3, 100),
+        async () => {
+          calls++;
+          throw new Error("permanent failure");
+        },
+        () => false,
+      ),
+    /permanent failure/,
+  );
+
+  assert.equal(calls, 1, "should not retry when shouldRetry returns false");
+  assert.deepEqual(sleeper.sleeps, [], "no sleep when bailing on first attempt");
+});
+
+test("InProcessRetryRunner shouldRetry=true retries normally until exhausted", async () => {
+  const sleeper = new RecordingAsyncSleeper();
+  const runner = new InProcessRetryRunner(sleeper);
+  let calls = 0;
+
+  await assert.rejects(
+    () =>
+      runner.run(
+        new RetryPolicy(3, 10),
+        async () => {
+          calls++;
+          throw new Error("transient");
+        },
+        () => true,
+      ),
+    /transient/,
+  );
+
+  assert.equal(calls, 3, "should exhaust all attempts when shouldRetry returns true");
+  assert.equal(sleeper.sleeps.length, 2, "sleeps between attempts");
+});
+
+test("InProcessRetryRunner shouldRetry stops on first non-retryable then retries others", async () => {
+  const sleeper = new RecordingAsyncSleeper();
+  const runner = new InProcessRetryRunner(sleeper);
+  let calls = 0;
+
+  await assert.rejects(
+    () =>
+      runner.run(
+        new RetryPolicy(5, 10),
+        async () => {
+          calls++;
+          const err = new Error("bad") as Error & { permanent?: boolean };
+          err.permanent = true;
+          throw err;
+        },
+        (err) => !(err as { permanent?: boolean }).permanent,
+      ),
+    /bad/,
+  );
+
+  assert.equal(calls, 1, "bails on first attempt when shouldRetry returns false");
+  assert.deepEqual(sleeper.sleeps, []);
+});
+
 test("InProcessRetryRunner exponential with jitter still completes", async () => {
   const sleeper = new RecordingAsyncSleeper();
   const runner = new InProcessRetryRunner(sleeper);
