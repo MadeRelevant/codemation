@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 export function WorkflowActivationErrorDialog(
   props: Readonly<{
     open: boolean;
+    title?: string;
     alertLines: ReadonlyArray<string>;
     onDismiss: () => void;
   }>,
@@ -39,7 +40,9 @@ export function WorkflowActivationErrorDialog(
         <DialogHeader className="flex flex-row gap-4 p-6 text-left sm:items-start">
           <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" strokeWidth={2.25} aria-hidden />
           <div className="flex min-w-0 flex-col gap-2">
-            <DialogTitle className="text-base font-semibold">Could not update activation</DialogTitle>
+            <DialogTitle className="text-base font-semibold">
+              {props.title ?? "Could not update activation"}
+            </DialogTitle>
             <DialogDescription asChild>
               <div className="text-muted-foreground">
                 {props.alertLines.length === 1 ? (
