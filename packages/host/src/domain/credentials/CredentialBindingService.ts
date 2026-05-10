@@ -63,6 +63,29 @@ export class CredentialBindingService {
     return binding;
   }
 
+  async assertRequiredCredentialsBound(workflowId: string): Promise<void> {
+    const workflow = this.requireWorkflow(workflowId);
+    const bindings = await this.credentialStore.listBindingsByWorkflowId(workflowId);
+    const boundKeys = new Set(bindings.map((b) => this.toBindingKeyString(b.key)));
+    const missing = this.workflowCredentialNodeResolver
+      .listSlots(workflow)
+      .filter((slot) => !slot.requirement.optional)
+      .filter(
+        (slot) =>
+          !boundKeys.has(
+            this.toBindingKeyString({ workflowId, nodeId: slot.nodeId, slotKey: slot.requirement.slotKey }),
+          ),
+      );
+    if (missing.length === 0) return;
+    const descriptions = missing
+      .map((slot) => `"${slot.requirement.label}" on ${slot.nodeName ?? slot.nodeId}`)
+      .join(", ");
+    throw new ApplicationRequestError(
+      400,
+      `Cannot run workflow: required credential slot${missing.length > 1 ? "s" : ""} not bound: ${descriptions}`,
+    );
+  }
+
   async listWorkflowHealth(workflowId: string): Promise<WorkflowCredentialHealthDto> {
     const workflow = this.requireWorkflow(workflowId);
     const bindings = await this.credentialStore.listBindingsByWorkflowId(workflowId);

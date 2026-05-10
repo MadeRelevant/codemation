@@ -21,6 +21,7 @@ import { CommandHandler } from "../bus/CommandHandler";
 import type { CreateRunRequest, RunCommandResult } from "../contracts/RunContracts";
 import { WorkflowDebuggerOverlayStateFactory } from "../workflows/WorkflowDebuggerOverlayStateFactory";
 import { StartWorkflowRunCommand } from "./StartWorkflowRunCommand";
+import { CredentialBindingService } from "../../domain/credentials/CredentialBindingService";
 
 @HandlesCommand.forCommand(StartWorkflowRunCommand)
 export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflowRunCommand, RunCommandResult> {
@@ -39,6 +40,8 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
     private readonly workflowRunRepository: WorkflowRunRepository,
     @inject(ApplicationTokens.WorkflowDebuggerOverlayRepository)
     private readonly workflowDebuggerOverlayRepository: WorkflowDebuggerOverlayRepository,
+    @inject(CredentialBindingService)
+    private readonly credentialBindingService: CredentialBindingService,
     @inject(ApplicationTokens.LoggerFactory)
     loggerFactory: LoggerFactory,
   ) {
@@ -58,6 +61,7 @@ export class StartWorkflowRunCommandHandler extends CommandHandler<StartWorkflow
     if (!workflow) {
       throw new ApplicationRequestError(404, "Unknown workflowId");
     }
+    await this.credentialBindingService.assertRequiredCredentialsBound(body.workflowId);
     const executionOptions = body.mode
       ? {
           mode: body.mode,
