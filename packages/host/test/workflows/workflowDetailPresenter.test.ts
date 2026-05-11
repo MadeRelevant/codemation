@@ -1,7 +1,7 @@
 import { ConnectionNodeIdFactory } from "@codemation/core";
-import type { ConnectionInvocationRecord } from "@codemation/next-host/src/features/workflows/lib/realtime/realtimeDomainTypes";
-import { WorkflowDetailPresenter } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/WorkflowDetailPresenter";
-import type { ExecutionTreeNode } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/workflowDetailTypes";
+import type { ConnectionInvocationRecord } from "@codemation/canvas";
+import { WorkflowDetailPresenter } from "@codemation/canvas";
+import type { ExecutionTreeNode } from "@codemation/canvas";
 import { describe, expect, it } from "vitest";
 import { WorkflowDetailFixtureFactory } from "../workflowDetail/testkit";
 

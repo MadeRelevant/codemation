@@ -6,7 +6,7 @@ import {
   WORKFLOW_CANVAS_ATTACHMENT_STACK_GAP_PX,
   WORKFLOW_CANVAS_MAIN_NODE_CARD_PX,
   WorkflowCanvasNodeGeometry,
-} from "../../src/features/workflows/components/canvas/lib/workflowCanvasNodeGeometry";
+} from "@codemation/canvas";
 
 describe("WorkflowCanvasNodeGeometry", () => {
   it("mainNodeWidthPx is wider for AI Agent than for standard nodes", () => {

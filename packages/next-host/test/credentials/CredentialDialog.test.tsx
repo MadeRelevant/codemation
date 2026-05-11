@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
-import type { CredentialInstanceDto } from "../../src/features/workflows/hooks/realtime/realtime";
+import type { CredentialInstanceDto } from "@codemation/canvas";
 import { CredentialDialog } from "../../src/features/credentials/components/CredentialDialog";
 import type { CredentialDialogProps } from "../../src/features/credentials/components/CredentialDialog";
 import type { FormSourceKind } from "../../src/features/credentials/lib/credentialFormTypes";

@@ -1,8 +1,8 @@
 import type { Edge as ReactFlowEdge, Node as ReactFlowNode } from "@xyflow/react";
 
-import { layoutWorkflow } from "../../../src/features/workflows/components/canvas/lib/layoutWorkflow";
-import type { WorkflowCanvasNodeData } from "../../../src/features/workflows/components/canvas/lib/workflowCanvasNodeData";
-import type { WorkflowDto } from "../../../src/features/workflows/lib/realtime/workflowTypes";
+import { layoutWorkflow } from "@codemation/canvas";
+import type { WorkflowCanvasNodeData } from "@codemation/canvas";
+import type { WorkflowDto } from "@codemation/canvas";
 
 export type LaidOutCanvasGraph = Readonly<{
   nodes: ReactFlowNode<WorkflowCanvasNodeData>[];

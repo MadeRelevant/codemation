@@ -13,7 +13,7 @@ import {
   useRegenerateUserInviteMutation,
   useUpdateUserAccountStatusMutation,
   useUserAccountsQuery,
-} from "../../workflows/hooks/realtime/realtime";
+} from "@codemation/canvas";
 import { UsersInviteDialog } from "../components/UsersInviteDialog";
 import { UsersRegenerateDialog } from "../components/UsersRegenerateDialog";
 import { UsersScreenUserStatusBadge } from "../components/UsersScreenUserStatusBadge";

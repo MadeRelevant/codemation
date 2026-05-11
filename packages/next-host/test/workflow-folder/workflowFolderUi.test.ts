@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import type { WorkflowSummary } from "../../src/features/workflows/hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 import type { WorkflowFolderTreeNode } from "../../src/shell/WorkflowFolderTreeBuilder";
 import { WorkflowFolderUi } from "../../src/shell/WorkflowFolderUi";
 

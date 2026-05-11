@@ -1,7 +1,7 @@
 import type { UpsertCredentialBindingRequest } from "@codemation/host/dto";
 import { describe, expect, it, vi } from "vitest";
 
-import { tryAutoBindUnboundWorkflowSlot } from "../../src/features/workflows/components/workflowDetail/tryAutoBindUnboundWorkflowSlot";
+import { tryAutoBindUnboundWorkflowSlot } from "@codemation/canvas";
 import { testWorkflowCredentialHealthSlot } from "./factories/credentialUiTestFactories";
 
 describe("tryAutoBindUnboundWorkflowSlot", () => {

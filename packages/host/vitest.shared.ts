@@ -9,6 +9,11 @@ export const hostVitestSharedConfig = {
   },
   resolve: {
     alias: [
+      { find: "@codemation/canvas", replacement: path.resolve(import.meta.dirname, "../canvas/src/index.ts") },
+      {
+        find: "@codemation/core/contracts",
+        replacement: path.resolve(import.meta.dirname, "../core/src/contracts.ts"),
+      },
       { find: "@codemation/core/browser", replacement: path.resolve(import.meta.dirname, "../core/src/browser.ts") },
       { find: /^@codemation\/next-host\/src\/(.+)$/, replacement: `${nextHostSrc}/$1` },
       { find: "@codemation/host/client", replacement: path.resolve(import.meta.dirname, "./src/client.ts") },

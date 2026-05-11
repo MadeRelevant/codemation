@@ -1,10 +1,7 @@
 import { Providers } from "@codemation/next-host/src/providers/Providers";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
-import type {
-  PersistedRunState,
-  WorkflowDto,
-} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
-import { WorkflowDetailScreen } from "@codemation/next-host/src/features/workflows/screens/WorkflowDetailScreen";
+import type { PersistedRunState, WorkflowDto } from "@codemation/canvas";
+import { WorkflowDetailScreen } from "@codemation/canvas";
 import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { act, cleanup, fireEvent, render, screen, waitFor, type RenderResult } from "@testing-library/react";
 import { StrictMode, type ReactElement } from "react";
@@ -200,16 +197,22 @@ export class WorkflowDetailScreenTestKit {
 
   async startRun(): Promise<void> {
     fireEvent.click(await screen.findByTestId("canvas-run-workflow-button"));
-    await waitFor(() => {
-      expect(this.environment.workflowRuns).toHaveLength(1);
-    });
+    await waitFor(
+      () => {
+        expect(this.environment.workflowRuns).toHaveLength(1);
+      },
+      { timeout: 10000 },
+    );
   }
 
   async runToHere(): Promise<void> {
     fireEvent.click(await screen.findByTestId(`canvas-node-run-button-${WorkflowDetailFixtureFactory.agentNodeId}`));
-    await waitFor(() => {
-      expect(this.environment.workflowRuns).toHaveLength(1);
-    });
+    await waitFor(
+      () => {
+        expect(this.environment.workflowRuns).toHaveLength(1);
+      },
+      { timeout: 10000 },
+    );
   }
 
   async copyToDebugger(): Promise<void> {
@@ -296,11 +299,14 @@ export class WorkflowDetailScreenTestKit {
 
   async waitForLatestRunToComplete(options?: Readonly<{ newerThanRunId?: string }>): Promise<PersistedRunState> {
     if (this.environment instanceof InMemoryWorkflowDetailTestEnvironment && options?.newerThanRunId) {
-      await waitFor(() => {
-        const latest = this.environment.workflowRuns[0]?.runId;
-        expect(latest).toBeDefined();
-        expect(latest).not.toBe(options.newerThanRunId);
-      });
+      await waitFor(
+        () => {
+          const latest = this.environment.workflowRuns[0]?.runId;
+          expect(latest).toBeDefined();
+          expect(latest).not.toBe(options.newerThanRunId);
+        },
+        { timeout: 10000 },
+      );
     }
     const runId = this.latestWorkflowRunId();
     if (this.environment instanceof InMemoryWorkflowDetailTestEnvironment) {

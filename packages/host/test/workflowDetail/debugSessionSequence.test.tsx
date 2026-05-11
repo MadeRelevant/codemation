@@ -1,8 +1,4 @@
-import type {
-  NodeExecutionSnapshot,
-  PersistedRunState,
-  WorkflowDto,
-} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import type { NodeExecutionSnapshot, PersistedRunState, WorkflowDto } from "@codemation/canvas";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { WorkflowDetailScreenTestKit } from "./testkit";

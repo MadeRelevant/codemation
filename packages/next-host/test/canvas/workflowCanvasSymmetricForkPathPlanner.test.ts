@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { WorkflowCanvasSymmetricForkPathPlanner } from "../../src/features/workflows/components/canvas/lib/WorkflowCanvasSymmetricForkPathPlanner";
+import { WorkflowCanvasSymmetricForkPathPlanner } from "@codemation/canvas";
 
 describe("WorkflowCanvasSymmetricForkPathPlanner", () => {
   it("uses the same horizontal stub then vertical to target row (fork symmetry)", () => {

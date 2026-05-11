@@ -3,7 +3,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { NodeCredentialBindingRow } from "../../src/features/workflows/components/workflowDetail/NodeCredentialBindingRow";
+import { NodeCredentialBindingRow } from "@codemation/canvas";
 import { installCredentialsJsdomPolyfills } from "./credentialsJsdomPolyfills";
 import { testCredentialInstanceDto, testWorkflowCredentialHealthSlot } from "./factories/credentialUiTestFactories";
 

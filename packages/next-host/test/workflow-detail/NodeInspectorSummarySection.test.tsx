@@ -3,9 +3,9 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { NodeInspectorSummaryRow } from "../../src/features/workflows/components/workflowDetail/NodeInspectorSummaryRow";
-import { NodeInspectorSummarySection } from "../../src/features/workflows/components/workflowDetail/NodeInspectorSummarySection";
-import type { WorkflowDiagramNode } from "../../src/features/workflows/lib/workflowDetail/workflowDetailTypes";
+import { NodeInspectorSummaryRow } from "@codemation/canvas";
+import { NodeInspectorSummarySection } from "@codemation/canvas";
+import type { WorkflowDiagramNode } from "@codemation/canvas";
 
 function nodeWithSummary(summary: WorkflowDiagramNode["inspectorSummary"]): WorkflowDiagramNode {
   return {

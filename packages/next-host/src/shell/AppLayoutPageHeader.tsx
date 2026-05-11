@@ -6,14 +6,16 @@ import type { ReactNode } from "react";
 
 import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
 
-import { CanvasNodeChromeTooltip } from "../features/workflows/components/canvas/CanvasNodeChromeTooltip";
-import { WorkflowActivationErrorDialog } from "../features/workflows/components/workflowDetail/WorkflowActivationErrorDialog";
-import { WorkflowActivationHeaderControl } from "../features/workflows/components/workflowDetail/WorkflowActivationHeaderControl";
+import {
+  CanvasNodeChromeTooltip,
+  WorkflowActivationErrorDialog,
+  WorkflowActivationHeaderControl,
+} from "@codemation/canvas";
 import { useWhitelabel } from "../providers/WhitelabelProvider";
 import { getPageTitle } from "./appLayoutPageTitle";
 import { AppShellHeaderActions } from "./AppShellHeaderActions";
 import { useWorkflowDetailChrome } from "./WorkflowDetailChromeContext";
-import { useWorkflowsQuery, useWorkflowQuery } from "../features/workflows/hooks/realtime/realtime";
+import { useWorkflowsQuery, useWorkflowQuery } from "@codemation/canvas";
 import { WorkflowInfoPopover } from "./WorkflowInfoPopover";
 
 export function AppLayoutPageHeader(): ReactNode {

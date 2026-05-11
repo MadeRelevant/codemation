@@ -1,6 +1,6 @@
 "use client";
 
-import { CanvasNodeChromeTooltip } from "../../workflows/components/canvas/CanvasNodeChromeTooltip";
+import { CanvasNodeChromeTooltip } from "@codemation/canvas";
 import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
 import Info from "lucide-react/dist/esm/icons/info";
 

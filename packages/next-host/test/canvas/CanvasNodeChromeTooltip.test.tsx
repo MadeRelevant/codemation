@@ -3,7 +3,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CanvasNodeChromeTooltip } from "../../src/features/workflows/components/canvas/CanvasNodeChromeTooltip";
+import { CanvasNodeChromeTooltip } from "@codemation/canvas";
 
 describe("CanvasNodeChromeTooltip", () => {
   beforeEach(() => {

@@ -16,7 +16,7 @@ import type {
   TelemetryRunTraceViewDto,
   WorkflowDebuggerOverlayState,
   WorkflowRunDetailDto,
-} from "./realtimeDomainTypes";
+} from "@codemation/canvas";
 
 export async function fetchWorkflows(): Promise<ReadonlyArray<WorkflowSummary>> {
   return await codemationApiClient.getJson<ReadonlyArray<WorkflowSummary>>(ApiPaths.workflows());

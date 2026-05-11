@@ -1,11 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
-import type {
-  TelemetryRunTraceViewDto,
-  TelemetrySpanRecordDto,
-} from "../../src/features/workflows/lib/realtime/realtimeDomainTypes";
-import { applyTelemetrySpanEvent } from "../../src/features/workflows/lib/realtime/realtimeTelemetryMutations";
-import { telemetryRunTraceQueryKey } from "../../src/features/workflows/lib/realtime/realtimeQueryKeys";
+import type { TelemetryRunTraceViewDto, TelemetrySpanRecordDto } from "@codemation/canvas";
+import { applyTelemetrySpanEvent } from "@codemation/canvas";
+import { telemetryRunTraceQueryKey } from "@codemation/canvas";
 
 let spanCounter = 0;
 

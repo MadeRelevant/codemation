@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { PersistedRunState } from "../../src/features/workflows/lib/realtime/realtimeDomainTypes";
+import type { PersistedRunState } from "@codemation/canvas";
 import {
   resolveFetchedRunState,
   resolveRunPollingIntervalMs,
   resolveTelemetryTraceRefetchIntervalMs,
-} from "../../src/features/workflows/hooks/realtime/runQueryPolling";
+} from "@codemation/canvas";
 
 function createRunState(status: PersistedRunState["status"]): PersistedRunState {
   return {

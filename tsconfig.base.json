@@ -29,7 +29,8 @@
       "@codemation/host-src/*": ["packages/host/src/*"],
       "@codemation/next-host": ["packages/next-host/src/index.ts"],
       "@codemation/next-host/src/*": ["packages/next-host/src/*"],
-      "@codemation/node-example": ["packages/node-example/src/index.ts"]
+      "@codemation/node-example": ["packages/node-example/src/index.ts"],
+      "@codemation/canvas": ["packages/canvas/src/index.ts"]
     },
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ExecutionNode } from "../../src/features/workflows/lib/workflowDetail/workflowDetailTypes";
-import { ExecutionTreeItemGroupInjector } from "../../src/features/workflows/lib/workflowDetail/ExecutionTreeItemGroupInjector";
+import type { ExecutionNode } from "@codemation/canvas";
+import { ExecutionTreeItemGroupInjector } from "@codemation/canvas";
 
 const RUN_ID = "run_inject_test";
 const WORKFLOW_ID = "wf.inject_test";

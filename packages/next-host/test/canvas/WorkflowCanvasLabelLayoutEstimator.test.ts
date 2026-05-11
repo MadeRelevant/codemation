@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { WorkflowCanvasLabelLayoutEstimator } from "../../src/features/workflows/components/canvas/lib/WorkflowCanvasLabelLayoutEstimator";
+import { WorkflowCanvasLabelLayoutEstimator } from "@codemation/canvas";
 
 describe("WorkflowCanvasLabelLayoutEstimator", () => {
   it("returns at least one line for empty or whitespace", () => {

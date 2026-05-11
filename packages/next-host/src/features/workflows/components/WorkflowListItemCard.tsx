@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import type { ReactNode } from "react";
 
-import type { WorkflowSummary } from "../hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 
 import { cn } from "@/lib/utils";
 

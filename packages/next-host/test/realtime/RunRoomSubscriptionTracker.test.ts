@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { RunRoomSubscriptionTracker } from "../../src/features/workflows/lib/realtime/RunRoomSubscriptionTracker";
-import type { RunRoomSubscriptionTrackerCallbacks } from "../../src/features/workflows/lib/realtime/RunRoomSubscriptionTracker";
+import { RunRoomSubscriptionTracker } from "@codemation/canvas";
+import type { RunRoomSubscriptionTrackerCallbacks } from "@codemation/canvas";
 
 function makeCallbacks(): RunRoomSubscriptionTrackerCallbacks & {
   activated: string[];

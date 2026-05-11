@@ -3,12 +3,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { WorkflowExecutionInspectorTreePanel } from "../../src/features/workflows/components/workflowDetail/WorkflowExecutionInspectorTreePanel";
-import type {
-  ExecutionTreeNode,
-  WorkflowExecutionInspectorFormatting,
-  WorkflowNode,
-} from "../../src/features/workflows/lib/workflowDetail/workflowDetailTypes";
+import { WorkflowExecutionInspectorTreePanel } from "@codemation/canvas";
+import type { ExecutionTreeNode, WorkflowExecutionInspectorFormatting, WorkflowNode } from "@codemation/canvas";
 
 describe("WorkflowExecutionInspectorTreePanel", () => {
   afterEach(() => {

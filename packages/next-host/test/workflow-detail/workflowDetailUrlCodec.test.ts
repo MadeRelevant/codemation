@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WorkflowDetailUrlCodec } from "../../src/features/workflows/lib/workflowDetail/WorkflowDetailUrlCodec";
+import { WorkflowDetailUrlCodec } from "@codemation/canvas";
 
 describe("WorkflowDetailUrlCodec", () => {
   it("parses empty params as live canvas without sidebar", () => {

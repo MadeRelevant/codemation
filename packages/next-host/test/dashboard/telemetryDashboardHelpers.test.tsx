@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { ApiPaths } from "@codemation/host/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DashboardMultiSelect } from "../../src/features/dashboard/components/DashboardMultiSelect";
-import type { WorkflowSummary } from "../../src/features/workflows/hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 import { DashboardMetricGrid } from "../../src/features/dashboard/components/DashboardMetricGrid";
 import { DashboardCostChart } from "../../src/features/dashboard/components/DashboardCostChart";
 import { DashboardRunStatusChart } from "../../src/features/dashboard/components/DashboardRunStatusChart";

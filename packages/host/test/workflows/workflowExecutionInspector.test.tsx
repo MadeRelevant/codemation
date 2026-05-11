@@ -1,12 +1,12 @@
 import type { BinaryAttachment } from "@codemation/core";
-import { WorkflowExecutionInspector } from "@codemation/next-host/src/features/workflows/components/workflowDetail/WorkflowExecutionInspector";
+import { WorkflowExecutionInspector } from "@codemation/canvas";
 import type {
   ExecutionTreeNode,
   WorkflowExecutionInspectorActions,
   WorkflowExecutionInspectorFormatting,
   WorkflowExecutionInspectorModel,
   WorkflowNode,
-} from "@codemation/next-host/src/features/workflows/lib/workflowDetail/workflowDetailTypes";
+} from "@codemation/canvas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";

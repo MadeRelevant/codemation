@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ConnectionInvocationRecord } from "../../src/features/workflows/hooks/realtime/realtime";
-import { FocusedInvocationModelFactory } from "../../src/features/workflows/lib/workflowDetail/FocusedInvocationModelFactory";
+import type { ConnectionInvocationRecord } from "@codemation/canvas";
+import { FocusedInvocationModelFactory } from "@codemation/canvas";
 
 const BASE_RUN_ID = "run_focus_test";
 const BASE_WORKFLOW_ID = "wf.focus_test";

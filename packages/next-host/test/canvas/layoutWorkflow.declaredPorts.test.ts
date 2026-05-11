@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { WorkflowDto } from "../../src/features/workflows/lib/realtime/workflowTypes";
-import { layoutWorkflow } from "../../src/features/workflows/components/canvas/lib/layoutWorkflow";
+import type { WorkflowDto } from "@codemation/canvas";
+import { layoutWorkflow } from "@codemation/canvas";
 
 describe("layoutWorkflow declared port union", () => {
   it("unions declared output ports with edge-derived ports (keeps declared ports even without edges)", async () => {

@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type {
-  ConnectionInvocationRecord,
-  NodeExecutionSnapshot,
-} from "../../src/features/workflows/hooks/realtime/realtime";
-import type { TelemetryRunTraceViewDto } from "../../src/features/workflows/hooks/realtime/realtime";
-import type { NodeInspectorTimelineEntryModel } from "../../src/features/workflows/lib/workflowDetail/NodeInspectorTelemetryPresenter";
-import { NodeInspectorTelemetryPresenter } from "../../src/features/workflows/lib/workflowDetail/NodeInspectorTelemetryPresenter";
+import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "@codemation/canvas";
+import type { TelemetryRunTraceViewDto } from "@codemation/canvas";
+import type { NodeInspectorTimelineEntryModel } from "@codemation/canvas";
+import { NodeInspectorTelemetryPresenter } from "@codemation/canvas";
 
 describe("NodeInspectorTelemetryPresenter", () => {
   it("builds AI agent metrics and timeline sections from trace telemetry", () => {

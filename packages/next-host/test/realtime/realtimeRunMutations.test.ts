@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type {
-  NodeExecutionSnapshot,
-  PersistedRunState,
-  WorkflowEvent,
-} from "../../src/features/workflows/lib/realtime/realtimeDomainTypes";
-import { reduceWorkflowEventIntoPersistedRunState } from "../../src/features/workflows/lib/realtime/realtimeRunMutations";
+import type { NodeExecutionSnapshot, PersistedRunState, WorkflowEvent } from "@codemation/canvas";
+import { reduceWorkflowEventIntoPersistedRunState } from "@codemation/canvas";
 
 function nodeSnapshot(
   overrides: Partial<NodeExecutionSnapshot> & Pick<NodeExecutionSnapshot, "nodeId" | "status">,

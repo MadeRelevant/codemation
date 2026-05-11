@@ -1,4 +1,4 @@
-import type { WorkflowSummary } from "../../workflows/hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 import { WorkflowFolderTreeBuilder, type WorkflowFolderTreeNode } from "@/shell/WorkflowFolderTreeBuilder";
 import type { DashboardMultiSelectHeading, DashboardMultiSelectOption } from "../components/DashboardMultiSelect";
 

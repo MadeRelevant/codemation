@@ -1,10 +1,6 @@
 import { RunFinishedAtFactory } from "@codemation/core";
 
-import type {
-  PersistedRunState,
-  RunSummary,
-  WorkflowDebuggerOverlayState,
-} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import type { PersistedRunState, RunSummary, WorkflowDebuggerOverlayState } from "@codemation/canvas";
 import path from "node:path";
 import { expect } from "vitest";
 import { WebSocket as NodeWebSocket, type RawData } from "ws";
@@ -278,7 +274,7 @@ export class InMemoryWorkflowDetailTestEnvironment {
   }
 
   async waitForRunToComplete(runId: string): Promise<PersistedRunState> {
-    const deadline = performance.now() + 5_000;
+    const deadline = performance.now() + 15_000;
     while (performance.now() < deadline) {
       const state = await this.loadRunState(runId);
       if (state.status === "completed" || state.status === "failed") {

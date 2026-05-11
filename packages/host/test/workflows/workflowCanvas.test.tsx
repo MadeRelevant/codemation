@@ -1,8 +1,5 @@
-import { WorkflowCanvas } from "@codemation/next-host/src/features/workflows/components/canvas/WorkflowCanvas";
-import type {
-  NodeExecutionSnapshot,
-  WorkflowDto,
-} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import { WorkflowCanvas } from "@codemation/canvas";
+import type { NodeExecutionSnapshot, WorkflowDto } from "@codemation/canvas";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";

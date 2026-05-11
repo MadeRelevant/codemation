@@ -3,7 +3,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { WorkflowActivationHeaderControl } from "../../src/features/workflows/components/workflowDetail/WorkflowActivationHeaderControl";
+import { WorkflowActivationHeaderControl } from "@codemation/canvas";
 
 describe("WorkflowActivationHeaderControl", () => {
   it("reflects active state on the switch", () => {

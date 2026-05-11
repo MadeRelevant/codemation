@@ -339,6 +339,7 @@ class SmokeVerdaccioServer {
 
 class SmokeRegistryPublisher {
   static registryPackageSpecs = [
+    { name: "@codemation/canvas", relativeDirectory: "packages/canvas" },
     { name: "@codemation/core", relativeDirectory: "packages/core" },
     { name: "@codemation/core-nodes", relativeDirectory: "packages/core-nodes" },
     { name: "@codemation/eventbus-redis", relativeDirectory: "packages/eventbus-redis" },
@@ -387,6 +388,7 @@ class CreateCodemationSmoke {
 
   static buildFilters = [
     "--filter=create-codemation",
+    "--filter=@codemation/canvas",
     "--filter=@codemation/core",
     "--filter=@codemation/core-nodes",
     "--filter=@codemation/eventbus-redis",

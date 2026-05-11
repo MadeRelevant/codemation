@@ -26,11 +26,30 @@ export default defineConfig({
   },
   resolve: {
     conditions: ["development", "import", "module", "default"],
-    alias: {
-      "@": path.resolve(dirname, "./src"),
-      "@codemation/host/dto": path.resolve(dirname, "../host/src/dto.ts"),
-      "@codemation/host/client": path.resolve(dirname, "../host/src/client.ts"),
-      "@codemation/host/mapping": path.resolve(dirname, "../host/src/mapping.ts"),
-    },
+    alias: [
+      { find: "@codemation/canvas", replacement: path.resolve(dirname, "../canvas/src/index.ts") },
+      { find: /^@codemation\/next-host\/src\/(.*)$/, replacement: path.resolve(dirname, "./src/$1") },
+      { find: "@", replacement: path.resolve(dirname, "./src") },
+      {
+        find: "@codemation/host/dto",
+        replacement: path.resolve(dirname, "../host/src/dto.ts"),
+      },
+      {
+        find: "@codemation/host/client",
+        replacement: path.resolve(dirname, "../host/src/client.ts"),
+      },
+      {
+        find: "@codemation/host/mapping",
+        replacement: path.resolve(dirname, "../host/src/mapping.ts"),
+      },
+      {
+        find: "@codemation/core/contracts",
+        replacement: path.resolve(dirname, "../core/src/contracts.ts"),
+      },
+      {
+        find: "@codemation/core/browser",
+        replacement: path.resolve(dirname, "../core/src/browser.ts"),
+      },
+    ],
   },
 });

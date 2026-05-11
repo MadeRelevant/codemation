@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type {
-  ConnectionInvocationRecord,
-  TelemetryRunTraceViewDto,
-} from "../../src/features/workflows/hooks/realtime/realtime";
-import { NodeInspectorTelemetryPresenter } from "../../src/features/workflows/lib/workflowDetail/NodeInspectorTelemetryPresenter";
+import type { ConnectionInvocationRecord, TelemetryRunTraceViewDto } from "@codemation/canvas";
+import { NodeInspectorTelemetryPresenter } from "@codemation/canvas";
 
 const BASE_TRACE_ID = "trace_group_test";
 const BASE_RUN_ID = "run_group_test";

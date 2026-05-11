@@ -4,8 +4,8 @@ import { ReactFlow, ReactFlowProvider, type Node as ReactFlowNode } from "@xyflo
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { WorkflowCanvasNodeData } from "../../src/features/workflows/components/canvas/lib/workflowCanvasNodeData";
-import { workflowCanvasNodeTypes } from "../../src/features/workflows/components/canvas/lib/workflowCanvasFlowTypes";
+import type { WorkflowCanvasNodeData } from "@codemation/canvas";
+import { workflowCanvasNodeTypes } from "@codemation/canvas";
 
 class ResizeObserverStub {
   observe(): void {}

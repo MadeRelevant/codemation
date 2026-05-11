@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import type { WorkflowSummary } from "../hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 
 import type { WorkflowFolderTreeNode } from "@/shell/WorkflowFolderTreeBuilder";
 

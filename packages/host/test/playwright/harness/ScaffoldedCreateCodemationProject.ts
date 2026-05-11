@@ -25,6 +25,7 @@ export class ScaffoldedCreateCodemationProject {
   private static readonly adminPassword = "playwright12345";
   private static readonly packedDependencyPackageDirectories = [
     "packages/agent-skills",
+    "packages/canvas",
     "packages/core",
     "packages/core-nodes",
     "packages/core-nodes-gmail",
@@ -35,6 +36,7 @@ export class ScaffoldedCreateCodemationProject {
   ] as const;
   private static readonly workspaceDependencyNames = [
     "@codemation/agent-skills",
+    "@codemation/canvas",
     "@codemation/cli",
     "@codemation/core",
     "@codemation/core-nodes",

@@ -1,10 +1,7 @@
 import type { TestAssertionDto, TestSuiteChildRunDto } from "@codemation/host/dto";
 import { describe, expect, it } from "vitest";
 
-import {
-  type TestSuiteCaseFilter,
-  TestSuiteCaseFilterEngine,
-} from "../../src/features/workflows/components/workflowDetail/tests/TestSuiteCaseFilter";
+import { type TestSuiteCaseFilter, TestSuiteCaseFilterEngine } from "@codemation/canvas";
 
 function makeRun(partial: Partial<TestSuiteChildRunDto> & Pick<TestSuiteChildRunDto, "runId">): TestSuiteChildRunDto {
   return {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { PersistedRunState } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import type { PersistedRunState } from "@codemation/canvas";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
@@ -289,12 +289,33 @@ describe("workflow detail real integration", () => {
     kit = await WorkflowDetailRealIntegrationFixture.createRenderedKit(fixture);
 
     await WorkflowDetailRealIntegrationFixture.startRunAndWaitForCompletion(kit, "E");
+    // Wait for ALL nodes to settle in the canvas — not just the terminal. On fast
+    // backends (e.g. SQLite) WS events for earlier nodes can lag behind E's event,
+    // leaving stale "queued"/"running" snapshots that keep isActiveLiveRunPending=true
+    // and disable the per-node run buttons. This wait also guarantees ELK has re-run
+    // with isRunning=false, so the buttons are genuinely enabled when clicked.
+    await waitFor(() => {
+      expect(kit!.currentNodeStatus("A")).toBe("completed");
+      expect(kit!.currentNodeStatus("B")).toBe("completed");
+      expect(kit!.currentNodeStatus("C")).toBe("completed");
+      expect(kit!.currentNodeStatus("Agent")).toBe("completed");
+      expect(kit!.currentNodeStatus("E")).toBe("completed");
+    });
+
     await WorkflowDetailRealIntegrationFixture.pinNodeOutput(kit, "B", { pinned: "B" });
     await WorkflowDetailRealIntegrationFixture.pinNodeOutput(kit, "Agent", { pinned: "Agent" });
 
     const runIdBeforeToC = kit.latestWorkflowRunId();
-    fireEvent.click(screen.getByTestId("canvas-node-run-button-C"));
-    await kit.waitForLatestRunToComplete({ newerThanRunId: runIdBeforeToC });
+    await waitFor(
+      () => {
+        if (kit!.latestWorkflowRunId() === runIdBeforeToC) {
+          fireEvent.click(screen.getByTestId("canvas-node-run-button-C"));
+        }
+        expect(kit!.latestWorkflowRunId()).not.toBe(runIdBeforeToC);
+      },
+      { timeout: 10000, interval: 200 },
+    );
+    await kit.waitForLatestRunToComplete();
 
     await waitFor(() => {
       expect(kit!.currentNodeStatus("A")).toBe("completed");
@@ -308,8 +329,16 @@ describe("workflow detail real integration", () => {
     });
 
     const runIdBeforeToE = kit.latestWorkflowRunId();
-    fireEvent.click(screen.getByTestId("canvas-node-run-button-E"));
-    await kit.waitForLatestRunToComplete({ newerThanRunId: runIdBeforeToE });
+    await waitFor(
+      () => {
+        if (kit!.latestWorkflowRunId() === runIdBeforeToE) {
+          fireEvent.click(screen.getByTestId("canvas-node-run-button-E"));
+        }
+        expect(kit!.latestWorkflowRunId()).not.toBe(runIdBeforeToE);
+      },
+      { timeout: 10000, interval: 200 },
+    );
+    await kit.waitForLatestRunToComplete();
 
     await waitFor(() => {
       expect(kit!.currentNodeStatus("A")).toBe("completed");
