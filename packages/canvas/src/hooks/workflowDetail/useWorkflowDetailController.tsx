@@ -279,11 +279,13 @@ export function useWorkflowDetailController(
       Boolean(
         activeLiveRunId &&
         (!activeLiveRun ||
-          activeLiveRun.status === "pending" ||
-          activeLiveRun.pending ||
-          Object.values(activeLiveRun.nodeSnapshotsByNodeId).some(
-            (snapshot) => snapshot.status === "queued" || snapshot.status === "running",
-          )),
+          (activeLiveRun.status !== "completed" &&
+            activeLiveRun.status !== "failed" &&
+            (activeLiveRun.status === "pending" ||
+              activeLiveRun.pending ||
+              Object.values(activeLiveRun.nodeSnapshotsByNodeId).some(
+                (snapshot) => snapshot.status === "queued" || snapshot.status === "running",
+              )))),
       ),
     [activeLiveRun, activeLiveRunId],
   );
