@@ -1,5 +1,37 @@
 # @codemation/core-nodes
 
+## 0.8.0
+
+### Minor Changes
+
+- [#137](https://github.com/MadeRelevant/codemation/pull/137) [`7b50018`](https://github.com/MadeRelevant/codemation/commit/7b50018d5e452f4bfe2375ec1a7895915ce46f0a) Thanks [@cblokland90](https://github.com/cblokland90)! - feat(core-nodes,msgraph,gmail): inspectorSummary on every built-in node
+
+  Implements `inspectorSummary()` on all built-in node and trigger config classes so the workflow
+  inspector panel introduced in [#136](https://github.com/MadeRelevant/codemation/issues/136) has content for every shipped node.
+  - `@codemation/core`: extends `definePollingTrigger` to accept and plumb an `inspectorSummary`
+    option, mirroring the existing `defineNode` / `defineBatchNode` pattern. Also extends
+    `defineRestNode` (in `@codemation/core-nodes`) with the same option.
+  - `@codemation/core-nodes`: `inspectorSummary()` on `HttpRequest`, `AIAgent`, `CronTrigger`,
+    `ManualTrigger`, `SubWorkflow`, `Callback`, `If`, `Switch`, `Filter`, `Split`, `Merge`,
+    `Wait`, `WebhookTrigger`, `TestTrigger`, `Aggregate`, `MapData`, `Assertion`.
+  - `@codemation/core-nodes-msgraph`: `inspectorSummary` option on all 17 mail/drive/excel nodes
+    plus the `onNewMsGraphMailTrigger` polling trigger.
+  - `@codemation/core-nodes-gmail`: `inspectorSummary()` on `OnNewGmailTrigger`.
+    Gmail action nodes (`SendGmailMessage`, `ReplyToGmailMessage`, `ModifyGmailLabels`) return
+    `undefined` — all their config is per-item via `inputSchema`, nothing to surface at design time.
+  - `@codemation/core`: `WorkflowSnapshotCodec.serializeConfig` now pre-serializes the result of
+    `inspectorSummary()` into the snapshot JSON as `_inspectorSummary` so the browser-side mapper
+    can surface the same rows without calling class methods.
+  - `@codemation/next-host`: `PersistedWorkflowSnapshotMapper` now reads `_inspectorSummary` from
+    the serialized config and includes it in the node DTO, maintaining parity with the live mapper.
+
+### Patch Changes
+
+- [#139](https://github.com/MadeRelevant/codemation/pull/139) [`f344d6d`](https://github.com/MadeRelevant/codemation/commit/f344d6d1e0cced6b1ee5a96e725903e9a0b28bd6) Thanks [@cblokland90](https://github.com/cblokland90)! - `WebhookTrigger` default icon switches from `lucide:webhook` to `lucide:globe` — the latter reads more naturally as "this is reachable from the public internet". The webhook glyph is still available for any node that wants it explicitly.
+
+- Updated dependencies [[`e4d3e1a`](https://github.com/MadeRelevant/codemation/commit/e4d3e1a1526e27bc226af186deb671cee53682c8), [`7b50018`](https://github.com/MadeRelevant/codemation/commit/7b50018d5e452f4bfe2375ec1a7895915ce46f0a), [`e4d3e1a`](https://github.com/MadeRelevant/codemation/commit/e4d3e1a1526e27bc226af186deb671cee53682c8), [`0082ab5`](https://github.com/MadeRelevant/codemation/commit/0082ab5fe99893dd4a483c714393a4a9f44eb39e)]:
+  - @codemation/core@0.11.0
+
 ## 0.7.1
 
 ### Patch Changes

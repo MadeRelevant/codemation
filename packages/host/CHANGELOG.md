@@ -1,5 +1,46 @@
 # @codemation/host
 
+## 0.7.0
+
+### Minor Changes
+
+- [#136](https://github.com/MadeRelevant/codemation/pull/136) [`0082ab5`](https://github.com/MadeRelevant/codemation/commit/0082ab5fe99893dd4a483c714393a4a9f44eb39e) Thanks [@cblokland90](https://github.com/cblokland90)! - Adds an `inspectorSummary` hook on node configs (and `defineNode({ inspectorSummary })` for plugin-author nodes). Returns 2–6 short label/value pairs that describe what the node will do at design time — model + prompt for an agent, method + URL for an HTTP call, schedule + timezone for a cron, etc. Surfaced in the workflow editor's node-properties panel as a new "Configuration" section that renders before any run telemetry exists. Hidden when no rows are produced; node configs that don't implement the hook contribute nothing. Built-in nodes will fill these in across follow-up PRs.
+
+- [#140](https://github.com/MadeRelevant/codemation/pull/140) [`51b728d`](https://github.com/MadeRelevant/codemation/commit/51b728d3df98c6ceb2faced14846b280b4c83952) Thanks [@cblokland90](https://github.com/cblokland90)! - Stream telemetry spans over WebSocket transport, eliminating HTTP polling.
+
+  **Backend (@codemation/host):**
+  - Added `TelemetrySpanPublisher` interface + `NoOpTelemetrySpanPublisher` default.
+  - Added `telemetryEvent` variant to `WorkflowWebsocketMessage` carrying `TelemetrySpanUpsert`.
+  - New `TelemetrySpanWebsocketRelay` class publishes each span upsert to a per-run room (`run:<runId>`) after it is committed to persistent storage.
+  - `OtelExecutionTelemetryFactory` injects `TelemetrySpanPublisher` (defaults to no-op when unregistered).
+  - `StoredTelemetrySpanScope.upsert()` calls the publisher after the span store write so reconnect HTTP catch-up and WS pushes are consistent.
+
+  **Frontend (@codemation/next-host):**
+  - `useWorkflowRealtimeInfrastructure` handles `kind: "telemetryEvent"` messages via `applyTelemetrySpanEvent`, which merges spans into the `telemetry-run-trace` query cache by `spanId` (deduped, sorted by `startTime`).
+  - New `retainRunSubscription` API manages per-run WS room subscribe/unsubscribe with reference counting.
+  - Auto-unsubscribe from run rooms when the tab is hidden for ≥ 5 minutes (Page Visibility API); re-subscribes on tab return.
+  - `useTelemetryRunTraceQuery` drops HTTP polling (`refetchInterval: false`); refetches once on WS reconnect for catch-up.
+  - `resolveTelemetryTraceRefetchIntervalMs` is now a no-op (always returns `false`) — retained for call-site compatibility.
+
+### Patch Changes
+
+- [#141](https://github.com/MadeRelevant/codemation/pull/141) [`e4d3e1a`](https://github.com/MadeRelevant/codemation/commit/e4d3e1a1526e27bc226af186deb671cee53682c8) Thanks [@cblokland90](https://github.com/cblokland90)! - perf(host): reject workflow runs immediately when required credential slots are unbound
+
+  `StartWorkflowRunCommandHandler` now calls
+  `CredentialBindingService.assertRequiredCredentialsBound` before queuing any
+  node activations. The check does a single DB query (all bindings for the
+  workflow) and walks every slot including deeply-nested ones in AI agent nodes
+  (language model, node-backed tools, nested agents) via
+  `WorkflowCredentialNodeResolver.listSlots`. If any required slot has no
+  binding the request fails with a 400 before the run record is created, so the
+  user sees a clear error message instead of waiting for the run to start and
+  then fail several seconds later.
+
+- Updated dependencies [[`e4d3e1a`](https://github.com/MadeRelevant/codemation/commit/e4d3e1a1526e27bc226af186deb671cee53682c8), [`7b50018`](https://github.com/MadeRelevant/codemation/commit/7b50018d5e452f4bfe2375ec1a7895915ce46f0a), [`e4d3e1a`](https://github.com/MadeRelevant/codemation/commit/e4d3e1a1526e27bc226af186deb671cee53682c8), [`0082ab5`](https://github.com/MadeRelevant/codemation/commit/0082ab5fe99893dd4a483c714393a4a9f44eb39e), [`f344d6d`](https://github.com/MadeRelevant/codemation/commit/f344d6d1e0cced6b1ee5a96e725903e9a0b28bd6)]:
+  - @codemation/core@0.11.0
+  - @codemation/core-nodes@0.8.0
+  - @codemation/eventbus-redis@0.0.38
+
 ## 0.6.0
 
 ### Minor Changes

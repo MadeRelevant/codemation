@@ -1,5 +1,60 @@
 # @codemation/core
 
+## 0.11.0
+
+### Minor Changes
+
+- [#137](https://github.com/MadeRelevant/codemation/pull/137) [`7b50018`](https://github.com/MadeRelevant/codemation/commit/7b50018d5e452f4bfe2375ec1a7895915ce46f0a) Thanks [@cblokland90](https://github.com/cblokland90)! - feat(core-nodes,msgraph,gmail): inspectorSummary on every built-in node
+
+  Implements `inspectorSummary()` on all built-in node and trigger config classes so the workflow
+  inspector panel introduced in [#136](https://github.com/MadeRelevant/codemation/issues/136) has content for every shipped node.
+  - `@codemation/core`: extends `definePollingTrigger` to accept and plumb an `inspectorSummary`
+    option, mirroring the existing `defineNode` / `defineBatchNode` pattern. Also extends
+    `defineRestNode` (in `@codemation/core-nodes`) with the same option.
+  - `@codemation/core-nodes`: `inspectorSummary()` on `HttpRequest`, `AIAgent`, `CronTrigger`,
+    `ManualTrigger`, `SubWorkflow`, `Callback`, `If`, `Switch`, `Filter`, `Split`, `Merge`,
+    `Wait`, `WebhookTrigger`, `TestTrigger`, `Aggregate`, `MapData`, `Assertion`.
+  - `@codemation/core-nodes-msgraph`: `inspectorSummary` option on all 17 mail/drive/excel nodes
+    plus the `onNewMsGraphMailTrigger` polling trigger.
+  - `@codemation/core-nodes-gmail`: `inspectorSummary()` on `OnNewGmailTrigger`.
+    Gmail action nodes (`SendGmailMessage`, `ReplyToGmailMessage`, `ModifyGmailLabels`) return
+    `undefined` — all their config is per-item via `inputSchema`, nothing to surface at design time.
+  - `@codemation/core`: `WorkflowSnapshotCodec.serializeConfig` now pre-serializes the result of
+    `inspectorSummary()` into the snapshot JSON as `_inspectorSummary` so the browser-side mapper
+    can surface the same rows without calling class methods.
+  - `@codemation/next-host`: `PersistedWorkflowSnapshotMapper` now reads `_inspectorSummary` from
+    the serialized config and includes it in the node DTO, maintaining parity with the live mapper.
+
+- [#136](https://github.com/MadeRelevant/codemation/pull/136) [`0082ab5`](https://github.com/MadeRelevant/codemation/commit/0082ab5fe99893dd4a483c714393a4a9f44eb39e) Thanks [@cblokland90](https://github.com/cblokland90)! - Adds an `inspectorSummary` hook on node configs (and `defineNode({ inspectorSummary })` for plugin-author nodes). Returns 2–6 short label/value pairs that describe what the node will do at design time — model + prompt for an agent, method + URL for an HTTP call, schedule + timezone for a cron, etc. Surfaced in the workflow editor's node-properties panel as a new "Configuration" section that renders before any run telemetry exists. Hidden when no rows are produced; node configs that don't implement the hook contribute nothing. Built-in nodes will fill these in across follow-up PRs.
+
+### Patch Changes
+
+- [#141](https://github.com/MadeRelevant/codemation/pull/141) [`e4d3e1a`](https://github.com/MadeRelevant/codemation/commit/e4d3e1a1526e27bc226af186deb671cee53682c8) Thanks [@cblokland90](https://github.com/cblokland90)! - perf(core): yield event loop between node activations in InlineDrivingScheduler
+
+  Switch `scheduleDrain` from `setTimeout(0)` to `setImmediate` and process one
+  activation per drain call instead of draining the entire queue in a while loop.
+  This ensures HTTP responses and WebSocket frames can flush to clients between
+  node activations — previously synchronous SQLite writes during a 20-node run
+  could block the proxy event loop for 3–4 s, making the canvas appear frozen
+  until the run completed.
+
+- [#141](https://github.com/MadeRelevant/codemation/pull/141) [`e4d3e1a`](https://github.com/MadeRelevant/codemation/commit/e4d3e1a1526e27bc226af186deb671cee53682c8) Thanks [@cblokland90](https://github.com/cblokland90)! - perf(core): fail fast on unbound required credential slots before node execution
+
+  `NodeExecutor` now checks all required (non-optional) credential slots via
+  `ctx.getCredential` before entering the retry runner or calling the node's
+  `execute`. This means a misconfigured credential surfaces as an immediate error
+  without burning the retry budget or running any node setup work. The session is
+  created and cached during the pre-flight, so the node itself pays no extra cost
+  when it subsequently calls `getCredential`. Optional slots (`optional: true` in
+  `getCredentialRequirements`) are skipped.
+
+  Also adds a `shouldRetry` predicate to `InProcessRetryRunner.run` and uses it
+  in `NodeExecutor` to skip all retry delays when the node throws a
+  `CredentialUnboundError` (or an error whose `.cause` is one). Previously, nodes
+  like `AIAgent` that check credentials inside `execute` rather than via
+  `getCredentialRequirements` would burn their full retry budget (e.g. 3 × 2 s
+  for AI agents) before surfacing the "slot not bound" error.
+
 ## 0.10.2
 
 ### Patch Changes

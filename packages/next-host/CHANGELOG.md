@@ -1,5 +1,57 @@
 # @codemation/next-host
 
+## 0.5.0
+
+### Minor Changes
+
+- [#135](https://github.com/MadeRelevant/codemation/pull/135) [`54c3a39`](https://github.com/MadeRelevant/codemation/commit/54c3a392ddd597a9b10c3974f1c92fd61a6ded97) Thanks [@cblokland90](https://github.com/cblokland90)! - Consumer-supplied `lucide:<name>` icons now resolve to any of lucide's 1,700+ glyphs without needing a framework PR — names not in the curated registry render via `WorkflowCanvasLucideRemoteGlyph`, a CSS `mask-image` pointing at the new `/api/lucide-icon/<name>.svg` route. The route serves SVGs from `lucide-static` server-side; the full icon set never enters the client bundle (the May 2026 OOM regression — commit ddaa265f — is preserved). The curated registry stays as the fast path for icons used by core node plugins (sync, no HTTP, no flicker). Browser caches each unique icon forever (`Cache-Control: immutable`).
+
+- [#136](https://github.com/MadeRelevant/codemation/pull/136) [`0082ab5`](https://github.com/MadeRelevant/codemation/commit/0082ab5fe99893dd4a483c714393a4a9f44eb39e) Thanks [@cblokland90](https://github.com/cblokland90)! - Adds an `inspectorSummary` hook on node configs (and `defineNode({ inspectorSummary })` for plugin-author nodes). Returns 2–6 short label/value pairs that describe what the node will do at design time — model + prompt for an agent, method + URL for an HTTP call, schedule + timezone for a cron, etc. Surfaced in the workflow editor's node-properties panel as a new "Configuration" section that renders before any run telemetry exists. Hidden when no rows are produced; node configs that don't implement the hook contribute nothing. Built-in nodes will fill these in across follow-up PRs.
+
+- [#140](https://github.com/MadeRelevant/codemation/pull/140) [`51b728d`](https://github.com/MadeRelevant/codemation/commit/51b728d3df98c6ceb2faced14846b280b4c83952) Thanks [@cblokland90](https://github.com/cblokland90)! - Stream telemetry spans over WebSocket transport, eliminating HTTP polling.
+
+  **Backend (@codemation/host):**
+  - Added `TelemetrySpanPublisher` interface + `NoOpTelemetrySpanPublisher` default.
+  - Added `telemetryEvent` variant to `WorkflowWebsocketMessage` carrying `TelemetrySpanUpsert`.
+  - New `TelemetrySpanWebsocketRelay` class publishes each span upsert to a per-run room (`run:<runId>`) after it is committed to persistent storage.
+  - `OtelExecutionTelemetryFactory` injects `TelemetrySpanPublisher` (defaults to no-op when unregistered).
+  - `StoredTelemetrySpanScope.upsert()` calls the publisher after the span store write so reconnect HTTP catch-up and WS pushes are consistent.
+
+  **Frontend (@codemation/next-host):**
+  - `useWorkflowRealtimeInfrastructure` handles `kind: "telemetryEvent"` messages via `applyTelemetrySpanEvent`, which merges spans into the `telemetry-run-trace` query cache by `spanId` (deduped, sorted by `startTime`).
+  - New `retainRunSubscription` API manages per-run WS room subscribe/unsubscribe with reference counting.
+  - Auto-unsubscribe from run rooms when the tab is hidden for ≥ 5 minutes (Page Visibility API); re-subscribes on tab return.
+  - `useTelemetryRunTraceQuery` drops HTTP polling (`refetchInterval: false`); refetches once on WS reconnect for catch-up.
+  - `resolveTelemetryTraceRefetchIntervalMs` is now a no-op (always returns `false`) — retained for call-site compatibility.
+
+### Patch Changes
+
+- [#137](https://github.com/MadeRelevant/codemation/pull/137) [`7b50018`](https://github.com/MadeRelevant/codemation/commit/7b50018d5e452f4bfe2375ec1a7895915ce46f0a) Thanks [@cblokland90](https://github.com/cblokland90)! - feat(core-nodes,msgraph,gmail): inspectorSummary on every built-in node
+
+  Implements `inspectorSummary()` on all built-in node and trigger config classes so the workflow
+  inspector panel introduced in [#136](https://github.com/MadeRelevant/codemation/issues/136) has content for every shipped node.
+  - `@codemation/core`: extends `definePollingTrigger` to accept and plumb an `inspectorSummary`
+    option, mirroring the existing `defineNode` / `defineBatchNode` pattern. Also extends
+    `defineRestNode` (in `@codemation/core-nodes`) with the same option.
+  - `@codemation/core-nodes`: `inspectorSummary()` on `HttpRequest`, `AIAgent`, `CronTrigger`,
+    `ManualTrigger`, `SubWorkflow`, `Callback`, `If`, `Switch`, `Filter`, `Split`, `Merge`,
+    `Wait`, `WebhookTrigger`, `TestTrigger`, `Aggregate`, `MapData`, `Assertion`.
+  - `@codemation/core-nodes-msgraph`: `inspectorSummary` option on all 17 mail/drive/excel nodes
+    plus the `onNewMsGraphMailTrigger` polling trigger.
+  - `@codemation/core-nodes-gmail`: `inspectorSummary()` on `OnNewGmailTrigger`.
+    Gmail action nodes (`SendGmailMessage`, `ReplyToGmailMessage`, `ModifyGmailLabels`) return
+    `undefined` — all their config is per-item via `inputSchema`, nothing to surface at design time.
+  - `@codemation/core`: `WorkflowSnapshotCodec.serializeConfig` now pre-serializes the result of
+    `inspectorSummary()` into the snapshot JSON as `_inspectorSummary` so the browser-side mapper
+    can surface the same rows without calling class methods.
+  - `@codemation/next-host`: `PersistedWorkflowSnapshotMapper` now reads `_inspectorSummary` from
+    the serialized config and includes it in the node DTO, maintaining parity with the live mapper.
+
+- Updated dependencies [[`fc5f9b7`](https://github.com/MadeRelevant/codemation/commit/fc5f9b71288f02661804bcf3c20f4101ac9fd613), [`e4d3e1a`](https://github.com/MadeRelevant/codemation/commit/e4d3e1a1526e27bc226af186deb671cee53682c8), [`e4d3e1a`](https://github.com/MadeRelevant/codemation/commit/e4d3e1a1526e27bc226af186deb671cee53682c8), [`7b50018`](https://github.com/MadeRelevant/codemation/commit/7b50018d5e452f4bfe2375ec1a7895915ce46f0a), [`e4d3e1a`](https://github.com/MadeRelevant/codemation/commit/e4d3e1a1526e27bc226af186deb671cee53682c8), [`0082ab5`](https://github.com/MadeRelevant/codemation/commit/0082ab5fe99893dd4a483c714393a4a9f44eb39e), [`51b728d`](https://github.com/MadeRelevant/codemation/commit/51b728d3df98c6ceb2faced14846b280b4c83952)]:
+  - @codemation/canvas@1.0.0
+  - @codemation/host@0.7.0
+  - @codemation/core@0.11.0
+
 ## 0.4.0
 
 ### Minor Changes
