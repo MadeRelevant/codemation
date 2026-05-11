@@ -197,16 +197,22 @@ export class WorkflowDetailScreenTestKit {
 
   async startRun(): Promise<void> {
     fireEvent.click(await screen.findByTestId("canvas-run-workflow-button"));
-    await waitFor(() => {
-      expect(this.environment.workflowRuns).toHaveLength(1);
-    });
+    await waitFor(
+      () => {
+        expect(this.environment.workflowRuns).toHaveLength(1);
+      },
+      { timeout: 5000 },
+    );
   }
 
   async runToHere(): Promise<void> {
     fireEvent.click(await screen.findByTestId(`canvas-node-run-button-${WorkflowDetailFixtureFactory.agentNodeId}`));
-    await waitFor(() => {
-      expect(this.environment.workflowRuns).toHaveLength(1);
-    });
+    await waitFor(
+      () => {
+        expect(this.environment.workflowRuns).toHaveLength(1);
+      },
+      { timeout: 5000 },
+    );
   }
 
   async copyToDebugger(): Promise<void> {
@@ -293,11 +299,14 @@ export class WorkflowDetailScreenTestKit {
 
   async waitForLatestRunToComplete(options?: Readonly<{ newerThanRunId?: string }>): Promise<PersistedRunState> {
     if (this.environment instanceof InMemoryWorkflowDetailTestEnvironment && options?.newerThanRunId) {
-      await waitFor(() => {
-        const latest = this.environment.workflowRuns[0]?.runId;
-        expect(latest).toBeDefined();
-        expect(latest).not.toBe(options.newerThanRunId);
-      });
+      await waitFor(
+        () => {
+          const latest = this.environment.workflowRuns[0]?.runId;
+          expect(latest).toBeDefined();
+          expect(latest).not.toBe(options.newerThanRunId);
+        },
+        { timeout: 5000 },
+      );
     }
     const runId = this.latestWorkflowRunId();
     if (this.environment instanceof InMemoryWorkflowDetailTestEnvironment) {

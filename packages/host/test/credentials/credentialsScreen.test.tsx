@@ -1,10 +1,14 @@
 import type { CredentialTypeDefinition } from "@codemation/core/browser";
+import { WorkflowCanvasApiClientProvider } from "@codemation/canvas";
 import { CredentialsScreen } from "@codemation/next-host/src/features/credentials/screens/CredentialsScreen";
+import { NextHostApiClientAdapter } from "@codemation/next-host/src/features/workflows/canvas-adapter/NextHostApiClientAdapter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CredentialInstanceDto } from "../../src/application/contracts/CredentialContractsRegistry";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
+
+const apiClientAdapter = new NextHostApiClientAdapter();
 
 describe("CredentialsScreen", () => {
   const credentialType = {
@@ -175,9 +179,11 @@ describe("CredentialsScreen", () => {
     }
     queryClient.setQueryData(["credential-field-env-status"], initialData?.credentialFieldEnvStatus ?? {});
     return render(
-      <QueryClientProvider client={queryClient}>
-        <CredentialsScreen />
-      </QueryClientProvider>,
+      <WorkflowCanvasApiClientProvider value={apiClientAdapter}>
+        <QueryClientProvider client={queryClient}>
+          <CredentialsScreen />
+        </QueryClientProvider>
+      </WorkflowCanvasApiClientProvider>,
     );
   }
 

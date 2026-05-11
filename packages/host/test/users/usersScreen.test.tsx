@@ -1,9 +1,13 @@
+import { WorkflowCanvasApiClientProvider } from "@codemation/canvas";
 import { UsersScreen } from "@codemation/next-host/src/features/users/screens/UsersScreen";
+import { NextHostApiClientAdapter } from "@codemation/next-host/src/features/workflows/canvas-adapter/NextHostApiClientAdapter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { UserAccountDto } from "../../src/application/contracts/userDirectoryContracts.types";
 import { ApiPaths } from "../../src/presentation/http/ApiPaths";
+
+const apiClientAdapter = new NextHostApiClientAdapter();
 
 describe("UsersScreen", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -39,9 +43,11 @@ describe("UsersScreen", () => {
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     return render(
-      <QueryClientProvider client={queryClient}>
-        <UsersScreen />
-      </QueryClientProvider>,
+      <WorkflowCanvasApiClientProvider value={apiClientAdapter}>
+        <QueryClientProvider client={queryClient}>
+          <UsersScreen />
+        </QueryClientProvider>
+      </WorkflowCanvasApiClientProvider>,
     );
   }
 
