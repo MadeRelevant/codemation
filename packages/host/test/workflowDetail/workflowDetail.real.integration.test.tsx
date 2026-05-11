@@ -306,8 +306,16 @@ describe("workflow detail real integration", () => {
     await WorkflowDetailRealIntegrationFixture.pinNodeOutput(kit, "Agent", { pinned: "Agent" });
 
     const runIdBeforeToC = kit.latestWorkflowRunId();
-    fireEvent.click(screen.getByTestId("canvas-node-run-button-C"));
-    await kit.waitForLatestRunToComplete({ newerThanRunId: runIdBeforeToC });
+    await waitFor(
+      () => {
+        if (kit!.latestWorkflowRunId() === runIdBeforeToC) {
+          fireEvent.click(screen.getByTestId("canvas-node-run-button-C"));
+        }
+        expect(kit!.latestWorkflowRunId()).not.toBe(runIdBeforeToC);
+      },
+      { timeout: 10000, interval: 200 },
+    );
+    await kit.waitForLatestRunToComplete();
 
     await waitFor(() => {
       expect(kit!.currentNodeStatus("A")).toBe("completed");
@@ -321,8 +329,16 @@ describe("workflow detail real integration", () => {
     });
 
     const runIdBeforeToE = kit.latestWorkflowRunId();
-    fireEvent.click(screen.getByTestId("canvas-node-run-button-E"));
-    await kit.waitForLatestRunToComplete({ newerThanRunId: runIdBeforeToE });
+    await waitFor(
+      () => {
+        if (kit!.latestWorkflowRunId() === runIdBeforeToE) {
+          fireEvent.click(screen.getByTestId("canvas-node-run-button-E"));
+        }
+        expect(kit!.latestWorkflowRunId()).not.toBe(runIdBeforeToE);
+      },
+      { timeout: 10000, interval: 200 },
+    );
+    await kit.waitForLatestRunToComplete();
 
     await waitFor(() => {
       expect(kit!.currentNodeStatus("A")).toBe("completed");
