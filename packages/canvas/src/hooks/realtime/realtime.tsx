@@ -45,7 +45,10 @@ import type {
 } from "../../realtime/realtimeDomainTypes";
 import { WorkflowQueryRetryPolicy } from "../../realtime/WorkflowQueryRetryPolicy";
 import { resolveFetchedRunState, resolveRunPollingIntervalMs } from "./runQueryPolling";
-import { useWorkflowCanvasApiClient } from "../../context/WorkflowCanvasApiClientContext";
+import {
+  useWorkflowCanvasApiClient,
+  useWorkflowCanvasApiClientOptional,
+} from "../../context/WorkflowCanvasApiClientContext";
 export { useTelemetryRunTraceQuery } from "./useTelemetryRunTraceQuery";
 
 export function useWorkflowRealtimeSubscription(workflowId: string | null | undefined): void {
@@ -225,37 +228,40 @@ export function useRunDetailQuery(
 }
 
 export function useCredentialTypesQuery() {
-  const apiClient = useWorkflowCanvasApiClient();
+  const apiClient = useWorkflowCanvasApiClientOptional();
   return useQuery({
     queryKey: credentialTypesQueryKey,
-    queryFn: () => apiClient.fetchCredentialTypes(),
+    queryFn: () => apiClient!.fetchCredentialTypes(),
+    enabled: Boolean(apiClient),
   });
 }
 
 export function useCredentialFieldEnvStatusQuery() {
-  const apiClient = useWorkflowCanvasApiClient();
+  const apiClient = useWorkflowCanvasApiClientOptional();
   return useQuery({
     queryKey: credentialFieldEnvStatusQueryKey,
-    queryFn: () => apiClient.fetchCredentialFieldEnvStatus(),
+    queryFn: () => apiClient!.fetchCredentialFieldEnvStatus(),
+    enabled: Boolean(apiClient),
   });
 }
 
 export function useCredentialInstancesQuery() {
-  const apiClient = useWorkflowCanvasApiClient();
+  const apiClient = useWorkflowCanvasApiClientOptional();
   return useQuery({
     queryKey: credentialInstancesQueryKey,
-    queryFn: () => apiClient.fetchCredentialInstances(),
+    queryFn: () => apiClient!.fetchCredentialInstances(),
+    enabled: Boolean(apiClient),
   });
 }
 
 export function useCredentialInstanceWithSecretsQuery(instanceId: string | null | undefined) {
-  const apiClient = useWorkflowCanvasApiClient();
+  const apiClient = useWorkflowCanvasApiClientOptional();
   return useQuery({
     queryKey: instanceId
       ? credentialInstanceWithSecretsQueryKey(instanceId)
       : ["credential-instance-with-secrets", "disabled"],
-    queryFn: async () => await apiClient.fetchCredentialInstanceWithSecrets(instanceId!),
-    enabled: Boolean(instanceId),
+    queryFn: async () => await apiClient!.fetchCredentialInstanceWithSecrets(instanceId!),
+    enabled: Boolean(instanceId) && Boolean(apiClient),
   });
 }
 
@@ -270,9 +276,10 @@ export function useWorkflowCredentialHealthQuery(workflowId: string) {
 }
 
 export function useUserAccountsQuery() {
-  const apiClient = useWorkflowCanvasApiClient();
+  const apiClient = useWorkflowCanvasApiClientOptional();
   return useQuery({
     queryKey: userAccountsQueryKey,
-    queryFn: () => apiClient.fetchUserAccounts(),
+    queryFn: () => apiClient!.fetchUserAccounts(),
+    enabled: Boolean(apiClient),
   });
 }

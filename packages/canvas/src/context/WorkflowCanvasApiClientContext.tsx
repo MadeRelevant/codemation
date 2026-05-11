@@ -12,3 +12,7 @@ export function useWorkflowCanvasApiClient(): WorkflowCanvasApiClient {
   if (!client) throw new Error("WorkflowCanvasApiClient not provided");
   return client;
 }
+
+export function useWorkflowCanvasApiClientOptional(): WorkflowCanvasApiClient | null {
+  return useContext(WorkflowCanvasApiClientContext);
+}

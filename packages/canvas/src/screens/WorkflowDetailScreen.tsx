@@ -27,17 +27,13 @@ import { WorkflowJsonEditorDialog } from "../panels/WorkflowJsonEditorDialog";
 import { WorkflowActivationErrorDialog } from "../panels/WorkflowActivationErrorDialog";
 import { useWorkflowDetailScreenThemeStyle } from "./useWorkflowDetailScreenThemeStyle";
 import { useWorkflowDetailChromeSync } from "./useWorkflowDetailChromeSync";
+import { useLocalNavigation } from "./useLocalNavigation";
 
 // Lazy-load the Tests view only: it pulls in recharts + the test-suite component tree which is
 // conditionally rendered and would otherwise dominate module work for this route.
 const LazyWorkflowDetailScreenTestsView = React.lazy(() =>
   import("./WorkflowDetailScreenTestsView").then((m) => ({ default: m.WorkflowDetailScreenTestsView })),
 );
-
-const noOpNavigation: NavigationAdapter = {
-  urlLocation: { selectedRunId: null, isRunsPaneVisible: false, nodeId: null },
-  navigateToLocation: () => {},
-};
 
 export interface WorkflowDetailScreenArgs {
   workflowId: string;
@@ -52,7 +48,8 @@ export interface WorkflowDetailScreenArgs {
 export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
   const contextApiClient = useWorkflowCanvasApiClient();
   const resolvedApiClient = args.apiClient ?? contextApiClient;
-  const resolvedNavigation = args.navigation ?? noOpNavigation;
+  const localNavigation = useLocalNavigation();
+  const resolvedNavigation = args.navigation ?? localNavigation;
   const controller = useWorkflowDetailController({
     workflowId: args.workflowId,
     initialWorkflow: args.initialWorkflow,
