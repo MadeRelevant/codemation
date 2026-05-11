@@ -121,6 +121,7 @@ class WorkflowDetailRealIntegrationFixture {
 
   static async runToNodeAndWaitForCompletion(kit: WorkflowDetailScreenTestKit, nodeId: string): Promise<string> {
     const priorRunId = kit.latestWorkflowRunId();
+    await waitFor(() => expect(screen.getByTestId(`canvas-node-run-button-${nodeId}`)).toBeEnabled());
     fireEvent.click(screen.getByTestId(`canvas-node-run-button-${nodeId}`));
     await kit.waitForLatestRunToComplete({ newerThanRunId: priorRunId });
     const runId = kit.latestWorkflowRunId();
@@ -293,6 +294,7 @@ describe("workflow detail real integration", () => {
     await WorkflowDetailRealIntegrationFixture.pinNodeOutput(kit, "Agent", { pinned: "Agent" });
 
     const runIdBeforeToC = kit.latestWorkflowRunId();
+    await waitFor(() => expect(screen.getByTestId("canvas-node-run-button-C")).toBeEnabled());
     fireEvent.click(screen.getByTestId("canvas-node-run-button-C"));
     await kit.waitForLatestRunToComplete({ newerThanRunId: runIdBeforeToC });
 
@@ -308,6 +310,7 @@ describe("workflow detail real integration", () => {
     });
 
     const runIdBeforeToE = kit.latestWorkflowRunId();
+    await waitFor(() => expect(screen.getByTestId("canvas-node-run-button-E")).toBeEnabled());
     fireEvent.click(screen.getByTestId("canvas-node-run-button-E"));
     await kit.waitForLatestRunToComplete({ newerThanRunId: runIdBeforeToE });
 
