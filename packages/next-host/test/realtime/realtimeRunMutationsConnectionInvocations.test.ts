@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type {
-  ConnectionInvocationRecord,
-  PersistedRunState,
-  WorkflowEvent,
-} from "../../src/features/workflows/lib/realtime/realtimeDomainTypes";
-import { reduceWorkflowEventIntoPersistedRunState } from "../../src/features/workflows/lib/realtime/realtimeRunMutations";
+import type { ConnectionInvocationRecord, PersistedRunState, WorkflowEvent } from "@codemation/canvas";
+import { reduceWorkflowEventIntoPersistedRunState } from "@codemation/canvas";
 
 const RUN_ID = "run-conn-inv";
 const WORKFLOW_ID = "wf-conn-inv";

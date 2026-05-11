@@ -1,10 +1,7 @@
 import { Providers } from "@codemation/next-host/src/providers/Providers";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
-import type {
-  PersistedRunState,
-  WorkflowDto,
-} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
-import { WorkflowDetailScreen } from "@codemation/next-host/src/features/workflows/screens/WorkflowDetailScreen";
+import type { PersistedRunState, WorkflowDto } from "@codemation/canvas";
+import { WorkflowDetailScreen } from "@codemation/canvas";
 import { createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
 import { act, cleanup, fireEvent, render, screen, waitFor, type RenderResult } from "@testing-library/react";
 import { StrictMode, type ReactElement } from "react";

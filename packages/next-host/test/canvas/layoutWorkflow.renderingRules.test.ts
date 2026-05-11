@@ -4,8 +4,8 @@ import {
   WORKFLOW_CANVAS_AGENT_NODE_CARD_WIDTH_PX,
   WORKFLOW_CANVAS_MAIN_NODE_CARD_PX,
   WORKFLOW_CANVAS_NESTED_AGENT_NODE_CARD_WIDTH_PX,
-} from "../../src/features/workflows/components/canvas/lib/workflowCanvasNodeGeometry";
-import type { WorkflowDto } from "../../src/features/workflows/lib/realtime/workflowTypes";
+} from "@codemation/canvas";
+import type { WorkflowDto } from "@codemation/canvas";
 import { LayoutWorkflowTestKit } from "./testkit/LayoutWorkflowTestKit";
 
 /**

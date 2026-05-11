@@ -11,7 +11,7 @@ import Save from "lucide-react/dist/esm/icons/save";
 import X from "lucide-react/dist/esm/icons/x";
 import { Button } from "@/components/ui/button";
 import { CodemationDialog } from "@/components/CodemationDialog";
-import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";
+import type { CredentialInstanceDto } from "@codemation/canvas";
 import type { FormSourceKind } from "../lib/credentialFormTypes";
 import { isCredentialFieldLockedByEnv } from "../lib/credentialFieldHelpers";
 import { CredentialDialogFeedback } from "./CredentialDialogFeedback";

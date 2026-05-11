@@ -8,7 +8,7 @@ import { ApiPaths } from "@codemation/host/client";
 import type { WorkflowSummary, UserAccountDto } from "@codemation/host/dto";
 import { CodemationRuntimeBootstrapClient } from "../src/bootstrap/CodemationRuntimeBootstrapClient";
 import { CodemationRuntimeUrlResolver } from "../src/bootstrap/CodemationRuntimeUrlResolver";
-import { userAccountsQueryKey, workflowsQueryKey } from "../src/features/workflows/lib/realtime/realtimeQueryKeys";
+import { userAccountsQueryKey, workflowsQueryKey } from "@codemation/canvas";
 import { WhitelabelProvider } from "../src/providers/WhitelabelProvider";
 import { CodemationNextClientShell } from "../src/shell/CodemationNextClientShell";
 import { CodemationSessionRoot } from "../src/providers/CodemationSessionProvider";

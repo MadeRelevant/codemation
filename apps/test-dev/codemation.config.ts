@@ -102,7 +102,7 @@ export const codemationHost = {
   app: {
     auth: {
       kind: "local" as const,
-      allowUnauthenticatedInDevelopment: false,
+      allowUnauthenticatedInDevelopment: true,
       oauth: [
         {
           provider: "google",

@@ -1,7 +1,7 @@
 import type { BinaryAttachment } from "@codemation/core/browser";
 import { describe, expect, it } from "vitest";
-import { WorkflowDetailPresenter } from "../../src/features/workflows/lib/workflowDetail/WorkflowDetailPresenter";
-import type { ExecutionNode } from "../../src/features/workflows/lib/workflowDetail/workflowDetailTypes";
+import { WorkflowDetailPresenter } from "@codemation/canvas";
+import type { ExecutionNode } from "@codemation/canvas";
 
 function createTestBinaryAttachment(overrides: Partial<BinaryAttachment> = {}): BinaryAttachment {
   return {

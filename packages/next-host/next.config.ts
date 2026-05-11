@@ -19,7 +19,12 @@ const nextConfig: NextConfig = {
    * bundling sources here.
    */
   serverExternalPackages: ["@libsql/client", "@prisma/adapter-libsql", "@codemation/core", "@codemation/core-nodes"],
-  transpilePackages: ["@codemation/eventbus-redis", "@codemation/host", "@codemation/node-example"],
+  transpilePackages: [
+    "@codemation/canvas",
+    "@codemation/eventbus-redis",
+    "@codemation/host",
+    "@codemation/node-example",
+  ],
   experimental: {
     externalDir: true,
     // Per the Phase-1 deep diagnostic: lucide-react ships 1,967 individual icon files (46 MB)

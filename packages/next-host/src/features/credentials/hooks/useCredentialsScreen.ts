@@ -4,7 +4,7 @@ import { ApiPaths } from "@codemation/host/client";
 
 import { codemationApiClient } from "../../../api/CodemationApiClient";
 import { CodemationApiHttpError } from "../../../api/CodemationApiHttpError";
-import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";
+import type { CredentialInstanceDto } from "@codemation/canvas";
 import { parseCredentialInstanceTestPayload } from "../lib/credentialInstanceTestPayloadParser";
 import { useCredentialDialogSession } from "./useCredentialDialogSession";
 

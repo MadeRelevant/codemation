@@ -5,10 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const PANEL_PATH = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../src/features/workflows/components/workflowDetail/tests/TestsPanel.tsx",
-);
+const PANEL_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../../../canvas/src/panels/tests/TestsPanel.tsx");
 
 /**
  * Regression test for the "Maximum update depth exceeded" loop the user hit in the browser

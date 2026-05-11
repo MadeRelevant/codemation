@@ -29,6 +29,7 @@
       "@codemation/host/persistence": ["../../packages/host/src/persistenceServer.ts"],
       "@codemation/next-host": ["./src/index.ts"],
       "@codemation/next-host/src/*": ["./src/*"],
+      "@codemation/canvas": ["../../packages/canvas/src/index.ts"],
       "@codemation/node-example": ["../../packages/node-example/src/index.ts"],
       "@codemation/core": ["../../packages/core/src/index.ts"],
       "@codemation/core/contracts": ["../../packages/core/src/contracts.ts"],

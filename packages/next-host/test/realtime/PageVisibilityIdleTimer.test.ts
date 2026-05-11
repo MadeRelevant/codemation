@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { PageVisibilityIdleTimer } from "../../src/features/workflows/lib/realtime/PageVisibilityIdleTimer";
-import type {
-  PageVisibilityIdleTimerDocumentRef,
-  PageVisibilityIdleTimerWindowRef,
-} from "../../src/features/workflows/lib/realtime/PageVisibilityIdleTimer";
+import { PageVisibilityIdleTimer } from "@codemation/canvas";
+import type { PageVisibilityIdleTimerDocumentRef, PageVisibilityIdleTimerWindowRef } from "@codemation/canvas";
 
 type VisibilityState = DocumentVisibilityState;
 

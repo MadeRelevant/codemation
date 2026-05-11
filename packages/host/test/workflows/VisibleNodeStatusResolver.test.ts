@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { VisibleNodeStatusResolver } from "@codemation/next-host/src/features/workflows/components/canvas/VisibleNodeStatusResolver";
-import type {
-  ConnectionInvocationRecord,
-  NodeExecutionSnapshot,
-} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import { VisibleNodeStatusResolver } from "@codemation/canvas";
+import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "@codemation/canvas";
 
 class VisibleNodeStatusResolverFixture {
   static readonly runId = "run-1";

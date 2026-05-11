@@ -1,4 +1,4 @@
-import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";
+import type { CredentialInstanceDto } from "@codemation/canvas";
 import { useCredentialDialogSession } from "./useCredentialDialogSession";
 
 /**

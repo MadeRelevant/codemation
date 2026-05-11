@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { layoutWorkflow } from "../../src/features/workflows/components/canvas/lib/layoutWorkflow";
-import type { WorkflowDto } from "../../src/features/workflows/lib/realtime/workflowTypes";
+import { layoutWorkflow } from "@codemation/canvas";
+import type { WorkflowDto } from "@codemation/canvas";
 
 /**
  * Rectangles overlap (not just touching) when their open interiors intersect

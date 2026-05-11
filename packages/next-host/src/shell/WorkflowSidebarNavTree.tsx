@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import type { ReactNode } from "react";
 
-import type { WorkflowSummary } from "../features/workflows/hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 
 import { WorkflowFolderTreeBuilder } from "./WorkflowFolderTreeBuilder";
 

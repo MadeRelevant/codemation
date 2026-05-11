@@ -9,8 +9,8 @@ import {
   useCredentialInstanceWithSecretsQuery,
   useCredentialTypesQuery,
   type CredentialInstanceDto,
-} from "../../workflows/hooks/realtime/realtime";
-import { credentialFieldEnvStatusQueryKey } from "../../workflows/lib/realtime/realtimeQueryKeys";
+} from "@codemation/canvas";
+import { credentialFieldEnvStatusQueryKey } from "@codemation/canvas";
 import { parseCredentialInstanceTestPayload } from "../lib/credentialInstanceTestPayloadParser";
 import { buildEmptySecretFieldValues, buildFieldStringValues } from "../lib/credentialFieldHelpers";
 import type { FormSourceKind } from "../lib/credentialFormTypes";

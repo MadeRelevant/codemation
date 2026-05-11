@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 
+import type { ReactElement } from "react";
 import type { BinaryAttachment } from "@codemation/core/browser";
-import { WorkflowJsonEditorDialog } from "../../src/features/workflows/components/workflowDetail/WorkflowJsonEditorDialog";
-import { WorkflowDetailPresenter } from "../../src/features/workflows/lib/workflowDetail/WorkflowDetailPresenter";
+import { WorkflowCanvasApiClientProvider } from "@codemation/canvas";
+import type { WorkflowCanvasApiClient } from "@codemation/canvas";
+import { WorkflowJsonEditorDialog } from "@codemation/canvas";
+import { WorkflowDetailPresenter } from "@codemation/canvas";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -13,6 +16,12 @@ vi.mock("@monaco-editor/react", () => ({
     return <textarea data-testid="mock-monaco-editor" value={props.value ?? ""} readOnly />;
   },
 }));
+
+const stubApiClient = {} as WorkflowCanvasApiClient;
+
+function renderWithClient(ui: ReactElement) {
+  return render(<WorkflowCanvasApiClientProvider value={stubApiClient}>{ui}</WorkflowCanvasApiClientProvider>);
+}
 
 function createAttachment(overrides: Partial<BinaryAttachment> = {}): BinaryAttachment {
   return {
@@ -37,7 +46,7 @@ describe("WorkflowJsonEditorDialog pin-output binaries", () => {
   });
 
   it("renders JSON and Binaries tabs for pin-output mode", () => {
-    render(
+    renderWithClient(
       <WorkflowJsonEditorDialog
         initialEditorTab="binaries"
         state={{
@@ -63,7 +72,7 @@ describe("WorkflowJsonEditorDialog pin-output binaries", () => {
     const onSave = vi.fn();
     const doc = createAttachment({ id: "doc-id" });
 
-    render(
+    renderWithClient(
       <WorkflowJsonEditorDialog
         state={{
           mode: "pin-output",
@@ -102,7 +111,7 @@ describe("WorkflowJsonEditorDialog pin-output binaries", () => {
     const uploaded = createAttachment({ id: "new-id", filename: "f.txt" });
     vi.spyOn(WorkflowDetailPresenter, "uploadOverlayPinnedBinary").mockResolvedValue(uploaded);
 
-    render(
+    renderWithClient(
       <WorkflowJsonEditorDialog
         initialEditorTab="binaries"
         state={{

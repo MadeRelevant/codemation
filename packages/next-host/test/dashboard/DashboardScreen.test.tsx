@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardFilterCard } from "../../src/features/dashboard/components/DashboardFilterCard";
 import { DashboardScreen } from "../../src/features/dashboard/screens/DashboardScreen";
 import { TelemetryDashboardTimeRangeFactory } from "../../src/features/dashboard/lib/TelemetryDashboardTimeRangeFactory";
+import { WorkflowCanvasApiClientProvider } from "@codemation/canvas";
+import { NextHostApiClientAdapter } from "../../src/features/workflows/canvas-adapter/NextHostApiClientAdapter";
 
 class ResizeObserverMock {
   observe(): void {}
@@ -234,10 +236,15 @@ describe("DashboardScreen", () => {
         queries: { retry: false },
       },
     });
+    // Provide the real NextHostApiClientAdapter — its fetchWorkflows delegates to global fetch
+    // which is mocked above to handle ApiPaths.workflows().
+    const apiClient = new NextHostApiClientAdapter();
     render(
-      <QueryClientProvider client={queryClient}>
-        <DashboardScreen />
-      </QueryClientProvider>,
+      <WorkflowCanvasApiClientProvider value={apiClient}>
+        <QueryClientProvider client={queryClient}>
+          <DashboardScreen />
+        </QueryClientProvider>
+      </WorkflowCanvasApiClientProvider>,
     );
   }
 

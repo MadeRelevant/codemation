@@ -1,4 +1,4 @@
-import type { WorkflowSummary } from "../hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 
 import { WorkflowsListTree } from "../components/WorkflowsListTree";
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { WorkflowCanvasPortOrderResolver } from "../../src/features/workflows/components/canvas/lib/WorkflowCanvasPortOrderResolver";
+import { WorkflowCanvasPortOrderResolver } from "@codemation/canvas";
 
 describe("WorkflowCanvasPortOrderResolver", () => {
   it("orders source outputs with true above false", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CodemationApiHttpError } from "../../src/api/CodemationApiHttpError";
-import { WorkflowQueryRetryPolicy } from "../../src/features/workflows/lib/realtime/WorkflowQueryRetryPolicy";
+import { WorkflowQueryRetryPolicy } from "@codemation/canvas";
 
 describe("WorkflowQueryRetryPolicy", () => {
   it("does not retry unknown workflow responses", () => {

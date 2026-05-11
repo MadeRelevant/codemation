@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { WorkflowCanvasEdgeCountResolver } from "../../src/features/workflows/components/canvas/lib/WorkflowCanvasEdgeCountResolver";
+import { WorkflowCanvasEdgeCountResolver } from "@codemation/canvas";
 
 describe("WorkflowCanvasEdgeCountResolver", () => {
   it("counts distinct connection invocations for a language model attachment edge", () => {

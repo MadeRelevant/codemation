@@ -3,8 +3,8 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { WorkflowCanvasNodeIcon } from "../../src/features/workflows/components/canvas/WorkflowCanvasNodeIcon";
-import { WorkflowNodeIconResolver } from "../../src/features/workflows/components/workflowDetail/WorkflowDetailIcons";
+import { WorkflowCanvasNodeIcon } from "@codemation/canvas";
+import { WorkflowNodeIconResolver } from "@codemation/canvas";
 
 function getRotationTransform(container: HTMLElement): string {
   const all = container.querySelectorAll<HTMLElement>("*");

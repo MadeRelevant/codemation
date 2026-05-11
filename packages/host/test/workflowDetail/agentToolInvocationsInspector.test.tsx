@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
 
-import type {
-  ConnectionInvocationRecord,
-  PersistedRunState,
-  WorkflowDto,
-  WorkflowEvent,
-} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import type { ConnectionInvocationRecord, PersistedRunState, WorkflowDto, WorkflowEvent } from "@codemation/canvas";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {

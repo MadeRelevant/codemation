@@ -2,13 +2,9 @@
 
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type {
-  ConnectionInvocationRecord,
-  NodeExecutionSnapshot,
-  TelemetryRunTraceViewDto,
-} from "../../src/features/workflows/hooks/realtime/realtime";
-import { NodePropertiesConfigSection } from "../../src/features/workflows/components/workflowDetail/NodePropertiesConfigSection";
-import { NodeInspectorTelemetryPresenter } from "../../src/features/workflows/lib/workflowDetail/NodeInspectorTelemetryPresenter";
+import type { ConnectionInvocationRecord, NodeExecutionSnapshot, TelemetryRunTraceViewDto } from "@codemation/canvas";
+import { NodePropertiesConfigSection } from "@codemation/canvas";
+import { NodeInspectorTelemetryPresenter } from "@codemation/canvas";
 
 describe("NodePropertiesConfigSection", () => {
   const originalCreate = NodeInspectorTelemetryPresenter.create;

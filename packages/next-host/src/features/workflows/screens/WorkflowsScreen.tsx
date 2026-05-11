@@ -1,8 +1,8 @@
 "use client";
 
-import type { WorkflowSummary } from "../hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 
-import { useWorkflowsQueryWithInitialData } from "../hooks/realtime/realtime";
+import { useWorkflowsQueryWithInitialData } from "@codemation/canvas";
 
 import { WorkflowsList } from "./WorkflowsList";
 

@@ -1,6 +1,6 @@
 import { RunFinishedAtFactory } from "@codemation/core";
-import type { WorkflowEvent } from "@codemation/next-host/src/features/workflows/lib/realtime/realtimeDomainTypes";
-import { reduceWorkflowEventIntoPersistedRunState } from "@codemation/next-host/src/features/workflows/lib/realtime/realtimeRunMutations";
+import type { WorkflowEvent } from "@codemation/canvas";
+import { reduceWorkflowEventIntoPersistedRunState } from "@codemation/canvas";
 import type {
   ExecutionInstanceDto,
   PersistedRunState,
@@ -9,7 +9,7 @@ import type {
   WorkflowDebuggerOverlayState,
   WorkflowDto,
   WorkflowRunDetailDto,
-} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+} from "@codemation/canvas";
 import { expect } from "vitest";
 import { ApiPaths } from "../../../src/presentation/http/ApiPaths";
 import { WorkflowDetailFixtureFactory } from "./WorkflowDetailFixtures";

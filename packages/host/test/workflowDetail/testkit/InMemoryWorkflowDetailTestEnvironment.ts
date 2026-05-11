@@ -1,10 +1,6 @@
 import { RunFinishedAtFactory } from "@codemation/core";
 
-import type {
-  PersistedRunState,
-  RunSummary,
-  WorkflowDebuggerOverlayState,
-} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import type { PersistedRunState, RunSummary, WorkflowDebuggerOverlayState } from "@codemation/canvas";
 import path from "node:path";
 import { expect } from "vitest";
 import { WebSocket as NodeWebSocket, type RawData } from "ws";

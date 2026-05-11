@@ -2,12 +2,9 @@
 
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type {
-  ConnectionInvocationRecord,
-  TelemetryRunTraceViewDto,
-} from "../../src/features/workflows/hooks/realtime/realtime";
-import { NodePropertiesConfigSection } from "../../src/features/workflows/components/workflowDetail/NodePropertiesConfigSection";
-import type { WorkflowDiagramNode } from "../../src/features/workflows/lib/workflowDetail/workflowDetailTypes";
+import type { ConnectionInvocationRecord, TelemetryRunTraceViewDto } from "@codemation/canvas";
+import { NodePropertiesConfigSection } from "@codemation/canvas";
+import type { WorkflowDiagramNode } from "@codemation/canvas";
 
 const BASE_RUN_ID = "run_ui_test";
 const BASE_WORKFLOW_ID = "wf.ui_test";

@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  PersistedRunState,
-  PersistedWorkflowSnapshot,
-  WorkflowDto,
-} from "../../src/features/workflows/hooks/realtime/realtime";
-import { WorkflowDetailPresenter } from "../../src/features/workflows/lib/workflowDetail/WorkflowDetailPresenter";
+import type { PersistedRunState, PersistedWorkflowSnapshot, WorkflowDto } from "@codemation/canvas";
+import { WorkflowDetailPresenter } from "@codemation/canvas";
 
 describe("WorkflowDetailPresenter.resolveViewedWorkflowForContext", () => {
   it("prefers active live run workflowSnapshot over the live workflow definition", () => {

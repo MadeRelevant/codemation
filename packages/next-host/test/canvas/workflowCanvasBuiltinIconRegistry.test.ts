@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  BUILTIN_CANVAS_ICON_URLS,
-  WorkflowCanvasBuiltinIconRegistry,
-} from "../../src/features/workflows/components/canvas/lib/WorkflowCanvasBuiltinIconRegistry";
+import { BUILTIN_CANVAS_ICON_URLS, WorkflowCanvasBuiltinIconRegistry } from "@codemation/canvas";
 
 describe("WorkflowCanvasBuiltinIconRegistry", () => {
   it("resolves openai to a public canvas icon URL", () => {

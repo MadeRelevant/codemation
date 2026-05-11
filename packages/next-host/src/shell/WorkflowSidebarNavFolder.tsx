@@ -6,7 +6,7 @@ import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import Folder from "lucide-react/dist/esm/icons/folder";
 import type { ReactNode } from "react";
 
-import type { WorkflowSummary } from "../features/workflows/hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";

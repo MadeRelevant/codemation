@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CodemationApiHttpError } from "../../src/api/CodemationApiHttpError";
-import { WorkflowActivationHttpErrorFormat } from "../../src/features/workflows/lib/workflowDetail/WorkflowActivationHttpErrorFormat";
+import { WorkflowActivationHttpErrorFormat } from "@codemation/canvas";
 
 describe("WorkflowActivationHttpErrorFormat", () => {
   const format = new WorkflowActivationHttpErrorFormat();

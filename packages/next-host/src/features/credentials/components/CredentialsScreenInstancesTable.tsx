@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import type { CredentialInstanceDto } from "../../workflows/hooks/realtime/realtime";
+import type { CredentialInstanceDto } from "@codemation/canvas";
 import { CredentialsScreenHealthBadge } from "./CredentialsScreenHealthBadge";
 
 export type CredentialsScreenInstancesTableProps = {

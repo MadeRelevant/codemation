@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { WorkflowExecutionTreeBuilder } from "../../src/features/workflows/lib/workflowDetail/WorkflowExecutionTreeBuilder";
-import { WorkflowExecutionTreeDataLoaderAdapter } from "../../src/features/workflows/lib/workflowDetail/WorkflowExecutionTreeDataLoaderAdapter";
-import type { ExecutionNode } from "../../src/features/workflows/lib/workflowDetail/workflowDetailTypes";
+import { WorkflowExecutionTreeBuilder } from "@codemation/canvas";
+import { WorkflowExecutionTreeDataLoaderAdapter } from "@codemation/canvas";
+import type { ExecutionNode } from "@codemation/canvas";
 
 describe("WorkflowExecutionTreeBuilder", () => {
   it("falls back to a root node when the parent reference cannot be resolved", () => {

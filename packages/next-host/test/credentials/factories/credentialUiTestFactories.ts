@@ -1,9 +1,9 @@
 import type { CredentialFieldSchema, CredentialTypeDefinition } from "@codemation/core/browser";
 import type { WorkflowCredentialHealthDto, WorkflowCredentialHealthSlotDto } from "@codemation/host/dto";
 
-import type { CredentialInstanceDto } from "../../../src/features/workflows/hooks/realtime/realtime";
+import type { CredentialInstanceDto } from "@codemation/canvas";
 import type { CredentialDialogOrderedField } from "../../../src/features/credentials/components/CredentialDialogFieldRowEntry";
-import type { WorkflowDiagramNode } from "../../../src/features/workflows/lib/workflowDetail/workflowDetailTypes";
+import type { WorkflowDiagramNode } from "@codemation/canvas";
 
 /**
  * Minimal {@link CredentialTypeDefinition} for UI tests — spread overrides for field shapes.

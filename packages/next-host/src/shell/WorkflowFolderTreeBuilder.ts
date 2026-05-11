@@ -1,4 +1,4 @@
-import type { WorkflowSummary } from "../features/workflows/hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 
 export type WorkflowFolderTreeNode = Readonly<{
   segment: string;

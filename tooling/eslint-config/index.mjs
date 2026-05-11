@@ -660,6 +660,7 @@ export default [
   {
     files: ["packages/**/src/**/*.{ts,tsx}"],
     ignores: [
+      "packages/canvas/**",
       "packages/next-host/**",
       "packages/host/src/presentation/config/CodemationPlugin.ts",
       "**/index.ts",

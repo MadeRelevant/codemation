@@ -10,15 +10,8 @@ import {
   type SetStateAction,
 } from "react";
 
-export type WorkflowDetailChromeState = Readonly<{
-  isLiveWorkflowView: boolean;
-  workflowIsActive: boolean;
-  isWorkflowActivationPending: boolean;
-  setWorkflowActive: (active: boolean) => void;
-  workflowActivationAlertLines: ReadonlyArray<string> | null;
-  dismissWorkflowActivationAlert: () => void;
-  credentialAttentionSummaryLines: ReadonlyArray<string>;
-}>;
+import type { WorkflowDetailChromeState } from "@codemation/canvas";
+export type { WorkflowDetailChromeState };
 
 type WorkflowDetailChromeContextValue = Readonly<{
   chrome: WorkflowDetailChromeState | null;

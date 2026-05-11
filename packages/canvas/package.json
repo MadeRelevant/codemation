@@ -1,0 +1,72 @@
+{
+  "name": "@codemation/canvas",
+  "version": "0.0.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Made Relevant B.V.",
+  "homepage": "https://www.maderelevant.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MadeRelevant/codemation",
+    "directory": "packages/canvas"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": {
+        "import": "./src/index.ts",
+        "require": "./dist/index.cjs"
+      },
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
+    "dev": "tsdown --watch",
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@codemation/core": "workspace:*",
+    "@codemation/host": "workspace:*",
+    "@tanstack/react-query": "^5.90.21",
+    "date-fns": "^4.1.0",
+    "pretty-ms": "^9.3.0"
+  },
+  "peerDependencies": {
+    "@codemation/next-host": "*",
+    "@headless-tree/core": "*",
+    "@headless-tree/react": "*",
+    "@uiw/react-json-view": "*",
+    "@xyflow/react": "*",
+    "elkjs": "*",
+    "lucide-react": "*",
+    "react": "*",
+    "react-dom": "*",
+    "recharts": "*",
+    "simple-icons": "*"
+  },
+  "devDependencies": {
+    "@headless-tree/core": "^1.6.3",
+    "@headless-tree/react": "^1.6.3",
+    "@types/node": "^25.3.5",
+    "@types/react": "*",
+    "@types/react-dom": "*",
+    "@uiw/react-json-view": "2.0.0-alpha.41",
+    "eslint": "^10.0.3",
+    "lucide-react": "^0.577.0",
+    "recharts": "^3.8.1",
+    "simple-icons": "^16.12.0",
+    "tsdown": "^0.15.5",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PersistedWorkflowSnapshotMapper } from "../../src/features/workflows/lib/workflowDetail/PersistedWorkflowSnapshotMapper";
-import type { PersistedWorkflowSnapshot } from "../../src/features/workflows/lib/realtime/realtimeDomainTypes";
+import { PersistedWorkflowSnapshotMapper } from "@codemation/canvas";
+import type { PersistedWorkflowSnapshot } from "@codemation/canvas";
 
 const mapper = new PersistedWorkflowSnapshotMapper();
 

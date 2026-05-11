@@ -1,4 +1,4 @@
-import type { WorkflowSummary } from "../features/workflows/hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 
 import type { WorkflowFolderTreeNode } from "./WorkflowFolderTreeBuilder";
 

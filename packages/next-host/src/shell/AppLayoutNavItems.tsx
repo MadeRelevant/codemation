@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 import { IconCollections, IconCredentials, IconDashboard, IconUsers, IconWorkflow } from "./appLayoutSidebarIcons";
 import { WorkflowSidebarNavTree } from "./WorkflowSidebarNavTree";
-import { useWorkflowsQuery } from "../features/workflows/hooks/realtime/realtime";
+import { useWorkflowsQuery } from "@codemation/canvas";
 
 export interface AppLayoutNavItemsProps {
   readonly collapsed: boolean;

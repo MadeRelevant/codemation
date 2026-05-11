@@ -3,9 +3,9 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { WorkflowExecutionInspectorDetailBody } from "../../src/features/workflows/components/workflowDetail/WorkflowExecutionInspectorDetailBody";
-import type { WorkflowNode } from "../../src/features/workflows/lib/workflowDetail/workflowDetailTypes";
-import type { NodeExecutionSnapshot } from "../../src/features/workflows/hooks/realtime/realtime";
+import { WorkflowExecutionInspectorDetailBody } from "@codemation/canvas";
+import type { WorkflowNode } from "@codemation/canvas";
+import type { NodeExecutionSnapshot } from "@codemation/canvas";
 
 describe("WorkflowExecutionInspectorDetailBody — subworkflow deep-link", () => {
   afterEach(() => {

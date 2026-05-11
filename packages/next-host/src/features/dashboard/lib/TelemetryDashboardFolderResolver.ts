@@ -1,4 +1,4 @@
-import type { WorkflowSummary } from "../../workflows/hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 
 export class TelemetryDashboardFolderResolver {
   static listFolders(workflows: ReadonlyArray<WorkflowSummary>): ReadonlyArray<string> {

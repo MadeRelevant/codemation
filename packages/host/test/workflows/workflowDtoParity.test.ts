@@ -16,7 +16,7 @@ import {
   ManualTrigger,
   createWorkflowBuilder,
 } from "@codemation/core-nodes";
-import { PersistedWorkflowSnapshotMapper } from "@codemation/next-host/src/features/workflows/lib/workflowDetail/PersistedWorkflowSnapshotMapper";
+import { PersistedWorkflowSnapshotMapper } from "@codemation/canvas";
 import { describe, expect, it } from "vitest";
 import { WorkflowDefinitionMapper } from "../../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowPolicyUiPresentationFactory } from "../../src/application/mapping/WorkflowPolicyUiPresentationFactory";

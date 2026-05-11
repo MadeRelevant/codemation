@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 
 import type { ReactNode } from "react";
 
-import type { WorkflowSummary } from "../hooks/realtime/realtime";
+import type { WorkflowSummary } from "@codemation/canvas";
 
 import { WorkflowFolderTreeBuilder } from "@/shell/WorkflowFolderTreeBuilder";
 

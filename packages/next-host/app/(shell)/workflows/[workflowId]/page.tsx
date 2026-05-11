@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { WorkflowDetailScreen } from "../../../../src/features/workflows/screens/WorkflowDetailScreen";
+import { WorkflowDetailScreenPage } from "../../../../src/features/workflows/screens/WorkflowDetailScreenPage";
 import { workflowDetailPageAccessResolver } from "../../../../src/features/workflows/server/WorkflowDetailPageAccessResolverComposition";
 
 export default async function WorkflowDetailPage(args: Readonly<{ params: Promise<{ workflowId: string }> }>) {
@@ -24,7 +24,7 @@ export default async function WorkflowDetailPage(args: Readonly<{ params: Promis
         />
       }
     >
-      <WorkflowDetailScreen workflowId={params.workflowId} />
+      <WorkflowDetailScreenPage workflowId={params.workflowId} />
     </Suspense>
   );
 }

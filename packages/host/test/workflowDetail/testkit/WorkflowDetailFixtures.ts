@@ -16,7 +16,7 @@ import type {
   PersistedRunState,
   WorkflowDebuggerOverlayState,
   WorkflowDto,
-} from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+} from "@codemation/canvas";
 import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowPolicyUiPresentationFactory } from "../../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
 

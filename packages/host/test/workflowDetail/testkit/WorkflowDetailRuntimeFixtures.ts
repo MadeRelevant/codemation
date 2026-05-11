@@ -1,6 +1,6 @@
 import { AllWorkflowsActiveWorkflowActivationPolicy, type WorkflowDefinition } from "@codemation/core";
 import { createWorkflowBuilder, ManualTrigger, MapData } from "@codemation/core-nodes";
-import type { WorkflowDto } from "@codemation/next-host/src/features/workflows/hooks/realtime/realtime";
+import type { WorkflowDto } from "@codemation/canvas";
 import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowPolicyUiPresentationFactory } from "../../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
 import type { CodemationConfig } from "../../../src/presentation/config/CodemationConfig";

@@ -25,7 +25,7 @@ import {
   type TelemetryDashboardTimePreset,
 } from "../lib/TelemetryDashboardTimeRangeFactory";
 import { DashboardWorkflowOptionsBuilder } from "../lib/DashboardWorkflowOptionsBuilder";
-import { useWorkflowsQuery } from "../../workflows/hooks/realtime/realtime";
+import { useWorkflowsQuery } from "@codemation/canvas";
 
 export function DashboardScreen() {
   const workflowsQuery = useWorkflowsQuery();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { TelemetryRunTraceViewDto } from "../../src/features/workflows/hooks/realtime/realtime";
-import { NodeInspectorTelemetryPresenter } from "../../src/features/workflows/lib/workflowDetail/NodeInspectorTelemetryPresenter";
+import type { TelemetryRunTraceViewDto } from "@codemation/canvas";
+import { NodeInspectorTelemetryPresenter } from "@codemation/canvas";
 
 const TRACE_ID = "trace_chrono";
 const RUN_ID = "run_chrono";
