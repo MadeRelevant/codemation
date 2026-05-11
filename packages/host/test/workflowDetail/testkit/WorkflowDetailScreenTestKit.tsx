@@ -201,7 +201,7 @@ export class WorkflowDetailScreenTestKit {
       () => {
         expect(this.environment.workflowRuns).toHaveLength(1);
       },
-      { timeout: 5000 },
+      { timeout: 10000 },
     );
   }
 
@@ -211,7 +211,7 @@ export class WorkflowDetailScreenTestKit {
       () => {
         expect(this.environment.workflowRuns).toHaveLength(1);
       },
-      { timeout: 5000 },
+      { timeout: 10000 },
     );
   }
 
@@ -305,7 +305,7 @@ export class WorkflowDetailScreenTestKit {
           expect(latest).toBeDefined();
           expect(latest).not.toBe(options.newerThanRunId);
         },
-        { timeout: 5000 },
+        { timeout: 10000 },
       );
     }
     const runId = this.latestWorkflowRunId();

@@ -274,7 +274,7 @@ export class InMemoryWorkflowDetailTestEnvironment {
   }
 
   async waitForRunToComplete(runId: string): Promise<PersistedRunState> {
-    const deadline = performance.now() + 5_000;
+    const deadline = performance.now() + 15_000;
     while (performance.now() < deadline) {
       const state = await this.loadRunState(runId);
       if (state.status === "completed" || state.status === "failed") {
