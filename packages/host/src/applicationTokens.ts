@@ -30,6 +30,7 @@ import type { AppConfig } from "./presentation/config/AppConfig";
 import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";
 import type { CodemationWhitelabelConfig } from "./presentation/config/CodemationWhitelabelConfig";
 import type { HonoApiRouteRegistrar } from "./presentation/http/hono/HonoApiRouteRegistrar";
+import type { InternalHonoApiRouteRegistrar } from "./presentation/http/hono/InternalHonoApiRouteRegistrar";
 
 export const ApplicationTokens = {
   CodemationAuthConfig: Symbol.for("codemation.application.CodemationAuthConfig") as TypeToken<
@@ -52,6 +53,9 @@ export const ApplicationTokens = {
     DomainEventHandler<DomainEvent>
   >,
   HonoApiRouteRegistrar: Symbol.for("codemation.application.HonoApiRouteRegistrar") as TypeToken<HonoApiRouteRegistrar>,
+  InternalHonoApiRouteRegistrar: Symbol.for(
+    "codemation.application.InternalHonoApiRouteRegistrar",
+  ) as TypeToken<InternalHonoApiRouteRegistrar>,
   WorkflowWebsocketPublisher: Symbol.for(
     "codemation.application.WorkflowWebsocketPublisher",
   ) as TypeToken<WorkflowWebsocketPublisher>,

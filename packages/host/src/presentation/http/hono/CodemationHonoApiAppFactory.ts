@@ -5,6 +5,7 @@ import { ApplicationTokens } from "../../../applicationTokens";
 import { BinaryHttpRouteHandler } from "../routeHandlers/BinaryHttpRouteHandlerFactory";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 import type { HonoApiRouteRegistrar } from "./HonoApiRouteRegistrar";
+import type { InternalHonoApiRouteRegistrar } from "./InternalHonoApiRouteRegistrar";
 import { HonoHttpAnonymousRoutePolicy } from "./HonoHttpAnonymousRoutePolicyRegistry";
 
 @injectable()
@@ -18,10 +19,15 @@ export class CodemationHonoApiApp {
     registrars: ReadonlyArray<HonoApiRouteRegistrar>,
     @inject(BinaryHttpRouteHandler)
     binaryHttpRouteHandler: BinaryHttpRouteHandler,
+    @injectAll(ApplicationTokens.InternalHonoApiRouteRegistrar, { isOptional: true })
+    internalRegistrars: ReadonlyArray<InternalHonoApiRouteRegistrar>,
   ) {
-    const app = new Hono().basePath("/api");
-    app.onError((error, _c) => ServerHttpErrorResponseFactory.fromUnknown(error));
-    app.use("*", async (c, next) => {
+    // Root app — composes /api/* (auth-gated) and /internal/* (HMAC-gated) sub-apps.
+    const root = new Hono();
+
+    const api = new Hono().basePath("/api");
+    api.onError((error, _c) => ServerHttpErrorResponseFactory.fromUnknown(error));
+    api.use("*", async (c, next) => {
       if (HonoHttpAnonymousRoutePolicy.isAnonymousRoute(c.req.raw)) {
         await next();
         return;
@@ -33,25 +39,37 @@ export class CodemationHonoApiApp {
       await next();
     });
     for (const registrar of registrars) {
-      registrar.register(app);
+      registrar.register(api);
     }
-    app.get("/workflows/:workflowId/debugger-overlay/binary/:binaryId/content", (c) =>
+    api.get("/workflows/:workflowId/debugger-overlay/binary/:binaryId/content", (c) =>
       binaryHttpRouteHandler.getWorkflowOverlayBinaryContent(c.req.raw, {
         workflowId: c.req.param("workflowId"),
         binaryId: c.req.param("binaryId"),
       }),
     );
-    app.post("/workflows/:workflowId/debugger-overlay/binary/upload", (c) =>
+    api.post("/workflows/:workflowId/debugger-overlay/binary/upload", (c) =>
       binaryHttpRouteHandler.postWorkflowDebuggerOverlayBinaryUpload(c.req.raw, {
         workflowId: c.req.param("workflowId"),
       }),
     );
-    app.notFound((c) => {
+    api.notFound((c) => {
       const method = c.req.method.toUpperCase();
       const url = new URL(c.req.url);
       return c.json({ error: `Unknown API route: ${method} ${url.pathname}` }, 404);
     });
-    this.app = app;
+
+    root.route("/", api);
+
+    // /internal/* routes — only mounted when pairing is configured.
+    if (internalRegistrars.length > 0) {
+      const internal = new Hono();
+      for (const registrar of internalRegistrars) {
+        registrar.register(internal);
+      }
+      root.route("/", internal);
+    }
+
+    this.app = root;
   }
 
   getHono(): Hono {
