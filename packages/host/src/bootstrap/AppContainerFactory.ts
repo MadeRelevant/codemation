@@ -263,6 +263,17 @@ import { ListCollectionRowsQueryHandler } from "../application/collections/ListC
 import { ListCollectionsQueryHandler } from "../application/collections/ListCollectionsQueryHandler";
 import { CollectionHttpRouteHandler } from "../presentation/http/routeHandlers/CollectionHttpRouteHandlerFactory";
 import { CollectionHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/CollectionHonoApiRouteRegistrar";
+import { PairingConfigFactory } from "../pairing/PairingConfigFactory";
+import { PairingConfigToken } from "../pairing/PairingConfigToken";
+import { HmacRequestSigner } from "../pairing/HmacRequestSigner";
+import { PairedFetch } from "../pairing/PairedFetch";
+import { IncomingHmacVerifier } from "../pairing/IncomingHmacVerifier";
+import { InternalHmacAuthMiddleware } from "../pairing/InternalHmacAuthMiddleware";
+import { InternalPingRegistrar } from "../pairing/InternalPingRegistrar";
+import { BrokerClient } from "../credentials/BrokerClient";
+import { InternalCredentialsPushRegistrar } from "../credentials/InternalCredentialsPushRegistrar";
+import { InternalCredentialsListRegistrar } from "../credentials/InternalCredentialsListRegistrar";
+import { RemoteOAuthRefreshDelegate } from "../credentials/refresh/RemoteOAuthRefreshDelegate";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -359,6 +370,7 @@ export class AppContainerFactory {
     this.registerRepositoriesAndBuses(container);
     this.registerApplicationServicesAndRoutes(container);
     this.registerOperationalInfrastructure(container);
+    this.registerPairingInfrastructure(container, inputs.appConfig);
     this.registerConfiguredRegistrations(container, inputs.appConfig);
     const credentialTypes = this.collectCredentialTypes(inputs.appConfig);
     await this.applyPlugins(container, inputs.appConfig, credentialTypes);
@@ -817,6 +829,25 @@ export class AppContainerFactory {
       container.registerSingleton(ApplicationTokens.HonoApiRouteRegistrar, registrar);
     }
     container.registerSingleton(CodemationHonoApiApp, CodemationHonoApiApp);
+  }
+
+  private registerPairingInfrastructure(container: Container, appConfig: AppConfig): void {
+    const pairingConfig = new PairingConfigFactory().create(appConfig.env);
+    if (!pairingConfig) {
+      // Pairing is optional — skip silently when WORKSPACE_PAIRING_SECRET / WORKSPACE_ID /
+      // CONTROL_PLANE_URL are not set (local dev without control-plane integration).
+      return;
+    }
+    container.registerInstance(PairingConfigToken, pairingConfig);
+    container.registerSingleton(HmacRequestSigner, HmacRequestSigner);
+    container.registerSingleton(PairedFetch, PairedFetch);
+    container.registerSingleton(IncomingHmacVerifier, IncomingHmacVerifier);
+    container.registerSingleton(InternalHmacAuthMiddleware, InternalHmacAuthMiddleware);
+    container.registerSingleton(BrokerClient, BrokerClient);
+    container.registerSingleton(RemoteOAuthRefreshDelegate, RemoteOAuthRefreshDelegate);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalPingRegistrar);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalCredentialsPushRegistrar);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalCredentialsListRegistrar);
   }
 
   private registerOperationalInfrastructure(container: Container): void {
