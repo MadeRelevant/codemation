@@ -286,14 +286,12 @@ describe("McpConnectionPool", () => {
       await pool.getClient("cred-1", "slack");
       await pool.getClient("cred-2", "gmail");
 
-      pool.closeForCredential("cred-1");
+      // closeForCredential returns Promise<void> — resolves after all closes complete.
+      await pool.closeForCredential("cred-1");
 
       const gmailClient1 = clientFactory.opened[0]!.client;
       const slackClient1 = clientFactory.opened[1]!.client;
       const gmailClient2 = clientFactory.opened[2]!.client;
-
-      // Wait for the async close calls to complete.
-      await Promise.resolve();
 
       expect(gmailClient1.closeCalled).toBe(1);
       expect(slackClient1.closeCalled).toBe(1);
@@ -307,9 +305,7 @@ describe("McpConnectionPool", () => {
       await pool.getClient("cred-alice", "gmail");
       await pool.getClient("cred-bob", "gmail");
 
-      pool.closeForCredential("cred-alice");
-
-      await Promise.resolve();
+      await pool.closeForCredential("cred-alice");
 
       const aliceClient = clientFactory.opened[0]!.client;
       const bobClient = clientFactory.opened[1]!.client;
@@ -318,14 +314,14 @@ describe("McpConnectionPool", () => {
       expect(bobClient.closeCalled).toBe(0);
     });
 
-    it("logs a warning for each entry closed", async () => {
+    it("logs an info entry for each pool entry closed", async () => {
       const { pool, catalog, loggerFactory } = makePool();
       catalog.merge("config", [makeDeclaration("gmail"), makeDeclaration("slack")]);
 
       await pool.getClient("cred-1", "gmail");
       await pool.getClient("cred-1", "slack");
 
-      pool.closeForCredential("cred-1");
+      await pool.closeForCredential("cred-1");
 
       expect(loggerFactory.logger.infos.filter((l) => l.includes("closed pool entry"))).toHaveLength(2);
     });
@@ -336,7 +332,7 @@ describe("McpConnectionPool", () => {
 
       const c1 = await pool.getClient("cred-1", "gmail");
 
-      pool.closeForCredential("cred-1");
+      await pool.closeForCredential("cred-1");
 
       const c2 = await pool.getClient("cred-1", "gmail");
 

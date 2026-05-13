@@ -63,22 +63,31 @@ export class McpConnectionPool {
    * Call this when the credential is revoked or disconnected.
    * Token refresh does NOT require closing — Story 4's RemoteOAuthRefreshDelegate
    * keeps the stored token fresh; the next open will read the current token.
+   *
+   * Resolves after all matched clients have completed close(), so callers can
+   * await this before re-connecting or cleaning up downstream state.
    */
-  closeForCredential(credentialInstanceId: string): void {
+  async closeForCredential(credentialInstanceId: string): Promise<void> {
     const logger = this.loggers.create("McpConnectionPool");
     const prefix = `${credentialInstanceId}:`;
+    const toClose: Array<[string, MutablePoolEntry]> = [];
     for (const [key, entry] of this.pool.entries()) {
       if (key.startsWith(prefix)) {
+        toClose.push([key, entry]);
+        this.pool.delete(key);
+        logger.info(`McpConnectionPool: closed pool entry on credential revocation (key=${key})`);
+      }
+    }
+    await Promise.allSettled(
+      toClose.map(([key, entry]) =>
         entry.client.close().catch((e: unknown) => {
           logger.warn(
             `McpConnectionPool: error closing client on credential revocation (key=${key})`,
             e instanceof Error ? e : undefined,
           );
-        });
-        this.pool.delete(key);
-        logger.info(`McpConnectionPool: closed pool entry on credential revocation (key=${key})`);
-      }
-    }
+        }),
+      ),
+    );
   }
 
   /**
