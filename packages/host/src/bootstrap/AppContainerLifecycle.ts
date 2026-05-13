@@ -5,6 +5,7 @@ import { WorkflowRunRetentionPruneScheduler } from "../application/runs/Workflow
 import type { PrismaDatabaseClient } from "../infrastructure/persistence/PrismaDatabaseClient";
 import { WorkflowRunEventWebsocketRelay } from "../application/websocket/WorkflowRunEventWebsocketRelay";
 import { WorkflowWebsocketServer } from "../presentation/websocket/WorkflowWebsocketServer";
+import { McpConnectionPool } from "../mcp/McpConnectionPool";
 
 export class AppContainerLifecycle {
   constructor(
@@ -27,6 +28,9 @@ export class AppContainerLifecycle {
     }
     if (args?.stopWebsocketServer !== false && this.container.isRegistered(WorkflowWebsocketServer, true)) {
       await this.container.resolve(WorkflowWebsocketServer).stop();
+    }
+    if (this.container.isRegistered(McpConnectionPool, true)) {
+      await this.container.resolve(McpConnectionPool).closeAll();
     }
     if (this.ownedPrismaClient) {
       await this.ownedPrismaClient.$disconnect();

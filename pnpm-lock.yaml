@@ -79,13 +79,13 @@ importers:
         version: 8.6.0(react@19.2.4)
       fumadocs-core:
         specifier: ^16.7.7
-        version: 16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.3)
+        version: 16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.1)
       fumadocs-mdx:
         specifier: ^14.2.11
-        version: 14.2.11(@types/mdast@4.0.4)(@types/mdx@2.0.13)(@types/react@19.2.14)(fumadocs-core@16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.3))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(vite@7.3.1(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 14.2.11(@types/mdast@4.0.4)(@types/mdx@2.0.13)(@types/react@19.2.14)(fumadocs-core@16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.1))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(vite@7.3.1(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2))
       fumadocs-ui:
         specifier: ^16.7.7
-        version: 16.7.7(@types/mdx@2.0.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(fumadocs-core@16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.3))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(shiki@4.0.2)(tailwindcss@4.2.2)
+        version: 16.7.7(@types/mdx@2.0.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(fumadocs-core@16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.1))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(shiki@4.0.2)(tailwindcss@4.2.2)
       next:
         specifier: ^16.2.0
         version: 16.2.0(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -205,7 +205,7 @@ importers:
         version: 10.0.3(jiti@2.6.1)
       tsdown:
         specifier: ^0.15.5
-        version: 0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3)
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -297,9 +297,6 @@ importers:
       '@codemation/host':
         specifier: workspace:*
         version: link:../host
-      '@codemation/next-host':
-        specifier: '*'
-        version: 0.4.0(@babel/runtime@7.28.6)(@better-auth/core@1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@3.25.76))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0))(@better-auth/utils@0.3.1)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(immer@11.1.4)(mysql2@3.15.3)(nodemailer@7.0.13)(pg@8.20.0)(react-is@18.3.1)(redux@5.0.1)(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))
       '@tanstack/react-query':
         specifier: ^5.90.21
         version: 5.90.21(react@19.2.4)
@@ -354,7 +351,7 @@ importers:
         version: 16.12.0
       tsdown:
         specifier: ^0.15.5
-        version: 0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3)
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -427,7 +424,7 @@ importers:
         version: 10.0.3(jiti@2.6.1)
       tsdown:
         specifier: ^0.15.5
-        version: 0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3)
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -455,7 +452,7 @@ importers:
         version: 10.0.3(jiti@2.6.1)
       tsdown:
         specifier: ^0.15.5
-        version: 0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3)
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -498,7 +495,7 @@ importers:
         version: 0.2.2
       tsdown:
         specifier: ^0.15.5
-        version: 0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3)
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -550,7 +547,7 @@ importers:
         version: 0.2.2
       tsdown:
         specifier: ^0.15.5
-        version: 0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3)
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -593,7 +590,44 @@ importers:
         version: 0.2.2
       tsdown:
         specifier: ^0.15.5
-        version: 0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3)
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/core-nodes-ocr:
+    dependencies:
+      '@azure/ai-content-understanding':
+        specifier: ^1.0.0
+        version: 1.0.0
+      '@azure/core-auth':
+        specifier: ^1.10.1
+        version: 1.10.1
+      '@codemation/core':
+        specifier: workspace:*
+        version: link:../core
+      zod:
+        specifier: ^4.3.6
+        version: 4.4.1
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.5
+        version: 25.3.5
+      eslint:
+        specifier: ^10.0.3
+        version: 10.0.3(jiti@2.6.1)
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      tsdown:
+        specifier: ^0.15.5
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -624,7 +658,7 @@ importers:
         version: 10.0.3(jiti@2.6.1)
       tsdown:
         specifier: ^0.15.5
-        version: 0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3)
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -649,7 +683,7 @@ importers:
         version: 10.0.3(jiti@2.6.1)
       tsdown:
         specifier: ^0.15.5
-        version: 0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3)
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -659,6 +693,9 @@ importers:
 
   packages/host:
     dependencies:
+      '@ai-sdk/mcp':
+        specifier: ^1.0.42
+        version: 1.0.42(zod@4.3.6)
       '@ai-sdk/provider':
         specifier: ^3.0.8
         version: 3.0.8
@@ -845,7 +882,7 @@ importers:
         version: 10.28.0
       tsdown:
         specifier: ^0.15.5
-        version: 0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3)
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -1024,7 +1061,7 @@ importers:
         version: 10.0.3(jiti@2.6.1)
       tsdown:
         specifier: ^0.15.5
-        version: 0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3)
+        version: 0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -1067,6 +1104,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/mcp@1.0.42':
+    resolution: {integrity: sha512-ctRhX9vNLXvjGSFf+RlM+ZutIhlzIgMPWzo2BoJKfIW9JzLneA/57bZkkaUvWSdbYFu1FCyxMarNV/4D/pOUzA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/openai@3.0.53':
     resolution: {integrity: sha512-Wld+Rbc05KaUn08uBt06eEuwcgalcIFtIl32Yp+GxuZXUQwOb6YeAuq+C6da4ch6BurFoqEaLemJVwjBb7x+PQ==}
     engines: {node: '>=18'}
@@ -1078,6 +1121,16 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@4.0.27':
+    resolution: {integrity: sha512-ubkAJ+xODouwtmN1tYlvTPphH1hPOBfZaEQe8U7skGvFAnIRs9PPpsq57bC2+Ky/MB4yzhd6YOsxTAx9sGpazw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider@3.0.10':
+    resolution: {integrity: sha512-Q3BZ27qfpYqnCYGvE3vt+Qi6LGOF9R5Nmzn+9JoM1lCRsD9mYaIhfJLkSunN48nfGXJ6n+XNV0J/XVpqGQl7Dw==}
+    engines: {node: '>=18'}
 
   '@ai-sdk/provider@3.0.8':
     resolution: {integrity: sha512-oGMAgGoQdBXbZqNG0Ze56CHjDZ1IDYOwGYxYjO5KLSlz5HiNQ9udIXsPZ61VWaHGZ5XW/jyjmr6t2xz2jGVwbQ==}
@@ -1523,21 +1576,6 @@ packages:
 
   '@chevrotain/utils@10.5.0':
     resolution: {integrity: sha512-hBzuU5+JjB2cqNZyszkDHZgOSrUUT8V3dhgRl8Q9Gp6dAj/H5+KILGjbhDpc3Iy9qmqlm/akuOI2ut9VUtzJxQ==}
-
-  '@codemation/core-nodes@0.7.1':
-    resolution: {integrity: sha512-v91KjcY98o3tBuyL+aPR3wjnln4gQKVn3WUrMD3JkKznagOo0rR/J4AB5is+8GuHg3WWGoD9C8n20+fndXk+kQ==}
-
-  '@codemation/core@0.10.2':
-    resolution: {integrity: sha512-Y4S+OumLDhQKkEiTGj+nNGvn9ym4BpJ1LRZCm+SlZUuuaSVBAWwbGEqIo1Yl+C3ny7O8kNID17GqtYkDluovfg==}
-
-  '@codemation/eventbus-redis@0.0.37':
-    resolution: {integrity: sha512-S2uF4OOHs+tKyIeI1cS2bH08/t8dEaAJY8ObbVR4dXgQ76Ue3nPbepRO5ZVjVbHp9Zw0xOQcfHaPABlqkPHvFw==}
-
-  '@codemation/host@0.6.0':
-    resolution: {integrity: sha512-mIs3MyhX0Xzens/fwc2YcNGC08DeHf5gByMR837H5NilyJPJOGE5nAPakeKpx2JZQGVqFMx80p+44KlF0iLX1g==}
-
-  '@codemation/next-host@0.4.0':
-    resolution: {integrity: sha512-fAcW4X0YYTZOfl7gOid9HUNSScbN7elG/Sl6SwASzEqEKLSo867Y+cebssTwPxitL5axBUQWbg2wbg6H7vDsfg==}
 
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
@@ -5768,6 +5806,10 @@ packages:
     resolution: {integrity: sha512-Vo1ab+QXPzZ4tCa8SwIHJFaSzy4R6SHf7BY79rFBDf0idraZWAkYrDjDj8uWaSm3S2TK+hJ7/t1CEmZ7jXw+pg==}
     engines: {node: '>=18.0.0'}
 
+  eventsource-parser@3.0.8:
+    resolution: {integrity: sha512-70QWGkr4snxr0OXLRWsFLeRBIRPuQOvt4s8QYjmUlmlkyTZkRqS7EDVRZtzU3TiyDbXSzaOeF0XUKy8PchzukQ==}
+    engines: {node: '>=18.0.0'}
+
   eventsource@3.0.7:
     resolution: {integrity: sha512-CRT1WTyuQoD771GW56XEZFQ/ZoSfWid1alKGDYMmkt2yl8UXrVR4pspqWNEcqKvVIzg6PAltWjxcSSPrboA4iA==}
     engines: {node: '>=18.0.0'}
@@ -6178,9 +6220,6 @@ packages:
   get-stream@9.0.1:
     resolution: {integrity: sha512-kVCxPF3vQM/N0B1PmoqVUqgHP+EeVjmZSQn+1oCRPxd2P21P2F19lIgbR3HBosbB1PUhOAoctJnfEn2GbN2eZA==}
     engines: {node: '>=18'}
-
-  get-tsconfig@4.13.6:
-    resolution: {integrity: sha512-shZT/QMiSHc/YBLxxOkMtgSid5HFoauqCE3/exfsEcwg1WkeqjG+V40yBbBrsD+jW2HDXcs28xOfcbm2jI8Ddw==}
 
   get-tsconfig@4.14.0:
     resolution: {integrity: sha512-yTb+8DXzDREzgvYmh6s9vHsSVCHeC0G3PI5bEXNBHtmshPnO+S5O7qgLEOn0I5QvMy6kpZN8K1NKGyilLb93wA==}
@@ -7536,8 +7575,8 @@ packages:
       sass:
         optional: true
 
-  node-abi@3.92.0:
-    resolution: {integrity: sha512-KdHvFWZjEKDf0cakgFjebl371GPsISX2oZHcuyKqM7DtogIsHrqKeLTo8wBHxaXRAQlY2PsPlZmfo+9ZCxEREQ==}
+  node-abi@3.87.0:
+    resolution: {integrity: sha512-+CGM1L1CgmtheLcBuleyYOn7NWPVu0s0EJH2C4puxgEZb9h8QpR9G2dBfZJOAUhi7VQxuBPMd0hiISWcTyiYyQ==}
     engines: {node: '>=10'}
 
   node-abort-controller@3.1.1:
@@ -8648,11 +8687,6 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  semver@7.8.0:
-    resolution: {integrity: sha512-AcM7dV/5ul4EekoQ29Agm5vri8JNqRyj39o0qpX6vDF2GZrtutZl5RwgD1XnZjiTAfncsJhMI48QQH3sN87YNA==}
-    engines: {node: '>=10'}
-    hasBin: true
-
   send@0.19.2:
     resolution: {integrity: sha512-VMbMxbDeehAxpOtWJXlcUS5E8iXh6QmN+BkRX1GARS3wRaXEEgzCcB10gTQazO42tpNIya8xIyNx8fll1OFPrg==}
     engines: {node: '>= 0.8.0'}
@@ -9048,10 +9082,6 @@ packages:
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
-
-  tinyexec@1.0.2:
-    resolution: {integrity: sha512-W/KYk+NFhkmsYpuHq5JykngiOCnxeVL8v8dFnqxSD8qEEdRfXk1SDM6JzNqcERbcGYj9tMrDQBYV9cjgnunFIg==}
-    engines: {node: '>=18'}
 
   tinyexec@1.0.4:
     resolution: {integrity: sha512-u9r3uZC0bdpGOXtlxUIdwf9pkmvhqJdrVCH9fapQtgy/OeTTMZ1nqH7agtvEfmGui6e1XxjcdrlxvxJvc3sMqw==}
@@ -9755,9 +9785,6 @@ packages:
   zod@4.4.1:
     resolution: {integrity: sha512-a6ENMBBGZBsnlSebQ/eKCguSBeGKSf4O7BPnqVPmYGtpBYI7VSqoVqw+QcB7kPRjbqPwhYTpFbVj/RqNz/CT0Q==}
 
-  zod@4.4.3:
-    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
-
   zustand@4.5.7:
     resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
     engines: {node: '>=12.7.0'}
@@ -9785,13 +9812,6 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ai-sdk/gateway@3.0.104(zod@3.25.76)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.23(zod@3.25.76)
-      '@vercel/oidc': 3.2.0
-      zod: 3.25.76
-
   '@ai-sdk/gateway@3.0.104(zod@4.3.6)':
     dependencies:
       '@ai-sdk/provider': 3.0.8
@@ -9799,11 +9819,12 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.3.6
 
-  '@ai-sdk/openai@3.0.53(zod@3.25.76)':
+  '@ai-sdk/mcp@1.0.42(zod@4.3.6)':
     dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.23(zod@3.25.76)
-      zod: 3.25.76
+      '@ai-sdk/provider': 3.0.10
+      '@ai-sdk/provider-utils': 4.0.27(zod@4.3.6)
+      pkce-challenge: 5.0.1
+      zod: 4.3.6
 
   '@ai-sdk/openai@3.0.53(zod@4.3.6)':
     dependencies:
@@ -9811,19 +9832,23 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.23(zod@4.3.6)
       zod: 4.3.6
 
-  '@ai-sdk/provider-utils@4.0.23(zod@3.25.76)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@standard-schema/spec': 1.1.0
-      eventsource-parser: 3.0.6
-      zod: 3.25.76
-
   '@ai-sdk/provider-utils@4.0.23(zod@4.3.6)':
     dependencies:
       '@ai-sdk/provider': 3.0.8
       '@standard-schema/spec': 1.1.0
       eventsource-parser: 3.0.6
       zod: 4.3.6
+
+  '@ai-sdk/provider-utils@4.0.27(zod@4.3.6)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.10
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.0.8
+      zod: 4.3.6
+
+  '@ai-sdk/provider@3.0.10':
+    dependencies:
+      json-schema: 0.4.0
 
   '@ai-sdk/provider@3.0.8':
     dependencies:
@@ -10035,7 +10060,7 @@ snapshots:
 
   '@babel/generator@7.29.1':
     dependencies:
-      '@babel/parser': 7.29.0
+      '@babel/parser': 7.29.3
       '@babel/types': 7.29.0
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.31
@@ -10177,7 +10202,7 @@ snapshots:
   '@babel/template@7.28.6':
     dependencies:
       '@babel/code-frame': 7.29.0
-      '@babel/parser': 7.29.0
+      '@babel/parser': 7.29.3
       '@babel/types': 7.29.0
 
   '@babel/traverse@7.29.0':
@@ -10185,7 +10210,7 @@ snapshots:
       '@babel/code-frame': 7.29.0
       '@babel/generator': 7.29.1
       '@babel/helper-globals': 7.28.0
-      '@babel/parser': 7.29.0
+      '@babel/parser': 7.29.3
       '@babel/template': 7.28.6
       '@babel/types': 7.29.0
       debug: 4.4.3
@@ -10201,19 +10226,6 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@better-auth/core@1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@3.25.76))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0)':
-    dependencies:
-      '@better-auth/utils': 0.3.1
-      '@better-fetch/fetch': 1.1.21
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/semantic-conventions': 1.40.0
-      '@standard-schema/spec': 1.1.0
-      better-call: 1.3.2(zod@3.25.76)
-      jose: 6.2.2
-      kysely: 0.28.15
-      nanostores: 1.2.0
-      zod: 4.3.6
-
   '@better-auth/core@1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@4.3.6))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0)':
     dependencies:
       '@better-auth/utils': 0.3.1
@@ -10221,11 +10233,11 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/semantic-conventions': 1.40.0
       '@standard-schema/spec': 1.1.0
-      better-call: 1.3.2(zod@4.3.6)
+      better-call: 1.3.2(zod@4.4.1)
       jose: 6.2.2
       kysely: 0.28.15
       nanostores: 1.2.0
-      zod: 4.3.6
+      zod: 4.4.1
 
   '@better-auth/drizzle-adapter@1.5.6(@better-auth/core@1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@4.3.6))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0))(@better-auth/utils@0.3.1)':
     dependencies:
@@ -10248,14 +10260,6 @@ snapshots:
     dependencies:
       '@better-auth/core': 1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@4.3.6))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0)
       '@better-auth/utils': 0.3.1
-
-  '@better-auth/prisma-adapter@1.5.6(@better-auth/core@1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@3.25.76))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0))(@better-auth/utils@0.3.1)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))':
-    dependencies:
-      '@better-auth/core': 1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@3.25.76))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0)
-      '@better-auth/utils': 0.3.1
-    optionalDependencies:
-      '@prisma/client': 7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
-      prisma: 7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
 
   '@better-auth/prisma-adapter@1.5.6(@better-auth/core@1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@4.3.6))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0))(@better-auth/utils@0.3.1)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))':
     dependencies:
@@ -10455,187 +10459,6 @@ snapshots:
 
   '@chevrotain/utils@10.5.0': {}
 
-  '@codemation/core-nodes@0.7.1(react@19.2.4)(zod@3.25.76)':
-    dependencies:
-      '@ai-sdk/openai': 3.0.53(zod@3.25.76)
-      '@ai-sdk/provider': 3.0.8
-      '@codemation/core': 0.10.2
-      ai: 6.0.168(zod@3.25.76)
-      croner: 10.0.1
-      lucide-react: 0.577.0(react@19.2.4)
-    transitivePeerDependencies:
-      - react
-      - zod
-
-  '@codemation/core@0.10.2':
-    dependencies:
-      reflect-metadata: 0.2.2
-      tsyringe: 4.10.0
-      zod: 4.4.3
-
-  '@codemation/eventbus-redis@0.0.37':
-    dependencies:
-      '@codemation/core': 0.10.2
-      ioredis: 5.9.3
-    transitivePeerDependencies:
-      - supports-color
-
-  '@codemation/host@0.6.0(@babel/runtime@7.28.6)(@better-auth/core@1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@3.25.76))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0))(@better-auth/utils@0.3.1)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(immer@11.1.4)(mysql2@3.15.3)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))(zod@3.25.76)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@auth/core': 0.34.3(nodemailer@7.0.13)
-      '@auth/prisma-adapter': 2.11.1(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(nodemailer@7.0.13)
-      '@better-auth/prisma-adapter': 1.5.6(@better-auth/core@1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@3.25.76))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0))(@better-auth/utils@0.3.1)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))
-      '@codemation/core': 0.10.2
-      '@codemation/core-nodes': 0.7.1(react@19.2.4)(zod@3.25.76)
-      '@codemation/eventbus-redis': 0.0.37
-      '@libsql/client': 0.17.2
-      '@monaco-editor/react': 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@prisma/adapter-libsql': 7.6.0
-      '@prisma/adapter-pg': 7.5.0
-      '@prisma/client': 7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
-      '@prisma/client-runtime-utils': 7.5.0
-      '@tanstack/react-query': 5.90.21(react@19.2.4)
-      '@types/bcryptjs': 3.0.0
-      '@uiw/react-json-view': 2.0.0-alpha.41(@babel/runtime@7.28.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@xyflow/react': 12.10.1(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      ai: 6.0.168(zod@3.25.76)
-      bcryptjs: 3.0.3
-      better-auth: 1.5.6(@opentelemetry/api@1.9.0)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(better-sqlite3@12.6.2)(mysql2@3.15.3)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.20.0)(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))
-      bullmq: 5.70.4
-      dagre: 0.8.5
-      date-fns: 4.1.0
-      hono: 4.12.8
-      jose: 6.2.2
-      lucide-react: 0.577.0(react@19.2.4)
-      monaco-editor: 0.55.1
-      pg: 8.20.0
-      pretty-ms: 9.3.0
-      prisma: 7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
-      rc-tree: 5.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      react-router-dom: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react-use-websocket: 4.13.0
-      reflect-metadata: 0.2.2
-      sanitize-filename: 1.6.4
-      serialize-javascript: 7.0.4
-      tsx: 4.21.0
-      ws: 8.19.0
-      zxcvbn: 4.4.2
-    transitivePeerDependencies:
-      - '@babel/runtime'
-      - '@better-auth/core'
-      - '@better-auth/utils'
-      - '@cloudflare/workers-types'
-      - '@lynx-js/react'
-      - '@opentelemetry/api'
-      - '@simplewebauthn/browser'
-      - '@simplewebauthn/server'
-      - '@sveltejs/kit'
-      - '@tanstack/react-start'
-      - '@tanstack/solid-start'
-      - '@types/react'
-      - better-sqlite3
-      - bufferutil
-      - drizzle-kit
-      - drizzle-orm
-      - encoding
-      - immer
-      - magicast
-      - mongodb
-      - mysql2
-      - next
-      - nodemailer
-      - pg-native
-      - solid-js
-      - supports-color
-      - svelte
-      - typescript
-      - utf-8-validate
-      - vitest
-      - vue
-      - zod
-
-  '@codemation/next-host@0.4.0(@babel/runtime@7.28.6)(@better-auth/core@1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@3.25.76))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0))(@better-auth/utils@0.3.1)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(@types/node@25.3.5)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.6.2)(immer@11.1.4)(mysql2@3.15.3)(nodemailer@7.0.13)(pg@8.20.0)(react-is@18.3.1)(redux@5.0.1)(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))':
-    dependencies:
-      '@auth/core': 0.34.3(nodemailer@7.0.13)
-      '@codemation/core': 0.10.2
-      '@codemation/host': 0.6.0(@babel/runtime@7.28.6)(@better-auth/core@1.5.6(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.0)(better-call@1.3.2(zod@3.25.76))(jose@6.2.2)(kysely@0.28.15)(nanostores@1.2.0))(@better-auth/utils@0.3.1)(@opentelemetry/api@1.9.0)(@types/react@19.2.14)(better-sqlite3@12.6.2)(immer@11.1.4)(mysql2@3.15.3)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(nodemailer@7.0.13)(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))(zod@3.25.76)
-      '@headless-tree/core': 1.6.3
-      '@headless-tree/react': 1.6.3(@headless-tree/core@1.6.3)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@hookform/resolvers': 5.2.2(react-hook-form@7.71.2(react@19.2.4))
-      '@monaco-editor/react': 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@tanstack/react-query': 5.90.21(react@19.2.4)
-      '@uiw/react-json-view': 2.0.0-alpha.41(@babel/runtime@7.28.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@xyflow/react': 12.10.1(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      better-auth: 1.5.6(@opentelemetry/api@1.9.0)(@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(better-sqlite3@12.6.2)(mysql2@3.15.3)(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.20.0)(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))
-      class-variance-authority: 0.7.1
-      clsx: 2.1.1
-      date-fns: 4.1.0
-      elkjs: 0.11.1
-      hono: 4.12.8
-      jose: 6.2.2
-      lucide-react: 0.577.0(react@19.2.4)
-      monaco-editor: 0.55.1
-      next: 16.2.0(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      pretty-ms: 9.3.0
-      prisma: 7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
-      radix-ui: 1.4.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      react-hook-form: 7.71.2(react@19.2.4)
-      recharts: 3.8.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react-is@18.3.1)(react@19.2.4)(redux@5.0.1)
-      shadcn: 4.1.0(@cfworker/json-schema@4.1.1)(@types/node@25.3.5)(typescript@5.9.3)
-      simple-icons: 16.12.0
-      tailwind-merge: 3.5.0
-      tw-animate-css: 1.4.0
-      zod: 3.25.76
-      zxcvbn: 4.4.2
-    transitivePeerDependencies:
-      - '@babel/core'
-      - '@babel/runtime'
-      - '@better-auth/core'
-      - '@better-auth/utils'
-      - '@cfworker/json-schema'
-      - '@cloudflare/workers-types'
-      - '@lynx-js/react'
-      - '@opentelemetry/api'
-      - '@playwright/test'
-      - '@prisma/client'
-      - '@simplewebauthn/browser'
-      - '@simplewebauthn/server'
-      - '@sveltejs/kit'
-      - '@tanstack/react-start'
-      - '@tanstack/solid-start'
-      - '@types/node'
-      - '@types/react'
-      - '@types/react-dom'
-      - babel-plugin-macros
-      - babel-plugin-react-compiler
-      - better-sqlite3
-      - bufferutil
-      - drizzle-kit
-      - drizzle-orm
-      - encoding
-      - immer
-      - magicast
-      - mongodb
-      - mysql2
-      - nodemailer
-      - pg
-      - pg-native
-      - react-is
-      - redux
-      - sass
-      - solid-js
-      - supports-color
-      - svelte
-      - typescript
-      - utf-8-validate
-      - vitest
-      - vue
-
   '@colors/colors@1.5.0':
     optional: true
 
@@ -10715,10 +10538,10 @@ snapshots:
       dotenv: 17.3.1
       eciesjs: 0.4.18
       execa: 5.1.1
-      fdir: 6.5.0(picomatch@4.0.3)
+      fdir: 6.5.0(picomatch@4.0.4)
       ignore: 5.3.2
       object-treeify: 1.1.33
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       which: 4.0.0
 
   '@ecies/ciphers@0.2.5(@noble/ciphers@1.3.0)':
@@ -12502,9 +12325,12 @@ snapshots:
   '@rolldown/binding-openharmony-arm64@1.0.0-beta.45':
     optional: true
 
-  '@rolldown/binding-wasm32-wasi@1.0.0-beta.45':
+  '@rolldown/binding-wasm32-wasi@1.0.0-beta.45(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.1
+      '@napi-rs/wasm-runtime': 1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+    transitivePeerDependencies:
+      - '@emnapi/core'
+      - '@emnapi/runtime'
     optional: true
 
   '@rolldown/binding-win32-arm64-msvc@1.0.0-beta.45':
@@ -13089,7 +12915,7 @@ snapshots:
       debug: 4.4.3
       minimatch: 10.2.4
       semver: 7.7.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.16
       ts-api-utils: 2.4.0(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -13104,7 +12930,7 @@ snapshots:
       debug: 4.4.3
       minimatch: 10.2.4
       semver: 7.7.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.16
       ts-api-utils: 2.5.0(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -13465,14 +13291,6 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai@6.0.168(zod@3.25.76):
-    dependencies:
-      '@ai-sdk/gateway': 3.0.104(zod@3.25.76)
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.23(zod@3.25.76)
-      '@opentelemetry/api': 1.9.0
-      zod: 3.25.76
-
   ai@6.0.168(zod@4.3.6):
     dependencies:
       '@ai-sdk/gateway': 3.0.104(zod@4.3.6)
@@ -13594,7 +13412,7 @@ snapshots:
 
   ast-kit@2.2.0:
     dependencies:
-      '@babel/parser': 7.29.0
+      '@babel/parser': 7.29.3
       pathe: 2.0.3
 
   ast-module-types@6.0.1: {}
@@ -13701,12 +13519,12 @@ snapshots:
       '@better-fetch/fetch': 1.1.21
       '@noble/ciphers': 2.1.1
       '@noble/hashes': 2.0.1
-      better-call: 1.3.2(zod@4.3.6)
+      better-call: 1.3.2(zod@4.4.1)
       defu: 6.1.4
       jose: 6.2.2
       kysely: 0.28.15
       nanostores: 1.2.0
-      zod: 4.3.6
+      zod: 4.4.1
     optionalDependencies:
       '@prisma/client': 7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
       better-sqlite3: 12.6.2
@@ -13734,12 +13552,12 @@ snapshots:
       '@better-fetch/fetch': 1.1.21
       '@noble/ciphers': 2.1.1
       '@noble/hashes': 2.0.1
-      better-call: 1.3.2(zod@4.3.6)
+      better-call: 1.3.2(zod@4.4.1)
       defu: 6.1.4
       jose: 6.2.2
       kysely: 0.28.15
       nanostores: 1.2.0
-      zod: 4.3.6
+      zod: 4.4.1
     optionalDependencies:
       '@prisma/client': 7.5.0(prisma@7.5.0(@types/react@19.2.14)(better-sqlite3@12.6.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
       better-sqlite3: 12.6.2
@@ -13754,23 +13572,14 @@ snapshots:
       - '@cloudflare/workers-types'
       - '@opentelemetry/api'
 
-  better-call@1.3.2(zod@3.25.76):
+  better-call@1.3.2(zod@4.4.1):
     dependencies:
       '@better-auth/utils': 0.3.1
       '@better-fetch/fetch': 1.1.21
       rou3: 0.7.12
       set-cookie-parser: 3.1.0
     optionalDependencies:
-      zod: 3.25.76
-
-  better-call@1.3.2(zod@4.3.6):
-    dependencies:
-      '@better-auth/utils': 0.3.1
-      '@better-fetch/fetch': 1.1.21
-      rou3: 0.7.12
-      set-cookie-parser: 3.1.0
-    optionalDependencies:
-      zod: 4.3.6
+      zod: 4.4.1
 
   better-path-resolve@1.0.0:
     dependencies:
@@ -14144,7 +13953,7 @@ snapshots:
 
   constantinople@4.0.1:
     dependencies:
-      '@babel/parser': 7.29.0
+      '@babel/parser': 7.29.3
       '@babel/types': 7.29.0
 
   content-disposition@0.5.4:
@@ -14860,6 +14669,8 @@ snapshots:
 
   eventsource-parser@3.0.6: {}
 
+  eventsource-parser@3.0.8: {}
+
   eventsource@3.0.7:
     dependencies:
       eventsource-parser: 3.0.6
@@ -15176,7 +14987,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  fumadocs-core@16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.3):
+  fumadocs-core@16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.1):
     dependencies:
       '@formatjs/intl-localematcher': 0.8.2
       '@orama/orama': 3.1.18
@@ -15213,18 +15024,18 @@ snapshots:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
       react-router: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      zod: 4.4.3
+      zod: 4.4.1
     transitivePeerDependencies:
       - supports-color
 
-  fumadocs-mdx@14.2.11(@types/mdast@4.0.4)(@types/mdx@2.0.13)(@types/react@19.2.14)(fumadocs-core@16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.3))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(vite@7.3.1(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2)):
+  fumadocs-mdx@14.2.11(@types/mdast@4.0.4)(@types/mdx@2.0.13)(@types/react@19.2.14)(fumadocs-core@16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.1))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(vite@7.3.1(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2)):
     dependencies:
       '@mdx-js/mdx': 3.1.1
       '@standard-schema/spec': 1.1.0
       chokidar: 5.0.0
       esbuild: 0.27.3
       estree-util-value-to-estree: 3.5.0
-      fumadocs-core: 16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.3)
+      fumadocs-core: 16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.1)
       js-yaml: 4.1.1
       mdast-util-mdx: 3.0.0
       mdast-util-to-markdown: 2.1.2
@@ -15236,7 +15047,7 @@ snapshots:
       unist-util-remove-position: 5.0.0
       unist-util-visit: 5.1.0
       vfile: 6.0.3
-      zod: 4.4.3
+      zod: 4.4.1
     optionalDependencies:
       '@types/mdast': 4.0.4
       '@types/mdx': 2.0.13
@@ -15247,7 +15058,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  fumadocs-ui@16.7.7(@types/mdx@2.0.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(fumadocs-core@16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.3))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(shiki@4.0.2)(tailwindcss@4.2.2):
+  fumadocs-ui@16.7.7(@types/mdx@2.0.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(fumadocs-core@16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.1))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(shiki@4.0.2)(tailwindcss@4.2.2):
     dependencies:
       '@fumadocs/tailwind': 0.0.3(tailwindcss@4.2.2)
       '@radix-ui/react-accordion': 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -15261,7 +15072,7 @@ snapshots:
       '@radix-ui/react-slot': 1.2.4(@types/react@19.2.14)(react@19.2.4)
       '@radix-ui/react-tabs': 1.1.13(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       class-variance-authority: 0.7.1
-      fumadocs-core: 16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.3)
+      fumadocs-core: 16.7.7(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.167.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.14)(lucide-react@1.7.0(react@19.2.4))(next@16.2.0(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(zod@4.4.1)
       lucide-react: 1.7.0(react@19.2.4)
       motion: 12.38.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       next-themes: 0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -15356,10 +15167,6 @@ snapshots:
     dependencies:
       '@sec-ant/readable-stream': 0.4.1
       is-stream: 4.0.1
-
-  get-tsconfig@4.13.6:
-    dependencies:
-      resolve-pkg-maps: 1.0.0
 
   get-tsconfig@4.14.0:
     dependencies:
@@ -16141,7 +15948,7 @@ snapshots:
       tinyglobby: 0.2.16
       unbash: 3.0.0
       yaml: 2.8.2
-      zod: 4.4.3
+      zod: 4.4.1
 
   koa-compose@4.1.0: {}
 
@@ -17091,9 +16898,9 @@ snapshots:
       - '@babel/core'
       - babel-plugin-macros
 
-  node-abi@3.92.0:
+  node-abi@3.87.0:
     dependencies:
-      semver: 7.8.0
+      semver: 7.7.4
     optional: true
 
   node-abort-controller@3.1.1: {}
@@ -17130,7 +16937,7 @@ snapshots:
 
   node-source-walk@7.0.2:
     dependencies:
-      '@babel/parser': 7.29.0
+      '@babel/parser': 7.29.3
 
   nodemailer@7.0.13: {}
 
@@ -17585,7 +17392,7 @@ snapshots:
       minimist: 1.2.8
       mkdirp-classic: 0.5.3
       napi-build-utils: 2.0.0
-      node-abi: 3.92.0
+      node-abi: 3.87.0
       pump: 3.0.4
       rc: 1.2.8
       simple-get: 4.0.1
@@ -18282,24 +18089,24 @@ snapshots:
       glob: 13.0.6
       package-json-from-dist: 1.0.1
 
-  rolldown-plugin-dts@0.17.8(oxc-resolver@11.19.1)(rolldown@1.0.0-beta.45)(typescript@5.9.3):
+  rolldown-plugin-dts@0.17.8(oxc-resolver@11.19.1)(rolldown@1.0.0-beta.45(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0))(typescript@5.9.3):
     dependencies:
       '@babel/generator': 7.29.1
-      '@babel/parser': 7.29.0
+      '@babel/parser': 7.29.3
       '@babel/types': 7.29.0
       ast-kit: 2.2.0
       birpc: 2.9.0
       dts-resolver: 2.1.3(oxc-resolver@11.19.1)
-      get-tsconfig: 4.13.6
+      get-tsconfig: 4.14.0
       magic-string: 0.30.21
       obug: 2.1.1
-      rolldown: 1.0.0-beta.45
+      rolldown: 1.0.0-beta.45(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
     optionalDependencies:
       typescript: 5.9.3
     transitivePeerDependencies:
       - oxc-resolver
 
-  rolldown@1.0.0-beta.45:
+  rolldown@1.0.0-beta.45(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0):
     dependencies:
       '@oxc-project/types': 0.95.0
       '@rolldown/pluginutils': 1.0.0-beta.45
@@ -18314,10 +18121,13 @@ snapshots:
       '@rolldown/binding-linux-x64-gnu': 1.0.0-beta.45
       '@rolldown/binding-linux-x64-musl': 1.0.0-beta.45
       '@rolldown/binding-openharmony-arm64': 1.0.0-beta.45
-      '@rolldown/binding-wasm32-wasi': 1.0.0-beta.45
+      '@rolldown/binding-wasm32-wasi': 1.0.0-beta.45(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       '@rolldown/binding-win32-arm64-msvc': 1.0.0-beta.45
       '@rolldown/binding-win32-ia32-msvc': 1.0.0-beta.45
       '@rolldown/binding-win32-x64-msvc': 1.0.0-beta.45
+    transitivePeerDependencies:
+      - '@emnapi/core'
+      - '@emnapi/runtime'
 
   rollup@4.59.0:
     dependencies:
@@ -18412,9 +18222,6 @@ snapshots:
   semver@7.7.2: {}
 
   semver@7.7.4: {}
-
-  semver@7.8.0:
-    optional: true
 
   send@0.19.2:
     dependencies:
@@ -18958,8 +18765,6 @@ snapshots:
 
   tinybench@2.9.0: {}
 
-  tinyexec@1.0.2: {}
-
   tinyexec@1.0.4: {}
 
   tinyglobby@0.2.15:
@@ -19059,7 +18864,7 @@ snapshots:
       minimist: 1.2.8
       strip-bom: 3.0.0
 
-  tsdown@0.15.12(oxc-resolver@11.19.1)(typescript@5.9.3):
+  tsdown@0.15.12(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(oxc-resolver@11.19.1)(typescript@5.9.3):
     dependencies:
       ansis: 4.2.0
       cac: 6.7.14
@@ -19068,16 +18873,18 @@ snapshots:
       diff: 8.0.3
       empathic: 2.0.0
       hookable: 5.5.3
-      rolldown: 1.0.0-beta.45
-      rolldown-plugin-dts: 0.17.8(oxc-resolver@11.19.1)(rolldown@1.0.0-beta.45)(typescript@5.9.3)
+      rolldown: 1.0.0-beta.45(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      rolldown-plugin-dts: 0.17.8(oxc-resolver@11.19.1)(rolldown@1.0.0-beta.45(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0))(typescript@5.9.3)
       semver: 7.7.4
-      tinyexec: 1.0.2
-      tinyglobby: 0.2.15
+      tinyexec: 1.0.4
+      tinyglobby: 0.2.16
       tree-kill: 1.2.2
       unconfig: 7.5.0
     optionalDependencies:
       typescript: 5.9.3
     transitivePeerDependencies:
+      - '@emnapi/core'
+      - '@emnapi/runtime'
       - '@ts-macro/tsc'
       - '@typescript/native-preview'
       - oxc-resolver
@@ -19093,7 +18900,7 @@ snapshots:
   tsx@4.21.0:
     dependencies:
       esbuild: 0.27.3
-      get-tsconfig: 4.13.6
+      get-tsconfig: 4.14.0
     optionalDependencies:
       fsevents: 2.3.3
 
@@ -19580,7 +19387,7 @@ snapshots:
 
   with@7.0.2:
     dependencies:
-      '@babel/parser': 7.29.0
+      '@babel/parser': 7.29.3
       '@babel/types': 7.29.0
       assert-never: 1.4.0
       babel-walk: 3.0.0-canary-5
@@ -19686,8 +19493,6 @@ snapshots:
   zod@4.3.6: {}
 
   zod@4.4.1: {}
-
-  zod@4.4.3: {}
 
   zustand@4.5.7(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4):
     dependencies:
