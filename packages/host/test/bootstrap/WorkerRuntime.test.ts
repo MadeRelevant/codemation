@@ -109,6 +109,7 @@ function buildMinimalAppConfig(overrides?: Readonly<{ env?: NodeJS.ProcessEnv }>
     whitelabel: {},
     webSocketPort: 0,
     webSocketBindHost: "127.0.0.1",
+    mcpServers: [],
   };
 }
 

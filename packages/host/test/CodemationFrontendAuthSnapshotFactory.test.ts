@@ -36,6 +36,7 @@ class FrontendAppConfigFixture {
       whitelabel: args?.whitelabel ?? {},
       webSocketPort: 3001,
       webSocketBindHost: "0.0.0.0",
+      mcpServers: [],
     };
   }
 }
@@ -63,6 +64,7 @@ test("CodemationFrontendAuthSnapshotFactory disables UI auth when development au
     whitelabel: {},
     webSocketPort: 3001,
     webSocketBindHost: "0.0.0.0",
+    mcpServers: [],
   };
 
   const snapshot = factory.createFromAppConfig(appConfig);
@@ -101,6 +103,7 @@ test("CodemationFrontendAuthSnapshotFactory honors explicit UI auth env override
     whitelabel: {},
     webSocketPort: 3001,
     webSocketBindHost: "0.0.0.0",
+    mcpServers: [],
   });
 
   assert.equal(snapshot.uiAuthEnabled, false);
