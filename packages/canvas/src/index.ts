@@ -11,6 +11,7 @@ export type {
   WorkflowCanvasRenderers,
   WorkflowCanvasIconRegistry,
   WorkflowCanvasNodeRendererProps,
+  NodeCredentialBindingsSlotProps,
 } from "./types/WorkflowCanvasConfig";
 export type { WorkflowCanvasTheme } from "./types/WorkflowCanvasTheme";
 export type { NavigationAdapter } from "./types/NavigationAdapter";

@@ -1,8 +1,9 @@
 "use client";
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 import type { WorkflowCanvasNodeData } from "../canvas/lib/workflowCanvasNodeData";
 import type { WorkflowCanvasTheme } from "./WorkflowCanvasTheme";
+import type { WorkflowDiagramNode } from "../lib/workflowDetail/workflowDetailTypes";
 
 export type { WorkflowCanvasNodeData };
 
@@ -21,6 +22,17 @@ export type WorkflowCanvasRenderers = Readonly<{
   nodeLabels?: ComponentType<Record<string, unknown>>;
 }>;
 
+/**
+ * Props passed by the canvas to the consumer-provided credential bindings renderer.
+ * Mirrors the arguments that NodeCredentialBindingsSection previously accepted directly.
+ */
+export type NodeCredentialBindingsSlotProps = Readonly<{
+  workflowId: string;
+  node: WorkflowDiagramNode;
+  pendingCredentialEditForNodeId: string | null;
+  onConsumedPendingCredentialEdit: () => void;
+}>;
+
 export type WorkflowCanvasConfig = Readonly<{
   nodeRoleFilter?: (role: string, nodeKind: string) => boolean;
   renderers?: WorkflowCanvasRenderers;
@@ -28,4 +40,13 @@ export type WorkflowCanvasConfig = Readonly<{
   iconRegistries?: ReadonlyArray<WorkflowCanvasIconRegistry>;
   theme?: Partial<WorkflowCanvasTheme>;
   readOnly?: boolean;
+  /**
+   * Renders the credential-bindings UI for a selected node's inspector panel.
+   * Consumers MUST provide an implementation appropriate for their environment:
+   * - next-host: renders the existing dropdown + create/edit dialogs
+   * - control-plane: renders a Connect-via-broker button for OAuth providers
+   *
+   * If omitted, a small "Credential UI not configured" notice is shown.
+   */
+  renderCredentialBindings?: (props: NodeCredentialBindingsSlotProps) => ReactNode;
 }>;

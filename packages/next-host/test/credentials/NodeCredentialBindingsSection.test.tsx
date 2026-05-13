@@ -6,9 +6,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { NodeCredentialBindingsSection } from "@codemation/canvas";
+import { NodeCredentialBindingsSection, WorkflowCanvasConfigProvider } from "@codemation/canvas";
+import type { NodeCredentialBindingsSlotProps } from "@codemation/canvas";
 import { WorkflowCanvasApiClientProvider } from "@codemation/canvas";
 import { NextHostApiClientAdapter } from "../../src/features/workflows/canvas-adapter/NextHostApiClientAdapter";
+import { NextHostCredentialBindingsRenderer } from "../../src/features/workflows/canvas-adapter/NextHostCredentialBindingsRenderer";
 import {
   credentialFieldEnvStatusQueryKey,
   credentialInstancesQueryKey,
@@ -130,17 +132,22 @@ describe("NodeCredentialBindingsSection", () => {
     // Provide the real adapter — its fetch methods delegate to global fetch which is mocked
     // above; the queryClient cache is also pre-populated for most queries.
     const apiClient = new NextHostApiClientAdapter();
+    const renderCredentialBindings = (props: NodeCredentialBindingsSlotProps) => (
+      <NextHostCredentialBindingsRenderer {...props} />
+    );
 
     render(
       <WorkflowCanvasApiClientProvider value={apiClient}>
-        <QueryClientProvider client={queryClient}>
-          <NodeCredentialBindingsSection
-            workflowId={workflowId}
-            node={node}
-            pendingCredentialEditForNodeId={null}
-            onConsumedPendingCredentialEdit={vi.fn()}
-          />
-        </QueryClientProvider>
+        <WorkflowCanvasConfigProvider value={{ renderCredentialBindings }}>
+          <QueryClientProvider client={queryClient}>
+            <NodeCredentialBindingsSection
+              workflowId={workflowId}
+              node={node}
+              pendingCredentialEditForNodeId={null}
+              onConsumedPendingCredentialEdit={vi.fn()}
+            />
+          </QueryClientProvider>
+        </WorkflowCanvasConfigProvider>
       </WorkflowCanvasApiClientProvider>,
     );
 

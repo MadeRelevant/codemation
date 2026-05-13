@@ -42,8 +42,8 @@
     "date-fns": "^4.1.0",
     "pretty-ms": "^9.3.0"
   },
+  "sideEffects": false,
   "peerDependencies": {
-    "@codemation/next-host": "*",
     "@headless-tree/core": "*",
     "@headless-tree/react": "*",
     "@uiw/react-json-view": "*",
