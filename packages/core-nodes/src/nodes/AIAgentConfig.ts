@@ -4,6 +4,7 @@ import {
   type AgentMessageConfig,
   type AgentNodeConfig,
   type ChatModelConfig,
+  type McpServerBindings,
   type NodeInspectorSummaryRow,
   type RetryPolicySpec,
   type RunnableNodeConfig,
@@ -25,6 +26,18 @@ export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown> {
   /** Engine applies with {@link RunnableNodeConfig.inputSchema} before {@link AIAgentNode.execute}. */
   readonly inputSchema?: ZodType<TInputJson>;
   readonly outputSchema?: ZodType<_TOutputJson>;
+  /**
+   * MCP servers to connect for this agent run.
+   * - Explicit form: `{ gmail: { credential: "<instanceId>" } }`
+   * - Shorthand form: `["gmail", "slack"]` — auto-resolves when exactly one
+   *   credential instance matches the server's oauthAppKey.
+   */
+  readonly mcpServers?: McpServerBindings;
+  /**
+   * Tool ids to always include without going through `find_tools`.
+   * Format: `"serverId:toolName"` (e.g. `"gmail:send_message"`). Max 16.
+   */
+  readonly pinnedMcpTools?: readonly string[];
 }
 
 /**
@@ -47,6 +60,8 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
   readonly guardrails?: AgentGuardrailConfig;
   readonly inputSchema?: ZodType<TInputJson>;
   readonly outputSchema?: ZodType<TOutputJson>;
+  readonly mcpServers?: McpServerBindings;
+  readonly pinnedMcpTools?: readonly string[];
 
   constructor(options: AIAgentOptions<TInputJson, TOutputJson>) {
     this.name = options.name;
@@ -58,6 +73,8 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
     this.guardrails = options.guardrails;
     this.inputSchema = options.inputSchema;
     this.outputSchema = options.outputSchema;
+    this.mcpServers = options.mcpServers;
+    this.pinnedMcpTools = options.pinnedMcpTools;
   }
 
   inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {

@@ -279,6 +279,7 @@ import { McpServerCatalog } from "../mcp/McpServerCatalog";
 import { McpConnectionPool } from "../mcp/McpConnectionPool";
 import { DefaultMcpClientFactory } from "../mcp/McpClientFactory";
 import { McpRegistryFetcher } from "../mcp/McpRegistryFetcher";
+import { AgentMcpIntegrationImpl } from "../mcp/AgentMcpIntegrationImpl";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -419,6 +420,11 @@ export class AppContainerFactory {
     container.registerSingleton(McpServerCatalog, McpServerCatalog);
     container.registerSingleton(DefaultMcpClientFactory, DefaultMcpClientFactory);
     container.registerSingleton(McpConnectionPool, McpConnectionPool);
+    container.registerSingleton(AgentMcpIntegrationImpl, AgentMcpIntegrationImpl);
+    // Register the host-side AgentMcpIntegration, overriding the NoOp registered by EngineRuntimeRegistrar.
+    container.register(CoreTokens.AgentMcpIntegration, {
+      useFactory: instanceCachingFactory((c) => c.resolve(AgentMcpIntegrationImpl)),
+    });
   }
 
   private registerMcpRegistryFetcher(container: Container): void {

@@ -36,6 +36,7 @@ import {
   CoreTokens,
   ItemExprResolver,
   NodeOutputNormalizer,
+  NoOpAgentMcpIntegration,
   callableTool,
   container as tsyringeContainer,
   instanceCachingFactory,
@@ -610,6 +611,7 @@ class AgentTestRig {
         (c) => new ChildExecutionScopeFactory(c.resolve(CoreTokens.ActivationIdFactory)),
       ),
     });
+    this.container.registerInstance(CoreTokens.AgentMcpIntegration, new NoOpAgentMcpIntegration());
     this.container.registerSingleton(AIAgentNode, AIAgentNode);
     for (const registration of registrations) {
       if (registration.value !== undefined) {

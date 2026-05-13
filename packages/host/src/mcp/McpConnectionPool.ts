@@ -66,6 +66,13 @@ export class McpConnectionPool {
    *
    * Resolves after all matched clients have completed close(), so callers can
    * await this before re-connecting or cleaning up downstream state.
+   *
+   * TODO(story-credential-lifecycle): Wire this method to the credential lifecycle event.
+   * CredentialDisconnectedError (packages/host/src/credentials/refresh/CredentialDisconnectedError.ts)
+   * is thrown on dead refresh tokens but is an error, not a broadcast event — there is no
+   * event bus for credential lifecycle today. When a credential-disconnected event mechanism
+   * is introduced, call closeForCredential(credentialInstanceId) from its handler so that
+   * stale MCP pool entries are cleaned up on credential revocation.
    */
   async closeForCredential(credentialInstanceId: string): Promise<void> {
     const logger = this.loggers.create("McpConnectionPool");

@@ -45,6 +45,7 @@ import { Output, generateText, jsonSchema } from "ai";
 type AnyGenerateTextResult = GenerateTextResult<ToolSet, any>;
 import { z } from "zod";
 
+import type { AgentMcpIntegration, AgentMcpToolMap } from "@codemation/core";
 import type { AIAgent } from "./AIAgentConfig";
 import { AIAgentExecutionHelpersFactory } from "./AIAgentExecutionHelpersFactory";
 import { AgentToolExecutionCoordinator } from "./AgentToolExecutionCoordinator";
@@ -120,6 +121,8 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
     private readonly toolExecutionCoordinator: AgentToolExecutionCoordinator,
     @inject(DeferredMetaToolStrategyFactory)
     private readonly toolLoadingStrategyFactory: DeferredMetaToolStrategyFactory,
+    @inject(CoreTokens.AgentMcpIntegration)
+    private readonly agentMcpIntegration: AgentMcpIntegration,
   ) {
     this.connectionCredentialExecutionContextFactory =
       this.executionHelpers.createConnectionCredentialExecutionContextFactory(credentialSessions);
@@ -156,11 +159,14 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       chatModelFactory.create({ config: ctx.config.chatModel, ctx: languageModelCredentialContext }),
     );
     const resolvedTools = this.resolveTools(ctx.config.tools ?? []);
-    // Build the node-backed ToolSet for the strategy. MCP tools are empty until Story 11 wires them.
+
+    // Resolve MCP tools when the config declares mcpServers and the integration is registered.
+    const mcpToolsByServer = await this.prepareMcpToolsByServer(ctx);
+
     const toolLoadingStrategy = await this.toolLoadingStrategyFactory.create({
       nodeBackedTools: this.buildToolSetFromResolved(resolvedTools),
-      mcpToolsByServer: new Map(),
-      pinnedMcpTools: [],
+      mcpToolsByServer,
+      pinnedMcpTools: ctx.config.pinnedMcpTools ?? [],
     });
     return {
       ctx,
@@ -170,6 +176,22 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
       languageModelConnectionNodeId: ConnectionNodeIdFactory.languageModelConnectionNodeId(ctx.nodeId),
       toolLoadingStrategy,
     };
+  }
+
+  private async prepareMcpToolsByServer(
+    ctx: NodeExecutionContext<AIAgent<any, any>>,
+  ): Promise<ReadonlyMap<string, ToolSet>> {
+    if (!ctx.config.mcpServers) {
+      return new Map();
+    }
+    const toolMap: AgentMcpToolMap = await this.agentMcpIntegration.prepareMcpTools({
+      mcpServers: ctx.config.mcpServers,
+      pinnedMcpTools: ctx.config.pinnedMcpTools ?? [],
+      emitSpanEvent: (event) => ctx.telemetry.addSpanEvent(event),
+      startChildSpan: (args) => ctx.telemetry.startChildSpan({ name: args.name, attributes: args.attributes }),
+    });
+    // Cast from AgentMcpToolMap (core contract, no ai dependency) to ToolSet (ai SDK type).
+    return toolMap as unknown as ReadonlyMap<string, ToolSet>;
   }
 
   private async runAgentForItem(
@@ -444,9 +466,25 @@ export class AIAgentNode implements RunnableNode<AIAgent<any, any>> {
   ): Promise<TurnResult> {
     const itemToolSet = this.buildToolSet(itemScopedTools);
     const strategyHasTools = Object.keys(strategyTools).length > 0;
+    // Strip execute callbacks from strategy tools so the AI SDK does not auto-execute them.
+    // Codemation owns all tool dispatch (coordinator for node-backed, strategy for MCP/meta-tools).
+    const strippedStrategyTools = strategyHasTools ? this.stripExecuteCallbacks(strategyTools) : strategyTools;
     const mergedTools: ToolSet | undefined =
-      itemToolSet || strategyHasTools ? { ...(itemToolSet ?? {}), ...strategyTools } : undefined;
+      itemToolSet || strategyHasTools ? { ...(itemToolSet ?? {}), ...strippedStrategyTools } : undefined;
     return this.invokeTextTurnWithToolSet(prepared, itemInputsByPort, messages, mergedTools);
+  }
+
+  /**
+   * Removes `execute` properties from ToolSet entries so the AI SDK does not
+   * auto-execute them within `generateText`. Codemation owns all tool dispatch.
+   */
+  private stripExecuteCallbacks(tools: ToolSet): ToolSet {
+    const stripped: Record<string, unknown> = {};
+    for (const [name, def] of Object.entries(tools)) {
+      const { execute: _execute, ...rest } = def as Record<string, unknown>;
+      stripped[name] = rest;
+    }
+    return stripped as ToolSet;
   }
 
   /**

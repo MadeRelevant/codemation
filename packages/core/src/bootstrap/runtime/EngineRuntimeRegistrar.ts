@@ -1,5 +1,6 @@
 import { instanceCachingFactory, type DependencyContainer } from "../../di";
 import { CoreTokens } from "../../di";
+import { NoOpAgentMcpIntegration } from "../../contracts/NoOpAgentMcpIntegration";
 import { EngineExecutionLimitsPolicyFactory } from "../../policies/executionLimits/EngineExecutionLimitsPolicyFactory";
 import {
   ChildExecutionScopeFactory,
@@ -39,6 +40,14 @@ export class EngineRuntimeRegistrar {
     this.registerDefaultActivationScheduler(container);
     this.registerEngine(container, options);
     this.registerIntentServices(container);
+    this.registerAgentMcpIntegration(container);
+  }
+
+  private registerAgentMcpIntegration(container: DependencyContainer): void {
+    if (container.isRegistered(CoreTokens.AgentMcpIntegration, true)) {
+      return;
+    }
+    container.registerInstance(CoreTokens.AgentMcpIntegration, new NoOpAgentMcpIntegration());
   }
 
   private registerSupportFactories(container: DependencyContainer): void {

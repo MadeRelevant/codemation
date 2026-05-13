@@ -117,26 +117,46 @@ export class DeferredMetaToolStrategy implements ToolLoadingStrategy {
   }
 
   ownsToolName(toolName: string): boolean {
-    return toolName === FIND_TOOLS_NAME;
+    if (toolName === FIND_TOOLS_NAME) return true;
+    // Any tool that came from an MCP server is strategy-owned so the coordinator
+    // does not attempt to dispatch it as a node-backed tool.
+    for (const serverMap of this.toolsByServerId.values()) {
+      if (serverMap.has(toolName)) return true;
+    }
+    return false;
   }
 
   async executeMetaTool(toolName: string, input: unknown): Promise<unknown> {
-    if (toolName !== FIND_TOOLS_NAME) {
-      throw new Error(`DeferredMetaToolStrategy: unknown meta-tool "${toolName}"`);
+    if (toolName === FIND_TOOLS_NAME) {
+      const parsed = z.object({ query: z.string(), limit: z.number().int().min(1).max(10).optional() }).parse(input);
+      const limit = parsed.limit ?? FIND_TOOLS_DEFAULT_LIMIT;
+      const hits = this.bm25.search(parsed.query, limit);
+      const results: FindToolsResult[] = hits.map((idx) => {
+        const entry = this.mcpEntries[idx];
+        return {
+          serverId: entry.serverId,
+          toolName: entry.toolName,
+          description: entry.description,
+          inputSchema: (entry.toolDef as unknown as { inputSchema?: unknown }).inputSchema,
+        };
+      });
+      return results;
     }
-    const parsed = z.object({ query: z.string(), limit: z.number().int().min(1).max(10).optional() }).parse(input);
-    const limit = parsed.limit ?? FIND_TOOLS_DEFAULT_LIMIT;
-    const hits = this.bm25.search(parsed.query, limit);
-    const results: FindToolsResult[] = hits.map((idx) => {
-      const entry = this.mcpEntries[idx];
-      return {
-        serverId: entry.serverId,
-        toolName: entry.toolName,
-        description: entry.description,
-        inputSchema: (entry.toolDef as unknown as { inputSchema?: unknown }).inputSchema,
-      };
-    });
-    return results;
+
+    // Route to the MCP tool's execute callback (injected by AgentMcpIntegrationImpl with
+    // telemetry + 403 detection wrapping).
+    for (const serverMap of this.toolsByServerId.values()) {
+      const toolDef = serverMap.get(toolName);
+      if (toolDef) {
+        const executeFn = (toolDef as unknown as { execute?: (input: unknown) => Promise<unknown> }).execute;
+        if (executeFn) {
+          return await executeFn(input);
+        }
+        throw new Error(`DeferredMetaToolStrategy: MCP tool "${toolName}" has no execute callback`);
+      }
+    }
+
+    throw new Error(`DeferredMetaToolStrategy: unknown meta-tool or MCP tool "${toolName}"`);
   }
 
   recordFoundTools(results: ReadonlyArray<FindToolsResult>): void {
