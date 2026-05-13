@@ -276,6 +276,8 @@ import { InternalCredentialsListRegistrar } from "../credentials/InternalCredent
 import { RemoteOAuthRefreshDelegate } from "../credentials/refresh/RemoteOAuthRefreshDelegate";
 import { OAuth2ViaBrokerCredentialTypeFactory } from "../credentials/OAuth2ViaBrokerCredentialTypeFactory";
 import { McpServerCatalog } from "../mcp/McpServerCatalog";
+import { McpConnectionPool } from "../mcp/McpConnectionPool";
+import { DefaultMcpClientFactory } from "../mcp/McpClientFactory";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -414,6 +416,8 @@ export class AppContainerFactory {
 
   private registerMcpCatalog(container: Container): void {
     container.registerSingleton(McpServerCatalog, McpServerCatalog);
+    container.registerSingleton(DefaultMcpClientFactory, DefaultMcpClientFactory);
+    container.registerSingleton(McpConnectionPool, McpConnectionPool);
   }
 
   private mergeConfigMcpServers(container: Container, appConfig: AppConfig): void {
