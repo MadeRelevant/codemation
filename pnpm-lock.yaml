@@ -306,6 +306,9 @@ importers:
       '@xyflow/react':
         specifier: '*'
         version: 12.10.1(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      aria-hidden:
+        specifier: ^1.2.6
+        version: 1.2.6
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -324,6 +327,9 @@ importers:
       react-dom:
         specifier: '*'
         version: 19.2.4(react@19.2.4)
+      react-remove-scroll:
+        specifier: ^2.7.2
+        version: 2.7.2(@types/react@19.2.14)(react@19.2.4)
     devDependencies:
       '@headless-tree/core':
         specifier: ^1.6.3
