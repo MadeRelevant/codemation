@@ -1,6 +1,17 @@
 "use client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+// Stable fallback so that `?? EMPTY_NODE_SNAPSHOTS` never produces a fresh `{}`
+// on renders where currentExecutionState is undefined, which would invalidate
+// useAsyncWorkflowLayout's dep array and trigger a spurious ELK re-layout every tick.
+const EMPTY_NODE_SNAPSHOTS: Readonly<Record<string, import("../realtime/realtime").NodeExecutionSnapshot>> =
+  Object.freeze({});
+// Stable no-op used when isReadOnly suppresses canvas action callbacks. Inline
+// `() => {}` literals produce a new reference each render, poisoning any
+// downstream useCallback/useMemo that closes over them.
+const NO_OP_NODE_ACTION = (_nodeId: string): void => {};
+const NO_OP_VOID_ACTION = (): void => {};
 import type { NavigationAdapter } from "../../types/NavigationAdapter";
 import type { WorkflowCanvasConfig } from "../../types/WorkflowCanvasConfig";
 import { useWorkflowCanvasApiClient } from "../../context/WorkflowCanvasApiClientContext";
@@ -1400,7 +1411,7 @@ export function useWorkflowDetailController(
 
   return {
     displayedWorkflow,
-    displayedNodeSnapshotsByNodeId: currentExecutionState?.nodeSnapshotsByNodeId ?? {},
+    displayedNodeSnapshotsByNodeId: currentExecutionState?.nodeSnapshotsByNodeId ?? EMPTY_NODE_SNAPSHOTS,
     displayedConnectionInvocations: normalizedConnectionInvocations,
     pinnedNodeIds,
     isLiveWorkflowView: viewContext === "live-workflow",
@@ -1507,11 +1518,11 @@ export function useWorkflowDetailController(
     pendingCredentialEditForNodeId,
     consumePendingCredentialEditRequest,
     closePropertiesPanel,
-    runCanvasNode: isReadOnly ? () => {} : runNode,
-    toggleCanvasNodePin: isReadOnly ? () => {} : togglePinnedOutputForNode,
-    editCanvasNodeOutput: isReadOnly ? () => {} : openPinOutputEditor,
-    clearCanvasNodePin: isReadOnly ? () => {} : clearPinnedOutputForNode,
-    runWorkflowFromCanvas: isReadOnly ? () => {} : onRun,
+    runCanvasNode: isReadOnly ? NO_OP_NODE_ACTION : runNode,
+    toggleCanvasNodePin: isReadOnly ? NO_OP_NODE_ACTION : togglePinnedOutputForNode,
+    editCanvasNodeOutput: isReadOnly ? NO_OP_NODE_ACTION : openPinOutputEditor,
+    clearCanvasNodePin: isReadOnly ? NO_OP_NODE_ACTION : clearPinnedOutputForNode,
+    runWorkflowFromCanvas: isReadOnly ? NO_OP_VOID_ACTION : onRun,
     openLiveWorkflow: onSelectLiveWorkflow,
     openExecutionsPane: onOpenExecutionsPane,
     copySelectedRunToLive: onCopyToDebugger,
