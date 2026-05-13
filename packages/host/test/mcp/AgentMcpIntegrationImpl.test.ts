@@ -44,8 +44,14 @@ class FakeMcpClient {
 
 class FakeClientFactory implements McpClientFactory {
   readonly opened: Array<{ args: McpClientOpenArgs; client: FakeMcpClient }> = [];
+  private readonly seededClient: FakeMcpClient | undefined;
+
+  constructor(seededClient?: FakeMcpClient) {
+    this.seededClient = seededClient;
+  }
+
   async open(args: McpClientOpenArgs): Promise<MCPClient> {
-    const client = new FakeMcpClient();
+    const client = this.seededClient ?? new FakeMcpClient();
     this.opened.push({ args, client });
     return client as unknown as MCPClient;
   }
@@ -142,13 +148,23 @@ function makePool(catalog: McpServerCatalog, credentials: FakeCredentials): McpC
 
 function makeNoopSpanCallbacks() {
   const events: TelemetrySpanEventRecord[] = [];
-  const spans: Array<{ name: string; ended: boolean; status?: string }> = [];
+  const spans: Array<{
+    name: string;
+    ended: boolean;
+    status?: string;
+    attributes?: Record<string, string>;
+  }> = [];
   return {
     events,
     spans,
     emitSpanEvent: (event: TelemetrySpanEventRecord) => events.push(event),
     startChildSpan: (args: { name: string; attributes?: Record<string, string> }) => {
-      const span = { name: args.name, ended: false, status: undefined as string | undefined };
+      const span = {
+        name: args.name,
+        ended: false,
+        status: undefined as string | undefined,
+        attributes: args.attributes,
+      };
       spans.push(span);
       return {
         end: (endArgs?: { status?: "ok" | "error"; statusMessage?: string }) => {
@@ -365,39 +381,21 @@ describe("AgentMcpIntegrationImpl", () => {
   });
 
   describe("telemetry and 403 detection", () => {
-    it("wraps tool execute with a telemetry span (mcp.server_id and mcp.tool_name)", async () => {
-      const catalog = makeCatalog([gmailDecl]);
-      const creds = new FakeCredentials();
-      const store = makeCredentialStore([
-        { instanceId: "cred-1", publicConfig: { oauthAppKey: "google-mail" } } as any,
-      ]);
-      const pool = makePool(catalog, creds);
-
-      // We need the pool to have a client with tools. Open a connection first.
-      const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
-      const cb = makeNoopSpanCallbacks();
-
-      const result = await integration.prepareMcpTools({
-        mcpServers: { gmail: { credential: "cred-1" } },
-        pinnedMcpTools: [],
-        emitSpanEvent: cb.emitSpanEvent,
-        startChildSpan: cb.startChildSpan,
-      });
-
-      // The pool opens a client on getClient. The client has no tools by default (empty FakeMcpClient.toolsResult).
-      // We just check that the map is returned correctly.
-      expect(result.has("gmail")).toBe(true);
-    });
-
-    it("emits NeedsReconsentEvent span event when tool execute returns 403 error", async () => {
+    it("wraps tool execute with a telemetry span tagged mcp.server_id and mcp.tool_name", async () => {
       const catalog = makeCatalog([gmailDecl]);
       const creds = new FakeCredentials();
       const store = makeCredentialStore([
         { instanceId: "cred-1", publicConfig: { oauthAppKey: "google-mail" } } as any,
       ]);
 
-      // Use a custom pool that injects a tool with a 403 execute.
-      const clientFactory = new FakeClientFactory();
+      // Pre-seed the client with a successful tool so we get a real span on execute.
+      const seededClient = new FakeMcpClient();
+      seededClient.toolsResult["list_messages"] = {
+        description: "List messages",
+        execute: async () => ({ messages: [] }),
+      };
+
+      const clientFactory = new FakeClientFactory(seededClient);
       const pool = new McpConnectionPool(
         catalog,
         creds as unknown as CredentialSessionServiceImpl,
@@ -408,43 +406,71 @@ describe("AgentMcpIntegrationImpl", () => {
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
-      await integration.prepareMcpTools({
+      const result = await integration.prepareMcpTools({
         mcpServers: { gmail: { credential: "cred-1" } },
         pinnedMcpTools: [],
         emitSpanEvent: cb.emitSpanEvent,
         startChildSpan: cb.startChildSpan,
       });
 
-      // Inject a tool with a 403 execute into the opened client.
-      const [opened] = clientFactory.opened;
-      if (opened) {
-        (opened.client as FakeMcpClient).toolsResult["send_email"] = {
-          description: "Send an email",
-          execute: async () => {
-            throw new Error("403 Forbidden");
-          },
-        };
-      }
+      const toolMap = result.get("gmail");
+      const listMessages = toolMap?.["list_messages"] as { execute?: (input: unknown) => Promise<unknown> } | undefined;
+      expect(listMessages).toBeDefined();
 
-      // Re-invoke to pick up the injected tool.
-      const result2 = await integration.prepareMcpTools({
+      await listMessages!.execute!({});
+
+      expect(cb.spans).toHaveLength(1);
+      expect(cb.spans[0].name).toBe("mcp.tool_call");
+      expect(cb.spans[0].attributes?.["mcp.server_id"]).toBe("gmail");
+      expect(cb.spans[0].attributes?.["mcp.tool_name"]).toBe("list_messages");
+      expect(cb.spans[0].status).toBe("ok");
+    });
+
+    it("emits NeedsReconsentEvent span event when tool execute returns 403 error", async () => {
+      const catalog = makeCatalog([gmailDecl]);
+      const creds = new FakeCredentials();
+      const store = makeCredentialStore([
+        { instanceId: "cred-1", publicConfig: { oauthAppKey: "google-mail" } } as any,
+      ]);
+
+      // Pre-seed the client with a tool that throws 403 BEFORE the pool opens it.
+      const seededClient = new FakeMcpClient();
+      seededClient.toolsResult["send_email"] = {
+        description: "Send an email",
+        execute: async () => {
+          throw new Error("403 Forbidden");
+        },
+      };
+
+      const clientFactory = new FakeClientFactory(seededClient);
+      const pool = new McpConnectionPool(
+        catalog,
+        creds as unknown as CredentialSessionServiceImpl,
+        new FakeLoggerFactory(),
+        clientFactory,
+      );
+
+      const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
+      const cb = makeNoopSpanCallbacks();
+
+      const result = await integration.prepareMcpTools({
         mcpServers: { gmail: { credential: "cred-1" } },
         pinnedMcpTools: [],
         emitSpanEvent: cb.emitSpanEvent,
         startChildSpan: cb.startChildSpan,
       });
 
-      const toolMap = result2.get("gmail");
+      const toolMap = result.get("gmail");
       const sendEmailTool = toolMap?.["send_email"] as { execute?: (input: unknown) => Promise<unknown> } | undefined;
+      expect(sendEmailTool).toBeDefined();
+      expect(typeof sendEmailTool?.execute).toBe("function");
 
-      if (sendEmailTool?.execute) {
-        const callErr = await sendEmailTool.execute({}).catch((e: unknown) => e);
-        expect(callErr).toBeInstanceOf(Error);
-        expect((callErr as Error).message).toContain("permission error");
-        expect(cb.events).toHaveLength(1);
-        expect(cb.events[0].name).toBe("mcp.needs_reconsent");
-        expect(cb.events[0].attributes?.["mcp.server_id"]).toBe("gmail");
-      }
+      const callErr = await sendEmailTool!.execute!({}).catch((e: unknown) => e);
+      expect(callErr).toBeInstanceOf(Error);
+      expect((callErr as Error).message).toContain("permission error");
+      expect(cb.events).toHaveLength(1);
+      expect(cb.events[0].name).toBe("mcp.needs_reconsent");
+      expect(cb.events[0].attributes?.["mcp.server_id"]).toBe("gmail");
     });
   });
 });
