@@ -53,13 +53,14 @@ class CodemationAuthoringConfigFactory {
     const appDefinition = this.createAppDefinition(options);
     const credentialTypes = [...(options.credentialTypes ?? []), ...(options.credentials ?? [])];
     const register = this.composeAppRegister(options.register, options.nodes, options.collections);
-    const { workflows, workflowDiscovery, plugins, runtime, log } = options;
+    const { workflows, workflowDiscovery, plugins, runtime, log, mcpServers } = options;
     return {
       workflows,
       workflowDiscovery,
       plugins,
       runtime,
       log,
+      mcpServers,
       app: appDefinition,
       credentialTypes,
       register,
