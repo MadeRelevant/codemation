@@ -124,6 +124,7 @@ export class CodemationPluginDiscovery {
     }
     const pluginValue = value as {
       credentialTypes?: unknown;
+      mcpServers?: unknown;
       register?: unknown;
       sandbox?: unknown;
     };
@@ -133,9 +134,13 @@ export class CodemationPluginDiscovery {
     if (pluginValue.credentialTypes !== undefined && !Array.isArray(pluginValue.credentialTypes)) {
       return false;
     }
+    if (pluginValue.mcpServers !== undefined && !Array.isArray(pluginValue.mcpServers)) {
+      return false;
+    }
     return (
       pluginValue.register !== undefined ||
       pluginValue.credentialTypes !== undefined ||
+      pluginValue.mcpServers !== undefined ||
       pluginValue.sandbox !== undefined ||
       Object.keys(pluginValue).length === 0
     );

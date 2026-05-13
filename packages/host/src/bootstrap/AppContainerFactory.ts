@@ -274,6 +274,7 @@ import { BrokerClient } from "../credentials/BrokerClient";
 import { InternalCredentialsPushRegistrar } from "../credentials/InternalCredentialsPushRegistrar";
 import { InternalCredentialsListRegistrar } from "../credentials/InternalCredentialsListRegistrar";
 import { RemoteOAuthRefreshDelegate } from "../credentials/refresh/RemoteOAuthRefreshDelegate";
+import { McpServerCatalog } from "../mcp/McpServerCatalog";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -373,7 +374,9 @@ export class AppContainerFactory {
     this.registerPairingInfrastructure(container, inputs.appConfig);
     this.registerConfiguredRegistrations(container, inputs.appConfig);
     const credentialTypes = this.collectCredentialTypes(inputs.appConfig);
+    this.registerMcpCatalog(container);
     await this.applyPlugins(container, inputs.appConfig, credentialTypes);
+    this.mergeConfigMcpServers(container, inputs.appConfig);
     const ownership = await this.registerRuntimeInfrastructure(container, inputs.appConfig);
     this.registerCollectionsInfrastructure(container, inputs.appConfig);
     this.registerCredentialTypes(container, credentialTypes);
@@ -408,11 +411,21 @@ export class AppContainerFactory {
     return credentialTypes;
   }
 
+  private registerMcpCatalog(container: Container): void {
+    container.registerSingleton(McpServerCatalog, McpServerCatalog);
+  }
+
+  private mergeConfigMcpServers(container: Container, appConfig: AppConfig): void {
+    const catalog = container.resolve(McpServerCatalog);
+    catalog.merge("config", appConfig.mcpServers ?? []);
+  }
+
   private async applyPlugins(
     container: Container,
     appConfig: AppConfig,
     credentialTypes: Array<CredentialType<any, any, unknown>>,
   ): Promise<void> {
+    const catalog = container.resolve(McpServerCatalog);
     await this.pluginRegistrar.apply({
       plugins: appConfig.plugins,
       container,
@@ -428,6 +441,7 @@ export class AppContainerFactory {
         // during plugin.register() are accepted silently — Phase 6 store wiring will
         // pick them up once collection infrastructure can reload from a mutable registry.
       },
+      mergeMcpServers: (declarations) => catalog.merge("plugin", declarations),
       loggerFactory: container.resolve(ApplicationTokens.LoggerFactory),
     });
   }

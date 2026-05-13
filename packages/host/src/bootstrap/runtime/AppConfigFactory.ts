@@ -46,6 +46,7 @@ export class AppConfigFactory {
       collections: [...(args.config.collections ?? [])],
       plugins,
       pluginLoadSummary: this.createConfiguredPluginLoadSummary(plugins),
+      mcpServers: [...(args.config.mcpServers ?? [])],
       hasConfiguredCredentialSessionServiceRegistration,
       log: args.config.log,
       engineExecutionLimits: runtimeConfig.engineExecutionLimits,

@@ -461,6 +461,7 @@ describe("credential instances http integration", () => {
         whitelabel: {},
         webSocketPort: 3001,
         webSocketBindHost: "0.0.0.0",
+        mcpServers: [],
       });
       const decrypted = cipher.decrypt({
         encryptedJson: storedMaterial!.encryptedJson,

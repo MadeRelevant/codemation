@@ -1,5 +1,6 @@
 export * from "./baseTypes";
 export * from "./assertionTypes";
+export * from "./mcpTypes";
 export * from "./collectionTypes";
 export * from "./credentialTypes";
 export * from "./emitPorts";

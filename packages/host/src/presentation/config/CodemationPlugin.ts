@@ -1,4 +1,4 @@
-import type { AnyCredentialType, Container } from "@codemation/core";
+import type { AnyCredentialType, Container, McpServerDeclaration } from "@codemation/core";
 import type { LoggerFactory } from "../../application/logging/Logger";
 import type { AppConfig } from "./AppConfig";
 import type { CodemationRegistrationContextBase } from "./CodemationAppContext";
@@ -13,6 +13,7 @@ export interface CodemationPluginContext extends CodemationRegistrationContextBa
 export interface CodemationPluginConfig {
   readonly pluginPackageId?: string;
   readonly credentialTypes?: ReadonlyArray<AnyCredentialType>;
+  readonly mcpServers?: ReadonlyArray<McpServerDeclaration>;
   readonly register?: (context: CodemationPluginContext) => void | Promise<void>;
   readonly sandbox?: CodemationConfig;
 }

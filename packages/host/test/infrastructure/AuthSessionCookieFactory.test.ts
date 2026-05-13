@@ -26,6 +26,7 @@ function createTestAppConfig(): AppConfig {
     whitelabel: {},
     webSocketPort: 3001,
     webSocketBindHost: "127.0.0.1",
+    mcpServers: [],
   };
 }
 

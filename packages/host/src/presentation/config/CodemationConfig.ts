@@ -3,6 +3,7 @@ import type {
   CollectionDefinition,
   DefinedCollection,
   EngineExecutionLimitsPolicyConfig,
+  McpServerDeclaration,
   WorkflowDefinition,
 } from "@codemation/core";
 import type { CodemationAuthConfig } from "./CodemationAuthConfig";
@@ -80,6 +81,8 @@ export interface CodemationConfig {
   readonly plugins?: ReadonlyArray<CodemationPlugin>;
   /** Consumer-defined `CredentialType` entries (see `@codemation/core`), applied when the host loads config. */
   readonly credentialTypes?: ReadonlyArray<AnyCredentialType>;
+  /** MCP server declarations from this config file (merged with plugin and control-plane sources at startup). */
+  readonly mcpServers?: ReadonlyArray<McpServerDeclaration>;
   /** Declared collections available at runtime via `ctx.collections`. Accepts either raw `CollectionDefinition` or `DefinedCollection` (the result of `defineCollection(...)`). */
   readonly collections?: ReadonlyArray<CollectionDefinition | DefinedCollection>;
   /** Optional shell whitelabel (product name, logo path). */

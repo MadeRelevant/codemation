@@ -31,6 +31,7 @@ function makeAppConfig(databaseUrl: string, env: NodeJS.ProcessEnv = {}): AppCon
     whitelabel: {},
     webSocketPort: 0,
     webSocketBindHost: "127.0.0.1",
+    mcpServers: [],
   };
 }
 
