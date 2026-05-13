@@ -18,14 +18,11 @@ test("@codemation/host exports the lightweight authoring subpath", () => {
     exports?: Record<string, unknown>;
   };
   const authoringExport = packageJson.exports?.["./authoring"] as
-    | Readonly<{ types?: string; development?: Readonly<{ import?: string }>; import?: string }>
+    | Readonly<{ types?: string; import?: string }>
     | undefined;
 
   assert.deepEqual(authoringExport, {
     types: "./dist/authoring.d.ts",
-    development: {
-      import: "./src/authoring.ts",
-    },
     import: "./dist/authoring.js",
   });
 });
