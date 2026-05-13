@@ -274,6 +274,7 @@ import { BrokerClient } from "../credentials/BrokerClient";
 import { InternalCredentialsPushRegistrar } from "../credentials/InternalCredentialsPushRegistrar";
 import { InternalCredentialsListRegistrar } from "../credentials/InternalCredentialsListRegistrar";
 import { RemoteOAuthRefreshDelegate } from "../credentials/refresh/RemoteOAuthRefreshDelegate";
+import { OAuth2ViaBrokerCredentialTypeFactory } from "../credentials/OAuth2ViaBrokerCredentialTypeFactory";
 import { McpServerCatalog } from "../mcp/McpServerCatalog";
 
 type AppContainerInputs = Readonly<{
@@ -451,7 +452,14 @@ export class AppContainerFactory {
     credentialTypes: ReadonlyArray<CredentialType<any, any, unknown>>,
   ): void {
     const registry = container.resolve(CredentialTypeRegistryImpl);
-    for (const credentialType of credentialTypes) {
+    const oAuth2ViaBrokerType = new OAuth2ViaBrokerCredentialTypeFactory(
+      container.resolve(ApplicationTokens.CredentialStore),
+      container.resolve(CredentialSecretCipher),
+    ).register();
+    const allTypes = credentialTypes.some((entry) => entry.definition.typeId === oAuth2ViaBrokerType.definition.typeId)
+      ? credentialTypes
+      : [...credentialTypes, oAuth2ViaBrokerType];
+    for (const credentialType of allTypes) {
       registry.register(credentialType);
     }
   }
