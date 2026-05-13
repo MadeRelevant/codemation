@@ -6,12 +6,19 @@ import type { PrismaDatabaseClient } from "../infrastructure/persistence/PrismaD
 import { WorkflowRunEventWebsocketRelay } from "../application/websocket/WorkflowRunEventWebsocketRelay";
 import { WorkflowWebsocketServer } from "../presentation/websocket/WorkflowWebsocketServer";
 import { McpConnectionPool } from "../mcp/McpConnectionPool";
+import { McpRegistryFetcher } from "../mcp/McpRegistryFetcher";
 
 export class AppContainerLifecycle {
   constructor(
     private readonly container: Container,
     private readonly ownedPrismaClient: PrismaDatabaseClient | null,
   ) {}
+
+  async start(): Promise<void> {
+    if (this.container.isRegistered(McpRegistryFetcher, true)) {
+      await this.container.resolve(McpRegistryFetcher).start();
+    }
+  }
 
   async stop(args?: Readonly<{ stopWebsocketServer?: boolean }>): Promise<void> {
     if (this.container.isRegistered(Engine, true)) {
@@ -31,6 +38,9 @@ export class AppContainerLifecycle {
     }
     if (this.container.isRegistered(McpConnectionPool, true)) {
       await this.container.resolve(McpConnectionPool).closeAll();
+    }
+    if (this.container.isRegistered(McpRegistryFetcher, true)) {
+      await this.container.resolve(McpRegistryFetcher).stop();
     }
     if (this.ownedPrismaClient) {
       await this.ownedPrismaClient.$disconnect();
