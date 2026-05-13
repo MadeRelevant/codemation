@@ -14,7 +14,7 @@ import { CredentialInstanceService } from "../domain/credentials/CredentialServi
  */
 type CredentialPushBody = Readonly<{
   credentialInstanceId: string;
-  provider: string;
+  oauthAppKey: string;
   accessToken: string;
   refreshToken?: string | null;
   expiresAt: number;
@@ -81,7 +81,7 @@ export class InternalCredentialsPushRegistrar implements InternalHonoApiRouteReg
           encryptionKeyId: encrypted.encryptionKeyId,
           schemaVersion: encrypted.schemaVersion,
           metadata: {
-            providerId: body.provider,
+            providerId: body.oauthAppKey,
             connectedAt: nowIso,
             scopes: [...body.scopesGranted],
             updatedAt: nowIso,
@@ -99,7 +99,9 @@ export class InternalCredentialsPushRegistrar implements InternalHonoApiRouteReg
           );
         }
 
-        this.logger.info(`Credential push applied for instance ${body.credentialInstanceId} provider=${body.provider}`);
+        this.logger.info(
+          `Credential push applied for instance ${body.credentialInstanceId} oauthAppKey=${body.oauthAppKey}`,
+        );
 
         return c.json({ ok: true });
       } catch (error) {
