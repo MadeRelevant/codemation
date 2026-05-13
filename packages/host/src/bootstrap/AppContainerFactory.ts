@@ -278,6 +278,7 @@ import { OAuth2ViaBrokerCredentialTypeFactory } from "../credentials/OAuth2ViaBr
 import { McpServerCatalog } from "../mcp/McpServerCatalog";
 import { McpConnectionPool } from "../mcp/McpConnectionPool";
 import { DefaultMcpClientFactory } from "../mcp/McpClientFactory";
+import { McpRegistryFetcher } from "../mcp/McpRegistryFetcher";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -380,15 +381,15 @@ export class AppContainerFactory {
     this.registerMcpCatalog(container);
     await this.applyPlugins(container, inputs.appConfig, credentialTypes);
     this.mergeConfigMcpServers(container, inputs.appConfig);
+    this.registerMcpRegistryFetcher(container);
     const ownership = await this.registerRuntimeInfrastructure(container, inputs.appConfig);
     this.registerCollectionsInfrastructure(container, inputs.appConfig);
     this.registerCredentialTypes(container, credentialTypes);
     this.synchronizeLiveWorkflowRepository(container, inputs.appConfig.workflows);
     container.resolve(BootRuntimeSnapshotHolder).set(this.createRuntimeSummary(inputs.appConfig));
-    container.registerInstance(
-      AppContainerLifecycle,
-      new AppContainerLifecycle(container, ownership.ownedPrismaClient),
-    );
+    const lifecycle = new AppContainerLifecycle(container, ownership.ownedPrismaClient);
+    container.registerInstance(AppContainerLifecycle, lifecycle);
+    await lifecycle.start();
     return container;
   }
 
@@ -418,6 +419,16 @@ export class AppContainerFactory {
     container.registerSingleton(McpServerCatalog, McpServerCatalog);
     container.registerSingleton(DefaultMcpClientFactory, DefaultMcpClientFactory);
     container.registerSingleton(McpConnectionPool, McpConnectionPool);
+  }
+
+  private registerMcpRegistryFetcher(container: Container): void {
+    // Only register when the installation is paired with a control plane.
+    // PairedFetch (and PairingConfigToken) are only registered inside registerPairingInfrastructure
+    // which skips registration when pairing env vars are absent.
+    if (!container.isRegistered(PairedFetch, true)) {
+      return;
+    }
+    container.registerSingleton(McpRegistryFetcher, McpRegistryFetcher);
   }
 
   private mergeConfigMcpServers(container: Container, appConfig: AppConfig): void {
