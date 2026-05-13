@@ -22,6 +22,15 @@ import { WORKFLOW_CANVAS_EMBEDDED_STYLES } from "./lib/workflowCanvasEmbeddedSty
 import { WorkflowCanvasLoadingPlaceholder } from "./WorkflowCanvasLoadingPlaceholder";
 import { WorkflowCanvasStructureSignature } from "./WorkflowCanvasStructureSignature";
 
+// Stable module-level constants used as default prop values so that callers that
+// omit optional collection props don't produce a new reference on every render,
+// which would otherwise cause useAsyncWorkflowLayout to re-run ELK every tick.
+const EMPTY_CONNECTION_INVOCATIONS: ReadonlyArray<ConnectionInvocationRecord> = Object.freeze([]);
+const EMPTY_CREDENTIAL_TOOLTIP_MAP: ReadonlyMap<string, string> = new Map<string, string>();
+const EMPTY_PINNED_NODE_IDS: ReadonlySet<string> = new Set<string>();
+const EMPTY_BOUND_CREDENTIAL_IDS: ReadonlySet<string> = new Set<string>();
+const NO_OP_NODE_CALLBACK = (): void => {};
+
 export function WorkflowCanvas(args: {
   workflow: WorkflowDto;
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
@@ -45,11 +54,11 @@ export function WorkflowCanvas(args: {
   const {
     workflow,
     nodeSnapshotsByNodeId,
-    connectionInvocations = [],
-    credentialAttentionTooltipByNodeId = new Map<string, string>(),
+    connectionInvocations = EMPTY_CONNECTION_INVOCATIONS,
+    credentialAttentionTooltipByNodeId = EMPTY_CREDENTIAL_TOOLTIP_MAP,
     selectedNodeId,
     propertiesTargetNodeId,
-    pinnedNodeIds = new Set<string>(),
+    pinnedNodeIds = EMPTY_PINNED_NODE_IDS,
     isLiveWorkflowView,
     isRunning,
     onSelectNode,
@@ -58,8 +67,8 @@ export function WorkflowCanvas(args: {
     onTogglePinnedOutput,
     onEditNodeOutput,
     onClearPinnedOutput,
-    workflowNodeIdsWithBoundCredential = new Set<string>(),
-    onRequestOpenCredentialEditForNode = () => {},
+    workflowNodeIdsWithBoundCredential = EMPTY_BOUND_CREDENTIAL_IDS,
+    onRequestOpenCredentialEditForNode = NO_OP_NODE_CALLBACK,
     config,
   } = args;
   const [hasMountedOnClient, setHasMountedOnClient] = useState(false);
