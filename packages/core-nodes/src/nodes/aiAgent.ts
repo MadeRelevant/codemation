@@ -17,3 +17,12 @@ export {
   type PlannedToolCall,
   type ResolvedTool,
 } from "./aiAgentSupport.types";
+export { BM25Index } from "./BM25Index";
+export { DeferredMetaToolStrategy } from "./DeferredMetaToolStrategy";
+export { DeferredMetaToolStrategyFactory } from "./DeferredMetaToolStrategyFactory";
+export type {
+  FindToolsResult,
+  ToolLoadingStrategy,
+  ToolLoadingStrategyInitInput,
+  ToolLoadingStrategyTurnContext,
+} from "./ToolLoadingStrategy";
