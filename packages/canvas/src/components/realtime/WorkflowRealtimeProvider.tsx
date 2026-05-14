@@ -7,9 +7,15 @@ import { RealtimeContext } from "./RealtimeContext";
 import { useWorkflowRealtimeInfrastructure } from "../../hooks/realtime/useWorkflowRealtimeInfrastructure";
 
 export function WorkflowRealtimeProvider(
-  args: Readonly<{ children: ReactNode; logger: Logger; websocketPort?: string; wsBaseUrl?: string }>,
+  args: Readonly<{
+    children: ReactNode;
+    logger: Logger;
+    websocketPort?: string;
+    wsBaseUrl?: string;
+    getWsToken?: (opts?: Readonly<{ forceRefresh?: boolean }>) => Promise<string | null> | string | null;
+  }>,
 ) {
-  const { children, logger, websocketPort, wsBaseUrl } = args;
-  const value = useWorkflowRealtimeInfrastructure({ logger, websocketPort, wsBaseUrl });
+  const { children, logger, websocketPort, wsBaseUrl, getWsToken } = args;
+  const value = useWorkflowRealtimeInfrastructure({ logger, websocketPort, wsBaseUrl, getWsToken });
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }

@@ -9,8 +9,7 @@ import { HydrationBoundary, QueryClient, QueryClientProvider } from "@tanstack/r
 
 import { useState, type ReactNode } from "react";
 
-import { WorkflowCanvasApiClientProvider } from "@codemation/canvas";
-import { NextHostApiClientAdapter } from "../features/workflows/canvas-adapter/NextHostApiClientAdapter";
+import { WorkflowCanvasApiClientProvider, createWorkflowCanvasApiClient } from "@codemation/canvas";
 import { RealtimeBoundary } from "./RealtimeBoundary";
 
 export function Providers(
@@ -20,7 +19,7 @@ export function Providers(
   const defaultQueryStaleTimeMs = process.env.NODE_ENV === "development" ? 30_000 : 0;
   const [loggerFactory] = useState(() => new BrowserLoggerFactory(logLevelPolicyFactory.create()));
   const [realtimeLogger] = useState<Logger>(() => loggerFactory.create("workflow-realtime.frontend"));
-  const [apiClient] = useState(() => new NextHostApiClientAdapter());
+  const [apiClient] = useState(() => createWorkflowCanvasApiClient({ apiBase: "", getToken: () => null }));
   const [queryClient] = useState(
     () =>
       new QueryClient({

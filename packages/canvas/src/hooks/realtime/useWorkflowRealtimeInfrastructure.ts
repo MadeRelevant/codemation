@@ -35,9 +35,22 @@ import { RunRoomSubscriptionTracker } from "../../realtime/RunRoomSubscriptionTr
 const runRoomHiddenUnsubscribeMs = 5 * 60 * 1000;
 
 export function useWorkflowRealtimeInfrastructure(
-  args: Readonly<{ logger: Logger; websocketPort?: string; wsBaseUrl?: string }>,
+  args: Readonly<{
+    logger: Logger;
+    websocketPort?: string;
+    wsBaseUrl?: string;
+    /**
+     * Optional token provider for managed-mode WebSocket connections.
+     * When provided, the token is appended as `?token=<jwt>` to the WS URL.
+     * On close-code 4401 (token expired), a forced refresh is requested and
+     * the socket reconnects with the new token.
+     * When null/undefined, self-hosted cookie auth is used unchanged.
+     */
+    getWsToken?: (opts?: Readonly<{ forceRefresh?: boolean }>) => Promise<string | null> | string | null;
+  }>,
 ): RealtimeContextValue {
   const { logger, websocketPort } = args;
+  const getWsToken = args.getWsToken ?? null;
   const queryClient = useQueryClient();
   const [workflowSocketEnabled, setWorkflowSocketEnabled] = useState(false);
   const hasLoggedWorkflowSocketEnabledRef = useRef(false);
@@ -50,6 +63,7 @@ export function useWorkflowRealtimeInfrastructure(
   const terminalEventTimeoutIdByNodeKeyRef = useRef(new Map<string, number>());
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectBackoffMsRef = useRef<number>(1000);
   const disconnectWarningTimeoutRef = useRef<number | null>(null);
   const readyStateRef = useRef<RealtimeReadyValue>(RealtimeReadyState.UNINSTANTIATED);
   const hasOpenedConnectionRef = useRef(false);
@@ -418,7 +432,7 @@ export function useWorkflowRealtimeInfrastructure(
     }
 
     let disposed = false;
-    const connect = () => {
+    const connect = (opts?: Readonly<{ forceRefreshToken?: boolean }>) => {
       if (disposed) {
         return;
       }
@@ -427,81 +441,112 @@ export function useWorkflowRealtimeInfrastructure(
         reconnectTimeoutRef.current = null;
       }
       setReadyState(RealtimeReadyState.CONNECTING);
-      const socket = new WebSocket(websocketUrl);
-      socketRef.current = socket;
 
-      socket.addEventListener("open", () => {
-        if (disposed || socketRef.current !== socket) {
-          return;
-        }
-        hasOpenedConnectionRef.current = true;
-        hasLoggedUnavailableTransportRef.current = false;
-        hasLoggedPersistentTransportUnavailableRef.current = false;
-        pendingDisconnectReasonRef.current = null;
-        clearPendingDisconnectWarning();
-        setReadyState(RealtimeReadyState.OPEN);
-        logger.info(`websocket transport opened to ${websocketUrl}`);
-        const queuedMessages = pendingOutgoingMessagesRef.current.splice(0, pendingOutgoingMessagesRef.current.length);
-        for (const queuedMessage of queuedMessages) {
-          socket.send(JSON.stringify(queuedMessage));
-        }
-      });
-
-      socket.addEventListener("message", (event) => {
-        if (typeof event.data !== "string") {
-          return;
-        }
-        try {
-          const parsedMessage = JSON.parse(event.data) as RealtimeServerMessage;
-          if (parsedMessage.kind === "event") {
-            const eventDetails =
-              "snapshot" in parsedMessage.event && parsedMessage.event.snapshot
-                ? ` node=${parsedMessage.event.snapshot.nodeId} status=${parsedMessage.event.snapshot.status}`
-                : "";
-            logger.info(`raw websocket event kind=${parsedMessage.event.kind}${eventDetails}`);
-          } else {
-            logger.info(`raw websocket control kind=${parsedMessage.kind}`);
+      const doConnect = async () => {
+        if (disposed) return;
+        let resolvedUrl = websocketUrl;
+        if (getWsToken) {
+          const token = await getWsToken({ forceRefresh: opts?.forceRefreshToken });
+          if (token) {
+            const separator = resolvedUrl.includes("?") ? "&" : "?";
+            resolvedUrl = `${resolvedUrl}${separator}token=${encodeURIComponent(token)}`;
           }
-          handleRealtimeServerMessageRef.current(parsedMessage);
-        } catch (error) {
-          const exception = error instanceof Error ? error : new Error(String(error));
-          logger.error(`failed to parse websocket message for ${websocketUrl}: ${exception.message}`);
         }
-      });
+        const socket = new WebSocket(resolvedUrl);
+        socketRef.current = socket;
 
-      socket.addEventListener("error", () => {
-        if (!hasOpenedConnectionRef.current) {
-          if (!hasLoggedUnavailableTransportRef.current) {
+        socket.addEventListener("open", () => {
+          if (disposed || socketRef.current !== socket) {
+            return;
+          }
+          hasOpenedConnectionRef.current = true;
+          hasLoggedUnavailableTransportRef.current = false;
+          hasLoggedPersistentTransportUnavailableRef.current = false;
+          pendingDisconnectReasonRef.current = null;
+          clearPendingDisconnectWarning();
+          setReadyState(RealtimeReadyState.OPEN);
+          logger.info(`websocket transport opened to ${websocketUrl}`);
+          const queuedMessages = pendingOutgoingMessagesRef.current.splice(
+            0,
+            pendingOutgoingMessagesRef.current.length,
+          );
+          for (const queuedMessage of queuedMessages) {
+            socket.send(JSON.stringify(queuedMessage));
+          }
+        });
+
+        socket.addEventListener("message", (event) => {
+          if (typeof event.data !== "string") {
+            return;
+          }
+          try {
+            const parsedMessage = JSON.parse(event.data) as RealtimeServerMessage;
+            if (parsedMessage.kind === "event") {
+              const eventDetails =
+                "snapshot" in parsedMessage.event && parsedMessage.event.snapshot
+                  ? ` node=${parsedMessage.event.snapshot.nodeId} status=${parsedMessage.event.snapshot.status}`
+                  : "";
+              logger.info(`raw websocket event kind=${parsedMessage.event.kind}${eventDetails}`);
+            } else {
+              logger.info(`raw websocket control kind=${parsedMessage.kind}`);
+            }
+            handleRealtimeServerMessageRef.current(parsedMessage);
+          } catch (error) {
+            const exception = error instanceof Error ? error : new Error(String(error));
+            logger.error(`failed to parse websocket message for ${websocketUrl}: ${exception.message}`);
+          }
+        });
+
+        socket.addEventListener("error", () => {
+          if (!hasOpenedConnectionRef.current) {
+            if (!hasLoggedUnavailableTransportRef.current) {
+              hasLoggedUnavailableTransportRef.current = true;
+              logger.debug(`websocket transport is not available yet at ${websocketUrl}`);
+            }
+            return;
+          }
+          schedulePersistentDisconnectWarning("transport error while reconnecting");
+        });
+
+        socket.addEventListener("close", (event) => {
+          if (socketRef.current === socket) {
+            socketRef.current = null;
+          }
+          setReadyState(RealtimeReadyState.CLOSED);
+          if (!hasOpenedConnectionRef.current && !hasLoggedUnavailableTransportRef.current) {
             hasLoggedUnavailableTransportRef.current = true;
             logger.debug(`websocket transport is not available yet at ${websocketUrl}`);
           }
-          return;
-        }
-        schedulePersistentDisconnectWarning("transport error while reconnecting");
-      });
+          if (hasOpenedConnectionRef.current) {
+            schedulePersistentDisconnectWarning(
+              `closed code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`,
+            );
+          }
+          if (disposed) {
+            return;
+          }
+          // Close-code 4401: token expired. Request a forced token refresh and
+          // reconnect with exponential backoff capped at 30 s.
+          if (event.code === 4401 && getWsToken) {
+            const backoffMs = Math.min(reconnectBackoffMsRef.current, 30_000);
+            reconnectBackoffMsRef.current = Math.min(backoffMs * 2, 30_000);
+            logger.info(`websocket 4401 token expired — refreshing token and reconnecting in ${backoffMs}ms`);
+            reconnectTimeoutRef.current = window.setTimeout(() => {
+              reconnectTimeoutRef.current = null;
+              connect({ forceRefreshToken: true });
+            }, backoffMs);
+            return;
+          }
+          // Reset backoff on clean reconnects
+          reconnectBackoffMsRef.current = 1000;
+          reconnectTimeoutRef.current = window.setTimeout(() => {
+            reconnectTimeoutRef.current = null;
+            connect();
+          }, 1000);
+        });
+      };
 
-      socket.addEventListener("close", (event) => {
-        if (socketRef.current === socket) {
-          socketRef.current = null;
-        }
-        setReadyState(RealtimeReadyState.CLOSED);
-        if (!hasOpenedConnectionRef.current && !hasLoggedUnavailableTransportRef.current) {
-          hasLoggedUnavailableTransportRef.current = true;
-          logger.debug(`websocket transport is not available yet at ${websocketUrl}`);
-        }
-        if (hasOpenedConnectionRef.current) {
-          schedulePersistentDisconnectWarning(
-            `closed code=${event.code} reason=${event.reason || "no-reason"} clean=${event.wasClean}`,
-          );
-        }
-        if (disposed) {
-          return;
-        }
-        reconnectTimeoutRef.current = window.setTimeout(() => {
-          reconnectTimeoutRef.current = null;
-          connect();
-        }, 1000);
-      });
+      void doConnect();
     };
 
     connect();
