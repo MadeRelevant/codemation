@@ -469,8 +469,24 @@ export class DevCommand {
       onChange: async ({ changedPaths }) => {
         if (changedPaths.length > 0 && changedPaths.every((p) => this.consumerEnvDotenvFilePredicate.matches(p))) {
           process.stdout.write(
-            "\n[codemation] Consumer environment file changed (e.g. .env). Restart the `codemation dev` process so the runtime picks up updated variables (host `process.env` does not hot-reload).\n",
+            `\n[codemation] Consumer env file changed — reloading and restarting the runtime… [paths=${changedPaths.slice(0, 5).join(", ")}${changedPaths.length > 5 ? ` (+${changedPaths.length - 5} more)` : ""}]\n`,
           );
+          // Re-read .env files from disk and replace the cached snapshot the
+          // runtime spawn reads. `DevPreparedRuntime.consumerEnv` is typed
+          // Readonly for documentation; DevCommand is the single owner of this
+          // object across rebuilds, so mutating here is safe and avoids
+          // threading a fresh `prepared` through the rebuild queue.
+          (prepared as { consumerEnv: Readonly<Record<string, string>> }).consumerEnv =
+            this.session.consumerEnvLoader.load(prepared.paths.consumerRoot);
+          try {
+            await rebuildQueue.enqueue({
+              changedPaths,
+              configPathOverride: options.configPathOverride,
+              shouldRestartUi: true,
+            });
+          } catch (error) {
+            await this.failDevSessionAfterIrrecoverableSourceError(state, proxyServer, error);
+          }
           return;
         }
         try {
