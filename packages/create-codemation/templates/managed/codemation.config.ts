@@ -10,7 +10,7 @@ loadDotenv({
 export default defineCodemationApp({
   name: "Codemation Workspace",
   auth: { kind: "managed" },
-  database: { kind: "postgresql", urlEnv: "DATABASE_URL" },
+  database: { kind: "sqlite", filePath: ".codemation/codemation.sqlite" },
   execution: {
     modeEnv: "CODEMATION_EXECUTION_MODE",
     queuePrefix: "codemation-workspace",

@@ -221,7 +221,7 @@ describe("ConsumerProjectScaffolder", () => {
     // codemation.config.ts is present and references the new config shapes
     const config = await fs.readFile(path.join(projectDir, "codemation.config.ts"), "utf8");
     expect(config).toContain("workflowsDir");
-    expect(config).toContain("urlEnv");
+    expect(config).toContain("sqlite");
 
     // workflows discovery root exists
     await expect(fs.stat(path.join(projectDir, "src", "workflows"))).resolves.toBeTruthy();

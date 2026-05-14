@@ -61,12 +61,6 @@ export class CodemationConfigNormalizer {
     if (auth?.kind !== "managed") {
       return;
     }
-    const dbKind = config.app?.database?.kind;
-    if (dbKind === "sqlite") {
-      throw new Error(
-        'Managed-mode workspaces require PostgreSQL. Set database.kind to "postgresql" (SQLite is not supported with auth.kind: "managed").',
-      );
-    }
     const hasWorkflows = (config.workflows?.length ?? 0) > 0;
     const hasWorkflowDiscovery = (config.workflowDiscovery?.directories?.length ?? 0) > 0;
     if (!hasWorkflows && !hasWorkflowDiscovery) {

@@ -239,14 +239,13 @@ describe("Codemation authoring helpers", () => {
     expect(dirs).toContain("./src/workflows");
   });
 
-  it("normalizer rejects sqlite when auth kind is managed (Story 2 coordination point)", () => {
-    // Cast required: "managed" will be added to CodemationAuthKind by Story 2.
+  it("normalizer accepts sqlite when auth kind is managed", () => {
     const config = defineCodemationApp({
       auth: { kind: "managed" as "local" },
       database: { kind: "sqlite", filePath: ".codemation/codemation.sqlite" },
       workflowsDir: "./src/workflows",
     });
-    expect(() => new CodemationConfigNormalizer().normalize(config)).toThrow(/PostgreSQL/);
+    expect(() => new CodemationConfigNormalizer().normalize(config)).not.toThrow();
   });
 
   it("normalizer rejects managed mode with no workflow source", () => {
