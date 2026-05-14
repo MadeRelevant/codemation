@@ -148,6 +148,124 @@ describe("Codemation authoring helpers", () => {
     expect(registeredCredentials).toEqual([helperCredential]);
   });
 
+  it("resolves database.urlEnv from the environment", () => {
+    const previousValue = process.env["DB_URL_AUTHORING_TEST"];
+    process.env["DB_URL_AUTHORING_TEST"] = "postgresql://localhost/test";
+    try {
+      const config = defineCodemationApp({
+        database: { kind: "postgresql", urlEnv: "DB_URL_AUTHORING_TEST" },
+        workflowsDir: "./src/workflows",
+      });
+      expect(config.app?.database?.url).toBe("postgresql://localhost/test");
+    } finally {
+      if (previousValue === undefined) {
+        delete process.env["DB_URL_AUTHORING_TEST"];
+      } else {
+        process.env["DB_URL_AUTHORING_TEST"] = previousValue;
+      }
+    }
+  });
+
+  it("rejects database.url and database.urlEnv set together", () => {
+    expect(() =>
+      defineCodemationApp({
+        database: { kind: "postgresql", url: "postgresql://a", urlEnv: "DB_URL" },
+        workflows: [],
+      }),
+    ).toThrow(/mutually exclusive/);
+  });
+
+  it("resolves execution.modeEnv from the environment", () => {
+    const previousValue = process.env["EXEC_MODE_AUTHORING_TEST"];
+    process.env["EXEC_MODE_AUTHORING_TEST"] = "queue";
+    try {
+      const config = defineCodemationApp({
+        execution: { modeEnv: "EXEC_MODE_AUTHORING_TEST" },
+        workflows: [],
+      });
+      expect(config.app?.scheduler?.kind).toBe("queue");
+    } finally {
+      if (previousValue === undefined) {
+        delete process.env["EXEC_MODE_AUTHORING_TEST"];
+      } else {
+        process.env["EXEC_MODE_AUTHORING_TEST"] = previousValue;
+      }
+    }
+  });
+
+  it("rejects execution.mode and execution.modeEnv set together", () => {
+    expect(() =>
+      defineCodemationApp({
+        execution: { mode: "inline", modeEnv: "EXEC_MODE" },
+        workflows: [],
+      }),
+    ).toThrow(/mutually exclusive/);
+  });
+
+  it("resolves execution.redisUrlEnv from the environment", () => {
+    const previousValue = process.env["REDIS_URL_AUTHORING_TEST"];
+    process.env["REDIS_URL_AUTHORING_TEST"] = "redis://localhost:6379";
+    try {
+      const config = defineCodemationApp({
+        execution: { redisUrlEnv: "REDIS_URL_AUTHORING_TEST" },
+        workflows: [],
+      });
+      expect(config.app?.scheduler?.redisUrl).toBe("redis://localhost:6379");
+    } finally {
+      if (previousValue === undefined) {
+        delete process.env["REDIS_URL_AUTHORING_TEST"];
+      } else {
+        process.env["REDIS_URL_AUTHORING_TEST"] = previousValue;
+      }
+    }
+  });
+
+  it("maps workflowsDir to workflowDiscovery.directories", () => {
+    const config = defineCodemationApp({
+      workflowsDir: "./src/workflows",
+      workflows: [],
+    });
+    expect(config.workflowDiscovery?.directories).toContain("./src/workflows");
+  });
+
+  it("merges workflowsDir with existing workflowDiscovery.directories", () => {
+    const config = defineCodemationApp({
+      workflowDiscovery: { directories: ["./extra"] },
+      workflowsDir: "./src/workflows",
+      workflows: [],
+    });
+    const dirs = config.workflowDiscovery?.directories ?? [];
+    expect(dirs).toContain("./extra");
+    expect(dirs).toContain("./src/workflows");
+  });
+
+  it("normalizer rejects sqlite when auth kind is managed (Story 2 coordination point)", () => {
+    // Cast required: "managed" will be added to CodemationAuthKind by Story 2.
+    const config = defineCodemationApp({
+      auth: { kind: "managed" as "local" },
+      database: { kind: "sqlite", filePath: ".codemation/codemation.sqlite" },
+      workflowsDir: "./src/workflows",
+    });
+    expect(() => new CodemationConfigNormalizer().normalize(config)).toThrow(/PostgreSQL/);
+  });
+
+  it("normalizer rejects managed mode with no workflow source", () => {
+    const config = defineCodemationApp({
+      auth: { kind: "managed" as "local" },
+      database: { kind: "postgresql", url: "postgresql://localhost/test" },
+    });
+    expect(() => new CodemationConfigNormalizer().normalize(config)).toThrow(/workflow source/);
+  });
+
+  it("normalizer accepts managed mode with workflowsDir and postgresql", () => {
+    const config = defineCodemationApp({
+      auth: { kind: "managed" as "local" },
+      database: { kind: "postgresql", url: "postgresql://localhost/test" },
+      workflowsDir: "./src/workflows",
+    });
+    expect(() => new CodemationConfigNormalizer().normalize(config)).not.toThrow();
+  });
+
   it("surfaces collections registered via defineCodemationApp onto normalized config", () => {
     const userCollection = defineCollection({
       name: "test_users",
