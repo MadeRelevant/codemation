@@ -9,7 +9,7 @@
 
 set -eu
 
-RELEASABLE_PACKAGE_REGEX='^packages/(agent-skills|cli|core|core-nodes|core-nodes-gmail|eventbus-redis|host|next-host|node-example|create-codemation)/'
+RELEASABLE_PACKAGE_REGEX='^packages/(agent-skills|canvas|cli|core|core-nodes|core-nodes-gmail|eventbus-redis|host|managed-auth|next-host|node-example|create-codemation)/'
 
 if [ "${SKIP_CHANGESET_VERIFY:-}" = "1" ]; then
   echo "changeset-verify: skipped (SKIP_CHANGESET_VERIFY=1)."
