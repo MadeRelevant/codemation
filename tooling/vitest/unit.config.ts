@@ -16,6 +16,7 @@ export default defineConfig({
       p("../../packages/core/vitest.config.ts"),
       p("../../packages/core-nodes/vitest.config.ts"),
       p("../../packages/core-nodes-gmail/vitest.config.ts"),
+      p("../../packages/managed-auth/vitest.config.ts"),
       p("../../packages/create-codemation/vitest.config.ts"),
       p("../../packages/cli/vitest.config.ts"),
       p("../../packages/next-host/vitest.config.ts"),

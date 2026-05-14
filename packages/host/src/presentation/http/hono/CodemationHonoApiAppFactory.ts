@@ -7,6 +7,7 @@ import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactor
 import type { HonoApiRouteRegistrar } from "./HonoApiRouteRegistrar";
 import type { InternalHonoApiRouteRegistrar } from "./InternalHonoApiRouteRegistrar";
 import { HonoHttpAnonymousRoutePolicy } from "./HonoHttpAnonymousRoutePolicyRegistry";
+import { ManagedCorsMiddleware } from "../../../auth/managed/ManagedCorsMiddleware";
 
 @injectable()
 export class CodemationHonoApiApp {
@@ -21,9 +22,15 @@ export class CodemationHonoApiApp {
     binaryHttpRouteHandler: BinaryHttpRouteHandler,
     @injectAll(ApplicationTokens.InternalHonoApiRouteRegistrar, { isOptional: true })
     internalRegistrars: ReadonlyArray<InternalHonoApiRouteRegistrar>,
+    @injectAll(ApplicationTokens.ManagedCorsMiddleware, { isOptional: true })
+    corsMiddlewareList: ReadonlyArray<ManagedCorsMiddleware>,
   ) {
     // Root app — composes /api/* (auth-gated) and /internal/* (HMAC-gated) sub-apps.
     const root = new Hono();
+    const corsMiddleware = corsMiddlewareList[0] ?? null;
+    if (corsMiddleware) {
+      root.use("*", corsMiddleware.handle());
+    }
 
     const api = new Hono().basePath("/api");
     api.onError((error, _c) => ServerHttpErrorResponseFactory.fromUnknown(error));

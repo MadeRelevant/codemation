@@ -1,0 +1,48 @@
+{
+  "name": "@codemation/managed-auth",
+  "version": "0.0.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Made Relevant B.V.",
+  "homepage": "https://www.maderelevant.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MadeRelevant/codemation",
+    "directory": "packages/managed-auth"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": {
+        "import": "./src/index.ts",
+        "require": "./dist/index.cjs"
+      },
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
+    "dev": "tsdown --watch",
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test:unit": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "jose": "^6.0.10"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "eslint": "^10.0.3",
+    "tsdown": "^0.15.5",
+    "typescript": "^5.9.3",
+    "vitest": "^3.1.4"
+  }
+}
