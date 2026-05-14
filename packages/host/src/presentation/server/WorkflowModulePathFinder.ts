@@ -42,6 +42,17 @@ export class WorkflowModulePathFinder {
 
   private isWorkflowModulePath(modulePath: string): boolean {
     const extension = path.extname(modulePath);
-    return this.workflowExtensions.has(extension) && !modulePath.endsWith(".d.ts");
+    if (!this.workflowExtensions.has(extension)) {
+      return false;
+    }
+    const basename = path.basename(modulePath);
+    if (basename.endsWith(".d.ts") || basename.endsWith(".d.mts")) {
+      return false;
+    }
+    const withoutExt = basename.slice(0, -extension.length);
+    if (withoutExt.endsWith(".test") || withoutExt.endsWith(".spec")) {
+      return false;
+    }
+    return true;
   }
 }
