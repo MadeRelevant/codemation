@@ -32,6 +32,7 @@ import type { CodemationWhitelabelConfig } from "./presentation/config/Codematio
 import type { HonoApiRouteRegistrar } from "./presentation/http/hono/HonoApiRouteRegistrar";
 import type { InternalHonoApiRouteRegistrar } from "./presentation/http/hono/InternalHonoApiRouteRegistrar";
 import type { ManagedCorsMiddleware } from "./auth/managed/ManagedCorsMiddleware";
+import type { WebsocketAuthenticator } from "./presentation/websocket/WebsocketAuthenticator.types";
 
 export const ApplicationTokens = {
   CodemationAuthConfig: Symbol.for("codemation.application.CodemationAuthConfig") as TypeToken<
@@ -58,6 +59,9 @@ export const ApplicationTokens = {
     "codemation.application.InternalHonoApiRouteRegistrar",
   ) as TypeToken<InternalHonoApiRouteRegistrar>,
   ManagedCorsMiddleware: Symbol.for("codemation.application.ManagedCorsMiddleware") as TypeToken<ManagedCorsMiddleware>,
+  WebsocketAuthenticator: Symbol.for(
+    "codemation.application.WebsocketAuthenticator",
+  ) as TypeToken<WebsocketAuthenticator | null>,
   WorkflowWebsocketPublisher: Symbol.for(
     "codemation.application.WorkflowWebsocketPublisher",
   ) as TypeToken<WorkflowWebsocketPublisher>,
