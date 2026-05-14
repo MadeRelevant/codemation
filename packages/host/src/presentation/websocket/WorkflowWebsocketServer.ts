@@ -1,8 +1,10 @@
 import { WebSocket, WebSocketServer } from "ws";
+import type { IncomingMessage } from "node:http";
 import type { WorkflowWebsocketMessage } from "../../application/contracts/WorkflowWebsocketMessage";
 import type { Logger } from "../../application/logging/Logger";
 import type { WorkflowWebsocketPublisher } from "../../application/websocket/WorkflowWebsocketPublisher";
 import { ApiPaths } from "../http/ApiPaths";
+import type { WebsocketAuthenticator } from "./WebsocketAuthenticator.types";
 
 type WorkflowWebsocketClientMessage =
   | Readonly<{ kind: "subscribe"; roomId: string }>
@@ -26,7 +28,17 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
     private readonly port: number,
     private readonly bindHost: string,
     private readonly logger: Logger,
+    private readonly authenticator: WebsocketAuthenticator | null = null,
   ) {}
+
+  /** Returns the actual port the server is listening on (useful when constructed with port 0). */
+  get listeningPort(): number {
+    const addr = this.websocketServer?.address();
+    if (!addr || typeof addr === "string") {
+      return this.port;
+    }
+    return addr.port;
+  }
 
   async start(): Promise<void> {
     if (this.started) {
@@ -38,8 +50,8 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
       path: ApiPaths.workflowWebsocket(),
     });
     this.websocketServer = websocketServer;
-    websocketServer.on("connection", (socket) => {
-      void this.connect(socket);
+    websocketServer.on("connection", (socket, request) => {
+      void this.connect(socket, request);
     });
     try {
       await this.awaitListening(websocketServer);
@@ -98,7 +110,16 @@ export class WorkflowWebsocketServer implements WorkflowWebsocketPublisher {
     this.logger.debug(`published room=${roomId} sockets=${deliveredSocketCount} kind=${message.kind}`);
   }
 
-  private async connect(socket: WebSocket): Promise<void> {
+  private async connect(socket: WebSocket, request: IncomingMessage): Promise<void> {
+    if (this.authenticator) {
+      const principal = await this.authenticator.authenticate(request.url);
+      if (!principal) {
+        this.logger.warn("websocket auth failed: closing with 4401");
+        socket.close(4401, "unauthorized");
+        return;
+      }
+    }
+
     this.sockets.add(socket);
     this.roomIdsBySocket.set(socket, new Set());
     this.logger.debug(`client connected activeSockets=${this.sockets.size}`);

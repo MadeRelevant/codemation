@@ -284,6 +284,7 @@ import { ManagedAuthConfigFactory } from "../auth/managed/ManagedAuthConfig";
 import { ManagedAuthMiddleware } from "../auth/managed/ManagedAuthMiddleware";
 import { ManagedCorsMiddleware } from "../auth/managed/ManagedCorsMiddleware";
 import { ManagedModeBootGuard } from "../auth/managed/ManagedModeBootGuard";
+import { ManagedWebsocketAuthenticator } from "../presentation/websocket/ManagedWebsocketAuthenticator";
 import { JwksCache, ManagedJwtVerifier } from "@codemation/managed-auth";
 
 type AppContainerInputs = Readonly<{
@@ -642,10 +643,14 @@ export class AppContainerFactory {
         if (inputs.sharedWorkflowWebsocketServer) {
           return inputs.sharedWorkflowWebsocketServer;
         }
+        const authenticator = dependencyContainer.isRegistered(ApplicationTokens.WebsocketAuthenticator, true)
+          ? dependencyContainer.resolve(ApplicationTokens.WebsocketAuthenticator)
+          : null;
         return new WorkflowWebsocketServer(
           dependencyContainer.resolve(ApplicationTokens.WebSocketPort),
           dependencyContainer.resolve(ApplicationTokens.WebSocketBindHost),
           dependencyContainer.resolve(ServerLoggerFactory).create("codemation-websocket.server"),
+          authenticator,
         );
       }),
     });
@@ -897,6 +902,8 @@ export class AppContainerFactory {
     const jwksCache = new JwksCache({ jwksUrl: managedAuthConfig.jwksUrl }, (url) => fetch(url), {
       now: () => Date.now(),
     });
+    // Shared verifier: both ManagedAuthMiddleware (HTTP) and ManagedWebsocketAuthenticator (WS)
+    // use the same JwksCache instance so JWKS key rotation propagates to both transports.
     const jwtVerifier = new ManagedJwtVerifier(
       {
         expectedIssuer: managedAuthConfig.issuer,
@@ -908,6 +915,9 @@ export class AppContainerFactory {
 
     const managedAuthMiddleware = new ManagedAuthMiddleware(jwtVerifier);
     container.register(ApplicationTokens.SessionVerifier, { useValue: managedAuthMiddleware });
+
+    const websocketAuthenticator = new ManagedWebsocketAuthenticator(jwtVerifier);
+    container.registerInstance(ApplicationTokens.WebsocketAuthenticator, websocketAuthenticator);
 
     const corsMiddleware = new ManagedCorsMiddleware(managedAuthConfig.cpWebOrigin);
     container.registerInstance(ApplicationTokens.ManagedCorsMiddleware, corsMiddleware);
