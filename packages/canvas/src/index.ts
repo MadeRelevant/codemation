@@ -46,6 +46,8 @@ export * from "./lib/workflowDetailTreeStyles";
 // Phase 3: Lib utilities
 export * from "./lib/CodemationApiHttpError";
 export * from "./lib/HumanFriendlyTimestampFormatter";
+export { createWorkflowCanvasApiClient } from "./lib/createWorkflowCanvasApiClient";
+export type { WorkflowCanvasApiClientOptions } from "./lib/createWorkflowCanvasApiClient";
 
 // Phase 3: Realtime components
 export * from "./components/realtime/RealtimeContext";
