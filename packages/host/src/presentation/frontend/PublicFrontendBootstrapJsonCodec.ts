@@ -15,7 +15,7 @@ export class PublicFrontendBootstrapJsonCodec {
       if (!parsed || typeof parsed !== "object") {
         return null;
       }
-      return {
+      const base: PublicFrontendBootstrap = {
         credentialsEnabled: parsed.credentialsEnabled === true,
         logoUrl: typeof parsed.logoUrl === "string" && parsed.logoUrl.trim().length > 0 ? parsed.logoUrl : null,
         oauthProviders: this.resolveOauthProviders(parsed.oauthProviders),
@@ -25,6 +25,9 @@ export class PublicFrontendBootstrapJsonCodec {
             : "Codemation",
         uiAuthEnabled: parsed.uiAuthEnabled !== false,
       };
+      const cpWebOrigin =
+        typeof parsed.cpWebOrigin === "string" && parsed.cpWebOrigin.trim().length > 0 ? parsed.cpWebOrigin : undefined;
+      return cpWebOrigin ? { ...base, cpWebOrigin } : base;
     } catch {
       return null;
     }

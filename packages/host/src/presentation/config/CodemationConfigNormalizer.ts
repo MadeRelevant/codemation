@@ -25,6 +25,7 @@ export type NormalizedCodemationConfig = Omit<CodemationConfig, "collections"> &
 
 export class CodemationConfigNormalizer {
   normalize(config: CodemationConfig): NormalizedCodemationConfig {
+    this.assertAuthConfig(config.app?.auth ?? config.auth);
     const collected = this.collectRegistration(config);
     const normalizedRuntime = this.normalizeRuntimeConfig(config);
     const normalizedWorkflowDiscoveryDirectories = [
@@ -185,6 +186,23 @@ export class CodemationConfigNormalizer {
       queuePrefix: scheduler.queuePrefix ?? config.runtime?.eventBus?.queuePrefix,
       redisUrl: scheduler.redisUrl ?? config.runtime?.eventBus?.redisUrl,
     };
+  }
+
+  private assertAuthConfig(authConfig: CodemationConfig["auth"]): void {
+    if (authConfig?.kind !== "managed") {
+      return;
+    }
+    if (authConfig.oauth && authConfig.oauth.length > 0) {
+      throw new Error('auth.kind "managed" cannot be combined with oauth providers. Remove the oauth config.');
+    }
+    if (authConfig.oidc && authConfig.oidc.length > 0) {
+      throw new Error('auth.kind "managed" cannot be combined with oidc providers. Remove the oidc config.');
+    }
+    if (authConfig.allowUnauthenticatedInDevelopment === true) {
+      throw new Error(
+        'auth.kind "managed" cannot be combined with allowUnauthenticatedInDevelopment. Remove that flag.',
+      );
+    }
   }
 
   private mergeWorkflows(

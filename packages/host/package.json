@@ -95,6 +95,7 @@
     "@codemation/core": "workspace:*",
     "@codemation/core-nodes": "workspace:*",
     "@codemation/eventbus-redis": "workspace:*",
+    "@codemation/managed-auth": "workspace:*",
     "@libsql/client": "^0.17.2",
     "@monaco-editor/react": "^4.7.0",
     "@prisma/adapter-libsql": "^7.6.0",

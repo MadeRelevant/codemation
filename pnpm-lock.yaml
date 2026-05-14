@@ -729,6 +729,9 @@ importers:
       '@codemation/eventbus-redis':
         specifier: workspace:*
         version: link:../eventbus-redis
+      '@codemation/managed-auth':
+        specifier: workspace:*
+        version: link:../managed-auth
       '@libsql/client':
         specifier: ^0.17.2
         version: 0.17.2

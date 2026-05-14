@@ -1,5 +1,5 @@
 import { importJWK } from "jose";
-import type { Clock, FetchFn, JwksCacheConfig } from "./types.js";
+import type { Clock, FetchFn, JwksCacheConfig } from "./types";
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const DEFAULT_JITTER_MS = 60 * 1000; // 60 seconds

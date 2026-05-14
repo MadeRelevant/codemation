@@ -1,5 +1,5 @@
-export { JwksCache } from "./JwksCache.js";
-export { ManagedJwtVerifier } from "./ManagedJwtVerifier.js";
+export { JwksCache } from "./JwksCache";
+export { ManagedJwtVerifier } from "./ManagedJwtVerifier";
 export type {
   Clock,
   FetchFn,
@@ -8,4 +8,4 @@ export type {
   JwtVerificationFailureReason,
   ManagedJwtVerifierConfig,
   VerifiedManagedPrincipal,
-} from "./types.js";
+} from "./types";

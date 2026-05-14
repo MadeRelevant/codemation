@@ -11,4 +11,9 @@ export type CodemationFrontendAuthSnapshot = Readonly<{
   oauthProviders: ReadonlyArray<CodemationFrontendAuthProviderSnapshot>;
   secret: string | null;
   uiAuthEnabled: boolean;
+  /**
+   * Present when auth.kind === "managed". Carries the CP-web origin for CORS
+   * awareness. No UI login flow is rendered in managed mode.
+   */
+  cpWebOrigin?: string;
 }>;

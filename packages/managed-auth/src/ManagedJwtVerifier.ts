@@ -1,6 +1,6 @@
 import { decodeProtectedHeader, jwtVerify, errors as joseErrors } from "jose";
-import type { JwtVerificationFailure, ManagedJwtVerifierConfig, VerifiedManagedPrincipal } from "./types.js";
-import type { JwksCache } from "./JwksCache.js";
+import type { JwtVerificationFailure, ManagedJwtVerifierConfig, VerifiedManagedPrincipal } from "./types";
+import type { JwksCache } from "./JwksCache";
 
 type VerifyResult = VerifiedManagedPrincipal | JwtVerificationFailure;
 

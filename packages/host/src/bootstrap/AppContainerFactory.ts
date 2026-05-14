@@ -280,6 +280,11 @@ import { McpConnectionPool } from "../mcp/McpConnectionPool";
 import { DefaultMcpClientFactory } from "../mcp/McpClientFactory";
 import { McpRegistryFetcher } from "../mcp/McpRegistryFetcher";
 import { AgentMcpIntegrationImpl } from "../mcp/AgentMcpIntegrationImpl";
+import { ManagedAuthConfigFactory } from "../auth/managed/ManagedAuthConfig";
+import { ManagedAuthMiddleware } from "../auth/managed/ManagedAuthMiddleware";
+import { ManagedCorsMiddleware } from "../auth/managed/ManagedCorsMiddleware";
+import { ManagedModeBootGuard } from "../auth/managed/ManagedModeBootGuard";
+import { JwksCache, ManagedJwtVerifier } from "@codemation/managed-auth";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -374,8 +379,9 @@ export class AppContainerFactory {
     container.registerInstance(ApplicationTokens.TelemetrySpanPublisher, NoOpTelemetrySpanPublisher);
     this.registerCoreInfrastructure(container, inputs);
     this.registerRepositoriesAndBuses(container);
-    this.registerApplicationServicesAndRoutes(container);
+    this.registerApplicationServicesAndRoutes(container, inputs.appConfig);
     this.registerOperationalInfrastructure(container);
+    this.registerManagedAuthInfrastructure(container, inputs.appConfig);
     this.registerPairingInfrastructure(container, inputs.appConfig);
     this.registerConfiguredRegistrations(container, inputs.appConfig);
     const credentialTypes = this.collectCredentialTypes(inputs.appConfig);
@@ -830,7 +836,7 @@ export class AppContainerFactory {
     });
   }
 
-  private registerApplicationServicesAndRoutes(container: Container): void {
+  private registerApplicationServicesAndRoutes(container: Container, appConfig: AppConfig): void {
     container.registerSingleton(DevBootstrapSummaryAssembler, DevBootstrapSummaryAssembler);
     container.registerSingleton(DevBootstrapSummaryHttpRouteHandler, DevBootstrapSummaryHttpRouteHandler);
     container.registerSingleton(AuthHttpRouteHandler, AuthHttpRouteHandler);
@@ -868,10 +874,43 @@ export class AppContainerFactory {
     container.registerSingleton(TestRunnerService, TestRunnerService);
     container.registerSingleton(TestSuiteHttpRouteHandler, TestSuiteHttpRouteHandler);
     container.registerSingleton(CollectionHttpRouteHandler, CollectionHttpRouteHandler);
+    const isManagedMode = appConfig.auth?.kind === "managed";
     for (const registrar of AppContainerFactory.honoRouteRegistrars) {
+      // In managed mode, skip the Better Auth route registrar so /api/auth/* returns 404
+      if (isManagedMode && registrar === AuthHonoApiRouteRegistrar) {
+        continue;
+      }
       container.registerSingleton(ApplicationTokens.HonoApiRouteRegistrar, registrar);
     }
     container.registerSingleton(CodemationHonoApiApp, CodemationHonoApiApp);
+  }
+
+  private registerManagedAuthInfrastructure(container: Container, appConfig: AppConfig): void {
+    if (appConfig.auth?.kind !== "managed") {
+      return;
+    }
+
+    new ManagedModeBootGuard().assertRequiredEnv(appConfig.env);
+    const managedAuthConfig = new ManagedAuthConfigFactory().create(appConfig.env);
+    const workspaceId = appConfig.env["WORKSPACE_ID"] ?? "";
+
+    const jwksCache = new JwksCache({ jwksUrl: managedAuthConfig.jwksUrl }, (url) => fetch(url), {
+      now: () => Date.now(),
+    });
+    const jwtVerifier = new ManagedJwtVerifier(
+      {
+        expectedIssuer: managedAuthConfig.issuer,
+        expectedAudience: workspaceId,
+        jwksCache: { jwksUrl: managedAuthConfig.jwksUrl },
+      },
+      jwksCache,
+    );
+
+    const managedAuthMiddleware = new ManagedAuthMiddleware(jwtVerifier);
+    container.register(ApplicationTokens.SessionVerifier, { useValue: managedAuthMiddleware });
+
+    const corsMiddleware = new ManagedCorsMiddleware(managedAuthConfig.cpWebOrigin);
+    container.registerInstance(ApplicationTokens.ManagedCorsMiddleware, corsMiddleware);
   }
 
   private registerPairingInfrastructure(container: Container, appConfig: AppConfig): void {

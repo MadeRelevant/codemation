@@ -15,6 +15,7 @@
       "@codemation/core-nodes": ["../core-nodes/src/index.ts"],
       "@codemation/core-nodes-gmail": ["../core-nodes-gmail/src/index.ts"],
       "@codemation/eventbus-redis": ["../eventbus-redis/src/index.ts"],
+      "@codemation/managed-auth": ["../managed-auth/src/index.ts"],
       "@codemation/host": ["./src/index.ts"],
       "@codemation/host/authoring": ["./src/authoring.ts"],
       "@codemation/host/client": ["./src/client.ts"],

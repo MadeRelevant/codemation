@@ -12,12 +12,16 @@ export class PublicFrontendBootstrapFactory {
 
   create(): PublicFrontendBootstrap {
     const frontendAppConfig = this.frontendAppConfigFactory.create();
-    return {
+    const bootstrap: PublicFrontendBootstrap = {
       credentialsEnabled: frontendAppConfig.auth.credentialsEnabled,
       logoUrl: frontendAppConfig.logoUrl,
       oauthProviders: frontendAppConfig.auth.oauthProviders,
       productName: frontendAppConfig.productName,
       uiAuthEnabled: frontendAppConfig.auth.uiAuthEnabled,
     };
+    if (frontendAppConfig.auth.cpWebOrigin) {
+      return { ...bootstrap, cpWebOrigin: frontendAppConfig.auth.cpWebOrigin };
+    }
+    return bootstrap;
   }
 }
