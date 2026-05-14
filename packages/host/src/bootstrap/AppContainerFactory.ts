@@ -263,6 +263,7 @@ import { ListCollectionRowsQueryHandler } from "../application/collections/ListC
 import { ListCollectionsQueryHandler } from "../application/collections/ListCollectionsQueryHandler";
 import { CollectionHttpRouteHandler } from "../presentation/http/routeHandlers/CollectionHttpRouteHandlerFactory";
 import { CollectionHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/CollectionHonoApiRouteRegistrar";
+import { ManagedMeHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/ManagedMeHonoApiRouteRegistrar";
 import { PairingConfigFactory } from "../pairing/PairingConfigFactory";
 import { PairingConfigToken } from "../pairing/PairingConfigToken";
 import { HmacRequestSigner } from "../pairing/HmacRequestSigner";
@@ -921,6 +922,8 @@ export class AppContainerFactory {
 
     const corsMiddleware = new ManagedCorsMiddleware(managedAuthConfig.cpWebOrigin);
     container.registerInstance(ApplicationTokens.ManagedCorsMiddleware, corsMiddleware);
+
+    container.registerSingleton(ApplicationTokens.HonoApiRouteRegistrar, ManagedMeHonoApiRouteRegistrar);
   }
 
   private registerPairingInfrastructure(container: Container, appConfig: AppConfig): void {
