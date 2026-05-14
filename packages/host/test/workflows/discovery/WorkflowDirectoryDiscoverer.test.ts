@@ -3,12 +3,12 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, test } from "vitest";
-const baseTmpDir = path.join(tmpdir(), "wdd-tests");
-let testCounter = 0;
-
 import type { WorkflowDefinition } from "@codemation/core";
 import type { WorkflowModuleImporter } from "../../../src/workflows/discovery/WorkflowDirectoryDiscoverer";
 import { WorkflowDirectoryDiscoverer } from "../../../src/workflows/discovery/WorkflowDirectoryDiscoverer";
+
+const baseTmpDir = path.join(tmpdir(), "wdd-tests");
+let testCounter = 0;
 
 function minimalWorkflow(id: string): WorkflowDefinition {
   return { id, name: id, nodes: [], edges: [] };
