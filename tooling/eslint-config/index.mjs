@@ -751,6 +751,7 @@ export default [
       "**/test/**",
       "**/*.test.ts",
       "packages/host/src/bootstrap/CodemationBootstrapRequest.ts",
+      "packages/host/src/presentation/config/CodemationAuthoring.types.ts",
       "packages/host/src/presentation/server/CodemationConsumerConfigLoader.ts",
       "packages/host/src/presentation/server/CodemationPluginDiscovery.ts",
       "packages/host/src/presentation/server/DevelopmentRuntimeRouteGuard.ts",

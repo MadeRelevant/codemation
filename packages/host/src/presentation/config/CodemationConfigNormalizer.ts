@@ -8,6 +8,7 @@ import type {
 } from "@codemation/core";
 import type { CodemationContainerRegistration } from "../../bootstrap/CodemationContainerRegistration";
 import type { CodemationAppContext } from "./CodemationAppContext";
+import type { CodemationAuthConfig } from "./CodemationAuthConfig";
 import type { CodemationClassToken } from "./CodemationClassToken";
 import type {
   CodemationApplicationRuntimeConfig,
@@ -25,7 +26,9 @@ export type NormalizedCodemationConfig = Omit<CodemationConfig, "collections"> &
 
 export class CodemationConfigNormalizer {
   normalize(config: CodemationConfig): NormalizedCodemationConfig {
-    this.assertAuthConfig(config.app?.auth ?? config.auth);
+    const auth = config.app?.auth ?? config.auth;
+    this.assertAuthConfig(auth);
+    this.assertManagedModeConstraints(config, auth);
     const collected = this.collectRegistration(config);
     const normalizedRuntime = this.normalizeRuntimeConfig(config);
     const normalizedWorkflowDiscoveryDirectories = [
@@ -35,7 +38,7 @@ export class CodemationConfigNormalizer {
 
     return {
       ...config,
-      auth: config.app?.auth ?? config.auth,
+      auth,
       containerRegistrations: collected.containerRegistrations,
       credentialTypes: [...(config.credentialTypes ?? []), ...collected.credentialTypes],
       collections: [...this.unwrapCollections(config.collections), ...collected.collections],
@@ -48,6 +51,29 @@ export class CodemationConfigNormalizer {
           : config.workflowDiscovery,
       workflows: this.mergeWorkflows(config.workflows ?? [], collected.workflows),
     };
+  }
+
+  /**
+   * Enforces managed-mode invariants beyond what `assertAuthConfig` covers:
+   * managed-mode workspaces are always Postgres and always require at least one workflow source.
+   */
+  private assertManagedModeConstraints(config: CodemationConfig, auth: CodemationAuthConfig | undefined): void {
+    if (auth?.kind !== "managed") {
+      return;
+    }
+    const dbKind = config.app?.database?.kind;
+    if (dbKind === "sqlite") {
+      throw new Error(
+        'Managed-mode workspaces require PostgreSQL. Set database.kind to "postgresql" (SQLite is not supported with auth.kind: "managed").',
+      );
+    }
+    const hasWorkflows = (config.workflows?.length ?? 0) > 0;
+    const hasWorkflowDiscovery = (config.workflowDiscovery?.directories?.length ?? 0) > 0;
+    if (!hasWorkflows && !hasWorkflowDiscovery) {
+      throw new Error(
+        'Managed-mode workspaces require at least one workflow source. Provide "workflows" or "workflowsDir" (which maps to workflowDiscovery.directories) in defineCodemationApp.',
+      );
+    }
   }
 
   private collectRegistration(config: CodemationConfig): Readonly<{
