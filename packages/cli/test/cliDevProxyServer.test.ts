@@ -465,3 +465,46 @@ test("routes /api/auth/* to the disposable runtime when the UI proxy is configur
   assert.equal(response.status, 200);
   assert.equal(await response.text(), "auth-from-runtime");
 });
+
+test("routes /internal/* to the disposable runtime when the UI proxy is configured", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const ui = new StubUiServer();
+  activeUiServers.push(ui);
+  await ui.start();
+  harness.proxyServer.setUiProxyTarget(`http://127.0.0.1:${ui.port}`);
+
+  const runtime = new StubRuntimeServer("credentials-from-runtime");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const response = await harness.fetchApi("/internal/credentials");
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "credentials-from-runtime");
+});
+
+test("GET /internal/* returns 503 while the runtime is building", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("credentials-from-runtime");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+  harness.proxyServer.setBuildStatus("building");
+
+  const response = await harness.fetchApi("/internal/credentials");
+  assert.equal(response.status, 503);
+});
