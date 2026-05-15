@@ -637,7 +637,19 @@ export function useWorkflowRealtimeInfrastructure(
       }
     });
     return () => {
-      socket.close();
+      // React Strict Mode double-mounts effects in dev. The cleanup from the
+      // first mount can fire before the WS upgrade completes, and closing a
+      // CONNECTING socket aborts the handshake — emits a noisy
+      // "WebSocket is closed before the connection is established" in DevTools.
+      // Defer the close until the open event so the handshake finishes first.
+      if (socket.readyState === WebSocket.CONNECTING) {
+        socket.addEventListener("open", () => socket.close(), { once: true });
+        return;
+      }
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
+      // CLOSING / CLOSED: nothing to do.
     };
   }, [devGatewayWebsocketUrl, logger, queryClient, shouldConnect]);
 
