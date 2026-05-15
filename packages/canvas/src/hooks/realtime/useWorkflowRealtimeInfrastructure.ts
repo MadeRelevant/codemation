@@ -47,12 +47,20 @@ export function useWorkflowRealtimeInfrastructure(
      * When null/undefined, self-hosted cookie auth is used unchanged.
      */
     getWsToken?: (opts?: Readonly<{ forceRefresh?: boolean }>) => Promise<string | null> | string | null;
+    /**
+     * Skip the `/api/dev/health` gate before opening the workflow socket.
+     * Set this when the consumer already knows the host is ready (e.g. the
+     * customer-ui's WorkspaceCanvasProviders, which only mounts this hook
+     * after meta-fetch + token-mint succeed). Avoids an extra round-trip that
+     * delays the first room subscription by one health-check tick.
+     */
+    skipDevHealthCheck?: boolean;
   }>,
 ): RealtimeContextValue {
-  const { logger, websocketPort } = args;
+  const { logger, websocketPort, skipDevHealthCheck } = args;
   const getWsToken = args.getWsToken ?? null;
   const queryClient = useQueryClient();
-  const [workflowSocketEnabled, setWorkflowSocketEnabled] = useState(false);
+  const [workflowSocketEnabled, setWorkflowSocketEnabled] = useState(Boolean(skipDevHealthCheck));
   const hasLoggedWorkflowSocketEnabledRef = useRef(false);
   const desiredWorkflowCountsRef = useRef(new Map<string, number>());
   // Run room subscriptions tracked by a ref-counted tracker.
@@ -103,6 +111,12 @@ export function useWorkflowRealtimeInfrastructure(
     if (typeof window === "undefined") {
       return;
     }
+    // Consumer already verified the host is ready (e.g. by fetching workspace
+    // meta + minting a token). Skip the redundant /api/dev/health gate, which
+    // otherwise delays the first room subscription by one health-check tick.
+    if (skipDevHealthCheck) {
+      return;
+    }
     let disposed = false;
     let intervalId: number | null = null;
     const check = async (): Promise<boolean> => {
@@ -150,7 +164,7 @@ export function useWorkflowRealtimeInfrastructure(
         window.clearInterval(intervalId);
       }
     };
-  }, []);
+  }, [skipDevHealthCheck]);
   useEffect(() => {
     if (workflowSocketEnabled && !hasLoggedWorkflowSocketEnabledRef.current) {
       hasLoggedWorkflowSocketEnabledRef.current = true;
@@ -657,7 +671,7 @@ export function useWorkflowRealtimeInfrastructure(
     if (readyState !== RealtimeReadyState.OPEN) return;
     for (const workflowId of desiredWorkflowCountsRef.current.keys()) {
       const sent = sendJsonMessage({ kind: "subscribe", roomId: workflowId } satisfies RealtimeClientMessage);
-      logger.debug(`${sent ? "sent" : "queued"} subscribe for workflow ${workflowId}`);
+      logger.info(`${sent ? "sent" : "queued"} subscribe for workflow ${workflowId}`);
     }
     for (const runId of getRunTracker().activeRunIds()) {
       const roomId = `run:${runId}`;
