@@ -332,7 +332,6 @@ export class CliDevProxyServer {
       subscribedRoomIds: new Set(),
     };
     this.workflowClientStates.set(socket, state);
-    socket.send(JSON.stringify({ kind: "ready" }));
     socket.on("message", (rawData) => {
       void this.handleWorkflowClientMessage(socket, rawData);
     });
@@ -345,9 +344,21 @@ export class CliDevProxyServer {
 
     const runtime = this.activeRuntime;
     if (!runtime || this.activeBuildStatus === "building") {
+      // No upstream yet — still signal ready so the client surfaces its
+      // realtime infra. Subscriptions will be replayed once activateRuntime
+      // opens per-client child sockets.
+      socket.send(JSON.stringify({ kind: "ready" }));
       return;
     }
+    // Open the upstream BEFORE signaling ready. Otherwise the client races
+    // the proxy: a subscribe sent immediately after ready hits an empty
+    // childSocket and gets silently dropped — meaning short-lived workflow
+    // runs (~150ms) finish before the proxy ever reads their events. See
+    // e2e CLI bug #3 finding (control-plane).
     await this.openPerClientChildSocket(state, runtime.workflowWebSocketPort);
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ kind: "ready" }));
+    }
   }
 
   private disconnectWorkflowClient(socket: WebSocket): void {
