@@ -121,3 +121,4 @@ export default workflow("wf.parent")
 
 - Read `references/builder-patterns.md` for item-flow rules and fluent authoring patterns.
 - Read `references/workflow-testing.md` for TestTrigger / IsTestRun / Assertion authoring with full examples.
+- Read `references/complete-example.md` for a single dense end-to-end workflow example that exercises most authoring features (CronTrigger, map, if, agent, callableTool, itemExpr, ctx.data, ctx.binary, node with explicit id, build).
