@@ -181,7 +181,8 @@ export class CliDevProxyServer {
     // Host-owned `/api/auth/*` is served by the disposable Hono runtime (same DB as other APIs).
     // Do not route it to the Next UI — that used to cause gateway → Next → gateway loops when Next
     // proxied auth back through CODEMATION_RUNTIME_DEV_URL.
-    if (pathname.startsWith("/api/")) {
+    // `/internal/*` is similarly runtime-owned (workspace-mcp HMAC endpoints); never forward to the UI.
+    if (pathname.startsWith("/api/") || pathname.startsWith("/internal/")) {
       const runtimeTarget = this.activeRuntime;
       if (pathname === "/api/dev/bootstrap-summary" && runtimeTarget) {
         this.proxy.web(req, res, {
