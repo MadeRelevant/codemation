@@ -1,10 +1,15 @@
 Load this when you need to see a complete workflow that exercises most authoring features end-to-end.
 
+## The dense example (manual trigger — full fluent sugar)
+
+The fluent `.map`/`.if`/`.switch`/`.split`/`.agent`/`.node` helpers are only available after `.manualTrigger(...)`. The example below is a manual-trigger workflow so it can demonstrate all of them. For cron / webhook variants, see the snippet at the bottom.
+
 ```ts
 // src/workflows/dailyCsvDigest.ts
 //
-// Theme: every day at 06:00 UTC, fetch yesterday's sales CSV from a reporting API,
-// parse each row, classify rows with an LLM agent, then send a digest email.
+// Theme: a manual-triggered "daily CSV digest". Caller passes { date: "YYYY-MM-DD" }.
+// The flow fetches that day's sales CSV from a reporting API, parses each row,
+// classifies rows with an LLM agent, and sends a per-row digest email.
 //
 // Register in codemation.config.ts:
 //   import dailyCsvDigest from "./src/workflows/dailyCsvDigest";
@@ -12,20 +17,20 @@ Load this when you need to see a complete workflow that exercises most authoring
 
 import { z } from "zod";
 import { callableTool, itemExpr } from "@codemation/core";
-import { CronTrigger, HttpRequest } from "@codemation/core-nodes";
+import { HttpRequest } from "@codemation/core-nodes";
 import { workflow } from "@codemation/host";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type CronTick = { firedAt: string; scheduledFor: string };
+type TriggerInput = { date: string }; // e.g. "2025-05-14"
 
 type FetchMeta = {
   url: string;
   ok: boolean;
   status: number;
-  binarySlot: string; // set when responseFormat === "binary"
+  binarySlot: string;
 };
 
 type CsvRow = {
@@ -58,13 +63,10 @@ const classifyRowTool = callableTool({
     rationale: z.string(),
   }),
   execute: async ({ input }) => {
-    // Inline logic: in practice the agent decides; this is the fallback executor.
+    // Fallback executor if the agent doesn't call the tool — keeps the workflow deterministic in tests.
     const classification =
       input.anomaly || input.revenue < 0 ? "critical" : input.revenue < 1000 ? "warning" : "normal";
-    return {
-      classification,
-      rationale: `Revenue ${input.revenue}, anomaly=${input.anomaly}`,
-    };
+    return { classification, rationale: `Revenue ${input.revenue}, anomaly=${input.anomaly}` };
   },
 });
 
@@ -74,71 +76,52 @@ const classifyRowTool = callableTool({
 
 export default workflow("wf.daily-csv-digest")
   .name("Daily CSV Digest")
-  // CronTrigger must be attached with builder.trigger(new CronTrigger(...)) —
-  // not .manualTrigger() — because it's a non-manual trigger type.
-  .trigger(new CronTrigger("Daily 06:00", { schedule: "0 6 * * *", timezone: "UTC" }))
+  // Manual trigger seeded with a default date — callers can override at run time.
+  .manualTrigger<TriggerInput>("Start", { date: "2025-05-14" })
 
-  // ── Step 1: fetch the CSV ─────────────────────────────────────────────────
-  // async .map — use async when you need await (e.g. date math, API calls in prep).
-  .map("Build fetch URL", async (item: { json: CronTick }, _ctx) => {
-    const yesterday = new Date(item.json.scheduledFor);
-    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-    const date = yesterday.toISOString().slice(0, 10); // "2025-05-14"
-    return { date, reportUrl: `https://reports.internal/sales/${date}.csv` };
-  })
+  // ── Step 1: build the fetch URL ────────────────────────────────────────────
+  // async .map — use when you need await (date math here is sync, but the API call below is async).
+  .map("Build fetch URL", async (item, _ctx) => ({
+    date: item.json.date,
+    reportUrl: `https://reports.internal/sales/${item.json.date}.csv`,
+  }))
 
   // HttpRequest with responseFormat:"binary" stores the body in ctx.binary automatically.
-  // Explicit id: "fetch-report" is stable so credential binding survives label renames.
+  // Explicit id "fetch-report" keeps the credential binding stable across label renames.
   .then(
     new HttpRequest("Fetch report CSV", {
-      id: "fetch-report", // stable id — credential binding key is (workflowId, nodeId, slotKey)
+      id: "fetch-report",
       urlField: "reportUrl",
-      responseFormat: "binary", // body stored in binary["response"]; item.json gets FetchMeta
+      responseFormat: "binary",
       responseBinarySlot: "csvFile",
-      credentialSlot: "reportApi", // bound in the canvas credential panel
+      credentialSlot: "reportApi",
     }),
   )
 
-  // ── Step 2: skip on HTTP error ────────────────────────────────────────────
-  // .if predicate receives (item, ctx) — per-item, synchronous; use for fast boolean gates.
-  // .switch would be overkill here: only two outcomes, no string case routing needed.
+  // ── Step 2: gate on HTTP success ───────────────────────────────────────────
+  // .if predicate receives (item, ctx). Use for fast boolean branches; .switch is overkill for two outcomes.
   .if((item: { json: FetchMeta }, _ctx) => item.json.ok, {
     true: (branch) =>
       branch
         // ── Step 3: parse CSV from binary ──────────────────────────────────────
         // async .map — needs await to read from binary storage.
         .map("Parse CSV rows", async (item: { json: FetchMeta }, ctx) => {
-          // ctx.binary.openReadStream works because the binary slot was attached upstream.
           const stream = await ctx.binary.openReadStream(item.json.binarySlot);
           const text = await streamToText(stream);
-          const rows = parseCsv(text); // returns CsvRow[]
-          // Attach the raw bytes again under a stable slot name for downstream nodes.
-          const att = await ctx.binary.attach({
-            name: "csvFile",
-            body: Buffer.from(text, "utf-8"),
-            mimeType: "text/csv",
-            filename: `sales-${(item.json as unknown as { date?: string }).date ?? "unknown"}.csv`,
-          });
-          return ctx.binary.withAttachment({ rows, fetchedAt: item.json.url }, "csvFile", att);
+          const rows = parseCsv(text);
+          return { rows, fetchedAt: item.json.url };
         })
 
-        // split: one item per CSV row so the agent step runs per-row.
+        // .split emits one item per CSV row so downstream steps run per-row.
         .split("Split rows", (item: { json: { rows: CsvRow[] } }) => item.json.rows)
 
         // ── Step 4: classify each row with an agent ──────────────────────────
-        // itemExpr defers evaluation to per-item runtime — needed here because message
-        // content depends on item.json fields that differ for each row in the batch.
+        // itemExpr defers message construction to per-item runtime — required when content depends on the current item.
         .agent("Classify row", {
           model: "openai:gpt-4o-mini",
           messages: itemExpr(({ item }: { item: { json: CsvRow } }) => [
-            {
-              role: "system" as const,
-              content: "You are a revenue analyst. Use the classify_row tool to classify this row.",
-            },
-            {
-              role: "user" as const,
-              content: JSON.stringify(item.json),
-            },
+            { role: "system" as const, content: "You are a revenue analyst. Use classify_row." },
+            { role: "user" as const, content: JSON.stringify(item.json) },
           ]),
           tools: [classifyRowTool],
           outputSchema: z.object({
@@ -147,13 +130,11 @@ export default workflow("wf.daily-csv-digest")
           }),
         })
 
-        // ── Step 5: enrich item with original row fields via ctx.data ─────────
-        // ctx.data["split-rows"] holds the completed output of the "Split rows" node.
-        // Use ctx.data to read upstream node outputs without threading them through
-        // every intermediate step manually.
-        // sync .map — no await, pure field merge; use sync when no I/O is needed.
+        // ── Step 5: merge agent output with the original row via ctx.data ──────
+        // ctx.data is keyed by node id (the slug of the node label).
+        // "Split rows" slugs to "split-rows"; we read its emitted item back here.
+        // sync .map — pure object merge, no I/O.
         .map("Enrich classification", (item: { json: { classification: string; rationale: string } }, ctx) => {
-          // ctx.data is keyed by node id (slug of "Split rows" → "split-rows")
           const originalRow = ctx.data["split-rows"]?.items?.[0]?.json as CsvRow | undefined;
           return {
             ...originalRow,
@@ -163,13 +144,12 @@ export default workflow("wf.daily-csv-digest")
         })
 
         // ── Step 6: send digest email via a registered node ───────────────────
-        // .node(definition, config, name, id) — explicit id keeps credential binding stable.
-        // "SendEmailNodeConfig" is illustrative; adapt to your actual email node definition.
+        // .node(name, config, options) — explicit id keeps credential binding stable.
+        // SendEmailNodeConfig is illustrative; replace with the email node available in your project.
         .node(
-          "SendEmailNodeConfig", // (adapt to your actual node — e.g. import { sendEmailNode } from "@codemation/core-nodes-email")
-          {
-            // itemExpr on a config field: the "to" address is fixed but "subject" varies per item.
-            // itemExpr tells the engine to resolve this field once per item at execution time.
+          "Send digest email",
+          new SendEmailNodeConfig({
+            // itemExpr on a config field — engine resolves once per item at execution time.
             subject: itemExpr(
               ({ item }: { item: { json: Partial<ClassifiedRow> } }) =>
                 `[${item.json.classification?.toUpperCase()}] ${item.json.region} – ${item.json.product}`,
@@ -179,9 +159,8 @@ export default workflow("wf.daily-csv-digest")
               ({ item }: { item: { json: Partial<ClassifiedRow> } }) =>
                 `Region: ${item.json.region}\nRevenue: ${item.json.revenue}\nRationale: ${item.json.rationale}`,
             ),
-          },
-          "Send digest email",
-          "send-digest-email", // explicit id — credential binding survives label renames
+          }),
+          { id: "send-digest-email" },
         ),
 
     false: (branch) =>
@@ -191,12 +170,12 @@ export default workflow("wf.daily-csv-digest")
       })),
   })
 
-  // .build() finalises the definition: validates that all node ids are non-empty
-  // and unique (including agent connection children). Throws WorkflowDefinitionError otherwise.
+  // .build() validates non-empty + unique node ids (including agent connection children).
+  // Throws WorkflowDefinitionError on violation.
   .build();
 
 // ---------------------------------------------------------------------------
-// Helpers (not part of the DSL — inline for brevity)
+// Helpers (inline for brevity — promote to lib/ if reused)
 // ---------------------------------------------------------------------------
 
 async function streamToText(stream: AsyncIterable<Uint8Array>): Promise<string> {
@@ -222,15 +201,63 @@ function parseCsv(text: string): CsvRow[] {
 
 ## What this exercises
 
-- **Cron trigger construction** → line 65 (`new CronTrigger(...)` + `.trigger(...)`)
-- **sync `.map`** → line 117 ("Enrich classification" — pure field merge, no `await`)
-- **async `.map`** → line 68 ("Build fetch URL") and line 92 ("Parse CSV rows")
-- **`.if` per-item predicate** → line 81 (`(item, _ctx) => item.json.ok`)
-- **`HttpRequest` with explicit `id:`** → line 75 (`id: "fetch-report"`, comment on credential binding stability)
-- **`.node(def, config, name, id)` with explicit id** → line 131 (`"send-digest-email"`, same stability rationale)
-- **`itemExpr(...)` on a config field** → lines 133–140 (subject + body depend on current item)
-- **`.agent(...)` with `messages`, `model`, `callableTool`** → line 103
-- **`callableTool` with Zod `inputSchema` and `execute({ input })`** → line 37
-- **`ctx.data` downstream node output access** → line 120 (`ctx.data["split-rows"]`)
-- **`ctx.binary.attach` + `ctx.binary.openReadStream`** → lines 94–102
-- **`.build()` validation** → line 151 (comment on what it checks)
+- **Manual trigger with typed default item** → `workflow("...").manualTrigger<TriggerInput>("Start", {...})`
+- **sync `.map`** → "Enrich classification" — pure object merge, no `await`
+- **async `.map`** → "Build fetch URL" and "Parse CSV rows" — uses `await` for binary read
+- **`.if` per-item predicate** → `(item, _ctx) => item.json.ok` with branch factories
+- **`HttpRequest` with explicit `id:`** → `id: "fetch-report"` (credential binding stability)
+- **`.split`** → fan-out one batch into many items
+- **`.agent(...)` with `messages`, `model`, `tools`, `outputSchema`** → typed structured output
+- **`callableTool` with Zod schemas and `execute({ input })`** → inline tool definition
+- **`itemExpr(...)`** → on agent messages (per-item content) and on `.node` config fields (per-item subject/body)
+- **`.node(name, config, options)` with explicit id** → stable credential binding
+- **`ctx.data["<slug>"]`** → reading earlier node output without threading it through every step
+- **`ctx.binary.openReadStream(slot)`** → reading bytes from a binary slot attached upstream
+- **`.build()`** → final validation pass
+
+## Cron / webhook variant (alternative trigger)
+
+When the trigger isn't manual, the fluent `.map`/`.if`/`.agent` sugar isn't available — you use the lower-level builder and `.then(new SomeNodeConfig(...))`. Shape:
+
+```ts
+import { Callback, CronTrigger, createWorkflowBuilder, HttpRequest } from "@codemation/core-nodes";
+
+export default createWorkflowBuilder({
+  id: "wf.daily-csv-digest.cron",
+  name: "Daily CSV Digest (cron)",
+})
+  .trigger(new CronTrigger("Daily 06:00", { schedule: "0 6 * * *", timezone: "UTC" }))
+  // Cron fires one item per tick: { firedAt, scheduledFor }. Wrap downstream logic in Callback configs:
+  .then(
+    new Callback("Build fetch URL", (items, _ctx) => {
+      return items.map((item) => {
+        const date = new Date((item.json as { scheduledFor: string }).scheduledFor).toISOString().slice(0, 10);
+        return { date, reportUrl: `https://reports.internal/sales/${date}.csv` };
+      });
+    }),
+  )
+  .then(
+    new HttpRequest("Fetch report CSV", {
+      id: "fetch-report",
+      urlField: "reportUrl",
+      responseFormat: "binary",
+      responseBinarySlot: "csvFile",
+      credentialSlot: "reportApi",
+    }),
+  )
+  // For branching, use `new If(...)`. For per-item agent calls, use `new AIAgent({...})`.
+  // For row fan-out, use `new Split(...)`. The execution semantics match the fluent helpers
+  // — only the surface syntax differs.
+  .build();
+```
+
+If you need both cron + the fluent sugar in the same workflow, you can wrap the cursor manually:
+
+```ts
+import { WorkflowChain } from "@codemation/core-nodes";
+
+const cursor = createWorkflowBuilder({ id, name }).trigger(new CronTrigger("Tick", { schedule: "..." }));
+export default new WorkflowChain(cursor).map("First step", (item) => ({ ...item.json })).build();
+```
+
+This is uncommon in production code; reach for it only when the fluent helpers genuinely help readability.

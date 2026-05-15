@@ -1,28 +1,38 @@
 ---
 name: codemation-workflow-dsl
-description: Guides Codemation workflow authoring with the fluent Workflow DSL. Use when creating or updating `workflow("...")` definitions, triggers, `.map(...)`, `.node(...)`, branch flow, item handling, or `.build()` chains in `src/workflows`.
-compatibility: Designed for Codemation apps and plugins that author workflows with the fluent DSL.
+description: Guides Codemation workflow authoring. Use when creating or updating workflow definitions in `src/workflows` — manual-trigger flows via `workflow("...").manualTrigger(...)`, or cron/webhook/other triggers via `createWorkflowBuilder({id, name}).trigger(...)`.
+compatibility: Designed for Codemation apps and plugins that author workflows.
 ---
 
 # Codemation Workflow DSL
 
 ## Use this skill when
 
-Use this skill for authoring or reviewing workflow definitions built with `workflow("...")`.
+Authoring or reviewing workflow definitions under `src/workflows/`.
 
 Do not use this skill for CLI-only troubleshooting or deep host architecture questions unless they directly affect workflow authoring.
+
+## There are TWO authoring APIs — pick by trigger type
+
+| Trigger                                                     | API to use                                                         | Import                                                                                        | Available chain helpers                                                                      |
+| ----------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| **Manual** (one-shot, optionally seeded with default items) | `workflow("id").manualTrigger(...)`                                | `import { workflow } from "@codemation/host"`                                                 | Full fluent sugar: `.map`, `.if`, `.switch`, `.split`, `.agent`, `.node`, `.then`, `.build`  |
+| **Cron, Webhook, Test, or any non-manual trigger**          | `createWorkflowBuilder({ id, name }).trigger(new XxxTrigger(...))` | `import { createWorkflowBuilder, CronTrigger, WebhookTrigger } from "@codemation/core-nodes"` | Low-level `.then(new SomeNodeConfig(...))` only — **no** `.map`/`.if`/`.agent`/`.node` sugar |
+
+**Why two APIs?** `workflow("...")` returns a `WorkflowAuthoringBuilder` that _only_ exposes `.name()` and `.manualTrigger(...)`. Once you call `.manualTrigger(...)`, you get a `WorkflowChain` that has all the fluent helpers. For any other trigger, you must use the lower-level `createWorkflowBuilder({id, name}).trigger(new Trigger(...))` path — the result is a `ChainCursor` whose only chain method is `.then(new NodeConfig(...))`. You compose by passing node config classes directly: `new Callback(...)`, `new HttpRequest(...)`, `new AIAgent(...)`, `new If(...)`, `new Split(...)`, etc.
+
+If you find yourself wanting `.map` or `.if` on a cron workflow, you have two options: (a) accept the verbose `.then(new Callback(...))` style, or (b) wrap the cron-trigger cursor explicitly: `new WorkflowChain(builder.trigger(new CronTrigger(...)))` — but this is rare in practice; production cron workflows use plain `.then(new ConfigClass(...))`.
 
 ## Core mental model
 
 1. A workflow definition describes how items move from a trigger through downstream steps.
-2. The fluent authoring chain is the normal starting point for Codemation apps.
-3. Finish fluent workflow definitions with `.build()`.
-4. Activations are **batch-shaped** (`Items`); many steps use **per-item** execution (`execute`, including helper **`defineNode`**) with optional **`inputSchema`** and **`itemExpr`** on config fields. Batch reshape steps (split/filter/aggregate, **`defineBatchNode`**) work on the whole batch.
-5. Fluent callback helpers follow the runtime item contract: `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` receive `(item, ctx)`, so row fields live under `item.json` and earlier completed outputs are available through `ctx.data`.
+2. Activations are **batch-shaped** (`Items`); many steps use **per-item** execution (`execute`, including helper **`defineNode`**) with optional **`inputSchema`** and **`itemExpr`** on config fields. Batch reshape steps (split/filter/aggregate, **`defineBatchNode`**) work on the whole batch.
+3. Fluent callback helpers (manual-trigger only) follow the runtime item contract: `.map(...)`, `.if(...)`, and `.switch({ resolveCaseKey })` receive `(item, ctx)`. Row fields live under `item.json`; earlier completed outputs are available through `ctx.data`.
+4. Finish every workflow definition with `.build()`.
 
 ## Authoring rules
 
-1. Prefer the fluent `workflow(...)` chain for app-local workflow files.
+1. **Pick the API by trigger type** (see table above). Don't try to call `.trigger(...)` on the `workflow(...)` builder — it doesn't exist there.
 2. Keep workflow files focused on orchestration and named steps.
 3. Use custom nodes when a callback grows into reusable product logic.
 4. Distinguish **batch activations** from **per-item node bodies**: custom nodes from **`defineNode`** implement **`execute`** per item unless you chose **`defineBatchNode`** for batch **`run`**.
@@ -44,17 +54,26 @@ For nodes that hold credential bindings, the binding is keyed by `(workflowId, n
 
 ## Typical flow
 
-1. Start with `workflow("wf.example.id")`.
-2. Name the workflow with `.name(...)`.
-3. Add a trigger such as `.manualTrigger(...)` or `builder.trigger(new CronTrigger(...))`.
-4. Add transformations or nodes in execution order.
-5. End with `.build()`.
+**Manual trigger (fluent):**
+
+1. `workflow("wf.example.id")`.
+2. `.name("Display name")` (optional — defaults to the id).
+3. `.manualTrigger("Start", { /* default item json */ })`.
+4. Chain transformations: `.map(...)`, `.if(...)`, `.switch(...)`, `.split(...)`, `.agent(...)`, `.node(...)`, `.then(...)`.
+5. `.build()`.
+
+**Cron / webhook (low-level):**
+
+1. `createWorkflowBuilder({ id: "wf.example.id", name: "Display name" })`.
+2. `.trigger(new CronTrigger("Label", { schedule, timezone }))` or `.trigger(new WebhookTrigger("Label", { endpointKey, methods }))`.
+3. Chain with `.then(new SomeNodeConfig(...))` repeatedly. Common configs: `Callback`, `HttpRequest`, `AIAgent`, `If`, `Split`, `Merge`, `SubWorkflow`.
+4. `.build()`.
 
 ## Built-in triggers
 
-- **`ManualTrigger`** — one-shot manual run, optionally seeded with default items. Use `.manualTrigger(name, items?)` on the fluent builder.
-- **`WebhookTrigger`** — fires on an incoming HTTP request. Construct with `new WebhookTrigger(name, { endpointKey, methods })` and attach with `builder.trigger(...)`.
-- **`CronTrigger`** — fires on a cron schedule. Construct with `new CronTrigger(name, { schedule, timezone? })` and attach with `builder.trigger(...)`. The expression is validated at workflow build time. Each tick emits one item: `{ firedAt: string, scheduledFor: string }` (both ISO-8601). Defaults to UTC — always supply `timezone` for DST-sensitive schedules.
+- **`ManualTrigger`** — one-shot manual run, optionally seeded with default items. Use the fluent shortcut: `workflow("id").manualTrigger(name, items?)`. The shortcut internally wires up `createWorkflowBuilder(...).trigger(new ManualTrigger(...))` and wraps the result in `WorkflowChain` so you get the full fluent sugar.
+- **`WebhookTrigger`** — fires on an incoming HTTP request. Construct with `new WebhookTrigger(name, { endpointKey, methods })`. Attach via `createWorkflowBuilder({id, name}).trigger(new WebhookTrigger(...))`.
+- **`CronTrigger`** — fires on a cron schedule. Construct with `new CronTrigger(name, { schedule, timezone? })`. Attach via `createWorkflowBuilder({id, name}).trigger(new CronTrigger(...))`. The expression is validated at workflow build time. Each tick emits one item: `{ firedAt: string, scheduledFor: string }` (both ISO-8601). Defaults to UTC — always supply `timezone` for DST-sensitive schedules.
 
 ## Agent tools (callable helpers)
 
@@ -91,13 +110,13 @@ Custom nodes can also read `ctx.testContext?.{testSuiteRunId, testCaseIndex}` di
 
 This requires no special configuration in production — the shared `BinaryStorage` DI singleton is what makes cross-run byte reads possible.
 
-### SubWorkflow + binary example
+### SubWorkflow + binary example (manual trigger)
 
 ```ts
 import { workflow } from "@codemation/host";
-import { Callback } from "@codemation/core-nodes";
-import { SubWorkflow } from "@codemation/core-nodes"; // SubWorkflowNodeConfig
+import { Callback, SubWorkflow } from "@codemation/core-nodes";
 
+// Manual-trigger flow — uses the fluent `.map`/`.then` sugar.
 export default workflow("wf.parent")
   .manualTrigger<{ url: string }>("Start", { url: "" })
   // Attach a binary slot before the sub-workflow:
