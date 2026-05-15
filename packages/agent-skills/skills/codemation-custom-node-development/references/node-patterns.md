@@ -1,5 +1,7 @@
 # Node Patterns
 
+Load this when working with file data, binary payloads, HTTP binaries, MS Graph attachments, or when you need reference on fan-out return shapes and polling-trigger binary patterns.
+
 ## Start here
 
 Use `defineNode(...)` when:
@@ -78,3 +80,142 @@ Reach for class-based node APIs when:
   1. In `runCycle` (the polling step), fetch only the **metadata** (id, name, contentType, size). The result is persisted into the trigger's setup state and into emitted item JSON, so it must stay small.
   2. In `execute(items, ctx)`, when the cfg opts into downloads, fetch each blob's bytes from the source API and register them via `ctx.binary.attach(...)`. Then return items via `ctx.binary.withAttachment(item, slot, stored)`.
 - **Do not** request the full payload in the polling fetch (e.g. Microsoft Graph `$expand=attachments` returns base64 `contentBytes` inline; use `$expand=attachments($select=id,name,contentType,size)` to keep the response light). Large polling responses bloat the run state on every cycle, even when no item is emitted.
+
+## Binary payloads in sub-workflow chains
+
+Binary slots attached inside a node survive SubWorkflow boundaries with no extra work. The shared `BinaryStorage` DI singleton means `ctx.binary.openReadStream` works regardless of which run originally stored the bytes.
+
+### Pattern: attach in a node, read in the parent after SubWorkflow
+
+```ts
+// Child node — attaches a slot and returns the modified item.
+export const parseAndStoreNode = defineNode({
+  key: "example.parse-store",
+  title: "Parse and Store",
+  inputSchema: z.object({ filename: z.string() }),
+  async execute({ input, item }, { binary }) {
+    const bytes = Buffer.from("...parsed content...");
+    const att = await binary.attach({
+      name: "parsed",
+      body: bytes,
+      mimeType: "text/plain",
+      filename: `${input.filename}.txt`,
+    });
+    return binary.withAttachment(item, "parsed", att);
+  },
+});
+```
+
+After `SubWorkflowNode` returns, the parent's continuation nodes see `item.binary["parsed"]` and can call `ctx.binary.openReadStream(item.binary["parsed"])` to read the bytes.
+
+### Testing binary across SubWorkflow with `WorkflowTestKit`
+
+```ts
+import { DefaultExecutionContextFactory, InMemoryBinaryStorage } from "@codemation/core";
+import { createEngineTestKit } from "@codemation/core/testing";
+import { ItemHarnessNodeConfig } from "@codemation/core/testing";
+
+const storage = new InMemoryBinaryStorage();
+const kit = createEngineTestKit({
+  executionContextFactory: new DefaultExecutionContextFactory(storage),
+});
+
+// Use ItemHarnessNodeConfig (NOT CallbackNodeConfig) for nodes that must modify items:
+const attachNode = new ItemHarnessNodeConfig(
+  "Attach",
+  z.unknown(),
+  async ({ item, ctx }) => {
+    const att = await ctx.binary.attach({
+      name: "doc",
+      body: Buffer.from("content"),
+      mimeType: "application/pdf",
+      filename: "doc.pdf",
+    });
+    return ctx.binary.withAttachment(item as Item, "doc", att);
+  },
+  { id: "attach" },
+);
+// CallbackNodeConfig is fine for assertion-only (observe) nodes — it echoes input unchanged.
+```
+
+Important: `CallbackNodeConfig` discards its callback return value and always echoes input items. Never use it for nodes that must attach binary or transform items.
+
+## MS Graph: selective attachment download
+
+Use `OutlookAttachmentDownload` from `@codemation/core-nodes-msgraph` when you have already obtained attachment metadata (filename, contentType, id) and want to download only specific attachments.
+
+```ts
+import { onNewMsGraphMailTrigger, outlookAttachmentDownloadNode } from "@codemation/core-nodes-msgraph";
+
+workflow("wf.download-resumes")
+  .trigger(onNewMsGraphMailTrigger, { mailbox: "me", folderId: "inbox" })
+  .then(
+    outlookAttachmentDownloadNode.create(
+      {
+        messageId: "", // falls back to item.json when empty
+        attachmentId: "", // falls back to item.json when empty
+        binarySlot: "resume",
+        sizeCapBytes: 10 * 1024 * 1024,
+      },
+      "DownloadResume",
+    ),
+  )
+  .build();
+```
+
+Key constraints:
+
+- Only `#microsoft.graph.fileAttachment` is supported — `itemAttachment` / `referenceAttachment` throw immediately.
+- Set `keepBinaries: true` on any downstream node that needs to pass the binary slot forward.
+- The credential is `msGraphMailOAuthCredentialType`; `Mail.Read` scope is sufficient.
+
+## HTTP + binary: download to a slot, then upload from a slot
+
+`HttpRequest` (from `@codemation/core-nodes`) natively handles binary response and request bodies.
+
+### Download a file to a binary slot
+
+```ts
+import { HttpRequest } from "@codemation/core-nodes";
+import { workflow } from "@codemation/host";
+
+export default workflow("wf.download-pdf")
+  .manualTrigger<{ url: string }>("Start", { url: "" })
+  .then(
+    new HttpRequest("DownloadResume", {
+      responseFormat: "binary",
+      responseBinarySlot: "resume", // default is "response"
+      responseSizeCapBytes: 10 * 1024 * 1024, // 10 MiB cap (default 100 MiB)
+    }),
+  )
+  .build();
+// item.json gets: { status, headers, binarySlot, contentType, size, filename? }
+// item.binary["resume"] holds the BinaryAttachment reference — never base64.
+```
+
+### Upload binary bytes from a slot
+
+```ts
+new HttpRequest("UploadResume", {
+  method: "POST",
+  url: "https://api.example.com/files",
+  body: { kind: "binary", slot: "resume" },
+  // Content-Type defaults to the attachment's mimeType.
+});
+```
+
+### Download then upload (full round-trip)
+
+```ts
+export default workflow("wf.mirror-pdf")
+  .manualTrigger<{ sourceUrl: string; targetUrl: string }>("Start", { sourceUrl: "", targetUrl: "" })
+  .then(new HttpRequest("Download", { urlField: "sourceUrl", responseFormat: "binary", responseBinarySlot: "file" }))
+  .then(new HttpRequest("Upload", { urlField: "targetUrl", method: "PUT", body: { kind: "binary", slot: "file" } }))
+  .build();
+```
+
+Key rules:
+
+- Never put bytes or base64 in `item.json` — always use `ctx.binary`.
+- `responseSizeCapBytes` is checked against `Content-Length` before reading the body; set it for untrusted sources.
+- Use `keepBinaries: true` on downstream nodes that must forward the slot.
