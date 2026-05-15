@@ -274,6 +274,8 @@ import { InternalPingRegistrar } from "../pairing/InternalPingRegistrar";
 import { BrokerClient } from "../credentials/BrokerClient";
 import { InternalCredentialsPushRegistrar } from "../credentials/InternalCredentialsPushRegistrar";
 import { InternalCredentialsListRegistrar } from "../credentials/InternalCredentialsListRegistrar";
+import { InternalWorkflowsListRegistrar } from "../workflows/InternalWorkflowsListRegistrar";
+import { InternalWorkflowDetailRegistrar } from "../workflows/InternalWorkflowDetailRegistrar";
 import { RemoteOAuthRefreshDelegate } from "../credentials/refresh/RemoteOAuthRefreshDelegate";
 import { OAuth2ViaBrokerCredentialTypeFactory } from "../credentials/OAuth2ViaBrokerCredentialTypeFactory";
 import { McpServerCatalog } from "../mcp/McpServerCatalog";
@@ -943,6 +945,8 @@ export class AppContainerFactory {
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalPingRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalCredentialsPushRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalCredentialsListRegistrar);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowsListRegistrar);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowDetailRegistrar);
   }
 
   private registerOperationalInfrastructure(container: Container): void {
