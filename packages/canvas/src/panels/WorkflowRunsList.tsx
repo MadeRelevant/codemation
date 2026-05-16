@@ -1,7 +1,7 @@
 import type { RunSummary } from "@codemation/canvas";
 
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { Badge } from "../components/ui/badge";
+import { cn } from "../components/lib/utils";
 
 import { WorkflowStatusIcon } from "./WorkflowDetailIcons";
 

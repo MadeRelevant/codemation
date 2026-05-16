@@ -49,12 +49,16 @@
     "@headless-tree/react": "*",
     "@uiw/react-json-view": "*",
     "@xyflow/react": "*",
+    "class-variance-authority": "*",
+    "clsx": "*",
     "elkjs": "*",
     "lucide-react": "*",
+    "radix-ui": "*",
     "react": "*",
     "react-dom": "*",
     "recharts": "*",
-    "simple-icons": "*"
+    "simple-icons": "*",
+    "tailwind-merge": "*"
   },
   "devDependencies": {
     "@headless-tree/core": "^1.6.3",
@@ -63,10 +67,14 @@
     "@types/react": "*",
     "@types/react-dom": "*",
     "@uiw/react-json-view": "2.0.0-alpha.41",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "eslint": "^10.0.3",
     "lucide-react": "^0.577.0",
+    "radix-ui": "^1.4.3",
     "recharts": "^3.8.1",
     "simple-icons": "^16.12.0",
+    "tailwind-merge": "^3.5.0",
     "tsdown": "^0.15.5",
     "typescript": "^5.9.3"
   }

@@ -2,13 +2,14 @@
 
 import React, { Suspense, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "../components/ui/button";
+import { cn } from "../components/lib/utils";
 
 import type { WorkflowCanvasApiClient } from "../types/WorkflowCanvasApiClient";
 import type { NavigationAdapter } from "../types/NavigationAdapter";
 import type { WorkflowDetailChromeState } from "../types/WorkflowDetailChromeState";
 import type { WorkflowCanvasConfig } from "../types/WorkflowCanvasConfig";
+import type { PinBinaryMapsByItemIndex } from "../lib/workflowDetail/workflowDetailTypes";
 import { WorkflowCanvasApiClientProvider, useWorkflowCanvasApiClient } from "../context/WorkflowCanvasApiClientContext";
 import { WorkflowCanvasConfigProvider } from "../context/WorkflowCanvasConfigContext";
 import { WorkflowCanvas } from "../canvas/WorkflowCanvas";
@@ -215,15 +216,20 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
           <WorkflowDetailScreenInspectorPanel controller={controller} />
         </div>
       </section>
-      {controller.jsonEditorState ? (
-        <WorkflowJsonEditorDialog
-          state={controller.jsonEditorState}
-          onClose={controller.closeJsonEditor}
-          onSave={(value, binaryMaps) => {
-            controller.saveJsonEditor(value, binaryMaps);
-          }}
-        />
-      ) : null}
+      {controller.jsonEditorState
+        ? (() => {
+            const slotProps = {
+              state: controller.jsonEditorState,
+              onClose: controller.closeJsonEditor,
+              onSave: (value: string, binaryMaps?: PinBinaryMapsByItemIndex) => {
+                controller.saveJsonEditor(value, binaryMaps);
+              },
+            };
+            return args.config?.renderWorkflowJsonEditor
+              ? args.config.renderWorkflowJsonEditor(slotProps)
+              : <WorkflowJsonEditorDialog {...slotProps} />;
+          })()
+        : null}
       {controller.runErrorAlertLines && controller.runErrorAlertLines.length > 0 ? (
         <WorkflowActivationErrorDialog
           open

@@ -3,7 +3,7 @@ import type { ComponentType, ReactNode } from "react";
 
 import type { WorkflowCanvasNodeData } from "../canvas/lib/workflowCanvasNodeData";
 import type { WorkflowCanvasTheme } from "./WorkflowCanvasTheme";
-import type { WorkflowDiagramNode } from "../lib/workflowDetail/workflowDetailTypes";
+import type { JsonEditorState, PinBinaryMapsByItemIndex, WorkflowDiagramNode } from "../lib/workflowDetail/workflowDetailTypes";
 
 export type { WorkflowCanvasNodeData };
 
@@ -33,6 +33,17 @@ export type NodeCredentialBindingsSlotProps = Readonly<{
   onConsumedPendingCredentialEdit: () => void;
 }>;
 
+/**
+ * Props passed to the `renderWorkflowJsonEditor` slot.
+ */
+export type WorkflowJsonEditorSlotProps = Readonly<{
+  state: JsonEditorState;
+  onClose: () => void;
+  onSave: (value: string, binaryMaps?: PinBinaryMapsByItemIndex) => void;
+  /** Initial tab when `state.mode === "pin-output"` (defaults to `json`). */
+  defaultInitialTab?: "json" | "binaries";
+}>;
+
 export type WorkflowCanvasConfig = Readonly<{
   nodeRoleFilter?: (role: string, nodeKind: string) => boolean;
   renderers?: WorkflowCanvasRenderers;
@@ -49,4 +60,11 @@ export type WorkflowCanvasConfig = Readonly<{
    * If omitted, a small "Credential UI not configured" notice is shown.
    */
   renderCredentialBindings?: (props: NodeCredentialBindingsSlotProps) => ReactNode;
+  /**
+   * Overrides the built-in workflow JSON editor dialog.
+   * When omitted, canvas renders `WorkflowJsonEditorDialog` (the default).
+   * Consumers who need a custom editor surface (e.g. different shell or styling)
+   * can provide their own dialog here.
+   */
+  renderWorkflowJsonEditor?: (props: WorkflowJsonEditorSlotProps) => ReactNode;
 }>;

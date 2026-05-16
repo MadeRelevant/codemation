@@ -5,7 +5,7 @@ import { useMemo } from "react";
 
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "../../components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -13,7 +13,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "../../components/ui/dropdown-menu";
 
 interface MetricSelectorProps {
   /**

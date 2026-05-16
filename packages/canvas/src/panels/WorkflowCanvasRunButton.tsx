@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +11,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+} from "../components/ui/dropdown-menu";
+import { cn } from "../components/lib/utils";
 
 interface Trigger {
   readonly nodeId: string;

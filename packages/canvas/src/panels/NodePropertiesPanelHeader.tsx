@@ -1,6 +1,6 @@
 import X from "lucide-react/dist/esm/icons/x";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 
 export function NodePropertiesPanelHeader(
   args: Readonly<{

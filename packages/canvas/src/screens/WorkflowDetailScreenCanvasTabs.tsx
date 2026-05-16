@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 
 interface WorkflowDetailScreenCanvasTabsProps {
   readonly activeCanvasTab: "live" | "executions" | "tests";
