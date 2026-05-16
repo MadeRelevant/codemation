@@ -38,10 +38,14 @@
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.90.21",
     "aria-hidden": "^1.2.6",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "monaco-editor": "^0.55.1",
     "pretty-ms": "^9.3.0",
-    "react-remove-scroll": "^2.7.2"
+    "radix-ui": "^1.4.3",
+    "react-remove-scroll": "^2.7.2",
+    "tailwind-merge": "^3.5.0"
   },
   "sideEffects": false,
   "peerDependencies": {
@@ -49,16 +53,12 @@
     "@headless-tree/react": "*",
     "@uiw/react-json-view": "*",
     "@xyflow/react": "*",
-    "class-variance-authority": "*",
-    "clsx": "*",
     "elkjs": "*",
     "lucide-react": "*",
-    "radix-ui": "*",
     "react": "*",
     "react-dom": "*",
     "recharts": "*",
-    "simple-icons": "*",
-    "tailwind-merge": "*"
+    "simple-icons": "*"
   },
   "devDependencies": {
     "@headless-tree/core": "^1.6.3",
