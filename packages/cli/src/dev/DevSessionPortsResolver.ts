@@ -11,7 +11,7 @@ export class DevSessionPortsResolver {
 
   async resolve(
     args: Readonly<{
-      devMode: "packaged-ui" | "watch-framework";
+      devMode: "packaged-ui" | "watch-framework" | "api-only";
       portEnv: string | undefined;
       gatewayPortEnv: string | undefined;
     }>,
@@ -19,6 +19,10 @@ export class DevSessionPortsResolver {
     const primaryPort = this.listenPorts.resolvePrimaryApplicationPort(args.portEnv);
     const configuredGatewayPort = this.listenPorts.parsePositiveInteger(args.gatewayPortEnv);
     const gatewayPort = configuredGatewayPort ?? primaryPort;
+    if (args.devMode === "api-only") {
+      // api-only: no UI process at all; nextPort is unused (sentinel 0).
+      return { nextPort: 0, gatewayPort };
+    }
     if (args.devMode === "packaged-ui") {
       // Packaged UI: the stable gateway owns the public port; the UI runs behind it.
       return { nextPort: primaryPort, gatewayPort };

@@ -33,6 +33,17 @@ test("ListenPortResolver resolves websocket port from explicit env or next+1", (
   );
 });
 
+test("DevSessionPortsResolver: api-only mode returns nextPort=0 (sentinel) and gateway on primary port", async () => {
+  const resolver = new DevSessionPortsResolver(new ListenPortResolver(), new LoopbackPortAllocator());
+  const ports = await resolver.resolve({
+    devMode: "api-only",
+    portEnv: "5000",
+    gatewayPortEnv: undefined,
+  });
+  assert.equal(ports.nextPort, 0);
+  assert.equal(ports.gatewayPort, 5000);
+});
+
 test("DevSessionPortsResolver: packaged UI mode ties gateway port to HTTP port when gateway env unset", async () => {
   const resolver = new DevSessionPortsResolver(new ListenPortResolver(), new LoopbackPortAllocator());
   const ports = await resolver.resolve({

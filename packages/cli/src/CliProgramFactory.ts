@@ -21,6 +21,7 @@ import { DatabaseMigrationsApplyService } from "./database/DatabaseMigrationsApp
 import { HostPackageRootResolver } from "./database/HostPackageRootResolver";
 import { PrismaMigrationDeployer } from "@codemation/host/persistence";
 import { ConsumerSourceErrorParser } from "./dev/ConsumerSourceErrorParser";
+import { DevModeResolver } from "./dev/DevModeResolver";
 import { DevBootstrapSummaryFetcher } from "./dev/DevBootstrapSummaryFetcher";
 import { DevCliBannerRenderer } from "./dev/DevCliBannerRenderer";
 import { DevNextChildProcessOutputFilter } from "./dev/DevNextChildProcessOutputFilter";
@@ -118,6 +119,7 @@ export class CliProgramFactory {
       pluginDiscovery,
       consumerBuildArtifactsPublisher,
       new DevBootstrapSummaryFetcher(),
+      new DevModeResolver(),
       new DevCliBannerRenderer(),
       new ConsumerEnvDotenvFilePredicate(),
       devTrackedProcessTreeKiller,

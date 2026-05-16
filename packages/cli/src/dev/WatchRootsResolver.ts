@@ -10,13 +10,13 @@ export class WatchRootsResolver {
   async resolve(
     args: Readonly<{
       consumerRoot: string;
-      devMode: "packaged-ui" | "watch-framework";
+      devMode: "packaged-ui" | "watch-framework" | "api-only";
       repoRoot: string;
       watchWorkspacePlugins: boolean;
     }>,
   ): Promise<ReadonlyArray<string>> {
-    if (args.devMode === "packaged-ui") {
-      // Packaged UI mode watches only the app itself. Framework packages are consumed from their built output.
+    if (args.devMode === "packaged-ui" || args.devMode === "api-only") {
+      // Packaged UI and api-only modes watch only the app itself. Framework packages are consumed from their built output.
       return [args.consumerRoot];
     }
     // Watch-framework mode is framework-author development: watch the app plus the workspace packages that
