@@ -13,6 +13,21 @@ class FakeWorkspacePluginPackageResolver {
   }
 }
 
+test("WatchRootsResolver keeps api-only mode scoped to the consumer root (same as packaged-ui)", async () => {
+  const consumerRoot = "/tmp/my-automation";
+  const repoRoot = "/workspace/codemation";
+
+  assert.deepEqual(
+    await new WatchRootsResolver().resolve({
+      consumerRoot,
+      devMode: "api-only",
+      repoRoot,
+      watchWorkspacePlugins: false,
+    }),
+    [consumerRoot],
+  );
+});
+
 test("WatchRootsResolver keeps packaged UI mode scoped to the consumer root", async () => {
   const consumerRoot = "/tmp/my-automation";
   const repoRoot = "/workspace/codemation";

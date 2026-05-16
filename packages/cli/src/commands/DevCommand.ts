@@ -31,6 +31,7 @@ import { TypeScriptRuntimeConfigurator } from "../runtime/TypeScriptRuntimeConfi
 
 import type { DevMode, DevMutableProcessState, DevPreparedRuntime } from "./devCommandLifecycle.types";
 import type { ConsumerAgentSkillsSyncService } from "../skills/ConsumerAgentSkillsSyncService";
+import type { DevModeResolver } from "../dev/DevModeResolver";
 
 export class DevCommand {
   private readonly require = createRequire(import.meta.url);
@@ -48,6 +49,7 @@ export class DevCommand {
     private readonly pluginDiscovery: CodemationPluginDiscovery,
     private readonly consumerBuildArtifactsPublisher: ConsumerBuildArtifactsPublisher,
     private readonly devBootstrapSummaryFetcher: DevBootstrapSummaryFetcher,
+    private readonly devModeResolver: DevModeResolver,
     private readonly devCliBannerRenderer: DevCliBannerRenderer,
     private readonly consumerEnvDotenvFilePredicate: ConsumerEnvDotenvFilePredicate,
     private readonly devTrackedProcessTreeKiller: DevTrackedProcessTreeKiller,
@@ -65,6 +67,7 @@ export class DevCommand {
     args: Readonly<{
       consumerRoot: string;
       watchFramework?: boolean;
+      apiOnly?: boolean;
       commandName?: "dev" | "dev:plugin";
       configPathOverride?: string;
     }>,
@@ -126,7 +129,7 @@ export class DevCommand {
           );
         }
       }
-      if (prepared.devMode === "packaged-ui") {
+      if (prepared.devMode !== "watch-framework") {
         await this.publishConsumerArtifacts(prepared.paths, prepared.configPathOverride);
       }
       // The disposable runtime is created in-process, so config reloads must see the same token in
@@ -169,11 +172,8 @@ export class DevCommand {
     }
   }
 
-  private resolveDevMode(args: Readonly<{ watchFramework?: boolean }>): DevMode {
-    if (args.watchFramework === true || process.env.CODEMATION_DEV_MODE === "framework") {
-      return "watch-framework";
-    }
-    return "packaged-ui";
+  private resolveDevMode(args: Readonly<{ watchFramework?: boolean; apiOnly?: boolean }>): DevMode {
+    return this.devModeResolver.resolve(args);
   }
 
   private async prepareDevRuntime(
@@ -249,6 +249,10 @@ export class DevCommand {
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
   ): Promise<string> {
+    if (prepared.devMode === "api-only") {
+      // No UI process — proxy should not forward to any UI target.
+      return "";
+    }
     if (prepared.devMode !== "packaged-ui") {
       return `http://127.0.0.1:${prepared.nextPort}`;
     }
@@ -541,7 +545,7 @@ export class DevCommand {
       }
     }
     try {
-      if (prepared.devMode === "packaged-ui") {
+      if (prepared.devMode !== "watch-framework") {
         await this.publishConsumerArtifacts(prepared.paths, request.configPathOverride);
       }
       process.stdout.write("[codemation] Waiting for runtime to accept traffic…\n");
@@ -583,7 +587,7 @@ export class DevCommand {
       // Let the new runtime become queryable through the stable gateway before restarting the
       // packaged UI; otherwise the UI bootstrap hits `/api/bootstrap/*` while the gateway still
       // reports "Runtime is rebuilding" and the restart can deadlock indefinitely.
-      if (request.shouldRestartUi) {
+      if (request.shouldRestartUi && prepared.devMode !== "api-only") {
         await this.restartUiAfterSourceChange(prepared, state, gatewayBaseUrl);
       }
       proxyServer.broadcastBuildCompleted(runtime.buildVersion);

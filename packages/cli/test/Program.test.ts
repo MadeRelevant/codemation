@@ -11,9 +11,9 @@ function makeNoopCollectionArgs(): [never, never, never, never, never, never, ne
 }
 
 class RecordingDevCommand {
-  readonly calls: Array<Readonly<{ consumerRoot: string; watchFramework?: boolean }>> = [];
+  readonly calls: Array<Readonly<{ consumerRoot: string; watchFramework?: boolean; apiOnly?: boolean }>> = [];
 
-  async execute(args: Readonly<{ consumerRoot: string; watchFramework?: boolean }>): Promise<void> {
+  async execute(args: Readonly<{ consumerRoot: string; watchFramework?: boolean; apiOnly?: boolean }>): Promise<void> {
     this.calls.push(args);
   }
 }
@@ -36,7 +36,7 @@ test("CliProgram forwards --watch-framework to the dev command", async () => {
 
   await program.run(["dev", "--watch-framework", "--consumer-root", "/tmp/my-automation"]);
 
-  assert.deepEqual(devCommand.calls, [{ consumerRoot: "/tmp/my-automation", watchFramework: true }]);
+  assert.deepEqual(devCommand.calls, [{ consumerRoot: "/tmp/my-automation", watchFramework: true, apiOnly: false }]);
 });
 
 test("CliProgram defaults dev to the packaged UI path", async () => {
@@ -57,7 +57,28 @@ test("CliProgram defaults dev to the packaged UI path", async () => {
 
   await program.run(["dev", "--consumer-root", "/tmp/my-automation"]);
 
-  assert.deepEqual(devCommand.calls, [{ consumerRoot: "/tmp/my-automation", watchFramework: false }]);
+  assert.deepEqual(devCommand.calls, [{ consumerRoot: "/tmp/my-automation", watchFramework: false, apiOnly: false }]);
+});
+
+test("CliProgram forwards --api-only to the dev command", async () => {
+  const devCommand = new RecordingDevCommand();
+  const program = new CliProgram(
+    new ConsumerBuildOptionsParser(),
+    noopCommand,
+    devCommand as never,
+    noopCommand,
+    noopCommand,
+    noopCommand,
+    noopCommand,
+    noopCommand,
+    noopCommand,
+    noopCommand,
+    ...makeNoopCollectionArgs(),
+  );
+
+  await program.run(["dev", "--api-only", "--consumer-root", "/tmp/my-automation"]);
+
+  assert.deepEqual(devCommand.calls, [{ consumerRoot: "/tmp/my-automation", watchFramework: false, apiOnly: true }]);
 });
 
 class RecordingSkillsSyncCommand {

@@ -33,6 +33,7 @@
       "@codemation/canvas": ["packages/canvas/src/index.ts"],
       "@codemation/managed-auth": ["packages/managed-auth/src/index.ts"]
     },
+    "customConditions": ["development"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "strict": true,

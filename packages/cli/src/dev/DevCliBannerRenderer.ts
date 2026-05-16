@@ -56,9 +56,31 @@ export class DevCliBannerRenderer {
   renderGatewayListeningHint(
     browserPort: number,
     commandName: "dev" | "dev:plugin",
-    devMode: "packaged-ui" | "watch-framework",
+    devMode: "packaged-ui" | "watch-framework" | "api-only",
     devGatewayPort?: number,
   ): void {
+    if (devMode === "api-only") {
+      const url = `http://127.0.0.1:${browserPort}`;
+      const box = boxen(
+        [
+          chalk.whiteBright.bold("Codemation is running"),
+          "",
+          `${chalk.hex("#9ca3af")("API gateway:")}  ${chalk.greenBright.underline(url)}`,
+          "",
+          chalk.dim("Running in api-only mode — no workspace UI was started. The control-plane UI is the UI for this workspace."),
+        ].join("\n"),
+        {
+          padding: { top: 0, bottom: 0, left: 1, right: 1 },
+          margin: { top: 1, bottom: 0 },
+          borderStyle: "double",
+          borderColor: "green",
+          title: chalk.bold("Codemation dev (api-only)"),
+          titleAlignment: "center",
+        },
+      );
+      process.stdout.write(`${box}\n`);
+      return;
+    }
     const url = `http://127.0.0.1:${browserPort}`;
     const footer =
       devMode === "watch-framework"

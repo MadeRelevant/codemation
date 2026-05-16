@@ -81,10 +81,15 @@ export class CliProgram {
       )
       .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
       .option("--watch-framework", "Use Next dev HMR for framework UI work inside this repository.")
-      .action(async (opts: Readonly<{ consumerRoot?: string; watchFramework?: boolean }>) => {
+      .option(
+        "--api-only",
+        "Skip the workspace UI; useful when an external host (e.g. the control plane) serves the UI itself.",
+      )
+      .action(async (opts: Readonly<{ consumerRoot?: string; watchFramework?: boolean; apiOnly?: boolean }>) => {
         await this.devCommand.execute({
           consumerRoot: resolveConsumerRoot(opts.consumerRoot),
           watchFramework: opts.watchFramework === true,
+          apiOnly: opts.apiOnly === true,
         });
       });
 
