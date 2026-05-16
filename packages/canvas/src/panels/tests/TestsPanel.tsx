@@ -9,8 +9,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 const EMPTY_SUITE_RUNS: ReadonlyArray<TestSuiteRunSummaryDto> = [];
 const EMPTY_METRIC_TRENDS: ReadonlyArray<AssertionMetricTrendDto> = [];
 
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "../../components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 
 import { useSelectedAssertionMetrics } from "@codemation/canvas";
 import {

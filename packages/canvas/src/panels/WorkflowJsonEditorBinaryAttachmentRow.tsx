@@ -4,8 +4,8 @@ import type { BinaryAttachment } from "@codemation/core/browser";
 import { ApiPaths } from "@codemation/host/client";
 import { useRef, type ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 
 export function WorkflowJsonEditorBinaryAttachmentRow(
   args: Readonly<{

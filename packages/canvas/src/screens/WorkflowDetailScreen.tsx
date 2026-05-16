@@ -2,13 +2,14 @@
 
 import React, { Suspense, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "../components/ui/button";
+import { cn } from "../components/lib/utils";
 
 import type { WorkflowCanvasApiClient } from "../types/WorkflowCanvasApiClient";
 import type { NavigationAdapter } from "../types/NavigationAdapter";
 import type { WorkflowDetailChromeState } from "../types/WorkflowDetailChromeState";
-import type { WorkflowCanvasConfig } from "../types/WorkflowCanvasConfig";
+import type { WorkflowCanvasConfig, WorkflowJsonEditorSlotProps } from "../types/WorkflowCanvasConfig";
+import type { JsonEditorState, PinBinaryMapsByItemIndex } from "../lib/workflowDetail/workflowDetailTypes";
 import { WorkflowCanvasApiClientProvider, useWorkflowCanvasApiClient } from "../context/WorkflowCanvasApiClientContext";
 import { WorkflowCanvasConfigProvider } from "../context/WorkflowCanvasConfigContext";
 import { WorkflowCanvas } from "../canvas/WorkflowCanvas";
@@ -34,6 +35,26 @@ import { useLocalNavigation } from "./useLocalNavigation";
 const LazyWorkflowDetailScreenTestsView = React.lazy(() =>
   import("./WorkflowDetailScreenTestsView").then((m) => ({ default: m.WorkflowDetailScreenTestsView })),
 );
+
+/** Mounts the JSON editor: either the consumer override or the built-in dialog. */
+function WorkflowJsonEditorMount(
+  args: Readonly<{
+    state: JsonEditorState;
+    onClose: () => void;
+    onSave: (value: string, binaryMaps?: PinBinaryMapsByItemIndex) => void;
+    renderOverride?: (props: WorkflowJsonEditorSlotProps) => React.ReactNode;
+  }>,
+) {
+  const slotProps: WorkflowJsonEditorSlotProps = {
+    state: args.state,
+    onClose: args.onClose,
+    onSave: args.onSave,
+  };
+  if (args.renderOverride) {
+    return <>{args.renderOverride(slotProps)}</>;
+  }
+  return <WorkflowJsonEditorDialog {...slotProps} />;
+}
 
 export interface WorkflowDetailScreenArgs {
   workflowId: string;
@@ -216,12 +237,11 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
         </div>
       </section>
       {controller.jsonEditorState ? (
-        <WorkflowJsonEditorDialog
+        <WorkflowJsonEditorMount
           state={controller.jsonEditorState}
           onClose={controller.closeJsonEditor}
-          onSave={(value, binaryMaps) => {
-            controller.saveJsonEditor(value, binaryMaps);
-          }}
+          onSave={controller.saveJsonEditor}
+          renderOverride={args.config?.renderWorkflowJsonEditor}
         />
       ) : null}
       {controller.runErrorAlertLines && controller.runErrorAlertLines.length > 0 ? (

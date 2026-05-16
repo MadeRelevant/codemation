@@ -7,7 +7,6 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["../next-host/src/*"],
       "@codemation/canvas": ["./src/index.ts"],
       "@codemation/core": ["../core/src/index.ts"],
       "@codemation/core/browser": ["../core/src/browser.ts"],

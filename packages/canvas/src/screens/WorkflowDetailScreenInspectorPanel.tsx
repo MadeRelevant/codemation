@@ -1,8 +1,8 @@
 import PanelBottomClose from "lucide-react/dist/esm/icons/panel-bottom-close";
 import PanelBottomOpen from "lucide-react/dist/esm/icons/panel-bottom-open";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "../components/ui/button";
+import { cn } from "../components/lib/utils";
 
 import { WorkflowExecutionInspector } from "../panels/WorkflowExecutionInspector";
 import type { WorkflowDetailControllerResult } from "@codemation/canvas";

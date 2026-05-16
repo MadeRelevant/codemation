@@ -4,7 +4,7 @@ import ArrowDown from "lucide-react/dist/esm/icons/arrow-down";
 import Bot from "lucide-react/dist/esm/icons/bot";
 import Wrench from "lucide-react/dist/esm/icons/wrench";
 
-import { cn } from "@/lib/utils";
+import { cn } from "../components/lib/utils";
 
 import type { NodeInspectorTimelineEntryModel } from "@codemation/canvas";
 

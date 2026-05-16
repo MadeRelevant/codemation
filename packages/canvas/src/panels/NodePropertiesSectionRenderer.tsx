@@ -6,8 +6,8 @@ import Clock3 from "lucide-react/dist/esm/icons/clock-3";
 import LoaderCircle from "lucide-react/dist/esm/icons/loader-circle";
 import X from "lucide-react/dist/esm/icons/x";
 
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/ui/collapsible";
+import { cn } from "../components/lib/utils";
 
 import type {
   NodeInspectorJsonBlockModel,
