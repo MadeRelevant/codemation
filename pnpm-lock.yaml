@@ -69,157 +69,6 @@ importers:
         specifier: 4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@29.1.1(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
 
-  apps/.workspaces/28da83ef-5838-4d2f-ac50-d44afcd9ea58:
-    dependencies:
-      '@codemation/cli':
-        specifier: workspace:*
-        version: link:../../../packages/cli
-      '@codemation/core':
-        specifier: workspace:*
-        version: link:../../../packages/core
-      '@codemation/core-nodes':
-        specifier: workspace:*
-        version: link:../../../packages/core-nodes
-      '@codemation/host':
-        specifier: workspace:*
-        version: link:../../../packages/host
-      dotenv:
-        specifier: ^17.0.0
-        version: 17.3.1
-      react:
-        specifier: ^19.0.0
-        version: 19.2.4
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.2.4(react@19.2.4)
-      reflect-metadata:
-        specifier: ^0.2.0
-        version: 0.2.2
-      tsyringe:
-        specifier: ^4.10.0
-        version: 4.10.0
-      zod:
-        specifier: ^4.0.0
-        version: 4.4.1
-    devDependencies:
-      typescript:
-        specifier: ^5.5.0
-        version: 5.9.3
-
-  apps/.workspaces/a2ac0375-1eae-4657-bc6e-d5db37610463:
-    dependencies:
-      '@codemation/cli':
-        specifier: workspace:*
-        version: link:../../../packages/cli
-      '@codemation/core':
-        specifier: workspace:*
-        version: link:../../../packages/core
-      '@codemation/core-nodes':
-        specifier: workspace:*
-        version: link:../../../packages/core-nodes
-      '@codemation/host':
-        specifier: workspace:*
-        version: link:../../../packages/host
-      dotenv:
-        specifier: ^17.0.0
-        version: 17.3.1
-      react:
-        specifier: ^19.0.0
-        version: 19.2.4
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.2.4(react@19.2.4)
-      reflect-metadata:
-        specifier: ^0.2.0
-        version: 0.2.2
-      tsyringe:
-        specifier: ^4.10.0
-        version: 4.10.0
-      zod:
-        specifier: ^4.0.0
-        version: 4.4.1
-    devDependencies:
-      typescript:
-        specifier: ^5.5.0
-        version: 5.9.3
-
-  apps/.workspaces/bbb93a87-e0ca-4f36-a6a0-61534db7a51c:
-    dependencies:
-      '@codemation/cli':
-        specifier: workspace:*
-        version: link:../../../packages/cli
-      '@codemation/core':
-        specifier: workspace:*
-        version: link:../../../packages/core
-      '@codemation/core-nodes':
-        specifier: workspace:*
-        version: link:../../../packages/core-nodes
-      '@codemation/host':
-        specifier: workspace:*
-        version: link:../../../packages/host
-      dotenv:
-        specifier: ^17.0.0
-        version: 17.3.1
-      react:
-        specifier: ^19.0.0
-        version: 19.2.4
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.2.4(react@19.2.4)
-      reflect-metadata:
-        specifier: ^0.2.0
-        version: 0.2.2
-      tsyringe:
-        specifier: ^4.10.0
-        version: 4.10.0
-      zod:
-        specifier: ^4.0.0
-        version: 4.4.1
-    devDependencies:
-      typescript:
-        specifier: ^5.5.0
-        version: 5.9.3
-
-  apps/.workspaces/e6a8f7b5-a30e-4fdc-a263-124f1f4e243e:
-    dependencies:
-      '@codemation/cli':
-        specifier: workspace:*
-        version: link:../../../packages/cli
-      '@codemation/core':
-        specifier: workspace:*
-        version: link:../../../packages/core
-      '@codemation/core-nodes':
-        specifier: workspace:*
-        version: link:../../../packages/core-nodes
-      '@codemation/core-nodes-gmail':
-        specifier: workspace:*
-        version: link:../../../packages/core-nodes-gmail
-      '@codemation/host':
-        specifier: workspace:*
-        version: link:../../../packages/host
-      dotenv:
-        specifier: ^17.0.0
-        version: 17.3.1
-      react:
-        specifier: ^19.0.0
-        version: 19.2.4
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.2.4(react@19.2.4)
-      reflect-metadata:
-        specifier: ^0.2.0
-        version: 0.2.2
-      tsyringe:
-        specifier: ^4.10.0
-        version: 4.10.0
-      zod:
-        specifier: ^4.0.0
-        version: 4.4.1
-    devDependencies:
-      typescript:
-        specifier: ^5.5.0
-        version: 5.9.3
-
   apps/docs:
     dependencies:
       '@vercel/analytics':
@@ -573,21 +422,33 @@ importers:
       '@codemation/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@types/node':
         specifier: ^25.3.5
         version: 25.3.5
       '@types/react':
         specifier: '*'
         version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
       elkjs:
         specifier: ^0.9.3
         version: 0.9.3
       eslint:
         specifier: ^10.0.3
         version: 10.0.3(jiti@2.6.1)
+      jsdom:
+        specifier: '*'
+        version: 29.1.1(@noble/hashes@2.0.1)
       lucide-react:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.4)
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.4(react@19.2.4)
       simple-icons:
         specifier: ^16.12.0
         version: 16.12.0
@@ -597,6 +458,9 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.3.5)(jiti@2.6.1)(jsdom@29.1.1(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@25.3.5)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
 
   packages/cli:
     dependencies:
@@ -10430,7 +10294,7 @@ snapshots:
       '@csstools/css-color-parser': 4.0.2(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
-      lru-cache: 11.2.6
+      lru-cache: 11.4.0
 
   '@asamuzakjp/css-color@5.1.11':
     dependencies:
@@ -11069,7 +10933,7 @@ snapshots:
   '@csstools/css-color-parser@4.0.2(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)':
     dependencies:
       '@csstools/color-helpers': 6.0.2
-      '@csstools/css-calc': 3.1.1(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
+      '@csstools/css-calc': 3.2.1(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
 
@@ -17933,7 +17797,7 @@ snapshots:
 
   path-scurry@2.0.2:
     dependencies:
-      lru-cache: 11.2.6
+      lru-cache: 11.4.0
       minipass: 7.1.3
 
   path-to-regexp@0.1.12: {}
