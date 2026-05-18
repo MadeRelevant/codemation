@@ -4,7 +4,7 @@ import Pin from "lucide-react/dist/esm/icons/pin";
 import PinOff from "lucide-react/dist/esm/icons/pin-off";
 import Play from "lucide-react/dist/esm/icons/play";
 
-import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
+import type { WorkflowCanvasNodeData } from "@codemation/canvas-core";
 import { WorkflowCanvasToolbarIconButton } from "./WorkflowCanvasToolbarIconButton";
 
 export function WorkflowCanvasCodemationNodeToolbar(

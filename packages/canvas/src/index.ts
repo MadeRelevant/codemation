@@ -1,102 +1,8 @@
-// Public surface — filled in as phases complete
-export type { WorkflowDetailChromeState } from "./types/WorkflowDetailChromeState";
-export type {
-  WorkflowCanvasApiClient,
-  RunWorkflowMode,
-  RunWorkflowResult,
-  RunWorkflowRequest,
-} from "./types/WorkflowCanvasApiClient";
-export type {
-  WorkflowCanvasConfig,
-  WorkflowCanvasRenderers,
-  WorkflowCanvasIconRegistry,
-  WorkflowCanvasNodeRendererProps,
-  NodeCredentialBindingsSlotProps,
-  WorkflowJsonEditorSlotProps,
-} from "./types/WorkflowCanvasConfig";
-export type { WorkflowCanvasTheme } from "./types/WorkflowCanvasTheme";
-export type { NavigationAdapter } from "./types/NavigationAdapter";
+// Headless re-exports from canvas-core (compat shim — keeps existing consumers working)
+export * from "@codemation/canvas-core";
 
-// Realtime domain types (moved from packages/next-host in Phase 2)
-export * from "./realtime/realtimeDomainTypes";
-
-// Phase 3: Realtime infrastructure
-export * from "./realtime/PageVisibilityIdleTimer";
-export * from "./realtime/RunRoomSubscriptionTracker";
-export * from "./realtime/WorkflowQueryRetryPolicy";
-export * from "./realtime/realtimeClientBridge";
-export * from "./realtime/realtimeQueryKeys";
-export * from "./realtime/realtimeRunMutations";
-export * from "./realtime/realtimeTelemetryMutations";
-export * from "./realtime/realtimeTestSuiteMutations";
-export * from "./realtime/workflowTypes";
-
-// Phase 3: WorkflowDetail lib
-export * from "./lib/workflowDetail/workflowDetailTypes";
-export * from "./lib/workflowDetail/WorkflowDetailUrlCodec";
-export * from "./lib/workflowDetail/WorkflowDetailPresenter";
-export * from "./lib/workflowDetail/WorkflowActivationHttpErrorFormat";
-export * from "./lib/workflowDetail/WorkflowExecutionTreeBuilder";
-export * from "./lib/workflowDetail/WorkflowExecutionTreeDataLoaderAdapter";
-export * from "./lib/workflowDetail/ExecutionTreeItemGroupInjector";
-export * from "./lib/workflowDetail/FocusedInvocationModelFactory";
-export * from "./lib/workflowDetail/NodeInspectorTelemetryPresenter";
-export * from "./lib/workflowDetail/PersistedWorkflowSnapshotMapper";
-export * from "./lib/workflowDetailTreeStyles";
-
-// Phase 3: Lib utilities
-export * from "./lib/CodemationApiHttpError";
-export * from "./lib/HumanFriendlyTimestampFormatter";
-export { createWorkflowCanvasApiClient } from "./lib/createWorkflowCanvasApiClient";
-export type { WorkflowCanvasApiClientOptions } from "./lib/createWorkflowCanvasApiClient";
-
-// Phase 3: Realtime components
-export * from "./components/realtime/RealtimeContext";
+// Phase 3: Realtime components (UI — stays in canvas)
 export * from "./components/realtime/WorkflowRealtimeProvider";
-
-// Phase 3: Realtime hooks
-export * from "./hooks/realtime/realtime";
-export * from "./hooks/realtime/runQueryPolling";
-export * from "./hooks/realtime/testSuiteHooks";
-export * from "./hooks/realtime/useTelemetryRunTraceQuery";
-export { useWorkflowRealtimeInfrastructure } from "./hooks/realtime/useWorkflowRealtimeInfrastructure";
-export * from "./hooks/realtime/useWorkflowRealtimeShowDisconnectedBadge";
-export * from "./hooks/realtime/userAccountMutations";
-
-// Phase 3: WorkflowDetail hooks
-export * from "./hooks/workflowDetail/useExecutionTreeAutoFollow";
-export * from "./hooks/workflowDetail/useWorkflowDetailController";
-
-// Phase 3: Plain hooks
-export * from "./hooks/useLastRunTrigger";
-export * from "./hooks/useSelectedAssertionMetrics";
-export * from "./hooks/useWorkflowCanvasRunButton";
-
-// Phase 3: Context
-export { WorkflowCanvasApiClientProvider, useWorkflowCanvasApiClient } from "./context/WorkflowCanvasApiClientContext";
-export { WorkflowCanvasConfigProvider, useWorkflowCanvasConfig } from "./context/WorkflowCanvasConfigContext";
-
-// Canvas lib utilities
-export * from "./canvas/lib/workflowCanvasEdgeGeometry";
-export * from "./canvas/lib/workflowCanvasEmbeddedStyles";
-export * from "./canvas/lib/workflowCanvasFlowTypes";
-export * from "./canvas/lib/workflowCanvasNodeData";
-export * from "./canvas/lib/workflowCanvasNodeGeometry";
-export * from "./canvas/lib/WorkflowCanvasBuiltinIconRegistry";
-export * from "./canvas/lib/WorkflowCanvasEdgeCountResolver";
-export * from "./canvas/lib/WorkflowCanvasEdgeStyleResolver";
-export * from "./canvas/lib/WorkflowCanvasLabelLayoutEstimator";
-export * from "./canvas/lib/WorkflowCanvasLucideIconRegistry";
-export * from "./canvas/lib/WorkflowCanvasPortOrderResolver";
-export * from "./canvas/lib/WorkflowCanvasRoundedOrthogonalPathPlanner";
-export * from "./canvas/lib/WorkflowCanvasSiIconRegistry";
-export * from "./canvas/lib/WorkflowCanvasSymmetricForkPathPlanner";
-export * from "./canvas/lib/layoutWorkflow";
-export * from "./canvas/lib/elk/ElkLayoutRunner";
-export * from "./canvas/lib/elk/WorkflowElkGraphBuilder";
-export * from "./canvas/lib/elk/WorkflowElkNodeSizingResolver";
-export * from "./canvas/lib/elk/WorkflowElkPortInfoResolver";
-export * from "./canvas/lib/elk/WorkflowElkResultMapper";
 
 // Canvas components
 export * from "./canvas/CanvasNodeChromeTooltip";
@@ -122,8 +28,10 @@ export * from "./canvas/WorkflowCanvasSymmetricForkEdge";
 export * from "./canvas/WorkflowCanvasToolbarIconButton";
 export * from "./canvas/workflowCanvasNodeChrome";
 
-// Canvas hooks
-export * from "./hooks/canvas/useAsyncWorkflowLayout";
+// Canvas lib (stays in canvas — imports canvas-ui components)
+export * from "./canvas/lib/workflowCanvasFlowTypes";
+
+// Canvas hooks (stays in canvas — depends on canvas-ui VisibleNodeStatusResolver)
 export * from "./hooks/canvas/useWorkflowCanvasVisibleNodeStatuses";
 
 // Phase 4: Panels

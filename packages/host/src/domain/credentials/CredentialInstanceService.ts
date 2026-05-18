@@ -345,6 +345,55 @@ export class CredentialInstanceService {
     this.credentialSessionService.evictInstance(instanceId);
   }
 
+  /**
+   * Idempotent upsert for instances delivered by a control-plane OAuth broker.
+   * The broker owns the instanceId, displayName, and the OAuth app key — the
+   * workspace needs a local row so the instance shows up in lists and node
+   * resolution finds it. Skips work if the instance already exists. Returns
+   * the resulting record's instanceId.
+   *
+   * The credential type is fixed to `host.oauth2-via-broker` — a generic
+   * type that reads token material the broker push handler writes.
+   */
+  async ensureBrokerInstance(args: {
+    instanceId: CredentialInstanceId;
+    displayName: string;
+    oauthAppKey: string;
+  }): Promise<void> {
+    const existing = await this.credentialStore.getInstance(args.instanceId);
+    if (existing) return;
+    const timestamp = new Date().toISOString();
+    const instance: CredentialInstanceRecord = {
+      instanceId: args.instanceId,
+      typeId: "host.oauth2-via-broker",
+      displayName: args.displayName.trim() || args.oauthAppKey,
+      sourceKind: "db",
+      publicConfig: Object.freeze({ oauthAppKey: args.oauthAppKey }),
+      secretRef: { kind: "db" },
+      tags: Object.freeze([]),
+      setupStatus: "draft",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    // The broker type has no secret fields — the OAuth tokens live in their
+    // own table (CredentialOAuth2Material). But the test pipeline runs every
+    // db-sourced credential through CredentialMaterialResolver, which throws
+    // if there's no row in CredentialSecretMaterial. Persist an empty
+    // encrypted blob so resolveMaterial returns `{}` and the type's `test`
+    // can do its real work against the OAuth2 material.
+    const encrypted = this.credentialSecretCipher.encrypt({});
+    await this.credentialStore.saveInstance({
+      instance,
+      secretMaterial: {
+        instanceId: args.instanceId,
+        encryptedJson: encrypted.encryptedJson,
+        encryptionKeyId: encrypted.encryptionKeyId,
+        schemaVersion: encrypted.schemaVersion,
+        updatedAt: timestamp,
+      },
+    });
+  }
+
   private async toDto(
     instance: CredentialInstanceRecord,
     latestTestResult: CredentialTestRecord | undefined,

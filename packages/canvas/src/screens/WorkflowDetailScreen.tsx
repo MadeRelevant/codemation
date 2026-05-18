@@ -1,60 +1,52 @@
 "use client";
 
+/* eslint-disable max-lines -- Slot wiring + ctx assembly inherently large; tracked in backlog for refactor. */
+
 import React, { Suspense, useState } from "react";
 
-import { Button } from "../components/ui/button";
 import { cn } from "../components/lib/utils";
 
-import type { WorkflowCanvasApiClient } from "../types/WorkflowCanvasApiClient";
-import type { NavigationAdapter } from "../types/NavigationAdapter";
-import type { WorkflowDetailChromeState } from "../types/WorkflowDetailChromeState";
-import type { WorkflowCanvasConfig, WorkflowJsonEditorSlotProps } from "../types/WorkflowCanvasConfig";
-import type { JsonEditorState, PinBinaryMapsByItemIndex } from "../lib/workflowDetail/workflowDetailTypes";
-import { WorkflowCanvasApiClientProvider, useWorkflowCanvasApiClient } from "../context/WorkflowCanvasApiClientContext";
-import { WorkflowCanvasConfigProvider } from "../context/WorkflowCanvasConfigContext";
+import type {
+  WorkflowCanvasApiClient,
+  NavigationAdapter,
+  WorkflowDetailChromeState,
+  WorkflowCanvasConfig,
+  WorkflowDto,
+  WorkflowDetailHeaderSlotContext,
+  WorkflowDetailTabsSlotContext,
+  WorkflowDetailInspectorSlotContext,
+  WorkflowDetailRunButtonSlotContext,
+} from "@codemation/canvas-core";
+import {
+  WorkflowCanvasApiClientProvider,
+  useWorkflowCanvasApiClient,
+  WorkflowCanvasConfigProvider,
+  useWorkflowDetailController,
+  WORKFLOW_DETAIL_TREE_STYLES,
+  useWorkflowRealtimeBadgeState,
+  useWorkflowCanvasRunButton,
+} from "@codemation/canvas-core";
 import { WorkflowCanvas } from "../canvas/WorkflowCanvas";
-import type { WorkflowDto } from "../realtime/realtimeDomainTypes";
 import { NodePropertiesSlidePanel } from "../panels/NodePropertiesSlidePanel";
-import { useWorkflowDetailController } from "../hooks/workflowDetail/useWorkflowDetailController";
 import { WorkflowRunsSidebar } from "../panels/WorkflowRunsSidebar";
-import { WORKFLOW_DETAIL_TREE_STYLES } from "../lib/workflowDetailTreeStyles";
-import { WorkflowDetailScreenCanvasTabs } from "./WorkflowDetailScreenCanvasTabs";
-import { WorkflowDetailScreenInspectorPanel } from "./WorkflowDetailScreenInspectorPanel";
-import { useWorkflowRealtimeBadgeState } from "../hooks/realtime/useWorkflowRealtimeShowDisconnectedBadge";
 import { resolveWorkflowRealtimeBadge } from "./workflowDetailScreenRealtimeBadge";
-import { WorkflowCanvasRunButton } from "../panels/WorkflowCanvasRunButton";
-import { useWorkflowCanvasRunButton } from "../hooks/useWorkflowCanvasRunButton";
-import { WorkflowJsonEditorDialog } from "../panels/WorkflowJsonEditorDialog";
 import { WorkflowActivationErrorDialog } from "../panels/WorkflowActivationErrorDialog";
+import { WorkflowJsonEditorMount } from "./WorkflowJsonEditorMount";
 import { useWorkflowDetailScreenThemeStyle } from "./useWorkflowDetailScreenThemeStyle";
 import { useWorkflowDetailChromeSync } from "./useWorkflowDetailChromeSync";
 import { useLocalNavigation } from "./useLocalNavigation";
+import { DefaultHeader } from "./defaults/DefaultHeader";
+import { DefaultTabs } from "./defaults/DefaultTabs";
+import { DefaultInspector } from "./defaults/DefaultInspector";
+import { DefaultLoadingState } from "./defaults/DefaultLoadingState";
+import { DefaultEmptyState } from "./defaults/DefaultEmptyState";
+import { DefaultRunButton } from "./defaults/DefaultRunButton";
 
 // Lazy-load the Tests view only: it pulls in recharts + the test-suite component tree which is
 // conditionally rendered and would otherwise dominate module work for this route.
 const LazyWorkflowDetailScreenTestsView = React.lazy(() =>
   import("./WorkflowDetailScreenTestsView").then((m) => ({ default: m.WorkflowDetailScreenTestsView })),
 );
-
-/** Mounts the JSON editor: either the consumer override or the built-in dialog. */
-function WorkflowJsonEditorMount(
-  args: Readonly<{
-    state: JsonEditorState;
-    onClose: () => void;
-    onSave: (value: string, binaryMaps?: PinBinaryMapsByItemIndex) => void;
-    renderOverride?: (props: WorkflowJsonEditorSlotProps) => React.ReactNode;
-  }>,
-) {
-  const slotProps: WorkflowJsonEditorSlotProps = {
-    state: args.state,
-    onClose: args.onClose,
-    onSave: args.onSave,
-  };
-  if (args.renderOverride) {
-    return <>{args.renderOverride(slotProps)}</>;
-  }
-  return <WorkflowJsonEditorDialog {...slotProps} />;
-}
 
 export interface WorkflowDetailScreenArgs {
   workflowId: string;
@@ -64,6 +56,18 @@ export interface WorkflowDetailScreenArgs {
   navigation?: NavigationAdapter;
   onChromeChange?: (state: WorkflowDetailChromeState | null) => void;
   config?: WorkflowCanvasConfig;
+  // --- Slot render props (all optional; default rendering preserved when omitted) ---
+  renderHeader?: (ctx: WorkflowDetailHeaderSlotContext) => React.ReactNode;
+  renderTabs?: (ctx: WorkflowDetailTabsSlotContext) => React.ReactNode;
+  renderInspector?: (ctx: WorkflowDetailInspectorSlotContext) => React.ReactNode;
+  renderLoadingState?: () => React.ReactNode;
+  renderEmptyState?: () => React.ReactNode;
+  renderRunButton?: (ctx: WorkflowDetailRunButtonSlotContext) => React.ReactNode;
+  // --- Layout toggles ---
+  /** Collapses the runs pane sidebar (grid switches from 2-col to 1-col). */
+  hideRunsPaneSidebar?: boolean;
+  /** Removes the tab strip area. */
+  hideTabs?: boolean;
 }
 
 export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
@@ -103,6 +107,50 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
   const badgeState = useWorkflowRealtimeBadgeState();
   const realtimeBadge = resolveWorkflowRealtimeBadge(badgeState);
 
+  // Build slot ctx objects (minimal subsets per D2).
+  const headerCtx: WorkflowDetailHeaderSlotContext = {
+    workflowId: args.workflowId,
+    workflowName: controller.displayedWorkflow?.name,
+    isRunning: controller.isRunning,
+    isLiveWorkflowView: controller.isLiveWorkflowView,
+  };
+
+  const tabsCtx: WorkflowDetailTabsSlotContext = {
+    activeCanvasTab,
+    onSelectLive: controller.openLiveWorkflow,
+    onSelectExecutions: controller.openExecutionsPane,
+    onSelectTests: () => setIsTestsViewActive(true),
+  };
+
+  const inspectorCtx: WorkflowDetailInspectorSlotContext = {
+    inspect: {
+      selectedNodeId: controller.selectedNodeId,
+      selectedCanvasNodeId: controller.selectedCanvasNodeId,
+      propertiesPanelNodeId: controller.propertiesPanelNodeId,
+      isPropertiesPanelOpen: controller.isPropertiesPanelOpen,
+      isPanelCollapsed: controller.isPanelCollapsed,
+      inspectorHeight: controller.inspectorHeight,
+      startInspectorResize: controller.startInspectorResize,
+      toggleInspectorPanel: controller.toggleInspectorPanel,
+      inspectorModel: controller.inspectorModel,
+      inspectorFormatting: controller.inspectorFormatting,
+      inspectorActions: controller.inspectorActions,
+    },
+    pin: {
+      pinnedNodeIds: controller.pinnedNodeIds,
+      togglePin: controller.toggleCanvasNodePin,
+      editOutput: controller.editCanvasNodeOutput,
+      clearPin: controller.clearCanvasNodePin,
+    },
+    jsonEdit: {
+      jsonEditorState: controller.jsonEditorState,
+      closeJsonEditor: controller.closeJsonEditor,
+      saveJsonEditor: controller.saveJsonEditor,
+    },
+  };
+
+  const runButtonCtx: WorkflowDetailRunButtonSlotContext = { run: runButtonState };
+
   const body = isTestsViewActive ? (
     <Suspense fallback={null}>
       <LazyWorkflowDetailScreenTestsView
@@ -123,13 +171,16 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
     </Suspense>
   ) : (
     <main className="h-full w-full min-h-0 overflow-hidden bg-muted/40" style={themeStyle}>
+      {args.renderHeader ? args.renderHeader(headerCtx) : <DefaultHeader ctx={headerCtx} />}
       <section
         className={cn(
           "relative grid h-full min-h-0 w-full min-w-0 overflow-hidden",
-          controller.isRunsPaneVisible ? "grid-cols-[minmax(0,320px)_minmax(0,1fr)]" : "grid-cols-1",
+          !args.hideRunsPaneSidebar && controller.isRunsPaneVisible
+            ? "grid-cols-[minmax(0,320px)_minmax(0,1fr)]"
+            : "grid-cols-1",
         )}
       >
-        {controller.isRunsPaneVisible ? (
+        {!args.hideRunsPaneSidebar && controller.isRunsPaneVisible ? (
           <WorkflowRunsSidebar
             model={controller.sidebarModel}
             formatting={controller.sidebarFormatting}
@@ -184,39 +235,34 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
                   onSelectInvocation={controller.selectInvocationInPropertiesPanel}
                 />
               </>
+            ) : args.renderLoadingState ? (
+              args.renderLoadingState()
             ) : (
-              <div className="p-4 text-sm text-muted-foreground">Loading diagram…</div>
+              <DefaultLoadingState />
             )}
-            <div className="pointer-events-none absolute top-3 left-1/2 z-[6] flex -translate-x-1/2 items-center gap-2">
-              <WorkflowDetailScreenCanvasTabs
-                activeCanvasTab={activeCanvasTab}
-                onSelectLive={controller.openLiveWorkflow}
-                onSelectExecutions={controller.openExecutionsPane}
-                onSelectTests={() => setIsTestsViewActive(true)}
-              />
-              {controller.canCopySelectedRunToLive ? (
-                <Button
-                  type="button"
-                  data-testid="canvas-copy-to-live-button"
-                  size="sm"
-                  className="pointer-events-auto h-8 px-3 text-xs font-extrabold"
-                  onClick={controller.copySelectedRunToLive}
-                >
-                  Copy to live
-                </Button>
-              ) : null}
-            </div>
+            {!args.hideTabs ? (
+              <div
+                data-testid="workflow-detail-tabs-area"
+                className="pointer-events-none absolute top-3 left-1/2 z-[6] flex -translate-x-1/2 items-center gap-2"
+              >
+                {args.renderTabs ? (
+                  args.renderTabs(tabsCtx)
+                ) : (
+                  <DefaultTabs
+                    ctx={tabsCtx}
+                    canCopySelectedRunToLive={controller.canCopySelectedRunToLive}
+                    onCopyToLive={controller.copySelectedRunToLive}
+                  />
+                )}
+              </div>
+            ) : null}
             {controller.isLiveWorkflowView && !controller.isRunsPaneVisible && runButtonState.triggers.length > 0 ? (
               <div className="pointer-events-auto absolute bottom-3 left-1/2 z-[6] -translate-x-1/2">
-                <WorkflowCanvasRunButton
-                  triggers={runButtonState.triggers}
-                  selectedTriggerNodeId={runButtonState.selectedTriggerNodeId}
-                  isRunning={controller.isRunning}
-                  disabled={runButtonState.isDisabled}
-                  onSelect={runButtonState.handleSelectTrigger}
-                  onRunLive={runButtonState.handleRunLiveTrigger}
-                  onRunTest={runButtonState.handleRunTestTrigger}
-                />
+                {args.renderRunButton ? (
+                  args.renderRunButton(runButtonCtx)
+                ) : (
+                  <DefaultRunButton ctx={runButtonCtx} isRunning={controller.isRunning} />
+                )}
               </div>
             ) : null}
             <div className="pointer-events-none absolute top-3 right-3 z-[6] flex max-w-[min(22rem,calc(100%-1.5rem))] flex-col items-end gap-2">
@@ -233,9 +279,10 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
               ) : null}
             </div>
           </div>
-          <WorkflowDetailScreenInspectorPanel controller={controller} />
+          {args.renderInspector ? args.renderInspector(inspectorCtx) : <DefaultInspector ctx={inspectorCtx} />}
         </div>
       </section>
+      {args.renderEmptyState ? args.renderEmptyState() : <DefaultEmptyState />}
       {controller.jsonEditorState ? (
         <WorkflowJsonEditorMount
           state={controller.jsonEditorState}

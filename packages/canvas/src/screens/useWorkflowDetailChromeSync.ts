@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 
-import type { WorkflowDetailControllerResult } from "../hooks/workflowDetail/useWorkflowDetailController";
-import type { WorkflowDetailChromeState } from "../types/WorkflowDetailChromeState";
+import type { WorkflowDetailControllerResult, WorkflowDetailChromeState } from "@codemation/canvas-core";
 
 export function useWorkflowDetailChromeSync(
   controller: WorkflowDetailControllerResult,

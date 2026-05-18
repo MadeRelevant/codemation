@@ -12,6 +12,96 @@ Authoring or reviewing workflow definitions under `src/workflows/`.
 
 Do not use this skill for CLI-only troubleshooting or deep host architecture questions unless they directly affect workflow authoring.
 
+## Discovering nodes and patterns
+
+**Always call `find_examples` first** when you need to learn how to use a node or build a workflow pattern.
+
+### Why examples are the canonical reference
+
+Examples in the catalog typecheck, lint, and are verified by CI. They show the exact import paths, constructor signatures, and DSL shape that work in a real project — more efficiently than reading schema definitions or grepping framework source.
+
+### When to call `find_examples` first
+
+- Before writing any workflow that uses an unfamiliar node.
+- When you need a pattern (polling, branching, sub-workflow, agent with tools, etc.) and aren't sure of the exact API.
+- As your first step — before `read_skill`, before `search_capabilities`, before reading any file.
+
+### Query patterns
+
+Call `find_examples` in two ways:
+
+```ts
+// By node name:
+find_examples({ query: "HttpRequest" });
+find_examples({ query: "AIAgent" });
+find_examples({ query: "CronTrigger" });
+
+// By use case / intent:
+find_examples({ query: "poll API and write to database" });
+find_examples({ query: "AIAgent multi-step pipeline" });
+find_examples({ query: "gmail trigger classify email" });
+```
+
+Mix both: `find_examples({ query: "AIAgent gmail classify" })` works too.
+
+### Install state in results
+
+Every search result includes `installed: boolean` and `requiresInstall: string[]`. Use these to plan installs (`install_package`) before adapting an example. If `installed` is `false` or `requiresInstall` is non-empty, call `install_package` for each missing package before writing any workflow code that imports them.
+
+### When find_examples returns zero hits
+
+Stop. Do not improvise from memory. Do one of:
+
+1. **Ask the user**: "I don't have an example for `<query>`. Would you like me to adapt the closest match (`<nearest>`) or should a proper example be added first?"
+2. **Adapt the closest near-miss** — only with the user's explicit confirmation that the approach is reasonable.
+
+Do not attempt to infer node behavior by grepping framework source code (e.g. `node_modules/@codemation/*`). Examples convey the same information more efficiently and are authoritative.
+
+## When no example matches — the self-solving fallback chain
+
+If `find_examples` returns no good match for your query, **do not ask the user**. The user is non-technical and can't help you pick between framework primitives. Solve it using this fixed chain:
+
+### Tier 1 — Retry with intent variations
+
+Re-query with the underlying intent: a different verb, a more generic term, the closest standard pattern. Example: no hit for `"google sheets append row"` → retry `"http POST bearer credential"` or `"REST API call with credential"`.
+
+### Tier 2 — Custom REST node (preferred for HTTP APIs)
+
+If the task is "call an external HTTP API," use `defineRestNode`. Always works.
+
+`find_examples({ query: "defineRestNode" })` → returns the canonical templates:
+
+- `custom-rest-node-simple.example.ts` — basic shape
+- `custom-rest-node-with-credential.example.ts` — with bearer/OAuth credential slot
+
+Adapt these to the specific endpoint + payload shape needed.
+
+### Tier 3 — Raw HttpRequest (inline, one-off)
+
+If the call is one-shot inline in a workflow and you don't need to define a reusable node, use the `HttpRequest` config class.
+
+`find_examples({ query: "HttpRequest" })` → `node-httprequest.example.ts`
+
+### Tier 4 — defineNode (non-HTTP custom logic)
+
+If the task isn't an HTTP call (data transformation, business logic, anything stateful), use `defineNode`.
+
+`find_examples({ query: "defineNode template" })` → `custom-node-template.example.ts`
+
+### What NOT to do
+
+- Do NOT ask the user "should I use HttpRequest or defineRestNode?" — they can't help; pick using the chain.
+- Do NOT grep `node_modules/@codemation/*` for node implementations — the templates above are the canonical reference.
+- Do NOT invent a custom solution outside this chain.
+
+### Surfacing what you did
+
+After building, your final message to the concierge should state the technique used, e.g.:
+
+> "Built using `defineRestNode` for the Google Sheets append call (no first-class Sheets node yet)."
+
+This is informational, not a request for approval.
+
 ## There are TWO authoring APIs — pick by trigger type
 
 | Trigger                                                     | API to use                                                         | Import                                                                                        | Available chain helpers                                                                      |
@@ -51,6 +141,38 @@ For nodes that hold credential bindings, the binding is keyed by `(workflowId, n
   // ...
 })
 ```
+
+### Collision gotcha — set explicit ids on every node
+
+Auto-derived ids can also **collide** when a trigger and a downstream node share a label. Example:
+
+```ts
+// ❌ Auto-derived ids collide: both slugify to "classify-feedback"
+workflow("wf.feedback")
+  .manualTrigger("Classify feedback", {
+    /* ... */
+  })
+  .agent("Classify feedback", {
+    /* ... */
+  })
+  .build(); // throws WorkflowDefinitionError: duplicate nodeId "classify-feedback"
+
+// ✅ Explicit id on the AIAgent disambiguates
+workflow("wf.feedback")
+  .manualTrigger("Classify feedback", {
+    /* ... */
+  })
+  .agent("Classify feedback", { id: "classify-feedback-agent" /* ... */ })
+  .build();
+```
+
+**Recommendation: always set an explicit `id:` on every node.** It's a few extra characters that buys you:
+
+1. Stable credential bindings across label renames (above)
+2. No collision build errors when refactoring labels
+3. Stable references for any downstream code that addresses nodes by id (e.g. pinned-output state, test-suite assertions, audit-log entries)
+
+The slug-derived default exists for quick prototyping; production workflows should declare ids.
 
 ## Typical flow
 
@@ -141,3 +263,15 @@ export default workflow("wf.parent")
 - Read `references/builder-patterns.md` for item-flow rules and fluent authoring patterns.
 - Read `references/workflow-testing.md` for TestTrigger / IsTestRun / Assertion authoring with full examples.
 - Read `references/complete-example.md` for a single dense end-to-end workflow example that exercises most authoring features (CronTrigger, map, if, agent, callableTool, itemExpr, ctx.data, ctx.binary, node with explicit id, build).
+
+## Verifying your workflow
+
+After writing or modifying a workflow file, call `verify_workflow({ path })` instead of running `pnpm typecheck` yourself. The tool runs typecheck + lint + DSL build + structure dump in one round-trip and returns a structured envelope:
+
+```ts
+verify_workflow({ path: "src/workflows/my-workflow.ts" });
+// → { ok: true, data: { typecheck: "ok", lint: "ok", build: "ok", structure: { id, name, trigger, nodes, edges, activation } } }
+// → { ok: false, error: "...", data: { typecheck: {...}, lint: {...}, build: {...}, structure: null }, hint: "..." }
+```
+
+A failed `ok: false` result includes a `hint` field that points at the specific fix needed. Fix the reported errors and call `verify_workflow` again — do not report done until `ok: true`.

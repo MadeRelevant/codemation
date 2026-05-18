@@ -34,3 +34,5 @@ export type {
   PollingRunCycleResult,
   PollingTriggerStartArgs,
 } from "./triggers/polling";
+export { WorkflowEdgePortValidator } from "./validation/WorkflowEdgePortValidator";
+export type { WorkflowEdgePortError, WorkflowEdgePortValidationResult } from "./validation/WorkflowEdgePortError.types";

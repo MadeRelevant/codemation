@@ -1,7 +1,7 @@
 "use client";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 
-import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
+import type { WorkflowCanvasNodeData } from "@codemation/canvas-core";
 import {
   WORKFLOW_CANVAS_AGENT_NODE_CARD_WIDTH_PX,
   WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX,
@@ -9,7 +9,7 @@ import {
   WORKFLOW_CANVAS_MAIN_NODE_LABEL_GAP_PX,
   WORKFLOW_CANVAS_NESTED_AGENT_NODE_CARD_WIDTH_PX,
   WorkflowCanvasNodeGeometry,
-} from "./lib/workflowCanvasNodeGeometry";
+} from "@codemation/canvas-core";
 import { WorkflowCanvasCodemationNodeAccents } from "./WorkflowCanvasCodemationNodeAccents";
 import { WorkflowCanvasCodemationNodeAgentLabels } from "./WorkflowCanvasCodemationNodeAgentLabels";
 import { WorkflowCanvasCodemationNodeCard } from "./WorkflowCanvasCodemationNodeCard";

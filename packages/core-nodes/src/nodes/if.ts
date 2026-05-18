@@ -6,7 +6,6 @@ import type {
   RunnableNodeConfig,
   TypeToken,
 } from "@codemation/core";
-
 import { IfNode } from "./IfNode";
 
 export class If<TInputJson = unknown> implements RunnableNodeConfig<TInputJson, TInputJson> {

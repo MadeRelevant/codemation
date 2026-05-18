@@ -1,0 +1,55 @@
+{
+  "nodes": [
+    {
+      "name": "OnNewGmailTrigger",
+      "kind": "trigger",
+      "description": "Fires when a new email arrives in a Gmail mailbox. Emits one item per new message with headers, body, and attachment metadata.",
+      "inputPorts": [],
+      "outputPorts": ["main"],
+      "credentialRefs": ["gmail.oauth"],
+      "sourcePath": "src/nodes/OnNewGmailTrigger.ts",
+      "tags": ["gmail", "email", "trigger"]
+    },
+    {
+      "name": "SendGmailMessage",
+      "kind": "node",
+      "description": "Sends an email via Gmail. Supports to, cc, bcc, attachments, and custom headers.",
+      "inputPorts": ["main"],
+      "outputPorts": ["main"],
+      "credentialRefs": ["gmail.oauth"],
+      "sourcePath": "src/nodes/SendGmailMessage.ts",
+      "tags": ["gmail", "email", "send"]
+    },
+    {
+      "name": "ReplyToGmailMessage",
+      "kind": "node",
+      "description": "Replies to an existing Gmail message thread. Preserves the In-Reply-To and References headers.",
+      "inputPorts": ["main"],
+      "outputPorts": ["main"],
+      "credentialRefs": ["gmail.oauth"],
+      "sourcePath": "src/nodes/ReplyToGmailMessage.ts",
+      "tags": ["gmail", "email", "reply"]
+    },
+    {
+      "name": "ModifyGmailLabels",
+      "kind": "node",
+      "description": "Adds or removes labels on a Gmail message or thread.",
+      "inputPorts": ["main"],
+      "outputPorts": ["main"],
+      "credentialRefs": ["gmail.oauth"],
+      "sourcePath": "src/nodes/ModifyGmailLabels.ts",
+      "tags": ["gmail", "email", "labels"]
+    }
+  ],
+  "credentials": [
+    {
+      "name": "gmail.oauth",
+      "description": "Gmail OAuth 2.0 credential. Grants access to send, read, and manage Gmail messages.",
+      "fields": [
+        { "key": "clientId", "type": "string", "required": true },
+        { "key": "clientSecret", "type": "password", "required": true },
+        { "key": "refreshToken", "type": "password", "required": true }
+      ]
+    }
+  ]
+}

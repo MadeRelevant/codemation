@@ -8,6 +8,7 @@
     "baseUrl": ".",
     "paths": {
       "@codemation/canvas": ["./src/index.ts"],
+      "@codemation/canvas-core": ["../canvas-core/src/index.ts"],
       "@codemation/core": ["../core/src/index.ts"],
       "@codemation/core/browser": ["../core/src/browser.ts"],
       "@codemation/core/bootstrap": ["../core/src/bootstrap/index.ts"],

@@ -1,7 +1,7 @@
 "use client";
 import { useMemo } from "react";
 
-import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../realtime/realtimeDomainTypes";
+import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "@codemation/canvas-core";
 import { VisibleNodeStatusResolver } from "../../canvas/VisibleNodeStatusResolver";
 
 export function useWorkflowCanvasVisibleNodeStatuses(

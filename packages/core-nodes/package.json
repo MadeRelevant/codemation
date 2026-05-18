@@ -30,7 +30,8 @@
   "scripts": {
     "changeset:verify": "pnpm --workspace-root run changeset:verify",
     "dev": "tsdown --watch",
-    "build": "tsdown",
+    "build": "tsdown && pnpm build:metadata",
+    "build:metadata": "tsx ../../tooling/discovery/scripts/extract-metadata.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "pnpm --filter @codemation/core build && pnpm build && vitest run",

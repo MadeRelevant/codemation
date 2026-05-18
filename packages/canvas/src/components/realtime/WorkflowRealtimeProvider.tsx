@@ -3,8 +3,7 @@
 import type { Logger } from "@codemation/host/client";
 import type { ReactNode } from "react";
 
-import { RealtimeContext } from "./RealtimeContext";
-import { useWorkflowRealtimeInfrastructure } from "../../hooks/realtime/useWorkflowRealtimeInfrastructure";
+import { RealtimeContext, useWorkflowRealtimeInfrastructure } from "@codemation/canvas-core";
 
 export function WorkflowRealtimeProvider(
   args: Readonly<{

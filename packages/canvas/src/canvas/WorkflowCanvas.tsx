@@ -12,13 +12,15 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { WorkflowDto } from "@codemation/host/dto";
-import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../realtime/realtimeDomainTypes";
-import type { WorkflowCanvasConfig } from "../types/WorkflowCanvasConfig";
-import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
+import type {
+  ConnectionInvocationRecord,
+  NodeExecutionSnapshot,
+  WorkflowCanvasConfig,
+  WorkflowCanvasNodeData,
+} from "@codemation/canvas-core";
+import { useAsyncWorkflowLayout, WORKFLOW_CANVAS_EMBEDDED_STYLES } from "@codemation/canvas-core";
 import { workflowCanvasEdgeTypes, workflowCanvasNodeTypes } from "./lib/workflowCanvasFlowTypes";
-import { useAsyncWorkflowLayout } from "../hooks/canvas/useAsyncWorkflowLayout";
 import { useWorkflowCanvasVisibleNodeStatuses } from "../hooks/canvas/useWorkflowCanvasVisibleNodeStatuses";
-import { WORKFLOW_CANVAS_EMBEDDED_STYLES } from "./lib/workflowCanvasEmbeddedStyles";
 import { WorkflowCanvasLoadingPlaceholder } from "./WorkflowCanvasLoadingPlaceholder";
 import { WorkflowCanvasStructureSignature } from "./WorkflowCanvasStructureSignature";
 
@@ -252,5 +254,5 @@ export function WorkflowCanvas(args: {
 }
 
 export { VisibleNodeStatusResolver } from "./VisibleNodeStatusResolver";
-export { WorkflowCanvasEdgeCountResolver } from "./lib/WorkflowCanvasEdgeCountResolver";
+export { WorkflowCanvasEdgeCountResolver } from "@codemation/canvas-core";
 export { WorkflowCanvasStructureSignature } from "./WorkflowCanvasStructureSignature";

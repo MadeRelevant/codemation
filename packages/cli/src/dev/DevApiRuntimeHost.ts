@@ -14,7 +14,11 @@ import {
 import { access } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { CodemationTsyringeTypeInfoRegistrar } from "@codemation/host-src/presentation/server/CodemationTsyringeTypeInfoRegistrar";
+// Direct deep relative import: tsx dev mode resolves it without needing the
+// `@codemation/host-src/*` path alias (kept off the tsx tsconfig so files
+// reached via cross-repo symlinks aren't excluded from compilerOptions
+// project-scoping — see tsconfig.codemation-tsx.json).
+import { CodemationTsyringeTypeInfoRegistrar } from "../../../host/src/presentation/server/CodemationTsyringeTypeInfoRegistrar";
 
 import type { DevApiRuntimeContext } from "./DevApiRuntimeTypes";
 

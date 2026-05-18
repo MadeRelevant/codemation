@@ -1,0 +1,27 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { defineConfig } from "vitest/config";
+
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig({
+  esbuild: {
+    jsx: "automatic",
+    jsxImportSource: "react",
+  },
+  test: {
+    name: "@codemation/canvas:ui",
+    root: import.meta.dirname,
+    environment: "jsdom",
+    include: ["test/**/*.test.tsx"],
+    setupFiles: ["./test/setup.ts"],
+    pool: "threads",
+  },
+  resolve: {
+    conditions: ["development", "import", "module", "default"],
+    alias: [
+      { find: "@codemation/canvas", replacement: path.resolve(dirname, "./src/index.ts") },
+      { find: "@codemation/canvas-core", replacement: path.resolve(dirname, "../canvas-core/src/index.ts") },
+    ],
+  },
+});

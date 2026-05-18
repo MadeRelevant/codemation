@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import { useWorkflowCanvasConfig } from "../context/WorkflowCanvasConfigContext";
+import { useWorkflowCanvasConfig } from "@codemation/canvas-core";
 import type { WorkflowDiagramNode } from "@codemation/canvas";
 import { CredentialUiNotConfiguredFallback } from "./CredentialUiNotConfiguredFallback";
 

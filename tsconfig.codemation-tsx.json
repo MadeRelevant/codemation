@@ -11,29 +11,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "baseUrl": ".",
-    "paths": {
-      "@codemation/core": ["packages/core/src/index.ts"],
-      "@codemation/core/testing": ["packages/core/src/testing.ts"],
-      "@codemation/cli": ["packages/cli/src/index.ts"],
-      "@codemation/core-nodes": ["packages/core-nodes/src/index.ts"],
-      "@codemation/core-nodes-gmail": ["packages/core-nodes-gmail/src/index.ts"],
-      "@codemation/eventbus-redis": ["packages/eventbus-redis/src/index.ts"],
-      "@codemation/host": ["packages/host/src/index.ts"],
-      "@codemation/host/authoring": ["packages/host/src/authoring.ts"],
-      "@codemation/host/client": ["packages/host/src/client.ts"],
-      "@codemation/host/credentials": ["packages/host/src/credentials.ts"],
-      "@codemation/host/consumer": ["packages/host/src/consumer.ts"],
-      "@codemation/host/next/server": ["packages/host/src/nextServer.ts"],
-      "@codemation/host/server": ["packages/host/src/server.ts"],
-      "@codemation/host/persistence": ["packages/host/src/persistenceServer.ts"],
-      "@codemation/host-src/*": ["packages/host/src/*"],
-      "@codemation/next-host/src/*": ["packages/next-host/src/*"],
-      "@codemation/next-host": ["packages/next-host/src/index.ts"],
-      "@codemation/node-example": ["packages/node-example/src/index.ts"]
-    }
-  },
-  "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx"],
-  "exclude": ["**/node_modules", "**/dist", "**/.next", "**/coverage"]
+    "emitDecoratorMetadata": true
+  }
 }

@@ -6,7 +6,6 @@ import type {
   RunnableNodeConfig,
   TypeToken,
 } from "@codemation/core";
-
 import { FilterNode } from "./FilterNode";
 
 export class Filter<TIn = unknown> implements RunnableNodeConfig<TIn, TIn> {

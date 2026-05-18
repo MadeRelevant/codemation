@@ -5,7 +5,6 @@ import type {
   RunnableNodeConfig,
   TypeToken,
 } from "@codemation/core";
-
 import { AggregateNode } from "./AggregateNode";
 
 export class Aggregate<TIn = unknown, TOut = unknown> implements RunnableNodeConfig<TIn, TOut> {

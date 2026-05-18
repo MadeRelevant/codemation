@@ -5,9 +5,9 @@ import { Button } from "../components/ui/button";
 import { cn } from "../components/lib/utils";
 
 import { WorkflowExecutionInspector } from "../panels/WorkflowExecutionInspector";
-import type { WorkflowDetailControllerResult } from "@codemation/canvas";
+import type { InspectorSlotInspect } from "@codemation/canvas-core";
 
-export function WorkflowDetailScreenInspectorPanel(props: Readonly<{ controller: WorkflowDetailControllerResult }>) {
+export function WorkflowDetailScreenInspectorPanel(props: Readonly<{ controller: InspectorSlotInspect }>) {
   const { controller } = props;
   return (
     <div

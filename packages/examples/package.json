@@ -1,0 +1,62 @@
+{
+  "name": "@codemation/examples",
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Made Relevant B.V.",
+  "homepage": "https://www.maderelevant.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MadeRelevant/codemation",
+    "directory": "packages/examples"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "description": "Curated example workflows for Codemation, with metadata for agent discovery.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": {
+        "import": "./src/index.ts"
+      },
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
+    "dev": "codemation dev",
+    "build": "tsdown && pnpm build:metadata",
+    "build:metadata": "tsx ../../tooling/discovery/scripts/extract-metadata.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "pnpm test:unit",
+    "test:unit": "vitest run",
+    "test:integration": "node --import tsx/esm src/verify-examples-script.ts",
+    "verify-examples": "node --import tsx/esm src/verify-examples-script.ts"
+  },
+  "dependencies": {
+    "@codemation/core": "workspace:*",
+    "@codemation/core-nodes": "workspace:*",
+    "@codemation/core-nodes-gmail": "workspace:*",
+    "@codemation/core-nodes-ocr": "workspace:*",
+    "@codemation/host": "workspace:*",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@codemation/cli": "workspace:*",
+    "@codemation/eslint-config": "workspace:*",
+    "@types/node": "^25.3.5",
+    "eslint": "^10.0.3",
+    "tsdown": "^0.15.5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
+  }
+}

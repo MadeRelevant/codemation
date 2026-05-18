@@ -6,7 +6,7 @@ import type { CredentialStore } from "../domain/credentials/CredentialServices";
 import { CredentialSecretCipher } from "../domain/credentials/CredentialSecretCipher";
 import { InternalHmacAuthMiddleware } from "../pairing/InternalHmacAuthMiddleware";
 import type { InternalHonoApiRouteRegistrar } from "../presentation/http/hono/InternalHonoApiRouteRegistrar";
-import { CredentialInstanceService } from "../domain/credentials/CredentialServices";
+import { CredentialInstanceService, CredentialTestService } from "../domain/credentials/CredentialServices";
 
 /**
  * Body shape pushed from the control-plane OAuth broker after a successful
@@ -15,6 +15,13 @@ import { CredentialInstanceService } from "../domain/credentials/CredentialServi
 type CredentialPushBody = Readonly<{
   credentialInstanceId: string;
   oauthAppKey: string;
+  /**
+   * Human-readable label from the control-plane. When present, the workspace
+   * upserts a local instance row (typeId `host.oauth2-via-broker`) so the
+   * credential is visible in lists. Older brokers omit this field; we then
+   * skip the upsert and rely on the legacy "material without instance" path.
+   */
+  displayName?: string;
   accessToken: string;
   refreshToken?: string | null;
   expiresAt: number;
@@ -36,6 +43,7 @@ export class InternalCredentialsPushRegistrar implements InternalHonoApiRouteReg
     @inject(ApplicationTokens.CredentialStore) private readonly credentialStore: CredentialStore,
     @inject(CredentialSecretCipher) private readonly cipher: CredentialSecretCipher,
     @inject(CredentialInstanceService) private readonly credentialInstanceService: CredentialInstanceService,
+    @inject(CredentialTestService) private readonly credentialTestService: CredentialTestService,
     @inject(ApplicationTokens.LoggerFactory) loggerFactory: LoggerFactory,
   ) {
     this.logger = loggerFactory.create("InternalCredentialsPushRegistrar");
@@ -57,6 +65,18 @@ export class InternalCredentialsPushRegistrar implements InternalHonoApiRouteReg
         const nowIso = new Date().toISOString();
         const expiryIso =
           typeof body.expiresAt === "number" ? new Date(body.expiresAt * 1000).toISOString() : undefined;
+
+        // Create the local instance row if the broker provided a displayName.
+        // Must happen BEFORE saveOAuth2Material so the FK from secret material
+        // → instance is satisfied, and BEFORE markOAuth2Connected so the flip
+        // to "ready" finds the row.
+        if (body.displayName && body.displayName.length > 0) {
+          await this.credentialInstanceService.ensureBrokerInstance({
+            instanceId: body.credentialInstanceId,
+            displayName: body.displayName,
+            oauthAppKey: body.oauthAppKey,
+          });
+        }
 
         // Merge: if the push omits refreshToken, preserve the existing one.
         const existingMaterial = await this.credentialStore.getOAuth2Material(body.credentialInstanceId);
@@ -102,6 +122,20 @@ export class InternalCredentialsPushRegistrar implements InternalHonoApiRouteReg
         this.logger.info(
           `Credential push applied for instance ${body.credentialInstanceId} oauthAppKey=${body.oauthAppKey}`,
         );
+
+        // Auto-test the credential so the UI shows a real health badge
+        // (healthy / failing) instead of "untested". For the broker type
+        // this just validates the token material we just persisted, so it
+        // never makes an outbound call to the provider. Soft-fails — a bad
+        // test result shouldn't fail the push that already succeeded.
+        try {
+          await this.credentialTestService.test(body.credentialInstanceId);
+        } catch (testError) {
+          this.logger.warn(
+            `Credential auto-test failed for instance ${body.credentialInstanceId}`,
+            testError instanceof Error ? testError : undefined,
+          );
+        }
 
         return c.json({ ok: true });
       } catch (error) {

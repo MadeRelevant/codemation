@@ -61,6 +61,7 @@ import { CollectionsInsertCommand } from "./commands/CollectionsInsertCommand";
 import { CollectionsUpdateCommand } from "./commands/CollectionsUpdateCommand";
 import { CollectionsDeleteCommand } from "./commands/CollectionsDeleteCommand";
 import { CollectionsSyncCommand } from "./commands/CollectionsSyncCommand";
+import { ExampleVerifyCommand } from "./commands/ExampleVerifyCommand";
 
 const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
 
@@ -176,6 +177,7 @@ export class CliProgramFactory {
       new CollectionsUpdateCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
       new CollectionsDeleteCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
       new CollectionsSyncCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
+      new ExampleVerifyCommand(),
     );
   }
 }

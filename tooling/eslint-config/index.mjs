@@ -4,6 +4,7 @@ import tsPlugin from "@typescript-eslint/eslint-plugin";
 import globals from "globals";
 import noOnlyTests from "eslint-plugin-no-only-tests";
 import noBufferEverything from "./rules/no-buffer-everything.mjs";
+import singleReactComponentPerFile from "./rules/single-react-component-per-file.mjs";
 
 const allowedConstructorNames = new Set([
   "AbortController",
@@ -61,141 +62,10 @@ const isManualNewAllowedTypeName = (name) =>
     name.endsWith("Error") ||
     name.endsWith("Dto"));
 
-function isPascalCaseComponentName(name) {
-  return typeof name === "string" && name.length > 0 && /^[A-Z]/.test(name);
-}
-
-function extendsReactComponentClass(superClass) {
-  if (!superClass) return false;
-  if (superClass.type === "Identifier") {
-    return superClass.name === "Component" || superClass.name === "PureComponent";
-  }
-  if (superClass.type === "MemberExpression" && superClass.property.type === "Identifier" && !superClass.computed) {
-    const prop = superClass.property.name;
-    return prop === "Component" || prop === "PureComponent";
-  }
-  return false;
-}
-
-function isMemoOrForwardRefCall(node) {
-  if (node.type !== "CallExpression") return false;
-  const callee = node.callee;
-  if (callee.type === "Identifier") {
-    return callee.name === "memo" || callee.name === "forwardRef";
-  }
-  if (callee.type === "MemberExpression" && callee.property.type === "Identifier" && !callee.computed) {
-    const prop = callee.property.name;
-    return prop === "memo" || prop === "forwardRef";
-  }
-  return false;
-}
-
-/** `const`-based components must use `memo` / `forwardRef` so tiny SVG/icon helpers (`const IconX = () => …`) are not counted as components. */
-function isComponentVariableInit(init) {
-  return Boolean(init && init.type === "CallExpression" && isMemoOrForwardRefCall(init));
-}
-
-function collectTopLevelReactComponents(program) {
-  /** @type {import("estree").Node[]} */
-  const components = [];
-
-  function considerStatement(stmt) {
-    if (!stmt) return;
-
-    if (stmt.type === "ExportNamedDeclaration") {
-      considerStatement(stmt.declaration);
-      return;
-    }
-
-    if (stmt.type === "ExportDefaultDeclaration") {
-      const d = stmt.declaration;
-      if (d.type === "FunctionDeclaration" && d.id && isPascalCaseComponentName(d.id.name)) {
-        components.push(d);
-        return;
-      }
-      if (d.type === "ClassDeclaration" && d.id && extendsReactComponentClass(d.superClass)) {
-        components.push(d);
-        return;
-      }
-      if (d.type === "VariableDeclaration") {
-        considerVariableDeclaration(d);
-        return;
-      }
-      if (d.type === "ArrowFunctionExpression" || d.type === "FunctionExpression") {
-        components.push(stmt);
-        return;
-      }
-      if (d.type === "CallExpression" && isMemoOrForwardRefCall(d)) {
-        components.push(stmt);
-      }
-      return;
-    }
-
-    if (stmt.type === "FunctionDeclaration") {
-      if (stmt.id && isPascalCaseComponentName(stmt.id.name)) {
-        components.push(stmt);
-      }
-      return;
-    }
-
-    if (stmt.type === "ClassDeclaration") {
-      if (stmt.id && extendsReactComponentClass(stmt.superClass)) {
-        components.push(stmt);
-      }
-      return;
-    }
-
-    if (stmt.type === "VariableDeclaration") {
-      considerVariableDeclaration(stmt);
-    }
-  }
-
-  function considerVariableDeclaration(decl) {
-    for (const d of decl.declarations) {
-      if (d.id.type !== "Identifier" || !isPascalCaseComponentName(d.id.name)) continue;
-      if (isComponentVariableInit(d.init)) {
-        components.push(d);
-      }
-    }
-  }
-
-  for (const stmt of program.body) {
-    considerStatement(stmt);
-  }
-
-  return components;
-}
-
 const architecturePlugin = {
   rules: {
     "no-buffer-everything": noBufferEverything,
-    "single-react-component-per-file": {
-      meta: {
-        type: "suggestion",
-        docs: {
-          description: "allow at most one React component per .tsx file (split helpers into separate files)",
-        },
-        schema: [],
-      },
-      create(context) {
-        const filename = context.filename ?? context.getFilename();
-        if (!filename.endsWith(".tsx")) return {};
-
-        return {
-          Program(node) {
-            const components = collectTopLevelReactComponents(node);
-            if (components.length <= 1) return;
-            for (const decl of components.slice(1)) {
-              context.report({
-                node: decl,
-                message:
-                  "Each .tsx file should define a single React component at module scope. Move additional components (including private helpers) into their own files.",
-              });
-            }
-          },
-        };
-      },
-    },
+    "single-react-component-per-file": singleReactComponentPerFile,
     "single-class-per-file": {
       meta: {
         type: "suggestion",

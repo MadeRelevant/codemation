@@ -1,7 +1,6 @@
 import { BaseEdge, type Edge, type EdgeProps } from "@xyflow/react";
 
-import { WORKFLOW_CANVAS_MAIN_EDGE_OFFSET } from "./lib/workflowCanvasEdgeGeometry";
-import { WorkflowCanvasSymmetricForkPathPlanner } from "./lib/WorkflowCanvasSymmetricForkPathPlanner";
+import { WORKFLOW_CANVAS_MAIN_EDGE_OFFSET, WorkflowCanvasSymmetricForkPathPlanner } from "@codemation/canvas-core";
 
 export function WorkflowCanvasSymmetricForkEdge(props: EdgeProps<Edge>) {
   const { path, labelX, labelY } = WorkflowCanvasSymmetricForkPathPlanner.build({

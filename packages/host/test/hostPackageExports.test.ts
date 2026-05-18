@@ -23,6 +23,7 @@ test("@codemation/host exports the lightweight authoring subpath", () => {
 
   assert.deepEqual(authoringExport, {
     types: "./dist/authoring.d.ts",
+    development: "./src/authoring.ts",
     import: "./dist/authoring.js",
   });
 });

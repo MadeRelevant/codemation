@@ -32,6 +32,7 @@ test("CliProgram forwards --watch-framework to the dev command", async () => {
     noopCommand,
     noopCommand,
     ...makeNoopCollectionArgs(),
+    noopCommand,
   );
 
   await program.run(["dev", "--watch-framework", "--consumer-root", "/tmp/my-automation"]);
@@ -53,6 +54,7 @@ test("CliProgram defaults dev to the packaged UI path", async () => {
     noopCommand,
     noopCommand,
     ...makeNoopCollectionArgs(),
+    noopCommand,
   );
 
   await program.run(["dev", "--consumer-root", "/tmp/my-automation"]);
@@ -74,6 +76,7 @@ test("CliProgram forwards --api-only to the dev command", async () => {
     noopCommand,
     noopCommand,
     ...makeNoopCollectionArgs(),
+    noopCommand,
   );
 
   await program.run(["dev", "--api-only", "--consumer-root", "/tmp/my-automation"]);
@@ -103,6 +106,7 @@ test("CliProgram forwards skills sync --consumer-root", async () => {
     noopCommand,
     noopCommand,
     ...makeNoopCollectionArgs(),
+    noopCommand,
   );
 
   await program.run(["skills", "sync", "--consumer-root", "/tmp/skills-consumer"]);
@@ -132,6 +136,7 @@ test("CliProgram forwards collections list --format json", async () => {
     noopCommand,
     noopCommand,
     listCommand as never,
+    noopCommand,
     noopCommand,
     noopCommand,
     noopCommand,
@@ -176,6 +181,7 @@ test("CliProgram forwards collections sync --dry-run", async () => {
     noopCommand,
     noopCommand,
     syncCommand as never,
+    noopCommand,
   );
 
   await program.run(["collections", "sync", "--dry-run"]);

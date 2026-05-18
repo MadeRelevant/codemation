@@ -1,5 +1,4 @@
 import type { InputPortKey, NodeInspectorSummaryRow, RunnableNodeConfig, TypeToken } from "@codemation/core";
-
 import { MergeNode } from "./MergeNode";
 
 export type MergeMode = "passThrough" | "append" | "mergeByPosition";

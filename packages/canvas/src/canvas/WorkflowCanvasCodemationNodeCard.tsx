@@ -3,11 +3,8 @@ import FastForward from "lucide-react/dist/esm/icons/fast-forward";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import ShieldAlert from "lucide-react/dist/esm/icons/shield-alert";
 
-import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
-import {
-  WORKFLOW_CANVAS_ATTACHMENT_NODE_ICON_PX,
-  WORKFLOW_CANVAS_MAIN_NODE_ICON_PX,
-} from "./lib/workflowCanvasNodeGeometry";
+import type { WorkflowCanvasNodeData } from "@codemation/canvas-core";
+import { WORKFLOW_CANVAS_ATTACHMENT_NODE_ICON_PX, WORKFLOW_CANVAS_MAIN_NODE_ICON_PX } from "@codemation/canvas-core";
 import { CanvasNodeChromeTooltip } from "./CanvasNodeChromeTooltip";
 import { trailingIconForNode, trailingIconKindForNode } from "./workflowCanvasNodeChrome";
 import { WorkflowCanvasCodemationNodeMainGlyph } from "./WorkflowCanvasCodemationNodeMainGlyph";

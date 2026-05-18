@@ -1,8 +1,8 @@
-import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
+import type { WorkflowCanvasNodeData } from "@codemation/canvas-core";
 import {
   WORKFLOW_CANVAS_MAIN_NODE_LABEL_FONT_PX,
   WORKFLOW_CANVAS_NODE_ICON_STROKE_WIDTH,
-} from "./lib/workflowCanvasNodeGeometry";
+} from "@codemation/canvas-core";
 import { WorkflowCanvasNodeIcon } from "./WorkflowCanvasNodeIcon";
 
 export function WorkflowCanvasCodemationNodeMainGlyph(

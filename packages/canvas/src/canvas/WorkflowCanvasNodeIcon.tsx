@@ -6,12 +6,14 @@ import Wrench from "lucide-react/dist/esm/icons/wrench";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 
-import { useWorkflowCanvasConfig } from "../context/WorkflowCanvasConfigContext";
+import {
+  useWorkflowCanvasConfig,
+  WorkflowCanvasBuiltinIconRegistry,
+  WorkflowCanvasLucideIconRegistry,
+  WorkflowCanvasSiIconRegistry,
+} from "@codemation/canvas-core";
 import { CanvasNodeIconSlot, type CanvasIconRotate } from "./CanvasNodeIconSlot";
-import { WorkflowCanvasBuiltinIconRegistry } from "./lib/WorkflowCanvasBuiltinIconRegistry";
-import { WorkflowCanvasLucideIconRegistry } from "./lib/WorkflowCanvasLucideIconRegistry";
 import { WorkflowCanvasLucideRemoteGlyph } from "./WorkflowCanvasLucideRemoteGlyph";
-import { WorkflowCanvasSiIconRegistry } from "./lib/WorkflowCanvasSiIconRegistry";
 import { WorkflowCanvasSimpleIconGlyph } from "./WorkflowCanvasSimpleIconGlyph";
 
 /**

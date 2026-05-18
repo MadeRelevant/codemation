@@ -60,6 +60,8 @@ function makeStore(existingMaterial?: CredentialOAuth2MaterialRecord): {
 const stubLogger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
 const stubLoggerFactory = { create: () => stubLogger };
 
+const stubTestService = { test: async () => ({ status: "healthy" as const }) };
+
 function buildApp(
   store: CredentialStore,
   cipher = new StubCredentialSecretCipher(),
@@ -70,6 +72,7 @@ function buildApp(
     store,
     cipher as never,
     instanceService as never,
+    stubTestService as never,
     stubLoggerFactory as never,
   );
   const app = new Hono();

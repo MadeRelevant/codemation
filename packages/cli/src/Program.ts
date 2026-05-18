@@ -16,6 +16,7 @@ import type { CollectionsSyncCommand } from "./commands/CollectionsSyncCommand";
 import type { CollectionsUpdateCommand } from "./commands/CollectionsUpdateCommand";
 import type { DbMigrateCommand } from "./commands/DbMigrateCommand";
 import { DevCommand } from "./commands/DevCommand";
+import type { ExampleVerifyCommand } from "./commands/ExampleVerifyCommand";
 import type { DevPluginCommand } from "./commands/DevPluginCommand";
 import { ServeWebCommand } from "./commands/ServeWebCommand";
 import { ServeWorkerCommand } from "./commands/ServeWorkerCommand";
@@ -43,6 +44,7 @@ export class CliProgram {
     private readonly collectionsUpdateCommand: CollectionsUpdateCommand,
     private readonly collectionsDeleteCommand: CollectionsDeleteCommand,
     private readonly collectionsSyncCommand: CollectionsSyncCommand,
+    private readonly exampleVerifyCommand: ExampleVerifyCommand,
   ) {}
 
   async run(argv: ReadonlyArray<string>): Promise<void> {
@@ -337,6 +339,16 @@ export class CliProgram {
       .option("--dry-run", "Print planned changes without applying them")
       .action(async (opts: Readonly<{ consumerRoot?: string; config?: string; dryRun?: boolean }>) => {
         await this.collectionsSyncCommand.execute(opts);
+      });
+
+    const example = program.command("example").description("Example workflow utilities.");
+
+    example
+      .command("verify")
+      .description("Verify a single example file (frontmatter + workflow shape check). Fast author feedback.")
+      .argument("<path>", "Path to the .example.ts file to verify")
+      .action(async (filePath: string) => {
+        await this.exampleVerifyCommand.execute(filePath);
       });
 
     await program.parseAsync(argv as string[], { from: "user" });
