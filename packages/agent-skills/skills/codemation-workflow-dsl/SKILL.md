@@ -126,6 +126,7 @@ If you find yourself wanting `.map` or `.if` on a cron workflow, you have two op
 2. Keep workflow files focused on orchestration and named steps.
 3. Use custom nodes when a callback grows into reusable product logic.
 4. Distinguish **batch activations** from **per-item node bodies**: custom nodes from **`defineNode`** implement **`execute`** per item unless you chose **`defineBatchNode`** for batch **`run`**.
+5. **Collection nodes (`collectionInsertNode`, `collectionGetNode`, `collectionListNode`, etc.) use `.then(node.create(...))` instead of `.node(label, node, opts)`.** TypeScript's inference can't bridge the recursive `ParamDeep` constraint when the node config contains `z.record(...)` fields. See `node-collection-crud.example.ts` for the canonical pattern.
 
 ## Node ids and stability
 

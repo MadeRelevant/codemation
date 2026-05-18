@@ -2,8 +2,8 @@ import type { CodemationAppContext, CodemationConfig } from "@codemation/host";
 
 /**
  * Dev harness config for @codemation/examples.
- * Discovers all .example.ts files so authors can run `pnpm dev` and
- * iterate on examples with the same dev loop a real consumer uses.
+ * Discovers all .example.ts files recursively under src/examples/ (node/, scenario/, custom-pattern/)
+ * so authors can run `pnpm dev` and iterate on examples with the same dev loop a real consumer uses.
  */
 export const codemationHost = {
   app: {

@@ -175,10 +175,11 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
   private async resolveCredential(
     ctx: NodeExecutionContext<HttpRequest<any, any>>,
   ): Promise<CredentialSession | undefined> {
-    const slotKey = ctx.config.args.credentialSlot;
-    if (!slotKey) {
+    const rawSlot = ctx.config.args.credentialSlot;
+    if (!rawSlot) {
       return undefined;
     }
+    const slotKey = typeof rawSlot === "string" ? rawSlot : rawSlot.name;
     try {
       return await ctx.getCredential<CredentialSession>(slotKey);
     } catch {

@@ -11,7 +11,6 @@
 
 // Non-manual triggers use createWorkflowBuilder + .trigger(new <Trigger>(...)).
 import { createWorkflowBuilder, WebhookTrigger } from "@codemation/core-nodes";
-import type { RunnableNodeConfig } from "@codemation/core";
 import {
   analyzeDocumentNode,
   // Swap analyzeDocumentNode for either of these to target different content types:
@@ -19,12 +18,6 @@ import {
   //   analyzeInvoiceNode — same config shape; always uses the prebuilt-invoice analyzer
   //                        (no analyzerId override — the prebuilt is the only supported variant)
 } from "@codemation/core-nodes-ocr";
-
-/** Output shape returned by all three Azure OCR nodes (document, image, invoice). */
-type OcrOutput = Readonly<{
-  content: string;
-  fields: Readonly<Record<string, unknown>>;
-}>;
 
 // Binary payloads always flow through ctx.binary — never as base64 on item.json.
 // The webhook handler attaches the uploaded file bytes to item.binary["data"].
@@ -45,9 +38,6 @@ export default createWorkflowBuilder({
   //
   // To analyze an image: replace analyzeDocumentNode with analyzeImageNode (same config shape).
   // To analyze an invoice: replace with analyzeInvoiceNode (omit analyzerId — it's fixed to prebuilt-invoice).
-  //
-  // Note: cast is required because @codemation/core-nodes-ocr resolves a newer zod minor than
-  // the workspace pin (4.3.6). The runtime behaviour is identical; the cast is type-system bookkeeping.
   .then(
     analyzeDocumentNode.create(
       {
@@ -62,6 +52,6 @@ export default createWorkflowBuilder({
       },
       "Analyze document",
       "analyze-document",
-    ) as unknown as RunnableNodeConfig<unknown, OcrOutput>,
+    ),
   )
   .build();

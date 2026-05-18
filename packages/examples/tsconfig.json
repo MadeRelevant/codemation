@@ -14,8 +14,8 @@
       "@codemation/core-nodes": ["../../packages/core-nodes/src/index.ts"],
       "@codemation/core-nodes-gmail": ["../../packages/core-nodes-gmail/src/index.ts"],
       "@codemation/core-nodes-msgraph": ["../../packages/core-nodes-msgraph/src/index.ts"],
-      "@codemation/host": ["../../packages/host/dist/index.d.ts"],
-      "@codemation/host/authoring": ["../../packages/host/dist/authoring.d.ts"],
+      "@codemation/host": ["../../packages/host/src/index.ts"],
+      "@codemation/host/authoring": ["../../packages/host/src/authoring.ts"],
       "@codemation/examples": ["../examples/src/index.ts"]
     }
   },

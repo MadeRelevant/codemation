@@ -1,5 +1,6 @@
 import {
   RetryPolicy,
+  type AnyCredentialType,
   type CredentialRequirement,
   type NodeInspectorSummaryRow,
   type RetryPolicySpec,
@@ -81,11 +82,19 @@ export class HttpRequest<
       /** Request body specification. For canvas use, pass a JSON string in `body.data`. */
       body?: HttpBodySpec;
       /**
-       * Credential slot key. When set, the node resolves a credential via
-       * `ctx.getCredential(credentialSlot)` and applies it to the request.
-       * The slot must be declared in `getCredentialRequirements()`.
+       * Credential slot.
+       *
+       * **String shorthand** (existing): `credentialSlot: "auth"` — the slot accepts all four
+       * default HTTP credential types (bearer, API-key, basic, OAuth2).
+       *
+       * **Object form** (new): narrows the accepted types to the caller-supplied list, useful
+       * when only a subset of credential types makes sense for a specific endpoint.
+       * ```ts
+       * credentialSlot: { name: "auth", acceptedTypes: [bearerTokenCredentialType] }
+       * ```
+       * The slot must be declared in `getCredentialRequirements()`, which is wired automatically.
        */
-      credentialSlot?: string;
+      credentialSlot?: string | Readonly<{ name: string; acceptedTypes?: ReadonlyArray<AnyCredentialType> }>;
       binaryName?: string;
       downloadMode?: HttpRequestDownloadMode;
       /**
@@ -147,14 +156,31 @@ export class HttpRequest<
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
-    if (!this.args.credentialSlot) {
+    const slot = this.args.credentialSlot;
+    if (!slot) {
       return [];
     }
+    if (typeof slot === "string") {
+      return [
+        {
+          slotKey: slot,
+          label: "Authentication",
+          acceptedTypes: HTTP_REQUEST_ACCEPTED_CREDENTIAL_TYPES,
+          optional: true,
+          helpText: "Optional credential for authenticating the HTTP request.",
+        },
+      ];
+    }
+    // Object form: use caller-supplied acceptedTypes (mapped to typeIds), falling back to all defaults.
+    const acceptedTypes =
+      slot.acceptedTypes && slot.acceptedTypes.length > 0
+        ? slot.acceptedTypes.map((ct) => ct.definition.typeId)
+        : HTTP_REQUEST_ACCEPTED_CREDENTIAL_TYPES;
     return [
       {
-        slotKey: this.args.credentialSlot,
+        slotKey: slot.name,
         label: "Authentication",
-        acceptedTypes: HTTP_REQUEST_ACCEPTED_CREDENTIAL_TYPES,
+        acceptedTypes,
         optional: true,
         helpText: "Optional credential for authenticating the HTTP request.",
       },

@@ -1,8 +1,8 @@
 /**
  * Verify-examples runner.
  *
- * Globs src/examples/*.example.ts, imports each file (smoke check), verifies
- * the export shape (WorkflowDefinition), and runs build:metadata to confirm
+ * Recursively walks src/examples/**\/*.example.ts, imports each file (smoke check),
+ * verifies the export shape (WorkflowDefinition), and runs build:metadata to confirm
  * the extractor produces valid output.
  *
  * Invoked via:
@@ -36,9 +36,20 @@ class VerifyExamplesRunner {
     if (!existsSync(examplesDir)) {
       return [];
     }
-    return readdirSync(examplesDir, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && entry.name.endsWith(".example.ts") && !entry.name.endsWith(".skip"))
-      .map((entry) => path.join(examplesDir, entry.name));
+    return this.walkExampleFiles(examplesDir);
+  }
+
+  private walkExampleFiles(dir: string): string[] {
+    const results: string[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        results.push(...this.walkExampleFiles(fullPath));
+      } else if (entry.isFile() && entry.name.endsWith(".example.ts") && !entry.name.endsWith(".skip")) {
+        results.push(fullPath);
+      }
+    }
+    return results;
   }
 
   private async verifyFile(filePath: string): Promise<void> {

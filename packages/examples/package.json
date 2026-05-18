@@ -47,7 +47,7 @@
     "@codemation/core-nodes-gmail": "workspace:*",
     "@codemation/core-nodes-ocr": "workspace:*",
     "@codemation/host": "workspace:*",
-    "zod": "4.3.6"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@codemation/cli": "workspace:*",

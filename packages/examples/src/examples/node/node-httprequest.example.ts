@@ -42,17 +42,17 @@ export default workflow("example.node-httprequest")
       };
     }),
   )
-  // POST the summary to a downstream webhook.
-  // body.kind "json" sends Content-Type: application/json with data as the stringified payload.
+  // POST the summary to a public echo endpoint.
+  // body.kind "json" sets Content-Type: application/json automatically and serialises
+  // `data` via JSON.stringify — pass the object directly, not a pre-stringified string.
   .then(
     new HttpRequest("POST summary to webhook", {
       method: "POST",
-      url: "https://hooks.example.com/repo-summary",
+      url: "https://httpbin.org/post",
       body: {
         kind: "json",
-        data: JSON.stringify({ event: "repo.fetched" }),
+        data: { event: "repo.fetched" },
       },
-      headers: { "Content-Type": "application/json" },
     }),
   )
   .build();

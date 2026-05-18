@@ -306,14 +306,24 @@ export class PackageMetadataExtractor {
     if (!fs.existsSync(examplesDir)) return [];
 
     const examples: ExampleMetadata[] = [];
-    for (const entry of fs.readdirSync(examplesDir, { withFileTypes: true })) {
-      if (!entry.isFile() || !entry.name.endsWith(".example.ts")) continue;
-      const filePath = path.join(examplesDir, entry.name);
+    this.walkExampleFiles(examplesDir, (filePath) => {
       const text = fs.readFileSync(filePath, "utf8");
-      const relPath = path.join("src", "examples", entry.name);
+      // Compute relative path from the package root (parent of srcDir), preserving subdirs.
+      const relPath = path.relative(path.dirname(srcDir), filePath);
       examples.push(this.frontmatterParser.parse(relPath, text, packageDeps));
-    }
+    });
     return examples;
+  }
+
+  private walkExampleFiles(dir: string, visitor: (filePath: string) => void): void {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        this.walkExampleFiles(full, visitor);
+      } else if (entry.isFile() && entry.name.endsWith(".example.ts") && !entry.name.endsWith(".skip")) {
+        visitor(full);
+      }
+    }
   }
 
   // ── Shared utilities ─────────────────────────────────────────────────────────

@@ -5,8 +5,15 @@
 
 ## File location
 
-Place each example at `src/examples/<slug>.example.ts`. One file = one workflow.
-The slug becomes the canonical example name in the catalog.
+Examples live in one of three subdirectories under `src/examples/`:
+
+| Directory                      | When to use                                                                      | Tag              |
+| ------------------------------ | -------------------------------------------------------------------------------- | ---------------- |
+| `src/examples/node/`           | One node is the star — surrounding workflow is scaffolding (`node-*.example.ts`) | `style:node`     |
+| `src/examples/scenario/`       | Multi-node realistic use case — the workflow itself is the teaching unit         | `style:scenario` |
+| `src/examples/custom-pattern/` | `defineRestNode` or `defineNode` templates — escape-hatch patterns               | `style:node`     |
+
+One file = one workflow. The slug (filename without `.example.ts`) becomes the canonical example name in the catalog. Discovery and verification are recursive — all three subdirectories are scanned automatically.
 
 ## JSDoc frontmatter
 
