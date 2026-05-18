@@ -4,76 +4,15 @@ import { AgentBindError } from "@codemation/core";
 import { AgentMcpIntegrationImpl } from "../../src/mcp/AgentMcpIntegrationImpl";
 import { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
 import { McpConnectionPool } from "../../src/mcp/McpConnectionPool";
-import type { Logger, LoggerFactory } from "../../src/application/logging/Logger";
-import type { AppConfig } from "../../src/presentation/config/AppConfig";
-import type { MCPClient } from "../../src/mcp/McpConnectionPool.types";
-import type { McpClientFactory, McpClientOpenArgs } from "../../src/mcp/McpClientFactory";
+import type { LoggerFactory } from "../../src/application/logging/Logger";
 import type { CredentialSessionServiceImpl } from "../../src/domain/credentials/CredentialSessionServiceImpl";
 import type { CredentialStore } from "../../src/domain/credentials/CredentialServices";
 import type { CredentialInstanceRecord } from "../../src/domain/credentials/CredentialServices";
-
-// --- Fakes ---
-
-class FakeLogger implements Logger {
-  readonly warns: string[] = [];
-  info(_msg: string): void {}
-  warn(msg: string): void {
-    this.warns.push(msg);
-  }
-  error(_msg: string): void {}
-  debug(_msg: string): void {}
-}
-
-class FakeLoggerFactory implements LoggerFactory {
-  readonly logger = new FakeLogger();
-  create(_scope: string): Logger {
-    return this.logger;
-  }
-}
-
-class FakeMcpClient {
-  readonly toolsResult: Record<string, { description?: string; execute?: (input: unknown) => Promise<unknown> }> = {};
-  closeCalled = 0;
-  async tools(): Promise<Record<string, unknown>> {
-    return this.toolsResult;
-  }
-  async close(): Promise<void> {
-    this.closeCalled++;
-  }
-}
-
-class FakeClientFactory implements McpClientFactory {
-  readonly opened: Array<{ args: McpClientOpenArgs; client: FakeMcpClient }> = [];
-  private readonly seededClient: FakeMcpClient | undefined;
-
-  constructor(seededClient?: FakeMcpClient) {
-    this.seededClient = seededClient;
-  }
-
-  async open(args: McpClientOpenArgs): Promise<MCPClient> {
-    const client = this.seededClient ?? new FakeMcpClient();
-    this.opened.push({ args, client });
-    return client as unknown as MCPClient;
-  }
-}
-
-class FakeCredentials {
-  sessionsCreated: string[] = [];
-  bearerToken = "test-token";
-  async createSessionForInstance<T>(instanceId: string): Promise<T> {
-    this.sessionsCreated.push(instanceId);
-    return {
-      applyToRequest: () => ({ headers: { authorization: `Bearer ${this.bearerToken}` } }),
-    } as unknown as T;
-  }
-}
-
-function makeAppConfig(): AppConfig {
-  return { env: {} } as unknown as AppConfig;
-}
+import { FakeLoggerFactory, makeAppConfig } from "../testkit";
+import { FakeMcpClient, FakeClientFactory, FakeCredentials } from "./testkit/McpTestKit";
 
 function makeCatalog(declarations: McpServerDeclaration[]): McpServerCatalog {
-  const catalog = new McpServerCatalog(new FakeLoggerFactory(), makeAppConfig());
+  const catalog = new McpServerCatalog(new FakeLoggerFactory() as unknown as LoggerFactory, makeAppConfig());
   catalog.merge("config", declarations);
   return catalog;
 }

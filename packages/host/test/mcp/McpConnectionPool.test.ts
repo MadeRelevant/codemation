@@ -2,72 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { McpServerDeclaration } from "@codemation/core";
 import { McpConnectionPool } from "../../src/mcp/McpConnectionPool";
 import { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
-import type { Logger, LoggerFactory } from "../../src/application/logging/Logger";
-import type { AppConfig } from "../../src/presentation/config/AppConfig";
-import type { MCPClient } from "../../src/mcp/McpConnectionPool.types";
-import type { McpClientFactory, McpClientOpenArgs } from "../../src/mcp/McpClientFactory";
+import type { LoggerFactory } from "../../src/application/logging/Logger";
 import type { CredentialSessionServiceImpl } from "../../src/domain/credentials/CredentialSessionServiceImpl";
-
-// --- Fakes ---
-
-class CapturingLogger implements Logger {
-  readonly warns: string[] = [];
-  readonly infos: string[] = [];
-  info(message: string): void {
-    this.infos.push(message);
-  }
-  warn(message: string): void {
-    this.warns.push(message);
-  }
-  error(_message: string): void {}
-  debug(_message: string): void {}
-}
-
-class FakeLoggerFactory implements LoggerFactory {
-  readonly logger = new CapturingLogger();
-  create(_scope: string): Logger {
-    return this.logger;
-  }
-}
-
-/** Minimal fake — only implements tools() and close(); cast to MCPClient at call site. */
-class FakeMcpClient {
-  closeCalled = 0;
-  toolsResult: Record<string, unknown> = {};
-
-  async tools(): Promise<Record<string, unknown>> {
-    return this.toolsResult;
-  }
-
-  async close(): Promise<void> {
-    this.closeCalled++;
-  }
-}
-
-class FakeClientFactory implements McpClientFactory {
-  readonly opened: Array<{ args: McpClientOpenArgs; client: FakeMcpClient }> = [];
-
-  async open(args: McpClientOpenArgs): Promise<MCPClient> {
-    const client = new FakeMcpClient();
-    this.opened.push({ args, client });
-    // Cast: FakeMcpClient only implements the two methods the pool actually uses.
-    return client as unknown as MCPClient;
-  }
-}
-
-class FakeCredentials {
-  readonly sessionsCreated: string[] = [];
-  bearerToken = "test-token";
-
-  async createSessionForInstance<TSession = unknown>(instanceId: string): Promise<TSession> {
-    this.sessionsCreated.push(instanceId);
-    return {
-      applyToRequest: (_spec: unknown) => ({
-        headers: { authorization: `Bearer ${this.bearerToken}` },
-      }),
-    } as TSession;
-  }
-}
+import { FakeLoggerFactory, makeAppConfig } from "../testkit";
+import { FakeClientFactory, FakeCredentials } from "./testkit/McpTestKit";
 
 function makeDeclaration(id: string, overrides?: Partial<McpServerDeclaration>): McpServerDeclaration {
   return {
@@ -90,8 +28,7 @@ function makePool(): {
   loggerFactory: FakeLoggerFactory;
 } {
   const loggerFactory = new FakeLoggerFactory();
-  const fakeAppConfig = { env: {} } as unknown as AppConfig;
-  const catalog = new McpServerCatalog(loggerFactory as unknown as LoggerFactory, fakeAppConfig);
+  const catalog = new McpServerCatalog(loggerFactory as unknown as LoggerFactory, makeAppConfig());
   const credentials = new FakeCredentials();
   const clientFactory = new FakeClientFactory();
   const pool = new McpConnectionPool(
@@ -148,8 +85,10 @@ describe("McpConnectionPool", () => {
     it("throws when declaration transport is not http", async () => {
       const loggerFactory = new FakeLoggerFactory();
       // Allow stdio at catalog level so the declaration passes merge validation.
-      const fakeAppConfig = { env: { CODEMATION_ALLOW_STDIO_MCP: "true" } } as unknown as AppConfig;
-      const catalog = new McpServerCatalog(loggerFactory as unknown as LoggerFactory, fakeAppConfig);
+      const catalog = new McpServerCatalog(
+        loggerFactory as unknown as LoggerFactory,
+        makeAppConfig({ env: { CODEMATION_ALLOW_STDIO_MCP: "true" } }),
+      );
       catalog.merge("config", [makeDeclaration("stdio-server", { transport: "stdio" as "http" })]);
       const credentials = new FakeCredentials();
       const clientFactory = new FakeClientFactory();

@@ -17,5 +17,15 @@ export default defineConfig({
     isolate: true,
     maxWorkers: 2,
     fileParallelism: true,
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/index.ts", "src/**/*.types.ts"],
+      thresholds: {
+        lines: 45,
+        functions: 45,
+        branches: 35,
+      },
+    },
   },
 });

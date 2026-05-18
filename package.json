@@ -82,6 +82,9 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@ast-grep/cli"
-    ]
+    ],
+    "overrides": {
+      "zod": "4.3.6"
+    }
   }
 }
