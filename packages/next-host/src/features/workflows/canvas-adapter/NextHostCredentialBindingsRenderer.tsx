@@ -153,21 +153,9 @@ export function NextHostCredentialBindingsRenderer(args: NodeCredentialBindingsS
   }
 
   return (
-    <section data-testid="node-properties-credential-section" style={{ padding: "10px 12px 14px" }}>
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.45, textTransform: "uppercase", opacity: 0.64 }}>
-        Credentials
-      </div>
-      <div
-        style={{
-          marginTop: 10,
-          padding: "0 10px",
-          border: "1px solid #e5e7eb",
-          background: "#ffffff",
-          display: "flex",
-          flexDirection: "column",
-          gap: 0,
-        }}
-      >
+    <section data-testid="node-properties-credential-section" className="px-3 pb-3.5 pt-2.5">
+      <div className="text-[11px] font-extrabold uppercase tracking-[0.045em] opacity-65">Credentials</div>
+      <div className="mt-2.5 flex flex-col border border-border bg-card px-2.5">
         {nodeCredentialSlots.map((slot, index) => {
           const compatibleInstances =
             credentialInstancesQuery.data?.filter((instance) =>
@@ -177,7 +165,7 @@ export function NextHostCredentialBindingsRenderer(args: NodeCredentialBindingsS
           const bindingKey = `${slot.nodeId}:${slot.requirement.slotKey}`;
           const selectedInstanceId = bindingInstanceIdBySlotKey[bindingKey] ?? slot.instance?.instanceId ?? "";
           return (
-            <div key={bindingKey} style={{ borderTop: index > 0 ? "1px solid #f1f5f9" : "none" }}>
+            <div key={bindingKey} className={index > 0 ? "border-t border-secondary" : undefined}>
               <NodeCredentialBindingRow
                 slot={slot}
                 compatibleInstances={compatibleInstances}
@@ -212,9 +200,7 @@ export function NextHostCredentialBindingsRenderer(args: NodeCredentialBindingsS
           );
         })}
       </div>
-      {credentialError ? (
-        <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c", lineHeight: 1.35 }}>{credentialError}</div>
-      ) : null}
+      {credentialError ? <div className="mt-2 text-xs leading-snug text-danger">{credentialError}</div> : null}
       {oauthDisconnectConfirmOpen ? (
         <CredentialConfirmDialog
           title="Disconnect OAuth2?"
