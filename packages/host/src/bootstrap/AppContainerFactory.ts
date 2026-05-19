@@ -98,6 +98,8 @@ import { NoOpTelemetryExporter } from "../application/telemetry/NoOpTelemetryExp
 import { OtelExecutionTelemetryFactory } from "../application/telemetry/OtelExecutionTelemetryFactory";
 import { OtelIdentityFactory } from "../application/telemetry/OtelIdentityFactory";
 import { RunEventBusTelemetryReporter } from "../application/telemetry/RunEventBusTelemetryReporter";
+import { WorkflowAuditLogWriter } from "../audit/WorkflowAuditLogWriter";
+import { PrismaWorkflowAuditLogRepository } from "../audit/PrismaWorkflowAuditLogRepository";
 import { TelemetryEnricherChain } from "../application/telemetry/TelemetryEnricherChain";
 import { TelemetryPrivacyPolicy } from "../application/telemetry/TelemetryPrivacyPolicy";
 import { TelemetryQueryService } from "../application/telemetry/TelemetryQueryService";
@@ -396,6 +398,7 @@ export class AppContainerFactory {
     this.mergeConfigMcpServers(container, inputs.appConfig);
     this.registerMcpRegistryFetcher(container);
     const ownership = await this.registerRuntimeInfrastructure(container, inputs.appConfig);
+    this.registerWorkflowAuditWriter(container, inputs.appConfig);
     this.registerCollectionsInfrastructure(container, inputs.appConfig);
     this.registerCredentialTypes(container, credentialTypes);
     this.synchronizeLiveWorkflowRepository(container, inputs.appConfig.workflows);
@@ -966,6 +969,15 @@ export class AppContainerFactory {
     });
     container.registerSingleton(RunEventBusTelemetryReporter, RunEventBusTelemetryReporter);
     container.registerSingleton(WorkflowRunRetentionPruneScheduler, WorkflowRunRetentionPruneScheduler);
+  }
+
+  private registerWorkflowAuditWriter(container: Container, appConfig: AppConfig): void {
+    if (appConfig.persistence.kind === "none") {
+      return;
+    }
+    container.registerSingleton(PrismaWorkflowAuditLogRepository, PrismaWorkflowAuditLogRepository);
+    container.register(ApplicationTokens.WorkflowAuditEmitter, { useToken: PrismaWorkflowAuditLogRepository });
+    container.registerSingleton(WorkflowAuditLogWriter, WorkflowAuditLogWriter);
   }
 
   private async registerRuntimeInfrastructure(container: Container, appConfig: AppConfig): Promise<PrismaOwnership> {

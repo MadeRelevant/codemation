@@ -469,3 +469,23 @@ model VerificationToken {
   @@unique([identifier, token])
   @@map("codemation_auth_verification_token")
 }
+
+model WorkflowAuditLog {
+  id             String    @id @map("id")
+  occurredAt     DateTime  @map("occurred_at")
+  actorUserId    String    @map("actor_user_id")
+  actorSessionId String?   @map("actor_session_id")
+  action         String    @map("action")
+  resourceType   String    @map("resource_type")
+  resourceId     String    @map("resource_id")
+  outcome        String    @map("outcome")
+  errorCode      String?   @map("error_code")
+  correlationId  String?   @map("correlation_id")
+  workflowId     String    @map("workflow_id")
+  runId          String?   @map("run_id")
+  nodeId         String?   @map("node_id")
+
+  @@index([actorUserId, occurredAt])
+  @@index([workflowId, occurredAt])
+  @@map("workflow_audit_log")
+}

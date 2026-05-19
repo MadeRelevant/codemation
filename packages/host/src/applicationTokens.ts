@@ -33,6 +33,7 @@ import type { HonoApiRouteRegistrar } from "./presentation/http/hono/HonoApiRout
 import type { InternalHonoApiRouteRegistrar } from "./presentation/http/hono/InternalHonoApiRouteRegistrar";
 import type { ManagedCorsMiddleware } from "./auth/managed/ManagedCorsMiddleware";
 import type { WebsocketAuthenticator } from "./presentation/websocket/WebsocketAuthenticator.types";
+import type { IWorkflowAuditEmitter } from "./audit/IAuditEmitter";
 
 export const ApplicationTokens = {
   CodemationAuthConfig: Symbol.for("codemation.application.CodemationAuthConfig") as TypeToken<
@@ -101,4 +102,5 @@ export const ApplicationTokens = {
   PrismaClient: Symbol.for("codemation.application.PrismaClient") as TypeToken<PrismaDatabaseClient>,
   SessionVerifier: Symbol.for("codemation.application.SessionVerifier") as TypeToken<SessionVerifier>,
   Clock: Symbol.for("codemation.application.Clock") as TypeToken<Clock>,
+  WorkflowAuditEmitter: Symbol.for("codemation.application.WorkflowAuditEmitter") as TypeToken<IWorkflowAuditEmitter>,
 } as const;

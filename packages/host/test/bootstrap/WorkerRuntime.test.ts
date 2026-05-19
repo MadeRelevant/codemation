@@ -66,6 +66,8 @@ class RecordingWorkerRuntimeScheduler implements WorkerRuntimeScheduler {
 class RecordingAppContainerLifecycle {
   stopCalls = 0;
 
+  async startWorkerSubscribers(): Promise<void> {}
+
   async stop(_args?: Readonly<{ stopWebsocketServer?: boolean }>): Promise<void> {
     this.stopCalls += 1;
   }

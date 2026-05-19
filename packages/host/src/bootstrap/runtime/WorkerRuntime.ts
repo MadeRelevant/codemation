@@ -51,6 +51,7 @@ export class WorkerRuntime {
     const workflows = [...this.workflowRepository.list()];
     await this.engine.start(workflows);
     await this.runEventBusTelemetryReporter.start();
+    await this.lifecycle.startWorkerSubscribers();
     this.workflowRunRetentionPruneScheduler.start();
     const worker = this.scheduler.createWorker({
       queues,

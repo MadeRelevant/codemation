@@ -7,6 +7,7 @@ import { WorkflowRunEventWebsocketRelay } from "../application/websocket/Workflo
 import { WorkflowWebsocketServer } from "../presentation/websocket/WorkflowWebsocketServer";
 import { McpConnectionPool } from "../mcp/McpConnectionPool";
 import { McpRegistryFetcher } from "../mcp/McpRegistryFetcher";
+import { WorkflowAuditLogWriter } from "../audit/WorkflowAuditLogWriter";
 
 export class AppContainerLifecycle {
   constructor(
@@ -20,6 +21,12 @@ export class AppContainerLifecycle {
     }
   }
 
+  async startWorkerSubscribers(): Promise<void> {
+    if (this.container.isRegistered(WorkflowAuditLogWriter, true)) {
+      await this.container.resolve(WorkflowAuditLogWriter).start();
+    }
+  }
+
   async stop(args?: Readonly<{ stopWebsocketServer?: boolean }>): Promise<void> {
     if (this.container.isRegistered(Engine, true)) {
       await this.container.resolve(Engine).stop();
@@ -29,6 +36,9 @@ export class AppContainerLifecycle {
     }
     if (this.container.isRegistered(RunEventBusTelemetryReporter, true)) {
       await this.container.resolve(RunEventBusTelemetryReporter).stop();
+    }
+    if (this.container.isRegistered(WorkflowAuditLogWriter, true)) {
+      await this.container.resolve(WorkflowAuditLogWriter).stop();
     }
     if (this.container.isRegistered(WorkflowRunRetentionPruneScheduler, true)) {
       this.container.resolve(WorkflowRunRetentionPruneScheduler).stop();
