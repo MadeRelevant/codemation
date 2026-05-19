@@ -45,6 +45,7 @@
     "@codemation/canvas": "workspace:*",
     "@codemation/core": "workspace:*",
     "@codemation/host": "workspace:*",
+    "@codemation/ui": "workspace:*",
     "@headless-tree/core": "^1.6.3",
     "@headless-tree/react": "^1.6.3",
     "@hookform/resolvers": "^5.2.2",

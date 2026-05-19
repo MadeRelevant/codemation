@@ -32,6 +32,7 @@
       "@codemation/node-example": ["packages/node-example/src/index.ts"],
       "@codemation/canvas": ["packages/canvas/src/index.ts"],
       "@codemation/canvas-core": ["packages/canvas-core/src/index.ts"],
+      "@codemation/ui": ["packages/ui/src/index.ts"],
       "@codemation/managed-auth": ["packages/managed-auth/src/index.ts"],
       "@codemation/examples": ["packages/examples/src/index.ts"]
     },

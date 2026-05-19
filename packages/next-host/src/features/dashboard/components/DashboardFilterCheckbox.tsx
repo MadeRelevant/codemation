@@ -1,7 +1,7 @@
 "use client";
 
 import Check from "lucide-react/dist/esm/icons/check";
-import { Button } from "@/components/ui/button";
+import { Button } from "@codemation/ui";
 import { cn } from "@/lib/utils";
 
 export function DashboardFilterCheckbox(

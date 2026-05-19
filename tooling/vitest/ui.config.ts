@@ -8,6 +8,7 @@ export default defineConfig({
     maxWorkers: 2,
     fileParallelism: true,
     projects: [
+      p("../../packages/ui/vitest.ui.config.ts"),
       p("../../packages/host/vitest.ui.config.ts"),
       p("../../packages/next-host/vitest.ui.config.ts"),
       p("../../packages/canvas/vitest.ui.config.ts"),

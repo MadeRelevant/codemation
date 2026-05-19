@@ -2,7 +2,7 @@
 
 import type { WorkflowNodeDto } from "@codemation/host/dto";
 
-import { Button } from "../components/ui/button";
+import { Button } from "@codemation/ui";
 
 import { TestsPanel } from "../panels/tests/TestsPanel";
 

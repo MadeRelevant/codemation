@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@codemation/ui";
 import { CodemationDataTable } from "../../../components/CodemationDataTable";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useCollectionsQuery } from "../hooks/useCollectionsQuery";

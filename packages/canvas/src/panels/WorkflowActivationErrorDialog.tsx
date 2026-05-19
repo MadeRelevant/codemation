@@ -4,16 +4,9 @@ import type { ReactNode } from "react";
 
 import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
 
-import { Button } from "../components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../components/ui/dialog";
-import { cn } from "../components/lib/utils";
+import { Button } from "@codemation/ui";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@codemation/ui";
+import { cn } from "@codemation/ui";
 
 export function WorkflowActivationErrorDialog(
   props: Readonly<{

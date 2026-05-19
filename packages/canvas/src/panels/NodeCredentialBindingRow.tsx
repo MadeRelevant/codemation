@@ -1,9 +1,9 @@
 "use client";
 import type { UpsertCredentialBindingRequest, WorkflowCredentialHealthSlotDto } from "@codemation/host/dto";
 
-import { Button } from "../components/ui/button";
-import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "../components/ui/select";
-import { cn } from "../components/lib/utils";
+import { Button } from "@codemation/ui";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@codemation/ui";
+import { cn } from "@codemation/ui";
 
 import { CanvasNodeChromeTooltip } from "@codemation/canvas";
 import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";

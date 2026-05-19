@@ -3,7 +3,7 @@
 import type { TelemetryDashboardBucketCostDto, TelemetryDashboardTimeseriesDto } from "@codemation/host/dto";
 import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@codemation/ui";
 import { DashboardCostAmountFormatter } from "../lib/DashboardCostAmountFormatter";
 import { DashboardDateTimeFormatter } from "../lib/DashboardDateTimeFormatter";
 import { DashboardChartCard } from "./DashboardChartCard";

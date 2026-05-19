@@ -1,7 +1,7 @@
 "use client";
 
-import { Switch } from "../components/ui/switch";
-import { cn } from "../components/lib/utils";
+import { Switch } from "@codemation/ui";
+import { cn } from "@codemation/ui";
 import Loader2 from "lucide-react/dist/esm/icons/loader-2";
 
 import { WorkflowActivationErrorDialog } from "./WorkflowActivationErrorDialog";

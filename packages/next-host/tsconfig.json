@@ -30,6 +30,7 @@
       "@codemation/next-host": ["./src/index.ts"],
       "@codemation/next-host/src/*": ["./src/*"],
       "@codemation/canvas": ["../../packages/canvas/src/index.ts"],
+      "@codemation/ui": ["../../packages/ui/src/index.ts"],
       "@codemation/node-example": ["../../packages/node-example/src/index.ts"],
       "@codemation/core": ["../../packages/core/src/index.ts"],
       "@codemation/core/contracts": ["../../packages/core/src/contracts.ts"],

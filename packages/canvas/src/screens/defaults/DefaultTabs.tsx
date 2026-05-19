@@ -1,7 +1,7 @@
 "use client";
 
 import type { WorkflowDetailTabsSlotContext } from "@codemation/canvas-core";
-import { Button } from "../../components/ui/button";
+import { Button } from "@codemation/ui";
 import { WorkflowDetailScreenCanvasTabs } from "../WorkflowDetailScreenCanvasTabs";
 
 /**

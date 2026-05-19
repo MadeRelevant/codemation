@@ -1,8 +1,8 @@
 "use client";
 
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -10,7 +10,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@codemation/ui";
 import { cn } from "@/lib/utils";
 
 export interface DashboardMultiSelectOption {

@@ -37,6 +37,7 @@
     "@codemation/canvas-core": "workspace:*",
     "@codemation/core": "workspace:*",
     "@codemation/host": "workspace:*",
+    "@codemation/ui": "workspace:*",
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.90.21",
     "aria-hidden": "^1.2.6",

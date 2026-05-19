@@ -5,7 +5,7 @@ import Coins from "lucide-react/dist/esm/icons/coins";
 import FileSearch from "lucide-react/dist/esm/icons/file-search";
 import MessagesSquare from "lucide-react/dist/esm/icons/messages-square";
 import SearchCheck from "lucide-react/dist/esm/icons/search-check";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@codemation/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardCostAmountFormatter } from "../lib/DashboardCostAmountFormatter";
 

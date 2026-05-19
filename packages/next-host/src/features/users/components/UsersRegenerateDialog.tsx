@@ -1,7 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { CodemationDialog } from "@/components/CodemationDialog";
+import { Button } from "@codemation/ui";
+import { CodemationDialog } from "@codemation/ui";
 import { InviteLinkCopyRow } from "./InviteLinkCopyRow";
 
 type UsersRegenerateDialogProps = Readonly<{

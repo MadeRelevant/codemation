@@ -2,8 +2,8 @@
 
 import type { ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
-import { CodemationDialog } from "@/components/CodemationDialog";
+import { Button } from "@codemation/ui";
+import { CodemationDialog } from "@codemation/ui";
 
 export type CredentialConfirmVariant = "danger" | "primary";
 

@@ -6,8 +6,7 @@ import type { ReactNode } from "react";
 
 import type { WorkflowSummary } from "@codemation/canvas";
 
-import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@codemation/ui";
 import { cn } from "@/lib/utils";
 import type { WorkflowFolderTreeNode } from "@/shell/WorkflowFolderTreeBuilder";
 import { WorkflowFolderUi } from "@/shell/WorkflowFolderUi";

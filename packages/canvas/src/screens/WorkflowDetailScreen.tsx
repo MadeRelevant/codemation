@@ -4,7 +4,7 @@
 
 import React, { Suspense, useState } from "react";
 
-import { cn } from "../components/lib/utils";
+import { cn } from "@codemation/ui";
 
 import type {
   WorkflowCanvasApiClient,

@@ -5,7 +5,7 @@ import Bot from "lucide-react/dist/esm/icons/bot";
 import DatabaseZap from "lucide-react/dist/esm/icons/database-zap";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 import WandSparkles from "lucide-react/dist/esm/icons/wand-sparkles";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@codemation/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function DashboardAiUsageSummaryCard(props: Readonly<{ summary: TelemetryDashboardSummaryDto | undefined }>) {

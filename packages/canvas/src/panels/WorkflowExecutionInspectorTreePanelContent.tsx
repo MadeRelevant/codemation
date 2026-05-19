@@ -5,8 +5,7 @@ import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { Tree, TreeItem } from "../components/reui/tree";
-import { cn } from "../components/lib/utils";
+import { Tree, TreeItem, cn } from "@codemation/ui";
 
 import { WorkflowStatusIcon } from "./WorkflowDetailIcons";
 import { WorkflowCanvasNodeIcon } from "@codemation/canvas";

@@ -10,10 +10,9 @@ import Plug from "lucide-react/dist/esm/icons/plug";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Unplug from "lucide-react/dist/esm/icons/unplug";
 
-import { Button } from "@/components/ui/button";
+import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@codemation/ui";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CredentialInstanceDto } from "@codemation/canvas";
 import type { FormSourceKind } from "../lib/credentialFormTypes";
 import { CredentialFieldCopyButton } from "./CredentialFieldCopyButton";

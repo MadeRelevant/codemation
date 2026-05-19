@@ -14,7 +14,7 @@ import {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@codemation/ui";
 import { DashboardChartCard } from "./DashboardChartCard";
 import { DashboardFilterCheckbox } from "./DashboardFilterCheckbox";
 import {

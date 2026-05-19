@@ -1,15 +1,15 @@
 "use client";
 
 import type { CollectionRowDto } from "@codemation/host/dto";
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@codemation/ui";
 
 type CollectionDeleteRowDialogProps = Readonly<{
   row: CollectionRowDto | null;

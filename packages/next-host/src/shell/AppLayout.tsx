@@ -2,7 +2,7 @@
 
 import { Component, type ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@codemation/ui";
 import { cn } from "@/lib/utils";
 
 import { AppLayoutNavItems } from "./AppLayoutNavItems";

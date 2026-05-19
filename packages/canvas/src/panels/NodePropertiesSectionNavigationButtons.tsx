@@ -3,7 +3,7 @@ import type { JSX } from "react";
 import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 
-import { Button } from "../components/ui/button";
+import { Button } from "@codemation/ui";
 
 import type { NodeInspectorSectionNavigationModel } from "@codemation/canvas";
 
