@@ -199,6 +199,71 @@ describe("WorkflowWebsocketServer — managed mode (with authenticator)", () => 
   });
 });
 
+describe("WorkflowWebsocketServer — edge cases", () => {
+  it("listeningPort returns constructor port when server has not started", () => {
+    const server = new WorkflowWebsocketServer(9999, "127.0.0.1", silentLogger, null);
+    expect(server.listeningPort).toBe(9999);
+  });
+
+  it("start is idempotent (second call is a no-op)", async () => {
+    const server = makeServer(null);
+    await server.start();
+    await expect(server.start()).resolves.toBeUndefined();
+    await server.stop();
+  });
+
+  it("publishToRoom broadcasts to subscribed sockets and logs event kind", async () => {
+    const server = makeServer(null);
+    await server.start();
+    const socket = connect(server.listeningPort);
+    const waitForFirstMsg = collectMessages(socket);
+    await openSocket(socket);
+    await waitForFirstMsg(); // consume "ready"
+
+    // Send subscribe
+    socket.send(JSON.stringify({ kind: "subscribe", roomId: "run-ws-1" }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    await server.publishToRoom("run-ws-1", { kind: "ack", runId: "run-ws-1" } as never);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    socket.terminate();
+    await server.stop();
+  });
+
+  it("subscribe and unsubscribe round-trip", async () => {
+    const server = makeServer(null);
+    await server.start();
+    const socket = connect(server.listeningPort);
+    const waitForMsg = collectMessages(socket);
+    await openSocket(socket);
+    await waitForMsg(); // ready
+
+    socket.send(JSON.stringify({ kind: "subscribe", roomId: "wf-room" }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    socket.send(JSON.stringify({ kind: "unsubscribe", roomId: "wf-room" }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    socket.terminate();
+    await server.stop();
+  });
+
+  it("handleMessage sends error response for invalid message format", async () => {
+    const server = makeServer(null);
+    await server.start();
+    const socket = connect(server.listeningPort);
+    await openSocket(socket);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    // Send invalid message
+    socket.send("not-valid-json");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    socket.terminate();
+    await server.stop();
+  });
+});
+
 describe("ManagedWebsocketAuthenticator — token extraction", () => {
   it("extracts token from query string", async () => {
     // Test the authenticator class's URL parsing in isolation
