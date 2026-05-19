@@ -570,3 +570,184 @@ describe("useWorkflowInspectController — selectInvocationInPropertiesPanel", (
     expect(navigateCalls.some((c) => c.nodeId === "inv-1")).toBe(true);
   });
 });
+
+// --------------------------------------------------------------------------
+// Stale properties panel eviction (workflow structure change)
+// --------------------------------------------------------------------------
+
+describe("useWorkflowInspectController — stale properties panel eviction", () => {
+  it("clears propertiesPanelNodeId when its node is removed from workflow", () => {
+    // Start with workflow that has NODE_A
+    let workflow = makeWorkflow([NODE_A_ID, NODE_B_ID]);
+    const { result, rerender } = mountHook(() =>
+      useWorkflowInspectController(baseArgs({ workflow, displayedWorkflow: workflow })),
+    );
+
+    // Open properties panel for NODE_A
+    act(() => {
+      result.current.openPropertiesPanelForNode(NODE_A_ID);
+    });
+    expect(result.current.propertiesPanelNodeId).toBe(NODE_A_ID);
+    expect(result.current.isPropertiesPanelOpen).toBe(true);
+
+    // Remove NODE_A from workflow structure
+    workflow = makeWorkflow([NODE_B_ID]);
+    rerender();
+
+    // Effect should have cleared the properties panel for the stale node
+    expect(result.current.propertiesPanelNodeId).toBeNull();
+    expect(result.current.isPropertiesPanelOpen).toBe(false);
+  });
+
+  it("clears selectedCanvasNodeId when its node is removed from workflow", () => {
+    let workflow = makeWorkflow([NODE_A_ID, NODE_B_ID]);
+    const { result, rerender } = mountHook(() =>
+      useWorkflowInspectController(baseArgs({ workflow, displayedWorkflow: workflow })),
+    );
+
+    // Select a canvas node
+    act(() => {
+      result.current.selectCanvasNode(NODE_A_ID);
+    });
+    expect(result.current.selectedCanvasNodeId).toBe(NODE_A_ID);
+
+    // Remove NODE_A from workflow
+    workflow = makeWorkflow([NODE_B_ID]);
+    rerender();
+
+    // Effect should have cleared the stale selectedCanvasNodeId
+    expect(result.current.selectedCanvasNodeId).toBeNull();
+  });
+});
+
+// --------------------------------------------------------------------------
+// Port selection (selectedInputItems / selectedOutputItems find callbacks)
+// --------------------------------------------------------------------------
+
+describe("useWorkflowInspectController — port selection with outputs", () => {
+  it("selects first available output port from snapshot data", () => {
+    const wf = makeWorkflow([NODE_A_ID]);
+    const state = makeCurrentExecutionState([
+      {
+        nodeId: NODE_A_ID,
+        status: "completed",
+        outputs: { main: [{ json: { x: 1 } }] },
+      },
+    ]);
+    const { result } = mountHook(() =>
+      useWorkflowInspectController(baseArgs({ displayedWorkflow: wf, currentExecutionState: state })),
+    );
+    // auto-focus selects NODE_A_ID which has "main" output
+    expect(result.current.selectedOutputPort).toBe("main");
+    // outputPane should expose the output items
+    expect(result.current.inspectorModel.outputPane.portEntries.length).toBeGreaterThan(0);
+  });
+
+  it("onSelectInputPort changes selected input port (exercises find callback)", () => {
+    const wf = makeWorkflow([NODE_A_ID]);
+    const state = makeCurrentExecutionState([
+      {
+        nodeId: NODE_A_ID,
+        status: "completed",
+        outputs: { main: [{ json: {} }] },
+      },
+    ]);
+    const { result } = mountHook(() =>
+      useWorkflowInspectController(baseArgs({ displayedWorkflow: wf, currentExecutionState: state })),
+    );
+    act(() => {
+      result.current.inspectorActions.onSelectInputPort("main");
+    });
+    // The find callback in selectedInputItems will now have a port to search
+    expect(result.current.inspectorModel.inputPane.selectedPort).toBe("main");
+  });
+});
+
+// --------------------------------------------------------------------------
+// focusedInvocationIdInPropertiesPanel (connection invocations find callback)
+// --------------------------------------------------------------------------
+
+describe("useWorkflowInspectController — focusedInvocationIdInPropertiesPanel", () => {
+  it("is null when no normalizedConnectionInvocations match", () => {
+    const { navigation } = makeNavigation();
+    const wf = makeWorkflow([NODE_A_ID]);
+    const { result } = mountHook(() => useWorkflowInspectController(baseArgs({ navigation, displayedWorkflow: wf })));
+    act(() => {
+      result.current.openPropertiesPanelForNode(NODE_A_ID);
+    });
+    // auto-focus selects NODE_A_ID; no connection invocations match
+    expect(result.current.focusedInvocationIdInPropertiesPanel).toBeNull();
+  });
+
+  it("returns selectedNodeId when a matching connection invocation exists", () => {
+    const invocationId = "inv-123";
+    const connectionNodeId = NODE_A_ID;
+    // Use URL nodeId = invocationId so selectedNodeId is set from URL
+    const { navigation } = makeNavigation({ nodeId: invocationId });
+    const wf = makeWorkflow([NODE_A_ID]);
+    const normalizedConnectionInvocations = [{ invocationId, connectionNodeId, runId: "run-1" }] as Parameters<
+      typeof useWorkflowInspectController
+    >[0]["normalizedConnectionInvocations"];
+
+    // Provide the connection invocations AND the invocationId as a node in displayedWorkflow
+    // so the stale eviction effect doesn't clear it.
+    // We also extend the workflow to include the invocationId itself via connection invocations.
+    const { result } = mountHook(() =>
+      useWorkflowInspectController(
+        baseArgs({
+          navigation,
+          displayedWorkflow: wf,
+          normalizedConnectionInvocations,
+        }),
+      ),
+    );
+
+    // The URL sets selectedNodeId = invocationId via the sync effect.
+    // Open properties panel for the connection node.
+    act(() => {
+      result.current.openPropertiesPanelForNode(NODE_A_ID);
+    });
+
+    // Manually set selectedNodeId to invocationId via selectNode to ensure it's set
+    act(() => {
+      result.current.inspectorActions.onSelectNode({
+        inspectorNodeId: invocationId,
+        canvasNodeId: NODE_A_ID,
+      });
+    });
+
+    // selectedNodeId = invocationId, propertiesPanelNodeId = NODE_A_ID, invocation matches
+    expect(result.current.focusedInvocationIdInPropertiesPanel).toBe(invocationId);
+  });
+});
+
+// --------------------------------------------------------------------------
+// Inspector mode auto-switch: error appears on existing selection (ref path)
+// --------------------------------------------------------------------------
+
+describe("useWorkflowInspectController — mode auto-switch on error", () => {
+  it("switches mode to 'output' when error appears on same node (ref-based path)", () => {
+    let state = makeCurrentExecutionState([{ nodeId: NODE_A_ID, status: "running" }]);
+    const wf = makeWorkflow([NODE_A_ID]);
+
+    const { result, rerender } = mountHook(() =>
+      useWorkflowInspectController(baseArgs({ displayedWorkflow: wf, currentExecutionState: state })),
+    );
+
+    // Set mode to input first
+    act(() => {
+      result.current.inspectorActions.onSelectMode("input");
+    });
+    expect(result.current.inspectorModel.selectedMode).toBe("input");
+
+    // Now update state to include an error on NODE_A_ID (same selection key — tests the else if branch)
+    // We use the same nodeId + runId so the selectionKey doesn't change
+    state = makeCurrentExecutionState([
+      { nodeId: NODE_A_ID, status: "failed", error: { message: "boom", name: "Error", stack: "" } },
+    ]);
+    rerender();
+
+    // Mode should switch to "output" because error appeared on same selection
+    expect(result.current.inspectorModel.selectedMode).toBe("output");
+  });
+});

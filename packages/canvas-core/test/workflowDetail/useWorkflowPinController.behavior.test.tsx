@@ -425,4 +425,205 @@ describe("useWorkflowPinController — resolveOutputPortForNode", () => {
     const port = result.current.resolveOutputPortForNode(NODE_B);
     expect(port).toBe("main");
   });
+
+  it("sorts 'main' before non-main ports in the fallback port list", () => {
+    // No execution state, so visibleEntries is empty -> falls through to declared/edge fallback.
+    // Node has declaredOutputPorts: ["other", "main"] — after sort "main" should come first.
+    const displayedWorkflow = {
+      id: WORKFLOW_ID,
+      name: "Sort Test Workflow",
+      active: false,
+      nodes: [
+        {
+          id: NODE_A,
+          type: "core.noop",
+          kind: "action",
+          name: "Node A",
+          position: { x: 0, y: 0 },
+          declaredOutputPorts: ["other", "main"],
+          hasNodeErrorHandler: false,
+        },
+      ],
+      edges: [],
+      connections: [],
+      folders: [],
+    } as unknown as Parameters<typeof useWorkflowPinController>[0]["displayedWorkflow"];
+
+    const { result } = renderHook(() => useWorkflowPinController(baseArgs({ displayedWorkflow })));
+    const port = result.current.resolveOutputPortForNode(NODE_A);
+    // "main" should sort first regardless of declaration order
+    expect(port).toBe("main");
+  });
+
+  it("returns preferredPort from fallback list when it matches but visibleEntries is empty", () => {
+    // No snapshot outputs -> resolveSelectedPort returns null -> falls through to declared fallback.
+    // preferredPort ("other") is in the declared ports so it should be returned.
+    const displayedWorkflow = {
+      id: WORKFLOW_ID,
+      name: "Prefer Port Workflow",
+      active: false,
+      nodes: [
+        {
+          id: NODE_A,
+          type: "core.noop",
+          kind: "action",
+          name: "Node A",
+          position: { x: 0, y: 0 },
+          declaredOutputPorts: ["main", "other"],
+          hasNodeErrorHandler: false,
+        },
+      ],
+      edges: [],
+      connections: [],
+      folders: [],
+    } as unknown as Parameters<typeof useWorkflowPinController>[0]["displayedWorkflow"];
+
+    const { result } = renderHook(() =>
+      useWorkflowPinController(
+        baseArgs({
+          displayedWorkflow,
+          selectedNodeId: NODE_A,
+          selectedOutputPort: "other",
+        }),
+      ),
+    );
+    const port = result.current.resolveOutputPortForNode(NODE_A);
+    // "other" is preferred and is in the declared ports
+    expect(port).toBe("other");
+  });
+
+  it("includes error port for a node with hasNodeErrorHandler and declared ports", () => {
+    // base.length > 0 && hasNodeErrorHandler -> includes "error" in combined
+    const displayedWorkflow = {
+      id: WORKFLOW_ID,
+      name: "Error Handler Workflow",
+      active: false,
+      nodes: [
+        {
+          id: NODE_A,
+          type: "core.noop",
+          kind: "action",
+          name: "Node A",
+          position: { x: 0, y: 0 },
+          declaredOutputPorts: ["main"],
+          hasNodeErrorHandler: true,
+        },
+      ],
+      edges: [],
+      connections: [],
+      folders: [],
+    } as unknown as Parameters<typeof useWorkflowPinController>[0]["displayedWorkflow"];
+
+    const { result } = renderHook(() =>
+      useWorkflowPinController(
+        baseArgs({
+          displayedWorkflow,
+          selectedNodeId: NODE_A,
+          selectedOutputPort: "error",
+        }),
+      ),
+    );
+    // error port should be in the resolved list and returned as preferred
+    const port = result.current.resolveOutputPortForNode(NODE_A);
+    expect(port).toBe("error");
+  });
+
+  it("falls back to ['main', 'error'] for node with hasNodeErrorHandler but no declared ports", () => {
+    const displayedWorkflow = {
+      id: WORKFLOW_ID,
+      name: "Error Only Workflow",
+      active: false,
+      nodes: [
+        {
+          id: NODE_A,
+          type: "core.noop",
+          kind: "action",
+          name: "Node A",
+          position: { x: 0, y: 0 },
+          declaredOutputPorts: [],
+          hasNodeErrorHandler: true,
+        },
+      ],
+      edges: [],
+      connections: [],
+      folders: [],
+    } as unknown as Parameters<typeof useWorkflowPinController>[0]["displayedWorkflow"];
+
+    const { result } = renderHook(() => useWorkflowPinController(baseArgs({ displayedWorkflow })));
+    const port = result.current.resolveOutputPortForNode(NODE_A);
+    // "main" comes before "error" in the fallback ["main", "error"]
+    expect(port).toBe("main");
+  });
+
+  it("uses edge-contributed output ports when no snapshot and node has no declared ports", () => {
+    // No execution state -> resolveSelectedPort returns null -> falls through to edge/declared fallback.
+    // Workflow has an edge from NODE_A on "custom" port.
+    // NODE_A has no declaredOutputPorts and no hasNodeErrorHandler.
+    const displayedWorkflow = {
+      id: WORKFLOW_ID,
+      name: "Edge Port Workflow",
+      active: false,
+      nodes: [
+        {
+          id: NODE_A,
+          type: "core.noop",
+          kind: "action",
+          name: "Node A",
+          position: { x: 0, y: 0 },
+          declaredOutputPorts: [],
+          hasNodeErrorHandler: false,
+        },
+        {
+          id: NODE_B,
+          type: "core.noop",
+          kind: "action",
+          name: "Node B",
+          position: { x: 100, y: 0 },
+          declaredOutputPorts: [],
+          hasNodeErrorHandler: false,
+        },
+      ],
+      edges: [
+        {
+          from: { nodeId: NODE_A, output: "custom" },
+          to: { nodeId: NODE_B, input: "main" },
+        },
+      ],
+      connections: [],
+      folders: [],
+    } as unknown as Parameters<typeof useWorkflowPinController>[0]["displayedWorkflow"];
+
+    const { result } = renderHook(() => useWorkflowPinController(baseArgs({ displayedWorkflow })));
+    // "custom" comes from the edge; no "main" so it's the only port and should be returned
+    const port = result.current.resolveOutputPortForNode(NODE_A);
+    expect(port).toBe("custom");
+  });
+
+  it("sort comparator: non-main ports are sorted alphabetically (covers localeCompare branch)", () => {
+    // NODE_A has declaredOutputPorts: ["beta", "alpha"] (no "main").
+    // After sort: ["alpha", "beta"] — returns "alpha" as first port.
+    const displayedWorkflow = {
+      id: WORKFLOW_ID,
+      name: "Alpha Beta Workflow",
+      active: false,
+      nodes: [
+        {
+          id: NODE_A,
+          type: "core.noop",
+          kind: "action",
+          name: "Node A",
+          position: { x: 0, y: 0 },
+          declaredOutputPorts: ["beta", "alpha"],
+          hasNodeErrorHandler: false,
+        },
+      ],
+      edges: [],
+      connections: [],
+      folders: [],
+    } as unknown as Parameters<typeof useWorkflowPinController>[0]["displayedWorkflow"];
+
+    const { result } = renderHook(() => useWorkflowPinController(baseArgs({ displayedWorkflow })));
+    const port = result.current.resolveOutputPortForNode(NODE_A);
+    expect(port).toBe("alpha");
+  });
 });
