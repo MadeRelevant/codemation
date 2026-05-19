@@ -149,3 +149,124 @@ describe("CredentialHttpRouteHandler — ?withSecrets=1 ownership check (Story 0
     expect(res.status).toBe(200);
   });
 });
+
+// ── Additional coverage for non-ownership methods ─────────────────────────────
+
+describe("CredentialHttpRouteHandler — additional methods", () => {
+  function makeSimpleHandler(): CredentialHttpRouteHandler {
+    return makeHandler(null, null);
+  }
+
+  it("getCredentialTypes returns 200 with types list", async () => {
+    const handler = makeSimpleHandler();
+    const res = await handler.getCredentialTypes();
+    expect(res.status).toBe(200);
+  });
+
+  it("getCredentialTypes returns 500 on error", async () => {
+    const badQueryBus: QueryBus = {
+      execute: async () => {
+        throw new Error("db error");
+      },
+    };
+    const handler = new CredentialHttpRouteHandler(
+      badQueryBus,
+      new StubCommandBus(),
+      { verify: async () => null },
+      null,
+    );
+    const res = await handler.getCredentialTypes();
+    expect(res.status).toBe(500);
+  });
+
+  it("getCredentialFieldEnvStatus returns 200", async () => {
+    const handler = makeSimpleHandler();
+    const res = await handler.getCredentialFieldEnvStatus();
+    expect(res.status).toBe(200);
+  });
+
+  it("getCredentialInstances returns 200", async () => {
+    const handler = makeSimpleHandler();
+    const res = await handler.getCredentialInstances();
+    expect(res.status).toBe(200);
+  });
+
+  it("getCredentialInstance returns 404 when not found", async () => {
+    const notFoundQueryBus: QueryBus = { execute: async () => null as never };
+    const handler = new CredentialHttpRouteHandler(
+      notFoundQueryBus,
+      new StubCommandBus(),
+      { verify: async () => null },
+      null,
+    );
+    const req = new Request("http://localhost/api/credentials/missing");
+    const res = await handler.getCredentialInstance(req, { instanceId: "missing" });
+    expect(res.status).toBe(404);
+  });
+
+  it("postCredentialInstance returns 200", async () => {
+    const handler = makeSimpleHandler();
+    const req = new Request("http://localhost/api/credentials", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ typeId: "test.cred", displayName: "New", sourceKind: "db" }),
+    });
+    const res = await handler.postCredentialInstance(req);
+    expect(res.status).toBe(200);
+  });
+
+  it("putCredentialInstance returns 200", async () => {
+    const handler = makeSimpleHandler();
+    const req = new Request("http://localhost/api/credentials/cred-1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "Updated" }),
+    });
+    const res = await handler.putCredentialInstance(req, { instanceId: "cred-1" });
+    expect(res.status).toBe(200);
+  });
+
+  it("deleteCredentialInstance returns 200", async () => {
+    const handler = makeSimpleHandler();
+    const req = new Request("http://localhost/api/credentials/cred-1", { method: "DELETE" });
+    const res = await handler.deleteCredentialInstance(req, { instanceId: "cred-1" });
+    expect(res.status).toBe(200);
+  });
+
+  it("putCredentialBinding returns 200", async () => {
+    const handler = makeSimpleHandler();
+    const req = new Request("http://localhost/api/credentials/bindings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workflowId: "wf-1", nodeId: "n-1", slotKey: "auth", instanceId: "cred-1" }),
+    });
+    const res = await handler.putCredentialBinding(req);
+    expect(res.status).toBe(200);
+  });
+
+  it("postCredentialInstanceTest returns 200", async () => {
+    const handler = makeSimpleHandler();
+    const req = new Request("http://localhost/api/credentials/cred-1/test", { method: "POST" });
+    const res = await handler.postCredentialInstanceTest(req, { instanceId: "cred-1" });
+    expect(res.status).toBe(200);
+  });
+
+  it("getWorkflowCredentialHealth returns 200", async () => {
+    const handler = makeSimpleHandler();
+    const req = new Request("http://localhost/api/workflows/wf-1/credential-health");
+    const res = await handler.getWorkflowCredentialHealth(req, { workflowId: "wf-1" });
+    expect(res.status).toBe(200);
+  });
+
+  it("getCredentialInstance with withSecrets=1 and local-auth (no pairingConfig) returns 200 with valid principal", async () => {
+    const principal = {
+      id: "user-1",
+      email: "u@example.com",
+      name: "User",
+    };
+    const handler = makeHandler(principal, null);
+    const req = new Request("http://localhost/api/credentials/cred-1?withSecrets=1");
+    const res = await handler.getCredentialInstance(req, { instanceId: "cred-1" });
+    expect(res.status).toBe(200);
+  });
+});

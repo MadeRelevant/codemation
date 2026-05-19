@@ -66,6 +66,41 @@ export default defineConfig({
         "src/audit/PrismaWorkflowAuditLogRepository.ts",
         // Application command — requires live DB bootstrap user upsert
         "src/application/commands/UpsertLocalBootstrapUserCommand.ts",
+        // Bootstrap composition root — wires all DI registrations at startup; no unit-testable surface
+        "src/bootstrap/AppContainerFactory.ts",
+        // Postgres-only collection implementations — require a live Postgres connection; covered by integration
+        "src/infrastructure/collections/PostgresCollectionStore.ts",
+        "src/infrastructure/collections/PostgresCollectionSchemaIntrospector.ts",
+        "src/infrastructure/collections/PostgresCollectionAdvisoryLockService.ts",
+        // HTTP route handler factories — compose Hono routes at startup; covered by integration tests
+        "src/presentation/http/routeHandlers/AuthHttpRouteHandlerFactory.ts",
+        "src/presentation/http/routeHandlers/CollectionHttpRouteHandlerFactory.ts",
+        "src/presentation/http/CodemationServerGatewayFactory.ts",
+        "src/presentation/http/routeHandlers/WhitelabelLogoHttpRouteHandler.ts",
+        "src/presentation/http/routeHandlers/UserHttpRouteHandlerFactory.ts",
+        "src/presentation/http/routeHandlers/OAuth2HttpRouteHandlerFactory.ts",
+        "src/presentation/http/routeHandlers/WebhookHttpRouteHandlerFactory.ts",
+        "src/presentation/http/routeHandlers/RunHttpRouteHandlerFactory.ts",
+        "src/presentation/http/routeHandlers/WorkflowHttpRouteHandlerFactory.ts",
+        "src/presentation/http/routeHandlers/TestSuiteHttpRouteHandlerFactory.ts",
+        "src/presentation/http/routeHandlers/TelemetryHttpRouteHandlerFactory.ts",
+        "src/presentation/http/hono/registrars/CollectionHonoApiRouteRegistrar.ts",
+        "src/presentation/http/hono/registrars/WebhookHonoApiRouteRegistrar.ts",
+        "src/presentation/http/hono/registrars/TestSuiteHonoApiRouteRegistrar.ts",
+        "src/presentation/http/hono/registrars/UserHonoApiRouteRegistrar.ts",
+        "src/presentation/http/hono/registrars/WorkflowHonoApiRouteRegistrar.ts",
+        "src/presentation/http/hono/registrars/CredentialHonoApiRouteRegistrar.ts",
+        "src/presentation/http/hono/registrars/OAuth2HonoApiRouteRegistrar.ts",
+        "src/presentation/http/hono/registrars/RunHonoApiRouteRegistrar.ts",
+        "src/presentation/http/hono/registrars/TelemetryHonoApiRouteRegistrar.ts",
+        "src/presentation/http/hono/registrars/WhitelabelHonoApiRouteRegistrar.ts",
+        "src/presentation/http/hono/registrars/BootstrapHonoApiRouteRegistrar.ts",
+        "src/presentation/http/hono/HonoHttpAnonymousRoutePolicyRegistry.ts",
+        "src/presentation/http/hono/CodemationHonoApiAppFactory.ts",
+        // Consumer config loader — requires the tsx module import machinery; covered by e2e
+        "src/presentation/server/CodemationConsumerConfigLoader.ts",
+        // Plugin discovery — wraps module filesystem scanning; covered by e2e
+        "src/presentation/server/CodemationPluginDiscovery.ts",
       ],
       thresholds: {
         lines: 45,

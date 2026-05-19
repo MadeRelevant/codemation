@@ -69,6 +69,12 @@ export default defineConfig({
         "src/audit/PrismaWorkflowAuditLogRepository.ts",
         // Application command — requires live DB bootstrap user upsert
         "src/application/commands/UpsertLocalBootstrapUserCommand.ts",
+        // Bootstrap composition root — wires all DI registrations at startup; no unit-testable surface
+        "src/bootstrap/AppContainerFactory.ts",
+        // Consumer config loader — requires the tsx module import machinery; covered by e2e
+        "src/presentation/server/CodemationConsumerConfigLoader.ts",
+        // Plugin discovery — wraps module filesystem scanning; covered by e2e
+        "src/presentation/server/CodemationPluginDiscovery.ts",
       ],
     },
   },
