@@ -128,4 +128,42 @@ describe("WorkflowCanvasCodemationNodeToolbar", () => {
     fireEvent.click(screen.getByTestId("canvas-node-edit-button-n1"));
     expect(onEditNodeOutput).toHaveBeenCalledWith("n1");
   });
+
+  it("calls onOpenCredentialEditFromCanvas and onSelectNode when credential edit button is clicked", () => {
+    const onOpenCredentialEditFromCanvas = vi.fn();
+    const onSelectNode = vi.fn();
+    const data = makeData({
+      showCredentialEditToolbar: true,
+      onOpenCredentialEditFromCanvas,
+      onSelectNode,
+    });
+    render(
+      <WorkflowCanvasCodemationNodeToolbar
+        data={data}
+        isPinned={false}
+        isToolbarVisible={true}
+        setHasToolbarFocus={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("canvas-node-credential-edit-button-n1"));
+    expect(onOpenCredentialEditFromCanvas).toHaveBeenCalled();
+    expect(onSelectNode).toHaveBeenCalledWith("n1");
+  });
+
+  it("calls onTogglePinnedOutput when pin/unpin button is clicked", () => {
+    const onTogglePinnedOutput = vi.fn();
+    const onSelectNode = vi.fn();
+    const data = makeData({ onTogglePinnedOutput, onSelectNode, hasOutputData: true });
+    render(
+      <WorkflowCanvasCodemationNodeToolbar
+        data={data}
+        isPinned={false}
+        isToolbarVisible={true}
+        setHasToolbarFocus={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("canvas-node-pin-button-n1"));
+    expect(onTogglePinnedOutput).toHaveBeenCalledWith("n1");
+    expect(onSelectNode).toHaveBeenCalledWith("n1");
+  });
 });

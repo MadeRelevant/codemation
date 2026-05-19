@@ -223,4 +223,24 @@ describe("useWorkflowDetailChromeSync", () => {
       unmount();
     }).not.toThrow();
   });
+
+  it("setWorkflowActive callback delegates to controller.setWorkflowActive", () => {
+    const setWorkflowActive = vi.fn();
+    const onChromeChange = vi.fn<[WorkflowDetailChromeState | null], void>();
+    const controller = makeController({ setWorkflowActive });
+    renderHook(() => useWorkflowDetailChromeSync(controller, onChromeChange));
+    const arg = onChromeChange.mock.calls[0]![0] as WorkflowDetailChromeState;
+    arg.setWorkflowActive(true);
+    expect(setWorkflowActive).toHaveBeenCalledWith(true);
+  });
+
+  it("dismissWorkflowActivationAlert callback delegates to controller.dismissWorkflowActivationAlert", () => {
+    const dismissWorkflowActivationAlert = vi.fn();
+    const onChromeChange = vi.fn<[WorkflowDetailChromeState | null], void>();
+    const controller = makeController({ dismissWorkflowActivationAlert });
+    renderHook(() => useWorkflowDetailChromeSync(controller, onChromeChange));
+    const arg = onChromeChange.mock.calls[0]![0] as WorkflowDetailChromeState;
+    arg.dismissWorkflowActivationAlert();
+    expect(dismissWorkflowActivationAlert).toHaveBeenCalled();
+  });
 });

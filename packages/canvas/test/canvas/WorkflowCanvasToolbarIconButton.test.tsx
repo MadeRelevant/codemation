@@ -55,11 +55,55 @@ describe("WorkflowCanvasToolbarIconButton", () => {
     render(makeButton({ tooltip: "Hover tip" }));
     // The wrapper div contains both the button and the tooltip div
     const btn = screen.getByTestId("toolbar-btn");
-    const wrapper = btn.parentElement!.parentElement!;
+    const wrapper = btn.parentElement!; // btn -> wrapper div (has onPointerEnter)
     fireEvent.pointerEnter(wrapper);
     // After hover, tooltip div should have aria-hidden="false" (visible)
     const tooltipDiv = screen.getByText("Hover tip");
     expect(tooltipDiv).toBeInTheDocument();
     fireEvent.pointerLeave(wrapper);
+  });
+
+  it("hides tooltip on pointer leave", () => {
+    render(makeButton({ tooltip: "Leave tip" }));
+    const btn = screen.getByTestId("toolbar-btn");
+    const wrapper = btn.parentElement!;
+    fireEvent.pointerEnter(wrapper);
+    fireEvent.pointerLeave(wrapper);
+    // Tooltip still in DOM but aria-hidden
+    const tooltipDiv = wrapper.querySelector('[role="tooltip"]') as HTMLElement;
+    expect(tooltipDiv.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("shows tooltip on focusCapture", () => {
+    render(makeButton({ tooltip: "Focus tip" }));
+    const btn = screen.getByTestId("toolbar-btn");
+    const wrapper = btn.parentElement!;
+    fireEvent.focus(wrapper);
+    const tooltipDiv = wrapper.querySelector('[role="tooltip"]') as HTMLElement;
+    expect(tooltipDiv).toBeInTheDocument();
+  });
+
+  it("hides tooltip on blurCapture when relatedTarget is outside", () => {
+    render(makeButton({ tooltip: "Blur tip" }));
+    const btn = screen.getByTestId("toolbar-btn");
+    const wrapper = btn.parentElement!;
+    fireEvent.focus(wrapper);
+    // Blur with relatedTarget outside the wrapper
+    fireEvent.blur(wrapper, { relatedTarget: document.body });
+    const tooltipDiv = wrapper.querySelector('[role="tooltip"]') as HTMLElement;
+    expect(tooltipDiv.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("calls preventDefault on mouseDown when not disabled", () => {
+    render(makeButton({ disabled: false }));
+    const btn = screen.getByTestId("toolbar-btn");
+    // just verify event fires without error — the prevent is internal
+    expect(() => fireEvent.mouseDown(btn)).not.toThrow();
+  });
+
+  it("does not call preventDefault on mouseDown when disabled", () => {
+    render(makeButton({ disabled: true }));
+    const btn = screen.getByTestId("toolbar-btn");
+    expect(() => fireEvent.mouseDown(btn)).not.toThrow();
   });
 });

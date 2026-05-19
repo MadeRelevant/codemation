@@ -50,4 +50,13 @@ describe("WorkflowActivationErrorDialog", () => {
     );
     expect(screen.getByText("Custom activation error")).toBeInTheDocument();
   });
+
+  it("calls onDismiss when dialog close button (X) is clicked", () => {
+    const onDismiss = vi.fn();
+    render(<WorkflowActivationErrorDialog open={true} alertLines={["error"]} onDismiss={onDismiss} />);
+    // Radix Dialog renders a close button with aria-label="Close"
+    const closeBtn = screen.getByRole("button", { name: /close/i });
+    fireEvent.click(closeBtn);
+    expect(onDismiss).toHaveBeenCalled();
+  });
 });

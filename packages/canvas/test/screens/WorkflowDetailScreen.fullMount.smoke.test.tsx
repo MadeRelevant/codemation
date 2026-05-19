@@ -19,7 +19,7 @@
  * slot wiring doesn't throw during mount.
  */
 
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createWorkflowCanvasApiClient, WorkflowCanvasApiClientProvider } from "@codemation/canvas-core";
@@ -107,5 +107,94 @@ describe("WorkflowDetailScreen — full-mount smoke", () => {
     // With initialWorkflow provided, the canvas renders (not the loading state)
     // The key confirmation: no exception thrown means slot wiring is intact
     expect(document.body).toBeInTheDocument();
+  });
+
+  it("clicking the Tests tab switches to tests view and Live workflow tab switches back", async () => {
+    globalThis.fetch = neverResolveFetch;
+
+    const queryClient = makeQueryClient();
+    const apiClient = makeApiClient();
+
+    const initialWorkflow = {
+      id: "wf-smoke",
+      name: "Smoke workflow",
+      active: false,
+      nodes: [],
+      edges: [],
+    };
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WorkflowCanvasApiClientProvider value={apiClient}>
+          <WorkflowDetailScreen workflowId="wf-smoke" apiClient={apiClient} initialWorkflow={initialWorkflow} />
+        </WorkflowCanvasApiClientProvider>
+      </QueryClientProvider>,
+    );
+
+    // The Tests tab button is rendered in the floating tab strip
+    const testsTabBtn = screen.getByTestId("workflow-canvas-tab-tests");
+    await act(async () => {
+      fireEvent.click(testsTabBtn);
+    });
+
+    // After clicking Tests tab, the lazy tests view renders (Suspense resolves synchronously in jsdom)
+    await waitFor(() => {
+      // The tests view shows its own tab strip where "Tests" is the active tab
+      expect(screen.getByRole("button", { name: /live workflow/i })).toBeInTheDocument();
+    });
+
+    // Click "Live workflow" in the tests view tab strip — triggers onSwitchToLive (lines 160-163)
+    const liveBtn = screen.getByRole("button", { name: /live workflow/i });
+    await act(async () => {
+      fireEvent.click(liveBtn);
+    });
+
+    // After switching back to live, the canvas tab strip (floating) should be visible again
+    await waitFor(() => {
+      expect(screen.getByTestId("workflow-canvas-tab-live")).toBeInTheDocument();
+    });
+  });
+
+  it("clicking Tests then Executions tab triggers onSwitchToExecutions callback", async () => {
+    globalThis.fetch = neverResolveFetch;
+
+    const queryClient = makeQueryClient();
+    const apiClient = makeApiClient();
+
+    const initialWorkflow = {
+      id: "wf-smoke-2",
+      name: "Smoke workflow",
+      active: false,
+      nodes: [],
+      edges: [],
+    };
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WorkflowCanvasApiClientProvider value={apiClient}>
+          <WorkflowDetailScreen workflowId="wf-smoke-2" apiClient={apiClient} initialWorkflow={initialWorkflow} />
+        </WorkflowCanvasApiClientProvider>
+      </QueryClientProvider>,
+    );
+
+    const testsTabBtn = screen.getByTestId("workflow-canvas-tab-tests");
+    await act(async () => {
+      fireEvent.click(testsTabBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /executions/i })).toBeInTheDocument();
+    });
+
+    // Click "Executions" in the tests view — triggers onSwitchToExecutions (lines 164-167)
+    const execBtn = screen.getByRole("button", { name: /executions/i });
+    await act(async () => {
+      fireEvent.click(execBtn);
+    });
+
+    // After switching to executions, the canvas tab strip appears with executions as active
+    await waitFor(() => {
+      expect(screen.getByTestId("workflow-canvas-tab-executions")).toBeInTheDocument();
+    });
   });
 });
