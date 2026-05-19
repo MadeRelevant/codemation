@@ -46,7 +46,7 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
       globalThis.fetch,
       new HttpBodyBuilder(),
       new HttpUrlBuilder(),
-      new SsrfGuard(),
+      new SsrfGuard(ctx.config.allowedOutboundHosts),
     );
     const { url: resolvedUrl, init } = await executor.buildRequest(spec, item);
 

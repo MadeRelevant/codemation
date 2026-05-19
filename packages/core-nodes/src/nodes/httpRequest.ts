@@ -118,6 +118,23 @@ export class HttpRequest<
        * Requests whose `Content-Length` exceeds this cap are rejected before the body is read.
        */
       responseSizeCapBytes?: number;
+      /**
+       * Operator-configurable outbound host allowlist.
+       *
+       * When set, every HTTP request target must match an entry in this list before the
+       * request is made — requests to any other host are rejected with {@link SSRFBlockedError}.
+       * Supports exact hostnames (`api.example.com`) and wildcard subdomain patterns
+       * (`*.example.com` matches `sub.example.com` but not `example.com` itself).
+       *
+       * When unset (default), the existing SSRF private-network guard applies:
+       * public hosts are allowed and private/loopback ranges are blocked.
+       *
+       * **Production warning**: when `NODE_ENV === "production"` and this is unset, a one-time
+       * warning is logged at workflow startup.
+       *
+       * Setting this to an empty array `[]` is equivalent to "block everything".
+       */
+      allowedOutboundHosts?: ReadonlyArray<string>;
       id?: string;
     }> = {},
     public readonly retryPolicy: RetryPolicySpec = RetryPolicy.defaultForHttp,
@@ -153,6 +170,10 @@ export class HttpRequest<
 
   get responseSizeCapBytes(): number {
     return this.args.responseSizeCapBytes ?? DEFAULT_RESPONSE_SIZE_CAP_BYTES;
+  }
+
+  get allowedOutboundHosts(): ReadonlyArray<string> | undefined {
+    return this.args.allowedOutboundHosts;
   }
 
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {

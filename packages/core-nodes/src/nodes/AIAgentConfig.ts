@@ -38,6 +38,15 @@ export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown> {
    * Format: `"serverId:toolName"` (e.g. `"gmail:send_message"`). Max 16.
    */
   readonly pinnedMcpTools?: readonly string[];
+  /**
+   * Source identifiers that should be treated as untrusted external content.
+   * When an incoming `Item.json.__source` matches one of these values, every
+   * user-role message is wrapped with an untrusted-source preamble so the LLM
+   * treats the content as data rather than instructions (prompt-injection defense).
+   *
+   * Defaults to `["gmail", "ocr", "webhook"]` when unset.
+   */
+  readonly untrustedSources?: ReadonlyArray<string>;
 }
 
 /**
@@ -62,6 +71,7 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
   readonly outputSchema?: ZodType<TOutputJson>;
   readonly mcpServers?: McpServerBindings;
   readonly pinnedMcpTools?: readonly string[];
+  readonly untrustedSources?: ReadonlyArray<string>;
 
   constructor(options: AIAgentOptions<TInputJson, TOutputJson>) {
     this.name = options.name;
@@ -75,6 +85,7 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
     this.outputSchema = options.outputSchema;
     this.mcpServers = options.mcpServers;
     this.pinnedMcpTools = options.pinnedMcpTools;
+    this.untrustedSources = options.untrustedSources;
   }
 
   inspectorSummary(): ReadonlyArray<NodeInspectorSummaryRow> {

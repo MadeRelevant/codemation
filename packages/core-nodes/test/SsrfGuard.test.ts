@@ -104,6 +104,47 @@ describe("SsrfGuard.check — bare IP addresses (no DNS)", () => {
   });
 });
 
+describe("SsrfGuard.check — allowedOutboundHosts allowlist", () => {
+  test("with allowlist set, request to listed host passes", async () => {
+    const guard = new SsrfGuard(["api.example.com"]);
+    await assert.doesNotReject(() => guard.check("https://api.example.com/v1/data", false));
+  });
+
+  test("with allowlist set, request to unlisted host is rejected with SSRFBlockedError", async () => {
+    const guard = new SsrfGuard(["api.example.com"]);
+    await assert.rejects(() => guard.check("https://attacker.com/steal", false), SSRFBlockedError);
+  });
+
+  test("wildcard *.example.com matches sub.example.com", async () => {
+    const guard = new SsrfGuard(["*.example.com"]);
+    await assert.doesNotReject(() => guard.check("https://sub.example.com/api", false));
+  });
+
+  test("wildcard *.example.com does NOT match example.com itself", async () => {
+    const guard = new SsrfGuard(["*.example.com"]);
+    // example.com is not sub.example.com — the wildcard requires a subdomain.
+    await assert.rejects(() => guard.check("https://example.com/api", false), SSRFBlockedError);
+  });
+
+  test("wildcard *.example.com does NOT match attacker.com", async () => {
+    const guard = new SsrfGuard(["*.example.com"]);
+    await assert.rejects(() => guard.check("https://attacker.com/steal", false), SSRFBlockedError);
+  });
+
+  test("without allowlist, request to attacker.com is allowed (back-compat)", async () => {
+    const guard = new SsrfGuard();
+    // attacker.com resolves to a public IP — should not be blocked by private-net guard.
+    // We test with a known public IP directly to avoid DNS in unit tests.
+    await assert.doesNotReject(() => guard.check("http://1.1.1.1/", false));
+  });
+
+  test("with allowlist set and allowPrivate=true, allowlist still applies", async () => {
+    const guard = new SsrfGuard(["api.example.com"]);
+    // Even with allowPrivate=true the allowlist check must fire.
+    await assert.rejects(() => guard.check("https://attacker.com/steal", true), SSRFBlockedError);
+  });
+});
+
 describe("HttpRequestExecutor SSRF integration", () => {
   test("buildRequest throws SSRFBlockedError for http://169.254.169.254/x", async () => {
     const { HttpRequestExecutor } = await import("../src/http/HttpRequestExecutor");
