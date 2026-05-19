@@ -85,7 +85,7 @@ describe("WorkflowRunRetentionPruneScheduler", () => {
       listByTraceId: async () => [],
       pruneExpired: async () => {
         prunedTelemetry.push("artifact");
-        return 1;
+        return { count: 1, storageKeys: [] };
       },
     };
     const metricPointStore: TelemetryMetricPointStore = {
@@ -266,7 +266,7 @@ describe("WorkflowRunRetentionPruneScheduler", () => {
           throw new Error("not used");
         },
         listByTraceId: async () => [],
-        pruneExpired: async () => 0,
+        pruneExpired: async () => ({ count: 0, storageKeys: [] }),
       },
       {
         save: async () => {

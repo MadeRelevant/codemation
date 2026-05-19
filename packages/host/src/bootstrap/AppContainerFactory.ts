@@ -232,6 +232,7 @@ import { PrismaTestSuiteRunRepository } from "../infrastructure/persistence/Pris
 import { PrismaWorkflowActivationRepository } from "../infrastructure/persistence/PrismaWorkflowActivationRepository";
 import { PrismaWorkflowDebuggerOverlayRepository } from "../infrastructure/persistence/PrismaWorkflowDebuggerOverlayRepository";
 import { PrismaWorkflowRunRepository } from "../infrastructure/persistence/PrismaWorkflowRunRepository";
+import { PrismaWorkflowSnapshotRepository } from "../infrastructure/persistence/PrismaWorkflowSnapshotRepository";
 import { RuntimeWorkflowActivationPolicy } from "../infrastructure/persistence/RuntimeWorkflowActivationPolicy";
 import { WorkflowDefinitionRepositoryAdapter } from "../infrastructure/persistence/WorkflowDefinitionRepositoryAdapter";
 import { WorkflowRunRepository as SqlWorkflowRunRepository } from "../infrastructure/persistence/WorkflowRunRepository";
@@ -803,6 +804,7 @@ export class AppContainerFactory {
     container.registerSingleton(InMemoryTelemetryArtifactStore, InMemoryTelemetryArtifactStore);
     container.registerSingleton(InMemoryTelemetryMetricPointStore, InMemoryTelemetryMetricPointStore);
     container.registerSingleton(PrismaRunTraceContextRepository, PrismaRunTraceContextRepository);
+    container.registerSingleton(PrismaWorkflowSnapshotRepository, PrismaWorkflowSnapshotRepository);
     container.registerSingleton(PrismaTelemetrySpanStore, PrismaTelemetrySpanStore);
     container.registerSingleton(PrismaTelemetryArtifactStore, PrismaTelemetryArtifactStore);
     container.registerSingleton(PrismaTelemetryMetricPointStore, PrismaTelemetryMetricPointStore);

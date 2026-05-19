@@ -3,7 +3,12 @@
 import type { ConnectionInvocationRecord, PersistedRunState } from "@codemation/core";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { PrismaWorkflowRunRepository } from "../../src/infrastructure/persistence/PrismaWorkflowRunRepository";
+import type { WorkflowSnapshotRepository } from "../../src/infrastructure/persistence/PrismaWorkflowSnapshotRepository";
 import { IntegrationTestDatabaseSession } from "../http/testkit/IntegrationTestDatabaseSession";
+
+const noopSnapshotRepo: WorkflowSnapshotRepository = {
+  findOrCreate: async () => "snapshot-id-stub",
+};
 
 /**
  * Regression guard for the production failure:
@@ -46,7 +51,7 @@ describe("PrismaWorkflowRunRepository connection invocation cross-run collision"
 
   it("skips invocations that belong to a different run instead of colliding on instance_id", async () => {
     const prismaClient = requireTransactionClient();
-    const repository = new PrismaWorkflowRunRepository(prismaClient as never);
+    const repository = new PrismaWorkflowRunRepository(prismaClient as never, noopSnapshotRepo);
 
     const sharedInvocationId = "cinv_shared_regression_test";
     const originalInvocation: ConnectionInvocationRecord = {

@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { PersistedRunState } from "@codemation/core";
 
 import { PrismaWorkflowRunRepository } from "../../src/infrastructure/persistence/PrismaWorkflowRunRepository";
+import type { WorkflowSnapshotRepository } from "../../src/infrastructure/persistence/PrismaWorkflowSnapshotRepository";
+
+const noopSnapshotRepo: WorkflowSnapshotRepository = {
+  findOrCreate: async () => "snapshot-id-stub",
+};
 
 type FakePrisma = {
   run: {
@@ -136,7 +141,7 @@ describe("PrismaWorkflowRunRepository", () => {
         ],
       },
     };
-    const repository = new PrismaWorkflowRunRepository(prisma as never);
+    const repository = new PrismaWorkflowRunRepository(prisma as never, noopSnapshotRepo);
 
     const state = await repository.load("run-1");
     const schedulingState = await repository.loadSchedulingState("run-1");
@@ -221,7 +226,7 @@ describe("PrismaWorkflowRunRepository", () => {
     };
     prisma.$transaction = async (work) => await work(prisma);
 
-    const repository = new PrismaWorkflowRunRepository(prisma as never);
+    const repository = new PrismaWorkflowRunRepository(prisma as never, noopSnapshotRepo);
     const state = {
       runId: "run-1",
       workflowId: "wf-1",
@@ -304,7 +309,7 @@ describe("PrismaWorkflowRunRepository", () => {
     };
     prisma.$transaction = async (work) => await work(prisma);
 
-    const repository = new PrismaWorkflowRunRepository(prisma as never);
+    const repository = new PrismaWorkflowRunRepository(prisma as never, noopSnapshotRepo);
     await repository.save({
       runId: "run-1",
       workflowId: "wf-1",
@@ -462,7 +467,7 @@ describe("PrismaWorkflowRunRepository", () => {
       },
       runWorkItem: {},
     };
-    const repository = new PrismaWorkflowRunRepository(prisma as never);
+    const repository = new PrismaWorkflowRunRepository(prisma as never, noopSnapshotRepo);
 
     const detail = await repository.loadRunDetail("run-1");
     const binaryKeys = await repository.listBinaryStorageKeys("run-1");
@@ -565,7 +570,7 @@ describe("PrismaWorkflowRunRepository", () => {
     };
     prisma.$transaction = async (work) => await work(prisma);
 
-    const repository = new PrismaWorkflowRunRepository(prisma as never);
+    const repository = new PrismaWorkflowRunRepository(prisma as never, noopSnapshotRepo);
     await repository.save({
       runId: "run-1",
       workflowId: "wf-1",
@@ -692,7 +697,7 @@ describe("PrismaWorkflowRunRepository", () => {
     };
     prisma.$transaction = async (work) => await work(prisma);
 
-    const repository = new PrismaWorkflowRunRepository(prisma as never);
+    const repository = new PrismaWorkflowRunRepository(prisma as never, noopSnapshotRepo);
 
     const loaded = await repository.load("run-iter");
     expect(loaded?.connectionInvocations?.[0]).toMatchObject({
@@ -811,7 +816,7 @@ describe("PrismaWorkflowRunRepository", () => {
     };
     prisma.$transaction = async (work) => await work(prisma);
 
-    const repository = new PrismaWorkflowRunRepository(prisma as never);
+    const repository = new PrismaWorkflowRunRepository(prisma as never, noopSnapshotRepo);
 
     // load() should surface childRunId on the node snapshot.
     const loaded = await repository.load("run-child-id");
@@ -910,7 +915,7 @@ describe("PrismaWorkflowRunRepository", () => {
       },
     };
 
-    const repository = new PrismaWorkflowRunRepository(prisma as never);
+    const repository = new PrismaWorkflowRunRepository(prisma as never, noopSnapshotRepo);
     const loaded = await repository.load("run-no-child");
 
     expect(loaded?.nodeSnapshotsByNodeId["node-a"]).toBeDefined();
@@ -983,14 +988,14 @@ describe("PrismaWorkflowRunRepository", () => {
       runWorkItem: {},
     });
 
-    const repoWith = new PrismaWorkflowRunRepository(buildPrisma(true) as never);
+    const repoWith = new PrismaWorkflowRunRepository(buildPrisma(true) as never, noopSnapshotRepo);
     const detailWith = await repoWith.loadRunDetail("run-detail");
     expect(detailWith?.executionInstances[0]).toMatchObject({
       instanceId: "run-detail:node:sub:act-1",
       childRunId: "child-run-xyz",
     });
 
-    const repoWithout = new PrismaWorkflowRunRepository(buildPrisma(false) as never);
+    const repoWithout = new PrismaWorkflowRunRepository(buildPrisma(false) as never, noopSnapshotRepo);
     const detailWithout = await repoWithout.loadRunDetail("run-detail");
     expect(detailWithout?.executionInstances[0]).not.toHaveProperty("childRunId");
   });

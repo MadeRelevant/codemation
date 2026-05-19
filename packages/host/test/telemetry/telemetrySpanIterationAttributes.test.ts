@@ -80,8 +80,8 @@ class FakeTelemetryArtifactStore implements TelemetryArtifactStore {
   async listByTraceId(): Promise<ReadonlyArray<TelemetryArtifactRecord>> {
     return [];
   }
-  async pruneExpired(): Promise<number> {
-    return 0;
+  async pruneExpired(): Promise<{ count: number; storageKeys: ReadonlyArray<string> }> {
+    return { count: 0, storageKeys: [] };
   }
 }
 

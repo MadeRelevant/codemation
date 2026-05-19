@@ -3,6 +3,9 @@ import { SSRFBlockedError } from "./SSRFBlockedError";
 
 export { SSRFBlockedError } from "./SSRFBlockedError";
 
+/** Emitted once per process when NODE_ENV=production and no allowedOutboundHosts is set. */
+let _productionNoAllowlistWarned = false;
+
 /**
  * Guards HTTP requests against Server-Side Request Forgery (SSRF) by
  * DNS-resolving the target host and rejecting private/link-local/loopback
@@ -13,19 +16,41 @@ export { SSRFBlockedError } from "./SSRFBlockedError";
  * - Link-local: 169.254/16
  * - Loopback: 127/8, ::1
  *
+ * When `allowedOutboundHosts` is set, every resolved DNS target must match
+ * at least one entry in the list (exact hostname or `*.example.com` wildcard).
+ * When unset, existing behaviour applies: private ranges blocked, public allowed.
+ *
  * Call {@link check} before making any outbound HTTP request.
- * Pass `allowPrivate: true` to bypass the guard for trusted workflows.
+ * Pass `allowPrivate: true` to bypass the private-network guard for trusted workflows
+ * (allowedOutboundHosts allowlist is still applied when set).
  */
 export class SsrfGuard {
+  constructor(private readonly allowedOutboundHosts?: ReadonlyArray<string>) {
+    if (
+      // eslint-disable-next-line no-restricted-properties
+      process.env.NODE_ENV === "production" &&
+      (allowedOutboundHosts == null || allowedOutboundHosts.length === 0) &&
+      !_productionNoAllowlistWarned
+    ) {
+      _productionNoAllowlistWarned = true;
+      console.warn(
+        "[SsrfGuard] WARNING: NODE_ENV=production but no allowedOutboundHosts is configured for HttpRequest. " +
+          "All public destinations are permitted. Set allowedOutboundHosts to restrict outbound traffic.",
+      );
+    }
+  }
+
   /**
    * Resolves the host of `url` via DNS and throws {@link SSRFBlockedError}
-   * if any resolved address falls in a blocked range.
+   * if any resolved address falls in a blocked range, or if the host does not
+   * match the operator-configured allowlist (when set).
    *
    * @param url - Fully-qualified URL of the intended request target.
-   * @param allowPrivate - When `true`, the check is skipped entirely.
+   * @param allowPrivate - When `true`, the private-network check is skipped.
+   *   The allowedOutboundHosts check is still applied when set.
    */
   async check(url: string, allowPrivate: boolean): Promise<void> {
-    if (allowPrivate) return;
+    if (allowPrivate && !this.allowedOutboundHosts?.length) return;
 
     let host: string;
     try {
@@ -34,6 +59,18 @@ export class SsrfGuard {
       // Malformed URL — let the fetch call surface the error.
       return;
     }
+
+    // Check allowedOutboundHosts allowlist first (hostname match, no DNS needed).
+    if (this.allowedOutboundHosts?.length) {
+      if (!this.isHostAllowed(host)) {
+        throw new SSRFBlockedError(host, host);
+      }
+      // Host is in the allowlist — skip private-network checks (host is trusted).
+      return;
+    }
+
+    // No allowlist: apply the standard private-network SSRF guard.
+    if (allowPrivate) return;
 
     // Strip IPv6 brackets for the check below.
     const bareHost = host.startsWith("[") ? host.slice(1, -1) : host;
@@ -56,6 +93,23 @@ export class SsrfGuard {
         throw new SSRFBlockedError(host, address);
       }
     }
+  }
+
+  /**
+   * Returns true when `host` matches at least one entry in `allowedOutboundHosts`.
+   * Supports exact hostnames (`api.example.com`) and wildcard prefixes (`*.example.com`).
+   */
+  private isHostAllowed(host: string): boolean {
+    for (const allowed of this.allowedOutboundHosts ?? []) {
+      if (allowed.startsWith("*.")) {
+        // Wildcard: *.example.com matches sub.example.com but NOT example.com itself.
+        const suffix = allowed.slice(1); // ".example.com"
+        if (host.endsWith(suffix) && host.length > suffix.length) return true;
+      } else {
+        if (host === allowed) return true;
+      }
+    }
+    return false;
   }
 
   private isPrivateAddress(ip: string): boolean {

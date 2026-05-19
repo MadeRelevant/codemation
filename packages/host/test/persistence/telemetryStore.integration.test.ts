@@ -30,7 +30,14 @@ class TelemetryStoreIntegrationContext {
   }
 
   createArtifactStore(): PrismaTelemetryArtifactStore {
-    return new PrismaTelemetryArtifactStore(this.requirePrismaClient(), this.otelIdentityFactory);
+    const noopStorage = {
+      driverName: "noop",
+      write: async () => ({ storageKey: "", size: 0, sha256: "" }),
+      openReadStream: async () => undefined,
+      stat: async () => ({ exists: false }),
+      delete: async () => undefined,
+    };
+    return new PrismaTelemetryArtifactStore(this.requirePrismaClient(), this.otelIdentityFactory, noopStorage as never);
   }
 
   createMetricPointStore(): PrismaTelemetryMetricPointStore {
