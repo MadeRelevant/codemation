@@ -13,7 +13,7 @@ export default defineConfig({
     name: "@codemation/canvas:ui",
     root: import.meta.dirname,
     environment: "jsdom",
-    include: ["test/**/*.test.tsx"],
+    include: ["test/**/*.test.tsx", "test/**/*.test.ts"],
     setupFiles: ["./test/setup.ts"],
     pool: "threads",
   },
