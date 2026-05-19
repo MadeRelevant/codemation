@@ -936,8 +936,19 @@ export class AppContainerFactory {
   private registerPairingInfrastructure(container: Container, appConfig: AppConfig): void {
     const pairingConfig = new PairingConfigFactory().create(appConfig.env);
     if (!pairingConfig) {
-      // Pairing is optional — skip silently when WORKSPACE_PAIRING_SECRET / WORKSPACE_ID /
-      // CONTROL_PLANE_URL are not set (local dev without control-plane integration).
+      // Pairing is optional in non-production environments (local dev without CP integration).
+      // Emit a startup warning so operators know the workspace-mcp HMAC channel is inactive.
+      const missingVars: string[] = [];
+      if (!appConfig.env["WORKSPACE_ID"]) missingVars.push("WORKSPACE_ID");
+      if (!appConfig.env["WORKSPACE_PAIRING_SECRET"]) missingVars.push("WORKSPACE_PAIRING_SECRET");
+      if (!appConfig.env["CONTROL_PLANE_URL"]) missingVars.push("CONTROL_PLANE_URL");
+      if (missingVars.length > 0) {
+        const logger = container.resolve(ServerLoggerFactory).create("codemation.pairing");
+        logger.warn(
+          `Pairing not configured — missing env vars: ${missingVars.join(", ")}. ` +
+            "Internal /internal/* routes are inactive. Set these vars for managed-mode integration.",
+        );
+      }
       return;
     }
     container.registerInstance(PairingConfigToken, pairingConfig);

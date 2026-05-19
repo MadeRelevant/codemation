@@ -37,7 +37,7 @@
     "coverage": "pnpm run coverage:clean && concurrently -m 2 -c auto -n unit,integration,ui,browser,e2e \"pnpm run coverage:unit\" \"pnpm run coverage:integration\" \"pnpm run coverage:ui\" \"pnpm run coverage:browser\" \"pnpm run coverage:e2e\" && pnpm run coverage:merge",
     "coverage:clean": "pnpm exec rimraf coverage",
     "coverage:unit": "vitest run --config tooling/vitest/unit.config.ts --coverage --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportsDirectory=coverage/raw/unit",
-    "coverage:integration": "vitest run --config tooling/vitest/integration.config.ts --coverage --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportsDirectory=coverage/raw/integration",
+    "coverage:integration": "vitest run --config tooling/vitest/integration.config.ts --coverage --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportsDirectory=coverage/raw/integration --coverage.reportOnFailure",
     "coverage:ui": "vitest run --config tooling/vitest/ui.config.ts --coverage --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportsDirectory=coverage/raw/ui",
     "coverage:e2e": "vitest run --config tooling/vitest/e2e.config.ts --coverage --coverage.provider=v8 --coverage.reporter=lcov --coverage.reportsDirectory=coverage/raw/e2e",
     "coverage:browser": "timeout 30m pnpm --filter @codemation/host run test:browser",

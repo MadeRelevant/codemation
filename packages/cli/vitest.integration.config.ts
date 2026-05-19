@@ -18,5 +18,10 @@ export default defineConfig({
       path.join(hostPackageRoot, "scripts/integration-database-global-setup.mjs"),
     ],
     setupFiles: [path.join(hostPackageRoot, "test/integration/loadSharedIntegrationDatabaseEnv.ts")],
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/index.ts", "src/**/*.types.ts", "src/bin.ts"],
+    },
   },
 });

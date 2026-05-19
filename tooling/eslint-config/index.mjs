@@ -526,12 +526,13 @@ export default [
     },
   },
 
-  // DI + no root/exported functions: all workspace packages except next-host and apps/ (apps live outside packages/**).
+  // DI + no root/exported functions: all workspace packages except next-host, canvas, and UI component library (apps live outside packages/**).
   {
     files: ["packages/**/src/**/*.{ts,tsx}"],
     ignores: [
       "packages/canvas/**",
       "packages/next-host/**",
+      "packages/ui/**",
       "packages/host/src/presentation/config/CodemationPlugin.ts",
       "**/index.ts",
       "**/*.d.ts",
