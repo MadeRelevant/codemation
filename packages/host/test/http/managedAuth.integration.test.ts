@@ -63,12 +63,15 @@ const WORKSPACE_ID = "ws-integration-test";
 const ISSUER = "https://cp.integration.test";
 const CP_WEB_ORIGIN = "https://app.cp.integration.test";
 
+// workflowDiscovery.directories must be non-empty for managed mode (normalizer invariant).
+// The test directory has no workflow files — an empty discovery list is intentional here.
 const MANAGED_CONFIG: CodemationConfig = {
   runtime: {
     eventBus: { kind: "memory" },
     scheduler: { kind: "local" },
   },
   auth: { kind: "managed" },
+  workflowDiscovery: { directories: [import.meta.dirname] },
 };
 
 async function createHarness(jwksUrl: string): Promise<FrontendHttpIntegrationHarness> {
@@ -207,6 +210,61 @@ describe("managed auth mode integration", () => {
       method: "GET",
       url: `${ApiPaths.workflows()}`,
       headers: { authorization: `Bearer ${tampered}` },
+    });
+    expect(response.statusCode).toBe(401);
+  });
+
+  // --- /api/me endpoint cases (Sprint 13 Story F) ---
+
+  it("/api/me happy path: signed JWT returns 200 with { userId, workspaceId }", async () => {
+    const token = await signToken(kp);
+    const response = await harness.request({
+      method: "GET",
+      url: "/api/me",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{ userId: string; workspaceId: string }>();
+    expect(body).toMatchObject({ userId: "user-42", workspaceId: WORKSPACE_ID });
+  });
+
+  it("/api/me anonymous: no bearer returns 401", async () => {
+    const response = await harness.request({
+      method: "GET",
+      url: "/api/me",
+    });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("/api/me tampered: signed-then-edited JWT returns 401", async () => {
+    const token = await signToken(kp);
+    const parts = token.split(".");
+    const tampered = `${parts[0]}.${parts[1]}X.${parts[2]}`;
+    const response = await harness.request({
+      method: "GET",
+      url: "/api/me",
+      headers: { authorization: `Bearer ${tampered}` },
+    });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("/api/me expired: expired JWT returns 401", async () => {
+    const EXP_PAST_UNIX = Math.floor(new Date("2000-01-01T00:00:00Z").getTime() / 1000);
+    const token = await signToken(kp, { exp: EXP_PAST_UNIX });
+    const response = await harness.request({
+      method: "GET",
+      url: "/api/me",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("/api/me wrong audience: valid JWT with wrong aud returns 401", async () => {
+    const token = await signToken(kp, { aud: "ws-wrong-workspace" });
+    const response = await harness.request({
+      method: "GET",
+      url: "/api/me",
+      headers: { authorization: `Bearer ${token}` },
     });
     expect(response.statusCode).toBe(401);
   });

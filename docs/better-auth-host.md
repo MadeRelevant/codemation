@@ -60,10 +60,36 @@ Built-in Better Auth rate limiting is disabled in the host factory. Apply rate l
 
 Those behaviors are not Better Auth plugins. They are Codemation rules applied around Better Auth.
 
+## Managed-auth pipeline test coverage
+
+`auth.kind: "managed"` skips Better Auth entirely. The host verifies Bearer JWTs against a control-plane JWKS URL. Test coverage for this path lives in:
+
+- `packages/host/test/http/managedAuth.integration.test.ts` — end-to-end `/api/me` cases using a real signed JWT (test keypair, not a production secret). Covers the happy path, anonymous, tampered, expired, and wrong-audience scenarios.
+- `packages/host/test/http/managedAuthSqlite.integration.test.ts` — boot regression: `auth.kind: "managed"` with a SQLite database. Guards the bug fixed in commit `35b8732c` (host crashed at boot when sqlite was used with managed mode).
+
+### Using `ManagedAuthTestJwks` in new tests
+
+`packages/host/test/testkit/ManagedAuthTestJwks.ts` provides two classes:
+
+- `ManagedAuthTestJwks.generate(kid?)` — generates a test EdDSA keypair and exposes `sign(payload)` and `publicJwks()`.
+- `ManagedAuthTestJwksServer` — a minimal HTTP server that serves the public JWKS document, simulating the control-plane endpoint.
+
+```ts
+const testJwks = await ManagedAuthTestJwks.generate("my-kid");
+const jwksServer = new ManagedAuthTestJwksServer();
+await jwksServer.start(testJwks.publicJwks());
+// Pass jwksServer.jwksUrl() as CONTROL_PLANE_JWKS_URL to the harness env.
+const token = await testJwks.sign({ iss, aud, exp, nbf });
+```
+
+The test keypair is ephemeral — generated per test run. Never use production CP JWKS in tests.
+
 ## Proof in this repository
 
 - `packages/host/test/http/authHttp.integration.test.ts`
 - `packages/host/test/http/authHttp.sqlite.integration.test.ts`
 - `packages/host/test/http/userManagement.integration.test.ts`
+- `packages/host/test/http/managedAuth.integration.test.ts`
+- `packages/host/test/http/managedAuthSqlite.integration.test.ts`
 - `packages/host/test/infrastructure/CodemationBetterAuthBaseUrlPolicy.test.ts`
 - `packages/cli/test/devNextHostEnvironmentBuilder.test.ts`
