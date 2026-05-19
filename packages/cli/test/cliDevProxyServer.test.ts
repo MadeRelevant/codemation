@@ -786,3 +786,227 @@ test("workflow WS: event on client A's child socket goes only to client A not cl
     new Promise<void>((resolve) => clientB.once("close", resolve)),
   ]);
 });
+
+// Sprint 16 Story 01 — additional coverage for handleChildSocketMessage branches
+// (lines 495, 498, 514-533 in CliDevProxyServer.ts)
+
+test("workflow WS: telemetryEvent message is forwarded to subscribed run room", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("telemetry-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  const runId = "run-abc-123";
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.connectedSockets.length > 0);
+
+  // Subscribe to a run room
+  client.send(JSON.stringify({ kind: "subscribe", roomId: `run:${runId}` }));
+  await waitFor(() => payloads.some((p) => p.includes('"kind":"subscribed"')));
+
+  const childSocket = runtime.connectedSockets[0];
+  assert.ok(childSocket);
+
+  // Send a telemetryEvent from the child socket
+  const telemetryPayload = JSON.stringify({ kind: "telemetryEvent", runId, data: { metric: 42 } });
+  childSocket.send(telemetryPayload);
+
+  await waitFor(() => payloads.some((p) => p.includes("telemetryEvent")));
+  const received = payloads.find((p) => p.includes("telemetryEvent")) ?? "";
+  assert.match(received, /telemetryEvent/);
+
+  client.close();
+  await new Promise<void>((resolve) => client.once("close", resolve));
+});
+
+test("workflow WS: workflowChanged message is forwarded to subscribed workflow room", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("workflow-changed-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  const workflowId = "wf.changed.xyz";
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.connectedSockets.length > 0);
+
+  client.send(JSON.stringify({ kind: "subscribe", roomId: workflowId }));
+  await waitFor(() => payloads.some((p) => p.includes('"kind":"subscribed"')));
+
+  const childSocket = runtime.connectedSockets[0];
+  assert.ok(childSocket);
+
+  // Send workflowChanged from the child socket
+  childSocket.send(JSON.stringify({ kind: "workflowChanged", workflowId }));
+  await waitFor(() => payloads.some((p) => p.includes("workflowChanged")));
+  assert.ok(payloads.some((p) => p.includes("workflowChanged")));
+
+  // devBuildStarted — covers the devBuildStarted branch
+  childSocket.send(JSON.stringify({ kind: "devBuildStarted", workflowId }));
+  await waitFor(() => payloads.some((p) => p.includes("devBuildStarted")));
+
+  client.close();
+  await new Promise<void>((resolve) => client.once("close", resolve));
+});
+
+test("workflow WS: error message is forwarded to all clients regardless of room", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("error-msg-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.connectedSockets.length > 0);
+
+  const childSocket = runtime.connectedSockets[0];
+  assert.ok(childSocket);
+
+  // Send an error message from child — should be forwarded unconditionally
+  childSocket.send(JSON.stringify({ kind: "error", message: "Something went wrong" }));
+  await waitFor(() => payloads.some((p) => p.includes('"kind":"error"') && p.includes("Something went wrong")));
+  assert.ok(payloads.some((p) => p.includes("Something went wrong")));
+
+  client.close();
+  await new Promise<void>((resolve) => client.once("close", resolve));
+});
+
+test("workflow WS: child socket close causes client to receive close code 4401 (lines 459-464)", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("child-close-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  let closeCode = 0;
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  client.on("close", (code) => {
+    closeCode = code;
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.connectedSockets.length > 0);
+
+  // Terminate the child socket (upstream) — this triggers onChildClose which closes the client at 4401
+  const childSocket = runtime.connectedSockets[0];
+  assert.ok(childSocket);
+  childSocket.terminate();
+
+  await waitFor(() => closeCode !== 0);
+  // Proxy closes client with 4401 when upstream child closes unexpectedly
+  assert.equal(closeCode, 4401);
+});
+
+test("workflow WS: empty child socket message is silently dropped (line 495)", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("empty-msg-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.connectedSockets.length > 0);
+
+  const childSocket = runtime.connectedSockets[0];
+  assert.ok(childSocket);
+
+  const initialPayloadCount = payloads.length;
+  // Send empty / whitespace-only message — should be silently dropped
+  childSocket.send("");
+  childSocket.send("   ");
+  // Wait a moment and confirm no new messages arrived
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(payloads.length, initialPayloadCount, "Empty messages must not be forwarded to client");
+
+  client.close();
+  await new Promise<void>((resolve) => client.once("close", resolve));
+});
