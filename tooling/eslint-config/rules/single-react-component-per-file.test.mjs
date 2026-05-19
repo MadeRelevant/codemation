@@ -106,4 +106,175 @@ describe("codemation/single-react-component-per-file", () => {
       invalid: [],
     });
   });
+
+  it("allows a class component extending React.Component (identifier form)", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "my-widget.tsx",
+          code: `class MyWidget extends React.Component { render() { return null; } }`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("allows a class component extending Component (bare import form)", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "my-other.tsx",
+          code: `class MyOther extends Component { render() { return null; } }`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("allows a memo()-wrapped component (single)", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "avatar.tsx",
+          code: `const Avatar = memo(function() { return null; });`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("allows a forwardRef()-wrapped component (single)", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "input.tsx",
+          code: `const Input = forwardRef(function(props, ref) { return null; });`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("allows a React.memo() wrapped component (MemberExpression callee)", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "badge.tsx",
+          code: `const Badge = React.memo(function() { return null; });`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("allows a React.forwardRef() wrapped component (MemberExpression callee)", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "chip.tsx",
+          code: `const Chip = React.forwardRef(function(props, ref) { return null; });`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("allows export default with arrow function component", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "page.tsx",
+          code: `export default () => null;`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("allows export default with memo() call expression", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "card.tsx",
+          code: `export default memo(() => null);`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("flags two class components extending React.Component in the same file", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [],
+      invalid: [
+        {
+          filename: "mixed-classes.tsx",
+          code: `
+            class Foo extends React.Component { render() { return null; } }
+            class Bar extends React.Component { render() { return null; } }
+          `,
+          errors: [{ message: /single React component/i }],
+        },
+      ],
+    });
+  });
+
+  it("flags components when the family is broken by a non-matching member", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [],
+      invalid: [
+        {
+          // dropdown-menu.tsx prefix is "DropdownMenu"
+          // Badge does NOT start with "DropdownMenu", so no allInFamily — all after the first are flagged
+          filename: "dropdown-menu.tsx",
+          code: `
+            function DropdownMenu() { return null; }
+            function DropdownMenuTrigger() { return null; }
+            function Badge() { return null; }
+          `,
+          errors: [{ message: /single React component/i }, { message: /single React component/i }],
+        },
+      ],
+    });
+  });
+
+  it("flags two memo()-wrapped components with different families", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [],
+      invalid: [
+        {
+          filename: "multi-memo.tsx",
+          code: `
+            const Foo = memo(() => null);
+            const Bar = memo(() => null);
+          `,
+          errors: [{ message: /single React component/i }],
+        },
+      ],
+    });
+  });
+
+  it("allows export default named class extending React.Component", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "hero.tsx",
+          code: `export default class Hero extends React.Component { render() { return null; } }`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("allows export default PureComponent extension", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "pure.tsx",
+          code: `class PureWidget extends PureComponent { render() { return null; } }`,
+        },
+      ],
+      invalid: [],
+    });
+  });
 });
