@@ -70,4 +70,76 @@ describe("AuthSessionCookieFactory", () => {
     });
     expect(header).toMatch(/^__Secure-authjs\.session-token=/);
   });
+
+  it("clearSessionCookie emits authjs.session-token with maxAge=0 for HTTP request", () => {
+    const request = new Request("http://127.0.0.1/api/auth/signout");
+    const header = createFactory().clearSessionCookie(request);
+    expect(header).toMatch(/authjs\.session-token=/);
+    expect(header).toMatch(/Max-Age=0/);
+  });
+
+  it("clearSessionCookie emits __Secure-authjs.session-token for HTTPS request", () => {
+    const request = new Request("http://127.0.0.1/api/auth/signout", {
+      headers: { "x-forwarded-proto": "https" },
+    });
+    const header = createFactory().clearSessionCookie(request);
+    expect(header).toMatch(/__Secure-authjs\.session-token=/);
+    expect(header).toMatch(/Max-Age=0/);
+  });
+
+  it("assertCsrf passes when header matches cookie token", () => {
+    const csrfToken = "test-csrf-token";
+    const request = new Request("http://127.0.0.1/api/auth/login", {
+      method: "POST",
+      headers: {
+        cookie: `codemation.csrf-token=${csrfToken}`,
+        "x-codemation-csrf-token": csrfToken,
+      },
+    });
+    expect(() => createFactory().assertCsrf(request)).not.toThrow();
+  });
+
+  it("assertCsrf throws 403 when header token does not match cookie token", () => {
+    const request = new Request("http://127.0.0.1/api/auth/login", {
+      method: "POST",
+      headers: {
+        cookie: "codemation.csrf-token=valid-token",
+        "x-codemation-csrf-token": "wrong-token",
+      },
+    });
+    expect(() => createFactory().assertCsrf(request)).toThrow();
+    try {
+      createFactory().assertCsrf(request);
+    } catch (err) {
+      expect((err as { status?: number }).status).toBe(403);
+    }
+  });
+
+  it("assertCsrf throws 403 when csrf header is missing", () => {
+    const request = new Request("http://127.0.0.1/api/auth/login", {
+      method: "POST",
+      headers: { cookie: "codemation.csrf-token=valid-token" },
+    });
+    expect(() => createFactory().assertCsrf(request)).toThrow();
+  });
+
+  it("requireAuthSecret throws when NODE_ENV=production and AUTH_SECRET is empty", async () => {
+    const productionConfig: AppConfig = {
+      ...createTestAppConfig(),
+      env: { NODE_ENV: "production", AUTH_SECRET: "" },
+    };
+    const factory = new AuthSessionCookieFactory(productionConfig, new SecureRequestDetector());
+    const request = new Request("http://127.0.0.1/", {
+      headers: { "x-forwarded-proto": "https" },
+    });
+    await expect(factory.createSessionCookie(request, { id: "user-1", email: null, name: null })).rejects.toThrow(
+      /AUTH_SECRET/,
+    );
+  });
+
+  it("createSessionCookie works with null email and name", async () => {
+    const request = new Request("http://127.0.0.1/");
+    const header = await createFactory().createSessionCookie(request, { id: "user-1", email: null, name: null });
+    expect(header).toMatch(/authjs\.session-token=/);
+  });
 });

@@ -101,6 +101,12 @@ export default defineConfig({
         "src/presentation/server/CodemationConsumerConfigLoader.ts",
         // Plugin discovery — wraps module filesystem scanning; covered by e2e
         "src/presentation/server/CodemationPluginDiscovery.ts",
+        // Managed auth config — only active in control-plane managed mode; covered by managed-mode integration
+        "src/auth/managed/ManagedAuthConfig.ts",
+        // Prisma-backed session eligibility checker — requires live Prisma DB client
+        "src/infrastructure/auth/PrismaUserAccountSessionEligibilityChecker.ts",
+        // Application lifecycle orchestrator — wires start/stop; covered by e2e/integration
+        "src/bootstrap/AppContainerLifecycle.ts",
       ],
       thresholds: {
         lines: 45,

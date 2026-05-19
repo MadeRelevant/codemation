@@ -121,4 +121,93 @@ describe("ApiPaths", () => {
   it("runDetail path is correct", () => {
     expect(ApiPaths.runDetail("run-123")).toBe("/api/runs/run-123/detail");
   });
+
+  // User management paths — not covered by existing tests
+  it("authLogin returns /api/auth/login", () => {
+    expect(ApiPaths.authLogin()).toBe("/api/auth/login");
+  });
+
+  it("authLogout returns /api/auth/logout", () => {
+    expect(ApiPaths.authLogout()).toBe("/api/auth/logout");
+  });
+
+  it("authSession returns /api/auth/session", () => {
+    expect(ApiPaths.authSession()).toBe("/api/auth/session");
+  });
+
+  it("userInviteVerify returns invites/verify path", () => {
+    expect(ApiPaths.userInviteVerify()).toBe("/api/users/invites/verify");
+  });
+
+  it("userInviteAccept returns invites/accept path", () => {
+    expect(ApiPaths.userInviteAccept()).toBe("/api/users/invites/accept");
+  });
+
+  it("userInvites returns /api/users/invites", () => {
+    expect(ApiPaths.userInvites()).toBe("/api/users/invites");
+  });
+
+  it("userInviteRegenerate encodes userId", () => {
+    expect(ApiPaths.userInviteRegenerate("u/1")).toBe("/api/users/u%2F1/invites/regenerate");
+  });
+
+  it("userStatus encodes userId", () => {
+    expect(ApiPaths.userStatus("u/1")).toBe("/api/users/u%2F1/status");
+  });
+
+  it("whitelabelLogo returns /api/whitelabel/logo", () => {
+    expect(ApiPaths.whitelabelLogo()).toBe("/api/whitelabel/logo");
+  });
+
+  it("frontendBootstrap returns /api/bootstrap/frontend", () => {
+    expect(ApiPaths.frontendBootstrap()).toBe("/api/bootstrap/frontend");
+  });
+
+  it("internalAuthBootstrap returns /api/bootstrap/auth/internal", () => {
+    expect(ApiPaths.internalAuthBootstrap()).toBe("/api/bootstrap/auth/internal");
+  });
+
+  it("workflowCredentialHealth includes credential-health", () => {
+    expect(ApiPaths.workflowCredentialHealth("wf-1")).toBe("/api/workflows/wf-1/credential-health");
+  });
+
+  it("workflowDebuggerOverlay includes debugger-overlay", () => {
+    expect(ApiPaths.workflowDebuggerOverlay("wf-1")).toBe("/api/workflows/wf-1/debugger-overlay");
+  });
+
+  it("workflowDebuggerOverlayCopyRun includes copy-run", () => {
+    expect(ApiPaths.workflowDebuggerOverlayCopyRun("wf-1")).toContain("copy-run");
+  });
+
+  it("workflowDebuggerOverlayBinaryUpload includes binary upload path", () => {
+    expect(ApiPaths.workflowDebuggerOverlayBinaryUpload("wf-1")).toContain("binary");
+  });
+
+  it("workflowOverlayBinaryContent includes binaryId", () => {
+    expect(ApiPaths.workflowOverlayBinaryContent("wf-1", "b/1")).toContain("b%2F1");
+  });
+
+  it("workflowActivation includes activation", () => {
+    expect(ApiPaths.workflowActivation("wf-1")).toBe("/api/workflows/wf-1/activation");
+  });
+
+  it("collections returns /api/collections", () => {
+    expect(ApiPaths.collections()).toBe("/api/collections");
+  });
+
+  it("collection encodes name with spaces", () => {
+    expect(ApiPaths.collection("my items")).toBe("/api/collections/my%20items");
+  });
+
+  it("collectionRows includes /rows", () => {
+    expect(ApiPaths.collectionRows("users")).toBe("/api/collections/users/rows");
+  });
+
+  it("collectionRow encodes name and id", () => {
+    expect(ApiPaths.collectionRow("my items", "row 1")).toBe("/api/collections/my%20items/rows/row%201");
+  });
+
+  it("syncCollections returns /api/collections/sync", () => {
+    expect(ApiPaths.syncCollections()).toBe("/api/collections/sync");
+  });
 });

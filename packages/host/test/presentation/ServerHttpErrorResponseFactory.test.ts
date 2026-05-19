@@ -21,4 +21,23 @@ describe("ServerHttpErrorResponseFactory", () => {
     expect(body.error).not.toContain("Prisma");
     expect(body.error).not.toContain("unique constraint");
   });
+
+  it("returns 500 for non-Error thrown value (string)", async () => {
+    const res = ServerHttpErrorResponseFactory.fromUnknown("just a raw string error");
+    expect(res.status).toBe(500);
+  });
+
+  it("returns 500 for Error with Error cause (covers formatCause Error branch)", async () => {
+    const cause = new Error("root cause");
+    const err = new Error("wrapper error", { cause });
+    const res = ServerHttpErrorResponseFactory.fromUnknown(err);
+    expect(res.status).toBe(500);
+  });
+
+  it("returns 500 for Error with non-Error cause (covers formatCause String branch)", async () => {
+    const err = new Error("wrapper error");
+    Object.defineProperty(err, "cause", { value: "string cause value", enumerable: true, configurable: true });
+    const res = ServerHttpErrorResponseFactory.fromUnknown(err);
+    expect(res.status).toBe(500);
+  });
 });

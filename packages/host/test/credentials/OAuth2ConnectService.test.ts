@@ -93,3 +93,74 @@ describe("OAuth2ConnectService.getRedirectUri", () => {
     expect(uri).toContain("production.example.com");
   });
 });
+
+// ── handleCallback error paths ────────────────────────────────────────────────
+
+function makeFullService(
+  opts: {
+    credentialStore?: Record<string, unknown>;
+    credentialInstanceService?: Record<string, unknown>;
+    credentialTypeRegistry?: Record<string, unknown>;
+  } = {},
+): OAuth2ConnectService {
+  const appConfig = makeAppConfig({ env: {} });
+  return new OAuth2ConnectService(
+    (opts.credentialStore ?? {}) as never,
+    (opts.credentialInstanceService ?? {}) as never,
+    (opts.credentialTypeRegistry ?? {}) as never,
+    null as never,
+    null as never,
+    null as never,
+    null as never,
+    null as never,
+    null as never,
+    appConfig,
+  );
+}
+
+describe("OAuth2ConnectService.handleCallback — error paths", () => {
+  it("throws 400 when code is missing", async () => {
+    const svc = makeFullService();
+    await expect(
+      svc.handleCallback({ code: null, state: "state-1", requestOrigin: "http://localhost:3000" }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("throws 400 when state is missing", async () => {
+    const svc = makeFullService();
+    await expect(
+      svc.handleCallback({ code: "code-1", state: null, requestOrigin: "http://localhost:3000" }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("throws 400 when both code and state are missing", async () => {
+    const svc = makeFullService();
+    await expect(svc.handleCallback({ requestOrigin: "http://localhost:3000" })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("throws 400 when OAuth2 state is not found in store", async () => {
+    const svc = makeFullService({
+      credentialStore: { consumeOAuth2State: async () => null },
+    });
+    await expect(
+      svc.handleCallback({ code: "code-1", state: "invalid-state", requestOrigin: "http://localhost:3000" }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("throws 400 when OAuth2 state is expired", async () => {
+    const expiredState = {
+      state: "state-1",
+      instanceId: "inst-1",
+      codeVerifier: "verifier",
+      requestedScopes: ["email"],
+      createdAt: "2020-01-01T00:00:00.000Z",
+      expiresAt: "2020-01-01T00:10:00.000Z", // already expired
+    };
+    const svc = makeFullService({
+      credentialStore: { consumeOAuth2State: async () => expiredState },
+    });
+    await expect(
+      svc.handleCallback({ code: "code-1", state: "state-1", requestOrigin: "http://localhost:3000" }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+});

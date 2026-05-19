@@ -126,4 +126,135 @@ describe("StartWorkflowRunCommandHandler.execute — error paths", () => {
     const result = await handler.execute(cmd);
     expect(result.runId).toBeDefined();
   });
+
+  it("uses sourceRunId to resolve workflow when set and no currentState", async () => {
+    // sourceRunId set → load from runRepo → resolves workflow
+    const sourceState = {
+      runId: "run-source",
+      workflowId: "wf-1",
+      status: "completed",
+      startedAt: "2026-01-01T00:00:00.000Z",
+      outputsByNode: {},
+      nodeSnapshotsByNodeId: {},
+      workflowSnapshot: undefined,
+    };
+    const runRepo = { load: async (id: string) => (id === "run-source" ? sourceState : undefined) };
+    const workflowDef = {
+      id: "wf-1",
+      name: "Workflow 1",
+      nodes: [],
+      edges: [],
+    };
+    const engine = {
+      resolveWorkflowSnapshot: async () => workflowDef,
+    };
+    const handler = new StartWorkflowRunCommandHandler(
+      engine as never,
+      new ItemsInputNormalizer(),
+      makeRunIntentService() as never,
+      makeWorkflowRepo(workflowDef) as never,
+      runRepo as never,
+      makeOverlayRepo() as never,
+      makeCredentialBindingService() as never,
+      makeLoggerFactory() as never,
+    );
+    const cmd = new StartWorkflowRunCommand({ workflowId: "wf-1", sourceRunId: "run-source" });
+    const result = await handler.execute(cmd);
+    expect(result.runId).toBeDefined();
+  });
+
+  it("uses rerunFromNode when startAt is set with reusable currentState", async () => {
+    const workflowDef = {
+      id: "wf-1",
+      name: "Workflow 1",
+      nodes: [{ id: "node-a", kind: "action", name: "A", config: {} }],
+      edges: [],
+    };
+    const handler = new StartWorkflowRunCommandHandler(
+      makeEngine() as never,
+      new ItemsInputNormalizer(),
+      makeRunIntentService() as never,
+      makeWorkflowRepo(workflowDef) as never,
+      makeRunRepo() as never,
+      makeOverlayRepo() as never,
+      makeCredentialBindingService() as never,
+      makeLoggerFactory() as never,
+    );
+    const cmd = new StartWorkflowRunCommand({
+      workflowId: "wf-1",
+      startAt: "node-a",
+      currentState: {
+        outputsByNode: { "node-a": { main: [{ json: { result: "ok" } }] } },
+        nodeSnapshotsByNodeId: {},
+      } as never,
+    });
+    const result = await handler.execute(cmd);
+    expect(result.runId).toBeDefined();
+  });
+
+  it("handles workflow with trigger node — synthesizeTriggerItems=true in manual mode", async () => {
+    const workflowDef = {
+      id: "wf-1",
+      name: "Workflow 1",
+      nodes: [{ id: "trigger-1", kind: "trigger", name: "Trigger", config: {} }],
+      edges: [],
+    };
+    const handler = new StartWorkflowRunCommandHandler(
+      makeEngine() as never,
+      new ItemsInputNormalizer(),
+      makeRunIntentService() as never,
+      makeWorkflowRepo(workflowDef) as never,
+      makeRunRepo() as never,
+      makeOverlayRepo() as never,
+      makeCredentialBindingService() as never,
+      makeLoggerFactory() as never,
+    );
+    const cmd = new StartWorkflowRunCommand({ workflowId: "wf-1", mode: "manual" });
+    const result = await handler.execute(cmd);
+    expect(result.runId).toBeDefined();
+  });
+
+  it("handles stopAt parameter", async () => {
+    const workflowDef = {
+      id: "wf-1",
+      name: "Workflow 1",
+      nodes: [{ id: "node-a", kind: "action", name: "A", config: {} }],
+      edges: [],
+    };
+    const handler = new StartWorkflowRunCommandHandler(
+      makeEngine() as never,
+      new ItemsInputNormalizer(),
+      makeRunIntentService() as never,
+      makeWorkflowRepo(workflowDef) as never,
+      makeRunRepo() as never,
+      makeOverlayRepo() as never,
+      makeCredentialBindingService() as never,
+      makeLoggerFactory() as never,
+    );
+    const cmd = new StartWorkflowRunCommand({ workflowId: "wf-1", stopAt: "node-a" });
+    const result = await handler.execute(cmd);
+    expect(result.runId).toBeDefined();
+  });
+
+  it("handles clearFromNodeId parameter", async () => {
+    const workflowDef = {
+      id: "wf-1",
+      name: "Workflow 1",
+      nodes: [{ id: "node-a", kind: "action", name: "A", config: {} }],
+      edges: [],
+    };
+    const handler = new StartWorkflowRunCommandHandler(
+      makeEngine() as never,
+      new ItemsInputNormalizer(),
+      makeRunIntentService() as never,
+      makeWorkflowRepo(workflowDef) as never,
+      makeRunRepo() as never,
+      makeOverlayRepo() as never,
+      makeCredentialBindingService() as never,
+      makeLoggerFactory() as never,
+    );
+    const cmd = new StartWorkflowRunCommand({ workflowId: "wf-1", clearFromNodeId: "node-a" });
+    const result = await handler.execute(cmd);
+    expect(result.runId).toBeDefined();
+  });
 });
