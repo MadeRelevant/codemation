@@ -340,6 +340,56 @@ describe("codemation/single-react-component-per-file", () => {
     });
   });
 
+  it("does not count a computed-property call as a component (isMemoOrForwardRefCall line-40 fallthrough)", () => {
+    // const Foo = someObj[key]() — callee is a computed MemberExpression; !callee.computed fails,
+    // so isMemoOrForwardRefCall reaches `return false` at line 40.
+    // isComponentVariableInit returns false → Foo is not counted → single file, no error.
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "computed-init.tsx",
+          code: `const Foo = wrappers["memo"](() => null);`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("flags two class components where one extends bare Component (class-component detection)", () => {
+    // Covers extendsReactComponentClass with bare Identifier "Component"
+    // and ensures two such components in the same file are flagged.
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [],
+      invalid: [
+        {
+          filename: "two-class-components.tsx",
+          code: `
+            class Alpha extends Component { render() { return null; } }
+            class Beta extends Component { render() { return null; } }
+          `,
+          errors: [{ message: /single React component/i }],
+        },
+      ],
+    });
+  });
+
+  it("flags a class component and a memo-wrapped component in the same file", () => {
+    // Covers the interaction between class-component detection and memo/forwardRef wrap detection.
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [],
+      invalid: [
+        {
+          filename: "mixed-class-memo.tsx",
+          code: `
+            class MyClass extends React.Component { render() { return null; } }
+            const MyMemo = memo(() => null);
+          `,
+          errors: [{ message: /single React component/i }],
+        },
+      ],
+    });
+  });
+
   it("flags export default VariableDeclaration with multiple memo-wrapped components", () => {
     // Covers ExportDefaultDeclaration with VariableDeclaration sub-path
     tester.run("single-react-component-per-file", singleReactComponentPerFile, {
