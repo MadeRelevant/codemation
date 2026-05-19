@@ -4,7 +4,7 @@ import {
   InMemoryBinaryStorage,
   InMemoryRunDataFactory,
 } from "@codemation/core/bootstrap";
-import { HttpRequest, HttpRequestNode } from "@codemation/core-nodes";
+import { HttpRequest, HttpRequestNode, bearerTokenCredentialType } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
@@ -449,4 +449,38 @@ test("bodyFormat binary: explicit Content-Type header wins over attachment mimeT
   } finally {
     globalThis.fetch = savedFetch;
   }
+});
+
+test("HttpRequest exposes the id arg when provided", () => {
+  const config = new HttpRequest("Named node", { id: "my-node-id" });
+  assert.equal(config.id, "my-node-id");
+});
+
+test("HttpRequest.getCredentialRequirements returns empty array when no credentialSlot", () => {
+  const config = new HttpRequest("No auth");
+  assert.deepEqual(config.getCredentialRequirements(), []);
+});
+
+test("HttpRequest.getCredentialRequirements object form narrows to caller-supplied acceptedTypes", () => {
+  const config = new HttpRequest("Bearer only", {
+    credentialSlot: {
+      name: "auth",
+      acceptedTypes: [bearerTokenCredentialType],
+    },
+  });
+  const reqs = config.getCredentialRequirements();
+  assert.equal(reqs.length, 1);
+  assert.equal(reqs[0]?.slotKey, "auth");
+  assert.deepEqual(reqs[0]?.acceptedTypes, [bearerTokenCredentialType.definition.typeId]);
+});
+
+test("HttpRequest.getCredentialRequirements object form falls back to all defaults when acceptedTypes empty", () => {
+  const config = new HttpRequest("Open auth", {
+    credentialSlot: { name: "open", acceptedTypes: [] },
+  });
+  const reqs = config.getCredentialRequirements();
+  assert.equal(reqs.length, 1);
+  assert.equal(reqs[0]?.slotKey, "open");
+  // Falls back to the full set of four default credential type IDs
+  assert.equal((reqs[0]?.acceptedTypes as string[]).length, 4);
 });

@@ -89,6 +89,20 @@ describe("ApiKeyCredentialType", () => {
     const delta = session.applyToRequest({} as any);
     assert.equal(delta.query?.api_key, "key");
   });
+
+  test("createSession throws when apiKey material is empty", async () => {
+    await assert.rejects(() => apiKeyCredentialType.createSession(makeArgs({}, { apiKey: "" })), /apiKey is required/);
+  });
+
+  test("test returns failing when apiKey is absent", async () => {
+    const health = await apiKeyCredentialType.test(makeArgs({}, { apiKey: "" }));
+    assert.equal(health.status, "failing");
+  });
+
+  test("test returns healthy when apiKey is present", async () => {
+    const health = await apiKeyCredentialType.test(makeArgs({}, { apiKey: "valid-key" }));
+    assert.equal(health.status, "healthy");
+  });
 });
 
 describe("BasicAuthCredentialType", () => {
