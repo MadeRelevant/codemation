@@ -6,8 +6,7 @@ export class ServerHttpErrorResponseFactory {
       return Response.json(error.payload, { status: error.status });
     }
     this.logUnexpectedError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 
   private static logUnexpectedError(error: unknown): void {

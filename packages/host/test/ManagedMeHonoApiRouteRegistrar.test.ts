@@ -52,4 +52,19 @@ describe("ManagedMeHonoApiRouteRegistrar", () => {
     const body = await res.json();
     expect(body).toEqual({ userId: "user_789", workspaceId: null });
   });
+
+  it("returns 401 when verify() throws (broken JWT / tampered token)", async () => {
+    const verifier: SessionVerifier = {
+      verify: async () => {
+        throw new Error("jwt malformed");
+      },
+    };
+    const app = makeApp(verifier);
+    const res = await app.request("/api/me", {
+      headers: { Authorization: "Bearer bad.token.here" },
+    });
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("Unauthorized");
+  });
 });

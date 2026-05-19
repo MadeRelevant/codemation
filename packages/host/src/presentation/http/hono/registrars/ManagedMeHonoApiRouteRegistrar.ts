@@ -21,11 +21,15 @@ export class ManagedMeHonoApiRouteRegistrar implements HonoApiRouteRegistrar {
 
   register(app: Hono): void {
     app.get("/me", async (c) => {
-      const principal = await this.sessionVerifier.verify(c.req.raw);
-      if (!principal) {
+      try {
+        const principal = await this.sessionVerifier.verify(c.req.raw);
+        if (!principal) {
+          return c.json({ error: "Unauthorized" }, 401);
+        }
+        return c.json({ userId: principal.id, workspaceId: principal.workspaceId ?? null });
+      } catch {
         return c.json({ error: "Unauthorized" }, 401);
       }
-      return c.json({ userId: principal.id, workspaceId: principal.workspaceId ?? null });
     });
   }
 }
