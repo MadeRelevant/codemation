@@ -1202,6 +1202,10 @@ export class AppContainerFactory {
       return storage;
     }
 
+    if (kind !== "local") {
+      throw new Error(`Unknown BINARY_STORAGE_KIND: "${kind}". Expected "local" or "s3".`);
+    }
+
     if (!appConfig.repoRoot) {
       return new InMemoryBinaryStorage();
     }

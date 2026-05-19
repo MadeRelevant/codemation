@@ -127,6 +127,7 @@ export class SsrfGuard {
     if (a === 172 && b >= 16 && b <= 31) return true; // RFC-1918 172.16/12
     if (a === 192 && b === 168) return true; // RFC-1918 192.168/16
     if (a === 169 && b === 254) return true; // link-local 169.254/16
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGN 100.64.0.0/10
     return false;
   }
 

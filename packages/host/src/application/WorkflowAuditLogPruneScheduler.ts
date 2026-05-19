@@ -42,7 +42,9 @@ export class WorkflowAuditLogPruneScheduler {
       return;
     }
     const intervalMs = Number(
-      this.appConfig.env.CODEMATION_RUN_PRUNE_INTERVAL_MS ?? WorkflowAuditLogPruneScheduler.defaultIntervalMs,
+      this.appConfig.env.CODEMATION_AUDIT_PRUNE_INTERVAL_MS ??
+        this.appConfig.env.CODEMATION_RUN_PRUNE_INTERVAL_MS ??
+        WorkflowAuditLogPruneScheduler.defaultIntervalMs,
     );
     void this.runScheduledTick();
     this.timer = setInterval(() => {
@@ -81,18 +83,14 @@ export class WorkflowAuditLogPruneScheduler {
     const ids = rows.map((r) => r.id);
     await this.prisma.workflowAuditLog.deleteMany({ where: { id: { in: ids } } });
 
-    this.logger.info(
-      `WorkflowAuditLog prune: deleted ${ids.length} row(s) older than ${cutoff.toISOString()}`,
-    );
+    this.logger.info(`WorkflowAuditLog prune: deleted ${ids.length} row(s) older than ${cutoff.toISOString()}`);
   }
 
   private async runScheduledTick(): Promise<void> {
     try {
       await this.runOnce();
     } catch (error) {
-      this.logger.warn(
-        `WorkflowAuditLog prune tick failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      this.logger.warn(`WorkflowAuditLog prune tick failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

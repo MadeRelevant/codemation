@@ -164,6 +164,6 @@ export class S3BinaryStorage implements BinaryStorage {
     const anyErr = err as Record<string, unknown>;
     const statusCode =
       anyErr["$metadata"] != null ? (anyErr["$metadata"] as Record<string, unknown>)["httpStatusCode"] : undefined;
-    return statusCode === 404 || statusCode === 403 || anyErr["name"] === "NotFound" || anyErr["name"] === "NoSuchKey";
+    return statusCode === 404 || anyErr["name"] === "NotFound" || anyErr["name"] === "NoSuchKey";
   }
 }

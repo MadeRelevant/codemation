@@ -102,6 +102,27 @@ describe("SsrfGuard.check — bare IP addresses (no DNS)", () => {
   test("throws for [fdab::1] (IPv6 ULA)", async () => {
     await assert.rejects(() => check("http://[fdab::1]/"), SSRFBlockedError);
   });
+
+  // CGN (Carrier-Grade NAT) 100.64.0.0/10 — RFC 6598
+  test("throws for 100.64.0.1 (CGN lower boundary)", async () => {
+    await assert.rejects(() => check("http://100.64.0.1/"), SSRFBlockedError);
+  });
+
+  test("throws for 100.64.5.5 (CGN mid-range)", async () => {
+    await assert.rejects(() => check("http://100.64.5.5/"), SSRFBlockedError);
+  });
+
+  test("throws for 100.127.255.255 (CGN upper boundary)", async () => {
+    await assert.rejects(() => check("http://100.127.255.255/"), SSRFBlockedError);
+  });
+
+  test("does NOT throw for 100.63.255.255 (just below CGN)", async () => {
+    await assert.doesNotReject(() => check("http://100.63.255.255/"));
+  });
+
+  test("does NOT throw for 100.128.0.1 (just above CGN)", async () => {
+    await assert.doesNotReject(() => check("http://100.128.0.1/"));
+  });
 });
 
 describe("SsrfGuard.check — allowedOutboundHosts allowlist", () => {
