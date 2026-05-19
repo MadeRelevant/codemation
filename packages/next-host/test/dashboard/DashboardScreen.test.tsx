@@ -383,6 +383,137 @@ describe("DashboardScreen", () => {
     expect(requestedUrls.some((url) => url.includes("runOrigin=manual"))).toBe(true);
   });
 
+  it("toggles status and run-origin filters within the integrated screen", async () => {
+    renderScreen();
+
+    // Wait for screen to fully load
+    await screen.findByTestId("dashboard-screen");
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    // Toggle "failed" status on then off — exercises the add and remove branches
+    const failedPill = screen.getByTestId("dashboard-status-pill-failed");
+    fireEvent.click(failedPill);
+    fireEvent.click(failedPill);
+
+    // Toggle "manual" run origin on then off — exercises run-origin toggle branches
+    const manualPill = screen.getByTestId("dashboard-run-origin-pill-manual");
+    fireEvent.click(manualPill);
+    fireEvent.click(manualPill);
+
+    // Toggle "triggered" (already selected) off then back on
+    const triggeredPill = screen.getByTestId("dashboard-run-origin-pill-triggered");
+    fireEvent.click(triggeredPill);
+    fireEvent.click(triggeredPill);
+
+    // Screen should still be present after all the toggles
+    expect(screen.getByTestId("dashboard-screen")).toBeInTheDocument();
+  });
+
+  it("shows load error when the timeseries query fails", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === ApiPaths.workflows()) {
+        return { ok: true, json: async () => [] } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardTimeseries())) {
+        return { ok: false, text: async () => "timeseries fetch failed" } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardSummary())) {
+        return {
+          ok: true,
+          json: async () => ({
+            runs: { totalRuns: 0, completedRuns: 0, failedRuns: 0, runningRuns: 0, averageDurationMs: 0 },
+            ai: { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0, reasoningTokens: 0 },
+            costs: { currencies: [] },
+          }),
+        } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardDimensions())) {
+        return { ok: true, json: async () => ({ modelNames: [] }) } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardRuns())) {
+        return { ok: true, json: async () => ({ items: [], totalCount: 0, page: 1, pageSize: 10 }) } as Response;
+      }
+      return { ok: false, text: async () => `Unhandled URL: ${url}` } as Response;
+    });
+
+    renderScreen();
+
+    await expect(screen.findByTestId("dashboard-load-error")).resolves.toHaveTextContent("timeseries fetch failed");
+  });
+
+  it("shows load error when the runs query fails", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === ApiPaths.workflows()) {
+        return { ok: true, json: async () => [] } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardSummary())) {
+        return {
+          ok: true,
+          json: async () => ({
+            runs: { totalRuns: 0, completedRuns: 0, failedRuns: 0, runningRuns: 0, averageDurationMs: 0 },
+            ai: { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0, reasoningTokens: 0 },
+            costs: { currencies: [] },
+          }),
+        } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardTimeseries())) {
+        return { ok: true, json: async () => ({ interval: "day", buckets: [] }) } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardDimensions())) {
+        return { ok: true, json: async () => ({ modelNames: [] }) } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardRuns())) {
+        return { ok: false, text: async () => "runs fetch failed" } as Response;
+      }
+      return { ok: false, text: async () => `Unhandled URL: ${url}` } as Response;
+    });
+
+    renderScreen();
+
+    await expect(screen.findByTestId("dashboard-load-error")).resolves.toHaveTextContent("runs fetch failed");
+  });
+
+  it("does not render timeseries charts when timeseries query is loading (no data yet)", async () => {
+    // Make timeseries hang so data is never returned — timeseries will be undefined
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === ApiPaths.workflows()) {
+        return { ok: true, json: async () => [] } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardTimeseries())) {
+        // Never resolve — simulates loading state; the query will stay in undefined
+        return new Promise<Response>(() => {});
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardSummary())) {
+        return {
+          ok: true,
+          json: async () => ({
+            runs: { totalRuns: 0, completedRuns: 0, failedRuns: 0, runningRuns: 0, averageDurationMs: 0 },
+            ai: { inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0, reasoningTokens: 0 },
+            costs: { currencies: [] },
+          }),
+        } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardDimensions())) {
+        return { ok: true, json: async () => ({ modelNames: [] }) } as Response;
+      }
+      if (url.startsWith(ApiPaths.telemetryDashboardRuns())) {
+        return { ok: true, json: async () => ({ items: [], totalCount: 0, page: 1, pageSize: 10 }) } as Response;
+      }
+      return { ok: false, text: async () => `Unhandled URL: ${url}` } as Response;
+    });
+
+    renderScreen();
+
+    // Screen should render without crashing; timeseries charts are hidden while data is absent
+    await screen.findByTestId("dashboard-screen");
+    expect(screen.queryByTestId("dashboard-run-status-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-token-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-cost-chart")).not.toBeInTheDocument();
+  });
+
   it("renders custom range inputs and forwards their changes", () => {
     const handleCustomStartChange = vi.fn();
     const handleCustomEndChange = vi.fn();
