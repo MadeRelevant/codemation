@@ -245,6 +245,7 @@ import { InMemoryBinaryStorage } from "@codemation/core/bootstrap";
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
 import { AppContainerLifecycle } from "./AppContainerLifecycle";
 import { WorkflowRunRetentionPruneScheduler } from "../application/runs/WorkflowRunRetentionPruneScheduler";
+import { WorkflowAuditLogPruneScheduler } from "../application/WorkflowAuditLogPruneScheduler";
 import { DatabaseMigrations } from "./runtime/DatabaseMigrations";
 import { FrontendRuntime } from "./runtime/FrontendRuntime";
 import { WorkerRuntime } from "./runtime/WorkerRuntime";
@@ -989,6 +990,7 @@ export class AppContainerFactory {
     container.registerSingleton(PrismaWorkflowAuditLogRepository, PrismaWorkflowAuditLogRepository);
     container.register(ApplicationTokens.WorkflowAuditEmitter, { useToken: PrismaWorkflowAuditLogRepository });
     container.registerSingleton(WorkflowAuditLogWriter, WorkflowAuditLogWriter);
+    container.registerSingleton(WorkflowAuditLogPruneScheduler, WorkflowAuditLogPruneScheduler);
   }
 
   private async registerRuntimeInfrastructure(container: Container, appConfig: AppConfig): Promise<PrismaOwnership> {

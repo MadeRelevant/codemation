@@ -2,6 +2,7 @@ import type { Container } from "@codemation/core";
 import { Engine } from "@codemation/core/bootstrap";
 import { RunEventBusTelemetryReporter } from "../application/telemetry/RunEventBusTelemetryReporter";
 import { WorkflowRunRetentionPruneScheduler } from "../application/runs/WorkflowRunRetentionPruneScheduler";
+import { WorkflowAuditLogPruneScheduler } from "../application/WorkflowAuditLogPruneScheduler";
 import type { PrismaDatabaseClient } from "../infrastructure/persistence/PrismaDatabaseClient";
 import { WorkflowRunEventWebsocketRelay } from "../application/websocket/WorkflowRunEventWebsocketRelay";
 import { WorkflowWebsocketServer } from "../presentation/websocket/WorkflowWebsocketServer";
@@ -25,6 +26,9 @@ export class AppContainerLifecycle {
     if (this.container.isRegistered(WorkflowAuditLogWriter, true)) {
       await this.container.resolve(WorkflowAuditLogWriter).start();
     }
+    if (this.container.isRegistered(WorkflowAuditLogPruneScheduler, true)) {
+      this.container.resolve(WorkflowAuditLogPruneScheduler).start();
+    }
   }
 
   async stop(args?: Readonly<{ stopWebsocketServer?: boolean }>): Promise<void> {
@@ -42,6 +46,9 @@ export class AppContainerLifecycle {
     }
     if (this.container.isRegistered(WorkflowRunRetentionPruneScheduler, true)) {
       this.container.resolve(WorkflowRunRetentionPruneScheduler).stop();
+    }
+    if (this.container.isRegistered(WorkflowAuditLogPruneScheduler, true)) {
+      this.container.resolve(WorkflowAuditLogPruneScheduler).stop();
     }
     if (args?.stopWebsocketServer !== false && this.container.isRegistered(WorkflowWebsocketServer, true)) {
       await this.container.resolve(WorkflowWebsocketServer).stop();
