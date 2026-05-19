@@ -6,6 +6,7 @@ import { ApplicationTokens } from "../../applicationTokens";
 import type { AppConfig } from "../../presentation/config/AppConfig";
 
 import type { JsonRecord } from "./CredentialServices";
+import { CredentialKeyRotatedError } from "./CredentialKeyRotatedError";
 
 @injectable()
 export class CredentialSecretCipher {
@@ -44,12 +45,18 @@ export class CredentialSecretCipher {
       schemaVersion: number;
     }>,
   ): JsonRecord {
+    // resolveKeyMaterial throws if env is missing — that check must come first.
+    const keyMaterial = this.resolveKeyMaterial();
+    const currentKeyId = this.resolveKeyId();
+    if (record.encryptionKeyId !== currentKeyId) {
+      throw new CredentialKeyRotatedError(record.encryptionKeyId);
+    }
     // eslint-disable-next-line codemation/no-buffer-everything -- AES-GCM credential cipher operates on bounded KB-sized JSON payloads; streaming crypto is not applicable here.
     const packed = Buffer.from(record.encryptedJson, "base64");
     const iv = packed.subarray(0, CredentialSecretCipher.ivLength);
     const authTag = packed.subarray(CredentialSecretCipher.ivLength, CredentialSecretCipher.ivLength + 16);
     const encrypted = packed.subarray(CredentialSecretCipher.ivLength + 16);
-    const decipher = createDecipheriv(CredentialSecretCipher.algorithm, this.resolveKeyMaterial(), iv);
+    const decipher = createDecipheriv(CredentialSecretCipher.algorithm, keyMaterial, iv);
     decipher.setAuthTag(authTag);
     // eslint-disable-next-line codemation/no-buffer-everything -- AES-GCM credential cipher operates on bounded KB-sized JSON payloads; streaming crypto is not applicable here.
     const plaintext = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");

@@ -15,6 +15,10 @@ export class IncomingHmacVerifier {
   constructor(@inject(PairingConfigToken) private readonly config: PairingConfig) {}
 
   verify(method: string, url: string, body: string, authHeader: string | null): PairingVerificationResult {
+    if (!this.config.pairingSecret || this.config.pairingSecret.trim().length === 0) {
+      throw new Error("IncomingHmacVerifier: pairingSecret is not configured — cannot verify HMAC requests.");
+    }
+
     if (!authHeader?.startsWith("Codemation-Hmac ")) {
       return { failure: "missing" };
     }
