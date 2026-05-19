@@ -242,6 +242,8 @@ import { ServerLoggerFactory } from "../infrastructure/logging/ServerLoggerFacto
 import type { AppConfig } from "../presentation/config/AppConfig";
 import { CodemationContainerRegistrationRegistrar } from "./CodemationContainerRegistrationRegistrar";
 import { LocalFilesystemBinaryStorage } from "../infrastructure/binary/LocalFilesystemBinaryStorageRegistry";
+import { S3BinaryStorage } from "../infrastructure/binary/S3BinaryStorage";
+import { S3BinaryStorageConfigSchema } from "../infrastructure/binary/S3BinaryStorageConfig";
 import { InMemoryBinaryStorage } from "@codemation/core/bootstrap";
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
 import { AppContainerLifecycle } from "./AppContainerLifecycle";
@@ -1002,7 +1004,7 @@ export class AppContainerFactory {
         ? new RedisRunEventBus(this.requireRedisUrl(appConfig.eventing.redisUrl), queuePrefix)
         : new InMemoryRunEventBus();
     container.registerInstance(CoreTokens.RunEventBus, eventBus);
-    const binaryStorage = this.createBinaryStorage(appConfig.repoRoot);
+    const binaryStorage = await this.createBinaryStorage(appConfig);
     container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
     container.registerInstance(CoreTokens.BinaryStorage, binaryStorage);
     container.registerInstance(ApplicationTokens.Clock, new SystemClock());
@@ -1177,11 +1179,33 @@ export class AppContainerFactory {
     };
   }
 
-  private createBinaryStorage(repoRoot: string): InMemoryBinaryStorage | LocalFilesystemBinaryStorage {
-    if (!repoRoot) {
+  private async createBinaryStorage(
+    appConfig: AppConfig,
+  ): Promise<InMemoryBinaryStorage | LocalFilesystemBinaryStorage | S3BinaryStorage> {
+    const kind = appConfig.env.BINARY_STORAGE_KIND ?? "local";
+
+    if (kind === "s3") {
+      const parseResult = S3BinaryStorageConfigSchema.safeParse({
+        endpoint: appConfig.env.BINARY_STORAGE_S3_ENDPOINT,
+        region: appConfig.env.BINARY_STORAGE_S3_REGION,
+        bucket: appConfig.env.BINARY_STORAGE_S3_BUCKET,
+        accessKeyId: appConfig.env.BINARY_STORAGE_S3_ACCESS_KEY_ID,
+        secretAccessKey: appConfig.env.BINARY_STORAGE_S3_SECRET_ACCESS_KEY,
+      });
+      if (!parseResult.success) {
+        throw new Error(
+          `BINARY_STORAGE_KIND=s3 requires all BINARY_STORAGE_S3_* env vars. Validation errors: ${parseResult.error.message}`,
+        );
+      }
+      const storage = new S3BinaryStorage(parseResult.data);
+      await storage.checkConnectivity();
+      return storage;
+    }
+
+    if (!appConfig.repoRoot) {
       return new InMemoryBinaryStorage();
     }
-    return new LocalFilesystemBinaryStorage(`${repoRoot}/.codemation/binary`);
+    return new LocalFilesystemBinaryStorage(`${appConfig.repoRoot}/.codemation/binary`);
   }
 
   private createRuntimeSummary(appConfig: AppConfig): BootRuntimeSummary {

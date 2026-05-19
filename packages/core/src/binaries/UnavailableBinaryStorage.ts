@@ -16,4 +16,10 @@ export class UnavailableBinaryStorage implements BinaryStorage {
   }
 
   async delete(): Promise<void> {}
+
+  async deleteMany(): Promise<void> {}
+
+  async listByPrefix(): Promise<ReadonlyArray<string>> {
+    return [];
+  }
 }

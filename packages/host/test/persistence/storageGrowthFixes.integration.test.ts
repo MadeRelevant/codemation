@@ -38,6 +38,8 @@ describe("TelemetryArtifact payload offload to BinaryStorage when payload > 64 K
       openReadStream: async () => undefined,
       stat: async () => ({ exists: false }),
       delete: async () => undefined,
+      deleteMany: async () => undefined,
+      listByPrefix: async () => [],
     };
 
     const prisma = session.transaction!.getPrismaClient();

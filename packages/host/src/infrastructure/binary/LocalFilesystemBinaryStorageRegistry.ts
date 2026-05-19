@@ -1,6 +1,6 @@
 import { createReadStream, createWriteStream } from "node:fs";
 
-import { mkdir, rm, stat } from "node:fs/promises";
+import { mkdir, readdir, rm, stat } from "node:fs/promises";
 
 import path from "node:path";
 
@@ -70,6 +70,34 @@ export class LocalFilesystemBinaryStorage implements BinaryStorage {
 
   async delete(storageKey: string): Promise<void> {
     await rm(this.resolveAbsolutePath(storageKey), { force: true });
+  }
+
+  async deleteMany(storageKeys: ReadonlyArray<string>): Promise<void> {
+    await Promise.all(storageKeys.map((key) => this.delete(key)));
+  }
+
+  async listByPrefix(prefix: string): Promise<ReadonlyArray<string>> {
+    const results: string[] = [];
+    await this.collectKeysWithPrefix(prefix, this.baseDirectory, results);
+    return results;
+  }
+
+  private async collectKeysWithPrefix(prefix: string, dir: string, results: string[]): Promise<void> {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const entryPath = path.join(dir, entry.name);
+      const relKey = path.relative(path.resolve(this.baseDirectory), entryPath).replace(/\\/g, "/");
+      if (entry.isDirectory()) {
+        await this.collectKeysWithPrefix(prefix, entryPath, results);
+      } else if (relKey.startsWith(prefix)) {
+        results.push(relKey);
+      }
+    }
   }
 
   private resolveAbsolutePath(storageKey: string): string {

@@ -756,6 +756,13 @@ export default [
     },
   },
   {
+    files: ["packages/host/src/infrastructure/binary/S3BinaryStorage.ts"],
+    rules: {
+      // AWS SDK v3 commands and S3Client are created inside this infrastructure adapter.
+      "codemation/no-manual-di-new": "off",
+    },
+  },
+  {
     files: ["packages/host/src/presentation/http/ApiPaths.ts"],
     rules: {
       "codemation/no-static-methods": "off",

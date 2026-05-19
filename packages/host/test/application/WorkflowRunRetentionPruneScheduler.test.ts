@@ -59,6 +59,8 @@ describe("WorkflowRunRetentionPruneScheduler", () => {
       delete: async (storageKey: string) => {
         deletedBinaryKeys.push(storageKey);
       },
+      deleteMany: async () => undefined,
+      listByPrefix: async () => [],
     };
     const prunedTelemetry: string[] = [];
     const candidates: ReadonlyArray<RunPruneCandidate> = [
@@ -203,6 +205,8 @@ describe("WorkflowRunRetentionPruneScheduler", () => {
         },
         stat: async () => ({ exists: false }),
         delete: async () => undefined,
+        deleteMany: async () => undefined,
+        listByPrefix: async () => [],
       },
       spanStore,
       artifactStore,
@@ -254,6 +258,8 @@ describe("WorkflowRunRetentionPruneScheduler", () => {
         },
         stat: async () => ({ exists: false }),
         delete: async () => undefined,
+        deleteMany: async () => undefined,
+        listByPrefix: async () => [],
       },
       {
         upsert: async () => undefined,
