@@ -45,6 +45,30 @@ export default defineConfig({
         // Internal HMAC route registrar — runtime DI + HMAC wiring; covered by integration
         "src/workflows/InternalWorkflowTestRunRegistrar.ts",
         "src/workflows/InternalWorkflowActivationRegistrar.ts",
+        // Remaining SQLite collection helpers — require live SQLite DB
+        "src/infrastructure/collections/SqliteCollectionAdvisoryLockService.ts",
+        "src/infrastructure/collections/SqliteCollectionAdvisoryLockServiceFactory.ts",
+        "src/infrastructure/collections/SqliteCollectionDdlEmitter.ts",
+        "src/infrastructure/collections/SqliteCollectionDdlEmitterFactory.ts",
+        "src/infrastructure/collections/SqliteCollectionSchemaIntrospectorFactory.ts",
+        "src/infrastructure/collections/SqliteCollectionStoreFactory.ts",
+        // Broker pairing — requires live paired control-plane connection
+        "src/credentials/BrokerClient.ts",
+        "src/credentials/BrokerRefreshError.ts",
+        "src/credentials/BrokerRefreshInvalidGrantError.ts",
+        "src/credentials/OAuth2ViaBrokerCredentialTypeFactory.ts",
+        "src/pairing/**",
+        // Bootstrap runtime entry points — composed at startup
+        "src/bootstrap/CodemationContainerRegistrationRegistrar.ts",
+        "src/bootstrap/CodemationBootstrapRequest.ts",
+        "src/bootstrap/CodemationRuntimeUrlResolver.ts",
+        "src/bootstrap/runtime/**",
+        // Prisma adapters requiring live DB beyond what integration already covers
+        "src/infrastructure/persistence/CodemationPostgres*.ts",
+        // Postgres audit log — requires live Prisma Postgres client
+        "src/audit/PrismaWorkflowAuditLogRepository.ts",
+        // Application command — requires live DB bootstrap user upsert
+        "src/application/commands/UpsertLocalBootstrapUserCommand.ts",
       ],
     },
   },

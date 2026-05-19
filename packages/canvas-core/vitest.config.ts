@@ -17,7 +17,11 @@ export default defineConfig({
       provider: "v8",
       // Scope to canvas-lib only (pure logic; hooks/ excluded from the threshold gate).
       include: ["src/canvas-lib/**/*.ts"],
-      exclude: ["src/canvas-lib/elk/**/*.ts"],
+      exclude: [
+        "src/canvas-lib/elk/**/*.ts",
+        // Test helpers are not product code — exclude from coverage measurement.
+        "test/**",
+      ],
       thresholds: {
         lines: 65,
         functions: 80,

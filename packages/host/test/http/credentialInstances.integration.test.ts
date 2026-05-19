@@ -23,7 +23,8 @@ import type { PostgresRollbackTransaction } from "./testkit/PostgresRollbackTran
 const testCredentialTypeId = "test.apiKey";
 const testOAuthCredentialTypeId = "test.oauth";
 const testSecretValue = "secret-value-12345";
-const testMasterKey = "test-master-key-for-integration-tests-only";
+// Must be a valid base64-encoded 32-byte value — cipher hardened in Sprint 13/14
+const testMasterKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
 class TestCredentialRegistrar {
   register(context: CodemationAppContext): void {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 
 import { WorkflowBuilder } from "../../src/workflow/dsl/WorkflowBuilder";
+import { ChainCursor } from "../../src/workflow/dsl/ChainCursorResolver";
 import { WhenBuilder } from "../../src/workflow/dsl/WhenBuilder";
 
 // Minimal stub node configs for DSL wiring tests — no real execution needed.
@@ -121,5 +122,38 @@ describe("WhenBuilder", () => {
     assert.ok(result instanceof WhenBuilder, "when() should return a WhenBuilder");
     const def = result.build();
     assert.equal(def.id, "wf-when-test");
+  });
+});
+
+describe("ChainCursor", () => {
+  function makeWf() {
+    return new WorkflowBuilder({ id: "wf-chain-test", name: "ChainCursor test" });
+  }
+
+  it("when(true, steps) connects steps to the 'true' output port", () => {
+    const wf = makeWf();
+    const trigger = (wf as any).add(makeNodeConfig("Trigger", "cc-trigger"));
+    const cursor = new ChainCursor<unknown>(wf, [{ node: trigger, output: "main" }]);
+    const step1 = makeNodeConfig("TrueStep", "cc-true-step");
+    const result = cursor.when(true, [step1]);
+    // Returns a WhenBuilder
+    assert.ok(result instanceof WhenBuilder);
+    const def = result.build();
+    const edge = def.edges.find((e: any) => e.from.nodeId === "cc-trigger" && e.from.output === "true");
+    assert.ok(edge, "Expected edge from cursor via 'true' output");
+  });
+
+  it("when(boolean) with multiple endpoints throws", () => {
+    const wf = makeWf();
+    const n1 = (wf as any).add(makeNodeConfig("N1", "cc-n1"));
+    const n2 = (wf as any).add(makeNodeConfig("N2", "cc-n2"));
+    const cursor = new ChainCursor<unknown>(wf, [
+      { node: n1, output: "main" },
+      { node: n2, output: "main" },
+    ]);
+    assert.throws(
+      () => cursor.when(true, [makeNodeConfig("Step", "cc-step")]),
+      /only supported from a single cursor endpoint/,
+    );
   });
 });

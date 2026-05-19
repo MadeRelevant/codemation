@@ -2,7 +2,7 @@
 
 import { Button } from "@codemation/ui";
 import { CodemationDialog } from "@codemation/ui";
-import { Input } from "@/components/ui/input";
+import { Input } from "@codemation/ui";
 import { InviteLinkCopyRow } from "./InviteLinkCopyRow";
 import {
   Form,

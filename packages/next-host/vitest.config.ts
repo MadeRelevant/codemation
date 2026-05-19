@@ -23,6 +23,20 @@ export default defineConfig({
     setupFiles: ["./test/setup.ts"],
     pool: "threads",
     testTimeout: 60_000,
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts", "src/**/*.tsx"],
+      exclude: [
+        // Next.js server bootstrap — requires full App Container + Prisma + plugin discovery;
+        // cannot be unit-tested without the entire host DI runtime.
+        "src/server/CodemationNextHost.ts",
+        "src/server/NextHostPackageRootResolver.ts",
+        // Edge runtime session verifier — requires Next.js edge crypto APIs not available in jsdom/node.
+        "src/auth/EdgeSessionVerifier.ts",
+        // Realtime WebSocket adapter — depends on live host server; covered by e2e only.
+        "src/features/workflows/lib/realtime/realtimeApi.ts",
+      ],
+    },
   },
   resolve: {
     conditions: ["development", "import", "module", "default"],

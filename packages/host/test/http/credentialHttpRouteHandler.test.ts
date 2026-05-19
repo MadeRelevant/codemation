@@ -113,6 +113,24 @@ describe("CredentialHttpRouteHandler — ?withSecrets=1 ownership check (Story 0
     expect(res.status).toBe(200);
   });
 
+  it("returns 403 when principal is null (unauthenticated) with ?withSecrets=1", async () => {
+    const handler = makeHandler(null, null);
+    const req = new Request("http://localhost/api/credentials/cred-1?withSecrets=1");
+    const res = await handler.getCredentialInstance(req, { instanceId: "cred-1" });
+
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("Forbidden");
+  });
+
+  it("returns 403 when principal is null in managed-auth mode with ?withSecrets=1", async () => {
+    const handler = makeHandler(null, pairingConfig);
+    const req = new Request("http://localhost/api/credentials/cred-1?withSecrets=1");
+    const res = await handler.getCredentialInstance(req, { instanceId: "cred-1" });
+
+    expect(res.status).toBe(403);
+  });
+
   it("does not check ownership when withSecrets is not requested", async () => {
     // Even with a mismatched workspaceId, no-secrets requests pass through.
     const principal: AuthenticatedPrincipal = {

@@ -149,3 +149,42 @@ test("planner does not let a skipped node's continueWhenEmptyOutput resurrect do
 
   assert.equal(queue.length, 0);
 });
+
+test("validateNodeKinds throws when a node has multiple inbound edges and is not registered in nodeInstances", () => {
+  const builder = dag({ id: "wf.validate.multi-not-supported", name: "Multi not supported" });
+  builder.add(new CallbackNodeConfig("A", () => {}, { id: "A" }));
+  builder.add(new CallbackNodeConfig("B", () => {}, { id: "B" }));
+  builder.add(new CallbackNodeConfig("C", () => {}, { id: "C" }));
+  // C receives from both A and B on different input ports
+  builder.connect("A", "C", "main", "left");
+  builder.connect("B", "C", "main", "right");
+  const workflow = builder.build();
+  // Node C is not registered in the instances map → inst is undefined → no multi-input support
+  const planner = new RunQueuePlanner(WorkflowTopology.fromWorkflow(workflow), new Map());
+  assert.throws(() => planner.validateNodeKinds(), /does not support multi-input/);
+});
+
+test("describeUnsatisfiedCollect renders received and missing inputs in the error", () => {
+  const builder = dag({ id: "wf.validate.stuck-collect-desc", name: "Stuck describe" });
+  builder.add(new CallbackNodeConfig("A", () => {}, { id: "A" }));
+  builder.add(new CallbackNodeConfig("B", () => {}, { id: "B" }));
+  builder.add(new MergeNodeConfig("Merge", { mode: "append" }, { id: "merge" }));
+  builder.connect("A", "merge", "main", "left");
+  builder.connect("B", "merge", "main", "right");
+  const workflow = builder.build();
+  const planner = new RunQueuePlanner(WorkflowTopology.fromWorkflow(workflow), new Map([["merge", new MergeNode()]]));
+  // A collect with NO received inputs is "stuck" — resolveSealedCollect skips it (Object.keys(received).length === 0)
+  const queue: RunQueueEntry[] = [
+    {
+      nodeId: "merge",
+      input: [],
+      batchId: "batch_1",
+      collect: {
+        expectedInputs: ["left", "right"],
+        received: {},
+      },
+    },
+  ];
+  // nextActivation should throw because the collect is stuck (no received inputs, nothing can proceed)
+  assert.throws(() => planner.nextActivation(queue), /Multi-input collect is stuck/);
+});

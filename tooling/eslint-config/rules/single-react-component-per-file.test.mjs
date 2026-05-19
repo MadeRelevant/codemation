@@ -277,4 +277,83 @@ describe("codemation/single-react-component-per-file", () => {
       invalid: [],
     });
   });
+
+  it("allows export default named function component", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "hero.tsx",
+          code: `export default function Hero() { return null; }`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("allows export named variable component (memo)", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "widget.tsx",
+          code: `export const Widget = memo(() => null);`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("allows export default class with named function inside ExportDefault", () => {
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "page.tsx",
+          code: `export default function Page() { return null; }`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("extendsReactComponentClass returns false for unrecognised superClass type", () => {
+    // Covers the fallthrough return false in extendsReactComponentClass
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "computed.tsx",
+          code: `class Computed extends obj["Component"] { render() { return null; } }`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("isMemoOrForwardRefCall returns false for non-matching call", () => {
+    // Covers the fallthrough return false in isMemoOrForwardRefCall
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [
+        {
+          filename: "plain.tsx",
+          code: `function Plain() { return null; }`,
+        },
+      ],
+      invalid: [],
+    });
+  });
+
+  it("flags export default VariableDeclaration with multiple memo-wrapped components", () => {
+    // Covers ExportDefaultDeclaration with VariableDeclaration sub-path
+    tester.run("single-react-component-per-file", singleReactComponentPerFile, {
+      valid: [],
+      invalid: [
+        {
+          filename: "multi.tsx",
+          code: `
+            export default function Multi() { return null; }
+            function Other() { return null; }
+          `,
+          errors: [{ message: /single React component/i }],
+        },
+      ],
+    });
+  });
 });

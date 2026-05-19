@@ -21,6 +21,8 @@ export default defineConfig({
         "src/scheduler/index.ts",
         "src/execution/NodeRunStateWriter.ts",
         "src/execution/NodeRunStateWriterFactory.ts",
+        // Test helpers are not product code — exclude from coverage measurement.
+        "test/**",
       ],
       /** Engine gate: execution/scheduling/planning should stay ≥90%. */
       thresholds: {

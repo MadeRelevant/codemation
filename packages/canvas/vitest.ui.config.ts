@@ -16,6 +16,16 @@ export default defineConfig({
     include: ["test/**/*.test.tsx", "test/**/*.test.ts"],
     setupFiles: ["./test/setup.ts"],
     pool: "threads",
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts", "src/**/*.tsx"],
+      exclude: [
+        // ReactFlow edge primitives — require full ReactFlow SVG context to render; visual-only
+        "src/canvas/WorkflowCanvasStraightCountEdge.tsx",
+        "src/canvas/WorkflowCanvasSymmetricForkEdge.tsx",
+        "src/canvas/WorkflowCanvasSimpleIconGlyph.tsx",
+      ],
+    },
   },
   resolve: {
     conditions: ["development", "import", "module", "default"],

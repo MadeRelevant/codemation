@@ -4,8 +4,7 @@ import { Component, type FormEvent, type ReactNode } from "react";
 
 import { Button } from "@codemation/ui";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Input, Label } from "@codemation/ui";
 import { Separator } from "@/components/ui/separator";
 
 import { OauthProviderIcon } from "../components/OauthProviderIcon";

@@ -71,14 +71,18 @@ export class CredentialHttpRouteHandler {
       const withSecrets = new URL(request.url).searchParams.get("withSecrets") === "1";
 
       if (withSecrets) {
-        // Ownership check: in managed-auth mode the JWT aud claim encodes the
-        // workspace ID. Each installation is single-tenant, so the principal's
-        // workspaceId must match the installation's own workspaceId. In local-
-        // auth mode (no pairingConfig / no workspaceId on principal) the outer
-        // middleware session check is sufficient.
+        // Ownership check: fail-closed.
+        // - If the session verifier returns null (unauthenticated), reject.
+        // - In managed-JWT mode the principal's workspaceId must match the
+        //   installation's own workspaceId (from PairingConfig).
+        // - In local-auth mode (pairingConfig absent) a valid non-null principal
+        //   is sufficient — no cross-workspace check is possible or needed.
         const principal = await this.sessionVerifier.verify(request);
+        if (!principal) {
+          return Response.json({ error: "Forbidden" }, { status: 403 });
+        }
         if (
-          principal?.source === "managed-jwt" &&
+          principal.source === "managed-jwt" &&
           this.pairingConfig !== null &&
           principal.workspaceId !== this.pairingConfig.workspaceId
         ) {

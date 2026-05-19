@@ -21,6 +21,7 @@ export default defineConfig({
       p("../../packages/cli/vitest.config.ts"),
       p("../../packages/next-host/vitest.config.ts"),
       p("../../packages/host/vitest.unit.config.ts"),
+      p("../../packages/eventbus-redis/vitest.config.ts"),
     ],
   },
 });

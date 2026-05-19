@@ -4,6 +4,8 @@
  */
 import { describe, expect, test } from "vitest";
 
+import { WorkflowCanvasSiIconRegistry } from "../../src/canvas-lib/WorkflowCanvasSiIconRegistry";
+
 import { WorkflowCanvasRoundedOrthogonalPathPlanner } from "../../src/canvas-lib/WorkflowCanvasRoundedOrthogonalPathPlanner";
 import { WorkflowCanvasSymmetricForkPathPlanner } from "../../src/canvas-lib/WorkflowCanvasSymmetricForkPathPlanner";
 import { WorkflowCanvasPortOrderResolver } from "../../src/canvas-lib/WorkflowCanvasPortOrderResolver";
@@ -158,6 +160,20 @@ describe("WorkflowCanvasNodeGeometry", () => {
   test("attachmentNodeHeightPx returns a positive number", () => {
     const h = WorkflowCanvasNodeGeometry.attachmentNodeHeightPx("Tool name", WORKFLOW_CANVAS_ATTACHMENT_NODE_CARD_PX);
     expect(h).toBeGreaterThan(0);
+  });
+});
+
+// ── SiIconRegistry ────────────────────────────────────────────────────────────
+
+describe("WorkflowCanvasSiIconRegistry", () => {
+  test("resolves the gmail icon by slug", () => {
+    const icon = WorkflowCanvasSiIconRegistry.resolve("gmail");
+    expect(icon).toBeDefined();
+    expect(icon?.slug).toBe("gmail");
+  });
+
+  test("returns undefined for an unknown slug", () => {
+    expect(WorkflowCanvasSiIconRegistry.resolve("nonexistent-slug-xyz")).toBeUndefined();
   });
 });
 

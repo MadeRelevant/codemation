@@ -201,6 +201,21 @@ describe("CreateCodemationProgram", () => {
     expect(onboarding.last?.noInteraction).toBe(false);
   });
 
+  it("exits with an error when only --admin-email is provided without --admin-password", async () => {
+    const resolver = new TemplateDirectoryResolver(import.meta.url);
+    const nodeFs = new NodeFileSystem();
+    const templateCatalog = new TemplateCatalog(resolver, nodeFs);
+    const memory = new MemoryStdout();
+    const onboarding = new NoopOnboarding();
+    const scaffolder = new RecordingScaffolder();
+    const program = new CreateCodemationProgram(scaffolder as never, templateCatalog, memory, onboarding);
+
+    // Commander's program.error() throws a CommanderError; catch it.
+    await expect(
+      program.run(["--template", "default", "--admin-email", "admin@example.com", "my-app"]),
+    ).rejects.toThrow();
+  });
+
   it("forwards --force to the scaffolder", async () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();

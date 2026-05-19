@@ -235,7 +235,9 @@ describe("telemetry persistence", () => {
     await expect(metricPointStore.list({ runId: "run_retention" })).resolves.toHaveLength(1);
 
     await expect(spanStore.pruneExpired({ nowIso: "2026-08-01T00:00:00.000Z" })).resolves.toBe(1);
-    await expect(artifactStore.pruneExpired({ nowIso: "2026-08-01T00:00:00.000Z" })).resolves.toBe(1);
+    await expect(artifactStore.pruneExpired({ nowIso: "2026-08-01T00:00:00.000Z" })).resolves.toMatchObject({
+      count: 1,
+    });
     await expect(metricPointStore.pruneExpired({ nowIso: "2026-08-01T00:00:00.000Z" })).resolves.toBe(1);
   });
 });

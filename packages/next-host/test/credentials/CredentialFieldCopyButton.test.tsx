@@ -21,8 +21,7 @@ function restoreClipboard() {
     Object.defineProperty(navigator, "clipboard", originalClipboardDescriptor);
   } else {
     // Navigator.clipboard was not originally own — remove the override.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (navigator as any).clipboard;
+    delete (navigator as Record<string, unknown>).clipboard;
   }
 }
 

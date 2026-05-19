@@ -35,7 +35,7 @@ const gmailType = testGmailOAuthCredentialType();
 describe("NextHostCredentialBindingsRenderer — no inline style props (Sprint 14 Story 11 D4)", () => {
   afterEach(() => cleanup());
 
-  it("renders the credential section without inline style attributes on section and its direct children", () => {
+  it("renders the credential section without inline style attributes on the section and its direct children", () => {
     const workflowId = "wf-style-check";
     const node = testWorkflowDiagramNode();
     const instance = testCredentialInstanceDto({ instanceId: "inst-1", typeId: "gmail-oauth" });
@@ -83,15 +83,15 @@ describe("NextHostCredentialBindingsRenderer — no inline style props (Sprint 1
       </WorkflowCanvasApiClientProvider>,
     );
 
-    // The section element itself must not have an inline style attribute.
+    // Check only the section element we own and its direct children.
+    // Child primitives (Radix Select, etc.) may add inline styles internally.
     const section = container.querySelector('[data-testid="node-properties-credential-section"]');
     if (section) {
       expect((section as HTMLElement).getAttribute("style")).toBeNull();
-      // Direct children of the section should have no inline styles.
       const styledDirectChildren = section.querySelectorAll(":scope > [style]");
       expect(styledDirectChildren.length).toBe(0);
     }
-    // If section is null, no credential slots rendered (null return path), which is acceptable.
+    // If section is null, no credential slots rendered, which is fine.
 
     globalThis.fetch = priorFetch;
   });
