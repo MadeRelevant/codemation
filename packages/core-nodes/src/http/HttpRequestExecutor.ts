@@ -2,6 +2,7 @@ import type { Item } from "@codemation/core";
 import type { HttpRequestResult, HttpRequestSpec } from "./httpRequest.types";
 import type { HttpBodyBuilder } from "./HttpBodyBuilder";
 import type { HttpUrlBuilder } from "./HttpUrlBuilder";
+import type { SsrfGuard } from "./SsrfGuard";
 
 /**
  * Executes a single HTTP request described by {@link HttpRequestSpec}.
@@ -9,27 +10,34 @@ import type { HttpUrlBuilder } from "./HttpUrlBuilder";
  * - Credential sessions provide header/query deltas via `applyToRequest`.
  * - Body encoding is delegated to {@link HttpBodyBuilder}.
  * - URL query merging is delegated to {@link HttpUrlBuilder}.
+ * - SSRF protection is delegated to {@link SsrfGuard} (injected).
  * - Binary response bodies: when `download.mode` triggers binary attach, the
  *   `bodyBinaryName` field is set in the result but the body is NOT read here.
  *   Callers that need binary attachment should use `buildRequest` to get the
  *   resolved URL + init and make the fetch + binary attach themselves.
  *
- * Collaborators (`fetch`, body builder, url builder) are injected so callers
- * own construction at composition roots and tests can supply deterministic stubs.
+ * Collaborators (`fetch`, body builder, url builder, ssrfGuard) are injected so
+ * callers own construction at composition roots and tests can supply deterministic stubs.
  */
 export class HttpRequestExecutor {
   constructor(
     private readonly fetchFn: typeof globalThis.fetch,
     private readonly bodyBuilder: HttpBodyBuilder,
     private readonly urlBuilder: HttpUrlBuilder,
+    private readonly ssrfGuard: SsrfGuard,
   ) {}
 
   /**
    * Builds the fetch init (headers, query, body) from the spec + credential delta,
    * returning both the resolved URL and the RequestInit so callers can make the
    * actual fetch call themselves (useful for streaming / binary attach).
+   *
+   * Also performs SSRF protection via the injected {@link SsrfGuard} before
+   * returning — throws {@link SSRFBlockedError} if the target is a private address.
    */
   async buildRequest(spec: HttpRequestSpec, item: Item): Promise<Readonly<{ url: string; init: RequestInit }>> {
+    await this.ssrfGuard.check(spec.url, spec.allowPrivateNetworkTargets ?? false);
+
     const credentialDelta = spec.credential?.applyToRequest(spec) ?? {};
 
     const mergedHeaders: Record<string, string> = {

@@ -21,6 +21,15 @@ export class PairingConfigFactory {
       return null;
     }
 
+    // eslint-disable-next-line codemation/no-buffer-everything -- pairing secret is always 32 bytes; bounded by validation below.
+    const decoded = Buffer.from(pairingSecret, "base64");
+    if (decoded.length !== 32) {
+      throw new Error(
+        `WORKSPACE_PAIRING_SECRET must be a base64-encoded 32-byte value (got ${decoded.length} bytes). ` +
+          `Generate a valid secret with: openssl rand -base64 32`,
+      );
+    }
+
     return { workspaceId, pairingSecret, controlPlaneUrl };
   }
 }
