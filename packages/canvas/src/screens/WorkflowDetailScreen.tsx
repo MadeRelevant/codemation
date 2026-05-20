@@ -30,7 +30,7 @@ import { WorkflowCanvas } from "../canvas/WorkflowCanvas";
 import { NodePropertiesSlidePanel } from "../panels/NodePropertiesSlidePanel";
 import { WorkflowRunsSidebar } from "../panels/WorkflowRunsSidebar";
 import { resolveWorkflowRealtimeBadge } from "./workflowDetailScreenRealtimeBadge";
-import { WorkflowActivationErrorDialog } from "../panels/WorkflowActivationErrorDialog";
+import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
 import { WorkflowJsonEditorMount } from "./WorkflowJsonEditorMount";
 import { useWorkflowDetailScreenThemeStyle } from "./useWorkflowDetailScreenThemeStyle";
 import { useWorkflowDetailChromeSync } from "./useWorkflowDetailChromeSync";
@@ -296,6 +296,33 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
                   {realtimeBadge.label}
                 </div>
               ) : null}
+              {controller.runErrorAlertLines && controller.runErrorAlertLines.length > 0 ? (
+                <div
+                  data-testid="workflow-run-error-banner"
+                  className="pointer-events-auto flex w-full max-w-sm items-start gap-2 rounded-md border border-destructive/40 bg-background px-3 py-2 shadow-md ring-1 ring-destructive/20"
+                >
+                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" strokeWidth={2.25} aria-hidden />
+                  <div className="min-w-0 flex-1 text-xs text-destructive">
+                    {controller.runErrorAlertLines.length === 1 ? (
+                      <p>{controller.runErrorAlertLines[0]}</p>
+                    ) : (
+                      <ul className="list-inside list-disc space-y-0.5">
+                        {controller.runErrorAlertLines.map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Dismiss"
+                    className="ml-1 shrink-0 text-muted-foreground hover:text-foreground"
+                    onClick={controller.dismissRunErrorAlert}
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
           {args.renderInspector ? args.renderInspector(inspectorCtx) : <DefaultInspector ctx={inspectorCtx} />}
@@ -308,14 +335,6 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
           onClose={controller.closeJsonEditor}
           onSave={controller.saveJsonEditor}
           renderOverride={args.config?.renderWorkflowJsonEditor}
-        />
-      ) : null}
-      {controller.runErrorAlertLines && controller.runErrorAlertLines.length > 0 ? (
-        <WorkflowActivationErrorDialog
-          open
-          title="Could not start run"
-          alertLines={controller.runErrorAlertLines}
-          onDismiss={controller.dismissRunErrorAlert}
         />
       ) : null}
       <style>{WORKFLOW_DETAIL_TREE_STYLES}</style>
