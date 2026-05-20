@@ -108,8 +108,7 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
       ) as { content?: unknown } | undefined;
       if (systemMsg?.content !== undefined) {
         const content = typeof systemMsg.content === "function" ? "(dynamic)" : String(systemMsg.content);
-        const truncated = content.length > 80 ? `${content.slice(0, 79)}…` : content;
-        rows.push({ label: "System prompt", value: truncated });
+        rows.push({ label: "System prompt", value: content });
       }
     }
 

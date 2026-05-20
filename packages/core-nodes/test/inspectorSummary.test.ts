@@ -96,7 +96,7 @@ describe("AIAgent inspectorSummary", () => {
     expect(rows).toContainEqual({ label: "System prompt", value: "You are a helpful assistant." });
   });
 
-  it("truncates long system prompts at 80 chars", () => {
+  it("passes full system prompt content without truncation", () => {
     const longPrompt = "Be very helpful. ".repeat(10);
     const agent = new AIAgent({
       name: "Agent",
@@ -105,7 +105,7 @@ describe("AIAgent inspectorSummary", () => {
     });
     const rows = agent.inspectorSummary();
     const promptRow = rows.find((r) => r.label === "System prompt");
-    expect(promptRow?.value.length).toBeLessThanOrEqual(80);
+    expect(promptRow?.value).toBe(longPrompt);
   });
 
   it("includes tool count row when tools present", () => {
