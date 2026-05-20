@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@libsql/client", "@prisma/adapter-libsql", "@codemation/core", "@codemation/core-nodes"],
   transpilePackages: [
     "@codemation/canvas",
+    "@codemation/canvas-core",
     "@codemation/eventbus-redis",
     "@codemation/host",
     "@codemation/node-example",

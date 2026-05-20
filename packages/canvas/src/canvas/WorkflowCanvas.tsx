@@ -4,9 +4,10 @@ import {
   Background,
   Controls,
   ReactFlow,
+  useEdgesState,
+  useNodesState,
   type Edge as ReactFlowEdge,
   type NodeTypes,
-  type ReactFlowInstance,
   type Node as ReactFlowNode,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,19 +19,26 @@ import type {
   WorkflowCanvasConfig,
   WorkflowCanvasNodeData,
 } from "@codemation/canvas-core";
-import { useAsyncWorkflowLayout, WORKFLOW_CANVAS_EMBEDDED_STYLES } from "@codemation/canvas-core";
+import {
+  WORKFLOW_CANVAS_EMBEDDED_STYLES,
+  WorkflowElkResultMapper,
+  useWorkflowCanvasRealtimePatches,
+  useWorkflowElkLayout,
+} from "@codemation/canvas-core";
 import { workflowCanvasEdgeTypes, workflowCanvasNodeTypes } from "./lib/workflowCanvasFlowTypes";
-import { useWorkflowCanvasVisibleNodeStatuses } from "../hooks/canvas/useWorkflowCanvasVisibleNodeStatuses";
 import { WorkflowCanvasLoadingPlaceholder } from "./WorkflowCanvasLoadingPlaceholder";
 import { WorkflowCanvasStructureSignature } from "./WorkflowCanvasStructureSignature";
+import { VisibleNodeStatusResolver } from "./VisibleNodeStatusResolver";
+import { useWorkflowCanvasFitView } from "../hooks/canvas/useWorkflowCanvasFitView";
 
 // Stable module-level constants used as default prop values so that callers that
 // omit optional collection props don't produce a new reference on every render,
-// which would otherwise cause useAsyncWorkflowLayout to re-run ELK every tick.
+// which would otherwise cause layout to re-run ELK every tick.
 const EMPTY_CONNECTION_INVOCATIONS: ReadonlyArray<ConnectionInvocationRecord> = Object.freeze([]);
 const EMPTY_CREDENTIAL_TOOLTIP_MAP: ReadonlyMap<string, string> = new Map<string, string>();
 const EMPTY_PINNED_NODE_IDS: ReadonlySet<string> = new Set<string>();
 const EMPTY_BOUND_CREDENTIAL_IDS: ReadonlySet<string> = new Set<string>();
+const EMPTY_NODE_SNAPSHOTS: Readonly<Record<string, NodeExecutionSnapshot>> = Object.freeze({});
 const NO_OP_NODE_CALLBACK = (): void => {};
 
 export function WorkflowCanvas(args: {
@@ -73,13 +81,10 @@ export function WorkflowCanvas(args: {
     onRequestOpenCredentialEditForNode = NO_OP_NODE_CALLBACK,
     config,
   } = args;
+
   const [hasMountedOnClient, setHasMountedOnClient] = useState(false);
   const [isInitialViewportReady, setIsInitialViewportReady] = useState(false);
   const workflowStructureSignature = useMemo(() => WorkflowCanvasStructureSignature.create(workflow), [workflow]);
-  const visibleNodeStatusesByNodeId = useWorkflowCanvasVisibleNodeStatuses(
-    nodeSnapshotsByNodeId,
-    connectionInvocations,
-  );
 
   const noOp = useCallback(() => {}, []);
   const isReadOnly = config?.readOnly === true;
@@ -94,115 +99,127 @@ export function WorkflowCanvas(args: {
     return workflowCanvasNodeTypes;
   }, [config?.renderers?.node]);
 
-  const { nodes, edges } = useAsyncWorkflowLayout({
+  // Controlled state
+  const [nodes, setNodes, onNodesChange] = useNodesState<ReactFlowNode<WorkflowCanvasNodeData>>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<ReactFlowEdge>([]);
+
+  // Mirror nodes/edges in refs so getNodes/getEdges can read them without deps
+  const nodesRef = useRef<ReactFlowNode<WorkflowCanvasNodeData>[]>([]);
+  const edgesRef = useRef<ReactFlowEdge[]>([]);
+  nodesRef.current = nodes;
+  edgesRef.current = edges;
+
+  const getNodes = useCallback(() => nodesRef.current, []);
+  const getEdges = useCallback(() => edgesRef.current, []);
+
+  // Mirror realtime state in refs so the seed effect can read CURRENT values
+  // without listing them in its deps array (which would cause a full re-seed on
+  // every realtime tick). The patch hook handles incremental updates.
+  const nodeSnapshotsByNodeIdRef = useRef<Readonly<Record<string, NodeExecutionSnapshot>>>(EMPTY_NODE_SNAPSHOTS);
+  const connectionInvocationsRef = useRef<ReadonlyArray<ConnectionInvocationRecord>>(EMPTY_CONNECTION_INVOCATIONS);
+  nodeSnapshotsByNodeIdRef.current = nodeSnapshotsByNodeId;
+  connectionInvocationsRef.current = connectionInvocations;
+
+  // ELK layout — runs only when workflow structure or role filter changes
+  const positionedLayout = useWorkflowElkLayout(workflow, config);
+
+  // seedSignature: drives Track 1 (full re-seed). Includes `isRunning` because
+  // node.data.isRunning is a workflow-level flag (consumed by the toolbar's
+  // "Run from here" disable rule); when it flips we need every node's data to
+  // reflect the new value. The seed below reads CURRENT snapshots via refs so
+  // the re-seed doesn't blank out the latest realtime state — no one-frame
+  // flash like the previous "seed with EMPTY snapshots" path produced.
+  const pinnedNodeIdsKey = useMemo(() => [...pinnedNodeIds].sort().join(","), [pinnedNodeIds]);
+  const boundCredentialKey = useMemo(
+    () => [...workflowNodeIdsWithBoundCredential].sort().join(","),
+    [workflowNodeIdsWithBoundCredential],
+  );
+  const seedSignature = useMemo(
+    () =>
+      [
+        workflowStructureSignature,
+        selectedNodeId ?? "",
+        propertiesTargetNodeId ?? "",
+        pinnedNodeIdsKey,
+        boundCredentialKey,
+        String(isLiveWorkflowView),
+        String(isRunning),
+      ].join("|"),
+    [
+      workflowStructureSignature,
+      selectedNodeId,
+      propertiesTargetNodeId,
+      pinnedNodeIdsKey,
+      boundCredentialKey,
+      isLiveWorkflowView,
+      isRunning,
+    ],
+  );
+
+  // Track 1: seed when positionedLayout resolves or seedSignature changes.
+  // Read realtime state through refs so its changes do not trigger re-seeds —
+  // the patch hook below handles incremental realtime updates. Seeding with
+  // the CURRENT snapshots (not EMPTY) ensures the canvas paints with the
+  // correct initial node statuses / edge counts even if realtime events
+  // landed before the seed effect ran.
+  useEffect(() => {
+    if (!positionedLayout) return;
+    const seedSnapshots = nodeSnapshotsByNodeIdRef.current;
+    const seedConnectionInvocations = connectionInvocationsRef.current;
+    const seedStatuses = VisibleNodeStatusResolver.resolveStatuses(seedSnapshots, seedConnectionInvocations);
+    const seeded = WorkflowElkResultMapper.toReactFlow({
+      positionedLayout,
+      nodeSnapshotsByNodeId: seedSnapshots,
+      connectionInvocations: seedConnectionInvocations,
+      nodeStatusesByNodeId: seedStatuses,
+      credentialAttentionTooltipByNodeId,
+      selectedNodeId,
+      propertiesTargetNodeId,
+      pinnedNodeIds,
+      isLiveWorkflowView,
+      isRunning,
+      workflowNodeIdsWithBoundCredential,
+      onSelectNode,
+      onOpenPropertiesNode,
+      onRequestOpenCredentialEditForNode,
+      onRunNode: effectiveOnRunNode,
+      onTogglePinnedOutput: effectiveOnTogglePinnedOutput,
+      onEditNodeOutput: effectiveOnEditNodeOutput,
+      onClearPinnedOutput,
+    });
+    setNodes(seeded.nodes);
+    setEdges(seeded.edges);
+    // Intentionally narrow deps to positionedLayout + seedSignature. Overlay
+    // values (snapshots, callbacks) are NOT seed inputs — they're applied
+    // surgically by `useWorkflowCanvasRealtimePatches` below. Including them
+    // here would cause full re-seeds on every realtime tick, defeating the
+    // patch pipeline. Other overlay fields (selectedNodeId, pinned ids, etc.)
+    // are encoded in `seedSignature` so changes to them DO re-seed.
+  }, [positionedLayout, seedSignature]);
+
+  // Track 2: patch — incremental realtime updates
+  useWorkflowCanvasRealtimePatches({
     workflow,
     nodeSnapshotsByNodeId,
     connectionInvocations,
-    visibleNodeStatusesByNodeId,
-    credentialAttentionTooltipByNodeId,
-    selectedNodeId,
-    propertiesTargetNodeId,
-    pinnedNodeIds,
-    isLiveWorkflowView,
-    isRunning,
-    workflowNodeIdsWithBoundCredential,
-    onSelectNode,
-    onOpenPropertiesNode,
-    onRequestOpenCredentialEditForNode,
-    onRunNode: effectiveOnRunNode,
-    onTogglePinnedOutput: effectiveOnTogglePinnedOutput,
-    onEditNodeOutput: effectiveOnEditNodeOutput,
-    onClearPinnedOutput,
-    config,
+    seedSignature,
+    getNodes,
+    getEdges,
+    setNodes,
+    setEdges,
   });
-  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
-  const reactFlowInstanceRef = useRef<ReactFlowInstance<ReactFlowNode<WorkflowCanvasNodeData>, ReactFlowEdge> | null>(
-    null,
-  );
-  const fitViewAnimationFrameIdRef = useRef<number | null>(null);
-  const fitViewTimeoutIdRef = useRef<number | null>(null);
-  const fitViewRequestIdRef = useRef(0);
-  const fitViewOptions = useMemo(
-    () =>
-      ({
-        padding: 0.24,
-        minZoom: 0.2,
-        maxZoom: 1,
-      }) as const,
-    [],
-  );
-  const scheduleFitView = useCallback(() => {
-    const canvasContainer = canvasContainerRef.current;
-    const reactFlowInstance = reactFlowInstanceRef.current;
-    if (!canvasContainer || !reactFlowInstance || nodes.length === 0) {
-      return;
-    }
-    if (canvasContainer.clientWidth === 0 || canvasContainer.clientHeight === 0) {
-      return;
-    }
-    if (fitViewAnimationFrameIdRef.current !== null) {
-      cancelAnimationFrame(fitViewAnimationFrameIdRef.current);
-    }
-    fitViewRequestIdRef.current += 1;
-    const requestId = fitViewRequestIdRef.current;
-    fitViewAnimationFrameIdRef.current = requestAnimationFrame(() => {
-      fitViewAnimationFrameIdRef.current = requestAnimationFrame(() => {
-        fitViewAnimationFrameIdRef.current = null;
-        void reactFlowInstance.fitView(fitViewOptions).then(() => {
-          if (requestId !== fitViewRequestIdRef.current) {
-            return;
-          }
-          setIsInitialViewportReady(true);
-        });
-      });
-    });
-  }, [fitViewOptions, nodes.length]);
+
+  // Fit-view extracted into hook
+  const { canvasContainerRef, reactFlowInstanceRef, scheduleFitView } = useWorkflowCanvasFitView({
+    nodeCount: nodes.length,
+    workflowId: workflow.id,
+    workflowStructureSignature,
+    setIsInitialViewportReady,
+    isInitialViewportReady,
+  });
 
   useEffect(() => {
     setHasMountedOnClient(true);
-  }, []);
-
-  useEffect(() => {
-    setIsInitialViewportReady(false);
-  }, [workflow.id, workflowStructureSignature]);
-
-  useEffect(() => {
-    scheduleFitView();
-    if (fitViewTimeoutIdRef.current !== null) {
-      window.clearTimeout(fitViewTimeoutIdRef.current);
-    }
-    fitViewTimeoutIdRef.current = window.setTimeout(() => {
-      fitViewTimeoutIdRef.current = null;
-      scheduleFitView();
-    }, 120);
-  }, [scheduleFitView, workflow.id, workflowStructureSignature]);
-
-  useEffect(() => {
-    const canvasContainer = canvasContainerRef.current;
-    if (!canvasContainer || typeof ResizeObserver === "undefined") {
-      return;
-    }
-    const resizeObserver = new ResizeObserver(() => {
-      if (isInitialViewportReady) {
-        return;
-      }
-      scheduleFitView();
-    });
-    resizeObserver.observe(canvasContainer);
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [isInitialViewportReady, scheduleFitView]);
-
-  useEffect(() => {
-    return () => {
-      if (fitViewAnimationFrameIdRef.current !== null) {
-        cancelAnimationFrame(fitViewAnimationFrameIdRef.current);
-      }
-      if (fitViewTimeoutIdRef.current !== null) {
-        window.clearTimeout(fitViewTimeoutIdRef.current);
-      }
-    };
   }, []);
 
   return (
@@ -222,6 +239,8 @@ export function WorkflowCanvas(args: {
         <ReactFlow
           nodes={nodes}
           edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           edgeTypes={workflowCanvasEdgeTypes}
           onInit={(instance) => {

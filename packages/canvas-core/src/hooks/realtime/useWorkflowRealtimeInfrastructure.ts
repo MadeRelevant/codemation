@@ -14,20 +14,14 @@ import {
 } from "../../realtime/realtimeTestSuiteMutations";
 import {
   getRealtimeBridge,
-  minimumRealtimeActiveVisibilityMs,
   persistentRealtimeDisconnectWarningDelayMs,
   RealtimeReadyState,
   type RealtimeClientMessage,
   type RealtimeReadyValue,
   type RealtimeServerMessage,
 } from "../../realtime/realtimeClientBridge";
-import {
-  runQueryKey,
-  workflowDevBuildStateQueryKey,
-  workflowQueryKey,
-  workflowsQueryKey,
-} from "../../realtime/realtimeQueryKeys";
-import type { PersistedRunState, WorkflowDevBuildState } from "../../realtime/realtimeDomainTypes";
+import { workflowDevBuildStateQueryKey, workflowQueryKey, workflowsQueryKey } from "../../realtime/realtimeQueryKeys";
+import type { WorkflowDevBuildState } from "../../realtime/realtimeDomainTypes";
 import { PageVisibilityIdleTimer } from "../../realtime/PageVisibilityIdleTimer";
 import { RunRoomSubscriptionTracker } from "../../realtime/RunRoomSubscriptionTracker";
 
@@ -67,8 +61,6 @@ export function useWorkflowRealtimeInfrastructure(
   // Initialised lazily inside a ref so it's stable across renders.
   const runTrackerRef = useRef<RunRoomSubscriptionTracker | null>(null);
   const pendingOutgoingMessagesRef = useRef<RealtimeClientMessage[]>([]);
-  const activeStatusShownAtByNodeKeyRef = useRef(new Map<string, number>());
-  const terminalEventTimeoutIdByNodeKeyRef = useRef(new Map<string, number>());
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
   const reconnectBackoffMsRef = useRef<number>(1000);
@@ -201,26 +193,6 @@ export function useWorkflowRealtimeInfrastructure(
     },
     [logger, websocketUrl],
   );
-  const clearPendingTerminalEventDelay = useCallback((nodeKey: string): void => {
-    const timeoutId = terminalEventTimeoutIdByNodeKeyRef.current.get(nodeKey);
-    if (timeoutId === undefined) return;
-    window.clearTimeout(timeoutId);
-    terminalEventTimeoutIdByNodeKeyRef.current.delete(nodeKey);
-  }, []);
-  const clearRunRealtimeDelays = useCallback(
-    (runId: string): void => {
-      const runPrefix = `${runId}:`;
-      for (const nodeKey of terminalEventTimeoutIdByNodeKeyRef.current.keys()) {
-        if (!nodeKey.startsWith(runPrefix)) continue;
-        clearPendingTerminalEventDelay(nodeKey);
-      }
-      for (const nodeKey of activeStatusShownAtByNodeKeyRef.current.keys()) {
-        if (!nodeKey.startsWith(runPrefix)) continue;
-        activeStatusShownAtByNodeKeyRef.current.delete(nodeKey);
-      }
-    },
-    [clearPendingTerminalEventDelay],
-  );
   const handleRealtimeServerMessage = useCallback(
     (message: RealtimeServerMessage) => {
       if (message.kind === "event") {
@@ -240,55 +212,15 @@ export function useWorkflowRealtimeInfrastructure(
           return;
         }
         applyRunEventForTestSuite(queryClient, message.event as { kind: string; runId?: string });
-        if (message.event.kind === "runSaved") {
-          clearRunRealtimeDelays(message.event.runId);
-          applyWorkflowEvent(queryClient, message.event);
-          const currentRunState = queryClient.getQueryData<PersistedRunState>(runQueryKey(message.event.runId));
-          logger.info(
-            `cache after runSaved run=${message.event.runId} status=${currentRunState?.status ?? "missing"} pending=${currentRunState?.pending?.nodeId ?? "no"} snapshots=${Object.entries(
-              currentRunState?.nodeSnapshotsByNodeId ?? {},
-            )
-              .map(([nodeId, snapshot]) => `${nodeId}:${snapshot.status}`)
-              .join(",")}`,
-          );
-          return;
-        }
         if (
           message.event.kind === "nodeQueued" ||
           message.event.kind === "nodeStarted" ||
           message.event.kind === "nodeCompleted" ||
           message.event.kind === "nodeFailed"
         ) {
-          const nodeKey = `${message.event.runId}:${message.event.snapshot.nodeId}`;
-          if (message.event.kind === "nodeQueued" || message.event.kind === "nodeStarted") {
-            clearPendingTerminalEventDelay(nodeKey);
-            activeStatusShownAtByNodeKeyRef.current.set(nodeKey, Date.now());
-            applyWorkflowEvent(queryClient, message.event);
-            return;
-          }
-
-          const activeStatusShownAt = activeStatusShownAtByNodeKeyRef.current.get(nodeKey);
-          if (activeStatusShownAt !== undefined) {
-            const remainingVisibilityMs = minimumRealtimeActiveVisibilityMs - (Date.now() - activeStatusShownAt);
-            if (remainingVisibilityMs > 0) {
-              clearPendingTerminalEventDelay(nodeKey);
-              const timeoutId = window.setTimeout(() => {
-                activeStatusShownAtByNodeKeyRef.current.delete(nodeKey);
-                terminalEventTimeoutIdByNodeKeyRef.current.delete(nodeKey);
-                applyWorkflowEvent(queryClient, message.event);
-              }, remainingVisibilityMs);
-              terminalEventTimeoutIdByNodeKeyRef.current.set(nodeKey, timeoutId);
-              return;
-            }
-          }
-
-          clearPendingTerminalEventDelay(nodeKey);
-          activeStatusShownAtByNodeKeyRef.current.delete(nodeKey);
+          const snapshot = message.event.snapshot;
+          logger.info(`[ws] event kind=${message.event.kind} node=${snapshot.nodeId} status=${snapshot.status}`);
           applyWorkflowEvent(queryClient, message.event);
-          const currentRunState = queryClient.getQueryData<PersistedRunState>(runQueryKey(message.event.runId));
-          logger.info(
-            `cache after ${message.event.kind} run=${message.event.runId} node=${message.event.snapshot.nodeId} status=${currentRunState?.status ?? "missing"} pending=${currentRunState?.pending?.nodeId ?? "no"} nodeStatus=${currentRunState?.nodeSnapshotsByNodeId?.[message.event.snapshot.nodeId]?.status ?? "missing"}`,
-          );
           return;
         }
         applyWorkflowEvent(queryClient, message.event);
@@ -388,7 +320,7 @@ export function useWorkflowRealtimeInfrastructure(
 
       logger.debug(`websocket control message ${message.kind}`);
     },
-    [clearPendingTerminalEventDelay, clearRunRealtimeDelays, logger, queryClient],
+    [logger, queryClient],
   );
   const handleRealtimeServerMessageRef = useRef(handleRealtimeServerMessage);
   handleRealtimeServerMessageRef.current = handleRealtimeServerMessage;
@@ -656,11 +588,6 @@ export function useWorkflowRealtimeInfrastructure(
   useEffect(() => {
     return () => {
       clearPendingDisconnectWarning();
-      for (const timeoutId of terminalEventTimeoutIdByNodeKeyRef.current.values()) {
-        window.clearTimeout(timeoutId);
-      }
-      terminalEventTimeoutIdByNodeKeyRef.current.clear();
-      activeStatusShownAtByNodeKeyRef.current.clear();
     };
   }, [clearPendingDisconnectWarning]);
 

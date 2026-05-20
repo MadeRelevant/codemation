@@ -1,4 +1,3 @@
-import type { ElkNode } from "elkjs/lib/elk.bundled.js";
 import { MarkerType, Position, type Edge as ReactFlowEdge, type Node as ReactFlowNode } from "@xyflow/react";
 
 import type { WorkflowDto } from "@codemation/host/dto";
@@ -10,8 +9,7 @@ import {
   WORKFLOW_CANVAS_MAIN_EDGE_OFFSET,
 } from "../workflowCanvasEdgeGeometry";
 import type { AgentAttachmentFlags, WorkflowCanvasNodeData } from "../workflowCanvasNodeData";
-import type { WorkflowElkNodeSizing } from "./WorkflowElkNodeSizingResolver";
-import type { WorkflowElkPortInfo } from "./WorkflowElkPortInfoResolver";
+import type { WorkflowPositionedLayout } from "./WorkflowPositionedLayout.types";
 
 /**
  * Source handle id used by **all** LLM attachment edges leaving an agent
@@ -24,10 +22,7 @@ const ATTACHMENT_SOURCE_HANDLE_LLM = "attachment-source-llm";
 const ATTACHMENT_SOURCE_HANDLE_TOOLS = "attachment-source-tools";
 
 export type WorkflowElkMapperInput = Readonly<{
-  workflow: WorkflowDto;
-  elkRoot: ElkNode;
-  portInfoByNodeId: ReadonlyMap<string, WorkflowElkPortInfo>;
-  sizingByNodeId: ReadonlyMap<string, WorkflowElkNodeSizing>;
+  positionedLayout: WorkflowPositionedLayout;
   nodeSnapshotsByNodeId: Readonly<Record<string, NodeExecutionSnapshot>>;
   connectionInvocations: ReadonlyArray<ConnectionInvocationRecord>;
   nodeStatusesByNodeId: Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>;
@@ -47,20 +42,19 @@ export type WorkflowElkMapperInput = Readonly<{
   onClearPinnedOutput: (nodeId: string) => void;
 }>;
 
-type AbsolutePosition = Readonly<{ x: number; y: number }>;
-
 /**
- * Consumes the positioned ElkNode tree and emits React Flow nodes + edges
+ * Consumes a pre-computed `WorkflowPositionedLayout` and emits React Flow nodes + edges
  * with the exact data shape expected by `WorkflowCanvasCodemationNode`.
+ * This method is synchronous — ELK runs once upstream.
  */
 export class WorkflowElkResultMapper {
   static toReactFlow(
     input: WorkflowElkMapperInput,
   ): Readonly<{ nodes: ReactFlowNode<WorkflowCanvasNodeData>[]; edges: ReactFlowEdge[] }> {
-    const absolutePositionsByNodeId = this.resolveAbsolutePositions(input);
-    const agentAttachmentsByNodeId = this.resolveAgentAttachments(input.workflow);
-    const nodes = this.buildReactFlowNodes(input, absolutePositionsByNodeId, agentAttachmentsByNodeId);
-    const edges = this.buildReactFlowEdges(input, absolutePositionsByNodeId);
+    const { positionedLayout } = input;
+    const agentAttachmentsByNodeId = this.resolveAgentAttachments(positionedLayout.workflow);
+    const nodes = this.buildReactFlowNodes(input, positionedLayout, agentAttachmentsByNodeId);
+    const edges = this.buildReactFlowEdges(input, positionedLayout);
     return { nodes, edges };
   }
 
@@ -79,48 +73,12 @@ export class WorkflowElkResultMapper {
     return attachmentsByParentId;
   }
 
-  private static resolveAbsolutePositions(input: WorkflowElkMapperInput): ReadonlyMap<string, AbsolutePosition> {
-    const absolutePositionsByNodeId = new Map<string, AbsolutePosition>();
-    const rootChildren = input.elkRoot.children ?? [];
-    for (const child of rootChildren) {
-      this.walkAndRecordPositions(child, 0, 0, input.sizingByNodeId, absolutePositionsByNodeId);
-    }
-    return absolutePositionsByNodeId;
-  }
-
-  private static walkAndRecordPositions(
-    elkNode: ElkNode,
-    offsetX: number,
-    offsetY: number,
-    sizingByNodeId: ReadonlyMap<string, WorkflowElkNodeSizing>,
-    positionsOut: Map<string, AbsolutePosition>,
-  ): void {
-    const nodeX = (elkNode.x ?? 0) + offsetX;
-    const nodeY = (elkNode.y ?? 0) + offsetY;
-    const elkWidth = elkNode.width ?? 0;
-    const sizing = sizingByNodeId.get(elkNode.id);
-    const cardWidth = sizing?.widthPx ?? elkWidth;
-
-    const elkChildren = elkNode.children ?? [];
-    const isCompoundParent = elkChildren.length > 0;
-    const cardHorizontalOffset = isCompoundParent ? Math.max(0, (elkWidth - cardWidth) / 2) : 0;
-
-    positionsOut.set(elkNode.id, { x: nodeX + cardHorizontalOffset, y: nodeY });
-
-    for (const child of elkChildren) {
-      this.walkAndRecordPositions(child, nodeX, nodeY, sizingByNodeId, positionsOut);
-    }
-  }
-
   private static buildReactFlowNodes(
     input: WorkflowElkMapperInput,
-    positionsByNodeId: ReadonlyMap<string, AbsolutePosition>,
+    positionedLayout: WorkflowPositionedLayout,
     agentAttachmentsByNodeId: ReadonlyMap<string, AgentAttachmentFlags>,
   ): ReactFlowNode<WorkflowCanvasNodeData>[] {
     const {
-      workflow,
-      portInfoByNodeId,
-      sizingByNodeId,
       nodeSnapshotsByNodeId,
       nodeStatusesByNodeId,
       credentialAttentionTooltipByNodeId,
@@ -138,6 +96,7 @@ export class WorkflowElkResultMapper {
       onClearPinnedOutput,
       onRequestOpenCredentialEditForNode,
     } = input;
+    const { workflow, positionsByNodeId, sizingByNodeId, portInfoByNodeId } = positionedLayout;
 
     return workflow.nodes.map((n) => {
       const absPos = positionsByNodeId.get(n.id);
@@ -211,9 +170,10 @@ export class WorkflowElkResultMapper {
 
   private static buildReactFlowEdges(
     input: WorkflowElkMapperInput,
-    positionsByNodeId: ReadonlyMap<string, AbsolutePosition>,
+    positionedLayout: WorkflowPositionedLayout,
   ): ReactFlowEdge[] {
-    const { workflow, nodeSnapshotsByNodeId, connectionInvocations } = input;
+    const { workflow, positionsByNodeId } = positionedLayout;
+    const { nodeSnapshotsByNodeId, connectionInvocations } = input;
     const nodesById = new Map(workflow.nodes.map((node) => [node.id, node]));
     const outgoingOutputsByNodeId = new Map<string, Set<string>>();
     const incomingInputsByNodeId = new Map<string, Set<string>>();

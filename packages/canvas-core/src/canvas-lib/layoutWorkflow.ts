@@ -3,12 +3,42 @@ import { type Edge as ReactFlowEdge, type Node as ReactFlowNode } from "@xyflow/
 import type { WorkflowDto } from "@codemation/host/dto";
 import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../realtime/realtimeDomainTypes";
 import type { WorkflowCanvasConfig } from "../types/WorkflowCanvasConfig";
+import { WorkflowElkAbsolutePositionsResolver } from "./elk/WorkflowElkAbsolutePositionsResolver";
 import { ElkLayoutRunner } from "./elk/ElkLayoutRunner";
 import { WorkflowElkGraphBuilder } from "./elk/WorkflowElkGraphBuilder";
 import { WorkflowElkNodeSizingResolver } from "./elk/WorkflowElkNodeSizingResolver";
 import { WorkflowElkPortInfoResolver } from "./elk/WorkflowElkPortInfoResolver";
 import { WorkflowElkResultMapper } from "./elk/WorkflowElkResultMapper";
+import type { WorkflowPositionedLayout } from "./elk/WorkflowPositionedLayout.types";
 import type { WorkflowCanvasNodeData } from "./workflowCanvasNodeData";
+
+function applyNodeRoleFilter(workflow: WorkflowDto, config: WorkflowCanvasConfig | undefined): WorkflowDto {
+  if (!config?.nodeRoleFilter) return workflow;
+  const filteredNodes = workflow.nodes.filter((n) => config.nodeRoleFilter!(n.role ?? "main", n.type));
+  const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
+  const filteredEdges = workflow.edges.filter(
+    (e) => filteredNodeIds.has(e.from.nodeId) && filteredNodeIds.has(e.to.nodeId),
+  );
+  return { ...workflow, nodes: filteredNodes, edges: filteredEdges };
+}
+
+/**
+ * Runs the ELK layout pipeline (sizing, port resolution, graph build, layout,
+ * absolute position resolution) and returns a bundled `WorkflowPositionedLayout`
+ * that can be reused across realtime snapshot events without re-running ELK.
+ */
+export async function computeWorkflowPositionedLayout(
+  workflow: WorkflowDto,
+  config?: WorkflowCanvasConfig,
+): Promise<WorkflowPositionedLayout> {
+  const workflowToLayout = applyNodeRoleFilter(workflow, config);
+  const portInfoByNodeId = WorkflowElkPortInfoResolver.resolve(workflowToLayout);
+  const sizingByNodeId = WorkflowElkNodeSizingResolver.resolve(workflowToLayout);
+  const elkGraph = WorkflowElkGraphBuilder.build({ workflow: workflowToLayout, portInfoByNodeId, sizingByNodeId });
+  const elkRoot = await ElkLayoutRunner.layout(elkGraph);
+  const positionsByNodeId = WorkflowElkAbsolutePositionsResolver.resolve(elkRoot, sizingByNodeId);
+  return { workflow: workflowToLayout, positionsByNodeId, portInfoByNodeId, sizingByNodeId };
+}
 
 /**
  * Computes positions for every workflow node using the ELK Layered algorithm
@@ -40,26 +70,9 @@ export async function layoutWorkflow(
   onClearPinnedOutput: (nodeId: string) => void,
   config?: WorkflowCanvasConfig,
 ): Promise<Readonly<{ nodes: ReactFlowNode<WorkflowCanvasNodeData>[]; edges: ReactFlowEdge[] }>> {
-  const filteredNodes = config?.nodeRoleFilter
-    ? workflow.nodes.filter((n) => config.nodeRoleFilter!(n.role ?? "main", n.type))
-    : workflow.nodes;
-  const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
-  const filteredEdges = workflow.edges.filter(
-    (e) => filteredNodeIds.has(e.from.nodeId) && filteredNodeIds.has(e.to.nodeId),
-  );
-  const workflowToLayout = config?.nodeRoleFilter
-    ? { ...workflow, nodes: filteredNodes, edges: filteredEdges }
-    : workflow;
-
-  const portInfoByNodeId = WorkflowElkPortInfoResolver.resolve(workflowToLayout);
-  const sizingByNodeId = WorkflowElkNodeSizingResolver.resolve(workflowToLayout);
-  const elkGraph = WorkflowElkGraphBuilder.build({ workflow: workflowToLayout, portInfoByNodeId, sizingByNodeId });
-  const elkRoot = await ElkLayoutRunner.layout(elkGraph);
+  const positionedLayout = await computeWorkflowPositionedLayout(workflow, config);
   return WorkflowElkResultMapper.toReactFlow({
-    workflow: workflowToLayout,
-    elkRoot,
-    portInfoByNodeId,
-    sizingByNodeId,
+    positionedLayout,
     nodeSnapshotsByNodeId,
     connectionInvocations,
     nodeStatusesByNodeId,

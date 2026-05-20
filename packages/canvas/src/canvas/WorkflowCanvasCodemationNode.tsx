@@ -1,5 +1,5 @@
 "use client";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { memo, type CSSProperties, useEffect, useRef, useState } from "react";
 
 import type { WorkflowCanvasNodeData } from "@codemation/canvas-core";
 import {
@@ -18,7 +18,7 @@ import { WorkflowCanvasCodemationNodeHandles } from "./WorkflowCanvasCodemationN
 import { WorkflowCanvasCodemationNodeLabelBelow } from "./WorkflowCanvasCodemationNodeLabelBelow";
 import { WorkflowCanvasCodemationNodeToolbar } from "./WorkflowCanvasCodemationNodeToolbar";
 
-export function CodemationNode({ data }: { data: WorkflowCanvasNodeData }) {
+export const CodemationNode = memo(function CodemationNodeImpl({ data }: { data: WorkflowCanvasNodeData }) {
   const isQueued = data.status === "queued";
   const isRunning = data.status === "running";
   const isActive = isQueued || isRunning;
@@ -187,4 +187,4 @@ export function CodemationNode({ data }: { data: WorkflowCanvasNodeData }) {
       ) : null}
     </div>
   );
-}
+});

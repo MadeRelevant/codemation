@@ -5,11 +5,119 @@ import { RunFinishedAtFactory } from "@codemation/core/browser";
 import type {
   ConnectionInvocationRecord,
   Items,
+  NodeExecutionSnapshot,
   PersistedRunState,
   RunSummary,
   WorkflowEvent,
 } from "./realtimeDomainTypes";
 import { runQueryKey, workflowRunsQueryKey } from "./realtimeQueryKeys";
+
+export const SNAPSHOT_STATUS_RANK: Readonly<Record<NodeExecutionSnapshot["status"], number>> = {
+  pending: 0,
+  queued: 1,
+  running: 2,
+  completed: 3,
+  skipped: 3,
+  failed: 4,
+};
+
+export function mergeItemRecordsMonotonic(
+  nodeId: string,
+  fieldName: "outputs" | "inputsByPort",
+  prev: Readonly<Record<string, Items>> | undefined,
+  next: Readonly<Record<string, Items>> | undefined,
+): Readonly<Record<string, Items>> | undefined {
+  if (!prev && !next) return undefined;
+  if (!prev) return next;
+  if (!next) return prev;
+  const merged: Record<string, Items> = { ...next };
+  for (const [port, prevItems] of Object.entries(prev)) {
+    const nextItems = next[port];
+    if (prevItems.length > 0 && (!nextItems || nextItems.length === 0)) {
+      console.warn(`[realtime-clamp] kept ${fieldName}[${port}] for node=${nodeId} (incoming was empty)`);
+      merged[port] = prevItems;
+    }
+  }
+  return merged;
+}
+
+export function recordsAreCanvasEquivalent(
+  a: Readonly<Record<string, Items>> | undefined,
+  b: Readonly<Record<string, Items>> | undefined,
+): boolean {
+  const aNonEmpty = Object.entries(a ?? {}).filter(([, items]) => items.length > 0);
+  const bNonEmpty = Object.entries(b ?? {}).filter(([, items]) => items.length > 0);
+  if (aNonEmpty.length !== bNonEmpty.length) return false;
+  const bMap = new Map(bNonEmpty.map(([k, v]) => [k, v.length]));
+  for (const [k, v] of aNonEmpty) {
+    if (bMap.get(k) !== v.length) return false;
+  }
+  return true;
+}
+
+export function mergeSnapshotMonotonic(
+  prev: NodeExecutionSnapshot | undefined,
+  next: NodeExecutionSnapshot,
+): NodeExecutionSnapshot {
+  if (prev === undefined) return next;
+
+  const prevRank = SNAPSHOT_STATUS_RANK[prev.status];
+  const nextRank = SNAPSHOT_STATUS_RANK[next.status];
+  let clampedStatus = next.status;
+  if (nextRank < prevRank) {
+    console.warn(
+      `[realtime-clamp] kept status=${prev.status} for node=${prev.nodeId} (new event would have regressed to ${next.status})`,
+    );
+    clampedStatus = prev.status;
+  }
+
+  const mergedOutputs = mergeItemRecordsMonotonic(next.nodeId, "outputs", prev.outputs, next.outputs);
+  const mergedInputsByPort = mergeItemRecordsMonotonic(
+    next.nodeId,
+    "inputsByPort",
+    prev.inputsByPort,
+    next.inputsByPort,
+  );
+
+  // Return prev reference if canvas-visible state is unchanged
+  if (
+    clampedStatus === prev.status &&
+    recordsAreCanvasEquivalent(mergedOutputs, prev.outputs) &&
+    recordsAreCanvasEquivalent(mergedInputsByPort, prev.inputsByPort)
+  ) {
+    return prev;
+  }
+
+  return { ...next, status: clampedStatus, outputs: mergedOutputs, inputsByPort: mergedInputsByPort };
+}
+
+export function mergeRunSavedStateMonotonic(
+  current: PersistedRunState | undefined,
+  newState: PersistedRunState,
+): PersistedRunState {
+  if (!current) return newState;
+  const currentMap = current.nodeSnapshotsByNodeId ?? {};
+  const newMap = newState.nodeSnapshotsByNodeId ?? {};
+  const mergedEntries: Record<string, NodeExecutionSnapshot> = {};
+  let allPrevRefs = true;
+
+  for (const [nodeId, newSnapshot] of Object.entries(newMap)) {
+    const prevSnapshot = currentMap[nodeId];
+    const merged = mergeSnapshotMonotonic(prevSnapshot, newSnapshot);
+    mergedEntries[nodeId] = merged;
+    if (merged !== prevSnapshot) allPrevRefs = false;
+  }
+  for (const nodeId of Object.keys(currentMap)) {
+    if (!(nodeId in newMap)) {
+      allPrevRefs = false;
+    }
+  }
+
+  const stableMap =
+    allPrevRefs && Object.keys(mergedEntries).length === Object.keys(currentMap).length ? currentMap : mergedEntries;
+
+  return { ...newState, nodeSnapshotsByNodeId: stableMap };
+}
 
 function countItems(inputsByPort: Readonly<Record<string, Items>> | undefined): number {
   return Object.values(inputsByPort ?? {}).reduce((sum, items) => sum + items.length, 0);
@@ -64,7 +172,7 @@ export function reduceWorkflowEventIntoPersistedRunState(
     return createInitialRunState(event);
   }
   if (event.kind === "runSaved") {
-    return event.state;
+    return mergeRunSavedStateMonotonic(current, event.state);
   }
   if (
     event.kind === "connectionInvocationStarted" ||
@@ -160,10 +268,15 @@ function mergeSnapshotIntoRunState(
       nodeSnapshotsByNodeId: {},
     } satisfies PersistedRunState);
 
-  const nextNodeSnapshots = {
-    ...(base.nodeSnapshotsByNodeId ?? {}),
-    [event.snapshot.nodeId]: event.snapshot,
-  };
+  const prevSnapshot = base.nodeSnapshotsByNodeId?.[event.snapshot.nodeId];
+  const mergedSnapshot = mergeSnapshotMonotonic(prevSnapshot, event.snapshot);
+  const nextNodeSnapshots =
+    mergedSnapshot === prevSnapshot && prevSnapshot !== undefined
+      ? base.nodeSnapshotsByNodeId
+      : {
+          ...(base.nodeSnapshotsByNodeId ?? {}),
+          [event.snapshot.nodeId]: mergedSnapshot,
+        };
   const nextOutputsByNode =
     event.snapshot.outputs === undefined
       ? base.outputsByNode
@@ -231,7 +344,8 @@ export function applyWorkflowEvent(queryClient: QueryClient, event: WorkflowEven
   }
 
   if (event.kind === "runSaved") {
-    const next = reduceWorkflowEventIntoPersistedRunState(undefined, event);
+    const current = queryClient.getQueryData<PersistedRunState>(key);
+    const next = reduceWorkflowEventIntoPersistedRunState(current, event);
     queryClient.setQueryData(key, next);
     queryClient.setQueryData(runsKey, (existing: ReadonlyArray<RunSummary> | undefined) =>
       mergeRunSummaryList(existing, toRunSummary(next)),

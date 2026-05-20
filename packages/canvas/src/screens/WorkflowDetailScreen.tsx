@@ -195,7 +195,22 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
               : `minmax(0, 1fr) ${controller.inspectorHeight}px`,
           }}
         >
-          <div className="relative flex h-full min-h-0 min-w-0 flex-row overflow-hidden bg-muted/40">
+          {/*
+           * suppressHydrationWarning: the inner conditional below renders
+           * `<WorkflowCanvas />` when the workflow query data is available
+           * and `<DefaultLoadingState />` otherwise. On the server the query
+           * cache is empty so this branch resolves to the loading state, but
+           * on first client render React Query may already have the workflow
+           * in cache (warm cache from a prior route mount) and resolve to the
+           * canvas. That's a benign SSR/CSR divergence — the client takes
+           * over and renders the correct branch immediately. Suppressing the
+           * warning one level deep silences the noisy console error without
+           * changing behavior.
+           */}
+          <div
+            className="relative flex h-full min-h-0 min-w-0 flex-row overflow-hidden bg-muted/40"
+            suppressHydrationWarning
+          >
             {controller.displayedWorkflow ? (
               <>
                 <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">

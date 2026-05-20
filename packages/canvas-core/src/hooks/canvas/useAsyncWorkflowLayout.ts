@@ -1,23 +1,26 @@
 "use client";
 import type { Edge as ReactFlowEdge, Node as ReactFlowNode } from "@xyflow/react";
-import { useEffect, useState } from "react";
+import { useRef } from "react";
 
 import type { WorkflowDto } from "@codemation/host/dto";
-import { layoutWorkflow } from "../../canvas-lib/layoutWorkflow";
+import { WorkflowElkResultMapper } from "../../canvas-lib/elk/WorkflowElkResultMapper";
+import { WorkflowCanvasReactFlowResultStabilizer } from "../../canvas-lib/elk/WorkflowCanvasReactFlowResultStabilizer";
 import type { WorkflowCanvasNodeData } from "../../canvas-lib/workflowCanvasNodeData";
 import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../realtime/realtimeDomainTypes";
 import type { WorkflowCanvasConfig } from "../../types/WorkflowCanvasConfig";
+import { useWorkflowElkLayout } from "./useWorkflowElkLayout";
+
+const EMPTY_RESULT: Readonly<{ nodes: ReactFlowNode<WorkflowCanvasNodeData>[]; edges: ReactFlowEdge[] }> = {
+  nodes: [],
+  edges: [],
+};
 
 /**
- * Thin React hook that awaits the async ELK-backed `layoutWorkflow` and keeps
- * the returned React Flow nodes/edges in component state. Stale resolutions
- * (e.g. when the user switches workflows mid-layout) are discarded via a
- * per-effect cancellation flag so React Flow is never fed an older positioning
- * after a newer one has already landed.
- *
- * First-paint returns empty arrays; `WorkflowCanvas` already gates viewport-fit
- * on `isInitialViewportReady`, so the canvas stays blank until ELK resolves
- * instead of flashing stale positions.
+ * Thin React hook that runs the async ELK layout (once per workflow structure)
+ * and then synchronously overlays runtime state (snapshots, selection, etc.)
+ * via `WorkflowElkResultMapper.toReactFlow`. Reference-stable output nodes/edges
+ * are produced by `WorkflowCanvasReactFlowResultStabilizer` so unchanged items
+ * keep their prev references and React Flow's internal memo skips them.
  */
 export function useAsyncWorkflowLayout(args: {
   workflow: WorkflowDto;
@@ -61,59 +64,37 @@ export function useAsyncWorkflowLayout(args: {
     onClearPinnedOutput,
     config,
   } = args;
-  const [layoutResult, setLayoutResult] = useState<{
-    nodes: ReactFlowNode<WorkflowCanvasNodeData>[];
-    edges: ReactFlowEdge[];
-  }>({ nodes: [], edges: [] });
-  useEffect(() => {
-    let cancelled = false;
-    void layoutWorkflow(
-      workflow,
-      nodeSnapshotsByNodeId,
-      connectionInvocations,
-      visibleNodeStatusesByNodeId,
-      credentialAttentionTooltipByNodeId,
-      selectedNodeId,
-      propertiesTargetNodeId,
-      pinnedNodeIds,
-      isLiveWorkflowView,
-      isRunning,
-      workflowNodeIdsWithBoundCredential,
-      onSelectNode,
-      onOpenPropertiesNode,
-      onRequestOpenCredentialEditForNode,
-      onRunNode,
-      onTogglePinnedOutput,
-      onEditNodeOutput,
-      onClearPinnedOutput,
-      config,
-    ).then((resolved) => {
-      if (cancelled) return;
-      setLayoutResult({ nodes: [...resolved.nodes], edges: [...resolved.edges] });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    config,
+
+  const positionedLayout = useWorkflowElkLayout(workflow, config);
+  const prevResultRef =
+    useRef<Readonly<{ nodes: ReactFlowNode<WorkflowCanvasNodeData>[]; edges: ReactFlowEdge[] }>>(EMPTY_RESULT);
+
+  if (!positionedLayout) {
+    return EMPTY_RESULT;
+  }
+
+  const fresh = WorkflowElkResultMapper.toReactFlow({
+    positionedLayout,
+    nodeSnapshotsByNodeId,
     connectionInvocations,
+    nodeStatusesByNodeId: visibleNodeStatusesByNodeId,
     credentialAttentionTooltipByNodeId,
+    selectedNodeId,
+    propertiesTargetNodeId,
+    pinnedNodeIds,
     isLiveWorkflowView,
     isRunning,
-    nodeSnapshotsByNodeId,
-    onClearPinnedOutput,
-    onEditNodeOutput,
+    workflowNodeIdsWithBoundCredential,
+    onSelectNode,
     onOpenPropertiesNode,
     onRequestOpenCredentialEditForNode,
     onRunNode,
-    onSelectNode,
     onTogglePinnedOutput,
-    pinnedNodeIds,
-    propertiesTargetNodeId,
-    selectedNodeId,
-    visibleNodeStatusesByNodeId,
-    workflow,
-    workflowNodeIdsWithBoundCredential,
-  ]);
-  return layoutResult;
+    onEditNodeOutput,
+    onClearPinnedOutput,
+  });
+
+  const stable = WorkflowCanvasReactFlowResultStabilizer.stabilize(fresh, prevResultRef.current);
+  prevResultRef.current = stable;
+  return stable;
 }

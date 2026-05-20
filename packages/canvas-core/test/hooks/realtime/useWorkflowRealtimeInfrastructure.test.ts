@@ -819,7 +819,7 @@ describe("useWorkflowRealtimeInfrastructure — message dispatch router", () => 
 // 5. nodeCompleted / nodeFailed — minimum visibility delay
 // ---------------------------------------------------------------------------
 
-describe("useWorkflowRealtimeInfrastructure — minimum visibility delay", () => {
+describe("useWorkflowRealtimeInfrastructure — terminal events apply immediately", () => {
   beforeEach(() => {
     installMockWebSocket();
     vi.useFakeTimers({ now: 1000 });
@@ -831,7 +831,12 @@ describe("useWorkflowRealtimeInfrastructure — minimum visibility delay", () =>
     cleanRealtimeBridge();
   });
 
-  it("delays nodeCompleted apply when active status was shown recently", async () => {
+  it("applies nodeCompleted synchronously even when it follows nodeStarted instantly", async () => {
+    // Regression: the previous 300 ms minimum-visibility delay was removed
+    // because it caused a multi-second tail of deferred re-renders after a
+    // workflow finished and contributed to the canvas flicker. Terminal
+    // events now flow straight into the cache so the canvas updates with
+    // every realtime tick.
     const qc = makeQueryClient();
     const args = defaultArgs();
     renderHook(() => useWorkflowRealtimeInfrastructure(args), {
@@ -846,20 +851,19 @@ describe("useWorkflowRealtimeInfrastructure — minimum visibility delay", () =>
       ws!.dispatchOpen();
     });
 
-    // Step 1: Send nodeStarted so active status time is recorded at t=1000
     await act(async () => {
       ws!.dispatchMessage(
         JSON.stringify({
           kind: "event",
           event: {
             kind: "nodeStarted",
-            runId: "run-delay",
+            runId: "run-instant",
             workflowId: "wf-1",
             at: new Date(1000).toISOString(),
             snapshot: {
-              runId: "run-delay",
+              runId: "run-instant",
               workflowId: "wf-1",
-              nodeId: "node-delay",
+              nodeId: "node-instant",
               status: "running",
               updatedAt: new Date(1000).toISOString(),
             },
@@ -867,21 +871,19 @@ describe("useWorkflowRealtimeInfrastructure — minimum visibility delay", () =>
         }),
       );
     });
-
-    // Step 2: Immediately send nodeCompleted (still at t=1000, < 300ms)
     await act(async () => {
       ws!.dispatchMessage(
         JSON.stringify({
           kind: "event",
           event: {
             kind: "nodeCompleted",
-            runId: "run-delay",
+            runId: "run-instant",
             workflowId: "wf-1",
             at: new Date(1000).toISOString(),
             snapshot: {
-              runId: "run-delay",
+              runId: "run-instant",
               workflowId: "wf-1",
-              nodeId: "node-delay",
+              nodeId: "node-instant",
               status: "completed",
               updatedAt: new Date(1000).toISOString(),
             },
@@ -890,28 +892,11 @@ describe("useWorkflowRealtimeInfrastructure — minimum visibility delay", () =>
       );
     });
 
-    // At this point, nodeCompleted should be delayed — cache still shows running
-    const cachedBefore = qc.getQueryData<{ nodeSnapshotsByNodeId: Record<string, { status: string }> }>([
+    const cached = qc.getQueryData<{ nodeSnapshotsByNodeId: Record<string, { status: string }> }>([
       "run",
-      "run-delay",
+      "run-instant",
     ]);
-    if (cachedBefore?.nodeSnapshotsByNodeId?.["node-delay"]) {
-      expect(cachedBefore.nodeSnapshotsByNodeId["node-delay"].status).toBe("running");
-    }
-
-    // Advance past the 300ms minimum visibility window
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(350);
-    });
-
-    // Now the delayed apply should have fired
-    const cachedAfter = qc.getQueryData<{ nodeSnapshotsByNodeId: Record<string, { status: string }> }>([
-      "run",
-      "run-delay",
-    ]);
-    if (cachedAfter?.nodeSnapshotsByNodeId?.["node-delay"]) {
-      expect(cachedAfter.nodeSnapshotsByNodeId["node-delay"].status).toBe("completed");
-    }
+    expect(cached?.nodeSnapshotsByNodeId?.["node-instant"]?.status).toBe("completed");
   });
 
   it("applies nodeCompleted immediately when no active status was shown before", async () => {

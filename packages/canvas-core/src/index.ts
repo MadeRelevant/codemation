@@ -93,6 +93,8 @@ export type {
 
 // Canvas hooks
 export * from "./hooks/canvas/useAsyncWorkflowLayout";
+export * from "./hooks/canvas/useWorkflowElkLayout";
+export * from "./hooks/canvas/useWorkflowCanvasRealtimePatches";
 
 // Plain hooks
 export * from "./hooks/useLastRunTrigger";
@@ -127,3 +129,7 @@ export * from "./canvas-lib/elk/WorkflowElkGraphBuilder";
 export * from "./canvas-lib/elk/WorkflowElkNodeSizingResolver";
 export * from "./canvas-lib/elk/WorkflowElkPortInfoResolver";
 export * from "./canvas-lib/elk/WorkflowElkResultMapper";
+export * from "./canvas-lib/realtime/WorkflowCanvasRealtimePatchPlanner";
+export * from "./canvas-lib/elk/WorkflowCanvasReactFlowResultStabilizer";
+export * from "./canvas-lib/elk/WorkflowElkAbsolutePositionsResolver";
+export * from "./canvas-lib/elk/WorkflowPositionedLayout.types";

@@ -32,7 +32,9 @@ export class WorkflowCanvasEdgeCountResolver {
     const targetInputItems =
       args.targetSnapshot?.inputsByPort?.[args.targetInput] ?? args.targetSnapshot?.inputsByPort?.[impliedCollectKey];
     const sourceOutputItems = args.sourceSnapshot?.outputs?.[args.sourceOutput];
-    return targetInputItems?.length ?? sourceOutputItems?.length ?? 0;
+    const targetCount = targetInputItems?.length ?? 0;
+    const sourceCount = sourceOutputItems?.length ?? 0;
+    return targetCount > 0 ? targetCount : sourceCount;
   }
 
   private static resolveAttachmentInvocationCount(
