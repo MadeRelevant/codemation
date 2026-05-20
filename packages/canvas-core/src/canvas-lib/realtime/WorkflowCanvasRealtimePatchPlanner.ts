@@ -38,8 +38,17 @@ export class WorkflowCanvasRealtimePatchPlanner {
       nextConnectionInvocations: ReadonlyArray<ConnectionInvocationRecord>;
       currentNodes: ReadonlyArray<ReactFlowNode<WorkflowCanvasNodeData>>;
       currentEdges: ReadonlyArray<ReactFlowEdge>;
+      /**
+       * Snapshot of the displayed status map from the previous plan() call.
+       * Threaded into the topological cap so that nodes which have already
+       * reached a terminal display state are not downgraded when convergent
+       * branches activate later in the run.
+       */
+      previouslyDisplayedByNodeId?: Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>;
     }>,
-  ): WorkflowCanvasRealtimePatch {
+  ): WorkflowCanvasRealtimePatch & {
+    displayedByNodeId: Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>;
+  } {
     const {
       workflow,
       prevSnapshots,
@@ -48,15 +57,22 @@ export class WorkflowCanvasRealtimePatchPlanner {
       nextConnectionInvocations,
       currentNodes,
       currentEdges,
+      previouslyDisplayedByNodeId,
     } = args;
 
     // Short-circuit: same reference means nothing changed (monotonic merge guarantee)
     if (prevSnapshots === nextSnapshots && prevConnectionInvocations === nextConnectionInvocations) {
-      return { nodeChanges: [], edgeChanges: [] };
+      return {
+        nodeChanges: [],
+        edgeChanges: [],
+        displayedByNodeId: previouslyDisplayedByNodeId ?? {},
+      };
     }
 
-    // Compute topological-cap displayed statuses for both prev and next engine states.
-    // The cap ensures a node never appears more progressed than its slowest upstream.
+    // Compute topological-cap displayed statuses. The cap ensures a node never
+    // appears more progressed than its slowest in-flight upstream — AND, via
+    // the `previouslyDisplayedByNodeId` ratchet, never visibly regresses once
+    // it has reached a terminal display state.
     const prevEngineStatuses: Record<string, NodeExecutionSnapshot["status"] | undefined> = {};
     const nextEngineStatuses: Record<string, NodeExecutionSnapshot["status"] | undefined> = {};
     for (const nodeId of Object.keys(prevSnapshots)) {
@@ -65,13 +81,19 @@ export class WorkflowCanvasRealtimePatchPlanner {
     for (const nodeId of Object.keys(nextSnapshots)) {
       nextEngineStatuses[nodeId] = nextSnapshots[nodeId]?.status;
     }
-    const prevDisplayed = WorkflowCanvasTopologicalStatusCap.applyCap({
-      workflow,
-      statusByNodeId: prevEngineStatuses,
-    });
+    // `prevDisplayed` uses the ratchet so the diff baseline reflects what was
+    // actually shown last round, not what a fresh topo-cap of `prevSnapshots`
+    // would produce in isolation.
+    const prevDisplayed = previouslyDisplayedByNodeId
+      ? previouslyDisplayedByNodeId
+      : WorkflowCanvasTopologicalStatusCap.applyCap({
+          workflow,
+          statusByNodeId: prevEngineStatuses,
+        });
     const nextDisplayed = WorkflowCanvasTopologicalStatusCap.applyCap({
       workflow,
       statusByNodeId: nextEngineStatuses,
+      previouslyDisplayedByNodeId: prevDisplayed,
     });
 
     const nodesById = new Map(currentNodes.map((n) => [n.id, n]));
@@ -177,7 +199,7 @@ export class WorkflowCanvasRealtimePatchPlanner {
       }
     }
 
-    return { nodeChanges, edgeChanges };
+    return { nodeChanges, edgeChanges, displayedByNodeId: nextDisplayed };
   }
 
   /**

@@ -44,9 +44,24 @@ export class WorkflowCanvasTopologicalStatusCap {
     args: Readonly<{
       workflow: WorkflowDto;
       statusByNodeId: Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>;
+      /**
+       * Optional ratchet that prevents the cap from ever DOWNGRADING a node's
+       * displayed status across calls. Once a node has been displayed as
+       * `completed`/`failed`/`skipped`, a subsequent call with the same node
+       * + an in-flight upstream MUST NOT clamp it back to running/queued.
+       * Without this, fan-in nodes flicker when a downstream branch activates
+       * after the fan-in's own completion — the engine legitimately fires
+       * later events on the same node when convergent branches catch up, and
+       * the cap would otherwise re-block the fan-in mid-execution.
+       *
+       * Callers supply the result of the PREVIOUS `applyCap` call. The hook
+       * resets this to `{}` on a seed-signature change so a new run starts
+       * fresh.
+       */
+      previouslyDisplayedByNodeId?: Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>;
     }>,
   ): Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>> {
-    const { workflow, statusByNodeId } = args;
+    const { workflow, statusByNodeId, previouslyDisplayedByNodeId } = args;
 
     // Build adjacency: upstreamsByNodeId[N] = Set of node ids that are direct
     // sequential predecessors of N. Attachment edges are excluded.
@@ -169,6 +184,23 @@ export class WorkflowCanvasTopologicalStatusCap {
     // Cycle nodes fall through untouched — use engine status directly
     for (const nodeId of cycleNodeIds) {
       displayed[nodeId] = statusByNodeId[nodeId];
+    }
+
+    // Monotonic ratchet: once a node has been displayed as terminal, never
+    // downgrade it to queued/running on a later call. Engine fires queued/
+    // running/completed events on the same node a second time when convergent
+    // branches catch up, and the second activation must not undo the visible
+    // completion of the first.
+    if (previouslyDisplayedByNodeId) {
+      for (const [nodeId, prev] of Object.entries(previouslyDisplayedByNodeId)) {
+        if (prev === undefined) continue;
+        const prevRank = SNAPSHOT_STATUS_RANK[prev];
+        const proposedStatus = displayed[nodeId];
+        const proposedRank = proposedStatus !== undefined ? SNAPSHOT_STATUS_RANK[proposedStatus] : -1;
+        if (prevRank > proposedRank) {
+          displayed[nodeId] = prev;
+        }
+      }
     }
 
     return displayed;

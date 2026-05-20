@@ -245,6 +245,53 @@ describe("WorkflowCanvasTopologicalStatusCap", () => {
     expect(result["B"]).toBeUndefined();
   });
 
+  it("monotonic ratchet: a node that displayed `completed` cannot drop back to `running` when an upstream activates later (regression: convergent fan-in flicker)", () => {
+    // Topology:
+    //   if → high-branch → fan-in
+    //   if → low-branch  → fan-in
+    // Round 1: engine activates fan-in FIRST (direct fan-out from if). Both
+    // branches are still undefined at this point — no in-flight upstream, so
+    // the cap lets fan-in display completed.
+    const workflow = makeWorkflow(
+      ["if", "high-branch", "low-branch", "fan-in"],
+      [
+        { from: "if", to: "high-branch" },
+        { from: "if", to: "low-branch" },
+        { from: "high-branch", to: "fan-in" },
+        { from: "low-branch", to: "fan-in" },
+      ],
+    );
+    const round1Input = statuses([
+      ["if", "completed"],
+      ["fan-in", "completed"],
+      // branches still undefined
+    ]);
+    const round1Result = WorkflowCanvasTopologicalStatusCap.applyCap({
+      workflow,
+      statusByNodeId: round1Input,
+    });
+    expect(round1Result["fan-in"]).toBe("completed");
+
+    // Round 2: the engine starts activating the high branch (its actual
+    // execution lagged behind fan-in's direct activation). Without the
+    // ratchet, the cap would now downgrade fan-in to "running" because
+    // high-branch is in flight — a visible regression.
+    const round2Input = statuses([
+      ["if", "completed"],
+      ["high-branch", "running"],
+      ["fan-in", "completed"],
+    ]);
+    const round2Result = WorkflowCanvasTopologicalStatusCap.applyCap({
+      workflow,
+      statusByNodeId: round2Input,
+      previouslyDisplayedByNodeId: round1Result,
+    });
+    // Ratchet holds fan-in at completed even though high-branch is running.
+    expect(round2Result["fan-in"]).toBe("completed");
+    // The branch itself displays its in-flight state normally.
+    expect(round2Result["high-branch"]).toBe("running");
+  });
+
   it("cycles in workflow graph: handled defensively without infinite loop", () => {
     // A → B → C → A (malformed cycle)
     const workflow = makeWorkflow(

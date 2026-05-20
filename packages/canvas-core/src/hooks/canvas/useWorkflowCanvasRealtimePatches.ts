@@ -60,6 +60,7 @@ export function useWorkflowCanvasRealtimePatches(
 
   const prevSnapshotsRef = useRef<Readonly<Record<string, NodeExecutionSnapshot>>>({});
   const prevConnectionInvocationsRef = useRef<ReadonlyArray<ConnectionInvocationRecord>>([]);
+  const prevDisplayedByNodeIdRef = useRef<Readonly<Record<string, NodeExecutionSnapshot["status"] | undefined>>>({});
   const prevSeedSignatureRef = useRef<string>("");
 
   // Reset "prev" tracking when the seed changes (ELK re-layout or non-realtime
@@ -72,6 +73,11 @@ export function useWorkflowCanvasRealtimePatches(
     prevSeedSignatureRef.current = seedSignature;
     prevSnapshotsRef.current = nodeSnapshotsByNodeId;
     prevConnectionInvocationsRef.current = connectionInvocations;
+    // The topo-cap ratchet is per-run; clear it when the seed signature flips
+    // (new workflow structure, new run boundary). Without this, a node that
+    // showed `completed` in run #1 would refuse to ever drop to `running` on
+    // a fresh run #2 of the same workflow id.
+    prevDisplayedByNodeIdRef.current = {};
   }, [seedSignature, nodeSnapshotsByNodeId, connectionInvocations]);
 
   useEffect(() => {
@@ -82,7 +88,7 @@ export function useWorkflowCanvasRealtimePatches(
     prevSnapshotsRef.current = nodeSnapshotsByNodeId;
     prevConnectionInvocationsRef.current = connectionInvocations;
 
-    const { nodeChanges, edgeChanges } = WorkflowCanvasRealtimePatchPlanner.plan({
+    const { nodeChanges, edgeChanges, displayedByNodeId } = WorkflowCanvasRealtimePatchPlanner.plan({
       workflow,
       prevSnapshots,
       nextSnapshots: nodeSnapshotsByNodeId,
@@ -90,7 +96,11 @@ export function useWorkflowCanvasRealtimePatches(
       nextConnectionInvocations: connectionInvocations,
       currentNodes: getNodes(),
       currentEdges: getEdges(),
+      previouslyDisplayedByNodeId: prevDisplayedByNodeIdRef.current,
     });
+    // Advance the ratchet so subsequent rounds can't downgrade what was
+    // displayed this round.
+    prevDisplayedByNodeIdRef.current = displayedByNodeId;
 
     if (nodeChanges.length > 0) {
       setNodes(
