@@ -7,7 +7,7 @@ import type {
   WorkflowRepository,
 } from "@codemation/core";
 
-import { CoreTokens, inject, injectable } from "@codemation/core";
+import { CoreTokens, CredentialUnboundError, inject, injectable } from "@codemation/core";
 
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
 
@@ -17,6 +17,7 @@ import type {
 } from "../../application/contracts/CredentialContractsRegistry";
 
 import { ApplicationTokens } from "../../applicationTokens";
+import type { Logger, LoggerFactory } from "../../application/logging/Logger";
 
 import { WorkflowCredentialNodeResolver } from "./WorkflowCredentialNodeResolver";
 import { CredentialInstanceService } from "./CredentialInstanceService";
@@ -24,6 +25,8 @@ import type { CredentialStore, MutableCredentialSessionService } from "./Credent
 
 @injectable()
 export class CredentialBindingService {
+  private readonly logger: Logger;
+
   constructor(
     @inject(ApplicationTokens.CredentialStore)
     private readonly credentialStore: CredentialStore,
@@ -35,7 +38,11 @@ export class CredentialBindingService {
     private readonly credentialSessionService: MutableCredentialSessionService,
     @inject(WorkflowCredentialNodeResolver)
     private readonly workflowCredentialNodeResolver: WorkflowCredentialNodeResolver,
-  ) {}
+    @inject(ApplicationTokens.LoggerFactory)
+    loggerFactory: LoggerFactory,
+  ) {
+    this.logger = loggerFactory.create("CredentialBindingService");
+  }
 
   async upsertBinding(
     args: Readonly<{ workflowId: string; nodeId: string; slotKey: string; instanceId: CredentialInstanceId }>,
@@ -88,7 +95,13 @@ export class CredentialBindingService {
           nodeId: slot.nodeId,
           slotKey: slot.requirement.slotKey,
         });
-      } catch {
+      } catch (error) {
+        if (!(error instanceof CredentialUnboundError)) {
+          this.logger.debug(
+            `CredentialBindingService: unexpected error resolving session for slot ${slot.requirement.slotKey} on ${slot.nodeId}`,
+            error instanceof Error ? error : undefined,
+          );
+        }
         confirmed.push(slot);
       }
     }

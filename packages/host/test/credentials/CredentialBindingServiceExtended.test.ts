@@ -9,6 +9,7 @@ import { CredentialInstanceService } from "../../src/domain/credentials/Credenti
 import type { MutableCredentialSessionService } from "../../src/domain/credentials/CredentialServices";
 import type { WorkflowCredentialSlotRef } from "../../src/domain/credentials/WorkflowCredentialNodeResolver";
 import { WorkflowCredentialNodeResolver } from "../../src/domain/credentials/WorkflowCredentialNodeResolver";
+import { FakeLoggerFactory } from "../testkit";
 
 const WORKFLOW_ID = "wf.test";
 
@@ -114,6 +115,7 @@ describe("CredentialBindingService.upsertBinding", () => {
       { get: () => null } as never,
       new StubSessionService() as never,
       new StubNodeResolver() as never,
+      new FakeLoggerFactory(),
     );
     await expect(
       service.upsertBinding({
@@ -139,6 +141,7 @@ describe("CredentialBindingService.upsertBinding", () => {
           requirement: { slotKey: "auth", label: "API key", acceptedTypes: ["test.cred"] },
         },
       ]) as never,
+      new FakeLoggerFactory(),
     );
     await expect(
       service.upsertBinding({
@@ -173,6 +176,7 @@ describe("CredentialBindingService.upsertBinding", () => {
           requirement: { slotKey: "auth", label: "API key", acceptedTypes: ["test.cred"] },
         },
       ]) as never,
+      new FakeLoggerFactory(),
     );
     await expect(
       service.upsertBinding({
@@ -201,6 +205,7 @@ describe("CredentialBindingService.upsertBinding", () => {
       new StubSessionService() as never,
       // Resolver finds nothing for this node/slot combination but node is not in workflow either
       new StubNodeResolver([]) as never,
+      new FakeLoggerFactory(),
     );
     await expect(
       service.upsertBinding({
@@ -237,6 +242,7 @@ describe("CredentialBindingService.upsertBinding", () => {
       { get: () => WORKFLOW } as never,
       new StubSessionService() as never,
       resolver as never,
+      new FakeLoggerFactory(),
     );
     await expect(
       service.upsertBinding({
@@ -273,6 +279,7 @@ describe("CredentialBindingService.upsertBinding", () => {
           requirement: { slotKey: "auth", label: "API key", acceptedTypes: ["test.cred"] },
         },
       ]) as never,
+      new FakeLoggerFactory(),
     );
     const binding = await service.upsertBinding({
       workflowId: WORKFLOW_ID,
@@ -294,6 +301,7 @@ describe("CredentialBindingService.listWorkflowHealth", () => {
       { get: () => null } as never,
       new StubSessionService() as never,
       new StubNodeResolver() as never,
+      new FakeLoggerFactory(),
     );
     await expect(service.listWorkflowHealth("wf-missing")).rejects.toMatchObject({ status: 404 });
   });
@@ -312,6 +320,7 @@ describe("CredentialBindingService.listWorkflowHealth", () => {
           requirement: { slotKey: "auth", label: "API key", acceptedTypes: ["test.cred"] },
         },
       ]) as never,
+      new FakeLoggerFactory(),
     );
     const health = await service.listWorkflowHealth(WORKFLOW_ID);
     expect(health.workflowId).toBe(WORKFLOW_ID);
@@ -333,6 +342,7 @@ describe("CredentialBindingService.listWorkflowHealth", () => {
           requirement: { slotKey: "auth", label: "API key", acceptedTypes: ["test.cred"], optional: true },
         },
       ]) as never,
+      new FakeLoggerFactory(),
     );
     const health = await service.listWorkflowHealth(WORKFLOW_ID);
     expect(health.slots[0].health.status).toBe("optional-unbound");
@@ -369,6 +379,7 @@ describe("CredentialBindingService.listWorkflowHealth", () => {
           requirement: { slotKey: "auth", label: "API key", acceptedTypes: ["test.cred"] },
         },
       ]) as never,
+      new FakeLoggerFactory(),
     );
 
     const health = await service.listWorkflowHealth(WORKFLOW_ID);
