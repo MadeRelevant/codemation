@@ -201,7 +201,7 @@ export function useWorkflowRealtimeInfrastructure(
             ? `:${message.event.snapshot.nodeId}:${message.event.snapshot.status}`
             : "";
         if ("snapshot" in message.event && message.event.snapshot) {
-          logger.info(`realtime snapshot event node=${message.event.snapshot.nodeId} kind=${message.event.kind}`);
+          logger.debug(`realtime snapshot event node=${message.event.snapshot.nodeId} kind=${message.event.kind}`);
         }
         logger.debug(`received websocket event ${message.event.kind}:${message.event.workflowId}${eventDetails}`);
         // Test-suite lifecycle events (testSuiteStarted/testCaseStarted/testCaseCompleted/
@@ -219,7 +219,7 @@ export function useWorkflowRealtimeInfrastructure(
           message.event.kind === "nodeFailed"
         ) {
           const snapshot = message.event.snapshot;
-          logger.info(`[ws] event kind=${message.event.kind} node=${snapshot.nodeId} status=${snapshot.status}`);
+          logger.debug(`[ws] event kind=${message.event.kind} node=${snapshot.nodeId} status=${snapshot.status}`);
           applyWorkflowEvent(queryClient, message.event);
           return;
         }
@@ -228,17 +228,17 @@ export function useWorkflowRealtimeInfrastructure(
       }
 
       if (message.kind === "subscribed") {
-        logger.info(`subscribed to room ${message.roomId}`);
+        logger.debug(`subscribed to room ${message.roomId}`);
         return;
       }
 
       if (message.kind === "unsubscribed") {
-        logger.info(`unsubscribed from room ${message.roomId}`);
+        logger.debug(`unsubscribed from room ${message.roomId}`);
         return;
       }
 
       if (message.kind === "workflowChanged") {
-        logger.info(`workflow changed ${message.workflowId}`);
+        logger.debug(`workflow changed ${message.workflowId}`);
         const workflowRefreshStarted = performance.now();
         if (process.env.NEXT_PUBLIC_CODEMATION_PERFORMANCE_LOGGING === "true") {
           logger.info(
@@ -272,7 +272,7 @@ export function useWorkflowRealtimeInfrastructure(
       }
 
       if (message.kind === "devBuildStarted") {
-        logger.info(`workflow rebuild started ${message.workflowId}`);
+        logger.debug(`workflow rebuild started ${message.workflowId}`);
         queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey(message.workflowId), {
           state: "building",
           updatedAt: new Date().toISOString(),
@@ -283,7 +283,7 @@ export function useWorkflowRealtimeInfrastructure(
       }
 
       if (message.kind === "devBuildCompleted") {
-        logger.info(`workflow rebuild completed ${message.workflowId} revision=${message.buildVersion}`);
+        logger.debug(`workflow rebuild completed ${message.workflowId} revision=${message.buildVersion}`);
         const completedAt = new Date().toISOString();
         queryClient.setQueryData<WorkflowDevBuildState>(workflowDevBuildStateQueryKey(message.workflowId), () => ({
           state: "building",
@@ -432,9 +432,9 @@ export function useWorkflowRealtimeInfrastructure(
                 "snapshot" in parsedMessage.event && parsedMessage.event.snapshot
                   ? ` node=${parsedMessage.event.snapshot.nodeId} status=${parsedMessage.event.snapshot.status}`
                   : "";
-              logger.info(`raw websocket event kind=${parsedMessage.event.kind}${eventDetails}`);
+              logger.debug(`raw websocket event kind=${parsedMessage.event.kind}${eventDetails}`);
             } else {
-              logger.info(`raw websocket control kind=${parsedMessage.kind}`);
+              logger.debug(`raw websocket control kind=${parsedMessage.kind}`);
             }
             handleRealtimeServerMessageRef.current(parsedMessage);
           } catch (error) {
@@ -593,7 +593,7 @@ export function useWorkflowRealtimeInfrastructure(
 
   useEffect(() => {
     if (readyState === RealtimeReadyState.OPEN) {
-      logger.info("websocket readyState changed to OPEN");
+      logger.debug("websocket readyState changed to OPEN");
       return;
     }
     if (
@@ -610,7 +610,7 @@ export function useWorkflowRealtimeInfrastructure(
     if (readyState !== RealtimeReadyState.OPEN) return;
     for (const workflowId of desiredWorkflowCountsRef.current.keys()) {
       const sent = sendJsonMessage({ kind: "subscribe", roomId: workflowId } satisfies RealtimeClientMessage);
-      logger.info(`${sent ? "sent" : "queued"} subscribe for workflow ${workflowId}`);
+      logger.debug(`${sent ? "sent" : "queued"} subscribe for workflow ${workflowId}`);
     }
     for (const runId of getRunTracker().activeRunIds()) {
       const roomId = `run:${runId}`;
