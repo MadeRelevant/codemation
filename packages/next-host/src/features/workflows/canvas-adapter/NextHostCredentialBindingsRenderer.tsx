@@ -193,7 +193,12 @@ export function NextHostCredentialBindingsRenderer(args: NodeCredentialBindingsS
                 onRequestNewCredential={() => {
                   pendingCreateSlotBindingKeyRef.current = bindingKey;
                   const accepted = slot.requirement.acceptedTypes;
-                  openCreateDialog(accepted.length > 0 ? accepted : undefined);
+                  // Defer past Radix Select's trailing pointerup/pointerdown-outside
+                  // dismissal sequence so the newly mounted Dialog isn't immediately
+                  // closed by the event that dismissed the select dropdown.
+                  setTimeout(() => {
+                    openCreateDialog(accepted.length > 0 ? accepted : undefined);
+                  }, 0);
                 }}
               />
             </div>
