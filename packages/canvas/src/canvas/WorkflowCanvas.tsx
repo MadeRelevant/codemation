@@ -21,6 +21,7 @@ import type {
 } from "@codemation/canvas-core";
 import {
   WORKFLOW_CANVAS_EMBEDDED_STYLES,
+  WorkflowCanvasTopologicalStatusCap,
   WorkflowElkResultMapper,
   useWorkflowCanvasRealtimePatches,
   useWorkflowElkLayout,
@@ -166,7 +167,11 @@ export function WorkflowCanvas(args: {
     if (!positionedLayout) return;
     const seedSnapshots = nodeSnapshotsByNodeIdRef.current;
     const seedConnectionInvocations = connectionInvocationsRef.current;
-    const seedStatuses = VisibleNodeStatusResolver.resolveStatuses(seedSnapshots, seedConnectionInvocations);
+    const resolvedStatuses = VisibleNodeStatusResolver.resolveStatuses(seedSnapshots, seedConnectionInvocations);
+    const seedStatuses = WorkflowCanvasTopologicalStatusCap.applyCap({
+      workflow,
+      statusByNodeId: resolvedStatuses,
+    });
     const seeded = WorkflowElkResultMapper.toReactFlow({
       positionedLayout,
       nodeSnapshotsByNodeId: seedSnapshots,

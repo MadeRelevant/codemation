@@ -5,6 +5,7 @@ import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../../re
 import { WorkflowCanvasEdgeCountResolver } from "../WorkflowCanvasEdgeCountResolver";
 import { WorkflowCanvasEdgeStyleResolver } from "../WorkflowCanvasEdgeStyleResolver";
 import type { WorkflowCanvasNodeData } from "../workflowCanvasNodeData";
+import { WorkflowCanvasTopologicalStatusCap } from "./WorkflowCanvasTopologicalStatusCap";
 
 export type WorkflowCanvasRealtimePatch = Readonly<{
   nodeChanges: NodeReplaceChange[];
@@ -54,6 +55,25 @@ export class WorkflowCanvasRealtimePatchPlanner {
       return { nodeChanges: [], edgeChanges: [] };
     }
 
+    // Compute topological-cap displayed statuses for both prev and next engine states.
+    // The cap ensures a node never appears more progressed than its slowest upstream.
+    const prevEngineStatuses: Record<string, NodeExecutionSnapshot["status"] | undefined> = {};
+    const nextEngineStatuses: Record<string, NodeExecutionSnapshot["status"] | undefined> = {};
+    for (const nodeId of Object.keys(prevSnapshots)) {
+      prevEngineStatuses[nodeId] = prevSnapshots[nodeId]?.status;
+    }
+    for (const nodeId of Object.keys(nextSnapshots)) {
+      nextEngineStatuses[nodeId] = nextSnapshots[nodeId]?.status;
+    }
+    const prevDisplayed = WorkflowCanvasTopologicalStatusCap.applyCap({
+      workflow,
+      statusByNodeId: prevEngineStatuses,
+    });
+    const nextDisplayed = WorkflowCanvasTopologicalStatusCap.applyCap({
+      workflow,
+      statusByNodeId: nextEngineStatuses,
+    });
+
     const nodesById = new Map(currentNodes.map((n) => [n.id, n]));
 
     const nodeChanges: NodeReplaceChange[] = [];
@@ -82,7 +102,12 @@ export class WorkflowCanvasRealtimePatchPlanner {
       const prev = prevSnapshots[nodeId];
       const next = nextSnapshots[nodeId];
 
-      if (!this.snapshotVisiblyChanged(prev, next)) {
+      // Use displayed (cap-adjusted) statuses for the visibility diff
+      const prevDisplayedStatus = prevDisplayed[nodeId];
+      const nextDisplayedStatus = nextDisplayed[nodeId];
+      const displayedStatusChanged = prevDisplayedStatus !== nextDisplayedStatus;
+
+      if (!displayedStatusChanged && !this.portCountsChanged(prev, next)) {
         console.info(`[canvas-update] skipped node=${nodeId} reason=no-change`);
         continue;
       }
@@ -90,7 +115,8 @@ export class WorkflowCanvasRealtimePatchPlanner {
       const currentNode = nodesById.get(nodeId);
       if (!currentNode) continue; // node not on canvas (e.g. attachment with no direct card)
 
-      const newStatus = next?.status ?? prev?.status;
+      // Use the cap-adjusted displayed status for canvas rendering
+      const newStatus = nextDisplayedStatus;
       const newSourceOutputPortCounts = this.computeSourceOutputPortCounts(
         nodeId,
         currentNode.data.sourceOutputPorts,
@@ -154,6 +180,24 @@ export class WorkflowCanvasRealtimePatchPlanner {
     return { nodeChanges, edgeChanges };
   }
 
+  /**
+   * Returns true if port counts (outputs/inputs) differ between snapshots.
+   * Used in combination with the displayed-status diff to decide whether
+   * a node replace change is needed.
+   */
+  private static portCountsChanged(
+    prev: NodeExecutionSnapshot | undefined,
+    next: NodeExecutionSnapshot | undefined,
+  ): boolean {
+    if (prev === next) return false;
+    if (!prev && !next) return false;
+    if (!prev || !next) return true; // one appeared/disappeared
+    if (!this.outputPortCountsEqual(prev.outputs, next.outputs)) return true;
+    if (!this.outputPortCountsEqual(prev.inputsByPort, next.inputsByPort)) return true;
+    return false;
+  }
+
+  /** @deprecated Use portCountsChanged + displayed-status diff instead. Kept for test compatibility. */
   private static snapshotVisiblyChanged(
     prev: NodeExecutionSnapshot | undefined,
     next: NodeExecutionSnapshot | undefined,

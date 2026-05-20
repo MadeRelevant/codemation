@@ -130,6 +130,7 @@ export * from "./canvas-lib/elk/WorkflowElkNodeSizingResolver";
 export * from "./canvas-lib/elk/WorkflowElkPortInfoResolver";
 export * from "./canvas-lib/elk/WorkflowElkResultMapper";
 export * from "./canvas-lib/realtime/WorkflowCanvasRealtimePatchPlanner";
+export * from "./canvas-lib/realtime/WorkflowCanvasTopologicalStatusCap";
 export * from "./canvas-lib/elk/WorkflowCanvasReactFlowResultStabilizer";
 export * from "./canvas-lib/elk/WorkflowElkAbsolutePositionsResolver";
 export * from "./canvas-lib/elk/WorkflowPositionedLayout.types";
