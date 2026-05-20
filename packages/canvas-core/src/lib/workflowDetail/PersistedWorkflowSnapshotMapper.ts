@@ -173,6 +173,20 @@ export class PersistedWorkflowSnapshotMapper {
         nodes.push(...this.toAttachmentNodes(toolNodeId, toolConfig.node, materializedConnectionNodeIds));
       }
     }
+    const mcpServerIds = this.resolveMcpServerIds((configValue as Record<string, unknown>)?.mcpServers);
+    for (const serverId of mcpServerIds) {
+      const mcpNodeId = ConnectionNodeIdFactory.mcpConnectionNodeId(parentNodeId, serverId);
+      if (!materializedConnectionNodeIds.has(mcpNodeId)) {
+        nodes.push({
+          id: mcpNodeId,
+          kind: "node",
+          name: serverId,
+          type: serverId,
+          role: "tool",
+          parentNodeId,
+        });
+      }
+    }
     return nodes;
   }
 
@@ -260,6 +274,19 @@ export class PersistedWorkflowSnapshotMapper {
       }
     }
     return this.isNestedAgentToolSnapshotNode(node) ? "nestedAgent" : "tool";
+  }
+
+  private resolveMcpServerIds(mcpServers: unknown): string[] {
+    if (!mcpServers) {
+      return [];
+    }
+    if (Array.isArray(mcpServers)) {
+      return mcpServers.filter((s) => typeof s === "string");
+    }
+    if (typeof mcpServers === "object") {
+      return Object.keys(mcpServers as Record<string, unknown>);
+    }
+    return [];
   }
 
   private readAttachmentLabel(presentation: unknown, fallback: string): string {

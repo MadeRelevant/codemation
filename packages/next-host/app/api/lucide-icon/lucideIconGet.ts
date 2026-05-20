@@ -3,7 +3,9 @@
  * Used by both the specific [name] route and the catch-all guard.
  */
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const LUCIDE_NAME_RE = /^[a-z][a-z0-9-]*$/;
 
@@ -14,7 +16,11 @@ async function resolveIconsDirectory(): Promise<string> {
     return iconsDirectoryPromise;
   }
   iconsDirectoryPromise = (async () => {
-    const pkgJsonPath = require.resolve("lucide-static/package.json");
+    // Use createRequire so package resolution is anchored to this file's
+    // location — compatible with Next.js ESM API routes and standalone builds
+    // where the bare `require` global is unavailable.
+    const req = createRequire(fileURLToPath(import.meta.url));
+    const pkgJsonPath = req.resolve("lucide-static/package.json");
     return join(dirname(pkgJsonPath), "icons");
   })();
   return iconsDirectoryPromise;
