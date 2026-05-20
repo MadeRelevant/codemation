@@ -1,4 +1,6 @@
 import type { CredentialRequirement } from "../contracts/credentialTypes";
+import type { McpServerDeclaration } from "../contracts/mcpTypes";
+import type { McpServerBindings } from "../contracts/agentMcpTypes";
 import type { NodeConfigBase, NodeConnectionName, NodeId } from "../types";
 import { ConnectionNodeIdFactory } from "../workflow/definition/ConnectionNodeIdFactory";
 import { AgentConfigInspector } from "./AgentConfigInspectorFactory";
@@ -22,14 +24,24 @@ export type AgentConnectionNodeDescriptor = Readonly<{
   credentialSource: AgentConnectionCredentialSource;
 }>;
 
+export type McpServerResolver = (id: string) => McpServerDeclaration | undefined;
+
 type AgentConnectionNodeCollectorApi = Readonly<{
-  collect(parentNodeId: NodeId, agentConfig: AgentNodeConfig<any, any>): ReadonlyArray<AgentConnectionNodeDescriptor>;
+  collect(
+    parentNodeId: NodeId,
+    agentConfig: AgentNodeConfig<any, any>,
+    mcpServerResolver?: McpServerResolver,
+  ): ReadonlyArray<AgentConnectionNodeDescriptor>;
 }>;
 
 export const AgentConnectionNodeCollector: AgentConnectionNodeCollectorApi = new (class {
-  collect(parentNodeId: NodeId, agentConfig: AgentNodeConfig<any, any>): ReadonlyArray<AgentConnectionNodeDescriptor> {
+  collect(
+    parentNodeId: NodeId,
+    agentConfig: AgentNodeConfig<any, any>,
+    mcpServerResolver?: McpServerResolver,
+  ): ReadonlyArray<AgentConnectionNodeDescriptor> {
     const collected: AgentConnectionNodeDescriptor[] = [];
-    this.collectInto(parentNodeId, agentConfig, collected);
+    this.collectInto(parentNodeId, agentConfig, collected, mcpServerResolver);
     return collected;
   }
 
@@ -37,6 +49,7 @@ export const AgentConnectionNodeCollector: AgentConnectionNodeCollectorApi = new
     parentNodeId: NodeId,
     agentConfig: AgentNodeConfig<any, any>,
     collected: AgentConnectionNodeDescriptor[],
+    mcpServerResolver?: McpServerResolver,
   ): void {
     collected.push({
       nodeId: ConnectionNodeIdFactory.languageModelConnectionNodeId(parentNodeId),
@@ -62,21 +75,64 @@ export const AgentConnectionNodeCollector: AgentConnectionNodeCollectorApi = new
         icon: tool.presentation?.icon,
         credentialSource: tool,
       });
-      this.collectNestedAgentTools(toolNodeId, tool, collected);
+      this.collectNestedAgentTools(toolNodeId, tool, collected, mcpServerResolver);
     }
+
+    if (mcpServerResolver) {
+      const mcpServers = (agentConfig as unknown as { mcpServers?: McpServerBindings }).mcpServers;
+      const serverIds = this.resolveMcpServerIds(mcpServers);
+      for (const serverId of serverIds) {
+        const decl = mcpServerResolver(serverId);
+        if (!decl) {
+          continue;
+        }
+        collected.push({
+          nodeId: ConnectionNodeIdFactory.mcpConnectionNodeId(parentNodeId, serverId),
+          parentNodeId,
+          connectionName: "tools",
+          role: "tool",
+          name: decl.displayName,
+          typeName: serverId,
+          credentialSource: this.buildMcpCredentialSource(decl),
+        });
+      }
+    }
+  }
+
+  private resolveMcpServerIds(mcpServers: McpServerBindings | undefined): string[] {
+    if (!mcpServers) {
+      return [];
+    }
+    if (Array.isArray(mcpServers)) {
+      return [...mcpServers];
+    }
+    return Object.keys(mcpServers);
+  }
+
+  private buildMcpCredentialSource(decl: McpServerDeclaration): AgentConnectionCredentialSource {
+    if (decl.credentialKind === "none" || !decl.credentialTypeId) {
+      return { getCredentialRequirements: () => [] };
+    }
+    const requirement: CredentialRequirement = {
+      slotKey: "credential",
+      label: decl.displayName,
+      acceptedTypes: [decl.credentialTypeId],
+    };
+    return { getCredentialRequirements: () => [requirement] };
   }
 
   private collectNestedAgentTools(
     toolNodeId: NodeId,
     tool: ToolConfig,
     collected: AgentConnectionNodeDescriptor[],
+    mcpServerResolver?: McpServerResolver,
   ): void {
     if (!this.isNodeBackedAgentTool(tool)) {
       return;
     }
     const innerAgent =
       tool instanceof NodeBackedToolConfig ? tool.node : (tool as unknown as { node: AgentNodeConfig<any, any> }).node;
-    this.collectInto(toolNodeId, innerAgent, collected);
+    this.collectInto(toolNodeId, innerAgent, collected, mcpServerResolver);
   }
 
   /**

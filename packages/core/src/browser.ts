@@ -6,6 +6,7 @@ export type {
   AgentConnectionCredentialSource,
   AgentConnectionNodeDescriptor,
   AgentConnectionNodeRole,
+  McpServerResolver,
 } from "./ai/AgentConnectionNodeCollector";
 export type { AgentNodeConfig } from "./ai/AiHost";
 export { ConnectionNodeIdFactory } from "./workflow/definition/ConnectionNodeIdFactory";

@@ -1580,41 +1580,25 @@ test("AIAgentNode records telemetry for turns, tokens, and child invocation arti
   assert.equal(rig.telemetry.childSpans()[0]?.ended[0]?.status, "ok");
 });
 
-test("AIAgent.inspectorSummary includes MCP servers row for shorthand array", () => {
-  const agent = new AIAgent({
+test("AIAgent.inspectorSummary omits MCP servers row (now first-class connection slots)", () => {
+  // MCP servers are rendered as first-class canvas connection slots — not repeated in the inspector text.
+  const agentWithMcp = new AIAgent({
     name: "test",
     messages: [{ role: "user", content: "hello" }],
     chatModel: { name: "gpt-4o" },
     mcpServers: ["gmail", "slack"],
   });
-  const summary = agent.inspectorSummary();
-  const row = summary.find((r) => r.label === "MCP servers");
-  assert.ok(row, "Expected MCP servers row");
-  assert.equal(row?.value, "gmail, slack");
-});
-
-test("AIAgent.inspectorSummary includes MCP servers row for explicit binding record", () => {
-  const agent = new AIAgent({
-    name: "test",
-    messages: [{ role: "user", content: "hello" }],
-    chatModel: { name: "gpt-4o" },
-    mcpServers: { gmail: { credential: "cred-123" }, slack: { credential: "cred-456" } },
-  });
-  const summary = agent.inspectorSummary();
-  const row = summary.find((r) => r.label === "MCP servers");
-  assert.ok(row, "Expected MCP servers row");
-  assert.equal(row?.value, "gmail, slack");
-});
-
-test("AIAgent.inspectorSummary omits MCP servers row when mcpServers is undefined", () => {
-  const agent = new AIAgent({
+  const agentWithoutMcp = new AIAgent({
     name: "test",
     messages: [{ role: "user", content: "hello" }],
     chatModel: { name: "gpt-4o" },
   });
-  const summary = agent.inspectorSummary();
   assert.equal(
-    summary.find((r) => r.label === "MCP servers"),
+    agentWithMcp.inspectorSummary().find((r) => r.label === "MCP servers"),
+    undefined,
+  );
+  assert.equal(
+    agentWithoutMcp.inspectorSummary().find((r) => r.label === "MCP servers"),
     undefined,
   );
 });

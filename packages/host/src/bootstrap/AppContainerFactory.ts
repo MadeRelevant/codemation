@@ -597,9 +597,11 @@ export class AppContainerFactory {
     });
     container.register(CoreTokens.LiveWorkflowRepository, {
       useFactory: instanceCachingFactory(
-        () =>
+        (dependencyContainer) =>
           new LiveWorkflowRepository(
-            new AIAgentConnectionWorkflowExpander(new ConnectionCredentialNodeConfigFactory()),
+            new AIAgentConnectionWorkflowExpander(new ConnectionCredentialNodeConfigFactory(), (id) =>
+              dependencyContainer.resolve(McpServerCatalog).get(id),
+            ),
           ),
       ),
     });

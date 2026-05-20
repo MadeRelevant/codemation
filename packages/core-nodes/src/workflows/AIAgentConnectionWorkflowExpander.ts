@@ -1,4 +1,4 @@
-import type { NodeDefinition, WorkflowDefinition, WorkflowNodeConnection } from "@codemation/core";
+import type { McpServerResolver, NodeDefinition, WorkflowDefinition, WorkflowNodeConnection } from "@codemation/core";
 import { AgentConfigInspector, AgentConnectionNodeCollector } from "@codemation/core";
 
 import { AIAgentNode } from "../nodes/AIAgentNode";
@@ -9,7 +9,10 @@ import { ConnectionCredentialNodeConfigFactory } from "../nodes/ConnectionCreden
  * Materializes connection-owned child nodes and {@link WorkflowDefinition.connections} for AI agent nodes.
  */
 export class AIAgentConnectionWorkflowExpander {
-  constructor(private readonly connectionCredentialNodeConfigFactory: ConnectionCredentialNodeConfigFactory) {}
+  constructor(
+    private readonly connectionCredentialNodeConfigFactory: ConnectionCredentialNodeConfigFactory,
+    private readonly mcpServerResolver?: McpServerResolver,
+  ) {}
 
   expand(workflow: WorkflowDefinition): WorkflowDefinition {
     const existingChildIds = this.collectExistingChildIds(workflow);
@@ -21,7 +24,7 @@ export class AIAgentConnectionWorkflowExpander {
       if (node.type !== AIAgentNode || !AgentConfigInspector.isAgentNodeConfig(node.config)) {
         continue;
       }
-      for (const connectionNode of AgentConnectionNodeCollector.collect(node.id, node.config)) {
+      for (const connectionNode of AgentConnectionNodeCollector.collect(node.id, node.config, this.mcpServerResolver)) {
         if (!existingChildIds.has(connectionNode.nodeId)) {
           this.assertNoIdCollision(workflow, extraNodes, existingChildIds, connectionNode.nodeId);
           extraNodes.push({

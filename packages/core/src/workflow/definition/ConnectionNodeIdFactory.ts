@@ -16,6 +16,31 @@ export class ConnectionNodeIdFactory {
     return `${parentNodeId}${this.connectionSegment}tool${this.connectionSegment}${normalized}`;
   }
 
+  static mcpConnectionNodeId(parentNodeId: NodeId, serverId: string): NodeId {
+    return `${parentNodeId}${this.connectionSegment}mcp${this.connectionSegment}${serverId}`;
+  }
+
+  static isMcpConnectionNodeId(nodeId: NodeId): boolean {
+    return nodeId.includes(`${this.connectionSegment}mcp${this.connectionSegment}`);
+  }
+
+  static parseMcpConnectionNodeId(nodeId: NodeId): Readonly<{ parentNodeId: NodeId; serverId: string }> | undefined {
+    if (!this.isMcpConnectionNodeId(nodeId)) {
+      return undefined;
+    }
+    const marker = `${this.connectionSegment}mcp${this.connectionSegment}`;
+    const idx = nodeId.lastIndexOf(marker);
+    if (idx < 0) {
+      return undefined;
+    }
+    const parentNodeId = nodeId.slice(0, idx);
+    const serverId = nodeId.slice(idx + marker.length);
+    if (!parentNodeId || !serverId) {
+      return undefined;
+    }
+    return { parentNodeId, serverId };
+  }
+
   static isLanguageModelConnectionNodeId(nodeId: NodeId): boolean {
     return nodeId.endsWith(`${this.connectionSegment}llm`);
   }
