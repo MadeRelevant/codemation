@@ -47,6 +47,10 @@ export function TestsPanel(props: TestsPanelProps) {
   );
   const [selectedTriggerNodeId, setSelectedTriggerNodeId] = useState<string>(testTriggers[0]?.id ?? "");
   const [selectedSuiteRunId, setSelectedSuiteRunId] = useState<string | null>(null);
+  // Local pending flag: startMutation.isPending is unstable per render (React Query creates a new
+  // mutation instance on re-render), so reading it from the canvas-triggered IIFE never clears the
+  // button. A local flag set before mutateAsync and cleared in .finally() is stable.
+  const [isStartPending, setIsStartPending] = useState(false);
 
   const suitesQuery = useWorkflowTestSuiteRunsQuery(workflowId);
   const detailQuery = useTestSuiteRunDetailQuery(selectedSuiteRunId);
@@ -80,9 +84,14 @@ export function TestsPanel(props: TestsPanelProps) {
     if (!trigger) return;
     autoStartedForRef.current = autoStartTriggerNodeId;
     setSelectedTriggerNodeId(autoStartTriggerNodeId);
+    setIsStartPending(true);
     void (async () => {
-      const result = await startMutation.mutateAsync({ triggerNodeId: autoStartTriggerNodeId });
-      setSelectedSuiteRunId(result.testSuiteRunId);
+      try {
+        const result = await startMutation.mutateAsync({ triggerNodeId: autoStartTriggerNodeId });
+        setSelectedSuiteRunId(result.testSuiteRunId);
+      } finally {
+        setIsStartPending(false);
+      }
     })();
     // startMutation intentionally omitted (unstable per render — see comment above).
   }, [autoStartTriggerNodeId, testTriggers]);
@@ -91,8 +100,13 @@ export function TestsPanel(props: TestsPanelProps) {
     if (!selectedTriggerNodeId) return;
     // Fire-and-forget on the server side: response is "running" with the suite id, so we can
     // immediately navigate to its detail and watch progress via realtime events.
-    const result = await startMutation.mutateAsync({ triggerNodeId: selectedTriggerNodeId });
-    setSelectedSuiteRunId(result.testSuiteRunId);
+    setIsStartPending(true);
+    try {
+      const result = await startMutation.mutateAsync({ triggerNodeId: selectedTriggerNodeId });
+      setSelectedSuiteRunId(result.testSuiteRunId);
+    } finally {
+      setIsStartPending(false);
+    }
   };
 
   if (testTriggers.length === 0) {
@@ -147,12 +161,12 @@ export function TestsPanel(props: TestsPanelProps) {
               data-testid="tests-panel-run-button"
               size="sm"
               className="h-8 px-3 text-xs font-extrabold"
-              disabled={!selectedTriggerNodeId || startMutation.isPending}
+              disabled={!selectedTriggerNodeId || isStartPending}
               onClick={() => {
                 void onRunTests();
               }}
             >
-              {startMutation.isPending ? "Running…" : "Run tests"}
+              {isStartPending ? "Running…" : "Run tests"}
             </Button>
           </div>
           {startMutation.isError ? (

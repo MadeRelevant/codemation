@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 
 /**
- * Smoke tests for TestsPanel covering the static display branches:
+ * Tests for TestsPanel covering:
  * - no test triggers → empty state message
  * - single trigger → label (not picker)
  * - multiple triggers → select picker
+ * - canvas-triggered run: button shows "Running…" while isStartPending is true
  */
 
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createWorkflowCanvasApiClient, WorkflowCanvasApiClientProvider } from "@codemation/canvas-core";
@@ -89,5 +90,30 @@ describe("TestsPanel", () => {
       </Wrapper>,
     );
     expect(screen.getByTestId("tests-panel-trigger-picker")).toBeInTheDocument();
+  });
+
+  it("button shows Running… and is disabled while canvas-triggered run is in flight", async () => {
+    // neverResolveFetch means the mutation hangs indefinitely — isStartPending stays true.
+    // This is the regression test: if the button read startMutation.isPending (unstable per
+    // render), it would never show "Running…" via the canvas-triggered path because React Query
+    // creates a fresh mutation instance on each render. With the local isStartPending flag it
+    // correctly reflects the in-flight state.
+    render(
+      <Wrapper>
+        <TestsPanel
+          workflowId="wf-1"
+          workflowNodes={[makeTestTrigger("t1", "My Trigger")]}
+          autoStartTriggerNodeId="t1"
+        />
+      </Wrapper>,
+    );
+
+    const button = screen.getByTestId("tests-panel-run-button");
+
+    // After effects flush, the canvas-triggered IIFE sets isStartPending=true.
+    await waitFor(() => {
+      expect(button).toBeDisabled();
+      expect(button).toHaveTextContent("Running…");
+    });
   });
 });
