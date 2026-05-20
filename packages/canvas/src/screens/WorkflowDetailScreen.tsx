@@ -272,7 +272,10 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
                 )}
               </div>
             ) : null}
-            {controller.isLiveWorkflowView && !controller.isRunsPaneVisible && runButtonState.triggers.length > 0 ? (
+            {controller.isLiveWorkflowView &&
+            !controller.isRunsPaneVisible &&
+            runButtonState.triggers.length > 0 &&
+            !isTestsViewActive ? (
               <div className="pointer-events-auto absolute bottom-3 left-1/2 z-[6] -translate-x-1/2">
                 {args.renderRunButton ? (
                   args.renderRunButton(runButtonCtx)
