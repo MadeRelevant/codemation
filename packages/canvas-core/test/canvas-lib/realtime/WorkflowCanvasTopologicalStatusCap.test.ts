@@ -203,6 +203,36 @@ describe("WorkflowCanvasTopologicalStatusCap", () => {
     expect(result["agent"]).toBe("running");
   });
 
+  it("unused branch (upstream with no snapshot) does NOT block downstream completion (regression: stress workflow's Low lane → Route by lane)", () => {
+    // Topology:
+    //   if → high-branch → fan-in
+    //   if → low-branch  → fan-in
+    // Engine took the HIGH branch (high-branch completed). The LOW branch
+    // was never activated, so its snapshot is undefined.
+    // The fan-in must still display "completed" — an unused-branch upstream
+    // cannot freeze it indefinitely.
+    const workflow = makeWorkflow(
+      ["if", "high-branch", "low-branch", "fan-in"],
+      [
+        { from: "if", to: "high-branch" },
+        { from: "if", to: "low-branch" },
+        { from: "high-branch", to: "fan-in" },
+        { from: "low-branch", to: "fan-in" },
+      ],
+    );
+    const input = statuses([
+      ["if", "completed"],
+      ["high-branch", "completed"],
+      // low-branch deliberately absent — engine never activated it
+      ["fan-in", "completed"],
+    ]);
+
+    const result = WorkflowCanvasTopologicalStatusCap.applyCap({ workflow, statusByNodeId: input });
+
+    expect(result["fan-in"]).toBe("completed");
+    expect(result["low-branch"]).toBeUndefined();
+  });
+
   it("node with undefined engine status: stays undefined in output even if cap would block", () => {
     // A is running, B has no snapshot yet (undefined)
     const workflow = makeWorkflow(["A", "B"], [{ from: "A", to: "B" }]);

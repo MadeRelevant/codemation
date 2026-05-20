@@ -7,9 +7,14 @@ import { SNAPSHOT_STATUS_RANK } from "../../realtime/realtimeRunMutations";
 // sequential predecessor (same convention used in the patch planner).
 const ATTACHMENT_ROLES = new Set(["languageModel", "tool", "nestedAgent"]);
 
-// Pre-terminal threshold: ranks strictly below this value are "not yet done".
-// completed=3, skipped=3, failed=4 are all terminal.
-const TERMINAL_RANK = 3;
+// Blocking statuses: only upstreams that are ACTIVELY in flight (queued or
+// running) hold back downstream completion. Pending / undefined ("no snapshot
+// emitted yet") DOES NOT block — that case arises for nodes in an unused
+// branch of an `.if()` where the engine never activates them. Without this
+// distinction, the cap would freeze a fan-in node's display forever whenever
+// any incoming branch was not taken.
+const RANK_QUEUED = 1;
+const RANK_RUNNING = 2;
 
 const RANK_TO_STATUS: Readonly<Record<number, NodeExecutionSnapshot["status"]>> = {
   0: "pending",
@@ -116,7 +121,10 @@ export class WorkflowCanvasTopologicalStatusCap {
 
     for (const nodeId of topoOrder) {
       const engineStatus = statusByNodeId[nodeId];
-      const engineRank = engineStatus !== undefined ? SNAPSHOT_STATUS_RANK[engineStatus] : 0;
+      // engineRank is -1 when no snapshot exists (undefined). We track that
+      // separately from "rank 0 / pending" because an unset snapshot must not
+      // contribute a "rank 0" floor to downstream caps.
+      const engineRank = engineStatus !== undefined ? SNAPSHOT_STATUS_RANK[engineStatus] : -1;
 
       const upstreams = upstreamsByNodeId.get(nodeId) ?? new Set();
       if (upstreams.size === 0) {
@@ -126,35 +134,35 @@ export class WorkflowCanvasTopologicalStatusCap {
         continue;
       }
 
-      // Find the minimum rank among non-terminal upstreams
-      // Skip cycle nodes as upstreams (they don't have valid displayed ranks yet)
-      let minNonTerminalRank: number | undefined;
+      // Block on the LOWEST in-flight upstream (queued=1 or running=2). Every
+      // other state — pending, undefined, completed, skipped, failed — is
+      // non-blocking. A node in an unused `.if()` branch never emits a
+      // snapshot, so its rank stays -1 and won't hold up its downstream
+      // fan-in.
+      let minBlockingRank: number | undefined;
       for (const upstreamId of upstreams) {
         if (cycleNodeIds.has(upstreamId)) continue;
-        const upstreamRank = displayedRankByNodeId.get(upstreamId) ?? 0;
-        if (upstreamRank < TERMINAL_RANK) {
-          if (minNonTerminalRank === undefined || upstreamRank < minNonTerminalRank) {
-            minNonTerminalRank = upstreamRank;
-          }
+        const upstreamRank = displayedRankByNodeId.get(upstreamId);
+        if (upstreamRank === undefined) continue;
+        if (upstreamRank !== RANK_QUEUED && upstreamRank !== RANK_RUNNING) continue;
+        if (minBlockingRank === undefined || upstreamRank < minBlockingRank) {
+          minBlockingRank = upstreamRank;
         }
       }
 
-      if (minNonTerminalRank === undefined) {
-        // All (non-cycle) upstreams are terminal: show engine status
+      if (minBlockingRank === undefined) {
+        // No upstream is actively in flight — display engine status as-is.
+        displayedRankByNodeId.set(nodeId, engineRank);
+        displayed[nodeId] = engineStatus;
+      } else if (engineRank < 0 || engineRank < minBlockingRank) {
+        // Engine status is not progressed enough to be capped: pass through.
         displayedRankByNodeId.set(nodeId, engineRank);
         displayed[nodeId] = engineStatus;
       } else {
-        // Cap: clamp to min(engineRank, minNonTerminalRank), but only pre-terminal values
-        const cappedRank = Math.min(engineRank, minNonTerminalRank);
-        displayedRankByNodeId.set(nodeId, cappedRank);
-        if (engineStatus === undefined) {
-          // Undefined engine status stays undefined even if rank differs
-          displayed[nodeId] = undefined;
-        } else if (cappedRank < TERMINAL_RANK) {
-          displayed[nodeId] = RANK_TO_STATUS[cappedRank] ?? "running";
-        } else {
-          displayed[nodeId] = engineStatus;
-        }
+        // Engine wants to show "more progressed" than an in-flight upstream
+        // allows. Clamp display to the blocking upstream's rank.
+        displayedRankByNodeId.set(nodeId, minBlockingRank);
+        displayed[nodeId] = RANK_TO_STATUS[minBlockingRank] ?? "running";
       }
     }
 
