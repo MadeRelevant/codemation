@@ -232,6 +232,7 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
                     onClearPinnedOutput={controller.clearCanvasNodePin}
                     workflowNodeIdsWithBoundCredential={controller.workflowNodeIdsWithBoundCredential}
                     onRequestOpenCredentialEditForNode={controller.requestOpenCredentialEditForNode}
+                    onPaneClick={controller.closePropertiesPanel}
                     config={args.config}
                   />
                 </div>

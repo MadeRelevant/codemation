@@ -60,6 +60,7 @@ export function WorkflowCanvas(args: {
   onClearPinnedOutput: (nodeId: string) => void;
   workflowNodeIdsWithBoundCredential?: ReadonlySet<string>;
   onRequestOpenCredentialEditForNode?: (nodeId: string) => void;
+  onPaneClick?: () => void;
   config?: WorkflowCanvasConfig;
 }) {
   const {
@@ -80,6 +81,7 @@ export function WorkflowCanvas(args: {
     onClearPinnedOutput,
     workflowNodeIdsWithBoundCredential = EMPTY_BOUND_CREDENTIAL_IDS,
     onRequestOpenCredentialEditForNode = NO_OP_NODE_CALLBACK,
+    onPaneClick,
     config,
   } = args;
 
@@ -256,6 +258,7 @@ export function WorkflowCanvas(args: {
             onSelectNode(node.id);
             onOpenPropertiesNode(node.id);
           }}
+          onPaneClick={onPaneClick}
           style={{
             fontFamily: "inherit",
             opacity: isInitialViewportReady ? 1 : 0,
