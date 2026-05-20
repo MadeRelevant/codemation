@@ -121,6 +121,19 @@ export class AIAgent<TInputJson = unknown, TOutputJson = unknown>
       rows.push({ label: "Max turns", value: String(this.guardrails.maxTurns) });
     }
 
+    if (this.mcpServers !== undefined) {
+      if (Array.isArray(this.mcpServers)) {
+        if (this.mcpServers.length > 0) {
+          rows.push({ label: "MCP servers", value: this.mcpServers.join(", ") });
+        }
+      } else {
+        const ids = Object.keys(this.mcpServers);
+        if (ids.length > 0) {
+          rows.push({ label: "MCP servers", value: ids.join(", ") });
+        }
+      }
+    }
+
     return rows;
   }
 }
