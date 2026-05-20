@@ -56,6 +56,10 @@ export { InsertCollectionRowCommand } from "./application/collections/InsertColl
 export { UpdateCollectionRowCommand } from "./application/collections/UpdateCollectionRowCommand";
 export { DeleteCollectionRowCommand } from "./application/collections/DeleteCollectionRowCommand";
 export { SyncCollectionsCommand } from "./application/collections/SyncCollectionsCommand";
+export { StartWorkflowRunCommand } from "./application/commands/StartWorkflowRunCommand";
+export type { RunCommandResult } from "./application/contracts/RunContracts";
+export { ApplicationRequestError } from "./application/ApplicationRequestError";
+export { GetRunStateQuery } from "./application/queries/GetRunStateQuery";
 
 export type {
   CodemationFrontendAuthProviderSnapshot,

@@ -33,6 +33,8 @@ test("CliProgram forwards --watch-framework to the dev command", async () => {
     noopCommand,
     ...makeNoopCollectionArgs(),
     noopCommand,
+    noopCommand,
+    noopCommand,
   );
 
   await program.run(["dev", "--watch-framework", "--consumer-root", "/tmp/my-automation"]);
@@ -55,6 +57,8 @@ test("CliProgram defaults dev to the packaged UI path", async () => {
     noopCommand,
     ...makeNoopCollectionArgs(),
     noopCommand,
+    noopCommand,
+    noopCommand,
   );
 
   await program.run(["dev", "--consumer-root", "/tmp/my-automation"]);
@@ -76,6 +80,8 @@ test("CliProgram forwards --api-only to the dev command", async () => {
     noopCommand,
     noopCommand,
     ...makeNoopCollectionArgs(),
+    noopCommand,
+    noopCommand,
     noopCommand,
   );
 
@@ -107,6 +113,8 @@ test("CliProgram forwards skills sync --consumer-root", async () => {
     noopCommand,
     ...makeNoopCollectionArgs(),
     noopCommand,
+    noopCommand,
+    noopCommand,
   );
 
   await program.run(["skills", "sync", "--consumer-root", "/tmp/skills-consumer"]);
@@ -136,6 +144,8 @@ test("CliProgram forwards collections list --format json", async () => {
     noopCommand,
     noopCommand,
     listCommand as never,
+    noopCommand,
+    noopCommand,
     noopCommand,
     noopCommand,
     noopCommand,
@@ -181,6 +191,8 @@ test("CliProgram forwards collections sync --dry-run", async () => {
     noopCommand,
     noopCommand,
     syncCommand as never,
+    noopCommand,
+    noopCommand,
     noopCommand,
   );
 
@@ -261,6 +273,8 @@ test("CliProgram invokes build command action", async () => {
     noopCommand,
     ...makeNoopCollectionArgs(),
     noopCommand,
+    noopCommand,
+    noopCommand,
   );
 
   await program.run(["build", "--consumer-root", "/tmp/build-root"]);
@@ -283,6 +297,8 @@ test("CliProgram invokes dev:plugin command action", async () => {
     noopCommand,
     noopCommand,
     ...makeNoopCollectionArgs(),
+    noopCommand,
+    noopCommand,
     noopCommand,
   );
 
@@ -307,6 +323,8 @@ test("CliProgram invokes serve web command action", async () => {
     noopCommand,
     ...makeNoopCollectionArgs(),
     noopCommand,
+    noopCommand,
+    noopCommand,
   );
 
   await program.run(["serve", "web", "--consumer-root", "/tmp/serve-root"]);
@@ -329,6 +347,8 @@ test("CliProgram invokes serve worker command action", async () => {
     noopCommand,
     noopCommand,
     ...makeNoopCollectionArgs(),
+    noopCommand,
+    noopCommand,
     noopCommand,
   );
 
@@ -353,6 +373,8 @@ test("CliProgram invokes db migrate command action", async () => {
     noopCommand,
     ...makeNoopCollectionArgs(),
     noopCommand,
+    noopCommand,
+    noopCommand,
   );
 
   await program.run(["db", "migrate", "--consumer-root", "/tmp/db-root"]);
@@ -374,6 +396,8 @@ test("CliProgram invokes user create command action", async () => {
     userCreate as never,
     noopCommand,
     ...makeNoopCollectionArgs(),
+    noopCommand,
+    noopCommand,
     noopCommand,
   );
 
@@ -398,6 +422,8 @@ test("CliProgram invokes user list command action", async () => {
     userList as never,
     ...makeNoopCollectionArgs(),
     noopCommand,
+    noopCommand,
+    noopCommand,
   );
 
   await program.run(["user", "list"]);
@@ -420,6 +446,8 @@ test("CliProgram invokes collections show command action", async () => {
     noopCommand,
     noopCommand,
     showCmd as never,
+    noopCommand,
+    noopCommand,
     noopCommand,
     noopCommand,
     noopCommand,
@@ -464,6 +492,8 @@ test("CliProgram invokes collections rows command action", async () => {
     noopCommand,
     noopCommand,
     noopCommand,
+    noopCommand,
+    noopCommand,
   );
 
   await program.run(["collections", "rows", "my-collection"]);
@@ -489,6 +519,8 @@ test("CliProgram invokes collections get command action", async () => {
     noopCommand,
     noopCommand,
     getCmd as never,
+    noopCommand,
+    noopCommand,
     noopCommand,
     noopCommand,
     noopCommand,
@@ -525,6 +557,8 @@ test("CliProgram invokes collections insert command action", async () => {
     noopCommand,
     noopCommand,
     noopCommand,
+    noopCommand,
+    noopCommand,
   );
 
   await program.run(["collections", "insert", "my-collection", "--data", '{"name":"test"}']);
@@ -551,6 +585,8 @@ test("CliProgram invokes collections update command action", async () => {
     noopCommand,
     noopCommand,
     updateCmd as never,
+    noopCommand,
+    noopCommand,
     noopCommand,
     noopCommand,
     noopCommand,
@@ -585,6 +621,8 @@ test("CliProgram invokes collections delete command action", async () => {
     deleteCmd as never,
     noopCommand,
     noopCommand,
+    noopCommand,
+    noopCommand,
   );
 
   await program.run(["collections", "delete", "my-collection", "row-id-1"]);
@@ -608,6 +646,8 @@ test("CliProgram invokes example verify command action", async () => {
     noopCommand,
     ...makeNoopCollectionArgs(),
     exampleCmd as never,
+    noopCommand,
+    noopCommand,
   );
 
   await program.run(["example", "verify", "/tmp/my-example.ts"]);

@@ -62,6 +62,9 @@ import { CollectionsUpdateCommand } from "./commands/CollectionsUpdateCommand";
 import { CollectionsDeleteCommand } from "./commands/CollectionsDeleteCommand";
 import { CollectionsSyncCommand } from "./commands/CollectionsSyncCommand";
 import { ExampleVerifyCommand } from "./commands/ExampleVerifyCommand";
+import { RunCliBootstrap } from "./run/RunCliBootstrap";
+import { RunWorkflowCommand } from "./commands/RunWorkflowCommand";
+import { RunTestCommand } from "./commands/RunTestCommand";
 
 const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
 
@@ -140,6 +143,12 @@ export class CliProgramFactory {
       tsconfigPreparation,
     );
     const collectionsOptionsParser = new CollectionsCliOptionsParser();
+    const runBootstrap = new RunCliBootstrap(
+      appConfigLoader,
+      pathResolver,
+      new UserAdminConsumerDotenvLoader(),
+      tsconfigPreparation,
+    );
 
     return new CliProgram(
       buildOptionsParser,
@@ -178,6 +187,8 @@ export class CliProgramFactory {
       new CollectionsDeleteCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
       new CollectionsSyncCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
       new ExampleVerifyCommand(),
+      new RunWorkflowCommand(cliLogger, runBootstrap),
+      new RunTestCommand(cliLogger),
     );
   }
 }

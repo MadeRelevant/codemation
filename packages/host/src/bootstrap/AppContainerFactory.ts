@@ -297,6 +297,7 @@ import { ManagedCorsMiddleware } from "../auth/managed/ManagedCorsMiddleware";
 import { ManagedModeBootGuard } from "../auth/managed/ManagedModeBootGuard";
 import { ManagedWebsocketAuthenticator } from "../presentation/websocket/ManagedWebsocketAuthenticator";
 import { JwksCache, ManagedJwtVerifier } from "@codemation/managed-auth";
+import { CodemationTsyringeTypeInfoRegistrar } from "../presentation/server/CodemationTsyringeTypeInfoRegistrar";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -406,6 +407,7 @@ export class AppContainerFactory {
     this.registerCollectionsInfrastructure(container, inputs.appConfig);
     this.registerCredentialTypes(container, credentialTypes);
     this.synchronizeLiveWorkflowRepository(container, inputs.appConfig.workflows);
+    new CodemationTsyringeTypeInfoRegistrar(container).registerWorkflowDefinitions(inputs.appConfig.workflows ?? []);
     container.resolve(BootRuntimeSnapshotHolder).set(this.createRuntimeSummary(inputs.appConfig));
     const lifecycle = new AppContainerLifecycle(container, ownership.ownedPrismaClient);
     container.registerInstance(AppContainerLifecycle, lifecycle);
