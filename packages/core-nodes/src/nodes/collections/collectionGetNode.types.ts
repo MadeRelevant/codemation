@@ -10,6 +10,12 @@ export const collectionGetNode = defineNode({
     collectionName: z.string(),
     id: z.string(),
   }),
+  inspectorSummary({ config }) {
+    const name = config.collectionName ?? "";
+    if (!name) return [];
+    const truncated = name.length > 80 ? `${name.slice(0, 79)}…` : name;
+    return [{ label: "Collection", value: truncated }];
+  },
   async execute(_args, { config, execution }) {
     const store = execution.collections?.[config.collectionName];
     if (!store) {
