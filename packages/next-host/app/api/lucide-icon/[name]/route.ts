@@ -17,55 +17,14 @@
  * are versioned by the lucide-static package version, which moves only on
  * dependency upgrades.
  */
-import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { lucideIconGet } from "../lucideIconGet";
 
 export const runtime = "nodejs";
-
-const LUCIDE_NAME_RE = /^[a-z][a-z0-9-]*$/;
-
-let iconsDirectoryPromise: Promise<string> | undefined;
-
-async function resolveIconsDirectory(): Promise<string> {
-  if (iconsDirectoryPromise) {
-    return iconsDirectoryPromise;
-  }
-  iconsDirectoryPromise = (async () => {
-    // Resolve the package by its package.json so we don't depend on the entry export shape.
-    // This works under Next's server bundle: lucide-static is treated as a runtime dep,
-    // not pulled into the client graph.
-    const pkgJsonPath = require.resolve("lucide-static/package.json");
-    return join(dirname(pkgJsonPath), "icons");
-  })();
-  return iconsDirectoryPromise;
-}
 
 export async function GET(
   _request: Request,
   context: Readonly<{ params: Promise<Readonly<{ name: string }>> }>,
 ): Promise<Response> {
   const { name: rawName } = await context.params;
-  const name = (rawName ?? "").replace(/\.svg$/i, "");
-  if (!LUCIDE_NAME_RE.test(name)) {
-    return new Response("Invalid icon name", { status: 400 });
-  }
-  const iconsDirectory = await resolveIconsDirectory();
-  const filePath = join(iconsDirectory, `${name}.svg`);
-  let body: string;
-  try {
-    body = await readFile(filePath, "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return new Response("Icon not found", { status: 404 });
-    }
-    throw error;
-  }
-  return new Response(body, {
-    status: 200,
-    headers: {
-      "content-type": "image/svg+xml; charset=utf-8",
-      // Lucide glyphs are versioned by the lucide-static package version; safe to cache forever.
-      "cache-control": "public, max-age=31536000, immutable",
-    },
-  });
+  return lucideIconGet(rawName);
 }
