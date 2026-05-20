@@ -1,4 +1,4 @@
-import type { AnyCredentialType, DefinedCollection, DefinedNode } from "@codemation/core";
+import type { AnyCredentialType, DefinedCollection, DefinedNode, McpServerDeclaration } from "@codemation/core";
 import type { CodemationAppContext } from "./CodemationAppContext";
 import type {
   CodemationAppDefinition,
@@ -57,6 +57,7 @@ export interface DefinePluginOptions {
   readonly nodes?: ReadonlyArray<DefinedNode<string, Record<string, unknown>, unknown, unknown>>;
   readonly collections?: ReadonlyArray<DefinedCollection>;
   readonly credentials?: ReadonlyArray<AnyCredentialType>;
+  readonly mcpServers?: ReadonlyArray<McpServerDeclaration>;
   readonly register?: (context: CodemationPluginContext) => void | Promise<void>;
   readonly sandbox?: CodemationConfig;
 }
@@ -85,6 +86,7 @@ class CodemationAuthoringConfigFactory {
     return {
       pluginPackageId: options.pluginPackageId,
       sandbox: options.sandbox,
+      mcpServers: options.mcpServers,
       async register(context: CodemationPluginContext): Promise<void> {
         for (const nodeDefinition of options.nodes ?? []) {
           nodeDefinition.register(context);

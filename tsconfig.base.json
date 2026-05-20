@@ -14,6 +14,7 @@
       "@codemation/cli": ["packages/cli/src/index.ts"],
       "@codemation/core-nodes": ["packages/core-nodes/src/index.ts"],
       "@codemation/core-nodes-gmail": ["packages/core-nodes-gmail/src/index.ts"],
+      "@codemation/core-nodes-gmail/codemation.plugin": ["packages/core-nodes-gmail/codemation.plugin.ts"],
       "@codemation/core-nodes-msgraph": ["packages/core-nodes-msgraph/src/index.ts"],
       "@codemation/eventbus-redis": ["packages/eventbus-redis/src/index.ts"],
       "@codemation/host": ["packages/host/src/index.ts"],

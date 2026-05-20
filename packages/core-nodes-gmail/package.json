@@ -37,6 +37,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./codemation.plugin": {
+      "types": "./dist/codemation.plugin.d.ts",
+      "development": "./codemation.plugin.ts",
+      "import": "./dist/codemation.plugin.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

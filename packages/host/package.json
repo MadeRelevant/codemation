@@ -146,7 +146,6 @@
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
-    "@codemation/core-nodes-gmail": "workspace:*",
     "@playwright/test": "^1.58.2",
     "@tanstack/react-router": "^1.167.3",
     "@testing-library/jest-dom": "^6.9.1",
