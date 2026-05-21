@@ -4,9 +4,10 @@ import {
   AgentConnectionNodeCollector,
   type AgentConnectionNodeDescriptor,
   ConnectionNodeIdFactory,
+  inject,
+  injectable,
 } from "@codemation/core";
-
-import { injectable } from "@codemation/core";
+import { McpServerCatalog } from "../../mcp/McpServerCatalog";
 
 export type WorkflowCredentialSlotRef = Readonly<{
   workflowId: string;
@@ -20,6 +21,10 @@ export type WorkflowCredentialSlotRef = Readonly<{
  */
 @injectable()
 export class WorkflowCredentialNodeResolver {
+  constructor(
+    @inject(McpServerCatalog)
+    private readonly mcpCatalog?: McpServerCatalog,
+  ) {}
   /**
    * Human-readable label for credential errors (workflow node name or agent › attachment).
    */
@@ -102,7 +107,8 @@ export class WorkflowCredentialNodeResolver {
     agentConfig: Parameters<typeof AgentConnectionNodeCollector.collect>[1],
     slotsByKey: Map<string, WorkflowCredentialSlotRef>,
   ): void {
-    for (const entry of AgentConnectionNodeCollector.collect(rootAgentNodeId, agentConfig)) {
+    const mcpResolver = this.mcpCatalog ? (id: string) => this.mcpCatalog!.get(id) : undefined;
+    for (const entry of AgentConnectionNodeCollector.collect(rootAgentNodeId, agentConfig, mcpResolver)) {
       this.addSlotsForRequirements(
         workflowId,
         entry.nodeId,
@@ -147,15 +153,17 @@ export class WorkflowCredentialNodeResolver {
     | undefined {
     if (
       !ConnectionNodeIdFactory.isLanguageModelConnectionNodeId(nodeId) &&
-      !ConnectionNodeIdFactory.isToolConnectionNodeId(nodeId)
+      !ConnectionNodeIdFactory.isToolConnectionNodeId(nodeId) &&
+      !ConnectionNodeIdFactory.isMcpConnectionNodeId(nodeId)
     ) {
       return undefined;
     }
+    const mcpResolver = this.mcpCatalog ? (id: string) => this.mcpCatalog!.get(id) : undefined;
     for (const node of workflow.nodes) {
       if (!AgentConfigInspector.isAgentNodeConfig(node.config)) {
         continue;
       }
-      const entries = AgentConnectionNodeCollector.collect(node.id, node.config);
+      const entries = AgentConnectionNodeCollector.collect(node.id, node.config, mcpResolver);
       const entriesById = new Map(entries.map((entry) => [entry.nodeId, entry]));
       const entry = entriesById.get(nodeId);
       if (!entry) {
