@@ -2,7 +2,7 @@
 
 /* eslint-disable max-lines -- Slot wiring + ctx assembly inherently large; tracked in backlog for refactor. */
 
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 
 import { cn } from "@codemation/ui";
 
@@ -83,6 +83,15 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
   });
   const [isTestsViewActive, setIsTestsViewActive] = useState(false);
   const [autoStartTestTriggerNodeId, setAutoStartTestTriggerNodeId] = useState<string | undefined>();
+  // Prevents hydration mismatch: server always renders the loading state; the canvas only
+  // renders after client mount. Without this gate the React Query warm cache can make the
+  // client's first render differ from the server's (which has no cached data), producing
+  // "Hydration failed" console errors because the server yields DefaultLoadingState while
+  // the client yields the real WorkflowCanvas element tree.
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
   const workflowNodes = controller.displayedWorkflow?.nodes ?? [];
   const { onChromeChange } = args;
   useWorkflowDetailChromeSync(controller, onChromeChange);
@@ -195,23 +204,8 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
               : `minmax(0, 1fr) ${controller.inspectorHeight}px`,
           }}
         >
-          {/*
-           * suppressHydrationWarning: the inner conditional below renders
-           * `<WorkflowCanvas />` when the workflow query data is available
-           * and `<DefaultLoadingState />` otherwise. On the server the query
-           * cache is empty so this branch resolves to the loading state, but
-           * on first client render React Query may already have the workflow
-           * in cache (warm cache from a prior route mount) and resolve to the
-           * canvas. That's a benign SSR/CSR divergence — the client takes
-           * over and renders the correct branch immediately. Suppressing the
-           * warning one level deep silences the noisy console error without
-           * changing behavior.
-           */}
-          <div
-            className="relative flex h-full min-h-0 min-w-0 flex-row overflow-hidden bg-muted/40"
-            suppressHydrationWarning
-          >
-            {controller.displayedWorkflow ? (
+          <div className="relative flex h-full min-h-0 min-w-0 flex-row overflow-hidden bg-muted/40">
+            {hasMounted && controller.displayedWorkflow ? (
               <>
                 <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
                   <WorkflowCanvas
