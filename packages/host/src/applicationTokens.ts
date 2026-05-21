@@ -10,6 +10,7 @@ import type { Query } from "./application/bus/Query";
 import type { QueryBus } from "./application/bus/QueryBus";
 import type { QueryHandler } from "./application/bus/QueryHandler";
 import type { Logger, LoggerFactory } from "./application/logging/Logger";
+import type { ProcessRunner } from "./process/ProcessRunner.types";
 import type { WorkflowWebsocketPublisher } from "./application/websocket/WorkflowWebsocketPublisher";
 import type { TelemetrySpanPublisher } from "./application/telemetry/TelemetrySpanPublisher";
 import type { CredentialStore } from "./domain/credentials/CredentialServices";
@@ -103,4 +104,5 @@ export const ApplicationTokens = {
   SessionVerifier: Symbol.for("codemation.application.SessionVerifier") as TypeToken<SessionVerifier>,
   Clock: Symbol.for("codemation.application.Clock") as TypeToken<Clock>,
   WorkflowAuditEmitter: Symbol.for("codemation.application.WorkflowAuditEmitter") as TypeToken<IWorkflowAuditEmitter>,
+  ProcessRunner: Symbol.for("codemation.application.ProcessRunner") as TypeToken<ProcessRunner>,
 } as const;

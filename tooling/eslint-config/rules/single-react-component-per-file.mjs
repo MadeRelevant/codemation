@@ -122,7 +122,7 @@ function collectTopLevelReactComponents(program) {
  */
 function filenameToPascalPrefix(file) {
   const base = file
-    .split("/")
+    .split(/[\\/]/)
     .pop()
     .replace(/\.tsx$/, "");
   return base

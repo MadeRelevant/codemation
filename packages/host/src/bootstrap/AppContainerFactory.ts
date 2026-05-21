@@ -239,6 +239,7 @@ import { WorkflowRunRepository as SqlWorkflowRunRepository } from "../infrastruc
 import { LiveWorkflowRepository } from "../infrastructure/runtime/LiveWorkflowRepository";
 import { LogLevelPolicyFactory, logLevelPolicyFactory } from "../infrastructure/logging/LogLevelPolicyFactory";
 import { ServerLoggerFactory } from "../infrastructure/logging/ServerLoggerFactory";
+import { ExecaProcessRunner } from "../process/ExecaProcessRunner";
 import type { AppConfig } from "../presentation/config/AppConfig";
 import { CodemationContainerRegistrationRegistrar } from "./CodemationContainerRegistrationRegistrar";
 import { LocalFilesystemBinaryStorage } from "../infrastructure/binary/LocalFilesystemBinaryStorageRegistry";
@@ -646,6 +647,7 @@ export class AppContainerFactory {
     });
     container.registerInstance(LogLevelPolicyFactory, logLevelPolicyFactory);
     container.registerSingleton(ServerLoggerFactory, ServerLoggerFactory);
+    container.registerInstance(ApplicationTokens.ProcessRunner, new ExecaProcessRunner());
     container.register(ApplicationTokens.LoggerFactory, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(ServerLoggerFactory)),
     });

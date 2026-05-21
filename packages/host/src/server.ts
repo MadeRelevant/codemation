@@ -1,5 +1,7 @@
 export { CodemationPostgresPrismaClientFactory } from "./persistenceServer";
 export type { PrismaClient } from "./persistenceServer";
+export { ExecaProcessRunner } from "./process/ExecaProcessRunner";
+export type { ProcessRunner, ProcessRunOptions, ProcessRunResult } from "./process/ProcessRunner.types";
 export { ApiPaths } from "./presentation/http/ApiPaths";
 export { CodemationServerGateway } from "./presentation/http/CodemationServerGatewayFactory";
 export { CodemationConsumerAppResolver } from "./presentation/server/CodemationConsumerAppResolver";

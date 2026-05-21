@@ -1,4 +1,5 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import type { ProcessRunner } from "@codemation/host/server";
+import { type ChildProcess } from "node:child_process";
 import { access } from "node:fs/promises";
 import process from "node:process";
 
@@ -8,6 +9,7 @@ import type { WorkspacePluginPackage } from "./WorkspacePluginPackageResolver";
 export class WorkspacePluginDevProcessCoordinator {
   constructor(
     private readonly processTreeKiller: DevTrackedProcessTreeKiller,
+    private readonly processRunner: ProcessRunner,
     private readonly startupTimeoutMs = 30000,
     private readonly pollIntervalMs = 100,
   ) {}
@@ -47,8 +49,7 @@ export class WorkspacePluginDevProcessCoordinator {
     env: NodeJS.ProcessEnv,
     onUnexpectedExit: (error: Error) => void,
   ): ChildProcess {
-    const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-    const child = spawn(pnpmCommand, ["--filter", workspacePluginPackage.packageName, "dev"], {
+    const child = this.processRunner.spawn("pnpm", ["--filter", workspacePluginPackage.packageName, "dev"], {
       cwd: repoRoot,
       detached: process.platform !== "win32",
       env,

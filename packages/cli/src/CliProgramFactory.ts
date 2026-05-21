@@ -1,5 +1,6 @@
 import { AppConfigLoader, CodemationConsumerConfigLoader, CodemationPluginDiscovery } from "@codemation/host/server";
 import { AppContainerFactory } from "@codemation/host";
+import { ExecaProcessRunner } from "@codemation/host/server";
 import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 
 import { ConsumerBuildOptionsParser } from "./build/ConsumerBuildOptionsParser";
@@ -106,6 +107,7 @@ export class CliProgramFactory {
     const consumerOutputBuilderFactory = new ConsumerOutputBuilderFactory();
     const consumerBuildArtifactsPublisher = new ConsumerBuildArtifactsPublisher();
     const devTrackedProcessTreeKiller = new DevTrackedProcessTreeKiller();
+    const processRunner = new ExecaProcessRunner();
     const consumerAgentSkillsSyncService = new ConsumerAgentSkillsSyncService(
       new AgentSkillsExtractorFactory(),
       new ConsumerAgentSkillsAutoSyncPolicy(),
@@ -128,13 +130,14 @@ export class CliProgramFactory {
       new ConsumerEnvDotenvFilePredicate(),
       devTrackedProcessTreeKiller,
       new WorkspacePluginPackageResolver(),
-      new WorkspacePluginDevProcessCoordinator(devTrackedProcessTreeKiller),
+      new WorkspacePluginDevProcessCoordinator(devTrackedProcessTreeKiller, processRunner),
       nextHostConsumerServerCommandFactory,
       new DevApiRuntimeFactory(devSessionServices.loopbackPortAllocator, appConfigLoader, pluginDiscovery),
       new CliDevProxyServerFactory(),
       new DevRebuildQueueFactory(),
       new DevNextChildProcessOutputFilter(new DevNextStartupBannerLineFilter()),
       new ConsumerSourceErrorParser(),
+      processRunner,
     );
     const collectionsBootstrap = new CollectionsCliBootstrap(
       appConfigLoader,
@@ -172,6 +175,7 @@ export class CliProgramFactory {
         new ConsumerEnvLoader(),
         new ListenPortResolver(),
         nextHostConsumerServerCommandFactory,
+        processRunner,
       ),
       new ServeWorkerCommand(pathResolver, appConfigLoader, new AppContainerFactory()),
       new SkillsSyncCommand(consumerAgentSkillsSyncService),

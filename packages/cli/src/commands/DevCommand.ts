@@ -1,6 +1,6 @@
-import type { CodemationPluginDiscovery } from "@codemation/host/server";
+import type { CodemationPluginDiscovery, ProcessRunner } from "@codemation/host/server";
 import type { Logger } from "@codemation/host/next/server";
-import { spawn, type ChildProcess } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
@@ -61,6 +61,7 @@ export class DevCommand {
     private readonly devRebuildQueueFactory: DevRebuildQueueFactory,
     private readonly devNextChildProcessOutputFilter: DevNextChildProcessOutputFilter,
     private readonly consumerSourceErrorParser: ConsumerSourceErrorParser,
+    private readonly processRunner: ProcessRunner,
   ) {}
 
   async execute(
@@ -295,7 +296,7 @@ export class DevCommand {
       skipUiAuth: !authSettings.uiAuthEnabled,
       websocketPort,
     });
-    state.currentPackagedUi = spawn(nextHostCommand.command, nextHostCommand.args, {
+    state.currentPackagedUi = this.processRunner.spawn(nextHostCommand.command, nextHostCommand.args, {
       cwd: nextHostCommand.cwd,
       ...this.devDetachedChildSpawnPipeOptions(),
       env: nextHostEnvironment,
@@ -417,7 +418,7 @@ export class DevCommand {
 
     await this.session.nextHostPortAvailability.assertLoopbackPortAvailable(prepared.nextPort);
 
-    state.currentDevUi = spawn("pnpm", ["exec", "next", "dev"], {
+    state.currentDevUi = this.processRunner.spawn("pnpm", ["exec", "next", "dev"], {
       cwd: nextHostRoot,
       ...this.devDetachedChildSpawnPipeOptions(),
       env: nextHostEnvironment,

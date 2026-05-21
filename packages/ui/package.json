@@ -47,6 +47,7 @@
     "react-dom": "*"
   },
   "devDependencies": {
+    "eslint": "^10.0.3",
     "@headless-tree/core": "^1.6.3",
     "@headless-tree/react": "^1.6.3",
     "@monaco-editor/react": "^4.7.0",
