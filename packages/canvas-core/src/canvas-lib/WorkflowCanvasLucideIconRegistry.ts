@@ -17,6 +17,7 @@ import Info from "lucide-react/dist/esm/icons/info";
 import Layers from "lucide-react/dist/esm/icons/layers";
 import Merge from "lucide-react/dist/esm/icons/merge";
 import Play from "lucide-react/dist/esm/icons/play";
+import Plug from "lucide-react/dist/esm/icons/plug";
 import Split from "lucide-react/dist/esm/icons/split";
 import SquarePen from "lucide-react/dist/esm/icons/square-pen";
 import Ungroup from "lucide-react/dist/esm/icons/ungroup";
@@ -65,6 +66,7 @@ export class WorkflowCanvasLucideIconRegistry {
     layers: Layers,
     merge: Merge,
     play: Play,
+    plug: Plug,
     split: Split,
     "square-pen": SquarePen,
     ungroup: Ungroup,

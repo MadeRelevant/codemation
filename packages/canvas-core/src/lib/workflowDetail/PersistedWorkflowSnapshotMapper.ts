@@ -155,6 +155,7 @@ export class PersistedWorkflowSnapshotMapper {
           name: serverId,
           type: serverId,
           role: "tool",
+          icon: "lucide:plug",
           parentNodeId,
         });
       }
