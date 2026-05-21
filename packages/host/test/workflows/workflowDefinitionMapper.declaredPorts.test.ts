@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { WorkflowDefinitionMapper } from "../../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowPolicyUiPresentationFactory } from "../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
+import type { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
 
 describe("WorkflowDefinitionMapper declared ports", () => {
   it("maps declared input/output ports from node config onto WorkflowNodeDto", () => {
@@ -26,6 +27,7 @@ describe("WorkflowDefinitionMapper declared ports", () => {
     const dto = new WorkflowDefinitionMapper(
       new WorkflowPolicyUiPresentationFactory(),
       new AllWorkflowsActiveWorkflowActivationPolicy(),
+      { get: () => undefined } as unknown as McpServerCatalog,
     ).mapSync(wf);
 
     const nodeDto = dto.nodes.find((n) => n.id === "node_1");

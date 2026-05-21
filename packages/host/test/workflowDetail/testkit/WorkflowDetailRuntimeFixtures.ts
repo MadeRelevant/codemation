@@ -5,6 +5,7 @@ import { WorkflowDefinitionMapper } from "../../../src/application/mapping/Workf
 import { WorkflowPolicyUiPresentationFactory } from "../../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
 import type { CodemationConfig } from "../../../src/presentation/config/CodemationConfig";
 import { IntegrationTestAuth } from "../../http/testkit/IntegrationTestAuth";
+import type { McpServerCatalog } from "../../../src/mcp/McpServerCatalog";
 
 export interface WorkflowDetailRuntimeFixture {
   readonly workflow: WorkflowDto;
@@ -30,6 +31,7 @@ export class WorkflowDetailRuntimeFixtureFactory {
       workflow: new WorkflowDefinitionMapper(
         new WorkflowPolicyUiPresentationFactory(),
         new AllWorkflowsActiveWorkflowActivationPolicy(),
+        { get: () => undefined } as unknown as McpServerCatalog,
       ).mapSync(definition) as WorkflowDto,
       definition,
       config: this.createConfig(definition),

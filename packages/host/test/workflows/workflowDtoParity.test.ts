@@ -21,6 +21,7 @@ import { describe, expect, it } from "vitest";
 import { WorkflowDefinitionMapper } from "../../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowPolicyUiPresentationFactory } from "../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
 import { WorkflowDetailFixtureFactory } from "../workflowDetail/testkit";
+import type { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
 
 @chatModel({ packageName: "@codemation/host-parity" })
 class FrontendParityChatModelFactory {}
@@ -83,6 +84,7 @@ describe("workflow dto parity", () => {
     const liveDto = new WorkflowDefinitionMapper(
       new WorkflowPolicyUiPresentationFactory(),
       new AllWorkflowsActiveWorkflowActivationPolicy(),
+      { get: () => undefined } as unknown as McpServerCatalog,
     ).mapSync(workflow);
     const tokenRegistry = new PersistedWorkflowTokenRegistry();
     tokenRegistry.registerFromWorkflows([workflow]);
@@ -114,6 +116,7 @@ describe("workflow dto parity", () => {
     const liveDto = new WorkflowDefinitionMapper(
       new WorkflowPolicyUiPresentationFactory(),
       new AllWorkflowsActiveWorkflowActivationPolicy(),
+      { get: () => undefined } as unknown as McpServerCatalog,
     ).mapSync(workflow);
     const tokenRegistry = new PersistedWorkflowTokenRegistry();
     tokenRegistry.registerFromWorkflows([workflow]);
@@ -147,6 +150,7 @@ describe("workflow dto parity", () => {
     const liveDto = new WorkflowDefinitionMapper(
       new WorkflowPolicyUiPresentationFactory(),
       new AllWorkflowsActiveWorkflowActivationPolicy(),
+      { get: () => undefined } as unknown as McpServerCatalog,
     ).mapSync(workflow);
     const tokenRegistry = new PersistedWorkflowTokenRegistry();
     tokenRegistry.registerFromWorkflows([workflow]);
@@ -181,6 +185,7 @@ describe("workflow dto parity", () => {
     const liveDto = new WorkflowDefinitionMapper(
       new WorkflowPolicyUiPresentationFactory(),
       new AllWorkflowsActiveWorkflowActivationPolicy(),
+      { get: () => undefined } as unknown as McpServerCatalog,
     ).mapSync(workflow);
     const tokenRegistry = new PersistedWorkflowTokenRegistry();
     tokenRegistry.registerFromWorkflows([workflow]);

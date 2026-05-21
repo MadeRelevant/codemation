@@ -1,3 +1,4 @@
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { AppConfigFactory } from "../../../src/bootstrap/runtime/AppConfigFactory";
@@ -44,7 +45,7 @@ describe("AppConfigFactory", () => {
     });
     expect(app.persistence).toEqual({
       kind: "sqlite",
-      databaseFilePath: "/consumer/.codemation/codemation.sqlite",
+      databaseFilePath: path.resolve("/consumer", ".codemation", "codemation.sqlite"),
     });
   });
 

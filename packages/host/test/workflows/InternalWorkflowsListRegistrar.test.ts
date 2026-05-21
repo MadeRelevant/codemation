@@ -5,6 +5,7 @@ import { AllWorkflowsActiveWorkflowActivationPolicy, type WorkflowDefinition } f
 import { InternalWorkflowsListRegistrar } from "../../src/workflows/InternalWorkflowsListRegistrar";
 import { WorkflowDefinitionMapper } from "../../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowPolicyUiPresentationFactory } from "../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
+import type { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ function makeMapper(): WorkflowDefinitionMapper {
   return new WorkflowDefinitionMapper(
     new WorkflowPolicyUiPresentationFactory(),
     new AllWorkflowsActiveWorkflowActivationPolicy(),
+    { get: () => undefined } as unknown as McpServerCatalog,
   );
 }
 

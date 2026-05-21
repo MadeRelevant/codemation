@@ -101,15 +101,13 @@ test("TypeScriptRuntimeConfigurator sets CODEMATION_TSCONFIG_PATH", () => {
   const previous = process.env.CODEMATION_TSCONFIG_PATH;
   try {
     const configurator = new TypeScriptRuntimeConfigurator();
-    configurator.configure("/some/repo/root");
+    const repoRoot = path.resolve("/some/repo/root");
+    configurator.configure(repoRoot);
     assert.ok(
       process.env.CODEMATION_TSCONFIG_PATH?.endsWith("tsconfig.base.json"),
       `Expected CODEMATION_TSCONFIG_PATH to end with tsconfig.base.json, got: ${process.env.CODEMATION_TSCONFIG_PATH}`,
     );
-    assert.ok(
-      process.env.CODEMATION_TSCONFIG_PATH?.startsWith("/some/repo/root"),
-      `Expected path to start with repo root`,
-    );
+    assert.ok(process.env.CODEMATION_TSCONFIG_PATH?.startsWith(repoRoot), `Expected path to start with repo root`);
   } finally {
     if (previous === undefined) {
       delete process.env.CODEMATION_TSCONFIG_PATH;

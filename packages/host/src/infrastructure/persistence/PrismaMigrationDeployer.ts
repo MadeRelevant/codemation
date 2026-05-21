@@ -105,11 +105,12 @@ export class PrismaMigrationDeployer {
       env?: Readonly<NodeJS.ProcessEnv>;
     }>,
   ): Promise<void> {
-    const prismaConfigPath = this.resolveAbsolutePrismaConfigPath();
+    const resolverEnv = { ...process.env, ...(args.env ?? {}) };
+    const prismaConfigPath = this.resolveAbsolutePrismaConfigPath(resolverEnv);
     await new Promise<void>((resolve, reject) => {
       const command = spawn(
         process.execPath,
-        [...[this.resolvePrismaCliPath(), ...args.prismaArgs], "--config", path.basename(prismaConfigPath)],
+        [...[this.resolvePrismaCliPath(resolverEnv), ...args.prismaArgs], "--config", path.basename(prismaConfigPath)],
         {
           cwd: path.dirname(prismaConfigPath),
           env: this.createProcessEnvironment(args.databaseUrl, args.provider, args.env),
@@ -326,14 +327,15 @@ export class PrismaMigrationDeployer {
     };
   }
 
-  private resolvePrismaCliPath(): string {
-    const configuredPath = process.env.CODEMATION_PRISMA_CLI_PATH;
+  private resolvePrismaCliPath(env: Readonly<NodeJS.ProcessEnv>): string {
+    const configuredPath = env.CODEMATION_PRISMA_CLI_PATH;
     if (configuredPath && existsSync(configuredPath)) {
       return configuredPath;
     }
+    const packageRoot = this.resolvePackageRoot(env);
     const packageManagerCandidates = [
       path.resolve(process.cwd(), "node_modules", "prisma", "build", "index.js"),
-      path.resolve(this.resolvePackageRoot(), "node_modules", "prisma", "build", "index.js"),
+      path.resolve(packageRoot, "node_modules", "prisma", "build", "index.js"),
     ];
     for (const candidate of packageManagerCandidates) {
       if (existsSync(candidate)) {
@@ -342,7 +344,7 @@ export class PrismaMigrationDeployer {
     }
     try {
       return this.require.resolve("prisma/build/index.js", {
-        paths: [process.cwd(), this.resolvePackageRoot()],
+        paths: [process.cwd(), packageRoot],
       });
     } catch {
       throw new Error(
@@ -351,16 +353,17 @@ export class PrismaMigrationDeployer {
     }
   }
 
-  private resolveAbsolutePrismaConfigPath(): string {
-    const configuredPath = process.env.CODEMATION_PRISMA_CONFIG_PATH;
+  private resolveAbsolutePrismaConfigPath(env: Readonly<NodeJS.ProcessEnv>): string {
+    const configuredPath = env.CODEMATION_PRISMA_CONFIG_PATH;
+    const packageRoot = this.resolvePackageRoot(env);
     if (configuredPath) {
-      return path.isAbsolute(configuredPath) ? configuredPath : path.resolve(this.resolvePackageRoot(), configuredPath);
+      return path.isAbsolute(configuredPath) ? configuredPath : path.resolve(packageRoot, configuredPath);
     }
-    return path.resolve(this.resolvePackageRoot(), "prisma.config.ts");
+    return path.resolve(packageRoot, "prisma.config.ts");
   }
 
-  resolvePackageRoot(): string {
-    const configuredRoot = process.env.CODEMATION_HOST_PACKAGE_ROOT;
+  resolvePackageRoot(env: Readonly<NodeJS.ProcessEnv> = process.env): string {
+    const configuredRoot = env.CODEMATION_HOST_PACKAGE_ROOT;
     if (configuredRoot) {
       return configuredRoot;
     }

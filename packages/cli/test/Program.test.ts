@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test } from "vitest";
 
 import { ConsumerBuildOptionsParser } from "../src/build/ConsumerBuildOptionsParser";
@@ -37,9 +38,11 @@ test("CliProgram forwards --watch-framework to the dev command", async () => {
     noopCommand,
   );
 
-  await program.run(["dev", "--watch-framework", "--consumer-root", "/tmp/my-automation"]);
+  await program.run(["dev", "--watch-framework", "--consumer-root", path.resolve("/tmp/my-automation")]);
 
-  assert.deepEqual(devCommand.calls, [{ consumerRoot: "/tmp/my-automation", watchFramework: true, apiOnly: false }]);
+  assert.deepEqual(devCommand.calls, [
+    { consumerRoot: path.resolve("/tmp/my-automation"), watchFramework: true, apiOnly: false },
+  ]);
 });
 
 test("CliProgram defaults dev to the packaged UI path", async () => {
@@ -61,9 +64,11 @@ test("CliProgram defaults dev to the packaged UI path", async () => {
     noopCommand,
   );
 
-  await program.run(["dev", "--consumer-root", "/tmp/my-automation"]);
+  await program.run(["dev", "--consumer-root", path.resolve("/tmp/my-automation")]);
 
-  assert.deepEqual(devCommand.calls, [{ consumerRoot: "/tmp/my-automation", watchFramework: false, apiOnly: false }]);
+  assert.deepEqual(devCommand.calls, [
+    { consumerRoot: path.resolve("/tmp/my-automation"), watchFramework: false, apiOnly: false },
+  ]);
 });
 
 test("CliProgram forwards --api-only to the dev command", async () => {
@@ -85,9 +90,11 @@ test("CliProgram forwards --api-only to the dev command", async () => {
     noopCommand,
   );
 
-  await program.run(["dev", "--api-only", "--consumer-root", "/tmp/my-automation"]);
+  await program.run(["dev", "--api-only", "--consumer-root", path.resolve("/tmp/my-automation")]);
 
-  assert.deepEqual(devCommand.calls, [{ consumerRoot: "/tmp/my-automation", watchFramework: false, apiOnly: true }]);
+  assert.deepEqual(devCommand.calls, [
+    { consumerRoot: path.resolve("/tmp/my-automation"), watchFramework: false, apiOnly: true },
+  ]);
 });
 
 class RecordingSkillsSyncCommand {
@@ -117,9 +124,9 @@ test("CliProgram forwards skills sync --consumer-root", async () => {
     noopCommand,
   );
 
-  await program.run(["skills", "sync", "--consumer-root", "/tmp/skills-consumer"]);
+  await program.run(["skills", "sync", "--consumer-root", path.resolve("/tmp/skills-consumer")]);
 
-  assert.deepEqual(skillsSync.roots, ["/tmp/skills-consumer"]);
+  assert.deepEqual(skillsSync.roots, [path.resolve("/tmp/skills-consumer")]);
 });
 
 class RecordingCollectionsListCommand {
@@ -277,10 +284,10 @@ test("CliProgram invokes build command action", async () => {
     noopCommand,
   );
 
-  await program.run(["build", "--consumer-root", "/tmp/build-root"]);
+  await program.run(["build", "--consumer-root", path.resolve("/tmp/build-root")]);
 
   assert.equal(buildCmd.calls.length, 1);
-  assert.equal(buildCmd.calls[0]?.root, "/tmp/build-root");
+  assert.equal(buildCmd.calls[0]?.root, path.resolve("/tmp/build-root"));
 });
 
 test("CliProgram invokes dev:plugin command action", async () => {
@@ -302,10 +309,10 @@ test("CliProgram invokes dev:plugin command action", async () => {
     noopCommand,
   );
 
-  await program.run(["dev:plugin", "--plugin-root", "/tmp/plugin-root"]);
+  await program.run(["dev:plugin", "--plugin-root", path.resolve("/tmp/plugin-root")]);
 
   assert.equal(devPlugin.calls.length, 1);
-  assert.deepEqual((devPlugin.calls[0] as Record<string, unknown>).pluginRoot, "/tmp/plugin-root");
+  assert.deepEqual((devPlugin.calls[0] as Record<string, unknown>).pluginRoot, path.resolve("/tmp/plugin-root"));
 });
 
 test("CliProgram invokes serve web command action", async () => {
@@ -327,10 +334,10 @@ test("CliProgram invokes serve web command action", async () => {
     noopCommand,
   );
 
-  await program.run(["serve", "web", "--consumer-root", "/tmp/serve-root"]);
+  await program.run(["serve", "web", "--consumer-root", path.resolve("/tmp/serve-root")]);
 
   assert.equal(serveWeb.calls.length, 1);
-  assert.equal(serveWeb.calls[0]?.root, "/tmp/serve-root");
+  assert.equal(serveWeb.calls[0]?.root, path.resolve("/tmp/serve-root"));
 });
 
 test("CliProgram invokes serve worker command action", async () => {
@@ -352,10 +359,10 @@ test("CliProgram invokes serve worker command action", async () => {
     noopCommand,
   );
 
-  await program.run(["serve", "worker", "--consumer-root", "/tmp/worker-root"]);
+  await program.run(["serve", "worker", "--consumer-root", path.resolve("/tmp/worker-root")]);
 
   assert.equal(serveWorker.calls.length, 1);
-  assert.equal(serveWorker.calls[0]?.root, "/tmp/worker-root");
+  assert.equal(serveWorker.calls[0]?.root, path.resolve("/tmp/worker-root"));
 });
 
 test("CliProgram invokes db migrate command action", async () => {

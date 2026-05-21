@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { WorkflowHttpRouteHandler } from "../../src/presentation/http/routeHandlers/WorkflowHttpRouteHandler";
 import { RunHttpRouteHandler } from "../../src/presentation/http/routeHandlers/RunHttpRouteHandler";
 import { WorkflowDefinitionMapper } from "../../src/application/mapping/WorkflowDefinitionMapper";
+import type { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
 
 // ── Stubs ──────────────────────────────────────────────────────────────────────
 
@@ -20,7 +21,11 @@ function makeCommandBus(result: unknown = {}) {
 function makeWorkflowMapper() {
   const policyUi = { workflowHasErrorHandler: () => false };
   const activationPolicy = { isActive: () => false };
-  return new WorkflowDefinitionMapper(policyUi as never, activationPolicy as never);
+  return new WorkflowDefinitionMapper(
+    policyUi as never,
+    activationPolicy as never,
+    { get: () => undefined } as unknown as McpServerCatalog,
+  );
 }
 
 const EMPTY_PARAMS = {};

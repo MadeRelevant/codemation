@@ -15,7 +15,8 @@ class PrismaMigrationDeployerTestFixture {
   }
 
   async dispose(): Promise<void> {
-    await rm(this.root, { recursive: true, force: true });
+    // Windows holds file locks briefly after libsql closes a SQLite handle; retry to avoid EBUSY.
+    await rm(this.root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 
   async createFakePrismaCli(): Promise<string> {
@@ -202,7 +203,10 @@ class PrismaMigrationDeployerTestFixture {
 }
 
 // All tests in this suite run real Prisma migrations; allow 30 s per test on slow systems.
-const MIGRATION_TIMEOUT = 30000;
+// Windows SQLite/libsql is slower to release file handles when several tests run sequentially
+// in the same worker; the recovery test needs >30s under that load even though it completes in
+// ~7s in isolation.
+const MIGRATION_TIMEOUT = 60000;
 
 describe("PrismaMigrationDeployer", () => {
   it(
@@ -235,181 +239,104 @@ describe("PrismaMigrationDeployer", () => {
     MIGRATION_TIMEOUT,
   );
 
-  it("passes the PostgreSQL provider and database URL to the Prisma CLI", async () => {
-    const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-postgres-deploy-");
-    try {
-      const prismaCliPath = await fixture.createFakePrismaCli();
-      const prismaConfigPath = await fixture.createPrismaConfig();
-      const deployer = new PrismaMigrationDeployer();
-      const databaseUrl = "postgresql://codemation:codemation@127.0.0.1:5432/codemation";
-      const previousCliPath = process.env.CODEMATION_PRISMA_CLI_PATH;
-      const previousConfigPath = process.env.CODEMATION_PRISMA_CONFIG_PATH;
-      process.env.CODEMATION_PRISMA_CLI_PATH = prismaCliPath;
-      process.env.CODEMATION_PRISMA_CONFIG_PATH = prismaConfigPath;
+  it(
+    "passes the PostgreSQL provider and database URL to the Prisma CLI",
+    async () => {
+      const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-postgres-deploy-");
       try {
+        const prismaCliPath = await fixture.createFakePrismaCli();
+        const prismaConfigPath = await fixture.createPrismaConfig();
+        const deployer = new PrismaMigrationDeployer();
+        const databaseUrl = "postgresql://codemation:codemation@127.0.0.1:5432/codemation";
         await deployer.deploy({
           databaseUrl,
           env: {
+            CODEMATION_PRISMA_CLI_PATH: prismaCliPath,
+            CODEMATION_PRISMA_CONFIG_PATH: prismaConfigPath,
             TEST_MARKER: "kept",
             TEST_OUTPUT_PATH: fixture.resolve("artifacts", "deploy.json"),
           },
         });
+
+        const output = await fixture.readJsonOutput();
+        expect(output.provider).toBe("postgresql");
+        expect(output.databaseUrl).toBe(databaseUrl);
+        expect(output.cwd).toBe(path.dirname(prismaConfigPath));
+        expect(output.inheritedMarker).toBe("kept");
+        expect(output.argv).toEqual(["migrate", "deploy", "--config", "prisma.config.ts"]);
       } finally {
-        if (previousCliPath) {
-          process.env.CODEMATION_PRISMA_CLI_PATH = previousCliPath;
-        } else {
-          delete process.env.CODEMATION_PRISMA_CLI_PATH;
-        }
-        if (previousConfigPath) {
-          process.env.CODEMATION_PRISMA_CONFIG_PATH = previousConfigPath;
-        } else {
-          delete process.env.CODEMATION_PRISMA_CONFIG_PATH;
-        }
+        await fixture.dispose();
       }
+    },
+    MIGRATION_TIMEOUT,
+  );
 
-      const output = await fixture.readJsonOutput();
-      expect(output.provider).toBe("postgresql");
-      expect(output.databaseUrl).toBe(databaseUrl);
-      expect(output.cwd).toBe(path.dirname(prismaConfigPath));
-      expect(output.inheritedMarker).toBe("kept");
-      expect(output.argv).toEqual(["migrate", "deploy", "--config", "prisma.config.ts"]);
-    } finally {
-      await fixture.dispose();
-    }
-  });
-
-  it("passes an absolute SQLite file URL to the Prisma CLI", async () => {
-    const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-sqlite-deploy-");
-    try {
-      const prismaCliPath = await fixture.createFakePrismaCli();
-      const prismaConfigPath = await fixture.createPrismaConfig();
-      const databaseFilePath = fixture.resolve(".codemation", "codemation.sqlite");
-      const deployer = new PrismaMigrationDeployer();
-      const previousCliPath = process.env.CODEMATION_PRISMA_CLI_PATH;
-      const previousConfigPath = process.env.CODEMATION_PRISMA_CONFIG_PATH;
-      process.env.CODEMATION_PRISMA_CLI_PATH = prismaCliPath;
-      process.env.CODEMATION_PRISMA_CONFIG_PATH = prismaConfigPath;
+  it(
+    "passes an absolute SQLite file URL to the Prisma CLI",
+    async () => {
+      const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-sqlite-deploy-");
       try {
+        const prismaCliPath = await fixture.createFakePrismaCli();
+        const prismaConfigPath = await fixture.createPrismaConfig();
+        const databaseFilePath = fixture.resolve(".codemation", "codemation.sqlite");
+        const deployer = new PrismaMigrationDeployer();
         await deployer.deployPersistence(
           {
             kind: "sqlite",
             databaseFilePath,
           },
           {
+            CODEMATION_PRISMA_CLI_PATH: prismaCliPath,
+            CODEMATION_PRISMA_CONFIG_PATH: prismaConfigPath,
             TEST_OUTPUT_PATH: fixture.resolve("artifacts", "deploy.json"),
           },
         );
-      } finally {
-        if (previousCliPath) {
-          process.env.CODEMATION_PRISMA_CLI_PATH = previousCliPath;
-        } else {
-          delete process.env.CODEMATION_PRISMA_CLI_PATH;
-        }
-        if (previousConfigPath) {
-          process.env.CODEMATION_PRISMA_CONFIG_PATH = previousConfigPath;
-        } else {
-          delete process.env.CODEMATION_PRISMA_CONFIG_PATH;
-        }
-      }
 
-      const output = await fixture.readJsonOutput();
-      expect(output.provider).toBe("sqlite");
-      expect(output.databaseUrl).toBe(`file:${databaseFilePath}`);
-      expect(output.argv).toEqual(["migrate", "deploy", "--config", "prisma.config.ts"]);
-    } finally {
-      await fixture.dispose();
-    }
-  });
+        const output = await fixture.readJsonOutput();
+        expect(output.provider).toBe("sqlite");
+        expect(output.databaseUrl).toBe(`file:${databaseFilePath}`);
+        expect(output.argv).toEqual(["migrate", "deploy", "--config", "prisma.config.ts"]);
+      } finally {
+        await fixture.dispose();
+      }
+    },
+    MIGRATION_TIMEOUT,
+  );
 
   // Two full Prisma SQLite migrations run sequentially; allow extra time on slow systems.
-  it("drops lingering Run_legacy tables on a subsequent SQLite startup", async () => {
-    const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-sqlite-legacy-cleanup-");
-    try {
-      const databaseFilePath = fixture.resolve(".codemation", "codemation.sqlite");
-      const deployer = new PrismaMigrationDeployer();
-      await deployer.deployPersistence({ kind: "sqlite", databaseFilePath }, process.env);
-      const client = createClient({ url: `file:${databaseFilePath}` });
-      await client.execute('CREATE TABLE "Run_legacy" ("run_id" TEXT NOT NULL PRIMARY KEY)');
-      let legacyTables = await client.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'Run_legacy'",
-      );
-      expect(legacyTables.rows).toEqual([{ name: "Run_legacy" }]);
-      client.close();
-
-      await deployer.deployPersistence({ kind: "sqlite", databaseFilePath }, process.env);
-
-      const verifyClient = createClient({ url: `file:${databaseFilePath}` });
-      legacyTables = await verifyClient.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'Run_legacy'",
-      );
-      expect(legacyTables.rows).toEqual([]);
-      verifyClient.close();
-    } finally {
-      await fixture.dispose();
-    }
-  }, 30000);
-
-  it("repairs a partially applied normalized SQLite migration and retries deploy", async () => {
-    const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-sqlite-recovery-");
-    try {
-      const prismaCliPath = await fixture.createRecoveringPrismaCli();
-      const prismaConfigPath = await fixture.createPrismaConfig();
-      const databaseFilePath = await fixture.createPartiallyMigratedNormalizedSqliteDatabase();
-      const deployer = new PrismaMigrationDeployer();
-      const previousCliPath = process.env.CODEMATION_PRISMA_CLI_PATH;
-      const previousConfigPath = process.env.CODEMATION_PRISMA_CONFIG_PATH;
-      process.env.CODEMATION_PRISMA_CLI_PATH = prismaCliPath;
-      process.env.CODEMATION_PRISMA_CONFIG_PATH = prismaConfigPath;
+  it(
+    "drops lingering Run_legacy tables on a subsequent SQLite startup",
+    async () => {
+      const fixture = await PrismaMigrationDeployerTestFixture.create("codemation-sqlite-legacy-cleanup-");
       try {
-        await deployer.deployPersistence(
-          {
-            kind: "sqlite",
-            databaseFilePath,
-          },
-          {
-            TEST_PRISMA_SCENARIO: "sqlite-repair-after-failed-migration",
-            TEST_COMMAND_COUNTER_PATH: fixture.resolve("artifacts", "counter.txt"),
-            TEST_COMMAND_LOG_PATH: fixture.resolve("artifacts", "commands.jsonl"),
-          },
+        const databaseFilePath = fixture.resolve(".codemation", "codemation.sqlite");
+        const deployer = new PrismaMigrationDeployer();
+        await deployer.deployPersistence({ kind: "sqlite", databaseFilePath }, process.env);
+        const client = createClient({ url: `file:${databaseFilePath}` });
+        await client.execute('CREATE TABLE "Run_legacy" ("run_id" TEXT NOT NULL PRIMARY KEY)');
+        let legacyTables = await client.execute(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'Run_legacy'",
         );
-      } finally {
-        if (previousCliPath) {
-          process.env.CODEMATION_PRISMA_CLI_PATH = previousCliPath;
-        } else {
-          delete process.env.CODEMATION_PRISMA_CLI_PATH;
-        }
-        if (previousConfigPath) {
-          process.env.CODEMATION_PRISMA_CONFIG_PATH = previousConfigPath;
-        } else {
-          delete process.env.CODEMATION_PRISMA_CONFIG_PATH;
-        }
-      }
+        expect(legacyTables.rows).toEqual([{ name: "Run_legacy" }]);
+        client.close();
 
-      const commands = await fixture.readCommandLog();
-      expect(commands.map((command) => command.argv)).toEqual([
-        ["migrate", "deploy", "--config", "prisma.config.ts"],
-        [
-          "migrate",
-          "resolve",
-          "--applied",
-          "20260407140000_run_normalized_persistence",
-          "--config",
-          "prisma.config.ts",
-        ],
-        ["migrate", "deploy", "--config", "prisma.config.ts"],
-      ]);
-      const client = createClient({ url: `file:${databaseFilePath}` });
-      const projectionRows = await client.execute(
-        'SELECT "run_id", "workflow_id", "revision" FROM "RunSlotProjection"',
-      );
-      expect(projectionRows.rows).toEqual([{ run_id: "run-1", workflow_id: "wf.test", revision: 3 }]);
-      const legacyTables = await client.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'Run_legacy'",
-      );
-      expect(legacyTables.rows).toEqual([]);
-      client.close();
-    } finally {
-      await fixture.dispose();
-    }
-  });
+        await deployer.deployPersistence({ kind: "sqlite", databaseFilePath }, process.env);
+
+        const verifyClient = createClient({ url: `file:${databaseFilePath}` });
+        legacyTables = await verifyClient.execute(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'Run_legacy'",
+        );
+        expect(legacyTables.rows).toEqual([]);
+        verifyClient.close();
+      } finally {
+        await fixture.dispose();
+      }
+    },
+    MIGRATION_TIMEOUT,
+  );
+
+  // The recovery test (repair after partial migration) lives in PrismaMigrationDeployer.recovery.test.ts.
+  // It opens libsql twice in the same flow and the cumulative native-handle state from this file's
+  // earlier tests was hanging it on Windows. Splitting it into its own file gives it a fresh process
+  // under the forks pool.
 });

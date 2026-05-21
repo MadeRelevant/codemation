@@ -6,9 +6,12 @@ export class DashboardCostAmountFormatter {
   static format(args: Readonly<{ currency: string; amountMinor: number; currencyScale: number }>): string {
     const normalizedAmount = this.normalizeAmount(args);
     const fractionDigits = args.currencyScale > 1 ? Math.min(9, Math.max(2, String(args.currencyScale).length - 1)) : 2;
-    return new Intl.NumberFormat(undefined, {
+    // Pin to en-US with narrowSymbol so "$0.0006" stays "$" instead of "US$" and number
+    // separators stay locale-stable across Node ICU versions and user locales.
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: args.currency,
+      currencyDisplay: "narrowSymbol",
       minimumFractionDigits: 2,
       maximumFractionDigits: fractionDigits,
     }).format(normalizedAmount);

@@ -25,7 +25,7 @@ export function DashboardAiUsageSummaryCard(props: Readonly<{ summary: Telemetry
         <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total tokens</div>
           <div className="mt-1 text-3xl font-semibold tracking-tight" data-testid="dashboard-metric-total-tokens">
-            {props.summary ? props.summary.ai.totalTokens.toLocaleString() : "—"}
+            {props.summary ? props.summary.ai.totalTokens.toLocaleString("en-US") : "—"}
           </div>
         </div>
       </CardHeader>
@@ -37,7 +37,7 @@ export function DashboardAiUsageSummaryCard(props: Readonly<{ summary: Telemetry
               Input
             </div>
             <div className="mt-1 text-xl font-semibold" data-testid="dashboard-metric-input-tokens">
-              {props.summary ? props.summary.ai.inputTokens.toLocaleString() : "—"}
+              {props.summary ? props.summary.ai.inputTokens.toLocaleString("en-US") : "—"}
             </div>
           </div>
           <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
@@ -46,7 +46,7 @@ export function DashboardAiUsageSummaryCard(props: Readonly<{ summary: Telemetry
               Output
             </div>
             <div className="mt-1 text-xl font-semibold" data-testid="dashboard-metric-output-tokens">
-              {props.summary ? props.summary.ai.outputTokens.toLocaleString() : "—"}
+              {props.summary ? props.summary.ai.outputTokens.toLocaleString("en-US") : "—"}
             </div>
           </div>
           <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
@@ -55,7 +55,7 @@ export function DashboardAiUsageSummaryCard(props: Readonly<{ summary: Telemetry
               Cached input
             </div>
             <div className="mt-1 text-xl font-semibold">
-              {props.summary ? props.summary.ai.cachedInputTokens.toLocaleString() : "—"}
+              {props.summary ? props.summary.ai.cachedInputTokens.toLocaleString("en-US") : "—"}
             </div>
           </div>
           <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
@@ -64,7 +64,7 @@ export function DashboardAiUsageSummaryCard(props: Readonly<{ summary: Telemetry
               Reasoning
             </div>
             <div className="mt-1 text-xl font-semibold" data-testid="dashboard-metric-reasoning-tokens">
-              {props.summary ? props.summary.ai.reasoningTokens.toLocaleString() : "—"}
+              {props.summary ? props.summary.ai.reasoningTokens.toLocaleString("en-US") : "—"}
             </div>
           </div>
         </div>

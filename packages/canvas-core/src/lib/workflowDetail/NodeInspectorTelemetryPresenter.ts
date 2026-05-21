@@ -1052,9 +1052,12 @@ export class NodeInspectorTelemetryPresenter {
   private static formatCostAmount(currency: string, amountMinor: number, currencyScale: number): string {
     const normalizedAmount = currencyScale > 0 ? amountMinor / currencyScale : amountMinor;
     const fractionDigits = currencyScale > 1 ? Math.min(9, Math.max(2, String(currencyScale).length - 1)) : 2;
-    return new Intl.NumberFormat(undefined, {
+    // narrowSymbol keeps "$" instead of "US$" across Node ICU versions; the default
+    // currencyDisplay flipped between Node 22 and 24 on some platforms.
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency,
+      currencyDisplay: "narrowSymbol",
       minimumFractionDigits: 2,
       maximumFractionDigits: fractionDigits,
     }).format(normalizedAmount);

@@ -13,7 +13,11 @@ export default defineConfig({
     include: ["./test/**/*.test.ts"],
     exclude: ["./test/**/*.integration.test.ts", "./test/http/**", "./test/**/*.e2e.test.ts"],
     passWithNoTests: true,
-    pool: "threads",
+    // forks (not threads): tests in this suite use @libsql/client, a native module whose worker-
+    // thread file-handle lifecycle is unreliable on Windows. With forks, each test file runs in
+    // its own process, so a libsql client closed in one file cannot leave a stale handle behind
+    // for the next.
+    pool: "forks",
     isolate: true,
     maxWorkers: 2,
     fileParallelism: true,

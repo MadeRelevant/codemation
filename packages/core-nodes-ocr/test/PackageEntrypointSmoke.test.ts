@@ -1,39 +1,24 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { test } from "vitest";
 
+/**
+ * The package's `dist/` must exist before this test runs. Turbo's per-package
+ * `turbo.json` makes `test:unit` depend on `build`, so the dist is materialised
+ * when this test executes under the turbo task graph. Running the file directly
+ * with `vitest run` requires a manual `pnpm build` first.
+ */
 class PackageEntrypointSmokeFixture {
   static readonly packageRoot = new URL("../", import.meta.url);
-  static readonly workspaceRoot = new URL("../../", PackageEntrypointSmokeFixture.packageRoot);
-  private static hasBuiltPackage = false;
 
   static resolvePath(relativePath: string): string {
-    return new URL(relativePath, this.packageRoot).pathname;
-  }
-
-  static resolveWorkspacePath(relativePath: string): string {
-    return new URL(relativePath, this.workspaceRoot).pathname;
-  }
-
-  static ensurePackageBuild(): void {
-    if (this.hasBuiltPackage) {
-      return;
-    }
-    execFileSync("pnpm", ["--filter", "@codemation/core", "build"], {
-      cwd: this.resolveWorkspacePath("./"),
-      stdio: "pipe",
-    });
-    execFileSync("pnpm", ["build"], {
-      cwd: this.resolvePath("./"),
-      stdio: "pipe",
-    });
-    this.hasBuiltPackage = true;
+    return fileURLToPath(new URL(relativePath, this.packageRoot));
   }
 }
 
 test("build emits the declared root entrypoints", () => {
-  PackageEntrypointSmokeFixture.ensurePackageBuild();
   assert.equal(existsSync(PackageEntrypointSmokeFixture.resolvePath("dist/index.js")), true);
   assert.equal(existsSync(PackageEntrypointSmokeFixture.resolvePath("dist/index.cjs")), true);
   assert.equal(existsSync(PackageEntrypointSmokeFixture.resolvePath("dist/index.d.ts")), true);
@@ -41,9 +26,8 @@ test("build emits the declared root entrypoints", () => {
 });
 
 test("Node ESM can import the package root by name after build", () => {
-  PackageEntrypointSmokeFixture.ensurePackageBuild();
   const output = execFileSync(
-    "node",
+    process.execPath,
     [
       "--input-type=module",
       "-e",
