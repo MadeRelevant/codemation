@@ -51,6 +51,18 @@ const nextConfig: NextConfig = {
     root: nextHostWorkspaceRoot,
   },
   outputFileTracingRoot: nextHostWorkspaceRoot,
+  // lucide-static is only loaded dynamically via createRequire in lucideIconGet.ts.
+  // Next.js's static file-tracing pass can't see that, so the standalone build
+  // omits the package and every /api/lucide-icon/<name>.svg request 404s in
+  // production / packaged-dev mode. Force-include the icons directory + package.json.
+  // Both the dedicated route and the catch-all guard need the trace.
+  outputFileTracingIncludes: {
+    "/api/lucide-icon/[name]": [
+      "./node_modules/lucide-static/icons/*.svg",
+      "./node_modules/lucide-static/package.json",
+    ],
+    "/api/{**}": ["./node_modules/lucide-static/icons/*.svg", "./node_modules/lucide-static/package.json"],
+  },
 };
 
 const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === "true" });

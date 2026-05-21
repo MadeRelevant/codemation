@@ -192,6 +192,14 @@ export class CliDevProxyServer {
       );
       return;
     }
+    // `/api/lucide-icon/*` lives in next-host's app router (Next.js serves icon SVGs from
+    // lucide-static via a server-side route to avoid bundling 1,713 icon files into the
+    // client). In production `next start` serves both UI and these routes directly. In dev,
+    // route them to the Next UI rather than the Hono runtime (which has no such handler).
+    if (pathname.startsWith("/api/lucide-icon/") && uiProxyTarget) {
+      this.proxy.web(req, res, { target: uiProxyTarget.replace(/\/$/, "") });
+      return;
+    }
     // Host-owned `/api/auth/*` is served by the disposable Hono runtime (same DB as other APIs).
     // Do not route it to the Next UI — that used to cause gateway → Next → gateway loops when Next
     // proxied auth back through CODEMATION_RUNTIME_DEV_URL.
