@@ -250,7 +250,7 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
             ) : (
               <DefaultLoadingState />
             )}
-            {!args.hideTabs ? (
+            {hasMounted && !args.hideTabs ? (
               <div
                 data-testid="workflow-detail-tabs-area"
                 className="pointer-events-none absolute top-3 left-1/2 z-[6] flex -translate-x-1/2 items-center gap-2"
@@ -266,7 +266,8 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
                 )}
               </div>
             ) : null}
-            {controller.isLiveWorkflowView &&
+            {hasMounted &&
+            controller.isLiveWorkflowView &&
             !controller.isRunsPaneVisible &&
             runButtonState.triggers.length > 0 &&
             !isTestsViewActive ? (
@@ -279,7 +280,7 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
               </div>
             ) : null}
             <div className="pointer-events-none absolute top-3 right-3 z-[6] flex max-w-[min(22rem,calc(100%-1.5rem))] flex-col items-end gap-2">
-              {shouldShowRealtimeBadge && realtimeBadge ? (
+              {hasMounted && shouldShowRealtimeBadge && realtimeBadge ? (
                 <div
                   data-testid={realtimeBadge.testId}
                   className={cn(
@@ -290,7 +291,7 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
                   {realtimeBadge.label}
                 </div>
               ) : null}
-              {controller.runErrorAlertLines && controller.runErrorAlertLines.length > 0 ? (
+              {hasMounted && controller.runErrorAlertLines && controller.runErrorAlertLines.length > 0 ? (
                 <div
                   data-testid="workflow-run-error-banner"
                   className="pointer-events-auto flex w-full max-w-sm items-start gap-2 rounded-md border border-destructive/40 bg-background px-3 py-2 shadow-md ring-1 ring-destructive/20"
