@@ -116,8 +116,18 @@ export function NextHostCredentialBindingsRenderer(args: NodeCredentialBindingsS
     }
     const slotsWithInstance = nodeCredentialSlots.filter((slot) => slot.instance?.instanceId);
     if (slotsWithInstance.length === 0) {
+      // No bound credential on any slot — open the create dialog for the first slot's accepted
+      // types so the user can create one. Without this the canvas credential-key toolbar button
+      // would silently no-op when no credential is yet bound.
       pendingCredentialEditHandledRef.current = true;
       onConsumedPendingCredentialEdit();
+      const firstSlot = nodeCredentialSlots[0];
+      if (firstSlot) {
+        const accepted = firstSlot.requirement.acceptedTypes;
+        setTimeout(() => {
+          openCreateDialog(accepted.length > 0 ? accepted : undefined);
+        }, 0);
+      }
       return;
     }
     if (credentialInstancesQuery.isLoading) {
@@ -137,6 +147,7 @@ export function NextHostCredentialBindingsRenderer(args: NodeCredentialBindingsS
     node.id,
     nodeCredentialSlots,
     onConsumedPendingCredentialEdit,
+    openCreateDialog,
     openEditDialog,
     pendingCredentialEditForNodeId,
     workflowCredentialHealthQuery.isLoading,
