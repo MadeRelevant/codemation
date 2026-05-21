@@ -14,7 +14,7 @@ import {
 } from "@codemation/canvas-core";
 import { CanvasNodeIconSlot, type CanvasIconRotate } from "./CanvasNodeIconSlot";
 import { WorkflowCanvasLucideRemoteGlyph } from "./WorkflowCanvasLucideRemoteGlyph";
-import { WorkflowCanvasSimpleIconGlyph } from "./WorkflowCanvasSimpleIconGlyph";
+import { WorkflowCanvasSiRemoteGlyph } from "./WorkflowCanvasSiRemoteGlyph";
 
 /**
  * Role-only Lucide fallback for a node when no explicit `icon` is set.
@@ -148,13 +148,9 @@ export function WorkflowCanvasNodeIcon(
         <img src={builtinUrl} alt="" style={{ ...IMG_STYLE, width: "100%", height: "100%" }} />,
       );
     }
-    const data = WorkflowCanvasSiIconRegistry.resolve(slug);
-    if (data) {
-      return renderInSlot(
-        sizePx,
-        rotate,
-        <WorkflowCanvasSimpleIconGlyph title={data.title} path={data.path} hex={data.hex} sizePx={sizePx} />,
-      );
+    const url = WorkflowCanvasSiIconRegistry.resolve(slug);
+    if (url) {
+      return renderInSlot(sizePx, rotate, <WorkflowCanvasSiRemoteGlyph url={url} sizePx={sizePx} />);
     }
     return renderInSlot(sizePx, rotate, <CircleHelp size={sizePx} strokeWidth={strokeWidth} />);
   }

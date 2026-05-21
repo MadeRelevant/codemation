@@ -169,10 +169,11 @@ describe("WorkflowCanvasNodeGeometry", () => {
 // ── SiIconRegistry ────────────────────────────────────────────────────────────
 
 describe("WorkflowCanvasSiIconRegistry", () => {
-  test("resolves the gmail icon by slug", () => {
-    const icon = WorkflowCanvasSiIconRegistry.resolve("gmail");
-    expect(icon).toBeDefined();
-    expect(icon?.slug).toBe("gmail");
+  test("resolves the gmail icon by slug to a URL", () => {
+    const url = WorkflowCanvasSiIconRegistry.resolve("gmail");
+    expect(url).toBeDefined();
+    expect(url).toContain("/api/si-icon/");
+    expect(url).toContain("gmail");
   });
 
   test("returns undefined for an unknown slug", () => {

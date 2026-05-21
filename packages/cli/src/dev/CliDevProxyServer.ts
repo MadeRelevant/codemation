@@ -200,6 +200,12 @@ export class CliDevProxyServer {
       this.proxy.web(req, res, { target: uiProxyTarget.replace(/\/$/, "") });
       return;
     }
+    // `/api/si-icon/*` is served by the Next.js app router (reads simple-icons SVGs
+    // from disk server-side to avoid bundling the 5 MB barrel into the client).
+    if (pathname.startsWith("/api/si-icon/") && uiProxyTarget) {
+      this.proxy.web(req, res, { target: uiProxyTarget.replace(/\/$/, "") });
+      return;
+    }
     // Host-owned `/api/auth/*` is served by the disposable Hono runtime (same DB as other APIs).
     // Do not route it to the Next UI — that used to cause gateway → Next → gateway loops when Next
     // proxied auth back through CODEMATION_RUNTIME_DEV_URL.

@@ -18,6 +18,12 @@ async function handle(request: Request): Promise<Response> {
     const { lucideIconGet } = await import("../lucide-icon/lucideIconGet");
     return lucideIconGet(rawName);
   }
+  // Guard: same as above for /api/si-icon/[slug].
+  if (request.method === "GET" && incoming.pathname.startsWith("/api/si-icon/")) {
+    const rawSlug = incoming.pathname.slice("/api/si-icon/".length);
+    const { siIconGet } = await import("../si-icon/siIconGet");
+    return siIconGet(rawSlug);
+  }
   const runtimeDevUrl = process.env.CODEMATION_RUNTIME_DEV_URL;
   if (runtimeDevUrl !== undefined && runtimeDevUrl.trim().length > 0) {
     const base = runtimeDevUrl.replace(/\/$/, "");

@@ -36,7 +36,7 @@ const nextConfig: NextConfig = {
     // actually used. Re-evaluate this list when adding heavy npm deps.
     optimizePackageImports: [
       "lucide-react",
-      "simple-icons",
+      // simple-icons removed: no longer imported client-side (barrel served via /api/si-icon route)
       "recharts",
       "@tanstack/react-query",
       "react-hook-form",
