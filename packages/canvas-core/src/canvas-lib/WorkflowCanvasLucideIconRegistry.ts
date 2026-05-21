@@ -5,6 +5,7 @@ import Braces from "lucide-react/dist/esm/icons/braces";
 import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
 import CircleDashed from "lucide-react/dist/esm/icons/circle-dashed";
 import CircleHelp from "lucide-react/dist/esm/icons/circle-help";
+import Clock from "lucide-react/dist/esm/icons/clock";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import Filter from "lucide-react/dist/esm/icons/filter";
 import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
@@ -52,6 +53,7 @@ export class WorkflowCanvasLucideIconRegistry {
     "check-circle": CheckCircle,
     "circle-dashed": CircleDashed,
     "circle-help": CircleHelp,
+    clock: Clock,
     "external-link": ExternalLink,
     filter: Filter,
     "flask-conical": FlaskConical,

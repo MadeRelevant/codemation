@@ -7,7 +7,6 @@ export class PersistedWorkflowSnapshotMapper {
   constructor(private readonly policyUi = new WorkflowPolicyUiPresentationFactory()) {}
 
   map(snapshot: PersistedWorkflowSnapshot): WorkflowDto {
-    const nodesById = new Map(snapshot.nodes.map((node) => [node.id, node]));
     const connectionChildMeta = this.buildConnectionChildMeta(snapshot);
     const materializedConnectionNodeIds = new Set(connectionChildMeta.keys());
     const nodes: WorkflowNodeDto[] = [];
@@ -16,7 +15,7 @@ export class PersistedWorkflowSnapshotMapper {
         nodes.push(this.toConnectionChildDto(node, connectionChildMeta.get(node.id)!, snapshot));
         continue;
       }
-      nodes.push(...this.toTopLevelNodes(node, snapshot, nodesById, materializedConnectionNodeIds));
+      nodes.push(...this.toTopLevelNodes(node, snapshot, materializedConnectionNodeIds));
     }
     return {
       id: snapshot.id,
@@ -40,33 +39,9 @@ export class PersistedWorkflowSnapshotMapper {
     return map;
   }
 
-  private agentHasConnectionChildren(snapshot: PersistedWorkflowSnapshot, agentNodeId: string): boolean {
-    return (snapshot.connections ?? []).some((c) => c.parentNodeId === agentNodeId && c.childNodeIds.length > 0);
-  }
-
-  private allConnectionChildrenMaterialized(
-    snapshot: PersistedWorkflowSnapshot,
-    agentNodeId: string,
-    nodesById: ReadonlyMap<string, PersistedWorkflowSnapshot["nodes"][number]>,
-  ): boolean {
-    const groups = (snapshot.connections ?? []).filter((c) => c.parentNodeId === agentNodeId);
-    if (groups.length === 0) {
-      return false;
-    }
-    for (const c of groups) {
-      for (const childId of c.childNodeIds) {
-        if (!nodesById.has(childId)) {
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
   private toTopLevelNodes(
     node: PersistedWorkflowSnapshot["nodes"][number],
     snapshot: PersistedWorkflowSnapshot,
-    nodesById: ReadonlyMap<string, PersistedWorkflowSnapshot["nodes"][number]>,
     materializedConnectionNodeIds: ReadonlySet<string>,
   ): ReadonlyArray<WorkflowNodeDto> {
     const triggerKind =
@@ -98,14 +73,11 @@ export class PersistedWorkflowSnapshotMapper {
       return [workflowNode];
     }
 
-    if (this.allConnectionChildrenMaterialized(snapshot, node.id, nodesById)) {
-      return [workflowNode];
-    }
-
-    if (this.agentHasConnectionChildren(snapshot, node.id)) {
-      return [workflowNode, ...this.toAttachmentNodes(node.id, node.config, materializedConnectionNodeIds)];
-    }
-
+    // Always attempt attachment node emission for agent nodes. Even when all
+    // connection-slot children are already materialized as concrete top-level nodes,
+    // MCP servers live on config.mcpServers (not in snapshot.connections), so
+    // toAttachmentNodes must run to emit them. toAttachmentNodes already guards
+    // against duplicate emission via materializedConnectionNodeIds.
     return [workflowNode, ...this.toAttachmentNodes(node.id, node.config, materializedConnectionNodeIds)];
   }
 
