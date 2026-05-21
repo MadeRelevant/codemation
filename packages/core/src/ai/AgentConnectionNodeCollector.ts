@@ -93,6 +93,7 @@ export const AgentConnectionNodeCollector: AgentConnectionNodeCollectorApi = new
           role: "tool",
           name: decl.displayName,
           typeName: serverId,
+          icon: "lucide:plug",
           credentialSource: this.buildMcpCredentialSource(decl),
         });
       }
