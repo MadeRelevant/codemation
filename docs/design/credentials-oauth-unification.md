@@ -62,29 +62,38 @@ Today the host has one credential type called `host.oauth2-via-broker` that **co
 ## Framework mode (OSS, standalone)
 
 ```
-Workflow author in codemation.config.ts:
-   oauthApps: [
-     { type: "oauth.google.gmail",
-       clientId:     process.env.GOOGLE_CLIENT_ID,
-       clientSecret: process.env.GOOGLE_CLIENT_SECRET },
-   ]
-   ↑ may also be entered manually per CredentialInstance in the UI; the
-     instance's own clientId/clientSecret wins over the config default.
+OAuth credential types declare clientId/clientSecret as part of their
+own schema (publicFields/secretFields). The user enters them in the
+credential dialog — they live ON the CredentialInstance, not in a
+separate config block.
 
-User opens credential dialog → picks "oauth.google.gmail" → "Connect"
+User opens credential dialog → picks "oauth.google.gmail"
+   │
+   ├─ fills "OAuth Client ID"     (publicConfig.clientId)
+   ├─ fills "OAuth Client Secret" (material.clientSecret)
+   ├─ fills "Display name"
+   ▼
+Clicks Create → instance is saved with app credentials but no tokens yet.
    │
    ▼
-LocalOAuthFlowExecutor.start({ typeId, scopes })
-   │  reads clientId/clientSecret from the instance, falling back to config
+Clicks Connect →
+   ▼
+LocalOAuthFlowExecutor.start({ typeId, instanceId, scopes })
+   │  loads the instance, reads clientId from publicConfig,
+   │  loads clientSecret from material
    │  builds Google authorize URL with the type's default scopes
    ▼
 Browser → Google consent → callback → host exchanges code for tokens
    │
    ▼
-CredentialStore writes:
-   CredentialInstance { typeId: "oauth.google.gmail",
-                        material: { accessToken, refreshToken, expiresAt,
-                                    grantedScopes } }
+CredentialStore updates the existing instance:
+   CredentialInstance { typeId:        "oauth.google.gmail",
+                        publicConfig:  { clientId },
+                        material:      { clientSecret,
+                                         accessToken,
+                                         refreshToken,
+                                         expiresAt,
+                                         grantedScopes } }
 ```
 
 ## Managed mode (paired with control plane)
@@ -171,20 +180,20 @@ Slot-level scope refinement (a `GmailTrigger` declaring `requestedScopes: ["gmai
 
 ## Open questions — resolved
 
-| #   | Question                                      | Decision                                                                                                                                         |
-| --- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | OAuth app id/secret storage in framework mode | Reads from `oauthApps` in `codemation.config.ts` (which may read env). Can ALSO be entered manually per CredentialInstance. Instance value wins. |
-| 2   | Per-slot scope refinement                     | Skip for v1. Broad-by-default.                                                                                                                   |
-| 3   | Control-plane override semantics              | Full replacement (simpler, predictable). No scope-union.                                                                                         |
-| 4   | Backwards-compatibility migration             | None needed. Nobody uses framework or control-plane yet.                                                                                         |
-| 5   | Reconsent UX                                  | Validate at workflow activation time. UI surfacing later as a "workflow linter" feature.                                                         |
+| #   | Question                                      | Decision                                                                                                                                                                                                                                                                                                                                                        |
+| --- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | OAuth app id/secret storage in framework mode | Lives **on the credential instance** (clientId in `publicConfig`, clientSecret in `material`). OAuth credential types declare these in their schema (`publicFields`/`secretFields`). No separate config block — keeps app credentials co-located with the tokens they authorize. Users may, of course, source the values from `process.env` in the dialog form. |
+| 2   | Per-slot scope refinement                     | Skip for v1. Broad-by-default.                                                                                                                                                                                                                                                                                                                                  |
+| 3   | Control-plane override semantics              | Full replacement (simpler, predictable). No scope-union.                                                                                                                                                                                                                                                                                                        |
+| 4   | Backwards-compatibility migration             | None needed. Nobody uses framework or control-plane yet.                                                                                                                                                                                                                                                                                                        |
+| 5   | Reconsent UX                                  | Validate at workflow activation time. UI surfacing later as a "workflow linter" feature.                                                                                                                                                                                                                                                                        |
 
 ## Implementation phases (→ stories in sprint-17)
 
 | Phase | Concern                                                                                      | Story refs         |
 | ----- | -------------------------------------------------------------------------------------------- | ------------------ |
 | 1     | Mode-agnostic plumbing: `OAuthFlowExecutor` interface + `LocalOAuthFlowExecutor` + DI wiring | 1.1, 1.2, 1.3      |
-| 2     | Framework presets + `oauthApps` config + dialog "Connect"                                    | 2.1, 2.2, 2.3      |
+| 2     | Framework presets (clientId/clientSecret as type schema) + dialog "Connect"                  | 2.2, 2.3           |
 | 3     | Migrate Gmail (the validation): trigger node + MCP both share one credential                 | 3.1, 3.2, 3.3      |
 | 4     | Control-plane live catalog (replaces pairing-time push) + `ManagedOAuthFlowExecutor`         | 4.1, 4.2, 4.3, 4.4 |
 | 5     | Cleanup of v0 broker machinery                                                               | 5.1, 5.2, 5.3      |
