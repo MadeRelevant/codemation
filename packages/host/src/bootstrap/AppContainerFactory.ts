@@ -503,16 +503,6 @@ export class AppContainerFactory {
     }
   }
 
-  private registerPairingInfrastructure(container: Container, appConfig: AppConfig): void {
-    const pairingConfig = new PairingConfigFactory().create(appConfig.env);
-    if (!pairingConfig) {
-      return;
-    }
-    container.registerInstance(PairingConfigToken, pairingConfig);
-    container.registerSingleton(HmacRequestSigner, HmacRequestSigner);
-    container.registerSingleton(PairedFetch, PairedFetch);
-  }
-
   private registerControlPlaneCatalogFetcher(container: Container): void {
     container.registerSingleton(McpServerCatalog, McpServerCatalog);
 
