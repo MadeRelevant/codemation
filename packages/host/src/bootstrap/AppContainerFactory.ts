@@ -286,7 +286,6 @@ import { InternalWorkflowsListRegistrar } from "../workflows/InternalWorkflowsLi
 import { InternalWorkflowDetailRegistrar } from "../workflows/InternalWorkflowDetailRegistrar";
 import { InternalWorkflowActivationRegistrar } from "../workflows/InternalWorkflowActivationRegistrar";
 import { InternalWorkflowTestRunRegistrar } from "../workflows/InternalWorkflowTestRunRegistrar";
-import { RemoteOAuthRefreshDelegate } from "../credentials/refresh/RemoteOAuthRefreshDelegate";
 import { OAuth2ViaBrokerCredentialTypeFactory } from "../credentials/OAuth2ViaBrokerCredentialTypeFactory";
 import { McpServerCatalog } from "../mcp/McpServerCatalog";
 import { McpConnectionPool } from "../mcp/McpConnectionPool";
@@ -974,7 +973,6 @@ export class AppContainerFactory {
     container.registerSingleton(IncomingHmacVerifier, IncomingHmacVerifier);
     container.registerSingleton(InternalHmacAuthMiddleware, InternalHmacAuthMiddleware);
     container.registerSingleton(BrokerClient, BrokerClient);
-    container.registerSingleton(RemoteOAuthRefreshDelegate, RemoteOAuthRefreshDelegate);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalPingRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalCredentialsPushRegistrar);
     container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalCredentialsListRegistrar);

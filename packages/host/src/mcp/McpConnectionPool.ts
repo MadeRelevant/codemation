@@ -6,7 +6,9 @@ import { DefaultMcpClientFactory } from "./McpClientFactory";
 import type { McpClientFactory } from "./McpClientFactory";
 import { CredentialSessionServiceImpl } from "../domain/credentials/CredentialSessionServiceImpl";
 import type { MCPClient, McpToolSet } from "./McpConnectionPool.types";
-import type { OAuth2ViaBrokerSession } from "../credentials/OAuth2ViaBrokerCredentialTypeFactory";
+
+/** Session contract produced by an OAuth2 credential type — injects Bearer headers onto requests. */
+type McpOAuth2Session = { applyToRequest: (spec: unknown) => { headers: Record<string, string> } };
 
 /** Mutable internal pool entry (toolsCache may be filled lazily). */
 type MutablePoolEntry = {
@@ -61,7 +63,7 @@ export class McpConnectionPool {
   /**
    * Closes all pool entries for a credential instance.
    * Call this when the credential is revoked or disconnected.
-   * Token refresh does NOT require closing — Story 4's RemoteOAuthRefreshDelegate
+   * Token refresh does NOT require closing — OAuthFlowExecutor
    * keeps the stored token fresh; the next open will read the current token.
    *
    * Resolves after all matched clients have completed close(), so callers can
@@ -144,11 +146,11 @@ export class McpConnectionPool {
     // support per-request header injection — headers are fixed at createMCPClient() time.
     //
     // LIMITATION: a pool entry will use a stale bearer token after the OAuth access token
-    // expires. Story 4's RemoteOAuthRefreshDelegate is expected to refresh the stored token
+    // expires. OAuthFlowExecutor is expected to refresh the stored token
     // before any consumer reads the credential session, but if the token expires while the
     // pool entry is alive, the entry must be closed (via closeForCredential) and re-opened
     // on the next getClient call for the refreshed token to take effect.
-    const session = await this.credentials.createSessionForInstance<OAuth2ViaBrokerSession>(credentialInstanceId);
+    const session = await this.credentials.createSessionForInstance<McpOAuth2Session>(credentialInstanceId);
     const bearerDelta = session.applyToRequest({});
     const authHeader = bearerDelta.headers.authorization ?? "";
 
