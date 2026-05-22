@@ -7,6 +7,7 @@ import { CredentialRuntimeMaterialService } from "../../src/domain/credentials/C
 import { CredentialTypeRegistryImpl } from "../../src/domain/credentials/CredentialServices";
 import { CredentialSecretCipher } from "../../src/domain/credentials/CredentialSecretCipher";
 import { CredentialMaterialResolver } from "../../src/domain/credentials/CredentialMaterialResolver";
+import { FakeLoggerFactory } from "../testkit/LoggerTestKit";
 
 function makeSecretCipher() {
   return {
@@ -56,7 +57,7 @@ function makeCredentialStore(
 }
 
 function makeRegistry(auth?: { kind: string }) {
-  const registry = new CredentialTypeRegistryImpl();
+  const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
   registry.register({
     definition: {
       typeId: "test.cred",
@@ -144,7 +145,7 @@ describe("CredentialRuntimeMaterialService.compose", () => {
     const cipher = makeSecretCipher();
     const appConfig = { env: {} };
     const resolver = new CredentialMaterialResolver(store as never, cipher, appConfig as never);
-    const registry = new CredentialTypeRegistryImpl(); // No types registered
+    const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory()); // No types registered
 
     const service = new CredentialRuntimeMaterialService(store as never, resolver as never, cipher, registry);
 

@@ -6,6 +6,7 @@ import { CredentialTypeRegistryImpl } from "../../src/domain/credentials/Credent
 import { CredentialFieldEnvOverlayService } from "../../src/domain/credentials/CredentialFieldEnvOverlayService";
 import type { CredentialInstanceRecord, CredentialStore } from "../../src/domain/credentials/CredentialServices";
 import { makeAppConfig } from "../testkit/AppConfigFixturesFactory";
+import { FakeLoggerFactory } from "../testkit/LoggerTestKit";
 
 function makeInstance(instanceId: string, typeId = "test.type"): CredentialInstanceRecord {
   return {
@@ -76,7 +77,7 @@ function makeService(args: {
   const credentialStore = makeCredentialStore(bindings, instances);
   const runtimeMaterialService = makeRuntimeMaterialService();
   const fieldEnvOverlayService = new CredentialFieldEnvOverlayService(makeAppConfig());
-  const typeRegistry = new CredentialTypeRegistryImpl();
+  const typeRegistry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
 
   if (args.credentialTypeId) {
     typeRegistry.register({
@@ -178,7 +179,7 @@ describe("CredentialSessionServiceImpl.getSession", () => {
     const credentialStore = makeCredentialStore(bindings, instances);
     const runtimeMaterialService = makeRuntimeMaterialService();
     const fieldEnvOverlayService = new CredentialFieldEnvOverlayService(makeAppConfig());
-    const typeRegistry = new CredentialTypeRegistryImpl();
+    const typeRegistry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
     typeRegistry.register({
       definition: {
         typeId: "cached.type",
@@ -237,7 +238,7 @@ describe("CredentialSessionServiceImpl.evictInstance", () => {
     const credentialStore = makeCredentialStore(bindings, instances);
     const runtimeMaterialService = makeRuntimeMaterialService();
     const fieldEnvOverlayService = new CredentialFieldEnvOverlayService(makeAppConfig());
-    const typeRegistry = new CredentialTypeRegistryImpl();
+    const typeRegistry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
     typeRegistry.register({
       definition: {
         typeId: "evict.type",
@@ -283,7 +284,7 @@ describe("CredentialSessionServiceImpl.evictBinding", () => {
     const credentialStore = makeCredentialStore(bindings, instances);
     const runtimeMaterialService = makeRuntimeMaterialService();
     const fieldEnvOverlayService = new CredentialFieldEnvOverlayService(makeAppConfig());
-    const typeRegistry = new CredentialTypeRegistryImpl();
+    const typeRegistry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
     typeRegistry.register({
       definition: {
         typeId: "eb.type",

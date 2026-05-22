@@ -29,7 +29,7 @@ describe("ApplicationTokens.OAuthFlowExecutor (DI)", () => {
     const child = container.createChildContainer();
 
     child.register(CredentialTypeRegistryImpl, {
-      useFactory: instanceCachingFactory(() => new CredentialTypeRegistryImpl()),
+      useFactory: instanceCachingFactory(() => new CredentialTypeRegistryImpl(fakeLoggerFactory as never)),
     });
     child.registerInstance(ApplicationTokens.CredentialStore, {} as never);
     child.registerSingleton(CredentialMaterialResolver, CredentialMaterialResolver);

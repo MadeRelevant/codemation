@@ -10,6 +10,7 @@ import { CredentialSecretCipher } from "../../src/domain/credentials/CredentialS
 import { CredentialFieldEnvOverlayService } from "../../src/domain/credentials/CredentialFieldEnvOverlayService";
 import { CredentialMaterialResolver } from "../../src/domain/credentials/CredentialMaterialResolver";
 import { CredentialOAuth2ScopeResolver } from "../../src/domain/credentials/CredentialOAuth2ScopeResolver";
+import { FakeLoggerFactory } from "../testkit/LoggerTestKit";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ function makeService(
   } = {},
 ) {
   const store = new InMemoryCredentialStore();
-  const registry = new CredentialTypeRegistryImpl();
+  const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
   const cipher = makeSecretCipher();
   const appConfig = makeAppConfig(opts.env ?? {});
   const overlayService = new CredentialFieldEnvOverlayService(appConfig as never);

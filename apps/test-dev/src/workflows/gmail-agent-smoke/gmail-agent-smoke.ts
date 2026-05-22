@@ -41,7 +41,7 @@ export default createWorkflowBuilder({
         },
       ],
       chatModel: openAiChatModelPresets.demoGpt4oMini,
-      mcpServers: ["gmail"],
+      mcpServers: { gmail: { credential: "" } },
       guardrails: { maxTurns: 5 },
     }),
   )

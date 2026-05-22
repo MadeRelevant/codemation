@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { LocalOAuthFlowExecutor } from "../../src/credentials/LocalOAuthFlowExecutor";
 import type { OAuthMaterial } from "@codemation/core";
+import type { CredentialFieldEnvOverlayService } from "../../src/domain/credentials/CredentialFieldEnvOverlayService";
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -81,6 +82,12 @@ function makeOAuth2ProviderRegistry() {
   };
 }
 
+/** Stub overlay service that passes public config and material through unchanged. */
+const passthroughOverlayService: Pick<CredentialFieldEnvOverlayService, "apply" | "isFieldResolvedFromEnv"> = {
+  apply: ({ publicConfig, material }) => ({ resolvedPublicConfig: publicConfig, resolvedMaterial: material }),
+  isFieldResolvedFromEnv: () => false,
+};
+
 function makeExecutor(
   overrides: {
     registry?: ReturnType<typeof makeRegistry>;
@@ -95,6 +102,7 @@ function makeExecutor(
     (overrides.store ?? makeStore()) as never,
     (overrides.materialResolver ?? makeMaterialResolver()) as never,
     (overrides.providerRegistry ?? makeOAuth2ProviderRegistry()) as never,
+    passthroughOverlayService as never,
     (overrides.clock ?? makeClock()) as never,
   );
 }

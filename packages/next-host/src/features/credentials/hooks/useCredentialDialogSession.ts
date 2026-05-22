@@ -386,11 +386,22 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
       return;
     }
     setErrorMessage(null);
-    if (!oauth2RedirectUri) {
+    let redirectUri = oauth2RedirectUri;
+    if (!redirectUri) {
+      try {
+        const uriData = await codemationApiClient.getJson<{ redirectUri?: string }>(ApiPaths.oauth2RedirectUri());
+        redirectUri = uriData.redirectUri ?? "";
+        if (redirectUri) {
+          setOauth2RedirectUri(redirectUri);
+        }
+      } catch {
+        // fall through to the guard below
+      }
+    }
+    if (!redirectUri) {
       setErrorMessage("OAuth redirect URI is not yet loaded. Please wait and try again.");
       return;
     }
-    const redirectUri = oauth2RedirectUri;
     try {
       const startResult = await codemationApiClient.postJson<{ consentUrl: string; stateToken: string }>(
         ApiPaths.credentialOAuthStart(),

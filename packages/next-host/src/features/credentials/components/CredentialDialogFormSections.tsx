@@ -182,6 +182,24 @@ export function CredentialDialogFormSections({
                 : ""}
             </span>
           )}
+          {!isEdit && (
+            <div className="mt-1 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="h-8 gap-1.5 px-2.5 text-xs font-semibold leading-none"
+                data-testid="credential-oauth2-connect-button"
+                onClick={() => void onConnectOAuth2()}
+                disabled={!canSubmit}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <Plug className="size-3.5 shrink-0" aria-hidden />
+                  <span className="leading-none">Create and connect</span>
+                </span>
+              </Button>
+            </div>
+          )}
           {isEdit && (
             <div className="mt-1 flex flex-wrap gap-2">
               <Button

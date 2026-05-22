@@ -6,9 +6,10 @@ import { describe, expect, it } from "vitest";
 import { CredentialTestService } from "../../src/domain/credentials/CredentialTestService";
 import { CredentialTypeRegistryImpl } from "../../src/domain/credentials/CredentialServices";
 import { CredentialFieldEnvOverlayService } from "../../src/domain/credentials/CredentialFieldEnvOverlayService";
+import { FakeLoggerFactory } from "../testkit/LoggerTestKit";
 
 function makeRegistry(opts: { typeId?: string; testResult?: { status: string } } = {}) {
-  const registry = new CredentialTypeRegistryImpl();
+  const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
   if (opts.typeId) {
     registry.register({
       definition: {
@@ -79,7 +80,7 @@ function _makeService(
 
 describe("CredentialTestService.test", () => {
   it("throws 400 when credential type is unknown", async () => {
-    const emptyRegistry = new CredentialTypeRegistryImpl();
+    const emptyRegistry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
     const appConfig = makeAppConfig();
     const overlayService = new CredentialFieldEnvOverlayService(appConfig as never);
     const instance = {
@@ -108,7 +109,7 @@ describe("CredentialTestService.test", () => {
     const savedResults: object[] = [];
     const appConfig = makeAppConfig();
     const overlayService = new CredentialFieldEnvOverlayService(appConfig as never);
-    const registry = new CredentialTypeRegistryImpl();
+    const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
     registry.register({
       definition: {
         typeId: "test.cred",
@@ -154,7 +155,7 @@ describe("CredentialTestService.test", () => {
     const customTime = "2026-01-01T12:00:00.000Z";
     const appConfig = makeAppConfig();
     const overlayService = new CredentialFieldEnvOverlayService(appConfig as never);
-    const registry = new CredentialTypeRegistryImpl();
+    const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
     registry.register({
       definition: {
         typeId: "test.timed",
@@ -194,7 +195,7 @@ describe("CredentialTestService.test", () => {
     const evictedIds: string[] = [];
     const appConfig = makeAppConfig();
     const overlayService = new CredentialFieldEnvOverlayService(appConfig as never);
-    const registry = new CredentialTypeRegistryImpl();
+    const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
     registry.register({
       definition: {
         typeId: "test.evict",

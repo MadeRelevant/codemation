@@ -147,7 +147,8 @@ afterEach(() => {
 });
 
 describe("run-codemation-tsx.mjs", () => {
-  it("forwards SIGINT to the tsx child process", async () => {
+  // Windows does not support POSIX signal forwarding via child.kill("SIGINT"); skip on this platform.
+  it.skipIf(process.platform === "win32")("forwards SIGINT to the tsx child process", async () => {
     const harness = new RunCodemationTsxHarness();
     activeHarnesses.push(harness);
     harness.start();

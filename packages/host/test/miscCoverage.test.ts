@@ -13,6 +13,7 @@ import { CollectionStoreRegistry } from "../src/infrastructure/collections/Colle
 import { OtelIdentityFactory } from "../src/application/telemetry/OtelIdentityFactory";
 import { InMemoryTelemetryArtifactStore } from "../src/infrastructure/persistence/InMemoryTelemetryArtifactStore";
 import { CredentialTypeRegistryImpl } from "../src/domain/credentials/CredentialTypeRegistryImpl";
+import { FakeLoggerFactory } from "./testkit/LoggerTestKit";
 import { WebhookEndpointPathValidator } from "../src/application/workflows/WebhookEndpointPathValidator";
 import { BinaryBodyNodeReadableFactory } from "../src/infrastructure/binary/BinaryBodyNodeReadableFactory";
 import { WorkflowDefinitionRepositoryAdapter } from "../src/infrastructure/persistence/WorkflowDefinitionRepositoryAdapter";
@@ -230,7 +231,7 @@ describe("InMemoryTelemetryArtifactStore.pruneExpired", () => {
 // ---------------------------------------------------------------------------
 describe("CredentialTypeRegistryImpl", () => {
   it("throws when registering a duplicate typeId", () => {
-    const registry = new CredentialTypeRegistryImpl();
+    const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
     const type = {
       definition: {
         typeId: "test.cred",
@@ -247,12 +248,12 @@ describe("CredentialTypeRegistryImpl", () => {
   });
 
   it("getType returns undefined for unknown typeId", () => {
-    const registry = new CredentialTypeRegistryImpl();
+    const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
     expect(registry.getType("nonexistent" as never)).toBeUndefined();
   });
 
   it("listTypes returns all registered type definitions", () => {
-    const registry = new CredentialTypeRegistryImpl();
+    const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
     const type = {
       definition: {
         typeId: "test.cred2",

@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { GetCredentialFieldEnvStatusQueryHandler } from "../../src/application/queries/GetCredentialFieldEnvStatusQueryHandler";
 import { CredentialTypeRegistryImpl } from "../../src/domain/credentials/CredentialServices";
+import { FakeLoggerFactory } from "../testkit/LoggerTestKit";
 
 function makeHandler(
   types: {
@@ -13,7 +14,7 @@ function makeHandler(
   }[],
   env: Record<string, string>,
 ) {
-  const registry = new CredentialTypeRegistryImpl();
+  const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
   for (const [i, type] of types.entries()) {
     registry.register({
       definition: {
