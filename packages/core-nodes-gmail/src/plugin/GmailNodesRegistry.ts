@@ -4,6 +4,7 @@ import type { CodemationPluginContext } from "@codemation/host";
 import { GoogleGmailApiClientFactory } from "../adapters/google/GoogleGmailApiClientFactory";
 import { GoogleGmailApiClientScopeCatalog } from "../adapters/google/GoogleGmailApiClientScopeCatalog";
 import { GoogleGmailSessionFactory } from "../adapters/google/GoogleGmailSessionFactory";
+import { oauthGoogleGmailType } from "../credentials/oauthGoogleGmailType";
 import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
@@ -132,6 +133,7 @@ export class GmailNodes {
       },
     };
     context.registerCredentialType(oauthType);
+    context.registerCredentialType(oauthGoogleGmailType);
   }
 
   private async createGoogleGmailSession(credential: GmailOAuthCredential): Promise<GmailSession> {
