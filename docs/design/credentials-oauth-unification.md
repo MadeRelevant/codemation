@@ -2,7 +2,7 @@
 
 > **What this is**: the architectural target for v1 credentials. We're unifying how regular nodes (Gmail trigger, etc.) and MCP servers express their credential needs, and untangling the local-vs-managed OAuth dance from the credential type catalog.
 >
-> **How to use it**: this is the source of truth for the _architecture_. Each phase below maps to a story in the cross-repo sprint plan at `../../planning/sprints/sprint-17-credentials-oauth-unification.md` (sibling of `framework/` and `control-plane/`). When something here changes mid-flight, update both docs in the same PR.
+> **How to use it**: this is the source of truth for the _architecture_. Each phase below maps to a story under `../../planning/sprints/sprint-17/stories/` (sibling-repo at `planning/sprints/sprint-17/`; see its [README](../../../planning/sprints/sprint-17/README.md) for the story index). When something here changes mid-flight, update both docs in the same PR.
 >
 > **Status**: 🟡 ratified architecture, implementation pending. Drafted 2026-05-22.
 >
