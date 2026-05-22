@@ -41,9 +41,9 @@ export const oauthGoogleGmailType: CredentialType<
         label: "OAuth Client ID",
         type: "string",
         required: true,
-        envVarName: "GOOGLE_CLIENT_ID",
+        envVarName: "GOOGLE_GMAIL_CLIENT_ID",
         helpText:
-          "From your Google Cloud OAuth 2.0 Client. Set GOOGLE_CLIENT_ID in your environment to share one app across many credential instances.",
+          "From your Google Cloud OAuth 2.0 Client. Set GOOGLE_GMAIL_CLIENT_ID in your environment to share one app across many credential instances.",
       },
     ],
     secretFields: [
@@ -52,7 +52,7 @@ export const oauthGoogleGmailType: CredentialType<
         label: "OAuth Client Secret",
         type: "password",
         required: true,
-        envVarName: "GOOGLE_CLIENT_SECRET",
+        envVarName: "GOOGLE_GMAIL_CLIENT_SECRET",
       },
     ],
     supportedSourceKinds: ["db", "env", "code"] as const,
