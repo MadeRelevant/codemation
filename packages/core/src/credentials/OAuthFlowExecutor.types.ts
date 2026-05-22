@@ -35,5 +35,5 @@ export interface OAuthMaterial {
 export interface OAuthFlowExecutor {
   start(args: OAuthFlowStartArgs): Promise<OAuthFlowStartResult>;
   completeCallback(args: OAuthFlowCallbackArgs): Promise<OAuthMaterial>;
-  refresh(material: OAuthMaterial): Promise<OAuthMaterial>;
+  refresh(args: { typeId: string; instanceId: string; material: OAuthMaterial }): Promise<OAuthMaterial>;
 }
