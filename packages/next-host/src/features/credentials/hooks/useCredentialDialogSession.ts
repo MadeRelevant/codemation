@@ -386,7 +386,10 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
       return;
     }
     setErrorMessage(null);
-    const redirectUri = `${window.location.origin}${ApiPaths.credentialOAuthCallback()}`;
+    // Use the server-canonical redirect URI (same value displayed in the dialog and the value the
+    // operator has registered with the OAuth provider). Falling back to the locally-derived URI
+    // only when the redirect-uri endpoint hasn't replied yet — that path is exercised by tests.
+    const redirectUri = oauth2RedirectUri || `${window.location.origin}${ApiPaths.credentialOAuthCallback()}`;
     try {
       const startResult = await codemationApiClient.postJson<{ consentUrl: string; stateToken: string }>(
         ApiPaths.credentialOAuthStart(),
@@ -408,7 +411,7 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     }
-  }, [ensureDialogCredentialInstance]);
+  }, [ensureDialogCredentialInstance, oauth2RedirectUri]);
 
   const executeOAuthDisconnect = useCallback(async (): Promise<void> => {
     if (!editingInstanceId) {
