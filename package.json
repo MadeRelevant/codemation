@@ -5,6 +5,7 @@
   "scripts": {
     "codemation": "node tooling/scripts/run-codemation-tsx.mjs packages/cli/src/bin.ts tsconfig.codemation-tsx.json",
     "dev": "pnpm run dev:framework",
+    "kill-dev": "node tooling/scripts/kill-dev.mjs",
     "dev:docs": "pnpm --filter @codemation/docs dev",
     "dev:framework": "concurrently --raw --kill-others-on-fail -n host,test-dev \"pnpm --filter @codemation/host dev\" \"pnpm --filter @codemation/test-dev dev\"",
     "dev:framework:warm": "pnpm run dev:framework",
