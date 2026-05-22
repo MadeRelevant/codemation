@@ -7,7 +7,7 @@ import {
   CredentialSecretCipher,
   type CredentialStore,
 } from "../../../domain/credentials/CredentialServices";
-import { OAuth2ConnectService } from "../../../domain/credentials/OAuth2ConnectServiceFactory";
+import { OAuth2RedirectUriResolver } from "../../../domain/credentials/OAuth2RedirectUriResolver";
 import { HttpRequestJsonBodyReader } from "../HttpRequestJsonBodyReader";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 
@@ -21,8 +21,8 @@ type OAuthStartRequestBody = Readonly<{
 @injectable()
 export class OAuth2HttpRouteHandler {
   constructor(
-    @inject(OAuth2ConnectService)
-    private readonly oauth2ConnectService: OAuth2ConnectService,
+    @inject(OAuth2RedirectUriResolver)
+    private readonly redirectUriResolver: OAuth2RedirectUriResolver,
     @inject(CredentialInstanceService)
     private readonly credentialInstanceService: CredentialInstanceService,
     @inject(ApplicationTokens.OAuthFlowExecutor)
@@ -33,51 +33,10 @@ export class OAuth2HttpRouteHandler {
     private readonly credentialSecretCipher: CredentialSecretCipher,
   ) {}
 
-  async getAuthRedirect(request: Request): Promise<Response> {
-    try {
-      const url = new URL(request.url);
-      const instanceId = url.searchParams.get("instanceId")?.trim();
-      if (!instanceId) {
-        return Response.json({ error: "Missing instanceId query parameter." }, { status: 400 });
-      }
-      const redirect = await this.oauth2ConnectService.createAuthRedirect(
-        instanceId,
-        this.resolveRequestOrigin(request),
-      );
-      return Response.redirect(redirect.redirectUrl, 302);
-    } catch (error) {
-      return ServerHttpErrorResponseFactory.fromUnknown(error);
-    }
-  }
-
-  async getCallback(request: Request): Promise<Response> {
-    try {
-      const url = new URL(request.url);
-      const result = await this.oauth2ConnectService.handleCallback({
-        code: url.searchParams.get("code"),
-        state: url.searchParams.get("state"),
-        requestOrigin: this.resolveRequestOrigin(request),
-      });
-      return new Response(this.createPopupHtml({ kind: "oauth2.connected", ...result }), {
-        headers: {
-          "content-type": "text/html; charset=utf-8",
-        },
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return new Response(this.createPopupHtml({ kind: "oauth2.error", message }), {
-        status: 400,
-        headers: {
-          "content-type": "text/html; charset=utf-8",
-        },
-      });
-    }
-  }
-
   async getRedirectUri(request: Request): Promise<Response> {
     try {
       return Response.json({
-        redirectUri: this.oauth2ConnectService.getRedirectUri(this.resolveRequestOrigin(request)),
+        redirectUri: this.redirectUriResolver.resolve(this.resolveRequestOrigin(request)),
       });
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);

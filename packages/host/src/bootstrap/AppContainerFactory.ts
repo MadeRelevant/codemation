@@ -117,8 +117,8 @@ import {
   CredentialTestService,
   CredentialTypeRegistryImpl,
 } from "../domain/credentials/CredentialServices";
-import { OAuth2ConnectService } from "../domain/credentials/OAuth2ConnectServiceFactory";
 import { OAuth2ProviderRegistry } from "../domain/credentials/OAuth2ProviderRegistry";
+import { OAuth2RedirectUriResolver } from "../domain/credentials/OAuth2RedirectUriResolver";
 import { WorkflowCredentialNodeResolver } from "../domain/credentials/WorkflowCredentialNodeResolver";
 import { UserAccountService } from "../domain/users/UserAccountServiceRegistry";
 import { UserAccountSessionPolicy } from "../domain/users/UserAccountSessionPolicy";
@@ -707,7 +707,7 @@ export class AppContainerFactory {
       container.register(CoreTokens.CredentialSessionService, { useToken: CredentialSessionServiceImpl });
     }
     container.registerSingleton(OAuth2ProviderRegistry, OAuth2ProviderRegistry);
-    container.registerSingleton(OAuth2ConnectService, OAuth2ConnectService);
+    container.registerSingleton(OAuth2RedirectUriResolver, OAuth2RedirectUriResolver);
     if (container.isRegistered(PairedFetch, true)) {
       container.register(ApplicationTokens.OAuthFlowExecutor, {
         useFactory: instanceCachingFactory((c) => c.resolve(ManagedOAuthFlowExecutor)),

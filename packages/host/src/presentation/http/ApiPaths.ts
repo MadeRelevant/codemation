@@ -145,10 +145,6 @@ export class ApiPaths {
     return `${this.apiBasePath}/credential-bindings`;
   }
 
-  static oauth2Auth(instanceId: string): string {
-    return `${this.oauth2BasePath}/auth?instanceId=${encodeURIComponent(instanceId)}`;
-  }
-
   static oauth2RedirectUri(): string {
     return `${this.oauth2BasePath}/redirect-uri`;
   }
@@ -159,10 +155,6 @@ export class ApiPaths {
 
   static credentialOAuthStart(): string {
     return `${this.credentialsBasePath}/oauth/start`;
-  }
-
-  static credentialOAuthCallback(): string {
-    return `${this.credentialsBasePath}/oauth/callback`;
   }
 
   static workflowWebsocket(): string {

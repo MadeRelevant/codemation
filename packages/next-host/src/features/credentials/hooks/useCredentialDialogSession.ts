@@ -386,10 +386,11 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
       return;
     }
     setErrorMessage(null);
-    // Use the server-canonical redirect URI (same value displayed in the dialog and the value the
-    // operator has registered with the OAuth provider). Falling back to the locally-derived URI
-    // only when the redirect-uri endpoint hasn't replied yet — that path is exercised by tests.
-    const redirectUri = oauth2RedirectUri || `${window.location.origin}${ApiPaths.credentialOAuthCallback()}`;
+    if (!oauth2RedirectUri) {
+      setErrorMessage("OAuth redirect URI is not yet loaded. Please wait and try again.");
+      return;
+    }
+    const redirectUri = oauth2RedirectUri;
     try {
       const startResult = await codemationApiClient.postJson<{ consentUrl: string; stateToken: string }>(
         ApiPaths.credentialOAuthStart(),
