@@ -5,7 +5,6 @@ import { GoogleGmailApiClientFactory } from "../adapters/google/GoogleGmailApiCl
 import { GoogleGmailApiClientScopeCatalog } from "../adapters/google/GoogleGmailApiClientScopeCatalog";
 import { GoogleGmailSessionFactory } from "../adapters/google/GoogleGmailSessionFactory";
 import { oauthGoogleGmailType } from "../credentials/oauthGoogleGmailType";
-import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailNodesOptions } from "../contracts/GmailNodesOptions";
 import { GmailNodeTokens } from "../contracts/GmailNodeTokens";
 import type {
@@ -62,7 +61,7 @@ export class GmailNodes {
   private registerCredentialTypes(context: CodemationPluginContext): void {
     const oauthType: CredentialType<GmailOAuthPublicConfig, GmailOAuthMaterial, GmailSession> = {
       definition: {
-        typeId: GmailCredentialTypes.oauth,
+        typeId: "gmail.oauth",
         displayName: "Gmail OAuth",
         description:
           "OAuth2 credentials for a Gmail account connection managed by the framework, with default scopes that cover trigger, read, send, reply, and label actions.",

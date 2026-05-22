@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { GmailCredentialTypes } from "../src/contracts/GmailCredentialTypes";
 import {
   ModifyGmailLabels,
   type ModifyGmailLabelsInputJson,
@@ -75,7 +74,7 @@ test("SendGmailMessage declares the Gmail auth requirement", () => {
     {
       slotKey: "auth",
       label: "Gmail account",
-      acceptedTypes: [GmailCredentialTypes.oauth],
+      acceptedTypes: ["oauth.google.gmail"],
       helpText: "Bind a Gmail OAuth credential that resolves to an authenticated Gmail session.",
     },
   ]);
