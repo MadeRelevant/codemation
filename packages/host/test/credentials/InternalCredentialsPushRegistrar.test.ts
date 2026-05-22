@@ -100,7 +100,6 @@ describe("InternalCredentialsPushRegistrar — POST /internal/credentials/push",
 
     const res = await pushRequest(app, {
       credentialInstanceId: "inst-1",
-      oauthAppKey: "google-mail",
       accessToken: "access-abc",
       refreshToken: "refresh-xyz",
       expiresAt: FUTURE_EXPIRES_AT,
@@ -134,7 +133,6 @@ describe("InternalCredentialsPushRegistrar — POST /internal/credentials/push",
 
     await pushRequest(app, {
       credentialInstanceId: "inst-2",
-      oauthAppKey: "google-mail",
       accessToken: "new-access",
       // refreshToken intentionally omitted (Google re-consent without new refresh token)
       expiresAt: FUTURE_EXPIRES_AT,
@@ -163,7 +161,6 @@ describe("InternalCredentialsPushRegistrar — POST /internal/credentials/push",
 
     await pushRequest(app, {
       credentialInstanceId: "inst-3",
-      oauthAppKey: "google-mail",
       accessToken: "newer-access",
       refreshToken: null,
       expiresAt: FUTURE_EXPIRES_AT,
@@ -179,7 +176,6 @@ describe("InternalCredentialsPushRegistrar — POST /internal/credentials/push",
     const app = buildApp(store);
 
     const res = await pushRequest(app, {
-      oauthAppKey: "google-mail",
       accessToken: "access-abc",
       expiresAt: FUTURE_EXPIRES_AT,
       scopesGranted: [],
@@ -194,7 +190,6 @@ describe("InternalCredentialsPushRegistrar — POST /internal/credentials/push",
 
     const res = await pushRequest(app, {
       credentialInstanceId: "inst-x",
-      oauthAppKey: "google-mail",
       expiresAt: FUTURE_EXPIRES_AT,
       scopesGranted: [],
     });

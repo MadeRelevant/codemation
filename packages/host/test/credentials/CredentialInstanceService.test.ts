@@ -366,41 +366,6 @@ describe("CredentialInstanceService.markOAuth2Connected", () => {
   });
 });
 
-describe("CredentialInstanceService.ensureBrokerInstance", () => {
-  it("creates a new broker instance when none exists", async () => {
-    const { service, store } = makeService({
-      types: [{ typeId: "host.oauth2-via-broker" }],
-    });
-    await service.ensureBrokerInstance({
-      instanceId: "broker-inst-1" as never,
-      displayName: "My App",
-      oauthAppKey: "app-key-1",
-    });
-    const inst = await store.getInstance("broker-inst-1");
-    expect(inst).toBeDefined();
-    expect(inst?.typeId).toBe("host.oauth2-via-broker");
-    expect(inst?.displayName).toBe("My App");
-  });
-
-  it("is idempotent — does not overwrite if instance already exists", async () => {
-    const { service, store } = makeService({
-      types: [{ typeId: "host.oauth2-via-broker" }],
-    });
-    await service.ensureBrokerInstance({
-      instanceId: "broker-inst-2" as never,
-      displayName: "First Name",
-      oauthAppKey: "app-key",
-    });
-    await service.ensureBrokerInstance({
-      instanceId: "broker-inst-2" as never,
-      displayName: "Second Name",
-      oauthAppKey: "app-key",
-    });
-    const inst = await store.getInstance("broker-inst-2");
-    expect(inst?.displayName).toBe("First Name"); // Unchanged
-  });
-});
-
 describe("CredentialInstanceService.getInstanceWithSecrets", () => {
   it("returns instance with secretConfig when available", async () => {
     const { service } = makeService({ types: [{ typeId: "test.cred" }] });

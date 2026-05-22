@@ -56,7 +56,6 @@ export default defineConfig({
         "src/credentials/BrokerClient.ts",
         "src/credentials/BrokerRefreshError.ts",
         "src/credentials/BrokerRefreshInvalidGrantError.ts",
-        "src/credentials/OAuth2ViaBrokerCredentialTypeFactory.ts",
         "src/pairing/**",
         // Bootstrap runtime entry points — composed at startup
         "src/bootstrap/CodemationContainerRegistrationRegistrar.ts",

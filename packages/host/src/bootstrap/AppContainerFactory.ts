@@ -286,7 +286,6 @@ import { InternalWorkflowsListRegistrar } from "../workflows/InternalWorkflowsLi
 import { InternalWorkflowDetailRegistrar } from "../workflows/InternalWorkflowDetailRegistrar";
 import { InternalWorkflowActivationRegistrar } from "../workflows/InternalWorkflowActivationRegistrar";
 import { InternalWorkflowTestRunRegistrar } from "../workflows/InternalWorkflowTestRunRegistrar";
-import { OAuth2ViaBrokerCredentialTypeFactory } from "../credentials/OAuth2ViaBrokerCredentialTypeFactory";
 import { McpServerCatalog } from "../mcp/McpServerCatalog";
 import { McpConnectionPool } from "../mcp/McpConnectionPool";
 import { DefaultMcpClientFactory } from "../mcp/McpClientFactory";
@@ -495,14 +494,7 @@ export class AppContainerFactory {
     credentialTypes: ReadonlyArray<CredentialType<any, any, unknown>>,
   ): void {
     const registry = container.resolve(CredentialTypeRegistryImpl);
-    const oAuth2ViaBrokerType = new OAuth2ViaBrokerCredentialTypeFactory(
-      container.resolve(ApplicationTokens.CredentialStore),
-      container.resolve(CredentialSecretCipher),
-    ).register();
-    const allTypes = credentialTypes.some((entry) => entry.definition.typeId === oAuth2ViaBrokerType.definition.typeId)
-      ? credentialTypes
-      : [...credentialTypes, oAuth2ViaBrokerType];
-    for (const credentialType of allTypes) {
+    for (const credentialType of credentialTypes) {
       registry.register(credentialType);
     }
   }

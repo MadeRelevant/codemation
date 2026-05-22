@@ -14,14 +14,6 @@ import { CredentialInstanceService, CredentialTestService } from "../domain/cred
  */
 type CredentialPushBody = Readonly<{
   credentialInstanceId: string;
-  oauthAppKey: string;
-  /**
-   * Human-readable label from the control-plane. When present, the workspace
-   * upserts a local instance row (typeId `host.oauth2-via-broker`) so the
-   * credential is visible in lists. Older brokers omit this field; we then
-   * skip the upsert and rely on the legacy "material without instance" path.
-   */
-  displayName?: string;
   accessToken: string;
   refreshToken?: string | null;
   expiresAt: number;
@@ -66,18 +58,6 @@ export class InternalCredentialsPushRegistrar implements InternalHonoApiRouteReg
         const expiryIso =
           typeof body.expiresAt === "number" ? new Date(body.expiresAt * 1000).toISOString() : undefined;
 
-        // Create the local instance row if the broker provided a displayName.
-        // Must happen BEFORE saveOAuth2Material so the FK from secret material
-        // → instance is satisfied, and BEFORE markOAuth2Connected so the flip
-        // to "ready" finds the row.
-        if (body.displayName && body.displayName.length > 0) {
-          await this.credentialInstanceService.ensureBrokerInstance({
-            instanceId: body.credentialInstanceId,
-            displayName: body.displayName,
-            oauthAppKey: body.oauthAppKey,
-          });
-        }
-
         // Merge: if the push omits refreshToken, preserve the existing one.
         const existingMaterial = await this.credentialStore.getOAuth2Material(body.credentialInstanceId);
         const existingDecrypted = existingMaterial ? this.cipher.decrypt(existingMaterial) : undefined;
@@ -101,7 +81,7 @@ export class InternalCredentialsPushRegistrar implements InternalHonoApiRouteReg
           encryptionKeyId: encrypted.encryptionKeyId,
           schemaVersion: encrypted.schemaVersion,
           metadata: {
-            providerId: body.oauthAppKey,
+            providerId: body.credentialInstanceId,
             connectedAt: nowIso,
             scopes: [...body.scopesGranted],
             updatedAt: nowIso,
@@ -119,9 +99,7 @@ export class InternalCredentialsPushRegistrar implements InternalHonoApiRouteReg
           );
         }
 
-        this.logger.info(
-          `Credential push applied for instance ${body.credentialInstanceId} oauthAppKey=${body.oauthAppKey}`,
-        );
+        this.logger.info(`Credential push applied for instance ${body.credentialInstanceId}`);
 
         // Auto-test the credential so the UI shows a real health badge
         // (healthy / failing) instead of "untested". For the broker type
