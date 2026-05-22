@@ -4,6 +4,8 @@
 
 @source "../../canvas/src/**/*.tsx";
 @source "../../canvas/src/**/*.ts";
+@source "../../ui/src/**/*.tsx";
+@source "../../ui/src/**/*.ts";
 
 @custom-variant dark (&:is(.dark *));
 
