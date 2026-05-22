@@ -357,8 +357,12 @@ export class DevCommand {
     detached: boolean;
     windowsHide?: boolean;
   }> {
+    // On Windows, `detached: true` forces Node/execa to create a new console window even
+    // with `windowsHide: true`, because .cmd shim resolution routes through cmd.exe. We
+    // accept losing automatic process-group shutdown on Windows; explicit child.kill()
+    // in bindShutdownSignalsToChildProcesses already covers that path.
     return process.platform === "win32"
-      ? { stdio: ["ignore", "pipe", "pipe"], detached: true, windowsHide: true }
+      ? { stdio: ["ignore", "pipe", "pipe"], detached: false, windowsHide: true }
       : { stdio: ["ignore", "pipe", "pipe"], detached: true };
   }
 

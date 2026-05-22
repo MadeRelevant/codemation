@@ -399,7 +399,6 @@ export class AppContainerFactory {
     this.registerManagedAuthInfrastructure(container, inputs.appConfig);
     this.registerPairingInfrastructure(container, inputs.appConfig);
     this.registerConfiguredRegistrations(container, inputs.appConfig);
-    this.registerPairingInfrastructure(container, inputs.appConfig);
     const credentialTypes = this.collectCredentialTypes(inputs.appConfig);
     this.registerMcpCatalog(container);
     await this.applyPlugins(container, inputs.appConfig, credentialTypes);
@@ -504,8 +503,6 @@ export class AppContainerFactory {
   }
 
   private registerControlPlaneCatalogFetcher(container: Container): void {
-    container.registerSingleton(McpServerCatalog, McpServerCatalog);
-
     // Only register the fetcher when paired with a control plane.
     // PairedFetch is only registered inside registerPairingInfrastructure,
     // which skips registration when pairing env vars are absent.
