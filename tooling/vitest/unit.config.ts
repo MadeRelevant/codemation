@@ -8,8 +8,8 @@ const p = (rel: string) => path.resolve(import.meta.dirname, rel);
  */
 export default defineConfig({
   test: {
-    maxWorkers: 2,
-    fileParallelism: true,
+    maxWorkers: 1,
+    fileParallelism: false,
     projects: [
       p("./vitest.tooling.config.ts"),
       p("../../packages/agent-skills/vitest.config.ts"),

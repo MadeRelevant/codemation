@@ -5,8 +5,8 @@ const p = (rel: string) => path.resolve(import.meta.dirname, rel);
 
 export default defineConfig({
   test: {
-    maxWorkers: 2,
-    fileParallelism: true,
+    maxWorkers: 1,
+    fileParallelism: false,
     projects: [
       p("../../packages/ui/vitest.ui.config.ts"),
       p("../../packages/host/vitest.ui.config.ts"),

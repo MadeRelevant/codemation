@@ -6,8 +6,8 @@ const p = (rel: string) => path.resolve(import.meta.dirname, rel);
 export default defineConfig({
   test: {
     passWithNoTests: true,
-    maxWorkers: 2,
-    fileParallelism: true,
+    maxWorkers: 1,
+    fileParallelism: false,
     projects: [p("../../packages/host/vitest.e2e.config.ts")],
   },
 });

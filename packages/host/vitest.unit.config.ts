@@ -19,8 +19,8 @@ export default defineConfig({
     // for the next.
     pool: "forks",
     isolate: true,
-    maxWorkers: 2,
-    fileParallelism: true,
+    maxWorkers: 1,
+    fileParallelism: false,
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],

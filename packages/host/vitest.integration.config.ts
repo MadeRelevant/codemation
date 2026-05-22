@@ -16,7 +16,7 @@ export default defineConfig({
     pool: "threads",
     // Each file gets a clean module graph so parallel workers/files cannot leak tsyringe/globals between suites.
     isolate: true,
-    maxWorkers: 2,
+    maxWorkers: 1,
     // Shared migrated DB + Prisma rollback: run files sequentially to avoid cross-file races.
     fileParallelism: false,
     hookTimeout: 180_000,

@@ -16,8 +16,8 @@ export default defineConfig({
     pool: "threads",
     // Reuse jsdom + module graph across files (faster). Do not leak globals/mocks between files—clean up in afterEach.
     isolate: false,
-    maxWorkers: 2,
-    fileParallelism: true,
+    maxWorkers: 1,
+    fileParallelism: false,
     coverage: {
       provider: "v8",
       // Restrict coverage to host src + next-host src only; exclude test helpers and infra-only files

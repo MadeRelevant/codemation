@@ -14,8 +14,8 @@ export default defineConfig({
     passWithNoTests: true,
     pool: "threads",
     isolate: true,
-    maxWorkers: 2,
-    fileParallelism: true,
+    maxWorkers: 1,
+    fileParallelism: false,
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
