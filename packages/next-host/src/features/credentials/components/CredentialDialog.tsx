@@ -208,7 +208,6 @@ export function CredentialDialog({
           oauth2RedirectUri={oauth2RedirectUri}
           isLoadingOauth2RedirectUri={isLoadingOauth2RedirectUri}
           editingInstance={editingInstance}
-          canSubmit={canSubmit}
           onConnectOAuth2={onConnectOAuth2}
           onDisconnectOAuth2={onDisconnectOAuth2}
         />

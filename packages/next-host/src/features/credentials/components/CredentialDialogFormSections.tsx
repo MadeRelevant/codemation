@@ -37,7 +37,6 @@ export type CredentialDialogFormSectionsProps = {
   oauth2RedirectUri: string;
   isLoadingOauth2RedirectUri: boolean;
   editingInstance: CredentialInstanceDto | null | undefined;
-  canSubmit: boolean;
   onConnectOAuth2: () => Promise<void>;
   onDisconnectOAuth2: () => void;
 };
@@ -63,7 +62,6 @@ export function CredentialDialogFormSections({
   oauth2RedirectUri,
   isLoadingOauth2RedirectUri,
   editingInstance,
-  canSubmit,
   onConnectOAuth2,
   onDisconnectOAuth2,
 }: CredentialDialogFormSectionsProps) {
@@ -181,24 +179,6 @@ export function CredentialDialogFormSections({
                 ? ` as ${editingInstance.oauth2Connection.connectedEmail}`
                 : ""}
             </span>
-          )}
-          {!isEdit && (
-            <div className="mt-1 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                className="h-8 gap-1.5 px-2.5 text-xs font-semibold leading-none"
-                data-testid="credential-oauth2-connect-button"
-                onClick={() => void onConnectOAuth2()}
-                disabled={!canSubmit}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  <Plug className="size-3.5 shrink-0" aria-hidden />
-                  <span className="leading-none">Create and connect</span>
-                </span>
-              </Button>
-            </div>
           )}
           {isEdit && (
             <div className="mt-1 flex flex-wrap gap-2">

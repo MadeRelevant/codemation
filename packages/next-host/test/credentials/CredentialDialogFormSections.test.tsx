@@ -32,7 +32,6 @@ function makeOAuth2CreateProps(overrides: Partial<Parameters<typeof CredentialDi
     oauth2RedirectUri: "https://app.example.com/callback",
     isLoadingOauth2RedirectUri: false,
     editingInstance: undefined,
-    canSubmit: true,
     onConnectOAuth2: vi.fn().mockResolvedValue(undefined),
     onDisconnectOAuth2: vi.fn(),
     ...overrides,
@@ -107,33 +106,11 @@ describe("CredentialDialogFormSections — OAuth2 block", () => {
     expect(screen.queryByTestId("credential-oauth2-redirect-uri")).not.toBeInTheDocument();
   });
 
-  it("shows 'Create and connect' button in create mode and it is enabled when canSubmit is true", () => {
-    render(<CredentialDialogFormSections {...makeOAuth2CreateProps({ canSubmit: true })} />);
-
-    const connectBtn = screen.getByTestId("credential-oauth2-connect-button");
-    expect(connectBtn).toHaveTextContent("Create and connect");
-    expect(connectBtn).not.toBeDisabled();
-  });
-
-  it("disables 'Create and connect' when canSubmit is false in create mode", () => {
-    render(<CredentialDialogFormSections {...makeOAuth2CreateProps({ canSubmit: false })} />);
-
-    expect(screen.getByTestId("credential-oauth2-connect-button")).toBeDisabled();
-  });
-
-  it("does not render the disconnect button in create mode", () => {
+  it("does not render the connect or disconnect button in create mode (footer Create handles it)", () => {
     render(<CredentialDialogFormSections {...makeOAuth2CreateProps()} />);
 
+    expect(screen.queryByTestId("credential-oauth2-connect-button")).not.toBeInTheDocument();
     expect(screen.queryByTestId("credential-oauth2-disconnect-button")).not.toBeInTheDocument();
-  });
-
-  it("calls onConnectOAuth2 when the connect button is clicked", () => {
-    const onConnectOAuth2 = vi.fn().mockResolvedValue(undefined);
-    render(<CredentialDialogFormSections {...makeOAuth2CreateProps({ onConnectOAuth2 })} />);
-
-    fireEvent.click(screen.getByTestId("credential-oauth2-connect-button"));
-
-    expect(onConnectOAuth2).toHaveBeenCalledTimes(1);
   });
 
   it("shows 'Connect' button in edit mode when instance is not connected", () => {
