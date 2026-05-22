@@ -115,6 +115,10 @@ export class LocalOAuthFlowExecutor implements OAuthFlowExecutor {
     return { consentUrl: url.toString(), stateToken };
   }
 
+  lookupInstanceId(stateToken: string): string | undefined {
+    return this.pendingStates.get(stateToken)?.instanceId;
+  }
+
   async completeCallback(args: OAuthFlowCallbackArgs): Promise<OAuthMaterial> {
     const pending = this.pendingStates.get(args.stateToken);
     if (!pending) {

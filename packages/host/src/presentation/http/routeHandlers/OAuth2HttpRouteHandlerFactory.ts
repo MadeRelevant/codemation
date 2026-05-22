@@ -1,8 +1,22 @@
+import type { OAuthFlowExecutor } from "@codemation/core";
 import { inject, injectable } from "@codemation/core";
 import serialize from "serialize-javascript";
-import { CredentialInstanceService } from "../../../domain/credentials/CredentialServices";
+import { ApplicationTokens } from "../../../applicationTokens";
+import {
+  CredentialInstanceService,
+  CredentialSecretCipher,
+  type CredentialStore,
+} from "../../../domain/credentials/CredentialServices";
 import { OAuth2ConnectService } from "../../../domain/credentials/OAuth2ConnectServiceFactory";
+import { HttpRequestJsonBodyReader } from "../HttpRequestJsonBodyReader";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
+
+type OAuthStartRequestBody = Readonly<{
+  typeId: string;
+  instanceId: string;
+  redirectUri: string;
+  scopes?: ReadonlyArray<string>;
+}>;
 
 @injectable()
 export class OAuth2HttpRouteHandler {
@@ -11,6 +25,12 @@ export class OAuth2HttpRouteHandler {
     private readonly oauth2ConnectService: OAuth2ConnectService,
     @inject(CredentialInstanceService)
     private readonly credentialInstanceService: CredentialInstanceService,
+    @inject(ApplicationTokens.OAuthFlowExecutor)
+    private readonly oauthFlowExecutor: OAuthFlowExecutor,
+    @inject(ApplicationTokens.CredentialStore)
+    private readonly credentialStore: CredentialStore,
+    @inject(CredentialSecretCipher)
+    private readonly credentialSecretCipher: CredentialSecretCipher,
   ) {}
 
   async getAuthRedirect(request: Request): Promise<Response> {
@@ -74,6 +94,84 @@ export class OAuth2HttpRouteHandler {
       return Response.json(await this.credentialInstanceService.disconnectOAuth2(instanceId));
     } catch (error) {
       return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  async postOAuthStart(request: Request): Promise<Response> {
+    try {
+      const body = await HttpRequestJsonBodyReader.readJsonBody<OAuthStartRequestBody>(request);
+      if (!body.typeId?.trim()) {
+        return Response.json({ error: "Missing required field: typeId" }, { status: 400 });
+      }
+      if (!body.instanceId?.trim()) {
+        return Response.json({ error: "Missing required field: instanceId" }, { status: 400 });
+      }
+      if (!body.redirectUri?.trim()) {
+        return Response.json({ error: "Missing required field: redirectUri" }, { status: 400 });
+      }
+      const result = await this.oauthFlowExecutor.start({
+        typeId: body.typeId.trim(),
+        instanceId: body.instanceId.trim(),
+        redirectUri: body.redirectUri.trim(),
+        scopes: body.scopes ?? [],
+      });
+      return Response.json({ consentUrl: result.consentUrl, stateToken: result.stateToken });
+    } catch (error) {
+      return ServerHttpErrorResponseFactory.fromUnknown(error);
+    }
+  }
+
+  async getOAuthCallback(request: Request): Promise<Response> {
+    try {
+      const url = new URL(request.url);
+      const code = url.searchParams.get("code")?.trim();
+      const stateToken = url.searchParams.get("state")?.trim();
+      if (!code || !stateToken) {
+        return new Response(
+          this.createPopupHtml({ kind: "oauth2.error", message: "Missing code or state parameter." }),
+          {
+            status: 400,
+            headers: { "content-type": "text/html; charset=utf-8" },
+          },
+        );
+      }
+      const instanceId = this.oauthFlowExecutor.lookupInstanceId(stateToken);
+      if (!instanceId) {
+        return new Response(
+          this.createPopupHtml({ kind: "oauth2.error", message: "OAuth state token not found or already used." }),
+          { status: 400, headers: { "content-type": "text/html; charset=utf-8" } },
+        );
+      }
+      const material = await this.oauthFlowExecutor.completeCallback({ stateToken, code });
+      const nowIso = new Date().toISOString();
+      const encryptedMaterial = this.credentialSecretCipher.encrypt({
+        accessToken: material.accessToken,
+        refreshToken: material.refreshToken ?? null,
+        expiresAt: material.expiresAt ?? null,
+        grantedScopes: material.grantedScopes.join(" "),
+      });
+      await this.credentialStore.saveOAuth2Material({
+        instanceId,
+        encryptedJson: encryptedMaterial.encryptedJson,
+        encryptionKeyId: encryptedMaterial.encryptionKeyId,
+        schemaVersion: encryptedMaterial.schemaVersion,
+        metadata: {
+          providerId: "local",
+          connectedAt: nowIso,
+          scopes: [...material.grantedScopes],
+          updatedAt: nowIso,
+        },
+      });
+      await this.credentialInstanceService.markOAuth2Connected(instanceId, nowIso);
+      return new Response(this.createPopupHtml({ kind: "oauth2.connected", instanceId }), {
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return new Response(this.createPopupHtml({ kind: "oauth2.error", message }), {
+        status: 400,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
     }
   }
 

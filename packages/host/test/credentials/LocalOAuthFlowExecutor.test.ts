@@ -186,6 +186,46 @@ describe("LocalOAuthFlowExecutor.start", () => {
 });
 
 // ---------------------------------------------------------------------------
+// lookupInstanceId()
+// ---------------------------------------------------------------------------
+
+describe("LocalOAuthFlowExecutor.lookupInstanceId", () => {
+  it("returns the instanceId for a pending stateToken", async () => {
+    const executor = makeExecutor();
+    const { stateToken } = await executor.start({
+      typeId: FAKE_TYPE_ID,
+      scopes: [],
+      redirectUri: "http://localhost:3000/api/credentials/oauth/callback",
+      instanceId: FAKE_INSTANCE_ID,
+    });
+    expect(executor.lookupInstanceId(stateToken)).toBe(FAKE_INSTANCE_ID);
+  });
+
+  it("returns undefined for an unknown stateToken", () => {
+    const executor = makeExecutor();
+    expect(executor.lookupInstanceId("no-such-token")).toBeUndefined();
+  });
+
+  it("returns undefined after the stateToken has been consumed by completeCallback", async () => {
+    const executor = makeExecutor();
+    const { stateToken } = await executor.start({
+      typeId: FAKE_TYPE_ID,
+      scopes: [],
+      redirectUri: "http://localhost:3000/api/credentials/oauth/callback",
+      instanceId: FAKE_INSTANCE_ID,
+    });
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      text: async () => JSON.stringify({ access_token: "at", scope: "s" }),
+    } as Response);
+
+    await executor.completeCallback({ stateToken, code: "code" });
+    expect(executor.lookupInstanceId(stateToken)).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // completeCallback()
 // ---------------------------------------------------------------------------
 

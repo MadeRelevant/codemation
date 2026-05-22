@@ -12,5 +12,7 @@ export class OAuth2HonoApiRouteRegistrar implements HonoApiRouteRegistrar {
     app.get("/oauth2/callback", (c) => this.handler.getCallback(c.req.raw));
     app.get("/oauth2/redirect-uri", (c) => this.handler.getRedirectUri(c.req.raw));
     app.post("/oauth2/disconnect", (c) => this.handler.postDisconnect(c.req.raw));
+    app.post("/credentials/oauth/start", (c) => this.handler.postOAuthStart(c.req.raw));
+    app.get("/credentials/oauth/callback", (c) => this.handler.getOAuthCallback(c.req.raw));
   }
 }

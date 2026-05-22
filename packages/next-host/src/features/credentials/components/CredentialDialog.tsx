@@ -6,7 +6,9 @@ import { useEffect, useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
+import LogIn from "lucide-react/dist/esm/icons/log-in";
 import PlusCircle from "lucide-react/dist/esm/icons/plus-circle";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Save from "lucide-react/dist/esm/icons/save";
 import X from "lucide-react/dist/esm/icons/x";
 import { Button } from "@codemation/ui";
@@ -164,6 +166,12 @@ export function CredentialDialog({
             )));
   const canTest = !isSubmitting && !isDialogTesting && (isEdit || canSubmit);
 
+  // For OAuth2 instances that are already saved (edit mode), the primary footer action
+  // is Connect/Reconnect rather than Save, so the user drives the OAuth dance from a
+  // prominent button without needing to scroll into the form body.
+  const isOAuth2EditMode = isEdit && isOAuth2Type;
+  const oauth2IsConnected = editingInstance?.oauth2Connection?.status === "connected";
+
   const handleSubmit = () => {
     if (isEdit) void onUpdate();
     else void onCreate();
@@ -238,24 +246,45 @@ export function CredentialDialog({
             <span className="leading-none">{isDialogTesting ? "Testing…" : "Test"}</span>
           </span>
         </Button>
-        <Button
-          type="button"
-          className="gap-1.5"
-          data-testid={isEdit ? "credential-save-button" : "credential-create-button"}
-          disabled={!canSubmit}
-          onClick={handleSubmit}
-        >
-          <span className="inline-flex items-center gap-1.5">
-            {isEdit ? (
-              <Save className="size-4 shrink-0" aria-hidden />
-            ) : (
-              <PlusCircle className="size-4 shrink-0" aria-hidden />
-            )}
-            <span className="leading-none">
-              {isSubmitting ? (isEdit ? "Saving…" : "Creating…") : isEdit ? "Save" : "Create"}
+        {isOAuth2EditMode ? (
+          <Button
+            type="button"
+            className="gap-1.5"
+            data-testid="credential-oauth2-connect-footer-button"
+            disabled={isSubmitting}
+            onClick={() => void onConnectOAuth2()}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              {oauth2IsConnected ? (
+                <RefreshCw className="size-4 shrink-0" aria-hidden />
+              ) : (
+                <LogIn className="size-4 shrink-0" aria-hidden />
+              )}
+              <span className="leading-none">
+                {isSubmitting ? "Connecting…" : oauth2IsConnected ? "Reconnect" : "Connect"}
+              </span>
             </span>
-          </span>
-        </Button>
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            className="gap-1.5"
+            data-testid={isEdit ? "credential-save-button" : "credential-create-button"}
+            disabled={!canSubmit}
+            onClick={handleSubmit}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              {isEdit ? (
+                <Save className="size-4 shrink-0" aria-hidden />
+              ) : (
+                <PlusCircle className="size-4 shrink-0" aria-hidden />
+              )}
+              <span className="leading-none">
+                {isSubmitting ? (isEdit ? "Saving…" : "Creating…") : isEdit ? "Save" : "Create"}
+              </span>
+            </span>
+          </Button>
+        )}
       </CodemationDialog.Actions>
     </CodemationDialog>
   );

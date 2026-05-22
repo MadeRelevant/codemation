@@ -386,13 +386,27 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
       return;
     }
     setErrorMessage(null);
-    const popup = window.open(
-      ApiPaths.oauth2Auth(targetInstance.instanceId),
-      `codemation-oauth2-${targetInstance.instanceId}`,
-      "popup=yes,width=640,height=760",
-    );
-    if (!popup) {
-      setErrorMessage("The OAuth popup was blocked by the browser.");
+    const redirectUri = `${window.location.origin}${ApiPaths.credentialOAuthCallback()}`;
+    try {
+      const startResult = await codemationApiClient.postJson<{ consentUrl: string; stateToken: string }>(
+        ApiPaths.credentialOAuthStart(),
+        {
+          typeId: targetInstance.typeId,
+          instanceId: targetInstance.instanceId,
+          redirectUri,
+          scopes: [],
+        },
+      );
+      const popup = window.open(
+        startResult.consentUrl,
+        `codemation-oauth2-${targetInstance.instanceId}`,
+        "popup=yes,width=640,height=760",
+      );
+      if (!popup) {
+        setErrorMessage("The OAuth popup was blocked by the browser.");
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
     }
   }, [ensureDialogCredentialInstance]);
 

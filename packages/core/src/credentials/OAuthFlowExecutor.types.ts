@@ -34,6 +34,12 @@ export interface OAuthMaterial {
 
 export interface OAuthFlowExecutor {
   start(args: OAuthFlowStartArgs): Promise<OAuthFlowStartResult>;
+  /**
+   * Returns the instanceId associated with a pending stateToken without consuming it.
+   * Used by callback routes to identify the target instance before calling completeCallback.
+   * Returns undefined when the stateToken is unknown or already consumed.
+   */
+  lookupInstanceId(stateToken: string): string | undefined;
   completeCallback(args: OAuthFlowCallbackArgs): Promise<OAuthMaterial>;
   refresh(args: { typeId: string; instanceId: string; material: OAuthMaterial }): Promise<OAuthMaterial>;
 }

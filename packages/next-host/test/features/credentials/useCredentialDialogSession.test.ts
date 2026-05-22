@@ -818,7 +818,7 @@ describe("useCredentialDialogSession", () => {
   // ---------------------------------------------------------------- 7. handleConnectOAuth2
 
   describe("connectOAuth2Credential", () => {
-    it("opens a popup window with the OAuth2 auth URL after creating a credential", async () => {
+    it("opens a popup window with the consent URL returned by /credentials/oauth/start", async () => {
       const queryClient = makeQueryClient();
       seedQueryClient(queryClient, { types: [oauth2Type] });
 
@@ -855,6 +855,12 @@ describe("useCredentialDialogSession", () => {
             }),
           } as Response;
         }
+        if (url === ApiPaths.credentialOAuthStart() && method === "POST") {
+          return {
+            ok: true,
+            json: async () => ({ consentUrl: "https://accounts.google.com/consent?state=abc", stateToken: "abc" }),
+          } as Response;
+        }
         return { ok: true, json: async () => ({}) } as Response;
       });
 
@@ -874,7 +880,7 @@ describe("useCredentialDialogSession", () => {
       });
 
       expect(window.open).toHaveBeenCalledWith(
-        ApiPaths.oauth2Auth("oauth-popup-inst"),
+        "https://accounts.google.com/consent?state=abc",
         expect.stringContaining("oauth-popup-inst"),
         expect.stringContaining("popup"),
       );
@@ -914,6 +920,12 @@ describe("useCredentialDialogSession", () => {
               createdAt: "2026-01-01T00:00:00Z",
               updatedAt: "2026-01-01T00:00:00Z",
             }),
+          } as Response;
+        }
+        if (url === ApiPaths.credentialOAuthStart() && method === "POST") {
+          return {
+            ok: true,
+            json: async () => ({ consentUrl: "https://accounts.google.com/consent?state=xyz", stateToken: "xyz" }),
           } as Response;
         }
         return { ok: true, json: async () => ({}) } as Response;

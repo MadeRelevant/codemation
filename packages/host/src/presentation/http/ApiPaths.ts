@@ -157,6 +157,14 @@ export class ApiPaths {
     return `${this.oauth2BasePath}/disconnect?instanceId=${encodeURIComponent(instanceId)}`;
   }
 
+  static credentialOAuthStart(): string {
+    return `${this.credentialsBasePath}/oauth/start`;
+  }
+
+  static credentialOAuthCallback(): string {
+    return `${this.credentialsBasePath}/oauth/callback`;
+  }
+
   static workflowWebsocket(): string {
     return `${this.workflowsBasePath}/ws`;
   }
