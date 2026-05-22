@@ -104,9 +104,6 @@ export const AgentConnectionNodeCollector: AgentConnectionNodeCollectorApi = new
     if (!mcpServers) {
       return [];
     }
-    if (Array.isArray(mcpServers)) {
-      return [...mcpServers];
-    }
     return Object.keys(mcpServers);
   }
 

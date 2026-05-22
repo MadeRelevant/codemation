@@ -28,10 +28,11 @@ export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown> {
   readonly outputSchema?: ZodType<_TOutputJson>;
   /**
    * MCP servers to connect for this agent run.
-   * - Explicit form: `{ gmail: { credential: "<instanceId>" } }`
-   * - Shorthand form: `["gmail", "slack"]` — auto-resolves when exactly one
-   *   credential instance matches the server's oauthAppKey.
-   *   TODO: remove with broker cleanup — shorthand resolution will use acceptedCredentialTypes.
+   * Explicit binding is required: `{ gmail: { credential: "<instanceId>" } }`
+   *
+   * A user may have multiple instances of the same credential type (e.g. personal vs work Gmail).
+   * Explicit binding is the only form supported; the slot-credential dropdown UI surfaces all
+   * matching instances for the user to pick from.
    */
   readonly mcpServers?: McpServerBindings;
   /**

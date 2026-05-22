@@ -4,7 +4,7 @@ import { OnNewGmailTrigger } from "@codemation/core-nodes-gmail";
 import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
 
 /**
- * Unified-credential validation workflow (Sprint 17 Phase 3).
+ * Unified-credential validation workflow (Sprint 17 Phase 3 + 5.3).
  *
  * Goal: verify that ONE oauth.google.gmail credential instance satisfies BOTH
  *   1. The GmailTrigger node's "auth" slot (acceptedTypes: ["oauth.google.gmail"])
@@ -14,13 +14,14 @@ import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
  * After creating a single oauth.google.gmail credential instance, both dropdowns
  * should list that instance — bind the same instance to each and activate.
  *
- * NOTE: At activation time the MCP credential slot binding flows through
- * AgentMcpIntegrationImpl.autoResolveCredential, which still requires an
- * oauthAppKey on the McpServerDeclaration (broker-era mechanism, TODO story 5.3).
- * The new Gmail MCP declaration has no oauthAppKey, so the agent step will throw
- * AgentBindError at runtime until story 5.3 replaces shorthand resolution with
- * acceptedCredentialTypes-based lookup from the credential binding store.
- * The canvas-level slot display is the validation target for this story.
+ * EXPLICIT BINDING REQUIRED (Story 5.3):
+ * The shorthand mcpServers: ["gmail"] form has been removed. Explicit binding is now required:
+ *   mcpServers: { gmail: { credential: "<instanceId>" } }
+ *
+ * The placeholder value "<bind-via-ui>" below will cause an AgentBindError at runtime until
+ * you replace it with a real credential instance ID (or bind it via the UI credential
+ * binding flow). This matches how trigger credentials work today — the workflow definition
+ * describes the shape; the instance is bound before activation.
  */
 export default createWorkflowBuilder({
   id: "wf.test-dev.gmail-unified-cred",
@@ -46,7 +47,9 @@ export default createWorkflowBuilder({
         },
       ],
       chatModel: openAiChatModelPresets.demoGpt4oMini,
-      mcpServers: ["gmail"],
+      // Explicit binding required: replace "<bind-via-ui>" with a real credential instance ID,
+      // or bind via the UI credential dropdown before activation.
+      mcpServers: { gmail: { credential: "<bind-via-ui>" } },
       guardrails: { maxTurns: 3 },
     }),
   )

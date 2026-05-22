@@ -8,8 +8,8 @@ compatibility: Requires an installation paired with a connected control plane (S
 
 ## Use this skill when
 
-Use this skill before writing `agent({ mcpServers: [...] })` to discover what server ids are
-available and what credential kind they require. Without it, you'd have to guess server ids or
+Use this skill before writing `agent({ mcpServers: { ... } })` to discover what server ids are
+available and what credential types they require. Without it, you'd have to guess server ids or
 ask the user.
 
 ## How to search
@@ -31,8 +31,7 @@ Response shape (array of capability objects):
     "id": "gmail",
     "displayName": "Gmail",
     "description": "Read, send, and manage Gmail messages and labels.",
-    "credentialKind": "oauth2-via-broker",
-    "oauthAppKey": "google-mail"
+    "acceptedCredentialTypes": ["oauth.google.gmail"]
   }
 ]
 ```
@@ -41,49 +40,47 @@ An empty query string returns all registered servers.
 
 ## Response fields
 
-| Field            | Type    | Notes                                                                |
-| ---------------- | ------- | -------------------------------------------------------------------- |
-| `kind`           | string  | Always `"mcp-server"` for now. Future: `"node"`, `"credential-type"` |
-| `id`             | string  | Stable slug — use this as the mcpServers key in the workflow         |
-| `displayName`    | string  | Human-readable name for UI or explanations                           |
-| `description`    | string  | What the server does                                                 |
-| `credentialKind` | string  | `"oauth2-via-broker"` \| `"bearer"` \| `"basic"` \| `"none"`         |
-| `oauthAppKey`    | string? | Present when `credentialKind = "oauth2-via-broker"`                  |
+| Field                    | Type     | Notes                                                                 |
+| ------------------------ | -------- | --------------------------------------------------------------------- |
+| `kind`                   | string   | Always `"mcp-server"` for now. Future: `"node"`, `"credential-type"` |
+| `id`                     | string   | Stable slug — use this as the mcpServers key in the workflow          |
+| `displayName`            | string   | Human-readable name for UI or explanations                            |
+| `description`            | string   | What the server does                                                  |
+| `acceptedCredentialTypes`| string[] | Credential type ids accepted by this server (empty = no credential)   |
 
-## Credential kinds
+## Credential types
 
-- **`"oauth2-via-broker"`** — user must connect via the concierge's `present_connect_button` tool
-  before the workflow runs. The concierge renders an OAuth chip; tokens are delivered
-  server-to-server and never enter the LLM context.
-- **`"bearer"` / `"basic"`** — user configures a static credential via the installation's
-  credential dialog (opens out-of-band). The concierge renders a "Configure credential" chip.
-- **`"none"`** — no credential required. The server is usable immediately.
+- **`"oauth.google.gmail"`** — user must connect a Google account credential instance via the
+  credential dialog before the workflow runs. The same credential instance can be shared between
+  a `GmailTrigger` node and the Gmail MCP server.
+- **`"bearer_token"`** etc. — user configures a static credential via the credential dialog.
+- **empty array** — no credential required. The server is usable immediately.
 
 ## Using results in workflow config
 
 The `id` field from the response maps directly to the `mcpServers` key in the agent config.
+Explicit binding is **required** — the user picks a specific credential instance from the
+slot-credential dropdown. A user may have multiple instances of the same type (personal vs work
+Gmail); explicit binding eliminates ambiguity.
 
 ```ts
-// Shorthand — resolves to the single connected credential matching this server
-agent({
-  mcpServers: ["gmail"],
-});
-
-// Explicit binding — use when multiple credential instances exist
-agent({
+// Explicit binding — required form
+new AIAgent({
+  name: "Gmail reader",
   mcpServers: {
     gmail: { credential: "<credentialInstanceId>" },
   },
+  // ...
 });
 ```
 
-Shorthand refuses to resolve if multiple `CredentialInstance` rows match the server's
-`oauthAppKey` — the workflow author must bind explicitly. This is intentional.
+Replace `<credentialInstanceId>` with the actual instance ID, or use the UI credential binding
+flow to bind the slot before activation.
 
 ## Example flow
 
 1. User asks: "Build a workflow that reads Gmail and summarises unread messages."
-2. Call `GET /api/registry/capabilities?query=gmail` → find `id: "gmail"`, `credentialKind: "oauth2-via-broker"`.
-3. Report back: "Gmail MCP is available. The user will need to connect their Google account."
-4. In the workflow, use `agent({ mcpServers: ["gmail"] })`.
-5. The concierge handles credential acquisition via `present_connect_button` before running.
+2. Call `GET /api/registry/capabilities?query=gmail` → find `id: "gmail"`, `acceptedCredentialTypes: ["oauth.google.gmail"]`.
+3. Report back: "Gmail MCP is available. The user will need to bind a `oauth.google.gmail` credential instance."
+4. In the workflow, use `mcpServers: { gmail: { credential: "<credentialInstanceId>" } }`.
+5. The user binds their credential instance via the slot-credential dropdown before activating.

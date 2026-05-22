@@ -67,9 +67,9 @@ const myServer: McpServerDeclaration = {
   description: "Provides MCP tools for My Service.",
   transport: "http",
   url: "https://mcp.my-service.com",
-  credentialKind: "bearer", // "oauth2-via-broker" | "bearer" | "basic" | "none"
-  credentialTypeId: "bearer-token", // required when credentialKind != "none" and != "oauth2-via-broker"
-  // oauthAppKey: "my-service-mail", // required when credentialKind = "oauth2-via-broker"
+  // Credential types this server accepts. Users bind a credential instance
+  // per slot via the UI. Omit (or set to []) for servers requiring no auth.
+  acceptedCredentialTypes: ["my-service.bearer-token"],
 };
 
 export default definePlugin({

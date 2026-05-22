@@ -1586,7 +1586,7 @@ test("AIAgent.inspectorSummary omits MCP servers row (now first-class connection
     name: "test",
     messages: [{ role: "user", content: "hello" }],
     chatModel: { name: "gpt-4o" },
-    mcpServers: ["gmail", "slack"],
+    mcpServers: { gmail: { credential: "cred-1" }, slack: { credential: "cred-2" } },
   });
   const agentWithoutMcp = new AIAgent({
     name: "test",

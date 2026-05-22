@@ -23,7 +23,7 @@ function makeCredentialStore(instances: Partial<CredentialInstanceRecord>[]): Cr
       inst.instanceId ?? "default-id",
       {
         instanceId: inst.instanceId ?? "default-id",
-        typeId: "host.oauth2-via-broker",
+        typeId: "oauth.google.gmail",
         displayName: inst.displayName ?? "Test Credential",
         sourceKind: "db" as const,
         publicConfig: inst.publicConfig ?? {},
@@ -122,8 +122,6 @@ const gmailDecl: McpServerDeclaration = {
   transport: "http",
   url: "https://mcp.gmail.example.com",
   acceptedCredentialTypes: ["oauth.google.gmail"],
-  // TODO: remove with broker cleanup — oauthAppKey used by autoResolveCredential shorthand
-  ...({ oauthAppKey: "google-mail" } as unknown as object),
 };
 
 // --- Tests ---
@@ -136,7 +134,6 @@ describe("AgentMcpIntegrationImpl", () => {
       const store = makeCredentialStore([
         {
           instanceId: "cred-1",
-          publicConfig: { oauthAppKey: "google-mail" },
           scopes: ["https://mail.google.com/"],
         } as any,
       ]);
@@ -193,72 +190,6 @@ describe("AgentMcpIntegrationImpl", () => {
     });
   });
 
-  describe("shorthand binding", () => {
-    it("resolves shorthand binding when exactly one credential matches", async () => {
-      const catalog = makeCatalog([gmailDecl]);
-      const creds = new FakeCredentials();
-      const store = makeCredentialStore([
-        { instanceId: "cred-1", publicConfig: { oauthAppKey: "google-mail" } } as any,
-      ]);
-      const pool = makePool(catalog, creds);
-      const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
-      const cb = makeNoopSpanCallbacks();
-
-      const result = await integration.prepareMcpTools({
-        mcpServers: ["gmail"],
-        pinnedMcpTools: [],
-        emitSpanEvent: cb.emitSpanEvent,
-        startChildSpan: cb.startChildSpan,
-      });
-
-      expect(result.has("gmail")).toBe(true);
-    });
-
-    it("throws AgentBindError when zero credentials match shorthand", async () => {
-      const catalog = makeCatalog([gmailDecl]);
-      const creds = new FakeCredentials();
-      const store = makeCredentialStore([
-        { instanceId: "cred-1", publicConfig: { oauthAppKey: "different-app" } } as any,
-      ]);
-      const pool = makePool(catalog, creds);
-      const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
-      const cb = makeNoopSpanCallbacks();
-
-      await expect(
-        integration.prepareMcpTools({
-          mcpServers: ["gmail"],
-          pinnedMcpTools: [],
-          emitSpanEvent: cb.emitSpanEvent,
-          startChildSpan: cb.startChildSpan,
-        }),
-      ).rejects.toThrow(AgentBindError);
-    });
-
-    it("throws AgentBindError when multiple credentials match shorthand", async () => {
-      const catalog = makeCatalog([gmailDecl]);
-      const creds = new FakeCredentials();
-      const store = makeCredentialStore([
-        { instanceId: "cred-1", publicConfig: { oauthAppKey: "google-mail" } } as any,
-        { instanceId: "cred-2", publicConfig: { oauthAppKey: "google-mail" } } as any,
-      ]);
-      const pool = makePool(catalog, creds);
-      const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
-      const cb = makeNoopSpanCallbacks();
-
-      const err = await integration
-        .prepareMcpTools({
-          mcpServers: ["gmail"],
-          pinnedMcpTools: [],
-          emitSpanEvent: cb.emitSpanEvent,
-          startChildSpan: cb.startChildSpan,
-        })
-        .catch((e: unknown) => e);
-
-      expect(err).toBeInstanceOf(AgentBindError);
-      expect((err as AgentBindError).message).toContain("Multiple credential instances");
-    });
-  });
-
   describe("bind-time scope validation", () => {
     it("passes when credential scopes cover requiredScopes", async () => {
       const declWithScopes: McpServerDeclaration = {
@@ -270,7 +201,6 @@ describe("AgentMcpIntegrationImpl", () => {
       const store = makeCredentialStore([
         {
           instanceId: "cred-1",
-          publicConfig: { oauthAppKey: "google-mail" },
           scopes: ["https://mail.google.com/", "https://www.googleapis.com/auth/userinfo.email"],
         } as any,
       ]);
@@ -298,7 +228,6 @@ describe("AgentMcpIntegrationImpl", () => {
       const store = makeCredentialStore([
         {
           instanceId: "cred-1",
-          publicConfig: { oauthAppKey: "google-mail" },
           scopes: ["https://www.googleapis.com/auth/gmail.readonly"],
         } as any,
       ]);
@@ -324,9 +253,7 @@ describe("AgentMcpIntegrationImpl", () => {
     it("wraps tool execute with a telemetry span tagged mcp.server_id and mcp.tool_name", async () => {
       const catalog = makeCatalog([gmailDecl]);
       const creds = new FakeCredentials();
-      const store = makeCredentialStore([
-        { instanceId: "cred-1", publicConfig: { oauthAppKey: "google-mail" } } as any,
-      ]);
+      const store = makeCredentialStore([{ instanceId: "cred-1" }]);
 
       // Pre-seed the client with a successful tool so we get a real span on execute.
       const seededClient = new FakeMcpClient();
@@ -369,9 +296,7 @@ describe("AgentMcpIntegrationImpl", () => {
     it("emits NeedsReconsentEvent span event when tool execute returns 403 error", async () => {
       const catalog = makeCatalog([gmailDecl]);
       const creds = new FakeCredentials();
-      const store = makeCredentialStore([
-        { instanceId: "cred-1", publicConfig: { oauthAppKey: "google-mail" } } as any,
-      ]);
+      const store = makeCredentialStore([{ instanceId: "cred-1" }]);
 
       // Pre-seed the client with a tool that throws 403 BEFORE the pool opens it.
       const seededClient = new FakeMcpClient();

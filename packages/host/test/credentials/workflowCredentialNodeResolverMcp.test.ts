@@ -31,7 +31,7 @@ describe("WorkflowCredentialNodeResolver — MCP slots", () => {
           name: "Gmail reader",
           messages: agentMessages,
           chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini", "openai"),
-          mcpServers: ["gmail"],
+          mcpServers: { gmail: { credential: "my-gmail-cred" } },
           id: "agent-1",
         }),
       )
@@ -56,7 +56,7 @@ describe("WorkflowCredentialNodeResolver — MCP slots", () => {
           name: "Gmail reader",
           messages: agentMessages,
           chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini", "openai"),
-          mcpServers: ["gmail"],
+          mcpServers: { gmail: { credential: "my-gmail-cred" } },
           id: "agent-1",
         }),
       )
@@ -79,7 +79,7 @@ describe("WorkflowCredentialNodeResolver — MCP slots", () => {
           name: "Gmail reader",
           messages: agentMessages,
           chatModel: new OpenAIChatModelConfig("OpenAI", "gpt-4o-mini", "openai"),
-          mcpServers: ["gmail"],
+          mcpServers: { gmail: { credential: "my-gmail-cred" } },
           id: "agent-1",
         }),
       )

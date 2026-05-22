@@ -322,7 +322,7 @@ test("AgentConnectionNodeCollector emits tool-slot descriptors for MCP servers v
     type: token,
     messages: [{ role: "user" as const, content: "hi" }],
     chatModel: { name: "llm", type: chatModelType },
-    mcpServers: ["gmail"],
+    mcpServers: { gmail: { credential: "my-gmail-cred" } },
   } as unknown as AgentNodeConfig<any, any>;
 
   const collected = AgentConnectionNodeCollector.collect("root", agent, resolver);
@@ -347,7 +347,7 @@ test("AgentConnectionNodeCollector skips MCP servers when resolver is absent", (
     type: token,
     messages: [{ role: "user" as const, content: "hi" }],
     chatModel: { name: "llm", type: chatModelType },
-    mcpServers: ["gmail"],
+    mcpServers: { gmail: { credential: "my-gmail-cred" } },
   } as unknown as AgentNodeConfig<any, any>;
 
   const collected = AgentConnectionNodeCollector.collect("root", agent);
@@ -363,7 +363,7 @@ test("AgentConnectionNodeCollector skips unknown MCP server ids (resolver return
     type: token,
     messages: [{ role: "user" as const, content: "hi" }],
     chatModel: { name: "llm", type: chatModelType },
-    mcpServers: ["unknown-server"],
+    mcpServers: { "unknown-server": { credential: "some-cred" } },
   } as unknown as AgentNodeConfig<any, any>;
 
   const collected = AgentConnectionNodeCollector.collect("root", agent, () => undefined);
@@ -401,7 +401,7 @@ test("AgentConnectionNodeCollector handles explicit McpServerBindings object for
   assert.deepEqual(reqs[0]?.acceptedTypes, ["slack_token"]);
 });
 
-test("AgentConnectionNodeCollector emits empty credential requirements for credentialKind none", () => {
+test("AgentConnectionNodeCollector emits empty credential requirements for server without acceptedCredentialTypes", () => {
   const token = { name: "T" } as AgentNodeConfig<any, any>["type"];
   const chatModelType = token as unknown as AgentNodeConfig<any, any>["chatModel"]["type"];
   const openDecl: McpServerDeclaration = {
@@ -416,7 +416,7 @@ test("AgentConnectionNodeCollector emits empty credential requirements for crede
     type: token,
     messages: [{ role: "user" as const, content: "hi" }],
     chatModel: { name: "llm", type: chatModelType },
-    mcpServers: ["open-server"],
+    mcpServers: { "open-server": { credential: "no-cred-needed" } },
   } as unknown as AgentNodeConfig<any, any>;
 
   const collected = AgentConnectionNodeCollector.collect("root", agent, () => openDecl);

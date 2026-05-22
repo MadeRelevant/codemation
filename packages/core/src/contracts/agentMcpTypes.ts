@@ -8,22 +8,23 @@ export type McpServerExplicitBinding = Readonly<{
 }>;
 
 /**
- * Bindings declared on an agent config:
- * - Explicit: { gmail: { credential: "chris-work-gmail" } }
- * - Shorthand: ["gmail", "slack"] — auto-resolves if exactly one credential matches
+ * Bindings declared on an agent config.
+ * Explicit binding is required: { gmail: { credential: "<instanceId>" } }
+ *
+ * A user may have multiple instances of the same credential type (personal vs work Gmail);
+ * explicit binding eliminates ambiguity. The slot-credential dropdown UI surfaces all
+ * matching instances; the user picks.
  */
-export type McpServerBindings =
-  | readonly string[] // shorthand
-  | Readonly<Record<string, McpServerExplicitBinding>>; // explicit
+export type McpServerBindings = Readonly<Record<string, McpServerExplicitBinding>>;
 
 /**
  * Emitted as a span event when a credential is missing required scopes
  * (bind-time) or when callTool returns a permission error (runtime).
+ * The credential type id can be looked up from the credential instance when needed.
  */
 export interface NeedsReconsentEvent {
   readonly serverId: string;
   readonly credentialInstanceId: string;
-  readonly oauthAppKey?: string;
   readonly missingScopesHint?: readonly string[];
 }
 
