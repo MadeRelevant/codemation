@@ -59,6 +59,12 @@ export class ControlPlaneCatalogFetcher {
   private readonly mcpServersState: EndpointState = { consecutiveFailures: 0, lastSuccessAt: null };
   private readonly credentialTypesState: EndpointState = { consecutiveFailures: 0, lastSuccessAt: null };
 
+  /**
+   * Called after each successful full fetch, before the next poll is scheduled.
+   * Set by AppContainerFactory to re-apply overrides on each refresh cycle.
+   */
+  onRefresh: (() => void) | null = null;
+
   constructor(
     @inject(PairedFetch) private readonly pairedFetch: PairedFetch,
     @inject(PairingConfigToken, { isOptional: true }) private readonly pairingConfig: PairingConfig | null,
@@ -192,6 +198,8 @@ export class ControlPlaneCatalogFetcher {
       },
       logger,
     );
+
+    this.onRefresh?.();
   }
 
   private async handleEndpointResult(

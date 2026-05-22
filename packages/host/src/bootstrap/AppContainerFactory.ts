@@ -298,6 +298,7 @@ import { ManagedModeBootGuard } from "../auth/managed/ManagedModeBootGuard";
 import { ManagedWebsocketAuthenticator } from "../presentation/websocket/ManagedWebsocketAuthenticator";
 import { JwksCache, ManagedJwtVerifier } from "@codemation/managed-auth";
 import { CodemationTsyringeTypeInfoRegistrar } from "../presentation/server/CodemationTsyringeTypeInfoRegistrar";
+import { ControlPlaneCatalogFetcher } from "../credentials/ControlPlaneCatalogFetcher";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -397,6 +398,7 @@ export class AppContainerFactory {
     this.registerManagedAuthInfrastructure(container, inputs.appConfig);
     this.registerPairingInfrastructure(container, inputs.appConfig);
     this.registerConfiguredRegistrations(container, inputs.appConfig);
+    this.registerPairingInfrastructure(container, inputs.appConfig);
     const credentialTypes = this.collectCredentialTypes(inputs.appConfig);
     this.registerMcpCatalog(container);
     await this.applyPlugins(container, inputs.appConfig, credentialTypes);
@@ -406,6 +408,7 @@ export class AppContainerFactory {
     this.registerWorkflowAuditWriter(container, inputs.appConfig);
     this.registerCollectionsInfrastructure(container, inputs.appConfig);
     this.registerCredentialTypes(container, credentialTypes);
+    this.registerControlPlaneCatalogFetcher(container);
     this.synchronizeLiveWorkflowRepository(container, inputs.appConfig.workflows);
     new CodemationTsyringeTypeInfoRegistrar(container).registerWorkflowDefinitions(inputs.appConfig.workflows ?? []);
     container.resolve(BootRuntimeSnapshotHolder).set(this.createRuntimeSummary(inputs.appConfig));
@@ -499,6 +502,38 @@ export class AppContainerFactory {
     }
   }
 
+  private registerPairingInfrastructure(container: Container, appConfig: AppConfig): void {
+    const pairingConfig = new PairingConfigFactory().create(appConfig.env);
+    if (!pairingConfig) {
+      return;
+    }
+    container.registerInstance(PairingConfigToken, pairingConfig);
+    container.registerSingleton(HmacRequestSigner, HmacRequestSigner);
+    container.registerSingleton(PairedFetch, PairedFetch);
+  }
+
+  private registerControlPlaneCatalogFetcher(container: Container): void {
+    container.registerSingleton(McpServerCatalog, McpServerCatalog);
+
+    // Only register the fetcher when paired with a control plane.
+    // PairedFetch is only registered inside registerPairingInfrastructure,
+    // which skips registration when pairing env vars are absent.
+    if (!container.isRegistered(PairedFetch, true)) {
+      return;
+    }
+
+    container.registerSingleton(ControlPlaneCatalogFetcher, ControlPlaneCatalogFetcher);
+
+    const fetcher = container.resolve(ControlPlaneCatalogFetcher);
+    const credentialTypeRegistry = container.resolve(CredentialTypeRegistryImpl);
+    const mcpServerCatalog = container.resolve(McpServerCatalog);
+
+    fetcher.onRefresh = () => {
+      credentialTypeRegistry.applyControlPlaneOverrides(fetcher.credentialTypeOverrides ?? []);
+      mcpServerCatalog.merge("controlPlane", fetcher.mcpServers ?? []);
+    };
+  }
+
   private registerConfiguredRegistrations(container: Container, appConfig: AppConfig): void {
     if (appConfig.containerRegistrations.length === 0) {
       return;
@@ -573,9 +608,7 @@ export class AppContainerFactory {
       CoreTokens.PersistedWorkflowTokenRegistry,
       container.resolve(PersistedWorkflowTokenRegistry),
     );
-    container.register(CredentialTypeRegistryImpl, {
-      useFactory: instanceCachingFactory(() => new CredentialTypeRegistryImpl()),
-    });
+    container.registerSingleton(CredentialTypeRegistryImpl, CredentialTypeRegistryImpl);
     container.register(CoreTokens.CredentialTypeRegistry, {
       useFactory: instanceCachingFactory((dependencyContainer) =>
         dependencyContainer.resolve(CredentialTypeRegistryImpl),

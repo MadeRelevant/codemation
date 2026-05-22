@@ -7,8 +7,10 @@ import type { PrismaDatabaseClient } from "../infrastructure/persistence/PrismaD
 import { WorkflowRunEventWebsocketRelay } from "../application/websocket/WorkflowRunEventWebsocketRelay";
 import { WorkflowWebsocketServer } from "../presentation/websocket/WorkflowWebsocketServer";
 import { McpConnectionPool } from "../mcp/McpConnectionPool";
+// TODO: delete in cleanup — McpRegistryFetcher replaced by ControlPlaneCatalogFetcher.
 import { McpRegistryFetcher } from "../mcp/McpRegistryFetcher";
 import { WorkflowAuditLogWriter } from "../audit/WorkflowAuditLogWriter";
+import { ControlPlaneCatalogFetcher } from "../credentials/ControlPlaneCatalogFetcher";
 
 export class AppContainerLifecycle {
   constructor(
@@ -17,9 +19,10 @@ export class AppContainerLifecycle {
   ) {}
 
   async start(): Promise<void> {
-    if (this.container.isRegistered(McpRegistryFetcher, true)) {
-      await this.container.resolve(McpRegistryFetcher).start();
+    if (this.container.isRegistered(ControlPlaneCatalogFetcher, true)) {
+      await this.container.resolve(ControlPlaneCatalogFetcher).start();
     }
+    // TODO: delete in cleanup — McpRegistryFetcher.start() removed; ControlPlaneCatalogFetcher replaces it.
   }
 
   async startWorkerSubscribers(): Promise<void> {
@@ -56,9 +59,10 @@ export class AppContainerLifecycle {
     if (this.container.isRegistered(McpConnectionPool, true)) {
       await this.container.resolve(McpConnectionPool).closeAll();
     }
-    if (this.container.isRegistered(McpRegistryFetcher, true)) {
-      await this.container.resolve(McpRegistryFetcher).stop();
+    if (this.container.isRegistered(ControlPlaneCatalogFetcher, true)) {
+      await this.container.resolve(ControlPlaneCatalogFetcher).stop();
     }
+    // TODO: delete in cleanup — McpRegistryFetcher.stop() removed; ControlPlaneCatalogFetcher replaces it.
     if (this.ownedPrismaClient) {
       await this.ownedPrismaClient.$disconnect();
     }
