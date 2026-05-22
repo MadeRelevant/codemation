@@ -24,6 +24,7 @@ import type { CredentialStore } from "../domain/credentials/CredentialServices";
  *  1. Looks up each server in the catalog (AgentBindError if missing).
  *  2. Looks up the credential instance in the store (AgentBindError if missing).
  *  3. For shorthand bindings, auto-resolves by oauthAppKey; throws if 0 or >1 matches.
+ *     TODO: remove with broker cleanup — shorthand auto-resolution will be replaced.
  *  4. Validates requiredScopes ⊆ grantedScopes (AgentBindError if not).
  *  5. Opens pool connections (lazy-open via McpConnectionPool.getClient).
  *  6. Returns a ToolSet map with execute callbacks wrapped for telemetry + 403 detection.
@@ -79,6 +80,7 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
    * Converts McpServerBindings (explicit or shorthand) into a resolved map of
    * serverId → credentialInstanceId. Shorthand auto-resolves via oauthAppKey; throws
    * when 0 or >1 credential instances match.
+   * TODO: remove with broker cleanup — shorthand form will use acceptedCredentialTypes instead.
    */
   private async normalise(bindings: McpServerBindings): Promise<Map<string, string>> {
     const out = new Map<string, string>();
@@ -107,6 +109,7 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
    * Shorthand auto-resolution: scans all credential instances for ones whose
    * oauthAppKey (stored in publicConfig.oauthAppKey) matches the server's oauthAppKey.
    * Throws when there are 0 or >1 matches.
+   * TODO: remove with broker cleanup — any string value is fine here until then.
    */
   private async autoResolveCredential(serverId: string): Promise<string> {
     const decl = this.catalog.get(serverId);
@@ -114,7 +117,11 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
       throw new AgentBindError(`MCP server "${serverId}" not found in catalog`);
     }
 
-    if (!decl.oauthAppKey) {
+    // TODO: remove with broker cleanup — oauthAppKey is no longer on McpServerDeclaration.
+    // Until broker removal, read it from the declaration as an arbitrary string property.
+    const oauthAppKey = (decl as unknown as Record<string, unknown>)["oauthAppKey"] as string | undefined;
+
+    if (!oauthAppKey) {
       throw new AgentBindError(
         `Shorthand mcpServers binding requires an oauthAppKey on server "${serverId}". Use explicit binding instead.`,
       );
@@ -123,19 +130,19 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
     const allInstances = await this.credentialStore.listInstances();
     const matches = allInstances.filter(
       (inst) =>
-        typeof inst.publicConfig["oauthAppKey"] === "string" && inst.publicConfig["oauthAppKey"] === decl.oauthAppKey,
+        typeof inst.publicConfig["oauthAppKey"] === "string" && inst.publicConfig["oauthAppKey"] === oauthAppKey,
     );
 
     if (matches.length === 0) {
       throw new AgentBindError(
-        `No credential instance found for mcpServer "${serverId}" (oauthAppKey: "${decl.oauthAppKey}"). ` +
+        `No credential instance found for mcpServer "${serverId}" (oauthAppKey: "${oauthAppKey}"). ` +
           `Connect the integration first via the Connect flow.`,
       );
     }
 
     if (matches.length > 1) {
       throw new AgentBindError(
-        `Multiple credential instances match mcpServer "${serverId}" (oauthAppKey: "${decl.oauthAppKey}"). ` +
+        `Multiple credential instances match mcpServer "${serverId}" (oauthAppKey: "${oauthAppKey}"). ` +
           `Use explicit binding: mcpServers: { ${serverId}: { credential: "<instanceId>" } }`,
       );
     }

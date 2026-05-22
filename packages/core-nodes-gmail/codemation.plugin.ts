@@ -28,9 +28,7 @@ const gmailMcpServer: McpServerDeclaration = {
   description: "Gmail via MCP — search, send, label.",
   transport: "http",
   url: process.env["GMAIL_MCP_URL"] ?? "https://gmailmcp.googleapis.com/mcp/v1",
-  credentialKind: "oauth2-via-broker",
-  oauthAppKey: "google-mail",
-  credentialTypeId: "host.oauth2-via-broker",
+  acceptedCredentialTypes: ["oauth.google.gmail"],
   requiredScopes: [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.send",

@@ -12,9 +12,7 @@ const gmailDecl: McpServerDeclaration = {
   description: "Gmail via MCP",
   transport: "http",
   url: "https://example.com/mcp",
-  credentialKind: "oauth2-via-broker",
-  oauthAppKey: "google-mail",
-  credentialTypeId: "host.oauth2-via-broker",
+  acceptedCredentialTypes: ["oauth.google.gmail"],
   requiredScopes: [],
   staticHeaders: {},
   toolDescriptionOverrides: {},
@@ -45,7 +43,7 @@ describe("WorkflowCredentialNodeResolver — MCP slots", () => {
 
     assert.ok(gmailSlot, "Gmail MCP credential slot should be present");
     assert.equal(gmailSlot.requirement.slotKey, "credential");
-    assert.deepEqual(gmailSlot.requirement.acceptedTypes, ["host.oauth2-via-broker"]);
+    assert.deepEqual(gmailSlot.requirement.acceptedTypes, ["oauth.google.gmail"]);
   });
 
   it("excludes MCP credential slot when no mcpCatalog injected", () => {
@@ -92,6 +90,6 @@ describe("WorkflowCredentialNodeResolver — MCP slots", () => {
 
     assert.ok(result, "Should find requirement for MCP node");
     assert.equal(result.requirement.slotKey, "credential");
-    assert.deepEqual(result.requirement.acceptedTypes, ["host.oauth2-via-broker"]);
+    assert.deepEqual(result.requirement.acceptedTypes, ["oauth.google.gmail"]);
   });
 });

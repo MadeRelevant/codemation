@@ -31,7 +31,6 @@ function makeDeclaration(id: string, overrides?: Partial<McpServerDeclaration>):
     description: `${id} description`,
     transport: "http",
     url: `https://${id}.example.com/mcp`,
-    credentialKind: "none",
     ...overrides,
   };
 }
@@ -189,45 +188,23 @@ describe("McpServerCatalog", () => {
   });
 
   describe("validation — credential requirements", () => {
-    it("skips oauth2-via-broker declaration without oauthAppKey", () => {
-      const { catalog, loggerFactory } = makeCatalog();
-      const decl = makeDeclaration("gmail", { credentialKind: "oauth2-via-broker" });
-      catalog.merge("plugin", [decl]);
-      expect(catalog.get("gmail")).toBeUndefined();
-      expect(loggerFactory.logger.warns.some((w) => w.includes("oauthAppKey"))).toBe(true);
-    });
-
-    it("accepts oauth2-via-broker declaration with oauthAppKey", () => {
+    it("accepts declaration with acceptedCredentialTypes", () => {
       const { catalog } = makeCatalog();
-      const decl = makeDeclaration("gmail", {
-        credentialKind: "oauth2-via-broker",
-        oauthAppKey: "google-mail",
-      });
+      const decl = makeDeclaration("gmail", { acceptedCredentialTypes: ["oauth.google.gmail"] });
       catalog.merge("plugin", [decl]);
       expect(catalog.get("gmail")).toBe(decl);
     });
 
-    it("skips bearer declaration without credentialTypeId", () => {
-      const { catalog, loggerFactory } = makeCatalog();
-      const decl = makeDeclaration("slack", { credentialKind: "bearer" });
+    it("accepts declaration with empty acceptedCredentialTypes (no credential required)", () => {
+      const { catalog } = makeCatalog();
+      const decl = makeDeclaration("public-mcp", { acceptedCredentialTypes: [] });
       catalog.merge("plugin", [decl]);
-      expect(catalog.get("slack")).toBeUndefined();
-      expect(loggerFactory.logger.warns.some((w) => w.includes("credentialTypeId"))).toBe(true);
+      expect(catalog.get("public-mcp")).toBe(decl);
     });
 
-    it("accepts bearer declaration with credentialTypeId", () => {
+    it("accepts declaration without acceptedCredentialTypes (no credential required)", () => {
       const { catalog } = makeCatalog();
-      const decl = makeDeclaration("slack", {
-        credentialKind: "bearer",
-        credentialTypeId: "bearer-token",
-      });
-      catalog.merge("plugin", [decl]);
-      expect(catalog.get("slack")).toBe(decl);
-    });
-
-    it("accepts none declaration without any credential fields", () => {
-      const { catalog } = makeCatalog();
-      const decl = makeDeclaration("public-mcp", { credentialKind: "none" });
+      const decl = makeDeclaration("public-mcp");
       catalog.merge("plugin", [decl]);
       expect(catalog.get("public-mcp")).toBe(decl);
     });

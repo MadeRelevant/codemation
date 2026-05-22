@@ -314,9 +314,7 @@ test("AgentConnectionNodeCollector emits tool-slot descriptors for MCP servers v
     description: "Gmail MCP server",
     transport: "http",
     url: "https://mcp.example.com/gmail",
-    credentialKind: "oauth2-via-broker",
-    oauthAppKey: "gmail",
-    credentialTypeId: "gmail_oauth",
+    acceptedCredentialTypes: ["oauth.google.gmail"],
   };
   const resolver = (id: string): McpServerDeclaration | undefined => (id === "gmail" ? gmailDecl : undefined);
   const agent = {
@@ -338,7 +336,7 @@ test("AgentConnectionNodeCollector emits tool-slot descriptors for MCP servers v
   const reqs = mcpDesc.credentialSource.getCredentialRequirements?.() ?? [];
   assert.equal(reqs.length, 1);
   assert.equal(reqs[0]?.slotKey, "credential");
-  assert.deepEqual(reqs[0]?.acceptedTypes, ["gmail_oauth"]);
+  assert.deepEqual(reqs[0]?.acceptedTypes, ["oauth.google.gmail"]);
 });
 
 test("AgentConnectionNodeCollector skips MCP servers when resolver is absent", () => {
@@ -382,8 +380,7 @@ test("AgentConnectionNodeCollector handles explicit McpServerBindings object for
     description: "Slack MCP server",
     transport: "http",
     url: "https://mcp.example.com/slack",
-    credentialKind: "bearer",
-    credentialTypeId: "slack_token",
+    acceptedCredentialTypes: ["slack_token"],
   };
   const resolver = (id: string): McpServerDeclaration | undefined => (id === "slack" ? slackDecl : undefined);
   const agent = {
@@ -413,7 +410,6 @@ test("AgentConnectionNodeCollector emits empty credential requirements for crede
     description: "No auth required",
     transport: "http",
     url: "https://mcp.example.com/open",
-    credentialKind: "none",
   };
   const agent = {
     kind: "node" as const,

@@ -9,18 +9,12 @@ export interface McpServerDeclaration {
   transport: McpServerTransport;
   url: string;
   /**
-   * "oauth2-via-broker" — credential is an OAuth2 token obtained via the CP broker.
-   * "bearer"            — credential is a static Bearer token.
-   * "basic"             — credential is username/password.
-   * "none"              — no credential required.
+   * Credential types accepted by this MCP server, matching CredentialRequirement.acceptedTypes.
+   * Absent or empty means no credential is required.
    */
-  credentialKind: "oauth2-via-broker" | "bearer" | "basic" | "none";
-  /** Required when credentialKind = "oauth2-via-broker". References an OAuthApp.key on the CP. */
-  oauthAppKey?: string;
-  /** Required when credentialKind != "none". References an installed credential type id. */
-  credentialTypeId?: string;
+  acceptedCredentialTypes?: ReadonlyArray<string>;
   /**
-   * Documentation only in MVP. The bind-time validator in Story 11 checks
+   * Documentation only in MVP. The bind-time validator checks
    * requiredScopes ⊆ CredentialInstance.scopesGranted.
    */
   requiredScopes?: string[];
@@ -28,7 +22,7 @@ export interface McpServerDeclaration {
   staticHeaders?: Record<string, string>;
   /**
    * Overrides for tool descriptions advertised by the MCP server.
-   * Applied by the connection pool (Story 9) after tools/list.
+   * Applied by the connection pool after tools/list.
    * Key: exact tool name as returned by the server.
    */
   toolDescriptionOverrides?: Record<string, string>;

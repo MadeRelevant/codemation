@@ -14,8 +14,7 @@ function makeDeclaration(id: string, overrides?: Partial<McpServerDeclaration>):
     description: `${id} description`,
     transport: "http",
     url: `https://${id}.example.com/mcp`,
-    credentialKind: "oauth2-via-broker",
-    oauthAppKey: `${id}-oauth-app`,
+    acceptedCredentialTypes: ["oauth.google.gmail"],
     ...overrides,
   };
 }

@@ -111,15 +111,19 @@ export const AgentConnectionNodeCollector: AgentConnectionNodeCollectorApi = new
   }
 
   private buildMcpCredentialSource(decl: McpServerDeclaration): AgentConnectionCredentialSource {
-    if (decl.credentialKind === "none" || !decl.credentialTypeId) {
+    const types = decl.acceptedCredentialTypes;
+    if (!types || types.length === 0) {
       return { getCredentialRequirements: () => [] };
     }
-    const requirement: CredentialRequirement = {
-      slotKey: "credential",
-      label: decl.displayName,
-      acceptedTypes: [decl.credentialTypeId],
+    return {
+      getCredentialRequirements: () => [
+        {
+          slotKey: "credential",
+          label: decl.displayName,
+          acceptedTypes: types,
+        } satisfies CredentialRequirement,
+      ],
     };
-    return { getCredentialRequirements: () => [requirement] };
   }
 
   private collectNestedAgentTools(

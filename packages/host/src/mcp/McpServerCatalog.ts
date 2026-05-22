@@ -99,20 +99,6 @@ export class McpServerCatalog {
       }
     }
 
-    if (decl.credentialKind === "oauth2-via-broker" && !decl.oauthAppKey) {
-      logger.warn(
-        `McpServerCatalog: declaration "${decl.id}" from "${source}" has credentialKind "oauth2-via-broker" but no oauthAppKey — skipped`,
-      );
-      return false;
-    }
-
-    if (decl.credentialKind !== "none" && decl.credentialKind !== "oauth2-via-broker" && !decl.credentialTypeId) {
-      logger.warn(
-        `McpServerCatalog: declaration "${decl.id}" from "${source}" has credentialKind "${decl.credentialKind}" but no credentialTypeId — skipped`,
-      );
-      return false;
-    }
-
     return true;
   }
 }

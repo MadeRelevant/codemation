@@ -31,6 +31,7 @@ export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown> {
    * - Explicit form: `{ gmail: { credential: "<instanceId>" } }`
    * - Shorthand form: `["gmail", "slack"]` — auto-resolves when exactly one
    *   credential instance matches the server's oauthAppKey.
+   *   TODO: remove with broker cleanup — shorthand resolution will use acceptedCredentialTypes.
    */
   readonly mcpServers?: McpServerBindings;
   /**

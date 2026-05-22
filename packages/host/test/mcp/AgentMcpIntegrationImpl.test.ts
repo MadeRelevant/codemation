@@ -121,8 +121,9 @@ const gmailDecl: McpServerDeclaration = {
   description: "Gmail MCP server",
   transport: "http",
   url: "https://mcp.gmail.example.com",
-  credentialKind: "oauth2-via-broker",
-  oauthAppKey: "google-mail",
+  acceptedCredentialTypes: ["oauth.google.gmail"],
+  // TODO: remove with broker cleanup — oauthAppKey used by autoResolveCredential shorthand
+  ...({ oauthAppKey: "google-mail" } as unknown as object),
 };
 
 // --- Tests ---

@@ -43,7 +43,7 @@ export const codemationHost = defineCodemationApp({
   //     description: "An MCP server my agent can use.",
   //     transport: "http",
   //     url: "https://mcp.example.com",
-  //     credentialKind: "none",
+  //     // acceptedCredentialTypes: ["oauth.google.gmail"], // omit for no-credential servers
   //   },
   // ],
 });

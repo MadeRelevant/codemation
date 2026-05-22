@@ -13,7 +13,6 @@ const DECLARATION: McpServerDeclaration = {
   description: "Gmail MCP",
   transport: "http",
   url: "https://mcp.gmail.example.com",
-  credentialKind: "none",
 };
 
 function makeResponse(status: number, body?: unknown): Response {
