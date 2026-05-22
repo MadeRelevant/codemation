@@ -11,6 +11,7 @@ import type {
 } from "@codemation/core";
 
 import { ApplicationTokens } from "../applicationTokens";
+import { CredentialFieldEnvOverlayService } from "../domain/credentials/CredentialFieldEnvOverlayService";
 import type { CredentialStore } from "../domain/credentials/CredentialServices";
 import { CredentialMaterialResolver } from "../domain/credentials/CredentialMaterialResolver";
 import { CredentialTypeRegistryImpl } from "../domain/credentials/CredentialTypeRegistryImpl";
@@ -47,6 +48,8 @@ export class LocalOAuthFlowExecutor implements OAuthFlowExecutor {
     private readonly credentialMaterialResolver: CredentialMaterialResolver,
     @inject(OAuth2ProviderRegistry)
     private readonly oauth2ProviderRegistry: OAuth2ProviderRegistry,
+    @inject(CredentialFieldEnvOverlayService)
+    private readonly credentialFieldEnvOverlayService: CredentialFieldEnvOverlayService,
     @inject(ApplicationTokens.Clock)
     private readonly clock: Clock,
   ) {}
@@ -71,9 +74,14 @@ export class LocalOAuthFlowExecutor implements OAuthFlowExecutor {
     }
 
     const auth = credentialType.definition.auth;
-    const material = await this.credentialMaterialResolver.resolveMaterial(instance);
-    const provider = this.oauth2ProviderRegistry.resolve(credentialType.definition, instance.publicConfig);
-    const clientId = this.oauth2ProviderRegistry.resolveClientId(auth, instance.publicConfig);
+    const rawMaterial = await this.credentialMaterialResolver.resolveMaterial(instance);
+    const { resolvedPublicConfig, resolvedMaterial: material } = this.credentialFieldEnvOverlayService.apply({
+      definition: credentialType.definition,
+      publicConfig: instance.publicConfig,
+      material: rawMaterial,
+    });
+    const provider = this.oauth2ProviderRegistry.resolve(credentialType.definition, resolvedPublicConfig);
+    const clientId = this.oauth2ProviderRegistry.resolveClientId(auth, resolvedPublicConfig);
 
     const scopes = args.scopes.length > 0 ? [...args.scopes] : [...auth.scopes];
 
@@ -141,9 +149,14 @@ export class LocalOAuthFlowExecutor implements OAuthFlowExecutor {
     }
 
     const auth = credentialType.definition.auth;
-    const material = await this.credentialMaterialResolver.resolveMaterial(instance);
-    const provider = this.oauth2ProviderRegistry.resolve(credentialType.definition, instance.publicConfig);
-    const clientId = this.oauth2ProviderRegistry.resolveClientId(auth, instance.publicConfig);
+    const rawMaterial = await this.credentialMaterialResolver.resolveMaterial(instance);
+    const { resolvedPublicConfig, resolvedMaterial: material } = this.credentialFieldEnvOverlayService.apply({
+      definition: credentialType.definition,
+      publicConfig: instance.publicConfig,
+      material: rawMaterial,
+    });
+    const provider = this.oauth2ProviderRegistry.resolve(credentialType.definition, resolvedPublicConfig);
+    const clientId = this.oauth2ProviderRegistry.resolveClientId(auth, resolvedPublicConfig);
     const clientSecretFieldKey = this.oauth2ProviderRegistry.resolveClientSecretFieldKey(auth);
     const clientSecret = String(material[clientSecretFieldKey] ?? "");
     if (!clientSecret) {
@@ -195,9 +208,14 @@ export class LocalOAuthFlowExecutor implements OAuthFlowExecutor {
     }
 
     const auth = credentialType.definition.auth;
-    const secretMaterial = await this.credentialMaterialResolver.resolveMaterial(instance);
-    const provider = this.oauth2ProviderRegistry.resolve(credentialType.definition, instance.publicConfig);
-    const clientId = this.oauth2ProviderRegistry.resolveClientId(auth, instance.publicConfig);
+    const rawMaterial = await this.credentialMaterialResolver.resolveMaterial(instance);
+    const { resolvedPublicConfig, resolvedMaterial: secretMaterial } = this.credentialFieldEnvOverlayService.apply({
+      definition: credentialType.definition,
+      publicConfig: instance.publicConfig,
+      material: rawMaterial,
+    });
+    const provider = this.oauth2ProviderRegistry.resolve(credentialType.definition, resolvedPublicConfig);
+    const clientId = this.oauth2ProviderRegistry.resolveClientId(auth, resolvedPublicConfig);
     const clientSecretFieldKey = this.oauth2ProviderRegistry.resolveClientSecretFieldKey(auth);
     const clientSecret = String(secretMaterial[clientSecretFieldKey] ?? "");
     if (!clientSecret) {
