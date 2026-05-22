@@ -1,6 +1,6 @@
 import { node } from "@codemation/core";
 import { MissingRuntimeTriggerToken } from "@codemation/core/bootstrap";
-import type { WorkflowCredentialHealthDto } from "../../src/application/contracts/CredentialContractsRegistry";
+import type { WorkflowCredentialHealthDto, WorkflowCredentialHealthSlotDto } from "../../src/application/contracts/CredentialContractsRegistry";
 import { WorkflowActivationPreflightRules } from "../../src/domain/workflows/WorkflowActivationPreflightRules";
 import { createWorkflowBuilder, ManualTrigger, WebhookTrigger } from "@codemation/core-nodes";
 import { describe, expect, it } from "vitest";
@@ -101,5 +101,90 @@ describe("WorkflowActivationPreflightRules", () => {
       ],
     };
     expect(rules.collectRequiredCredentialErrors(health)).toEqual([]);
+  });
+
+  describe("collectScopeMismatchErrors", () => {
+    function boundSlot(overrides: Partial<WorkflowCredentialHealthSlotDto> = {}): WorkflowCredentialHealthSlotDto {
+      return {
+        workflowId: "w1",
+        nodeId: "n1",
+        nodeName: "Gmail Node",
+        requirement: { slotKey: "gmail", label: "Gmail", acceptedTypes: ["oauth.google.gmail"] },
+        instance: { instanceId: "inst-1", typeId: "oauth.google.gmail", displayName: "My Gmail", setupStatus: "ready" },
+        health: { status: "healthy" },
+        ...overrides,
+      };
+    }
+
+    it("returns [] when granted scopes are a superset of required scopes", async () => {
+      const health: WorkflowCredentialHealthDto = { workflowId: "w1", slots: [boundSlot()] };
+      const errors = await rules.collectScopeMismatchErrors(health, {
+        getRequiredScopes: () => ["https://mail.google.com/"],
+        getGrantedScopes: async () => ["https://mail.google.com/", "https://www.googleapis.com/auth/gmail.send"],
+      });
+      expect(errors).toEqual([]);
+    });
+
+    it("returns an error when a required scope is missing", async () => {
+      const health: WorkflowCredentialHealthDto = { workflowId: "w1", slots: [boundSlot()] };
+      const errors = await rules.collectScopeMismatchErrors(health, {
+        getRequiredScopes: () => ["https://mail.google.com/", "https://www.googleapis.com/auth/gmail.send"],
+        getGrantedScopes: async () => ["https://mail.google.com/"],
+      });
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("My Gmail");
+      expect(errors[0]).toContain("https://www.googleapis.com/auth/gmail.send");
+      expect(errors[0]).toContain("Reconnect");
+    });
+
+    it("skips unbound slots", async () => {
+      const health: WorkflowCredentialHealthDto = {
+        workflowId: "w1",
+        slots: [
+          {
+            workflowId: "w1",
+            nodeId: "n1",
+            requirement: { slotKey: "gmail", label: "Gmail", acceptedTypes: ["oauth.google.gmail"] },
+            health: { status: "unbound" },
+          },
+        ],
+      };
+      const errors = await rules.collectScopeMismatchErrors(health, {
+        getRequiredScopes: () => ["https://mail.google.com/"],
+        getGrantedScopes: async () => [],
+      });
+      expect(errors).toEqual([]);
+    });
+
+    it("skips non-OAuth types when getRequiredScopes returns []", async () => {
+      const health: WorkflowCredentialHealthDto = { workflowId: "w1", slots: [boundSlot()] };
+      const errors = await rules.collectScopeMismatchErrors(health, {
+        getRequiredScopes: () => [],
+        getGrantedScopes: async () => [],
+      });
+      expect(errors).toEqual([]);
+    });
+
+    it("deduplicates when two slots share the same instanceId", async () => {
+      const slot1 = boundSlot({ nodeId: "n1" });
+      const slot2 = boundSlot({ nodeId: "n2" });
+      const health: WorkflowCredentialHealthDto = { workflowId: "w1", slots: [slot1, slot2] };
+      const errors = await rules.collectScopeMismatchErrors(health, {
+        getRequiredScopes: () => ["https://mail.google.com/"],
+        getGrantedScopes: async () => [],
+      });
+      expect(errors).toHaveLength(1);
+    });
+
+    it("treats missing OAuth material (empty granted scopes) as no scopes granted", async () => {
+      const health: WorkflowCredentialHealthDto = { workflowId: "w1", slots: [boundSlot()] };
+      const errors = await rules.collectScopeMismatchErrors(health, {
+        getRequiredScopes: () => ["https://mail.google.com/"],
+        getGrantedScopes: async () => [],
+      });
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("My Gmail");
+      expect(errors[0]).toContain("Reconnect");
+    });
   });
 });

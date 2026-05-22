@@ -1,5 +1,5 @@
 import type { WorkflowCredentialHealthDto } from "../../application/contracts/CredentialContractsRegistry";
-import { getPersistedRuntimeTypeMetadata, injectable, type WorkflowDefinition } from "@codemation/core";
+import { getPersistedRuntimeTypeMetadata, injectable, type CredentialRequirement, type WorkflowDefinition } from "@codemation/core";
 import { MissingRuntimeTriggerToken } from "@codemation/core/bootstrap";
 import { ManualTriggerNode } from "@codemation/core-nodes";
 
@@ -72,6 +72,45 @@ export class WorkflowActivationPreflightRules {
         );
       }
     }
+    return lines;
+  }
+
+  async collectScopeMismatchErrors(
+    health: WorkflowCredentialHealthDto,
+    opts: {
+      getRequiredScopes: (typeId: string, slotRequirement: CredentialRequirement) => ReadonlyArray<string>;
+      getGrantedScopes: (instanceId: string) => Promise<ReadonlyArray<string>>;
+    },
+  ): Promise<ReadonlyArray<string>> {
+    const checked = new Set<string>();
+    const lines: string[] = [];
+
+    for (const slot of health.slots) {
+      const { instance } = slot;
+      if (!instance) {
+        continue;
+      }
+      const { instanceId, typeId, displayName } = instance;
+      if (checked.has(instanceId)) {
+        continue;
+      }
+      checked.add(instanceId);
+
+      const required = opts.getRequiredScopes(typeId, slot.requirement);
+      if (required.length === 0) {
+        continue;
+      }
+
+      const granted = await opts.getGrantedScopes(instanceId);
+      const grantedSet = new Set(granted);
+      const missing = required.filter((s) => !grantedSet.has(s));
+      if (missing.length > 0) {
+        lines.push(
+          `Credential "${displayName}" missing scopes: ${missing.join(", ")}. Reconnect to grant.`,
+        );
+      }
+    }
+
     return lines;
   }
 }
