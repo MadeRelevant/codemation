@@ -278,6 +278,7 @@ import { PairedFetch } from "../pairing/PairedFetch";
 import { IncomingHmacVerifier } from "../pairing/IncomingHmacVerifier";
 import { InternalHmacAuthMiddleware } from "../pairing/InternalHmacAuthMiddleware";
 import { InternalPingRegistrar } from "../pairing/InternalPingRegistrar";
+import { LocalOAuthFlowExecutor } from "../credentials/LocalOAuthFlowExecutor";
 import { BrokerClient } from "../credentials/BrokerClient";
 import { InternalCredentialsPushRegistrar } from "../credentials/InternalCredentialsPushRegistrar";
 import { InternalCredentialsListRegistrar } from "../credentials/InternalCredentialsListRegistrar";
@@ -695,6 +696,11 @@ export class AppContainerFactory {
     }
     container.registerSingleton(OAuth2ProviderRegistry, OAuth2ProviderRegistry);
     container.registerSingleton(OAuth2ConnectService, OAuth2ConnectService);
+    // TODO: branch on appConfig.pairing — register ManagedOAuthFlowExecutor instead when paired.
+    container.register(ApplicationTokens.OAuthFlowExecutor, {
+      useFactory: instanceCachingFactory((c) => c.resolve(LocalOAuthFlowExecutor)),
+    });
+    container.registerSingleton(LocalOAuthFlowExecutor, LocalOAuthFlowExecutor);
     container.registerSingleton(CodemationFrontendAuthSnapshotFactory, CodemationFrontendAuthSnapshotFactory);
     container.registerSingleton(FrontendAppConfigFactory, FrontendAppConfigFactory);
     container.registerSingleton(PublicFrontendBootstrapFactory, PublicFrontendBootstrapFactory);
