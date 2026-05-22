@@ -37,3 +37,10 @@ export type {
 } from "./triggers/polling";
 export { WorkflowEdgePortValidator } from "./validation/WorkflowEdgePortValidator";
 export type { WorkflowEdgePortError, WorkflowEdgePortValidationResult } from "./validation/WorkflowEdgePortError.types";
+export type {
+  OAuthFlowStartArgs,
+  OAuthFlowStartResult,
+  OAuthFlowCallbackArgs,
+  OAuthMaterial,
+  OAuthFlowExecutor,
+} from "./credentials/OAuthFlowExecutor.types";
