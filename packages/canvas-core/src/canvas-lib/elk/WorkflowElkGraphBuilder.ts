@@ -46,8 +46,8 @@ const COMPOUND_SIBLING_SPACING_PX = 72;
  * expected and actually helps distinguish attachment lines from the
  * straight-ish main-chain routing above.
  */
-const ROOT_COMPOUND_CHILDREN_ASPECT_RATIO = 2.6;
-const NESTED_COMPOUND_CHILDREN_ASPECT_RATIO = 2.0;
+const ROOT_COMPOUND_CHILDREN_ASPECT_RATIO = 6.0;
+const NESTED_COMPOUND_CHILDREN_ASPECT_RATIO = 4.0;
 
 /**
  * ELK port IDs encode the owning node and the logical port name so the mapper
