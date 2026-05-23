@@ -29,13 +29,19 @@ export class CodemationFrontendAuthSnapshotFactory {
       uiAuthEnabled: boolean;
     }>,
   ): CodemationFrontendAuthSnapshot {
-    return {
+    const snapshot = {
       config: args.authConfig,
       credentialsEnabled: args.authConfig?.kind === "local",
       oauthProviders: this.createOauthProviders(args.authConfig),
       secret: this.resolveAuthSecret(args.env),
       uiAuthEnabled: args.uiAuthEnabled,
     };
+    const cpWebOrigin =
+      args.authConfig?.kind === "managed" ? args.env["CP_WEB_ORIGIN"]?.trim() || undefined : undefined;
+    if (cpWebOrigin) {
+      return { ...snapshot, cpWebOrigin };
+    }
+    return snapshot;
   }
 
   private resolveUiAuthEnabled(authConfig: CodemationAuthConfig | undefined, env: NodeJS.ProcessEnv): boolean {

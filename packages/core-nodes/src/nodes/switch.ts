@@ -6,7 +6,6 @@ import type {
   RunnableNodeConfig,
   TypeToken,
 } from "@codemation/core";
-
 import { SwitchNode } from "./SwitchNode";
 
 export type SwitchCaseKeyResolver<TInputJson = unknown> = (

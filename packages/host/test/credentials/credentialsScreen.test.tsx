@@ -724,12 +724,13 @@ describe("CredentialsScreen", () => {
     expect(screen.getByTestId("credential-dialog")).toBeInTheDocument();
   });
 
-  it("creates and opens OAuth2 connect from the create dialog", async () => {
+  it("creates and opens OAuth2 connect from the create dialog via the new POST start flow", async () => {
     renderCredentialsScreen({
       credentialTypes: [oauthCredentialType],
       credentialInstances: [],
     });
 
+    const consentUrl = "https://accounts.google.com/o/oauth2/v2/auth?client_id=x&state=tok123";
     const windowOpenMock = vi.mocked(window.open);
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url === ApiPaths.oauth2RedirectUri()) {
@@ -749,6 +750,12 @@ describe("CredentialsScreen", () => {
               scopes: ["scope.one"],
             },
           }),
+        };
+      }
+      if (url === ApiPaths.credentialOAuthStart() && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({ consentUrl, stateToken: "tok123" }),
         };
       }
       return {
@@ -779,8 +786,14 @@ describe("CredentialsScreen", () => {
       );
     });
     await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        ApiPaths.credentialOAuthStart(),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    await waitFor(() => {
       expect(windowOpenMock).toHaveBeenCalledWith(
-        ApiPaths.oauth2Auth("oauth-inst-1"),
+        consentUrl,
         "codemation-oauth2-oauth-inst-1",
         "popup=yes,width=640,height=760",
       );

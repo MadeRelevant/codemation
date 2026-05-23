@@ -2,7 +2,7 @@
 
 import { useContext, useState, type ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@codemation/ui";
 import { CodemationBetterAuthBrowserClientFactory } from "../auth/CodemationBetterAuthBrowserClientFactory";
 import { CodemationSessionRootContext } from "../providers/CodemationSessionProvider";
 

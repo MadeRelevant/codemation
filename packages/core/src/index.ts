@@ -6,6 +6,7 @@ export type {
   AgentConnectionCredentialSource,
   AgentConnectionNodeDescriptor,
   AgentConnectionNodeRole,
+  McpServerResolver,
 } from "./ai/AgentConnectionNodeCollector";
 export * from "./workflow";
 export * from "./di";
@@ -34,3 +35,12 @@ export type {
   PollingRunCycleResult,
   PollingTriggerStartArgs,
 } from "./triggers/polling";
+export { WorkflowEdgePortValidator } from "./validation/WorkflowEdgePortValidator";
+export type { WorkflowEdgePortError, WorkflowEdgePortValidationResult } from "./validation/WorkflowEdgePortError.types";
+export type {
+  OAuthFlowStartArgs,
+  OAuthFlowStartResult,
+  OAuthFlowCallbackArgs,
+  OAuthMaterial,
+  OAuthFlowExecutor,
+} from "./credentials/OAuthFlowExecutor.types";

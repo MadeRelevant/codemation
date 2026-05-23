@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@codemation/ui";
 
 import { CredentialConfirmDialog } from "../components/CredentialConfirmDialog";
 import { CredentialDialog } from "../components/CredentialDialog";

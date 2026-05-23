@@ -12,204 +12,42 @@ Use this skill for reusable custom node work, whether the node lives inside an a
 
 Do not use this skill for pure workflow chaining questions unless the node implementation itself is changing.
 
-## Default approach
+## Per-item vs batch
 
-1. Start with `defineNode(...)`.
-2. Implement **`execute(args, context)`** — one mapped **input** in, one output payload per item (activations are still batch-shaped; the engine iterates items for you).
-3. Give the node a stable key and a clear title.
-4. Optionally set **`icon`** on the `defineNode` definition so the workflow canvas shows a proper glyph (same string contract as `NodeConfigBase.icon`).
-5. Use **`defineBatchNode(...)`** with **`run(items, context)`** only when the node must process the **entire batch** at once (legacy batch semantics).
-6. Promote callback-heavy logic into a node when the graph or tests need a stronger boundary.
+**`defineNode(...)` (per-item)** — the engine calls `execute(args, context)` once per item. This is the right default for the vast majority of nodes: straightforward logic, credential slots, input schema, optional fan-out.
+
+**`defineBatchNode(...)` (batch)** — the engine calls `run(items, context)` with the full activation batch. Use only when the node genuinely needs to see all items at once (aggregation, bulk API calls, cross-item correlation).
+
+When in doubt, start with `defineNode`.
 
 ## Node rules
 
-1. Prefer helper-based nodes first.
-2. Keep nodes deterministic and focused.
-3. Request credentials through named slots instead of hard-coded secrets.
-4. Put **static** options (credentials, retry policy, labels) on **config**; put **per-item** behavior in **inputs** / wire JSON and optional **`itemExpr`** on config fields (consistent with built-in nodes).
-5. **Emit files with `ctx.binary`, not base64 in `json`:** use **`attach`** + **`withAttachment`** on **`args.ctx.binary`** (`defineNode`) or **`ctx.binary`** (class nodes). Base64 in **`item.json`** bloats persisted run JSON in the database; binaries use **storage + references** only. See `references/node-patterns.md` and repo docs **Concepts → Execution model** / **Custom nodes**.
-6. Drop to class-based node APIs only when you need constructor-injected collaborators, decorators, or deeper runtime metadata.
+1. Keep nodes deterministic and focused.
+2. Request credentials through named slots — never hard-code secrets.
+3. Put **static** options (credentials, retry policy, labels) on **config**; put **per-item** behavior in **inputs** / wire JSON and optional `itemExpr` on config fields.
+4. **Emit files with `ctx.binary`, not base64 in `json`** — base64 in `item.json` bloats persisted run data. See `references/node-patterns.md`.
+5. Drop to class-based node APIs only when you need constructor-injected collaborators, decorators, or deeper runtime metadata.
 
-## Testing with `WorkflowTestKit`
-
-For engine-backed tests without the host, use **`WorkflowTestKit`** from **`@codemation/core/testing`**: **`registerDefinedNodes([...])`**, then **`runNode`** or **`run`**. See the plugin development doc and `@codemation/core` tests for examples.
-
-## Custom assertion + test nodes
-
-When building **assertion** nodes that should record results into the framework's TestSuiteRun infrastructure, set **`emitsAssertions: true`** on the node config. The host's `TestSuiteRunTracker` listens for `nodeCompleted` events from runs with `ctx.testContext` set and persists each emitted item (matching the `AssertionResult` shape) as a `TestAssertion` row. Drop in a `defineNode` with a per-item `execute` that returns `AssertionResult[]` and you're done — no service injection required.
-
-Custom **per-item nodes** can also read **`ctx.testContext?.{testSuiteRunId, testCaseIndex}`** to branch on test mode without an `IsTestRun` upstream — useful for synthetic outputs or skipping irreversible side effects when running tests.
-
-## Binary payloads in sub-workflow chains
-
-Binary slots attached inside a node survive SubWorkflow boundaries with no extra work. The shared `BinaryStorage` DI singleton means `ctx.binary.openReadStream` works regardless of which run originally stored the bytes.
-
-### Pattern: attach in a node, read in the parent after SubWorkflow
+## Minimal `defineNode` example
 
 ```ts
-// Child node — attaches a slot and returns the modified item.
-// Works with defineNode or class-based nodes.
-export const parseAndStoreNode = defineNode({
-  key: "example.parse-store",
-  title: "Parse and Store",
-  inputSchema: z.object({ filename: z.string() }),
-  async execute({ input, item }, { binary }) {
-    const bytes = Buffer.from("...parsed content...");
-    const att = await binary.attach({
-      name: "parsed",
-      body: bytes,
-      mimeType: "text/plain",
-      filename: `${input.filename}.txt`,
-    });
-    return binary.withAttachment(item, "parsed", att);
+import { defineNode } from "@codemation/core";
+import { z } from "zod";
+
+export const uppercaseNode = defineNode({
+  key: "example.uppercase",
+  title: "Uppercase field",
+  icon: "lucide:languages",
+  inputSchema: z.object({ field: z.string() }),
+  async execute({ input }) {
+    return { ...input, field: input.field.toUpperCase() };
   },
 });
 ```
 
-After `SubWorkflowNode` returns, the parent's continuation nodes see `item.binary["parsed"]` and can call `ctx.binary.openReadStream(item.binary["parsed"])` to read the bytes.
+## Read next
 
-### Testing binary across SubWorkflow with `WorkflowTestKit`
-
-```ts
-import { DefaultExecutionContextFactory, InMemoryBinaryStorage } from "@codemation/core";
-import { createEngineTestKit } from "@codemation/core/testing";
-import { ItemHarnessNodeConfig } from "@codemation/core/testing";
-
-const storage = new InMemoryBinaryStorage();
-const kit = createEngineTestKit({
-  executionContextFactory: new DefaultExecutionContextFactory(storage),
-});
-
-// Use ItemHarnessNodeConfig (NOT CallbackNodeConfig) for nodes that must modify items:
-const attachNode = new ItemHarnessNodeConfig(
-  "Attach",
-  z.unknown(),
-  async ({ item, ctx }) => {
-    const att = await ctx.binary.attach({
-      name: "doc",
-      body: Buffer.from("content"),
-      mimeType: "application/pdf",
-      filename: "doc.pdf",
-    });
-    return ctx.binary.withAttachment(item as Item, "doc", att);
-  },
-  { id: "attach" },
-);
-// CallbackNodeConfig is fine for assertion-only (observe) nodes — it echoes input unchanged.
-```
-
-Important: `CallbackNodeConfig` discards its callback return value and always echoes input items. Never use it for nodes that must attach binary or transform items.
-
-## MS Graph: selective attachment download
-
-Use `OutlookAttachmentDownload` from `@codemation/core-nodes-msgraph` when you have already
-obtained attachment metadata (filename, contentType, id) and want to download only specific
-attachments — e.g. after classifying them with an LLM step.
-
-```ts
-import { onNewMsGraphMailTrigger, outlookAttachmentDownloadNode } from "@codemation/core-nodes-msgraph";
-
-// Trigger → filter in workflow DSL, then download only selected attachments:
-workflow("wf.download-resumes")
-  .trigger(onNewMsGraphMailTrigger, { mailbox: "me", folderId: "inbox" })
-  // ... classify attachments upstream, pass messageId + attachmentId on item.json ...
-  .then(
-    outlookAttachmentDownloadNode.create(
-      {
-        // messageId / attachmentId fall back to item.json when left empty:
-        messageId: "",
-        attachmentId: "",
-        binarySlot: "resume",
-        sizeCapBytes: 10 * 1024 * 1024,
-      },
-      "DownloadResume",
-    ),
-  )
-  // bytes are in item.binary["resume"]; item.json carries metadata:
-  // { messageId, attachmentId, filename, contentType, size, isInline, contentId, binarySlot }
-  .build();
-```
-
-Key constraints:
-
-- Only `#microsoft.graph.fileAttachment` is supported — `itemAttachment` / `referenceAttachment` throw immediately.
-- Set `keepBinaries: true` on any downstream node that needs to pass the binary slot forward.
-- The credential is `msGraphMailOAuthCredentialType`; `Mail.Read` scope is sufficient.
-
-## HTTP + binary: download to a slot, then upload from a slot
-
-`HttpRequest` (from `@codemation/core-nodes`) natively handles binary response and request bodies
-without a `Callback` shim.
-
-### Download a PDF to a binary slot
-
-```ts
-import { HttpRequest } from "@codemation/core-nodes";
-import { workflow } from "@codemation/host";
-
-export default workflow("wf.download-pdf")
-  .manualTrigger<{ url: string }>("Start", { url: "" })
-  // responseFormat:"binary" reads the response as raw bytes and stores them via ctx.binary.
-  // item.json gets: { status, headers, binarySlot, contentType, size, filename? }
-  // item.binary["resume"] holds the BinaryAttachment reference — never base64.
-  .then(
-    new HttpRequest("DownloadResume", {
-      responseFormat: "binary",
-      responseBinarySlot: "resume", // default is "response"
-      responseSizeCapBytes: 10 * 1024 * 1024, // 10 MiB cap (default 100 MiB)
-    }),
-  )
-  .build();
-```
-
-### Upload binary bytes from a slot
-
-```ts
-import { HttpRequest } from "@codemation/core-nodes";
-
-// After a previous node stored bytes in item.binary["resume"]:
-new HttpRequest("UploadResume", {
-  method: "POST",
-  url: "https://api.example.com/files",
-  body: { kind: "binary", slot: "resume" },
-  // Content-Type defaults to the attachment's mimeType.
-  // Override with headers: { "content-type": "application/octet-stream" }.
-});
-```
-
-### Download then upload (full round-trip)
-
-```ts
-import { HttpRequest } from "@codemation/core-nodes";
-import { workflow } from "@codemation/host";
-
-export default workflow("wf.mirror-pdf")
-  .manualTrigger<{ sourceUrl: string; targetUrl: string }>("Start", { sourceUrl: "", targetUrl: "" })
-  .then(
-    new HttpRequest("Download", {
-      urlField: "sourceUrl",
-      responseFormat: "binary",
-      responseBinarySlot: "file",
-    }),
-  )
-  .then(
-    new HttpRequest("Upload", {
-      urlField: "targetUrl",
-      method: "PUT",
-      body: { kind: "binary", slot: "file" },
-    }),
-  )
-  .build();
-```
-
-Key rules:
-
-- Never put bytes or base64 in `item.json` — always use `ctx.binary`.
-- `responseSizeCapBytes` is checked against `Content-Length` before reading the body; set it for untrusted sources.
-- Explicit `headers["content-type"]` always overrides the attachment's mimeType for uploads.
-- Use `keepBinaries: true` on downstream nodes that must forward the slot.
-
-## Read next when needed
-
-- Read `references/node-patterns.md` for `defineNode(...)` patterns and packaging guidance.
-- Use the `codemation-workflow-dsl` skill's `references/workflow-testing.md` for the full TestTrigger / IsTestRun / Assertion authoring story.
+- `references/define-node-per-item.md` — full `defineNode(...)` contract, `inputSchema`, `itemExpr`, fan-out, assertion nodes, and `WorkflowTestKit` usage. Load this when writing or debugging a per-item node.
+- `references/define-batch-node.md` — `defineBatchNode(...)` contract and when to choose batch over per-item. Load this when the node must see the entire batch at once.
+- `references/credential-aware-nodes.md` — credential slots, typed sessions, and how to test credential-aware nodes. Load this when your node needs a credential.
+- `references/node-patterns.md` — binary payloads (`ctx.binary`, `attach`, `withAttachment`), fan-out return shapes, polling-trigger binary patterns, MS Graph attachment download, and HTTP binary round-trips. Load this when working with file data or HTTP binaries.

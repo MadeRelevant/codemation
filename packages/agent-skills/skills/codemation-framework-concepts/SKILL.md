@@ -1,6 +1,6 @@
 ---
 name: codemation-framework-concepts
-description: Explains Codemation package boundaries, runtime concepts, observability shape, and the normal consumer mental model. Use when the user asks where code belongs across `@codemation/core`, `@codemation/host`, `@codemation/next-host`, `@codemation/cli`, workflows, plugins, credentials, activation, telemetry, or runtime modes.
+description: Explains Codemation package boundaries, runtime concepts, observability shape, and the normal consumer mental model. Use when the user asks where code belongs across `@codemation/core`, `@codemation/host`, `@codemation/next-host`, `@codemation/cli`, workflows, plugins, credentials, activation, telemetry, or runtime modes. Read this first when starting any Codemation task — it points at the right skill for the work.
 compatibility: Designed for Codemation apps, plugins, and framework contributors.
 ---
 
@@ -38,6 +38,15 @@ Do not use this skill as a substitute for detailed CLI, workflow DSL, or plugin 
 2. Move to shared PostgreSQL and Redis when execution needs separate worker infrastructure.
 3. Keep workflow code stable while the runtime shape grows around it.
 4. Treat telemetry as part of the runtime contract, not as ad-hoc node-local logging.
+
+## Where to go next
+
+- Authoring workflows → `codemation-workflow-dsl`
+- Building a reusable node → `codemation-custom-node-development`
+- Building a credential type → `codemation-credential-development`
+- Packaging as a plugin → `codemation-plugin-development`
+- Calling an MCP server from a workflow → `codemation-mcp-capabilities`
+- CLI commands / dev loop → `codemation-cli`
 
 ## Read next when needed
 

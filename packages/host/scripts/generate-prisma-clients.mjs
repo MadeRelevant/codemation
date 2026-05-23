@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { execaSync } from "execa";
 import { existsSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -15,7 +16,7 @@ class PrismaClientGenerator {
     this.reexecUnderSupportedNodeWhenNeeded();
     for (const provider of this.providers) {
       const result = spawnSync(process.execPath, [this.prismaCliEntrypoint, "generate"], {
-        cwd: import.meta.dirname.replace(/\/scripts$/, ""),
+        cwd: path.dirname(import.meta.dirname),
         env: {
           ...process.env,
           CODEMATION_PRISMA_PROVIDER: provider,
@@ -41,7 +42,7 @@ class PrismaClientGenerator {
       );
     }
     const result = spawnSync(supportedNodeBinary, [new URL(import.meta.url).pathname], {
-      cwd: import.meta.dirname.replace(/\/scripts$/, ""),
+      cwd: path.dirname(import.meta.dirname),
       env: {
         ...process.env,
         [this.reexecMarker]: "1",
@@ -80,16 +81,24 @@ class PrismaClientGenerator {
     if (npmExecPath) {
       return realpathSync(npmExecPath);
     }
-    const result = spawnSync("bash", ["-lc", 'realpath "$(command -v pnpm)"'], {
-      env: process.env,
-      encoding: "utf8",
-      shell: false,
-    });
-    if (result.status !== 0) {
-      return undefined;
+    try {
+      // execa resolves bare command names against the OS-appropriate PATH (handles `.cmd` / `.exe`
+      // shims on Windows automatically), so this works on every platform we run dev on.
+      const result = execaSync("pnpm", ["root", "-g"], { reject: false });
+      if (result.exitCode === 0 && typeof result.stdout === "string" && result.stdout.trim().length > 0) {
+        // pnpm root -g prints "<pnpm-store>/global/5/node_modules"; the pnpm binary lives one level
+        // up under the install root. We only need *a* directory close to the pnpm binary so the
+        // sibling-`node` lookup below can probe candidate paths.
+        const globalRoot = result.stdout.trim();
+        const candidate = path.resolve(globalRoot, "..", "..", "pnpm");
+        if (existsSync(candidate)) {
+          return realpathSync(candidate);
+        }
+      }
+    } catch {
+      // fall through
     }
-    const pnpmPath = result.stdout.trim();
-    return pnpmPath.length > 0 ? pnpmPath : undefined;
+    return undefined;
   }
 
   static isSupportedNode(version) {

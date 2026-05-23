@@ -1,12 +1,12 @@
 import {
   RetryPolicy,
+  type AnyCredentialType,
   type CredentialRequirement,
   type NodeInspectorSummaryRow,
   type RetryPolicySpec,
   type RunnableNodeConfig,
   type TypeToken,
 } from "@codemation/core";
-
 import type { HttpBodySpec } from "../http/httpRequest.types";
 import {
   apiKeyCredentialType,
@@ -82,11 +82,19 @@ export class HttpRequest<
       /** Request body specification. For canvas use, pass a JSON string in `body.data`. */
       body?: HttpBodySpec;
       /**
-       * Credential slot key. When set, the node resolves a credential via
-       * `ctx.getCredential(credentialSlot)` and applies it to the request.
-       * The slot must be declared in `getCredentialRequirements()`.
+       * Credential slot.
+       *
+       * **String shorthand** (existing): `credentialSlot: "auth"` — the slot accepts all four
+       * default HTTP credential types (bearer, API-key, basic, OAuth2).
+       *
+       * **Object form** (new): narrows the accepted types to the caller-supplied list, useful
+       * when only a subset of credential types makes sense for a specific endpoint.
+       * ```ts
+       * credentialSlot: { name: "auth", acceptedTypes: [bearerTokenCredentialType] }
+       * ```
+       * The slot must be declared in `getCredentialRequirements()`, which is wired automatically.
        */
-      credentialSlot?: string;
+      credentialSlot?: string | Readonly<{ name: string; acceptedTypes?: ReadonlyArray<AnyCredentialType> }>;
       binaryName?: string;
       downloadMode?: HttpRequestDownloadMode;
       /**
@@ -110,6 +118,23 @@ export class HttpRequest<
        * Requests whose `Content-Length` exceeds this cap are rejected before the body is read.
        */
       responseSizeCapBytes?: number;
+      /**
+       * Operator-configurable outbound host allowlist.
+       *
+       * When set, every HTTP request target must match an entry in this list before the
+       * request is made — requests to any other host are rejected with {@link SSRFBlockedError}.
+       * Supports exact hostnames (`api.example.com`) and wildcard subdomain patterns
+       * (`*.example.com` matches `sub.example.com` but not `example.com` itself).
+       *
+       * When unset (default), the existing SSRF private-network guard applies:
+       * public hosts are allowed and private/loopback ranges are blocked.
+       *
+       * **Production warning**: when `NODE_ENV === "production"` and this is unset, a one-time
+       * warning is logged at workflow startup.
+       *
+       * Setting this to an empty array `[]` is equivalent to "block everything".
+       */
+      allowedOutboundHosts?: ReadonlyArray<string>;
       id?: string;
     }> = {},
     public readonly retryPolicy: RetryPolicySpec = RetryPolicy.defaultForHttp,
@@ -147,15 +172,36 @@ export class HttpRequest<
     return this.args.responseSizeCapBytes ?? DEFAULT_RESPONSE_SIZE_CAP_BYTES;
   }
 
+  get allowedOutboundHosts(): ReadonlyArray<string> | undefined {
+    return this.args.allowedOutboundHosts;
+  }
+
   getCredentialRequirements(): ReadonlyArray<CredentialRequirement> {
-    if (!this.args.credentialSlot) {
+    const slot = this.args.credentialSlot;
+    if (!slot) {
       return [];
     }
+    if (typeof slot === "string") {
+      return [
+        {
+          slotKey: slot,
+          label: "Authentication",
+          acceptedTypes: HTTP_REQUEST_ACCEPTED_CREDENTIAL_TYPES,
+          optional: true,
+          helpText: "Optional credential for authenticating the HTTP request.",
+        },
+      ];
+    }
+    // Object form: use caller-supplied acceptedTypes (mapped to typeIds), falling back to all defaults.
+    const acceptedTypes =
+      slot.acceptedTypes && slot.acceptedTypes.length > 0
+        ? slot.acceptedTypes.map((ct) => ct.definition.typeId)
+        : HTTP_REQUEST_ACCEPTED_CREDENTIAL_TYPES;
     return [
       {
-        slotKey: this.args.credentialSlot,
+        slotKey: slot.name,
         label: "Authentication",
-        acceptedTypes: HTTP_REQUEST_ACCEPTED_CREDENTIAL_TYPES,
+        acceptedTypes,
         optional: true,
         helpText: "Optional credential for authenticating the HTTP request.",
       },

@@ -36,6 +36,7 @@ import {
   CoreTokens,
   ItemExprResolver,
   NodeOutputNormalizer,
+  NoOpAgentMcpIntegration,
   callableTool,
   container as tsyringeContainer,
   instanceCachingFactory,
@@ -610,6 +611,7 @@ class AgentTestRig {
         (c) => new ChildExecutionScopeFactory(c.resolve(CoreTokens.ActivationIdFactory)),
       ),
     });
+    this.container.registerInstance(CoreTokens.AgentMcpIntegration, new NoOpAgentMcpIntegration());
     this.container.registerSingleton(AIAgentNode, AIAgentNode);
     for (const registration of registrations) {
       if (registration.value !== undefined) {
@@ -1576,4 +1578,27 @@ test("AIAgentNode records telemetry for turns, tokens, and child invocation arti
   ]);
   assert.equal(rig.telemetry.childSpans()[0]?.artifacts.length, 2);
   assert.equal(rig.telemetry.childSpans()[0]?.ended[0]?.status, "ok");
+});
+
+test("AIAgent.inspectorSummary omits MCP servers row (now first-class connection slots)", () => {
+  // MCP servers are rendered as first-class canvas connection slots — not repeated in the inspector text.
+  const agentWithMcp = new AIAgent({
+    name: "test",
+    messages: [{ role: "user", content: "hello" }],
+    chatModel: { name: "gpt-4o" },
+    mcpServers: ["gmail", "slack"],
+  });
+  const agentWithoutMcp = new AIAgent({
+    name: "test",
+    messages: [{ role: "user", content: "hello" }],
+    chatModel: { name: "gpt-4o" },
+  });
+  assert.equal(
+    agentWithMcp.inspectorSummary().find((r) => r.label === "MCP servers"),
+    undefined,
+  );
+  assert.equal(
+    agentWithoutMcp.inspectorSummary().find((r) => r.label === "MCP servers"),
+    undefined,
+  );
 });

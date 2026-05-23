@@ -19,10 +19,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "development": {
-        "import": "./src/index.ts",
-        "require": "./dist/index.cjs"
-      },
+      "development": "./src/index.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
@@ -36,19 +33,13 @@
     },
     "./testing": {
       "types": "./dist/testing.d.ts",
-      "development": {
-        "import": "./src/testing.ts",
-        "require": "./dist/testing.cjs"
-      },
+      "development": "./src/testing.ts",
       "import": "./dist/testing.js",
       "require": "./dist/testing.cjs"
     },
     "./bootstrap": {
       "types": "./dist/bootstrap/index.d.ts",
-      "development": {
-        "import": "./src/bootstrap/index.ts",
-        "require": "./dist/bootstrap/index.cjs"
-      },
+      "development": "./src/bootstrap/index.ts",
       "import": "./dist/bootstrap/index.js",
       "require": "./dist/bootstrap/index.cjs"
     }

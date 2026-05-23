@@ -145,16 +145,16 @@ export class ApiPaths {
     return `${this.apiBasePath}/credential-bindings`;
   }
 
-  static oauth2Auth(instanceId: string): string {
-    return `${this.oauth2BasePath}/auth?instanceId=${encodeURIComponent(instanceId)}`;
-  }
-
   static oauth2RedirectUri(): string {
     return `${this.oauth2BasePath}/redirect-uri`;
   }
 
   static oauth2Disconnect(instanceId: string): string {
     return `${this.oauth2BasePath}/disconnect?instanceId=${encodeURIComponent(instanceId)}`;
+  }
+
+  static credentialOAuthStart(): string {
+    return `${this.credentialsBasePath}/oauth/start`;
   }
 
   static workflowWebsocket(): string {

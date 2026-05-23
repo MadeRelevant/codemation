@@ -7,7 +7,9 @@ import { z } from "@/components/forms";
  */
 export class CollectionRowFormSchemaFactory {
   static create(fields: ReadonlyArray<CollectionFieldDto>): z.ZodObject<z.ZodRawShape> {
-    const shape: z.ZodRawShape = {};
+    // zod 4 makes ZodRawShape readonly; build the shape on a mutable record then
+    // hand it to z.object (which accepts the wider Readonly view).
+    const shape: Record<string, z.ZodTypeAny> = {};
     for (const field of fields) {
       shape[field.name] = CollectionRowFormSchemaFactory.fieldToZod(field);
     }

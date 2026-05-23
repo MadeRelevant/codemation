@@ -1,0 +1,70 @@
+{
+  "name": "@codemation/core-nodes-ocr",
+  "version": "0.1.0",
+  "description": "Azure AI Content Understanding (OCR) plugin for Codemation — prebuilt document, invoice, and image analyzers.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Made Relevant B.V.",
+  "homepage": "https://www.maderelevant.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MadeRelevant/codemation",
+    "directory": "packages/core-nodes-ocr"
+  },
+  "files": [
+    "dist",
+    "src",
+    "codemation.plugin.ts",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "codemation": {
+    "plugin": "./dist/codemation.plugin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": {
+        "import": "./src/index.ts",
+        "require": "./dist/index.cjs"
+      },
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "changeset:verify": "pnpm --workspace-root run changeset:verify",
+    "codemation": "node ../../tooling/scripts/run-codemation-tsx.mjs ../../packages/cli/src/bin.ts ../../tsconfig.codemation-tsx.json",
+    "dev": "turbo run build --filter='@codemation/next-host' && pnpm codemation dev:plugin --plugin-root .",
+    "dev:watch-bundle": "tsdown --watch",
+    "build": "tsdown && pnpm build:metadata",
+    "build:metadata": "tsx ../../tooling/discovery/scripts/extract-metadata.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "pnpm build && vitest run",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@azure/ai-content-understanding": "^1.0.0",
+    "@azure/core-auth": "^1.10.1",
+    "@codemation/core": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "eslint": "^10.0.3",
+    "reflect-metadata": "^0.2.2",
+    "tsdown": "^0.15.5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
+  }
+}

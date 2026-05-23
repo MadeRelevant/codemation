@@ -1,7 +1,7 @@
 "use client";
 
 import type { CollectionDetailDto, CollectionRowDto } from "@codemation/host/dto";
-import { Button } from "@/components/ui/button";
+import { Button } from "@codemation/ui";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CodemationFormattedDateTime } from "../../../components/CodemationFormattedDateTime";

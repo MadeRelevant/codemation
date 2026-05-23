@@ -1,9 +1,11 @@
+import { memo } from "react";
 import { BaseEdge, type Edge, type EdgeProps } from "@xyflow/react";
 
-import { WORKFLOW_CANVAS_MAIN_EDGE_OFFSET } from "./lib/workflowCanvasEdgeGeometry";
-import { WorkflowCanvasSymmetricForkPathPlanner } from "./lib/WorkflowCanvasSymmetricForkPathPlanner";
+import { WORKFLOW_CANVAS_MAIN_EDGE_OFFSET, WorkflowCanvasSymmetricForkPathPlanner } from "@codemation/canvas-core";
 
-export function WorkflowCanvasSymmetricForkEdge(props: EdgeProps<Edge>) {
+export const WorkflowCanvasSymmetricForkEdge = memo(function WorkflowCanvasSymmetricForkEdgeImpl(
+  props: EdgeProps<Edge>,
+) {
   const { path, labelX, labelY } = WorkflowCanvasSymmetricForkPathPlanner.build({
     sourceX: props.sourceX,
     sourceY: props.sourceY,
@@ -29,4 +31,4 @@ export function WorkflowCanvasSymmetricForkEdge(props: EdgeProps<Edge>) {
       interactionWidth={props.interactionWidth}
     />
   );
-}
+});

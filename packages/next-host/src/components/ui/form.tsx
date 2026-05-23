@@ -11,7 +11,7 @@ import {
 } from "react-hook-form";
 import { Slot } from "radix-ui";
 
-import { Label } from "@/components/ui/label";
+import { Label } from "@codemation/ui";
 import { cn } from "@/lib/utils";
 
 const Form = FormProvider;
@@ -83,11 +83,11 @@ const FormItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
 );
 FormItem.displayName = "FormItem";
 
-const FormLabel = React.forwardRef<React.ComponentRef<typeof Label>, React.ComponentPropsWithoutRef<typeof Label>>(
-  ({ className, ...props }, ref) => {
+const FormLabel = React.forwardRef<HTMLLabelElement, React.ComponentPropsWithoutRef<typeof Label>>(
+  ({ className, ...props }, _ref) => {
     const { error, formItemId } = useFormField();
 
-    return <Label ref={ref} className={cn(error && "text-destructive", className)} htmlFor={formItemId} {...props} />;
+    return <Label className={cn(error && "text-destructive", className)} htmlFor={formItemId} {...props} />;
   },
 );
 FormLabel.displayName = "FormLabel";

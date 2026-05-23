@@ -22,6 +22,8 @@ import { inject, injectable } from "@codemation/core";
 import type { WorkflowRunRepository } from "../../domain/runs/WorkflowRunRepository";
 import type { Prisma } from "../../../prisma-generated/prisma-postgresql-client/client.js";
 import { PrismaDatabaseClientToken, type PrismaDatabaseClient } from "./PrismaDatabaseClient";
+import type { WorkflowSnapshotRepository } from "./PrismaWorkflowSnapshotRepository";
+import { PrismaWorkflowSnapshotRepository } from "./PrismaWorkflowSnapshotRepository";
 
 type ExecutionInstanceRow = {
   instanceId: string;
@@ -80,7 +82,10 @@ type RunSlotProjectionRow = {
 
 @injectable()
 export class PrismaWorkflowRunRepository implements WorkflowRunRepository, WorkflowExecutionRepository {
-  constructor(@inject(PrismaDatabaseClientToken) private readonly prisma: PrismaDatabaseClient) {}
+  constructor(
+    @inject(PrismaDatabaseClientToken) private readonly prisma: PrismaDatabaseClient,
+    @inject(PrismaWorkflowSnapshotRepository) private readonly snapshotRepo: WorkflowSnapshotRepository,
+  ) {}
 
   async createRun(args: {
     runId: RunId;
@@ -96,6 +101,14 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
   }): Promise<void> {
     const now = new Date().toISOString();
     const testContext = args.executionOptions?.testContext;
+    const snapshotJson = args.workflowSnapshot ? JSON.stringify(args.workflowSnapshot) : null;
+    const workflowSnapshotId =
+      snapshotJson !== null
+        ? await this.snapshotRepo.findOrCreate({
+            workflowId: args.workflowId,
+            snapshotJson,
+          })
+        : null;
     await this.prisma.run.create({
       data: {
         runId: args.runId,
@@ -108,7 +121,8 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
         revision: 0,
         outputsByNodeJson: JSON.stringify({}),
         controlJson: args.control ? JSON.stringify(args.control) : null,
-        workflowSnapshotJson: args.workflowSnapshot ? JSON.stringify(args.workflowSnapshot) : null,
+        workflowSnapshotJson: snapshotJson,
+        workflowSnapshotId,
         policySnapshotJson: args.policySnapshot ? JSON.stringify(args.policySnapshot) : null,
         engineCountersJson: args.engineCounters ? JSON.stringify(args.engineCounters) : null,
         mutableStateJson: args.mutableState ? JSON.stringify(args.mutableState) : null,
@@ -290,6 +304,14 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
     const workItems = this.buildWorkItems(state, now);
     const instances = this.buildExecutionInstances(state);
     const projectionJson = this.buildProjectionSlotStatesJson(state);
+    const snapshotJson = state.workflowSnapshot ? JSON.stringify(state.workflowSnapshot) : null;
+    const workflowSnapshotId =
+      snapshotJson !== null
+        ? await this.snapshotRepo.findOrCreate({
+            workflowId: state.workflowId,
+            snapshotJson,
+          })
+        : null;
 
     await this.prisma.$transaction(async (tx) => {
       await tx.runWorkItem.deleteMany({ where: { runId: state.runId } });
@@ -389,7 +411,8 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
           parentJson: state.parent ? JSON.stringify(state.parent) : null,
           executionOptionsJson: state.executionOptions ? JSON.stringify(state.executionOptions) : null,
           controlJson: state.control ? JSON.stringify(state.control) : null,
-          workflowSnapshotJson: state.workflowSnapshot ? JSON.stringify(state.workflowSnapshot) : null,
+          workflowSnapshotJson: snapshotJson,
+          workflowSnapshotId,
           policySnapshotJson: state.policySnapshot ? JSON.stringify(state.policySnapshot) : null,
           engineCountersJson: state.engineCounters ? JSON.stringify(state.engineCounters) : null,
           mutableStateJson: state.mutableState ? JSON.stringify(state.mutableState) : null,

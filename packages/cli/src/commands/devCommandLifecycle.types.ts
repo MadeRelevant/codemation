@@ -4,7 +4,7 @@ import type { DevApiRuntimeServerHandle } from "../dev/DevApiRuntimeFactory";
 import type { NextHostEdgeSeed } from "../dev/NextHostEdgeSeedLoader";
 import type { CliPaths } from "../path/CliPathResolver";
 
-export type DevMode = "packaged-ui" | "watch-framework";
+export type DevMode = "packaged-ui" | "watch-framework" | "api-only";
 
 /** Mutable child process handles and stop coordination (shared across dev session helpers). */
 export type DevMutableProcessState = {

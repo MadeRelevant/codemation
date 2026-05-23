@@ -13,6 +13,7 @@ import type {
   WorkflowNodeDto,
   WorkflowSummary,
 } from "../contracts/WorkflowViewContracts";
+import { McpServerCatalog } from "../../mcp/McpServerCatalog";
 import type { DataMapper } from "./DataMapper";
 import { WorkflowPolicyUiPresentationFactory } from "./WorkflowPolicyUiPresentationFactory";
 
@@ -23,6 +24,8 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
     private readonly policyUi: WorkflowPolicyUiPresentationFactory,
     @inject(CoreTokens.WorkflowActivationPolicy)
     private readonly workflowActivationPolicy: WorkflowActivationPolicy,
+    @inject(McpServerCatalog)
+    private readonly mcpCatalog: McpServerCatalog,
   ) {}
 
   async map(workflow: WorkflowDefinition): Promise<WorkflowDto> {
@@ -223,7 +226,9 @@ export class WorkflowDefinitionMapper implements DataMapper<WorkflowDefinition, 
       if (!AgentConfigInspector.isAgentNodeConfig(node.config)) {
         continue;
       }
-      const descriptors = AgentConnectionNodeCollector.collect(node.id, node.config);
+      const descriptors = AgentConnectionNodeCollector.collect(node.id, node.config, (id) =>
+        this.mcpCatalog.get(id),
+      );
       byAgentNodeId.set(node.id, descriptors);
       const byChildId = new Map<string, AgentConnectionNodeDescriptor>();
       for (const descriptor of descriptors) {

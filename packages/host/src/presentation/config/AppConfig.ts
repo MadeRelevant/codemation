@@ -1,4 +1,9 @@
-import type { AnyCredentialType, CollectionDefinition, WorkflowDefinition } from "@codemation/core";
+import type {
+  AnyCredentialType,
+  CollectionDefinition,
+  McpServerDeclaration,
+  WorkflowDefinition,
+} from "@codemation/core";
 import type { CodemationContainerRegistration } from "../../bootstrap/CodemationContainerRegistration";
 import type { CodemationPlugin } from "./CodemationPlugin";
 import type {
@@ -32,6 +37,7 @@ export interface AppConfig {
   readonly collections: ReadonlyArray<CollectionDefinition>;
   readonly plugins: ReadonlyArray<CodemationPlugin>;
   readonly pluginLoadSummary?: ReadonlyArray<AppPluginLoadSummary>;
+  readonly mcpServers: ReadonlyArray<McpServerDeclaration>;
   readonly hasConfiguredCredentialSessionServiceRegistration: boolean;
   readonly log?: CodemationLogConfig;
   readonly engineExecutionLimits?: CodemationEngineExecutionLimitsConfig;

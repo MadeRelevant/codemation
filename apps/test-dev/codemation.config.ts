@@ -5,6 +5,7 @@ import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import { MailKeywordCatalog } from "./src/MailKeywordCatalog";
 import { OdooDemoSettings } from "./src/OdooDemoSettings";
+import gmailPlugin from "@codemation/core-nodes-gmail/codemation.plugin";
 
 loadDotenv({
   path: path.resolve(import.meta.dirname, ".env"),
@@ -98,6 +99,7 @@ const messagesCollection = defineCollection({
 });
 
 export const codemationHost = {
+  plugins: [gmailPlugin],
   collections: [messagesCollection],
   app: {
     auth: {
@@ -111,9 +113,8 @@ export const codemationHost = {
         },
       ],
     },
-    database: useRedisRuntime
-      ? { kind: "postgresql" as const, url: databaseUrl ?? "" }
-      : { kind: "sqlite" as const, sqliteFilePath: ".codemation/codemation.sqlite" },
+    // Database persistence is resolved from CODEMATION_DATABASE_URL (DSN). Defaults to
+    // sqlite://.codemation/codemation.sqlite when the env var is absent.
     scheduler: {
       kind: useRedisRuntime ? ("queue" as const) : ("inline" as const),
       queuePrefix: "codemation",

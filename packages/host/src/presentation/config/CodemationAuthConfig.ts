@@ -4,7 +4,7 @@ import type { BetterAuthOptions } from "better-auth";
  * Consumer-declared authentication profile for the hosted UI + HTTP API.
  * Social provider ids intentionally match Better Auth's provider ids so config stays 1:1 with the auth runtime.
  */
-export type CodemationAuthKind = "local" | "oauth" | "oidc";
+export type CodemationAuthKind = "local" | "oauth" | "oidc" | "managed";
 
 export type CodemationAuthOAuthProviderId = Extract<
   keyof NonNullable<BetterAuthOptions["socialProviders"]>,

@@ -5,6 +5,7 @@ import type { CredentialSession, HttpRequestSpec } from "../http/httpRequest.typ
 import { HttpRequestExecutor } from "../http/HttpRequestExecutor";
 import { HttpBodyBuilder } from "../http/HttpBodyBuilder";
 import { HttpUrlBuilder } from "../http/HttpUrlBuilder";
+import { SsrfGuard } from "../http/SsrfGuard";
 import type { HttpRequestDownloadMode } from "./httpRequest";
 import { HttpRequest } from "./httpRequest";
 
@@ -41,7 +42,12 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
     // Build the request (headers, body encoding, URL query merge) once,
     // then make a SINGLE fetch call and decide what to do with the response.
     // This avoids a double-fetch regression for auto-mode binary responses.
-    const executor = new HttpRequestExecutor(globalThis.fetch, new HttpBodyBuilder(), new HttpUrlBuilder());
+    const executor = new HttpRequestExecutor(
+      globalThis.fetch,
+      new HttpBodyBuilder(),
+      new HttpUrlBuilder(),
+      new SsrfGuard(ctx.config.allowedOutboundHosts),
+    );
     const { url: resolvedUrl, init } = await executor.buildRequest(spec, item);
 
     const response = await globalThis.fetch(resolvedUrl, init);
@@ -175,10 +181,11 @@ export class HttpRequestNode implements RunnableNode<HttpRequest<any, any>> {
   private async resolveCredential(
     ctx: NodeExecutionContext<HttpRequest<any, any>>,
   ): Promise<CredentialSession | undefined> {
-    const slotKey = ctx.config.args.credentialSlot;
-    if (!slotKey) {
+    const rawSlot = ctx.config.args.credentialSlot;
+    if (!rawSlot) {
       return undefined;
     }
+    const slotKey = typeof rawSlot === "string" ? rawSlot : rawSlot.name;
     try {
       return await ctx.getCredential<CredentialSession>(slotKey);
     } catch {

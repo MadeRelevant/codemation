@@ -2,6 +2,7 @@ import { inject, injectable } from "@codemation/core";
 import { HttpRequestJsonBodyReader } from "../HttpRequestJsonBodyReader";
 import type { CommandBus } from "../../../application/bus/CommandBus";
 import type { QueryBus } from "../../../application/bus/QueryBus";
+import type { SessionVerifier } from "../../../application/auth/SessionVerifier";
 import {
   CreateCredentialInstanceCommand,
   DeleteCredentialInstanceCommand,
@@ -23,6 +24,8 @@ import {
   ListCredentialTypesQuery,
 } from "../../../application/queries/CredentialQueryHandlers";
 import { ApplicationTokens } from "../../../applicationTokens";
+import type { PairingConfig } from "../../../pairing/pairing.types";
+import { PairingConfigToken } from "../../../pairing/PairingConfigToken";
 import { ServerHttpErrorResponseFactory } from "../ServerHttpErrorResponseFactory";
 import type { ServerHttpRouteParams } from "../ServerHttpRouteParams";
 
@@ -33,6 +36,10 @@ export class CredentialHttpRouteHandler {
     private readonly queryBus: QueryBus,
     @inject(ApplicationTokens.CommandBus)
     private readonly commandBus: CommandBus,
+    @inject(ApplicationTokens.SessionVerifier)
+    private readonly sessionVerifier: SessionVerifier,
+    @inject(PairingConfigToken, { isOptional: true })
+    private readonly pairingConfig: PairingConfig | null,
   ) {}
 
   async getCredentialTypes(): Promise<Response> {
@@ -62,6 +69,27 @@ export class CredentialHttpRouteHandler {
   async getCredentialInstance(request: Request, params: ServerHttpRouteParams): Promise<Response> {
     try {
       const withSecrets = new URL(request.url).searchParams.get("withSecrets") === "1";
+
+      if (withSecrets) {
+        // Ownership check: fail-closed.
+        // - If the session verifier returns null (unauthenticated), reject.
+        // - In managed-JWT mode the principal's workspaceId must match the
+        //   installation's own workspaceId (from PairingConfig).
+        // - In local-auth mode (pairingConfig absent) a valid non-null principal
+        //   is sufficient — no cross-workspace check is possible or needed.
+        const principal = await this.sessionVerifier.verify(request);
+        if (!principal) {
+          return Response.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (
+          principal.source === "managed-jwt" &&
+          this.pairingConfig !== null &&
+          principal.workspaceId !== this.pairingConfig.workspaceId
+        ) {
+          return Response.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
+
       const instance = withSecrets
         ? await this.queryBus.execute(new GetCredentialInstanceWithSecretsQuery(params.instanceId!))
         : await this.queryBus.execute(new GetCredentialInstanceQuery(params.instanceId!));

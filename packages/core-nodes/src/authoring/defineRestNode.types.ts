@@ -5,6 +5,7 @@ import type { HttpBodySpec } from "../http/httpRequest.types";
 import { HttpRequestExecutor } from "../http/HttpRequestExecutor";
 import { HttpBodyBuilder } from "../http/HttpBodyBuilder";
 import { HttpUrlBuilder } from "../http/HttpUrlBuilder";
+import { SsrfGuard } from "../http/SsrfGuard";
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -172,7 +173,12 @@ export function defineRestNode<
       const resolvedPath = substitutePath(options.api.path, pathParams);
       const resolvedUrl = `${options.api.baseUrl}${resolvedPath}`;
 
-      const executor = new HttpRequestExecutor(globalThis.fetch, new HttpBodyBuilder(), new HttpUrlBuilder());
+      const executor = new HttpRequestExecutor(
+        globalThis.fetch,
+        new HttpBodyBuilder(),
+        new HttpUrlBuilder(),
+        new SsrfGuard(),
+      );
       const result = await executor.execute(
         {
           url: resolvedUrl,

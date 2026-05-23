@@ -1,6 +1,7 @@
 import type { TypeToken } from "./index";
 import type { RunEventBus } from "../events/runEvents";
 import type { EngineExecutionLimitsPolicy } from "../policies/executionLimits/EngineExecutionLimitsPolicy";
+import type { AgentMcpIntegration } from "../contracts/agentMcpTypes";
 import type {
   ActivationIdFactory,
   BinaryStorage,
@@ -57,4 +58,10 @@ export const CoreTokens = {
   WorkflowActivationPolicy: Symbol.for(
     "codemation.core.WorkflowActivationPolicy",
   ) as TypeToken<WorkflowActivationPolicy>,
+  /**
+   * Optional. When registered, AIAgentNode uses it to resolve mcpServers bindings,
+   * validate scopes, open pool connections, and prepare the MCP ToolSet map.
+   * Not registered in the default core bootstrap — the host provides the implementation.
+   */
+  AgentMcpIntegration: Symbol.for("codemation.core.AgentMcpIntegration") as TypeToken<AgentMcpIntegration>,
 } as const;

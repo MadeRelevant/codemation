@@ -87,4 +87,52 @@ describe("LogLevelPolicy", () => {
     expect(policy.shouldEmit("debug", "codemation.engine.triggers")).toBe(true);
     expect(policy.shouldEmit("info", "codemation.other")).toBe(false);
   });
+
+  it("resolveMin returns info when VITEST is not set and no CODEMATION_LOG_LEVEL", () => {
+    const policy = new LogLevelPolicy();
+    // Neither VITEST nor CODEMATION_LOG_LEVEL set in this test (afterEach cleans up)
+    const level = policy.resolveMin();
+    expect(level).toBe("info");
+  });
+
+  it("applyCodemationLogConfig throws when parseRuleLevel gets invalid level", () => {
+    const policy = new LogLevelPolicy();
+    expect(() => policy.applyCodemationLogConfig({ filter: "*", level: "verbose" as never })).toThrow(
+      /Invalid codemation.config log level/,
+    );
+  });
+
+  it("shouldEmit returns false when min is silent", () => {
+    const policy = new LogLevelPolicy();
+    policy.applyCodemationLogConfig({ filter: "*", level: "silent" });
+    expect(policy.shouldEmit("error", "any.namespace")).toBe(false);
+  });
+
+  it("applyCodemationLogConfig clears rules when called with undefined", () => {
+    const policy = new LogLevelPolicy();
+    policy.applyCodemationLogConfig({ filter: "*", level: "error" });
+    policy.applyCodemationLogConfig(undefined);
+    // After clearing, env-level rules apply
+    process.env.CODEMATION_LOG_LEVEL = "info";
+    expect(policy.shouldEmit("info", "any")).toBe(true);
+  });
+
+  it("applyCodemationLogConfig is a no-op when rules array is empty", () => {
+    const policy = new LogLevelPolicy();
+    // Passing { rules: [] } hits the rawRules.length === 0 early return
+    policy.applyCodemationLogConfig({ rules: [] } as never);
+    // No rules compiled — falls back to env-level
+    process.env.CODEMATION_LOG_LEVEL = "warn";
+    expect(policy.shouldEmit("info", "any")).toBe(false);
+    expect(policy.shouldEmit("warn", "any")).toBe(true);
+  });
+
+  it("applyCodemationLogConfig throws when rule filter is empty array", () => {
+    const policy = new LogLevelPolicy();
+    expect(() =>
+      policy.applyCodemationLogConfig({
+        rules: [{ filter: [], level: "info" }],
+      } as never),
+    ).toThrow(/at least one pattern/);
+  });
 });

@@ -1,13 +1,50 @@
 import { ApplicationRequestError } from "../../application/ApplicationRequestError";
 
+/**
+ * Shape of the JSON body returned on an unhandled 500. The canvas (and any other client)
+ * reads `message` + optional `stack` + optional `cause` to surface a copy/pastable error
+ * dialog. Generic "Internal server error" with no detail makes operator triage impossible
+ * — this contract preserves the diagnostic information the CLI logs anyway.
+ */
+export type ServerHttpUnhandledErrorPayload = Readonly<{
+  error: "Internal server error";
+  message: string;
+  name?: string;
+  stack?: string;
+  cause?: string;
+}>;
+
 export class ServerHttpErrorResponseFactory {
   static fromUnknown(error: unknown): Response {
     if (error instanceof ApplicationRequestError) {
       return Response.json(error.payload, { status: error.status });
     }
     this.logUnexpectedError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json(this.toUnhandledPayload(error), { status: 500 });
+  }
+
+  private static toUnhandledPayload(error: unknown): ServerHttpUnhandledErrorPayload {
+    if (error instanceof Error) {
+      return {
+        error: "Internal server error",
+        message: error.message || `${error.name}: <no message>`,
+        name: error.name,
+        stack: error.stack,
+        cause: this.formatCauseValue(error),
+      };
+    }
+    return { error: "Internal server error", message: String(error) };
+  }
+
+  private static formatCauseValue(error: Error): string | undefined {
+    if (!("cause" in error) || !error.cause) {
+      return undefined;
+    }
+    const cause = error.cause;
+    if (cause instanceof Error) {
+      return cause.stack ?? `${cause.name}: ${cause.message}`;
+    }
+    return String(cause);
   }
 
   private static logUnexpectedError(error: unknown): void {

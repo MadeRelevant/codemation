@@ -45,12 +45,13 @@ export class WorkerRuntime {
   async start(queues: ReadonlyArray<string>): Promise<WorkerRuntimeHandle> {
     if (this.appConfig.env.CODEMATION_SKIP_STARTUP_MIGRATIONS !== "true") {
       await this.databaseMigrations.migrate();
-      await this.collectionSchemaSyncerHolder.syncIfAvailable();
     }
+    await this.collectionSchemaSyncerHolder.syncIfAvailable();
     await this.runtimeWorkflowActivationPolicy.hydrateFromRepository(this.workflowActivationRepository);
     const workflows = [...this.workflowRepository.list()];
     await this.engine.start(workflows);
     await this.runEventBusTelemetryReporter.start();
+    await this.lifecycle.startWorkerSubscribers();
     this.workflowRunRetentionPruneScheduler.start();
     const worker = this.scheduler.createWorker({
       queues,

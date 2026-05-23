@@ -16,18 +16,21 @@ type ProxyRuntimeTarget = Readonly<{
 
 type BuildStatus = "idle" | "building" | "errored";
 
+interface WorkflowClientState {
+  socket: WebSocket;
+  token: string | null;
+  childSocket: WebSocket | null;
+  subscribedRoomIds: Set<string>;
+}
+
 export class CliDevProxyServer {
   private readonly proxy = httpProxy.createProxyServer({ ws: true, xfwd: true });
   private readonly devClients = new Set<WebSocket>();
   private readonly devWss = new WebSocketServer({ noServer: true });
-  private readonly workflowClients = new Set<WebSocket>();
   private readonly workflowWss = new WebSocketServer({ noServer: true });
-  private readonly roomIdsByWorkflowClient = new Map<WebSocket, Set<string>>();
-  private readonly workflowClientCountByRoomId = new Map<string, number>();
+  private readonly workflowClientStates = new Map<WebSocket, WorkflowClientState>();
   private activeRuntime: ProxyRuntimeTarget | null = null;
   private activeBuildStatus: BuildStatus = "idle";
-  private childWorkflowSocket: WebSocket | null = null;
-  private childReconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private server: HttpServer | null = null;
   private uiProxyTarget: string | null = null;
 
@@ -69,8 +72,6 @@ export class CliDevProxyServer {
   }
 
   async stop(): Promise<void> {
-    this.cancelChildReconnect();
-    await this.disconnectChildWorkflowSocket();
     this.activeRuntime = null;
     const server = this.server;
     this.server = null;
@@ -78,12 +79,11 @@ export class CliDevProxyServer {
       client.terminate();
     }
     this.devClients.clear();
-    for (const client of this.workflowClients) {
-      client.terminate();
+    for (const [clientSocket, state] of this.workflowClientStates) {
+      this.terminateClientState(state);
+      clientSocket.terminate();
     }
-    this.workflowClients.clear();
-    this.roomIdsByWorkflowClient.clear();
-    this.workflowClientCountByRoomId.clear();
+    this.workflowClientStates.clear();
     if (!server) {
       return;
     }
@@ -103,15 +103,29 @@ export class CliDevProxyServer {
   }
 
   async activateRuntime(target: ProxyRuntimeTarget | null): Promise<void> {
-    this.cancelChildReconnect();
     this.activeRuntime = target;
-    await this.connectChildWorkflowSocket();
+    // Close all existing per-client upstreams so they reconnect to the new runtime.
+    // Closing with code 4401 causes the canvas to reconnect with a fresh token.
+    for (const [clientSocket, state] of this.workflowClientStates) {
+      this.terminateClientState(state);
+      if (clientSocket.readyState === WebSocket.OPEN) {
+        clientSocket.close(4401, "Runtime restarted");
+      }
+    }
+    this.workflowClientStates.clear();
   }
 
   setBuildStatus(status: BuildStatus): void {
     this.activeBuildStatus = status;
-    if (status === "idle" && !this.childWorkflowSocket) {
-      this.scheduleChildReconnect();
+    if (status === "building") {
+      // Close upstream child sockets during rebuilds; clients will reconnect when ready.
+      for (const [clientSocket, state] of this.workflowClientStates) {
+        this.terminateClientState(state);
+        if (clientSocket.readyState === WebSocket.OPEN) {
+          clientSocket.close(4401, "Build started");
+        }
+      }
+      this.workflowClientStates.clear();
     }
   }
 
@@ -158,8 +172,8 @@ export class CliDevProxyServer {
   }
 
   private bindWorkflowWebSocket(): void {
-    this.workflowWss.on("connection", (socket) => {
-      void this.connectWorkflowClient(socket);
+    this.workflowWss.on("connection", (socket, request) => {
+      void this.connectWorkflowClient(socket, request);
     });
   }
 
@@ -178,10 +192,25 @@ export class CliDevProxyServer {
       );
       return;
     }
+    // `/api/lucide-icon/*` lives in next-host's app router (Next.js serves icon SVGs from
+    // lucide-static via a server-side route to avoid bundling 1,713 icon files into the
+    // client). In production `next start` serves both UI and these routes directly. In dev,
+    // route them to the Next UI rather than the Hono runtime (which has no such handler).
+    if (pathname.startsWith("/api/lucide-icon/") && uiProxyTarget) {
+      this.proxy.web(req, res, { target: uiProxyTarget.replace(/\/$/, "") });
+      return;
+    }
+    // `/api/si-icon/*` is served by the Next.js app router (reads simple-icons SVGs
+    // from disk server-side to avoid bundling the 5 MB barrel into the client).
+    if (pathname.startsWith("/api/si-icon/") && uiProxyTarget) {
+      this.proxy.web(req, res, { target: uiProxyTarget.replace(/\/$/, "") });
+      return;
+    }
     // Host-owned `/api/auth/*` is served by the disposable Hono runtime (same DB as other APIs).
     // Do not route it to the Next UI — that used to cause gateway → Next → gateway loops when Next
     // proxied auth back through CODEMATION_RUNTIME_DEV_URL.
-    if (pathname.startsWith("/api/")) {
+    // `/internal/*` is similarly runtime-owned (workspace-mcp HMAC endpoints); never forward to the UI.
+    if (pathname.startsWith("/api/") || pathname.startsWith("/internal/")) {
       const runtimeTarget = this.activeRuntime;
       if (pathname === "/api/dev/bootstrap-summary" && runtimeTarget) {
         this.proxy.web(req, res, {
@@ -242,6 +271,14 @@ export class CliDevProxyServer {
     }
   }
 
+  private extractToken(url: string | undefined): string | null {
+    try {
+      return new URL(url ?? "", "http://127.0.0.1").searchParams.get("token");
+    } catch {
+      return null;
+    }
+  }
+
   private extractOccupyingPids(listenerDescription: string): ReadonlyArray<number> {
     const seen = new Set<number>();
     const re = /pid=(\d+)/g;
@@ -290,15 +327,25 @@ export class CliDevProxyServer {
   private broadcastWorkflowLifecycleToSubscribedRooms(
     createMessage: (roomId: string) => Readonly<Record<string, unknown>>,
   ): void {
-    for (const roomId of this.workflowClientCountByRoomId.keys()) {
-      this.broadcastWorkflowTextToRoom(roomId, JSON.stringify(createMessage(roomId)));
+    for (const [clientSocket, state] of this.workflowClientStates) {
+      if (clientSocket.readyState !== WebSocket.OPEN) {
+        continue;
+      }
+      for (const roomId of state.subscribedRoomIds) {
+        clientSocket.send(JSON.stringify(createMessage(roomId)));
+      }
     }
   }
 
-  private async connectWorkflowClient(socket: WebSocket): Promise<void> {
-    this.workflowClients.add(socket);
-    this.roomIdsByWorkflowClient.set(socket, new Set());
-    socket.send(JSON.stringify({ kind: "ready" }));
+  private async connectWorkflowClient(socket: WebSocket, request: IncomingMessage): Promise<void> {
+    const token = this.extractToken(request.url);
+    const state: WorkflowClientState = {
+      socket,
+      token,
+      childSocket: null,
+      subscribedRoomIds: new Set(),
+    };
+    this.workflowClientStates.set(socket, state);
     socket.on("message", (rawData) => {
       void this.handleWorkflowClientMessage(socket, rawData);
     });
@@ -308,40 +355,58 @@ export class CliDevProxyServer {
     socket.on("error", () => {
       this.disconnectWorkflowClient(socket);
     });
+
+    const runtime = this.activeRuntime;
+    if (!runtime || this.activeBuildStatus === "building") {
+      // No upstream yet — still signal ready so the client surfaces its
+      // realtime infra. Subscriptions will be replayed once activateRuntime
+      // opens per-client child sockets.
+      socket.send(JSON.stringify({ kind: "ready" }));
+      return;
+    }
+    // Open the upstream BEFORE signaling ready. Otherwise the client races
+    // the proxy: a subscribe sent immediately after ready hits an empty
+    // childSocket and gets silently dropped — meaning short-lived workflow
+    // runs (~150ms) finish before the proxy ever reads their events. See
+    // e2e CLI bug #3 finding (control-plane).
+    await this.openPerClientChildSocket(state, runtime.workflowWebSocketPort);
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ kind: "ready" }));
+    }
   }
 
   private disconnectWorkflowClient(socket: WebSocket): void {
-    const roomIds = this.roomIdsByWorkflowClient.get(socket);
-    if (roomIds) {
-      for (const roomId of roomIds) {
-        this.releaseWorkflowRoom(roomId);
-      }
+    const state = this.workflowClientStates.get(socket);
+    if (state) {
+      this.terminateClientState(state);
     }
-    this.roomIdsByWorkflowClient.delete(socket);
-    this.workflowClients.delete(socket);
+    this.workflowClientStates.delete(socket);
+  }
+
+  private terminateClientState(state: WorkflowClientState): void {
+    if (state.childSocket) {
+      state.childSocket.terminate();
+      state.childSocket = null;
+    }
   }
 
   private async handleWorkflowClientMessage(socket: WebSocket, rawData: unknown): Promise<void> {
     try {
       const message = this.parseWorkflowClientMessage(rawData);
+      const state = this.workflowClientStates.get(socket);
+      if (!state) {
+        return;
+      }
       if (message.kind === "subscribe") {
-        const roomIds = this.roomIdsByWorkflowClient.get(socket);
-        if (!roomIds) {
-          return;
-        }
-        if (!roomIds.has(message.roomId)) {
-          roomIds.add(message.roomId);
-          this.retainWorkflowRoom(message.roomId);
+        if (!state.subscribedRoomIds.has(message.roomId)) {
+          state.subscribedRoomIds.add(message.roomId);
+          this.sendToChildSocket(state, { kind: "subscribe", roomId: message.roomId });
         }
         socket.send(JSON.stringify({ kind: "subscribed", roomId: message.roomId }));
         return;
       }
-      const roomIds = this.roomIdsByWorkflowClient.get(socket);
-      if (!roomIds) {
-        return;
-      }
-      if (roomIds.delete(message.roomId)) {
-        this.releaseWorkflowRoom(message.roomId);
+      if (state.subscribedRoomIds.delete(message.roomId)) {
+        this.sendToChildSocket(state, { kind: "unsubscribe", roomId: message.roomId });
       }
       socket.send(JSON.stringify({ kind: "unsubscribed", roomId: message.roomId }));
     } catch (error) {
@@ -364,92 +429,86 @@ export class CliDevProxyServer {
     throw new Error("Unsupported websocket client message.");
   }
 
-  private retainWorkflowRoom(roomId: string): void {
-    const nextCount = (this.workflowClientCountByRoomId.get(roomId) ?? 0) + 1;
-    this.workflowClientCountByRoomId.set(roomId, nextCount);
-    if (nextCount === 1) {
-      this.sendToChildWorkflowSocket({ kind: "subscribe", roomId });
-    }
-  }
-
-  private releaseWorkflowRoom(roomId: string): void {
-    const currentCount = this.workflowClientCountByRoomId.get(roomId) ?? 0;
-    if (currentCount <= 1) {
-      this.workflowClientCountByRoomId.delete(roomId);
-      this.sendToChildWorkflowSocket({ kind: "unsubscribe", roomId });
+  private sendToChildSocket(state: WorkflowClientState, message: WorkflowClientMessage): void {
+    if (!state.childSocket || state.childSocket.readyState !== WebSocket.OPEN) {
       return;
     }
-    this.workflowClientCountByRoomId.set(roomId, currentCount - 1);
+    state.childSocket.send(JSON.stringify(message));
   }
 
-  private sendToChildWorkflowSocket(message: WorkflowClientMessage): void {
-    if (!this.childWorkflowSocket || this.childWorkflowSocket.readyState !== WebSocket.OPEN) {
-      return;
+  private buildChildUrl(workflowWebSocketPort: number, token: string | null): string {
+    const base = `ws://127.0.0.1:${workflowWebSocketPort}${ApiPaths.workflowWebsocket()}`;
+    if (!token) {
+      return base;
     }
-    this.childWorkflowSocket.send(JSON.stringify(message));
+    const url = new URL(base);
+    url.searchParams.set("token", token);
+    return url.toString();
   }
 
-  private async connectChildWorkflowSocket(): Promise<void> {
-    await this.disconnectChildWorkflowSocket();
-    if (!this.activeRuntime || this.activeBuildStatus === "building") {
-      return;
-    }
-    let childWorkflowSocket: WebSocket;
+  private async openPerClientChildSocket(state: WorkflowClientState, workflowWebSocketPort: number): Promise<void> {
+    const childUrl = this.buildChildUrl(workflowWebSocketPort, state.token);
+    let childSocket: WebSocket;
     try {
-      childWorkflowSocket = await this.openChildWorkflowSocket(this.activeRuntime.workflowWebSocketPort);
+      childSocket = await this.openChildSocket(childUrl);
     } catch {
-      this.scheduleChildReconnect();
+      // Runtime not ready or auth rejected — close client with 4401 so canvas reconnects.
+      if (state.socket.readyState === WebSocket.OPEN) {
+        state.socket.close(4401, "Upstream unavailable");
+      }
+      this.workflowClientStates.delete(state.socket);
       return;
     }
-    this.childWorkflowSocket = childWorkflowSocket;
-    childWorkflowSocket.on("message", (rawData) => {
-      this.handleChildWorkflowSocketMessage(rawData);
+    // Check that the client is still connected after the async open.
+    if (!this.workflowClientStates.has(state.socket)) {
+      childSocket.terminate();
+      return;
+    }
+    state.childSocket = childSocket;
+    childSocket.on("message", (rawData) => {
+      this.handleChildSocketMessage(state, rawData);
     });
-    const onUnexpectedClose = () => {
-      if (this.childWorkflowSocket !== childWorkflowSocket) return;
-      this.childWorkflowSocket = null;
-      // Schedule reconnect — only if the runtime is still the same one that opened this socket.
-      this.scheduleChildReconnect();
+    const onChildClose = () => {
+      if (state.childSocket !== childSocket) return;
+      state.childSocket = null;
+      // Close client so the canvas reconnects with a fresh token.
+      if (state.socket.readyState === WebSocket.OPEN) {
+        state.socket.close(4401, "Upstream closed");
+      }
+      this.workflowClientStates.delete(state.socket);
     };
-    childWorkflowSocket.on("close", onUnexpectedClose);
-    childWorkflowSocket.on("error", onUnexpectedClose);
-    for (const roomId of this.workflowClientCountByRoomId.keys()) {
-      this.sendToChildWorkflowSocket({ kind: "subscribe", roomId });
+    childSocket.on("close", onChildClose);
+    childSocket.on("error", onChildClose);
+    // Re-issue subscriptions if the client already subscribed before the child was ready.
+    for (const roomId of state.subscribedRoomIds) {
+      this.sendToChildSocket(state, { kind: "subscribe", roomId });
     }
   }
 
-  private openChildWorkflowSocket(workflowWebSocketPort: number): Promise<WebSocket> {
+  private openChildSocket(url: string): Promise<WebSocket> {
     return new Promise<WebSocket>((resolve, reject) => {
-      const childWorkflowUrl = `ws://127.0.0.1:${workflowWebSocketPort}${ApiPaths.workflowWebsocket()}`;
-      const socket = new WebSocket(childWorkflowUrl);
+      const socket = new WebSocket(url);
       socket.once("open", () => {
         resolve(socket);
       });
       socket.once("error", (error) => {
-        socket.close();
+        socket.terminate();
         reject(error);
       });
-    });
-  }
-
-  private async disconnectChildWorkflowSocket(): Promise<void> {
-    this.cancelChildReconnect();
-    if (!this.childWorkflowSocket) {
-      return;
-    }
-    const socket = this.childWorkflowSocket;
-    this.childWorkflowSocket = null;
-    await new Promise<void>((resolve) => {
-      socket.once("close", () => {
-        resolve();
+      // ws emits "unexpected-response" for non-101 HTTP responses (e.g. 401).
+      socket.once("unexpected-response", (_req, response) => {
+        socket.terminate();
+        reject(new Error(`Upstream WS upgrade failed: ${response.statusCode}`));
       });
-      socket.close();
     });
   }
 
-  private handleChildWorkflowSocketMessage(rawData: unknown): void {
+  private handleChildSocketMessage(state: WorkflowClientState, rawData: unknown): void {
     const text = typeof rawData === "string" ? rawData : Buffer.isBuffer(rawData) ? rawData.toString("utf8") : "";
     if (text.trim().length === 0) {
+      return;
+    }
+    if (state.socket.readyState !== WebSocket.OPEN) {
       return;
     }
     try {
@@ -461,11 +520,15 @@ export class CliDevProxyServer {
         workflowId?: unknown;
       }>;
       if (message.kind === "event" && typeof message.event?.workflowId === "string") {
-        this.broadcastWorkflowTextToRoom(message.event.workflowId, text);
+        if (state.subscribedRoomIds.has(message.event.workflowId)) {
+          state.socket.send(text);
+        }
         return;
       }
       if (message.kind === "telemetryEvent" && typeof message.runId === "string") {
-        this.broadcastWorkflowTextToRoom(`run:${message.runId}`, text);
+        if (state.subscribedRoomIds.has(`run:${message.runId}`)) {
+          state.socket.send(text);
+        }
         return;
       }
       if (
@@ -475,47 +538,16 @@ export class CliDevProxyServer {
           message.kind === "devBuildFailed") &&
         typeof message.workflowId === "string"
       ) {
-        this.broadcastWorkflowTextToRoom(message.workflowId, text);
+        if (state.subscribedRoomIds.has(message.workflowId)) {
+          state.socket.send(text);
+        }
         return;
       }
       if (message.kind === "error" && typeof message.message === "string") {
-        this.broadcastWorkflowTextToAll(text);
+        state.socket.send(text);
       }
     } catch {
       // Ignore malformed runtime workflow websocket messages.
-    }
-  }
-
-  private scheduleChildReconnect(): void {
-    if (this.childReconnectTimeoutId !== null || !this.activeRuntime || this.activeBuildStatus === "building") {
-      return;
-    }
-    this.childReconnectTimeoutId = setTimeout(() => {
-      this.childReconnectTimeoutId = null;
-      void this.connectChildWorkflowSocket();
-    }, 1000);
-  }
-
-  private cancelChildReconnect(): void {
-    if (this.childReconnectTimeoutId === null) return;
-    clearTimeout(this.childReconnectTimeoutId);
-    this.childReconnectTimeoutId = null;
-  }
-
-  private broadcastWorkflowTextToRoom(roomId: string, text: string): void {
-    for (const [client, roomIds] of this.roomIdsByWorkflowClient) {
-      if (client.readyState !== WebSocket.OPEN || !roomIds.has(roomId)) {
-        continue;
-      }
-      client.send(text);
-    }
-  }
-
-  private broadcastWorkflowTextToAll(text: string): void {
-    for (const client of this.workflowClients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(text);
-      }
     }
   }
 }

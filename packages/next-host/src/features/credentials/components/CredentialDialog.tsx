@@ -6,11 +6,10 @@ import { useEffect, useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
-import PlusCircle from "lucide-react/dist/esm/icons/plus-circle";
 import Save from "lucide-react/dist/esm/icons/save";
 import X from "lucide-react/dist/esm/icons/x";
-import { Button } from "@/components/ui/button";
-import { CodemationDialog } from "@/components/CodemationDialog";
+import { Button } from "@codemation/ui";
+import { CodemationDialog } from "@codemation/ui";
 import type { CredentialInstanceDto } from "@codemation/canvas";
 import type { FormSourceKind } from "../lib/credentialFormTypes";
 import { isCredentialFieldLockedByEnv } from "../lib/credentialFieldHelpers";
@@ -200,7 +199,6 @@ export function CredentialDialog({
           oauth2RedirectUri={oauth2RedirectUri}
           isLoadingOauth2RedirectUri={isLoadingOauth2RedirectUri}
           editingInstance={editingInstance}
-          canSubmit={canSubmit}
           onConnectOAuth2={onConnectOAuth2}
           onDisconnectOAuth2={onDisconnectOAuth2}
         />
@@ -223,7 +221,7 @@ export function CredentialDialog({
       <CodemationDialog.Actions>
         <Button type="button" variant="outline" className="gap-1.5" onClick={onClose}>
           <X className="size-4 shrink-0" aria-hidden />
-          Cancel
+          Close
         </Button>
         <Button
           type="button"
@@ -246,13 +244,9 @@ export function CredentialDialog({
           onClick={handleSubmit}
         >
           <span className="inline-flex items-center gap-1.5">
-            {isEdit ? (
-              <Save className="size-4 shrink-0" aria-hidden />
-            ) : (
-              <PlusCircle className="size-4 shrink-0" aria-hidden />
-            )}
+            <Save className="size-4 shrink-0" aria-hidden />
             <span className="leading-none">
-              {isSubmitting ? (isEdit ? "Saving…" : "Creating…") : isEdit ? "Save" : "Create"}
+              {isSubmitting ? (isEdit ? "Saving…" : "Creating…") : "Save"}
             </span>
           </span>
         </Button>

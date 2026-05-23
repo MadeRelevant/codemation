@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@codemation/ui";
+import { Input } from "@codemation/ui";
+import { Label } from "@codemation/ui";
 
 export function WorkflowJsonEditorBinaryUploadRow(
   args: Readonly<{

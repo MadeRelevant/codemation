@@ -41,8 +41,11 @@ export class FrontendRuntime {
   async start(args?: Readonly<{ skipPresentationServers?: boolean }>): Promise<void> {
     if (this.appConfig.env.CODEMATION_SKIP_STARTUP_MIGRATIONS !== "true") {
       await this.databaseMigrations.migrate();
-      await this.collectionSchemaSyncerHolder.syncIfAvailable();
     }
+    // Collection schema sync is gated separately: the CLI runs Prisma migrations ahead of dev startup
+    // and sets CODEMATION_SKIP_STARTUP_MIGRATIONS=true, but it cannot run consumer-defined collection
+    // sync because consumer collections are only known to the runtime via codemation.config.ts.
+    await this.collectionSchemaSyncerHolder.syncIfAvailable();
     await this.runtimeWorkflowActivationPolicy.hydrateFromRepository(this.workflowActivationRepository);
     if (args?.skipPresentationServers === true) {
       return;

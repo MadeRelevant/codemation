@@ -30,3 +30,24 @@ test("next static assets include well-known discovery paths", () => {
     true,
   );
 });
+
+test("framework auth route matches /api/auth prefix", () => {
+  assert.equal(CodemationNextHostMiddlewarePathRules.isFrameworkAuthRoute("/api/auth/signin"), true);
+  assert.equal(CodemationNextHostMiddlewarePathRules.isFrameworkAuthRoute("/api/auth"), true);
+  assert.equal(CodemationNextHostMiddlewarePathRules.isFrameworkAuthRoute("/api/workflows"), false);
+});
+
+test("public UI routes include /login, /login/, and /invite/ prefixes", () => {
+  assert.equal(CodemationNextHostMiddlewarePathRules.isPublicUiRoute("/login"), true);
+  assert.equal(CodemationNextHostMiddlewarePathRules.isPublicUiRoute("/login/sso"), true);
+  assert.equal(CodemationNextHostMiddlewarePathRules.isPublicUiRoute("/invite/abc123"), true);
+  assert.equal(CodemationNextHostMiddlewarePathRules.isPublicUiRoute("/dashboard"), false);
+  assert.equal(CodemationNextHostMiddlewarePathRules.isPublicUiRoute("/"), false);
+});
+
+test("next static assets include _next, favicon, and public prefixes", () => {
+  assert.equal(CodemationNextHostMiddlewarePathRules.isNextStaticAsset("/_next/static/chunks/main.js"), true);
+  assert.equal(CodemationNextHostMiddlewarePathRules.isNextStaticAsset("/favicon.ico"), true);
+  assert.equal(CodemationNextHostMiddlewarePathRules.isNextStaticAsset("/public/logo.png"), true);
+  assert.equal(CodemationNextHostMiddlewarePathRules.isNextStaticAsset("/dashboard"), false);
+});

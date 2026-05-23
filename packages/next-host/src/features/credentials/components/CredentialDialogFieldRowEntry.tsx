@@ -3,9 +3,7 @@
 import type { CredentialFieldSchema } from "@codemation/core/browser";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Input, Label, Textarea } from "@codemation/ui";
 import { CredentialEnvFieldStatusRow } from "./CredentialEnvFieldStatusRow";
 import { CredentialFieldCopyButton } from "./CredentialFieldCopyButton";
 import { isCredentialFieldLockedByEnv, maskedDisplayValue } from "../lib/credentialFieldHelpers";

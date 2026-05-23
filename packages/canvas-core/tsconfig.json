@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@codemation/canvas-core": ["./src/index.ts"],
+      "@codemation/core": ["../core/src/index.ts"],
+      "@codemation/core/browser": ["../core/src/browser.ts"],
+      "@codemation/core/bootstrap": ["../core/src/bootstrap/index.ts"],
+      "@codemation/core/testing": ["../core/src/testing.ts"],
+      "@codemation/host": ["../host/src/index.ts"],
+      "@codemation/host/client": ["../host/src/client.ts"],
+      "@codemation/host/dto": ["../host/src/dto.ts"],
+      "@codemation/host/mapping": ["../host/src/mapping.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts"]
+}

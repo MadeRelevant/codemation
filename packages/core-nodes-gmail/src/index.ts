@@ -1,4 +1,3 @@
-export * from "./contracts/GmailCredentialTypes";
 export * from "./contracts/GmailNodesOptions";
 export * from "./contracts/GmailOAuthCredential";
 export * from "./contracts/GmailSession";

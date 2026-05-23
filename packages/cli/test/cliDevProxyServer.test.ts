@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createServer, type Server as HttpServer } from "node:http";
+import { createServer, type Server as HttpServer, type IncomingMessage } from "node:http";
 import { AddressInfo } from "node:net";
 import { afterEach, test } from "vitest";
 import WebSocket, { WebSocketServer } from "ws";
@@ -24,6 +24,8 @@ class StubRuntimeServer {
   private workflowSocketServer: WebSocketServer | null = null;
   private _httpPort = 0;
   private _workflowPort = 0;
+  readonly upgradeUrls: string[] = [];
+  readonly connectedSockets: WebSocket[] = [];
 
   constructor(private readonly responseBody: string) {}
 
@@ -45,7 +47,9 @@ class StubRuntimeServer {
       server: this.websocketServer,
       path: ApiPaths.workflowWebsocket(),
     });
-    this.workflowSocketServer.on("connection", (socket: WebSocket) => {
+    this.workflowSocketServer.on("connection", (socket: WebSocket, request: IncomingMessage) => {
+      this.upgradeUrls.push(request.url ?? "");
+      this.connectedSockets.push(socket);
       socket.send(JSON.stringify({ kind: "ready" }));
     });
     await Promise.all([this.listenServer(this.apiServer), this.listenServer(this.websocketServer)]);
@@ -102,6 +106,45 @@ class StubRuntimeServer {
         resolve();
       });
     });
+  }
+}
+
+class StubUnauthorizedRuntimeServer {
+  private websocketServer: HttpServer | null = null;
+  private _workflowPort = 0;
+
+  get workflowPort(): number {
+    return this._workflowPort;
+  }
+
+  async start(): Promise<void> {
+    this.websocketServer = createServer();
+    this.websocketServer.on("upgrade", (_request, socket) => {
+      socket.write("HTTP/1.1 401 Unauthorized\r\ncontent-length: 0\r\n\r\n");
+      socket.destroy();
+    });
+    await new Promise<void>((resolve, reject) => {
+      this.websocketServer!.once("error", reject);
+      this.websocketServer!.listen(0, "127.0.0.1", () => resolve());
+    });
+    this._workflowPort = (this.websocketServer.address() as AddressInfo).port;
+  }
+
+  async stop(): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      if (!this.websocketServer) {
+        resolve();
+        return;
+      }
+      this.websocketServer.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+    this.websocketServer = null;
   }
 }
 
@@ -187,6 +230,7 @@ class ProxyHarness {
 }
 
 const activeRuntimes: StubRuntimeServer[] = [];
+const activeUnauthorizedRuntimes: StubUnauthorizedRuntimeServer[] = [];
 const activeHarnesses: ProxyHarness[] = [];
 const activeUiServers: StubUiServer[] = [];
 
@@ -195,6 +239,8 @@ afterEach(async () => {
   activeHarnesses.length = 0;
   await Promise.all(activeRuntimes.map(async (runtime) => await runtime.stop()));
   activeRuntimes.length = 0;
+  await Promise.all(activeUnauthorizedRuntimes.map(async (runtime) => await runtime.stop()));
+  activeUnauthorizedRuntimes.length = 0;
   await Promise.all(activeUiServers.map(async (ui) => await ui.stop()));
   activeUiServers.length = 0;
 });
@@ -402,6 +448,15 @@ test("workflow socket rejects unsupported client messages with an error payload"
   await harness.start();
   assert.ok(harness.proxyServer);
 
+  // Must activate a runtime — without one, the proxy closes the client socket immediately (4401).
+  const runtime = new StubRuntimeServer("ws-error-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
   const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
   const client = new WebSocket(workflowUrl);
   const payloads: string[] = [];
@@ -464,4 +519,494 @@ test("routes /api/auth/* to the disposable runtime when the UI proxy is configur
   const response = await harness.fetchApi("/api/auth/session");
   assert.equal(response.status, 200);
   assert.equal(await response.text(), "auth-from-runtime");
+});
+
+test("routes /internal/* to the disposable runtime when the UI proxy is configured", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const ui = new StubUiServer();
+  activeUiServers.push(ui);
+  await ui.start();
+  harness.proxyServer.setUiProxyTarget(`http://127.0.0.1:${ui.port}`);
+
+  const runtime = new StubRuntimeServer("credentials-from-runtime");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const response = await harness.fetchApi("/internal/credentials");
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "credentials-from-runtime");
+});
+
+test("GET /internal/* returns 503 while the runtime is building", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("credentials-from-runtime");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+  harness.proxyServer.setBuildStatus("building");
+
+  const response = await harness.fetchApi("/internal/credentials");
+  assert.equal(response.status, 503);
+});
+
+test("workflow WS: client with token causes upstream child socket to include the same token", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("token-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const token = "test-jwt-abc123";
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}?token=${token}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  // The upstream should have received an upgrade request with the same token.
+  await waitFor(() => runtime.upgradeUrls.length > 0);
+  assert.ok(runtime.upgradeUrls.some((url) => url.includes(`token=${token}`)));
+
+  client.close();
+  await new Promise<void>((resolve) => client.once("close", resolve));
+});
+
+test("workflow WS: client without token opens upstream without a token", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("no-token-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.upgradeUrls.length > 0);
+  // Upstream URL should not contain a token parameter.
+  assert.ok(runtime.upgradeUrls.every((url) => !url.includes("token=")));
+
+  client.close();
+  await new Promise<void>((resolve) => client.once("close", resolve));
+});
+
+test("workflow WS: upstream 401 causes client to receive close code 4401", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const unauthorizedRuntime = new StubUnauthorizedRuntimeServer();
+  activeUnauthorizedRuntimes.push(unauthorizedRuntime);
+  await unauthorizedRuntime.start();
+
+  // Use a fake httpPort (the client 4401 test doesn't need HTTP routing).
+  await harness.proxyServer.activateRuntime({
+    httpPort: 1,
+    workflowWebSocketPort: unauthorizedRuntime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}?token=bad-token`;
+  const client = new WebSocket(workflowUrl);
+  let receivedCloseCode = 0;
+  client.on("close", (code) => {
+    receivedCloseCode = code;
+  });
+  // Client WS upgrade itself should succeed (proxy accepts it), but then close.
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  await waitFor(() => receivedCloseCode !== 0);
+  assert.equal(receivedCloseCode, 4401);
+});
+
+test("workflow WS: subscribe message is forwarded to that client's child socket only", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("subscribe-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.connectedSockets.length > 0);
+
+  const childReceivedMessages: string[] = [];
+  const childSocket = runtime.connectedSockets[0];
+  assert.ok(childSocket);
+  childSocket.on("message", (data) => {
+    childReceivedMessages.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+
+  client.send(JSON.stringify({ kind: "subscribe", roomId: "workflow-xyz" }));
+  await waitFor(() => childReceivedMessages.some((m) => m.includes("subscribe")));
+  assert.ok(childReceivedMessages.some((m) => m.includes("workflow-xyz")));
+
+  // Confirm the proxy sent a "subscribed" confirmation back to the client.
+  await waitFor(() => payloads.some((p) => p.includes('"kind":"subscribed"')));
+
+  client.close();
+  await new Promise<void>((resolve) => client.once("close", resolve));
+});
+
+test("workflow WS: event on client A's child socket goes only to client A not client B", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("isolation-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+
+  // Connect two clients.
+  const clientA = new WebSocket(`${workflowUrl}?token=token-a`);
+  const clientB = new WebSocket(`${workflowUrl}?token=token-b`);
+  const payloadsA: string[] = [];
+  const payloadsB: string[] = [];
+  clientA.on("message", (data) => {
+    payloadsA.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  clientB.on("message", (data) => {
+    payloadsB.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+
+  await Promise.all([
+    new Promise<void>((resolve, reject) => {
+      clientA.once("open", () => resolve());
+      clientA.once("error", reject);
+    }),
+    new Promise<void>((resolve, reject) => {
+      clientB.once("open", () => resolve());
+      clientB.once("error", reject);
+    }),
+  ]);
+
+  await waitFor(() => payloadsA.some((p) => p.includes("ready")));
+  await waitFor(() => payloadsB.some((p) => p.includes("ready")));
+  // Wait for both upstream sockets to be established.
+  await waitFor(() => runtime.connectedSockets.length >= 2);
+
+  const sharedRoomId = "shared-workflow-id";
+  clientA.send(JSON.stringify({ kind: "subscribe", roomId: sharedRoomId }));
+  clientB.send(JSON.stringify({ kind: "subscribe", roomId: sharedRoomId }));
+  await waitFor(() => payloadsA.some((p) => p.includes('"kind":"subscribed"')));
+  await waitFor(() => payloadsB.some((p) => p.includes('"kind":"subscribed"')));
+
+  // Send an event on client A's child socket (first connected).
+  const childSocketA = runtime.connectedSockets[0];
+  assert.ok(childSocketA);
+  const eventPayload = JSON.stringify({
+    kind: "event",
+    event: { workflowId: sharedRoomId, type: "run.started" },
+  });
+  childSocketA.send(eventPayload);
+
+  await waitFor(() => payloadsA.some((p) => p.includes("run.started")));
+
+  // Give client B a moment to receive anything unexpected.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(
+    payloadsB.filter((p) => p.includes("run.started")).length,
+    0,
+    "Client B must not receive client A's event",
+  );
+
+  clientA.close();
+  clientB.close();
+  await Promise.all([
+    new Promise<void>((resolve) => clientA.once("close", resolve)),
+    new Promise<void>((resolve) => clientB.once("close", resolve)),
+  ]);
+});
+
+// Sprint 16 Story 01 — additional coverage for handleChildSocketMessage branches
+// (lines 495, 498, 514-533 in CliDevProxyServer.ts)
+
+test("workflow WS: telemetryEvent message is forwarded to subscribed run room", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("telemetry-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  const runId = "run-abc-123";
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.connectedSockets.length > 0);
+
+  // Subscribe to a run room
+  client.send(JSON.stringify({ kind: "subscribe", roomId: `run:${runId}` }));
+  await waitFor(() => payloads.some((p) => p.includes('"kind":"subscribed"')));
+
+  const childSocket = runtime.connectedSockets[0];
+  assert.ok(childSocket);
+
+  // Send a telemetryEvent from the child socket
+  const telemetryPayload = JSON.stringify({ kind: "telemetryEvent", runId, data: { metric: 42 } });
+  childSocket.send(telemetryPayload);
+
+  await waitFor(() => payloads.some((p) => p.includes("telemetryEvent")));
+  const received = payloads.find((p) => p.includes("telemetryEvent")) ?? "";
+  assert.match(received, /telemetryEvent/);
+
+  client.close();
+  await new Promise<void>((resolve) => client.once("close", resolve));
+});
+
+test("workflow WS: workflowChanged message is forwarded to subscribed workflow room", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("workflow-changed-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  const workflowId = "wf.changed.xyz";
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.connectedSockets.length > 0);
+
+  client.send(JSON.stringify({ kind: "subscribe", roomId: workflowId }));
+  await waitFor(() => payloads.some((p) => p.includes('"kind":"subscribed"')));
+
+  const childSocket = runtime.connectedSockets[0];
+  assert.ok(childSocket);
+
+  // Send workflowChanged from the child socket
+  childSocket.send(JSON.stringify({ kind: "workflowChanged", workflowId }));
+  await waitFor(() => payloads.some((p) => p.includes("workflowChanged")));
+  assert.ok(payloads.some((p) => p.includes("workflowChanged")));
+
+  // devBuildStarted — covers the devBuildStarted branch
+  childSocket.send(JSON.stringify({ kind: "devBuildStarted", workflowId }));
+  await waitFor(() => payloads.some((p) => p.includes("devBuildStarted")));
+
+  client.close();
+  await new Promise<void>((resolve) => client.once("close", resolve));
+});
+
+test("workflow WS: error message is forwarded to all clients regardless of room", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("error-msg-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.connectedSockets.length > 0);
+
+  const childSocket = runtime.connectedSockets[0];
+  assert.ok(childSocket);
+
+  // Send an error message from child — should be forwarded unconditionally
+  childSocket.send(JSON.stringify({ kind: "error", message: "Something went wrong" }));
+  await waitFor(() => payloads.some((p) => p.includes('"kind":"error"') && p.includes("Something went wrong")));
+  assert.ok(payloads.some((p) => p.includes("Something went wrong")));
+
+  client.close();
+  await new Promise<void>((resolve) => client.once("close", resolve));
+});
+
+test("workflow WS: child socket close causes client to receive close code 4401 (lines 459-464)", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("child-close-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  let closeCode = 0;
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  client.on("close", (code) => {
+    closeCode = code;
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.connectedSockets.length > 0);
+
+  // Terminate the child socket (upstream) — this triggers onChildClose which closes the client at 4401
+  const childSocket = runtime.connectedSockets[0];
+  assert.ok(childSocket);
+  childSocket.terminate();
+
+  await waitFor(() => closeCode !== 0);
+  // Proxy closes client with 4401 when upstream child closes unexpectedly
+  assert.equal(closeCode, 4401);
+});
+
+test("workflow WS: empty child socket message is silently dropped (line 495)", async () => {
+  const harness = new ProxyHarness();
+  activeHarnesses.push(harness);
+  await harness.start();
+  assert.ok(harness.proxyServer);
+
+  const runtime = new StubRuntimeServer("empty-msg-test");
+  activeRuntimes.push(runtime);
+  await runtime.start();
+  await harness.proxyServer.activateRuntime({
+    httpPort: runtime.httpPort,
+    workflowWebSocketPort: runtime.workflowPort,
+  });
+
+  const workflowUrl = `${toWebSocketHttpUrl(harness.httpBaseUrl)}${ApiPaths.workflowWebsocket()}`;
+  const client = new WebSocket(workflowUrl);
+  const payloads: string[] = [];
+  client.on("message", (data) => {
+    payloads.push(typeof data === "string" ? data : data.toString("utf8"));
+  });
+  await new Promise<void>((resolve, reject) => {
+    client.once("open", () => resolve());
+    client.once("error", reject);
+  });
+
+  await waitFor(() => payloads.some((p) => p.includes("ready")));
+  await waitFor(() => runtime.connectedSockets.length > 0);
+
+  const childSocket = runtime.connectedSockets[0];
+  assert.ok(childSocket);
+
+  const initialPayloadCount = payloads.length;
+  // Send empty / whitespace-only message — should be silently dropped
+  childSocket.send("");
+  childSocket.send("   ");
+  // Wait a moment and confirm no new messages arrived
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(payloads.length, initialPayloadCount, "Empty messages must not be forwarded to client");
+
+  client.close();
+  await new Promise<void>((resolve) => client.once("close", resolve));
 });

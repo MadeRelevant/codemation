@@ -2,8 +2,7 @@
 
 import type { CollectionRowDto } from "@codemation/host/dto";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@codemation/ui";
 import { useCollectionDetailQuery } from "../hooks/useCollectionDetailQuery";
 import { useCollectionRowsQuery } from "../hooks/useCollectionRowsQuery";
 import {

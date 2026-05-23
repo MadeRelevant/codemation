@@ -14,6 +14,7 @@
       "@codemation/cli": ["packages/cli/src/index.ts"],
       "@codemation/core-nodes": ["packages/core-nodes/src/index.ts"],
       "@codemation/core-nodes-gmail": ["packages/core-nodes-gmail/src/index.ts"],
+      "@codemation/core-nodes-gmail/codemation.plugin": ["packages/core-nodes-gmail/codemation.plugin.ts"],
       "@codemation/core-nodes-msgraph": ["packages/core-nodes-msgraph/src/index.ts"],
       "@codemation/eventbus-redis": ["packages/eventbus-redis/src/index.ts"],
       "@codemation/host": ["packages/host/src/index.ts"],
@@ -30,8 +31,13 @@
       "@codemation/next-host": ["packages/next-host/src/index.ts"],
       "@codemation/next-host/src/*": ["packages/next-host/src/*"],
       "@codemation/node-example": ["packages/node-example/src/index.ts"],
-      "@codemation/canvas": ["packages/canvas/src/index.ts"]
+      "@codemation/canvas": ["packages/canvas/src/index.ts"],
+      "@codemation/canvas-core": ["packages/canvas-core/src/index.ts"],
+      "@codemation/ui": ["packages/ui/src/index.ts"],
+      "@codemation/managed-auth": ["packages/managed-auth/src/index.ts"],
+      "@codemation/examples": ["packages/examples/src/index.ts"]
     },
+    "customConditions": ["development"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "strict": true,

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@codemation/ui";
 
 import { WorkflowInspectorPrettyTreePresenter } from "./WorkflowInspectorPrettyTreePresenter";
 import { WorkflowInspectorPrettyTreeViewRenderer } from "./WorkflowInspectorPrettyTreeViewRenderer";

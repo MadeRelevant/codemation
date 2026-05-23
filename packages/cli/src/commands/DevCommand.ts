@@ -1,6 +1,7 @@
-import type { CodemationPluginDiscovery } from "@codemation/host/server";
+import { BootTimer } from "@codemation/host";
+import { CodemationConsumerConfigLoader, type CodemationPluginDiscovery, type ProcessRunner } from "@codemation/host/server";
 import type { Logger } from "@codemation/host/next/server";
-import { spawn, type ChildProcess } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
@@ -31,6 +32,7 @@ import { TypeScriptRuntimeConfigurator } from "../runtime/TypeScriptRuntimeConfi
 
 import type { DevMode, DevMutableProcessState, DevPreparedRuntime } from "./devCommandLifecycle.types";
 import type { ConsumerAgentSkillsSyncService } from "../skills/ConsumerAgentSkillsSyncService";
+import type { DevModeResolver } from "../dev/DevModeResolver";
 
 export class DevCommand {
   private readonly require = createRequire(import.meta.url);
@@ -48,6 +50,7 @@ export class DevCommand {
     private readonly pluginDiscovery: CodemationPluginDiscovery,
     private readonly consumerBuildArtifactsPublisher: ConsumerBuildArtifactsPublisher,
     private readonly devBootstrapSummaryFetcher: DevBootstrapSummaryFetcher,
+    private readonly devModeResolver: DevModeResolver,
     private readonly devCliBannerRenderer: DevCliBannerRenderer,
     private readonly consumerEnvDotenvFilePredicate: ConsumerEnvDotenvFilePredicate,
     private readonly devTrackedProcessTreeKiller: DevTrackedProcessTreeKiller,
@@ -59,53 +62,82 @@ export class DevCommand {
     private readonly devRebuildQueueFactory: DevRebuildQueueFactory,
     private readonly devNextChildProcessOutputFilter: DevNextChildProcessOutputFilter,
     private readonly consumerSourceErrorParser: ConsumerSourceErrorParser,
+    private readonly processRunner: ProcessRunner,
   ) {}
 
   async execute(
     args: Readonly<{
       consumerRoot: string;
       watchFramework?: boolean;
+      apiOnly?: boolean;
+      traceBoot?: boolean;
       commandName?: "dev" | "dev:plugin";
       configPathOverride?: string;
     }>,
   ): Promise<void> {
-    const paths = await this.pathResolver.resolve(args.consumerRoot);
-    await this.consumerAgentSkillsSyncService.sync(paths.consumerRoot, {
-      mode: "automatic",
-      repoRoot: paths.repoRoot,
-    });
+    if (args.traceBoot === true) {
+      BootTimer.enable();
+    }
+    const paths = await BootTimer.measureAsync("cli.pathResolver.resolve", () =>
+      this.pathResolver.resolve(args.consumerRoot),
+    );
+    await BootTimer.measureAsync("cli.consumerAgentSkillsSync", () =>
+      this.consumerAgentSkillsSyncService.sync(paths.consumerRoot, {
+        mode: "automatic",
+        repoRoot: paths.repoRoot,
+      }),
+    );
     const commandName = args.commandName ?? "dev";
     const previousDevelopmentServerToken = process.env.CODEMATION_DEV_SERVER_TOKEN;
     this.devCliBannerRenderer.renderBrandHeader();
     this.tsRuntime.configure(paths.repoRoot);
-    await this.databaseMigrationsApplyService.applyForConsumer(paths.consumerRoot, {
-      configPath: args.configPathOverride,
-    });
+    // Prewarm the consumer config load in parallel with prisma deploy. tsx import of
+    // codemation.config.ts + workflow discovery is CPU-bound (~9s on a fresh boot); kicking
+    // it off here lets it overlap with prisma's child-process I/O. Downstream callers
+    // (bootInitialRuntime, the runtime container build) hit the static cache and get
+    // the resolution for free. Errors are swallowed — the real load below will rethrow.
+    // Fire-and-forget: cache the resolution before anyone awaits it. The static cache
+    // inside CodemationConsumerConfigLoader stores the Promise, so when bootInitialRuntime
+    // eventually calls load(), it awaits the same Promise that started here.
+    void BootTimer.measureAsync("cli.configPrewarm", () =>
+      new CodemationConsumerConfigLoader()
+        .load({ consumerRoot: paths.consumerRoot, configPathOverride: args.configPathOverride })
+        .then(
+          () => undefined,
+          () => undefined,
+        ),
+    );
+    await BootTimer.measureAsync("cli.databaseMigrationsApply", () =>
+      this.databaseMigrationsApplyService.applyForConsumer(paths.consumerRoot, {
+        configPath: args.configPathOverride,
+      }),
+    );
     const devMode = this.resolveDevMode(args);
-    const { nextPort, gatewayPort } = await this.session.sessionPorts.resolve({
-      devMode,
-      portEnv: process.env.PORT,
-      gatewayPortEnv: process.env.CODEMATION_DEV_GATEWAY_HTTP_PORT,
-    });
+    const { nextPort, gatewayPort } = await BootTimer.measureAsync("cli.sessionPorts.resolve", () =>
+      this.session.sessionPorts.resolve({
+        devMode,
+        portEnv: process.env.PORT,
+        gatewayPortEnv: process.env.CODEMATION_DEV_GATEWAY_HTTP_PORT,
+      }),
+    );
     const devLock = this.devLockFactory.create();
-    await devLock.acquire({
-      consumerRoot: paths.consumerRoot,
-      nextPort: gatewayPort,
-    });
-    const authSettings = await this.session.nextHostEdgeSeedLoader.loadForConsumer(paths.consumerRoot, {
-      configPathOverride: args.configPathOverride,
-    });
+    await BootTimer.measureAsync("cli.devLock.acquire", () =>
+      devLock.acquire({
+        consumerRoot: paths.consumerRoot,
+        nextPort: gatewayPort,
+      }),
+    );
+    const authSettings = await BootTimer.measureAsync("cli.nextHostEdgeSeedLoader", () =>
+      this.session.nextHostEdgeSeedLoader.loadForConsumer(paths.consumerRoot, {
+        configPathOverride: args.configPathOverride,
+      }),
+    );
     const watcher = this.devSourceWatcherFactory.create();
     const processState = this.createInitialProcessState();
     let proxyServer: CliDevProxyServer | null = null;
     try {
-      const prepared = await this.prepareDevRuntime(
-        paths,
-        devMode,
-        nextPort,
-        gatewayPort,
-        authSettings,
-        args.configPathOverride,
+      const prepared = await BootTimer.measureAsync("cli.prepareDevRuntime", () =>
+        this.prepareDevRuntime(paths, devMode, nextPort, gatewayPort, authSettings, args.configPathOverride),
       );
       if (prepared.devMode === "watch-framework") {
         if (prepared.watchWorkspacePlugins) {
@@ -126,25 +158,38 @@ export class DevCommand {
           );
         }
       }
-      if (prepared.devMode === "packaged-ui") {
+      if (prepared.devMode !== "watch-framework") {
         await this.publishConsumerArtifacts(prepared.paths, prepared.configPathOverride);
       }
       // The disposable runtime is created in-process, so config reloads must see the same token in
       // `process.env` that we also pass through the child-facing env object.
       process.env.CODEMATION_DEV_SERVER_TOKEN = prepared.developmentServerToken;
       const stopPromise = this.wireStopPromise(processState);
-      const uiProxyBase = await this.preparePackagedUiBaseUrlWhenNeeded(prepared, processState);
-      proxyServer = await this.startProxyServer(prepared.gatewayPort, uiProxyBase);
+      const uiProxyBase = await BootTimer.measureAsync("cli.preparePackagedUiBaseUrl", () =>
+        this.preparePackagedUiBaseUrlWhenNeeded(prepared, processState),
+      );
+      proxyServer = await BootTimer.measureAsync("cli.startProxyServer", () =>
+        this.startProxyServer(prepared.gatewayPort, uiProxyBase),
+      );
       const gatewayBaseUrl = this.gatewayBaseHttpUrl(gatewayPort);
-      await this.bootInitialRuntime(prepared, processState, proxyServer);
-      await this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl);
+      await BootTimer.measureAsync("cli.bootInitialRuntime", () =>
+        this.bootInitialRuntime(prepared, processState, proxyServer!),
+      );
+      await BootTimer.measureAsync("cli.waitUntilBootstrapSummaryReady", () =>
+        this.session.devHttpProbe.waitUntilBootstrapSummaryReady(gatewayBaseUrl),
+      );
       const initialSummary = await this.devBootstrapSummaryFetcher.fetch(gatewayBaseUrl);
       if (initialSummary) {
         this.devCliBannerRenderer.renderRuntimeSummary(initialSummary);
       }
-      await this.startPackagedUiWhenNeeded(prepared, processState, uiProxyBase);
+      await BootTimer.measureAsync("cli.startPackagedUi", () =>
+        this.startPackagedUiWhenNeeded(prepared, processState, uiProxyBase),
+      );
       this.bindShutdownSignalsToChildProcesses(processState, proxyServer);
-      await this.spawnDevUiWhenNeeded(prepared, processState, gatewayBaseUrl);
+      await BootTimer.measureAsync("cli.spawnDevUi", () =>
+        this.spawnDevUiWhenNeeded(prepared, processState, gatewayBaseUrl),
+      );
+      await BootTimer.finish(path.resolve(paths.repoRoot, "tmp", "boot-trace.json"));
       this.devCliBannerRenderer.renderGatewayListeningHint(
         prepared.gatewayPort,
         commandName,
@@ -169,11 +214,8 @@ export class DevCommand {
     }
   }
 
-  private resolveDevMode(args: Readonly<{ watchFramework?: boolean }>): DevMode {
-    if (args.watchFramework === true || process.env.CODEMATION_DEV_MODE === "framework") {
-      return "watch-framework";
-    }
-    return "packaged-ui";
+  private resolveDevMode(args: Readonly<{ watchFramework?: boolean; apiOnly?: boolean }>): DevMode {
+    return this.devModeResolver.resolve(args);
   }
 
   private async prepareDevRuntime(
@@ -249,6 +291,10 @@ export class DevCommand {
     prepared: DevPreparedRuntime,
     state: DevMutableProcessState,
   ): Promise<string> {
+    if (prepared.devMode === "api-only") {
+      // No UI process — proxy should not forward to any UI target.
+      return "";
+    }
     if (prepared.devMode !== "packaged-ui") {
       return `http://127.0.0.1:${prepared.nextPort}`;
     }
@@ -291,7 +337,7 @@ export class DevCommand {
       skipUiAuth: !authSettings.uiAuthEnabled,
       websocketPort,
     });
-    state.currentPackagedUi = spawn(nextHostCommand.command, nextHostCommand.args, {
+    state.currentPackagedUi = this.processRunner.spawn(nextHostCommand.command, nextHostCommand.args, {
       cwd: nextHostCommand.cwd,
       ...this.devDetachedChildSpawnPipeOptions(),
       env: nextHostEnvironment,
@@ -352,8 +398,12 @@ export class DevCommand {
     detached: boolean;
     windowsHide?: boolean;
   }> {
+    // On Windows, `detached: true` forces Node/execa to create a new console window even
+    // with `windowsHide: true`, because .cmd shim resolution routes through cmd.exe. We
+    // accept losing automatic process-group shutdown on Windows; explicit child.kill()
+    // in bindShutdownSignalsToChildProcesses already covers that path.
     return process.platform === "win32"
-      ? { stdio: ["ignore", "pipe", "pipe"], detached: true, windowsHide: true }
+      ? { stdio: ["ignore", "pipe", "pipe"], detached: false, windowsHide: true }
       : { stdio: ["ignore", "pipe", "pipe"], detached: true };
   }
 
@@ -369,9 +419,23 @@ export class DevCommand {
       shutdownInProgress = true;
       state.stopRequested = true;
       process.stdout.write("\n[codemation] Stopping..\n");
-      await this.stopLiveProcesses(state, proxyServer);
-      process.stdout.write("[codemation] Stopped.\n");
+      // Schedule force-exit BEFORE awaiting anything. If stopLiveProcesses hangs (the
+      // websocket server's keep-alive HTTP socket on port 3001 sometimes refuses to
+      // close cleanly), the timer still fires and the process always exits. 2s is a
+      // generous graceful budget — Next-dev / runtime already drained at this point.
+      const forceExitTimer = setTimeout(() => {
+        process.stdout.write("[codemation] Force-exit after 2s (graceful shutdown didn't complete).\n");
+        process.exit(0);
+      }, 2000);
+      forceExitTimer.unref();
+      try {
+        await this.stopLiveProcesses(state, proxyServer);
+      } catch {
+        // ignore — we're force-exiting either way.
+      }
       state.stopResolve?.();
+      process.stdout.write("[codemation] Stopped.\n");
+      process.exit(0);
     };
     for (const signal of ["SIGINT", "SIGTERM", "SIGQUIT"] as const) {
       process.on(signal, () => {
@@ -413,7 +477,7 @@ export class DevCommand {
 
     await this.session.nextHostPortAvailability.assertLoopbackPortAvailable(prepared.nextPort);
 
-    state.currentDevUi = spawn("pnpm", ["exec", "next", "dev"], {
+    state.currentDevUi = this.processRunner.spawn("pnpm", ["exec", "next", "dev"], {
       cwd: nextHostRoot,
       ...this.devDetachedChildSpawnPipeOptions(),
       env: nextHostEnvironment,
@@ -469,8 +533,24 @@ export class DevCommand {
       onChange: async ({ changedPaths }) => {
         if (changedPaths.length > 0 && changedPaths.every((p) => this.consumerEnvDotenvFilePredicate.matches(p))) {
           process.stdout.write(
-            "\n[codemation] Consumer environment file changed (e.g. .env). Restart the `codemation dev` process so the runtime picks up updated variables (host `process.env` does not hot-reload).\n",
+            `\n[codemation] Consumer env file changed — reloading and restarting the runtime… [paths=${changedPaths.slice(0, 5).join(", ")}${changedPaths.length > 5 ? ` (+${changedPaths.length - 5} more)` : ""}]\n`,
           );
+          // Re-read .env files from disk and replace the cached snapshot the
+          // runtime spawn reads. `DevPreparedRuntime.consumerEnv` is typed
+          // Readonly for documentation; DevCommand is the single owner of this
+          // object across rebuilds, so mutating here is safe and avoids
+          // threading a fresh `prepared` through the rebuild queue.
+          (prepared as { consumerEnv: Readonly<Record<string, string>> }).consumerEnv =
+            this.session.consumerEnvLoader.load(prepared.paths.consumerRoot);
+          try {
+            await rebuildQueue.enqueue({
+              changedPaths,
+              configPathOverride: options.configPathOverride,
+              shouldRestartUi: true,
+            });
+          } catch (error) {
+            await this.failDevSessionAfterIrrecoverableSourceError(state, proxyServer, error);
+          }
           return;
         }
         try {
@@ -524,8 +604,12 @@ export class DevCommand {
         // Ignore stop errors — we're discarding this runtime regardless.
       }
     }
+    // The consumer config loader caches resolutions across loader instances (boot path
+    // constructs ~3 of them). On a source-change reload we must clear that cache or the
+    // new runtime will see stale workflows / config.
+    CodemationConsumerConfigLoader.invalidateAll();
     try {
-      if (prepared.devMode === "packaged-ui") {
+      if (prepared.devMode !== "watch-framework") {
         await this.publishConsumerArtifacts(prepared.paths, request.configPathOverride);
       }
       process.stdout.write("[codemation] Waiting for runtime to accept traffic…\n");
@@ -567,7 +651,7 @@ export class DevCommand {
       // Let the new runtime become queryable through the stable gateway before restarting the
       // packaged UI; otherwise the UI bootstrap hits `/api/bootstrap/*` while the gateway still
       // reports "Runtime is rebuilding" and the restart can deadlock indefinitely.
-      if (request.shouldRestartUi) {
+      if (request.shouldRestartUi && prepared.devMode !== "api-only") {
         await this.restartUiAfterSourceChange(prepared, state, gatewayBaseUrl);
       }
       proxyServer.broadcastBuildCompleted(runtime.buildVersion);

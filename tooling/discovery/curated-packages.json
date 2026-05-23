@@ -1,0 +1,9 @@
+{
+  "packages": [
+    "@codemation/core-nodes",
+    "@codemation/core-nodes-gmail",
+    "@codemation/core-nodes-ocr",
+    "@codemation/examples"
+  ],
+  "_pendingPackages": []
+}

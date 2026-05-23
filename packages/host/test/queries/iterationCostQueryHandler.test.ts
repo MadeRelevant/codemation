@@ -108,4 +108,44 @@ describe("GetIterationCostQueryHandler", () => {
     const result = await handler.execute(new GetIterationCostQuery(RUN_ID));
     expect(result).toEqual([]);
   });
+
+  it("ignores metric points with empty iterationId string", async () => {
+    const { handler, store } = await buildHandler();
+    await store.save(buildCostMetric({ iterationId: "", value: 100, currency: "USD", currencyScale: 100 }));
+    const result = await handler.execute(new GetIterationCostQuery(RUN_ID));
+    expect(result).toEqual([]);
+  });
+
+  it("reads currency from unit when dimensions lack currency attribute", async () => {
+    const { handler, store } = await buildHandler();
+    // Provide currency only via unit (not in attributes)
+    await store.save({
+      name: CostTrackingTelemetryMetricNames.estimatedCost,
+      value: 500,
+      unit: "GBP",
+      runId: RUN_ID,
+      workflowId: WORKFLOW_ID,
+      observedAt: "2026-04-30T10:00:00Z",
+      iterationId: "iter_gbp",
+      attributes: {},
+    });
+    const result = await handler.execute(new GetIterationCostQuery(RUN_ID));
+    const row = result.find((r) => r.iterationId === "iter_gbp");
+    expect(row?.estimatedCostMinorByCurrency["GBP"]).toBe(500);
+  });
+
+  it("skips metric points with no currency (no unit, no dimensions)", async () => {
+    const { handler, store } = await buildHandler();
+    await store.save({
+      name: CostTrackingTelemetryMetricNames.estimatedCost,
+      value: 999,
+      runId: RUN_ID,
+      workflowId: WORKFLOW_ID,
+      observedAt: "2026-04-30T10:00:00Z",
+      iterationId: "iter_no_currency",
+      attributes: {},
+    });
+    const result = await handler.execute(new GetIterationCostQuery(RUN_ID));
+    expect(result).toEqual([]);
+  });
 });

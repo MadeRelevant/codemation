@@ -35,6 +35,17 @@ export const codemationHost = defineCodemationApp({
     logoPath: "src/branding/logo.svg",
   },
   workflows: [starterHelloWorkflow],
+  // MCP server declarations (optional). Merged with plugin and control-plane sources.
+  // mcpServers: [
+  //   {
+  //     id: "my-mcp-server",
+  //     displayName: "My MCP Server",
+  //     description: "An MCP server my agent can use.",
+  //     transport: "http",
+  //     url: "https://mcp.example.com",
+  //     // acceptedCredentialTypes: ["oauth.google.gmail"], // omit for no-credential servers
+  //   },
+  // ],
 });
 
 export default codemationHost;

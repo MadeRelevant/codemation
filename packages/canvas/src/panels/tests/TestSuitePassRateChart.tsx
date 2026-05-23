@@ -49,7 +49,7 @@ interface DataPoint {
  * end up reading "5/4 5/4 5/4" with overlapping text. Returns the `idx` values to render ticks
  * for; recharts maps them through `tickFormatter` for display strings.
  */
-function pickEvenlySpacedTickIndices(pointCount: number, maxTicks = 5): ReadonlyArray<number> {
+export function pickEvenlySpacedTickIndices(pointCount: number, maxTicks = 5): ReadonlyArray<number> {
   if (pointCount <= 1) return pointCount === 1 ? [0] : [];
   if (pointCount <= maxTicks) return Array.from({ length: pointCount }, (_, i) => i);
   const step = (pointCount - 1) / (maxTicks - 1);
@@ -65,7 +65,7 @@ function pickEvenlySpacedTickIndices(pointCount: number, maxTicks = 5): Readonly
  * `M/D HH:MM`; when they're all on the same day (the common case for an active dev session),
  * drop the date and just show `HH:MM`. Uses the data context to decide.
  */
-function buildTickLabel(allStartedAt: ReadonlyArray<string>): (idx: number) => string {
+export function buildTickLabel(allStartedAt: ReadonlyArray<string>): (idx: number) => string {
   if (allStartedAt.length === 0) return () => "";
   const dates = allStartedAt.map((iso) => new Date(iso));
   const firstDay = dates[0]!.toDateString();

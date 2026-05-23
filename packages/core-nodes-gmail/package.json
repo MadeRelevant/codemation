@@ -37,6 +37,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./codemation.plugin": {
+      "types": "./dist/codemation.plugin.d.ts",
+      "development": "./codemation.plugin.ts",
+      "import": "./dist/codemation.plugin.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -44,7 +49,8 @@
     "codemation": "node ../../tooling/scripts/run-codemation-tsx.mjs ../../packages/cli/src/bin.ts ../../tsconfig.codemation-tsx.json",
     "dev": "turbo run build --filter='@codemation/next-host' && pnpm codemation dev:plugin --plugin-root .",
     "dev:watch-bundle": "tsdown --watch",
-    "build": "tsdown",
+    "build": "tsdown && pnpm build:metadata",
+    "build:metadata": "tsx ../../tooling/discovery/scripts/extract-metadata.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "pnpm build && vitest run",

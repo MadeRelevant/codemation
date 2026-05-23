@@ -1,6 +1,5 @@
 import type { CredentialRequirement, RunnableNodeConfig, TypeToken } from "@codemation/core";
 import { z } from "zod";
-import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailMessageRecord } from "../services/GmailApiClient";
 import { SendGmailMessageNode } from "./SendGmailMessageNode";
 
@@ -51,7 +50,7 @@ export class SendGmailMessage implements RunnableNodeConfig<SendGmailMessageInpu
       {
         slotKey: "auth",
         label: "Gmail account",
-        acceptedTypes: [GmailCredentialTypes.oauth],
+        acceptedTypes: ["oauth.google.gmail"],
         helpText: "Bind a Gmail OAuth credential that resolves to an authenticated Gmail session.",
       },
     ];

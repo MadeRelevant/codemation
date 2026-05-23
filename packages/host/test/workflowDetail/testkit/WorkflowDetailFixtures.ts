@@ -19,6 +19,7 @@ import type {
 } from "@codemation/canvas";
 import { WorkflowDefinitionMapper } from "../../../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowPolicyUiPresentationFactory } from "../../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
+import type { McpServerCatalog } from "../../../src/mcp/McpServerCatalog";
 
 export type WorkflowDetailTriggerKind = "manual" | "webhook";
 
@@ -148,6 +149,7 @@ export class WorkflowDetailFixtureFactory {
     return new WorkflowDefinitionMapper(
       new WorkflowPolicyUiPresentationFactory(),
       new AllWorkflowsActiveWorkflowActivationPolicy(),
+      { get: () => undefined } as unknown as McpServerCatalog,
     ).mapSync(this.createWorkflowDefinition(options)) as WorkflowDto;
   }
 
@@ -191,6 +193,7 @@ export class WorkflowDetailFixtureFactory {
     return new WorkflowDefinitionMapper(
       new WorkflowPolicyUiPresentationFactory(),
       new AllWorkflowsActiveWorkflowActivationPolicy(),
+      { get: () => undefined } as unknown as McpServerCatalog,
     ).mapSync(this.createNestedAgentCoordinatorWorkflowDefinition()) as WorkflowDto;
   }
 

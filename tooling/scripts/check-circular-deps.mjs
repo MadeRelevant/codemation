@@ -53,4 +53,29 @@ for (const [pkg, { max }] of Object.entries(baselines)) {
   }
 }
 
+// canvas-core: scan source directories directly (no tsconfig path traversal into deps)
+// canvas-core must have zero intra-package cycles; canvas (canvas-ui) must not cycle back into canvas-core
+try {
+  let canvasCoreOutput = "";
+  try {
+    canvasCoreOutput = execSync(
+      `pnpm exec madge --extensions ts packages/canvas-core/src packages/canvas/src --circular 2>&1`,
+      { encoding: "utf-8", stdio: "pipe" },
+    );
+  } catch (madgeErr) {
+    canvasCoreOutput = (madgeErr.stdout || madgeErr.stderr || madgeErr.message || "").toString();
+  }
+  const match = canvasCoreOutput.match(/Found (\d+) circular dependencies/);
+  const count = match ? parseInt(match[1], 10) : 0;
+  if (count === 0) {
+    console.log("✔ packages/canvas-core + packages/canvas: 0 circular deps");
+  } else {
+    console.error(`✗ packages/canvas-core + packages/canvas: ${count} circular dependencies found`);
+    exitCode = 1;
+  }
+} catch (err) {
+  console.error("✗ packages/canvas-core + packages/canvas: failed to check circular deps", err.message);
+  exitCode = 1;
+}
+
 process.exit(exitCode);

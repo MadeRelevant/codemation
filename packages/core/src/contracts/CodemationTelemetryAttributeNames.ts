@@ -15,4 +15,8 @@ export class CodemationTelemetryAttributeNames {
   static readonly iterationIndex = "codemation.iteration.index";
   /** Set when this span/metric was recorded under a sub-agent triggered by an outer LLM/tool call. */
   static readonly parentInvocationId = "codemation.parent.invocation_id";
+  /** MCP server id on spans created for callTool invocations. */
+  static readonly mcpServerId = "mcp.server_id";
+  /** MCP tool name on spans created for callTool invocations. */
+  static readonly mcpToolName = "mcp.tool_name";
 }

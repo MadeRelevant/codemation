@@ -1,36 +1,10 @@
-import type { Item, NodeExecutionContext } from "@codemation/core";
-import {
-  DefaultExecutionBinaryService,
-  InMemoryBinaryStorage,
-  InMemoryRunDataFactory,
-} from "@codemation/core/bootstrap";
+import type { Item } from "@codemation/core";
 import { Aggregate, AggregateNode, Filter, FilterNode, Split, SplitNode } from "@codemation/core-nodes";
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import { runPerItemLikeEngine } from "./engineTestHelpers.ts";
-
-class CoreNodesTestContextFactory {
-  static create<TConfig extends { name: string }>(config: TConfig): NodeExecutionContext<TConfig> {
-    const binary = new DefaultExecutionBinaryService(
-      new InMemoryBinaryStorage(),
-      "wf_test",
-      "run_test",
-      () => new Date(),
-    );
-    return {
-      runId: "run_test",
-      workflowId: "wf_test",
-      parent: undefined,
-      now: () => new Date(),
-      data: new InMemoryRunDataFactory().create(),
-      nodeId: "node_test",
-      activationId: "act_test",
-      config,
-      binary: binary.forNode({ nodeId: "node_test", activationId: "act_test" }),
-    };
-  }
-}
+import { CoreNodesTestContextFactory } from "./testkit/CoreNodesTestContextFactory";
 
 test("SplitNode expands each item into one output item per returned element", async () => {
   const config = new Split<{ batch: readonly number[] }, number>("Split batches", (item) => [...item.json.batch]);

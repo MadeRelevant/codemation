@@ -9,4 +9,6 @@ export type PublicFrontendBootstrap = Readonly<{
   oauthProviders: ReadonlyArray<CodemationFrontendAuthProviderSnapshot>;
   productName: string;
   uiAuthEnabled: boolean;
+  /** Present in managed mode — the CP web origin. No UI login is rendered when this is set. */
+  cpWebOrigin?: string;
 }>;

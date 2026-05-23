@@ -6,13 +6,15 @@ import Wrench from "lucide-react/dist/esm/icons/wrench";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 
-import { useWorkflowCanvasConfig } from "../context/WorkflowCanvasConfigContext";
+import {
+  useWorkflowCanvasConfig,
+  WorkflowCanvasBuiltinIconRegistry,
+  WorkflowCanvasLucideIconRegistry,
+  WorkflowCanvasSiIconRegistry,
+} from "@codemation/canvas-core";
 import { CanvasNodeIconSlot, type CanvasIconRotate } from "./CanvasNodeIconSlot";
-import { WorkflowCanvasBuiltinIconRegistry } from "./lib/WorkflowCanvasBuiltinIconRegistry";
-import { WorkflowCanvasLucideIconRegistry } from "./lib/WorkflowCanvasLucideIconRegistry";
 import { WorkflowCanvasLucideRemoteGlyph } from "./WorkflowCanvasLucideRemoteGlyph";
-import { WorkflowCanvasSiIconRegistry } from "./lib/WorkflowCanvasSiIconRegistry";
-import { WorkflowCanvasSimpleIconGlyph } from "./WorkflowCanvasSimpleIconGlyph";
+import { WorkflowCanvasSiRemoteGlyph } from "./WorkflowCanvasSiRemoteGlyph";
 
 /**
  * Role-only Lucide fallback for a node when no explicit `icon` is set.
@@ -146,13 +148,9 @@ export function WorkflowCanvasNodeIcon(
         <img src={builtinUrl} alt="" style={{ ...IMG_STYLE, width: "100%", height: "100%" }} />,
       );
     }
-    const data = WorkflowCanvasSiIconRegistry.resolve(slug);
-    if (data) {
-      return renderInSlot(
-        sizePx,
-        rotate,
-        <WorkflowCanvasSimpleIconGlyph title={data.title} path={data.path} hex={data.hex} sizePx={sizePx} />,
-      );
+    const url = WorkflowCanvasSiIconRegistry.resolve(slug);
+    if (url) {
+      return renderInSlot(sizePx, rotate, <WorkflowCanvasSiRemoteGlyph url={url} sizePx={sizePx} />);
     }
     return renderInSlot(sizePx, rotate, <CircleHelp size={sizePx} strokeWidth={strokeWidth} />);
   }

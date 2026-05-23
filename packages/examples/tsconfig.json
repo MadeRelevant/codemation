@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "noEmit": true,
+    "paths": {
+      "@/*": ["../../packages/next-host/src/*"],
+      "@codemation/agent-skills": ["../../packages/agent-skills/lib/agent-skills-extractor.d.ts"],
+      "@codemation/core": ["../../packages/core/src/index.ts"],
+      "@codemation/core/bootstrap": ["../../packages/core/src/bootstrap/index.ts"],
+      "@codemation/core/testing": ["../../packages/core/src/testing.ts"],
+      "@codemation/cli": ["../../packages/cli/src/index.ts"],
+      "@codemation/core-nodes": ["../../packages/core-nodes/src/index.ts"],
+      "@codemation/core-nodes-gmail": ["../../packages/core-nodes-gmail/src/index.ts"],
+      "@codemation/core-nodes-msgraph": ["../../packages/core-nodes-msgraph/src/index.ts"],
+      "@codemation/host": ["../../packages/host/src/index.ts"],
+      "@codemation/host/authoring": ["../../packages/host/src/authoring.ts"],
+      "@codemation/examples": ["../examples/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

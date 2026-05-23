@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
 
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@codemation/ui";
 
 import type { ConnectionInvocationRecord, NodeExecutionSnapshot, PersistedRunState } from "@codemation/canvas";
 import { useTelemetryRunTraceQuery } from "@codemation/canvas";

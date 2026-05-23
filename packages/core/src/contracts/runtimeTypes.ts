@@ -128,6 +128,10 @@ export interface BinaryStorage {
   openReadStream(storageKey: string): Promise<BinaryStorageReadResult | undefined>;
   stat(storageKey: string): Promise<BinaryStorageStatResult>;
   delete(storageKey: string): Promise<void>;
+  /** Deletes multiple objects in bulk. Keys are batched internally. */
+  deleteMany(storageKeys: ReadonlyArray<string>): Promise<void>;
+  /** Lists all keys sharing a common prefix. Returns keys in arbitrary order. */
+  listByPrefix(prefix: string): Promise<ReadonlyArray<string>>;
 }
 
 export interface BinaryAttachmentCreateRequest {

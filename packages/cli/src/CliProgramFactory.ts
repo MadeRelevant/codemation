@@ -1,5 +1,6 @@
 import { AppConfigLoader, CodemationConsumerConfigLoader, CodemationPluginDiscovery } from "@codemation/host/server";
 import { AppContainerFactory } from "@codemation/host";
+import { ExecaProcessRunner } from "@codemation/host/server";
 import { logLevelPolicyFactory, ServerLoggerFactory } from "@codemation/host/next/server";
 
 import { ConsumerBuildOptionsParser } from "./build/ConsumerBuildOptionsParser";
@@ -21,6 +22,7 @@ import { DatabaseMigrationsApplyService } from "./database/DatabaseMigrationsApp
 import { HostPackageRootResolver } from "./database/HostPackageRootResolver";
 import { PrismaMigrationDeployer } from "@codemation/host/persistence";
 import { ConsumerSourceErrorParser } from "./dev/ConsumerSourceErrorParser";
+import { DevModeResolver } from "./dev/DevModeResolver";
 import { DevBootstrapSummaryFetcher } from "./dev/DevBootstrapSummaryFetcher";
 import { DevCliBannerRenderer } from "./dev/DevCliBannerRenderer";
 import { DevNextChildProcessOutputFilter } from "./dev/DevNextChildProcessOutputFilter";
@@ -60,6 +62,10 @@ import { CollectionsInsertCommand } from "./commands/CollectionsInsertCommand";
 import { CollectionsUpdateCommand } from "./commands/CollectionsUpdateCommand";
 import { CollectionsDeleteCommand } from "./commands/CollectionsDeleteCommand";
 import { CollectionsSyncCommand } from "./commands/CollectionsSyncCommand";
+import { ExampleVerifyCommand } from "./commands/ExampleVerifyCommand";
+import { RunCliBootstrap } from "./run/RunCliBootstrap";
+import { RunWorkflowCommand } from "./commands/RunWorkflowCommand";
+import { RunTestCommand } from "./commands/RunTestCommand";
 
 const loggerFactory = new ServerLoggerFactory(logLevelPolicyFactory);
 
@@ -89,8 +95,6 @@ export class CliProgramFactory {
     const databaseMigrationsApplyService = new DatabaseMigrationsApplyService(
       cliLogger,
       new UserAdminConsumerDotenvLoader(),
-      tsconfigPreparation,
-      new CodemationConsumerConfigLoader(),
       new ConsumerDatabaseConnectionResolver(),
       new CliDatabaseUrlDescriptor(),
       hostPackageRoot,
@@ -101,6 +105,7 @@ export class CliProgramFactory {
     const consumerOutputBuilderFactory = new ConsumerOutputBuilderFactory();
     const consumerBuildArtifactsPublisher = new ConsumerBuildArtifactsPublisher();
     const devTrackedProcessTreeKiller = new DevTrackedProcessTreeKiller();
+    const processRunner = new ExecaProcessRunner();
     const consumerAgentSkillsSyncService = new ConsumerAgentSkillsSyncService(
       new AgentSkillsExtractorFactory(),
       new ConsumerAgentSkillsAutoSyncPolicy(),
@@ -118,17 +123,19 @@ export class CliProgramFactory {
       pluginDiscovery,
       consumerBuildArtifactsPublisher,
       new DevBootstrapSummaryFetcher(),
+      new DevModeResolver(),
       new DevCliBannerRenderer(),
       new ConsumerEnvDotenvFilePredicate(),
       devTrackedProcessTreeKiller,
       new WorkspacePluginPackageResolver(),
-      new WorkspacePluginDevProcessCoordinator(devTrackedProcessTreeKiller),
+      new WorkspacePluginDevProcessCoordinator(devTrackedProcessTreeKiller, processRunner),
       nextHostConsumerServerCommandFactory,
       new DevApiRuntimeFactory(devSessionServices.loopbackPortAllocator, appConfigLoader, pluginDiscovery),
       new CliDevProxyServerFactory(),
       new DevRebuildQueueFactory(),
       new DevNextChildProcessOutputFilter(new DevNextStartupBannerLineFilter()),
       new ConsumerSourceErrorParser(),
+      processRunner,
     );
     const collectionsBootstrap = new CollectionsCliBootstrap(
       appConfigLoader,
@@ -137,6 +144,12 @@ export class CliProgramFactory {
       tsconfigPreparation,
     );
     const collectionsOptionsParser = new CollectionsCliOptionsParser();
+    const runBootstrap = new RunCliBootstrap(
+      appConfigLoader,
+      pathResolver,
+      new UserAdminConsumerDotenvLoader(),
+      tsconfigPreparation,
+    );
 
     return new CliProgram(
       buildOptionsParser,
@@ -160,6 +173,7 @@ export class CliProgramFactory {
         new ConsumerEnvLoader(),
         new ListenPortResolver(),
         nextHostConsumerServerCommandFactory,
+        processRunner,
       ),
       new ServeWorkerCommand(pathResolver, appConfigLoader, new AppContainerFactory()),
       new SkillsSyncCommand(consumerAgentSkillsSyncService),
@@ -174,6 +188,9 @@ export class CliProgramFactory {
       new CollectionsUpdateCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
       new CollectionsDeleteCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
       new CollectionsSyncCommand(cliLogger, collectionsBootstrap, collectionsOptionsParser),
+      new ExampleVerifyCommand(),
+      new RunWorkflowCommand(cliLogger, runBootstrap),
+      new RunTestCommand(cliLogger),
     );
   }
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "concurrency": "12",
+  "concurrency": "4",
   "globalDependencies": [
     "pnpm-lock.yaml",
     "turbo.json",
@@ -18,6 +18,11 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "tsconfig*.json"],
       "outputs": ["dist/**"]
+    },
+    "build:metadata": {
+      "dependsOn": ["build"],
+      "inputs": ["src/**", "codemation.metadata.json"],
+      "outputs": ["dist/metadata.json"]
     },
     "prisma:generate": {
       "dependsOn": [],

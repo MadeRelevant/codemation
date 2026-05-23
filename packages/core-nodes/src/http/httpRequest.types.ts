@@ -67,6 +67,12 @@ export type HttpRequestSpec = Readonly<{
   responseBinarySlot?: string;
   /** Maximum allowed response size in bytes (checked against Content-Length before allocating). Defaults to 100 MiB. */
   responseSizeCapBytes?: number;
+  /**
+   * When `false` (default), requests whose target host resolves to an RFC-1918,
+   * link-local (169.254/16), or loopback address are blocked to prevent SSRF attacks.
+   * Set to `true` only for workflows that intentionally reach private infrastructure.
+   */
+  allowPrivateNetworkTargets?: boolean;
   /** Execution context — needed for binary attach. */
   ctx: NodeExecutionContext<RunnableNodeConfig<unknown, unknown>>;
 }>;

@@ -6,6 +6,8 @@ export { UpsertLocalBootstrapUserCommand } from "./application/commands/UpsertLo
 export type { UpsertLocalBootstrapUserResultDto } from "./application/contracts/userDirectoryContracts.types";
 export { AppContainerFactory } from "./bootstrap/AppContainerFactory";
 export { AppContainerLifecycle } from "./bootstrap/AppContainerLifecycle";
+export { BootTimer } from "./bootstrap/perf/BootTimer";
+export type { BootTracePhase } from "./bootstrap/perf/BootTimer";
 export { DatabaseMigrations } from "./bootstrap/runtime/DatabaseMigrations";
 export { CollectionSchemaSyncerHolder } from "./infrastructure/collections/CollectionSchemaSyncerHolder";
 export { FrontendRuntime } from "./bootstrap/runtime/FrontendRuntime";
@@ -56,6 +58,10 @@ export { InsertCollectionRowCommand } from "./application/collections/InsertColl
 export { UpdateCollectionRowCommand } from "./application/collections/UpdateCollectionRowCommand";
 export { DeleteCollectionRowCommand } from "./application/collections/DeleteCollectionRowCommand";
 export { SyncCollectionsCommand } from "./application/collections/SyncCollectionsCommand";
+export { StartWorkflowRunCommand } from "./application/commands/StartWorkflowRunCommand";
+export type { RunCommandResult } from "./application/contracts/RunContracts";
+export { ApplicationRequestError } from "./application/ApplicationRequestError";
+export { GetRunStateQuery } from "./application/queries/GetRunStateQuery";
 
 export type {
   CodemationFrontendAuthProviderSnapshot,

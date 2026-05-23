@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { CodemationConfig } from "@codemation/host";
 import { expect, test } from "vitest";
 
@@ -64,7 +65,7 @@ test("resolves SQLite file path from CODEMATION_SQLITE_FILE_PATH relative to con
       { runtime: { database: { kind: "sqlite" } } } as CodemationConfig,
       "/app/consumer",
     ),
-  ).toEqual({ kind: "sqlite", databaseFilePath: "/app/consumer/custom/sqlite.db" });
+  ).toEqual({ kind: "sqlite", databaseFilePath: path.resolve("/app/consumer", "custom/sqlite.db") });
 });
 
 test("uses configured sqliteFilePath when env override is absent", () => {

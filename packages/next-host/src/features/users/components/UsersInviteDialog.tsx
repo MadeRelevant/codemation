@@ -1,8 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { CodemationDialog } from "@/components/CodemationDialog";
-import { Input } from "@/components/ui/input";
+import { Button } from "@codemation/ui";
+import { CodemationDialog } from "@codemation/ui";
+import { Input } from "@codemation/ui";
 import { InviteLinkCopyRow } from "./InviteLinkCopyRow";
 import {
   Form,

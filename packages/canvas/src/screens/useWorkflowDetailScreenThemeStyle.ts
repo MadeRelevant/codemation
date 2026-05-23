@@ -2,7 +2,7 @@
 
 import { useMemo, type CSSProperties } from "react";
 
-import type { WorkflowCanvasConfig } from "../types/WorkflowCanvasConfig";
+import type { WorkflowCanvasConfig } from "@codemation/canvas-core";
 
 export function useWorkflowDetailScreenThemeStyle(config: WorkflowCanvasConfig | undefined): CSSProperties {
   return useMemo((): CSSProperties => {

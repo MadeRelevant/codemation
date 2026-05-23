@@ -1,6 +1,6 @@
 import type { UserAccountStatus } from "@codemation/host/dto";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@codemation/ui";
 import { cn } from "@/lib/utils";
 
 export function UsersScreenUserStatusBadge(props: Readonly<{ userId: string; status: UserAccountStatus }>) {

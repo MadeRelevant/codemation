@@ -1,4 +1,4 @@
-import type { Clock, TypeToken } from "@codemation/core";
+import type { Clock, OAuthFlowExecutor, TypeToken } from "@codemation/core";
 import type { SessionVerifier } from "./application/auth/SessionVerifier";
 import type { Command } from "./application/bus/Command";
 import type { CommandBus } from "./application/bus/CommandBus";
@@ -10,6 +10,7 @@ import type { Query } from "./application/bus/Query";
 import type { QueryBus } from "./application/bus/QueryBus";
 import type { QueryHandler } from "./application/bus/QueryHandler";
 import type { Logger, LoggerFactory } from "./application/logging/Logger";
+import type { ProcessRunner } from "./process/ProcessRunner.types";
 import type { WorkflowWebsocketPublisher } from "./application/websocket/WorkflowWebsocketPublisher";
 import type { TelemetrySpanPublisher } from "./application/telemetry/TelemetrySpanPublisher";
 import type { CredentialStore } from "./domain/credentials/CredentialServices";
@@ -30,6 +31,10 @@ import type { AppConfig } from "./presentation/config/AppConfig";
 import type { CodemationAuthConfig } from "./presentation/config/CodemationAuthConfig";
 import type { CodemationWhitelabelConfig } from "./presentation/config/CodemationWhitelabelConfig";
 import type { HonoApiRouteRegistrar } from "./presentation/http/hono/HonoApiRouteRegistrar";
+import type { InternalHonoApiRouteRegistrar } from "./presentation/http/hono/InternalHonoApiRouteRegistrar";
+import type { ManagedCorsMiddleware } from "./auth/managed/ManagedCorsMiddleware";
+import type { WebsocketAuthenticator } from "./presentation/websocket/WebsocketAuthenticator.types";
+import type { IWorkflowAuditEmitter } from "./audit/IAuditEmitter";
 
 export const ApplicationTokens = {
   CodemationAuthConfig: Symbol.for("codemation.application.CodemationAuthConfig") as TypeToken<
@@ -52,6 +57,13 @@ export const ApplicationTokens = {
     DomainEventHandler<DomainEvent>
   >,
   HonoApiRouteRegistrar: Symbol.for("codemation.application.HonoApiRouteRegistrar") as TypeToken<HonoApiRouteRegistrar>,
+  InternalHonoApiRouteRegistrar: Symbol.for(
+    "codemation.application.InternalHonoApiRouteRegistrar",
+  ) as TypeToken<InternalHonoApiRouteRegistrar>,
+  ManagedCorsMiddleware: Symbol.for("codemation.application.ManagedCorsMiddleware") as TypeToken<ManagedCorsMiddleware>,
+  WebsocketAuthenticator: Symbol.for(
+    "codemation.application.WebsocketAuthenticator",
+  ) as TypeToken<WebsocketAuthenticator | null>,
   WorkflowWebsocketPublisher: Symbol.for(
     "codemation.application.WorkflowWebsocketPublisher",
   ) as TypeToken<WorkflowWebsocketPublisher>,
@@ -91,4 +103,7 @@ export const ApplicationTokens = {
   PrismaClient: Symbol.for("codemation.application.PrismaClient") as TypeToken<PrismaDatabaseClient>,
   SessionVerifier: Symbol.for("codemation.application.SessionVerifier") as TypeToken<SessionVerifier>,
   Clock: Symbol.for("codemation.application.Clock") as TypeToken<Clock>,
+  WorkflowAuditEmitter: Symbol.for("codemation.application.WorkflowAuditEmitter") as TypeToken<IWorkflowAuditEmitter>,
+  ProcessRunner: Symbol.for("codemation.application.ProcessRunner") as TypeToken<ProcessRunner>,
+  OAuthFlowExecutor: Symbol.for("codemation.application.OAuthFlowExecutor") as TypeToken<OAuthFlowExecutor>,
 } as const;

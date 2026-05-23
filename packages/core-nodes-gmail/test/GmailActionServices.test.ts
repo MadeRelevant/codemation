@@ -11,6 +11,7 @@ import { BinaryStreamCollector } from "../src/services/BinaryStreamCollector";
 import { GmailConfiguredLabelService } from "../src/services/GmailConfiguredLabelService";
 import type { GmailApiClient, GmailMessageAttachmentContent, GmailMessageRecord } from "../src/services/GmailApiClient";
 import { GmailModifyLabelsService } from "../src/services/GmailModifyLabelsService";
+import { GmailQueryMatcher } from "../src/services/GmailQueryMatcher";
 import { GmailReplyToMessageService } from "../src/services/GmailReplyToMessageService";
 import { GmailSendMessageService } from "../src/services/GmailSendMessageService";
 
@@ -418,4 +419,16 @@ test("GmailModifyLabelsService rejects empty threadId for thread targets", async
       }),
     /input.threadId/,
   );
+});
+
+test("GmailQueryMatcher returns false when message is missing a required label", () => {
+  const matcher = new GmailQueryMatcher();
+  const message = {
+    messageId: "m1",
+    labelIds: ["INBOX"],
+    headers: {},
+    attachments: [],
+  } as const;
+  const result = matcher.matchesOnNewTrigger(message, ["INBOX", "IMPORTANT"]);
+  assert.strictEqual(result, false);
 });

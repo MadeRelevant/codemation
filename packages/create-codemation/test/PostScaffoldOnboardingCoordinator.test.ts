@@ -361,4 +361,163 @@ describe("PostScaffoldOnboardingCoordinator", () => {
     expect(out.text).toContain("Creating admin user");
     expect(out.text).toContain("pnpm dev");
   });
+
+  it("prints plugin manual steps when templateId is plugin with no-interaction", async () => {
+    const out = new MemoryStdout();
+    const runner = new RecordingRunner();
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "onb-plugin-"));
+    tmpDirs.push(target);
+    await fs.writeFile(path.join(target, "package.json"), JSON.stringify({ packageManager: "pnpm@10.13.1" }), "utf8");
+    await fs.writeFile(path.join(target, ".env.example"), "# plugin env\n", "utf8");
+    const coordinator = new PostScaffoldOnboardingCoordinator(
+      out,
+      new ScriptedPrompts(false, []),
+      new NodeFileSystem(),
+      runner,
+      true,
+    );
+    await coordinator.runAfterScaffold({ templateId: "plugin", targetDirectory: target, noInteraction: true });
+    expect(out.text).toContain("pnpm install");
+    expect(out.text).toContain(".env is already created");
+    expect(out.text).not.toContain("user create");
+  });
+
+  it("runs plugin install when templateId is plugin with interaction enabled", async () => {
+    const out = new MemoryStdout();
+    const runner = new RecordingRunner();
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "onb-plugin-int-"));
+    tmpDirs.push(target);
+    await fs.writeFile(path.join(target, "package.json"), JSON.stringify({ packageManager: "pnpm@10.13.1" }), "utf8");
+    await fs.writeFile(path.join(target, ".env.example"), "# plugin env\n", "utf8");
+    const coordinator = new PostScaffoldOnboardingCoordinator(
+      out,
+      new ScriptedPrompts(true, []),
+      new NodeFileSystem(),
+      runner,
+      true,
+    );
+    await coordinator.runAfterScaffold({ templateId: "plugin", targetDirectory: target, noInteraction: false });
+    expect(runner.calls.some((c) => c.args.includes("install"))).toBe(true);
+  });
+
+  it("throws when adminUser has an invalid email address", async () => {
+    const out = new MemoryStdout();
+    const runner = new RecordingRunner();
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "onb-invalid-email-"));
+    tmpDirs.push(target);
+    await fs.writeFile(path.join(target, "package.json"), JSON.stringify({ packageManager: "pnpm@10.13.1" }), "utf8");
+    const coordinator = new PostScaffoldOnboardingCoordinator(
+      out,
+      new ScriptedPrompts(false, []),
+      new NodeFileSystem(),
+      runner,
+      false,
+    );
+    await expect(
+      coordinator.runAfterScaffold({
+        templateId: "default",
+        targetDirectory: target,
+        noInteraction: true,
+        adminUser: { email: "not-an-email", password: "longpassword" },
+      }),
+    ).rejects.toThrow("--admin-email");
+  });
+
+  it("throws when adminUser has a password shorter than 8 characters", async () => {
+    const out = new MemoryStdout();
+    const runner = new RecordingRunner();
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "onb-short-pw-"));
+    tmpDirs.push(target);
+    await fs.writeFile(path.join(target, "package.json"), JSON.stringify({ packageManager: "pnpm@10.13.1" }), "utf8");
+    const coordinator = new PostScaffoldOnboardingCoordinator(
+      out,
+      new ScriptedPrompts(false, []),
+      new NodeFileSystem(),
+      runner,
+      false,
+    );
+    await expect(
+      coordinator.runAfterScaffold({
+        templateId: "default",
+        targetDirectory: target,
+        noInteraction: true,
+        adminUser: { email: "admin@example.com", password: "short" },
+      }),
+    ).rejects.toThrow("--admin-password");
+  });
+
+  it("skips config rewrite when allowUnauthenticatedInDevelopment is already false", async () => {
+    const out = new MemoryStdout();
+    const runner = new RecordingRunner();
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "onb-already-false-"));
+    tmpDirs.push(target);
+    await fs.writeFile(path.join(target, "package.json"), JSON.stringify({ packageManager: "pnpm@10.13.1" }), "utf8");
+    // Config already has false — the rewrite should be a no-op (line 209 executes)
+    await fs.writeFile(
+      path.join(target, "codemation.config.ts"),
+      "export default { app: { auth: { allowUnauthenticatedInDevelopment: false } } };\n",
+      "utf8",
+    );
+    const coordinator = new PostScaffoldOnboardingCoordinator(
+      out,
+      new ScriptedPrompts(false, []),
+      new NodeFileSystem(),
+      runner,
+      false,
+    );
+    await coordinator.runAfterScaffold({
+      templateId: "default",
+      targetDirectory: target,
+      noInteraction: true,
+      adminUser: { email: "admin@example.com", password: "longpassword" },
+    });
+    // Config should remain unchanged
+    const config = await fs.readFile(path.join(target, "codemation.config.ts"), "utf8");
+    expect(config).toContain("allowUnauthenticatedInDevelopment: false");
+  });
+
+  it("does not overwrite an existing .env file", async () => {
+    const out = new MemoryStdout();
+    const runner = new RecordingRunner();
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "onb-existing-env-"));
+    tmpDirs.push(target);
+    await fs.writeFile(path.join(target, "package.json"), JSON.stringify({ packageManager: "pnpm@10.13.1" }), "utf8");
+    // Write both .env.example and .env — the coordinator must leave .env untouched (line 218)
+    await fs.writeFile(path.join(target, ".env.example"), "# example env\n", "utf8");
+    await fs.writeFile(path.join(target, ".env"), "EXISTING=value\n", "utf8");
+    const coordinator = new PostScaffoldOnboardingCoordinator(
+      out,
+      new ScriptedPrompts(false, []),
+      new NodeFileSystem(),
+      runner,
+      false,
+    );
+    // Use adminUser so noInteraction path doesn't short-circuit before ensureDefaultEnvFile
+    await coordinator.runAfterScaffold({
+      templateId: "default",
+      targetDirectory: target,
+      noInteraction: true,
+      adminUser: { email: "admin@example.com", password: "longpassword" },
+    });
+    const env = await fs.readFile(path.join(target, ".env"), "utf8");
+    expect(env).toBe("EXISTING=value\n");
+  });
+
+  it("falls back to npm when package.json is missing (readPackageManagerField throws)", async () => {
+    const out = new MemoryStdout();
+    const runner = new RecordingRunner();
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "onb-no-pkgjson-"));
+    tmpDirs.push(target);
+    // No package.json — readPackageManagerField catches the ENOENT and returns null → npm fallback
+    const coordinator = new PostScaffoldOnboardingCoordinator(
+      out,
+      new ScriptedPrompts(false, []),
+      new NodeFileSystem(),
+      runner,
+      false,
+    );
+    await coordinator.runAfterScaffold({ templateId: "default", targetDirectory: target, noInteraction: true });
+    expect(out.text).toContain("npm install");
+    expect(out.text).toContain("npm run dev");
+  });
 });

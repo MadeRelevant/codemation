@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   BaseEdge,
   getStraightPath,
@@ -5,7 +6,7 @@ import {
   type EdgeProps as ReactFlowEdgeProps,
 } from "@xyflow/react";
 
-export function StraightCountEdge(props: ReactFlowEdgeProps<ReactFlowEdge>) {
+export const StraightCountEdge = memo(function StraightCountEdgeImpl(props: ReactFlowEdgeProps<ReactFlowEdge>) {
   const [edgePath, labelX, labelY] = getStraightPath({
     sourceX: props.sourceX,
     sourceY: props.sourceY,
@@ -30,4 +31,4 @@ export function StraightCountEdge(props: ReactFlowEdgeProps<ReactFlowEdge>) {
       interactionWidth={props.interactionWidth}
     />
   );
-}
+});

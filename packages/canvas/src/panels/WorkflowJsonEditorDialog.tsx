@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkflowCanvasApiClient } from "@codemation/canvas";
 
-import { CodemationDialog } from "@/components/CodemationDialog";
-import { JsonMonacoEditor } from "@/components/json/JsonMonacoEditor";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CodemationDialog, JsonMonacoEditor } from "@codemation/ui";
+import { Button } from "@codemation/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@codemation/ui";
 import { WorkflowDetailPresenter } from "@codemation/canvas";
 import type { JsonEditorState, PinBinaryMapsByItemIndex } from "@codemation/canvas";
 import { WorkflowJsonEditorBinaryAttachmentRow } from "./WorkflowJsonEditorBinaryAttachmentRow";

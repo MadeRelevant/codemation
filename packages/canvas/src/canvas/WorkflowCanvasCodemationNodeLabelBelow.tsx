@@ -1,4 +1,4 @@
-import type { WorkflowCanvasNodeData } from "./lib/workflowCanvasNodeData";
+import type { WorkflowCanvasNodeData } from "@codemation/canvas-core";
 import {
   WORKFLOW_CANVAS_ATTACHMENT_NODE_LABEL_FONT_PX,
   WORKFLOW_CANVAS_ATTACHMENT_NODE_LABEL_GAP_PX,
@@ -6,7 +6,7 @@ import {
   WORKFLOW_CANVAS_MAIN_NODE_LABEL_FONT_PX,
   WORKFLOW_CANVAS_MAIN_NODE_LABEL_GAP_PX,
   WORKFLOW_CANVAS_MAIN_NODE_LABEL_LINE_HEIGHT,
-} from "./lib/workflowCanvasNodeGeometry";
+} from "@codemation/canvas-core";
 
 export function WorkflowCanvasCodemationNodeLabelBelow(
   props: Readonly<{ data: WorkflowCanvasNodeData; maxWidthPx: number }>,

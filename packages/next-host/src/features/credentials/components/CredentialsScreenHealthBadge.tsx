@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@codemation/ui";
 import { cn } from "@/lib/utils";
 
 export function CredentialsScreenHealthBadge({ status }: { status: string }) {

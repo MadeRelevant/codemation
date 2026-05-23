@@ -1,6 +1,6 @@
 import { Handle, Position } from "@xyflow/react";
 
-import type { AgentAttachmentFlags } from "./lib/workflowCanvasNodeData";
+import type { AgentAttachmentFlags } from "@codemation/canvas-core";
 
 /**
  * Horizontal placement of the LLM / TOOLS attachment source handles on

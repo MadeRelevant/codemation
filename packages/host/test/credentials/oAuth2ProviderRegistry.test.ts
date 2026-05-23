@@ -91,3 +91,81 @@ describe("OAuth2ProviderRegistry.resolve — built-in variant", () => {
     expect(() => registry.resolve(def, {})).toThrow(/authorizeUrl and tokenUrl/);
   });
 });
+
+describe("OAuth2ProviderRegistry.resolve — non-oauth2 auth kind", () => {
+  const registry = new OAuth2ProviderRegistry();
+
+  it("throws when credential type does not use oauth2", () => {
+    const def = makeDefinition({ kind: "apiKey" } as never);
+    expect(() => registry.resolve(def, {})).toThrow(/does not use OAuth2/);
+  });
+});
+
+describe("OAuth2ProviderRegistry.resolve — providerFromPublicConfig variant", () => {
+  const registry = new OAuth2ProviderRegistry();
+
+  it("resolves URLs from public config fields", () => {
+    const def = makeDefinition({
+      kind: "oauth2",
+      providerFromPublicConfig: {
+        authorizeUrlFieldKey: "authUrl",
+        tokenUrlFieldKey: "tokenUrl",
+      },
+      scopes: ["openid"],
+    } as never);
+    const resolved = registry.resolve(def, {
+      authUrl: "https://provider.example.com/authorize",
+      tokenUrl: "https://provider.example.com/token",
+    });
+    expect(resolved.providerId).toBe("custom");
+    expect(resolved.authorizeUrl).toBe("https://provider.example.com/authorize");
+    expect(resolved.tokenUrl).toBe("https://provider.example.com/token");
+    expect(resolved.userInfoUrl).toBeUndefined();
+  });
+
+  it("includes userInfoUrl when userInfoUrlFieldKey is provided", () => {
+    const def = makeDefinition({
+      kind: "oauth2",
+      providerFromPublicConfig: {
+        authorizeUrlFieldKey: "authUrl",
+        tokenUrlFieldKey: "tokenUrl",
+        userInfoUrlFieldKey: "userInfoUrl",
+      },
+      scopes: ["openid"],
+    } as never);
+    const resolved = registry.resolve(def, {
+      authUrl: "https://provider.example.com/authorize",
+      tokenUrl: "https://provider.example.com/token",
+      userInfoUrl: "https://provider.example.com/userinfo",
+    });
+    expect(resolved.userInfoUrl).toBe("https://provider.example.com/userinfo");
+  });
+
+  it("throws when URLs are incomplete", () => {
+    const def = makeDefinition({
+      kind: "oauth2",
+      providerFromPublicConfig: {
+        authorizeUrlFieldKey: "authUrl",
+        tokenUrlFieldKey: "tokenUrl",
+      },
+      scopes: ["openid"],
+    } as never);
+    expect(() => registry.resolve(def, { authUrl: "https://example.com" })).toThrow(/incomplete/);
+  });
+});
+
+describe("OAuth2ProviderRegistry.resolveClientId", () => {
+  const registry = new OAuth2ProviderRegistry();
+
+  it("throws when clientId field is missing or empty", () => {
+    const auth = { kind: "oauth2", providerId: "google", scopes: ["openid"] } as never;
+    expect(() => registry.resolveClientId(auth, {})).toThrow(/client id is missing/);
+    expect(() => registry.resolveClientId(auth, { clientId: "" })).toThrow(/client id is missing/);
+  });
+
+  it("uses custom clientIdFieldKey when specified", () => {
+    const auth = { kind: "oauth2", clientIdFieldKey: "myClientId", providerId: "google", scopes: [] } as never;
+    const clientId = registry.resolveClientId(auth, { myClientId: "my-id-123" });
+    expect(clientId).toBe("my-id-123");
+  });
+});

@@ -198,6 +198,49 @@ describe("ConsumerProjectScaffolder", () => {
     await expect(fs.readFile(path.join(projectDir, ".env"), "utf8")).resolves.toBe(existingEnv);
   });
 
+  it("scaffolds the managed template with expected structure", async () => {
+    const resolver = new TemplateDirectoryResolver(import.meta.url);
+    const nodeFs = new NodeFileSystem();
+    const templateCatalog = new TemplateCatalog(resolver, nodeFs);
+    const scaffolder = new ConsumerProjectScaffolder(
+      resolver,
+      agentSkillsDirectoryResolver,
+      templateCatalog,
+      new ProjectNameSanitizer(),
+      nodeFs,
+    );
+    const target = await fs.mkdtemp(path.join(os.tmpdir(), "create-codemation-managed-"));
+    tmpDirs.push(target);
+    const projectDir = path.join(target, "my-managed-workspace");
+    await scaffolder.scaffold({ templateId: "managed", targetDirectory: projectDir, force: false });
+
+    // package.json exists and name was replaced
+    const pkg = JSON.parse(await fs.readFile(path.join(projectDir, "package.json"), "utf8")) as { name: string };
+    expect(pkg.name).toBe("my-managed-workspace");
+
+    // codemation.config.ts is present and references the new config shapes
+    const config = await fs.readFile(path.join(projectDir, "codemation.config.ts"), "utf8");
+    expect(config).toContain("workflowsDir");
+    expect(config).toContain("sqlite");
+
+    // workflows discovery root exists
+    await expect(fs.stat(path.join(projectDir, "src", "workflows"))).resolves.toBeTruthy();
+
+    // .env was created from .env.example
+    const env = await fs.readFile(path.join(projectDir, ".env"), "utf8");
+    expect(env).toContain("WORKSPACE_ID");
+    expect(env).toContain("DATABASE_URL");
+
+    // .gitignore exists
+    await expect(fs.stat(path.join(projectDir, ".gitignore"))).resolves.toBeTruthy();
+
+    // tsconfig.json exists
+    await expect(fs.stat(path.join(projectDir, "tsconfig.json"))).resolves.toBeTruthy();
+
+    // README.md exists
+    await expect(fs.stat(path.join(projectDir, "README.md"))).resolves.toBeTruthy();
+  });
+
   it("refuses non-empty targets without --force", async () => {
     const resolver = new TemplateDirectoryResolver(import.meta.url);
     const nodeFs = new NodeFileSystem();

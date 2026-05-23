@@ -1,10 +1,8 @@
 "use client";
 
 import type { CollectionFieldDto } from "@codemation/host/dto";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@codemation/ui";
+import { Input, Switch, Textarea } from "@codemation/ui";
 import {
   Form,
   FormControl,

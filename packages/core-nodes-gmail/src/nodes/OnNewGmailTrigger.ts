@@ -1,5 +1,4 @@
 import type { CredentialRequirement, NodeInspectorSummaryRow, TriggerNodeConfig, TypeToken } from "@codemation/core";
-import { GmailCredentialTypes } from "../contracts/GmailCredentialTypes";
 import type { GmailTriggerSetupState } from "../contracts/GmailTriggerSetupState";
 import type { GmailMessageAttachmentRecord } from "../services/GmailApiClient";
 import { OnNewGmailTriggerNode } from "./OnNewGmailTriggerNode";
@@ -50,7 +49,7 @@ export class OnNewGmailTrigger implements TriggerNodeConfig<
       {
         slotKey: "auth",
         label: "Gmail account",
-        acceptedTypes: [GmailCredentialTypes.oauth],
+        acceptedTypes: ["oauth.google.gmail"],
         helpText: "Bind a Gmail credential that resolves to an authenticated Gmail trigger client.",
       },
     ];

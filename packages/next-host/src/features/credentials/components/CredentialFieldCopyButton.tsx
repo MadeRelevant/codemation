@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@codemation/ui";
 import ClipboardCopy from "lucide-react/dist/esm/icons/clipboard-copy";
 import { useCallback, useState } from "react";
 

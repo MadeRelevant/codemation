@@ -4,7 +4,7 @@ import { deriveAssertionPassed } from "@codemation/core/contracts";
 import type { TestAssertionDto, TestSuiteChildRunDto } from "@codemation/host/dto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@codemation/ui";
 
 import { resolveDisplayedCaseStatus } from "./TestSuiteCaseStatusIcon";
 import { TestSuiteCaseRow } from "./TestSuiteCaseRow";

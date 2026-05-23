@@ -3,7 +3,7 @@
 import type { TelemetryDashboardRunOriginDto } from "@codemation/host/dto";
 import type { TelemetryDashboardTimePreset } from "../lib/TelemetryDashboardTimeRangeFactory";
 import CalendarRange from "lucide-react/dist/esm/icons/calendar-range";
-import { Input } from "@/components/ui/input";
+import { Input } from "@codemation/ui";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -14,7 +14,7 @@ import {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@codemation/ui";
 import { DashboardChartCard } from "./DashboardChartCard";
 import { DashboardFilterCheckbox } from "./DashboardFilterCheckbox";
 import {

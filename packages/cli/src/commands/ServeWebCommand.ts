@@ -1,5 +1,4 @@
-import { CodemationConsumerConfigLoader } from "@codemation/host/server";
-import { spawn } from "node:child_process";
+import { CodemationConsumerConfigLoader, type ProcessRunner } from "@codemation/host/server";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
@@ -25,6 +24,7 @@ export class ServeWebCommand {
     private readonly envLoader: ConsumerEnvLoader,
     private readonly listenPortResolver: ListenPortResolver,
     private readonly nextHostConsumerServerCommandFactory: NextHostConsumerServerCommandFactory,
+    private readonly processRunner: ProcessRunner,
   ) {}
 
   async execute(consumerRoot: string, buildOptions: ConsumerBuildOptions): Promise<void> {
@@ -45,7 +45,7 @@ export class ServeWebCommand {
       publicWebsocketPort: process.env.NEXT_PUBLIC_CODEMATION_WS_PORT,
       websocketPort: process.env.CODEMATION_WS_PORT,
     });
-    const child = spawn(nextHostCommand.command, nextHostCommand.args, {
+    const child = this.processRunner.spawn(nextHostCommand.command, nextHostCommand.args, {
       cwd: nextHostCommand.cwd,
       stdio: "inherit",
       env: {

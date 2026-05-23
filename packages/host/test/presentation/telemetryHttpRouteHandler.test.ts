@@ -61,15 +61,15 @@ describe("TelemetryHttpRouteHandler", () => {
     });
   });
 
-  it("converts unexpected query failures into server error responses", async () => {
+  it("converts unexpected query failures into a generic server error response (no internal detail)", async () => {
     console.error = () => {};
     const handler = new TelemetryHttpRouteHandler(new FakeQueryBus({}, new Error("telemetry exploded")));
 
     const response = await handler.getRunTrace("run_1");
 
     expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({
-      error: "telemetry exploded",
-    });
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe("Internal server error");
+    expect(body.error).not.toContain("telemetry exploded");
   });
 });

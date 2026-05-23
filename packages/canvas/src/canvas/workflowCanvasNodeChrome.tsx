@@ -3,7 +3,7 @@ import CircleCheckBig from "lucide-react/dist/esm/icons/circle-check-big";
 import Clock3 from "lucide-react/dist/esm/icons/clock-3";
 import Pin from "lucide-react/dist/esm/icons/pin";
 
-import type { NodeExecutionSnapshot } from "../realtime/realtimeDomainTypes";
+import type { NodeExecutionSnapshot } from "@codemation/canvas-core";
 
 export function statusIconForNode(status: NodeExecutionSnapshot["status"] | undefined) {
   if (status === "completed") {

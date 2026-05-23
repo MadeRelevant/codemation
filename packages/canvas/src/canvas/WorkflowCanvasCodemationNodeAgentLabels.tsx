@@ -1,5 +1,5 @@
-import { WORKFLOW_CANVAS_AGENT_BADGE_ROW_PX } from "./lib/workflowCanvasNodeGeometry";
-import type { AgentAttachmentFlags } from "./lib/workflowCanvasNodeData";
+import { WORKFLOW_CANVAS_AGENT_BADGE_ROW_PX } from "@codemation/canvas-core";
+import type { AgentAttachmentFlags } from "@codemation/canvas-core";
 
 /**
  * Horizontal placement of the LLM / TOOLS chips — kept **exactly** in

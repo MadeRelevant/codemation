@@ -1,6 +1,6 @@
 import type { NodeExecutionContext, RunnableNode } from "../../src/contracts/runtimeTypes";
 import { describe, expect, it } from "vitest";
-import { defineCredential, defineNode } from "../../src";
+import { defineCredential, defineBatchNode, defineNode } from "../../src";
 import { z } from "zod";
 
 describe("defineNode", () => {
@@ -153,6 +153,85 @@ describe("defineNode", () => {
       { label: "Method", value: "POST" },
       { label: "URL", value: "https://api.example.com/x" },
     ]);
+  });
+
+  it("defineBatchNode created config exposes credential requirements and inspectorSummary", () => {
+    const batchWithSummary = defineBatchNode({
+      key: "authoring.batchSummary",
+      title: "Batch summary",
+      input: {} as Readonly<{ text: string }>,
+      inspectorSummary({ config }) {
+        return [{ label: "text", value: (config as Readonly<{ text: string }>).text }];
+      },
+      run(items) {
+        return items;
+      },
+    });
+
+    const config = batchWithSummary.create({ text: "hello" } as Readonly<{ text: string }>);
+    // getCredentialRequirements returns empty when no credentials defined
+    expect(config.getCredentialRequirements()).toEqual([]);
+    // inspectorSummary delegates to the option
+    expect(config.inspectorSummary?.()).toEqual([{ label: "text", value: "hello" }]);
+    // register calls context.registerNode
+    let registered = false;
+    const fakeCtx = {
+      registerNode: (_cls: unknown) => {
+        registered = true;
+      },
+    };
+    batchWithSummary.register(fakeCtx as never);
+    expect(registered).toBe(true);
+  });
+
+  it("defineBatchNode runs all items at once and returns the batch result", async () => {
+    const batchUpperCase = defineBatchNode({
+      key: "authoring.batchUppercase",
+      title: "Batch uppercase",
+      input: {} as Readonly<{ text: string }>,
+      async run(items) {
+        return items.map((item) => ({ text: item.text.toUpperCase() }));
+      },
+    });
+
+    const config = batchUpperCase.create({} as Readonly<{ text: string }>);
+    const runtime = new (config.type as new () => RunnableNode<typeof config>)();
+
+    const makeCtx = (_idx: number, _all: ReadonlyArray<{ text: string }>) =>
+      ({
+        config,
+        nodeId: "n1",
+        activationId: "a1",
+        runId: "r1",
+        workflowId: "w1",
+        subworkflowDepth: 0,
+        engineMaxNodeActivations: 10_000,
+        engineMaxSubworkflowDepth: 32,
+        now: () => new Date(),
+        data: { completedNodeOutputs: {} },
+        binary: {},
+        getCredential: async () => ({}),
+      }) as unknown as NodeExecutionContext<typeof config>;
+
+    const items = [{ text: "hello" }, { text: "world" }];
+    // For batch nodes, only the last item (itemIndex === items.length - 1) produces output
+    const earlyOut = await runtime.execute({
+      input: items[0]!,
+      item: { json: items[0]! },
+      itemIndex: 0,
+      items: items.map((j) => ({ json: j })),
+      ctx: makeCtx(0, items),
+    });
+    expect(earlyOut).toEqual([]);
+
+    const finalOut = await runtime.execute({
+      input: items[1]!,
+      item: { json: items[1]! },
+      itemIndex: 1,
+      items: items.map((j) => ({ json: j })),
+      ctx: makeCtx(1, items),
+    });
+    expect(finalOut).toEqual([{ text: "HELLO" }, { text: "WORLD" }]);
   });
 
   it("inspectorSummary() returns undefined when the option is not provided", () => {

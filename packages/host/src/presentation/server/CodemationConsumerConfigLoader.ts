@@ -6,6 +6,7 @@ import type { NamespacedUnregister } from "tsx/esm/api";
 import type { CodemationConfig } from "../config/CodemationConfig";
 import { CodemationConfigNormalizer } from "../config/CodemationConfigNormalizer";
 import type { NormalizedCodemationConfig } from "../config/CodemationConfigNormalizer";
+import { BootTimer } from "../../bootstrap/perf/BootTimer";
 import { logLevelPolicyFactory } from "../../infrastructure/logging/LogLevelPolicyFactory";
 import { ServerLoggerFactory } from "../../infrastructure/logging/ServerLoggerFactory";
 import { DiscoveredWorkflowsEmptyMessageFactory } from "./DiscoveredWorkflowsEmptyMessageFactory";
@@ -37,8 +38,44 @@ export class CodemationConsumerConfigLoader {
   private readonly performanceDiagnosticsLogger = new ServerLoggerFactory(
     logLevelPolicyFactory,
   ).createPerformanceDiagnostics("codemation-config-loader.timing");
+  /**
+   * In-flight + completed load promises keyed by `${consumerRoot}|${configPathOverride}`. The
+   * boot path constructs MULTIPLE CodemationConsumerConfigLoader instances (one inside the CLI's
+   * DatabaseMigrationsApplyService, another inside NextHostEdgeSeedLoader, another inside
+   * AppConfigLoader for the disposable runtime) and each independently calls `load(...)`. Without
+   * a cache shared across instances, the same `${consumerRoot}` ends up importing
+   * codemation.config.ts + discovered workflow modules ~3 times for a single dev boot. The cache
+   * has to be static so it spans every loader instance in the process.
+   *
+   * Callers MUST invoke `invalidateAll()` on a source-change reload — the dev source watcher
+   * already tears the runtime down and reboots; it just needs to clear this map first.
+   */
+  private static readonly resolutionCache = new Map<string, Promise<CodemationConsumerConfigResolution>>();
+
+  static invalidateAll(): void {
+    this.resolutionCache.clear();
+  }
 
   async load(
+    args: Readonly<{ consumerRoot: string; configPathOverride?: string }>,
+  ): Promise<CodemationConsumerConfigResolution> {
+    const cacheKey = `${args.consumerRoot}|${args.configPathOverride ?? ""}`;
+    const cached = CodemationConsumerConfigLoader.resolutionCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+    const promise = this.loadUncached(args);
+    CodemationConsumerConfigLoader.resolutionCache.set(cacheKey, promise);
+    try {
+      return await promise;
+    } catch (error) {
+      // A failed load shouldn't poison the cache — future retries should re-attempt.
+      CodemationConsumerConfigLoader.resolutionCache.delete(cacheKey);
+      throw error;
+    }
+  }
+
+  private async loadUncached(
     args: Readonly<{ consumerRoot: string; configPathOverride?: string }>,
   ): Promise<CodemationConsumerConfigResolution> {
     const loadStarted = performance.now();
@@ -54,25 +91,33 @@ export class CodemationConsumerConfigLoader {
         `load.${label} +${delta.toFixed(1)}ms (cumulative ${(now - loadStarted).toFixed(1)}ms)`,
       );
     };
-    const bootstrapSource = await this.resolveConfigPath(args.consumerRoot, args.configPathOverride);
+    const bootstrapSource = await BootTimer.measureAsync("config.resolveConfigPath", () =>
+      this.resolveConfigPath(args.consumerRoot, args.configPathOverride),
+    );
     phaseMs("resolveConfigPath");
     if (!bootstrapSource) {
       throw new Error(
         'Codemation config not found. Expected "codemation.config.ts" in the consumer project root or "src/".',
       );
     }
-    const moduleExports = await this.importModule(bootstrapSource, importSession);
+    const moduleExports = await BootTimer.measureAsync("config.importConfigModule", () =>
+      this.importModule(bootstrapSource, importSession),
+    );
     phaseMs("importConfigModule");
     const rawConfig = this.configExportsResolver.resolveConfig(moduleExports);
     if (!rawConfig) {
       throw new Error(`Config file does not export a Codemation config object: ${bootstrapSource}`);
     }
     const config = this.configNormalizer.normalize(rawConfig);
-    const workflowSources = await this.resolveWorkflowSources(args.consumerRoot, config);
+    const workflowSources = await BootTimer.measureAsync("config.resolveWorkflowSources", () =>
+      this.resolveWorkflowSources(args.consumerRoot, config),
+    );
     phaseMs("resolveWorkflowSources");
-    const workflows = this.mergeWorkflows(
-      config.workflows ?? [],
-      await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources, importSession),
+    const workflows = await BootTimer.measureAsync("config.loadDiscoveredWorkflows", async () =>
+      this.mergeWorkflows(
+        config.workflows ?? [],
+        await this.loadDiscoveredWorkflows(args.consumerRoot, config, workflowSources, importSession),
+      ),
     );
     phaseMs("loadDiscoveredWorkflows");
     const resolvedConfig: NormalizedCodemationConfig = {
@@ -145,7 +190,9 @@ export class CodemationConsumerConfigLoader {
           workflowDiscoveryDirectories,
           absoluteWorkflowModulePath: workflowSource,
         }),
-        moduleExports: await this.importModule(workflowSource, importSession),
+        moduleExports: await BootTimer.measureAsync(`workflow.${path.basename(workflowSource).replace(/\.tsx?$/, "")}`, () =>
+          this.importModule(workflowSource, importSession),
+        ),
       })),
     );
     for (const loadedWorkflowModule of loadedWorkflowModules) {

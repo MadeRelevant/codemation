@@ -1,11 +1,19 @@
 import { HttpRequestExecutor } from "../src/http/HttpRequestExecutor";
 import { HttpBodyBuilder } from "../src/http/HttpBodyBuilder";
 import { HttpUrlBuilder } from "../src/http/HttpUrlBuilder";
+import { SsrfGuard } from "../src/http/SsrfGuard";
 import type { HttpRequestSpec } from "../src/http/httpRequest.types";
 import type { NodeExecutionContext } from "@codemation/core";
 import type { RunnableNodeConfig } from "@codemation/core";
 import assert from "node:assert/strict";
 import { describe, test } from "vitest";
+
+/** A no-op SSRF guard that allows all targets — for use in unit tests that supply safe stub URLs. */
+class NoOpSsrfGuard extends SsrfGuard {
+  override async check(_url: string, _allowPrivate: boolean): Promise<void> {
+    // Allow all in unit tests; SSRF guard is tested separately in SsrfGuard.test.ts
+  }
+}
 
 /** Minimal fake ctx with no binary operations needed for executor tests. */
 function makeFakeCtx(): NodeExecutionContext<RunnableNodeConfig<unknown, unknown>> {
@@ -58,6 +66,7 @@ describe("HttpRequestExecutor", () => {
       makeFetch({ body: '{"hello":"world"}', contentType: "application/json" }),
       new HttpBodyBuilder(),
       new HttpUrlBuilder(),
+      new NoOpSsrfGuard(),
     );
     const spec: HttpRequestSpec = {
       url: "https://api.example.com/data",
@@ -80,7 +89,12 @@ describe("HttpRequestExecutor", () => {
       return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
     };
 
-    const executor = new HttpRequestExecutor(fakeFetch, new HttpBodyBuilder(), new HttpUrlBuilder());
+    const executor = new HttpRequestExecutor(
+      fakeFetch,
+      new HttpBodyBuilder(),
+      new HttpUrlBuilder(),
+      new NoOpSsrfGuard(),
+    );
     const spec: HttpRequestSpec = {
       url: "https://api.example.com/data",
       method: "GET",
@@ -105,7 +119,12 @@ describe("HttpRequestExecutor", () => {
       return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
     };
 
-    const executor = new HttpRequestExecutor(fakeFetch, new HttpBodyBuilder(), new HttpUrlBuilder());
+    const executor = new HttpRequestExecutor(
+      fakeFetch,
+      new HttpBodyBuilder(),
+      new HttpUrlBuilder(),
+      new NoOpSsrfGuard(),
+    );
     const spec: HttpRequestSpec = {
       url: "https://api.example.com/data",
       method: "GET",
@@ -131,7 +150,12 @@ describe("HttpRequestExecutor", () => {
       return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
     };
 
-    const executor = new HttpRequestExecutor(fakeFetch, new HttpBodyBuilder(), new HttpUrlBuilder());
+    const executor = new HttpRequestExecutor(
+      fakeFetch,
+      new HttpBodyBuilder(),
+      new HttpUrlBuilder(),
+      new NoOpSsrfGuard(),
+    );
     const spec: HttpRequestSpec = {
       url: "https://api.example.com/data",
       method: "POST",
@@ -158,6 +182,7 @@ describe("HttpRequestExecutor", () => {
       }),
       new HttpBodyBuilder(),
       new HttpUrlBuilder(),
+      new NoOpSsrfGuard(),
     );
     const spec: HttpRequestSpec = {
       url: "https://api.example.com/missing",
@@ -176,6 +201,7 @@ describe("HttpRequestExecutor", () => {
       makeFetch({ contentType: "image/png", body: "binary-data" }),
       new HttpBodyBuilder(),
       new HttpUrlBuilder(),
+      new NoOpSsrfGuard(),
     );
     const spec: HttpRequestSpec = {
       url: "https://example.com/image.png",
@@ -193,6 +219,7 @@ describe("HttpRequestExecutor", () => {
       makeFetch({ contentType: "image/png", body: "binary-data" }),
       new HttpBodyBuilder(),
       new HttpUrlBuilder(),
+      new NoOpSsrfGuard(),
     );
     const spec: HttpRequestSpec = {
       url: "https://example.com/image.png",

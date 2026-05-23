@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@codemation/ui";
 import { cn } from "@/lib/utils";
 
 export type CredentialDialogFeedbackProps = {

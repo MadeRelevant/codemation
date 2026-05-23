@@ -66,6 +66,8 @@ class RecordingWorkerRuntimeScheduler implements WorkerRuntimeScheduler {
 class RecordingAppContainerLifecycle {
   stopCalls = 0;
 
+  async startWorkerSubscribers(): Promise<void> {}
+
   async stop(_args?: Readonly<{ stopWebsocketServer?: boolean }>): Promise<void> {
     this.stopCalls += 1;
   }
@@ -109,6 +111,7 @@ function buildMinimalAppConfig(overrides?: Readonly<{ env?: NodeJS.ProcessEnv }>
     whitelabel: {},
     webSocketPort: 0,
     webSocketBindHost: "127.0.0.1",
+    mcpServers: [],
   };
 }
 

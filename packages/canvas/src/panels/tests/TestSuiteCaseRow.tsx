@@ -5,7 +5,7 @@ import type { TestAssertionDto, TestSuiteChildRunDto } from "@codemation/host/dt
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@codemation/ui";
 
 import { TestAssertionRow } from "./TestAssertionRow";
 import { TestSuiteCaseStatusIcon, resolveDisplayedCaseStatus, statusLabelFor } from "./TestSuiteCaseStatusIcon";

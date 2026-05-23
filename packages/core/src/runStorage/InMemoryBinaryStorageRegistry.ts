@@ -47,6 +47,16 @@ export class InMemoryBinaryStorage implements BinaryStorage {
   async delete(storageKey: string): Promise<void> {
     this.values.delete(storageKey);
   }
+
+  async deleteMany(storageKeys: ReadonlyArray<string>): Promise<void> {
+    for (const key of storageKeys) {
+      this.values.delete(key);
+    }
+  }
+
+  async listByPrefix(prefix: string): Promise<ReadonlyArray<string>> {
+    return Array.from(this.values.keys()).filter((key) => key.startsWith(prefix));
+  }
 }
 
 export { BinaryBodyBufferReader } from "./BinaryBodyBufferReader";

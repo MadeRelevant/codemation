@@ -1,4 +1,4 @@
-import type { AnyCredentialType, DefinedCollection, DefinedNode } from "@codemation/core";
+import type { AnyCredentialType, DefinedCollection, DefinedNode, McpServerDeclaration } from "@codemation/core";
 import type { CodemationAppContext } from "./CodemationAppContext";
 import type {
   CodemationAppDefinition,
@@ -12,14 +12,20 @@ import type { CodemationWhitelabelConfig } from "./CodemationWhitelabelConfig";
 export interface FriendlyCodemationDatabaseConfig {
   readonly kind: "postgresql" | "sqlite";
   readonly url?: string;
+  /** Name of an environment variable whose value is the PostgreSQL connection URL. Co-exclusive with `url`. */
+  readonly urlEnv?: string;
   readonly filePath?: string;
 }
 
 export interface FriendlyCodemationExecutionConfig {
   readonly mode?: "inline" | "queue";
+  /** Name of an environment variable whose value is "inline" or "queue". Co-exclusive with `mode`. */
+  readonly modeEnv?: string;
   readonly queuePrefix?: string;
   readonly workerQueues?: ReadonlyArray<string>;
   readonly redisUrl?: string;
+  /** Name of an environment variable whose value is the Redis connection URL. Co-exclusive with `redisUrl`. */
+  readonly redisUrlEnv?: string;
 }
 
 export interface DefineCodemationAppOptions extends Omit<
@@ -36,6 +42,13 @@ export interface DefineCodemationAppOptions extends Omit<
   readonly credentials?: ReadonlyArray<AnyCredentialType>;
   readonly register?: (context: CodemationAppContext) => void;
   readonly whitelabel?: CodemationWhitelabelConfig;
+  /**
+   * Path (relative to the consumer project root) to a directory from which workflows are auto-discovered.
+   * All `*.ts` / `*.tsx` files (excluding `*.test.*` and `*.d.ts`) are imported and any exported
+   * `WorkflowDefinition` values are registered. Co-exclusive with providing this directory in
+   * `workflowDiscovery.directories`.
+   */
+  readonly workflowsDir?: string;
 }
 
 export interface DefinePluginOptions {
@@ -44,6 +57,7 @@ export interface DefinePluginOptions {
   readonly nodes?: ReadonlyArray<DefinedNode<string, Record<string, unknown>, unknown, unknown>>;
   readonly collections?: ReadonlyArray<DefinedCollection>;
   readonly credentials?: ReadonlyArray<AnyCredentialType>;
+  readonly mcpServers?: ReadonlyArray<McpServerDeclaration>;
   readonly register?: (context: CodemationPluginContext) => void | Promise<void>;
   readonly sandbox?: CodemationConfig;
 }
@@ -53,13 +67,15 @@ class CodemationAuthoringConfigFactory {
     const appDefinition = this.createAppDefinition(options);
     const credentialTypes = [...(options.credentialTypes ?? []), ...(options.credentials ?? [])];
     const register = this.composeAppRegister(options.register, options.nodes, options.collections);
-    const { workflows, workflowDiscovery, plugins, runtime, log } = options;
+    const { workflows, plugins, runtime, log, mcpServers } = options;
+    const workflowDiscovery = this.mergeWorkflowDiscovery(options.workflowDiscovery, options.workflowsDir);
     return {
       workflows,
       workflowDiscovery,
       plugins,
       runtime,
       log,
+      mcpServers,
       app: appDefinition,
       credentialTypes,
       register,
@@ -70,6 +86,7 @@ class CodemationAuthoringConfigFactory {
     return {
       pluginPackageId: options.pluginPackageId,
       sandbox: options.sandbox,
+      mcpServers: options.mcpServers,
       async register(context: CodemationPluginContext): Promise<void> {
         for (const nodeDefinition of options.nodes ?? []) {
           nodeDefinition.register(context);
@@ -112,9 +129,15 @@ class CodemationAuthoringConfigFactory {
         sqliteFilePath: database.filePath,
       };
     }
+    if (database.url !== undefined && database.urlEnv !== undefined) {
+      throw new Error(
+        "defineCodemationApp: database.url and database.urlEnv are mutually exclusive — provide one or the other.",
+      );
+    }
+    const url = database.urlEnv !== undefined ? process.env[database.urlEnv] : database.url;
     return {
       kind: "postgresql",
-      url: database.url,
+      url,
     };
   }
 
@@ -124,11 +147,37 @@ class CodemationAuthoringConfigFactory {
     if (!execution) {
       return undefined;
     }
+    if (execution.mode !== undefined && execution.modeEnv !== undefined) {
+      throw new Error(
+        "defineCodemationApp: execution.mode and execution.modeEnv are mutually exclusive — provide one or the other.",
+      );
+    }
+    if (execution.redisUrl !== undefined && execution.redisUrlEnv !== undefined) {
+      throw new Error(
+        "defineCodemationApp: execution.redisUrl and execution.redisUrlEnv are mutually exclusive — provide one or the other.",
+      );
+    }
+    const rawMode = execution.modeEnv !== undefined ? process.env[execution.modeEnv] : execution.mode;
+    const mode = rawMode === "inline" || rawMode === "queue" ? rawMode : undefined;
+    const redisUrl = execution.redisUrlEnv !== undefined ? process.env[execution.redisUrlEnv] : execution.redisUrl;
     return {
-      kind: execution.mode,
+      kind: mode,
       queuePrefix: execution.queuePrefix,
       workerQueues: execution.workerQueues,
-      redisUrl: execution.redisUrl,
+      redisUrl,
+    };
+  }
+
+  private static mergeWorkflowDiscovery(
+    existing: CodemationConfig["workflowDiscovery"],
+    workflowsDir: string | undefined,
+  ): CodemationConfig["workflowDiscovery"] {
+    if (!workflowsDir) {
+      return existing;
+    }
+    const existingDirectories = existing?.directories ?? [];
+    return {
+      directories: [...existingDirectories, workflowsDir],
     };
   }
 

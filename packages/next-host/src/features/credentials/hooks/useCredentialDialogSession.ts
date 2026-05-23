@@ -228,6 +228,7 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
   }, [
     credentialTypesAll,
     dialogMode,
+    displayName,
     editingInstance,
     envRefValues,
     onCredentialCreated,
@@ -386,15 +387,44 @@ export function useCredentialDialogSession(options: CredentialDialogSessionOptio
       return;
     }
     setErrorMessage(null);
-    const popup = window.open(
-      ApiPaths.oauth2Auth(targetInstance.instanceId),
-      `codemation-oauth2-${targetInstance.instanceId}`,
-      "popup=yes,width=640,height=760",
-    );
-    if (!popup) {
-      setErrorMessage("The OAuth popup was blocked by the browser.");
+    let redirectUri = oauth2RedirectUri;
+    if (!redirectUri) {
+      try {
+        const uriData = await codemationApiClient.getJson<{ redirectUri?: string }>(ApiPaths.oauth2RedirectUri());
+        redirectUri = uriData.redirectUri ?? "";
+        if (redirectUri) {
+          setOauth2RedirectUri(redirectUri);
+        }
+      } catch {
+        // fall through to the guard below
+      }
     }
-  }, [ensureDialogCredentialInstance]);
+    if (!redirectUri) {
+      setErrorMessage("OAuth redirect URI is not yet loaded. Please wait and try again.");
+      return;
+    }
+    try {
+      const startResult = await codemationApiClient.postJson<{ consentUrl: string; stateToken: string }>(
+        ApiPaths.credentialOAuthStart(),
+        {
+          typeId: targetInstance.typeId,
+          instanceId: targetInstance.instanceId,
+          redirectUri,
+          scopes: [],
+        },
+      );
+      const popup = window.open(
+        startResult.consentUrl,
+        `codemation-oauth2-${targetInstance.instanceId}`,
+        "popup=yes,width=640,height=760",
+      );
+      if (!popup) {
+        setErrorMessage("The OAuth popup was blocked by the browser.");
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    }
+  }, [ensureDialogCredentialInstance, oauth2RedirectUri]);
 
   const executeOAuthDisconnect = useCallback(async (): Promise<void> => {
     if (!editingInstanceId) {

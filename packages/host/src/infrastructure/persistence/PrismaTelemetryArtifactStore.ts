@@ -1,11 +1,16 @@
-import { inject, injectable } from "@codemation/core";
+import type { BinaryBody, BinaryStorage } from "@codemation/core";
+import { CoreTokens, inject, injectable } from "@codemation/core";
 import { OtelIdentityFactory } from "../../application/telemetry/OtelIdentityFactory";
 import type {
   TelemetryArtifactRecord,
   TelemetryArtifactStore,
   TelemetryArtifactWrite,
+  TelemetryPruneArgs,
 } from "../../domain/telemetry/TelemetryContracts";
 import { PrismaDatabaseClientToken, type PrismaDatabaseClient } from "./PrismaDatabaseClient";
+
+/** Payloads larger than this byte threshold are offloaded to BinaryStorage. */
+const PAYLOAD_OFFLOAD_THRESHOLD_BYTES = 64_000;
 
 @injectable()
 export class PrismaTelemetryArtifactStore implements TelemetryArtifactStore {
@@ -14,11 +19,36 @@ export class PrismaTelemetryArtifactStore implements TelemetryArtifactStore {
     private readonly prisma: PrismaDatabaseClient,
     @inject(OtelIdentityFactory)
     private readonly otelIdentityFactory: OtelIdentityFactory,
+    @inject(CoreTokens.BinaryStorage)
+    private readonly binaryStorage: BinaryStorage,
   ) {}
 
   async save(record: TelemetryArtifactWrite): Promise<TelemetryArtifactRecord> {
     const artifactId = this.otelIdentityFactory.createArtifactId();
     const createdAt = new Date().toISOString();
+
+    // Resolve inline vs offloaded payload
+    let payloadText: string | null = record.payloadText ?? null;
+    let payloadJson: string | null = record.payloadJson !== undefined ? JSON.stringify(record.payloadJson) : null;
+    let payloadStorageKey: string | null = null;
+
+    const payloadTextBytes = payloadText ? Buffer.byteLength(payloadText, "utf8") : 0;
+    const payloadJsonBytes = payloadJson ? Buffer.byteLength(payloadJson, "utf8") : 0;
+
+    if (payloadTextBytes > PAYLOAD_OFFLOAD_THRESHOLD_BYTES) {
+      const storageKey = `telemetry-artifacts/${artifactId}.txt`;
+      const body: BinaryBody = Buffer.from(payloadText!, "utf8");
+      await this.binaryStorage.write({ storageKey, body });
+      payloadStorageKey = storageKey;
+      payloadText = null;
+    } else if (payloadJsonBytes > PAYLOAD_OFFLOAD_THRESHOLD_BYTES) {
+      const storageKey = `telemetry-artifacts/${artifactId}.json`;
+      const body: BinaryBody = Buffer.from(payloadJson!, "utf8");
+      await this.binaryStorage.write({ storageKey, body });
+      payloadStorageKey = storageKey;
+      payloadJson = null;
+    }
+
     await this.prisma.telemetryArtifact.create({
       data: {
         artifactId,
@@ -32,8 +62,9 @@ export class PrismaTelemetryArtifactStore implements TelemetryArtifactStore {
         contentType: record.contentType,
         previewText: record.previewText ?? null,
         previewJson: record.previewJson !== undefined ? JSON.stringify(record.previewJson) : null,
-        payloadText: record.payloadText ?? null,
-        payloadJson: record.payloadJson !== undefined ? JSON.stringify(record.payloadJson) : null,
+        payloadText,
+        payloadJson,
+        payloadStorageKey,
         bytes: record.bytes ?? null,
         truncated: record.truncated ?? null,
         createdAt,
@@ -53,8 +84,9 @@ export class PrismaTelemetryArtifactStore implements TelemetryArtifactStore {
       contentType: record.contentType,
       previewText: record.previewText,
       previewJson: record.previewJson,
-      payloadText: record.payloadText,
-      payloadJson: record.payloadJson,
+      payloadText: payloadText ?? undefined,
+      payloadJson: payloadJson !== null ? JSON.parse(payloadJson) : undefined,
+      payloadStorageKey: payloadStorageKey ?? undefined,
       bytes: record.bytes,
       truncated: record.truncated,
       createdAt,
@@ -82,6 +114,7 @@ export class PrismaTelemetryArtifactStore implements TelemetryArtifactStore {
       previewJson: this.parseJson(row.previewJson),
       payloadText: row.payloadText ?? undefined,
       payloadJson: this.parseJson(row.payloadJson),
+      payloadStorageKey: row.payloadStorageKey ?? undefined,
       bytes: row.bytes ?? undefined,
       truncated: row.truncated ?? undefined,
       createdAt: row.createdAt,
@@ -90,7 +123,7 @@ export class PrismaTelemetryArtifactStore implements TelemetryArtifactStore {
     }));
   }
 
-  async pruneExpired(args: Readonly<{ nowIso: string; limit?: number }>): Promise<number> {
+  async pruneExpired(args: TelemetryPruneArgs): Promise<{ count: number; storageKeys: ReadonlyArray<string> }> {
     const rows = await this.prisma.telemetryArtifact.findMany({
       where: {
         retentionExpiresAt: {
@@ -99,13 +132,15 @@ export class PrismaTelemetryArtifactStore implements TelemetryArtifactStore {
       },
       select: {
         artifactId: true,
+        payloadStorageKey: true,
       },
       orderBy: [{ retentionExpiresAt: "asc" }, { artifactId: "asc" }],
       ...(args.limit ? { take: args.limit } : {}),
     });
     if (rows.length === 0) {
-      return 0;
+      return { count: 0, storageKeys: [] };
     }
+    const storageKeys = rows.flatMap((row) => (row.payloadStorageKey ? [row.payloadStorageKey] : []));
     const result = await this.prisma.telemetryArtifact.deleteMany({
       where: {
         artifactId: {
@@ -113,7 +148,7 @@ export class PrismaTelemetryArtifactStore implements TelemetryArtifactStore {
         },
       },
     });
-    return result.count;
+    return { count: result.count, storageKeys };
   }
 
   private parseJson(value: string | null): unknown {

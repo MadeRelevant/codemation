@@ -59,6 +59,8 @@ describe("WorkflowRunRetentionPruneScheduler", () => {
       delete: async (storageKey: string) => {
         deletedBinaryKeys.push(storageKey);
       },
+      deleteMany: async () => undefined,
+      listByPrefix: async () => [],
     };
     const prunedTelemetry: string[] = [];
     const candidates: ReadonlyArray<RunPruneCandidate> = [
@@ -85,7 +87,7 @@ describe("WorkflowRunRetentionPruneScheduler", () => {
       listByTraceId: async () => [],
       pruneExpired: async () => {
         prunedTelemetry.push("artifact");
-        return 1;
+        return { count: 1, storageKeys: [] };
       },
     };
     const metricPointStore: TelemetryMetricPointStore = {
@@ -203,6 +205,8 @@ describe("WorkflowRunRetentionPruneScheduler", () => {
         },
         stat: async () => ({ exists: false }),
         delete: async () => undefined,
+        deleteMany: async () => undefined,
+        listByPrefix: async () => [],
       },
       spanStore,
       artifactStore,
@@ -254,6 +258,8 @@ describe("WorkflowRunRetentionPruneScheduler", () => {
         },
         stat: async () => ({ exists: false }),
         delete: async () => undefined,
+        deleteMany: async () => undefined,
+        listByPrefix: async () => [],
       },
       {
         upsert: async () => undefined,
@@ -266,7 +272,7 @@ describe("WorkflowRunRetentionPruneScheduler", () => {
           throw new Error("not used");
         },
         listByTraceId: async () => [],
-        pruneExpired: async () => 0,
+        pruneExpired: async () => ({ count: 0, storageKeys: [] }),
       },
       {
         save: async () => {

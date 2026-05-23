@@ -5,7 +5,6 @@ import type {
   TypeToken,
   UpstreamRefPlaceholder,
 } from "@codemation/core";
-
 import { SubWorkflowNode } from "./SubWorkflowNode";
 
 export class SubWorkflow<TInputJson = unknown, TOutputJson = unknown> implements RunnableNodeConfig<

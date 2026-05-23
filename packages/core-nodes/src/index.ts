@@ -1,12 +1,16 @@
 export * from "./canvasIconName";
 export * from "./credentials/index";
 export * from "./http/httpRequest.types";
+export { SSRFBlockedError, SsrfGuard } from "./http/SsrfGuard";
 export * from "./authoring/defineRestNode.types";
 export * from "./chatModels/OpenAIChatModelFactory";
 export * from "./chatModels/OpenAiStrictJsonSchemaFactory";
 export * from "./chatModels/OpenAiCredentialSession";
 export * from "./chatModels/openAiChatModelConfig";
 export * from "./chatModels/OpenAiChatModelPresetsFactory";
+export * from "./chatModels/CodemationChatModelFactory";
+export * from "./chatModels/CodemationChatModelConfig";
+export * from "./chatModels/ManagedModelFetcher";
 export * from "./nodes/aiAgent";
 export * from "./nodes/assertion";
 export * from "./nodes/CallbackNodeFactory";

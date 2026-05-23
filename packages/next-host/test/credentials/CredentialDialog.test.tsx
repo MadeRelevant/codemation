@@ -126,4 +126,39 @@ describe("CredentialDialog", () => {
     expect(screen.getByTestId("credential-advanced-section-trigger")).toHaveTextContent("OAuth scopes");
     expect(screen.getByTestId("credential-public-scopes")).toBeInTheDocument();
   });
+
+  it("footer is always Close + Test + Save — no duplicate Reconnect in OAuth2 edit mode", () => {
+    // Regression test: the OAuth2 edit dialog used to render the Connect/Reconnect button TWICE
+    // (once in the footer, once below the redirect URI). The footer is now uniform: Close,
+    // Test, Save. Connect/Reconnect/Disconnect live in the OAuth2 connection section ONLY.
+    const oauth2Type = testCredentialTypeDefinition({
+      typeId: "oauth.google.gmail",
+      displayName: "Gmail (OAuth)",
+      auth: { kind: "oauth2", providerId: "google", scopes: [] },
+    });
+    const oauth2Instance = testCredentialInstanceDto({
+      instanceId: "i-oauth",
+      typeId: "oauth.google.gmail",
+      displayName: "My Gmail",
+    });
+    render(
+      <CredentialDialogHarness
+        mode="edit"
+        credentialTypes={[oauth2Type]}
+        selectedTypeIdInitial="oauth.google.gmail"
+        editingInstance={oauth2Instance}
+      />,
+    );
+
+    // Footer has Close (label change from Cancel), Test, and Save — no "Reconnect" footer button.
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.getByTestId("credential-test-button")).toBeInTheDocument();
+    expect(screen.getByTestId("credential-save-button")).toBeInTheDocument();
+    expect(screen.queryByTestId("credential-oauth2-connect-footer-button")).not.toBeInTheDocument();
+
+    // Connect (the only one) lives in the inline OAuth2 section.
+    const connectButtons = screen.getAllByTestId("credential-oauth2-connect-button");
+    expect(connectButtons).toHaveLength(1);
+    expect(connectButtons[0]).toHaveTextContent(/^(Connect|Reconnect)$/);
+  });
 });

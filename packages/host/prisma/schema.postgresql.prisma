@@ -18,6 +18,7 @@ model Run {
   executionOptionsJson String? @map("execution_options_json")
   controlJson          String? @map("control_json")
   workflowSnapshotJson String? @map("workflow_snapshot_json")
+  workflowSnapshotId   String? @map("workflow_snapshot_id")
   policySnapshotJson   String? @map("policy_snapshot_json")
   engineCountersJson   String? @map("engine_counters_json")
   mutableStateJson     String? @map("mutable_state_json")
@@ -33,9 +34,11 @@ model Run {
   slotProjection     RunSlotProjection?
   testSuiteRun       TestSuiteRun? @relation(fields: [testSuiteRunId], references: [id])
   testAssertions     TestAssertion[]
+  workflowSnapshot   WorkflowSnapshot? @relation(fields: [workflowSnapshotId], references: [id])
   @@index([workflowId, startedAt])
   @@index([workflowId, status, finishedAt])
   @@index([testSuiteRunId, testCaseIndex])
+  @@index([workflowSnapshotId])
 }
 
 model RunWorkItem {
@@ -258,24 +261,39 @@ model TelemetrySpan {
   @@index([retentionExpiresAt])
 }
 
+model WorkflowSnapshot {
+  id           String @id
+  workflowId   String @map("workflow_id")
+  /// SHA-256 hex digest of snapshotJson — dedup key: same workflow content → one row.
+  snapshotHash String @map("snapshot_hash")
+  snapshotJson String @map("snapshot_json")
+  createdAt    String @map("created_at")
+
+  runs Run[]
+
+  @@unique([workflowId, snapshotHash])
+  @@index([workflowId, snapshotHash])
+}
+
 model TelemetryArtifact {
-  artifactId    String  @id @map("artifact_id")
-  traceId       String  @map("trace_id")
-  spanId        String  @map("span_id")
-  runId         String  @map("run_id")
-  workflowId    String  @map("workflow_id")
-  nodeId        String? @map("node_id")
-  activationId  String? @map("activation_id")
-  kind          String
-  contentType   String  @map("content_type")
-  previewText   String? @map("preview_text")
-  previewJson   String? @map("preview_json")
-  payloadText   String? @map("payload_text")
-  payloadJson   String? @map("payload_json")
-  bytes         Int?
-  truncated     Boolean?
-  createdAt     String  @map("created_at")
-  expiresAt     String? @map("expires_at")
+  artifactId         String  @id @map("artifact_id")
+  traceId            String  @map("trace_id")
+  spanId             String  @map("span_id")
+  runId              String  @map("run_id")
+  workflowId         String  @map("workflow_id")
+  nodeId             String? @map("node_id")
+  activationId       String? @map("activation_id")
+  kind               String
+  contentType        String  @map("content_type")
+  previewText        String? @map("preview_text")
+  previewJson        String? @map("preview_json")
+  payloadText        String? @map("payload_text")
+  payloadJson        String? @map("payload_json")
+  payloadStorageKey  String? @map("payload_storage_key")
+  bytes              Int?
+  truncated          Boolean?
+  createdAt          String  @map("created_at")
+  expiresAt          String? @map("expires_at")
   retentionExpiresAt String? @map("retention_expires_at")
 
   @@index([traceId, createdAt])
@@ -468,4 +486,24 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("codemation_auth_verification_token")
+}
+
+model WorkflowAuditLog {
+  id             String    @id @map("id")
+  occurredAt     DateTime  @map("occurred_at")
+  actorUserId    String    @map("actor_user_id")
+  actorSessionId String?   @map("actor_session_id")
+  action         String    @map("action")
+  resourceType   String    @map("resource_type")
+  resourceId     String    @map("resource_id")
+  outcome        String    @map("outcome")
+  errorCode      String?   @map("error_code")
+  correlationId  String?   @map("correlation_id")
+  workflowId     String    @map("workflow_id")
+  runId          String?   @map("run_id")
+  nodeId         String?   @map("node_id")
+
+  @@index([actorUserId, occurredAt])
+  @@index([workflowId, occurredAt])
+  @@map("workflow_audit_log")
 }

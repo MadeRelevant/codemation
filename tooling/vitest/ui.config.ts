@@ -5,8 +5,14 @@ const p = (rel: string) => path.resolve(import.meta.dirname, rel);
 
 export default defineConfig({
   test: {
-    maxWorkers: 2,
-    fileParallelism: true,
-    projects: [p("../../packages/host/vitest.ui.config.ts")],
+    maxWorkers: 1,
+    fileParallelism: false,
+    projects: [
+      p("../../packages/ui/vitest.ui.config.ts"),
+      p("../../packages/host/vitest.ui.config.ts"),
+      p("../../packages/next-host/vitest.ui.config.ts"),
+      p("../../packages/canvas/vitest.ui.config.ts"),
+      p("../../packages/canvas-core/vitest.config.ts"),
+    ],
   },
 });

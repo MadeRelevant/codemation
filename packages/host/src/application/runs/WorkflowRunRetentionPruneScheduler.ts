@@ -104,7 +104,13 @@ export class WorkflowRunRetentionPruneScheduler {
     if (this.appConfig.env.CODEMATION_TELEMETRY_PRUNE_ENABLED !== "false") {
       const telemetryLimit = Number(this.appConfig.env.CODEMATION_TELEMETRY_PRUNE_LIMIT ?? 2_000);
       prunedSpanCount = await this.telemetrySpanStore.pruneExpired({ nowIso, limit: telemetryLimit });
-      prunedArtifactCount = await this.telemetryArtifactStore.pruneExpired({ nowIso, limit: telemetryLimit });
+      const { count: artifactCount, storageKeys: artifactStorageKeys } = await this.telemetryArtifactStore.pruneExpired(
+        { nowIso, limit: telemetryLimit },
+      );
+      for (const key of artifactStorageKeys) {
+        await this.binaryStorage.delete(key);
+      }
+      prunedArtifactCount = artifactCount;
       prunedMetricCount = await this.telemetryMetricPointStore.pruneExpired({ nowIso, limit: telemetryLimit });
     }
 

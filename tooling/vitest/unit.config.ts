@@ -8,18 +8,20 @@ const p = (rel: string) => path.resolve(import.meta.dirname, rel);
  */
 export default defineConfig({
   test: {
-    maxWorkers: 2,
-    fileParallelism: true,
+    maxWorkers: 1,
+    fileParallelism: false,
     projects: [
       p("./vitest.tooling.config.ts"),
       p("../../packages/agent-skills/vitest.config.ts"),
       p("../../packages/core/vitest.config.ts"),
       p("../../packages/core-nodes/vitest.config.ts"),
       p("../../packages/core-nodes-gmail/vitest.config.ts"),
+      p("../../packages/managed-auth/vitest.config.ts"),
       p("../../packages/create-codemation/vitest.config.ts"),
       p("../../packages/cli/vitest.config.ts"),
       p("../../packages/next-host/vitest.config.ts"),
       p("../../packages/host/vitest.unit.config.ts"),
+      p("../../packages/eventbus-redis/vitest.config.ts"),
     ],
   },
 });

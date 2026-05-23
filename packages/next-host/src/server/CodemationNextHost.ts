@@ -17,7 +17,6 @@ import {
   CodemationPluginDiscovery,
   type CodemationResolvedPluginPackage,
 } from "@codemation/host/server";
-import { CodemationTsyringeTypeInfoRegistrar } from "@codemation/host/dev-server-sidecar";
 import type { Hono } from "hono";
 import { access } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -156,8 +155,6 @@ export class CodemationNextHost {
       appConfig,
       sharedWorkflowWebsocketServer: this.resolveSharedWorkflowWebsocketServer(),
     });
-    const typeInfoRegistrar = new CodemationTsyringeTypeInfoRegistrar(container);
-    typeInfoRegistrar.registerWorkflowDefinitions(appConfig.workflows ?? []);
     await container
       .resolve(FrontendRuntime)
       .start({ skipPresentationServers: Boolean(process.env.CODEMATION_RUNTIME_DEV_URL?.trim()) });

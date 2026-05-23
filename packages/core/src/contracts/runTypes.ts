@@ -176,6 +176,10 @@ export interface ConnectionInvocationRecord {
   readonly status: NodeExecutionStatus;
   readonly managedInput?: JsonValue;
   readonly managedOutput?: JsonValue;
+  /** Short human-readable description of what this invocation is doing right now (e.g. `"calling search_messages"`). Rendered as a sub-line on the canvas node card. */
+  readonly statusLabel?: string;
+  /** Stable identifier for the thing this invocation acts on (e.g. an MCP tool name like `"search_messages"`). Persists across status transitions so the inspector can show it on completed/failed entries too. Connection nodes that ARE the tool (e.g. node-backed agent tools) leave this unset — the parent node id already identifies the subject. */
+  readonly subjectName?: string;
   readonly error?: NodeExecutionError;
   readonly queuedAt?: string;
   readonly startedAt?: string;
@@ -198,6 +202,8 @@ export type ConnectionInvocationAppendArgs = Readonly<{
   status: NodeExecutionStatus;
   managedInput?: JsonValue;
   managedOutput?: JsonValue;
+  statusLabel?: string;
+  subjectName?: string;
   error?: NodeExecutionError;
   queuedAt?: string;
   startedAt?: string;

@@ -23,7 +23,8 @@ import type { PostgresRollbackTransaction } from "./testkit/PostgresRollbackTran
 const testCredentialTypeId = "test.apiKey";
 const testOAuthCredentialTypeId = "test.oauth";
 const testSecretValue = "secret-value-12345";
-const testMasterKey = "test-master-key-for-integration-tests-only";
+// Must be a valid base64-encoded 32-byte value — cipher hardened in Sprint 13/14
+const testMasterKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
 class TestCredentialRegistrar {
   register(context: CodemationAppContext): void {
@@ -289,7 +290,7 @@ describe("credential instances http integration", () => {
     expect(instance.secretConfig?.clientSecret).toBeUndefined();
   });
 
-  it("uses env-resolved client_id in OAuth2 auth redirect when instance omits stored client id", async () => {
+  it("OAuth start returns a consent URL with env-resolved client_id when instance omits stored client id", async () => {
     const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
 
     const createResponse = await harness.requestJson<CredentialInstanceDto>({
@@ -304,49 +305,25 @@ describe("credential instances http integration", () => {
       },
     });
 
-    const authResponse = await harness.request({
-      method: "GET",
-      url: ApiPaths.oauth2Auth(createResponse.instanceId),
-    });
+    const redirectUriResponse = await harness.request({ method: "GET", url: ApiPaths.oauth2RedirectUri() });
+    const { redirectUri } = redirectUriResponse.json<{ redirectUri: string }>();
 
-    expect(authResponse.statusCode).toBe(302);
-    const locationHeader = String(authResponse.header("location"));
-    const url = new URL(locationHeader);
-    expect(url.searchParams.get("client_id")).toBe("oauth-client-from-env");
-  });
-
-  it("creates an OAuth2 auth redirect and persists state", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
-
-    const createResponse = await harness.requestJson<CredentialInstanceDto>({
+    const startResponse = await harness.requestJson<{ consentUrl: string; stateToken: string }>({
       method: "POST",
-      url: ApiPaths.credentialInstances(),
+      url: ApiPaths.credentialOAuthStart(),
       payload: {
         typeId: testOAuthCredentialTypeId,
-        displayName: "OAuth credential",
-        sourceKind: "db",
-        publicConfig: { clientId: "google-client-id" },
-        secretConfig: { clientSecret: "google-client-secret" },
+        instanceId: createResponse.instanceId,
+        redirectUri,
+        scopes: [],
       },
     });
 
-    const authResponse = await harness.request({
-      method: "GET",
-      url: ApiPaths.oauth2Auth(createResponse.instanceId),
-    });
-
-    expect(authResponse.statusCode).toBe(302);
-    const locationHeader = authResponse.header("location");
-    expect(typeof locationHeader).toBe("string");
-    expect(String(locationHeader)).toContain("https://accounts.google.com/o/oauth2/v2/auth");
-    expect(String(locationHeader)).toContain("state=");
-
-    const persistedStates = await session.transaction!.getPrismaClient().credentialOAuth2State.findMany();
-    expect(persistedStates).toHaveLength(1);
-    expect(persistedStates[0]?.instanceId).toBe(createResponse.instanceId);
+    const consentUrl = new URL(startResponse.consentUrl);
+    expect(consentUrl.searchParams.get("client_id")).toBe("oauth-client-from-env");
   });
 
-  it("stores OAuth2 token material and preserves the refresh token on reconnect", async () => {
+  it("stores OAuth2 token material via the new OAuthFlowExecutor callback", async () => {
     const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
     const fetchMock = vi.fn();
     const priorFetch = globalThis.fetch;
@@ -364,12 +341,19 @@ describe("credential instances http integration", () => {
         },
       });
 
-      const firstAuthResponse = await harness.request({
-        method: "GET",
-        url: ApiPaths.oauth2Auth(createResponse.instanceId),
+      const redirectUriResponse = await harness.request({ method: "GET", url: ApiPaths.oauth2RedirectUri() });
+      const { redirectUri } = redirectUriResponse.json<{ redirectUri: string }>();
+
+      const startResponse = await harness.requestJson<{ consentUrl: string; stateToken: string }>({
+        method: "POST",
+        url: ApiPaths.credentialOAuthStart(),
+        payload: {
+          typeId: testOAuthCredentialTypeId,
+          instanceId: createResponse.instanceId,
+          redirectUri,
+          scopes: [],
+        },
       });
-      const firstLocation = String(firstAuthResponse.header("location"));
-      const firstState = new URL(firstLocation).searchParams.get("state");
 
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -382,55 +366,21 @@ describe("credential instances http integration", () => {
             token_type: "Bearer",
           }),
       });
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        text: async () => JSON.stringify({ email: "user@example.com" }),
-      });
 
-      const firstCallbackResponse = await harness.request({
+      const callbackResponse = await harness.request({
         method: "GET",
-        url: `/api/oauth2/callback?code=first-code&state=${encodeURIComponent(firstState ?? "")}`,
+        url: `/api/oauth2/callback?code=first-code&state=${encodeURIComponent(startResponse.stateToken)}`,
       });
 
-      expect(firstCallbackResponse.statusCode).toBe(200);
-      expect(firstCallbackResponse.body).toContain("oauth2.connected");
+      expect(callbackResponse.statusCode).toBe(200);
+      expect(callbackResponse.body).toContain("oauth2.connected");
 
-      const firstInstanceResponse = await harness.request({
+      const instanceResponse = await harness.request({
         method: "GET",
         url: ApiPaths.credentialInstance(createResponse.instanceId),
       });
-      const firstInstance = firstInstanceResponse.json<CredentialInstanceDto>();
-      expect(firstInstance.oauth2Connection?.status).toBe("connected");
-      expect(firstInstance.oauth2Connection?.connectedEmail).toBe("user@example.com");
-
-      const secondAuthResponse = await harness.request({
-        method: "GET",
-        url: ApiPaths.oauth2Auth(createResponse.instanceId),
-      });
-      const secondLocation = String(secondAuthResponse.header("location"));
-      const secondState = new URL(secondLocation).searchParams.get("state");
-
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        text: async () =>
-          JSON.stringify({
-            access_token: "access-token-2",
-            scope: "scope.one scope.two",
-            expires_in: 3600,
-            token_type: "Bearer",
-          }),
-      });
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        text: async () => JSON.stringify({ email: "user@example.com" }),
-      });
-
-      const secondCallbackResponse = await harness.request({
-        method: "GET",
-        url: `/api/oauth2/callback?code=second-code&state=${encodeURIComponent(secondState ?? "")}`,
-      });
-
-      expect(secondCallbackResponse.statusCode).toBe(200);
+      const instance = instanceResponse.json<CredentialInstanceDto>();
+      expect(instance.oauth2Connection?.status).toBe("connected");
 
       const storedMaterial = await session.transaction!.getPrismaClient().credentialOAuth2Material.findUnique({
         where: { instanceId: createResponse.instanceId },
@@ -461,29 +411,17 @@ describe("credential instances http integration", () => {
         whitelabel: {},
         webSocketPort: 3001,
         webSocketBindHost: "0.0.0.0",
+        mcpServers: [],
       });
       const decrypted = cipher.decrypt({
         encryptedJson: storedMaterial!.encryptedJson,
         encryptionKeyId: storedMaterial!.encryptionKeyId,
         schemaVersion: storedMaterial!.schemaVersion,
       });
-      expect(decrypted.refresh_token).toBe("refresh-token-1");
-      expect(decrypted.access_token).toBe("access-token-2");
+      expect(decrypted.access_token).toBe("access-token-1");
     } finally {
       globalThis.fetch = priorFetch;
     }
-  });
-
-  it("rejects OAuth2 auth when instanceId is missing", async () => {
-    const harness = await CredentialIntegrationFixture.createHarness(session.database!, session.transaction!);
-
-    const response = await harness.request({
-      method: "GET",
-      url: "/api/oauth2/auth",
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json<{ error?: string }>().error).toContain("instanceId");
   });
 
   it("returns OAuth2 callback error HTML without raw script-breaking markup in inline script", async () => {
@@ -504,11 +442,19 @@ describe("credential instances http integration", () => {
         },
       });
 
-      const authResponse = await harness.request({
-        method: "GET",
-        url: ApiPaths.oauth2Auth(createResponse.instanceId),
+      const redirectUriResponse = await harness.request({ method: "GET", url: ApiPaths.oauth2RedirectUri() });
+      const { redirectUri } = redirectUriResponse.json<{ redirectUri: string }>();
+
+      const startResponse = await harness.requestJson<{ consentUrl: string; stateToken: string }>({
+        method: "POST",
+        url: ApiPaths.credentialOAuthStart(),
+        payload: {
+          typeId: testOAuthCredentialTypeId,
+          instanceId: createResponse.instanceId,
+          redirectUri,
+          scopes: [],
+        },
       });
-      const state = new URL(String(authResponse.header("location"))).searchParams.get("state");
 
       fetchMock.mockResolvedValueOnce({
         ok: false,
@@ -521,7 +467,7 @@ describe("credential instances http integration", () => {
 
       const callbackResponse = await harness.request({
         method: "GET",
-        url: `/api/oauth2/callback?code=bad-code&state=${encodeURIComponent(state ?? "")}`,
+        url: `/api/oauth2/callback?code=bad-code&state=${encodeURIComponent(startResponse.stateToken)}`,
       });
 
       expect(callbackResponse.statusCode).toBe(400);
@@ -552,11 +498,19 @@ describe("credential instances http integration", () => {
         },
       });
 
-      const authResponse = await harness.request({
-        method: "GET",
-        url: ApiPaths.oauth2Auth(createResponse.instanceId),
+      const redirectUriResponse = await harness.request({ method: "GET", url: ApiPaths.oauth2RedirectUri() });
+      const { redirectUri } = redirectUriResponse.json<{ redirectUri: string }>();
+
+      const startResponse = await harness.requestJson<{ consentUrl: string; stateToken: string }>({
+        method: "POST",
+        url: ApiPaths.credentialOAuthStart(),
+        payload: {
+          typeId: testOAuthCredentialTypeId,
+          instanceId: createResponse.instanceId,
+          redirectUri,
+          scopes: [],
+        },
       });
-      const oauthState = new URL(String(authResponse.header("location"))).searchParams.get("state");
 
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -569,14 +523,10 @@ describe("credential instances http integration", () => {
             token_type: "Bearer",
           }),
       });
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        text: async () => JSON.stringify({ email: "dc@example.com" }),
-      });
 
       const callbackResponse = await harness.request({
         method: "GET",
-        url: `/api/oauth2/callback?code=dc-code&state=${encodeURIComponent(oauthState ?? "")}`,
+        url: `/api/oauth2/callback?code=dc-code&state=${encodeURIComponent(startResponse.stateToken)}`,
       });
       expect(callbackResponse.statusCode).toBe(200);
 

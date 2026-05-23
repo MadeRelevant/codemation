@@ -176,7 +176,20 @@ jobs:
         run: pnpm --filter @codemation/host prisma:generate
 
       - name: Build
-        run: pnpm exec turbo run build
+        run: pnpm exec turbo run build 2>&1 | tee build-output.log
+
+      - name: Guard against Turbopack module-tracer regressions
+        # Fails the build when Next.js's tracer warns that a dynamic require or filesystem
+        # operation pulled the whole repo into the trace. This catches the family of cold-start
+        # regressions we have repeatedly hit (e.g. googleapis, @libsql/client eagerly imported
+        # at module top in server code). Fix: convert to `await import(...)` inside the function
+        # that actually uses the dependency.
+        run: |
+          if grep -qE "Encountered unexpected file in NFT list|whole project was traced unintentionally" build-output.log; then
+            echo "::error::Turbopack module tracer flagged over-tracing — a heavy server-side dependency is likely being eagerly imported. Defer the offending import via `await import(...)`. Recent examples: GoogleGmailSessionFactory (googleapis) and PrismaMigrationDeployer (@libsql/client)."
+            grep -nA 25 "Encountered unexpected file in NFT list" build-output.log || true
+            exit 1
+          fi
 
       - name: Coverage (unit)
         run: pnpm run coverage:unit

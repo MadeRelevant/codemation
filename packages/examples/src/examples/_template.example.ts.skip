@@ -1,0 +1,24 @@
+/**
+ * One-line summary of what this example demonstrates.
+ *
+ * @description One-line summary of what this example demonstrates.
+ * @tags tag-one, tag-two
+ * @uses @codemation/core-nodes
+ */
+
+// Copy this file to src/examples/<slug>.example.ts and fill it in.
+// Rules:
+//   1. File name becomes the example's canonical slug (no spaces, kebab-case).
+//   2. The JSDoc block above `export default` is the frontmatter — required.
+//   3. Export a built WorkflowDefinition as the default export.
+//   4. Only one workflow per file.
+
+import { workflow } from "@codemation/host";
+// Add any node imports here, e.g.:
+// import { HttpRequest } from "@codemation/core-nodes";
+
+export default workflow("example.slug") // change to a globally unique id
+  .name("Human-readable name")
+  .manualTrigger({ message: "Hello, world!" })
+  // .then(new HttpRequest(...))  // chain nodes here
+  .build();

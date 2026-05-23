@@ -5,7 +5,6 @@ import type {
   RunnableNodeConfig,
   TypeToken,
 } from "@codemation/core";
-
 import { MapDataNode } from "./MapDataNode";
 
 export interface MapDataOptions {

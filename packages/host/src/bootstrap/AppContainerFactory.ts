@@ -98,6 +98,8 @@ import { NoOpTelemetryExporter } from "../application/telemetry/NoOpTelemetryExp
 import { OtelExecutionTelemetryFactory } from "../application/telemetry/OtelExecutionTelemetryFactory";
 import { OtelIdentityFactory } from "../application/telemetry/OtelIdentityFactory";
 import { RunEventBusTelemetryReporter } from "../application/telemetry/RunEventBusTelemetryReporter";
+import { WorkflowAuditLogWriter } from "../audit/WorkflowAuditLogWriter";
+import { PrismaWorkflowAuditLogRepository } from "../audit/PrismaWorkflowAuditLogRepository";
 import { TelemetryEnricherChain } from "../application/telemetry/TelemetryEnricherChain";
 import { TelemetryPrivacyPolicy } from "../application/telemetry/TelemetryPrivacyPolicy";
 import { TelemetryQueryService } from "../application/telemetry/TelemetryQueryService";
@@ -115,8 +117,8 @@ import {
   CredentialTestService,
   CredentialTypeRegistryImpl,
 } from "../domain/credentials/CredentialServices";
-import { OAuth2ConnectService } from "../domain/credentials/OAuth2ConnectServiceFactory";
 import { OAuth2ProviderRegistry } from "../domain/credentials/OAuth2ProviderRegistry";
+import { OAuth2RedirectUriResolver } from "../domain/credentials/OAuth2RedirectUriResolver";
 import { WorkflowCredentialNodeResolver } from "../domain/credentials/WorkflowCredentialNodeResolver";
 import { UserAccountService } from "../domain/users/UserAccountServiceRegistry";
 import { UserAccountSessionPolicy } from "../domain/users/UserAccountSessionPolicy";
@@ -230,19 +232,25 @@ import { PrismaTestSuiteRunRepository } from "../infrastructure/persistence/Pris
 import { PrismaWorkflowActivationRepository } from "../infrastructure/persistence/PrismaWorkflowActivationRepository";
 import { PrismaWorkflowDebuggerOverlayRepository } from "../infrastructure/persistence/PrismaWorkflowDebuggerOverlayRepository";
 import { PrismaWorkflowRunRepository } from "../infrastructure/persistence/PrismaWorkflowRunRepository";
+import { PrismaWorkflowSnapshotRepository } from "../infrastructure/persistence/PrismaWorkflowSnapshotRepository";
 import { RuntimeWorkflowActivationPolicy } from "../infrastructure/persistence/RuntimeWorkflowActivationPolicy";
 import { WorkflowDefinitionRepositoryAdapter } from "../infrastructure/persistence/WorkflowDefinitionRepositoryAdapter";
 import { WorkflowRunRepository as SqlWorkflowRunRepository } from "../infrastructure/persistence/WorkflowRunRepository";
 import { LiveWorkflowRepository } from "../infrastructure/runtime/LiveWorkflowRepository";
 import { LogLevelPolicyFactory, logLevelPolicyFactory } from "../infrastructure/logging/LogLevelPolicyFactory";
 import { ServerLoggerFactory } from "../infrastructure/logging/ServerLoggerFactory";
+import { ExecaProcessRunner } from "../process/ExecaProcessRunner";
 import type { AppConfig } from "../presentation/config/AppConfig";
 import { CodemationContainerRegistrationRegistrar } from "./CodemationContainerRegistrationRegistrar";
 import { LocalFilesystemBinaryStorage } from "../infrastructure/binary/LocalFilesystemBinaryStorageRegistry";
+import { S3BinaryStorage } from "../infrastructure/binary/S3BinaryStorage";
+import { S3BinaryStorageConfigSchema } from "../infrastructure/binary/S3BinaryStorageConfig";
 import { InMemoryBinaryStorage } from "@codemation/core/bootstrap";
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
 import { AppContainerLifecycle } from "./AppContainerLifecycle";
+import { BootTimer } from "./perf/BootTimer";
 import { WorkflowRunRetentionPruneScheduler } from "../application/runs/WorkflowRunRetentionPruneScheduler";
+import { WorkflowAuditLogPruneScheduler } from "../application/WorkflowAuditLogPruneScheduler";
 import { DatabaseMigrations } from "./runtime/DatabaseMigrations";
 import { FrontendRuntime } from "./runtime/FrontendRuntime";
 import { WorkerRuntime } from "./runtime/WorkerRuntime";
@@ -263,6 +271,36 @@ import { ListCollectionRowsQueryHandler } from "../application/collections/ListC
 import { ListCollectionsQueryHandler } from "../application/collections/ListCollectionsQueryHandler";
 import { CollectionHttpRouteHandler } from "../presentation/http/routeHandlers/CollectionHttpRouteHandlerFactory";
 import { CollectionHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/CollectionHonoApiRouteRegistrar";
+import { ManagedMeHonoApiRouteRegistrar } from "../presentation/http/hono/registrars/ManagedMeHonoApiRouteRegistrar";
+import { PairingConfigFactory } from "../pairing/PairingConfigFactory";
+import { PairingConfigToken } from "../pairing/PairingConfigToken";
+import { HmacRequestSigner } from "../pairing/HmacRequestSigner";
+import { PairedFetch } from "../pairing/PairedFetch";
+import { IncomingHmacVerifier } from "../pairing/IncomingHmacVerifier";
+import { InternalHmacAuthMiddleware } from "../pairing/InternalHmacAuthMiddleware";
+import { InternalPingRegistrar } from "../pairing/InternalPingRegistrar";
+import { LocalOAuthFlowExecutor } from "../credentials/LocalOAuthFlowExecutor";
+import { CredentialOAuth2MaterialReader } from "../credentials/CredentialOAuth2MaterialReader";
+import { ManagedOAuthFlowExecutor } from "../credentials/ManagedOAuthFlowExecutor";
+import { BrokerClient } from "../credentials/BrokerClient";
+import { InternalCredentialsPushRegistrar } from "../credentials/InternalCredentialsPushRegistrar";
+import { InternalCredentialsListRegistrar } from "../credentials/InternalCredentialsListRegistrar";
+import { InternalWorkflowsListRegistrar } from "../workflows/InternalWorkflowsListRegistrar";
+import { InternalWorkflowDetailRegistrar } from "../workflows/InternalWorkflowDetailRegistrar";
+import { InternalWorkflowActivationRegistrar } from "../workflows/InternalWorkflowActivationRegistrar";
+import { InternalWorkflowTestRunRegistrar } from "../workflows/InternalWorkflowTestRunRegistrar";
+import { McpServerCatalog } from "../mcp/McpServerCatalog";
+import { McpConnectionPool } from "../mcp/McpConnectionPool";
+import { DefaultMcpClientFactory } from "../mcp/McpClientFactory";
+import { AgentMcpIntegrationImpl } from "../mcp/AgentMcpIntegrationImpl";
+import { ManagedAuthConfigFactory } from "../auth/managed/ManagedAuthConfig";
+import { ManagedAuthMiddleware } from "../auth/managed/ManagedAuthMiddleware";
+import { ManagedCorsMiddleware } from "../auth/managed/ManagedCorsMiddleware";
+import { ManagedModeBootGuard } from "../auth/managed/ManagedModeBootGuard";
+import { ManagedWebsocketAuthenticator } from "../presentation/websocket/ManagedWebsocketAuthenticator";
+import { JwksCache, ManagedJwtVerifier } from "@codemation/managed-auth";
+import { CodemationTsyringeTypeInfoRegistrar } from "../presentation/server/CodemationTsyringeTypeInfoRegistrar";
+import { ControlPlaneCatalogFetcher } from "../credentials/ControlPlaneCatalogFetcher";
 
 type AppContainerInputs = Readonly<{
   appConfig: AppConfig;
@@ -355,22 +393,58 @@ export class AppContainerFactory {
     // Register the no-op publisher as a fallback so OtelExecutionTelemetryFactory can always
     // resolve the token. registerOperationalInfrastructure overrides this with the WS relay.
     container.registerInstance(ApplicationTokens.TelemetrySpanPublisher, NoOpTelemetrySpanPublisher);
-    this.registerCoreInfrastructure(container, inputs);
-    this.registerRepositoriesAndBuses(container);
-    this.registerApplicationServicesAndRoutes(container);
-    this.registerOperationalInfrastructure(container);
-    this.registerConfiguredRegistrations(container, inputs.appConfig);
-    const credentialTypes = this.collectCredentialTypes(inputs.appConfig);
-    await this.applyPlugins(container, inputs.appConfig, credentialTypes);
-    const ownership = await this.registerRuntimeInfrastructure(container, inputs.appConfig);
-    this.registerCollectionsInfrastructure(container, inputs.appConfig);
-    this.registerCredentialTypes(container, credentialTypes);
-    this.synchronizeLiveWorkflowRepository(container, inputs.appConfig.workflows);
-    container.resolve(BootRuntimeSnapshotHolder).set(this.createRuntimeSummary(inputs.appConfig));
-    container.registerInstance(
-      AppContainerLifecycle,
-      new AppContainerLifecycle(container, ownership.ownedPrismaClient),
+    BootTimer.measure("appContainer.registerCoreInfrastructure", () => this.registerCoreInfrastructure(container, inputs));
+    BootTimer.measure("appContainer.registerRepositoriesAndBuses", () => this.registerRepositoriesAndBuses(container));
+    BootTimer.measure("appContainer.registerApplicationServicesAndRoutes", () =>
+      this.registerApplicationServicesAndRoutes(container, inputs.appConfig),
     );
+    BootTimer.measure("appContainer.registerOperationalInfrastructure", () =>
+      this.registerOperationalInfrastructure(container),
+    );
+    BootTimer.measure("appContainer.registerManagedAuthInfrastructure", () =>
+      this.registerManagedAuthInfrastructure(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerPairingInfrastructure", () =>
+      this.registerPairingInfrastructure(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerConfiguredRegistrations", () =>
+      this.registerConfiguredRegistrations(container, inputs.appConfig),
+    );
+    const credentialTypes = BootTimer.measure("appContainer.collectCredentialTypes", () =>
+      this.collectCredentialTypes(inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerMcpCatalog", () => this.registerMcpCatalog(container));
+    await BootTimer.measureAsync("appContainer.applyPlugins", () =>
+      this.applyPlugins(container, inputs.appConfig, credentialTypes),
+    );
+    BootTimer.measure("appContainer.mergeConfigMcpServers", () =>
+      this.mergeConfigMcpServers(container, inputs.appConfig),
+    );
+    const ownership = await BootTimer.measureAsync("appContainer.registerRuntimeInfrastructure", () =>
+      this.registerRuntimeInfrastructure(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerWorkflowAuditWriter", () =>
+      this.registerWorkflowAuditWriter(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerCollectionsInfrastructure", () =>
+      this.registerCollectionsInfrastructure(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerCredentialTypes", () =>
+      this.registerCredentialTypes(container, credentialTypes),
+    );
+    BootTimer.measure("appContainer.registerControlPlaneCatalogFetcher", () =>
+      this.registerControlPlaneCatalogFetcher(container),
+    );
+    BootTimer.measure("appContainer.synchronizeLiveWorkflowRepository", () =>
+      this.synchronizeLiveWorkflowRepository(container, inputs.appConfig.workflows),
+    );
+    BootTimer.measure("appContainer.registerWorkflowDefinitions", () =>
+      new CodemationTsyringeTypeInfoRegistrar(container).registerWorkflowDefinitions(inputs.appConfig.workflows ?? []),
+    );
+    container.resolve(BootRuntimeSnapshotHolder).set(this.createRuntimeSummary(inputs.appConfig));
+    const lifecycle = new AppContainerLifecycle(container, ownership.ownedPrismaClient);
+    container.registerInstance(AppContainerLifecycle, lifecycle);
+    await BootTimer.measureAsync("appContainer.lifecycleStart", () => lifecycle.start());
     return container;
   }
 
@@ -396,11 +470,28 @@ export class AppContainerFactory {
     return credentialTypes;
   }
 
+  private registerMcpCatalog(container: Container): void {
+    container.registerSingleton(McpServerCatalog, McpServerCatalog);
+    container.registerSingleton(DefaultMcpClientFactory, DefaultMcpClientFactory);
+    container.registerSingleton(McpConnectionPool, McpConnectionPool);
+    container.registerSingleton(AgentMcpIntegrationImpl, AgentMcpIntegrationImpl);
+    // Register the host-side AgentMcpIntegration, overriding the NoOp registered by EngineRuntimeRegistrar.
+    container.register(CoreTokens.AgentMcpIntegration, {
+      useFactory: instanceCachingFactory((c) => c.resolve(AgentMcpIntegrationImpl)),
+    });
+  }
+
+private mergeConfigMcpServers(container: Container, appConfig: AppConfig): void {
+    const catalog = container.resolve(McpServerCatalog);
+    catalog.merge("config", appConfig.mcpServers ?? []);
+  }
+
   private async applyPlugins(
     container: Container,
     appConfig: AppConfig,
     credentialTypes: Array<CredentialType<any, any, unknown>>,
   ): Promise<void> {
+    const catalog = container.resolve(McpServerCatalog);
     await this.pluginRegistrar.apply({
       plugins: appConfig.plugins,
       container,
@@ -416,6 +507,7 @@ export class AppContainerFactory {
         // during plugin.register() are accepted silently — Phase 6 store wiring will
         // pick them up once collection infrastructure can reload from a mutable registry.
       },
+      mergeMcpServers: (declarations) => catalog.merge("plugin", declarations),
       loggerFactory: container.resolve(ApplicationTokens.LoggerFactory),
     });
   }
@@ -425,9 +517,27 @@ export class AppContainerFactory {
     credentialTypes: ReadonlyArray<CredentialType<any, any, unknown>>,
   ): void {
     const registry = container.resolve(CredentialTypeRegistryImpl);
-    for (const credentialType of credentialTypes) {
-      registry.register(credentialType);
+    registry.merge("plugin", credentialTypes);
+  }
+
+  private registerControlPlaneCatalogFetcher(container: Container): void {
+    // Only register the fetcher when paired with a control plane.
+    // PairedFetch is only registered inside registerPairingInfrastructure,
+    // which skips registration when pairing env vars are absent.
+    if (!container.isRegistered(PairedFetch, true)) {
+      return;
     }
+
+    container.registerSingleton(ControlPlaneCatalogFetcher, ControlPlaneCatalogFetcher);
+
+    const fetcher = container.resolve(ControlPlaneCatalogFetcher);
+    const credentialTypeRegistry = container.resolve(CredentialTypeRegistryImpl);
+    const mcpServerCatalog = container.resolve(McpServerCatalog);
+
+    fetcher.onRefresh = () => {
+      credentialTypeRegistry.mergeDefinitions("controlPlane", fetcher.credentialTypeOverrides ?? []);
+      mcpServerCatalog.merge("controlPlane", fetcher.mcpServers ?? []);
+    };
   }
 
   private registerConfiguredRegistrations(container: Container, appConfig: AppConfig): void {
@@ -504,9 +614,7 @@ export class AppContainerFactory {
       CoreTokens.PersistedWorkflowTokenRegistry,
       container.resolve(PersistedWorkflowTokenRegistry),
     );
-    container.register(CredentialTypeRegistryImpl, {
-      useFactory: instanceCachingFactory(() => new CredentialTypeRegistryImpl()),
-    });
+    container.registerSingleton(CredentialTypeRegistryImpl, CredentialTypeRegistryImpl);
     container.register(CoreTokens.CredentialTypeRegistry, {
       useFactory: instanceCachingFactory((dependencyContainer) =>
         dependencyContainer.resolve(CredentialTypeRegistryImpl),
@@ -521,9 +629,11 @@ export class AppContainerFactory {
     });
     container.register(CoreTokens.LiveWorkflowRepository, {
       useFactory: instanceCachingFactory(
-        () =>
+        (dependencyContainer) =>
           new LiveWorkflowRepository(
-            new AIAgentConnectionWorkflowExpander(new ConnectionCredentialNodeConfigFactory()),
+            new AIAgentConnectionWorkflowExpander(new ConnectionCredentialNodeConfigFactory(), (id) =>
+              dependencyContainer.resolve(McpServerCatalog).get(id),
+            ),
           ),
       ),
     });
@@ -568,6 +678,7 @@ export class AppContainerFactory {
     });
     container.registerInstance(LogLevelPolicyFactory, logLevelPolicyFactory);
     container.registerSingleton(ServerLoggerFactory, ServerLoggerFactory);
+    container.registerInstance(ApplicationTokens.ProcessRunner, new ExecaProcessRunner());
     container.register(ApplicationTokens.LoggerFactory, {
       useFactory: instanceCachingFactory((dependencyContainer) => dependencyContainer.resolve(ServerLoggerFactory)),
     });
@@ -581,10 +692,14 @@ export class AppContainerFactory {
         if (inputs.sharedWorkflowWebsocketServer) {
           return inputs.sharedWorkflowWebsocketServer;
         }
+        const authenticator = dependencyContainer.isRegistered(ApplicationTokens.WebsocketAuthenticator, true)
+          ? dependencyContainer.resolve(ApplicationTokens.WebsocketAuthenticator)
+          : null;
         return new WorkflowWebsocketServer(
           dependencyContainer.resolve(ApplicationTokens.WebSocketPort),
           dependencyContainer.resolve(ApplicationTokens.WebSocketBindHost),
           dependencyContainer.resolve(ServerLoggerFactory).create("codemation-websocket.server"),
+          authenticator,
         );
       }),
     });
@@ -610,7 +725,19 @@ export class AppContainerFactory {
       container.register(CoreTokens.CredentialSessionService, { useToken: CredentialSessionServiceImpl });
     }
     container.registerSingleton(OAuth2ProviderRegistry, OAuth2ProviderRegistry);
-    container.registerSingleton(OAuth2ConnectService, OAuth2ConnectService);
+    container.registerSingleton(OAuth2RedirectUriResolver, OAuth2RedirectUriResolver);
+    if (container.isRegistered(PairedFetch, true)) {
+      container.register(ApplicationTokens.OAuthFlowExecutor, {
+        useFactory: instanceCachingFactory((c) => c.resolve(ManagedOAuthFlowExecutor)),
+      });
+      container.registerSingleton(ManagedOAuthFlowExecutor, ManagedOAuthFlowExecutor);
+    } else {
+      container.register(ApplicationTokens.OAuthFlowExecutor, {
+        useFactory: instanceCachingFactory((c) => c.resolve(LocalOAuthFlowExecutor)),
+      });
+      container.registerSingleton(LocalOAuthFlowExecutor, LocalOAuthFlowExecutor);
+    }
+    container.registerSingleton(CredentialOAuth2MaterialReader, CredentialOAuth2MaterialReader);
     container.registerSingleton(CodemationFrontendAuthSnapshotFactory, CodemationFrontendAuthSnapshotFactory);
     container.registerSingleton(FrontendAppConfigFactory, FrontendAppConfigFactory);
     container.registerSingleton(PublicFrontendBootstrapFactory, PublicFrontendBootstrapFactory);
@@ -728,6 +855,7 @@ export class AppContainerFactory {
     container.registerSingleton(InMemoryTelemetryArtifactStore, InMemoryTelemetryArtifactStore);
     container.registerSingleton(InMemoryTelemetryMetricPointStore, InMemoryTelemetryMetricPointStore);
     container.registerSingleton(PrismaRunTraceContextRepository, PrismaRunTraceContextRepository);
+    container.registerSingleton(PrismaWorkflowSnapshotRepository, PrismaWorkflowSnapshotRepository);
     container.registerSingleton(PrismaTelemetrySpanStore, PrismaTelemetrySpanStore);
     container.registerSingleton(PrismaTelemetryArtifactStore, PrismaTelemetryArtifactStore);
     container.registerSingleton(PrismaTelemetryMetricPointStore, PrismaTelemetryMetricPointStore);
@@ -775,7 +903,7 @@ export class AppContainerFactory {
     });
   }
 
-  private registerApplicationServicesAndRoutes(container: Container): void {
+  private registerApplicationServicesAndRoutes(container: Container, appConfig: AppConfig): void {
     container.registerSingleton(DevBootstrapSummaryAssembler, DevBootstrapSummaryAssembler);
     container.registerSingleton(DevBootstrapSummaryHttpRouteHandler, DevBootstrapSummaryHttpRouteHandler);
     container.registerSingleton(AuthHttpRouteHandler, AuthHttpRouteHandler);
@@ -813,10 +941,83 @@ export class AppContainerFactory {
     container.registerSingleton(TestRunnerService, TestRunnerService);
     container.registerSingleton(TestSuiteHttpRouteHandler, TestSuiteHttpRouteHandler);
     container.registerSingleton(CollectionHttpRouteHandler, CollectionHttpRouteHandler);
+    const isManagedMode = appConfig.auth?.kind === "managed";
     for (const registrar of AppContainerFactory.honoRouteRegistrars) {
+      // In managed mode, skip the Better Auth route registrar so /api/auth/* returns 404
+      if (isManagedMode && registrar === AuthHonoApiRouteRegistrar) {
+        continue;
+      }
       container.registerSingleton(ApplicationTokens.HonoApiRouteRegistrar, registrar);
     }
     container.registerSingleton(CodemationHonoApiApp, CodemationHonoApiApp);
+  }
+
+  private registerManagedAuthInfrastructure(container: Container, appConfig: AppConfig): void {
+    if (appConfig.auth?.kind !== "managed") {
+      return;
+    }
+
+    new ManagedModeBootGuard().assertRequiredEnv(appConfig.env);
+    const managedAuthConfig = new ManagedAuthConfigFactory().create(appConfig.env);
+    const workspaceId = appConfig.env["WORKSPACE_ID"] ?? "";
+
+    const jwksCache = new JwksCache({ jwksUrl: managedAuthConfig.jwksUrl }, (url) => fetch(url), {
+      now: () => Date.now(),
+    });
+    // Shared verifier: both ManagedAuthMiddleware (HTTP) and ManagedWebsocketAuthenticator (WS)
+    // use the same JwksCache instance so JWKS key rotation propagates to both transports.
+    const jwtVerifier = new ManagedJwtVerifier(
+      {
+        expectedIssuer: managedAuthConfig.issuer,
+        expectedAudience: workspaceId,
+        jwksCache: { jwksUrl: managedAuthConfig.jwksUrl },
+      },
+      jwksCache,
+    );
+
+    const managedAuthMiddleware = new ManagedAuthMiddleware(jwtVerifier);
+    container.register(ApplicationTokens.SessionVerifier, { useValue: managedAuthMiddleware });
+
+    const websocketAuthenticator = new ManagedWebsocketAuthenticator(jwtVerifier);
+    container.registerInstance(ApplicationTokens.WebsocketAuthenticator, websocketAuthenticator);
+
+    const corsMiddleware = new ManagedCorsMiddleware(managedAuthConfig.cpWebOrigin);
+    container.registerInstance(ApplicationTokens.ManagedCorsMiddleware, corsMiddleware);
+
+    container.registerSingleton(ApplicationTokens.HonoApiRouteRegistrar, ManagedMeHonoApiRouteRegistrar);
+  }
+
+  private registerPairingInfrastructure(container: Container, appConfig: AppConfig): void {
+    const pairingConfig = new PairingConfigFactory().create(appConfig.env);
+    if (!pairingConfig) {
+      // Pairing is optional in non-production environments (local dev without CP integration).
+      // Emit a startup warning so operators know the workspace-mcp HMAC channel is inactive.
+      const missingVars: string[] = [];
+      if (!appConfig.env["WORKSPACE_ID"]) missingVars.push("WORKSPACE_ID");
+      if (!appConfig.env["WORKSPACE_PAIRING_SECRET"]) missingVars.push("WORKSPACE_PAIRING_SECRET");
+      if (!appConfig.env["CONTROL_PLANE_URL"]) missingVars.push("CONTROL_PLANE_URL");
+      if (missingVars.length > 0) {
+        const logger = container.resolve(ServerLoggerFactory).create("codemation.pairing");
+        logger.warn(
+          `Pairing not configured — missing env vars: ${missingVars.join(", ")}. ` +
+            "Internal /internal/* routes are inactive. Set these vars for managed-mode integration.",
+        );
+      }
+      return;
+    }
+    container.registerInstance(PairingConfigToken, pairingConfig);
+    container.registerSingleton(HmacRequestSigner, HmacRequestSigner);
+    container.registerSingleton(PairedFetch, PairedFetch);
+    container.registerSingleton(IncomingHmacVerifier, IncomingHmacVerifier);
+    container.registerSingleton(InternalHmacAuthMiddleware, InternalHmacAuthMiddleware);
+    container.registerSingleton(BrokerClient, BrokerClient);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalPingRegistrar);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalCredentialsPushRegistrar);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalCredentialsListRegistrar);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowsListRegistrar);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowDetailRegistrar);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowActivationRegistrar);
+    container.registerSingleton(ApplicationTokens.InternalHonoApiRouteRegistrar, InternalWorkflowTestRunRegistrar);
   }
 
   private registerOperationalInfrastructure(container: Container): void {
@@ -834,6 +1035,16 @@ export class AppContainerFactory {
     container.registerSingleton(WorkflowRunRetentionPruneScheduler, WorkflowRunRetentionPruneScheduler);
   }
 
+  private registerWorkflowAuditWriter(container: Container, appConfig: AppConfig): void {
+    if (appConfig.persistence.kind === "none") {
+      return;
+    }
+    container.registerSingleton(PrismaWorkflowAuditLogRepository, PrismaWorkflowAuditLogRepository);
+    container.register(ApplicationTokens.WorkflowAuditEmitter, { useToken: PrismaWorkflowAuditLogRepository });
+    container.registerSingleton(WorkflowAuditLogWriter, WorkflowAuditLogWriter);
+    container.registerSingleton(WorkflowAuditLogPruneScheduler, WorkflowAuditLogPruneScheduler);
+  }
+
   private async registerRuntimeInfrastructure(container: Container, appConfig: AppConfig): Promise<PrismaOwnership> {
     const queuePrefix = appConfig.scheduler.queuePrefix ?? appConfig.eventing.queuePrefix ?? "codemation";
     const eventBus =
@@ -841,7 +1052,7 @@ export class AppContainerFactory {
         ? new RedisRunEventBus(this.requireRedisUrl(appConfig.eventing.redisUrl), queuePrefix)
         : new InMemoryRunEventBus();
     container.registerInstance(CoreTokens.RunEventBus, eventBus);
-    const binaryStorage = this.createBinaryStorage(appConfig.repoRoot);
+    const binaryStorage = await this.createBinaryStorage(appConfig);
     container.registerInstance(CoreTokens.RunDataFactory, new InMemoryRunDataFactory());
     container.registerInstance(CoreTokens.BinaryStorage, binaryStorage);
     container.registerInstance(ApplicationTokens.Clock, new SystemClock());
@@ -1016,11 +1227,37 @@ export class AppContainerFactory {
     };
   }
 
-  private createBinaryStorage(repoRoot: string): InMemoryBinaryStorage | LocalFilesystemBinaryStorage {
-    if (!repoRoot) {
+  private async createBinaryStorage(
+    appConfig: AppConfig,
+  ): Promise<InMemoryBinaryStorage | LocalFilesystemBinaryStorage | S3BinaryStorage> {
+    const kind = appConfig.env.BINARY_STORAGE_KIND ?? "local";
+
+    if (kind === "s3") {
+      const parseResult = S3BinaryStorageConfigSchema.safeParse({
+        endpoint: appConfig.env.BINARY_STORAGE_S3_ENDPOINT,
+        region: appConfig.env.BINARY_STORAGE_S3_REGION,
+        bucket: appConfig.env.BINARY_STORAGE_S3_BUCKET,
+        accessKeyId: appConfig.env.BINARY_STORAGE_S3_ACCESS_KEY_ID,
+        secretAccessKey: appConfig.env.BINARY_STORAGE_S3_SECRET_ACCESS_KEY,
+      });
+      if (!parseResult.success) {
+        throw new Error(
+          `BINARY_STORAGE_KIND=s3 requires all BINARY_STORAGE_S3_* env vars. Validation errors: ${parseResult.error.message}`,
+        );
+      }
+      const storage = new S3BinaryStorage(parseResult.data);
+      await storage.checkConnectivity();
+      return storage;
+    }
+
+    if (kind !== "local") {
+      throw new Error(`Unknown BINARY_STORAGE_KIND: "${kind}". Expected "local" or "s3".`);
+    }
+
+    if (!appConfig.repoRoot) {
       return new InMemoryBinaryStorage();
     }
-    return new LocalFilesystemBinaryStorage(`${repoRoot}/.codemation/binary`);
+    return new LocalFilesystemBinaryStorage(`${appConfig.repoRoot}/.codemation/binary`);
   }
 
   private createRuntimeSummary(appConfig: AppConfig): BootRuntimeSummary {

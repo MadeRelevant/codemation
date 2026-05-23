@@ -1,5 +1,4 @@
 import type { RunnableNodeConfig, TypeToken } from "@codemation/core";
-
 import { NoOpNode } from "./NoOpNode";
 
 export class NoOp<TItemJson = unknown> implements RunnableNodeConfig<TItemJson, TItemJson> {

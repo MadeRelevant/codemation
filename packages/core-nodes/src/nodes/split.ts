@@ -5,7 +5,6 @@ import type {
   RunnableNodeConfig,
   TypeToken,
 } from "@codemation/core";
-
 import { SplitNode } from "./SplitNode";
 
 export class Split<TIn = unknown, TElem = unknown> implements RunnableNodeConfig<TIn, TElem> {

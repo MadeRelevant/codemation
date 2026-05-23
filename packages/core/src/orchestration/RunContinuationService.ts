@@ -161,7 +161,9 @@ export class RunContinuationService {
 
     const completedActivations = (state.engineCounters?.completedNodeActivations ?? 0) + 1;
     const engineCounters = { completedNodeActivations: completedActivations };
-    const maxNodeActivations = state.executionOptions?.maxNodeActivations ?? Number.MAX_SAFE_INTEGER;
+    const maxNodeActivations =
+      state.executionOptions?.maxNodeActivations ??
+      this.executionLimitsPolicy.createRootExecutionOptions().maxNodeActivations!;
 
     if (this.semantics.isStopConditionSatisfied(state.control?.stopCondition, args.nodeId)) {
       const completedState = this.persistedRunStateTerminalBuilder.mergeTerminal({
@@ -566,7 +568,9 @@ export class RunContinuationService {
 
     const completedActivations = (args.state.engineCounters?.completedNodeActivations ?? 0) + 1;
     const engineCounters = { completedNodeActivations: completedActivations };
-    const maxNodeActivations = args.state.executionOptions?.maxNodeActivations ?? Number.MAX_SAFE_INTEGER;
+    const maxNodeActivations =
+      args.state.executionOptions?.maxNodeActivations ??
+      this.executionLimitsPolicy.createRootExecutionOptions().maxNodeActivations!;
 
     if (this.semantics.isStopConditionSatisfied(args.state.control?.stopCondition, args.args.nodeId)) {
       const completedState = this.persistedRunStateTerminalBuilder.mergeTerminal({

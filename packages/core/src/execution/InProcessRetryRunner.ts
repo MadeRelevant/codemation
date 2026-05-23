@@ -7,6 +7,9 @@ import type { AsyncSleeper } from "./asyncSleeper.types";
 
 export type { AsyncSleeper } from "./asyncSleeper.types";
 
+/** Maximum permitted retry attempts — workflow-declared values above this are clamped. */
+const HARD_MAX_RETRY_ATTEMPTS = 10;
+
 type NormalizedPolicy =
   | { readonly kind: "none"; readonly maxAttempts: 1 }
   | { readonly kind: "fixed"; readonly maxAttempts: number; readonly delayMs: number }
@@ -26,8 +29,9 @@ export class InProcessRetryRunner {
     policy: RetryPolicySpec | undefined,
     work: () => Promise<T>,
     shouldRetry?: (error: unknown) => boolean,
+    warn?: (message: string) => void,
   ): Promise<T> {
-    const spec = InProcessRetryRunner.normalizePolicy(policy);
+    const spec = InProcessRetryRunner.normalizePolicy(policy, warn);
     let lastError: unknown;
     for (let attempt = 1; attempt <= spec.maxAttempts; attempt++) {
       try {
@@ -65,7 +69,10 @@ export class InProcessRetryRunner {
     return Math.max(0, Math.floor(ms));
   }
 
-  private static normalizePolicy(policy: RetryPolicySpec | undefined): NormalizedPolicy {
+  private static normalizePolicy(
+    policy: RetryPolicySpec | undefined,
+    warn?: (message: string) => void,
+  ): NormalizedPolicy {
     if (policy === undefined) {
       return { kind: "none", maxAttempts: 1 };
     }
@@ -78,15 +85,17 @@ export class InProcessRetryRunner {
     }
     if (kind === "fixed") {
       const p = policy as FixedRetryPolicySpec;
-      const maxAttempts = InProcessRetryRunner.assertPositiveInt(p.maxAttempts, "fixed.maxAttempts");
+      const raw = InProcessRetryRunner.assertPositiveInt(p.maxAttempts, "fixed.maxAttempts");
+      const maxAttempts = InProcessRetryRunner.clampMaxAttempts(raw, warn);
       const delayMs = InProcessRetryRunner.assertNonNegativeFinite(p.delayMs, "fixed.delayMs");
       return { kind: "fixed", maxAttempts, delayMs };
     }
     if (kind === "exponential") {
       const p = policy as ExponentialRetryPolicySpec;
+      const raw = InProcessRetryRunner.assertPositiveInt(p.maxAttempts, "exponential.maxAttempts");
       return {
         kind: "exponential",
-        maxAttempts: InProcessRetryRunner.assertPositiveInt(p.maxAttempts, "exponential.maxAttempts"),
+        maxAttempts: InProcessRetryRunner.clampMaxAttempts(raw, warn),
         initialDelayMs: InProcessRetryRunner.assertNonNegativeFinite(p.initialDelayMs, "exponential.initialDelayMs"),
         multiplier: InProcessRetryRunner.assertMultiplier(p.multiplier),
         maxDelayMs:
@@ -97,6 +106,16 @@ export class InProcessRetryRunner {
       };
     }
     return { kind: "none", maxAttempts: 1 };
+  }
+
+  private static clampMaxAttempts(requested: number, warn?: (message: string) => void): number {
+    if (requested > HARD_MAX_RETRY_ATTEMPTS) {
+      warn?.(
+        `Retry policy maxAttempts (${requested}) exceeds hard ceiling (${HARD_MAX_RETRY_ATTEMPTS}); clamping to ${HARD_MAX_RETRY_ATTEMPTS}.`,
+      );
+      return HARD_MAX_RETRY_ATTEMPTS;
+    }
+    return requested;
   }
 
   private static assertPositiveInt(value: unknown, label: string): number {

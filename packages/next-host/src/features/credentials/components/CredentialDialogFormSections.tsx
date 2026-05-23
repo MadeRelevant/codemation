@@ -5,15 +5,11 @@ import type { Dispatch, SetStateAction } from "react";
 
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
-import LogIn from "lucide-react/dist/esm/icons/log-in";
 import Plug from "lucide-react/dist/esm/icons/plug";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Unplug from "lucide-react/dist/esm/icons/unplug";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@codemation/ui";
 import type { CredentialInstanceDto } from "@codemation/canvas";
 import type { FormSourceKind } from "../lib/credentialFormTypes";
 import { CredentialFieldCopyButton } from "./CredentialFieldCopyButton";
@@ -41,7 +37,6 @@ export type CredentialDialogFormSectionsProps = {
   oauth2RedirectUri: string;
   isLoadingOauth2RedirectUri: boolean;
   editingInstance: CredentialInstanceDto | null | undefined;
-  canSubmit: boolean;
   onConnectOAuth2: () => Promise<void>;
   onDisconnectOAuth2: () => void;
 };
@@ -67,7 +62,6 @@ export function CredentialDialogFormSections({
   oauth2RedirectUri,
   isLoadingOauth2RedirectUri,
   editingInstance,
-  canSubmit,
   onConnectOAuth2,
   onDisconnectOAuth2,
 }: CredentialDialogFormSectionsProps) {
@@ -186,34 +180,27 @@ export function CredentialDialogFormSections({
                 : ""}
             </span>
           )}
-          <div className="mt-1 flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              className="h-8 gap-1.5 px-2.5 text-xs font-semibold leading-none"
-              data-testid="credential-oauth2-connect-button"
-              onClick={() => void onConnectOAuth2()}
-              disabled={!isEdit && !canSubmit}
-            >
-              <span className="inline-flex items-center gap-1.5">
-                {isEdit && editingInstance?.oauth2Connection?.status === "connected" ? (
-                  <RefreshCw className="size-3.5 shrink-0" aria-hidden />
-                ) : isEdit ? (
-                  <Plug className="size-3.5 shrink-0" aria-hidden />
-                ) : (
-                  <LogIn className="size-3.5 shrink-0" aria-hidden />
-                )}
-                <span className="leading-none">
-                  {isEdit
-                    ? editingInstance?.oauth2Connection?.status === "connected"
-                      ? "Reconnect"
-                      : "Connect"
-                    : "Create and connect"}
+          {isEdit && (
+            <div className="mt-1 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="h-8 gap-1.5 px-2.5 text-xs font-semibold leading-none"
+                data-testid="credential-oauth2-connect-button"
+                onClick={() => void onConnectOAuth2()}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  {editingInstance?.oauth2Connection?.status === "connected" ? (
+                    <RefreshCw className="size-3.5 shrink-0" aria-hidden />
+                  ) : (
+                    <Plug className="size-3.5 shrink-0" aria-hidden />
+                  )}
+                  <span className="leading-none">
+                    {editingInstance?.oauth2Connection?.status === "connected" ? "Reconnect" : "Connect"}
+                  </span>
                 </span>
-              </span>
-            </Button>
-            {isEdit && (
+              </Button>
               <Button
                 type="button"
                 variant="destructive"
@@ -228,8 +215,8 @@ export function CredentialDialogFormSections({
                   <span className="leading-none">Disconnect</span>
                 </span>
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </>

@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@libsql/client", "@prisma/adapter-libsql", "@codemation/core", "@codemation/core-nodes"],
   transpilePackages: [
     "@codemation/canvas",
+    "@codemation/canvas-core",
     "@codemation/eventbus-redis",
     "@codemation/host",
     "@codemation/node-example",
@@ -35,7 +36,7 @@ const nextConfig: NextConfig = {
     // actually used. Re-evaluate this list when adding heavy npm deps.
     optimizePackageImports: [
       "lucide-react",
-      "simple-icons",
+      // simple-icons removed: no longer imported client-side (barrel served via /api/si-icon route)
       "recharts",
       "@tanstack/react-query",
       "react-hook-form",
@@ -50,6 +51,18 @@ const nextConfig: NextConfig = {
     root: nextHostWorkspaceRoot,
   },
   outputFileTracingRoot: nextHostWorkspaceRoot,
+  // lucide-static is only loaded dynamically via createRequire in lucideIconGet.ts.
+  // Next.js's static file-tracing pass can't see that, so the standalone build
+  // omits the package and every /api/lucide-icon/<name>.svg request 404s in
+  // production / packaged-dev mode. Force-include the icons directory + package.json.
+  // Both the dedicated route and the catch-all guard need the trace.
+  outputFileTracingIncludes: {
+    "/api/lucide-icon/[name]": [
+      "./node_modules/lucide-static/icons/*.svg",
+      "./node_modules/lucide-static/package.json",
+    ],
+    "/api/{**}": ["./node_modules/lucide-static/icons/*.svg", "./node_modules/lucide-static/package.json"],
+  },
 };
 
 const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === "true" });

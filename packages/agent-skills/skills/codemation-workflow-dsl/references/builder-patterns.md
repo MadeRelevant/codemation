@@ -1,13 +1,15 @@
+Load this when you need item-flow rules, the two-API decision, and fluent authoring patterns.
+
 # Builder Patterns
 
-## Standard workflow shape
+## Manual-trigger workflow (fluent — full sugar available)
 
 ```ts
+import { workflow } from "@codemation/host";
+
 export default workflow("wf.example.id")
   .name("Example")
-  .manualTrigger("Start", {
-    step: "start",
-  })
+  .manualTrigger("Start", { step: "start" })
   .map("Transform", (item, _ctx) => ({
     ...item.json,
     transformed: true,
@@ -15,27 +17,57 @@ export default workflow("wf.example.id")
   .build();
 ```
 
-## Cron-triggered workflow
+The `.map`, `.if`, `.switch`, `.split`, `.agent`, `.node`, `.then` helpers are available because `manualTrigger(...)` returns a `WorkflowChain`.
+
+## Cron-triggered workflow (low-level — `.then(new NodeConfig(...))` only)
 
 ```ts
-import { CronTrigger } from "@codemation/core-nodes";
+import { Callback, CronTrigger, createWorkflowBuilder } from "@codemation/core-nodes";
 
-export default workflow("wf.nightly.id")
-  .name("Nightly job")
+export default createWorkflowBuilder({
+  id: "wf.nightly.id",
+  name: "Nightly job",
+})
   .trigger(new CronTrigger("Nightly", { schedule: "0 3 * * *", timezone: "Europe/Amsterdam" }))
-  .map("Process tick", (item, _ctx) => ({
-    firedAt: (item.json as { firedAt: string }).firedAt,
-  }))
+  .then(
+    new Callback("Process tick", (items, _ctx) => {
+      // Callback receives the whole batch (Items), not a single item.
+      // For a cron trigger the batch is always one item: { firedAt, scheduledFor }.
+      return items.map((item) => ({ firedAt: (item.json as { firedAt: string }).firedAt }));
+    }),
+  )
   .build();
 ```
 
 The cron expression is validated at workflow build time. Each tick emits one item with `{ firedAt, scheduledFor }` ISO-8601 strings. Always supply `timezone` for DST-sensitive schedules — defaults to UTC.
 
-## Use the fluent DSL by default
+**Note:** non-manual triggers do NOT give you `.map(...)` / `.if(...)` / `.agent(...)` sugar. Compose with `.then(new Callback(...))`, `.then(new If(...))`, `.then(new AIAgent({...}))`, etc.
 
-- import `workflow` from `@codemation/host`
-- keep the file under `src/workflows`
-- export the built workflow definition as the default export when following starter patterns
+## Webhook-triggered workflow
+
+```ts
+import { WebhookTrigger, createWorkflowBuilder, Callback } from "@codemation/core-nodes";
+
+export default createWorkflowBuilder({
+  id: "wf.webhook.example",
+  name: "Webhook example",
+})
+  .trigger(new WebhookTrigger("Incoming", { endpointKey: "inbound", methods: ["POST"] }))
+  .then(new Callback("Handle payload", (items) => items.map((it) => ({ received: it.json }))))
+  .build();
+```
+
+## Decision rule
+
+- **Manual one-shot trigger?** Use `workflow("id").manualTrigger(...)` — short, fluent, full sugar.
+- **Anything else?** Use `createWorkflowBuilder({ id, name }).trigger(new Trigger(...))` — verbose, node-config style.
+
+## Imports cheat sheet
+
+- `workflow` → `@codemation/host` (re-exports from `@codemation/core-nodes`)
+- `createWorkflowBuilder`, `CronTrigger`, `WebhookTrigger`, `Callback`, `HttpRequest`, `AIAgent`, `If`, `Split`, `Merge`, `SubWorkflow` → `@codemation/core-nodes`
+- `callableTool`, `itemExpr` → `@codemation/core`
+- Workflow file location: `src/workflows/`. Export the built definition as the default export.
 
 ## Item rules
 

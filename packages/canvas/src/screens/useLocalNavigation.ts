@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { NavigationAdapter } from "../types/NavigationAdapter";
-import type { WorkflowDetailUrlLocation } from "../lib/workflowDetail/WorkflowDetailUrlCodec";
+import type { NavigationAdapter, WorkflowDetailUrlLocation } from "@codemation/canvas-core";
 
 const INITIAL_LOCATION: WorkflowDetailUrlLocation = {
   selectedRunId: null,

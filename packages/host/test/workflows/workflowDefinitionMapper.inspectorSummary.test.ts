@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 
 import { WorkflowDefinitionMapper } from "../../src/application/mapping/WorkflowDefinitionMapper";
 import { WorkflowPolicyUiPresentationFactory } from "../../src/application/mapping/WorkflowPolicyUiPresentationFactory";
+import type { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
 
 const mapper = new WorkflowDefinitionMapper(
   new WorkflowPolicyUiPresentationFactory(),
   new AllWorkflowsActiveWorkflowActivationPolicy(),
+  { get: () => undefined } as unknown as McpServerCatalog,
 );
 
 class TestNodeToken {}

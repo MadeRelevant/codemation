@@ -2,8 +2,7 @@
 
 import type { TelemetryDashboardRunsDto } from "@codemation/host/dto";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge, Button } from "@codemation/ui";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HumanFriendlyTimestampFormatter } from "../../lib/HumanFriendlyTimestampFormatter";
 import { DashboardCostAmountFormatter } from "../lib/DashboardCostAmountFormatter";

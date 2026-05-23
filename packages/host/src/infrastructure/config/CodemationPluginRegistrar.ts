@@ -1,4 +1,4 @@
-import type { AnyCredentialType, CollectionDefinition, Container } from "@codemation/core";
+import type { AnyCredentialType, CollectionDefinition, Container, McpServerDeclaration } from "@codemation/core";
 import type { LoggerFactory } from "../../application/logging/Logger";
 import type { AppConfig } from "../../presentation/config/AppConfig";
 import type { CodemationPlugin } from "../../presentation/config/CodemationPlugin";
@@ -11,6 +11,7 @@ export class CodemationPluginRegistrar {
       appConfig: AppConfig;
       registerCredentialType: (type: AnyCredentialType) => void;
       registerCollection: (definition: CollectionDefinition) => void;
+      mergeMcpServers: (declarations: ReadonlyArray<McpServerDeclaration>) => void;
       loggerFactory: LoggerFactory;
     }>,
   ): Promise<void> {
@@ -18,6 +19,7 @@ export class CodemationPluginRegistrar {
       for (const credentialType of plugin.credentialTypes ?? []) {
         args.registerCredentialType(credentialType);
       }
+      args.mergeMcpServers(plugin.mcpServers ?? []);
       if (!plugin.register) {
         continue;
       }

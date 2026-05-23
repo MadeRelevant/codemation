@@ -16,7 +16,10 @@ import type { CollectionsSyncCommand } from "./commands/CollectionsSyncCommand";
 import type { CollectionsUpdateCommand } from "./commands/CollectionsUpdateCommand";
 import type { DbMigrateCommand } from "./commands/DbMigrateCommand";
 import { DevCommand } from "./commands/DevCommand";
+import type { ExampleVerifyCommand } from "./commands/ExampleVerifyCommand";
 import type { DevPluginCommand } from "./commands/DevPluginCommand";
+import type { RunWorkflowCommand } from "./commands/RunWorkflowCommand";
+import type { RunTestCommand } from "./commands/RunTestCommand";
 import { ServeWebCommand } from "./commands/ServeWebCommand";
 import { ServeWorkerCommand } from "./commands/ServeWorkerCommand";
 import { SkillsSyncCommand } from "./commands/SkillsSyncCommand";
@@ -43,6 +46,9 @@ export class CliProgram {
     private readonly collectionsUpdateCommand: CollectionsUpdateCommand,
     private readonly collectionsDeleteCommand: CollectionsDeleteCommand,
     private readonly collectionsSyncCommand: CollectionsSyncCommand,
+    private readonly exampleVerifyCommand: ExampleVerifyCommand,
+    private readonly runWorkflowCommand: RunWorkflowCommand,
+    private readonly runTestCommand: RunTestCommand,
   ) {}
 
   async run(argv: ReadonlyArray<string>): Promise<void> {
@@ -81,12 +87,26 @@ export class CliProgram {
       )
       .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
       .option("--watch-framework", "Use Next dev HMR for framework UI work inside this repository.")
-      .action(async (opts: Readonly<{ consumerRoot?: string; watchFramework?: boolean }>) => {
-        await this.devCommand.execute({
-          consumerRoot: resolveConsumerRoot(opts.consumerRoot),
-          watchFramework: opts.watchFramework === true,
-        });
-      });
+      .option(
+        "--api-only",
+        "Skip the workspace UI; useful when an external host (e.g. the control plane) serves the UI itself.",
+      )
+      .option(
+        "--trace-boot",
+        "Print a phase-by-phase boot-time breakdown to stderr and write tmp/boot-trace.json on startup.",
+      )
+      .action(
+        async (
+          opts: Readonly<{ consumerRoot?: string; watchFramework?: boolean; apiOnly?: boolean; traceBoot?: boolean }>,
+        ) => {
+          await this.devCommand.execute({
+            consumerRoot: resolveConsumerRoot(opts.consumerRoot),
+            watchFramework: opts.watchFramework === true,
+            apiOnly: opts.apiOnly === true,
+            traceBoot: opts.traceBoot === true,
+          });
+        },
+      );
 
     program
       .command("dev:plugin")
@@ -332,6 +352,59 @@ export class CliProgram {
       .option("--dry-run", "Print planned changes without applying them")
       .action(async (opts: Readonly<{ consumerRoot?: string; config?: string; dryRun?: boolean }>) => {
         await this.collectionsSyncCommand.execute(opts);
+      });
+
+    const run = program.command("run").description("Run a workflow or test suite.");
+
+    run
+      .command("workflow <workflow-id>")
+      .description("Start a workflow run and poll until completion.")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .option("--config <path>", "Override path to codemation.config.ts / .js")
+      .option("--input <json>", "Trigger items as a JSON string (array or single object)")
+      .option("--start-at <node-id>", "Start execution from a specific node")
+      .option("--timeout <seconds>", "Max seconds to wait for completion (default: 60)", "60")
+      .action(
+        async (
+          workflowId: string,
+          opts: Readonly<{
+            consumerRoot?: string;
+            config?: string;
+            input?: string;
+            startAt?: string;
+            timeout?: string;
+          }>,
+        ) => {
+          await this.runWorkflowCommand.execute({
+            workflowId,
+            consumerRoot: resolveConsumerRoot(opts.consumerRoot),
+            configPath: opts.config,
+            input: opts.input,
+            startAt: opts.startAt,
+            timeout: opts.timeout !== undefined ? parseInt(opts.timeout, 10) : undefined,
+          });
+        },
+      );
+
+    run
+      .command("test <suite-id>")
+      .description("Run a test suite (not yet implemented).")
+      .option("--consumer-root <path>", "Path to the consumer project root (defaults to cwd)")
+      .action(async (suiteId: string, opts: Readonly<{ consumerRoot?: string }>) => {
+        await this.runTestCommand.execute({
+          suiteId,
+          consumerRoot: resolveConsumerRoot(opts.consumerRoot),
+        });
+      });
+
+    const example = program.command("example").description("Example workflow utilities.");
+
+    example
+      .command("verify")
+      .description("Verify a single example file (frontmatter + workflow shape check). Fast author feedback.")
+      .argument("<path>", "Path to the .example.ts file to verify")
+      .action(async (filePath: string) => {
+        await this.exampleVerifyCommand.execute(filePath);
       });
 
     await program.parseAsync(argv as string[], { from: "user" });

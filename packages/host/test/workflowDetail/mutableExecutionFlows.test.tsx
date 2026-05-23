@@ -466,20 +466,22 @@ describe("workflow detail mutable execution flows", () => {
 
     fireEvent.click(screen.getByTestId("canvas-node-run-button-A"));
 
-    expect(
-      kit.latestRequestBody<
-        Readonly<{ workflowId: string; stopAt?: string; clearFromNodeId?: string; currentState?: unknown }>
-      >("POST /api/runs"),
-    ).toEqual(
-      expect.objectContaining({
-        workflowId: workflow.id,
-        currentState: expect.any(Object),
-        stopAt: "A",
-        clearFromNodeId: "A",
-        mode: "manual",
-        synthesizeTriggerItems: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(
+        kit!.latestRequestBody<
+          Readonly<{ workflowId: string; stopAt?: string; clearFromNodeId?: string; currentState?: unknown }>
+        >("POST /api/runs"),
+      ).toEqual(
+        expect.objectContaining({
+          workflowId: workflow.id,
+          currentState: expect.any(Object),
+          stopAt: "A",
+          clearFromNodeId: "A",
+          mode: "manual",
+          synthesizeTriggerItems: true,
+        }),
+      );
+    });
 
     await waitFor(() => {
       expect(kit!.currentNodeStatus("A")).toBe("completed");

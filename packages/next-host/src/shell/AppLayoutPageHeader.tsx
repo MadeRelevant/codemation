@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 
 import type { ReactNode } from "react";
+import { useRef } from "react";
 
 import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
 
@@ -15,6 +16,7 @@ import { useWhitelabel } from "../providers/WhitelabelProvider";
 import { getPageTitle } from "./appLayoutPageTitle";
 import { AppShellHeaderActions } from "./AppShellHeaderActions";
 import { useWorkflowDetailChrome } from "./WorkflowDetailChromeContext";
+import type { WorkflowDetailChromeState } from "./WorkflowDetailChromeContext";
 import { useWorkflowsQuery, useWorkflowQuery } from "@codemation/canvas";
 import { WorkflowInfoPopover } from "./WorkflowInfoPopover";
 
@@ -37,6 +39,18 @@ export function AppLayoutPageHeader(): ReactNode {
   const triggerType = triggerNode?.type ?? triggerNode?.name;
   const credentialLines = chrome?.credentialAttentionSummaryLines ?? [];
   const activationAlertLines = chrome?.workflowActivationAlertLines ?? null;
+
+  // Keep the last live-view chrome state so the activation toggle stays mounted
+  // during transient null resets (e.g. WorkflowDetailScreen unmount/remount).
+  // When chrome is temporarily null the toggle renders as disabled-pending so
+  // it visually persists rather than flickering out.
+  const lastLiveChromeRef = useRef<WorkflowDetailChromeState | null>(null);
+  if (chrome?.isLiveWorkflowView) {
+    lastLiveChromeRef.current = chrome;
+  } else if (!isWorkflowDetail) {
+    lastLiveChromeRef.current = null;
+  }
+  const liveChrome = chrome?.isLiveWorkflowView ? chrome : lastLiveChromeRef.current;
 
   return (
     <header className="flex shrink-0 flex-col border-b border-border bg-card">
@@ -65,15 +79,15 @@ export function AppLayoutPageHeader(): ReactNode {
               </span>
             </CanvasNodeChromeTooltip>
           ) : null}
-          {showChromeRow && chrome?.isLiveWorkflowView ? (
+          {isWorkflowDetail && liveChrome ? (
             <WorkflowActivationHeaderControl
               variant="shell"
               showErrorAlert={false}
-              active={chrome.workflowIsActive}
-              pending={chrome.isWorkflowActivationPending}
-              onActiveChange={chrome.setWorkflowActive}
-              alertLines={chrome.workflowActivationAlertLines}
-              onDismissAlert={chrome.dismissWorkflowActivationAlert}
+              active={liveChrome.workflowIsActive}
+              pending={liveChrome.isWorkflowActivationPending || chrome === null}
+              onActiveChange={liveChrome.setWorkflowActive}
+              alertLines={liveChrome.workflowActivationAlertLines}
+              onDismissAlert={liveChrome.dismissWorkflowActivationAlert}
             />
           ) : null}
         </div>

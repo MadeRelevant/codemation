@@ -1,4 +1,4 @@
-import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "../realtime/realtimeDomainTypes";
+import type { ConnectionInvocationRecord, NodeExecutionSnapshot } from "@codemation/canvas-core";
 
 export class VisibleNodeStatusResolver {
   private static readonly statusPriorityByStatus = new Map<NodeExecutionSnapshot["status"], number>([

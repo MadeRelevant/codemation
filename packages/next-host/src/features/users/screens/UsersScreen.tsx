@@ -3,8 +3,7 @@
 import type { UserAccountDto, UserAccountStatus } from "@codemation/host/dto";
 import { useCallback, useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@codemation/ui";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { CodemationDataTable } from "../../../components/CodemationDataTable";
 import { CodemationFormattedDateTime } from "../../../components/CodemationFormattedDateTime";

@@ -33,7 +33,7 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "echo \"(test placeholder)\""
+    "test": "vitest run"
   },
   "dependencies": {
     "@codemation/core": "workspace:*",
@@ -44,6 +44,7 @@
     "eslint": "^10.0.3",
     "tsdown": "^0.15.5",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "4.0.18"
   }
 }

@@ -86,6 +86,8 @@ export interface TelemetryArtifactRecord {
   readonly previewJson?: unknown;
   readonly payloadText?: string;
   readonly payloadJson?: unknown;
+  /** Set when the payload was offloaded to BinaryStorage (byteLength > 64 KB). */
+  readonly payloadStorageKey?: string;
   readonly bytes?: number;
   readonly truncated?: boolean;
   readonly createdAt: string;
@@ -195,7 +197,11 @@ export interface TelemetrySpanStore {
 export interface TelemetryArtifactStore {
   save(record: TelemetryArtifactWrite): Promise<TelemetryArtifactRecord>;
   listByTraceId(traceId: string): Promise<ReadonlyArray<TelemetryArtifactRecord>>;
-  pruneExpired(args: TelemetryPruneArgs): Promise<number>;
+  /**
+   * Deletes expired artifacts. Returns the count of deleted rows and any
+   * `payloadStorageKey` references that callers must clean up from BinaryStorage.
+   */
+  pruneExpired(args: TelemetryPruneArgs): Promise<{ count: number; storageKeys: ReadonlyArray<string> }>;
 }
 
 export interface TelemetryMetricPointStore {

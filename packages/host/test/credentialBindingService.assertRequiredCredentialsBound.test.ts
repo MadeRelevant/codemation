@@ -7,6 +7,7 @@ import { CredentialBindingService } from "../src/domain/credentials/CredentialBi
 import type { CredentialStore, MutableCredentialSessionService } from "../src/domain/credentials/CredentialServices";
 import type { WorkflowCredentialSlotRef } from "../src/domain/credentials/WorkflowCredentialNodeResolver";
 import { WorkflowCredentialNodeResolver } from "../src/domain/credentials/WorkflowCredentialNodeResolver";
+import { FakeLoggerFactory } from "./testkit";
 
 // ── Stubs ──────────────────────────────────────────────────────────────────
 
@@ -83,6 +84,7 @@ function makeService(
     { get: () => EMPTY_WORKFLOW } as never,
     new StubSessionService(sessionThrows) as unknown as MutableCredentialSessionService,
     new StubNodeResolver(slots) as WorkflowCredentialNodeResolver,
+    new FakeLoggerFactory(),
   );
 }
 
@@ -150,6 +152,7 @@ test("assertRequiredCredentialsBound: multiple unbound slots listed in error mes
     { get: () => EMPTY_WORKFLOW } as never,
     new ThrowingSessionService() as unknown as MutableCredentialSessionService,
     new StubNodeResolver([slot1, slot2]) as WorkflowCredentialNodeResolver,
+    new FakeLoggerFactory(),
   );
 
   await assert.rejects(
@@ -192,6 +195,7 @@ test("assertRequiredCredentialsBound: mix of bound and unbound slots — only un
     { get: () => EMPTY_WORKFLOW } as never,
     new PartialSessionService() as unknown as MutableCredentialSessionService,
     new StubNodeResolver([slot1, slot2]) as WorkflowCredentialNodeResolver,
+    new FakeLoggerFactory(),
   );
 
   await assert.rejects(

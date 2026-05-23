@@ -45,6 +45,49 @@ Do not use this skill for ordinary consumer workflow-only changes unless the wor
 
 Import **`WorkflowTestKit`** from **`@codemation/core/testing`**. Use **`registerDefinedNodes([...])`** for `defineNode` packages, then **`runNode({ node: yourNode.create(...), items })`** or **`run({ workflow, items })`** for fuller graphs. Prefer this for fast node tests; use **`codemation dev:plugin`** when you need the UI and persistence.
 
+## Declaring MCP servers from a plugin (`mcpServers?`)
+
+A plugin can declare MCP servers that the framework merges into its in-memory catalog at startup. Use this for providers that need non-standard auth, custom adapter logic, or are shipping alongside custom nodes. For standard SaaS providers (OAuth via broker, plain bearer/API key), prefer the control-plane registry instead — no plugin code required.
+
+### When to use plugin-declared MCP servers
+
+- The provider's MCP server has non-standard auth the generic credential types cannot express.
+- The plugin already ships custom nodes for the same provider and wants to co-locate the MCP declaration.
+- Self-hosted deployments where no control-plane registry is available.
+
+### Required fields
+
+```ts
+import { definePlugin } from "@codemation/host/authoring";
+import type { McpServerDeclaration } from "@codemation/core";
+
+const myServer: McpServerDeclaration = {
+  id: "my-service", // globally unique slug: /^[a-z0-9-]+$/
+  displayName: "My Service",
+  description: "Provides MCP tools for My Service.",
+  transport: "http",
+  url: "https://mcp.my-service.com",
+  // Credential types this server accepts. Users bind a credential instance
+  // per slot via the UI. Omit (or set to []) for servers requiring no auth.
+  acceptedCredentialTypes: ["my-service.bearer-token"],
+};
+
+export default definePlugin({
+  mcpServers: [myServer],
+  // credentials, nodes, register, etc.
+});
+```
+
+### Merge precedence
+
+The framework merges from three sources in this order (last-write-wins on `id` collisions):
+
+1. **Plugin** (lowest) — code in `codemation.plugin.ts`
+2. **`codemation.config.ts`** — dev/self-host declarations
+3. **Control-plane registry** (highest) — managed-mode fast lane; shadows plugin declarations to fix descriptions without a plugin release
+
+A warning is logged when a higher-priority source shadows a plugin declaration. This is intentional.
+
 ## Read next when needed
 
 - Read `references/plugin-structure.md` for package layout and node-versus-credential guidance.
