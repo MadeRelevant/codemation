@@ -9,8 +9,9 @@
  * only available via workflow("id").manualTrigger(...). See codemation-workflow-dsl skill.
  *
  * `mcpServers` is a plain array of server ids. Each declared server surfaces a credential
- * slot (`mcp:<serverId>`) on the agent node. The user binds a credential instance via the
- * canvas credential dropdown before activation — same flow as trigger credentials.
+ * slot on the materialized MCP connection node (same shape as ChatModel/Tool connection
+ * nodes). The user binds a credential instance via the canvas credential dropdown before
+ * activation — same flow as trigger credentials.
  */
 
 import { AIAgent, CronTrigger, createWorkflowBuilder } from "@codemation/core-nodes";

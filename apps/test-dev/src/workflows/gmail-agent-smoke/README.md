@@ -69,8 +69,9 @@ In the Codemation UI (concierge chat or credential panel):
    `status = "connected"` appears on the installation.
 
 The `mcpServers: ["gmail"]` entry on the agent declares a credential slot keyed
-`mcp:gmail` on the agent node. Bind a `oauth.google.gmail` credential instance to that
-slot via the canvas credential dropdown before activating the workflow.
+`"credential"` on the materialized MCP connection node (same shape as ChatModel and
+Tool connection nodes). Bind a `oauth.google.gmail` credential instance to that slot
+via the canvas credential dropdown before activating the workflow.
 
 ### 5. Ensure OPENAI_API_KEY is set
 

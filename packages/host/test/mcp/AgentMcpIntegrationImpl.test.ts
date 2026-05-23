@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { McpServerDeclaration, TelemetrySpanEventRecord } from "@codemation/core";
-import { AgentBindError, mcpSlotKey } from "@codemation/core";
+import { AgentBindError, ConnectionNodeIdFactory } from "@codemation/core";
 import { AgentMcpIntegrationImpl } from "../../src/mcp/AgentMcpIntegrationImpl";
 import { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
 import { McpConnectionPool } from "../../src/mcp/McpConnectionPool";
@@ -13,6 +13,7 @@ import { FakeMcpClient, FakeClientFactory, FakeCredentials } from "./testkit/Mcp
 
 const WORKFLOW_ID = "wf.test";
 const AGENT_NODE_ID = "agent-1";
+const GMAIL_MCP_NODE_ID = ConnectionNodeIdFactory.mcpConnectionNodeId(AGENT_NODE_ID, "gmail");
 
 function makeCatalog(declarations: McpServerDeclaration[]): McpServerCatalog {
   const catalog = new McpServerCatalog(new FakeLoggerFactory() as unknown as LoggerFactory, makeAppConfig());
@@ -146,10 +147,11 @@ const gmailDecl: McpServerDeclaration = {
 
 describe("AgentMcpIntegrationImpl", () => {
   describe("binding resolution from CredentialBinding", () => {
-    it("resolves the binding for the agent's MCP slot and returns a tool map", async () => {
+    it("resolves the binding at (workflowId, mcpConnectionNodeId, 'credential') and returns a tool map", async () => {
       const catalog = makeCatalog([gmailDecl]);
       const creds = new FakeCredentials();
-      const store = makeCredentialStore(
+      const getBindingCalls: Array<Readonly<{ workflowId: string; nodeId: string; slotKey: string }>> = [];
+      const baseStore = makeCredentialStore(
         [
           {
             instanceId: "cred-1",
@@ -159,12 +161,19 @@ describe("AgentMcpIntegrationImpl", () => {
         [
           {
             workflowId: WORKFLOW_ID,
-            nodeId: AGENT_NODE_ID,
-            slotKey: mcpSlotKey("gmail"),
+            nodeId: GMAIL_MCP_NODE_ID,
+            slotKey: "credential",
             instanceId: "cred-1",
           },
         ],
       );
+      const store: typeof baseStore = {
+        ...baseStore,
+        getBinding: async (key) => {
+          getBindingCalls.push(key);
+          return baseStore.getBinding(key);
+        },
+      };
       const pool = makePool(catalog, creds);
 
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
@@ -180,9 +189,12 @@ describe("AgentMcpIntegrationImpl", () => {
       });
 
       expect(result.has("gmail")).toBe(true);
+      expect(getBindingCalls).toEqual([
+        { workflowId: WORKFLOW_ID, nodeId: GMAIL_MCP_NODE_ID, slotKey: "credential" },
+      ]);
     });
 
-    it("throws AgentBindError when no binding exists for the agent MCP slot", async () => {
+    it("throws AgentBindError when no binding exists for the MCP connection node", async () => {
       const catalog = makeCatalog([gmailDecl]);
       const creds = new FakeCredentials();
       const store = makeCredentialStore([{ instanceId: "cred-1" }], []);
@@ -210,8 +222,8 @@ describe("AgentMcpIntegrationImpl", () => {
         [
           {
             workflowId: WORKFLOW_ID,
-            nodeId: AGENT_NODE_ID,
-            slotKey: mcpSlotKey("gmail"),
+            nodeId: GMAIL_MCP_NODE_ID,
+            slotKey: "credential",
             instanceId: "missing-cred",
           },
         ],
@@ -271,8 +283,8 @@ describe("AgentMcpIntegrationImpl", () => {
         [
           {
             workflowId: WORKFLOW_ID,
-            nodeId: AGENT_NODE_ID,
-            slotKey: mcpSlotKey("gmail"),
+            nodeId: GMAIL_MCP_NODE_ID,
+            slotKey: "credential",
             instanceId: "cred-1",
           },
         ],
@@ -310,8 +322,8 @@ describe("AgentMcpIntegrationImpl", () => {
         [
           {
             workflowId: WORKFLOW_ID,
-            nodeId: AGENT_NODE_ID,
-            slotKey: mcpSlotKey("gmail"),
+            nodeId: GMAIL_MCP_NODE_ID,
+            slotKey: "credential",
             instanceId: "cred-1",
           },
         ],
@@ -345,8 +357,8 @@ describe("AgentMcpIntegrationImpl", () => {
         [
           {
             workflowId: WORKFLOW_ID,
-            nodeId: AGENT_NODE_ID,
-            slotKey: mcpSlotKey("gmail"),
+            nodeId: GMAIL_MCP_NODE_ID,
+            slotKey: "credential",
             instanceId: "cred-1",
           },
         ],
@@ -400,8 +412,8 @@ describe("AgentMcpIntegrationImpl", () => {
         [
           {
             workflowId: WORKFLOW_ID,
-            nodeId: AGENT_NODE_ID,
-            slotKey: mcpSlotKey("gmail"),
+            nodeId: GMAIL_MCP_NODE_ID,
+            slotKey: "credential",
             instanceId: "cred-1",
           },
         ],

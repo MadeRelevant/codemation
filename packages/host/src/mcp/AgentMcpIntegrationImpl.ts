@@ -2,9 +2,9 @@ import type { ToolSet } from "ai";
 import {
   AgentBindError,
   CodemationTelemetryAttributeNames,
+  ConnectionNodeIdFactory,
   inject,
   injectable,
-  mcpSlotKey,
   type AgentMcpIntegration,
   type AgentMcpToolMap,
   type McpServerDeclaration,
@@ -21,9 +21,10 @@ import type { CredentialStore } from "../domain/credentials/CredentialServices";
  * Host-side implementation of AgentMcpIntegration.
  *
  * Resolves the credential binding for each declared MCP server via the standard
- * credential-binding table (slot key `mcp:<serverId>` on the agent node), opens
- * pool connections, and returns a ToolSet map with execute callbacks wrapped
- * for telemetry + 403 detection.
+ * credential-binding table — the binding lives on the MCP connection node itself
+ * (slot key `"credential"`), matching ChatModel/Tool connection nodes. Opens pool
+ * connections and returns a ToolSet map with execute callbacks wrapped for
+ * telemetry + 403 detection.
  */
 @injectable()
 export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
@@ -74,22 +75,22 @@ export class AgentMcpIntegrationImpl implements AgentMcpIntegration {
   }
 
   /**
-   * Looks up the credential binding for the agent's MCP slot and verifies the
+   * Looks up the credential binding for the MCP connection node and verifies the
    * referenced credential instance still exists.
    */
   private async resolveCredentialInstanceId(workflowId: string, agentNodeId: string, serverId: string): Promise<string> {
-    const slotKey = mcpSlotKey(serverId);
-    const binding = await this.credentialStore.getBinding({ workflowId, nodeId: agentNodeId, slotKey });
+    const mcpNodeId = ConnectionNodeIdFactory.mcpConnectionNodeId(agentNodeId, serverId);
+    const binding = await this.credentialStore.getBinding({ workflowId, nodeId: mcpNodeId, slotKey: "credential" });
     if (!binding) {
       throw new AgentBindError(
-        `MCP server "${serverId}" has no credential bound on agent node "${agentNodeId}" (slot "${slotKey}"). ` +
+        `MCP server "${serverId}" has no credential bound on connection node "${mcpNodeId}". ` +
           `Bind a credential instance via the canvas credential dropdown before activation.`,
       );
     }
     const instance = await this.credentialStore.getInstance(binding.instanceId);
     if (!instance) {
       throw new AgentBindError(
-        `Credential instance "${binding.instanceId}" not found for mcpServer "${serverId}" (slot "${slotKey}")`,
+        `Credential instance "${binding.instanceId}" not found for mcpServer "${serverId}" (connection node "${mcpNodeId}")`,
       );
     }
     return instance.instanceId;

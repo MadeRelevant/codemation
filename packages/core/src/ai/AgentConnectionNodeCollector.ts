@@ -84,6 +84,7 @@ export const AgentConnectionNodeCollector: AgentConnectionNodeCollectorApi = new
         if (!decl) {
           continue;
         }
+        const acceptedTypes = decl.acceptedCredentialTypes ?? [];
         collected.push({
           nodeId: ConnectionNodeIdFactory.mcpConnectionNodeId(parentNodeId, serverId),
           parentNodeId,
@@ -92,10 +93,15 @@ export const AgentConnectionNodeCollector: AgentConnectionNodeCollectorApi = new
           name: decl.displayName,
           typeName: serverId,
           icon: "lucide:plug",
-          // MCP credential slots live on the parent agent node (slotKey `mcp:<serverId>`),
-          // not on this visual descriptor; the agent config emits them via
-          // getCredentialRequirements with catalog augmentation in the resolver.
-          credentialSource: { getCredentialRequirements: () => [] },
+          credentialSource: {
+            getCredentialRequirements: () => [
+              {
+                slotKey: "credential",
+                label: decl.displayName,
+                acceptedTypes,
+              },
+            ],
+          },
         });
       }
     }

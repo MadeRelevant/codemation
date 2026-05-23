@@ -23,7 +23,7 @@ export type AgentMcpToolMap = ReadonlyMap<string, Readonly<Record<string, unknow
 /**
  * Contract implemented by the host. Resolves MCP server bindings for an agent run
  * via the standard credential-binding table (one slot per declared server, keyed
- * by `(workflowId, agentNodeId, "mcp:<serverId>")`), and returns a ready-to-use
+ * by `(workflowId, mcpConnectionNodeId, "credential")`), and returns a ready-to-use
  * tool map with wrapped execute callbacks for telemetry and 403 detection.
  * Core-nodes imports this interface so AIAgentNode can inject it without
  * depending on the host.
@@ -50,9 +50,3 @@ export interface AgentMcpIntegration {
     };
   }): Promise<AgentMcpToolMap>;
 }
-
-/**
- * Deterministic slot key for the credential binding of an MCP server attached
- * to an agent. The binding lives at `(workflowId, agentNodeId, mcpSlotKey(serverId))`.
- */
-export const mcpSlotKey = (serverId: string): string => `mcp:${serverId}`;

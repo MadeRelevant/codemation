@@ -29,11 +29,7 @@ const gmailMcpServer: McpServerDeclaration = {
   transport: "http",
   url: process.env["GMAIL_MCP_URL"] ?? "https://gmailmcp.googleapis.com/mcp/v1",
   acceptedCredentialTypes: ["oauth.google.gmail"],
-  requiredScopes: [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.send",
-    "https://www.googleapis.com/auth/gmail.modify",
-  ],
+  requiredScopes: ["https://www.googleapis.com/auth/gmail.modify"],
   staticHeaders: {},
   toolDescriptionOverrides: {},
 };

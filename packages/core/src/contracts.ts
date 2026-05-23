@@ -2,7 +2,6 @@
 // This subpath prevents unnecessary compile-graph bloat for packages that only need types like NodeId, Items, etc.
 
 export type * from "./contracts/agentMcpTypes";
-export { mcpSlotKey } from "./contracts/agentMcpTypes";
 export * from "./contracts/AgentBindError";
 export * from "./contracts/NoOpAgentMcpIntegration";
 export type * from "./contracts/baseTypes";

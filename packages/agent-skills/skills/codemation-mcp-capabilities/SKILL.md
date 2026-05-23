@@ -59,10 +59,11 @@ An empty query string returns all registered servers.
 ## Using results in workflow config
 
 The `id` field from the response is added to the agent's `mcpServers` array. Each entry
-surfaces a credential slot (`mcp:<serverId>`) on the agent node; the user picks a
-specific credential instance via the canvas credential dropdown — same flow as a trigger
-credential. A user may have multiple instances of the same type (personal vs work Gmail);
-the dropdown surfaces all matching instances.
+surfaces a credential slot on the materialized MCP connection node (same shape as
+ChatModel and Tool connection nodes); the user picks a specific credential instance via
+the canvas credential dropdown — same flow as a trigger credential. A user may have
+multiple instances of the same type (personal vs work Gmail); the dropdown surfaces all
+matching instances.
 
 ```ts
 new AIAgent({

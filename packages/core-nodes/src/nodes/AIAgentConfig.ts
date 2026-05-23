@@ -28,9 +28,11 @@ export interface AIAgentOptions<TInputJson = unknown, _TOutputJson = unknown> {
   /**
    * MCP servers to connect for this agent run. Each entry is the server id from
    * the MCP catalog (e.g. `"gmail"`). Credential instances are bound via the
-   * standard credential-binding flow — one slot per server, keyed by
-   * `(workflowId, agentNodeId, "mcp:<serverId>")`. There is no inline credential
-   * field; bind through the canvas credential dropdown before activation.
+   * standard credential-binding flow — each server materializes an MCP connection
+   * node and the slot lives on that node, keyed by
+   * `(workflowId, mcpConnectionNodeId, "credential")` (same shape as ChatModel and
+   * Tool connection nodes). There is no inline credential field; bind through the
+   * canvas credential dropdown before activation.
    */
   readonly mcpServers?: ReadonlyArray<string>;
   /**

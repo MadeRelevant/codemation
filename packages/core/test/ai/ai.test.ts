@@ -305,7 +305,7 @@ test("AgentConnectionNodeCollector treats callable tools as tool role not nested
   assert.equal(toolDesc?.role, "tool");
 });
 
-test("AgentConnectionNodeCollector emits MCP descriptors with empty credential sources (slots live on the agent node)", () => {
+test("AgentConnectionNodeCollector emits MCP descriptors with a credential slot on the connection node", () => {
   const token = { name: "T" } as AgentNodeConfig<any, any>["type"];
   const chatModelType = token as unknown as AgentNodeConfig<any, any>["chatModel"]["type"];
   const gmailDecl: McpServerDeclaration = {
@@ -333,8 +333,11 @@ test("AgentConnectionNodeCollector emits MCP descriptors with empty credential s
   assert.equal(mcpDesc.role, "tool");
   assert.equal(mcpDesc.name, "Gmail");
   assert.equal(mcpDesc.typeName, "gmail");
-  // MCP credential slots are emitted by the resolver on the agent node, not by the descriptor.
-  assert.deepEqual(mcpDesc.credentialSource.getCredentialRequirements?.() ?? [], []);
+  const requirements = mcpDesc.credentialSource.getCredentialRequirements?.() ?? [];
+  assert.equal(requirements.length, 1);
+  assert.equal(requirements[0].slotKey, "credential");
+  assert.equal(requirements[0].label, "Gmail");
+  assert.deepEqual(requirements[0].acceptedTypes, ["oauth.google.gmail"]);
 });
 
 test("AgentConnectionNodeCollector skips MCP servers when resolver is absent", () => {
