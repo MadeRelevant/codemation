@@ -332,7 +332,7 @@ test("AgentConnectionNodeCollector emits MCP descriptors with a credential slot 
   assert.equal(mcpDesc.connectionName, "tools");
   assert.equal(mcpDesc.role, "tool");
   assert.equal(mcpDesc.name, "Gmail");
-  assert.equal(mcpDesc.typeName, "gmail");
+  assert.equal(mcpDesc.typeName, "MCP server");
   const requirements = mcpDesc.credentialSource.getCredentialRequirements?.() ?? [];
   assert.equal(requirements.length, 1);
   assert.equal(requirements[0].slotKey, "credential");

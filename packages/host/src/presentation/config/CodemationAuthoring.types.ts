@@ -33,6 +33,11 @@ export interface DefineCodemationAppOptions extends Omit<
   "app" | "credentialTypes" | "register" | "whitelabel" | "auth" | "collections"
 > {
   readonly name?: string;
+  /**
+   * Reserved compatibility-date field. Declares the Codemation framework version this workspace
+   * targets. No enforcement in 1.0.0 — presence only. See backlog/codemation-version-compatibility-gate.md.
+   */
+  readonly codemationVersion?: string;
   readonly auth?: CodemationConfig["auth"];
   readonly database?: FriendlyCodemationDatabaseConfig;
   readonly execution?: FriendlyCodemationExecutionConfig;
@@ -67,7 +72,7 @@ class CodemationAuthoringConfigFactory {
     const appDefinition = this.createAppDefinition(options);
     const credentialTypes = [...(options.credentialTypes ?? []), ...(options.credentials ?? [])];
     const register = this.composeAppRegister(options.register, options.nodes, options.collections);
-    const { workflows, plugins, runtime, log, mcpServers } = options;
+    const { workflows, plugins, runtime, log, mcpServers, codemationVersion } = options;
     const workflowDiscovery = this.mergeWorkflowDiscovery(options.workflowDiscovery, options.workflowsDir);
     return {
       workflows,
@@ -76,6 +81,7 @@ class CodemationAuthoringConfigFactory {
       runtime,
       log,
       mcpServers,
+      codemationVersion,
       app: appDefinition,
       credentialTypes,
       register,

@@ -1,0 +1,47 @@
+# Build artefacts and caches
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/.tsbuildinfo
+**/*.tsbuildinfo
+
+# Local dev / VCS
+.git
+.gitignore
+.husky
+.claude
+.vscode
+.idea
+.codemation
+
+# Local env files
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Docs / CI / tooling not needed at image build time
+docs
+apps/docs
+.github
+codecov.yml
+prettier.config.mjs
+measure-run-latency.mjs
+knip.json
+TODO.md
+TOUR.md
+AGENTS.md
+CLAUDE.md
+CONTRIBUTING.md
+README.md
+LICENSE
+
+# This file itself
+.dockerignore
+
+# Worktrees
+.claude/worktrees

@@ -74,6 +74,12 @@ export interface CodemationApplicationRuntimeConfig {
 
 export interface CodemationConfig {
   readonly app?: CodemationAppDefinition;
+  /**
+   * Reserved compatibility-date field. Declares the Codemation framework version this workspace
+   * targets. Logged at INFO level on boot. No enforcement in 1.0.0.
+   * See backlog/codemation-version-compatibility-gate.md.
+   */
+  readonly codemationVersion?: string;
   readonly register?: (context: CodemationAppContext) => void;
   readonly runtime?: CodemationApplicationRuntimeConfig;
   readonly workflows?: ReadonlyArray<WorkflowDefinition>;

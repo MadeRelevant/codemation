@@ -9,6 +9,7 @@ loadDotenv({
 
 export default defineCodemationApp({
   name: "Codemation Workspace",
+  codemationVersion: "1.0.0",
   auth: { kind: "managed" },
   database: { kind: "sqlite", filePath: ".codemation/codemation.sqlite" },
   execution: {
