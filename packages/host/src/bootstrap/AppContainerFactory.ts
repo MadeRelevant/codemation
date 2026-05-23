@@ -291,7 +291,6 @@ import { InternalWorkflowTestRunRegistrar } from "../workflows/InternalWorkflowT
 import { McpServerCatalog } from "../mcp/McpServerCatalog";
 import { McpConnectionPool } from "../mcp/McpConnectionPool";
 import { DefaultMcpClientFactory } from "../mcp/McpClientFactory";
-import { McpRegistryFetcher } from "../mcp/McpRegistryFetcher";
 import { AgentMcpIntegrationImpl } from "../mcp/AgentMcpIntegrationImpl";
 import { ManagedAuthConfigFactory } from "../auth/managed/ManagedAuthConfig";
 import { ManagedAuthMiddleware } from "../auth/managed/ManagedAuthMiddleware";
@@ -420,7 +419,6 @@ export class AppContainerFactory {
     BootTimer.measure("appContainer.mergeConfigMcpServers", () =>
       this.mergeConfigMcpServers(container, inputs.appConfig),
     );
-    BootTimer.measure("appContainer.registerMcpRegistryFetcher", () => this.registerMcpRegistryFetcher(container));
     const ownership = await BootTimer.measureAsync("appContainer.registerRuntimeInfrastructure", () =>
       this.registerRuntimeInfrastructure(container, inputs.appConfig),
     );
@@ -482,17 +480,7 @@ export class AppContainerFactory {
     });
   }
 
-  private registerMcpRegistryFetcher(container: Container): void {
-    // Only register when the installation is paired with a control plane.
-    // PairedFetch (and PairingConfigToken) are only registered inside registerPairingInfrastructure
-    // which skips registration when pairing env vars are absent.
-    if (!container.isRegistered(PairedFetch, true)) {
-      return;
-    }
-    container.registerSingleton(McpRegistryFetcher, McpRegistryFetcher);
-  }
-
-  private mergeConfigMcpServers(container: Container, appConfig: AppConfig): void {
+private mergeConfigMcpServers(container: Container, appConfig: AppConfig): void {
     const catalog = container.resolve(McpServerCatalog);
     catalog.merge("config", appConfig.mcpServers ?? []);
   }
@@ -528,9 +516,7 @@ export class AppContainerFactory {
     credentialTypes: ReadonlyArray<CredentialType<any, any, unknown>>,
   ): void {
     const registry = container.resolve(CredentialTypeRegistryImpl);
-    for (const credentialType of credentialTypes) {
-      registry.register(credentialType);
-    }
+    registry.merge("plugin", credentialTypes);
   }
 
   private registerControlPlaneCatalogFetcher(container: Container): void {
@@ -548,7 +534,7 @@ export class AppContainerFactory {
     const mcpServerCatalog = container.resolve(McpServerCatalog);
 
     fetcher.onRefresh = () => {
-      credentialTypeRegistry.applyControlPlaneOverrides(fetcher.credentialTypeOverrides ?? []);
+      credentialTypeRegistry.mergeDefinitions("controlPlane", fetcher.credentialTypeOverrides ?? []);
       mcpServerCatalog.merge("controlPlane", fetcher.mcpServers ?? []);
     };
   }

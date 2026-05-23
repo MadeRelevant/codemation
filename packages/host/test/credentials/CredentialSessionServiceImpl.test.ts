@@ -80,16 +80,18 @@ function makeService(args: {
   const typeRegistry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
 
   if (args.credentialTypeId) {
-    typeRegistry.register({
-      definition: {
-        typeId: args.credentialTypeId,
-        displayName: "Test",
-        publicFields: [],
-        secretFields: [],
-        supportedSourceKinds: ["code"],
+    typeRegistry.merge("plugin", [
+      {
+        definition: {
+          typeId: args.credentialTypeId,
+          displayName: "Test",
+          publicFields: [],
+          secretFields: [],
+          supportedSourceKinds: ["code"],
+        } as never,
+        createSession: async () => args.sessionValue ?? { ok: true },
       } as never,
-      createSession: async () => args.sessionValue ?? { ok: true },
-    } as never);
+    ]);
   }
 
   const workflowRepository = makeWorkflowRepository(args.workflow);
@@ -180,19 +182,21 @@ describe("CredentialSessionServiceImpl.getSession", () => {
     const runtimeMaterialService = makeRuntimeMaterialService();
     const fieldEnvOverlayService = new CredentialFieldEnvOverlayService(makeAppConfig());
     const typeRegistry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
-    typeRegistry.register({
-      definition: {
-        typeId: "cached.type",
-        displayName: "T",
-        publicFields: [],
-        secretFields: [],
-        supportedSourceKinds: ["code"],
+    typeRegistry.merge("plugin", [
+      {
+        definition: {
+          typeId: "cached.type",
+          displayName: "T",
+          publicFields: [],
+          secretFields: [],
+          supportedSourceKinds: ["code"],
+        } as never,
+        createSession: async () => {
+          createSessionCalls += 1;
+          return { ok: true };
+        },
       } as never,
-      createSession: async () => {
-        createSessionCalls += 1;
-        return { ok: true };
-      },
-    } as never);
+    ]);
 
     const svc = new CredentialSessionServiceImpl(
       credentialStore as never,
@@ -239,19 +243,21 @@ describe("CredentialSessionServiceImpl.evictInstance", () => {
     const runtimeMaterialService = makeRuntimeMaterialService();
     const fieldEnvOverlayService = new CredentialFieldEnvOverlayService(makeAppConfig());
     const typeRegistry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
-    typeRegistry.register({
-      definition: {
-        typeId: "evict.type",
-        displayName: "T",
-        publicFields: [],
-        secretFields: [],
-        supportedSourceKinds: ["code"],
+    typeRegistry.merge("plugin", [
+      {
+        definition: {
+          typeId: "evict.type",
+          displayName: "T",
+          publicFields: [],
+          secretFields: [],
+          supportedSourceKinds: ["code"],
+        } as never,
+        createSession: async () => {
+          calls += 1;
+          return { n: calls };
+        },
       } as never,
-      createSession: async () => {
-        calls += 1;
-        return { n: calls };
-      },
-    } as never);
+    ]);
 
     const svc = new CredentialSessionServiceImpl(
       credentialStore as never,
@@ -285,19 +291,21 @@ describe("CredentialSessionServiceImpl.evictBinding", () => {
     const runtimeMaterialService = makeRuntimeMaterialService();
     const fieldEnvOverlayService = new CredentialFieldEnvOverlayService(makeAppConfig());
     const typeRegistry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
-    typeRegistry.register({
-      definition: {
-        typeId: "eb.type",
-        displayName: "T",
-        publicFields: [],
-        secretFields: [],
-        supportedSourceKinds: ["code"],
+    typeRegistry.merge("plugin", [
+      {
+        definition: {
+          typeId: "eb.type",
+          displayName: "T",
+          publicFields: [],
+          secretFields: [],
+          supportedSourceKinds: ["code"],
+        } as never,
+        createSession: async () => {
+          calls += 1;
+          return { n: calls };
+        },
       } as never,
-      createSession: async () => {
-        calls += 1;
-        return { n: calls };
-      },
-    } as never);
+    ]);
 
     const svc = new CredentialSessionServiceImpl(
       credentialStore as never,

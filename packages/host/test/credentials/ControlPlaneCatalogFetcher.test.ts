@@ -440,7 +440,7 @@ describe("ControlPlaneCatalogFetcher", () => {
   });
 });
 
-describe("ControlPlaneCatalogFetcher — mcpServers feature parity with McpRegistryFetcher", () => {
+describe("ControlPlaneCatalogFetcher — mcpServers control-plane fetch", () => {
   it("uses controlPlaneUrl from pairing config as base URL for mcp-servers endpoint", async () => {
     const customUrl = "https://custom-cp.example.com";
     const pairedFetch = makePairedFetch({ mcpServers: fakeMcpServers, oauthApps: [], credTypes: [] });
@@ -520,5 +520,35 @@ describe("ControlPlaneCatalogFetcher — mcpServers feature parity with McpRegis
     await fetcher.stop();
 
     expect(setTimeoutCalls).toHaveLength(0);
+  });
+});
+
+describe("ControlPlaneCatalogFetcher — onRefresh wires to CredentialTypeRegistryImpl.mergeDefinitions", () => {
+  it("calls mergeDefinitions('controlPlane', credentialTypeOverrides) after a successful refresh", async () => {
+    const { CredentialTypeRegistryImpl } = await import(
+      "../../src/domain/credentials/CredentialTypeRegistryImpl"
+    );
+
+    const warnSpy = vi.fn();
+    const registry = new CredentialTypeRegistryImpl(
+      makeLoggerFactory(warnSpy, vi.fn()) as never,
+    );
+    const mergeDefinitionsSpy = vi.spyOn(registry, "mergeDefinitions");
+
+    const pairedFetch = makePairedFetch({
+      oauthApps: fakeOAuthApps,
+      mcpServers: fakeMcpServers,
+      credTypes: fakeCredTypes,
+    });
+    const fetcher = makeFetcher({ pairedFetch, pairingConfig: fakePairingConfig });
+    fetcher.onRefresh = () => {
+      registry.mergeDefinitions("controlPlane", fetcher.credentialTypeOverrides ?? []);
+    };
+
+    await fetcher.refresh();
+
+    expect(mergeDefinitionsSpy).toHaveBeenCalledOnce();
+    expect(mergeDefinitionsSpy).toHaveBeenCalledWith("controlPlane", fakeCredTypes);
+    expect(registry.getType("oauth.google.gmail")?.displayName).toBe("Gmail OAuth");
   });
 });

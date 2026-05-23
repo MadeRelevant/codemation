@@ -58,18 +58,20 @@ function makeService(
 
   // Register any credential types
   for (const type of opts.types ?? []) {
-    registry.register({
-      definition: {
-        typeId: type.typeId,
-        displayName: type.typeId,
-        publicFields: [],
-        secretFields: [],
-        supportedSourceKinds: ["db"],
-        auth: type.auth ? { ...type.auth, scopes: [], providerId: "test-provider" } : undefined,
-      },
-      createSession: async () => ({}),
-      test: async () => ({ status: "passing" }),
-    } as never);
+    registry.merge("plugin", [
+      {
+        definition: {
+          typeId: type.typeId,
+          displayName: type.typeId,
+          publicFields: [],
+          secretFields: [],
+          supportedSourceKinds: ["db"],
+          auth: type.auth ? { ...type.auth, scopes: [], providerId: "test-provider" } : undefined,
+        },
+        createSession: async () => ({}),
+        test: async () => ({ status: "passing" }),
+      } as never,
+    ]);
   }
 
   const service = new CredentialInstanceService(

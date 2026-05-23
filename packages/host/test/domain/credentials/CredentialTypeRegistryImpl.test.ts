@@ -30,105 +30,144 @@ function makeCredentialType(
 }
 
 describe("CredentialTypeRegistryImpl", () => {
-  describe("register / listTypes / getType", () => {
-    it("registers a type and returns it from listTypes", () => {
+  describe("merge", () => {
+    it("merge('plugin', [type]) registers a single type and listTypes returns it", () => {
       const registry = new CredentialTypeRegistryImpl(makeLoggerFactory());
       const { type } = makeCredentialType("test.type");
-      registry.register(type);
+      registry.merge("plugin", [type]);
       const types = registry.listTypes();
       expect(types).toHaveLength(1);
       expect(types[0]!.typeId).toBe("test.type");
     });
 
-    it("throws when the same typeId is registered twice", () => {
-      const registry = new CredentialTypeRegistryImpl(makeLoggerFactory());
-      const { type } = makeCredentialType("dup.type");
-      registry.register(type);
-      expect(() => registry.register(type)).toThrow("Credential type already registered: dup.type");
+    it("same-source re-merge is idempotent and does not log a warning", () => {
+      const warn = vi.fn();
+      const registry = new CredentialTypeRegistryImpl(makeLoggerFactory(warn));
+      const { type } = makeCredentialType("test.type", "Original");
+      registry.merge("plugin", [type]);
+      registry.merge("plugin", [type]);
+      expect(registry.listTypes()).toHaveLength(1);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it("higher-priority source shadows existing entry and logs warn", () => {
+      const warn = vi.fn();
+      const registry = new CredentialTypeRegistryImpl(makeLoggerFactory(warn));
+      const { type } = makeCredentialType("app.key", "Plugin Name");
+      registry.merge("plugin", [type]);
+
+      const configType = makeCredentialType("app.key", "Config Name").type;
+      registry.merge("config", [configType]);
+
+      const resolved = registry.getCredentialType("app.key");
+      expect(resolved?.definition.displayName).toBe("Config Name");
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]![0]).toMatch(/shadowed/);
+    });
+
+    it("lower-priority source is ignored when a higher-priority entry exists and logs warn", () => {
+      const warn = vi.fn();
+      const registry = new CredentialTypeRegistryImpl(makeLoggerFactory(warn));
+      const configType = makeCredentialType("app.key", "Config Name").type;
+      registry.merge("config", [configType]);
+
+      const pluginType = makeCredentialType("app.key", "Plugin Name").type;
+      registry.merge("plugin", [pluginType]);
+
+      const resolved = registry.getCredentialType("app.key");
+      expect(resolved?.definition.displayName).toBe("Config Name");
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]![0]).toMatch(/lower-priority/);
     });
   });
 
-  describe("applyControlPlaneOverrides", () => {
-    it("replaces the definition of an existing type", () => {
+  describe("mergeDefinitions", () => {
+    it("adds a new control-plane definition with stub createSession/test", async () => {
       const registry = new CredentialTypeRegistryImpl(makeLoggerFactory());
-      const { type } = makeCredentialType("myapp.key", "Original Name");
-      registry.register(type);
-
-      const override: CredentialTypeDefinition = {
-        typeId: "myapp.key",
-        displayName: "Overridden Name",
-        description: "From control plane",
-      };
-      registry.applyControlPlaneOverrides([override]);
+      const definition: CredentialTypeDefinition = { typeId: "oauth.google.gmail", displayName: "Gmail" };
+      registry.mergeDefinitions("controlPlane", [definition]);
 
       const types = registry.listTypes();
       expect(types).toHaveLength(1);
-      expect(types[0]!.displayName).toBe("Overridden Name");
-      expect(types[0]!.description).toBe("From control plane");
+      expect(types[0]!.typeId).toBe("oauth.google.gmail");
+
+      const entry = registry.getCredentialType("oauth.google.gmail")!;
+      await expect(
+        entry.createSession({ instance: {} as never, material: {} as never, publicConfig: {} as never }),
+      ).rejects.toThrow(/no createSession/);
+      const health = await entry.test({ instance: {} as never, material: {} as never, publicConfig: {} as never });
+      expect(health.status).toBe("unknown");
     });
 
-    it("does not replace createSession or test callbacks", () => {
-      const registry = new CredentialTypeRegistryImpl(makeLoggerFactory());
-      const { type, createSession, test } = makeCredentialType("myapp.key");
-      registry.register(type);
-
-      const override: CredentialTypeDefinition = { typeId: "myapp.key", displayName: "New Name" };
-      registry.applyControlPlaneOverrides([override]);
-
-      const resolved = registry.getCredentialType("myapp.key");
-      expect(resolved?.createSession).toBe(createSession);
-      expect(resolved?.test).toBe(test);
-    });
-
-    it("getCredentialType returns a type whose definition reflects the override", () => {
-      const registry = new CredentialTypeRegistryImpl(makeLoggerFactory());
-      const { type } = makeCredentialType("myapp.key", "Before");
-      registry.register(type);
-
-      const override: CredentialTypeDefinition = { typeId: "myapp.key", displayName: "After" };
-      registry.applyControlPlaneOverrides([override]);
-
-      const resolved = registry.getCredentialType("myapp.key");
-      expect(resolved?.definition.displayName).toBe("After");
-    });
-
-    it("logs a warning and skips unknown typeIds — does not throw", () => {
+    it("mergeDefinitions('controlPlane', [def]) shadows an existing 'plugin' entry — warn logged", () => {
       const warn = vi.fn();
       const registry = new CredentialTypeRegistryImpl(makeLoggerFactory(warn));
+      const { type } = makeCredentialType("app.key", "Plugin Name");
+      registry.merge("plugin", [type]);
 
-      const override: CredentialTypeDefinition = { typeId: "unknown.type", displayName: "X" };
-      expect(() => registry.applyControlPlaneOverrides([override])).not.toThrow();
+      registry.mergeDefinitions("controlPlane", [{ typeId: "app.key", displayName: "Control Plane Name" }]);
+
+      const resolved = registry.getCredentialType("app.key");
+      expect(resolved?.definition.displayName).toBe("Control Plane Name");
       expect(warn).toHaveBeenCalledOnce();
-      expect(warn.mock.calls[0]![0]).toContain("unknown.type");
+      expect(warn.mock.calls[0]![0]).toMatch(/shadowed/);
     });
 
-    it("is idempotent — calling twice with the same payload yields the same state", () => {
-      const registry = new CredentialTypeRegistryImpl(makeLoggerFactory());
-      const { type } = makeCredentialType("myapp.key", "Original");
-      registry.register(type);
+    it("merge('plugin', [type]) is ignored when a 'controlPlane' entry already exists — warn logged", () => {
+      const warn = vi.fn();
+      const registry = new CredentialTypeRegistryImpl(makeLoggerFactory(warn));
+      registry.mergeDefinitions("controlPlane", [{ typeId: "app.key", displayName: "Control Plane Name" }]);
+      warn.mockClear();
 
-      const override: CredentialTypeDefinition = { typeId: "myapp.key", displayName: "Stable" };
-      registry.applyControlPlaneOverrides([override]);
-      registry.applyControlPlaneOverrides([override]);
+      const { type } = makeCredentialType("app.key", "Plugin Name");
+      registry.merge("plugin", [type]);
 
-      const types = registry.listTypes();
-      expect(types).toHaveLength(1);
-      expect(types[0]!.displayName).toBe("Stable");
+      const resolved = registry.getCredentialType("app.key");
+      expect(resolved?.definition.displayName).toBe("Control Plane Name");
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]![0]).toMatch(/lower-priority/);
     });
 
-    it("does not affect types not present in the overrides array", () => {
+    it("same-source mergeDefinitions replaces the definition and preserves prior createSession/test", async () => {
       const registry = new CredentialTypeRegistryImpl(makeLoggerFactory());
-      const { type: typeA } = makeCredentialType("app.a", "A Original");
-      const { type: typeB } = makeCredentialType("app.b", "B Original");
-      registry.register(typeA);
-      registry.register(typeB);
+      registry.mergeDefinitions("controlPlane", [{ typeId: "app.key", displayName: "v1" }]);
+      const firstEntry = registry.getCredentialType("app.key")!;
 
-      const override: CredentialTypeDefinition = { typeId: "app.a", displayName: "A Overridden" };
-      registry.applyControlPlaneOverrides([override]);
+      registry.mergeDefinitions("controlPlane", [{ typeId: "app.key", displayName: "v2" }]);
+      const secondEntry = registry.getCredentialType("app.key")!;
+      expect(secondEntry.definition.displayName).toBe("v2");
+      expect(secondEntry.createSession).toBe(firstEntry.createSession);
+    });
+  });
 
-      const types = registry.listTypes();
-      const b = types.find((t) => t.typeId === "app.b");
-      expect(b?.displayName).toBe("B Original");
+  describe("clear", () => {
+    it("clear('controlPlane') removes only control-plane entries; plugin entries remain", () => {
+      const registry = new CredentialTypeRegistryImpl(makeLoggerFactory());
+      const { type } = makeCredentialType("plugin.type");
+      registry.merge("plugin", [type]);
+      registry.mergeDefinitions("controlPlane", [{ typeId: "cp.type", displayName: "CP" }]);
+
+      registry.clear("controlPlane");
+
+      const ids = registry.listTypes().map((t) => t.typeId);
+      expect(ids).toEqual(["plugin.type"]);
+    });
+
+    it("clear('controlPlane') is a no-op when no control-plane entries have been merged", () => {
+      const registry = new CredentialTypeRegistryImpl(makeLoggerFactory());
+      const { type } = makeCredentialType("plugin.type");
+      registry.merge("plugin", [type]);
+
+      expect(() => registry.clear("controlPlane")).not.toThrow();
+      expect(registry.listTypes()).toHaveLength(1);
+    });
+  });
+
+  describe("getType / getCredentialType", () => {
+    it("returns undefined for unknown typeId", () => {
+      const registry = new CredentialTypeRegistryImpl(makeLoggerFactory());
+      expect(registry.getType("missing")).toBeUndefined();
+      expect(registry.getCredentialType("missing")).toBeUndefined();
     });
   });
 });

@@ -16,17 +16,19 @@ function makeHandler(
 ) {
   const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
   for (const [i, type] of types.entries()) {
-    registry.register({
-      definition: {
-        typeId: `test.type.${i}`,
-        displayName: `Type ${i}`,
-        publicFields: type.publicFields ?? [],
-        secretFields: type.secretFields ?? [],
-        supportedSourceKinds: ["db"],
-      },
-      createSession: async () => ({}),
-      test: async () => ({ status: "passing" }),
-    } as never);
+    registry.merge("plugin", [
+      {
+        definition: {
+          typeId: `test.type.${i}`,
+          displayName: `Type ${i}`,
+          publicFields: type.publicFields ?? [],
+          secretFields: type.secretFields ?? [],
+          supportedSourceKinds: ["db"],
+        },
+        createSession: async () => ({}),
+        test: async () => ({ status: "passing" }),
+      } as never,
+    ]);
   }
   const appConfig = { env };
   return new GetCredentialFieldEnvStatusQueryHandler(registry, appConfig as never);

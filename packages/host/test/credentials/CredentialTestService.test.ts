@@ -11,17 +11,19 @@ import { FakeLoggerFactory } from "../testkit/LoggerTestKit";
 function makeRegistry(opts: { typeId?: string; testResult?: { status: string } } = {}) {
   const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
   if (opts.typeId) {
-    registry.register({
-      definition: {
-        typeId: opts.typeId,
-        displayName: "Test Type",
-        publicFields: [],
-        secretFields: [],
-        supportedSourceKinds: ["db"],
-      },
-      createSession: async () => ({}),
-      test: async () => opts.testResult ?? { status: "passing" },
-    } as never);
+    registry.merge("plugin", [
+      {
+        definition: {
+          typeId: opts.typeId,
+          displayName: "Test Type",
+          publicFields: [],
+          secretFields: [],
+          supportedSourceKinds: ["db"],
+        },
+        createSession: async () => ({}),
+        test: async () => opts.testResult ?? { status: "passing" },
+      } as never,
+    ]);
   }
   return registry;
 }
@@ -110,17 +112,19 @@ describe("CredentialTestService.test", () => {
     const appConfig = makeAppConfig();
     const overlayService = new CredentialFieldEnvOverlayService(appConfig as never);
     const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
-    registry.register({
-      definition: {
-        typeId: "test.cred",
-        displayName: "Test",
-        publicFields: [],
-        secretFields: [],
-        supportedSourceKinds: ["db"],
-      },
-      createSession: async () => ({}),
-      test: async () => ({ status: "passing", message: "All good" }),
-    } as never);
+    registry.merge("plugin", [
+      {
+        definition: {
+          typeId: "test.cred",
+          displayName: "Test",
+          publicFields: [],
+          secretFields: [],
+          supportedSourceKinds: ["db"],
+        },
+        createSession: async () => ({}),
+        test: async () => ({ status: "passing", message: "All good" }),
+      } as never,
+    ]);
 
     const instance = {
       instanceId: "inst-1",
@@ -156,17 +160,19 @@ describe("CredentialTestService.test", () => {
     const appConfig = makeAppConfig();
     const overlayService = new CredentialFieldEnvOverlayService(appConfig as never);
     const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
-    registry.register({
-      definition: {
-        typeId: "test.timed",
-        displayName: "Timed",
-        publicFields: [],
-        secretFields: [],
-        supportedSourceKinds: ["db"],
-      },
-      createSession: async () => ({}),
-      test: async () => ({ status: "passing", testedAt: customTime }),
-    } as never);
+    registry.merge("plugin", [
+      {
+        definition: {
+          typeId: "test.timed",
+          displayName: "Timed",
+          publicFields: [],
+          secretFields: [],
+          supportedSourceKinds: ["db"],
+        },
+        createSession: async () => ({}),
+        test: async () => ({ status: "passing", testedAt: customTime }),
+      } as never,
+    ]);
 
     const instance = {
       instanceId: "inst-time",
@@ -196,17 +202,19 @@ describe("CredentialTestService.test", () => {
     const appConfig = makeAppConfig();
     const overlayService = new CredentialFieldEnvOverlayService(appConfig as never);
     const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
-    registry.register({
-      definition: {
-        typeId: "test.evict",
-        displayName: "Evict",
-        publicFields: [],
-        secretFields: [],
-        supportedSourceKinds: ["db"],
-      },
-      createSession: async () => ({}),
-      test: async () => ({ status: "passing" }),
-    } as never);
+    registry.merge("plugin", [
+      {
+        definition: {
+          typeId: "test.evict",
+          displayName: "Evict",
+          publicFields: [],
+          secretFields: [],
+          supportedSourceKinds: ["db"],
+        },
+        createSession: async () => ({}),
+        test: async () => ({ status: "passing" }),
+      } as never,
+    ]);
 
     const instance = {
       instanceId: "inst-evict",

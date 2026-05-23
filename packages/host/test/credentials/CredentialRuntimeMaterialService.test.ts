@@ -58,18 +58,20 @@ function makeCredentialStore(
 
 function makeRegistry(auth?: { kind: string }) {
   const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
-  registry.register({
-    definition: {
-      typeId: "test.cred",
-      displayName: "Test",
-      publicFields: [],
-      secretFields: [],
-      supportedSourceKinds: ["db"],
-      auth: auth as never,
-    },
-    createSession: async () => ({}),
-    test: async () => ({ status: "passing" }),
-  } as never);
+  registry.merge("plugin", [
+    {
+      definition: {
+        typeId: "test.cred",
+        displayName: "Test",
+        publicFields: [],
+        secretFields: [],
+        supportedSourceKinds: ["db"],
+        auth: auth as never,
+      },
+      createSession: async () => ({}),
+      test: async () => ({ status: "passing" }),
+    } as never,
+  ]);
   return registry;
 }
 

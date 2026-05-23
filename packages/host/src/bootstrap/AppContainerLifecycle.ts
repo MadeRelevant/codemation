@@ -59,7 +59,6 @@ export class AppContainerLifecycle {
     if (this.container.isRegistered(ControlPlaneCatalogFetcher, true)) {
       await this.container.resolve(ControlPlaneCatalogFetcher).stop();
     }
-    // TODO: delete in cleanup — McpRegistryFetcher.stop() removed; ControlPlaneCatalogFetcher replaces it.
     if (this.ownedPrismaClient) {
       await this.ownedPrismaClient.$disconnect();
     }

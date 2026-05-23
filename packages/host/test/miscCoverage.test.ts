@@ -227,10 +227,10 @@ describe("InMemoryTelemetryArtifactStore.pruneExpired", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CredentialTypeRegistryImpl — line 13: throw when already registered
+// CredentialTypeRegistryImpl — basic merge / getType / listTypes coverage
 // ---------------------------------------------------------------------------
 describe("CredentialTypeRegistryImpl", () => {
-  it("throws when registering a duplicate typeId", () => {
+  it("same-source merge is idempotent for a duplicate typeId", () => {
     const registry = new CredentialTypeRegistryImpl(new FakeLoggerFactory());
     const type = {
       definition: {
@@ -243,8 +243,9 @@ describe("CredentialTypeRegistryImpl", () => {
       createSession: async () => ({}),
       test: async () => ({ ok: true }),
     } as never;
-    registry.register(type);
-    expect(() => registry.register(type)).toThrow(/already registered/);
+    registry.merge("plugin", [type]);
+    expect(() => registry.merge("plugin", [type])).not.toThrow();
+    expect(registry.listTypes()).toHaveLength(1);
   });
 
   it("getType returns undefined for unknown typeId", () => {
@@ -264,7 +265,7 @@ describe("CredentialTypeRegistryImpl", () => {
       },
       createSession: async () => ({}),
     } as never;
-    registry.register(type);
+    registry.merge("plugin", [type]);
     const types = registry.listTypes();
     expect(types).toHaveLength(1);
     expect(types[0].typeId).toBe("test.cred2");
