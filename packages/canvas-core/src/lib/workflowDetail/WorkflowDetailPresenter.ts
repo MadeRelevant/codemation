@@ -708,7 +708,7 @@ export class WorkflowDetailPresenter {
         return left.invocationId.localeCompare(right.invocationId);
       });
       return ordered.map((inv) => ({
-        node: this.createInvocationExecutionNode(node, inv.invocationId),
+        node: this.createInvocationExecutionNode(node, inv),
         snapshot: this.snapshotFromConnectionInvocation(inv),
         workflowNodeId: node.id,
         workflowConnectionNodeId: node.id,
@@ -741,10 +741,16 @@ export class WorkflowDetailPresenter {
       }));
   }
 
-  private static createInvocationExecutionNode(baseNode: WorkflowNode, invocationId: string): WorkflowNode {
+  private static createInvocationExecutionNode(baseNode: WorkflowNode, invocation: ConnectionInvocationRecord): WorkflowNode {
     return {
       ...baseNode,
-      id: invocationId,
+      id: invocation.invocationId,
+      // For MCP connection nodes, every invocation under the same server shares the base node id
+      // (mcp:<serverId>). Surfacing the per-invocation subjectName as the displayed `name` lets the
+      // execution-tree row show which tool was actually called instead of repeating the server id
+      // for every child row. Other connection-node kinds (LLM, agent tools) leave subjectName unset
+      // and inherit the baseNode name unchanged.
+      ...(invocation.subjectName ? { name: invocation.subjectName } : {}),
     };
   }
 
