@@ -71,4 +71,26 @@ export type WorkflowCanvasConfig = Readonly<{
    * can provide their own dialog here.
    */
   renderWorkflowJsonEditor?: (props: WorkflowJsonEditorSlotProps) => ReactNode;
+  /**
+   * Invoked when a `Run workflow` request fails with an unhandled server error (HTTP 500).
+   * Consumers can route the error to wherever it's most actionable:
+   *   - framework / next-host: omit this — the canvas renders a built-in copy/paste dialog
+   *   - control-plane: forward to the agent chat so the AI can help triage
+   *
+   * Return `true` to suppress the canvas's built-in dialog (consumer handled it); falsy or
+   * absent means the canvas still renders its dialog. Activation / validation errors (HTTP
+   * 400 with a list of messages) are unchanged — they still surface via the small banner.
+   */
+  onWorkflowRunInternalError?: (error: WorkflowRunInternalError) => boolean | void;
+}>;
+
+/**
+ * Shape mirroring `ServerHttpUnhandledErrorPayload` from the host. The canvas does NOT depend on
+ * the host package, so the contract is duplicated here intentionally.
+ */
+export type WorkflowRunInternalError = Readonly<{
+  message: string;
+  name?: string;
+  stack?: string;
+  cause?: string;
 }>;

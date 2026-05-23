@@ -1,7 +1,7 @@
 "use client";
 import { useCallback } from "react";
 import type { NavigationAdapter } from "../../types/NavigationAdapter";
-import type { WorkflowCanvasConfig } from "../../types/WorkflowCanvasConfig";
+import type { WorkflowCanvasConfig, WorkflowRunInternalError } from "../../types/WorkflowCanvasConfig";
 import type { WorkflowDto } from "../realtime/realtime";
 import type { JsonEditorState, PinBinaryMapsByItemIndex } from "../../lib/workflowDetail/workflowDetailTypes";
 import { WorkflowDetailPresenter } from "../../lib/workflowDetail/WorkflowDetailPresenter";
@@ -74,6 +74,8 @@ export type WorkflowDetailControllerResult = Readonly<{
   setWorkflowActive: (active: boolean) => void;
   runErrorAlertLines: ReadonlyArray<string> | null;
   dismissRunErrorAlert: () => void;
+  runInternalError: WorkflowRunInternalError | null;
+  dismissRunInternalError: () => void;
 }>;
 
 export function useWorkflowDetailController(
@@ -239,6 +241,8 @@ export function useWorkflowDetailController(
     setWorkflowActive: run.setWorkflowActive,
     runErrorAlertLines: run.runErrorAlertLines,
     dismissRunErrorAlert: run.dismissRunErrorAlert,
+    runInternalError: run.runInternalError,
+    dismissRunInternalError: run.dismissRunInternalError,
     // From inspect controller
     selectedNodeId: inspect.selectedNodeId,
     selectedCanvasNodeId: inspect.selectedCanvasNodeId,

@@ -2,7 +2,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWorkflowCanvasApiClient } from "../../context/WorkflowCanvasApiClientContext";
+import { CodemationApiHttpError } from "../../lib/CodemationApiHttpError";
 import { WorkflowActivationHttpErrorFormat } from "../../lib/workflowDetail/WorkflowActivationHttpErrorFormat";
+import type { WorkflowRunInternalError } from "../../types/WorkflowCanvasConfig";
 import { WorkflowDetailPresenter, type RunWorkflowRequest } from "../../lib/workflowDetail/WorkflowDetailPresenter";
 import { resolveFetchedRunState } from "../realtime/runQueryPolling";
 import {
@@ -25,6 +27,35 @@ import { useWorkflowRealtimeShowDisconnectedBadge } from "../realtime/useWorkflo
 import type { NavigationAdapter } from "../../types/NavigationAdapter";
 import type { WorkflowCanvasConfig } from "../../types/WorkflowCanvasConfig";
 import type { WorkflowRunControllerReturn } from "../../types/workflowDetail/WorkflowRunControllerReturn.types";
+
+/**
+ * Detects whether the run-workflow request failed with a 500 unhandled server error. The host's
+ * ServerHttpErrorResponseFactory now puts `{ error, message, stack?, cause?, name? }` in the
+ * response body — parse it back so the canvas can present a copy/pastable dialog or hand it to
+ * an external handler (e.g. the control-plane agent chat).
+ *
+ * Exported for unit tests.
+ */
+export function extractRunInternalError(cause: unknown): WorkflowRunInternalError | null {
+  if (!(cause instanceof CodemationApiHttpError)) {
+    return null;
+  }
+  if (cause.status < 500) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(cause.bodyText) as Record<string, unknown>;
+    const message = typeof parsed.message === "string" && parsed.message.length > 0 ? parsed.message : cause.message;
+    return {
+      message,
+      name: typeof parsed.name === "string" ? parsed.name : undefined,
+      stack: typeof parsed.stack === "string" ? parsed.stack : undefined,
+      cause: typeof parsed.cause === "string" ? parsed.cause : undefined,
+    };
+  } catch {
+    return { message: cause.bodyText.trim().length > 0 ? cause.bodyText : cause.message };
+  }
+}
 
 // Stable fallback so `?? EMPTY_NODE_SNAPSHOTS` never produces a fresh `{}` on renders
 // where currentExecutionState is undefined, keeping ELK layout deps stable.
@@ -58,6 +89,7 @@ export function useWorkflowRunController(
   const workflowActivationErrorFormat = useMemo(() => new WorkflowActivationHttpErrorFormat(), []);
   const [workflowActivationAlertLines, setWorkflowActivationAlertLines] = useState<ReadonlyArray<string> | null>(null);
   const [runErrorAlertLines, setRunErrorAlertLines] = useState<ReadonlyArray<string> | null>(null);
+  const [runInternalError, setRunInternalError] = useState<WorkflowRunInternalError | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunRequestPending, setIsRunRequestPending] = useState(false);
   const [pendingTriggerFetchSnapshot, setPendingTriggerFetchSnapshot] = useState<NodeExecutionSnapshot | null>(null);
@@ -373,6 +405,7 @@ export function useWorkflowRunController(
       setIsRunRequestPending(true);
       setError(null);
       setRunErrorAlertLines(null);
+      setRunInternalError(null);
       const nextRequest: RunWorkflowRequest = options.keepLiveWorkflow
         ? {
             ...request,
@@ -391,6 +424,14 @@ export function useWorkflowRunController(
         })
         .catch((cause: unknown) => {
           setPendingTriggerFetchSnapshot(null);
+          const internal = extractRunInternalError(cause);
+          if (internal) {
+            const consumed = config?.onWorkflowRunInternalError?.(internal) === true;
+            if (!consumed) {
+              setRunInternalError(internal);
+            }
+            return;
+          }
           setRunErrorAlertLines(workflowActivationErrorFormat.extractMessages(cause));
         })
         .finally(() => {
@@ -553,6 +594,10 @@ export function useWorkflowRunController(
     runErrorAlertLines,
     dismissRunErrorAlert: () => {
       setRunErrorAlertLines(null);
+    },
+    runInternalError,
+    dismissRunInternalError: () => {
+      setRunInternalError(null);
     },
   };
 }

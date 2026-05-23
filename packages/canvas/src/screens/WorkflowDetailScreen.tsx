@@ -28,6 +28,7 @@ import {
 } from "@codemation/canvas-core";
 import { WorkflowCanvas } from "../canvas/WorkflowCanvas";
 import { NodePropertiesSlidePanel } from "../panels/NodePropertiesSlidePanel";
+import { WorkflowRunInternalErrorDialog } from "../panels/WorkflowRunInternalErrorDialog";
 import { WorkflowRunsSidebar } from "../panels/WorkflowRunsSidebar";
 import { resolveWorkflowRealtimeBadge } from "./workflowDetailScreenRealtimeBadge";
 import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
@@ -332,6 +333,11 @@ export function WorkflowDetailScreen(args: Readonly<WorkflowDetailScreenArgs>) {
           renderOverride={args.config?.renderWorkflowJsonEditor}
         />
       ) : null}
+      <WorkflowRunInternalErrorDialog
+        open={controller.runInternalError !== null}
+        error={controller.runInternalError}
+        onDismiss={controller.dismissRunInternalError}
+      />
       <style>{WORKFLOW_DETAIL_TREE_STYLES}</style>
     </main>
   );

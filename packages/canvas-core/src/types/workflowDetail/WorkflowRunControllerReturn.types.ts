@@ -12,6 +12,7 @@ import type {
   WorkflowRunsSidebarModel,
 } from "../../lib/workflowDetail/workflowDetailTypes";
 import type { RunWorkflowRequest } from "../WorkflowCanvasApiClient";
+import type { WorkflowRunInternalError } from "../WorkflowCanvasConfig";
 
 /**
  * Shared state that the run controller exposes for peer sub-controllers to READ via props.
@@ -87,4 +88,6 @@ export type WorkflowRunControllerReturn = WorkflowRunControllerSharedState &
     setWorkflowActive: (active: boolean) => void;
     runErrorAlertLines: ReadonlyArray<string> | null;
     dismissRunErrorAlert: () => void;
+    runInternalError: WorkflowRunInternalError | null;
+    dismissRunInternalError: () => void;
   }>;

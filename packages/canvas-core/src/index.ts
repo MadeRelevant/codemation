@@ -13,6 +13,7 @@ export type {
   WorkflowCanvasNodeRendererProps,
   NodeCredentialBindingsSlotProps,
   WorkflowJsonEditorSlotProps,
+  WorkflowRunInternalError,
 } from "./types/WorkflowCanvasConfig";
 export type { WorkflowCanvasTheme } from "./types/WorkflowCanvasTheme";
 export type { NavigationAdapter } from "./types/NavigationAdapter";
