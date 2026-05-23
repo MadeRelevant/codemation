@@ -4,11 +4,9 @@ import type { LoggerFactory } from "../application/logging/Logger";
 import { McpServerCatalog } from "./McpServerCatalog";
 import { DefaultMcpClientFactory } from "./McpClientFactory";
 import type { McpClientFactory } from "./McpClientFactory";
-import { CredentialSessionServiceImpl } from "../domain/credentials/CredentialSessionServiceImpl";
+import { CredentialSecretCipher } from "../domain/credentials/CredentialSecretCipher";
+import type { CredentialStore } from "../domain/credentials/CredentialServices";
 import type { MCPClient, McpToolSet } from "./McpConnectionPool.types";
-
-/** Session contract produced by an OAuth2 credential type — injects Bearer headers onto requests. */
-type McpOAuth2Session = { applyToRequest: (spec: unknown) => { headers: Record<string, string> } };
 
 /** Mutable internal pool entry (toolsCache may be filled lazily). */
 type MutablePoolEntry = {
@@ -29,7 +27,8 @@ export class McpConnectionPool {
 
   constructor(
     @inject(McpServerCatalog) private readonly catalog: McpServerCatalog,
-    @inject(CredentialSessionServiceImpl) private readonly credentials: CredentialSessionServiceImpl,
+    @inject(ApplicationTokens.CredentialStore) private readonly credentialStore: CredentialStore,
+    @inject(CredentialSecretCipher) private readonly credentialSecretCipher: CredentialSecretCipher,
     @inject(ApplicationTokens.LoggerFactory) private readonly loggers: LoggerFactory,
     @inject(DefaultMcpClientFactory) private readonly clientFactory: McpClientFactory,
   ) {}
@@ -141,22 +140,15 @@ export class McpConnectionPool {
       );
     }
 
-    // Read a fresh session for each open. This means the bearer token is baked into the
-    // client's headers at open time (per-open, not per-call). @ai-sdk/mcp v1.0.42 does not
-    // support per-request header injection — headers are fixed at createMCPClient() time.
-    //
-    // LIMITATION: a pool entry will use a stale bearer token after the OAuth access token
-    // expires. OAuthFlowExecutor is expected to refresh the stored token
-    // before any consumer reads the credential session, but if the token expires while the
-    // pool entry is alive, the entry must be closed (via closeForCredential) and re-opened
-    // on the next getClient call for the refreshed token to take effect.
-    const session = await this.credentials.createSessionForInstance<McpOAuth2Session>(credentialInstanceId);
-    const bearerDelta = session.applyToRequest({});
-    const authHeader = bearerDelta.headers.authorization ?? "";
-
+    // Read OAuth material directly. The bearer is baked into the client's headers at open
+    // time (per-open, not per-call) — @ai-sdk/mcp v1.0.42 does not support per-request header
+    // injection. LIMITATION: a pool entry uses a stale bearer after the access token expires;
+    // OAuthFlowExecutor refreshes stored material in the background, but the entry must be
+    // closed via closeForCredential and re-opened for the refreshed token to take effect.
+    const accessToken = await this.readAccessToken(credentialInstanceId, serverId);
     const headers: Record<string, string> = {
       ...(decl.staticHeaders ?? {}),
-      ...(authHeader ? { authorization: authHeader } : {}),
+      authorization: `Bearer ${accessToken}`,
     };
 
     const client = await this.clientFactory.open({ url: decl.url, headers });
@@ -167,6 +159,23 @@ export class McpConnectionPool {
 
   private poolKey(credentialInstanceId: string, serverId: string): string {
     return `${credentialInstanceId}:${serverId}`;
+  }
+
+  private async readAccessToken(credentialInstanceId: string, serverId: string): Promise<string> {
+    const material = await this.credentialStore.getOAuth2Material(credentialInstanceId);
+    if (!material) {
+      throw new Error(
+        `McpConnectionPool: credential instance "${credentialInstanceId}" has no OAuth2 material — connect the credential before binding it to MCP server "${serverId}"`,
+      );
+    }
+    const decrypted = this.credentialSecretCipher.decrypt(material) as { accessToken?: unknown };
+    const accessToken = typeof decrypted.accessToken === "string" ? decrypted.accessToken : "";
+    if (!accessToken) {
+      throw new Error(
+        `McpConnectionPool: credential instance "${credentialInstanceId}" OAuth2 material has no access token — reconnect the credential bound to MCP server "${serverId}"`,
+      );
+    }
+    return accessToken;
   }
 
   private applyOverrides(tools: McpToolSet, overrides?: Record<string, string>): McpToolSet {

@@ -5,11 +5,11 @@ import { AgentMcpIntegrationImpl } from "../../src/mcp/AgentMcpIntegrationImpl";
 import { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
 import { McpConnectionPool } from "../../src/mcp/McpConnectionPool";
 import type { LoggerFactory } from "../../src/application/logging/Logger";
-import type { CredentialSessionServiceImpl } from "../../src/domain/credentials/CredentialSessionServiceImpl";
 import type { CredentialStore } from "../../src/domain/credentials/CredentialServices";
 import type { CredentialInstanceRecord } from "../../src/domain/credentials/CredentialServices";
+import type { CredentialSecretCipher } from "../../src/domain/credentials/CredentialSecretCipher";
 import { FakeLoggerFactory, makeAppConfig } from "../testkit";
-import { FakeMcpClient, FakeClientFactory, FakeCredentials } from "./testkit/McpTestKit";
+import { FakeMcpClient, FakeClientFactory, FakeCredentialSecretCipher } from "./testkit/McpTestKit";
 
 const WORKFLOW_ID = "wf.test";
 const AGENT_NODE_ID = "agent-1";
@@ -94,11 +94,12 @@ function makeCredentialStore(
   } satisfies CredentialStore;
 }
 
-function makePool(catalog: McpServerCatalog, credentials: FakeCredentials): McpConnectionPool {
+function makePool(catalog: McpServerCatalog, store: CredentialStore): McpConnectionPool {
   const factory = new FakeClientFactory();
   return new McpConnectionPool(
     catalog,
-    credentials as unknown as CredentialSessionServiceImpl,
+    store,
+    new FakeCredentialSecretCipher() as unknown as CredentialSecretCipher,
     new FakeLoggerFactory(),
     factory,
   );
@@ -149,7 +150,6 @@ describe("AgentMcpIntegrationImpl", () => {
   describe("binding resolution from CredentialBinding", () => {
     it("resolves the binding at (workflowId, mcpConnectionNodeId, 'credential') and returns a tool map", async () => {
       const catalog = makeCatalog([gmailDecl]);
-      const creds = new FakeCredentials();
       const getBindingCalls: Array<Readonly<{ workflowId: string; nodeId: string; slotKey: string }>> = [];
       const baseStore = makeCredentialStore(
         [
@@ -174,7 +174,7 @@ describe("AgentMcpIntegrationImpl", () => {
           return baseStore.getBinding(key);
         },
       };
-      const pool = makePool(catalog, creds);
+      const pool = makePool(catalog, store);
 
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
@@ -196,9 +196,8 @@ describe("AgentMcpIntegrationImpl", () => {
 
     it("throws AgentBindError when no binding exists for the MCP connection node", async () => {
       const catalog = makeCatalog([gmailDecl]);
-      const creds = new FakeCredentials();
       const store = makeCredentialStore([{ instanceId: "cred-1" }], []);
-      const pool = makePool(catalog, creds);
+      const pool = makePool(catalog, store);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
@@ -216,7 +215,6 @@ describe("AgentMcpIntegrationImpl", () => {
 
     it("throws AgentBindError when the bound credential instance no longer exists", async () => {
       const catalog = makeCatalog([gmailDecl]);
-      const creds = new FakeCredentials();
       const store = makeCredentialStore(
         [],
         [
@@ -228,7 +226,7 @@ describe("AgentMcpIntegrationImpl", () => {
           },
         ],
       );
-      const pool = makePool(catalog, creds);
+      const pool = makePool(catalog, store);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
@@ -246,9 +244,8 @@ describe("AgentMcpIntegrationImpl", () => {
 
     it("throws AgentBindError when server is not in catalog", async () => {
       const catalog = makeCatalog([]);
-      const creds = new FakeCredentials();
       const store = makeCredentialStore([{ instanceId: "cred-1", publicConfig: {} }]);
-      const pool = makePool(catalog, creds);
+      const pool = makePool(catalog, store);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
@@ -272,7 +269,6 @@ describe("AgentMcpIntegrationImpl", () => {
         requiredScopes: ["https://mail.google.com/"],
       };
       const catalog = makeCatalog([declWithScopes]);
-      const creds = new FakeCredentials();
       const store = makeCredentialStore(
         [
           {
@@ -289,7 +285,7 @@ describe("AgentMcpIntegrationImpl", () => {
           },
         ],
       );
-      const pool = makePool(catalog, creds);
+      const pool = makePool(catalog, store);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
@@ -311,7 +307,6 @@ describe("AgentMcpIntegrationImpl", () => {
         requiredScopes: ["https://mail.google.com/"],
       };
       const catalog = makeCatalog([declWithScopes]);
-      const creds = new FakeCredentials();
       const store = makeCredentialStore(
         [
           {
@@ -328,7 +323,7 @@ describe("AgentMcpIntegrationImpl", () => {
           },
         ],
       );
-      const pool = makePool(catalog, creds);
+      const pool = makePool(catalog, store);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
@@ -351,9 +346,8 @@ describe("AgentMcpIntegrationImpl", () => {
   describe("telemetry and 403 detection", () => {
     it("wraps tool execute with a telemetry span tagged mcp.server_id and mcp.tool_name", async () => {
       const catalog = makeCatalog([gmailDecl]);
-      const creds = new FakeCredentials();
       const store = makeCredentialStore(
-        [{ instanceId: "cred-1" }],
+        [{ instanceId: "cred-1", scopes: [] } as any],
         [
           {
             workflowId: WORKFLOW_ID,
@@ -374,7 +368,8 @@ describe("AgentMcpIntegrationImpl", () => {
       const clientFactory = new FakeClientFactory(seededClient);
       const pool = new McpConnectionPool(
         catalog,
-        creds as unknown as CredentialSessionServiceImpl,
+        store,
+        new FakeCredentialSecretCipher() as unknown as CredentialSecretCipher,
         new FakeLoggerFactory(),
         clientFactory,
       );
@@ -406,9 +401,8 @@ describe("AgentMcpIntegrationImpl", () => {
 
     it("emits NeedsReconsentEvent span event when tool execute returns 403 error", async () => {
       const catalog = makeCatalog([gmailDecl]);
-      const creds = new FakeCredentials();
       const store = makeCredentialStore(
-        [{ instanceId: "cred-1" }],
+        [{ instanceId: "cred-1", scopes: [] } as any],
         [
           {
             workflowId: WORKFLOW_ID,
@@ -431,7 +425,8 @@ describe("AgentMcpIntegrationImpl", () => {
       const clientFactory = new FakeClientFactory(seededClient);
       const pool = new McpConnectionPool(
         catalog,
-        creds as unknown as CredentialSessionServiceImpl,
+        store,
+        new FakeCredentialSecretCipher() as unknown as CredentialSecretCipher,
         new FakeLoggerFactory(),
         clientFactory,
       );

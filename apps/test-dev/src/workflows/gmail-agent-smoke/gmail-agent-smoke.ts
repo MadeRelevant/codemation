@@ -1,4 +1,5 @@
 import { AIAgent, CronTrigger, createWorkflowBuilder } from "@codemation/core-nodes";
+import { NoRetryPolicy } from "@codemation/core";
 
 import { openAiChatModelPresets } from "../../lib/openAiChatModelPresets";
 
@@ -43,6 +44,7 @@ export default createWorkflowBuilder({
       chatModel: openAiChatModelPresets.demoGpt4oMini,
       mcpServers: ["gmail"],
       guardrails: { maxTurns: 5 },
+      retryPolicy: new NoRetryPolicy(),
     }),
   )
   .build();

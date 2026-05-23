@@ -213,21 +213,6 @@ describe("CredentialSessionServiceImpl.getSession", () => {
   });
 });
 
-describe("CredentialSessionServiceImpl.createSessionForInstance", () => {
-  it("creates session directly from instanceId", async () => {
-    const instances = new Map<string, CredentialInstanceRecord>();
-    instances.set("inst-direct", makeInstance("inst-direct", "test.type"));
-    const svc = makeService({ instances, credentialTypeId: "test.type", sessionValue: { direct: true } });
-    const session = await svc.createSessionForInstance("inst-direct" as never);
-    expect(session).toEqual({ direct: true });
-  });
-
-  it("throws 404 for unknown instanceId", async () => {
-    const svc = makeService({});
-    await expect(svc.createSessionForInstance("nonexistent" as never)).rejects.toMatchObject({ status: 404 });
-  });
-});
-
 describe("CredentialSessionServiceImpl.evictInstance", () => {
   it("evicts cached session so next call re-creates it", async () => {
     let calls = 0;

@@ -74,14 +74,6 @@ export class CredentialSessionServiceImpl implements CredentialSessionService {
     return (await nextSessionPromise) as TSession;
   }
 
-  /**
-   * Creates a session directly from a credential instance id, bypassing workflow binding resolution.
-   * Used by the MCP connection pool, which holds credentials by instance id rather than workflow binding.
-   */
-  async createSessionForInstance<TSession = unknown>(instanceId: CredentialInstanceId): Promise<TSession> {
-    return (await this.createSession(instanceId)) as TSession;
-  }
-
   evictInstance(instanceId: CredentialInstanceId): void {
     this.cachedSessionsByInstanceId.delete(instanceId);
   }

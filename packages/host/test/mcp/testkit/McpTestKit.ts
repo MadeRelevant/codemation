@@ -38,19 +38,30 @@ export class FakeClientFactory implements McpClientFactory {
 }
 
 /**
- * Credential session fake. Records which instance IDs sessions were requested for
- * and returns a request-modifier that adds a Bearer token.
+ * Minimal OAuth2 material store fake. Records which instance IDs were queried and returns
+ * a sentinel encrypted record (the cipher fake below short-circuits decryption).
  */
-export class FakeCredentials {
-  readonly sessionsCreated: string[] = [];
+export class FakeOAuth2MaterialStore {
+  readonly queries: string[] = [];
+  /** When set, getOAuth2Material returns undefined for any instance id (simulates "not connected"). */
+  missing = false;
+
+  async getOAuth2Material(instanceId: string): Promise<unknown> {
+    this.queries.push(instanceId);
+    if (this.missing) {
+      return undefined;
+    }
+    return { instanceId, encryptedJson: "sentinel", encryptionKeyId: "k", schemaVersion: 1 };
+  }
+}
+
+/**
+ * Cipher fake. decrypt() returns a fixed accessToken regardless of the input record.
+ */
+export class FakeCredentialSecretCipher {
   bearerToken = "test-token";
 
-  async createSessionForInstance<TSession = unknown>(instanceId: string): Promise<TSession> {
-    this.sessionsCreated.push(instanceId);
-    return {
-      applyToRequest: (_spec: unknown) => ({
-        headers: { authorization: `Bearer ${this.bearerToken}` },
-      }),
-    } as TSession;
+  decrypt(_record: unknown): Record<string, unknown> {
+    return { accessToken: this.bearerToken };
   }
 }
