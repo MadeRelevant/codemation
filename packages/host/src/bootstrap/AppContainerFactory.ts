@@ -280,6 +280,7 @@ import { IncomingHmacVerifier } from "../pairing/IncomingHmacVerifier";
 import { InternalHmacAuthMiddleware } from "../pairing/InternalHmacAuthMiddleware";
 import { InternalPingRegistrar } from "../pairing/InternalPingRegistrar";
 import { LocalOAuthFlowExecutor } from "../credentials/LocalOAuthFlowExecutor";
+import { CredentialOAuth2MaterialReader } from "../credentials/CredentialOAuth2MaterialReader";
 import { ManagedOAuthFlowExecutor } from "../credentials/ManagedOAuthFlowExecutor";
 import { BrokerClient } from "../credentials/BrokerClient";
 import { InternalCredentialsPushRegistrar } from "../credentials/InternalCredentialsPushRegistrar";
@@ -736,6 +737,7 @@ private mergeConfigMcpServers(container: Container, appConfig: AppConfig): void 
       });
       container.registerSingleton(LocalOAuthFlowExecutor, LocalOAuthFlowExecutor);
     }
+    container.registerSingleton(CredentialOAuth2MaterialReader, CredentialOAuth2MaterialReader);
     container.registerSingleton(CodemationFrontendAuthSnapshotFactory, CodemationFrontendAuthSnapshotFactory);
     container.registerSingleton(FrontendAppConfigFactory, FrontendAppConfigFactory);
     container.registerSingleton(PublicFrontendBootstrapFactory, PublicFrontendBootstrapFactory);

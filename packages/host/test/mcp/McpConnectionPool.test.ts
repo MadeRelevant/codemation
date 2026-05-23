@@ -3,10 +3,9 @@ import type { McpServerDeclaration } from "@codemation/core";
 import { McpConnectionPool } from "../../src/mcp/McpConnectionPool";
 import { McpServerCatalog } from "../../src/mcp/McpServerCatalog";
 import type { LoggerFactory } from "../../src/application/logging/Logger";
-import type { CredentialStore } from "../../src/domain/credentials/CredentialServices";
-import type { CredentialSecretCipher } from "../../src/domain/credentials/CredentialSecretCipher";
+import type { CredentialOAuth2MaterialReader } from "../../src/credentials/CredentialOAuth2MaterialReader";
 import { FakeLoggerFactory, makeAppConfig } from "../testkit";
-import { FakeClientFactory, FakeOAuth2MaterialStore, FakeCredentialSecretCipher } from "./testkit/McpTestKit";
+import { FakeClientFactory, FakeOAuth2MaterialReader } from "./testkit/McpTestKit";
 
 function makeDeclaration(id: string, overrides?: Partial<McpServerDeclaration>): McpServerDeclaration {
   return {
@@ -23,24 +22,21 @@ function makeDeclaration(id: string, overrides?: Partial<McpServerDeclaration>):
 function makePool(): {
   pool: McpConnectionPool;
   catalog: McpServerCatalog;
-  materialStore: FakeOAuth2MaterialStore;
-  cipher: FakeCredentialSecretCipher;
+  reader: FakeOAuth2MaterialReader;
   clientFactory: FakeClientFactory;
   loggerFactory: FakeLoggerFactory;
 } {
   const loggerFactory = new FakeLoggerFactory();
   const catalog = new McpServerCatalog(loggerFactory as unknown as LoggerFactory, makeAppConfig());
-  const materialStore = new FakeOAuth2MaterialStore();
-  const cipher = new FakeCredentialSecretCipher();
+  const reader = new FakeOAuth2MaterialReader();
   const clientFactory = new FakeClientFactory();
   const pool = new McpConnectionPool(
     catalog,
-    materialStore as unknown as CredentialStore,
-    cipher as unknown as CredentialSecretCipher,
+    reader as unknown as CredentialOAuth2MaterialReader,
     loggerFactory as unknown as LoggerFactory,
     clientFactory,
   );
-  return { pool, catalog, materialStore, cipher, clientFactory, loggerFactory };
+  return { pool, catalog, reader, clientFactory, loggerFactory };
 }
 
 describe("McpConnectionPool", () => {
@@ -56,37 +52,37 @@ describe("McpConnectionPool", () => {
       expect(clientFactory.opened[0]!.args.url).toBe("https://gmail.example.com/mcp");
     });
 
-    it("sends the bearer token from the credential's decrypted OAuth2 material as the authorization header", async () => {
-      const { pool, catalog, clientFactory, cipher } = makePool();
+    it("sends the bearer token from the credential's OAuth2 material as the authorization header", async () => {
+      const { pool, catalog, clientFactory, reader } = makePool();
       catalog.merge("config", [makeDeclaration("gmail")]);
-      cipher.bearerToken = "my-access-token";
+      reader.bearerToken = "my-access-token";
 
       await pool.getClient("cred-1", "gmail");
 
       expect(clientFactory.opened[0]!.args.headers["authorization"]).toBe("Bearer my-access-token");
     });
 
-    it("reads OAuth2 material from the credential store keyed by instance id (regression: no session.applyToRequest)", async () => {
-      const { pool, catalog, materialStore } = makePool();
+    it("reads OAuth2 material from the reader keyed by instance id (regression: no session.applyToRequest)", async () => {
+      const { pool, catalog, reader } = makePool();
       catalog.merge("config", [makeDeclaration("gmail")]);
 
       await pool.getClient("cred-instance-42", "gmail");
 
-      expect(materialStore.queries).toEqual(["cred-instance-42"]);
+      expect(reader.reads).toEqual(["cred-instance-42"]);
     });
 
     it("throws a clear error when the credential has no OAuth2 material (never connected)", async () => {
-      const { pool, catalog, materialStore } = makePool();
+      const { pool, catalog, reader } = makePool();
       catalog.merge("config", [makeDeclaration("gmail")]);
-      materialStore.missing = true;
+      reader.missing = true;
 
       await expect(pool.getClient("cred-1", "gmail")).rejects.toThrow(/has no OAuth2 material/);
     });
 
-    it("throws a clear error when decrypted material has no access token", async () => {
-      const { pool, catalog, cipher } = makePool();
+    it("throws a clear error when the reader returns no access token", async () => {
+      const { pool, catalog, reader } = makePool();
       catalog.merge("config", [makeDeclaration("gmail")]);
-      cipher.bearerToken = "";
+      reader.bearerToken = "";
 
       await expect(pool.getClient("cred-1", "gmail")).rejects.toThrow(/has no access token/);
     });
@@ -118,13 +114,11 @@ describe("McpConnectionPool", () => {
         makeAppConfig({ env: { CODEMATION_ALLOW_STDIO_MCP: "true" } }),
       );
       catalog.merge("config", [makeDeclaration("stdio-server", { transport: "stdio" as "http" })]);
-      const materialStore = new FakeOAuth2MaterialStore();
-      const cipher = new FakeCredentialSecretCipher();
+      const reader = new FakeOAuth2MaterialReader();
       const clientFactory = new FakeClientFactory();
       const pool = new McpConnectionPool(
         catalog,
-        materialStore as unknown as CredentialStore,
-        cipher as unknown as CredentialSecretCipher,
+        reader as unknown as CredentialOAuth2MaterialReader,
         loggerFactory as unknown as LoggerFactory,
         clientFactory,
       );

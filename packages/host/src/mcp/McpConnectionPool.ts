@@ -4,8 +4,7 @@ import type { LoggerFactory } from "../application/logging/Logger";
 import { McpServerCatalog } from "./McpServerCatalog";
 import { DefaultMcpClientFactory } from "./McpClientFactory";
 import type { McpClientFactory } from "./McpClientFactory";
-import { CredentialSecretCipher } from "../domain/credentials/CredentialSecretCipher";
-import type { CredentialStore } from "../domain/credentials/CredentialServices";
+import { CredentialOAuth2MaterialReader } from "../credentials/CredentialOAuth2MaterialReader";
 import type { MCPClient, McpToolSet } from "./McpConnectionPool.types";
 
 /** Mutable internal pool entry (toolsCache may be filled lazily). */
@@ -27,8 +26,7 @@ export class McpConnectionPool {
 
   constructor(
     @inject(McpServerCatalog) private readonly catalog: McpServerCatalog,
-    @inject(ApplicationTokens.CredentialStore) private readonly credentialStore: CredentialStore,
-    @inject(CredentialSecretCipher) private readonly credentialSecretCipher: CredentialSecretCipher,
+    @inject(CredentialOAuth2MaterialReader) private readonly oauth2Material: CredentialOAuth2MaterialReader,
     @inject(ApplicationTokens.LoggerFactory) private readonly loggers: LoggerFactory,
     @inject(DefaultMcpClientFactory) private readonly clientFactory: McpClientFactory,
   ) {}
@@ -162,20 +160,13 @@ export class McpConnectionPool {
   }
 
   private async readAccessToken(credentialInstanceId: string, serverId: string): Promise<string> {
-    const material = await this.credentialStore.getOAuth2Material(credentialInstanceId);
-    if (!material) {
+    const material = await this.oauth2Material.readMaterial(credentialInstanceId);
+    if (!material.accessToken) {
       throw new Error(
-        `McpConnectionPool: credential instance "${credentialInstanceId}" has no OAuth2 material — connect the credential before binding it to MCP server "${serverId}"`,
+        `McpConnectionPool: credential instance "${credentialInstanceId}" has no access token — reconnect the credential bound to MCP server "${serverId}"`,
       );
     }
-    const decrypted = this.credentialSecretCipher.decrypt(material) as { accessToken?: unknown };
-    const accessToken = typeof decrypted.accessToken === "string" ? decrypted.accessToken : "";
-    if (!accessToken) {
-      throw new Error(
-        `McpConnectionPool: credential instance "${credentialInstanceId}" OAuth2 material has no access token — reconnect the credential bound to MCP server "${serverId}"`,
-      );
-    }
-    return accessToken;
+    return material.accessToken;
   }
 
   private applyOverrides(tools: McpToolSet, overrides?: Record<string, string>): McpToolSet {

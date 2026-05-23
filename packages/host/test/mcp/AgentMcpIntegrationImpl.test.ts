@@ -7,9 +7,9 @@ import { McpConnectionPool } from "../../src/mcp/McpConnectionPool";
 import type { LoggerFactory } from "../../src/application/logging/Logger";
 import type { CredentialStore } from "../../src/domain/credentials/CredentialServices";
 import type { CredentialInstanceRecord } from "../../src/domain/credentials/CredentialServices";
-import type { CredentialSecretCipher } from "../../src/domain/credentials/CredentialSecretCipher";
+import type { CredentialOAuth2MaterialReader } from "../../src/credentials/CredentialOAuth2MaterialReader";
 import { FakeLoggerFactory, makeAppConfig } from "../testkit";
-import { FakeMcpClient, FakeClientFactory, FakeCredentialSecretCipher } from "./testkit/McpTestKit";
+import { FakeMcpClient, FakeClientFactory, FakeOAuth2MaterialReader } from "./testkit/McpTestKit";
 
 const WORKFLOW_ID = "wf.test";
 const AGENT_NODE_ID = "agent-1";
@@ -94,12 +94,11 @@ function makeCredentialStore(
   } satisfies CredentialStore;
 }
 
-function makePool(catalog: McpServerCatalog, store: CredentialStore): McpConnectionPool {
+function makePool(catalog: McpServerCatalog): McpConnectionPool {
   const factory = new FakeClientFactory();
   return new McpConnectionPool(
     catalog,
-    store,
-    new FakeCredentialSecretCipher() as unknown as CredentialSecretCipher,
+    new FakeOAuth2MaterialReader() as unknown as CredentialOAuth2MaterialReader,
     new FakeLoggerFactory(),
     factory,
   );
@@ -174,7 +173,7 @@ describe("AgentMcpIntegrationImpl", () => {
           return baseStore.getBinding(key);
         },
       };
-      const pool = makePool(catalog, store);
+      const pool = makePool(catalog);
 
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
@@ -197,7 +196,7 @@ describe("AgentMcpIntegrationImpl", () => {
     it("throws AgentBindError when no binding exists for the MCP connection node", async () => {
       const catalog = makeCatalog([gmailDecl]);
       const store = makeCredentialStore([{ instanceId: "cred-1" }], []);
-      const pool = makePool(catalog, store);
+      const pool = makePool(catalog);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
@@ -226,7 +225,7 @@ describe("AgentMcpIntegrationImpl", () => {
           },
         ],
       );
-      const pool = makePool(catalog, store);
+      const pool = makePool(catalog);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
@@ -245,7 +244,7 @@ describe("AgentMcpIntegrationImpl", () => {
     it("throws AgentBindError when server is not in catalog", async () => {
       const catalog = makeCatalog([]);
       const store = makeCredentialStore([{ instanceId: "cred-1", publicConfig: {} }]);
-      const pool = makePool(catalog, store);
+      const pool = makePool(catalog);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
@@ -285,7 +284,7 @@ describe("AgentMcpIntegrationImpl", () => {
           },
         ],
       );
-      const pool = makePool(catalog, store);
+      const pool = makePool(catalog);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
@@ -323,7 +322,7 @@ describe("AgentMcpIntegrationImpl", () => {
           },
         ],
       );
-      const pool = makePool(catalog, store);
+      const pool = makePool(catalog);
       const integration = new AgentMcpIntegrationImpl(catalog, pool, store, new FakeLoggerFactory());
       const cb = makeNoopSpanCallbacks();
 
@@ -368,8 +367,7 @@ describe("AgentMcpIntegrationImpl", () => {
       const clientFactory = new FakeClientFactory(seededClient);
       const pool = new McpConnectionPool(
         catalog,
-        store,
-        new FakeCredentialSecretCipher() as unknown as CredentialSecretCipher,
+        new FakeOAuth2MaterialReader() as unknown as CredentialOAuth2MaterialReader,
         new FakeLoggerFactory(),
         clientFactory,
       );
@@ -425,8 +423,7 @@ describe("AgentMcpIntegrationImpl", () => {
       const clientFactory = new FakeClientFactory(seededClient);
       const pool = new McpConnectionPool(
         catalog,
-        store,
-        new FakeCredentialSecretCipher() as unknown as CredentialSecretCipher,
+        new FakeOAuth2MaterialReader() as unknown as CredentialOAuth2MaterialReader,
         new FakeLoggerFactory(),
         clientFactory,
       );

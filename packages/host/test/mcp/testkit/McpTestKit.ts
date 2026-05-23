@@ -38,30 +38,27 @@ export class FakeClientFactory implements McpClientFactory {
 }
 
 /**
- * Minimal OAuth2 material store fake. Records which instance IDs were queried and returns
- * a sentinel encrypted record (the cipher fake below short-circuits decryption).
+ * CredentialOAuth2MaterialReader fake. Records which instance IDs were read and returns
+ * a stub OAuthMaterial with a configurable access token. The pool depends on the reader,
+ * which encapsulates store-lookup + decrypt + refresh-on-read; tests don't need to
+ * exercise those internals through the pool.
  */
-export class FakeOAuth2MaterialStore {
-  readonly queries: string[] = [];
-  /** When set, getOAuth2Material returns undefined for any instance id (simulates "not connected"). */
+export class FakeOAuth2MaterialReader {
+  readonly reads: string[] = [];
+  bearerToken = "test-token";
+  /** When set, readMaterial throws "has no OAuth2 material" (simulates a never-connected instance). */
   missing = false;
 
-  async getOAuth2Material(instanceId: string): Promise<unknown> {
-    this.queries.push(instanceId);
+  async readMaterial(instanceId: string): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    expiresAt?: string;
+    grantedScopes: ReadonlyArray<string>;
+  }> {
+    this.reads.push(instanceId);
     if (this.missing) {
-      return undefined;
+      throw new Error(`CredentialOAuth2MaterialReader: instance "${instanceId}" has no OAuth2 material`);
     }
-    return { instanceId, encryptedJson: "sentinel", encryptionKeyId: "k", schemaVersion: 1 };
-  }
-}
-
-/**
- * Cipher fake. decrypt() returns a fixed accessToken regardless of the input record.
- */
-export class FakeCredentialSecretCipher {
-  bearerToken = "test-token";
-
-  decrypt(_record: unknown): Record<string, unknown> {
-    return { accessToken: this.bearerToken };
+    return { accessToken: this.bearerToken, grantedScopes: [] };
   }
 }
