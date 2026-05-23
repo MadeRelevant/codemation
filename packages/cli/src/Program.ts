@@ -91,13 +91,22 @@ export class CliProgram {
         "--api-only",
         "Skip the workspace UI; useful when an external host (e.g. the control plane) serves the UI itself.",
       )
-      .action(async (opts: Readonly<{ consumerRoot?: string; watchFramework?: boolean; apiOnly?: boolean }>) => {
-        await this.devCommand.execute({
-          consumerRoot: resolveConsumerRoot(opts.consumerRoot),
-          watchFramework: opts.watchFramework === true,
-          apiOnly: opts.apiOnly === true,
-        });
-      });
+      .option(
+        "--trace-boot",
+        "Print a phase-by-phase boot-time breakdown to stderr and write tmp/boot-trace.json on startup.",
+      )
+      .action(
+        async (
+          opts: Readonly<{ consumerRoot?: string; watchFramework?: boolean; apiOnly?: boolean; traceBoot?: boolean }>,
+        ) => {
+          await this.devCommand.execute({
+            consumerRoot: resolveConsumerRoot(opts.consumerRoot),
+            watchFramework: opts.watchFramework === true,
+            apiOnly: opts.apiOnly === true,
+            traceBoot: opts.traceBoot === true,
+          });
+        },
+      );
 
     program
       .command("dev:plugin")

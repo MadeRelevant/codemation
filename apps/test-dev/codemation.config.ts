@@ -113,9 +113,8 @@ export const codemationHost = {
         },
       ],
     },
-    database: useRedisRuntime
-      ? { kind: "postgresql" as const, url: databaseUrl ?? "" }
-      : { kind: "sqlite" as const, sqliteFilePath: ".codemation/codemation.sqlite" },
+    // Database persistence is resolved from CODEMATION_DATABASE_URL (DSN). Defaults to
+    // sqlite://.codemation/codemation.sqlite when the env var is absent.
     scheduler: {
       kind: useRedisRuntime ? ("queue" as const) : ("inline" as const),
       queuePrefix: "codemation",

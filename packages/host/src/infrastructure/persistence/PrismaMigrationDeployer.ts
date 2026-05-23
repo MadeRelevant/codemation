@@ -1,4 +1,4 @@
-import { createClient, type Client } from "@libsql/client";
+import type { Client } from "@libsql/client";
 import { injectable } from "@codemation/core";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -178,6 +178,10 @@ export class PrismaMigrationDeployer {
   }
 
   private async repairPartiallyAppliedNormalizedRuntimeSqliteDatabase(databaseFilePath: string): Promise<boolean> {
+    // Lazy import: @libsql/client pulls in platform-specific native bindings that confuse the
+    // Next.js / Turbopack module tracer (forcing the whole project to be traced via NFT). This
+    // recovery path is rarely needed, so defer the load until it's actually invoked.
+    const { createClient } = await import("@libsql/client");
     const client = createClient({ url: this.sqliteFilePathToDatabaseUrl(databaseFilePath) });
     try {
       const failedMigration = await this.hasActiveFailedMigrationRecord(
@@ -289,6 +293,7 @@ export class PrismaMigrationDeployer {
   }
 
   private async cleanupNormalizedRuntimeLegacyArtifacts(databaseFilePath: string): Promise<void> {
+    const { createClient } = await import("@libsql/client");
     const client = createClient({ url: this.sqliteFilePathToDatabaseUrl(databaseFilePath) });
     try {
       const runColumns = await this.readSqliteTableColumns(client, "Run");

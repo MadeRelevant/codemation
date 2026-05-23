@@ -1,9 +1,8 @@
-import { CodemationConsumerConfigLoader } from "@codemation/host/server";
+import { BootTimer } from "@codemation/host";
 import type { AppPersistenceConfig } from "@codemation/host/persistence";
 import type { Logger } from "@codemation/host/next/server";
 import path from "node:path";
 
-import { ConsumerCliTsconfigPreparation } from "../consumer/ConsumerCliTsconfigPreparation";
 import { ConsumerDatabaseConnectionResolver } from "./ConsumerDatabaseConnectionResolver";
 import type { CliDatabaseUrlDescriptor } from "../user/CliDatabaseUrlDescriptor";
 import type { UserAdminConsumerDotenvLoader } from "../user/UserAdminConsumerDotenvLoader";
@@ -13,64 +12,49 @@ export type DatabaseMigrationDeployer = {
 };
 
 /**
- * Loads consumer config + env, resolves persistence, and runs Prisma migrations.
- * Shared by `codemation db migrate` and `codemation dev` (cold start only).
+ * Loads the consumer's `.env`, resolves persistence from `CODEMATION_DATABASE_URL`, and runs
+ * Prisma migrations. Shared by `codemation db migrate` and `codemation dev` (cold start only).
+ *
+ * Intentionally does NOT load `codemation.config.ts` — that import is ~9s on a real consumer
+ * project (tsx + plugin transitive imports + workflow discovery). Migrations only need the DB
+ * connection, which lives in `.env`. Keeping this path config-free is what lets `pnpm dev`
+ * start in single-digit seconds.
  */
 export class DatabaseMigrationsApplyService {
   constructor(
     private readonly cliLogger: Logger,
     private readonly consumerDotenvLoader: UserAdminConsumerDotenvLoader,
-    private readonly tsconfigPreparation: ConsumerCliTsconfigPreparation,
-    private readonly configLoader: CodemationConsumerConfigLoader,
     private readonly databaseConnectionResolver: ConsumerDatabaseConnectionResolver,
     private readonly databaseUrlDescriptor: CliDatabaseUrlDescriptor,
     private readonly hostPackageRoot: string,
     private readonly migrationDeployer: DatabaseMigrationDeployer,
   ) {}
 
-  /**
-   * Applies migrations when persistence is configured; no-op when there is no database (in-memory dev).
-   */
-  async applyForConsumer(consumerRoot: string, options?: Readonly<{ configPath?: string }>): Promise<void> {
-    await this.applyInternal(consumerRoot, options, false);
+  async applyForConsumer(consumerRoot: string, _options?: Readonly<{ configPath?: string }>): Promise<void> {
+    await this.applyInternal(consumerRoot);
   }
 
-  /**
-   * Same as {@link applyForConsumer} but throws when no database is configured (for `db migrate`).
-   */
+  /** Same as {@link applyForConsumer}. Kept for the `db migrate` command's explicit "must have DB" wording. */
   async applyForConsumerRequiringPersistence(
     consumerRoot: string,
-    options?: Readonly<{ configPath?: string }>,
+    _options?: Readonly<{ configPath?: string }>,
   ): Promise<void> {
-    await this.applyInternal(consumerRoot, options, true);
+    await this.applyInternal(consumerRoot);
   }
 
-  private async applyInternal(
-    consumerRoot: string,
-    options: Readonly<{ configPath?: string }> | undefined,
-    requirePersistence: boolean,
-  ): Promise<void> {
-    this.consumerDotenvLoader.load(consumerRoot);
-    this.tsconfigPreparation.applyWorkspaceTsconfigForTsxIfPresent(consumerRoot);
-    const resolution = await this.configLoader.load({
-      consumerRoot,
-      configPathOverride: options?.configPath,
-    });
-    const persistence = this.databaseConnectionResolver.resolve(process.env, resolution.config, consumerRoot);
-    if (persistence.kind === "none") {
-      if (requirePersistence) {
-        throw new Error(
-          "Database persistence is not configured. Set CodemationConfig.runtime.database (postgresql URL or SQLite file path).",
-        );
-      }
-      return;
-    }
+  private async applyInternal(consumerRoot: string): Promise<void> {
+    BootTimer.measure("dbApply.consumerDotenvLoad", () => this.consumerDotenvLoader.load(consumerRoot));
+    const persistence = BootTimer.measure("dbApply.resolveConnection", () =>
+      this.databaseConnectionResolver.resolveFromEnv(process.env, consumerRoot),
+    );
     process.env.CODEMATION_HOST_PACKAGE_ROOT = this.hostPackageRoot;
     process.env.CODEMATION_PRISMA_CONFIG_PATH = path.join(this.hostPackageRoot, "prisma.config.ts");
     this.cliLogger.debug(
       `Applying database migrations (${this.databaseUrlDescriptor.describePersistence(persistence)})`,
     );
-    await this.migrationDeployer.deployPersistence(persistence, process.env);
+    await BootTimer.measureAsync("dbApply.prismaDeploy", () =>
+      this.migrationDeployer.deployPersistence(persistence, process.env),
+    );
     this.cliLogger.info(
       `Database migrations applied (${this.databaseUrlDescriptor.describePersistence(persistence)}).`,
     );

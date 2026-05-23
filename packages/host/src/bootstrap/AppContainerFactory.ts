@@ -248,6 +248,7 @@ import { S3BinaryStorageConfigSchema } from "../infrastructure/binary/S3BinarySt
 import { InMemoryBinaryStorage } from "@codemation/core/bootstrap";
 import { RedisRunEventBus } from "@codemation/eventbus-redis";
 import { AppContainerLifecycle } from "./AppContainerLifecycle";
+import { BootTimer } from "./perf/BootTimer";
 import { WorkflowRunRetentionPruneScheduler } from "../application/runs/WorkflowRunRetentionPruneScheduler";
 import { WorkflowAuditLogPruneScheduler } from "../application/WorkflowAuditLogPruneScheduler";
 import { DatabaseMigrations } from "./runtime/DatabaseMigrations";
@@ -392,29 +393,59 @@ export class AppContainerFactory {
     // Register the no-op publisher as a fallback so OtelExecutionTelemetryFactory can always
     // resolve the token. registerOperationalInfrastructure overrides this with the WS relay.
     container.registerInstance(ApplicationTokens.TelemetrySpanPublisher, NoOpTelemetrySpanPublisher);
-    this.registerCoreInfrastructure(container, inputs);
-    this.registerRepositoriesAndBuses(container);
-    this.registerApplicationServicesAndRoutes(container, inputs.appConfig);
-    this.registerOperationalInfrastructure(container);
-    this.registerManagedAuthInfrastructure(container, inputs.appConfig);
-    this.registerPairingInfrastructure(container, inputs.appConfig);
-    this.registerConfiguredRegistrations(container, inputs.appConfig);
-    const credentialTypes = this.collectCredentialTypes(inputs.appConfig);
-    this.registerMcpCatalog(container);
-    await this.applyPlugins(container, inputs.appConfig, credentialTypes);
-    this.mergeConfigMcpServers(container, inputs.appConfig);
-    this.registerMcpRegistryFetcher(container);
-    const ownership = await this.registerRuntimeInfrastructure(container, inputs.appConfig);
-    this.registerWorkflowAuditWriter(container, inputs.appConfig);
-    this.registerCollectionsInfrastructure(container, inputs.appConfig);
-    this.registerCredentialTypes(container, credentialTypes);
-    this.registerControlPlaneCatalogFetcher(container);
-    this.synchronizeLiveWorkflowRepository(container, inputs.appConfig.workflows);
-    new CodemationTsyringeTypeInfoRegistrar(container).registerWorkflowDefinitions(inputs.appConfig.workflows ?? []);
+    BootTimer.measure("appContainer.registerCoreInfrastructure", () => this.registerCoreInfrastructure(container, inputs));
+    BootTimer.measure("appContainer.registerRepositoriesAndBuses", () => this.registerRepositoriesAndBuses(container));
+    BootTimer.measure("appContainer.registerApplicationServicesAndRoutes", () =>
+      this.registerApplicationServicesAndRoutes(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerOperationalInfrastructure", () =>
+      this.registerOperationalInfrastructure(container),
+    );
+    BootTimer.measure("appContainer.registerManagedAuthInfrastructure", () =>
+      this.registerManagedAuthInfrastructure(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerPairingInfrastructure", () =>
+      this.registerPairingInfrastructure(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerConfiguredRegistrations", () =>
+      this.registerConfiguredRegistrations(container, inputs.appConfig),
+    );
+    const credentialTypes = BootTimer.measure("appContainer.collectCredentialTypes", () =>
+      this.collectCredentialTypes(inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerMcpCatalog", () => this.registerMcpCatalog(container));
+    await BootTimer.measureAsync("appContainer.applyPlugins", () =>
+      this.applyPlugins(container, inputs.appConfig, credentialTypes),
+    );
+    BootTimer.measure("appContainer.mergeConfigMcpServers", () =>
+      this.mergeConfigMcpServers(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerMcpRegistryFetcher", () => this.registerMcpRegistryFetcher(container));
+    const ownership = await BootTimer.measureAsync("appContainer.registerRuntimeInfrastructure", () =>
+      this.registerRuntimeInfrastructure(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerWorkflowAuditWriter", () =>
+      this.registerWorkflowAuditWriter(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerCollectionsInfrastructure", () =>
+      this.registerCollectionsInfrastructure(container, inputs.appConfig),
+    );
+    BootTimer.measure("appContainer.registerCredentialTypes", () =>
+      this.registerCredentialTypes(container, credentialTypes),
+    );
+    BootTimer.measure("appContainer.registerControlPlaneCatalogFetcher", () =>
+      this.registerControlPlaneCatalogFetcher(container),
+    );
+    BootTimer.measure("appContainer.synchronizeLiveWorkflowRepository", () =>
+      this.synchronizeLiveWorkflowRepository(container, inputs.appConfig.workflows),
+    );
+    BootTimer.measure("appContainer.registerWorkflowDefinitions", () =>
+      new CodemationTsyringeTypeInfoRegistrar(container).registerWorkflowDefinitions(inputs.appConfig.workflows ?? []),
+    );
     container.resolve(BootRuntimeSnapshotHolder).set(this.createRuntimeSummary(inputs.appConfig));
     const lifecycle = new AppContainerLifecycle(container, ownership.ownedPrismaClient);
     container.registerInstance(AppContainerLifecycle, lifecycle);
-    await lifecycle.start();
+    await BootTimer.measureAsync("appContainer.lifecycleStart", () => lifecycle.start());
     return container;
   }
 

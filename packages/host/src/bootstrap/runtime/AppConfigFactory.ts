@@ -1,17 +1,18 @@
 import { CoreTokens } from "@codemation/core";
-import type { AppConfig, AppPluginLoadSummary } from "../../presentation/config/AppConfig";
+import type { AppConfig, AppPersistenceConfig, AppPluginLoadSummary } from "../../presentation/config/AppConfig";
 import { CodemationPluginPackageMetadata } from "../../presentation/config/CodemationPlugin";
 import type { NormalizedCodemationConfig } from "../../presentation/config/CodemationConfigNormalizer";
 import type {
   CodemationApplicationRuntimeConfig,
-  CodemationDatabaseKind,
   CodemationEventBusKind,
   CodemationSchedulerKind,
 } from "../../presentation/config/CodemationConfig";
+import { CodemationDatabaseUrlParser } from "../../infrastructure/persistence/CodemationDatabaseUrlParser";
 import path from "node:path";
 
 export class AppConfigFactory {
   private readonly pluginPackageMetadata = new CodemationPluginPackageMetadata();
+  private readonly databaseUrlParser = new CodemationDatabaseUrlParser();
 
   create(
     args: Readonly<{
@@ -23,7 +24,7 @@ export class AppConfigFactory {
     }>,
   ): AppConfig {
     const runtimeConfig = args.config.runtime ?? {};
-    const persistence = this.resolvePersistence(runtimeConfig, args.env, args.consumerRoot);
+    const persistence = this.resolvePersistence(args.env, args.consumerRoot);
     const redisUrl = runtimeConfig.eventBus?.redisUrl ?? args.env.REDIS_URL;
     const schedulerKind = this.resolveSchedulerKind(runtimeConfig, args.env, redisUrl);
     const eventBusKind = this.resolveEventBusKind(runtimeConfig, args.env, schedulerKind, redisUrl);
@@ -50,9 +51,7 @@ export class AppConfigFactory {
       hasConfiguredCredentialSessionServiceRegistration,
       log: args.config.log,
       engineExecutionLimits: runtimeConfig.engineExecutionLimits,
-      databaseUrl:
-        persistence.kind === "postgresql" ? persistence.databaseUrl : runtimeConfig.database?.url?.trim() || undefined,
-      database: runtimeConfig.database,
+      databaseUrl: persistence.kind === "postgresql" ? persistence.databaseUrl : undefined,
       persistence,
       scheduler: {
         kind: schedulerKind,
@@ -87,69 +86,25 @@ export class AppConfigFactory {
     return summaries;
   }
 
-  private resolvePersistence(
-    runtimeConfig: CodemationApplicationRuntimeConfig,
-    env: NodeJS.ProcessEnv,
-    consumerRoot: string,
-  ): AppConfig["persistence"] {
-    const database = runtimeConfig.database;
-    if (!database) {
-      return { kind: "none" };
-    }
-    const kind = this.resolveDatabaseKind(database.kind, database.url, env);
-    if (kind === "postgresql") {
-      const databaseUrl = database.url?.trim() ?? "";
-      if (!databaseUrl) {
-        throw new Error('runtime.database.kind is "postgresql" but no database URL was set (runtime.database.url).');
-      }
-      if (!databaseUrl.startsWith("postgresql://") && !databaseUrl.startsWith("postgres://")) {
-        throw new Error(
-          `runtime.database.url must be a postgresql:// or postgres:// URL when kind is postgresql. Received: ${databaseUrl}`,
-        );
-      }
-      return { kind: "postgresql", databaseUrl };
+  /**
+   * Database persistence is resolved exclusively from `CODEMATION_DATABASE_URL` (DSN format).
+   * Supported schemes: `sqlite://`, `pgsql://`, `postgresql://`, `postgres://`. When the env
+   * var is absent we default to a project-local SQLite file at
+   * `<consumerRoot>/.codemation/codemation.sqlite` — convenient for dev, explicit for prod.
+   *
+   * Config-based DB settings (`runtime.database` in codemation.config.ts) are intentionally
+   * not supported: keeping the resolver env-only lets the CLI skip the entire ~9s consumer
+   * config load on the migrations path and lets ops swap databases without touching code.
+   */
+  private resolvePersistence(env: NodeJS.ProcessEnv, consumerRoot: string): AppPersistenceConfig {
+    const url = env.CODEMATION_DATABASE_URL?.trim();
+    if (url) {
+      return this.databaseUrlParser.parse(url, consumerRoot);
     }
     return {
       kind: "sqlite",
-      databaseFilePath: this.resolveSqliteFilePath(database.sqliteFilePath, env, consumerRoot),
+      databaseFilePath: path.resolve(consumerRoot, ".codemation", "codemation.sqlite"),
     };
-  }
-
-  private resolveDatabaseKind(
-    configuredKind: CodemationDatabaseKind | undefined,
-    databaseUrl: string | undefined,
-    env: NodeJS.ProcessEnv,
-  ): CodemationDatabaseKind {
-    const kindFromEnv = env.CODEMATION_DATABASE_KIND?.trim();
-    if (kindFromEnv === "postgresql" || kindFromEnv === "sqlite") {
-      return kindFromEnv;
-    }
-    if (configuredKind) {
-      return configuredKind;
-    }
-    const trimmedUrl = databaseUrl?.trim();
-    if (trimmedUrl && (trimmedUrl.startsWith("postgresql://") || trimmedUrl.startsWith("postgres://"))) {
-      return "postgresql";
-    }
-    return "sqlite";
-  }
-
-  private resolveSqliteFilePath(
-    configuredPath: string | undefined,
-    env: NodeJS.ProcessEnv,
-    consumerRoot: string,
-  ): string {
-    const envPath = env.CODEMATION_SQLITE_FILE_PATH?.trim();
-    if (envPath && envPath.length > 0) {
-      return path.isAbsolute(envPath) ? envPath : path.resolve(consumerRoot, envPath);
-    }
-    const trimmedConfiguredPath = configuredPath?.trim();
-    if (trimmedConfiguredPath && trimmedConfiguredPath.length > 0) {
-      return path.isAbsolute(trimmedConfiguredPath)
-        ? trimmedConfiguredPath
-        : path.resolve(consumerRoot, trimmedConfiguredPath);
-    }
-    return path.resolve(consumerRoot, ".codemation", "codemation.sqlite");
   }
 
   private resolveSchedulerKind(

@@ -1,5 +1,3 @@
-import { CodemationConsumerConfigLoader } from "@codemation/host/server";
-
 import { ConsumerEnvLoader } from "../consumer/ConsumerEnvLoader";
 import { ListenPortResolver } from "../runtime/ListenPortResolver";
 import { DevelopmentConditionNodeOptions } from "../runtime/DevelopmentConditionNodeOptions";
@@ -31,7 +29,7 @@ export class DevSessionServicesBuilder {
       new DevSessionPortsResolver(listenPortResolver, loopbackPortAllocator, portConflictDescriber),
       loopbackPortAllocator,
       new DevHttpProbe(),
-      new NextHostEdgeSeedLoader(new CodemationConsumerConfigLoader(), consumerEnvLoader),
+      new NextHostEdgeSeedLoader(consumerEnvLoader),
       new DevNextHostEnvironmentBuilder(consumerEnvLoader, sourceMapNodeOptions),
       new NextHostPortAvailabilityGuard(portConflictDescriber),
       new WatchRootsResolver(),

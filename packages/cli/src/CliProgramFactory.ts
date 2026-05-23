@@ -95,8 +95,6 @@ export class CliProgramFactory {
     const databaseMigrationsApplyService = new DatabaseMigrationsApplyService(
       cliLogger,
       new UserAdminConsumerDotenvLoader(),
-      tsconfigPreparation,
-      new CodemationConsumerConfigLoader(),
       new ConsumerDatabaseConnectionResolver(),
       new CliDatabaseUrlDescriptor(),
       hostPackageRoot,
