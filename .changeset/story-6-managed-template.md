@@ -1,5 +1,5 @@
 ---
-"@codemation/create-codemation": minor
+"create-codemation": minor
 "@codemation/host": minor
 ---
 
